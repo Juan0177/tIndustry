@@ -182,6 +182,33 @@ public sealed class ConveyorGrid
         return true;
     }
 
+    public bool TryOrientToward(GridPosition from, GridPosition to)
+    {
+        if (!cells.TryGetValue(from, out var cell)
+            || !TryDirectionBetween(from, to, out var direction))
+        {
+            return false;
+        }
+
+        cell.Rotate(direction);
+        return true;
+    }
+
+    public static bool TryDirectionBetween(GridPosition from, GridPosition to, out Direction direction)
+    {
+        var deltaX = to.X - from.X;
+        var deltaY = to.Y - from.Y;
+        direction = (deltaX, deltaY) switch
+        {
+            (0, -1) => Direction.North,
+            (1, 0) => Direction.East,
+            (0, 1) => Direction.South,
+            (-1, 0) => Direction.West,
+            _ => default
+        };
+        return Math.Abs(deltaX) + Math.Abs(deltaY) == 1;
+    }
+
     public void Update(float fixedDeltaSeconds)
     {
         foreach (var cell in cells.Values)

@@ -13,9 +13,9 @@ internal static class FactoryGameApp
 {
     private const int ScreenWidth = 1240;
     private const int ScreenHeight = 760;
-    private const int GridWidth = 18;
-    private const int GridHeight = 11;
-    private const int TileSize = 48;
+    private const int GridWidth = 24;
+    private const int GridHeight = 15;
+    private const int TileSize = 36;
     private const int GridLeft = 28;
     private const int GridTop = 152;
     private const int PanelLeft = 916;
@@ -29,7 +29,7 @@ internal static class FactoryGameApp
         Direction.West
     ];
 
-    public static void Run(GameContent content, int? maximumFrames = null)
+    public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
     {
         var conveyorDefinition = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
         var conveyors = new ConveyorGrid();
@@ -44,6 +44,7 @@ internal static class FactoryGameApp
         var accumulator = 0f;
         var nextItemId = 1L;
         var renderedFrames = 0;
+        GridPosition? previousDragPosition = null;
 
         Raylib.SetConfigFlags(ConfigFlags.VSyncHint);
         Raylib.InitWindow(ScreenWidth, ScreenHeight, "tIndustry - Foundry Sector 7429");
@@ -53,7 +54,8 @@ internal static class FactoryGameApp
             && (maximumFrames is null || renderedFrames < maximumFrames))
         {
             accumulator += Math.Min(Raylib.GetFrameTime(), 0.1f);
-            HandleInput(world, conveyors, wallet, conveyorDefinition, ref tool, ref direction);
+            HandleInput(world, conveyors, wallet, conveyorDefinition, ref tool, ref direction,
+                ref previousDragPosition);
 
             while (accumulator >= FixedStep)
             {
@@ -62,6 +64,11 @@ internal static class FactoryGameApp
             }
 
             Draw(world, conveyors, wallet, conveyorDefinition, tool, direction);
+            if (screenshotPath is not null && renderedFrames == 1)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
+                Raylib.TakeScreenshot(screenshotPath);
+            }
             renderedFrames++;
         }
 
@@ -74,7 +81,8 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         ConveyorDefinition definition,
         ref BuildTool tool,
-        ref Direction direction)
+        ref Direction direction,
+        ref GridPosition? previousDragPosition)
     {
         var wheel = Raylib.GetMouseWheelMove();
         if (wheel != 0)
@@ -93,29 +101,61 @@ internal static class FactoryGameApp
         {
             if (TrySelectToolbar(mouse, ref tool, ref direction))
             {
+                previousDragPosition = null;
                 return;
             }
+        }
 
+        if (tool == BuildTool.Conveyor && Raylib.IsMouseButtonDown(MouseButton.Left))
+        {
             var cell = MouseCell(mouse);
             if (cell is not { } position)
             {
                 return;
             }
 
-            switch (tool)
+            if (previousDragPosition is not { } previous)
             {
-                case BuildTool.Conveyor when world.CanPlaceConveyor(position):
+                if (conveyors.Cells.TryGetValue(position, out var existing))
+                {
+                    existing.Rotate(direction);
+                }
+                else if (world.CanPlaceConveyor(position))
+                {
                     conveyors.TryPlace(position, direction, definition, wallet);
-                    break;
-                case BuildTool.Miner:
-                    world.TryPlaceMiner(position, direction, conveyors, wallet);
-                    break;
-                case BuildTool.Remove:
-                    if (!world.TryRemoveMiner(position, wallet))
-                    {
-                        conveyors.TryRemove(position, wallet);
-                    }
-                    break;
+                    ConnectAdjacentMiner(world, conveyors, position);
+                    ConnectToAdjacentCore(world, conveyors, position);
+                }
+
+                previousDragPosition = position;
+                return;
+            }
+
+            ExtendConveyorPath(world, conveyors, wallet, definition, previous, position, ref direction);
+            previousDragPosition = position;
+            return;
+        }
+
+        if (Raylib.IsMouseButtonReleased(MouseButton.Left))
+        {
+            previousDragPosition = null;
+        }
+
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+        {
+            var cell = MouseCell(mouse);
+            if (cell is not { } position)
+            {
+                return;
+            }
+
+            if (tool == BuildTool.Miner)
+            {
+                world.TryPlaceMiner(position, direction, conveyors, wallet);
+            }
+            else if (tool == BuildTool.Remove && !world.TryRemoveMiner(position, wallet))
+            {
+                conveyors.TryRemove(position, wallet);
             }
         }
 
@@ -125,6 +165,83 @@ internal static class FactoryGameApp
             if (cell is { } position && !world.TryRemoveMiner(position, wallet))
             {
                 conveyors.TryRemove(position, wallet);
+            }
+        }
+    }
+
+    private static void ExtendConveyorPath(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ConveyorDefinition definition,
+        GridPosition from,
+        GridPosition destination,
+        ref Direction selectedDirection)
+    {
+        var cursor = from;
+        while (cursor != destination)
+        {
+            var deltaX = destination.X - cursor.X;
+            var deltaY = destination.Y - cursor.Y;
+            var stepDirection = Math.Abs(deltaX) >= Math.Abs(deltaY)
+                ? deltaX > 0 ? Direction.East : Direction.West
+                : deltaY > 0 ? Direction.South : Direction.North;
+            var next = cursor.Step(stepDirection);
+
+            conveyors.TryOrientToward(cursor, next);
+
+            if (world.CoreTiles.Contains(next))
+            {
+                selectedDirection = stepDirection;
+                return;
+            }
+
+            if (!conveyors.Cells.ContainsKey(next))
+            {
+                if (!world.CanPlaceConveyor(next)
+                    || !conveyors.TryPlace(next, stepDirection, definition, wallet))
+                {
+                    return;
+                }
+
+                ConnectAdjacentMiner(world, conveyors, next);
+            }
+
+            cursor = next;
+            selectedDirection = stepDirection;
+        }
+
+        ConnectToAdjacentCore(world, conveyors, cursor);
+    }
+
+    private static void ConnectAdjacentMiner(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        GridPosition conveyorPosition)
+    {
+        foreach (var direction in Directions)
+        {
+            var neighbor = conveyorPosition.Step(direction);
+            if (world.IsMinerTile(neighbor)
+                && ConveyorGrid.TryDirectionBetween(neighbor, conveyorPosition, out var outputDirection))
+            {
+                conveyors.TryOrientToward(conveyorPosition, conveyorPosition.Step(outputDirection));
+            }
+        }
+    }
+
+    private static void ConnectToAdjacentCore(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        GridPosition conveyorPosition)
+    {
+        foreach (var direction in Directions)
+        {
+            var neighbor = conveyorPosition.Step(direction);
+            if (world.CoreTiles.Contains(neighbor))
+            {
+                conveyors.TryOrientToward(conveyorPosition, neighbor);
+                return;
             }
         }
     }
@@ -209,25 +326,29 @@ internal static class FactoryGameApp
                 var screenX = GridLeft + x * TileSize;
                 var screenY = GridTop + y * TileSize;
                 DrawTerrainTile(world.Terrain[position], position, screenX, screenY);
-
-                if (world.CoreTiles.Contains(position))
-                {
-                    DrawCoreTile(position, screenX, screenY);
-                }
-                else if (world.Miners.TryGetValue(position, out var miner))
-                {
-                    DrawMiner(miner, screenX, screenY, false);
-                }
-                else if (conveyors.Cells.TryGetValue(position, out var conveyor))
-                {
-                    DrawConveyor(conveyor, conveyors, world, screenX, screenY, false);
-                }
             }
         }
 
-        var coreOrigin = world.CoreTiles.OrderBy(position => position.X).ThenBy(position => position.Y).First();
-        Raylib.DrawText("CORE", GridLeft + coreOrigin.X * TileSize + 28, GridTop + coreOrigin.Y * TileSize + 38,
-            18, new Color(211, 237, 218, 255));
+        foreach (var conveyor in conveyors.Cells.Values)
+        {
+            DrawConveyor(
+                conveyor,
+                conveyors,
+                world,
+                GridLeft + conveyor.Position.X * TileSize,
+                GridTop + conveyor.Position.Y * TileSize,
+                false);
+        }
+
+        DrawCore(world);
+        foreach (var miner in world.Miners.Values)
+        {
+            DrawMiner(
+                miner,
+                GridLeft + miner.Position.X * TileSize,
+                GridTop + miner.Position.Y * TileSize,
+                false);
+        }
     }
 
     private static void DrawTerrainTile(TerrainTile tile, GridPosition position, int x, int y)
@@ -240,37 +361,65 @@ internal static class FactoryGameApp
             TerrainKind.Water => new Color(35, 77, 91, 255),
             _ => Color.Black
         };
-        Raylib.DrawRectangle(x, y, TileSize - 1, TileSize - 1, color);
+        Raylib.DrawRectangle(x, y, TileSize, TileSize, color);
+        Raylib.DrawRectangleLines(x, y, TileSize, TileSize, new Color(20, 27, 26, 38));
 
         var detail = (position.X * 17 + position.Y * 31) % 19;
         var detailColor = new Color(color.R + 7, color.G + 7, color.B + 6, 150);
-        Raylib.DrawRectangle(x + 7 + detail % 17, y + 8 + detail * 2 % 24, 3, 3, detailColor);
+        Raylib.DrawRectangle(x + 5 + detail % 14, y + 6 + detail * 2 % 19, 3, 3, detailColor);
 
         if (tile.Deposit == DepositKind.Iron)
         {
-            Raylib.DrawCircle(x + 15, y + 17, 6, new Color(181, 113, 64, 255));
-            Raylib.DrawCircle(x + 31, y + 28, 8, new Color(205, 132, 73, 255));
-            Raylib.DrawCircle(x + 17, y + 35, 4, new Color(236, 168, 91, 255));
+            Raylib.DrawCircle(x + 10, y + 12, 4, new Color(151, 88, 51, 255));
+            Raylib.DrawCircle(x + 24, y + 21, 6, new Color(205, 132, 73, 255));
+            Raylib.DrawCircle(x + 12, y + 27, 3, new Color(236, 168, 91, 255));
         }
     }
 
-    private static void DrawCoreTile(GridPosition position, int x, int y)
+    private static void DrawCore(FactoryWorld world)
     {
-        Raylib.DrawRectangle(x + 2, y + 2, TileSize - 5, TileSize - 5, new Color(45, 91, 66, 255));
-        Raylib.DrawRectangleLines(x + 4, y + 4, TileSize - 9, TileSize - 9, new Color(105, 202, 137, 255));
-        var pulse = 5f + MathF.Sin((float)Raylib.GetTime() * 3f + position.X) * 1.5f;
-        Raylib.DrawCircle(x + TileSize / 2, y + TileSize / 2, pulse, new Color(137, 235, 165, 255));
+        var left = world.CoreTiles.Min(position => position.X);
+        var top = world.CoreTiles.Min(position => position.Y);
+        var x = GridLeft + left * TileSize;
+        var y = GridTop + top * TileSize;
+        var size = TileSize * 4;
+        Raylib.DrawRectangle(x + 5, y + 7, size, size, new Color(11, 16, 15, 145));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(35, 60, 48, 255));
+        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(91, 184, 121, 255));
+        Raylib.DrawRectangle(x + 17, y + 17, size - 34, size - 34, new Color(27, 39, 35, 255));
+        Raylib.DrawRectangleLines(x + 20, y + 20, size - 40, size - 40, new Color(65, 109, 82, 255));
+
+        var pulse = 23f + MathF.Sin((float)Raylib.GetTime() * 3f) * 3f;
+        var center = new Vector2(x + size / 2f, y + size / 2f);
+        Raylib.DrawCircleV(center, pulse + 8, new Color(44, 104, 68, 255));
+        Raylib.DrawCircleV(center, pulse, new Color(103, 225, 139, 255));
+        Raylib.DrawCircleV(center, 12, new Color(210, 251, 218, 255));
+        Raylib.DrawText("CORE", x + 48, y + size - 34, 18, new Color(201, 232, 207, 255));
     }
 
-    private static void DrawMiner(MinerCell miner, int x, int y, bool preview)
+    private static void DrawMiner(MinerBuilding miner, int x, int y, bool preview)
     {
         var alpha = preview ? 150 : 255;
-        Raylib.DrawRectangle(x + 5, y + 5, 38, 38, new Color(41, 45, 44, alpha));
-        Raylib.DrawRectangleLines(x + 7, y + 7, 34, 34, new Color(229, 184, 91, alpha));
-        Raylib.DrawCircle(x + 24, y + 22, 9, new Color(117, 126, 121, alpha));
-        Raylib.DrawCircleLines(x + 24, y + 22, 9, new Color(224, 226, 214, alpha));
-        Raylib.DrawRectangle(x + 8, y + 38, (int)(32 * miner.Progress), 3, new Color(230, 166, 72, alpha));
-        DrawDirectionMark(new Vector2(x + 24, y + 24), miner.Direction, alpha);
+        var size = TileSize * MinerBuilding.Size;
+        Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(16, 20, 19, alpha));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(49, 53, 51, alpha));
+        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(222, 168, 76, alpha));
+        Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(30, 34, 33, alpha));
+
+        var center = new Vector2(x + size / 2f, y + size / 2f - 3);
+        var angle = (float)Raylib.GetTime() * 90f;
+        Raylib.DrawPoly(center, 8, 18, angle, new Color(116, 125, 120, alpha));
+        Raylib.DrawPolyLinesEx(center, 8, 18, angle, 3, new Color(225, 216, 186, alpha));
+        Raylib.DrawCircleV(center, 7, new Color(210, 143, 68, alpha));
+        Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
+        Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * miner.Progress), 4,
+            new Color(231, 166, 66, alpha));
+        var efficiencyLabel = $"{miner.Efficiency:P0}";
+        var efficiencyWidth = Raylib.MeasureText(efficiencyLabel, 12);
+        Raylib.DrawRectangle(x + (size - efficiencyWidth) / 2 - 4, y + size - 27,
+            efficiencyWidth + 8, 16, new Color(20, 24, 23, alpha));
+        Raylib.DrawText(efficiencyLabel, x + (size - efficiencyWidth) / 2, y + size - 25,
+            12, new Color(233, 190, 96, alpha));
     }
 
     private static void DrawConveyor(
@@ -283,26 +432,53 @@ internal static class FactoryGameApp
     {
         var alpha = preview ? 145 : 255;
         var center = new Vector2(x + TileSize / 2f, y + TileSize / 2f);
-        var connectedDirections = Directions.Where(candidate => IsConnected(conveyor, candidate, conveyors, world));
-        Raylib.DrawCircleV(center, 15, new Color(45, 50, 49, alpha));
-        foreach (var connectedDirection in connectedDirections)
+        Raylib.DrawRectangle(x + 8, y + 8, TileSize - 16, TileSize - 16, new Color(38, 43, 42, alpha));
+        foreach (var connectedDirection in Directions)
         {
-            var edge = center + DirectionVector(connectedDirection) * 24f;
-            Raylib.DrawLineEx(center, edge, 25f, new Color(45, 50, 49, alpha));
-            Raylib.DrawLineEx(center, edge, 3f, new Color(126, 139, 133, alpha));
+            if (IsConnected(conveyor, connectedDirection, conveyors, world))
+            {
+                DrawConveyorArm(center, connectedDirection, alpha);
+            }
         }
 
-        var output = center + DirectionVector(conveyor.Direction) * 24f;
-        Raylib.DrawLineEx(center, output, 25f, new Color(45, 50, 49, alpha));
-        Raylib.DrawLineEx(center, output, 3f, new Color(126, 139, 133, alpha));
+        DrawConveyorArm(center, conveyor.Direction, alpha);
+        Raylib.DrawRectangle(x + 9, y + 9, TileSize - 18, TileSize - 18, new Color(70, 77, 74, alpha));
         DrawDirectionMark(center, conveyor.Direction, alpha);
 
         foreach (var item in conveyor.Items)
         {
             var vector = DirectionVector(conveyor.Direction);
-            var itemPosition = center - vector * 24f + vector * (item.Progress * TileSize);
-            Raylib.DrawCircleV(itemPosition, 8, new Color(225, 137, 66, 255));
-            Raylib.DrawCircleLines((int)itemPosition.X, (int)itemPosition.Y, 8, new Color(255, 207, 128, 255));
+            var itemPosition = center - vector * 18f + vector * (item.Progress * TileSize);
+            Raylib.DrawRectangle((int)itemPosition.X - 5, (int)itemPosition.Y - 5, 10, 10,
+                new Color(211, 117, 55, 255));
+            Raylib.DrawRectangleLines((int)itemPosition.X - 5, (int)itemPosition.Y - 5, 10, 10,
+                new Color(255, 199, 112, 255));
+        }
+    }
+
+    private static void DrawConveyorArm(Vector2 center, Direction direction, int alpha)
+    {
+        var vector = DirectionVector(direction);
+        var edge = center + vector * (TileSize / 2f);
+        var horizontal = direction is Direction.East or Direction.West;
+        var left = (int)Math.Min(center.X, edge.X) - (horizontal ? 0 : 9);
+        var top = (int)Math.Min(center.Y, edge.Y) - (horizontal ? 9 : 0);
+        var width = horizontal ? (int)Math.Abs(edge.X - center.X) + 1 : 18;
+        var height = horizontal ? 18 : (int)Math.Abs(edge.Y - center.Y) + 1;
+        Raylib.DrawRectangle(left, top, width, height, new Color(38, 43, 42, alpha));
+
+        var innerLeft = horizontal ? left : left + 3;
+        var innerTop = horizontal ? top + 3 : top;
+        var innerWidth = horizontal ? width : width - 6;
+        var innerHeight = horizontal ? height - 6 : height;
+        Raylib.DrawRectangle(innerLeft, innerTop, innerWidth, innerHeight, new Color(84, 92, 88, alpha));
+
+        var phase = (float)(Raylib.GetTime() * 10 % 9);
+        for (var offset = -12f + phase; offset <= 12f; offset += 9f)
+        {
+            var mark = center + vector * offset;
+            var side = new Vector2(-vector.Y, vector.X) * 5f;
+            Raylib.DrawLineEx(mark - side, mark + side, 2, new Color(47, 53, 51, alpha));
         }
     }
 
@@ -313,6 +489,11 @@ internal static class FactoryGameApp
         FactoryWorld world)
     {
         var neighborPosition = conveyor.Position.Step(direction);
+        if (world.IsMinerTile(neighborPosition))
+        {
+            return true;
+        }
+
         if (world.CoreTiles.Contains(neighborPosition) && conveyor.OutputPosition == neighborPosition)
         {
             return true;
@@ -365,7 +546,8 @@ internal static class FactoryGameApp
         var previewColor = valid
             ? new Color(105, 225, 142, 125)
             : new Color(225, 92, 80, 125);
-        Raylib.DrawRectangle(x + 2, y + 2, TileSize - 5, TileSize - 5, previewColor);
+        var previewSize = tool == BuildTool.Miner ? TileSize * MinerBuilding.Size : TileSize;
+        Raylib.DrawRectangle(x + 2, y + 2, previewSize - 5, previewSize - 5, previewColor);
 
         if (tool == BuildTool.Conveyor && valid)
         {
@@ -374,7 +556,7 @@ internal static class FactoryGameApp
         }
         else if (tool == BuildTool.Miner && valid)
         {
-            DrawMiner(new MinerCell(position, direction), x, y, true);
+            DrawMiner(new MinerBuilding(position, world.CountCoveredDepositTiles(position)), x, y, true);
         }
     }
 

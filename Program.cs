@@ -26,7 +26,11 @@ if (args.Contains("--self-test"))
 
 if (!args.Contains("--console-demo"))
 {
-    FactoryGameApp.Run(content, args.Contains("--smoke-test") ? 3 : null);
+    var capture = args.Contains("--capture");
+    FactoryGameApp.Run(
+        content,
+        args.Contains("--smoke-test") || capture ? 3 : null,
+        capture ? Path.Combine("artifacts", "game-preview.png") : null);
     return;
 }
 
@@ -79,7 +83,7 @@ static void RunSelfTest(ConveyorDefinition definition)
     Assert(second.Items.Contains(item), "L'item deve entrare nella cella B.");
     Assert(item.Progress == 0f, "Il progresso deve ripartire da zero nella cella B.");
 
-    var miningWorld = new FactoryWorld(8, 5, 7429);
+    var miningWorld = new FactoryWorld(12, 8, 7429);
     var miningGrid = new ConveyorGrid();
     var miningWallet = new EconomyWallet(100, new Dictionary<string, int>
     {
@@ -88,15 +92,59 @@ static void RunSelfTest(ConveyorDefinition definition)
     var nextItemId = 2L;
     Assert(miningWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, miningGrid, miningWallet),
         "Il minatore deve poter essere piazzato sul giacimento garantito.");
-    Assert(miningGrid.TryPlace(new GridPosition(3, 2), Direction.East, definition, miningWallet),
+    Assert(miningGrid.TryPlace(new GridPosition(4, 2), Direction.East, definition, miningWallet),
         "Il nastro deve poter collegare il minatore al core.");
-    miningWorld.Update(1f, miningGrid, miningWallet, ref nextItemId);
-    miningWorld.Update(1f, miningGrid, miningWallet, ref nextItemId);
-    miningWorld.Update(1f, miningGrid, miningWallet, ref nextItemId);
+    Assert(miningGrid.TryPlace(new GridPosition(5, 2), Direction.East, definition, miningWallet),
+        "Il secondo nastro deve raggiungere il core 4x4.");
+    for (var tick = 0; tick < 210; tick++)
+    {
+        miningWorld.Update(1f / 30f, miningGrid, miningWallet, ref nextItemId);
+    }
     Assert(miningWorld.SoldItems == 1, "Il core deve incassare il minerale consegnato.");
-    Assert(miningWallet.Money == 78, "Il saldo deve includere costruzioni e vendita al core.");
+    Assert(miningWallet.Money == 73, "Il saldo deve includere costruzioni e vendita al core.");
 
-    Console.WriteLine("SELF-TEST OK: costi, trasporto, minatore e vendita al core verificati.");
+    var curvedWorld = new FactoryWorld(14, 10, 7429);
+    var curvedGrid = new ConveyorGrid();
+    var curvedWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 });
+    var curvedItemId = 10L;
+    Assert(curvedWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, curvedGrid, curvedWallet),
+        "Il minatore della linea curva deve essere piazzato.");
+    Assert(curvedGrid.TryPlace(new GridPosition(4, 2), Direction.South, definition, curvedWallet),
+        "Il primo tratto della curva deve essere piazzato.");
+    Assert(curvedGrid.TryPlace(new GridPosition(4, 3), Direction.East, definition, curvedWallet),
+        "La curva deve essere piazzata.");
+    Assert(curvedGrid.TryPlace(new GridPosition(5, 3), Direction.East, definition, curvedWallet),
+        "Il tratto centrale deve essere piazzato.");
+    Assert(curvedGrid.TryPlace(new GridPosition(6, 3), Direction.East, definition, curvedWallet),
+        "Il tratto verso il core deve essere piazzato.");
+    Assert(curvedGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, curvedWallet),
+        "L'ultimo tratto deve toccare il core.");
+    for (var tick = 0; tick < 360; tick++)
+    {
+        curvedWorld.Update(1f / 30f, curvedGrid, curvedWallet, ref curvedItemId);
+    }
+    Assert(curvedWorld.SoldItems > 0, "Una linea con curva deve consegnare minerale al core.");
+
+    var partialWorld = new FactoryWorld(12, 8, 7429);
+    var partialGrid = new ConveyorGrid();
+    var partialWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
+    var partialItemId = 100L;
+    Assert(partialWorld.CountCoveredDepositTiles(new GridPosition(0, 0)) == 1,
+        "Il giacimento parziale deve coprire una sola tile del footprint.");
+    Assert(partialWorld.TryPlaceMiner(new GridPosition(0, 0), Direction.East, partialGrid, partialWallet),
+        "Il minatore deve poter essere piazzato anche con una sola tile mineraria.");
+    var partialMiner = partialWorld.Miners[new GridPosition(0, 0)];
+    Assert(partialMiner.Efficiency == 0.25f, "Una tile mineraria su quattro deve dare efficienza 25%.");
+    Assert(partialGrid.TryPlace(new GridPosition(2, 0), Direction.East, definition, partialWallet),
+        "Il nastro deve poter ricevere dal minatore parziale.");
+    for (var tick = 0; tick < 120; tick++)
+    {
+        partialWorld.Update(1f / 30f, partialGrid, partialWallet, ref partialItemId);
+    }
+    Assert(partialMiner.Progress is > 0.49f and < 0.51f,
+        "Al 25% il minatore deve completare metà ciclo in quattro secondi.");
+
+    Console.WriteLine("SELF-TEST OK: trasporto, core e minatori a efficienza variabile verificati.");
 }
 
 static void Assert(bool condition, string message)

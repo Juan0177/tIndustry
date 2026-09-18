@@ -75,6 +75,18 @@ public sealed class TerrainMap
             map.tiles[position.X, position.Y] = new TerrainTile(TerrainKind.Stone, DepositKind.Iron);
         }
 
+        var partialDepositOrigin = new GridPosition(0, 0);
+        for (var y = 0; y < MinerBuilding.Size; y++)
+        {
+            for (var x = 0; x < MinerBuilding.Size; x++)
+            {
+                var position = new GridPosition(partialDepositOrigin.X + x, partialDepositOrigin.Y + y);
+                map.tiles[position.X, position.Y] = new TerrainTile(
+                    TerrainKind.Stone,
+                    position == partialDepositOrigin ? DepositKind.Iron : DepositKind.None);
+            }
+        }
+
         return map;
     }
 
@@ -103,18 +115,43 @@ public sealed class TerrainMap
     }
 }
 
-public sealed class MinerCell
+public sealed class MinerBuilding
 {
-    public MinerCell(GridPosition position, Direction direction)
+    public const int Size = 2;
+    public const int FootprintArea = Size * Size;
+
+    public MinerBuilding(GridPosition position, int coveredDepositTiles)
     {
         Position = position;
-        Direction = direction;
+        CoveredDepositTiles = coveredDepositTiles;
     }
 
     public GridPosition Position { get; }
-    public Direction Direction { get; }
+    public int CoveredDepositTiles { get; }
+    public float Efficiency => CoveredDepositTiles / (float)FootprintArea;
     public float Progress { get; internal set; }
-    public GridPosition OutputPosition => Position.Step(Direction);
+
+    public IEnumerable<GridPosition> OccupiedTiles()
+    {
+        for (var y = 0; y < Size; y++)
+        {
+            for (var x = 0; x < Size; x++)
+            {
+                yield return new GridPosition(Position.X + x, Position.Y + y);
+            }
+        }
+    }
+
+    public IEnumerable<GridPosition> OutputTiles()
+    {
+        for (var offset = 0; offset < Size; offset++)
+        {
+            yield return new GridPosition(Position.X + offset, Position.Y - 1);
+            yield return new GridPosition(Position.X + offset, Position.Y + Size);
+            yield return new GridPosition(Position.X - 1, Position.Y + offset);
+            yield return new GridPosition(Position.X + Size, Position.Y + offset);
+        }
+    }
 }
 
 public sealed class FactoryWorld
@@ -129,33 +166,45 @@ public sealed class FactoryWorld
         new ResourceAmount("iron-plate", MinerPlateCost)
     ];
 
-    private readonly Dictionary<GridPosition, MinerCell> miners = [];
+    private readonly Dictionary<GridPosition, MinerBuilding> miners = [];
+    private readonly Dictionary<GridPosition, MinerBuilding> minerByTile = [];
 
     public FactoryWorld(int width, int height, int seed)
     {
-        CoreTiles = new HashSet<GridPosition>
+        var coreLeft = width - 6;
+        var coreTop = height / 2 - 2;
+        var coreTiles = new HashSet<GridPosition>();
+        for (var y = 0; y < 4; y++)
         {
-            new(width - 4, height / 2 - 1),
-            new(width - 3, height / 2 - 1),
-            new(width - 4, height / 2),
-            new(width - 3, height / 2)
-        };
+            for (var x = 0; x < 4; x++)
+            {
+                coreTiles.Add(new GridPosition(coreLeft + x, coreTop + y));
+            }
+        }
+        CoreTiles = coreTiles;
         Terrain = TerrainMap.Generate(width, height, seed, CoreTiles);
     }
 
     public TerrainMap Terrain { get; }
-    public IReadOnlyDictionary<GridPosition, MinerCell> Miners => miners;
+    public IReadOnlyDictionary<GridPosition, MinerBuilding> Miners => miners;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
 
     public bool CanPlaceConveyor(GridPosition position) =>
-        Terrain[position].IsBuildable && !CoreTiles.Contains(position) && !miners.ContainsKey(position);
+        Terrain[position].IsBuildable && !CoreTiles.Contains(position) && !minerByTile.ContainsKey(position);
 
     public bool CanPlaceMiner(GridPosition position, ConveyorGrid conveyors) =>
-        Terrain[position].Deposit == DepositKind.Iron
-        && !CoreTiles.Contains(position)
-        && !miners.ContainsKey(position)
-        && !conveyors.Cells.ContainsKey(position);
+        Footprint(position).All(tile =>
+            IsInside(tile)
+            && Terrain[tile].IsBuildable
+            && !CoreTiles.Contains(tile)
+            && !minerByTile.ContainsKey(tile)
+            && !conveyors.Cells.ContainsKey(tile))
+        && CountCoveredDepositTiles(position) > 0;
+
+    public int CountCoveredDepositTiles(GridPosition position) =>
+        Footprint(position).Count(tile =>
+            IsInside(tile) && Terrain[tile].Deposit == DepositKind.Iron);
 
     public bool TryPlaceMiner(
         GridPosition position,
@@ -169,15 +218,26 @@ public sealed class FactoryWorld
             return false;
         }
 
-        miners.Add(position, new MinerCell(position, direction));
+        var miner = new MinerBuilding(position, CountCoveredDepositTiles(position));
+        miners.Add(position, miner);
+        foreach (var tile in miner.OccupiedTiles())
+        {
+            minerByTile.Add(tile, miner);
+        }
         return true;
     }
 
     public bool TryRemoveMiner(GridPosition position, EconomyWallet wallet)
     {
-        if (!miners.Remove(position))
+        if (!minerByTile.TryGetValue(position, out var miner))
         {
             return false;
+        }
+
+        miners.Remove(miner.Position);
+        foreach (var tile in miner.OccupiedTiles())
+        {
+            minerByTile.Remove(tile);
         }
 
         wallet.AddMoney(MinerMoneyCost);
@@ -189,13 +249,28 @@ public sealed class FactoryWorld
     {
         foreach (var miner in miners.Values)
         {
-            miner.Progress = Math.Min(miner.Progress + deltaSeconds / MiningDurationSeconds, 1f);
-            if (miner.Progress >= 1f
-                && conveyors.Cells.TryGetValue(miner.OutputPosition, out var output)
-                && output.Items.Count < output.Definition.Capacity
-                && output.TryInsert(new TransportedItem(nextItemId, "iron-ore")))
+            miner.Progress = Math.Min(
+                miner.Progress + deltaSeconds * miner.Efficiency / MiningDurationSeconds,
+                1f);
+            if (miner.Progress < 1f)
             {
-                nextItemId++;
+                continue;
+            }
+
+            var produced = false;
+            foreach (var outputPosition in miner.OutputTiles())
+            {
+                if (conveyors.Cells.TryGetValue(outputPosition, out var output)
+                    && output.Items.Count < output.Definition.Capacity
+                    && output.TryInsert(new TransportedItem(nextItemId, "iron-ore")))
+                {
+                    nextItemId++;
+                    produced = true;
+                }
+            }
+
+            if (produced)
+            {
                 miner.Progress = 0f;
             }
         }
@@ -208,6 +283,26 @@ public sealed class FactoryWorld
                 conveyor.RemoveOutput();
                 wallet.AddMoney(IronOreSalePrice);
                 SoldItems++;
+            }
+        }
+    }
+
+    public bool IsMinerTile(GridPosition position) => minerByTile.ContainsKey(position);
+
+    public bool TryGetMinerAt(GridPosition position, out MinerBuilding miner) =>
+        minerByTile.TryGetValue(position, out miner!);
+
+    private bool IsInside(GridPosition position) =>
+        position.X >= 0 && position.X < Terrain.Width
+        && position.Y >= 0 && position.Y < Terrain.Height;
+
+    private static IEnumerable<GridPosition> Footprint(GridPosition origin)
+    {
+        for (var y = 0; y < MinerBuilding.Size; y++)
+        {
+            for (var x = 0; x < MinerBuilding.Size; x++)
+            {
+                yield return new GridPosition(origin.X + x, origin.Y + y);
             }
         }
     }
