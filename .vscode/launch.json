@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "tIndustry: Demo",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build tIndustry",
+      "program": "${workspaceFolder}/bin/Debug/net10.0/TIndustry.Logistics.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "tIndustry: Self-test",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build tIndustry",
+      "program": "${workspaceFolder}/bin/Debug/net10.0/TIndustry.Logistics.dll",
+      "args": ["--self-test"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "conveyors": [
+    {
+      "id": "conveyor-basic",
+      "tier": 1,
+      "rateItemsPerSecond": 0.5,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 5,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 1 }
+      ],
+      "unlock": null
+    },
+    {
+      "id": "conveyor-fast",
+      "tier": 2,
+      "rateItemsPerSecond": 1.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 15,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 2 },
+        { "itemId": "copper-wire", "amount": 1 }
+      ],
+      "unlock": {
+        "money": 250,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 50 }
+        ]
+      }
+    }
+  ],
+  "recipes": [
+    {
+      "id": "smelt-iron",
+      "durationSeconds": 2.0,
+      "inputs": [
+        { "itemId": "iron-ore", "amount": 2 }
+      ],
+      "outputs": [
+        { "itemId": "iron-plate", "amount": 1 }
+      ]
+    }
+  ]
+}

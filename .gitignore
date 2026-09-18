@@ -1,0 +1,31 @@
+# .NET build output
+bin/
+obj/
+out/
+
+# IDE and user settings
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test and coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Logs and crash dumps
+*.log
+*.dmp
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Keep shared VS Code launch/build configuration
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
