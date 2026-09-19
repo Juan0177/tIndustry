@@ -5,6 +5,22 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.7] — 2026-09-19
+
+Patch UX sopra **0.2.6**: bottone upgrade **CORE** mostra costo completo (×N lastre + $), come il footer dock. ([#35](https://github.com/Juan0177/tIndustry/pull/35))
+
+### Aggiunto / migliorato
+
+- **Fabbrica / CORE**: label Peak-style `CORE · ×N [icona lastre] · +$cost`; toast di afford cita `×N lastre` (non più "+ lastre" vago) ([#35](https://github.com/Juan0177/tIndustry/pull/35))
+- **Docs**: README allineato a 0.2.7
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.6] — 2026-09-19
 
 Patch UX sopra **0.2.5** (Campagna già inclusa): polish Mercato/dock, ricette Input/Output nel footer, fix conteggi Fabbrica e upgrade CORE. ([#31](https://github.com/Juan0177/tIndustry/pull/31), [#32](https://github.com/Juan0177/tIndustry/pull/32), [#33](https://github.com/Juan0177/tIndustry/pull/33))
