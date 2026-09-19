@@ -565,7 +565,53 @@ static void RunSelfTest(GameContent content)
     }
     Assert(stressWorld.SoldItems >= 1, "Una linea lunga deve consegnare al core senza soft-lock.");
 
-    Console.WriteLine("SELF-TEST OK: trasporto, forno, ricerca, economia, logistica Phase 5 e save v5 verificati.");
+    // Phase 6 — power stub, generator, save v6.
+    Assert(content.FindStructure("generator") is { IsStub: false },
+        "Il generatore deve essere un edificio costruibile.");
+    Assert(market.GetSellPrice("copper-wire") == 16,
+        "Bilanciamento: filo di rame a $16.");
+    var powerWorld = new FactoryWorld(16, 10, 7429);
+    Assert(powerWorld.PowerCapacity >= FactoryWorld.CorePowerCapacity,
+        "Il core fornisce potenza base.");
+    var powerGrid = new ConveyorGrid();
+    var powerWallet = new EconomyWallet(500, new Dictionary<string, int> { ["iron-plate"] = 80 });
+    var powerResearch = ResearchState.CreateNew(content);
+    var generatorTech = content.FindStructure("generator")!;
+    Assert(powerResearch.TryUnlock(generatorTech, powerWallet), "Generatore sbloccabile.");
+    var generatorBuilding = content.GetBuildingOrDefault("generator");
+    Assert(powerWorld.TryPlaceGenerator(new GridPosition(2, 2), powerGrid, powerWallet, generatorBuilding),
+        "Generatore piazzabile.");
+    Assert(powerWorld.Generators.Count == 1, "Un generatore registrato.");
+    Assert(powerWorld.PowerCapacity > FactoryWorld.CorePowerCapacity,
+        "Il generatore aumenta la capacità potenza.");
+    var powerItemId = 7000L;
+    for (var tick = 0; tick < 60; tick++)
+    {
+        powerWorld.Update(1f / 30f, powerGrid, powerWallet, ref powerItemId, market);
+    }
+    Assert(powerWorld.PowerBuffer > 0, "Il buffer potenza si ricarica.");
+    Assert(powerWorld.TrySpendPower(1f), "Si può consumare potenza.");
+
+    // Seeded worlds differ.
+    var seedA = new FactoryWorld(64, 32, FactoryGameApp.DefaultSeed);
+    var seedB = new FactoryWorld(64, 32, 1337);
+    Assert(seedA.Seed == FactoryGameApp.DefaultSeed && seedB.Seed == 1337,
+        "I seed di scenario devono produrre mondi distinti.");
+
+    var powerSession = new EconomySession(powerWallet.Money);
+    var powerCamera = new WorldCamera(0, 0, 1f);
+    var powerCaptured = GameSaveStore.Capture(
+        powerWorld, powerGrid, powerWallet, powerCamera, powerResearch, powerSession, powerItemId);
+    Assert(powerCaptured.Version == 6 && powerCaptured.Generators.Count == 1,
+        "Save v6 deve includere generatori.");
+    var powerSlot = "self-test-phase6-power";
+    GameSaveStore.Save(powerSlot, powerCaptured);
+    var powerRestored = GameSaveStore.Restore(GameSaveStore.Load(powerSlot), content);
+    Assert(powerRestored.World.Generators.Count == 1, "Generatori devono sopravvivere al reload.");
+    Assert(powerRestored.Research.IsUnlocked("generator"), "Unlock generatore dopo reload.");
+    GameSaveStore.Delete(powerSlot);
+
+    Console.WriteLine("SELF-TEST OK: Phase 1–6 (logistica, economia, potenza, seed) verificati.");
 
     // Settings persistence (FPS / resource overlay toggles).
     var settingsPath = GameSettings.SettingsPath;
