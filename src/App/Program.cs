@@ -939,6 +939,29 @@ static void RunSelfTest(GameContent content)
                     "Click CORE dopo upgrade resta gestito.");
                 Assert(againMsg is not null && againMsg.Contains("già", StringComparison.OrdinalIgnoreCase),
                     "CORE già potenziato deve spiegare perché non si ripete.");
+
+                // CORE cost label: money + explicit plate qty (never vague "+ lastre").
+                var plateAmt = economy.CoreUpgrade.BuildCost
+                    .First(m => m.ItemId == "iron-plate").Amount;
+                Assert(FactoryGameApp.FormatCoreUpgradeCostText(economy.CoreUpgrade)
+                        == $"CORE ${economy.CoreUpgrade.MoneyCost} + ×{plateAmt} lastre",
+                    "Label CORE deve includere $ + ×N lastre dalla content definition.");
+                Assert(FactoryGameApp.FormatCoreUpgradeNeedMessage(economy.CoreUpgrade)
+                        .Contains($"×{plateAmt} lastre", StringComparison.Ordinal),
+                    "Toast CORE insufficiente deve citare ×N lastre, non solo 'lastre'.");
+                Assert(plateAmt == 20,
+                    "economy.CoreUpgrade deve richiedere 20 lastre (content).");
+
+                var brokeWallet = new EconomyWallet(0, new Dictionary<string, int>());
+                var brokeWorld = new FactoryWorld(64, 48, 4243);
+                var brokeSession = new EconomySession(0);
+                Assert(FactoryGameApp.TryClickCoreUpgradeForTest(
+                        brokeWorld, brokeWallet, brokeSession, economy, out var needMsg),
+                    "Click CORE senza fondi deve restare gestito.");
+                Assert(needMsg is not null
+                        && needMsg.Contains($"×{plateAmt} lastre", StringComparison.Ordinal)
+                        && needMsg.Contains($"${economy.CoreUpgrade.MoneyCost}", StringComparison.Ordinal),
+                    "Toast fallimento CORE: $ + ×N lastre.");
             }
             finally
             {

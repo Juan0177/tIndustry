@@ -5180,10 +5180,130 @@ internal static class FactoryGameApp
 
         var upgrade = economy.CoreUpgrade;
         var upgraded = world.CoreUpgradeLevel > 0;
-        var upgradeLabel = upgraded
-            ? $"CORE LV{world.CoreUpgradeLevel}"
-            : $"CORE ${upgrade.MoneyCost}";
-        DrawButton(upgradeX, upgradeY, upgradeW, upgradeH, upgradeLabel, upgraded);
+        if (upgraded)
+        {
+            DrawButton(upgradeX, upgradeY, upgradeW, upgradeH, $"CORE LV{world.CoreUpgradeLevel}", active: true);
+        }
+        else
+        {
+            DrawCoreUpgradeButton(upgradeX, upgradeY, upgradeW, upgradeH, upgrade, wallet);
+        }
+    }
+
+    /// <summary>
+    /// Text label for CORE cost (toast / self-test): money + explicit plate qty, never vague "+ lastre".
+    /// </summary>
+    internal static string FormatCoreUpgradeCostText(CoreUpgradeDefinition upgrade)
+    {
+        var mats = FormatCoreUpgradeMaterialsText(upgrade.BuildCost);
+        return string.IsNullOrEmpty(mats)
+            ? $"CORE ${upgrade.MoneyCost}"
+            : $"CORE ${upgrade.MoneyCost} + {mats}";
+    }
+
+    /// <summary>Afford-failure toast: includes ×N for every required material.</summary>
+    internal static string FormatCoreUpgradeNeedMessage(CoreUpgradeDefinition upgrade)
+    {
+        var mats = FormatCoreUpgradeMaterialsText(upgrade.BuildCost);
+        return string.IsNullOrEmpty(mats)
+            ? $"CORE: servono ${upgrade.MoneyCost}."
+            : $"CORE: servono ${upgrade.MoneyCost} + {mats}.";
+    }
+
+    /// <summary>×N lastre (iron-plate) / ×N itemId for other materials — always with quantity.</summary>
+    internal static string FormatCoreUpgradeMaterialsText(IReadOnlyList<ResourceAmount> buildCost)
+    {
+        var parts = buildCost
+            .Where(m => m.Amount > 0)
+            .Select(m => m.ItemId switch
+            {
+                "iron-plate" => $"×{m.Amount} lastre",
+                "copper-wire" => $"×{m.Amount} fili",
+                "iron-ore" => $"×{m.Amount} ferro",
+                "copper-ore" => $"×{m.Amount} rame",
+                _ => $"×{m.Amount} {m.ItemId}"
+            });
+        return string.Join(" + ", parts);
+    }
+
+    /// <summary>
+    /// Peak-style CORE upgrade affordance: CORE · ×N [icon] · +$cost (matches dock cost footer).
+    /// Falls back to compact text if the icon row would overflow the button.
+    /// </summary>
+    private static void DrawCoreUpgradeButton(
+        int x, int y, int width, int height, CoreUpgradeDefinition upgrade, EconomyWallet wallet)
+    {
+        Raylib.DrawRectangle(x, y, width, height, new Color(45, 52, 50, 255));
+
+        const int fontSize = 12;
+        var iconSize = Math.Min(UiTheme.S(14), Math.Max(10, height - UiTheme.S(8)));
+        var sep = " · ";
+        var sepW = MeasureUiText(sep, fontSize);
+        const string name = "CORE";
+        var nameW = MeasureUiText(name, fontSize);
+        var moneyLabel = $"+${upgrade.MoneyCost}";
+        var moneyW = MeasureUiText(moneyLabel, fontSize);
+
+        var matChunks = new List<(string Qty, int QtyW, string ItemId, int Amount)>();
+        var matsW = 0;
+        foreach (var mat in upgrade.BuildCost.Where(m => m.Amount > 0))
+        {
+            var qty = $"×{mat.Amount}";
+            var qw = MeasureUiText(qty, fontSize);
+            matChunks.Add((qty, qw, mat.ItemId, mat.Amount));
+            matsW += sepW + qw + UiTheme.S(2) + iconSize;
+        }
+
+        var totalW = nameW + matsW + sepW + moneyW;
+        var pad = UiTheme.S(4);
+        if (totalW + pad * 2 > width || matChunks.Count == 0)
+        {
+            // Compact Italian text when icons won't fit (or no materials).
+            var fallback = FormatCoreUpgradeCostText(upgrade);
+            var tw = MeasureUiText(fallback, fontSize);
+            var text = tw + pad * 2 <= width
+                ? fallback
+                : TruncateUiText(fallback, fontSize, width - pad * 2);
+            tw = MeasureUiText(text, fontSize);
+            DrawUiText(
+                text,
+                x + Math.Max(pad, (width - tw) / 2),
+                y + Math.Max(2, (height - UiTheme.S(fontSize)) / 2),
+                fontSize,
+                new Color(215, 219, 210, 255));
+            return;
+        }
+
+        var cursor = x + Math.Max(pad, (width - totalW) / 2);
+        var textY = y + Math.Max(2, (height - UiTheme.S(fontSize)) / 2);
+        var iconY = y + Math.Max(2, (height - iconSize) / 2);
+
+        DrawUiText(name, cursor, textY, fontSize, new Color(215, 219, 210, 255));
+        cursor += nameW;
+
+        var canAfford = wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost);
+        foreach (var (qty, qw, itemId, amount) in matChunks)
+        {
+            DrawUiText(sep, cursor, textY, fontSize, UiTheme.TextMuted);
+            cursor += sepW;
+            var qtyColor = wallet.MaterialCount(itemId) >= amount
+                ? new Color(215, 219, 210, 255)
+                : new Color(220, 120, 100, 255);
+            DrawUiText(qty, cursor, textY, fontSize, qtyColor);
+            cursor += qw + UiTheme.S(2);
+            Raylib.DrawRectangle(cursor - 1, iconY - 1, iconSize + 2, iconSize + 2, new Color(24, 28, 30, 255));
+            UiTheme.DrawItemIcon(itemId, cursor, iconY, iconSize);
+            cursor += iconSize;
+        }
+
+        DrawUiText(sep, cursor, textY, fontSize, UiTheme.TextMuted);
+        cursor += sepW;
+        DrawUiText(
+            moneyLabel,
+            cursor,
+            textY,
+            fontSize,
+            canAfford ? UiTheme.MoneyGreen : new Color(220, 120, 100, 255));
     }
 
     /// <summary>
@@ -5340,7 +5460,7 @@ internal static class FactoryGameApp
         var upgrade = economy.CoreUpgrade;
         if (!wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost))
         {
-            statusMessage = $"CORE: servono ${upgrade.MoneyCost} + lastre.";
+            statusMessage = FormatCoreUpgradeNeedMessage(upgrade);
             return true;
         }
 
