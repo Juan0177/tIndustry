@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using Raylib_cs;
 using TIndustry.Logistics;
@@ -3333,6 +3334,7 @@ internal static class FactoryGameApp
         DrawBuildDock(
             wallet, research, selectedConveyor, direction, tool,
             basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            smeltRecipe, wireRecipe,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
 
         if (!string.IsNullOrEmpty(statusMessage))
@@ -3663,6 +3665,8 @@ internal static class FactoryGameApp
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition bridgeConveyor,
+        RecipeDefinition smeltRecipe,
+        RecipeDefinition wireRecipe,
         BuildingDefinition minerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
@@ -3777,6 +3781,7 @@ internal static class FactoryGameApp
             dockX, barY, dockW, UiTheme.DockHoverBarHeight,
             barEntry, wallet, research,
             basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            smeltRecipe, wireRecipe,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
     }
 
@@ -3809,7 +3814,8 @@ internal static class FactoryGameApp
     }
 
     /// <summary>
-    /// Peak-style dock footer: creative name · material icons/qty · +$cost (or clear remove label).
+    /// Dock footer: recipe usage (Input / Output / time) when the held block crafts,
+    /// then Peak-style cost row (name · materials · +$cost).
     /// </summary>
     private static void DrawDockCostBar(
         int barX,
@@ -3824,6 +3830,8 @@ internal static class FactoryGameApp
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition bridgeConveyor,
+        RecipeDefinition smeltRecipe,
+        RecipeDefinition wireRecipe,
         BuildingDefinition minerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
@@ -3856,12 +3864,112 @@ internal static class FactoryGameApp
             return;
         }
 
+        var hasRecipe = TryResolveDockEntryRecipe(entry, smeltRecipe, wireRecipe, out var recipe);
+        var pad = UiTheme.S(6);
+        var usageH = hasRecipe ? UiTheme.S(36) : 0;
+        var costY = barY + (hasRecipe ? usageH : 0);
+        var costH = barH - (hasRecipe ? usageH : 0);
+
+        if (hasRecipe && recipe is not null)
+        {
+            DrawDockRecipeUsage(barX + pad, barY + UiTheme.S(2), barW - pad * 2, usageH - UiTheme.S(4), recipe);
+            Raylib.DrawRectangle(barX + UiTheme.S(4), costY, barW - UiTheme.S(8), 1, UiTheme.PanelBorder);
+        }
+
+        DrawDockCostRow(
+            barX, costY, barW, costH,
+            entry, wallet,
+            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            hasRecipe ? entry.Hint : null);
+    }
+
+    /// <summary>
+    /// Two-line Peak-style recipe: Input ×N [icon]… / Output ×N [icon] / Ns
+    /// </summary>
+    private static void DrawDockRecipeUsage(int x, int y, int w, int h, RecipeDefinition recipe)
+    {
+        const int fontSize = 11;
+        var iconSize = UiTheme.S(14);
+        var lineH = Math.Max(UiTheme.S(fontSize) + 2, iconSize + 2);
+        var inY = y;
+        var outY = y + lineH;
+
+        DrawUiText("Input", x, inY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.TextMuted);
+        var cursor = x + MeasureUiText("Input", fontSize) + UiTheme.S(6);
+        foreach (var input in recipe.Inputs.Where(m => m.Amount > 0))
+        {
+            cursor = DrawDockQtyIcon(cursor, inY, lineH, fontSize, iconSize, input.Amount, input.ItemId);
+            cursor += UiTheme.S(6);
+        }
+
+        DrawUiText("Output", x, outY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.TextMuted);
+        cursor = x + MeasureUiText("Output", fontSize) + UiTheme.S(6);
+        foreach (var output in recipe.Outputs.Where(m => m.Amount > 0))
+        {
+            cursor = DrawDockQtyIcon(cursor, outY, lineH, fontSize, iconSize, output.Amount, output.ItemId);
+            cursor += UiTheme.S(6);
+        }
+
+        var duration = FormatRecipeDuration(recipe.DurationSeconds);
+        var durW = MeasureUiText(duration, fontSize);
+        var durX = Math.Max(cursor, x + w - durW);
+        DrawUiText(duration, durX, outY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.Accent);
+    }
+
+    private static int DrawDockQtyIcon(
+        int x, int rowY, int lineH, int fontSize, int iconSize, int amount, string itemId)
+    {
+        var qty = $"×{amount}";
+        var qtyW = MeasureUiText(qty, fontSize);
+        var textY = rowY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2);
+        var iconY = rowY + Math.Max(0, (lineH - iconSize) / 2);
+        DrawUiText(qty, x, textY, fontSize, UiTheme.TextPrimary);
+        x += qtyW + UiTheme.S(2);
+        Raylib.DrawRectangle(x - 1, iconY - 1, iconSize + 2, iconSize + 2, new Color(24, 28, 30, 255));
+        UiTheme.DrawItemIcon(itemId, x, iconY, iconSize);
+        return x + iconSize;
+    }
+
+    private static string FormatRecipeDuration(float seconds)
+    {
+        if (seconds <= 0)
+        {
+            return "";
+        }
+
+        // Prefer compact "2s" / "1.5s" without trailing .0
+        var rounded = Math.Round(seconds, 1);
+        var label = Math.Abs(rounded - Math.Truncate(rounded)) < 0.05
+            ? ((int)Math.Truncate(rounded)).ToString(CultureInfo.InvariantCulture)
+            : rounded.ToString("0.#", CultureInfo.InvariantCulture);
+        return $" / {label}s";
+    }
+
+    private static void DrawDockCostRow(
+        int barX,
+        int barY,
+        int barW,
+        int barH,
+        UiTheme.DockEntry entry,
+        EconomyWallet wallet,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition junctionConveyor,
+        ConveyorDefinition splitterConveyor,
+        ConveyorDefinition bridgeConveyor,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
+        BuildingDefinition assemblerBuilding,
+        BuildingDefinition generatorBuilding,
+        string? usageHintFallback)
+    {
         if (!TryResolveDockEntryCost(
                 entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
                 minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
                 out var money, out var materials))
         {
-            var hint = TruncateUiText(entry.Hint ?? entry.Label, 12, barW - UiTheme.S(16));
+            var hint = TruncateUiText(usageHintFallback ?? entry.Hint ?? entry.Label, 12, barW - UiTheme.S(16));
             var hw = MeasureUiText(hint, 12);
             DrawUiText(hint, barX + Math.Max(4, (barW - hw) / 2),
                 barY + Math.Max(4, (barH - UiTheme.S(12)) / 2), 12, UiTheme.TextMuted);
@@ -3913,6 +4021,40 @@ internal static class FactoryGameApp
         x += sepW;
         DrawUiText(moneyLabel, x, textY, fontSize,
             canAfford ? UiTheme.MoneyGreen : new Color(220, 120, 100, 255));
+    }
+
+    /// <summary>Self-test: resolve crafting recipe for a dock entry id.</summary>
+    internal static bool TryResolveDockEntryRecipeForTest(
+        string entryId,
+        RecipeDefinition smeltRecipe,
+        RecipeDefinition wireRecipe,
+        out RecipeDefinition? recipe)
+    {
+        var entry = UiTheme.BuildCategories
+            .SelectMany(UiTheme.EntriesFor)
+            .FirstOrDefault(e => e.Id == entryId);
+        if (entry is null)
+        {
+            recipe = null;
+            return false;
+        }
+
+        return TryResolveDockEntryRecipe(entry, smeltRecipe, wireRecipe, out recipe);
+    }
+
+    private static bool TryResolveDockEntryRecipe(
+        UiTheme.DockEntry entry,
+        RecipeDefinition smeltRecipe,
+        RecipeDefinition wireRecipe,
+        out RecipeDefinition? recipe)
+    {
+        recipe = entry.Id switch
+        {
+            "smelter" => smeltRecipe,
+            "assembler" => wireRecipe,
+            _ => null
+        };
+        return recipe is not null;
     }
 
     /// <summary>Self-test / layout helper: resolve money + materials for a dock entry id.</summary>

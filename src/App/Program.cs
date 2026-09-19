@@ -971,6 +971,24 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("generator"),
                 out _, out _),
             "Dock cost bar: Rimuovi non espone costi finti.");
+        var smeltRecipeForDock = content.Recipes.Single(r => r.Id == "smelt-iron");
+        var wireRecipeForDock = content.Recipes.Single(r => r.Id == "craft-copper-wire");
+        Assert(FactoryGameApp.TryResolveDockEntryRecipeForTest(
+                "smelter", smeltRecipeForDock, wireRecipeForDock, out var dockSmelt)
+            && dockSmelt is not null
+            && dockSmelt.Inputs.Any(i => i.ItemId == "iron-ore" && i.Amount == 2)
+            && dockSmelt.Outputs.Any(o => o.ItemId == "iron-plate" && o.Amount == 1)
+            && Math.Abs(dockSmelt.DurationSeconds - 2f) < 0.01f,
+            "Dock recipe: Forno mostra Input ×2 ore → Output ×1 lastra / 2s.");
+        Assert(FactoryGameApp.TryResolveDockEntryRecipeForTest(
+                "assembler", smeltRecipeForDock, wireRecipeForDock, out var dockWire)
+            && dockWire is not null
+            && dockWire.Inputs.Count >= 2
+            && dockWire.Outputs.Any(o => o.ItemId == "copper-wire"),
+            "Dock recipe: Assemblatore risolve craft-copper-wire.");
+        Assert(!FactoryGameApp.TryResolveDockEntryRecipeForTest(
+                "miner", smeltRecipeForDock, wireRecipeForDock, out _),
+            "Dock recipe: Minatore non ha ricetta craft (solo estrazione).");
         // FPS corner vs system overlay: never both (policy mirrored from play HUD).
         Assert(ShowCornerFps(showFps: true, showOverlay: false), "FPS angolo quando solo contatore.");
         Assert(!ShowCornerFps(showFps: true, showOverlay: true), "Niente FPS angolo se overlay sistema ON.");
