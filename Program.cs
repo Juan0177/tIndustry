@@ -613,16 +613,35 @@ static void RunSelfTest(GameContent content)
 
     Console.WriteLine("SELF-TEST OK: Phase 1–6 (logistica, economia, potenza, seed) verificati.");
 
-    // Settings persistence (FPS / resource overlay toggles).
+    // Settings persistence (FPS / resource overlay / display).
     var settingsPath = GameSettings.SettingsPath;
     var backup = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
     try
     {
-        var prefs = new GameSettings { ShowFps = true, ShowResourceOverlay = false };
+        var prefs = new GameSettings
+        {
+            ShowFps = true,
+            ShowResourceOverlay = false,
+            ResolutionWidth = 1440,
+            ResolutionHeight = 900,
+            DisplayMode = DisplayMode.Borderless
+        };
         prefs.Save();
         var reloaded = GameSettings.Load();
         Assert(reloaded.ShowFps, "ShowFps deve persistere.");
         Assert(!reloaded.ShowResourceOverlay, "ShowResourceOverlay deve persistere.");
+        Assert(reloaded.ResolutionWidth == 1440 && reloaded.ResolutionHeight == 900,
+            "Risoluzione deve persistere.");
+        Assert(reloaded.DisplayMode == DisplayMode.Borderless, "Modalità schermo deve persistere.");
+        Assert(UiTheme.InventoryItems.Length >= 4, "Inventario deve elencare gli item noti.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Materials).Count() == 2,
+            "Categoria Materiali: ferro + rame grezzo.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Intermediate).Count() == 1,
+            "Categoria Intermedi: lastre.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 1,
+            "Categoria Prodotti: fili.");
+        Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
+            "Etichetta italiana modalità schermo intero.");
     }
     finally
     {
@@ -639,7 +658,7 @@ static void RunSelfTest(GameContent content)
         }
     }
 
-    Console.WriteLine("SELF-TEST OK: impostazioni FPS/risorse verificate.");
+    Console.WriteLine("SELF-TEST OK: impostazioni grafica/inventario verificate.");
 }
 
 static void Assert(bool condition, string message)
