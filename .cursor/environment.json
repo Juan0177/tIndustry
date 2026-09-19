@@ -1,0 +1,4 @@
+{
+  "name": "tIndustry Logistics (.NET 10 / Raylib)",
+  "install": "bash .cursor/install.sh"
+}
