@@ -2276,9 +2276,6 @@ internal static class FactoryGameApp
     private static int MercatoRowY(int panelY, int panelH, int index) =>
         panelY + MercatoHeaderBlock() + index * MercatoRowHeight(panelH);
 
-    private static int StatusUpgradeY(int panelY, int panelH) =>
-        panelY + panelH - MercatoS(34);
-
     private static bool IsOverHudChrome(Vector2 mouse)
     {
         if (mouse.Y < HeaderHeight)
