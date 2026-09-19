@@ -54,6 +54,11 @@ internal static class FactoryGameApp
         EconomyWallet? wallet = null;
         WorldCamera? camera = null;
         ResearchState? research = null;
+        EconomySession? session = null;
+        MarketCatalog? market = null;
+        var economy = content.GetEconomy();
+        var minerBuilding = content.GetBuildingOrDefault("miner");
+        var smelterBuilding = content.GetBuildingOrDefault("smelter");
         var tool = BuildTool.Conveyor;
         var direction = Direction.East;
         var accumulator = 0f;
@@ -73,7 +78,7 @@ internal static class FactoryGameApp
         // Headless smoke/capture paths jump straight into a playable session.
         if (maximumFrames is not null || screenshotPath is not null)
         {
-            StartNewGame(content, out world, out conveyors, out wallet, out camera, out research, out nextItemId);
+            StartNewGame(content, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
             screen = AppScreen.Playing;
         }
 
@@ -100,6 +105,8 @@ internal static class FactoryGameApp
                         ref wallet,
                         ref camera,
                         ref research,
+                        ref session,
+                        ref market,
                         ref nextItemId,
                         ref tool,
                         ref direction,
@@ -121,6 +128,8 @@ internal static class FactoryGameApp
                         ref wallet,
                         ref camera,
                         ref research,
+                        ref session,
+                        ref market,
                         ref nextItemId,
                         ref tool,
                         ref direction,
@@ -137,6 +146,7 @@ internal static class FactoryGameApp
                         content,
                         wallet!,
                         research!,
+                        session!,
                         ref screen,
                         ref selectedResearchIndex,
                         ref statusMessage);
@@ -149,6 +159,11 @@ internal static class FactoryGameApp
                         wallet!,
                         camera!,
                         research!,
+                        session!,
+                        market!,
+                        economy,
+                        minerBuilding,
+                        smelterBuilding,
                         basicConveyor,
                         fastConveyor,
                         smeltRecipe,
@@ -167,7 +182,7 @@ internal static class FactoryGameApp
                         frameTime);
                     while (accumulator >= FixedStep)
                     {
-                        world!.Update(FixedStep, conveyors!, wallet!, ref nextItemId);
+                        world!.Update(FixedStep, conveyors!, wallet!, ref nextItemId, market!, session!);
                         accumulator -= FixedStep;
                     }
 
@@ -194,10 +209,15 @@ internal static class FactoryGameApp
                         wallet!,
                         camera!,
                         research!,
+                        session!,
+                        market!,
+                        economy,
                         basicConveyor,
                         fastConveyor,
                         selectedConveyor,
                         smeltRecipe,
+                        minerBuilding,
+                        smelterBuilding,
                         tool,
                         direction);
                     break;
@@ -217,7 +237,7 @@ internal static class FactoryGameApp
         if ((screen is AppScreen.Playing or AppScreen.Research)
             && world is not null && camera is not null && research is not null)
         {
-            AutoSaveContinue(world, conveyors!, wallet!, camera, research, nextItemId);
+            AutoSaveContinue(world, conveyors!, wallet!, camera, research, session!, nextItemId);
         }
 
         Raylib.CloseWindow();
@@ -230,6 +250,8 @@ internal static class FactoryGameApp
         out EconomyWallet wallet,
         out WorldCamera camera,
         out ResearchState research,
+        out EconomySession session,
+        out MarketCatalog market,
         out long nextItemId)
     {
         world = new FactoryWorld(MapWidth, MapHeight, DefaultSeed);
@@ -237,6 +259,8 @@ internal static class FactoryGameApp
         wallet = CreateStartingWallet();
         camera = CreateCameraFocusedOnCore(world);
         research = ResearchState.CreateNew(content);
+        market = content.CreateMarket();
+        session = new EconomySession(wallet.Money);
         nextItemId = 1L;
     }
 
@@ -268,9 +292,10 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         WorldCamera camera,
         ResearchState research,
+        EconomySession session,
         long nextItemId)
     {
-        var data = GameSaveStore.Capture(world, conveyors, wallet, camera, research, nextItemId);
+        var data = GameSaveStore.Capture(world, conveyors, wallet, camera, research, session, nextItemId);
         GameSaveStore.Save(GameSaveStore.ContinueSlotId, data);
     }
 
@@ -282,6 +307,8 @@ internal static class FactoryGameApp
         out EconomyWallet wallet,
         out WorldCamera camera,
         out ResearchState research,
+        out EconomySession session,
+        out MarketCatalog market,
         out long nextItemId,
         out string error)
     {
@@ -290,6 +317,8 @@ internal static class FactoryGameApp
         wallet = null!;
         camera = null!;
         research = null!;
+        session = null!;
+        market = null!;
         nextItemId = 1L;
         error = string.Empty;
         if (!GameSaveStore.TryLoad(slotId, out var data))
@@ -300,7 +329,8 @@ internal static class FactoryGameApp
 
         try
         {
-            (world, conveyors, wallet, camera, research, nextItemId) = GameSaveStore.Restore(data, content);
+            (world, conveyors, wallet, camera, research, session, nextItemId) = GameSaveStore.Restore(data, content);
+            market = content.CreateMarket();
             camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
             return true;
         }
@@ -319,6 +349,8 @@ internal static class FactoryGameApp
         ref EconomyWallet? wallet,
         ref WorldCamera? camera,
         ref ResearchState? research,
+        ref EconomySession? session,
+        ref MarketCatalog? market,
         ref long nextItemId,
         ref BuildTool tool,
         ref Direction direction,
@@ -346,6 +378,8 @@ internal static class FactoryGameApp
                     out wallet,
                     out camera,
                     out research,
+                    out session,
+                    out market,
                     out nextItemId,
                     out var error))
             {
@@ -368,7 +402,7 @@ internal static class FactoryGameApp
 
         if (Contains(mouse, HomeButtonX, HomeButtonY(1), HomeButtonWidth, HomeButtonHeight))
         {
-            StartNewGame(content, out world, out conveyors, out wallet, out camera, out research, out nextItemId);
+            StartNewGame(content, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
             tool = BuildTool.Conveyor;
             direction = Direction.East;
             selectedConveyor = basicConveyor;
@@ -401,6 +435,8 @@ internal static class FactoryGameApp
         ref EconomyWallet? wallet,
         ref WorldCamera? camera,
         ref ResearchState? research,
+        ref EconomySession? session,
+        ref MarketCatalog? market,
         ref long nextItemId,
         ref BuildTool tool,
         ref Direction direction,
@@ -463,6 +499,8 @@ internal static class FactoryGameApp
                     out wallet,
                     out camera,
                     out research,
+                    out session,
+                    out market,
                     out nextItemId,
                     out var error))
             {
@@ -515,6 +553,7 @@ internal static class FactoryGameApp
         GameContent content,
         EconomyWallet wallet,
         ResearchState research,
+        EconomySession session,
         ref AppScreen screen,
         ref int selectedResearchIndex,
         ref string? statusMessage)
@@ -569,8 +608,10 @@ internal static class FactoryGameApp
             return;
         }
 
+        var moneyBefore = wallet.Money;
         if (research.TryUnlock(selected, wallet))
         {
+            session.RecordUnlockSpend(moneyBefore - wallet.Money);
             statusMessage = selected.IsStub
                 ? $"{selected.DisplayName} sbloccato (stub — non costruibile ancora)."
                 : $"{selected.DisplayName} sbloccato!";
@@ -593,6 +634,11 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         WorldCamera camera,
         ResearchState research,
+        EconomySession session,
+        MarketCatalog market,
+        EconomyConfig economy,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
         RecipeDefinition smeltRecipe,
@@ -610,11 +656,12 @@ internal static class FactoryGameApp
         long nextItemId,
         float frameTime)
     {
+        _ = market;
         if (Raylib.IsKeyPressed(KeyboardKey.Escape)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && Contains(Raylib.GetMousePosition(), ScreenWidth - 170, 20, 140, 36)))
         {
-            AutoSaveContinue(world, conveyors, wallet, camera, research, nextItemId);
+            AutoSaveContinue(world, conveyors, wallet, camera, research, session, nextItemId);
             statusMessage = null;
             screen = AppScreen.Home;
             return;
@@ -667,6 +714,16 @@ internal static class FactoryGameApp
             selectedConveyor = fastConveyor;
         }
 
+        if (Raylib.IsKeyPressed(KeyboardKey.U)
+            || (Raylib.IsMouseButtonPressed(MouseButton.Left)
+                && Contains(Raylib.GetMousePosition(), ViewportRight + 22, ViewportTop + 520, 252, 36)))
+        {
+            if (world.TryUpgradeCore(wallet, economy.CoreUpgrade, session))
+            {
+                statusMessage = "Core potenziato: +vendite!";
+            }
+        }
+
         var mouse = Raylib.GetMousePosition();
         if (Raylib.IsMouseButtonPressed(MouseButton.Left))
         {
@@ -697,7 +754,7 @@ internal static class FactoryGameApp
                     if (selectedConveyor.Tier > existing.Definition.Tier
                         && research.IsUnlocked(selectedConveyor.Id))
                     {
-                        conveyors.TryUpgrade(position, selectedConveyor, wallet, research);
+                        conveyors.TryUpgrade(position, selectedConveyor, wallet, research, session);
                     }
                     else
                     {
@@ -707,7 +764,7 @@ internal static class FactoryGameApp
                 else if (world.CanPlaceConveyor(position)
                     && research.IsUnlocked(selectedConveyor.Id))
                 {
-                    conveyors.TryPlace(position, direction, selectedConveyor, wallet, research);
+                    conveyors.TryPlace(position, direction, selectedConveyor, wallet, research, session);
                     ConnectAdjacentMiner(world, conveyors, position);
                     ConnectAdjacentSmelter(world, conveyors, position);
                     ConnectToAdjacentCore(world, conveyors, position);
@@ -717,7 +774,7 @@ internal static class FactoryGameApp
                 return;
             }
 
-            ExtendConveyorPath(world, conveyors, wallet, research, selectedConveyor, previous, position, ref direction);
+            ExtendConveyorPath(world, conveyors, wallet, research, session, selectedConveyor, previous, position, ref direction);
             previousDragPosition = position;
             return;
         }
@@ -737,17 +794,17 @@ internal static class FactoryGameApp
 
             if (tool == BuildTool.Miner && research.IsUnlocked("miner"))
             {
-                world.TryPlaceMiner(position, direction, conveyors, wallet);
+                world.TryPlaceMiner(position, direction, conveyors, wallet, minerBuilding, session);
             }
             else if (tool == BuildTool.Smelter && research.IsUnlocked("smelter"))
             {
-                world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet);
+                world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet, smelterBuilding, session);
             }
             else if (tool == BuildTool.Remove
-                && !world.TryRemoveMiner(position, wallet)
-                && !world.TryRemoveSmelter(position, wallet))
+                && !world.TryRemoveMiner(position, wallet, minerBuilding, session)
+                && !world.TryRemoveSmelter(position, wallet, smelterBuilding, session))
             {
-                conveyors.TryRemove(position, wallet);
+                conveyors.TryRemove(position, wallet, session);
             }
         }
 
@@ -755,10 +812,10 @@ internal static class FactoryGameApp
         {
             var cell = MouseCell(mouse, camera, world);
             if (cell is { } position
-                && !world.TryRemoveMiner(position, wallet)
-                && !world.TryRemoveSmelter(position, wallet))
+                && !world.TryRemoveMiner(position, wallet, minerBuilding, session)
+                && !world.TryRemoveSmelter(position, wallet, smelterBuilding, session))
             {
-                conveyors.TryRemove(position, wallet);
+                conveyors.TryRemove(position, wallet, session);
             }
         }
     }
@@ -876,6 +933,7 @@ internal static class FactoryGameApp
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         ResearchState research,
+        EconomySession session,
         ConveyorDefinition definition,
         GridPosition from,
         GridPosition destination,
@@ -902,7 +960,7 @@ internal static class FactoryGameApp
             if (!conveyors.Cells.ContainsKey(next))
             {
                 if (!world.CanPlaceConveyor(next)
-                    || !conveyors.TryPlace(next, stepDirection, definition, wallet, research))
+                    || !conveyors.TryPlace(next, stepDirection, definition, wallet, research, session))
                 {
                     return;
                 }
@@ -1199,25 +1257,39 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         WorldCamera camera,
         ResearchState research,
+        EconomySession session,
+        MarketCatalog market,
+        EconomyConfig economy,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
         ConveyorDefinition selectedConveyor,
         RecipeDefinition smeltRecipe,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
         BuildTool tool,
         Direction direction)
     {
         DrawWorld(world, conveyors, camera);
-        DrawPreview(world, conveyors, wallet, research, camera, selectedConveyor, smeltRecipe, tool, direction);
-        DrawHeader(wallet, research, basicConveyor, fastConveyor, selectedConveyor, tool, direction, world, camera);
-        DrawPanel(world, conveyors, research);
+        DrawPreview(
+            world, conveyors, wallet, research, camera, selectedConveyor, smeltRecipe,
+            minerBuilding, smelterBuilding, tool, direction);
+        DrawHeader(
+            wallet, research, session, market, economy, basicConveyor, fastConveyor,
+            selectedConveyor, minerBuilding, smelterBuilding, tool, direction, world, camera);
+        DrawPanel(world, conveyors, research, wallet, session, market, economy);
     }
 
     private static void DrawHeader(
         EconomyWallet wallet,
         ResearchState research,
+        EconomySession session,
+        MarketCatalog market,
+        EconomyConfig economy,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
         ConveyorDefinition selectedConveyor,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
         BuildTool tool,
         Direction direction,
         FactoryWorld world,
@@ -1228,8 +1300,17 @@ internal static class FactoryGameApp
         Raylib.DrawText(
             $"FOUNDRY  seed {world.Seed}  ·  {world.Terrain.Width}×{world.Terrain.Height}  ·  zoom {camera.Zoom:0.00}",
             28, 46, 13, new Color(112, 124, 119, 255));
-        Raylib.DrawText($"$ {wallet.Money}", 700, 18, 22, new Color(112, 218, 145, 255));
-        Raylib.DrawText($"PIASTRE  {wallet.MaterialCount("iron-plate")}", 700, 48, 16, new Color(220, 179, 93, 255));
+
+        // Multi-material wallet
+        Raylib.DrawText($"$ {wallet.Money}", 520, 14, 20, new Color(112, 218, 145, 255));
+        Raylib.DrawCircle(524, 48, 5, ItemColor("iron-plate"));
+        Raylib.DrawText($"Lastre {wallet.MaterialCount("iron-plate")}", 536, 40, 14, new Color(196, 201, 193, 255));
+        Raylib.DrawCircle(640, 48, 5, ItemColor("copper-wire"));
+        Raylib.DrawText($"Fili {wallet.MaterialCount("copper-wire")}", 652, 40, 14, new Color(196, 201, 193, 255));
+
+        var net = session.NetWorthDelta(wallet);
+        var netColor = net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255);
+        Raylib.DrawText($"Sessione {(net >= 0 ? "+" : "")}{net}", 520, 62, 13, netColor);
 
         DrawButton(28, 88, 100, 34, "NASTRO", tool == BuildTool.Conveyor);
         DrawButton(138, 88, 100, 34, research.IsUnlocked("miner") ? "MINATORE" : "LOCK",
@@ -1252,17 +1333,24 @@ internal static class FactoryGameApp
         var cost = tool switch
         {
             BuildTool.Miner => research.IsUnlocked("miner")
-                ? $"${FactoryWorld.MinerMoneyCost} + {FactoryWorld.MinerPlateCost} P"
+                ? FormatBuildingCost(minerBuilding)
                 : "Sblocca in Ricerca",
             BuildTool.Smelter => research.IsUnlocked("smelter")
-                ? $"${SmelterBuilding.MoneyCost} + {SmelterBuilding.PlateCost} P"
+                ? FormatBuildingCost(smelterBuilding)
                 : "Sblocca in Ricerca",
             BuildTool.Conveyor => FormatConveyorCost(selectedConveyor, research),
-            _ => "RIMBORSO COMPLETO"
+            _ => economy.RefundPolicyNote
         };
         Raylib.DrawText(cost, 28, 70, 14, new Color(164, 173, 168, 255));
         DrawButton(ScreenWidth - 320, 20, 140, 36, "RICERCA", false);
         DrawButton(ScreenWidth - 170, 20, 140, 36, "MENU", false);
+        _ = market;
+    }
+
+    private static string FormatBuildingCost(BuildingDefinition building)
+    {
+        var plates = building.BuildCost.FirstOrDefault(entry => entry.ItemId == "iron-plate")?.Amount ?? 0;
+        return $"${building.MoneyCost} + {plates} P · rimborso {building.RefundPercent}%";
     }
 
     private static string FormatConveyorCost(ConveyorDefinition definition, ResearchState research)
@@ -1273,7 +1361,7 @@ internal static class FactoryGameApp
         }
 
         var plates = definition.BuildCost.FirstOrDefault(entry => entry.ItemId == "iron-plate")?.Amount ?? 0;
-        return $"${definition.MoneyCost} + {plates} P · t{definition.Tier}";
+        return $"${definition.MoneyCost} + {plates} P · t{definition.Tier} · rimborso 100%";
     }
 
     private static void DrawWorld(FactoryWorld world, ConveyorGrid conveyors, WorldCamera camera)
@@ -1619,6 +1707,8 @@ internal static class FactoryGameApp
         WorldCamera camera,
         ConveyorDefinition definition,
         RecipeDefinition smeltRecipe,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
         BuildTool tool,
         Direction direction)
     {
@@ -1638,12 +1728,10 @@ internal static class FactoryGameApp
                 && wallet.CanAfford(definition.MoneyCost, definition.BuildCost),
             BuildTool.Miner => research.IsUnlocked("miner")
                 && world.CanPlaceMiner(position, conveyors)
-                && wallet.CanAfford(FactoryWorld.MinerMoneyCost,
-                    [new ResourceAmount("iron-plate", FactoryWorld.MinerPlateCost)]),
+                && wallet.CanAfford(minerBuilding.MoneyCost, minerBuilding.BuildCost),
             BuildTool.Smelter => research.IsUnlocked("smelter")
                 && world.CanPlaceSmelter(position, conveyors)
-                && wallet.CanAfford(SmelterBuilding.MoneyCost,
-                    [new ResourceAmount("iron-plate", SmelterBuilding.PlateCost)]),
+                && wallet.CanAfford(smelterBuilding.MoneyCost, smelterBuilding.BuildCost),
             BuildTool.Remove => world.Miners.ContainsKey(position)
                 || world.IsMinerTile(position)
                 || world.Smelters.ContainsKey(position)
@@ -1691,44 +1779,76 @@ internal static class FactoryGameApp
     private static void DrawPanel(
         FactoryWorld world,
         ConveyorGrid conveyors,
-        ResearchState research)
+        ResearchState research,
+        EconomyWallet wallet,
+        EconomySession session,
+        MarketCatalog market,
+        EconomyConfig economy)
     {
         Raylib.DrawRectangle(ViewportRight, ViewportTop, PanelWidth, (int)ViewportHeight, new Color(24, 29, 29, 255));
-        Raylib.DrawText("LOGISTICA", ViewportRight + 22, ViewportTop + 22, 20, new Color(232, 233, 221, 255));
+        Raylib.DrawText("MERCATO", ViewportRight + 22, ViewportTop + 22, 20, new Color(232, 233, 221, 255));
         Raylib.DrawLine(ViewportRight + 22, ViewportTop + 54, ViewportRight + 274, ViewportTop + 54, new Color(62, 72, 68, 255));
-        DrawMetric("VENDITE", $"{world.SaleRevenue} crediti", ViewportRight + 22, ViewportTop + 84,
-            new Color(112, 218, 145, 255));
-        DrawMetric("MINATORI", world.Miners.Count.ToString(), ViewportRight + 22, ViewportTop + 150,
-            new Color(225, 173, 79, 255));
-        DrawMetric("FORNI", world.Smelters.Count.ToString(), ViewportRight + 150, ViewportTop + 150,
-            new Color(235, 120, 70, 255));
-        DrawMetric("NASTRI", conveyors.Cells.Count.ToString(), ViewportRight + 22, ViewportTop + 216,
-            new Color(211, 216, 207, 255));
-        DrawMetric("ITEM VENDUTI", world.SoldItems.ToString(), ViewportRight + 150, ViewportTop + 216,
-            new Color(211, 216, 207, 255));
 
-        Raylib.DrawRectangle(ViewportRight + 22, ViewportTop + 290, 252, 1, new Color(62, 72, 68, 255));
-        Raylib.DrawCircle(ViewportRight + 31, ViewportTop + 320, 7, ItemColor("iron-ore"));
-        Raylib.DrawText($"ORE  ${FactoryWorld.IronOreSalePrice}", ViewportRight + 48, ViewportTop + 312, 16,
-            new Color(196, 201, 193, 255));
-        Raylib.DrawCircle(ViewportRight + 31, ViewportTop + 352, 7, ItemColor("iron-plate"));
-        Raylib.DrawText($"LASTRE  ${FactoryWorld.IronPlateSalePrice}", ViewportRight + 48, ViewportTop + 344, 16,
-            new Color(196, 201, 193, 255));
+        var marketY = ViewportTop + 70;
+        foreach (var item in market.Items)
+        {
+            var effective = world.EffectiveSalePrice(item.ItemId, market);
+            Raylib.DrawCircle(ViewportRight + 31, marketY + 8, 6, ItemColor(item.ItemId));
+            var priceLabel = effective != item.SellPrice
+                ? $"${item.SellPrice}→${effective}"
+                : $"${item.SellPrice}";
+            Raylib.DrawText($"{item.DisplayName}  {priceLabel}", ViewportRight + 48, marketY, 14,
+                new Color(196, 201, 193, 255));
+            marketY += 26;
+        }
 
+        Raylib.DrawText(market.BestValueHint(), ViewportRight + 22, marketY + 4, 12, new Color(211, 164, 76, 255));
+
+        var ledgerY = marketY + 36;
+        Raylib.DrawRectangle(ViewportRight + 22, ledgerY, 252, 1, new Color(62, 72, 68, 255));
+        ledgerY += 12;
+        Raylib.DrawText("SESSIONE", ViewportRight + 22, ledgerY, 14, new Color(164, 173, 168, 255));
+        ledgerY += 22;
+        var net = session.NetWorthDelta(wallet);
+        DrawMetric("SALDO NETTO", $"{(net >= 0 ? "+" : "")}{net}", ViewportRight + 22, ledgerY,
+            net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255));
+        ledgerY += 52;
+        Raylib.DrawText($"Vendite +{session.SaleIncome}  ·  Build −{session.BuildSpend}",
+            ViewportRight + 22, ledgerY, 12, new Color(140, 150, 145, 255));
+        ledgerY += 18;
+        Raylib.DrawText($"Unlock −{session.UnlockSpend}  ·  Upgrade −{session.UpgradeSpend}",
+            ViewportRight + 22, ledgerY, 12, new Color(140, 150, 145, 255));
+        ledgerY += 18;
+        Raylib.DrawText($"Rimborsi +{session.RefundIncome}  ·  Item {world.SoldItems}",
+            ViewportRight + 22, ledgerY, 12, new Color(140, 150, 145, 255));
+
+        ledgerY += 28;
+        Raylib.DrawText($"Minatori {world.Miners.Count}  Forni {world.Smelters.Count}  Nastri {conveyors.Cells.Count}",
+            ViewportRight + 22, ledgerY, 13, new Color(180, 186, 178, 255));
+        ledgerY += 22;
         Raylib.DrawText(
-            research.IsUnlocked("smelter") ? "Forno: SBLOCCATO" : "Forno: bloccato",
-            ViewportRight + 22,
-            ViewportTop + 390,
-            14,
+            research.IsUnlocked("smelter") ? "Forno SBLOCCATO" : "Forno bloccato",
+            ViewportRight + 22, ledgerY, 13,
             research.IsUnlocked("smelter") ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
+        ledgerY += 18;
         Raylib.DrawText(
-            research.IsUnlocked("conveyor-fast") ? "Nastro veloce: SBLOCCATO" : "Nastro veloce: bloccato",
-            ViewportRight + 22,
-            ViewportTop + 412,
-            14,
+            research.IsUnlocked("conveyor-fast") ? "Nastro veloce SBLOCCATO" : "Nastro veloce bloccato",
+            ViewportRight + 22, ledgerY, 13,
             research.IsUnlocked("conveyor-fast") ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
-        Raylib.DrawText("T / RICERCA → sblocchi", ViewportRight + 22, ViewportTop + 450, 14, new Color(126, 137, 132, 255));
-        Raylib.DrawText("Esc / MENU → home", ViewportRight + 22, ViewportTop + 472, 14, new Color(126, 137, 132, 255));
+
+        ledgerY += 28;
+        Raylib.DrawText(economy.RefundPolicyNote, ViewportRight + 22, ledgerY, 11, new Color(126, 137, 132, 255));
+
+        var upgrade = economy.CoreUpgrade;
+        var upgradeY = ViewportTop + 520;
+        var upgradeLabel = world.CoreUpgradeLevel > 0
+            ? $"CORE LV{world.CoreUpgradeLevel} (+{world.CoreSaleBonusPercent}%)"
+            : $"POTENZIA CORE ${upgrade.MoneyCost}+{upgrade.BuildCost.FirstOrDefault()?.Amount ?? 0}P";
+        DrawButton(ViewportRight + 22, upgradeY, 252, 36, upgradeLabel, world.CoreUpgradeLevel > 0);
+        Raylib.DrawText("U · potenzia vendite core", ViewportRight + 22, upgradeY + 44, 12,
+            new Color(126, 137, 132, 255));
+        Raylib.DrawText("T ricerca · Esc menu", ViewportRight + 22, upgradeY + 62, 12,
+            new Color(126, 137, 132, 255));
     }
 
     private static void DrawMetric(string label, string value, int x, int y, Color accent)

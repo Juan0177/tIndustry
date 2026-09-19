@@ -171,7 +171,8 @@ public sealed class ConveyorGrid
         Direction direction,
         ConveyorDefinition definition,
         EconomyWallet wallet,
-        ResearchState research)
+        ResearchState research,
+        EconomySession? session = null)
     {
         if (cells.ContainsKey(position)
             || !research.IsUnlocked(definition.Id)
@@ -181,6 +182,7 @@ public sealed class ConveyorGrid
         }
 
         cells.Add(position, new ConveyorCell(position, direction, definition));
+        session?.RecordBuildSpend(definition.MoneyCost);
         return true;
     }
 
@@ -205,7 +207,7 @@ public sealed class ConveyorGrid
         return true;
     }
 
-    public bool TryRemove(GridPosition position, EconomyWallet wallet)
+    public bool TryRemove(GridPosition position, EconomyWallet wallet, EconomySession? session = null)
     {
         if (!cells.Remove(position, out var cell))
         {
@@ -218,10 +220,16 @@ public sealed class ConveyorGrid
             wallet.AddMaterial(entry.ItemId, entry.Amount);
         }
 
+        session?.RecordRefund(cell.Definition.MoneyCost);
         return true;
     }
 
-    public bool TryUpgrade(GridPosition position, ConveyorDefinition definition, EconomyWallet wallet, ResearchState research)
+    public bool TryUpgrade(
+        GridPosition position,
+        ConveyorDefinition definition,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession? session = null)
     {
         if (!cells.TryGetValue(position, out var cell)
             || cell.Definition.Tier >= definition.Tier
@@ -237,6 +245,8 @@ public sealed class ConveyorGrid
             wallet.AddMaterial(entry.ItemId, entry.Amount);
         }
 
+        var netSpend = Math.Max(0, definition.MoneyCost - cell.Definition.MoneyCost);
+        session?.RecordBuildSpend(netSpend);
         cell.Upgrade(definition);
         return true;
     }

@@ -417,7 +417,7 @@ public sealed class FactoryWorld
     public const int MinerPlateCost = 4;
     public const float MiningDurationSeconds = 2f;
     public const int IronOreSalePrice = 8;
-    public const int IronPlateSalePrice = 24;
+    public const int IronPlateSalePrice = 30;
     public const int CoreSize = 4;
 
     private static readonly ResourceAmount[] MinerBuildCost =
@@ -470,18 +470,49 @@ public sealed class FactoryWorld
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
     public int SaleRevenue { get; private set; }
+    public int CoreUpgradeLevel { get; private set; }
+    public int CoreSaleBonusPercent { get; private set; }
 
-    public static int SalePrice(string itemId) => itemId switch
+    public static int SalePrice(string itemId) => MarketCatalog.CreateDefault().GetSellPrice(itemId);
+
+    public int EffectiveSalePrice(string itemId, MarketCatalog market)
     {
-        "iron-ore" => IronOreSalePrice,
-        "iron-plate" => IronPlateSalePrice,
-        _ => 1
-    };
+        var price = market.GetSellPrice(itemId);
+        if (CoreUpgradeLevel <= 0 || CoreSaleBonusPercent <= 0)
+        {
+            return price;
+        }
+
+        return price + price * CoreSaleBonusPercent / 100;
+    }
 
     public void SetSoldItems(int soldItems, int saleRevenue = -1)
     {
         SoldItems = soldItems;
         SaleRevenue = saleRevenue >= 0 ? saleRevenue : soldItems * IronOreSalePrice;
+    }
+
+    public void SetCoreUpgrade(int level, int saleBonusPercent)
+    {
+        CoreUpgradeLevel = Math.Max(0, level);
+        CoreSaleBonusPercent = Math.Max(0, saleBonusPercent);
+    }
+
+    public bool TryUpgradeCore(
+        EconomyWallet wallet,
+        CoreUpgradeDefinition upgrade,
+        EconomySession? session = null)
+    {
+        if (CoreUpgradeLevel > 0
+            || !wallet.TrySpend(upgrade.MoneyCost, upgrade.BuildCost))
+        {
+            return false;
+        }
+
+        CoreUpgradeLevel = 1;
+        CoreSaleBonusPercent = upgrade.SaleBonusPercent;
+        session?.RecordUpgradeSpend(upgrade.MoneyCost);
+        return true;
     }
 
     public bool TryRestoreMiner(GridPosition position, Direction direction, float progress)
@@ -560,10 +591,13 @@ public sealed class FactoryWorld
         GridPosition position,
         Direction direction,
         ConveyorGrid conveyors,
-        EconomyWallet wallet)
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
     {
+        cost ??= new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
         if (!CanPlaceMiner(position, conveyors)
-            || !wallet.TrySpend(MinerMoneyCost, MinerBuildCost))
+            || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
         {
             return false;
         }
@@ -575,6 +609,7 @@ public sealed class FactoryWorld
             minerByTile.Add(tile, miner);
         }
 
+        session?.RecordBuildSpend(cost.MoneyCost);
         return true;
     }
 
@@ -583,51 +618,63 @@ public sealed class FactoryWorld
         Direction direction,
         RecipeDefinition recipe,
         ConveyorGrid conveyors,
-        EconomyWallet wallet)
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
     {
+        cost ??= new BuildingDefinition("smelter", SmelterBuilding.MoneyCost, SmelterBuildCost, 100);
         if (!CanPlaceSmelter(position, conveyors)
-            || !wallet.TrySpend(SmelterBuilding.MoneyCost, SmelterBuildCost))
+            || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
         {
             return false;
         }
 
         RegisterSmelter(new SmelterBuilding(position, direction, recipe));
+        session?.RecordBuildSpend(cost.MoneyCost);
         return true;
     }
 
-    public bool TryRemoveMiner(GridPosition position, EconomyWallet wallet)
+    public bool TryRemoveMiner(
+        GridPosition position,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
     {
         if (!minerByTile.TryGetValue(position, out var miner))
         {
             return false;
         }
 
+        cost ??= new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
         miners.Remove(miner.Position);
         foreach (var tile in miner.OccupiedTiles())
         {
             minerByTile.Remove(tile);
         }
 
-        wallet.AddMoney(MinerMoneyCost);
-        wallet.AddMaterial("iron-plate", MinerPlateCost);
+        ApplyRefund(wallet, cost, session);
         return true;
     }
 
-    public bool TryRemoveSmelter(GridPosition position, EconomyWallet wallet)
+    public bool TryRemoveSmelter(
+        GridPosition position,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
     {
         if (!smelterByTile.TryGetValue(position, out var smelter))
         {
             return false;
         }
 
+        cost ??= new BuildingDefinition("smelter", SmelterBuilding.MoneyCost, SmelterBuildCost, 100);
         smelters.Remove(smelter.Position);
         foreach (var tile in smelter.OccupiedTiles())
         {
             smelterByTile.Remove(tile);
         }
 
-        wallet.AddMoney(SmelterBuilding.MoneyCost);
-        wallet.AddMaterial("iron-plate", SmelterBuilding.PlateCost);
+        ApplyRefund(wallet, cost, session);
         return true;
     }
 
@@ -635,8 +682,11 @@ public sealed class FactoryWorld
         float deltaSeconds,
         ConveyorGrid conveyors,
         EconomyWallet wallet,
-        ref long nextItemId)
+        ref long nextItemId,
+        MarketCatalog? market = null,
+        EconomySession? session = null)
     {
+        market ??= MarketCatalog.CreateDefault();
         foreach (var miner in miners.Values)
         {
             miner.Progress = Math.Min(
@@ -677,12 +727,29 @@ public sealed class FactoryWorld
             while (CoreTiles.Contains(conveyor.OutputPosition) && conveyor.PeekOutput() is { } item)
             {
                 conveyor.RemoveOutput();
-                var price = SalePrice(item.ItemId);
+                var price = EffectiveSalePrice(item.ItemId, market);
                 wallet.AddMoney(price);
                 SaleRevenue += price;
                 SoldItems++;
+                session?.RecordSale(item.ItemId, price);
             }
         }
+    }
+
+    private static void ApplyRefund(EconomyWallet wallet, BuildingDefinition cost, EconomySession? session)
+    {
+        var refundMoney = cost.MoneyCost * Math.Clamp(cost.RefundPercent, 0, 100) / 100;
+        wallet.AddMoney(refundMoney);
+        foreach (var entry in cost.BuildCost)
+        {
+            var amount = entry.Amount * Math.Clamp(cost.RefundPercent, 0, 100) / 100;
+            if (amount > 0)
+            {
+                wallet.AddMaterial(entry.ItemId, amount);
+            }
+        }
+
+        session?.RecordRefund(refundMoney);
     }
 
     public bool IsMinerTile(GridPosition position) => minerByTile.ContainsKey(position);

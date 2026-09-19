@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -17,10 +17,24 @@ public sealed class GameSaveData
     public int SaleRevenue { get; set; }
     public long NextItemId { get; set; } = 1;
     public List<string> UnlockedStructures { get; set; } = [];
+    public int CoreUpgradeLevel { get; set; }
+    public int CoreSaleBonusPercent { get; set; }
+    public EconomySessionSaveData Session { get; set; } = new();
     public CameraSaveData Camera { get; set; } = new();
     public List<MinerSaveData> Miners { get; set; } = [];
     public List<SmelterSaveData> Smelters { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
+}
+
+public sealed class EconomySessionSaveData
+{
+    public int StartingMoney { get; set; }
+    public int BuildSpend { get; set; }
+    public int UnlockSpend { get; set; }
+    public int UpgradeSpend { get; set; }
+    public int SaleIncome { get; set; }
+    public int RefundIncome { get; set; }
+    public Dictionary<string, int> SoldByItem { get; set; } = [];
 }
 
 public sealed class CameraSaveData
@@ -203,6 +217,7 @@ public static class GameSaveStore
         EconomyWallet wallet,
         WorldCamera camera,
         ResearchState research,
+        EconomySession session,
         long nextItemId)
     {
         return new GameSaveData
@@ -217,6 +232,18 @@ public static class GameSaveStore
             SaleRevenue = world.SaleRevenue,
             NextItemId = nextItemId,
             UnlockedStructures = research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
+            CoreUpgradeLevel = world.CoreUpgradeLevel,
+            CoreSaleBonusPercent = world.CoreSaleBonusPercent,
+            Session = new EconomySessionSaveData
+            {
+                StartingMoney = session.StartingMoney,
+                BuildSpend = session.BuildSpend,
+                UnlockSpend = session.UnlockSpend,
+                UpgradeSpend = session.UpgradeSpend,
+                SaleIncome = session.SaleIncome,
+                RefundIncome = session.RefundIncome,
+                SoldByItem = session.SoldByItem.ToDictionary(pair => pair.Key, pair => pair.Value)
+            },
             Camera = new CameraSaveData
             {
                 X = camera.X,
@@ -265,17 +292,27 @@ public static class GameSaveStore
         };
     }
 
-    public static (FactoryWorld World, ConveyorGrid Conveyors, EconomyWallet Wallet, WorldCamera Camera, ResearchState Research, long NextItemId)
+    public static (FactoryWorld World, ConveyorGrid Conveyors, EconomyWallet Wallet, WorldCamera Camera, ResearchState Research, EconomySession Session, long NextItemId)
         Restore(GameSaveData data, GameContent content)
     {
         var world = new FactoryWorld(data.MapWidth, data.MapHeight, data.Seed);
         world.SetSoldItems(data.SoldItems, data.SaleRevenue);
+        world.SetCoreUpgrade(data.CoreUpgradeLevel, data.CoreSaleBonusPercent);
 
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var conveyors = new ConveyorGrid();
         var definitions = content.Conveyors.ToDictionary(definition => definition.Id, StringComparer.Ordinal);
         var recipes = content.Recipes.ToDictionary(recipe => recipe.Id, StringComparer.Ordinal);
         var research = RestoreResearch(data, content);
+        var session = new EconomySession(data.Session.StartingMoney > 0 ? data.Session.StartingMoney : data.Money);
+        session.Restore(
+            data.Session.StartingMoney > 0 ? data.Session.StartingMoney : data.Money,
+            data.Session.BuildSpend,
+            data.Session.UnlockSpend,
+            data.Session.UpgradeSpend,
+            data.Session.SaleIncome > 0 ? data.Session.SaleIncome : data.SaleRevenue,
+            data.Session.RefundIncome,
+            data.Session.SoldByItem);
 
         foreach (var minerData in data.Miners)
         {
@@ -340,7 +377,7 @@ public static class GameSaveStore
         }
 
         var camera = new WorldCamera(data.Camera.X, data.Camera.Y, data.Camera.Zoom);
-        return (world, conveyors, wallet, camera, research, data.NextItemId);
+        return (world, conveyors, wallet, camera, research, session, data.NextItemId);
     }
 
     private static ResearchState RestoreResearch(GameSaveData data, GameContent content)

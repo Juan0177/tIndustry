@@ -30,9 +30,31 @@ public sealed class GameContent
     public required IReadOnlyList<ConveyorDefinition> Conveyors { get; init; }
     public required IReadOnlyList<RecipeDefinition> Recipes { get; init; }
     public IReadOnlyList<StructureDefinition> Structures { get; set; } = [];
+    public IReadOnlyList<MarketItemDefinition> Market { get; set; } = [];
+    public IReadOnlyList<BuildingDefinition> Buildings { get; set; } = [];
+    public EconomyConfig? Economy { get; set; }
 
     public StructureDefinition? FindStructure(string id) =>
         Structures.FirstOrDefault(structure => structure.Id == id);
+
+    public BuildingDefinition? FindBuilding(string id) =>
+        Buildings.FirstOrDefault(building => building.Id == id);
+
+    public MarketCatalog CreateMarket() =>
+        Market.Count > 0 ? new MarketCatalog(Market) : MarketCatalog.CreateDefault();
+
+    public EconomyConfig GetEconomy() =>
+        Economy ?? new EconomyConfig(
+            new CoreUpgradeDefinition(150, [new ResourceAmount("iron-plate", 20)], 25),
+            "Rimozione edifici/nastri: rimborso completo (100%).");
+
+    public BuildingDefinition GetBuildingOrDefault(string id) =>
+        FindBuilding(id) ?? id switch
+        {
+            "miner" => new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
+            "smelter" => new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
+            _ => new BuildingDefinition(id, 0, [], 100)
+        };
 
     public static GameContent Load(string path)
     {
@@ -53,6 +75,24 @@ public sealed class GameContent
         {
             content.Structures = BuildLegacyStructures(content);
         }
+
+        if (content.Market.Count == 0)
+        {
+            content.Market = MarketCatalog.CreateDefault().Items.ToList();
+        }
+
+        if (content.Buildings.Count == 0)
+        {
+            content.Buildings =
+            [
+                new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
+                new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100)
+            ];
+        }
+
+        content.Economy ??= new EconomyConfig(
+            new CoreUpgradeDefinition(150, [new ResourceAmount("iron-plate", 20)], 25),
+            "Rimozione edifici/nastri: rimborso completo (100%).");
 
         return content;
     }

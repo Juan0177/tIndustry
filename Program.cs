@@ -254,7 +254,8 @@ static void RunSelfTest(GameContent content)
         "Il nastro di save-test deve piazzarsi.");
     saveWorld.Update(1f / 30f, saveGrid, saveWallet, ref saveItemId);
     var saveCamera = new WorldCamera(12.5f, 34f, 1.25f);
-    var captured = GameSaveStore.Capture(saveWorld, saveGrid, saveWallet, saveCamera, saveResearch, saveItemId);
+    var saveSession = new EconomySession(saveWallet.Money);
+    var captured = GameSaveStore.Capture(saveWorld, saveGrid, saveWallet, saveCamera, saveResearch, saveSession, saveItemId);
     var slotId = "self-test-slot";
     GameSaveStore.Save(slotId, captured);
     Assert(GameSaveStore.Exists(slotId), "Il file di salvataggio deve esistere dopo Save.");
@@ -275,7 +276,96 @@ static void RunSelfTest(GameContent content)
     GameSaveStore.Delete(slotId);
     Assert(!GameSaveStore.Exists(slotId), "Delete deve rimuovere lo slot.");
 
-    Console.WriteLine("SELF-TEST OK: trasporto, forno, ricerca/sblocchi, tier, camera e save/load verificati.");
+    // Phase 4 — market, session ledger, core upgrade, plate > ore reinvestment.
+    var market = content.CreateMarket();
+    Assert(market.GetSellPrice("iron-ore") == 8 && market.GetSellPrice("iron-plate") == 30,
+        "I prezzi mercato devono essere content-driven (ore 8, lastre 30).");
+    Assert(market.GetSellPrice("iron-plate") > market.GetSellPrice("iron-ore") * 2,
+        "Una lastra deve valere più di 2 ore grezze (reinvestimento).");
+    Assert(market.BestValueHint().Contains("fondere", StringComparison.OrdinalIgnoreCase)
+        || market.BestValueHint().Contains("lastre", StringComparison.OrdinalIgnoreCase),
+        "L'hint mercato deve suggerire la fusione.");
+
+    var minerBuilding = content.GetBuildingOrDefault("miner");
+    var smelterBuilding = content.GetBuildingOrDefault("smelter");
+    var economy = content.GetEconomy();
+    Assert(minerBuilding.MoneyCost == 25 && minerBuilding.RefundPercent == 100,
+        "Costo/rimborso minatore devono arrivare dal content.");
+    Assert(smelterBuilding.MoneyCost == 40 && smelterBuilding.RefundPercent == 100,
+        "Costo/rimborso forno devono arrivare dal content.");
+    Assert(economy.CoreUpgrade.SaleBonusPercent == 25 && economy.CoreUpgrade.MoneyCost == 150,
+        "Upgrade core deve essere content-driven.");
+
+    var ecoWorld = new FactoryWorld(12, 8, 7429);
+    var ecoGrid = new ConveyorGrid();
+    var ecoWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 60 });
+    var ecoSession = new EconomySession(ecoWallet.Money);
+    var ecoItemId = 900L;
+    Assert(ecoWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, ecoGrid, ecoWallet, minerBuilding, ecoSession),
+        "Place miner con BuildingDefinition.");
+    Assert(ecoSession.BuildSpend == minerBuilding.MoneyCost, "La sessione deve tracciare la spesa build.");
+    Assert(ecoGrid.TryPlace(new GridPosition(4, 2), Direction.East, definition, ecoWallet, research, ecoSession),
+        "Place nastro con sessione.");
+    Assert(ecoGrid.TryPlace(new GridPosition(5, 2), Direction.East, definition, ecoWallet, research, ecoSession),
+        "Secondo nastro con sessione.");
+    for (var tick = 0; tick < 210; tick++)
+    {
+        ecoWorld.Update(1f / 30f, ecoGrid, ecoWallet, ref ecoItemId, market, ecoSession);
+    }
+    Assert(ecoWorld.SoldItems >= 1, "Il loop economia deve vendere almeno un item.");
+    Assert(ecoSession.SaleIncome >= market.GetSellPrice("iron-ore"),
+        "La sessione deve registrare le vendite.");
+    Assert(ecoSession.SoldByItem.GetValueOrDefault("iron-ore") >= 1,
+        "SoldByItem deve contare le ore vendute.");
+
+    Assert(ecoWorld.TryUpgradeCore(ecoWallet, economy.CoreUpgrade, ecoSession),
+        "L'upgrade del core deve consumare risorse.");
+    Assert(ecoWorld.CoreUpgradeLevel == 1 && ecoWorld.CoreSaleBonusPercent == 25,
+        "Dopo upgrade il core deve avere bonus vendita.");
+    Assert(ecoSession.UpgradeSpend == economy.CoreUpgrade.MoneyCost,
+        "La sessione deve tracciare la spesa upgrade.");
+    Assert(!ecoWorld.TryUpgradeCore(ecoWallet, economy.CoreUpgrade, ecoSession),
+        "L'upgrade core è una sola volta.");
+
+    var boosted = ecoWorld.EffectiveSalePrice("iron-plate", market);
+    Assert(boosted == 37, "Con +25% una lastra da $30 deve vendere a $37.");
+
+    // Refund policy 100%.
+    var moneyBeforeRefund = ecoWallet.Money;
+    var platesBeforeRefund = ecoWallet.MaterialCount("iron-plate");
+    Assert(ecoWorld.TryRemoveMiner(new GridPosition(2, 2), ecoWallet, minerBuilding, ecoSession),
+        "Rimozione minatore con rimborso.");
+    Assert(ecoWallet.Money == moneyBeforeRefund + minerBuilding.MoneyCost,
+        "Rimborso denaro completo sul minatore.");
+    Assert(ecoWallet.MaterialCount("iron-plate")
+        == platesBeforeRefund + minerBuilding.BuildCost.Sum(entry => entry.Amount),
+        "Rimborso materiali completo sul minatore.");
+    Assert(ecoSession.RefundIncome >= minerBuilding.MoneyCost,
+        "La sessione deve registrare i rimborsi.");
+
+    // Persist economy session + core upgrade in save v4.
+    var ecoSaveResearch = ResearchState.CreateNew(content);
+    Assert(ecoSaveResearch.TryUnlock(smelterTech, ecoWallet), "Save economia: sblocca forno.");
+    var smelterAt = new GridPosition(ecoWorld.CoreOrigin.X - 4, ecoWorld.CoreOrigin.Y);
+    Assert(ecoWorld.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, ecoGrid, ecoWallet, smelterBuilding, ecoSession),
+        "Save economia: piazza forno.");
+    var ecoCamera = new WorldCamera(1f, 2f, 1.1f);
+    var ecoCaptured = GameSaveStore.Capture(ecoWorld, ecoGrid, ecoWallet, ecoCamera, ecoSaveResearch, ecoSession, ecoItemId);
+    Assert(ecoCaptured.Version == 4, "Il salvataggio economia deve essere v4.");
+    var ecoSlot = "self-test-economy";
+    GameSaveStore.Save(ecoSlot, ecoCaptured);
+    var ecoRestored = GameSaveStore.Restore(GameSaveStore.Load(ecoSlot), content);
+    Assert(ecoRestored.World.CoreUpgradeLevel == 1 && ecoRestored.World.CoreSaleBonusPercent == 25,
+        "Upgrade core deve sopravvivere al reload.");
+    Assert(ecoRestored.Session.BuildSpend == ecoSession.BuildSpend,
+        "BuildSpend sessione deve sopravvivere al reload.");
+    Assert(ecoRestored.Session.UpgradeSpend == ecoSession.UpgradeSpend,
+        "UpgradeSpend sessione deve sopravvivere al reload.");
+    Assert(ecoRestored.Session.SaleIncome == ecoSession.SaleIncome,
+        "SaleIncome sessione deve sopravvivere al reload.");
+    GameSaveStore.Delete(ecoSlot);
+
+    Console.WriteLine("SELF-TEST OK: trasporto, forno, ricerca, tier, camera, save e economia Phase 4 verificati.");
 }
 
 static void Assert(bool condition, string message)

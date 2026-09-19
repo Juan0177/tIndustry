@@ -113,5 +113,50 @@
       },
       "isStub": true
     }
-  ]
+  ],
+  "market": [
+    {
+      "itemId": "iron-ore",
+      "displayName": "Ferro grezzo",
+      "sellPrice": 8
+    },
+    {
+      "itemId": "iron-plate",
+      "displayName": "Lastra di ferro",
+      "sellPrice": 30
+    },
+    {
+      "itemId": "copper-wire",
+      "displayName": "Filo di rame",
+      "sellPrice": 14
+    }
+  ],
+  "buildings": [
+    {
+      "id": "miner",
+      "moneyCost": 25,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 4 }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "smelter",
+      "moneyCost": 40,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 6 }
+      ],
+      "refundPercent": 100
+    }
+  ],
+  "economy": {
+    "coreUpgrade": {
+      "moneyCost": 150,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 20 }
+      ],
+      "saleBonusPercent": 25
+    },
+    "refundPolicyNote": "Rimozione edifici/nastri: rimborso completo (100%)."
+  }
 }
