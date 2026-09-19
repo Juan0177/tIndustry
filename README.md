@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.2.6** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.2.7** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
@@ -18,14 +18,14 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-**v0.2.6** — tutto 0.2.5 (Campagna inclusa) più polish Mercato/dock, ricette Input/Output nel footer, fix Fabbrica/CORE. In sintesi:
+**v0.2.7** — tutto 0.2.6 più costo upgrade **CORE** esplicito (×N lastre + $) sul bottone Fabbrica. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
 | Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
-| Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti** senza clip, padding polish, prezzi, auto-sell); strip **Fabbrica** con conteggi `M/F/A/N/G` sopra **CORE**; rimborso 100%; **potenziamento core** (+25% vendite) cliccabile a scala default |
+| Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti** senza clip, padding polish, prezzi, auto-sell); strip **Fabbrica** con conteggi `M/F/A/N/G` sopra **CORE**; rimborso 100%; **potenziamento core** (+25% vendite) con costo `×N lastre + $` sul bottone |
 | Progressione | **Campagna** (5 livelli, obiettivi HUD, progressione AppData); **Ricerca** data-driven; **tutorial** IT **6 step** in sandbox — riparte su **Nuova partita** / **Rivedi tutorial** |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** / **Campagna** / **Nuova partita**), scenari + seed, save JSON **v6** |
 | Dock | Stile Mindustry; footer **Input/Output** ricetta (Forno/Assemblatore) + costi build a icone (`×N` materiali + `$`); **Rimuovi** con label chiaro |
@@ -158,7 +158,7 @@ Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricer
 
 ## Download
 
-**Release consigliata:** [v0.2.6](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.6) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
+**Release consigliata:** [v0.2.7](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.7) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
 
 | Asset | Piattaforma |
 | --- | --- |
@@ -190,7 +190,8 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.2.6**: Mercato/dock polish; Input/Output ricetta; Fabbrica counts + CORE fix | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.7**: CORE upgrade button con ×N lastre + $ | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.6**: Mercato/dock polish; Input/Output ricetta; Fabbrica counts + CORE fix | |
 | **v0.2.5**: Campagna a livelli; Mercato senza clip; dock costi a icone | |
 | **v0.2.4**: Mercato dedicato, icone chiare, tutorial 6 step, HUD scale-safe | Ulteriore polish UI / performance mappa piena |
 | **v0.2.3**: stock-first core, Mercato 1/tutti, auto-sell opzionale | |
@@ -200,7 +201,7 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 | CI publish win/linux + release su tag `v*` | |
 | `miner-advanced` ancora stub | |
 
-Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.6](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.6).
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.7](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.7).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 
