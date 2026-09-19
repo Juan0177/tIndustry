@@ -22,7 +22,8 @@ public static class ExcelContentStore
                 row.Cell(5).GetValue<float>(),
                 row.Cell(6).GetValue<int>(),
                 ParseAmounts(row.Cell(7).GetString()),
-                ParseUnlock(row.Cell(8).GetString(), row.Cell(9).GetString())))
+                ParseUnlock(row.Cell(8).GetString(), row.Cell(9).GetString()),
+                ParseLogisticsKind(row.Cell(10).IsEmpty() ? "belt" : row.Cell(10).GetString())))
             .ToArray();
 
         var recipes = recipesSheet.RowsUsed()
@@ -135,7 +136,7 @@ public static class ExcelContentStore
         var conveyorsSheet = workbook.AddWorksheet("Conveyors");
         WriteHeaders(conveyorsSheet,
             "Id", "Tier", "RateItemsPerSecond", "Capacity", "ItemSpacing",
-            "MoneyCost", "BuildCost", "UnlockMoney", "UnlockMaterials");
+            "MoneyCost", "BuildCost", "UnlockMoney", "UnlockMaterials", "Kind");
 
         for (var index = 0; index < content.Conveyors.Count; index++)
         {
@@ -150,6 +151,7 @@ public static class ExcelContentStore
             conveyorsSheet.Cell(row, 7).Value = FormatAmounts(definition.BuildCost);
             conveyorsSheet.Cell(row, 8).Value = definition.Unlock?.Money ?? 0;
             conveyorsSheet.Cell(row, 9).Value = FormatAmounts(definition.Unlock?.Materials ?? []);
+            conveyorsSheet.Cell(row, 10).Value = definition.Kind.ToString().ToLowerInvariant();
         }
 
         var recipesSheet = workbook.AddWorksheet("Recipes");
@@ -223,6 +225,11 @@ public static class ExcelContentStore
 
         workbook.SaveAs(path);
     }
+
+    private static LogisticsKind ParseLogisticsKind(string value) =>
+        Enum.TryParse<LogisticsKind>(value, ignoreCase: true, out var kind)
+            ? kind
+            : LogisticsKind.Belt;
 
     private static UnlockRequirement? ParseUnlock(string moneyValue, string materialsValue)
     {

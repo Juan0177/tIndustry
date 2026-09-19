@@ -9,6 +9,14 @@ public sealed record UnlockRequirement(
     int Money,
     IReadOnlyList<ResourceAmount> Materials);
 
+public enum LogisticsKind
+{
+    Belt,
+    Junction,
+    Splitter,
+    Bridge
+}
+
 public sealed record ConveyorDefinition(
     string Id,
     int Tier,
@@ -17,7 +25,8 @@ public sealed record ConveyorDefinition(
     float ItemSpacing,
     int MoneyCost,
     IReadOnlyList<ResourceAmount> BuildCost,
-    UnlockRequirement? Unlock);
+    UnlockRequirement? Unlock,
+    LogisticsKind Kind = LogisticsKind.Belt);
 
 public sealed record RecipeDefinition(
     string Id,
@@ -53,6 +62,8 @@ public sealed class GameContent
         {
             "miner" => new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
             "smelter" => new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
+            "assembler" => new BuildingDefinition("assembler", 60,
+                [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100),
             _ => new BuildingDefinition(id, 0, [], 100)
         };
 
@@ -86,7 +97,9 @@ public sealed class GameContent
             content.Buildings =
             [
                 new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
-                new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100)
+                new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
+                new BuildingDefinition("assembler", 60,
+                    [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100)
             ];
         }
 

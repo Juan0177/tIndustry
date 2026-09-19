@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -23,6 +23,7 @@ public sealed class GameSaveData
     public CameraSaveData Camera { get; set; } = new();
     public List<MinerSaveData> Miners { get; set; } = [];
     public List<SmelterSaveData> Smelters { get; set; } = [];
+    public List<SmelterSaveData> Assemblers { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -50,6 +51,7 @@ public sealed class MinerSaveData
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
     public float Progress { get; set; }
+    public string OutputItemId { get; set; } = "iron-ore";
 }
 
 public sealed class SmelterSaveData
@@ -70,6 +72,10 @@ public sealed class ConveyorSaveData
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
     public string DefinitionId { get; set; } = "conveyor-basic";
+    public string Kind { get; set; } = "belt";
+    public int? BridgePartnerX { get; set; }
+    public int? BridgePartnerY { get; set; }
+    public int SplitterToggle { get; set; }
     public List<ItemSaveData> Items { get; set; } = [];
 }
 
@@ -256,7 +262,8 @@ public static class GameSaveStore
                     X = miner.Position.X,
                     Y = miner.Position.Y,
                     Direction = miner.Direction.ToString(),
-                    Progress = miner.Progress
+                    Progress = miner.Progress,
+                    OutputItemId = miner.OutputItemId
                 })
                 .ToList(),
             Smelters = world.Smelters.Values
@@ -272,6 +279,19 @@ public static class GameSaveStore
                     OutputQueue = smelter.OutputQueue.ToList()
                 })
                 .ToList(),
+            Assemblers = world.Assemblers.Values
+                .Select(assembler => new SmelterSaveData
+                {
+                    X = assembler.Position.X,
+                    Y = assembler.Position.Y,
+                    Direction = assembler.Direction.ToString(),
+                    RecipeId = assembler.Recipe.Id,
+                    Progress = assembler.Progress,
+                    IsCrafting = assembler.IsCrafting,
+                    InputBuffer = assembler.InputBuffer.ToDictionary(pair => pair.Key, pair => pair.Value),
+                    OutputQueue = assembler.OutputQueue.ToList()
+                })
+                .ToList(),
             Conveyors = conveyors.Cells.Values
                 .Select(cell => new ConveyorSaveData
                 {
@@ -279,6 +299,10 @@ public static class GameSaveStore
                     Y = cell.Position.Y,
                     Direction = cell.Direction.ToString(),
                     DefinitionId = cell.Definition.Id,
+                    Kind = cell.Kind.ToString().ToLowerInvariant(),
+                    BridgePartnerX = cell.BridgePartner?.X,
+                    BridgePartnerY = cell.BridgePartner?.Y,
+                    SplitterToggle = cell.SplitterToggle,
                     Items = cell.Items
                         .Select(item => new ItemSaveData
                         {
@@ -322,7 +346,7 @@ public static class GameSaveStore
                 direction = Direction.East;
             }
 
-            if (!world.TryRestoreMiner(position, direction, minerData.Progress))
+            if (!world.TryRestoreMiner(position, direction, minerData.Progress, minerData.OutputItemId))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il minatore a {position}.");
             }
@@ -354,6 +378,32 @@ public static class GameSaveStore
             }
         }
 
+        foreach (var assemblerData in data.Assemblers)
+        {
+            if (!recipes.TryGetValue(assemblerData.RecipeId, out var recipe))
+            {
+                throw new InvalidDataException($"Ricetta assemblatore sconosciuta: {assemblerData.RecipeId}");
+            }
+
+            if (!Enum.TryParse<Direction>(assemblerData.Direction, ignoreCase: true, out var direction))
+            {
+                direction = Direction.East;
+            }
+
+            var position = new GridPosition(assemblerData.X, assemblerData.Y);
+            if (!world.TryRestoreAssembler(
+                    position,
+                    direction,
+                    recipe,
+                    assemblerData.Progress,
+                    assemblerData.IsCrafting,
+                    assemblerData.InputBuffer,
+                    assemblerData.OutputQueue))
+            {
+                throw new InvalidDataException($"Impossibile ripristinare l'assemblatore a {position}.");
+            }
+        }
+
         foreach (var conveyorData in data.Conveyors)
         {
             if (!definitions.TryGetValue(conveyorData.DefinitionId, out var definition))
@@ -370,7 +420,19 @@ public static class GameSaveStore
             var items = conveyorData.Items
                 .Select(item => new TransportedItem(item.Id, item.ItemId, item.Progress))
                 .ToList();
-            if (!conveyors.TryRestore(position, direction, definition, items))
+            GridPosition? bridgePartner = null;
+            if (conveyorData.BridgePartnerX is { } bx && conveyorData.BridgePartnerY is { } by)
+            {
+                bridgePartner = new GridPosition(bx, by);
+            }
+
+            if (!conveyors.TryRestore(
+                    position,
+                    direction,
+                    definition,
+                    items,
+                    bridgePartner,
+                    conveyorData.SplitterToggle))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il nastro a {position}.");
             }
@@ -394,9 +456,22 @@ public static class GameSaveStore
             research.ForceUnlock("smelter");
         }
 
+        if (data.Assemblers.Count > 0)
+        {
+            research.ForceUnlock("assembler");
+        }
+
         if (data.Conveyors.Any(cell => cell.DefinitionId == "conveyor-fast"))
         {
             research.ForceUnlock("conveyor-fast");
+        }
+
+        foreach (var id in new[] { "junction", "splitter", "conveyor-bridge" })
+        {
+            if (data.Conveyors.Any(cell => cell.DefinitionId == id))
+            {
+                research.ForceUnlock(id);
+            }
         }
 
         return research;
