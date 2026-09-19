@@ -18,18 +18,20 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-Fasi **0–6** + Impostazioni/CI. In sintesi:
+**v0.2.0** — fasi **0–6** + Impostazioni/CI, splash, icon pack, first-launch AppData. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
-| Mondo | Mappa **1000×1000**, camera pan/zoom, depositi ferro e rame |
+| Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
 | Produzione | Minatore, **forno** (`smelt-iron`), **assemblatore** (rame + lastra → fili), **generatore** (power stub) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore**, **ponte** (span 2–4) |
 | Economia | Wallet (denaro + lastre + fili), prezzi mercato, rimborso 100%, **potenziamento core** (+25% vendite) |
 | Progressione | **Ricerca** data-driven: sblocchi a pagamento, persistenti nel save |
-| Sessione | Home (Continua se autosave valido / Nuova / Gestione / Impostazioni / Esci), scenari + seed, save JSON **v6** |
+| Sessione | **Splash** brand → Home (**Continua** solo con autosave / Nuova / Gestione / Impostazioni / Esci), scenari + seed, save JSON **v6** |
+| Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT |
 | Qualità di vita | Overlay FPS e risorse, tip onboarding, UI in italiano, `--self-test` esteso |
 | Grafica | Icone HUD/dock/nastri da pack CC0/CC-BY (vedi [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)); strip risorse con **Δ sessione** |
+| Contenuti | Seed `content.json` → AppData al primo avvio; niente Excel nel publish |
 
 Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta nel **layout** e nel **reinvestimento**.
 
@@ -57,12 +59,12 @@ dotnet run --project TIndustry.Logistics.csproj
 
 **Consigli GUI**
 
-1. Dalla home: **Nuova partita** (schermata di caricamento + animazione d’ingresso; la gen 1000² può impiegare 1–2 secondi).
+1. All’avvio: **splash** (thumbnail + brand) — click/tasto per continuare, oppure attendi (~8s). Poi dalla home: **Nuova partita** (loading + animazione; gen 1000² ≈ 1–2 s).
 2. Scout vicino al core: ferro starter, rame un po’ più a sud. (**H** / **Home** riporta la camera sul core.)
 3. Vendi ore → **Ricerca** (T / icona albero) → sblocca **Forno** → chiudi il loop lastre → finanzia logistica avanzata.
-4. **Esc** / icona menu torna alla home; **Continua** riprende l’autosave.
+4. **Esc** / icona menu torna alla home; **Continua** compare solo se c’è un autosave valido.
 
-Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot in `artifacts/`), `--export-excel [path]`.
+Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo pochi secondi), `--export-excel [path]`.
 
 ---
 
@@ -135,25 +137,18 @@ Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricer
 
 ---
 
-## Download build (GitHub Actions)
+## Download
 
-Su push/PR verso `main` o `cursor/**`, il workflow [`.github/workflows/build-publish.yml`](.github/workflows/build-publish.yml) pubblica artifact self-contained:
+**Release consigliata:** [v0.2.0](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.0)
 
-| Artifact | Contenuto |
+| Asset | Piattaforma |
 | --- | --- |
-| `tIndustry-win-x64` | publish self-contained win-x64 (self-test prima del publish) |
-| `tIndustry-linux-x64` | publish self-contained linux-x64 |
+| `tIndustry-win-x64.zip` | Windows x64 (self-contained) |
+| `tIndustry-linux-x64.zip` | Linux x64 (self-contained) |
 
-**Come scaricarli**
+Estrai ed esegui il binario (su Windows: `TIndustry.Logistics.exe`).
 
-1. Apri il repo su GitHub → tab **Actions**
-2. Seleziona un run verde di **Build publish**
-3. In fondo alla pagina: **Artifacts** → scarica `tIndustry-win-x64` (o linux)
-4. Estrai ed esegui il binario (su Windows: `TIndustry.Logistics.exe` o nome publish)
-
-Il job win-x64 esegue anche `--self-test` prima del publish.
-
-Su tag `v*` (es. `v0.1.0`), il workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) crea una **GitHub Release** con zip win-x64 e linux-x64.
+Su ogni tag `v*`, [`.github/workflows/release.yml`](.github/workflows/release.yml) pubblica questi zip. Su push/PR verso `main` o `cursor/**`, [`.github/workflows/build-publish.yml`](.github/workflows/build-publish.yml) espone anche artifact CI (`tIndustry-win-x64` / `tIndustry-linux-x64`) dalla tab **Actions**.
 
 ---
 
@@ -163,7 +158,7 @@ Su tag `v*` (es. `v0.1.0`), il workflow [`.github/workflows/release.yml`](.githu
 | --- | --- |
 | Linguaggio | C# / **.NET 10** |
 | Rendering | **Raylib-cs** (immediate-mode) |
-| Contenuti | seed `data/content.json` → AppData al primo avvio (`~/.local/share/tIndustry/content/`); Excel solo locale/`--export-excel` |
+| Contenuti | seed `data/content.json` → AppData al primo avvio (`%LocalAppData%/tIndustry/content/` · Linux `~/.local/share/tIndustry/content/`); Excel solo locale/`--export-excel` |
 | Progetto | singolo `TIndustry.Logistics` |
 | Sim | ~30 Hz step fisso · render 60 FPS |
 | Persistenza | JSON (`GameSave`, `GameSettings`) |
@@ -176,9 +171,11 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.1**: Phase 0–6 (camera, save, smelter, research, economia, logistica, power stub, seed, onboarding) | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
-| CI publish win/linux + release su tag `v*` | UI più leggibile, performance piena 1000² |
+| **v0.2.0**: Phase 0–6 + splash, icon pack, first-launch AppData, dock Mindustry, hot-path | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| CI publish win/linux + release su tag `v*` | Ulteriore polish UI / performance mappa piena |
 | `miner-advanced` ancora stub | Combat/unità: **non** priorità early |
+
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.0](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.0).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 
