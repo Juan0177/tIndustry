@@ -22,6 +22,7 @@ public static class SystemMonitor
     private static float cpuRamAccum;
     private static float gpuAccum;
     private static bool gpuProbeDone;
+    private static bool primed;
 
     public static double CpuPercent => cpuPercent;
     public static long RamUsedBytes => ramUsedBytes;
@@ -30,6 +31,16 @@ public static class SystemMonitor
 
     public static void Update(float deltaSeconds)
     {
+        // First call samples immediately so overlays aren't blank on splash/demo frames.
+        if (!primed)
+        {
+            primed = true;
+            SampleCpu();
+            SampleRam();
+            SampleGpu();
+            return;
+        }
+
         cpuRamAccum += deltaSeconds;
         gpuAccum += deltaSeconds;
         if (cpuRamAccum >= 0.5f)

@@ -30,10 +30,34 @@ if (args.Contains("--self-test"))
 if (!args.Contains("--console-demo"))
 {
     var capture = args.Contains("--capture");
+    var demoBelts = args.Contains("--demo-belts");
+    var demoTutorial = args.Contains("--demo-tutorial");
+    var demoSettings = args.Contains("--demo-settings");
+    string? shot = null;
+    if (capture)
+    {
+        shot = Path.Combine("artifacts", "game-preview.png");
+    }
+    else if (demoBelts)
+    {
+        shot = Path.Combine("artifacts", "belts-ui-tutorial-demo.png");
+    }
+    else if (demoTutorial)
+    {
+        shot = Path.Combine("artifacts", "tutorial-banner-demo.png");
+    }
+    else if (demoSettings)
+    {
+        shot = Path.Combine("artifacts", "settings-ui-scale-demo.png");
+    }
+
     FactoryGameApp.Run(
         content,
-        args.Contains("--smoke-test") || capture ? 3 : null,
-        capture ? Path.Combine("artifacts", "game-preview.png") : null);
+        args.Contains("--smoke-test") || capture ? 3 : demoBelts ? 8 : demoTutorial || demoSettings ? 40 : null,
+        shot,
+        demoBelts,
+        demoTutorial,
+        demoSettings);
     return;
 }
 

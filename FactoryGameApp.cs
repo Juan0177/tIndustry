@@ -107,7 +107,13 @@ internal static class FactoryGameApp
         HomeAction.Quit
     ];
 
-    public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
+    public static void Run(
+        GameContent content,
+        int? maximumFrames = null,
+        string? screenshotPath = null,
+        bool demoBelts = false,
+        bool demoTutorial = false,
+        bool demoSettings = false)
     {
         var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
         var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
@@ -153,11 +159,43 @@ internal static class FactoryGameApp
         UiTheme.ApplyScalePercent(settings.UiScalePercent);
 
         // Headless smoke/capture paths jump straight into a playable session.
-        if (maximumFrames is not null || screenshotPath is not null)
+        if (maximumFrames is not null || screenshotPath is not null || demoBelts || demoTutorial || demoSettings)
         {
             StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
-            screen = AppScreen.Playing;
-            BeginTutorialIfNeeded(settings);
+            screen = demoSettings ? AppScreen.Settings : AppScreen.Playing;
+            if (demoSettings)
+            {
+                SettingsDraft = settings.Clone();
+                settings.ShowResourceOverlay = true;
+                settings.UiScalePercent = 150;
+                UiTheme.ApplyScalePercent(150);
+                maximumFrames ??= 5;
+                SystemMonitor.Update(1f);
+            }
+
+            if (demoTutorial)
+            {
+                settings.TutorialCompleted = false;
+                BeginTutorialIfNeeded(settings);
+            }
+
+            if (demoBelts)
+            {
+                SeedDemoBeltLine(world, conveyors, wallet, research, basicConveyor, minerBuilding, session!, ref nextItemId);
+                camera.CenterOnTile(
+                    new GridPosition(world.StarterDepositOrigin.X + 2, world.StarterDepositOrigin.Y + 1),
+                    BaseTileSize,
+                    ViewportWidth,
+                    ViewportHeight);
+                camera.SetZoom(2.2f);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+                settings.ShowResourceOverlay = true;
+                settings.UiScalePercent = Math.Max(settings.UiScalePercent, 125);
+                UiTheme.ApplyScalePercent(settings.UiScalePercent);
+                // Few frames only — keep seeded ores on belts for the screenshot.
+                maximumFrames = 8;
+                SystemMonitor.Update(1f);
+            }
         }
 
         var flags = ConfigFlags.Msaa4xHint;
@@ -334,15 +372,23 @@ internal static class FactoryGameApp
                         ref statusMessage,
                         nextItemId,
                         frameTime);
-                    while (accumulator >= FixedStep)
+                    if (!demoBelts)
                     {
-                        world!.Update(FixedStep, conveyors!, wallet!, ref nextItemId, market!, session!);
-                        accumulator -= FixedStep;
+                        while (accumulator >= FixedStep)
+                        {
+                            world!.Update(FixedStep, conveyors!, wallet!, ref nextItemId, market!, session!);
+                            accumulator -= FixedStep;
+                        }
+                    }
+                    else
+                    {
+                        accumulator = 0f;
                     }
 
-                    if (TutorialActive && world is not null && conveyors is not null && wallet is not null)
+                    if (TutorialActive && world is not null && conveyors is not null && wallet is not null
+                        && ActiveSettings is not null)
                     {
-                        UpdateTutorialProgress(world, conveyors, wallet, settings);
+                        UpdateTutorialProgress(world, conveyors, wallet, ActiveSettings);
                     }
 
                     break;
@@ -410,7 +456,11 @@ internal static class FactoryGameApp
             }
             Raylib.EndDrawing();
 
-            if (screenshotPath is not null && renderedFrames == 1)
+            if (screenshotPath is not null
+                && ((demoBelts && renderedFrames == 3)
+                    || (demoTutorial && renderedFrames == 2)
+                    || (demoSettings && renderedFrames == 2)
+                    || (!demoBelts && !demoTutorial && !demoSettings && renderedFrames == 1)))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
                 Raylib.TakeScreenshot(screenshotPath);
@@ -759,6 +809,56 @@ internal static class FactoryGameApp
         market = content.CreateMarket();
         session = new EconomySession(wallet.Money);
         nextItemId = 1L;
+    }
+
+    private static void SeedDemoBeltLine(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        ConveyorDefinition basicConveyor,
+        BuildingDefinition minerBuilding,
+        EconomySession session,
+        ref long nextItemId)
+    {
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(minerAt, Direction.East, conveyors, wallet, minerBuilding, session);
+        for (var x = minerAt.X + MinerBuilding.Size; x < world.CoreOrigin.X; x++)
+        {
+            conveyors.TryPlace(
+                new GridPosition(x, minerAt.Y),
+                Direction.East,
+                basicConveyor,
+                wallet,
+                research,
+                session,
+                world.CanPlaceConveyor);
+        }
+
+        // Park unmistakable ore chips mid-belt for the screenshot (sim may already have moved).
+        foreach (var cell in conveyors.Cells.Values.ToList())
+        {
+            cell.RestoreItems([]);
+        }
+
+        var midX = minerAt.X + MinerBuilding.Size;
+        if (conveyors.Cells.TryGetValue(new GridPosition(midX, minerAt.Y), out var midBelt))
+        {
+            midBelt.TryInsert(new TransportedItem(nextItemId++, "iron-ore"));
+            if (midBelt.Items.Count > 0)
+            {
+                midBelt.Items[0].Progress = 0.45f;
+            }
+        }
+
+        if (conveyors.Cells.TryGetValue(new GridPosition(midX + 1, minerAt.Y), out var nearCore))
+        {
+            nearCore.TryInsert(new TransportedItem(nextItemId++, "copper-ore"));
+            if (nearCore.Items.Count > 0)
+            {
+                nearCore.Items[0].Progress = 0.55f;
+            }
+        }
     }
 
     private static EconomyWallet CreateStartingWallet() =>
@@ -2198,7 +2298,7 @@ internal static class FactoryGameApp
         }
 
         var mouse = Raylib.GetMousePosition();
-        if (Contains(mouse, 120, 150, 420, 36))
+        if (Contains(mouse, 120, SettingsY(110), 480, 34))
         {
             settings.ShowFps = !settings.ShowFps;
             draft.ShowFps = settings.ShowFps;
@@ -2207,7 +2307,7 @@ internal static class FactoryGameApp
             return;
         }
 
-        if (Contains(mouse, 120, 192, 420, 36))
+        if (Contains(mouse, 120, SettingsY(148), 480, 34))
         {
             settings.ShowResourceOverlay = !settings.ShowResourceOverlay;
             draft.ShowResourceOverlay = settings.ShowResourceOverlay;
@@ -2218,7 +2318,7 @@ internal static class FactoryGameApp
             return;
         }
 
-        if (Contains(mouse, 120, 234, 420, 36))
+        if (Contains(mouse, 120, SettingsY(186), 480, 34))
         {
             draft.VSync = !draft.VSync;
             statusMessage = draft.VSync
@@ -2231,7 +2331,7 @@ internal static class FactoryGameApp
         for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
         {
             var x = 120 + i * 110;
-            if (!Contains(mouse, x, 278, 100, 34))
+            if (!Contains(mouse, x, SettingsY(248), 100, 32))
             {
                 continue;
             }
@@ -2246,7 +2346,7 @@ internal static class FactoryGameApp
         }
 
         // Auto resolution
-        if (Contains(mouse, 120, 340, 160, 34))
+        if (Contains(mouse, 120, SettingsY(310), 160, 32))
         {
             draft.UseAutoResolution = true;
             DisplayApplier.CaptureDesktopResolution(draft);
@@ -2258,8 +2358,8 @@ internal static class FactoryGameApp
         for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
         {
             var x = 120 + (i % 4) * 155;
-            var y = 380 + (i / 4) * 38;
-            if (!Contains(mouse, x, y, 148, 34))
+            var y = SettingsY(348) + (i / 4) * 36;
+            if (!Contains(mouse, x, y, 148, 32))
             {
                 continue;
             }
@@ -2275,8 +2375,8 @@ internal static class FactoryGameApp
         for (var i = 0; i < GameSettings.FpsLimitPresets.Length; i++)
         {
             var x = 120 + (i % 4) * 155;
-            var y = 490 + (i / 4) * 36;
-            if (!Contains(mouse, x, y, 148, 32))
+            var y = SettingsY(448) + (i / 4) * 34;
+            if (!Contains(mouse, x, y, 148, 30))
             {
                 continue;
             }
@@ -2292,7 +2392,7 @@ internal static class FactoryGameApp
         DisplayMode[] modes = [DisplayMode.Windowed, DisplayMode.Borderless, DisplayMode.Fullscreen];
         for (var i = 0; i < modes.Length; i++)
         {
-            if (!Contains(mouse, 120 + i * 160, 580, 150, 36))
+            if (!Contains(mouse, 120 + i * 160, SettingsY(540), 150, 34))
             {
                 continue;
             }
@@ -2303,7 +2403,7 @@ internal static class FactoryGameApp
         }
 
         // Apply
-        if (Contains(mouse, 120, 630, 180, 40))
+        if (Contains(mouse, 120, SettingsY(586), 180, 38))
         {
             settings.CopyFrom(draft);
             settings.Save();
@@ -2315,71 +2415,74 @@ internal static class FactoryGameApp
         }
 
         // Revert draft to last applied
-        if (Contains(mouse, 320, 630, 180, 40))
+        if (Contains(mouse, 320, SettingsY(586), 180, 38))
         {
             draft.CopyFrom(settings);
             statusMessage = "Selezione grafica ripristinata.";
         }
     }
 
+    private static int SettingsY(int logicalY) =>
+        16 + (int)MathF.Round((logicalY - 16) * Math.Clamp(UiTheme.Scale, 1f, 1.65f));
+
     private static void DrawSettings(GameSettings settings, GameSettings draft, string? statusMessage)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
-        DrawUiText("Impostazioni", 120, 40, 32, new Color(239, 238, 224, 255));
-        DrawUiText("Overlay, scala UI e grafica. Applica per salvare risoluzione, VSync e limite FPS.", 120, 78, 15,
+        DrawUiText("Impostazioni", 120, SettingsY(36), 28, new Color(239, 238, 224, 255));
+        DrawUiText("Overlay, scala UI e grafica. Applica per salvare risoluzione, VSync e limite FPS.", 120, SettingsY(68), 14,
             new Color(112, 124, 119, 255));
 
-        DrawToggleRow(120, 150, 420, 36, "Mostra contatore FPS", settings.ShowFps);
-        DrawToggleRow(120, 192, 420, 36, "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
-        DrawToggleRow(120, 234, 420, 36, "VSync", draft.VSync);
+        DrawToggleRow(120, SettingsY(110), 480, 34, "Mostra contatore FPS", settings.ShowFps);
+        DrawToggleRow(120, SettingsY(148), 480, 34, "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
+        DrawToggleRow(120, SettingsY(186), 480, 34, "VSync", draft.VSync);
 
-        DrawUiText("Scala interfaccia", 120, 256, 16, new Color(196, 201, 193, 255));
+        DrawUiText("Scala interfaccia", 120, SettingsY(228), 15, new Color(196, 201, 193, 255));
         for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
         {
             var percent = GameSettings.UiScalePresets[i];
-            DrawButton(120 + i * 110, 278, 100, 34, GameSettings.UiScaleLabel(percent),
+            DrawButton(120 + i * 110, SettingsY(248), 100, 32, GameSettings.UiScaleLabel(percent),
                 settings.UiScalePercent == percent);
         }
 
-        DrawUiText("Risoluzione", 120, 320, 16, new Color(196, 201, 193, 255));
-        DrawButton(120, 340, 160, 34, "Auto risoluzione", draft.UseAutoResolution);
+        DrawUiText("Risoluzione", 120, SettingsY(290), 15, new Color(196, 201, 193, 255));
+        DrawButton(120, SettingsY(310), 160, 32, "Auto risoluzione", draft.UseAutoResolution);
         for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
         {
             var preset = GameSettings.ResolutionPresets[i];
             var x = 120 + (i % 4) * 155;
-            var y = 380 + (i / 4) * 38;
+            var y = SettingsY(348) + (i / 4) * 36;
             var selected = !draft.UseAutoResolution
                 && draft.ResolutionWidth == preset.Width
                 && draft.ResolutionHeight == preset.Height;
-            DrawButton(x, y, 148, 34, preset.Label, selected);
+            DrawButton(x, y, 148, 32, preset.Label, selected);
         }
 
-        DrawUiText("Limite FPS (con VSync: preferenza salvata, sync al refresh)", 120, 464, 15,
+        DrawUiText("Limite FPS (con VSync: preferenza salvata, sync al refresh)", 120, SettingsY(428), 14,
             new Color(196, 201, 193, 255));
         for (var i = 0; i < GameSettings.FpsLimitPresets.Length; i++)
         {
             var fps = GameSettings.FpsLimitPresets[i];
             var x = 120 + (i % 4) * 155;
-            var y = 490 + (i / 4) * 36;
-            DrawButton(x, y, 148, 32, GameSettings.FpsLimitLabel(fps), draft.TargetFps == fps);
+            var y = SettingsY(448) + (i / 4) * 34;
+            DrawButton(x, y, 148, 30, GameSettings.FpsLimitLabel(fps), draft.TargetFps == fps);
         }
 
-        DrawUiText("Modalità schermo", 120, 560, 16, new Color(196, 201, 193, 255));
-        DrawButton(120, 580, 150, 36, "Finestra", draft.DisplayMode == DisplayMode.Windowed);
-        DrawButton(280, 580, 150, 36, "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
-        DrawButton(440, 580, 150, 36, "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
+        DrawUiText("Modalità schermo", 120, SettingsY(520), 15, new Color(196, 201, 193, 255));
+        DrawButton(120, SettingsY(540), 150, 34, "Finestra", draft.DisplayMode == DisplayMode.Windowed);
+        DrawButton(280, SettingsY(540), 150, 34, "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
+        DrawButton(440, SettingsY(540), 150, 34, "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
 
         var dirty = !draft.MatchesDisplay(settings);
-        DrawMenuButton(120, 630, 180, 40, dirty ? "Applica*" : "Applica");
-        DrawMenuButton(320, 630, 180, 40, "Annulla");
+        DrawMenuButton(120, SettingsY(586), 180, 38, dirty ? "Applica*" : "Applica");
+        DrawMenuButton(320, SettingsY(586), 180, 38, "Annulla");
 
         var resLabel = settings.UseAutoResolution
             ? $"Auto {settings.ResolutionWidth}×{settings.ResolutionHeight}"
             : $"{settings.ResolutionWidth}×{settings.ResolutionHeight}";
         DrawUiText(
             $"Attuale: {resLabel} · {GameSettings.DisplayModeLabel(settings.DisplayMode)} · UI {GameSettings.UiScaleLabel(settings.UiScalePercent)} · VSync {(settings.VSync ? "ON" : "OFF")} · {GameSettings.FpsLimitLabel(settings.TargetFps)}",
-            120, 678, 13, new Color(126, 137, 132, 255));
-        DrawUiText($"File: {GameSettings.SettingsPath}", 120, 698, 12, new Color(90, 100, 96, 255));
+            120, SettingsY(632), 12, new Color(126, 137, 132, 255));
+        DrawUiText($"File: {GameSettings.SettingsPath}", 120, SettingsY(650), 11, new Color(90, 100, 96, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
