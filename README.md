@@ -1,5 +1,8 @@
 # tIndustry
 
+[![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
+**Versione 0.1.0** · vedi [CHANGELOG.md](CHANGELOG.md)
+
 ```
   ▢──▢──▢──▢── CORE ──$──
   │  miner → forno → lastre → mercato
@@ -15,17 +18,17 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-Fasi **1–5** + Impostazioni/CI. In sintesi:
+Fasi **0–6** + Impostazioni/CI. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, camera pan/zoom, depositi ferro e rame |
-| Produzione | Minatore, **forno** (`smelt-iron`), **assemblatore** (rame + lastra → fili) |
+| Produzione | Minatore, **forno** (`smelt-iron`), **assemblatore** (rame + lastra → fili), **generatore** (power stub) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore**, **ponte** (span 2–4) |
 | Economia | Wallet (denaro + lastre + fili), prezzi mercato, rimborso 100%, **potenziamento core** (+25% vendite) |
 | Progressione | **Ricerca** data-driven: sblocchi a pagamento, persistenti nel save |
-| Sessione | Home (Continua / Nuova / Gestione / Impostazioni / Esci), save JSON v5 |
-| Qualità di vita | Overlay FPS e risorse, UI in italiano, `--self-test` esteso |
+| Sessione | Home (Continua / Nuova / Gestione / Impostazioni / Esci), scenari + seed, save JSON **v6** |
+| Qualità di vita | Overlay FPS e risorse, tip onboarding, UI in italiano, `--self-test` esteso |
 
 Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta nel **layout** e nel **reinvestimento**.
 
@@ -71,6 +74,7 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 | Rotella | Zoom |
 | **R** | Ruota pezzo / direzione |
 | **1–8** | Tool: nastro, minatore, forno, rimuovi, assemblatore, incrocio, sdoppiatore, ponte |
+| **9** | Generatore (se sbloccato) |
 | **Q** / **E** | Nastro base / nastro veloce (se sbloccato) |
 | Click sinistro | Piazza (nastri: drag) |
 | **T** | Ricerca |
@@ -85,7 +89,7 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 **Home**
 
 - **Continua** — carica l’autosave
-- **Nuova partita** — seed fresco, mappa 1000×1000
+- **Nuova partita** — scenario + seed, mappa 1000×1000
 - **Gestione salvataggi** — lista slot, carica, elimina, **Duplica Continua** → `slot-*.json`
 - **Impostazioni** — overlay
 - **Esci** — chiude il gioco (non la partita: salva prima se ti serve)
@@ -106,7 +110,7 @@ Persistenza: `%LocalAppData%/tIndustry/settings.json` (Linux: `~/.local/share/tI
 | Cartella save | `%LocalAppData%/tIndustry/saves/` |
 | Autosave | `continua.json` |
 | Slot nominati | `slot-*.json` via **Duplica Continua** |
-| Formato | JSON versionato (**v5**: edifici, ponti, unlock, economia, sessione) |
+| Formato | JSON versionato (**v6**: edifici, ponti, unlock, economia, generatori, potenza) |
 | Mappa | **1000×1000** tile; draw culling sulla viewport |
 | Ricerca | **T** / **RICERCA**: seleziona struttura → verifica costi → **Conferma sblocco** (spende, non rimborsa) |
 
@@ -116,7 +120,8 @@ Persistenza: `%LocalAppData%/tIndustry/settings.json` (Linux: `~/.local/share/tI
 2. Sblocca **Forno** → vendi **lastre** ($30; meglio di 2× ore)  
 3. **Potenzia core** se vuoi +25% sulle vendite  
 4. Sblocca logistica (veloce / incrocio / sdoppiatore / ponte)  
-5. Rame + **Assemblatore** → **fili** ($14) e sblocchi più cari  
+5. Rame + **Assemblatore** → **fili** (prezzo mercato aggiornato) e sblocchi più cari  
+6. Se i forni stallano: **RICERCA** → **Generatore** → **9** / **GEN.**
 
 Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricerca.
 
@@ -140,6 +145,8 @@ Su push/PR verso `main` o `cursor/**`, il workflow [`.github/workflows/build-pub
 
 Il job win-x64 esegue anche `--self-test` prima del publish.
 
+Su tag `v*` (es. `v0.1.0`), il workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) crea una **GitHub Release** con zip win-x64 e linux-x64.
+
 ---
 
 ## Stack
@@ -161,8 +168,8 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| Phase 0–5: camera, save, smelter, research, economia, split/junction/bridge/assembler/rame | Phase 6: polish, bilanciamento, onboarding, performance piena, eventuale power grid |
-| CI publish win/linux + Impostazioni FPS/risorse | Più ricette/edifici, UI più leggibile, scenario/seed select |
+| **v0.1**: Phase 0–6 (camera, save, smelter, research, economia, logistica, power stub, seed, onboarding) | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| CI publish win/linux + release su tag `v*` | UI più leggibile, performance piena 1000² |
 | `miner-advanced` ancora stub | Combat/unità: **non** priorità early |
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
