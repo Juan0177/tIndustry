@@ -943,6 +943,34 @@ static void RunSelfTest(GameContent content)
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics)
                 .Single(e => e.Id == "conveyor-basic").Hint!.Contains("unidirezionale", StringComparison.OrdinalIgnoreCase),
             "Hint nastro: flusso unidirezionale.");
+        Assert(FactoryGameApp.TryResolveDockEntryCostForTest(
+                "miner",
+                content.Conveyors.Single(c => c.Id == "conveyor-basic"),
+                content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "junction"),
+                content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
+                content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("smelter"),
+                content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("generator"),
+                out var minerMoney, out var minerMats)
+            && minerMoney == content.GetBuildingOrDefault("miner").MoneyCost
+            && minerMats.Any(m => m.ItemId == "iron-plate" && m.Amount > 0),
+            "Dock cost bar: minatore risolve denaro + lastre.");
+        Assert(!FactoryGameApp.TryResolveDockEntryCostForTest(
+                "remove",
+                content.Conveyors.Single(c => c.Id == "conveyor-basic"),
+                content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "junction"),
+                content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
+                content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("smelter"),
+                content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("generator"),
+                out _, out _),
+            "Dock cost bar: Rimuovi non espone costi finti.");
         // FPS corner vs system overlay: never both (policy mirrored from play HUD).
         Assert(ShowCornerFps(showFps: true, showOverlay: false), "FPS angolo quando solo contatore.");
         Assert(!ShowCornerFps(showFps: true, showOverlay: true), "Niente FPS angolo se overlay sistema ON.");

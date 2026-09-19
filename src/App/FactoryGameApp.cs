@@ -23,8 +23,12 @@ internal static class FactoryGameApp
     public const int MapHeight = 1000;
     private const int BaseTileSize = 36;
     private const int HeaderHeightBase = 64;
-    private const int InfoPanelWidthBase = 288;
-    private const int MercatoRowHeightBase = 38;
+    private const int InfoPanelWidthBase = 304;
+    private const int MercatoRowHeightBase = 40;
+    private const int MercatoPadBase = 10;
+    private const int MercatoSellOneWBase = 28;
+    private const int MercatoSellAllWBase = 48;
+    private const int MercatoSellGapBase = 4;
     private const int StatusPanelHeightBase = 148;
     private const int HeaderIconSizeBase = 40;
     private const int HeaderIconGapBase = 8;
@@ -3100,9 +3104,26 @@ internal static class FactoryGameApp
                     return false;
                 }
 
-                _ = sw;
+                // Sell buttons must stay inside panel padding (no border clip on "tutti").
+                GetMercatoSellButtonMetrics(out var oneW, out var allW, out var gap, out var rightPad);
+                if (oneW + gap + allW + rightPad + MercatoS(8) > mw)
+                {
+                    return false;
+                }
+
+                GetMercatoSellAllBounds(mx, my, mw, mh, 0, out var allX, out _, out var allBtnW, out _);
+                if (allX + allBtnW > mx + mw - rightPad + 1)
+                {
+                    return false;
+                }
+
+                // Fabbrica shares the Mercato column (same x + width).
+                if (sh > 0 && (sx != mx || sw != mw))
+                {
+                    return false;
+                }
+
                 _ = mh;
-                _ = mw;
             }
 
             return true;
@@ -3300,7 +3321,10 @@ internal static class FactoryGameApp
             tool, direction, world, camera);
         DrawMercatoPanel(world, wallet, market);
         DrawStatusPanel(world, conveyors, research, wallet, session, economy);
-        DrawBuildDock(wallet, research, selectedConveyor, direction, tool);
+        DrawBuildDock(
+            wallet, research, selectedConveyor, direction, tool,
+            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
@@ -3624,7 +3648,16 @@ internal static class FactoryGameApp
         ResearchState research,
         ConveyorDefinition selectedConveyor,
         Direction direction,
-        BuildTool tool)
+        BuildTool tool,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition junctionConveyor,
+        ConveyorDefinition splitterConveyor,
+        ConveyorDefinition bridgeConveyor,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
+        BuildingDefinition assemblerBuilding,
+        BuildingDefinition generatorBuilding)
     {
         // Safety: removed rail categories must not stick as active.
         if (DockCategory is UiTheme.BuildCategory.Inventory or UiTheme.BuildCategory.Tools)
@@ -3639,7 +3672,8 @@ internal static class FactoryGameApp
         var railW = UiTheme.DockRailWidth;
         var railX = dockX + gridW + UiTheme.DockCellGap;
         var mouse = Raylib.GetMousePosition();
-        string? hoverText = null;
+        UiTheme.DockEntry? hoveredEntry = null;
+        UiTheme.DockEntry? selectedEntry = null;
 
         // Building grid panel (left of rail).
         Raylib.DrawRectangle(dockX, dockY, gridW, gridH, UiTheme.PanelFill);
@@ -3677,10 +3711,6 @@ internal static class FactoryGameApp
             DrawUiText(catLabel, cx + (UiTheme.DockCellSize - catLw) / 2,
                 cy + UiTheme.DockCellSize - UiTheme.S(12), 9,
                 active ? UiTheme.Accent : UiTheme.TextMuted);
-            if (hovered)
-            {
-                hoverText = UiTheme.DockHoverText(category);
-            }
         }
 
         var gridX = dockX + UiTheme.DockPadding;
@@ -3703,6 +3733,7 @@ internal static class FactoryGameApp
 
             if (selected)
             {
+                selectedEntry = entry;
                 UiTheme.DrawAccentRect(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize, UiTheme.Accent);
             }
             else if (hovered)
@@ -3722,21 +3753,251 @@ internal static class FactoryGameApp
 
             if (hovered)
             {
-                hoverText = UiTheme.DockHoverText(entry);
+                hoveredEntry = entry;
             }
         }
 
-        // Hover tooltip bar: Italian name + short hint (taller so text is not clipped).
+        selectedEntry ??= FindSelectedDockEntry(selectedConveyor, tool)
+            ?? entries.FirstOrDefault(e => IsDockEntrySelected(e, selectedConveyor, direction, tool));
+
+        var barEntry = hoveredEntry ?? selectedEntry;
         var barY = dockY + dockH - UiTheme.DockHoverBarHeight;
         Raylib.DrawRectangle(dockX, barY, dockW, UiTheme.DockHoverBarHeight, UiTheme.PanelFill);
         UiTheme.DrawAccentRect(dockX, barY, dockW, UiTheme.DockHoverBarHeight, UiTheme.PanelBorder, 1);
-        var label = hoverText ?? UiTheme.DockHoverText(DockCategory);
-        var fontSize = label.Length > 36 ? 11 : 12;
-        var labelW = MeasureUiText(label, fontSize);
-        DrawUiText(label, dockX + Math.Max(4, (dockW - labelW) / 2), barY + Math.Max(4, (UiTheme.DockHoverBarHeight - fontSize) / 2),
-            fontSize, hoverText is null ? UiTheme.TextMuted : UiTheme.Accent);
+        DrawDockCostBar(
+            dockX, barY, dockW, UiTheme.DockHoverBarHeight,
+            barEntry, wallet, research,
+            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
+    }
 
-        _ = wallet;
+    private static UiTheme.DockEntry? FindSelectedDockEntry(ConveyorDefinition selectedConveyor, BuildTool tool)
+    {
+        foreach (var category in UiTheme.BuildCategories)
+        {
+            foreach (var entry in UiTheme.EntriesFor(category))
+            {
+                if (DockSelectedId == entry.Id)
+                {
+                    return entry;
+                }
+
+                if (entry.Kind == UiTheme.DockEntryKind.ConveyorVariant
+                    && tool == BuildTool.Conveyor
+                    && entry.ConveyorId == selectedConveyor.Id)
+                {
+                    return entry;
+                }
+
+                if (entry.Kind == UiTheme.DockEntryKind.BuildTool && entry.Tool == tool)
+                {
+                    return entry;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Peak-style dock footer: creative name · material icons/qty · +$cost (or clear remove label).
+    /// </summary>
+    private static void DrawDockCostBar(
+        int barX,
+        int barY,
+        int barW,
+        int barH,
+        UiTheme.DockEntry? entry,
+        EconomyWallet wallet,
+        ResearchState research,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition junctionConveyor,
+        ConveyorDefinition splitterConveyor,
+        ConveyorDefinition bridgeConveyor,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
+        BuildingDefinition assemblerBuilding,
+        BuildingDefinition generatorBuilding)
+    {
+        if (entry is null)
+        {
+            var fallback = UiTheme.BuildCategoryLabel(DockCategory);
+            var fw = MeasureUiText(fallback, 12);
+            DrawUiText(fallback, barX + Math.Max(4, (barW - fw) / 2),
+                barY + Math.Max(4, (barH - UiTheme.S(12)) / 2), 12, UiTheme.TextMuted);
+            return;
+        }
+
+        if (entry.Id == "remove" || entry.Tool == BuildTool.Remove)
+        {
+            const string removeLabel = "Rimuovi · demolisci edifici e nastri";
+            var rw = MeasureUiText(removeLabel, 12);
+            DrawUiText(removeLabel, barX + Math.Max(4, (barW - rw) / 2),
+                barY + Math.Max(4, (barH - UiTheme.S(12)) / 2), 12, UiTheme.TextPrimary);
+            return;
+        }
+
+        if (entry.ResearchId is not null && !research.IsUnlocked(entry.ResearchId))
+        {
+            var lockedLabel = $"{entry.Label} · Sblocca in Ricerca";
+            var lw = MeasureUiText(lockedLabel, 12);
+            DrawUiText(lockedLabel, barX + Math.Max(4, (barW - lw) / 2),
+                barY + Math.Max(4, (barH - UiTheme.S(12)) / 2), 12, UiTheme.TextMuted);
+            return;
+        }
+
+        if (!TryResolveDockEntryCost(
+                entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+                minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+                out var money, out var materials))
+        {
+            var hint = TruncateUiText(entry.Hint ?? entry.Label, 12, barW - UiTheme.S(16));
+            var hw = MeasureUiText(hint, 12);
+            DrawUiText(hint, barX + Math.Max(4, (barW - hw) / 2),
+                barY + Math.Max(4, (barH - UiTheme.S(12)) / 2), 12, UiTheme.TextMuted);
+            return;
+        }
+
+        const int fontSize = 12;
+        var iconSize = UiTheme.S(16);
+        var sep = " · ";
+        var sepW = MeasureUiText(sep, fontSize);
+        var nameW = MeasureUiText(entry.Label, fontSize);
+        var moneyLabel = $"+${money}";
+        var moneyW = MeasureUiText(moneyLabel, fontSize);
+
+        var matChunks = new List<(string Qty, int QtyW, string ItemId, int Amount)>();
+        var matsW = 0;
+        foreach (var mat in materials.Where(m => m.Amount > 0))
+        {
+            var qty = $"×{mat.Amount}";
+            var qw = MeasureUiText(qty, fontSize);
+            matChunks.Add((qty, qw, mat.ItemId, mat.Amount));
+            matsW += sepW + qw + UiTheme.S(2) + iconSize;
+        }
+
+        var totalW = nameW + matsW + sepW + moneyW;
+        var x = barX + Math.Max(UiTheme.S(6), (barW - totalW) / 2);
+        var textY = barY + Math.Max(2, (barH - UiTheme.S(fontSize)) / 2);
+        var iconY = barY + Math.Max(2, (barH - iconSize) / 2);
+
+        DrawUiText(entry.Label, x, textY, fontSize, UiTheme.TextPrimary);
+        x += nameW;
+
+        var canAfford = wallet.CanAfford(money, materials);
+        foreach (var (qty, qw, itemId, amount) in matChunks)
+        {
+            DrawUiText(sep, x, textY, fontSize, UiTheme.TextMuted);
+            x += sepW;
+            var qtyColor = wallet.MaterialCount(itemId) >= amount
+                ? UiTheme.TextPrimary
+                : new Color(220, 120, 100, 255);
+            DrawUiText(qty, x, textY, fontSize, qtyColor);
+            x += qw + UiTheme.S(2);
+            Raylib.DrawRectangle(x - 1, iconY - 1, iconSize + 2, iconSize + 2, new Color(24, 28, 30, 255));
+            UiTheme.DrawItemIcon(itemId, x, iconY, iconSize);
+            x += iconSize;
+        }
+
+        DrawUiText(sep, x, textY, fontSize, UiTheme.TextMuted);
+        x += sepW;
+        DrawUiText(moneyLabel, x, textY, fontSize,
+            canAfford ? UiTheme.MoneyGreen : new Color(220, 120, 100, 255));
+    }
+
+    /// <summary>Self-test / layout helper: resolve money + materials for a dock entry id.</summary>
+    internal static bool TryResolveDockEntryCostForTest(
+        string entryId,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition junctionConveyor,
+        ConveyorDefinition splitterConveyor,
+        ConveyorDefinition bridgeConveyor,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
+        BuildingDefinition assemblerBuilding,
+        BuildingDefinition generatorBuilding,
+        out int money,
+        out IReadOnlyList<ResourceAmount> materials)
+    {
+        var entry = UiTheme.BuildCategories
+            .SelectMany(UiTheme.EntriesFor)
+            .FirstOrDefault(e => e.Id == entryId);
+        if (entry is null)
+        {
+            money = 0;
+            materials = Array.Empty<ResourceAmount>();
+            return false;
+        }
+
+        return TryResolveDockEntryCost(
+            entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            out money, out materials);
+    }
+
+    private static bool TryResolveDockEntryCost(
+        UiTheme.DockEntry entry,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition junctionConveyor,
+        ConveyorDefinition splitterConveyor,
+        ConveyorDefinition bridgeConveyor,
+        BuildingDefinition minerBuilding,
+        BuildingDefinition smelterBuilding,
+        BuildingDefinition assemblerBuilding,
+        BuildingDefinition generatorBuilding,
+        out int money,
+        out IReadOnlyList<ResourceAmount> materials)
+    {
+        money = 0;
+        materials = Array.Empty<ResourceAmount>();
+
+        switch (entry.Id)
+        {
+            case "miner":
+                money = minerBuilding.MoneyCost;
+                materials = minerBuilding.BuildCost;
+                return true;
+            case "smelter":
+                money = smelterBuilding.MoneyCost;
+                materials = smelterBuilding.BuildCost;
+                return true;
+            case "assembler":
+                money = assemblerBuilding.MoneyCost;
+                materials = assemblerBuilding.BuildCost;
+                return true;
+            case "generator":
+                money = generatorBuilding.MoneyCost;
+                materials = generatorBuilding.BuildCost;
+                return true;
+            case "conveyor-basic":
+                money = basicConveyor.MoneyCost;
+                materials = basicConveyor.BuildCost;
+                return true;
+            case "conveyor-fast":
+                money = fastConveyor.MoneyCost;
+                materials = fastConveyor.BuildCost;
+                return true;
+            case "junction":
+                money = junctionConveyor.MoneyCost;
+                materials = junctionConveyor.BuildCost;
+                return true;
+            case "splitter":
+                money = splitterConveyor.MoneyCost;
+                materials = splitterConveyor.BuildCost;
+                return true;
+            case "bridge":
+                // Bridge places two heads — mirror placement cost.
+                money = bridgeConveyor.MoneyCost * 2;
+                materials = bridgeConveyor.BuildCost
+                    .Select(c => new ResourceAmount(c.ItemId, c.Amount * 2))
+                    .ToArray();
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static bool IsDockEntrySelected(
@@ -4563,15 +4824,16 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(x, y, w, h, UiTheme.PanelFill);
         UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
 
-        DrawUiText("MERCATO", x + 10, y + 8, 15, UiTheme.TextPrimary);
-        GameIcons.TryDraw("sell", x + w - UiTheme.S(28), y + 6, UiTheme.S(20), UiTheme.MoneyGreen);
+        var pad = MercatoS(MercatoPadBase);
+        DrawUiText("MERCATO", x + pad, y + MercatoS(8), 15, UiTheme.TextPrimary);
+        GameIcons.TryDraw("sell", x + w - pad - MercatoS(20), y + MercatoS(6), MercatoS(20), UiTheme.MoneyGreen);
 
         var autoSell = ActiveSettings?.AutoSellAtCore ?? false;
-        DrawToggleRow(x + 8, MercatoAutoSellY(y), w - 16, UiTheme.S(24), "Vendita automatica", autoSell);
+        DrawToggleRow(x + pad, MercatoAutoSellY(y), w - pad * 2, MercatoS(24), "Vendita automatica", autoSell);
 
         DrawUiText(
             autoSell ? "ON: il core liquida subito in $." : "OFF: stock in magazzino; vendi qui.",
-            x + 10, MercatoHintY(y), 11, UiTheme.TextMuted);
+            x + pad, MercatoHintY(y), 11, UiTheme.TextMuted);
 
         var iconSize = MercatoS(22);
         var index = 0;
@@ -4583,15 +4845,12 @@ internal static class FactoryGameApp
             var shortName = UiTheme.InventoryItems.FirstOrDefault(i => i.ItemId == item.ItemId)?.ShortName
                 ?? item.DisplayName;
 
-            Raylib.DrawRectangle(x + 8, rowY, iconSize + 4, iconSize + 4, new Color(24, 28, 30, 255));
-            Raylib.DrawRectangleLines(x + 8, rowY, iconSize + 4, iconSize + 4, UiTheme.ItemOutline(item.ItemId));
-            UiTheme.DrawItemIcon(item.ItemId, x + 10, rowY + 2, iconSize);
+            GetMercatoSellOneBounds(x, y, w, h, index, out var oneX, out var oneY, out var oneW, out var oneH);
+            GetMercatoSellAllBounds(x, y, w, h, index, out var allX, out var allY, out var allW, out var allH);
 
-            var nameMaxW = w - UiTheme.S(128) - iconSize;
-            var name = TruncateUiText(shortName, 12, nameMaxW);
-            DrawUiText(name, x + 14 + iconSize, rowY + 1, 12, UiTheme.TextPrimary);
-            DrawUiText($"stock ×{stock}", x + 14 + iconSize, rowY + UiTheme.S(16), 10,
-                stock > 0 ? UiTheme.TextMuted : new Color(120, 110, 100, 255));
+            Raylib.DrawRectangle(x + pad - 2, rowY, iconSize + 4, iconSize + 4, new Color(24, 28, 30, 255));
+            Raylib.DrawRectangleLines(x + pad - 2, rowY, iconSize + 4, iconSize + 4, UiTheme.ItemOutline(item.ItemId));
+            UiTheme.DrawItemIcon(item.ItemId, x + pad, rowY + 2, iconSize);
 
             string priceLabel;
             Color priceColor;
@@ -4607,10 +4866,17 @@ internal static class FactoryGameApp
             }
 
             var pw = MeasureUiText(priceLabel, 12);
-            DrawUiText(priceLabel, x + w - UiTheme.S(78) - pw, rowY + 2, 12, priceColor);
+            var priceGap = MercatoS(6);
+            var priceX = oneX - priceGap - pw;
+            DrawUiText(priceLabel, priceX, rowY + MercatoS(2), 12, priceColor);
 
-            GetMercatoSellOneBounds(x, y, w, h, index, out var oneX, out var oneY, out var oneW, out var oneH);
-            GetMercatoSellAllBounds(x, y, w, h, index, out var allX, out var allY, out var allW, out var allH);
+            var nameX = x + pad + iconSize + MercatoS(4);
+            var nameMaxW = Math.Max(MercatoS(36), priceX - MercatoS(6) - nameX);
+            var name = TruncateUiText(shortName, 12, nameMaxW);
+            DrawUiText(name, nameX, rowY + 1, 12, UiTheme.TextPrimary);
+            DrawUiText($"stock ×{stock}", nameX, rowY + MercatoS(16), 10,
+                stock > 0 ? UiTheme.TextMuted : new Color(120, 110, 100, 255));
+
             DrawCompactMarketButton(oneX, oneY, oneW, oneH, "1", stock > 0);
             DrawCompactMarketButton(allX, allY, allW, allH, "tutti", stock > 0);
             index++;
@@ -4634,23 +4900,24 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(x, y, w, h, UiTheme.PanelFill);
         UiTheme.DrawAccentRect(x, y, w, h, UiTheme.PanelBorder, 1);
 
-        DrawUiText("FABBRICA", x + 10, y + 6, 13, UiTheme.TextMuted);
+        var pad = MercatoS(MercatoPadBase);
+        DrawUiText("FABBRICA", x + pad, y + MercatoS(6), 13, UiTheme.TextMuted);
 
         var net = session.NetWorthDelta(wallet);
         DrawUiText(
             $"{UiTheme.SessionDeltaLabel(net)}  ·  PWR {world.PowerBuffer:0}/{world.PowerCapacity:0}",
-            x + 10, y + UiTheme.S(24), 11,
+            x + pad, y + MercatoS(24), 11,
             net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed);
 
         DrawUiText(
             $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count}",
-            x + 10, y + UiTheme.S(40), 11, UiTheme.TextMuted);
+            x + pad, y + MercatoS(40), 11, UiTheme.TextMuted);
 
         var tip = GetOnboardingTip(world, conveyors, research, wallet);
-        var tipMaxH = StatusUpgradeY(y, h) - (y + UiTheme.S(56)) - UiTheme.S(4);
-        if (tipMaxH >= UiTheme.S(14))
+        var tipMaxH = StatusUpgradeY(y, h) - (y + MercatoS(56)) - MercatoS(4);
+        if (tipMaxH >= MercatoS(14))
         {
-            DrawWrappedTip(tip, x + 10, y + UiTheme.S(56), w - 20, tipMaxH);
+            DrawWrappedTip(tip, x + pad, y + MercatoS(56), w - pad * 2, tipMaxH);
         }
 
         var upgrade = economy.CoreUpgrade;
@@ -4658,16 +4925,29 @@ internal static class FactoryGameApp
         var upgradeLabel = world.CoreUpgradeLevel > 0
             ? $"CORE LV{world.CoreUpgradeLevel}"
             : $"CORE ${upgrade.MoneyCost}";
-        DrawButton(x + 10, upgradeY, w - 20, UiTheme.S(28), upgradeLabel, world.CoreUpgradeLevel > 0);
+        DrawButton(x + pad, upgradeY, w - pad * 2, MercatoS(28), upgradeLabel, world.CoreUpgradeLevel > 0);
+    }
+
+    /// <summary>
+    /// Sell-button metrics: widths follow full UI scale (labels use Measure/Draw at Scale),
+    /// while the panel soft-scales via MercatoS — so buttons must not use soft-capped widths alone.
+    /// </summary>
+    private static void GetMercatoSellButtonMetrics(out int oneW, out int allW, out int gap, out int rightPad)
+    {
+        gap = Math.Max(MercatoS(MercatoSellGapBase), UiTheme.S(MercatoSellGapBase));
+        rightPad = Math.Max(MercatoS(MercatoPadBase), UiTheme.S(8));
+        // Floor with soft scale for touch targets; grow with full scale so "tutti" never clips.
+        oneW = Math.Max(MercatoS(MercatoSellOneWBase), UiTheme.S(MercatoSellOneWBase));
+        allW = Math.Max(MercatoS(MercatoSellAllWBase), UiTheme.S(MercatoSellAllWBase));
     }
 
     private static void GetMercatoSellOneBounds(
         int panelX, int panelY, int panelW, int panelH, int index,
         out int x, out int y, out int w, out int h)
     {
-        w = MercatoS(28);
+        GetMercatoSellButtonMetrics(out w, out var allW, out var gap, out var rightPad);
         h = Math.Max(MercatoS(18), MercatoRowHeight(panelH) - MercatoS(10));
-        x = panelX + panelW - MercatoS(72);
+        x = panelX + panelW - rightPad - allW - gap - w;
         y = MercatoRowY(panelY, panelH, index) + MercatoS(6);
     }
 
@@ -4675,9 +4955,9 @@ internal static class FactoryGameApp
         int panelX, int panelY, int panelW, int panelH, int index,
         out int x, out int y, out int w, out int h)
     {
-        w = MercatoS(42);
+        GetMercatoSellButtonMetrics(out _, out w, out _, out var rightPad);
         h = Math.Max(MercatoS(18), MercatoRowHeight(panelH) - MercatoS(10));
-        x = panelX + panelW - MercatoS(42);
+        x = panelX + panelW - rightPad - w;
         y = MercatoRowY(panelY, panelH, index) + MercatoS(6);
     }
 
@@ -4687,8 +4967,10 @@ internal static class FactoryGameApp
         var text = enabled ? UiTheme.TextPrimary : UiTheme.TextMuted;
         Raylib.DrawRectangle(x, y, width, height, fill);
         Raylib.DrawRectangleLines(x, y, width, height, enabled ? UiTheme.AccentDim : UiTheme.PanelBorder);
-        var tw = MeasureUiText(label, 11);
-        DrawUiText(label, x + (width - tw) / 2, y + Math.Max(2, (height - UiTheme.S(11)) / 2), 11, text);
+        const int labelSize = 11;
+        var tw = MeasureUiText(label, labelSize);
+        var th = UiTheme.S(labelSize);
+        DrawUiText(label, x + Math.Max(2, (width - tw) / 2), y + Math.Max(2, (height - th) / 2), labelSize, text);
     }
 
     private static bool TryHandleMercatoClick(
@@ -4705,7 +4987,8 @@ internal static class FactoryGameApp
         GetMercatoBounds(out _, out _, out _, out var panelH);
         var autoY = MercatoAutoSellY(panelY);
         var autoH = MercatoS(24);
-        if (Contains(mouse, panelX + 8, autoY, panelW - 16, autoH) && ActiveSettings is not null)
+        var pad = MercatoS(MercatoPadBase);
+        if (Contains(mouse, panelX + pad, autoY, panelW - pad * 2, autoH) && ActiveSettings is not null)
         {
             ActiveSettings.AutoSellAtCore = !ActiveSettings.AutoSellAtCore;
             ActiveSettings.Save();
@@ -4774,7 +5057,8 @@ internal static class FactoryGameApp
     {
         GetStatusBounds(out _, out _, out _, out var panelH);
         var upgradeY = StatusUpgradeY(panelY, panelH);
-        if (Contains(mouse, panelX + 10, upgradeY, panelW - 20, UiTheme.S(28)))
+        var pad = MercatoS(MercatoPadBase);
+        if (Contains(mouse, panelX + pad, upgradeY, panelW - pad * 2, MercatoS(28)))
         {
             if (world.TryUpgradeCore(wallet, economy.CoreUpgrade, session))
             {
