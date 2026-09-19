@@ -696,42 +696,43 @@ internal static class FactoryGameApp
             return;
         }
 
-        if (Contains(mouse, HomeButtonX, HomeButtonY(0), HomeButtonWidth, HomeButtonHeight))
+        var actions = GetHomeActions();
+        for (var i = 0; i < actions.Length; i++)
         {
-            BeginLoadingSave(GameSaveStore.ContinueSlotId, ref screen, ref statusMessage);
-            return;
-        }
+            if (!Contains(mouse, HomeButtonX, HomeButtonY(i), HomeButtonWidth, HomeButtonHeight))
+            {
+                continue;
+            }
 
-        if (Contains(mouse, HomeButtonX, HomeButtonY(1), HomeButtonWidth, HomeButtonHeight))
-        {
-            pendingSeed = DefaultSeed;
-            statusMessage = null;
-            settingsReturnScreen = AppScreen.Home;
-            screen = AppScreen.NewGame;
-            return;
-        }
+            switch (actions[i])
+            {
+                case HomeAction.Continue:
+                    BeginLoadingSave(GameSaveStore.ContinueSlotId, ref screen, ref statusMessage);
+                    break;
+                case HomeAction.NewGame:
+                    pendingSeed = DefaultSeed;
+                    statusMessage = null;
+                    settingsReturnScreen = AppScreen.Home;
+                    screen = AppScreen.NewGame;
+                    break;
+                case HomeAction.SaveManager:
+                    saveSlots = GameSaveStore.ListSlots().ToArray();
+                    selectedSlotIndex = 0;
+                    statusMessage = null;
+                    screen = AppScreen.SaveManager;
+                    break;
+                case HomeAction.Settings:
+                    statusMessage = null;
+                    settingsReturnScreen = AppScreen.Home;
+                    SettingsDraft = null;
+                    screen = AppScreen.Settings;
+                    break;
+                case HomeAction.Quit:
+                    quitRequested = true;
+                    break;
+            }
 
-        if (Contains(mouse, HomeButtonX, HomeButtonY(2), HomeButtonWidth, HomeButtonHeight))
-        {
-            saveSlots = GameSaveStore.ListSlots().ToArray();
-            selectedSlotIndex = 0;
-            statusMessage = null;
-            screen = AppScreen.SaveManager;
             return;
-        }
-
-        if (Contains(mouse, HomeButtonX, HomeButtonY(3), HomeButtonWidth, HomeButtonHeight))
-        {
-            statusMessage = null;
-            settingsReturnScreen = AppScreen.Home;
-            SettingsDraft = null;
-            screen = AppScreen.Settings;
-            return;
-        }
-
-        if (Contains(mouse, HomeButtonX, HomeButtonY(4), HomeButtonWidth, HomeButtonHeight))
-        {
-            quitRequested = true;
         }
     }
 
@@ -1142,14 +1143,11 @@ internal static class FactoryGameApp
             }
 
             direction = (Direction)next;
-            // Stay in Strumenti when adjusting facing; do not bounce to Produzione/Logistica.
-            SyncFacingHighlight(direction);
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.R))
         {
             direction = (Direction)(((int)direction + 1) % 4);
-            SyncFacingHighlight(direction);
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.One))
@@ -1655,7 +1653,7 @@ internal static class FactoryGameApp
                 DockSelectedId = "generator";
                 break;
             case BuildTool.Remove:
-                DockCategory = UiTheme.BuildCategory.Tools;
+                DockCategory = UiTheme.BuildCategory.Production;
                 DockSelectedId = "remove";
                 break;
             default:
@@ -1664,30 +1662,6 @@ internal static class FactoryGameApp
 
         _ = direction;
     }
-
-    /// <summary>Update facing-cell highlight without leaving the Tools category.</summary>
-    private static void SyncFacingHighlight(Direction direction)
-    {
-        if (DockCategory != UiTheme.BuildCategory.Tools)
-        {
-            return;
-        }
-
-        if (DockSelectedId == "remove")
-        {
-            return;
-        }
-
-        DockSelectedId = DirectionDockId(direction);
-    }
-
-    private static string DirectionDockId(Direction direction) => direction switch
-    {
-        Direction.North => "dir-n",
-        Direction.East => "dir-e",
-        Direction.South => "dir-s",
-        _ => "dir-w"
-    };
 
     private static void GetDockPanels(
         out int dockX,
@@ -1785,21 +1759,6 @@ internal static class FactoryGameApp
                 }
 
                 DockCategory = UiTheme.BuildCategories[i];
-                if (DockCategory == UiTheme.BuildCategory.Tools)
-                {
-                    // Opening Strumenti must not steal the active placeable tool (e.g. minatore → Rimuovi).
-                    if (tool == BuildTool.Remove)
-                    {
-                        DockSelectedId = "remove";
-                    }
-                    else
-                    {
-                        DockSelectedId = DirectionDockId(direction);
-                    }
-
-                    return true;
-                }
-
                 var first = UiTheme.EntriesFor(DockCategory).FirstOrDefault();
                 if (first is not null
                     && (DockSelectedId is null
@@ -1863,8 +1822,6 @@ internal static class FactoryGameApp
                 break;
             case UiTheme.DockEntryKind.Direction when entry.Facing is { } facing:
                 direction = facing;
-                DockCategory = UiTheme.BuildCategory.Tools;
-                // Keep current placeable tool so facing applies to it.
                 break;
             case UiTheme.DockEntryKind.InventoryItem:
                 // Inventory cells are informational; keep current build tool.
@@ -1878,6 +1835,51 @@ internal static class FactoryGameApp
 
     private static int HomeButtonY(int index) => 220 + index * 62;
 
+    private enum HomeAction
+    {
+        Continue,
+        NewGame,
+        SaveManager,
+        Settings,
+        Quit
+    }
+
+    private static bool HasValidContinueSlot() =>
+        GameSaveStore.TryLoad(GameSaveStore.ContinueSlotId, out _);
+
+    private static HomeAction[] GetHomeActions()
+    {
+        if (HasValidContinueSlot())
+        {
+            return
+            [
+                HomeAction.Continue,
+                HomeAction.NewGame,
+                HomeAction.SaveManager,
+                HomeAction.Settings,
+                HomeAction.Quit
+            ];
+        }
+
+        return
+        [
+            HomeAction.NewGame,
+            HomeAction.SaveManager,
+            HomeAction.Settings,
+            HomeAction.Quit
+        ];
+    }
+
+    private static string HomeActionLabel(HomeAction action) => action switch
+    {
+        HomeAction.Continue => "Continua",
+        HomeAction.NewGame => "Nuova partita",
+        HomeAction.SaveManager => "Gestione salvataggi",
+        HomeAction.Settings => "Impostazioni",
+        HomeAction.Quit => "Esci",
+        _ => "?"
+    };
+
     private static void DrawHome(string? statusMessage)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
@@ -1886,11 +1888,12 @@ internal static class FactoryGameApp
         DrawUiText("tINDUSTRY", 420, 100, 48, new Color(239, 238, 224, 255));
         DrawUiText("Settore Foundry — mappa 1000×1000", 420, 160, 18, new Color(112, 124, 119, 255));
 
-        DrawMenuButton(HomeButtonX, HomeButtonY(0), HomeButtonWidth, HomeButtonHeight, "Continua");
-        DrawMenuButton(HomeButtonX, HomeButtonY(1), HomeButtonWidth, HomeButtonHeight, "Nuova partita");
-        DrawMenuButton(HomeButtonX, HomeButtonY(2), HomeButtonWidth, HomeButtonHeight, "Gestione salvataggi");
-        DrawMenuButton(HomeButtonX, HomeButtonY(3), HomeButtonWidth, HomeButtonHeight, "Impostazioni");
-        DrawMenuButton(HomeButtonX, HomeButtonY(4), HomeButtonWidth, HomeButtonHeight, "Esci");
+        var actions = GetHomeActions();
+        for (var i = 0; i < actions.Length; i++)
+        {
+            DrawMenuButton(HomeButtonX, HomeButtonY(i), HomeButtonWidth, HomeButtonHeight,
+                HomeActionLabel(actions[i]));
+        }
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
@@ -2468,8 +2471,8 @@ internal static class FactoryGameApp
         Direction direction,
         BuildTool tool)
     {
-        // Safety: Inventory was removed from the rail.
-        if (DockCategory == UiTheme.BuildCategory.Inventory)
+        // Safety: removed rail categories must not stick as active.
+        if (DockCategory is UiTheme.BuildCategory.Inventory or UiTheme.BuildCategory.Tools)
         {
             DockCategory = UiTheme.BuildCategory.Logistics;
         }
@@ -2481,7 +2484,7 @@ internal static class FactoryGameApp
         var railW = UiTheme.DockRailWidth;
         var railX = dockX + gridW + UiTheme.DockCellGap;
         var mouse = Raylib.GetMousePosition();
-        string? hoverName = null;
+        string? hoverText = null;
 
         // Building grid panel (left of rail).
         Raylib.DrawRectangle(dockX, dockY, gridW, gridH, UiTheme.PanelFill);
@@ -2503,6 +2506,10 @@ internal static class FactoryGameApp
             {
                 UiTheme.DrawAccentRect(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize, UiTheme.Accent);
             }
+            else if (hovered)
+            {
+                UiTheme.DrawAccentRect(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize, UiTheme.AccentDim);
+            }
             else
             {
                 Raylib.DrawRectangleLines(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize, UiTheme.PanelBorder);
@@ -2512,7 +2519,7 @@ internal static class FactoryGameApp
             UiTheme.DrawBuildCategoryIcon(category, cx, cy, UiTheme.DockCellSize, tint);
             if (hovered)
             {
-                hoverName = UiTheme.BuildCategoryLabel(category);
+                hoverText = UiTheme.DockHoverText(category);
             }
         }
 
@@ -2538,6 +2545,10 @@ internal static class FactoryGameApp
             {
                 UiTheme.DrawAccentRect(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize, UiTheme.Accent);
             }
+            else if (hovered)
+            {
+                UiTheme.DrawAccentRect(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize, UiTheme.AccentDim);
+            }
             else
             {
                 Raylib.DrawRectangleLines(cx, cy, UiTheme.DockCellSize, UiTheme.DockCellSize,
@@ -2551,18 +2562,19 @@ internal static class FactoryGameApp
 
             if (hovered)
             {
-                hoverName = entry.Label;
+                hoverText = UiTheme.DockHoverText(entry);
             }
         }
 
-        // Hover name bar at the bottom of the dock.
+        // Hover tooltip bar: Italian name + short hint (taller so text is not clipped).
         var barY = dockY + dockH - UiTheme.DockHoverBarHeight;
         Raylib.DrawRectangle(dockX, barY, dockW, UiTheme.DockHoverBarHeight, UiTheme.PanelFill);
         UiTheme.DrawAccentRect(dockX, barY, dockW, UiTheme.DockHoverBarHeight, UiTheme.PanelBorder, 1);
-        var label = hoverName ?? UiTheme.BuildCategoryLabel(DockCategory);
-        var labelW = MeasureUiText(label, 12);
-        DrawUiText(label, dockX + Math.Max(4, (dockW - labelW) / 2), barY + 3, 12,
-            hoverName is null ? UiTheme.TextMuted : UiTheme.Accent);
+        var label = hoverText ?? UiTheme.DockHoverText(DockCategory);
+        var fontSize = label.Length > 36 ? 11 : 12;
+        var labelW = MeasureUiText(label, fontSize);
+        DrawUiText(label, dockX + Math.Max(4, (dockW - labelW) / 2), barY + Math.Max(4, (UiTheme.DockHoverBarHeight - fontSize) / 2),
+            fontSize, hoverText is null ? UiTheme.TextMuted : UiTheme.Accent);
 
         _ = wallet;
     }
@@ -2583,8 +2595,6 @@ internal static class FactoryGameApp
             UiTheme.DockEntryKind.ConveyorVariant =>
                 tool == BuildTool.Conveyor && entry.ConveyorId == selectedConveyor.Id,
             UiTheme.DockEntryKind.BuildTool => entry.Tool == tool,
-            UiTheme.DockEntryKind.Direction => entry.Facing == direction
-                && DockCategory == UiTheme.BuildCategory.Tools,
             _ => false
         };
     }

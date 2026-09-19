@@ -4,6 +4,10 @@ obj/
 out/
 artifacts/
 
+# Generated / local Excel content DB (seed is content.json; Excel is AppData or --export-excel)
+data/game-data.xlsx
+*.xlsx
+
 # IDE and user settings
 .vs/
 *.user
