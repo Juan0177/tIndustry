@@ -35,11 +35,35 @@ public static class ExcelContentStore
                 ParseAmounts(row.Cell(4).GetString())))
             .ToArray();
 
-        return new GameContent
+        IReadOnlyList<StructureDefinition> structures = [];
+        if (workbook.Worksheets.Any(sheet => sheet.Name == "Structures"))
+        {
+            var structuresSheet = workbook.Worksheet("Structures");
+            structures = structuresSheet.RowsUsed()
+                .Skip(1)
+                .Where(row => !row.Cell(1).IsEmpty())
+                .Select(row => new StructureDefinition(
+                    row.Cell(1).GetString(),
+                    row.Cell(2).GetString(),
+                    Enum.Parse<StructureKind>(row.Cell(3).GetString(), ignoreCase: true),
+                    row.Cell(4).GetValue<bool>(),
+                    ParseUnlock(row.Cell(5).GetString(), row.Cell(6).GetString()),
+                    row.Cell(7).GetValue<bool>()))
+                .ToArray();
+        }
+
+        var content = new GameContent
         {
             Conveyors = conveyors,
-            Recipes = recipes
+            Recipes = recipes,
+            Structures = structures
         };
+        if (content.Structures.Count == 0)
+        {
+            content.Structures = GameContent.BuildLegacyStructures(content);
+        }
+
+        return content;
     }
 
     public static void Save(string path, GameContent content)
@@ -81,6 +105,22 @@ public static class ExcelContentStore
             recipesSheet.Cell(row, 2).Value = recipe.DurationSeconds;
             recipesSheet.Cell(row, 3).Value = FormatAmounts(recipe.Inputs);
             recipesSheet.Cell(row, 4).Value = FormatAmounts(recipe.Outputs);
+        }
+
+        var structuresSheet = workbook.AddWorksheet("Structures");
+        WriteHeaders(structuresSheet,
+            "Id", "DisplayName", "Kind", "UnlockedByDefault", "UnlockMoney", "UnlockMaterials", "IsStub");
+        for (var index = 0; index < content.Structures.Count; index++)
+        {
+            var structure = content.Structures[index];
+            var row = index + 2;
+            structuresSheet.Cell(row, 1).Value = structure.Id;
+            structuresSheet.Cell(row, 2).Value = structure.DisplayName;
+            structuresSheet.Cell(row, 3).Value = structure.Kind.ToString();
+            structuresSheet.Cell(row, 4).Value = structure.UnlockedByDefault;
+            structuresSheet.Cell(row, 5).Value = structure.Unlock?.Money ?? 0;
+            structuresSheet.Cell(row, 6).Value = FormatAmounts(structure.Unlock?.Materials ?? []);
+            structuresSheet.Cell(row, 7).Value = structure.IsStub;
         }
 
         foreach (var sheet in workbook.Worksheets)

@@ -170,10 +170,11 @@ public sealed class ConveyorGrid
         GridPosition position,
         Direction direction,
         ConveyorDefinition definition,
-        EconomyWallet wallet)
+        EconomyWallet wallet,
+        ResearchState research)
     {
         if (cells.ContainsKey(position)
-            || !wallet.MeetsUnlock(definition.Unlock)
+            || !research.IsUnlocked(definition.Id)
             || !wallet.TrySpend(definition.MoneyCost, definition.BuildCost))
         {
             return false;
@@ -220,11 +221,11 @@ public sealed class ConveyorGrid
         return true;
     }
 
-    public bool TryUpgrade(GridPosition position, ConveyorDefinition definition, EconomyWallet wallet)
+    public bool TryUpgrade(GridPosition position, ConveyorDefinition definition, EconomyWallet wallet, ResearchState research)
     {
         if (!cells.TryGetValue(position, out var cell)
             || cell.Definition.Tier >= definition.Tier
-            || !wallet.MeetsUnlock(definition.Unlock)
+            || !research.IsUnlocked(definition.Id)
             || !wallet.TrySpend(definition.MoneyCost, definition.BuildCost))
         {
             return false;

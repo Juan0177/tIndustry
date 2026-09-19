@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -16,6 +16,7 @@ public sealed class GameSaveData
     public int SoldItems { get; set; }
     public int SaleRevenue { get; set; }
     public long NextItemId { get; set; } = 1;
+    public List<string> UnlockedStructures { get; set; } = [];
     public CameraSaveData Camera { get; set; } = new();
     public List<MinerSaveData> Miners { get; set; } = [];
     public List<SmelterSaveData> Smelters { get; set; } = [];
@@ -201,6 +202,7 @@ public static class GameSaveStore
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         WorldCamera camera,
+        ResearchState research,
         long nextItemId)
     {
         return new GameSaveData
@@ -214,6 +216,7 @@ public static class GameSaveStore
             SoldItems = world.SoldItems,
             SaleRevenue = world.SaleRevenue,
             NextItemId = nextItemId,
+            UnlockedStructures = research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
             Camera = new CameraSaveData
             {
                 X = camera.X,
@@ -262,7 +265,7 @@ public static class GameSaveStore
         };
     }
 
-    public static (FactoryWorld World, ConveyorGrid Conveyors, EconomyWallet Wallet, WorldCamera Camera, long NextItemId)
+    public static (FactoryWorld World, ConveyorGrid Conveyors, EconomyWallet Wallet, WorldCamera Camera, ResearchState Research, long NextItemId)
         Restore(GameSaveData data, GameContent content)
     {
         var world = new FactoryWorld(data.MapWidth, data.MapHeight, data.Seed);
@@ -272,6 +275,7 @@ public static class GameSaveStore
         var conveyors = new ConveyorGrid();
         var definitions = content.Conveyors.ToDictionary(definition => definition.Id, StringComparer.Ordinal);
         var recipes = content.Recipes.ToDictionary(recipe => recipe.Id, StringComparer.Ordinal);
+        var research = RestoreResearch(data, content);
 
         foreach (var minerData in data.Miners)
         {
@@ -336,6 +340,28 @@ public static class GameSaveStore
         }
 
         var camera = new WorldCamera(data.Camera.X, data.Camera.Y, data.Camera.Zoom);
-        return (world, conveyors, wallet, camera, data.NextItemId);
+        return (world, conveyors, wallet, camera, research, data.NextItemId);
+    }
+
+    private static ResearchState RestoreResearch(GameSaveData data, GameContent content)
+    {
+        if (data.Version >= 3 && data.UnlockedStructures.Count > 0)
+        {
+            return ResearchState.FromSaved(data.UnlockedStructures, content);
+        }
+
+        // Migrate Phase 1–2 saves: keep defaults, unlock tech implied by placed buildings.
+        var research = ResearchState.CreateNew(content);
+        if (data.Smelters.Count > 0)
+        {
+            research.ForceUnlock("smelter");
+        }
+
+        if (data.Conveyors.Any(cell => cell.DefinitionId == "conveyor-fast"))
+        {
+            research.ForceUnlock("conveyor-fast");
+        }
+
+        return research;
     }
 }

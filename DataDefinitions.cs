@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace TIndustry.Logistics;
 
@@ -28,6 +29,10 @@ public sealed class GameContent
 {
     public required IReadOnlyList<ConveyorDefinition> Conveyors { get; init; }
     public required IReadOnlyList<RecipeDefinition> Recipes { get; init; }
+    public IReadOnlyList<StructureDefinition> Structures { get; set; } = [];
+
+    public StructureDefinition? FindStructure(string id) =>
+        Structures.FirstOrDefault(structure => structure.Id == id);
 
     public static GameContent Load(string path)
     {
@@ -38,10 +43,45 @@ public sealed class GameContent
 
         var options = new JsonSerializerOptions
         {
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
         };
 
-        return JsonSerializer.Deserialize<GameContent>(File.ReadAllText(path), options)
+        var content = JsonSerializer.Deserialize<GameContent>(File.ReadAllText(path), options)
             ?? throw new InvalidDataException($"Contenuto non valido: {path}");
+        if (content.Structures.Count == 0)
+        {
+            content.Structures = BuildLegacyStructures(content);
+        }
+
+        return content;
+    }
+
+    public static IReadOnlyList<StructureDefinition> BuildLegacyStructures(GameContent content)
+    {
+        var structures = new List<StructureDefinition>
+        {
+            new("conveyor-basic", "Nastro base", StructureKind.Conveyor, true, null),
+            new("miner", "Minatore", StructureKind.Building, true, null)
+        };
+
+        foreach (var conveyor in content.Conveyors.Where(entry => entry.Unlock is not null))
+        {
+            structures.Add(new StructureDefinition(
+                conveyor.Id,
+                conveyor.Id,
+                StructureKind.Conveyor,
+                false,
+                conveyor.Unlock));
+        }
+
+        structures.Add(new StructureDefinition(
+            "smelter",
+            "Forno",
+            StructureKind.Building,
+            false,
+            new UnlockRequirement(100, [new ResourceAmount("iron-plate", 15)])));
+
+        return structures;
     }
 }

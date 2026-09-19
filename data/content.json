@@ -42,5 +42,76 @@
         { "itemId": "iron-plate", "amount": 1 }
       ]
     }
+  ],
+  "structures": [
+    {
+      "id": "conveyor-basic",
+      "displayName": "Nastro base",
+      "kind": "conveyor",
+      "unlockedByDefault": true,
+      "unlock": null,
+      "isStub": false
+    },
+    {
+      "id": "miner",
+      "displayName": "Minatore",
+      "kind": "building",
+      "unlockedByDefault": true,
+      "unlock": null,
+      "isStub": false
+    },
+    {
+      "id": "smelter",
+      "displayName": "Forno",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 100,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 15 }
+        ]
+      },
+      "isStub": false
+    },
+    {
+      "id": "conveyor-fast",
+      "displayName": "Nastro veloce",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 250,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 50 }
+        ]
+      },
+      "isStub": false
+    },
+    {
+      "id": "assembler",
+      "displayName": "Assemblatore",
+      "kind": "stub",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 400,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 30 },
+          { "itemId": "copper-wire", "amount": 10 }
+        ]
+      },
+      "isStub": true
+    },
+    {
+      "id": "miner-advanced",
+      "displayName": "Minatore avanzato",
+      "kind": "stub",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 200,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 25 }
+        ]
+      },
+      "isStub": true
+    }
   ]
 }
