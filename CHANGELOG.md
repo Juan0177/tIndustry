@@ -5,6 +5,24 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.6] — 2026-09-19
+
+Patch UX sopra **0.2.5** (Campagna già inclusa): polish Mercato/dock, ricette Input/Output nel footer, fix conteggi Fabbrica e upgrade CORE. ([#31](https://github.com/Juan0177/tIndustry/pull/31), [#32](https://github.com/Juan0177/tIndustry/pull/32), [#33](https://github.com/Juan0177/tIndustry/pull/33))
+
+### Aggiunto / migliorato
+
+- **Mercato / dock**: padding e accent polish; seeding capture per still HUD ([#31](https://github.com/Juan0177/tIndustry/pull/31))
+- **Dock footer**: riga **Input / Output** (icone ×N + durata ricetta) quando tieni Forno/Assemblatore; sotto resta il costo build ([#32](https://github.com/Juan0177/tIndustry/pull/32))
+- **Fabbrica HUD**: conteggi `M/F/A/N/G` restano sopra **CORE** a scala UI di default; click CORE con feedback afford / già potenziato ([#33](https://github.com/Juan0177/tIndustry/pull/33))
+- **Docs**: README allineato a 0.2.6
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.5] — 2026-09-19
 
 Patch sopra **0.2.4**: modalità **Campagna** a livelli + fix clip Mercato e costi build a icone nel dock. ([#28](https://github.com/Juan0177/tIndustry/pull/28), [#29](https://github.com/Juan0177/tIndustry/pull/29))
