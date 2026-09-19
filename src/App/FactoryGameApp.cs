@@ -665,7 +665,8 @@ internal static class FactoryGameApp
             screen = AppScreen.Playing;
             if (!LoadingFromSave && ActiveSettings is not null)
             {
-                BeginTutorialIfNeeded(ActiveSettings);
+                // Every confirmed Nuova partita restarts the Peak-style banner tutorial.
+                RestartTutorial(ActiveSettings);
             }
         }
     }
@@ -2244,6 +2245,16 @@ internal static class FactoryGameApp
             return;
         }
 
+        if (Contains(mouse, layout.Left, layout.ReviewTutorialY, layout.ReviewTutorialWidth, layout.ButtonHeight))
+        {
+            RestartTutorial(settings);
+            draft.TutorialCompleted = false;
+            statusMessage = returnScreen == AppScreen.Playing
+                ? "Tutorial ripartito. Torna in gioco per continuare."
+                : "Tutorial ripristinato. Conferma Nuova partita per rivederlo.";
+            return;
+        }
+
         // UI scale — apply immediately for crisp font reload
         for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
         {
@@ -2352,6 +2363,8 @@ internal static class FactoryGameApp
         public int FpsToggleY { get; init; }
         public int OverlayToggleY { get; init; }
         public int VsyncToggleY { get; init; }
+        public int ReviewTutorialY { get; init; }
+        public int ReviewTutorialWidth { get; init; }
         public int ScaleLabelY { get; init; }
         public int ScaleButtonsY { get; init; }
         public int ScaleButtonWidth { get; init; }
@@ -2397,6 +2410,8 @@ internal static class FactoryGameApp
         y += toggleHeight + rowGap;
         var vsyncY = y;
         y += toggleHeight + sectionGap;
+        var reviewTutorialY = y;
+        y += buttonHeight + sectionGap;
         var scaleLabelY = y;
         y += UiTheme.S(20) + labelGap;
         var scaleButtonsY = y;
@@ -2435,6 +2450,8 @@ internal static class FactoryGameApp
             FpsToggleY = fpsY,
             OverlayToggleY = overlayY,
             VsyncToggleY = vsyncY,
+            ReviewTutorialY = reviewTutorialY,
+            ReviewTutorialWidth = UiTheme.S(220),
             ScaleLabelY = scaleLabelY,
             ScaleButtonsY = scaleButtonsY,
             ScaleButtonWidth = UiTheme.S(100),
@@ -2476,6 +2493,9 @@ internal static class FactoryGameApp
             "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
         DrawToggleRow(layout.Left, layout.VsyncToggleY, layout.ToggleWidth, layout.ToggleHeight,
             "VSync", draft.VSync);
+
+        DrawMenuButton(layout.Left, layout.ReviewTutorialY, layout.ReviewTutorialWidth, layout.ButtonHeight,
+            "Rivedi tutorial");
 
         DrawUiText("Scala interfaccia", layout.Left, layout.ScaleLabelY, 16, new Color(196, 201, 193, 255));
         for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
@@ -2602,7 +2622,8 @@ internal static class FactoryGameApp
                 var layout = BuildSettingsLayout();
                 if (layout.FpsToggleY + layout.ToggleHeight > layout.OverlayToggleY
                     || layout.OverlayToggleY + layout.ToggleHeight > layout.VsyncToggleY
-                    || layout.VsyncToggleY + layout.ToggleHeight > layout.ScaleLabelY
+                    || layout.VsyncToggleY + layout.ToggleHeight > layout.ReviewTutorialY
+                    || layout.ReviewTutorialY + layout.ButtonHeight > layout.ScaleLabelY
                     || layout.ScaleLabelY >= layout.ScaleButtonsY
                     || layout.ScaleButtonsY + layout.ButtonHeight > layout.ResLabelY
                     || layout.ApplyY <= layout.ModeButtonsY)
@@ -4156,6 +4177,22 @@ internal static class FactoryGameApp
             row += 18;
             DrawUiText(gpu, x + 10, row, 13, UiTheme.TextMuted);
         }
+    }
+
+    /// <summary>
+    /// Clears the persisted skip/finish flag and starts the bottom banner from step 1/5.
+    /// Used by confirmed Nuova partita and Impostazioni → Rivedi tutorial.
+    /// </summary>
+    internal static void RestartTutorial(GameSettings settings)
+    {
+        settings.TutorialCompleted = false;
+        if (SettingsDraft is not null)
+        {
+            SettingsDraft.TutorialCompleted = false;
+        }
+
+        settings.Save();
+        BeginTutorialIfNeeded(settings);
     }
 
     private static void BeginTutorialIfNeeded(GameSettings settings)

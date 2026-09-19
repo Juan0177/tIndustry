@@ -851,6 +851,9 @@ static void RunSelfTest(GameContent content)
         Assert(reloaded.TargetFps == 144, "TargetFps deve persistere.");
         Assert(reloaded.UiScalePercent == 150, "UiScalePercent deve persistere.");
         Assert(reloaded.TutorialCompleted, "TutorialCompleted deve persistere.");
+        // Nuova partita / Rivedi tutorial clear the flag so the Peak banner can show again.
+        FactoryGameApp.RestartTutorial(reloaded);
+        Assert(!reloaded.TutorialCompleted, "RestartTutorial deve azzerare tutorialCompleted.");
         Assert(GameSettings.UiScalePresets.SequenceEqual(new[] { 100, 125, 150, 200 }),
             "Preset scala UI: 100/125/150/200.");
         Assert(GameSettings.UiScaleLabel(125) == "125%", "Etichetta scala UI.");
