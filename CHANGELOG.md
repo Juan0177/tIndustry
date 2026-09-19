@@ -5,6 +5,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Changed
+
+- **Economia stock-first**: item al core → magazzino (wallet); vendita esplicita dal Mercato (`1` / `tutti`) o toggle **Vendita automatica** (OFF di default, persistito in `settings.json`)
+
 ## [0.2.2] — 2026-09-19
 
 Patch logistica + tutorial sopra **0.2.1**: sdoppiatore T-fork, miner round-robin, tutorial ripartibile. ([#21](https://github.com/Juan0177/tIndustry/pull/21), [#22](https://github.com/Juan0177/tIndustry/pull/22))

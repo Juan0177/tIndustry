@@ -64,8 +64,8 @@ public sealed class MarketCatalog
         var orePairValue = ore.SellPrice * 2;
         var margin = plate.SellPrice - orePairValue;
         return margin > 0
-            ? $"Conviene fondere: lastre +${margin} vs 2 ore grezze."
-            : "Vendere ore grezze può essere sufficiente a questo prezzo.";
+            ? $"Stock → costruisci, oppure vendi lastre (+${margin} vs 2 ore)."
+            : "Accumula in magazzino; vendi dal Mercato quando ti servono $.";
     }
 }
 

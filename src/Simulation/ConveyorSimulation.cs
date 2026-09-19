@@ -117,6 +117,17 @@ public sealed class EconomyWallet
     public void AddMaterial(string itemId, int amount) =>
         materials[itemId] = MaterialCount(itemId) + amount;
 
+    public bool TryRemoveMaterial(string itemId, int amount)
+    {
+        if (amount <= 0 || MaterialCount(itemId) < amount)
+        {
+            return false;
+        }
+
+        materials[itemId] = MaterialCount(itemId) - amount;
+        return true;
+    }
+
     public bool TrySpend(int money, IReadOnlyList<ResourceAmount> cost)
     {
         if (!CanAfford(money, cost))
