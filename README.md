@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.2.3** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.2.4** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
@@ -18,18 +18,18 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-**v0.2.3** — tutto 0.2.2 più economia **stock-first**. In sintesi:
+**v0.2.4** — tutto 0.2.3 più UX Mercato / icone / tutorial / scale. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
 | Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
-| Economia | **Stock-first** al core (wallet materiali); Mercato vendi **1** / **tutti**; **Vendita automatica** opzionale (OFF); rimborso 100%; **potenziamento core** (+25% vendite) |
-| Progressione | **Ricerca** data-driven; **tutorial** IT 5 step — riparte su **Nuova partita** / **Rivedi tutorial** (**Salta** / Fine) |
+| Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti**, prezzi, auto-sell); strip **Fabbrica** (tips / CORE); rimborso 100%; **potenziamento core** (+25% vendite) |
+| Progressione | **Ricerca** data-driven; **tutorial** IT **6 step** (produce → stock → spendi/vendi) — riparte su **Nuova partita** / **Rivedi tutorial** (**Salta** / Fine) |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** solo con autosave), scenari + seed, save JSON **v6** |
-| Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT |
-| Qualità di vita | UI scale **100–200%**; overlay **CPU · GPU · RAM**; FPS unico; status toast auto-clear; tip onboarding; `--self-test` |
+| Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT; icone + etichette IT |
+| Qualità di vita | UI scale **100–200%** (Mercato soft-scale, Impostazioni scrollabili); overlay **CPU · GPU · RAM**; FPS unico; status toast auto-clear; tip onboarding; `--self-test` |
 | Grafica | Icone HUD/dock/nastri CC0/CC-BY ([`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)); strip risorse + **Δ sessione** |
 | Contenuti | Seed `content.json` → AppData al primo avvio; niente Excel nel publish |
 | Codice | Sorgenti in `src/{App,Simulation,Content,UI}/`; `.csproj` in root |
@@ -157,7 +157,7 @@ Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricer
 
 ## Download
 
-**Release consigliata:** [v0.2.3](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.3) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
+**Release consigliata:** [v0.2.4](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.4) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
 
 | Asset | Piattaforma |
 | --- | --- |
@@ -189,14 +189,15 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.2.3**: stock-first core, Mercato 1/tutti, auto-sell opzionale | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
-| **v0.2.2**: splitter T-fork, miner round-robin, tutorial ripartibile | Ulteriore polish UI / performance mappa piena |
+| **v0.2.4**: Mercato dedicato, icone chiare, tutorial 6 step, HUD scale-safe | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.3**: stock-first core, Mercato 1/tutti, auto-sell opzionale | Ulteriore polish UI / performance mappa piena |
+| **v0.2.2**: splitter T-fork, miner round-robin, tutorial ripartibile | |
 | **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | |
 | **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Combat/unità: **non** priorità early |
 | CI publish win/linux + release su tag `v*` | |
 | `miner-advanced` ancora stub | |
 
-Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.3](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.3).
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.4](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.4).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 

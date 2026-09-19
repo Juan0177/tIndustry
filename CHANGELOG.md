@@ -5,6 +5,25 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-09-19
+
+Patch UX sopra **0.2.3**: pannello Mercato dedicato, icone più chiare, tutorial stock-first a 6 step, HUD scale-safe. ([#26](https://github.com/Juan0177/tIndustry/pull/26))
+
+### Aggiunto / migliorato
+
+- **Mercato**: pannello dedicato (stock + vendi 1/tutti + prezzi + auto-sell), separato dalla strip **Fabbrica** (tips / CORE)
+- **Icone**: item/dock più leggibili con etichette IT brevi; icona vendita UI
+- **Tutorial**: **6 step** produce → stock → spendi/vendi → ricerca (prima 5)
+- **UI scale**: Mercato soft-scale + scroll Impostazioni — layout valido a **100–200%** senza overlap HUD
+- **Docs**: README allineato a 0.2.4
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.3] — 2026-09-19
 
 Patch economia sopra **0.2.2**: core stock-first, vendita esplicita Mercato, auto-sell opzionale. ([#24](https://github.com/Juan0177/tIndustry/pull/24))
