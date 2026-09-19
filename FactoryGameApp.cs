@@ -28,6 +28,7 @@ internal static class FactoryGameApp
     private const float EntryAnimDuration = 0.85f;
     private const float LoadingMinSeconds = 0.55f;
     private const float SplashMinSeconds = 1.2f;
+    private const float StatusToastSeconds = 3.5f;
     private const float SplashMaxSeconds = 8f;
     private const int ViewportLeft = 0;
     private static int HeaderHeight => UiTheme.S(HeaderHeightBase);
@@ -75,6 +76,10 @@ internal static class FactoryGameApp
     ];
 
     private static GameSettings? ActiveSettings;
+
+    // Ephemeral status toast — auto-clears so it cannot linger over the HUD.
+    private static string? StatusToastTracked;
+    private static double StatusToastUntil;
 
     private static readonly Direction[] Directions =
     [
@@ -347,6 +352,9 @@ internal static class FactoryGameApp
 
                     break;
             }
+
+            // After input so a fresh message starts its TTL before draw (no blank first frame).
+            TickStatusToast(ref statusMessage);
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(14, 18, 18, 255));
@@ -1233,8 +1241,15 @@ internal static class FactoryGameApp
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && HitHeaderIcon(Raylib.GetMousePosition(), 0)))
         {
+            // Esc dismisses a lingering toast before leaving the session.
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape) && !string.IsNullOrEmpty(statusMessage))
+            {
+                ClearStatusToast(ref statusMessage);
+                return;
+            }
+
             AutoSaveContinue(world, conveyors, wallet, camera, research, session, nextItemId);
-            statusMessage = null;
+            ClearStatusToast(ref statusMessage);
             screen = AppScreen.Home;
             return;
         }
@@ -2591,9 +2606,19 @@ internal static class FactoryGameApp
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawRectangle(ViewportLeft + 16, ViewportTop + 10, 520, 28, new Color(10, 14, 14, 200));
-            DrawUiText(statusMessage, ViewportLeft + 24, ViewportTop + 16, 16,
-                new Color(112, 218, 145, 255));
+            var label = statusMessage!;
+            var textW = MeasureUiText(label, 16);
+            var boxW = Math.Clamp(textW + 24, 160, Math.Min(560, ScreenWidth - 40));
+            var remaining = StatusToastUntil - Raylib.GetTime();
+            var alpha = remaining < 0.6
+                ? (int)Math.Clamp(remaining / 0.6 * 200, 0, 200)
+                : 200;
+            var textAlpha = remaining < 0.6
+                ? (int)Math.Clamp(remaining / 0.6 * 255, 0, 255)
+                : 255;
+            Raylib.DrawRectangle(ViewportLeft + 16, ViewportTop + 10, boxW, 28, new Color(10, 14, 14, alpha));
+            DrawUiText(label, ViewportLeft + 24, ViewportTop + 16, 16,
+                new Color(112, 218, 145, textAlpha));
         }
 
         if (TutorialActive)
@@ -3875,6 +3900,33 @@ internal static class FactoryGameApp
         Direction.West => new Vector2(-1, 0),
         _ => Vector2.Zero
     };
+
+    /// <summary>
+    /// When <paramref name="statusMessage"/> changes, start a short TTL so toasts
+    /// cannot linger forever over the HUD. Call once per frame.
+    /// </summary>
+    private static void TickStatusToast(ref string? statusMessage)
+    {
+        if (!string.Equals(statusMessage, StatusToastTracked, StringComparison.Ordinal))
+        {
+            StatusToastTracked = statusMessage;
+            StatusToastUntil = statusMessage is null
+                ? 0
+                : Raylib.GetTime() + StatusToastSeconds;
+        }
+
+        if (statusMessage is not null && Raylib.GetTime() >= StatusToastUntil)
+        {
+            ClearStatusToast(ref statusMessage);
+        }
+    }
+
+    private static void ClearStatusToast(ref string? statusMessage)
+    {
+        statusMessage = null;
+        StatusToastTracked = null;
+        StatusToastUntil = 0;
+    }
 
     private static void DrawSystemResourceOverlay(int x, int y)
     {
