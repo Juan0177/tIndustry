@@ -5,6 +5,31 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-09-19
+
+Patch QoL / playability sopra **0.2.0**: nastri leggibili, UI scale, tutorial, miner multi-lato, toast, layout `src/`. ([#15](https://github.com/Juan0177/tIndustry/pull/15), [#16](https://github.com/Juan0177/tIndustry/pull/16), [#17](https://github.com/Juan0177/tIndustry/pull/17), [#18](https://github.com/Juan0177/tIndustry/pull/18), [#19](https://github.com/Juan0177/tIndustry/pull/19); splash ~8s già in 0.2.0 via [#13](https://github.com/Juan0177/tIndustry/pull/13))
+
+### Aggiunto / migliorato
+
+- **Nastri**: chip item saturi + icona sopra gli edifici; viaggio lungo `RoutedExit` — i minerali in transito si vedono di nuovo ([#16](https://github.com/Juan0177/tIndustry/pull/16))
+- **UI scale**: Impostazioni **100% / 125% / 150% / 200%** (default **125%**), atlas DejaVu riscalato; layout Impostazioni senza overlap ON/OFF ([#16](https://github.com/Juan0177/tIndustry/pull/16), [#19](https://github.com/Juan0177/tIndustry/pull/19))
+- **Tutorial**: banner IT a 5 step alla prima Nuova partita; **Salta** / Backspace; `tutorialCompleted` nel save ([#16](https://github.com/Juan0177/tIndustry/pull/16))
+- **Piazzamento**: edifici su qualsiasi terra libera (non acqua); miner off-deposito a **0%**; click su Forno bloccato non ruba più lo strumento ([#16](https://github.com/Juan0177/tIndustry/pull/16))
+- **Risorse sistema**: overlay **CPU · GPU · RAM** (FPS/CPU/RAM; GPU via `nvidia-smi` se c’è); strip inventario sempre a parte ([#16](https://github.com/Juan0177/tIndustry/pull/16))
+- **Miner**: eject su **tutti e quattro** i lati adiacenti (qualsiasi nastro che accetta); freccia facing rimossa ([#17](https://github.com/Juan0177/tIndustry/pull/17))
+- **Direzione nastro**: chevron unidirezionali allineati al facing (niente hash bidirezionali) ([#17](https://github.com/Juan0177/tIndustry/pull/17))
+- **HUD**: FPS unico (angolo XOR overlay sistema); overlay sistema solo in play; font più nitido a scale alte ([#17](https://github.com/Juan0177/tIndustry/pull/17))
+- **Status toast**: auto-clear ~3.5s con fade; **Esc** lo chiude ([#18](https://github.com/Juan0177/tIndustry/pull/18))
+- **Repo**: sorgenti sotto `src/{App,Simulation,Content,UI}/`; `.csproj` in root ([#19](https://github.com/Juan0177/tIndustry/pull/19))
+- **Docs**: README allineato a 0.2.1 ([#15](https://github.com/Juan0177/tIndustry/pull/15) + refresh release)
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.0] — 2026-09-19
 
 Minor sopra **0.1.1**: first-launch AppData, icon pack HUD, splash + ottimizzazioni hot-path, tooling MCP. ([#9](https://github.com/Juan0177/tIndustry/pull/9), [#10](https://github.com/Juan0177/tIndustry/pull/10), [#11](https://github.com/Juan0177/tIndustry/pull/11), [#12](https://github.com/Juan0177/tIndustry/pull/12), [#13](https://github.com/Juan0177/tIndustry/pull/13); polish UI [#8](https://github.com/Juan0177/tIndustry/pull/8))
