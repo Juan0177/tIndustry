@@ -662,16 +662,22 @@ static void RunSelfTest(GameContent content)
             "Categoria Intermedi: lastre.");
         Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 1,
             "Categoria Prodotti: fili.");
-        Assert(UiTheme.BuildCategories.Length >= 5, "Dock Mindustry: almeno 5 categorie build.");
+        Assert(UiTheme.BuildCategories.Length == 4,
+            "Dock Mindustry: 4 categorie (senza Inventario).");
+        Assert(!UiTheme.BuildCategories.Contains(UiTheme.BuildCategory.Inventory),
+            "Inventario non deve essere nel dock: risorse solo in strip.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Length >= 3,
             "Produzione: minatore/forno/assemblatore.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Length >= 5,
             "Logistica: nastri + junction/splitter/ponte.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
             "Potenza: generatore.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length
-            == UiTheme.InventoryItems.Length,
-            "Inventario dock allinea gli item wallet.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Tools).Any(e => e.Id == "remove"),
+            "Strumenti: rimuovi.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Tools).Count(e => e.Kind == UiTheme.DockEntryKind.Direction) == 4,
+            "Strumenti: quattro direzioni senza rubare il tool di build.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length == 0,
+            "Categoria Inventario rimossa dal dock.");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
             "Etichetta italiana modalità schermo intero.");
 
@@ -695,7 +701,7 @@ static void RunSelfTest(GameContent content)
         }
     }
 
-    Console.WriteLine("SELF-TEST OK: impostazioni grafica/inventario/dock Mindustry verificati.");
+    Console.WriteLine("SELF-TEST OK: impostazioni grafica/strip risorse/dock Mindustry verificati.");
 }
 
 static void Assert(bool condition, string message)
