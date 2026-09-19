@@ -707,6 +707,8 @@ static void RunSelfTest(GameContent content)
 
         Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "ATTRIBUTION.md")),
             "ATTRIBUTION.md deve essere copiato in output.");
+        Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "thumbnail.png")),
+            "Thumbnail splash/store deve essere in assets/thumbnail.png.");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
             "Etichetta italiana modalità schermo intero.");
 

@@ -50,6 +50,11 @@ License: [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/ze
 
 Packs: https://kenney.nl/assets/board-game-icons · https://kenney.nl/assets/game-icons
 
+## Thumbnail / splash
+
+`assets/thumbnail.png` — generated store/GitHub thumbnail for the startup splash
+(industrial emblem composition). Shown at launch; not derived from a third-party pack.
+
 ## Fonts
 
 DejaVu Sans (`assets/fonts/`) — Bitstream Vera / DejaVu license (see font package).
