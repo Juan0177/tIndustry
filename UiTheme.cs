@@ -89,13 +89,13 @@ public static class UiTheme
         new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products)
     ];
 
+    /// <summary>Dock rail categories — resources stay in the top strip, not here.</summary>
     public static readonly BuildCategory[] BuildCategories =
     [
         BuildCategory.Production,
         BuildCategory.Logistics,
         BuildCategory.Power,
-        BuildCategory.Tools,
-        BuildCategory.Inventory
+        BuildCategory.Tools
     ];
 
     public static readonly Color PanelFill = new(18, 20, 22, 200);
@@ -261,11 +261,14 @@ public static class UiTheme
     {
         BuildCategory.Production => "Pr",
         BuildCategory.Logistics => "Lo",
-        BuildCategory.Power => "Po",
+        BuildCategory.Power => "⚡",
         BuildCategory.Tools => "St",
         BuildCategory.Inventory => "In",
         _ => "?"
     };
+
+    /// <summary>Short label for hover tooltip under the dock.</summary>
+    public static string BuildCategoryHint(BuildCategory category) => BuildCategoryLabel(category);
 
     public static Color BuildCategoryTint(BuildCategory category) => category switch
     {
@@ -307,16 +310,231 @@ public static class UiTheme
             new("dir-s", "Sud", "S", DockEntryKind.Direction, Facing: Direction.South),
             new("dir-w", "Ovest", "O", DockEntryKind.Direction, Facing: Direction.West)
         ],
-        BuildCategory.Inventory => InventoryItems
-            .Select(item => new DockEntry(
-                item.ItemId,
-                item.ShortName,
-                item.Abbrev,
-                DockEntryKind.InventoryItem,
-                ItemId: item.ItemId))
-            .ToArray(),
+        // Inventory removed from dock — item counts live in the header resource strip.
+        BuildCategory.Inventory => [],
         _ => []
     };
+
+    public const int DockHoverBarHeight = 18;
+
+    public static void DrawBuildCategoryIcon(BuildCategory category, int cx, int cy, int size, Color color)
+    {
+        var pad = size / 5;
+        var x = cx + pad;
+        var y = cy + pad;
+        var s = size - pad * 2;
+        switch (category)
+        {
+            case BuildCategory.Production:
+                // Factory block + roof + chimney stack.
+                Raylib.DrawRectangle(x + 2, y + s / 2, s - 4, s / 2 - 1, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2f, y + s / 4f),
+                    new Vector2(x + 2, y + s / 2f),
+                    new Vector2(x + s - 2, y + s / 2f),
+                    color);
+                Raylib.DrawRectangle(x + s - 10, y + 2, 5, s / 2 - 2, color);
+                break;
+            case BuildCategory.Logistics:
+                // Belt: chevron arrow.
+                Raylib.DrawRectangle(x + 1, y + s / 2 - 2, s - 10, 4, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s, y + s / 2f),
+                    new Vector2(x + s - 12, y + 3),
+                    new Vector2(x + s - 12, y + s - 3),
+                    color);
+                break;
+            case BuildCategory.Power:
+                // Lightning bolt.
+                Raylib.DrawTriangle(
+                    new Vector2(x + s * 0.58f, y + 1),
+                    new Vector2(x + 3, y + s * 0.52f),
+                    new Vector2(x + s * 0.52f, y + s * 0.52f),
+                    color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s * 0.42f, y + s * 0.42f),
+                    new Vector2(x + s - 3, y + s * 0.42f),
+                    new Vector2(x + s * 0.38f, y + s - 1),
+                    color);
+                break;
+            case BuildCategory.Tools:
+                // Crossed tools: horizontal bar + diagonal handle.
+                Raylib.DrawRectangle(x + 2, y + s / 2 - 2, s - 4, 4, color);
+                Raylib.DrawLineEx(
+                    new Vector2(x + 6, y + s - 4),
+                    new Vector2(x + s - 6, y + 4),
+                    3.5f,
+                    color);
+                Raylib.DrawRectangle(x + s - 12, y + 2, 8, 6, color);
+                break;
+            default:
+                Raylib.DrawRectangleLines(x, y, s, s, color);
+                break;
+        }
+    }
+
+    public static void DrawDockEntryIcon(string entryId, int cx, int cy, int size, Color color)
+    {
+        var pad = 10;
+        var x = cx + pad;
+        var y = cy + 8;
+        var s = size - pad * 2;
+        switch (entryId)
+        {
+            case "miner":
+                // Drill bit.
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + s),
+                    new Vector2(x + 2, y + 4),
+                    new Vector2(x + s - 2, y + 4),
+                    color);
+                Raylib.DrawRectangle(x + s / 2 - 3, y, 6, 8, color);
+                break;
+            case "smelter":
+                // Furnace.
+                Raylib.DrawRectangle(x + 2, y + 6, s - 4, s - 8, color);
+                Raylib.DrawRectangle(x + s / 2 - 4, y, 8, 8, color);
+                Raylib.DrawRectangle(x + 6, y + s - 10, s - 12, 4, new Color(28, 30, 34, 255));
+                break;
+            case "assembler":
+                // Two gears (circles).
+                Raylib.DrawCircle(x + s / 3, y + s / 2, s / 3, color);
+                Raylib.DrawCircle(x + 2 * s / 3, y + s / 2, s / 4, color);
+                Raylib.DrawCircle(x + s / 3, y + s / 2, 3, new Color(28, 30, 34, 255));
+                break;
+            case "conveyor-basic":
+                Raylib.DrawRectangle(x, y + s / 2 - 3, s - 6, 6, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s, y + s / 2),
+                    new Vector2(x + s - 10, y + 2),
+                    new Vector2(x + s - 10, y + s - 2),
+                    color);
+                break;
+            case "conveyor-fast":
+                Raylib.DrawRectangle(x, y + s / 2 - 4, s - 8, 8, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s, y + s / 2),
+                    new Vector2(x + s - 12, y),
+                    new Vector2(x + s - 12, y + s),
+                    color);
+                Raylib.DrawLineEx(new Vector2(x + 4, y + 4), new Vector2(x + s - 14, y + 4), 2f, color);
+                break;
+            case "junction":
+                Raylib.DrawRectangle(x + s / 2 - 3, y, 6, s, color);
+                Raylib.DrawRectangle(x, y + s / 2 - 3, s, 6, color);
+                break;
+            case "splitter":
+                Raylib.DrawRectangle(x, y + s / 2 - 3, s / 2, 6, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + s / 2),
+                    new Vector2(x + s, y + 2),
+                    new Vector2(x + s, y + s - 2),
+                    color);
+                break;
+            case "bridge":
+                Raylib.DrawRectangle(x, y + s / 2 - 2, s, 4, color);
+                Raylib.DrawRectangle(x + 2, y + 4, 6, s - 8, color);
+                Raylib.DrawRectangle(x + s - 8, y + 4, 6, s - 8, color);
+                break;
+            case "generator":
+                // Bolt.
+                Raylib.DrawTriangle(
+                    new Vector2(x + s * 0.55f, y),
+                    new Vector2(x + 2, y + s * 0.55f),
+                    new Vector2(x + s * 0.5f, y + s * 0.55f),
+                    color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s * 0.45f, y + s * 0.42f),
+                    new Vector2(x + s - 2, y + s * 0.42f),
+                    new Vector2(x + s * 0.4f, y + s),
+                    color);
+                break;
+            case "remove":
+                Raylib.DrawLineEx(new Vector2(x + 4, y + 4), new Vector2(x + s - 4, y + s - 4), 3f, color);
+                Raylib.DrawLineEx(new Vector2(x + s - 4, y + 4), new Vector2(x + 4, y + s - 4), 3f, color);
+                break;
+            case "dir-n":
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + 2),
+                    new Vector2(x + 4, y + s - 4),
+                    new Vector2(x + s - 4, y + s - 4),
+                    color);
+                break;
+            case "dir-e":
+                Raylib.DrawTriangle(
+                    new Vector2(x + s - 2, y + s / 2),
+                    new Vector2(x + 4, y + 4),
+                    new Vector2(x + 4, y + s - 4),
+                    color);
+                break;
+            case "dir-s":
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + s - 2),
+                    new Vector2(x + 4, y + 4),
+                    new Vector2(x + s - 4, y + 4),
+                    color);
+                break;
+            case "dir-w":
+                Raylib.DrawTriangle(
+                    new Vector2(x + 2, y + s / 2),
+                    new Vector2(x + s - 4, y + 4),
+                    new Vector2(x + s - 4, y + s - 4),
+                    color);
+                break;
+            default:
+                Raylib.DrawRectangle(x + 4, y + 4, s - 8, s - 8, color);
+                break;
+        }
+    }
+
+    /// <summary>Header chrome: gear (Impostazioni).</summary>
+    public static void DrawGearIcon(int cx, int cy, int size, Color color)
+    {
+        var r = size * 0.38f;
+        var cxF = cx + size / 2f;
+        var cyF = cy + size / 2f;
+        Raylib.DrawCircle((int)cxF, (int)cyF, r, color);
+        Raylib.DrawCircle((int)cxF, (int)cyF, r * 0.45f, new Color(45, 52, 50, 255));
+        for (var i = 0; i < 6; i++)
+        {
+            var a = i * MathF.PI / 3f;
+            var ox = MathF.Cos(a) * r * 0.85f;
+            var oy = MathF.Sin(a) * r * 0.85f;
+            Raylib.DrawRectangle((int)(cxF + ox - 3), (int)(cyF + oy - 3), 6, 6, color);
+        }
+    }
+
+    /// <summary>Header chrome: tree (Ricerca).</summary>
+    public static void DrawTreeIcon(int cx, int cy, int size, Color color)
+    {
+        var trunkW = Math.Max(3, size / 7);
+        var trunkH = size / 3;
+        Raylib.DrawRectangle(cx + (size - trunkW) / 2, cy + size - trunkH - 3, trunkW, trunkH, color);
+        // Two foliage layers (triangles) read as a tree, not a lone chevron.
+        Raylib.DrawTriangle(
+            new Vector2(cx + size / 2f, cy + 3),
+            new Vector2(cx + 3, cy + size * 0.48f),
+            new Vector2(cx + size - 3, cy + size * 0.48f),
+            color);
+        Raylib.DrawTriangle(
+            new Vector2(cx + size / 2f, cy + size * 0.22f),
+            new Vector2(cx + 5, cy + size * 0.68f),
+            new Vector2(cx + size - 5, cy + size * 0.68f),
+            color);
+    }
+
+    /// <summary>Header chrome: three lines (Menu).</summary>
+    public static void DrawMenuIcon(int cx, int cy, int size, Color color)
+    {
+        var padX = size / 5;
+        var lineH = Math.Max(2, size / 10);
+        var gap = (size - padX * 2 - lineH * 3) / 2;
+        var y = cy + padX;
+        for (var i = 0; i < 3; i++)
+        {
+            Raylib.DrawRectangle(cx + padX, y + i * (lineH + gap), size - padX * 2, lineH, color);
+        }
+    }
 
     public static int DockRailWidth => DockPadding * 2 + DockCellSize;
 
@@ -345,7 +563,8 @@ public static class UiTheme
 
     public static int DockTotalHeight(int entryCount) =>
         Math.Max(DockGridHeight(entryCount), DockPadding * 2 + BuildCategories.Length * DockCellSize
-            + (BuildCategories.Length - 1) * DockCellGap);
+            + (BuildCategories.Length - 1) * DockCellGap)
+        + DockHoverBarHeight;
 
     public static void DrawAccentRect(int x, int y, int w, int h, Color color, int thickness = DockAccentThickness)
     {

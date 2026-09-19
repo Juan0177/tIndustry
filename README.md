@@ -56,10 +56,10 @@ dotnet run --project TIndustry.Logistics.csproj
 
 **Consigli GUI**
 
-1. Dalla home: **Nuova partita** (la gen 1000² può impiegare 1–2 secondi).
-2. Scout vicino al core: ferro starter, rame un po’ più a sud.
-3. Vendi ore → **RICERCA** → sblocca **Forno** → chiudi il loop lastre → finanzia logistica avanzata.
-4. **Esc** / **MENU** torna alla home; **Continua** riprende l’autosave.
+1. Dalla home: **Nuova partita** (schermata di caricamento + animazione d’ingresso; la gen 1000² può impiegare 1–2 secondi).
+2. Scout vicino al core: ferro starter, rame un po’ più a sud. (**H** / **Home** riporta la camera sul core.)
+3. Vendi ore → **Ricerca** (T / icona albero) → sblocca **Forno** → chiudi il loop lastre → finanzia logistica avanzata.
+4. **Esc** / icona menu torna alla home; **Continua** riprende l’autosave.
 
 Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot in `artifacts/`), `--export-excel [path]`.
 
@@ -73,15 +73,16 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 | **Shift + drag** / tasto centrale | Pan (drag) |
 | **Rotella** | Ruota pezzo / direzione nastro |
 | **Ctrl + rotella** | Zoom |
+| **H** / **Home** | Riporta la camera sul **core** |
 | **R** | Ruota pezzo / direzione |
 | **1–8** | Tool: nastro, minatore, forno, rimuovi, assemblatore, incrocio, sdoppiatore, ponte |
 | **9** | Generatore (se sbloccato) |
 | **Q** / **E** | Nastro base / nastro veloce (se sbloccato) |
 | Click sinistro | Piazza (nastri: drag) |
-| **T** | Ricerca |
-| **I** / **IMPOST.** | Impostazioni |
+| **T** / icona albero | Ricerca |
+| **I** / icona ingranaggio | Impostazioni |
 | **U** | Potenzia core (se puoi) |
-| **Esc** / **MENU** | Torna alla home |
+| **Esc** / icona menu (☰) | Torna alla home |
 
 ---
 
@@ -97,8 +98,8 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 
 **Impostazioni** (anche in-game con **I**)
 
-- **Mostra contatore FPS** → `FPS N` in alto a sinistra
-- **Mostra inventario risorse** → strip risorse in header + categoria Inventario nel dock
+- **Mostra contatore FPS** → `FPS N` in header (a sinistra delle icone), senza sovrapporre il titolo
+- **Mostra inventario risorse** → strip risorse in header (denaro + session + materiali); **non** nel dock
 - **VSync** ON/OFF (con VSync attivo il frame pacing segue il refresh; la preferenza limite FPS resta salvata)
 - **Risoluzione**: preset fino a **2K** / **4K**, più **Auto risoluzione** (monitor corrente)
 - **Limite FPS**: 30 → 600, poi **Illimitato**
