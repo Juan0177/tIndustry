@@ -9,6 +9,7 @@
   <ItemGroup>
     <None Include="data\content.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="data\game-data.xlsx" CopyToOutputDirectory="PreserveNewest" Condition="Exists('data\game-data.xlsx')" />
+    <None Include="assets\fonts\**\*" CopyToOutputDirectory="PreserveNewest" Link="assets\fonts\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

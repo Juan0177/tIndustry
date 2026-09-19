@@ -27,8 +27,8 @@ internal enum AppScreen
 
 internal static class FactoryGameApp
 {
-    private const int ScreenWidth = 1240;
-    private const int ScreenHeight = 760;
+    private static int ScreenWidth = 1240;
+    private static int ScreenHeight = 760;
     public const int MapWidth = 1000;
     public const int MapHeight = 1000;
     private const int BaseTileSize = 36;
@@ -36,12 +36,16 @@ internal static class FactoryGameApp
     private const int PanelWidth = 296;
     private const int ViewportLeft = 0;
     private const int ViewportTop = HeaderHeight;
-    private const int ViewportRight = ScreenWidth - PanelWidth;
-    private const int ViewportBottom = ScreenHeight;
+    private static int ViewportRight => ScreenWidth - PanelWidth;
+    private static bool LayoutShowInventory;
+    private static int ViewportBottom =>
+        ScreenHeight - (LayoutShowInventory ? UiTheme.InventoryBarHeight : 0);
     private const float FixedStep = 1f / 30f;
     public const int DefaultSeed = 7429;
     private const int SeedEspanso = 1337;
     private const int SeedArcipelago = 9001;
+    private static UiTheme.ItemCategory InventoryCategory = UiTheme.ItemCategory.All;
+    private static GameSettings? SettingsDraft;
 
     private static readonly Direction[] Directions =
     [
@@ -92,6 +96,7 @@ internal static class FactoryGameApp
         var quitRequested = false;
         var settings = GameSettings.Load();
         var settingsReturnScreen = AppScreen.Home;
+        SyncLayoutSize(settings);
 
         // Headless smoke/capture paths jump straight into a playable session.
         if (maximumFrames is not null || screenshotPath is not null)
@@ -100,10 +105,13 @@ internal static class FactoryGameApp
             screen = AppScreen.Playing;
         }
 
-        Raylib.SetConfigFlags(ConfigFlags.VSyncHint);
+        Raylib.SetConfigFlags(ConfigFlags.VSyncHint | ConfigFlags.Msaa4xHint);
         Raylib.InitWindow(ScreenWidth, ScreenHeight, "tIndustry");
         Raylib.SetTargetFPS(60);
         Raylib.SetExitKey(KeyboardKey.Null);
+        UiTheme.Load();
+        DisplayApplier.Apply(settings);
+        SyncLayoutSize(settings);
 
         while (!quitRequested
             && !Raylib.WindowShouldClose()
@@ -111,6 +119,8 @@ internal static class FactoryGameApp
         {
             accumulator += Math.Min(Raylib.GetFrameTime(), 0.1f);
             var frameTime = Math.Min(Raylib.GetFrameTime(), 0.1f);
+
+            LayoutShowInventory = screen == AppScreen.Playing && settings.ShowResourceOverlay;
 
             switch (screen)
             {
@@ -194,8 +204,10 @@ internal static class FactoryGameApp
                     break;
 
                 case AppScreen.Settings:
+                    SettingsDraft ??= settings.Clone();
                     HandleSettingsInput(
                         settings,
+                        SettingsDraft,
                         ref screen,
                         settingsReturnScreen,
                         ref statusMessage);
@@ -262,7 +274,7 @@ internal static class FactoryGameApp
                     DrawResearch(content, wallet!, research!, selectedResearchIndex, statusMessage, settings);
                     break;
                 case AppScreen.Settings:
-                    DrawSettings(settings, statusMessage);
+                    DrawSettings(settings, SettingsDraft ?? settings, statusMessage);
                     break;
                 case AppScreen.Playing:
                     DrawPlaying(
@@ -311,8 +323,28 @@ internal static class FactoryGameApp
             AutoSaveContinue(world, conveyors!, wallet!, camera, research, session, nextItemId);
         }
 
+        UiTheme.Unload();
         Raylib.CloseWindow();
     }
+
+    private static void SyncLayoutSize(GameSettings settings)
+    {
+        if (Raylib.IsWindowReady())
+        {
+            ScreenWidth = Math.Max(800, Raylib.GetScreenWidth());
+            ScreenHeight = Math.Max(500, Raylib.GetScreenHeight());
+            return;
+        }
+
+        ScreenWidth = Math.Max(800, settings.ResolutionWidth);
+        ScreenHeight = Math.Max(500, settings.ResolutionHeight);
+    }
+
+    private static void DrawUiText(string text, int x, int y, int size, Color color) =>
+        UiTheme.DrawText(text, x, y, size, color);
+
+    private static int MeasureUiText(string text, int size) =>
+        UiTheme.Measure(text, size);
 
     private static void StartNewGame(
         GameContent content,
@@ -496,6 +528,7 @@ internal static class FactoryGameApp
         {
             statusMessage = null;
             settingsReturnScreen = AppScreen.Home;
+            SettingsDraft = null;
             screen = AppScreen.Settings;
             return;
         }
@@ -894,7 +927,14 @@ internal static class FactoryGameApp
         {
             statusMessage = null;
             settingsReturnScreen = AppScreen.Playing;
+            SettingsDraft = null;
             screen = AppScreen.Settings;
+            return;
+        }
+
+        if (LayoutShowInventory && Raylib.IsMouseButtonPressed(MouseButton.Left)
+            && TrySelectInventoryCategory(Raylib.GetMousePosition()))
+        {
             return;
         }
 
@@ -1498,6 +1538,33 @@ internal static class FactoryGameApp
         return false;
     }
 
+    private static bool TrySelectInventoryCategory(Vector2 mouse)
+    {
+        var barTop = ScreenHeight - UiTheme.InventoryBarHeight;
+        if (mouse.Y < barTop)
+        {
+            return false;
+        }
+
+        UiTheme.ItemCategory[] tabs =
+        [
+            UiTheme.ItemCategory.All,
+            UiTheme.ItemCategory.Materials,
+            UiTheme.ItemCategory.Intermediate,
+            UiTheme.ItemCategory.Products
+        ];
+        for (var i = 0; i < tabs.Length; i++)
+        {
+            if (Contains(mouse, 12, barTop + 10 + i * 22, 110, 20))
+            {
+                InventoryCategory = tabs[i];
+                return true;
+            }
+        }
+
+        return mouse.Y >= barTop;
+    }
+
     private const int HomeButtonX = 420;
     private const int HomeButtonWidth = 400;
     private const int HomeButtonHeight = 52;
@@ -1509,8 +1576,8 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
             new Color(18, 28, 24, 255), new Color(10, 12, 12, 255));
-        Raylib.DrawText("tINDUSTRY", 420, 100, 48, new Color(239, 238, 224, 255));
-        Raylib.DrawText("Settore Foundry — mappa 1000×1000", 420, 160, 18, new Color(112, 124, 119, 255));
+        DrawUiText("tINDUSTRY", 420, 100, 48, new Color(239, 238, 224, 255));
+        DrawUiText("Settore Foundry — mappa 1000×1000", 420, 160, 18, new Color(112, 124, 119, 255));
 
         DrawMenuButton(HomeButtonX, HomeButtonY(0), HomeButtonWidth, HomeButtonHeight, "Continua");
         DrawMenuButton(HomeButtonX, HomeButtonY(1), HomeButtonWidth, HomeButtonHeight, "Nuova partita");
@@ -1520,10 +1587,10 @@ internal static class FactoryGameApp
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawText(statusMessage, 420, 560, 18, new Color(225, 140, 110, 255));
+            DrawUiText(statusMessage, 420, 560, 18, new Color(225, 140, 110, 255));
         }
 
-        Raylib.DrawText("WASD / bordi / Shift+drag: pan   ·   rotella: zoom   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
+        DrawUiText("WASD / bordi / Shift+drag: pan   ·   rotella: zoom   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
             120, ScreenHeight - 40, 16, new Color(90, 100, 96, 255));
     }
 
@@ -1532,23 +1599,23 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
             new Color(18, 28, 24, 255), new Color(10, 12, 12, 255));
-        Raylib.DrawText("Nuova partita", 120, 80, 36, new Color(239, 238, 224, 255));
-        Raylib.DrawText("Scegli uno scenario o regola il seed, poi conferma.", 120, 130, 18,
+        DrawUiText("Nuova partita", 120, 80, 36, new Color(239, 238, 224, 255));
+        DrawUiText("Scegli uno scenario o regola il seed, poi conferma.", 120, 130, 18,
             new Color(112, 124, 119, 255));
 
         DrawMenuButton(120, 220, 280, 48, "Classico (7429)");
         DrawMenuButton(420, 220, 280, 48, "Espanso (1337)");
         DrawMenuButton(720, 220, 280, 48, "Arcipelago (9001)");
 
-        Raylib.DrawText("Seed personalizzato", 420, 290, 18, new Color(164, 173, 168, 255));
+        DrawUiText("Seed personalizzato", 420, 290, 18, new Color(164, 173, 168, 255));
         DrawMenuButton(420, 320, 48, 48, "−");
         Raylib.DrawRectangle(480, 320, 128, 48, new Color(32, 38, 36, 255));
         Raylib.DrawRectangleLines(480, 320, 128, 48, new Color(70, 82, 76, 255));
         var seedLabel = pendingSeed.ToString();
-        var seedWidth = Raylib.MeasureText(seedLabel, 24);
-        Raylib.DrawText(seedLabel, 480 + (128 - seedWidth) / 2, 332, 24, new Color(232, 233, 221, 255));
+        var seedWidth = MeasureUiText(seedLabel, 24);
+        DrawUiText(seedLabel, 480 + (128 - seedWidth) / 2, 332, 24, new Color(232, 233, 221, 255));
         DrawMenuButton(620, 320, 48, 48, "+");
-        Raylib.DrawText("←/→ o +/− · cifre opzionali · Backspace", 420, 380, 14,
+        DrawUiText("←/→ o +/− · cifre opzionali · Backspace", 420, 380, 14,
             new Color(126, 137, 132, 255));
 
         DrawMenuButton(420, 420, 280, 52, "Conferma");
@@ -1556,12 +1623,13 @@ internal static class FactoryGameApp
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
+            DrawUiText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
         }
     }
 
     private static void HandleSettingsInput(
         GameSettings settings,
+        GameSettings draft,
         ref AppScreen screen,
         AppScreen returnScreen,
         ref string? statusMessage)
@@ -1570,7 +1638,8 @@ internal static class FactoryGameApp
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && Contains(Raylib.GetMousePosition(), 28, ScreenHeight - 70, 180, 40)))
         {
-            settings.Save();
+            // Discard unapplied display draft; overlay toggles already saved.
+            SettingsDraft = null;
             statusMessage = null;
             screen = returnScreen;
             return;
@@ -1582,39 +1651,114 @@ internal static class FactoryGameApp
         }
 
         var mouse = Raylib.GetMousePosition();
-        if (Contains(mouse, 120, 220, 420, 48))
+        if (Contains(mouse, 120, 200, 420, 44))
         {
             settings.ShowFps = !settings.ShowFps;
+            draft.ShowFps = settings.ShowFps;
             settings.Save();
             statusMessage = settings.ShowFps ? "Contatore FPS attivato." : "Contatore FPS disattivato.";
+            return;
         }
-        else if (Contains(mouse, 120, 290, 420, 48))
+
+        if (Contains(mouse, 120, 254, 420, 44))
         {
             settings.ShowResourceOverlay = !settings.ShowResourceOverlay;
+            draft.ShowResourceOverlay = settings.ShowResourceOverlay;
             settings.Save();
             statusMessage = settings.ShowResourceOverlay
-                ? "Contatore risorse attivato."
-                : "Contatore risorse disattivato.";
+                ? "Inventario risorse attivato."
+                : "Inventario risorse disattivato.";
+            return;
+        }
+
+        // Resolution presets
+        for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
+        {
+            var x = 120 + (i % 3) * 150;
+            var y = 340 + (i / 3) * 44;
+            if (!Contains(mouse, x, y, 140, 38))
+            {
+                continue;
+            }
+
+            draft.ResolutionWidth = GameSettings.ResolutionPresets[i].Width;
+            draft.ResolutionHeight = GameSettings.ResolutionPresets[i].Height;
+            statusMessage = $"Risoluzione selezionata: {GameSettings.ResolutionPresets[i].Label}";
+            return;
+        }
+
+        // Display mode
+        DisplayMode[] modes = [DisplayMode.Windowed, DisplayMode.Borderless, DisplayMode.Fullscreen];
+        for (var i = 0; i < modes.Length; i++)
+        {
+            if (!Contains(mouse, 120 + i * 160, 450, 150, 40))
+            {
+                continue;
+            }
+
+            draft.DisplayMode = modes[i];
+            statusMessage = $"Modalità: {GameSettings.DisplayModeLabel(modes[i])}";
+            return;
+        }
+
+        // Apply
+        if (Contains(mouse, 120, 520, 180, 44))
+        {
+            settings.CopyFrom(draft);
+            settings.Save();
+            DisplayApplier.Apply(settings);
+            SyncLayoutSize(settings);
+            statusMessage = "Grafica applicata e salvata.";
+            return;
+        }
+
+        // Revert draft to last applied
+        if (Contains(mouse, 320, 520, 180, 44))
+        {
+            draft.CopyFrom(settings);
+            statusMessage = "Selezione grafica ripristinata.";
         }
     }
 
-    private static void DrawSettings(GameSettings settings, string? statusMessage)
+    private static void DrawSettings(GameSettings settings, GameSettings draft, string? statusMessage)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
-        Raylib.DrawText("Impostazioni", 120, 80, 36, new Color(239, 238, 224, 255));
-        Raylib.DrawText("Le preferenze restano salvate tra le sessioni.", 120, 130, 18, new Color(112, 124, 119, 255));
+        DrawUiText("Impostazioni", 120, 56, 36, new Color(239, 238, 224, 255));
+        DrawUiText("Overlay e grafica. Applica per salvare risoluzione e modalità.", 120, 102, 16,
+            new Color(112, 124, 119, 255));
 
-        DrawToggleRow(120, 220, 420, 48, "Mostra contatore FPS", settings.ShowFps);
-        DrawToggleRow(120, 290, 420, 48, "Mostra contatore risorse", settings.ShowResourceOverlay);
+        DrawToggleRow(120, 200, 420, 44, "Mostra contatore FPS", settings.ShowFps);
+        DrawToggleRow(120, 254, 420, 44, "Mostra inventario risorse", settings.ShowResourceOverlay);
 
-        Raylib.DrawText("FPS: angolo in alto a sinistra durante il gioco.", 120, 370, 16, new Color(126, 137, 132, 255));
-        Raylib.DrawText("Risorse: denaro, lastre, fili e saldo sessione nell'header.", 120, 396, 16, new Color(126, 137, 132, 255));
-        Raylib.DrawText($"File: {GameSettings.SettingsPath}", 120, 440, 14, new Color(90, 100, 96, 255));
+        DrawUiText("Risoluzione", 120, 312, 18, new Color(196, 201, 193, 255));
+        for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
+        {
+            var preset = GameSettings.ResolutionPresets[i];
+            var x = 120 + (i % 3) * 150;
+            var y = 340 + (i / 3) * 44;
+            var selected = draft.ResolutionWidth == preset.Width && draft.ResolutionHeight == preset.Height;
+            DrawButton(x, y, 140, 38, preset.Label, selected);
+        }
+
+        DrawUiText("Modalità schermo", 120, 424, 18, new Color(196, 201, 193, 255));
+        DrawButton(120, 450, 150, 40, "Finestra", draft.DisplayMode == DisplayMode.Windowed);
+        DrawButton(280, 450, 150, 40, "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
+        DrawButton(440, 450, 150, 40, "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
+
+        var dirty = !draft.MatchesDisplay(settings);
+        DrawMenuButton(120, 520, 180, 44, dirty ? "Applica*" : "Applica");
+        DrawMenuButton(320, 520, 180, 44, "Annulla");
+
+        DrawUiText("FPS: angolo in alto a sinistra. Inventario: barra in basso (Materiali / Intermedi / Prodotti).",
+            120, 580, 14, new Color(126, 137, 132, 255));
+        DrawUiText($"Attuale: {settings.ResolutionWidth}×{settings.ResolutionHeight} · {GameSettings.DisplayModeLabel(settings.DisplayMode)}",
+            120, 602, 14, new Color(126, 137, 132, 255));
+        DrawUiText($"File: {GameSettings.SettingsPath}", 120, 624, 13, new Color(90, 100, 96, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawText(statusMessage, 230, ScreenHeight - 58, 18, new Color(112, 218, 145, 255));
+            DrawUiText(statusMessage, 230, ScreenHeight - 58, 18, new Color(112, 218, 145, 255));
         }
     }
 
@@ -1625,11 +1769,11 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(x, y, width, height,
             hover ? new Color(55, 66, 60, 255) : new Color(32, 38, 36, 255));
         Raylib.DrawRectangleLines(x, y, width, height, new Color(70, 82, 76, 255));
-        Raylib.DrawText(label, x + 18, y + (height - 20) / 2, 20, new Color(232, 233, 221, 255));
+        DrawUiText(label, x + 18, y + (height - 20) / 2, 20, new Color(232, 233, 221, 255));
         var badge = enabled ? "ON" : "OFF";
         var badgeColor = enabled ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255);
-        var badgeWidth = Raylib.MeasureText(badge, 20);
-        Raylib.DrawText(badge, x + width - badgeWidth - 20, y + (height - 20) / 2, 20, badgeColor);
+        var badgeWidth = MeasureUiText(badge, 20);
+        DrawUiText(badge, x + width - badgeWidth - 20, y + (height - 20) / 2, 20, badgeColor);
     }
 
     private static void DrawDebugOverlays(GameSettings settings, EconomyWallet? wallet)
@@ -1637,7 +1781,7 @@ internal static class FactoryGameApp
         if (settings.ShowFps)
         {
             Raylib.DrawRectangle(8, 8, 88, 28, new Color(10, 12, 12, 180));
-            Raylib.DrawText($"FPS {Raylib.GetFPS()}", 16, 14, 18, new Color(211, 164, 76, 255));
+            DrawUiText($"FPS {Raylib.GetFPS()}", 16, 14, 18, new Color(211, 164, 76, 255));
         }
 
         // Corner resource strip when overlay is on but header wallet is hidden is N/A —
@@ -1657,23 +1801,23 @@ internal static class FactoryGameApp
         GameSettings settings)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
-        Raylib.DrawText("Ricerca / Sblocchi", 60, 36, 32, new Color(239, 238, 224, 255));
-        Raylib.DrawText("Seleziona una struttura, verifica i requisiti, conferma per sbloccare.", 60, 80, 18,
+        DrawUiText("Ricerca / Sblocchi", 60, 36, 32, new Color(239, 238, 224, 255));
+        DrawUiText("Seleziona una struttura, verifica i requisiti, conferma per sbloccare.", 60, 80, 18,
             new Color(112, 124, 119, 255));
         if (settings.ShowResourceOverlay)
         {
-            Raylib.DrawText($"Wallet: $ {wallet.Money}   ·   Piastre {wallet.MaterialCount("iron-plate")}   ·   Fili {wallet.MaterialCount("copper-wire")}",
+            DrawUiText($"Wallet: $ {wallet.Money}   ·   vedi inventario in partita (barra in basso)",
                 60, 108, 16, new Color(164, 173, 168, 255));
         }
         else
         {
-            Raylib.DrawText("Contatore risorse disattivato (Impostazioni).", 60, 108, 16, new Color(126, 137, 132, 255));
+            DrawUiText("Inventario risorse disattivato (Impostazioni).", 60, 108, 16, new Color(126, 137, 132, 255));
         }
 
         var entries = ResearchEntries(content);
         if (entries.Count == 0)
         {
-            Raylib.DrawText("Nessuna struttura da sbloccare.", 60, 160, 22, new Color(164, 173, 168, 255));
+            DrawUiText("Nessuna struttura da sbloccare.", 60, 160, 22, new Color(164, 173, 168, 255));
         }
         else
         {
@@ -1690,8 +1834,8 @@ internal static class FactoryGameApp
                     ? (structure.IsStub ? "SBLOCCATO (stub)" : "SBLOCCATO")
                     : "BLOCCATO";
                 var accent = unlocked ? new Color(112, 218, 145, 255) : new Color(220, 170, 110, 255);
-                Raylib.DrawText(structure.DisplayName, 76, y + 8, 20, new Color(232, 233, 221, 255));
-                Raylib.DrawText(
+                DrawUiText(structure.DisplayName, 76, y + 8, 20, new Color(232, 233, 221, 255));
+                DrawUiText(
                     $"{status}  ·  {FormatUnlockRequirement(structure.Unlock)}{(structure.IsStub ? "  ·  stub" : "")}",
                     76, y + 28, 14, accent);
             }
@@ -1702,17 +1846,17 @@ internal static class FactoryGameApp
                 ? "Già sbloccato"
                 : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
             DrawMenuButton(800, 140, 320, 50, buttonLabel);
-            Raylib.DrawText("Lo sblocco consuma denaro e materiali.", 800, 210, 14, new Color(126, 137, 132, 255));
+            DrawUiText("Lo sblocco consuma denaro e materiali.", 800, 210, 14, new Color(126, 137, 132, 255));
             if (selectedStructure.IsStub)
             {
-                Raylib.DrawText("Stub: non costruibile ancora.", 800, 234, 14, new Color(180, 120, 100, 255));
+                DrawUiText("Stub: non costruibile ancora.", 800, 234, 14, new Color(180, 120, 100, 255));
             }
         }
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
+            DrawUiText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
         }
     }
 
@@ -1732,12 +1876,12 @@ internal static class FactoryGameApp
 
     private static void DrawSaveManager(IReadOnlyList<SaveSlotInfo> slots, int selectedIndex, string? statusMessage)
     {
-        Raylib.DrawText("Gestione salvataggi", 60, 40, 32, new Color(239, 238, 224, 255));
-        Raylib.DrawText("Seleziona uno slot, poi Carica o Elimina.", 60, 90, 18, new Color(112, 124, 119, 255));
+        DrawUiText("Gestione salvataggi", 60, 40, 32, new Color(239, 238, 224, 255));
+        DrawUiText("Seleziona uno slot, poi Carica o Elimina.", 60, 90, 18, new Color(112, 124, 119, 255));
 
         if (slots.Count == 0)
         {
-            Raylib.DrawText("Nessun salvataggio presente.", 60, 160, 22, new Color(164, 173, 168, 255));
+            DrawUiText("Nessun salvataggio presente.", 60, 160, 22, new Color(164, 173, 168, 255));
         }
         else
         {
@@ -1749,7 +1893,7 @@ internal static class FactoryGameApp
                 Raylib.DrawRectangle(60, y, 760, 44,
                     selected ? new Color(55, 72, 62, 255) : new Color(28, 34, 33, 255));
                 var label = slot.Id == GameSaveStore.ContinueSlotId ? "Continua (autosave)" : slot.Id;
-                Raylib.DrawText(
+                DrawUiText(
                     $"{label}  ·  seed {slot.Seed}  ·  ${slot.Money}  ·  {slot.MapWidth}×{slot.MapHeight}",
                     76, y + 12, 18, new Color(220, 224, 214, 255));
             }
@@ -1762,7 +1906,7 @@ internal static class FactoryGameApp
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
+            DrawUiText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
         }
     }
 
@@ -1773,8 +1917,8 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(x, y, width, height,
             hover ? new Color(211, 164, 76, 255) : new Color(45, 52, 50, 255));
         var text = hover ? new Color(25, 28, 26, 255) : new Color(215, 219, 210, 255);
-        var textWidth = Raylib.MeasureText(label, 20);
-        Raylib.DrawText(label, x + (width - textWidth) / 2, y + (height - 20) / 2, 20, text);
+        var textWidth = MeasureUiText(label, 20);
+        DrawUiText(label, x + (width - textWidth) / 2, y + (height - 20) / 2, 20, text);
     }
 
     private static void DrawPlaying(
@@ -1815,10 +1959,15 @@ internal static class FactoryGameApp
             selectedConveyor, minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             tool, direction, world, camera);
         DrawPanel(world, conveyors, research, wallet, session, market, economy);
+        if (settings.ShowResourceOverlay)
+        {
+            DrawInventoryBar(wallet, session);
+        }
+
         if (!string.IsNullOrEmpty(statusMessage))
         {
             Raylib.DrawRectangle(ViewportLeft + 16, ViewportTop + 10, 520, 28, new Color(10, 14, 14, 200));
-            Raylib.DrawText(statusMessage, ViewportLeft + 24, ViewportTop + 16, 16,
+            DrawUiText(statusMessage, ViewportLeft + 24, ViewportTop + 16, 16,
                 new Color(112, 218, 145, 255));
         }
     }
@@ -1846,22 +1995,18 @@ internal static class FactoryGameApp
         WorldCamera camera)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, HeaderHeight, new Color(16, 20, 20, 245));
-        Raylib.DrawText("tINDUSTRY", 28, 14, 26, new Color(239, 238, 224, 255));
-        Raylib.DrawText(
+        DrawUiText("tINDUSTRY", 28, 12, 28, new Color(239, 238, 224, 255));
+        DrawUiText(
             $"FONDERIA  seed {world.Seed}  ·  {world.Terrain.Width}×{world.Terrain.Height}  ·  zoom {camera.Zoom:0.00}",
-            28, 46, 13, new Color(112, 124, 119, 255));
+            28, 44, 14, new Color(128, 140, 134, 255));
 
         if (settings.ShowResourceOverlay)
         {
-            Raylib.DrawText($"$ {wallet.Money}", 520, 14, 20, new Color(112, 218, 145, 255));
-            Raylib.DrawCircle(524, 48, 5, ItemColor("iron-plate"));
-            Raylib.DrawText($"Lastre {wallet.MaterialCount("iron-plate")}", 536, 40, 14, new Color(196, 201, 193, 255));
-            Raylib.DrawCircle(640, 48, 5, ItemColor("copper-wire"));
-            Raylib.DrawText($"Fili {wallet.MaterialCount("copper-wire")}", 652, 40, 14, new Color(196, 201, 193, 255));
-
+            DrawUiText($"$ {wallet.Money}", 520, 12, 22, new Color(112, 218, 145, 255));
             var net = session.NetWorthDelta(wallet);
             var netColor = net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255);
-            Raylib.DrawText($"Sessione {(net >= 0 ? "+" : "")}{net}", 520, 62, 13, netColor);
+            DrawUiText($"Sessione {(net >= 0 ? "+" : "")}{net}", 520, 40, 14, netColor);
+            DrawUiText("Inventario", 650, 40, 13, new Color(126, 137, 132, 255));
         }
 
         DrawButton(28, 88, 100, 34, "NASTRO", tool == BuildTool.Conveyor);
@@ -1913,11 +2058,71 @@ internal static class FactoryGameApp
             BuildTool.Conveyor => FormatConveyorCost(selectedConveyor, research),
             _ => economy.RefundPolicyNote
         };
-        Raylib.DrawText(cost, 28, 70, 14, new Color(164, 173, 168, 255));
+        DrawUiText(cost, 28, 70, 14, new Color(164, 173, 168, 255));
         DrawButton(ScreenWidth - 470, 20, 140, 36, "IMPOST.", false);
         DrawButton(ScreenWidth - 320, 20, 140, 36, "RICERCA", false);
         DrawButton(ScreenWidth - 170, 20, 140, 36, "MENU", false);
         _ = market;
+    }
+
+    private static void DrawInventoryBar(EconomyWallet wallet, EconomySession session)
+    {
+        var barTop = ScreenHeight - UiTheme.InventoryBarHeight;
+        Raylib.DrawRectangle(0, barTop, ScreenWidth, UiTheme.InventoryBarHeight, new Color(12, 16, 16, 250));
+        Raylib.DrawRectangle(0, barTop, ScreenWidth, 2, new Color(70, 88, 78, 255));
+
+        UiTheme.ItemCategory[] tabs =
+        [
+            UiTheme.ItemCategory.All,
+            UiTheme.ItemCategory.Materials,
+            UiTheme.ItemCategory.Intermediate,
+            UiTheme.ItemCategory.Products
+        ];
+        for (var i = 0; i < tabs.Length; i++)
+        {
+            var tab = tabs[i];
+            var y = barTop + 10 + i * 22;
+            var active = InventoryCategory == tab;
+            Raylib.DrawRectangle(12, y, 110, 20,
+                active ? new Color(48, 72, 58, 255) : new Color(28, 34, 32, 255));
+            if (active)
+            {
+                Raylib.DrawRectangleLines(12, y, 110, 20, new Color(112, 218, 145, 255));
+            }
+
+            DrawUiText(UiTheme.CategoryLabel(tab), 20, y + 3, 13,
+                active ? new Color(232, 233, 221, 255) : new Color(150, 160, 154, 255));
+        }
+
+        DrawUiText("INVENTARIO", 140, barTop + 8, 14, new Color(164, 173, 168, 255));
+        DrawUiText($"$ {wallet.Money}", ScreenWidth - 280, barTop + 8, 18, new Color(112, 218, 145, 255));
+        var net = session.NetWorthDelta(wallet);
+        DrawUiText(
+            $"sessione {(net >= 0 ? "+" : "")}{net}",
+            ScreenWidth - 280,
+            barTop + 32,
+            13,
+            net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255));
+
+        var items = UiTheme.ItemsInCategory(InventoryCategory).ToArray();
+        var slotWidth = 92;
+        var startX = 140;
+        for (var i = 0; i < items.Length; i++)
+        {
+            var item = items[i];
+            var x = startX + i * (slotWidth + 10);
+            var y = barTop + 36;
+            var count = wallet.MaterialCount(item.ItemId);
+            Raylib.DrawRectangle(x, y, slotWidth, 54, new Color(24, 30, 28, 255));
+            Raylib.DrawRectangleLines(x, y, slotWidth, 54, new Color(64, 78, 70, 255));
+            Raylib.DrawRectangle(x + 8, y + 10, 28, 28, UiTheme.ItemColor(item.ItemId));
+            Raylib.DrawRectangleLines(x + 8, y + 10, 28, 28, UiTheme.ItemOutline(item.ItemId));
+            var abbrev = item.Abbrev;
+            var abbrevW = MeasureUiText(abbrev, 12);
+            DrawUiText(abbrev, x + 8 + (28 - abbrevW) / 2, y + 17, 12, new Color(18, 16, 12, 255));
+            DrawUiText(item.ShortName, x + 42, y + 10, 13, new Color(210, 214, 206, 255));
+            DrawUiText(count.ToString(), x + 42, y + 28, 18, new Color(239, 238, 224, 255));
+        }
     }
 
     private static string FormatBuildingCost(BuildingDefinition building)
@@ -2054,48 +2259,50 @@ internal static class FactoryGameApp
 
     private static void DrawTerrainTile(TerrainTile tile, GridPosition position, float x, float y, float tileSize)
     {
-        var size = Math.Max(1, (int)MathF.Ceiling(tileSize));
-        var ix = (int)x;
-        var iy = (int)y;
+        // Integer pixel bounds from floor→next floor keep cells flush (no muddy float gaps).
+        var ix = (int)MathF.Floor(x);
+        var iy = (int)MathF.Floor(y);
+        var size = Math.Max(1, (int)MathF.Floor(x + tileSize) - ix);
+        var sizeY = Math.Max(1, (int)MathF.Floor(y + tileSize) - iy);
         var color = tile.Terrain switch
         {
-            TerrainKind.Grass => new Color(51, 73, 56, 255),
-            TerrainKind.Soil => new Color(81, 70, 52, 255),
-            TerrainKind.Stone => new Color(69, 74, 72, 255),
-            TerrainKind.Water => new Color(35, 77, 91, 255),
+            TerrainKind.Grass => new Color(58, 86, 64, 255),
+            TerrainKind.Soil => new Color(96, 82, 60, 255),
+            TerrainKind.Stone => new Color(82, 88, 86, 255),
+            TerrainKind.Water => new Color(40, 90, 108, 255),
             _ => Color.Black
         };
-        Raylib.DrawRectangle(ix, iy, size, size, color);
-        if (tileSize >= 10f)
+        Raylib.DrawRectangle(ix, iy, size, sizeY, color);
+        if (tileSize >= 12f)
         {
-            Raylib.DrawRectangleLines(ix, iy, size, size, new Color(20, 27, 26, 38));
-        }
-
-        if (tileSize >= 14f)
-        {
-            var detail = (position.X * 17 + position.Y * 31) % 19;
-            var detailColor = new Color(color.R + 7, color.G + 7, color.B + 6, 150);
-            Raylib.DrawRectangle(
-                ix + (int)(5 * tileSize / BaseTileSize) + detail % 14,
-                iy + (int)(6 * tileSize / BaseTileSize) + detail * 2 % 19,
-                Math.Max(1, (int)(3 * tileSize / BaseTileSize)),
-                Math.Max(1, (int)(3 * tileSize / BaseTileSize)),
-                detailColor);
+            Raylib.DrawRectangleLines(ix, iy, size, sizeY, new Color(18, 24, 22, 55));
         }
 
         if (tile.Deposit == DepositKind.Iron && tileSize >= 8f)
         {
             var s = tileSize / BaseTileSize;
-            Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(1.5f, 4 * s), new Color(151, 88, 51, 255));
-            Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2f, 6 * s), new Color(205, 132, 73, 255));
-            Raylib.DrawCircle(ix + (int)(12 * s), iy + (int)(27 * s), Math.Max(1f, 3 * s), new Color(236, 168, 91, 255));
+            var fill = UiTheme.ItemColor("iron-ore");
+            Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(2f, 5 * s), fill);
+            Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
+            Raylib.DrawCircle(ix + (int)(12 * s), iy + (int)(27 * s), Math.Max(1.5f, 3.5f * s),
+                new Color(255, 200, 120, 255));
+            if (tileSize >= 22f)
+            {
+                DrawUiText("Fe", ix + 2, iy + 2, Math.Max(10, (int)(11 * s)), new Color(255, 230, 190, 255));
+            }
         }
         else if (tile.Deposit == DepositKind.Copper && tileSize >= 8f)
         {
             var s = tileSize / BaseTileSize;
-            Raylib.DrawCircle(ix + (int)(11 * s), iy + (int)(13 * s), Math.Max(1.5f, 4 * s), new Color(42, 110, 108, 255));
-            Raylib.DrawCircle(ix + (int)(23 * s), iy + (int)(20 * s), Math.Max(2f, 6 * s), new Color(72, 168, 158, 255));
-            Raylib.DrawCircle(ix + (int)(14 * s), iy + (int)(26 * s), Math.Max(1f, 3 * s), new Color(168, 214, 196, 255));
+            var fill = UiTheme.ItemColor("copper-ore");
+            Raylib.DrawCircle(ix + (int)(11 * s), iy + (int)(13 * s), Math.Max(2f, 5 * s), fill);
+            Raylib.DrawCircle(ix + (int)(23 * s), iy + (int)(20 * s), Math.Max(2.5f, 7 * s), fill);
+            Raylib.DrawCircle(ix + (int)(14 * s), iy + (int)(26 * s), Math.Max(1.5f, 3.5f * s),
+                new Color(190, 255, 230, 255));
+            if (tileSize >= 22f)
+            {
+                DrawUiText("Ra", ix + 2, iy + 2, Math.Max(10, (int)(11 * s)), new Color(210, 255, 240, 255));
+            }
         }
     }
 
@@ -2133,7 +2340,7 @@ internal static class FactoryGameApp
         Raylib.DrawCircleV(center, 12 * scale, new Color(210, 251, 218, 255));
         if (tileSize >= 12f)
         {
-            Raylib.DrawText("CORE", x + size / 2 - 24, y + size - (int)(34 * scale), Math.Max(10, (int)(18 * scale)),
+            DrawUiText("CORE", x + size / 2 - 24, y + size - (int)(34 * scale), Math.Max(10, (int)(18 * scale)),
                 new Color(201, 232, 207, 255));
         }
     }
@@ -2162,10 +2369,10 @@ internal static class FactoryGameApp
         if (tileSize >= 12f)
         {
             var efficiencyLabel = $"{miner.Efficiency:P0}";
-            var efficiencyWidth = Raylib.MeasureText(efficiencyLabel, 12);
+            var efficiencyWidth = MeasureUiText(efficiencyLabel, 12);
             Raylib.DrawRectangle(x + (size - efficiencyWidth) / 2 - 4, y + size - 27,
                 efficiencyWidth + 8, 16, new Color(20, 24, 23, alpha));
-            Raylib.DrawText(efficiencyLabel, x + (size - efficiencyWidth) / 2, y + size - 25,
+            DrawUiText(efficiencyLabel, x + (size - efficiencyWidth) / 2, y + size - 25,
                 12, new Color(233, 190, 96, alpha));
         }
     }
@@ -2194,7 +2401,10 @@ internal static class FactoryGameApp
             new Color(235, 120, 70, alpha));
         if (tileSize >= 12f)
         {
-            Raylib.DrawText("FORNO", x + size / 2 - 22, y + 8, 12, new Color(240, 200, 170, alpha));
+            var label = "FORNO";
+            var labelW = MeasureUiText(label, 13);
+            Raylib.DrawRectangle(x + 10, y + 6, labelW + 8, 16, new Color(20, 12, 10, 180));
+            DrawUiText(label, x + 14, y + 8, 13, new Color(255, 220, 190, alpha));
         }
     }
 
@@ -2222,7 +2432,10 @@ internal static class FactoryGameApp
             new Color(80, 190, 200, alpha));
         if (tileSize >= 12f)
         {
-            Raylib.DrawText("ASSY", x + size / 2 - 18, y + 8, 12, new Color(180, 230, 236, alpha));
+            var label = "ASSY";
+            var labelW = MeasureUiText(label, 13);
+            Raylib.DrawRectangle(x + 10, y + 6, labelW + 8, 16, new Color(10, 20, 24, 180));
+            DrawUiText(label, x + 14, y + 8, 13, new Color(190, 240, 246, alpha));
         }
     }
 
@@ -2246,7 +2459,10 @@ internal static class FactoryGameApp
         Raylib.DrawCircleV(center, 5 * scale, new Color(255, 235, 150, alpha));
         if (tileSize >= 12f)
         {
-            Raylib.DrawText("GEN", x + size / 2 - 16, y + 8, 12, new Color(255, 230, 160, alpha));
+            var label = "GEN";
+            var labelW = MeasureUiText(label, 13);
+            Raylib.DrawRectangle(x + 10, y + 6, labelW + 8, 16, new Color(24, 18, 8, 180));
+            DrawUiText(label, x + 14, y + 8, 13, new Color(255, 235, 170, alpha));
         }
     }
 
@@ -2300,22 +2516,23 @@ internal static class FactoryGameApp
         {
             var vector = DirectionVector(conveyor.Direction);
             var itemPosition = center - vector * (tileSize * 0.5f) + vector * (item.Progress * tileSize);
-            var itemSize = Math.Max(4, (int)(10 * tileSize / BaseTileSize));
-            var fill = ItemColor(item.ItemId);
-            Raylib.DrawRectangle((int)itemPosition.X - itemSize / 2, (int)itemPosition.Y - itemSize / 2, itemSize, itemSize,
-                fill);
-            Raylib.DrawRectangleLines((int)itemPosition.X - itemSize / 2, (int)itemPosition.Y - itemSize / 2, itemSize, itemSize,
-                new Color(255, 240, 210, 255));
-            if (tileSize >= 14f)
+            var itemSize = Math.Max(6, (int)(12 * tileSize / BaseTileSize));
+            var ix = (int)itemPosition.X - itemSize / 2;
+            var iy = (int)itemPosition.Y - itemSize / 2;
+            var fill = UiTheme.ItemColor(item.ItemId);
+            Raylib.DrawRectangle(ix, iy, itemSize, itemSize, fill);
+            Raylib.DrawRectangleLines(ix, iy, itemSize, itemSize, UiTheme.ItemOutline(item.ItemId));
+            if (tileSize >= 16f)
             {
-                var abbrev = ItemAbbrev(item.ItemId);
-                var abbrevWidth = Raylib.MeasureText(abbrev, 10);
-                Raylib.DrawText(
+                var abbrev = UiTheme.ItemAbbrev(item.ItemId);
+                var fontSize = Math.Max(10, Math.Min(14, itemSize - 2));
+                var abbrevWidth = MeasureUiText(abbrev, fontSize);
+                DrawUiText(
                     abbrev,
                     (int)itemPosition.X - abbrevWidth / 2,
-                    (int)itemPosition.Y - 5,
-                    10,
-                    new Color(20, 18, 14, 255));
+                    (int)itemPosition.Y - fontSize / 2,
+                    fontSize,
+                    new Color(18, 16, 12, 255));
             }
         }
     }
@@ -2391,23 +2608,9 @@ internal static class FactoryGameApp
         DrawDirectionMark(center, conveyor.Direction, alpha, tileSize);
     }
 
-    private static Color ItemColor(string itemId) => itemId switch
-    {
-        "iron-ore" => new Color(211, 117, 55, 255),
-        "iron-plate" => new Color(168, 184, 196, 255),
-        "copper-ore" => new Color(72, 168, 158, 255),
-        "copper-wire" => new Color(196, 132, 72, 255),
-        _ => new Color(200, 90, 200, 255)
-    };
+    private static Color ItemColor(string itemId) => UiTheme.ItemColor(itemId);
 
-    private static string ItemAbbrev(string itemId) => itemId switch
-    {
-        "iron-ore" => "Fe",
-        "iron-plate" => "Ls",
-        "copper-ore" => "Ra",
-        "copper-wire" => "Fi",
-        _ => "?"
-    };
+    private static string ItemAbbrev(string itemId) => UiTheme.ItemAbbrev(itemId);
 
     private static void DrawConveyorArm(Vector2 center, Direction direction, int alpha, float tileSize)
     {
@@ -2612,7 +2815,7 @@ internal static class FactoryGameApp
         EconomyConfig economy)
     {
         Raylib.DrawRectangle(ViewportRight, ViewportTop, PanelWidth, (int)ViewportHeight, new Color(24, 29, 29, 255));
-        Raylib.DrawText("MERCATO", ViewportRight + 22, ViewportTop + 22, 20, new Color(232, 233, 221, 255));
+        DrawUiText("MERCATO", ViewportRight + 22, ViewportTop + 22, 20, new Color(232, 233, 221, 255));
         Raylib.DrawLine(ViewportRight + 22, ViewportTop + 54, ViewportRight + 274, ViewportTop + 54, new Color(62, 72, 68, 255));
 
         var marketY = ViewportTop + 70;
@@ -2623,59 +2826,59 @@ internal static class FactoryGameApp
             var priceLabel = effective != item.SellPrice
                 ? $"${item.SellPrice}→${effective}"
                 : $"${item.SellPrice}";
-            Raylib.DrawText($"{item.DisplayName}  {priceLabel}", ViewportRight + 48, marketY, 14,
+            DrawUiText($"{item.DisplayName}  {priceLabel}", ViewportRight + 48, marketY, 14,
                 new Color(196, 201, 193, 255));
             marketY += 26;
         }
 
-        Raylib.DrawText(market.BestValueHint(), ViewportRight + 22, marketY + 4, 12, new Color(211, 164, 76, 255));
+        DrawUiText(market.BestValueHint(), ViewportRight + 22, marketY + 4, 12, new Color(211, 164, 76, 255));
 
         var ledgerY = marketY + 36;
         Raylib.DrawRectangle(ViewportRight + 22, ledgerY, 252, 1, new Color(62, 72, 68, 255));
         ledgerY += 12;
-        Raylib.DrawText("SESSIONE", ViewportRight + 22, ledgerY, 14, new Color(164, 173, 168, 255));
+        DrawUiText("SESSIONE", ViewportRight + 22, ledgerY, 14, new Color(164, 173, 168, 255));
         ledgerY += 22;
         var net = session.NetWorthDelta(wallet);
         DrawMetric("SALDO NETTO", $"{(net >= 0 ? "+" : "")}{net}", ViewportRight + 22, ledgerY,
             net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255));
         ledgerY += 52;
-        Raylib.DrawText($"Vendite +{session.SaleIncome}  ·  Build −{session.BuildSpend}",
+        DrawUiText($"Vendite +{session.SaleIncome}  ·  Build −{session.BuildSpend}",
             ViewportRight + 22, ledgerY, 12, new Color(140, 150, 145, 255));
         ledgerY += 18;
-        Raylib.DrawText($"Unlock −{session.UnlockSpend}  ·  Upgrade −{session.UpgradeSpend}",
+        DrawUiText($"Unlock −{session.UnlockSpend}  ·  Upgrade −{session.UpgradeSpend}",
             ViewportRight + 22, ledgerY, 12, new Color(140, 150, 145, 255));
         ledgerY += 18;
-        Raylib.DrawText($"Rimborsi +{session.RefundIncome}  ·  Item {world.SoldItems}",
+        DrawUiText($"Rimborsi +{session.RefundIncome}  ·  Item {world.SoldItems}",
             ViewportRight + 22, ledgerY, 12, new Color(140, 150, 145, 255));
 
         ledgerY += 28;
-        Raylib.DrawText(
+        DrawUiText(
             $"Minatori {world.Miners.Count}  Forni {world.Smelters.Count}  Assemb. {world.Assemblers.Count}",
             ViewportRight + 22, ledgerY, 13, new Color(180, 186, 178, 255));
         ledgerY += 18;
-        Raylib.DrawText($"Nastri {conveyors.Cells.Count}  ·  Gen. {world.Generators.Count}",
+        DrawUiText($"Nastri {conveyors.Cells.Count}  ·  Gen. {world.Generators.Count}",
             ViewportRight + 22, ledgerY, 13, new Color(180, 186, 178, 255));
         ledgerY += 20;
-        Raylib.DrawText(
+        DrawUiText(
             $"POTENZA {world.PowerBuffer:0}/{world.PowerCapacity:0}",
             ViewportRight + 22, ledgerY, 14, new Color(230, 190, 70, 255));
         ledgerY += 22;
-        Raylib.DrawText(
+        DrawUiText(
             research.IsUnlocked("smelter") ? "Forno SBLOCCATO" : "Forno bloccato",
             ViewportRight + 22, ledgerY, 13,
             research.IsUnlocked("smelter") ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
         ledgerY += 18;
-        Raylib.DrawText(
+        DrawUiText(
             research.IsUnlocked("assembler") ? "Assemblatore SBLOCCATO" : "Assemblatore bloccato",
             ViewportRight + 22, ledgerY, 13,
             research.IsUnlocked("assembler") ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
         ledgerY += 18;
-        Raylib.DrawText(
+        DrawUiText(
             research.IsUnlocked("generator") ? "Generatore SBLOCCATO" : "Generatore bloccato",
             ViewportRight + 22, ledgerY, 13,
             research.IsUnlocked("generator") ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
         ledgerY += 18;
-        Raylib.DrawText(
+        DrawUiText(
             research.IsUnlocked("conveyor-fast") ? "Nastro veloce SBLOCCATO" : "Nastro veloce bloccato",
             ViewportRight + 22, ledgerY, 13,
             research.IsUnlocked("conveyor-fast") ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
@@ -2683,19 +2886,19 @@ internal static class FactoryGameApp
         var copperUnlocked = research.IsUnlocked("junction")
             || research.IsUnlocked("splitter")
             || research.IsUnlocked("conveyor-bridge");
-        Raylib.DrawText(
+        DrawUiText(
             copperUnlocked ? "Logistica rame: biforcazione / ponte" : "Rame: sblocca biforcazione / ponte",
             ViewportRight + 22, ledgerY, 12,
             copperUnlocked ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
 
         ledgerY += 26;
         var tip = GetOnboardingTip(world, conveyors, research, wallet);
-        Raylib.DrawText("SUGGERIMENTO", ViewportRight + 22, ledgerY, 12, new Color(126, 137, 132, 255));
+        DrawUiText("SUGGERIMENTO", ViewportRight + 22, ledgerY, 12, new Color(126, 137, 132, 255));
         ledgerY += 18;
         DrawWrappedTip(tip, ViewportRight + 22, ledgerY, 252);
 
         ledgerY += 44;
-        Raylib.DrawText(economy.RefundPolicyNote, ViewportRight + 22, ledgerY, 11, new Color(126, 137, 132, 255));
+        DrawUiText(economy.RefundPolicyNote, ViewportRight + 22, ledgerY, 11, new Color(126, 137, 132, 255));
 
         var upgrade = economy.CoreUpgrade;
         var upgradeY = ViewportTop + 520;
@@ -2703,9 +2906,9 @@ internal static class FactoryGameApp
             ? $"CORE LV{world.CoreUpgradeLevel} (+{world.CoreSaleBonusPercent}%)"
             : $"POTENZIA CORE ${upgrade.MoneyCost}+{upgrade.BuildCost.FirstOrDefault()?.Amount ?? 0}P";
         DrawButton(ViewportRight + 22, upgradeY, 252, 36, upgradeLabel, world.CoreUpgradeLevel > 0);
-        Raylib.DrawText("U · potenzia vendite core", ViewportRight + 22, upgradeY + 44, 12,
+        DrawUiText("U · potenzia vendite core", ViewportRight + 22, upgradeY + 44, 12,
             new Color(126, 137, 132, 255));
-        Raylib.DrawText("T ricerca · Esc menu", ViewportRight + 22, upgradeY + 62, 12,
+        DrawUiText("T ricerca · Esc menu", ViewportRight + 22, upgradeY + 62, 12,
             new Color(126, 137, 132, 255));
     }
 
@@ -2759,9 +2962,9 @@ internal static class FactoryGameApp
     private static void DrawWrappedTip(string tip, int x, int y, int maxWidth)
     {
         const int fontSize = 12;
-        if (Raylib.MeasureText(tip, fontSize) <= maxWidth)
+        if (MeasureUiText(tip, fontSize) <= maxWidth)
         {
-            Raylib.DrawText(tip, x, y, fontSize, new Color(211, 164, 76, 255));
+            DrawUiText(tip, x, y, fontSize, new Color(211, 164, 76, 255));
             return;
         }
 
@@ -2771,9 +2974,9 @@ internal static class FactoryGameApp
         foreach (var word in words)
         {
             var candidate = string.IsNullOrEmpty(line) ? word : $"{line} {word}";
-            if (Raylib.MeasureText(candidate, fontSize) > maxWidth && !string.IsNullOrEmpty(line))
+            if (MeasureUiText(candidate, fontSize) > maxWidth && !string.IsNullOrEmpty(line))
             {
-                Raylib.DrawText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
+                DrawUiText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
                 lineY += 16;
                 line = word;
             }
@@ -2785,14 +2988,14 @@ internal static class FactoryGameApp
 
         if (!string.IsNullOrEmpty(line))
         {
-            Raylib.DrawText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
+            DrawUiText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
         }
     }
 
     private static void DrawMetric(string label, string value, int x, int y, Color accent)
     {
-        Raylib.DrawText(label, x, y, 13, new Color(126, 137, 132, 255));
-        Raylib.DrawText(value, x, y + 22, 22, accent);
+        DrawUiText(label, x, y, 13, new Color(126, 137, 132, 255));
+        DrawUiText(value, x, y + 22, 22, accent);
     }
 
     private static void DrawButton(int x, int y, int width, int height, string label, bool active)
@@ -2800,8 +3003,8 @@ internal static class FactoryGameApp
         var fill = active ? new Color(211, 164, 76, 255) : new Color(45, 52, 50, 255);
         var text = active ? new Color(25, 28, 26, 255) : new Color(215, 219, 210, 255);
         Raylib.DrawRectangle(x, y, width, height, fill);
-        var textWidth = Raylib.MeasureText(label, 15);
-        Raylib.DrawText(label, x + (width - textWidth) / 2, y + 12, 15, text);
+        var textWidth = MeasureUiText(label, 15);
+        DrawUiText(label, x + (width - textWidth) / 2, y + 12, 15, text);
     }
 
     private static GridPosition? MouseCell(Vector2 mouse, WorldCamera camera, FactoryWorld world) =>
