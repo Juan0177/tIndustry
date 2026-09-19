@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.2.2** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.2.3** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
@@ -18,14 +18,14 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-**v0.2.2** — tutto 0.2.1 più fix logistica e tutorial ripartibile. In sintesi:
+**v0.2.3** — tutto 0.2.2 più economia **stock-first**. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
 | Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
-| Economia | Wallet (denaro + stock materiali), core → magazzino poi vendita Mercato (auto-sell opzionale), rimborso 100%, **potenziamento core** (+25% vendite) |
+| Economia | **Stock-first** al core (wallet materiali); Mercato vendi **1** / **tutti**; **Vendita automatica** opzionale (OFF); rimborso 100%; **potenziamento core** (+25% vendite) |
 | Progressione | **Ricerca** data-driven; **tutorial** IT 5 step — riparte su **Nuova partita** / **Rivedi tutorial** (**Salta** / Fine) |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** solo con autosave), scenari + seed, save JSON **v6** |
 | Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT |
@@ -73,9 +73,9 @@ Namespace: `TIndustry.Logistics` (invariato). Il `.csproj` resta in root così C
 **Consigli GUI**
 
 1. All’avvio: **splash** (thumbnail + brand) — click/tasto per continuare, oppure attendi (~8s). Poi dalla home: **Nuova partita** (loading + animazione; gen 1000² ≈ 1–2 s).
-2. **Nuova partita**: segue il **tutorial** a banner (camera → miner → nastri → vendi → ricerca); riparte a ogni Conferma (o **Impostazioni → Rivedi tutorial**). **Salta** / Fine se preferisci senza.
+2. **Nuova partita**: segue il **tutorial** a banner (camera → miner → nastri → stock/vendi → ricerca); riparte a ogni Conferma (o **Impostazioni → Rivedi tutorial**). **Salta** / Fine se preferisci senza.
 3. Scout vicino al core: ferro starter, rame un po’ più a sud. (**H** / **Home** riporta la camera sul core.)
-4. Piazza il miner: butta ore su **ogni** nastro adiacente. Vendi → **Ricerca** (T) → **Forno** → lastre → logistica avanzata.
+4. Piazza il miner: butta ore su **ogni** nastro adiacente → stock al core → Mercato (**1** / **tutti**) o tieni per build → **Ricerca** (T) → **Forno** → lastre.
 5. **Esc** chiude prima il toast di status (se c’è), poi torna alla home; **Continua** solo con autosave valido.
 
 Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo pochi secondi), `--export-excel [path]`.
@@ -117,6 +117,7 @@ Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo p
 **Impostazioni** (anche in-game con **I**)
 
 - **Scala UI**: **100% / 125% / 150% / 200%** (default **125%**) — dock, font, pannelli
+- **Vendita automatica** ON/OFF (default **OFF**) — se ON, item al core si liquidano subito in `$`; se OFF restano in stock
 - **Mostra contatore FPS** → `FPS N` in angolo (se overlay sistema OFF); con overlay ON il FPS sta lì
 - **Mostra inventario risorse** → strip denaro + **Δ sessione** + materiali (sempre a parte dal dock)
 - **Mostra risorse sistema (CPU · GPU · RAM)** → overlay play-only (GPU via `nvidia-smi` se disponibile)
@@ -143,8 +144,8 @@ Persistenza: `%LocalAppData%/tIndustry/settings.json` (Linux: `~/.local/share/tI
 
 **Hint progressione (ordine sensato)**
 
-1. Minatore + nastri → vendi **ferro grezzo** ($8)  
-2. Sblocca **Forno** → vendi **lastre** ($30; meglio di 2× ore)  
+1. Minatore + nastri → stock **ferro grezzo** al core → Mercato **1** / **tutti** ($8)  
+2. Sblocca **Forno** (spendi stock) → lastre in magazzino → vendi ($30; meglio di 2× ore)  
 3. **Potenzia core** se vuoi +25% sulle vendite  
 4. Sblocca logistica (veloce / incrocio / sdoppiatore / ponte)  
 5. Rame + **Assemblatore** → **fili** (prezzo mercato aggiornato) e sblocchi più cari  
@@ -156,7 +157,7 @@ Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricer
 
 ## Download
 
-**Release consigliata:** [v0.2.2](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
+**Release consigliata:** [v0.2.3](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.3) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
 
 | Asset | Piattaforma |
 | --- | --- |
@@ -188,13 +189,14 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.2.2**: splitter T-fork, miner round-robin, tutorial ripartibile | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
-| **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | Ulteriore polish UI / performance mappa piena |
+| **v0.2.3**: stock-first core, Mercato 1/tutti, auto-sell opzionale | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.2**: splitter T-fork, miner round-robin, tutorial ripartibile | Ulteriore polish UI / performance mappa piena |
+| **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | |
 | **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Combat/unità: **non** priorità early |
 | CI publish win/linux + release su tag `v*` | |
 | `miner-advanced` ancora stub | |
 
-Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.2](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2).
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.3](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.3).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 

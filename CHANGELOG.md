@@ -5,9 +5,21 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-09-19
+
+Patch economia sopra **0.2.2**: core stock-first, vendita esplicita Mercato, auto-sell opzionale. ([#24](https://github.com/Juan0177/tIndustry/pull/24))
+
 ### Changed
 
-- **Economia stock-first**: item al core → magazzino (wallet); vendita esplicita dal Mercato (`1` / `tutti`) o toggle **Vendita automatica** (OFF di default, persistito in `settings.json`)
+- **Economia stock-first**: item al core → magazzino (wallet); vendita esplicita dal Mercato (`1` / `tutti`) o toggle **Vendita automatica** (OFF di default, persistito in `settings.json`) ([#24](https://github.com/Juan0177/tIndustry/pull/24))
+- **Docs**: README allineato a 0.2.3
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
 
 ## [0.2.2] — 2026-09-19
 
