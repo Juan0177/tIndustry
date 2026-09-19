@@ -672,6 +672,10 @@ static void RunSelfTest(GameContent content)
             "Logistica: nastri + junction/splitter/ponte.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
             "Potenza: generatore.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Tools).Any(e => e.Id == "remove"),
+            "Strumenti: rimuovi.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Tools).Count(e => e.Kind == UiTheme.DockEntryKind.Direction) == 4,
+            "Strumenti: quattro direzioni senza rubare il tool di build.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length == 0,
             "Categoria Inventario rimossa dal dock.");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",

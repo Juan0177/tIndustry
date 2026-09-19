@@ -1142,13 +1142,14 @@ internal static class FactoryGameApp
             }
 
             direction = (Direction)next;
-            SyncDockSelection(tool, selectedConveyor, direction);
+            // Stay in Strumenti when adjusting facing; do not bounce to Produzione/Logistica.
+            SyncFacingHighlight(direction);
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.R))
         {
             direction = (Direction)(((int)direction + 1) % 4);
-            SyncDockSelection(tool, selectedConveyor, direction);
+            SyncFacingHighlight(direction);
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.One))
@@ -1677,14 +1678,16 @@ internal static class FactoryGameApp
             return;
         }
 
-        DockSelectedId = direction switch
-        {
-            Direction.North => "dir-n",
-            Direction.East => "dir-e",
-            Direction.South => "dir-s",
-            _ => "dir-w"
-        };
+        DockSelectedId = DirectionDockId(direction);
     }
+
+    private static string DirectionDockId(Direction direction) => direction switch
+    {
+        Direction.North => "dir-n",
+        Direction.East => "dir-e",
+        Direction.South => "dir-s",
+        _ => "dir-w"
+    };
 
     private static void GetDockPanels(
         out int dockX,
@@ -1782,6 +1785,21 @@ internal static class FactoryGameApp
                 }
 
                 DockCategory = UiTheme.BuildCategories[i];
+                if (DockCategory == UiTheme.BuildCategory.Tools)
+                {
+                    // Opening Strumenti must not steal the active placeable tool (e.g. minatore → Rimuovi).
+                    if (tool == BuildTool.Remove)
+                    {
+                        DockSelectedId = "remove";
+                    }
+                    else
+                    {
+                        DockSelectedId = DirectionDockId(direction);
+                    }
+
+                    return true;
+                }
+
                 var first = UiTheme.EntriesFor(DockCategory).FirstOrDefault();
                 if (first is not null
                     && (DockSelectedId is null
