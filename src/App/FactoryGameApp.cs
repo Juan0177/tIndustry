@@ -191,7 +191,17 @@ internal static class FactoryGameApp
         {
             StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
             screen = AppScreen.Playing;
+            // Capture demos: Forno selected → dock shows Input/Output recipe + cost row.
+            research!.ForceUnlock("smelter");
+            tool = BuildTool.Smelter;
+            DockCategory = UiTheme.BuildCategory.Production;
+            DockSelectedId = "smelter";
+            wallet!.AddMaterial("iron-plate", 24);
+            wallet.AddMaterial("iron-ore", 48);
+            wallet.AddMaterial("copper-ore", 20);
+            wallet.AddMaterial("copper-wire", 8);
             BeginTutorialIfNeeded(settings);
+            TutorialActive = false;
         }
 
         var flags = ConfigFlags.Msaa4xHint;
