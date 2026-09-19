@@ -318,11 +318,27 @@ public sealed class SmelterBuilding
         }
     }
 
-    internal void Update(float deltaSeconds, ConveyorGrid conveyors, ref long nextItemId)
+    internal void Update(
+        float deltaSeconds,
+        ConveyorGrid conveyors,
+        ref long nextItemId,
+        Func<float, bool>? trySpendPower = null,
+        float powerDrawPerSecond = 0f)
     {
         AcceptFromBelts(conveyors);
         TryStartCraft();
-        AdvanceCraft(deltaSeconds);
+        if (IsCrafting
+            && trySpendPower is not null
+            && powerDrawPerSecond > 0f
+            && !trySpendPower(powerDrawPerSecond * deltaSeconds))
+        {
+            // Brownout: craft stalls without losing progress.
+        }
+        else
+        {
+            AdvanceCraft(deltaSeconds);
+        }
+
         EmitOutputs(conveyors, ref nextItemId);
     }
 
@@ -442,6 +458,31 @@ public sealed class SmelterBuilding
     };
 }
 
+public sealed class GeneratorBuilding
+{
+    public const int Size = 2;
+    public const float CapacityBonus = 40f;
+    public const float GenerationPerSecond = 28f;
+
+    public GeneratorBuilding(GridPosition position)
+    {
+        Position = position;
+    }
+
+    public GridPosition Position { get; }
+
+    public IEnumerable<GridPosition> OccupiedTiles()
+    {
+        for (var y = 0; y < Size; y++)
+        {
+            for (var x = 0; x < Size; x++)
+            {
+                yield return new GridPosition(Position.X + x, Position.Y + y);
+            }
+        }
+    }
+}
+
 public sealed class FactoryWorld
 {
     public const int MinerMoneyCost = 25;
@@ -450,6 +491,10 @@ public sealed class FactoryWorld
     public const int IronOreSalePrice = 8;
     public const int IronPlateSalePrice = 30;
     public const int CoreSize = 4;
+    public const float CorePowerCapacity = 24f;
+    public const float CorePowerGeneration = 12f;
+    public const float SmelterPowerDraw = 8f;
+    public const float AssemblerPowerDraw = 10f;
 
     private static readonly ResourceAmount[] MinerBuildCost =
     [
@@ -467,6 +512,8 @@ public sealed class FactoryWorld
     private readonly Dictionary<GridPosition, SmelterBuilding> smelterByTile = [];
     private readonly Dictionary<GridPosition, SmelterBuilding> assemblers = [];
     private readonly Dictionary<GridPosition, SmelterBuilding> assemblerByTile = [];
+    private readonly Dictionary<GridPosition, GeneratorBuilding> generators = [];
+    private readonly Dictionary<GridPosition, GeneratorBuilding> generatorByTile = [];
 
     public FactoryWorld(int width, int height, int seed)
     {
@@ -501,11 +548,14 @@ public sealed class FactoryWorld
     public IReadOnlyDictionary<GridPosition, MinerBuilding> Miners => miners;
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Smelters => smelters;
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Assemblers => assemblers;
+    public IReadOnlyDictionary<GridPosition, GeneratorBuilding> Generators => generators;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
     public int SaleRevenue { get; private set; }
     public int CoreUpgradeLevel { get; private set; }
     public int CoreSaleBonusPercent { get; private set; }
+    public float PowerBuffer { get; private set; }
+    public float PowerCapacity { get; private set; } = CorePowerCapacity;
 
     public static int SalePrice(string itemId) => MarketCatalog.CreateDefault().GetSellPrice(itemId);
 
@@ -530,6 +580,31 @@ public sealed class FactoryWorld
     {
         CoreUpgradeLevel = Math.Max(0, level);
         CoreSaleBonusPercent = Math.Max(0, saleBonusPercent);
+    }
+
+    public void SetPowerBuffer(float buffer) =>
+        PowerBuffer = Math.Clamp(buffer, 0f, Math.Max(PowerCapacity, CorePowerCapacity));
+
+    public void RecalculatePowerCapacity()
+    {
+        PowerCapacity = CorePowerCapacity + generators.Count * GeneratorBuilding.CapacityBonus;
+        PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
+    }
+
+    public bool TrySpendPower(float amount)
+    {
+        if (amount <= 0f)
+        {
+            return true;
+        }
+
+        if (PowerBuffer < amount)
+        {
+            return false;
+        }
+
+        PowerBuffer -= amount;
+        return true;
     }
 
     public bool TryUpgradeCore(
@@ -561,6 +636,7 @@ public sealed class FactoryWorld
                 || minerByTile.ContainsKey(tile)
                 || smelterByTile.ContainsKey(tile)
                 || assemblerByTile.ContainsKey(tile)
+                || generatorByTile.ContainsKey(tile)
                 || CoreTiles.Contains(tile)))
         {
             return false;
@@ -609,7 +685,8 @@ public sealed class FactoryWorld
         && !CoreTiles.Contains(position)
         && !minerByTile.ContainsKey(position)
         && !smelterByTile.ContainsKey(position)
-        && !assemblerByTile.ContainsKey(position);
+        && !assemblerByTile.ContainsKey(position)
+        && !generatorByTile.ContainsKey(position);
 
     public bool CanPlaceMiner(GridPosition position, ConveyorGrid conveyors) =>
         Footprint(position, MinerBuilding.Size).All(tile =>
@@ -619,6 +696,7 @@ public sealed class FactoryWorld
             && !minerByTile.ContainsKey(tile)
             && !smelterByTile.ContainsKey(tile)
             && !assemblerByTile.ContainsKey(tile)
+            && !generatorByTile.ContainsKey(tile)
             && !conveyors.Cells.ContainsKey(tile))
         && CountCoveredDepositTiles(position) > 0;
 
@@ -798,6 +876,62 @@ public sealed class FactoryWorld
         return true;
     }
 
+    public bool CanPlaceGenerator(GridPosition position, ConveyorGrid conveyors) =>
+        CanOccupyBuilding(position, GeneratorBuilding.Size, conveyors);
+
+    public bool TryPlaceGenerator(
+        GridPosition position,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        cost ??= new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100);
+        if (!CanPlaceGenerator(position, conveyors)
+            || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
+        {
+            return false;
+        }
+
+        RegisterGenerator(new GeneratorBuilding(position));
+        session?.RecordBuildSpend(cost.MoneyCost);
+        return true;
+    }
+
+    public bool TryRemoveGenerator(
+        GridPosition position,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        if (!generatorByTile.TryGetValue(position, out var generator))
+        {
+            return false;
+        }
+
+        cost ??= new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100);
+        generators.Remove(generator.Position);
+        foreach (var tile in generator.OccupiedTiles())
+        {
+            generatorByTile.Remove(tile);
+        }
+
+        RecalculatePowerCapacity();
+        ApplyRefund(wallet, cost, session);
+        return true;
+    }
+
+    public bool TryRestoreGenerator(GridPosition position)
+    {
+        if (!CanOccupyBuilding(position, GeneratorBuilding.Size, null))
+        {
+            return false;
+        }
+
+        RegisterGenerator(new GeneratorBuilding(position));
+        return true;
+    }
+
     public void Update(
         float deltaSeconds,
         ConveyorGrid conveyors,
@@ -807,6 +941,10 @@ public sealed class FactoryWorld
         EconomySession? session = null)
     {
         market ??= MarketCatalog.CreateDefault();
+        RecalculatePowerCapacity();
+        var generation = CorePowerGeneration + generators.Count * GeneratorBuilding.GenerationPerSecond;
+        PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
+
         foreach (var miner in miners.Values)
         {
             miner.Progress = Math.Min(
@@ -839,12 +977,12 @@ public sealed class FactoryWorld
 
         foreach (var smelter in smelters.Values)
         {
-            smelter.Update(deltaSeconds, conveyors, ref nextItemId);
+            smelter.Update(deltaSeconds, conveyors, ref nextItemId, TrySpendPower, SmelterPowerDraw);
         }
 
         foreach (var assembler in assemblers.Values)
         {
-            assembler.Update(deltaSeconds, conveyors, ref nextItemId);
+            assembler.Update(deltaSeconds, conveyors, ref nextItemId, TrySpendPower, AssemblerPowerDraw);
         }
 
         foreach (var conveyor in conveyors.Cells.Values)
@@ -883,6 +1021,8 @@ public sealed class FactoryWorld
 
     public bool IsAssemblerTile(GridPosition position) => assemblerByTile.ContainsKey(position);
 
+    public bool IsGeneratorTile(GridPosition position) => generatorByTile.ContainsKey(position);
+
     public bool TryGetMinerAt(GridPosition position, out MinerBuilding miner) =>
         minerByTile.TryGetValue(position, out miner!);
 
@@ -891,6 +1031,9 @@ public sealed class FactoryWorld
 
     public bool TryGetAssemblerAt(GridPosition position, out SmelterBuilding assembler) =>
         assemblerByTile.TryGetValue(position, out assembler!);
+
+    public bool TryGetGeneratorAt(GridPosition position, out GeneratorBuilding generator) =>
+        generatorByTile.TryGetValue(position, out generator!);
 
     public bool TryRestoreAssembler(
         GridPosition position,
@@ -930,6 +1073,17 @@ public sealed class FactoryWorld
         }
     }
 
+    private void RegisterGenerator(GeneratorBuilding generator)
+    {
+        generators.Add(generator.Position, generator);
+        foreach (var tile in generator.OccupiedTiles())
+        {
+            generatorByTile.Add(tile, generator);
+        }
+
+        RecalculatePowerCapacity();
+    }
+
     private bool CanOccupyBuilding(GridPosition position, int size, ConveyorGrid? conveyors) =>
         Footprint(position, size).All(tile =>
             IsInside(tile)
@@ -938,6 +1092,7 @@ public sealed class FactoryWorld
             && !minerByTile.ContainsKey(tile)
             && !smelterByTile.ContainsKey(tile)
             && !assemblerByTile.ContainsKey(tile)
+            && !generatorByTile.ContainsKey(tile)
             && (conveyors is null || !conveyors.Cells.ContainsKey(tile)));
 
     private bool IsInside(GridPosition position) =>

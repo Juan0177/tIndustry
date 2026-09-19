@@ -361,7 +361,7 @@ static void RunSelfTest(GameContent content)
         "Save economia: piazza forno.");
     var ecoCamera = new WorldCamera(1f, 2f, 1.1f);
     var ecoCaptured = GameSaveStore.Capture(ecoWorld, ecoGrid, ecoWallet, ecoCamera, ecoSaveResearch, ecoSession, ecoItemId);
-    Assert(ecoCaptured.Version == 5, "Il salvataggio deve essere v5.");
+    Assert(ecoCaptured.Version == 6, "Il salvataggio deve essere v6.");
     var ecoSlot = "self-test-economy";
     GameSaveStore.Save(ecoSlot, ecoCaptured);
     var ecoRestored = GameSaveStore.Restore(GameSaveStore.Load(ecoSlot), content);
