@@ -3,7 +3,7 @@
     {
       "id": "level-01-primi-passi",
       "name": "Primi passi",
-      "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
+      "description": "Minatore al core, poi vendi ore dal Mercato.",
       "seed": 7429,
       "mapWidth": 64,
       "mapHeight": 48,
@@ -30,7 +30,7 @@
     {
       "id": "level-02-prima-fabbrica",
       "name": "Prima fabbrica",
-      "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
+      "description": "Accumula minerale in magazzino (stock-first, senza auto-sell).",
       "seed": 1337,
       "mapWidth": 128,
       "mapHeight": 96,
@@ -52,7 +52,7 @@
     {
       "id": "level-03-lastre",
       "name": "Lastre di ferro",
-      "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
+      "description": "Sblocca il forno e produci lastre per lo stock.",
       "seed": 7429,
       "mapWidth": 256,
       "mapHeight": 192,
@@ -80,7 +80,7 @@
     {
       "id": "level-04-fili",
       "name": "Fili di rame",
-      "description": "Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.",
+      "description": "Rame + lastre -> fili. Vendi o accumula.",
       "seed": 9001,
       "mapWidth": 1000,
       "mapHeight": 1000,
@@ -113,8 +113,8 @@
     },
     {
       "id": "level-05-mercato",
-      "name": "Economia Foundry",
-      "description": "Reinvestimento: vendi lastre e costruisci un piccolo surplus.",
+      "name": "Economia",
+      "description": "Vendi lastre e costruisci un surplus.",
       "seed": 7429,
       "mapWidth": 1000,
       "mapHeight": 1000,

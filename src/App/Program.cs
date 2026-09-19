@@ -29,11 +29,16 @@ if (args.Contains("--self-test"))
 
 if (!args.Contains("--console-demo"))
 {
-    var capture = args.Contains("--capture");
+    var captureCampaign = args.Contains("--capture-campaign");
+    var capture = args.Contains("--capture") || captureCampaign;
+    var capturePath = captureCampaign
+        ? Path.Combine("artifacts", "campaign-level-select.png")
+        : Path.Combine("artifacts", "game-preview.png");
     FactoryGameApp.Run(
         content,
-        args.Contains("--smoke-test") || capture ? 3 : null,
-        capture ? Path.Combine("artifacts", "game-preview.png") : null);
+        args.Contains("--smoke-test") || capture ? 4 : null,
+        capture ? capturePath : null,
+        captureCampaignSelect: captureCampaign);
     return;
 }
 
@@ -1075,6 +1080,8 @@ static void RunSelfTest(GameContent content)
             "Il livello campagna deve usare mapWidth/mapHeight.");
         var levelWallet = campaign.CreateWallet(tiny);
         Assert(levelWallet.Money == tiny.StartingMoney, "Starting money dal livello.");
+        Assert(FactoryGameApp.CampaignCardsFitCleanlyAtAllScales(),
+            "Campagna: titoli/obiettivi devono stare dentro le card a 100–200%.");
     }
     finally
     {

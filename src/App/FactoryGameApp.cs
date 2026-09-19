@@ -134,7 +134,11 @@ internal static class FactoryGameApp
     private static string? LoadingCampaignLevelId;
     private static int CampaignSelectScroll;
 
-    public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
+    public static void Run(
+        GameContent content,
+        int? maximumFrames = null,
+        string? screenshotPath = null,
+        bool captureCampaignSelect = false)
     {
         var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
         var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
@@ -184,9 +188,16 @@ internal static class FactoryGameApp
         // Headless smoke/capture paths jump straight into a playable session.
         if (maximumFrames is not null || screenshotPath is not null)
         {
-            StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
-            screen = AppScreen.Playing;
-            BeginTutorialIfNeeded(settings);
+            if (captureCampaignSelect)
+            {
+                screen = AppScreen.CampaignSelect;
+            }
+            else
+            {
+                StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
+                screen = AppScreen.Playing;
+                BeginTutorialIfNeeded(settings);
+            }
         }
 
         var flags = ConfigFlags.Msaa4xHint;
@@ -2395,10 +2406,17 @@ internal static class FactoryGameApp
         Campaign ??= catalog;
         CampaignProgressState ??= CampaignProgress.Load();
 
+        GetCampaignCardLayout(out var cardW, out var cardH, out var cols, out var startX, out var gapX, out var gapY,
+            out var startYBase);
+        var startY = startYBase - CampaignSelectScroll;
+
         var wheel = Raylib.GetMouseWheelMove();
         if (wheel != 0)
         {
-            CampaignSelectScroll = Math.Clamp(CampaignSelectScroll - (int)(wheel * 48), 0, 2000);
+            var rows = (catalog.Levels.Count + cols - 1) / cols;
+            var contentH = Math.Max(0, rows * (cardH + gapY));
+            var maxScroll = Math.Max(0, contentH - (ScreenHeight - startYBase - 90));
+            CampaignSelectScroll = Math.Clamp(CampaignSelectScroll - (int)(wheel * 48), 0, maxScroll);
         }
 
         if (!Raylib.IsMouseButtonPressed(MouseButton.Left))
@@ -2407,21 +2425,18 @@ internal static class FactoryGameApp
         }
 
         var mouse = Raylib.GetMousePosition();
-        var cardW = 340;
-        var cardH = 168;
-        var cols = 2;
-        var startX = 80;
-        var startY = 160 - CampaignSelectScroll;
         for (var i = 0; i < catalog.Levels.Count; i++)
         {
             var level = catalog.Levels[i];
-            var col = i % cols;
-            var row = i / cols;
-            var x = startX + col * (cardW + 24);
-            var y = startY + row * (cardH + 20);
+            CampaignCardRect(i, cols, startX, startY, cardW, cardH, gapX, gapY, out var x, out var y);
             if (y + cardH < 120 || y > ScreenHeight - 90)
             {
                 continue;
+            }
+
+            if (y + UiTheme.S(72) > ScreenHeight - 90)
+            {
+                continue; // mostly under Indietro
             }
 
             if (!Contains(mouse, x, y, cardW, cardH))
@@ -2441,6 +2456,174 @@ internal static class FactoryGameApp
         }
     }
 
+    private static void GetCampaignCardLayout(
+        out int cardW, out int cardH, out int cols, out int startX, out int gapX, out int gapY, out int startYBase)
+    {
+        // Soft-scale cards so 150–200% still fits two columns; reserve bottom chrome for Indietro.
+        var scale = Math.Clamp(UiTheme.Scale, 1f, 1.35f);
+        cardW = (int)(360 * scale);
+        cardH = (int)(148 * scale);
+        gapX = (int)(20 * scale);
+        gapY = (int)(12 * scale);
+        startX = UiTheme.S(72);
+        startYBase = UiTheme.S(140);
+        var usable = ScreenWidth - startX - UiTheme.S(40);
+        cols = usable >= cardW * 2 + gapX ? 2 : 1;
+    }
+
+    private static void CampaignCardRect(
+        int index, int cols, int startX, int startY, int cardW, int cardH, int gapX, int gapY,
+        out int x, out int y)
+    {
+        var col = index % cols;
+        var row = index / cols;
+        x = startX + col * (cardW + gapX);
+        y = startY + row * (cardH + gapY);
+    }
+
+    /// <summary>Self-test: long campaign card strings stay inside padding at all UI scales.</summary>
+    internal static bool CampaignCardsFitCleanlyAtAllScales()
+    {
+        var catalog = CampaignCatalog.Load(CampaignCatalog.SeedCampaignPath);
+        var previous = ActiveSettings?.UiScalePercent ?? 125;
+        try
+        {
+            foreach (var percent in GameSettings.UiScalePresets)
+            {
+                UiTheme.ApplyScalePercent(percent);
+                // Layout math mirrors DrawCampaignSelect without needing a live window size.
+                var scale = Math.Clamp(percent / 100f, 1f, 1.35f);
+                var cardW = (int)(360 * scale);
+                var pad = Math.Max(10, (int)(14 * scale));
+                var contentW = cardW - pad * 2;
+                var badge = "Completato";
+                var badgeSize = Math.Max(12, (int)(14 * scale));
+                var titleSize = Math.Max(14, (int)(20 * scale));
+                var badgeW = MeasureUiText(badge, badgeSize);
+                var titleMax = Math.Max(40, contentW - badgeW - Math.Max(8, (int)(12 * scale)));
+                for (var i = 0; i < catalog.Levels.Count; i++)
+                {
+                    var level = catalog.Levels[i];
+                    var title = $"{i + 1}. {level.Name}";
+                    var fittedTitle = TruncateUiText(title, titleSize, titleMax);
+                    if (MeasureUiText(fittedTitle, titleSize) > titleMax + 1)
+                    {
+                        return false;
+                    }
+
+                    var objSize = Math.Max(11, (int)(12 * scale));
+                    foreach (var objective in level.Objectives ?? [])
+                    {
+                        var label = TruncateUiText(
+                            CampaignCatalog.FormatObjectiveShort(objective), objSize, contentW);
+                        if (MeasureUiText(label, objSize) > contentW + 1)
+                        {
+                            return false;
+                        }
+                    }
+
+                    var meta = $"{level.MapWidth}×{level.MapHeight} · seed {level.Seed}";
+                    var metaSize = Math.Max(10, (int)(12 * scale));
+                    var fittedMeta = TruncateUiText(meta, metaSize, contentW);
+                    if (MeasureUiText(fittedMeta, metaSize) > contentW + 1)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+        finally
+        {
+            UiTheme.ApplyScalePercent(previous);
+        }
+    }
+
+    private static List<string> WrapUiTextLines(
+        string text, int fontSize, int maxWidth, int maxLines, bool ellipsis)
+    {
+        var result = new List<string>();
+        if (string.IsNullOrEmpty(text) || maxWidth <= 0 || maxLines <= 0)
+        {
+            return result;
+        }
+
+        if (MeasureUiText(text, fontSize) <= maxWidth)
+        {
+            result.Add(text);
+            return result;
+        }
+
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var line = string.Empty;
+        var wordIndex = 0;
+        while (wordIndex < words.Length)
+        {
+            var word = words[wordIndex];
+            var candidate = string.IsNullOrEmpty(line) ? word : $"{line} {word}";
+            if (MeasureUiText(candidate, fontSize) <= maxWidth)
+            {
+                line = candidate;
+                wordIndex++;
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(line))
+            {
+                // Single token wider than the card — hard truncate and consume it.
+                result.Add(TruncateUiText(word, fontSize, maxWidth));
+                wordIndex++;
+            }
+            else
+            {
+                result.Add(line);
+                line = string.Empty;
+            }
+
+            if (result.Count < maxLines)
+            {
+                continue;
+            }
+
+            // Out of lines: ellipsize the last line if content remains.
+            if (ellipsis && (wordIndex < words.Length || !string.IsNullOrEmpty(line)))
+            {
+                result[^1] = TruncateUiText(result[^1], fontSize, maxWidth);
+            }
+
+            return result;
+        }
+
+        if (!string.IsNullOrEmpty(line))
+        {
+            if (result.Count < maxLines)
+            {
+                result.Add(line);
+            }
+            else if (ellipsis)
+            {
+                result[^1] = TruncateUiText(result[^1], fontSize, maxWidth);
+            }
+        }
+
+        return result;
+    }
+
+    private static void DrawFittedWrappedText(
+        string text, int x, int y, int maxWidth, int maxHeight, int fontSize, Color color)
+    {
+        var lineStep = Math.Max(fontSize + 2, (int)(fontSize * 1.25f));
+        var maxLines = Math.Max(1, maxHeight / Math.Max(1, lineStep));
+        // Safety inset: Measure can slightly underestimate DrawTextEx advance.
+        var fitWidth = Math.Max(8, maxWidth - 4);
+        var lines = WrapUiTextLines(text, fontSize, fitWidth, maxLines, ellipsis: true);
+        for (var i = 0; i < lines.Count; i++)
+        {
+            DrawUiText(TruncateUiText(lines[i], fontSize, fitWidth), x, y + i * lineStep, fontSize, color);
+        }
+    }
+
     private static void DrawCampaignSelect(string? statusMessage)
     {
         var catalog = Campaign ?? CampaignCatalog.Load();
@@ -2450,23 +2633,29 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
             new Color(18, 28, 24, 255), new Color(10, 12, 12, 255));
-        DrawUiText("Campagna", 80, 70, 36, new Color(239, 238, 224, 255));
-        DrawUiText("Completa un livello per sbloccare il successivo.", 80, 118, 18,
+        DrawUiText("Campagna", UiTheme.S(80), UiTheme.S(70), 36, new Color(239, 238, 224, 255));
+        DrawUiText("Completa un livello per sbloccare il successivo.", UiTheme.S(80), UiTheme.S(118), 18,
             new Color(112, 124, 119, 255));
 
-        var cardW = 340;
-        var cardH = 168;
-        var cols = 2;
-        var startX = 80;
-        var startY = 160 - CampaignSelectScroll;
+        GetCampaignCardLayout(out var cardW, out var cardH, out var cols, out var startX, out var gapX, out var gapY,
+            out var startYBase);
+        var startY = startYBase - CampaignSelectScroll;
+        var pad = Math.Max(12, UiTheme.S(16));
+        var contentW = cardW - pad * 2;
+        var bottomChrome = ScreenHeight - 90; // keep cards clear of Indietro
+
         for (var i = 0; i < catalog.Levels.Count; i++)
         {
             var level = catalog.Levels[i];
-            var col = i % cols;
-            var row = i / cols;
-            var x = startX + col * (cardW + 24);
-            var y = startY + row * (cardH + 20);
-            if (y + cardH < 100 || y > ScreenHeight - 80)
+            CampaignCardRect(i, cols, startX, startY, cardW, cardH, gapX, gapY, out var x, out var y);
+            if (y + cardH < 100 || y > bottomChrome - 8)
+            {
+                continue;
+            }
+
+            // Clip drawing if a tall card would sit under the back button.
+            var visibleH = Math.Min(cardH, bottomChrome - y);
+            if (visibleH < UiTheme.S(72))
             {
                 continue;
             }
@@ -2483,26 +2672,94 @@ internal static class FactoryGameApp
                     : new Color(50, 56, 52, 255);
             Raylib.DrawRectangle(x, y, cardW, cardH, fill);
             Raylib.DrawRectangleLines(x, y, cardW, cardH, border);
+            // Hard clip: nothing drawn for this card may leave the border.
+            Raylib.BeginScissorMode(x + 1, y + 1, cardW - 2, cardH - 2);
 
             var titleColor = unlocked ? new Color(239, 238, 224, 255) : new Color(90, 96, 92, 255);
             var bodyColor = unlocked ? new Color(164, 173, 168, 255) : new Color(70, 76, 72, 255);
-            var indexLabel = $"{i + 1}. {level.Name}";
-            DrawUiText(indexLabel, x + 14, y + 12, 20, titleColor);
+            var mutedColor = unlocked ? new Color(112, 124, 119, 255) : new Color(60, 64, 62, 255);
+            var descColor = unlocked ? new Color(211, 164, 76, 255) : new Color(120, 110, 90, 255);
+
+            // Badge first so title can reserve its width.
+            string? badge = null;
+            Color badgeColor = default;
             if (completed)
             {
-                DrawUiText("Completato", x + cardW - 110, y + 14, 14, new Color(120, 228, 150, 255));
+                badge = "Completato";
+                badgeColor = new Color(120, 228, 150, 255);
             }
             else if (!unlocked)
             {
-                DrawUiText("Bloccato", x + cardW - 90, y + 14, 14, new Color(120, 110, 100, 255));
+                badge = "Bloccato";
+                badgeColor = new Color(120, 110, 100, 255);
             }
 
-            DrawWrappedTip(level.Description, x + 14, y + 44, cardW - 28, 48);
-            DrawUiText(catalog.ObjectiveSummary(level), x + 14, y + 100, 13, bodyColor);
-            DrawUiText($"{level.MapWidth}×{level.MapHeight} · seed {level.Seed}", x + 14, y + 140, 12,
-                unlocked ? new Color(112, 124, 119, 255) : new Color(60, 64, 62, 255));
+            const int titleSize = 18;
+            const int badgeSize = 13;
+            var badgeW = badge is null ? 0 : MeasureUiText(badge, badgeSize);
+            // Always reserve enough for the longest badge label + gap, even if Measure underestimates.
+            var badgeReserve = badge is null
+                ? 0
+                : Math.Max(badgeW + UiTheme.S(20), UiTheme.S(108));
+            var titleMax = Math.Max(32, contentW - badgeReserve);
+            var title = TruncateUiText($"{i + 1}. {level.Name}", titleSize, titleMax);
+            DrawUiText(title, x + pad, y + pad, titleSize, titleColor);
+            if (badge is not null)
+            {
+                DrawUiText(badge, x + cardW - pad - badgeW, y + pad + 2, badgeSize, badgeColor);
+            }
+
+            var textX = x + pad;
+            var cursorY = y + pad + UiTheme.S(24);
+            var metaH = UiTheme.S(14);
+            var metaY = y + cardH - pad - metaH;
+            if (metaY > bottomChrome - metaH)
+            {
+                metaY = bottomChrome - metaH - 2;
+            }
+
+            var bodyBottom = Math.Min(metaY - UiTheme.S(4), bottomChrome - 4);
+            var descBudget = Math.Min(UiTheme.S(32), Math.Max(UiTheme.S(20), (bodyBottom - cursorY) / 3));
+            // Generous inset: MeasureTextEx can under-report vs DrawTextEx by a few px.
+            var textFitW = Math.Max(8, contentW - UiTheme.S(16));
+            if (descBudget >= UiTheme.S(16))
+            {
+                DrawFittedWrappedText(level.Description, textX, cursorY, textFitW, descBudget, 12, descColor);
+                cursorY += descBudget + UiTheme.S(4);
+            }
+
+            // One objective per line, truncated — never spills past the card edge.
+            var objectives = level.Objectives ?? [];
+            var objSize = 12;
+            var objStep = Math.Max(objSize + 2, UiTheme.S(15));
+            var objRoom = Math.Max(0, bodyBottom - cursorY);
+            var maxObjLines = Math.Max(0, objRoom / objStep);
+            for (var oi = 0; oi < objectives.Count && oi < maxObjLines; oi++)
+            {
+                var label = CampaignCatalog.FormatObjectiveShort(objectives[oi]);
+                if (oi == maxObjLines - 1 && objectives.Count > maxObjLines)
+                {
+                    label = TruncateUiText(label + " …", objSize, textFitW);
+                }
+                else
+                {
+                    label = TruncateUiText(label, objSize, textFitW);
+                }
+
+                DrawUiText(label, textX, cursorY + oi * objStep, objSize, bodyColor);
+            }
+
+            if (metaY + metaH <= bottomChrome)
+            {
+                var meta = TruncateUiText(
+                    $"{level.MapWidth}×{level.MapHeight} · seed {level.Seed}", 12, textFitW);
+                DrawUiText(meta, textX, metaY, 12, mutedColor);
+            }
+
+            Raylib.EndScissorMode();
         }
 
+        // Back button last so it never sits under card text.
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
         {
