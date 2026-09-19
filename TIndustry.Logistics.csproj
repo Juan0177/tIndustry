@@ -16,6 +16,8 @@
     <!-- Seed template only — runtime copies into AppData on first launch. Do not ship Excel. -->
     <None Include="data\content.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="assets\fonts\**\*" CopyToOutputDirectory="PreserveNewest" Link="assets\fonts\%(Filename)%(Extension)" />
+    <None Include="assets\icons\**\*" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="assets\ATTRIBUTION.md" CopyToOutputDirectory="PreserveNewest" Link="assets\ATTRIBUTION.md" />
   </ItemGroup>
 
   <ItemGroup>

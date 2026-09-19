@@ -98,14 +98,18 @@ public static class UiTheme
         BuildCategory.Power
     ];
 
-    public static readonly Color PanelFill = new(18, 20, 22, 200);
-    public static readonly Color PanelBorder = new(40, 44, 48, 220);
-    public static readonly Color CellFill = new(28, 30, 34, 230);
-    public static readonly Color CellFillLocked = new(22, 22, 24, 200);
+    // Higher-contrast HUD chrome (readable over busy factory viewports).
+    public static readonly Color PanelFill = new(12, 14, 16, 236);
+    public static readonly Color PanelBorder = new(72, 82, 78, 255);
+    public static readonly Color PanelBorderBright = new(118, 132, 124, 255);
+    public static readonly Color CellFill = new(32, 36, 40, 242);
+    public static readonly Color CellFillLocked = new(20, 20, 22, 220);
     public static readonly Color Accent = new(255, 196, 48, 255);
     public static readonly Color AccentDim = new(180, 140, 40, 255);
-    public static readonly Color TextPrimary = new(236, 236, 230, 255);
-    public static readonly Color TextMuted = new(150, 156, 148, 255);
+    public static readonly Color TextPrimary = new(244, 244, 236, 255);
+    public static readonly Color TextMuted = new(168, 176, 168, 255);
+    public static readonly Color MoneyGreen = new(120, 228, 150, 255);
+    public static readonly Color MoneyRed = new(235, 120, 100, 255);
 
     public static void Load()
     {
@@ -117,9 +121,9 @@ public static class UiTheme
         var baseDir = AppContext.BaseDirectory;
         var regularPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans.ttf");
         var boldPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans-Bold.ttf");
-        // Atlas covers Latin-1 so Italian punctuation (· × à è …) stays crisp.
+        // Atlas covers Latin-1 so Italian punctuation (· × à è … Δ) stays crisp.
         const int atlasSize = 64;
-        var codepoints = new int[95 + 96];
+        var codepoints = new int[95 + 96 + 1];
         for (var i = 0; i < 95; i++)
         {
             codepoints[i] = 32 + i;
@@ -129,6 +133,8 @@ public static class UiTheme
         {
             codepoints[95 + i] = 160 + i;
         }
+
+        codepoints[^1] = 0x0394; // Δ (delta sessione)
 
         if (File.Exists(regularPath))
         {
@@ -152,10 +158,12 @@ public static class UiTheme
         }
 
         fontsLoaded = true;
+        GameIcons.Load();
     }
 
     public static void Unload()
     {
+        GameIcons.Unload();
         if (!fontsLoaded || !ownsFonts)
         {
             fontsLoaded = false;
@@ -171,6 +179,13 @@ public static class UiTheme
         fontsLoaded = false;
         ownsFonts = false;
     }
+
+    /// <summary>Session net-worth delta label shown in the resource strip.</summary>
+    public static string SessionDeltaLabel(int net) =>
+        $"Δ sessione {(net >= 0 ? "+" : "")}{net}";
+
+    public static string SessionDeltaTooltip =>
+        "Variazione del patrimonio netto dall'inizio della partita (vendite − spese).";
 
     public static void DrawText(string text, int x, int y, int size, Color color, bool bold = false)
     {
@@ -342,6 +357,12 @@ public static class UiTheme
 
     public static void DrawBuildCategoryIcon(BuildCategory category, int cx, int cy, int size, Color color)
     {
+        var key = GameIcons.CategoryKey(category);
+        if (key is not null && GameIcons.TryDraw(key, cx + 8, cy + 8, size - 16, color))
+        {
+            return;
+        }
+
         var pad = size / 5;
         var x = cx + pad;
         var y = cy + pad;
@@ -398,6 +419,11 @@ public static class UiTheme
 
     public static void DrawDockEntryIcon(string entryId, int cx, int cy, int size, Color color)
     {
+        if (GameIcons.TryDraw(entryId, cx + 8, cy + 8, size - 16, color))
+        {
+            return;
+        }
+
         var pad = 10;
         var x = cx + pad;
         var y = cy + 8;
@@ -513,6 +539,11 @@ public static class UiTheme
     /// <summary>Header chrome: gear (Impostazioni).</summary>
     public static void DrawGearIcon(int cx, int cy, int size, Color color)
     {
+        if (GameIcons.TryDraw("settings", cx, cy, size, color))
+        {
+            return;
+        }
+
         var r = size * 0.38f;
         var cxF = cx + size / 2f;
         var cyF = cy + size / 2f;
@@ -527,13 +558,17 @@ public static class UiTheme
         }
     }
 
-    /// <summary>Header chrome: tree (Ricerca).</summary>
+    /// <summary>Header chrome: research (Ricerca).</summary>
     public static void DrawTreeIcon(int cx, int cy, int size, Color color)
     {
+        if (GameIcons.TryDraw("research", cx, cy, size, color))
+        {
+            return;
+        }
+
         var trunkW = Math.Max(3, size / 7);
         var trunkH = size / 3;
         Raylib.DrawRectangle(cx + (size - trunkW) / 2, cy + size - trunkH - 3, trunkW, trunkH, color);
-        // Two foliage layers (triangles) read as a tree, not a lone chevron.
         Raylib.DrawTriangle(
             new Vector2(cx + size / 2f, cy + 3),
             new Vector2(cx + 3, cy + size * 0.48f),
@@ -546,9 +581,14 @@ public static class UiTheme
             color);
     }
 
-    /// <summary>Header chrome: three lines (Menu).</summary>
+    /// <summary>Header chrome: menu grid.</summary>
     public static void DrawMenuIcon(int cx, int cy, int size, Color color)
     {
+        if (GameIcons.TryDraw("menu", cx, cy, size, color))
+        {
+            return;
+        }
+
         var padX = size / 5;
         var lineH = Math.Max(2, size / 10);
         var gap = (size - padX * 2 - lineH * 3) / 2;
@@ -557,6 +597,23 @@ public static class UiTheme
         {
             Raylib.DrawRectangle(cx + padX, y + i * (lineH + gap), size - padX * 2, lineH, color);
         }
+    }
+
+    /// <summary>Draw an inventory item glyph (texture or letter fallback).</summary>
+    public static void DrawItemIcon(string itemId, int x, int y, int size, Color? tint = null)
+    {
+        var color = tint ?? ItemColor(itemId);
+        if (GameIcons.TryDraw(itemId, x, y, size, color))
+        {
+            return;
+        }
+
+        Raylib.DrawRectangle(x, y, size, size, color);
+        Raylib.DrawRectangleLines(x, y, size, size, ItemOutline(itemId));
+        var abbrev = ItemAbbrev(itemId);
+        var fontSize = Math.Max(9, size - 10);
+        var abbrevW = Measure(abbrev, fontSize);
+        DrawText(abbrev, x + (size - abbrevW) / 2, y + (size - fontSize) / 2, fontSize, new Color(18, 16, 12, 255));
     }
 
     public static int DockRailWidth => DockPadding * 2 + DockCellSize;
