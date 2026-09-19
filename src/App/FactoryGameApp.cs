@@ -2182,6 +2182,7 @@ internal static class FactoryGameApp
         AppScreen returnScreen,
         ref string? statusMessage)
     {
+        var layout = BuildSettingsLayout();
         if (Raylib.IsKeyPressed(KeyboardKey.Escape)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && Contains(Raylib.GetMousePosition(), 28, ScreenHeight - 70, 180, 40)))
@@ -2199,7 +2200,7 @@ internal static class FactoryGameApp
         }
 
         var mouse = Raylib.GetMousePosition();
-        if (Contains(mouse, 120, 150, 420, 36))
+        if (Contains(mouse, layout.Left, layout.FpsToggleY, layout.ToggleWidth, layout.ToggleHeight))
         {
             settings.ShowFps = !settings.ShowFps;
             draft.ShowFps = settings.ShowFps;
@@ -2208,7 +2209,7 @@ internal static class FactoryGameApp
             return;
         }
 
-        if (Contains(mouse, 120, 192, 420, 36))
+        if (Contains(mouse, layout.Left, layout.OverlayToggleY, layout.ToggleWidth, layout.ToggleHeight))
         {
             settings.ShowResourceOverlay = !settings.ShowResourceOverlay;
             draft.ShowResourceOverlay = settings.ShowResourceOverlay;
@@ -2219,7 +2220,7 @@ internal static class FactoryGameApp
             return;
         }
 
-        if (Contains(mouse, 120, 234, 420, 36))
+        if (Contains(mouse, layout.Left, layout.VsyncToggleY, layout.ToggleWidth, layout.ToggleHeight))
         {
             draft.VSync = !draft.VSync;
             statusMessage = draft.VSync
@@ -2231,8 +2232,8 @@ internal static class FactoryGameApp
         // UI scale — apply immediately for crisp font reload
         for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
         {
-            var x = 120 + i * 110;
-            if (!Contains(mouse, x, 278, 100, 34))
+            var x = layout.Left + i * layout.ScaleButtonStride;
+            if (!Contains(mouse, x, layout.ScaleButtonsY, layout.ScaleButtonWidth, layout.ButtonHeight))
             {
                 continue;
             }
@@ -2247,7 +2248,7 @@ internal static class FactoryGameApp
         }
 
         // Auto resolution
-        if (Contains(mouse, 120, 340, 160, 34))
+        if (Contains(mouse, layout.Left, layout.AutoResY, layout.AutoResWidth, layout.ButtonHeight))
         {
             draft.UseAutoResolution = true;
             DisplayApplier.CaptureDesktopResolution(draft);
@@ -2258,9 +2259,9 @@ internal static class FactoryGameApp
         // Resolution presets
         for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
         {
-            var x = 120 + (i % 4) * 155;
-            var y = 380 + (i / 4) * 38;
-            if (!Contains(mouse, x, y, 148, 34))
+            var x = layout.Left + (i % 4) * layout.GridStride;
+            var y = layout.ResGridY + (i / 4) * layout.GridRowStride;
+            if (!Contains(mouse, x, y, layout.GridButtonWidth, layout.ButtonHeight))
             {
                 continue;
             }
@@ -2275,9 +2276,9 @@ internal static class FactoryGameApp
         // FPS limiter
         for (var i = 0; i < GameSettings.FpsLimitPresets.Length; i++)
         {
-            var x = 120 + (i % 4) * 155;
-            var y = 490 + (i / 4) * 36;
-            if (!Contains(mouse, x, y, 148, 32))
+            var x = layout.Left + (i % 4) * layout.GridStride;
+            var y = layout.FpsGridY + (i / 4) * layout.GridRowStride;
+            if (!Contains(mouse, x, y, layout.GridButtonWidth, layout.ButtonHeight))
             {
                 continue;
             }
@@ -2293,7 +2294,7 @@ internal static class FactoryGameApp
         DisplayMode[] modes = [DisplayMode.Windowed, DisplayMode.Borderless, DisplayMode.Fullscreen];
         for (var i = 0; i < modes.Length; i++)
         {
-            if (!Contains(mouse, 120 + i * 160, 580, 150, 36))
+            if (!Contains(mouse, layout.Left + i * layout.ModeStride, layout.ModeButtonsY, layout.ModeButtonWidth, layout.ButtonHeight))
             {
                 continue;
             }
@@ -2304,7 +2305,7 @@ internal static class FactoryGameApp
         }
 
         // Apply
-        if (Contains(mouse, 120, 630, 180, 40))
+        if (Contains(mouse, layout.Left, layout.ApplyY, layout.ApplyWidth, layout.ApplyHeight))
         {
             settings.CopyFrom(draft);
             settings.Save();
@@ -2316,71 +2317,210 @@ internal static class FactoryGameApp
         }
 
         // Revert draft to last applied
-        if (Contains(mouse, 320, 630, 180, 40))
+        if (Contains(mouse, layout.Left + layout.ApplyWidth + layout.ApplyGap, layout.ApplyY, layout.ApplyWidth, layout.ApplyHeight))
         {
             draft.CopyFrom(settings);
             statusMessage = "Selezione grafica ripristinata.";
         }
     }
 
+    /// <summary>
+    /// Shared Impostazioni geometry — scales with UI so rows never stack on top of each other.
+    /// </summary>
+    private readonly struct SettingsPanelLayout
+    {
+        public int Left { get; init; }
+        public int TitleY { get; init; }
+        public int SubtitleY { get; init; }
+        public int ToggleWidth { get; init; }
+        public int ToggleHeight { get; init; }
+        public int FpsToggleY { get; init; }
+        public int OverlayToggleY { get; init; }
+        public int VsyncToggleY { get; init; }
+        public int ScaleLabelY { get; init; }
+        public int ScaleButtonsY { get; init; }
+        public int ScaleButtonWidth { get; init; }
+        public int ScaleButtonStride { get; init; }
+        public int ButtonHeight { get; init; }
+        public int ResLabelY { get; init; }
+        public int AutoResY { get; init; }
+        public int AutoResWidth { get; init; }
+        public int ResGridY { get; init; }
+        public int FpsLabelY { get; init; }
+        public int FpsGridY { get; init; }
+        public int ModeLabelY { get; init; }
+        public int ModeButtonsY { get; init; }
+        public int ModeButtonWidth { get; init; }
+        public int ModeStride { get; init; }
+        public int GridStride { get; init; }
+        public int GridRowStride { get; init; }
+        public int GridButtonWidth { get; init; }
+        public int ApplyY { get; init; }
+        public int ApplyWidth { get; init; }
+        public int ApplyHeight { get; init; }
+        public int ApplyGap { get; init; }
+        public int StatusY { get; init; }
+        public int PathY { get; init; }
+    }
+
+    private static SettingsPanelLayout BuildSettingsLayout()
+    {
+        var left = UiTheme.S(120);
+        var toggleHeight = UiTheme.S(40);
+        var rowGap = UiTheme.S(10);
+        var sectionGap = UiTheme.S(14);
+        var labelGap = UiTheme.S(6);
+        var buttonHeight = UiTheme.S(34);
+        var gridRow = buttonHeight + UiTheme.S(6);
+        var gridStride = UiTheme.S(155);
+        var gridButtonWidth = UiTheme.S(148);
+
+        var y = UiTheme.S(150);
+        var fpsY = y;
+        y += toggleHeight + rowGap;
+        var overlayY = y;
+        y += toggleHeight + rowGap;
+        var vsyncY = y;
+        y += toggleHeight + sectionGap;
+        var scaleLabelY = y;
+        y += UiTheme.S(20) + labelGap;
+        var scaleButtonsY = y;
+        y += buttonHeight + sectionGap;
+        var resLabelY = y;
+        y += UiTheme.S(20) + labelGap;
+        var autoResY = y;
+        y += buttonHeight + UiTheme.S(8);
+        var resGridY = y;
+        var resRows = (GameSettings.ResolutionPresets.Length + 3) / 4;
+        y += resRows * gridRow + sectionGap;
+        var fpsLabelY = y;
+        y += UiTheme.S(18) + labelGap;
+        var fpsGridY = y;
+        var fpsRows = (GameSettings.FpsLimitPresets.Length + 3) / 4;
+        y += fpsRows * gridRow + sectionGap;
+        var modeLabelY = y;
+        y += UiTheme.S(20) + labelGap;
+        var modeButtonsY = y;
+        y += buttonHeight + sectionGap;
+        var applyY = y;
+        var applyHeight = UiTheme.S(40);
+        y += applyHeight + UiTheme.S(12);
+        var statusY = y;
+        var pathY = y + UiTheme.S(20);
+
+        var toggleWidth = Math.Min(UiTheme.S(640), Math.Max(UiTheme.S(480), ScreenWidth - left * 2));
+
+        return new SettingsPanelLayout
+        {
+            Left = left,
+            TitleY = UiTheme.S(40),
+            SubtitleY = UiTheme.S(78),
+            ToggleWidth = toggleWidth,
+            ToggleHeight = toggleHeight,
+            FpsToggleY = fpsY,
+            OverlayToggleY = overlayY,
+            VsyncToggleY = vsyncY,
+            ScaleLabelY = scaleLabelY,
+            ScaleButtonsY = scaleButtonsY,
+            ScaleButtonWidth = UiTheme.S(100),
+            ScaleButtonStride = UiTheme.S(110),
+            ButtonHeight = buttonHeight,
+            ResLabelY = resLabelY,
+            AutoResY = autoResY,
+            AutoResWidth = UiTheme.S(180),
+            ResGridY = resGridY,
+            FpsLabelY = fpsLabelY,
+            FpsGridY = fpsGridY,
+            ModeLabelY = modeLabelY,
+            ModeButtonsY = modeButtonsY,
+            ModeButtonWidth = UiTheme.S(150),
+            ModeStride = UiTheme.S(160),
+            GridStride = gridStride,
+            GridRowStride = gridRow,
+            GridButtonWidth = gridButtonWidth,
+            ApplyY = applyY,
+            ApplyWidth = UiTheme.S(180),
+            ApplyHeight = applyHeight,
+            ApplyGap = UiTheme.S(20),
+            StatusY = statusY,
+            PathY = pathY
+        };
+    }
+
     private static void DrawSettings(GameSettings settings, GameSettings draft, string? statusMessage)
     {
+        var layout = BuildSettingsLayout();
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
-        DrawUiText("Impostazioni", 120, 40, 32, new Color(239, 238, 224, 255));
-        DrawUiText("Overlay, scala UI e grafica. Applica per salvare risoluzione, VSync e limite FPS.", 120, 78, 15,
-            new Color(112, 124, 119, 255));
+        DrawUiText("Impostazioni", layout.Left, layout.TitleY, 32, new Color(239, 238, 224, 255));
+        DrawUiText("Overlay, scala UI e grafica. Applica per salvare risoluzione, VSync e limite FPS.",
+            layout.Left, layout.SubtitleY, 15, new Color(112, 124, 119, 255));
 
-        DrawToggleRow(120, 150, 420, 36, "Mostra contatore FPS", settings.ShowFps);
-        DrawToggleRow(120, 192, 420, 36, "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
-        DrawToggleRow(120, 234, 420, 36, "VSync", draft.VSync);
+        DrawToggleRow(layout.Left, layout.FpsToggleY, layout.ToggleWidth, layout.ToggleHeight,
+            "Mostra contatore FPS", settings.ShowFps);
+        DrawToggleRow(layout.Left, layout.OverlayToggleY, layout.ToggleWidth, layout.ToggleHeight,
+            "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
+        DrawToggleRow(layout.Left, layout.VsyncToggleY, layout.ToggleWidth, layout.ToggleHeight,
+            "VSync", draft.VSync);
 
-        DrawUiText("Scala interfaccia", 120, 256, 16, new Color(196, 201, 193, 255));
+        DrawUiText("Scala interfaccia", layout.Left, layout.ScaleLabelY, 16, new Color(196, 201, 193, 255));
         for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
         {
             var percent = GameSettings.UiScalePresets[i];
-            DrawButton(120 + i * 110, 278, 100, 34, GameSettings.UiScaleLabel(percent),
+            DrawButton(
+                layout.Left + i * layout.ScaleButtonStride,
+                layout.ScaleButtonsY,
+                layout.ScaleButtonWidth,
+                layout.ButtonHeight,
+                GameSettings.UiScaleLabel(percent),
                 settings.UiScalePercent == percent);
         }
 
-        DrawUiText("Risoluzione", 120, 320, 16, new Color(196, 201, 193, 255));
-        DrawButton(120, 340, 160, 34, "Auto risoluzione", draft.UseAutoResolution);
+        DrawUiText("Risoluzione", layout.Left, layout.ResLabelY, 16, new Color(196, 201, 193, 255));
+        DrawButton(layout.Left, layout.AutoResY, layout.AutoResWidth, layout.ButtonHeight,
+            "Auto risoluzione", draft.UseAutoResolution);
         for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
         {
             var preset = GameSettings.ResolutionPresets[i];
-            var x = 120 + (i % 4) * 155;
-            var y = 380 + (i / 4) * 38;
+            var x = layout.Left + (i % 4) * layout.GridStride;
+            var y = layout.ResGridY + (i / 4) * layout.GridRowStride;
             var selected = !draft.UseAutoResolution
                 && draft.ResolutionWidth == preset.Width
                 && draft.ResolutionHeight == preset.Height;
-            DrawButton(x, y, 148, 34, preset.Label, selected);
+            DrawButton(x, y, layout.GridButtonWidth, layout.ButtonHeight, preset.Label, selected);
         }
 
-        DrawUiText("Limite FPS (con VSync: preferenza salvata, sync al refresh)", 120, 464, 15,
-            new Color(196, 201, 193, 255));
+        DrawUiText("Limite FPS (con VSync: preferenza salvata, sync al refresh)",
+            layout.Left, layout.FpsLabelY, 15, new Color(196, 201, 193, 255));
         for (var i = 0; i < GameSettings.FpsLimitPresets.Length; i++)
         {
             var fps = GameSettings.FpsLimitPresets[i];
-            var x = 120 + (i % 4) * 155;
-            var y = 490 + (i / 4) * 36;
-            DrawButton(x, y, 148, 32, GameSettings.FpsLimitLabel(fps), draft.TargetFps == fps);
+            var x = layout.Left + (i % 4) * layout.GridStride;
+            var y = layout.FpsGridY + (i / 4) * layout.GridRowStride;
+            DrawButton(x, y, layout.GridButtonWidth, layout.ButtonHeight,
+                GameSettings.FpsLimitLabel(fps), draft.TargetFps == fps);
         }
 
-        DrawUiText("Modalità schermo", 120, 560, 16, new Color(196, 201, 193, 255));
-        DrawButton(120, 580, 150, 36, "Finestra", draft.DisplayMode == DisplayMode.Windowed);
-        DrawButton(280, 580, 150, 36, "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
-        DrawButton(440, 580, 150, 36, "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
+        DrawUiText("Modalità schermo", layout.Left, layout.ModeLabelY, 16, new Color(196, 201, 193, 255));
+        DrawButton(layout.Left, layout.ModeButtonsY, layout.ModeButtonWidth, layout.ButtonHeight,
+            "Finestra", draft.DisplayMode == DisplayMode.Windowed);
+        DrawButton(layout.Left + layout.ModeStride, layout.ModeButtonsY, layout.ModeButtonWidth, layout.ButtonHeight,
+            "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
+        DrawButton(layout.Left + layout.ModeStride * 2, layout.ModeButtonsY, layout.ModeButtonWidth, layout.ButtonHeight,
+            "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
 
         var dirty = !draft.MatchesDisplay(settings);
-        DrawMenuButton(120, 630, 180, 40, dirty ? "Applica*" : "Applica");
-        DrawMenuButton(320, 630, 180, 40, "Annulla");
+        DrawMenuButton(layout.Left, layout.ApplyY, layout.ApplyWidth, layout.ApplyHeight,
+            dirty ? "Applica*" : "Applica");
+        DrawMenuButton(layout.Left + layout.ApplyWidth + layout.ApplyGap, layout.ApplyY,
+            layout.ApplyWidth, layout.ApplyHeight, "Annulla");
 
         var resLabel = settings.UseAutoResolution
             ? $"Auto {settings.ResolutionWidth}×{settings.ResolutionHeight}"
             : $"{settings.ResolutionWidth}×{settings.ResolutionHeight}";
         DrawUiText(
             $"Attuale: {resLabel} · {GameSettings.DisplayModeLabel(settings.DisplayMode)} · UI {GameSettings.UiScaleLabel(settings.UiScalePercent)} · VSync {(settings.VSync ? "ON" : "OFF")} · {GameSettings.FpsLimitLabel(settings.TargetFps)}",
-            120, 678, 13, new Color(126, 137, 132, 255));
-        DrawUiText($"File: {GameSettings.SettingsPath}", 120, 698, 12, new Color(90, 100, 96, 255));
+            layout.Left, layout.StatusY, 13, new Color(126, 137, 132, 255));
+        DrawUiText($"File: {GameSettings.SettingsPath}", layout.Left, layout.PathY, 12, new Color(90, 100, 96, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
@@ -2391,16 +2531,77 @@ internal static class FactoryGameApp
 
     private static void DrawToggleRow(int x, int y, int width, int height, string label, bool enabled)
     {
+        const int labelSize = 16;
+        const int badgeSize = 16;
         var mouse = Raylib.GetMousePosition();
         var hover = Contains(mouse, x, y, width, height);
         Raylib.DrawRectangle(x, y, width, height,
             hover ? new Color(55, 66, 60, 255) : new Color(32, 38, 36, 255));
         Raylib.DrawRectangleLines(x, y, width, height, new Color(70, 82, 76, 255));
-        DrawUiText(label, x + 18, y + (height - 20) / 2, 20, new Color(232, 233, 221, 255));
+
         var badge = enabled ? "ON" : "OFF";
         var badgeColor = enabled ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255);
-        var badgeWidth = MeasureUiText(badge, 20);
-        DrawUiText(badge, x + width - badgeWidth - 20, y + (height - 20) / 2, 20, badgeColor);
+        var badgeWidth = MeasureUiText(badge, badgeSize);
+        var gutter = Math.Max(UiTheme.S(72), badgeWidth + UiTheme.S(28));
+        var labelPad = UiTheme.S(14);
+        var labelMax = Math.Max(40, width - gutter - labelPad);
+        var drawLabel = TruncateUiText(label, labelSize, labelMax);
+        var textY = y + Math.Max(0, (height - UiTheme.S(labelSize)) / 2);
+        DrawUiText(drawLabel, x + labelPad, textY, labelSize, new Color(232, 233, 221, 255));
+        DrawUiText(badge, x + width - badgeWidth - labelPad, textY, badgeSize, badgeColor);
+    }
+
+    private static string TruncateUiText(string text, int fontSize, int maxWidth)
+    {
+        if (MeasureUiText(text, fontSize) <= maxWidth)
+        {
+            return text;
+        }
+
+        const string ellipsis = "…";
+        var ellipsisW = MeasureUiText(ellipsis, fontSize);
+        if (ellipsisW >= maxWidth)
+        {
+            return ellipsis;
+        }
+
+        var truncated = text;
+        while (truncated.Length > 0
+               && MeasureUiText(truncated, fontSize) + ellipsisW > maxWidth)
+        {
+            truncated = truncated[..^1];
+        }
+
+        return string.IsNullOrEmpty(truncated) ? ellipsis : truncated.TrimEnd() + ellipsis;
+    }
+
+    /// <summary>Self-test: Impostazioni rows stay stacked (no Y overlap) at every UI scale.</summary>
+    internal static bool SettingsLayoutIsStackedForAllScales()
+    {
+        var previous = UiTheme.Scale;
+        try
+        {
+            foreach (var percent in GameSettings.UiScalePresets)
+            {
+                UiTheme.ApplyScalePercent(percent);
+                var layout = BuildSettingsLayout();
+                if (layout.FpsToggleY + layout.ToggleHeight > layout.OverlayToggleY
+                    || layout.OverlayToggleY + layout.ToggleHeight > layout.VsyncToggleY
+                    || layout.VsyncToggleY + layout.ToggleHeight > layout.ScaleLabelY
+                    || layout.ScaleLabelY >= layout.ScaleButtonsY
+                    || layout.ScaleButtonsY + layout.ButtonHeight > layout.ResLabelY
+                    || layout.ApplyY <= layout.ModeButtonsY)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        finally
+        {
+            UiTheme.ApplyScale(previous);
+        }
     }
 
     private static void DrawDebugOverlays(GameSettings settings, EconomyWallet? wallet)
