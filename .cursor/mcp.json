@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "nuget": {
+      "command": "dnx",
+      "args": [
+        "NuGet.Mcp.Server",
+        "--source",
+        "https://api.nuget.org/v3/index.json",
+        "--yes"
+      ],
+      "env": {
+        "DOTNET_ROOT": "/usr/lib/dotnet",
+        "DOTNET_ROOT_X64": "/usr/lib/dotnet"
+      }
+    }
+  }
+}

@@ -30,7 +30,8 @@ coverage/
 Thumbs.db
 Desktop.ini
 
-# Keep shared VS Code launch/build configuration
+# Keep shared VS Code launch/build/extension recommendations
 .vscode/*
 !.vscode/launch.json
 !.vscode/tasks.json
+!.vscode/extensions.json
