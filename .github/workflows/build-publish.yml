@@ -1,0 +1,79 @@
+name: Build publish
+
+on:
+  push:
+    branches:
+      - main
+      - "cursor/**"
+  pull_request:
+    branches:
+      - main
+      - "cursor/**"
+
+jobs:
+  publish-win-x64:
+    name: Publish win-x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore TIndustry.Logistics.csproj
+
+      - name: Build
+        run: dotnet build TIndustry.Logistics.csproj -c Release --no-restore
+
+      - name: Self-test
+        run: dotnet run --project TIndustry.Logistics.csproj -c Release --no-build -- --self-test
+
+      - name: Publish win-x64 (self-contained)
+        run: >
+          dotnet publish TIndustry.Logistics.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o artifacts/win-x64
+
+      - name: Upload win-x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tIndustry-win-x64
+          path: artifacts/win-x64/
+          if-no-files-found: error
+
+  publish-linux-x64:
+    name: Publish linux-x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish linux-x64 (self-contained)
+        run: >
+          dotnet publish TIndustry.Logistics.csproj
+          -c Release
+          -r linux-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o artifacts/linux-x64
+
+      - name: Upload linux-x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tIndustry-linux-x64
+          path: artifacts/linux-x64/
+          if-no-files-found: error

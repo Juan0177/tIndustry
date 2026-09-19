@@ -19,7 +19,8 @@ internal enum AppScreen
     Home,
     Playing,
     SaveManager,
-    Research
+    Research,
+    Settings
 }
 
 internal static class FactoryGameApp
@@ -83,6 +84,8 @@ internal static class FactoryGameApp
         var selectedSlotIndex = 0;
         var selectedResearchIndex = 0;
         var quitRequested = false;
+        var settings = GameSettings.Load();
+        var settingsReturnScreen = AppScreen.Home;
 
         // Headless smoke/capture paths jump straight into a playable session.
         if (maximumFrames is not null || screenshotPath is not null)
@@ -125,7 +128,8 @@ internal static class FactoryGameApp
                         ref statusMessage,
                         ref saveSlots,
                         ref selectedSlotIndex,
-                        ref quitRequested);
+                        ref quitRequested,
+                        ref settingsReturnScreen);
                     break;
 
                 case AppScreen.SaveManager:
@@ -161,6 +165,14 @@ internal static class FactoryGameApp
                         ref statusMessage);
                     break;
 
+                case AppScreen.Settings:
+                    HandleSettingsInput(
+                        settings,
+                        ref screen,
+                        settingsReturnScreen,
+                        ref statusMessage);
+                    break;
+
                 case AppScreen.Playing:
                     HandlePlayingInput(
                         world!,
@@ -190,6 +202,7 @@ internal static class FactoryGameApp
                         ref panCameraX,
                         ref panCameraY,
                         ref screen,
+                        ref settingsReturnScreen,
                         ref selectedResearchIndex,
                         ref statusMessage,
                         nextItemId,
@@ -214,7 +227,10 @@ internal static class FactoryGameApp
                     DrawSaveManager(saveSlots, selectedSlotIndex, statusMessage);
                     break;
                 case AppScreen.Research:
-                    DrawResearch(content, wallet!, research!, selectedResearchIndex, statusMessage);
+                    DrawResearch(content, wallet!, research!, selectedResearchIndex, statusMessage, settings);
+                    break;
+                case AppScreen.Settings:
+                    DrawSettings(settings, statusMessage);
                     break;
                 case AppScreen.Playing:
                     DrawPlaying(
@@ -226,6 +242,7 @@ internal static class FactoryGameApp
                         session!,
                         market!,
                         economy,
+                        settings,
                         basicConveyor,
                         fastConveyor,
                         junctionConveyor,
@@ -242,6 +259,7 @@ internal static class FactoryGameApp
                     break;
             }
 
+            DrawDebugOverlays(settings, wallet);
             Raylib.EndDrawing();
 
             if (screenshotPath is not null && renderedFrames == 1)
@@ -253,10 +271,10 @@ internal static class FactoryGameApp
             renderedFrames++;
         }
 
-        if ((screen is AppScreen.Playing or AppScreen.Research)
-            && world is not null && camera is not null && research is not null)
+        if ((screen is AppScreen.Playing or AppScreen.Research or AppScreen.Settings)
+            && world is not null && camera is not null && research is not null && session is not null)
         {
-            AutoSaveContinue(world, conveyors!, wallet!, camera, research, session!, nextItemId);
+            AutoSaveContinue(world, conveyors!, wallet!, camera, research, session, nextItemId);
         }
 
         Raylib.CloseWindow();
@@ -379,7 +397,8 @@ internal static class FactoryGameApp
         ref string? statusMessage,
         ref SaveSlotInfo[] saveSlots,
         ref int selectedSlotIndex,
-        ref bool quitRequested)
+        ref bool quitRequested,
+        ref AppScreen settingsReturnScreen)
     {
         var mouse = Raylib.GetMousePosition();
         if (!Raylib.IsMouseButtonPressed(MouseButton.Left))
@@ -441,6 +460,14 @@ internal static class FactoryGameApp
         }
 
         if (Contains(mouse, HomeButtonX, HomeButtonY(3), HomeButtonWidth, HomeButtonHeight))
+        {
+            statusMessage = null;
+            settingsReturnScreen = AppScreen.Home;
+            screen = AppScreen.Settings;
+            return;
+        }
+
+        if (Contains(mouse, HomeButtonX, HomeButtonY(4), HomeButtonWidth, HomeButtonHeight))
         {
             quitRequested = true;
         }
@@ -675,6 +702,7 @@ internal static class FactoryGameApp
         ref float panCameraX,
         ref float panCameraY,
         ref AppScreen screen,
+        ref AppScreen settingsReturnScreen,
         ref int selectedResearchIndex,
         ref string? statusMessage,
         long nextItemId,
@@ -698,6 +726,16 @@ internal static class FactoryGameApp
             selectedResearchIndex = 0;
             statusMessage = null;
             screen = AppScreen.Research;
+            return;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.I)
+            || (Raylib.IsMouseButtonPressed(MouseButton.Left)
+                && Contains(Raylib.GetMousePosition(), ScreenWidth - 470, 20, 140, 36)))
+        {
+            statusMessage = null;
+            settingsReturnScreen = AppScreen.Playing;
+            screen = AppScreen.Settings;
             return;
         }
 
@@ -1288,28 +1326,117 @@ internal static class FactoryGameApp
     private const int HomeButtonWidth = 400;
     private const int HomeButtonHeight = 52;
 
-    private static int HomeButtonY(int index) => 250 + index * 70;
+    private static int HomeButtonY(int index) => 220 + index * 62;
 
     private static void DrawHome(string? statusMessage)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
             new Color(18, 28, 24, 255), new Color(10, 12, 12, 255));
-        Raylib.DrawText("tINDUSTRY", 420, 120, 48, new Color(239, 238, 224, 255));
-        Raylib.DrawText("Settore Foundry — mappa 1000×1000", 420, 180, 18, new Color(112, 124, 119, 255));
+        Raylib.DrawText("tINDUSTRY", 420, 100, 48, new Color(239, 238, 224, 255));
+        Raylib.DrawText("Settore Foundry — mappa 1000×1000", 420, 160, 18, new Color(112, 124, 119, 255));
 
         DrawMenuButton(HomeButtonX, HomeButtonY(0), HomeButtonWidth, HomeButtonHeight, "Continua");
         DrawMenuButton(HomeButtonX, HomeButtonY(1), HomeButtonWidth, HomeButtonHeight, "Nuova partita");
         DrawMenuButton(HomeButtonX, HomeButtonY(2), HomeButtonWidth, HomeButtonHeight, "Gestione salvataggi");
-        DrawMenuButton(HomeButtonX, HomeButtonY(3), HomeButtonWidth, HomeButtonHeight, "Esci");
+        DrawMenuButton(HomeButtonX, HomeButtonY(3), HomeButtonWidth, HomeButtonHeight, "Impostazioni");
+        DrawMenuButton(HomeButtonX, HomeButtonY(4), HomeButtonWidth, HomeButtonHeight, "Esci");
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            Raylib.DrawText(statusMessage, 420, 540, 18, new Color(225, 140, 110, 255));
+            Raylib.DrawText(statusMessage, 420, 560, 18, new Color(225, 140, 110, 255));
         }
 
-        Raylib.DrawText("WASD / bordi / Shift+drag: pan   ·   rotella: zoom   ·   T: ricerca   ·   Esc: menu",
-            180, ScreenHeight - 40, 16, new Color(90, 100, 96, 255));
+        Raylib.DrawText("WASD / bordi / Shift+drag: pan   ·   rotella: zoom   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
+            120, ScreenHeight - 40, 16, new Color(90, 100, 96, 255));
+    }
+
+    private static void HandleSettingsInput(
+        GameSettings settings,
+        ref AppScreen screen,
+        AppScreen returnScreen,
+        ref string? statusMessage)
+    {
+        if (Raylib.IsKeyPressed(KeyboardKey.Escape)
+            || (Raylib.IsMouseButtonPressed(MouseButton.Left)
+                && Contains(Raylib.GetMousePosition(), 28, ScreenHeight - 70, 180, 40)))
+        {
+            settings.Save();
+            statusMessage = null;
+            screen = returnScreen;
+            return;
+        }
+
+        if (!Raylib.IsMouseButtonPressed(MouseButton.Left))
+        {
+            return;
+        }
+
+        var mouse = Raylib.GetMousePosition();
+        if (Contains(mouse, 120, 220, 420, 48))
+        {
+            settings.ShowFps = !settings.ShowFps;
+            settings.Save();
+            statusMessage = settings.ShowFps ? "Contatore FPS attivato." : "Contatore FPS disattivato.";
+        }
+        else if (Contains(mouse, 120, 290, 420, 48))
+        {
+            settings.ShowResourceOverlay = !settings.ShowResourceOverlay;
+            settings.Save();
+            statusMessage = settings.ShowResourceOverlay
+                ? "Contatore risorse attivato."
+                : "Contatore risorse disattivato.";
+        }
+    }
+
+    private static void DrawSettings(GameSettings settings, string? statusMessage)
+    {
+        Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
+        Raylib.DrawText("Impostazioni", 120, 80, 36, new Color(239, 238, 224, 255));
+        Raylib.DrawText("Le preferenze restano salvate tra le sessioni.", 120, 130, 18, new Color(112, 124, 119, 255));
+
+        DrawToggleRow(120, 220, 420, 48, "Mostra contatore FPS", settings.ShowFps);
+        DrawToggleRow(120, 290, 420, 48, "Mostra contatore risorse", settings.ShowResourceOverlay);
+
+        Raylib.DrawText("FPS: angolo in alto a sinistra durante il gioco.", 120, 370, 16, new Color(126, 137, 132, 255));
+        Raylib.DrawText("Risorse: denaro, lastre, fili e saldo sessione nell'header.", 120, 396, 16, new Color(126, 137, 132, 255));
+        Raylib.DrawText($"File: {GameSettings.SettingsPath}", 120, 440, 14, new Color(90, 100, 96, 255));
+
+        DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
+        if (!string.IsNullOrEmpty(statusMessage))
+        {
+            Raylib.DrawText(statusMessage, 230, ScreenHeight - 58, 18, new Color(112, 218, 145, 255));
+        }
+    }
+
+    private static void DrawToggleRow(int x, int y, int width, int height, string label, bool enabled)
+    {
+        var mouse = Raylib.GetMousePosition();
+        var hover = Contains(mouse, x, y, width, height);
+        Raylib.DrawRectangle(x, y, width, height,
+            hover ? new Color(55, 66, 60, 255) : new Color(32, 38, 36, 255));
+        Raylib.DrawRectangleLines(x, y, width, height, new Color(70, 82, 76, 255));
+        Raylib.DrawText(label, x + 18, y + (height - 20) / 2, 20, new Color(232, 233, 221, 255));
+        var badge = enabled ? "ON" : "OFF";
+        var badgeColor = enabled ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255);
+        var badgeWidth = Raylib.MeasureText(badge, 20);
+        Raylib.DrawText(badge, x + width - badgeWidth - 20, y + (height - 20) / 2, 20, badgeColor);
+    }
+
+    private static void DrawDebugOverlays(GameSettings settings, EconomyWallet? wallet)
+    {
+        if (settings.ShowFps)
+        {
+            Raylib.DrawRectangle(8, 8, 88, 28, new Color(10, 12, 12, 180));
+            Raylib.DrawText($"FPS {Raylib.GetFPS()}", 16, 14, 18, new Color(211, 164, 76, 255));
+        }
+
+        // Corner resource strip when overlay is on but header wallet is hidden is N/A —
+        // header already respects ShowResourceOverlay. Keep a compact strip on Home/Settings only.
+        if (settings.ShowResourceOverlay && wallet is not null)
+        {
+            // No extra strip during Playing/Research — header/research already show resources.
+        }
     }
 
     private static void DrawResearch(
@@ -1317,14 +1444,22 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         ResearchState research,
         int selectedIndex,
-        string? statusMessage)
+        string? statusMessage,
+        GameSettings settings)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         Raylib.DrawText("Ricerca / Sblocchi", 60, 36, 32, new Color(239, 238, 224, 255));
         Raylib.DrawText("Seleziona una struttura, verifica i requisiti, conferma per sbloccare.", 60, 80, 18,
             new Color(112, 124, 119, 255));
-        Raylib.DrawText($"Wallet: $ {wallet.Money}   ·   Piastre {wallet.MaterialCount("iron-plate")}   ·   Fili {wallet.MaterialCount("copper-wire")}",
-            60, 108, 16, new Color(164, 173, 168, 255));
+        if (settings.ShowResourceOverlay)
+        {
+            Raylib.DrawText($"Wallet: $ {wallet.Money}   ·   Piastre {wallet.MaterialCount("iron-plate")}   ·   Fili {wallet.MaterialCount("copper-wire")}",
+                60, 108, 16, new Color(164, 173, 168, 255));
+        }
+        else
+        {
+            Raylib.DrawText("Contatore risorse disattivato (Impostazioni).", 60, 108, 16, new Color(126, 137, 132, 255));
+        }
 
         var entries = ResearchEntries(content);
         if (entries.Count == 0)
@@ -1442,6 +1577,7 @@ internal static class FactoryGameApp
         EconomySession session,
         MarketCatalog market,
         EconomyConfig economy,
+        GameSettings settings,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
@@ -1463,7 +1599,7 @@ internal static class FactoryGameApp
             smeltRecipe, wireRecipe,
             minerBuilding, smelterBuilding, assemblerBuilding, tool, direction);
         DrawHeader(
-            wallet, research, session, market, economy, basicConveyor, fastConveyor,
+            wallet, research, session, market, economy, settings, basicConveyor, fastConveyor,
             junctionConveyor, splitterConveyor, bridgeConveyor,
             selectedConveyor, minerBuilding, smelterBuilding, assemblerBuilding, tool, direction, world, camera);
         DrawPanel(world, conveyors, research, wallet, session, market, economy);
@@ -1475,6 +1611,7 @@ internal static class FactoryGameApp
         EconomySession session,
         MarketCatalog market,
         EconomyConfig economy,
+        GameSettings settings,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
@@ -1495,16 +1632,18 @@ internal static class FactoryGameApp
             $"FOUNDRY  seed {world.Seed}  ·  {world.Terrain.Width}×{world.Terrain.Height}  ·  zoom {camera.Zoom:0.00}",
             28, 46, 13, new Color(112, 124, 119, 255));
 
-        // Multi-material wallet
-        Raylib.DrawText($"$ {wallet.Money}", 520, 14, 20, new Color(112, 218, 145, 255));
-        Raylib.DrawCircle(524, 48, 5, ItemColor("iron-plate"));
-        Raylib.DrawText($"Lastre {wallet.MaterialCount("iron-plate")}", 536, 40, 14, new Color(196, 201, 193, 255));
-        Raylib.DrawCircle(640, 48, 5, ItemColor("copper-wire"));
-        Raylib.DrawText($"Fili {wallet.MaterialCount("copper-wire")}", 652, 40, 14, new Color(196, 201, 193, 255));
+        if (settings.ShowResourceOverlay)
+        {
+            Raylib.DrawText($"$ {wallet.Money}", 520, 14, 20, new Color(112, 218, 145, 255));
+            Raylib.DrawCircle(524, 48, 5, ItemColor("iron-plate"));
+            Raylib.DrawText($"Lastre {wallet.MaterialCount("iron-plate")}", 536, 40, 14, new Color(196, 201, 193, 255));
+            Raylib.DrawCircle(640, 48, 5, ItemColor("copper-wire"));
+            Raylib.DrawText($"Fili {wallet.MaterialCount("copper-wire")}", 652, 40, 14, new Color(196, 201, 193, 255));
 
-        var net = session.NetWorthDelta(wallet);
-        var netColor = net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255);
-        Raylib.DrawText($"Sessione {(net >= 0 ? "+" : "")}{net}", 520, 62, 13, netColor);
+            var net = session.NetWorthDelta(wallet);
+            var netColor = net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255);
+            Raylib.DrawText($"Sessione {(net >= 0 ? "+" : "")}{net}", 520, 62, 13, netColor);
+        }
 
         DrawButton(28, 88, 100, 34, "NASTRO", tool == BuildTool.Conveyor);
         DrawButton(138, 88, 100, 34, research.IsUnlocked("miner") ? "MINATORE" : "LOCK",
@@ -1551,6 +1690,7 @@ internal static class FactoryGameApp
             _ => economy.RefundPolicyNote
         };
         Raylib.DrawText(cost, 28, 70, 14, new Color(164, 173, 168, 255));
+        DrawButton(ScreenWidth - 470, 20, 140, 36, "IMPOST.", false);
         DrawButton(ScreenWidth - 320, 20, 140, 36, "RICERCA", false);
         DrawButton(ScreenWidth - 170, 20, 140, 36, "MENU", false);
         _ = market;

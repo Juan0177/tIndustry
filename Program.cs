@@ -566,6 +566,34 @@ static void RunSelfTest(GameContent content)
     Assert(stressWorld.SoldItems >= 1, "Una linea lunga deve consegnare al core senza soft-lock.");
 
     Console.WriteLine("SELF-TEST OK: trasporto, forno, ricerca, economia, logistica Phase 5 e save v5 verificati.");
+
+    // Settings persistence (FPS / resource overlay toggles).
+    var settingsPath = GameSettings.SettingsPath;
+    var backup = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
+    try
+    {
+        var prefs = new GameSettings { ShowFps = true, ShowResourceOverlay = false };
+        prefs.Save();
+        var reloaded = GameSettings.Load();
+        Assert(reloaded.ShowFps, "ShowFps deve persistere.");
+        Assert(!reloaded.ShowResourceOverlay, "ShowResourceOverlay deve persistere.");
+    }
+    finally
+    {
+        if (backup is null)
+        {
+            if (File.Exists(settingsPath))
+            {
+                File.Delete(settingsPath);
+            }
+        }
+        else
+        {
+            File.WriteAllText(settingsPath, backup);
+        }
+    }
+
+    Console.WriteLine("SELF-TEST OK: impostazioni FPS/risorse verificate.");
 }
 
 static void Assert(bool condition, string message)
