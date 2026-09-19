@@ -899,6 +899,10 @@ static void RunSelfTest(GameContent content)
         Assert(GameSettings.UiScaleLabel(125) == "125%", "Etichetta scala UI.");
         Assert(FactoryGameApp.SettingsLayoutIsStackedForAllScales(),
             "Impostazioni: le righe non devono sovrapporsi a 100/125/150/200%.");
+        Assert(FactoryGameApp.HudLayoutIsValidForAllScales(),
+            "HUD: Mercato/Fabbrica/dock/tutorial non devono sovrapporsi a 100/125/150/200%.");
+        Assert(FactoryGameApp.TutorialStepCount == 6,
+            "Tutorial stock-first: 6 passi (produce → stock → spendi/vendi → ricerca).");
         Assert(SystemMonitor.FormatBytes(1536) == "1.5 KB", "FormatBytes risorse sistema.");
         Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 2560 && p.Height == 1440),
             "Preset 2K (2560×1440) richiesto.");
@@ -957,7 +961,7 @@ static void RunSelfTest(GameContent content)
                      "items/iron-ore.png", "items/copper-ore.png", "items/iron-plate.png",
                      "items/copper-wire.png", "items/money.png",
                      "buildings/miner.png", "buildings/smelter.png", "buildings/assembler.png",
-                     "categories/production.png"
+                     "categories/production.png", "ui/sell.png"
                  })
         {
             Assert(File.Exists(Path.Combine(iconRoot, rel.Replace('/', Path.DirectorySeparatorChar))),

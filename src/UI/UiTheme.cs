@@ -327,6 +327,32 @@ public static class UiTheme
         _ => "?"
     };
 
+    /// <summary>Short Italian label under dock category icons.</summary>
+    public static string BuildCategoryShortLabel(BuildCategory category) => category switch
+    {
+        BuildCategory.Production => "Prod",
+        BuildCategory.Logistics => "Log",
+        BuildCategory.Power => "PWR",
+        BuildCategory.Tools => "Tool",
+        _ => "?"
+    };
+
+    /// <summary>Short Italian label drawn under a dock entry icon.</summary>
+    public static string DockEntryShortLabel(DockEntry entry) => entry.Id switch
+    {
+        "miner" => "Minat",
+        "smelter" => "Forno",
+        "assembler" => "Assem",
+        "generator" => "Gener",
+        "conveyor-basic" => "Nastro",
+        "conveyor-fast" => "Veloce",
+        "junction" => "Incroc",
+        "splitter" => "Split",
+        "bridge" => "Ponte",
+        "remove" => "Rimuovi",
+        _ => entry.Label.Length <= 6 ? entry.Label : entry.Label[..5] + "…"
+    };
+
     public static string BuildCategoryGlyph(BuildCategory category) => category switch
     {
         BuildCategory.Production => "Pr",
@@ -422,15 +448,17 @@ public static class UiTheme
     public static void DrawBuildCategoryIcon(BuildCategory category, int cx, int cy, int size, Color color)
     {
         var key = GameIcons.CategoryKey(category);
-        if (key is not null && GameIcons.TryDraw(key, cx + 8, cy + 8, size - 16, color))
+        var labelReserve = Math.Max(10, size / 5);
+        var iconArea = size - labelReserve;
+        if (key is not null && GameIcons.TryDraw(key, cx + 6, cy + 4, iconArea - 8, color))
         {
             return;
         }
 
-        var pad = size / 5;
+        var pad = size / 6;
         var x = cx + pad;
-        var y = cy + pad;
-        var s = size - pad * 2;
+        var y = cy + pad / 2;
+        var s = iconArea - pad * 2;
         switch (category)
         {
             case BuildCategory.Production:
@@ -483,15 +511,17 @@ public static class UiTheme
 
     public static void DrawDockEntryIcon(string entryId, int cx, int cy, int size, Color color)
     {
-        if (GameIcons.TryDraw(entryId, cx + 8, cy + 8, size - 16, color))
+        var labelReserve = Math.Max(10, size / 5);
+        var iconArea = size - labelReserve;
+        if (GameIcons.TryDraw(entryId, cx + 6, cy + 4, iconArea - 8, color))
         {
             return;
         }
 
-        var pad = 10;
+        var pad = 8;
         var x = cx + pad;
-        var y = cy + 8;
-        var s = size - pad * 2;
+        var y = cy + 4;
+        var s = iconArea - pad * 2;
         switch (entryId)
         {
             case "miner":
