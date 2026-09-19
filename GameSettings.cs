@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Raylib_cs;
 
 namespace TIndustry.Logistics;
 
@@ -19,20 +20,33 @@ public sealed class GameSettings
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
+    /// <summary>Manual resolution presets (Auto is handled separately via UseAutoResolution).</summary>
     public static readonly (int Width, int Height, string Label)[] ResolutionPresets =
     [
         (960, 600, "960×600"),
         (1240, 760, "1240×760"),
         (1440, 900, "1440×900"),
         (1600, 900, "1600×900"),
-        (1920, 1080, "1920×1080")
+        (1920, 1080, "1920×1080"),
+        (2560, 1440, "2560×1440 (2K)"),
+        (3840, 2160, "3840×2160 (4K)")
+    ];
+
+    /// <summary>FPS limiter steps; 0 = Illimitato.</summary>
+    public static readonly int[] FpsLimitPresets =
+    [
+        30, 60, 120, 144, 240, 360, 600, 0
     ];
 
     public bool ShowFps { get; set; }
     public bool ShowResourceOverlay { get; set; } = true;
     public int ResolutionWidth { get; set; } = 1240;
     public int ResolutionHeight { get; set; } = 760;
+    public bool UseAutoResolution { get; set; }
     public DisplayMode DisplayMode { get; set; } = DisplayMode.Windowed;
+    public bool VSync { get; set; } = true;
+    /// <summary>Target FPS; 0 means unlimited (Illimitato). Stored even when VSync is on.</summary>
+    public int TargetFps { get; set; } = 60;
 
     public static string SettingsDirectory
     {
@@ -81,7 +95,10 @@ public sealed class GameSettings
         ShowResourceOverlay = ShowResourceOverlay,
         ResolutionWidth = ResolutionWidth,
         ResolutionHeight = ResolutionHeight,
-        DisplayMode = DisplayMode
+        UseAutoResolution = UseAutoResolution,
+        DisplayMode = DisplayMode,
+        VSync = VSync,
+        TargetFps = TargetFps
     };
 
     public void CopyFrom(GameSettings other)
@@ -90,14 +107,20 @@ public sealed class GameSettings
         ShowResourceOverlay = other.ShowResourceOverlay;
         ResolutionWidth = other.ResolutionWidth;
         ResolutionHeight = other.ResolutionHeight;
+        UseAutoResolution = other.UseAutoResolution;
         DisplayMode = other.DisplayMode;
+        VSync = other.VSync;
+        TargetFps = other.TargetFps;
         Normalize();
     }
 
     public bool MatchesDisplay(GameSettings other) =>
         ResolutionWidth == other.ResolutionWidth
         && ResolutionHeight == other.ResolutionHeight
-        && DisplayMode == other.DisplayMode;
+        && UseAutoResolution == other.UseAutoResolution
+        && DisplayMode == other.DisplayMode
+        && VSync == other.VSync
+        && TargetFps == other.TargetFps;
 
     public void Normalize()
     {
@@ -116,13 +139,18 @@ public sealed class GameSettings
             DisplayMode = DisplayMode.Windowed;
         }
 
-        // Snap to nearest known preset when close; keep custom sizes otherwise.
-        foreach (var preset in ResolutionPresets)
+        if (TargetFps < 0)
         {
-            if (preset.Width == ResolutionWidth && preset.Height == ResolutionHeight)
-            {
-                return;
-            }
+            TargetFps = 0;
+        }
+
+        if (TargetFps > 0 && !FpsLimitPresets.Contains(TargetFps))
+        {
+            // Snap to nearest allowed step (excluding unlimited).
+            TargetFps = FpsLimitPresets
+                .Where(v => v > 0)
+                .OrderBy(v => Math.Abs(v - TargetFps))
+                .FirstOrDefault(60);
         }
     }
 
@@ -134,8 +162,16 @@ public sealed class GameSettings
         _ => "Finestra"
     };
 
+    public static string FpsLimitLabel(int fps) =>
+        fps <= 0 ? "Illimitato" : $"{fps} FPS";
+
     public int ResolutionPresetIndex()
     {
+        if (UseAutoResolution)
+        {
+            return -2;
+        }
+
         for (var i = 0; i < ResolutionPresets.Length; i++)
         {
             if (ResolutionPresets[i].Width == ResolutionWidth
@@ -146,5 +182,117 @@ public sealed class GameSettings
         }
 
         return -1;
+    }
+
+    public int FpsLimitPresetIndex()
+    {
+        for (var i = 0; i < FpsLimitPresets.Length; i++)
+        {
+            if (FpsLimitPresets[i] == TargetFps)
+            {
+                return i;
+            }
+        }
+
+        return 1; // default 60
+    }
+}
+
+/// <summary>
+/// Applies resolution, display mode, VSync, and FPS limit through Raylib APIs.
+/// </summary>
+public static class DisplayApplier
+{
+    public static void Apply(GameSettings settings)
+    {
+        settings.Normalize();
+
+        if (settings.UseAutoResolution && Raylib.IsWindowReady())
+        {
+            var monitor = Raylib.GetCurrentMonitor();
+            settings.ResolutionWidth = Math.Max(800, Raylib.GetMonitorWidth(monitor));
+            settings.ResolutionHeight = Math.Max(500, Raylib.GetMonitorHeight(monitor));
+        }
+
+        var width = settings.ResolutionWidth;
+        var height = settings.ResolutionHeight;
+
+        // Leave exclusive/borderless first so size changes stick in windowed mode.
+        if (Raylib.IsWindowFullscreen())
+        {
+            Raylib.ToggleFullscreen();
+        }
+
+        if (Raylib.IsWindowState(ConfigFlags.BorderlessWindowMode))
+        {
+            Raylib.ClearWindowState(ConfigFlags.BorderlessWindowMode);
+        }
+
+        if (Raylib.IsWindowReady())
+        {
+            Raylib.SetWindowSize(width, height);
+        }
+
+        switch (settings.DisplayMode)
+        {
+            case DisplayMode.Fullscreen:
+                if (!Raylib.IsWindowFullscreen())
+                {
+                    Raylib.ToggleFullscreen();
+                }
+
+                break;
+            case DisplayMode.Borderless:
+                Raylib.SetWindowState(ConfigFlags.BorderlessWindowMode);
+                break;
+            case DisplayMode.Windowed:
+            default:
+                if (Raylib.IsWindowReady())
+                {
+                    Raylib.SetWindowPosition(
+                        Math.Max(40, (Raylib.GetMonitorWidth(0) - width) / 2),
+                        Math.Max(40, (Raylib.GetMonitorHeight(0) - height) / 2));
+                }
+
+                break;
+        }
+
+        ApplyFramePacing(settings);
+    }
+
+    /// <summary>
+    /// VSync on: prefer monitor refresh pacing (SetTargetFPS 0) while still storing the user's FPS preference.
+    /// VSync off: apply the FPS limiter (0 = Illimitato).
+    /// </summary>
+    public static void ApplyFramePacing(GameSettings settings)
+    {
+        if (!Raylib.IsWindowReady())
+        {
+            return;
+        }
+
+        if (settings.VSync)
+        {
+            Raylib.SetWindowState(ConfigFlags.VSyncHint);
+            Raylib.SetTargetFPS(0);
+        }
+        else
+        {
+            Raylib.ClearWindowState(ConfigFlags.VSyncHint);
+            Raylib.SetTargetFPS(settings.TargetFps);
+        }
+    }
+
+    public static void CaptureDesktopResolution(GameSettings settings)
+    {
+        if (!Raylib.IsWindowReady())
+        {
+            return;
+        }
+
+        var monitor = Raylib.GetCurrentMonitor();
+        settings.ResolutionWidth = Math.Max(800, Raylib.GetMonitorWidth(monitor));
+        settings.ResolutionHeight = Math.Max(500, Raylib.GetMonitorHeight(monitor));
+        settings.UseAutoResolution = true;
     }
 }

@@ -69,9 +69,10 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 
 | Input | Azione |
 | --- | --- |
-| **WASD** / frecce / bordo schermo | Pan |
+| **WASD** / frecce | Pan |
 | **Shift + drag** / tasto centrale | Pan (drag) |
-| Rotella | Zoom |
+| **Rotella** | Ruota pezzo / direzione nastro |
+| **Ctrl + rotella** | Zoom |
 | **R** | Ruota pezzo / direzione |
 | **1–8** | Tool: nastro, minatore, forno, rimuovi, assemblatore, incrocio, sdoppiatore, ponte |
 | **9** | Generatore (se sbloccato) |
@@ -97,7 +98,11 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 **Impostazioni** (anche in-game con **I**)
 
 - **Mostra contatore FPS** → `FPS N` in alto a sinistra
-- **Mostra contatore risorse** → denaro / lastre / fili / sessione in header  
+- **Mostra inventario risorse** → strip risorse in header + categoria Inventario nel dock
+- **VSync** ON/OFF (con VSync attivo il frame pacing segue il refresh; la preferenza limite FPS resta salvata)
+- **Risoluzione**: preset fino a **2K** / **4K**, più **Auto risoluzione** (monitor corrente)
+- **Limite FPS**: 30 → 600, poi **Illimitato**
+- **Modalità schermo**: Finestra / Senza bordi / Schermo intero → **Applica**
 
 Persistenza: `%LocalAppData%/tIndustry/settings.json` (Linux: `~/.local/share/tIndustry/settings.json`).
 

@@ -115,14 +115,18 @@ static void RunSelfTest(GameContent content)
         ["iron-plate"] = 10
     });
     var nextItemId = 2L;
-    Assert(miningWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, miningGrid, miningWallet),
+    var miningMiner = miningWorld.StarterDepositOrigin;
+    Assert(miningWorld.TryPlaceMiner(miningMiner, Direction.East, miningGrid, miningWallet),
         "Il minatore deve poter essere piazzato sul giacimento garantito.");
-    Assert(miningWorld.Miners[new GridPosition(2, 2)].OutputTiles().All(tile => tile.X == 4),
+    var miningOutX = miningMiner.X + MinerBuilding.Size;
+    Assert(miningWorld.Miners[miningMiner].OutputTiles().All(tile => tile.X == miningOutX),
         "Il minatore deve erogare solo sul lato della direzione scelta.");
-    Assert(miningGrid.TryPlace(new GridPosition(4, 2), Direction.East, definition, miningWallet, research),
-        "Il nastro deve poter collegare il minatore al core.");
-    Assert(miningGrid.TryPlace(new GridPosition(5, 2), Direction.East, definition, miningWallet, research),
-        "Il secondo nastro deve raggiungere il core 4x4.");
+    for (var x = miningOutX; x < miningWorld.CoreOrigin.X; x++)
+    {
+        Assert(miningGrid.TryPlace(new GridPosition(x, miningMiner.Y), Direction.East, definition, miningWallet, research),
+            $"Il nastro x={x} deve collegare il minatore al core.");
+    }
+
     for (var tick = 0; tick < 210; tick++)
     {
         miningWorld.Update(1f / 30f, miningGrid, miningWallet, ref nextItemId);
@@ -136,18 +140,22 @@ static void RunSelfTest(GameContent content)
     var curvedGrid = new ConveyorGrid();
     var curvedWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 });
     var curvedItemId = 10L;
-    Assert(curvedWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, curvedGrid, curvedWallet),
+    var curvedMiner = curvedWorld.StarterDepositOrigin;
+    Assert(curvedWorld.TryPlaceMiner(curvedMiner, Direction.East, curvedGrid, curvedWallet),
         "Il minatore della linea curva deve essere piazzato.");
-    Assert(curvedGrid.TryPlace(new GridPosition(4, 2), Direction.South, definition, curvedWallet, research),
+    var cx = curvedMiner.X + MinerBuilding.Size;
+    var cy = curvedMiner.Y;
+    // Dogleg: south, east, north, east — ends on the tile immediately west of the core.
+    Assert(curvedGrid.TryPlace(new GridPosition(cx, cy), Direction.South, definition, curvedWallet, research),
         "Il primo tratto della curva deve essere piazzato.");
-    Assert(curvedGrid.TryPlace(new GridPosition(4, 3), Direction.East, definition, curvedWallet, research),
+    Assert(curvedGrid.TryPlace(new GridPosition(cx, cy + 1), Direction.East, definition, curvedWallet, research),
         "La curva deve essere piazzata.");
-    Assert(curvedGrid.TryPlace(new GridPosition(5, 3), Direction.East, definition, curvedWallet, research),
-        "Il tratto centrale deve essere piazzato.");
-    Assert(curvedGrid.TryPlace(new GridPosition(6, 3), Direction.East, definition, curvedWallet, research),
-        "Il tratto verso il core deve essere piazzato.");
-    Assert(curvedGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, curvedWallet, research),
+    Assert(curvedGrid.TryPlace(new GridPosition(cx + 1, cy + 1), Direction.North, definition, curvedWallet, research),
+        "Il tratto risale verso la riga del core.");
+    Assert(curvedGrid.TryPlace(new GridPosition(cx + 1, cy), Direction.East, definition, curvedWallet, research),
         "L'ultimo tratto deve toccare il core.");
+    Assert(cx + 1 == curvedWorld.CoreOrigin.X - 1,
+        "La curva deve terminare adiacente al core centrato.");
     for (var tick = 0; tick < 480; tick++)
     {
         curvedWorld.Update(1f / 30f, curvedGrid, curvedWallet, ref curvedItemId);
@@ -178,21 +186,19 @@ static void RunSelfTest(GameContent content)
     var smeltGrid = new ConveyorGrid();
     var smeltWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 });
     var smeltItemId = 500L;
-    // Core is at x=10,y=3 on 16×10 — keep the line on y=3.
+    var smelterAt = new GridPosition(smeltWorld.CoreOrigin.X - 4, smeltWorld.CoreOrigin.Y);
     Assert(research.TryUnlock(smelterTech, smeltWallet), "Il forno deve potersi sbloccare in ricerca.");
-    Assert(smeltWorld.TryPlaceSmelter(new GridPosition(4, 3), Direction.East, smeltRecipe, smeltGrid, smeltWallet),
+    Assert(smeltWorld.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, smeltGrid, smeltWallet),
         "Il forno deve piazzarsi.");
-    Assert(smeltGrid.TryPlace(new GridPosition(3, 3), Direction.East, definition, smeltWallet, research),
+    Assert(smeltGrid.TryPlace(new GridPosition(smelterAt.X - 1, smelterAt.Y), Direction.East, definition, smeltWallet, research),
         "Il nastro di ingresso forno deve piazzarsi.");
-    Assert(smeltGrid.TryPlace(new GridPosition(6, 3), Direction.East, definition, smeltWallet, research),
-        "Il nastro di uscita forno deve piazzarsi.");
-    Assert(smeltGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, smeltWallet, research),
-        "Il nastro centrale deve piazzarsi.");
-    Assert(smeltGrid.TryPlace(new GridPosition(8, 3), Direction.East, definition, smeltWallet, research),
-        "Il nastro verso il core deve piazzarsi.");
-    Assert(smeltGrid.TryPlace(new GridPosition(9, 3), Direction.East, definition, smeltWallet, research),
-        "L'ultimo nastro deve toccare il core.");
-    var inputBelt = smeltGrid.Cells[new GridPosition(3, 3)];
+    for (var x = smelterAt.X + MinerBuilding.Size; x < smeltWorld.CoreOrigin.X; x++)
+    {
+        Assert(smeltGrid.TryPlace(new GridPosition(x, smelterAt.Y), Direction.East, definition, smeltWallet, research),
+            $"Nastro uscita forno x={x}.");
+    }
+
+    var inputBelt = smeltGrid.Cells[new GridPosition(smelterAt.X - 1, smelterAt.Y)];
     Assert(inputBelt.TryInsert(new TransportedItem(smeltItemId++, "iron-ore")), "Ore 1 in ingresso.");
     for (var tick = 0; tick < 90; tick++)
     {
@@ -232,6 +238,9 @@ static void RunSelfTest(GameContent content)
     Assert(largeWorld.Terrain.Width == 1000 && largeWorld.Terrain.Height == 1000,
         "La mappa di gioco deve essere 1000×1000.");
     Assert(largeWorld.CoreTiles.Count == 16, "Il core 4×4 deve esistere sulla mappa grande.");
+    Assert(largeWorld.CoreOrigin.X == (1000 - FactoryWorld.CoreSize) / 2
+        && largeWorld.CoreOrigin.Y == (1000 - FactoryWorld.CoreSize) / 2,
+        "Il core deve stare al centro della mappa 1000×1000.");
     Assert(largeWorld.Terrain[largeWorld.StarterDepositOrigin].Deposit == DepositKind.Iron,
         "Il giacimento iniziale deve stare vicino al core.");
 
@@ -311,13 +320,16 @@ static void RunSelfTest(GameContent content)
     var ecoWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 60 });
     var ecoSession = new EconomySession(ecoWallet.Money);
     var ecoItemId = 900L;
-    Assert(ecoWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, ecoGrid, ecoWallet, minerBuilding, ecoSession),
+    var ecoMiner = ecoWorld.StarterDepositOrigin;
+    Assert(ecoWorld.TryPlaceMiner(ecoMiner, Direction.East, ecoGrid, ecoWallet, minerBuilding, ecoSession),
         "Place miner con BuildingDefinition.");
     Assert(ecoSession.BuildSpend == minerBuilding.MoneyCost, "La sessione deve tracciare la spesa build.");
-    Assert(ecoGrid.TryPlace(new GridPosition(4, 2), Direction.East, definition, ecoWallet, research, ecoSession),
-        "Place nastro con sessione.");
-    Assert(ecoGrid.TryPlace(new GridPosition(5, 2), Direction.East, definition, ecoWallet, research, ecoSession),
-        "Secondo nastro con sessione.");
+    for (var x = ecoMiner.X + MinerBuilding.Size; x < ecoWorld.CoreOrigin.X; x++)
+    {
+        Assert(ecoGrid.TryPlace(new GridPosition(x, ecoMiner.Y), Direction.East, definition, ecoWallet, research, ecoSession),
+            $"Place nastro x={x} con sessione.");
+    }
+
     for (var tick = 0; tick < 210; tick++)
     {
         ecoWorld.Update(1f / 30f, ecoGrid, ecoWallet, ref ecoItemId, market, ecoSession);
@@ -343,7 +355,7 @@ static void RunSelfTest(GameContent content)
     // Refund policy 100%.
     var moneyBeforeRefund = ecoWallet.Money;
     var platesBeforeRefund = ecoWallet.MaterialCount("iron-plate");
-    Assert(ecoWorld.TryRemoveMiner(new GridPosition(2, 2), ecoWallet, minerBuilding, ecoSession),
+    Assert(ecoWorld.TryRemoveMiner(ecoMiner, ecoWallet, minerBuilding, ecoSession),
         "Rimozione minatore con rimborso.");
     Assert(ecoWallet.Money == moneyBeforeRefund + minerBuilding.MoneyCost,
         "Rimborso denaro completo sul minatore.");
@@ -356,8 +368,8 @@ static void RunSelfTest(GameContent content)
     // Persist economy session + core upgrade in save v5.
     var ecoSaveResearch = ResearchState.CreateNew(content);
     Assert(ecoSaveResearch.TryUnlock(smelterTech, ecoWallet), "Save economia: sblocca forno.");
-    var smelterAt = new GridPosition(ecoWorld.CoreOrigin.X - 4, ecoWorld.CoreOrigin.Y);
-    Assert(ecoWorld.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, ecoGrid, ecoWallet, smelterBuilding, ecoSession),
+    var ecoSmelterAt = new GridPosition(ecoWorld.CoreOrigin.X - 4, ecoWorld.CoreOrigin.Y);
+    Assert(ecoWorld.TryPlaceSmelter(ecoSmelterAt, Direction.East, smeltRecipe, ecoGrid, ecoWallet, smelterBuilding, ecoSession),
         "Save economia: piazza forno.");
     var ecoCamera = new WorldCamera(1f, 2f, 1.1f);
     var ecoCaptured = GameSaveStore.Capture(ecoWorld, ecoGrid, ecoWallet, ecoCamera, ecoSaveResearch, ecoSession, ecoItemId);
@@ -493,21 +505,19 @@ static void RunSelfTest(GameContent content)
     Assert(craftResearch.TryUnlock(assemblerTech, craftWallet), "Assemblatore sbloccabile.");
     Assert(craftResearch.IsUnlocked("assembler") && !assemblerTech.IsStub,
         "Dopo unlock l'assemblatore è costruibile.");
-    // Core at (10,3) on 16×10 — assembler at (4,3) facing east toward core.
+    var assemblerAt = new GridPosition(craftWorld.CoreOrigin.X - 4, craftWorld.CoreOrigin.Y);
     Assert(craftWorld.TryPlaceAssembler(
-            new GridPosition(4, 3), Direction.East, wireRecipe, craftGrid, craftWallet, assemblerBuilding),
+            assemblerAt, Direction.East, wireRecipe, craftGrid, craftWallet, assemblerBuilding),
         "Assemblatore piazzabile.");
-    Assert(craftGrid.TryPlace(new GridPosition(3, 3), Direction.East, definition, craftWallet, craftResearch),
+    Assert(craftGrid.TryPlace(new GridPosition(assemblerAt.X - 1, assemblerAt.Y), Direction.East, definition, craftWallet, craftResearch),
         "Ingresso assemblatore.");
-    Assert(craftGrid.TryPlace(new GridPosition(6, 3), Direction.East, definition, craftWallet, craftResearch),
-        "Uscita assemblatore.");
-    Assert(craftGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, craftWallet, craftResearch),
-        "Nastro verso core 1.");
-    Assert(craftGrid.TryPlace(new GridPosition(8, 3), Direction.East, definition, craftWallet, craftResearch),
-        "Nastro verso core 2.");
-    Assert(craftGrid.TryPlace(new GridPosition(9, 3), Direction.East, definition, craftWallet, craftResearch),
-        "Nastro verso core 3.");
-    var craftIn = craftGrid.Cells[new GridPosition(3, 3)];
+    for (var x = assemblerAt.X + MinerBuilding.Size; x < craftWorld.CoreOrigin.X; x++)
+    {
+        Assert(craftGrid.TryPlace(new GridPosition(x, assemblerAt.Y), Direction.East, definition, craftWallet, craftResearch),
+            $"Nastro verso core x={x}.");
+    }
+
+    var craftIn = craftGrid.Cells[new GridPosition(assemblerAt.X - 1, assemblerAt.Y)];
     Assert(craftIn.TryInsert(new TransportedItem(5001, "copper-ore")), "Rame in ingresso.");
     var craftItemId = 5100L;
     for (var tick = 0; tick < 90; tick++)
@@ -624,7 +634,10 @@ static void RunSelfTest(GameContent content)
             ShowResourceOverlay = false,
             ResolutionWidth = 1440,
             ResolutionHeight = 900,
-            DisplayMode = DisplayMode.Borderless
+            UseAutoResolution = false,
+            DisplayMode = DisplayMode.Borderless,
+            VSync = false,
+            TargetFps = 144
         };
         prefs.Save();
         var reloaded = GameSettings.Load();
@@ -633,6 +646,15 @@ static void RunSelfTest(GameContent content)
         Assert(reloaded.ResolutionWidth == 1440 && reloaded.ResolutionHeight == 900,
             "Risoluzione deve persistere.");
         Assert(reloaded.DisplayMode == DisplayMode.Borderless, "Modalità schermo deve persistere.");
+        Assert(!reloaded.VSync, "VSync deve persistere.");
+        Assert(reloaded.TargetFps == 144, "TargetFps deve persistere.");
+        Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 2560 && p.Height == 1440),
+            "Preset 2K (2560×1440) richiesto.");
+        Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 3840 && p.Height == 2160),
+            "Preset 4K (3840×2160) richiesto.");
+        Assert(GameSettings.FpsLimitPresets.Contains(600) && GameSettings.FpsLimitPresets.Contains(0),
+            "Limite FPS: 600 e Illimitato (0).");
+        Assert(GameSettings.FpsLimitLabel(0) == "Illimitato", "Etichetta Illimitato.");
         Assert(UiTheme.InventoryItems.Length >= 4, "Inventario deve elencare gli item noti.");
         Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Materials).Count() == 2,
             "Categoria Materiali: ferro + rame grezzo.");
@@ -640,8 +662,23 @@ static void RunSelfTest(GameContent content)
             "Categoria Intermedi: lastre.");
         Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 1,
             "Categoria Prodotti: fili.");
+        Assert(UiTheme.BuildCategories.Length >= 5, "Dock Mindustry: almeno 5 categorie build.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Length >= 3,
+            "Produzione: minatore/forno/assemblatore.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Length >= 5,
+            "Logistica: nastri + junction/splitter/ponte.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
+            "Potenza: generatore.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length
+            == UiTheme.InventoryItems.Length,
+            "Inventario dock allinea gli item wallet.");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
             "Etichetta italiana modalità schermo intero.");
+
+        // Unlimited snap
+        var unlimited = new GameSettings { TargetFps = 0, VSync = true };
+        unlimited.Normalize();
+        Assert(unlimited.TargetFps == 0, "Illimitato (0) deve restare valido con VSync.");
     }
     finally
     {
@@ -658,7 +695,7 @@ static void RunSelfTest(GameContent content)
         }
     }
 
-    Console.WriteLine("SELF-TEST OK: impostazioni grafica/inventario verificate.");
+    Console.WriteLine("SELF-TEST OK: impostazioni grafica/inventario/dock Mindustry verificati.");
 }
 
 static void Assert(bool condition, string message)
