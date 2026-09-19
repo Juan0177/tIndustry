@@ -22,7 +22,9 @@ internal static class FactoryGameApp
     public const int MapHeight = 1000;
     private const int BaseTileSize = 36;
     private const int HeaderHeightBase = 64;
-    private const int InfoPanelWidthBase = 260;
+    private const int InfoPanelWidthBase = 288;
+    private const int MercatoRowHeightBase = 38;
+    private const int StatusPanelHeightBase = 148;
     private const int HeaderIconSizeBase = 40;
     private const int HeaderIconGapBase = 8;
     private const float EntryAnimDuration = 0.85f;
@@ -45,6 +47,7 @@ internal static class FactoryGameApp
     private static UiTheme.BuildCategory DockCategory = UiTheme.BuildCategory.Logistics;
     private static string? DockSelectedId = "conveyor-basic";
     private static GameSettings? SettingsDraft;
+    private static float SettingsScrollY;
     private static float EntryAnimT = 1f;
     private static float LoadingElapsed;
     private static int LoadingSeed = DefaultSeed;
@@ -63,17 +66,24 @@ internal static class FactoryGameApp
     private static bool TutorialPlacedMiner;
     private static bool TutorialPlacedBelt;
     private static bool TutorialSoldOre;
+    private static bool TutorialUsedEconomy;
     private static bool TutorialOpenedResearch;
     private static int TutorialSoldBaseline = -1;
+    private static int TutorialMoneyBaseline = -1;
+    private static int TutorialMaterialBaseline = -1;
 
     private static readonly string[] TutorialSteps =
     [
         "Muovi la camera: WASD, Shift+trascina o rotella centrale.",
         "Piazza un MINATORE (2) sul giacimento di ferro a ovest del core.",
-        "Collega NASTRI (1) da qualsiasi lato del minatore fino al CORE.",
-        "Aspetta i minerali al core: finiscono in magazzino (strip in alto).",
+        "Collega NASTRI (1) dal minatore fino al CORE.",
+        "Aspetta i minerali: entrano nello stock (strip in alto).",
+        "Usa lo stock per costruire, oppure vendi dal MERCATO (1 / tutti).",
         "Apri RICERCA (T) e sblocca il FORNO quando puoi."
     ];
+
+    /// <summary>Self-test hook: stock-first tutorial length.</summary>
+    internal static int TutorialStepCount => TutorialSteps.Length;
 
     private static GameSettings? ActiveSettings;
 
@@ -912,6 +922,7 @@ internal static class FactoryGameApp
                     statusMessage = null;
                     settingsReturnScreen = AppScreen.Home;
                     SettingsDraft = null;
+                    SettingsScrollY = 0f;
                     screen = AppScreen.Settings;
                     break;
                 case HomeAction.Quit:
@@ -1285,6 +1296,7 @@ internal static class FactoryGameApp
             statusMessage = null;
             settingsReturnScreen = AppScreen.Playing;
             SettingsDraft = null;
+            SettingsScrollY = 0f;
             screen = AppScreen.Settings;
             return;
         }
@@ -1318,9 +1330,17 @@ internal static class FactoryGameApp
             return;
         }
 
-        GetInfoBounds(out var infoX, out var infoY, out var infoW, out _);
+        GetMercatoBounds(out var mercatoX, out var mercatoY, out var mercatoW, out _);
         if (Raylib.IsMouseButtonPressed(MouseButton.Left)
-            && TryHandleMercatoClick(mouse, world, wallet, session, market, economy, infoX, infoY, infoW, ref statusMessage))
+            && TryHandleMercatoClick(mouse, world, wallet, session, market, mercatoX, mercatoY, mercatoW, ref statusMessage))
+        {
+            previousDragPosition = null;
+            return;
+        }
+
+        GetStatusBounds(out var statusX, out var statusY, out var statusW, out _);
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left)
+            && TryHandleStatusClick(mouse, world, wallet, session, economy, statusX, statusY, statusW, ref statusMessage))
         {
             previousDragPosition = null;
             return;
@@ -1958,22 +1978,66 @@ internal static class FactoryGameApp
         height = Math.Max(gridH, railH) + UiTheme.DockHoverBarHeight;
     }
 
-    private static void GetInfoBounds(out int x, out int y, out int width, out int height)
+    private static void GetMercatoBounds(out int x, out int y, out int width, out int height)
     {
-        width = InfoPanelWidth;
-        // Market rows + auto-sell toggle + tip + CORE button.
-        height = UiTheme.S(320);
+        // Soft-scale Mercato so 150–200% stays readable without eating the dock.
+        width = MercatoS(InfoPanelWidthBase);
         x = ScreenWidth - width - UiTheme.DockMargin;
         y = ViewportTop + 8;
+
+        var desired = MercatoS(24) + MercatoS(26) + MercatoS(16) + 4 * MercatoS(MercatoRowHeightBase) + MercatoS(10);
+
+        GetDockBounds(out _, out var dockY, out _, out _);
+        var gap = UiTheme.S(8);
+        var minStatus = MercatoS(64);
+        // Prefer leaving a Fabbrica strip; if not enough room, Mercato takes space above the dock.
+        var withStatus = dockY - y - gap - minStatus;
+        var withoutStatus = dockY - y - gap;
+        var available = withStatus >= MercatoS(140) ? withStatus : withoutStatus;
+        height = Math.Min(desired, Math.Max(0, available));
     }
 
-    private static int InfoAutoSellY(int infoY) => infoY + UiTheme.S(28);
+    private static void GetStatusBounds(out int x, out int y, out int width, out int height)
+    {
+        GetMercatoBounds(out x, out var mercatoY, out width, out var mercatoH);
+        y = mercatoY + mercatoH + UiTheme.S(6);
 
-    private static int InfoMarketHintY(int infoY) => infoY + UiTheme.S(56);
+        GetDockBounds(out _, out var dockY, out _, out _);
+        var maxBottom = dockY - UiTheme.S(6);
+        height = Math.Min(MercatoS(StatusPanelHeightBase), Math.Max(0, maxBottom - y));
+        if (height < MercatoS(56))
+        {
+            height = 0;
+        }
+    }
 
-    private static int InfoMarketRowY(int infoY, int index) => infoY + UiTheme.S(76) + index * UiTheme.S(24);
+    /// <summary>
+    /// Mercato/Fabbrica soft scale — caps growth so HUD chrome remains usable at 150–200%.
+    /// </summary>
+    private static int MercatoS(int px)
+    {
+        var soft = Math.Min(UiTheme.Scale, 1.35f);
+        return Math.Max(1, (int)MathF.Round(px * soft));
+    }
 
-    private static int InfoUpgradeY(int infoY) => infoY + UiTheme.S(276);
+    private static int MercatoAutoSellY(int panelY) => panelY + MercatoS(24);
+
+    private static int MercatoHintY(int panelY) => panelY + MercatoS(48);
+
+    private static int MercatoHeaderBlock() => MercatoS(66);
+
+    private static int MercatoRowHeight(int panelH)
+    {
+        var avail = Math.Max(4, panelH - MercatoHeaderBlock() - MercatoS(4));
+        var fit = Math.Max(1, avail / 4);
+        return Math.Min(MercatoS(MercatoRowHeightBase), fit);
+    }
+
+    private static int MercatoRowY(int panelY, int panelH, int index) =>
+        panelY + MercatoHeaderBlock() + index * MercatoRowHeight(panelH);
+
+    private static int StatusUpgradeY(int panelY, int panelH) =>
+        panelY + panelH - MercatoS(34);
 
     private static bool IsOverHudChrome(Vector2 mouse)
     {
@@ -1996,8 +2060,14 @@ internal static class FactoryGameApp
             return true;
         }
 
-        GetInfoBounds(out var ix, out var iy, out var iw, out var ih);
-        if (Contains(mouse, ix, iy, iw, ih))
+        GetMercatoBounds(out var mx, out var my, out var mw, out var mh);
+        if (Contains(mouse, mx, my, mw, mh))
+        {
+            return true;
+        }
+
+        GetStatusBounds(out var sx, out var sy, out var sw, out var sh);
+        if (Contains(mouse, sx, sy, sw, sh))
         {
             return true;
         }
@@ -2214,7 +2284,17 @@ internal static class FactoryGameApp
         AppScreen returnScreen,
         ref string? statusMessage)
     {
-        var layout = BuildSettingsLayout();
+        var wheel = Raylib.GetMouseWheelMove();
+        if (wheel != 0)
+        {
+            SettingsScrollY = Math.Clamp(SettingsScrollY - wheel * 40f, 0f, 4000f);
+        }
+
+        var layout = BuildSettingsLayout((int)SettingsScrollY);
+        // Re-clamp scroll against actual content.
+        SettingsScrollY = Math.Max(0f, SettingsScrollY);
+        layout = BuildSettingsLayout((int)SettingsScrollY);
+
         if (Raylib.IsKeyPressed(KeyboardKey.Escape)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && Contains(Raylib.GetMousePosition(), 28, ScreenHeight - 70, 180, 40)))
@@ -2258,6 +2338,17 @@ internal static class FactoryGameApp
             statusMessage = draft.VSync
                 ? "VSync: ON (limita al refresh; preferenza FPS salvata)."
                 : "VSync: OFF (usa il limite FPS).";
+            return;
+        }
+
+        if (Contains(mouse, layout.Left, layout.AutoSellToggleY, layout.ToggleWidth, layout.ToggleHeight))
+        {
+            settings.AutoSellAtCore = !settings.AutoSellAtCore;
+            draft.AutoSellAtCore = settings.AutoSellAtCore;
+            settings.Save();
+            statusMessage = settings.AutoSellAtCore
+                ? "Vendita automatica ON: il core liquida in $."
+                : "Vendita automatica OFF: stock in magazzino; vendi dal Mercato.";
             return;
         }
 
@@ -2379,6 +2470,7 @@ internal static class FactoryGameApp
         public int FpsToggleY { get; init; }
         public int OverlayToggleY { get; init; }
         public int VsyncToggleY { get; init; }
+        public int AutoSellToggleY { get; init; }
         public int ReviewTutorialY { get; init; }
         public int ReviewTutorialWidth { get; init; }
         public int ScaleLabelY { get; init; }
@@ -2407,24 +2499,28 @@ internal static class FactoryGameApp
         public int PathY { get; init; }
     }
 
-    private static SettingsPanelLayout BuildSettingsLayout()
+    private static SettingsPanelLayout BuildSettingsLayout(int scrollY = 0)
     {
-        var left = UiTheme.S(120);
-        var toggleHeight = UiTheme.S(40);
-        var rowGap = UiTheme.S(10);
-        var sectionGap = UiTheme.S(14);
-        var labelGap = UiTheme.S(6);
-        var buttonHeight = UiTheme.S(34);
-        var gridRow = buttonHeight + UiTheme.S(6);
-        var gridStride = UiTheme.S(155);
-        var gridButtonWidth = UiTheme.S(148);
+        var left = UiTheme.S(100);
+        // Compact spacing at 150–200% so Impostazioni fits without overlapping rows.
+        var compact = UiTheme.Scale >= 1.5f;
+        var toggleHeight = UiTheme.S(compact ? 34 : 40);
+        var rowGap = UiTheme.S(compact ? 6 : 10);
+        var sectionGap = UiTheme.S(compact ? 8 : 14);
+        var labelGap = UiTheme.S(compact ? 4 : 6);
+        var buttonHeight = UiTheme.S(compact ? 30 : 34);
+        var gridRow = buttonHeight + UiTheme.S(compact ? 4 : 6);
+        var gridStride = UiTheme.S(compact ? 140 : 155);
+        var gridButtonWidth = UiTheme.S(compact ? 132 : 148);
 
-        var y = UiTheme.S(150);
+        var y = UiTheme.S(compact ? 96 : 130);
         var fpsY = y;
         y += toggleHeight + rowGap;
         var overlayY = y;
         y += toggleHeight + rowGap;
         var vsyncY = y;
+        y += toggleHeight + rowGap;
+        var autoSellY = y;
         y += toggleHeight + sectionGap;
         var reviewTutorialY = y;
         y += buttonHeight + sectionGap;
@@ -2453,54 +2549,59 @@ internal static class FactoryGameApp
         y += applyHeight + UiTheme.S(12);
         var statusY = y;
         var pathY = y + UiTheme.S(20);
+        var contentBottom = pathY + UiTheme.S(8);
+        var viewportBottom = ScreenHeight - 80;
+        var maxScroll = Math.Max(0, contentBottom - viewportBottom);
+        scrollY = Math.Clamp(scrollY, 0, maxScroll);
 
         var toggleWidth = Math.Min(UiTheme.S(640), Math.Max(UiTheme.S(480), ScreenWidth - left * 2));
 
         return new SettingsPanelLayout
         {
             Left = left,
-            TitleY = UiTheme.S(40),
-            SubtitleY = UiTheme.S(78),
+            TitleY = UiTheme.S(40) - scrollY,
+            SubtitleY = UiTheme.S(78) - scrollY,
             ToggleWidth = toggleWidth,
             ToggleHeight = toggleHeight,
-            FpsToggleY = fpsY,
-            OverlayToggleY = overlayY,
-            VsyncToggleY = vsyncY,
-            ReviewTutorialY = reviewTutorialY,
+            FpsToggleY = fpsY - scrollY,
+            OverlayToggleY = overlayY - scrollY,
+            VsyncToggleY = vsyncY - scrollY,
+            AutoSellToggleY = autoSellY - scrollY,
+            ReviewTutorialY = reviewTutorialY - scrollY,
             ReviewTutorialWidth = UiTheme.S(220),
-            ScaleLabelY = scaleLabelY,
-            ScaleButtonsY = scaleButtonsY,
+            ScaleLabelY = scaleLabelY - scrollY,
+            ScaleButtonsY = scaleButtonsY - scrollY,
             ScaleButtonWidth = UiTheme.S(100),
             ScaleButtonStride = UiTheme.S(110),
             ButtonHeight = buttonHeight,
-            ResLabelY = resLabelY,
-            AutoResY = autoResY,
+            ResLabelY = resLabelY - scrollY,
+            AutoResY = autoResY - scrollY,
             AutoResWidth = UiTheme.S(180),
-            ResGridY = resGridY,
-            FpsLabelY = fpsLabelY,
-            FpsGridY = fpsGridY,
-            ModeLabelY = modeLabelY,
-            ModeButtonsY = modeButtonsY,
+            ResGridY = resGridY - scrollY,
+            FpsLabelY = fpsLabelY - scrollY,
+            FpsGridY = fpsGridY - scrollY,
+            ModeLabelY = modeLabelY - scrollY,
+            ModeButtonsY = modeButtonsY - scrollY,
             ModeButtonWidth = UiTheme.S(150),
             ModeStride = UiTheme.S(160),
             GridStride = gridStride,
             GridRowStride = gridRow,
             GridButtonWidth = gridButtonWidth,
-            ApplyY = applyY,
+            ApplyY = applyY - scrollY,
             ApplyWidth = UiTheme.S(180),
             ApplyHeight = applyHeight,
             ApplyGap = UiTheme.S(20),
-            StatusY = statusY,
-            PathY = pathY
+            StatusY = statusY - scrollY,
+            PathY = pathY - scrollY
         };
     }
 
     private static void DrawSettings(GameSettings settings, GameSettings draft, string? statusMessage)
     {
-        var layout = BuildSettingsLayout();
+        var layout = BuildSettingsLayout((int)SettingsScrollY);
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         DrawUiText("Impostazioni", layout.Left, layout.TitleY, 32, new Color(239, 238, 224, 255));
-        DrawUiText("Overlay, scala UI e grafica. Applica per salvare risoluzione, VSync e limite FPS.",
+        DrawUiText("Overlay, vendita automatica, scala UI e grafica. Applica per salvare risoluzione/VSync/FPS.",
             layout.Left, layout.SubtitleY, 15, new Color(112, 124, 119, 255));
 
         DrawToggleRow(layout.Left, layout.FpsToggleY, layout.ToggleWidth, layout.ToggleHeight,
@@ -2509,6 +2610,8 @@ internal static class FactoryGameApp
             "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
         DrawToggleRow(layout.Left, layout.VsyncToggleY, layout.ToggleWidth, layout.ToggleHeight,
             "VSync", draft.VSync);
+        DrawToggleRow(layout.Left, layout.AutoSellToggleY, layout.ToggleWidth, layout.ToggleHeight,
+            "Vendita automatica al core", settings.AutoSellAtCore);
 
         DrawMenuButton(layout.Left, layout.ReviewTutorialY, layout.ReviewTutorialWidth, layout.ButtonHeight,
             "Rivedi tutorial");
@@ -2574,6 +2677,12 @@ internal static class FactoryGameApp
         DrawUiText($"File: {GameSettings.SettingsPath}", layout.Left, layout.PathY, 12, new Color(90, 100, 96, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
+        if (SettingsScrollY > 2 || layout.PathY > ScreenHeight - 90)
+        {
+            DrawUiText("Rotella: scorri le impostazioni", ScreenWidth - UiTheme.S(280), ScreenHeight - 58, 13,
+                UiTheme.TextMuted);
+        }
+
         if (!string.IsNullOrEmpty(statusMessage))
         {
             DrawUiText(statusMessage, 230, ScreenHeight - 58, 16, new Color(112, 218, 145, 255));
@@ -2630,19 +2739,24 @@ internal static class FactoryGameApp
     internal static bool SettingsLayoutIsStackedForAllScales()
     {
         var previous = UiTheme.Scale;
+        var prevW = ScreenWidth;
+        var prevH = ScreenHeight;
         try
         {
+            ScreenWidth = 1280;
+            ScreenHeight = 720;
             foreach (var percent in GameSettings.UiScalePresets)
             {
                 UiTheme.ApplyScalePercent(percent);
-                var layout = BuildSettingsLayout();
-                if (layout.FpsToggleY + layout.ToggleHeight > layout.OverlayToggleY
-                    || layout.OverlayToggleY + layout.ToggleHeight > layout.VsyncToggleY
-                    || layout.VsyncToggleY + layout.ToggleHeight > layout.ReviewTutorialY
-                    || layout.ReviewTutorialY + layout.ButtonHeight > layout.ScaleLabelY
-                    || layout.ScaleLabelY >= layout.ScaleButtonsY
-                    || layout.ScaleButtonsY + layout.ButtonHeight > layout.ResLabelY
-                    || layout.ApplyY <= layout.ModeButtonsY)
+                var baseLayout = BuildSettingsLayout(0);
+                if (baseLayout.FpsToggleY + baseLayout.ToggleHeight > baseLayout.OverlayToggleY
+                    || baseLayout.OverlayToggleY + baseLayout.ToggleHeight > baseLayout.VsyncToggleY
+                    || baseLayout.VsyncToggleY + baseLayout.ToggleHeight > baseLayout.AutoSellToggleY
+                    || baseLayout.AutoSellToggleY + baseLayout.ToggleHeight > baseLayout.ReviewTutorialY
+                    || baseLayout.ReviewTutorialY + baseLayout.ButtonHeight > baseLayout.ScaleLabelY
+                    || baseLayout.ScaleLabelY >= baseLayout.ScaleButtonsY
+                    || baseLayout.ScaleButtonsY + baseLayout.ButtonHeight > baseLayout.ResLabelY
+                    || baseLayout.ApplyY <= baseLayout.ModeButtonsY)
                 {
                     return false;
                 }
@@ -2652,6 +2766,85 @@ internal static class FactoryGameApp
         }
         finally
         {
+            ScreenWidth = prevW;
+            ScreenHeight = prevH;
+            UiTheme.ApplyScale(previous);
+        }
+    }
+
+    /// <summary>
+    /// Self-test: Mercato, Fabbrica, dock and tutorial banner do not overlap at 100–200%.
+    /// </summary>
+    internal static bool HudLayoutIsValidForAllScales()
+    {
+        var previous = UiTheme.Scale;
+        var prevW = ScreenWidth;
+        var prevH = ScreenHeight;
+        try
+        {
+            // Typical play window used by self-tests / default launch.
+            ScreenWidth = 1280;
+            ScreenHeight = 720;
+            foreach (var percent in GameSettings.UiScalePresets)
+            {
+                UiTheme.ApplyScalePercent(percent);
+                GetMercatoBounds(out var mx, out var my, out var mw, out var mh);
+                GetStatusBounds(out var sx, out var sy, out var sw, out var sh);
+                GetDockBounds(out var dx, out var dy, out var dw, out var dh);
+                GetTutorialPanelBounds(out var tx, out var ty, out var tw, out var th);
+
+                if (mx + mw > ScreenWidth || my < ViewportTop)
+                {
+                    return false;
+                }
+
+                // Mercato above Fabbrica (or Fabbrica hidden), both above dock.
+                if (sh > 0 && sy < my + mh)
+                {
+                    return false;
+                }
+
+                if (my + mh > dy - 4)
+                {
+                    return false;
+                }
+
+                if (sh > 0 && sy + sh > dy)
+                {
+                    return false;
+                }
+
+                if (dx + dw > ScreenWidth || dy + dh > ScreenHeight)
+                {
+                    return false;
+                }
+
+                // Tutorial must not cover the dock grid.
+                if (ty + th > dy && tx + tw > dx - 4)
+                {
+                    return false;
+                }
+
+                // Row helpers stay ordered inside Mercato.
+                if (MercatoAutoSellY(my) >= MercatoHintY(my)
+                    || MercatoHintY(my) >= MercatoRowY(my, mh, 0)
+                    || MercatoRowY(my, mh, 0) >= MercatoRowY(my, mh, 1)
+                    || MercatoRowY(my, mh, 3) + MercatoRowHeight(mh) > my + mh + 2)
+                {
+                    return false;
+                }
+
+                _ = sw;
+                _ = mh;
+                _ = mw;
+            }
+
+            return true;
+        }
+        finally
+        {
+            ScreenWidth = prevW;
+            ScreenHeight = prevH;
             UiTheme.ApplyScale(previous);
         }
     }
@@ -2839,7 +3032,8 @@ internal static class FactoryGameApp
             junctionConveyor, splitterConveyor, bridgeConveyor,
             selectedConveyor, minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             tool, direction, world, camera);
-        DrawInfoPanel(world, conveyors, research, wallet, session, market, economy);
+        DrawMercatoPanel(world, wallet, market);
+        DrawStatusPanel(world, conveyors, research, wallet, session, economy);
         DrawBuildDock(wallet, research, selectedConveyor, direction, tool);
 
         if (!string.IsNullOrEmpty(statusMessage))
@@ -2968,7 +3162,8 @@ internal static class FactoryGameApp
         {
             var count = wallet.MaterialCount(items[i].ItemId);
             var countW = MeasureUiText(count.ToString(), 14);
-            chipWidths[i] = 30 + countW + 14;
+            var labelW = MeasureUiText(items[i].ShortName, 10);
+            chipWidths[i] = Math.Max(UiTheme.S(52), 34 + Math.Max(countW, labelW) + 10);
             chipsW += chipWidths[i];
         }
 
@@ -2999,11 +3194,12 @@ internal static class FactoryGameApp
         {
             var item = items[i];
             var count = wallet.MaterialCount(item.ItemId);
-            // Soft tinted chip behind the icon for contrast at small HUD sizes.
-            Raylib.DrawRectangle(x, stripY + 12, 24, 24, new Color(24, 28, 30, 255));
-            Raylib.DrawRectangleLines(x, stripY + 12, 24, 24, UiTheme.ItemOutline(item.ItemId));
-            UiTheme.DrawItemIcon(item.ItemId, x + 2, stripY + 14, 20);
-            DrawUiText(count.ToString(), x + 28, stripY + 16, 14, UiTheme.TextPrimary);
+            var iconBox = UiTheme.S(26);
+            Raylib.DrawRectangle(x, stripY + 8, iconBox, iconBox, new Color(24, 28, 30, 255));
+            Raylib.DrawRectangleLines(x, stripY + 8, iconBox, iconBox, UiTheme.ItemOutline(item.ItemId));
+            UiTheme.DrawItemIcon(item.ItemId, x + 3, stripY + 11, iconBox - 6);
+            DrawUiText(count.ToString(), x + iconBox + 4, stripY + 8, 14, UiTheme.TextPrimary);
+            DrawUiText(item.ShortName, x + iconBox + 4, stripY + 28, 10, UiTheme.TextMuted);
             x += chipWidths[i];
         }
     }
@@ -3074,6 +3270,11 @@ internal static class FactoryGameApp
 
             var tint = active ? UiTheme.Accent : UiTheme.BuildCategoryTint(category);
             UiTheme.DrawBuildCategoryIcon(category, cx, cy, UiTheme.DockCellSize, tint);
+            var catLabel = UiTheme.BuildCategoryShortLabel(category);
+            var catLw = MeasureUiText(catLabel, 9);
+            DrawUiText(catLabel, cx + (UiTheme.DockCellSize - catLw) / 2,
+                cy + UiTheme.DockCellSize - UiTheme.S(12), 9,
+                active ? UiTheme.Accent : UiTheme.TextMuted);
             if (hovered)
             {
                 hoverText = UiTheme.DockHoverText(category);
@@ -3174,6 +3375,11 @@ internal static class FactoryGameApp
         };
 
         UiTheme.DrawDockEntryIcon(entry.Id, cx, cy, UiTheme.DockCellSize, color);
+        var label = UiTheme.DockEntryShortLabel(entry);
+        var lw = MeasureUiText(label, 9);
+        DrawUiText(label, cx + (UiTheme.DockCellSize - lw) / 2,
+            cy + UiTheme.DockCellSize - UiTheme.S(12), 9,
+            locked ? UiTheme.TextMuted : UiTheme.TextPrimary);
     }
 
     private static string FormatBuildingCost(BuildingDefinition building)
@@ -3946,52 +4152,44 @@ internal static class FactoryGameApp
         Raylib.EndScissorMode();
     }
 
-    private static void DrawInfoPanel(
+    private static void DrawMercatoPanel(
         FactoryWorld world,
-        ConveyorGrid conveyors,
-        ResearchState research,
         EconomyWallet wallet,
-        EconomySession session,
-        MarketCatalog market,
-        EconomyConfig economy)
+        MarketCatalog market)
     {
-        GetInfoBounds(out var x, out var y, out var w, out var h);
+        GetMercatoBounds(out var x, out var y, out var w, out var h);
         Raylib.DrawRectangle(x, y, w, h, UiTheme.PanelFill);
-        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.PanelBorder, 1);
+        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
 
-        DrawUiText("MERCATO", x + 10, y + 8, 14, UiTheme.TextPrimary);
+        DrawUiText("MERCATO", x + 10, y + 8, 15, UiTheme.TextPrimary);
+        GameIcons.TryDraw("sell", x + w - UiTheme.S(28), y + 6, UiTheme.S(20), UiTheme.MoneyGreen);
 
         var autoSell = ActiveSettings?.AutoSellAtCore ?? false;
-        DrawToggleRow(x + 8, InfoAutoSellY(y), w - 16, UiTheme.S(24), "Vendita automatica", autoSell);
+        DrawToggleRow(x + 8, MercatoAutoSellY(y), w - 16, UiTheme.S(24), "Vendita automatica", autoSell);
 
         DrawUiText(
             autoSell ? "ON: il core liquida subito in $." : "OFF: stock in magazzino; vendi qui.",
-            x + 10, InfoMarketHintY(y), 11, UiTheme.TextMuted);
+            x + 10, MercatoHintY(y), 11, UiTheme.TextMuted);
 
-        var nameMaxW = w - 118;
+        var iconSize = MercatoS(22);
         var index = 0;
         foreach (var item in market.Items.Take(4))
         {
-            var rowY = InfoMarketRowY(y, index);
+            var rowY = MercatoRowY(y, h, index);
             var stock = wallet.MaterialCount(item.ItemId);
             var effective = world.EffectiveSalePrice(item.ItemId, market);
-            UiTheme.DrawItemIcon(item.ItemId, x + 10, rowY - 1, 14);
+            var shortName = UiTheme.InventoryItems.FirstOrDefault(i => i.ItemId == item.ItemId)?.ShortName
+                ?? item.DisplayName;
 
-            var name = item.DisplayName;
-            while (name.Length > 3 && MeasureUiText(name, 12) > nameMaxW)
-            {
-                name = name[..^1];
-            }
+            Raylib.DrawRectangle(x + 8, rowY, iconSize + 4, iconSize + 4, new Color(24, 28, 30, 255));
+            Raylib.DrawRectangleLines(x + 8, rowY, iconSize + 4, iconSize + 4, UiTheme.ItemOutline(item.ItemId));
+            UiTheme.DrawItemIcon(item.ItemId, x + 10, rowY + 2, iconSize);
 
-            if (name != item.DisplayName && name.Length > 0)
-            {
-                name = name.TrimEnd() + "…";
-            }
-
-            DrawUiText(name, x + 28, rowY, 12, UiTheme.TextMuted);
-
-            var stockLabel = $"×{stock}";
-            DrawUiText(stockLabel, x + 28, rowY + 12, 10, stock > 0 ? UiTheme.TextPrimary : UiTheme.TextMuted);
+            var nameMaxW = w - UiTheme.S(128) - iconSize;
+            var name = TruncateUiText(shortName, 12, nameMaxW);
+            DrawUiText(name, x + 14 + iconSize, rowY + 1, 12, UiTheme.TextPrimary);
+            DrawUiText($"stock ×{stock}", x + 14 + iconSize, rowY + UiTheme.S(16), 10,
+                stock > 0 ? UiTheme.TextMuted : new Color(120, 110, 100, 255));
 
             string priceLabel;
             Color priceColor;
@@ -4006,56 +4204,79 @@ internal static class FactoryGameApp
                 priceColor = UiTheme.TextPrimary;
             }
 
-            var pw = MeasureUiText(priceLabel, 11);
-            DrawUiText(priceLabel, x + w - 78 - pw, rowY + 2, 11, priceColor);
+            var pw = MeasureUiText(priceLabel, 12);
+            DrawUiText(priceLabel, x + w - UiTheme.S(78) - pw, rowY + 2, 12, priceColor);
 
-            GetMercatoSellOneBounds(x, y, w, index, out var oneX, out var oneY, out var oneW, out var oneH);
-            GetMercatoSellAllBounds(x, y, w, index, out var allX, out var allY, out var allW, out var allH);
+            GetMercatoSellOneBounds(x, y, w, h, index, out var oneX, out var oneY, out var oneW, out var oneH);
+            GetMercatoSellAllBounds(x, y, w, h, index, out var allX, out var allY, out var allW, out var allH);
             DrawCompactMarketButton(oneX, oneY, oneW, oneH, "1", stock > 0);
             DrawCompactMarketButton(allX, allY, allW, allH, "tutti", stock > 0);
             index++;
         }
+    }
 
-        var tipY = InfoMarketRowY(y, 4) + 4;
+    private static void DrawStatusPanel(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        ResearchState research,
+        EconomyWallet wallet,
+        EconomySession session,
+        EconomyConfig economy)
+    {
+        GetStatusBounds(out var x, out var y, out var w, out var h);
+        if (h <= 0)
+        {
+            return;
+        }
+
+        Raylib.DrawRectangle(x, y, w, h, UiTheme.PanelFill);
+        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.PanelBorder, 1);
+
+        DrawUiText("FABBRICA", x + 10, y + 6, 13, UiTheme.TextMuted);
+
         var net = session.NetWorthDelta(wallet);
         DrawUiText(
             $"{UiTheme.SessionDeltaLabel(net)}  ·  PWR {world.PowerBuffer:0}/{world.PowerCapacity:0}",
-            x + 10, tipY, 11,
+            x + 10, y + UiTheme.S(24), 11,
             net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed);
 
         DrawUiText(
             $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count}",
-            x + 10, tipY + 16, 11, UiTheme.TextMuted);
+            x + 10, y + UiTheme.S(40), 11, UiTheme.TextMuted);
 
         var tip = GetOnboardingTip(world, conveyors, research, wallet);
-        DrawWrappedTip(tip, x + 10, tipY + 32, w - 20);
+        var tipMaxH = StatusUpgradeY(y, h) - (y + UiTheme.S(56)) - UiTheme.S(4);
+        if (tipMaxH >= UiTheme.S(14))
+        {
+            DrawWrappedTip(tip, x + 10, y + UiTheme.S(56), w - 20, tipMaxH);
+        }
 
         var upgrade = economy.CoreUpgrade;
-        var upgradeY = InfoUpgradeY(y);
+        var upgradeY = StatusUpgradeY(y, h);
         var upgradeLabel = world.CoreUpgradeLevel > 0
             ? $"CORE LV{world.CoreUpgradeLevel}"
             : $"CORE ${upgrade.MoneyCost}";
-        DrawButton(x + 10, upgradeY, w - 20, 32, upgradeLabel, world.CoreUpgradeLevel > 0);
+        DrawButton(x + 10, upgradeY, w - 20, UiTheme.S(28), upgradeLabel, world.CoreUpgradeLevel > 0);
     }
 
     private static void GetMercatoSellOneBounds(
-        int panelX, int panelY, int panelW, int index,
+        int panelX, int panelY, int panelW, int panelH, int index,
         out int x, out int y, out int w, out int h)
     {
-        w = UiTheme.S(28);
-        h = UiTheme.S(20);
-        x = panelX + panelW - UiTheme.S(70);
-        y = InfoMarketRowY(panelY, index);
+        w = MercatoS(28);
+        h = Math.Max(MercatoS(18), MercatoRowHeight(panelH) - MercatoS(10));
+        x = panelX + panelW - MercatoS(72);
+        y = MercatoRowY(panelY, panelH, index) + MercatoS(6);
     }
 
     private static void GetMercatoSellAllBounds(
-        int panelX, int panelY, int panelW, int index,
+        int panelX, int panelY, int panelW, int panelH, int index,
         out int x, out int y, out int w, out int h)
     {
-        w = UiTheme.S(40);
-        h = UiTheme.S(20);
-        x = panelX + panelW - UiTheme.S(40);
-        y = InfoMarketRowY(panelY, index);
+        w = MercatoS(42);
+        h = Math.Max(MercatoS(18), MercatoRowHeight(panelH) - MercatoS(10));
+        x = panelX + panelW - MercatoS(42);
+        y = MercatoRowY(panelY, panelH, index) + MercatoS(6);
     }
 
     private static void DrawCompactMarketButton(int x, int y, int width, int height, string label, bool enabled)
@@ -4063,9 +4284,9 @@ internal static class FactoryGameApp
         var fill = enabled ? new Color(55, 66, 60, 255) : new Color(36, 40, 38, 255);
         var text = enabled ? UiTheme.TextPrimary : UiTheme.TextMuted;
         Raylib.DrawRectangle(x, y, width, height, fill);
-        Raylib.DrawRectangleLines(x, y, width, height, UiTheme.PanelBorder);
+        Raylib.DrawRectangleLines(x, y, width, height, enabled ? UiTheme.AccentDim : UiTheme.PanelBorder);
         var tw = MeasureUiText(label, 11);
-        DrawUiText(label, x + (width - tw) / 2, y + 3, 11, text);
+        DrawUiText(label, x + (width - tw) / 2, y + Math.Max(2, (height - UiTheme.S(11)) / 2), 11, text);
     }
 
     private static bool TryHandleMercatoClick(
@@ -4074,14 +4295,14 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         EconomySession session,
         MarketCatalog market,
-        EconomyConfig economy,
         int panelX,
         int panelY,
         int panelW,
         ref string? statusMessage)
     {
-        var autoY = InfoAutoSellY(panelY);
-        var autoH = UiTheme.S(24);
+        GetMercatoBounds(out _, out _, out _, out var panelH);
+        var autoY = MercatoAutoSellY(panelY);
+        var autoH = MercatoS(24);
         if (Contains(mouse, panelX + 8, autoY, panelW - 16, autoH) && ActiveSettings is not null)
         {
             ActiveSettings.AutoSellAtCore = !ActiveSettings.AutoSellAtCore;
@@ -4097,7 +4318,7 @@ internal static class FactoryGameApp
         {
             var item = items[i];
             var stock = wallet.MaterialCount(item.ItemId);
-            GetMercatoSellOneBounds(panelX, panelY, panelW, i, out var oneX, out var oneY, out var oneW, out var oneH);
+            GetMercatoSellOneBounds(panelX, panelY, panelW, panelH, i, out var oneX, out var oneY, out var oneW, out var oneH);
             if (Contains(mouse, oneX, oneY, oneW, oneH))
             {
                 if (stock <= 0)
@@ -4110,12 +4331,13 @@ internal static class FactoryGameApp
                 {
                     var price = world.EffectiveSalePrice(item.ItemId, market);
                     statusMessage = $"Venduto 1× {item.DisplayName} (+${price}).";
+                    TutorialUsedEconomy = true;
                 }
 
                 return true;
             }
 
-            GetMercatoSellAllBounds(panelX, panelY, panelW, i, out var allX, out var allY, out var allW, out var allH);
+            GetMercatoSellAllBounds(panelX, panelY, panelW, panelH, i, out var allX, out var allY, out var allW, out var allH);
             if (Contains(mouse, allX, allY, allW, allH))
             {
                 if (stock <= 0)
@@ -4127,14 +4349,30 @@ internal static class FactoryGameApp
                 if (world.TrySellFromWallet(wallet, item.ItemId, stock, market, session))
                 {
                     statusMessage = $"Venduti {stock}× {item.DisplayName}.";
+                    TutorialUsedEconomy = true;
                 }
 
                 return true;
             }
         }
 
-        var upgradeY = InfoUpgradeY(panelY);
-        if (Contains(mouse, panelX + 10, upgradeY, panelW - 20, 32))
+        return false;
+    }
+
+    private static bool TryHandleStatusClick(
+        Vector2 mouse,
+        FactoryWorld world,
+        EconomyWallet wallet,
+        EconomySession session,
+        EconomyConfig economy,
+        int panelX,
+        int panelY,
+        int panelW,
+        ref string? statusMessage)
+    {
+        GetStatusBounds(out _, out _, out _, out var panelH);
+        var upgradeY = StatusUpgradeY(panelY, panelH);
+        if (Contains(mouse, panelX + 10, upgradeY, panelW - 20, UiTheme.S(28)))
         {
             if (world.TryUpgradeCore(wallet, economy.CoreUpgrade, session))
             {
@@ -4206,26 +4444,36 @@ internal static class FactoryGameApp
         return tips[index];
     }
 
-    private static void DrawWrappedTip(string tip, int x, int y, int maxWidth)
+    private static void DrawWrappedTip(
+        string tip, int x, int y, int maxWidth, int maxHeight = int.MaxValue, Color? color = null)
     {
         const int fontSize = 12;
         var lineStep = UiTheme.S(16);
+        var maxLines = Math.Max(1, maxHeight / Math.Max(1, lineStep));
+        var drawColor = color ?? new Color(211, 164, 76, 255);
         if (MeasureUiText(tip, fontSize) <= maxWidth)
         {
-            DrawUiText(tip, x, y, fontSize, new Color(211, 164, 76, 255));
+            DrawUiText(tip, x, y, fontSize, drawColor);
             return;
         }
 
         var words = tip.Split(' ');
         var line = string.Empty;
         var lineY = y;
+        var lines = 0;
         foreach (var word in words)
         {
             var candidate = string.IsNullOrEmpty(line) ? word : $"{line} {word}";
             if (MeasureUiText(candidate, fontSize) > maxWidth && !string.IsNullOrEmpty(line))
             {
-                DrawUiText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
+                DrawUiText(line, x, lineY, fontSize, drawColor);
                 lineY += lineStep;
+                lines++;
+                if (lines >= maxLines)
+                {
+                    return;
+                }
+
                 line = word;
             }
             else
@@ -4234,9 +4482,9 @@ internal static class FactoryGameApp
             }
         }
 
-        if (!string.IsNullOrEmpty(line))
+        if (!string.IsNullOrEmpty(line) && lines < maxLines)
         {
-            DrawUiText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
+            DrawUiText(line, x, lineY, fontSize, drawColor);
         }
     }
 
@@ -4364,8 +4612,11 @@ internal static class FactoryGameApp
         TutorialPlacedMiner = false;
         TutorialPlacedBelt = false;
         TutorialSoldOre = false;
+        TutorialUsedEconomy = false;
         TutorialOpenedResearch = false;
         TutorialSoldBaseline = -1;
+        TutorialMoneyBaseline = -1;
+        TutorialMaterialBaseline = -1;
     }
 
     private static void CompleteTutorial(GameSettings settings)
@@ -4424,6 +4675,12 @@ internal static class FactoryGameApp
             TutorialSoldBaseline = world.CoreDeliveredItems;
         }
 
+        if (TutorialMoneyBaseline < 0)
+        {
+            TutorialMoneyBaseline = wallet.Money;
+            TutorialMaterialBaseline = UiTheme.InventoryItems.Sum(i => wallet.MaterialCount(i.ItemId));
+        }
+
         if (world.CoreDeliveredItems > TutorialSoldBaseline)
         {
             TutorialSoldOre = true;
@@ -4439,7 +4696,12 @@ internal static class FactoryGameApp
             TutorialPlacedBelt = true;
         }
 
-        _ = wallet;
+        var materialsNow = UiTheme.InventoryItems.Sum(i => wallet.MaterialCount(i.ItemId));
+        if (wallet.Money > TutorialMoneyBaseline || materialsNow < TutorialMaterialBaseline)
+        {
+            // Sold via Mercato (money up) or spent stock on a build (materials down).
+            TutorialUsedEconomy = true;
+        }
 
         while (true)
         {
@@ -4449,7 +4711,8 @@ internal static class FactoryGameApp
                 1 => TutorialPlacedMiner,
                 2 => TutorialPlacedBelt,
                 3 => TutorialSoldOre,
-                4 => TutorialOpenedResearch,
+                4 => TutorialUsedEconomy,
+                5 => TutorialOpenedResearch,
                 _ => true
             };
             if (!done)
@@ -4469,10 +4732,23 @@ internal static class FactoryGameApp
 
     private static void GetTutorialPanelBounds(out int x, out int y, out int w, out int h)
     {
-        w = Math.Min(UiTheme.S(560), ScreenWidth - 40);
-        h = UiTheme.S(100);
+        w = Math.Min(UiTheme.S(620), ScreenWidth - 40);
+        h = UiTheme.S(118);
         x = (ScreenWidth - w) / 2;
         y = ScreenHeight - h - 16;
+
+        // Stay clear of the build dock (clamp width and/or nudge up only if needed).
+        GetDockBounds(out var dockX, out var dockY, out _, out _);
+        if (y + h > dockY && x + w > dockX - 8)
+        {
+            w = Math.Max(UiTheme.S(320), dockX - x - 16);
+            if (x + w > dockX - 8)
+            {
+                // Center a narrower banner that ends left of the dock.
+                w = Math.Max(UiTheme.S(280), dockX - 24);
+                x = Math.Max(8, (dockX - w) / 2);
+            }
+        }
     }
 
     private static void GetTutorialSkipBounds(out int x, out int y, out int w, out int h)
@@ -4500,10 +4776,12 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(x, y, w, h, new Color(10, 14, 16, 230));
         UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
         var step = Math.Clamp(TutorialStep, 0, TutorialSteps.Length - 1);
-        DrawUiText($"Tutorial {step + 1}/{TutorialSteps.Length}", x + 14, y + 10, 14, UiTheme.Accent);
-        DrawUiText(TutorialSteps[step], x + 14, y + 30, 16, UiTheme.TextPrimary);
+        DrawUiText($"Tutorial {step + 1}/{TutorialSteps.Length}", x + 14, y + 8, 14, UiTheme.Accent);
 
         GetTutorialNextBounds(out var nx, out var ny, out var nw, out var nh);
+        var textMaxW = Math.Max(80, nx - x - 24);
+        DrawWrappedTip(TutorialSteps[step], x + 14, y + UiTheme.S(28), textMaxW, ny - y - UiTheme.S(32), UiTheme.TextPrimary);
+
         DrawMenuButton(nx, ny, nw, nh, step >= TutorialSteps.Length - 1 ? "Fine" : "Avanti");
         GetTutorialSkipBounds(out var sx, out var sy, out var sw, out var sh);
         DrawMenuButton(sx, sy, sw, sh, "Salta");

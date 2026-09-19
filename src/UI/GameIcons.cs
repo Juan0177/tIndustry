@@ -46,6 +46,7 @@ public static class GameIcons
         TryLoad(root, "ui/menu.png", "menu");
         TryLoad(root, "ui/locked.png", "locked");
         TryLoad(root, "ui/power.png", "power");
+        TryLoad(root, "ui/sell.png", "sell");
 
         TryLoad(root, "categories/production.png", "cat-production");
         TryLoad(root, "categories/logistics.png", "cat-logistics");
