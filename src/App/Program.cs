@@ -140,12 +140,20 @@ static void RunSelfTest(GameContent content)
     {
         miningWorld.Update(1f / 30f, miningGrid, miningWallet, ref nextItemId);
     }
-    Assert(miningWorld.SoldItems == 1, "Il core deve incassare il minerale consegnato.");
-    Assert(miningWallet.Money == 73, "Il saldo deve includere costruzioni e vendita al core.");
-    Assert(miningWorld.SaleRevenue == FactoryWorld.IronOreSalePrice,
-        "Il ricavo deve usare il prezzo ore.");
+    Assert(miningWorld.CoreDeliveredItems == 1, "Il core deve ricevere il minerale consegnato.");
+    Assert(miningWorld.SoldItems == 0, "Senza vendita automatica non si liquida al core.");
+    Assert(miningWallet.MaterialCount("iron-ore") == 1,
+        "Il minerale deve accumularsi nel wallet materiali.");
+    Assert(miningWallet.Money == 65,
+        "Il saldo deve riflettere solo i costi di costruzione (niente vendita forzata).");
+    Assert(miningWorld.TrySellFromWallet(miningWallet, "iron-ore", 1),
+        "La vendita esplicita dal wallet deve riuscire.");
+    Assert(miningWallet.Money == 73, "La vendita esplicita deve aggiungere il prezzo ore.");
+    Assert(miningWallet.MaterialCount("iron-ore") == 0, "Dopo la vendita lo stock ore deve scendere.");
+    Assert(miningWorld.SoldItems == 1 && miningWorld.SaleRevenue == FactoryWorld.IronOreSalePrice,
+        "SoldItems/ricavo devono aggiornarsi sulla vendita esplicita.");
 
-    // Mid-transit visibility: miner → belt must carry items before the core sale.
+    // Mid-transit visibility: miner → belt must carry items before the core delivery.
     var transitWorld = new FactoryWorld(12, 8, 7429);
     var transitGrid = new ConveyorGrid();
     var transitWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
@@ -170,7 +178,8 @@ static void RunSelfTest(GameContent content)
     }
 
     Assert(sawItemOnBelt, "I minerali devono risultare presenti sui nastri durante il trasporto.");
-    Assert(transitWorld.SoldItems >= 1, "Transit: vendita al core dopo il trasporto.");
+    Assert(transitWorld.CoreDeliveredItems >= 1, "Transit: consegna al core dopo il trasporto.");
+    Assert(transitWallet.MaterialCount("iron-ore") >= 1, "Transit: stock ore dopo consegna (no auto-sell).");
 
     // Multi-side eject: facing North but belt only on the south edge still receives ore.
     var sideWorld = new FactoryWorld(12, 8, 7429);
@@ -339,7 +348,8 @@ static void RunSelfTest(GameContent content)
     {
         curvedWorld.Update(1f / 30f, curvedGrid, curvedWallet, ref curvedItemId);
     }
-    Assert(curvedWorld.SoldItems > 0, "Una linea con curva deve consegnare minerale al core.");
+    Assert(curvedWorld.CoreDeliveredItems > 0, "Una linea con curva deve consegnare minerale al core.");
+    Assert(curvedWallet.MaterialCount("iron-ore") > 0, "Curva: minerale stockato dopo consegna.");
 
     var partialWorld = new FactoryWorld(12, 8, 7429);
     var partialGrid = new ConveyorGrid();
@@ -385,11 +395,18 @@ static void RunSelfTest(GameContent content)
     }
     Assert(inputBelt.TryInsert(new TransportedItem(smeltItemId++, "iron-ore")), "Ore 2 in ingresso.");
     var moneyBeforePlate = smeltWallet.Money;
+    var platesBefore = smeltWallet.MaterialCount("iron-plate");
     for (var tick = 0; tick < 450; tick++)
     {
         smeltWorld.Update(1f / 30f, smeltGrid, smeltWallet, ref smeltItemId);
     }
-    Assert(smeltWorld.SoldItems >= 1, "Il forno deve produrre lastre vendute al core.");
+    Assert(smeltWorld.CoreDeliveredItems >= 1, "Il forno deve produrre lastre consegnate al core.");
+    Assert(smeltWorld.SoldItems == 0, "Senza auto-sell le lastre non si liquidano da sole.");
+    Assert(smeltWallet.MaterialCount("iron-plate") >= platesBefore + 1,
+        "Le lastre devono accumularsi nello stock per i costi di build.");
+    Assert(smeltWallet.Money == moneyBeforePlate, "Stock-first: niente $ dalla consegna lastre.");
+    Assert(smeltWorld.TrySellFromWallet(smeltWallet, "iron-plate", 1),
+        "Vendita esplicita lastre dal Mercato/wallet.");
     Assert(smeltWallet.Money >= moneyBeforePlate + FactoryWorld.IronPlateSalePrice,
         "La lastra deve vendere più dell'ore.");
     Assert(smeltWorld.SaleRevenue >= FactoryWorld.IronPlateSalePrice,
@@ -480,9 +497,9 @@ static void RunSelfTest(GameContent content)
         "I prezzi mercato devono essere content-driven (ore 8, lastre 30).");
     Assert(market.GetSellPrice("iron-plate") > market.GetSellPrice("iron-ore") * 2,
         "Una lastra deve valere più di 2 ore grezze (reinvestimento).");
-    Assert(market.BestValueHint().Contains("fondere", StringComparison.OrdinalIgnoreCase)
-        || market.BestValueHint().Contains("lastre", StringComparison.OrdinalIgnoreCase),
-        "L'hint mercato deve suggerire la fusione.");
+    Assert(market.BestValueHint().Contains("lastre", StringComparison.OrdinalIgnoreCase)
+        || market.BestValueHint().Contains("Stock", StringComparison.OrdinalIgnoreCase),
+        "L'hint mercato deve spiegare stock/vendita lastre.");
 
     var minerBuilding = content.GetBuildingOrDefault("miner");
     var smelterBuilding = content.GetBuildingOrDefault("smelter");
@@ -511,13 +528,27 @@ static void RunSelfTest(GameContent content)
 
     for (var tick = 0; tick < 210; tick++)
     {
-        ecoWorld.Update(1f / 30f, ecoGrid, ecoWallet, ref ecoItemId, market, ecoSession);
+        // autoSellAtCore: true — optional liquidation path still grants money + session stats.
+        ecoWorld.Update(1f / 30f, ecoGrid, ecoWallet, ref ecoItemId, market, ecoSession, autoSellAtCore: true);
     }
-    Assert(ecoWorld.SoldItems >= 1, "Il loop economia deve vendere almeno un item.");
+    Assert(ecoWorld.SoldItems >= 1, "Con vendita automatica il loop deve vendere almeno un item.");
     Assert(ecoSession.SaleIncome >= market.GetSellPrice("iron-ore"),
         "La sessione deve registrare le vendite.");
     Assert(ecoSession.SoldByItem.GetValueOrDefault("iron-ore") >= 1,
         "SoldByItem deve contare le ore vendute.");
+
+    // Stock-first build spend: plates in wallet are consumed by construction, not auto-sold away.
+    var buildStockWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 5 });
+    var buildStockWorld = new FactoryWorld(12, 8, 7429);
+    var buildStockGrid = new ConveyorGrid();
+    var platesBeforeBuild = buildStockWallet.MaterialCount("iron-plate");
+    Assert(buildStockWorld.TryPlaceMiner(
+            buildStockWorld.StarterDepositOrigin, Direction.East, buildStockGrid, buildStockWallet, minerBuilding),
+        "Build deve spendere lastre dallo stock.");
+    Assert(buildStockWallet.MaterialCount("iron-plate") == platesBeforeBuild - minerBuilding.BuildCost.Sum(e => e.Amount),
+        "Il piazzamento deve consumare materiali dal wallet.");
+    Assert(!buildStockWallet.TryRemoveMaterial("iron-plate", 999),
+        "TryRemoveMaterial deve fallire senza stock sufficiente.");
 
     Assert(ecoWorld.TryUpgradeCore(ecoWallet, economy.CoreUpgrade, ecoSession),
         "L'upgrade del core deve consumare risorse.");
@@ -725,13 +756,18 @@ static void RunSelfTest(GameContent content)
     }
     Assert(craftIn.TryInsert(new TransportedItem(craftItemId++, "iron-plate")), "Lastra in ingresso.");
     var moneyBeforeWire = craftWallet.Money;
+    var wiresBefore = craftWallet.MaterialCount("copper-wire");
     for (var tick = 0; tick < 400; tick++)
     {
         craftWorld.Update(1f / 30f, craftGrid, craftWallet, ref craftItemId, market);
     }
-    Assert(craftWorld.SoldItems >= 1, "L'assemblatore deve produrre fili venduti al core.");
+    Assert(craftWorld.CoreDeliveredItems >= 1, "L'assemblatore deve produrre fili consegnati al core.");
+    Assert(craftWallet.MaterialCount("copper-wire") >= wiresBefore + 1,
+        "I fili devono restare in stock (utili per build/unlock).");
+    Assert(craftWorld.TrySellFromWallet(craftWallet, "copper-wire", 1, market),
+        "Vendita esplicita filo di rame.");
     Assert(craftWallet.Money >= moneyBeforeWire + market.GetSellPrice("copper-wire"),
-        "Il filo di rame deve essere venduto al core.");
+        "Il filo di rame deve poter essere venduto per $.");
 
     // Save assemblers + bridge in v5.
     var phase5Camera = new WorldCamera(3f, 3f, 1.2f);
@@ -772,7 +808,8 @@ static void RunSelfTest(GameContent content)
     {
         stressWorld.Update(1f / 30f, stressGrid, stressWallet, ref stressItemId, market);
     }
-    Assert(stressWorld.SoldItems >= 1, "Una linea lunga deve consegnare al core senza soft-lock.");
+    Assert(stressWorld.CoreDeliveredItems >= 1, "Una linea lunga deve consegnare al core senza soft-lock.");
+    Assert(stressWallet.MaterialCount("iron-ore") >= 1, "Stress: item stockato, non sparito.");
 
     // Phase 6 — power stub, generator, save v6.
     Assert(content.FindStructure("generator") is { IsStub: false },
@@ -831,6 +868,7 @@ static void RunSelfTest(GameContent content)
         {
             ShowFps = true,
             ShowResourceOverlay = false,
+            AutoSellAtCore = true,
             ResolutionWidth = 1440,
             ResolutionHeight = 900,
             UseAutoResolution = false,
@@ -844,6 +882,8 @@ static void RunSelfTest(GameContent content)
         var reloaded = GameSettings.Load();
         Assert(reloaded.ShowFps, "ShowFps deve persistere.");
         Assert(!reloaded.ShowResourceOverlay, "ShowResourceOverlay (risorse sistema) deve persistere.");
+        Assert(reloaded.AutoSellAtCore, "AutoSellAtCore deve persistere.");
+        Assert(!new GameSettings().AutoSellAtCore, "Vendita automatica OFF di default (stock-first).");
         Assert(reloaded.ResolutionWidth == 1440 && reloaded.ResolutionHeight == 900,
             "Risoluzione deve persistere.");
         Assert(reloaded.DisplayMode == DisplayMode.Borderless, "Modalità schermo deve persistere.");

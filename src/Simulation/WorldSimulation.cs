@@ -596,6 +596,8 @@ public sealed class FactoryWorld
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
     public int SaleRevenue { get; private set; }
+    /// <summary>Items that reached the core (stocked or auto-sold).</summary>
+    public int CoreDeliveredItems { get; private set; }
     public int CoreUpgradeLevel { get; private set; }
     public int CoreSaleBonusPercent { get; private set; }
     public float PowerBuffer { get; private set; }
@@ -619,6 +621,9 @@ public sealed class FactoryWorld
         SoldItems = soldItems;
         SaleRevenue = saleRevenue >= 0 ? saleRevenue : soldItems * IronOreSalePrice;
     }
+
+    public void SetCoreDeliveredItems(int delivered) =>
+        CoreDeliveredItems = Math.Max(0, delivered);
 
     public void SetCoreUpgrade(int level, int saleBonusPercent)
     {
@@ -982,7 +987,8 @@ public sealed class FactoryWorld
         EconomyWallet wallet,
         ref long nextItemId,
         MarketCatalog? market = null,
-        EconomySession? session = null)
+        EconomySession? session = null,
+        bool autoSellAtCore = false)
     {
         market ??= MarketCatalog.Default;
         var generation = CorePowerGeneration + generators.Count * GeneratorBuilding.GenerationPerSecond;
@@ -1045,12 +1051,53 @@ public sealed class FactoryWorld
             while (CoreTiles.Contains(conveyor.OutputPosition) && conveyor.PeekOutput() is { } item)
             {
                 conveyor.RemoveOutput();
-                var price = EffectiveSalePrice(item.ItemId, market);
-                wallet.AddMoney(price);
-                SaleRevenue += price;
-                SoldItems++;
-                session?.RecordSale(item.ItemId, price);
+                CoreDeliveredItems++;
+                if (autoSellAtCore)
+                {
+                    ApplyCoreSale(wallet, item.ItemId, 1, market, session);
+                }
+                else
+                {
+                    // Stock-first: materials accumulate for builds/unlocks; sell via Mercato.
+                    wallet.AddMaterial(item.ItemId, 1);
+                }
             }
+        }
+    }
+
+    /// <summary>Sell stocked materials from the wallet at the current core market price.</summary>
+    public bool TrySellFromWallet(
+        EconomyWallet wallet,
+        string itemId,
+        int amount,
+        MarketCatalog? market = null,
+        EconomySession? session = null)
+    {
+        market ??= MarketCatalog.Default;
+        if (amount <= 0 || !wallet.TryRemoveMaterial(itemId, amount))
+        {
+            return false;
+        }
+
+        ApplyCoreSale(wallet, itemId, amount, market, session);
+        return true;
+    }
+
+    private void ApplyCoreSale(
+        EconomyWallet wallet,
+        string itemId,
+        int amount,
+        MarketCatalog market,
+        EconomySession? session)
+    {
+        var unitPrice = EffectiveSalePrice(itemId, market);
+        var total = unitPrice * amount;
+        wallet.AddMoney(total);
+        SaleRevenue += total;
+        SoldItems += amount;
+        for (var i = 0; i < amount; i++)
+        {
+            session?.RecordSale(itemId, unitPrice);
         }
     }
 

@@ -71,7 +71,7 @@ internal static class FactoryGameApp
         "Muovi la camera: WASD, Shift+trascina o rotella centrale.",
         "Piazza un MINATORE (2) sul giacimento di ferro a ovest del core.",
         "Collega NASTRI (1) da qualsiasi lato del minatore fino al CORE.",
-        "Aspetta che i minerali arrivino al core (guadagni $).",
+        "Aspetta i minerali al core: finiscono in magazzino (strip in alto).",
         "Apri RICERCA (T) e sblocca il FORNO quando puoi."
     ];
 
@@ -341,7 +341,14 @@ internal static class FactoryGameApp
                         frameTime);
                     while (accumulator >= FixedStep)
                     {
-                        world!.Update(FixedStep, conveyors!, wallet!, ref nextItemId, market!, session!);
+                        world!.Update(
+                            FixedStep,
+                            conveyors!,
+                            wallet!,
+                            ref nextItemId,
+                            market!,
+                            session!,
+                            settings.AutoSellAtCore);
                         accumulator -= FixedStep;
                     }
 
@@ -1237,7 +1244,6 @@ internal static class FactoryGameApp
         long nextItemId,
         float frameTime)
     {
-        _ = market;
         if (Raylib.IsKeyPressed(KeyboardKey.Escape)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && HitHeaderIcon(Raylib.GetMousePosition(), 0)))
@@ -1313,14 +1319,18 @@ internal static class FactoryGameApp
         }
 
         GetInfoBounds(out var infoX, out var infoY, out var infoW, out _);
-        var upgradeY = InfoUpgradeY(infoY);
-        if (Raylib.IsKeyPressed(KeyboardKey.U)
-            || (Raylib.IsMouseButtonPressed(MouseButton.Left)
-                && Contains(mouse, infoX + 10, upgradeY, infoW - 20, 32)))
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left)
+            && TryHandleMercatoClick(mouse, world, wallet, session, market, economy, infoX, infoY, infoW, ref statusMessage))
+        {
+            previousDragPosition = null;
+            return;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.U))
         {
             if (world.TryUpgradeCore(wallet, economy.CoreUpgrade, session))
             {
-                statusMessage = "Core potenziato: +vendite!";
+                statusMessage = "Core potenziato: +prezzo vendite!";
             }
         }
 
@@ -1951,13 +1961,19 @@ internal static class FactoryGameApp
     private static void GetInfoBounds(out int x, out int y, out int width, out int height)
     {
         width = InfoPanelWidth;
-        // Extra height so market tip + CORE button stay clear under UI scale.
-        height = UiTheme.S(248);
+        // Market rows + auto-sell toggle + tip + CORE button.
+        height = UiTheme.S(320);
         x = ScreenWidth - width - UiTheme.DockMargin;
         y = ViewportTop + 8;
     }
 
-    private static int InfoUpgradeY(int infoY) => infoY + UiTheme.S(204);
+    private static int InfoAutoSellY(int infoY) => infoY + UiTheme.S(28);
+
+    private static int InfoMarketHintY(int infoY) => infoY + UiTheme.S(56);
+
+    private static int InfoMarketRowY(int infoY, int index) => infoY + UiTheme.S(76) + index * UiTheme.S(24);
+
+    private static int InfoUpgradeY(int infoY) => infoY + UiTheme.S(276);
 
     private static bool IsOverHudChrome(Vector2 mouse)
     {
@@ -3944,12 +3960,22 @@ internal static class FactoryGameApp
         UiTheme.DrawAccentRect(x, y, w, h, UiTheme.PanelBorder, 1);
 
         DrawUiText("MERCATO", x + 10, y + 8, 14, UiTheme.TextPrimary);
-        var marketY = y + 30;
-        var nameMaxW = w - 90;
+
+        var autoSell = ActiveSettings?.AutoSellAtCore ?? false;
+        DrawToggleRow(x + 8, InfoAutoSellY(y), w - 16, UiTheme.S(24), "Vendita automatica", autoSell);
+
+        DrawUiText(
+            autoSell ? "ON: il core liquida subito in $." : "OFF: stock in magazzino; vendi qui.",
+            x + 10, InfoMarketHintY(y), 11, UiTheme.TextMuted);
+
+        var nameMaxW = w - 118;
+        var index = 0;
         foreach (var item in market.Items.Take(4))
         {
+            var rowY = InfoMarketRowY(y, index);
+            var stock = wallet.MaterialCount(item.ItemId);
             var effective = world.EffectiveSalePrice(item.ItemId, market);
-            UiTheme.DrawItemIcon(item.ItemId, x + 10, marketY - 1, 14);
+            UiTheme.DrawItemIcon(item.ItemId, x + 10, rowY - 1, 14);
 
             var name = item.DisplayName;
             while (name.Length > 3 && MeasureUiText(name, 12) > nameMaxW)
@@ -3962,14 +3988,16 @@ internal static class FactoryGameApp
                 name = name.TrimEnd() + "…";
             }
 
-            DrawUiText(name, x + 28, marketY, 12, UiTheme.TextMuted);
+            DrawUiText(name, x + 28, rowY, 12, UiTheme.TextMuted);
 
-            // Price column right-aligned: base→effective or single price.
+            var stockLabel = $"×{stock}";
+            DrawUiText(stockLabel, x + 28, rowY + 12, 10, stock > 0 ? UiTheme.TextPrimary : UiTheme.TextMuted);
+
             string priceLabel;
             Color priceColor;
             if (effective != item.SellPrice)
             {
-                priceLabel = $"${item.SellPrice}→${effective}";
+                priceLabel = $"${effective}";
                 priceColor = new Color(211, 164, 76, 255);
             }
             else
@@ -3978,23 +4006,29 @@ internal static class FactoryGameApp
                 priceColor = UiTheme.TextPrimary;
             }
 
-            var pw = MeasureUiText(priceLabel, 12);
-            DrawUiText(priceLabel, x + w - 10 - pw, marketY, 12, priceColor);
-            marketY += 18;
+            var pw = MeasureUiText(priceLabel, 11);
+            DrawUiText(priceLabel, x + w - 78 - pw, rowY + 2, 11, priceColor);
+
+            GetMercatoSellOneBounds(x, y, w, index, out var oneX, out var oneY, out var oneW, out var oneH);
+            GetMercatoSellAllBounds(x, y, w, index, out var allX, out var allY, out var allW, out var allH);
+            DrawCompactMarketButton(oneX, oneY, oneW, oneH, "1", stock > 0);
+            DrawCompactMarketButton(allX, allY, allW, allH, "tutti", stock > 0);
+            index++;
         }
 
+        var tipY = InfoMarketRowY(y, 4) + 4;
         var net = session.NetWorthDelta(wallet);
         DrawUiText(
             $"{UiTheme.SessionDeltaLabel(net)}  ·  PWR {world.PowerBuffer:0}/{world.PowerCapacity:0}",
-            x + 10, marketY + 6, 11,
+            x + 10, tipY, 11,
             net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed);
 
         DrawUiText(
             $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count}",
-            x + 10, marketY + 24, 11, UiTheme.TextMuted);
+            x + 10, tipY + 16, 11, UiTheme.TextMuted);
 
         var tip = GetOnboardingTip(world, conveyors, research, wallet);
-        DrawWrappedTip(tip, x + 10, marketY + 42, w - 20);
+        DrawWrappedTip(tip, x + 10, tipY + 32, w - 20);
 
         var upgrade = economy.CoreUpgrade;
         var upgradeY = InfoUpgradeY(y);
@@ -4002,6 +4036,115 @@ internal static class FactoryGameApp
             ? $"CORE LV{world.CoreUpgradeLevel}"
             : $"CORE ${upgrade.MoneyCost}";
         DrawButton(x + 10, upgradeY, w - 20, 32, upgradeLabel, world.CoreUpgradeLevel > 0);
+    }
+
+    private static void GetMercatoSellOneBounds(
+        int panelX, int panelY, int panelW, int index,
+        out int x, out int y, out int w, out int h)
+    {
+        w = UiTheme.S(28);
+        h = UiTheme.S(20);
+        x = panelX + panelW - UiTheme.S(70);
+        y = InfoMarketRowY(panelY, index);
+    }
+
+    private static void GetMercatoSellAllBounds(
+        int panelX, int panelY, int panelW, int index,
+        out int x, out int y, out int w, out int h)
+    {
+        w = UiTheme.S(40);
+        h = UiTheme.S(20);
+        x = panelX + panelW - UiTheme.S(40);
+        y = InfoMarketRowY(panelY, index);
+    }
+
+    private static void DrawCompactMarketButton(int x, int y, int width, int height, string label, bool enabled)
+    {
+        var fill = enabled ? new Color(55, 66, 60, 255) : new Color(36, 40, 38, 255);
+        var text = enabled ? UiTheme.TextPrimary : UiTheme.TextMuted;
+        Raylib.DrawRectangle(x, y, width, height, fill);
+        Raylib.DrawRectangleLines(x, y, width, height, UiTheme.PanelBorder);
+        var tw = MeasureUiText(label, 11);
+        DrawUiText(label, x + (width - tw) / 2, y + 3, 11, text);
+    }
+
+    private static bool TryHandleMercatoClick(
+        Vector2 mouse,
+        FactoryWorld world,
+        EconomyWallet wallet,
+        EconomySession session,
+        MarketCatalog market,
+        EconomyConfig economy,
+        int panelX,
+        int panelY,
+        int panelW,
+        ref string? statusMessage)
+    {
+        var autoY = InfoAutoSellY(panelY);
+        var autoH = UiTheme.S(24);
+        if (Contains(mouse, panelX + 8, autoY, panelW - 16, autoH) && ActiveSettings is not null)
+        {
+            ActiveSettings.AutoSellAtCore = !ActiveSettings.AutoSellAtCore;
+            ActiveSettings.Save();
+            statusMessage = ActiveSettings.AutoSellAtCore
+                ? "Vendita automatica ON: il core liquida in $."
+                : "Vendita automatica OFF: stock in magazzino.";
+            return true;
+        }
+
+        var items = market.Items.Take(4).ToList();
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            var stock = wallet.MaterialCount(item.ItemId);
+            GetMercatoSellOneBounds(panelX, panelY, panelW, i, out var oneX, out var oneY, out var oneW, out var oneH);
+            if (Contains(mouse, oneX, oneY, oneW, oneH))
+            {
+                if (stock <= 0)
+                {
+                    statusMessage = $"Nessun {item.DisplayName} in magazzino.";
+                    return true;
+                }
+
+                if (world.TrySellFromWallet(wallet, item.ItemId, 1, market, session))
+                {
+                    var price = world.EffectiveSalePrice(item.ItemId, market);
+                    statusMessage = $"Venduto 1× {item.DisplayName} (+${price}).";
+                }
+
+                return true;
+            }
+
+            GetMercatoSellAllBounds(panelX, panelY, panelW, i, out var allX, out var allY, out var allW, out var allH);
+            if (Contains(mouse, allX, allY, allW, allH))
+            {
+                if (stock <= 0)
+                {
+                    statusMessage = $"Nessun {item.DisplayName} in magazzino.";
+                    return true;
+                }
+
+                if (world.TrySellFromWallet(wallet, item.ItemId, stock, market, session))
+                {
+                    statusMessage = $"Venduti {stock}× {item.DisplayName}.";
+                }
+
+                return true;
+            }
+        }
+
+        var upgradeY = InfoUpgradeY(panelY);
+        if (Contains(mouse, panelX + 10, upgradeY, panelW - 20, 32))
+        {
+            if (world.TryUpgradeCore(wallet, economy.CoreUpgrade, session))
+            {
+                statusMessage = "Core potenziato: +prezzo vendite!";
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static string GetOnboardingTip(
@@ -4017,7 +4160,18 @@ internal static class FactoryGameApp
 
         if (conveyors.Cells.Count == 0)
         {
-            return "Collega un nastro al CORE per vendere.";
+            return "Collega un nastro al CORE per accumulare stock.";
+        }
+
+        if (world.CoreDeliveredItems == 0)
+        {
+            return "Porta ore al CORE: entrano in magazzino.";
+        }
+
+        if (wallet.MaterialCount("iron-ore") > 0 && world.Smelters.Count == 0
+            && !research.IsUnlocked("smelter") && wallet.Money < 80)
+        {
+            return "Vendi ore dal Mercato (pulsante 1/tutti) se ti servono $.";
         }
 
         if (!research.IsUnlocked("smelter") && wallet.Money >= 80)
@@ -4027,7 +4181,7 @@ internal static class FactoryGameApp
 
         if (research.IsUnlocked("smelter") && world.Smelters.Count == 0)
         {
-            return "Piazza un FORNO per fondere il ferro.";
+            return "Piazza un FORNO: le lastre servono per costruire.";
         }
 
         var crafters = world.Smelters.Count + world.Assemblers.Count;
@@ -4042,10 +4196,11 @@ internal static class FactoryGameApp
 
         var tips = new[]
         {
+            "Produce → stock → costruisci, oppure vendi dal Mercato.",
             "Esplora giacimenti di rame a sud-est.",
             "Sblocca lo sdoppiatore per biforcare i flussi.",
             "L'assemblatore trasforma il rame in fili.",
-            "Vendi lastre al CORE per guadagnare di più."
+            "Vendita automatica OFF tiene lastre e fili per i costi."
         };
         var index = (int)(Raylib.GetTime() / 8.0) % tips.Length;
         return tips[index];
@@ -4266,10 +4421,10 @@ internal static class FactoryGameApp
 
         if (TutorialSoldBaseline < 0)
         {
-            TutorialSoldBaseline = world.SoldItems;
+            TutorialSoldBaseline = world.CoreDeliveredItems;
         }
 
-        if (world.SoldItems > TutorialSoldBaseline)
+        if (world.CoreDeliveredItems > TutorialSoldBaseline)
         {
             TutorialSoldOre = true;
         }

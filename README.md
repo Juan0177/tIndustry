@@ -25,7 +25,7 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
 | Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
-| Economia | Wallet (denaro + lastre + fili), prezzi mercato, rimborso 100%, **potenziamento core** (+25% vendite) |
+| Economia | Wallet (denaro + stock materiali), core → magazzino poi vendita Mercato (auto-sell opzionale), rimborso 100%, **potenziamento core** (+25% vendite) |
 | Progressione | **Ricerca** data-driven; **tutorial** IT 5 step — riparte su **Nuova partita** / **Rivedi tutorial** (**Salta** / Fine) |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** solo con autosave), scenari + seed, save JSON **v6** |
 | Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT |

@@ -43,6 +43,11 @@ public sealed class GameSettings
 
     public bool ShowFps { get; set; }
     public bool ShowResourceOverlay { get; set; } = true;
+    /// <summary>
+    /// When true, items arriving at the core sell for money immediately.
+    /// Default false: stock into the material wallet; sell explicitly from Mercato.
+    /// </summary>
+    public bool AutoSellAtCore { get; set; }
     public int ResolutionWidth { get; set; } = 1240;
     public int ResolutionHeight { get; set; } = 760;
     public bool UseAutoResolution { get; set; }
@@ -100,6 +105,7 @@ public sealed class GameSettings
     {
         ShowFps = ShowFps,
         ShowResourceOverlay = ShowResourceOverlay,
+        AutoSellAtCore = AutoSellAtCore,
         ResolutionWidth = ResolutionWidth,
         ResolutionHeight = ResolutionHeight,
         UseAutoResolution = UseAutoResolution,
@@ -114,6 +120,7 @@ public sealed class GameSettings
     {
         ShowFps = other.ShowFps;
         ShowResourceOverlay = other.ShowResourceOverlay;
+        AutoSellAtCore = other.AutoSellAtCore;
         ResolutionWidth = other.ResolutionWidth;
         ResolutionHeight = other.ResolutionHeight;
         UseAutoResolution = other.UseAutoResolution;
