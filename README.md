@@ -109,7 +109,7 @@ Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo p
 **Home**
 
 - **Continua** — carica l’autosave (nascosto se non c’è uno slot valido)
-- **Nuova partita** — scenario + seed, mappa 1000×1000 (+ tutorial se prima volta)
+- **Nuova partita** — scenario + seed, mappa 1000×1000 (+ tutorial a ogni Conferma; **Rivedi tutorial** in Impostazioni)
 - **Gestione salvataggi** — lista slot, carica, elimina, **Duplica Continua** → `slot-*.json`
 - **Impostazioni** — overlay
 - **Esci** — chiude il gioco (non la partita: salva prima se ti serve)
