@@ -23,12 +23,12 @@ internal static class FactoryGameApp
     public const int MapHeight = 1000;
     private const int BaseTileSize = 36;
     private const int HeaderHeightBase = 64;
-    private const int InfoPanelWidthBase = 304;
+    private const int InfoPanelWidthBase = 312;
     private const int MercatoRowHeightBase = 40;
-    private const int MercatoPadBase = 10;
+    private const int MercatoPadBase = 12;
     private const int MercatoSellOneWBase = 28;
-    private const int MercatoSellAllWBase = 48;
-    private const int MercatoSellGapBase = 4;
+    private const int MercatoSellAllWBase = 52;
+    private const int MercatoSellGapBase = 5;
     private const int StatusPanelHeightBase = 148;
     private const int HeaderIconSizeBase = 40;
     private const int HeaderIconGapBase = 8;
@@ -190,7 +190,16 @@ internal static class FactoryGameApp
         {
             StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
             screen = AppScreen.Playing;
+            // Capture demos: show Production + Minatore cost row in the dock footer.
+            tool = BuildTool.Miner;
+            DockCategory = UiTheme.BuildCategory.Production;
+            DockSelectedId = "miner";
+            wallet!.AddMaterial("iron-plate", 12);
+            wallet.AddMaterial("iron-ore", 48);
+            wallet.AddMaterial("copper-ore", 20);
+            wallet.AddMaterial("copper-wire", 8);
             BeginTutorialIfNeeded(settings);
+            TutorialActive = false;
         }
 
         var flags = ConfigFlags.Msaa4xHint;
@@ -4898,7 +4907,8 @@ internal static class FactoryGameApp
         }
 
         Raylib.DrawRectangle(x, y, w, h, UiTheme.PanelFill);
-        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.PanelBorder, 1);
+        // Same accent column as Mercato so the HUD stack reads as one width.
+        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
 
         var pad = MercatoS(MercatoPadBase);
         DrawUiText("FABBRICA", x + pad, y + MercatoS(6), 13, UiTheme.TextMuted);
