@@ -1,0 +1,142 @@
+{
+  "levels": [
+    {
+      "id": "level-01-primi-passi",
+      "name": "Primi passi",
+      "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
+      "seed": 7429,
+      "mapWidth": 64,
+      "mapHeight": 48,
+      "startingMoney": 220,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 60 },
+        { "itemId": "copper-wire", "amount": 8 }
+      ],
+      "objectives": [
+        {
+          "type": "sellItem",
+          "itemId": "iron-ore",
+          "amount": 3,
+          "label": "Vendi 3 ferro grezzo"
+        },
+        {
+          "type": "earnMoney",
+          "amount": 24,
+          "label": "Guadagna $24 dalle vendite"
+        }
+      ],
+      "unlocksNext": "level-02-prima-fabbrica"
+    },
+    {
+      "id": "level-02-prima-fabbrica",
+      "name": "Prima fabbrica",
+      "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
+      "seed": 1337,
+      "mapWidth": 128,
+      "mapHeight": 96,
+      "startingMoney": 180,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 48 },
+        { "itemId": "copper-wire", "amount": 10 }
+      ],
+      "objectives": [
+        {
+          "type": "stockItem",
+          "itemId": "iron-ore",
+          "amount": 12,
+          "label": "Stock 12 ferro grezzo"
+        }
+      ],
+      "unlocksNext": "level-03-lastre"
+    },
+    {
+      "id": "level-03-lastre",
+      "name": "Lastre di ferro",
+      "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
+      "seed": 7429,
+      "mapWidth": 256,
+      "mapHeight": 192,
+      "startingMoney": 200,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 25 },
+        { "itemId": "copper-wire", "amount": 12 }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "smelter",
+          "amount": 1,
+          "label": "Sblocca il forno"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "iron-plate",
+          "amount": 12,
+          "label": "Stock 12 lastre di ferro"
+        }
+      ],
+      "unlocksNext": "level-04-fili"
+    },
+    {
+      "id": "level-04-fili",
+      "name": "Fili di rame",
+      "description": "Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.",
+      "seed": 9001,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 300,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 55 },
+        { "itemId": "copper-wire", "amount": 6 }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "assembler",
+          "amount": 1,
+          "label": "Sblocca l'assemblatore"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "copper-wire",
+          "amount": 4,
+          "label": "Stock 4 fili di rame"
+        },
+        {
+          "type": "sellItem",
+          "itemId": "copper-wire",
+          "amount": 2,
+          "label": "Vendi 2 fili di rame"
+        }
+      ],
+      "unlocksNext": "level-05-mercato"
+    },
+    {
+      "id": "level-05-mercato",
+      "name": "Economia Foundry",
+      "description": "Reinvestimento: vendi lastre e costruisci un piccolo surplus.",
+      "seed": 7429,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 160,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 12 },
+        { "itemId": "copper-wire", "amount": 8 }
+      ],
+      "objectives": [
+        {
+          "type": "earnMoney",
+          "amount": 150,
+          "label": "Guadagna $150 dalle vendite"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "iron-plate",
+          "amount": 20,
+          "label": "Stock 20 lastre"
+        }
+      ],
+      "unlocksNext": null
+    }
+  ]
+}
