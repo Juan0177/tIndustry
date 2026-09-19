@@ -215,19 +215,35 @@ public sealed class MinerBuilding
         }
     }
 
+    /// <summary>
+    /// Every tile adjacent to the 2×2 footprint (N/E/S/W). Direction is unused for eject —
+    /// ore can enter any neighboring belt/input that accepts.
+    /// </summary>
     public IEnumerable<GridPosition> OutputTiles()
     {
-        for (var offset = 0; offset < Size; offset++)
+        foreach (var edge in DirectionMath.All)
         {
-            yield return Direction switch
+            for (var offset = 0; offset < Size; offset++)
             {
-                Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
-                Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
-                Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
-                Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
-                _ => Position
-            };
+                yield return edge switch
+                {
+                    Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
+                    Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
+                    Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
+                    Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
+                    _ => Position
+                };
+            }
         }
+    }
+
+    /// <summary>Travel direction from the miner footprint into an adjacent output tile.</summary>
+    public static bool TryTravelInto(GridPosition output, GridPosition minerOrigin, out Direction travel)
+    {
+        var adjacent = new GridPosition(
+            Math.Clamp(output.X, minerOrigin.X, minerOrigin.X + Size - 1),
+            Math.Clamp(output.Y, minerOrigin.Y, minerOrigin.Y + Size - 1));
+        return ConveyorGrid.TryDirectionBetween(adjacent, output, out travel);
     }
 }
 
@@ -976,8 +992,15 @@ public sealed class FactoryWorld
             var produced = false;
             foreach (var outputPosition in miner.OutputTiles())
             {
-                if (conveyors.Cells.TryGetValue(outputPosition, out var output)
-                    && output.TryInsert(new TransportedItem(nextItemId, miner.OutputItemId)))
+                if (!conveyors.Cells.TryGetValue(outputPosition, out var output))
+                {
+                    continue;
+                }
+
+                Direction? travel = MinerBuilding.TryTravelInto(outputPosition, miner.Position, out var into)
+                    ? into
+                    : null;
+                if (output.TryInsert(new TransportedItem(nextItemId, miner.OutputItemId), travel))
                 {
                     nextItemId++;
                     produced = true;

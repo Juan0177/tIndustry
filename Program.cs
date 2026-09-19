@@ -122,8 +122,14 @@ static void RunSelfTest(GameContent content)
     Assert(miningWorld.TryPlaceMiner(miningMiner, Direction.East, miningGrid, miningWallet),
         "Il minatore deve poter essere piazzato sul giacimento garantito.");
     var miningOutX = miningMiner.X + MinerBuilding.Size;
-    Assert(miningWorld.Miners[miningMiner].OutputTiles().All(tile => tile.X == miningOutX),
-        "Il minatore deve erogare solo sul lato della direzione scelta.");
+    var miningOutputs = miningWorld.Miners[miningMiner].OutputTiles().ToHashSet();
+    Assert(miningOutputs.Count == MinerBuilding.Size * DirectionMath.All.Length,
+        "Il minatore deve esporre tile di uscita su tutti e quattro i lati.");
+    Assert(miningOutputs.Contains(new GridPosition(miningOutX, miningMiner.Y))
+        && miningOutputs.Contains(new GridPosition(miningMiner.X, miningMiner.Y - 1))
+        && miningOutputs.Contains(new GridPosition(miningMiner.X, miningMiner.Y + MinerBuilding.Size))
+        && miningOutputs.Contains(new GridPosition(miningMiner.X - 1, miningMiner.Y)),
+        "Il minatore deve erogare su N/E/S/O, non solo sul facing.");
     for (var x = miningOutX; x < miningWorld.CoreOrigin.X; x++)
     {
         Assert(miningGrid.TryPlace(new GridPosition(x, miningMiner.Y), Direction.East, definition, miningWallet, research),
@@ -165,6 +171,31 @@ static void RunSelfTest(GameContent content)
 
     Assert(sawItemOnBelt, "I minerali devono risultare presenti sui nastri durante il trasporto.");
     Assert(transitWorld.SoldItems >= 1, "Transit: vendita al core dopo il trasporto.");
+
+    // Multi-side eject: facing North but belt only on the south edge still receives ore.
+    var sideWorld = new FactoryWorld(12, 8, 7429);
+    var sideGrid = new ConveyorGrid();
+    var sideWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
+    var sideId = 70L;
+    var sideMiner = sideWorld.StarterDepositOrigin;
+    Assert(sideWorld.TryPlaceMiner(sideMiner, Direction.North, sideGrid, sideWallet),
+        "Multi-side: minatore (facing Nord irrilevante).");
+    var southBelt = new GridPosition(sideMiner.X, sideMiner.Y + MinerBuilding.Size);
+    Assert(sideWorld.CanPlaceConveyor(southBelt), "Multi-side: tile sud del minatore libera.");
+    Assert(sideGrid.TryPlace(southBelt, Direction.East, definition, sideWallet, research),
+        "Multi-side: nastro solo a sud.");
+    var sawSouthEject = false;
+    for (var tick = 0; tick < 210; tick++)
+    {
+        sideWorld.Update(1f / 30f, sideGrid, sideWallet, ref sideId);
+        if (sideGrid.Cells.TryGetValue(southBelt, out var cell) && cell.Items.Count > 0)
+        {
+            sawSouthEject = true;
+            break;
+        }
+    }
+
+    Assert(sawSouthEject, "Il minatore deve erogare anche sul lato opposto al facing.");
 
     // Off-deposit miner: placeable at 0% efficiency, no output.
     var barrenWorld = new FactoryWorld(12, 8, 7429);
@@ -785,6 +816,16 @@ static void RunSelfTest(GameContent content)
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
                 .All(e => !string.IsNullOrWhiteSpace(e.Hint)),
             "Hover strumenti: ogni entry Produzione ha un hint italiano.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
+                .Single(e => e.Id == "miner").Hint!.Contains("tutti i lati", StringComparison.OrdinalIgnoreCase),
+            "Hint minatore: uscita su tutti i lati.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics)
+                .Single(e => e.Id == "conveyor-basic").Hint!.Contains("unidirezionale", StringComparison.OrdinalIgnoreCase),
+            "Hint nastro: flusso unidirezionale.");
+        // FPS corner vs system overlay: never both (policy mirrored from play HUD).
+        Assert(ShowCornerFps(showFps: true, showOverlay: false), "FPS angolo quando solo contatore.");
+        Assert(!ShowCornerFps(showFps: true, showOverlay: true), "Niente FPS angolo se overlay sistema ON.");
+        Assert(!ShowCornerFps(showFps: false, showOverlay: true), "Niente FPS angolo se contatore OFF.");
         Assert(File.Exists(GameContentStore.UserJsonPath),
             "First launch deve materializzare content.json in AppData.");
         Assert(UiTheme.SessionDeltaLabel(0) == "Δ sessione +0",
@@ -835,6 +876,9 @@ static void RunSelfTest(GameContent content)
 
     Console.WriteLine("SELF-TEST OK: impostazioni grafica/strip risorse/dock Mindustry verificati.");
 }
+
+/// <summary>Mirrors play-HUD policy: corner FPS only when overlay is off.</summary>
+static bool ShowCornerFps(bool showFps, bool showOverlay) => showFps && !showOverlay;
 
 static void Assert(bool condition, string message)
 {

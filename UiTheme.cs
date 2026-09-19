@@ -166,8 +166,9 @@ public static class UiTheme
         var baseDir = AppContext.BaseDirectory;
         var regularPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans.ttf");
         var boldPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans-Bold.ttf");
-        // Atlas base size tracks UI scale so DrawTextEx rarely upscales glyphs.
-        var atlasSize = Math.Clamp((int)MathF.Round(64f * Scale), 48, 160);
+        // Bake glyphs larger than typical draw sizes so UI scale downsamples cleanly (not upscale-blur).
+        // 96×scale keeps HUD text sharp at 100–200%; bilinear avoids the point-filter "pixel" look.
+        var atlasSize = Math.Clamp((int)MathF.Round(96f * Scale), 72, 224);
         var codepoints = new int[95 + 96 + 1];
         for (var i = 0; i < 95; i++)
         {
@@ -184,8 +185,7 @@ public static class UiTheme
         if (File.Exists(regularPath))
         {
             uiFont = Raylib.LoadFontEx(regularPath, atlasSize, codepoints, codepoints.Length);
-            // Point filter keeps glyph edges crisp when drawing near atlas size.
-            Raylib.SetTextureFilter(uiFont.Texture, TextureFilter.Point);
+            Raylib.SetTextureFilter(uiFont.Texture, TextureFilter.Bilinear);
             ownsFonts = true;
         }
         else
@@ -197,7 +197,7 @@ public static class UiTheme
         if (File.Exists(boldPath))
         {
             uiFontBold = Raylib.LoadFontEx(boldPath, atlasSize, codepoints, codepoints.Length);
-            Raylib.SetTextureFilter(uiFontBold.Texture, TextureFilter.Point);
+            Raylib.SetTextureFilter(uiFontBold.Texture, TextureFilter.Bilinear);
         }
         else
         {
@@ -356,11 +356,11 @@ public static class UiTheme
     private static readonly DockEntry[] ProductionEntries =
     [
         new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
-            Hint: "Estrae minerali dal giacimento"),
+            Hint: "Estrae minerali · uscita su tutti i lati"),
         new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
-            Hint: "Fonde ore in lastre"),
+            Hint: "Fonde ore in lastre · R ruota uscita"),
         new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
-            Hint: "Assembla prodotti intermedi"),
+            Hint: "Assembla prodotti · R ruota uscita"),
         new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove,
             Hint: "Demolisci edifici e nastri (tasto 4)")
     ];
@@ -369,10 +369,10 @@ public static class UiTheme
     [
         new("conveyor-basic", "Nastro", "Na", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
             ResearchId: "conveyor-basic", ConveyorId: "conveyor-basic",
-            Hint: "Trasporta item · Q"),
+            Hint: "Flusso unidirezionale · R/rotella"),
         new("conveyor-fast", "Veloce", "Ve", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
             ResearchId: "conveyor-fast", ConveyorId: "conveyor-fast",
-            Hint: "Nastro rapido · E"),
+            Hint: "Nastro rapido · R/rotella · E"),
         new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction",
             Hint: "Incrocio a croce (6)"),
         new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",

@@ -69,7 +69,7 @@ internal static class FactoryGameApp
     [
         "Muovi la camera: WASD, Shift+trascina o rotella centrale.",
         "Piazza un MINATORE (2) sul giacimento di ferro a ovest del core.",
-        "Collega NASTRI (1) dal minatore fino al CORE per vendere.",
+        "Collega NASTRI (1) da qualsiasi lato del minatore fino al CORE.",
         "Aspetta che i minerali arrivino al core (guadagni $).",
         "Apri RICERCA (T) e sblocca il FORNO quando puoi."
     ];
@@ -1497,7 +1497,7 @@ internal static class FactoryGameApp
                     var eff = world.Miners[position].Efficiency;
                     statusMessage = eff <= 0f
                         ? "Minatore piazzato a 0% — senza giacimento non produce."
-                        : $"Minatore piazzato ({eff:P0} efficienza).";
+                        : $"Minatore piazzato ({eff:P0}) — uscita su tutti i lati.";
                 }
             }
             else if (tool == BuildTool.Smelter && research.IsUnlocked("smelter"))
@@ -1935,12 +1935,13 @@ internal static class FactoryGameApp
     private static void GetInfoBounds(out int x, out int y, out int width, out int height)
     {
         width = InfoPanelWidth;
-        height = 230;
+        // Extra height so market tip + CORE button stay clear under UI scale.
+        height = UiTheme.S(248);
         x = ScreenWidth - width - UiTheme.DockMargin;
         y = ViewportTop + 8;
     }
 
-    private static int InfoUpgradeY(int infoY) => infoY + 186;
+    private static int InfoUpgradeY(int infoY) => infoY + UiTheme.S(204);
 
     private static bool IsOverHudChrome(Vector2 mouse)
     {
@@ -2405,17 +2406,24 @@ internal static class FactoryGameApp
     private static void DrawDebugOverlays(GameSettings settings, EconomyWallet? wallet)
     {
         _ = wallet;
-        if (settings.ShowFps)
+        // Modals (Ricerca / Impostazioni / menu): never draw the system box — it covers titles.
+        // Corner FPS only when the FPS toggle is on and the in-game system overlay is off.
+        if (ShouldDrawCornerFps(settings))
         {
-            Raylib.DrawRectangle(8, 8, 88, 28, new Color(10, 12, 12, 180));
-            DrawUiText($"FPS {Raylib.GetFPS()}", 16, 14, 18, new Color(211, 164, 76, 255));
-        }
-
-        if (settings.ShowResourceOverlay)
-        {
-            DrawSystemResourceOverlay(8, settings.ShowFps ? 44 : 8);
+            var label = $"FPS {Raylib.GetFPS()}";
+            var w = MeasureUiText(label, 18) + 16;
+            var x = Math.Max(8, ScreenWidth - w - 8);
+            Raylib.DrawRectangle(x, 8, w, 28, new Color(10, 12, 12, 180));
+            DrawUiText(label, x + 8, 14, 18, new Color(211, 164, 76, 255));
         }
     }
+
+    /// <summary>
+    /// Corner FPS when the FPS toggle is on and the system-resource overlay is off.
+    /// With the overlay on, FPS lives only inside that box (play HUD).
+    /// </summary>
+    private static bool ShouldDrawCornerFps(GameSettings settings) =>
+        settings.ShowFps && !settings.ShowResourceOverlay;
 
     private static void DrawResearch(
         GameContent content,
@@ -2431,10 +2439,7 @@ internal static class FactoryGameApp
             new Color(112, 124, 119, 255));
         DrawUiText($"Wallet: $ {wallet.Money}   ·   inventario nella strip in alto",
             60, 108, 16, new Color(164, 173, 168, 255));
-        if (settings.ShowResourceOverlay)
-        {
-            DrawSystemResourceOverlay(800, 36);
-        }
+        _ = settings; // Overlay stays on play HUD only — never cover this title.
 
         var entries = ResearchEntries(content);
         if (entries.Count == 0)
@@ -2634,6 +2639,7 @@ internal static class FactoryGameApp
 
         if (settings.ShowResourceOverlay)
         {
+            // Below header on the left — play HUD only (modals never draw this box).
             DrawSystemResourceOverlay(16, HeaderHeight + 8);
         }
 
@@ -2657,7 +2663,8 @@ internal static class FactoryGameApp
             BuildTool.Conveyor => FormatConveyorCost(selectedConveyor, research),
             _ => economy.RefundPolicyNote
         };
-        DrawUiText(cost, 16, 48, 12, new Color(164, 173, 168, 255));
+        // Keep cost inside the header so it never collides with the system overlay below.
+        DrawUiText(cost, 16, Math.Min(48, HeaderHeight - 16), 12, new Color(164, 173, 168, 255));
 
         var mouse = Raylib.GetMousePosition();
         // Icon buttons right → left: Menu (0), Ricerca (1), Impostazioni (2).
@@ -2668,7 +2675,7 @@ internal static class FactoryGameApp
         DrawHeaderIconButton(2, HitHeaderIcon(mouse, 2), () =>
             UiTheme.DrawGearIcon(HeaderIconX(2) + 4, 16, HeaderIconSize - 8, UiTheme.TextPrimary));
 
-        if (settings.ShowFps)
+        if (ShouldDrawCornerFps(settings))
         {
             var fpsLabel = $"FPS {Raylib.GetFPS()}";
             var fpsW = MeasureUiText(fpsLabel, 14) + 16;
@@ -3221,7 +3228,7 @@ internal static class FactoryGameApp
         Raylib.DrawPoly(center, 8, 18 * scale, angle, new Color(116, 125, 120, alpha));
         Raylib.DrawPolyLinesEx(center, 8, 18 * scale, angle, 3, new Color(225, 216, 186, alpha));
         Raylib.DrawCircleV(center, 7 * scale, new Color(210, 143, 68, alpha));
-        DrawDirectionMark(center + DirectionVector(miner.Direction) * (14f * scale), miner.Direction, alpha, tileSize);
+        // No facing mark: miners eject onto every adjacent side.
         Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
         Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * miner.Progress), 4,
             new Color(231, 166, 66, alpha));
@@ -3370,6 +3377,8 @@ internal static class FactoryGameApp
                     conveyor.Definition.Tier >= 2
                         ? new Color(56, 92, 110, alpha)
                         : new Color(70, 77, 74, alpha));
+                // One-way chevrons matching facing (not bidirectional hash marks).
+                DrawConveyorFlowChevrons(center, conveyor.Direction, alpha, tileSize);
                 DrawDirectionMark(center, conveyor.Direction, alpha, tileSize);
                 break;
         }
@@ -3474,18 +3483,35 @@ internal static class FactoryGameApp
         var innerWidth = horizontal ? width : width - inset * 2;
         var innerHeight = horizontal ? height - inset * 2 : height;
         Raylib.DrawRectangle(innerLeft, innerTop, innerWidth, innerHeight, new Color(84, 92, 88, alpha));
+    }
 
+    /// <summary>
+    /// Animated chevrons that scroll only along <paramref name="direction"/> so belt flow
+    /// reads as one-way (facing), not bidirectional.
+    /// </summary>
+    private static void DrawConveyorFlowChevrons(Vector2 center, Direction direction, int alpha, float tileSize)
+    {
         if (tileSize < 10f)
         {
             return;
         }
 
-        var phase = (float)(Raylib.GetTime() * 10 % 9);
-        for (var offset = -12f + phase; offset <= 12f; offset += 9f)
+        var vector = DirectionVector(direction);
+        var side = new Vector2(-vector.Y, vector.X);
+        var scale = tileSize / BaseTileSize;
+        var spacing = 12f;
+        var phase = (float)(Raylib.GetTime() * 22.0 % spacing);
+        var chevron = new Color(210, 195, 120, alpha);
+        var stroke = Math.Max(1.5f, 2.2f * scale);
+        var wing = 4.2f * scale;
+        var depth = 5f * scale;
+
+        for (var offset = -18f + phase; offset <= 18f; offset += spacing)
         {
-            var mark = center + vector * (offset * tileSize / BaseTileSize);
-            var side = new Vector2(-vector.Y, vector.X) * (5f * tileSize / BaseTileSize);
-            Raylib.DrawLineEx(mark - side, mark + side, 2, new Color(47, 53, 51, alpha));
+            var tip = center + vector * (offset * scale);
+            var back = tip - vector * depth;
+            Raylib.DrawLineEx(back + side * wing, tip, stroke, chevron);
+            Raylib.DrawLineEx(back - side * wing, tip, stroke, chevron);
         }
     }
 
@@ -3773,6 +3799,7 @@ internal static class FactoryGameApp
     private static void DrawWrappedTip(string tip, int x, int y, int maxWidth)
     {
         const int fontSize = 12;
+        var lineStep = UiTheme.S(16);
         if (MeasureUiText(tip, fontSize) <= maxWidth)
         {
             DrawUiText(tip, x, y, fontSize, new Color(211, 164, 76, 255));
@@ -3788,7 +3815,7 @@ internal static class FactoryGameApp
             if (MeasureUiText(candidate, fontSize) > maxWidth && !string.IsNullOrEmpty(line))
             {
                 DrawUiText(line, x, lineY, fontSize, new Color(211, 164, 76, 255));
-                lineY += 16;
+                lineY += lineStep;
                 line = word;
             }
             else
@@ -3989,8 +4016,8 @@ internal static class FactoryGameApp
 
     private static void GetTutorialPanelBounds(out int x, out int y, out int w, out int h)
     {
-        w = Math.Min(560, ScreenWidth - 40);
-        h = 92;
+        w = Math.Min(UiTheme.S(560), ScreenWidth - 40);
+        h = UiTheme.S(100);
         x = (ScreenWidth - w) / 2;
         y = ScreenHeight - h - 16;
     }
@@ -3998,17 +4025,17 @@ internal static class FactoryGameApp
     private static void GetTutorialSkipBounds(out int x, out int y, out int w, out int h)
     {
         GetTutorialPanelBounds(out var px, out var py, out var pw, out _);
-        w = 110;
-        h = 32;
+        w = UiTheme.S(110);
+        h = UiTheme.S(32);
         x = px + pw - w - 12;
-        y = py + 48;
+        y = py + UiTheme.S(52);
     }
 
     private static void GetTutorialNextBounds(out int x, out int y, out int w, out int h)
     {
         GetTutorialSkipBounds(out var sx, out var sy, out _, out _);
-        w = 110;
-        h = 32;
+        w = UiTheme.S(110);
+        h = UiTheme.S(32);
         x = sx - w - 8;
         y = sy;
     }
