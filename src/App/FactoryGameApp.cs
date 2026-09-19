@@ -11,6 +11,7 @@ internal enum AppScreen
     Research,
     Settings,
     NewGame,
+    CampaignSelect,
     Loading
 }
 
@@ -108,6 +109,7 @@ internal static class FactoryGameApp
     private static readonly HomeAction[] HomeActionsWithContinue =
     [
         HomeAction.Continue,
+        HomeAction.Campaign,
         HomeAction.NewGame,
         HomeAction.SaveManager,
         HomeAction.Settings,
@@ -116,11 +118,21 @@ internal static class FactoryGameApp
 
     private static readonly HomeAction[] HomeActionsFresh =
     [
+        HomeAction.Campaign,
         HomeAction.NewGame,
         HomeAction.SaveManager,
         HomeAction.Settings,
         HomeAction.Quit
     ];
+
+    // Campaign mode (data-driven levels from campaign.json).
+    private static CampaignCatalog? Campaign;
+    private static CampaignProgress? CampaignProgressState;
+    private static CampaignLevelDefinition? ActiveCampaignLevel;
+    private static bool CampaignLevelComplete;
+    private static bool CampaignVictoryHandled;
+    private static string? LoadingCampaignLevelId;
+    private static int CampaignSelectScroll;
 
     public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
     {
@@ -164,6 +176,8 @@ internal static class FactoryGameApp
         var settings = GameSettings.Load();
         ActiveSettings = settings;
         var settingsReturnScreen = AppScreen.Home;
+        Campaign = CampaignCatalog.Load();
+        CampaignProgressState = CampaignProgress.Load();
         SyncLayoutSize(settings);
         UiTheme.ApplyScalePercent(settings.UiScalePercent);
 
@@ -248,6 +262,12 @@ internal static class FactoryGameApp
                         ref previousDragPosition,
                         ref statusMessage,
                         ref pendingSeed);
+                    break;
+
+                case AppScreen.CampaignSelect:
+                    HandleCampaignSelectInput(
+                        ref screen,
+                        ref statusMessage);
                     break;
 
                 case AppScreen.SaveManager:
@@ -367,6 +387,17 @@ internal static class FactoryGameApp
                         UpdateTutorialProgress(world, conveyors, wallet, settings);
                     }
 
+                    if (ActiveCampaignLevel is not null
+                        && !CampaignLevelComplete
+                        && wallet is not null
+                        && session is not null
+                        && research is not null
+                        && CampaignProgress.AreAllObjectivesComplete(
+                            ActiveCampaignLevel, wallet, session, research))
+                    {
+                        CampaignLevelComplete = true;
+                    }
+
                     break;
             }
 
@@ -385,6 +416,9 @@ internal static class FactoryGameApp
                     break;
                 case AppScreen.NewGame:
                     DrawNewGame(pendingSeed, statusMessage);
+                    break;
+                case AppScreen.CampaignSelect:
+                    DrawCampaignSelect(statusMessage);
                     break;
                 case AppScreen.SaveManager:
                     DrawSaveManager(saveSlots, selectedSlotIndex, statusMessage);
@@ -573,9 +607,33 @@ internal static class FactoryGameApp
         LoadingSeed = seed;
         LoadingFromSave = false;
         LoadingSlotId = null;
+        LoadingCampaignLevelId = null;
+        ActiveCampaignLevel = null;
+        CampaignLevelComplete = false;
+        CampaignVictoryHandled = false;
         LoadingElapsed = 0f;
         LoadingWorldReady = false;
         LoadingLabel = "Generazione mappa…";
+        EntryAnimT = 0f;
+        statusMessage = null;
+        screen = AppScreen.Loading;
+    }
+
+    private static void BeginLoadingCampaignLevel(
+        CampaignLevelDefinition level,
+        ref AppScreen screen,
+        ref string? statusMessage)
+    {
+        LoadingSeed = level.Seed;
+        LoadingFromSave = false;
+        LoadingSlotId = null;
+        LoadingCampaignLevelId = level.Id;
+        ActiveCampaignLevel = level;
+        CampaignLevelComplete = false;
+        CampaignVictoryHandled = false;
+        LoadingElapsed = 0f;
+        LoadingWorldReady = false;
+        LoadingLabel = $"Livello: {level.Name}…";
         EntryAnimT = 0f;
         statusMessage = null;
         screen = AppScreen.Loading;
@@ -586,6 +644,10 @@ internal static class FactoryGameApp
         LoadingSeed = DefaultSeed;
         LoadingFromSave = true;
         LoadingSlotId = slotId;
+        LoadingCampaignLevelId = null;
+        ActiveCampaignLevel = null;
+        CampaignLevelComplete = false;
+        CampaignVictoryHandled = false;
         LoadingElapsed = 0f;
         LoadingWorldReady = false;
         LoadingLabel = "Caricamento salvataggio…";
@@ -653,17 +715,39 @@ internal static class FactoryGameApp
             }
             else
             {
-                StartNewGame(
-                    content,
-                    LoadingSeed,
-                    out world,
-                    out conveyors,
-                    out wallet,
-                    out camera,
-                    out research,
-                    out session,
-                    out market,
-                    out nextItemId);
+                if (LoadingCampaignLevelId is not null
+                    && Campaign is not null
+                    && Campaign.Find(LoadingCampaignLevelId) is { } campaignLevel)
+                {
+                    ActiveCampaignLevel = campaignLevel;
+                    StartCampaignLevel(
+                        content,
+                        campaignLevel,
+                        out world,
+                        out conveyors,
+                        out wallet,
+                        out camera,
+                        out research,
+                        out session,
+                        out market,
+                        out nextItemId);
+                }
+                else
+                {
+                    ActiveCampaignLevel = null;
+                    StartNewGame(
+                        content,
+                        LoadingSeed,
+                        out world,
+                        out conveyors,
+                        out wallet,
+                        out camera,
+                        out research,
+                        out session,
+                        out market,
+                        out nextItemId);
+                }
+
                 tool = BuildTool.Conveyor;
                 direction = Direction.East;
                 selectedConveyor = basicConveyor;
@@ -680,10 +764,15 @@ internal static class FactoryGameApp
             EntryAnimT = 0f;
             statusMessage = null;
             screen = AppScreen.Playing;
-            if (!LoadingFromSave && ActiveSettings is not null)
+            if (!LoadingFromSave && ActiveSettings is not null && ActiveCampaignLevel is null)
             {
                 // Every confirmed Nuova partita restarts the Peak-style banner tutorial.
+                // Campaign levels use objectives instead.
                 RestartTutorial(ActiveSettings);
+            }
+            else if (ActiveCampaignLevel is not null)
+            {
+                TutorialActive = false;
             }
         }
     }
@@ -785,6 +874,32 @@ internal static class FactoryGameApp
         market = content.CreateMarket();
         session = new EconomySession(wallet.Money);
         nextItemId = 1L;
+    }
+
+    private static void StartCampaignLevel(
+        GameContent content,
+        CampaignLevelDefinition level,
+        out FactoryWorld world,
+        out ConveyorGrid conveyors,
+        out EconomyWallet wallet,
+        out WorldCamera camera,
+        out ResearchState research,
+        out EconomySession session,
+        out MarketCatalog market,
+        out long nextItemId)
+    {
+        var width = Math.Max(12, level.MapWidth);
+        var height = Math.Max(8, level.MapHeight);
+        world = new FactoryWorld(width, height, level.Seed);
+        conveyors = new ConveyorGrid();
+        wallet = (Campaign ?? CampaignCatalog.Load()).CreateWallet(level);
+        camera = CreateCameraFocusedOnCore(world);
+        research = ResearchState.CreateNew(content);
+        market = content.CreateMarket();
+        session = new EconomySession(wallet.Money);
+        nextItemId = 1L;
+        CampaignLevelComplete = false;
+        CampaignVictoryHandled = false;
     }
 
     private static EconomyWallet CreateStartingWallet() =>
@@ -905,6 +1020,11 @@ internal static class FactoryGameApp
             {
                 case HomeAction.Continue:
                     BeginLoadingSave(GameSaveStore.ContinueSlotId, ref screen, ref statusMessage);
+                    break;
+                case HomeAction.Campaign:
+                    CampaignSelectScroll = 0;
+                    statusMessage = null;
+                    screen = AppScreen.CampaignSelect;
                     break;
                 case HomeAction.NewGame:
                     pendingSeed = DefaultSeed;
@@ -1255,6 +1375,14 @@ internal static class FactoryGameApp
         long nextItemId,
         float frameTime)
     {
+        if (CampaignLevelComplete && ActiveCampaignLevel is not null)
+        {
+            if (HandleCampaignVictoryInput(ref screen, ref statusMessage))
+            {
+                return;
+            }
+        }
+
         if (Raylib.IsKeyPressed(KeyboardKey.Escape)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && HitHeaderIcon(Raylib.GetMousePosition(), 0)))
@@ -1266,9 +1394,15 @@ internal static class FactoryGameApp
                 return;
             }
 
-            AutoSaveContinue(world, conveyors, wallet, camera, research, session, nextItemId);
+            if (ActiveCampaignLevel is null)
+            {
+                AutoSaveContinue(world, conveyors, wallet, camera, research, session, nextItemId);
+            }
+
             ClearStatusToast(ref statusMessage);
-            screen = AppScreen.Home;
+            screen = ActiveCampaignLevel is not null ? AppScreen.CampaignSelect : AppScreen.Home;
+            ActiveCampaignLevel = null;
+            CampaignLevelComplete = false;
             return;
         }
 
@@ -2191,13 +2325,14 @@ internal static class FactoryGameApp
 
     private const int HomeButtonX = 420;
     private const int HomeButtonWidth = 400;
-    private const int HomeButtonHeight = 52;
+    private const int HomeButtonHeight = 48;
 
-    private static int HomeButtonY(int index) => 220 + index * 62;
+    private static int HomeButtonY(int index) => 200 + index * 56;
 
     private enum HomeAction
     {
         Continue,
+        Campaign,
         NewGame,
         SaveManager,
         Settings,
@@ -2213,6 +2348,7 @@ internal static class FactoryGameApp
     private static string HomeActionLabel(HomeAction action) => action switch
     {
         HomeAction.Continue => "Continua",
+        HomeAction.Campaign => "Campagna",
         HomeAction.NewGame => "Nuova partita",
         HomeAction.SaveManager => "Gestione salvataggi",
         HomeAction.Settings => "Impostazioni",
@@ -2237,11 +2373,141 @@ internal static class FactoryGameApp
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            DrawUiText(statusMessage, 420, 560, 18, new Color(225, 140, 110, 255));
+            DrawUiText(statusMessage, 420, ScreenHeight - 120, 18, new Color(225, 140, 110, 255));
         }
 
         DrawUiText("WASD / Shift+drag / rotella centrale: pan   ·   Ctrl+rotella: zoom   ·   H/Home: core   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
             80, ScreenHeight - 40, 15, new Color(90, 100, 96, 255));
+    }
+
+    private static void HandleCampaignSelectInput(ref AppScreen screen, ref string? statusMessage)
+    {
+        if (Raylib.IsKeyPressed(KeyboardKey.Escape)
+            || (Raylib.IsMouseButtonPressed(MouseButton.Left)
+                && Contains(Raylib.GetMousePosition(), 28, ScreenHeight - 70, 180, 40)))
+        {
+            statusMessage = null;
+            screen = AppScreen.Home;
+            return;
+        }
+
+        var catalog = Campaign ?? CampaignCatalog.Load();
+        Campaign ??= catalog;
+        CampaignProgressState ??= CampaignProgress.Load();
+
+        var wheel = Raylib.GetMouseWheelMove();
+        if (wheel != 0)
+        {
+            CampaignSelectScroll = Math.Clamp(CampaignSelectScroll - (int)(wheel * 48), 0, 2000);
+        }
+
+        if (!Raylib.IsMouseButtonPressed(MouseButton.Left))
+        {
+            return;
+        }
+
+        var mouse = Raylib.GetMousePosition();
+        var cardW = 340;
+        var cardH = 168;
+        var cols = 2;
+        var startX = 80;
+        var startY = 160 - CampaignSelectScroll;
+        for (var i = 0; i < catalog.Levels.Count; i++)
+        {
+            var level = catalog.Levels[i];
+            var col = i % cols;
+            var row = i / cols;
+            var x = startX + col * (cardW + 24);
+            var y = startY + row * (cardH + 20);
+            if (y + cardH < 120 || y > ScreenHeight - 90)
+            {
+                continue;
+            }
+
+            if (!Contains(mouse, x, y, cardW, cardH))
+            {
+                continue;
+            }
+
+            var unlocked = CampaignProgressState.IsUnlocked(level, catalog);
+            if (!unlocked)
+            {
+                statusMessage = "Livello bloccato. Completa il precedente.";
+                return;
+            }
+
+            BeginLoadingCampaignLevel(level, ref screen, ref statusMessage);
+            return;
+        }
+    }
+
+    private static void DrawCampaignSelect(string? statusMessage)
+    {
+        var catalog = Campaign ?? CampaignCatalog.Load();
+        Campaign ??= catalog;
+        CampaignProgressState ??= CampaignProgress.Load();
+
+        Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
+        Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
+            new Color(18, 28, 24, 255), new Color(10, 12, 12, 255));
+        DrawUiText("Campagna", 80, 70, 36, new Color(239, 238, 224, 255));
+        DrawUiText("Completa un livello per sbloccare il successivo.", 80, 118, 18,
+            new Color(112, 124, 119, 255));
+
+        var cardW = 340;
+        var cardH = 168;
+        var cols = 2;
+        var startX = 80;
+        var startY = 160 - CampaignSelectScroll;
+        for (var i = 0; i < catalog.Levels.Count; i++)
+        {
+            var level = catalog.Levels[i];
+            var col = i % cols;
+            var row = i / cols;
+            var x = startX + col * (cardW + 24);
+            var y = startY + row * (cardH + 20);
+            if (y + cardH < 100 || y > ScreenHeight - 80)
+            {
+                continue;
+            }
+
+            var unlocked = CampaignProgressState.IsUnlocked(level, catalog);
+            var completed = CampaignProgressState.IsCompleted(level.Id);
+            var fill = unlocked
+                ? new Color(32, 40, 36, 255)
+                : new Color(22, 24, 24, 255);
+            var border = completed
+                ? new Color(120, 228, 150, 200)
+                : unlocked
+                    ? UiTheme.Accent
+                    : new Color(50, 56, 52, 255);
+            Raylib.DrawRectangle(x, y, cardW, cardH, fill);
+            Raylib.DrawRectangleLines(x, y, cardW, cardH, border);
+
+            var titleColor = unlocked ? new Color(239, 238, 224, 255) : new Color(90, 96, 92, 255);
+            var bodyColor = unlocked ? new Color(164, 173, 168, 255) : new Color(70, 76, 72, 255);
+            var indexLabel = $"{i + 1}. {level.Name}";
+            DrawUiText(indexLabel, x + 14, y + 12, 20, titleColor);
+            if (completed)
+            {
+                DrawUiText("Completato", x + cardW - 110, y + 14, 14, new Color(120, 228, 150, 255));
+            }
+            else if (!unlocked)
+            {
+                DrawUiText("Bloccato", x + cardW - 90, y + 14, 14, new Color(120, 110, 100, 255));
+            }
+
+            DrawWrappedTip(level.Description, x + 14, y + 44, cardW - 28, 48);
+            DrawUiText(catalog.ObjectiveSummary(level), x + 14, y + 100, 13, bodyColor);
+            DrawUiText($"{level.MapWidth}×{level.MapHeight} · seed {level.Seed}", x + 14, y + 140, 12,
+                unlocked ? new Color(112, 124, 119, 255) : new Color(60, 64, 62, 255));
+        }
+
+        DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
+        if (!string.IsNullOrEmpty(statusMessage))
+        {
+            DrawUiText(statusMessage, 230, ScreenHeight - 58, 18, new Color(225, 140, 110, 255));
+        }
     }
 
     private static void DrawNewGame(int pendingSeed, string? statusMessage)
@@ -3058,7 +3324,143 @@ internal static class FactoryGameApp
             DrawTutorialBanner(settings);
         }
 
+        if (ActiveCampaignLevel is not null && wallet is not null && session is not null)
+        {
+            DrawCampaignObjectiveHud(ActiveCampaignLevel, wallet, session, research);
+        }
+
+        if (CampaignLevelComplete && ActiveCampaignLevel is not null)
+        {
+            DrawCampaignVictoryBanner(ActiveCampaignLevel);
+        }
+
         DrawEntryOverlay(frameTime);
+    }
+
+    private static void DrawCampaignObjectiveHud(
+        CampaignLevelDefinition level,
+        EconomyWallet wallet,
+        EconomySession session,
+        ResearchState research)
+    {
+        var objectives = level.Objectives ?? [];
+        if (objectives.Count == 0)
+        {
+            return;
+        }
+
+        var panelW = UiTheme.S(320);
+        var lineH = UiTheme.S(18);
+        var panelH = UiTheme.S(36) + objectives.Count * lineH + UiTheme.S(10);
+        var x = 16;
+        var y = HeaderHeight + (ActiveSettings?.ShowResourceOverlay == true ? UiTheme.S(78) : UiTheme.S(12));
+
+        Raylib.DrawRectangle(x, y, panelW, panelH, new Color(10, 14, 14, 210));
+        Raylib.DrawRectangleLines(x, y, panelW, panelH, UiTheme.AccentDim);
+        DrawUiText($"OBIETTIVO · {level.Name}", x + 10, y + 6, 13, UiTheme.Accent);
+
+        for (var i = 0; i < objectives.Count; i++)
+        {
+            var objective = objectives[i];
+            var current = CampaignProgress.GetObjectiveCurrent(objective, wallet, session, research);
+            var done = CampaignProgress.IsObjectiveComplete(objective, wallet, session, research);
+            var label = CampaignCatalog.FormatObjectiveProgress(objective, current);
+            DrawUiText(label, x + 10, y + UiTheme.S(28) + i * lineH, 12,
+                done ? new Color(120, 228, 150, 255) : UiTheme.TextPrimary);
+        }
+    }
+
+    private static void GetCampaignVictoryBounds(out int x, out int y, out int w, out int h)
+    {
+        w = 480;
+        h = 220;
+        x = (ScreenWidth - w) / 2;
+        y = (ScreenHeight - h) / 2;
+    }
+
+    private static void DrawCampaignVictoryBanner(CampaignLevelDefinition level)
+    {
+        Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(0, 0, 0, 150));
+        GetCampaignVictoryBounds(out var x, out var y, out var w, out var h);
+        Raylib.DrawRectangle(x, y, w, h, new Color(22, 30, 26, 255));
+        Raylib.DrawRectangleLines(x, y, w, h, new Color(120, 228, 150, 255));
+
+        var title = "Livello completato";
+        var titleW = MeasureUiText(title, 28);
+        DrawUiText(title, x + (w - titleW) / 2, y + 28, 28, new Color(120, 228, 150, 255));
+        var sub = level.Name;
+        var subW = MeasureUiText(sub, 18);
+        DrawUiText(sub, x + (w - subW) / 2, y + 70, 18, UiTheme.TextPrimary);
+
+        var catalog = Campaign ?? CampaignCatalog.Load();
+        var hasNext = catalog.NextAfter(level) is not null;
+        var continueLabel = hasNext ? "Continua campagna" : "Selezione livelli";
+        DrawMenuButton(x + 40, y + 130, 190, 48, continueLabel);
+        DrawMenuButton(x + w - 230, y + 130, 190, 48, "Menu");
+    }
+
+    private static bool HandleCampaignVictoryInput(ref AppScreen screen, ref string? statusMessage)
+    {
+        if (ActiveCampaignLevel is null || Campaign is null)
+        {
+            return false;
+        }
+
+        CampaignProgressState ??= CampaignProgress.Load();
+        GetCampaignVictoryBounds(out var x, out var y, out var w, out _);
+        var mouse = Raylib.GetMousePosition();
+        if (!Raylib.IsMouseButtonPressed(MouseButton.Left)
+            && !Raylib.IsKeyPressed(KeyboardKey.Enter)
+            && !Raylib.IsKeyPressed(KeyboardKey.Escape))
+        {
+            return true; // absorb input while banner is up
+        }
+
+        var level = ActiveCampaignLevel;
+        var next = Campaign.NextAfter(level);
+        var continueClicked = Raylib.IsMouseButtonPressed(MouseButton.Left)
+            && Contains(mouse, x + 40, y + 130, 190, 48);
+        var menuClicked = Raylib.IsMouseButtonPressed(MouseButton.Left)
+            && Contains(mouse, x + w - 230, y + 130, 190, 48);
+        var enter = Raylib.IsKeyPressed(KeyboardKey.Enter);
+        var esc = Raylib.IsKeyPressed(KeyboardKey.Escape);
+
+        if (!continueClicked && !menuClicked && !enter && !esc)
+        {
+            return true;
+        }
+
+        if (!CampaignVictoryHandled)
+        {
+            CampaignProgressState.MarkComplete(level.Id);
+            CampaignVictoryHandled = true;
+        }
+
+        if (menuClicked || esc)
+        {
+            ActiveCampaignLevel = null;
+            CampaignLevelComplete = false;
+            CampaignVictoryHandled = false;
+            statusMessage = null;
+            screen = AppScreen.Home;
+            return true;
+        }
+
+        // Continua campagna / Enter
+        if (next is not null)
+        {
+            BeginLoadingCampaignLevel(next, ref screen, ref statusMessage);
+        }
+        else
+        {
+            ActiveCampaignLevel = null;
+            CampaignLevelComplete = false;
+            CampaignVictoryHandled = false;
+            statusMessage = "Campagna completata!";
+            screen = AppScreen.CampaignSelect;
+        }
+
+        return true;
     }
 
     private static void DrawHeader(

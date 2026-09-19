@@ -996,6 +996,102 @@ static void RunSelfTest(GameContent content)
     }
 
     Console.WriteLine("SELF-TEST OK: impostazioni grafica/strip risorse/dock Mindustry verificati.");
+
+    // Campaign levels: objectives + unlock persistence.
+    var campaignSeed = CampaignCatalog.SeedCampaignPath;
+    Assert(File.Exists(campaignSeed), "Seed campaign.json deve essere nel package.");
+    var campaignPath = CampaignCatalog.EnsureUserCampaign();
+    Assert(File.Exists(campaignPath), "campaign.json deve materializzarsi in AppData.");
+    var campaign = CampaignCatalog.Load(campaignSeed);
+    Assert(campaign.Levels.Count >= 3, "La campagna deve avere almeno 3 livelli.");
+    Assert(campaign.Levels.All(level => level.Objectives is { Count: > 0 }),
+        "Ogni livello deve dichiarare obiettivi.");
+    Assert(campaign.Levels.SelectMany(level => level.Objectives!)
+            .Select(objective => objective.Type)
+            .Distinct()
+            .Count() >= 3,
+        "Servono almeno 3 tipi di obiettivo nella campagna.");
+
+    var campaignFirst = campaign.Levels[0];
+    var campaignSecond = campaign.NextAfter(campaignFirst);
+    Assert(campaignSecond is not null, "Il primo livello deve sbloccare il successivo.");
+    var progressPath = CampaignProgress.ProgressPath;
+    var progressBackup = File.Exists(progressPath) ? File.ReadAllText(progressPath) : null;
+    try
+    {
+        if (File.Exists(progressPath))
+        {
+            File.Delete(progressPath);
+        }
+
+        var progress = new CampaignProgress();
+        Assert(progress.IsUnlocked(campaignFirst, campaign), "Il primo livello deve essere sbloccato.");
+        Assert(!progress.IsUnlocked(campaignSecond!, campaign), "Il secondo livello parte bloccato.");
+
+        var earnWallet = new EconomyWallet(100, new Dictionary<string, int>());
+        var earnSession = new EconomySession(100);
+        earnSession.RecordSale("iron-ore", 8);
+        earnSession.RecordSale("iron-ore", 8);
+        earnSession.RecordSale("iron-ore", 8);
+        var sellObj = new CampaignObjectiveDefinition(
+            CampaignObjectiveType.SellItem, 3, ItemId: "iron-ore", Label: "Vendi 3");
+        var earnObj = new CampaignObjectiveDefinition(
+            CampaignObjectiveType.EarnMoney, 24, Label: "Guadagna $24");
+        Assert(CampaignProgress.IsObjectiveComplete(sellObj, earnWallet, earnSession, ResearchState.CreateNew(content)),
+            "sellItem: 3 vendite devono completare l'obiettivo.");
+        Assert(CampaignProgress.IsObjectiveComplete(earnObj, earnWallet, earnSession, ResearchState.CreateNew(content)),
+            "earnMoney: SaleIncome deve completare l'obiettivo.");
+
+        var stockWallet = new EconomyWallet(50, new Dictionary<string, int> { ["iron-ore"] = 12 });
+        var stockSession = new EconomySession(50);
+        var stockObj = new CampaignObjectiveDefinition(
+            CampaignObjectiveType.StockItem, 12, ItemId: "iron-ore");
+        Assert(CampaignProgress.IsObjectiveComplete(
+                stockObj, stockWallet, stockSession, ResearchState.CreateNew(content)),
+            "stockItem: stock wallet deve completare l'obiettivo.");
+
+        var campaignUnlockResearch = ResearchState.CreateNew(content);
+        var campaignUnlockWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
+        Assert(campaignUnlockResearch.TryUnlock(content.FindStructure("smelter")!, campaignUnlockWallet),
+            "Unlock forno per test obiettivo ricerca.");
+        var unlockObj = new CampaignObjectiveDefinition(
+            CampaignObjectiveType.UnlockResearch, 1, StructureId: "smelter");
+        Assert(CampaignProgress.IsObjectiveComplete(
+                unlockObj, campaignUnlockWallet, stockSession, campaignUnlockResearch),
+            "unlockResearch: sblocco deve completare l'obiettivo.");
+
+        progress.MarkComplete(campaignFirst.Id);
+        Assert(File.Exists(progressPath), "MarkComplete deve scrivere campaignProgress.json.");
+        var reloaded = CampaignProgress.Load();
+        Assert(reloaded.IsCompleted(campaignFirst.Id), "Completamento livello deve persistere.");
+        Assert(reloaded.IsUnlocked(campaignSecond!, campaign), "Dopo il primo livello, il secondo si sblocca.");
+        Assert(!reloaded.IsUnlocked(campaign.Levels[^1], campaign) || campaign.Levels.Count <= 2,
+            "L'ultimo livello resta bloccato finché non si completa la catena (se >2 livelli).");
+
+        // Level world generation respects map size from definition.
+        var tiny = campaign.Levels[0];
+        var levelWorld = new FactoryWorld(Math.Max(12, tiny.MapWidth), Math.Max(8, tiny.MapHeight), tiny.Seed);
+        Assert(levelWorld.Terrain.Width == tiny.MapWidth && levelWorld.Terrain.Height == tiny.MapHeight,
+            "Il livello campagna deve usare mapWidth/mapHeight.");
+        var levelWallet = campaign.CreateWallet(tiny);
+        Assert(levelWallet.Money == tiny.StartingMoney, "Starting money dal livello.");
+    }
+    finally
+    {
+        if (progressBackup is null)
+        {
+            if (File.Exists(progressPath))
+            {
+                File.Delete(progressPath);
+            }
+        }
+        else
+        {
+            File.WriteAllText(progressPath, progressBackup);
+        }
+    }
+
+    Console.WriteLine("SELF-TEST OK: campagna (obiettivi + unlock persistence) verificata.");
 }
 
 /// <summary>Mirrors play-HUD policy: corner FPS only when overlay is off.</summary>
