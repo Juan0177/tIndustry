@@ -11,8 +11,7 @@ public sealed class WorldCamera
     public const float MaxZoom = 2.5f;
     public const float DefaultZoom = 1f;
     public const float PanSpeedPixels = 520f;
-    public const int EdgePanMargin = 28;
-    public const float EdgePanSpeed = 380f;
+    // Edge pan removed: camera moves only via WASD / middle-drag / Shift+drag.
 
     public WorldCamera(float x, float y, float zoom = DefaultZoom)
     {

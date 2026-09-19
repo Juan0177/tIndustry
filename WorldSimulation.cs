@@ -523,8 +523,9 @@ public sealed class FactoryWorld
         }
 
         Seed = seed;
-        var coreLeft = width - 6;
-        var coreTop = Math.Max(0, height / 2 - 2);
+        // Core always sits at the geometric center of the map (4×4 footprint).
+        var coreLeft = Math.Max(0, (width - CoreSize) / 2);
+        var coreTop = Math.Max(0, (height - CoreSize) / 2);
         var coreTiles = new HashSet<GridPosition>();
         for (var y = 0; y < CoreSize; y++)
         {
@@ -536,7 +537,7 @@ public sealed class FactoryWorld
 
         CoreOrigin = new GridPosition(coreLeft, coreTop);
         // Starter iron sits immediately west of the core so small self-test maps and 1000² stay playable.
-        StarterDepositOrigin = new GridPosition(coreLeft - 4, coreTop);
+        StarterDepositOrigin = new GridPosition(Math.Max(0, coreLeft - 4), coreTop);
         CoreTiles = coreTiles;
         Terrain = TerrainMap.Generate(width, height, seed, CoreTiles, StarterDepositOrigin);
     }
