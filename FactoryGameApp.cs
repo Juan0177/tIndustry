@@ -28,7 +28,7 @@ internal static class FactoryGameApp
     private const float EntryAnimDuration = 0.85f;
     private const float LoadingMinSeconds = 0.55f;
     private const float SplashMinSeconds = 1.2f;
-    private const float SplashMaxSeconds = 3.2f;
+    private const float SplashMaxSeconds = 8f;
     private const int ViewportLeft = 0;
     private const int ViewportTop = HeaderHeight;
     private static int ViewportRight => ScreenWidth;
