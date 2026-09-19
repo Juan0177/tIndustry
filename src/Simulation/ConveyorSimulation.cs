@@ -198,20 +198,25 @@ public sealed class ConveyorCell
         {
             LogisticsKind.Junction when fromDirection is { } incoming =>
                 incoming,
-            LogisticsKind.Splitter => ResolveSplitterExit(),
+            // Splitters travel like belts along facing; side exits are chosen at handoff.
+            LogisticsKind.Splitter => Direction,
             LogisticsKind.Bridge => Direction,
             _ => Direction
         };
     }
 
-    private Direction ResolveSplitterExit()
-    {
-        var exit = splitterToggle % 2 == 0
+    /// <summary>Left/right exits relative to facing (T-fork). Order rotates with <see cref="SplitterToggle"/>.</summary>
+    public Direction PreferredSplitterExit =>
+        splitterToggle % 2 == 0
             ? DirectionMath.Left(Direction)
             : DirectionMath.Right(Direction);
-        splitterToggle++;
-        return exit;
-    }
+
+    public Direction AlternateSplitterExit =>
+        PreferredSplitterExit == DirectionMath.Left(Direction)
+            ? DirectionMath.Right(Direction)
+            : DirectionMath.Left(Direction);
+
+    internal void AdvanceSplitterToggle() => splitterToggle++;
 
     internal void Advance(float deltaSeconds)
     {
@@ -233,7 +238,7 @@ public sealed class ConveyorCell
     public void Rotate(Direction direction)
     {
         Direction = direction;
-        if (Kind is LogisticsKind.Belt or LogisticsKind.Bridge)
+        if (Kind is LogisticsKind.Belt or LogisticsKind.Bridge or LogisticsKind.Splitter)
         {
             RoutedExit = direction;
         }
@@ -463,7 +468,7 @@ public sealed class ConveyorGrid
     public bool TryOrientToward(GridPosition from, GridPosition to)
     {
         if (!cells.TryGetValue(from, out var cell)
-            || cell.Kind is LogisticsKind.Junction or LogisticsKind.Bridge
+            || cell.Kind is LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Bridge
             || !TryDirectionBetween(from, to, out var direction))
         {
             return false;
@@ -523,16 +528,13 @@ public sealed class ConveyorGrid
 
         if (cell.Kind == LogisticsKind.Splitter)
         {
-            // Prefer routed side; if blocked, try the other side once.
-            if (TryInsertNeighbor(cell, cell.RoutedExit, item))
+            // Fair T-fork: prefer alternating left/right; fall back to the other side if blocked.
+            if (TryInsertNeighbor(cell, cell.PreferredSplitterExit, item)
+                || TryInsertNeighbor(cell, cell.AlternateSplitterExit, item))
             {
-                return;
+                cell.AdvanceSplitterToggle();
             }
 
-            var alternate = cell.RoutedExit == DirectionMath.Left(cell.Direction)
-                ? DirectionMath.Right(cell.Direction)
-                : DirectionMath.Left(cell.Direction);
-            TryInsertNeighbor(cell, alternate, item);
             return;
         }
 

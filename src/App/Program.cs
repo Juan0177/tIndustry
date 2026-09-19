@@ -197,6 +197,58 @@ static void RunSelfTest(GameContent content)
 
     Assert(sawSouthEject, "Il minatore deve erogare anche sul lato opposto al facing.");
 
+    // Round-robin: two belts on different sides must both receive ore over time.
+    var rrWorld = new FactoryWorld(12, 8, 7429);
+    var rrGrid = new ConveyorGrid();
+    var rrWallet = new EconomyWallet(150, new Dictionary<string, int> { ["iron-plate"] = 20 });
+    var rrId = 90L;
+    var rrMiner = rrWorld.StarterDepositOrigin;
+    Assert(rrWorld.TryPlaceMiner(rrMiner, Direction.East, rrGrid, rrWallet),
+        "Round-robin: minatore sul giacimento.");
+    var rrEast = new GridPosition(rrMiner.X + MinerBuilding.Size, rrMiner.Y);
+    var rrSouth = new GridPosition(rrMiner.X, rrMiner.Y + MinerBuilding.Size);
+    Assert(rrGrid.TryPlace(rrEast, Direction.East, definition, rrWallet, research),
+        "Round-robin: nastro est.");
+    Assert(rrGrid.TryPlace(rrSouth, Direction.South, definition, rrWallet, research),
+        "Round-robin: nastro sud.");
+    var eastHits = 0;
+    var southHits = 0;
+    for (var tick = 0; tick < 900; tick++)
+    {
+        var eastBefore = rrGrid.Cells[rrEast].Items.Select(item => item.Id).ToHashSet();
+        var southBefore = rrGrid.Cells[rrSouth].Items.Select(item => item.Id).ToHashSet();
+        rrWorld.Update(1f / 30f, rrGrid, rrWallet, ref rrId);
+        foreach (var eastItem in rrGrid.Cells[rrEast].Items)
+        {
+            if (eastBefore.Add(eastItem.Id))
+            {
+                eastHits++;
+            }
+        }
+
+        foreach (var southItem in rrGrid.Cells[rrSouth].Items)
+        {
+            if (southBefore.Add(southItem.Id))
+            {
+                southHits++;
+            }
+        }
+
+        // Drain so capacity-1 belts keep accepting (simulates downstream takeaway).
+        if (rrGrid.Cells[rrEast].Items.Count > 0)
+        {
+            rrGrid.Cells[rrEast].RestoreItems([]);
+        }
+
+        if (rrGrid.Cells[rrSouth].Items.Count > 0)
+        {
+            rrGrid.Cells[rrSouth].RestoreItems([]);
+        }
+    }
+
+    Assert(eastHits >= 2 && southHits >= 2,
+        $"Il minatore deve alternare i nastri adiacenti (est={eastHits}, sud={southHits}).");
+
     // Off-deposit miner: placeable at 0% efficiency, no output.
     var barrenWorld = new FactoryWorld(12, 8, 7429);
     var barrenGrid = new ConveyorGrid();
@@ -538,7 +590,7 @@ static void RunSelfTest(GameContent content)
     Assert(copperWorld.Miners[copperOrigin].OutputItemId == "copper-ore",
         "Il minatore su rame deve produrre copper-ore.");
 
-    // Splitter: one in → alternate left/right outs.
+    // Splitter: one in → alternate left/right outs (both must receive cargo).
     var splitResearch = ResearchState.CreateNew(content);
     Assert(splitResearch.TryUnlock(splitterTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 })),
         "Sdoppiatore sbloccabile.");
@@ -552,22 +604,42 @@ static void RunSelfTest(GameContent content)
         "Uscita nord (sinistra rispetto a E).");
     Assert(splitGrid.TryPlace(new GridPosition(2, 2), Direction.East, definition, splitWallet, splitResearch),
         "Uscita sud (destra rispetto a E).");
+    // Dragging a path through a splitter must not rotate it (facing stays East → L/R = N/S).
+    Assert(!splitGrid.TryOrientToward(new GridPosition(2, 1), new GridPosition(2, 0)),
+        "Lo sdoppiatore non deve ruotare via auto-orient.");
+    Assert(splitGrid.Cells[new GridPosition(2, 1)].Direction == Direction.East,
+        "Facing sdoppiatore invariato dopo auto-orient.");
     var inBelt = splitGrid.Cells[new GridPosition(1, 1)];
-    Assert(inBelt.TryInsert(new TransportedItem(2001, "iron-ore"), Direction.East), "Item 1 nello sdoppiatore.");
-    for (var tick = 0; tick < 90; tick++)
+    var sawNorth = false;
+    var sawSouth = false;
+    for (var n = 0; n < 8; n++)
     {
-        splitGrid.Update(1f / 30f);
+        // Drain side belts so capacity-1 outputs keep accepting.
+        splitGrid.Cells[new GridPosition(2, 0)].RestoreItems([]);
+        splitGrid.Cells[new GridPosition(2, 2)].RestoreItems([]);
+        Assert(inBelt.TryInsert(new TransportedItem(2001 + n, "iron-ore"), Direction.East),
+            $"Item {n + 1} nello sdoppiatore.");
+        for (var tick = 0; tick < 120; tick++)
+        {
+            splitGrid.Update(1f / 30f);
+            if (splitGrid.Cells[new GridPosition(2, 0)].Items.Count > 0)
+            {
+                sawNorth = true;
+                splitGrid.Cells[new GridPosition(2, 0)].RestoreItems([]);
+            }
+
+            if (splitGrid.Cells[new GridPosition(2, 2)].Items.Count > 0)
+            {
+                sawSouth = true;
+                splitGrid.Cells[new GridPosition(2, 2)].RestoreItems([]);
+            }
+        }
     }
-    Assert(inBelt.TryInsert(new TransportedItem(2002, "iron-ore"), Direction.East), "Item 2 nello sdoppiatore.");
-    for (var tick = 0; tick < 120; tick++)
-    {
-        splitGrid.Update(1f / 30f);
-    }
-    var northOut = splitGrid.Cells[new GridPosition(2, 0)];
-    var southOut = splitGrid.Cells[new GridPosition(2, 2)];
-    Assert(northOut.Items.Count + southOut.Items.Count >= 1
-        || northOut.Items.Count + southOut.Items.Count + splitGrid.Cells[new GridPosition(2, 1)].Items.Count >= 1,
-        "Lo sdoppiatore deve instradare verso le uscite laterali.");
+
+    Assert(sawNorth && sawSouth,
+        "Lo sdoppiatore deve alternare verso entrambe le uscite laterali.");
+    Assert(splitGrid.Cells[new GridPosition(2, 1)].RoutedExit == Direction.East,
+        "In transito lo sdoppiatore deve avanzare come un nastro (facing), non di lato.");
 
     // Junction: pass-through opposite sides.
     var juncResearch = ResearchState.CreateNew(content);
