@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag esistente da rilanciare (es. v0.1.0); vuoto = solo build senza create-release"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish + GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore TIndustry.Logistics.csproj
+
+      - name: Build
+        run: dotnet build TIndustry.Logistics.csproj -c Release --no-restore
+
+      - name: Self-test
+        run: dotnet run --project TIndustry.Logistics.csproj -c Release --no-build -- --self-test
+
+      - name: Publish win-x64
+        run: >
+          dotnet publish TIndustry.Logistics.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o artifacts/win-x64
+
+      - name: Publish linux-x64
+        run: >
+          dotnet publish TIndustry.Logistics.csproj
+          -c Release
+          -r linux-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o artifacts/linux-x64
+
+      - name: Zip artifacts
+        run: |
+          mkdir -p dist
+          (cd artifacts/win-x64 && zip -r ../../dist/tIndustry-win-x64.zip .)
+          (cd artifacts/linux-x64 && zip -r ../../dist/tIndustry-linux-x64.zip .)
+          ls -lh dist/
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tIndustry-release-zips
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/tIndustry-win-x64.zip
+            dist/tIndustry-linux-x64.zip
+          generate_release_notes: true
+          draft: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
