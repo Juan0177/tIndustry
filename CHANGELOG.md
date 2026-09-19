@@ -5,6 +5,24 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.5] — 2026-09-19
+
+Patch sopra **0.2.4**: modalità **Campagna** a livelli + fix clip Mercato e costi build a icone nel dock. ([#28](https://github.com/Juan0177/tIndustry/pull/28), [#29](https://github.com/Juan0177/tIndustry/pull/29))
+
+### Aggiunto / migliorato
+
+- **Campagna**: Home → **Campagna** → selezione livelli data-driven (`data/campaign.json`); obiettivi (earn/stock/unlock/sell); HUD **OBIETTIVO**; progressione in AppData `campaignProgress.json`; 5 livelli starter ([#28](https://github.com/Juan0177/tIndustry/pull/28))
+- **Mercato**: bottoni `1` / `tutti` inset e scale-safe — etichette non più tagliate dal bordo giallo ([#29](https://github.com/Juan0177/tIndustry/pull/29))
+- **Dock footer**: costi build Peak-style (`Nome · ×N [icona] · +$cost`); **Rimuovi** con label chiaro senza costi finti ([#29](https://github.com/Juan0177/tIndustry/pull/29))
+- **Docs**: README allineato a 0.2.5
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.4] — 2026-09-19
 
 Patch UX sopra **0.2.3**: pannello Mercato dedicato, icone più chiare, tutorial stock-first a 6 step, HUD scale-safe. ([#26](https://github.com/Juan0177/tIndustry/pull/26))
