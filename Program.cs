@@ -1,21 +1,24 @@
 using TIndustry.Logistics;
 
-var dataDirectory = Path.Combine(AppContext.BaseDirectory, "data");
-var jsonContentPath = Path.Combine(dataDirectory, "content.json");
-var excelContentPath = Path.Combine(dataDirectory, "game-data.xlsx");
+var seedJsonPath = GameContentStore.SeedJsonPath;
 
 if (args.Contains("--export-excel"))
 {
     var argumentIndex = Array.IndexOf(args, "--export-excel");
     var destination = argumentIndex + 1 < args.Length
         ? Path.GetFullPath(args[argumentIndex + 1])
-        : Path.Combine(Directory.GetCurrentDirectory(), "data", "game-data.xlsx");
-    ExcelContentStore.Save(destination, GameContent.Load(jsonContentPath));
+        : Path.Combine(Directory.GetCurrentDirectory(), "data", GameContentStore.ExcelFileName);
+    var exportSource = File.Exists(GameContentStore.UserJsonPath)
+        ? GameContentStore.UserJsonPath
+        : seedJsonPath;
+    ExcelContentStore.Save(destination, GameContent.Load(exportSource));
     Console.WriteLine($"Database Excel creato: {destination}");
     return;
 }
 
-var content = GameContent.Load(File.Exists(excelContentPath) ? excelContentPath : jsonContentPath);
+// First launch: seed AppData from shipped content.json; never require a release Excel DB.
+var contentPath = GameContentStore.EnsureUserContent();
+var content = GameContent.Load(contentPath);
 var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
 
 if (args.Contains("--self-test"))
@@ -662,22 +665,27 @@ static void RunSelfTest(GameContent content)
             "Categoria Intermedi: lastre.");
         Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 1,
             "Categoria Prodotti: fili.");
-        Assert(UiTheme.BuildCategories.Length == 4,
-            "Dock Mindustry: 4 categorie (senza Inventario).");
+        Assert(UiTheme.BuildCategories.Length == 3,
+            "Dock Mindustry: 3 categorie (Produzione/Logistica/Potenza).");
         Assert(!UiTheme.BuildCategories.Contains(UiTheme.BuildCategory.Inventory),
             "Inventario non deve essere nel dock: risorse solo in strip.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Length >= 3,
-            "Produzione: minatore/forno/assemblatore.");
+        Assert(!UiTheme.BuildCategories.Contains(UiTheme.BuildCategory.Tools),
+            "Strumenti non deve essere nel dock: Rimuovi in Produzione, facing con R/rotella.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Any(e => e.Id == "remove"),
+            "Produzione include Rimuovi.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Length >= 4,
+            "Produzione: minatore/forno/assemblatore/rimuovi.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Length >= 5,
             "Logistica: nastri + junction/splitter/ponte.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
             "Potenza: generatore.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Tools).Any(e => e.Id == "remove"),
-            "Strumenti: rimuovi.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Tools).Count(e => e.Kind == UiTheme.DockEntryKind.Direction) == 4,
-            "Strumenti: quattro direzioni senza rubare il tool di build.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length == 0,
             "Categoria Inventario rimossa dal dock.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
+                .All(e => !string.IsNullOrWhiteSpace(e.Hint)),
+            "Hover strumenti: ogni entry Produzione ha un hint italiano.");
+        Assert(File.Exists(GameContentStore.UserJsonPath),
+            "First launch deve materializzare content.json in AppData.");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
             "Etichetta italiana modalità schermo intero.");
 

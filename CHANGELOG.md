@@ -3,6 +3,12 @@
 Tutte le note di versione rilevanti per [tIndustry](https://github.com/Juan0177/tIndustry).
 Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il versioning segue SemVer dove ha senso per un prototipo.
 
+## [Unreleased]
+
+- **Contenuti**: niente Excel pre-compilato nel publish; seed `content.json` → AppData al primo avvio
+- **Home**: **Continua** nascosto se non c’è autosave valido
+- **Dock**: rimossa categoria **Strumenti**; **Rimuovi** in Produzione; tooltip hover IT (nome + hint)
+
 ## [0.1.1] — 2026-09-19
 
 Patch UI/QoL dopo 0.1.0: dock Mindustry, controlli camera, core centrato, Impostazioni display estese. ([#7](https://github.com/Juan0177/tIndustry/pull/7))

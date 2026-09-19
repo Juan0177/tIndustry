@@ -79,7 +79,8 @@ public static class UiTheme
         string? ResearchId = null,
         string? ConveyorId = null,
         Direction? Facing = null,
-        string? ItemId = null);
+        string? ItemId = null,
+        string? Hint = null);
 
     public static readonly InventoryItemDef[] InventoryItems =
     [
@@ -89,13 +90,12 @@ public static class UiTheme
         new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products)
     ];
 
-    /// <summary>Dock rail categories — resources stay in the top strip, not here.</summary>
+    /// <summary>Dock rail categories — Strumenti removed; Rimuovi lives in Produzione.</summary>
     public static readonly BuildCategory[] BuildCategories =
     [
         BuildCategory.Production,
         BuildCategory.Logistics,
-        BuildCategory.Power,
-        BuildCategory.Tools
+        BuildCategory.Power
     ];
 
     public static readonly Color PanelFill = new(18, 20, 22, 200);
@@ -284,38 +284,61 @@ public static class UiTheme
     {
         BuildCategory.Production =>
         [
-            new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner"),
-            new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter"),
-            new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler")
+            new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
+                Hint: "Estrae minerali dal giacimento"),
+            new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
+                Hint: "Fonde ore in lastre"),
+            new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
+                Hint: "Assembla prodotti intermedi"),
+            new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove,
+                Hint: "Demolisci edifici e nastri (tasto 4)")
         ],
         BuildCategory.Logistics =>
         [
             new("conveyor-basic", "Nastro", "Na", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
-                ResearchId: "conveyor-basic", ConveyorId: "conveyor-basic"),
+                ResearchId: "conveyor-basic", ConveyorId: "conveyor-basic",
+                Hint: "Trasporta item · Q"),
             new("conveyor-fast", "Veloce", "Ve", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
-                ResearchId: "conveyor-fast", ConveyorId: "conveyor-fast"),
-            new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction"),
-            new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter"),
-            new("bridge", "Ponte", "Po", DockEntryKind.BuildTool, Tool: BuildTool.Bridge, ResearchId: "conveyor-bridge")
+                ResearchId: "conveyor-fast", ConveyorId: "conveyor-fast",
+                Hint: "Nastro rapido · E"),
+            new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction",
+                Hint: "Incrocio a croce (6)"),
+            new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",
+                Hint: "Divide il flusso (7)"),
+            new("bridge", "Ponte", "Po", DockEntryKind.BuildTool, Tool: BuildTool.Bridge, ResearchId: "conveyor-bridge",
+                Hint: "Ponte a due capi (8)")
         ],
         BuildCategory.Power =>
         [
-            new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator")
+            new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
+                Hint: "Produce energia (9)")
         ],
-        BuildCategory.Tools =>
-        [
-            new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove),
-            new("dir-n", "Nord", "N", DockEntryKind.Direction, Facing: Direction.North),
-            new("dir-e", "Est", "E", DockEntryKind.Direction, Facing: Direction.East),
-            new("dir-s", "Sud", "S", DockEntryKind.Direction, Facing: Direction.South),
-            new("dir-w", "Ovest", "O", DockEntryKind.Direction, Facing: Direction.West)
-        ],
-        // Inventory removed from dock — item counts live in the header resource strip.
+        // Legacy enum values kept for switch exhaustiveness; not on the rail.
+        BuildCategory.Tools => [],
         BuildCategory.Inventory => [],
         _ => []
     };
 
-    public const int DockHoverBarHeight = 18;
+    public const int DockHoverBarHeight = 32;
+
+    /// <summary>Italian tooltip line for dock hover: name + short hint.</summary>
+    public static string DockHoverText(DockEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.Hint))
+        {
+            return entry.Label;
+        }
+
+        return $"{entry.Label} — {entry.Hint}";
+    }
+
+    public static string DockHoverText(BuildCategory category) => category switch
+    {
+        BuildCategory.Production => "Produzione — edifici e demolizione",
+        BuildCategory.Logistics => "Logistica — nastri e routing",
+        BuildCategory.Power => "Potenza — generatori",
+        _ => BuildCategoryLabel(category)
+    };
 
     public static void DrawBuildCategoryIcon(BuildCategory category, int cx, int cy, int size, Color color)
     {

@@ -27,7 +27,7 @@ Fasi **0–6** + Impostazioni/CI. In sintesi:
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore**, **ponte** (span 2–4) |
 | Economia | Wallet (denaro + lastre + fili), prezzi mercato, rimborso 100%, **potenziamento core** (+25% vendite) |
 | Progressione | **Ricerca** data-driven: sblocchi a pagamento, persistenti nel save |
-| Sessione | Home (Continua / Nuova / Gestione / Impostazioni / Esci), scenari + seed, save JSON **v6** |
+| Sessione | Home (Continua se autosave valido / Nuova / Gestione / Impostazioni / Esci), scenari + seed, save JSON **v6** |
 | Qualità di vita | Overlay FPS e risorse, tip onboarding, UI in italiano, `--self-test` esteso |
 
 Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta nel **layout** e nel **reinvestimento**.
@@ -90,7 +90,7 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 
 **Home**
 
-- **Continua** — carica l’autosave
+- **Continua** — carica l’autosave (nascosto se non c’è uno slot valido)
 - **Nuova partita** — scenario + seed, mappa 1000×1000
 - **Gestione salvataggi** — lista slot, carica, elimina, **Duplica Continua** → `slot-*.json`
 - **Impostazioni** — overlay
@@ -161,7 +161,7 @@ Su tag `v*` (es. `v0.1.0`), il workflow [`.github/workflows/release.yml`](.githu
 | --- | --- |
 | Linguaggio | C# / **.NET 10** |
 | Rendering | **Raylib-cs** (immediate-mode) |
-| Contenuti | `data/content.json` (+ Excel opzionale `game-data.xlsx`) |
+| Contenuti | seed `data/content.json` → AppData al primo avvio (`~/.local/share/tIndustry/content/`); Excel solo locale/`--export-excel` |
 | Progetto | singolo `TIndustry.Logistics` |
 | Sim | ~30 Hz step fisso · render 60 FPS |
 | Persistenza | JSON (`GameSave`, `GameSettings`) |

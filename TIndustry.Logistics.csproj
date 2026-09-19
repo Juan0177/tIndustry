@@ -13,8 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Seed template only — runtime copies into AppData on first launch. Do not ship Excel. -->
     <None Include="data\content.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="data\game-data.xlsx" CopyToOutputDirectory="PreserveNewest" Condition="Exists('data\game-data.xlsx')" />
     <None Include="assets\fonts\**\*" CopyToOutputDirectory="PreserveNewest" Link="assets\fonts\%(Filename)%(Extension)" />
   </ItemGroup>
 
