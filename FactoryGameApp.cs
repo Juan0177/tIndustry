@@ -39,7 +39,7 @@ internal static class FactoryGameApp
     private const int ViewportRight = ScreenWidth - PanelWidth;
     private const int ViewportBottom = ScreenHeight;
     private const float FixedStep = 1f / 30f;
-    private const int DefaultSeed = 7429;
+    public const int DefaultSeed = 7429;
     private const int SeedEspanso = 1337;
     private const int SeedArcipelago = 9001;
 
