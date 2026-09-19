@@ -94,8 +94,23 @@ public sealed class EconomyWallet
 
     public Dictionary<string, int> MaterialsSnapshot() => new(materials);
 
-    public bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost) =>
-        Money >= money && cost.All(entry => MaterialCount(entry.ItemId) >= entry.Amount);
+    public bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost)
+    {
+        if (Money < money)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < cost.Count; i++)
+        {
+            if (MaterialCount(cost[i].ItemId) < cost[i].Amount)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     public void AddMoney(int amount) => Money += amount;
 

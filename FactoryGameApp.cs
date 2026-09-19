@@ -2796,7 +2796,7 @@ internal static class FactoryGameApp
             for (var x = minX; x <= maxX; x++)
             {
                 var screenX = originScreen.X + (x - minX) * tileSize;
-                DrawTerrainTile(world.Terrain[x, y], x, y, screenX, rowScreenY, tileSize);
+                DrawTerrainTile(world.Terrain[x, y], screenX, rowScreenY, tileSize);
             }
         }
 
@@ -2884,7 +2884,7 @@ internal static class FactoryGameApp
         Raylib.EndScissorMode();
     }
 
-    private static void DrawTerrainTile(TerrainTile tile, int tileX, int tileY, float x, float y, float tileSize)
+    private static void DrawTerrainTile(TerrainTile tile, float x, float y, float tileSize)
     {
         // Integer pixel bounds from floor→next floor keep cells flush (no muddy float gaps).
         var ix = (int)MathF.Floor(x);
@@ -2936,9 +2936,6 @@ internal static class FactoryGameApp
                 Raylib.DrawCircle(ix + (int)(23 * s), iy + (int)(20 * s), Math.Max(2.5f, 7 * s), fill);
             }
         }
-
-        _ = tileX;
-        _ = tileY;
     }
 
     private static void DrawCore(
