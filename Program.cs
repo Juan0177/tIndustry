@@ -80,9 +80,19 @@ static void RunSelfTest(GameContent content)
         "Nastro base e minatore devono partire sbloccati.");
     Assert(!research.IsUnlocked("smelter") && !research.IsUnlocked("conveyor-fast"),
         "Forno e nastro veloce devono partire bloccati.");
-    Assert(content.FindStructure("assembler")?.IsStub == true
-        && content.FindStructure("miner-advanced")?.IsStub == true,
-        "Assemblatore e minatore avanzato devono essere stub.");
+    Assert(content.FindStructure("assembler")?.IsStub == false
+        && content.FindStructure("assembler")?.Kind == StructureKind.Building,
+        "L'assemblatore deve essere un edificio costruibile.");
+    Assert(content.FindStructure("miner-advanced")?.IsStub == true,
+        "Il minatore avanzato resta stub.");
+    Assert(content.FindStructure("junction") is not null
+        && content.FindStructure("splitter") is not null
+        && content.FindStructure("conveyor-bridge") is not null,
+        "Incrocio, sdoppiatore e ponte devono esistere nelle strutture.");
+    Assert(content.Recipes.Any(recipe => recipe.Id == "craft-copper-wire"),
+        "La ricetta craft-copper-wire deve esistere.");
+    Assert(content.CreateMarket().GetSellPrice("copper-ore") == 6,
+        "Il rame grezzo deve avere prezzo mercato.");
 
     var grid = CreateTwoCellLine(definition, research);
     var first = grid.Cells[new GridPosition(0, 0)];
@@ -343,7 +353,7 @@ static void RunSelfTest(GameContent content)
     Assert(ecoSession.RefundIncome >= minerBuilding.MoneyCost,
         "La sessione deve registrare i rimborsi.");
 
-    // Persist economy session + core upgrade in save v4.
+    // Persist economy session + core upgrade in save v5.
     var ecoSaveResearch = ResearchState.CreateNew(content);
     Assert(ecoSaveResearch.TryUnlock(smelterTech, ecoWallet), "Save economia: sblocca forno.");
     var smelterAt = new GridPosition(ecoWorld.CoreOrigin.X - 4, ecoWorld.CoreOrigin.Y);
@@ -351,7 +361,7 @@ static void RunSelfTest(GameContent content)
         "Save economia: piazza forno.");
     var ecoCamera = new WorldCamera(1f, 2f, 1.1f);
     var ecoCaptured = GameSaveStore.Capture(ecoWorld, ecoGrid, ecoWallet, ecoCamera, ecoSaveResearch, ecoSession, ecoItemId);
-    Assert(ecoCaptured.Version == 4, "Il salvataggio economia deve essere v4.");
+    Assert(ecoCaptured.Version == 5, "Il salvataggio deve essere v5.");
     var ecoSlot = "self-test-economy";
     GameSaveStore.Save(ecoSlot, ecoCaptured);
     var ecoRestored = GameSaveStore.Restore(GameSaveStore.Load(ecoSlot), content);
@@ -365,7 +375,197 @@ static void RunSelfTest(GameContent content)
         "SaleIncome sessione deve sopravvivere al reload.");
     GameSaveStore.Delete(ecoSlot);
 
-    Console.WriteLine("SELF-TEST OK: trasporto, forno, ricerca, tier, camera, save e economia Phase 4 verificati.");
+    // Phase 5 — copper, splitter, junction, bridge, assembler multi-step.
+    var junctionDef = content.Conveyors.Single(entry => entry.Id == "junction");
+    var splitterDef = content.Conveyors.Single(entry => entry.Id == "splitter");
+    var bridgeDef = content.Conveyors.Single(entry => entry.Id == "conveyor-bridge");
+    var wireRecipe = content.Recipes.Single(entry => entry.Id == "craft-copper-wire");
+    var assemblerBuilding = content.GetBuildingOrDefault("assembler");
+    var assemblerTech = content.FindStructure("assembler")!;
+    var junctionTech = content.FindStructure("junction")!;
+    var splitterTech = content.FindStructure("splitter")!;
+    var bridgeTech = content.FindStructure("conveyor-bridge")!;
+
+    var copperWorld = new FactoryWorld(12, 8, 7429);
+    var copperOrigin = new GridPosition(
+        copperWorld.StarterDepositOrigin.X,
+        copperWorld.StarterDepositOrigin.Y + MinerBuilding.Size + 1);
+    Assert(copperWorld.Terrain[copperOrigin].Deposit == DepositKind.Copper,
+        "Il giacimento rame starter deve esistere a sud del ferro.");
+    var copperGrid = new ConveyorGrid();
+    var copperWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 });
+    Assert(copperWorld.TryPlaceMiner(copperOrigin, Direction.East, copperGrid, copperWallet),
+        "Il minatore deve piazzarsi sul rame.");
+    Assert(copperWorld.Miners[copperOrigin].OutputItemId == "copper-ore",
+        "Il minatore su rame deve produrre copper-ore.");
+
+    // Splitter: one in → alternate left/right outs.
+    var splitResearch = ResearchState.CreateNew(content);
+    Assert(splitResearch.TryUnlock(splitterTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 })),
+        "Sdoppiatore sbloccabile.");
+    var splitGrid = new ConveyorGrid();
+    var splitWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    Assert(splitGrid.TryPlace(new GridPosition(1, 1), Direction.East, definition, splitWallet, splitResearch),
+        "Ingresso sdoppiatore.");
+    Assert(splitGrid.TryPlace(new GridPosition(2, 1), Direction.East, splitterDef, splitWallet, splitResearch),
+        "Sdoppiatore.");
+    Assert(splitGrid.TryPlace(new GridPosition(2, 0), Direction.East, definition, splitWallet, splitResearch),
+        "Uscita nord (sinistra rispetto a E).");
+    Assert(splitGrid.TryPlace(new GridPosition(2, 2), Direction.East, definition, splitWallet, splitResearch),
+        "Uscita sud (destra rispetto a E).");
+    var inBelt = splitGrid.Cells[new GridPosition(1, 1)];
+    Assert(inBelt.TryInsert(new TransportedItem(2001, "iron-ore"), Direction.East), "Item 1 nello sdoppiatore.");
+    for (var tick = 0; tick < 90; tick++)
+    {
+        splitGrid.Update(1f / 30f);
+    }
+    Assert(inBelt.TryInsert(new TransportedItem(2002, "iron-ore"), Direction.East), "Item 2 nello sdoppiatore.");
+    for (var tick = 0; tick < 120; tick++)
+    {
+        splitGrid.Update(1f / 30f);
+    }
+    var northOut = splitGrid.Cells[new GridPosition(2, 0)];
+    var southOut = splitGrid.Cells[new GridPosition(2, 2)];
+    Assert(northOut.Items.Count + southOut.Items.Count >= 1
+        || northOut.Items.Count + southOut.Items.Count + splitGrid.Cells[new GridPosition(2, 1)].Items.Count >= 1,
+        "Lo sdoppiatore deve instradare verso le uscite laterali.");
+
+    // Junction: pass-through opposite sides.
+    var juncResearch = ResearchState.CreateNew(content);
+    Assert(juncResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+        "Incrocio sbloccabile.");
+    var juncGrid = new ConveyorGrid();
+    var juncWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 });
+    Assert(juncGrid.TryPlace(new GridPosition(0, 1), Direction.East, definition, juncWallet, juncResearch),
+        "Ingresso ovest incrocio.");
+    Assert(juncGrid.TryPlace(new GridPosition(1, 1), Direction.East, junctionDef, juncWallet, juncResearch),
+        "Incrocio.");
+    Assert(juncGrid.TryPlace(new GridPosition(2, 1), Direction.East, definition, juncWallet, juncResearch),
+        "Uscita est incrocio.");
+    var juncIn = juncGrid.Cells[new GridPosition(0, 1)];
+    Assert(juncIn.TryInsert(new TransportedItem(3001, "copper-ore"), Direction.East), "Item nell'incrocio.");
+    for (var tick = 0; tick < 150; tick++)
+    {
+        juncGrid.Update(1f / 30f);
+    }
+    Assert(juncGrid.Cells[new GridPosition(2, 1)].Items.Any(item => item.ItemId == "copper-ore")
+        || juncGrid.Cells[new GridPosition(1, 1)].Items.Any(item => item.ItemId == "copper-ore"),
+        "L'incrocio deve far passare l'item verso il lato opposto.");
+
+    // Bridge: span gap of 2.
+    var bridgeResearch = ResearchState.CreateNew(content);
+    Assert(bridgeResearch.TryUnlock(bridgeTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 })),
+        "Ponte sbloccabile.");
+    var bridgeGrid = new ConveyorGrid();
+    var bridgeWallet = new EconomyWallet(300, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 40,
+        ["copper-wire"] = 10
+    });
+    Assert(bridgeGrid.TryPlace(new GridPosition(0, 0), Direction.East, definition, bridgeWallet, bridgeResearch),
+        "Pre-ponte.");
+    Assert(bridgeGrid.TryPlace(new GridPosition(1, 0), Direction.East, bridgeDef, bridgeWallet, bridgeResearch),
+        "Ponte (entry+exit).");
+    Assert(bridgeGrid.Cells.ContainsKey(new GridPosition(1, 0))
+        && bridgeGrid.Cells.ContainsKey(new GridPosition(3, 0)),
+        "Il ponte deve occupare entry e exit a distanza 2.");
+    Assert(bridgeGrid.TryPlace(new GridPosition(4, 0), Direction.East, definition, bridgeWallet, bridgeResearch),
+        "Post-ponte.");
+    var bridgeFeed = bridgeGrid.Cells[new GridPosition(0, 0)];
+    Assert(bridgeFeed.TryInsert(new TransportedItem(4001, "iron-plate"), Direction.East), "Item sul ponte.");
+    for (var tick = 0; tick < 240; tick++)
+    {
+        bridgeGrid.Update(1f / 30f);
+    }
+    Assert(bridgeGrid.Cells[new GridPosition(4, 0)].Items.Any()
+        || bridgeGrid.Cells[new GridPosition(3, 0)].Items.Any(),
+        "Il ponte deve teletrasportare l'item all'uscita.");
+
+    // Assembler multi-step: copper-ore + iron-plate → copper-wire → core.
+    var craftWorld = new FactoryWorld(16, 10, 7429);
+    var craftGrid = new ConveyorGrid();
+    var craftWallet = new EconomyWallet(800, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 80,
+        ["copper-wire"] = 20
+    });
+    var craftResearch = ResearchState.CreateNew(content);
+    Assert(craftResearch.TryUnlock(assemblerTech, craftWallet), "Assemblatore sbloccabile.");
+    Assert(craftResearch.IsUnlocked("assembler") && !assemblerTech.IsStub,
+        "Dopo unlock l'assemblatore è costruibile.");
+    // Core at (10,3) on 16×10 — assembler at (4,3) facing east toward core.
+    Assert(craftWorld.TryPlaceAssembler(
+            new GridPosition(4, 3), Direction.East, wireRecipe, craftGrid, craftWallet, assemblerBuilding),
+        "Assemblatore piazzabile.");
+    Assert(craftGrid.TryPlace(new GridPosition(3, 3), Direction.East, definition, craftWallet, craftResearch),
+        "Ingresso assemblatore.");
+    Assert(craftGrid.TryPlace(new GridPosition(6, 3), Direction.East, definition, craftWallet, craftResearch),
+        "Uscita assemblatore.");
+    Assert(craftGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, craftWallet, craftResearch),
+        "Nastro verso core 1.");
+    Assert(craftGrid.TryPlace(new GridPosition(8, 3), Direction.East, definition, craftWallet, craftResearch),
+        "Nastro verso core 2.");
+    Assert(craftGrid.TryPlace(new GridPosition(9, 3), Direction.East, definition, craftWallet, craftResearch),
+        "Nastro verso core 3.");
+    var craftIn = craftGrid.Cells[new GridPosition(3, 3)];
+    Assert(craftIn.TryInsert(new TransportedItem(5001, "copper-ore")), "Rame in ingresso.");
+    var craftItemId = 5100L;
+    for (var tick = 0; tick < 90; tick++)
+    {
+        craftWorld.Update(1f / 30f, craftGrid, craftWallet, ref craftItemId, market);
+    }
+    Assert(craftIn.TryInsert(new TransportedItem(craftItemId++, "iron-plate")), "Lastra in ingresso.");
+    var moneyBeforeWire = craftWallet.Money;
+    for (var tick = 0; tick < 400; tick++)
+    {
+        craftWorld.Update(1f / 30f, craftGrid, craftWallet, ref craftItemId, market);
+    }
+    Assert(craftWorld.SoldItems >= 1, "L'assemblatore deve produrre fili venduti al core.");
+    Assert(craftWallet.Money >= moneyBeforeWire + market.GetSellPrice("copper-wire"),
+        "Il filo di rame deve essere venduto al core.");
+
+    // Save assemblers + bridge in v5.
+    var phase5Camera = new WorldCamera(3f, 3f, 1.2f);
+    var phase5Session = new EconomySession(craftWallet.Money);
+    craftResearch.ForceUnlock("conveyor-bridge");
+    Assert(craftGrid.TryPlace(new GridPosition(1, 1), Direction.East, bridgeDef, craftWallet, craftResearch),
+        "Ponte in save-test.");
+    var phase5Captured = GameSaveStore.Capture(
+        craftWorld, craftGrid, craftWallet, phase5Camera, craftResearch, phase5Session, craftItemId);
+    Assert(phase5Captured.Assemblers.Count == 1, "Capture deve includere assemblatori.");
+    Assert(phase5Captured.Conveyors.Any(cell => cell.DefinitionId == "conveyor-bridge"),
+        "Capture deve includere ponti.");
+    var phase5Slot = "self-test-phase5";
+    GameSaveStore.Save(phase5Slot, phase5Captured);
+    var phase5Restored = GameSaveStore.Restore(GameSaveStore.Load(phase5Slot), content);
+    Assert(phase5Restored.World.Assemblers.Count == 1, "Assemblatori devono sopravvivere al reload.");
+    Assert(phase5Restored.Research.IsUnlocked("assembler"), "Unlock assemblatore dopo reload.");
+    Assert(phase5Restored.Conveyors.Cells.Values.Any(cell => cell.Kind == LogisticsKind.Bridge),
+        "Ponti devono sopravvivere al reload.");
+    GameSaveStore.Delete(phase5Slot);
+
+    // Stress: long belt line capacity/handoff on a larger map.
+    var stressWorld = new FactoryWorld(64, 32, 7429);
+    var stressGrid = new ConveyorGrid();
+    var stressWallet = new EconomyWallet(5000, new Dictionary<string, int> { ["iron-plate"] = 500 });
+    var stressResearch = ResearchState.CreateNew(content);
+    var stressY = stressWorld.CoreOrigin.Y;
+    var stressStartX = Math.Max(0, stressWorld.CoreOrigin.X - 20);
+    for (var x = stressStartX; x < stressWorld.CoreOrigin.X; x++)
+    {
+        Assert(stressGrid.TryPlace(new GridPosition(x, stressY), Direction.East, definition, stressWallet, stressResearch),
+            $"Nastro stress a x={x}.");
+    }
+    var stressFeed = stressGrid.Cells[new GridPosition(stressStartX, stressY)];
+    Assert(stressFeed.TryInsert(new TransportedItem(9001, "iron-ore")), "Item stress in linea lunga.");
+    var stressItemId = 9100L;
+    for (var tick = 0; tick < 1800; tick++)
+    {
+        stressWorld.Update(1f / 30f, stressGrid, stressWallet, ref stressItemId, market);
+    }
+    Assert(stressWorld.SoldItems >= 1, "Una linea lunga deve consegnare al core senza soft-lock.");
+
+    Console.WriteLine("SELF-TEST OK: trasporto, forno, ricerca, economia, logistica Phase 5 e save v5 verificati.");
 }
 
 static void Assert(bool condition, string message)

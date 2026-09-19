@@ -182,7 +182,7 @@ public sealed class ConveyorCell
         return Kind switch
         {
             LogisticsKind.Junction when fromDirection is { } incoming =>
-                DirectionMath.Opposite(incoming),
+                incoming,
             LogisticsKind.Splitter => ResolveSplitterExit(),
             LogisticsKind.Bridge => Direction,
             _ => Direction
