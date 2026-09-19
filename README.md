@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.1.0** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.1.1** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
