@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -19,11 +19,13 @@ public sealed class GameSaveData
     public List<string> UnlockedStructures { get; set; } = [];
     public int CoreUpgradeLevel { get; set; }
     public int CoreSaleBonusPercent { get; set; }
+    public float PowerBuffer { get; set; }
     public EconomySessionSaveData Session { get; set; } = new();
     public CameraSaveData Camera { get; set; } = new();
     public List<MinerSaveData> Miners { get; set; } = [];
     public List<SmelterSaveData> Smelters { get; set; } = [];
     public List<SmelterSaveData> Assemblers { get; set; } = [];
+    public List<GeneratorSaveData> Generators { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -64,6 +66,12 @@ public sealed class SmelterSaveData
     public bool IsCrafting { get; set; }
     public Dictionary<string, int> InputBuffer { get; set; } = [];
     public List<string> OutputQueue { get; set; } = [];
+}
+
+public sealed class GeneratorSaveData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
 }
 
 public sealed class ConveyorSaveData
@@ -240,6 +248,7 @@ public static class GameSaveStore
             UnlockedStructures = research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
             CoreUpgradeLevel = world.CoreUpgradeLevel,
             CoreSaleBonusPercent = world.CoreSaleBonusPercent,
+            PowerBuffer = world.PowerBuffer,
             Session = new EconomySessionSaveData
             {
                 StartingMoney = session.StartingMoney,
@@ -292,6 +301,13 @@ public static class GameSaveStore
                     OutputQueue = assembler.OutputQueue.ToList()
                 })
                 .ToList(),
+            Generators = world.Generators.Values
+                .Select(generator => new GeneratorSaveData
+                {
+                    X = generator.Position.X,
+                    Y = generator.Position.Y
+                })
+                .ToList(),
             Conveyors = conveyors.Cells.Values
                 .Select(cell => new ConveyorSaveData
                 {
@@ -322,6 +338,10 @@ public static class GameSaveStore
         var world = new FactoryWorld(data.MapWidth, data.MapHeight, data.Seed);
         world.SetSoldItems(data.SoldItems, data.SaleRevenue);
         world.SetCoreUpgrade(data.CoreUpgradeLevel, data.CoreSaleBonusPercent);
+        if (data.Version >= 6)
+        {
+            world.SetPowerBuffer(data.PowerBuffer);
+        }
 
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var conveyors = new ConveyorGrid();
@@ -404,6 +424,15 @@ public static class GameSaveStore
             }
         }
 
+        foreach (var generatorData in data.Generators)
+        {
+            var position = new GridPosition(generatorData.X, generatorData.Y);
+            if (!world.TryRestoreGenerator(position))
+            {
+                throw new InvalidDataException($"Impossibile ripristinare il generatore a {position}.");
+            }
+        }
+
         foreach (var conveyorData in data.Conveyors)
         {
             if (!definitions.TryGetValue(conveyorData.DefinitionId, out var definition))
@@ -459,6 +488,11 @@ public static class GameSaveStore
         if (data.Assemblers.Count > 0)
         {
             research.ForceUnlock("assembler");
+        }
+
+        if (data.Generators.Count > 0)
+        {
+            research.ForceUnlock("generator");
         }
 
         if (data.Conveyors.Any(cell => cell.DefinitionId == "conveyor-fast"))

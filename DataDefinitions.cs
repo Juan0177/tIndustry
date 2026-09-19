@@ -64,6 +64,7 @@ public sealed class GameContent
             "smelter" => new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
             "assembler" => new BuildingDefinition("assembler", 60,
                 [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100),
+            "generator" => new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100),
             _ => new BuildingDefinition(id, 0, [], 100)
         };
 

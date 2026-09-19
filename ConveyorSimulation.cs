@@ -461,7 +461,7 @@ public sealed class ConveyorGrid
             cell.Advance(fixedDeltaSeconds);
         }
 
-        foreach (var cell in cells.Values.ToArray())
+        foreach (var cell in cells.Values)
         {
             TryHandoff(cell);
         }

@@ -199,10 +199,23 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 250,
+        "money": 220,
         "materials": [
-          { "itemId": "iron-plate", "amount": 25 },
-          { "itemId": "copper-wire", "amount": 5 }
+          { "itemId": "iron-plate", "amount": 22 },
+          { "itemId": "copper-wire", "amount": 4 }
+        ]
+      },
+      "isStub": false
+    },
+    {
+      "id": "generator",
+      "displayName": "Generatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 90,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 12 }
         ]
       },
       "isStub": false
@@ -240,7 +253,7 @@
     {
       "itemId": "copper-wire",
       "displayName": "Filo di rame",
-      "sellPrice": 14
+      "sellPrice": 16
     }
   ],
   "buildings": [
@@ -266,6 +279,14 @@
       "buildCost": [
         { "itemId": "iron-plate", "amount": 8 },
         { "itemId": "copper-wire", "amount": 2 }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "generator",
+      "moneyCost": 55,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 8 }
       ],
       "refundPercent": 100
     }
