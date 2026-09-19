@@ -29,11 +29,13 @@ if (args.Contains("--self-test"))
 
 if (!args.Contains("--console-demo"))
 {
-    var capture = args.Contains("--capture");
+    var capture = args.Contains("--capture") || args.Contains("--capture-upgraded");
+    var captureUpgraded = args.Contains("--capture-upgraded");
     FactoryGameApp.Run(
         content,
         args.Contains("--smoke-test") || capture ? 3 : null,
-        capture ? Path.Combine("artifacts", "game-preview.png") : null);
+        capture ? Path.Combine("artifacts", captureUpgraded ? "core-upgrade-preview.png" : "game-preview.png") : null,
+        captureUpgradeCore: captureUpgraded);
     return;
 }
 
@@ -901,6 +903,49 @@ static void RunSelfTest(GameContent content)
             "Impostazioni: le righe non devono sovrapporsi a 100/125/150/200%.");
         Assert(FactoryGameApp.HudLayoutIsValidForAllScales(),
             "HUD: Mercato/Fabbrica/dock/tutorial non devono sovrapporsi a 100/125/150/200%.");
+
+        // Fabbrica live counts + CORE button hit-test (default 125% / 1240×760).
+        {
+            var prevScale = UiTheme.Scale;
+            Assert(FactoryGameApp.TryConfigureHudLayoutForTest(1240, 760, 125),
+                "HUD-test: layout 1240×760 @125% deve lasciare Fabbrica visibile.");
+            try
+            {
+                var hudWorld = new FactoryWorld(64, 48, 4242);
+                var hudGrid = new ConveyorGrid();
+                var hudWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
+                var hudSession = new EconomySession(hudWallet.Money);
+                var hudResearch = ResearchState.CreateNew(content);
+                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M0 F0 A0 N0 G0",
+                    "Fabbrica vuota deve mostrare M0 F0 A0 N0 G0.");
+                Assert(hudWorld.TryPlaceMiner(
+                        hudWorld.StarterDepositOrigin, Direction.East, hudGrid, hudWallet, minerBuilding, hudSession),
+                    "HUD-test: piazza minatore.");
+                Assert(hudGrid.TryPlace(
+                        new GridPosition(hudWorld.StarterDepositOrigin.X + MinerBuilding.Size, hudWorld.StarterDepositOrigin.Y),
+                        Direction.East, definition, hudWallet, hudResearch, hudSession),
+                    "HUD-test: piazza nastro.");
+                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M1 F0 A0 N1 G0",
+                    "Dopo piazzamento i conteggi Fabbrica devono aggiornarsi (M1 N1).");
+
+                Assert(FactoryGameApp.TryClickCoreUpgradeForTest(
+                        hudWorld, hudWallet, hudSession, economy, out var upgradeMsg),
+                    "Click CORE deve colpire il hit-box Fabbrica.");
+                Assert(hudWorld.CoreUpgradeLevel == 1, "Click CORE deve alzare CoreUpgradeLevel.");
+                Assert(upgradeMsg is not null && upgradeMsg.Contains("potenziato", StringComparison.OrdinalIgnoreCase),
+                    "Click CORE riuscito deve mostrare feedback.");
+                Assert(FactoryGameApp.TryClickCoreUpgradeForTest(
+                        hudWorld, hudWallet, hudSession, economy, out var againMsg),
+                    "Click CORE dopo upgrade resta gestito.");
+                Assert(againMsg is not null && againMsg.Contains("già", StringComparison.OrdinalIgnoreCase),
+                    "CORE già potenziato deve spiegare perché non si ripete.");
+            }
+            finally
+            {
+                FactoryGameApp.RestoreHudLayoutAfterTest(prevScale);
+            }
+        }
+
         Assert(FactoryGameApp.TutorialStepCount == 6,
             "Tutorial stock-first: 6 passi (produce → stock → spendi/vendi → ricerca).");
         Assert(SystemMonitor.FormatBytes(1536) == "1.5 KB", "FormatBytes risorse sistema.");
