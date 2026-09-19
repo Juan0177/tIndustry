@@ -184,6 +184,7 @@ public sealed class MinerBuilding
 {
     public const int Size = 2;
     public const int FootprintArea = Size * Size;
+    public const int OutputTileCount = Size * 4;
 
     public MinerBuilding(
         GridPosition position,
@@ -204,6 +205,9 @@ public sealed class MinerBuilding
     public float Efficiency => CoveredDepositTiles / (float)FootprintArea;
     public float Progress { get; internal set; }
 
+    /// <summary>Round-robin cursor over the 8 adjacent output tiles (N/E/S/W × 2).</summary>
+    public int EjectIndex { get; internal set; }
+
     public IEnumerable<GridPosition> OccupiedTiles()
     {
         for (var y = 0; y < Size; y++)
@@ -221,20 +225,25 @@ public sealed class MinerBuilding
     /// </summary>
     public IEnumerable<GridPosition> OutputTiles()
     {
-        foreach (var edge in DirectionMath.All)
+        for (var index = 0; index < OutputTileCount; index++)
         {
-            for (var offset = 0; offset < Size; offset++)
-            {
-                yield return edge switch
-                {
-                    Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
-                    Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
-                    Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
-                    Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
-                    _ => Position
-                };
-            }
+            yield return OutputTileAt(index);
         }
+    }
+
+    public GridPosition OutputTileAt(int index)
+    {
+        var i = ((index % OutputTileCount) + OutputTileCount) % OutputTileCount;
+        var edge = DirectionMath.All[i / Size];
+        var offset = i % Size;
+        return edge switch
+        {
+            Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
+            Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
+            Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
+            Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
+            _ => Position
+        };
     }
 
     /// <summary>Travel direction from the miner footprint into an adjacent output tile.</summary>
@@ -990,8 +999,11 @@ public sealed class FactoryWorld
             }
 
             var produced = false;
-            foreach (var outputPosition in miner.OutputTiles())
+            var start = miner.EjectIndex;
+            for (var step = 0; step < MinerBuilding.OutputTileCount; step++)
             {
+                var slot = (start + step) % MinerBuilding.OutputTileCount;
+                var outputPosition = miner.OutputTileAt(slot);
                 if (!conveyors.Cells.TryGetValue(outputPosition, out var output))
                 {
                     continue;
@@ -1004,6 +1016,8 @@ public sealed class FactoryWorld
                 {
                     nextItemId++;
                     produced = true;
+                    // Next eject starts on the following neighbor so two belts share ore.
+                    miner.EjectIndex = (slot + 1) % MinerBuilding.OutputTileCount;
                     break;
                 }
             }

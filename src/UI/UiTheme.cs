@@ -376,7 +376,7 @@ public static class UiTheme
         new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction",
             Hint: "Incrocio a croce (6)"),
         new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",
-            Hint: "Divide il flusso (7)"),
+            Hint: "Nastro a T · alterna sinistra/destra"),
         new("bridge", "Ponte", "Po", DockEntryKind.BuildTool, Tool: BuildTool.Bridge, ResearchId: "conveyor-bridge",
             Hint: "Ponte a due capi (8)")
     ];

@@ -3627,19 +3627,27 @@ internal static class FactoryGameApp
 
     private static void DrawSplitterGlyph(Vector2 center, Direction direction, int alpha, float tileSize)
     {
-        var arm = Math.Max(4, (int)(10 * tileSize / BaseTileSize));
-        var span = Math.Max(10, (int)(26 * tileSize / BaseTileSize));
-        var forward = DirectionVector(direction);
-        var side = new Vector2(-forward.Y, forward.X);
-        // Stem toward input (opposite of output direction)
-        var stemEnd = center - forward * (span * 0.45f);
-        Raylib.DrawLineEx(center, stemEnd, arm, new Color(88, 78, 58, alpha));
-        // Branch bar across side exits
-        var left = center + side * (span * 0.4f);
-        var right = center - side * (span * 0.4f);
-        Raylib.DrawLineEx(left, right, arm, new Color(88, 78, 58, alpha));
-        Raylib.DrawCircleV(center, Math.Max(3f, 5 * tileSize / BaseTileSize), new Color(210, 170, 90, alpha));
-        DrawDirectionMark(center + forward * (10f * tileSize / BaseTileSize), direction, alpha, tileSize);
+        var x = (int)(center.X - tileSize / 2f);
+        var y = (int)(center.Y - tileSize / 2f);
+        var size = (int)tileSize;
+        var left = DirectionMath.Left(direction);
+        var right = DirectionMath.Right(direction);
+        var input = DirectionMath.Opposite(direction);
+
+        // Belt-like body so the splitter reads as a directed conveyor, not a special glyph.
+        Raylib.DrawRectangle(x + size / 5, y + size / 5, size - size * 2 / 5, size - size * 2 / 5,
+            new Color(38, 43, 42, alpha));
+        DrawConveyorArm(center, input, alpha, tileSize);
+        DrawConveyorArm(center, left, alpha, tileSize);
+        DrawConveyorArm(center, right, alpha, tileSize);
+        Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, size / 2,
+            new Color(88, 96, 64, alpha));
+        // Chevrons along facing (same travel feel as belts); cargo exits L/R at handoff.
+        DrawConveyorFlowChevrons(center, direction, alpha, tileSize);
+        DrawDirectionMark(center, direction, alpha, tileSize);
+        var tick = tileSize * 0.75f;
+        DrawDirectionMark(center + DirectionVector(left) * (8f * tileSize / BaseTileSize), left, alpha, tick);
+        DrawDirectionMark(center + DirectionVector(right) * (8f * tileSize / BaseTileSize), right, alpha, tick);
     }
 
     private static void DrawBridgeGlyph(
