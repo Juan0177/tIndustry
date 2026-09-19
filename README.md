@@ -47,7 +47,7 @@ Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta
 ## Come avviare
 
 ```bash
-# build
+# build (csproj in root; sorgenti in src/)
 dotnet build TIndustry.Logistics.csproj
 
 # smoke test (senza finestra): se fallisce, qualcosa è andato storto in sim/save
@@ -56,6 +56,18 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 # GUI
 dotnet run --project TIndustry.Logistics.csproj
 ```
+
+**Layout sorgenti**
+
+| Cartella | Contenuto |
+| --- | --- |
+| `src/App/` | Entry (`Program`), loop gioco, impostazioni, monitor sistema |
+| `src/Simulation/` | Mondo, nastri, economia, save, camera, ricerca |
+| `src/Content/` | Definizioni dati, loaders JSON/Excel |
+| `src/UI/` | Tema HUD/dock, icone |
+| `assets/` · `data/` | Pack grafico e seed `content.json` (invariati) |
+
+Namespace: `TIndustry.Logistics` (invariato). Il `.csproj` resta in root così CI e `dotnet run --project TIndustry.Logistics.csproj` non cambiano.
 
 **Consigli GUI**
 
@@ -159,7 +171,7 @@ Su ogni tag `v*`, [`.github/workflows/release.yml`](.github/workflows/release.ym
 | Linguaggio | C# / **.NET 10** |
 | Rendering | **Raylib-cs** (immediate-mode) |
 | Contenuti | seed `data/content.json` → AppData al primo avvio (`%LocalAppData%/tIndustry/content/` · Linux `~/.local/share/tIndustry/content/`); Excel solo locale/`--export-excel` |
-| Progetto | singolo `TIndustry.Logistics` |
+| Progetto | singolo `TIndustry.Logistics` (sorgenti sotto `src/`) |
 | Sim | ~30 Hz step fisso · render 60 FPS |
 | Persistenza | JSON (`GameSave`, `GameSettings`) |
 
