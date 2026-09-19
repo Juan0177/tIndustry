@@ -50,6 +50,8 @@ public sealed class EconomyWallet
 
     public int MaterialCount(string itemId) => materials.GetValueOrDefault(itemId);
 
+    public Dictionary<string, int> MaterialsSnapshot() => new(materials);
+
     public bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost) =>
         Money >= money && cost.All(entry => MaterialCount(entry.ItemId) >= entry.Amount);
 
@@ -133,6 +135,15 @@ public sealed class ConveyorCell
 
     public void Rotate(Direction direction) => Direction = direction;
 
+    internal void RestoreItems(IEnumerable<TransportedItem> restored)
+    {
+        items.Clear();
+        foreach (var item in restored)
+        {
+            items.Add(item);
+        }
+    }
+
     public void Upgrade(ConveyorDefinition definition)
     {
         if (definition.Capacity < items.Count)
@@ -163,6 +174,27 @@ public sealed class ConveyorGrid
         }
 
         cells.Add(position, new ConveyorCell(position, direction, definition));
+        return true;
+    }
+
+    public bool TryRestore(
+        GridPosition position,
+        Direction direction,
+        ConveyorDefinition definition,
+        IEnumerable<TransportedItem>? items = null)
+    {
+        if (cells.ContainsKey(position))
+        {
+            return false;
+        }
+
+        var cell = new ConveyorCell(position, direction, definition);
+        if (items is not null)
+        {
+            cell.RestoreItems(items);
+        }
+
+        cells.Add(position, cell);
         return true;
     }
 

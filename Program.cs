@@ -144,7 +144,58 @@ static void RunSelfTest(ConveyorDefinition definition)
     Assert(partialMiner.Progress is > 0.49f and < 0.51f,
         "Al 25% il minatore deve completare metà ciclo in quattro secondi.");
 
-    Console.WriteLine("SELF-TEST OK: trasporto, core e minatori a efficienza variabile verificati.");
+    var largeWorld = new FactoryWorld(FactoryGameApp.MapWidth, FactoryGameApp.MapHeight, 7429);
+    Assert(largeWorld.Terrain.Width == 1000 && largeWorld.Terrain.Height == 1000,
+        "La mappa di gioco deve essere 1000×1000.");
+    Assert(largeWorld.CoreTiles.Count == 16, "Il core 4×4 deve esistere sulla mappa grande.");
+    Assert(largeWorld.Terrain[largeWorld.StarterDepositOrigin].Deposit == DepositKind.Iron,
+        "Il giacimento iniziale deve stare vicino al core.");
+
+    var camera = new WorldCamera(0, 0, 1f);
+    camera.CenterOnTile(largeWorld.CoreOrigin, 36, 944, 628);
+    camera.GetVisibleTileRange(944, 628, 1000, 1000, 36, out var minX, out var minY, out var maxX, out var maxY);
+    Assert(maxX - minX < 80 && maxY - minY < 60,
+        "Il culling camera deve limitare i tile visibili rispetto all'intera mappa.");
+    camera.ZoomAt(400, 300, 0, 132, 2f);
+    Assert(camera.Zoom == 2f, "Lo zoom deve rispettare il fattore richiesto entro i limiti.");
+    camera.SetZoom(0.1f);
+    Assert(camera.Zoom == WorldCamera.MinZoom, "Lo zoom minimo deve essere clampato.");
+    camera.SetZoom(9f);
+    Assert(camera.Zoom == WorldCamera.MaxZoom, "Lo zoom massimo deve essere clampato.");
+
+    var saveWorld = new FactoryWorld(24, 16, 9001);
+    var saveGrid = new ConveyorGrid();
+    var saveWallet = new EconomyWallet(150, new Dictionary<string, int> { ["iron-plate"] = 20, ["copper-wire"] = 3 });
+    var saveItemId = 7L;
+    Assert(saveWorld.TryPlaceMiner(saveWorld.StarterDepositOrigin, Direction.East, saveGrid, saveWallet),
+        "Il minatore di save-test deve piazzarsi sul giacimento starter.");
+    var beltX = saveWorld.StarterDepositOrigin.X + MinerBuilding.Size;
+    var beltY = saveWorld.StarterDepositOrigin.Y;
+    Assert(saveGrid.TryPlace(new GridPosition(beltX, beltY), Direction.East, definition, saveWallet),
+        "Il nastro di save-test deve piazzarsi.");
+    saveWorld.Update(1f / 30f, saveGrid, saveWallet, ref saveItemId);
+    var saveCamera = new WorldCamera(12.5f, 34f, 1.25f);
+    var captured = GameSaveStore.Capture(saveWorld, saveGrid, saveWallet, saveCamera, saveItemId);
+    var slotId = "self-test-slot";
+    GameSaveStore.Save(slotId, captured);
+    Assert(GameSaveStore.Exists(slotId), "Il file di salvataggio deve esistere dopo Save.");
+    var restoredBundle = GameSaveStore.Restore(GameSaveStore.Load(slotId), new GameContent
+    {
+        Conveyors = [definition],
+        Recipes = []
+    });
+    Assert(restoredBundle.World.Seed == 9001, "Il seed deve essere ripristinato.");
+    Assert(restoredBundle.Wallet.Money == saveWallet.Money, "Il wallet denaro deve essere ripristinato.");
+    Assert(restoredBundle.Wallet.MaterialCount("iron-plate") == saveWallet.MaterialCount("iron-plate"),
+        "Il wallet materiali deve essere ripristinato.");
+    Assert(restoredBundle.World.Miners.Count == 1, "I minatori devono essere ripristinati.");
+    Assert(restoredBundle.Conveyors.Cells.Count == 1, "I nastri devono essere ripristinati.");
+    Assert(Math.Abs(restoredBundle.Camera.X - 12.5f) < 0.01f && Math.Abs(restoredBundle.Camera.Zoom - 1.25f) < 0.01f,
+        "La camera deve essere ripristinata.");
+    GameSaveStore.Delete(slotId);
+    Assert(!GameSaveStore.Exists(slotId), "Delete deve rimuovere lo slot.");
+
+    Console.WriteLine("SELF-TEST OK: trasporto, core, minatori, camera 1000×1000 e save/load verificati.");
 }
 
 static void Assert(bool condition, string message)

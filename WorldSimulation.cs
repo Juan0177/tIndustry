@@ -34,14 +34,21 @@ public sealed class TerrainMap
     public int Height { get; }
     public TerrainTile this[GridPosition position] => tiles[position.X, position.Y];
 
-    public static TerrainMap Generate(int width, int height, int seed, IReadOnlySet<GridPosition> coreTiles)
+    public static TerrainMap Generate(
+        int width,
+        int height,
+        int seed,
+        IReadOnlySet<GridPosition> coreTiles,
+        GridPosition starterDepositOrigin)
     {
         var map = new TerrainMap(width, height);
+        // Slightly rarer ore on huge maps keeps scout interesting without flooding every biome.
+        var oreThreshold = width >= 256 ? 0.72f : 0.63f;
+
         for (var y = 0; y < height; y++)
         {
             for (var x = 0; x < width; x++)
             {
-                var position = new GridPosition(x, y);
                 var elevation = SmoothNoise(x, y, seed);
                 var terrain = elevation switch
                 {
@@ -51,7 +58,7 @@ public sealed class TerrainMap
                     _ => TerrainKind.Stone
                 };
                 var oreNoise = SmoothNoise(x + 31, y - 17, seed * 3 + 11);
-                var deposit = terrain != TerrainKind.Water && oreNoise > 0.63f
+                var deposit = terrain != TerrainKind.Water && oreNoise > oreThreshold
                     ? DepositKind.Iron
                     : DepositKind.None;
                 map.tiles[x, y] = new TerrainTile(terrain, deposit);
@@ -63,16 +70,25 @@ public sealed class TerrainMap
             map.tiles[position.X, position.Y] = new TerrainTile(TerrainKind.Stone, DepositKind.None);
         }
 
-        var guaranteedDeposit = new[]
+        PlaceIronPatch(map, starterDepositOrigin, MinerBuilding.Size);
+
+        // Legacy / self-test patch at (2,2) when it does not collide with the core.
+        var legacyOrigin = new GridPosition(2, 2);
+        if (!coreTiles.Contains(legacyOrigin)
+            && !coreTiles.Contains(new GridPosition(3, 3)))
         {
-            new GridPosition(2, 2),
-            new GridPosition(3, 2),
-            new GridPosition(2, 3),
-            new GridPosition(3, 3)
-        };
-        foreach (var position in guaranteedDeposit)
+            PlaceIronPatch(map, legacyOrigin, MinerBuilding.Size);
+        }
+
+        // Extra scout patches on large maps, offset from the core so pan/zoom has a job.
+        if (width >= 256)
         {
-            map.tiles[position.X, position.Y] = new TerrainTile(TerrainKind.Stone, DepositKind.Iron);
+            PlaceIronPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X - 48, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y - 20, 2, height - 4)), 3);
+            PlaceIronPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X + 36, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 40, 2, height - 4)), 3);
         }
 
         var partialDepositOrigin = new GridPosition(0, 0);
@@ -81,6 +97,11 @@ public sealed class TerrainMap
             for (var x = 0; x < MinerBuilding.Size; x++)
             {
                 var position = new GridPosition(partialDepositOrigin.X + x, partialDepositOrigin.Y + y);
+                if (position.X >= width || position.Y >= height || coreTiles.Contains(position))
+                {
+                    continue;
+                }
+
                 map.tiles[position.X, position.Y] = new TerrainTile(
                     TerrainKind.Stone,
                     position == partialDepositOrigin ? DepositKind.Iron : DepositKind.None);
@@ -88,6 +109,24 @@ public sealed class TerrainMap
         }
 
         return map;
+    }
+
+    private static void PlaceIronPatch(TerrainMap map, GridPosition origin, int size)
+    {
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var position = new GridPosition(origin.X + x, origin.Y + y);
+                if (position.X < 0 || position.Y < 0
+                    || position.X >= map.Width || position.Y >= map.Height)
+                {
+                    continue;
+                }
+
+                map.tiles[position.X, position.Y] = new TerrainTile(TerrainKind.Stone, DepositKind.Iron);
+            }
+        }
     }
 
     private static float SmoothNoise(int x, int y, int seed)
@@ -169,26 +208,64 @@ public sealed class FactoryWorld
     private readonly Dictionary<GridPosition, MinerBuilding> miners = [];
     private readonly Dictionary<GridPosition, MinerBuilding> minerByTile = [];
 
+    public const int CoreSize = 4;
+
     public FactoryWorld(int width, int height, int seed)
     {
-        var coreLeft = width - 6;
-        var coreTop = height / 2 - 2;
-        var coreTiles = new HashSet<GridPosition>();
-        for (var y = 0; y < 4; y++)
+        if (width < 12 || height < 8)
         {
-            for (var x = 0; x < 4; x++)
+            throw new ArgumentOutOfRangeException(nameof(width), "Mappa troppo piccola per core e giacimenti.");
+        }
+
+        Seed = seed;
+        var coreLeft = width - 6;
+        var coreTop = Math.Max(0, height / 2 - 2);
+        var coreTiles = new HashSet<GridPosition>();
+        for (var y = 0; y < CoreSize; y++)
+        {
+            for (var x = 0; x < CoreSize; x++)
             {
                 coreTiles.Add(new GridPosition(coreLeft + x, coreTop + y));
             }
         }
+
+        CoreOrigin = new GridPosition(coreLeft, coreTop);
+        // Starter iron sits immediately west of the core so small self-test maps and 1000² stay playable.
+        StarterDepositOrigin = new GridPosition(coreLeft - 4, coreTop);
         CoreTiles = coreTiles;
-        Terrain = TerrainMap.Generate(width, height, seed, CoreTiles);
+        Terrain = TerrainMap.Generate(width, height, seed, CoreTiles, StarterDepositOrigin);
     }
 
+    public int Seed { get; }
+    public GridPosition CoreOrigin { get; }
+    public GridPosition StarterDepositOrigin { get; }
     public TerrainMap Terrain { get; }
     public IReadOnlyDictionary<GridPosition, MinerBuilding> Miners => miners;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
+
+    public void SetSoldItems(int soldItems) => SoldItems = soldItems;
+
+    public bool TryRestoreMiner(GridPosition position, float progress)
+    {
+        if (!IsInside(position)
+            || Footprint(position).Any(tile => !IsInside(tile) || minerByTile.ContainsKey(tile) || CoreTiles.Contains(tile)))
+        {
+            return false;
+        }
+
+        var miner = new MinerBuilding(position, CountCoveredDepositTiles(position))
+        {
+            Progress = Math.Clamp(progress, 0f, 1f)
+        };
+        miners.Add(position, miner);
+        foreach (var tile in miner.OccupiedTiles())
+        {
+            minerByTile.Add(tile, miner);
+        }
+
+        return true;
+    }
 
     public bool CanPlaceConveyor(GridPosition position) =>
         Terrain[position].IsBuildable && !CoreTiles.Contains(position) && !minerByTile.ContainsKey(position);
