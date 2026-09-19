@@ -29,6 +29,7 @@ Fasi **0–6** + Impostazioni/CI. In sintesi:
 | Progressione | **Ricerca** data-driven: sblocchi a pagamento, persistenti nel save |
 | Sessione | Home (Continua se autosave valido / Nuova / Gestione / Impostazioni / Esci), scenari + seed, save JSON **v6** |
 | Qualità di vita | Overlay FPS e risorse, tip onboarding, UI in italiano, `--self-test` esteso |
+| Grafica | Icone HUD/dock/nastri da pack CC0/CC-BY (vedi [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)); strip risorse con **Δ sessione** |
 
 Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta nel **layout** e nel **reinvestimento**.
 
@@ -99,7 +100,8 @@ Flag utili: `--smoke-test` (chiude dopo pochi secondi), `--capture` (screenshot 
 **Impostazioni** (anche in-game con **I**)
 
 - **Mostra contatore FPS** → `FPS N` in header (a sinistra delle icone), senza sovrapporre il titolo
-- **Mostra inventario risorse** → strip risorse in header (denaro + session + materiali); **non** nel dock
+- **Mostra inventario risorse** → strip risorse in header (denaro + **Δ sessione** + materiali con icone); **non** nel dock
+- Hover su **Δ sessione** → tooltip: variazione patrimonio netto dall'inizio partita
 - **VSync** ON/OFF (con VSync attivo il frame pacing segue il refresh; la preferenza limite FPS resta salvata)
 - **Risoluzione**: preset fino a **2K** / **4K**, più **Auto risoluzione** (monitor corrente)
 - **Limite FPS**: 30 → 600, poi **Illimitato**
@@ -185,5 +187,8 @@ Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’h
 ## Licenza / contributo
 
 Repo in evoluzione attiva. Patch e idea welcome — meglio vertical slice giocabili che feature incomplete. Prima di spingere: `dotnet run -- --self-test`.
+
+**Asset grafici di terze parti**: icone in `assets/icons/` — vedi [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)
+(game-icons.net CC BY 3.0 · Kenney CC0).
 
 *Buon layout. Che i nastri non si intasino.*

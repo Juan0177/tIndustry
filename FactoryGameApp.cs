@@ -2356,12 +2356,13 @@ internal static class FactoryGameApp
         FactoryWorld world,
         WorldCamera camera)
     {
-        Raylib.DrawRectangle(0, 0, ScreenWidth, HeaderHeight, new Color(14, 16, 18, 230));
-        Raylib.DrawRectangle(0, HeaderHeight - 1, ScreenWidth, 1, new Color(48, 52, 56, 255));
-        DrawUiText("tINDUSTRY", 16, 8, 20, new Color(239, 238, 224, 255));
+        // Sharper header bar with bright bottom edge.
+        Raylib.DrawRectangle(0, 0, ScreenWidth, HeaderHeight, new Color(10, 12, 14, 245));
+        Raylib.DrawRectangle(0, HeaderHeight - 2, ScreenWidth, 2, UiTheme.PanelBorderBright);
+        DrawUiText("tINDUSTRY", 16, 8, 20, UiTheme.TextPrimary);
         DrawUiText(
             $"seed {world.Seed}  ·  zoom {camera.Zoom:0.00}",
-            16, 30, 12, new Color(128, 140, 134, 255));
+            16, 30, 12, UiTheme.TextMuted);
 
         // Compact top resource strip (Mindustry-like), toggled by Impostazioni overlay flag.
         if (settings.ShowResourceOverlay)
@@ -2420,7 +2421,7 @@ internal static class FactoryGameApp
         var items = UiTheme.InventoryItems;
         var moneyLabel = $"$ {wallet.Money}";
         var net = session.NetWorthDelta(wallet);
-        var netLabel = $"sess {(net >= 0 ? "+" : "")}{net}";
+        var netLabel = UiTheme.SessionDeltaLabel(net);
         var moneyW = MeasureUiText(moneyLabel, 15);
         var netW = MeasureUiText(netLabel, 12);
 
@@ -2430,38 +2431,57 @@ internal static class FactoryGameApp
         {
             var count = wallet.MaterialCount(items[i].ItemId);
             var countW = MeasureUiText(count.ToString(), 14);
-            chipWidths[i] = 28 + countW + 14;
+            chipWidths[i] = 30 + countW + 14;
             chipsW += chipWidths[i];
         }
 
-        var stripW = 12 + Math.Max(moneyW, netW) + 16 + chipsW + 10;
+        var moneyColW = Math.Max(moneyW, netW) + 28; // room for coin icon
+        var stripW = 12 + moneyColW + 16 + chipsW + 10;
         var stripX = Math.Clamp((ScreenWidth - stripW) / 2, 200, Math.Max(200, HeaderIconX(2) - stripW - 100));
         var stripY = 8;
         var stripH = 48;
         Raylib.DrawRectangle(stripX, stripY, stripW, stripH, UiTheme.PanelFill);
-        UiTheme.DrawAccentRect(stripX, stripY, stripW, stripH, UiTheme.PanelBorder, 1);
+        UiTheme.DrawAccentRect(stripX, stripY, stripW, stripH, UiTheme.PanelBorderBright, 1);
 
-        // Money + session delta stacked on the left — never overlaps resource counts.
-        DrawUiText(moneyLabel, stripX + 10, stripY + 8, 15, new Color(112, 218, 145, 255));
-        DrawUiText(
-            netLabel,
-            stripX + 10,
-            stripY + 28,
-            12,
-            net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255));
+        // Coin + money / Δ sessione stacked on the left.
+        GameIcons.TryDraw("money", stripX + 8, stripY + 6, 18, UiTheme.MoneyGreen);
+        DrawUiText(moneyLabel, stripX + 30, stripY + 6, 15, UiTheme.MoneyGreen);
+        var netColor = net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed;
+        var netX = stripX + 10;
+        var netY = stripY + 28;
+        DrawUiText(netLabel, netX, netY, 12, netColor);
 
-        var x = stripX + 10 + Math.Max(moneyW, netW) + 16;
+        var mouse = Raylib.GetMousePosition();
+        if (Contains(mouse, netX - 2, netY - 2, netW + 6, 16))
+        {
+            DrawTooltip(UiTheme.SessionDeltaTooltip, (int)mouse.X + 12, (int)mouse.Y + 18);
+        }
+
+        var x = stripX + 10 + moneyColW + 10;
         for (var i = 0; i < items.Length; i++)
         {
             var item = items[i];
             var count = wallet.MaterialCount(item.ItemId);
-            Raylib.DrawRectangle(x, stripY + 13, 22, 22, UiTheme.ItemColor(item.ItemId));
-            Raylib.DrawRectangleLines(x, stripY + 13, 22, 22, UiTheme.ItemOutline(item.ItemId));
-            var abbrevW = MeasureUiText(item.Abbrev, 11);
-            DrawUiText(item.Abbrev, x + (22 - abbrevW) / 2, stripY + 17, 11, new Color(18, 16, 12, 255));
+            // Soft tinted chip behind the icon for contrast at small HUD sizes.
+            Raylib.DrawRectangle(x, stripY + 12, 24, 24, new Color(24, 28, 30, 255));
+            Raylib.DrawRectangleLines(x, stripY + 12, 24, 24, UiTheme.ItemOutline(item.ItemId));
+            UiTheme.DrawItemIcon(item.ItemId, x + 2, stripY + 14, 20);
             DrawUiText(count.ToString(), x + 28, stripY + 16, 14, UiTheme.TextPrimary);
             x += chipWidths[i];
         }
+    }
+
+    private static void DrawTooltip(string text, int x, int y)
+    {
+        var pad = 8;
+        var tw = MeasureUiText(text, 12);
+        var w = tw + pad * 2;
+        var h = 24;
+        var drawX = Math.Clamp(x, 8, ScreenWidth - w - 8);
+        var drawY = Math.Clamp(y, HeaderHeight + 4, ScreenHeight - h - 8);
+        Raylib.DrawRectangle(drawX, drawY, w, h, new Color(8, 10, 12, 235));
+        UiTheme.DrawAccentRect(drawX, drawY, w, h, UiTheme.AccentDim, 1);
+        DrawUiText(text, drawX + pad, drawY + 5, 12, UiTheme.TextPrimary);
     }
 
     private static void DrawBuildDock(
@@ -2758,44 +2778,49 @@ internal static class FactoryGameApp
         var iy = (int)MathF.Floor(y);
         var size = Math.Max(1, (int)MathF.Floor(x + tileSize) - ix);
         var sizeY = Math.Max(1, (int)MathF.Floor(y + tileSize) - iy);
+        // Higher-contrast terrain so buildings/belts read clearly on top.
         var color = tile.Terrain switch
         {
-            TerrainKind.Grass => new Color(58, 86, 64, 255),
-            TerrainKind.Soil => new Color(96, 82, 60, 255),
-            TerrainKind.Stone => new Color(82, 88, 86, 255),
-            TerrainKind.Water => new Color(40, 90, 108, 255),
+            TerrainKind.Grass => new Color(46, 78, 54, 255),
+            TerrainKind.Soil => new Color(108, 88, 58, 255),
+            TerrainKind.Stone => new Color(92, 98, 96, 255),
+            TerrainKind.Water => new Color(32, 78, 98, 255),
             _ => Color.Black
         };
         Raylib.DrawRectangle(ix, iy, size, sizeY, color);
         if (tileSize >= 12f)
         {
-            Raylib.DrawRectangleLines(ix, iy, size, sizeY, new Color(18, 24, 22, 55));
+            Raylib.DrawRectangleLines(ix, iy, size, sizeY, new Color(14, 18, 16, 70));
         }
 
         if (tile.Deposit == DepositKind.Iron && tileSize >= 8f)
         {
             var s = tileSize / BaseTileSize;
-            var fill = UiTheme.ItemColor("iron-ore");
-            Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(2f, 5 * s), fill);
-            Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
-            Raylib.DrawCircle(ix + (int)(12 * s), iy + (int)(27 * s), Math.Max(1.5f, 3.5f * s),
-                new Color(255, 200, 120, 255));
-            if (tileSize >= 22f)
+            var iconSize = Math.Max(10, (int)(18 * s));
+            if (tileSize >= 16f && GameIcons.Has("iron-ore"))
             {
-                DrawUiText("Fe", ix + 2, iy + 2, Math.Max(10, (int)(11 * s)), new Color(255, 230, 190, 255));
+                UiTheme.DrawItemIcon("iron-ore", ix + (size - iconSize) / 2, iy + (sizeY - iconSize) / 2, iconSize);
+            }
+            else
+            {
+                var fill = UiTheme.ItemColor("iron-ore");
+                Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(2f, 5 * s), fill);
+                Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
             }
         }
         else if (tile.Deposit == DepositKind.Copper && tileSize >= 8f)
         {
             var s = tileSize / BaseTileSize;
-            var fill = UiTheme.ItemColor("copper-ore");
-            Raylib.DrawCircle(ix + (int)(11 * s), iy + (int)(13 * s), Math.Max(2f, 5 * s), fill);
-            Raylib.DrawCircle(ix + (int)(23 * s), iy + (int)(20 * s), Math.Max(2.5f, 7 * s), fill);
-            Raylib.DrawCircle(ix + (int)(14 * s), iy + (int)(26 * s), Math.Max(1.5f, 3.5f * s),
-                new Color(190, 255, 230, 255));
-            if (tileSize >= 22f)
+            var iconSize = Math.Max(10, (int)(18 * s));
+            if (tileSize >= 16f && GameIcons.Has("copper-ore"))
             {
-                DrawUiText("Ra", ix + 2, iy + 2, Math.Max(10, (int)(11 * s)), new Color(210, 255, 240, 255));
+                UiTheme.DrawItemIcon("copper-ore", ix + (size - iconSize) / 2, iy + (sizeY - iconSize) / 2, iconSize);
+            }
+            else
+            {
+                var fill = UiTheme.ItemColor("copper-ore");
+                Raylib.DrawCircle(ix + (int)(11 * s), iy + (int)(13 * s), Math.Max(2f, 5 * s), fill);
+                Raylib.DrawCircle(ix + (int)(23 * s), iy + (int)(20 * s), Math.Max(2.5f, 7 * s), fill);
             }
         }
     }
@@ -2821,10 +2846,10 @@ internal static class FactoryGameApp
         var y = (int)screen.Y;
         var size = (int)(tileSize * FactoryWorld.CoreSize);
         Raylib.DrawRectangle(x + 5, y + 7, size, size, new Color(11, 16, 15, 145));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(35, 60, 48, 255));
-        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(91, 184, 121, 255));
-        Raylib.DrawRectangle(x + 17, y + 17, size - 34, size - 34, new Color(27, 39, 35, 255));
-        Raylib.DrawRectangleLines(x + 20, y + 20, size - 40, size - 40, new Color(65, 109, 82, 255));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(28, 52, 40, 255));
+        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(110, 210, 140, 255), 2);
+        Raylib.DrawRectangle(x + 17, y + 17, size - 34, size - 34, new Color(22, 34, 30, 255));
+        Raylib.DrawRectangleLines(x + 20, y + 20, size - 40, size - 40, new Color(72, 128, 92, 255));
 
         var pulse = 23f + MathF.Sin((float)Raylib.GetTime() * 3f) * 3f;
         var scale = tileSize / BaseTileSize;
@@ -2847,8 +2872,8 @@ internal static class FactoryGameApp
         var size = (int)(tileSize * MinerBuilding.Size);
         var scale = tileSize / BaseTileSize;
         Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(16, 20, 19, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(49, 53, 51, alpha));
-        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(222, 168, 76, alpha));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(56, 58, 54, alpha));
+        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(240, 180, 80, alpha), 2);
         Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(30, 34, 33, alpha));
 
         var center = new Vector2(x + size / 2f, y + size / 2f - 3 * scale);
@@ -2879,8 +2904,8 @@ internal static class FactoryGameApp
         var size = (int)(tileSize * SmelterBuilding.Size);
         var scale = tileSize / BaseTileSize;
         Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(18, 14, 14, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(72, 42, 36, alpha));
-        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(220, 110, 72, alpha));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(82, 48, 40, alpha));
+        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(240, 130, 80, alpha), 2);
         Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(34, 22, 20, alpha));
 
         var center = new Vector2(x + size / 2f, y + size / 2f);
@@ -2910,8 +2935,8 @@ internal static class FactoryGameApp
         var size = (int)(tileSize * SmelterBuilding.Size);
         var scale = tileSize / BaseTileSize;
         Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(12, 18, 22, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(28, 62, 78, alpha));
-        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(72, 188, 196, alpha));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(32, 72, 88, alpha));
+        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(90, 210, 220, alpha), 2);
         Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(18, 36, 48, alpha));
 
         var center = new Vector2(x + size / 2f, y + size / 2f);
@@ -2942,8 +2967,8 @@ internal static class FactoryGameApp
         var size = (int)(tileSize * GeneratorBuilding.Size);
         var scale = tileSize / BaseTileSize;
         Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(22, 18, 10, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(120, 88, 28, alpha));
-        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(230, 190, 70, alpha));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(132, 96, 32, alpha));
+        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(245, 205, 80, alpha), 2);
         Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(48, 36, 14, alpha));
 
         var center = new Vector2(x + size / 2f, y + size / 2f);
@@ -3010,23 +3035,31 @@ internal static class FactoryGameApp
         {
             var vector = DirectionVector(conveyor.Direction);
             var itemPosition = center - vector * (tileSize * 0.5f) + vector * (item.Progress * tileSize);
-            var itemSize = Math.Max(6, (int)(12 * tileSize / BaseTileSize));
+            var itemSize = Math.Max(8, (int)(14 * tileSize / BaseTileSize));
             var ix = (int)itemPosition.X - itemSize / 2;
             var iy = (int)itemPosition.Y - itemSize / 2;
-            var fill = UiTheme.ItemColor(item.ItemId);
-            Raylib.DrawRectangle(ix, iy, itemSize, itemSize, fill);
-            Raylib.DrawRectangleLines(ix, iy, itemSize, itemSize, UiTheme.ItemOutline(item.ItemId));
-            if (tileSize >= 16f)
+            Raylib.DrawRectangle(ix - 1, iy - 1, itemSize + 2, itemSize + 2, new Color(12, 14, 14, alpha));
+            if (tileSize >= 12f && GameIcons.Has(item.ItemId))
             {
-                var abbrev = UiTheme.ItemAbbrev(item.ItemId);
-                var fontSize = Math.Max(10, Math.Min(14, itemSize - 2));
-                var abbrevWidth = MeasureUiText(abbrev, fontSize);
-                DrawUiText(
-                    abbrev,
-                    (int)itemPosition.X - abbrevWidth / 2,
-                    (int)itemPosition.Y - fontSize / 2,
-                    fontSize,
-                    new Color(18, 16, 12, 255));
+                UiTheme.DrawItemIcon(item.ItemId, ix, iy, itemSize);
+            }
+            else
+            {
+                var fill = UiTheme.ItemColor(item.ItemId);
+                Raylib.DrawRectangle(ix, iy, itemSize, itemSize, fill);
+                Raylib.DrawRectangleLines(ix, iy, itemSize, itemSize, UiTheme.ItemOutline(item.ItemId));
+                if (tileSize >= 16f)
+                {
+                    var abbrev = UiTheme.ItemAbbrev(item.ItemId);
+                    var fontSize = Math.Max(10, Math.Min(14, itemSize - 2));
+                    var abbrevWidth = MeasureUiText(abbrev, fontSize);
+                    DrawUiText(
+                        abbrev,
+                        (int)itemPosition.X - abbrevWidth / 2,
+                        (int)itemPosition.Y - fontSize / 2,
+                        fontSize,
+                        new Color(18, 16, 12, 255));
+                }
             }
         }
     }
@@ -3318,7 +3351,7 @@ internal static class FactoryGameApp
         foreach (var item in market.Items.Take(4))
         {
             var effective = world.EffectiveSalePrice(item.ItemId, market);
-            Raylib.DrawCircle(x + 16, marketY + 7, 4, ItemColor(item.ItemId));
+            UiTheme.DrawItemIcon(item.ItemId, x + 10, marketY - 1, 14);
 
             var name = item.DisplayName;
             while (name.Length > 3 && MeasureUiText(name, 12) > nameMaxW)
@@ -3354,9 +3387,9 @@ internal static class FactoryGameApp
 
         var net = session.NetWorthDelta(wallet);
         DrawUiText(
-            $"Netto {(net >= 0 ? "+" : "")}{net}  ·  PWR {world.PowerBuffer:0}/{world.PowerCapacity:0}",
+            $"{UiTheme.SessionDeltaLabel(net)}  ·  PWR {world.PowerBuffer:0}/{world.PowerCapacity:0}",
             x + 10, marketY + 6, 11,
-            net >= 0 ? new Color(112, 218, 145, 255) : new Color(225, 120, 100, 255));
+            net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed);
 
         DrawUiText(
             $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count}",

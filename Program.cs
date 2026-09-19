@@ -686,6 +686,27 @@ static void RunSelfTest(GameContent content)
             "Hover strumenti: ogni entry Produzione ha un hint italiano.");
         Assert(File.Exists(GameContentStore.UserJsonPath),
             "First launch deve materializzare content.json in AppData.");
+        Assert(UiTheme.SessionDeltaLabel(0) == "Δ sessione +0",
+            "Label sessione netto deve essere chiara (Δ sessione).");
+        Assert(UiTheme.SessionDeltaLabel(-12).Contains("Δ sessione -12", StringComparison.Ordinal),
+            "Label sessione negativa deve mostrare il segno.");
+        Assert(UiTheme.SessionDeltaTooltip.Contains("patrimonio", StringComparison.OrdinalIgnoreCase),
+            "Tooltip Δ sessione deve spiegare il patrimonio netto.");
+        var iconRoot = Path.Combine(AppContext.BaseDirectory, "assets", "icons");
+        foreach (var rel in new[]
+                 {
+                     "items/iron-ore.png", "items/copper-ore.png", "items/iron-plate.png",
+                     "items/copper-wire.png", "items/money.png",
+                     "buildings/miner.png", "buildings/smelter.png", "buildings/assembler.png",
+                     "categories/production.png"
+                 })
+        {
+            Assert(File.Exists(Path.Combine(iconRoot, rel.Replace('/', Path.DirectorySeparatorChar))),
+                $"Icona mancante: {rel}");
+        }
+
+        Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "ATTRIBUTION.md")),
+            "ATTRIBUTION.md deve essere copiato in output.");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
             "Etichetta italiana modalità schermo intero.");
 
