@@ -28,7 +28,8 @@ public static class UiTheme
     public const int DockGridCols = 4;
     public const int DockMarginBase = 8;
     public const int DockAccentThickness = 2;
-    public const int DockHoverBarHeightBase = 40;
+    // Tall enough for recipe usage (Input / Output) + build-cost row.
+    public const int DockHoverBarHeightBase = 72;
 
     // Legacy name kept for any remaining layout references; dock overlays the map.
     public const int InventoryBarHeight = 100;
