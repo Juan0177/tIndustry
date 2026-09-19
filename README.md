@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.2.4** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.2.5** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
@@ -18,20 +18,20 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-**v0.2.4** — tutto 0.2.3 più UX Mercato / icone / tutorial / scale. In sintesi:
+**v0.2.5** — tutto 0.2.4 più **Campagna** a livelli e polish Mercato/dock costi. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
 | Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
 | Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
-| Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti**, prezzi, auto-sell); strip **Fabbrica** (tips / CORE); rimborso 100%; **potenziamento core** (+25% vendite) |
-| Progressione | **Ricerca** data-driven; **tutorial** IT **6 step** (produce → stock → spendi/vendi) — riparte su **Nuova partita** / **Rivedi tutorial** (**Salta** / Fine) |
-| Sessione | **Splash** brand (~8s / click) → Home (**Continua** solo con autosave), scenari + seed, save JSON **v6** |
-| Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT; icone + etichette IT |
+| Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti** senza clip, prezzi, auto-sell); strip **Fabbrica**; rimborso 100%; **potenziamento core** (+25% vendite) |
+| Progressione | **Campagna** (5 livelli, obiettivi HUD, progressione AppData); **Ricerca** data-driven; **tutorial** IT **6 step** in sandbox — riparte su **Nuova partita** / **Rivedi tutorial** |
+| Sessione | **Splash** brand (~8s / click) → Home (**Continua** / **Campagna** / **Nuova partita**), scenari + seed, save JSON **v6** |
+| Dock | Stile Mindustry; footer costi build a icone (`×N` materiali + `$`); **Rimuovi** con label chiaro |
 | Qualità di vita | UI scale **100–200%** (Mercato soft-scale, Impostazioni scrollabili); overlay **CPU · GPU · RAM**; FPS unico; status toast auto-clear; tip onboarding; `--self-test` |
 | Grafica | Icone HUD/dock/nastri CC0/CC-BY ([`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)); strip risorse + **Δ sessione** |
-| Contenuti | Seed `content.json` → AppData al primo avvio; niente Excel nel publish |
+| Contenuti | Seed `content.json` + `campaign.json` → AppData al primo avvio; niente Excel nel publish |
 | Codice | Sorgenti in `src/{App,Simulation,Content,UI}/`; `.csproj` in root |
 
 Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta nel **layout** e nel **reinvestimento**.
@@ -66,16 +66,16 @@ dotnet run --project TIndustry.Logistics.csproj
 | `src/Simulation/` | Mondo, nastri, economia, save, camera, ricerca |
 | `src/Content/` | Definizioni dati, loaders JSON/Excel |
 | `src/UI/` | Tema HUD/dock, icone |
-| `assets/` · `data/` | Pack grafico e seed `content.json` (invariati) |
+| `assets/` · `data/` | Pack grafico e seed `content.json` + `campaign.json` (invariati) |
 
 Namespace: `TIndustry.Logistics` (invariato). Il `.csproj` resta in root così CI e `dotnet run --project TIndustry.Logistics.csproj` non cambiano.
 
 **Consigli GUI**
 
-1. All’avvio: **splash** (thumbnail + brand) — click/tasto per continuare, oppure attendi (~8s). Poi dalla home: **Nuova partita** (loading + animazione; gen 1000² ≈ 1–2 s).
-2. **Nuova partita**: segue il **tutorial** a banner (camera → miner → nastri → stock/vendi → ricerca); riparte a ogni Conferma (o **Impostazioni → Rivedi tutorial**). **Salta** / Fine se preferisci senza.
+1. All’avvio: **splash** (thumbnail + brand) — click/tasto per continuare, oppure attendi (~8s). Poi dalla home: **Campagna**, **Nuova partita**, o **Continua**.
+2. **Campagna**: scegli un livello sbloccato (obiettivi in HUD); progressione salvata in AppData. **Nuova partita** (sandbox) segue il **tutorial** a banner; riparte a ogni Conferma (o **Impostazioni → Rivedi tutorial**).
 3. Scout vicino al core: ferro starter, rame un po’ più a sud. (**H** / **Home** riporta la camera sul core.)
-4. Piazza il miner: butta ore su **ogni** nastro adiacente → stock al core → Mercato (**1** / **tutti**) o tieni per build → **Ricerca** (T) → **Forno** → lastre.
+4. Piazza il miner: butta ore su **ogni** nastro adiacente → stock al core → Mercato (**1** / **tutti**) o tieni per build → **Ricerca** (T) → **Forno** → lastre. Il dock mostra i costi build a icone.
 5. **Esc** chiude prima il toast di status (se c’è), poi torna alla home; **Continua** solo con autosave valido.
 
 Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo pochi secondi), `--export-excel [path]`.
@@ -109,7 +109,8 @@ Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo p
 **Home**
 
 - **Continua** — carica l’autosave (nascosto se non c’è uno slot valido)
-- **Nuova partita** — scenario + seed, mappa 1000×1000 (+ tutorial a ogni Conferma; **Rivedi tutorial** in Impostazioni)
+- **Campagna** — livelli data-driven con obiettivi e unlock sequenziale
+- **Nuova partita** — sandbox + scenario/seed, mappa 1000×1000 (+ tutorial a ogni Conferma; **Rivedi tutorial** in Impostazioni)
 - **Gestione salvataggi** — lista slot, carica, elimina, **Duplica Continua** → `slot-*.json`
 - **Impostazioni** — overlay
 - **Esci** — chiude il gioco (non la partita: salva prima se ti serve)
@@ -157,7 +158,7 @@ Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricer
 
 ## Download
 
-**Release consigliata:** [v0.2.4](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.4) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
+**Release consigliata:** [v0.2.5](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.5) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
 
 | Asset | Piattaforma |
 | --- | --- |
@@ -189,15 +190,16 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.2.4**: Mercato dedicato, icone chiare, tutorial 6 step, HUD scale-safe | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
-| **v0.2.3**: stock-first core, Mercato 1/tutti, auto-sell opzionale | Ulteriore polish UI / performance mappa piena |
+| **v0.2.5**: Campagna a livelli; Mercato senza clip; dock costi a icone | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.4**: Mercato dedicato, icone chiare, tutorial 6 step, HUD scale-safe | Ulteriore polish UI / performance mappa piena |
+| **v0.2.3**: stock-first core, Mercato 1/tutti, auto-sell opzionale | |
 | **v0.2.2**: splitter T-fork, miner round-robin, tutorial ripartibile | |
 | **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | |
 | **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Combat/unità: **non** priorità early |
 | CI publish win/linux + release su tag `v*` | |
 | `miner-advanced` ancora stub | |
 
-Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.4](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.4).
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.5](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.5).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 
