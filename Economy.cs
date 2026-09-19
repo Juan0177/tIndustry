@@ -32,6 +32,9 @@ public sealed class MarketCatalog
 
     public IReadOnlyList<MarketItemDefinition> Items { get; }
 
+    /// <summary>Shared default catalog — avoid reallocating on hot sale/sim paths.</summary>
+    public static MarketCatalog Default { get; } = CreateDefault();
+
     public static MarketCatalog CreateDefault() => new(
     [
         new MarketItemDefinition("iron-ore", "Ferro grezzo", 8),

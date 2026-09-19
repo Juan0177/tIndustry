@@ -34,6 +34,7 @@ public sealed class TerrainMap
     public int Width { get; }
     public int Height { get; }
     public TerrainTile this[GridPosition position] => tiles[position.X, position.Y];
+    public TerrainTile this[int x, int y] => tiles[x, y];
 
     public static TerrainMap Generate(
         int width,
@@ -344,16 +345,33 @@ public sealed class SmelterBuilding
 
     private void AcceptFromBelts(ConveyorGrid conveyors)
     {
-        foreach (var conveyor in conveyors.Cells.Values)
+        // Only inspect neighbors of occupied tiles (O(footprint)) instead of every belt.
+        for (var y = 0; y < Size; y++)
         {
-            if (!OccupiedTiles().Contains(conveyor.OutputPosition))
+            for (var x = 0; x < Size; x++)
             {
-                continue;
-            }
+                var tileX = Position.X + x;
+                var tileY = Position.Y + y;
+                for (var d = 0; d < DirectionMath.All.Length; d++)
+                {
+                    var dir = DirectionMath.All[d];
+                    var from = new GridPosition(tileX, tileY).Step(DirectionMath.Opposite(dir));
+                    if (!conveyors.Cells.TryGetValue(from, out var conveyor))
+                    {
+                        continue;
+                    }
 
-            while (conveyor.PeekOutput() is { } item && TryAccept(item.ItemId))
-            {
-                conveyor.RemoveOutput();
+                    var output = conveyor.OutputPosition;
+                    if (output.X != tileX || output.Y != tileY)
+                    {
+                        continue;
+                    }
+
+                    while (conveyor.PeekOutput() is { } item && TryAccept(item.ItemId))
+                    {
+                        conveyor.RemoveOutput();
+                    }
+                }
             }
         }
     }
@@ -558,7 +576,7 @@ public sealed class FactoryWorld
     public float PowerBuffer { get; private set; }
     public float PowerCapacity { get; private set; } = CorePowerCapacity;
 
-    public static int SalePrice(string itemId) => MarketCatalog.CreateDefault().GetSellPrice(itemId);
+    public static int SalePrice(string itemId) => MarketCatalog.Default.GetSellPrice(itemId);
 
     public int EffectiveSalePrice(string itemId, MarketCatalog market)
     {
@@ -941,8 +959,7 @@ public sealed class FactoryWorld
         MarketCatalog? market = null,
         EconomySession? session = null)
     {
-        market ??= MarketCatalog.CreateDefault();
-        RecalculatePowerCapacity();
+        market ??= MarketCatalog.Default;
         var generation = CorePowerGeneration + generators.Count * GeneratorBuilding.GenerationPerSecond;
         PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
 

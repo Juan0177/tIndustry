@@ -94,8 +94,23 @@ public sealed class EconomyWallet
 
     public Dictionary<string, int> MaterialsSnapshot() => new(materials);
 
-    public bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost) =>
-        Money >= money && cost.All(entry => MaterialCount(entry.ItemId) >= entry.Amount);
+    public bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost)
+    {
+        if (Money < money)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < cost.Count; i++)
+        {
+            if (MaterialCount(cost[i].ItemId) < cost[i].Amount)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     public void AddMoney(int amount) => Money += amount;
 
@@ -323,9 +338,28 @@ public sealed class ConveyorGrid
 
         // Entry + exit cost the same definition once each.
         var totalMoney = definition.MoneyCost * 2;
-        var totalMaterials = definition.BuildCost
-            .Select(entryCost => new ResourceAmount(entryCost.ItemId, entryCost.Amount * 2))
-            .ToArray();
+        var buildCost = definition.BuildCost;
+        ResourceAmount[]? rented = null;
+        IReadOnlyList<ResourceAmount> totalMaterials;
+        if (buildCost.Count == 0)
+        {
+            totalMaterials = Array.Empty<ResourceAmount>();
+        }
+        else if (buildCost.Count == 1)
+        {
+            totalMaterials = [new ResourceAmount(buildCost[0].ItemId, buildCost[0].Amount * 2)];
+        }
+        else
+        {
+            rented = new ResourceAmount[buildCost.Count];
+            for (var i = 0; i < buildCost.Count; i++)
+            {
+                rented[i] = new ResourceAmount(buildCost[i].ItemId, buildCost[i].Amount * 2);
+            }
+
+            totalMaterials = rented;
+        }
+
         if (!wallet.TrySpend(totalMoney, totalMaterials))
         {
             return false;
@@ -477,17 +511,8 @@ public sealed class ConveyorGrid
 
         if (cell.Kind == LogisticsKind.Bridge && cell.BridgePartner is { } partner)
         {
-            var isEntry = false;
-            for (var span = ConveyorCell.MinBridgeSpan; span <= ConveyorCell.MaxBridgeSpan; span++)
-            {
-                if (cell.Position.Step(cell.Direction, span) == partner)
-                {
-                    isEntry = true;
-                    break;
-                }
-            }
-
-            if (isEntry
+            // Entry faces partner along Direction; exit faces away — O(1) vs span loop.
+            if (IsBridgeEntry(cell, partner)
                 && cells.TryGetValue(partner, out var exitCell)
                 && exitCell.TryInsert(item, cell.Direction))
             {
@@ -512,6 +537,26 @@ public sealed class ConveyorGrid
         }
 
         TryInsertNeighbor(cell, cell.RoutedExit, item);
+    }
+
+    private static bool IsBridgeEntry(ConveyorCell cell, GridPosition partner)
+    {
+        var dx = partner.X - cell.Position.X;
+        var dy = partner.Y - cell.Position.Y;
+        var span = Math.Abs(dx) + Math.Abs(dy);
+        if (span < ConveyorCell.MinBridgeSpan || span > ConveyorCell.MaxBridgeSpan)
+        {
+            return false;
+        }
+
+        return cell.Direction switch
+        {
+            Direction.North => dx == 0 && dy < 0,
+            Direction.East => dy == 0 && dx > 0,
+            Direction.South => dx == 0 && dy > 0,
+            Direction.West => dy == 0 && dx < 0,
+            _ => false
+        };
     }
 
     private bool TryInsertNeighbor(ConveyorCell cell, Direction exit, TransportedItem item)

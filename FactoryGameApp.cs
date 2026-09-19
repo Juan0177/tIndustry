@@ -4,6 +4,7 @@ using TIndustry.Logistics;
 
 internal enum AppScreen
 {
+    Splash,
     Home,
     Playing,
     SaveManager,
@@ -26,6 +27,8 @@ internal static class FactoryGameApp
     private const int HeaderIconGap = 8;
     private const float EntryAnimDuration = 0.85f;
     private const float LoadingMinSeconds = 0.55f;
+    private const float SplashMinSeconds = 1.2f;
+    private const float SplashMaxSeconds = 3.2f;
     private const int ViewportLeft = 0;
     private const int ViewportTop = HeaderHeight;
     private static int ViewportRight => ScreenWidth;
@@ -44,6 +47,9 @@ internal static class FactoryGameApp
     private static string? LoadingSlotId;
     private static string LoadingLabel = "Caricamento…";
     private static bool LoadingWorldReady;
+    private static float SplashElapsed;
+    private static Texture2D SplashThumbnail;
+    private static bool SplashThumbnailLoaded;
 
     private static readonly Direction[] Directions =
     [
@@ -51,6 +57,29 @@ internal static class FactoryGameApp
         Direction.East,
         Direction.South,
         Direction.West
+    ];
+
+    private static readonly Color TerrainGrass = new(46, 78, 54, 255);
+    private static readonly Color TerrainSoil = new(108, 88, 58, 255);
+    private static readonly Color TerrainStone = new(92, 98, 96, 255);
+    private static readonly Color TerrainWater = new(32, 78, 98, 255);
+    private static readonly Color TerrainGrid = new(14, 18, 16, 70);
+
+    private static readonly HomeAction[] HomeActionsWithContinue =
+    [
+        HomeAction.Continue,
+        HomeAction.NewGame,
+        HomeAction.SaveManager,
+        HomeAction.Settings,
+        HomeAction.Quit
+    ];
+
+    private static readonly HomeAction[] HomeActionsFresh =
+    [
+        HomeAction.NewGame,
+        HomeAction.SaveManager,
+        HomeAction.Settings,
+        HomeAction.Quit
     ];
 
     public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
@@ -63,7 +92,7 @@ internal static class FactoryGameApp
         var smeltRecipe = content.Recipes.Single(recipe => recipe.Id == "smelt-iron");
         var wireRecipe = content.Recipes.Single(recipe => recipe.Id == "craft-copper-wire");
         var selectedConveyor = basicConveyor;
-        var screen = AppScreen.Home;
+        var screen = AppScreen.Splash;
         FactoryWorld? world = null;
         ConveyorGrid? conveyors = null;
         EconomyWallet? wallet = null;
@@ -113,6 +142,7 @@ internal static class FactoryGameApp
         Raylib.InitWindow(ScreenWidth, ScreenHeight, "tIndustry");
         Raylib.SetExitKey(KeyboardKey.Null);
         UiTheme.Load();
+        LoadSplashThumbnail();
         DisplayApplier.Apply(settings);
         SyncLayoutSize(settings);
 
@@ -125,6 +155,10 @@ internal static class FactoryGameApp
 
             switch (screen)
             {
+                case AppScreen.Splash:
+                    HandleSplashInput(ref screen, frameTime);
+                    break;
+
                 case AppScreen.Home:
                     HandleHomeInput(
                         content,
@@ -283,6 +317,9 @@ internal static class FactoryGameApp
             Raylib.ClearBackground(new Color(14, 18, 18, 255));
             switch (screen)
             {
+                case AppScreen.Splash:
+                    DrawSplash();
+                    break;
                 case AppScreen.Home:
                     DrawHome(statusMessage);
                     break;
@@ -332,7 +369,7 @@ internal static class FactoryGameApp
             }
 
             // FPS overlay only on non-play screens — in-game FPS lives in the header.
-            if (screen is not AppScreen.Playing)
+            if (screen is not AppScreen.Playing and not AppScreen.Splash)
             {
                 DrawDebugOverlays(settings, wallet);
             }
@@ -353,6 +390,7 @@ internal static class FactoryGameApp
             AutoSaveContinue(world, conveyors!, wallet!, camera, research, session, nextItemId);
         }
 
+        UnloadSplashThumbnail();
         UiTheme.Unload();
         Raylib.CloseWindow();
     }
@@ -368,6 +406,100 @@ internal static class FactoryGameApp
 
         ScreenWidth = Math.Max(800, settings.ResolutionWidth);
         ScreenHeight = Math.Max(500, settings.ResolutionHeight);
+    }
+
+    private static void LoadSplashThumbnail()
+    {
+        if (SplashThumbnailLoaded)
+        {
+            return;
+        }
+
+        var path = Path.Combine(AppContext.BaseDirectory, "assets", "thumbnail.png");
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        SplashThumbnail = Raylib.LoadTexture(path);
+        Raylib.SetTextureFilter(SplashThumbnail, TextureFilter.Bilinear);
+        SplashThumbnailLoaded = true;
+    }
+
+    private static void UnloadSplashThumbnail()
+    {
+        if (!SplashThumbnailLoaded)
+        {
+            return;
+        }
+
+        Raylib.UnloadTexture(SplashThumbnail);
+        SplashThumbnailLoaded = false;
+    }
+
+    private static void HandleSplashInput(ref AppScreen screen, float frameTime)
+    {
+        SplashElapsed += frameTime;
+        var dismiss =
+            SplashElapsed >= SplashMaxSeconds
+            || (SplashElapsed >= SplashMinSeconds
+                && (Raylib.IsMouseButtonPressed(MouseButton.Left)
+                    || Raylib.IsMouseButtonPressed(MouseButton.Right)
+                    || Raylib.GetKeyPressed() != 0
+                    || Raylib.IsGamepadButtonPressed(0, GamepadButton.RightFaceDown)));
+
+        if (dismiss)
+        {
+            screen = AppScreen.Home;
+        }
+    }
+
+    private static void DrawSplash()
+    {
+        Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(10, 12, 14, 255));
+        Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
+            new Color(22, 34, 30, 255), new Color(8, 10, 10, 255));
+
+        var pulse = 0.5f + 0.5f * MathF.Sin((float)Raylib.GetTime() * 2.4f);
+        var title = "tINDUSTRY";
+        var titleSize = 52;
+        var titleW = MeasureUiText(title, titleSize);
+        DrawUiText(title, (ScreenWidth - titleW) / 2, ScreenHeight / 2 - 250, titleSize,
+            new Color(239, 238, 224, 255));
+
+        var thumbSize = Math.Min(280, Math.Min(ScreenWidth, ScreenHeight) / 2);
+        var thumbX = (ScreenWidth - thumbSize) / 2;
+        var thumbY = ScreenHeight / 2 - thumbSize / 2 - 20;
+        if (SplashThumbnailLoaded)
+        {
+            var src = new Rectangle(0, 0, SplashThumbnail.Width, SplashThumbnail.Height);
+            var dst = new Rectangle(thumbX, thumbY, thumbSize, thumbSize);
+            Raylib.DrawRectangle(thumbX - 6, thumbY - 6, thumbSize + 12, thumbSize + 12,
+                new Color(30, 38, 36, 255));
+            Raylib.DrawRectangleLines(thumbX - 6, thumbY - 6, thumbSize + 12, thumbSize + 12,
+                new Color(211, 164, 76, (int)(140 + pulse * 80)));
+            Raylib.DrawTexturePro(SplashThumbnail, src, dst, Vector2.Zero, 0f, Color.White);
+        }
+        else
+        {
+            Raylib.DrawRectangle(thumbX, thumbY, thumbSize, thumbSize, new Color(32, 48, 42, 255));
+            UiTheme.DrawBuildCategoryIcon(UiTheme.BuildCategory.Production,
+                thumbX + thumbSize / 4, thumbY + thumbSize / 4, thumbSize / 2, new Color(211, 164, 76, 255));
+        }
+
+        var tagline = "Settore Foundry";
+        var tagW = MeasureUiText(tagline, 18);
+        DrawUiText(tagline, (ScreenWidth - tagW) / 2, thumbY + thumbSize + 24, 18,
+            new Color(164, 173, 168, 255));
+
+        if (SplashElapsed >= SplashMinSeconds)
+        {
+            var hint = "Clicca o premi un tasto per continuare";
+            var hintW = MeasureUiText(hint, 16);
+            var hintAlpha = (int)(140 + pulse * 100);
+            DrawUiText(hint, (ScreenWidth - hintW) / 2, ScreenHeight - 64, 16,
+                new Color(211, 164, 76, hintAlpha));
+        }
     }
 
     private static void DrawUiText(string text, int x, int y, int size, Color color) =>
@@ -1847,28 +1979,8 @@ internal static class FactoryGameApp
     private static bool HasValidContinueSlot() =>
         GameSaveStore.TryLoad(GameSaveStore.ContinueSlotId, out _);
 
-    private static HomeAction[] GetHomeActions()
-    {
-        if (HasValidContinueSlot())
-        {
-            return
-            [
-                HomeAction.Continue,
-                HomeAction.NewGame,
-                HomeAction.SaveManager,
-                HomeAction.Settings,
-                HomeAction.Quit
-            ];
-        }
-
-        return
-        [
-            HomeAction.NewGame,
-            HomeAction.SaveManager,
-            HomeAction.Settings,
-            HomeAction.Quit
-        ];
-    }
+    private static HomeAction[] GetHomeActions() =>
+        HasValidContinueSlot() ? HomeActionsWithContinue : HomeActionsFresh;
 
     private static string HomeActionLabel(HomeAction action) => action switch
     {
@@ -2677,13 +2789,14 @@ internal static class FactoryGameApp
             out var maxY);
 
         var tileSize = camera.TileSize(BaseTileSize);
+        var originScreen = camera.WorldToScreen(minX * BaseTileSize, minY * BaseTileSize, ViewportLeft, ViewportTop);
         for (var y = minY; y <= maxY; y++)
         {
+            var rowScreenY = originScreen.Y + (y - minY) * tileSize;
             for (var x = minX; x <= maxX; x++)
             {
-                var position = new GridPosition(x, y);
-                var screen = camera.WorldToScreen(x * BaseTileSize, y * BaseTileSize, ViewportLeft, ViewportTop);
-                DrawTerrainTile(world.Terrain[position], position, screen.X, screen.Y, tileSize);
+                var screenX = originScreen.X + (x - minX) * tileSize;
+                DrawTerrainTile(world.Terrain[x, y], screenX, rowScreenY, tileSize);
             }
         }
 
@@ -2771,7 +2884,7 @@ internal static class FactoryGameApp
         Raylib.EndScissorMode();
     }
 
-    private static void DrawTerrainTile(TerrainTile tile, GridPosition position, float x, float y, float tileSize)
+    private static void DrawTerrainTile(TerrainTile tile, float x, float y, float tileSize)
     {
         // Integer pixel bounds from floor→next floor keep cells flush (no muddy float gaps).
         var ix = (int)MathF.Floor(x);
@@ -2781,16 +2894,16 @@ internal static class FactoryGameApp
         // Higher-contrast terrain so buildings/belts read clearly on top.
         var color = tile.Terrain switch
         {
-            TerrainKind.Grass => new Color(46, 78, 54, 255),
-            TerrainKind.Soil => new Color(108, 88, 58, 255),
-            TerrainKind.Stone => new Color(92, 98, 96, 255),
-            TerrainKind.Water => new Color(32, 78, 98, 255),
+            TerrainKind.Grass => TerrainGrass,
+            TerrainKind.Soil => TerrainSoil,
+            TerrainKind.Stone => TerrainStone,
+            TerrainKind.Water => TerrainWater,
             _ => Color.Black
         };
         Raylib.DrawRectangle(ix, iy, size, sizeY, color);
-        if (tileSize >= 12f)
+        if (tileSize >= 14f)
         {
-            Raylib.DrawRectangleLines(ix, iy, size, sizeY, new Color(14, 18, 16, 70));
+            Raylib.DrawRectangleLines(ix, iy, size, sizeY, TerrainGrid);
         }
 
         if (tile.Deposit == DepositKind.Iron && tileSize >= 8f)

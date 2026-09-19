@@ -295,43 +295,52 @@ public static class UiTheme
         _ => TextPrimary
     };
 
+    // Cached once — EntriesFor used every play frame for dock bounds/draw/input.
+    private static readonly DockEntry[] ProductionEntries =
+    [
+        new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
+            Hint: "Estrae minerali dal giacimento"),
+        new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
+            Hint: "Fonde ore in lastre"),
+        new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
+            Hint: "Assembla prodotti intermedi"),
+        new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove,
+            Hint: "Demolisci edifici e nastri (tasto 4)")
+    ];
+
+    private static readonly DockEntry[] LogisticsEntries =
+    [
+        new("conveyor-basic", "Nastro", "Na", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
+            ResearchId: "conveyor-basic", ConveyorId: "conveyor-basic",
+            Hint: "Trasporta item · Q"),
+        new("conveyor-fast", "Veloce", "Ve", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
+            ResearchId: "conveyor-fast", ConveyorId: "conveyor-fast",
+            Hint: "Nastro rapido · E"),
+        new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction",
+            Hint: "Incrocio a croce (6)"),
+        new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",
+            Hint: "Divide il flusso (7)"),
+        new("bridge", "Ponte", "Po", DockEntryKind.BuildTool, Tool: BuildTool.Bridge, ResearchId: "conveyor-bridge",
+            Hint: "Ponte a due capi (8)")
+    ];
+
+    private static readonly DockEntry[] PowerEntries =
+    [
+        new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
+            Hint: "Produce energia (9)")
+    ];
+
+    private static readonly DockEntry[] EmptyEntries = [];
+
     public static DockEntry[] EntriesFor(BuildCategory category) => category switch
     {
-        BuildCategory.Production =>
-        [
-            new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
-                Hint: "Estrae minerali dal giacimento"),
-            new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
-                Hint: "Fonde ore in lastre"),
-            new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
-                Hint: "Assembla prodotti intermedi"),
-            new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove,
-                Hint: "Demolisci edifici e nastri (tasto 4)")
-        ],
-        BuildCategory.Logistics =>
-        [
-            new("conveyor-basic", "Nastro", "Na", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
-                ResearchId: "conveyor-basic", ConveyorId: "conveyor-basic",
-                Hint: "Trasporta item · Q"),
-            new("conveyor-fast", "Veloce", "Ve", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
-                ResearchId: "conveyor-fast", ConveyorId: "conveyor-fast",
-                Hint: "Nastro rapido · E"),
-            new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction",
-                Hint: "Incrocio a croce (6)"),
-            new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",
-                Hint: "Divide il flusso (7)"),
-            new("bridge", "Ponte", "Po", DockEntryKind.BuildTool, Tool: BuildTool.Bridge, ResearchId: "conveyor-bridge",
-                Hint: "Ponte a due capi (8)")
-        ],
-        BuildCategory.Power =>
-        [
-            new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
-                Hint: "Produce energia (9)")
-        ],
+        BuildCategory.Production => ProductionEntries,
+        BuildCategory.Logistics => LogisticsEntries,
+        BuildCategory.Power => PowerEntries,
         // Legacy enum values kept for switch exhaustiveness; not on the rail.
-        BuildCategory.Tools => [],
-        BuildCategory.Inventory => [],
-        _ => []
+        BuildCategory.Tools => EmptyEntries,
+        BuildCategory.Inventory => EmptyEntries,
+        _ => EmptyEntries
     };
 
     public const int DockHoverBarHeight = 32;
