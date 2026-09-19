@@ -716,8 +716,8 @@ public sealed class FactoryWorld
             && !smelterByTile.ContainsKey(tile)
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
-            && !conveyors.Cells.ContainsKey(tile))
-        && CountCoveredDepositTiles(position) > 0;
+            && !conveyors.Cells.ContainsKey(tile));
+    // Deposit coverage optional: 0 covered tiles → 0% efficiency, no ore output.
 
     public bool CanPlaceSmelter(GridPosition position, ConveyorGrid conveyors) =>
         CanOccupyBuilding(position, SmelterBuilding.Size, conveyors);

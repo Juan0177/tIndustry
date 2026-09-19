@@ -21,16 +21,20 @@ internal static class FactoryGameApp
     public const int MapWidth = 1000;
     public const int MapHeight = 1000;
     private const int BaseTileSize = 36;
-    private const int HeaderHeight = 64;
-    private const int InfoPanelWidth = 260;
-    private const int HeaderIconSize = 40;
-    private const int HeaderIconGap = 8;
+    private const int HeaderHeightBase = 64;
+    private const int InfoPanelWidthBase = 260;
+    private const int HeaderIconSizeBase = 40;
+    private const int HeaderIconGapBase = 8;
     private const float EntryAnimDuration = 0.85f;
     private const float LoadingMinSeconds = 0.55f;
     private const float SplashMinSeconds = 1.2f;
     private const float SplashMaxSeconds = 8f;
     private const int ViewportLeft = 0;
-    private const int ViewportTop = HeaderHeight;
+    private static int HeaderHeight => UiTheme.S(HeaderHeightBase);
+    private static int InfoPanelWidth => UiTheme.S(InfoPanelWidthBase);
+    private static int HeaderIconSize => UiTheme.S(HeaderIconSizeBase);
+    private static int HeaderIconGap => UiTheme.S(HeaderIconGapBase);
+    private static int ViewportTop => HeaderHeight;
     private static int ViewportRight => ScreenWidth;
     private static int ViewportBottom => ScreenHeight;
     private const float FixedStep = 1f / 30f;
@@ -50,6 +54,27 @@ internal static class FactoryGameApp
     private static float SplashElapsed;
     private static Texture2D SplashThumbnail;
     private static bool SplashThumbnailLoaded;
+
+    // First-run tutorial (Italian); skipped/completed persists in settings.json.
+    private static bool TutorialActive;
+    private static int TutorialStep;
+    private static float TutorialCameraMoved;
+    private static bool TutorialPlacedMiner;
+    private static bool TutorialPlacedBelt;
+    private static bool TutorialSoldOre;
+    private static bool TutorialOpenedResearch;
+    private static int TutorialSoldBaseline = -1;
+
+    private static readonly string[] TutorialSteps =
+    [
+        "Muovi la camera: WASD, Shift+trascina o rotella centrale.",
+        "Piazza un MINATORE (2) sul giacimento di ferro a ovest del core.",
+        "Collega NASTRI (1) dal minatore fino al CORE per vendere.",
+        "Aspetta che i minerali arrivino al core (guadagni $).",
+        "Apri RICERCA (T) e sblocca il FORNO quando puoi."
+    ];
+
+    private static GameSettings? ActiveSettings;
 
     private static readonly Direction[] Directions =
     [
@@ -122,14 +147,17 @@ internal static class FactoryGameApp
         var pendingSeed = DefaultSeed;
         var quitRequested = false;
         var settings = GameSettings.Load();
+        ActiveSettings = settings;
         var settingsReturnScreen = AppScreen.Home;
         SyncLayoutSize(settings);
+        UiTheme.ApplyScalePercent(settings.UiScalePercent);
 
         // Headless smoke/capture paths jump straight into a playable session.
         if (maximumFrames is not null || screenshotPath is not null)
         {
             StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
             screen = AppScreen.Playing;
+            BeginTutorialIfNeeded(settings);
         }
 
         var flags = ConfigFlags.Msaa4xHint;
@@ -142,6 +170,7 @@ internal static class FactoryGameApp
         Raylib.InitWindow(ScreenWidth, ScreenHeight, "tIndustry");
         Raylib.SetExitKey(KeyboardKey.Null);
         UiTheme.Load();
+        UiTheme.ApplyScalePercent(settings.UiScalePercent);
         LoadSplashThumbnail();
         DisplayApplier.Apply(settings);
         SyncLayoutSize(settings);
@@ -152,6 +181,7 @@ internal static class FactoryGameApp
         {
             accumulator += Math.Min(Raylib.GetFrameTime(), 0.1f);
             var frameTime = Math.Min(Raylib.GetFrameTime(), 0.1f);
+            SystemMonitor.Update(frameTime);
 
             switch (screen)
             {
@@ -308,6 +338,11 @@ internal static class FactoryGameApp
                     {
                         world!.Update(FixedStep, conveyors!, wallet!, ref nextItemId, market!, session!);
                         accumulator -= FixedStep;
+                    }
+
+                    if (TutorialActive && world is not null && conveyors is not null && wallet is not null)
+                    {
+                        UpdateTutorialProgress(world, conveyors, wallet, settings);
                     }
 
                     break;
@@ -620,6 +655,10 @@ internal static class FactoryGameApp
             EntryAnimT = 0f;
             statusMessage = null;
             screen = AppScreen.Playing;
+            if (!LoadingFromSave && ActiveSettings is not null)
+            {
+                BeginTutorialIfNeeded(ActiveSettings);
+            }
         }
     }
 
@@ -1200,12 +1239,19 @@ internal static class FactoryGameApp
             return;
         }
 
+        if (TutorialActive && ActiveSettings is not null
+            && HandleTutorialInput(ActiveSettings, ref statusMessage))
+        {
+            return;
+        }
+
         if (Raylib.IsKeyPressed(KeyboardKey.T)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && HitHeaderIcon(Raylib.GetMousePosition(), 1)))
         {
             selectedResearchIndex = 0;
             statusMessage = null;
+            TutorialOpenedResearch = true;
             screen = AppScreen.Research;
             return;
         }
@@ -1243,7 +1289,8 @@ internal static class FactoryGameApp
                 fastConveyor,
                 ref tool,
                 ref direction,
-                ref selectedConveyor))
+                ref selectedConveyor,
+                ref statusMessage))
         {
             previousDragPosition = null;
             return;
@@ -1288,16 +1335,30 @@ internal static class FactoryGameApp
             SyncDockSelection(tool, selectedConveyor, direction);
         }
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Two) && research.IsUnlocked("miner"))
+        if (Raylib.IsKeyPressed(KeyboardKey.Two))
         {
-            tool = BuildTool.Miner;
-            SyncDockSelection(tool, selectedConveyor, direction);
+            if (research.IsUnlocked("miner"))
+            {
+                tool = BuildTool.Miner;
+                SyncDockSelection(tool, selectedConveyor, direction);
+            }
+            else
+            {
+                statusMessage = "Minatore già sbloccato di default — selezionalo dal dock.";
+            }
         }
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Three) && research.IsUnlocked("smelter"))
+        if (Raylib.IsKeyPressed(KeyboardKey.Three))
         {
-            tool = BuildTool.Smelter;
-            SyncDockSelection(tool, selectedConveyor, direction);
+            if (research.IsUnlocked("smelter"))
+            {
+                tool = BuildTool.Smelter;
+                SyncDockSelection(tool, selectedConveyor, direction);
+            }
+            else
+            {
+                statusMessage = "Forno bloccato: aprilo in Ricerca (T) prima di piazzarlo.";
+            }
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.Four))
@@ -1393,6 +1454,7 @@ internal static class FactoryGameApp
                         research,
                         session,
                         world.CanPlaceConveyor);
+                    TutorialPlacedBelt = true;
                     ConnectAdjacentMiner(world, conveyors, position);
                     ConnectAdjacentSmelter(world, conveyors, position);
                     ConnectAdjacentAssembler(world, conveyors, position);
@@ -1423,19 +1485,55 @@ internal static class FactoryGameApp
 
             if (tool == BuildTool.Miner && research.IsUnlocked("miner"))
             {
-                world.TryPlaceMiner(position, direction, conveyors, wallet, minerBuilding, session);
+                if (!world.TryPlaceMiner(position, direction, conveyors, wallet, minerBuilding, session))
+                {
+                    statusMessage = world.CanPlaceMiner(position, conveyors)
+                        ? "Risorse insufficienti per il minatore."
+                        : "Minatore: serve terreno libero (no acqua/core/edifici/nastri).";
+                }
+                else
+                {
+                    TutorialPlacedMiner = true;
+                    var eff = world.Miners[position].Efficiency;
+                    statusMessage = eff <= 0f
+                        ? "Minatore piazzato a 0% — senza giacimento non produce."
+                        : $"Minatore piazzato ({eff:P0} efficienza).";
+                }
             }
             else if (tool == BuildTool.Smelter && research.IsUnlocked("smelter"))
             {
-                world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet, smelterBuilding, session);
+                if (!world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet, smelterBuilding, session))
+                {
+                    statusMessage = world.CanPlaceSmelter(position, conveyors)
+                        ? "Risorse insufficienti per il forno."
+                        : "Forno: serve un’area 2×2 libera su terra (no acqua/core/edifici/nastri).";
+                }
+                else
+                {
+                    statusMessage = "Forno piazzato.";
+                }
+            }
+            else if (tool == BuildTool.Smelter && !research.IsUnlocked("smelter"))
+            {
+                statusMessage = "Forno bloccato: sbloccalo in Ricerca (T).";
             }
             else if (tool == BuildTool.Assembler && research.IsUnlocked("assembler"))
             {
-                world.TryPlaceAssembler(position, direction, wireRecipe, conveyors, wallet, assemblerBuilding, session);
+                if (!world.TryPlaceAssembler(position, direction, wireRecipe, conveyors, wallet, assemblerBuilding, session))
+                {
+                    statusMessage = world.CanPlaceAssembler(position, conveyors)
+                        ? "Risorse insufficienti per l’assemblatore."
+                        : "Assemblatore: serve un’area 2×2 libera su terra.";
+                }
             }
             else if (tool == BuildTool.Generator && research.IsUnlocked("generator"))
             {
-                world.TryPlaceGenerator(position, conveyors, wallet, generatorBuilding, session);
+                if (!world.TryPlaceGenerator(position, conveyors, wallet, generatorBuilding, session))
+                {
+                    statusMessage = world.CanPlaceGenerator(position, conveyors)
+                        ? "Risorse insufficienti per il generatore."
+                        : "Generatore: serve un’area 2×2 libera su terra.";
+                }
             }
             else if (tool == BuildTool.Junction && research.IsUnlocked("junction"))
             {
@@ -1570,6 +1668,10 @@ internal static class FactoryGameApp
         {
             pan = Vector2.Normalize(pan) * (WorldCamera.PanSpeedPixels / camera.Zoom) * frameTime;
             camera.Pan(pan.X, pan.Y);
+            if (TutorialActive)
+            {
+                TutorialCameraMoved += MathF.Abs(pan.X) + MathF.Abs(pan.Y);
+            }
         }
 
         // Edge pan intentionally disabled — only WASD / middle-drag / Shift+drag move the camera.
@@ -1590,6 +1692,10 @@ internal static class FactoryGameApp
             var delta = mouse - panAnchor;
             camera.X = panCameraX - delta.X / camera.Zoom;
             camera.Y = panCameraY - delta.Y / camera.Zoom;
+            if (TutorialActive)
+            {
+                TutorialCameraMoved += MathF.Abs(delta.X) + MathF.Abs(delta.Y);
+            }
         }
         else
         {
@@ -1643,6 +1749,7 @@ internal static class FactoryGameApp
                     return;
                 }
 
+                TutorialPlacedBelt = true;
                 ConnectAdjacentMiner(world, conveyors, next);
                 ConnectAdjacentSmelter(world, conveyors, next);
                 ConnectAdjacentAssembler(world, conveyors, next);
@@ -1857,7 +1964,21 @@ internal static class FactoryGameApp
         }
 
         GetInfoBounds(out var ix, out var iy, out var iw, out var ih);
-        return Contains(mouse, ix, iy, iw, ih);
+        if (Contains(mouse, ix, iy, iw, ih))
+        {
+            return true;
+        }
+
+        if (TutorialActive)
+        {
+            GetTutorialPanelBounds(out var tx, out var ty, out var tw, out var th);
+            if (Contains(mouse, tx, ty, tw, th))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TrySelectBuildDock(
@@ -1867,7 +1988,8 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ref BuildTool tool,
         ref Direction direction,
-        ref ConveyorDefinition selectedConveyor)
+        ref ConveyorDefinition selectedConveyor,
+        ref string? statusMessage)
     {
         GetDockPanels(out var dockX, out var dockY, out var gridW, out var gridH, out var railX, out var railW, out var railH);
         var onGrid = Contains(mouse, dockX, dockY, gridW, gridH);
@@ -1897,7 +2019,7 @@ internal static class FactoryGameApp
                         || UiTheme.EntriesFor(DockCategory).All(e => e.Id != DockSelectedId)))
                 {
                     ApplyDockEntry(first, research, basicConveyor, fastConveyor,
-                        ref tool, ref direction, ref selectedConveyor);
+                        ref tool, ref direction, ref selectedConveyor, ref statusMessage);
                 }
 
                 return true;
@@ -1920,7 +2042,7 @@ internal static class FactoryGameApp
             }
 
             ApplyDockEntry(entries[i], research, basicConveyor, fastConveyor,
-                ref tool, ref direction, ref selectedConveyor);
+                ref tool, ref direction, ref selectedConveyor, ref statusMessage);
             return true;
         }
 
@@ -1934,11 +2056,14 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ref BuildTool tool,
         ref Direction direction,
-        ref ConveyorDefinition selectedConveyor)
+        ref ConveyorDefinition selectedConveyor,
+        ref string? statusMessage)
     {
         if (entry.ResearchId is not null && !research.IsUnlocked(entry.ResearchId))
         {
-            DockSelectedId = entry.Id;
+            // Do NOT change DockSelectedId / tool — that left Forno highlighted while still
+            // placing belts, which felt like "non posso piazzare il forno".
+            statusMessage = $"Sblocca {entry.Label} in Ricerca (T) prima di selezionarlo.";
             return;
         }
 
@@ -2088,8 +2213,8 @@ internal static class FactoryGameApp
             draft.ShowResourceOverlay = settings.ShowResourceOverlay;
             settings.Save();
             statusMessage = settings.ShowResourceOverlay
-                ? "Inventario risorse attivato."
-                : "Inventario risorse disattivato.";
+                ? "Overlay risorse sistema attivato (CPU · GPU · RAM)."
+                : "Overlay risorse sistema disattivato.";
             return;
         }
 
@@ -2102,8 +2227,26 @@ internal static class FactoryGameApp
             return;
         }
 
+        // UI scale — apply immediately for crisp font reload
+        for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
+        {
+            var x = 120 + i * 110;
+            if (!Contains(mouse, x, 278, 100, 34))
+            {
+                continue;
+            }
+
+            var percent = GameSettings.UiScalePresets[i];
+            draft.UiScalePercent = percent;
+            settings.UiScalePercent = percent;
+            settings.Save();
+            UiTheme.ApplyScalePercent(percent);
+            statusMessage = $"Scala UI: {GameSettings.UiScaleLabel(percent)}";
+            return;
+        }
+
         // Auto resolution
-        if (Contains(mouse, 120, 300, 160, 34))
+        if (Contains(mouse, 120, 340, 160, 34))
         {
             draft.UseAutoResolution = true;
             DisplayApplier.CaptureDesktopResolution(draft);
@@ -2115,7 +2258,7 @@ internal static class FactoryGameApp
         for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
         {
             var x = 120 + (i % 4) * 155;
-            var y = 340 + (i / 4) * 38;
+            var y = 380 + (i / 4) * 38;
             if (!Contains(mouse, x, y, 148, 34))
             {
                 continue;
@@ -2132,7 +2275,7 @@ internal static class FactoryGameApp
         for (var i = 0; i < GameSettings.FpsLimitPresets.Length; i++)
         {
             var x = 120 + (i % 4) * 155;
-            var y = 450 + (i / 4) * 36;
+            var y = 490 + (i / 4) * 36;
             if (!Contains(mouse, x, y, 148, 32))
             {
                 continue;
@@ -2149,7 +2292,7 @@ internal static class FactoryGameApp
         DisplayMode[] modes = [DisplayMode.Windowed, DisplayMode.Borderless, DisplayMode.Fullscreen];
         for (var i = 0; i < modes.Length; i++)
         {
-            if (!Contains(mouse, 120 + i * 160, 540, 150, 36))
+            if (!Contains(mouse, 120 + i * 160, 580, 150, 36))
             {
                 continue;
             }
@@ -2160,18 +2303,19 @@ internal static class FactoryGameApp
         }
 
         // Apply
-        if (Contains(mouse, 120, 590, 180, 40))
+        if (Contains(mouse, 120, 630, 180, 40))
         {
             settings.CopyFrom(draft);
             settings.Save();
             DisplayApplier.Apply(settings);
+            UiTheme.ApplyScalePercent(settings.UiScalePercent);
             SyncLayoutSize(settings);
             statusMessage = "Grafica applicata e salvata.";
             return;
         }
 
         // Revert draft to last applied
-        if (Contains(mouse, 320, 590, 180, 40))
+        if (Contains(mouse, 320, 630, 180, 40))
         {
             draft.CopyFrom(settings);
             statusMessage = "Selezione grafica ripristinata.";
@@ -2182,52 +2326,60 @@ internal static class FactoryGameApp
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         DrawUiText("Impostazioni", 120, 40, 32, new Color(239, 238, 224, 255));
-        DrawUiText("Overlay e grafica. Applica per salvare risoluzione, VSync e limite FPS.", 120, 78, 15,
+        DrawUiText("Overlay, scala UI e grafica. Applica per salvare risoluzione, VSync e limite FPS.", 120, 78, 15,
             new Color(112, 124, 119, 255));
 
         DrawToggleRow(120, 150, 420, 36, "Mostra contatore FPS", settings.ShowFps);
-        DrawToggleRow(120, 192, 420, 36, "Mostra inventario risorse", settings.ShowResourceOverlay);
+        DrawToggleRow(120, 192, 420, 36, "Mostra risorse sistema (CPU · GPU · RAM)", settings.ShowResourceOverlay);
         DrawToggleRow(120, 234, 420, 36, "VSync", draft.VSync);
 
-        DrawUiText("Risoluzione", 120, 280, 16, new Color(196, 201, 193, 255));
-        DrawButton(120, 300, 160, 34, "Auto risoluzione", draft.UseAutoResolution);
+        DrawUiText("Scala interfaccia", 120, 256, 16, new Color(196, 201, 193, 255));
+        for (var i = 0; i < GameSettings.UiScalePresets.Length; i++)
+        {
+            var percent = GameSettings.UiScalePresets[i];
+            DrawButton(120 + i * 110, 278, 100, 34, GameSettings.UiScaleLabel(percent),
+                settings.UiScalePercent == percent);
+        }
+
+        DrawUiText("Risoluzione", 120, 320, 16, new Color(196, 201, 193, 255));
+        DrawButton(120, 340, 160, 34, "Auto risoluzione", draft.UseAutoResolution);
         for (var i = 0; i < GameSettings.ResolutionPresets.Length; i++)
         {
             var preset = GameSettings.ResolutionPresets[i];
             var x = 120 + (i % 4) * 155;
-            var y = 340 + (i / 4) * 38;
+            var y = 380 + (i / 4) * 38;
             var selected = !draft.UseAutoResolution
                 && draft.ResolutionWidth == preset.Width
                 && draft.ResolutionHeight == preset.Height;
             DrawButton(x, y, 148, 34, preset.Label, selected);
         }
 
-        DrawUiText("Limite FPS (con VSync: preferenza salvata, sync al refresh)", 120, 424, 15,
+        DrawUiText("Limite FPS (con VSync: preferenza salvata, sync al refresh)", 120, 464, 15,
             new Color(196, 201, 193, 255));
         for (var i = 0; i < GameSettings.FpsLimitPresets.Length; i++)
         {
             var fps = GameSettings.FpsLimitPresets[i];
             var x = 120 + (i % 4) * 155;
-            var y = 450 + (i / 4) * 36;
+            var y = 490 + (i / 4) * 36;
             DrawButton(x, y, 148, 32, GameSettings.FpsLimitLabel(fps), draft.TargetFps == fps);
         }
 
-        DrawUiText("Modalità schermo", 120, 520, 16, new Color(196, 201, 193, 255));
-        DrawButton(120, 540, 150, 36, "Finestra", draft.DisplayMode == DisplayMode.Windowed);
-        DrawButton(280, 540, 150, 36, "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
-        DrawButton(440, 540, 150, 36, "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
+        DrawUiText("Modalità schermo", 120, 560, 16, new Color(196, 201, 193, 255));
+        DrawButton(120, 580, 150, 36, "Finestra", draft.DisplayMode == DisplayMode.Windowed);
+        DrawButton(280, 580, 150, 36, "Senza bordi", draft.DisplayMode == DisplayMode.Borderless);
+        DrawButton(440, 580, 150, 36, "Schermo intero", draft.DisplayMode == DisplayMode.Fullscreen);
 
         var dirty = !draft.MatchesDisplay(settings);
-        DrawMenuButton(120, 590, 180, 40, dirty ? "Applica*" : "Applica");
-        DrawMenuButton(320, 590, 180, 40, "Annulla");
+        DrawMenuButton(120, 630, 180, 40, dirty ? "Applica*" : "Applica");
+        DrawMenuButton(320, 630, 180, 40, "Annulla");
 
         var resLabel = settings.UseAutoResolution
             ? $"Auto {settings.ResolutionWidth}×{settings.ResolutionHeight}"
             : $"{settings.ResolutionWidth}×{settings.ResolutionHeight}";
         DrawUiText(
-            $"Attuale: {resLabel} · {GameSettings.DisplayModeLabel(settings.DisplayMode)} · VSync {(settings.VSync ? "ON" : "OFF")} · {GameSettings.FpsLimitLabel(settings.TargetFps)}",
-            120, 640, 13, new Color(126, 137, 132, 255));
-        DrawUiText($"File: {GameSettings.SettingsPath}", 120, 660, 12, new Color(90, 100, 96, 255));
+            $"Attuale: {resLabel} · {GameSettings.DisplayModeLabel(settings.DisplayMode)} · UI {GameSettings.UiScaleLabel(settings.UiScalePercent)} · VSync {(settings.VSync ? "ON" : "OFF")} · {GameSettings.FpsLimitLabel(settings.TargetFps)}",
+            120, 678, 13, new Color(126, 137, 132, 255));
+        DrawUiText($"File: {GameSettings.SettingsPath}", 120, 698, 12, new Color(90, 100, 96, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))
@@ -2252,17 +2404,16 @@ internal static class FactoryGameApp
 
     private static void DrawDebugOverlays(GameSettings settings, EconomyWallet? wallet)
     {
+        _ = wallet;
         if (settings.ShowFps)
         {
             Raylib.DrawRectangle(8, 8, 88, 28, new Color(10, 12, 12, 180));
             DrawUiText($"FPS {Raylib.GetFPS()}", 16, 14, 18, new Color(211, 164, 76, 255));
         }
 
-        // Corner resource strip when overlay is on but header wallet is hidden is N/A —
-        // header already respects ShowResourceOverlay. Keep a compact strip on Home/Settings only.
-        if (settings.ShowResourceOverlay && wallet is not null)
+        if (settings.ShowResourceOverlay)
         {
-            // No extra strip during Playing/Research — header/research already show resources.
+            DrawSystemResourceOverlay(8, settings.ShowFps ? 44 : 8);
         }
     }
 
@@ -2278,14 +2429,11 @@ internal static class FactoryGameApp
         DrawUiText("Ricerca / Sblocchi", 60, 36, 32, new Color(239, 238, 224, 255));
         DrawUiText("Seleziona una struttura, verifica i requisiti, conferma per sbloccare.", 60, 80, 18,
             new Color(112, 124, 119, 255));
+        DrawUiText($"Wallet: $ {wallet.Money}   ·   inventario nella strip in alto",
+            60, 108, 16, new Color(164, 173, 168, 255));
         if (settings.ShowResourceOverlay)
         {
-            DrawUiText($"Wallet: $ {wallet.Money}   ·   risorse nella strip in alto (overlay)",
-                60, 108, 16, new Color(164, 173, 168, 255));
-        }
-        else
-        {
-            DrawUiText("Inventario risorse disattivato (Impostazioni).", 60, 108, 16, new Color(126, 137, 132, 255));
+            DrawSystemResourceOverlay(800, 36);
         }
 
         var entries = ResearchEntries(content);
@@ -2443,6 +2591,11 @@ internal static class FactoryGameApp
                 new Color(112, 218, 145, 255));
         }
 
+        if (TutorialActive)
+        {
+            DrawTutorialBanner(settings);
+        }
+
         DrawEntryOverlay(frameTime);
     }
 
@@ -2476,10 +2629,12 @@ internal static class FactoryGameApp
             $"seed {world.Seed}  ·  zoom {camera.Zoom:0.00}",
             16, 30, 12, UiTheme.TextMuted);
 
-        // Compact top resource strip (Mindustry-like), toggled by Impostazioni overlay flag.
+        // Game inventory strip always visible (separate from system-resource overlay).
+        DrawResourceStrip(wallet, session);
+
         if (settings.ShowResourceOverlay)
         {
-            DrawResourceStrip(wallet, session);
+            DrawSystemResourceOverlay(16, HeaderHeight + 8);
         }
 
         var cost = tool switch
@@ -2881,7 +3036,79 @@ internal static class FactoryGameApp
             DrawMiner(miner, screen.X, screen.Y, tileSize, false);
         }
 
+        // Items on top of buildings so ores stay visible while moving.
+        DrawConveyorItems(conveyors, camera, tileSize, minX, minY, maxX, maxY);
+
         Raylib.EndScissorMode();
+    }
+
+    private static void DrawConveyorItems(
+        ConveyorGrid conveyors,
+        WorldCamera camera,
+        float tileSize,
+        int minX,
+        int minY,
+        int maxX,
+        int maxY)
+    {
+        foreach (var conveyor in conveyors.Cells.Values)
+        {
+            if (conveyor.Items.Count == 0
+                || conveyor.Position.X < minX || conveyor.Position.X > maxX
+                || conveyor.Position.Y < minY || conveyor.Position.Y > maxY)
+            {
+                continue;
+            }
+
+            var screen = camera.WorldToScreen(
+                conveyor.Position.X * BaseTileSize,
+                conveyor.Position.Y * BaseTileSize,
+                ViewportLeft,
+                ViewportTop);
+            DrawConveyorItemChips(conveyor, screen.X, screen.Y, tileSize, 255);
+        }
+    }
+
+    private static void DrawConveyorItemChips(
+        ConveyorCell conveyor,
+        float fx,
+        float fy,
+        float tileSize,
+        int alpha)
+    {
+        var x = (int)fx;
+        var y = (int)fy;
+        var center = new Vector2(x + tileSize / 2f, y + tileSize / 2f);
+        // Travel along routed exit (junctions/splitters) so chips match simulation.
+        var vector = DirectionVector(conveyor.RoutedExit);
+        foreach (var item in conveyor.Items)
+        {
+            var itemPosition = center - vector * (tileSize * 0.5f) + vector * (item.Progress * tileSize);
+            var itemSize = Math.Max(12, (int)(20 * tileSize / BaseTileSize));
+            var ix = (int)itemPosition.X - itemSize / 2;
+            var iy = (int)itemPosition.Y - itemSize / 2;
+            var fill = UiTheme.ItemColor(item.ItemId);
+            Raylib.DrawRectangle(ix - 2, iy - 2, itemSize + 4, itemSize + 4, new Color(8, 10, 10, alpha));
+            Raylib.DrawRectangle(ix, iy, itemSize, itemSize, fill);
+            Raylib.DrawRectangleLines(ix, iy, itemSize, itemSize, UiTheme.ItemOutline(item.ItemId));
+            if (tileSize >= 10f && GameIcons.Has(item.ItemId))
+            {
+                var inset = Math.Max(2, itemSize / 6);
+                UiTheme.DrawItemIcon(item.ItemId, ix + inset, iy + inset, itemSize - inset * 2);
+            }
+            else if (tileSize >= 14f)
+            {
+                var abbrev = UiTheme.ItemAbbrev(item.ItemId);
+                var fontSize = Math.Max(10, Math.Min(16, itemSize - 4));
+                var abbrevWidth = MeasureUiText(abbrev, fontSize);
+                DrawUiText(
+                    abbrev,
+                    (int)itemPosition.X - abbrevWidth / 2,
+                    (int)itemPosition.Y - fontSize / 2,
+                    fontSize,
+                    new Color(18, 16, 12, 255));
+            }
+        }
     }
 
     private static void DrawTerrainTile(TerrainTile tile, float x, float y, float tileSize)
@@ -3004,8 +3231,11 @@ internal static class FactoryGameApp
             var efficiencyWidth = MeasureUiText(efficiencyLabel, 12);
             Raylib.DrawRectangle(x + (size - efficiencyWidth) / 2 - 4, y + size - 27,
                 efficiencyWidth + 8, 16, new Color(20, 24, 23, alpha));
+            var effColor = miner.Efficiency <= 0f
+                ? new Color(225, 120, 100, alpha)
+                : new Color(233, 190, 96, alpha);
             DrawUiText(efficiencyLabel, x + (size - efficiencyWidth) / 2, y + size - 25,
-                12, new Color(233, 190, 96, alpha));
+                12, effColor);
         }
     }
 
@@ -3144,36 +3374,10 @@ internal static class FactoryGameApp
                 break;
         }
 
-        foreach (var item in conveyor.Items)
+        // Items are drawn in a later world pass (DrawConveyorItems) so buildings never hide them.
+        if (preview)
         {
-            var vector = DirectionVector(conveyor.Direction);
-            var itemPosition = center - vector * (tileSize * 0.5f) + vector * (item.Progress * tileSize);
-            var itemSize = Math.Max(8, (int)(14 * tileSize / BaseTileSize));
-            var ix = (int)itemPosition.X - itemSize / 2;
-            var iy = (int)itemPosition.Y - itemSize / 2;
-            Raylib.DrawRectangle(ix - 1, iy - 1, itemSize + 2, itemSize + 2, new Color(12, 14, 14, alpha));
-            if (tileSize >= 12f && GameIcons.Has(item.ItemId))
-            {
-                UiTheme.DrawItemIcon(item.ItemId, ix, iy, itemSize);
-            }
-            else
-            {
-                var fill = UiTheme.ItemColor(item.ItemId);
-                Raylib.DrawRectangle(ix, iy, itemSize, itemSize, fill);
-                Raylib.DrawRectangleLines(ix, iy, itemSize, itemSize, UiTheme.ItemOutline(item.ItemId));
-                if (tileSize >= 16f)
-                {
-                    var abbrev = UiTheme.ItemAbbrev(item.ItemId);
-                    var fontSize = Math.Max(10, Math.Min(14, itemSize - 2));
-                    var abbrevWidth = MeasureUiText(abbrev, fontSize);
-                    DrawUiText(
-                        abbrev,
-                        (int)itemPosition.X - abbrevWidth / 2,
-                        (int)itemPosition.Y - fontSize / 2,
-                        fontSize,
-                        new Color(18, 16, 12, 255));
-                }
-            }
+            DrawConveyorItemChips(conveyor, fx, fy, tileSize, alpha);
         }
     }
 
@@ -3644,4 +3848,184 @@ internal static class FactoryGameApp
         Direction.West => new Vector2(-1, 0),
         _ => Vector2.Zero
     };
+
+    private static void DrawSystemResourceOverlay(int x, int y)
+    {
+        var gpu = SystemMonitor.GpuLabel;
+        var lines = gpu is null ? 3 : 4;
+        var w = 280;
+        var h = 14 + lines * 18;
+        Raylib.DrawRectangle(x, y, w, h, new Color(8, 10, 12, 210));
+        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.PanelBorderBright, 1);
+        var row = y + 6;
+        DrawUiText($"FPS {Raylib.GetFPS()}", x + 10, row, 13, new Color(211, 164, 76, 255));
+        row += 18;
+        DrawUiText($"CPU {SystemMonitor.CpuPercent:0.0}%", x + 10, row, 13, UiTheme.TextPrimary);
+        row += 18;
+        DrawUiText($"RAM {SystemMonitor.FormatRam()}", x + 10, row, 13, UiTheme.TextPrimary);
+        if (gpu is not null)
+        {
+            row += 18;
+            DrawUiText(gpu, x + 10, row, 13, UiTheme.TextMuted);
+        }
+    }
+
+    private static void BeginTutorialIfNeeded(GameSettings settings)
+    {
+        if (settings.TutorialCompleted)
+        {
+            TutorialActive = false;
+            return;
+        }
+
+        TutorialActive = true;
+        TutorialStep = 0;
+        TutorialCameraMoved = 0f;
+        TutorialPlacedMiner = false;
+        TutorialPlacedBelt = false;
+        TutorialSoldOre = false;
+        TutorialOpenedResearch = false;
+        TutorialSoldBaseline = -1;
+    }
+
+    private static void CompleteTutorial(GameSettings settings)
+    {
+        TutorialActive = false;
+        settings.TutorialCompleted = true;
+        settings.Save();
+    }
+
+    private static bool HandleTutorialInput(GameSettings settings, ref string? statusMessage)
+    {
+        var mouse = Raylib.GetMousePosition();
+        GetTutorialSkipBounds(out var sx, out var sy, out var sw, out var sh);
+        if (Raylib.IsKeyPressed(KeyboardKey.Backspace)
+            || (Raylib.IsMouseButtonPressed(MouseButton.Left) && Contains(mouse, sx, sy, sw, sh)))
+        {
+            CompleteTutorial(settings);
+            statusMessage = "Tutorial saltato.";
+            return true;
+        }
+
+        GetTutorialNextBounds(out var nx, out var ny, out var nw, out var nh);
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left) && Contains(mouse, nx, ny, nw, nh))
+        {
+            AdvanceTutorialManual(settings);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void AdvanceTutorialManual(GameSettings settings)
+    {
+        if (TutorialStep >= TutorialSteps.Length - 1)
+        {
+            CompleteTutorial(settings);
+            return;
+        }
+
+        TutorialStep++;
+    }
+
+    private static void UpdateTutorialProgress(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        GameSettings settings)
+    {
+        if (!TutorialActive)
+        {
+            return;
+        }
+
+        if (TutorialSoldBaseline < 0)
+        {
+            TutorialSoldBaseline = world.SoldItems;
+        }
+
+        if (world.SoldItems > TutorialSoldBaseline)
+        {
+            TutorialSoldOre = true;
+        }
+
+        if (world.Miners.Count > 0)
+        {
+            TutorialPlacedMiner = true;
+        }
+
+        if (conveyors.Cells.Count > 0)
+        {
+            TutorialPlacedBelt = true;
+        }
+
+        _ = wallet;
+
+        while (true)
+        {
+            var done = TutorialStep switch
+            {
+                0 => TutorialCameraMoved > 80f,
+                1 => TutorialPlacedMiner,
+                2 => TutorialPlacedBelt,
+                3 => TutorialSoldOre,
+                4 => TutorialOpenedResearch,
+                _ => true
+            };
+            if (!done)
+            {
+                break;
+            }
+
+            if (TutorialStep >= TutorialSteps.Length - 1)
+            {
+                CompleteTutorial(settings);
+                break;
+            }
+
+            TutorialStep++;
+        }
+    }
+
+    private static void GetTutorialPanelBounds(out int x, out int y, out int w, out int h)
+    {
+        w = Math.Min(560, ScreenWidth - 40);
+        h = 92;
+        x = (ScreenWidth - w) / 2;
+        y = ScreenHeight - h - 16;
+    }
+
+    private static void GetTutorialSkipBounds(out int x, out int y, out int w, out int h)
+    {
+        GetTutorialPanelBounds(out var px, out var py, out var pw, out _);
+        w = 110;
+        h = 32;
+        x = px + pw - w - 12;
+        y = py + 48;
+    }
+
+    private static void GetTutorialNextBounds(out int x, out int y, out int w, out int h)
+    {
+        GetTutorialSkipBounds(out var sx, out var sy, out _, out _);
+        w = 110;
+        h = 32;
+        x = sx - w - 8;
+        y = sy;
+    }
+
+    private static void DrawTutorialBanner(GameSettings settings)
+    {
+        _ = settings;
+        GetTutorialPanelBounds(out var x, out var y, out var w, out var h);
+        Raylib.DrawRectangle(x, y, w, h, new Color(10, 14, 16, 230));
+        UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
+        var step = Math.Clamp(TutorialStep, 0, TutorialSteps.Length - 1);
+        DrawUiText($"Tutorial {step + 1}/{TutorialSteps.Length}", x + 14, y + 10, 14, UiTheme.Accent);
+        DrawUiText(TutorialSteps[step], x + 14, y + 30, 16, UiTheme.TextPrimary);
+
+        GetTutorialNextBounds(out var nx, out var ny, out var nw, out var nh);
+        DrawMenuButton(nx, ny, nw, nh, step >= TutorialSteps.Length - 1 ? "Fine" : "Avanti");
+        GetTutorialSkipBounds(out var sx, out var sy, out var sw, out var sh);
+        DrawMenuButton(sx, sy, sw, sh, "Salta");
+    }
 }

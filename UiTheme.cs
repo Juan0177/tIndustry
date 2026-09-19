@@ -21,13 +21,14 @@ public enum BuildTool
 /// </summary>
 public static class UiTheme
 {
-    // Mindustry-like dock metrics (pixel-aligned square cells).
-    public const int DockCellSize = 48;
-    public const int DockCellGap = 2;
-    public const int DockPadding = 4;
+    // Mindustry-like dock metrics (logical pixels; scaled via Scale).
+    public const int DockCellSizeBase = 48;
+    public const int DockCellGapBase = 2;
+    public const int DockPaddingBase = 4;
     public const int DockGridCols = 4;
-    public const int DockMargin = 8;
+    public const int DockMarginBase = 8;
     public const int DockAccentThickness = 2;
+    public const int DockHoverBarHeightBase = 32;
 
     // Legacy name kept for any remaining layout references; dock overlays the map.
     public const int InventoryBarHeight = 100;
@@ -36,6 +37,18 @@ public static class UiTheme
     private static Font uiFontBold;
     private static bool fontsLoaded;
     private static bool ownsFonts;
+
+    /// <summary>Active UI scale factor (1.0 = 100%). Applied to fonts and dock metrics.</summary>
+    public static float Scale { get; private set; } = 1.25f;
+
+    /// <summary>Scale a logical pixel size for HUD/dock layout.</summary>
+    public static int S(int px) => Math.Max(1, (int)MathF.Round(px * Scale));
+
+    public static int DockCellSize => S(DockCellSizeBase);
+    public static int DockCellGap => Math.Max(1, S(DockCellGapBase));
+    public static int DockPadding => S(DockPaddingBase);
+    public static int DockMargin => S(DockMarginBase);
+    public static int DockHoverBarHeight => S(DockHoverBarHeightBase);
 
     public enum ItemCategory
     {
@@ -118,11 +131,43 @@ public static class UiTheme
             return;
         }
 
+        LoadFonts();
+        fontsLoaded = true;
+        GameIcons.Load();
+    }
+
+    /// <summary>
+    /// Apply a UI scale and rebuild the font atlas at a matching base size so text stays crisp
+    /// (avoids blurry upscale of a small atlas).
+    /// </summary>
+    public static void ApplyScale(float scale)
+    {
+        var clamped = Math.Clamp(scale, 1f, 2f);
+        if (fontsLoaded && Math.Abs(Scale - clamped) < 0.001f)
+        {
+            return;
+        }
+
+        Scale = clamped;
+        if (!fontsLoaded)
+        {
+            return;
+        }
+
+        UnloadFonts();
+        LoadFonts();
+        fontsLoaded = true;
+    }
+
+    public static void ApplyScalePercent(int percent) => ApplyScale(percent / 100f);
+
+    private static void LoadFonts()
+    {
         var baseDir = AppContext.BaseDirectory;
         var regularPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans.ttf");
         var boldPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans-Bold.ttf");
-        // Atlas covers Latin-1 so Italian punctuation (· × à è … Δ) stays crisp.
-        const int atlasSize = 64;
+        // Atlas base size tracks UI scale so DrawTextEx rarely upscales glyphs.
+        var atlasSize = Math.Clamp((int)MathF.Round(64f * Scale), 48, 160);
         var codepoints = new int[95 + 96 + 1];
         for (var i = 0; i < 95; i++)
         {
@@ -139,34 +184,31 @@ public static class UiTheme
         if (File.Exists(regularPath))
         {
             uiFont = Raylib.LoadFontEx(regularPath, atlasSize, codepoints, codepoints.Length);
-            Raylib.SetTextureFilter(uiFont.Texture, TextureFilter.Bilinear);
+            // Point filter keeps glyph edges crisp when drawing near atlas size.
+            Raylib.SetTextureFilter(uiFont.Texture, TextureFilter.Point);
             ownsFonts = true;
         }
         else
         {
             uiFont = Raylib.GetFontDefault();
+            ownsFonts = false;
         }
 
         if (File.Exists(boldPath))
         {
             uiFontBold = Raylib.LoadFontEx(boldPath, atlasSize, codepoints, codepoints.Length);
-            Raylib.SetTextureFilter(uiFontBold.Texture, TextureFilter.Bilinear);
+            Raylib.SetTextureFilter(uiFontBold.Texture, TextureFilter.Point);
         }
         else
         {
             uiFontBold = uiFont;
         }
-
-        fontsLoaded = true;
-        GameIcons.Load();
     }
 
-    public static void Unload()
+    private static void UnloadFonts()
     {
-        GameIcons.Unload();
-        if (!fontsLoaded || !ownsFonts)
+        if (!ownsFonts)
         {
-            fontsLoaded = false;
             return;
         }
 
@@ -176,8 +218,19 @@ public static class UiTheme
             Raylib.UnloadFont(uiFontBold);
         }
 
-        fontsLoaded = false;
         ownsFonts = false;
+    }
+
+    public static void Unload()
+    {
+        GameIcons.Unload();
+        if (!fontsLoaded)
+        {
+            return;
+        }
+
+        UnloadFonts();
+        fontsLoaded = false;
     }
 
     /// <summary>Session net-worth delta label shown in the resource strip.</summary>
@@ -189,27 +242,29 @@ public static class UiTheme
 
     public static void DrawText(string text, int x, int y, int size, Color color, bool bold = false)
     {
+        var drawSize = Math.Max(1, (int)MathF.Round(size * Scale));
         if (!fontsLoaded)
         {
-            Raylib.DrawText(text, x, y, size, color);
+            Raylib.DrawText(text, x, y, drawSize, color);
             return;
         }
 
         var font = bold ? uiFontBold : uiFont;
-        var spacing = Math.Max(0.4f, size * 0.045f);
-        Raylib.DrawTextEx(font, text, new Vector2(x, y), size, spacing, color);
+        var spacing = Math.Max(0.4f, drawSize * 0.045f);
+        Raylib.DrawTextEx(font, text, new Vector2(x, y), drawSize, spacing, color);
     }
 
     public static int Measure(string text, int size, bool bold = false)
     {
+        var drawSize = Math.Max(1, (int)MathF.Round(size * Scale));
         if (!fontsLoaded)
         {
-            return Raylib.MeasureText(text, size);
+            return Raylib.MeasureText(text, drawSize);
         }
 
         var font = bold ? uiFontBold : uiFont;
-        var spacing = Math.Max(0.4f, size * 0.045f);
-        return (int)Raylib.MeasureTextEx(font, text, size, spacing).X;
+        var spacing = Math.Max(0.4f, drawSize * 0.045f);
+        return (int)Raylib.MeasureTextEx(font, text, drawSize, spacing).X;
     }
 
     public static Color ItemColor(string itemId) => itemId switch
@@ -282,6 +337,8 @@ public static class UiTheme
         _ => "?"
     };
 
+    // DockHoverBarHeight is scaled via DockHoverBarHeight property above.
+
     /// <summary>Short label for hover tooltip under the dock.</summary>
     public static string BuildCategoryHint(BuildCategory category) => BuildCategoryLabel(category);
 
@@ -342,8 +399,6 @@ public static class UiTheme
         BuildCategory.Inventory => EmptyEntries,
         _ => EmptyEntries
     };
-
-    public const int DockHoverBarHeight = 32;
 
     /// <summary>Italian tooltip line for dock hover: name + short hint.</summary>
     public static string DockHoverText(DockEntry entry)
