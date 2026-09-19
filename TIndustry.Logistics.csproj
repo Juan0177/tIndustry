@@ -10,6 +10,8 @@
     <InformationalVersion>0.2.0</InformationalVersion>
     <Product>tIndustry</Product>
     <AssemblyTitle>tIndustry</AssemblyTitle>
+    <!-- Sources live under src/{App,Simulation,Content,UI}; SDK globs **/*.cs from the project dir. -->
+    <RootNamespace>TIndustry.Logistics</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

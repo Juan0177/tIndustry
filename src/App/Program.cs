@@ -782,6 +782,8 @@ static void RunSelfTest(GameContent content)
         Assert(GameSettings.UiScalePresets.SequenceEqual(new[] { 100, 125, 150, 200 }),
             "Preset scala UI: 100/125/150/200.");
         Assert(GameSettings.UiScaleLabel(125) == "125%", "Etichetta scala UI.");
+        Assert(FactoryGameApp.SettingsLayoutIsStackedForAllScales(),
+            "Impostazioni: le righe non devono sovrapporsi a 100/125/150/200%.");
         Assert(SystemMonitor.FormatBytes(1536) == "1.5 KB", "FormatBytes risorse sistema.");
         Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 2560 && p.Height == 1440),
             "Preset 2K (2560×1440) richiesto.");
