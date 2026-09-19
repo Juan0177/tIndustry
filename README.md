@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.2.1** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.2.2** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
@@ -18,15 +18,15 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-**v0.2.1** — tutto 0.2.0 più playability: nastri leggibili, UI scale, tutorial, miner multi-lato, toast, `src/`. In sintesi:
+**v0.2.2** — tutto 0.2.1 più fix logistica e tutorial ripartibile. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
-| Produzione | Minatore (output **tutti e 4 i lati**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
-| Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore**, **ponte**; chip item saturi in transito; chevron = direzione facing |
+| Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
+| Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
 | Economia | Wallet (denaro + lastre + fili), prezzi mercato, rimborso 100%, **potenziamento core** (+25% vendite) |
-| Progressione | **Ricerca** data-driven; **tutorial** IT 5 step alla prima Nuova partita (**Salta**) |
+| Progressione | **Ricerca** data-driven; **tutorial** IT 5 step — riparte su **Nuova partita** / **Rivedi tutorial** (**Salta** / Fine) |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** solo con autosave), scenari + seed, save JSON **v6** |
 | Dock | Stile Mindustry (Produzione / Logistica / Potenza / Inventario); **Rimuovi** in Produzione; tooltip IT |
 | Qualità di vita | UI scale **100–200%**; overlay **CPU · GPU · RAM**; FPS unico; status toast auto-clear; tip onboarding; `--self-test` |
@@ -73,7 +73,7 @@ Namespace: `TIndustry.Logistics` (invariato). Il `.csproj` resta in root così C
 **Consigli GUI**
 
 1. All’avvio: **splash** (thumbnail + brand) — click/tasto per continuare, oppure attendi (~8s). Poi dalla home: **Nuova partita** (loading + animazione; gen 1000² ≈ 1–2 s).
-2. Prima Nuova: segue il **tutorial** a banner (camera → miner → nastri → vendi → ricerca); **Salta** se hai già le gambe.
+2. **Nuova partita**: segue il **tutorial** a banner (camera → miner → nastri → vendi → ricerca); riparte a ogni Conferma (o **Impostazioni → Rivedi tutorial**). **Salta** / Fine se preferisci senza.
 3. Scout vicino al core: ferro starter, rame un po’ più a sud. (**H** / **Home** riporta la camera sul core.)
 4. Piazza il miner: butta ore su **ogni** nastro adiacente. Vendi → **Ricerca** (T) → **Forno** → lastre → logistica avanzata.
 5. **Esc** chiude prima il toast di status (se c’è), poi torna alla home; **Continua** solo con autosave valido.
@@ -109,7 +109,7 @@ Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo p
 **Home**
 
 - **Continua** — carica l’autosave (nascosto se non c’è uno slot valido)
-- **Nuova partita** — scenario + seed, mappa 1000×1000 (+ tutorial se prima volta)
+- **Nuova partita** — scenario + seed, mappa 1000×1000 (+ tutorial a ogni Conferma; **Rivedi tutorial** in Impostazioni)
 - **Gestione salvataggi** — lista slot, carica, elimina, **Duplica Continua** → `slot-*.json`
 - **Impostazioni** — overlay
 - **Esci** — chiude il gioco (non la partita: salva prima se ti serve)
@@ -156,7 +156,7 @@ Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricer
 
 ## Download
 
-**Release consigliata:** [v0.2.1](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.1) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
+**Release consigliata:** [v0.2.2](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
 
 | Asset | Piattaforma |
 | --- | --- |
@@ -188,12 +188,13 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
-| **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Ulteriore polish UI / performance mappa piena |
-| CI publish win/linux + release su tag `v*` | Combat/unità: **non** priorità early |
+| **v0.2.2**: splitter T-fork, miner round-robin, tutorial ripartibile | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | Ulteriore polish UI / performance mappa piena |
+| **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Combat/unità: **non** priorità early |
+| CI publish win/linux + release su tag `v*` | |
 | `miner-advanced` ancora stub | |
 
-Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.1](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.1).
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.2](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 

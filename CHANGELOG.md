@@ -5,6 +5,24 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-09-19
+
+Patch logistica + tutorial sopra **0.2.1**: sdoppiatore T-fork, miner round-robin, tutorial ripartibile. ([#21](https://github.com/Juan0177/tIndustry/pull/21), [#22](https://github.com/Juan0177/tIndustry/pull/22))
+
+### Aggiunto / migliorato
+
+- **Sdoppiatore**: flusso lungo il facing + alternanza sinistra/destra al handoff; drag-connect non ruota più lo splitter (come gli incroci) ([#21](https://github.com/Juan0177/tIndustry/pull/21))
+- **Miner**: eject **round-robin** sui nastri adiacenti che accettano — più uscite ricevono ore nel tempo ([#21](https://github.com/Juan0177/tIndustry/pull/21))
+- **Tutorial**: **Nuova partita → Conferma** riparte sempre da Tutorial 1/5; **Impostazioni → Rivedi tutorial** azzera `tutorialCompleted`; Salta/Fine restano per la run corrente ([#22](https://github.com/Juan0177/tIndustry/pull/22))
+- **Docs**: README allineato a 0.2.2
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.1] — 2026-09-19
 
 Patch QoL / playability sopra **0.2.0**: nastri leggibili, UI scale, tutorial, miner multi-lato, toast, layout `src/`. ([#15](https://github.com/Juan0177/tIndustry/pull/15), [#16](https://github.com/Juan0177/tIndustry/pull/16), [#17](https://github.com/Juan0177/tIndustry/pull/17), [#18](https://github.com/Juan0177/tIndustry/pull/18), [#19](https://github.com/Juan0177/tIndustry/pull/19); splash ~8s già in 0.2.0 via [#13](https://github.com/Juan0177/tIndustry/pull/13))
@@ -105,6 +123,8 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.2.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2
+[0.2.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.1.0
