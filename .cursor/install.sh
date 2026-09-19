@@ -31,8 +31,23 @@ if [ ! -x "${DOTNET_INSTALL_DIR}/dotnet" ]; then
   rm -f "${tmp_script}"
 fi
 sudo ln -sf "${DOTNET_INSTALL_DIR}/dotnet" /usr/local/bin/dotnet
+# dnx runs NuGet MCP / other .NET tools without a permanent global install
+if [ -x "${DOTNET_INSTALL_DIR}/dnx" ]; then
+  sudo ln -sf "${DOTNET_INSTALL_DIR}/dnx" /usr/local/bin/dnx
+fi
+# NuGet.Mcp.Server (and other apphost tools) need DOTNET_ROOT when SDK is not in /usr/share/dotnet
+export DOTNET_ROOT="${DOTNET_INSTALL_DIR}"
+export DOTNET_ROOT_X64="${DOTNET_INSTALL_DIR}"
+# Persist for interactive / MCP shells on this VM (idempotent)
+if [ -f /etc/environment ]; then
+  grep -q 'DOTNET_ROOT=' /etc/environment \
+    || echo "DOTNET_ROOT=${DOTNET_INSTALL_DIR}" | sudo tee -a /etc/environment >/dev/null
+  grep -q 'DOTNET_ROOT_X64=' /etc/environment \
+    || echo "DOTNET_ROOT_X64=${DOTNET_INSTALL_DIR}" | sudo tee -a /etc/environment >/dev/null
+fi
 
 echo "==> dotnet version: $(dotnet --version)"
+echo "==> dnx available: $(command -v dnx || echo missing)"
 
 echo "==> Restoring and building the solution"
 cd "$(dirname "$0")/.."
