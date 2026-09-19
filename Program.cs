@@ -139,6 +139,99 @@ static void RunSelfTest(GameContent content)
     Assert(miningWorld.SaleRevenue == FactoryWorld.IronOreSalePrice,
         "Il ricavo deve usare il prezzo ore.");
 
+    // Mid-transit visibility: miner → belt must carry items before the core sale.
+    var transitWorld = new FactoryWorld(12, 8, 7429);
+    var transitGrid = new ConveyorGrid();
+    var transitWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
+    var transitId = 50L;
+    var transitMiner = transitWorld.StarterDepositOrigin;
+    Assert(transitWorld.TryPlaceMiner(transitMiner, Direction.East, transitGrid, transitWallet),
+        "Transit: minatore sul giacimento.");
+    for (var x = transitMiner.X + MinerBuilding.Size; x < transitWorld.CoreOrigin.X; x++)
+    {
+        Assert(transitGrid.TryPlace(new GridPosition(x, transitMiner.Y), Direction.East, definition, transitWallet, research),
+            $"Transit nastro x={x}.");
+    }
+
+    var sawItemOnBelt = false;
+    for (var tick = 0; tick < 210; tick++)
+    {
+        transitWorld.Update(1f / 30f, transitGrid, transitWallet, ref transitId);
+        if (transitGrid.Cells.Values.Any(cell => cell.Items.Count > 0))
+        {
+            sawItemOnBelt = true;
+        }
+    }
+
+    Assert(sawItemOnBelt, "I minerali devono risultare presenti sui nastri durante il trasporto.");
+    Assert(transitWorld.SoldItems >= 1, "Transit: vendita al core dopo il trasporto.");
+
+    // Off-deposit miner: placeable at 0% efficiency, no output.
+    var barrenWorld = new FactoryWorld(12, 8, 7429);
+    var barrenGrid = new ConveyorGrid();
+    var barrenWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 });
+    var barrenId = 80L;
+    GridPosition? barrenPos = null;
+    for (var y = 0; y < barrenWorld.Terrain.Height - 1 && barrenPos is null; y++)
+    {
+        for (var x = 0; x < barrenWorld.Terrain.Width - 1; x++)
+        {
+            var candidate = new GridPosition(x, y);
+            if (barrenWorld.CountCoveredDepositTiles(candidate) == 0
+                && barrenWorld.CanPlaceMiner(candidate, barrenGrid))
+            {
+                barrenPos = candidate;
+                break;
+            }
+        }
+    }
+
+    Assert(barrenPos is not null, "Deve esistere almeno un footprint senza giacimento.");
+    Assert(barrenWorld.TryPlaceMiner(barrenPos!.Value, Direction.East, barrenGrid, barrenWallet),
+        "Piazzamento minatore a 0%.");
+    var barrenMiner = barrenWorld.Miners[barrenPos.Value];
+    Assert(barrenMiner.Efficiency == 0f, "Senza giacimento l'efficienza è 0%.");
+    var barrenOut = new GridPosition(barrenPos.Value.X + MinerBuilding.Size, barrenPos.Value.Y);
+    if (barrenWorld.CanPlaceConveyor(barrenOut))
+    {
+        Assert(barrenGrid.TryPlace(barrenOut, Direction.East, definition, barrenWallet, research),
+            "Nastro uscito barren.");
+    }
+
+    for (var tick = 0; tick < 180; tick++)
+    {
+        barrenWorld.Update(1f / 30f, barrenGrid, barrenWallet, ref barrenId);
+    }
+
+    Assert(barrenMiner.Progress == 0f, "A 0% il minatore non avanza.");
+    Assert(barrenGrid.Cells.Values.All(cell => cell.Items.Count == 0),
+        "A 0% non deve produrre item sui nastri.");
+
+    // Smelter anywhere on land (not only near deposits).
+    var anywhereWorld = new FactoryWorld(16, 10, 7429);
+    var anywhereGrid = new ConveyorGrid();
+    var anywhereWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    var anywhereResearch = ResearchState.CreateNew(content);
+    Assert(anywhereResearch.TryUnlock(smelterTech, anywhereWallet),
+        "Forno sbloccabile per test anywhere.");
+    GridPosition? grassSmelter = null;
+    for (var y = 0; y < anywhereWorld.Terrain.Height - 1 && grassSmelter is null; y++)
+    {
+        for (var x = 0; x < anywhereWorld.Terrain.Width - 1; x++)
+        {
+            var candidate = new GridPosition(x, y);
+            if (anywhereWorld.CanPlaceSmelter(candidate, anywhereGrid))
+            {
+                grassSmelter = candidate;
+                break;
+            }
+        }
+    }
+
+    Assert(grassSmelter is not null, "Deve esistere terra libera per il forno.");
+    Assert(anywhereWorld.TryPlaceSmelter(grassSmelter!.Value, Direction.East, smeltRecipe, anywhereGrid, anywhereWallet),
+        "Piazzamento forno su terra libera.");
+
     var curvedWorld = new FactoryWorld(14, 10, 7429);
     var curvedGrid = new ConveyorGrid();
     var curvedWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 });
@@ -640,17 +733,25 @@ static void RunSelfTest(GameContent content)
             UseAutoResolution = false,
             DisplayMode = DisplayMode.Borderless,
             VSync = false,
-            TargetFps = 144
+            TargetFps = 144,
+            UiScalePercent = 150,
+            TutorialCompleted = true
         };
         prefs.Save();
         var reloaded = GameSettings.Load();
         Assert(reloaded.ShowFps, "ShowFps deve persistere.");
-        Assert(!reloaded.ShowResourceOverlay, "ShowResourceOverlay deve persistere.");
+        Assert(!reloaded.ShowResourceOverlay, "ShowResourceOverlay (risorse sistema) deve persistere.");
         Assert(reloaded.ResolutionWidth == 1440 && reloaded.ResolutionHeight == 900,
             "Risoluzione deve persistere.");
         Assert(reloaded.DisplayMode == DisplayMode.Borderless, "Modalità schermo deve persistere.");
         Assert(!reloaded.VSync, "VSync deve persistere.");
         Assert(reloaded.TargetFps == 144, "TargetFps deve persistere.");
+        Assert(reloaded.UiScalePercent == 150, "UiScalePercent deve persistere.");
+        Assert(reloaded.TutorialCompleted, "TutorialCompleted deve persistere.");
+        Assert(GameSettings.UiScalePresets.SequenceEqual(new[] { 100, 125, 150, 200 }),
+            "Preset scala UI: 100/125/150/200.");
+        Assert(GameSettings.UiScaleLabel(125) == "125%", "Etichetta scala UI.");
+        Assert(SystemMonitor.FormatBytes(1536) == "1.5 KB", "FormatBytes risorse sistema.");
         Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 2560 && p.Height == 1440),
             "Preset 2K (2560×1440) richiesto.");
         Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 3840 && p.Height == 2160),

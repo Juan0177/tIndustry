@@ -38,6 +38,9 @@ public sealed class GameSettings
         30, 60, 120, 144, 240, 360, 600, 0
     ];
 
+    /// <summary>UI scale presets (percent). Default 125% for readable 1080p+ HUD text.</summary>
+    public static readonly int[] UiScalePresets = [100, 125, 150, 200];
+
     public bool ShowFps { get; set; }
     public bool ShowResourceOverlay { get; set; } = true;
     public int ResolutionWidth { get; set; } = 1240;
@@ -47,6 +50,10 @@ public sealed class GameSettings
     public bool VSync { get; set; } = true;
     /// <summary>Target FPS; 0 means unlimited (Illimitato). Stored even when VSync is on.</summary>
     public int TargetFps { get; set; } = 60;
+    /// <summary>HUD/font scale percent (100/125/150/200). Default 125.</summary>
+    public int UiScalePercent { get; set; } = 125;
+    /// <summary>True after the first-run tutorial is finished or skipped.</summary>
+    public bool TutorialCompleted { get; set; }
 
     public static string SettingsDirectory
     {
@@ -98,7 +105,9 @@ public sealed class GameSettings
         UseAutoResolution = UseAutoResolution,
         DisplayMode = DisplayMode,
         VSync = VSync,
-        TargetFps = TargetFps
+        TargetFps = TargetFps,
+        UiScalePercent = UiScalePercent,
+        TutorialCompleted = TutorialCompleted
     };
 
     public void CopyFrom(GameSettings other)
@@ -111,6 +120,8 @@ public sealed class GameSettings
         DisplayMode = other.DisplayMode;
         VSync = other.VSync;
         TargetFps = other.TargetFps;
+        UiScalePercent = other.UiScalePercent;
+        TutorialCompleted = other.TutorialCompleted;
         Normalize();
     }
 
@@ -120,7 +131,12 @@ public sealed class GameSettings
         && UseAutoResolution == other.UseAutoResolution
         && DisplayMode == other.DisplayMode
         && VSync == other.VSync
-        && TargetFps == other.TargetFps;
+        && TargetFps == other.TargetFps
+        && UiScalePercent == other.UiScalePercent;
+
+    public float UiScaleFactor => UiScalePercent / 100f;
+
+    public static string UiScaleLabel(int percent) => $"{percent}%";
 
     public void Normalize()
     {
@@ -151,6 +167,13 @@ public sealed class GameSettings
                 .Where(v => v > 0)
                 .OrderBy(v => Math.Abs(v - TargetFps))
                 .FirstOrDefault(60);
+        }
+
+        if (!UiScalePresets.Contains(UiScalePercent))
+        {
+            UiScalePercent = UiScalePresets
+                .OrderBy(v => Math.Abs(v - UiScalePercent))
+                .FirstOrDefault(125);
         }
     }
 
