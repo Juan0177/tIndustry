@@ -159,13 +159,15 @@ public sealed class MinerBuilding
     public const int Size = 2;
     public const int FootprintArea = Size * Size;
 
-    public MinerBuilding(GridPosition position, int coveredDepositTiles)
+    public MinerBuilding(GridPosition position, Direction direction, int coveredDepositTiles)
     {
         Position = position;
+        Direction = direction;
         CoveredDepositTiles = coveredDepositTiles;
     }
 
     public GridPosition Position { get; }
+    public Direction Direction { get; }
     public int CoveredDepositTiles { get; }
     public float Efficiency => CoveredDepositTiles / (float)FootprintArea;
     public float Progress { get; internal set; }
@@ -185,12 +187,228 @@ public sealed class MinerBuilding
     {
         for (var offset = 0; offset < Size; offset++)
         {
-            yield return new GridPosition(Position.X + offset, Position.Y - 1);
-            yield return new GridPosition(Position.X + offset, Position.Y + Size);
-            yield return new GridPosition(Position.X - 1, Position.Y + offset);
-            yield return new GridPosition(Position.X + Size, Position.Y + offset);
+            yield return Direction switch
+            {
+                Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
+                Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
+                Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
+                Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
+                _ => Position
+            };
         }
     }
+}
+
+public sealed class SmelterBuilding
+{
+    public const int Size = 2;
+    public const int MoneyCost = 40;
+    public const int PlateCost = 6;
+
+    private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
+    private readonly Queue<string> outputQueue = new();
+
+    public SmelterBuilding(GridPosition position, Direction direction, RecipeDefinition recipe)
+    {
+        Position = position;
+        Direction = direction;
+        Recipe = recipe;
+    }
+
+    public GridPosition Position { get; }
+    public Direction Direction { get; private set; }
+    public RecipeDefinition Recipe { get; }
+    public float Progress { get; internal set; }
+    public bool IsCrafting { get; private set; }
+    public IReadOnlyDictionary<string, int> InputBuffer => inputBuffer;
+    public IReadOnlyCollection<string> OutputQueue => outputQueue;
+
+    public void SetDirection(Direction direction) => Direction = direction;
+
+    public IEnumerable<GridPosition> OccupiedTiles()
+    {
+        for (var y = 0; y < Size; y++)
+        {
+            for (var x = 0; x < Size; x++)
+            {
+                yield return new GridPosition(Position.X + x, Position.Y + y);
+            }
+        }
+    }
+
+    public IEnumerable<GridPosition> InputTiles() => EdgeTiles(Opposite(Direction));
+
+    public IEnumerable<GridPosition> OutputTiles() => EdgeTiles(Direction);
+
+    public int Buffered(string itemId) => inputBuffer.GetValueOrDefault(itemId);
+
+    public bool TryAccept(string itemId)
+    {
+        var needed = Recipe.Inputs.FirstOrDefault(entry => entry.ItemId == itemId);
+        if (needed is null)
+        {
+            return false;
+        }
+
+        var have = Buffered(itemId);
+        if (have >= needed.Amount)
+        {
+            return false;
+        }
+
+        inputBuffer[itemId] = have + 1;
+        return true;
+    }
+
+    public void RestoreState(
+        float progress,
+        bool isCrafting,
+        IReadOnlyDictionary<string, int>? buffer,
+        IEnumerable<string>? outputs)
+    {
+        Progress = Math.Clamp(progress, 0f, 1f);
+        IsCrafting = isCrafting;
+        inputBuffer.Clear();
+        if (buffer is not null)
+        {
+            foreach (var pair in buffer)
+            {
+                inputBuffer[pair.Key] = pair.Value;
+            }
+        }
+
+        outputQueue.Clear();
+        if (outputs is not null)
+        {
+            foreach (var itemId in outputs)
+            {
+                outputQueue.Enqueue(itemId);
+            }
+        }
+    }
+
+    internal void Update(float deltaSeconds, ConveyorGrid conveyors, ref long nextItemId)
+    {
+        AcceptFromBelts(conveyors);
+        TryStartCraft();
+        AdvanceCraft(deltaSeconds);
+        EmitOutputs(conveyors, ref nextItemId);
+    }
+
+    private void AcceptFromBelts(ConveyorGrid conveyors)
+    {
+        foreach (var conveyor in conveyors.Cells.Values)
+        {
+            if (!OccupiedTiles().Contains(conveyor.OutputPosition))
+            {
+                continue;
+            }
+
+            while (conveyor.PeekOutput() is { } item && TryAccept(item.ItemId))
+            {
+                conveyor.RemoveOutput();
+            }
+        }
+    }
+
+    private void TryStartCraft()
+    {
+        if (IsCrafting || outputQueue.Count > 0)
+        {
+            return;
+        }
+
+        if (!Recipe.Inputs.All(entry => Buffered(entry.ItemId) >= entry.Amount))
+        {
+            return;
+        }
+
+        foreach (var entry in Recipe.Inputs)
+        {
+            inputBuffer[entry.ItemId] = Buffered(entry.ItemId) - entry.Amount;
+            if (inputBuffer[entry.ItemId] <= 0)
+            {
+                inputBuffer.Remove(entry.ItemId);
+            }
+        }
+
+        IsCrafting = true;
+        Progress = 0f;
+    }
+
+    private void AdvanceCraft(float deltaSeconds)
+    {
+        if (!IsCrafting)
+        {
+            return;
+        }
+
+        Progress = Math.Min(Progress + deltaSeconds / Recipe.DurationSeconds, 1f);
+        if (Progress < 1f)
+        {
+            return;
+        }
+
+        foreach (var entry in Recipe.Outputs)
+        {
+            for (var count = 0; count < entry.Amount; count++)
+            {
+                outputQueue.Enqueue(entry.ItemId);
+            }
+        }
+
+        IsCrafting = false;
+        Progress = 0f;
+    }
+
+    private void EmitOutputs(ConveyorGrid conveyors, ref long nextItemId)
+    {
+        while (outputQueue.Count > 0)
+        {
+            var itemId = outputQueue.Peek();
+            var delivered = false;
+            foreach (var outputPosition in OutputTiles())
+            {
+                if (conveyors.Cells.TryGetValue(outputPosition, out var output)
+                    && output.TryInsert(new TransportedItem(nextItemId, itemId)))
+                {
+                    nextItemId++;
+                    outputQueue.Dequeue();
+                    delivered = true;
+                    break;
+                }
+            }
+
+            if (!delivered)
+            {
+                return;
+            }
+        }
+    }
+
+    private IEnumerable<GridPosition> EdgeTiles(Direction edge)
+    {
+        for (var offset = 0; offset < Size; offset++)
+        {
+            yield return edge switch
+            {
+                Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
+                Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
+                Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
+                Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
+                _ => Position
+            };
+        }
+    }
+
+    private static Direction Opposite(Direction direction) => direction switch
+    {
+        Direction.North => Direction.South,
+        Direction.East => Direction.West,
+        Direction.South => Direction.North,
+        Direction.West => Direction.East,
+        _ => direction
+    };
 }
 
 public sealed class FactoryWorld
@@ -199,16 +417,23 @@ public sealed class FactoryWorld
     public const int MinerPlateCost = 4;
     public const float MiningDurationSeconds = 2f;
     public const int IronOreSalePrice = 8;
+    public const int IronPlateSalePrice = 24;
+    public const int CoreSize = 4;
 
     private static readonly ResourceAmount[] MinerBuildCost =
     [
         new ResourceAmount("iron-plate", MinerPlateCost)
     ];
 
+    private static readonly ResourceAmount[] SmelterBuildCost =
+    [
+        new ResourceAmount("iron-plate", SmelterBuilding.PlateCost)
+    ];
+
     private readonly Dictionary<GridPosition, MinerBuilding> miners = [];
     private readonly Dictionary<GridPosition, MinerBuilding> minerByTile = [];
-
-    public const int CoreSize = 4;
+    private readonly Dictionary<GridPosition, SmelterBuilding> smelters = [];
+    private readonly Dictionary<GridPosition, SmelterBuilding> smelterByTile = [];
 
     public FactoryWorld(int width, int height, int seed)
     {
@@ -241,20 +466,34 @@ public sealed class FactoryWorld
     public GridPosition StarterDepositOrigin { get; }
     public TerrainMap Terrain { get; }
     public IReadOnlyDictionary<GridPosition, MinerBuilding> Miners => miners;
+    public IReadOnlyDictionary<GridPosition, SmelterBuilding> Smelters => smelters;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
+    public int SaleRevenue { get; private set; }
 
-    public void SetSoldItems(int soldItems) => SoldItems = soldItems;
+    public static int SalePrice(string itemId) => itemId switch
+    {
+        "iron-ore" => IronOreSalePrice,
+        "iron-plate" => IronPlateSalePrice,
+        _ => 1
+    };
 
-    public bool TryRestoreMiner(GridPosition position, float progress)
+    public void SetSoldItems(int soldItems, int saleRevenue = -1)
+    {
+        SoldItems = soldItems;
+        SaleRevenue = saleRevenue >= 0 ? saleRevenue : soldItems * IronOreSalePrice;
+    }
+
+    public bool TryRestoreMiner(GridPosition position, Direction direction, float progress)
     {
         if (!IsInside(position)
-            || Footprint(position).Any(tile => !IsInside(tile) || minerByTile.ContainsKey(tile) || CoreTiles.Contains(tile)))
+            || Footprint(position, MinerBuilding.Size).Any(tile =>
+                !IsInside(tile) || minerByTile.ContainsKey(tile) || smelterByTile.ContainsKey(tile) || CoreTiles.Contains(tile)))
         {
             return false;
         }
 
-        var miner = new MinerBuilding(position, CountCoveredDepositTiles(position))
+        var miner = new MinerBuilding(position, direction, CountCoveredDepositTiles(position))
         {
             Progress = Math.Clamp(progress, 0f, 1f)
         };
@@ -267,20 +506,54 @@ public sealed class FactoryWorld
         return true;
     }
 
+    public bool TryRestoreSmelter(
+        GridPosition position,
+        Direction direction,
+        RecipeDefinition recipe,
+        float progress,
+        bool isCrafting,
+        IReadOnlyDictionary<string, int>? buffer,
+        IEnumerable<string>? outputs)
+    {
+        if (!CanOccupyBuilding(position, SmelterBuilding.Size, null))
+        {
+            return false;
+        }
+
+        var smelter = new SmelterBuilding(position, direction, recipe);
+        smelter.RestoreState(progress, isCrafting, buffer, outputs);
+        RegisterSmelter(smelter);
+        return true;
+    }
+
     public bool CanPlaceConveyor(GridPosition position) =>
-        Terrain[position].IsBuildable && !CoreTiles.Contains(position) && !minerByTile.ContainsKey(position);
+        IsInside(position)
+        && Terrain[position].IsBuildable
+        && !CoreTiles.Contains(position)
+        && !minerByTile.ContainsKey(position)
+        && !smelterByTile.ContainsKey(position);
 
     public bool CanPlaceMiner(GridPosition position, ConveyorGrid conveyors) =>
-        Footprint(position).All(tile =>
+        Footprint(position, MinerBuilding.Size).All(tile =>
             IsInside(tile)
             && Terrain[tile].IsBuildable
             && !CoreTiles.Contains(tile)
             && !minerByTile.ContainsKey(tile)
+            && !smelterByTile.ContainsKey(tile)
             && !conveyors.Cells.ContainsKey(tile))
         && CountCoveredDepositTiles(position) > 0;
 
+    public bool CanPlaceSmelter(GridPosition position, ConveyorGrid conveyors) =>
+        Footprint(position, SmelterBuilding.Size).All(tile =>
+            IsInside(tile)
+            && Terrain[tile].IsBuildable
+            && !CoreTiles.Contains(tile)
+            && !minerByTile.ContainsKey(tile)
+            && !smelterByTile.ContainsKey(tile)
+            && !conveyors.Cells.ContainsKey(tile));
+
     public int CountCoveredDepositTiles(GridPosition position) =>
-        Footprint(position).Count(tile =>
+        Footprint(position, MinerBuilding.Size).Count(tile =>
             IsInside(tile) && Terrain[tile].Deposit == DepositKind.Iron);
 
     public bool TryPlaceMiner(
@@ -295,12 +568,30 @@ public sealed class FactoryWorld
             return false;
         }
 
-        var miner = new MinerBuilding(position, CountCoveredDepositTiles(position));
+        var miner = new MinerBuilding(position, direction, CountCoveredDepositTiles(position));
         miners.Add(position, miner);
         foreach (var tile in miner.OccupiedTiles())
         {
             minerByTile.Add(tile, miner);
         }
+
+        return true;
+    }
+
+    public bool TryPlaceSmelter(
+        GridPosition position,
+        Direction direction,
+        RecipeDefinition recipe,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet)
+    {
+        if (!CanPlaceSmelter(position, conveyors)
+            || !wallet.TrySpend(SmelterBuilding.MoneyCost, SmelterBuildCost))
+        {
+            return false;
+        }
+
+        RegisterSmelter(new SmelterBuilding(position, direction, recipe));
         return true;
     }
 
@@ -322,7 +613,29 @@ public sealed class FactoryWorld
         return true;
     }
 
-    public void Update(float deltaSeconds, ConveyorGrid conveyors, EconomyWallet wallet, ref long nextItemId)
+    public bool TryRemoveSmelter(GridPosition position, EconomyWallet wallet)
+    {
+        if (!smelterByTile.TryGetValue(position, out var smelter))
+        {
+            return false;
+        }
+
+        smelters.Remove(smelter.Position);
+        foreach (var tile in smelter.OccupiedTiles())
+        {
+            smelterByTile.Remove(tile);
+        }
+
+        wallet.AddMoney(SmelterBuilding.MoneyCost);
+        wallet.AddMaterial("iron-plate", SmelterBuilding.PlateCost);
+        return true;
+    }
+
+    public void Update(
+        float deltaSeconds,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ref long nextItemId)
     {
         foreach (var miner in miners.Values)
         {
@@ -338,11 +651,11 @@ public sealed class FactoryWorld
             foreach (var outputPosition in miner.OutputTiles())
             {
                 if (conveyors.Cells.TryGetValue(outputPosition, out var output)
-                    && output.Items.Count < output.Definition.Capacity
                     && output.TryInsert(new TransportedItem(nextItemId, "iron-ore")))
                 {
                     nextItemId++;
                     produced = true;
+                    break;
                 }
             }
 
@@ -353,12 +666,20 @@ public sealed class FactoryWorld
         }
 
         conveyors.Update(deltaSeconds);
+
+        foreach (var smelter in smelters.Values)
+        {
+            smelter.Update(deltaSeconds, conveyors, ref nextItemId);
+        }
+
         foreach (var conveyor in conveyors.Cells.Values)
         {
-            while (CoreTiles.Contains(conveyor.OutputPosition) && conveyor.PeekOutput() is not null)
+            while (CoreTiles.Contains(conveyor.OutputPosition) && conveyor.PeekOutput() is { } item)
             {
                 conveyor.RemoveOutput();
-                wallet.AddMoney(IronOreSalePrice);
+                var price = SalePrice(item.ItemId);
+                wallet.AddMoney(price);
+                SaleRevenue += price;
                 SoldItems++;
             }
         }
@@ -366,18 +687,41 @@ public sealed class FactoryWorld
 
     public bool IsMinerTile(GridPosition position) => minerByTile.ContainsKey(position);
 
+    public bool IsSmelterTile(GridPosition position) => smelterByTile.ContainsKey(position);
+
     public bool TryGetMinerAt(GridPosition position, out MinerBuilding miner) =>
         minerByTile.TryGetValue(position, out miner!);
+
+    public bool TryGetSmelterAt(GridPosition position, out SmelterBuilding smelter) =>
+        smelterByTile.TryGetValue(position, out smelter!);
+
+    private void RegisterSmelter(SmelterBuilding smelter)
+    {
+        smelters.Add(smelter.Position, smelter);
+        foreach (var tile in smelter.OccupiedTiles())
+        {
+            smelterByTile.Add(tile, smelter);
+        }
+    }
+
+    private bool CanOccupyBuilding(GridPosition position, int size, ConveyorGrid? conveyors) =>
+        Footprint(position, size).All(tile =>
+            IsInside(tile)
+            && Terrain[tile].IsBuildable
+            && !CoreTiles.Contains(tile)
+            && !minerByTile.ContainsKey(tile)
+            && !smelterByTile.ContainsKey(tile)
+            && (conveyors is null || !conveyors.Cells.ContainsKey(tile)));
 
     private bool IsInside(GridPosition position) =>
         position.X >= 0 && position.X < Terrain.Width
         && position.Y >= 0 && position.Y < Terrain.Height;
 
-    private static IEnumerable<GridPosition> Footprint(GridPosition origin)
+    private static IEnumerable<GridPosition> Footprint(GridPosition origin, int size)
     {
-        for (var y = 0; y < MinerBuilding.Size; y++)
+        for (var y = 0; y < size; y++)
         {
-            for (var x = 0; x < MinerBuilding.Size; x++)
+            for (var x = 0; x < size; x++)
             {
                 yield return new GridPosition(origin.X + x, origin.Y + y);
             }

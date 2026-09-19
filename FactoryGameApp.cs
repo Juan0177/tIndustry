@@ -6,6 +6,7 @@ internal enum BuildTool
 {
     Conveyor,
     Miner,
+    Smelter,
     Remove
 }
 
@@ -42,7 +43,10 @@ internal static class FactoryGameApp
 
     public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
     {
-        var conveyorDefinition = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
+        var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
+        var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
+        var smeltRecipe = content.Recipes.Single(recipe => recipe.Id == "smelt-iron");
+        var selectedConveyor = basicConveyor;
         var screen = AppScreen.Home;
         FactoryWorld? world = null;
         ConveyorGrid? conveyors = null;
@@ -95,6 +99,8 @@ internal static class FactoryGameApp
                         ref nextItemId,
                         ref tool,
                         ref direction,
+                        ref selectedConveyor,
+                        basicConveyor,
                         ref previousDragPosition,
                         ref statusMessage,
                         ref saveSlots,
@@ -113,6 +119,8 @@ internal static class FactoryGameApp
                         ref nextItemId,
                         ref tool,
                         ref direction,
+                        ref selectedConveyor,
+                        basicConveyor,
                         ref previousDragPosition,
                         ref statusMessage,
                         ref saveSlots,
@@ -125,7 +133,10 @@ internal static class FactoryGameApp
                         conveyors!,
                         wallet!,
                         camera!,
-                        conveyorDefinition,
+                        basicConveyor,
+                        fastConveyor,
+                        smeltRecipe,
+                        ref selectedConveyor,
                         ref tool,
                         ref direction,
                         ref previousDragPosition,
@@ -157,7 +168,17 @@ internal static class FactoryGameApp
                     DrawSaveManager(saveSlots, selectedSlotIndex, statusMessage);
                     break;
                 case AppScreen.Playing:
-                    DrawPlaying(world!, conveyors!, wallet!, camera!, conveyorDefinition, tool, direction);
+                    DrawPlaying(
+                        world!,
+                        conveyors!,
+                        wallet!,
+                        camera!,
+                        basicConveyor,
+                        fastConveyor,
+                        selectedConveyor,
+                        smeltRecipe,
+                        tool,
+                        direction);
                     break;
             }
 
@@ -273,6 +294,8 @@ internal static class FactoryGameApp
         ref long nextItemId,
         ref BuildTool tool,
         ref Direction direction,
+        ref ConveyorDefinition selectedConveyor,
+        ConveyorDefinition basicConveyor,
         ref GridPosition? previousDragPosition,
         ref string? statusMessage,
         ref SaveSlotInfo[] saveSlots,
@@ -299,6 +322,7 @@ internal static class FactoryGameApp
             {
                 tool = BuildTool.Conveyor;
                 direction = Direction.East;
+                selectedConveyor = basicConveyor;
                 previousDragPosition = null;
                 statusMessage = null;
                 screen = AppScreen.Playing;
@@ -318,6 +342,7 @@ internal static class FactoryGameApp
             StartNewGame(content, out world, out conveyors, out wallet, out camera, out nextItemId);
             tool = BuildTool.Conveyor;
             direction = Direction.East;
+            selectedConveyor = basicConveyor;
             previousDragPosition = null;
             statusMessage = null;
             screen = AppScreen.Playing;
@@ -349,6 +374,8 @@ internal static class FactoryGameApp
         ref long nextItemId,
         ref BuildTool tool,
         ref Direction direction,
+        ref ConveyorDefinition selectedConveyor,
+        ConveyorDefinition basicConveyor,
         ref GridPosition? previousDragPosition,
         ref string? statusMessage,
         ref SaveSlotInfo[] saveSlots,
@@ -410,6 +437,7 @@ internal static class FactoryGameApp
             {
                 tool = BuildTool.Conveyor;
                 direction = Direction.East;
+                selectedConveyor = basicConveyor;
                 previousDragPosition = null;
                 statusMessage = null;
                 screen = AppScreen.Playing;
@@ -457,7 +485,10 @@ internal static class FactoryGameApp
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         WorldCamera camera,
-        ConveyorDefinition definition,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        RecipeDefinition smeltRecipe,
+        ref ConveyorDefinition selectedConveyor,
         ref BuildTool tool,
         ref Direction direction,
         ref GridPosition? previousDragPosition,
@@ -499,13 +530,29 @@ internal static class FactoryGameApp
 
         if (Raylib.IsKeyPressed(KeyboardKey.Three))
         {
+            tool = BuildTool.Smelter;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.Four))
+        {
             tool = BuildTool.Remove;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.Q))
+        {
+            selectedConveyor = basicConveyor;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.E)
+            && wallet.MeetsUnlock(fastConveyor.Unlock))
+        {
+            selectedConveyor = fastConveyor;
         }
 
         var mouse = Raylib.GetMousePosition();
         if (Raylib.IsMouseButtonPressed(MouseButton.Left))
         {
-            if (TrySelectToolbar(mouse, ref tool, ref direction))
+            if (TrySelectToolbar(mouse, wallet, basicConveyor, fastConveyor, ref tool, ref direction, ref selectedConveyor))
             {
                 previousDragPosition = null;
                 return;
@@ -529,12 +576,21 @@ internal static class FactoryGameApp
             {
                 if (conveyors.Cells.TryGetValue(position, out var existing))
                 {
-                    existing.Rotate(direction);
+                    if (selectedConveyor.Tier > existing.Definition.Tier)
+                    {
+                        conveyors.TryUpgrade(position, selectedConveyor, wallet);
+                    }
+                    else
+                    {
+                        existing.Rotate(direction);
+                    }
                 }
-                else if (world.CanPlaceConveyor(position))
+                else if (world.CanPlaceConveyor(position)
+                    && wallet.MeetsUnlock(selectedConveyor.Unlock))
                 {
-                    conveyors.TryPlace(position, direction, definition, wallet);
+                    conveyors.TryPlace(position, direction, selectedConveyor, wallet);
                     ConnectAdjacentMiner(world, conveyors, position);
+                    ConnectAdjacentSmelter(world, conveyors, position);
                     ConnectToAdjacentCore(world, conveyors, position);
                 }
 
@@ -542,7 +598,7 @@ internal static class FactoryGameApp
                 return;
             }
 
-            ExtendConveyorPath(world, conveyors, wallet, definition, previous, position, ref direction);
+            ExtendConveyorPath(world, conveyors, wallet, selectedConveyor, previous, position, ref direction);
             previousDragPosition = position;
             return;
         }
@@ -564,7 +620,13 @@ internal static class FactoryGameApp
             {
                 world.TryPlaceMiner(position, direction, conveyors, wallet);
             }
-            else if (tool == BuildTool.Remove && !world.TryRemoveMiner(position, wallet))
+            else if (tool == BuildTool.Smelter)
+            {
+                world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet);
+            }
+            else if (tool == BuildTool.Remove
+                && !world.TryRemoveMiner(position, wallet)
+                && !world.TryRemoveSmelter(position, wallet))
             {
                 conveyors.TryRemove(position, wallet);
             }
@@ -573,7 +635,9 @@ internal static class FactoryGameApp
         if (Raylib.IsMouseButtonPressed(MouseButton.Right))
         {
             var cell = MouseCell(mouse, camera, world);
-            if (cell is { } position && !world.TryRemoveMiner(position, wallet))
+            if (cell is { } position
+                && !world.TryRemoveMiner(position, wallet)
+                && !world.TryRemoveSmelter(position, wallet))
             {
                 conveyors.TryRemove(position, wallet);
             }
@@ -724,6 +788,7 @@ internal static class FactoryGameApp
                 }
 
                 ConnectAdjacentMiner(world, conveyors, next);
+                ConnectAdjacentSmelter(world, conveyors, next);
             }
 
             cursor = next;
@@ -749,6 +814,41 @@ internal static class FactoryGameApp
         }
     }
 
+    private static void ConnectAdjacentSmelter(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        GridPosition conveyorPosition)
+    {
+        foreach (var direction in Directions)
+        {
+            var neighbor = conveyorPosition.Step(direction);
+            if (!world.TryGetSmelterAt(neighbor, out var smelter)
+                || !conveyors.Cells.ContainsKey(conveyorPosition))
+            {
+                continue;
+            }
+
+            if (smelter.InputTiles().Contains(conveyorPosition))
+            {
+                conveyors.TryOrientToward(conveyorPosition, neighbor);
+            }
+            else if (smelter.OutputTiles().Contains(conveyorPosition))
+            {
+                var away = conveyorPosition.Step(Opposite(direction));
+                conveyors.TryOrientToward(conveyorPosition, away);
+            }
+        }
+    }
+
+    private static Direction Opposite(Direction direction) => direction switch
+    {
+        Direction.North => Direction.South,
+        Direction.East => Direction.West,
+        Direction.South => Direction.North,
+        Direction.West => Direction.East,
+        _ => direction
+    };
+
     private static void ConnectToAdjacentCore(
         FactoryWorld world,
         ConveyorGrid conveyors,
@@ -765,21 +865,42 @@ internal static class FactoryGameApp
         }
     }
 
-    private static bool TrySelectToolbar(Vector2 mouse, ref BuildTool tool, ref Direction direction)
+    private static bool TrySelectToolbar(
+        Vector2 mouse,
+        EconomyWallet wallet,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ref BuildTool tool,
+        ref Direction direction,
+        ref ConveyorDefinition selectedConveyor)
     {
-        var tools = new[] { BuildTool.Conveyor, BuildTool.Miner, BuildTool.Remove };
+        var tools = new[] { BuildTool.Conveyor, BuildTool.Miner, BuildTool.Smelter, BuildTool.Remove };
         for (var index = 0; index < tools.Length; index++)
         {
-            if (Contains(mouse, 28 + index * 126, 92, 116, 38))
+            if (Contains(mouse, 28 + index * 110, 88, 100, 34))
             {
                 tool = tools[index];
                 return true;
             }
         }
 
+        if (Contains(mouse, 480, 88, 70, 34))
+        {
+            selectedConveyor = basicConveyor;
+            tool = BuildTool.Conveyor;
+            return true;
+        }
+
+        if (Contains(mouse, 556, 88, 70, 34) && wallet.MeetsUnlock(fastConveyor.Unlock))
+        {
+            selectedConveyor = fastConveyor;
+            tool = BuildTool.Conveyor;
+            return true;
+        }
+
         for (var index = 0; index < Directions.Length; index++)
         {
-            if (Contains(mouse, 430 + index * 46, 92, 38, 38))
+            if (Contains(mouse, 650 + index * 40, 88, 34, 34))
             {
                 direction = Directions[index];
                 return true;
@@ -869,49 +990,74 @@ internal static class FactoryGameApp
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         WorldCamera camera,
-        ConveyorDefinition definition,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition selectedConveyor,
+        RecipeDefinition smeltRecipe,
         BuildTool tool,
         Direction direction)
     {
         DrawWorld(world, conveyors, camera);
-        DrawPreview(world, conveyors, wallet, camera, definition, tool, direction);
-        DrawHeader(wallet, definition, tool, direction, world, camera);
-        DrawPanel(world, conveyors);
+        DrawPreview(world, conveyors, wallet, camera, selectedConveyor, smeltRecipe, tool, direction);
+        DrawHeader(wallet, basicConveyor, fastConveyor, selectedConveyor, tool, direction, world, camera);
+        DrawPanel(world, conveyors, wallet, fastConveyor);
     }
 
     private static void DrawHeader(
         EconomyWallet wallet,
-        ConveyorDefinition definition,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition fastConveyor,
+        ConveyorDefinition selectedConveyor,
         BuildTool tool,
         Direction direction,
         FactoryWorld world,
         WorldCamera camera)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, HeaderHeight, new Color(16, 20, 20, 245));
-        Raylib.DrawText("tINDUSTRY", 28, 18, 28, new Color(239, 238, 224, 255));
+        Raylib.DrawText("tINDUSTRY", 28, 14, 26, new Color(239, 238, 224, 255));
         Raylib.DrawText(
             $"FOUNDRY  seed {world.Seed}  ·  {world.Terrain.Width}×{world.Terrain.Height}  ·  zoom {camera.Zoom:0.00}",
-            28, 52, 14, new Color(112, 124, 119, 255));
-        Raylib.DrawText($"$ {wallet.Money}", 780, 22, 24, new Color(112, 218, 145, 255));
-        Raylib.DrawText($"PIASTRE  {wallet.MaterialCount("iron-plate")}", 780, 54, 17, new Color(220, 179, 93, 255));
+            28, 46, 13, new Color(112, 124, 119, 255));
+        Raylib.DrawText($"$ {wallet.Money}", 780, 18, 22, new Color(112, 218, 145, 255));
+        Raylib.DrawText($"PIASTRE  {wallet.MaterialCount("iron-plate")}", 780, 48, 16, new Color(220, 179, 93, 255));
 
-        DrawButton(28, 92, 116, 38, "NASTRO", tool == BuildTool.Conveyor);
-        DrawButton(154, 92, 116, 38, "MINATORE", tool == BuildTool.Miner);
-        DrawButton(280, 92, 116, 38, "RIMUOVI", tool == BuildTool.Remove);
+        DrawButton(28, 88, 100, 34, "NASTRO", tool == BuildTool.Conveyor);
+        DrawButton(138, 88, 100, 34, "MINATORE", tool == BuildTool.Miner);
+        DrawButton(248, 88, 100, 34, "FORNO", tool == BuildTool.Smelter);
+        DrawButton(358, 88, 100, 34, "RIMUOVI", tool == BuildTool.Remove);
+
+        var fastUnlocked = wallet.MeetsUnlock(fastConveyor.Unlock);
+        DrawButton(480, 88, 70, 34, "BASE", selectedConveyor.Id == basicConveyor.Id);
+        DrawButton(556, 88, 70, 34, fastUnlocked ? "VELOCE" : "LOCK",
+            selectedConveyor.Id == fastConveyor.Id);
 
         var labels = new[] { "N", "E", "S", "O" };
         for (var index = 0; index < Directions.Length; index++)
         {
-            DrawButton(430 + index * 46, 92, 38, 38, labels[index], direction == Directions[index]);
+            DrawButton(650 + index * 40, 88, 34, 34, labels[index], direction == Directions[index]);
         }
 
-        var cost = tool == BuildTool.Miner
-            ? $"${FactoryWorld.MinerMoneyCost} + {FactoryWorld.MinerPlateCost} PIASTRE"
-            : tool == BuildTool.Conveyor
-                ? $"${definition.MoneyCost} + {definition.BuildCost[0].Amount} PIASTRA"
-                : "RIMBORSO COMPLETO";
-        Raylib.DrawText(cost, 650, 103, 16, new Color(164, 173, 168, 255));
+        var cost = tool switch
+        {
+            BuildTool.Miner => $"${FactoryWorld.MinerMoneyCost} + {FactoryWorld.MinerPlateCost} P",
+            BuildTool.Smelter => $"${SmelterBuilding.MoneyCost} + {SmelterBuilding.PlateCost} P",
+            BuildTool.Conveyor => FormatConveyorCost(selectedConveyor, wallet),
+            _ => "RIMBORSO COMPLETO"
+        };
+        Raylib.DrawText(cost, 28, 70, 14, new Color(164, 173, 168, 255));
         DrawButton(ScreenWidth - 170, 20, 140, 36, "MENU", false);
+    }
+
+    private static string FormatConveyorCost(ConveyorDefinition definition, EconomyWallet wallet)
+    {
+        if (!wallet.MeetsUnlock(definition.Unlock))
+        {
+            var unlock = definition.Unlock!;
+            return $"Sblocca: ${unlock.Money} + {unlock.Materials[0].Amount} P";
+        }
+
+        var plates = definition.BuildCost.FirstOrDefault(entry => entry.ItemId == "iron-plate")?.Amount ?? 0;
+        return $"${definition.MoneyCost} + {plates} P · t{definition.Tier}";
     }
 
     private static void DrawWorld(FactoryWorld world, ConveyorGrid conveyors, WorldCamera camera)
@@ -956,6 +1102,22 @@ internal static class FactoryGameApp
         }
 
         DrawCore(world, camera, tileSize, minX, minY, maxX, maxY);
+        foreach (var smelter in world.Smelters.Values)
+        {
+            if (smelter.Position.X + SmelterBuilding.Size < minX || smelter.Position.X > maxX
+                || smelter.Position.Y + SmelterBuilding.Size < minY || smelter.Position.Y > maxY)
+            {
+                continue;
+            }
+
+            var screen = camera.WorldToScreen(
+                smelter.Position.X * BaseTileSize,
+                smelter.Position.Y * BaseTileSize,
+                ViewportLeft,
+                ViewportTop);
+            DrawSmelter(smelter, screen.X, screen.Y, tileSize, false);
+        }
+
         foreach (var miner in world.Miners.Values)
         {
             if (miner.Position.X + MinerBuilding.Size < minX || miner.Position.X > maxX
@@ -1071,6 +1233,7 @@ internal static class FactoryGameApp
         Raylib.DrawPoly(center, 8, 18 * scale, angle, new Color(116, 125, 120, alpha));
         Raylib.DrawPolyLinesEx(center, 8, 18 * scale, angle, 3, new Color(225, 216, 186, alpha));
         Raylib.DrawCircleV(center, 7 * scale, new Color(210, 143, 68, alpha));
+        DrawDirectionMark(center + DirectionVector(miner.Direction) * (14f * scale), miner.Direction, alpha, tileSize);
         Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
         Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * miner.Progress), 4,
             new Color(231, 166, 66, alpha));
@@ -1082,6 +1245,34 @@ internal static class FactoryGameApp
                 efficiencyWidth + 8, 16, new Color(20, 24, 23, alpha));
             Raylib.DrawText(efficiencyLabel, x + (size - efficiencyWidth) / 2, y + size - 25,
                 12, new Color(233, 190, 96, alpha));
+        }
+    }
+
+    private static void DrawSmelter(SmelterBuilding smelter, float fx, float fy, float tileSize, bool preview)
+    {
+        var alpha = preview ? 150 : 255;
+        var x = (int)fx;
+        var y = (int)fy;
+        var size = (int)(tileSize * SmelterBuilding.Size);
+        var scale = tileSize / BaseTileSize;
+        Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(18, 14, 14, alpha));
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(72, 42, 36, alpha));
+        Raylib.DrawRectangleLines(x + 5, y + 5, size - 10, size - 10, new Color(220, 110, 72, alpha));
+        Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(34, 22, 20, alpha));
+
+        var center = new Vector2(x + size / 2f, y + size / 2f);
+        var glow = 10f + MathF.Sin((float)Raylib.GetTime() * 4f) * 3f;
+        Raylib.DrawCircleV(center, glow * scale, new Color(180, 70, 40, alpha));
+        Raylib.DrawCircleV(center, 6 * scale, new Color(240, 170, 80, alpha));
+        DrawDirectionMark(center + DirectionVector(smelter.Direction) * (16f * scale), smelter.Direction, alpha, tileSize);
+
+        var barProgress = smelter.IsCrafting ? smelter.Progress : 0f;
+        Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
+        Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * barProgress), 4,
+            new Color(235, 120, 70, alpha));
+        if (tileSize >= 12f)
+        {
+            Raylib.DrawText("FORNO", x + size / 2 - 22, y + 8, 12, new Color(240, 200, 170, alpha));
         }
     }
 
@@ -1110,7 +1301,10 @@ internal static class FactoryGameApp
         }
 
         DrawConveyorArm(center, conveyor.Direction, alpha, tileSize);
-        Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, size / 2, new Color(70, 77, 74, alpha));
+        Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, size / 2,
+            conveyor.Definition.Tier >= 2
+                ? new Color(56, 92, 110, alpha)
+                : new Color(70, 77, 74, alpha));
         DrawDirectionMark(center, conveyor.Direction, alpha, tileSize);
 
         foreach (var item in conveyor.Items)
@@ -1118,12 +1312,21 @@ internal static class FactoryGameApp
             var vector = DirectionVector(conveyor.Direction);
             var itemPosition = center - vector * (tileSize * 0.5f) + vector * (item.Progress * tileSize);
             var itemSize = Math.Max(4, (int)(10 * tileSize / BaseTileSize));
+            var fill = ItemColor(item.ItemId);
             Raylib.DrawRectangle((int)itemPosition.X - itemSize / 2, (int)itemPosition.Y - itemSize / 2, itemSize, itemSize,
-                new Color(211, 117, 55, 255));
+                fill);
             Raylib.DrawRectangleLines((int)itemPosition.X - itemSize / 2, (int)itemPosition.Y - itemSize / 2, itemSize, itemSize,
-                new Color(255, 199, 112, 255));
+                new Color(255, 240, 210, 255));
         }
     }
+
+    private static Color ItemColor(string itemId) => itemId switch
+    {
+        "iron-ore" => new Color(211, 117, 55, 255),
+        "iron-plate" => new Color(168, 184, 196, 255),
+        "copper-wire" => new Color(196, 132, 72, 255),
+        _ => new Color(200, 90, 200, 255)
+    };
 
     private static void DrawConveyorArm(Vector2 center, Direction direction, int alpha, float tileSize)
     {
@@ -1165,7 +1368,7 @@ internal static class FactoryGameApp
         FactoryWorld world)
     {
         var neighborPosition = conveyor.Position.Step(direction);
-        if (world.IsMinerTile(neighborPosition))
+        if (world.IsMinerTile(neighborPosition) || world.IsSmelterTile(neighborPosition))
         {
             return true;
         }
@@ -1198,6 +1401,7 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         WorldCamera camera,
         ConveyorDefinition definition,
+        RecipeDefinition smeltRecipe,
         BuildTool tool,
         Direction direction)
     {
@@ -1213,56 +1417,104 @@ internal static class FactoryGameApp
         {
             BuildTool.Conveyor => world.CanPlaceConveyor(position)
                 && !conveyors.Cells.ContainsKey(position)
+                && wallet.MeetsUnlock(definition.Unlock)
                 && wallet.CanAfford(definition.MoneyCost, definition.BuildCost),
             BuildTool.Miner => world.CanPlaceMiner(position, conveyors)
                 && wallet.CanAfford(FactoryWorld.MinerMoneyCost,
                     [new ResourceAmount("iron-plate", FactoryWorld.MinerPlateCost)]),
-            BuildTool.Remove => world.Miners.ContainsKey(position) || conveyors.Cells.ContainsKey(position)
-                || world.IsMinerTile(position),
+            BuildTool.Smelter => world.CanPlaceSmelter(position, conveyors)
+                && wallet.CanAfford(SmelterBuilding.MoneyCost,
+                    [new ResourceAmount("iron-plate", SmelterBuilding.PlateCost)]),
+            BuildTool.Remove => world.Miners.ContainsKey(position)
+                || world.IsMinerTile(position)
+                || world.Smelters.ContainsKey(position)
+                || world.IsSmelterTile(position)
+                || conveyors.Cells.ContainsKey(position),
             _ => false
         };
+
+        if (tool == BuildTool.Conveyor
+            && conveyors.Cells.TryGetValue(position, out var existing)
+            && definition.Tier > existing.Definition.Tier
+            && wallet.MeetsUnlock(definition.Unlock)
+            && wallet.CanAfford(definition.MoneyCost, definition.BuildCost))
+        {
+            valid = true;
+        }
 
         var previewColor = valid
             ? new Color(105, 225, 142, 125)
             : new Color(225, 92, 80, 125);
-        var previewSize = tool == BuildTool.Miner ? tileSize * MinerBuilding.Size : tileSize;
+        var previewSize = tool is BuildTool.Miner or BuildTool.Smelter
+            ? tileSize * MinerBuilding.Size
+            : tileSize;
         Raylib.BeginScissorMode(ViewportLeft, ViewportTop, (int)ViewportWidth, (int)ViewportHeight);
         Raylib.DrawRectangle((int)screen.X + 2, (int)screen.Y + 2, (int)previewSize - 5, (int)previewSize - 5, previewColor);
 
-        if (tool == BuildTool.Conveyor && valid)
+        if (tool == BuildTool.Conveyor && valid && !conveyors.Cells.ContainsKey(position))
         {
             var preview = new ConveyorCell(position, direction, definition);
             DrawConveyor(preview, conveyors, world, screen.X, screen.Y, tileSize, true);
         }
         else if (tool == BuildTool.Miner && valid)
         {
-            DrawMiner(new MinerBuilding(position, world.CountCoveredDepositTiles(position)), screen.X, screen.Y, tileSize, true);
+            DrawMiner(new MinerBuilding(position, direction, world.CountCoveredDepositTiles(position)),
+                screen.X, screen.Y, tileSize, true);
+        }
+        else if (tool == BuildTool.Smelter && valid)
+        {
+            DrawSmelter(new SmelterBuilding(position, direction, smeltRecipe), screen.X, screen.Y, tileSize, true);
         }
 
         Raylib.EndScissorMode();
     }
 
-    private static void DrawPanel(FactoryWorld world, ConveyorGrid conveyors)
+    private static void DrawPanel(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ConveyorDefinition fastConveyor)
     {
         Raylib.DrawRectangle(ViewportRight, ViewportTop, PanelWidth, (int)ViewportHeight, new Color(24, 29, 29, 255));
         Raylib.DrawText("LOGISTICA", ViewportRight + 22, ViewportTop + 22, 20, new Color(232, 233, 221, 255));
         Raylib.DrawLine(ViewportRight + 22, ViewportTop + 54, ViewportRight + 274, ViewportTop + 54, new Color(62, 72, 68, 255));
-        DrawMetric("THROUGHPUT", $"{world.SoldItems * FactoryWorld.IronOreSalePrice} crediti", ViewportRight + 22, ViewportTop + 84,
+        DrawMetric("VENDITE", $"{world.SaleRevenue} crediti", ViewportRight + 22, ViewportTop + 84,
             new Color(112, 218, 145, 255));
         DrawMetric("MINATORI", world.Miners.Count.ToString(), ViewportRight + 22, ViewportTop + 150,
             new Color(225, 173, 79, 255));
-        DrawMetric("NASTRI", conveyors.Cells.Count.ToString(), ViewportRight + 150, ViewportTop + 150,
+        DrawMetric("FORNI", world.Smelters.Count.ToString(), ViewportRight + 150, ViewportTop + 150,
+            new Color(235, 120, 70, 255));
+        DrawMetric("NASTRI", conveyors.Cells.Count.ToString(), ViewportRight + 22, ViewportTop + 216,
             new Color(211, 216, 207, 255));
-        DrawMetric("ITEM CONSEGNATI", world.SoldItems.ToString(), ViewportRight + 22, ViewportTop + 216,
+        DrawMetric("ITEM VENDUTI", world.SoldItems.ToString(), ViewportRight + 150, ViewportTop + 216,
             new Color(211, 216, 207, 255));
 
-        Raylib.DrawRectangle(ViewportRight + 22, ViewportTop + 305, 252, 1, new Color(62, 72, 68, 255));
-        Raylib.DrawCircle(ViewportRight + 31, ViewportTop + 340, 7, new Color(205, 132, 73, 255));
-        Raylib.DrawText("FERRO GREZZO", ViewportRight + 48, ViewportTop + 332, 16, new Color(196, 201, 193, 255));
-        Raylib.DrawText($"${FactoryWorld.IronOreSalePrice} / item", ViewportRight + 48, ViewportTop + 354, 15,
-            new Color(112, 218, 145, 255));
-        Raylib.DrawText("Esc / MENU → home", ViewportRight + 22, ViewportTop + 420, 14, new Color(126, 137, 132, 255));
-        Raylib.DrawText("(autosave Continua)", ViewportRight + 22, ViewportTop + 442, 14, new Color(126, 137, 132, 255));
+        Raylib.DrawRectangle(ViewportRight + 22, ViewportTop + 290, 252, 1, new Color(62, 72, 68, 255));
+        Raylib.DrawCircle(ViewportRight + 31, ViewportTop + 320, 7, ItemColor("iron-ore"));
+        Raylib.DrawText($"ORE  ${FactoryWorld.IronOreSalePrice}", ViewportRight + 48, ViewportTop + 312, 16,
+            new Color(196, 201, 193, 255));
+        Raylib.DrawCircle(ViewportRight + 31, ViewportTop + 352, 7, ItemColor("iron-plate"));
+        Raylib.DrawText($"LASTRE  ${FactoryWorld.IronPlateSalePrice}", ViewportRight + 48, ViewportTop + 344, 16,
+            new Color(196, 201, 193, 255));
+
+        var unlocked = wallet.MeetsUnlock(fastConveyor.Unlock);
+        Raylib.DrawText(
+            unlocked ? "Nastro veloce: SBLOCCATO" : "Nastro veloce: bloccato",
+            ViewportRight + 22,
+            ViewportTop + 390,
+            14,
+            unlocked ? new Color(112, 218, 145, 255) : new Color(180, 120, 100, 255));
+        if (!unlocked && fastConveyor.Unlock is { } unlock)
+        {
+            Raylib.DrawText(
+                $"Serve ${unlock.Money} e {unlock.Materials[0].Amount} lastre",
+                ViewportRight + 22,
+                ViewportTop + 412,
+                13,
+                new Color(126, 137, 132, 255));
+        }
+
+        Raylib.DrawText("Esc / MENU → home", ViewportRight + 22, ViewportTop + 450, 14, new Color(126, 137, 132, 255));
     }
 
     private static void DrawMetric(string label, string value, int x, int y, Color accent)

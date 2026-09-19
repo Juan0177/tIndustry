@@ -20,7 +20,7 @@ var basicConveyor = content.Conveyors.Single(definition => definition.Id == "con
 
 if (args.Contains("--self-test"))
 {
-    RunSelfTest(basicConveyor);
+    RunSelfTest(content);
     return;
 }
 
@@ -67,8 +67,12 @@ static ConveyorGrid CreateTwoCellLine(ConveyorDefinition definition)
     return grid;
 }
 
-static void RunSelfTest(ConveyorDefinition definition)
+static void RunSelfTest(GameContent content)
 {
+    var definition = content.Conveyors.Single(entry => entry.Id == "conveyor-basic");
+    var fastDefinition = content.Conveyors.Single(entry => entry.Id == "conveyor-fast");
+    var smeltRecipe = content.Recipes.Single(entry => entry.Id == "smelt-iron");
+
     var grid = CreateTwoCellLine(definition);
     var first = grid.Cells[new GridPosition(0, 0)];
     var second = grid.Cells[new GridPosition(1, 0)];
@@ -92,6 +96,8 @@ static void RunSelfTest(ConveyorDefinition definition)
     var nextItemId = 2L;
     Assert(miningWorld.TryPlaceMiner(new GridPosition(2, 2), Direction.East, miningGrid, miningWallet),
         "Il minatore deve poter essere piazzato sul giacimento garantito.");
+    Assert(miningWorld.Miners[new GridPosition(2, 2)].OutputTiles().All(tile => tile.X == 4),
+        "Il minatore deve erogare solo sul lato della direzione scelta.");
     Assert(miningGrid.TryPlace(new GridPosition(4, 2), Direction.East, definition, miningWallet),
         "Il nastro deve poter collegare il minatore al core.");
     Assert(miningGrid.TryPlace(new GridPosition(5, 2), Direction.East, definition, miningWallet),
@@ -102,6 +108,8 @@ static void RunSelfTest(ConveyorDefinition definition)
     }
     Assert(miningWorld.SoldItems == 1, "Il core deve incassare il minerale consegnato.");
     Assert(miningWallet.Money == 73, "Il saldo deve includere costruzioni e vendita al core.");
+    Assert(miningWorld.SaleRevenue == FactoryWorld.IronOreSalePrice,
+        "Il ricavo deve usare il prezzo ore.");
 
     var curvedWorld = new FactoryWorld(14, 10, 7429);
     var curvedGrid = new ConveyorGrid();
@@ -119,7 +127,7 @@ static void RunSelfTest(ConveyorDefinition definition)
         "Il tratto verso il core deve essere piazzato.");
     Assert(curvedGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, curvedWallet),
         "L'ultimo tratto deve toccare il core.");
-    for (var tick = 0; tick < 360; tick++)
+    for (var tick = 0; tick < 480; tick++)
     {
         curvedWorld.Update(1f / 30f, curvedGrid, curvedWallet, ref curvedItemId);
     }
@@ -143,6 +151,59 @@ static void RunSelfTest(ConveyorDefinition definition)
     }
     Assert(partialMiner.Progress is > 0.49f and < 0.51f,
         "Al 25% il minatore deve completare metà ciclo in quattro secondi.");
+
+    // Smelter loop: feed ore into smelter, sell plate at core.
+    var smeltWorld = new FactoryWorld(16, 10, 7429);
+    var smeltGrid = new ConveyorGrid();
+    var smeltWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    var smeltItemId = 500L;
+    // Core is at x=10,y=3 on 16×10 — keep the line on y=3.
+    Assert(smeltWorld.TryPlaceSmelter(new GridPosition(4, 3), Direction.East, smeltRecipe, smeltGrid, smeltWallet),
+        "Il forno deve piazzarsi.");
+    Assert(smeltGrid.TryPlace(new GridPosition(3, 3), Direction.East, definition, smeltWallet),
+        "Il nastro di ingresso forno deve piazzarsi.");
+    Assert(smeltGrid.TryPlace(new GridPosition(6, 3), Direction.East, definition, smeltWallet),
+        "Il nastro di uscita forno deve piazzarsi.");
+    Assert(smeltGrid.TryPlace(new GridPosition(7, 3), Direction.East, definition, smeltWallet),
+        "Il nastro centrale deve piazzarsi.");
+    Assert(smeltGrid.TryPlace(new GridPosition(8, 3), Direction.East, definition, smeltWallet),
+        "Il nastro verso il core deve piazzarsi.");
+    Assert(smeltGrid.TryPlace(new GridPosition(9, 3), Direction.East, definition, smeltWallet),
+        "L'ultimo nastro deve toccare il core.");
+    var inputBelt = smeltGrid.Cells[new GridPosition(3, 3)];
+    Assert(inputBelt.TryInsert(new TransportedItem(smeltItemId++, "iron-ore")), "Ore 1 in ingresso.");
+    for (var tick = 0; tick < 90; tick++)
+    {
+        smeltWorld.Update(1f / 30f, smeltGrid, smeltWallet, ref smeltItemId);
+    }
+    Assert(inputBelt.TryInsert(new TransportedItem(smeltItemId++, "iron-ore")), "Ore 2 in ingresso.");
+    var moneyBeforePlate = smeltWallet.Money;
+    for (var tick = 0; tick < 450; tick++)
+    {
+        smeltWorld.Update(1f / 30f, smeltGrid, smeltWallet, ref smeltItemId);
+    }
+    Assert(smeltWorld.SoldItems >= 1, "Il forno deve produrre lastre vendute al core.");
+    Assert(smeltWallet.Money >= moneyBeforePlate + FactoryWorld.IronPlateSalePrice,
+        "La lastra deve vendere più dell'ore.");
+    Assert(smeltWorld.SaleRevenue >= FactoryWorld.IronPlateSalePrice,
+        "Il ricavo deve usare il prezzo lastre.");
+
+    // Fast belt unlock + upgrade.
+    var lockedWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
+    Assert(!lockedWallet.MeetsUnlock(fastDefinition.Unlock), "Il nastro veloce deve partire bloccato.");
+    var unlockWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 55, ["copper-wire"] = 5 });
+    Assert(unlockWallet.MeetsUnlock(fastDefinition.Unlock), "Con soglia raggiunta il nastro veloce si sblocca.");
+    var tierGrid = new ConveyorGrid();
+    Assert(tierGrid.TryPlace(new GridPosition(0, 0), Direction.East, definition, unlockWallet),
+        "Nastro base piazzabile.");
+    Assert(unlockWallet.MeetsUnlock(fastDefinition.Unlock),
+        "Dopo il nastro base la soglia unlock deve restare soddisfatta.");
+    Assert(tierGrid.TryUpgrade(new GridPosition(0, 0), fastDefinition, unlockWallet),
+        "Upgrade a nastro veloce deve riuscire.");
+    Assert(tierGrid.Cells[new GridPosition(0, 0)].Definition.Id == "conveyor-fast",
+        "Dopo upgrade il tier deve essere conveyor-fast.");
+    Assert(tierGrid.Cells[new GridPosition(0, 0)].Definition.RateItemsPerSecond == 1f,
+        "Il nastro veloce deve avere rate 1.0.");
 
     var largeWorld = new FactoryWorld(FactoryGameApp.MapWidth, FactoryGameApp.MapHeight, 7429);
     Assert(largeWorld.Terrain.Width == 1000 && largeWorld.Terrain.Height == 1000,
@@ -169,6 +230,9 @@ static void RunSelfTest(ConveyorDefinition definition)
     var saveItemId = 7L;
     Assert(saveWorld.TryPlaceMiner(saveWorld.StarterDepositOrigin, Direction.East, saveGrid, saveWallet),
         "Il minatore di save-test deve piazzarsi sul giacimento starter.");
+    var smelterPos = new GridPosition(saveWorld.CoreOrigin.X - 6, saveWorld.CoreOrigin.Y);
+    Assert(saveWorld.TryPlaceSmelter(smelterPos, Direction.East, smeltRecipe, saveGrid, saveWallet),
+        "Il forno di save-test deve piazzarsi.");
     var beltX = saveWorld.StarterDepositOrigin.X + MinerBuilding.Size;
     var beltY = saveWorld.StarterDepositOrigin.Y;
     Assert(saveGrid.TryPlace(new GridPosition(beltX, beltY), Direction.East, definition, saveWallet),
@@ -179,23 +243,22 @@ static void RunSelfTest(ConveyorDefinition definition)
     var slotId = "self-test-slot";
     GameSaveStore.Save(slotId, captured);
     Assert(GameSaveStore.Exists(slotId), "Il file di salvataggio deve esistere dopo Save.");
-    var restoredBundle = GameSaveStore.Restore(GameSaveStore.Load(slotId), new GameContent
-    {
-        Conveyors = [definition],
-        Recipes = []
-    });
+    var restoredBundle = GameSaveStore.Restore(GameSaveStore.Load(slotId), content);
     Assert(restoredBundle.World.Seed == 9001, "Il seed deve essere ripristinato.");
     Assert(restoredBundle.Wallet.Money == saveWallet.Money, "Il wallet denaro deve essere ripristinato.");
     Assert(restoredBundle.Wallet.MaterialCount("iron-plate") == saveWallet.MaterialCount("iron-plate"),
         "Il wallet materiali deve essere ripristinato.");
     Assert(restoredBundle.World.Miners.Count == 1, "I minatori devono essere ripristinati.");
+    Assert(restoredBundle.World.Smelters.Count == 1, "I forni devono essere ripristinati.");
+    Assert(restoredBundle.World.Miners.Values.Single().Direction == Direction.East,
+        "La direzione del minatore deve essere ripristinata.");
     Assert(restoredBundle.Conveyors.Cells.Count == 1, "I nastri devono essere ripristinati.");
     Assert(Math.Abs(restoredBundle.Camera.X - 12.5f) < 0.01f && Math.Abs(restoredBundle.Camera.Zoom - 1.25f) < 0.01f,
         "La camera deve essere ripristinata.");
     GameSaveStore.Delete(slotId);
     Assert(!GameSaveStore.Exists(slotId), "Delete deve rimuovere lo slot.");
 
-    Console.WriteLine("SELF-TEST OK: trasporto, core, minatori, camera 1000×1000 e save/load verificati.");
+    Console.WriteLine("SELF-TEST OK: trasporto, forno, tier nastri, camera e save/load verificati.");
 }
 
 static void Assert(bool condition, string message)

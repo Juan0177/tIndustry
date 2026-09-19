@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -14,9 +14,11 @@ public sealed class GameSaveData
     public int Money { get; set; }
     public Dictionary<string, int> Materials { get; set; } = [];
     public int SoldItems { get; set; }
+    public int SaleRevenue { get; set; }
     public long NextItemId { get; set; } = 1;
     public CameraSaveData Camera { get; set; } = new();
     public List<MinerSaveData> Miners { get; set; } = [];
+    public List<SmelterSaveData> Smelters { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -31,7 +33,20 @@ public sealed class MinerSaveData
 {
     public int X { get; set; }
     public int Y { get; set; }
+    public string Direction { get; set; } = "East";
     public float Progress { get; set; }
+}
+
+public sealed class SmelterSaveData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string Direction { get; set; } = "East";
+    public string RecipeId { get; set; } = "smelt-iron";
+    public float Progress { get; set; }
+    public bool IsCrafting { get; set; }
+    public Dictionary<string, int> InputBuffer { get; set; } = [];
+    public List<string> OutputQueue { get; set; } = [];
 }
 
 public sealed class ConveyorSaveData
@@ -110,10 +125,10 @@ public static class GameSaveStore
 
         var data = JsonSerializer.Deserialize<GameSaveData>(File.ReadAllText(path), JsonOptions)
             ?? throw new InvalidDataException($"Salvataggio non valido: {slotId}");
-        if (data.Version != GameSaveData.CurrentVersion)
+        if (data.Version is < 1 or > GameSaveData.CurrentVersion)
         {
             throw new InvalidDataException(
-                $"Versione salvataggio non supportata: {data.Version} (attesa {GameSaveData.CurrentVersion})");
+                $"Versione salvataggio non supportata: {data.Version} (attesa 1..{GameSaveData.CurrentVersion})");
         }
 
         return data;
@@ -197,6 +212,7 @@ public static class GameSaveStore
             Money = wallet.Money,
             Materials = wallet.MaterialsSnapshot(),
             SoldItems = world.SoldItems,
+            SaleRevenue = world.SaleRevenue,
             NextItemId = nextItemId,
             Camera = new CameraSaveData
             {
@@ -209,7 +225,21 @@ public static class GameSaveStore
                 {
                     X = miner.Position.X,
                     Y = miner.Position.Y,
+                    Direction = miner.Direction.ToString(),
                     Progress = miner.Progress
+                })
+                .ToList(),
+            Smelters = world.Smelters.Values
+                .Select(smelter => new SmelterSaveData
+                {
+                    X = smelter.Position.X,
+                    Y = smelter.Position.Y,
+                    Direction = smelter.Direction.ToString(),
+                    RecipeId = smelter.Recipe.Id,
+                    Progress = smelter.Progress,
+                    IsCrafting = smelter.IsCrafting,
+                    InputBuffer = smelter.InputBuffer.ToDictionary(pair => pair.Key, pair => pair.Value),
+                    OutputQueue = smelter.OutputQueue.ToList()
                 })
                 .ToList(),
             Conveyors = conveyors.Cells.Values
@@ -236,18 +266,50 @@ public static class GameSaveStore
         Restore(GameSaveData data, GameContent content)
     {
         var world = new FactoryWorld(data.MapWidth, data.MapHeight, data.Seed);
-        world.SetSoldItems(data.SoldItems);
+        world.SetSoldItems(data.SoldItems, data.SaleRevenue);
 
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var conveyors = new ConveyorGrid();
         var definitions = content.Conveyors.ToDictionary(definition => definition.Id, StringComparer.Ordinal);
+        var recipes = content.Recipes.ToDictionary(recipe => recipe.Id, StringComparer.Ordinal);
 
         foreach (var minerData in data.Miners)
         {
             var position = new GridPosition(minerData.X, minerData.Y);
-            if (!world.TryRestoreMiner(position, minerData.Progress))
+            if (!Enum.TryParse<Direction>(minerData.Direction, ignoreCase: true, out var direction))
+            {
+                direction = Direction.East;
+            }
+
+            if (!world.TryRestoreMiner(position, direction, minerData.Progress))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il minatore a {position}.");
+            }
+        }
+
+        foreach (var smelterData in data.Smelters)
+        {
+            if (!recipes.TryGetValue(smelterData.RecipeId, out var recipe))
+            {
+                throw new InvalidDataException($"Ricetta sconosciuta: {smelterData.RecipeId}");
+            }
+
+            if (!Enum.TryParse<Direction>(smelterData.Direction, ignoreCase: true, out var direction))
+            {
+                direction = Direction.East;
+            }
+
+            var position = new GridPosition(smelterData.X, smelterData.Y);
+            if (!world.TryRestoreSmelter(
+                    position,
+                    direction,
+                    recipe,
+                    smelterData.Progress,
+                    smelterData.IsCrafting,
+                    smelterData.InputBuffer,
+                    smelterData.OutputQueue))
+            {
+                throw new InvalidDataException($"Impossibile ripristinare il forno a {position}.");
             }
         }
 

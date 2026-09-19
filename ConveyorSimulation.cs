@@ -75,6 +75,11 @@ public sealed class EconomyWallet
 
         return true;
     }
+
+    public bool MeetsUnlock(UnlockRequirement? unlock) =>
+        unlock is null
+        || (Money >= unlock.Money
+            && unlock.Materials.All(entry => MaterialCount(entry.ItemId) >= entry.Amount));
 }
 
 public sealed class ConveyorCell
@@ -168,6 +173,7 @@ public sealed class ConveyorGrid
         EconomyWallet wallet)
     {
         if (cells.ContainsKey(position)
+            || !wallet.MeetsUnlock(definition.Unlock)
             || !wallet.TrySpend(definition.MoneyCost, definition.BuildCost))
         {
             return false;
@@ -211,6 +217,26 @@ public sealed class ConveyorGrid
             wallet.AddMaterial(entry.ItemId, entry.Amount);
         }
 
+        return true;
+    }
+
+    public bool TryUpgrade(GridPosition position, ConveyorDefinition definition, EconomyWallet wallet)
+    {
+        if (!cells.TryGetValue(position, out var cell)
+            || cell.Definition.Tier >= definition.Tier
+            || !wallet.MeetsUnlock(definition.Unlock)
+            || !wallet.TrySpend(definition.MoneyCost, definition.BuildCost))
+        {
+            return false;
+        }
+
+        wallet.AddMoney(cell.Definition.MoneyCost);
+        foreach (var entry in cell.Definition.BuildCost)
+        {
+            wallet.AddMaterial(entry.ItemId, entry.Amount);
+        }
+
+        cell.Upgrade(definition);
         return true;
     }
 
