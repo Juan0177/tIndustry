@@ -31,6 +31,8 @@ internal static class FactoryGameApp
     private const int MercatoSellAllWBase = 52;
     private const int MercatoSellGapBase = 5;
     private const int StatusPanelHeightBase = 148;
+    /// <summary>Minimum Fabbrica content: title + PWR + counts + CORE button.</summary>
+    private const int StatusPanelMinHeightBase = 100;
     private const int HeaderIconSizeBase = 40;
     private const int HeaderIconGapBase = 8;
     private const float EntryAnimDuration = 0.85f;
@@ -139,7 +141,11 @@ internal static class FactoryGameApp
     private static string? LoadingCampaignLevelId;
     private static int CampaignSelectScroll;
 
-    public static void Run(GameContent content, int? maximumFrames = null, string? screenshotPath = null)
+    public static void Run(
+        GameContent content,
+        int? maximumFrames = null,
+        string? screenshotPath = null,
+        bool captureUpgradeCore = false)
     {
         var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
         var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
@@ -191,7 +197,7 @@ internal static class FactoryGameApp
         {
             StartNewGame(content, DefaultSeed, out world, out conveyors, out wallet, out camera, out research, out session, out market, out nextItemId);
             screen = AppScreen.Playing;
-            // Capture demos: show Production + Minatore cost row in the dock footer.
+            // Capture demos: Production dock + live Fabbrica counts (miner + belts) + stock.
             tool = BuildTool.Miner;
             DockCategory = UiTheme.BuildCategory.Production;
             DockSelectedId = "miner";
@@ -199,6 +205,9 @@ internal static class FactoryGameApp
             wallet.AddMaterial("iron-ore", 48);
             wallet.AddMaterial("copper-ore", 20);
             wallet.AddMaterial("copper-wire", 8);
+            SeedCaptureFactory(
+                world!, conveyors!, wallet, research!, session!, content, economy, basicConveyor,
+                upgradeCore: captureUpgradeCore);
             BeginTutorialIfNeeded(settings);
             TutorialActive = false;
         }
@@ -922,6 +931,49 @@ internal static class FactoryGameApp
             ["iron-plate"] = 48,
             ["copper-wire"] = 10
         });
+
+    /// <summary>
+    /// Places a starter miner + belt run for --capture HUD stills (non-zero Fabbrica counts).
+    /// Optionally upgrades the core when <paramref name="upgradeCore"/> is true.
+    /// </summary>
+    private static void SeedCaptureFactory(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        EconomyConfig economy,
+        ConveyorDefinition basicConveyor,
+        bool upgradeCore = false)
+    {
+        var minerBuilding = content.GetBuildingOrDefault("miner");
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(minerAt, Direction.East, conveyors, wallet, minerBuilding, session);
+
+        var beltY = minerAt.Y;
+        var startX = minerAt.X + MinerBuilding.Size;
+        var endX = world.CoreOrigin.X - 1;
+        for (var x = startX; x <= endX; x++)
+        {
+            conveyors.TryPlace(
+                new GridPosition(x, beltY),
+                Direction.East,
+                basicConveyor,
+                wallet,
+                research,
+                session,
+                world.CanPlaceConveyor);
+        }
+
+        if (upgradeCore)
+        {
+            // Ensure affordability for the still (capture wallet already has stock + $).
+            wallet.AddMoney(Math.Max(0, economy.CoreUpgrade.MoneyCost - wallet.Money + 10));
+            wallet.AddMaterial("iron-plate", 20);
+            world.TryUpgradeCore(wallet, economy.CoreUpgrade, session);
+        }
+    }
 
     private static WorldCamera CreateCameraFocusedOnCore(FactoryWorld world)
     {
@@ -2137,7 +2189,8 @@ internal static class FactoryGameApp
 
         GetDockBounds(out _, out var dockY, out _, out _);
         var gap = UiTheme.S(8);
-        var minStatus = MercatoS(64);
+        // Reserve Fabbrica content + the two S(6) gaps (Mercato→Fabbrica, Fabbrica→dock).
+        var minStatus = MercatoS(StatusPanelMinHeightBase) + UiTheme.S(12);
         // Prefer leaving a Fabbrica strip; if not enough room, Mercato takes space above the dock.
         var withStatus = dockY - y - gap - minStatus;
         var withoutStatus = dockY - y - gap;
@@ -2153,10 +2206,49 @@ internal static class FactoryGameApp
         GetDockBounds(out _, out var dockY, out _, out _);
         var maxBottom = dockY - UiTheme.S(6);
         height = Math.Min(MercatoS(StatusPanelHeightBase), Math.Max(0, maxBottom - y));
-        if (height < MercatoS(56))
+        if (height < MercatoS(StatusPanelMinHeightBase))
         {
             height = 0;
         }
+    }
+
+    /// <summary>Live Fabbrica building counts shown under PWR.</summary>
+    internal static string FormatFabbricaCounts(FactoryWorld world, ConveyorGrid conveyors) =>
+        $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count}";
+
+    /// <summary>
+    /// Shared Fabbrica content metrics so draw + CORE hit-test stay aligned.
+    /// Returns false when the panel is hidden.
+    /// </summary>
+    internal static bool TryGetFabbricaContentMetrics(
+        out int panelX,
+        out int panelY,
+        out int panelW,
+        out int panelH,
+        out int pad,
+        out int countsY,
+        out int upgradeX,
+        out int upgradeY,
+        out int upgradeW,
+        out int upgradeH)
+    {
+        GetStatusBounds(out panelX, out panelY, out panelW, out panelH);
+        pad = MercatoS(MercatoPadBase);
+        countsY = panelY + MercatoS(40);
+        upgradeH = MercatoS(28);
+        upgradeW = Math.Max(0, panelW - pad * 2);
+        upgradeX = panelX + pad;
+        // Anchor to bottom, but never cover the live M/F/A/N/G line (default 125% was crushing this).
+        var bottomAnchored = panelY + panelH - MercatoS(34);
+        var belowCounts = countsY + MercatoS(16);
+        upgradeY = Math.Max(bottomAnchored, belowCounts);
+        if (panelH <= 0 || upgradeY + upgradeH > panelY + panelH + 1)
+        {
+            // Keep the button inside the panel when height is tight.
+            upgradeY = Math.Max(panelY + MercatoS(52), panelY + panelH - upgradeH - MercatoS(4));
+        }
+
+        return panelH > 0;
     }
 
     /// <summary>
@@ -2183,9 +2275,6 @@ internal static class FactoryGameApp
 
     private static int MercatoRowY(int panelY, int panelH, int index) =>
         panelY + MercatoHeaderBlock() + index * MercatoRowHeight(panelH);
-
-    private static int StatusUpgradeY(int panelY, int panelH) =>
-        panelY + panelH - MercatoS(34);
 
     private static bool IsOverHudChrome(Vector2 mouse)
     {
@@ -3131,6 +3220,23 @@ internal static class FactoryGameApp
                 if (sh > 0 && (sx != mx || sw != mw))
                 {
                     return false;
+                }
+
+                // Live counts must stay above the CORE button (default 125% used to overlap).
+                if (sh > 0
+                    && TryGetFabbricaContentMetrics(
+                        out _, out _, out _, out _, out _, out var countsY,
+                        out _, out var upgradeY, out _, out var upgradeH))
+                {
+                    if (upgradeY < countsY + MercatoS(12))
+                    {
+                        return false;
+                    }
+
+                    if (upgradeY + upgradeH > sy + sh + 2)
+                    {
+                        return false;
+                    }
                 }
 
                 _ = mh;
@@ -5042,8 +5148,9 @@ internal static class FactoryGameApp
         EconomySession session,
         EconomyConfig economy)
     {
-        GetStatusBounds(out var x, out var y, out var w, out var h);
-        if (h <= 0)
+        if (!TryGetFabbricaContentMetrics(
+                out var x, out var y, out var w, out var h, out var pad,
+                out var countsY, out var upgradeX, out var upgradeY, out var upgradeW, out var upgradeH))
         {
             return;
         }
@@ -5052,7 +5159,6 @@ internal static class FactoryGameApp
         // Same accent column as Mercato so the HUD stack reads as one width.
         UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
 
-        var pad = MercatoS(MercatoPadBase);
         DrawUiText("FABBRICA", x + pad, y + MercatoS(6), 13, UiTheme.TextMuted);
 
         var net = session.NetWorthDelta(wallet);
@@ -5062,22 +5168,22 @@ internal static class FactoryGameApp
             net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed);
 
         DrawUiText(
-            $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count}",
-            x + pad, y + MercatoS(40), 11, UiTheme.TextMuted);
+            FormatFabbricaCounts(world, conveyors),
+            x + pad, countsY, 11, UiTheme.TextMuted);
 
         var tip = GetOnboardingTip(world, conveyors, research, wallet);
-        var tipMaxH = StatusUpgradeY(y, h) - (y + MercatoS(56)) - MercatoS(4);
+        var tipMaxH = upgradeY - (y + MercatoS(56)) - MercatoS(4);
         if (tipMaxH >= MercatoS(14))
         {
             DrawWrappedTip(tip, x + pad, y + MercatoS(56), w - pad * 2, tipMaxH);
         }
 
         var upgrade = economy.CoreUpgrade;
-        var upgradeY = StatusUpgradeY(y, h);
-        var upgradeLabel = world.CoreUpgradeLevel > 0
+        var upgraded = world.CoreUpgradeLevel > 0;
+        var upgradeLabel = upgraded
             ? $"CORE LV{world.CoreUpgradeLevel}"
             : $"CORE ${upgrade.MoneyCost}";
-        DrawButton(x + pad, upgradeY, w - pad * 2, MercatoS(28), upgradeLabel, world.CoreUpgradeLevel > 0);
+        DrawButton(upgradeX, upgradeY, upgradeW, upgradeH, upgradeLabel, upgraded);
     }
 
     /// <summary>
@@ -5207,20 +5313,87 @@ internal static class FactoryGameApp
         int panelW,
         ref string? statusMessage)
     {
-        GetStatusBounds(out _, out _, out _, out var panelH);
-        var upgradeY = StatusUpgradeY(panelY, panelH);
-        var pad = MercatoS(MercatoPadBase);
-        if (Contains(mouse, panelX + pad, upgradeY, panelW - pad * 2, MercatoS(28)))
+        if (!TryGetFabbricaContentMetrics(
+                out var sx, out var sy, out var sw, out _, out _, out _,
+                out var upgradeX, out var upgradeY, out var upgradeW, out var upgradeH))
         {
-            if (world.TryUpgradeCore(wallet, economy.CoreUpgrade, session))
-            {
-                statusMessage = "Core potenziato: +prezzo vendite!";
-            }
+            return false;
+        }
 
+        _ = panelX;
+        _ = panelY;
+        _ = panelW;
+        _ = sx;
+        _ = sy;
+        _ = sw;
+        if (!Contains(mouse, upgradeX, upgradeY, upgradeW, upgradeH))
+        {
+            return false;
+        }
+
+        if (world.CoreUpgradeLevel > 0)
+        {
+            statusMessage = $"Core già a LV{world.CoreUpgradeLevel}.";
             return true;
         }
 
-        return false;
+        var upgrade = economy.CoreUpgrade;
+        if (!wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost))
+        {
+            statusMessage = $"CORE: servono ${upgrade.MoneyCost} + lastre.";
+            return true;
+        }
+
+        if (world.TryUpgradeCore(wallet, upgrade, session))
+        {
+            statusMessage = "Core potenziato: +prezzo vendite!";
+        }
+
+        return true;
+    }
+
+    /// <summary>Self-test / capture helper: simulate a CORE button click at the live hit box.</summary>
+    internal static bool TryClickCoreUpgradeForTest(
+        FactoryWorld world,
+        EconomyWallet wallet,
+        EconomySession session,
+        EconomyConfig economy,
+        out string? statusMessage)
+    {
+        statusMessage = null;
+        if (!TryGetFabbricaContentMetrics(
+                out var panelX, out var panelY, out var panelW, out _, out _, out _,
+                out var upgradeX, out var upgradeY, out var upgradeW, out var upgradeH))
+        {
+            return false;
+        }
+
+        var mouse = new Vector2(upgradeX + upgradeW / 2f, upgradeY + upgradeH / 2f);
+        return TryHandleStatusClick(
+            mouse, world, wallet, session, economy, panelX, panelY, panelW, ref statusMessage);
+    }
+
+    private static int HudLayoutTestPrevWidth;
+    private static int HudLayoutTestPrevHeight;
+
+    /// <summary>Self-test: pin window size + UI scale so Fabbrica metrics are deterministic.</summary>
+    internal static bool TryConfigureHudLayoutForTest(int width, int height, int uiScalePercent)
+    {
+        HudLayoutTestPrevWidth = ScreenWidth;
+        HudLayoutTestPrevHeight = ScreenHeight;
+        ScreenWidth = width;
+        ScreenHeight = height;
+        UiTheme.ApplyScalePercent(uiScalePercent);
+        DockCategory = UiTheme.BuildCategory.Production;
+        GetStatusBounds(out _, out _, out _, out var statusH);
+        return statusH > 0;
+    }
+
+    internal static void RestoreHudLayoutAfterTest(float previousScale)
+    {
+        ScreenWidth = HudLayoutTestPrevWidth;
+        ScreenHeight = HudLayoutTestPrevHeight;
+        UiTheme.ApplyScale(previousScale);
     }
 
     private static string GetOnboardingTip(
