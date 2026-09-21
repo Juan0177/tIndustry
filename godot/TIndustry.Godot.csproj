@@ -1,0 +1,16 @@
+<Project Sdk="Godot.NET.Sdk/4.4.1">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>TIndustry.Godot</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../src/TIndustry.Shared/TIndustry.Shared.csproj" />
+  </ItemGroup>
+  <!-- Ship seed content.json next to the Godot project for the spike loader. -->
+  <ItemGroup>
+    <None Include="../data/content.json" Link="data/content.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
