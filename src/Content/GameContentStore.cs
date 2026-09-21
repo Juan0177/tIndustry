@@ -59,10 +59,16 @@ public static class GameContentStore
         {
             File.Copy(seed, UserJsonPath, overwrite: false);
         }
-        else if (MergeMissingSeedEntries(UserJsonPath, seed))
+        else
         {
-            // Keep optional Excel in sync when we patched missing seed ids.
-            TryWriteUserExcel();
+            var changed = false;
+            changed |= MergeMissingSeedEntries(UserJsonPath, seed);
+            changed |= SyncSeedDisplayFields(UserJsonPath, seed);
+            if (changed)
+            {
+                // Keep optional Excel in sync when we patched AppData from seed.
+                TryWriteUserExcel();
+            }
         }
 
         if (!File.Exists(UserExcelPath))
@@ -100,6 +106,83 @@ public static class GameContentStore
             return false;
         }
 
+        WriteMerged(userJsonPath, conveyors, recipes, structures, buildings, market, user.Economy ?? seed.Economy);
+        return true;
+    }
+
+    /// <summary>
+    /// Overwrites user <c>displayName</c> (structures + market) when the seed differs.
+    /// Fixes stale AppData labels like "Minatore avanzato" / "Nastro base" after tier renames
+    /// without wiping unlock costs or other user edits.
+    /// </summary>
+    public static bool SyncSeedDisplayFields(string userJsonPath, string seedJsonPath)
+    {
+        var user = GameContent.Load(userJsonPath);
+        var seed = GameContent.Load(seedJsonPath);
+
+        var structures = user.Structures.ToList();
+        var market = user.Market.ToList();
+        var changed = false;
+
+        var seedStructures = seed.Structures.ToDictionary(s => s.Id, StringComparer.Ordinal);
+        for (var i = 0; i < structures.Count; i++)
+        {
+            if (!seedStructures.TryGetValue(structures[i].Id, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (string.Equals(structures[i].DisplayName, fromSeed.DisplayName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            structures[i] = structures[i] with { DisplayName = fromSeed.DisplayName };
+            changed = true;
+        }
+
+        var seedMarket = seed.Market.ToDictionary(m => m.ItemId, StringComparer.Ordinal);
+        for (var i = 0; i < market.Count; i++)
+        {
+            if (!seedMarket.TryGetValue(market[i].ItemId, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (string.Equals(market[i].DisplayName, fromSeed.DisplayName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            market[i] = market[i] with { DisplayName = fromSeed.DisplayName };
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        WriteMerged(
+            userJsonPath,
+            user.Conveyors.ToList(),
+            user.Recipes.ToList(),
+            structures,
+            user.Buildings.ToList(),
+            market,
+            user.Economy ?? seed.Economy);
+        return true;
+    }
+
+    private static void WriteMerged(
+        string userJsonPath,
+        List<ConveyorDefinition> conveyors,
+        List<RecipeDefinition> recipes,
+        List<StructureDefinition> structures,
+        List<BuildingDefinition> buildings,
+        List<MarketItemDefinition> market,
+        EconomyConfig? economy)
+    {
         var merged = new GameContent
         {
             Conveyors = conveyors,
@@ -107,11 +190,10 @@ public static class GameContentStore
             Structures = structures,
             Buildings = buildings,
             Market = market,
-            Economy = user.Economy ?? seed.Economy
+            Economy = economy
         };
 
         File.WriteAllText(userJsonPath, JsonSerializer.Serialize(merged, JsonOptions));
-        return true;
     }
 
     private static bool AppendMissing<T>(

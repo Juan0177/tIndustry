@@ -20,6 +20,8 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Fuel generatore**: brucia **carbone** da nastro in ingresso; senza fuel non genera (capacità resta); depositi carbone + item mercato
 - Naming UI a **codici tier** (Minatore T1/T2, Nastro T1/T2/T3) — niente “avanzato/express” in etichette IT
 - **AppData content merge**: al launch, `EnsureUserContent` aggiunge in modo additivo gli id seed mancanti (es. `conveyor-express` dopo Phase 6) così un `content.json` locale vecchio non crasha su `Single`
+- **AppData displayName sync**: al launch, `displayName` di strutture/mercato già presenti viene aggiornato dal seed (es. “Minatore avanzato” → **Minatore T2**, “Nastro base” → **Nastro T1**) senza cancellare costi/unlock locali
+- **Icone tier**: `miner-advanced` / `conveyor-express` riusano i PNG drill / nastro veloce (niente glyph vettoriale stale nel dock)
 
 ### Ancora stub / defer
 
