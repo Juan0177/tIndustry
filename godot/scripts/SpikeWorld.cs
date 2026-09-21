@@ -177,7 +177,7 @@ public partial class SpikeWorld : Node2D
         var scroll = _beltVisual?.ScrollTiles ?? 0f;
         _hud.Text =
             $"tIndustry Godot spike  |  L-belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}  |  scroll={scroll:0.00}\n" +
-            "WASD / middle-drag pan · wheel zoom · Mindustry L belt (E→S) · static miner";
+            "WASD / middle-drag pan · wheel zoom · L belt + platform corner · static miner";
     }
 
     private static Vector2 CellCenter(GridPosition cell) =>
