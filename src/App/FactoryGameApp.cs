@@ -3735,7 +3735,9 @@ internal static class FactoryGameApp
         }
 
         DrawUiText(
-            "WASD / Shift+trascina / rotella centrale: sposta vista   ·   Ctrl+rotella: zoom   ·   H/Home: core   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
+            TruncateUiText(
+                "WASD / Shift+trascina / rotella: sposta vista · Ctrl+rotella: zoom · H: core · T: ricerca · I: impostazioni · Esc: menu",
+                15, ScreenWidth - 160),
             80, ScreenHeight - 40, 15, new Color(90, 100, 96, 255));
     }
 
@@ -3847,7 +3849,7 @@ internal static class FactoryGameApp
 
             var titleColor = unlocked ? new Color(239, 238, 224, 255) : new Color(90, 96, 92, 255);
             var bodyColor = unlocked ? new Color(164, 173, 168, 255) : new Color(70, 76, 72, 255);
-            var indexLabel = $"{i + 1}. {level.Name}";
+            var indexLabel = TruncateUiText($"{i + 1}. {level.Name}", 20, cardW - 130);
             DrawUiText(indexLabel, x + 14, y + 12, 20, titleColor);
             if (completed)
             {
@@ -3859,7 +3861,9 @@ internal static class FactoryGameApp
             }
 
             DrawWrappedTip(level.Description, x + 14, y + 44, cardW - 28, 48);
-            DrawUiText(catalog.ObjectiveSummary(level), x + 14, y + 100, 13, bodyColor);
+            DrawUiText(
+                TruncateUiText(catalog.ObjectiveSummary(level), 13, cardW - 28),
+                x + 14, y + 100, 13, bodyColor);
             DrawUiText($"{level.MapWidth}×{level.MapHeight} · seed {level.Seed}", x + 14, y + 140, 12,
                 unlocked ? new Color(112, 124, 119, 255) : new Color(60, 64, 62, 255));
         }
@@ -4299,9 +4303,13 @@ internal static class FactoryGameApp
             ? $"Auto {settings.ResolutionWidth}×{settings.ResolutionHeight}"
             : $"{settings.ResolutionWidth}×{settings.ResolutionHeight}";
         DrawUiText(
-            $"Attuale: {resLabel} · {GameSettings.DisplayModeLabel(settings.DisplayMode)} · UI {GameSettings.UiScaleLabel(settings.UiScalePercent)} · VSync {(settings.VSync ? "ON" : "OFF")} · {GameSettings.FpsLimitLabel(settings.TargetFps)}",
+            TruncateUiText(
+                $"Attuale: {resLabel} · {GameSettings.DisplayModeLabel(settings.DisplayMode)} · UI {GameSettings.UiScaleLabel(settings.UiScalePercent)} · VSync {(settings.VSync ? "ON" : "OFF")} · {GameSettings.FpsLimitLabel(settings.TargetFps)}",
+                13, ScreenWidth - layout.Left - 40),
             layout.Left, layout.StatusY, 13, new Color(126, 137, 132, 255));
-        DrawUiText($"File: {GameSettings.SettingsPath}", layout.Left, layout.PathY, 12, new Color(90, 100, 96, 255));
+        DrawUiText(
+            TruncateUiText($"File: {GameSettings.SettingsPath}", 12, ScreenWidth - layout.Left - 40),
+            layout.Left, layout.PathY, 12, new Color(90, 100, 96, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (SettingsScrollY > 2 || layout.PathY > ScreenHeight - 90)
@@ -4543,10 +4551,14 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         DrawUiText("Ricerca", 28, 28, 30, new Color(239, 238, 224, 255));
         DrawUiText(
-            "Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina sposta vista · Ctrl+rotella zoom · H reset",
+            TruncateUiText(
+                "Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina · Ctrl+rotella zoom · H reset",
+                16, ScreenWidth - 56),
             28, 66, 16, new Color(112, 124, 119, 255));
         DrawUiText(
-            $"Magazzino: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato · percorso selezionato evidenziato",
+            TruncateUiText(
+                $"Magazzino: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato",
+                15, ScreenWidth - 56),
             28, 90, 15, new Color(164, 173, 168, 255));
         _ = settings;
 
@@ -4663,8 +4675,12 @@ internal static class FactoryGameApp
             };
             var titleSize = zoom < 0.75f ? 14 : 17;
             var statusSize = zoom < 0.75f ? 11 : 13;
-            DrawUiText(structure.DisplayName, nx + 10, ny + 10, titleSize, new Color(232, 233, 221, 255));
-            DrawUiText(statusLabel, nx + 10, ny + Math.Max(28, nodeH - 22), statusSize, border);
+            DrawUiText(
+                TruncateUiText(structure.DisplayName, titleSize, nodeW - 20),
+                nx + 10, ny + 10, titleSize, new Color(232, 233, 221, 255));
+            DrawUiText(
+                TruncateUiText(statusLabel, statusSize, nodeW - 20),
+                nx + 10, ny + Math.Max(28, nodeH - 22), statusSize, border);
         }
 
         Raylib.EndScissorMode();
@@ -4672,7 +4688,9 @@ internal static class FactoryGameApp
         GetTechTreeDetailPanel(out var detailX, out var detailY, out var detailW, out var detailH);
         Raylib.DrawRectangle(detailX, detailY, detailW, detailH, new Color(24, 30, 28, 255));
         Raylib.DrawRectangleLines(detailX, detailY, detailW, detailH, new Color(60, 70, 64, 255));
-        DrawUiText(selected.DisplayName, detailX + 16, detailY + 16, 22, new Color(239, 238, 224, 255));
+        DrawUiText(
+            TruncateUiText(selected.DisplayName, 22, detailW - 32),
+            detailX + 16, detailY + 16, 22, new Color(239, 238, 224, 255));
 
         var selectedState = research.GetNodeState(selected);
         var stateText = selectedState switch
@@ -4688,7 +4706,9 @@ internal static class FactoryGameApp
                     ? new Color(220, 170, 110, 255)
                     : new Color(140, 148, 142, 255));
 
-        DrawUiText($"Costo: {FormatUnlockRequirement(selected.Unlock)}", detailX + 16, detailY + 74, 15,
+        DrawUiText(
+            TruncateUiText($"Costo: {FormatUnlockRequirement(selected.Unlock)}", 15, detailW - 32),
+            detailX + 16, detailY + 74, 15,
             new Color(164, 173, 168, 255));
 
         var prereqLabel = selected.Requires.Count == 0
@@ -4764,9 +4784,10 @@ internal static class FactoryGameApp
                 var label = slot.Id == GameSaveStore.ContinueSlotId
                     ? "Continua (salvataggio automatico)"
                     : slot.Id;
-                DrawUiText(
+                var row = TruncateUiText(
                     $"{label}  ·  seed {slot.Seed}  ·  ${slot.Money}  ·  {slot.MapWidth}×{slot.MapHeight}",
-                    76, y + 12, 18, new Color(220, 224, 214, 255));
+                    18, listW - 32);
+                DrawUiText(row, 76, y + 12, 18, new Color(220, 224, 214, 255));
             }
 
             DrawMenuButton(actionsX, 150, 280, 44, "Carica");
@@ -4855,8 +4876,16 @@ internal static class FactoryGameApp
         if (!string.IsNullOrEmpty(statusMessage))
         {
             var label = statusMessage!;
+            var maxBox = Math.Min(560, ScreenWidth - 40);
             var textW = MeasureUiText(label, 16);
-            var boxW = Math.Clamp(textW + 24, 160, Math.Min(560, ScreenWidth - 40));
+            var boxW = Math.Clamp(textW + 24, 160, maxBox);
+            if (textW + 24 > maxBox)
+            {
+                label = TruncateUiText(label, 16, maxBox - 28);
+                textW = MeasureUiText(label, 16);
+                boxW = Math.Clamp(textW + 24, 160, maxBox);
+            }
+
             var remaining = StatusToastUntil - Raylib.GetTime();
             var alpha = remaining < 0.6
                 ? (int)Math.Clamp(remaining / 0.6 * 200, 0, 200)
@@ -4865,7 +4894,7 @@ internal static class FactoryGameApp
                 ? (int)Math.Clamp(remaining / 0.6 * 255, 0, 255)
                 : 255;
             Raylib.DrawRectangle(ViewportLeft + 16, ViewportTop + 10, boxW, 28, new Color(10, 14, 14, alpha));
-            var toastColor = IsErrorStatusToast(label)
+            var toastColor = IsErrorStatusToast(statusMessage!)
                 ? new Color(235, 140, 110, textAlpha)
                 : new Color(112, 218, 145, textAlpha);
             DrawUiText(label, ViewportLeft + 24, ViewportTop + 16, 16, toastColor);
@@ -4939,14 +4968,17 @@ internal static class FactoryGameApp
 
         Raylib.DrawRectangle(x, y, panelW, panelH, new Color(10, 14, 14, 210));
         Raylib.DrawRectangleLines(x, y, panelW, panelH, UiTheme.AccentDim);
-        DrawUiText($"OBIETTIVO · {level.Name}", x + 10, y + 6, 13, UiTheme.Accent);
+        DrawUiText(
+            TruncateUiText($"OBIETTIVO · {level.Name}", 13, panelW - 20),
+            x + 10, y + 6, 13, UiTheme.Accent);
 
         for (var i = 0; i < objectives.Count; i++)
         {
             var objective = objectives[i];
             var current = CampaignProgress.GetObjectiveCurrent(objective, wallet, session, research);
             var done = CampaignProgress.IsObjectiveComplete(objective, wallet, session, research);
-            var label = CampaignCatalog.FormatObjectiveProgress(objective, current);
+            var label = TruncateUiText(
+                CampaignCatalog.FormatObjectiveProgress(objective, current), 12, panelW - 20);
             DrawUiText(label, x + 10, y + UiTheme.S(28) + i * lineH, 12,
                 done ? new Color(120, 228, 150, 255) : UiTheme.TextPrimary);
         }
@@ -5133,7 +5165,9 @@ internal static class FactoryGameApp
             _ => string.Empty
         };
         // Keep cost inside the header so it never collides with the system overlay below.
-        DrawUiText(cost, 16, Math.Min(48, HeaderHeight - 16), 12, new Color(164, 173, 168, 255));
+        DrawUiText(
+            TruncateUiText(cost, 12, Math.Max(120, HeaderIconX(2) - 40)),
+            16, Math.Min(48, HeaderHeight - 16), 12, new Color(164, 173, 168, 255));
 
         var mouse = Raylib.GetMousePosition();
         // Icon buttons right → left: Menu (0), Ricerca (1), Impostazioni (2).

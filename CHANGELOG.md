@@ -16,8 +16,10 @@ Polish completo sopra **0.2.10**: UX/copy IT, feedback, HUD, ghost placement —
 ### Aggiunto / migliorato
 
 - **Copy IT**: tutorial Potenza, dock Sdop/Selez/Pot., Ingresso/Uscita, magazzino (no “stock”), toast potenza/raggio, Menu principale, Ricerca, segnaposto
+- **Font HUD**: atlas con — → … ’ ✓ Δ (niente più `?` ripetuti); filtro Point + spacing più stretto (testo meno granuloso)
+- **Overflow**: truncate toast/home/ricerca/campagne/save/header; Mercato righe dinamiche
 - **Feedback**: toast errore in ambra; refuse place nastri/logistica; salvataggio Esc con “Partita salvata.”; elimina slot a doppia conferma
-- **HUD**: strip risorse overflow (+N, priorità stock); Mercato righe dinamiche; Fabbrica Pot. + tooltip legenda M/F/A/N/G/P; Home centrata; save manager responsive
+- **HUD**: strip risorse overflow (+N, priorità stock); Fabbrica Pot. + tooltip legenda M/F/A/N/G/P; Home centrata; save manager responsive
 - **Ghost**: silhouette anche se invalido; cerchio raggio nodi T1/T2
 - **Campagna**: obiettivo hit-test (no click-through); label Magazzino; vittoria “Menu principale”
 - **Docs**: README allineato a 0.2.11

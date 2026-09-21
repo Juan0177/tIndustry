@@ -38,6 +38,7 @@ Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [r
 | **Economia** | Stock-first · **Mercato dinamico** (prezzi reagiscono allo stock) · upgrade CORE |
 | **Grafica** | Glow forno, trivella idle, ombre soft · **atlas icone** (una texture) |
 | **Progressione** | Campagna **10 livelli** · tech tree con **zoom + path highlight** · tutorial **14** step |
+| **Polish 0.2.11** | Copy IT coerente · toast errore · strip overflow · ghost raggio nodi · save confirm |
 
 Non è combat Mindustry né idle clicker: conta il **layout** e il **reinvestimento**.
 
