@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Spike root: draws a small grid, runs one BeltLane from Shared (content.json rates),
-/// and hosts a static miner sprite (no drill / tip animation — matches Raylib).
+/// Spike root: grid + Mindustry-style scrolling belt (UV/shader) + items riding on top
+/// + static miner (no drill AnimationPlayer). Belt scroll speed = content.json rate.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -14,32 +14,34 @@ public partial class SpikeWorld : Node2D
     public const int MapHeight = 16;
 
     private BeltLane? _belt;
+    private ScrollingBeltStrip? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Label? _hud;
     private float _spawnAccum;
     private string _contentPath = "";
     private ConveyorDefinition? _beltDef;
+    private List<GridPosition> _beltPath = [];
 
     public override void _Ready()
     {
         _contentPath = ResolveContentPath();
         _beltDef = ConveyorContent.RequireBelt(_contentPath, "conveyor-basic");
 
-        var path = new List<GridPosition>();
+        _beltPath = [];
         for (var x = 4; x <= 14; x++)
         {
-            path.Add(new GridPosition(x, 8));
+            _beltPath.Add(new GridPosition(x, 8));
         }
 
-        _belt = new BeltLane(path, Direction.East, _beltDef);
+        _belt = new BeltLane(_beltPath, Direction.East, _beltDef);
         _itemsLayer = GetNode<Node2D>("Items");
         _hud = GetNode<Label>("Hud/Status");
 
-        DrawStaticBeltTiles();
+        BuildScrollingBelt();
         UpdateHud();
 
-        // Auto-screenshot after a short settle (for spike evidence / headless capture).
+        // Evidence capture after settle (store media + artifacts).
         var timer = GetTree().CreateTimer(4.0);
         timer.Timeout += SaveSpikeScreenshot;
     }
@@ -95,29 +97,22 @@ public partial class SpikeWorld : Node2D
         }
     }
 
-    private void DrawStaticBeltTiles()
+    private void BuildScrollingBelt()
     {
-        if (_belt is null)
+        if (_belt is null || _beltDef is null)
         {
             return;
         }
 
         var belts = GetNode<Node2D>("Belts");
-        var tex = GD.Load<Texture2D>("res://assets/conveyor-basic.png");
-        foreach (var cell in _belt.Cells)
+        foreach (var child in belts.GetChildren())
         {
-            var sprite = new Sprite2D
-            {
-                Texture = tex,
-                Centered = true,
-                Position = CellCenter(cell.Position),
-                Scale = new Vector2(0.9f, 0.9f),
-                Modulate = new Color(0.85f, 0.9f, 1f)
-            };
-            // conveyor-basic.png arrow points roughly up; -90° faces east (belt Direction).
-            sprite.RotationDegrees = -90f;
-            belts.AddChild(sprite);
+            child.QueueFree();
         }
+
+        _beltVisual = new ScrollingBeltStrip { Name = "ScrollingBelt" };
+        belts.AddChild(_beltVisual);
+        _beltVisual.Configure(_beltPath, _belt.Direction, _beltDef.RateItemsPerSecond, TileSize);
     }
 
     private void SyncItemSprites()
@@ -171,9 +166,10 @@ public partial class SpikeWorld : Node2D
         }
 
         var count = _belt.Cells.Sum(c => c.Items.Count);
+        var scroll = _beltVisual?.ScrollTiles ?? 0f;
         _hud.Text =
-            $"tIndustry Godot spike  |  belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}\n" +
-            "WASD / middle-drag pan · wheel zoom · static miner (no drill anim)";
+            $"tIndustry Godot spike  |  belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}  |  scroll={scroll:0.00}\n" +
+            "WASD / middle-drag pan · wheel zoom · Mindustry belt scroll · static miner";
     }
 
     private static Vector2 CellCenter(GridPosition cell) =>
@@ -181,7 +177,6 @@ public partial class SpikeWorld : Node2D
 
     private static string ResolveContentPath()
     {
-        // Prefer repo data/ when running from editor / source tree.
         var candidates = new[]
         {
             ProjectSettings.GlobalizePath("res://../data/content.json"),
@@ -206,7 +201,6 @@ public partial class SpikeWorld : Node2D
     private void SaveSpikeScreenshot()
     {
         var img = GetViewport().GetTexture().GetImage();
-        // Prefer store media path if mounted; else write under godot/artifacts
         var mediaCandidates = new[]
         {
             "/cursor/stores/bc-6a5b42f7-8a62-4dc2-b71f-4a3a4f9c2232/media",
@@ -235,20 +229,17 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        // Full map overview + a second crop focused on miner+belt.
-        var mapPath = Path.Combine(destDir, "godot-spike-map.png");
+        var mapPath = Path.Combine(destDir, "godot-belt-mindustry-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
-        // Crop around miner (tile 3,8) through belt mid (tile 10,8) in screen space roughly.
         var crop = img.GetRegion(new Rect2I(80, 280, 720, 280));
-        var beltPath = Path.Combine(destDir, "godot-spike-belt.png");
+        var beltPath = Path.Combine(destDir, "godot-belt-mindustry-close.png");
         err = crop.SavePng(beltPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {beltPath}" : $"Belt crop failed: {err}");
 
-        var minerCrop = img.GetRegion(new Rect2I(40, 300, 280, 240));
-        var minerPath = Path.Combine(destDir, "godot-spike-miner-static.png");
-        err = minerCrop.SavePng(minerPath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {minerPath}" : $"Miner crop failed: {err}");
+        // Also keep legacy spike names for doc continuity.
+        img.SavePng(Path.Combine(destDir, "godot-spike-map.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-spike-belt.png"));
     }
 }
