@@ -54,6 +54,15 @@ internal static class FactoryGameApp
     private const int SeedArcipelago = 9001;
     private static UiTheme.BuildCategory DockCategory = UiTheme.BuildCategory.Logistics;
     private static string? DockSelectedId = "conveyor-basic";
+    /// <summary>Filter item applied when placing a new sorter (F cycles; default ferro grezzo).</summary>
+    private static string SorterBrushFilterId = "iron-ore";
+    private static readonly string[] SorterFilterItemIds =
+    [
+        "iron-ore",
+        "copper-ore",
+        "iron-plate",
+        "copper-wire"
+    ];
     private static GameSettings? SettingsDraft;
     private static float SettingsScrollY;
     private static float EntryAnimT = 1f;
@@ -172,6 +181,7 @@ internal static class FactoryGameApp
         var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
         var junctionConveyor = content.Conveyors.Single(definition => definition.Id == "junction");
         var splitterConveyor = content.Conveyors.Single(definition => definition.Id == "splitter");
+        var sorterConveyor = content.Conveyors.Single(definition => definition.Id == "sorter");
         var bridgeConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-bridge");
         var smeltRecipe = content.Recipes.Single(recipe => recipe.Id == "smelt-iron");
         var wireRecipe = content.Recipes.Single(recipe => recipe.Id == "craft-copper-wire");
@@ -238,6 +248,23 @@ internal static class FactoryGameApp
                 camera.SetZoom(2.0f);
                 // Warm sim so adjacent transfer / I/O tints are visible in the still.
                 for (var warm = 0; warm < 90; warm++)
+                {
+                    world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
+                }
+            }
+            else if (captureMode == "sorter")
+            {
+                SeedCaptureSorter(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor, sorterConveyor);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.Sorter;
+                DockCategory = UiTheme.BuildCategory.Logistics;
+                DockSelectedId = "sorter";
+                SorterBrushFilterId = "iron-ore";
+                camera!.CenterOnTile(new GridPosition(8, 6), BaseTileSize, ViewportWidth, ViewportHeight);
+                camera.SetZoom(2.2f);
+                for (var warm = 0; warm < 100; warm++)
                 {
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
@@ -446,6 +473,7 @@ internal static class FactoryGameApp
                         fastConveyor,
                         junctionConveyor,
                         splitterConveyor,
+                        sorterConveyor,
                         bridgeConveyor,
                         smeltRecipe,
                         wireRecipe,
@@ -541,6 +569,7 @@ internal static class FactoryGameApp
                         fastConveyor,
                         junctionConveyor,
                         splitterConveyor,
+                        sorterConveyor,
                         bridgeConveyor,
                         selectedConveyor,
                         smeltRecipe,
@@ -1105,6 +1134,59 @@ internal static class FactoryGameApp
         }
     }
 
+    /// <summary>
+    /// Capture scene for --capture-sorter: mixed cargo into a filter facing east.
+    /// Match (iron-ore) goes forward; overflow (copper-ore) exits north.
+    /// </summary>
+    private static void SeedCaptureSorter(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition sorterConveyor)
+    {
+        research.ForceUnlock("sorter");
+        wallet.AddMoney(500);
+        wallet.AddMaterial("iron-plate", 80);
+        wallet.AddMaterial("copper-wire", 20);
+
+        var sorterAt = new GridPosition(8, 6);
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(6, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(7, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            sorterAt, Direction.East, sorterConveyor, wallet, research, session, world.CanPlaceConveyor));
+        conveyors.Cells[sorterAt].SetFilterItem("iron-ore");
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(9, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(10, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 5), Direction.North, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 4), Direction.North, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 7), Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+
+        var feed = conveyors.Cells[new GridPosition(6, 6)];
+        feed.TryInsert(new TransportedItem(90001, "iron-ore"));
+        // Second item after warm ticks via extra insert on neighbor during warm loop is awkward;
+        // place copper already mid-line so both routes are visible.
+        conveyors.Cells[new GridPosition(7, 6)].TryInsert(new TransportedItem(90002, "copper-ore"));
+
+        static void AssertPlace(bool ok)
+        {
+            if (!ok)
+            {
+                throw new InvalidOperationException("SeedCaptureSorter: piazzamento fallito.");
+            }
+        }
+    }
+
     private static WorldCamera CreateCameraFocusedOnCore(FactoryWorld world)
     {
         var camera = new WorldCamera(0, 0);
@@ -1636,6 +1718,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
@@ -1863,6 +1946,12 @@ internal static class FactoryGameApp
             SyncDockSelection(tool, selectedConveyor, direction);
         }
 
+        if (Raylib.IsKeyPressed(KeyboardKey.Zero) && research.IsUnlocked("sorter"))
+        {
+            tool = BuildTool.Sorter;
+            SyncDockSelection(tool, selectedConveyor, direction);
+        }
+
         if (Raylib.IsKeyPressed(KeyboardKey.Eight) && research.IsUnlocked("conveyor-bridge"))
         {
             tool = BuildTool.Bridge;
@@ -1873,6 +1962,24 @@ internal static class FactoryGameApp
         {
             tool = BuildTool.Generator;
             SyncDockSelection(tool, selectedConveyor, direction);
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.F))
+        {
+            var hover = MouseCell(mouse, camera, world);
+            if (hover is { } hoverPos
+                && conveyors.Cells.TryGetValue(hoverPos, out var hoverCell)
+                && hoverCell.Kind == LogisticsKind.Sorter)
+            {
+                hoverCell.CycleFilterItem(SorterFilterItemIds);
+                SorterBrushFilterId = hoverCell.FilterItemId ?? "iron-ore";
+                statusMessage = $"Filtro selezionatore: {UiTheme.ItemDisplayName(SorterBrushFilterId)}";
+            }
+            else if (tool == BuildTool.Sorter)
+            {
+                CycleSorterBrushFilter();
+                statusMessage = $"Filtro pennello: {UiTheme.ItemDisplayName(SorterBrushFilterId)}";
+            }
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.Q))
@@ -2041,6 +2148,28 @@ internal static class FactoryGameApp
                     session,
                     world.CanPlaceConveyor))
                 {
+                    ConnectAdjacentMiner(world, conveyors, position);
+                    ConnectAdjacentSmelter(world, conveyors, position);
+                    ConnectAdjacentAssembler(world, conveyors, position);
+                    ConnectToAdjacentCore(world, conveyors, position);
+                }
+            }
+            else if (tool == BuildTool.Sorter && research.IsUnlocked("sorter"))
+            {
+                if (conveyors.TryPlace(
+                    position,
+                    direction,
+                    sorterConveyor,
+                    wallet,
+                    research,
+                    session,
+                    world.CanPlaceConveyor))
+                {
+                    if (conveyors.Cells.TryGetValue(position, out var sorterCell))
+                    {
+                        sorterCell.SetFilterItem(SorterBrushFilterId);
+                    }
+
                     ConnectAdjacentMiner(world, conveyors, position);
                     ConnectAdjacentSmelter(world, conveyors, position);
                     ConnectAdjacentAssembler(world, conveyors, position);
@@ -2363,6 +2492,10 @@ internal static class FactoryGameApp
             case BuildTool.Splitter:
                 DockCategory = UiTheme.BuildCategory.Logistics;
                 DockSelectedId = "splitter";
+                break;
+            case BuildTool.Sorter:
+                DockCategory = UiTheme.BuildCategory.Logistics;
+                DockSelectedId = "sorter";
                 break;
             case BuildTool.Bridge:
                 DockCategory = UiTheme.BuildCategory.Logistics;
@@ -3760,6 +3893,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         ConveyorDefinition selectedConveyor,
         RecipeDefinition smeltRecipe,
@@ -3776,19 +3910,19 @@ internal static class FactoryGameApp
         DrawWorld(world, conveyors, camera);
         DrawPreview(
             world, conveyors, wallet, research, camera, selectedConveyor,
-            junctionConveyor, splitterConveyor, bridgeConveyor,
+            junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, tool, direction);
         DrawHeader(
             wallet, research, session, market, economy, settings, basicConveyor, fastConveyor,
-            junctionConveyor, splitterConveyor, bridgeConveyor,
+            junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             selectedConveyor, minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             tool, direction, world, camera);
         DrawMercatoPanel(world, wallet, market);
         DrawStatusPanel(world, conveyors, research, wallet, session, economy);
         DrawBuildDock(
             wallet, research, selectedConveyor, direction, tool,
-            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
 
@@ -3964,6 +4098,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         ConveyorDefinition selectedConveyor,
         BuildingDefinition minerBuilding,
@@ -4008,6 +4143,7 @@ internal static class FactoryGameApp
                 : "Sblocca in Ricerca",
             BuildTool.Junction => FormatConveyorCost(junctionConveyor, research),
             BuildTool.Splitter => FormatConveyorCost(splitterConveyor, research),
+            BuildTool.Sorter => FormatConveyorCost(sorterConveyor, research),
             BuildTool.Bridge => FormatConveyorCost(bridgeConveyor, research),
             BuildTool.Conveyor => FormatConveyorCost(selectedConveyor, research),
             _ => economy.RefundPolicyNote
@@ -4119,6 +4255,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
@@ -4235,7 +4372,7 @@ internal static class FactoryGameApp
         DrawDockCostBar(
             dockX, barY, dockW, UiTheme.DockHoverBarHeight,
             barEntry, wallet, research,
-            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
     }
@@ -4284,6 +4421,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
@@ -4334,7 +4472,7 @@ internal static class FactoryGameApp
         DrawDockCostRow(
             barX, costY, barW, costH,
             entry, wallet,
-            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             hasRecipe ? entry.Hint : null);
     }
@@ -4412,6 +4550,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         BuildingDefinition minerBuilding,
         BuildingDefinition smelterBuilding,
@@ -4420,7 +4559,7 @@ internal static class FactoryGameApp
         string? usageHintFallback)
     {
         if (!TryResolveDockEntryCost(
-                entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+                entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
                 minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
                 out var money, out var materials))
         {
@@ -4519,6 +4658,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         BuildingDefinition minerBuilding,
         BuildingDefinition smelterBuilding,
@@ -4538,7 +4678,7 @@ internal static class FactoryGameApp
         }
 
         return TryResolveDockEntryCost(
-            entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, bridgeConveyor,
+            entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             out money, out materials);
     }
@@ -4549,6 +4689,7 @@ internal static class FactoryGameApp
         ConveyorDefinition fastConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         BuildingDefinition minerBuilding,
         BuildingDefinition smelterBuilding,
@@ -4594,6 +4735,10 @@ internal static class FactoryGameApp
                 money = splitterConveyor.MoneyCost;
                 materials = splitterConveyor.BuildCost;
                 return true;
+            case "sorter":
+                money = sorterConveyor.MoneyCost;
+                materials = sorterConveyor.BuildCost;
+                return true;
             case "bridge":
                 // Bridge places two heads — mirror placement cost.
                 money = bridgeConveyor.MoneyCost * 2;
@@ -4637,6 +4782,7 @@ internal static class FactoryGameApp
             "conveyor-fast" => new Color(90, 200, 220, 255),
             "junction" => new Color(140, 180, 140, 255),
             "splitter" => new Color(170, 190, 110, 255),
+            "sorter" => new Color(200, 160, 90, 255),
             "bridge" => new Color(150, 160, 200, 255),
             "generator" => new Color(230, 200, 70, 255),
             "remove" => new Color(220, 100, 90, 255),
@@ -5176,6 +5322,9 @@ internal static class FactoryGameApp
             case LogisticsKind.Splitter:
                 DrawSplitterGlyph(center, conveyor.Direction, alpha, tileSize);
                 break;
+            case LogisticsKind.Sorter:
+                DrawSorterGlyph(center, conveyor.Direction, conveyor.FilterItemId, alpha, tileSize);
+                break;
             case LogisticsKind.Bridge:
                 DrawBridgeGlyph(conveyor, fx, fy, tileSize, alpha);
                 break;
@@ -5240,6 +5389,64 @@ internal static class FactoryGameApp
         var tick = tileSize * 0.75f;
         DrawDirectionMark(center + DirectionVector(left) * (8f * tileSize / BaseTileSize), left, alpha, tick);
         DrawDirectionMark(center + DirectionVector(right) * (8f * tileSize / BaseTileSize), right, alpha, tick);
+    }
+
+    private static void DrawSorterGlyph(
+        Vector2 center,
+        Direction direction,
+        string? filterItemId,
+        int alpha,
+        float tileSize)
+    {
+        var x = (int)(center.X - tileSize / 2f);
+        var y = (int)(center.Y - tileSize / 2f);
+        var size = (int)tileSize;
+        var left = DirectionMath.Left(direction);
+        var right = DirectionMath.Right(direction);
+        var input = DirectionMath.Opposite(direction);
+
+        Raylib.DrawRectangle(x + size / 5, y + size / 5, size - size * 2 / 5, size - size * 2 / 5,
+            new Color(38, 43, 42, alpha));
+        DrawConveyorArm(center, input, alpha, tileSize);
+        DrawConveyorArm(center, direction, alpha, tileSize);
+        DrawConveyorArm(center, left, alpha, tileSize);
+        DrawConveyorArm(center, right, alpha, tileSize);
+        Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, size / 2,
+            new Color(120, 92, 48, alpha));
+        DrawConveyorFlowChevrons(center, direction, alpha, tileSize);
+        DrawDirectionMark(center, direction, alpha, tileSize);
+        var tick = tileSize * 0.7f;
+        DrawDirectionMark(center + DirectionVector(left) * (8f * tileSize / BaseTileSize), left, alpha, tick);
+        DrawDirectionMark(center + DirectionVector(right) * (8f * tileSize / BaseTileSize), right, alpha, tick);
+
+        var filter = filterItemId ?? "iron-ore";
+        var iconSize = Math.Max(8, (int)(tileSize * 0.38f));
+        var ix = (int)(center.X - iconSize / 2f);
+        var iy = (int)(center.Y - iconSize / 2f);
+        Raylib.DrawRectangle(ix - 1, iy - 1, iconSize + 2, iconSize + 2, new Color(24, 20, 12, alpha));
+        if (tileSize >= 14f && GameIcons.Has(filter))
+        {
+            UiTheme.DrawItemIcon(filter, ix, iy, iconSize);
+        }
+        else
+        {
+            Raylib.DrawRectangle(ix, iy, iconSize, iconSize, UiTheme.ItemColor(filter));
+        }
+    }
+
+    private static void CycleSorterBrushFilter()
+    {
+        var index = 0;
+        for (var i = 0; i < SorterFilterItemIds.Length; i++)
+        {
+            if (string.Equals(SorterFilterItemIds[i], SorterBrushFilterId, StringComparison.Ordinal))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        SorterBrushFilterId = SorterFilterItemIds[(index + 1) % SorterFilterItemIds.Length];
     }
 
     private static void DrawBridgeGlyph(
@@ -5386,6 +5593,7 @@ internal static class FactoryGameApp
         ConveyorDefinition selectedConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
+        ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
@@ -5408,6 +5616,7 @@ internal static class FactoryGameApp
         {
             BuildTool.Junction => junctionConveyor,
             BuildTool.Splitter => splitterConveyor,
+            BuildTool.Sorter => sorterConveyor,
             BuildTool.Bridge => bridgeConveyor,
             _ => selectedConveyor
         };
@@ -5417,7 +5626,7 @@ internal static class FactoryGameApp
                 && !conveyors.Cells.ContainsKey(position)
                 && research.IsUnlocked(selectedConveyor.Id)
                 && wallet.CanAfford(selectedConveyor.MoneyCost, selectedConveyor.BuildCost),
-            BuildTool.Junction or BuildTool.Splitter => world.CanPlaceConveyor(position)
+            BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter => world.CanPlaceConveyor(position)
                 && !conveyors.Cells.ContainsKey(position)
                 && research.IsUnlocked(logisticsDef.Id)
                 && wallet.CanAfford(logisticsDef.MoneyCost, logisticsDef.BuildCost),
@@ -5473,11 +5682,15 @@ internal static class FactoryGameApp
             var preview = new ConveyorCell(position, direction, selectedConveyor);
             DrawConveyor(preview, conveyors, world, screen.X, screen.Y, tileSize, true);
         }
-        else if (tool is BuildTool.Junction or BuildTool.Splitter or BuildTool.Bridge
+        else if (tool is BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter or BuildTool.Bridge
             && valid
             && !conveyors.Cells.ContainsKey(position))
         {
-            var preview = new ConveyorCell(position, direction, logisticsDef);
+            var preview = new ConveyorCell(
+                position,
+                direction,
+                logisticsDef,
+                filterItemId: tool == BuildTool.Sorter ? SorterBrushFilterId : null);
             DrawConveyor(preview, conveyors, world, screen.X, screen.Y, tileSize, true);
         }
         else if (tool == BuildTool.Miner && valid)

@@ -69,6 +69,25 @@
       "kind": "splitter"
     },
     {
+      "id": "sorter",
+      "tier": 1,
+      "rateItemsPerSecond": 0.75,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 22,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 3 },
+        { "itemId": "copper-wire", "amount": 1 }
+      ],
+      "unlock": {
+        "money": 140,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 18 }
+        ]
+      },
+      "kind": "sorter"
+    },
+    {
       "id": "conveyor-bridge",
       "tier": 1,
       "rateItemsPerSecond": 0.5,
@@ -185,6 +204,19 @@
       },
       "isStub": false,
       "prerequisites": ["junction"]
+    },
+    {
+      "id": "sorter",
+      "displayName": "Selezionatore",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 140,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 18 }
+        ]
+      },
+      "isStub": false
     },
     {
       "id": "conveyor-bridge",

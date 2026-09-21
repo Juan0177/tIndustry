@@ -13,7 +13,8 @@ public enum BuildTool
     Splitter,
     Bridge,
     Assembler,
-    Generator
+    Generator,
+    Sorter
 }
 
 /// <summary>
@@ -299,6 +300,19 @@ public static class UiTheme
         return "?";
     }
 
+    public static string ItemDisplayName(string itemId)
+    {
+        foreach (var item in InventoryItems)
+        {
+            if (item.ItemId == itemId)
+            {
+                return item.DisplayName;
+            }
+        }
+
+        return itemId;
+    }
+
     public static string CategoryLabel(ItemCategory category) => category switch
     {
         ItemCategory.All => "Tutto",
@@ -349,6 +363,7 @@ public static class UiTheme
         "conveyor-fast" => "Veloce",
         "junction" => "Incroc",
         "splitter" => "Split",
+        "sorter" => "Filtro",
         "bridge" => "Ponte",
         "remove" => "Rimuovi",
         _ => entry.Label.Length <= 6 ? entry.Label : entry.Label[..5] + "…"
@@ -404,6 +419,8 @@ public static class UiTheme
             Hint: "Incrocio a croce (6)"),
         new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",
             Hint: "Nastro a T · alterna sinistra/destra"),
+        new("sorter", "Selezionatore", "Se", DockEntryKind.BuildTool, Tool: BuildTool.Sorter, ResearchId: "sorter",
+            Hint: "Filtro item · match avanti, altri ai lati · F cicla"),
         new("bridge", "Ponte", "Po", DockEntryKind.BuildTool, Tool: BuildTool.Bridge, ResearchId: "conveyor-bridge",
             Hint: "Ponte a due capi (8)")
     ];
@@ -574,6 +591,18 @@ public static class UiTheme
                     new Vector2(x + s, y + 2),
                     new Vector2(x + s, y + s - 2),
                     color);
+                break;
+            case "sorter":
+                // Funnel: inlet → center, side exits.
+                Raylib.DrawRectangle(x + 8, y + 4, s - 16, 6, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + s / 2),
+                    new Vector2(x + 10, y + 12),
+                    new Vector2(x + s - 10, y + 12),
+                    color);
+                Raylib.DrawRectangle(x + 2, y + s / 2 - 2, 10, 4, color);
+                Raylib.DrawRectangle(x + s - 12, y + s / 2 - 2, 10, 4, color);
+                Raylib.DrawRectangle(x + s / 2 - 3, y + s / 2, 6, s / 2 - 4, color);
                 break;
             case "bridge":
                 Raylib.DrawRectangle(x, y + s / 2 - 2, s, 4, color);

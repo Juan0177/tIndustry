@@ -24,6 +24,7 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `buildings/conveyor-basic.png` | Delapouite | plain-arrow |
 | `buildings/conveyor-fast.png` | Lorc | fast-arrow |
 | `buildings/splitter.png` | Delapouite | split-arrows |
+| `buildings/sorter.png` | (procedural) | funnel filter glyph |
 | `buildings/bridge.png` | Delapouite | cable-stayed-bridge |
 | `buildings/remove.png` | Lorc | cross-mark |
 | `categories/production.png` | Delapouite | factory |
