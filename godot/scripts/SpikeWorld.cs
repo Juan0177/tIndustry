@@ -40,7 +40,7 @@ public partial class SpikeWorld : Node2D
         UpdateHud();
 
         // Auto-screenshot after a short settle (for spike evidence / headless capture).
-        var timer = GetTree().CreateTimer(4.0);
+        var timer = GetTree().CreateTimer(2.0);
         timer.Timeout += SaveSpikeScreenshot;
     }
 
