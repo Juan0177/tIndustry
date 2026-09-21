@@ -287,6 +287,22 @@ internal static class FactoryGameApp
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
             }
+            else if (captureMode == "icons")
+            {
+                SeedCaptureIcons(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.Miner;
+                DockCategory = UiTheme.BuildCategory.Production;
+                DockSelectedId = "miner";
+                camera!.SetZoom(2.4f);
+                camera.CenterOnTile(
+                    new GridPosition(world!.StarterDepositOrigin.X + 3, world.StarterDepositOrigin.Y + 1),
+                    BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+                // No warm ticks — keep ferro/fili chips parked mid-belt for the still.
+            }
             else if (captureMode == "midgame")
             {
                 SeedCaptureMidgame(
@@ -1343,6 +1359,64 @@ internal static class FactoryGameApp
         {
             conveyors.TryPlace(minerSouth, Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
         }
+    }
+
+    /// <summary>
+    /// Capture scene for --capture-icons: Minatore dock=drill + belt ferro vs fili side-by-side.
+    /// </summary>
+    private static void SeedCaptureIcons(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor)
+    {
+        wallet.AddMoney(200);
+        wallet.AddMaterial("iron-plate", 40);
+        wallet.AddMaterial("iron-ore", 24);
+        wallet.AddMaterial("copper-wire", 24);
+
+        var minerBuilding = content.GetBuildingOrDefault("miner");
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(minerAt, Direction.East, conveyors, wallet, minerBuilding, session);
+
+        // Eastbound showcase belt: ferro then fili, mid-tile for readable glyphs.
+        var beltY = minerAt.Y + 1;
+        var startX = minerAt.X + MinerBuilding.Size;
+        for (var i = 0; i < 5; i++)
+        {
+            var at = new GridPosition(startX + i, beltY);
+            if (!world.CanPlaceConveyor(at))
+            {
+                break;
+            }
+
+            if (!conveyors.TryPlace(at, Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor))
+            {
+                continue;
+            }
+        }
+
+        void Park(GridPosition at, string itemId, long id, float progress)
+        {
+            if (!conveyors.Cells.TryGetValue(at, out var cell))
+            {
+                return;
+            }
+
+            cell.TryInsert(new TransportedItem(id, itemId));
+            if (cell.Items.Count > 0)
+            {
+                cell.Items[^1].Progress = progress;
+            }
+        }
+
+        Park(new GridPosition(startX, beltY), "iron-ore", 91001, 0.45f);
+        Park(new GridPosition(startX + 1, beltY), "copper-wire", 91002, 0.55f);
+        Park(new GridPosition(startX + 2, beltY), "iron-ore", 91003, 0.40f);
+        Park(new GridPosition(startX + 3, beltY), "copper-wire", 91004, 0.60f);
     }
 
     /// <summary>

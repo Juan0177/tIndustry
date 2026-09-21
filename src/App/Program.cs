@@ -36,8 +36,10 @@ if (!args.Contains("--console-demo"))
     var captureTechTree = args.Contains("--capture-tech-tree");
     var captureSorter = args.Contains("--capture-sorter");
     var captureMidgame = args.Contains("--capture-midgame");
+    var captureIcons = args.Contains("--capture-icons");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
-        || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter || captureMidgame;
+        || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
+        || captureMidgame || captureIcons;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -70,6 +72,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "midgame-phase6.png");
         captureMode = "midgame";
+    }
+    else if (captureIcons)
+    {
+        capturePath = Path.Combine("artifacts", "icons-drill-items.png");
+        captureMode = "icons";
     }
     else if (capture)
     {
