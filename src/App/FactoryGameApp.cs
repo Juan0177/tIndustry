@@ -7206,83 +7206,27 @@ internal static class FactoryGameApp
     }
 
     /// <summary>
-    /// Peak-style CORE upgrade affordance: CORE · ×N [icon] · +$cost (matches dock cost footer).
-    /// Falls back to compact text if the icon row would overflow the button.
+    /// CORE upgrade affordance — compact Italian cost text (icons overflowed on narrow Fabbrica).
     /// </summary>
     private static void DrawCoreUpgradeButton(
         int x, int y, int width, int height, CoreUpgradeDefinition upgrade, EconomyWallet wallet)
     {
-        Raylib.DrawRectangle(x, y, width, height, new Color(45, 52, 50, 255));
-
-        const int fontSize = 12;
-        var iconSize = Math.Min(UiTheme.S(14), Math.Max(10, height - UiTheme.S(8)));
-        var sep = " · ";
-        var sepW = MeasureUiText(sep, fontSize);
-        const string name = "CORE";
-        var nameW = MeasureUiText(name, fontSize);
-        var moneyLabel = $"+${upgrade.MoneyCost}";
-        var moneyW = MeasureUiText(moneyLabel, fontSize);
-
-        var matChunks = new List<(string Qty, int QtyW, string ItemId, int Amount)>();
-        var matsW = 0;
-        foreach (var mat in upgrade.BuildCost.Where(m => m.Amount > 0))
-        {
-            var qty = $"×{mat.Amount}";
-            var qw = MeasureUiText(qty, fontSize);
-            matChunks.Add((qty, qw, mat.ItemId, mat.Amount));
-            matsW += sepW + qw + UiTheme.S(2) + iconSize;
-        }
-
-        var totalW = nameW + matsW + sepW + moneyW;
-        var pad = UiTheme.S(4);
-        if (totalW + pad * 2 > width || matChunks.Count == 0)
-        {
-            // Compact Italian text when icons won't fit (or no materials).
-            var fallback = FormatCoreUpgradeCostText(upgrade);
-            var tw = MeasureUiText(fallback, fontSize);
-            var text = tw + pad * 2 <= width
-                ? fallback
-                : TruncateUiText(fallback, fontSize, width - pad * 2);
-            tw = MeasureUiText(text, fontSize);
-            DrawUiText(
-                text,
-                x + Math.Max(pad, (width - tw) / 2),
-                y + Math.Max(2, (height - UiTheme.S(fontSize)) / 2),
-                fontSize,
-                new Color(215, 219, 210, 255));
-            return;
-        }
-
-        var cursor = x + Math.Max(pad, (width - totalW) / 2);
-        var textY = y + Math.Max(2, (height - UiTheme.S(fontSize)) / 2);
-        var iconY = y + Math.Max(2, (height - iconSize) / 2);
-
-        DrawUiText(name, cursor, textY, fontSize, new Color(215, 219, 210, 255));
-        cursor += nameW;
-
         var canAfford = wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost);
-        foreach (var (qty, qw, itemId, amount) in matChunks)
-        {
-            DrawUiText(sep, cursor, textY, fontSize, UiTheme.TextMuted);
-            cursor += sepW;
-            var qtyColor = wallet.MaterialCount(itemId) >= amount
-                ? new Color(215, 219, 210, 255)
-                : new Color(220, 120, 100, 255);
-            DrawUiText(qty, cursor, textY, fontSize, qtyColor);
-            cursor += qw + UiTheme.S(2);
-            Raylib.DrawRectangle(cursor - 1, iconY - 1, iconSize + 2, iconSize + 2, new Color(24, 28, 30, 255));
-            UiTheme.DrawItemIcon(itemId, cursor, iconY, iconSize);
-            cursor += iconSize;
-        }
+        Raylib.DrawRectangle(x, y, width, height,
+            canAfford ? new Color(45, 52, 50, 255) : new Color(48, 36, 34, 255));
+        Raylib.DrawRectangleLines(x, y, width, height,
+            canAfford ? UiTheme.AccentDim : new Color(140, 80, 70, 255));
 
-        DrawUiText(sep, cursor, textY, fontSize, UiTheme.TextMuted);
-        cursor += sepW;
+        const int fontSize = 11;
+        var pad = UiTheme.S(4);
+        var label = TruncateUiText(FormatCoreUpgradeCostText(upgrade), fontSize, width - pad * 2);
+        var tw = MeasureUiText(label, fontSize);
         DrawUiText(
-            moneyLabel,
-            cursor,
-            textY,
+            label,
+            x + Math.Max(pad, (width - tw) / 2),
+            y + Math.Max(2, (height - UiTheme.S(fontSize)) / 2),
             fontSize,
-            canAfford ? UiTheme.MoneyGreen : new Color(220, 120, 100, 255));
+            canAfford ? new Color(215, 219, 210, 255) : new Color(230, 150, 130, 255));
     }
 
     /// <summary>

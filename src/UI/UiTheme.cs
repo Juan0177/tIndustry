@@ -108,8 +108,8 @@ public static class UiTheme
         new("lead-ore", "Piombo grezzo", "Piombo", "Pb", ItemCategory.Materials),
         new("titanium-ore", "Titanio grezzo", "Titanio", "Ti", ItemCategory.Materials),
         new("iron-plate", "Lastra di ferro", "Lastre", "Ls", ItemCategory.Intermediate),
-        new("lead-plate", "Lastra di piombo", "Pb lastre", "Lp", ItemCategory.Intermediate),
-        new("titanium-plate", "Lastra di titanio", "Ti lastre", "Tp", ItemCategory.Intermediate),
+        new("lead-plate", "Lastra di piombo", "Pb Ls", "Lp", ItemCategory.Intermediate),
+        new("titanium-plate", "Lastra di titanio", "Ti Ls", "Tp", ItemCategory.Intermediate),
         new("graphite", "Grafite", "Grafite", "Gr", ItemCategory.Intermediate),
         new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products),
         new("silicon", "Silicio", "Silicio", "Si", ItemCategory.Products)
@@ -179,14 +179,14 @@ public static class UiTheme
         var regularPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans.ttf");
         var boldPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans-Bold.ttf");
         // Bake larger than typical draw sizes so UI scale downsamples cleanly.
-        // 128×scale + Point filter keeps HUD text sharp (Bilinear looked grainy/soft).
-        var atlasSize = Math.Clamp((int)MathF.Round(128f * Scale), 96, 256);
+        // Large atlas + Bilinear = smooth edges without the Point “pixel sand” look.
+        var atlasSize = Math.Clamp((int)MathF.Round(160f * Scale), 128, 320);
         var codepoints = BuildUiCodepoints();
 
         if (File.Exists(regularPath))
         {
             uiFont = Raylib.LoadFontEx(regularPath, atlasSize, codepoints, codepoints.Length);
-            Raylib.SetTextureFilter(uiFont.Texture, TextureFilter.Point);
+            Raylib.SetTextureFilter(uiFont.Texture, TextureFilter.Bilinear);
             ownsFonts = true;
         }
         else
@@ -198,7 +198,7 @@ public static class UiTheme
         if (File.Exists(boldPath))
         {
             uiFontBold = Raylib.LoadFontEx(boldPath, atlasSize, codepoints, codepoints.Length);
-            Raylib.SetTextureFilter(uiFontBold.Texture, TextureFilter.Point);
+            Raylib.SetTextureFilter(uiFontBold.Texture, TextureFilter.Bilinear);
         }
         else
         {
