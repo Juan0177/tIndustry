@@ -136,6 +136,181 @@
           "label": "Stock 20 lastre"
         }
       ],
+      "unlocksNext": "level-06-corrente"
+    },
+    {
+      "id": "level-06-corrente",
+      "name": "Corrente",
+      "description": "Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).",
+      "seed": 5501,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 280,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 40 },
+        { "itemId": "copper-wire", "amount": 14 },
+        { "itemId": "coal", "amount": 24 }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "generator",
+          "amount": 1,
+          "label": "Sblocca il generatore"
+        },
+        {
+          "type": "unlockResearch",
+          "structureId": "power-node",
+          "amount": 1,
+          "label": "Sblocca il Nodo T1"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "coal",
+          "amount": 16,
+          "label": "Stock 16 carbone"
+        }
+      ],
+      "unlocksNext": "level-07-piombo"
+    },
+    {
+      "id": "level-07-piombo",
+      "name": "Venatura di piombo",
+      "description": "Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.",
+      "seed": 6103,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 320,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 35 },
+        { "itemId": "copper-wire", "amount": 12 },
+        { "itemId": "coal", "amount": 18 }
+      ],
+      "objectives": [
+        {
+          "type": "stockItem",
+          "itemId": "lead-ore",
+          "amount": 10,
+          "label": "Stock 10 piombo grezzo"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "lead-plate",
+          "amount": 6,
+          "label": "Stock 6 lastre di piombo"
+        }
+      ],
+      "unlocksNext": "level-08-logistica"
+    },
+    {
+      "id": "level-08-logistica",
+      "name": "Logistica selettiva",
+      "description": "Sblocca il selezionatore e spezza i flussi: ore e lastre su corsie separate.",
+      "seed": 8802,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 350,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 50 },
+        { "itemId": "copper-wire", "amount": 16 }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "junction",
+          "amount": 1,
+          "label": "Sblocca l'incrocio"
+        },
+        {
+          "type": "unlockResearch",
+          "structureId": "sorter",
+          "amount": 1,
+          "label": "Sblocca il selezionatore"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "iron-plate",
+          "amount": 28,
+          "label": "Stock 28 lastre di ferro"
+        }
+      ],
+      "unlocksNext": "level-09-titanio"
+    },
+    {
+      "id": "level-09-titanio",
+      "name": "Titanio raro",
+      "description": "Deposito scarso, forno lento: accumula lastre di titanio e prepara la chimica.",
+      "seed": 4242,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 400,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 45 },
+        { "itemId": "copper-wire", "amount": 18 },
+        { "itemId": "coal", "amount": 30 },
+        { "itemId": "lead-plate", "amount": 8 }
+      ],
+      "objectives": [
+        {
+          "type": "stockItem",
+          "itemId": "titanium-ore",
+          "amount": 6,
+          "label": "Stock 6 titanio grezzo"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "titanium-plate",
+          "amount": 3,
+          "label": "Stock 3 lastre di titanio"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "silicon",
+          "amount": 4,
+          "label": "Stock 4 silicio"
+        }
+      ],
+      "unlocksNext": "level-10-espansione"
+    },
+    {
+      "id": "level-10-espansione",
+      "name": "Espansione T2",
+      "description": "Minatore T2 e Nastro T2: scala la foundry e chiudi con un surplus di mercato.",
+      "seed": 10101,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 450,
+      "startingMaterials": [
+        { "itemId": "iron-plate", "amount": 70 },
+        { "itemId": "copper-wire", "amount": 24 },
+        { "itemId": "coal", "amount": 20 },
+        { "itemId": "lead-plate", "amount": 6 }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "miner-advanced",
+          "amount": 1,
+          "label": "Sblocca il Minatore T2"
+        },
+        {
+          "type": "unlockResearch",
+          "structureId": "conveyor-fast",
+          "amount": 1,
+          "label": "Sblocca il Nastro T2"
+        },
+        {
+          "type": "earnMoney",
+          "amount": 400,
+          "label": "Guadagna $400 dalle vendite"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "graphite",
+          "amount": 8,
+          "label": "Stock 8 grafite"
+        }
+      ],
       "unlocksNext": null
     }
   ]
