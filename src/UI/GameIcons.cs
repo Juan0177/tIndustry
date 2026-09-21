@@ -23,6 +23,7 @@ public static class GameIcons
         TryLoad(root, "items/money.png", "money");
         TryLoad(root, "items/iron-ore.png", "iron-ore");
         TryLoad(root, "items/copper-ore.png", "copper-ore");
+        TryLoad(root, "items/coal.png", "coal");
         TryLoad(root, "items/iron-plate.png", "iron-plate");
         TryLoad(root, "items/copper-wire.png", "copper-wire");
 
@@ -102,7 +103,7 @@ public static class GameIcons
 
     public static string? ItemKey(string itemId) => itemId switch
     {
-        "iron-ore" or "copper-ore" or "iron-plate" or "copper-wire" => itemId,
+        "iron-ore" or "copper-ore" or "coal" or "iron-plate" or "copper-wire" => itemId,
         _ => null
     };
 

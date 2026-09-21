@@ -303,6 +303,22 @@ internal static class FactoryGameApp
                 camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
                 // No warm ticks — keep ferro/fili chips parked mid-belt for the still.
             }
+            else if (captureMode == "ore-tints")
+            {
+                SeedCaptureOreTints(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.Miner;
+                DockCategory = UiTheme.BuildCategory.Production;
+                DockSelectedId = "miner";
+                camera!.SetZoom(2.8f);
+                camera.CenterOnTile(
+                    new GridPosition(world!.StarterDepositOrigin.X + 1, world.StarterDepositOrigin.Y + MinerBuilding.Size),
+                    BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+                // No warm ticks — keep ferro/rame/carbone parked mid-belt for the still.
+            }
             else if (captureMode == "midgame")
             {
                 SeedCaptureMidgame(
@@ -1417,6 +1433,61 @@ internal static class FactoryGameApp
         Park(new GridPosition(startX + 1, beltY), "copper-wire", 91002, 0.55f);
         Park(new GridPosition(startX + 2, beltY), "iron-ore", 91003, 0.40f);
         Park(new GridPosition(startX + 3, beltY), "copper-wire", 91004, 0.60f);
+    }
+
+    /// <summary>
+    /// Capture scene for --capture-ore-tints: same rock silhouette, ferro / rame / carbone tints.
+    /// </summary>
+    private static void SeedCaptureOreTints(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor)
+    {
+        wallet.AddMoney(200);
+        wallet.AddMaterial("iron-plate", 40);
+        wallet.AddMaterial("iron-ore", 18);
+        wallet.AddMaterial("copper-ore", 18);
+        wallet.AddMaterial("coal", 18);
+
+        var minerBuilding = content.GetBuildingOrDefault("miner");
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(minerAt, Direction.East, conveyors, wallet, minerBuilding, session);
+
+        // Clear eastbound belt south of the miner so ferro / rame / carbone sit side-by-side.
+        var beltY = minerAt.Y + MinerBuilding.Size;
+        var startX = minerAt.X;
+        for (var i = 0; i < 5; i++)
+        {
+            var at = new GridPosition(startX + i, beltY);
+            if (!world.CanPlaceConveyor(at))
+            {
+                continue;
+            }
+
+            conveyors.TryPlace(at, Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+        }
+
+        void Park(GridPosition at, string itemId, long id, float progress)
+        {
+            if (!conveyors.Cells.TryGetValue(at, out var cell))
+            {
+                return;
+            }
+
+            cell.TryInsert(new TransportedItem(id, itemId));
+            if (cell.Items.Count > 0)
+            {
+                cell.Items[^1].Progress = progress;
+            }
+        }
+
+        Park(new GridPosition(startX, beltY), "iron-ore", 92001, 0.50f);
+        Park(new GridPosition(startX + 1, beltY), "copper-ore", 92002, 0.50f);
+        Park(new GridPosition(startX + 2, beltY), "coal", 92003, 0.50f);
     }
 
     /// <summary>
@@ -5497,9 +5568,17 @@ internal static class FactoryGameApp
         else if (tile.Deposit == DepositKind.Coal && tileSize >= 8f)
         {
             var s = tileSize / BaseTileSize;
-            var fill = UiTheme.ItemColor("coal");
-            Raylib.DrawRectangle(ix + (int)(8 * s), iy + (int)(10 * s), (int)(10 * s), (int)(10 * s), fill);
-            Raylib.DrawRectangle(ix + (int)(18 * s), iy + (int)(16 * s), (int)(12 * s), (int)(12 * s), fill);
+            var iconSize = Math.Max(10, (int)(18 * s));
+            if (tileSize >= 16f && GameIcons.Has("coal"))
+            {
+                UiTheme.DrawItemIcon("coal", ix + (size - iconSize) / 2, iy + (sizeY - iconSize) / 2, iconSize);
+            }
+            else
+            {
+                var fill = UiTheme.ItemColor("coal");
+                Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(2f, 5 * s), fill);
+                Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
+            }
         }
     }
 

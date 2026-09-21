@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
+- **Ore icons**: ferro / rame / carbone condividono la silhouette rock; solo tint (grigio / arancio / charcoal) su HUD, Mercato e nastri
 - **Grafica mondo (Raylib)**: silhouettes TI-inspired distinte per miner/forno/assy/gen/core (ombra soft + rim), chevron nastri più leggibili, terrain con micro-variazione; stack resta Raylib-cs (no DLSS/FSR)
 - **Tech tree a grafo**: pannello Ricerca (T) con nodi/archi da `prerequisites` in `content.json`; stati bloccato/disponibile/sbloccato; costi $ + materiali invariati
 - **Selezionatore (sorter)**: blocco logistica stile Mindustry — item filtrato avanti, altri a sinistra/destra; filtro ciclabile con **F**; dock Logistica; unlock in `content.json`
