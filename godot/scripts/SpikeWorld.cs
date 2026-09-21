@@ -247,8 +247,8 @@ public partial class SpikeWorld : Node2D
         err = crop.SavePng(beltPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {beltPath}" : $"Belt crop failed: {err}");
 
-        // Tight corner crop for review.
-        var corner = img.GetRegion(new Rect2I(520, 400, 280, 320));
+        // Tight corner crop (camera ~560,620 zoom 1.05 → corner cell ~757,280 on 1280x720).
+        var corner = img.GetRegion(new Rect2I(600, 180, 320, 320));
         var cornerPath = Path.Combine(destDir, "godot-belt-l-corner.png");
         err = corner.SavePng(cornerPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {cornerPath}" : $"Corner crop failed: {err}");
