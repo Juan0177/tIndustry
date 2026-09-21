@@ -1488,6 +1488,14 @@ static void RunSelfTest(GameContent content)
             "ATTRIBUTION.md deve essere copiato in output.");
         Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "thumbnail.png")),
             "Thumbnail splash/store deve essere in assets/thumbnail.png.");
+        // Ferro vs fili: tinte stock/nastro devono restare distinguibili (non quasi-identiche).
+        var ironTint = UiTheme.ItemColor("iron-ore");
+        var wireTint = UiTheme.ItemColor("copper-wire");
+        var tintDelta = Math.Abs(ironTint.R - wireTint.R)
+            + Math.Abs(ironTint.G - wireTint.G)
+            + Math.Abs(ironTint.B - wireTint.B);
+        Assert(tintDelta >= 80,
+            $"Icone ferro/fili troppo simili in colore (delta RGB={tintDelta}).");
         Assert(GameSettings.DisplayModeLabel(DisplayMode.Fullscreen) == "Schermo intero",
             "Etichetta italiana modalità schermo intero.");
 

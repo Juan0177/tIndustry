@@ -11,13 +11,13 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 
 | Asset (in `assets/icons/`) | Author | Original icon |
 | --- | --- | --- |
-| `items/iron-ore.png` | Delapouite | stone-pile |
+| `items/iron-ore.png` | Lorc | rock |
 | `items/copper-ore.png` | Delapouite | gold-nuggets |
 | `items/iron-plate.png` | Delapouite | metal-plate |
 | `items/copper-wire.png` | Delapouite | wire-coil |
 | `items/money.png` | Delapouite | coins |
 | `ui/sell.png` | Delapouite | receive-money |
-| `buildings/miner.png` | Delapouite | drill |
+| `buildings/miner.png` | Lorc | drill |
 | `buildings/smelter.png` | Delapouite | furnace |
 | `buildings/assembler.png` | Lorc | gears |
 | `buildings/generator.png` | Lorc | lightning-helix |

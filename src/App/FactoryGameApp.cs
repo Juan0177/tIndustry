@@ -5352,7 +5352,13 @@ internal static class FactoryGameApp
             if (tileSize >= 10f && GameIcons.Has(item.ItemId))
             {
                 var inset = Math.Max(2, itemSize / 6);
-                UiTheme.DrawItemIcon(item.ItemId, ix + inset, iy + inset, itemSize - inset * 2);
+                // White glyph on saturated chip — same-tint-as-fill made ferro/fili unreadable.
+                UiTheme.DrawItemIcon(
+                    item.ItemId,
+                    ix + inset,
+                    iy + inset,
+                    itemSize - inset * 2,
+                    new Color(255, 255, 255, alpha));
             }
             else if (tileSize >= 14f)
             {
