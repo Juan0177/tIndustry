@@ -319,6 +319,25 @@ internal static class FactoryGameApp
                 camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
                 // No warm ticks — keep ferro/rame/carbone parked mid-belt for the still.
             }
+            else if (captureMode == "verify-icons-tiers")
+            {
+                SeedCaptureVerifyIconsTiers(
+                    world!, conveyors!, wallet, research!, session!, content,
+                    basicConveyor, expressConveyor, smeltRecipe);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.MinerAdvanced;
+                DockCategory = UiTheme.BuildCategory.Production;
+                DockSelectedId = "miner-advanced";
+                statusMessage =
+                    $"{content.FindStructure("miner")!.DisplayName} · {content.FindStructure("miner-advanced")!.DisplayName} · "
+                    + $"{content.FindStructure("conveyor-basic")!.DisplayName}/{content.FindStructure("conveyor-fast")!.DisplayName}/{content.FindStructure("conveyor-express")!.DisplayName}";
+                camera!.SetZoom(2.0f);
+                camera.CenterOnTile(
+                    new GridPosition(world!.StarterDepositOrigin.X + 2, world.StarterDepositOrigin.Y + 1),
+                    BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+            }
             else if (captureMode == "midgame")
             {
                 SeedCaptureMidgame(
@@ -1488,6 +1507,63 @@ internal static class FactoryGameApp
         Park(new GridPosition(startX, beltY), "iron-ore", 92001, 0.50f);
         Park(new GridPosition(startX + 1, beltY), "copper-ore", 92002, 0.50f);
         Park(new GridPosition(startX + 2, beltY), "coal", 92003, 0.50f);
+    }
+
+    /// <summary>
+    /// Proof still: Minatore T2 + drill dock, ore rock tints + fili, toast with T1/T2/T3 names.
+    /// </summary>
+    private static void SeedCaptureVerifyIconsTiers(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition expressConveyor,
+        RecipeDefinition smeltRecipe)
+    {
+        SeedCaptureMidgame(
+            world, conveyors, wallet, research, session, content,
+            basicConveyor, expressConveyor, smeltRecipe);
+
+        wallet.AddMaterial("iron-ore", 12);
+        wallet.AddMaterial("copper-ore", 12);
+        wallet.AddMaterial("copper-wire", 12);
+        wallet.AddMaterial("coal", 12);
+
+        var minerAt = world.StarterDepositOrigin;
+        var beltY = minerAt.Y + MinerBuilding.Size;
+        var startX = minerAt.X;
+        for (var i = 0; i < 5; i++)
+        {
+            var at = new GridPosition(startX + i, beltY);
+            if (!world.CanPlaceConveyor(at))
+            {
+                continue;
+            }
+
+            conveyors.TryPlace(at, Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+        }
+
+        void Park(GridPosition at, string itemId, long id, float progress)
+        {
+            if (!conveyors.Cells.TryGetValue(at, out var cell))
+            {
+                return;
+            }
+
+            cell.TryInsert(new TransportedItem(id, itemId));
+            if (cell.Items.Count > 0)
+            {
+                cell.Items[^1].Progress = progress;
+            }
+        }
+
+        Park(new GridPosition(startX, beltY), "iron-ore", 93001, 0.42f);
+        Park(new GridPosition(startX + 1, beltY), "copper-ore", 93002, 0.50f);
+        Park(new GridPosition(startX + 2, beltY), "coal", 93003, 0.48f);
+        Park(new GridPosition(startX + 3, beltY), "copper-wire", 93004, 0.55f);
     }
 
     /// <summary>

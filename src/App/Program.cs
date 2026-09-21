@@ -38,9 +38,10 @@ if (!args.Contains("--console-demo"))
     var captureMidgame = args.Contains("--capture-midgame");
     var captureIcons = args.Contains("--capture-icons");
     var captureOreTints = args.Contains("--capture-ore-tints");
+    var captureVerifyIconsTiers = args.Contains("--capture-verify-icons-tiers");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
-        || captureMidgame || captureIcons || captureOreTints;
+        || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -78,6 +79,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "icons-ore-tints.png");
         captureMode = "ore-tints";
+    }
+    else if (captureVerifyIconsTiers)
+    {
+        capturePath = Path.Combine("artifacts", "verify-icons-tiers.png");
+        captureMode = "verify-icons-tiers";
     }
     else if (captureIcons)
     {
@@ -1527,6 +1533,67 @@ static void RunSelfTest(GameContent content)
             Assert(!GameContentStore.MergeMissingSeedEntries(
                     GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
                 "Secondo merge non deve riscrivere se già completo.");
+
+            // Stale displayName must refresh from seed (tier rename), without requiring delete.
+            var renamed = GameContent.Load(GameContentStore.UserJsonPath);
+            var renamedStructures = renamed.Structures.Select(s => s.Id switch
+            {
+                "miner" => s with { DisplayName = "Minatore" },
+                "miner-advanced" => s with { DisplayName = "Minatore avanzato" },
+                "conveyor-basic" => s with { DisplayName = "Nastro base" },
+                "conveyor-fast" => s with { DisplayName = "Nastro veloce" },
+                "conveyor-express" => s with { DisplayName = "Nastro express" },
+                _ => s
+            }).ToList();
+            var renamedMarket = renamed.Market.Select(m => m.ItemId == "iron-ore"
+                ? m with { DisplayName = "Ferro OLD" }
+                : m).ToList();
+            File.WriteAllText(GameContentStore.UserJsonPath, System.Text.Json.JsonSerializer.Serialize(
+                new GameContent
+                {
+                    Conveyors = renamed.Conveyors,
+                    Recipes = renamed.Recipes,
+                    Structures = renamedStructures,
+                    Buildings = renamed.Buildings,
+                    Market = renamedMarket,
+                    Economy = renamed.Economy
+                },
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    Converters =
+                    {
+                        new System.Text.Json.Serialization.JsonStringEnumConverter(
+                            System.Text.Json.JsonNamingPolicy.CamelCase)
+                    }
+                }));
+            Assert(GameContentStore.SyncSeedDisplayFields(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Sync displayName deve aggiornare etichette stale da seed.");
+            var synced = GameContent.Load(GameContentStore.UserJsonPath);
+            Assert(synced.FindStructure("miner")?.DisplayName == "Minatore T1",
+                "miner → Minatore T1 dopo sync.");
+            Assert(synced.FindStructure("miner-advanced")?.DisplayName == "Minatore T2",
+                "miner-advanced → Minatore T2 (non 'avanzato').");
+            Assert(synced.FindStructure("conveyor-basic")?.DisplayName == "Nastro T1",
+                "conveyor-basic → Nastro T1.");
+            Assert(synced.FindStructure("conveyor-fast")?.DisplayName == "Nastro T2",
+                "conveyor-fast → Nastro T2.");
+            Assert(synced.FindStructure("conveyor-express")?.DisplayName == "Nastro T3",
+                "conveyor-express → Nastro T3.");
+            Assert(synced.Market.First(m => m.ItemId == "iron-ore").DisplayName == "Ferro grezzo",
+                "Mercato iron-ore displayName sync dal seed.");
+            Assert(!GameContentStore.SyncSeedDisplayFields(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Secondo sync displayName è no-op.");
+            Assert(!synced.Structures.Any(s =>
+                    s.DisplayName.Contains("avanzato", StringComparison.OrdinalIgnoreCase)
+                    || s.DisplayName.Contains("Advanced", StringComparison.OrdinalIgnoreCase)
+                    || s.DisplayName.Contains("express", StringComparison.OrdinalIgnoreCase)
+                    || s.DisplayName.Equals("Nastro base", StringComparison.Ordinal)
+                    || s.DisplayName.Equals("Nastro veloce", StringComparison.Ordinal)),
+                "Nessuna etichetta user-facing legacy dopo sync.");
         }
         finally
         {
@@ -1535,6 +1602,31 @@ static void RunSelfTest(GameContent content)
                 File.WriteAllText(GameContentStore.UserJsonPath, userContentBackup);
             }
         }
+
+        // Seed + dock must already use T1/T2/T3 (no "Avanzato" in shipped content).
+        foreach (var structure in content.Structures)
+        {
+            Assert(!structure.DisplayName.Contains("avanzato", StringComparison.OrdinalIgnoreCase)
+                    && !structure.DisplayName.Contains("Advanced", StringComparison.OrdinalIgnoreCase),
+                $"Seed displayName vietato: {structure.Id}={structure.DisplayName}");
+        }
+
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
+                .Single(e => e.Id == "miner").Label == "Minatore T1",
+            "Dock Minatore T1.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
+                .Single(e => e.Id == "miner-advanced").Label == "Minatore T2",
+            "Dock Minatore T2.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics)
+                .Single(e => e.Id == "conveyor-basic").Label == "Nastro T1",
+            "Dock Nastro T1.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics)
+                .Single(e => e.Id == "conveyor-express").Label == "Nastro T3",
+            "Dock Nastro T3.");
+        Assert(GameIcons.ResolveKey("miner-advanced") == "miner",
+            "miner-advanced deve riusare l'icona drill miner.");
+        Assert(GameIcons.ResolveKey("conveyor-express") == "conveyor-fast",
+            "conveyor-express deve riusare l'icona nastro veloce.");
 
         Assert(UiTheme.SessionDeltaLabel(0) == "Δ sessione +0",
             "Label sessione netto deve essere chiara (Δ sessione).");

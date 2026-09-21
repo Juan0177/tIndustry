@@ -58,6 +58,8 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+**Dopo un `git pull` su `main`**: fai sempre `dotnet build` (o `dotnet run`) così le icone in `assets/icons/` e il seed `data/content.json` finiscono in output. Il gioco carica le icone dal package (`bin/.../assets/icons/`), non da AppData. I nomi tier (Minatore T1/T2, Nastro T1/T2/T3) vivono nel seed e, dal fix sync, vengono riallineati su `%LocalAppData%/tIndustry/content/content.json` (Linux: `~/.local/share/tIndustry/content/content.json`) a ogni avvio. Se vedi ancora etichette vecchie (“avanzato”) o icone obsolete: rebuild, riavvia; in ultima istanza elimina quella cartella `content/` (verrà ricreata dal seed) — i salvataggi in `saves/` restano.
+
 **Layout sorgenti**
 
 | Cartella | Contenuto |

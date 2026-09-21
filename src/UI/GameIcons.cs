@@ -74,13 +74,13 @@ public static class GameIcons
         loaded = false;
     }
 
-    public static bool Has(string key) => Textures.ContainsKey(key);
+    public static bool Has(string key) => Textures.ContainsKey(ResolveKey(key));
 
     public static int LoadedCount => Textures.Count;
 
     public static void Draw(string key, int x, int y, int size, Color tint)
     {
-        if (!Textures.TryGetValue(key, out var texture))
+        if (!Textures.TryGetValue(ResolveKey(key), out var texture))
         {
             return;
         }
@@ -92,7 +92,7 @@ public static class GameIcons
 
     public static bool TryDraw(string key, int x, int y, int size, Color tint)
     {
-        if (!Textures.ContainsKey(key))
+        if (!Textures.ContainsKey(ResolveKey(key)))
         {
             return false;
         }
@@ -100,6 +100,16 @@ public static class GameIcons
         Draw(key, x, y, size, tint);
         return true;
     }
+
+    /// <summary>
+    /// Tier variants reuse the base glyph when a dedicated PNG is not shipped.
+    /// </summary>
+    public static string ResolveKey(string key) => key switch
+    {
+        "miner-advanced" => "miner",
+        "conveyor-express" => "conveyor-fast",
+        _ => key
+    };
 
     public static string? ItemKey(string itemId) => itemId switch
     {
