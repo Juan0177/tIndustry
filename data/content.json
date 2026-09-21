@@ -236,7 +236,8 @@
           { "itemId": "iron-plate", "amount": 18 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["junction"]
     },
     {
       "id": "conveyor-bridge",
