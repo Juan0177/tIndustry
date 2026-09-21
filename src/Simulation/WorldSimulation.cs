@@ -354,14 +354,32 @@ public sealed class SmelterBuilding
     public const int MoneyCost = 40;
     public const int PlateCost = 6;
 
+    /// <summary>Coal fuel item accepted into the forno stock buffer (belt insert), like the generator.</summary>
+    public const string FuelItemId = "coal";
+    public const int FuelBufferCapacity = 8;
+    /// <summary>Seconds of coal-only craft time provided by one fuel unit.</summary>
+    public const float SecondsPerFuel = 6f;
+    /// <summary>
+    /// Craft progress multiplier when the forno is powered (corrente).
+    /// Coal-only is baseline 1.0; powered is ~20% faster even if coal is also buffered.
+    /// </summary>
+    public const float PoweredCraftSpeedMultiplier = 1.20f;
+
     private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
     private readonly Queue<string> outputQueue = new();
 
-    public SmelterBuilding(GridPosition position, Direction direction, RecipeDefinition recipe)
+    public SmelterBuilding(
+        GridPosition position,
+        Direction direction,
+        RecipeDefinition recipe,
+        int fuelBuffer = 0,
+        float burnRemaining = 0f)
     {
         Position = position;
         Direction = direction;
         Recipe = recipe;
+        FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+        BurnRemaining = Math.Max(0f, burnRemaining);
     }
 
     public GridPosition Position { get; }
@@ -369,10 +387,30 @@ public sealed class SmelterBuilding
     public RecipeDefinition Recipe { get; }
     public float Progress { get; internal set; }
     public bool IsCrafting { get; private set; }
+    public int FuelBuffer { get; private set; }
+    public float BurnRemaining { get; private set; }
+    public bool IsBurningFuel => BurnRemaining > 0f;
     public IReadOnlyDictionary<string, int> InputBuffer => inputBuffer;
     public IReadOnlyCollection<string> OutputQueue => outputQueue;
 
     public void SetDirection(Direction direction) => Direction = direction;
+
+    public bool TryAcceptFuel(string itemId)
+    {
+        if (itemId != FuelItemId || FuelBuffer >= FuelBufferCapacity)
+        {
+            return false;
+        }
+
+        FuelBuffer++;
+        return true;
+    }
+
+    public void RestoreFuel(int fuelBuffer, float burnRemaining)
+    {
+        FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+        BurnRemaining = Math.Max(0f, burnRemaining);
+    }
 
     public IEnumerable<GridPosition> OccupiedTiles()
     {
@@ -419,7 +457,9 @@ public sealed class SmelterBuilding
         float progress,
         bool isCrafting,
         IReadOnlyDictionary<string, int>? buffer,
-        IEnumerable<string>? outputs)
+        IEnumerable<string>? outputs,
+        int fuelBuffer = 0,
+        float burnRemaining = 0f)
     {
         Progress = Math.Clamp(progress, 0f, 1f);
         IsCrafting = isCrafting;
@@ -440,6 +480,8 @@ public sealed class SmelterBuilding
                 outputQueue.Enqueue(itemId);
             }
         }
+
+        RestoreFuel(fuelBuffer, burnRemaining);
     }
 
     internal void Update(
@@ -448,26 +490,59 @@ public sealed class SmelterBuilding
         ref long nextItemId,
         Func<float, bool>? trySpendPower = null,
         float powerDrawPerSecond = 0f,
-        Func<string, bool>? tryDeliverAdjacent = null)
+        Func<string, bool>? tryDeliverAdjacent = null,
+        bool allowCoalOrPower = false)
     {
-        AcceptFromBelts(conveyors);
+        AcceptFromBelts(conveyors, allowCoalOrPower);
         TryStartCraft();
-        if (IsCrafting
-            && trySpendPower is not null
-            && powerDrawPerSecond > 0f
-            && !trySpendPower(powerDrawPerSecond * deltaSeconds))
+        if (IsCrafting)
         {
-            // Brownout: craft stalls without losing progress.
-        }
-        else
-        {
-            AdvanceCraft(deltaSeconds);
+            var speed = 1f;
+            var canAdvance = false;
+            if (trySpendPower is not null
+                && powerDrawPerSecond > 0f
+                && trySpendPower(powerDrawPerSecond * deltaSeconds))
+            {
+                // Corrente: craft advances; powered bonus applies even if coal is buffered.
+                canAdvance = true;
+                speed = allowCoalOrPower ? PoweredCraftSpeedMultiplier : 1f;
+            }
+            else if (allowCoalOrPower && TickFuel(deltaSeconds))
+            {
+                // Carbone alone: baseline speed (no power bonus).
+                canAdvance = true;
+                speed = 1f;
+            }
+
+            if (canAdvance)
+            {
+                AdvanceCraft(deltaSeconds * speed);
+            }
+            // Else brown-out / no fuel: craft stalls without losing progress.
         }
 
         EmitOutputs(conveyors, ref nextItemId, tryDeliverAdjacent);
     }
 
-    private void AcceptFromBelts(ConveyorGrid conveyors)
+    /// <summary>Burns coal fuel; true while the forno can craft on carbone this tick.</summary>
+    internal bool TickFuel(float deltaSeconds)
+    {
+        if (BurnRemaining <= 0f)
+        {
+            if (FuelBuffer <= 0)
+            {
+                return false;
+            }
+
+            FuelBuffer--;
+            BurnRemaining = SecondsPerFuel;
+        }
+
+        BurnRemaining = Math.Max(0f, BurnRemaining - deltaSeconds);
+        return true;
+    }
+
+    private void AcceptFromBelts(ConveyorGrid conveyors, bool acceptCoalFuel)
     {
         // Only inspect neighbors of occupied tiles (O(footprint)) instead of every belt.
         for (var y = 0; y < Size; y++)
@@ -491,8 +566,16 @@ public sealed class SmelterBuilding
                         continue;
                     }
 
-                    while (conveyor.PeekOutput() is { } item && TryAccept(item.ItemId))
+                    while (conveyor.PeekOutput() is { } item)
                     {
+                        var took = acceptCoalFuel && item.ItemId == FuelItemId
+                            ? TryAcceptFuel(item.ItemId)
+                            : TryAccept(item.ItemId);
+                        if (!took)
+                        {
+                            break;
+                        }
+
                         conveyor.RemoveOutput();
                     }
                 }
@@ -934,7 +1017,9 @@ public sealed class FactoryWorld
         float progress,
         bool isCrafting,
         IReadOnlyDictionary<string, int>? buffer,
-        IEnumerable<string>? outputs)
+        IEnumerable<string>? outputs,
+        int fuelBuffer = 0,
+        float burnRemaining = 0f)
     {
         if (!CanOccupyBuilding(position, SmelterBuilding.Size, null))
         {
@@ -942,7 +1027,7 @@ public sealed class FactoryWorld
         }
 
         var smelter = new SmelterBuilding(position, direction, recipe);
-        smelter.RestoreState(progress, isCrafting, buffer, outputs);
+        smelter.RestoreState(progress, isCrafting, buffer, outputs, fuelBuffer, burnRemaining);
         RegisterSmelter(smelter);
         return true;
     }
@@ -1633,7 +1718,8 @@ public sealed class FactoryWorld
                     market,
                     session,
                     autoSellAtCore,
-                    smelter));
+                    smelter),
+                allowCoalOrPower: true);
         }
 
         foreach (var assembler in assemblers.Values)

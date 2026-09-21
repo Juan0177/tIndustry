@@ -71,6 +71,9 @@ public sealed class SmelterSaveData
     public bool IsCrafting { get; set; }
     public Dictionary<string, int> InputBuffer { get; set; } = [];
     public List<string> OutputQueue { get; set; } = [];
+    /// <summary>Forno coal fuel buffer (assemblers leave at 0).</summary>
+    public int FuelBuffer { get; set; }
+    public float BurnRemaining { get; set; }
 }
 
 public sealed class GeneratorSaveData
@@ -317,7 +320,9 @@ public static class GameSaveStore
                     Progress = smelter.Progress,
                     IsCrafting = smelter.IsCrafting,
                     InputBuffer = smelter.InputBuffer.ToDictionary(pair => pair.Key, pair => pair.Value),
-                    OutputQueue = smelter.OutputQueue.ToList()
+                    OutputQueue = smelter.OutputQueue.ToList(),
+                    FuelBuffer = smelter.FuelBuffer,
+                    BurnRemaining = smelter.BurnRemaining
                 })
                 .ToList(),
             Assemblers = world.Assemblers.Values
@@ -454,7 +459,9 @@ public static class GameSaveStore
                     smelterData.Progress,
                     smelterData.IsCrafting,
                     smelterData.InputBuffer,
-                    smelterData.OutputQueue))
+                    smelterData.OutputQueue,
+                    smelterData.FuelBuffer,
+                    smelterData.BurnRemaining))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il forno a {position}.");
             }
