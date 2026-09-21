@@ -108,8 +108,8 @@ public static class UiTheme
         new("lead-ore", "Piombo grezzo", "Piombo", "Pb", ItemCategory.Materials),
         new("titanium-ore", "Titanio grezzo", "Titanio", "Ti", ItemCategory.Materials),
         new("iron-plate", "Lastra di ferro", "Lastre", "Ls", ItemCategory.Intermediate),
-        new("lead-plate", "Lastra di piombo", "Pb lastre", "Lp", ItemCategory.Intermediate),
-        new("titanium-plate", "Lastra di titanio", "Ti lastre", "Tp", ItemCategory.Intermediate),
+        new("lead-plate", "Lastra di piombo", "Pb Ls", "Lp", ItemCategory.Intermediate),
+        new("titanium-plate", "Lastra di titanio", "Ti Ls", "Tp", ItemCategory.Intermediate),
         new("graphite", "Grafite", "Grafite", "Gr", ItemCategory.Intermediate),
         new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products),
         new("silicon", "Silicio", "Silicio", "Si", ItemCategory.Products)
@@ -178,21 +178,10 @@ public static class UiTheme
         var baseDir = AppContext.BaseDirectory;
         var regularPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans.ttf");
         var boldPath = Path.Combine(baseDir, "assets", "fonts", "DejaVuSans-Bold.ttf");
-        // Bake glyphs larger than typical draw sizes so UI scale downsamples cleanly (not upscale-blur).
-        // 96×scale keeps HUD text sharp at 100–200%; bilinear avoids the point-filter "pixel" look.
-        var atlasSize = Math.Clamp((int)MathF.Round(96f * Scale), 72, 224);
-        var codepoints = new int[95 + 96 + 1];
-        for (var i = 0; i < 95; i++)
-        {
-            codepoints[i] = 32 + i;
-        }
-
-        for (var i = 0; i < 96; i++)
-        {
-            codepoints[95 + i] = 160 + i;
-        }
-
-        codepoints[^1] = 0x0394; // Δ (delta sessione)
+        // Bake larger than typical draw sizes so UI scale downsamples cleanly.
+        // Large atlas + Bilinear = smooth edges without the Point “pixel sand” look.
+        var atlasSize = Math.Clamp((int)MathF.Round(160f * Scale), 128, 320);
+        var codepoints = BuildUiCodepoints();
 
         if (File.Exists(regularPath))
         {
@@ -216,6 +205,58 @@ public static class UiTheme
             uiFontBold = uiFont;
         }
     }
+
+    /// <summary>
+    /// Glyphs baked into the UI atlas. Missing codepoints render as '?' in Raylib —
+    /// keep this list in sync with Italian HUD punctuation (—, →, …, ’, ✓, …).
+    /// </summary>
+    private static int[] BuildUiCodepoints()
+    {
+        // ASCII printable + Latin-1 supplement (covers · × àèéìòù °, etc.)
+        var set = new HashSet<int>();
+        for (var i = 32; i <= 126; i++)
+        {
+            set.Add(i);
+        }
+
+        for (var i = 160; i <= 255; i++)
+        {
+            set.Add(i);
+        }
+
+        // Extra punctuation / symbols used in IT UI copy (not in Latin-1).
+        int[] extras =
+        [
+            0x0394, // Δ session delta
+            0x2013, // –
+            0x2014, // —
+            0x2018, // ‘
+            0x2019, // ’
+            0x201C, // “
+            0x201D, // ”
+            0x2026, // …
+            0x2190, // ←
+            0x2191, // ↑
+            0x2192, // →
+            0x2193, // ↓
+            0x2212, // −
+            0x2248, // ≈
+            0x2264, // ≤
+            0x2265, // ≥
+            0x26A1, // ⚡
+            0x2713, // ✓
+            0x2714  // ✔
+        ];
+        foreach (var cp in extras)
+        {
+            set.Add(cp);
+        }
+
+        return set.OrderBy(c => c).ToArray();
+    }
+
+    /// <summary>Self-test: atlas must include common IT HUD punctuation (else Raylib draws '?').</summary>
+    internal static int[] UiCodepointsForTest() => BuildUiCodepoints();
 
     private static void UnloadFonts()
     {
@@ -262,7 +303,8 @@ public static class UiTheme
         }
 
         var font = bold ? uiFontBold : uiFont;
-        var spacing = Math.Max(0.4f, drawSize * 0.045f);
+        // Tight spacing reads cleaner than the old ~4.5% gap (looked soft/grainy).
+        var spacing = Math.Max(0f, drawSize * 0.02f);
         Raylib.DrawTextEx(font, text, new Vector2(x, y), drawSize, spacing, color);
     }
 
@@ -275,7 +317,7 @@ public static class UiTheme
         }
 
         var font = bold ? uiFontBold : uiFont;
-        var spacing = Math.Max(0.4f, drawSize * 0.045f);
+        var spacing = Math.Max(0f, drawSize * 0.02f);
         return (int)Raylib.MeasureTextEx(font, text, drawSize, spacing).X;
     }
 
@@ -372,8 +414,8 @@ public static class UiTheme
     {
         BuildCategory.Production => "Prod",
         BuildCategory.Logistics => "Log",
-        BuildCategory.Power => "PWR",
-        BuildCategory.Tools => "Tool",
+        BuildCategory.Power => "Pot.",
+        BuildCategory.Tools => "Strum",
         _ => "?"
     };
 
@@ -389,10 +431,12 @@ public static class UiTheme
         "conveyor-fast" => "T2",
         "conveyor-express" => "T3",
         "junction" => "Incroc",
-        "splitter" => "Split",
-        "sorter" => "Filtro",
+        "splitter" => "Sdop",
+        "sorter" => "Selez",
         "bridge" => "Ponte",
         "remove" => "Rimuovi",
+        "power-node" => "Nodo",
+        "power-node-t2" => "Nodo",
         _ => entry.Label.Length <= 6 ? entry.Label : entry.Label[..5] + "…"
     };
 
@@ -400,7 +444,7 @@ public static class UiTheme
     {
         BuildCategory.Production => "Pr",
         BuildCategory.Logistics => "Lo",
-        BuildCategory.Power => "⚡",
+        BuildCategory.Power => "Po",
         BuildCategory.Tools => "St",
         BuildCategory.Inventory => "In",
         _ => "?"
@@ -463,9 +507,9 @@ public static class UiTheme
         new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
             Hint: "Brucia carbone per energia (9) · rete locale via nodi"),
         new("power-node", "Nodo T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.PowerNode, ResearchId: "power-node",
-            Hint: "Nodo T1 · 1×1 · 4 link · range 6 · auto-link gen (mai CORE)"),
+            Hint: "Nodo T1 · 1×1 · 4 collegamenti · raggio 6 · auto-link gen (mai CORE)"),
         new("power-node-t2", "Nodo T2", "T2", DockEntryKind.BuildTool, Tool: BuildTool.PowerNodeT2, ResearchId: "power-node-t2",
-            Hint: "Nodo T2 · 2×2 · 8 link · range 10 · auto-link gen (mai CORE)")
+            Hint: "Nodo T2 · 2×2 · 8 collegamenti · raggio 10 · auto-link gen (mai CORE)")
     ];
 
     private static readonly DockEntry[] EmptyEntries = [];

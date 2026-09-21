@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.2.10** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.10)
+**v0.2.11** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.11)
 
 ```
   miner ──▶ forno ──▶ lastre / piombo / titanio ──▶ CORE / mercato dinamico
@@ -27,7 +27,7 @@ Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [r
 
 ---
 
-## Cosa c’è in 0.2.10
+## Cosa c’è in 0.2.11
 
 | Area | In gioco |
 | --- | --- |
@@ -38,6 +38,7 @@ Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [r
 | **Economia** | Stock-first · **Mercato dinamico** (prezzi reagiscono allo stock) · upgrade CORE |
 | **Grafica** | Glow forno, trivella idle, ombre soft · **atlas icone** (una texture) |
 | **Progressione** | Campagna **10 livelli** · tech tree con **zoom + path highlight** · tutorial **14** step |
+| **Polish 0.2.11** | Copy IT coerente · toast errore · strip overflow · ghost raggio nodi · save confirm |
 
 Non è combat Mindustry né idle clicker: conta il **layout** e il **reinvestimento**.
 
@@ -124,9 +125,9 @@ Niente Unity/Godot in early roadmap. Icone: [`assets/ATTRIBUTION.md`](assets/ATT
 
 ## Roadmap
 
-| Ora (0.2.10) | Dopo |
+| Ora (0.2.11) | Dopo |
 | --- | --- |
-| Campagna 10 · atlas icone · tech-tree zoom/path · P0 mercato/minerali | Combat / unità · polish lighting avanzato · bilanciamento continuo |
+| Polish UX/HUD/copy IT · campagna 10 · atlas · tech-tree · P0 mercato/minerali | Combat / unità · polish lighting avanzato · bilanciamento continuo |
 
 Storia completa: [CHANGELOG.md](CHANGELOG.md).
 

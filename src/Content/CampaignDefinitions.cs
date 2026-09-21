@@ -285,9 +285,11 @@ public sealed class CampaignCatalog
         return objective.Type switch
         {
             CampaignObjectiveType.EarnMoney => $"Guadagna ${objective.Amount}",
-            CampaignObjectiveType.StockItem => $"Stock {objective.Amount} {objective.ItemId}",
+            CampaignObjectiveType.StockItem =>
+                $"Magazzino {objective.Amount} {UiTheme.ItemDisplayName(objective.ItemId ?? "")}",
             CampaignObjectiveType.UnlockResearch => $"Sblocca {objective.StructureId}",
-            CampaignObjectiveType.SellItem => $"Vendi {objective.Amount} {objective.ItemId}",
+            CampaignObjectiveType.SellItem =>
+                $"Vendi {objective.Amount} {UiTheme.ItemDisplayName(objective.ItemId ?? "")}",
             _ => "Obiettivo"
         };
     }

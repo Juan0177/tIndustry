@@ -549,6 +549,6 @@
       ],
       "saleBonusPercent": 25
     },
-    "refundPolicyNote": "Rimozione edifici/nastri: rimborso completo (100%). Auto-link nodi potenza: Mindustry-like — al piazzamento collega fino a maxLinks gli endpoint più vicini entro range (priorità gen → nodi → forni/assy; mai CORE; linee rette, anche diagonali). Nodo T1: 1×1 / 4 link / range 6. Nodo T2: 2×2 / 8 link / range 10. Rete/nodo live solo se path a gen con fuel. Adiacenza 4-connessa: edifici a contatto di un gen in funzione (o tra loro in cluster) sono alimentati senza nodi. CORE non fornisce né richiede potenza (stock sempre OK); solo forno/assemblatore brown-out senza gen/cluster/link live."
+    "refundPolicyNote": "Rimozione: rimborso 100% di edifici e nastri. Nodi: collegamento automatico entro raggio (priorità generatore → nodi → forni/assemblatori; mai CORE). Nodo T1: 1×1 / 4 collegamenti / raggio 6. Nodo T2: 2×2 / 8 / raggio 10. Rete attiva solo con percorso fino a un generatore con carbone. Adiacenza 4-dir: edifici a contatto di un gen (o in cluster) senza nodi. CORE fuori dalla rete potenza."
   }
 }

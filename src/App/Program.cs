@@ -2112,6 +2112,12 @@ static void RunSelfTest(GameContent content)
             "Label sessione negativa deve mostrare il segno.");
         Assert(UiTheme.SessionDeltaTooltip.Contains("patrimonio", StringComparison.OrdinalIgnoreCase),
             "Tooltip Δ sessione deve spiegare il patrimonio netto.");
+        var uiGlyphs = UiTheme.UiCodepointsForTest();
+        Assert(uiGlyphs.Contains(0x2014) && uiGlyphs.Contains(0x2192) && uiGlyphs.Contains(0x2026)
+                && uiGlyphs.Contains(0x2019) && uiGlyphs.Contains(0x2713) && uiGlyphs.Contains(0x0394),
+            "Atlas UI deve includere — → … ’ ✓ Δ (altrimenti Raylib disegna '?').");
+        Assert(UiTheme.BuildCategoryGlyph(UiTheme.BuildCategory.Power) != "⚡",
+            "Glyph Potenza non deve dipendere da emoji non necessariamente renderizzata.");
         var iconRoot = Path.Combine(AppContext.BaseDirectory, "assets", "icons");
         foreach (var rel in new[]
                  {
