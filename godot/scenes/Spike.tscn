@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/SpikeWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/SpikeCamera.cs" id="2_cam"]
-[ext_resource type="Script" path="res://scripts/AnimatedMiner.cs" id="3_miner"]
+[ext_resource type="Script" path="res://scripts/StaticMiner.cs" id="3_miner"]
 
 [node name="Spike" type="Node2D"]
 script = ExtResource("1_world")
@@ -22,8 +22,6 @@ script = ExtResource("3_miner")
 
 [node name="Sprite" type="Sprite2D" parent="Miner"]
 centered = true
-
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Miner"]
 
 [node name="Hud" type="CanvasLayer" parent="."]
 
