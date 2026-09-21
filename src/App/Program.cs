@@ -2047,7 +2047,7 @@ static void RunSelfTest(GameContent content)
                 .Single(e => e.Id == "conveyor-express").Label == "Nastro T3",
             "Dock Nastro T3.");
         Assert(GameIcons.ResolveKey("miner-advanced") == "miner",
-            "miner-advanced deve riusare l'icona drill miner.");
+            "miner-advanced deve riusare l'icona trivella miner.");
         Assert(GameIcons.ResolveKey("conveyor-express") == "conveyor-fast",
             "conveyor-express deve riusare l'icona nastro veloce.");
 

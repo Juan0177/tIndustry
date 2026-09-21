@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Versione 0.2.7** · vedi [CHANGELOG.md](CHANGELOG.md)
+**Versione 0.2.8** · vedi [CHANGELOG.md](CHANGELOG.md)
 
 ```
   ▢──▢──▢──▢── CORE ──$──
@@ -18,20 +18,21 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 
 ## Cosa c’è già (su `main`)
 
-**v0.2.7** — tutto 0.2.6 più costo upgrade **CORE** esplicito (×N lastre + $) sul bottone Fabbrica. In sintesi:
+**v0.2.8** — mid-game completo sopra 0.2.7: I/O adiacenza, tech tree a grafo, sorter, T2/T3, **nodi potenza**, forno carbone-o-corrente, icona minatore **trivella**. In sintesi:
 
 | Area | In gioco |
 | --- | --- |
-| Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
-| Produzione | **Minatore T1/T2** (output **belt uscenti** + trasferimento **edificio adiacente**), **forno**, **assemblatore**, **generatore** (fuel carbone; pool globale); edifici su terra libera (miner off-deposito = **0%**) |
-| Logistica | **Nastro T1/T2/T3**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing; overlay amber/ciano = I/O uscente/entrante |
-| Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti** senza clip, padding polish, prezzi, auto-sell); strip **Fabbrica** con conteggi `M/F/A/N/G` sopra **CORE**; rimborso 100%; **potenziamento core** (+25% vendite) con costo `×N lastre + $` sul bottone |
-| Progressione | **Campagna** (5 livelli, obiettivi HUD, progressione AppData); **Ricerca** data-driven; **tutorial** IT **14 step** in sandbox — riparte su **Nuova partita** / **Rivedi tutorial** |
-| Sessione | **Splash** brand (~8s / click) → Home (**Continua** / **Campagna** / **Nuova partita**), scenari + seed, save JSON **v6** |
-| Dock | Stile Mindustry; footer **Input/Output** ricetta (Forno/Assemblatore) + costi build a icone (`×N` materiali + `$`); **Rimuovi** con label chiaro |
-| Qualità di vita | UI scale **100–200%** (Mercato soft-scale, Impostazioni scrollabili); overlay **CPU · GPU · RAM**; FPS unico; status toast auto-clear; tip onboarding; `--self-test` |
-| Grafica | Icone HUD/dock/nastri CC0/CC-BY ([`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)); strip risorse + **Δ sessione** |
-| Contenuti | Seed `content.json` + `campaign.json` → AppData al primo avvio; niente Excel nel publish |
+| Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro / rame / carbone |
+| Produzione | **Minatore T1/T2** (icona trivella; output **belt uscenti** + trasferimento **edificio adiacente**), **forno** (carbone **oppure** corrente, **+20%** se powered), **assemblatore**, **generatore** (solo carbone); miner off-deposito = **0%** |
+| Logistica | **Nastro T1/T2/T3**, **incrocio**, **sdoppiatore**, **selezionatore (sorter)**, **ponte**; overlay amber/ciano = I/O |
+| Potenza | **Nodo T1/T2** (linee dirette + auto-link); brownout solo craft; **CORE** sempre on (fuori grafo) |
+| Economia | **Stock-first** al core; **Mercato** (vendi **1** / **tutti**); strip **Fabbrica** `M/F/A/N/G` + upgrade CORE `×N lastre + $` |
+| Progressione | **Campagna** (5 livelli); **Ricerca** a **grafo** (prerequisiti); tutorial IT **14 step** |
+| Sessione | Splash → Home; save JSON **v6**; overlay versione semi-trasparente in play |
+| Dock | Mindustry-style; footer Input/Output + costi a icone; AppData merge/sync nomi tier |
+| Qualità di vita | UI scale **100–200%**; overlay **CPU · GPU · RAM**; `--self-test` |
+| Grafica | Icone CC0/CC-BY ([`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md)); silhouettes mondo Raylib |
+| Contenuti | Seed `content.json` + `campaign.json` → AppData; niente Excel nel publish |
 | Codice | Sorgenti in `src/{App,Simulation,Content,UI}/`; `.csproj` in root |
 
 Non è (ancora) un clone combat di Mindustry, né un idle clicker: il valore sta nel **layout** e nel **reinvestimento**.
@@ -160,7 +161,7 @@ Default sbloccati: Nastro T1 e Minatore T1. Il resto paga il pedaggio della rice
 
 ## Download
 
-**Release consigliata:** [v0.2.7](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.7) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
+**Release consigliata:** [v0.2.8](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.8) · [latest](https://github.com/Juan0177/tIndustry/releases/latest)
 
 | Asset | Piattaforma |
 | --- | --- |
@@ -192,7 +193,8 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 
 | Fatto | Prossimo (orizzonte) |
 | --- | --- |
-| **v0.2.7**: CORE upgrade button con ×N lastre + $ | Fuel/cavi potenza, più ricette, bilanciamento più profondo |
+| **v0.2.8**: mid-game (T2/T3, sorter, tech graph, nodi power, forno OR, trivella) | Mercato dinamico, più ricette/campagne, polish grafica/animazioni |
+| **v0.2.7**: CORE upgrade button con ×N lastre + $ | |
 | **v0.2.6**: Mercato/dock polish; Input/Output ricetta; Fabbrica counts + CORE fix | |
 | **v0.2.5**: Campagna a livelli; Mercato senza clip; dock costi a icone | |
 | **v0.2.4**: Mercato dedicato, icone chiare, tutorial 6 step, HUD scale-safe | Ulteriore polish UI / performance mappa piena |
@@ -201,9 +203,8 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 | **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | |
 | **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Combat/unità: **non** priorità early |
 | CI publish win/linux + release su tag `v*` | |
-| Cavi / rete potenza locale | ancora stub (pool globale) |
 
-Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.7](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.7).
+Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.8](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.8).
 
 Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il Nastro T2, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 

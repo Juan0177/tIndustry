@@ -7,26 +7,33 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
-- **Ore icons**: ferro / rame / carbone condividono la silhouette rock; solo tint (grigio / arancio / charcoal) su HUD, Mercato e nastri
-- **Grafica mondo (Raylib)**: silhouettes TI-inspired distinte per miner/forno/assy/gen/core (ombra soft + rim), chevron nastri più leggibili, terrain con micro-variazione; stack resta Raylib-cs (no DLSS/FSR)
-- **Tech tree a grafo**: pannello Ricerca (T) con nodi/archi da `prerequisites` in `content.json`; stati bloccato/disponibile/sbloccato; costi $ + materiali invariati
-- **Selezionatore (sorter)**: blocco logistica stile Mindustry — item filtrato avanti, altri a sinistra/destra; filtro ciclabile con **F**; dock Logistica; unlock in `content.json`
-- **I/O belt-uscente**: forno/assemblatore espellono su qualsiasi nastro adiacente che punta *via* dal footprint; miner solo su belt uscenti (non più su belt rivolti verso l’edificio)
-- **Trasferimento adiacente** (stile Mindustry): miner|forno, forno|assemblatore, edifici→CORE senza nastro se i footprint si toccano
-- **Overlay I/O**: amber = uscita uscente, ciano = ingresso entrante (ghost + mondo)
-- **Tutorial** esteso a **14** passi (dock, Mercato, Fabbrica/CORE, ricerca, logistica, campagna, impostazioni)
-- **Minatore T2** (`miner-advanced`): 2× velocità estrazione, +25% efficienza (cap 100%), unlock ricerca, dock Produzione
-- **Nastro T3** (`conveyor-express`): tier 3 a 2 item/s; Q/E/Y = T1/T2/T3
-- **Fuel generatore**: brucia **carbone** da nastro in ingresso; senza fuel non genera (capacità resta); depositi carbone + item mercato
-- Naming UI a **codici tier** (Minatore T1/T2, Nastro T1/T2/T3) — niente “avanzato/express” in etichette IT
-- **AppData content merge**: al launch, `EnsureUserContent` aggiunge in modo additivo gli id seed mancanti (es. `conveyor-express` dopo Phase 6) così un `content.json` locale vecchio non crasha su `Single`
-- **AppData displayName sync**: al launch, `displayName` di strutture/mercato già presenti viene aggiornato dal seed (es. “Minatore avanzato” → **Minatore T2**, “Nastro base” → **Nastro T1**) senza cancellare costi/unlock locali
-- **Icone tier**: `miner-advanced` / `conveyor-express` riusano i PNG drill / nastro veloce (niente glyph vettoriale stale nel dock)
+_(vuoto — prossimo bump)_
 
-### Ancora stub / defer
+## [0.2.8] — 2026-09-21
 
-- Cavi / rete potenza locale (resta **pool globale**)
-- Sorter, tech-tree a grafo, silhouettes TI mondo
+Release di contenuto sopra **0.2.7**: mid-game Phase 6, I/O, tech tree, sorter, potenza a nodi, forno carbone-o-corrente, icona minatore **trivella**.
+
+### Aggiunto / migliorato
+
+- **I/O belt-uscente** + trasferimento **edificio adiacente** (miner|forno, forno|assy, →CORE); overlay amber/ciano; tutorial **14** passi ([#38](https://github.com/Juan0177/tIndustry/pull/38))
+- **Tech tree a grafo**: nodi/archi da `prerequisites`; hit-test unlock + sync prereq AppData ([#40](https://github.com/Juan0177/tIndustry/pull/40), [#47](https://github.com/Juan0177/tIndustry/pull/47))
+- **Selezionatore (sorter)**: filtro item (F), routing Mindustry ([#39](https://github.com/Juan0177/tIndustry/pull/39))
+- **Grafica mondo (Raylib)**: silhouettes TI-inspired, terrain micro-variazione ([#42](https://github.com/Juan0177/tIndustry/pull/42))
+- **Mid-game T2/T3**: Minatore T2, Nastro T3, fuel generatore (carbone) ([#41](https://github.com/Juan0177/tIndustry/pull/41))
+- **Icone**: ore rock+tint ([#44](https://github.com/Juan0177/tIndustry/pull/44)); minatore = **trivella / auger** Lorc `drill` (non trapano a pistola); T2 riusa lo stesso PNG
+- **AppData**: merge id seed mancanti (no crash) ([#45](https://github.com/Juan0177/tIndustry/pull/45)); sync `displayName` tier ([#46](https://github.com/Juan0177/tIndustry/pull/46))
+- **Overlay versione** semi-trasparente in play HUD ([#48](https://github.com/Juan0177/tIndustry/pull/48))
+- **Nodi potenza** T1/T2 (linee dirette + auto-link); cavi tile superseduti; grafo esclude CORE ([#49](https://github.com/Juan0177/tIndustry/pull/49)–[#51](https://github.com/Juan0177/tIndustry/pull/51))
+- **Forno = carbone OR corrente** (+20% craft se alimentato da rete) ([#52](https://github.com/Juan0177/tIndustry/pull/52))
+- Naming UI a **codici tier** (Minatore T1/T2, Nastro T1/T2/T3)
+- **Docs**: README allineato a 0.2.8
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
 
 ## [0.2.7] — 2026-09-19
 
