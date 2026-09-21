@@ -13,10 +13,16 @@ public static class WorldGraphics
 
     public static void DrawSoftShadow(int x, int y, int size, int alpha, float scale)
     {
-        var ox = Math.Max(2, (int)(4 * scale));
-        var oy = Math.Max(3, (int)(6 * scale));
-        var a = Math.Clamp((int)(alpha * 0.55f), 40, 160);
-        Raylib.DrawRectangle(x + ox, y + oy, size - ox, size - oy, new Color(6, 8, 8, a));
+        // Two-layer soft drop shadow (far soft pad + tighter contact).
+        var farOx = Math.Max(3, (int)(6 * scale));
+        var farOy = Math.Max(4, (int)(8 * scale));
+        var nearOx = Math.Max(2, (int)(3 * scale));
+        var nearOy = Math.Max(2, (int)(4 * scale));
+        var farA = Math.Clamp((int)(alpha * 0.28f), 28, 90);
+        var nearA = Math.Clamp((int)(alpha * 0.55f), 40, 150);
+        var wide = size + Math.Max(2, (int)(2 * scale));
+        Raylib.DrawRectangle(x + farOx - 1, y + farOy, wide - farOx, size - farOy, new Color(6, 8, 8, farA));
+        Raylib.DrawRectangle(x + nearOx, y + nearOy, size - nearOx, size - nearOy, new Color(6, 8, 8, nearA));
     }
 
     /// <summary>Filled body with top/left rim highlight and outer accent outline.</summary>
@@ -75,20 +81,51 @@ public static class WorldGraphics
             new Color(88, 92, 84, alpha));
 
         var center = new Vector2(x + size / 2f, y + size * 0.38f);
-        var angle = preview ? 0f : (float)Raylib.GetTime() * (isAdvanced ? 150f : 110f);
+        var working = !preview && efficiency > 0f;
+        float angle;
+        if (preview)
+        {
+            angle = 0f;
+        }
+        else if (working)
+        {
+            angle = (float)Raylib.GetTime() * (isAdvanced ? 150f : 110f);
+        }
+        else
+        {
+            // Idle rock: slow sway when barren / 0% efficiency.
+            angle = MathF.Sin((float)Raylib.GetTime() * 1.25f) * 10f;
+        }
+
         var bitR = 14f * scale;
-        Raylib.DrawPoly(center, 6, bitR, angle, new Color(108, 116, 110, alpha));
+        var bitFill = working
+            ? new Color(108, 116, 110, alpha)
+            : new Color(78, 72, 68, alpha);
+        Raylib.DrawPoly(center, 6, bitR, angle, bitFill);
         Raylib.DrawPolyLinesEx(center, 6, bitR, angle, Math.Max(1.5f, 2.5f * scale),
-            new Color(230, 210, 150, alpha));
+            working ? new Color(230, 210, 150, alpha) : new Color(160, 120, 100, alpha));
         Raylib.DrawCircleV(center, 5.5f * scale, isAdvanced
             ? new Color(100, 170, 220, alpha)
-            : new Color(210, 143, 68, alpha));
+            : working
+                ? new Color(210, 143, 68, alpha)
+                : new Color(160, 90, 70, alpha));
         // Bit tip
         Raylib.DrawTriangle(
             center + new Vector2(0, 16 * scale),
             center + new Vector2(-5 * scale, 6 * scale),
             center + new Vector2(5 * scale, 6 * scale),
-            new Color(190, 160, 90, alpha));
+            working ? new Color(190, 160, 90, alpha) : new Color(140, 100, 70, alpha));
+
+        if (working && !preview && progress > 0.05f && progress < 0.95f)
+        {
+            // Soft dust under the bit while mining.
+            var dust = (float)Raylib.GetTime() * 3.2f;
+            Raylib.DrawCircle(
+                (int)(center.X + MathF.Sin(dust) * 4 * scale),
+                (int)(center.Y + 18 * scale),
+                Math.Max(1.2f, 2.2f * scale),
+                new Color(140, 120, 90, Math.Clamp(alpha - 120, 30, 100)));
+        }
 
         // Side braces
         Raylib.DrawRectangle(x + (int)(6 * scale), y + (int)(22 * scale), (int)(10 * scale), (int)(4 * scale),
@@ -125,7 +162,8 @@ public static class WorldGraphics
         Action<string, int, int, int, Color>? drawLabel,
         Action<Vector2, Direction, int, float> drawDirectionMark,
         int fuelBuffer = 0,
-        bool isBurningFuel = false)
+        bool isBurningFuel = false,
+        bool isPowered = false)
     {
         var alpha = preview ? 150 : 255;
         var scale = tileSize / BaseTile;
@@ -136,6 +174,8 @@ public static class WorldGraphics
             new Color(240, 130, 80, 255),
             alpha, scale);
 
+        var advancing = isCrafting && (isBurningFuel || isPowered);
+
         // Chimney stack (TI furnace silhouette)
         var chimW = Math.Max(6, (int)(12 * scale));
         var chimH = Math.Max(14, (int)(28 * scale));
@@ -144,7 +184,7 @@ public static class WorldGraphics
         Raylib.DrawRectangle(chimX, chimY, chimW, chimH, new Color(48, 30, 26, alpha));
         Raylib.DrawRectangle(chimX - 2, chimY, chimW + 4, Math.Max(2, (int)(4 * scale)),
             new Color(90, 55, 40, alpha));
-        if (!preview)
+        if (!preview && advancing)
         {
             var smoke = (float)Raylib.GetTime() * 1.4f;
             var sy = chimY - (int)((6 + MathF.Sin(smoke) * 3) * scale);
@@ -154,19 +194,39 @@ public static class WorldGraphics
                 Math.Max(1.5f, 2.5f * scale), new Color(90, 80, 70, Math.Clamp(alpha - 100, 30, 140)));
         }
 
-        // Furnace mouth + glow
+        // Furnace mouth + soft bloom glow
         var mouthX = x + (int)(12 * scale);
         var mouthY = y + (int)(size * 0.38f);
         var mouthW = size - (int)(36 * scale);
         var mouthH = Math.Max(10, (int)(22 * scale));
         Raylib.DrawRectangle(mouthX, mouthY, mouthW, mouthH, new Color(22, 12, 10, alpha));
-        var glow = isCrafting
-            ? 11f + MathF.Sin((float)Raylib.GetTime() * 5f) * 4f
-            : 7f + MathF.Sin((float)Raylib.GetTime() * 2f) * 1.5f;
         var mouthCenter = new Vector2(mouthX + mouthW / 2f, mouthY + mouthH / 2f);
-        Raylib.DrawCircleV(mouthCenter, glow * scale, new Color(200, 70, 30, alpha));
-        Raylib.DrawCircleV(mouthCenter, glow * 0.45f * scale, new Color(255, 190, 80, alpha));
-        if (isCrafting)
+        float glow;
+        if (advancing)
+        {
+            glow = 11f + MathF.Sin((float)Raylib.GetTime() * 5f) * 4f;
+        }
+        else if (fuelBuffer > 0 || isBurningFuel || isPowered)
+        {
+            glow = 7f + MathF.Sin((float)Raylib.GetTime() * 2f) * 1.5f;
+        }
+        else
+        {
+            glow = 4f;
+        }
+
+        if (advancing || fuelBuffer > 0 || isBurningFuel || isPowered)
+        {
+            Raylib.DrawCircleV(mouthCenter, glow * 1.65f * scale, new Color(255, 100, 30, Math.Clamp(alpha / 4, 20, 70)));
+            Raylib.DrawCircleV(mouthCenter, glow * scale, new Color(200, 70, 30, alpha));
+            Raylib.DrawCircleV(mouthCenter, glow * 0.45f * scale, new Color(255, 190, 80, alpha));
+        }
+        else
+        {
+            Raylib.DrawCircleV(mouthCenter, glow * scale, new Color(60, 28, 22, alpha));
+        }
+
+        if (advancing)
         {
             Raylib.DrawCircle(
                 mouthX + (int)(6 * scale),
@@ -201,7 +261,9 @@ public static class WorldGraphics
         {
             var label = fuelBuffer > 0 || isBurningFuel
                 ? $"FORNO Ca{fuelBuffer}"
-                : "FORNO";
+                : isPowered
+                    ? "FORNO PWR"
+                    : "FORNO";
             drawLabel(label, x + (int)(14 * scale), y + (int)(8 * scale), alpha,
                 new Color(255, 220, 190, alpha));
         }

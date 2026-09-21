@@ -1,13 +1,13 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.2.8** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.8)
+**v0.2.9** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.9)
 
 ```
-  miner ──▶ forno ──▶ lastre ──▶ CORE / mercato
+  miner ──▶ forno ──▶ lastre / piombo / titanio ──▶ CORE / mercato dinamico
     │         ▲  carbone OPPURE corrente (+20%)
   nastro   nodo potenza ◀── generatore (carbone)
-  sorter · splitter · ponte · T1/T2/T3
+  sorter · splitter · ponte · T1/T2/T3 · grafite / silicio
 ```
 
 **Mindustry** × **Tiny Industry**: logistica a nastro su mappa enorme, economia con portafoglio, ricerca a grafo, vendita al Mercato.
@@ -27,17 +27,17 @@ Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [r
 
 ---
 
-## Cosa c’è in 0.2.8
+## Cosa c’è in 0.2.9
 
 | Area | In gioco |
 | --- | --- |
-| **Mondo** | Mappa **1000×1000**, core centrale, pan/zoom, depositi ferro / rame / carbone |
-| **Produzione** | Minatore **T1/T2** (icona **trivella**), forno (**carbone o corrente**, **+20%** se powered), assemblatore, generatore (solo carbone) |
-| **Logistica** | Nastro **T1/T2/T3**, incrocio, sdoppiatore, **selezionatore**, ponte · I/O = belt uscenti/entranti + trasferimento adiacente |
-| **Potenza** | **Nodo T1/T2** (linee + auto-link) · brownout solo craft · CORE sempre on |
-| **Economia** | Stock-first al core · Mercato vendi **1** / **tutti** · upgrade CORE `×N lastre + $` |
-| **Progressione** | Campagna (5 livelli) · **tech tree a grafo** · tutorial **14** step |
-| **Sessione** | Splash → Home · save JSON **v6** · overlay versione in play |
+| **Mondo** | Mappa **1000×1000**, depositi ferro / rame / carbone / **piombo** / **titanio** |
+| **Produzione** | Minatore **T1/T2**, forno multi-ricetta (ferro/piombo/titanio), assemblatore (fili/grafite/silicio), generatore |
+| **Logistica** | Nastro **T1/T2/T3**, incrocio, sdoppiatore, **selezionatore**, ponte · I/O belt + adiacenza |
+| **Potenza** | **Nodo T1/T2** · forno carbone **o** corrente (**+20%**) · CORE fuori grafo |
+| **Economia** | Stock-first · **Mercato dinamico** (prezzi reagiscono allo stock) · upgrade CORE |
+| **Grafica** | Glow forno onesto (fuel/power), trivella idle, ombre soft a 2 layer |
+| **Progressione** | Campagna (5 livelli) · tech tree a grafo · tutorial **14** step |
 
 Non è combat Mindustry né idle clicker: conta il **layout** e il **reinvestimento**.
 
@@ -72,9 +72,9 @@ Flag: `--smoke-test`, `--capture`, `--export-excel [path]`.
 ## Prima sessione
 
 1. Splash → **Nuova partita** (sandbox + tutorial) oppure **Campagna**.
-2. Scout ferro vicino al core (**H** = camera sul core); rame più a sud, carbone per gen/forno.
-3. Minatore → **nastri uscenti** (o forno a contatto) → stock al CORE → Mercato **1** / **tutti**.
-4. **T** Ricerca → Forno → lastre (più profitto delle ore grezze).
+2. Scout ferro vicino al core (**H** = camera sul core); rame a sud, carbone a est, **piombo a ovest**.
+3. Minatore → **nastri uscenti** (o forno a contatto) → stock al CORE → Mercato **1** / **tutti** (prezzi soft con stock alto).
+4. **T** Ricerca → Forno → lastre (più profitto delle ore grezze); prova anche piombo → lastre di piombo → silicio.
 5. Generatore + **nodi** se i craft stallano; forno gira a carbone **oppure** corrente.
 6. Sorter / splitter / Nastro T2–T3 quando il layout si intasa. Overlay amber = uscita, ciano = ingresso.
 
@@ -124,9 +124,9 @@ Niente Unity/Godot in early roadmap. Icone: [`assets/ATTRIBUTION.md`](assets/ATT
 
 ## Roadmap
 
-| Ora (0.2.8) | Dopo |
+| Ora (0.2.9) | Dopo |
 | --- | --- |
-| Mid-game giocabile: T2/T3, sorter, tech graph, nodi power, forno OR, trivella | Mercato dinamico · più ricette/campagne · animazioni / lighting · bilanciamento |
+| Mercato dinamico · piombo/titanio · multi-ricette · glow/anim polish | Campagna estesa · atlas texture · tech-tree UX · bilanciamento |
 
 Storia completa: [CHANGELOG.md](CHANGELOG.md).
 

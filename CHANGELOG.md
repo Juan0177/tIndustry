@@ -9,6 +9,25 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 _(vuoto — prossimo bump)_
 
+## [0.2.9] — 2026-09-21
+
+P0 gap close sopra **0.2.8**: mercato dinamico, più minerali/ricette, polish animazioni/lighting.
+
+### Aggiunto / migliorato
+
+- **Mercato dinamico**: prezzi reagiscono allo stock (curva supply / softStock); bonus CORE applicato sul prezzo dinamico; Mercato mostra fino a 6 voci (stockate in alto)
+- **Minerali**: depositi **piombo** + **titanio** (noise + starter/scout); item grezzi + lastre
+- **Ricette**: forno multi-ricetta (`smelt-iron` / `smelt-lead` / `smelt-titanium`); assemblatore (`craft-copper-wire` / `craft-graphite` / `craft-silicon`)
+- **Grafica**: glow forno gated su fuel/power + bloom; trivella idle rock a 0%; ombre soft a 2 layer
+- **Docs**: README allineato a 0.2.9
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.8] — 2026-09-21
 
 Release di contenuto sopra **0.2.7**: mid-game Phase 6, I/O, tech tree, sorter, potenza a nodi, forno carbone-o-corrente, icona minatore **trivella**.

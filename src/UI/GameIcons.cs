@@ -24,8 +24,14 @@ public static class GameIcons
         TryLoad(root, "items/iron-ore.png", "iron-ore");
         TryLoad(root, "items/copper-ore.png", "copper-ore");
         TryLoad(root, "items/coal.png", "coal");
+        TryLoad(root, "items/lead-ore.png", "lead-ore");
+        TryLoad(root, "items/titanium-ore.png", "titanium-ore");
         TryLoad(root, "items/iron-plate.png", "iron-plate");
+        TryLoad(root, "items/lead-plate.png", "lead-plate");
+        TryLoad(root, "items/titanium-plate.png", "titanium-plate");
         TryLoad(root, "items/copper-wire.png", "copper-wire");
+        TryLoad(root, "items/graphite.png", "graphite");
+        TryLoad(root, "items/silicon.png", "silicon");
 
         TryLoad(root, "buildings/miner.png", "miner");
         TryLoad(root, "buildings/smelter.png", "smelter");
@@ -116,7 +122,9 @@ public static class GameIcons
 
     public static string? ItemKey(string itemId) => itemId switch
     {
-        "iron-ore" or "copper-ore" or "coal" or "iron-plate" or "copper-wire" => itemId,
+        "iron-ore" or "copper-ore" or "coal" or "lead-ore" or "titanium-ore"
+            or "iron-plate" or "lead-plate" or "titanium-plate"
+            or "copper-wire" or "graphite" or "silicon" => itemId,
         _ => null
     };
 

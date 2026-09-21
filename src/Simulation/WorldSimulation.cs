@@ -13,7 +13,9 @@ public enum DepositKind
     None,
     Iron,
     Copper,
-    Coal
+    Coal,
+    Lead,
+    Titanium
 }
 
 public readonly record struct TerrainTile(TerrainKind Terrain, DepositKind Deposit)
@@ -63,6 +65,8 @@ public sealed class TerrainMap
                 var oreNoise = SmoothNoise(x + 31, y - 17, seed * 3 + 11);
                 var copperNoise = SmoothNoise(x - 19, y + 41, seed * 5 + 29);
                 var coalNoise = SmoothNoise(x + 7, y + 53, seed * 7 + 17);
+                var leadNoise = SmoothNoise(x - 11, y - 29, seed * 11 + 41);
+                var titaniumNoise = SmoothNoise(x + 53, y + 13, seed * 13 + 7);
                 var deposit = DepositKind.None;
                 if (terrain != TerrainKind.Water)
                 {
@@ -77,6 +81,14 @@ public sealed class TerrainMap
                     else if (coalNoise > oreThreshold + 0.06f)
                     {
                         deposit = DepositKind.Coal;
+                    }
+                    else if (leadNoise > oreThreshold + 0.05f)
+                    {
+                        deposit = DepositKind.Lead;
+                    }
+                    else if (titaniumNoise > oreThreshold + 0.10f)
+                    {
+                        deposit = DepositKind.Titanium;
                     }
                 }
 
@@ -106,6 +118,14 @@ public sealed class TerrainMap
             PlaceDepositPatch(map, coalStarter, MinerBuilding.Size, DepositKind.Coal);
         }
 
+        // Lead starter west of iron — soft metal for early alternate smelt chain.
+        var leadStarter = new GridPosition(starterDepositOrigin.X - MinerBuilding.Size - 1, starterDepositOrigin.Y);
+        if (leadStarter.X >= 0
+            && !coreTiles.Contains(leadStarter))
+        {
+            PlaceDepositPatch(map, leadStarter, MinerBuilding.Size, DepositKind.Lead);
+        }
+
         // Legacy / self-test patch at (2,2) when it does not collide with the core.
         var legacyOrigin = new GridPosition(2, 2);
         if (!coreTiles.Contains(legacyOrigin)
@@ -129,6 +149,12 @@ public sealed class TerrainMap
             PlaceDepositPatch(map, new GridPosition(
                 Math.Clamp(starterDepositOrigin.X + 24, 2, width - 4),
                 Math.Clamp(starterDepositOrigin.Y - 18, 2, height - 4)), 3, DepositKind.Coal);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X + 52, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 12, 2, height - 4)), 3, DepositKind.Lead);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X - 36, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 52, 2, height - 4)), 2, DepositKind.Titanium);
         }
 
         var partialDepositOrigin = new GridPosition(0, 0);
@@ -367,24 +393,30 @@ public sealed class SmelterBuilding
 
     private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
     private readonly Queue<string> outputQueue = new();
+    private RecipeDefinition activeRecipe;
 
     public SmelterBuilding(
         GridPosition position,
         Direction direction,
         RecipeDefinition recipe,
         int fuelBuffer = 0,
-        float burnRemaining = 0f)
+        float burnRemaining = 0f,
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         Position = position;
         Direction = direction;
-        Recipe = recipe;
+        AvailableRecipes = availableRecipes is { Count: > 0 }
+            ? availableRecipes
+            : [recipe];
+        activeRecipe = AvailableRecipes.FirstOrDefault(r => r.Id == recipe.Id) ?? AvailableRecipes[0];
         FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
         BurnRemaining = Math.Max(0f, burnRemaining);
     }
 
     public GridPosition Position { get; }
     public Direction Direction { get; private set; }
-    public RecipeDefinition Recipe { get; }
+    public IReadOnlyList<RecipeDefinition> AvailableRecipes { get; }
+    public RecipeDefinition Recipe => activeRecipe;
     public float Progress { get; internal set; }
     public bool IsCrafting { get; private set; }
     public int FuelBuffer { get; private set; }
@@ -437,14 +469,23 @@ public sealed class SmelterBuilding
 
     public bool TryAccept(string itemId)
     {
-        var needed = Recipe.Inputs.FirstOrDefault(entry => entry.ItemId == itemId);
-        if (needed is null)
+        var maxNeeded = 0;
+        foreach (var recipe in AvailableRecipes)
+        {
+            var needed = recipe.Inputs.FirstOrDefault(entry => entry.ItemId == itemId);
+            if (needed is not null)
+            {
+                maxNeeded = Math.Max(maxNeeded, needed.Amount);
+            }
+        }
+
+        if (maxNeeded <= 0)
         {
             return false;
         }
 
         var have = Buffered(itemId);
-        if (have >= needed.Amount)
+        if (have >= maxNeeded)
         {
             return false;
         }
@@ -590,12 +631,23 @@ public sealed class SmelterBuilding
             return;
         }
 
-        if (!Recipe.Inputs.All(entry => Buffered(entry.ItemId) >= entry.Amount))
+        RecipeDefinition? chosen = null;
+        foreach (var recipe in AvailableRecipes)
+        {
+            if (recipe.Inputs.All(entry => Buffered(entry.ItemId) >= entry.Amount))
+            {
+                chosen = recipe;
+                break;
+            }
+        }
+
+        if (chosen is null)
         {
             return;
         }
 
-        foreach (var entry in Recipe.Inputs)
+        activeRecipe = chosen;
+        foreach (var entry in chosen.Inputs)
         {
             inputBuffer[entry.ItemId] = Buffered(entry.ItemId) - entry.Amount;
             if (inputBuffer[entry.ItemId] <= 0)
@@ -884,9 +936,10 @@ public sealed class FactoryWorld
 
     public static int SalePrice(string itemId) => MarketCatalog.Default.GetSellPrice(itemId);
 
-    public int EffectiveSalePrice(string itemId, MarketCatalog market)
+    public int EffectiveSalePrice(string itemId, MarketCatalog market, EconomyWallet? wallet = null)
     {
-        var price = market.GetSellPrice(itemId);
+        var stock = wallet?.MaterialCount(itemId) ?? 0;
+        var price = market.GetDynamicSellPrice(itemId, stock);
         if (CoreUpgradeLevel <= 0 || CoreSaleBonusPercent <= 0)
         {
             return price;
@@ -1019,14 +1072,15 @@ public sealed class FactoryWorld
         IReadOnlyDictionary<string, int>? buffer,
         IEnumerable<string>? outputs,
         int fuelBuffer = 0,
-        float burnRemaining = 0f)
+        float burnRemaining = 0f,
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         if (!CanOccupyBuilding(position, SmelterBuilding.Size, null))
         {
             return false;
         }
 
-        var smelter = new SmelterBuilding(position, direction, recipe);
+        var smelter = new SmelterBuilding(position, direction, recipe, fuelBuffer, burnRemaining, availableRecipes);
         smelter.RestoreState(progress, isCrafting, buffer, outputs, fuelBuffer, burnRemaining);
         RegisterSmelter(smelter);
         return true;
@@ -1349,13 +1403,16 @@ public sealed class FactoryWorld
     public int CountCoveredDepositTiles(GridPosition position) =>
         Footprint(position, MinerBuilding.Size).Count(tile =>
             IsInside(tile)
-            && Terrain[tile].Deposit is DepositKind.Iron or DepositKind.Copper or DepositKind.Coal);
+            && Terrain[tile].Deposit is DepositKind.Iron or DepositKind.Copper or DepositKind.Coal
+                or DepositKind.Lead or DepositKind.Titanium);
 
     public string ResolveMinerOutput(GridPosition position)
     {
         var iron = 0;
         var copper = 0;
         var coal = 0;
+        var lead = 0;
+        var titanium = 0;
         foreach (var tile in Footprint(position, MinerBuilding.Size))
         {
             if (!IsInside(tile))
@@ -1374,15 +1431,27 @@ public sealed class FactoryWorld
                 case DepositKind.Coal:
                     coal++;
                     break;
+                case DepositKind.Lead:
+                    lead++;
+                    break;
+                case DepositKind.Titanium:
+                    titanium++;
+                    break;
             }
         }
 
-        if (coal >= iron && coal >= copper && coal > 0)
+        var best = Math.Max(iron, Math.Max(copper, Math.Max(coal, Math.Max(lead, titanium))));
+        if (best <= 0)
         {
-            return "coal";
+            return "iron-ore";
         }
 
-        return copper > iron ? "copper-ore" : "iron-ore";
+        // Priority on ties: titanium > lead > coal > copper > iron (rarer ores win ties).
+        if (titanium == best) return "titanium-ore";
+        if (lead == best) return "lead-ore";
+        if (coal == best) return "coal";
+        if (copper == best) return "copper-ore";
+        return "iron-ore";
     }
 
     public bool TryPlaceMiner(
@@ -1427,7 +1496,8 @@ public sealed class FactoryWorld
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         BuildingDefinition? cost = null,
-        EconomySession? session = null)
+        EconomySession? session = null,
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         cost ??= new BuildingDefinition("smelter", SmelterBuilding.MoneyCost, SmelterBuildCost, 100);
         if (!CanPlaceSmelter(position, conveyors)
@@ -1436,7 +1506,7 @@ public sealed class FactoryWorld
             return false;
         }
 
-        RegisterSmelter(new SmelterBuilding(position, direction, recipe));
+        RegisterSmelter(new SmelterBuilding(position, direction, recipe, availableRecipes: availableRecipes));
         session?.RecordBuildSpend(cost.MoneyCost);
         PowerNetworking.AutoLinkEndpoint(
             this,
@@ -1455,7 +1525,8 @@ public sealed class FactoryWorld
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         BuildingDefinition? cost = null,
-        EconomySession? session = null)
+        EconomySession? session = null,
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         cost ??= new BuildingDefinition("assembler", 60,
             [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100);
@@ -1465,7 +1536,7 @@ public sealed class FactoryWorld
             return false;
         }
 
-        RegisterAssembler(new SmelterBuilding(position, direction, recipe));
+        RegisterAssembler(new SmelterBuilding(position, direction, recipe, availableRecipes: availableRecipes));
         session?.RecordBuildSpend(cost.MoneyCost);
         PowerNetworking.AutoLinkEndpoint(
             this,
@@ -1769,12 +1840,19 @@ public sealed class FactoryWorld
         EconomySession? session = null)
     {
         market ??= MarketCatalog.Default;
-        if (amount <= 0 || !wallet.TryRemoveMaterial(itemId, amount))
+        if (amount <= 0)
         {
             return false;
         }
 
-        ApplyCoreSale(wallet, itemId, amount, market, session);
+        // Price from stock *before* removal so supply curve sees the offered volume.
+        var stockBefore = wallet.MaterialCount(itemId);
+        if (stockBefore < amount || !wallet.TryRemoveMaterial(itemId, amount))
+        {
+            return false;
+        }
+
+        ApplyCoreSale(wallet, itemId, amount, market, session, stockBefore);
         return true;
     }
 
@@ -1783,9 +1861,15 @@ public sealed class FactoryWorld
         string itemId,
         int amount,
         MarketCatalog market,
-        EconomySession? session)
+        EconomySession? session,
+        int? stockForPricing = null)
     {
-        var unitPrice = EffectiveSalePrice(itemId, market);
+        var stock = stockForPricing ?? wallet.MaterialCount(itemId);
+        var dyn = market.GetDynamicSellPrice(itemId, stock);
+        var unitPrice = CoreUpgradeLevel > 0 && CoreSaleBonusPercent > 0
+            ? dyn + dyn * CoreSaleBonusPercent / 100
+            : dyn;
+
         var total = unitPrice * amount;
         wallet.AddMoney(total);
         SaleRevenue += total;
@@ -1888,14 +1972,15 @@ public sealed class FactoryWorld
         float progress,
         bool isCrafting,
         IReadOnlyDictionary<string, int>? buffer,
-        IEnumerable<string>? outputs)
+        IEnumerable<string>? outputs,
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         if (!CanOccupyBuilding(position, SmelterBuilding.Size, null))
         {
             return false;
         }
 
-        var assembler = new SmelterBuilding(position, direction, recipe);
+        var assembler = new SmelterBuilding(position, direction, recipe, availableRecipes: availableRecipes);
         assembler.RestoreState(progress, isCrafting, buffer, outputs);
         RegisterAssembler(assembler);
         return true;
