@@ -24,7 +24,7 @@ Controls: **WASD** / middle-drag pan, mouse wheel zoom.
 ## What you should see
 
 - Checkerboard grid map
-- An **L-shaped** belt (eastbound then southbound, 90° corner) with **Mindustry-style scrolling chevrons** that **point and scroll with item flow** (`shaders/belt_scroll.gdshader`, `belt_corner.gdshader`, `MindustryBeltVisual`) — scroll speed = `conveyor-basic` `rateItemsPerSecond` from `data/content.json`
+- An **L-shaped** belt (eastbound then southbound, solid L corner tile) with **Mindustry-style scrolling arrows** that **point and scroll with item flow** (`shaders/belt_scroll.gdshader`, `belt_corner.gdshader`, `MindustryBeltVisual`) — scroll speed = `conveyor-basic` `rateItemsPerSecond` from `data/content.json`
 - Iron-ore icons **riding on top** of both legs and through the corner (same `BeltLane` Advance math as Logistics, per-cell direction)
 - **Static** miner sprite (`assets/miner.png`) — same as Raylib; no drill / tip spin
 

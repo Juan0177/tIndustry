@@ -64,7 +64,7 @@ public partial class ScrollingBeltStrip : Node2D
         };
 
         _material!.SetShaderParameter("cell_count", (float)cellCount);
-        _material.SetShaderParameter("marks_per_tile", 2.5f);
+        _material.SetShaderParameter("marks_per_tile", 2.0f);
         _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
         _material.SetShaderParameter("scroll", 0f);
     }
@@ -87,7 +87,8 @@ public partial class ScrollingBeltStrip : Node2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            ZIndex = 1
+            ZIndex = 1,
+            // Straight strips sit under corner elbows.
         };
         AddChild(_sprite);
     }

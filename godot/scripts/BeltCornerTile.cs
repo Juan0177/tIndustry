@@ -18,7 +18,6 @@ public partial class BeltCornerTile : Node2D
         _sprite!.Texture = CreateUnitTexture();
         _sprite.Centered = true;
         _sprite.Position = new Vector2((cell.X + 0.5f) * tileSize, (cell.Y + 0.5f) * tileSize);
-        _sprite.Scale = new Vector2(tileSize, tileSize);
 
         var clockwise = BeltLane.IsClockwiseTurn(from, to);
         // Base art: East→South (clockwise). Map other turns via rotation + optional Y flip.
@@ -31,10 +30,12 @@ public partial class BeltCornerTile : Node2D
             Direction.North => -90f,
             _ => 0f
         };
-        // Counter-clockwise: mirror local Y then rotate as clockwise counterpart.
-        _sprite.Scale = new Vector2(tileSize, clockwise ? tileSize : -tileSize);
+        // Slight overscale covers 1px seams against adjacent straight strips.
+        var span = tileSize + 2f;
+        _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        _material!.SetShaderParameter("marks_per_tile", 2.5f);
+        _material!.SetShaderParameter("marks_per_tile", 2.0f);
+        _material.SetShaderParameter("half_width", 0.39f);
         _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
         _material.SetShaderParameter("scroll", 0f);
     }
@@ -66,7 +67,8 @@ public partial class BeltCornerTile : Node2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            ZIndex = 1
+            // Above adjacent strip ends so the L elbow reads cleanly.
+            ZIndex = 2
         };
         AddChild(_sprite);
     }
