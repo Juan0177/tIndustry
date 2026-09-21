@@ -1,15 +1,17 @@
 shader_type canvas_item;
 
-// Corner as a static blue metal *platform* (no scrolling arrows).
-// L deck connects west → south; unused quadrant stays transparent.
+// Full-cell static blue *platform* pad (factory plate). No arrows.
+// Recessed L channel carries items; the rest of the tile is opaque deck
+// so the corner reads as a junction platform, not another belt strip.
 // Sprite rotation / Y-flip covers other 90° turns.
 
 uniform float half_width = 0.39;
-uniform vec4 deck_color : source_color = vec4(0.22, 0.30, 0.38, 1.0);
-uniform vec4 deck_hi : source_color = vec4(0.32, 0.42, 0.52, 1.0);
-uniform vec4 deck_lo : source_color = vec4(0.14, 0.18, 0.24, 1.0);
-uniform vec4 rim_color : source_color = vec4(0.08, 0.10, 0.13, 1.0);
-uniform vec4 channel_color : source_color = vec4(0.16, 0.20, 0.26, 1.0);
+uniform vec4 deck_color : source_color = vec4(0.28, 0.40, 0.52, 1.0);
+uniform vec4 deck_hi : source_color = vec4(0.40, 0.55, 0.68, 1.0);
+uniform vec4 deck_lo : source_color = vec4(0.16, 0.22, 0.30, 1.0);
+uniform vec4 rim_color : source_color = vec4(0.06, 0.08, 0.10, 1.0);
+uniform vec4 channel_color : source_color = vec4(0.12, 0.15, 0.20, 1.0);
+uniform vec4 bolt_color : source_color = vec4(0.55, 0.62, 0.70, 1.0);
 
 float sd_segment(vec2 p, vec2 a, vec2 b) {
 	vec2 pa = p - a;
@@ -22,46 +24,59 @@ void fragment() {
 	vec2 p = UV;
 	float hw = half_width;
 
-	// Platform footprint: L arms, slightly wider than the belt channel for a "pad" look.
-	float pad = hw + 0.08;
-	float in_h = step(0.0, p.x) * step(p.x, 0.5 + pad)
-		* step(0.5 - pad, p.y) * step(p.y, 0.5 + pad);
-	float in_v = step(0.5 - pad, p.x) * step(p.x, 0.5 + pad)
-		* step(0.5 - pad, p.y) * step(p.y, 1.0);
-	float inside = max(in_h, in_v);
+	// Full opaque cell — this is the platform footprint.
+	float margin = 0.04;
+	float in_tile = step(margin, p.x) * step(p.x, 1.0 - margin)
+		* step(margin, p.y) * step(p.y, 1.0 - margin);
 
-	// Soft bevel: brighter toward inner bend, darker on outer rim.
-	float to_inner = length(p - vec2(0.35, 0.65));
-	float bevel = smoothstep(0.55, 0.05, to_inner);
-	vec3 deck = mix(deck_lo.rgb, deck_hi.rgb, bevel * 0.55 + 0.25);
-	deck = mix(deck, deck_color.rgb, 0.55);
+	// Soft panel gradient (reads as raised plate).
+	float panel = smoothstep(0.0, 1.0, 1.0 - length(p - vec2(0.45, 0.55)));
+	vec3 deck = mix(deck_lo.rgb, deck_hi.rgb, panel * 0.7);
+	deck = mix(deck, deck_color.rgb, 0.45);
 
-	// Static L channel (belt path) — groove only, no arrows.
+	// Panel inset line near the rim.
+	float inset = step(margin + 0.03, p.x) * step(p.x, 1.0 - margin - 0.03)
+		* step(margin + 0.03, p.y) * step(p.y, 1.0 - margin - 0.03);
+	float rim_band = in_tile * (1.0 - inset);
+	deck = mix(deck, rim_color.rgb, rim_band);
+
+	// Recessed L channel (west mid → center → south mid), no marks.
 	vec2 a = vec2(0.0, 0.5);
 	vec2 b = vec2(0.5, 0.5);
 	vec2 c = vec2(0.5, 1.0);
 	float d = min(sd_segment(p, a, b), sd_segment(p, b, c));
-	float in_channel = 1.0 - smoothstep(hw - 0.03, hw, d);
-	float channel_edge = smoothstep(hw - 0.06, hw - 0.02, d) * in_channel;
+	float in_channel = 1.0 - smoothstep(hw - 0.04, hw, d);
+	float lip = smoothstep(hw - 0.08, hw - 0.03, d) * in_channel;
 
-	deck = mix(deck, channel_color.rgb, in_channel * 0.85);
-	deck = mix(deck, rim_color.rgb, channel_edge);
+	deck = mix(deck, channel_color.rgb, in_channel);
+	deck = mix(deck, rim_color.rgb, lip * 0.85);
 
-	// Outer platform rim.
-	float on_h_edge = in_h * (step(p.y, 0.5 - pad + 0.05) + step(0.5 + pad - 0.05, p.y));
-	float on_v_edge = in_v * (step(p.x, 0.5 - pad + 0.05) + step(0.5 + pad - 0.05, p.x));
-	float outer_rim = clamp(on_h_edge + on_v_edge, 0.0, 1.0);
-	// Cap ends (west / south openings stay open for strip join).
-	float west_cap = step(p.x, 0.04) * in_h;
-	float south_cap = step(0.96, p.y) * in_v;
-	outer_rim *= (1.0 - max(west_cap, south_cap));
-	deck = mix(deck, rim_color.rgb, outer_rim * 0.9);
+	// Four corner bolts — unmistakable platform detail.
+	vec2 b0 = vec2(0.14, 0.14);
+	vec2 b1 = vec2(0.86, 0.14);
+	vec2 b2 = vec2(0.14, 0.86);
+	vec2 b3 = vec2(0.86, 0.86);
+	float bolt = max(max(
+		1.0 - smoothstep(0.035, 0.055, length(p - b0)),
+		1.0 - smoothstep(0.035, 0.055, length(p - b1))), max(
+		1.0 - smoothstep(0.035, 0.055, length(p - b2)),
+		1.0 - smoothstep(0.035, 0.055, length(p - b3))));
+	float bolt_core = max(max(
+		1.0 - smoothstep(0.012, 0.025, length(p - b0)),
+		1.0 - smoothstep(0.012, 0.025, length(p - b1))), max(
+		1.0 - smoothstep(0.012, 0.025, length(p - b2)),
+		1.0 - smoothstep(0.012, 0.025, length(p - b3))));
 
-	// Tiny rivet dots on the pad (static platform detail).
-	vec2 rivet_uv = fract((p - vec2(0.12, 0.12)) * 6.5);
-	float rivet = step(length(rivet_uv - vec2(0.5)), 0.12);
-	float on_pad = inside * (1.0 - in_channel);
-	deck = mix(deck, deck_lo.rgb, rivet * on_pad * 0.65);
+	float on_deck = in_tile * (1.0 - in_channel);
+	deck = mix(deck, bolt_color.rgb, bolt * on_deck);
+	deck = mix(deck, rim_color.rgb, bolt_core * on_deck);
 
-	COLOR = vec4(deck, inside);
+	// Outer black frame of the whole tile.
+	float frame = in_tile * (
+		step(p.x, margin + 0.025) + step(1.0 - margin - 0.025, p.x)
+		+ step(p.y, margin + 0.025) + step(1.0 - margin - 0.025, p.y)
+	);
+	deck = mix(deck, rim_color.rgb, clamp(frame, 0.0, 1.0));
+
+	COLOR = vec4(deck, in_tile);
 }

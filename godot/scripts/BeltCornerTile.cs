@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Corner cell as a static blue metal platform (no scrolling arrows).
-/// Base art: enter-west → exit-south; rotation / Y-flip covers other 90° turns.
+/// Full-cell static blue metal platform pad (no scrolling arrows).
+/// Recessed L channel joins straight belts; base art enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
