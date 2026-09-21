@@ -68,6 +68,18 @@ public sealed class GameContent
             "assembler" => new BuildingDefinition("assembler", 60,
                 [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100),
             "generator" => new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100),
+            "power-node" => new BuildingDefinition(
+                "power-node", 20, [new ResourceAmount("copper-wire", 2)], 100,
+                Footprint: PowerNodeBuilding.Tier1Size,
+                MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
+                PowerLinkRange: PowerNodeBuilding.Tier1Range),
+            "power-node-t2" => new BuildingDefinition(
+                "power-node-t2", 55,
+                [new ResourceAmount("iron-plate", 6), new ResourceAmount("copper-wire", 4)], 100,
+                Footprint: PowerNodeBuilding.Tier2Size,
+                MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks,
+                PowerLinkRange: PowerNodeBuilding.Tier2Range),
+            // Deprecated (#49 cables → #nodi). Kept so stale AppData ids resolve harmlessly.
             "power-cable" => new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100),
             _ => new BuildingDefinition(id, 0, [], 100)
         };

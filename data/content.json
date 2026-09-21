@@ -298,8 +298,8 @@
       "prerequisites": ["smelter"]
     },
     {
-      "id": "power-cable",
-      "displayName": "Cavo T1",
+      "id": "power-node",
+      "displayName": "Nodo T1",
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
@@ -311,6 +311,21 @@
       },
       "isStub": false,
       "prerequisites": ["smelter"]
+    },
+    {
+      "id": "power-node-t2",
+      "displayName": "Nodo T2",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 120,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 12 },
+          { "itemId": "copper-wire", "amount": 6 }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": ["power-node", "generator"]
     },
     {
       "id": "miner-advanced",
@@ -399,12 +414,27 @@
       "refundPercent": 100
     },
     {
-      "id": "power-cable",
-      "moneyCost": 5,
+      "id": "power-node",
+      "moneyCost": 20,
       "buildCost": [
-        { "itemId": "copper-wire", "amount": 1 }
+        { "itemId": "copper-wire", "amount": 2 }
       ],
-      "refundPercent": 100
+      "refundPercent": 100,
+      "footprint": 1,
+      "maxPowerLinks": 4,
+      "powerLinkRange": 6
+    },
+    {
+      "id": "power-node-t2",
+      "moneyCost": 55,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 6 },
+        { "itemId": "copper-wire", "amount": 4 }
+      ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "maxPowerLinks": 8,
+      "powerLinkRange": 10
     }
   ],
   "economy": {
@@ -415,6 +445,6 @@
       ],
       "saleBonusPercent": 25
     },
-    "refundPolicyNote": "Rimozione edifici/nastri: rimborso completo (100%)."
+    "refundPolicyNote": "Rimozione edifici/nastri: rimborso completo (100%). Auto-link nodi potenza: Mindustry-like — al piazzamento collega fino a maxLinks gli endpoint più vicini entro range (linee rette, anche diagonali). Nodo T1: 1×1 / 4 link / range 6. Nodo T2: 2×2 / 8 link / range 10. Rete live se path a core (sempre attivo, baseline) o gen con fuel. CORE non richiede potenza/rete (stock sempre OK); solo forno/assemblatore brown-out senza rete live."
   }
 }
