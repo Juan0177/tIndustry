@@ -173,15 +173,15 @@ internal static class FactoryGameApp
         bool captureUpgradeCore = false,
         string? captureMode = null)
     {
-        var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
-        var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
-        var expressConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-express");
-        var junctionConveyor = content.Conveyors.Single(definition => definition.Id == "junction");
-        var splitterConveyor = content.Conveyors.Single(definition => definition.Id == "splitter");
-        var sorterConveyor = content.Conveyors.Single(definition => definition.Id == "sorter");
-        var bridgeConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-bridge");
-        var smeltRecipe = content.Recipes.Single(recipe => recipe.Id == "smelt-iron");
-        var wireRecipe = content.Recipes.Single(recipe => recipe.Id == "craft-copper-wire");
+        var basicConveyor = RequireContent(content.Conveyors, "conveyor-basic", "nastro");
+        var fastConveyor = RequireContent(content.Conveyors, "conveyor-fast", "nastro");
+        var expressConveyor = RequireContent(content.Conveyors, "conveyor-express", "nastro");
+        var junctionConveyor = RequireContent(content.Conveyors, "junction", "nastro");
+        var splitterConveyor = RequireContent(content.Conveyors, "splitter", "nastro");
+        var sorterConveyor = RequireContent(content.Conveyors, "sorter", "nastro");
+        var bridgeConveyor = RequireContent(content.Conveyors, "conveyor-bridge", "nastro");
+        var smeltRecipe = RequireRecipe(content.Recipes, "smelt-iron");
+        var wireRecipe = RequireRecipe(content.Recipes, "craft-copper-wire");
         var selectedConveyor = basicConveyor;
         var screen = AppScreen.Splash;
         FactoryWorld? world = null;
@@ -6914,5 +6914,37 @@ internal static class FactoryGameApp
         DrawMenuButton(nx, ny, nw, nh, step >= TutorialSteps.Length - 1 ? "Fine" : "Avanti");
         GetTutorialSkipBounds(out var sx, out var sy, out var sw, out var sh);
         DrawMenuButton(sx, sy, sw, sh, "Salta");
+    }
+
+    private static ConveyorDefinition RequireContent(
+        IEnumerable<ConveyorDefinition> conveyors,
+        string id,
+        string kind)
+    {
+        var match = conveyors.FirstOrDefault(definition => definition.Id == id);
+        if (match is null)
+        {
+            throw new InvalidOperationException(
+                $"Contenuto mancante: {kind} '{id}'. " +
+                $"Aggiorna o elimina {GameContentStore.UserJsonPath} e rilancia " +
+                "(EnsureUserContent dovrebbe aver fuso gli id seed mancanti).");
+        }
+
+        return match;
+    }
+
+    private static RecipeDefinition RequireRecipe(
+        IEnumerable<RecipeDefinition> recipes,
+        string id)
+    {
+        var match = recipes.FirstOrDefault(recipe => recipe.Id == id);
+        if (match is null)
+        {
+            throw new InvalidOperationException(
+                $"Contenuto mancante: ricetta '{id}'. " +
+                $"Aggiorna o elimina {GameContentStore.UserJsonPath} e rilancia.");
+        }
+
+        return match;
     }
 }
