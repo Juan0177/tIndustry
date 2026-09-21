@@ -117,7 +117,7 @@ static void RunSelfTest(GameContent content)
         && content.FindStructure("assembler")?.Kind == StructureKind.Building,
         "L'assemblatore deve essere un edificio costruibile.");
     Assert(content.FindStructure("miner-advanced")?.IsStub == true,
-        "Il minatore avanzato resta stub.");
+        "Il minatore T2 resta stub.");
     Assert(content.FindStructure("junction") is not null
         && content.FindStructure("splitter") is not null
         && content.FindStructure("conveyor-bridge") is not null,
