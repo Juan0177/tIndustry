@@ -12,7 +12,8 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | Asset (in `assets/icons/`) | Author | Original icon |
 | --- | --- | --- |
 | `items/iron-ore.png` | Lorc | rock |
-| `items/copper-ore.png` | Delapouite | gold-nuggets |
+| `items/copper-ore.png` | Lorc | rock (orange tint) |
+| `items/coal.png` | Lorc | rock (charcoal tint) |
 | `items/iron-plate.png` | Delapouite | metal-plate |
 | `items/copper-wire.png` | Delapouite | wire-coil |
 | `items/money.png` | Delapouite | coins |

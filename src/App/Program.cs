@@ -37,9 +37,10 @@ if (!args.Contains("--console-demo"))
     var captureSorter = args.Contains("--capture-sorter");
     var captureMidgame = args.Contains("--capture-midgame");
     var captureIcons = args.Contains("--capture-icons");
+    var captureOreTints = args.Contains("--capture-ore-tints");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
-        || captureMidgame || captureIcons;
+        || captureMidgame || captureIcons || captureOreTints;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -72,6 +73,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "midgame-phase6.png");
         captureMode = "midgame";
+    }
+    else if (captureOreTints)
+    {
+        capturePath = Path.Combine("artifacts", "icons-ore-tints.png");
+        captureMode = "ore-tints";
     }
     else if (captureIcons)
     {
@@ -1480,8 +1486,8 @@ static void RunSelfTest(GameContent content)
         var iconRoot = Path.Combine(AppContext.BaseDirectory, "assets", "icons");
         foreach (var rel in new[]
                  {
-                     "items/iron-ore.png", "items/copper-ore.png", "items/iron-plate.png",
-                     "items/copper-wire.png", "items/money.png",
+                     "items/iron-ore.png", "items/copper-ore.png", "items/coal.png",
+                     "items/iron-plate.png", "items/copper-wire.png", "items/money.png",
                      "buildings/miner.png", "buildings/smelter.png", "buildings/assembler.png",
                      "buildings/sorter.png",
                      "categories/production.png", "ui/sell.png"
@@ -1491,13 +1497,33 @@ static void RunSelfTest(GameContent content)
                 $"Icona mancante: {rel}");
         }
 
+        // Ores share one silhouette (identical PNG bytes); color comes from ItemColor tint.
+        var ironOreBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "iron-ore.png"));
+        var copperOreBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "copper-ore.png"));
+        var coalBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "coal.png"));
+        Assert(ironOreBytes.AsSpan().SequenceEqual(copperOreBytes),
+            "copper-ore.png deve condividere la silhouette rock di iron-ore.png.");
+        Assert(ironOreBytes.AsSpan().SequenceEqual(coalBytes),
+            "coal.png deve condividere la silhouette rock di iron-ore.png.");
+
         Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "ATTRIBUTION.md")),
             "ATTRIBUTION.md deve essere copiato in output.");
         Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "thumbnail.png")),
             "Thumbnail splash/store deve essere in assets/thumbnail.png.");
-        // Ferro vs fili: tinte stock/nastro devono restare distinguibili (non quasi-identiche).
+        // Ferro (grigio) vs rame (arancio) vs carbone (nero): tinte distinguibili.
         var ironTint = UiTheme.ItemColor("iron-ore");
+        var copperOreTint = UiTheme.ItemColor("copper-ore");
+        var coalTint = UiTheme.ItemColor("coal");
         var wireTint = UiTheme.ItemColor("copper-wire");
+        Assert(copperOreTint.R > 180 && copperOreTint.G < 170 && copperOreTint.B < 100,
+            $"Rame grezzo deve essere arancio (got R={copperOreTint.R} G={copperOreTint.G} B={copperOreTint.B}).");
+        Assert(coalTint.R < 80 && coalTint.G < 80 && coalTint.B < 80,
+            $"Carbone deve essere charcoal scuro (got R={coalTint.R} G={coalTint.G} B={coalTint.B}).");
+        var ferroRameDelta = Math.Abs(ironTint.R - copperOreTint.R)
+            + Math.Abs(ironTint.G - copperOreTint.G)
+            + Math.Abs(ironTint.B - copperOreTint.B);
+        Assert(ferroRameDelta >= 80,
+            $"Icone ferro/rame troppo simili in colore (delta RGB={ferroRameDelta}).");
         var tintDelta = Math.Abs(ironTint.R - wireTint.R)
             + Math.Abs(ironTint.G - wireTint.G)
             + Math.Abs(ironTint.B - wireTint.B);

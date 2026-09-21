@@ -273,12 +273,12 @@ public static class UiTheme
 
     public static Color ItemColor(string itemId) => itemId switch
     {
-        // Steel-gray ore vs warm copper wire — distinct on belts even at ~tile size.
+        // Ores share the stone-pile silhouette; tint only (gray / orange / charcoal).
         "iron-ore" => new Color(168, 176, 188, 255),
         "iron-plate" => new Color(196, 210, 224, 255),
-        "copper-ore" => new Color(64, 196, 176, 255),
+        "copper-ore" => new Color(232, 128, 48, 255),
         "copper-wire" => new Color(240, 152, 40, 255),
-        "coal" => new Color(48, 48, 52, 255),
+        "coal" => new Color(58, 54, 50, 255),
         _ => new Color(210, 120, 210, 255)
     };
 
@@ -286,9 +286,9 @@ public static class UiTheme
     {
         "iron-ore" => new Color(36, 42, 52, 255),
         "iron-plate" => new Color(40, 52, 64, 255),
-        "copper-ore" => new Color(12, 56, 52, 255),
+        "copper-ore" => new Color(96, 40, 8, 255),
         "copper-wire" => new Color(96, 48, 8, 255),
-        "coal" => new Color(12, 12, 14, 255),
+        "coal" => new Color(8, 8, 10, 255),
         _ => new Color(40, 20, 40, 255)
     };
 
