@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using System.Reflection;
 using Raylib_cs;
 using TIndustry.Logistics;
 
@@ -4456,7 +4457,40 @@ internal static class FactoryGameApp
             DrawCampaignVictoryBanner(ActiveCampaignLevel);
         }
 
+        DrawVersionOverlay();
         DrawEntryOverlay(frameTime);
+    }
+
+    /// <summary>
+    /// Release label from assembly InformationalVersion (csproj Version), e.g. "v0.2.7".
+    /// Drawn bottom-left on the play HUD; not hit-tested so it never blocks clicks.
+    /// </summary>
+    internal static string FormatGameVersionLabel()
+    {
+        var info = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion
+            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)
+            ?? "0.0.0";
+        var version = info.Split('+', 2)[0].Trim();
+        if (version.Length == 0)
+        {
+            version = "0.0.0";
+        }
+
+        return version.StartsWith('v') || version.StartsWith('V')
+            ? version
+            : "v" + version;
+    }
+
+    private static void DrawVersionOverlay()
+    {
+        var label = FormatGameVersionLabel();
+        var size = 12;
+        var x = UiTheme.S(10);
+        var y = ScreenHeight - UiTheme.S(22);
+        // Muted, low-alpha — readable but non-intrusive over the map.
+        DrawUiText(label, x, y, size, new Color(168, 176, 168, 110));
     }
 
     private static void DrawCampaignObjectiveHud(

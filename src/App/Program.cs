@@ -39,9 +39,11 @@ if (!args.Contains("--console-demo"))
     var captureIcons = args.Contains("--capture-icons");
     var captureOreTints = args.Contains("--capture-ore-tints");
     var captureVerifyIconsTiers = args.Contains("--capture-verify-icons-tiers");
+    var captureVersion = args.Contains("--capture-version");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
-        || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers;
+        || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers
+        || captureVersion;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -89,6 +91,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "icons-drill-items.png");
         captureMode = "icons";
+    }
+    else if (captureVersion)
+    {
+        capturePath = Path.Combine("artifacts", "version-overlay.png");
+        captureMode = "version";
     }
     else if (capture)
     {
@@ -1503,6 +1510,10 @@ static void RunSelfTest(GameContent content)
         Assert(ShowCornerFps(showFps: true, showOverlay: false), "FPS angolo quando solo contatore.");
         Assert(!ShowCornerFps(showFps: true, showOverlay: true), "Niente FPS angolo se overlay sistema ON.");
         Assert(!ShowCornerFps(showFps: false, showOverlay: true), "Niente FPS angolo se contatore OFF.");
+        var versionLabel = FactoryGameApp.FormatGameVersionLabel();
+        Assert(versionLabel.StartsWith('v'), "Versione HUD deve iniziare con 'v'.");
+        Assert(versionLabel.Contains("0.2.", StringComparison.Ordinal),
+            "Versione HUD deve riflettere InformationalVersion csproj (0.2.x).");
         Assert(File.Exists(GameContentStore.UserJsonPath),
             "First launch deve materializzare content.json in AppData.");
 
