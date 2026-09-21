@@ -54,6 +54,7 @@ public sealed class MinerSaveData
     public string Direction { get; set; } = "East";
     public float Progress { get; set; }
     public string OutputItemId { get; set; } = "iron-ore";
+    public string DefinitionId { get; set; } = "miner";
 }
 
 public sealed class SmelterSaveData
@@ -72,6 +73,8 @@ public sealed class GeneratorSaveData
 {
     public int X { get; set; }
     public int Y { get; set; }
+    public int FuelBuffer { get; set; }
+    public float BurnRemaining { get; set; }
 }
 
 public sealed class ConveyorSaveData
@@ -273,7 +276,8 @@ public static class GameSaveStore
                     Y = miner.Position.Y,
                     Direction = miner.Direction.ToString(),
                     Progress = miner.Progress,
-                    OutputItemId = miner.OutputItemId
+                    OutputItemId = miner.OutputItemId,
+                    DefinitionId = miner.DefinitionId
                 })
                 .ToList(),
             Smelters = world.Smelters.Values
@@ -306,7 +310,9 @@ public static class GameSaveStore
                 .Select(generator => new GeneratorSaveData
                 {
                     X = generator.Position.X,
-                    Y = generator.Position.Y
+                    Y = generator.Position.Y,
+                    FuelBuffer = generator.FuelBuffer,
+                    BurnRemaining = generator.BurnRemaining
                 })
                 .ToList(),
             Conveyors = conveyors.Cells.Values
@@ -368,7 +374,12 @@ public static class GameSaveStore
                 direction = Direction.East;
             }
 
-            if (!world.TryRestoreMiner(position, direction, minerData.Progress, minerData.OutputItemId))
+            if (!world.TryRestoreMiner(
+                    position,
+                    direction,
+                    minerData.Progress,
+                    minerData.OutputItemId,
+                    string.IsNullOrWhiteSpace(minerData.DefinitionId) ? MinerBuilding.BasicId : minerData.DefinitionId))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il minatore a {position}.");
             }
@@ -429,7 +440,7 @@ public static class GameSaveStore
         foreach (var generatorData in data.Generators)
         {
             var position = new GridPosition(generatorData.X, generatorData.Y);
-            if (!world.TryRestoreGenerator(position))
+            if (!world.TryRestoreGenerator(position, generatorData.FuelBuffer, generatorData.BurnRemaining))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il generatore a {position}.");
             }
@@ -501,6 +512,16 @@ public static class GameSaveStore
         if (data.Conveyors.Any(cell => cell.DefinitionId == "conveyor-fast"))
         {
             research.ForceUnlock("conveyor-fast");
+        }
+
+        if (data.Conveyors.Any(cell => cell.DefinitionId == "conveyor-express"))
+        {
+            research.ForceUnlock("conveyor-express");
+        }
+
+        if (data.Miners.Any(miner => miner.DefinitionId == MinerBuilding.AdvancedId))
+        {
+            research.ForceUnlock(MinerBuilding.AdvancedId);
         }
 
         foreach (var id in new[] { "junction", "splitter", "conveyor-bridge", "sorter" })

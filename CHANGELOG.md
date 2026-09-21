@@ -14,6 +14,15 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Trasferimento adiacente** (stile Mindustry): miner|forno, forno|assemblatore, edifici→CORE senza nastro se i footprint si toccano
 - **Overlay I/O**: amber = uscita uscente, ciano = ingresso entrante (ghost + mondo)
 - **Tutorial** esteso a **14** passi (dock, Mercato, Fabbrica/CORE, ricerca, logistica, campagna, impostazioni)
+- **Minatore T2** (`miner-advanced`): 2× velocità estrazione, +25% efficienza (cap 100%), unlock ricerca, dock Produzione
+- **Nastro T3** (`conveyor-express`): tier 3 a 2 item/s; Q/E/Y = T1/T2/T3
+- **Fuel generatore**: brucia **carbone** da nastro in ingresso; senza fuel non genera (capacità resta); depositi carbone + item mercato
+- Naming UI a **codici tier** (Minatore T1/T2, Nastro T1/T2/T3) — niente “avanzato/express” in etichette IT
+
+### Ancora stub / defer
+
+- Cavi / rete potenza locale (resta **pool globale**)
+- Sorter, tech-tree a grafo, silhouettes TI mondo
 
 ## [0.2.7] — 2026-09-19
 

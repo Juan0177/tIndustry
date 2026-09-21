@@ -12,7 +12,8 @@ public enum DepositKind
 {
     None,
     Iron,
-    Copper
+    Copper,
+    Coal
 }
 
 public readonly record struct TerrainTile(TerrainKind Terrain, DepositKind Deposit)
@@ -61,6 +62,7 @@ public sealed class TerrainMap
                 };
                 var oreNoise = SmoothNoise(x + 31, y - 17, seed * 3 + 11);
                 var copperNoise = SmoothNoise(x - 19, y + 41, seed * 5 + 29);
+                var coalNoise = SmoothNoise(x + 7, y + 53, seed * 7 + 17);
                 var deposit = DepositKind.None;
                 if (terrain != TerrainKind.Water)
                 {
@@ -71,6 +73,10 @@ public sealed class TerrainMap
                     else if (copperNoise > oreThreshold + 0.04f)
                     {
                         deposit = DepositKind.Copper;
+                    }
+                    else if (coalNoise > oreThreshold + 0.06f)
+                    {
+                        deposit = DepositKind.Coal;
                     }
                 }
 
@@ -90,6 +96,14 @@ public sealed class TerrainMap
         if (copperStarter.Y + MinerBuilding.Size <= height)
         {
             PlaceDepositPatch(map, copperStarter, MinerBuilding.Size, DepositKind.Copper);
+        }
+
+        // Coal starter east of iron — fuel for generators (Phase 6 mid-game).
+        var coalStarter = new GridPosition(starterDepositOrigin.X + MinerBuilding.Size + 1, starterDepositOrigin.Y);
+        if (coalStarter.X + MinerBuilding.Size <= width
+            && !coreTiles.Contains(coalStarter))
+        {
+            PlaceDepositPatch(map, coalStarter, MinerBuilding.Size, DepositKind.Coal);
         }
 
         // Legacy / self-test patch at (2,2) when it does not collide with the core.
@@ -112,6 +126,9 @@ public sealed class TerrainMap
             PlaceDepositPatch(map, new GridPosition(
                 Math.Clamp(starterDepositOrigin.X - 20, 2, width - 4),
                 Math.Clamp(starterDepositOrigin.Y + 28, 2, height - 4)), 3, DepositKind.Copper);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X + 24, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y - 18, 2, height - 4)), 3, DepositKind.Coal);
         }
 
         var partialDepositOrigin = new GridPosition(0, 0);
@@ -238,24 +255,51 @@ public sealed class MinerBuilding
     public const int Size = 2;
     public const int FootprintArea = Size * Size;
     public const int OutputTileCount = Size * 4;
+    public const string BasicId = "miner";
+    public const string AdvancedId = "miner-advanced";
 
     public MinerBuilding(
         GridPosition position,
         Direction direction,
         int coveredDepositTiles,
-        string outputItemId = "iron-ore")
+        string outputItemId = "iron-ore",
+        string definitionId = BasicId)
     {
         Position = position;
         Direction = direction;
         CoveredDepositTiles = coveredDepositTiles;
         OutputItemId = outputItemId;
+        DefinitionId = string.IsNullOrWhiteSpace(definitionId) ? BasicId : definitionId;
     }
 
     public GridPosition Position { get; }
     public Direction Direction { get; }
     public int CoveredDepositTiles { get; }
     public string OutputItemId { get; }
-    public float Efficiency => CoveredDepositTiles / (float)FootprintArea;
+    public string DefinitionId { get; }
+    public bool IsAdvanced => DefinitionId == AdvancedId;
+
+    /// <summary>Advanced miners run at 2× extraction rate.</summary>
+    public float MiningSpeed => IsAdvanced ? 2f : 1f;
+
+    /// <summary>
+    /// Deposit coverage 0–100%. Advanced miners get +25% effective efficiency (capped),
+    /// still zero when completely off-deposit.
+    /// </summary>
+    public float Efficiency
+    {
+        get
+        {
+            if (CoveredDepositTiles <= 0)
+            {
+                return 0f;
+            }
+
+            var raw = CoveredDepositTiles / (float)FootprintArea;
+            return IsAdvanced ? Math.Min(1f, raw * 1.25f) : raw;
+        }
+    }
+
     public float Progress { get; internal set; }
 
     /// <summary>Round-robin cursor over the 8 adjacent perimeter tiles (N/E/S/W × 2).</summary>
@@ -575,13 +619,22 @@ public sealed class GeneratorBuilding
     public const int Size = 2;
     public const float CapacityBonus = 40f;
     public const float GenerationPerSecond = 28f;
+    public const string FuelItemId = "coal";
+    public const int FuelBufferCapacity = 8;
+    /// <summary>Seconds of generation provided by one fuel unit.</summary>
+    public const float SecondsPerFuel = 8f;
 
-    public GeneratorBuilding(GridPosition position)
+    public GeneratorBuilding(GridPosition position, int fuelBuffer = 0, float burnRemaining = 0f)
     {
         Position = position;
+        FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+        BurnRemaining = Math.Max(0f, burnRemaining);
     }
 
     public GridPosition Position { get; }
+    public int FuelBuffer { get; private set; }
+    public float BurnRemaining { get; private set; }
+    public bool IsGenerating => BurnRemaining > 0f;
 
     public IEnumerable<GridPosition> OccupiedTiles()
     {
@@ -592,6 +645,73 @@ public sealed class GeneratorBuilding
                 yield return new GridPosition(Position.X + x, Position.Y + y);
             }
         }
+    }
+
+    public bool TryAcceptFuel(string itemId)
+    {
+        if (itemId != FuelItemId || FuelBuffer >= FuelBufferCapacity)
+        {
+            return false;
+        }
+
+        FuelBuffer++;
+        return true;
+    }
+
+    public void RestoreFuel(int fuelBuffer, float burnRemaining)
+    {
+        FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+        BurnRemaining = Math.Max(0f, burnRemaining);
+    }
+
+    internal void AcceptFromBelts(ConveyorGrid conveyors)
+    {
+        for (var y = 0; y < Size; y++)
+        {
+            for (var x = 0; x < Size; x++)
+            {
+                var tileX = Position.X + x;
+                var tileY = Position.Y + y;
+                for (var d = 0; d < DirectionMath.All.Length; d++)
+                {
+                    var dir = DirectionMath.All[d];
+                    var from = new GridPosition(tileX, tileY).Step(DirectionMath.Opposite(dir));
+                    if (!conveyors.Cells.TryGetValue(from, out var conveyor))
+                    {
+                        continue;
+                    }
+
+                    var output = conveyor.OutputPosition;
+                    if (output.X != tileX || output.Y != tileY)
+                    {
+                        continue;
+                    }
+
+                    while (conveyor.PeekOutput() is { } item && TryAcceptFuel(item.ItemId))
+                    {
+                        conveyor.RemoveOutput();
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>Burns fuel and returns true while the generator should emit power this tick.</summary>
+    internal bool TickGeneration(float deltaSeconds)
+    {
+        if (BurnRemaining <= 0f)
+        {
+            if (FuelBuffer <= 0)
+            {
+                return false;
+            }
+
+            FuelBuffer--;
+            BurnRemaining = SecondsPerFuel;
+        }
+
+        BurnRemaining = Math.Max(0f, BurnRemaining - deltaSeconds);
+        return true;
     }
 }
 
@@ -746,7 +866,8 @@ public sealed class FactoryWorld
         GridPosition position,
         Direction direction,
         float progress,
-        string? outputItemId = null)
+        string? outputItemId = null,
+        string? definitionId = null)
     {
         if (!IsInside(position)
             || Footprint(position, MinerBuilding.Size).Any(tile =>
@@ -764,7 +885,8 @@ public sealed class FactoryWorld
             position,
             direction,
             CountCoveredDepositTiles(position),
-            outputItemId ?? ResolveMinerOutput(position))
+            outputItemId ?? ResolveMinerOutput(position),
+            definitionId ?? MinerBuilding.BasicId)
         {
             Progress = Math.Clamp(progress, 0f, 1f)
         };
@@ -827,12 +949,13 @@ public sealed class FactoryWorld
     public int CountCoveredDepositTiles(GridPosition position) =>
         Footprint(position, MinerBuilding.Size).Count(tile =>
             IsInside(tile)
-            && Terrain[tile].Deposit is DepositKind.Iron or DepositKind.Copper);
+            && Terrain[tile].Deposit is DepositKind.Iron or DepositKind.Copper or DepositKind.Coal);
 
     public string ResolveMinerOutput(GridPosition position)
     {
         var iron = 0;
         var copper = 0;
+        var coal = 0;
         foreach (var tile in Footprint(position, MinerBuilding.Size))
         {
             if (!IsInside(tile))
@@ -848,7 +971,15 @@ public sealed class FactoryWorld
                 case DepositKind.Copper:
                     copper++;
                     break;
+                case DepositKind.Coal:
+                    coal++;
+                    break;
             }
+        }
+
+        if (coal >= iron && coal >= copper && coal > 0)
+        {
+            return "coal";
         }
 
         return copper > iron ? "copper-ore" : "iron-ore";
@@ -860,9 +991,13 @@ public sealed class FactoryWorld
         ConveyorGrid conveyors,
         EconomyWallet wallet,
         BuildingDefinition? cost = null,
-        EconomySession? session = null)
+        EconomySession? session = null,
+        string definitionId = MinerBuilding.BasicId)
     {
-        cost ??= new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
+        cost ??= definitionId == MinerBuilding.AdvancedId
+            ? new BuildingDefinition("miner-advanced", 70,
+                [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100)
+            : new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
         if (!CanPlaceMiner(position, conveyors)
             || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
         {
@@ -873,7 +1008,8 @@ public sealed class FactoryWorld
             position,
             direction,
             CountCoveredDepositTiles(position),
-            ResolveMinerOutput(position));
+            ResolveMinerOutput(position),
+            definitionId);
         miners.Add(position, miner);
         foreach (var tile in miner.OccupiedTiles())
         {
@@ -938,7 +1074,10 @@ public sealed class FactoryWorld
             return false;
         }
 
-        cost ??= new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
+        cost ??= miner.IsAdvanced
+            ? new BuildingDefinition("miner-advanced", 70,
+                [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100)
+            : new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
         miners.Remove(miner.Position);
         foreach (var tile in miner.OccupiedTiles())
         {
@@ -1039,14 +1178,14 @@ public sealed class FactoryWorld
         return true;
     }
 
-    public bool TryRestoreGenerator(GridPosition position)
+    public bool TryRestoreGenerator(GridPosition position, int fuelBuffer = 0, float burnRemaining = 0f)
     {
         if (!CanOccupyBuilding(position, GeneratorBuilding.Size, null))
         {
             return false;
         }
 
-        RegisterGenerator(new GeneratorBuilding(position));
+        RegisterGenerator(new GeneratorBuilding(position, fuelBuffer, burnRemaining));
         return true;
     }
 
@@ -1060,13 +1199,22 @@ public sealed class FactoryWorld
         bool autoSellAtCore = false)
     {
         market ??= MarketCatalog.Default;
-        var generation = CorePowerGeneration + generators.Count * GeneratorBuilding.GenerationPerSecond;
+        var generation = CorePowerGeneration;
+        foreach (var generator in generators.Values)
+        {
+            generator.AcceptFromBelts(conveyors);
+            if (generator.TickGeneration(deltaSeconds))
+            {
+                generation += GeneratorBuilding.GenerationPerSecond;
+            }
+        }
+
         PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
 
         foreach (var miner in miners.Values)
         {
             miner.Progress = Math.Min(
-                miner.Progress + deltaSeconds * miner.Efficiency / MiningDurationSeconds,
+                miner.Progress + deltaSeconds * miner.Efficiency * miner.MiningSpeed / MiningDurationSeconds,
                 1f);
             if (miner.Progress < 1f)
             {

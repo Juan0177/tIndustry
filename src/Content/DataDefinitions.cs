@@ -62,6 +62,8 @@ public sealed class GameContent
         FindBuilding(id) ?? id switch
         {
             "miner" => new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
+            "miner-advanced" => new BuildingDefinition("miner-advanced", 70,
+                [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100),
             "smelter" => new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
             "assembler" => new BuildingDefinition("assembler", 60,
                 [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100),
@@ -116,7 +118,7 @@ public sealed class GameContent
     {
         var structures = new List<StructureDefinition>
         {
-            new("conveyor-basic", "Nastro base", StructureKind.Conveyor, true, null),
+            new("conveyor-basic", "Nastro T1", StructureKind.Conveyor, true, null),
             new("miner", "Minatore T1", StructureKind.Building, true, null)
         };
 

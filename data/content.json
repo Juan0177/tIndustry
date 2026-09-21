@@ -105,6 +105,26 @@
         ]
       },
       "kind": "bridge"
+    },
+    {
+      "id": "conveyor-express",
+      "tier": 3,
+      "rateItemsPerSecond": 2.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 35,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 3 },
+        { "itemId": "copper-wire", "amount": 2 }
+      ],
+      "unlock": {
+        "money": 500,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 80 },
+          { "itemId": "copper-wire", "amount": 20 }
+        ]
+      },
+      "kind": "belt"
     }
   ],
   "recipes": [
@@ -133,7 +153,7 @@
   "structures": [
     {
       "id": "conveyor-basic",
-      "displayName": "Nastro base",
+      "displayName": "Nastro T1",
       "kind": "conveyor",
       "unlockedByDefault": true,
       "unlock": null,
@@ -165,7 +185,7 @@
     },
     {
       "id": "conveyor-fast",
-      "displayName": "Nastro veloce",
+      "displayName": "Nastro T2",
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
@@ -233,6 +253,21 @@
       "prerequisites": ["junction"]
     },
     {
+      "id": "conveyor-express",
+      "displayName": "Nastro T3",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 500,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 80 },
+          { "itemId": "copper-wire", "amount": 20 }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": ["conveyor-fast"]
+    },
+    {
       "id": "assembler",
       "displayName": "Assemblatore",
       "kind": "building",
@@ -264,15 +299,16 @@
     {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
-      "kind": "stub",
+      "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 200,
+        "money": 280,
         "materials": [
-          { "itemId": "iron-plate", "amount": 25 }
+          { "itemId": "iron-plate", "amount": 40 },
+          { "itemId": "copper-wire", "amount": 8 }
         ]
       },
-      "isStub": true,
+      "isStub": false,
       "prerequisites": ["miner", "smelter"]
     }
   ],
@@ -296,6 +332,11 @@
       "itemId": "copper-wire",
       "displayName": "Filo di rame",
       "sellPrice": 16
+    },
+    {
+      "itemId": "coal",
+      "displayName": "Carbone",
+      "sellPrice": 4
     }
   ],
   "buildings": [
@@ -304,6 +345,15 @@
       "moneyCost": 25,
       "buildCost": [
         { "itemId": "iron-plate", "amount": 4 }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "miner-advanced",
+      "moneyCost": 70,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 10 },
+        { "itemId": "copper-wire", "amount": 4 }
       ],
       "refundPercent": 100
     },
