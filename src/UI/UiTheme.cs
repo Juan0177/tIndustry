@@ -15,6 +15,7 @@ public enum BuildTool
     Bridge,
     Assembler,
     Generator,
+    PowerCable,
     Sorter
 }
 
@@ -441,7 +442,9 @@ public static class UiTheme
     private static readonly DockEntry[] PowerEntries =
     [
         new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
-            Hint: "Brucia carbone per energia (9) · pool globale")
+            Hint: "Brucia carbone per energia (9) · rete locale via cavi"),
+        new("power-cable", "Cavo T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.PowerCable, ResearchId: "power-cable",
+            Hint: "Condotto potenza · collega gen/core agli edifici")
     ];
 
     private static readonly DockEntry[] EmptyEntries = [];
@@ -472,7 +475,7 @@ public static class UiTheme
     {
         BuildCategory.Production => "Produzione — edifici e demolizione",
         BuildCategory.Logistics => "Logistica — nastri e routing",
-        BuildCategory.Power => "Potenza — generatori",
+        BuildCategory.Power => "Potenza — generatori e cavi",
         _ => BuildCategoryLabel(category)
     };
 

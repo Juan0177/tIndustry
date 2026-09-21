@@ -40,10 +40,11 @@ if (!args.Contains("--console-demo"))
     var captureOreTints = args.Contains("--capture-ore-tints");
     var captureVerifyIconsTiers = args.Contains("--capture-verify-icons-tiers");
     var captureVersion = args.Contains("--capture-version");
+    var capturePowerCables = args.Contains("--capture-power-cables");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
         || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers
-        || captureVersion;
+        || captureVersion || capturePowerCables;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -96,6 +97,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "version-overlay.png");
         captureMode = "version";
+    }
+    else if (capturePowerCables)
+    {
+        capturePath = Path.Combine("artifacts", "power-cables.png");
+        captureMode = "power-cables";
     }
     else if (capture)
     {
@@ -379,6 +385,7 @@ static void RunSelfTest(GameContent content)
         "Adjacency: spazio libero a est del miner per il forno.");
     Assert(adjWorld.TryPlaceSmelter(adjSmelterAt, Direction.East, smeltRecipe, adjGrid, adjWallet),
         "Adjacency: forno a contatto col minatore.");
+    EnsurePowerLink(content, adjWorld, adjGrid, adjWallet, adjSmelterAt);
     Assert(adjGrid.Cells.Count == 0, "Adjacency: nessun nastro tra miner e forno.");
     for (var tick = 0; tick < 240; tick++)
     {
@@ -400,6 +407,7 @@ static void RunSelfTest(GameContent content)
         "Outward-smelter: forno sbloccato.");
     Assert(outWorld.TryPlaceSmelter(outSmelterAt, Direction.North, smeltRecipe, outGrid, outWallet),
         "Outward-smelter: forno facing Nord.");
+    EnsurePowerLink(content, outWorld, outGrid, outWallet, outSmelterAt);
     var outEastBelt = new GridPosition(outSmelterAt.X + SmelterBuilding.Size, outSmelterAt.Y);
     var outWestBelt = new GridPosition(outSmelterAt.X - 1, outSmelterAt.Y);
     Assert(outGrid.TryPlace(outWestBelt, Direction.East, definition, outWallet, outResearch),
@@ -547,6 +555,7 @@ static void RunSelfTest(GameContent content)
     Assert(grassSmelter is not null, "Deve esistere terra libera per il forno.");
     Assert(anywhereWorld.TryPlaceSmelter(grassSmelter!.Value, Direction.East, smeltRecipe, anywhereGrid, anywhereWallet),
         "Piazzamento forno su terra libera.");
+    EnsurePowerLink(content, anywhereWorld, anywhereGrid, anywhereWallet, grassSmelter.Value);
 
     var curvedWorld = new FactoryWorld(14, 10, 7429);
     var curvedGrid = new ConveyorGrid();
@@ -603,6 +612,7 @@ static void RunSelfTest(GameContent content)
     Assert(research.TryUnlock(smelterTech, smeltWallet), "Il forno deve potersi sbloccare in ricerca.");
     Assert(smeltWorld.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, smeltGrid, smeltWallet),
         "Il forno deve piazzarsi.");
+    EnsurePowerLink(content, smeltWorld, smeltGrid, smeltWallet, smelterAt);
     Assert(smeltGrid.TryPlace(new GridPosition(smelterAt.X - 1, smelterAt.Y), Direction.East, definition, smeltWallet, research),
         "Il nastro di ingresso forno deve piazzarsi.");
     for (var x = smelterAt.X + MinerBuilding.Size; x < smeltWorld.CoreOrigin.X; x++)
@@ -688,6 +698,7 @@ static void RunSelfTest(GameContent content)
     var smelterPos = new GridPosition(saveWorld.CoreOrigin.X - 6, saveWorld.CoreOrigin.Y);
     Assert(saveWorld.TryPlaceSmelter(smelterPos, Direction.East, smeltRecipe, saveGrid, saveWallet),
         "Il forno di save-test deve piazzarsi.");
+    EnsurePowerLink(content, saveWorld, saveGrid, saveWallet, smelterPos);
     var beltX = saveWorld.StarterDepositOrigin.X + MinerBuilding.Size;
     var beltY = saveWorld.StarterDepositOrigin.Y;
     Assert(saveGrid.TryPlace(new GridPosition(beltX, beltY), Direction.East, definition, saveWallet, research),
@@ -806,9 +817,10 @@ static void RunSelfTest(GameContent content)
     var ecoSmelterAt = new GridPosition(ecoWorld.CoreOrigin.X - 4, ecoWorld.CoreOrigin.Y);
     Assert(ecoWorld.TryPlaceSmelter(ecoSmelterAt, Direction.East, smeltRecipe, ecoGrid, ecoWallet, smelterBuilding, ecoSession),
         "Save economia: piazza forno.");
+    EnsurePowerLink(content, ecoWorld, ecoGrid, ecoWallet, ecoSmelterAt);
     var ecoCamera = new WorldCamera(1f, 2f, 1.1f);
     var ecoCaptured = GameSaveStore.Capture(ecoWorld, ecoGrid, ecoWallet, ecoCamera, ecoSaveResearch, ecoSession, ecoItemId);
-    Assert(ecoCaptured.Version == 6, "Il salvataggio deve essere v6.");
+    Assert(ecoCaptured.Version == GameSaveData.CurrentVersion, "Il salvataggio deve essere alla versione corrente.");
     var ecoSlot = "self-test-economy";
     GameSaveStore.Save(ecoSlot, ecoCaptured);
     var ecoRestored = GameSaveStore.Restore(GameSaveStore.Load(ecoSlot), content);
@@ -1066,6 +1078,7 @@ static void RunSelfTest(GameContent content)
     Assert(craftWorld.TryPlaceAssembler(
             assemblerAt, Direction.East, wireRecipe, craftGrid, craftWallet, assemblerBuilding),
         "Assemblatore piazzabile.");
+    EnsurePowerLink(content, craftWorld, craftGrid, craftWallet, assemblerAt);
     Assert(craftGrid.TryPlace(new GridPosition(assemblerAt.X - 1, assemblerAt.Y), Direction.East, definition, craftWallet, craftResearch),
         "Ingresso assemblatore.");
     for (var x = assemblerAt.X + MinerBuilding.Size; x < craftWorld.CoreOrigin.X; x++)
@@ -1176,8 +1189,8 @@ static void RunSelfTest(GameContent content)
     var powerCamera = new WorldCamera(0, 0, 1f);
     var powerCaptured = GameSaveStore.Capture(
         powerWorld, powerGrid, powerWallet, powerCamera, powerResearch, powerSession, powerItemId);
-    Assert(powerCaptured.Version == 6 && powerCaptured.Generators.Count == 1,
-        "Save v6 deve includere generatori.");
+    Assert(powerCaptured.Version == GameSaveData.CurrentVersion && powerCaptured.Generators.Count == 1,
+        "Save corrente deve includere generatori.");
     var powerSlot = "self-test-phase6-power";
     GameSaveStore.Save(powerSlot, powerCaptured);
     var powerRestored = GameSaveStore.Restore(GameSaveStore.Load(powerSlot), content);
@@ -1205,6 +1218,97 @@ static void RunSelfTest(GameContent content)
     }
     Assert(powerWorld.PowerBuffer >= bufferBeforeFuel,
         "Con fuel il buffer potenza non deve scendere solo per mancanza generazione gen.");
+
+    // Phase 6 — power cables / local networks (connected vs disconnected).
+    Assert(content.FindStructure("power-cable") is { IsStub: false, DisplayName: "Cavo T1" },
+        "Cavo T1 deve essere una structure costruibile.");
+    Assert(content.FindStructure("power-cable")!.Requires.Contains("smelter"),
+        "Cavo T1 richiede il forno.");
+    var cableTech = content.FindStructure("power-cable")!;
+    var cableCost = content.GetBuildingOrDefault("power-cable");
+    var netWorld = new FactoryWorld(20, 12, 9101);
+    var netGrid = new ConveyorGrid();
+    var netWallet = new EconomyWallet(800, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 120,
+        ["copper-wire"] = 80,
+        ["coal"] = 10
+    });
+    var netResearch = ResearchState.CreateNew(content);
+    Assert(netResearch.TryUnlock(smelterTech, netWallet), "Prereq forno per rete potenza.");
+    Assert(netResearch.TryUnlock(generatorTech, netWallet), "Sblocca generatore per rete.");
+    Assert(netResearch.TryUnlock(cableTech, netWallet), "Sblocca Cavo T1.");
+    var connectedAt = new GridPosition(2, 2);
+    var disconnectedAt = new GridPosition(14, 2);
+    Assert(netWorld.TryPlaceSmelter(connectedAt, Direction.East, smeltRecipe, netGrid, netWallet),
+        "Forno connesso piazzabile.");
+    Assert(netWorld.TryPlaceSmelter(disconnectedAt, Direction.East, smeltRecipe, netGrid, netWallet),
+        "Forno disconnesso piazzabile.");
+    var netGenAt = new GridPosition(5, 2);
+    Assert(netWorld.TryPlaceGenerator(netGenAt, netGrid, netWallet, content.GetBuildingOrDefault("generator")),
+        "Generatore per rete locale.");
+    Assert(netWorld.TryGetGeneratorAt(netGenAt, out var netGen), "Generatore recuperabile.");
+    netGen.TryAcceptFuel("coal");
+    netGen.TryAcceptFuel("coal");
+    // Cable run: gen east side → connected smelter south row (not touching disconnected).
+    Assert(netWorld.TryPlacePowerCable(new GridPosition(4, 4), netGrid, netWallet, cableCost),
+        "Cavo sotto generatore.");
+    Assert(netWorld.TryPlacePowerCable(new GridPosition(5, 4), netGrid, netWallet, cableCost),
+        "Cavo sotto generatore 2.");
+    Assert(netWorld.TryPlacePowerCable(new GridPosition(3, 4), netGrid, netWallet, cableCost),
+        "Cavo verso forno connesso.");
+    Assert(netWorld.TryPlacePowerCable(new GridPosition(2, 4), netGrid, netWallet, cableCost),
+        "Cavo adiacente forno connesso.");
+    var netTick = 1L;
+    for (var tick = 0; tick < 30; tick++)
+    {
+        netWorld.Update(1f / 30f, netGrid, netWallet, ref netTick);
+    }
+
+    Assert(netWorld.Generators.Values.Single().IsGenerating, "Generatore in rete deve bruciare fuel.");
+    Assert(netWorld.IsBuildingPowered(connectedAt, SmelterBuilding.Size),
+        "Forno adiacente a cavi verso gen deve essere alimentato.");
+    Assert(!netWorld.IsBuildingPowered(disconnectedAt, SmelterBuilding.Size),
+        "Forno lontano senza cavi non è alimentato.");
+    netWorld.SetPowerBuffer(netWorld.PowerCapacity);
+    Assert(netWorld.TrySpendPowerForBuilding(connectedAt, SmelterBuilding.Size, 1f),
+        "Spend potenza OK se connesso.");
+    Assert(!netWorld.TrySpendPowerForBuilding(disconnectedAt, SmelterBuilding.Size, 1f),
+        "Spend potenza negata se disconnesso anche con buffer pieno.");
+
+    // Feed both smelters; only connected advances craft under brownout-style gate.
+    var connected = netWorld.Smelters[connectedAt];
+    var disconnected = netWorld.Smelters[disconnectedAt];
+    connected.TryAccept("iron-ore");
+    connected.TryAccept("iron-ore");
+    disconnected.TryAccept("iron-ore");
+    disconnected.TryAccept("iron-ore");
+    for (var tick = 0; tick < 120; tick++)
+    {
+        netWorld.Update(1f / 30f, netGrid, netWallet, ref netTick);
+    }
+
+    Assert(connected.IsCrafting || connected.OutputQueue.Count > 0 || connected.Progress > 0f,
+        "Forno connesso deve craftare.");
+    Assert(disconnected.Progress == 0f && disconnected.OutputQueue.Count == 0,
+        "Forno disconnesso non deve avanzare il craft (brownout rete).");
+
+    var netCaptured = GameSaveStore.Capture(
+        netWorld, netGrid, netWallet, new WorldCamera(0, 0, 1f), netResearch, new EconomySession(netWallet.Money), netTick);
+    Assert(netCaptured.PowerCables.Count >= 4, "Save v7 deve includere i cavi.");
+    var netSlot = "self-test-power-cables";
+    GameSaveStore.Save(netSlot, netCaptured);
+    var netRestored = GameSaveStore.Restore(GameSaveStore.Load(netSlot), content);
+    Assert(netRestored.World.PowerCables.Count == netWorld.PowerCables.Count,
+        "Cavi devono sopravvivere al reload.");
+    netRestored.World.RefreshPowerNetworks();
+    Assert(netRestored.Research.IsUnlocked("power-cable"), "Unlock cavo dopo reload.");
+
+    Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-cable"),
+        "Dock PWR: Cavo T1.");
+    Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power)
+            .Single(e => e.Id == "power-cable").Label == "Cavo T1",
+        "Label dock cavo = Cavo T1.");
 
     // Mid-game: Minatore T2 + Nastro T3.
     var midResearch = ResearchState.CreateNew(content);
@@ -1315,8 +1419,8 @@ static void RunSelfTest(GameContent content)
                 var hudWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
                 var hudSession = new EconomySession(hudWallet.Money);
                 var hudResearch = ResearchState.CreateNew(content);
-                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M0 F0 A0 N0 G0",
-                    "Fabbrica vuota deve mostrare M0 F0 A0 N0 G0.");
+                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M0 F0 A0 N0 G0 C0",
+                    "Fabbrica vuota deve mostrare M0 F0 A0 N0 G0 C0.");
                 Assert(hudWorld.TryPlaceMiner(
                         hudWorld.StarterDepositOrigin, Direction.East, hudGrid, hudWallet, minerBuilding, hudSession),
                     "HUD-test: piazza minatore.");
@@ -1324,7 +1428,7 @@ static void RunSelfTest(GameContent content)
                         new GridPosition(hudWorld.StarterDepositOrigin.X + MinerBuilding.Size, hudWorld.StarterDepositOrigin.Y),
                         Direction.East, definition, hudWallet, hudResearch, hudSession),
                     "HUD-test: piazza nastro.");
-                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M1 F0 A0 N1 G0",
+                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M1 F0 A0 N1 G0 C0",
                     "Dopo piazzamento i conteggi Fabbrica devono aggiornarsi (M1 N1).");
 
                 Assert(FactoryGameApp.TryClickCoreUpgradeForTest(
@@ -1403,6 +1507,8 @@ static void RunSelfTest(GameContent content)
             "Logistica: Nastro T1/T2/T3 + junction/splitter/ponte.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
             "Potenza: generatore.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-cable"),
+            "Potenza: Cavo T1.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length == 0,
             "Categoria Inventario rimossa dal dock.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
@@ -1428,6 +1534,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
+                content.GetBuildingOrDefault("power-cable"),
                 out var minerMoney, out var minerMats)
             && minerMoney == content.GetBuildingOrDefault("miner").MoneyCost
             && minerMats.Any(m => m.ItemId == "iron-plate" && m.Amount > 0),
@@ -1446,6 +1553,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
+                content.GetBuildingOrDefault("power-cable"),
                 out var expressMoney, out _)
             && expressMoney == content.Conveyors.Single(c => c.Id == "conveyor-express").MoneyCost,
             "Dock cost bar: Nastro T3.");
@@ -1463,6 +1571,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
+                content.GetBuildingOrDefault("power-cable"),
                 out _, out _),
             "Dock cost bar: Rimuovi non espone costi finti.");
         Assert(FactoryGameApp.TryResolveDockEntryCostForTest(
@@ -1479,6 +1588,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
+                content.GetBuildingOrDefault("power-cable"),
                 out var sorterMoney, out var sorterMats)
             && sorterMoney == content.Conveyors.Single(c => c.Id == "sorter").MoneyCost
             && sorterMats.Any(m => m.ItemId == "iron-plate"),
@@ -1888,4 +1998,30 @@ static void Assert(bool condition, string message)
     {
         throw new InvalidOperationException(message);
     }
+}
+
+static void EnsurePowerLink(
+    GameContent content,
+    FactoryWorld world,
+    ConveyorGrid grid,
+    EconomyWallet wallet,
+    GridPosition building,
+    int size = SmelterBuilding.Size)
+{
+    world.RefreshPowerNetworks();
+    if (world.IsBuildingPowered(building, size))
+    {
+        return;
+    }
+
+    wallet.AddMoney(80);
+    wallet.AddMaterial("copper-wire", 40);
+    Assert(
+        world.TryEnsurePowerLinkToCore(
+            building,
+            size,
+            grid,
+            wallet,
+            content.GetBuildingOrDefault("power-cable")),
+        $"Serve un collegamento cavi verso il core per {building}.");
 }

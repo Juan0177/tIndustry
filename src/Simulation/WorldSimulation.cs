@@ -746,6 +746,8 @@ public sealed class FactoryWorld
     private readonly Dictionary<GridPosition, SmelterBuilding> assemblerByTile = [];
     private readonly Dictionary<GridPosition, GeneratorBuilding> generators = [];
     private readonly Dictionary<GridPosition, GeneratorBuilding> generatorByTile = [];
+    private readonly PowerCableGrid powerCables = new();
+    private PowerNetworkState powerNetworks = PowerNetworkState.Empty;
 
     public FactoryWorld(int width, int height, int seed)
     {
@@ -782,6 +784,8 @@ public sealed class FactoryWorld
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Smelters => smelters;
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Assemblers => assemblers;
     public IReadOnlyDictionary<GridPosition, GeneratorBuilding> Generators => generators;
+    public PowerCableGrid PowerCables => powerCables;
+    public PowerNetworkState PowerNetworks => powerNetworks;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
     public int SaleRevenue { get; private set; }
@@ -825,9 +829,13 @@ public sealed class FactoryWorld
 
     public void RecalculatePowerCapacity()
     {
+        // Capacity still scales with placed generators; local networks gate who can spend.
         PowerCapacity = CorePowerCapacity + generators.Count * GeneratorBuilding.CapacityBonus;
         PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
     }
+
+    public bool IsBuildingPowered(GridPosition origin, int size) =>
+        PowerNetworking.IsBuildingPowered(this, powerNetworks, origin, size);
 
     public bool TrySpendPower(float amount)
     {
@@ -843,6 +851,22 @@ public sealed class FactoryWorld
 
         PowerBuffer -= amount;
         return true;
+    }
+
+    /// <summary>Spend only if the building is on a powered local network (or touches core/gen).</summary>
+    public bool TrySpendPowerForBuilding(GridPosition origin, int size, float amount)
+    {
+        if (amount <= 0f)
+        {
+            return true;
+        }
+
+        if (!IsBuildingPowered(origin, size))
+        {
+            return false;
+        }
+
+        return TrySpendPower(amount);
     }
 
     public bool TryUpgradeCore(
@@ -926,7 +950,203 @@ public sealed class FactoryWorld
         && !minerByTile.ContainsKey(position)
         && !smelterByTile.ContainsKey(position)
         && !assemblerByTile.ContainsKey(position)
-        && !generatorByTile.ContainsKey(position);
+        && !generatorByTile.ContainsKey(position)
+        && !powerCables.Contains(position);
+
+    public bool CanPlacePowerCable(GridPosition position, ConveyorGrid conveyors) =>
+        IsInside(position)
+        && Terrain[position].IsBuildable
+        && !CoreTiles.Contains(position)
+        && !minerByTile.ContainsKey(position)
+        && !smelterByTile.ContainsKey(position)
+        && !assemblerByTile.ContainsKey(position)
+        && !generatorByTile.ContainsKey(position)
+        && !conveyors.Cells.ContainsKey(position)
+        && !powerCables.Contains(position);
+
+    public bool TryPlacePowerCable(
+        GridPosition position,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        cost ??= new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100);
+        if (!CanPlacePowerCable(position, conveyors)
+            || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
+        {
+            return false;
+        }
+
+        powerCables.TryAdd(position);
+        session?.RecordBuildSpend(cost.MoneyCost);
+        RefreshPowerNetworks();
+        return true;
+    }
+
+    public bool TryRemovePowerCable(
+        GridPosition position,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        if (!powerCables.Contains(position))
+        {
+            return false;
+        }
+
+        cost ??= new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100);
+        powerCables.TryRemove(position);
+        ApplyRefund(wallet, cost, session);
+        RefreshPowerNetworks();
+        return true;
+    }
+
+    public bool TryRestorePowerCable(GridPosition position)
+    {
+        if (!IsInside(position)
+            || CoreTiles.Contains(position)
+            || minerByTile.ContainsKey(position)
+            || smelterByTile.ContainsKey(position)
+            || assemblerByTile.ContainsKey(position)
+            || generatorByTile.ContainsKey(position)
+            || powerCables.Contains(position))
+        {
+            return false;
+        }
+
+        if (!powerCables.TryAdd(position))
+        {
+            return false;
+        }
+
+        RefreshPowerNetworks();
+        return true;
+    }
+
+    public void RefreshPowerNetworks() =>
+        powerNetworks = PowerNetworking.Build(this, powerCables, generators.Values);
+
+    /// <summary>
+    /// Places a short cable path from a building footprint to the core (or returns true if already powered).
+    /// Used by self-tests and capture scenes so crafters away from the core stay online.
+    /// </summary>
+    public bool TryEnsurePowerLinkToCore(
+        GridPosition origin,
+        int size,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        RefreshPowerNetworks();
+        if (IsBuildingPowered(origin, size))
+        {
+            return true;
+        }
+
+        cost ??= new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100);
+        var starts = new List<GridPosition>();
+        var goals = new HashSet<GridPosition>();
+        foreach (var tile in Footprint(origin, size))
+        {
+            for (var d = 0; d < DirectionMath.All.Length; d++)
+            {
+                var n = tile.Step(DirectionMath.All[d]);
+                if (CanPlacePowerCable(n, conveyors) || powerCables.Contains(n))
+                {
+                    starts.Add(n);
+                }
+            }
+        }
+
+        foreach (var coreTile in CoreTiles)
+        {
+            for (var d = 0; d < DirectionMath.All.Length; d++)
+            {
+                var n = coreTile.Step(DirectionMath.All[d]);
+                if (CanPlacePowerCable(n, conveyors) || powerCables.Contains(n))
+                {
+                    goals.Add(n);
+                }
+            }
+        }
+
+        if (starts.Count == 0 || goals.Count == 0)
+        {
+            return false;
+        }
+
+        // BFS for a free path; prefer already-placed cables as zero-cost.
+        var cameFrom = new Dictionary<GridPosition, GridPosition>();
+        var queue = new Queue<GridPosition>();
+        var seen = new HashSet<GridPosition>();
+        foreach (var start in starts)
+        {
+            if (seen.Add(start))
+            {
+                queue.Enqueue(start);
+            }
+        }
+
+        GridPosition? found = null;
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (goals.Contains(current))
+            {
+                found = current;
+                break;
+            }
+
+            for (var d = 0; d < DirectionMath.All.Length; d++)
+            {
+                var next = current.Step(DirectionMath.All[d]);
+                if (!seen.Add(next))
+                {
+                    continue;
+                }
+
+                if (!powerCables.Contains(next) && !CanPlacePowerCable(next, conveyors))
+                {
+                    continue;
+                }
+
+                cameFrom[next] = current;
+                queue.Enqueue(next);
+            }
+        }
+
+        if (found is null)
+        {
+            return false;
+        }
+
+        var path = new List<GridPosition>();
+        var walk = found.Value;
+        path.Add(walk);
+        while (cameFrom.TryGetValue(walk, out var prev))
+        {
+            walk = prev;
+            path.Add(walk);
+        }
+
+        foreach (var tile in path)
+        {
+            if (powerCables.Contains(tile))
+            {
+                continue;
+            }
+
+            if (!TryPlacePowerCable(tile, conveyors, wallet, cost, session))
+            {
+                return false;
+            }
+        }
+
+        RefreshPowerNetworks();
+        return IsBuildingPowered(origin, size);
+    }
 
     public bool CanPlaceMiner(GridPosition position, ConveyorGrid conveyors) =>
         Footprint(position, MinerBuilding.Size).All(tile =>
@@ -937,7 +1157,8 @@ public sealed class FactoryWorld
             && !smelterByTile.ContainsKey(tile)
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
-            && !conveyors.Cells.ContainsKey(tile));
+            && !conveyors.Cells.ContainsKey(tile)
+            && !powerCables.Contains(tile));
     // Deposit coverage optional: 0 covered tiles → 0% efficiency, no ore output.
 
     public bool CanPlaceSmelter(GridPosition position, ConveyorGrid conveyors) =>
@@ -1209,6 +1430,9 @@ public sealed class FactoryWorld
             }
         }
 
+        // Rebuild local cable networks after generator burn state updates.
+        powerNetworks = PowerNetworking.Build(this, powerCables, generators.Values);
+        PowerCapacity = powerNetworks.Capacity;
         PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
 
         foreach (var miner in miners.Values)
@@ -1275,7 +1499,7 @@ public sealed class FactoryWorld
                 deltaSeconds,
                 conveyors,
                 ref nextItemId,
-                TrySpendPower,
+                amount => TrySpendPowerForBuilding(smelter.Position, SmelterBuilding.Size, amount),
                 SmelterPowerDraw,
                 itemId => TryDeliverAdjacent(
                     smelter.Position,
@@ -1294,7 +1518,7 @@ public sealed class FactoryWorld
                 deltaSeconds,
                 conveyors,
                 ref nextItemId,
-                TrySpendPower,
+                amount => TrySpendPowerForBuilding(assembler.Position, SmelterBuilding.Size, amount),
                 AssemblerPowerDraw,
                 itemId => TryDeliverAdjacent(
                     assembler.Position,
@@ -1505,6 +1729,7 @@ public sealed class FactoryWorld
             && !smelterByTile.ContainsKey(tile)
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
+            && !powerCables.Contains(tile)
             && (conveyors is null || !conveyors.Cells.ContainsKey(tile)));
 
     private bool IsInside(GridPosition position) =>

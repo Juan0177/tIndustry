@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -26,6 +26,7 @@ public sealed class GameSaveData
     public List<SmelterSaveData> Smelters { get; set; } = [];
     public List<SmelterSaveData> Assemblers { get; set; } = [];
     public List<GeneratorSaveData> Generators { get; set; } = [];
+    public List<PowerCableSaveData> PowerCables { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -75,6 +76,12 @@ public sealed class GeneratorSaveData
     public int Y { get; set; }
     public int FuelBuffer { get; set; }
     public float BurnRemaining { get; set; }
+}
+
+public sealed class PowerCableSaveData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
 }
 
 public sealed class ConveyorSaveData
@@ -315,6 +322,11 @@ public static class GameSaveStore
                     BurnRemaining = generator.BurnRemaining
                 })
                 .ToList(),
+            PowerCables = world.PowerCables.Cells
+                .Select(cable => new PowerCableSaveData { X = cable.X, Y = cable.Y })
+                .OrderBy(c => c.Y)
+                .ThenBy(c => c.X)
+                .ToList(),
             Conveyors = conveyors.Cells.Values
                 .Select(cell => new ConveyorSaveData
                 {
@@ -443,6 +455,18 @@ public static class GameSaveStore
             if (!world.TryRestoreGenerator(position, generatorData.FuelBuffer, generatorData.BurnRemaining))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il generatore a {position}.");
+            }
+        }
+
+        if (data.Version >= 7)
+        {
+            foreach (var cableData in data.PowerCables)
+            {
+                var position = new GridPosition(cableData.X, cableData.Y);
+                if (!world.TryRestorePowerCable(position))
+                {
+                    throw new InvalidDataException($"Impossibile ripristinare il cavo a {position}.");
+                }
             }
         }
 
