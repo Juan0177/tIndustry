@@ -87,7 +87,8 @@ public partial class ScrollingBeltStrip : Node2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            ZIndex = 1
+            ZIndex = 1,
+            // Straight strips sit under corner elbows.
         };
         AddChild(_sprite);
     }

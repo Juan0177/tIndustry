@@ -66,7 +66,8 @@ public partial class BeltCornerTile : Node2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            ZIndex = 1
+            // Above adjacent strip ends so the L elbow reads cleanly.
+            ZIndex = 2
         };
         AddChild(_sprite);
     }
