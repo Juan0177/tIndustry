@@ -25,7 +25,7 @@ Controls: **WASD** / middle-drag pan, mouse wheel zoom.
 
 - Checkerboard grid map
 - One eastbound belt strip with iron-ore icons moving (rates from `data/content.json` → `conveyor-basic`)
-- Miner with **AnimationPlayer** sprite-sheet drill animation (not a procedural Raylib-style fake)
+- **Static** miner sprite (`assets/miner.png`) — same as Raylib; no drill / tip spin. Building animations come later when we want them.
 
 ## Projects
 

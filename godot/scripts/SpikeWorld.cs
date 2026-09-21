@@ -5,7 +5,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Spike root: draws a small grid, runs one BeltLane from Shared (content.json rates),
-/// and hosts a miner with AnimationPlayer sprite animation.
+/// and hosts a static miner sprite (no drill / tip animation — matches Raylib).
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -173,7 +173,7 @@ public partial class SpikeWorld : Node2D
         var count = _belt.Cells.Sum(c => c.Items.Count);
         _hud.Text =
             $"tIndustry Godot spike  |  belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}\n" +
-            "WASD / middle-drag pan · wheel zoom · AnimationPlayer on miner";
+            "WASD / middle-drag pan · wheel zoom · static miner (no drill anim)";
     }
 
     private static Vector2 CellCenter(GridPosition cell) =>
@@ -247,7 +247,7 @@ public partial class SpikeWorld : Node2D
         GD.Print(err == Error.Ok ? $"Screenshot: {beltPath}" : $"Belt crop failed: {err}");
 
         var minerCrop = img.GetRegion(new Rect2I(40, 300, 280, 240));
-        var minerPath = Path.Combine(destDir, "godot-spike-miner.png");
+        var minerPath = Path.Combine(destDir, "godot-spike-miner-static.png");
         err = minerCrop.SavePng(minerPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {minerPath}" : $"Miner crop failed: {err}");
     }
