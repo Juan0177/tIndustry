@@ -154,6 +154,12 @@ internal static class FactoryGameApp
     private static bool CampaignVictoryHandled;
     private static string? LoadingCampaignLevelId;
     private static int CampaignSelectScroll;
+    private static float TechTreePanX;
+    private static float TechTreePanY;
+    private static bool TechTreePanning;
+    private static Vector2 TechTreePanAnchor;
+    private static float TechTreePanStartX;
+    private static float TechTreePanStartY;
 
     public static void Run(
         GameContent content,
@@ -245,6 +251,27 @@ internal static class FactoryGameApp
                 BeginTutorialIfNeeded(settings);
                 TutorialActive = true;
                 TutorialStep = 4; // compact-layout step — shows extended tutorial banner
+            }
+            else if (captureMode == "tech-tree")
+            {
+                SeedCaptureTechTree(wallet!, research!, content);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                TechTreePanX = 0f;
+                TechTreePanY = 0f;
+                screen = AppScreen.Research;
+                var smelterIdx = -1;
+                var researchList = ResearchEntries(content);
+                for (var i = 0; i < researchList.Count; i++)
+                {
+                    if (researchList[i].Id == "smelter")
+                    {
+                        smelterIdx = i;
+                        break;
+                    }
+                }
+
+                selectedResearchIndex = Math.Max(0, smelterIdx);
             }
             else
             {
@@ -1019,6 +1046,21 @@ internal static class FactoryGameApp
         }
     }
 
+    private static void SeedCaptureTechTree(
+        EconomyWallet wallet,
+        ResearchState research,
+        GameContent content)
+    {
+        wallet.AddMoney(400);
+        wallet.AddMaterial("iron-plate", 80);
+        wallet.AddMaterial("copper-wire", 12);
+
+        // Mixed states: forno unlocked, logistica base unlocked, rest locked/available.
+        research.ForceUnlock("smelter");
+        research.ForceUnlock("junction");
+        _ = content;
+    }
+
     /// <summary>
     /// Compact Mindustry layout for --capture-io: miner flush against smelter + outward belts tinted.
     /// </summary>
@@ -1424,46 +1466,109 @@ internal static class FactoryGameApp
         ref int selectedResearchIndex,
         ref string? statusMessage)
     {
+        var graph = TechTreeLayout.Build(content);
         var entries = ResearchEntries(content);
         if (Raylib.IsKeyPressed(KeyboardKey.Escape)
             || (Raylib.IsMouseButtonPressed(MouseButton.Left)
                 && Contains(Raylib.GetMousePosition(), 28, ScreenHeight - 70, 180, 40)))
         {
             statusMessage = null;
+            TechTreePanning = false;
             screen = AppScreen.Playing;
             return;
         }
 
         if (entries.Count > 0)
         {
-            if (Raylib.IsKeyPressed(KeyboardKey.Up))
+            if (Raylib.IsKeyPressed(KeyboardKey.Up) || Raylib.IsKeyPressed(KeyboardKey.Left))
             {
                 selectedResearchIndex = (selectedResearchIndex + entries.Count - 1) % entries.Count;
             }
 
-            if (Raylib.IsKeyPressed(KeyboardKey.Down))
+            if (Raylib.IsKeyPressed(KeyboardKey.Down) || Raylib.IsKeyPressed(KeyboardKey.Right))
             {
                 selectedResearchIndex = (selectedResearchIndex + 1) % entries.Count;
             }
         }
 
-        if (!Raylib.IsMouseButtonPressed(MouseButton.Left) || entries.Count == 0)
+        var mouse = Raylib.GetMousePosition();
+        GetTechTreeCanvas(out var canvasX, out var canvasY, out var canvasW, out var canvasH);
+        var overCanvas = Contains(mouse, canvasX, canvasY, canvasW, canvasH);
+
+        if (Raylib.IsMouseButtonPressed(MouseButton.Middle)
+            || (Raylib.IsMouseButtonPressed(MouseButton.Right) && overCanvas)
+            || (Raylib.IsKeyDown(KeyboardKey.LeftShift) && Raylib.IsMouseButtonPressed(MouseButton.Left) && overCanvas))
+        {
+            TechTreePanning = true;
+            TechTreePanAnchor = mouse;
+            TechTreePanStartX = TechTreePanX;
+            TechTreePanStartY = TechTreePanY;
+        }
+
+        if (TechTreePanning)
+        {
+            if (Raylib.IsMouseButtonDown(MouseButton.Middle)
+                || Raylib.IsMouseButtonDown(MouseButton.Right)
+                || (Raylib.IsKeyDown(KeyboardKey.LeftShift) && Raylib.IsMouseButtonDown(MouseButton.Left)))
+            {
+                TechTreePanX = TechTreePanStartX + (mouse.X - TechTreePanAnchor.X);
+                TechTreePanY = TechTreePanStartY + (mouse.Y - TechTreePanAnchor.Y);
+            }
+            else
+            {
+                TechTreePanning = false;
+            }
+        }
+
+        if (overCanvas)
+        {
+            var wheel = Raylib.GetMouseWheelMove();
+            if (Math.Abs(wheel) > 0.01f)
+            {
+                TechTreePanY += wheel * 36f;
+            }
+        }
+
+        if (!Raylib.IsMouseButtonPressed(MouseButton.Left) || TechTreePanning || entries.Count == 0)
         {
             return;
         }
 
-        var mouse = Raylib.GetMousePosition();
-        for (var index = 0; index < entries.Count; index++)
+        if (Raylib.IsKeyDown(KeyboardKey.LeftShift))
         {
-            if (Contains(mouse, 60, 140 + index * 58, 700, 50))
+            return;
+        }
+
+        for (var index = 0; index < graph.Nodes.Count; index++)
+        {
+            var node = graph.Nodes[index];
+            var nx = (int)(node.X + TechTreePanX);
+            var ny = (int)(node.Y + TechTreePanY);
+            if (!Contains(mouse, nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight))
             {
-                selectedResearchIndex = index;
+                continue;
+            }
+
+            var entryIndex = -1;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].Id == node.Structure.Id)
+                {
+                    entryIndex = i;
+                    break;
+                }
+            }
+
+            if (entryIndex >= 0)
+            {
+                selectedResearchIndex = entryIndex;
             }
         }
 
         selectedResearchIndex = Math.Clamp(selectedResearchIndex, 0, entries.Count - 1);
         var selected = entries[selectedResearchIndex];
-        if (!Contains(mouse, 800, 140, 320, 50))
+        GetTechTreeDetailPanel(out var detailX, out var detailY, out var detailW, out _);
+        if (!Contains(mouse, detailX, detailY, detailW, 52))
         {
             return;
         }
@@ -1471,6 +1576,12 @@ internal static class FactoryGameApp
         if (research.IsUnlocked(selected.Id))
         {
             statusMessage = "Già sbloccato.";
+            return;
+        }
+
+        if (!research.MeetsPrerequisites(selected))
+        {
+            statusMessage = "Prerequisiti mancanti.";
             return;
         }
 
@@ -1489,10 +1600,24 @@ internal static class FactoryGameApp
     }
 
     private static IReadOnlyList<StructureDefinition> ResearchEntries(GameContent content) =>
-        content.Structures
-            .Where(structure => !structure.UnlockedByDefault)
-            .OrderBy(structure => structure.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        TechTreeLayout.Build(content).Nodes.Select(node => node.Structure).ToList();
+
+    private static void GetTechTreeCanvas(out int x, out int y, out int w, out int h)
+    {
+        x = 24;
+        y = 120;
+        GetTechTreeDetailPanel(out var detailX, out _, out _, out _);
+        w = Math.Max(280, detailX - x - 16);
+        h = Math.Max(200, ScreenHeight - y - 90);
+    }
+
+    private static void GetTechTreeDetailPanel(out int x, out int y, out int w, out int h)
+    {
+        w = Math.Clamp(320, 280, Math.Max(280, ScreenWidth / 3));
+        x = ScreenWidth - w - 28;
+        y = 132;
+        h = Math.Max(220, ScreenHeight - y - 90);
+    }
 
     private static void HandlePlayingInput(
         FactoryWorld world,
@@ -1571,6 +1696,8 @@ internal static class FactoryGameApp
                 && HitHeaderIcon(Raylib.GetMousePosition(), 1)))
         {
             selectedResearchIndex = 0;
+            TechTreePanX = 0f;
+            TechTreePanY = 0f;
             statusMessage = null;
             TutorialOpenedResearch = true;
             screen = AppScreen.Research;
@@ -3402,51 +3529,154 @@ internal static class FactoryGameApp
         GameSettings settings)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
-        DrawUiText("Ricerca / Sblocchi", 60, 36, 32, new Color(239, 238, 224, 255));
-        DrawUiText("Seleziona una struttura, verifica i requisiti, conferma per sbloccare.", 60, 80, 18,
+        DrawUiText("Albero tecnologico", 28, 28, 30, new Color(239, 238, 224, 255));
+        DrawUiText("Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina o rotella per pan", 28, 66, 16,
             new Color(112, 124, 119, 255));
-        DrawUiText($"Wallet: $ {wallet.Money}   ·   inventario nella strip in alto",
-            60, 108, 16, new Color(164, 173, 168, 255));
-        _ = settings; // Overlay stays on play HUD only — never cover this title.
+        DrawUiText($"Wallet: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato",
+            28, 90, 15, new Color(164, 173, 168, 255));
+        _ = settings;
 
+        var graph = TechTreeLayout.Build(content);
         var entries = ResearchEntries(content);
         if (entries.Count == 0)
         {
-            DrawUiText("Nessuna struttura da sbloccare.", 60, 160, 22, new Color(164, 173, 168, 255));
+            DrawUiText("Nessuna struttura nell'albero.", 60, 160, 22, new Color(164, 173, 168, 255));
+            DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
+            return;
         }
-        else
+
+        selectedIndex = Math.Clamp(selectedIndex, 0, entries.Count - 1);
+        var selected = entries[selectedIndex];
+
+        GetTechTreeCanvas(out var canvasX, out var canvasY, out var canvasW, out var canvasH);
+        Raylib.DrawRectangle(canvasX, canvasY, canvasW, canvasH, new Color(20, 24, 23, 255));
+        Raylib.DrawRectangleLines(canvasX, canvasY, canvasW, canvasH, new Color(48, 56, 52, 255));
+
+        Raylib.BeginScissorMode(canvasX + 1, canvasY + 1, canvasW - 2, canvasH - 2);
+
+        foreach (var edge in graph.Edges)
         {
-            selectedIndex = Math.Clamp(selectedIndex, 0, entries.Count - 1);
-            for (var index = 0; index < entries.Count; index++)
+            var fromUnlocked = research.IsUnlocked(edge.FromId);
+            var toState = research.GetNodeState(
+                graph.Nodes.First(node => node.Structure.Id == edge.ToId).Structure);
+            var edgeColor = toState == ResearchNodeState.Unlocked
+                ? new Color(80, 160, 110, 220)
+                : toState == ResearchNodeState.Available && fromUnlocked
+                    ? new Color(200, 160, 90, 200)
+                    : new Color(70, 78, 74, 180);
+            var x1 = (int)(edge.FromX + TechTreePanX);
+            var y1 = (int)(edge.FromY + TechTreePanY);
+            var x2 = (int)(edge.ToX + TechTreePanX);
+            var y2 = (int)(edge.ToY + TechTreePanY);
+            var midX = (x1 + x2) / 2;
+            Raylib.DrawLineEx(new Vector2(x1, y1), new Vector2(midX, y1), 2.5f, edgeColor);
+            Raylib.DrawLineEx(new Vector2(midX, y1), new Vector2(midX, y2), 2.5f, edgeColor);
+            Raylib.DrawLineEx(new Vector2(midX, y2), new Vector2(x2, y2), 2.5f, edgeColor);
+            // Arrow tip
+            Raylib.DrawTriangle(
+                new Vector2(x2, y2),
+                new Vector2(x2 - 10, y2 - 5),
+                new Vector2(x2 - 10, y2 + 5),
+                edgeColor);
+        }
+
+        foreach (var node in graph.Nodes)
+        {
+            var structure = node.Structure;
+            var nx = (int)(node.X + TechTreePanX);
+            var ny = (int)(node.Y + TechTreePanY);
+            var state = research.GetNodeState(structure);
+            var isSelected = structure.Id == selected.Id;
+            var fill = state switch
             {
-                var structure = entries[index];
-                var y = 140 + index * 58;
-                var selected = index == selectedIndex;
-                var unlocked = research.IsUnlocked(structure.Id);
-                Raylib.DrawRectangle(60, y, 700, 50,
-                    selected ? new Color(55, 72, 62, 255) : new Color(28, 34, 33, 255));
-                var status = unlocked
-                    ? (structure.IsStub ? "SBLOCCATO (stub)" : "SBLOCCATO")
-                    : "BLOCCATO";
-                var accent = unlocked ? new Color(112, 218, 145, 255) : new Color(220, 170, 110, 255);
-                DrawUiText(structure.DisplayName, 76, y + 8, 20, new Color(232, 233, 221, 255));
-                DrawUiText(
-                    $"{status}  ·  {FormatUnlockRequirement(structure.Unlock)}{(structure.IsStub ? "  ·  stub" : "")}",
-                    76, y + 28, 14, accent);
+                ResearchNodeState.Unlocked => new Color(36, 62, 48, 255),
+                ResearchNodeState.Available => new Color(58, 48, 32, 255),
+                _ => new Color(28, 32, 31, 255)
+            };
+            if (isSelected)
+            {
+                fill = state switch
+                {
+                    ResearchNodeState.Unlocked => new Color(48, 84, 64, 255),
+                    ResearchNodeState.Available => new Color(78, 64, 40, 255),
+                    _ => new Color(42, 48, 46, 255)
+                };
             }
 
-            var selectedStructure = entries[selectedIndex];
-            var canUnlock = research.CanUnlock(selectedStructure, wallet);
-            var buttonLabel = research.IsUnlocked(selectedStructure.Id)
-                ? "Già sbloccato"
-                : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
-            DrawMenuButton(800, 140, 320, 50, buttonLabel);
-            DrawUiText("Lo sblocco consuma denaro e materiali.", 800, 210, 14, new Color(126, 137, 132, 255));
-            if (selectedStructure.IsStub)
+            var border = state switch
             {
-                DrawUiText("Stub: non costruibile ancora.", 800, 234, 14, new Color(180, 120, 100, 255));
+                ResearchNodeState.Unlocked => new Color(112, 218, 145, 255),
+                ResearchNodeState.Available => new Color(220, 170, 110, 255),
+                _ => new Color(90, 96, 92, 255)
+            };
+            if (isSelected)
+            {
+                Raylib.DrawRectangle(nx - 3, ny - 3, TechTreeLayout.NodeWidth + 6, TechTreeLayout.NodeHeight + 6,
+                    new Color(211, 164, 76, 90));
             }
+
+            Raylib.DrawRectangle(nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight, fill);
+            Raylib.DrawRectangleLines(nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight, border);
+
+            var statusLabel = state switch
+            {
+                ResearchNodeState.Unlocked => structure.IsStub ? "SBLOCCATO · stub" : "SBLOCCATO",
+                ResearchNodeState.Available => "DISPONIBILE",
+                _ => "BLOCCATO"
+            };
+            DrawUiText(structure.DisplayName, nx + 10, ny + 10, 17, new Color(232, 233, 221, 255));
+            DrawUiText(statusLabel, nx + 10, ny + 36, 13, border);
         }
+
+        Raylib.EndScissorMode();
+
+        GetTechTreeDetailPanel(out var detailX, out var detailY, out var detailW, out var detailH);
+        Raylib.DrawRectangle(detailX, detailY, detailW, detailH, new Color(24, 30, 28, 255));
+        Raylib.DrawRectangleLines(detailX, detailY, detailW, detailH, new Color(60, 70, 64, 255));
+        DrawUiText(selected.DisplayName, detailX + 16, detailY + 16, 22, new Color(239, 238, 224, 255));
+
+        var selectedState = research.GetNodeState(selected);
+        var stateText = selectedState switch
+        {
+            ResearchNodeState.Unlocked => selected.IsStub ? "Stato: sbloccato (stub)" : "Stato: sbloccato",
+            ResearchNodeState.Available => "Stato: disponibile",
+            _ => "Stato: bloccato"
+        };
+        DrawUiText(stateText, detailX + 16, detailY + 48, 15,
+            selectedState == ResearchNodeState.Unlocked
+                ? new Color(112, 218, 145, 255)
+                : selectedState == ResearchNodeState.Available
+                    ? new Color(220, 170, 110, 255)
+                    : new Color(140, 148, 142, 255));
+
+        DrawUiText($"Costo: {FormatUnlockRequirement(selected.Unlock)}", detailX + 16, detailY + 74, 15,
+            new Color(164, 173, 168, 255));
+
+        var prereqLabel = selected.Requires.Count == 0
+            ? "Prerequisiti: nessuno"
+            : "Prerequisiti: " + string.Join(", ",
+                selected.Requires.Select(id =>
+                {
+                    var name = content.FindStructure(id)?.DisplayName ?? id;
+                    return research.IsUnlocked(id) ? name : $"{name} (manca)";
+                }));
+        DrawUiText(prereqLabel, detailX + 16, detailY + 98, 14, new Color(164, 173, 168, 255));
+
+        if (selected.IsStub)
+        {
+            DrawUiText("Stub: non costruibile ancora.", detailX + 16, detailY + 122, 14,
+                new Color(180, 120, 100, 255));
+        }
+
+        var canUnlock = research.CanUnlock(selected, wallet);
+        var buttonLabel = research.IsUnlocked(selected.Id)
+            ? "Già sbloccato"
+            : !research.MeetsPrerequisites(selected)
+                ? "Prerequisiti mancanti"
+                : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
+        DrawMenuButton(detailX + 16, detailY + 156, detailW - 32, 48, buttonLabel);
+        DrawUiText("Lo sblocco consuma denaro e materiali.", detailX + 16, detailY + 216, 13,
+            new Color(126, 137, 132, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
         if (!string.IsNullOrEmpty(statusMessage))

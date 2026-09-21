@@ -23,7 +23,8 @@ var basicConveyor = content.Conveyors.Single(definition => definition.Id == "con
 
 if (args.Contains("--self-test"))
 {
-    RunSelfTest(content);
+    // Always test against shipped seed so prerequisites/UI data match the repo.
+    RunSelfTest(GameContent.Load(seedJsonPath));
     return;
 }
 
@@ -31,8 +32,9 @@ if (!args.Contains("--console-demo"))
 {
     var captureIo = args.Contains("--capture-io");
     var captureTutorial = args.Contains("--capture-tutorial");
+    var captureTechTree = args.Contains("--capture-tech-tree");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
-        || captureIo || captureTutorial;
+        || captureIo || captureTutorial || captureTechTree;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -45,6 +47,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "tutorial-extended.png");
         captureMode = "tutorial";
+    }
+    else if (captureTechTree)
+    {
+        capturePath = Path.Combine("artifacts", "tech-tree-graph.png");
+        captureMode = "tech-tree";
     }
     else if (capture)
     {
@@ -119,6 +126,41 @@ static void RunSelfTest(GameContent content)
         "La ricetta craft-copper-wire deve esistere.");
     Assert(content.CreateMarket().GetSellPrice("copper-ore") == 6,
         "Il rame grezzo deve avere prezzo mercato.");
+
+    // Tech tree prerequisites: data-driven edges gate unlock.
+    Assert(smelterTech.Requires.Contains("miner"), "Il forno richiede il minatore.");
+    Assert(fastTech.Requires.Contains("smelter"), "Il nastro veloce richiede il forno.");
+    Assert(content.FindStructure("assembler")!.Requires.Contains("smelter"),
+        "L'assemblatore richiede il forno.");
+    Assert(content.FindStructure("splitter")!.Requires.Contains("junction"),
+        "Lo sdoppiatore richiede l'incrocio.");
+    var prereqResearch = ResearchState.CreateNew(content);
+    var prereqWallet = new EconomyWallet(1000, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 200,
+        ["copper-wire"] = 40
+    });
+    Assert(prereqResearch.GetNodeState(smelterTech) == ResearchNodeState.Available,
+        "Con miner default il forno è disponibile.");
+    Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Locked,
+        "Senza forno il nastro veloce resta bloccato.");
+    Assert(!prereqResearch.CanUnlock(fastTech, prereqWallet),
+        "CanUnlock deve fallire senza prerequisiti.");
+    Assert(!prereqResearch.TryUnlock(fastTech, prereqWallet),
+        "TryUnlock deve fallire senza prerequisiti anche con risorse.");
+    Assert(prereqWallet.Money == 1000, "Unlock fallito non deve spendere.");
+    Assert(prereqResearch.TryUnlock(smelterTech, prereqWallet), "Sblocco forno con prereq miner.");
+    Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Available,
+        "Dopo il forno il nastro veloce diventa disponibile.");
+    Assert(prereqResearch.TryUnlock(fastTech, prereqWallet), "Sblocco nastro veloce dopo forno.");
+    var treeGraph = TechTreeLayout.Build(content);
+    Assert(treeGraph.Nodes.Count == content.Structures.Count,
+        "Il grafo deve includere tutte le strutture.");
+    Assert(treeGraph.Edges.Count >= 6, "Il grafo deve avere archi da prerequisites.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "miner" && edge.ToId == "smelter"),
+        "Arco miner → forno.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "smelter" && edge.ToId == "conveyor-fast"),
+        "Arco forno → nastro veloce.");
 
     var grid = CreateTwoCellLine(definition, research);
     var first = grid.Cells[new GridPosition(0, 0)];
@@ -530,10 +572,11 @@ static void RunSelfTest(GameContent content)
     var lockedResearch = ResearchState.CreateNew(content);
     var lockedWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
     Assert(!lockedResearch.CanUnlock(fastTech, lockedWallet), "Senza risorse non si sblocca il nastro veloce.");
-    var unlockWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 55, ["copper-wire"] = 5 });
+    var unlockWallet = new EconomyWallet(450, new Dictionary<string, int> { ["iron-plate"] = 70, ["copper-wire"] = 5 });
+    Assert(lockedResearch.TryUnlock(smelterTech, unlockWallet), "Prereq forno per nastro veloce.");
     Assert(lockedResearch.TryUnlock(fastTech, unlockWallet), "Con risorse sufficienti si sblocca il nastro veloce.");
     Assert(lockedResearch.IsUnlocked("conveyor-fast"), "Lo sblocco deve restare in ResearchState.");
-    Assert(unlockWallet.Money == 50, "Lo sblocco deve consumare i $250 di ricerca.");
+    Assert(unlockWallet.Money == 100, "Lo sblocco deve consumare $100 forno + $250 nastro.");
     var tierGrid = new ConveyorGrid();
     Assert(tierGrid.TryPlace(new GridPosition(0, 0), Direction.East, definition, unlockWallet, lockedResearch),
         "Nastro base piazzabile.");
@@ -737,6 +780,8 @@ static void RunSelfTest(GameContent content)
 
     // Splitter: one in → alternate left/right outs (both must receive cargo).
     var splitResearch = ResearchState.CreateNew(content);
+    Assert(splitResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+        "Prereq incrocio per sdoppiatore.");
     Assert(splitResearch.TryUnlock(splitterTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 })),
         "Sdoppiatore sbloccabile.");
     var splitGrid = new ConveyorGrid();
@@ -810,6 +855,8 @@ static void RunSelfTest(GameContent content)
 
     // Bridge: span gap of 2.
     var bridgeResearch = ResearchState.CreateNew(content);
+    Assert(bridgeResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+        "Prereq incrocio per ponte.");
     Assert(bridgeResearch.TryUnlock(bridgeTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 })),
         "Ponte sbloccabile.");
     var bridgeGrid = new ConveyorGrid();
@@ -846,6 +893,7 @@ static void RunSelfTest(GameContent content)
         ["copper-wire"] = 20
     });
     var craftResearch = ResearchState.CreateNew(content);
+    Assert(craftResearch.TryUnlock(smelterTech, craftWallet), "Prereq forno per assemblatore.");
     Assert(craftResearch.TryUnlock(assemblerTech, craftWallet), "Assemblatore sbloccabile.");
     Assert(craftResearch.IsUnlocked("assembler") && !assemblerTech.IsStub,
         "Dopo unlock l'assemblatore è costruibile.");
@@ -937,6 +985,7 @@ static void RunSelfTest(GameContent content)
     var powerWallet = new EconomyWallet(500, new Dictionary<string, int> { ["iron-plate"] = 80 });
     var powerResearch = ResearchState.CreateNew(content);
     var generatorTech = content.FindStructure("generator")!;
+    Assert(powerResearch.TryUnlock(smelterTech, powerWallet), "Prereq forno per generatore.");
     Assert(powerResearch.TryUnlock(generatorTech, powerWallet), "Generatore sbloccabile.");
     var generatorBuilding = content.GetBuildingOrDefault("generator");
     Assert(powerWorld.TryPlaceGenerator(new GridPosition(2, 2), powerGrid, powerWallet, generatorBuilding),
