@@ -18,7 +18,7 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `items/copper-wire.png` | Delapouite | wire-coil |
 | `items/money.png` | Delapouite | coins |
 | `ui/sell.png` | Delapouite | receive-money |
-| `buildings/miner.png` | Delapouite | drill |
+| `buildings/miner.png` | Lorc | drill (trivella / auger industriale) |
 | `buildings/smelter.png` | Delapouite | furnace |
 | `buildings/assembler.png` | Lorc | gears |
 | `buildings/generator.png` | Lorc | lightning-helix |
