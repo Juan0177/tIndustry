@@ -123,7 +123,7 @@
     },
     {
       "id": "miner",
-      "displayName": "Minatore",
+      "displayName": "Minatore T1",
       "kind": "building",
       "unlockedByDefault": true,
       "unlock": null,
@@ -231,7 +231,7 @@
     },
     {
       "id": "miner-advanced",
-      "displayName": "Minatore avanzato",
+      "displayName": "Minatore T2",
       "kind": "stub",
       "unlockedByDefault": false,
       "unlock": {

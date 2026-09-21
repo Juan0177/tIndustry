@@ -382,7 +382,7 @@ public static class UiTheme
     // Cached once — EntriesFor used every play frame for dock bounds/draw/input.
     private static readonly DockEntry[] ProductionEntries =
     [
-        new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
+        new("miner", "Minatore T1", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
             Hint: "Estrae minerali · uscita su tutti i lati"),
         new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
             Hint: "Fonde ore in lastre · R ruota uscita"),
