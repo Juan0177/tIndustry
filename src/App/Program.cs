@@ -2197,7 +2197,7 @@ static void RunSelfTest(GameContent content)
     var campaignPath = CampaignCatalog.EnsureUserCampaign();
     Assert(File.Exists(campaignPath), "campaign.json deve materializzarsi in AppData.");
     var campaign = CampaignCatalog.Load(campaignSeed);
-    Assert(campaign.Levels.Count >= 3, "La campagna deve avere almeno 3 livelli.");
+    Assert(campaign.Levels.Count >= 10, "La campagna estesa deve avere almeno 10 livelli.");
     Assert(campaign.Levels.All(level => level.Objectives is { Count: > 0 }),
         "Ogni livello deve dichiarare obiettivi.");
     Assert(campaign.Levels.SelectMany(level => level.Objectives!)
@@ -2205,6 +2205,84 @@ static void RunSelfTest(GameContent content)
             .Distinct()
             .Count() >= 3,
         "Servono almeno 3 tipi di obiettivo nella campagna.");
+    Assert(campaign.Find("level-06-corrente") is not null, "Livello Corrente (power) richiesto.");
+    Assert(campaign.Find("level-07-piombo") is not null, "Livello piombo richiesto.");
+    Assert(campaign.Find("level-10-espansione") is not null, "Livello Espansione T2 richiesto.");
+    Assert(campaign.Find("level-05-mercato")!.UnlocksNext == "level-06-corrente",
+        "Livello 5 deve sbloccare Corrente.");
+
+    // Walk unlock chain 1→10.
+    {
+        var walk = campaign.Levels[0];
+        var seen = new HashSet<string>(StringComparer.Ordinal) { walk.Id };
+        for (var step = 0; step < 9; step++)
+        {
+            var next = campaign.NextAfter(walk);
+            Assert(next is not null, $"Catena campagna spezzata dopo {walk.Id}.");
+            Assert(seen.Add(next!.Id), $"Ciclo campagna su {next.Id}.");
+            walk = next;
+        }
+
+        Assert(walk.Id == "level-10-espansione", "La catena deve finire su Espansione T2.");
+        Assert(campaign.NextAfter(walk) is null, "L'ultimo livello non sblocca altro.");
+    }
+
+    // AppData campaign merge + field sync (mirror content.json seed merge).
+    var campaignUserBackup = File.Exists(CampaignCatalog.UserCampaignPath)
+        ? File.ReadAllText(CampaignCatalog.UserCampaignPath)
+        : null;
+    try
+    {
+        var staleCampaign = """
+            {
+              "levels": [
+                {
+                  "id": "level-01-primi-passi",
+                  "name": "STALE",
+                  "description": "vecchio",
+                  "seed": 1,
+                  "mapWidth": 32,
+                  "mapHeight": 24,
+                  "startingMoney": 1,
+                  "startingMaterials": [],
+                  "objectives": [ { "type": "earnMoney", "amount": 1, "label": "x" } ],
+                  "unlocksNext": null
+                }
+              ]
+            }
+            """;
+        File.WriteAllText(CampaignCatalog.UserCampaignPath, staleCampaign);
+        Assert(CampaignCatalog.MergeMissingSeedLevels(
+                CampaignCatalog.UserCampaignPath, CampaignCatalog.SeedCampaignPath),
+            "Merge deve aggiungere i livelli seed mancanti.");
+        var mergedCampaign = CampaignCatalog.Load(CampaignCatalog.UserCampaignPath);
+        Assert(mergedCampaign.Levels.Count >= 10, "Dopo merge AppData ha ≥10 livelli.");
+        Assert(CampaignCatalog.SyncSeedLevelFields(
+                CampaignCatalog.UserCampaignPath, CampaignCatalog.SeedCampaignPath),
+            "Sync deve aggiornare name/obiettivi/unlocksNext da seed.");
+        var syncedCampaign = CampaignCatalog.Load(CampaignCatalog.UserCampaignPath);
+        Assert(syncedCampaign.Find("level-01-primi-passi")!.Name == "Primi passi",
+            "Sync name livello 1 da seed.");
+        Assert(syncedCampaign.Find("level-05-mercato")!.UnlocksNext == "level-06-corrente",
+            "Sync unlocksNext livello 5 → 6.");
+        Assert(!CampaignCatalog.SyncSeedLevelFields(
+                CampaignCatalog.UserCampaignPath, CampaignCatalog.SeedCampaignPath),
+            "Secondo sync campagna è no-op.");
+    }
+    finally
+    {
+        if (campaignUserBackup is null)
+        {
+            if (File.Exists(CampaignCatalog.UserCampaignPath))
+            {
+                File.Delete(CampaignCatalog.UserCampaignPath);
+            }
+        }
+        else
+        {
+            File.WriteAllText(CampaignCatalog.UserCampaignPath, campaignUserBackup);
+        }
+    }
 
     var campaignFirst = campaign.Levels[0];
     var campaignSecond = campaign.NextAfter(campaignFirst);
@@ -2285,7 +2363,34 @@ static void RunSelfTest(GameContent content)
         }
     }
 
+    // Tech-tree path highlight + zoom clamp.
+    {
+        var techGraph = TechTreeLayout.Build(content);
+        var related = TechTreeLayout.CollectRelatedIds(techGraph, "assembler");
+        Assert(related.Contains("assembler") && related.Contains("smelter") && related.Contains("miner"),
+            "Path highlight assemblatore include prerequisiti forno/miner.");
+        Assert(TechTreeLayout.IsEdgeOnPath(
+                techGraph.Edges.First(edge => edge.FromId == "smelter" && edge.ToId == "assembler"),
+                related),
+            "Arco forno→assemblatore sul percorso selezionato.");
+        var powerRelated = TechTreeLayout.CollectRelatedIds(techGraph, "power-node");
+        Assert(powerRelated.Contains("smelter") && powerRelated.Contains("power-node-t2"),
+            "Nodo T1 evidenzia antenati e Nodo T2 dipendente.");
+        Assert(TechTreeLayout.ClampZoom(0.1f) == TechTreeLayout.MinZoom, "Zoom minimo clamp.");
+        Assert(TechTreeLayout.ClampZoom(9f) == TechTreeLayout.MaxZoom, "Zoom massimo clamp.");
+        Assert(Math.Abs(TechTreeLayout.ClampZoom(1f) - 1f) < 0.0001f, "Zoom 1× resta 1×.");
+    }
+
+    // Icon atlas grid planner (GPU pack runs a runtime Load).
+    {
+        var plan = GameIcons.PlanAtlasGrid(40);
+        Assert(plan.Columns >= 6 && plan.Rows >= 6, "Atlas 40 icone: griglia ~quadrata.");
+        Assert(plan.Width > 64 && plan.Height > 64, "Atlas plan ha dimensione > cella.");
+        Assert(GameIcons.PlanAtlasGrid(0).Width == 0, "Atlas vuoto → 0.");
+    }
+
     Console.WriteLine("SELF-TEST OK: campagna (obiettivi + unlock persistence) verificata.");
+    Console.WriteLine("SELF-TEST OK: campagna estesa + merge, tech-tree path/zoom, atlas plan.");
 }
 
 /// <summary>Mirrors play-HUD policy: corner FPS only when overlay is off.</summary>

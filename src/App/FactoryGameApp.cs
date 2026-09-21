@@ -170,6 +170,7 @@ internal static class FactoryGameApp
     private static int CampaignSelectScroll;
     private static float TechTreePanX;
     private static float TechTreePanY;
+    private static float TechTreeZoom = 1f;
     private static bool TechTreePanning;
     private static Vector2 TechTreePanAnchor;
     private static float TechTreePanStartX;
@@ -2210,6 +2211,13 @@ internal static class FactoryGameApp
             return;
         }
 
+        if (Raylib.IsKeyPressed(KeyboardKey.H) || Raylib.IsKeyPressed(KeyboardKey.Home))
+        {
+            TechTreePanX = 0f;
+            TechTreePanY = 0f;
+            TechTreeZoom = 1f;
+        }
+
         if (entries.Count > 0)
         {
             if (Raylib.IsKeyPressed(KeyboardKey.Up) || Raylib.IsKeyPressed(KeyboardKey.Left))
@@ -2226,6 +2234,7 @@ internal static class FactoryGameApp
         var mouse = Raylib.GetMousePosition();
         GetTechTreeCanvas(out var canvasX, out var canvasY, out var canvasW, out var canvasH);
         var overCanvas = Contains(mouse, canvasX, canvasY, canvasW, canvasH);
+        var zoom = TechTreeLayout.ClampZoom(TechTreeZoom);
 
         if (Raylib.IsMouseButtonPressed(MouseButton.Middle)
             || (Raylib.IsMouseButtonPressed(MouseButton.Right) && overCanvas)
@@ -2257,7 +2266,23 @@ internal static class FactoryGameApp
             var wheel = Raylib.GetMouseWheelMove();
             if (Math.Abs(wheel) > 0.01f)
             {
-                TechTreePanY += wheel * 36f;
+                if (Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl))
+                {
+                    // Zoom toward cursor (graph-space pan compensation).
+                    var before = zoom;
+                    var after = TechTreeLayout.ClampZoom(before * (wheel > 0 ? 1.12f : 1f / 1.12f));
+                    if (Math.Abs(after - before) > 0.0001f)
+                    {
+                        TechTreePanX = mouse.X - (mouse.X - TechTreePanX) * (after / before);
+                        TechTreePanY = mouse.Y - (mouse.Y - TechTreePanY) * (after / before);
+                        TechTreeZoom = after;
+                        zoom = after;
+                    }
+                }
+                else
+                {
+                    TechTreePanY += wheel * 36f;
+                }
             }
         }
 
@@ -2273,12 +2298,14 @@ internal static class FactoryGameApp
 
         if (overCanvas)
         {
+            var nodeW = (int)(TechTreeLayout.NodeWidth * zoom);
+            var nodeH = (int)(TechTreeLayout.NodeHeight * zoom);
             for (var index = 0; index < graph.Nodes.Count; index++)
             {
                 var node = graph.Nodes[index];
-                var nx = (int)(node.X + TechTreePanX);
-                var ny = (int)(node.Y + TechTreePanY);
-                if (!Contains(mouse, nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight))
+                var nx = (int)(node.X * zoom + TechTreePanX);
+                var ny = (int)(node.Y * zoom + TechTreePanY);
+                if (!Contains(mouse, nx, ny, nodeW, nodeH))
                 {
                     continue;
                 }
@@ -3647,7 +3674,9 @@ internal static class FactoryGameApp
         var wheel = Raylib.GetMouseWheelMove();
         if (wheel != 0)
         {
-            CampaignSelectScroll = Math.Clamp(CampaignSelectScroll - (int)(wheel * 48), 0, 2000);
+            var rows = (catalog.Levels.Count + 1) / 2;
+            var maxScroll = Math.Max(0, rows * (168 + 20) - (ScreenHeight - 260));
+            CampaignSelectScroll = Math.Clamp(CampaignSelectScroll - (int)(wheel * 48), 0, maxScroll);
         }
 
         if (!Raylib.IsMouseButtonPressed(MouseButton.Left))
@@ -4430,9 +4459,11 @@ internal static class FactoryGameApp
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         DrawUiText("Albero tecnologico", 28, 28, 30, new Color(239, 238, 224, 255));
-        DrawUiText("Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina o rotella per pan", 28, 66, 16,
-            new Color(112, 124, 119, 255));
-        DrawUiText($"Wallet: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato",
+        DrawUiText(
+            "Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina pan · Ctrl+rotella zoom · H reset",
+            28, 66, 16, new Color(112, 124, 119, 255));
+        DrawUiText(
+            $"Wallet: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato · percorso selezionato evidenziato",
             28, 90, 15, new Color(164, 173, 168, 255));
         _ = settings;
 
@@ -4447,6 +4478,8 @@ internal static class FactoryGameApp
 
         selectedIndex = Math.Clamp(selectedIndex, 0, entries.Count - 1);
         var selected = entries[selectedIndex];
+        var pathIds = TechTreeLayout.CollectRelatedIds(graph, selected.Id);
+        var zoom = TechTreeLayout.ClampZoom(TechTreeZoom);
 
         GetTechTreeCanvas(out var canvasX, out var canvasY, out var canvasW, out var canvasH);
         Raylib.DrawRectangle(canvasX, canvasY, canvasW, canvasH, new Color(20, 24, 23, 255));
@@ -4459,34 +4492,41 @@ internal static class FactoryGameApp
             var fromUnlocked = research.IsUnlocked(edge.FromId);
             var toState = research.GetNodeState(
                 graph.Nodes.First(node => node.Structure.Id == edge.ToId).Structure);
-            var edgeColor = toState == ResearchNodeState.Unlocked
-                ? new Color(80, 160, 110, 220)
-                : toState == ResearchNodeState.Available && fromUnlocked
-                    ? new Color(200, 160, 90, 200)
-                    : new Color(70, 78, 74, 180);
-            var x1 = (int)(edge.FromX + TechTreePanX);
-            var y1 = (int)(edge.FromY + TechTreePanY);
-            var x2 = (int)(edge.ToX + TechTreePanX);
-            var y2 = (int)(edge.ToY + TechTreePanY);
+            var onPath = TechTreeLayout.IsEdgeOnPath(edge, pathIds);
+            var edgeColor = onPath
+                ? new Color(235, 200, 110, 255)
+                : toState == ResearchNodeState.Unlocked
+                    ? new Color(80, 160, 110, 160)
+                    : toState == ResearchNodeState.Available && fromUnlocked
+                        ? new Color(200, 160, 90, 140)
+                        : new Color(55, 62, 58, 120);
+            var thickness = onPath ? 3.6f : 2.2f;
+            var x1 = (int)(edge.FromX * zoom + TechTreePanX);
+            var y1 = (int)(edge.FromY * zoom + TechTreePanY);
+            var x2 = (int)(edge.ToX * zoom + TechTreePanX);
+            var y2 = (int)(edge.ToY * zoom + TechTreePanY);
             var midX = (x1 + x2) / 2;
-            Raylib.DrawLineEx(new Vector2(x1, y1), new Vector2(midX, y1), 2.5f, edgeColor);
-            Raylib.DrawLineEx(new Vector2(midX, y1), new Vector2(midX, y2), 2.5f, edgeColor);
-            Raylib.DrawLineEx(new Vector2(midX, y2), new Vector2(x2, y2), 2.5f, edgeColor);
-            // Arrow tip
+            Raylib.DrawLineEx(new Vector2(x1, y1), new Vector2(midX, y1), thickness, edgeColor);
+            Raylib.DrawLineEx(new Vector2(midX, y1), new Vector2(midX, y2), thickness, edgeColor);
+            Raylib.DrawLineEx(new Vector2(midX, y2), new Vector2(x2, y2), thickness, edgeColor);
+            var tip = onPath ? 12f : 10f;
             Raylib.DrawTriangle(
                 new Vector2(x2, y2),
-                new Vector2(x2 - 10, y2 - 5),
-                new Vector2(x2 - 10, y2 + 5),
+                new Vector2(x2 - tip, y2 - tip * 0.5f),
+                new Vector2(x2 - tip, y2 + tip * 0.5f),
                 edgeColor);
         }
 
+        var nodeW = (int)(TechTreeLayout.NodeWidth * zoom);
+        var nodeH = (int)(TechTreeLayout.NodeHeight * zoom);
         foreach (var node in graph.Nodes)
         {
             var structure = node.Structure;
-            var nx = (int)(node.X + TechTreePanX);
-            var ny = (int)(node.Y + TechTreePanY);
+            var nx = (int)(node.X * zoom + TechTreePanX);
+            var ny = (int)(node.Y * zoom + TechTreePanY);
             var state = research.GetNodeState(structure);
             var isSelected = structure.Id == selected.Id;
+            var onPath = pathIds.Contains(structure.Id);
             var fill = state switch
             {
                 ResearchNodeState.Unlocked => new Color(36, 62, 48, 255),
@@ -4502,6 +4542,15 @@ internal static class FactoryGameApp
                     _ => new Color(42, 48, 46, 255)
                 };
             }
+            else if (onPath)
+            {
+                fill = state switch
+                {
+                    ResearchNodeState.Unlocked => new Color(42, 72, 56, 255),
+                    ResearchNodeState.Available => new Color(68, 56, 36, 255),
+                    _ => new Color(36, 40, 38, 255)
+                };
+            }
 
             var border = state switch
             {
@@ -4511,12 +4560,17 @@ internal static class FactoryGameApp
             };
             if (isSelected)
             {
-                Raylib.DrawRectangle(nx - 3, ny - 3, TechTreeLayout.NodeWidth + 6, TechTreeLayout.NodeHeight + 6,
+                Raylib.DrawRectangle(nx - 3, ny - 3, nodeW + 6, nodeH + 6,
                     new Color(211, 164, 76, 90));
             }
+            else if (onPath)
+            {
+                Raylib.DrawRectangle(nx - 2, ny - 2, nodeW + 4, nodeH + 4,
+                    new Color(211, 164, 76, 40));
+            }
 
-            Raylib.DrawRectangle(nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight, fill);
-            Raylib.DrawRectangleLines(nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight, border);
+            Raylib.DrawRectangle(nx, ny, nodeW, nodeH, fill);
+            Raylib.DrawRectangleLines(nx, ny, nodeW, nodeH, border);
 
             var statusLabel = state switch
             {
@@ -4524,8 +4578,10 @@ internal static class FactoryGameApp
                 ResearchNodeState.Available => "DISPONIBILE",
                 _ => "BLOCCATO"
             };
-            DrawUiText(structure.DisplayName, nx + 10, ny + 10, 17, new Color(232, 233, 221, 255));
-            DrawUiText(statusLabel, nx + 10, ny + 36, 13, border);
+            var titleSize = zoom < 0.75f ? 14 : 17;
+            var statusSize = zoom < 0.75f ? 11 : 13;
+            DrawUiText(structure.DisplayName, nx + 10, ny + 10, titleSize, new Color(232, 233, 221, 255));
+            DrawUiText(statusLabel, nx + 10, ny + Math.Max(28, nodeH - 22), statusSize, border);
         }
 
         Raylib.EndScissorMode();
@@ -4576,7 +4632,7 @@ internal static class FactoryGameApp
                 : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
         GetTechTreeUnlockButton(out var unlockX, out var unlockY, out var unlockW, out var unlockH);
         DrawMenuButton(unlockX, unlockY, unlockW, unlockH, buttonLabel);
-        DrawUiText("Lo sblocco consuma denaro e materiali.", detailX + 16, detailY + 216, 13,
+        DrawUiText($"Zoom {zoom:0.00}× · percorso evidenziato sul grafo", detailX + 16, detailY + 216, 13,
             new Color(126, 137, 132, 255));
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");

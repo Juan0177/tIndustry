@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.2.9** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.9)
+**v0.2.10** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.10)
 
 ```
   miner ──▶ forno ──▶ lastre / piombo / titanio ──▶ CORE / mercato dinamico
@@ -27,7 +27,7 @@ Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [r
 
 ---
 
-## Cosa c’è in 0.2.9
+## Cosa c’è in 0.2.10
 
 | Area | In gioco |
 | --- | --- |
@@ -36,8 +36,8 @@ Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [r
 | **Logistica** | Nastro **T1/T2/T3**, incrocio, sdoppiatore, **selezionatore**, ponte · I/O belt + adiacenza |
 | **Potenza** | **Nodo T1/T2** · forno carbone **o** corrente (**+20%**) · CORE fuori grafo |
 | **Economia** | Stock-first · **Mercato dinamico** (prezzi reagiscono allo stock) · upgrade CORE |
-| **Grafica** | Glow forno onesto (fuel/power), trivella idle, ombre soft a 2 layer |
-| **Progressione** | Campagna (5 livelli) · tech tree a grafo · tutorial **14** step |
+| **Grafica** | Glow forno, trivella idle, ombre soft · **atlas icone** (una texture) |
+| **Progressione** | Campagna **10 livelli** · tech tree con **zoom + path highlight** · tutorial **14** step |
 
 Non è combat Mindustry né idle clicker: conta il **layout** e il **reinvestimento**.
 
@@ -93,7 +93,7 @@ Default sbloccati: **Nastro T1** + **Minatore T1**.
 | **9** · **Q** / **E** / **Y** | Generatore · Nastro T1 / T2 / T3 |
 | **F** | Cicla filtro **selezionatore** |
 | Click · drag | Piazza (nastri in drag) |
-| **T** · **I** · **U** | Ricerca · Impostazioni · potenzia CORE |
+| **T** · **I** · **U** | Ricerca (Ctrl+rotella zoom, H reset) · Impostazioni · potenzia CORE |
 | **Esc** | Chiude toast → home |
 | **Backspace** | Salta tutorial |
 
@@ -124,9 +124,9 @@ Niente Unity/Godot in early roadmap. Icone: [`assets/ATTRIBUTION.md`](assets/ATT
 
 ## Roadmap
 
-| Ora (0.2.9) | Dopo |
+| Ora (0.2.10) | Dopo |
 | --- | --- |
-| Mercato dinamico · piombo/titanio · multi-ricette · glow/anim polish | Campagna estesa · atlas texture · tech-tree UX · bilanciamento |
+| Campagna 10 · atlas icone · tech-tree zoom/path · P0 mercato/minerali | Combat / unità · polish lighting avanzato · bilanciamento continuo |
 
 Storia completa: [CHANGELOG.md](CHANGELOG.md).
 

@@ -14,6 +14,9 @@ public static class TechTreeLayout
     public const int OriginY = 128;
     public const int LaneGap = 20;
 
+    public const float MinZoom = 0.55f;
+    public const float MaxZoom = 1.85f;
+
     public sealed record Node(
         StructureDefinition Structure,
         int Column,
@@ -105,6 +108,81 @@ public static class TechTreeLayout
 
         return new Graph(nodes, edges);
     }
+
+    /// <summary>
+    /// Selected node + recursive prerequisites + downstream unlock dependents.
+    /// Used to highlight the active research path in the tech-tree UI.
+    /// </summary>
+    public static HashSet<string> CollectRelatedIds(Graph graph, string selectedId)
+    {
+        var related = new HashSet<string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(selectedId))
+        {
+            return related;
+        }
+
+        var byId = graph.Nodes.ToDictionary(node => node.Structure.Id, StringComparer.Ordinal);
+        if (!byId.ContainsKey(selectedId))
+        {
+            return related;
+        }
+
+        void WalkAncestors(string id)
+        {
+            if (!related.Add(id) || !byId.TryGetValue(id, out var node))
+            {
+                return;
+            }
+
+            foreach (var prereq in node.Structure.Requires)
+            {
+                WalkAncestors(prereq);
+            }
+        }
+
+        WalkAncestors(selectedId);
+
+        var children = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var edge in graph.Edges)
+        {
+            if (!children.TryGetValue(edge.FromId, out var list))
+            {
+                list = [];
+                children[edge.FromId] = list;
+            }
+
+            list.Add(edge.ToId);
+        }
+
+        var queue = new Queue<string>();
+        queue.Enqueue(selectedId);
+        var seenDescendants = new HashSet<string>(StringComparer.Ordinal) { selectedId };
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!children.TryGetValue(current, out var next))
+            {
+                continue;
+            }
+
+            foreach (var child in next)
+            {
+                if (seenDescendants.Add(child))
+                {
+                    related.Add(child);
+                    queue.Enqueue(child);
+                }
+            }
+        }
+
+        return related;
+    }
+
+    public static bool IsEdgeOnPath(Edge edge, IReadOnlySet<string> related) =>
+        related.Contains(edge.FromId) && related.Contains(edge.ToId);
+
+    public static float ClampZoom(float zoom) =>
+        Math.Clamp(zoom, MinZoom, MaxZoom);
 
     /// <returns>Highest row index used in this lane (or -1 if empty).</returns>
     private static int PlaceLane(

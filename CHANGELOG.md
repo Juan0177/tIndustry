@@ -9,6 +9,25 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 _(vuoto — prossimo bump)_
 
+## [0.2.10] — 2026-09-21
+
+P1 gap close sopra **0.2.9**: campagna estesa, atlas icone, polish tech-tree UX.
+
+### Aggiunto / migliorato
+
+- **Campagna 10 livelli**: dopo Economia Foundry → Corrente (gen+nodo) → Piombo → Logistica (sorter) → Titanio/silicio → Espansione T2; bilanciamento starter/obiettivi mid-game
+- **AppData campagna**: merge id seed mancanti + sync name/obiettivi/`unlocksNext` (come `content.json`)
+- **Tech-tree UX**: Ctrl+rotella zoom (verso cursore), path highlight su prerequisiti/dipendenti, H/Home reset pan/zoom
+- **Atlas icone**: `GameIcons` packa ~40 PNG in una sola texture (UV draw); API `Draw`/`TryDraw` invariata
+- **Docs**: README allineato a 0.2.10
+
+### Verifica
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
 ## [0.2.9] — 2026-09-21
 
 P0 gap close sopra **0.2.8**: mercato dinamico, più minerali/ricette, polish animazioni/lighting.
