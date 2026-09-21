@@ -40,11 +40,12 @@ if (!args.Contains("--console-demo"))
     var captureOreTints = args.Contains("--capture-ore-tints");
     var captureVerifyIconsTiers = args.Contains("--capture-verify-icons-tiers");
     var captureVersion = args.Contains("--capture-version");
-    var capturePowerCables = args.Contains("--capture-power-cables");
+    var capturePowerNodes = args.Contains("--capture-power-nodes")
+        || args.Contains("--capture-power-cables"); // legacy alias
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
         || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers
-        || captureVersion || capturePowerCables;
+        || captureVersion || capturePowerNodes;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -98,10 +99,10 @@ if (!args.Contains("--console-demo"))
         capturePath = Path.Combine("artifacts", "version-overlay.png");
         captureMode = "version";
     }
-    else if (capturePowerCables)
+    else if (capturePowerNodes)
     {
-        capturePath = Path.Combine("artifacts", "power-cables.png");
-        captureMode = "power-cables";
+        capturePath = Path.Combine("artifacts", "power-nodes.png");
+        captureMode = "power-nodes";
     }
     else if (capture)
     {
@@ -1219,13 +1220,29 @@ static void RunSelfTest(GameContent content)
     Assert(powerWorld.PowerBuffer >= bufferBeforeFuel,
         "Con fuel il buffer potenza non deve scendere solo per mancanza generazione gen.");
 
-    // Phase 6 — power cables / local networks (connected vs disconnected).
-    Assert(content.FindStructure("power-cable") is { IsStub: false, DisplayName: "Cavo T1" },
-        "Cavo T1 deve essere una structure costruibile.");
-    Assert(content.FindStructure("power-cable")!.Requires.Contains("smelter"),
-        "Cavo T1 richiede il forno.");
-    var cableTech = content.FindStructure("power-cable")!;
-    var cableCost = content.GetBuildingOrDefault("power-cable");
+    // Phase 6 — power nodes / geometric local networks (connected vs disconnected).
+    // CORE never requires power; only craft buildings brown-out without a live node path.
+    Assert(content.FindStructure("power-node") is { IsStub: false, DisplayName: "Nodo T1" },
+        "Nodo T1 deve essere una structure costruibile.");
+    Assert(content.FindStructure("power-node")!.Requires.Contains("smelter"),
+        "Nodo T1 richiede il forno.");
+    Assert(content.FindStructure("power-node-t2") is { IsStub: false, DisplayName: "Nodo T2" },
+        "Nodo T2 deve essere una structure costruibile.");
+    Assert(content.FindStructure("power-node-t2")!.Requires.Contains("power-node"),
+        "Nodo T2 richiede Nodo T1.");
+    Assert(content.FindBuilding("power-node") is { MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks, Footprint: 1 },
+        "Nodo T1: footprint 1, maxLinks 4 (content.json).");
+    Assert(content.FindBuilding("power-node-t2") is { MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks, Footprint: 2 },
+        "Nodo T2: footprint 2, maxLinks 8 (content.json).");
+    Assert(Math.Abs((content.FindBuilding("power-node")?.PowerLinkRange ?? 0) - PowerNodeBuilding.Tier1Range) < 0.01f,
+        "Nodo T1 range 6.");
+    Assert(Math.Abs((content.FindBuilding("power-node-t2")?.PowerLinkRange ?? 0) - PowerNodeBuilding.Tier2Range) < 0.01f,
+        "Nodo T2 range 10.");
+    Assert(PowerNetworking.AutoLinkRule.Contains("CORE", StringComparison.OrdinalIgnoreCase),
+        "Regola auto-link documentata (CORE).");
+    var nodeTech = content.FindStructure("power-node")!;
+    var nodeT2Tech = content.FindStructure("power-node-t2")!;
+    var nodeCost = content.GetBuildingOrDefault("power-node");
     var netWorld = new FactoryWorld(20, 12, 9101);
     var netGrid = new ConveyorGrid();
     var netWallet = new EconomyWallet(800, new Dictionary<string, int>
@@ -1237,7 +1254,8 @@ static void RunSelfTest(GameContent content)
     var netResearch = ResearchState.CreateNew(content);
     Assert(netResearch.TryUnlock(smelterTech, netWallet), "Prereq forno per rete potenza.");
     Assert(netResearch.TryUnlock(generatorTech, netWallet), "Sblocca generatore per rete.");
-    Assert(netResearch.TryUnlock(cableTech, netWallet), "Sblocca Cavo T1.");
+    Assert(netResearch.TryUnlock(nodeTech, netWallet), "Sblocca Nodo T1.");
+    Assert(netResearch.TryUnlock(nodeT2Tech, netWallet), "Sblocca Nodo T2.");
     var connectedAt = new GridPosition(2, 2);
     var disconnectedAt = new GridPosition(14, 2);
     Assert(netWorld.TryPlaceSmelter(connectedAt, Direction.East, smeltRecipe, netGrid, netWallet),
@@ -1250,15 +1268,12 @@ static void RunSelfTest(GameContent content)
     Assert(netWorld.TryGetGeneratorAt(netGenAt, out var netGen), "Generatore recuperabile.");
     netGen.TryAcceptFuel("coal");
     netGen.TryAcceptFuel("coal");
-    // Cable run: gen east side → connected smelter south row (not touching disconnected).
-    Assert(netWorld.TryPlacePowerCable(new GridPosition(4, 4), netGrid, netWallet, cableCost),
-        "Cavo sotto generatore.");
-    Assert(netWorld.TryPlacePowerCable(new GridPosition(5, 4), netGrid, netWallet, cableCost),
-        "Cavo sotto generatore 2.");
-    Assert(netWorld.TryPlacePowerCable(new GridPosition(3, 4), netGrid, netWallet, cableCost),
-        "Cavo verso forno connesso.");
-    Assert(netWorld.TryPlacePowerCable(new GridPosition(2, 4), netGrid, netWallet, cableCost),
-        "Cavo adiacente forno connesso.");
+    // Single T1 node between gen and connected smelter (auto-links both; disconnected is out of range).
+    Assert(netWorld.TryPlacePowerNode(
+            new GridPosition(4, 4), netGrid, netWallet, PowerNodeBuilding.Tier1Id, nodeCost),
+        "Nodo T1 tra gen e forno connesso.");
+    Assert(netWorld.PowerNodes.Count == 1, "Un nodo piazzato.");
+    Assert(netWorld.PowerLinks.Count >= 2, "Auto-link deve collegare almeno gen e forno (o core).");
     var netTick = 1L;
     for (var tick = 0; tick < 30; tick++)
     {
@@ -1267,9 +1282,9 @@ static void RunSelfTest(GameContent content)
 
     Assert(netWorld.Generators.Values.Single().IsGenerating, "Generatore in rete deve bruciare fuel.");
     Assert(netWorld.IsBuildingPowered(connectedAt, SmelterBuilding.Size),
-        "Forno adiacente a cavi verso gen deve essere alimentato.");
+        "Forno in range del nodo verso gen deve essere alimentato.");
     Assert(!netWorld.IsBuildingPowered(disconnectedAt, SmelterBuilding.Size),
-        "Forno lontano senza cavi non è alimentato.");
+        "Forno lontano senza nodi non è alimentato.");
     netWorld.SetPowerBuffer(netWorld.PowerCapacity);
     Assert(netWorld.TrySpendPowerForBuilding(connectedAt, SmelterBuilding.Size, 1f),
         "Spend potenza OK se connesso.");
@@ -1295,20 +1310,30 @@ static void RunSelfTest(GameContent content)
 
     var netCaptured = GameSaveStore.Capture(
         netWorld, netGrid, netWallet, new WorldCamera(0, 0, 1f), netResearch, new EconomySession(netWallet.Money), netTick);
-    Assert(netCaptured.PowerCables.Count >= 4, "Save v7 deve includere i cavi.");
-    var netSlot = "self-test-power-cables";
+    Assert(netCaptured.Version == 8, "Save versione 8 (nodi).");
+    Assert(netCaptured.PowerNodes.Count >= 1, "Save v8 deve includere i nodi.");
+    Assert(netCaptured.PowerLinks.Count >= 1, "Save v8 deve includere i link.");
+    var netSlot = "self-test-power-nodes";
     GameSaveStore.Save(netSlot, netCaptured);
     var netRestored = GameSaveStore.Restore(GameSaveStore.Load(netSlot), content);
-    Assert(netRestored.World.PowerCables.Count == netWorld.PowerCables.Count,
-        "Cavi devono sopravvivere al reload.");
+    Assert(netRestored.World.PowerNodes.Count == netWorld.PowerNodes.Count,
+        "Nodi devono sopravvivere al reload.");
+    Assert(netRestored.World.PowerLinks.Count == netWorld.PowerLinks.Count,
+        "Link devono sopravvivere al reload.");
     netRestored.World.RefreshPowerNetworks();
-    Assert(netRestored.Research.IsUnlocked("power-cable"), "Unlock cavo dopo reload.");
+    Assert(netRestored.Research.IsUnlocked("power-node"), "Unlock nodo dopo reload.");
+    Assert(netRestored.World.IsBuildingPowered(connectedAt, SmelterBuilding.Size),
+        "Forno connesso resta alimentato dopo reload.");
 
-    Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-cable"),
-        "Dock PWR: Cavo T1.");
+    Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-node"),
+        "Dock PWR: Nodo T1.");
+    Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-node-t2"),
+        "Dock PWR: Nodo T2.");
     Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power)
-            .Single(e => e.Id == "power-cable").Label == "Cavo T1",
-        "Label dock cavo = Cavo T1.");
+            .Single(e => e.Id == "power-node").Label == "Nodo T1",
+        "Label dock nodo = Nodo T1.");
+    Assert(!UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-cable"),
+        "Cavo T1 rimosso dal dock.");
 
     // Mid-game: Minatore T2 + Nastro T3.
     var midResearch = ResearchState.CreateNew(content);
@@ -1419,8 +1444,8 @@ static void RunSelfTest(GameContent content)
                 var hudWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
                 var hudSession = new EconomySession(hudWallet.Money);
                 var hudResearch = ResearchState.CreateNew(content);
-                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M0 F0 A0 N0 G0 C0",
-                    "Fabbrica vuota deve mostrare M0 F0 A0 N0 G0 C0.");
+                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M0 F0 A0 N0 G0 P0",
+                    "Fabbrica vuota deve mostrare M0 F0 A0 N0 G0 P0.");
                 Assert(hudWorld.TryPlaceMiner(
                         hudWorld.StarterDepositOrigin, Direction.East, hudGrid, hudWallet, minerBuilding, hudSession),
                     "HUD-test: piazza minatore.");
@@ -1428,7 +1453,7 @@ static void RunSelfTest(GameContent content)
                         new GridPosition(hudWorld.StarterDepositOrigin.X + MinerBuilding.Size, hudWorld.StarterDepositOrigin.Y),
                         Direction.East, definition, hudWallet, hudResearch, hudSession),
                     "HUD-test: piazza nastro.");
-                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M1 F0 A0 N1 G0 C0",
+                Assert(FactoryGameApp.FormatFabbricaCounts(hudWorld, hudGrid) == "M1 F0 A0 N1 G0 P0",
                     "Dopo piazzamento i conteggi Fabbrica devono aggiornarsi (M1 N1).");
 
                 Assert(FactoryGameApp.TryClickCoreUpgradeForTest(
@@ -1507,8 +1532,10 @@ static void RunSelfTest(GameContent content)
             "Logistica: Nastro T1/T2/T3 + junction/splitter/ponte.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
             "Potenza: generatore.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-cable"),
-            "Potenza: Cavo T1.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-node"),
+            "Potenza: Nodo T1.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-node-t2"),
+            "Potenza: Nodo T2.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length == 0,
             "Categoria Inventario rimossa dal dock.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production)
@@ -1534,7 +1561,8 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
-                content.GetBuildingOrDefault("power-cable"),
+                content.GetBuildingOrDefault("power-node"),
+                content.GetBuildingOrDefault("power-node-t2"),
                 out var minerMoney, out var minerMats)
             && minerMoney == content.GetBuildingOrDefault("miner").MoneyCost
             && minerMats.Any(m => m.ItemId == "iron-plate" && m.Amount > 0),
@@ -1553,7 +1581,8 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
-                content.GetBuildingOrDefault("power-cable"),
+                content.GetBuildingOrDefault("power-node"),
+                content.GetBuildingOrDefault("power-node-t2"),
                 out var expressMoney, out _)
             && expressMoney == content.Conveyors.Single(c => c.Id == "conveyor-express").MoneyCost,
             "Dock cost bar: Nastro T3.");
@@ -1571,7 +1600,8 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
-                content.GetBuildingOrDefault("power-cable"),
+                content.GetBuildingOrDefault("power-node"),
+                content.GetBuildingOrDefault("power-node-t2"),
                 out _, out _),
             "Dock cost bar: Rimuovi non espone costi finti.");
         Assert(FactoryGameApp.TryResolveDockEntryCostForTest(
@@ -1588,7 +1618,8 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
-                content.GetBuildingOrDefault("power-cable"),
+                content.GetBuildingOrDefault("power-node"),
+                content.GetBuildingOrDefault("power-node-t2"),
                 out var sorterMoney, out var sorterMats)
             && sorterMoney == content.Conveyors.Single(c => c.Id == "sorter").MoneyCost
             && sorterMats.Any(m => m.ItemId == "iron-plate"),
@@ -2022,6 +2053,6 @@ static void EnsurePowerLink(
             size,
             grid,
             wallet,
-            content.GetBuildingOrDefault("power-cable")),
-        $"Serve un collegamento cavi verso il core per {building}.");
+            content.GetBuildingOrDefault("power-node")),
+        $"Serve un collegamento nodi verso il core per {building}.");
 }

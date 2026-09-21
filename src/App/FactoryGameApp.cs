@@ -107,7 +107,7 @@ internal static class FactoryGameApp
         "MERCATO (pannello a sinistra): vendi con 1 / tutti, oppure attiva Vendita automatica.",
         "FABBRICA: conteggi M/F/A/N/G e upgrade CORE (bottone o tasto U) per +25% prezzi vendita.",
         "Apri RICERCA (T o icona albero) e sblocca FORNO, poi altri edifici quando puoi.",
-        "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9). Produzione e potenza.",
+        "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9), NODI potenza (dock Energia).",
         "Logistica: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E/Y = Nastro T1/T2/T3.",
         "RIMUOVI (4 / X nel dock): rimborso 100% di edifici e nastri.",
         "Campagna: Esc → Home → Campagna per livelli con obiettivi. Sandbox = questa partita libera.",
@@ -198,7 +198,8 @@ internal static class FactoryGameApp
         var smelterBuilding = content.GetBuildingOrDefault("smelter");
         var assemblerBuilding = content.GetBuildingOrDefault("assembler");
         var generatorBuilding = content.GetBuildingOrDefault("generator");
-        var powerCableBuilding = content.GetBuildingOrDefault("power-cable");
+        var powerNodeBuilding = content.GetBuildingOrDefault("power-node");
+        var powerNodeT2Building = content.GetBuildingOrDefault("power-node-t2");
         var tool = BuildTool.Conveyor;
         var direction = Direction.East;
         var accumulator = 0f;
@@ -359,15 +360,15 @@ internal static class FactoryGameApp
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
             }
-            else if (captureMode == "power-cables")
+            else if (captureMode == "power-nodes")
             {
-                SeedCapturePowerCables(
+                SeedCapturePowerNodes(
                     world!, conveyors!, wallet, research!, session!, content, basicConveyor, smeltRecipe);
                 BeginTutorialIfNeeded(settings);
                 TutorialActive = false;
-                tool = BuildTool.PowerCable;
+                tool = BuildTool.PowerNode;
                 DockCategory = UiTheme.BuildCategory.Power;
-                DockSelectedId = "power-cable";
+                DockSelectedId = "power-node";
                 camera!.SetZoom(2.1f);
                 camera.CenterOnTile(
                     new GridPosition(world!.CoreOrigin.X - 4, world.CoreOrigin.Y + 1),
@@ -579,7 +580,8 @@ internal static class FactoryGameApp
                         smelterBuilding,
                         assemblerBuilding,
                         generatorBuilding,
-                        powerCableBuilding,
+                        powerNodeBuilding,
+                        powerNodeT2Building,
                         basicConveyor,
                         fastConveyor,
                         expressConveyor,
@@ -692,7 +694,8 @@ internal static class FactoryGameApp
                         smelterBuilding,
                         assemblerBuilding,
                         generatorBuilding,
-                        powerCableBuilding,
+                        powerNodeBuilding,
+                        powerNodeT2Building,
                         tool,
                         direction,
                         statusMessage,
@@ -1233,49 +1236,25 @@ internal static class FactoryGameApp
             }
         }
 
-        var cableCost = content.GetBuildingOrDefault("power-cable");
-        research.ForceUnlock("power-cable");
+        var nodeCost = content.GetBuildingOrDefault("power-node");
+        research.ForceUnlock("power-node");
+        research.ForceUnlock("power-node-t2");
         if (world.Smelters.Count > 0)
         {
             var smelterPos = world.Smelters.Keys.First();
-            world.TryEnsurePowerLinkToCore(smelterPos, SmelterBuilding.Size, conveyors, wallet, cableCost, session);
+            world.TryEnsurePowerLinkToCore(smelterPos, SmelterBuilding.Size, conveyors, wallet, nodeCost, session);
         }
 
-        if (world.Generators.Count > 0 && world.Smelters.Count > 0)
+        if (world.Generators.Count > 0)
         {
             var genPos = world.Generators.Keys.First();
-            var smelterPos = world.Smelters.Keys.First();
-            // Horizontal cable bridge between generator and smelter on the row below.
-            var y = Math.Max(genPos.Y, smelterPos.Y) + GeneratorBuilding.Size;
-            var x0 = Math.Min(genPos.X, smelterPos.X);
-            var x1 = Math.Max(genPos.X + GeneratorBuilding.Size - 1, smelterPos.X + SmelterBuilding.Size - 1);
-            for (var x = x0; x <= x1; x++)
-            {
-                var at = new GridPosition(x, y);
-                if (world.CanPlacePowerCable(at, conveyors))
-                {
-                    world.TryPlacePowerCable(at, conveyors, wallet, cableCost, session);
-                }
-            }
-
-            // Vertical stubs up to each building.
-            foreach (var building in new[] { genPos, smelterPos })
-            {
-                for (var yy = building.Y + GeneratorBuilding.Size; yy < y; yy++)
-                {
-                    var at = new GridPosition(building.X, yy);
-                    if (world.CanPlacePowerCable(at, conveyors))
-                    {
-                        world.TryPlacePowerCable(at, conveyors, wallet, cableCost, session);
-                    }
-                }
-            }
+            world.TryEnsurePowerLinkToCore(genPos, GeneratorBuilding.Size, conveyors, wallet, nodeCost, session);
         }
 
         world.RefreshPowerNetworks();
     }
 
-    private static void SeedCapturePowerCables(
+    private static void SeedCapturePowerNodes(
         FactoryWorld world,
         ConveyorGrid conveyors,
         EconomyWallet wallet,
@@ -1287,7 +1266,8 @@ internal static class FactoryGameApp
     {
         research.ForceUnlock("smelter");
         research.ForceUnlock("generator");
-        research.ForceUnlock("power-cable");
+        research.ForceUnlock("power-node");
+        research.ForceUnlock("power-node-t2");
         wallet.AddMoney(400);
         wallet.AddMaterial("iron-plate", 60);
         wallet.AddMaterial("copper-wire", 40);
@@ -1295,14 +1275,15 @@ internal static class FactoryGameApp
 
         var smelterBuilding = content.GetBuildingOrDefault("smelter");
         var generatorBuilding = content.GetBuildingOrDefault("generator");
-        var cableCost = content.GetBuildingOrDefault("power-cable");
+        var nodeT1 = content.GetBuildingOrDefault("power-node");
+        var nodeT2 = content.GetBuildingOrDefault("power-node-t2");
 
-        // Smelter west of core (not adjacent) — needs cable link.
-        var smelterAt = new GridPosition(world.CoreOrigin.X - 6, world.CoreOrigin.Y);
+        // Smelter west of core — within T1 node range once a relay is placed.
+        var smelterAt = new GridPosition(world.CoreOrigin.X - 5, world.CoreOrigin.Y);
         world.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, conveyors, wallet, smelterBuilding, session);
 
-        // Generator further west.
-        var genAt = new GridPosition(smelterAt.X - GeneratorBuilding.Size - 3, smelterAt.Y);
+        // Fueled generator further west, still within T1 hop range via a mid node.
+        var genAt = new GridPosition(smelterAt.X - GeneratorBuilding.Size - 2, smelterAt.Y);
         world.TryPlaceGenerator(genAt, conveyors, wallet, generatorBuilding, session);
         if (world.TryGetGeneratorAt(genAt, out var gen))
         {
@@ -1321,38 +1302,26 @@ internal static class FactoryGameApp
             }
         }
 
-        // Cable row under buildings: gen → smelter → toward core.
-        var cableY = smelterAt.Y + SmelterBuilding.Size;
-        for (var x = genAt.X; x < world.CoreOrigin.X; x++)
+        // T1 node between gen and smelter — auto-links both + toward core.
+        var nodeAt = new GridPosition(smelterAt.X - 1, smelterAt.Y + SmelterBuilding.Size);
+        if (world.CanPlacePowerNode(nodeAt, PowerNodeBuilding.Tier1Size, conveyors))
         {
-            var at = new GridPosition(x, cableY);
-            if (world.CanPlacePowerCable(at, conveyors))
-            {
-                world.TryPlacePowerCable(at, conveyors, wallet, cableCost, session);
-            }
+            world.TryPlacePowerNode(nodeAt, conveyors, wallet, PowerNodeBuilding.Tier1Id, nodeT1, session);
+        }
+        else
+        {
+            world.TryEnsurePowerLinkToCore(smelterAt, SmelterBuilding.Size, conveyors, wallet, nodeT1, session);
         }
 
-        // Vertical drops to each footprint.
-        for (var y = genAt.Y + GeneratorBuilding.Size - 1; y <= cableY; y++)
+        // Optional T2 further south for capture visual variety.
+        var t2At = new GridPosition(smelterAt.X + 1, smelterAt.Y + SmelterBuilding.Size + 3);
+        if (world.CanPlacePowerNode(t2At, PowerNodeBuilding.Tier2Size, conveyors))
         {
-            var at = new GridPosition(genAt.X + 1, y);
-            if (world.CanPlacePowerCable(at, conveyors))
-            {
-                world.TryPlacePowerCable(at, conveyors, wallet, cableCost, session);
-            }
-        }
-
-        for (var y = smelterAt.Y + SmelterBuilding.Size - 1; y <= cableY; y++)
-        {
-            var at = new GridPosition(smelterAt.X + 1, y);
-            if (world.CanPlacePowerCable(at, conveyors))
-            {
-                world.TryPlacePowerCable(at, conveyors, wallet, cableCost, session);
-            }
+            world.TryPlacePowerNode(t2At, conveyors, wallet, PowerNodeBuilding.Tier2Id, nodeT2, session);
         }
 
         world.RefreshPowerNetworks();
-        // Tick once so the generator enters burn state and cables light up.
+        // Tick once so the generator enters burn state and live beams light up.
         var tickId = 1L;
         world.Update(1f / 30f, conveyors, wallet, ref tickId);
     }
@@ -2309,7 +2278,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
         ConveyorDefinition expressConveyor,
@@ -2660,28 +2630,6 @@ internal static class FactoryGameApp
             return;
         }
 
-        if (tool == BuildTool.PowerCable
-            && research.IsUnlocked("power-cable")
-            && Raylib.IsMouseButtonDown(MouseButton.Left))
-        {
-            var cell = MouseCell(mouse, camera, world);
-            if (cell is not { } position)
-            {
-                return;
-            }
-
-            if (previousDragPosition is not { } previous)
-            {
-                world.TryPlacePowerCable(position, conveyors, wallet, powerCableBuilding, session);
-                previousDragPosition = position;
-                return;
-            }
-
-            ExtendPowerCablePath(world, conveyors, wallet, powerCableBuilding, session, previous, position);
-            previousDragPosition = position;
-            return;
-        }
-
         if (Raylib.IsMouseButtonReleased(MouseButton.Left))
         {
             previousDragPosition = null;
@@ -2770,16 +2718,35 @@ internal static class FactoryGameApp
                 }
                 else
                 {
-                    statusMessage = "Generatore piazzato — collega i cavi e alimentalo con carbone.";
+                    statusMessage = "Generatore piazzato — collega i nodi e alimentalo con carbone.";
                 }
             }
-            else if (tool == BuildTool.PowerCable && research.IsUnlocked("power-cable"))
+            else if (tool == BuildTool.PowerNode && research.IsUnlocked("power-node"))
             {
-                if (!world.TryPlacePowerCable(position, conveyors, wallet, powerCableBuilding, session))
+                if (!world.TryPlacePowerNode(
+                        position, conveyors, wallet, PowerNodeBuilding.Tier1Id, powerNodeBuilding, session))
                 {
-                    statusMessage = world.CanPlacePowerCable(position, conveyors)
-                        ? "Risorse insufficienti per il cavo."
-                        : "Cavo: tile libera (no nastri/edifici/acqua).";
+                    statusMessage = world.CanPlacePowerNode(position, PowerNodeBuilding.Tier1Size, conveyors)
+                        ? "Risorse insufficienti per il Nodo T1."
+                        : "Nodo T1: tile libera (no nastri/edifici/acqua).";
+                }
+                else
+                {
+                    statusMessage = "Nodo T1 piazzato — auto-link entro range 6.";
+                }
+            }
+            else if (tool == BuildTool.PowerNodeT2 && research.IsUnlocked("power-node-t2"))
+            {
+                if (!world.TryPlacePowerNode(
+                        position, conveyors, wallet, PowerNodeBuilding.Tier2Id, powerNodeT2Building, session))
+                {
+                    statusMessage = world.CanPlacePowerNode(position, PowerNodeBuilding.Tier2Size, conveyors)
+                        ? "Risorse insufficienti per il Nodo T2."
+                        : "Nodo T2: area 2×2 libera su terra.";
+                }
+                else
+                {
+                    statusMessage = "Nodo T2 piazzato — auto-link entro range 10.";
                 }
             }
             else if (tool == BuildTool.Junction && research.IsUnlocked("junction"))
@@ -2868,7 +2835,7 @@ internal static class FactoryGameApp
                 && !world.TryRemoveSmelter(position, wallet, smelterBuilding, session)
                 && !world.TryRemoveAssembler(position, wallet, assemblerBuilding, session)
                 && !world.TryRemoveGenerator(position, wallet, generatorBuilding, session)
-                && !world.TryRemovePowerCable(position, wallet, powerCableBuilding, session))
+                && !world.TryRemovePowerNode(position, wallet, session: session))
             {
                 conveyors.TryRemove(position, wallet, session);
             }
@@ -2882,7 +2849,7 @@ internal static class FactoryGameApp
                 && !world.TryRemoveSmelter(position, wallet, smelterBuilding, session)
                 && !world.TryRemoveAssembler(position, wallet, assemblerBuilding, session)
                 && !world.TryRemoveGenerator(position, wallet, generatorBuilding, session)
-                && !world.TryRemovePowerCable(position, wallet, powerCableBuilding, session))
+                && !world.TryRemovePowerNode(position, wallet, session: session))
             {
                 conveyors.TryRemove(position, wallet, session);
             }
@@ -3033,39 +3000,6 @@ internal static class FactoryGameApp
         ConnectToAdjacentCore(world, conveyors, cursor);
     }
 
-    private static void ExtendPowerCablePath(
-        FactoryWorld world,
-        ConveyorGrid conveyors,
-        EconomyWallet wallet,
-        BuildingDefinition cost,
-        EconomySession session,
-        GridPosition from,
-        GridPosition destination)
-    {
-        var cursor = from;
-        while (cursor != destination)
-        {
-            var deltaX = destination.X - cursor.X;
-            var deltaY = destination.Y - cursor.Y;
-            var stepDirection = Math.Abs(deltaX) >= Math.Abs(deltaY)
-                ? deltaX > 0 ? Direction.East : Direction.West
-                : deltaY > 0 ? Direction.South : Direction.North;
-            var next = cursor.Step(stepDirection);
-            if (world.CoreTiles.Contains(next))
-            {
-                return;
-            }
-
-            if (!world.PowerCables.Contains(next)
-                && !world.TryPlacePowerCable(next, conveyors, wallet, cost, session))
-            {
-                return;
-            }
-
-            cursor = next;
-        }
-    }
-
     private static void ConnectAdjacentMiner(
         FactoryWorld world,
         ConveyorGrid conveyors,
@@ -3206,9 +3140,13 @@ internal static class FactoryGameApp
                 DockCategory = UiTheme.BuildCategory.Power;
                 DockSelectedId = "generator";
                 break;
-            case BuildTool.PowerCable:
+            case BuildTool.PowerNode:
                 DockCategory = UiTheme.BuildCategory.Power;
-                DockSelectedId = "power-cable";
+                DockSelectedId = "power-node";
+                break;
+            case BuildTool.PowerNodeT2:
+                DockCategory = UiTheme.BuildCategory.Power;
+                DockSelectedId = "power-node-t2";
                 break;
             case BuildTool.Remove:
                 DockCategory = UiTheme.BuildCategory.Production;
@@ -3287,7 +3225,7 @@ internal static class FactoryGameApp
 
     /// <summary>Live Fabbrica building counts shown under PWR.</summary>
     internal static string FormatFabbricaCounts(FactoryWorld world, ConveyorGrid conveyors) =>
-        $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count} C{world.PowerCables.Count}";
+        $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count} P{world.PowerNodes.Count}";
 
     /// <summary>
     /// Shared Fabbrica content metrics so draw + CORE hit-test stay aligned.
@@ -4617,7 +4555,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         BuildTool tool,
         Direction direction,
         string? statusMessage,
@@ -4628,11 +4567,13 @@ internal static class FactoryGameApp
             world, conveyors, wallet, research, camera, selectedConveyor,
             junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
-            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding, tool, direction);
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            powerNodeBuilding, powerNodeT2Building, tool, direction);
         DrawHeader(
             wallet, research, session, market, economy, settings, basicConveyor, fastConveyor, expressConveyor,
             junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-            selectedConveyor, minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding,
+            selectedConveyor, minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            powerNodeBuilding, powerNodeT2Building,
             tool, direction, world, camera);
         DrawMercatoPanel(world, wallet, market);
         DrawStatusPanel(world, conveyors, research, wallet, session, economy);
@@ -4640,7 +4581,8 @@ internal static class FactoryGameApp
             wallet, research, selectedConveyor, direction, tool,
             basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
-            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding);
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            powerNodeBuilding, powerNodeT2Building);
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
@@ -4856,7 +4798,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         BuildTool tool,
         Direction direction,
         FactoryWorld world,
@@ -4896,8 +4839,11 @@ internal static class FactoryGameApp
             BuildTool.Generator => research.IsUnlocked("generator")
                 ? FormatBuildingCost(generatorBuilding)
                 : "Sblocca in Ricerca",
-            BuildTool.PowerCable => research.IsUnlocked("power-cable")
-                ? FormatBuildingCost(powerCableBuilding)
+            BuildTool.PowerNode => research.IsUnlocked("power-node")
+                ? FormatBuildingCost(powerNodeBuilding)
+                : "Sblocca in Ricerca",
+            BuildTool.PowerNodeT2 => research.IsUnlocked("power-node-t2")
+                ? FormatBuildingCost(powerNodeT2Building)
                 : "Sblocca in Ricerca",
             BuildTool.Junction => FormatConveyorCost(junctionConveyor, research),
             BuildTool.Splitter => FormatConveyorCost(splitterConveyor, research),
@@ -5025,7 +4971,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding)
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building)
     {
         // Safety: removed rail categories must not stick as active.
         if (DockCategory is UiTheme.BuildCategory.Inventory or UiTheme.BuildCategory.Tools)
@@ -5137,7 +5084,8 @@ internal static class FactoryGameApp
             barEntry, wallet, research,
             basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
-            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding);
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            powerNodeBuilding, powerNodeT2Building);
     }
 
     private static UiTheme.DockEntry? FindSelectedDockEntry(ConveyorDefinition selectedConveyor, BuildTool tool)
@@ -5194,7 +5142,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding)
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building)
     {
         if (entry is null)
         {
@@ -5239,7 +5188,8 @@ internal static class FactoryGameApp
             barX, costY, barW, costH,
             entry, wallet,
             basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding,
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            powerNodeBuilding, powerNodeT2Building,
             hasRecipe ? entry.Hint : null);
     }
 
@@ -5324,12 +5274,14 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         string? usageHintFallback)
     {
         if (!TryResolveDockEntryCost(
                 entry, basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-                minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding,
+                minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+                powerNodeBuilding, powerNodeT2Building,
                 out var money, out var materials))
         {
             var hint = TruncateUiText(usageHintFallback ?? entry.Hint ?? entry.Label, 12, barW - UiTheme.S(16));
@@ -5435,7 +5387,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         out int money,
         out IReadOnlyList<ResourceAmount> materials)
     {
@@ -5451,7 +5404,8 @@ internal static class FactoryGameApp
 
         return TryResolveDockEntryCost(
             entry, basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, powerCableBuilding,
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            powerNodeBuilding, powerNodeT2Building,
             out money, out materials);
     }
 
@@ -5469,7 +5423,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         out int money,
         out IReadOnlyList<ResourceAmount> materials)
     {
@@ -5498,9 +5453,13 @@ internal static class FactoryGameApp
                 money = generatorBuilding.MoneyCost;
                 materials = generatorBuilding.BuildCost;
                 return true;
-            case "power-cable":
-                money = powerCableBuilding.MoneyCost;
-                materials = powerCableBuilding.BuildCost;
+            case "power-node":
+                money = powerNodeBuilding.MoneyCost;
+                materials = powerNodeBuilding.BuildCost;
+                return true;
+            case "power-node-t2":
+                money = powerNodeT2Building.MoneyCost;
+                materials = powerNodeT2Building.BuildCost;
                 return true;
             case "conveyor-basic":
                 money = basicConveyor.MoneyCost;
@@ -5574,7 +5533,8 @@ internal static class FactoryGameApp
             "sorter" => new Color(200, 160, 90, 255),
             "bridge" => new Color(150, 160, 200, 255),
             "generator" => new Color(230, 200, 70, 255),
-            "power-cable" => new Color(210, 175, 60, 255),
+            "power-node" => new Color(210, 175, 60, 255),
+            "power-node-t2" => new Color(120, 200, 220, 255),
             "remove" => new Color(220, 100, 90, 255),
             _ => UiTheme.TextPrimary
         };
@@ -5652,20 +5612,23 @@ internal static class FactoryGameApp
             DrawConveyor(conveyor, conveyors, world, screen.X, screen.Y, tileSize, false);
         }
 
-        foreach (var cable in world.PowerCables.Cells)
+        foreach (var node in world.PowerNodes.Values)
         {
-            if (cable.X < minX || cable.X > maxX || cable.Y < minY || cable.Y > maxY)
+            if (node.Position.X + node.Size < minX || node.Position.X > maxX
+                || node.Position.Y + node.Size < minY || node.Position.Y > maxY)
             {
                 continue;
             }
 
             var screen = camera.WorldToScreen(
-                cable.X * BaseTileSize,
-                cable.Y * BaseTileSize,
+                node.Position.X * BaseTileSize,
+                node.Position.Y * BaseTileSize,
                 ViewportLeft,
                 ViewportTop);
-            DrawPowerCable(world, cable, screen.X, screen.Y, tileSize, false);
+            DrawPowerNode(node, screen.X, screen.Y, tileSize, false);
         }
+
+        DrawPowerBeams(world, camera, tileSize);
 
         DrawCore(world, camera, tileSize, minX, minY, maxX, maxY);
         foreach (var smelter in world.Smelters.Values)
@@ -6019,9 +5982,8 @@ internal static class FactoryGameApp
             isGenerating: generator.IsGenerating);
     }
 
-    private static void DrawPowerCable(
-        FactoryWorld world,
-        GridPosition position,
+    private static void DrawPowerNode(
+        PowerNodeBuilding node,
         float fx,
         float fy,
         float tileSize,
@@ -6029,69 +5991,94 @@ internal static class FactoryGameApp
     {
         var x = (int)fx;
         var y = (int)fy;
-        var size = (int)tileSize;
+        var size = (int)(tileSize * node.Size);
         var alpha = preview ? 160 : 255;
-        var powered = !preview && world.PowerNetworks.IsCablePowered(position);
-        var copper = powered
-            ? new Color(230, 190, 70, alpha)
-            : new Color(120, 100, 55, alpha);
-        var core = powered
-            ? new Color(255, 230, 120, alpha)
-            : new Color(70, 60, 40, alpha);
-        var thickness = Math.Max(2, (int)(tileSize * 0.14f));
+        var isT2 = node.DefinitionId == PowerNodeBuilding.Tier2Id;
+        var copper = isT2
+            ? new Color(120, 200, 220, alpha)
+            : new Color(230, 190, 70, alpha);
+        var core = isT2
+            ? new Color(200, 240, 250, alpha)
+            : new Color(255, 230, 120, alpha);
+        var baseColor = new Color(28, 32, 36, alpha);
+        var pad = Math.Max(4, (int)(size * 0.18f));
         var cx = x + size / 2;
         var cy = y + size / 2;
 
-        var pad = Math.Max(3, (int)(tileSize * 0.22f));
-        Raylib.DrawRectangle(cx - pad / 2, cy - pad / 2, pad, pad, copper);
-        Raylib.DrawRectangle(cx - pad / 4, cy - pad / 4, Math.Max(1, pad / 2), Math.Max(1, pad / 2), core);
+        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, baseColor);
+        Raylib.DrawRectangleLines(x + 2, y + 2, size - 4, size - 4, copper);
+        // Cross arms
+        var thickness = Math.Max(2, (int)(size * 0.1f));
+        Raylib.DrawRectangle(cx - thickness / 2, y + pad, thickness, size - pad * 2, copper);
+        Raylib.DrawRectangle(x + pad, cy - thickness / 2, size - pad * 2, thickness, copper);
+        // Center pole
+        var pole = Math.Max(4, (int)(size * 0.28f));
+        Raylib.DrawRectangle(cx - pole / 2, cy - pole / 2, pole, pole, copper);
+        Raylib.DrawRectangle(cx - pole / 4, cy - pole / 4, Math.Max(1, pole / 2), Math.Max(1, pole / 2), core);
 
-        bool Link(Direction dir)
+        if (!preview)
         {
-            var n = position.Step(dir);
-            return world.PowerCables.Contains(n)
-                || world.CoreTiles.Contains(n)
-                || world.IsGeneratorTile(n)
-                || world.IsSmelterTile(n)
-                || world.IsAssemblerTile(n);
+            var iconSize = Math.Max(10, (int)(size * 0.45f));
+            GameIcons.TryDraw(node.DefinitionId, cx - iconSize / 2, cy - iconSize / 2, iconSize, Color.White);
         }
+    }
 
-        void Arm(Direction dir)
+    private static void DrawPowerBeams(FactoryWorld world, WorldCamera camera, float tileSize)
+    {
+        foreach (var link in world.PowerLinks)
         {
-            var half = size / 2;
-            switch (dir)
-            {
-                case Direction.North:
-                    Raylib.DrawRectangle(cx - thickness / 2, y + 2, thickness, half - 1, copper);
-                    break;
-                case Direction.South:
-                    Raylib.DrawRectangle(cx - thickness / 2, cy, thickness, half - 1, copper);
-                    break;
-                case Direction.West:
-                    Raylib.DrawRectangle(x + 2, cy - thickness / 2, half - 1, thickness, copper);
-                    break;
-                case Direction.East:
-                    Raylib.DrawRectangle(cx, cy - thickness / 2, half - 1, thickness, copper);
-                    break;
-            }
-        }
-
-        var any = false;
-        foreach (var dir in DirectionMath.All)
-        {
-            if (!Link(dir))
+            if (!TryPowerEndpointCenter(world, link.A, out var a)
+                || !TryPowerEndpointCenter(world, link.B, out var b))
             {
                 continue;
             }
 
-            Arm(dir);
-            any = true;
+            var sa = camera.WorldToScreen(a.X * BaseTileSize, a.Y * BaseTileSize, ViewportLeft, ViewportTop);
+            var sb = camera.WorldToScreen(b.X * BaseTileSize, b.Y * BaseTileSize, ViewportLeft, ViewportTop);
+            var live = world.PowerNetworks.IsLinkLive(link);
+            var color = live
+                ? new Color(255, 210, 90, 200)
+                : new Color(90, 80, 50, 110);
+            var thickness = live ? Math.Max(1.5f, tileSize * 0.06f) : Math.Max(1f, tileSize * 0.04f);
+            Raylib.DrawLineEx(sa, sb, thickness, color);
+            if (live)
+            {
+                Raylib.DrawLineEx(sa, sb, Math.Max(1f, thickness * 0.35f), new Color(255, 245, 180, 160));
+            }
         }
+    }
 
-        if (!any)
+    private static bool TryPowerEndpointCenter(FactoryWorld world, PowerEndpointId id, out Vector2 center)
+    {
+        switch (id.Kind)
         {
-            Raylib.DrawRectangle(cx - thickness / 2, cy - size / 4, thickness, size / 2, copper);
-            Raylib.DrawRectangle(cx - size / 4, cy - thickness / 2, size / 2, thickness, copper);
+            case PowerEndpointKind.Core:
+                center = new Vector2(
+                    world.CoreOrigin.X + FactoryWorld.CoreSize * 0.5f,
+                    world.CoreOrigin.Y + FactoryWorld.CoreSize * 0.5f);
+                return true;
+            case PowerEndpointKind.Generator:
+                center = new Vector2(
+                    id.Origin.X + GeneratorBuilding.Size * 0.5f,
+                    id.Origin.Y + GeneratorBuilding.Size * 0.5f);
+                return world.Generators.ContainsKey(id.Origin);
+            case PowerEndpointKind.Node:
+                if (!world.PowerNodes.TryGetValue(id.Origin, out var node))
+                {
+                    center = default;
+                    return false;
+                }
+
+                center = new Vector2(id.Origin.X + node.Size * 0.5f, id.Origin.Y + node.Size * 0.5f);
+                return true;
+            case PowerEndpointKind.Consumer:
+                center = new Vector2(
+                    id.Origin.X + SmelterBuilding.Size * 0.5f,
+                    id.Origin.Y + SmelterBuilding.Size * 0.5f);
+                return world.Smelters.ContainsKey(id.Origin) || world.Assemblers.ContainsKey(id.Origin);
+            default:
+                center = default;
+                return false;
         }
     }
 
@@ -6411,7 +6398,8 @@ internal static class FactoryGameApp
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
-        BuildingDefinition powerCableBuilding,
+        BuildingDefinition powerNodeBuilding,
+        BuildingDefinition powerNodeT2Building,
         BuildTool tool,
         Direction direction)
     {
@@ -6461,9 +6449,12 @@ internal static class FactoryGameApp
             BuildTool.Generator => research.IsUnlocked("generator")
                 && world.CanPlaceGenerator(position, conveyors)
                 && wallet.CanAfford(generatorBuilding.MoneyCost, generatorBuilding.BuildCost),
-            BuildTool.PowerCable => research.IsUnlocked("power-cable")
-                && world.CanPlacePowerCable(position, conveyors)
-                && wallet.CanAfford(powerCableBuilding.MoneyCost, powerCableBuilding.BuildCost),
+            BuildTool.PowerNode => research.IsUnlocked("power-node")
+                && world.CanPlacePowerNode(position, PowerNodeBuilding.Tier1Size, conveyors)
+                && wallet.CanAfford(powerNodeBuilding.MoneyCost, powerNodeBuilding.BuildCost),
+            BuildTool.PowerNodeT2 => research.IsUnlocked("power-node-t2")
+                && world.CanPlacePowerNode(position, PowerNodeBuilding.Tier2Size, conveyors)
+                && wallet.CanAfford(powerNodeT2Building.MoneyCost, powerNodeT2Building.BuildCost),
             BuildTool.Remove => world.Miners.ContainsKey(position)
                 || world.IsMinerTile(position)
                 || world.Smelters.ContainsKey(position)
@@ -6472,7 +6463,7 @@ internal static class FactoryGameApp
                 || world.IsAssemblerTile(position)
                 || world.Generators.ContainsKey(position)
                 || world.IsGeneratorTile(position)
-                || world.PowerCables.Contains(position)
+                || world.TryGetPowerNodeAt(position, out _)
                 || conveyors.Cells.ContainsKey(position),
             _ => false
         };
@@ -6490,9 +6481,11 @@ internal static class FactoryGameApp
             ? new Color(105, 225, 142, 125)
             : new Color(225, 92, 80, 125);
         var previewSize = tool is BuildTool.Miner or BuildTool.MinerAdvanced or BuildTool.Smelter
-            or BuildTool.Assembler or BuildTool.Generator
+            or BuildTool.Assembler or BuildTool.Generator or BuildTool.PowerNodeT2
             ? tileSize * MinerBuilding.Size
-            : tileSize;
+            : tool == BuildTool.PowerNode
+                ? tileSize * PowerNodeBuilding.Tier1Size
+                : tileSize;
         Raylib.BeginScissorMode(ViewportLeft, ViewportTop, (int)ViewportWidth, (int)ViewportHeight);
         Raylib.DrawRectangle((int)screen.X + 2, (int)screen.Y + 2, (int)previewSize - 5, (int)previewSize - 5, previewColor);
 
@@ -6539,9 +6532,13 @@ internal static class FactoryGameApp
         {
             DrawGenerator(new GeneratorBuilding(position), screen.X, screen.Y, tileSize, true);
         }
-        else if (tool == BuildTool.PowerCable && valid)
+        else if (tool == BuildTool.PowerNode && valid)
         {
-            DrawPowerCable(world, position, screen.X, screen.Y, tileSize, true);
+            DrawPowerNode(new PowerNodeBuilding(position, PowerNodeBuilding.Tier1Id), screen.X, screen.Y, tileSize, true);
+        }
+        else if (tool == BuildTool.PowerNodeT2 && valid)
+        {
+            DrawPowerNode(new PowerNodeBuilding(position, PowerNodeBuilding.Tier2Id), screen.X, screen.Y, tileSize, true);
         }
 
         Raylib.EndScissorMode();

@@ -9,7 +9,13 @@ public sealed record BuildingDefinition(
     string Id,
     int MoneyCost,
     IReadOnlyList<ResourceAmount> BuildCost,
-    int RefundPercent = 100);
+    int RefundPercent = 100,
+    /// <summary>Footprint edge length for power nodes (1 or 2). 0 = not a node.</summary>
+    int Footprint = 0,
+    /// <summary>Max geometric power links for power nodes. 0 = not a node.</summary>
+    int MaxPowerLinks = 0,
+    /// <summary>Max link range in tiles (center-to-center) for power nodes.</summary>
+    float PowerLinkRange = 0f);
 
 public sealed record CoreUpgradeDefinition(
     int MoneyCost,

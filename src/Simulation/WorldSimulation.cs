@@ -746,7 +746,9 @@ public sealed class FactoryWorld
     private readonly Dictionary<GridPosition, SmelterBuilding> assemblerByTile = [];
     private readonly Dictionary<GridPosition, GeneratorBuilding> generators = [];
     private readonly Dictionary<GridPosition, GeneratorBuilding> generatorByTile = [];
-    private readonly PowerCableGrid powerCables = new();
+    private readonly Dictionary<GridPosition, PowerNodeBuilding> powerNodes = [];
+    private readonly Dictionary<GridPosition, PowerNodeBuilding> powerNodeByTile = [];
+    private readonly List<PowerLink> powerLinks = [];
     private PowerNetworkState powerNetworks = PowerNetworkState.Empty;
 
     public FactoryWorld(int width, int height, int seed)
@@ -784,7 +786,8 @@ public sealed class FactoryWorld
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Smelters => smelters;
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Assemblers => assemblers;
     public IReadOnlyDictionary<GridPosition, GeneratorBuilding> Generators => generators;
-    public PowerCableGrid PowerCables => powerCables;
+    public IReadOnlyDictionary<GridPosition, PowerNodeBuilding> PowerNodes => powerNodes;
+    public IReadOnlyList<PowerLink> PowerLinks => powerLinks;
     public PowerNetworkState PowerNetworks => powerNetworks;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public int SoldItems { get; private set; }
@@ -900,6 +903,7 @@ public sealed class FactoryWorld
                 || smelterByTile.ContainsKey(tile)
                 || assemblerByTile.ContainsKey(tile)
                 || generatorByTile.ContainsKey(tile)
+                || powerNodeByTile.ContainsKey(tile)
                 || CoreTiles.Contains(tile)))
         {
             return false;
@@ -951,85 +955,125 @@ public sealed class FactoryWorld
         && !smelterByTile.ContainsKey(position)
         && !assemblerByTile.ContainsKey(position)
         && !generatorByTile.ContainsKey(position)
-        && !powerCables.Contains(position);
+        && !powerNodeByTile.ContainsKey(position);
 
-    public bool CanPlacePowerCable(GridPosition position, ConveyorGrid conveyors) =>
-        IsInside(position)
-        && Terrain[position].IsBuildable
-        && !CoreTiles.Contains(position)
-        && !minerByTile.ContainsKey(position)
-        && !smelterByTile.ContainsKey(position)
-        && !assemblerByTile.ContainsKey(position)
-        && !generatorByTile.ContainsKey(position)
-        && !conveyors.Cells.ContainsKey(position)
-        && !powerCables.Contains(position);
+    public bool CanPlacePowerNode(GridPosition position, int size, ConveyorGrid conveyors) =>
+        CanOccupyBuilding(position, size, conveyors);
 
-    public bool TryPlacePowerCable(
+    public bool TryPlacePowerNode(
         GridPosition position,
         ConveyorGrid conveyors,
         EconomyWallet wallet,
+        string definitionId = PowerNodeBuilding.Tier1Id,
         BuildingDefinition? cost = null,
-        EconomySession? session = null)
+        EconomySession? session = null,
+        bool autoLink = true)
     {
-        cost ??= new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100);
-        if (!CanPlacePowerCable(position, conveyors)
+        definitionId = definitionId == PowerNodeBuilding.Tier2Id
+            ? PowerNodeBuilding.Tier2Id
+            : PowerNodeBuilding.Tier1Id;
+        var size = PowerNodeBuilding.SizeFor(definitionId);
+        cost ??= definitionId == PowerNodeBuilding.Tier2Id
+            ? new BuildingDefinition(
+                PowerNodeBuilding.Tier2Id, 55,
+                [new ResourceAmount("iron-plate", 6), new ResourceAmount("copper-wire", 4)], 100,
+                Footprint: PowerNodeBuilding.Tier2Size,
+                MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks,
+                PowerLinkRange: PowerNodeBuilding.Tier2Range)
+            : new BuildingDefinition(
+                PowerNodeBuilding.Tier1Id, 20, [new ResourceAmount("copper-wire", 2)], 100,
+                Footprint: PowerNodeBuilding.Tier1Size,
+                MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
+                PowerLinkRange: PowerNodeBuilding.Tier1Range);
+
+        if (!CanPlacePowerNode(position, size, conveyors)
             || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
         {
             return false;
         }
 
-        powerCables.TryAdd(position);
+        var node = new PowerNodeBuilding(position, definitionId);
+        RegisterPowerNode(node);
         session?.RecordBuildSpend(cost.MoneyCost);
+        if (autoLink)
+        {
+            PowerNetworking.AutoLinkNode(this, node, powerLinks);
+        }
+
         RefreshPowerNetworks();
         return true;
     }
 
-    public bool TryRemovePowerCable(
+    public bool TryRemovePowerNode(
         GridPosition position,
         EconomyWallet wallet,
         BuildingDefinition? cost = null,
         EconomySession? session = null)
     {
-        if (!powerCables.Contains(position))
+        if (!powerNodeByTile.TryGetValue(position, out var node))
         {
             return false;
         }
 
-        cost ??= new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100);
-        powerCables.TryRemove(position);
+        cost ??= node.DefinitionId == PowerNodeBuilding.Tier2Id
+            ? new BuildingDefinition(
+                PowerNodeBuilding.Tier2Id, 55,
+                [new ResourceAmount("iron-plate", 6), new ResourceAmount("copper-wire", 4)], 100,
+                Footprint: PowerNodeBuilding.Tier2Size,
+                MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks,
+                PowerLinkRange: PowerNodeBuilding.Tier2Range)
+            : new BuildingDefinition(
+                PowerNodeBuilding.Tier1Id, 20, [new ResourceAmount("copper-wire", 2)], 100,
+                Footprint: PowerNodeBuilding.Tier1Size,
+                MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
+                PowerLinkRange: PowerNodeBuilding.Tier1Range);
+
+        var nodeId = new PowerEndpointId(PowerEndpointKind.Node, node.Position);
+        PowerNetworking.RemoveEndpointLinks(nodeId, powerLinks);
+        powerNodes.Remove(node.Position);
+        foreach (var tile in node.OccupiedTiles())
+        {
+            powerNodeByTile.Remove(tile);
+        }
+
         ApplyRefund(wallet, cost, session);
         RefreshPowerNetworks();
         return true;
     }
 
-    public bool TryRestorePowerCable(GridPosition position)
+    public bool TryRestorePowerNode(GridPosition position, string definitionId = PowerNodeBuilding.Tier1Id)
     {
-        if (!IsInside(position)
-            || CoreTiles.Contains(position)
-            || minerByTile.ContainsKey(position)
-            || smelterByTile.ContainsKey(position)
-            || assemblerByTile.ContainsKey(position)
-            || generatorByTile.ContainsKey(position)
-            || powerCables.Contains(position))
+        definitionId = definitionId == PowerNodeBuilding.Tier2Id
+            ? PowerNodeBuilding.Tier2Id
+            : PowerNodeBuilding.Tier1Id;
+        var size = PowerNodeBuilding.SizeFor(definitionId);
+        if (!CanOccupyBuilding(position, size, null))
         {
             return false;
         }
 
-        if (!powerCables.TryAdd(position))
+        RegisterPowerNode(new PowerNodeBuilding(position, definitionId));
+        return true;
+    }
+
+    public bool TryRestorePowerLink(PowerEndpointId a, PowerEndpointId b)
+    {
+        var link = PowerLink.Create(a, b);
+        if (powerLinks.Contains(link))
         {
-            return false;
+            return true;
         }
 
-        RefreshPowerNetworks();
+        powerLinks.Add(link);
         return true;
     }
 
     public void RefreshPowerNetworks() =>
-        powerNetworks = PowerNetworking.Build(this, powerCables, generators.Values);
+        powerNetworks = PowerNetworking.Build(this, powerNodes, powerLinks, generators.Values);
 
     /// <summary>
-    /// Places a short cable path from a building footprint to the core (or returns true if already powered).
-    /// Used by self-tests and capture scenes so crafters away from the core stay online.
+    /// Ensures a consumer is on a live network by placing a T1 node near it (auto-links to core/gen).
+    /// Used by self-tests and capture scenes.
     /// </summary>
     public bool TryEnsurePowerLinkToCore(
         GridPosition origin,
@@ -1045,107 +1089,114 @@ public sealed class FactoryWorld
             return true;
         }
 
-        cost ??= new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100);
-        var starts = new List<GridPosition>();
-        var goals = new HashSet<GridPosition>();
+        cost ??= new BuildingDefinition(
+            PowerNodeBuilding.Tier1Id, 20, [new ResourceAmount("copper-wire", 2)], 100,
+            Footprint: PowerNodeBuilding.Tier1Size,
+            MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
+            PowerLinkRange: PowerNodeBuilding.Tier1Range);
+
+        // Prefer a free tile adjacent to the building footprint, within T1 range of the core if possible.
+        var candidates = new List<(GridPosition Pos, float Score)>();
         foreach (var tile in Footprint(origin, size))
         {
             for (var d = 0; d < DirectionMath.All.Length; d++)
             {
                 var n = tile.Step(DirectionMath.All[d]);
-                if (CanPlacePowerCable(n, conveyors) || powerCables.Contains(n))
-                {
-                    starts.Add(n);
-                }
-            }
-        }
-
-        foreach (var coreTile in CoreTiles)
-        {
-            for (var d = 0; d < DirectionMath.All.Length; d++)
-            {
-                var n = coreTile.Step(DirectionMath.All[d]);
-                if (CanPlacePowerCable(n, conveyors) || powerCables.Contains(n))
-                {
-                    goals.Add(n);
-                }
-            }
-        }
-
-        if (starts.Count == 0 || goals.Count == 0)
-        {
-            return false;
-        }
-
-        // BFS for a free path; prefer already-placed cables as zero-cost.
-        var cameFrom = new Dictionary<GridPosition, GridPosition>();
-        var queue = new Queue<GridPosition>();
-        var seen = new HashSet<GridPosition>();
-        foreach (var start in starts)
-        {
-            if (seen.Add(start))
-            {
-                queue.Enqueue(start);
-            }
-        }
-
-        GridPosition? found = null;
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (goals.Contains(current))
-            {
-                found = current;
-                break;
-            }
-
-            for (var d = 0; d < DirectionMath.All.Length; d++)
-            {
-                var next = current.Step(DirectionMath.All[d]);
-                if (!seen.Add(next))
+                if (!CanPlacePowerNode(n, PowerNodeBuilding.Tier1Size, conveyors))
                 {
                     continue;
                 }
 
-                if (!powerCables.Contains(next) && !CanPlacePowerCable(next, conveyors))
-                {
-                    continue;
-                }
-
-                cameFrom[next] = current;
-                queue.Enqueue(next);
+                var toCore = PowerNetworking.DistanceCenters(
+                    n, PowerNodeBuilding.Tier1Size, CoreOrigin, CoreSize);
+                var toBuilding = PowerNetworking.DistanceCenters(n, PowerNodeBuilding.Tier1Size, origin, size);
+                candidates.Add((n, toCore + toBuilding * 0.1f));
             }
         }
 
-        if (found is null)
+        // If nothing adjacent, search a small ring around the building.
+        if (candidates.Count == 0)
         {
-            return false;
+            for (var dy = -3; dy <= size + 2; dy++)
+            {
+                for (var dx = -3; dx <= size + 2; dx++)
+                {
+                    var n = new GridPosition(origin.X + dx, origin.Y + dy);
+                    if (!CanPlacePowerNode(n, PowerNodeBuilding.Tier1Size, conveyors))
+                    {
+                        continue;
+                    }
+
+                    var toCore = PowerNetworking.DistanceCenters(
+                        n, PowerNodeBuilding.Tier1Size, CoreOrigin, CoreSize);
+                    var toBuilding = PowerNetworking.DistanceCenters(n, PowerNodeBuilding.Tier1Size, origin, size);
+                    if (toBuilding > PowerNodeBuilding.Tier1Range)
+                    {
+                        continue;
+                    }
+
+                    candidates.Add((n, toCore + toBuilding * 0.1f));
+                }
+            }
         }
 
-        var path = new List<GridPosition>();
-        var walk = found.Value;
-        path.Add(walk);
-        while (cameFrom.TryGetValue(walk, out var prev))
+        foreach (var (pos, _) in candidates.OrderBy(c => c.Score))
         {
-            walk = prev;
-            path.Add(walk);
-        }
-
-        foreach (var tile in path)
-        {
-            if (powerCables.Contains(tile))
+            if (!TryPlacePowerNode(pos, conveyors, wallet, PowerNodeBuilding.Tier1Id, cost, session))
             {
                 continue;
             }
 
-            if (!TryPlacePowerCable(tile, conveyors, wallet, cost, session))
+            // If still not powered (building too far from core), place a second node near the core.
+            if (IsBuildingPowered(origin, size))
             {
-                return false;
+                return true;
+            }
+
+            GridPosition? coreNode = null;
+            var best = float.MaxValue;
+            foreach (var coreTile in CoreTiles)
+            {
+                for (var d = 0; d < DirectionMath.All.Length; d++)
+                {
+                    var n = coreTile.Step(DirectionMath.All[d]);
+                    if (!CanPlacePowerNode(n, PowerNodeBuilding.Tier1Size, conveyors))
+                    {
+                        continue;
+                    }
+
+                    var dist = PowerNetworking.DistanceCenters(
+                        pos, PowerNodeBuilding.Tier1Size, n, PowerNodeBuilding.Tier1Size);
+                    if (dist < best && dist <= PowerNodeBuilding.Tier1Range)
+                    {
+                        best = dist;
+                        coreNode = n;
+                    }
+                }
+            }
+
+            if (coreNode is { } cn
+                && TryPlacePowerNode(cn, conveyors, wallet, PowerNodeBuilding.Tier1Id, cost, session)
+                && IsBuildingPowered(origin, size))
+            {
+                return true;
             }
         }
 
         RefreshPowerNetworks();
         return IsBuildingPowered(origin, size);
+    }
+
+    public bool TryGetPowerNodeAt(GridPosition position, out PowerNodeBuilding node) =>
+        powerNodeByTile.TryGetValue(position, out node!);
+
+    private void RegisterPowerNode(PowerNodeBuilding node)
+    {
+        powerNodes.Add(node.Position, node);
+        foreach (var tile in node.OccupiedTiles())
+        {
+            powerNodeByTile.Add(tile, node);
+        }
     }
 
     public bool CanPlaceMiner(GridPosition position, ConveyorGrid conveyors) =>
@@ -1158,7 +1209,7 @@ public sealed class FactoryWorld
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
             && !conveyors.Cells.ContainsKey(tile)
-            && !powerCables.Contains(tile));
+            && !powerNodeByTile.ContainsKey(tile));
     // Deposit coverage optional: 0 covered tiles → 0% efficiency, no ore output.
 
     public bool CanPlaceSmelter(GridPosition position, ConveyorGrid conveyors) =>
@@ -1259,6 +1310,13 @@ public sealed class FactoryWorld
 
         RegisterSmelter(new SmelterBuilding(position, direction, recipe));
         session?.RecordBuildSpend(cost.MoneyCost);
+        PowerNetworking.AutoLinkEndpoint(
+            this,
+            new PowerEndpointId(PowerEndpointKind.Consumer, position),
+            position,
+            SmelterBuilding.Size,
+            powerLinks);
+        RefreshPowerNetworks();
         return true;
     }
 
@@ -1281,6 +1339,13 @@ public sealed class FactoryWorld
 
         RegisterAssembler(new SmelterBuilding(position, direction, recipe));
         session?.RecordBuildSpend(cost.MoneyCost);
+        PowerNetworking.AutoLinkEndpoint(
+            this,
+            new PowerEndpointId(PowerEndpointKind.Consumer, position),
+            position,
+            SmelterBuilding.Size,
+            powerLinks);
+        RefreshPowerNetworks();
         return true;
     }
 
@@ -1321,6 +1386,8 @@ public sealed class FactoryWorld
         }
 
         cost ??= new BuildingDefinition("smelter", SmelterBuilding.MoneyCost, SmelterBuildCost, 100);
+        PowerNetworking.RemoveEndpointLinks(
+            new PowerEndpointId(PowerEndpointKind.Consumer, smelter.Position), powerLinks);
         smelters.Remove(smelter.Position);
         foreach (var tile in smelter.OccupiedTiles())
         {
@@ -1328,6 +1395,7 @@ public sealed class FactoryWorld
         }
 
         ApplyRefund(wallet, cost, session);
+        RefreshPowerNetworks();
         return true;
     }
 
@@ -1344,6 +1412,8 @@ public sealed class FactoryWorld
 
         cost ??= new BuildingDefinition("assembler", 60,
             [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100);
+        PowerNetworking.RemoveEndpointLinks(
+            new PowerEndpointId(PowerEndpointKind.Consumer, assembler.Position), powerLinks);
         assemblers.Remove(assembler.Position);
         foreach (var tile in assembler.OccupiedTiles())
         {
@@ -1351,6 +1421,7 @@ public sealed class FactoryWorld
         }
 
         ApplyRefund(wallet, cost, session);
+        RefreshPowerNetworks();
         return true;
     }
 
@@ -1373,6 +1444,13 @@ public sealed class FactoryWorld
 
         RegisterGenerator(new GeneratorBuilding(position));
         session?.RecordBuildSpend(cost.MoneyCost);
+        PowerNetworking.AutoLinkEndpoint(
+            this,
+            new PowerEndpointId(PowerEndpointKind.Generator, position),
+            position,
+            GeneratorBuilding.Size,
+            powerLinks);
+        RefreshPowerNetworks();
         return true;
     }
 
@@ -1388,6 +1466,8 @@ public sealed class FactoryWorld
         }
 
         cost ??= new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100);
+        PowerNetworking.RemoveEndpointLinks(
+            new PowerEndpointId(PowerEndpointKind.Generator, generator.Position), powerLinks);
         generators.Remove(generator.Position);
         foreach (var tile in generator.OccupiedTiles())
         {
@@ -1396,6 +1476,7 @@ public sealed class FactoryWorld
 
         RecalculatePowerCapacity();
         ApplyRefund(wallet, cost, session);
+        RefreshPowerNetworks();
         return true;
     }
 
@@ -1430,8 +1511,8 @@ public sealed class FactoryWorld
             }
         }
 
-        // Rebuild local cable networks after generator burn state updates.
-        powerNetworks = PowerNetworking.Build(this, powerCables, generators.Values);
+        // Rebuild local node networks after generator burn state updates.
+        powerNetworks = PowerNetworking.Build(this, powerNodes, powerLinks, generators.Values);
         PowerCapacity = powerNetworks.Capacity;
         PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
 
@@ -1729,7 +1810,7 @@ public sealed class FactoryWorld
             && !smelterByTile.ContainsKey(tile)
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
-            && !powerCables.Contains(tile)
+            && !powerNodeByTile.ContainsKey(tile)
             && (conveyors is null || !conveyors.Cells.ContainsKey(tile)));
 
     private bool IsInside(GridPosition position) =>

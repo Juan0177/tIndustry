@@ -15,7 +15,8 @@ public enum BuildTool
     Bridge,
     Assembler,
     Generator,
-    PowerCable,
+    PowerNode,
+    PowerNodeT2,
     Sorter
 }
 
@@ -442,9 +443,11 @@ public static class UiTheme
     private static readonly DockEntry[] PowerEntries =
     [
         new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
-            Hint: "Brucia carbone per energia (9) · rete locale via cavi"),
-        new("power-cable", "Cavo T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.PowerCable, ResearchId: "power-cable",
-            Hint: "Condotto potenza · collega gen/core agli edifici")
+            Hint: "Brucia carbone per energia (9) · rete locale via nodi"),
+        new("power-node", "Nodo T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.PowerNode, ResearchId: "power-node",
+            Hint: "Nodo T1 · 1×1 · 4 link · range 6 · auto-link"),
+        new("power-node-t2", "Nodo T2", "T2", DockEntryKind.BuildTool, Tool: BuildTool.PowerNodeT2, ResearchId: "power-node-t2",
+            Hint: "Nodo T2 · 2×2 · 8 link · range 10 · auto-link")
     ];
 
     private static readonly DockEntry[] EmptyEntries = [];

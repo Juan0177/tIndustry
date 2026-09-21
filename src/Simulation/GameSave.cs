@@ -5,7 +5,7 @@ namespace TIndustry.Logistics;
 
 public sealed class GameSaveData
 {
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     public int Version { get; set; } = CurrentVersion;
     public int Seed { get; set; }
@@ -26,7 +26,10 @@ public sealed class GameSaveData
     public List<SmelterSaveData> Smelters { get; set; } = [];
     public List<SmelterSaveData> Assemblers { get; set; } = [];
     public List<GeneratorSaveData> Generators { get; set; } = [];
+    /// <summary>Deprecated v7 cable tiles — ignored on load (superseded by power nodes).</summary>
     public List<PowerCableSaveData> PowerCables { get; set; } = [];
+    public List<PowerNodeSaveData> PowerNodes { get; set; } = [];
+    public List<PowerLinkSaveData> PowerLinks { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -82,6 +85,23 @@ public sealed class PowerCableSaveData
 {
     public int X { get; set; }
     public int Y { get; set; }
+}
+
+public sealed class PowerNodeSaveData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string DefinitionId { get; set; } = PowerNodeBuilding.Tier1Id;
+}
+
+public sealed class PowerLinkSaveData
+{
+    public string KindA { get; set; } = "Node";
+    public int AX { get; set; }
+    public int AY { get; set; }
+    public string KindB { get; set; } = "Node";
+    public int BX { get; set; }
+    public int BY { get; set; }
 }
 
 public sealed class ConveyorSaveData
@@ -322,10 +342,27 @@ public static class GameSaveStore
                     BurnRemaining = generator.BurnRemaining
                 })
                 .ToList(),
-            PowerCables = world.PowerCables.Cells
-                .Select(cable => new PowerCableSaveData { X = cable.X, Y = cable.Y })
-                .OrderBy(c => c.Y)
-                .ThenBy(c => c.X)
+            PowerCables = [],
+            PowerNodes = world.PowerNodes.Values
+                .Select(node => new PowerNodeSaveData
+                {
+                    X = node.Position.X,
+                    Y = node.Position.Y,
+                    DefinitionId = node.DefinitionId
+                })
+                .OrderBy(n => n.Y)
+                .ThenBy(n => n.X)
+                .ToList(),
+            PowerLinks = world.PowerLinks
+                .Select(link => new PowerLinkSaveData
+                {
+                    KindA = link.A.Kind.ToString(),
+                    AX = link.A.Origin.X,
+                    AY = link.A.Origin.Y,
+                    KindB = link.B.Kind.ToString(),
+                    BX = link.B.Origin.X,
+                    BY = link.B.Origin.Y
+                })
                 .ToList(),
             Conveyors = conveyors.Cells.Values
                 .Select(cell => new ConveyorSaveData
@@ -458,16 +495,35 @@ public static class GameSaveStore
             }
         }
 
-        if (data.Version >= 7)
+        // v7 cables are deprecated — drop on load. v8+ restores power nodes + geometric links.
+        if (data.Version >= 8)
         {
-            foreach (var cableData in data.PowerCables)
+            foreach (var nodeData in data.PowerNodes)
             {
-                var position = new GridPosition(cableData.X, cableData.Y);
-                if (!world.TryRestorePowerCable(position))
+                var position = new GridPosition(nodeData.X, nodeData.Y);
+                var definitionId = string.IsNullOrWhiteSpace(nodeData.DefinitionId)
+                    ? PowerNodeBuilding.Tier1Id
+                    : nodeData.DefinitionId;
+                if (!world.TryRestorePowerNode(position, definitionId))
                 {
-                    throw new InvalidDataException($"Impossibile ripristinare il cavo a {position}.");
+                    throw new InvalidDataException($"Impossibile ripristinare il nodo a {position}.");
                 }
             }
+
+            foreach (var linkData in data.PowerLinks)
+            {
+                if (!Enum.TryParse<PowerEndpointKind>(linkData.KindA, ignoreCase: true, out var kindA)
+                    || !Enum.TryParse<PowerEndpointKind>(linkData.KindB, ignoreCase: true, out var kindB))
+                {
+                    continue;
+                }
+
+                world.TryRestorePowerLink(
+                    new PowerEndpointId(kindA, new GridPosition(linkData.AX, linkData.AY)),
+                    new PowerEndpointId(kindB, new GridPosition(linkData.BX, linkData.BY)));
+            }
+
+            world.RefreshPowerNetworks();
         }
 
         foreach (var conveyorData in data.Conveyors)
@@ -513,7 +569,14 @@ public static class GameSaveStore
     {
         if (data.Version >= 3 && data.UnlockedStructures.Count > 0)
         {
-            return ResearchState.FromSaved(data.UnlockedStructures, content);
+            // Migrate deprecated Cavo T1 unlock → Nodo T1.
+            var unlocked = data.UnlockedStructures.ToList();
+            if (unlocked.Contains("power-cable") && !unlocked.Contains(PowerNodeBuilding.Tier1Id))
+            {
+                unlocked.Add(PowerNodeBuilding.Tier1Id);
+            }
+
+            return ResearchState.FromSaved(unlocked, content);
         }
 
         // Migrate Phase 1–2 saves: keep defaults, unlock tech implied by placed buildings.
