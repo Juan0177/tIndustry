@@ -31,6 +31,7 @@ public static class GameIcons
         TryLoad(root, "buildings/smelter.png", "smelter");
         TryLoad(root, "buildings/assembler.png", "assembler");
         TryLoad(root, "buildings/generator.png", "generator");
+        TryLoad(root, "buildings/power-cable.png", "power-cable");
         TryLoad(root, "buildings/conveyor-basic.png", "conveyor-basic");
         TryLoad(root, "buildings/conveyor-fast.png", "conveyor-fast");
         TryLoad(root, "buildings/junction.png", "junction");

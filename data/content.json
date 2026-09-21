@@ -298,6 +298,21 @@
       "prerequisites": ["smelter"]
     },
     {
+      "id": "power-cable",
+      "displayName": "Cavo T1",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 40,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 4 },
+          { "itemId": "copper-wire", "amount": 2 }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": ["smelter"]
+    },
+    {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
       "kind": "building",
@@ -380,6 +395,14 @@
       "moneyCost": 55,
       "buildCost": [
         { "itemId": "iron-plate", "amount": 8 }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "power-cable",
+      "moneyCost": 5,
+      "buildCost": [
+        { "itemId": "copper-wire", "amount": 1 }
       ],
       "refundPercent": 100
     }
