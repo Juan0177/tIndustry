@@ -1221,7 +1221,7 @@ static void RunSelfTest(GameContent content)
         "Con fuel il buffer potenza non deve scendere solo per mancanza generazione gen.");
 
     // Phase 6 — power nodes / geometric local networks (connected vs disconnected).
-    // CORE never requires power; only craft buildings brown-out without a live node path.
+    // CORE is never on the power graph; craft buildings need gen adjacency/cluster or live node path.
     Assert(content.FindStructure("power-node") is { IsStub: false, DisplayName: "Nodo T1" },
         "Nodo T1 deve essere una structure costruibile.");
     Assert(content.FindStructure("power-node")!.Requires.Contains("smelter"),
@@ -1238,8 +1238,12 @@ static void RunSelfTest(GameContent content)
         "Nodo T1 range 6.");
     Assert(Math.Abs((content.FindBuilding("power-node-t2")?.PowerLinkRange ?? 0) - PowerNodeBuilding.Tier2Range) < 0.01f,
         "Nodo T2 range 10.");
-    Assert(PowerNetworking.AutoLinkRule.Contains("CORE", StringComparison.OrdinalIgnoreCase),
-        "Regola auto-link documentata (CORE).");
+    Assert(PowerNetworking.AutoLinkRule.Contains("mai CORE", StringComparison.OrdinalIgnoreCase),
+        "Regola auto-link documentata (mai CORE).");
+    Assert(PowerNetworking.AutoLinkRule.Contains("priorità", StringComparison.OrdinalIgnoreCase),
+        "Regola auto-link documenta priorità generatori.");
+    Assert(PowerNetworking.AdjacencyRule.Contains("4-connessa", StringComparison.OrdinalIgnoreCase),
+        "Regola adiacenza 4-connessa documentata.");
     var nodeTech = content.FindStructure("power-node")!;
     var nodeT2Tech = content.FindStructure("power-node-t2")!;
     var nodeCost = content.GetBuildingOrDefault("power-node");
@@ -1273,7 +1277,14 @@ static void RunSelfTest(GameContent content)
             new GridPosition(4, 4), netGrid, netWallet, PowerNodeBuilding.Tier1Id, nodeCost),
         "Nodo T1 tra gen e forno connesso.");
     Assert(netWorld.PowerNodes.Count == 1, "Un nodo piazzato.");
-    Assert(netWorld.PowerLinks.Count >= 2, "Auto-link deve collegare almeno gen e forno (o core).");
+    Assert(netWorld.PowerLinks.Count >= 2, "Auto-link deve collegare almeno gen e forno.");
+    Assert(netWorld.PowerLinks.All(l =>
+            l.A.Kind != PowerEndpointKind.Core && l.B.Kind != PowerEndpointKind.Core),
+        "Nessun link deve coinvolgere il CORE.");
+    Assert(
+        PowerNetworking.NodeReachesGenerator(
+            netWorld.PowerNodes.Values.Single(), netWorld, netWorld.PowerLinks),
+        "Nodo deve raggiungere un generatore.");
     var netTick = 1L;
     for (var tick = 0; tick < 30; tick++)
     {
@@ -1290,6 +1301,43 @@ static void RunSelfTest(GameContent content)
         "Spend potenza OK se connesso.");
     Assert(!netWorld.TrySpendPowerForBuilding(disconnectedAt, SmelterBuilding.Size, 1f),
         "Spend potenza negata se disconnesso anche con buffer pieno.");
+
+    // Adjacency cluster: forno touching fueled gen is powered without nodes.
+    // Keep west of the centered 4×4 CORE on this 16×10 map (coreOrigin≈6,3).
+    var touchWorld = new FactoryWorld(16, 10, 9202);
+    var touchGrid = new ConveyorGrid();
+    var touchWallet = new EconomyWallet(500, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 80,
+        ["coal"] = 4
+    });
+    var touchGenAt = new GridPosition(0, 0);
+    var touchSmelterAt = new GridPosition(GeneratorBuilding.Size, 0);
+    Assert(touchWorld.TryPlaceGenerator(touchGenAt, touchGrid, touchWallet, content.GetBuildingOrDefault("generator")),
+        "Gen per test adiacenza.");
+    Assert(touchWorld.TryPlaceSmelter(touchSmelterAt, Direction.East, smeltRecipe, touchGrid, touchWallet),
+        "Forno a contatto del gen.");
+    Assert(touchWorld.TryGetGeneratorAt(touchGenAt, out var touchGen), "Gen adiacenza recuperabile.");
+    touchGen.TryAcceptFuel("coal");
+    touchGen.TryAcceptFuel("coal");
+    var touchTick = 1L;
+    for (var tick = 0; tick < 30; tick++)
+    {
+        touchWorld.Update(1f / 30f, touchGrid, touchWallet, ref touchTick);
+    }
+
+    Assert(touchWorld.Generators.Values.Single().IsGenerating, "Gen adiacenza deve bruciare.");
+    Assert(touchWorld.PowerNodes.Count == 0, "Cluster adiacenza senza nodi.");
+    Assert(touchWorld.IsBuildingPowered(touchSmelterAt, SmelterBuilding.Size),
+        "Forno a contatto di gen in funzione è alimentato (4-conn).");
+
+    // Second forno touching the first shares power through the cluster.
+    var touchSmelter2 = new GridPosition(touchSmelterAt.X + SmelterBuilding.Size, touchSmelterAt.Y);
+    Assert(touchWorld.TryPlaceSmelter(touchSmelter2, Direction.East, smeltRecipe, touchGrid, touchWallet),
+        "Secondo forno a contatto del primo.");
+    touchWorld.RefreshPowerNetworks();
+    Assert(touchWorld.IsBuildingPowered(touchSmelter2, SmelterBuilding.Size),
+        "Cluster: forno a contatto di forno alimentato è alimentato.");
 
     // Feed both smelters; only connected advances craft under brownout-style gate.
     var connected = netWorld.Smelters[connectedAt];
@@ -2045,14 +2093,101 @@ static void EnsurePowerLink(
         return;
     }
 
-    wallet.AddMoney(80);
+    wallet.AddMoney(200);
+    wallet.AddMaterial("iron-plate", 40);
     wallet.AddMaterial("copper-wire", 40);
+    wallet.AddMaterial("coal", 8);
+
+    // Prefer a fueled generator adjacent to the building (4-connected adjacency power).
+    if (world.Generators.Count == 0)
+    {
+        GridPosition? genSpot = null;
+        for (var dy = -GeneratorBuilding.Size; dy <= size; dy++)
+        {
+            for (var dx = -GeneratorBuilding.Size; dx <= size; dx++)
+            {
+                var candidate = new GridPosition(building.X + dx, building.Y + dy);
+                if (!world.CanPlaceGenerator(candidate, grid))
+                {
+                    continue;
+                }
+
+                // Prefer spots that touch the building footprint.
+                var touches = false;
+                for (var y = 0; y < GeneratorBuilding.Size && !touches; y++)
+                {
+                    for (var x = 0; x < GeneratorBuilding.Size && !touches; x++)
+                    {
+                        var gt = new GridPosition(candidate.X + x, candidate.Y + y);
+                        for (var d = 0; d < DirectionMath.All.Length; d++)
+                        {
+                            var n = gt.Step(DirectionMath.All[d]);
+                            if (n.X >= building.X && n.X < building.X + size
+                                && n.Y >= building.Y && n.Y < building.Y + size)
+                            {
+                                touches = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (touches)
+                {
+                    genSpot = candidate;
+                    dy = size + 1;
+                    break;
+                }
+
+                genSpot ??= candidate;
+            }
+        }
+
+        if (genSpot is { } spot
+            && world.TryPlaceGenerator(spot, grid, wallet, content.GetBuildingOrDefault("generator"))
+            && world.TryGetGeneratorAt(spot, out var placedGen))
+        {
+            placedGen.TryAcceptFuel("coal");
+            placedGen.TryAcceptFuel("coal");
+            placedGen.TryAcceptFuel("coal");
+            var tickId = 1L;
+            for (var i = 0; i < 20; i++)
+            {
+                world.Update(1f / 30f, grid, wallet, ref tickId);
+            }
+
+            if (world.IsBuildingPowered(building, size))
+            {
+                return;
+            }
+        }
+    }
+    else
+    {
+        foreach (var gen in world.Generators.Values)
+        {
+            gen.TryAcceptFuel("coal");
+            gen.TryAcceptFuel("coal");
+        }
+
+        var tickId = 1L;
+        for (var i = 0; i < 20; i++)
+        {
+            world.Update(1f / 30f, grid, wallet, ref tickId);
+        }
+
+        if (world.IsBuildingPowered(building, size))
+        {
+            return;
+        }
+    }
+
     Assert(
-        world.TryEnsurePowerLinkToCore(
+        world.TryEnsurePowerLinkToGenerator(
             building,
             size,
             grid,
             wallet,
             content.GetBuildingOrDefault("power-node")),
-        $"Serve un collegamento nodi verso il core per {building}.");
+        $"Serve un collegamento nodi verso un generatore per {building}.");
 }

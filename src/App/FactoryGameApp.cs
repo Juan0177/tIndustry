@@ -107,7 +107,7 @@ internal static class FactoryGameApp
         "MERCATO (pannello a sinistra): vendi con 1 / tutti, oppure attiva Vendita automatica.",
         "FABBRICA: conteggi M/F/A/N/G e upgrade CORE (bottone o tasto U) per +25% prezzi vendita.",
         "Apri RICERCA (T o icona albero) e sblocca FORNO, poi altri edifici quando puoi.",
-        "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9), NODI potenza (dock Energia).",
+        "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9), NODI potenza (dock Energia). Potenza: gen con fuel + nodi (mai CORE) o fabbrica a contatto del gen.",
         "Logistica: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E/Y = Nastro T1/T2/T3.",
         "RIMUOVI (4 / X nel dock): rimborso 100% di edifici e nastri.",
         "Campagna: Esc → Home → Campagna per livelli con obiettivi. Sandbox = questa partita libera.",
@@ -1242,13 +1242,13 @@ internal static class FactoryGameApp
         if (world.Smelters.Count > 0)
         {
             var smelterPos = world.Smelters.Keys.First();
-            world.TryEnsurePowerLinkToCore(smelterPos, SmelterBuilding.Size, conveyors, wallet, nodeCost, session);
+            world.TryEnsurePowerLinkToGenerator(smelterPos, SmelterBuilding.Size, conveyors, wallet, nodeCost, session);
         }
 
         if (world.Generators.Count > 0)
         {
             var genPos = world.Generators.Keys.First();
-            world.TryEnsurePowerLinkToCore(genPos, GeneratorBuilding.Size, conveyors, wallet, nodeCost, session);
+            world.TryEnsurePowerLinkToGenerator(genPos, GeneratorBuilding.Size, conveyors, wallet, nodeCost, session);
         }
 
         world.RefreshPowerNetworks();
@@ -1302,7 +1302,7 @@ internal static class FactoryGameApp
             }
         }
 
-        // T1 node between gen and smelter — auto-links both + toward core.
+        // T1 node between gen and smelter — auto-links gen + consumer (never CORE).
         var nodeAt = new GridPosition(smelterAt.X - 1, smelterAt.Y + SmelterBuilding.Size);
         if (world.CanPlacePowerNode(nodeAt, PowerNodeBuilding.Tier1Size, conveyors))
         {
@@ -1310,7 +1310,7 @@ internal static class FactoryGameApp
         }
         else
         {
-            world.TryEnsurePowerLinkToCore(smelterAt, SmelterBuilding.Size, conveyors, wallet, nodeT1, session);
+            world.TryEnsurePowerLinkToGenerator(smelterAt, SmelterBuilding.Size, conveyors, wallet, nodeT1, session);
         }
 
         // Optional T2 further south for capture visual variety.
@@ -2718,7 +2718,7 @@ internal static class FactoryGameApp
                 }
                 else
                 {
-                    statusMessage = "Generatore piazzato — collega i nodi e alimentalo con carbone.";
+                    statusMessage = "Generatore piazzato — fuel carbone; nodi o fabbrica adiacente (4-conn) per potenza.";
                 }
             }
             else if (tool == BuildTool.PowerNode && research.IsUnlocked("power-node"))
@@ -2730,9 +2730,14 @@ internal static class FactoryGameApp
                         ? "Risorse insufficienti per il Nodo T1."
                         : "Nodo T1: tile libera (no nastri/edifici/acqua).";
                 }
+                else if (world.TryGetPowerNodeAt(position, out var placedT1)
+                    && !PowerNetworking.NodeReachesGenerator(placedT1, world, world.PowerLinks))
+                {
+                    statusMessage = "Nodo T1 senza path a un generatore — non sarà live finché non raggiunge un gen.";
+                }
                 else
                 {
-                    statusMessage = "Nodo T1 piazzato — auto-link entro range 6.";
+                    statusMessage = "Nodo T1 piazzato — auto-link (priorità gen) entro range 6.";
                 }
             }
             else if (tool == BuildTool.PowerNodeT2 && research.IsUnlocked("power-node-t2"))
@@ -2744,9 +2749,14 @@ internal static class FactoryGameApp
                         ? "Risorse insufficienti per il Nodo T2."
                         : "Nodo T2: area 2×2 libera su terra.";
                 }
+                else if (world.TryGetPowerNodeAt(position, out var placedT2)
+                    && !PowerNetworking.NodeReachesGenerator(placedT2, world, world.PowerLinks))
+                {
+                    statusMessage = "Nodo T2 senza path a un generatore — non sarà live finché non raggiunge un gen.";
+                }
                 else
                 {
-                    statusMessage = "Nodo T2 piazzato — auto-link entro range 10.";
+                    statusMessage = "Nodo T2 piazzato — auto-link (priorità gen) entro range 10.";
                 }
             }
             else if (tool == BuildTool.Junction && research.IsUnlocked("junction"))

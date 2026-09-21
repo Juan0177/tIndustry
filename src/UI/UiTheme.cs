@@ -445,9 +445,9 @@ public static class UiTheme
         new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
             Hint: "Brucia carbone per energia (9) · rete locale via nodi"),
         new("power-node", "Nodo T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.PowerNode, ResearchId: "power-node",
-            Hint: "Nodo T1 · 1×1 · 4 link · range 6 · auto-link"),
+            Hint: "Nodo T1 · 1×1 · 4 link · range 6 · auto-link gen (mai CORE)"),
         new("power-node-t2", "Nodo T2", "T2", DockEntryKind.BuildTool, Tool: BuildTool.PowerNodeT2, ResearchId: "power-node-t2",
-            Hint: "Nodo T2 · 2×2 · 8 link · range 10 · auto-link")
+            Hint: "Nodo T2 · 2×2 · 8 link · range 10 · auto-link gen (mai CORE)")
     ];
 
     private static readonly DockEntry[] EmptyEntries = [];
@@ -478,7 +478,7 @@ public static class UiTheme
     {
         BuildCategory.Production => "Produzione — edifici e demolizione",
         BuildCategory.Logistics => "Logistica — nastri e routing",
-        BuildCategory.Power => "Potenza — generatori e cavi",
+        BuildCategory.Power => "Potenza — generatori e nodi",
         _ => BuildCategoryLabel(category)
     };
 
