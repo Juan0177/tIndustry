@@ -1477,6 +1477,65 @@ static void RunSelfTest(GameContent content)
         Assert(!ShowCornerFps(showFps: false, showOverlay: true), "Niente FPS angolo se contatore OFF.");
         Assert(File.Exists(GameContentStore.UserJsonPath),
             "First launch deve materializzare content.json in AppData.");
+
+        // Stale AppData (pre Phase 6) must gain missing seed ids instead of crashing on Single.
+        var userContentBackup = File.Exists(GameContentStore.UserJsonPath)
+            ? File.ReadAllText(GameContentStore.UserJsonPath)
+            : null;
+        try
+        {
+            var stale = GameContent.Load(GameContentStore.SeedJsonPath);
+            var staleConveyors = stale.Conveyors.Where(c => c.Id != "conveyor-express").ToList();
+            var staleStructures = stale.Structures.Where(s => s.Id != "conveyor-express").ToList();
+            var staleBuildings = stale.Buildings.Where(b => b.Id != "miner-advanced").ToList();
+            var staleMarket = stale.Market.Where(m => m.ItemId != "coal").ToList();
+            Assert(staleConveyors.All(c => c.Id != "conveyor-express"),
+                "Fixture stale non deve contenere conveyor-express.");
+            var staleContent = new GameContent
+            {
+                Conveyors = staleConveyors,
+                Recipes = stale.Recipes,
+                Structures = staleStructures,
+                Buildings = staleBuildings,
+                Market = staleMarket,
+                Economy = stale.Economy
+            };
+            var staleJson = System.Text.Json.JsonSerializer.Serialize(staleContent, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Converters =
+                {
+                    new System.Text.Json.Serialization.JsonStringEnumConverter(
+                        System.Text.Json.JsonNamingPolicy.CamelCase)
+                }
+            });
+            File.WriteAllText(GameContentStore.UserJsonPath, staleJson);
+            Assert(GameContentStore.MergeMissingSeedEntries(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Merge seed deve aggiungere id mancanti ad AppData stale.");
+            var patched = GameContent.Load(GameContentStore.UserJsonPath);
+            Assert(patched.Conveyors.Any(c => c.Id == "conveyor-express"),
+                "Dopo merge AppData deve contenere conveyor-express (Nastro T3).");
+            Assert(patched.Buildings.Any(b => b.Id == "miner-advanced"),
+                "Dopo merge AppData deve contenere miner-advanced.");
+            Assert(patched.Market.Any(m => m.ItemId == "coal"),
+                "Dopo merge AppData deve contenere coal.");
+            Assert(patched.Structures.Any(s => s.Id == "conveyor-express"),
+                "Dopo merge structures deve includere conveyor-express.");
+            // Idempotent: second merge is a no-op.
+            Assert(!GameContentStore.MergeMissingSeedEntries(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Secondo merge non deve riscrivere se già completo.");
+        }
+        finally
+        {
+            if (userContentBackup is not null)
+            {
+                File.WriteAllText(GameContentStore.UserJsonPath, userContentBackup);
+            }
+        }
+
         Assert(UiTheme.SessionDeltaLabel(0) == "Δ sessione +0",
             "Label sessione netto deve essere chiara (Δ sessione).");
         Assert(UiTheme.SessionDeltaLabel(-12).Contains("Δ sessione -12", StringComparison.Ordinal),

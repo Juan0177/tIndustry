@@ -19,6 +19,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Nastro T3** (`conveyor-express`): tier 3 a 2 item/s; Q/E/Y = T1/T2/T3
 - **Fuel generatore**: brucia **carbone** da nastro in ingresso; senza fuel non genera (capacità resta); depositi carbone + item mercato
 - Naming UI a **codici tier** (Minatore T1/T2, Nastro T1/T2/T3) — niente “avanzato/express” in etichette IT
+- **AppData content merge**: al launch, `EnsureUserContent` aggiunge in modo additivo gli id seed mancanti (es. `conveyor-express` dopo Phase 6) così un `content.json` locale vecchio non crasha su `Single`
 
 ### Ancora stub / defer
 
