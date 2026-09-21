@@ -3,8 +3,10 @@ shader_type canvas_item;
 // Mindustry-style belt: rails + scrolling chevrons along flow.
 // UV.x spans the strip (0..1). cell_count converts to tile space so
 // scroll (tiles) matches BeltLane Advance rate (tiles/sec).
+// Chevrons tip toward +UV.x (flow); marks move with transport as scroll rises.
 
 uniform float scroll = 0.0;
+uniform float scroll_phase = 0.0;
 uniform float cell_count = 1.0;
 uniform float marks_per_tile = 2.5;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
@@ -14,13 +16,15 @@ uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
 
 void fragment() {
 	float tiles = max(cell_count, 0.001);
-	float u = UV.x * tiles - scroll;
+	// Phase continues across segments; minus scroll → marks travel +UV.x (flow).
+	float u = UV.x * tiles + scroll_phase - scroll;
 	float v = UV.y;
 
 	float rail = step(v, 0.10) + step(0.90, v);
 	float groove = (step(v, 0.16) - step(v, 0.10)) + (step(v, 0.90) - step(v, 0.84));
 
-	float wave = fract(u * marks_per_tile + (0.5 - abs(v - 0.5)) * 1.1);
+	// Tip toward +u (flow): negate the across-belt bias vs the previous wrong-way chevrons.
+	float wave = fract(u * marks_per_tile - (0.5 - abs(v - 0.5)) * 1.1);
 	float in_band = step(0.18, v) * step(v, 0.82);
 	float mark = step(0.58, wave) * step(wave, 0.92) * in_band;
 

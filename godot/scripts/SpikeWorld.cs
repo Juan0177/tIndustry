@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Spike root: grid + Mindustry-style scrolling belt (UV/shader) + items riding on top
-/// + static miner (no drill AnimationPlayer). Belt scroll speed = content.json rate.
+/// Spike root: grid + Mindustry-style L belt (straight + 90° corner) with scrolling chevrons
+/// + items riding on top + static miner (no drill). Belt scroll speed = content.json rate.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -14,7 +14,7 @@ public partial class SpikeWorld : Node2D
     public const int MapHeight = 16;
 
     private BeltLane? _belt;
-    private ScrollingBeltStrip? _beltVisual;
+    private MindustryBeltVisual? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Label? _hud;
@@ -28,13 +28,19 @@ public partial class SpikeWorld : Node2D
         _contentPath = ResolveContentPath();
         _beltDef = ConveyorContent.RequireBelt(_contentPath, "conveyor-basic");
 
+        // L-path: east along y=8, then south at x=10 (corner at 10,8).
         _beltPath = [];
-        for (var x = 4; x <= 14; x++)
+        for (var x = 4; x <= 10; x++)
         {
             _beltPath.Add(new GridPosition(x, 8));
         }
 
-        _belt = new BeltLane(_beltPath, Direction.East, _beltDef);
+        for (var y = 9; y <= 13; y++)
+        {
+            _beltPath.Add(new GridPosition(10, y));
+        }
+
+        _belt = new BeltLane(_beltPath, _beltDef);
         _itemsLayer = GetNode<Node2D>("Items");
         _hud = GetNode<Label>("Hud/Status");
 
@@ -110,9 +116,9 @@ public partial class SpikeWorld : Node2D
             child.QueueFree();
         }
 
-        _beltVisual = new ScrollingBeltStrip { Name = "ScrollingBelt" };
+        _beltVisual = new MindustryBeltVisual { Name = "MindustryBelt" };
         belts.AddChild(_beltVisual);
-        _beltVisual.Configure(_beltPath, _belt.Direction, _beltDef.RateItemsPerSecond, TileSize);
+        _beltVisual.Configure(_beltPath, _beltDef.RateItemsPerSecond, TileSize);
     }
 
     private void SyncItemSprites()
@@ -125,8 +131,10 @@ public partial class SpikeWorld : Node2D
         var live = new HashSet<long>();
         var oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
 
-        foreach (var cell in _belt.Cells)
+        for (var cellIndex = 0; cellIndex < _belt.Cells.Count; cellIndex++)
         {
+            var cell = _belt.Cells[cellIndex];
+            var dir = _belt.DirectionAt(cellIndex);
             foreach (var item in cell.Items)
             {
                 live.Add(item.Id);
@@ -145,7 +153,7 @@ public partial class SpikeWorld : Node2D
                 }
 
                 var from = CellCenter(cell.Position);
-                var to = CellCenter(cell.Position.Step(_belt.Direction));
+                var to = CellCenter(cell.Position.Step(dir));
                 sprite.Position = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
             }
         }
@@ -168,8 +176,8 @@ public partial class SpikeWorld : Node2D
         var count = _belt.Cells.Sum(c => c.Items.Count);
         var scroll = _beltVisual?.ScrollTiles ?? 0f;
         _hud.Text =
-            $"tIndustry Godot spike  |  belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}  |  scroll={scroll:0.00}\n" +
-            "WASD / middle-drag pan · wheel zoom · Mindustry belt scroll · static miner";
+            $"tIndustry Godot spike  |  L-belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}  |  scroll={scroll:0.00}\n" +
+            "WASD / middle-drag pan · wheel zoom · Mindustry L belt (E→S) · static miner";
     }
 
     private static Vector2 CellCenter(GridPosition cell) =>
@@ -229,12 +237,13 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-belt-mindustry-map.png");
+        var mapPath = Path.Combine(destDir, "godot-belt-l-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
-        var crop = img.GetRegion(new Rect2I(80, 280, 720, 280));
-        var beltPath = Path.Combine(destDir, "godot-belt-mindustry-close.png");
+        // Crop covering east leg + corner + south leg.
+        var crop = img.GetRegion(new Rect2I(80, 280, 720, 520));
+        var beltPath = Path.Combine(destDir, "godot-belt-l-close.png");
         err = crop.SavePng(beltPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {beltPath}" : $"Belt crop failed: {err}");
 

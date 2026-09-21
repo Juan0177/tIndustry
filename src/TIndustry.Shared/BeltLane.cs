@@ -1,32 +1,77 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Single-cell belt lane using the same Advance math as Logistics ConveyorCell
-/// (rate × dt, spacing limits). Spike-sized: one strip of cells, no junction/splitter.
+/// Belt lane using the same Advance math as Logistics ConveyorCell
+/// (rate × dt, spacing limits). Supports straight strips and L-turns via path cells.
 /// </summary>
 public sealed class BeltLane
 {
     private readonly List<BeltCell> cells = [];
+    private readonly List<Direction> cellDirections = [];
     private long nextItemId = 1;
 
+    /// <summary>Straight lane (all cells share <paramref name="direction"/>).</summary>
     public BeltLane(IReadOnlyList<GridPosition> path, Direction direction, ConveyorDefinition definition)
+        : this(path, definition, direction)
+    {
+    }
+
+    /// <summary>
+    /// Path-derived directions: each cell faces the next; the last keeps the final step direction.
+    /// </summary>
+    public BeltLane(IReadOnlyList<GridPosition> path, ConveyorDefinition definition, Direction? fallbackDirection = null)
     {
         if (path.Count == 0)
         {
             throw new ArgumentException("Path vuoto.", nameof(path));
         }
 
-        Direction = direction;
         Definition = definition;
-        foreach (var pos in path)
+        for (var i = 0; i < path.Count; i++)
         {
-            cells.Add(new BeltCell(pos, definition));
+            Direction dir;
+            if (i < path.Count - 1)
+            {
+                dir = DirectionBetween(path[i], path[i + 1]);
+            }
+            else if (i > 0)
+            {
+                dir = DirectionBetween(path[i - 1], path[i]);
+            }
+            else if (fallbackDirection is { } fb)
+            {
+                dir = fb;
+            }
+            else
+            {
+                throw new ArgumentException("Serve almeno 2 celle o una direzione.", nameof(path));
+            }
+
+            cells.Add(new BeltCell(path[i], definition));
+            cellDirections.Add(dir);
         }
+
+        Direction = cellDirections[0];
     }
 
     public Direction Direction { get; }
     public ConveyorDefinition Definition { get; }
     public IReadOnlyList<BeltCell> Cells => cells;
+
+    public Direction DirectionAt(int cellIndex) => cellDirections[cellIndex];
+
+    public Direction DirectionAt(GridPosition position)
+    {
+        for (var i = 0; i < cells.Count; i++)
+        {
+            if (cells[i].Position.Equals(position))
+            {
+                return cellDirections[i];
+            }
+        }
+
+        return Direction;
+    }
 
     public bool TrySpawnAtStart(string itemId)
     {
@@ -65,6 +110,41 @@ public sealed class BeltLane
             last.RemoveOutput();
         }
     }
+
+    public static Direction DirectionBetween(GridPosition from, GridPosition to)
+    {
+        var dx = to.X - from.X;
+        var dy = to.Y - from.Y;
+        if (Math.Abs(dx) + Math.Abs(dy) != 1)
+        {
+            throw new ArgumentException($"Celle non adiacenti: {from} → {to}");
+        }
+
+        if (dx == 1)
+        {
+            return Direction.East;
+        }
+
+        if (dx == -1)
+        {
+            return Direction.West;
+        }
+
+        return dy == 1 ? Direction.South : Direction.North;
+    }
+
+    public static bool IsClockwiseTurn(Direction from, Direction to) => (from, to) switch
+    {
+        (Direction.East, Direction.South) => true,
+        (Direction.South, Direction.West) => true,
+        (Direction.West, Direction.North) => true,
+        (Direction.North, Direction.East) => true,
+        (Direction.East, Direction.North) => false,
+        (Direction.North, Direction.West) => false,
+        (Direction.West, Direction.South) => false,
+        (Direction.South, Direction.East) => false,
+        _ => throw new ArgumentException($"Non è una svolta 90°: {from} → {to}")
+    };
 }
 
 public sealed class BeltCell
