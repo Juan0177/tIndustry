@@ -35,8 +35,9 @@ if (!args.Contains("--console-demo"))
     var captureGraphics = args.Contains("--capture-graphics");
     var captureTechTree = args.Contains("--capture-tech-tree");
     var captureSorter = args.Contains("--capture-sorter");
+    var captureMidgame = args.Contains("--capture-midgame");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
-        || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter;
+        || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter || captureMidgame;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -64,6 +65,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "sorter-routing.png");
         captureMode = "sorter";
+    }
+    else if (captureMidgame)
+    {
+        capturePath = Path.Combine("artifacts", "midgame-phase6.png");
+        captureMode = "midgame";
     }
     else if (capture)
     {
@@ -122,14 +128,18 @@ static void RunSelfTest(GameContent content)
     var fastTech = content.FindStructure("conveyor-fast")!;
 
     Assert(research.IsUnlocked("conveyor-basic") && research.IsUnlocked("miner"),
-        "Nastro base e minatore devono partire sbloccati.");
+        "Nastro T1 e Minatore T1 devono partire sbloccati.");
     Assert(!research.IsUnlocked("smelter") && !research.IsUnlocked("conveyor-fast"),
-        "Forno e nastro veloce devono partire bloccati.");
+        "Forno e Nastro T2 devono partire bloccati.");
     Assert(content.FindStructure("assembler")?.IsStub == false
         && content.FindStructure("assembler")?.Kind == StructureKind.Building,
         "L'assemblatore deve essere un edificio costruibile.");
-    Assert(content.FindStructure("miner-advanced")?.IsStub == true,
-        "Il minatore T2 resta stub.");
+    Assert(content.FindStructure("miner-advanced") is { IsStub: false, Kind: StructureKind.Building },
+        "Il Minatore T2 deve essere un edificio costruibile.");
+    Assert(content.Conveyors.Any(c => c.Id == "conveyor-express" && c.Tier == 3),
+        "Deve esistere il Nastro T3.");
+    Assert(content.Market.Any(m => m.ItemId == "coal"),
+        "Il carbone deve essere nel mercato.");
     Assert(content.FindStructure("junction") is not null
         && content.FindStructure("splitter") is not null
         && content.FindStructure("sorter") is not null
@@ -165,7 +175,7 @@ static void RunSelfTest(GameContent content)
     Assert(prereqResearch.TryUnlock(smelterTech, prereqWallet), "Sblocco forno con prereq miner.");
     Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Available,
         "Dopo il forno il nastro veloce diventa disponibile.");
-    Assert(prereqResearch.TryUnlock(fastTech, prereqWallet), "Sblocco nastro veloce dopo forno.");
+    Assert(prereqResearch.TryUnlock(fastTech, prereqWallet), "Sblocco Nastro T2 dopo forno.");
     var treeGraph = TechTreeLayout.Build(content);
     Assert(treeGraph.Nodes.Count == content.Structures.Count,
         "Il grafo deve includere tutte le strutture.");
@@ -584,21 +594,21 @@ static void RunSelfTest(GameContent content)
     // Fast belt research unlock + upgrade.
     var lockedResearch = ResearchState.CreateNew(content);
     var lockedWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
-    Assert(!lockedResearch.CanUnlock(fastTech, lockedWallet), "Senza risorse non si sblocca il nastro veloce.");
+    Assert(!lockedResearch.CanUnlock(fastTech, lockedWallet), "Senza risorse non si sblocca il Nastro T2.");
     var unlockWallet = new EconomyWallet(450, new Dictionary<string, int> { ["iron-plate"] = 70, ["copper-wire"] = 5 });
-    Assert(lockedResearch.TryUnlock(smelterTech, unlockWallet), "Prereq forno per nastro veloce.");
-    Assert(lockedResearch.TryUnlock(fastTech, unlockWallet), "Con risorse sufficienti si sblocca il nastro veloce.");
+    Assert(lockedResearch.TryUnlock(smelterTech, unlockWallet), "Prereq forno per Nastro T2.");
+    Assert(lockedResearch.TryUnlock(fastTech, unlockWallet), "Con risorse sufficienti si sblocca il Nastro T2.");
     Assert(lockedResearch.IsUnlocked("conveyor-fast"), "Lo sblocco deve restare in ResearchState.");
     Assert(unlockWallet.Money == 100, "Lo sblocco deve consumare $100 forno + $250 nastro.");
     var tierGrid = new ConveyorGrid();
     Assert(tierGrid.TryPlace(new GridPosition(0, 0), Direction.East, definition, unlockWallet, lockedResearch),
-        "Nastro base piazzabile.");
+        "Nastro T1 piazzabile.");
     Assert(tierGrid.TryUpgrade(new GridPosition(0, 0), fastDefinition, unlockWallet, lockedResearch),
-        "Upgrade a nastro veloce deve riuscire.");
+        "Upgrade a Nastro T2 deve riuscire.");
     Assert(tierGrid.Cells[new GridPosition(0, 0)].Definition.Id == "conveyor-fast",
         "Dopo upgrade il tier deve essere conveyor-fast.");
     Assert(tierGrid.Cells[new GridPosition(0, 0)].Definition.RateItemsPerSecond == 1f,
-        "Il nastro veloce deve avere rate 1.0.");
+        "Il Nastro T2 deve avere rate 1.0.");
 
     var largeWorld = new FactoryWorld(FactoryGameApp.MapWidth, FactoryGameApp.MapHeight, 7429);
     Assert(largeWorld.Terrain.Width == 1000 && largeWorld.Terrain.Height == 1000,
@@ -652,7 +662,7 @@ static void RunSelfTest(GameContent content)
     Assert(restoredBundle.World.Miners.Count == 1, "I minatori devono essere ripristinati.");
     Assert(restoredBundle.World.Smelters.Count == 1, "I forni devono essere ripristinati.");
     Assert(restoredBundle.Research.IsUnlocked("smelter"), "Lo sblocco forno deve sopravvivere al reload.");
-    Assert(!restoredBundle.Research.IsUnlocked("conveyor-fast"), "Il nastro veloce resta bloccato se non sbloccato.");
+    Assert(!restoredBundle.Research.IsUnlocked("conveyor-fast"), "Il Nastro T2 resta bloccato se non sbloccato.");
     Assert(restoredBundle.World.Miners.Values.Single().Direction == Direction.East,
         "La direzione del minatore deve essere ripristinata.");
     Assert(restoredBundle.Conveyors.Cells.Count == 1, "I nastri devono essere ripristinati.");
@@ -1125,6 +1135,79 @@ static void RunSelfTest(GameContent content)
     var powerRestored = GameSaveStore.Restore(GameSaveStore.Load(powerSlot), content);
     Assert(powerRestored.World.Generators.Count == 1, "Generatori devono sopravvivere al reload.");
     Assert(powerRestored.Research.IsUnlocked("generator"), "Unlock generatore dopo reload.");
+
+    Assert(powerWorld.Generators.Values.Single().FuelBuffer == 0, "Generatore parte senza fuel.");
+    Assert(!powerWorld.Generators.Values.Single().IsGenerating, "Senza carbone non genera.");
+    var fuelIn = new GridPosition(1, 2);
+    Assert(powerGrid.TryPlace(fuelIn, Direction.East, definition, powerWallet, powerResearch),
+        "Nastro fuel verso generatore.");
+    Assert(powerGrid.Cells[fuelIn].TryInsert(new TransportedItem(9001, "coal")), "Carbone sul nastro.");
+    var fuelTick = 9100L;
+    var bufferBeforeFuel = powerWorld.PowerBuffer;
+    for (var tick = 0; tick < 90; tick++)
+    {
+        powerWorld.Update(1f / 30f, powerGrid, powerWallet, ref fuelTick);
+    }
+    Assert(powerWorld.Generators.Values.Single().FuelBuffer > 0
+        || powerWorld.Generators.Values.Single().IsGenerating,
+        "Il generatore deve accettare carbone dai nastri.");
+    for (var tick = 0; tick < 60; tick++)
+    {
+        powerWorld.Update(1f / 30f, powerGrid, powerWallet, ref fuelTick);
+    }
+    Assert(powerWorld.PowerBuffer >= bufferBeforeFuel,
+        "Con fuel il buffer potenza non deve scendere solo per mancanza generazione gen.");
+
+    // Mid-game: Minatore T2 + Nastro T3.
+    var midResearch = ResearchState.CreateNew(content);
+    var midWallet = new EconomyWallet(2000, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 200,
+        ["copper-wire"] = 80
+    });
+    Assert(midResearch.TryUnlock(smelterTech, midWallet), "Prereq forno per Minatore T2 / Nastro T2.");
+    var advancedTech = content.FindStructure("miner-advanced")!;
+    Assert(midResearch.TryUnlock(advancedTech, midWallet), "Minatore T2 sbloccabile.");
+    Assert(!advancedTech.IsStub, "Dopo unlock non è stub.");
+    Assert(midResearch.TryUnlock(fastTech, midWallet), "Prereq Nastro T2 per T3.");
+    var expressTech = content.FindStructure("conveyor-express")!;
+    Assert(midResearch.TryUnlock(expressTech, midWallet), "Nastro T3 sbloccabile.");
+    var expressDef = content.Conveyors.Single(c => c.Id == "conveyor-express");
+    Assert(expressDef.RateItemsPerSecond > content.Conveyors.Single(c => c.Id == "conveyor-fast").RateItemsPerSecond,
+        "Nastro T3 più veloce del T2.");
+    var midWorld = new FactoryWorld(24, 16, 8801);
+    var midGrid = new ConveyorGrid();
+    var advancedBuilding = content.GetBuildingOrDefault("miner-advanced");
+    Assert(midWorld.TryPlaceMiner(
+            midWorld.StarterDepositOrigin, Direction.East, midGrid, midWallet, advancedBuilding, null,
+            MinerBuilding.AdvancedId),
+        "Minatore T2 piazzabile.");
+    var advMiner = midWorld.Miners[midWorld.StarterDepositOrigin];
+    Assert(advMiner.IsAdvanced && advMiner.MiningSpeed == 2f, "Minatore T2 = 2× speed.");
+    Assert(advMiner.Efficiency >= 1f || advMiner.CoveredDepositTiles > 0, "Efficienza Minatore T2 sul deposito.");
+    var basicCompare = new MinerBuilding(midWorld.StarterDepositOrigin, Direction.East, advMiner.CoveredDepositTiles);
+    Assert(advMiner.Efficiency >= basicCompare.Efficiency, "Efficienza advanced >= base a parità copertura.");
+    var midOut = new GridPosition(midWorld.StarterDepositOrigin.X + MinerBuilding.Size, midWorld.StarterDepositOrigin.Y);
+    Assert(midGrid.TryPlace(midOut, Direction.East, expressDef, midWallet, midResearch), "Nastro T3 in uscita.");
+    var midItemId = 1L;
+    var produced = 0;
+    for (var tick = 0; tick < 180; tick++)
+    {
+        var before = midGrid.Cells.Values.Sum(c => c.Items.Count) + midWallet.MaterialCount("iron-ore");
+        midWorld.Update(1f / 30f, midGrid, midWallet, ref midItemId);
+        var after = midGrid.Cells.Values.Sum(c => c.Items.Count) + midWallet.MaterialCount("iron-ore");
+        if (after > before) produced++;
+    }
+    Assert(produced >= 1 || midGrid.Cells[midOut].Items.Count > 0 || midWorld.Miners.Values.Any(m => m.Progress > 0),
+        "Il Minatore T2 deve progressare/produrre.");
+
+    // Coal deposit near starter.
+    var coalWorld = new FactoryWorld(32, 20, 42);
+    var coalAt = new GridPosition(coalWorld.StarterDepositOrigin.X + MinerBuilding.Size + 1, coalWorld.StarterDepositOrigin.Y);
+    Assert(coalWorld.Terrain[coalAt].Deposit == DepositKind.Coal,
+        "Patch carbone starter a est del ferro.");
+    Assert(coalWorld.ResolveMinerOutput(coalAt) == "coal", "Miner su carbone produce coal.");
+
     GameSaveStore.Delete(powerSlot);
 
     Console.WriteLine("SELF-TEST OK: Phase 1–6 (logistica, economia, potenza, seed) verificati.");
@@ -1248,8 +1331,8 @@ static void RunSelfTest(GameContent content)
             "Limite FPS: 600 e Illimitato (0).");
         Assert(GameSettings.FpsLimitLabel(0) == "Illimitato", "Etichetta Illimitato.");
         Assert(UiTheme.InventoryItems.Length >= 4, "Inventario deve elencare gli item noti.");
-        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Materials).Count() == 2,
-            "Categoria Materiali: ferro + rame grezzo.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Materials).Count() == 3,
+            "Categoria Materiali: ferro + rame + carbone.");
         Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Intermediate).Count() == 1,
             "Categoria Intermedi: lastre.");
         Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 1,
@@ -1262,10 +1345,14 @@ static void RunSelfTest(GameContent content)
             "Strumenti non deve essere nel dock: Rimuovi in Produzione, facing con R/rotella.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Any(e => e.Id == "remove"),
             "Produzione include Rimuovi.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Length >= 4,
-            "Produzione: minatore/forno/assemblatore/rimuovi.");
-        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Length >= 5,
-            "Logistica: nastri + junction/splitter/ponte.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Any(e => e.Id == "miner-advanced"),
+            "Produzione: Minatore T2.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Length >= 5,
+            "Produzione: Minatore T1/T2 + forno/assemblatore/rimuovi.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Any(e => e.Id == "conveyor-express"),
+            "Logistica: Nastro T3.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Length >= 6,
+            "Logistica: Nastro T1/T2/T3 + junction/splitter/ponte.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "generator"),
             "Potenza: generatore.");
         Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Inventory).Length == 0,
@@ -1283,11 +1370,13 @@ static void RunSelfTest(GameContent content)
                 "miner",
                 content.Conveyors.Single(c => c.Id == "conveyor-basic"),
                 content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "conveyor-express"),
                 content.Conveyors.Single(c => c.Id == "junction"),
                 content.Conveyors.Single(c => c.Id == "splitter"),
                 content.Conveyors.Single(c => c.Id == "sorter"),
                 content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
                 content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("miner-advanced"),
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),
@@ -1295,15 +1384,33 @@ static void RunSelfTest(GameContent content)
             && minerMoney == content.GetBuildingOrDefault("miner").MoneyCost
             && minerMats.Any(m => m.ItemId == "iron-plate" && m.Amount > 0),
             "Dock cost bar: minatore risolve denaro + lastre.");
-        Assert(!FactoryGameApp.TryResolveDockEntryCostForTest(
-                "remove",
+        Assert(FactoryGameApp.TryResolveDockEntryCostForTest(
+                "conveyor-express",
                 content.Conveyors.Single(c => c.Id == "conveyor-basic"),
                 content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "conveyor-express"),
                 content.Conveyors.Single(c => c.Id == "junction"),
                 content.Conveyors.Single(c => c.Id == "splitter"),
                 content.Conveyors.Single(c => c.Id == "sorter"),
                 content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
                 content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("miner-advanced"),
+                content.GetBuildingOrDefault("smelter"),
+                content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("generator"),
+                out var expressMoney, out _)
+            && expressMoney == content.Conveyors.Single(c => c.Id == "conveyor-express").MoneyCost,
+            "Dock cost bar: Nastro T3.");
+        Assert(!FactoryGameApp.TryResolveDockEntryCostForTest(
+                "remove",
+                content.Conveyors.Single(c => c.Id == "conveyor-basic"),
+                content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "conveyor-express"),
+                content.Conveyors.Single(c => c.Id == "junction"),
+                content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
+                content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("miner-advanced"),
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
                 content.GetBuildingOrDefault("generator"),

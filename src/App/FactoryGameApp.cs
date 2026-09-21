@@ -107,7 +107,7 @@ internal static class FactoryGameApp
         "FABBRICA: conteggi M/F/A/N/G e upgrade CORE (bottone o tasto U) per +25% prezzi vendita.",
         "Apri RICERCA (T o icona albero) e sblocca FORNO, poi altri edifici quando puoi.",
         "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9). Produzione e potenza.",
-        "Logistica avanzata: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E = nastro base/veloce.",
+        "Logistica: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E/Y = Nastro T1/T2/T3.",
         "RIMUOVI (4 / X nel dock): rimborso 100% di edifici e nastri.",
         "Campagna: Esc → Home → Campagna per livelli con obiettivi. Sandbox = questa partita libera.",
         "Impostazioni (I): scala UI, VSync, Rivedi tutorial. Backspace salta il tutorial; Esc chiude toast/menu."
@@ -175,6 +175,7 @@ internal static class FactoryGameApp
     {
         var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
         var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
+        var expressConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-express");
         var junctionConveyor = content.Conveyors.Single(definition => definition.Id == "junction");
         var splitterConveyor = content.Conveyors.Single(definition => definition.Id == "splitter");
         var sorterConveyor = content.Conveyors.Single(definition => definition.Id == "sorter");
@@ -192,6 +193,7 @@ internal static class FactoryGameApp
         MarketCatalog? market = null;
         var economy = content.GetEconomy();
         var minerBuilding = content.GetBuildingOrDefault("miner");
+        var advancedMinerBuilding = content.GetBuildingOrDefault("miner-advanced");
         var smelterBuilding = content.GetBuildingOrDefault("smelter");
         var assemblerBuilding = content.GetBuildingOrDefault("assembler");
         var generatorBuilding = content.GetBuildingOrDefault("generator");
@@ -281,6 +283,25 @@ internal static class FactoryGameApp
                 camera.CenterOnTile(new GridPosition(8, 6), BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
                 camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
                 for (var warm = 0; warm < 100; warm++)
+                {
+                    world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
+                }
+            }
+            else if (captureMode == "midgame")
+            {
+                SeedCaptureMidgame(
+                    world!, conveyors!, wallet, research!, session!, content,
+                    basicConveyor, expressConveyor, smeltRecipe);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.MinerAdvanced;
+                DockCategory = UiTheme.BuildCategory.Production;
+                DockSelectedId = "miner-advanced";
+                camera!.CenterOnTile(
+                    new GridPosition(world!.StarterDepositOrigin.X + 3, world.StarterDepositOrigin.Y + 1),
+                    BaseTileSize, ViewportWidth, ViewportHeight);
+                camera.SetZoom(1.75f);
+                for (var warm = 0; warm < 120; warm++)
                 {
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
@@ -482,11 +503,13 @@ internal static class FactoryGameApp
                         market!,
                         economy,
                         minerBuilding,
+                        advancedMinerBuilding,
                         smelterBuilding,
                         assemblerBuilding,
                         generatorBuilding,
                         basicConveyor,
                         fastConveyor,
+                        expressConveyor,
                         junctionConveyor,
                         splitterConveyor,
                         sorterConveyor,
@@ -583,6 +606,7 @@ internal static class FactoryGameApp
                         settings,
                         basicConveyor,
                         fastConveyor,
+                        expressConveyor,
                         junctionConveyor,
                         splitterConveyor,
                         sorterConveyor,
@@ -591,6 +615,7 @@ internal static class FactoryGameApp
                         smeltRecipe,
                         wireRecipe,
                         minerBuilding,
+                        advancedMinerBuilding,
                         smelterBuilding,
                         assemblerBuilding,
                         generatorBuilding,
@@ -1052,6 +1077,89 @@ internal static class FactoryGameApp
     /// Places a starter miner + belt run for --capture HUD stills (non-zero Fabbrica counts).
     /// Optionally upgrades the core when <paramref name="upgradeCore"/> is true.
     /// </summary>
+    /// <summary>
+    /// Mid-game Phase 6 still: advanced miner, express belt, coal→generator fuel.
+    /// </summary>
+    private static void SeedCaptureMidgame(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition expressConveyor,
+        RecipeDefinition smeltRecipe)
+    {
+        research.ForceUnlock("smelter");
+        research.ForceUnlock("generator");
+        research.ForceUnlock(MinerBuilding.AdvancedId);
+        research.ForceUnlock("conveyor-express");
+        research.ForceUnlock("conveyor-fast");
+
+        wallet.AddMoney(500);
+        wallet.AddMaterial("iron-plate", 80);
+        wallet.AddMaterial("copper-wire", 40);
+        wallet.AddMaterial("coal", 12);
+
+        var advancedMiner = content.GetBuildingOrDefault("miner-advanced");
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(
+            minerAt, Direction.East, conveyors, wallet, advancedMiner, session, MinerBuilding.AdvancedId);
+
+        var coalAt = new GridPosition(minerAt.X + MinerBuilding.Size + 1, minerAt.Y);
+        var basicMiner = content.GetBuildingOrDefault("miner");
+        if (world.Terrain[coalAt].Deposit == DepositKind.Coal)
+        {
+            world.TryPlaceMiner(coalAt, Direction.South, conveyors, wallet, basicMiner, session);
+        }
+
+        var expressY = minerAt.Y;
+        var startX = minerAt.X + MinerBuilding.Size;
+        // Leave coal footprint clear if occupied.
+        for (var x = startX; x < world.CoreOrigin.X; x++)
+        {
+            var pos = new GridPosition(x, expressY);
+            if (!world.CanPlaceConveyor(pos) || world.IsMinerTile(pos))
+            {
+                continue;
+            }
+
+            conveyors.TryPlace(pos, Direction.East, expressConveyor, wallet, research, session, world.CanPlaceConveyor);
+        }
+
+        var smelterBuilding = content.GetBuildingOrDefault("smelter");
+        var smelterAt = new GridPosition(minerAt.X, minerAt.Y + MinerBuilding.Size + 2);
+        if (world.CanPlaceSmelter(smelterAt, conveyors))
+        {
+            world.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, conveyors, wallet, smelterBuilding, session);
+        }
+
+        var generatorBuilding = content.GetBuildingOrDefault("generator");
+        var genAt = new GridPosition(smelterAt.X + SmelterBuilding.Size + 2, smelterAt.Y);
+        if (world.CanPlaceGenerator(genAt, conveyors))
+        {
+            world.TryPlaceGenerator(genAt, conveyors, wallet, generatorBuilding, session);
+            var fuelBelt = new GridPosition(genAt.X - 1, genAt.Y);
+            if (world.CanPlaceConveyor(fuelBelt))
+            {
+                conveyors.TryPlace(fuelBelt, Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+                if (conveyors.Cells.TryGetValue(fuelBelt, out var cell))
+                {
+                    cell.TryInsert(new TransportedItem(1, "coal"));
+                    cell.TryInsert(new TransportedItem(2, "coal"));
+                }
+            }
+
+            if (world.TryGetGeneratorAt(genAt, out var gen))
+            {
+                gen.TryAcceptFuel("coal");
+                gen.TryAcceptFuel("coal");
+                gen.TryAcceptFuel("coal");
+            }
+        }
+    }
+
     private static void SeedCaptureFactory(
         FactoryWorld world,
         ConveyorGrid conveyors,
@@ -1814,11 +1922,13 @@ internal static class FactoryGameApp
         MarketCatalog market,
         EconomyConfig economy,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
@@ -1927,6 +2037,7 @@ internal static class FactoryGameApp
                 research,
                 basicConveyor,
                 fastConveyor,
+                expressConveyor,
                 ref tool,
                 ref direction,
                 ref selectedConveyor,
@@ -2099,6 +2210,13 @@ internal static class FactoryGameApp
             SyncDockSelection(tool, selectedConveyor, direction);
         }
 
+        if (Raylib.IsKeyPressed(KeyboardKey.Y) && research.IsUnlocked(expressConveyor.Id))
+        {
+            selectedConveyor = expressConveyor;
+            tool = BuildTool.Conveyor;
+            SyncDockSelection(tool, selectedConveyor, direction);
+        }
+
         if (isPanning)
         {
             return;
@@ -2173,7 +2291,8 @@ internal static class FactoryGameApp
 
             if (tool == BuildTool.Miner && research.IsUnlocked("miner"))
             {
-                if (!world.TryPlaceMiner(position, direction, conveyors, wallet, minerBuilding, session))
+                if (!world.TryPlaceMiner(position, direction, conveyors, wallet, minerBuilding, session,
+                        definitionId: MinerBuilding.BasicId))
                 {
                     statusMessage = world.CanPlaceMiner(position, conveyors)
                         ? "Risorse insufficienti per il minatore."
@@ -2184,9 +2303,30 @@ internal static class FactoryGameApp
                     TutorialPlacedMiner = true;
                     var eff = world.Miners[position].Efficiency;
                     statusMessage = eff <= 0f
-                        ? "Minatore piazzato a 0% — senza giacimento non produce."
-                        : $"Minatore piazzato ({eff:P0}) — uscita su tutti i lati.";
+                        ? "Minatore T1 a 0% — senza giacimento non produce."
+                        : $"Minatore T1 piazzato ({eff:P0}) — uscita su tutti i lati.";
                 }
+            }
+            else if (tool == BuildTool.MinerAdvanced && research.IsUnlocked(MinerBuilding.AdvancedId))
+            {
+                if (!world.TryPlaceMiner(position, direction, conveyors, wallet, advancedMinerBuilding, session,
+                        definitionId: MinerBuilding.AdvancedId))
+                {
+                    statusMessage = world.CanPlaceMiner(position, conveyors)
+                        ? "Risorse insufficienti per il Minatore T2."
+                        : "Minatore T2: serve terreno libero (no acqua/core/edifici/nastri).";
+                }
+                else
+                {
+                    var placed = world.Miners[position];
+                    statusMessage = placed.Efficiency <= 0f
+                        ? "Minatore T2 a 0% — senza giacimento non produce."
+                        : $"Minatore T2 ({placed.Efficiency:P0}, 2×) — uscita multi-lato.";
+                }
+            }
+            else if (tool == BuildTool.MinerAdvanced && !research.IsUnlocked(MinerBuilding.AdvancedId))
+            {
+                statusMessage = "Minatore T2 bloccato: sbloccalo in Ricerca (T).";
             }
             else if (tool == BuildTool.Smelter && research.IsUnlocked("smelter"))
             {
@@ -2221,6 +2361,10 @@ internal static class FactoryGameApp
                     statusMessage = world.CanPlaceGenerator(position, conveyors)
                         ? "Risorse insufficienti per il generatore."
                         : "Generatore: serve un’area 2×2 libera su terra.";
+                }
+                else
+                {
+                    statusMessage = "Generatore piazzato — alimentalo con carbone (nastro in ingresso).";
                 }
             }
             else if (tool == BuildTool.Junction && research.IsUnlocked("junction"))
@@ -2305,7 +2449,7 @@ internal static class FactoryGameApp
                 }
             }
             else if (tool == BuildTool.Remove
-                && !world.TryRemoveMiner(position, wallet, minerBuilding, session)
+                && !world.TryRemoveMiner(position, wallet, session: session)
                 && !world.TryRemoveSmelter(position, wallet, smelterBuilding, session)
                 && !world.TryRemoveAssembler(position, wallet, assemblerBuilding, session)
                 && !world.TryRemoveGenerator(position, wallet, generatorBuilding, session))
@@ -2318,7 +2462,7 @@ internal static class FactoryGameApp
         {
             var cell = MouseCell(mouse, camera, world);
             if (cell is { } position
-                && !world.TryRemoveMiner(position, wallet, minerBuilding, session)
+                && !world.TryRemoveMiner(position, wallet, session: session)
                 && !world.TryRemoveSmelter(position, wallet, smelterBuilding, session)
                 && !world.TryRemoveAssembler(position, wallet, assemblerBuilding, session)
                 && !world.TryRemoveGenerator(position, wallet, generatorBuilding, session))
@@ -2576,6 +2720,10 @@ internal static class FactoryGameApp
                 DockCategory = UiTheme.BuildCategory.Production;
                 DockSelectedId = "miner";
                 break;
+            case BuildTool.MinerAdvanced:
+                DockCategory = UiTheme.BuildCategory.Production;
+                DockSelectedId = "miner-advanced";
+                break;
             case BuildTool.Smelter:
                 DockCategory = UiTheme.BuildCategory.Production;
                 DockSelectedId = "smelter";
@@ -2797,6 +2945,7 @@ internal static class FactoryGameApp
         ResearchState research,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ref BuildTool tool,
         ref Direction direction,
         ref ConveyorDefinition selectedConveyor,
@@ -2835,7 +2984,7 @@ internal static class FactoryGameApp
                     && (DockSelectedId is null
                         || UiTheme.EntriesFor(DockCategory).All(e => e.Id != DockSelectedId)))
                 {
-                    ApplyDockEntry(first, research, basicConveyor, fastConveyor,
+                    ApplyDockEntry(first, research, basicConveyor, fastConveyor, expressConveyor,
                         ref tool, ref direction, ref selectedConveyor, ref statusMessage);
                 }
 
@@ -2858,7 +3007,7 @@ internal static class FactoryGameApp
                 continue;
             }
 
-            ApplyDockEntry(entries[i], research, basicConveyor, fastConveyor,
+            ApplyDockEntry(entries[i], research, basicConveyor, fastConveyor, expressConveyor,
                 ref tool, ref direction, ref selectedConveyor, ref statusMessage);
             return true;
         }
@@ -2871,6 +3020,7 @@ internal static class FactoryGameApp
         ResearchState research,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ref BuildTool tool,
         ref Direction direction,
         ref ConveyorDefinition selectedConveyor,
@@ -2897,7 +3047,12 @@ internal static class FactoryGameApp
                 break;
             case UiTheme.DockEntryKind.ConveyorVariant:
                 tool = BuildTool.Conveyor;
-                selectedConveyor = entry.ConveyorId == fastConveyor.Id ? fastConveyor : basicConveyor;
+                selectedConveyor = entry.ConveyorId switch
+                {
+                    _ when entry.ConveyorId == expressConveyor.Id => expressConveyor,
+                    _ when entry.ConveyorId == fastConveyor.Id => fastConveyor,
+                    _ => basicConveyor
+                };
                 break;
             case UiTheme.DockEntryKind.Direction when entry.Facing is { } facing:
                 direction = facing;
@@ -3994,6 +4149,7 @@ internal static class FactoryGameApp
         GameSettings settings,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
@@ -4002,6 +4158,7 @@ internal static class FactoryGameApp
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
@@ -4015,19 +4172,19 @@ internal static class FactoryGameApp
             world, conveyors, wallet, research, camera, selectedConveyor,
             junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
-            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, tool, direction);
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding, tool, direction);
         DrawHeader(
-            wallet, research, session, market, economy, settings, basicConveyor, fastConveyor,
+            wallet, research, session, market, economy, settings, basicConveyor, fastConveyor, expressConveyor,
             junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-            selectedConveyor, minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            selectedConveyor, minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             tool, direction, world, camera);
         DrawMercatoPanel(world, wallet, market);
         DrawStatusPanel(world, conveyors, research, wallet, session, economy);
         DrawBuildDock(
             wallet, research, selectedConveyor, direction, tool,
-            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
+            basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
-            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
@@ -4199,12 +4356,14 @@ internal static class FactoryGameApp
         GameSettings settings,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         ConveyorDefinition selectedConveyor,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
@@ -4234,6 +4393,9 @@ internal static class FactoryGameApp
         {
             BuildTool.Miner => research.IsUnlocked("miner")
                 ? FormatBuildingCost(minerBuilding)
+                : "Sblocca in Ricerca",
+            BuildTool.MinerAdvanced => research.IsUnlocked(MinerBuilding.AdvancedId)
+                ? FormatBuildingCost(advancedMinerBuilding)
                 : "Sblocca in Ricerca",
             BuildTool.Smelter => research.IsUnlocked("smelter")
                 ? FormatBuildingCost(smelterBuilding)
@@ -4275,6 +4437,8 @@ internal static class FactoryGameApp
         _ = market;
         _ = basicConveyor;
         _ = fastConveyor;
+        _ = expressConveyor;
+        _ = advancedMinerBuilding;
         _ = direction;
     }
 
@@ -4356,6 +4520,7 @@ internal static class FactoryGameApp
         BuildTool tool,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
@@ -4363,6 +4528,7 @@ internal static class FactoryGameApp
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding)
@@ -4475,9 +4641,9 @@ internal static class FactoryGameApp
         DrawDockCostBar(
             dockX, barY, dockW, UiTheme.DockHoverBarHeight,
             barEntry, wallet, research,
-            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
+            basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             smeltRecipe, wireRecipe,
-            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding);
     }
 
     private static UiTheme.DockEntry? FindSelectedDockEntry(ConveyorDefinition selectedConveyor, BuildTool tool)
@@ -4522,6 +4688,7 @@ internal static class FactoryGameApp
         ResearchState research,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
@@ -4529,6 +4696,7 @@ internal static class FactoryGameApp
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding)
@@ -4575,8 +4743,8 @@ internal static class FactoryGameApp
         DrawDockCostRow(
             barX, costY, barW, costH,
             entry, wallet,
-            basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             hasRecipe ? entry.Hint : null);
     }
 
@@ -4651,19 +4819,21 @@ internal static class FactoryGameApp
         EconomyWallet wallet,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
         string? usageHintFallback)
     {
         if (!TryResolveDockEntryCost(
-                entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-                minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+                entry, basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
+                minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
                 out var money, out var materials))
         {
             var hint = TruncateUiText(usageHintFallback ?? entry.Hint ?? entry.Label, 12, barW - UiTheme.S(16));
@@ -4759,11 +4929,13 @@ internal static class FactoryGameApp
         string entryId,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
@@ -4781,8 +4953,8 @@ internal static class FactoryGameApp
         }
 
         return TryResolveDockEntryCost(
-            entry, basicConveyor, fastConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
-            minerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
+            entry, basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
+            minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             out money, out materials);
     }
 
@@ -4790,11 +4962,13 @@ internal static class FactoryGameApp
         UiTheme.DockEntry entry,
         ConveyorDefinition basicConveyor,
         ConveyorDefinition fastConveyor,
+        ConveyorDefinition expressConveyor,
         ConveyorDefinition junctionConveyor,
         ConveyorDefinition splitterConveyor,
         ConveyorDefinition sorterConveyor,
         ConveyorDefinition bridgeConveyor,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
@@ -4809,6 +4983,10 @@ internal static class FactoryGameApp
             case "miner":
                 money = minerBuilding.MoneyCost;
                 materials = minerBuilding.BuildCost;
+                return true;
+            case "miner-advanced":
+                money = advancedMinerBuilding.MoneyCost;
+                materials = advancedMinerBuilding.BuildCost;
                 return true;
             case "smelter":
                 money = smelterBuilding.MoneyCost;
@@ -4829,6 +5007,10 @@ internal static class FactoryGameApp
             case "conveyor-fast":
                 money = fastConveyor.MoneyCost;
                 materials = fastConveyor.BuildCost;
+                return true;
+            case "conveyor-express":
+                money = expressConveyor.MoneyCost;
+                materials = expressConveyor.BuildCost;
                 return true;
             case "junction":
                 money = junctionConveyor.MoneyCost;
@@ -4883,6 +5065,8 @@ internal static class FactoryGameApp
             "assembler" => new Color(160, 140, 210, 255),
             "conveyor-basic" => new Color(120, 170, 210, 255),
             "conveyor-fast" => new Color(90, 200, 220, 255),
+            "conveyor-express" => new Color(70, 230, 200, 255),
+            "miner-advanced" => new Color(100, 170, 220, 255),
             "junction" => new Color(140, 180, 140, 255),
             "splitter" => new Color(170, 190, 110, 255),
             "sorter" => new Color(200, 160, 90, 255),
@@ -5230,6 +5414,13 @@ internal static class FactoryGameApp
                 Raylib.DrawCircle(ix + (int)(23 * s), iy + (int)(20 * s), Math.Max(2.5f, 7 * s), fill);
             }
         }
+        else if (tile.Deposit == DepositKind.Coal && tileSize >= 8f)
+        {
+            var s = tileSize / BaseTileSize;
+            var fill = UiTheme.ItemColor("coal");
+            Raylib.DrawRectangle(ix + (int)(8 * s), iy + (int)(10 * s), (int)(10 * s), (int)(10 * s), fill);
+            Raylib.DrawRectangle(ix + (int)(18 * s), iy + (int)(16 * s), (int)(12 * s), (int)(12 * s), fill);
+        }
     }
 
     private static void DrawCore(
@@ -5261,7 +5452,8 @@ internal static class FactoryGameApp
         var y = (int)fy;
         var size = (int)(tileSize * MinerBuilding.Size);
         WorldGraphics.DrawMinerSilhouette(
-            x, y, size, miner.Progress, miner.Efficiency, preview, tileSize, DrawBuildingNameplate);
+            x, y, size, miner.Progress, miner.Efficiency, preview, tileSize, DrawBuildingNameplate,
+            isAdvanced: miner.IsAdvanced);
     }
 
     private static void DrawSmelter(SmelterBuilding smelter, float fx, float fy, float tileSize, bool preview)
@@ -5286,11 +5478,13 @@ internal static class FactoryGameApp
 
     private static void DrawGenerator(GeneratorBuilding generator, float fx, float fy, float tileSize, bool preview)
     {
-        _ = generator;
         var x = (int)fx;
         var y = (int)fy;
         var size = (int)(tileSize * GeneratorBuilding.Size);
-        WorldGraphics.DrawGeneratorSilhouette(x, y, size, preview, tileSize, DrawBuildingNameplate);
+        WorldGraphics.DrawGeneratorSilhouette(
+            x, y, size, preview, tileSize, DrawBuildingNameplate,
+            fuelBuffer: generator.FuelBuffer,
+            isGenerating: generator.IsGenerating);
     }
 
     /// <summary>
@@ -5299,7 +5493,9 @@ internal static class FactoryGameApp
     /// </summary>
     private static void DrawBuildingNameplate(string text, int x, int y, int alpha, Color color)
     {
-        var fontSize = text is "FORNO" or "ASSY" or "GEN" ? 13 : text == "CORE" ? Math.Max(10, 18) : 12;
+        var fontSize = text is "FORNO" or "ASSY" or "GEN" || text.StartsWith("GEN ", StringComparison.Ordinal)
+            ? 13
+            : text == "CORE" ? Math.Max(10, 18) : 12;
         var width = MeasureUiText(text, fontSize);
         if (text.Contains('%', StringComparison.Ordinal) || text == "CORE")
         {
@@ -5603,6 +5799,7 @@ internal static class FactoryGameApp
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
         BuildingDefinition minerBuilding,
+        BuildingDefinition advancedMinerBuilding,
         BuildingDefinition smelterBuilding,
         BuildingDefinition assemblerBuilding,
         BuildingDefinition generatorBuilding,
@@ -5643,6 +5840,9 @@ internal static class FactoryGameApp
             BuildTool.Miner => research.IsUnlocked("miner")
                 && world.CanPlaceMiner(position, conveyors)
                 && wallet.CanAfford(minerBuilding.MoneyCost, minerBuilding.BuildCost),
+            BuildTool.MinerAdvanced => research.IsUnlocked(MinerBuilding.AdvancedId)
+                && world.CanPlaceMiner(position, conveyors)
+                && wallet.CanAfford(advancedMinerBuilding.MoneyCost, advancedMinerBuilding.BuildCost),
             BuildTool.Smelter => research.IsUnlocked("smelter")
                 && world.CanPlaceSmelter(position, conveyors)
                 && wallet.CanAfford(smelterBuilding.MoneyCost, smelterBuilding.BuildCost),
@@ -5676,7 +5876,8 @@ internal static class FactoryGameApp
         var previewColor = valid
             ? new Color(105, 225, 142, 125)
             : new Color(225, 92, 80, 125);
-        var previewSize = tool is BuildTool.Miner or BuildTool.Smelter or BuildTool.Assembler or BuildTool.Generator
+        var previewSize = tool is BuildTool.Miner or BuildTool.MinerAdvanced or BuildTool.Smelter
+            or BuildTool.Assembler or BuildTool.Generator
             ? tileSize * MinerBuilding.Size
             : tileSize;
         Raylib.BeginScissorMode(ViewportLeft, ViewportTop, (int)ViewportWidth, (int)ViewportHeight);
@@ -5701,6 +5902,13 @@ internal static class FactoryGameApp
         else if (tool == BuildTool.Miner && valid)
         {
             DrawMiner(new MinerBuilding(position, direction, world.CountCoveredDepositTiles(position)),
+                screen.X, screen.Y, tileSize, true);
+            DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
+        }
+        else if (tool == BuildTool.MinerAdvanced && valid)
+        {
+            DrawMiner(new MinerBuilding(position, direction, world.CountCoveredDepositTiles(position),
+                    definitionId: MinerBuilding.AdvancedId),
                 screen.X, screen.Y, tileSize, true);
             DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
         }
@@ -6248,19 +6456,21 @@ internal static class FactoryGameApp
         var crafters = world.Smelters.Count + world.Assemblers.Count;
         var powerLow = world.PowerCapacity > 0
             && world.PowerBuffer < world.PowerCapacity * 0.35f;
-        if (powerLow || (world.Generators.Count == 0 && crafters >= 2))
+        if (powerLow || (world.Generators.Count == 0 && crafters >= 2)
+            || world.Generators.Values.Any(g => g.FuelBuffer <= 0 && !g.IsGenerating && crafters >= 1))
         {
             return research.IsUnlocked("generator")
-                ? "Piazza un GENERATORE (9) per più potenza."
+                ? "GENERATORE: alimentalo con carbone (nastro in ingresso)."
                 : "Sblocca il GENERATORE in RICERCA (T).";
         }
 
         var tips = new[]
         {
             "Produce → stock → costruisci, oppure vendi dal Mercato.",
-            "Esplora giacimenti di rame a sud-est.",
+            "Esplora giacimenti di rame e carbone vicino al core.",
             "Sblocca lo sdoppiatore per biforcare i flussi.",
             "L'assemblatore trasforma il rame in fili.",
+            "Nastro T3 (Y) per linee ad alto throughput.",
             "Vendita automatica OFF tiene lastre e fili per i costi."
         };
         var index = (int)(Raylib.GetTime() / 8.0) % tips.Length;

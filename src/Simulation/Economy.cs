@@ -40,7 +40,8 @@ public sealed class MarketCatalog
         new MarketItemDefinition("iron-ore", "Ferro grezzo", 8),
         new MarketItemDefinition("iron-plate", "Lastra di ferro", 30),
         new MarketItemDefinition("copper-ore", "Rame grezzo", 6),
-        new MarketItemDefinition("copper-wire", "Filo di rame", 16)
+        new MarketItemDefinition("copper-wire", "Filo di rame", 16),
+        new MarketItemDefinition("coal", "Carbone", 4)
     ]);
 
     public int GetSellPrice(string itemId) =>

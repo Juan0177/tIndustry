@@ -47,15 +47,16 @@ public static class WorldGraphics
         float efficiency,
         bool preview,
         float tileSize,
-        Action<string, int, int, int, Color>? drawLabel)
+        Action<string, int, int, int, Color>? drawLabel,
+        bool isAdvanced = false)
     {
         var alpha = preview ? 150 : 255;
         var scale = tileSize / BaseTile;
         DrawSoftShadow(x, y, size, alpha, scale);
         DrawRimBody(x, y, size,
-            new Color(52, 54, 50, 255),
-            new Color(92, 96, 88, 255),
-            new Color(240, 180, 80, 255),
+            isAdvanced ? new Color(42, 58, 72, 255) : new Color(52, 54, 50, 255),
+            isAdvanced ? new Color(70, 100, 120, 255) : new Color(92, 96, 88, 255),
+            isAdvanced ? new Color(120, 200, 255, 255) : new Color(240, 180, 80, 255),
             alpha, scale);
 
         // Chassis deck
@@ -74,12 +75,14 @@ public static class WorldGraphics
             new Color(88, 92, 84, alpha));
 
         var center = new Vector2(x + size / 2f, y + size * 0.38f);
-        var angle = preview ? 0f : (float)Raylib.GetTime() * 110f;
+        var angle = preview ? 0f : (float)Raylib.GetTime() * (isAdvanced ? 150f : 110f);
         var bitR = 14f * scale;
         Raylib.DrawPoly(center, 6, bitR, angle, new Color(108, 116, 110, alpha));
         Raylib.DrawPolyLinesEx(center, 6, bitR, angle, Math.Max(1.5f, 2.5f * scale),
             new Color(230, 210, 150, alpha));
-        Raylib.DrawCircleV(center, 5.5f * scale, new Color(210, 143, 68, alpha));
+        Raylib.DrawCircleV(center, 5.5f * scale, isAdvanced
+            ? new Color(100, 170, 220, alpha)
+            : new Color(210, 143, 68, alpha));
         // Bit tip
         Raylib.DrawTriangle(
             center + new Vector2(0, 16 * scale),
@@ -93,14 +96,18 @@ public static class WorldGraphics
         Raylib.DrawRectangle(x + size - (int)(16 * scale), y + (int)(22 * scale), (int)(10 * scale), (int)(4 * scale),
             new Color(160, 130, 60, alpha));
 
-        DrawProgressBar(x, y, size, progress, new Color(231, 166, 66, alpha), alpha, scale);
+        DrawProgressBar(x, y, size, progress,
+            isAdvanced ? new Color(120, 190, 240, alpha) : new Color(231, 166, 66, alpha), alpha, scale);
 
         if (tileSize >= 12f && drawLabel is not null)
         {
-            drawLabel($"{efficiency:P0}", x + size / 2, y + size - (int)(25 * scale), alpha,
+            var label = isAdvanced ? $"{efficiency:P0} T2" : $"{efficiency:P0}";
+            drawLabel(label, x + size / 2, y + size - (int)(25 * scale), alpha,
                 efficiency <= 0f
                     ? new Color(225, 120, 100, alpha)
-                    : new Color(233, 190, 96, alpha));
+                    : isAdvanced
+                        ? new Color(120, 200, 255, alpha)
+                        : new Color(233, 190, 96, alpha));
         }
 
         TryDrawWorldIcon("miner", x, y, size, alpha, scale, tileSize);
@@ -258,15 +265,18 @@ public static class WorldGraphics
         int size,
         bool preview,
         float tileSize,
-        Action<string, int, int, int, Color>? drawLabel)
+        Action<string, int, int, int, Color>? drawLabel,
+        int fuelBuffer = 0,
+        bool isGenerating = false)
     {
         var alpha = preview ? 150 : 255;
         var scale = tileSize / BaseTile;
+        var fueled = isGenerating || fuelBuffer > 0;
         DrawSoftShadow(x, y, size, alpha, scale);
         DrawRimBody(x, y, size,
-            new Color(118, 88, 28, 255),
-            new Color(180, 145, 55, 255),
-            new Color(245, 205, 80, 255),
+            fueled ? new Color(118, 88, 28, 255) : new Color(70, 60, 40, 255),
+            fueled ? new Color(180, 145, 55, 255) : new Color(110, 95, 50, 255),
+            fueled ? new Color(245, 205, 80, 255) : new Color(140, 120, 70, 255),
             alpha, scale);
 
         // Twin coils / turbine cylinders
@@ -280,9 +290,12 @@ public static class WorldGraphics
 
         // Center spark / pulse
         var center = new Vector2(x + size / 2f, y + size * 0.55f);
-        var pulse = preview ? 8f : 10f + MathF.Sin((float)Raylib.GetTime() * 5f) * 3.5f;
+        var pulse = preview || !fueled
+            ? (fueled ? 8f : 6f)
+            : 10f + MathF.Sin((float)Raylib.GetTime() * 5f) * 3.5f;
         Raylib.DrawCircleV(center, (pulse + 4) * scale * 0.55f, new Color(180, 120, 30, alpha));
-        Raylib.DrawCircleV(center, pulse * scale * 0.55f, new Color(240, 190, 60, alpha));
+        Raylib.DrawCircleV(center, pulse * scale * 0.55f,
+            fueled ? new Color(240, 190, 60, alpha) : new Color(120, 100, 50, alpha));
         Raylib.DrawCircleV(center, 4 * scale, new Color(255, 235, 150, alpha));
 
         // Base platform
@@ -292,8 +305,9 @@ public static class WorldGraphics
 
         if (tileSize >= 12f && drawLabel is not null)
         {
-            drawLabel("GEN", x + (int)(14 * scale), y + (int)(8 * scale), alpha,
-                new Color(255, 235, 170, alpha));
+            var label = fueled ? $"GEN {fuelBuffer}" : "GEN 0";
+            drawLabel(label, x + (int)(14 * scale), y + (int)(8 * scale), alpha,
+                fueled ? new Color(255, 235, 170, alpha) : new Color(200, 160, 120, alpha));
         }
 
         TryDrawWorldIcon("generator", x, y, size, alpha, scale, tileSize);

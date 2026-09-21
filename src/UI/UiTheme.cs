@@ -7,6 +7,7 @@ public enum BuildTool
 {
     Conveyor,
     Miner,
+    MinerAdvanced,
     Smelter,
     Remove,
     Junction,
@@ -101,6 +102,7 @@ public static class UiTheme
     [
         new("iron-ore", "Ferro grezzo", "Ferro", "Fe", ItemCategory.Materials),
         new("copper-ore", "Rame grezzo", "Rame", "Ra", ItemCategory.Materials),
+        new("coal", "Carbone", "Carb.", "Ca", ItemCategory.Materials),
         new("iron-plate", "Lastra di ferro", "Lastre", "Ls", ItemCategory.Intermediate),
         new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products)
     ];
@@ -275,6 +277,7 @@ public static class UiTheme
         "iron-plate" => new Color(196, 210, 224, 255),
         "copper-ore" => new Color(64, 196, 176, 255),
         "copper-wire" => new Color(232, 156, 72, 255),
+        "coal" => new Color(48, 48, 52, 255),
         _ => new Color(210, 120, 210, 255)
     };
 
@@ -284,6 +287,7 @@ public static class UiTheme
         "iron-plate" => new Color(40, 52, 64, 255),
         "copper-ore" => new Color(12, 56, 52, 255),
         "copper-wire" => new Color(90, 48, 12, 255),
+        "coal" => new Color(12, 12, 14, 255),
         _ => new Color(40, 20, 40, 255)
     };
 
@@ -355,12 +359,14 @@ public static class UiTheme
     /// <summary>Short Italian label drawn under a dock entry icon.</summary>
     public static string DockEntryShortLabel(DockEntry entry) => entry.Id switch
     {
-        "miner" => "Minat",
+        "miner" => "T1",
+        "miner-advanced" => "T2",
         "smelter" => "Forno",
         "assembler" => "Assem",
         "generator" => "Gener",
-        "conveyor-basic" => "Nastro",
-        "conveyor-fast" => "Veloce",
+        "conveyor-basic" => "T1",
+        "conveyor-fast" => "T2",
+        "conveyor-express" => "T3",
         "junction" => "Incroc",
         "splitter" => "Split",
         "sorter" => "Filtro",
@@ -397,8 +403,11 @@ public static class UiTheme
     // Cached once — EntriesFor used every play frame for dock bounds/draw/input.
     private static readonly DockEntry[] ProductionEntries =
     [
-        new("miner", "Minatore", "Mn", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
+        new("miner", "Minatore T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.Miner, ResearchId: "miner",
             Hint: "Estrae minerali · uscita su tutti i lati"),
+        new("miner-advanced", "Minatore T2", "T2", DockEntryKind.BuildTool, Tool: BuildTool.MinerAdvanced,
+            ResearchId: "miner-advanced",
+            Hint: "T2: 2× velocità · +25% efficienza · uscita multi-lato"),
         new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
             Hint: "Fonde ore in lastre · R ruota uscita"),
         new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
@@ -409,12 +418,15 @@ public static class UiTheme
 
     private static readonly DockEntry[] LogisticsEntries =
     [
-        new("conveyor-basic", "Nastro", "Na", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
+        new("conveyor-basic", "Nastro T1", "T1", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
             ResearchId: "conveyor-basic", ConveyorId: "conveyor-basic",
-            Hint: "Flusso unidirezionale · R/rotella"),
-        new("conveyor-fast", "Veloce", "Ve", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
+            Hint: "Nastro T1 · flusso unidirezionale · R/rotella"),
+        new("conveyor-fast", "Nastro T2", "T2", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
             ResearchId: "conveyor-fast", ConveyorId: "conveyor-fast",
-            Hint: "Nastro rapido · R/rotella · E"),
+            Hint: "Nastro T2 · R/rotella · E"),
+        new("conveyor-express", "Nastro T3", "T3", DockEntryKind.ConveyorVariant, Tool: BuildTool.Conveyor,
+            ResearchId: "conveyor-express", ConveyorId: "conveyor-express",
+            Hint: "Nastro T3 · R/rotella · Y"),
         new("junction", "Incrocio", "In", DockEntryKind.BuildTool, Tool: BuildTool.Junction, ResearchId: "junction",
             Hint: "Incrocio a croce (6)"),
         new("splitter", "Sdoppiatore", "Sd", DockEntryKind.BuildTool, Tool: BuildTool.Splitter, ResearchId: "splitter",
@@ -428,7 +440,7 @@ public static class UiTheme
     private static readonly DockEntry[] PowerEntries =
     [
         new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
-            Hint: "Produce energia (9)")
+            Hint: "Brucia carbone per energia (9) · pool globale")
     ];
 
     private static readonly DockEntry[] EmptyEntries = [];
@@ -551,6 +563,16 @@ public static class UiTheme
                     color);
                 Raylib.DrawRectangle(x + s / 2 - 3, y, 6, 8, color);
                 break;
+            case "miner-advanced":
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + s),
+                    new Vector2(x + 2, y + 4),
+                    new Vector2(x + s - 2, y + 4),
+                    color);
+                Raylib.DrawRectangle(x + s / 2 - 3, y, 6, 8, color);
+                Raylib.DrawRectangle(x + 4, y + 2, 4, 4, color);
+                Raylib.DrawRectangle(x + s - 8, y + 2, 4, 4, color);
+                break;
             case "smelter":
                 // Furnace.
                 Raylib.DrawRectangle(x + 2, y + 6, s - 4, s - 8, color);
@@ -579,6 +601,16 @@ public static class UiTheme
                     new Vector2(x + s - 12, y + s),
                     color);
                 Raylib.DrawLineEx(new Vector2(x + 4, y + 4), new Vector2(x + s - 14, y + 4), 2f, color);
+                break;
+            case "conveyor-express":
+                Raylib.DrawRectangle(x, y + s / 2 - 5, s - 8, 10, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s, y + s / 2),
+                    new Vector2(x + s - 14, y),
+                    new Vector2(x + s - 14, y + s),
+                    color);
+                Raylib.DrawLineEx(new Vector2(x + 3, y + 3), new Vector2(x + s - 16, y + 3), 2f, color);
+                Raylib.DrawLineEx(new Vector2(x + 3, y + s - 3), new Vector2(x + s - 16, y + s - 3), 2f, color);
                 break;
             case "junction":
                 Raylib.DrawRectangle(x + s / 2 - 3, y, 6, s, color);

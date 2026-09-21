@@ -23,8 +23,8 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
-| Produzione | Minatore (output **belt uscenti** + trasferimento **edificio adiacente**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
-| Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing; overlay amber/ciano = I/O uscente/entrante |
+| Produzione | **Minatore T1/T2** (output **belt uscenti** + trasferimento **edificio adiacente**), **forno**, **assemblatore**, **generatore** (fuel carbone; pool globale); edifici su terra libera (miner off-deposito = **0%**) |
+| Logistica | **Nastro T1/T2/T3**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing; overlay amber/ciano = I/O uscente/entrante |
 | Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti** senza clip, padding polish, prezzi, auto-sell); strip **Fabbrica** con conteggi `M/F/A/N/G` sopra **CORE**; rimborso 100%; **potenziamento core** (+25% vendite) con costo `×N lastre + $` sul bottone |
 | Progressione | **Campagna** (5 livelli, obiettivi HUD, progressione AppData); **Ricerca** data-driven; **tutorial** IT **14 step** in sandbox — riparte su **Nuova partita** / **Rivedi tutorial** |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** / **Campagna** / **Nuova partita**), scenari + seed, save JSON **v6** |
@@ -94,7 +94,7 @@ Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo p
 | **R** | Ruota pezzo / direzione |
 | **1–8** | Tool: nastro, minatore, forno, rimuovi, assemblatore, incrocio, sdoppiatore, ponte |
 | **9** | Generatore (se sbloccato) |
-| **Q** / **E** | Nastro base / nastro veloce (se sbloccato) |
+| **Q** / **E** / **Y** | Nastro T1 / T2 / T3 (se sbloccati) |
 | Click sinistro | Piazza (nastri: drag) |
 | **T** / icona albero | Ricerca |
 | **I** / icona ingranaggio | Impostazioni |
@@ -152,7 +152,7 @@ Persistenza: `%LocalAppData%/tIndustry/settings.json` (Linux: `~/.local/share/tI
 5. Rame + **Assemblatore** → **fili** (prezzo mercato aggiornato) e sblocchi più cari  
 6. Se i forni stallano: **RICERCA** → **Generatore** → **9** / **GEN.**
 
-Default sbloccati: nastro base e minatore. Il resto paga il pedaggio della ricerca.
+Default sbloccati: Nastro T1 e Minatore T1. Il resto paga il pedaggio della ricerca.
 
 ---
 
@@ -199,11 +199,11 @@ Niente Unity/Godot in roadmap early: si itera sul prototipo Raylib finché il lo
 | **v0.2.1**: playability (nastri, UI scale, tutorial, miner 4-lati, toast) + `src/` | |
 | **v0.2.0**: splash, icon pack, first-launch AppData, hot-path | Combat/unità: **non** priorità early |
 | CI publish win/linux + release su tag `v*` | |
-| `miner-advanced` ancora stub | |
+| Cavi / rete potenza locale | ancora stub (pool globale) |
 
 Dettaglio versioni: [CHANGELOG.md](CHANGELOG.md) · note [v0.2.7](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.7).
 
-Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il nastro veloce, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
+Criterio di progresso: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il Nastro T2, ho espanso*. Se manca un pezzo di quella frase, si lavora lì.
 
 ---
 
