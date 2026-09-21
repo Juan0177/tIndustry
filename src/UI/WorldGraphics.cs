@@ -123,7 +123,9 @@ public static class WorldGraphics
         bool preview,
         float tileSize,
         Action<string, int, int, int, Color>? drawLabel,
-        Action<Vector2, Direction, int, float> drawDirectionMark)
+        Action<Vector2, Direction, int, float> drawDirectionMark,
+        int fuelBuffer = 0,
+        bool isBurningFuel = false)
     {
         var alpha = preview ? 150 : 255;
         var scale = tileSize / BaseTile;
@@ -197,7 +199,10 @@ public static class WorldGraphics
 
         if (tileSize >= 12f && drawLabel is not null)
         {
-            drawLabel("FORNO", x + (int)(14 * scale), y + (int)(8 * scale), alpha,
+            var label = fuelBuffer > 0 || isBurningFuel
+                ? $"FORNO Ca{fuelBuffer}"
+                : "FORNO";
+            drawLabel(label, x + (int)(14 * scale), y + (int)(8 * scale), alpha,
                 new Color(255, 220, 190, alpha));
         }
 

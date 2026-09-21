@@ -166,7 +166,7 @@ public static class PowerNetworking
         + "i nodi in range con slot liberi si collegano. Linee rette geometriche (anche diagonali). "
         + "Nodo/rete live solo se path a gen con fuel. CORE non fornisce né richiede potenza; "
         + AdjacencyRule
-        + " Solo forno/assemblatore brown-out senza gen adiacente/cluster o link live.";
+        + " Forno: carbone o corrente (OR); assemblatore richiede corrente; gen solo carbone.";
 
     public static PowerNetworkState Build(
         FactoryWorld world,

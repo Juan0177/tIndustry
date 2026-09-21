@@ -412,7 +412,7 @@ public static class UiTheme
             ResearchId: "miner-advanced",
             Hint: "T2: 2× velocità · +25% efficienza · uscita multi-lato"),
         new("smelter", "Forno", "Fo", DockEntryKind.BuildTool, Tool: BuildTool.Smelter, ResearchId: "smelter",
-            Hint: "Fonde ore in lastre · R ruota uscita"),
+            Hint: "Carbone o corrente · +20% craft se alimentato"),
         new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
             Hint: "Assembla prodotti · R ruota uscita"),
         new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove,

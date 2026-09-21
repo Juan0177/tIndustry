@@ -107,7 +107,7 @@ internal static class FactoryGameApp
         "MERCATO (pannello a sinistra): vendi con 1 / tutti, oppure attiva Vendita automatica.",
         "FABBRICA: conteggi M/F/A/N/G e upgrade CORE (bottone o tasto U) per +25% prezzi vendita.",
         "Apri RICERCA (T o icona albero) e sblocca FORNO, poi altri edifici quando puoi.",
-        "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9), NODI potenza (dock Energia). Potenza: gen con fuel + nodi (mai CORE) o fabbrica a contatto del gen.",
+        "Dopo lo sblocco: FORNO (3) = carbone o corrente (+20% con corrente); ASSEMBLATORE (5) serve potenza; GENERATORE (9) solo carbone; NODI (dock Energia) mai CORE.",
         "Logistica: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E/Y = Nastro T1/T2/T3.",
         "RIMUOVI (4 / X nel dock): rimborso 100% di edifici e nastri.",
         "Campagna: Esc → Home → Campagna per livelli con obiettivi. Sandbox = questa partita libera.",
@@ -375,6 +375,25 @@ internal static class FactoryGameApp
                     BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
                 camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
                 for (var warm = 0; warm < 90; warm++)
+                {
+                    world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
+                }
+            }
+            else if (captureMode == "smelter-fuel")
+            {
+                SeedCaptureSmelterCoalOrPower(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor, smeltRecipe);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.Smelter;
+                DockCategory = UiTheme.BuildCategory.Production;
+                DockSelectedId = "smelter";
+                camera!.SetZoom(2.2f);
+                camera.CenterOnTile(
+                    new GridPosition(world!.CoreOrigin.X - 3, world.CoreOrigin.Y + 1),
+                    BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+                for (var warm = 0; warm < 75; warm++)
                 {
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
@@ -1322,6 +1341,74 @@ internal static class FactoryGameApp
 
         world.RefreshPowerNetworks();
         // Tick once so the generator enters burn state and live beams light up.
+        var tickId = 1L;
+        world.Update(1f / 30f, conveyors, wallet, ref tickId);
+    }
+
+    /// <summary>
+    /// Capture: coal-only forno (bootstrap) next to a powered forno (+20% craft) — no chicken-egg.
+    /// </summary>
+    private static void SeedCaptureSmelterCoalOrPower(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        RecipeDefinition smeltRecipe)
+    {
+        research.ForceUnlock("smelter");
+        research.ForceUnlock("generator");
+        wallet.AddMoney(400);
+        wallet.AddMaterial("iron-plate", 60);
+        wallet.AddMaterial("coal", 16);
+
+        var smelterBuilding = content.GetBuildingOrDefault("smelter");
+        var generatorBuilding = content.GetBuildingOrDefault("generator");
+
+        // Coal-only forno (bootstrap) — fueled buffer, no gen adjacency.
+        var coalSmelterAt = new GridPosition(world.CoreOrigin.X - 7, world.CoreOrigin.Y + 3);
+        world.TryPlaceSmelter(coalSmelterAt, Direction.East, smeltRecipe, conveyors, wallet, smelterBuilding, session);
+        if (world.TryGetSmelterAt(coalSmelterAt, out var coalSmelter))
+        {
+            coalSmelter.TryAcceptFuel("coal");
+            coalSmelter.TryAcceptFuel("coal");
+            coalSmelter.TryAcceptFuel("coal");
+            coalSmelter.TryAccept("iron-ore");
+            coalSmelter.TryAccept("iron-ore");
+        }
+
+        var coalBelt = new GridPosition(coalSmelterAt.X - 1, coalSmelterAt.Y);
+        if (world.CanPlaceConveyor(coalBelt))
+        {
+            conveyors.TryPlace(coalBelt, Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+            if (conveyors.Cells.TryGetValue(coalBelt, out var cell))
+            {
+                cell.TryInsert(new TransportedItem(1, "coal"));
+                cell.TryInsert(new TransportedItem(2, "iron-ore"));
+            }
+        }
+
+        // Powered forno east of a fueled gen (adjacency) — no coal on the forno itself.
+        var genAt = new GridPosition(world.CoreOrigin.X - 5, world.CoreOrigin.Y);
+        world.TryPlaceGenerator(genAt, conveyors, wallet, generatorBuilding, session);
+        if (world.TryGetGeneratorAt(genAt, out var gen))
+        {
+            gen.TryAcceptFuel("coal");
+            gen.TryAcceptFuel("coal");
+            gen.TryAcceptFuel("coal");
+        }
+
+        var poweredSmelterAt = new GridPosition(genAt.X + GeneratorBuilding.Size, genAt.Y);
+        world.TryPlaceSmelter(poweredSmelterAt, Direction.East, smeltRecipe, conveyors, wallet, smelterBuilding, session);
+        if (world.TryGetSmelterAt(poweredSmelterAt, out var poweredSmelter))
+        {
+            poweredSmelter.TryAccept("iron-ore");
+            poweredSmelter.TryAccept("iron-ore");
+        }
+
+        world.RefreshPowerNetworks();
         var tickId = 1L;
         world.Update(1f / 30f, conveyors, wallet, ref tickId);
     }
@@ -2692,7 +2779,7 @@ internal static class FactoryGameApp
                 }
                 else
                 {
-                    statusMessage = "Forno piazzato.";
+                    statusMessage = "Forno piazzato — carbone o corrente.";
                 }
             }
             else if (tool == BuildTool.Smelter && !research.IsUnlocked("smelter"))
@@ -5184,13 +5271,21 @@ internal static class FactoryGameApp
 
         var hasRecipe = TryResolveDockEntryRecipe(entry, smeltRecipe, wireRecipe, out var recipe);
         var pad = UiTheme.S(6);
-        var usageH = hasRecipe ? UiTheme.S(36) : 0;
+        var showFornoHint = entry.Id == "smelter" && !string.IsNullOrWhiteSpace(entry.Hint);
+        var usageH = hasRecipe ? UiTheme.S(showFornoHint ? 48 : 36) : 0;
         var costY = barY + (hasRecipe ? usageH : 0);
         var costH = barH - (hasRecipe ? usageH : 0);
 
         if (hasRecipe && recipe is not null)
         {
-            DrawDockRecipeUsage(barX + pad, barY + UiTheme.S(2), barW - pad * 2, usageH - UiTheme.S(4), recipe);
+            var recipeH = showFornoHint ? usageH - UiTheme.S(16) : usageH - UiTheme.S(4);
+            DrawDockRecipeUsage(barX + pad, barY + UiTheme.S(2), barW - pad * 2, recipeH, recipe);
+            if (showFornoHint)
+            {
+                var hint = TruncateUiText(entry.Hint!, 10, barW - pad * 2);
+                DrawUiText(hint, barX + pad, barY + usageH - UiTheme.S(14), 10, UiTheme.TextMuted);
+            }
+
             Raylib.DrawRectangle(barX + UiTheme.S(4), costY, barW - UiTheme.S(8), 1, UiTheme.PanelBorder);
         }
 
@@ -5200,7 +5295,7 @@ internal static class FactoryGameApp
             basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             powerNodeBuilding, powerNodeT2Building,
-            hasRecipe ? entry.Hint : null);
+            hasRecipe ? null : entry.Hint);
     }
 
     /// <summary>
@@ -5968,7 +6063,9 @@ internal static class FactoryGameApp
         var size = (int)(tileSize * SmelterBuilding.Size);
         WorldGraphics.DrawSmelterSilhouette(
             x, y, size, smelter.Progress, smelter.IsCrafting, smelter.Direction, preview, tileSize,
-            DrawBuildingNameplate, DrawDirectionMark);
+            DrawBuildingNameplate, DrawDirectionMark,
+            fuelBuffer: smelter.FuelBuffer,
+            isBurningFuel: smelter.IsBurningFuel);
     }
 
     private static void DrawAssembler(SmelterBuilding assembler, float fx, float fy, float tileSize, bool preview)
@@ -7074,7 +7171,14 @@ internal static class FactoryGameApp
 
         if (research.IsUnlocked("smelter") && world.Smelters.Count == 0)
         {
-            return "Piazza un FORNO: le lastre servono per costruire.";
+            return "Piazza un FORNO: carbone o corrente (bootstrap senza gen).";
+        }
+
+        if (world.Smelters.Count > 0
+            && world.Generators.Count == 0
+            && world.Smelters.Values.Any(s => s.FuelBuffer <= 0 && !s.IsBurningFuel))
+        {
+            return "Forno: carbone o corrente.";
         }
 
         var crafters = world.Smelters.Count + world.Assemblers.Count;

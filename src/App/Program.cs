@@ -42,10 +42,11 @@ if (!args.Contains("--console-demo"))
     var captureVersion = args.Contains("--capture-version");
     var capturePowerNodes = args.Contains("--capture-power-nodes")
         || args.Contains("--capture-power-cables"); // legacy alias
+    var captureSmelterFuel = args.Contains("--capture-smelter-fuel");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
         || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers
-        || captureVersion || capturePowerNodes;
+        || captureVersion || capturePowerNodes || captureSmelterFuel;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -103,6 +104,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "power-nodes.png");
         captureMode = "power-nodes";
+    }
+    else if (captureSmelterFuel)
+    {
+        capturePath = Path.Combine("artifacts", "smelter-coal-or-power.png");
+        captureMode = "smelter-fuel";
     }
     else if (capture)
     {
@@ -1354,7 +1360,152 @@ static void RunSelfTest(GameContent content)
     Assert(connected.IsCrafting || connected.OutputQueue.Count > 0 || connected.Progress > 0f,
         "Forno connesso deve craftare.");
     Assert(disconnected.Progress == 0f && disconnected.OutputQueue.Count == 0,
-        "Forno disconnesso non deve avanzare il craft (brownout rete).");
+        "Forno disconnesso senza carbone non deve avanzare il craft (né corrente né fuel).");
+
+    // Forno: carbone OR corrente — coal-only (unpowered) crafts; powered crafts without coal;
+    // neither stalls; powered is ~20% faster than coal-only baseline.
+    Assert(Math.Abs(SmelterBuilding.PoweredCraftSpeedMultiplier - 1.20f) < 0.001f,
+        "PoweredCraftSpeedMultiplier documentato = 1.20 (+20% vs coal-only).");
+
+    var coalOnlyWorld = new FactoryWorld(24, 14, 8801);
+    var coalOnlyGrid = new ConveyorGrid();
+    var coalOnlyWallet = new EconomyWallet(400, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 40,
+        ["coal"] = 8
+    });
+    var coalOnlyResearch = ResearchState.CreateNew(content);
+    Assert(coalOnlyResearch.TryUnlock(smelterTech, coalOnlyWallet), "Coal-only: sblocca forno.");
+    // Far from core/gen — no adjacency power, no nodes.
+    var coalOnlyAt = new GridPosition(1, 1);
+    Assert(coalOnlyWorld.TryPlaceSmelter(coalOnlyAt, Direction.East, smeltRecipe, coalOnlyGrid, coalOnlyWallet),
+        "Coal-only forno piazzabile.");
+    coalOnlyWorld.RefreshPowerNetworks();
+    Assert(!coalOnlyWorld.IsBuildingPowered(coalOnlyAt, SmelterBuilding.Size),
+        "Coal-only forno non è alimentato.");
+    var coalOnlySmelter = coalOnlyWorld.Smelters[coalOnlyAt];
+    Assert(coalOnlySmelter.TryAcceptFuel("coal"), "Coal-only: accetta carbone in buffer.");
+    Assert(coalOnlySmelter.TryAcceptFuel("coal"), "Coal-only: secondo carbone.");
+    Assert(coalOnlySmelter.TryAccept("iron-ore") && coalOnlySmelter.TryAccept("iron-ore"),
+        "Coal-only: buffer ore ricetta.");
+    var coalOnlyTick = 9400L;
+    for (var tick = 0; tick < 90; tick++)
+    {
+        coalOnlyWorld.Update(1f / 30f, coalOnlyGrid, coalOnlyWallet, ref coalOnlyTick);
+    }
+
+    Assert(coalOnlySmelter.Progress > 0f || coalOnlySmelter.OutputQueue.Count > 0,
+        "Forno solo-carbone (senza corrente) deve avanzare il craft.");
+
+    // Belt insert of coal into forno fuel buffer (like generator).
+    var coalBeltWorld = new FactoryWorld(16, 10, 8802);
+    var coalBeltGrid = new ConveyorGrid();
+    var coalBeltWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    var coalBeltResearch = ResearchState.CreateNew(content);
+    Assert(coalBeltResearch.TryUnlock(smelterTech, coalBeltWallet), "Coal-belt: sblocca forno.");
+    var coalBeltAt = new GridPosition(2, 2);
+    Assert(coalBeltWorld.TryPlaceSmelter(coalBeltAt, Direction.East, smeltRecipe, coalBeltGrid, coalBeltWallet),
+        "Coal-belt forno.");
+    Assert(coalBeltGrid.TryPlace(new GridPosition(1, 2), Direction.East, definition, coalBeltWallet, coalBeltResearch),
+        "Nastro carbone verso forno.");
+    Assert(coalBeltGrid.Cells[new GridPosition(1, 2)].TryInsert(new TransportedItem(9501, "coal")),
+        "Carbone sul nastro verso forno.");
+    coalBeltGrid.Cells[new GridPosition(1, 2)].Items[^1].Progress = 0.98f;
+    var coalBeltTick = 9500L;
+    for (var tick = 0; tick < 90; tick++)
+    {
+        coalBeltWorld.Update(1f / 30f, coalBeltGrid, coalBeltWallet, ref coalBeltTick);
+    }
+
+    Assert(coalBeltWorld.Smelters[coalBeltAt].FuelBuffer > 0
+        || coalBeltWorld.Smelters[coalBeltAt].IsBurningFuel,
+        "Forno deve accettare carbone dal nastro nel fuel buffer.");
+
+    // Speed comparison: coal-only vs powered over the same short window while both crafting.
+    var speedCoalWorld = new FactoryWorld(20, 12, 8803);
+    var speedCoalGrid = new ConveyorGrid();
+    var speedCoalWallet = new EconomyWallet(500, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 50,
+        ["coal"] = 6
+    });
+    var speedResearch = ResearchState.CreateNew(content);
+    Assert(speedResearch.TryUnlock(smelterTech, speedCoalWallet), "Speed: sblocca forno.");
+    Assert(speedResearch.TryUnlock(generatorTech, speedCoalWallet), "Speed: sblocca gen.");
+    var speedCoalAt = new GridPosition(1, 8);
+    Assert(speedCoalWorld.TryPlaceSmelter(speedCoalAt, Direction.East, smeltRecipe, speedCoalGrid, speedCoalWallet),
+        "Speed: forno coal-only.");
+    var speedPowerAt = new GridPosition(GeneratorBuilding.Size, 1);
+    var speedGenAt = new GridPosition(0, 1);
+    Assert(speedCoalWorld.TryPlaceGenerator(speedGenAt, speedCoalGrid, speedCoalWallet, generatorBuilding),
+        "Speed: gen.");
+    Assert(speedCoalWorld.TryPlaceSmelter(speedPowerAt, Direction.East, smeltRecipe, speedCoalGrid, speedCoalWallet),
+        "Speed: forno powered.");
+    speedCoalWorld.Generators[speedGenAt].TryAcceptFuel("coal");
+    speedCoalWorld.Generators[speedGenAt].TryAcceptFuel("coal");
+    var speedTick = 9600L;
+    for (var tick = 0; tick < 15; tick++)
+    {
+        speedCoalWorld.Update(1f / 30f, speedCoalGrid, speedCoalWallet, ref speedTick);
+    }
+
+    Assert(speedCoalWorld.Generators[speedGenAt].IsGenerating, "Speed: gen deve bruciare.");
+    Assert(speedCoalWorld.IsBuildingPowered(speedPowerAt, SmelterBuilding.Size),
+        "Speed: forno powered è alimentato.");
+    Assert(!speedCoalWorld.IsBuildingPowered(speedCoalAt, SmelterBuilding.Size),
+        "Speed: forno coal-only non alimentato.");
+
+    var speedCoalSm = speedCoalWorld.Smelters[speedCoalAt];
+    var speedPowerSm = speedCoalWorld.Smelters[speedPowerAt];
+    speedCoalSm.TryAcceptFuel("coal");
+    speedCoalSm.TryAcceptFuel("coal");
+    Assert(speedCoalSm.TryAccept("iron-ore") && speedCoalSm.TryAccept("iron-ore"), "Speed coal ore.");
+    Assert(speedPowerSm.TryAccept("iron-ore") && speedPowerSm.TryAccept("iron-ore"), "Speed power ore.");
+    Assert(speedPowerSm.FuelBuffer == 0, "Speed powered: niente carbone sul forno.");
+
+    // Warm gen burn + start crafts.
+    for (var tick = 0; tick < 8; tick++)
+    {
+        speedCoalWorld.Update(1f / 30f, speedCoalGrid, speedCoalWallet, ref speedTick);
+    }
+
+    Assert(speedCoalSm.IsCrafting && speedPowerSm.IsCrafting,
+        "Speed: entrambi i forni devono essere in craft.");
+    var coalProgressBefore = speedCoalSm.Progress;
+    var powerProgressBefore = speedPowerSm.Progress;
+    for (var tick = 0; tick < 30; tick++)
+    {
+        speedCoalWorld.Update(1f / 30f, speedCoalGrid, speedCoalWallet, ref speedTick);
+    }
+
+    var coalDelta = speedCoalSm.Progress - coalProgressBefore;
+    var powerDelta = speedPowerSm.Progress - powerProgressBefore;
+    Assert(coalDelta > 0f && powerDelta > 0f, "Speed: entrambi avanzano.");
+    Assert(powerDelta > coalDelta * 1.10f,
+        $"Corrente deve essere ~20% più veloce del solo-carbone (powerΔ={powerDelta:F3} coalΔ={coalDelta:F3}).");
+    Assert(Math.Abs(powerDelta / coalDelta - SmelterBuilding.PoweredCraftSpeedMultiplier) < 0.08f,
+        $"Rapporto velocità powered/coal ≈ {SmelterBuilding.PoweredCraftSpeedMultiplier} (got {powerDelta / coalDelta:F3}).");
+
+    // Neither: no coal, no power → stuck.
+    var neitherWorld = new FactoryWorld(16, 10, 8804);
+    var neitherGrid = new ConveyorGrid();
+    var neitherWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 30 });
+    var neitherResearch = ResearchState.CreateNew(content);
+    Assert(neitherResearch.TryUnlock(smelterTech, neitherWallet), "Neither: sblocca forno.");
+    var neitherAt = new GridPosition(2, 2);
+    Assert(neitherWorld.TryPlaceSmelter(neitherAt, Direction.East, smeltRecipe, neitherGrid, neitherWallet),
+        "Neither forno.");
+    neitherWorld.RefreshPowerNetworks();
+    var neitherSm = neitherWorld.Smelters[neitherAt];
+    Assert(neitherSm.TryAccept("iron-ore") && neitherSm.TryAccept("iron-ore"), "Neither ore.");
+    var neitherTick = 9700L;
+    for (var tick = 0; tick < 90; tick++)
+    {
+        neitherWorld.Update(1f / 30f, neitherGrid, neitherWallet, ref neitherTick);
+    }
+
+    Assert(neitherSm.Progress == 0f && neitherSm.OutputQueue.Count == 0,
+        "Senza carbone né corrente il forno resta fermo.");
 
     var netCaptured = GameSaveStore.Capture(
         netWorld, netGrid, netWallet, new WorldCamera(0, 0, 1f), netResearch, new EconomySession(netWallet.Money), netTick);
@@ -1382,6 +1533,12 @@ static void RunSelfTest(GameContent content)
         "Label dock nodo = Nodo T1.");
     Assert(!UiTheme.EntriesFor(UiTheme.BuildCategory.Power).Any(e => e.Id == "power-cable"),
         "Cavo T1 rimosso dal dock.");
+    var fornoDock = UiTheme.EntriesFor(UiTheme.BuildCategory.Production).Single(e => e.Id == "smelter");
+    Assert(fornoDock.Hint is not null
+            && fornoDock.Hint.Contains("carbone o corrente", StringComparison.OrdinalIgnoreCase),
+        "Dock Forno: hint 'carbone o corrente'.");
+    Assert(PowerNetworking.AutoLinkRule.Contains("carbone o corrente", StringComparison.OrdinalIgnoreCase),
+        "Regola potenza documenta Forno carbone o corrente.");
 
     // Mid-game: Minatore T2 + Nastro T3.
     var midResearch = ResearchState.CreateNew(content);
