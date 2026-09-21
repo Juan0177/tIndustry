@@ -518,6 +518,12 @@ public static class GameSaveStore
                     continue;
                 }
 
+                // CORE is not on the power graph — drop legacy core links on load.
+                if (kindA == PowerEndpointKind.Core || kindB == PowerEndpointKind.Core)
+                {
+                    continue;
+                }
+
                 world.TryRestorePowerLink(
                     new PowerEndpointId(kindA, new GridPosition(linkData.AX, linkData.AY)),
                     new PowerEndpointId(kindB, new GridPosition(linkData.BX, linkData.BY)));

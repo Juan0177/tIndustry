@@ -856,7 +856,7 @@ public sealed class FactoryWorld
         return true;
     }
 
-    /// <summary>Spend only if the building is on a powered local network (or touches core/gen).</summary>
+    /// <summary>Spend only if the building is on a live gen network or adjacency-powered cluster.</summary>
     public bool TrySpendPowerForBuilding(GridPosition origin, int size, float amount)
     {
         if (amount <= 0f)
@@ -1072,10 +1072,11 @@ public sealed class FactoryWorld
         powerNetworks = PowerNetworking.Build(this, powerNodes, powerLinks, generators.Values);
 
     /// <summary>
-    /// Ensures a consumer is on a live network by placing a T1 node near it (auto-links to core/gen).
+    /// Ensures a consumer is powered: prefer adjacency to a fueled generator, else place T1
+    /// node(s) that auto-link toward the nearest generator (never CORE).
     /// Used by self-tests and capture scenes.
     /// </summary>
-    public bool TryEnsurePowerLinkToCore(
+    public bool TryEnsurePowerLinkToGenerator(
         GridPosition origin,
         int size,
         ConveyorGrid conveyors,
@@ -1095,7 +1096,7 @@ public sealed class FactoryWorld
             MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
             PowerLinkRange: PowerNodeBuilding.Tier1Range);
 
-        // Prefer a free tile adjacent to the building footprint, within T1 range of the core if possible.
+        // Prefer a free tile adjacent to the building, scored toward nearest generator.
         var candidates = new List<(GridPosition Pos, float Score)>();
         foreach (var tile in Footprint(origin, size))
         {
@@ -1107,10 +1108,9 @@ public sealed class FactoryWorld
                     continue;
                 }
 
-                var toCore = PowerNetworking.DistanceCenters(
-                    n, PowerNodeBuilding.Tier1Size, CoreOrigin, CoreSize);
+                var toGen = NearestGeneratorDistance(n, PowerNodeBuilding.Tier1Size);
                 var toBuilding = PowerNetworking.DistanceCenters(n, PowerNodeBuilding.Tier1Size, origin, size);
-                candidates.Add((n, toCore + toBuilding * 0.1f));
+                candidates.Add((n, toGen + toBuilding * 0.1f));
             }
         }
 
@@ -1127,15 +1127,14 @@ public sealed class FactoryWorld
                         continue;
                     }
 
-                    var toCore = PowerNetworking.DistanceCenters(
-                        n, PowerNodeBuilding.Tier1Size, CoreOrigin, CoreSize);
                     var toBuilding = PowerNetworking.DistanceCenters(n, PowerNodeBuilding.Tier1Size, origin, size);
                     if (toBuilding > PowerNodeBuilding.Tier1Range)
                     {
                         continue;
                     }
 
-                    candidates.Add((n, toCore + toBuilding * 0.1f));
+                    var toGen = NearestGeneratorDistance(n, PowerNodeBuilding.Tier1Size);
+                    candidates.Add((n, toGen + toBuilding * 0.1f));
                 }
             }
         }
@@ -1147,36 +1146,13 @@ public sealed class FactoryWorld
                 continue;
             }
 
-            // If still not powered (building too far from core), place a second node near the core.
             if (IsBuildingPowered(origin, size))
             {
                 return true;
             }
 
-            GridPosition? coreNode = null;
-            var best = float.MaxValue;
-            foreach (var coreTile in CoreTiles)
-            {
-                for (var d = 0; d < DirectionMath.All.Length; d++)
-                {
-                    var n = coreTile.Step(DirectionMath.All[d]);
-                    if (!CanPlacePowerNode(n, PowerNodeBuilding.Tier1Size, conveyors))
-                    {
-                        continue;
-                    }
-
-                    var dist = PowerNetworking.DistanceCenters(
-                        pos, PowerNodeBuilding.Tier1Size, n, PowerNodeBuilding.Tier1Size);
-                    if (dist < best && dist <= PowerNodeBuilding.Tier1Range)
-                    {
-                        best = dist;
-                        coreNode = n;
-                    }
-                }
-            }
-
-            if (coreNode is { } cn
-                && TryPlacePowerNode(cn, conveyors, wallet, PowerNodeBuilding.Tier1Id, cost, session)
+            // Bridge toward nearest generator with a second node if needed.
+            if (TryPlaceBridgeNodeTowardGenerator(pos, conveyors, wallet, cost, session)
                 && IsBuildingPowered(origin, size))
             {
                 return true;
@@ -1185,6 +1161,73 @@ public sealed class FactoryWorld
 
         RefreshPowerNetworks();
         return IsBuildingPowered(origin, size);
+    }
+
+    /// <summary>Legacy alias — CORE is not on the power graph; routes to generator ensure.</summary>
+    public bool TryEnsurePowerLinkToCore(
+        GridPosition origin,
+        int size,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null) =>
+        TryEnsurePowerLinkToGenerator(origin, size, conveyors, wallet, cost, session);
+
+    private float NearestGeneratorDistance(GridPosition nodeOrigin, int nodeSize)
+    {
+        var best = float.MaxValue;
+        foreach (var gen in generators.Values)
+        {
+            var dist = PowerNetworking.DistanceCenters(
+                nodeOrigin, nodeSize, gen.Position, GeneratorBuilding.Size);
+            if (dist < best)
+            {
+                best = dist;
+            }
+        }
+
+        return best;
+    }
+
+    private bool TryPlaceBridgeNodeTowardGenerator(
+        GridPosition fromNode,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        BuildingDefinition cost,
+        EconomySession? session)
+    {
+        if (generators.Count == 0)
+        {
+            return false;
+        }
+
+        GridPosition? bestPos = null;
+        var best = float.MaxValue;
+        foreach (var gen in generators.Values)
+        {
+            foreach (var genTile in gen.OccupiedTiles())
+            {
+                for (var d = 0; d < DirectionMath.All.Length; d++)
+                {
+                    var n = genTile.Step(DirectionMath.All[d]);
+                    if (!CanPlacePowerNode(n, PowerNodeBuilding.Tier1Size, conveyors))
+                    {
+                        continue;
+                    }
+
+                    var dist = PowerNetworking.DistanceCenters(
+                        fromNode, PowerNodeBuilding.Tier1Size, n, PowerNodeBuilding.Tier1Size);
+                    if (dist < best && dist <= PowerNodeBuilding.Tier1Range)
+                    {
+                        best = dist;
+                        bestPos = n;
+                    }
+                }
+            }
+        }
+
+        return bestPos is { } pos
+            && TryPlacePowerNode(pos, conveyors, wallet, PowerNodeBuilding.Tier1Id, cost, session);
     }
 
     public bool TryGetPowerNodeAt(GridPosition position, out PowerNodeBuilding node) =>
