@@ -26,7 +26,7 @@ Release di contenuto sopra **0.2.7**: mid-game Phase 6, I/O, tech tree, sorter, 
 - **Nodi potenza** T1/T2 (linee dirette + auto-link); cavi tile superseduti; grafo esclude CORE ([#49](https://github.com/Juan0177/tIndustry/pull/49)–[#51](https://github.com/Juan0177/tIndustry/pull/51))
 - **Forno = carbone OR corrente** (+20% craft se alimentato da rete) ([#52](https://github.com/Juan0177/tIndustry/pull/52))
 - Naming UI a **codici tier** (Minatore T1/T2, Nastro T1/T2/T3)
-- **Docs**: README allineato a 0.2.8
+- **Docs**: README **revamp** per 0.2.8 (pitch mid-game, download first, controlli/power aggiornati)
 
 ### Verifica
 
