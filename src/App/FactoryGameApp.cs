@@ -1367,8 +1367,8 @@ internal static class FactoryGameApp
         var smelterBuilding = content.GetBuildingOrDefault("smelter");
         var generatorBuilding = content.GetBuildingOrDefault("generator");
 
-        // Coal-only forno west — fueled via belt, no gen adjacency.
-        var coalSmelterAt = new GridPosition(world.CoreOrigin.X - 9, world.CoreOrigin.Y);
+        // Coal-only forno (bootstrap) — fueled buffer, no gen adjacency.
+        var coalSmelterAt = new GridPosition(world.CoreOrigin.X - 7, world.CoreOrigin.Y + 3);
         world.TryPlaceSmelter(coalSmelterAt, Direction.East, smeltRecipe, conveyors, wallet, smelterBuilding, session);
         if (world.TryGetSmelterAt(coalSmelterAt, out var coalSmelter))
         {
@@ -1391,7 +1391,7 @@ internal static class FactoryGameApp
         }
 
         // Powered forno east of a fueled gen (adjacency) — no coal on the forno itself.
-        var genAt = new GridPosition(world.CoreOrigin.X - 4, world.CoreOrigin.Y);
+        var genAt = new GridPosition(world.CoreOrigin.X - 5, world.CoreOrigin.Y);
         world.TryPlaceGenerator(genAt, conveyors, wallet, generatorBuilding, session);
         if (world.TryGetGeneratorAt(genAt, out var gen))
         {
@@ -5271,13 +5271,21 @@ internal static class FactoryGameApp
 
         var hasRecipe = TryResolveDockEntryRecipe(entry, smeltRecipe, wireRecipe, out var recipe);
         var pad = UiTheme.S(6);
-        var usageH = hasRecipe ? UiTheme.S(36) : 0;
+        var showFornoHint = entry.Id == "smelter" && !string.IsNullOrWhiteSpace(entry.Hint);
+        var usageH = hasRecipe ? UiTheme.S(showFornoHint ? 48 : 36) : 0;
         var costY = barY + (hasRecipe ? usageH : 0);
         var costH = barH - (hasRecipe ? usageH : 0);
 
         if (hasRecipe && recipe is not null)
         {
-            DrawDockRecipeUsage(barX + pad, barY + UiTheme.S(2), barW - pad * 2, usageH - UiTheme.S(4), recipe);
+            var recipeH = showFornoHint ? usageH - UiTheme.S(16) : usageH - UiTheme.S(4);
+            DrawDockRecipeUsage(barX + pad, barY + UiTheme.S(2), barW - pad * 2, recipeH, recipe);
+            if (showFornoHint)
+            {
+                var hint = TruncateUiText(entry.Hint!, 10, barW - pad * 2);
+                DrawUiText(hint, barX + pad, barY + usageH - UiTheme.S(14), 10, UiTheme.TextMuted);
+            }
+
             Raylib.DrawRectangle(barX + UiTheme.S(4), costY, barW - UiTheme.S(8), 1, UiTheme.PanelBorder);
         }
 
@@ -5287,7 +5295,7 @@ internal static class FactoryGameApp
             basicConveyor, fastConveyor, expressConveyor, junctionConveyor, splitterConveyor, sorterConveyor, bridgeConveyor,
             minerBuilding, advancedMinerBuilding, smelterBuilding, assemblerBuilding, generatorBuilding,
             powerNodeBuilding, powerNodeT2Building,
-            hasRecipe ? entry.Hint : null);
+            hasRecipe ? null : entry.Hint);
     }
 
     /// <summary>
