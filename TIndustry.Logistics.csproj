@@ -14,6 +14,14 @@
     <RootNamespace>TIndustry.Logistics</RootNamespace>
   </PropertyGroup>
 
+  <!-- Godot spike + Shared lib are separate projects; exclude from Raylib glob. -->
+  <ItemGroup>
+    <Compile Remove="godot/**" />
+    <Compile Remove="src/TIndustry.Shared/**" />
+    <None Remove="godot/**" />
+    <EmbeddedResource Remove="godot/**" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Seed templates only — runtime copies into AppData on first launch. Do not ship Excel. -->
     <None Include="data\content.json" CopyToOutputDirectory="PreserveNewest" />

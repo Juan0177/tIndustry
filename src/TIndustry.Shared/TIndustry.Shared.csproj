@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TIndustry.Shared</RootNamespace>
+    <AssemblyName>TIndustry.Shared</AssemblyName>
+    <Description>Thin shared sim/data for Godot spike — not a full extract of TIndustry.Logistics.</Description>
+  </PropertyGroup>
+</Project>

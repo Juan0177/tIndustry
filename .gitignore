@@ -35,3 +35,9 @@ Desktop.ini
 !.vscode/launch.json
 !.vscode/tasks.json
 !.vscode/extensions.json
+
+# Godot 4 spike (local editor/import + build caches)
+godot/.godot/
+godot/**/bin/
+godot/**/obj/
+godot/.mono/
