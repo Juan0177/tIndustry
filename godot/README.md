@@ -24,8 +24,13 @@ Controls: **WASD** / middle-drag pan, mouse wheel zoom.
 ## What you should see
 
 - Checkerboard grid map
-- One eastbound belt strip with iron-ore icons moving (rates from `data/content.json` → `conveyor-basic`)
-- **Static** miner sprite (`assets/miner.png`) — same as Raylib; no drill / tip spin. Building animations come later when we want them.
+- One eastbound belt with **Mindustry-style scrolling chevrons** (`shaders/belt_scroll.gdshader` + `ScrollingBeltStrip`) — scroll speed = `conveyor-basic` `rateItemsPerSecond` from `data/content.json`
+- Iron-ore icons **riding on top** of the moving belt (same `BeltLane` Advance math as Logistics)
+- **Static** miner sprite (`assets/miner.png`) — same as Raylib; no drill / tip spin
+
+### Corners / junctions
+
+This spike is **straight lane only**. Corner tiles, cross/splitter UV, and per-cell direction joins are follow-ups for the core port.
 
 ## Projects
 
