@@ -7,13 +7,25 @@ public enum StructureKind
     Stub
 }
 
+public enum ResearchNodeState
+{
+    Locked,
+    Available,
+    Unlocked
+}
+
 public sealed record StructureDefinition(
     string Id,
     string DisplayName,
     StructureKind Kind,
     bool UnlockedByDefault,
     UnlockRequirement? Unlock,
-    bool IsStub = false);
+    bool IsStub = false,
+    IReadOnlyList<string>? Prerequisites = null)
+{
+    public IReadOnlyList<string> Requires =>
+        Prerequisites ?? Array.Empty<string>();
+}
 
 public sealed class ResearchState
 {
@@ -50,13 +62,29 @@ public sealed class ResearchState
 
     public void ForceUnlock(string structureId) => unlocked.Add(structureId);
 
+    public bool MeetsPrerequisites(StructureDefinition structure) =>
+        structure.Requires.All(IsUnlocked);
+
+    public ResearchNodeState GetNodeState(StructureDefinition structure)
+    {
+        if (IsUnlocked(structure.Id))
+        {
+            return ResearchNodeState.Unlocked;
+        }
+
+        return MeetsPrerequisites(structure)
+            ? ResearchNodeState.Available
+            : ResearchNodeState.Locked;
+    }
+
     public bool CanUnlock(StructureDefinition structure, EconomyWallet wallet) =>
         !IsUnlocked(structure.Id)
+        && MeetsPrerequisites(structure)
         && (structure.Unlock is null || wallet.CanAfford(structure.Unlock.Money, structure.Unlock.Materials));
 
     public bool TryUnlock(StructureDefinition structure, EconomyWallet wallet)
     {
-        if (IsUnlocked(structure.Id))
+        if (IsUnlocked(structure.Id) || !MeetsPrerequisites(structure))
         {
             return false;
         }

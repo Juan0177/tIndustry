@@ -14,7 +14,8 @@ public enum LogisticsKind
     Belt,
     Junction,
     Splitter,
-    Bridge
+    Bridge,
+    Sorter
 }
 
 public sealed record ConveyorDefinition(

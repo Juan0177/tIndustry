@@ -157,19 +157,22 @@ public sealed class ConveyorCell
 
     private readonly List<TransportedItem> items;
     private int splitterToggle;
+    private string? filterItemId;
 
     public ConveyorCell(
         GridPosition position,
         Direction direction,
         ConveyorDefinition definition,
         GridPosition? bridgePartner = null,
-        int splitterToggle = 0)
+        int splitterToggle = 0,
+        string? filterItemId = null)
     {
         Position = position;
         Direction = direction;
         Definition = definition;
         BridgePartner = bridgePartner;
         this.splitterToggle = splitterToggle;
+        this.filterItemId = NormalizeFilter(definition.Kind, filterItemId);
         items = new List<TransportedItem>(definition.Capacity);
         RoutedExit = direction;
     }
@@ -181,8 +184,57 @@ public sealed class ConveyorCell
     public GridPosition? BridgePartner { get; set; }
     public Direction RoutedExit { get; private set; }
     public int SplitterToggle => splitterToggle;
+    /// <summary>Matched items exit forward; others left/right. Default <c>iron-ore</c> for sorters.</summary>
+    public string? FilterItemId => filterItemId;
     public IReadOnlyList<TransportedItem> Items => items;
     public GridPosition OutputPosition => Position.Step(RoutedExit);
+
+    private static string? NormalizeFilter(LogisticsKind kind, string? filterItemId)
+    {
+        if (kind != LogisticsKind.Sorter)
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(filterItemId) ? "iron-ore" : filterItemId;
+    }
+
+    public bool MatchesFilter(string itemId) =>
+        Kind == LogisticsKind.Sorter
+        && !string.IsNullOrEmpty(filterItemId)
+        && string.Equals(filterItemId, itemId, StringComparison.Ordinal);
+
+    public void SetFilterItem(string? itemId)
+    {
+        if (Kind != LogisticsKind.Sorter)
+        {
+            return;
+        }
+
+        filterItemId = string.IsNullOrWhiteSpace(itemId) ? "iron-ore" : itemId;
+    }
+
+    /// <summary>Cycle filter through known inventory item ids (Italian dock list).</summary>
+    public void CycleFilterItem(IReadOnlyList<string> itemIds)
+    {
+        if (Kind != LogisticsKind.Sorter || itemIds.Count == 0)
+        {
+            return;
+        }
+
+        var current = filterItemId ?? itemIds[0];
+        var index = 0;
+        for (var i = 0; i < itemIds.Count; i++)
+        {
+            if (string.Equals(itemIds[i], current, StringComparison.Ordinal))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        filterItemId = itemIds[(index + 1) % itemIds.Count];
+    }
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null)
     {
@@ -209,8 +261,9 @@ public sealed class ConveyorCell
         {
             LogisticsKind.Junction when fromDirection is { } incoming =>
                 incoming,
-            // Splitters travel like belts along facing; side exits are chosen at handoff.
+            // Splitters/sorters travel like belts along facing; exits chosen at handoff.
             LogisticsKind.Splitter => Direction,
+            LogisticsKind.Sorter => Direction,
             LogisticsKind.Bridge => Direction,
             _ => Direction
         };
@@ -249,7 +302,7 @@ public sealed class ConveyorCell
     public void Rotate(Direction direction)
     {
         Direction = direction;
-        if (Kind is LogisticsKind.Belt or LogisticsKind.Bridge or LogisticsKind.Splitter)
+        if (Kind is LogisticsKind.Belt or LogisticsKind.Bridge or LogisticsKind.Splitter or LogisticsKind.Sorter)
         {
             RoutedExit = direction;
         }
@@ -395,14 +448,15 @@ public sealed class ConveyorGrid
         ConveyorDefinition definition,
         IEnumerable<TransportedItem>? items = null,
         GridPosition? bridgePartner = null,
-        int splitterToggle = 0)
+        int splitterToggle = 0,
+        string? filterItemId = null)
     {
         if (cells.ContainsKey(position))
         {
             return false;
         }
 
-        var cell = new ConveyorCell(position, direction, definition, bridgePartner, splitterToggle);
+        var cell = new ConveyorCell(position, direction, definition, bridgePartner, splitterToggle, filterItemId);
         if (items is not null)
         {
             cell.RestoreItems(items);
@@ -480,6 +534,7 @@ public sealed class ConveyorGrid
     {
         if (!cells.TryGetValue(from, out var cell)
             || cell.Kind is LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Bridge
+                or LogisticsKind.Sorter
             || !TryDirectionBetween(from, to, out var direction))
         {
             return false;
@@ -544,6 +599,22 @@ public sealed class ConveyorGrid
                 || TryInsertNeighbor(cell, cell.AlternateSplitterExit, item))
             {
                 cell.AdvanceSplitterToggle();
+            }
+
+            return;
+        }
+
+        if (cell.Kind == LogisticsKind.Sorter)
+        {
+            // Mindustry-style: filter match → facing; others → left then right.
+            if (cell.MatchesFilter(item.ItemId))
+            {
+                TryInsertNeighbor(cell, cell.Direction, item);
+            }
+            else if (TryInsertNeighbor(cell, DirectionMath.Left(cell.Direction), item)
+                || TryInsertNeighbor(cell, DirectionMath.Right(cell.Direction), item))
+            {
+                // overflow routed
             }
 
             return;

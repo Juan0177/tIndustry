@@ -8,6 +8,8 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 ### Aggiunto / migliorato
 
 - **Grafica mondo (Raylib)**: silhouettes TI-inspired distinte per miner/forno/assy/gen/core (ombra soft + rim), chevron nastri più leggibili, terrain con micro-variazione; stack resta Raylib-cs (no DLSS/FSR)
+- **Tech tree a grafo**: pannello Ricerca (T) con nodi/archi da `prerequisites` in `content.json`; stati bloccato/disponibile/sbloccato; costi $ + materiali invariati
+- **Selezionatore (sorter)**: blocco logistica stile Mindustry — item filtrato avanti, altri a sinistra/destra; filtro ciclabile con **F**; dock Logistica; unlock in `content.json`
 - **I/O belt-uscente**: forno/assemblatore espellono su qualsiasi nastro adiacente che punta *via* dal footprint; miner solo su belt uscenti (non più su belt rivolti verso l’edificio)
 - **Trasferimento adiacente** (stile Mindustry): miner|forno, forno|assemblatore, edifici→CORE senza nastro se i footprint si toccano
 - **Overlay I/O**: amber = uscita uscente, ciano = ingresso entrante (ghost + mondo)

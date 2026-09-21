@@ -49,7 +49,8 @@ public static class ExcelContentStore
                     Enum.Parse<StructureKind>(row.Cell(3).GetString(), ignoreCase: true),
                     row.Cell(4).GetValue<bool>(),
                     ParseUnlock(row.Cell(5).GetString(), row.Cell(6).GetString()),
-                    row.Cell(7).GetValue<bool>()))
+                    row.Cell(7).GetValue<bool>(),
+                    ParseIdList(row.Cell(8).IsEmpty() ? "" : row.Cell(8).GetString())))
                 .ToArray();
         }
 
@@ -168,7 +169,8 @@ public static class ExcelContentStore
 
         var structuresSheet = workbook.AddWorksheet("Structures");
         WriteHeaders(structuresSheet,
-            "Id", "DisplayName", "Kind", "UnlockedByDefault", "UnlockMoney", "UnlockMaterials", "IsStub");
+            "Id", "DisplayName", "Kind", "UnlockedByDefault", "UnlockMoney", "UnlockMaterials", "IsStub",
+            "Prerequisites");
         for (var index = 0; index < content.Structures.Count; index++)
         {
             var structure = content.Structures[index];
@@ -180,6 +182,7 @@ public static class ExcelContentStore
             structuresSheet.Cell(row, 5).Value = structure.Unlock?.Money ?? 0;
             structuresSheet.Cell(row, 6).Value = FormatAmounts(structure.Unlock?.Materials ?? []);
             structuresSheet.Cell(row, 7).Value = structure.IsStub;
+            structuresSheet.Cell(row, 8).Value = string.Join(';', structure.Requires);
         }
 
         var marketSheet = workbook.AddWorksheet("Market");
@@ -240,6 +243,16 @@ public static class ExcelContentStore
         return money == 0 && materials.Count == 0
             ? null
             : new UnlockRequirement(money, materials);
+    }
+
+    private static IReadOnlyList<string> ParseIdList(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        return value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private static IReadOnlyList<ResourceAmount> ParseAmounts(string value)

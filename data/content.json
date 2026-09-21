@@ -69,6 +69,25 @@
       "kind": "splitter"
     },
     {
+      "id": "sorter",
+      "tier": 1,
+      "rateItemsPerSecond": 0.75,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 22,
+      "buildCost": [
+        { "itemId": "iron-plate", "amount": 3 },
+        { "itemId": "copper-wire", "amount": 1 }
+      ],
+      "unlock": {
+        "money": 140,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 18 }
+        ]
+      },
+      "kind": "sorter"
+    },
+    {
       "id": "conveyor-bridge",
       "tier": 1,
       "rateItemsPerSecond": 0.5,
@@ -118,7 +137,8 @@
       "kind": "conveyor",
       "unlockedByDefault": true,
       "unlock": null,
-      "isStub": false
+      "isStub": false,
+      "prerequisites": []
     },
     {
       "id": "miner",
@@ -126,7 +146,8 @@
       "kind": "building",
       "unlockedByDefault": true,
       "unlock": null,
-      "isStub": false
+      "isStub": false,
+      "prerequisites": []
     },
     {
       "id": "smelter",
@@ -139,7 +160,8 @@
           { "itemId": "iron-plate", "amount": 15 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["miner"]
     },
     {
       "id": "conveyor-fast",
@@ -152,7 +174,8 @@
           { "itemId": "iron-plate", "amount": 50 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["smelter"]
     },
     {
       "id": "junction",
@@ -165,7 +188,8 @@
           { "itemId": "iron-plate", "amount": 10 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["conveyor-basic"]
     },
     {
       "id": "splitter",
@@ -176,6 +200,20 @@
         "money": 120,
         "materials": [
           { "itemId": "iron-plate", "amount": 15 }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": ["junction"]
+    },
+    {
+      "id": "sorter",
+      "displayName": "Selezionatore",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 140,
+        "materials": [
+          { "itemId": "iron-plate", "amount": 18 }
         ]
       },
       "isStub": false
@@ -191,7 +229,8 @@
           { "itemId": "iron-plate", "amount": 20 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["junction"]
     },
     {
       "id": "assembler",
@@ -205,7 +244,8 @@
           { "itemId": "copper-wire", "amount": 4 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["smelter"]
     },
     {
       "id": "generator",
@@ -218,7 +258,8 @@
           { "itemId": "iron-plate", "amount": 12 }
         ]
       },
-      "isStub": false
+      "isStub": false,
+      "prerequisites": ["smelter"]
     },
     {
       "id": "miner-advanced",
@@ -231,7 +272,8 @@
           { "itemId": "iron-plate", "amount": 25 }
         ]
       },
-      "isStub": true
+      "isStub": true,
+      "prerequisites": ["miner", "smelter"]
     }
   ],
   "market": [

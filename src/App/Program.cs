@@ -23,7 +23,8 @@ var basicConveyor = content.Conveyors.Single(definition => definition.Id == "con
 
 if (args.Contains("--self-test"))
 {
-    RunSelfTest(content);
+    // Always test against shipped seed so prerequisites/UI data match the repo.
+    RunSelfTest(GameContent.Load(seedJsonPath));
     return;
 }
 
@@ -32,8 +33,10 @@ if (!args.Contains("--console-demo"))
     var captureIo = args.Contains("--capture-io");
     var captureTutorial = args.Contains("--capture-tutorial");
     var captureGraphics = args.Contains("--capture-graphics");
+    var captureTechTree = args.Contains("--capture-tech-tree");
+    var captureSorter = args.Contains("--capture-sorter");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
-        || captureIo || captureTutorial || captureGraphics;
+        || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -51,6 +54,16 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "tutorial-extended.png");
         captureMode = "tutorial";
+    }
+    else if (captureTechTree)
+    {
+        capturePath = Path.Combine("artifacts", "tech-tree-graph.png");
+        captureMode = "tech-tree";
+    }
+    else if (captureSorter)
+    {
+        capturePath = Path.Combine("artifacts", "sorter-routing.png");
+        captureMode = "sorter";
     }
     else if (capture)
     {
@@ -119,12 +132,48 @@ static void RunSelfTest(GameContent content)
         "Il minatore T2 resta stub.");
     Assert(content.FindStructure("junction") is not null
         && content.FindStructure("splitter") is not null
+        && content.FindStructure("sorter") is not null
         && content.FindStructure("conveyor-bridge") is not null,
-        "Incrocio, sdoppiatore e ponte devono esistere nelle strutture.");
+        "Incrocio, sdoppiatore, selezionatore e ponte devono esistere nelle strutture.");
     Assert(content.Recipes.Any(recipe => recipe.Id == "craft-copper-wire"),
         "La ricetta craft-copper-wire deve esistere.");
     Assert(content.CreateMarket().GetSellPrice("copper-ore") == 6,
         "Il rame grezzo deve avere prezzo mercato.");
+
+    // Tech tree prerequisites: data-driven edges gate unlock.
+    Assert(smelterTech.Requires.Contains("miner"), "Il forno richiede il minatore.");
+    Assert(fastTech.Requires.Contains("smelter"), "Il nastro veloce richiede il forno.");
+    Assert(content.FindStructure("assembler")!.Requires.Contains("smelter"),
+        "L'assemblatore richiede il forno.");
+    Assert(content.FindStructure("splitter")!.Requires.Contains("junction"),
+        "Lo sdoppiatore richiede l'incrocio.");
+    var prereqResearch = ResearchState.CreateNew(content);
+    var prereqWallet = new EconomyWallet(1000, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 200,
+        ["copper-wire"] = 40
+    });
+    Assert(prereqResearch.GetNodeState(smelterTech) == ResearchNodeState.Available,
+        "Con miner default il forno è disponibile.");
+    Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Locked,
+        "Senza forno il nastro veloce resta bloccato.");
+    Assert(!prereqResearch.CanUnlock(fastTech, prereqWallet),
+        "CanUnlock deve fallire senza prerequisiti.");
+    Assert(!prereqResearch.TryUnlock(fastTech, prereqWallet),
+        "TryUnlock deve fallire senza prerequisiti anche con risorse.");
+    Assert(prereqWallet.Money == 1000, "Unlock fallito non deve spendere.");
+    Assert(prereqResearch.TryUnlock(smelterTech, prereqWallet), "Sblocco forno con prereq miner.");
+    Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Available,
+        "Dopo il forno il nastro veloce diventa disponibile.");
+    Assert(prereqResearch.TryUnlock(fastTech, prereqWallet), "Sblocco nastro veloce dopo forno.");
+    var treeGraph = TechTreeLayout.Build(content);
+    Assert(treeGraph.Nodes.Count == content.Structures.Count,
+        "Il grafo deve includere tutte le strutture.");
+    Assert(treeGraph.Edges.Count >= 6, "Il grafo deve avere archi da prerequisites.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "miner" && edge.ToId == "smelter"),
+        "Arco miner → forno.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "smelter" && edge.ToId == "conveyor-fast"),
+        "Arco forno → nastro veloce.");
 
     var grid = CreateTwoCellLine(definition, research);
     var first = grid.Cells[new GridPosition(0, 0)];
@@ -536,10 +585,11 @@ static void RunSelfTest(GameContent content)
     var lockedResearch = ResearchState.CreateNew(content);
     var lockedWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
     Assert(!lockedResearch.CanUnlock(fastTech, lockedWallet), "Senza risorse non si sblocca il nastro veloce.");
-    var unlockWallet = new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 55, ["copper-wire"] = 5 });
+    var unlockWallet = new EconomyWallet(450, new Dictionary<string, int> { ["iron-plate"] = 70, ["copper-wire"] = 5 });
+    Assert(lockedResearch.TryUnlock(smelterTech, unlockWallet), "Prereq forno per nastro veloce.");
     Assert(lockedResearch.TryUnlock(fastTech, unlockWallet), "Con risorse sufficienti si sblocca il nastro veloce.");
     Assert(lockedResearch.IsUnlocked("conveyor-fast"), "Lo sblocco deve restare in ResearchState.");
-    Assert(unlockWallet.Money == 50, "Lo sblocco deve consumare i $250 di ricerca.");
+    Assert(unlockWallet.Money == 100, "Lo sblocco deve consumare $100 forno + $250 nastro.");
     var tierGrid = new ConveyorGrid();
     Assert(tierGrid.TryPlace(new GridPosition(0, 0), Direction.East, definition, unlockWallet, lockedResearch),
         "Nastro base piazzabile.");
@@ -743,6 +793,8 @@ static void RunSelfTest(GameContent content)
 
     // Splitter: one in → alternate left/right outs (both must receive cargo).
     var splitResearch = ResearchState.CreateNew(content);
+    Assert(splitResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+        "Prereq incrocio per sdoppiatore.");
     Assert(splitResearch.TryUnlock(splitterTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 })),
         "Sdoppiatore sbloccabile.");
     var splitGrid = new ConveyorGrid();
@@ -792,6 +844,100 @@ static void RunSelfTest(GameContent content)
     Assert(splitGrid.Cells[new GridPosition(2, 1)].RoutedExit == Direction.East,
         "In transito lo sdoppiatore deve avanzare come un nastro (facing), non di lato.");
 
+    // Sorter: filter match → facing; others → left/right.
+    var sorterDef = content.Conveyors.Single(entry => entry.Id == "sorter");
+    var sorterTech = content.FindStructure("sorter")!;
+    Assert(sorterDef.Kind == LogisticsKind.Sorter, "Il selezionatore deve avere kind sorter.");
+    var sortResearch = ResearchState.CreateNew(content);
+    Assert(sortResearch.TryUnlock(sorterTech, new EconomyWallet(300, new Dictionary<string, int>
+        {
+            ["iron-plate"] = 40,
+            ["copper-wire"] = 10
+        })),
+        "Selezionatore sbloccabile.");
+    var sortGrid = new ConveyorGrid();
+    var sortWallet = new EconomyWallet(400, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 50,
+        ["copper-wire"] = 10
+    });
+    Assert(sortGrid.TryPlace(new GridPosition(1, 1), Direction.East, definition, sortWallet, sortResearch),
+        "Ingresso selezionatore.");
+    Assert(sortGrid.TryPlace(new GridPosition(2, 1), Direction.East, sorterDef, sortWallet, sortResearch),
+        "Selezionatore.");
+    Assert(sortGrid.TryPlace(new GridPosition(3, 1), Direction.East, definition, sortWallet, sortResearch),
+        "Uscita match (avanti).");
+    Assert(sortGrid.TryPlace(new GridPosition(2, 0), Direction.East, definition, sortWallet, sortResearch),
+        "Uscita overflow nord (sinistra rispetto a E).");
+    Assert(sortGrid.TryPlace(new GridPosition(2, 2), Direction.East, definition, sortWallet, sortResearch),
+        "Uscita overflow sud (destra rispetto a E).");
+    Assert(!sortGrid.TryOrientToward(new GridPosition(2, 1), new GridPosition(2, 0)),
+        "Il selezionatore non deve ruotare via auto-orient.");
+    var sorterCell = sortGrid.Cells[new GridPosition(2, 1)];
+    Assert(sorterCell.Kind == LogisticsKind.Sorter && sorterCell.FilterItemId == "iron-ore",
+        "Filtro default selezionatore = ferro grezzo.");
+    sorterCell.SetFilterItem("iron-ore");
+    var sortIn = sortGrid.Cells[new GridPosition(1, 1)];
+    Assert(sortIn.TryInsert(new TransportedItem(4001, "iron-ore"), Direction.East),
+        "Ferro nel selezionatore.");
+    for (var tick = 0; tick < 150; tick++)
+    {
+        sortGrid.Update(1f / 30f);
+    }
+
+    Assert(sortGrid.Cells[new GridPosition(3, 1)].Items.Any(item => item.ItemId == "iron-ore")
+        || sorterCell.Items.Any(item => item.ItemId == "iron-ore"),
+        "Item filtrato deve uscire in avanti (facing).");
+    Assert(sortGrid.Cells[new GridPosition(2, 0)].Items.Count == 0
+        && sortGrid.Cells[new GridPosition(2, 2)].Items.Count == 0,
+        "Item filtrato non deve andare ai lati.");
+
+    sortGrid.Cells[new GridPosition(3, 1)].RestoreItems([]);
+    sorterCell.RestoreItems([]);
+    Assert(sortIn.TryInsert(new TransportedItem(4002, "copper-ore"), Direction.East),
+        "Rame (non filtrato) nel selezionatore.");
+    var overflowNorth = false;
+    var overflowSouth = false;
+    for (var tick = 0; tick < 150; tick++)
+    {
+        sortGrid.Update(1f / 30f);
+        if (sortGrid.Cells[new GridPosition(2, 0)].Items.Any(item => item.ItemId == "copper-ore"))
+        {
+            overflowNorth = true;
+        }
+
+        if (sortGrid.Cells[new GridPosition(2, 2)].Items.Any(item => item.ItemId == "copper-ore"))
+        {
+            overflowSouth = true;
+        }
+    }
+
+    Assert(overflowNorth || overflowSouth,
+        "Item non filtrato deve uscire a sinistra o destra.");
+    Assert(sortGrid.Cells[new GridPosition(3, 1)].Items.Count == 0,
+        "Item non filtrato non deve uscire in avanti.");
+
+    sorterCell.SetFilterItem("copper-wire");
+    Assert(sorterCell.FilterItemId == "copper-wire", "SetFilterItem deve cambiare il filtro.");
+    sorterCell.CycleFilterItem(["iron-ore", "copper-ore", "iron-plate", "copper-wire"]);
+    Assert(sorterCell.FilterItemId == "iron-ore",
+        "CycleFilterItem deve passare al successivo (wrap).");
+
+    // Persist sorter filter in save.
+    var sortCamera = new WorldCamera(0f, 0f, 1f);
+    var sortSession = new EconomySession(sortWallet.Money);
+    var sortCaptured = GameSaveStore.Capture(
+        new FactoryWorld(12, 8, 7429), sortGrid, sortWallet, sortCamera, sortResearch, sortSession, 4100L);
+    Assert(sortCaptured.Conveyors.Any(c => c.DefinitionId == "sorter" && c.FilterItemId == "iron-ore"),
+        "Salvataggio deve includere FilterItemId del selezionatore.");
+    var sortSlot = "self-test-sorter";
+    GameSaveStore.Save(sortSlot, sortCaptured);
+    var sortRestored = GameSaveStore.Restore(GameSaveStore.Load(sortSlot), content);
+    Assert(sortRestored.Conveyors.Cells.Values.Any(c =>
+            c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-ore"),
+        "Reload deve ripristinare il filtro del selezionatore.");
+    GameSaveStore.Delete(sortSlot);
+
     // Junction: pass-through opposite sides.
     var juncResearch = ResearchState.CreateNew(content);
     Assert(juncResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
@@ -816,6 +962,8 @@ static void RunSelfTest(GameContent content)
 
     // Bridge: span gap of 2.
     var bridgeResearch = ResearchState.CreateNew(content);
+    Assert(bridgeResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+        "Prereq incrocio per ponte.");
     Assert(bridgeResearch.TryUnlock(bridgeTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 })),
         "Ponte sbloccabile.");
     var bridgeGrid = new ConveyorGrid();
@@ -852,6 +1000,7 @@ static void RunSelfTest(GameContent content)
         ["copper-wire"] = 20
     });
     var craftResearch = ResearchState.CreateNew(content);
+    Assert(craftResearch.TryUnlock(smelterTech, craftWallet), "Prereq forno per assemblatore.");
     Assert(craftResearch.TryUnlock(assemblerTech, craftWallet), "Assemblatore sbloccabile.");
     Assert(craftResearch.IsUnlocked("assembler") && !assemblerTech.IsStub,
         "Dopo unlock l'assemblatore è costruibile.");
@@ -943,6 +1092,7 @@ static void RunSelfTest(GameContent content)
     var powerWallet = new EconomyWallet(500, new Dictionary<string, int> { ["iron-plate"] = 80 });
     var powerResearch = ResearchState.CreateNew(content);
     var generatorTech = content.FindStructure("generator")!;
+    Assert(powerResearch.TryUnlock(smelterTech, powerWallet), "Prereq forno per generatore.");
     Assert(powerResearch.TryUnlock(generatorTech, powerWallet), "Generatore sbloccabile.");
     var generatorBuilding = content.GetBuildingOrDefault("generator");
     Assert(powerWorld.TryPlaceGenerator(new GridPosition(2, 2), powerGrid, powerWallet, generatorBuilding),
@@ -1135,6 +1285,7 @@ static void RunSelfTest(GameContent content)
                 content.Conveyors.Single(c => c.Id == "conveyor-fast"),
                 content.Conveyors.Single(c => c.Id == "junction"),
                 content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "sorter"),
                 content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
                 content.GetBuildingOrDefault("miner"),
                 content.GetBuildingOrDefault("smelter"),
@@ -1150,6 +1301,7 @@ static void RunSelfTest(GameContent content)
                 content.Conveyors.Single(c => c.Id == "conveyor-fast"),
                 content.Conveyors.Single(c => c.Id == "junction"),
                 content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "sorter"),
                 content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
                 content.GetBuildingOrDefault("miner"),
                 content.GetBuildingOrDefault("smelter"),
@@ -1157,6 +1309,27 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("generator"),
                 out _, out _),
             "Dock cost bar: Rimuovi non espone costi finti.");
+        Assert(FactoryGameApp.TryResolveDockEntryCostForTest(
+                "sorter",
+                content.Conveyors.Single(c => c.Id == "conveyor-basic"),
+                content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "junction"),
+                content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "sorter"),
+                content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
+                content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("smelter"),
+                content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("generator"),
+                out var sorterMoney, out var sorterMats)
+            && sorterMoney == content.Conveyors.Single(c => c.Id == "sorter").MoneyCost
+            && sorterMats.Any(m => m.ItemId == "iron-plate"),
+            "Dock cost bar: selezionatore risolve denaro + lastre.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Any(e => e.Id == "sorter"),
+            "Dock Logistica deve includere il selezionatore.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics)
+                .Single(e => e.Id == "sorter").Hint!.Contains("Filtro", StringComparison.OrdinalIgnoreCase),
+            "Hint selezionatore: filtro item.");
         var smeltRecipeForDock = content.Recipes.Single(r => r.Id == "smelt-iron");
         var wireRecipeForDock = content.Recipes.Single(r => r.Id == "craft-copper-wire");
         Assert(FactoryGameApp.TryResolveDockEntryRecipeForTest(
@@ -1193,6 +1366,7 @@ static void RunSelfTest(GameContent content)
                      "items/iron-ore.png", "items/copper-ore.png", "items/iron-plate.png",
                      "items/copper-wire.png", "items/money.png",
                      "buildings/miner.png", "buildings/smelter.png", "buildings/assembler.png",
+                     "buildings/sorter.png",
                      "categories/production.png", "ui/sell.png"
                  })
         {
