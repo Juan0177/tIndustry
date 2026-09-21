@@ -117,7 +117,7 @@ public sealed class GameContent
         var structures = new List<StructureDefinition>
         {
             new("conveyor-basic", "Nastro base", StructureKind.Conveyor, true, null),
-            new("miner", "Minatore", StructureKind.Building, true, null)
+            new("miner", "Minatore T1", StructureKind.Building, true, null)
         };
 
         foreach (var conveyor in content.Conveyors.Where(entry => entry.Unlock is not null))

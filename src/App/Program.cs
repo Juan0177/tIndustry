@@ -32,10 +32,11 @@ if (!args.Contains("--console-demo"))
 {
     var captureIo = args.Contains("--capture-io");
     var captureTutorial = args.Contains("--capture-tutorial");
+    var captureGraphics = args.Contains("--capture-graphics");
     var captureTechTree = args.Contains("--capture-tech-tree");
     var captureSorter = args.Contains("--capture-sorter");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
-        || captureIo || captureTutorial || captureTechTree || captureSorter;
+        || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -43,6 +44,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "io-adjacency-compact.png");
         captureMode = "io-adjacency";
+    }
+    else if (captureGraphics)
+    {
+        capturePath = Path.Combine("artifacts", "graphics-uplift.png");
+        captureMode = "graphics";
     }
     else if (captureTutorial)
     {

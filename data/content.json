@@ -142,7 +142,7 @@
     },
     {
       "id": "miner",
-      "displayName": "Minatore",
+      "displayName": "Minatore T1",
       "kind": "building",
       "unlockedByDefault": true,
       "unlock": null,
