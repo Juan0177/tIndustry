@@ -139,6 +139,26 @@
       ]
     },
     {
+      "id": "smelt-lead",
+      "durationSeconds": 1.8,
+      "inputs": [
+        { "itemId": "lead-ore", "amount": 2 }
+      ],
+      "outputs": [
+        { "itemId": "lead-plate", "amount": 1 }
+      ]
+    },
+    {
+      "id": "smelt-titanium",
+      "durationSeconds": 3.2,
+      "inputs": [
+        { "itemId": "titanium-ore", "amount": 3 }
+      ],
+      "outputs": [
+        { "itemId": "titanium-plate", "amount": 1 }
+      ]
+    },
+    {
       "id": "craft-copper-wire",
       "durationSeconds": 1.5,
       "inputs": [
@@ -147,6 +167,27 @@
       ],
       "outputs": [
         { "itemId": "copper-wire", "amount": 2 }
+      ]
+    },
+    {
+      "id": "craft-graphite",
+      "durationSeconds": 1.2,
+      "inputs": [
+        { "itemId": "coal", "amount": 2 }
+      ],
+      "outputs": [
+        { "itemId": "graphite", "amount": 1 }
+      ]
+    },
+    {
+      "id": "craft-silicon",
+      "durationSeconds": 2.4,
+      "inputs": [
+        { "itemId": "lead-plate", "amount": 1 },
+        { "itemId": "coal", "amount": 1 }
+      ],
+      "outputs": [
+        { "itemId": "silicon", "amount": 1 }
       ]
     }
   ],
@@ -347,27 +388,90 @@
     {
       "itemId": "iron-ore",
       "displayName": "Ferro grezzo",
-      "sellPrice": 8
+      "sellPrice": 8,
+      "minSellPrice": 3,
+      "maxSellPrice": 14,
+      "softStock": 24
     },
     {
       "itemId": "iron-plate",
       "displayName": "Lastra di ferro",
-      "sellPrice": 30
+      "sellPrice": 30,
+      "minSellPrice": 12,
+      "maxSellPrice": 48,
+      "softStock": 20
     },
     {
       "itemId": "copper-ore",
       "displayName": "Rame grezzo",
-      "sellPrice": 6
+      "sellPrice": 6,
+      "minSellPrice": 2,
+      "maxSellPrice": 11,
+      "softStock": 24
     },
     {
       "itemId": "copper-wire",
       "displayName": "Filo di rame",
-      "sellPrice": 16
+      "sellPrice": 16,
+      "minSellPrice": 6,
+      "maxSellPrice": 28,
+      "softStock": 20
     },
     {
       "itemId": "coal",
       "displayName": "Carbone",
-      "sellPrice": 4
+      "sellPrice": 4,
+      "minSellPrice": 1,
+      "maxSellPrice": 8,
+      "softStock": 30
+    },
+    {
+      "itemId": "lead-ore",
+      "displayName": "Piombo grezzo",
+      "sellPrice": 5,
+      "minSellPrice": 2,
+      "maxSellPrice": 10,
+      "softStock": 24
+    },
+    {
+      "itemId": "lead-plate",
+      "displayName": "Lastra di piombo",
+      "sellPrice": 18,
+      "minSellPrice": 7,
+      "maxSellPrice": 32,
+      "softStock": 18
+    },
+    {
+      "itemId": "titanium-ore",
+      "displayName": "Titanio grezzo",
+      "sellPrice": 12,
+      "minSellPrice": 5,
+      "maxSellPrice": 22,
+      "softStock": 16
+    },
+    {
+      "itemId": "titanium-plate",
+      "displayName": "Lastra di titanio",
+      "sellPrice": 45,
+      "minSellPrice": 18,
+      "maxSellPrice": 72,
+      "softStock": 12
+    },
+    {
+      "itemId": "graphite",
+      "displayName": "Grafite",
+      "sellPrice": 10,
+      "minSellPrice": 4,
+      "maxSellPrice": 18,
+      "softStock": 20
+    },
+    {
+      "itemId": "silicon",
+      "displayName": "Silicio",
+      "sellPrice": 28,
+      "minSellPrice": 11,
+      "maxSellPrice": 48,
+      "softStock": 16
     }
   ],
   "buildings": [

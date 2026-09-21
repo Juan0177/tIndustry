@@ -105,8 +105,14 @@ public static class UiTheme
         new("iron-ore", "Ferro grezzo", "Ferro", "Fe", ItemCategory.Materials),
         new("copper-ore", "Rame grezzo", "Rame", "Ra", ItemCategory.Materials),
         new("coal", "Carbone", "Carb.", "Ca", ItemCategory.Materials),
+        new("lead-ore", "Piombo grezzo", "Piombo", "Pb", ItemCategory.Materials),
+        new("titanium-ore", "Titanio grezzo", "Titanio", "Ti", ItemCategory.Materials),
         new("iron-plate", "Lastra di ferro", "Lastre", "Ls", ItemCategory.Intermediate),
-        new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products)
+        new("lead-plate", "Lastra di piombo", "Pb lastre", "Lp", ItemCategory.Intermediate),
+        new("titanium-plate", "Lastra di titanio", "Ti lastre", "Tp", ItemCategory.Intermediate),
+        new("graphite", "Grafite", "Grafite", "Gr", ItemCategory.Intermediate),
+        new("copper-wire", "Filo di rame", "Fili", "Fi", ItemCategory.Products),
+        new("silicon", "Silicio", "Silicio", "Si", ItemCategory.Products)
     ];
 
     /// <summary>Dock rail categories — Strumenti removed; Rimuovi lives in Produzione.</summary>
@@ -275,12 +281,18 @@ public static class UiTheme
 
     public static Color ItemColor(string itemId) => itemId switch
     {
-        // Ores share the stone-pile silhouette; tint only (gray / orange / charcoal).
+        // Ores share the stone-pile silhouette; tint only.
         "iron-ore" => new Color(168, 176, 188, 255),
         "iron-plate" => new Color(196, 210, 224, 255),
         "copper-ore" => new Color(232, 128, 48, 255),
         "copper-wire" => new Color(240, 152, 40, 255),
         "coal" => new Color(58, 54, 50, 255),
+        "lead-ore" => new Color(120, 140, 168, 255),
+        "lead-plate" => new Color(148, 164, 188, 255),
+        "titanium-ore" => new Color(120, 200, 210, 255),
+        "titanium-plate" => new Color(170, 230, 236, 255),
+        "graphite" => new Color(88, 92, 98, 255),
+        "silicon" => new Color(210, 200, 120, 255),
         _ => new Color(210, 120, 210, 255)
     };
 
@@ -291,6 +303,12 @@ public static class UiTheme
         "copper-ore" => new Color(96, 40, 8, 255),
         "copper-wire" => new Color(96, 48, 8, 255),
         "coal" => new Color(8, 8, 10, 255),
+        "lead-ore" => new Color(28, 36, 52, 255),
+        "lead-plate" => new Color(32, 40, 56, 255),
+        "titanium-ore" => new Color(20, 48, 56, 255),
+        "titanium-plate" => new Color(24, 56, 64, 255),
+        "graphite" => new Color(20, 22, 26, 255),
+        "silicon" => new Color(60, 56, 20, 255),
         _ => new Color(40, 20, 40, 255)
     };
 

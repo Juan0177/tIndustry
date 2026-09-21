@@ -409,6 +409,12 @@ public static class GameSaveStore
         var conveyors = new ConveyorGrid();
         var definitions = content.Conveyors.ToDictionary(definition => definition.Id, StringComparer.Ordinal);
         var recipes = content.Recipes.ToDictionary(recipe => recipe.Id, StringComparer.Ordinal);
+        var smelterRecipes = content.Recipes
+            .Where(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal))
+            .ToList();
+        var assemblerRecipes = content.Recipes
+            .Where(r => r.Id.StartsWith("craft-", StringComparison.Ordinal))
+            .ToList();
         var research = RestoreResearch(data, content);
         var session = new EconomySession(data.Session.StartingMoney > 0 ? data.Session.StartingMoney : data.Money);
         session.Restore(
@@ -461,7 +467,8 @@ public static class GameSaveStore
                     smelterData.InputBuffer,
                     smelterData.OutputQueue,
                     smelterData.FuelBuffer,
-                    smelterData.BurnRemaining))
+                    smelterData.BurnRemaining,
+                    smelterRecipes))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il forno a {position}.");
             }
@@ -487,7 +494,8 @@ public static class GameSaveStore
                     assemblerData.Progress,
                     assemblerData.IsCrafting,
                     assemblerData.InputBuffer,
-                    assemblerData.OutputQueue))
+                    assemblerData.OutputQueue,
+                    assemblerRecipes))
             {
                 throw new InvalidDataException($"Impossibile ripristinare l'assemblatore a {position}.");
             }

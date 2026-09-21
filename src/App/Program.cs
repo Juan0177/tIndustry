@@ -646,12 +646,14 @@ static void RunSelfTest(GameContent content)
     Assert(smeltWallet.MaterialCount("iron-plate") >= platesBefore + 1,
         "Le lastre devono accumularsi nello stock per i costi di build.");
     Assert(smeltWallet.Money == moneyBeforePlate, "Stock-first: niente $ dalla consegna lastre.");
+    var plateStockBeforeSell = smeltWallet.MaterialCount("iron-plate");
+    var plateUnitExpected = MarketCatalog.Default.GetDynamicSellPrice("iron-plate", plateStockBeforeSell);
     Assert(smeltWorld.TrySellFromWallet(smeltWallet, "iron-plate", 1),
         "Vendita esplicita lastre dal Mercato/wallet.");
-    Assert(smeltWallet.Money >= moneyBeforePlate + FactoryWorld.IronPlateSalePrice,
-        "La lastra deve vendere più dell'ore.");
-    Assert(smeltWorld.SaleRevenue >= FactoryWorld.IronPlateSalePrice,
-        "Il ricavo deve usare il prezzo lastre.");
+    Assert(smeltWallet.Money >= moneyBeforePlate + plateUnitExpected,
+        "La lastra deve vendere al prezzo dinamico atteso.");
+    Assert(smeltWorld.SaleRevenue >= plateUnitExpected,
+        "Il ricavo deve usare il prezzo lastre dinamico.");
 
     // Fast belt research unlock + upgrade.
     var lockedResearch = ResearchState.CreateNew(content);
@@ -804,6 +806,51 @@ static void RunSelfTest(GameContent content)
 
     var boosted = ecoWorld.EffectiveSalePrice("iron-plate", market);
     Assert(boosted == 37, "Con +25% una lastra da $30 deve vendere a $37.");
+    Assert(market.GetDynamicSellPrice("iron-ore", 0) == 8,
+        "Mercato dinamico: stock 0 = prezzo listino.");
+    Assert(market.GetDynamicSellPrice("iron-ore", 80) < 8,
+        "Mercato dinamico: stock alto abbassa il prezzo ore.");
+    var floodedWallet = new EconomyWallet(0, new Dictionary<string, int> { ["iron-plate"] = 60 });
+    Assert(ecoWorld.EffectiveSalePrice("iron-plate", market, floodedWallet) < 37,
+        "Mercato dinamico: stock alto riduce anche il prezzo con bonus CORE.");
+    Assert(market.GetSellPrice("lead-ore") == 5 && market.GetSellPrice("titanium-plate") == 45,
+        "Mercato: piombo grezzo / lastra titanio.");
+    Assert(content.Recipes.Count(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal)) >= 3,
+        "Ricette forno: ferro + piombo + titanio.");
+    Assert(content.Recipes.Count(r => r.Id.StartsWith("craft-", StringComparison.Ordinal)) >= 3,
+        "Ricette assemblatore: filo + grafite + silicio.");
+
+    // Multi-recipe forno: piombo quando gli input sono disponibili.
+    var multiRecipes = content.Recipes.Where(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal)).ToList();
+    var multiSmelter = new SmelterBuilding(
+        new GridPosition(0, 0), Direction.East, smeltRecipe, availableRecipes: multiRecipes);
+    Assert(multiSmelter.TryAccept("lead-ore") && multiSmelter.TryAccept("lead-ore"),
+        "Forno multi-ricetta deve accettare piombo grezzo.");
+    Assert(multiSmelter.Buffered("lead-ore") == 2, "Buffer piombo grezzo = 2.");
+    Assert(!multiSmelter.TryAccept("copper-ore"),
+        "Forno non accetta rame grezzo (ricette smelt only).");
+    long multiItemId = 90001;
+    Assert(multiSmelter.TryAcceptFuel("coal"), "Carbone fuel per avviare craft piombo.");
+    multiSmelter.Update(0.05f, new ConveyorGrid(), ref multiItemId, allowCoalOrPower: true);
+    Assert(multiSmelter.IsCrafting && multiSmelter.Recipe.Id == "smelt-lead",
+        "Forno deve selezionare smelt-lead con input piombo.");
+
+    // Depositi piombo/titanio: starter lead vicino al core; miner resolve.
+    var mineralWorld = new FactoryWorld(64, 48, 4242);
+    var leadTiles = 0;
+    var titaniumTiles = 0;
+    for (var y = 0; y < mineralWorld.Terrain.Height; y++)
+    {
+        for (var x = 0; x < mineralWorld.Terrain.Width; x++)
+        {
+            var dep = mineralWorld.Terrain[new GridPosition(x, y)].Deposit;
+            if (dep == DepositKind.Lead) leadTiles++;
+            if (dep == DepositKind.Titanium) titaniumTiles++;
+        }
+    }
+
+    Assert(leadTiles >= 4, "Mappa deve avere un patch starter di piombo.");
+    Assert(titaniumTiles >= 0, "Titanio può essere raro su mappe piccole (noise).");
 
     // Refund policy 100%.
     var moneyBeforeRefund = ecoWallet.Money;
@@ -1111,9 +1158,11 @@ static void RunSelfTest(GameContent content)
     Assert(craftWorld.CoreDeliveredItems >= 1, "L'assemblatore deve produrre fili consegnati al core.");
     Assert(craftWallet.MaterialCount("copper-wire") >= wiresBefore + 1,
         "I fili devono restare in stock (utili per build/unlock).");
+    var wireStockBeforeSell = craftWallet.MaterialCount("copper-wire");
+    var wireUnitExpected = market.GetDynamicSellPrice("copper-wire", wireStockBeforeSell);
     Assert(craftWorld.TrySellFromWallet(craftWallet, "copper-wire", 1, market),
         "Vendita esplicita filo di rame.");
-    Assert(craftWallet.Money >= moneyBeforeWire + market.GetSellPrice("copper-wire"),
+    Assert(craftWallet.Money >= moneyBeforeWire + wireUnitExpected,
         "Il filo di rame deve poter essere venduto per $.");
 
     // Save assemblers + bridge in v5.
@@ -1163,6 +1212,12 @@ static void RunSelfTest(GameContent content)
         "Il generatore deve essere un edificio costruibile.");
     Assert(market.GetSellPrice("copper-wire") == 16,
         "Bilanciamento: filo di rame a $16.");
+    Assert(market.GetSellPrice("silicon") == 28 && market.GetSellPrice("graphite") == 10,
+        "Bilanciamento: silicio $28 / grafite $10.");
+    Assert(market.GetDynamicSellPrice("coal", 0) == 4,
+        "Mercato dinamico carbone: listino a stock 0.");
+    Assert(market.GetDynamicSellPrice("coal", 100) < 4,
+        "Mercato dinamico carbone: stock alto → prezzo soft.");
     var powerWorld = new FactoryWorld(16, 10, 7429);
     Assert(powerWorld.PowerCapacity >= FactoryWorld.CorePowerCapacity,
         "Il core fornisce potenza base.");
@@ -1713,12 +1768,12 @@ static void RunSelfTest(GameContent content)
             "Limite FPS: 600 e Illimitato (0).");
         Assert(GameSettings.FpsLimitLabel(0) == "Illimitato", "Etichetta Illimitato.");
         Assert(UiTheme.InventoryItems.Length >= 4, "Inventario deve elencare gli item noti.");
-        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Materials).Count() == 3,
-            "Categoria Materiali: ferro + rame + carbone.");
-        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Intermediate).Count() == 1,
-            "Categoria Intermedi: lastre.");
-        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 1,
-            "Categoria Prodotti: fili.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Materials).Count() == 5,
+            "Categoria Materiali: ferro + rame + carbone + piombo + titanio.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Intermediate).Count() == 4,
+            "Categoria Intermedi: lastre Fe/Pb/Ti + grafite.");
+        Assert(UiTheme.ItemsInCategory(UiTheme.ItemCategory.Products).Count() == 2,
+            "Categoria Prodotti: fili + silicio.");
         Assert(UiTheme.BuildCategories.Length == 3,
             "Dock Mindustry: 3 categorie (Produzione/Logistica/Potenza).");
         Assert(!UiTheme.BuildCategories.Contains(UiTheme.BuildCategory.Inventory),
@@ -2061,7 +2116,9 @@ static void RunSelfTest(GameContent content)
         foreach (var rel in new[]
                  {
                      "items/iron-ore.png", "items/copper-ore.png", "items/coal.png",
-                     "items/iron-plate.png", "items/copper-wire.png", "items/money.png",
+                     "items/lead-ore.png", "items/titanium-ore.png",
+                     "items/iron-plate.png", "items/lead-plate.png", "items/titanium-plate.png",
+                     "items/copper-wire.png", "items/graphite.png", "items/silicon.png", "items/money.png",
                      "buildings/miner.png", "buildings/smelter.png", "buildings/assembler.png",
                      "buildings/sorter.png",
                      "categories/production.png", "ui/sell.png"
@@ -2075,10 +2132,16 @@ static void RunSelfTest(GameContent content)
         var ironOreBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "iron-ore.png"));
         var copperOreBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "copper-ore.png"));
         var coalBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "coal.png"));
+        var leadOreBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "lead-ore.png"));
+        var titaniumOreBytes = File.ReadAllBytes(Path.Combine(iconRoot, "items", "titanium-ore.png"));
         Assert(ironOreBytes.AsSpan().SequenceEqual(copperOreBytes),
             "copper-ore.png deve condividere la silhouette rock di iron-ore.png.");
         Assert(ironOreBytes.AsSpan().SequenceEqual(coalBytes),
             "coal.png deve condividere la silhouette rock di iron-ore.png.");
+        Assert(ironOreBytes.AsSpan().SequenceEqual(leadOreBytes),
+            "lead-ore.png deve condividere la silhouette rock di iron-ore.png.");
+        Assert(ironOreBytes.AsSpan().SequenceEqual(titaniumOreBytes),
+            "titanium-ore.png deve condividere la silhouette rock di iron-ore.png.");
 
         Assert(File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "ATTRIBUTION.md")),
             "ATTRIBUTION.md deve essere copiato in output.");

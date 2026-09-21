@@ -61,9 +61,17 @@ internal static class FactoryGameApp
     [
         "iron-ore",
         "copper-ore",
+        "coal",
+        "lead-ore",
+        "titanium-ore",
         "iron-plate",
-        "copper-wire"
+        "lead-plate",
+        "titanium-plate",
+        "graphite",
+        "copper-wire",
+        "silicon"
     ];
+    private const int MercatoVisibleRows = 6;
     private static GameSettings? SettingsDraft;
     private static float SettingsScrollY;
     private static float EntryAnimT = 1f;
@@ -181,8 +189,14 @@ internal static class FactoryGameApp
         var splitterConveyor = RequireContent(content.Conveyors, "splitter", "nastro");
         var sorterConveyor = RequireContent(content.Conveyors, "sorter", "nastro");
         var bridgeConveyor = RequireContent(content.Conveyors, "conveyor-bridge", "nastro");
-        var smeltRecipe = RequireRecipe(content.Recipes, "smelt-iron");
-        var wireRecipe = RequireRecipe(content.Recipes, "craft-copper-wire");
+        var smelterRecipes = content.Recipes
+            .Where(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal))
+            .ToList();
+        var assemblerRecipes = content.Recipes
+            .Where(r => r.Id.StartsWith("craft-", StringComparison.Ordinal))
+            .ToList();
+        var smeltRecipe = RequireRecipe(smelterRecipes, "smelt-iron");
+        var wireRecipe = RequireRecipe(assemblerRecipes, "craft-copper-wire");
         var selectedConveyor = basicConveyor;
         var screen = AppScreen.Splash;
         FactoryWorld? world = null;
@@ -610,6 +624,8 @@ internal static class FactoryGameApp
                         bridgeConveyor,
                         smeltRecipe,
                         wireRecipe,
+                        smelterRecipes,
+                        assemblerRecipes,
                         ref selectedConveyor,
                         ref tool,
                         ref direction,
@@ -2376,6 +2392,8 @@ internal static class FactoryGameApp
         ConveyorDefinition bridgeConveyor,
         RecipeDefinition smeltRecipe,
         RecipeDefinition wireRecipe,
+        IReadOnlyList<RecipeDefinition> smelterRecipes,
+        IReadOnlyList<RecipeDefinition> assemblerRecipes,
         ref ConveyorDefinition selectedConveyor,
         ref BuildTool tool,
         ref Direction direction,
@@ -2771,7 +2789,8 @@ internal static class FactoryGameApp
             }
             else if (tool == BuildTool.Smelter && research.IsUnlocked("smelter"))
             {
-                if (!world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet, smelterBuilding, session))
+                if (!world.TryPlaceSmelter(position, direction, smeltRecipe, conveyors, wallet, smelterBuilding, session,
+                        smelterRecipes))
                 {
                     statusMessage = world.CanPlaceSmelter(position, conveyors)
                         ? "Risorse insufficienti per il forno."
@@ -2788,7 +2807,8 @@ internal static class FactoryGameApp
             }
             else if (tool == BuildTool.Assembler && research.IsUnlocked("assembler"))
             {
-                if (!world.TryPlaceAssembler(position, direction, wireRecipe, conveyors, wallet, assemblerBuilding, session))
+                if (!world.TryPlaceAssembler(position, direction, wireRecipe, conveyors, wallet, assemblerBuilding, session,
+                        assemblerRecipes))
                 {
                     statusMessage = world.CanPlaceAssembler(position, conveyors)
                         ? "Risorse insufficienti per l’assemblatore."
@@ -3293,7 +3313,7 @@ internal static class FactoryGameApp
         x = ScreenWidth - width - UiTheme.DockMargin;
         y = ViewportTop + 8;
 
-        var desired = MercatoS(24) + MercatoS(26) + MercatoS(16) + 4 * MercatoS(MercatoRowHeightBase) + MercatoS(10);
+        var desired = MercatoS(24) + MercatoS(26) + MercatoS(16) + MercatoVisibleRows * MercatoS(MercatoRowHeightBase) + MercatoS(10);
 
         GetDockBounds(out _, out var dockY, out _, out _);
         var gap = UiTheme.S(8);
@@ -5749,7 +5769,7 @@ internal static class FactoryGameApp
                 smelter.Position.Y * BaseTileSize,
                 ViewportLeft,
                 ViewportTop);
-            DrawSmelter(smelter, screen.X, screen.Y, tileSize, false);
+            DrawSmelter(smelter, screen.X, screen.Y, tileSize, false, world);
         }
 
         foreach (var assembler in world.Assemblers.Values)
@@ -6021,6 +6041,36 @@ internal static class FactoryGameApp
                 Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
             }
         }
+        else if (tile.Deposit == DepositKind.Lead && tileSize >= 8f)
+        {
+            var s = tileSize / BaseTileSize;
+            var iconSize = Math.Max(10, (int)(18 * s));
+            if (tileSize >= 16f && GameIcons.Has("lead-ore"))
+            {
+                UiTheme.DrawItemIcon("lead-ore", ix + (size - iconSize) / 2, iy + (sizeY - iconSize) / 2, iconSize);
+            }
+            else
+            {
+                var fill = UiTheme.ItemColor("lead-ore");
+                Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(2f, 5 * s), fill);
+                Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
+            }
+        }
+        else if (tile.Deposit == DepositKind.Titanium && tileSize >= 8f)
+        {
+            var s = tileSize / BaseTileSize;
+            var iconSize = Math.Max(10, (int)(18 * s));
+            if (tileSize >= 16f && GameIcons.Has("titanium-ore"))
+            {
+                UiTheme.DrawItemIcon("titanium-ore", ix + (size - iconSize) / 2, iy + (sizeY - iconSize) / 2, iconSize);
+            }
+            else
+            {
+                var fill = UiTheme.ItemColor("titanium-ore");
+                Raylib.DrawCircle(ix + (int)(10 * s), iy + (int)(12 * s), Math.Max(2f, 5 * s), fill);
+                Raylib.DrawCircle(ix + (int)(24 * s), iy + (int)(21 * s), Math.Max(2.5f, 7 * s), fill);
+            }
+        }
     }
 
     private static void DrawCore(
@@ -6056,16 +6106,24 @@ internal static class FactoryGameApp
             isAdvanced: miner.IsAdvanced);
     }
 
-    private static void DrawSmelter(SmelterBuilding smelter, float fx, float fy, float tileSize, bool preview)
+    private static void DrawSmelter(
+        SmelterBuilding smelter,
+        float fx,
+        float fy,
+        float tileSize,
+        bool preview,
+        FactoryWorld? world = null)
     {
         var x = (int)fx;
         var y = (int)fy;
         var size = (int)(tileSize * SmelterBuilding.Size);
+        var powered = world is not null && world.IsBuildingPowered(smelter.Position, SmelterBuilding.Size);
         WorldGraphics.DrawSmelterSilhouette(
             x, y, size, smelter.Progress, smelter.IsCrafting, smelter.Direction, preview, tileSize,
             DrawBuildingNameplate, DrawDirectionMark,
             fuelBuffer: smelter.FuelBuffer,
-            isBurningFuel: smelter.IsBurningFuel);
+            isBurningFuel: smelter.IsBurningFuel,
+            isPowered: powered);
     }
 
     private static void DrawAssembler(SmelterBuilding assembler, float fx, float fy, float tileSize, bool preview)
@@ -6693,6 +6751,17 @@ internal static class FactoryGameApp
         }
     }
 
+    private static IEnumerable<MarketItemDefinition> MercatoVisibleItems(
+        MarketCatalog market,
+        EconomyWallet wallet)
+    {
+        // Stocked goods float up so early ores stay sellable; then by list price.
+        return market.Items
+            .OrderByDescending(item => wallet.MaterialCount(item.ItemId) > 0)
+            .ThenByDescending(item => item.SellPrice)
+            .Take(MercatoVisibleRows);
+    }
+
     private static void DrawMercatoPanel(
         FactoryWorld world,
         EconomyWallet wallet,
@@ -6715,11 +6784,11 @@ internal static class FactoryGameApp
 
         var iconSize = MercatoS(22);
         var index = 0;
-        foreach (var item in market.Items.Take(4))
+        foreach (var item in MercatoVisibleItems(market, wallet))
         {
             var rowY = MercatoRowY(y, h, index);
             var stock = wallet.MaterialCount(item.ItemId);
-            var effective = world.EffectiveSalePrice(item.ItemId, market);
+            var effective = world.EffectiveSalePrice(item.ItemId, market, wallet);
             var shortName = UiTheme.InventoryItems.FirstOrDefault(i => i.ItemId == item.ItemId)?.ShortName
                 ?? item.DisplayName;
 
@@ -6997,7 +7066,7 @@ internal static class FactoryGameApp
             return true;
         }
 
-        var items = market.Items.Take(4).ToList();
+        var items = MercatoVisibleItems(market, wallet).ToList();
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
@@ -7013,7 +7082,7 @@ internal static class FactoryGameApp
 
                 if (world.TrySellFromWallet(wallet, item.ItemId, 1, market, session))
                 {
-                    var price = world.EffectiveSalePrice(item.ItemId, market);
+                    var price = world.EffectiveSalePrice(item.ItemId, market, wallet);
                     statusMessage = $"Venduto 1× {item.DisplayName} (+${price}).";
                     TutorialUsedEconomy = true;
                 }

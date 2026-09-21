@@ -14,7 +14,13 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `items/iron-ore.png` | Lorc | rock |
 | `items/copper-ore.png` | Lorc | rock (orange tint) |
 | `items/coal.png` | Lorc | rock (charcoal tint) |
+| `items/lead-ore.png` | Lorc | rock (slate-blue tint) |
+| `items/titanium-ore.png` | Lorc | rock (cyan tint) |
 | `items/iron-plate.png` | Delapouite | metal-plate |
+| `items/lead-plate.png` | Delapouite | metal-plate (lead tint) |
+| `items/titanium-plate.png` | Delapouite | metal-plate (titanium tint) |
+| `items/graphite.png` | Lorc | rock (graphite tint) |
+| `items/silicon.png` | Delapouite | metal-plate (silicon tint) |
 | `items/copper-wire.png` | Delapouite | wire-coil |
 | `items/money.png` | Delapouite | coins |
 | `ui/sell.png` | Delapouite | receive-money |
