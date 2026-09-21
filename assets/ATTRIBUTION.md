@@ -11,7 +11,7 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 
 | Asset (in `assets/icons/`) | Author | Original icon |
 | --- | --- | --- |
-| `items/iron-ore.png` | Delapouite | stone-pile |
+| `items/iron-ore.png` | Lorc | rock |
 | `items/copper-ore.png` | Delapouite | gold-nuggets |
 | `items/iron-plate.png` | Delapouite | metal-plate |
 | `items/copper-wire.png` | Delapouite | wire-coil |

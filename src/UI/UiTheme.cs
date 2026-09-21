@@ -273,20 +273,21 @@ public static class UiTheme
 
     public static Color ItemColor(string itemId) => itemId switch
     {
-        "iron-ore" => new Color(232, 140, 64, 255),
+        // Steel-gray ore vs warm copper wire — distinct on belts even at ~tile size.
+        "iron-ore" => new Color(168, 176, 188, 255),
         "iron-plate" => new Color(196, 210, 224, 255),
         "copper-ore" => new Color(64, 196, 176, 255),
-        "copper-wire" => new Color(232, 156, 72, 255),
+        "copper-wire" => new Color(240, 152, 40, 255),
         "coal" => new Color(48, 48, 52, 255),
         _ => new Color(210, 120, 210, 255)
     };
 
     public static Color ItemOutline(string itemId) => itemId switch
     {
-        "iron-ore" => new Color(90, 42, 12, 255),
+        "iron-ore" => new Color(36, 42, 52, 255),
         "iron-plate" => new Color(40, 52, 64, 255),
         "copper-ore" => new Color(12, 56, 52, 255),
-        "copper-wire" => new Color(90, 48, 12, 255),
+        "copper-wire" => new Color(96, 48, 8, 255),
         "coal" => new Color(12, 12, 14, 255),
         _ => new Color(40, 20, 40, 255)
     };
