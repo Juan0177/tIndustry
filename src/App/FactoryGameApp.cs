@@ -121,10 +121,6 @@ internal static class FactoryGameApp
         Direction.West
     ];
 
-    private static readonly Color TerrainGrass = new(46, 78, 54, 255);
-    private static readonly Color TerrainSoil = new(108, 88, 58, 255);
-    private static readonly Color TerrainStone = new(92, 98, 96, 255);
-    private static readonly Color TerrainWater = new(32, 78, 98, 255);
     private static readonly Color TerrainGrid = new(14, 18, 16, 70);
 
     private static readonly HomeAction[] HomeActionsWithContinue =
@@ -226,12 +222,31 @@ internal static class FactoryGameApp
                     world!, conveyors!, wallet, research!, session!, content, basicConveyor, smeltRecipe);
                 BeginTutorialIfNeeded(settings);
                 TutorialActive = false;
-                camera!.CenterOnTile(
+                // Zoom first, then center — CenterOnTile depends on current Zoom.
+                camera!.SetZoom(2.0f);
+                camera.CenterOnTile(
                     new GridPosition(world!.StarterDepositOrigin.X + 2, world.StarterDepositOrigin.Y + 1),
-                    BaseTileSize, ViewportWidth, ViewportHeight);
-                camera.SetZoom(2.0f);
+                    BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
                 // Warm sim so adjacent transfer / I/O tints are visible in the still.
                 for (var warm = 0; warm < 90; warm++)
+                {
+                    world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
+                }
+            }
+            else if (captureMode == "graphics")
+            {
+                SeedCaptureGraphics(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor, smeltRecipe, wireRecipe);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                // Zoom first, then center — CenterOnTile depends on current Zoom.
+                camera!.SetZoom(1.55f);
+                camera.CenterOnTile(
+                    new GridPosition(world!.StarterDepositOrigin.X + 1, world.StarterDepositOrigin.Y + 4),
+                    BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+                for (var warm = 0; warm < 120; warm++)
                 {
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
@@ -1016,6 +1031,93 @@ internal static class FactoryGameApp
             wallet.AddMoney(Math.Max(0, economy.CoreUpgrade.MoneyCost - wallet.Money + 10));
             wallet.AddMaterial("iron-plate", 20);
             world.TryUpgradeCore(wallet, economy.CoreUpgrade, session);
+        }
+    }
+
+    /// <summary>
+    /// Showcase layout for --capture-graphics: distinct silhouettes for miner/forno/assy/gen/core + belts.
+    /// Buildings spread south of the starter deposit so they stay west of the CORE (deposit is at coreLeft-4).
+    /// </summary>
+    private static void SeedCaptureGraphics(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        RecipeDefinition smeltRecipe,
+        RecipeDefinition wireRecipe)
+    {
+        foreach (var id in new[] { "smelter", "assembler", "generator", "conveyor-fast" })
+        {
+            if (!research.IsUnlocked(id))
+            {
+                research.ForceUnlock(id);
+            }
+        }
+
+        wallet.AddMoney(500);
+        wallet.AddMaterial("iron-plate", 80);
+        wallet.AddMaterial("copper-wire", 40);
+
+        var minerBuilding = content.GetBuildingOrDefault("miner");
+        var smelterBuilding = content.GetBuildingOrDefault("smelter");
+        var assemblerBuilding = content.GetBuildingOrDefault("assembler");
+        var generatorBuilding = content.GetBuildingOrDefault("generator");
+        var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
+
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(minerAt, Direction.East, conveyors, wallet, minerBuilding, session);
+
+        // Keep the production column west of CORE (starter deposit sits at coreLeft-4).
+        var smelterAt = new GridPosition(minerAt.X, minerAt.Y + MinerBuilding.Size + 1);
+        world.TryPlaceSmelter(smelterAt, Direction.South, smeltRecipe, conveyors, wallet, smelterBuilding, session);
+
+        var feedBelt = new GridPosition(minerAt.X, minerAt.Y + MinerBuilding.Size);
+        conveyors.TryPlace(feedBelt, Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+
+        var assemblerAt = new GridPosition(smelterAt.X, smelterAt.Y + SmelterBuilding.Size + 1);
+        world.TryPlaceAssembler(assemblerAt, Direction.South, wireRecipe, conveyors, wallet, assemblerBuilding, session);
+        var plateBelt = new GridPosition(smelterAt.X, smelterAt.Y + SmelterBuilding.Size);
+        conveyors.TryPlace(plateBelt, Direction.South, fastConveyor, wallet, research, session, world.CanPlaceConveyor);
+
+        // Generator west of smelter (still clear of CORE).
+        var generatorAt = new GridPosition(Math.Max(0, smelterAt.X - GeneratorBuilding.Size - 1), smelterAt.Y);
+        world.TryPlaceGenerator(generatorAt, conveyors, wallet, generatorBuilding, session);
+
+        // Eastward belt stubs from miner/smelter for chevron + I/O readability (stop before CORE).
+        foreach (var (origin, size, dir) in new[]
+                 {
+                     (minerAt, MinerBuilding.Size, Direction.East),
+                     (smelterAt, SmelterBuilding.Size, Direction.East)
+                 })
+        {
+            var belt = new GridPosition(origin.X + size, origin.Y);
+            if (belt.X < world.CoreOrigin.X && world.CanPlaceConveyor(belt))
+            {
+                conveyors.TryPlace(belt, dir, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+            }
+        }
+
+        // Short eastbound row under assembler for fast-tier chevrons.
+        var beltY = assemblerAt.Y + 1;
+        for (var i = 0; i < 3; i++)
+        {
+            var at = new GridPosition(assemblerAt.X + SmelterBuilding.Size + i, beltY);
+            if (at.X >= world.CoreOrigin.X || !world.CanPlaceConveyor(at))
+            {
+                break;
+            }
+
+            conveyors.TryPlace(
+                at,
+                Direction.East,
+                i == 0 ? basicConveyor : fastConveyor,
+                wallet,
+                research,
+                session,
+                world.CanPlaceConveyor);
         }
     }
 
@@ -4441,7 +4543,7 @@ internal static class FactoryGameApp
         }
 
         var plates = definition.BuildCost.FirstOrDefault(entry => entry.ItemId == "iron-plate")?.Amount ?? 0;
-        return $"${definition.MoneyCost} + {plates} P · t{definition.Tier} · rimborso 100%";
+        return $"${definition.MoneyCost} + {plates} P · T{definition.Tier} · rimborso 100%";
     }
 
     private static void DrawWorld(FactoryWorld world, ConveyorGrid conveyors, WorldCamera camera)
@@ -4466,7 +4568,7 @@ internal static class FactoryGameApp
             for (var x = minX; x <= maxX; x++)
             {
                 var screenX = originScreen.X + (x - minX) * tileSize;
-                DrawTerrainTile(world.Terrain[x, y], screenX, rowScreenY, tileSize);
+                DrawTerrainTile(world.Terrain[x, y], screenX, rowScreenY, tileSize, x, y);
             }
         }
 
@@ -4706,23 +4808,16 @@ internal static class FactoryGameApp
         }
     }
 
-    private static void DrawTerrainTile(TerrainTile tile, float x, float y, float tileSize)
+    private static void DrawTerrainTile(TerrainTile tile, float x, float y, float tileSize, int worldX, int worldY)
     {
         // Integer pixel bounds from floor→next floor keep cells flush (no muddy float gaps).
         var ix = (int)MathF.Floor(x);
         var iy = (int)MathF.Floor(y);
         var size = Math.Max(1, (int)MathF.Floor(x + tileSize) - ix);
         var sizeY = Math.Max(1, (int)MathF.Floor(y + tileSize) - iy);
-        // Higher-contrast terrain so buildings/belts read clearly on top.
-        var color = tile.Terrain switch
-        {
-            TerrainKind.Grass => TerrainGrass,
-            TerrainKind.Soil => TerrainSoil,
-            TerrainKind.Stone => TerrainStone,
-            TerrainKind.Water => TerrainWater,
-            _ => Color.Black
-        };
+        var color = WorldGraphics.TerrainColor(tile.Terrain, worldX, worldY);
         Raylib.DrawRectangle(ix, iy, size, sizeY, color);
+        WorldGraphics.DrawTerrainDetail(tile.Terrain, ix, iy, size, sizeY, tileSize, worldX, worldY);
         if (tileSize >= 14f)
         {
             Raylib.DrawRectangleLines(ix, iy, size, sizeY, TerrainGrid);
@@ -4780,147 +4875,69 @@ internal static class FactoryGameApp
         var x = (int)screen.X;
         var y = (int)screen.Y;
         var size = (int)(tileSize * FactoryWorld.CoreSize);
-        Raylib.DrawRectangle(x + 5, y + 7, size, size, new Color(11, 16, 15, 145));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(28, 52, 40, 255));
-        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(110, 210, 140, 255), 2);
-        Raylib.DrawRectangle(x + 17, y + 17, size - 34, size - 34, new Color(22, 34, 30, 255));
-        Raylib.DrawRectangleLines(x + 20, y + 20, size - 40, size - 40, new Color(72, 128, 92, 255));
-
-        var pulse = 23f + MathF.Sin((float)Raylib.GetTime() * 3f) * 3f;
-        var scale = tileSize / BaseTileSize;
-        var center = new Vector2(x + size / 2f, y + size / 2f);
-        Raylib.DrawCircleV(center, (pulse + 8) * scale, new Color(44, 104, 68, 255));
-        Raylib.DrawCircleV(center, pulse * scale, new Color(103, 225, 139, 255));
-        Raylib.DrawCircleV(center, 12 * scale, new Color(210, 251, 218, 255));
-        if (tileSize >= 12f)
-        {
-            DrawUiText("CORE", x + size / 2 - 24, y + size - (int)(34 * scale), Math.Max(10, (int)(18 * scale)),
-                new Color(201, 232, 207, 255));
-        }
+        WorldGraphics.DrawCoreSilhouette(x, y, size, tileSize, DrawBuildingNameplate);
     }
 
     private static void DrawMiner(MinerBuilding miner, float fx, float fy, float tileSize, bool preview)
     {
-        var alpha = preview ? 150 : 255;
         var x = (int)fx;
         var y = (int)fy;
         var size = (int)(tileSize * MinerBuilding.Size);
-        var scale = tileSize / BaseTileSize;
-        Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(16, 20, 19, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(56, 58, 54, alpha));
-        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(240, 180, 80, alpha), 2);
-        Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(30, 34, 33, alpha));
-
-        var center = new Vector2(x + size / 2f, y + size / 2f - 3 * scale);
-        var angle = (float)Raylib.GetTime() * 90f;
-        Raylib.DrawPoly(center, 8, 18 * scale, angle, new Color(116, 125, 120, alpha));
-        Raylib.DrawPolyLinesEx(center, 8, 18 * scale, angle, 3, new Color(225, 216, 186, alpha));
-        Raylib.DrawCircleV(center, 7 * scale, new Color(210, 143, 68, alpha));
-        // No facing mark: miners eject onto every adjacent side.
-        Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
-        Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * miner.Progress), 4,
-            new Color(231, 166, 66, alpha));
-        if (tileSize >= 12f)
-        {
-            var efficiencyLabel = $"{miner.Efficiency:P0}";
-            var efficiencyWidth = MeasureUiText(efficiencyLabel, 12);
-            Raylib.DrawRectangle(x + (size - efficiencyWidth) / 2 - 4, y + size - 27,
-                efficiencyWidth + 8, 16, new Color(20, 24, 23, alpha));
-            var effColor = miner.Efficiency <= 0f
-                ? new Color(225, 120, 100, alpha)
-                : new Color(233, 190, 96, alpha);
-            DrawUiText(efficiencyLabel, x + (size - efficiencyWidth) / 2, y + size - 25,
-                12, effColor);
-        }
+        WorldGraphics.DrawMinerSilhouette(
+            x, y, size, miner.Progress, miner.Efficiency, preview, tileSize, DrawBuildingNameplate);
     }
 
     private static void DrawSmelter(SmelterBuilding smelter, float fx, float fy, float tileSize, bool preview)
     {
-        var alpha = preview ? 150 : 255;
         var x = (int)fx;
         var y = (int)fy;
         var size = (int)(tileSize * SmelterBuilding.Size);
-        var scale = tileSize / BaseTileSize;
-        Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(18, 14, 14, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(82, 48, 40, alpha));
-        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(240, 130, 80, alpha), 2);
-        Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(34, 22, 20, alpha));
-
-        var center = new Vector2(x + size / 2f, y + size / 2f);
-        var glow = 10f + MathF.Sin((float)Raylib.GetTime() * 4f) * 3f;
-        Raylib.DrawCircleV(center, glow * scale, new Color(180, 70, 40, alpha));
-        Raylib.DrawCircleV(center, 6 * scale, new Color(240, 170, 80, alpha));
-        DrawDirectionMark(center + DirectionVector(smelter.Direction) * (16f * scale), smelter.Direction, alpha, tileSize);
-
-        var barProgress = smelter.IsCrafting ? smelter.Progress : 0f;
-        Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
-        Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * barProgress), 4,
-            new Color(235, 120, 70, alpha));
-        if (tileSize >= 12f)
-        {
-            var label = "FORNO";
-            var labelW = MeasureUiText(label, 13);
-            Raylib.DrawRectangle(x + 10, y + 6, labelW + 8, 16, new Color(20, 12, 10, 180));
-            DrawUiText(label, x + 14, y + 8, 13, new Color(255, 220, 190, alpha));
-        }
+        WorldGraphics.DrawSmelterSilhouette(
+            x, y, size, smelter.Progress, smelter.IsCrafting, smelter.Direction, preview, tileSize,
+            DrawBuildingNameplate, DrawDirectionMark);
     }
 
     private static void DrawAssembler(SmelterBuilding assembler, float fx, float fy, float tileSize, bool preview)
     {
-        var alpha = preview ? 150 : 255;
         var x = (int)fx;
         var y = (int)fy;
         var size = (int)(tileSize * SmelterBuilding.Size);
-        var scale = tileSize / BaseTileSize;
-        Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(12, 18, 22, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(32, 72, 88, alpha));
-        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(90, 210, 220, alpha), 2);
-        Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(18, 36, 48, alpha));
-
-        var center = new Vector2(x + size / 2f, y + size / 2f);
-        var glow = 10f + MathF.Sin((float)Raylib.GetTime() * 4f) * 3f;
-        Raylib.DrawCircleV(center, glow * scale, new Color(40, 120, 140, alpha));
-        Raylib.DrawCircleV(center, 6 * scale, new Color(110, 210, 220, alpha));
-        DrawDirectionMark(center + DirectionVector(assembler.Direction) * (16f * scale), assembler.Direction, alpha, tileSize);
-
-        var barProgress = assembler.IsCrafting ? assembler.Progress : 0f;
-        Raylib.DrawRectangle(x + 9, y + size - 10, size - 18, 4, new Color(25, 29, 28, alpha));
-        Raylib.DrawRectangle(x + 9, y + size - 10, (int)((size - 18) * barProgress), 4,
-            new Color(80, 190, 200, alpha));
-        if (tileSize >= 12f)
-        {
-            var label = "ASSY";
-            var labelW = MeasureUiText(label, 13);
-            Raylib.DrawRectangle(x + 10, y + 6, labelW + 8, 16, new Color(10, 20, 24, 180));
-            DrawUiText(label, x + 14, y + 8, 13, new Color(190, 240, 246, alpha));
-        }
+        WorldGraphics.DrawAssemblerSilhouette(
+            x, y, size, assembler.Progress, assembler.IsCrafting, assembler.Direction, preview, tileSize,
+            DrawBuildingNameplate, DrawDirectionMark);
     }
 
     private static void DrawGenerator(GeneratorBuilding generator, float fx, float fy, float tileSize, bool preview)
     {
         _ = generator;
-        var alpha = preview ? 150 : 255;
         var x = (int)fx;
         var y = (int)fy;
         var size = (int)(tileSize * GeneratorBuilding.Size);
-        var scale = tileSize / BaseTileSize;
-        Raylib.DrawRectangle(x + 4, y + 6, size - 4, size - 4, new Color(22, 18, 10, alpha));
-        Raylib.DrawRectangle(x + 2, y + 2, size - 4, size - 4, new Color(132, 96, 32, alpha));
-        UiTheme.DrawAccentRect(x + 4, y + 4, size - 8, size - 8, new Color(245, 205, 80, alpha), 2);
-        Raylib.DrawRectangle(x + 12, y + 12, size - 24, size - 24, new Color(48, 36, 14, alpha));
+        WorldGraphics.DrawGeneratorSilhouette(x, y, size, preview, tileSize, DrawBuildingNameplate);
+    }
 
-        var center = new Vector2(x + size / 2f, y + size / 2f);
-        var pulse = 10f + MathF.Sin((float)Raylib.GetTime() * 5f) * 3.5f;
-        Raylib.DrawCircleV(center, (pulse + 4) * scale, new Color(180, 120, 30, alpha));
-        Raylib.DrawCircleV(center, pulse * scale, new Color(240, 190, 60, alpha));
-        Raylib.DrawCircleV(center, 5 * scale, new Color(255, 235, 150, alpha));
-        if (tileSize >= 12f)
+    /// <summary>
+    /// Nameplate helper for world silhouettes.
+    /// Efficiency / CORE: <paramref name="x"/> is center. Name tags: <paramref name="x"/> is text left.
+    /// </summary>
+    private static void DrawBuildingNameplate(string text, int x, int y, int alpha, Color color)
+    {
+        var fontSize = text is "FORNO" or "ASSY" or "GEN" ? 13 : text == "CORE" ? Math.Max(10, 18) : 12;
+        var width = MeasureUiText(text, fontSize);
+        if (text.Contains('%', StringComparison.Ordinal) || text == "CORE")
         {
-            var label = "GEN";
-            var labelW = MeasureUiText(label, 13);
-            Raylib.DrawRectangle(x + 10, y + 6, labelW + 8, 16, new Color(24, 18, 8, 180));
-            DrawUiText(label, x + 14, y + 8, 13, new Color(255, 235, 170, alpha));
+            var left = x - width / 2;
+            if (text.Contains('%', StringComparison.Ordinal))
+            {
+                Raylib.DrawRectangle(left - 4, y - 2, width + 8, 16, new Color(20, 24, 23, alpha));
+            }
+
+            DrawUiText(text, left, y, fontSize, color);
+            return;
         }
+
+        Raylib.DrawRectangle(x - 4, y - 2, width + 8, 16, new Color(16, 14, 12, Math.Clamp(alpha - 40, 120, 200)));
+        DrawUiText(text, x, y, fontSize, color);
     }
 
     private static void DrawConveyor(
@@ -4950,8 +4967,7 @@ internal static class FactoryGameApp
                 DrawBridgeGlyph(conveyor, fx, fy, tileSize, alpha);
                 break;
             default:
-                Raylib.DrawRectangle(x + size / 5, y + size / 5, size - size * 2 / 5, size - size * 2 / 5,
-                    new Color(38, 43, 42, alpha));
+                WorldGraphics.DrawBeltTrack(x, y, size, alpha, conveyor.Definition.Tier >= 2);
                 foreach (var connectedDirection in Directions)
                 {
                     if (IsConnected(conveyor, connectedDirection, conveyors, world))
@@ -4961,12 +4977,16 @@ internal static class FactoryGameApp
                 }
 
                 DrawConveyorArm(center, conveyor.Direction, alpha, tileSize);
+                // Re-draw center plate so arms sit under the track face.
                 Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, size / 2,
                     conveyor.Definition.Tier >= 2
                         ? new Color(56, 92, 110, alpha)
                         : new Color(70, 77, 74, alpha));
-                // One-way chevrons matching facing (not bidirectional hash marks).
-                DrawConveyorFlowChevrons(center, conveyor.Direction, alpha, tileSize);
+                Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, Math.Max(1, size / 20),
+                    conveyor.Definition.Tier >= 2
+                        ? new Color(90, 140, 160, alpha)
+                        : new Color(100, 110, 105, alpha));
+                WorldGraphics.DrawFlowChevrons(center, conveyor.Direction, alpha, tileSize);
                 DrawDirectionMark(center, conveyor.Direction, alpha, tileSize);
                 break;
         }
@@ -5004,8 +5024,10 @@ internal static class FactoryGameApp
         DrawConveyorArm(center, right, alpha, tileSize);
         Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, size / 2,
             new Color(88, 96, 64, alpha));
+        Raylib.DrawRectangle(x + size / 4, y + size / 4, size / 2, Math.Max(1, size / 20),
+            new Color(130, 145, 90, alpha));
         // Chevrons along facing (same travel feel as belts); cargo exits L/R at handoff.
-        DrawConveyorFlowChevrons(center, direction, alpha, tileSize);
+        WorldGraphics.DrawFlowChevrons(center, direction, alpha, tileSize);
         DrawDirectionMark(center, direction, alpha, tileSize);
         var tick = tileSize * 0.75f;
         DrawDirectionMark(center + DirectionVector(left) * (8f * tileSize / BaseTileSize), left, alpha, tick);
@@ -5085,31 +5107,8 @@ internal static class FactoryGameApp
     /// Animated chevrons that scroll only along <paramref name="direction"/> so belt flow
     /// reads as one-way (facing), not bidirectional.
     /// </summary>
-    private static void DrawConveyorFlowChevrons(Vector2 center, Direction direction, int alpha, float tileSize)
-    {
-        if (tileSize < 10f)
-        {
-            return;
-        }
-
-        var vector = DirectionVector(direction);
-        var side = new Vector2(-vector.Y, vector.X);
-        var scale = tileSize / BaseTileSize;
-        var spacing = 12f;
-        var phase = (float)(Raylib.GetTime() * 22.0 % spacing);
-        var chevron = new Color(210, 195, 120, alpha);
-        var stroke = Math.Max(1.5f, 2.2f * scale);
-        var wing = 4.2f * scale;
-        var depth = 5f * scale;
-
-        for (var offset = -18f + phase; offset <= 18f; offset += spacing)
-        {
-            var tip = center + vector * (offset * scale);
-            var back = tip - vector * depth;
-            Raylib.DrawLineEx(back + side * wing, tip, stroke, chevron);
-            Raylib.DrawLineEx(back - side * wing, tip, stroke, chevron);
-        }
-    }
+    private static void DrawConveyorFlowChevrons(Vector2 center, Direction direction, int alpha, float tileSize) =>
+        WorldGraphics.DrawFlowChevrons(center, direction, alpha, tileSize);
 
     private static bool IsConnected(
         ConveyorCell conveyor,
@@ -5140,11 +5139,16 @@ internal static class FactoryGameApp
         var side = new Vector2(-vector.Y, vector.X);
         var scale = tileSize / BaseTileSize;
         var point = center + vector * (12f * scale);
+        var tip = point + vector * (5.5f * scale);
+        var left = point - vector * (5f * scale) + side * (5.5f * scale);
+        var right = point - vector * (5f * scale) - side * (5.5f * scale);
+        // Soft shadow under arrow for rim readability
         Raylib.DrawTriangle(
-            point + vector * (5f * scale),
-            point - vector * (5f * scale) + side * (5f * scale),
-            point - vector * (5f * scale) - side * (5f * scale),
-            new Color(224, 207, 142, alpha));
+            tip + new Vector2(1.2f * scale, 1.2f * scale),
+            left + new Vector2(1.2f * scale, 1.2f * scale),
+            right + new Vector2(1.2f * scale, 1.2f * scale),
+            new Color(12, 14, 12, Math.Clamp(alpha - 40, 80, 200)));
+        Raylib.DrawTriangle(tip, left, right, new Color(235, 215, 130, alpha));
     }
 
     private static void DrawPreview(
