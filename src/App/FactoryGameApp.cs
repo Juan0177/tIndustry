@@ -2053,36 +2053,39 @@ internal static class FactoryGameApp
             return;
         }
 
-        for (var index = 0; index < graph.Nodes.Count; index++)
+        if (overCanvas)
         {
-            var node = graph.Nodes[index];
-            var nx = (int)(node.X + TechTreePanX);
-            var ny = (int)(node.Y + TechTreePanY);
-            if (!Contains(mouse, nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight))
+            for (var index = 0; index < graph.Nodes.Count; index++)
             {
-                continue;
-            }
-
-            var entryIndex = -1;
-            for (var i = 0; i < entries.Count; i++)
-            {
-                if (entries[i].Id == node.Structure.Id)
+                var node = graph.Nodes[index];
+                var nx = (int)(node.X + TechTreePanX);
+                var ny = (int)(node.Y + TechTreePanY);
+                if (!Contains(mouse, nx, ny, TechTreeLayout.NodeWidth, TechTreeLayout.NodeHeight))
                 {
-                    entryIndex = i;
-                    break;
+                    continue;
                 }
-            }
 
-            if (entryIndex >= 0)
-            {
-                selectedResearchIndex = entryIndex;
+                var entryIndex = -1;
+                for (var i = 0; i < entries.Count; i++)
+                {
+                    if (entries[i].Id == node.Structure.Id)
+                    {
+                        entryIndex = i;
+                        break;
+                    }
+                }
+
+                if (entryIndex >= 0)
+                {
+                    selectedResearchIndex = entryIndex;
+                }
             }
         }
 
         selectedResearchIndex = Math.Clamp(selectedResearchIndex, 0, entries.Count - 1);
         var selected = entries[selectedResearchIndex];
-        GetTechTreeDetailPanel(out var detailX, out var detailY, out var detailW, out _);
-        if (!Contains(mouse, detailX, detailY, detailW, 52))
+        GetTechTreeUnlockButton(out var btnX, out var btnY, out var btnW, out var btnH);
+        if (!Contains(mouse, btnX, btnY, btnW, btnH))
         {
             return;
         }
@@ -2131,6 +2134,19 @@ internal static class FactoryGameApp
         x = ScreenWidth - w - 28;
         y = 132;
         h = Math.Max(220, ScreenHeight - y - 90);
+    }
+
+    /// <summary>Unlock confirm button inside the research detail panel (must match DrawResearch).</summary>
+    private const int TechTreeUnlockButtonOffsetY = 156;
+    private const int TechTreeUnlockButtonHeight = 48;
+
+    private static void GetTechTreeUnlockButton(out int x, out int y, out int w, out int h)
+    {
+        GetTechTreeDetailPanel(out var detailX, out var detailY, out var detailW, out _);
+        x = detailX + 16;
+        y = detailY + TechTreeUnlockButtonOffsetY;
+        w = detailW - 32;
+        h = TechTreeUnlockButtonHeight;
     }
 
     private static void HandlePlayingInput(
@@ -4286,7 +4302,8 @@ internal static class FactoryGameApp
             : !research.MeetsPrerequisites(selected)
                 ? "Prerequisiti mancanti"
                 : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
-        DrawMenuButton(detailX + 16, detailY + 156, detailW - 32, 48, buttonLabel);
+        GetTechTreeUnlockButton(out var unlockX, out var unlockY, out var unlockW, out var unlockH);
+        DrawMenuButton(unlockX, unlockY, unlockW, unlockH, buttonLabel);
         DrawUiText("Lo sblocco consuma denaro e materiali.", detailX + 16, detailY + 216, 13,
             new Color(126, 137, 132, 255));
 

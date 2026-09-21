@@ -176,6 +176,13 @@ static void RunSelfTest(GameContent content)
         "L'assemblatore richiede il forno.");
     Assert(content.FindStructure("splitter")!.Requires.Contains("junction"),
         "Lo sdoppiatore richiede l'incrocio.");
+    Assert(content.FindStructure("sorter")!.Requires.Contains("junction"),
+        "Il selezionatore richiede l'incrocio.");
+    Assert(content.FindStructure("conveyor-express")!.Requires.Contains("conveyor-fast"),
+        "Il Nastro T3 richiede il Nastro T2.");
+    Assert(content.FindStructure("miner-advanced")!.Requires.Contains("miner")
+            && content.FindStructure("miner-advanced")!.Requires.Contains("smelter"),
+        "Il Minatore T2 richiede miner + forno.");
     var prereqResearch = ResearchState.CreateNew(content);
     var prereqWallet = new EconomyWallet(1000, new Dictionary<string, int>
     {
@@ -195,14 +202,26 @@ static void RunSelfTest(GameContent content)
     Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Available,
         "Dopo il forno il nastro veloce diventa disponibile.");
     Assert(prereqResearch.TryUnlock(fastTech, prereqWallet), "Sblocco Nastro T2 dopo forno.");
+    var expressUnlockTech = content.FindStructure("conveyor-express")!;
+    Assert(prereqResearch.GetNodeState(expressUnlockTech) == ResearchNodeState.Available,
+        "Dopo Nastro T2 il Nastro T3 è disponibile.");
+    Assert(prereqResearch.TryUnlock(expressUnlockTech, prereqWallet), "Sblocco Nastro T3 dopo T2.");
     var treeGraph = TechTreeLayout.Build(content);
     Assert(treeGraph.Nodes.Count == content.Structures.Count,
         "Il grafo deve includere tutte le strutture.");
-    Assert(treeGraph.Edges.Count >= 6, "Il grafo deve avere archi da prerequisites.");
+    Assert(treeGraph.Edges.Count >= 8, "Il grafo deve avere archi da prerequisites (midgame).");
     Assert(treeGraph.Edges.Any(edge => edge.FromId == "miner" && edge.ToId == "smelter"),
         "Arco miner → forno.");
     Assert(treeGraph.Edges.Any(edge => edge.FromId == "smelter" && edge.ToId == "conveyor-fast"),
         "Arco forno → nastro veloce.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "conveyor-fast" && edge.ToId == "conveyor-express"),
+        "Arco Nastro T2 → Nastro T3.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "junction" && edge.ToId == "sorter"),
+        "Arco incrocio → selezionatore.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "miner" && edge.ToId == "miner-advanced"),
+        "Arco miner → Minatore T2.");
+    Assert(treeGraph.Edges.Any(edge => edge.FromId == "smelter" && edge.ToId == "miner-advanced"),
+        "Arco forno → Minatore T2.");
 
     var grid = CreateTwoCellLine(definition, research);
     var first = grid.Cells[new GridPosition(0, 0)];
@@ -878,12 +897,15 @@ static void RunSelfTest(GameContent content)
     var sorterTech = content.FindStructure("sorter")!;
     Assert(sorterDef.Kind == LogisticsKind.Sorter, "Il selezionatore deve avere kind sorter.");
     var sortResearch = ResearchState.CreateNew(content);
-    Assert(sortResearch.TryUnlock(sorterTech, new EconomyWallet(300, new Dictionary<string, int>
-        {
-            ["iron-plate"] = 40,
-            ["copper-wire"] = 10
-        })),
-        "Selezionatore sbloccabile.");
+    var sortUnlockWallet = new EconomyWallet(300, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 40,
+        ["copper-wire"] = 10
+    });
+    Assert(sortResearch.TryUnlock(content.FindStructure("junction")!, sortUnlockWallet),
+        "Incrocio sbloccabile prima del selezionatore.");
+    Assert(sortResearch.TryUnlock(sorterTech, sortUnlockWallet),
+        "Selezionatore sbloccabile con prereq incrocio.");
     var sortGrid = new ConveyorGrid();
     var sortWallet = new EconomyWallet(400, new Dictionary<string, int>
     {
@@ -1594,6 +1616,50 @@ static void RunSelfTest(GameContent content)
                     || s.DisplayName.Equals("Nastro base", StringComparison.Ordinal)
                     || s.DisplayName.Equals("Nastro veloce", StringComparison.Ordinal)),
                 "Nessuna etichetta user-facing legacy dopo sync.");
+
+            // Stale / missing prerequisites must refresh from seed (pre-#38 AppData, sorter gap).
+            var stripped = GameContent.Load(GameContentStore.UserJsonPath);
+            var strippedStructures = stripped.Structures
+                .Select(s => s with { Prerequisites = Array.Empty<string>() })
+                .ToList();
+            File.WriteAllText(GameContentStore.UserJsonPath, System.Text.Json.JsonSerializer.Serialize(
+                new GameContent
+                {
+                    Conveyors = stripped.Conveyors,
+                    Recipes = stripped.Recipes,
+                    Structures = strippedStructures,
+                    Buildings = stripped.Buildings,
+                    Market = stripped.Market,
+                    Economy = stripped.Economy
+                },
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    Converters =
+                    {
+                        new System.Text.Json.Serialization.JsonStringEnumConverter(
+                            System.Text.Json.JsonNamingPolicy.CamelCase)
+                    }
+                }));
+            Assert(GameContentStore.SyncSeedPrerequisites(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Sync prerequisites deve ripristinare archi da seed.");
+            var prereqSynced = GameContent.Load(GameContentStore.UserJsonPath);
+            Assert(prereqSynced.FindStructure("smelter")!.Requires.Contains("miner"),
+                "Dopo sync prereq forno → miner.");
+            Assert(prereqSynced.FindStructure("sorter")!.Requires.Contains("junction"),
+                "Dopo sync prereq selezionatore → incrocio.");
+            Assert(prereqSynced.FindStructure("conveyor-express")!.Requires.Contains("conveyor-fast"),
+                "Dopo sync prereq Nastro T3 → T2.");
+            Assert(prereqSynced.FindStructure("miner-advanced")!.Requires.Contains("smelter"),
+                "Dopo sync prereq Minatore T2 → forno.");
+            var restoredGraph = TechTreeLayout.Build(prereqSynced);
+            Assert(restoredGraph.Edges.Count >= 8,
+                "Dopo sync prereq il grafo ha di nuovo gli archi midgame.");
+            Assert(!GameContentStore.SyncSeedPrerequisites(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Secondo sync prerequisites è no-op.");
         }
         finally
         {

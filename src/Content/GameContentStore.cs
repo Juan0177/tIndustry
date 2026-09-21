@@ -64,6 +64,7 @@ public static class GameContentStore
             var changed = false;
             changed |= MergeMissingSeedEntries(UserJsonPath, seed);
             changed |= SyncSeedDisplayFields(UserJsonPath, seed);
+            changed |= SyncSeedPrerequisites(UserJsonPath, seed);
             if (changed)
             {
                 // Keep optional Excel in sync when we patched AppData from seed.
@@ -171,6 +172,74 @@ public static class GameContentStore
             user.Buildings.ToList(),
             market,
             user.Economy ?? seed.Economy);
+        return true;
+    }
+
+    /// <summary>
+    /// Overwrites user structure <c>prerequisites</c> when they differ from the seed.
+    /// Fixes pre-tech-tree AppData (missing edges) and midgame id renames without wiping costs.
+    /// </summary>
+    public static bool SyncSeedPrerequisites(string userJsonPath, string seedJsonPath)
+    {
+        var user = GameContent.Load(userJsonPath);
+        var seed = GameContent.Load(seedJsonPath);
+
+        var structures = user.Structures.ToList();
+        var seedStructures = seed.Structures.ToDictionary(s => s.Id, StringComparer.Ordinal);
+        var changed = false;
+
+        for (var i = 0; i < structures.Count; i++)
+        {
+            if (!seedStructures.TryGetValue(structures[i].Id, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (PrerequisitesEqual(structures[i].Requires, fromSeed.Requires))
+            {
+                continue;
+            }
+
+            structures[i] = structures[i] with
+            {
+                Prerequisites = fromSeed.Requires.Count == 0
+                    ? Array.Empty<string>()
+                    : fromSeed.Requires.ToArray()
+            };
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        WriteMerged(
+            userJsonPath,
+            user.Conveyors.ToList(),
+            user.Recipes.ToList(),
+            structures,
+            user.Buildings.ToList(),
+            user.Market.ToList(),
+            user.Economy ?? seed.Economy);
+        return true;
+    }
+
+    private static bool PrerequisitesEqual(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!string.Equals(left[i], right[i], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
