@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Single-cell Mindustry-like corner: L rails + chevrons that scroll along the bend.
-/// Base shader is enter-west → exit-south; rotation / Y-flip covers other 90° turns.
+/// Corner cell as a static blue metal platform (no scrolling arrows).
+/// Base art: enter-west → exit-south; rotation / Y-flip covers other 90° turns.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
@@ -34,15 +34,15 @@ public partial class BeltCornerTile : Node2D
         var span = tileSize + 2f;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        _material!.SetShaderParameter("marks_per_tile", 2.0f);
-        _material.SetShaderParameter("half_width", 0.39f);
-        _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
-        _material.SetShaderParameter("scroll", 0f);
+        _material!.SetShaderParameter("half_width", 0.39f);
+        // Platform is static — scroll phase unused (kept in signature for call-site stability).
+        _ = scrollPhaseTiles;
     }
 
+    /// <summary>No-op: platform corner does not scroll marks.</summary>
     public void SetScroll(float scrollTiles)
     {
-        _material?.SetShaderParameter("scroll", scrollTiles);
+        _ = scrollTiles;
     }
 
     private static Direction MirrorHorizontal(Direction d) => d switch
@@ -67,7 +67,7 @@ public partial class BeltCornerTile : Node2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            // Above adjacent strip ends so the L elbow reads cleanly.
+            // Above adjacent strip ends so the platform elbow reads cleanly.
             ZIndex = 2
         };
         AddChild(_sprite);
