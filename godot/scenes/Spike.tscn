@@ -8,8 +8,8 @@
 script = ExtResource("1_world")
 
 [node name="Camera" type="Camera2D" parent="."]
-position = Vector2(560, 520)
-zoom = Vector2(1.15, 1.15)
+position = Vector2(560, 620)
+zoom = Vector2(1.05, 1.05)
 script = ExtResource("2_cam")
 
 [node name="Belts" type="Node2D" parent="."]

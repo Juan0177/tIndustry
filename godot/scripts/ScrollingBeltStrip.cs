@@ -4,21 +4,19 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Continuous Mindustry-style belt strip: shader chevrons scroll along flow at
-/// <see cref="ConveyorDefinition.RateItemsPerSecond"/> tiles/second (same units as item Advance).
-/// Straight lanes only — corners/junctions are a follow-up for the full port.
+/// Continuous Mindustry-style straight belt strip. Chevrons tip with flow (+local X);
+/// scroll is driven by <see cref="MindustryBeltVisual"/> (shared phase across L segments).
 /// </summary>
 public partial class ScrollingBeltStrip : Node2D
 {
     private ShaderMaterial? _material;
     private Sprite2D? _sprite;
-    private float _scroll;
-    private float _rateTilesPerSecond = 0.5f;
 
-    public float ScrollTiles => _scroll;
-    public float RateTilesPerSecond => _rateTilesPerSecond;
-
-    public void Configure(IReadOnlyList<GridPosition> path, Direction direction, float rateItemsPerSecond, int tileSize)
+    public void Configure(
+        IReadOnlyList<GridPosition> path,
+        Direction direction,
+        int tileSize,
+        float scrollPhaseTiles = 0f)
     {
         if (path.Count == 0)
         {
@@ -26,8 +24,6 @@ public partial class ScrollingBeltStrip : Node2D
         }
 
         var cellCount = path.Count;
-        _rateTilesPerSecond = Math.Max(0.05f, rateItemsPerSecond);
-
         var first = path[0];
         var last = path[^1];
         var minX = Math.Min(first.X, last.X);
@@ -69,23 +65,13 @@ public partial class ScrollingBeltStrip : Node2D
 
         _material!.SetShaderParameter("cell_count", (float)cellCount);
         _material.SetShaderParameter("marks_per_tile", 2.5f);
-        _material.SetShaderParameter("scroll", _scroll);
+        _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
+        _material.SetShaderParameter("scroll", 0f);
     }
 
-    public override void _Process(double delta)
+    public void SetScroll(float scrollTiles)
     {
-        if (_material is null)
-        {
-            return;
-        }
-
-        _scroll += _rateTilesPerSecond * (float)delta;
-        if (_scroll > 1024f)
-        {
-            _scroll %= 1f;
-        }
-
-        _material.SetShaderParameter("scroll", _scroll);
+        _material?.SetShaderParameter("scroll", scrollTiles);
     }
 
     private void EnsureVisual()
