@@ -262,7 +262,7 @@ public static class WorldGraphics
             var label = fuelBuffer > 0 || isBurningFuel
                 ? $"FORNO Ca{fuelBuffer}"
                 : isPowered
-                    ? "FORNO PWR"
+                    ? "FORNO corr"
                     : "FORNO";
             drawLabel(label, x + (int)(14 * scale), y + (int)(8 * scale), alpha,
                 new Color(255, 220, 190, alpha));
@@ -319,7 +319,7 @@ public static class WorldGraphics
 
         if (tileSize >= 12f && drawLabel is not null)
         {
-            drawLabel("ASSY", x + (int)(14 * scale), y + (int)(8 * scale), alpha,
+            drawLabel("Assem", x + (int)(14 * scale), y + (int)(8 * scale), alpha,
                 new Color(190, 240, 246, alpha));
         }
 
@@ -372,7 +372,7 @@ public static class WorldGraphics
 
         if (tileSize >= 12f && drawLabel is not null)
         {
-            var label = fueled ? $"GEN {fuelBuffer}" : "GEN 0";
+            var label = fueled ? $"Gen {fuelBuffer}" : "Gen 0";
             drawLabel(label, x + (int)(14 * scale), y + (int)(8 * scale), alpha,
                 fueled ? new Color(255, 235, 170, alpha) : new Color(200, 160, 120, alpha));
         }

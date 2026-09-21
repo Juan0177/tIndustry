@@ -32,7 +32,7 @@ internal static class FactoryGameApp
     private const int MercatoSellAllWBase = 52;
     private const int MercatoSellGapBase = 5;
     private const int StatusPanelHeightBase = 148;
-    /// <summary>Minimum Fabbrica content: title + PWR + counts + CORE button.</summary>
+    /// <summary>Minimum Fabbrica content: title + Pot. + counts + CORE button.</summary>
     private const int StatusPanelMinHeightBase = 100;
     private const int HeaderIconSizeBase = 40;
     private const int HeaderIconGapBase = 8;
@@ -107,15 +107,15 @@ internal static class FactoryGameApp
     private static readonly string[] TutorialSteps =
     [
         "Camera: WASD / frecce, Shift+trascina o rotella centrale. Ctrl+rotella = zoom. H/Home = torna al CORE.",
-        "Dock in basso: tocca le categorie Logistica / Produzione / Energia per cambiare i pezzi disponibili.",
+        "Dock in basso: tocca le categorie Logistica / Produzione / Potenza per cambiare i pezzi disponibili.",
         "Piazza un MINATORE (tasto 2 o dock Produzione) sul giacimento di ferro a ovest del CORE.",
-        "Nastri (1): rotella o R ruota la direzione. Amber = uscita (nastro che punta via); ciano = ingresso.",
-        "Layout compatto: minatore a contatto col forno trasferisce ore senza nastro in mezzo (stile Mindustry).",
-        "Collega NASTRI uscenti fino al CORE: i minerali entrano nello stock (strip in alto).",
+        "Nastri (1): rotella o R ruota la direzione. Ambra = uscita (nastro che punta via); ciano = ingresso.",
+        "Layout compatto: minatore a contatto col forno trasferisce ore senza nastro in mezzo (trasferimento adiacente).",
+        "Collega NASTRI uscenti fino al CORE: i minerali entrano in magazzino (barra risorse in alto).",
         "MERCATO (pannello a sinistra): vendi con 1 / tutti, oppure attiva Vendita automatica.",
-        "FABBRICA: conteggi M/F/A/N/G e upgrade CORE (bottone o tasto U) per +25% prezzi vendita.",
+        "FABBRICA: conteggi M/F/A/N/G/P (minatori/forni/assemblatori/nastri/generatori/nodi) e upgrade CORE (U) per +25% prezzi.",
         "Apri RICERCA (T o icona albero) e sblocca FORNO, poi altri edifici quando puoi.",
-        "Dopo lo sblocco: FORNO (3) = carbone o corrente (+20% con corrente); ASSEMBLATORE (5) serve potenza; GENERATORE (9) solo carbone; NODI (dock Energia) mai CORE.",
+        "Dopo lo sblocco: FORNO (3) = carbone o corrente (+20% con corrente); ASSEMBLATORE (5) serve potenza; GENERATORE (9) solo carbone; NODI (dock Potenza) mai CORE.",
         "Logistica: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E/Y = Nastro T1/T2/T3.",
         "RIMUOVI (4 / X nel dock): rimborso 100% di edifici e nastri.",
         "Campagna: Esc → Home → Campagna per livelli con obiettivi. Sandbox = questa partita libera.",
@@ -130,6 +130,9 @@ internal static class FactoryGameApp
     // Ephemeral status toast — auto-clears so it cannot linger over the HUD.
     private static string? StatusToastTracked;
     private static double StatusToastUntil;
+
+    /// <summary>Two-click delete arm for Gestione salvataggi (null = not armed).</summary>
+    private static string? SaveDeleteArmedSlotId;
 
     private static readonly Direction[] Directions =
     [
@@ -1940,7 +1943,7 @@ internal static class FactoryGameApp
         var actions = GetHomeActions();
         for (var i = 0; i < actions.Length; i++)
         {
-            if (!Contains(mouse, HomeButtonX, HomeButtonY(i), HomeButtonWidth, HomeButtonHeight))
+            if (!Contains(mouse, HomeButtonX(), HomeButtonY(i), HomeButtonWidth, HomeButtonHeight))
             {
                 continue;
             }
@@ -2119,6 +2122,7 @@ internal static class FactoryGameApp
         {
             screen = AppScreen.Home;
             statusMessage = null;
+            SaveDeleteArmedSlotId = null;
             return;
         }
 
@@ -2127,11 +2131,13 @@ internal static class FactoryGameApp
             if (Raylib.IsKeyPressed(KeyboardKey.Up))
             {
                 selectedSlotIndex = (selectedSlotIndex + saveSlots.Length - 1) % saveSlots.Length;
+                SaveDeleteArmedSlotId = null;
             }
 
             if (Raylib.IsKeyPressed(KeyboardKey.Down))
             {
                 selectedSlotIndex = (selectedSlotIndex + 1) % saveSlots.Length;
+                SaveDeleteArmedSlotId = null;
             }
         }
 
@@ -2140,10 +2146,18 @@ internal static class FactoryGameApp
             return;
         }
 
+        var actionsX = Math.Clamp(ScreenWidth - 300, 640, Math.Max(640, ScreenWidth - 300));
+        var listW = Math.Max(320, actionsX - 80);
+
         for (var index = 0; index < saveSlots.Length; index++)
         {
-            if (Contains(mouse, 60, 150 + index * 52, 760, 44))
+            if (Contains(mouse, 60, 150 + index * 52, listW, 44))
             {
+                if (selectedSlotIndex != index)
+                {
+                    SaveDeleteArmedSlotId = null;
+                }
+
                 selectedSlotIndex = index;
             }
         }
@@ -2154,23 +2168,35 @@ internal static class FactoryGameApp
         }
 
         var selected = saveSlots[Math.Clamp(selectedSlotIndex, 0, saveSlots.Length - 1)];
-        if (Contains(mouse, 860, 150, 280, 44))
+        if (Contains(mouse, actionsX, 150, 280, 44))
         {
+            SaveDeleteArmedSlotId = null;
             BeginLoadingSave(selected.Id, ref screen, ref statusMessage);
             return;
         }
 
-        if (Contains(mouse, 860, 210, 280, 44))
+        if (Contains(mouse, actionsX, 210, 280, 44))
         {
-            GameSaveStore.Delete(selected.Id);
-            saveSlots = GameSaveStore.ListSlots().ToArray();
-            selectedSlotIndex = Math.Clamp(selectedSlotIndex, 0, Math.Max(0, saveSlots.Length - 1));
-            statusMessage = "Salvataggio eliminato.";
+            if (SaveDeleteArmedSlotId == selected.Id)
+            {
+                GameSaveStore.Delete(selected.Id);
+                saveSlots = GameSaveStore.ListSlots().ToArray();
+                selectedSlotIndex = Math.Clamp(selectedSlotIndex, 0, Math.Max(0, saveSlots.Length - 1));
+                SaveDeleteArmedSlotId = null;
+                statusMessage = "Salvataggio eliminato.";
+            }
+            else
+            {
+                SaveDeleteArmedSlotId = selected.Id;
+                statusMessage = "Conferma: clicca di nuovo Elimina.";
+            }
+
             return;
         }
 
-        if (Contains(mouse, 860, 270, 280, 44))
+        if (Contains(mouse, actionsX, 270, 280, 44))
         {
+            SaveDeleteArmedSlotId = null;
             if (!GameSaveStore.TryLoad(GameSaveStore.ContinueSlotId, out var continueData))
             {
                 statusMessage = "Nessun Continua da duplicare.";
@@ -2352,7 +2378,7 @@ internal static class FactoryGameApp
         {
             session.RecordUnlockSpend(moneyBefore - wallet.Money);
             statusMessage = selected.IsStub
-                ? $"{selected.DisplayName} sbloccato (stub — non costruibile ancora)."
+                ? $"{selected.DisplayName} sbloccato (segnaposto — non costruibile ancora)."
                 : $"{selected.DisplayName} sbloccato!";
         }
         else
@@ -2458,10 +2484,16 @@ internal static class FactoryGameApp
             if (ActiveCampaignLevel is null)
             {
                 AutoSaveContinue(world, conveyors, wallet, camera, research, session, nextItemId);
+                ClearStatusToast(ref statusMessage);
+                statusMessage = "Partita salvata.";
+                screen = AppScreen.Home;
+                ActiveCampaignLevel = null;
+                CampaignLevelComplete = false;
+                return;
             }
 
             ClearStatusToast(ref statusMessage);
-            screen = ActiveCampaignLevel is not null ? AppScreen.CampaignSelect : AppScreen.Home;
+            screen = AppScreen.CampaignSelect;
             ActiveCampaignLevel = null;
             CampaignLevelComplete = false;
             return;
@@ -2738,19 +2770,29 @@ internal static class FactoryGameApp
                 else if (world.CanPlaceConveyor(position)
                     && research.IsUnlocked(selectedConveyor.Id))
                 {
-                    conveyors.TryPlace(
+                    if (conveyors.TryPlace(
                         position,
                         direction,
                         selectedConveyor,
                         wallet,
                         research,
                         session,
-                        world.CanPlaceConveyor);
-                    TutorialPlacedBelt = true;
-                    ConnectAdjacentMiner(world, conveyors, position);
-                    ConnectAdjacentSmelter(world, conveyors, position);
-                    ConnectAdjacentAssembler(world, conveyors, position);
-                    ConnectToAdjacentCore(world, conveyors, position);
+                        world.CanPlaceConveyor))
+                    {
+                        TutorialPlacedBelt = true;
+                        ConnectAdjacentMiner(world, conveyors, position);
+                        ConnectAdjacentSmelter(world, conveyors, position);
+                        ConnectAdjacentAssembler(world, conveyors, position);
+                        ConnectToAdjacentCore(world, conveyors, position);
+                    }
+                    else
+                    {
+                        statusMessage = "Risorse insufficienti per il nastro.";
+                    }
+                }
+                else if (world.CanPlaceConveyor(position) && !research.IsUnlocked(selectedConveyor.Id))
+                {
+                    statusMessage = "Nastro bloccato: sbloccalo in Ricerca (T).";
                 }
 
                 previousDragPosition = position;
@@ -2852,7 +2894,7 @@ internal static class FactoryGameApp
                 }
                 else
                 {
-                    statusMessage = "Generatore piazzato — fuel carbone; nodi o fabbrica adiacente (4-conn) per potenza.";
+                    statusMessage = "Generatore piazzato — brucia carbone; nodi o fabbrica adiacente (4-dir) per corrente.";
                 }
             }
             else if (tool == BuildTool.PowerNode && research.IsUnlocked("power-node"))
@@ -2867,11 +2909,11 @@ internal static class FactoryGameApp
                 else if (world.TryGetPowerNodeAt(position, out var placedT1)
                     && !PowerNetworking.NodeReachesGenerator(placedT1, world, world.PowerLinks))
                 {
-                    statusMessage = "Nodo T1 senza path a un generatore — non sarà live finché non raggiunge un gen.";
+                    statusMessage = "Nodo T1 senza percorso a un generatore — non sarà attivo finché non lo raggiunge.";
                 }
                 else
                 {
-                    statusMessage = "Nodo T1 piazzato — auto-link (priorità gen) entro range 6.";
+                    statusMessage = "Nodo T1 piazzato — collegamento automatico (priorità gen) entro raggio 6.";
                 }
             }
             else if (tool == BuildTool.PowerNodeT2 && research.IsUnlocked("power-node-t2"))
@@ -2886,11 +2928,11 @@ internal static class FactoryGameApp
                 else if (world.TryGetPowerNodeAt(position, out var placedT2)
                     && !PowerNetworking.NodeReachesGenerator(placedT2, world, world.PowerLinks))
                 {
-                    statusMessage = "Nodo T2 senza path a un generatore — non sarà live finché non raggiunge un gen.";
+                    statusMessage = "Nodo T2 senza percorso a un generatore — non sarà attivo finché non lo raggiunge.";
                 }
                 else
                 {
-                    statusMessage = "Nodo T2 piazzato — auto-link (priorità gen) entro range 10.";
+                    statusMessage = "Nodo T2 piazzato — collegamento automatico (priorità gen) entro raggio 10.";
                 }
             }
             else if (tool == BuildTool.Junction && research.IsUnlocked("junction"))
@@ -2909,6 +2951,12 @@ internal static class FactoryGameApp
                     ConnectAdjacentAssembler(world, conveyors, position);
                     ConnectToAdjacentCore(world, conveyors, position);
                 }
+                else
+                {
+                    statusMessage = world.CanPlaceConveyor(position)
+                        ? "Risorse insufficienti per l’incrocio."
+                        : "Incrocio: tile libera richiesta.";
+                }
             }
             else if (tool == BuildTool.Splitter && research.IsUnlocked("splitter"))
             {
@@ -2925,6 +2973,12 @@ internal static class FactoryGameApp
                     ConnectAdjacentSmelter(world, conveyors, position);
                     ConnectAdjacentAssembler(world, conveyors, position);
                     ConnectToAdjacentCore(world, conveyors, position);
+                }
+                else
+                {
+                    statusMessage = world.CanPlaceConveyor(position)
+                        ? "Risorse insufficienti per lo sdoppiatore."
+                        : "Sdoppiatore: tile libera richiesta.";
                 }
             }
             else if (tool == BuildTool.Sorter && research.IsUnlocked("sorter"))
@@ -2947,6 +3001,13 @@ internal static class FactoryGameApp
                     ConnectAdjacentSmelter(world, conveyors, position);
                     ConnectAdjacentAssembler(world, conveyors, position);
                     ConnectToAdjacentCore(world, conveyors, position);
+                    statusMessage = $"Selezionatore · filtro {UiTheme.ItemDisplayName(SorterBrushFilterId)}";
+                }
+                else
+                {
+                    statusMessage = world.CanPlaceConveyor(position)
+                        ? "Risorse insufficienti per il selezionatore."
+                        : "Selezionatore: tile libera richiesta.";
                 }
             }
             else if (tool == BuildTool.Bridge && research.IsUnlocked("conveyor-bridge"))
@@ -2972,6 +3033,12 @@ internal static class FactoryGameApp
                         ConnectAdjacentAssembler(world, conveyors, partner);
                         ConnectToAdjacentCore(world, conveyors, partner);
                     }
+                }
+                else
+                {
+                    statusMessage = world.CanPlaceConveyor(position)
+                        ? "Risorse insufficienti per il ponte (×2)."
+                        : "Ponte: serve spazio libero per entrambe le teste.";
                 }
             }
             else if (tool == BuildTool.Remove
@@ -3367,7 +3434,7 @@ internal static class FactoryGameApp
         }
     }
 
-    /// <summary>Live Fabbrica building counts shown under PWR.</summary>
+    /// <summary>Live Fabbrica building counts shown under Potenza.</summary>
     internal static string FormatFabbricaCounts(FactoryWorld world, ConveyorGrid conveyors) =>
         $"M{world.Miners.Count} F{world.Smelters.Count} A{world.Assemblers.Count} N{conveyors.Cells.Count} G{world.Generators.Count} P{world.PowerNodes.Count}";
 
@@ -3468,6 +3535,15 @@ internal static class FactoryGameApp
         {
             GetTutorialPanelBounds(out var tx, out var ty, out var tw, out var th);
             if (Contains(mouse, tx, ty, tw, th))
+            {
+                return true;
+            }
+        }
+
+        if (ActiveCampaignLevel is not null)
+        {
+            GetCampaignObjectiveHudBounds(out var ox, out var oy, out var ow, out var oh);
+            if (Contains(mouse, ox, oy, ow, oh))
             {
                 return true;
             }
@@ -3599,11 +3675,12 @@ internal static class FactoryGameApp
         }
     }
 
-    private const int HomeButtonX = 420;
     private const int HomeButtonWidth = 400;
     private const int HomeButtonHeight = 48;
 
     private static int HomeButtonY(int index) => 200 + index * 56;
+
+    private static int HomeButtonX() => Math.Max(40, (ScreenWidth - HomeButtonWidth) / 2);
 
     private enum HomeAction
     {
@@ -3637,22 +3714,28 @@ internal static class FactoryGameApp
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
         Raylib.DrawRectangleGradientV(0, 0, ScreenWidth, ScreenHeight,
             new Color(18, 28, 24, 255), new Color(10, 12, 12, 255));
-        DrawUiText("tINDUSTRY", 420, 100, 48, new Color(239, 238, 224, 255));
-        DrawUiText("Settore Foundry — mappa 1000×1000", 420, 160, 18, new Color(112, 124, 119, 255));
+        var title = "tINDUSTRY";
+        var titleX = (ScreenWidth - MeasureUiText(title, 48)) / 2;
+        DrawUiText(title, titleX, 100, 48, new Color(239, 238, 224, 255));
+        var subtitle = "Settore Foundry — mappa 1000×1000";
+        DrawUiText(subtitle, (ScreenWidth - MeasureUiText(subtitle, 18)) / 2, 160, 18,
+            new Color(112, 124, 119, 255));
 
         var actions = GetHomeActions();
+        var btnX = HomeButtonX();
         for (var i = 0; i < actions.Length; i++)
         {
-            DrawMenuButton(HomeButtonX, HomeButtonY(i), HomeButtonWidth, HomeButtonHeight,
+            DrawMenuButton(btnX, HomeButtonY(i), HomeButtonWidth, HomeButtonHeight,
                 HomeActionLabel(actions[i]));
         }
 
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            DrawUiText(statusMessage, 420, ScreenHeight - 120, 18, new Color(225, 140, 110, 255));
+            DrawUiText(statusMessage, btnX, ScreenHeight - 120, 18, new Color(225, 140, 110, 255));
         }
 
-        DrawUiText("WASD / Shift+drag / rotella centrale: pan   ·   Ctrl+rotella: zoom   ·   H/Home: core   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
+        DrawUiText(
+            "WASD / Shift+trascina / rotella centrale: sposta vista   ·   Ctrl+rotella: zoom   ·   H/Home: core   ·   T: ricerca   ·   I: impostazioni   ·   Esc: menu",
             80, ScreenHeight - 40, 15, new Color(90, 100, 96, 255));
     }
 
@@ -3892,7 +3975,7 @@ internal static class FactoryGameApp
             settings.Save();
             statusMessage = settings.AutoSellAtCore
                 ? "Vendita automatica ON: il core liquida in $."
-                : "Vendita automatica OFF: stock in magazzino; vendi dal Mercato.";
+                : "Vendita automatica OFF: magazzino; vendi dal Mercato.";
             return;
         }
 
@@ -4458,12 +4541,12 @@ internal static class FactoryGameApp
         GameSettings settings)
     {
         Raylib.DrawRectangle(0, 0, ScreenWidth, ScreenHeight, new Color(14, 18, 18, 255));
-        DrawUiText("Albero tecnologico", 28, 28, 30, new Color(239, 238, 224, 255));
+        DrawUiText("Ricerca", 28, 28, 30, new Color(239, 238, 224, 255));
         DrawUiText(
-            "Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina pan · Ctrl+rotella zoom · H reset",
+            "Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina sposta vista · Ctrl+rotella zoom · H reset",
             28, 66, 16, new Color(112, 124, 119, 255));
         DrawUiText(
-            $"Wallet: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato · percorso selezionato evidenziato",
+            $"Magazzino: $ {wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato · percorso selezionato evidenziato",
             28, 90, 15, new Color(164, 173, 168, 255));
         _ = settings;
 
@@ -4574,7 +4657,7 @@ internal static class FactoryGameApp
 
             var statusLabel = state switch
             {
-                ResearchNodeState.Unlocked => structure.IsStub ? "SBLOCCATO · stub" : "SBLOCCATO",
+                ResearchNodeState.Unlocked => structure.IsStub ? "SBLOCCATO · segnaposto" : "SBLOCCATO",
                 ResearchNodeState.Available => "DISPONIBILE",
                 _ => "BLOCCATO"
             };
@@ -4594,7 +4677,7 @@ internal static class FactoryGameApp
         var selectedState = research.GetNodeState(selected);
         var stateText = selectedState switch
         {
-            ResearchNodeState.Unlocked => selected.IsStub ? "Stato: sbloccato (stub)" : "Stato: sbloccato",
+            ResearchNodeState.Unlocked => selected.IsStub ? "Stato: sbloccato (segnaposto)" : "Stato: sbloccato",
             ResearchNodeState.Available => "Stato: disponibile",
             _ => "Stato: bloccato"
         };
@@ -4620,7 +4703,7 @@ internal static class FactoryGameApp
 
         if (selected.IsStub)
         {
-            DrawUiText("Stub: non costruibile ancora.", detailX + 16, detailY + 122, 14,
+            DrawUiText("Segnaposto: non costruibile ancora.", detailX + 16, detailY + 122, 14,
                 new Color(180, 120, 100, 255));
         }
 
@@ -4650,7 +4733,7 @@ internal static class FactoryGameApp
         }
 
         var materials = string.Join(", ",
-            unlock.Materials.Select(entry => $"{entry.Amount} {entry.ItemId}"));
+            unlock.Materials.Select(entry => $"{entry.Amount} {UiTheme.ItemDisplayName(entry.ItemId)}"));
         return materials.Length == 0
             ? $"${unlock.Money}"
             : $"${unlock.Money} + {materials}";
@@ -4659,7 +4742,11 @@ internal static class FactoryGameApp
     private static void DrawSaveManager(IReadOnlyList<SaveSlotInfo> slots, int selectedIndex, string? statusMessage)
     {
         DrawUiText("Gestione salvataggi", 60, 40, 32, new Color(239, 238, 224, 255));
-        DrawUiText("Seleziona uno slot, poi Carica o Elimina.", 60, 90, 18, new Color(112, 124, 119, 255));
+        DrawUiText("Seleziona uno slot, poi Carica o Elimina (doppia conferma).", 60, 90, 18,
+            new Color(112, 124, 119, 255));
+
+        var actionsX = Math.Clamp(ScreenWidth - 300, 640, Math.Max(640, ScreenWidth - 300));
+        var listW = Math.Max(320, actionsX - 80);
 
         if (slots.Count == 0)
         {
@@ -4672,17 +4759,25 @@ internal static class FactoryGameApp
                 var slot = slots[index];
                 var selected = index == selectedIndex;
                 var y = 150 + index * 52;
-                Raylib.DrawRectangle(60, y, 760, 44,
+                Raylib.DrawRectangle(60, y, listW, 44,
                     selected ? new Color(55, 72, 62, 255) : new Color(28, 34, 33, 255));
-                var label = slot.Id == GameSaveStore.ContinueSlotId ? "Continua (autosave)" : slot.Id;
+                var label = slot.Id == GameSaveStore.ContinueSlotId
+                    ? "Continua (salvataggio automatico)"
+                    : slot.Id;
                 DrawUiText(
                     $"{label}  ·  seed {slot.Seed}  ·  ${slot.Money}  ·  {slot.MapWidth}×{slot.MapHeight}",
                     76, y + 12, 18, new Color(220, 224, 214, 255));
             }
 
-            DrawMenuButton(860, 150, 280, 44, "Carica");
-            DrawMenuButton(860, 210, 280, 44, "Elimina");
-            DrawMenuButton(860, 270, 280, 44, "Duplica Continua");
+            DrawMenuButton(actionsX, 150, 280, 44, "Carica");
+            var deleteLabel = SaveDeleteArmedSlotId is not null
+                && selectedIndex >= 0
+                && selectedIndex < slots.Count
+                && SaveDeleteArmedSlotId == slots[selectedIndex].Id
+                    ? "Conferma elimina"
+                    : "Elimina";
+            DrawMenuButton(actionsX, 210, 280, 44, deleteLabel);
+            DrawMenuButton(actionsX, 270, 280, 44, "Duplica Continua");
         }
 
         DrawMenuButton(28, ScreenHeight - 70, 180, 40, "Indietro");
@@ -4770,8 +4865,10 @@ internal static class FactoryGameApp
                 ? (int)Math.Clamp(remaining / 0.6 * 255, 0, 255)
                 : 255;
             Raylib.DrawRectangle(ViewportLeft + 16, ViewportTop + 10, boxW, 28, new Color(10, 14, 14, alpha));
-            DrawUiText(label, ViewportLeft + 24, ViewportTop + 16, 16,
-                new Color(112, 218, 145, textAlpha));
+            var toastColor = IsErrorStatusToast(label)
+                ? new Color(235, 140, 110, textAlpha)
+                : new Color(112, 218, 145, textAlpha);
+            DrawUiText(label, ViewportLeft + 24, ViewportTop + 16, 16, toastColor);
         }
 
         if (TutorialActive)
@@ -4837,11 +4934,8 @@ internal static class FactoryGameApp
             return;
         }
 
-        var panelW = UiTheme.S(320);
+        GetCampaignObjectiveHudBounds(out var x, out var y, out var panelW, out var panelH);
         var lineH = UiTheme.S(18);
-        var panelH = UiTheme.S(36) + objectives.Count * lineH + UiTheme.S(10);
-        var x = 16;
-        var y = HeaderHeight + (ActiveSettings?.ShowResourceOverlay == true ? UiTheme.S(78) : UiTheme.S(12));
 
         Raylib.DrawRectangle(x, y, panelW, panelH, new Color(10, 14, 14, 210));
         Raylib.DrawRectangleLines(x, y, panelW, panelH, UiTheme.AccentDim);
@@ -4856,6 +4950,18 @@ internal static class FactoryGameApp
             DrawUiText(label, x + 10, y + UiTheme.S(28) + i * lineH, 12,
                 done ? new Color(120, 228, 150, 255) : UiTheme.TextPrimary);
         }
+    }
+
+    private static void GetCampaignObjectiveHudBounds(out int x, out int y, out int w, out int h)
+    {
+        var objectives = ActiveCampaignLevel?.Objectives ?? [];
+        w = UiTheme.S(320);
+        var lineH = UiTheme.S(18);
+        h = objectives.Count == 0
+            ? 0
+            : UiTheme.S(36) + objectives.Count * lineH + UiTheme.S(10);
+        x = 16;
+        y = HeaderHeight + (ActiveSettings?.ShowResourceOverlay == true ? UiTheme.S(78) : UiTheme.S(12));
     }
 
     private static void GetCampaignVictoryBounds(out int x, out int y, out int w, out int h)
@@ -4884,7 +4990,7 @@ internal static class FactoryGameApp
         var hasNext = catalog.NextAfter(level) is not null;
         var continueLabel = hasNext ? "Continua campagna" : "Selezione livelli";
         DrawMenuButton(x + 40, y + 130, 190, 48, continueLabel);
-        DrawMenuButton(x + w - 230, y + 130, 190, 48, "Menu");
+        DrawMenuButton(x + w - 230, y + 130, 190, 48, "Menu principale");
     }
 
     private static bool HandleCampaignVictoryInput(ref AppScreen screen, ref string? statusMessage)
@@ -5023,7 +5129,8 @@ internal static class FactoryGameApp
             BuildTool.Sorter => FormatConveyorCost(sorterConveyor, research),
             BuildTool.Bridge => FormatConveyorCost(bridgeConveyor, research),
             BuildTool.Conveyor => FormatConveyorCost(selectedConveyor, research),
-            _ => economy.RefundPolicyNote
+            BuildTool.Remove => "Rimuovi · rimborso 100%",
+            _ => string.Empty
         };
         // Keep cost inside the header so it never collides with the system overlay below.
         DrawUiText(cost, 16, Math.Min(48, HeaderHeight - 16), 12, new Color(164, 173, 168, 255));
@@ -5062,27 +5169,55 @@ internal static class FactoryGameApp
         var netLabel = UiTheme.SessionDeltaLabel(net);
         var moneyW = MeasureUiText(moneyLabel, 15);
         var netW = MeasureUiText(netLabel, 12);
+        var moneyColW = Math.Max(moneyW, netW) + 28;
 
-        var chipsW = 0;
-        var chipWidths = new int[items.Length];
-        for (var i = 0; i < items.Length; i++)
+        // Prefer non-zero stock first so mid-game wallets stay readable at 1280 / high UI scale.
+        var ordered = items
+            .Select((item, index) => (item, index, count: wallet.MaterialCount(item.ItemId)))
+            .OrderByDescending(e => e.count > 0)
+            .ThenBy(e => e.index)
+            .ToArray();
+
+        var maxStripRight = HeaderIconX(2) - 100;
+        var maxStripLeft = 200;
+        var maxStripW = Math.Max(120, maxStripRight - maxStripLeft);
+        var budget = maxStripW - 12 - moneyColW - 16 - 10;
+        var showShort = budget >= UiTheme.S(380);
+
+        var visible = new List<(UiTheme.InventoryItemDef item, int count, int width)>();
+        var used = 0;
+        var hidden = 0;
+        for (var i = 0; i < ordered.Length; i++)
         {
-            var count = wallet.MaterialCount(items[i].ItemId);
-            var countW = MeasureUiText(count.ToString(), 14);
-            var labelW = MeasureUiText(items[i].ShortName, 10);
-            chipWidths[i] = Math.Max(UiTheme.S(52), 34 + Math.Max(countW, labelW) + 10);
-            chipsW += chipWidths[i];
+            var entry = ordered[i];
+            var countW = MeasureUiText(entry.count.ToString(), 14);
+            var labelW = showShort ? MeasureUiText(entry.item.ShortName, 10) : 0;
+            var chipW = Math.Max(UiTheme.S(showShort ? 52 : 40), 34 + Math.Max(countW, labelW) + 10);
+            var overflowChip = UiTheme.S(44);
+            var remainingAfter = ordered.Length - i - 1;
+            var needOverflow = remainingAfter > 0 && used + chipW + overflowChip > budget;
+            if (needOverflow || used + chipW > budget)
+            {
+                hidden = ordered.Length - i;
+                break;
+            }
+
+            visible.Add((entry.item, entry.count, chipW));
+            used += chipW;
         }
 
-        var moneyColW = Math.Max(moneyW, netW) + 28; // room for coin icon
-        var stripW = 12 + moneyColW + 16 + chipsW + 10;
-        var stripX = Math.Clamp((ScreenWidth - stripW) / 2, 200, Math.Max(200, HeaderIconX(2) - stripW - 100));
+        if (hidden > 0)
+        {
+            used += UiTheme.S(44);
+        }
+
+        var stripW = 12 + moneyColW + 16 + used + 10;
+        var stripX = Math.Clamp((ScreenWidth - stripW) / 2, maxStripLeft, Math.Max(maxStripLeft, maxStripRight - stripW));
         var stripY = 8;
         var stripH = 48;
         Raylib.DrawRectangle(stripX, stripY, stripW, stripH, UiTheme.PanelFill);
         UiTheme.DrawAccentRect(stripX, stripY, stripW, stripH, UiTheme.PanelBorderBright, 1);
 
-        // Coin + money / Δ sessione stacked on the left.
         GameIcons.TryDraw("money", stripX + 8, stripY + 6, 18, UiTheme.MoneyGreen);
         DrawUiText(moneyLabel, stripX + 30, stripY + 6, 15, UiTheme.MoneyGreen);
         var netColor = net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed;
@@ -5097,17 +5232,35 @@ internal static class FactoryGameApp
         }
 
         var x = stripX + 10 + moneyColW + 10;
-        for (var i = 0; i < items.Length; i++)
+        foreach (var (item, count, chipW) in visible)
         {
-            var item = items[i];
-            var count = wallet.MaterialCount(item.ItemId);
             var iconBox = UiTheme.S(26);
             Raylib.DrawRectangle(x, stripY + 8, iconBox, iconBox, new Color(24, 28, 30, 255));
             Raylib.DrawRectangleLines(x, stripY + 8, iconBox, iconBox, UiTheme.ItemOutline(item.ItemId));
             UiTheme.DrawItemIcon(item.ItemId, x + 3, stripY + 11, iconBox - 6);
-            DrawUiText(count.ToString(), x + iconBox + 4, stripY + 8, 14, UiTheme.TextPrimary);
-            DrawUiText(item.ShortName, x + iconBox + 4, stripY + 28, 10, UiTheme.TextMuted);
-            x += chipWidths[i];
+            DrawUiText(count.ToString(), x + iconBox + 4, stripY + 8, 14,
+                count > 0 ? UiTheme.TextPrimary : UiTheme.TextMuted);
+            if (showShort)
+            {
+                DrawUiText(item.ShortName, x + iconBox + 4, stripY + 28, 10, UiTheme.TextMuted);
+            }
+
+            if (Contains(mouse, x, stripY + 6, chipW - 2, stripH - 12))
+            {
+                DrawTooltip($"{UiTheme.ItemDisplayName(item.ItemId)} · {count}", (int)mouse.X + 12, (int)mouse.Y + 18);
+            }
+
+            x += chipW;
+        }
+
+        if (hidden > 0)
+        {
+            var more = $"+{hidden}";
+            DrawUiText(more, x + 6, stripY + 16, 14, UiTheme.Accent);
+            if (Contains(mouse, x, stripY + 6, UiTheme.S(44), stripH - 12))
+            {
+                DrawTooltip("Altri materiali in magazzino (vedi Mercato)", (int)mouse.X + 12, (int)mouse.Y + 18);
+            }
         }
     }
 
@@ -5385,16 +5538,16 @@ internal static class FactoryGameApp
         var inY = y;
         var outY = y + lineH;
 
-        DrawUiText("Input", x, inY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.TextMuted);
-        var cursor = x + MeasureUiText("Input", fontSize) + UiTheme.S(6);
+        DrawUiText("Ingresso", x, inY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.TextMuted);
+        var cursor = x + MeasureUiText("Ingresso", fontSize) + UiTheme.S(6);
         foreach (var input in recipe.Inputs.Where(m => m.Amount > 0))
         {
             cursor = DrawDockQtyIcon(cursor, inY, lineH, fontSize, iconSize, input.Amount, input.ItemId);
             cursor += UiTheme.S(6);
         }
 
-        DrawUiText("Output", x, outY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.TextMuted);
-        cursor = x + MeasureUiText("Output", fontSize) + UiTheme.S(6);
+        DrawUiText("Uscita", x, outY + Math.Max(0, (lineH - UiTheme.S(fontSize)) / 2), fontSize, UiTheme.TextMuted);
+        cursor = x + MeasureUiText("Uscita", fontSize) + UiTheme.S(6);
         foreach (var output in recipe.Outputs.Where(m => m.Amount > 0))
         {
             cursor = DrawDockQtyIcon(cursor, outY, lineH, fontSize, iconSize, output.Amount, output.ItemId);
@@ -6710,13 +6863,13 @@ internal static class FactoryGameApp
         Raylib.BeginScissorMode(ViewportLeft, ViewportTop, (int)ViewportWidth, (int)ViewportHeight);
         Raylib.DrawRectangle((int)screen.X + 2, (int)screen.Y + 2, (int)previewSize - 5, (int)previewSize - 5, previewColor);
 
-        if (tool == BuildTool.Conveyor && valid && !conveyors.Cells.ContainsKey(position))
+        // Always draw a silhouette (dim when invalid) so footprint is readable.
+        if (tool == BuildTool.Conveyor && !conveyors.Cells.ContainsKey(position))
         {
             var preview = new ConveyorCell(position, direction, selectedConveyor);
             DrawConveyor(preview, conveyors, world, screen.X, screen.Y, tileSize, true);
         }
         else if (tool is BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter or BuildTool.Bridge
-            && valid
             && !conveyors.Cells.ContainsKey(position))
         {
             var preview = new ConveyorCell(
@@ -6726,43 +6879,70 @@ internal static class FactoryGameApp
                 filterItemId: tool == BuildTool.Sorter ? SorterBrushFilterId : null);
             DrawConveyor(preview, conveyors, world, screen.X, screen.Y, tileSize, true);
         }
-        else if (tool == BuildTool.Miner && valid)
+        else if (tool == BuildTool.Miner)
         {
             DrawMiner(new MinerBuilding(position, direction, world.CountCoveredDepositTiles(position)),
                 screen.X, screen.Y, tileSize, true);
-            DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
+            if (valid)
+            {
+                DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
+            }
         }
-        else if (tool == BuildTool.MinerAdvanced && valid)
+        else if (tool == BuildTool.MinerAdvanced)
         {
             DrawMiner(new MinerBuilding(position, direction, world.CountCoveredDepositTiles(position),
                     definitionId: MinerBuilding.AdvancedId),
                 screen.X, screen.Y, tileSize, true);
-            DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
+            if (valid)
+            {
+                DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
+            }
         }
-        else if (tool == BuildTool.Smelter && valid)
+        else if (tool == BuildTool.Smelter)
         {
             DrawSmelter(new SmelterBuilding(position, direction, smeltRecipe), screen.X, screen.Y, tileSize, true);
-            DrawGhostIoHints(position, SmelterBuilding.Size, conveyors, camera, tileSize);
+            if (valid)
+            {
+                DrawGhostIoHints(position, SmelterBuilding.Size, conveyors, camera, tileSize);
+            }
         }
-        else if (tool == BuildTool.Assembler && valid)
+        else if (tool == BuildTool.Assembler)
         {
             DrawAssembler(new SmelterBuilding(position, direction, wireRecipe), screen.X, screen.Y, tileSize, true);
-            DrawGhostIoHints(position, SmelterBuilding.Size, conveyors, camera, tileSize);
+            if (valid)
+            {
+                DrawGhostIoHints(position, SmelterBuilding.Size, conveyors, camera, tileSize);
+            }
         }
-        else if (tool == BuildTool.Generator && valid)
+        else if (tool == BuildTool.Generator)
         {
             DrawGenerator(new GeneratorBuilding(position), screen.X, screen.Y, tileSize, true);
         }
-        else if (tool == BuildTool.PowerNode && valid)
+        else if (tool == BuildTool.PowerNode)
         {
             DrawPowerNode(new PowerNodeBuilding(position, PowerNodeBuilding.Tier1Id), screen.X, screen.Y, tileSize, true);
+            DrawPowerNodeRangeGhost(screen, previewSize, tileSize, PowerNodeBuilding.Tier1Range, valid);
         }
-        else if (tool == BuildTool.PowerNodeT2 && valid)
+        else if (tool == BuildTool.PowerNodeT2)
         {
             DrawPowerNode(new PowerNodeBuilding(position, PowerNodeBuilding.Tier2Id), screen.X, screen.Y, tileSize, true);
+            DrawPowerNodeRangeGhost(screen, previewSize, tileSize, PowerNodeBuilding.Tier2Range, valid);
         }
 
         Raylib.EndScissorMode();
+    }
+
+    private static void DrawPowerNodeRangeGhost(
+        Vector2 screen, float previewSize, float tileSize, float rangeTiles, bool valid)
+    {
+        var cx = screen.X + previewSize * 0.5f;
+        var cy = screen.Y + previewSize * 0.5f;
+        var radius = rangeTiles * tileSize;
+        var color = valid
+            ? new Color(230, 200, 70, 90)
+            : new Color(225, 92, 80, 70);
+        Raylib.DrawCircleLines((int)cx, (int)cy, radius, color);
+        Raylib.DrawCircleLines((int)cx, (int)cy, radius - 1.5f, color);
     }
 
     /// <summary>
@@ -6809,13 +6989,26 @@ internal static class FactoryGameApp
 
     private static IEnumerable<MarketItemDefinition> MercatoVisibleItems(
         MarketCatalog market,
-        EconomyWallet wallet)
+        EconomyWallet wallet,
+        int maxRows)
     {
         // Stocked goods float up so early ores stay sellable; then by list price.
         return market.Items
             .OrderByDescending(item => wallet.MaterialCount(item.ItemId) > 0)
             .ThenByDescending(item => item.SellPrice)
-            .Take(MercatoVisibleRows);
+            .Take(Math.Max(1, maxRows));
+    }
+
+    private static int MercatoRowsForHeight(int panelH)
+    {
+        var rowH = MercatoRowHeight(panelH);
+        if (rowH <= 0)
+        {
+            return 1;
+        }
+
+        var avail = Math.Max(0, panelH - MercatoHeaderBlock() - MercatoS(4));
+        return Math.Clamp(avail / rowH, 1, Math.Max(MercatoVisibleRows, UiTheme.InventoryItems.Length));
     }
 
     private static void DrawMercatoPanel(
@@ -6835,12 +7028,13 @@ internal static class FactoryGameApp
         DrawToggleRow(x + pad, MercatoAutoSellY(y), w - pad * 2, MercatoS(24), "Vendita automatica", autoSell);
 
         DrawUiText(
-            autoSell ? "ON: il core liquida subito in $." : "OFF: stock in magazzino; vendi qui.",
+            autoSell ? "ON: il core liquida subito in $." : "OFF: magazzino; vendi qui.",
             x + pad, MercatoHintY(y), 11, UiTheme.TextMuted);
 
         var iconSize = MercatoS(22);
         var index = 0;
-        foreach (var item in MercatoVisibleItems(market, wallet))
+        var maxRows = MercatoRowsForHeight(h);
+        foreach (var item in MercatoVisibleItems(market, wallet, maxRows))
         {
             var rowY = MercatoRowY(y, h, index);
             var stock = wallet.MaterialCount(item.ItemId);
@@ -6877,7 +7071,7 @@ internal static class FactoryGameApp
             var nameMaxW = Math.Max(MercatoS(36), priceX - MercatoS(6) - nameX);
             var name = TruncateUiText(shortName, 12, nameMaxW);
             DrawUiText(name, nameX, rowY + 1, 12, UiTheme.TextPrimary);
-            DrawUiText($"stock ×{stock}", nameX, rowY + MercatoS(16), 10,
+            DrawUiText($"mag ×{stock}", nameX, rowY + MercatoS(16), 10,
                 stock > 0 ? UiTheme.TextMuted : new Color(120, 110, 100, 255));
 
             DrawCompactMarketButton(oneX, oneY, oneW, oneH, "1", stock > 0);
@@ -6905,17 +7099,22 @@ internal static class FactoryGameApp
         // Same accent column as Mercato so the HUD stack reads as one width.
         UiTheme.DrawAccentRect(x, y, w, h, UiTheme.Accent, 2);
 
-        DrawUiText("FABBRICA", x + pad, y + MercatoS(6), 13, UiTheme.TextMuted);
+        DrawUiText("FABBRICA", x + pad, y + MercatoS(6), 13, UiTheme.TextPrimary);
 
         var net = session.NetWorthDelta(wallet);
         DrawUiText(
-            $"{UiTheme.SessionDeltaLabel(net)}  ·  PWR {world.PowerBuffer:0}/{world.PowerCapacity:0}",
+            $"{UiTheme.SessionDeltaLabel(net)}  ·  Pot. {world.PowerBuffer:0}/{world.PowerCapacity:0}",
             x + pad, y + MercatoS(24), 11,
             net >= 0 ? UiTheme.MoneyGreen : UiTheme.MoneyRed);
 
-        DrawUiText(
-            FormatFabbricaCounts(world, conveyors),
-            x + pad, countsY, 11, UiTheme.TextMuted);
+        var counts = FormatFabbricaCounts(world, conveyors);
+        DrawUiText(counts, x + pad, countsY, 11, UiTheme.TextMuted);
+        var mouse = Raylib.GetMousePosition();
+        if (Contains(mouse, x + pad, countsY - 2, w - pad * 2, UiTheme.S(16)))
+        {
+            DrawTooltip("M minatori · F forni · A assemblatori · N nastri · G generatori · P nodi",
+                (int)mouse.X + 12, (int)mouse.Y + 18);
+        }
 
         var tip = GetOnboardingTip(world, conveyors, research, wallet);
         var tipMaxH = upgradeY - (y + MercatoS(56)) - MercatoS(4);
@@ -6928,7 +7127,7 @@ internal static class FactoryGameApp
         var upgraded = world.CoreUpgradeLevel > 0;
         if (upgraded)
         {
-            DrawButton(upgradeX, upgradeY, upgradeW, upgradeH, $"CORE LV{world.CoreUpgradeLevel}", active: true);
+            DrawButton(upgradeX, upgradeY, upgradeW, upgradeH, $"CORE liv.{world.CoreUpgradeLevel}", active: true);
         }
         else
         {
@@ -6967,7 +7166,7 @@ internal static class FactoryGameApp
                 "copper-wire" => $"×{m.Amount} fili",
                 "iron-ore" => $"×{m.Amount} ferro",
                 "copper-ore" => $"×{m.Amount} rame",
-                _ => $"×{m.Amount} {m.ItemId}"
+                _ => $"×{m.Amount} {UiTheme.ItemDisplayName(m.ItemId)}"
             });
         return string.Join(" + ", parts);
     }
@@ -7118,11 +7317,11 @@ internal static class FactoryGameApp
             ActiveSettings.Save();
             statusMessage = ActiveSettings.AutoSellAtCore
                 ? "Vendita automatica ON: il core liquida in $."
-                : "Vendita automatica OFF: stock in magazzino.";
+                : "Vendita automatica OFF: magazzino; vendi qui.";
             return true;
         }
 
-        var items = MercatoVisibleItems(market, wallet).ToList();
+        var items = MercatoVisibleItems(market, wallet, MercatoRowsForHeight(panelH)).ToList();
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
@@ -7296,7 +7495,7 @@ internal static class FactoryGameApp
 
         if (research.IsUnlocked("smelter") && world.Smelters.Count == 0)
         {
-            return "Piazza un FORNO: carbone o corrente (bootstrap senza gen).";
+            return "Piazza un FORNO: carbone o corrente (anche senza generatore).";
         }
 
         if (world.Smelters.Count > 0
@@ -7319,11 +7518,11 @@ internal static class FactoryGameApp
 
         var tips = new[]
         {
-            "Produce → stock → costruisci, oppure vendi dal Mercato.",
+            "Produce → magazzino → costruisci, oppure vendi dal Mercato.",
             "Esplora giacimenti di rame e carbone vicino al core.",
             "Sblocca lo sdoppiatore per biforcare i flussi.",
             "L'assemblatore trasforma il rame in fili.",
-            "Nastro T3 (Y) per linee ad alto throughput.",
+            "Nastro T3 (Y) per linee ad alto flusso.",
             "Vendita automatica OFF tiene lastre e fili per i costi."
         };
         var index = (int)(Raylib.GetTime() / 8.0) % tips.Length;
@@ -7445,6 +7644,21 @@ internal static class FactoryGameApp
         statusMessage = null;
         StatusToastTracked = null;
         StatusToastUntil = 0;
+    }
+
+    /// <summary>Warm toast tint for refuse / blocked / insufficient messages.</summary>
+    private static bool IsErrorStatusToast(string message)
+    {
+        return message.Contains("insufficienti", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("bloccato", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("serve ", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("senza ", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Nessun", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("mancanti", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Conferma:", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("area ", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("tile libera", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("spazio libero", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void DrawSystemResourceOverlay(int x, int y)

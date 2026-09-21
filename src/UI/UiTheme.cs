@@ -372,8 +372,8 @@ public static class UiTheme
     {
         BuildCategory.Production => "Prod",
         BuildCategory.Logistics => "Log",
-        BuildCategory.Power => "PWR",
-        BuildCategory.Tools => "Tool",
+        BuildCategory.Power => "Pot.",
+        BuildCategory.Tools => "Strum",
         _ => "?"
     };
 
@@ -389,10 +389,12 @@ public static class UiTheme
         "conveyor-fast" => "T2",
         "conveyor-express" => "T3",
         "junction" => "Incroc",
-        "splitter" => "Split",
-        "sorter" => "Filtro",
+        "splitter" => "Sdop",
+        "sorter" => "Selez",
         "bridge" => "Ponte",
         "remove" => "Rimuovi",
+        "power-node" => "Nodo",
+        "power-node-t2" => "Nodo",
         _ => entry.Label.Length <= 6 ? entry.Label : entry.Label[..5] + "…"
     };
 
@@ -463,9 +465,9 @@ public static class UiTheme
         new("generator", "Generatore", "Ge", DockEntryKind.BuildTool, Tool: BuildTool.Generator, ResearchId: "generator",
             Hint: "Brucia carbone per energia (9) · rete locale via nodi"),
         new("power-node", "Nodo T1", "T1", DockEntryKind.BuildTool, Tool: BuildTool.PowerNode, ResearchId: "power-node",
-            Hint: "Nodo T1 · 1×1 · 4 link · range 6 · auto-link gen (mai CORE)"),
+            Hint: "Nodo T1 · 1×1 · 4 collegamenti · raggio 6 · auto-link gen (mai CORE)"),
         new("power-node-t2", "Nodo T2", "T2", DockEntryKind.BuildTool, Tool: BuildTool.PowerNodeT2, ResearchId: "power-node-t2",
-            Hint: "Nodo T2 · 2×2 · 8 link · range 10 · auto-link gen (mai CORE)")
+            Hint: "Nodo T2 · 2×2 · 8 collegamenti · raggio 10 · auto-link gen (mai CORE)")
     ];
 
     private static readonly DockEntry[] EmptyEntries = [];

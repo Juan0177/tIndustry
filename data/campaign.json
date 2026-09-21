@@ -44,7 +44,7 @@
           "type": "stockItem",
           "itemId": "iron-ore",
           "amount": 12,
-          "label": "Stock 12 ferro grezzo"
+          "label": "Magazzino 12 ferro grezzo"
         }
       ],
       "unlocksNext": "level-03-lastre"
@@ -72,7 +72,7 @@
           "type": "stockItem",
           "itemId": "iron-plate",
           "amount": 12,
-          "label": "Stock 12 lastre di ferro"
+          "label": "Magazzino 12 lastre di ferro"
         }
       ],
       "unlocksNext": "level-04-fili"
@@ -100,7 +100,7 @@
           "type": "stockItem",
           "itemId": "copper-wire",
           "amount": 4,
-          "label": "Stock 4 fili di rame"
+          "label": "Magazzino 4 fili di rame"
         },
         {
           "type": "sellItem",
@@ -133,7 +133,7 @@
           "type": "stockItem",
           "itemId": "iron-plate",
           "amount": 20,
-          "label": "Stock 20 lastre"
+          "label": "Magazzino 20 lastre"
         }
       ],
       "unlocksNext": "level-06-corrente"
@@ -168,7 +168,7 @@
           "type": "stockItem",
           "itemId": "coal",
           "amount": 16,
-          "label": "Stock 16 carbone"
+          "label": "Magazzino 16 carbone"
         }
       ],
       "unlocksNext": "level-07-piombo"
@@ -191,13 +191,13 @@
           "type": "stockItem",
           "itemId": "lead-ore",
           "amount": 10,
-          "label": "Stock 10 piombo grezzo"
+          "label": "Magazzino 10 piombo grezzo"
         },
         {
           "type": "stockItem",
           "itemId": "lead-plate",
           "amount": 6,
-          "label": "Stock 6 lastre di piombo"
+          "label": "Magazzino 6 lastre di piombo"
         }
       ],
       "unlocksNext": "level-08-logistica"
@@ -231,7 +231,7 @@
           "type": "stockItem",
           "itemId": "iron-plate",
           "amount": 28,
-          "label": "Stock 28 lastre di ferro"
+          "label": "Magazzino 28 lastre di ferro"
         }
       ],
       "unlocksNext": "level-09-titanio"
@@ -255,19 +255,19 @@
           "type": "stockItem",
           "itemId": "titanium-ore",
           "amount": 6,
-          "label": "Stock 6 titanio grezzo"
+          "label": "Magazzino 6 titanio grezzo"
         },
         {
           "type": "stockItem",
           "itemId": "titanium-plate",
           "amount": 3,
-          "label": "Stock 3 lastre di titanio"
+          "label": "Magazzino 3 lastre di titanio"
         },
         {
           "type": "stockItem",
           "itemId": "silicon",
           "amount": 4,
-          "label": "Stock 4 silicio"
+          "label": "Magazzino 4 silicio"
         }
       ],
       "unlocksNext": "level-10-espansione"
@@ -308,7 +308,7 @@
           "type": "stockItem",
           "itemId": "graphite",
           "amount": 8,
-          "label": "Stock 8 grafite"
+          "label": "Magazzino 8 grafite"
         }
       ],
       "unlocksNext": null
