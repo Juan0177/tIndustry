@@ -23,10 +23,10 @@ Loop tipico: *scouting → estrazione → trasporto → trasformazione → vendi
 | Area | In gioco |
 | --- | --- |
 | Mondo | Mappa **1000×1000**, core al centro, camera pan/zoom (Ctrl+rotella), depositi ferro e rame |
-| Produzione | Minatore (output **4 lati**, eject **round-robin**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
-| Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing |
+| Produzione | Minatore (output **belt uscenti** + trasferimento **edificio adiacente**), **forno**, **assemblatore**, **generatore** (power stub); edifici su terra libera (miner off-deposito = **0%**) |
+| Logistica | Nastro base / **veloce**, **incrocio**, **sdoppiatore** (T-fork L/R), **ponte**; chip item saturi; chevron = facing; overlay amber/ciano = I/O uscente/entrante |
 | Economia | **Stock-first** al core; pannello **Mercato** dedicato (vendi **1** / **tutti** senza clip, padding polish, prezzi, auto-sell); strip **Fabbrica** con conteggi `M/F/A/N/G` sopra **CORE**; rimborso 100%; **potenziamento core** (+25% vendite) con costo `×N lastre + $` sul bottone |
-| Progressione | **Campagna** (5 livelli, obiettivi HUD, progressione AppData); **Ricerca** data-driven; **tutorial** IT **6 step** in sandbox — riparte su **Nuova partita** / **Rivedi tutorial** |
+| Progressione | **Campagna** (5 livelli, obiettivi HUD, progressione AppData); **Ricerca** data-driven; **tutorial** IT **14 step** in sandbox — riparte su **Nuova partita** / **Rivedi tutorial** |
 | Sessione | **Splash** brand (~8s / click) → Home (**Continua** / **Campagna** / **Nuova partita**), scenari + seed, save JSON **v6** |
 | Dock | Stile Mindustry; footer **Input/Output** ricetta (Forno/Assemblatore) + costi build a icone (`×N` materiali + `$`); **Rimuovi** con label chiaro |
 | Qualità di vita | UI scale **100–200%** (Mercato soft-scale, Impostazioni scrollabili); overlay **CPU · GPU · RAM**; FPS unico; status toast auto-clear; tip onboarding; `--self-test` |
@@ -75,7 +75,7 @@ Namespace: `TIndustry.Logistics` (invariato). Il `.csproj` resta in root così C
 1. All’avvio: **splash** (thumbnail + brand) — click/tasto per continuare, oppure attendi (~8s). Poi dalla home: **Campagna**, **Nuova partita**, o **Continua**.
 2. **Campagna**: scegli un livello sbloccato (obiettivi in HUD); progressione salvata in AppData. **Nuova partita** (sandbox) segue il **tutorial** a banner; riparte a ogni Conferma (o **Impostazioni → Rivedi tutorial**).
 3. Scout vicino al core: ferro starter, rame un po’ più a sud. (**H** / **Home** riporta la camera sul core.)
-4. Piazza il miner: butta ore su **ogni** nastro adiacente → stock al core → Mercato (**1** / **tutti**) o tieni per build → **Ricerca** (T) → **Forno** → lastre. Il dock mostra i costi build a icone.
+4. Piazza il miner: ore su **nastri uscenti** (o **forno a contatto** senza nastro) → stock al core → Mercato (**1** / **tutti**) o tieni per build → **Ricerca** (T) → **Forno** → lastre. Overlay amber/ciano = I/O.
 5. **Esc** chiude prima il toast di status (se c’è), poi torna alla home; **Continua** solo con autosave valido.
 
 Flag utili: `--smoke-test` / `--capture` (saltano lo splash; smoke chiude dopo pochi secondi), `--export-excel [path]`.

@@ -5,6 +5,13 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Aggiunto / migliorato
+
+- **I/O belt-uscente**: forno/assemblatore espellono su qualsiasi nastro adiacente che punta *via* dal footprint; miner solo su belt uscenti (non più su belt rivolti verso l’edificio)
+- **Trasferimento adiacente** (stile Mindustry): miner|forno, forno|assemblatore, edifici→CORE senza nastro se i footprint si toccano
+- **Overlay I/O**: amber = uscita uscente, ciano = ingresso entrante (ghost + mondo)
+- **Tutorial** esteso a **14** passi (dock, Mercato, Fabbrica/CORE, ricerca, logistica, campagna, impostazioni)
+
 ## [0.2.7] — 2026-09-19
 
 Patch UX sopra **0.2.6**: bottone upgrade **CORE** mostra costo completo (×N lastre + $), come il footer dock. ([#35](https://github.com/Juan0177/tIndustry/pull/35))

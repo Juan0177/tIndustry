@@ -29,13 +29,34 @@ if (args.Contains("--self-test"))
 
 if (!args.Contains("--console-demo"))
 {
-    var capture = args.Contains("--capture") || args.Contains("--capture-upgraded");
+    var captureIo = args.Contains("--capture-io");
+    var captureTutorial = args.Contains("--capture-tutorial");
+    var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
+        || captureIo || captureTutorial;
     var captureUpgraded = args.Contains("--capture-upgraded");
+    string? capturePath = null;
+    string? captureMode = null;
+    if (captureIo)
+    {
+        capturePath = Path.Combine("artifacts", "io-adjacency-compact.png");
+        captureMode = "io-adjacency";
+    }
+    else if (captureTutorial)
+    {
+        capturePath = Path.Combine("artifacts", "tutorial-extended.png");
+        captureMode = "tutorial";
+    }
+    else if (capture)
+    {
+        capturePath = Path.Combine("artifacts", captureUpgraded ? "core-upgrade-preview.png" : "game-preview.png");
+    }
+
     FactoryGameApp.Run(
         content,
         args.Contains("--smoke-test") || capture ? 3 : null,
-        capture ? Path.Combine("artifacts", captureUpgraded ? "core-upgrade-preview.png" : "game-preview.png") : null,
-        captureUpgradeCore: captureUpgraded);
+        capturePath,
+        captureUpgradeCore: captureUpgraded,
+        captureMode: captureMode);
     return;
 }
 
@@ -183,7 +204,7 @@ static void RunSelfTest(GameContent content)
     Assert(transitWorld.CoreDeliveredItems >= 1, "Transit: consegna al core dopo il trasporto.");
     Assert(transitWallet.MaterialCount("iron-ore") >= 1, "Transit: stock ore dopo consegna (no auto-sell).");
 
-    // Multi-side eject: facing North but belt only on the south edge still receives ore.
+    // Multi-side eject: facing North but outward belt only on the south edge still receives ore.
     var sideWorld = new FactoryWorld(12, 8, 7429);
     var sideGrid = new ConveyorGrid();
     var sideWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
@@ -193,8 +214,8 @@ static void RunSelfTest(GameContent content)
         "Multi-side: minatore (facing Nord irrilevante).");
     var southBelt = new GridPosition(sideMiner.X, sideMiner.Y + MinerBuilding.Size);
     Assert(sideWorld.CanPlaceConveyor(southBelt), "Multi-side: tile sud del minatore libera.");
-    Assert(sideGrid.TryPlace(southBelt, Direction.East, definition, sideWallet, research),
-        "Multi-side: nastro solo a sud.");
+    Assert(sideGrid.TryPlace(southBelt, Direction.South, definition, sideWallet, research),
+        "Multi-side: nastro sud uscente.");
     var sawSouthEject = false;
     for (var tick = 0; tick < 210; tick++)
     {
@@ -206,7 +227,98 @@ static void RunSelfTest(GameContent content)
         }
     }
 
-    Assert(sawSouthEject, "Il minatore deve erogare anche sul lato opposto al facing.");
+    Assert(sawSouthEject, "Il minatore deve erogare sul nastro uscente anche sul lato opposto al facing.");
+
+    // Inward belt must NOT receive miner eject (belt pointing into the footprint).
+    var inwardWorld = new FactoryWorld(12, 8, 7429);
+    var inwardGrid = new ConveyorGrid();
+    var inwardWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
+    var inwardId = 75L;
+    var inwardMiner = inwardWorld.StarterDepositOrigin;
+    Assert(inwardWorld.TryPlaceMiner(inwardMiner, Direction.East, inwardGrid, inwardWallet),
+        "Inward: minatore.");
+    var inwardBeltPos = new GridPosition(inwardMiner.X + MinerBuilding.Size, inwardMiner.Y);
+    Assert(inwardGrid.TryPlace(inwardBeltPos, Direction.West, definition, inwardWallet, research),
+        "Inward: nastro est rivolto verso il miner.");
+    Assert(BuildingIo.IsInwardBelt(inwardGrid.Cells[inwardBeltPos], inwardMiner, MinerBuilding.Size),
+        "Inward: helper deve riconoscere il nastro entrante.");
+    Assert(!BuildingIo.IsOutwardBelt(inwardGrid.Cells[inwardBeltPos], inwardMiner, MinerBuilding.Size),
+        "Inward: nastro entrante non è uscente.");
+    for (var tick = 0; tick < 210; tick++)
+    {
+        inwardWorld.Update(1f / 30f, inwardGrid, inwardWallet, ref inwardId);
+    }
+
+    Assert(inwardGrid.Cells[inwardBeltPos].Items.Count == 0,
+        "Il minatore non deve espellere su un nastro che punta verso il footprint.");
+
+    // Flush adjacency: miner|smelter with no belt transfers ore directly.
+    var adjWorld = new FactoryWorld(16, 10, 7429);
+    var adjGrid = new ConveyorGrid();
+    var adjWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    var adjResearch = ResearchState.CreateNew(content);
+    var adjId = 80L;
+    var adjMiner = adjWorld.StarterDepositOrigin;
+    Assert(adjWorld.TryPlaceMiner(adjMiner, Direction.East, adjGrid, adjWallet),
+        "Adjacency: minatore.");
+    Assert(adjResearch.TryUnlock(smelterTech, adjWallet),
+        "Adjacency: forno sbloccato.");
+    // Place smelter flush on the east edge of the miner (no belt between).
+    var adjSmelterAt = new GridPosition(adjMiner.X + MinerBuilding.Size, adjMiner.Y);
+    Assert(adjWorld.CanPlaceSmelter(adjSmelterAt, adjGrid),
+        "Adjacency: spazio libero a est del miner per il forno.");
+    Assert(adjWorld.TryPlaceSmelter(adjSmelterAt, Direction.East, smeltRecipe, adjGrid, adjWallet),
+        "Adjacency: forno a contatto col minatore.");
+    Assert(adjGrid.Cells.Count == 0, "Adjacency: nessun nastro tra miner e forno.");
+    for (var tick = 0; tick < 240; tick++)
+    {
+        adjWorld.Update(1f / 30f, adjGrid, adjWallet, ref adjId);
+    }
+
+    var adjSmelter = adjWorld.Smelters[adjSmelterAt];
+    Assert(adjSmelter.Buffered("iron-ore") > 0 || adjSmelter.IsCrafting || adjSmelter.OutputQueue.Count > 0,
+        "Miner a contatto deve trasferire ore al forno senza nastro.");
+
+    // Smelter facing North still ejects onto an East outward belt (belt-uscente, not fixed side).
+    var outWorld = new FactoryWorld(16, 10, 7429);
+    var outGrid = new ConveyorGrid();
+    var outWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    var outResearch = ResearchState.CreateNew(content);
+    var outId = 85L;
+    var outSmelterAt = new GridPosition(outWorld.CoreOrigin.X - 6, outWorld.CoreOrigin.Y);
+    Assert(outResearch.TryUnlock(smelterTech, outWallet),
+        "Outward-smelter: forno sbloccato.");
+    Assert(outWorld.TryPlaceSmelter(outSmelterAt, Direction.North, smeltRecipe, outGrid, outWallet),
+        "Outward-smelter: forno facing Nord.");
+    var outEastBelt = new GridPosition(outSmelterAt.X + SmelterBuilding.Size, outSmelterAt.Y);
+    var outWestBelt = new GridPosition(outSmelterAt.X - 1, outSmelterAt.Y);
+    Assert(outGrid.TryPlace(outWestBelt, Direction.East, definition, outWallet, outResearch),
+        "Outward-smelter: nastro ingresso ovest.");
+    Assert(outGrid.TryPlace(outEastBelt, Direction.East, definition, outWallet, outResearch),
+        "Outward-smelter: nastro uscita est (uscente, non sul facing).");
+    Assert(BuildingIo.IsOutwardBelt(outGrid.Cells[outEastBelt], outSmelterAt, SmelterBuilding.Size),
+        "Outward-smelter: belt est è uscente.");
+    Assert(outGrid.Cells[outWestBelt].TryInsert(new TransportedItem(outId++, "iron-ore")),
+        "Outward-smelter: ore 1 in ingresso.");
+    for (var tick = 0; tick < 90; tick++)
+    {
+        outWorld.Update(1f / 30f, outGrid, outWallet, ref outId);
+    }
+
+    Assert(outGrid.Cells[outWestBelt].TryInsert(new TransportedItem(outId++, "iron-ore")),
+        "Outward-smelter: ore 2 in ingresso.");
+    var sawPlateEast = false;
+    for (var tick = 0; tick < 500; tick++)
+    {
+        outWorld.Update(1f / 30f, outGrid, outWallet, ref outId);
+        if (outGrid.Cells[outEastBelt].Items.Any(item => item.ItemId == "iron-plate"))
+        {
+            sawPlateEast = true;
+            break;
+        }
+    }
+
+    Assert(sawPlateEast, "Forno deve espellere lastre sul nastro uscente anche se non è sul lato facing.");
 
     // Round-robin: two belts on different sides must both receive ore over time.
     var rrWorld = new FactoryWorld(12, 8, 7429);
@@ -969,8 +1081,8 @@ static void RunSelfTest(GameContent content)
             }
         }
 
-        Assert(FactoryGameApp.TutorialStepCount == 6,
-            "Tutorial stock-first: 6 passi (produce → stock → spendi/vendi → ricerca).");
+        Assert(FactoryGameApp.TutorialStepCount == 14,
+            "Tutorial play-ready: 14 passi (camera → dock → build → I/O → mercato → ricerca → logistica → campagna/settings).");
         Assert(SystemMonitor.FormatBytes(1536) == "1.5 KB", "FormatBytes risorse sistema.");
         Assert(GameSettings.ResolutionPresets.Any(p => p.Width == 2560 && p.Height == 1440),
             "Preset 2K (2560×1440) richiesto.");

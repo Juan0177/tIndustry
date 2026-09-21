@@ -180,6 +180,59 @@ public sealed class TerrainMap
     }
 }
 
+/// <summary>
+/// Mindustry-style building I/O: belts adjacent to a footprint are outputs when facing
+/// away, inputs when their exit lands on the footprint. Also drives perimeter enumeration
+/// for adjacent building→building transfer.
+/// </summary>
+public static class BuildingIo
+{
+    public static bool Occupies(GridPosition origin, int size, GridPosition tile) =>
+        tile.X >= origin.X && tile.X < origin.X + size
+        && tile.Y >= origin.Y && tile.Y < origin.Y + size;
+
+    /// <summary>Travel direction from the footprint edge into an adjacent neighbor tile.</summary>
+    public static bool TryTravelOut(GridPosition neighbor, GridPosition origin, int size, out Direction travel)
+    {
+        var edgeTile = new GridPosition(
+            Math.Clamp(neighbor.X, origin.X, origin.X + size - 1),
+            Math.Clamp(neighbor.Y, origin.Y, origin.Y + size - 1));
+        return ConveyorGrid.TryDirectionBetween(edgeTile, neighbor, out travel);
+    }
+
+    /// <summary>Belt on the perimeter whose facing points away from the building = output.</summary>
+    public static bool IsOutwardBelt(ConveyorCell belt, GridPosition origin, int size) =>
+        TryTravelOut(belt.Position, origin, size, out var travel) && belt.Direction == travel;
+
+    /// <summary>Belt whose routed exit lands on the footprint = input.</summary>
+    public static bool IsInwardBelt(ConveyorCell belt, GridPosition origin, int size) =>
+        Occupies(origin, size, belt.OutputPosition);
+
+    /// <summary>
+    /// Perimeter neighbor tiles (N/E/S/W × size) with the outward travel direction.
+    /// </summary>
+    public static IEnumerable<(GridPosition Position, Direction TravelOut)> PerimeterSlots(
+        GridPosition origin,
+        int size)
+    {
+        var count = size * 4;
+        for (var index = 0; index < count; index++)
+        {
+            var edge = DirectionMath.All[index / size];
+            var offset = index % size;
+            var position = edge switch
+            {
+                Direction.North => new GridPosition(origin.X + offset, origin.Y - 1),
+                Direction.East => new GridPosition(origin.X + size, origin.Y + offset),
+                Direction.South => new GridPosition(origin.X + offset, origin.Y + size),
+                Direction.West => new GridPosition(origin.X - 1, origin.Y + offset),
+                _ => origin
+            };
+            yield return (position, edge);
+        }
+    }
+}
+
 public sealed class MinerBuilding
 {
     public const int Size = 2;
@@ -205,7 +258,7 @@ public sealed class MinerBuilding
     public float Efficiency => CoveredDepositTiles / (float)FootprintArea;
     public float Progress { get; internal set; }
 
-    /// <summary>Round-robin cursor over the 8 adjacent output tiles (N/E/S/W × 2).</summary>
+    /// <summary>Round-robin cursor over the 8 adjacent perimeter tiles (N/E/S/W × 2).</summary>
     public int EjectIndex { get; internal set; }
 
     public IEnumerable<GridPosition> OccupiedTiles()
@@ -220,8 +273,8 @@ public sealed class MinerBuilding
     }
 
     /// <summary>
-    /// Every tile adjacent to the 2×2 footprint (N/E/S/W). Direction is unused for eject —
-    /// ore can enter any neighboring belt/input that accepts.
+    /// Every tile adjacent to the 2×2 footprint (N/E/S/W). Runtime eject only uses
+    /// outward-facing belts and adjacent accepting buildings.
     /// </summary>
     public IEnumerable<GridPosition> OutputTiles()
     {
@@ -247,13 +300,8 @@ public sealed class MinerBuilding
     }
 
     /// <summary>Travel direction from the miner footprint into an adjacent output tile.</summary>
-    public static bool TryTravelInto(GridPosition output, GridPosition minerOrigin, out Direction travel)
-    {
-        var adjacent = new GridPosition(
-            Math.Clamp(output.X, minerOrigin.X, minerOrigin.X + Size - 1),
-            Math.Clamp(output.Y, minerOrigin.Y, minerOrigin.Y + Size - 1));
-        return ConveyorGrid.TryDirectionBetween(adjacent, output, out travel);
-    }
+    public static bool TryTravelInto(GridPosition output, GridPosition minerOrigin, out Direction travel) =>
+        BuildingIo.TryTravelOut(output, minerOrigin, Size, out travel);
 }
 
 public sealed class SmelterBuilding
@@ -293,9 +341,15 @@ public sealed class SmelterBuilding
         }
     }
 
+    /// <summary>Legacy facing-opposite edge (preview only). Runtime I/O uses belt direction.</summary>
     public IEnumerable<GridPosition> InputTiles() => EdgeTiles(Opposite(Direction));
 
+    /// <summary>Legacy facing edge (preview only). Runtime eject uses outward belts + adjacency.</summary>
     public IEnumerable<GridPosition> OutputTiles() => EdgeTiles(Direction);
+
+    /// <summary>All perimeter neighbor tiles (belt-uscente / building-transfer candidates).</summary>
+    public IEnumerable<GridPosition> PerimeterTiles() =>
+        BuildingIo.PerimeterSlots(Position, Size).Select(slot => slot.Position);
 
     public int Buffered(string itemId) => inputBuffer.GetValueOrDefault(itemId);
 
@@ -349,7 +403,8 @@ public sealed class SmelterBuilding
         ConveyorGrid conveyors,
         ref long nextItemId,
         Func<float, bool>? trySpendPower = null,
-        float powerDrawPerSecond = 0f)
+        float powerDrawPerSecond = 0f,
+        Func<string, bool>? tryDeliverAdjacent = null)
     {
         AcceptFromBelts(conveyors);
         TryStartCraft();
@@ -365,7 +420,7 @@ public sealed class SmelterBuilding
             AdvanceCraft(deltaSeconds);
         }
 
-        EmitOutputs(conveyors, ref nextItemId);
+        EmitOutputs(conveyors, ref nextItemId, tryDeliverAdjacent);
     }
 
     private void AcceptFromBelts(ConveyorGrid conveyors)
@@ -451,16 +506,30 @@ public sealed class SmelterBuilding
         Progress = 0f;
     }
 
-    private void EmitOutputs(ConveyorGrid conveyors, ref long nextItemId)
+    private void EmitOutputs(
+        ConveyorGrid conveyors,
+        ref long nextItemId,
+        Func<string, bool>? tryDeliverAdjacent)
     {
         while (outputQueue.Count > 0)
         {
             var itemId = outputQueue.Peek();
-            var delivered = false;
-            foreach (var outputPosition in OutputTiles())
+            if (tryDeliverAdjacent?.Invoke(itemId) == true)
             {
-                if (conveyors.Cells.TryGetValue(outputPosition, out var output)
-                    && output.TryInsert(new TransportedItem(nextItemId, itemId)))
+                outputQueue.Dequeue();
+                continue;
+            }
+
+            var delivered = false;
+            foreach (var (outputPosition, travel) in BuildingIo.PerimeterSlots(Position, Size))
+            {
+                if (!conveyors.Cells.TryGetValue(outputPosition, out var output)
+                    || !BuildingIo.IsOutwardBelt(output, Position, Size))
+                {
+                    continue;
+                }
+
+                if (output.TryInsert(new TransportedItem(nextItemId, itemId), travel))
                 {
                     nextItemId++;
                     outputQueue.Dequeue();
@@ -1005,26 +1074,42 @@ public sealed class FactoryWorld
             }
 
             var produced = false;
-            var start = miner.EjectIndex;
-            for (var step = 0; step < MinerBuilding.OutputTileCount; step++)
+            // Prefer Mindustry-style building→building when footprints touch.
+            if (TryDeliverAdjacent(
+                    miner.Position,
+                    MinerBuilding.Size,
+                    miner.OutputItemId,
+                    wallet,
+                    market,
+                    session,
+                    autoSellAtCore))
             {
-                var slot = (start + step) % MinerBuilding.OutputTileCount;
-                var outputPosition = miner.OutputTileAt(slot);
-                if (!conveyors.Cells.TryGetValue(outputPosition, out var output))
+                produced = true;
+            }
+            else
+            {
+                var start = miner.EjectIndex;
+                for (var step = 0; step < MinerBuilding.OutputTileCount; step++)
                 {
-                    continue;
-                }
+                    var slot = (start + step) % MinerBuilding.OutputTileCount;
+                    var outputPosition = miner.OutputTileAt(slot);
+                    if (!conveyors.Cells.TryGetValue(outputPosition, out var output)
+                        || !BuildingIo.IsOutwardBelt(output, miner.Position, MinerBuilding.Size))
+                    {
+                        continue;
+                    }
 
-                Direction? travel = MinerBuilding.TryTravelInto(outputPosition, miner.Position, out var into)
-                    ? into
-                    : null;
-                if (output.TryInsert(new TransportedItem(nextItemId, miner.OutputItemId), travel))
-                {
-                    nextItemId++;
-                    produced = true;
-                    // Next eject starts on the following neighbor so two belts share ore.
-                    miner.EjectIndex = (slot + 1) % MinerBuilding.OutputTileCount;
-                    break;
+                    Direction? travel = MinerBuilding.TryTravelInto(outputPosition, miner.Position, out var into)
+                        ? into
+                        : null;
+                    if (output.TryInsert(new TransportedItem(nextItemId, miner.OutputItemId), travel))
+                    {
+                        nextItemId++;
+                        produced = true;
+                        // Next eject starts on the following neighbor so two belts share ore.
+                        miner.EjectIndex = (slot + 1) % MinerBuilding.OutputTileCount;
+                        break;
+                    }
                 }
             }
 
@@ -1038,12 +1123,40 @@ public sealed class FactoryWorld
 
         foreach (var smelter in smelters.Values)
         {
-            smelter.Update(deltaSeconds, conveyors, ref nextItemId, TrySpendPower, SmelterPowerDraw);
+            smelter.Update(
+                deltaSeconds,
+                conveyors,
+                ref nextItemId,
+                TrySpendPower,
+                SmelterPowerDraw,
+                itemId => TryDeliverAdjacent(
+                    smelter.Position,
+                    SmelterBuilding.Size,
+                    itemId,
+                    wallet,
+                    market,
+                    session,
+                    autoSellAtCore,
+                    smelter));
         }
 
         foreach (var assembler in assemblers.Values)
         {
-            assembler.Update(deltaSeconds, conveyors, ref nextItemId, TrySpendPower, AssemblerPowerDraw);
+            assembler.Update(
+                deltaSeconds,
+                conveyors,
+                ref nextItemId,
+                TrySpendPower,
+                AssemblerPowerDraw,
+                itemId => TryDeliverAdjacent(
+                    assembler.Position,
+                    SmelterBuilding.Size,
+                    itemId,
+                    wallet,
+                    market,
+                    session,
+                    autoSellAtCore,
+                    assembler));
         }
 
         foreach (var conveyor in conveyors.Cells.Values)
@@ -1099,6 +1212,55 @@ public sealed class FactoryWorld
         {
             session?.RecordSale(itemId, unitPrice);
         }
+    }
+
+    /// <summary>
+    /// Direct building→building (or building→core) transfer when footprints touch.
+    /// Prefer over belts so compact Mindustry layouts work without a belt between.
+    /// </summary>
+    private bool TryDeliverAdjacent(
+        GridPosition origin,
+        int size,
+        string itemId,
+        EconomyWallet wallet,
+        MarketCatalog market,
+        EconomySession? session,
+        bool autoSellAtCore,
+        SmelterBuilding? excludeCrafter = null)
+    {
+        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(origin, size))
+        {
+            if (TryGetSmelterAt(neighbor, out var smelter)
+                && !ReferenceEquals(smelter, excludeCrafter)
+                && smelter.TryAccept(itemId))
+            {
+                return true;
+            }
+
+            if (TryGetAssemblerAt(neighbor, out var assembler)
+                && !ReferenceEquals(assembler, excludeCrafter)
+                && assembler.TryAccept(itemId))
+            {
+                return true;
+            }
+
+            if (CoreTiles.Contains(neighbor))
+            {
+                CoreDeliveredItems++;
+                if (autoSellAtCore)
+                {
+                    ApplyCoreSale(wallet, itemId, 1, market, session);
+                }
+                else
+                {
+                    wallet.AddMaterial(itemId, 1);
+                }
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void ApplyRefund(EconomyWallet wallet, BuildingDefinition cost, EconomySession? session)

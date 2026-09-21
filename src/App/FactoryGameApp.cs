@@ -76,18 +76,32 @@ internal static class FactoryGameApp
     private static bool TutorialSoldOre;
     private static bool TutorialUsedEconomy;
     private static bool TutorialOpenedResearch;
+    private static bool TutorialOpenedDock;
+    private static bool TutorialSwitchedDockCategory;
+    private static bool TutorialUsedRemove;
+    private static bool TutorialOpenedSettings;
+    private static bool TutorialRotatedPiece;
     private static int TutorialSoldBaseline = -1;
     private static int TutorialMoneyBaseline = -1;
     private static int TutorialMaterialBaseline = -1;
+    private static UiTheme.BuildCategory TutorialDockBaseline;
 
     private static readonly string[] TutorialSteps =
     [
-        "Muovi la camera: WASD, Shift+trascina o rotella centrale.",
-        "Piazza un MINATORE (2) sul giacimento di ferro a ovest del core.",
-        "Collega NASTRI (1) dal minatore fino al CORE.",
-        "Aspetta i minerali: entrano nello stock (strip in alto).",
-        "Usa lo stock per costruire, oppure vendi dal MERCATO (1 / tutti).",
-        "Apri RICERCA (T) e sblocca il FORNO quando puoi."
+        "Camera: WASD / frecce, Shift+trascina o rotella centrale. Ctrl+rotella = zoom. H/Home = torna al CORE.",
+        "Dock in basso: tocca le categorie Logistica / Produzione / Energia per cambiare i pezzi disponibili.",
+        "Piazza un MINATORE (tasto 2 o dock Produzione) sul giacimento di ferro a ovest del CORE.",
+        "Nastri (1): rotella o R ruota la direzione. Amber = uscita (nastro che punta via); ciano = ingresso.",
+        "Layout compatto: minatore a contatto col forno trasferisce ore senza nastro in mezzo (stile Mindustry).",
+        "Collega NASTRI uscenti fino al CORE: i minerali entrano nello stock (strip in alto).",
+        "MERCATO (pannello a sinistra): vendi con 1 / tutti, oppure attiva Vendita automatica.",
+        "FABBRICA: conteggi M/F/A/N/G e upgrade CORE (bottone o tasto U) per +25% prezzi vendita.",
+        "Apri RICERCA (T o icona albero) e sblocca FORNO, poi altri edifici quando puoi.",
+        "Dopo lo sblocco: FORNO (3), ASSEMBLATORE (5), GENERATORE (9). Produzione e potenza.",
+        "Logistica avanzata: INCROCIO (6), SDOPPIATORE (7), PONTE (8). Q/E = nastro base/veloce.",
+        "RIMUOVI (4 / X nel dock): rimborso 100% di edifici e nastri.",
+        "Campagna: Esc → Home → Campagna per livelli con obiettivi. Sandbox = questa partita libera.",
+        "Impostazioni (I): scala UI, VSync, Rivedi tutorial. Backspace salta il tutorial; Esc chiude toast/menu."
     ];
 
     /// <summary>Self-test hook: stock-first tutorial length.</summary>
@@ -145,7 +159,8 @@ internal static class FactoryGameApp
         GameContent content,
         int? maximumFrames = null,
         string? screenshotPath = null,
-        bool captureUpgradeCore = false)
+        bool captureUpgradeCore = false,
+        string? captureMode = null)
     {
         var basicConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-basic");
         var fastConveyor = content.Conveyors.Single(definition => definition.Id == "conveyor-fast");
@@ -205,11 +220,40 @@ internal static class FactoryGameApp
             wallet.AddMaterial("iron-ore", 48);
             wallet.AddMaterial("copper-ore", 20);
             wallet.AddMaterial("copper-wire", 8);
-            SeedCaptureFactory(
-                world!, conveyors!, wallet, research!, session!, content, economy, basicConveyor,
-                upgradeCore: captureUpgradeCore);
-            BeginTutorialIfNeeded(settings);
-            TutorialActive = false;
+            if (captureMode == "io-adjacency")
+            {
+                SeedCaptureIoAdjacency(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor, smeltRecipe);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                camera!.CenterOnTile(
+                    new GridPosition(world!.StarterDepositOrigin.X + 2, world.StarterDepositOrigin.Y + 1),
+                    BaseTileSize, ViewportWidth, ViewportHeight);
+                camera.SetZoom(2.0f);
+                // Warm sim so adjacent transfer / I/O tints are visible in the still.
+                for (var warm = 0; warm < 90; warm++)
+                {
+                    world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
+                }
+            }
+            else if (captureMode == "tutorial")
+            {
+                SeedCaptureFactory(
+                    world!, conveyors!, wallet, research!, session!, content, economy, basicConveyor,
+                    upgradeCore: false);
+                settings.TutorialCompleted = false;
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = true;
+                TutorialStep = 4; // compact-layout step — shows extended tutorial banner
+            }
+            else
+            {
+                SeedCaptureFactory(
+                    world!, conveyors!, wallet, research!, session!, content, economy, basicConveyor,
+                    upgradeCore: captureUpgradeCore);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+            }
         }
 
         var flags = ConfigFlags.Msaa4xHint;
@@ -975,6 +1019,50 @@ internal static class FactoryGameApp
         }
     }
 
+    /// <summary>
+    /// Compact Mindustry layout for --capture-io: miner flush against smelter + outward belts tinted.
+    /// </summary>
+    private static void SeedCaptureIoAdjacency(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        RecipeDefinition smeltRecipe)
+    {
+        var minerBuilding = content.GetBuildingOrDefault("miner");
+        var smelterBuilding = content.GetBuildingOrDefault("smelter");
+        var minerAt = world.StarterDepositOrigin;
+        world.TryPlaceMiner(minerAt, Direction.East, conveyors, wallet, minerBuilding, session);
+
+        var smelterTech = content.FindStructure("smelter");
+        if (smelterTech is not null && !research.IsUnlocked("smelter"))
+        {
+            research.ForceUnlock("smelter");
+        }
+
+        var smelterAt = new GridPosition(minerAt.X + MinerBuilding.Size, minerAt.Y);
+        world.TryPlaceSmelter(smelterAt, Direction.East, smeltRecipe, conveyors, wallet, smelterBuilding, session);
+
+        // Outward output belt east of smelter (amber overlay) + inward feed stub north (cyan).
+        var outBelt = new GridPosition(smelterAt.X + SmelterBuilding.Size, smelterAt.Y);
+        conveyors.TryPlace(outBelt, Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+        var inBelt = new GridPosition(smelterAt.X, smelterAt.Y - 1);
+        if (world.CanPlaceConveyor(inBelt))
+        {
+            conveyors.TryPlace(inBelt, Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+        }
+
+        // Extra outward belt on miner south for amber I/O contrast.
+        var minerSouth = new GridPosition(minerAt.X, minerAt.Y + MinerBuilding.Size);
+        if (world.CanPlaceConveyor(minerSouth) && !conveyors.Cells.ContainsKey(minerSouth))
+        {
+            conveyors.TryPlace(minerSouth, Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor);
+        }
+    }
+
     private static WorldCamera CreateCameraFocusedOnCore(FactoryWorld world)
     {
         var camera = new WorldCamera(0, 0);
@@ -1497,6 +1585,11 @@ internal static class FactoryGameApp
             settingsReturnScreen = AppScreen.Playing;
             SettingsDraft = null;
             SettingsScrollY = 0f;
+            if (TutorialActive)
+            {
+                TutorialOpenedSettings = true;
+            }
+
             screen = AppScreen.Settings;
             return;
         }
@@ -1568,11 +1661,19 @@ internal static class FactoryGameApp
             }
 
             direction = (Direction)next;
+            if (TutorialActive)
+            {
+                TutorialRotatedPiece = true;
+            }
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.R))
         {
             direction = (Direction)(((int)direction + 1) % 4);
+            if (TutorialActive)
+            {
+                TutorialRotatedPiece = true;
+            }
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.One))
@@ -1611,6 +1712,10 @@ internal static class FactoryGameApp
         {
             tool = BuildTool.Remove;
             SyncDockSelection(tool, selectedConveyor, direction);
+            if (TutorialActive)
+            {
+                TutorialUsedRemove = true;
+            }
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.Five) && research.IsUnlocked("assembler"))
@@ -2033,19 +2138,21 @@ internal static class FactoryGameApp
         {
             var neighbor = conveyorPosition.Step(direction);
             if (!world.TryGetSmelterAt(neighbor, out var smelter)
-                || !conveyors.Cells.ContainsKey(conveyorPosition))
+                || !conveyors.Cells.TryGetValue(conveyorPosition, out var cell))
             {
                 continue;
             }
 
-            if (smelter.InputTiles().Contains(conveyorPosition))
+            if (!BuildingIo.TryTravelOut(conveyorPosition, smelter.Position, SmelterBuilding.Size, out var away))
             {
-                conveyors.TryOrientToward(conveyorPosition, neighbor);
+                continue;
             }
-            else if (smelter.OutputTiles().Contains(conveyorPosition))
+
+            // Keep intentional inputs (facing into the footprint); otherwise make outward output.
+            var toward = DirectionMath.Opposite(away);
+            if (cell.Direction != toward)
             {
-                var away = conveyorPosition.Step(Opposite(direction));
-                conveyors.TryOrientToward(conveyorPosition, away);
+                conveyors.TryOrientToward(conveyorPosition, conveyorPosition.Step(away));
             }
         }
     }
@@ -2059,19 +2166,20 @@ internal static class FactoryGameApp
         {
             var neighbor = conveyorPosition.Step(direction);
             if (!world.TryGetAssemblerAt(neighbor, out var assembler)
-                || !conveyors.Cells.ContainsKey(conveyorPosition))
+                || !conveyors.Cells.TryGetValue(conveyorPosition, out var cell))
             {
                 continue;
             }
 
-            if (assembler.InputTiles().Contains(conveyorPosition))
+            if (!BuildingIo.TryTravelOut(conveyorPosition, assembler.Position, SmelterBuilding.Size, out var away))
             {
-                conveyors.TryOrientToward(conveyorPosition, neighbor);
+                continue;
             }
-            else if (assembler.OutputTiles().Contains(conveyorPosition))
+
+            var toward = DirectionMath.Opposite(away);
+            if (cell.Direction != toward)
             {
-                var away = conveyorPosition.Step(Opposite(direction));
-                conveyors.TryOrientToward(conveyorPosition, away);
+                conveyors.TryOrientToward(conveyorPosition, conveyorPosition.Step(away));
             }
         }
     }
@@ -2353,6 +2461,12 @@ internal static class FactoryGameApp
                 }
 
                 DockCategory = UiTheme.BuildCategories[i];
+                if (TutorialActive && DockCategory != TutorialDockBaseline)
+                {
+                    TutorialSwitchedDockCategory = true;
+                    TutorialOpenedDock = true;
+                }
+
                 var first = UiTheme.EntriesFor(DockCategory).FirstOrDefault();
                 if (first is not null
                     && (DockSelectedId is null
@@ -2412,6 +2526,11 @@ internal static class FactoryGameApp
         {
             case UiTheme.DockEntryKind.BuildTool when entry.Tool is { } buildTool:
                 tool = buildTool;
+                if (TutorialActive && buildTool == BuildTool.Remove)
+                {
+                    TutorialUsedRemove = true;
+                }
+
                 break;
             case UiTheme.DockEntryKind.ConveyorVariant:
                 tool = BuildTool.Conveyor;
@@ -4432,10 +4551,90 @@ internal static class FactoryGameApp
             DrawMiner(miner, screen.X, screen.Y, tileSize, false);
         }
 
+        DrawBuildingIoOverlays(world, conveyors, camera, tileSize, minX, minY, maxX, maxY);
+
         // Items on top of buildings so ores stay visible while moving.
         DrawConveyorItems(conveyors, camera, tileSize, minX, minY, maxX, maxY);
 
         Raylib.EndScissorMode();
+    }
+
+    /// <summary>
+    /// Tint perimeter belts by role: amber = outward output, cyan = inward input.
+    /// Matches runtime belt-uscente / AcceptFromBelts rules (not fixed building facing).
+    /// </summary>
+    private static void DrawBuildingIoOverlays(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        WorldCamera camera,
+        float tileSize,
+        int minX,
+        int minY,
+        int maxX,
+        int maxY)
+    {
+        void DrawForFootprint(GridPosition origin, int size)
+        {
+            foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(origin, size))
+            {
+                if (neighbor.X < minX || neighbor.X > maxX || neighbor.Y < minY || neighbor.Y > maxY)
+                {
+                    continue;
+                }
+
+                if (!conveyors.Cells.TryGetValue(neighbor, out var belt))
+                {
+                    continue;
+                }
+
+                Color? tint = null;
+                if (BuildingIo.IsOutwardBelt(belt, origin, size))
+                {
+                    tint = new Color(235, 170, 70, 90);
+                }
+                else if (BuildingIo.IsInwardBelt(belt, origin, size))
+                {
+                    tint = new Color(70, 190, 210, 90);
+                }
+
+                if (tint is null)
+                {
+                    continue;
+                }
+
+                var screen = camera.WorldToScreen(
+                    neighbor.X * BaseTileSize,
+                    neighbor.Y * BaseTileSize,
+                    ViewportLeft,
+                    ViewportTop);
+                var sizePx = (int)tileSize;
+                Raylib.DrawRectangle((int)screen.X + 1, (int)screen.Y + 1, sizePx - 2, sizePx - 2, tint.Value);
+                var outline = BuildingIo.IsOutwardBelt(belt, origin, size)
+                    ? new Color(235, 170, 70, 200)
+                    : new Color(70, 190, 210, 200);
+                Raylib.DrawRectangleLines(
+                    (int)screen.X + 1,
+                    (int)screen.Y + 1,
+                    sizePx - 2,
+                    sizePx - 2,
+                    outline);
+            }
+        }
+
+        foreach (var miner in world.Miners.Values)
+        {
+            DrawForFootprint(miner.Position, MinerBuilding.Size);
+        }
+
+        foreach (var smelter in world.Smelters.Values)
+        {
+            DrawForFootprint(smelter.Position, SmelterBuilding.Size);
+        }
+
+        foreach (var assembler in world.Assemblers.Values)
+        {
+            DrawForFootprint(assembler.Position, SmelterBuilding.Size);
+        }
     }
 
     private static void DrawConveyorItems(
@@ -5055,14 +5254,17 @@ internal static class FactoryGameApp
         {
             DrawMiner(new MinerBuilding(position, direction, world.CountCoveredDepositTiles(position)),
                 screen.X, screen.Y, tileSize, true);
+            DrawGhostIoHints(position, MinerBuilding.Size, conveyors, camera, tileSize);
         }
         else if (tool == BuildTool.Smelter && valid)
         {
             DrawSmelter(new SmelterBuilding(position, direction, smeltRecipe), screen.X, screen.Y, tileSize, true);
+            DrawGhostIoHints(position, SmelterBuilding.Size, conveyors, camera, tileSize);
         }
         else if (tool == BuildTool.Assembler && valid)
         {
             DrawAssembler(new SmelterBuilding(position, direction, wireRecipe), screen.X, screen.Y, tileSize, true);
+            DrawGhostIoHints(position, SmelterBuilding.Size, conveyors, camera, tileSize);
         }
         else if (tool == BuildTool.Generator && valid)
         {
@@ -5070,6 +5272,48 @@ internal static class FactoryGameApp
         }
 
         Raylib.EndScissorMode();
+    }
+
+    /// <summary>
+    /// Ghost placement: tint neighboring belts amber (output / uscente) or cyan (input / entrante).
+    /// </summary>
+    private static void DrawGhostIoHints(
+        GridPosition origin,
+        int size,
+        ConveyorGrid conveyors,
+        WorldCamera camera,
+        float tileSize)
+    {
+        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(origin, size))
+        {
+            if (!conveyors.Cells.TryGetValue(neighbor, out var belt))
+            {
+                continue;
+            }
+
+            Color tint;
+            if (BuildingIo.IsOutwardBelt(belt, origin, size))
+            {
+                tint = new Color(235, 170, 70, 140);
+            }
+            else if (BuildingIo.IsInwardBelt(belt, origin, size))
+            {
+                tint = new Color(70, 190, 210, 140);
+            }
+            else
+            {
+                // Sideways belt on perimeter — not a valid I/O until rotated.
+                tint = new Color(160, 120, 120, 100);
+            }
+
+            var screen = camera.WorldToScreen(
+                neighbor.X * BaseTileSize,
+                neighbor.Y * BaseTileSize,
+                ViewportLeft,
+                ViewportTop);
+            var sizePx = (int)tileSize;
+            Raylib.DrawRectangle((int)screen.X + 2, (int)screen.Y + 2, sizePx - 4, sizePx - 4, tint);
+        }
     }
 
     private static void DrawMercatoPanel(
@@ -5714,7 +5958,7 @@ internal static class FactoryGameApp
     }
 
     /// <summary>
-    /// Clears the persisted skip/finish flag and starts the bottom banner from step 1/5.
+    /// Clears the persisted skip/finish flag and starts the bottom banner from step 1.
     /// Used by confirmed Nuova partita and Impostazioni → Rivedi tutorial.
     /// </summary>
     internal static void RestartTutorial(GameSettings settings)
@@ -5745,9 +5989,15 @@ internal static class FactoryGameApp
         TutorialSoldOre = false;
         TutorialUsedEconomy = false;
         TutorialOpenedResearch = false;
+        TutorialOpenedDock = false;
+        TutorialSwitchedDockCategory = false;
+        TutorialUsedRemove = false;
+        TutorialOpenedSettings = false;
+        TutorialRotatedPiece = false;
         TutorialSoldBaseline = -1;
         TutorialMoneyBaseline = -1;
         TutorialMaterialBaseline = -1;
+        TutorialDockBaseline = DockCategory;
     }
 
     private static void CompleteTutorial(GameSettings settings)
@@ -5836,15 +6086,25 @@ internal static class FactoryGameApp
 
         while (true)
         {
+            // Auto-advance when the player performs the step action; informational
+            // steps (compact layout, campaign, settings highlights, …) use Avanti.
             var done = TutorialStep switch
             {
                 0 => TutorialCameraMoved > 80f,
-                1 => TutorialPlacedMiner,
-                2 => TutorialPlacedBelt,
-                3 => TutorialSoldOre,
-                4 => TutorialUsedEconomy,
-                5 => TutorialOpenedResearch,
-                _ => true
+                1 => TutorialSwitchedDockCategory || TutorialOpenedDock,
+                2 => TutorialPlacedMiner,
+                3 => TutorialPlacedBelt || TutorialRotatedPiece,
+                4 => false, // adjacent transfer — explain then Avanti
+                5 => TutorialSoldOre,
+                6 => TutorialUsedEconomy,
+                7 => world.CoreUpgradeLevel > 0, // Fabbrica / CORE; else Avanti
+                8 => TutorialOpenedResearch,
+                9 => world.Smelters.Count > 0 || world.Assemblers.Count > 0 || world.Generators.Count > 0,
+                10 => false, // logistics advanced — Avanti
+                11 => TutorialUsedRemove,
+                12 => false, // campagna — Avanti
+                13 => TutorialOpenedSettings,
+                _ => false
             };
             if (!done)
             {
@@ -5863,8 +6123,8 @@ internal static class FactoryGameApp
 
     private static void GetTutorialPanelBounds(out int x, out int y, out int w, out int h)
     {
-        w = Math.Min(UiTheme.S(620), ScreenWidth - 40);
-        h = UiTheme.S(118);
+        w = Math.Min(UiTheme.S(640), ScreenWidth - 40);
+        h = UiTheme.S(132);
         x = (ScreenWidth - w) / 2;
         y = ScreenHeight - h - 16;
 
