@@ -33,8 +33,9 @@ if (!args.Contains("--console-demo"))
     var captureIo = args.Contains("--capture-io");
     var captureTutorial = args.Contains("--capture-tutorial");
     var captureTechTree = args.Contains("--capture-tech-tree");
+    var captureSorter = args.Contains("--capture-sorter");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
-        || captureIo || captureTutorial || captureTechTree;
+        || captureIo || captureTutorial || captureTechTree || captureSorter;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -52,6 +53,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "tech-tree-graph.png");
         captureMode = "tech-tree";
+    }
+    else if (captureSorter)
+    {
+        capturePath = Path.Combine("artifacts", "sorter-routing.png");
+        captureMode = "sorter";
     }
     else if (capture)
     {
@@ -120,8 +126,9 @@ static void RunSelfTest(GameContent content)
         "Il minatore T2 resta stub.");
     Assert(content.FindStructure("junction") is not null
         && content.FindStructure("splitter") is not null
+        && content.FindStructure("sorter") is not null
         && content.FindStructure("conveyor-bridge") is not null,
-        "Incrocio, sdoppiatore e ponte devono esistere nelle strutture.");
+        "Incrocio, sdoppiatore, selezionatore e ponte devono esistere nelle strutture.");
     Assert(content.Recipes.Any(recipe => recipe.Id == "craft-copper-wire"),
         "La ricetta craft-copper-wire deve esistere.");
     Assert(content.CreateMarket().GetSellPrice("copper-ore") == 6,
@@ -831,6 +838,100 @@ static void RunSelfTest(GameContent content)
     Assert(splitGrid.Cells[new GridPosition(2, 1)].RoutedExit == Direction.East,
         "In transito lo sdoppiatore deve avanzare come un nastro (facing), non di lato.");
 
+    // Sorter: filter match → facing; others → left/right.
+    var sorterDef = content.Conveyors.Single(entry => entry.Id == "sorter");
+    var sorterTech = content.FindStructure("sorter")!;
+    Assert(sorterDef.Kind == LogisticsKind.Sorter, "Il selezionatore deve avere kind sorter.");
+    var sortResearch = ResearchState.CreateNew(content);
+    Assert(sortResearch.TryUnlock(sorterTech, new EconomyWallet(300, new Dictionary<string, int>
+        {
+            ["iron-plate"] = 40,
+            ["copper-wire"] = 10
+        })),
+        "Selezionatore sbloccabile.");
+    var sortGrid = new ConveyorGrid();
+    var sortWallet = new EconomyWallet(400, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 50,
+        ["copper-wire"] = 10
+    });
+    Assert(sortGrid.TryPlace(new GridPosition(1, 1), Direction.East, definition, sortWallet, sortResearch),
+        "Ingresso selezionatore.");
+    Assert(sortGrid.TryPlace(new GridPosition(2, 1), Direction.East, sorterDef, sortWallet, sortResearch),
+        "Selezionatore.");
+    Assert(sortGrid.TryPlace(new GridPosition(3, 1), Direction.East, definition, sortWallet, sortResearch),
+        "Uscita match (avanti).");
+    Assert(sortGrid.TryPlace(new GridPosition(2, 0), Direction.East, definition, sortWallet, sortResearch),
+        "Uscita overflow nord (sinistra rispetto a E).");
+    Assert(sortGrid.TryPlace(new GridPosition(2, 2), Direction.East, definition, sortWallet, sortResearch),
+        "Uscita overflow sud (destra rispetto a E).");
+    Assert(!sortGrid.TryOrientToward(new GridPosition(2, 1), new GridPosition(2, 0)),
+        "Il selezionatore non deve ruotare via auto-orient.");
+    var sorterCell = sortGrid.Cells[new GridPosition(2, 1)];
+    Assert(sorterCell.Kind == LogisticsKind.Sorter && sorterCell.FilterItemId == "iron-ore",
+        "Filtro default selezionatore = ferro grezzo.");
+    sorterCell.SetFilterItem("iron-ore");
+    var sortIn = sortGrid.Cells[new GridPosition(1, 1)];
+    Assert(sortIn.TryInsert(new TransportedItem(4001, "iron-ore"), Direction.East),
+        "Ferro nel selezionatore.");
+    for (var tick = 0; tick < 150; tick++)
+    {
+        sortGrid.Update(1f / 30f);
+    }
+
+    Assert(sortGrid.Cells[new GridPosition(3, 1)].Items.Any(item => item.ItemId == "iron-ore")
+        || sorterCell.Items.Any(item => item.ItemId == "iron-ore"),
+        "Item filtrato deve uscire in avanti (facing).");
+    Assert(sortGrid.Cells[new GridPosition(2, 0)].Items.Count == 0
+        && sortGrid.Cells[new GridPosition(2, 2)].Items.Count == 0,
+        "Item filtrato non deve andare ai lati.");
+
+    sortGrid.Cells[new GridPosition(3, 1)].RestoreItems([]);
+    sorterCell.RestoreItems([]);
+    Assert(sortIn.TryInsert(new TransportedItem(4002, "copper-ore"), Direction.East),
+        "Rame (non filtrato) nel selezionatore.");
+    var overflowNorth = false;
+    var overflowSouth = false;
+    for (var tick = 0; tick < 150; tick++)
+    {
+        sortGrid.Update(1f / 30f);
+        if (sortGrid.Cells[new GridPosition(2, 0)].Items.Any(item => item.ItemId == "copper-ore"))
+        {
+            overflowNorth = true;
+        }
+
+        if (sortGrid.Cells[new GridPosition(2, 2)].Items.Any(item => item.ItemId == "copper-ore"))
+        {
+            overflowSouth = true;
+        }
+    }
+
+    Assert(overflowNorth || overflowSouth,
+        "Item non filtrato deve uscire a sinistra o destra.");
+    Assert(sortGrid.Cells[new GridPosition(3, 1)].Items.Count == 0,
+        "Item non filtrato non deve uscire in avanti.");
+
+    sorterCell.SetFilterItem("copper-wire");
+    Assert(sorterCell.FilterItemId == "copper-wire", "SetFilterItem deve cambiare il filtro.");
+    sorterCell.CycleFilterItem(["iron-ore", "copper-ore", "iron-plate", "copper-wire"]);
+    Assert(sorterCell.FilterItemId == "iron-ore",
+        "CycleFilterItem deve passare al successivo (wrap).");
+
+    // Persist sorter filter in save.
+    var sortCamera = new WorldCamera(0f, 0f, 1f);
+    var sortSession = new EconomySession(sortWallet.Money);
+    var sortCaptured = GameSaveStore.Capture(
+        new FactoryWorld(12, 8, 7429), sortGrid, sortWallet, sortCamera, sortResearch, sortSession, 4100L);
+    Assert(sortCaptured.Conveyors.Any(c => c.DefinitionId == "sorter" && c.FilterItemId == "iron-ore"),
+        "Salvataggio deve includere FilterItemId del selezionatore.");
+    var sortSlot = "self-test-sorter";
+    GameSaveStore.Save(sortSlot, sortCaptured);
+    var sortRestored = GameSaveStore.Restore(GameSaveStore.Load(sortSlot), content);
+    Assert(sortRestored.Conveyors.Cells.Values.Any(c =>
+            c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-ore"),
+        "Reload deve ripristinare il filtro del selezionatore.");
+    GameSaveStore.Delete(sortSlot);
+
     // Junction: pass-through opposite sides.
     var juncResearch = ResearchState.CreateNew(content);
     Assert(juncResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
@@ -1178,6 +1279,7 @@ static void RunSelfTest(GameContent content)
                 content.Conveyors.Single(c => c.Id == "conveyor-fast"),
                 content.Conveyors.Single(c => c.Id == "junction"),
                 content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "sorter"),
                 content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
                 content.GetBuildingOrDefault("miner"),
                 content.GetBuildingOrDefault("smelter"),
@@ -1193,6 +1295,7 @@ static void RunSelfTest(GameContent content)
                 content.Conveyors.Single(c => c.Id == "conveyor-fast"),
                 content.Conveyors.Single(c => c.Id == "junction"),
                 content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "sorter"),
                 content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
                 content.GetBuildingOrDefault("miner"),
                 content.GetBuildingOrDefault("smelter"),
@@ -1200,6 +1303,27 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("generator"),
                 out _, out _),
             "Dock cost bar: Rimuovi non espone costi finti.");
+        Assert(FactoryGameApp.TryResolveDockEntryCostForTest(
+                "sorter",
+                content.Conveyors.Single(c => c.Id == "conveyor-basic"),
+                content.Conveyors.Single(c => c.Id == "conveyor-fast"),
+                content.Conveyors.Single(c => c.Id == "junction"),
+                content.Conveyors.Single(c => c.Id == "splitter"),
+                content.Conveyors.Single(c => c.Id == "sorter"),
+                content.Conveyors.Single(c => c.Id == "conveyor-bridge"),
+                content.GetBuildingOrDefault("miner"),
+                content.GetBuildingOrDefault("smelter"),
+                content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("generator"),
+                out var sorterMoney, out var sorterMats)
+            && sorterMoney == content.Conveyors.Single(c => c.Id == "sorter").MoneyCost
+            && sorterMats.Any(m => m.ItemId == "iron-plate"),
+            "Dock cost bar: selezionatore risolve denaro + lastre.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics).Any(e => e.Id == "sorter"),
+            "Dock Logistica deve includere il selezionatore.");
+        Assert(UiTheme.EntriesFor(UiTheme.BuildCategory.Logistics)
+                .Single(e => e.Id == "sorter").Hint!.Contains("Filtro", StringComparison.OrdinalIgnoreCase),
+            "Hint selezionatore: filtro item.");
         var smeltRecipeForDock = content.Recipes.Single(r => r.Id == "smelt-iron");
         var wireRecipeForDock = content.Recipes.Single(r => r.Id == "craft-copper-wire");
         Assert(FactoryGameApp.TryResolveDockEntryRecipeForTest(
@@ -1236,6 +1360,7 @@ static void RunSelfTest(GameContent content)
                      "items/iron-ore.png", "items/copper-ore.png", "items/iron-plate.png",
                      "items/copper-wire.png", "items/money.png",
                      "buildings/miner.png", "buildings/smelter.png", "buildings/assembler.png",
+                     "buildings/sorter.png",
                      "categories/production.png", "ui/sell.png"
                  })
         {

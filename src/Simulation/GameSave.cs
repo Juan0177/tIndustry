@@ -84,6 +84,7 @@ public sealed class ConveyorSaveData
     public int? BridgePartnerX { get; set; }
     public int? BridgePartnerY { get; set; }
     public int SplitterToggle { get; set; }
+    public string? FilterItemId { get; set; }
     public List<ItemSaveData> Items { get; set; } = [];
 }
 
@@ -319,6 +320,7 @@ public static class GameSaveStore
                     BridgePartnerX = cell.BridgePartner?.X,
                     BridgePartnerY = cell.BridgePartner?.Y,
                     SplitterToggle = cell.SplitterToggle,
+                    FilterItemId = cell.Kind == LogisticsKind.Sorter ? cell.FilterItemId : null,
                     Items = cell.Items
                         .Select(item => new ItemSaveData
                         {
@@ -461,7 +463,8 @@ public static class GameSaveStore
                     definition,
                     items,
                     bridgePartner,
-                    conveyorData.SplitterToggle))
+                    conveyorData.SplitterToggle,
+                    conveyorData.FilterItemId))
             {
                 throw new InvalidDataException($"Impossibile ripristinare il nastro a {position}.");
             }
@@ -500,7 +503,7 @@ public static class GameSaveStore
             research.ForceUnlock("conveyor-fast");
         }
 
-        foreach (var id in new[] { "junction", "splitter", "conveyor-bridge" })
+        foreach (var id in new[] { "junction", "splitter", "conveyor-bridge", "sorter" })
         {
             if (data.Conveyors.Any(cell => cell.DefinitionId == id))
             {
