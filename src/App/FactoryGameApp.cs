@@ -310,6 +310,20 @@ internal static class FactoryGameApp
                     world.Update(1f / 30f, conveyors!, wallet!, ref nextItemId, market, session);
                 }
             }
+            else if (captureMode == "junction")
+            {
+                SeedCaptureJunction(
+                    world!, conveyors!, wallet, research!, session!, content, basicConveyor, junctionConveyor);
+                BeginTutorialIfNeeded(settings);
+                TutorialActive = false;
+                tool = BuildTool.Junction;
+                DockCategory = UiTheme.BuildCategory.Logistics;
+                DockSelectedId = "junction";
+                camera!.SetZoom(2.4f);
+                camera.CenterOnTile(new GridPosition(8, 6), BaseTileSize, ViewportWidth - InfoPanelWidth, ViewportHeight);
+                camera.ClampToMap(world.Terrain.Width, world.Terrain.Height, BaseTileSize, ViewportWidth, ViewportHeight);
+                // No warm — keep both axes mid-junction (hidden) and feed chips visible.
+            }
             else if (captureMode == "icons")
             {
                 SeedCaptureIcons(
@@ -1791,6 +1805,70 @@ internal static class FactoryGameApp
         Park(new GridPosition(startX + 1, beltY), "copper-ore", 93002, 0.50f);
         Park(new GridPosition(startX + 2, beltY), "coal", 93003, 0.48f);
         Park(new GridPosition(startX + 3, beltY), "copper-wire", 93004, 0.55f);
+    }
+
+    /// <summary>
+    /// Capture scene for --capture-junction: solid X pad with EW+NS cargo mid-block (hidden)
+    /// and visible feed chips on the approach belts.
+    /// </summary>
+    private static void SeedCaptureJunction(
+        FactoryWorld world,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ResearchState research,
+        EconomySession session,
+        GameContent content,
+        ConveyorDefinition basicConveyor,
+        ConveyorDefinition junctionConveyor)
+    {
+        _ = content;
+        research.ForceUnlock("junction");
+        wallet.AddMoney(500);
+        wallet.AddMaterial("iron-plate", 80);
+
+        var junctionAt = new GridPosition(8, 6);
+        static void AssertPlace(bool ok)
+        {
+            if (!ok)
+            {
+                throw new InvalidOperationException("SeedCaptureJunction: piazzamento fallito.");
+            }
+        }
+
+        // Horizontal lane: west → junction → east
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(6, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(7, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            junctionAt, Direction.East, junctionConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(9, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(10, 6), Direction.East, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+
+        // Vertical lane: north → junction → south
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 4), Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 5), Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 7), Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+        AssertPlace(conveyors.TryPlace(
+            new GridPosition(8, 8), Direction.South, basicConveyor, wallet, research, session, world.CanPlaceConveyor));
+
+        // Visible feed chips approaching the solid pad.
+        conveyors.Cells[new GridPosition(7, 6)].TryInsert(new TransportedItem(94001, "iron-ore"));
+        conveyors.Cells[new GridPosition(7, 6)].Items[^1].Progress = 0.55f;
+        conveyors.Cells[new GridPosition(8, 5)].TryInsert(new TransportedItem(94002, "copper-ore"));
+        conveyors.Cells[new GridPosition(8, 5)].Items[^1].Progress = 0.55f;
+
+        // Both axes occupy the junction at once — must stay invisible under the solid X.
+        var junction = conveyors.Cells[junctionAt];
+        AssertPlace(junction.TryInsert(new TransportedItem(94003, "iron-plate"), Direction.East));
+        junction.Items[^1].Progress = 0.45f;
+        AssertPlace(junction.TryInsert(new TransportedItem(94004, "coal"), Direction.South));
+        junction.Items[^1].Progress = 0.55f;
     }
 
     /// <summary>

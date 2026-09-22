@@ -43,10 +43,11 @@ if (!args.Contains("--console-demo"))
     var capturePowerNodes = args.Contains("--capture-power-nodes")
         || args.Contains("--capture-power-cables"); // legacy alias
     var captureSmelterFuel = args.Contains("--capture-smelter-fuel");
+    var captureJunction = args.Contains("--capture-junction");
     var capture = args.Contains("--capture") || args.Contains("--capture-upgraded")
         || captureIo || captureTutorial || captureGraphics || captureTechTree || captureSorter
         || captureMidgame || captureIcons || captureOreTints || captureVerifyIconsTiers
-        || captureVersion || capturePowerNodes || captureSmelterFuel;
+        || captureVersion || capturePowerNodes || captureSmelterFuel || captureJunction;
     var captureUpgraded = args.Contains("--capture-upgraded");
     string? capturePath = null;
     string? captureMode = null;
@@ -109,6 +110,11 @@ if (!args.Contains("--console-demo"))
     {
         capturePath = Path.Combine("artifacts", "smelter-coal-or-power.png");
         captureMode = "smelter-fuel";
+    }
+    else if (captureJunction)
+    {
+        capturePath = Path.Combine("artifacts", "junction-cross.png");
+        captureMode = "junction";
     }
     else if (capture)
     {
