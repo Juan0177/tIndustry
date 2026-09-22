@@ -17,7 +17,8 @@ public enum BuildTool
     Generator,
     PowerNode,
     PowerNodeT2,
-    Sorter
+    Sorter,
+    Extractor
 }
 
 /// <summary>
@@ -490,6 +491,8 @@ public static class UiTheme
             Hint: "Carbone o corrente · +20% craft se alimentato"),
         new("assembler", "Assembl.", "As", DockEntryKind.BuildTool, Tool: BuildTool.Assembler, ResearchId: "assembler",
             Hint: "Assembla prodotti · R ruota uscita"),
+        new("extractor", "Estrattore", "Es", DockEntryKind.BuildTool, Tool: BuildTool.Extractor, ResearchId: "extractor",
+            Hint: "Tira 1 item scelto da CORE/edificio · F filtro · R uscita"),
         new("remove", "Rimuovi", "X", DockEntryKind.BuildTool, Tool: BuildTool.Remove,
             Hint: "Demolisci edifici e nastri (tasto 4)")
     ];
@@ -666,6 +669,15 @@ public static class UiTheme
                 Raylib.DrawCircle(x + s / 3, y + s / 2, s / 3, color);
                 Raylib.DrawCircle(x + 2 * s / 3, y + s / 2, s / 4, color);
                 Raylib.DrawCircle(x + s / 3, y + s / 2, 3, new Color(28, 30, 34, 255));
+                break;
+            case "extractor":
+                // Funnel / unloader.
+                Raylib.DrawRectangle(x + 4, y + 4, s - 8, s - 10, color);
+                Raylib.DrawTriangle(
+                    new Vector2(x + s / 2, y + s - 2),
+                    new Vector2(x + 4, y + s / 2),
+                    new Vector2(x + s - 4, y + s / 2),
+                    color);
                 break;
             case "conveyor-basic":
                 Raylib.DrawRectangle(x, y + s / 2 - 3, s - 6, 6, color);

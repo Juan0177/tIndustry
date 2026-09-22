@@ -64,16 +64,19 @@ public readonly record struct GridPosition(int X, int Y)
 
 public sealed class TransportedItem
 {
-    public TransportedItem(long id, string itemId, float progress = 0f)
+    public TransportedItem(long id, string itemId, float progress = 0f, Direction? travel = null)
     {
         Id = id;
         ItemId = itemId;
         Progress = progress;
+        Travel = travel;
     }
 
     public long Id { get; }
     public string ItemId { get; }
     public float Progress { get; internal set; }
+    /// <summary>Exit direction through a junction (incoming axis). Null on normal belts.</summary>
+    public Direction? Travel { get; internal set; }
 }
 
 public sealed class EconomyWallet
@@ -243,6 +246,26 @@ public sealed class ConveyorCell
             return false;
         }
 
+        if (Kind == LogisticsKind.Junction)
+        {
+            // Cross traffic: one item per axis (EW / NS). Perpendicular streams never block each other.
+            if (fromDirection is not { } incoming)
+            {
+                return false;
+            }
+
+            if (items.Any(existing => SameAxis(existing.Travel ?? Direction, incoming)))
+            {
+                return false;
+            }
+
+            item.Progress = 0f;
+            item.Travel = incoming;
+            RoutedExit = incoming;
+            items.Add(item);
+            return true;
+        }
+
         var rearItem = items.Count == 0 ? null : items[^1];
         if (rearItem is not null && rearItem.Progress < Definition.ItemSpacing)
         {
@@ -251,9 +274,13 @@ public sealed class ConveyorCell
 
         RoutedExit = ResolveExit(fromDirection);
         item.Progress = 0f;
+        item.Travel = null;
         items.Add(item);
         return true;
     }
+
+    private static bool SameAxis(Direction a, Direction b) =>
+        (a is Direction.North or Direction.South) == (b is Direction.North or Direction.South);
 
     private Direction ResolveExit(Direction? fromDirection)
     {
@@ -285,6 +312,37 @@ public sealed class ConveyorCell
     internal void Advance(float deltaSeconds)
     {
         var movement = Definition.RateItemsPerSecond * deltaSeconds;
+        if (Kind == LogisticsKind.Junction)
+        {
+            // Independent lanes: each item only yields to same-axis traffic ahead.
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var travel = item.Travel ?? Direction;
+                var limit = 1f;
+                for (var other = 0; other < items.Count; other++)
+                {
+                    if (other == index)
+                    {
+                        continue;
+                    }
+
+                    var ahead = items[other];
+                    if (!SameAxis(ahead.Travel ?? Direction, travel)
+                        || ahead.Progress <= item.Progress)
+                    {
+                        continue;
+                    }
+
+                    limit = Math.Min(limit, ahead.Progress - Definition.ItemSpacing);
+                }
+
+                item.Progress = Math.Min(item.Progress + movement, Math.Max(item.Progress, limit));
+            }
+
+            return;
+        }
+
         for (var index = 0; index < items.Count; index++)
         {
             var limit = index == 0
@@ -298,6 +356,8 @@ public sealed class ConveyorCell
         items.Count > 0 && items[0].Progress >= 1f ? items[0] : null;
 
     internal void RemoveOutput() => items.RemoveAt(0);
+
+    internal bool TryRemoveItem(TransportedItem item) => items.Remove(item);
 
     public void Rotate(Direction direction)
     {
@@ -574,6 +634,32 @@ public sealed class ConveyorGrid
 
     private void TryHandoff(ConveyorCell cell)
     {
+        if (cell.Kind == LogisticsKind.Junction)
+        {
+            // Both axes leave independently — a blocked exit must not stall the other stream.
+            for (var i = 0; i < cell.Items.Count;)
+            {
+                var ready = cell.Items[i];
+                if (ready.Progress < 1f)
+                {
+                    i++;
+                    continue;
+                }
+
+                var exit = ready.Travel ?? cell.RoutedExit;
+                var target = cell.Position.Step(exit);
+                if (!cells.TryGetValue(target, out var next) || !next.TryInsert(ready, exit))
+                {
+                    i++;
+                    continue;
+                }
+
+                cell.TryRemoveItem(ready);
+            }
+
+            return;
+        }
+
         var item = cell.PeekOutput();
         if (item is null)
         {

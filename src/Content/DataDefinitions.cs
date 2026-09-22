@@ -61,26 +61,27 @@ public sealed class GameContent
     public BuildingDefinition GetBuildingOrDefault(string id) =>
         FindBuilding(id) ?? id switch
         {
-            "miner" => new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
-            "miner-advanced" => new BuildingDefinition("miner-advanced", 70,
+            "miner" => new BuildingDefinition("miner", 0, [new ResourceAmount("iron-plate", 4)], 100),
+            "miner-advanced" => new BuildingDefinition("miner-advanced", 0,
                 [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100),
-            "smelter" => new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
-            "assembler" => new BuildingDefinition("assembler", 60,
+            "smelter" => new BuildingDefinition("smelter", 0, [new ResourceAmount("iron-plate", 6)], 100),
+            "assembler" => new BuildingDefinition("assembler", 0,
                 [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100),
-            "generator" => new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100),
+            "extractor" => new BuildingDefinition("extractor", 0, [new ResourceAmount("iron-plate", 2)], 100),
+            "generator" => new BuildingDefinition("generator", 0, [new ResourceAmount("iron-plate", 8)], 100),
             "power-node" => new BuildingDefinition(
-                "power-node", 20, [new ResourceAmount("copper-wire", 2)], 100,
+                "power-node", 0, [new ResourceAmount("copper-wire", 2)], 100,
                 Footprint: PowerNodeBuilding.Tier1Size,
                 MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
                 PowerLinkRange: PowerNodeBuilding.Tier1Range),
             "power-node-t2" => new BuildingDefinition(
-                "power-node-t2", 55,
+                "power-node-t2", 0,
                 [new ResourceAmount("iron-plate", 6), new ResourceAmount("copper-wire", 4)], 100,
                 Footprint: PowerNodeBuilding.Tier2Size,
                 MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks,
                 PowerLinkRange: PowerNodeBuilding.Tier2Range),
             // Deprecated (#49 cables → #nodi). Kept so stale AppData ids resolve harmlessly.
-            "power-cable" => new BuildingDefinition("power-cable", 5, [new ResourceAmount("copper-wire", 1)], 100),
+            "power-cable" => new BuildingDefinition("power-cable", 0, [new ResourceAmount("copper-wire", 1)], 100),
             _ => new BuildingDefinition(id, 0, [], 100)
         };
 
@@ -113,9 +114,9 @@ public sealed class GameContent
         {
             content.Buildings =
             [
-                new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
-                new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
-                new BuildingDefinition("assembler", 60,
+                new BuildingDefinition("miner", 0, [new ResourceAmount("iron-plate", 4)], 100),
+                new BuildingDefinition("smelter", 0, [new ResourceAmount("iron-plate", 6)], 100),
+                new BuildingDefinition("assembler", 0,
                     [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100)
             ];
         }
@@ -150,7 +151,7 @@ public sealed class GameContent
             "Forno",
             StructureKind.Building,
             false,
-            new UnlockRequirement(100, [new ResourceAmount("iron-plate", 15)])));
+            new UnlockRequirement(250, [new ResourceAmount("iron-plate", 15)])));
 
         return structures;
     }

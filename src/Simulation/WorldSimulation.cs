@@ -224,9 +224,9 @@ public sealed class TerrainMap
 }
 
 /// <summary>
-/// Mindustry-style building I/O: belts adjacent to a footprint are outputs when facing
-/// away, inputs when their exit lands on the footprint. Also drives perimeter enumeration
-/// for adjacent building→building transfer.
+/// Mindustry-style building I/O: any perimeter belt is an output unless it feeds into the
+/// footprint (inward). Sideways belts on the edge still receive eject; only facing-into
+/// belts are inputs. Also drives perimeter enumeration for adjacent building→building transfer.
 /// </summary>
 public static class BuildingIo
 {
@@ -243,9 +243,11 @@ public static class BuildingIo
         return ConveyorGrid.TryDirectionBetween(edgeTile, neighbor, out travel);
     }
 
-    /// <summary>Belt on the perimeter whose facing points away from the building = output.</summary>
+    /// <summary>
+    /// Perimeter belt that does not feed into the footprint = output (facing away or along the edge).
+    /// </summary>
     public static bool IsOutwardBelt(ConveyorCell belt, GridPosition origin, int size) =>
-        TryTravelOut(belt.Position, origin, size, out var travel) && belt.Direction == travel;
+        TryTravelOut(belt.Position, origin, size, out _) && !IsInwardBelt(belt, origin, size);
 
     /// <summary>Belt whose routed exit lands on the footprint = input.</summary>
     public static bool IsInwardBelt(ConveyorCell belt, GridPosition origin, int size) =>
@@ -377,7 +379,7 @@ public sealed class MinerBuilding
 public sealed class SmelterBuilding
 {
     public const int Size = 2;
-    public const int MoneyCost = 40;
+    public const int MoneyCost = 0;
     public const int PlateCost = 6;
 
     /// <summary>Coal fuel item accepted into the forno stock buffer (belt insert), like the generator.</summary>
@@ -747,6 +749,72 @@ public sealed class SmelterBuilding
         Direction.West => Direction.East,
         _ => direction
     };
+
+    /// <summary>Pull one matching crafted item from the output queue (FIFO peek).</summary>
+    public bool TryTakeOutput(string itemId)
+    {
+        if (outputQueue.Count == 0
+            || !string.Equals(outputQueue.Peek(), itemId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        outputQueue.Dequeue();
+        return true;
+    }
+}
+
+public sealed class ExtractorBuilding
+{
+    public const int Size = 1;
+    /// <summary>Seconds between extraction attempts.</summary>
+    public const float IntervalSeconds = 0.4f;
+
+    public ExtractorBuilding(GridPosition position, Direction direction, string filterItemId)
+    {
+        Position = position;
+        Direction = direction;
+        FilterItemId = string.IsNullOrWhiteSpace(filterItemId) ? "iron-plate" : filterItemId;
+    }
+
+    public GridPosition Position { get; }
+    public Direction Direction { get; set; }
+    /// <summary>Only this item leaves the source — never “everything”.</summary>
+    public string FilterItemId { get; private set; }
+    public float Progress { get; set; }
+
+    public IEnumerable<GridPosition> OccupiedTiles()
+    {
+        yield return Position;
+    }
+
+    public void SetFilterItem(string itemId)
+    {
+        if (!string.IsNullOrWhiteSpace(itemId))
+        {
+            FilterItemId = itemId;
+        }
+    }
+
+    public void CycleFilterItem(IReadOnlyList<string> itemIds)
+    {
+        if (itemIds.Count == 0)
+        {
+            return;
+        }
+
+        var index = 0;
+        for (var i = 0; i < itemIds.Count; i++)
+        {
+            if (string.Equals(itemIds[i], FilterItemId, StringComparison.Ordinal))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        FilterItemId = itemIds[(index + 1) % itemIds.Count];
+    }
 }
 
 public sealed class GeneratorBuilding
@@ -852,7 +920,7 @@ public sealed class GeneratorBuilding
 
 public sealed class FactoryWorld
 {
-    public const int MinerMoneyCost = 25;
+    public const int MinerMoneyCost = 0;
     public const int MinerPlateCost = 4;
     public const float MiningDurationSeconds = 2f;
     public const int IronOreSalePrice = 8;
@@ -883,6 +951,8 @@ public sealed class FactoryWorld
     private readonly Dictionary<GridPosition, GeneratorBuilding> generatorByTile = [];
     private readonly Dictionary<GridPosition, PowerNodeBuilding> powerNodes = [];
     private readonly Dictionary<GridPosition, PowerNodeBuilding> powerNodeByTile = [];
+    private readonly Dictionary<GridPosition, ExtractorBuilding> extractors = [];
+    private readonly Dictionary<GridPosition, ExtractorBuilding> extractorByTile = [];
     private readonly List<PowerLink> powerLinks = [];
     private PowerNetworkState powerNetworks = PowerNetworkState.Empty;
 
@@ -922,6 +992,7 @@ public sealed class FactoryWorld
     public IReadOnlyDictionary<GridPosition, SmelterBuilding> Assemblers => assemblers;
     public IReadOnlyDictionary<GridPosition, GeneratorBuilding> Generators => generators;
     public IReadOnlyDictionary<GridPosition, PowerNodeBuilding> PowerNodes => powerNodes;
+    public IReadOnlyDictionary<GridPosition, ExtractorBuilding> Extractors => extractors;
     public IReadOnlyList<PowerLink> PowerLinks => powerLinks;
     public PowerNetworkState PowerNetworks => powerNetworks;
     public IReadOnlySet<GridPosition> CoreTiles { get; }
@@ -1094,7 +1165,8 @@ public sealed class FactoryWorld
         && !smelterByTile.ContainsKey(position)
         && !assemblerByTile.ContainsKey(position)
         && !generatorByTile.ContainsKey(position)
-        && !powerNodeByTile.ContainsKey(position);
+        && !powerNodeByTile.ContainsKey(position)
+        && !extractorByTile.ContainsKey(position);
 
     public bool CanPlacePowerNode(GridPosition position, int size, ConveyorGrid conveyors) =>
         CanOccupyBuilding(position, size, conveyors);
@@ -1114,13 +1186,13 @@ public sealed class FactoryWorld
         var size = PowerNodeBuilding.SizeFor(definitionId);
         cost ??= definitionId == PowerNodeBuilding.Tier2Id
             ? new BuildingDefinition(
-                PowerNodeBuilding.Tier2Id, 55,
+                PowerNodeBuilding.Tier2Id, 0,
                 [new ResourceAmount("iron-plate", 6), new ResourceAmount("copper-wire", 4)], 100,
                 Footprint: PowerNodeBuilding.Tier2Size,
                 MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks,
                 PowerLinkRange: PowerNodeBuilding.Tier2Range)
             : new BuildingDefinition(
-                PowerNodeBuilding.Tier1Id, 20, [new ResourceAmount("copper-wire", 2)], 100,
+                PowerNodeBuilding.Tier1Id, 0, [new ResourceAmount("copper-wire", 2)], 100,
                 Footprint: PowerNodeBuilding.Tier1Size,
                 MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
                 PowerLinkRange: PowerNodeBuilding.Tier1Range);
@@ -1156,13 +1228,13 @@ public sealed class FactoryWorld
 
         cost ??= node.DefinitionId == PowerNodeBuilding.Tier2Id
             ? new BuildingDefinition(
-                PowerNodeBuilding.Tier2Id, 55,
+                PowerNodeBuilding.Tier2Id, 0,
                 [new ResourceAmount("iron-plate", 6), new ResourceAmount("copper-wire", 4)], 100,
                 Footprint: PowerNodeBuilding.Tier2Size,
                 MaxPowerLinks: PowerNodeBuilding.Tier2MaxLinks,
                 PowerLinkRange: PowerNodeBuilding.Tier2Range)
             : new BuildingDefinition(
-                PowerNodeBuilding.Tier1Id, 20, [new ResourceAmount("copper-wire", 2)], 100,
+                PowerNodeBuilding.Tier1Id, 0, [new ResourceAmount("copper-wire", 2)], 100,
                 Footprint: PowerNodeBuilding.Tier1Size,
                 MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
                 PowerLinkRange: PowerNodeBuilding.Tier1Range);
@@ -1230,7 +1302,7 @@ public sealed class FactoryWorld
         }
 
         cost ??= new BuildingDefinition(
-            PowerNodeBuilding.Tier1Id, 20, [new ResourceAmount("copper-wire", 2)], 100,
+            PowerNodeBuilding.Tier1Id, 0, [new ResourceAmount("copper-wire", 2)], 100,
             Footprint: PowerNodeBuilding.Tier1Size,
             MaxPowerLinks: PowerNodeBuilding.Tier1MaxLinks,
             PowerLinkRange: PowerNodeBuilding.Tier1Range);
@@ -1391,7 +1463,8 @@ public sealed class FactoryWorld
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
             && !conveyors.Cells.ContainsKey(tile)
-            && !powerNodeByTile.ContainsKey(tile));
+            && !powerNodeByTile.ContainsKey(tile)
+            && !extractorByTile.ContainsKey(tile));
     // Deposit coverage optional: 0 covered tiles → 0% efficiency, no ore output.
 
     public bool CanPlaceSmelter(GridPosition position, ConveyorGrid conveyors) =>
@@ -1399,6 +1472,89 @@ public sealed class FactoryWorld
 
     public bool CanPlaceAssembler(GridPosition position, ConveyorGrid conveyors) =>
         CanOccupyBuilding(position, SmelterBuilding.Size, conveyors);
+
+    public bool CanPlaceExtractor(GridPosition position, ConveyorGrid conveyors) =>
+        CanOccupyBuilding(position, ExtractorBuilding.Size, conveyors);
+
+    public bool TryPlaceExtractor(
+        GridPosition position,
+        Direction direction,
+        string filterItemId,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        cost ??= new BuildingDefinition("extractor", 0, [new ResourceAmount("iron-plate", 2)], 100);
+        if (!CanPlaceExtractor(position, conveyors)
+            || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
+        {
+            return false;
+        }
+
+        RegisterExtractor(new ExtractorBuilding(position, direction, filterItemId));
+        session?.RecordBuildSpend(cost.MoneyCost);
+        return true;
+    }
+
+    public bool TryRemoveExtractor(
+        GridPosition position,
+        EconomyWallet wallet,
+        BuildingDefinition? cost = null,
+        EconomySession? session = null)
+    {
+        if (!extractorByTile.TryGetValue(position, out var extractor))
+        {
+            return false;
+        }
+
+        cost ??= new BuildingDefinition("extractor", 0, [new ResourceAmount("iron-plate", 2)], 100);
+        extractors.Remove(extractor.Position);
+        foreach (var tile in extractor.OccupiedTiles())
+        {
+            extractorByTile.Remove(tile);
+        }
+
+        ApplyRefund(wallet, cost, session);
+        return true;
+    }
+
+    public bool TryGetExtractorAt(GridPosition position, out ExtractorBuilding extractor) =>
+        extractorByTile.TryGetValue(position, out extractor!);
+
+    public bool IsExtractorTile(GridPosition position) => extractorByTile.ContainsKey(position);
+
+    public bool TryRestoreExtractor(
+        GridPosition position,
+        Direction direction,
+        string filterItemId,
+        float progress = 0f)
+    {
+        if (!IsInside(position)
+            || CoreTiles.Contains(position)
+            || minerByTile.ContainsKey(position)
+            || smelterByTile.ContainsKey(position)
+            || assemblerByTile.ContainsKey(position)
+            || generatorByTile.ContainsKey(position)
+            || powerNodeByTile.ContainsKey(position)
+            || extractorByTile.ContainsKey(position))
+        {
+            return false;
+        }
+
+        var extractor = new ExtractorBuilding(position, direction, filterItemId) { Progress = progress };
+        RegisterExtractor(extractor);
+        return true;
+    }
+
+    private void RegisterExtractor(ExtractorBuilding extractor)
+    {
+        extractors.Add(extractor.Position, extractor);
+        foreach (var tile in extractor.OccupiedTiles())
+        {
+            extractorByTile.Add(tile, extractor);
+        }
+    }
 
     public int CountCoveredDepositTiles(GridPosition position) =>
         Footprint(position, MinerBuilding.Size).Count(tile =>
@@ -1464,7 +1620,7 @@ public sealed class FactoryWorld
         string definitionId = MinerBuilding.BasicId)
     {
         cost ??= definitionId == MinerBuilding.AdvancedId
-            ? new BuildingDefinition("miner-advanced", 70,
+            ? new BuildingDefinition("miner-advanced", 0,
                 [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100)
             : new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
         if (!CanPlaceMiner(position, conveyors)
@@ -1528,7 +1684,7 @@ public sealed class FactoryWorld
         EconomySession? session = null,
         IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
-        cost ??= new BuildingDefinition("assembler", 60,
+        cost ??= new BuildingDefinition("assembler", 0,
             [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100);
         if (!CanPlaceAssembler(position, conveyors)
             || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
@@ -1560,7 +1716,7 @@ public sealed class FactoryWorld
         }
 
         cost ??= miner.IsAdvanced
-            ? new BuildingDefinition("miner-advanced", 70,
+            ? new BuildingDefinition("miner-advanced", 0,
                 [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100)
             : new BuildingDefinition("miner", MinerMoneyCost, MinerBuildCost, 100);
         miners.Remove(miner.Position);
@@ -1609,7 +1765,7 @@ public sealed class FactoryWorld
             return false;
         }
 
-        cost ??= new BuildingDefinition("assembler", 60,
+        cost ??= new BuildingDefinition("assembler", 0,
             [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100);
         PowerNetworking.RemoveEndpointLinks(
             new PowerEndpointId(PowerEndpointKind.Consumer, assembler.Position), powerLinks);
@@ -1634,7 +1790,7 @@ public sealed class FactoryWorld
         BuildingDefinition? cost = null,
         EconomySession? session = null)
     {
-        cost ??= new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100);
+        cost ??= new BuildingDefinition("generator", 0, [new ResourceAmount("iron-plate", 8)], 100);
         if (!CanPlaceGenerator(position, conveyors)
             || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
         {
@@ -1664,7 +1820,7 @@ public sealed class FactoryWorld
             return false;
         }
 
-        cost ??= new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100);
+        cost ??= new BuildingDefinition("generator", 0, [new ResourceAmount("iron-plate", 8)], 100);
         PowerNetworking.RemoveEndpointLinks(
             new PowerEndpointId(PowerEndpointKind.Generator, generator.Position), powerLinks);
         generators.Remove(generator.Position);
@@ -1812,6 +1968,8 @@ public sealed class FactoryWorld
                     assembler));
         }
 
+        UpdateExtractors(deltaSeconds, conveyors, wallet, ref nextItemId);
+
         foreach (var conveyor in conveyors.Cells.Values)
         {
             while (CoreTiles.Contains(conveyor.OutputPosition) && conveyor.PeekOutput() is { } item)
@@ -1829,6 +1987,96 @@ public sealed class FactoryWorld
                 }
             }
         }
+    }
+
+    private void UpdateExtractors(
+        float deltaSeconds,
+        ConveyorGrid conveyors,
+        EconomyWallet wallet,
+        ref long nextItemId)
+    {
+        foreach (var extractor in extractors.Values)
+        {
+            extractor.Progress += deltaSeconds;
+            if (extractor.Progress < ExtractorBuilding.IntervalSeconds)
+            {
+                continue;
+            }
+
+            // Filter is mandatory: without a chosen item id, pull nothing (never "everything").
+            var filter = extractor.FilterItemId;
+            if (string.IsNullOrWhiteSpace(filter))
+            {
+                extractor.Progress = 0f;
+                continue;
+            }
+
+            var outPos = extractor.Position.Step(extractor.Direction);
+            if (!conveyors.Cells.TryGetValue(outPos, out var belt)
+                || !BuildingIo.IsOutwardBelt(belt, extractor.Position, ExtractorBuilding.Size))
+            {
+                continue;
+            }
+
+            if (!TryPullFilteredItem(extractor, filter, wallet))
+            {
+                continue;
+            }
+
+            if (!belt.TryInsert(new TransportedItem(nextItemId, filter), extractor.Direction))
+            {
+                // Belt full — put the item back into the source we took from.
+                RefundPulledItem(extractor, filter, wallet);
+                continue;
+            }
+
+            nextItemId++;
+            extractor.Progress = 0f;
+        }
+    }
+
+    private bool TryPullFilteredItem(ExtractorBuilding extractor, string filter, EconomyWallet wallet)
+    {
+        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(extractor.Position, ExtractorBuilding.Size))
+        {
+            if (CoreTiles.Contains(neighbor) && wallet.TryRemoveMaterial(filter, 1))
+            {
+                return true;
+            }
+
+            if (TryGetSmelterAt(neighbor, out var smelter) && smelter.TryTakeOutput(filter))
+            {
+                return true;
+            }
+
+            if (TryGetAssemblerAt(neighbor, out var assembler) && assembler.TryTakeOutput(filter))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void RefundPulledItem(ExtractorBuilding extractor, string filter, EconomyWallet wallet)
+    {
+        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(extractor.Position, ExtractorBuilding.Size))
+        {
+            if (CoreTiles.Contains(neighbor))
+            {
+                wallet.AddMaterial(filter, 1);
+                return;
+            }
+
+            // Crafter outputs: drop back into wallet rather than re-queueing mid-craft.
+            if (TryGetSmelterAt(neighbor, out _) || TryGetAssemblerAt(neighbor, out _))
+            {
+                wallet.AddMaterial(filter, 1);
+                return;
+            }
+        }
+
+        wallet.AddMaterial(filter, 1);
     }
 
     /// <summary>Sell stocked materials from the wallet at the current core market price.</summary>
@@ -2025,6 +2273,7 @@ public sealed class FactoryWorld
             && !assemblerByTile.ContainsKey(tile)
             && !generatorByTile.ContainsKey(tile)
             && !powerNodeByTile.ContainsKey(tile)
+            && !extractorByTile.ContainsKey(tile)
             && (conveyors is null || !conveyors.Cells.ContainsKey(tile)));
 
     private bool IsInside(GridPosition position) =>

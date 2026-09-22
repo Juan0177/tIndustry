@@ -67,6 +67,7 @@ public static class GameContentStore
             changed |= SyncSeedPrerequisites(UserJsonPath, seed);
             changed |= SyncSeedUnlockCosts(UserJsonPath, seed);
             changed |= SyncSeedBuildingCosts(UserJsonPath, seed);
+            changed |= SyncSeedConveyorCosts(UserJsonPath, seed);
             if (changed)
             {
                 // Keep optional Excel in sync when we patched AppData from seed.
@@ -293,7 +294,7 @@ public static class GameContentStore
 
     /// <summary>
     /// Overwrites building money/build costs when they differ from the seed.
-    /// Keeps placement costs aligned with progression fixes (no wire-before-assembler).
+    /// Keeps placement costs aligned with progression fixes (place = materials only).
     /// </summary>
     public static bool SyncSeedBuildingCosts(string userJsonPath, string seedJsonPath)
     {
@@ -338,6 +339,57 @@ public static class GameContentStore
             user.Recipes.ToList(),
             user.Structures.ToList(),
             buildings,
+            user.Market.ToList(),
+            user.Economy ?? seed.Economy);
+        return true;
+    }
+
+    /// <summary>
+    /// Overwrites conveyor place money/build costs when they differ from the seed.
+    /// </summary>
+    public static bool SyncSeedConveyorCosts(string userJsonPath, string seedJsonPath)
+    {
+        var user = GameContent.Load(userJsonPath);
+        var seed = GameContent.Load(seedJsonPath);
+
+        var conveyors = user.Conveyors.ToList();
+        var seedConveyors = seed.Conveyors.ToDictionary(c => c.Id, StringComparer.Ordinal);
+        var changed = false;
+
+        for (var i = 0; i < conveyors.Count; i++)
+        {
+            if (!seedConveyors.TryGetValue(conveyors[i].Id, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (conveyors[i].MoneyCost == fromSeed.MoneyCost
+                && conveyors[i].Capacity == fromSeed.Capacity
+                && ResourceAmountsEqual(conveyors[i].BuildCost, fromSeed.BuildCost))
+            {
+                continue;
+            }
+
+            conveyors[i] = conveyors[i] with
+            {
+                MoneyCost = fromSeed.MoneyCost,
+                Capacity = fromSeed.Capacity,
+                BuildCost = CloneAmounts(fromSeed.BuildCost)
+            };
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        WriteMerged(
+            userJsonPath,
+            conveyors,
+            user.Recipes.ToList(),
+            user.Structures.ToList(),
+            user.Buildings.ToList(),
             user.Market.ToList(),
             user.Economy ?? seed.Economy);
         return true;

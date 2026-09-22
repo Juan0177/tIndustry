@@ -6,9 +6,12 @@
       "rateItemsPerSecond": 0.5,
       "capacity": 1,
       "itemSpacing": 1.0,
-      "moneyCost": 5,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 1 }
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        }
       ],
       "unlock": null,
       "kind": "belt"
@@ -19,15 +22,24 @@
       "rateItemsPerSecond": 1.0,
       "capacity": 1,
       "itemSpacing": 1.0,
-      "moneyCost": 15,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 2 },
-        { "itemId": "copper-wire", "amount": 1 }
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
       ],
       "unlock": {
-        "money": 250,
+        "money": 450,
         "materials": [
-          { "itemId": "iron-plate", "amount": 50 }
+          {
+            "itemId": "iron-plate",
+            "amount": 50
+          }
         ]
       },
       "kind": "belt"
@@ -36,16 +48,22 @@
       "id": "junction",
       "tier": 1,
       "rateItemsPerSecond": 0.75,
-      "capacity": 1,
+      "capacity": 2,
       "itemSpacing": 1.0,
-      "moneyCost": 12,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 2 }
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        }
       ],
       "unlock": {
-        "money": 80,
+        "money": 200,
         "materials": [
-          { "itemId": "iron-plate", "amount": 10 }
+          {
+            "itemId": "iron-plate",
+            "amount": 10
+          }
         ]
       },
       "kind": "junction"
@@ -56,14 +74,20 @@
       "rateItemsPerSecond": 0.75,
       "capacity": 1,
       "itemSpacing": 1.0,
-      "moneyCost": 18,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 3 }
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        }
       ],
       "unlock": {
-        "money": 120,
+        "money": 280,
         "materials": [
-          { "itemId": "iron-plate", "amount": 15 }
+          {
+            "itemId": "iron-plate",
+            "amount": 15
+          }
         ]
       },
       "kind": "splitter"
@@ -74,15 +98,24 @@
       "rateItemsPerSecond": 0.75,
       "capacity": 1,
       "itemSpacing": 1.0,
-      "moneyCost": 22,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 3 },
-        { "itemId": "copper-wire", "amount": 1 }
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
       ],
       "unlock": {
-        "money": 140,
+        "money": 320,
         "materials": [
-          { "itemId": "iron-plate", "amount": 18 }
+          {
+            "itemId": "iron-plate",
+            "amount": 18
+          }
         ]
       },
       "kind": "sorter"
@@ -93,15 +126,24 @@
       "rateItemsPerSecond": 0.5,
       "capacity": 1,
       "itemSpacing": 1.0,
-      "moneyCost": 20,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 3 },
-        { "itemId": "copper-wire", "amount": 1 }
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
       ],
       "unlock": {
-        "money": 150,
+        "money": 340,
         "materials": [
-          { "itemId": "iron-plate", "amount": 20 }
+          {
+            "itemId": "iron-plate",
+            "amount": 20
+          }
         ]
       },
       "kind": "bridge"
@@ -112,16 +154,28 @@
       "rateItemsPerSecond": 2.0,
       "capacity": 1,
       "itemSpacing": 1.0,
-      "moneyCost": 35,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 3 },
-        { "itemId": "copper-wire", "amount": 2 }
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
       ],
       "unlock": {
-        "money": 500,
+        "money": 850,
         "materials": [
-          { "itemId": "iron-plate", "amount": 80 },
-          { "itemId": "copper-wire", "amount": 20 }
+          {
+            "itemId": "iron-plate",
+            "amount": 80
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 20
+          }
         ]
       },
       "kind": "belt"
@@ -132,62 +186,104 @@
       "id": "smelt-iron",
       "durationSeconds": 2.0,
       "inputs": [
-        { "itemId": "iron-ore", "amount": 2 }
+        {
+          "itemId": "iron-ore",
+          "amount": 2
+        }
       ],
       "outputs": [
-        { "itemId": "iron-plate", "amount": 1 }
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        }
       ]
     },
     {
       "id": "smelt-lead",
       "durationSeconds": 1.8,
       "inputs": [
-        { "itemId": "lead-ore", "amount": 2 }
+        {
+          "itemId": "lead-ore",
+          "amount": 2
+        }
       ],
       "outputs": [
-        { "itemId": "lead-plate", "amount": 1 }
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        }
       ]
     },
     {
       "id": "smelt-titanium",
       "durationSeconds": 3.2,
       "inputs": [
-        { "itemId": "titanium-ore", "amount": 3 }
+        {
+          "itemId": "titanium-ore",
+          "amount": 3
+        }
       ],
       "outputs": [
-        { "itemId": "titanium-plate", "amount": 1 }
+        {
+          "itemId": "titanium-plate",
+          "amount": 1
+        }
       ]
     },
     {
       "id": "craft-copper-wire",
       "durationSeconds": 1.5,
       "inputs": [
-        { "itemId": "copper-ore", "amount": 1 },
-        { "itemId": "iron-plate", "amount": 1 }
+        {
+          "itemId": "copper-ore",
+          "amount": 1
+        },
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        }
       ],
       "outputs": [
-        { "itemId": "copper-wire", "amount": 2 }
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
       ]
     },
     {
       "id": "craft-graphite",
       "durationSeconds": 1.2,
       "inputs": [
-        { "itemId": "coal", "amount": 2 }
+        {
+          "itemId": "coal",
+          "amount": 2
+        }
       ],
       "outputs": [
-        { "itemId": "graphite", "amount": 1 }
+        {
+          "itemId": "graphite",
+          "amount": 1
+        }
       ]
     },
     {
       "id": "craft-silicon",
       "durationSeconds": 2.4,
       "inputs": [
-        { "itemId": "lead-plate", "amount": 1 },
-        { "itemId": "coal", "amount": 1 }
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        },
+        {
+          "itemId": "coal",
+          "amount": 1
+        }
       ],
       "outputs": [
-        { "itemId": "silicon", "amount": 1 }
+        {
+          "itemId": "silicon",
+          "amount": 1
+        }
       ]
     }
   ],
@@ -211,18 +307,42 @@
       "prerequisites": []
     },
     {
+      "id": "extractor",
+      "displayName": "Estrattore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 80,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "miner"
+      ]
+    },
+    {
       "id": "smelter",
       "displayName": "Forno",
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 100,
+        "money": 250,
         "materials": [
-          { "itemId": "iron-plate", "amount": 15 }
+          {
+            "itemId": "iron-plate",
+            "amount": 15
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["miner"]
+      "prerequisites": [
+        "miner"
+      ]
     },
     {
       "id": "conveyor-fast",
@@ -230,13 +350,18 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 250,
+        "money": 450,
         "materials": [
-          { "itemId": "iron-plate", "amount": 50 }
+          {
+            "itemId": "iron-plate",
+            "amount": 50
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["smelter"]
+      "prerequisites": [
+        "smelter"
+      ]
     },
     {
       "id": "junction",
@@ -244,13 +369,18 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 80,
+        "money": 200,
         "materials": [
-          { "itemId": "iron-plate", "amount": 10 }
+          {
+            "itemId": "iron-plate",
+            "amount": 10
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["conveyor-basic"]
+      "prerequisites": [
+        "conveyor-basic"
+      ]
     },
     {
       "id": "splitter",
@@ -258,13 +388,18 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 120,
+        "money": 280,
         "materials": [
-          { "itemId": "iron-plate", "amount": 15 }
+          {
+            "itemId": "iron-plate",
+            "amount": 15
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["junction"]
+      "prerequisites": [
+        "junction"
+      ]
     },
     {
       "id": "sorter",
@@ -272,13 +407,18 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 140,
+        "money": 320,
         "materials": [
-          { "itemId": "iron-plate", "amount": 18 }
+          {
+            "itemId": "iron-plate",
+            "amount": 18
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["junction"]
+      "prerequisites": [
+        "junction"
+      ]
     },
     {
       "id": "conveyor-bridge",
@@ -286,13 +426,18 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 150,
+        "money": 340,
         "materials": [
-          { "itemId": "iron-plate", "amount": 20 }
+          {
+            "itemId": "iron-plate",
+            "amount": 20
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["junction"]
+      "prerequisites": [
+        "junction"
+      ]
     },
     {
       "id": "conveyor-express",
@@ -300,14 +445,22 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 500,
+        "money": 850,
         "materials": [
-          { "itemId": "iron-plate", "amount": 80 },
-          { "itemId": "copper-wire", "amount": 20 }
+          {
+            "itemId": "iron-plate",
+            "amount": 80
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 20
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["conveyor-fast"]
+      "prerequisites": [
+        "conveyor-fast"
+      ]
     },
     {
       "id": "assembler",
@@ -315,14 +468,22 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 220,
+        "money": 480,
         "materials": [
-          { "itemId": "iron-plate", "amount": 22 },
-          { "itemId": "copper-ore", "amount": 4 }
+          {
+            "itemId": "iron-plate",
+            "amount": 22
+          },
+          {
+            "itemId": "copper-ore",
+            "amount": 4
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["smelter"]
+      "prerequisites": [
+        "smelter"
+      ]
     },
     {
       "id": "generator",
@@ -330,13 +491,18 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 90,
+        "money": 280,
         "materials": [
-          { "itemId": "iron-plate", "amount": 12 }
+          {
+            "itemId": "iron-plate",
+            "amount": 12
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["smelter"]
+      "prerequisites": [
+        "smelter"
+      ]
     },
     {
       "id": "power-node",
@@ -344,14 +510,22 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 40,
+        "money": 140,
         "materials": [
-          { "itemId": "iron-plate", "amount": 4 },
-          { "itemId": "copper-wire", "amount": 2 }
+          {
+            "itemId": "iron-plate",
+            "amount": 4
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 2
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["smelter"]
+      "prerequisites": [
+        "smelter"
+      ]
     },
     {
       "id": "power-node-t2",
@@ -359,14 +533,23 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 120,
+        "money": 320,
         "materials": [
-          { "itemId": "iron-plate", "amount": 12 },
-          { "itemId": "copper-wire", "amount": 6 }
+          {
+            "itemId": "iron-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["power-node", "generator"]
+      "prerequisites": [
+        "power-node",
+        "generator"
+      ]
     },
     {
       "id": "miner-advanced",
@@ -374,14 +557,23 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 280,
+        "money": 550,
         "materials": [
-          { "itemId": "iron-plate", "amount": 40 },
-          { "itemId": "copper-wire", "amount": 8 }
+          {
+            "itemId": "iron-plate",
+            "amount": 40
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 8
+          }
         ]
       },
       "isStub": false,
-      "prerequisites": ["miner", "smelter"]
+      "prerequisites": [
+        "miner",
+        "smelter"
+      ]
     }
   ],
   "market": [
@@ -477,51 +669,75 @@
   "buildings": [
     {
       "id": "miner",
-      "moneyCost": 25,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 4 }
+        {
+          "itemId": "iron-plate",
+          "amount": 4
+        }
       ],
       "refundPercent": 100
     },
     {
       "id": "miner-advanced",
-      "moneyCost": 70,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 10 },
-        { "itemId": "copper-wire", "amount": 4 }
+        {
+          "itemId": "iron-plate",
+          "amount": 10
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 4
+        }
       ],
       "refundPercent": 100
     },
     {
       "id": "smelter",
-      "moneyCost": 40,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 6 }
+        {
+          "itemId": "iron-plate",
+          "amount": 6
+        }
       ],
       "refundPercent": 100
     },
     {
       "id": "assembler",
-      "moneyCost": 60,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 8 },
-        { "itemId": "copper-ore", "amount": 2 }
+        {
+          "itemId": "iron-plate",
+          "amount": 8
+        },
+        {
+          "itemId": "copper-ore",
+          "amount": 2
+        }
       ],
       "refundPercent": 100
     },
     {
       "id": "generator",
-      "moneyCost": 55,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 8 }
+        {
+          "itemId": "iron-plate",
+          "amount": 8
+        }
       ],
       "refundPercent": 100
     },
     {
       "id": "power-node",
-      "moneyCost": 20,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "copper-wire", "amount": 2 }
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
       ],
       "refundPercent": 100,
       "footprint": 1,
@@ -530,25 +746,45 @@
     },
     {
       "id": "power-node-t2",
-      "moneyCost": 55,
+      "moneyCost": 0,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 6 },
-        { "itemId": "copper-wire", "amount": 4 }
+        {
+          "itemId": "iron-plate",
+          "amount": 6
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 4
+        }
       ],
       "refundPercent": 100,
       "footprint": 2,
       "maxPowerLinks": 8,
       "powerLinkRange": 10
+    },
+    {
+      "id": "extractor",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        }
+      ],
+      "refundPercent": 100
     }
   ],
   "economy": {
     "coreUpgrade": {
       "moneyCost": 150,
       "buildCost": [
-        { "itemId": "iron-plate", "amount": 20 }
+        {
+          "itemId": "iron-plate",
+          "amount": 20
+        }
       ],
       "saleBonusPercent": 25
     },
-    "refundPolicyNote": "Rimozione: rimborso 100% di edifici e nastri. Nodi: collegamento automatico entro raggio (priorità generatore → nodi → forni/assemblatori; mai CORE). Nodo T1: 1×1 / 4 collegamenti / raggio 6. Nodo T2: 2×2 / 8 / raggio 10. Rete attiva solo con percorso fino a un generatore con carbone. Adiacenza 4-dir: edifici a contatto di un gen (o in cluster) senza nodi. CORE fuori dalla rete potenza."
+    "refundPolicyNote": "Piazzamento: solo materiali (niente $). Blueprint in Ricerca: soldi + materiali. Rimozione: rimborso 100% materiali. Nodi: collegamento automatico entro raggio (priorità generatore → nodi → forni/assemblatori; mai CORE). Nodo T1: 1×1 / 4 collegamenti / raggio 6. Nodo T2: 2×2 / 8 / raggio 10. Rete attiva solo con percorso fino a un generatore con carbone. Adiacenza 4-dir: edifici a contatto di un gen (o in cluster) senza nodi. CORE fuori dalla rete potenza."
   }
 }

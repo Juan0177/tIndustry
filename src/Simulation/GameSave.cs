@@ -30,6 +30,7 @@ public sealed class GameSaveData
     public List<PowerCableSaveData> PowerCables { get; set; } = [];
     public List<PowerNodeSaveData> PowerNodes { get; set; } = [];
     public List<PowerLinkSaveData> PowerLinks { get; set; } = [];
+    public List<ExtractorSaveData> Extractors { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -84,6 +85,15 @@ public sealed class GeneratorSaveData
     public float BurnRemaining { get; set; }
 }
 
+public sealed class ExtractorSaveData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string Direction { get; set; } = "East";
+    public string FilterItemId { get; set; } = "iron-plate";
+    public float Progress { get; set; }
+}
+
 public sealed class PowerCableSaveData
 {
     public int X { get; set; }
@@ -126,6 +136,8 @@ public sealed class ItemSaveData
     public long Id { get; set; }
     public string ItemId { get; set; } = "iron-ore";
     public float Progress { get; set; }
+    /// <summary>Junction travel axis; null on normal belts.</summary>
+    public string? Travel { get; set; }
 }
 
 public sealed class SaveSlotInfo
@@ -369,6 +381,16 @@ public static class GameSaveStore
                     BY = link.B.Origin.Y
                 })
                 .ToList(),
+            Extractors = world.Extractors.Values
+                .Select(extractor => new ExtractorSaveData
+                {
+                    X = extractor.Position.X,
+                    Y = extractor.Position.Y,
+                    Direction = extractor.Direction.ToString(),
+                    FilterItemId = extractor.FilterItemId,
+                    Progress = extractor.Progress
+                })
+                .ToList(),
             Conveyors = conveyors.Cells.Values
                 .Select(cell => new ConveyorSaveData
                 {
@@ -386,7 +408,8 @@ public static class GameSaveStore
                         {
                             Id = item.Id,
                             ItemId = item.ItemId,
-                            Progress = item.Progress
+                            Progress = item.Progress,
+                            Travel = item.Travel?.ToString()
                         })
                         .ToList()
                 })
@@ -547,6 +570,24 @@ public static class GameSaveStore
             world.RefreshPowerNetworks();
         }
 
+        foreach (var extractorData in data.Extractors)
+        {
+            if (!Enum.TryParse<Direction>(extractorData.Direction, ignoreCase: true, out var direction))
+            {
+                throw new InvalidDataException($"Direzione estrattore non valida: {extractorData.Direction}");
+            }
+
+            var position = new GridPosition(extractorData.X, extractorData.Y);
+            if (!world.TryRestoreExtractor(
+                    position,
+                    direction,
+                    extractorData.FilterItemId,
+                    extractorData.Progress))
+            {
+                throw new InvalidDataException($"Impossibile ripristinare l'estrattore a {position}.");
+            }
+        }
+
         foreach (var conveyorData in data.Conveyors)
         {
             if (!definitions.TryGetValue(conveyorData.DefinitionId, out var definition))
@@ -561,7 +602,17 @@ public static class GameSaveStore
 
             var position = new GridPosition(conveyorData.X, conveyorData.Y);
             var items = conveyorData.Items
-                .Select(item => new TransportedItem(item.Id, item.ItemId, item.Progress))
+                .Select(item =>
+                {
+                    Direction? travel = null;
+                    if (!string.IsNullOrEmpty(item.Travel)
+                        && Enum.TryParse<Direction>(item.Travel, ignoreCase: true, out var parsed))
+                    {
+                        travel = parsed;
+                    }
+
+                    return new TransportedItem(item.Id, item.ItemId, item.Progress, travel);
+                })
                 .ToList();
             GridPosition? bridgePartner = null;
             if (conveyorData.BridgePartnerX is { } bx && conveyorData.BridgePartnerY is { } by)
@@ -610,6 +661,11 @@ public static class GameSaveStore
         if (data.Assemblers.Count > 0)
         {
             research.ForceUnlock("assembler");
+        }
+
+        if (data.Extractors.Count > 0)
+        {
+            research.ForceUnlock("extractor");
         }
 
         if (data.Generators.Count > 0)
