@@ -48,7 +48,7 @@
       "id": "junction",
       "tier": 1,
       "rateItemsPerSecond": 0.75,
-      "capacity": 1,
+      "capacity": 2,
       "itemSpacing": 1.0,
       "moneyCost": 0,
       "buildCost": [

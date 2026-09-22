@@ -136,6 +136,8 @@ public sealed class ItemSaveData
     public long Id { get; set; }
     public string ItemId { get; set; } = "iron-ore";
     public float Progress { get; set; }
+    /// <summary>Junction travel axis; null on normal belts.</summary>
+    public string? Travel { get; set; }
 }
 
 public sealed class SaveSlotInfo
@@ -406,7 +408,8 @@ public static class GameSaveStore
                         {
                             Id = item.Id,
                             ItemId = item.ItemId,
-                            Progress = item.Progress
+                            Progress = item.Progress,
+                            Travel = item.Travel?.ToString()
                         })
                         .ToList()
                 })
@@ -599,7 +602,17 @@ public static class GameSaveStore
 
             var position = new GridPosition(conveyorData.X, conveyorData.Y);
             var items = conveyorData.Items
-                .Select(item => new TransportedItem(item.Id, item.ItemId, item.Progress))
+                .Select(item =>
+                {
+                    Direction? travel = null;
+                    if (!string.IsNullOrEmpty(item.Travel)
+                        && Enum.TryParse<Direction>(item.Travel, ignoreCase: true, out var parsed))
+                    {
+                        travel = parsed;
+                    }
+
+                    return new TransportedItem(item.Id, item.ItemId, item.Progress, travel);
+                })
                 .ToList();
             GridPosition? bridgePartner = null;
             if (conveyorData.BridgePartnerX is { } bx && conveyorData.BridgePartnerY is { } by)

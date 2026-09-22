@@ -6302,7 +6302,9 @@ internal static class FactoryGameApp
     {
         foreach (var conveyor in conveyors.Cells.Values)
         {
+            // Junction is a solid block — cargo inside stays hidden until it exits.
             if (conveyor.Items.Count == 0
+                || conveyor.Kind == LogisticsKind.Junction
                 || conveyor.Position.X < minX || conveyor.Position.X > maxX
                 || conveyor.Position.Y < minY || conveyor.Position.Y > maxY)
             {
@@ -6751,7 +6753,8 @@ internal static class FactoryGameApp
         }
 
         // Items are drawn in a later world pass (DrawConveyorItems) so buildings never hide them.
-        if (preview)
+        // Junctions stay opaque — never chip-preview cargo inside the solid block.
+        if (preview && conveyor.Kind != LogisticsKind.Junction)
         {
             DrawConveyorItemChips(conveyor, fx, fy, tileSize, alpha);
         }
@@ -6759,11 +6762,36 @@ internal static class FactoryGameApp
 
     private static void DrawJunctionGlyph(Vector2 center, int alpha, float tileSize)
     {
-        var arm = Math.Max(4, (int)(10 * tileSize / BaseTileSize));
-        var span = Math.Max(10, (int)(28 * tileSize / BaseTileSize));
-        Raylib.DrawRectangle((int)center.X - span / 2, (int)center.Y - arm / 2, span, arm, new Color(70, 88, 92, alpha));
-        Raylib.DrawRectangle((int)center.X - arm / 2, (int)center.Y - span / 2, arm, span, new Color(70, 88, 92, alpha));
-        Raylib.DrawRectangle((int)center.X - arm, (int)center.Y - arm, arm * 2, arm * 2, new Color(120, 160, 150, alpha));
+        // Solid pad — cargo is hidden inside; glyph reads as a closed cross block, not open arms.
+        var size = (int)tileSize;
+        var x = (int)(center.X - tileSize / 2f);
+        var y = (int)(center.Y - tileSize / 2f);
+        var inset = Math.Max(2, size / 10);
+        Raylib.DrawRectangle(x, y, size, size, new Color(42, 52, 50, alpha));
+        Raylib.DrawRectangle(x + inset, y + inset, size - inset * 2, size - inset * 2, new Color(78, 98, 94, alpha));
+        Raylib.DrawRectangleLines(x + inset, y + inset, size - inset * 2, size - inset * 2,
+            new Color(110, 140, 132, alpha));
+
+        // Thick diagonal X (not a +) so it stays distinct from splitter/bridge.
+        var thick = Math.Max(3, size / 7);
+        var pad = inset + Math.Max(2, size / 12);
+        var x0 = x + pad;
+        var y0 = y + pad;
+        var x1 = x + size - pad;
+        var y1 = y + size - pad;
+        DrawThickLine(x0, y0, x1, y1, thick, new Color(160, 200, 188, alpha));
+        DrawThickLine(x1, y0, x0, y1, thick, new Color(160, 200, 188, alpha));
+        // Inner darker X for depth on the solid face.
+        var inner = Math.Max(1, thick / 3);
+        DrawThickLine(x0 + thick / 2, y0 + thick / 2, x1 - thick / 2, y1 - thick / 2, inner,
+            new Color(55, 72, 68, alpha));
+        DrawThickLine(x1 - thick / 2, y0 + thick / 2, x0 + thick / 2, y1 - thick / 2, inner,
+            new Color(55, 72, 68, alpha));
+    }
+
+    private static void DrawThickLine(int x0, int y0, int x1, int y1, int thickness, Color color)
+    {
+        Raylib.DrawLineEx(new Vector2(x0, y0), new Vector2(x1, y1), thickness, color);
     }
 
     private static void DrawSplitterGlyph(Vector2 center, Direction direction, int alpha, float tileSize)

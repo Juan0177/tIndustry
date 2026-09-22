@@ -364,6 +364,7 @@ public static class GameContentStore
             }
 
             if (conveyors[i].MoneyCost == fromSeed.MoneyCost
+                && conveyors[i].Capacity == fromSeed.Capacity
                 && ResourceAmountsEqual(conveyors[i].BuildCost, fromSeed.BuildCost))
             {
                 continue;
@@ -372,6 +373,7 @@ public static class GameContentStore
             conveyors[i] = conveyors[i] with
             {
                 MoneyCost = fromSeed.MoneyCost,
+                Capacity = fromSeed.Capacity,
                 BuildCost = CloneAmounts(fromSeed.BuildCost)
             };
             changed = true;

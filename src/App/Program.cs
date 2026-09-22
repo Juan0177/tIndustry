@@ -1093,6 +1093,47 @@ static void RunSelfTest(GameContent content)
         || juncGrid.Cells[new GridPosition(1, 1)].Items.Any(item => item.ItemId == "copper-ore"),
         "L'incrocio deve far passare l'item verso il lato opposto.");
 
+    // Junction cross-traffic: EW + NS streams pass undisturbed (no priority, no mutual block).
+    Assert(junctionDef.Capacity >= 2, "Incrocio capacity >= 2 per due assi indipendenti.");
+    var crossResearch = ResearchState.CreateNew(content);
+    Assert(crossResearch.TryUnlock(junctionTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+        "Incrocio sbloccabile (cross).");
+    var crossGrid = new ConveyorGrid();
+    var crossWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 60 });
+    // Horizontal: (0,1)→(1,1)→(2,1)  Vertical: (1,0)→(1,1)→(1,2)
+    Assert(crossGrid.TryPlace(new GridPosition(0, 1), Direction.East, definition, crossWallet, crossResearch),
+        "Cross: ingresso ovest.");
+    Assert(crossGrid.TryPlace(new GridPosition(1, 0), Direction.South, definition, crossWallet, crossResearch),
+        "Cross: ingresso nord.");
+    Assert(crossGrid.TryPlace(new GridPosition(1, 1), Direction.East, junctionDef, crossWallet, crossResearch),
+        "Cross: incrocio.");
+    Assert(crossGrid.TryPlace(new GridPosition(2, 1), Direction.East, definition, crossWallet, crossResearch),
+        "Cross: uscita est.");
+    Assert(crossGrid.TryPlace(new GridPosition(1, 2), Direction.South, definition, crossWallet, crossResearch),
+        "Cross: uscita sud.");
+    var crossJunction = crossGrid.Cells[new GridPosition(1, 1)];
+    Assert(crossJunction.TryInsert(new TransportedItem(3101, "iron-ore"), Direction.East),
+        "Cross: item asse EW entra.");
+    Assert(crossJunction.TryInsert(new TransportedItem(3102, "copper-ore"), Direction.South),
+        "Cross: item asse NS entra insieme (nessuna priorità / stop).");
+    Assert(crossJunction.Items.Count == 2, "Cross: entrambi gli item nell'incrocio.");
+    for (var tick = 0; tick < 200; tick++)
+    {
+        crossGrid.Update(1f / 30f);
+    }
+
+    var eastOut = crossGrid.Cells[new GridPosition(2, 1)];
+    var southOut = crossGrid.Cells[new GridPosition(1, 2)];
+    Assert(eastOut.Items.Any(item => item.ItemId == "iron-ore")
+        || crossJunction.Items.Any(item => item.ItemId == "iron-ore" && (item.Travel ?? Direction.East) is Direction.East or Direction.West),
+        "Cross: stream EW continua indisturbato.");
+    Assert(southOut.Items.Any(item => item.ItemId == "copper-ore")
+        || crossJunction.Items.Any(item => item.ItemId == "copper-ore" && (item.Travel ?? Direction.South) is Direction.North or Direction.South),
+        "Cross: stream NS continua indisturbato.");
+    Assert(eastOut.Items.Any(item => item.ItemId == "iron-ore")
+        && southOut.Items.Any(item => item.ItemId == "copper-ore"),
+        "Cross: entrambi gli stream devono uscire sui rami correttamente.");
+
     // Bridge: span gap of 2.
     var bridgeResearch = ResearchState.CreateNew(content);
     Assert(bridgeResearch.TryUnlock(junctionTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 20 })),
