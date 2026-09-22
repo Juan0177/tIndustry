@@ -135,8 +135,4 @@ Criterio: una sessione deve far sentire *ho trovato il ferro, l’ho portato al 
 
 ---
 
-## Contributo
-
-Patch welcome — vertical slice giocabili > feature incomplete. Prima di push: `dotnet run --project TIndustry.Logistics.csproj -- --self-test`.
-
 *Buon layout. Che i nastri non si intasino.*
