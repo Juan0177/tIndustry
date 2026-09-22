@@ -355,25 +355,6 @@ public sealed class ConveyorCell
     internal TransportedItem? PeekOutput() =>
         items.Count > 0 && items[0].Progress >= 1f ? items[0] : null;
 
-    /// <summary>Any junction item ready to leave (not only FIFO head).</summary>
-    internal TransportedItem? PeekReadyJunctionOutput()
-    {
-        if (Kind != LogisticsKind.Junction)
-        {
-            return PeekOutput();
-        }
-
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (items[i].Progress >= 1f)
-            {
-                return items[i];
-            }
-        }
-
-        return null;
-    }
-
     internal void RemoveOutput() => items.RemoveAt(0);
 
     internal bool TryRemoveItem(TransportedItem item) => items.Remove(item);
