@@ -6292,8 +6292,8 @@ internal static class FactoryGameApp
     }
 
     /// <summary>
-    /// Tint perimeter belts by role: amber = outward output, cyan = inward input.
-    /// Matches runtime belt-uscente / AcceptFromBelts rules (not fixed building facing).
+    /// Tint perimeter belts by role: amber = output (any non-inward neighbor), cyan = input.
+    /// Matches runtime eject / AcceptFromBelts rules (not fixed building facing).
     /// </summary>
     private static void DrawBuildingIoOverlays(
         FactoryWorld world,
@@ -7320,7 +7320,7 @@ internal static class FactoryGameApp
             }
             else
             {
-                // Sideways belt on perimeter — not a valid I/O until rotated.
+                // Not on an orthogonal perimeter slot (should be rare).
                 tint = new Color(160, 120, 120, 100);
             }
 

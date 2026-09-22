@@ -224,9 +224,9 @@ public sealed class TerrainMap
 }
 
 /// <summary>
-/// Mindustry-style building I/O: belts adjacent to a footprint are outputs when facing
-/// away, inputs when their exit lands on the footprint. Also drives perimeter enumeration
-/// for adjacent building→building transfer.
+/// Mindustry-style building I/O: any perimeter belt is an output unless it feeds into the
+/// footprint (inward). Sideways belts on the edge still receive eject; only facing-into
+/// belts are inputs. Also drives perimeter enumeration for adjacent building→building transfer.
 /// </summary>
 public static class BuildingIo
 {
@@ -243,9 +243,11 @@ public static class BuildingIo
         return ConveyorGrid.TryDirectionBetween(edgeTile, neighbor, out travel);
     }
 
-    /// <summary>Belt on the perimeter whose facing points away from the building = output.</summary>
+    /// <summary>
+    /// Perimeter belt that does not feed into the footprint = output (facing away or along the edge).
+    /// </summary>
     public static bool IsOutwardBelt(ConveyorCell belt, GridPosition origin, int size) =>
-        TryTravelOut(belt.Position, origin, size, out var travel) && belt.Direction == travel;
+        TryTravelOut(belt.Position, origin, size, out _) && !IsInwardBelt(belt, origin, size);
 
     /// <summary>Belt whose routed exit lands on the footprint = input.</summary>
     public static bool IsInwardBelt(ConveyorCell belt, GridPosition origin, int size) =>
