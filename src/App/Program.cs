@@ -452,44 +452,40 @@ static void RunSelfTest(GameContent content)
     Assert(sawPlateEast, "Outward-smelter: lastre devono uscire sul nastro est uscente.");
 
     // Sideways perimeter belt (north edge facing East) must still count as output.
-    var sideWorld = new FactoryWorld(16, 10, 7429);
-    var sideGrid = new ConveyorGrid();
-    var sideWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40 });
-    var sideResearch = ResearchState.CreateNew(content);
-    var sideId = 88L;
-    var sideSmelterAt = new GridPosition(sideWorld.CoreOrigin.X - 6, sideWorld.CoreOrigin.Y);
-    Assert(sideResearch.TryUnlock(smelterTech, sideWallet), "Sideways-out: forno sbloccato.");
-    Assert(sideWorld.TryPlaceSmelter(sideSmelterAt, Direction.North, smeltRecipe, sideGrid, sideWallet),
+    var periWorld = new FactoryWorld(16, 10, 7429);
+    var periGrid = new ConveyorGrid();
+    var periWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40 });
+    var periResearch = ResearchState.CreateNew(content);
+    var periId = 88L;
+    var periSmelterAt = new GridPosition(periWorld.CoreOrigin.X - 6, periWorld.CoreOrigin.Y);
+    Assert(periResearch.TryUnlock(smelterTech, periWallet), "Sideways-out: forno sbloccato.");
+    Assert(periWorld.TryPlaceSmelter(periSmelterAt, Direction.North, smeltRecipe, periGrid, periWallet),
         "Sideways-out: forno.");
-    EnsurePowerLink(content, sideWorld, sideGrid, sideWallet, sideSmelterAt);
-    var sideIn = new GridPosition(sideSmelterAt.X - 1, sideSmelterAt.Y);
-    var sideNorth = new GridPosition(sideSmelterAt.X, sideSmelterAt.Y - 1);
-    Assert(sideGrid.TryPlace(sideIn, Direction.East, definition, sideWallet, sideResearch),
+    EnsurePowerLink(content, periWorld, periGrid, periWallet, periSmelterAt);
+    var periIn = new GridPosition(periSmelterAt.X - 1, periSmelterAt.Y);
+    var periNorth = new GridPosition(periSmelterAt.X, periSmelterAt.Y - 1);
+    Assert(periGrid.TryPlace(periIn, Direction.East, definition, periWallet, periResearch),
         "Sideways-out: ingresso ovest.");
-    Assert(sideGrid.TryPlace(sideNorth, Direction.East, definition, sideWallet, sideResearch),
+    Assert(periGrid.TryPlace(periNorth, Direction.East, definition, periWallet, periResearch),
         "Sideways-out: nastro nord rivolto a est (di fianco).");
-    Assert(BuildingIo.IsOutwardBelt(sideGrid.Cells[sideNorth], sideSmelterAt, SmelterBuilding.Size),
+    Assert(BuildingIo.IsOutwardBelt(periGrid.Cells[periNorth], periSmelterAt, SmelterBuilding.Size),
         "Sideways-out: nastro perimetrale di fianco è output.");
-    Assert(!BuildingIo.IsInwardBelt(sideGrid.Cells[sideNorth], sideSmelterAt, SmelterBuilding.Size),
+    Assert(!BuildingIo.IsInwardBelt(periGrid.Cells[periNorth], periSmelterAt, SmelterBuilding.Size),
         "Sideways-out: nastro di fianco non è input.");
-    Assert(sideGrid.Cells[sideIn].TryInsert(new TransportedItem(sideId++, "iron-ore")),
+    Assert(periGrid.Cells[periIn].TryInsert(new TransportedItem(periId++, "iron-ore")),
         "Sideways-out: ore in ingresso.");
-    var sawPlateSide = false;
+    var sawPlatePeri = false;
     for (var tick = 0; tick < 500; tick++)
     {
-        sideWorld.Update(1f / 30f, sideGrid, sideWallet, ref sideId);
-        if (sideGrid.Cells[sideNorth].Items.Any(item => item.ItemId == "iron-plate"))
+        periWorld.Update(1f / 30f, periGrid, periWallet, ref periId);
+        if (periGrid.Cells[periNorth].Items.Any(item => item.ItemId == "iron-plate"))
         {
-            sawPlateSide = true;
+            sawPlatePeri = true;
             break;
         }
     }
 
-    Assert(sawPlateSide, "Sideways-out: forno deve espellere anche sul nastro perimetrale di fianco.");
-
-    // Flush adjacency was above; continue bridge/outward feed path.
-
-    Assert(sawPlateEast, "Forno deve espellere lastre sul nastro uscente anche se non è sul lato facing.");
+    Assert(sawPlatePeri, "Sideways-out: forno deve espellere anche sul nastro perimetrale di fianco.");
 
     // Round-robin: two belts on different sides must both receive ore over time.
     var rrWorld = new FactoryWorld(12, 8, 7429);
