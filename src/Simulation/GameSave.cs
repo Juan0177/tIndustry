@@ -30,6 +30,7 @@ public sealed class GameSaveData
     public List<PowerCableSaveData> PowerCables { get; set; } = [];
     public List<PowerNodeSaveData> PowerNodes { get; set; } = [];
     public List<PowerLinkSaveData> PowerLinks { get; set; } = [];
+    public List<ExtractorSaveData> Extractors { get; set; } = [];
     public List<ConveyorSaveData> Conveyors { get; set; } = [];
 }
 
@@ -82,6 +83,15 @@ public sealed class GeneratorSaveData
     public int Y { get; set; }
     public int FuelBuffer { get; set; }
     public float BurnRemaining { get; set; }
+}
+
+public sealed class ExtractorSaveData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string Direction { get; set; } = "East";
+    public string FilterItemId { get; set; } = "iron-plate";
+    public float Progress { get; set; }
 }
 
 public sealed class PowerCableSaveData
@@ -369,6 +379,16 @@ public static class GameSaveStore
                     BY = link.B.Origin.Y
                 })
                 .ToList(),
+            Extractors = world.Extractors.Values
+                .Select(extractor => new ExtractorSaveData
+                {
+                    X = extractor.Position.X,
+                    Y = extractor.Position.Y,
+                    Direction = extractor.Direction.ToString(),
+                    FilterItemId = extractor.FilterItemId,
+                    Progress = extractor.Progress
+                })
+                .ToList(),
             Conveyors = conveyors.Cells.Values
                 .Select(cell => new ConveyorSaveData
                 {
@@ -547,6 +567,24 @@ public static class GameSaveStore
             world.RefreshPowerNetworks();
         }
 
+        foreach (var extractorData in data.Extractors)
+        {
+            if (!Enum.TryParse<Direction>(extractorData.Direction, ignoreCase: true, out var direction))
+            {
+                throw new InvalidDataException($"Direzione estrattore non valida: {extractorData.Direction}");
+            }
+
+            var position = new GridPosition(extractorData.X, extractorData.Y);
+            if (!world.TryRestoreExtractor(
+                    position,
+                    direction,
+                    extractorData.FilterItemId,
+                    extractorData.Progress))
+            {
+                throw new InvalidDataException($"Impossibile ripristinare l'estrattore a {position}.");
+            }
+        }
+
         foreach (var conveyorData in data.Conveyors)
         {
             if (!definitions.TryGetValue(conveyorData.DefinitionId, out var definition))
@@ -610,6 +648,11 @@ public static class GameSaveStore
         if (data.Assemblers.Count > 0)
         {
             research.ForceUnlock("assembler");
+        }
+
+        if (data.Extractors.Count > 0)
+        {
+            research.ForceUnlock("extractor");
         }
 
         if (data.Generators.Count > 0)

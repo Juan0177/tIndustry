@@ -151,7 +151,7 @@ static ConveyorGrid CreateTwoCellLine(ConveyorDefinition definition, ResearchSta
         throw new InvalidOperationException("Impossibile creare la linea di test.");
     }
 
-    Assert(wallet.Money == 90, "Il costo in denaro dei due nastri deve essere scalato.");
+    Assert(wallet.Money == 100, "Piazzamento nastri: niente $ (solo materiali).");
     Assert(wallet.MaterialCount("iron-plate") == 0, "Il costo materiali deve essere scalato.");
 
     return grid;
@@ -204,7 +204,7 @@ static void RunSelfTest(GameContent content)
             && content.FindStructure("miner-advanced")!.Requires.Contains("smelter"),
         "Il Minatore T2 richiede miner + forno.");
     var prereqResearch = ResearchState.CreateNew(content);
-    var prereqWallet = new EconomyWallet(1000, new Dictionary<string, int>
+    var prereqWallet = new EconomyWallet(2000, new Dictionary<string, int>
     {
         ["iron-plate"] = 200,
         ["copper-wire"] = 40
@@ -217,7 +217,7 @@ static void RunSelfTest(GameContent content)
         "CanUnlock deve fallire senza prerequisiti.");
     Assert(!prereqResearch.TryUnlock(fastTech, prereqWallet),
         "TryUnlock deve fallire senza prerequisiti anche con risorse.");
-    Assert(prereqWallet.Money == 1000, "Unlock fallito non deve spendere.");
+    Assert(prereqWallet.Money == 2000, "Unlock fallito non deve spendere.");
     Assert(prereqResearch.TryUnlock(smelterTech, prereqWallet), "Sblocco forno con prereq miner.");
     Assert(prereqResearch.GetNodeState(fastTech) == ResearchNodeState.Available,
         "Dopo il forno il nastro veloce diventa disponibile.");
@@ -290,11 +290,11 @@ static void RunSelfTest(GameContent content)
     Assert(miningWorld.SoldItems == 0, "Senza vendita automatica non si liquida al core.");
     Assert(miningWallet.MaterialCount("iron-ore") == 1,
         "Il minerale deve accumularsi nel wallet materiali.");
-    Assert(miningWallet.Money == 65,
-        "Il saldo deve riflettere solo i costi di costruzione (niente vendita forzata).");
+    Assert(miningWallet.Money == 100,
+        "Piazzamento senza $: saldo invariato (niente vendita forzata).");
     Assert(miningWorld.TrySellFromWallet(miningWallet, "iron-ore", 1),
         "La vendita esplicita dal wallet deve riuscire.");
-    Assert(miningWallet.Money == 73, "La vendita esplicita deve aggiungere il prezzo ore.");
+    Assert(miningWallet.Money == 108, "La vendita esplicita deve aggiungere il prezzo ore.");
     Assert(miningWallet.MaterialCount("iron-ore") == 0, "Dopo la vendita lo stock ore deve scendere.");
     Assert(miningWorld.SoldItems == 1 && miningWorld.SaleRevenue == FactoryWorld.IronOreSalePrice,
         "SoldItems/ricavo devono aggiornarsi sulla vendita esplicita.");
@@ -659,11 +659,11 @@ static void RunSelfTest(GameContent content)
     var lockedResearch = ResearchState.CreateNew(content);
     var lockedWallet = new EconomyWallet(100, new Dictionary<string, int> { ["iron-plate"] = 10 });
     Assert(!lockedResearch.CanUnlock(fastTech, lockedWallet), "Senza risorse non si sblocca il Nastro T2.");
-    var unlockWallet = new EconomyWallet(450, new Dictionary<string, int> { ["iron-plate"] = 70, ["copper-wire"] = 5 });
+    var unlockWallet = new EconomyWallet(1200, new Dictionary<string, int> { ["iron-plate"] = 70, ["copper-wire"] = 5 });
     Assert(lockedResearch.TryUnlock(smelterTech, unlockWallet), "Prereq forno per Nastro T2.");
     Assert(lockedResearch.TryUnlock(fastTech, unlockWallet), "Con risorse sufficienti si sblocca il Nastro T2.");
     Assert(lockedResearch.IsUnlocked("conveyor-fast"), "Lo sblocco deve restare in ResearchState.");
-    Assert(unlockWallet.Money == 100, "Lo sblocco deve consumare $100 forno + $250 nastro.");
+    Assert(unlockWallet.Money == 500, "Lo sblocco deve consumare $250 forno + $450 Nastro T2.");
     var tierGrid = new ConveyorGrid();
     Assert(tierGrid.TryPlace(new GridPosition(0, 0), Direction.East, definition, unlockWallet, lockedResearch),
         "Nastro T1 piazzabile.");
@@ -698,7 +698,7 @@ static void RunSelfTest(GameContent content)
 
     var saveWorld = new FactoryWorld(24, 16, 9001);
     var saveGrid = new ConveyorGrid();
-    var saveWallet = new EconomyWallet(250, new Dictionary<string, int> { ["iron-plate"] = 40, ["copper-wire"] = 3 });
+    var saveWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40, ["copper-wire"] = 3 });
     var saveItemId = 7L;
     var saveResearch = ResearchState.CreateNew(content);
     Assert(saveResearch.TryUnlock(smelterTech, saveWallet), "Save-test: sblocca forno.");
@@ -749,22 +749,31 @@ static void RunSelfTest(GameContent content)
     var minerBuilding = content.GetBuildingOrDefault("miner");
     var smelterBuilding = content.GetBuildingOrDefault("smelter");
     var economy = content.GetEconomy();
-    Assert(minerBuilding.MoneyCost == 25 && minerBuilding.RefundPercent == 100,
-        "Costo/rimborso minatore devono arrivare dal content.");
-    Assert(smelterBuilding.MoneyCost == 40 && smelterBuilding.RefundPercent == 100,
-        "Costo/rimborso forno devono arrivare dal content.");
+    Assert(minerBuilding.MoneyCost == 0 && minerBuilding.RefundPercent == 100,
+        "Piazzamento minatore: solo materiali (niente $).");
+    Assert(smelterBuilding.MoneyCost == 0 && smelterBuilding.RefundPercent == 100,
+        "Piazzamento forno: solo materiali (niente $).");
+    Assert(content.Buildings.All(b => b.MoneyCost == 0),
+        "Tutti gli edifici: moneyCost piazzamento = 0.");
+    Assert(content.Conveyors.All(c => c.MoneyCost == 0),
+        "Tutti i nastri: moneyCost piazzamento = 0.");
+    Assert(smelterTech.Unlock!.Money >= 200,
+        "Blueprint forno più cara (i $ stanno sullo sblocco).");
+    Assert(content.FindStructure("assembler")!.Unlock!.Money >= 400,
+        "Blueprint assemblatore più cara.");
     Assert(economy.CoreUpgrade.SaleBonusPercent == 25 && economy.CoreUpgrade.MoneyCost == 150,
         "Upgrade core deve essere content-driven.");
 
     var ecoWorld = new FactoryWorld(12, 8, 7429);
     var ecoGrid = new ConveyorGrid();
-    var ecoWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 60 });
+    var ecoWallet = new EconomyWallet(600, new Dictionary<string, int> { ["iron-plate"] = 60 });
     var ecoSession = new EconomySession(ecoWallet.Money);
     var ecoItemId = 900L;
     var ecoMiner = ecoWorld.StarterDepositOrigin;
     Assert(ecoWorld.TryPlaceMiner(ecoMiner, Direction.East, ecoGrid, ecoWallet, minerBuilding, ecoSession),
         "Place miner con BuildingDefinition.");
-    Assert(ecoSession.BuildSpend == minerBuilding.MoneyCost, "La sessione deve tracciare la spesa build.");
+    Assert(ecoSession.BuildSpend == 0,
+        "Piazzamento senza $: BuildSpend resta 0 (solo materiali).");
     for (var x = ecoMiner.X + MinerBuilding.Size; x < ecoWorld.CoreOrigin.X; x++)
     {
         Assert(ecoGrid.TryPlace(new GridPosition(x, ecoMiner.Y), Direction.East, definition, ecoWallet, research, ecoSession),
@@ -857,13 +866,13 @@ static void RunSelfTest(GameContent content)
     var platesBeforeRefund = ecoWallet.MaterialCount("iron-plate");
     Assert(ecoWorld.TryRemoveMiner(ecoMiner, ecoWallet, minerBuilding, ecoSession),
         "Rimozione minatore con rimborso.");
-    Assert(ecoWallet.Money == moneyBeforeRefund + minerBuilding.MoneyCost,
-        "Rimborso denaro completo sul minatore.");
+    Assert(ecoWallet.Money == moneyBeforeRefund,
+        "Rimborso piazzamento: niente $ (moneyCost 0).");
     Assert(ecoWallet.MaterialCount("iron-plate")
         == platesBeforeRefund + minerBuilding.BuildCost.Sum(entry => entry.Amount),
         "Rimborso materiali completo sul minatore.");
-    Assert(ecoSession.RefundIncome >= minerBuilding.MoneyCost,
-        "La sessione deve registrare i rimborsi.");
+    Assert(ecoSession.RefundIncome == 0,
+        "Rimborso denaro nullo quando moneyCost piazzamento è 0.");
 
     // Persist economy session + core upgrade in save v5.
     var ecoSaveResearch = ResearchState.CreateNew(content);
@@ -914,9 +923,9 @@ static void RunSelfTest(GameContent content)
 
     // Splitter: one in → alternate left/right outs (both must receive cargo).
     var splitResearch = ResearchState.CreateNew(content);
-    Assert(splitResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+    Assert(splitResearch.TryUnlock(junctionTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 20 })),
         "Prereq incrocio per sdoppiatore.");
-    Assert(splitResearch.TryUnlock(splitterTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 })),
+    Assert(splitResearch.TryUnlock(splitterTech, new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 30 })),
         "Sdoppiatore sbloccabile.");
     var splitGrid = new ConveyorGrid();
     var splitWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
@@ -970,7 +979,7 @@ static void RunSelfTest(GameContent content)
     var sorterTech = content.FindStructure("sorter")!;
     Assert(sorterDef.Kind == LogisticsKind.Sorter, "Il selezionatore deve avere kind sorter.");
     var sortResearch = ResearchState.CreateNew(content);
-    var sortUnlockWallet = new EconomyWallet(300, new Dictionary<string, int>
+    var sortUnlockWallet = new EconomyWallet(700, new Dictionary<string, int>
     {
         ["iron-plate"] = 40,
         ["copper-wire"] = 10
@@ -1064,7 +1073,7 @@ static void RunSelfTest(GameContent content)
 
     // Junction: pass-through opposite sides.
     var juncResearch = ResearchState.CreateNew(content);
-    Assert(juncResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+    Assert(juncResearch.TryUnlock(junctionTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 20 })),
         "Incrocio sbloccabile.");
     var juncGrid = new ConveyorGrid();
     var juncWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 30 });
@@ -1086,9 +1095,9 @@ static void RunSelfTest(GameContent content)
 
     // Bridge: span gap of 2.
     var bridgeResearch = ResearchState.CreateNew(content);
-    Assert(bridgeResearch.TryUnlock(junctionTech, new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 20 })),
+    Assert(bridgeResearch.TryUnlock(junctionTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 20 })),
         "Prereq incrocio per ponte.");
-    Assert(bridgeResearch.TryUnlock(bridgeTech, new EconomyWallet(300, new Dictionary<string, int> { ["iron-plate"] = 40 })),
+    Assert(bridgeResearch.TryUnlock(bridgeTech, new EconomyWallet(500, new Dictionary<string, int> { ["iron-plate"] = 40 })),
         "Ponte sbloccabile.");
     var bridgeGrid = new ConveyorGrid();
     var bridgeWallet = new EconomyWallet(300, new Dictionary<string, int>
@@ -1118,7 +1127,7 @@ static void RunSelfTest(GameContent content)
     // Assembler multi-step: copper-ore + iron-plate → copper-wire → core.
     var craftWorld = new FactoryWorld(16, 10, 7429);
     var craftGrid = new ConveyorGrid();
-    var craftWallet = new EconomyWallet(800, new Dictionary<string, int>
+    var craftWallet = new EconomyWallet(1200, new Dictionary<string, int>
     {
         ["iron-plate"] = 80,
         ["copper-ore"] = 20,
@@ -1135,7 +1144,7 @@ static void RunSelfTest(GameContent content)
         "Unlock assemblatore non deve richiedere fili (solo l'assemblatore li produce).");
     Assert(!assemblerBuilding.BuildCost.Any(m => m.ItemId == "copper-wire"),
         "Build assemblatore non deve richiedere fili (chicken-egg con craft-copper-wire).");
-    var softlockWallet = new EconomyWallet(800, new Dictionary<string, int>
+    var softlockWallet = new EconomyWallet(2000, new Dictionary<string, int>
     {
         ["iron-plate"] = 80,
         ["copper-ore"] = 8,
@@ -1155,6 +1164,51 @@ static void RunSelfTest(GameContent content)
         "Con $ + lastre + rame grezzo l'assemblatore resta sbloccabile senza fili.");
     Assert(softlockWallet.CanAfford(assemblerBuilding.MoneyCost, assemblerBuilding.BuildCost),
         "Dopo unlock, piazzare l'assemblatore non richiede fili.");
+
+    // Estrattore: filtro obbligatorio — tira solo l'item scelto da CORE, non tutto lo stock.
+    var extractWorld = new FactoryWorld(16, 10, 7711);
+    var extractGrid = new ConveyorGrid();
+    var extractWallet = new EconomyWallet(400, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 40,
+        ["copper-ore"] = 12,
+        ["iron-ore"] = 9
+    });
+    var extractResearch = ResearchState.CreateNew(content);
+    var extractorTech = content.FindStructure("extractor")!;
+    var extractorBuilding = content.GetBuildingOrDefault("extractor");
+    Assert(extractorTech.Unlock!.Money <= 100, "Estrattore blueprint cheap.");
+    Assert(extractorBuilding.MoneyCost == 0, "Estrattore piazzamento senza $.");
+    Assert(extractResearch.TryUnlock(extractorTech, extractWallet), "Estrattore sbloccabile.");
+    // East of core so output belt points away from core stock.
+    var extractAt = new GridPosition(extractWorld.CoreOrigin.X + FactoryWorld.CoreSize, extractWorld.CoreOrigin.Y);
+    Assert(extractWorld.TryPlaceExtractor(
+            extractAt, Direction.East, "iron-plate", extractGrid, extractWallet, extractorBuilding),
+        "Estrattore piazzabile sul bordo CORE.");
+    Assert(extractWorld.TryGetExtractorAt(extractAt, out var placedExtractor)
+            && placedExtractor.FilterItemId == "iron-plate",
+        "Filtro iniziale = lastre.");
+    placedExtractor.CycleFilterItem(["iron-ore", "iron-plate", "copper-ore"]);
+    Assert(placedExtractor.FilterItemId == "copper-ore",
+        "Cycle filtro: iron-plate → copper-ore.");
+    placedExtractor.SetFilterItem("iron-plate");
+    var outBelt = new GridPosition(extractAt.X + 1, extractAt.Y);
+    Assert(extractGrid.TryPlace(outBelt, Direction.East, definition, extractWallet, extractResearch),
+        "Nastro uscita estrattore.");
+    var platesBeforeExtract = extractWallet.MaterialCount("iron-plate");
+    var oreBeforeExtract = extractWallet.MaterialCount("iron-ore");
+    var extractItemId = 8800L;
+    for (var tick = 0; tick < 60; tick++)
+    {
+        extractWorld.Update(1f / 30f, extractGrid, extractWallet, ref extractItemId, market);
+    }
+    Assert(extractWallet.MaterialCount("iron-plate") < platesBeforeExtract,
+        "Estrattore deve prelevare lastre dal CORE/wallet.");
+    Assert(extractWallet.MaterialCount("iron-ore") == oreBeforeExtract,
+        "Con filtro lastre, le ore grezze restano intatte (niente dump di tutto).");
+    Assert(extractGrid.Cells[outBelt].Items.Any(i => i.ItemId == "iron-plate")
+            || extractWallet.MaterialCount("iron-plate") < platesBeforeExtract,
+        "Lastre estratte sul nastro o già in transito.");
     var assemblerAt = new GridPosition(craftWorld.CoreOrigin.X - 4, craftWorld.CoreOrigin.Y);
     Assert(craftWorld.TryPlaceAssembler(
             assemblerAt, Direction.East, wireRecipe, craftGrid, craftWallet, assemblerBuilding),
@@ -1249,7 +1303,7 @@ static void RunSelfTest(GameContent content)
     Assert(powerWorld.PowerCapacity >= FactoryWorld.CorePowerCapacity,
         "Il core fornisce potenza base.");
     var powerGrid = new ConveyorGrid();
-    var powerWallet = new EconomyWallet(500, new Dictionary<string, int> { ["iron-plate"] = 80 });
+    var powerWallet = new EconomyWallet(800, new Dictionary<string, int> { ["iron-plate"] = 80 });
     var powerResearch = ResearchState.CreateNew(content);
     var generatorTech = content.FindStructure("generator")!;
     Assert(powerResearch.TryUnlock(smelterTech, powerWallet), "Prereq forno per generatore.");
@@ -1337,7 +1391,7 @@ static void RunSelfTest(GameContent content)
     var nodeCost = content.GetBuildingOrDefault("power-node");
     var netWorld = new FactoryWorld(20, 12, 9101);
     var netGrid = new ConveyorGrid();
-    var netWallet = new EconomyWallet(800, new Dictionary<string, int>
+    var netWallet = new EconomyWallet(1500, new Dictionary<string, int>
     {
         ["iron-plate"] = 120,
         ["copper-wire"] = 80,
@@ -1506,7 +1560,7 @@ static void RunSelfTest(GameContent content)
     // Speed comparison: coal-only vs powered over the same short window while both crafting.
     var speedCoalWorld = new FactoryWorld(20, 12, 8803);
     var speedCoalGrid = new ConveyorGrid();
-    var speedCoalWallet = new EconomyWallet(500, new Dictionary<string, int>
+    var speedCoalWallet = new EconomyWallet(800, new Dictionary<string, int>
     {
         ["iron-plate"] = 50,
         ["coal"] = 6
@@ -1624,7 +1678,7 @@ static void RunSelfTest(GameContent content)
 
     // Mid-game: Minatore T2 + Nastro T3.
     var midResearch = ResearchState.CreateNew(content);
-    var midWallet = new EconomyWallet(2000, new Dictionary<string, int>
+    var midWallet = new EconomyWallet(3500, new Dictionary<string, int>
     {
         ["iron-plate"] = 200,
         ["copper-wire"] = 80
@@ -1847,6 +1901,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("miner-advanced"),
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("extractor"),
                 content.GetBuildingOrDefault("generator"),
                 content.GetBuildingOrDefault("power-node"),
                 content.GetBuildingOrDefault("power-node-t2"),
@@ -1867,6 +1922,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("miner-advanced"),
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("extractor"),
                 content.GetBuildingOrDefault("generator"),
                 content.GetBuildingOrDefault("power-node"),
                 content.GetBuildingOrDefault("power-node-t2"),
@@ -1886,6 +1942,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("miner-advanced"),
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("extractor"),
                 content.GetBuildingOrDefault("generator"),
                 content.GetBuildingOrDefault("power-node"),
                 content.GetBuildingOrDefault("power-node-t2"),
@@ -1904,6 +1961,7 @@ static void RunSelfTest(GameContent content)
                 content.GetBuildingOrDefault("miner-advanced"),
                 content.GetBuildingOrDefault("smelter"),
                 content.GetBuildingOrDefault("assembler"),
+                content.GetBuildingOrDefault("extractor"),
                 content.GetBuildingOrDefault("generator"),
                 content.GetBuildingOrDefault("power-node"),
                 content.GetBuildingOrDefault("power-node-t2"),
@@ -2422,7 +2480,7 @@ static void RunSelfTest(GameContent content)
             "stockItem: stock wallet deve completare l'obiettivo.");
 
         var campaignUnlockResearch = ResearchState.CreateNew(content);
-        var campaignUnlockWallet = new EconomyWallet(200, new Dictionary<string, int> { ["iron-plate"] = 40 });
+        var campaignUnlockWallet = new EconomyWallet(400, new Dictionary<string, int> { ["iron-plate"] = 40 });
         Assert(campaignUnlockResearch.TryUnlock(content.FindStructure("smelter")!, campaignUnlockWallet),
             "Unlock forno per test obiettivo ricerca.");
         var unlockObj = new CampaignObjectiveDefinition(

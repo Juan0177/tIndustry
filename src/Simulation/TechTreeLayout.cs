@@ -219,6 +219,6 @@ public static class TechTreeLayout
 
     private static bool IsProductionLane(StructureDefinition structure) =>
         structure.Kind is StructureKind.Building or StructureKind.Stub
-        || structure.Id is "miner" or "smelter" or "assembler" or "generator" or "miner-advanced"
+        || structure.Id is "miner" or "smelter" or "assembler" or "generator" or "miner-advanced" or "extractor"
         || structure.Id == "conveyor-fast"; // depends on forno — keep near production
 }

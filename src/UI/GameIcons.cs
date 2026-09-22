@@ -49,6 +49,7 @@ public static class GameIcons
             ("buildings/miner.png", "miner"),
             ("buildings/smelter.png", "smelter"),
             ("buildings/assembler.png", "assembler"),
+            ("buildings/extractor.png", "extractor"),
             ("buildings/generator.png", "generator"),
             ("buildings/power-node.png", "power-node"),
             ("buildings/power-node-t2.png", "power-node-t2"),

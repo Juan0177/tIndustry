@@ -9,8 +9,14 @@
       "mapHeight": 48,
       "startingMoney": 220,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 60 },
-        { "itemId": "copper-wire", "amount": 8 }
+        {
+          "itemId": "iron-plate",
+          "amount": 60
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 8
+        }
       ],
       "objectives": [
         {
@@ -36,8 +42,14 @@
       "mapHeight": 96,
       "startingMoney": 180,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 48 },
-        { "itemId": "copper-wire", "amount": 10 }
+        {
+          "itemId": "iron-plate",
+          "amount": 48
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 10
+        }
       ],
       "objectives": [
         {
@@ -56,10 +68,16 @@
       "seed": 7429,
       "mapWidth": 256,
       "mapHeight": 192,
-      "startingMoney": 200,
+      "startingMoney": 280,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 25 },
-        { "itemId": "copper-wire", "amount": 12 }
+        {
+          "itemId": "iron-plate",
+          "amount": 25
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 12
+        }
       ],
       "objectives": [
         {
@@ -84,10 +102,16 @@
       "seed": 9001,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 300,
+      "startingMoney": 520,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 55 },
-        { "itemId": "copper-wire", "amount": 6 }
+        {
+          "itemId": "iron-plate",
+          "amount": 55
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 6
+        }
       ],
       "objectives": [
         {
@@ -120,8 +144,14 @@
       "mapHeight": 1000,
       "startingMoney": 160,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 12 },
-        { "itemId": "copper-wire", "amount": 8 }
+        {
+          "itemId": "iron-plate",
+          "amount": 12
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 8
+        }
       ],
       "objectives": [
         {
@@ -145,11 +175,20 @@
       "seed": 5501,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 280,
+      "startingMoney": 450,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 40 },
-        { "itemId": "copper-wire", "amount": 14 },
-        { "itemId": "coal", "amount": 24 }
+        {
+          "itemId": "iron-plate",
+          "amount": 40
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 14
+        },
+        {
+          "itemId": "coal",
+          "amount": 24
+        }
       ],
       "objectives": [
         {
@@ -182,9 +221,18 @@
       "mapHeight": 1000,
       "startingMoney": 320,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 35 },
-        { "itemId": "copper-wire", "amount": 12 },
-        { "itemId": "coal", "amount": 18 }
+        {
+          "itemId": "iron-plate",
+          "amount": 35
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 12
+        },
+        {
+          "itemId": "coal",
+          "amount": 18
+        }
       ],
       "objectives": [
         {
@@ -209,10 +257,16 @@
       "seed": 8802,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 350,
+      "startingMoney": 560,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 50 },
-        { "itemId": "copper-wire", "amount": 16 }
+        {
+          "itemId": "iron-plate",
+          "amount": 50
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 16
+        }
       ],
       "objectives": [
         {
@@ -245,10 +299,22 @@
       "mapHeight": 1000,
       "startingMoney": 400,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 45 },
-        { "itemId": "copper-wire", "amount": 18 },
-        { "itemId": "coal", "amount": 30 },
-        { "itemId": "lead-plate", "amount": 8 }
+        {
+          "itemId": "iron-plate",
+          "amount": 45
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 18
+        },
+        {
+          "itemId": "coal",
+          "amount": 30
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 8
+        }
       ],
       "objectives": [
         {
@@ -279,12 +345,24 @@
       "seed": 10101,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 450,
+      "startingMoney": 1100,
       "startingMaterials": [
-        { "itemId": "iron-plate", "amount": 70 },
-        { "itemId": "copper-wire", "amount": 24 },
-        { "itemId": "coal", "amount": 20 },
-        { "itemId": "lead-plate", "amount": 6 }
+        {
+          "itemId": "iron-plate",
+          "amount": 70
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 24
+        },
+        {
+          "itemId": "coal",
+          "amount": 20
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 6
+        }
       ],
       "objectives": [
         {
