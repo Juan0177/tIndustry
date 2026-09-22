@@ -1529,7 +1529,7 @@ public sealed class FactoryWorld
         IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         cost ??= new BuildingDefinition("assembler", 60,
-            [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100);
+            [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100);
         if (!CanPlaceAssembler(position, conveyors)
             || !wallet.TrySpend(cost.MoneyCost, cost.BuildCost))
         {
@@ -1610,7 +1610,7 @@ public sealed class FactoryWorld
         }
 
         cost ??= new BuildingDefinition("assembler", 60,
-            [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100);
+            [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100);
         PowerNetworking.RemoveEndpointLinks(
             new PowerEndpointId(PowerEndpointKind.Consumer, assembler.Position), powerLinks);
         assemblers.Remove(assembler.Position);

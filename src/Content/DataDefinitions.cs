@@ -66,7 +66,7 @@ public sealed class GameContent
                 [new ResourceAmount("iron-plate", 10), new ResourceAmount("copper-wire", 4)], 100),
             "smelter" => new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
             "assembler" => new BuildingDefinition("assembler", 60,
-                [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100),
+                [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100),
             "generator" => new BuildingDefinition("generator", 55, [new ResourceAmount("iron-plate", 8)], 100),
             "power-node" => new BuildingDefinition(
                 "power-node", 20, [new ResourceAmount("copper-wire", 2)], 100,
@@ -116,7 +116,7 @@ public sealed class GameContent
                 new BuildingDefinition("miner", 25, [new ResourceAmount("iron-plate", 4)], 100),
                 new BuildingDefinition("smelter", 40, [new ResourceAmount("iron-plate", 6)], 100),
                 new BuildingDefinition("assembler", 60,
-                    [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-wire", 2)], 100)
+                    [new ResourceAmount("iron-plate", 8), new ResourceAmount("copper-ore", 2)], 100)
             ];
         }
 
