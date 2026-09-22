@@ -4721,7 +4721,15 @@ internal static class FactoryGameApp
                 }));
         DrawUiText(prereqLabel, detailX + 16, detailY + 98, 14, new Color(164, 173, 168, 255));
 
-        if (selected.IsStub)
+        var missingLabel = FormatMissingUnlockResources(selected, wallet, research);
+        if (!string.IsNullOrEmpty(missingLabel))
+        {
+            DrawUiText(
+                TruncateUiText(missingLabel, 13, detailW - 32),
+                detailX + 16, detailY + 122, 13,
+                new Color(220, 140, 120, 255));
+        }
+        else if (selected.IsStub)
         {
             DrawUiText("Segnaposto: non costruibile ancora.", detailX + 16, detailY + 122, 14,
                 new Color(180, 120, 100, 255));
@@ -4752,11 +4760,46 @@ internal static class FactoryGameApp
             return "gratis";
         }
 
-        var materials = string.Join(", ",
-            unlock.Materials.Select(entry => $"{entry.Amount} {UiTheme.ItemDisplayName(entry.ItemId)}"));
+        // Short labels so the detail panel does not hide wire/ore requirements behind "...".
+        var materials = string.Join(" + ",
+            unlock.Materials.Select(entry => $"{entry.Amount} {UiTheme.ItemShortLabel(entry.ItemId)}"));
         return materials.Length == 0
             ? $"${unlock.Money}"
             : $"${unlock.Money} + {materials}";
+    }
+
+    /// <summary>Compact missing-cost line for research detail (avoids silent softlocks).</summary>
+    private static string FormatMissingUnlockResources(
+        StructureDefinition structure,
+        EconomyWallet wallet,
+        ResearchState research)
+    {
+        if (research.IsUnlocked(structure.Id) || !research.MeetsPrerequisites(structure))
+        {
+            return string.Empty;
+        }
+
+        if (structure.Unlock is null || research.CanUnlock(structure, wallet))
+        {
+            return string.Empty;
+        }
+
+        var missing = new List<string>();
+        if (wallet.Money < structure.Unlock.Money)
+        {
+            missing.Add($"${structure.Unlock.Money - wallet.Money}");
+        }
+
+        foreach (var entry in structure.Unlock.Materials)
+        {
+            var have = wallet.MaterialCount(entry.ItemId);
+            if (have < entry.Amount)
+            {
+                missing.Add($"{entry.Amount - have} {UiTheme.ItemShortLabel(entry.ItemId)}");
+            }
+        }
+
+        return missing.Count == 0 ? string.Empty : "Manca: " + string.Join(" + ", missing);
     }
 
     private static void DrawSaveManager(IReadOnlyList<SaveSlotInfo> slots, int selectedIndex, string? statusMessage)
@@ -5919,9 +5962,15 @@ internal static class FactoryGameApp
     {
         var plates = building.BuildCost.FirstOrDefault(entry => entry.ItemId == "iron-plate")?.Amount ?? 0;
         var wires = building.BuildCost.FirstOrDefault(entry => entry.ItemId == "copper-wire")?.Amount ?? 0;
+        var copperOre = building.BuildCost.FirstOrDefault(entry => entry.ItemId == "copper-ore")?.Amount ?? 0;
         if (wires > 0)
         {
             return $"${building.MoneyCost} + {plates} P + {wires} F · rimborso {building.RefundPercent}%";
+        }
+
+        if (copperOre > 0)
+        {
+            return $"${building.MoneyCost} + {plates} P + {copperOre} Ra · rimborso {building.RefundPercent}%";
         }
 
         return $"${building.MoneyCost} + {plates} P · rimborso {building.RefundPercent}%";

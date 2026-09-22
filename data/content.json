@@ -318,7 +318,7 @@
         "money": 220,
         "materials": [
           { "itemId": "iron-plate", "amount": 22 },
-          { "itemId": "copper-wire", "amount": 4 }
+          { "itemId": "copper-ore", "amount": 4 }
         ]
       },
       "isStub": false,
@@ -505,7 +505,7 @@
       "moneyCost": 60,
       "buildCost": [
         { "itemId": "iron-plate", "amount": 8 },
-        { "itemId": "copper-wire", "amount": 2 }
+        { "itemId": "copper-ore", "amount": 2 }
       ],
       "refundPercent": 100
     },

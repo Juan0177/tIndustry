@@ -380,6 +380,19 @@ public static class UiTheme
         return itemId;
     }
 
+    public static string ItemShortLabel(string itemId)
+    {
+        foreach (var item in InventoryItems)
+        {
+            if (item.ItemId == itemId)
+            {
+                return item.ShortName;
+            }
+        }
+
+        return itemId;
+    }
+
     public static string CategoryLabel(ItemCategory category) => category switch
     {
         ItemCategory.All => "Tutto",

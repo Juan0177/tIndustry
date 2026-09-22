@@ -1121,6 +1121,7 @@ static void RunSelfTest(GameContent content)
     var craftWallet = new EconomyWallet(800, new Dictionary<string, int>
     {
         ["iron-plate"] = 80,
+        ["copper-ore"] = 20,
         ["copper-wire"] = 20
     });
     var craftResearch = ResearchState.CreateNew(content);
@@ -1128,6 +1129,32 @@ static void RunSelfTest(GameContent content)
     Assert(craftResearch.TryUnlock(assemblerTech, craftWallet), "Assemblatore sbloccabile.");
     Assert(craftResearch.IsUnlocked("assembler") && !assemblerTech.IsStub,
         "Dopo unlock l'assemblatore è costruibile.");
+
+    // Softlock guard: power-node unlocks consume starter wires; assembler must not need wires.
+    Assert(!assemblerTech.Unlock!.Materials.Any(m => m.ItemId == "copper-wire"),
+        "Unlock assemblatore non deve richiedere fili (solo l'assemblatore li produce).");
+    Assert(!assemblerBuilding.BuildCost.Any(m => m.ItemId == "copper-wire"),
+        "Build assemblatore non deve richiedere fili (chicken-egg con craft-copper-wire).");
+    var softlockWallet = new EconomyWallet(800, new Dictionary<string, int>
+    {
+        ["iron-plate"] = 80,
+        ["copper-ore"] = 8,
+        ["copper-wire"] = 10
+    });
+    var softlockResearch = ResearchState.CreateNew(content);
+    Assert(softlockResearch.TryUnlock(smelterTech, softlockWallet), "Softlock: sblocca forno.");
+    Assert(softlockResearch.TryUnlock(content.FindStructure("generator")!, softlockWallet),
+        "Softlock: sblocca generatore.");
+    Assert(softlockResearch.TryUnlock(content.FindStructure("power-node")!, softlockWallet),
+        "Softlock: sblocca Nodo T1 (consuma fili starter).");
+    Assert(softlockResearch.TryUnlock(content.FindStructure("power-node-t2")!, softlockWallet),
+        "Softlock: sblocca Nodo T2 (consuma fili rimanenti).");
+    Assert(softlockWallet.MaterialCount("copper-wire") <= 2,
+        "Softlock setup: fili esauriti dopo unlock nodi (come in partita reale).");
+    Assert(softlockResearch.TryUnlock(assemblerTech, softlockWallet),
+        "Con $ + lastre + rame grezzo l'assemblatore resta sbloccabile senza fili.");
+    Assert(softlockWallet.CanAfford(assemblerBuilding.MoneyCost, assemblerBuilding.BuildCost),
+        "Dopo unlock, piazzare l'assemblatore non richiede fili.");
     var assemblerAt = new GridPosition(craftWorld.CoreOrigin.X - 4, craftWorld.CoreOrigin.Y);
     Assert(craftWorld.TryPlaceAssembler(
             assemblerAt, Direction.East, wireRecipe, craftGrid, craftWallet, assemblerBuilding),
@@ -2072,6 +2099,72 @@ static void RunSelfTest(GameContent content)
             Assert(!GameContentStore.SyncSeedPrerequisites(
                     GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
                 "Secondo sync prerequisites è no-op.");
+
+            // Stale assembler unlock/build that still demand copper-wire must refresh from seed.
+            var staleCosts = GameContent.Load(GameContentStore.UserJsonPath);
+            var wireUnlock = new UnlockRequirement(220,
+            [
+                new ResourceAmount("iron-plate", 22),
+                new ResourceAmount("copper-wire", 4)
+            ]);
+            var wireCostStructures = staleCosts.Structures.Select(s => s.Id == "assembler"
+                ? s with { Unlock = wireUnlock }
+                : s).ToList();
+            var wireCostBuildings = staleCosts.Buildings.Select(b => b.Id == "assembler"
+                ? b with
+                {
+                    BuildCost =
+                    [
+                        new ResourceAmount("iron-plate", 8),
+                        new ResourceAmount("copper-wire", 2)
+                    ]
+                }
+                : b).ToList();
+            File.WriteAllText(GameContentStore.UserJsonPath, System.Text.Json.JsonSerializer.Serialize(
+                new GameContent
+                {
+                    Conveyors = staleCosts.Conveyors,
+                    Recipes = staleCosts.Recipes,
+                    Structures = wireCostStructures,
+                    Buildings = wireCostBuildings,
+                    Market = staleCosts.Market,
+                    Economy = staleCosts.Economy
+                },
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    Converters =
+                    {
+                        new System.Text.Json.Serialization.JsonStringEnumConverter(
+                            System.Text.Json.JsonNamingPolicy.CamelCase)
+                    }
+                }));
+            Assert(GameContentStore.SyncSeedUnlockCosts(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Sync unlock costs deve togliere fili dall'assemblatore.");
+            Assert(GameContentStore.SyncSeedBuildingCosts(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Sync building costs deve allineare build assemblatore al seed.");
+            var costSynced = GameContent.Load(GameContentStore.UserJsonPath);
+            Assert(costSynced.FindStructure("assembler")!.Unlock!.Materials
+                    .All(m => m.ItemId != "copper-wire"),
+                "Dopo sync unlock assemblatore senza copper-wire.");
+            Assert(costSynced.FindStructure("assembler")!.Unlock!.Materials
+                    .Any(m => m.ItemId == "copper-ore" && m.Amount == 4),
+                "Dopo sync unlock assemblatore chiede rame grezzo.");
+            Assert(costSynced.FindBuilding("assembler")!.BuildCost
+                    .All(m => m.ItemId != "copper-wire"),
+                "Dopo sync build assemblatore senza copper-wire.");
+            Assert(costSynced.FindBuilding("assembler")!.BuildCost
+                    .Any(m => m.ItemId == "copper-ore" && m.Amount == 2),
+                "Dopo sync build assemblatore chiede rame grezzo.");
+            Assert(!GameContentStore.SyncSeedUnlockCosts(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Secondo sync unlock costs è no-op.");
+            Assert(!GameContentStore.SyncSeedBuildingCosts(
+                    GameContentStore.UserJsonPath, GameContentStore.SeedJsonPath),
+                "Secondo sync building costs è no-op.");
         }
         finally
         {

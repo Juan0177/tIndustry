@@ -65,6 +65,8 @@ public static class GameContentStore
             changed |= MergeMissingSeedEntries(UserJsonPath, seed);
             changed |= SyncSeedDisplayFields(UserJsonPath, seed);
             changed |= SyncSeedPrerequisites(UserJsonPath, seed);
+            changed |= SyncSeedUnlockCosts(UserJsonPath, seed);
+            changed |= SyncSeedBuildingCosts(UserJsonPath, seed);
             if (changed)
             {
                 // Keep optional Excel in sync when we patched AppData from seed.
@@ -225,6 +227,122 @@ public static class GameContentStore
         return true;
     }
 
+    /// <summary>
+    /// Overwrites structure unlock money/materials when they differ from the seed.
+    /// Fixes progression softlocks (e.g. assembler requiring copper-wire it alone produces).
+    /// </summary>
+    public static bool SyncSeedUnlockCosts(string userJsonPath, string seedJsonPath)
+    {
+        var user = GameContent.Load(userJsonPath);
+        var seed = GameContent.Load(seedJsonPath);
+
+        var structures = user.Structures.ToList();
+        var seedStructures = seed.Structures.ToDictionary(s => s.Id, StringComparer.Ordinal);
+        var changed = false;
+
+        for (var i = 0; i < structures.Count; i++)
+        {
+            if (!seedStructures.TryGetValue(structures[i].Id, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (UnlockEqual(structures[i].Unlock, fromSeed.Unlock))
+            {
+                continue;
+            }
+
+            structures[i] = structures[i] with { Unlock = CloneUnlock(fromSeed.Unlock) };
+            changed = true;
+        }
+
+        // Conveyor unlocks live on ConveyorDefinition as well as StructureDefinition.
+        var conveyors = user.Conveyors.ToList();
+        var seedConveyors = seed.Conveyors.ToDictionary(c => c.Id, StringComparer.Ordinal);
+        for (var i = 0; i < conveyors.Count; i++)
+        {
+            if (!seedConveyors.TryGetValue(conveyors[i].Id, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (UnlockEqual(conveyors[i].Unlock, fromSeed.Unlock))
+            {
+                continue;
+            }
+
+            conveyors[i] = conveyors[i] with { Unlock = CloneUnlock(fromSeed.Unlock) };
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        WriteMerged(
+            userJsonPath,
+            conveyors,
+            user.Recipes.ToList(),
+            structures,
+            user.Buildings.ToList(),
+            user.Market.ToList(),
+            user.Economy ?? seed.Economy);
+        return true;
+    }
+
+    /// <summary>
+    /// Overwrites building money/build costs when they differ from the seed.
+    /// Keeps placement costs aligned with progression fixes (no wire-before-assembler).
+    /// </summary>
+    public static bool SyncSeedBuildingCosts(string userJsonPath, string seedJsonPath)
+    {
+        var user = GameContent.Load(userJsonPath);
+        var seed = GameContent.Load(seedJsonPath);
+
+        var buildings = user.Buildings.ToList();
+        var seedBuildings = seed.Buildings.ToDictionary(b => b.Id, StringComparer.Ordinal);
+        var changed = false;
+
+        for (var i = 0; i < buildings.Count; i++)
+        {
+            if (!seedBuildings.TryGetValue(buildings[i].Id, out var fromSeed))
+            {
+                continue;
+            }
+
+            if (buildings[i].MoneyCost == fromSeed.MoneyCost
+                && ResourceAmountsEqual(buildings[i].BuildCost, fromSeed.BuildCost)
+                && buildings[i].RefundPercent == fromSeed.RefundPercent)
+            {
+                continue;
+            }
+
+            buildings[i] = buildings[i] with
+            {
+                MoneyCost = fromSeed.MoneyCost,
+                BuildCost = CloneAmounts(fromSeed.BuildCost),
+                RefundPercent = fromSeed.RefundPercent
+            };
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        WriteMerged(
+            userJsonPath,
+            user.Conveyors.ToList(),
+            user.Recipes.ToList(),
+            user.Structures.ToList(),
+            buildings,
+            user.Market.ToList(),
+            user.Economy ?? seed.Economy);
+        return true;
+    }
+
     private static bool PrerequisitesEqual(IReadOnlyList<string> left, IReadOnlyList<string> right)
     {
         if (left.Count != right.Count)
@@ -242,6 +360,50 @@ public static class GameContentStore
 
         return true;
     }
+
+    private static bool UnlockEqual(UnlockRequirement? left, UnlockRequirement? right)
+    {
+        if (left is null && right is null)
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return left.Money == right.Money && ResourceAmountsEqual(left.Materials, right.Materials);
+    }
+
+    private static bool ResourceAmountsEqual(
+        IReadOnlyList<ResourceAmount> left,
+        IReadOnlyList<ResourceAmount> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!string.Equals(left[i].ItemId, right[i].ItemId, StringComparison.Ordinal)
+                || left[i].Amount != right[i].Amount)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static UnlockRequirement? CloneUnlock(UnlockRequirement? unlock) =>
+        unlock is null
+            ? null
+            : new UnlockRequirement(unlock.Money, CloneAmounts(unlock.Materials));
+
+    private static IReadOnlyList<ResourceAmount> CloneAmounts(IReadOnlyList<ResourceAmount> amounts) =>
+        amounts.Select(entry => new ResourceAmount(entry.ItemId, entry.Amount)).ToArray();
 
     private static void WriteMerged(
         string userJsonPath,
