@@ -473,7 +473,14 @@ static void RunSelfTest(GameContent content)
     Assert(!BuildingIo.IsInwardBelt(periGrid.Cells[periNorth], periSmelterAt, SmelterBuilding.Size),
         "Sideways-out: nastro di fianco non è input.");
     Assert(periGrid.Cells[periIn].TryInsert(new TransportedItem(periId++, "iron-ore")),
-        "Sideways-out: ore in ingresso.");
+        "Sideways-out: ore 1 in ingresso.");
+    periGrid.Cells[periIn].Items[^1].Progress = 1f;
+    periWorld.Update(1f / 30f, periGrid, periWallet, ref periId);
+    Assert(periGrid.Cells[periIn].TryInsert(new TransportedItem(periId++, "iron-ore")),
+        "Sideways-out: ore 2 in ingresso.");
+    periGrid.Cells[periIn].Items[^1].Progress = 1f;
+    // Guarantee craft energy even if adjacency power is awkward in this layout.
+    periWorld.Smelters[periSmelterAt].RestoreFuel(4, 6f);
     var sawPlatePeri = false;
     for (var tick = 0; tick < 500; tick++)
     {
