@@ -739,11 +739,10 @@ public partial class SpikeWorld : Node2D
         }
 
         // Body color across seam must match (no dark channel blotch).
-        // Sample off mid-band so a scrolling chevron on the straight can't
-        // false-fail against the corner body.
+        // Sample past the entry umbra band so darken-at-mouth isn't a false fail.
         var yBody = cornerY0 + cell / 4;
         var straightBody = img.GetPixel(cornerX0 - 8, yBody);
-        var cornerBody = img.GetPixel(cornerX0 + 8, yBody);
+        var cornerBody = img.GetPixel(cornerX0 + cell / 3, yBody);
         var dr = Math.Abs(straightBody.R - cornerBody.R);
         var dg = Math.Abs(straightBody.G - cornerBody.G);
         var db = Math.Abs(straightBody.B - cornerBody.B);
