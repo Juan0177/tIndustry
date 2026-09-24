@@ -1,10 +1,11 @@
 shader_type canvas_item;
 
-// Paint mockup corner (galleria) — pixel-matched rebuild:
-// solid dark cover; sharp NE pad pocket + yellow; small SW inner fillet;
-// N/E rails + SW knuckle; west light lip. No umbrae / no soft halo.
-// Base orientation: enter west → exit south.
+// Paint mockup corner — pixel-matched:
+// dark gallery plate; NE concave outer-arc pocket (light) + yellow;
+// tiny SW inner fillet; N/E rails + SW knuckle; west light lip.
+// Base: enter west → exit south. No umbrae.
 
+uniform float arc_radius = 0.36;
 uniform vec4 cover_color : source_color = vec4(0.141, 0.161, 0.184, 1.0); // 36,41,47
 uniform vec4 pad_color : source_color = vec4(0.192, 0.231, 0.271, 1.0);   // 49,59,69
 uniform vec4 rail_color : source_color = vec4(0.098, 0.118, 0.141, 1.0);  // 25,30,36
@@ -13,36 +14,38 @@ uniform vec4 yellow_color : source_color = vec4(1.0, 0.788, 0.047, 1.0);  // 255
 void fragment() {
 	vec2 p = UV;
 
-	// Full-cell dark gallery plate.
+	// Full-cell dark gallery.
 	vec3 col = cover_color.rgb;
 
-	// NE pad pocket — elliptical blob around the yellow (paint pixels).
-	// Sharp edge (no soft halo).
-	vec2 pad_c = vec2(0.80, 0.22);
-	vec2 pad_ab = vec2(0.14, 0.12);
-	float pad_d = length((p - pad_c) / pad_ab);
-	float in_pad = step(pad_d, 1.0);
-	col = mix(col, pad_color.rgb, in_pad);
+	// NE concave outer-arc pocket: outside quarter-circle from bend.
+	vec2 bend = vec2(0.5, 0.5);
+	float d_bend = length(p - bend);
+	float ne_pocket = step(0.5, p.x) * step(p.y, 0.5) * step(arc_radius, d_bend);
+	col = mix(col, pad_color.rgb, ne_pocket);
 
-	// Yellow indicator (sharp).
-	float in_yel = step(length(p - vec2(0.88, 0.19)), 0.055);
+	// Yellow indicator fully inside the pocket (clear of east rail).
+	vec2 yel_c = vec2(0.84, 0.20);
+	float yel_d = length(p - yel_c);
+	// Thin dark ring (paint outline), then yellow fill.
+	float in_ring = ne_pocket * step(yel_d, 0.055) * step(0.042, yel_d);
+	float in_yel = ne_pocket * step(yel_d, 0.042);
+	col = mix(col, rail_color.rgb, in_ring);
 	col = mix(col, yellow_color.rgb, in_yel);
 
-	// SW inner fillet — small light quarter at the gallery knuckle.
-	vec2 fi_c = vec2(0.11, 0.89);
-	float in_fillet = step(length(p - fi_c), 0.08) * step(0.07, p.x) * step(p.y, 0.95);
+	// Tiny SW inner fillet (paint: small light bite near knuckle).
+	float in_fillet = step(length(p - vec2(0.10, 0.90)), 0.045)
+		* step(0.07, p.x) * step(p.y, 0.93);
 	col = mix(col, pad_color.rgb, in_fillet);
 
-	// West light lip — matches straight belt body at the butt joint.
+	// West light lip — flush with straight body.
 	float west_lip = step(p.x, 0.07) * step(0.08, p.y) * step(p.y, 0.92);
 	col = mix(col, pad_color.rgb, west_lip);
 
-	// Square outer frame: full N + E; SW knuckle only (no SE south stub).
+	// Frame: full N + E; SW knuckle only.
 	float rail_n = step(p.y, 0.08);
 	float rail_e = step(0.92, p.x);
 	float rail_sw = step(0.92, p.y) * step(p.x, 0.08);
-	float frame = max(max(rail_n, rail_e), rail_sw);
-	col = mix(col, rail_color.rgb, frame);
+	col = mix(col, rail_color.rgb, max(max(rail_n, rail_e), rail_sw));
 
 	COLOR = vec4(col, 1.0);
 }
