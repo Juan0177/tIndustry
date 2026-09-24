@@ -12,19 +12,15 @@ TINDUSTRY_CAPTURE=1 godot4 --path godot        # screenshots
 
 ## Controlli build
 
-1–9 tools · R ruota · **C** cicla filtro selezionatore · click piazza · destro rimuovi · WASD pan
+**Cursore** (default) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · WASD pan
 
-| Hotkey | Tool |
+| Hotkey | Azione |
 | --- | --- |
-| 1 | Nastro |
-| 2 | Minatore |
-| 3 | Forno |
-| 4 | Assemblatore |
-| 5 | Giunzione |
-| 6 | Splitter |
-| 7 | Generatore |
-| 8 | Selezionatore |
-| 9 | Ponte |
+| Esc / \` | Cursore (nessun tool) |
+| 1–9 | Nastro … Ponte |
+| R | Ruota direzione piazzamento |
+| C | Cicla filtro selezionatore |
+| RMB | Elimina (non è uno slot toolbar) |
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
 
