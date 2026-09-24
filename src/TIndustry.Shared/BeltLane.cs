@@ -121,7 +121,7 @@ public sealed class BeltLane
                 continue;
             }
 
-            if (to.TryInsert(outgoing))
+            if (to.TryInsert(outgoing, cellDirections[i]))
             {
                 from.RemoveOutput();
             }
@@ -184,18 +184,37 @@ public sealed class BeltCell
     {
         Position = position;
         Definition = definition;
-        items = new List<TransportedItem>(definition.Capacity);
+        items = new List<TransportedItem>(Math.Max(1, definition.Capacity));
     }
 
     public GridPosition Position { get; }
     public ConveyorDefinition Definition { get; }
+    public LogisticsKind Kind => Definition.Kind;
     public IReadOnlyList<TransportedItem> Items => items;
 
-    public bool TryInsert(TransportedItem item)
+    public bool TryInsert(TransportedItem item, Direction? fromDirection = null)
     {
         if (items.Count >= Definition.Capacity)
         {
             return false;
+        }
+
+        if (Kind == LogisticsKind.Junction)
+        {
+            if (fromDirection is not { } incoming)
+            {
+                return false;
+            }
+
+            if (items.Any(existing => SameAxis(existing.Travel ?? incoming, incoming)))
+            {
+                return false;
+            }
+
+            item.Progress = 0f;
+            item.Travel = incoming;
+            items.Add(item);
+            return true;
         }
 
         var rear = items.Count == 0 ? null : items[^1];
@@ -205,6 +224,7 @@ public sealed class BeltCell
         }
 
         item.Progress = 0f;
+        item.Travel = null;
         items.Add(item);
         return true;
     }
@@ -212,6 +232,36 @@ public sealed class BeltCell
     public void Advance(float deltaSeconds)
     {
         var movement = Definition.RateItemsPerSecond * deltaSeconds;
+        if (Kind == LogisticsKind.Junction)
+        {
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var travel = item.Travel ?? Direction.East;
+                var limit = 1f;
+                for (var other = 0; other < items.Count; other++)
+                {
+                    if (other == index)
+                    {
+                        continue;
+                    }
+
+                    var ahead = items[other];
+                    if (!SameAxis(ahead.Travel ?? travel, travel)
+                        || ahead.Progress <= item.Progress)
+                    {
+                        continue;
+                    }
+
+                    limit = Math.Min(limit, ahead.Progress - Definition.ItemSpacing);
+                }
+
+                item.Progress = Math.Min(item.Progress + movement, Math.Max(item.Progress, limit));
+            }
+
+            return;
+        }
+
         for (var index = 0; index < items.Count; index++)
         {
             var limit = index == 0
@@ -225,4 +275,19 @@ public sealed class BeltCell
         items.Count > 0 && items[0].Progress >= 1f ? items[0] : null;
 
     public void RemoveOutput() => items.RemoveAt(0);
+
+    public bool TryRemoveItem(TransportedItem item)
+    {
+        var idx = items.IndexOf(item);
+        if (idx < 0)
+        {
+            return false;
+        }
+
+        items.RemoveAt(idx);
+        return true;
+    }
+
+    private static bool SameAxis(Direction a, Direction b) =>
+        (a is Direction.North or Direction.South) == (b is Direction.North or Direction.South);
 }

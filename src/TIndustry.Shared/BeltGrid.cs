@@ -1,8 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Placeable belt cells (straight belts only for Phase B). Free place/remove for Godot sandbox;
-/// Advance + neighbor handoff mirrors Logistics ConveyorGrid belt path.
+/// Placeable logistics grid: belts, junctions (cross-axis), splitters (T-fork).
+/// Advance + handoff mirrors Logistics ConveyorGrid (sans bridge/sorter).
 /// </summary>
 public sealed class BeltGrid
 {
@@ -26,7 +26,11 @@ public sealed class BeltGrid
         ConveyorDefinition definition,
         Func<GridPosition, bool>? canOccupy = null)
     {
-        DefaultDefinition ??= definition;
+        if (definition.Kind == LogisticsKind.Belt)
+        {
+            DefaultDefinition ??= definition;
+        }
+
         if (canOccupy is not null && !canOccupy(position))
         {
             return false;
@@ -34,6 +38,14 @@ public sealed class BeltGrid
 
         if (cells.TryGetValue(position, out var existing))
         {
+            // Replace kind by rebuilding cell when definition changes.
+            if (!ReferenceEquals(existing.Definition, definition)
+                && existing.Definition.Id != definition.Id)
+            {
+                cells[position] = new BeltGridCell(position, direction, definition);
+                return true;
+            }
+
             existing.Direction = direction;
             return true;
         }
@@ -42,10 +54,7 @@ public sealed class BeltGrid
         return true;
     }
 
-    public bool TryRemove(GridPosition position)
-    {
-        return cells.Remove(position);
-    }
+    public bool TryRemove(GridPosition position) => cells.Remove(position);
 
     public bool TryOrient(GridPosition position, Direction direction)
     {
@@ -58,19 +67,16 @@ public sealed class BeltGrid
         return true;
     }
 
-    public bool TryInsert(GridPosition position, TransportedItem item) =>
-        cells.TryGetValue(position, out var cell) && cell.TryInsert(item);
+    public bool TryInsert(GridPosition position, TransportedItem item, Direction? fromDirection = null) =>
+        cells.TryGetValue(position, out var cell) && cell.TryInsert(item, fromDirection);
 
     public void Tick(float deltaSeconds)
     {
-        // Advance all cells (order does not matter for spacing within a cell).
         foreach (var cell in cells.Values)
         {
             cell.Advance(deltaSeconds);
         }
 
-        // Handoff: each ready item tries its output neighbor.
-        // Snapshot keys so mutation during place is safe; handoff only moves items.
         var positions = cells.Keys.ToList();
         foreach (var pos in positions)
         {
@@ -79,17 +85,69 @@ public sealed class BeltGrid
                 continue;
             }
 
-            while (from.PeekOutput() is { } item)
+            TryHandoff(from);
+        }
+    }
+
+    private void TryHandoff(BeltGridCell cell)
+    {
+        if (cell.Kind == LogisticsKind.Junction)
+        {
+            // Both axes leave independently — a blocked exit must not stall the other stream.
+            for (var i = 0; i < cell.Items.Count;)
             {
-                var target = pos.Step(from.Direction);
-                if (!cells.TryGetValue(target, out var to) || !to.TryInsert(item))
+                var ready = cell.Items[i];
+                if (ready.Progress < 1f)
                 {
-                    break;
+                    i++;
+                    continue;
                 }
 
-                from.RemoveOutput();
+                var exit = ready.Travel ?? cell.Direction;
+                var target = cell.Position.Step(exit);
+                if (!cells.TryGetValue(target, out var next) || !next.TryInsert(ready, exit))
+                {
+                    i++;
+                    continue;
+                }
+
+                cell.TryRemoveItem(ready);
             }
+
+            return;
         }
+
+        var item = cell.PeekOutput();
+        if (item is null)
+        {
+            return;
+        }
+
+        if (cell.Kind == LogisticsKind.Splitter)
+        {
+            if (TryHandoffTo(cell, cell.PreferredSplitterExit, item)
+                || TryHandoffTo(cell, cell.AlternateSplitterExit, item))
+            {
+                cell.AdvanceSplitterToggle();
+            }
+
+            return;
+        }
+
+        // Belt (and future bridge/sorter stubs): exit along facing.
+        TryHandoffTo(cell, cell.Direction, item);
+    }
+
+    private bool TryHandoffTo(BeltGridCell cell, Direction exit, TransportedItem item)
+    {
+        var target = cell.Position.Step(exit);
+        if (!cells.TryGetValue(target, out var next) || !next.TryInsert(item, exit))
+        {
+            return false;
+        }
+
+        cell.RemoveOutput();
+        return true;
     }
 
     /// <summary>
@@ -148,6 +206,12 @@ public sealed class BeltGrid
             return false;
         }
 
+        // Specials are not gallery corners.
+        if (cell.Kind is not LogisticsKind.Belt)
+        {
+            return false;
+        }
+
         if (!TryGetIncomingDirection(position, out var incoming))
         {
             return false;
@@ -156,6 +220,9 @@ public sealed class BeltGrid
         return incoming != cell.Direction
             && IsPerpendicular(incoming, cell.Direction);
     }
+
+    public bool IsSpecial(GridPosition position) =>
+        cells.TryGetValue(position, out var cell) && cell.Kind is not LogisticsKind.Belt;
 
     private static bool IsPerpendicular(Direction a, Direction b) =>
         DirectionMath.ToOffset(a).Dx * DirectionMath.ToOffset(b).Dx
@@ -166,6 +233,7 @@ public sealed class BeltGrid
 public sealed class BeltGridCell
 {
     private readonly BeltCell inner;
+    private int splitterToggle;
 
     public BeltGridCell(GridPosition position, Direction direction, ConveyorDefinition definition)
     {
@@ -176,11 +244,28 @@ public sealed class BeltGridCell
     public GridPosition Position => inner.Position;
     public Direction Direction { get; set; }
     public ConveyorDefinition Definition => inner.Definition;
+    public LogisticsKind Kind => inner.Kind;
     public IReadOnlyList<TransportedItem> Items => inner.Items;
     public GridPosition OutputPosition => Position.Step(Direction);
+    public int SplitterToggle => splitterToggle;
 
-    public bool TryInsert(TransportedItem item) => inner.TryInsert(item);
+    public Direction PreferredSplitterExit =>
+        splitterToggle % 2 == 0
+            ? DirectionMath.Left(Direction)
+            : DirectionMath.Right(Direction);
+
+    public Direction AlternateSplitterExit =>
+        PreferredSplitterExit == DirectionMath.Left(Direction)
+            ? DirectionMath.Right(Direction)
+            : DirectionMath.Left(Direction);
+
+    public void AdvanceSplitterToggle() => splitterToggle++;
+
+    public bool TryInsert(TransportedItem item, Direction? fromDirection = null) =>
+        inner.TryInsert(item, fromDirection);
+
     public void Advance(float deltaSeconds) => inner.Advance(deltaSeconds);
     public TransportedItem? PeekOutput() => inner.PeekOutput();
     public void RemoveOutput() => inner.RemoveOutput();
+    public bool TryRemoveItem(TransportedItem item) => inner.TryRemoveItem(item);
 }

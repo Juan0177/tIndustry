@@ -93,10 +93,25 @@ public partial class MindustryBeltVisual : Node2D
         var visited = new HashSet<GridPosition>();
         var phase = 0f;
 
-        // Corners first (platform pads).
+        // Junction / splitter icons (not gallery corners or strips).
         foreach (var (pos, cell) in grid.Cells)
         {
-            if (!grid.IsCorner(pos) || !grid.TryGetIncomingDirection(pos, out var incoming))
+            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Splitter))
+            {
+                continue;
+            }
+
+            AddSpecial(pos, cell.Kind, cell.Direction, tileSize);
+            visited.Add(pos);
+            phase += 1f;
+        }
+
+        // Corners first (platform pads) — belts only.
+        foreach (var (pos, cell) in grid.Cells)
+        {
+            if (visited.Contains(pos)
+                || !grid.IsCorner(pos)
+                || !grid.TryGetIncomingDirection(pos, out var incoming))
             {
                 continue;
             }
@@ -112,7 +127,7 @@ public partial class MindustryBeltVisual : Node2D
         // Straight runs: start at cells that are not corners and not mid-run.
         foreach (var (pos, cell) in grid.Cells.OrderBy(kv => kv.Key.Y).ThenBy(kv => kv.Key.X))
         {
-            if (visited.Contains(pos) || grid.IsCorner(pos))
+            if (visited.Contains(pos) || grid.IsCorner(pos) || cell.Kind != LogisticsKind.Belt)
             {
                 continue;
             }
@@ -121,6 +136,7 @@ public partial class MindustryBeltVisual : Node2D
             var pred = pos.Step(DirectionMath.Opposite(cell.Direction));
             if (grid.TryGet(pred, out var predCell)
                 && !grid.IsCorner(pred)
+                && predCell.Kind == LogisticsKind.Belt
                 && predCell.Direction == cell.Direction
                 && !visited.Contains(pred))
             {
@@ -131,7 +147,10 @@ public partial class MindustryBeltVisual : Node2D
             var cursor = pos;
             while (true)
             {
-                if (!grid.TryGet(cursor, out var runCell) || visited.Contains(cursor) || grid.IsCorner(cursor))
+                if (!grid.TryGet(cursor, out var runCell)
+                    || visited.Contains(cursor)
+                    || grid.IsCorner(cursor)
+                    || runCell.Kind != LogisticsKind.Belt)
                 {
                     break;
                 }
@@ -165,10 +184,10 @@ public partial class MindustryBeltVisual : Node2D
             phase += run.Count;
         }
 
-        // Orphan cells (e.g. isolated after edits).
+        // Orphan belt cells (e.g. isolated after edits).
         foreach (var (pos, cell) in grid.Cells)
         {
-            if (visited.Contains(pos))
+            if (visited.Contains(pos) || cell.Kind != LogisticsKind.Belt)
             {
                 continue;
             }
@@ -238,6 +257,40 @@ public partial class MindustryBeltVisual : Node2D
         AddChild(strip);
         strip.Configure(cells, direction, tileSize, phase);
         _strips.Add(strip);
+    }
+
+    private void AddSpecial(GridPosition pos, LogisticsKind kind, Direction direction, int tileSize)
+    {
+        var texPath = kind == LogisticsKind.Junction
+            ? "res://assets/junction.png"
+            : "res://assets/splitter.png";
+        var node = new Node2D
+        {
+            Name = $"{kind}_{pos.X}_{pos.Y}",
+            Position = new Vector2((pos.X + 0.5f) * tileSize, (pos.Y + 0.5f) * tileSize),
+            ZIndex = 3
+        };
+        var sprite = new Sprite2D
+        {
+            Texture = GD.Load<Texture2D>(texPath),
+            Centered = true,
+            Scale = Vector2.One * (tileSize / 64f)
+        };
+        // Splitter rotates with facing; junction is axis-symmetric.
+        if (kind == LogisticsKind.Splitter)
+        {
+            sprite.RotationDegrees = direction switch
+            {
+                Direction.East => 0f,
+                Direction.South => 90f,
+                Direction.West => 180f,
+                Direction.North => -90f,
+                _ => 0f
+            };
+        }
+
+        node.AddChild(sprite);
+        AddChild(node);
     }
 
     private static List<GridPosition> Slice(IReadOnlyList<GridPosition> path, int fromInclusive, int toInclusive)
