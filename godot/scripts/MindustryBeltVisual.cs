@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Builds Mindustry-style belt visuals from a cell path: straight strips + corner tiles,
-/// sharing one scroll clock so chevrons stay phase-continuous around L turns.
+/// Builds Mindustry-style belt visuals from a cell path or a placeable <see cref="BeltGrid"/>:
+/// straight strips + platform corner tiles, shared scroll clock.
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
 {
@@ -19,19 +19,19 @@ public partial class MindustryBeltVisual : Node2D
 
     public void Configure(IReadOnlyList<GridPosition> path, float rateItemsPerSecond, int tileSize)
     {
-        foreach (var child in GetChildren())
-        {
-            child.QueueFree();
-        }
-
-        _strips.Clear();
-        _corners.Clear();
+        ClearVisuals();
         _rateTilesPerSecond = Math.Max(0.05f, rateItemsPerSecond);
         _scroll = 0f;
 
-        if (path.Count < 2)
+        if (path.Count < 1)
         {
-            throw new ArgumentException("Serve almeno 2 celle per un nastro.", nameof(path));
+            return;
+        }
+
+        if (path.Count == 1)
+        {
+            AddStrip([path[0]], Direction.East, tileSize, 0f);
+            return;
         }
 
         var phase = 0f;
@@ -51,7 +51,6 @@ public partial class MindustryBeltVisual : Node2D
                 continue;
             }
 
-            // Straight before corner: path[segStart .. i-1]
             if (i - 1 >= segStart)
             {
                 var straight = Slice(path, segStart, i - 1);
@@ -68,13 +67,127 @@ public partial class MindustryBeltVisual : Node2D
             segStart = i + 1;
         }
 
-        // Trailing straight after last corner (or full path if no corners).
         if (segStart <= path.Count - 1)
         {
             var straight = Slice(path, segStart, path.Count - 1);
             var dir = ResolveStripDirection(path, straight, segStart);
             AddStrip(straight, dir, tileSize, phase);
         }
+    }
+
+    /// <summary>
+    /// Rebuild from a placeable grid: platform corners where flow turns 90°,
+    /// otherwise merged straight strips along each run.
+    /// </summary>
+    public void ConfigureFromGrid(BeltGrid grid, float rateItemsPerSecond, int tileSize)
+    {
+        ClearVisuals();
+        _rateTilesPerSecond = Math.Max(0.05f, rateItemsPerSecond);
+        _scroll = 0f;
+
+        if (grid.Count == 0)
+        {
+            return;
+        }
+
+        var visited = new HashSet<GridPosition>();
+        var phase = 0f;
+
+        // Corners first (platform pads).
+        foreach (var (pos, cell) in grid.Cells)
+        {
+            if (!grid.IsCorner(pos) || !grid.TryGetIncomingDirection(pos, out var incoming))
+            {
+                continue;
+            }
+
+            var corner = new BeltCornerTile { Name = $"Corner_{pos.X}_{pos.Y}" };
+            AddChild(corner);
+            corner.Configure(pos, incoming, cell.Direction, tileSize, phase);
+            _corners.Add(corner);
+            visited.Add(pos);
+            phase += 1f;
+        }
+
+        // Straight runs: start at cells that are not corners and not mid-run.
+        foreach (var (pos, cell) in grid.Cells.OrderBy(kv => kv.Key.Y).ThenBy(kv => kv.Key.X))
+        {
+            if (visited.Contains(pos) || grid.IsCorner(pos))
+            {
+                continue;
+            }
+
+            // Prefer starting at head of a straight run (no same-dir predecessor).
+            var pred = pos.Step(DirectionMath.Opposite(cell.Direction));
+            if (grid.TryGet(pred, out var predCell)
+                && !grid.IsCorner(pred)
+                && predCell.Direction == cell.Direction
+                && !visited.Contains(pred))
+            {
+                continue;
+            }
+
+            var run = new List<GridPosition>();
+            var cursor = pos;
+            while (true)
+            {
+                if (!grid.TryGet(cursor, out var runCell) || visited.Contains(cursor) || grid.IsCorner(cursor))
+                {
+                    break;
+                }
+
+                if (run.Count > 0)
+                {
+                    var prev = run[^1];
+                    if (!grid.TryGet(prev, out var prevCell) || prevCell.Direction != runCell.Direction)
+                    {
+                        break;
+                    }
+
+                    if (!cursor.Equals(prev.Step(prevCell.Direction)))
+                    {
+                        break;
+                    }
+                }
+
+                run.Add(cursor);
+                visited.Add(cursor);
+                cursor = cursor.Step(runCell.Direction);
+            }
+
+            if (run.Count == 0)
+            {
+                continue;
+            }
+
+            var dir = grid.Cells[run[0]].Direction;
+            AddStrip(run, dir, tileSize, phase);
+            phase += run.Count;
+        }
+
+        // Orphan cells (e.g. isolated after edits).
+        foreach (var (pos, cell) in grid.Cells)
+        {
+            if (visited.Contains(pos))
+            {
+                continue;
+            }
+
+            AddStrip([pos], cell.Direction, tileSize, phase);
+            phase += 1f;
+            visited.Add(pos);
+        }
+    }
+
+    private void ClearVisuals()
+    {
+        foreach (var child in GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        _strips.Clear();
+        _corners.Clear();
     }
 
     private static Direction ResolveStripDirection(

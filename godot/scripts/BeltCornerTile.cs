@@ -30,8 +30,8 @@ public partial class BeltCornerTile : Node2D
             Direction.North => -90f,
             _ => 0f
         };
-        // Slight overscale covers 1px seams against adjacent straight strips.
-        var span = tileSize + 2f;
+        // Full-cell platform (same footprint as regular belts). +1px covers seams vs straights.
+        var span = tileSize + 1f;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
         _material!.SetShaderParameter("half_width", 0.39f);

@@ -1,7 +1,8 @@
 shader_type canvas_item;
 
-// Mindustry-style belt: rails + scrolling arrows that tip toward +UV.x (flow)
-// and move with transport as scroll rises. UV.x spans the strip (0..1).
+// Mindustry-style regular belt: FULL TILE (rails at UV edges).
+// Thin spanning look is for bridges only — never shrink the strip in C#.
+// Rails + scrolling arrows tip toward +UV.x (flow); scroll rises with transport.
 
 uniform float scroll = 0.0;
 uniform float scroll_phase = 0.0;

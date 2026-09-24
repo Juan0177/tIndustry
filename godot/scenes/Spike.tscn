@@ -28,8 +28,8 @@ centered = true
 [node name="Status" type="Label" parent="Hud"]
 offset_left = 16.0
 offset_top = 12.0
-offset_right = 900.0
-offset_bottom = 72.0
+offset_right = 1100.0
+offset_bottom = 100.0
 theme_override_colors/font_color = Color(0.92, 0.95, 0.9, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
 theme_override_constants/shadow_offset_x = 1

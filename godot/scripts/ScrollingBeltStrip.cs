@@ -6,6 +6,8 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Continuous Mindustry-style straight belt strip. Chevrons tip with flow (+local X);
 /// scroll is driven by <see cref="MindustryBeltVisual"/> (shared phase across L segments).
+/// Regular belts occupy the <b>full tile</b> (edge-to-edge). Thin (~0.78) thickness is
+/// reserved for bridges only — never use it here.
 /// </summary>
 public partial class ScrollingBeltStrip : Node2D
 {
@@ -32,19 +34,18 @@ public partial class ScrollingBeltStrip : Node2D
         var maxY = Math.Max(first.Y, last.Y);
 
         var horizontal = direction is Direction.East or Direction.West;
+        // Full-tile belt (Mindustry regular conveyor). Do NOT use ~0.78 — that is bridge-only.
+        float thicknessPx = tileSize;
         float lengthPx;
-        float thicknessPx;
         Vector2 center;
         if (horizontal)
         {
             lengthPx = (maxX - minX + 1) * tileSize;
-            thicknessPx = tileSize * 0.78f;
             center = new Vector2((minX + maxX + 1) * 0.5f * tileSize, (first.Y + 0.5f) * tileSize);
         }
         else
         {
             lengthPx = (maxY - minY + 1) * tileSize;
-            thicknessPx = tileSize * 0.78f;
             center = new Vector2((first.X + 0.5f) * tileSize, (minY + maxY + 1) * 0.5f * tileSize);
         }
 
