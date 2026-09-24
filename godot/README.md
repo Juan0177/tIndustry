@@ -31,6 +31,7 @@ Main scene: `godot/scenes/Spike.tscn`
 
 - Seed L-belt miner → core (loop già attivo)
 - Piazzamento libero: dritti con chevron scroll + **angoli piattaforma** dove il flusso gira 90°
+- Nastri regolari = **tile piena** (edge-to-edge); il look sottile ~78% è solo per i **ponti** (non ancora in scena)
 - Minatore T1 statico, core magazzino, HUD italiano
 - **Nessun combat**
 
