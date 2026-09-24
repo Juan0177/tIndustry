@@ -577,7 +577,7 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-mockup-fit-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-corner-recipe-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
         img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
@@ -593,21 +593,21 @@ public partial class SpikeWorld : Node2D
         AssertCellOpaque(img, cornerX0 - cell, cornerY0, cell, "straight(9,8)");
         AssertNorthEdgeFlush(img, cornerX0 - cell, cornerX0 + cell, cornerY0);
         AssertSeamRailContinuous(img, cornerX0, cornerY0, cell);
-        AssertMockupCorner(img, cornerX0, cornerY0, cell);
+        AssertCornerRecipe(img, cornerX0, cornerY0, cell);
 
         var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var seamClose = Path.Combine(destDir, "godot-port-mockup-fit-close.png");
+        var seamClose = Path.Combine(destDir, "godot-port-corner-recipe-close.png");
         err = alignClose.SavePng(seamClose);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
         alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
-        alignClose.SavePng(Path.Combine(destDir, "godot-port-mockup-fit-tile.png"));
+        alignClose.SavePng(Path.Combine(destDir, "godot-port-corner-recipe-tile.png"));
 
         var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var seamElbow = Path.Combine(destDir, "godot-port-mockup-fit-elbow.png");
+        var seamElbow = Path.Combine(destDir, "godot-port-corner-recipe-elbow.png");
         err = alignMap.SavePng(seamElbow);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
 
@@ -615,7 +615,7 @@ public partial class SpikeWorld : Node2D
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-mockup-fit-overview.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-corner-recipe-overview.png"));
     }
 
     private static bool IsTerrain(Color c) =>
@@ -740,71 +740,51 @@ public partial class SpikeWorld : Node2D
             GD.PushError("SEAM FAIL: N/S rail band steps across straight↔corner join (rientranza).");
         }
 
-        // West lip of the gallery matches straight body (paint butt joint).
+        // Tube (Blu4) meets the straight — colors differ by design; only log.
         var yBody = cornerY0 + cell / 4;
         var straightBody = img.GetPixel(cornerX0 - 8, yBody);
-        var cornerLip = img.GetPixel(cornerX0 + 3, yBody);
-        var dr = Math.Abs(straightBody.R - cornerLip.R);
-        var dg = Math.Abs(straightBody.G - cornerLip.G);
-        var db = Math.Abs(straightBody.B - cornerLip.B);
+        var cornerTube = img.GetPixel(cornerX0 + cell / 4, yBody);
         GD.Print(
-            $"PixelCheck seam color: straight=({straightBody.R:F3},{straightBody.G:F3},{straightBody.B:F3}) " +
-            $"cornerLip=({cornerLip.R:F3},{cornerLip.G:F3},{cornerLip.B:F3}) Δ=({dr:F3},{dg:F3},{db:F3})");
-        if (dr > 0.06f || dg > 0.06f || db > 0.06f)
-        {
-            GD.PushError("SEAM FAIL: west lip color jumps across straight↔corner join.");
-        }
+            $"PixelCheck seam tube: straight=({straightBody.R:F3},{straightBody.G:F3},{straightBody.B:F3}) " +
+            $"cornerTube=({cornerTube.R:F3},{cornerTube.G:F3},{cornerTube.B:F3})");
 
         AssertInnerCornerKnuckle(img, cornerX0, cornerY0, cell);
         AssertEastRailFlush(img, cornerX0, cornerY0, cell);
     }
 
     /// <summary>
-    /// Paint mockup: dark gallery fill, light NE pad, yellow indicator in pocket.
+    /// Recipe: Blu1 N/E + SW knuckle, Blu4 tube near focus, Blu3 outside arc (NE).
     /// </summary>
-    private static void AssertMockupCorner(Image img, int cornerX0, int cornerY0, int cell)
+    private static void AssertCornerRecipe(Image img, int cornerX0, int cornerY0, int cell)
     {
-        static bool IsCover(Color c) =>
-            !IsTerrain(c) && !IsRail(c) &&
-            c.R >= 30f / 255f && c.R <= 50f / 255f &&
-            c.G >= 35f / 255f && c.G <= 55f / 255f &&
-            c.B >= 40f / 255f && c.B <= 60f / 255f;
+        static bool Near(Color c, float r, float g, float b, float tol = 0.05f) =>
+            Math.Abs(c.R - r) <= tol && Math.Abs(c.G - g) <= tol && Math.Abs(c.B - b) <= tol;
 
-        static bool IsPad(Color c) =>
-            !IsTerrain(c) && !IsRail(c) &&
-            c.R >= 40f / 255f && c.R <= 70f / 255f &&
-            c.G >= 50f / 255f && c.G <= 80f / 255f &&
-            c.B >= 55f / 255f && c.B <= 90f / 255f;
-
-        static bool IsYellow(Color c) =>
-            c.R >= 200f / 255f && c.G >= 150f / 255f && c.B <= 80f / 255f;
-
-        var mid = img.GetPixel(cornerX0 + cell / 2, cornerY0 + cell / 2);
-        var coverOk = IsCover(mid);
-        GD.Print(
-            $"PixelCheck mockup cover center: ({mid.R:F3},{mid.G:F3},{mid.B:F3}) cover={coverOk}");
-        if (!coverOk)
+        // Blu1 #191E24 on north edge mid.
+        var n = img.GetPixel(cornerX0 + cell / 2, cornerY0 + 2);
+        var nOk = IsRail(n) || Near(n, 0.098f, 0.118f, 0.141f);
+        GD.Print($"PixelCheck recipe Blu1 N: ({n.R:F3},{n.G:F3},{n.B:F3}) ok={nOk}");
+        if (!nOk)
         {
-            GD.PushError("MOCKUP FAIL: corner center is not dark gallery cover.");
+            GD.PushError("RECIPE FAIL: north edge is not Blu1.");
         }
 
-        // NE pocket ~ UV (0.84, 0.20) pad area — light floor around yellow.
-        var pad = img.GetPixel(cornerX0 + cell * 78 / 100, cornerY0 + cell * 22 / 100);
-        var padOk = IsPad(pad) || IsYellow(pad);
-        GD.Print(
-            $"PixelCheck mockup NE pad: ({pad.R:F3},{pad.G:F3},{pad.B:F3}) pad={padOk}");
-        if (!padOk)
+        // Blu4 tube near focus (SW quadrant).
+        var tube = img.GetPixel(cornerX0 + cell / 3, cornerY0 + cell * 2 / 3);
+        var tubeOk = Near(tube, 0.525f, 0.655f, 0.722f, 0.08f);
+        GD.Print($"PixelCheck recipe Blu4 tube: ({tube.R:F3},{tube.G:F3},{tube.B:F3}) ok={tubeOk}");
+        if (!tubeOk)
         {
-            GD.PushError("MOCKUP FAIL: NE pad is not light floor.");
+            GD.PushError("RECIPE FAIL: tube interior is not Blu4.");
         }
 
-        var yel = img.GetPixel(cornerX0 + cell * 84 / 100, cornerY0 + cell * 20 / 100);
-        var yelOk = IsYellow(yel);
-        GD.Print(
-            $"PixelCheck mockup yellow: ({yel.R:F3},{yel.G:F3},{yel.B:F3}) yellow={yelOk}");
-        if (!yelOk)
+        // Blu3 exterior opposite focus (NE tip inside borders).
+        var ext = img.GetPixel(cornerX0 + cell * 88 / 100, cornerY0 + cell * 12 / 100);
+        var extOk = Near(ext, 0.196f, 0.235f, 0.275f, 0.08f);
+        GD.Print($"PixelCheck recipe Blu3 exterior: ({ext.R:F3},{ext.G:F3},{ext.B:F3}) ok={extOk}");
+        if (!extOk)
         {
-            GD.PushError("MOCKUP FAIL: yellow indicator missing in NE pocket.");
+            GD.PushError("RECIPE FAIL: NE exterior of arc is not Blu3.");
         }
     }
 
