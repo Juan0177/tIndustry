@@ -9,7 +9,7 @@ shader_type canvas_item;
 
 uniform float border1 = 0.08;
 uniform float border2 = 0.14;
-uniform float tube_radius = 0.95;
+uniform float tube_radius = 0.88;
 uniform vec4 blu1 : source_color = vec4(0.098, 0.118, 0.141, 1.0); // #191E24
 uniform vec4 blu2 : source_color = vec4(0.141, 0.161, 0.184, 1.0); // #24292F
 uniform vec4 blu3 : source_color = vec4(0.196, 0.235, 0.275, 1.0); // #323C46
@@ -27,13 +27,16 @@ void fragment() {
 	col = mix(col, blu2.rgb, max(b2_n, b2_e));
 
 	// 3) Tube: filled arc from focus at inner corner (1∩4 = SW).
-	//    Interior = Blu4; exterior (already Blu3) stays where d > radius.
-	//    Contained under Blu1; overlaps Blu2 on N/E.
 	vec2 focus = vec2(0.0, 1.0);
 	float d = length(p - focus);
 	float aa = max(fwidth(d) * 1.25, 0.004);
 	float in_tube = 1.0 - smoothstep(tube_radius - aa, tube_radius + aa, d);
 	col = mix(col, blu4.rgb, in_tube);
+
+	// Exterior of the arc in the cell interior must stay Blu3
+	// (Blu2 bands on N/E remain where the tube does not cover them).
+	float interior = step(border2, p.y) * step(p.x, 1.0 - border2);
+	col = mix(col, blu3.rgb, (1.0 - in_tube) * interior);
 
 	// 4) Outer border Blu1 on sides 2+3, plus focus knuckle square at 1∩4.
 	float b1_n = step(p.y, border1);
