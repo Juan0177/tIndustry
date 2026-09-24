@@ -788,8 +788,8 @@ public partial class SpikeWorld : Node2D
             GD.PushError("MOCKUP FAIL: corner center is not dark gallery cover.");
         }
 
-        // NE pocket ~ UV (0.80, 0.24) — light pad around the yellow.
-        var pad = img.GetPixel(cornerX0 + cell * 72 / 100, cornerY0 + cell * 30 / 100);
+        // NE pocket ~ UV (0.82, 0.22) — light pad halo around the yellow.
+        var pad = img.GetPixel(cornerX0 + cell * 78 / 100, cornerY0 + cell * 28 / 100);
         var padOk = IsPad(pad) || IsYellow(pad);
         GD.Print(
             $"PixelCheck mockup NE pad: ({pad.R:F3},{pad.G:F3},{pad.B:F3}) pad={padOk}");
