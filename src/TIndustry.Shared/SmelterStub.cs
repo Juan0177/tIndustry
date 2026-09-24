@@ -1,29 +1,40 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Minimal forno: belt intake → timed recipe → emit plates onto outward belts.
-/// No power/coal OR yet (Phase C stub).
+/// Minimal craft machine: belt intake → timed recipe → emit onto outward belts.
+/// Used for forno (Phase C) and assembler (Phase D). No power/coal OR yet.
 /// </summary>
 public sealed class SmelterStub
 {
     public const int Size = 2;
     public const int FootprintArea = Size * Size;
     public const int OutputTileCount = Size * 4;
-    public const string BuildingId = "smelter";
+    public const string SmelterBuildingId = "smelter";
+    public const string AssemblerBuildingId = "assembler";
+
+    /// <summary>Legacy alias — prefer <see cref="SmelterBuildingId"/>.</summary>
+    public const string BuildingId = SmelterBuildingId;
 
     private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
     private readonly Queue<string> outputQueue = new();
 
-    public SmelterStub(GridPosition position, Direction direction, RecipeDefinition recipe)
+    public SmelterStub(
+        GridPosition position,
+        Direction direction,
+        RecipeDefinition recipe,
+        string buildingId = SmelterBuildingId)
     {
         Position = position;
         Direction = direction;
         Recipe = recipe;
+        DefinitionId = string.IsNullOrWhiteSpace(buildingId) ? SmelterBuildingId : buildingId;
     }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }
     public RecipeDefinition Recipe { get; }
+    public string DefinitionId { get; }
+    public bool IsAssembler => DefinitionId == AssemblerBuildingId;
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
     public long ItemsCrafted { get; private set; }

@@ -27,11 +27,17 @@ public sealed class MinerProducer
         DefinitionId = string.IsNullOrWhiteSpace(definitionId) ? BasicId : definitionId;
     }
 
-    public GridPosition Position { get; }
-    public Direction Direction { get; }
+    public GridPosition Position { get; private set; }
+    public Direction Direction { get; private set; }
     public int CoveredDepositTiles { get; }
     public string OutputItemId { get; }
     public string DefinitionId { get; }
+
+    public void Relocate(GridPosition position, Direction direction)
+    {
+        Position = position;
+        Direction = direction;
+    }
     public float Progress { get; private set; }
     public int EjectIndex { get; private set; }
     public long ItemsProduced { get; private set; }

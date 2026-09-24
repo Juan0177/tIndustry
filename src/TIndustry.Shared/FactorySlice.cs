@@ -1,13 +1,14 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Playable factory slice: miners → belts → optional forni → core stock.
+/// Playable factory slice: miners → belts → forni/assemblatori → core stock.
 /// </summary>
 public sealed class FactorySlice
 {
     private long nextItemId = 1;
     private readonly List<MinerProducer> miners = [];
     private readonly List<SmelterStub> smelters = [];
+    private readonly List<SmelterStub> assemblers = [];
 
     public FactorySlice(
         FactoryContent content,
@@ -31,6 +32,7 @@ public sealed class FactorySlice
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
+    public IReadOnlyList<SmelterStub> Assemblers => assemblers;
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public MinerProducer? Miner => miners.Count > 0 ? miners[0] : null;
@@ -70,6 +72,82 @@ public sealed class FactorySlice
             new GridPosition(10, 12),
             new GridPosition(10, 13)
         ], beltDef);
+
+        return slice;
+    }
+
+    /// <summary>
+    /// Phase D seed: iron miner→forno→plates + copper miner → assemblatore
+    /// (<c>craft-copper-wire</c>) → wire → core.
+    /// </summary>
+    public static FactorySlice CreatePhaseDDemo(FactoryContent content, string beltId = "conveyor-basic")
+    {
+        var beltDef = content.RequireConveyor(beltId);
+        var smelt = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var wire = content.FindRecipe("craft-copper-wire")
+            ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
+        var grid = new BeltGrid();
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, grid, core);
+
+        // Iron miner (2,7) → forno (6,7) → plates east toward assembler (12,7).
+        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
+        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
+        slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
+        // Copper miner south of iron row.
+        slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+
+        // Iron ore feed into forno.
+        grid.PlacePath(
+        [
+            new GridPosition(4, 8),
+            new GridPosition(5, 8)
+        ], beltDef);
+        grid.TryOrient(new GridPosition(5, 8), Direction.East);
+
+        // Plates: forno east → into assembler west edge (12,8).
+        grid.PlacePath(
+        [
+            new GridPosition(8, 8),
+            new GridPosition(9, 8),
+            new GridPosition(10, 8),
+            new GridPosition(11, 8)
+        ], beltDef);
+        grid.TryOrient(new GridPosition(11, 8), Direction.East);
+
+        // Copper ore: miner → east then north into assembler south edge (12,9).
+        grid.PlacePath(
+        [
+            new GridPosition(4, 11),
+            new GridPosition(5, 11),
+            new GridPosition(6, 11),
+            new GridPosition(7, 11),
+            new GridPosition(8, 11),
+            new GridPosition(9, 11),
+            new GridPosition(10, 11),
+            new GridPosition(11, 11),
+            new GridPosition(12, 11),
+            new GridPosition(12, 10),
+            new GridPosition(12, 9)
+        ], beltDef);
+        grid.TryOrient(new GridPosition(12, 9), Direction.North);
+
+        // Wire out: assembler east (14,8) → south → west into core north (10,13).
+        grid.PlacePath(
+        [
+            new GridPosition(14, 8),
+            new GridPosition(14, 9),
+            new GridPosition(14, 10),
+            new GridPosition(14, 11),
+            new GridPosition(14, 12),
+            new GridPosition(14, 13),
+            new GridPosition(13, 13),
+            new GridPosition(12, 13),
+            new GridPosition(11, 13),
+            new GridPosition(10, 13)
+        ], beltDef);
+        grid.TryOrient(new GridPosition(10, 13), Direction.South);
 
         return slice;
     }
@@ -139,9 +217,9 @@ public sealed class FactorySlice
             }
         }
 
-        foreach (var smelter in smelters)
+        foreach (var craft in CraftMachines())
         {
-            if (smelter.Occupies(tile))
+            if (craft.Occupies(tile))
             {
                 return true;
             }
@@ -155,22 +233,23 @@ public sealed class FactorySlice
 
     public bool TryRemoveBelt(GridPosition position) => Belts.TryRemove(position);
 
-    public bool TryPlaceMiner(GridPosition origin, Direction direction)
+    public bool TryPlaceMiner(
+        GridPosition origin,
+        Direction direction,
+        string outputItemId = MinerProducer.DefaultOutputItemId)
     {
         if (!CanOccupyFootprint(origin, MinerProducer.Size))
         {
-            // Allow relocating the single Phase-C miner onto a free footprint.
-            if (miners.Count == 1 && FootprintClearExcept(origin, MinerProducer.Size, miners[0]))
+            if (miners.Count == 1 && FootprintClearExcept(origin, MinerProducer.Size, miner: miners[0]))
             {
-                // Relocate: remove conceptual occupancy by replacing miner instance.
-                miners[0] = new MinerProducer(origin, direction);
+                miners[0].Relocate(origin, direction);
                 return true;
             }
 
             return false;
         }
 
-        miners.Add(new MinerProducer(origin, direction));
+        miners.Add(new MinerProducer(origin, direction, outputItemId: outputItemId));
         return true;
     }
 
@@ -181,7 +260,7 @@ public sealed class FactorySlice
 
         if (!CanOccupyFootprint(origin, SmelterStub.Size))
         {
-            if (smelters.Count == 1 && FootprintClearExcept(origin, SmelterStub.Size, smelter: smelters[0]))
+            if (smelters.Count == 1 && FootprintClearExcept(origin, SmelterStub.Size, craft: smelters[0]))
             {
                 smelters[0].Relocate(origin, direction);
                 return true;
@@ -190,7 +269,27 @@ public sealed class FactorySlice
             return false;
         }
 
-        smelters.Add(new SmelterStub(origin, direction, recipe));
+        smelters.Add(new SmelterStub(origin, direction, recipe, SmelterStub.SmelterBuildingId));
+        return true;
+    }
+
+    public bool TryPlaceAssembler(GridPosition origin, Direction direction, RecipeDefinition? recipe = null)
+    {
+        recipe ??= Content.FindRecipe("craft-copper-wire")
+            ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
+
+        if (!CanOccupyFootprint(origin, SmelterStub.Size))
+        {
+            if (assemblers.Count == 1 && FootprintClearExcept(origin, SmelterStub.Size, craft: assemblers[0]))
+            {
+                assemblers[0].Relocate(origin, direction);
+                return true;
+            }
+
+            return false;
+        }
+
+        assemblers.Add(new SmelterStub(origin, direction, recipe, SmelterStub.AssemblerBuildingId));
         return true;
     }
 
@@ -205,7 +304,6 @@ public sealed class FactorySlice
                     continue;
                 }
 
-                // Keep at least one miner in demos? Allow remove all.
                 miners.RemoveAt(i);
                 return true;
             }
@@ -222,14 +320,38 @@ public sealed class FactorySlice
             return true;
         }
 
+        for (var i = assemblers.Count - 1; i >= 0; i--)
+        {
+            if (!assemblers[i].Occupies(tile))
+            {
+                continue;
+            }
+
+            assemblers.RemoveAt(i);
+            return true;
+        }
+
         return false;
+    }
+
+    private IEnumerable<SmelterStub> CraftMachines()
+    {
+        foreach (var s in smelters)
+        {
+            yield return s;
+        }
+
+        foreach (var a in assemblers)
+        {
+            yield return a;
+        }
     }
 
     private bool FootprintClearExcept(
         GridPosition origin,
         int size,
         MinerProducer? miner = null,
-        SmelterStub? smelter = null)
+        SmelterStub? craft = null)
     {
         for (var y = 0; y < size; y++)
         {
@@ -257,9 +379,9 @@ public sealed class FactorySlice
                     }
                 }
 
-                foreach (var s in smelters)
+                foreach (var s in CraftMachines())
                 {
-                    if (smelter is not null && ReferenceEquals(s, smelter))
+                    if (craft is not null && ReferenceEquals(s, craft))
                     {
                         continue;
                     }
@@ -282,15 +404,15 @@ public sealed class FactorySlice
             miner.Tick(deltaSeconds, Belts, ref nextItemId);
         }
 
-        // Belts advance first so handoffs reach smelter/core edges.
+        // Belts advance first so handoffs reach craft/core edges.
         Belts.Tick(deltaSeconds);
 
-        foreach (var smelter in smelters)
+        foreach (var craft in CraftMachines())
         {
-            smelter.Tick(deltaSeconds, Belts, ref nextItemId);
+            craft.Tick(deltaSeconds, Belts, ref nextItemId);
         }
 
-        // Second belt tick so freshly emitted plates can move the same frame.
+        // Second belt tick so freshly emitted items can move the same frame.
         Belts.Tick(0f);
         CoreDeliveredItems += CoreStockSink.Drain(Belts, CoreTiles, Wallet);
     }
@@ -369,6 +491,33 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Smelter loop self-test: nessuna lastra di ferro al core entro 90s sim.");
+    }
+
+    /// <summary>Phase D: plates + copper ore through assembler yield copper-wire in core.</summary>
+    public static void SelfTestAssemblerLoop(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreatePhaseDDemo(content);
+        Assert(slice.Smelters.Count == 1, "forno seed");
+        Assert(slice.Assemblers.Count == 1, "assemblatore seed");
+        Assert(slice.Miners.Count == 2, "iron+copper miners");
+        Assert(slice.Miners.Any(m => m.OutputItemId == "copper-ore"), "copper miner");
+        Assert(slice.TryPlaceAssembler(new GridPosition(16, 4), Direction.South), "place second assembler");
+        Assert(slice.TryRemoveBuildingAt(new GridPosition(16, 4)), "remove assembler");
+
+        const float dt = 1f / 30f;
+        // Iron mine+smelt + copper mine + craft 1.5s + belts — budget ~120s sim.
+        for (var i = 0; i < 30 * 120; i++)
+        {
+            slice.Tick(dt);
+            if (slice.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Assembler loop self-test: nessun filo di rame al core entro 120s sim.");
     }
 
     private static void Assert(bool condition, string message)
