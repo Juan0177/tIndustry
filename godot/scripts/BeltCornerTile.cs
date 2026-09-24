@@ -4,9 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell rounded L corner (galleria). Overlaps abutting strips; tunnel mouth
-/// ombrette at entry/exit when that opening is an effective extremity (neighbor
-/// is not another corner). Base art: enter-west → exit-south.
+/// Full-cell rounded L corner (galleria). Overlaps abutting strips.
+/// Items are hidden while on the corner cell. Base art: enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
@@ -18,9 +17,7 @@ public partial class BeltCornerTile : Node2D
         Direction from,
         Direction to,
         int tileSize,
-        float scrollPhaseTiles,
-        bool shadeEntry = true,
-        bool shadeExit = true)
+        float scrollPhaseTiles)
     {
         EnsureVisual();
         _sprite!.Texture = CreateUnitTexture();
@@ -45,8 +42,6 @@ public partial class BeltCornerTile : Node2D
 
         // 0.42 matches full-tile straight body; SDF arc radius.
         _material!.SetShaderParameter("half_width", 0.42f);
-        _material.SetShaderParameter("shade_entry", shadeEntry ? 1f : 0f);
-        _material.SetShaderParameter("shade_exit", shadeExit ? 1f : 0f);
         _ = scrollPhaseTiles;
     }
 
