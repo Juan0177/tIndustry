@@ -3,10 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace TIndustry.Shared;
 
-/// <summary>Godot factory-slice save (v1). Separate from Raylib GameSave.</summary>
+/// <summary>Godot factory-slice save (v2: research unlocks). v1 loads without research → CreateNew.</summary>
 public sealed class FactorySliceSaveData
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -16,6 +16,7 @@ public sealed class FactorySliceSaveData
     public int CoreSize { get; set; } = 2;
     public int Money { get; set; }
     public Dictionary<string, int> Materials { get; set; } = new(StringComparer.Ordinal);
+    public List<string> UnlockedStructures { get; set; } = [];
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];

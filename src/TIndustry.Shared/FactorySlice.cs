@@ -16,12 +16,14 @@ public sealed class FactorySlice
         FactoryContent content,
         BeltGrid belts,
         IReadOnlySet<GridPosition> coreTiles,
-        EconomyWallet? wallet = null)
+        EconomyWallet? wallet = null,
+        ResearchState? research = null)
     {
         Content = content;
         Belts = belts;
         CoreTiles = coreTiles;
         Wallet = wallet ?? new EconomyWallet();
+        Research = research ?? ResearchState.CreateNew(content);
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
@@ -39,6 +41,7 @@ public sealed class FactorySlice
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public EconomyWallet Wallet { get; }
+    public ResearchState Research { get; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
@@ -68,6 +71,7 @@ public sealed class FactorySlice
             CoreSize = coreSize,
             Money = Wallet.Money,
             Materials = Wallet.MaterialsSnapshot(),
+            UnlockedStructures = Research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -158,7 +162,8 @@ public sealed class FactorySlice
             new GridPosition(data.CoreX, data.CoreY),
             Math.Max(1, data.CoreSize));
         var wallet = new EconomyWallet(data.Money, data.Materials);
-        var slice = new FactorySlice(content, belts, core, wallet)
+        var research = ResearchState.FromSaved(data.UnlockedStructures, content);
+        var slice = new FactorySlice(content, belts, core, wallet, research)
         {
             nextItemId = Math.Max(1, data.NextItemId),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems)
@@ -230,6 +235,7 @@ public sealed class FactorySlice
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, grid, core);
+        slice.UnlockGodotSliceDemo();
 
         // Miner 2×2 at (2,7); forno 2×2 at (6,7).
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
@@ -274,6 +280,7 @@ public sealed class FactorySlice
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, grid, core);
+        slice.UnlockGodotSliceDemo();
 
         // Iron miner (2,7) → forno (6,7) → plates east toward assembler (12,7).
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
@@ -351,6 +358,7 @@ public sealed class FactorySlice
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, grid, core);
+        slice.UnlockGodotSliceDemo();
 
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
         slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
@@ -489,6 +497,7 @@ public sealed class FactorySlice
         grid.PlacePath(BuildSpikeLPath(), beltDef);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, grid, core);
+        slice.UnlockGodotSliceDemo();
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
         return slice;
     }
@@ -565,17 +574,58 @@ public sealed class FactorySlice
         return false;
     }
 
+    /// <summary>Unlock all Godot-slice placeables so seeded demos keep working under gates.</summary>
+    public void UnlockGodotSliceDemo()
+    {
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            Research.ForceUnlock(id);
+        }
+    }
+
+    public bool IsStructureUnlocked(string structureId) => Research.IsUnlocked(structureId);
+
+    public bool TryUnlockStructure(string structureId)
+    {
+        var structure = Content.FindStructure(structureId);
+        return structure is not null && Research.TryUnlock(structure, Wallet);
+    }
+
+    public static string? StructureIdForTool(string toolKey) => toolKey switch
+    {
+        "belt" => "conveyor-basic",
+        "miner" => "miner",
+        "smelter" => "smelter",
+        "assembler" => "assembler",
+        "junction" => "junction",
+        "splitter" => "splitter",
+        "generator" => "generator",
+        "sorter" => "sorter",
+        "bridge" => "conveyor-bridge",
+        _ => null
+    };
+
+    private bool RequireUnlocked(string structureId) => Research.IsUnlocked(structureId);
+
     public bool TryPlaceBelt(GridPosition position, Direction direction) =>
-        Belts.TryPlaceFree(position, direction, BeltDefinition, CanOccupy);
+        RequireUnlocked("conveyor-basic")
+        && Belts.TryPlaceFree(position, direction, BeltDefinition, CanOccupy);
 
     public bool TryPlaceJunction(GridPosition position, Direction direction) =>
-        Belts.TryPlaceFree(position, direction, JunctionDefinition, CanOccupy);
+        RequireUnlocked("junction")
+        && Belts.TryPlaceFree(position, direction, JunctionDefinition, CanOccupy);
 
     public bool TryPlaceSplitter(GridPosition position, Direction direction) =>
-        Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy);
+        RequireUnlocked("splitter")
+        && Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy);
 
     public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null)
     {
+        if (!RequireUnlocked("sorter"))
+        {
+            return false;
+        }
+
         if (!Belts.TryPlaceFree(position, direction, SorterDefinition, CanOccupy))
         {
             return false;
@@ -590,7 +640,8 @@ public sealed class FactorySlice
     }
 
     public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
-        Belts.TryPlaceBridge(entry, direction, BridgeDefinition, CanOccupy);
+        RequireUnlocked("conveyor-bridge")
+        && Belts.TryPlaceBridge(entry, direction, BridgeDefinition, CanOccupy);
 
     public bool TryRemoveBelt(GridPosition position) => Belts.TryRemove(position);
 
@@ -599,6 +650,11 @@ public sealed class FactorySlice
         Direction direction,
         string outputItemId = MinerProducer.DefaultOutputItemId)
     {
+        if (!RequireUnlocked("miner"))
+        {
+            return false;
+        }
+
         if (!CanOccupyFootprint(origin, MinerProducer.Size))
         {
             if (miners.Count == 1 && FootprintClearExcept(origin, MinerProducer.Size, miner: miners[0]))
@@ -616,6 +672,11 @@ public sealed class FactorySlice
 
     public bool TryPlaceSmelter(GridPosition origin, Direction direction, RecipeDefinition? recipe = null)
     {
+        if (!RequireUnlocked("smelter"))
+        {
+            return false;
+        }
+
         recipe ??= Content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
 
@@ -636,6 +697,11 @@ public sealed class FactorySlice
 
     public bool TryPlaceAssembler(GridPosition origin, Direction direction, RecipeDefinition? recipe = null)
     {
+        if (!RequireUnlocked("assembler"))
+        {
+            return false;
+        }
+
         recipe ??= Content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
 
@@ -656,6 +722,11 @@ public sealed class FactorySlice
 
     public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East)
     {
+        if (!RequireUnlocked("generator"))
+        {
+            return false;
+        }
+
         if (!CanOccupyFootprint(origin, GeneratorStub.Size))
         {
             if (generators.Count == 1
@@ -1056,6 +1127,7 @@ public sealed class FactorySlice
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, grid, core);
+        slice.UnlockGodotSliceDemo();
 
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "smelter");
         Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of forno");
@@ -1083,6 +1155,7 @@ public sealed class FactorySlice
         // Speed: powered progress > unpowered over same window.
         var coldGrid = new BeltGrid();
         var cold = new FactorySlice(content, coldGrid, core);
+        cold.UnlockGodotSliceDemo();
         Assert(cold.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "cold smelter");
         var coldSm = cold.Smelters[0];
         Assert(coldSm.TryAccept("iron-ore") && coldSm.TryAccept("iron-ore"), "cold ore");
@@ -1295,6 +1368,7 @@ public sealed class FactorySlice
         // Place API + save/load partner/filter.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
         Assert(slice.TryPlaceSorter(new GridPosition(4, 4), Direction.East, "iron-plate"), "TryPlaceSorter");
         Assert(slice.Belts.TryGet(new GridPosition(4, 4), out var placedSorter)
             && placedSorter.FilterItemId == "iron-plate", "placed filter");
@@ -1339,6 +1413,69 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Sorter/bridge self-test: nessun filo al core entro 150s sim.");
+    }
+
+    /// <summary>Research unlocks: prereqs, wallet spend, save round-trip, place gates.</summary>
+    public static void SelfTestResearch(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+
+        Assert(slice.Research.IsUnlocked("conveyor-basic"), "default belt");
+        Assert(slice.Research.IsUnlocked("miner"), "default miner");
+        Assert(!slice.Research.IsUnlocked("smelter"), "forno locked");
+        Assert(!slice.Research.IsUnlocked("junction"), "junction locked");
+        Assert(!slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place forno gated");
+        Assert(!slice.TryPlaceJunction(new GridPosition(5, 5), Direction.East), "place junction gated");
+
+        var smelter = content.RequireStructure("smelter");
+        Assert(slice.Research.GetNodeState(smelter) == ResearchNodeState.Available, "smelter available");
+        Assert(!slice.Research.TryUnlock(smelter, slice.Wallet), "cannot afford smelter");
+
+        slice.Wallet.AddMoney(500);
+        slice.Wallet.AddMaterial("iron-plate", 40);
+        Assert(slice.TryUnlockStructure("smelter"), "unlock smelter");
+        Assert(slice.Research.IsUnlocked("smelter"), "smelter unlocked");
+        Assert(slice.Wallet.Money == 250, "spent 250");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 25, "spent 15 plates");
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place forno after unlock");
+
+        var assembler = content.RequireStructure("assembler");
+        Assert(slice.Research.GetNodeState(assembler) == ResearchNodeState.Available, "assembler avail");
+        // Need copper-ore for assembler unlock.
+        slice.Wallet.AddMoney(500);
+        slice.Wallet.AddMaterial("iron-plate", 30);
+        slice.Wallet.AddMaterial("copper-ore", 10);
+        Assert(slice.TryUnlockStructure("assembler"), "unlock assembler");
+
+        Assert(!slice.Research.IsUnlocked("splitter"), "splitter still locked");
+        slice.Wallet.AddMoney(2000);
+        slice.Wallet.AddMaterial("iron-plate", 100);
+        Assert(slice.TryUnlockStructure("junction"), "unlock junction");
+        Assert(slice.TryUnlockStructure("splitter"), "unlock splitter after junction");
+        Assert(slice.TryUnlockStructure("sorter"), "unlock sorter");
+        Assert(slice.TryUnlockStructure("conveyor-bridge"), "unlock bridge");
+        Assert(slice.TryUnlockStructure("generator"), "unlock generator");
+
+        var snap = slice.Capture();
+        Assert(snap.UnlockedStructures.Contains("smelter"), "capture smelter");
+        Assert(snap.UnlockedStructures.Contains("conveyor-bridge"), "capture bridge");
+        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v2");
+
+        FactorySliceSaveStore.Delete("selftest-research");
+        FactorySliceSaveStore.Save("selftest-research", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-research"));
+        Assert(restored.Research.IsUnlocked("smelter"), "restore smelter");
+        Assert(restored.Research.IsUnlocked("sorter"), "restore sorter");
+        Assert(restored.Research.IsUnlocked("conveyor-basic"), "restore defaults");
+        Assert(restored.Wallet.Money == slice.Wallet.Money, "money after unlocks");
+        FactorySliceSaveStore.Delete("selftest-research");
+
+        // Demo seed still unlocks all slice tools.
+        var demo = CreateSorterBridgeDemo(content);
+        Assert(demo.Research.IsUnlocked("sorter"), "demo sorter");
+        Assert(demo.Research.IsUnlocked("generator"), "demo generator");
     }
 
     private static void Assert(bool condition, string message)

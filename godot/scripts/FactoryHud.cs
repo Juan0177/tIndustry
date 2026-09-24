@@ -32,6 +32,7 @@ public partial class FactoryHud : Control
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
     private readonly Dictionary<string, Label> _stockLabels = [];
+    private readonly HashSet<ToolKind> _lockedTools = [];
     private Label? _dirLabel;
     private Label? _toastLabel;
     private Label? _hintLabel;
@@ -44,6 +45,7 @@ public partial class FactoryHud : Control
     public event Action? LoadRequested;
     public event Action? SaveSlotRequested;
     public event Action? LoadSlotRequested;
+    public event Action? ResearchRequested;
 
     public ToolKind SelectedTool => _selected;
     public bool IsCursorMode => _selected == ToolKind.Cursor;
@@ -64,24 +66,85 @@ public partial class FactoryHud : Control
     public void SetSelectedTool(ToolKind tool)
     {
         _selected = tool;
+        RefreshToolChrome();
+        if (_hintLabel is not null)
+        {
+            var hint = ToolHint(tool);
+            if (_lockedTools.Contains(tool) && tool != ToolKind.Cursor)
+            {
+                hint += " · bloccato (T)";
+            }
+
+            _hintLabel.Text = hint;
+        }
+    }
+
+    public void SetToolLocked(ToolKind tool, bool locked)
+    {
+        if (tool == ToolKind.Cursor)
+        {
+            return;
+        }
+
+        if (locked)
+        {
+            _lockedTools.Add(tool);
+        }
+        else
+        {
+            _lockedTools.Remove(tool);
+        }
+
+        RefreshToolChrome();
+    }
+
+    public void SetToolsLocked(IEnumerable<(ToolKind Tool, bool Locked)> states)
+    {
+        foreach (var (tool, locked) in states)
+        {
+            if (tool == ToolKind.Cursor)
+            {
+                continue;
+            }
+
+            if (locked)
+            {
+                _lockedTools.Add(tool);
+            }
+            else
+            {
+                _lockedTools.Remove(tool);
+            }
+        }
+
+        RefreshToolChrome();
+    }
+
+    public bool IsToolLocked(ToolKind tool) => _lockedTools.Contains(tool);
+
+    private void RefreshToolChrome()
+    {
         foreach (var (kind, slot) in _toolSlots)
         {
-            var selected = kind == tool;
+            var locked = _lockedTools.Contains(kind);
+            var selected = kind == _selected;
             var style = (StyleBoxFlat)slot.GetThemeStylebox("panel").Duplicate();
-            style.BorderColor = selected ? SlotSelected : SlotIdle;
+            style.BorderColor = selected
+                ? SlotSelected
+                : locked
+                    ? new Color(0.35f, 0.28f, 0.28f, 1f)
+                    : SlotIdle;
             style.BorderWidthLeft = selected ? 3 : 1;
             style.BorderWidthTop = selected ? 3 : 1;
             style.BorderWidthRight = selected ? 3 : 1;
             style.BorderWidthBottom = selected ? 3 : 1;
             style.BgColor = selected
                 ? new Color(0.22f, 0.24f, 0.18f, 1f)
-                : SlotBg;
+                : locked
+                    ? new Color(0.12f, 0.12f, 0.12f, 1f)
+                    : SlotBg;
             slot.AddThemeStyleboxOverride("panel", style);
-        }
-
-        if (_hintLabel is not null)
-        {
-            _hintLabel.Text = ToolHint(tool);
+            slot.Modulate = locked ? new Color(0.55f, 0.55f, 0.55f, 1f) : Colors.White;
         }
     }
 
@@ -305,22 +368,30 @@ public partial class FactoryHud : Control
         var saveRow = new HBoxContainer();
         saveRow.AddThemeConstantOverride("separation", 6);
         side.AddChild(saveRow);
+        AddActionChip(saveRow, "Ricerca", "T", () =>
+        {
+            ResearchRequested?.Invoke();
+        });
         AddActionChip(saveRow, "Salva", "F5", () =>
         {
             SaveRequested?.Invoke();
         });
-        AddActionChip(saveRow, "Carica", "F9", () =>
+
+        var loadRow = new HBoxContainer();
+        loadRow.AddThemeConstantOverride("separation", 6);
+        side.AddChild(loadRow);
+        AddActionChip(loadRow, "Carica", "F9", () =>
         {
             LoadRequested?.Invoke();
+        });
+        AddActionChip(loadRow, "Slot↑", "F6", () =>
+        {
+            SaveSlotRequested?.Invoke();
         });
 
         var slotRow = new HBoxContainer();
         slotRow.AddThemeConstantOverride("separation", 6);
         side.AddChild(slotRow);
-        AddActionChip(slotRow, "Slot↑", "F6", () =>
-        {
-            SaveSlotRequested?.Invoke();
-        });
         AddActionChip(slotRow, "Slot↓", "F7", () =>
         {
             LoadSlotRequested?.Invoke();
@@ -492,6 +563,13 @@ public partial class FactoryHud : Control
         {
             if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
+                if (_lockedTools.Contains(kind))
+                {
+                    ShowToast($"{labelIt} bloccato: sbloccalo in Ricerca (T).");
+                    AcceptEvent();
+                    return;
+                }
+
                 // Re-click selected place tool → back to cursor.
                 if (_selected == kind)
                 {
@@ -590,5 +668,19 @@ public partial class FactoryHud : Control
         ToolKind.Sorter => "Click: selezionatore (C cicla filtro)",
         ToolKind.Bridge => "Click: ponte span 2–4 (estremi 1×1, centro sottile)",
         _ => ""
+    };
+
+    public static string StructureIdFor(ToolKind tool) => tool switch
+    {
+        ToolKind.Belt => "conveyor-basic",
+        ToolKind.Miner => "miner",
+        ToolKind.Smelter => "smelter",
+        ToolKind.Assembler => "assembler",
+        ToolKind.Junction => "junction",
+        ToolKind.Splitter => "splitter",
+        ToolKind.Generator => "generator",
+        ToolKind.Sorter => "sorter",
+        ToolKind.Bridge => "conveyor-bridge",
+        _ => "conveyor-basic"
     };
 }

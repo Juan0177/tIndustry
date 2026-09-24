@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Playable factory slice + FactoryHud. Default = cursore (no place tool).
-/// Hotkeys 1–9 place · Esc/` cursore · R ruota · C filtro · RMB elimina.
+/// Playable factory slice + FactoryHud + Ricerca. Default = cursore.
+/// Hotkeys 1–9 place · Esc cursore · T ricerca · R ruota · C filtro · RMB elimina.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -38,6 +38,7 @@ public partial class SpikeWorld : Node2D
     private Node2D? _itemsLayer;
     private Node2D? _buildingsLayer;
     private FactoryHud? _hud;
+    private ResearchPanel? _research;
     private string _contentPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Cursor;
@@ -62,6 +63,7 @@ public partial class SpikeWorld : Node2D
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureFactoryHud();
+        EnsureResearchPanel();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -72,7 +74,30 @@ public partial class SpikeWorld : Node2D
         EnsureBeltVisual();
         RebuildBeltVisual();
         RebuildBuildingVisuals();
+        SyncResearchLocks();
         UpdateHud();
+
+        // Research capture: locked start + wallet for unlock demo.
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "cursor")
+        {
+            var fresh = FactoryContent.Load(_contentPath);
+            _slice = new FactorySlice(
+                fresh,
+                new BeltGrid(),
+                CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2));
+            _slice.Wallet.AddMoney(800);
+            _slice.Wallet.AddMaterial("iron-plate", 80);
+            _slice.Wallet.AddMaterial("copper-ore", 12);
+            _slice.Wallet.AddMaterial("copper-wire", 12);
+            _slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
+            _visualDirty = true;
+            _buildingsDirty = true;
+            RebuildBeltVisual();
+            RebuildBuildingVisuals();
+            SyncResearchLocks();
+            UpdateHud();
+        }
 
         // Continue: auto-load continua after visuals exist (unless TINDUSTRY_FRESH=1).
         if (OS.GetEnvironment("TINDUSTRY_FRESH") != "1"
@@ -82,7 +107,7 @@ public partial class SpikeWorld : Node2D
             LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata", quietFail: true);
         }
 
-        // Optional capture: TINDUSTRY_CAPTURE=1 → cursor UI screenshots then quit.
+        // Optional capture: TINDUSTRY_CAPTURE=1 → research screenshots then quit.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
         {
             var timer = GetTree().CreateTimer(1.0);
@@ -122,8 +147,77 @@ public partial class SpikeWorld : Node2D
         _hud.LoadRequested += () => LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
         _hud.SaveSlotRequested += () => SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
         _hud.LoadSlotRequested += () => LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
+        _hud.ResearchRequested += ToggleResearch;
         _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
+    }
+
+    private void EnsureResearchPanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("ResearchPanel"))
+        {
+            _research = layer.GetNode<ResearchPanel>("ResearchPanel");
+        }
+        else
+        {
+            _research = new ResearchPanel { Name = "ResearchPanel" };
+            layer.AddChild(_research);
+        }
+
+        _research.UnlockedChanged += () =>
+        {
+            SyncResearchLocks();
+            if (_slice is not null)
+            {
+                _hud?.ShowToast("Sblocco applicato");
+            }
+        };
+    }
+
+    private void ToggleResearch()
+    {
+        if (_slice is null || _research is null)
+        {
+            return;
+        }
+
+        if (_research.IsOpen)
+        {
+            _research.Close();
+            return;
+        }
+
+        ClearToCursor(toast: false);
+        _research.Open(_slice);
+    }
+
+    private void SyncResearchLocks()
+    {
+        if (_hud is null || _slice is null)
+        {
+            return;
+        }
+
+        var tools = new[]
+        {
+            FactoryHud.ToolKind.Belt,
+            FactoryHud.ToolKind.Miner,
+            FactoryHud.ToolKind.Smelter,
+            FactoryHud.ToolKind.Assembler,
+            FactoryHud.ToolKind.Junction,
+            FactoryHud.ToolKind.Splitter,
+            FactoryHud.ToolKind.Generator,
+            FactoryHud.ToolKind.Sorter,
+            FactoryHud.ToolKind.Bridge
+        };
+        _hud.SetToolsLocked(tools.Select(t =>
+            (t, !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(t)))));
+
+        if (_tool != BuildTool.Cursor && _hud.IsToolLocked(ToHudTool(_tool)))
+        {
+            ClearToCursor(toast: false);
+        }
     }
 
     private void SaveSlice(string slotId, string toast)
@@ -175,6 +269,7 @@ public partial class SpikeWorld : Node2D
             _buildingsDirty = true;
             RebuildBeltVisual();
             RebuildBuildingVisuals();
+            SyncResearchLocks();
             UpdateHud();
             QueueRedraw();
             _hud?.ShowToast(toast);
@@ -211,6 +306,14 @@ public partial class SpikeWorld : Node2D
 
     private void SelectTool(BuildTool tool, bool toast = false)
     {
+        if (tool != BuildTool.Cursor
+            && _slice is not null
+            && !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(ToHudTool(tool))))
+        {
+            _hud?.ShowToast($"{ToolIt(tool)} bloccato: sbloccalo in Ricerca (T).");
+            return;
+        }
+
         _tool = tool;
         _hud?.SetSelectedTool(ToHudTool(tool));
         if (toast)
@@ -284,6 +387,18 @@ public partial class SpikeWorld : Node2D
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (key.Keycode == Key.T)
+            {
+                ToggleResearch();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (_research?.IsOpen == true)
+            {
+                return;
+            }
+
             if (key.Keycode == Key.Escape || key.Keycode == Key.Quoteleft)
             {
                 ClearToCursor();
@@ -326,7 +441,7 @@ public partial class SpikeWorld : Node2D
                 return;
             }
 
-            if (key.Keycode == Key.Key6 || key.Keycode == Key.T)
+            if (key.Keycode == Key.Key6)
             {
                 SelectTool(BuildTool.Splitter, toast: true);
                 GetViewport().SetInputAsHandled();
@@ -395,6 +510,11 @@ public partial class SpikeWorld : Node2D
                 GetViewport().SetInputAsHandled();
                 return;
             }
+        }
+
+        if (_research?.IsOpen == true)
+        {
+            return;
         }
 
         if (@event is InputEventMouseButton mouse)
@@ -654,6 +774,13 @@ public partial class SpikeWorld : Node2D
     {
         if (_slice is null || _tool == BuildTool.Cursor)
         {
+            return;
+        }
+
+        var structureId = FactoryHud.StructureIdFor(ToHudTool(_tool));
+        if (!_slice.IsStructureUnlocked(structureId))
+        {
+            _hud?.ShowToast($"{ToolIt(_tool)} bloccato: sbloccalo in Ricerca (T).");
             return;
         }
 
@@ -1076,43 +1203,72 @@ public partial class SpikeWorld : Node2D
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
         if (cam is not null)
         {
-            cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
-            cam.Zoom = new Vector2(0.5f, 0.5f);
+            cam.Position = new Vector2(8f * TileSize, 8f * TileSize);
+            cam.Zoom = new Vector2(0.65f, 0.65f);
         }
 
-        // Default: cursore selected, no Ruota slot.
         ClearToCursor(toast: false);
+        SyncResearchLocks();
+        UpdateHud();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+
+        var lockedFull = GetViewport().GetTexture().GetImage();
+        var barH = Math.Min(170, lockedFull.GetHeight());
+        var lockedBar = lockedFull.GetRegion(
+            new Rect2I(0, lockedFull.GetHeight() - barH, lockedFull.GetWidth(), barH));
+        lockedBar.SavePng(Path.Combine(destDir, "godot-port-research-locked-toolbar.png"));
+        lockedBar.SavePng("/opt/cursor/artifacts/godot-port-research-locked-toolbar.png");
+        GD.Print($"Saved research locked-toolbar → {destDir}");
+
+        _research?.Open(_slice);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
+        var panelShot = GetViewport().GetTexture().GetImage();
+        panelShot.SavePng(Path.Combine(destDir, "godot-port-research-panel.png"));
+        panelShot.SavePng("/opt/cursor/artifacts/godot-port-research-panel.png");
 
-        var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-map.png");
+        if (!_slice.TryUnlockStructure("smelter"))
+        {
+            GD.PushError("Capture unlock smelter failed");
+        }
+        else
+        {
+            _hud.ShowToast("Forno sbloccato!");
+        }
 
-        var barH = Math.Min(170, overview.GetHeight());
-        var bar = overview.GetRegion(new Rect2I(0, overview.GetHeight() - barH, overview.GetWidth(), barH));
-        bar.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-toolbar.png"));
-        bar.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-toolbar.png");
-        GD.Print($"Saved cursor toolbar → {destDir}");
-
-        // Select a place tool then Esc back to cursor.
-        SelectTool(BuildTool.Belt, toast: true);
+        _research?.Refresh();
+        SyncResearchLocks();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
-        var beltSel = GetViewport().GetTexture().GetImage();
-        var beltBar = beltSel.GetRegion(new Rect2I(0, beltSel.GetHeight() - barH, beltSel.GetWidth(), barH));
-        beltBar.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-nastro-selected.png"));
-        beltBar.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-nastro-selected.png");
+        var afterUnlock = GetViewport().GetTexture().GetImage();
+        afterUnlock.SavePng(Path.Combine(destDir, "godot-port-research-unlocked-forno.png"));
+        afterUnlock.SavePng("/opt/cursor/artifacts/godot-port-research-unlocked-forno.png");
 
-        ClearToCursor(toast: true);
+        _research?.Close();
+        SelectTool(BuildTool.Smelter, toast: true);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
-        var back = GetViewport().GetTexture().GetImage();
-        var backBar = back.GetRegion(new Rect2I(0, back.GetHeight() - barH, back.GetWidth(), barH));
-        backBar.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-after-esc.png"));
-        backBar.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-after-esc.png");
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var toolShot = GetViewport().GetTexture().GetImage();
+        var toolBar = toolShot.GetRegion(
+            new Rect2I(0, toolShot.GetHeight() - barH, toolShot.GetWidth(), barH));
+        toolBar.SavePng(Path.Combine(destDir, "godot-port-research-forno-toolbar.png"));
+        toolBar.SavePng("/opt/cursor/artifacts/godot-port-research-forno-toolbar.png");
 
-        GD.Print("Cursor UI screenshot set complete.");
+        SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
+        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
+        if (!_slice.Research.IsUnlocked("smelter"))
+        {
+            GD.PushError("capture restore smelter");
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var roundtrip = GetViewport().GetTexture().GetImage();
+        roundtrip.SavePng(Path.Combine(destDir, "godot-port-research-save-roundtrip.png"));
+        roundtrip.SavePng("/opt/cursor/artifacts/godot-port-research-save-roundtrip.png");
+
+        GD.Print("Research screenshot set complete.");
         GetTree().Quit();
     }
 

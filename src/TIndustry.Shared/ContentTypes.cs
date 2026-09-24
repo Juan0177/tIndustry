@@ -52,4 +52,9 @@ public sealed record StructureDefinition(
     string Kind,
     bool UnlockedByDefault,
     UnlockRequirement? Unlock,
-    bool IsStub);
+    bool IsStub = false,
+    IReadOnlyList<string>? Prerequisites = null)
+{
+    public IReadOnlyList<string> Requires =>
+        Prerequisites ?? Array.Empty<string>();
+}
