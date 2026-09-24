@@ -467,6 +467,8 @@ public partial class SpikeWorld : Node2D
                 var from = CellCenter(cell.Position);
                 var to = CellCenter(cell.Position.Step(cell.Direction));
                 sprite.Position = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
+                // Corner = galleria: items disappear while inside the turn.
+                sprite.Visible = !_slice.Belts.IsCorner(cell.Position);
             }
         }
 

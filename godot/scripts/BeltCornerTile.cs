@@ -4,15 +4,23 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell corner that overlaps abutting strips so the join is covered by one
-/// continuous surface (no dark butt line / color break). Base: enter-west → exit-south.
+/// Full-cell rounded L corner (galleria). Overlaps abutting strips; tunnel mouth
+/// ombrette at entry/exit when that opening is an effective extremity (neighbor
+/// is not another corner). Base art: enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
     private ShaderMaterial? _material;
     private Sprite2D? _sprite;
 
-    public void Configure(GridPosition cell, Direction from, Direction to, int tileSize, float scrollPhaseTiles)
+    public void Configure(
+        GridPosition cell,
+        Direction from,
+        Direction to,
+        int tileSize,
+        float scrollPhaseTiles,
+        bool shadeEntry = true,
+        bool shadeExit = true)
     {
         EnsureVisual();
         _sprite!.Texture = CreateUnitTexture();
@@ -35,8 +43,10 @@ public partial class BeltCornerTile : Node2D
         var span = (float)tileSize;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        // 0.42 matches full-tile straight body (rails at 8%/92%); SDF arc radius.
+        // 0.42 matches full-tile straight body; SDF arc radius.
         _material!.SetShaderParameter("half_width", 0.42f);
+        _material.SetShaderParameter("shade_entry", shadeEntry ? 1f : 0f);
+        _material.SetShaderParameter("shade_exit", shadeExit ? 1f : 0f);
         _ = scrollPhaseTiles;
     }
 

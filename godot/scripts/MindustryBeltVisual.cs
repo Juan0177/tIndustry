@@ -59,9 +59,12 @@ public partial class MindustryBeltVisual : Node2D
                 phase += straight.Count;
             }
 
+            // Ombrette only at effective extremities: skip if neighbor cell is also a corner.
+            var shadeEntry = i < 2 || !IsPathCorner(path, i - 1);
+            var shadeExit = i >= path.Count - 2 || !IsPathCorner(path, i + 1);
             var corner = new BeltCornerTile { Name = $"Corner_{path[i].X}_{path[i].Y}" };
             AddChild(corner);
-            corner.Configure(path[i], into, outward, tileSize, phase);
+            corner.Configure(path[i], into, outward, tileSize, phase, shadeEntry, shadeExit);
             _corners.Add(corner);
             phase += 1f;
             segStart = i + 1;
@@ -103,7 +106,13 @@ public partial class MindustryBeltVisual : Node2D
 
             var corner = new BeltCornerTile { Name = $"Corner_{pos.X}_{pos.Y}" };
             AddChild(corner);
-            corner.Configure(pos, incoming, cell.Direction, tileSize, phase);
+            var pred = pos.Step(DirectionMath.Opposite(incoming));
+            var succ = pos.Step(cell.Direction);
+            // Z/U: ombrette only where the gallery opens onto a straight (or void),
+            // not where two corners abut.
+            var shadeEntry = !grid.IsCorner(pred);
+            var shadeExit = !grid.IsCorner(succ);
+            corner.Configure(pos, incoming, cell.Direction, tileSize, phase, shadeEntry, shadeExit);
             _corners.Add(corner);
             visited.Add(pos);
             phase += 1f;
@@ -177,6 +186,18 @@ public partial class MindustryBeltVisual : Node2D
             phase += 1f;
             visited.Add(pos);
         }
+    }
+
+    private static bool IsPathCorner(IReadOnlyList<GridPosition> path, int i)
+    {
+        if (i <= 0 || i >= path.Count - 1)
+        {
+            return false;
+        }
+
+        var into = BeltLane.DirectionBetween(path[i - 1], path[i]);
+        var outward = BeltLane.DirectionBetween(path[i], path[i + 1]);
+        return outward != into;
     }
 
     private void ClearVisuals()
