@@ -1,15 +1,21 @@
 shader_type canvas_item;
 
-// Full-cell corner, seamless with belt_scroll.
-// Soft SDF L path edge (the inner arc) is kept as a groove-tint cue.
-// Bottom borders only: no SE south-rail stub, solid SW ┘ knuckle,
-// no groove stub on the bottom edge beside the knuckle.
-// Base art: enter west → exit south.
+// Full-cell rounded L corner (galleria / tunnel).
+// SDF capsule L → outer NE quarter-arc + inner fillet.
+// Dark pad in the NE pocket. Square N/E frame; SW knuckle only.
+// Path rim only on the curved bend (not entry/exit arms).
+// Mouth ombrette = soft multiply only (no rail-tint lips → no seam steps).
+// shade_entry / shade_exit: C# zeros when neighbor is another corner (Z/U).
+// Base: enter west → exit south.
 
-uniform float half_width = 0.40;
+uniform float half_width = 0.42;
+uniform float shade_entry = 1.0;
+uniform float shade_exit = 1.0;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
 uniform vec4 rail_color : source_color = vec4(0.10, 0.12, 0.14, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
+// Above IsRail thresholds (R>30 or G>36) so pad ≠ rail for pixel checks.
+uniform vec4 pad_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
 
 float sd_segment(vec2 p, vec2 a, vec2 b) {
 	vec2 pa = p - a;
@@ -20,57 +26,64 @@ float sd_segment(vec2 p, vec2 a, vec2 b) {
 
 void fragment() {
 	vec2 p = UV;
+	float hw = half_width;
 
-	// Soft L path (west → south) — same shade blend as before so the arc
-	// reads as a continuation of the abutting straights.
 	vec2 a = vec2(0.0, 0.5);
 	vec2 b = vec2(0.5, 0.5);
 	vec2 c = vec2(0.5, 1.0);
 	float dh = sd_segment(p, a, b);
 	float dv = sd_segment(p, b, c);
 	float d = min(dh, dv);
-	float shade_h = 0.92 + 0.08 * smoothstep(0.0, 0.5, abs(p.y - 0.5));
-	float shade_v = 0.92 + 0.08 * smoothstep(0.0, 0.5, abs(p.x - 0.5));
-	float arm = dh / max(dh + dv, 1e-5);
-	float shade = mix(shade_h, shade_v, arm);
+	float in_belt = step(d, hw);
 
-	vec3 col = base_color.rgb * shade;
+	float on_vert = step(dv, dh);
+	float across_h = (p.y - 0.5) / hw;
+	float across_v = (0.5 - p.x) / hw;
+	float across = clamp(mix(across_h, across_v, on_vert), -1.0, 1.0);
+	float shade = 0.92 + 0.08 * smoothstep(0.0, 0.5, abs(across));
+	vec3 belt = base_color.rgb * shade;
 
-	// Outer rails — N and E always (outer elbow).
+	// Rim along SDF boundary near the bend only (outer arc + inner fillet).
+	float rim = step(hw - 0.08, d) * step(d, hw);
+	float groove_rim = step(hw - 0.14, d) * (1.0 - step(hw - 0.08, d));
+	// Suppress on straight entry/exit arms so N/S and E/W seams stay flush.
+	float on_entry_arm = step(p.x, 0.40);
+	float on_exit_arm = step(0.60, p.y);
+	float curved = (1.0 - on_entry_arm) * (1.0 - on_exit_arm);
+	// Keep rim in the NE outer-arc quadrant even when y is mid-high.
+	float ne_arc = step(0.45, p.x) * step(p.y, 0.55);
+	curved = max(curved, ne_arc);
+	rim *= curved;
+	groove_rim *= curved;
+	// Keep N/E frame rails thin — don't let bend rim merge into them.
+	float away_from_frame = step(0.16, p.y) * step(p.x, 0.84);
+	rim *= away_from_frame;
+	groove_rim *= away_from_frame;
+
+	belt = mix(belt, groove_color.rgb, clamp(groove_rim, 0.0, 1.0));
+	belt = mix(belt, rail_color.rgb, clamp(rim, 0.0, 1.0));
+
+	// Galleria mouth ombrette — multiply only, capped so body stays non-rail.
+	float entry_umbra = shade_entry * (1.0 - smoothstep(0.0, 0.30, p.x));
+	float exit_umbra = shade_exit * smoothstep(0.70, 1.0, p.y);
+	float umbra = min(max(entry_umbra, exit_umbra), 0.30) * in_belt;
+	belt *= 1.0 - umbra;
+
+	vec3 col = mix(pad_color.rgb, belt, in_belt);
+
+	// Square outer frame.
 	float rail_n = step(p.y, 0.08);
 	float rail_e = step(0.92, p.x);
-
-	// South: ONLY west rail column (absolute 8%) — continues H bottom into the ┘.
-	// Do NOT use (0.5 - half_width): with half_width 0.40 that spills past the
-	// knuckle and reads as a bottom-edge step. No SE stub either.
 	float rail_s = step(0.92, p.y) * step(p.x, 0.08);
-
-	// West: mid-band below the entry (same as before), plus SW knuckle so the
-	// inner ┘ meets the south rail cleanly (no notch).
-	float open_w = step(abs(p.y - 0.5), half_width) * step(p.x, 0.14);
-	float rail_w = step(p.x, 0.08)
-		* step(0.14, p.y) * step(p.y, 0.86)
-		* (1.0 - open_w);
-	float knuckle = step(p.x, 0.08) * step(0.92, p.y);
-	float rail = max(max(rail_n, rail_e), max(max(rail_s, rail_w), knuckle));
+	float rail_w = step(p.x, 0.08) * step(0.92, p.y);
+	float frame = max(max(rail_n, rail_e), max(rail_s, rail_w));
 
 	float groove_n = step(p.y, 0.14) * (1.0 - step(p.y, 0.08));
 	float groove_e = step(p.x, 0.92) * (1.0 - step(p.x, 0.86));
-	// South groove only west of channel (matches rail_s); never a SE stub.
-	float groove_s = step(p.y, 0.92) * (1.0 - step(p.y, 0.86))
-		* step(p.x, 0.5 - half_width);
-	// West groove in mid-band only — NOT on the bottom edge (y>=0.92), where
-	// a stub beside the knuckle read as a stepped notch.
-	float groove_w = step(p.x, 0.14) * (1.0 - step(p.x, 0.08))
-		* step(0.14, p.y) * step(p.y, 0.86) * (1.0 - open_w);
-	float groove = max(max(groove_n, groove_e), max(groove_s, groove_w));
+	float frame_groove = max(groove_n, groove_e) * (1.0 - in_belt);
 
-	// Soft L path edge (the arc) — groove tint, not a darker filled channel.
-	float path_edge = step(half_width - 0.04, d) * step(d, half_width);
-
-	col = mix(col, groove_color.rgb, clamp(groove, 0.0, 1.0));
-	col = mix(col, groove_color.rgb, path_edge * 0.55);
-	col = mix(col, rail_color.rgb, clamp(rail, 0.0, 1.0));
+	col = mix(col, groove_color.rgb, clamp(frame_groove, 0.0, 1.0));
+	col = mix(col, rail_color.rgb, clamp(frame, 0.0, 1.0));
 
 	COLOR = vec4(col, 1.0);
 }
