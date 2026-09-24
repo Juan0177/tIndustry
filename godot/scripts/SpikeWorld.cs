@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Phase E: belts + buildings + junction/splitter logistics (ore→plate+rame→wire→core).
-/// 1=nastro · 2=minatore · 3=forno · 4=assemblatore · 5=giunzione · 6=splitter · R=ruota.
+/// Phase E play slice + FactoryHud UI (toolbar / core stock).
+/// Hotkeys 1–6 + R still work alongside UI clicks.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -28,7 +28,7 @@ public partial class SpikeWorld : Node2D
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Node2D? _buildingsLayer;
-    private Label? _hud;
+    private FactoryHud? _hud;
     private string _contentPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Belt;
@@ -49,7 +49,7 @@ public partial class SpikeWorld : Node2D
         _slice = FactorySlice.CreatePhaseEDemo(content);
 
         _itemsLayer = GetNode<Node2D>("Items");
-        _hud = GetNode<Label>("Hud/Status");
+        EnsureFactoryHud();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -61,16 +61,111 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         UpdateHud();
 
-        var timer = GetTree().CreateTimer(2.0);
-        timer.Timeout += () => _ = SavePortScreenshotsAsync();
+        // Optional capture: TINDUSTRY_CAPTURE=1 → UI screenshots then quit.
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
+        {
+            var timer = GetTree().CreateTimer(1.2);
+            timer.Timeout += () => _ = SavePortScreenshotsAsync();
+        }
+
         if (HasNode("Camera"))
         {
-            // Frame Phase D seed: iron+copper lines + assembler + core.
             var cam = GetNode<Camera2D>("Camera");
             cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
             cam.Zoom = new Vector2(0.55f, 0.55f);
         }
     }
+
+    private void EnsureFactoryHud()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        // Demote legacy debug label if present.
+        if (layer.HasNode("Status"))
+        {
+            layer.GetNode("Status").QueueFree();
+        }
+
+        if (layer.HasNode("FactoryHud"))
+        {
+            _hud = layer.GetNode<FactoryHud>("FactoryHud");
+        }
+        else
+        {
+            _hud = new FactoryHud { Name = "FactoryHud" };
+            layer.AddChild(_hud);
+        }
+
+        _hud.ToolChosen += OnHudToolChosen;
+        _hud.RotateRequested += OnHudRotate;
+        _hud.SetSelectedTool(ToHudTool(_tool));
+        _hud.SetDirectionLabel(DirectionIt(_placeDir));
+    }
+
+    private void OnHudToolChosen(FactoryHud.ToolKind kind)
+    {
+        _tool = FromHudTool(kind);
+        QueueRedraw();
+    }
+
+    private void OnHudRotate()
+    {
+        _placeDir = DirectionMath.Right(_placeDir);
+        _hud?.SetDirectionLabel(DirectionIt(_placeDir));
+        _hud?.ShowToast($"Direzione: {DirectionIt(_placeDir)}");
+        QueueRedraw();
+    }
+
+    private void SelectTool(BuildTool tool, bool toast = false)
+    {
+        _tool = tool;
+        _hud?.SetSelectedTool(ToHudTool(tool));
+        if (toast)
+        {
+            _hud?.ShowToast($"{ToolIt(tool)} selezionato");
+        }
+
+        QueueRedraw();
+    }
+
+    private static FactoryHud.ToolKind ToHudTool(BuildTool tool) => tool switch
+    {
+        BuildTool.Miner => FactoryHud.ToolKind.Miner,
+        BuildTool.Smelter => FactoryHud.ToolKind.Smelter,
+        BuildTool.Assembler => FactoryHud.ToolKind.Assembler,
+        BuildTool.Junction => FactoryHud.ToolKind.Junction,
+        BuildTool.Splitter => FactoryHud.ToolKind.Splitter,
+        _ => FactoryHud.ToolKind.Belt
+    };
+
+    private static BuildTool FromHudTool(FactoryHud.ToolKind tool) => tool switch
+    {
+        FactoryHud.ToolKind.Miner => BuildTool.Miner,
+        FactoryHud.ToolKind.Smelter => BuildTool.Smelter,
+        FactoryHud.ToolKind.Assembler => BuildTool.Assembler,
+        FactoryHud.ToolKind.Junction => BuildTool.Junction,
+        FactoryHud.ToolKind.Splitter => BuildTool.Splitter,
+        _ => BuildTool.Belt
+    };
+
+    private static string ToolIt(BuildTool tool) => tool switch
+    {
+        BuildTool.Belt => "Nastro",
+        BuildTool.Miner => "Minatore",
+        BuildTool.Smelter => "Forno",
+        BuildTool.Assembler => "Assemblatore",
+        BuildTool.Junction => "Giunzione",
+        BuildTool.Splitter => "Splitter",
+        _ => "?"
+    };
+
+    private static string DirectionIt(Direction dir) => dir switch
+    {
+        Direction.North => "Nord",
+        Direction.East => "Est",
+        Direction.South => "Sud",
+        Direction.West => "Ovest",
+        _ => "?"
+    };
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -83,50 +178,49 @@ public partial class SpikeWorld : Node2D
         {
             if (key.Keycode == Key.Key1 || key.Keycode == Key.N)
             {
-                _tool = BuildTool.Belt;
+                SelectTool(BuildTool.Belt, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.Key2 || key.Keycode == Key.M)
             {
-                _tool = BuildTool.Miner;
+                SelectTool(BuildTool.Miner, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.Key3 || key.Keycode == Key.F)
             {
-                _tool = BuildTool.Smelter;
+                SelectTool(BuildTool.Smelter, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.Key4 || key.Keycode == Key.A)
             {
-                _tool = BuildTool.Assembler;
+                SelectTool(BuildTool.Assembler, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.Key5 || key.Keycode == Key.J)
             {
-                _tool = BuildTool.Junction;
+                SelectTool(BuildTool.Junction, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.Key6 || key.Keycode == Key.T)
             {
-                _tool = BuildTool.Splitter;
+                SelectTool(BuildTool.Splitter, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.R)
             {
-                _placeDir = DirectionMath.Right(_placeDir);
-                QueueRedraw();
+                OnHudRotate();
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -599,50 +693,27 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var oreName = _slice.Content.DisplayName("iron-ore");
-        var plateName = _slice.Content.DisplayName("iron-plate");
-        var copperName = _slice.Content.DisplayName("copper-ore");
-        var wireName = _slice.Content.DisplayName("copper-wire");
-        var oreStock = _slice.Wallet.MaterialCount("iron-ore");
-        var plateStock = _slice.Wallet.MaterialCount("iron-plate");
-        var copperStock = _slice.Wallet.MaterialCount("copper-ore");
-        var wireStock = _slice.Wallet.MaterialCount("copper-wire");
         var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
-        var scroll = _beltVisual?.ScrollTiles ?? 0f;
-        var miner = _slice.Miner;
-        var progressPct = miner is null ? 0 : (int)(miner.Progress * 100f);
-        var crafted = _slice.Smelters.Sum(s => s.ItemsCrafted);
-        var smeltProg = _slice.Smelters.Count > 0 ? (int)(_slice.Smelters[0].Progress * 100f) : 0;
-        var wired = _slice.Assemblers.Sum(a => a.ItemsCrafted);
-        var asmProg = _slice.Assemblers.Count > 0 ? (int)(_slice.Assemblers[0].Progress * 100f) : 0;
-        var junctions = _slice.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Junction);
-        var splitters = _slice.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Splitter);
-        var toolIt = _tool switch
-        {
-            BuildTool.Belt => "Nastro",
-            BuildTool.Miner => "Minatore",
-            BuildTool.Smelter => "Forno",
-            BuildTool.Assembler => "Assemblatore",
-            BuildTool.Junction => "Giunzione",
-            BuildTool.Splitter => "Splitter",
-            _ => "?"
-        };
-        var dirIt = _placeDir switch
-        {
-            Direction.North => "Nord",
-            Direction.East => "Est",
-            Direction.South => "Sud",
-            Direction.West => "Ovest",
-            _ => "?"
-        };
+        _hud.UpdateStock(
+            ShortName(_slice.Content.DisplayName("iron-ore")),
+            _slice.Wallet.MaterialCount("iron-ore"),
+            ShortName(_slice.Content.DisplayName("iron-plate")),
+            _slice.Wallet.MaterialCount("iron-plate"),
+            ShortName(_slice.Content.DisplayName("copper-ore")),
+            _slice.Wallet.MaterialCount("copper-ore"),
+            ShortName(_slice.Content.DisplayName("copper-wire")),
+            _slice.Wallet.MaterialCount("copper-wire"),
+            _slice.CoreDeliveredItems,
+            onBelt);
+        _hud.SetDirectionLabel(DirectionIt(_placeDir));
+    }
 
-        _hud.Text =
-            $"tIndustry Godot — Phase E  |  tool={toolIt}  dir={dirIt}  |  Nastro={_slice.BeltDefinition.Id}\n" +
-            $"Minatore×{_slice.Miners.Count} prog={progressPct}%  |  Forno×{_slice.Smelters.Count} craft={smeltProg}% prodotti={crafted}  |  " +
-            $"Assemblatore×{_slice.Assemblers.Count} craft={asmProg}% fili={wired}  |  J×{junctions} S×{splitters}  |  nastro={onBelt}\n" +
-            $"Core: {oreName}={oreStock}  {plateName}={plateStock}  {copperName}={copperStock}  {wireName}={wireStock}  " +
-            $"(consegnati={_slice.CoreDeliveredItems})  scroll={scroll:0.00}\n" +
-            "1=nastro · 2=minatore · 3=forno · 4=assemblatore · 5=giunzione · 6=splitter · R=ruota · click=piazza · destro=rimuovi";
+    private static string ShortName(string display)
+    {
+        // Compact stock labels: "Lastra di ferro" → "Lastra ferro"
+        return display
+            .Replace(" di ", " ", StringComparison.Ordinal)
+            .Replace("grezzo", "grezzo", StringComparison.Ordinal);
     }
 
     private Texture2D? ResolveItemTexture(string itemId) => itemId switch
@@ -711,47 +782,50 @@ public partial class SpikeWorld : Node2D
 
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
 
-        // Phase E overview — keep building pads; wait for wire through splitter.
+        // Overview: factory + full UI chrome.
         if (cam is not null)
         {
             cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
             cam.Zoom = new Vector2(0.55f, 0.55f);
         }
 
+        SelectTool(BuildTool.Smelter);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 0; i < 55; i++)
+        for (var i = 0; i < 8; i++)
         {
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
         }
 
         var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-phase-e-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-phase-e-map.png");
-        GD.Print($"Saved Phase E map → {destDir}");
+        overview.SavePng(Path.Combine(destDir, "godot-port-ui-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-ui-map.png");
+        GD.Print($"Saved UI map → {destDir}");
 
-        // Close crop on junction + splitter area.
-        if (cam is not null)
-        {
-            cam.Position = new Vector2(12f * TileSize, 9f * TileSize);
-            cam.Zoom = new Vector2(1f, 1f);
-        }
-
+        // Toolbar focus: select giunzione so highlight is obvious.
+        SelectTool(BuildTool.Junction, toast: true);
+        _hud?.ShowToast("Giunzione selezionata");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        var closeFull = GetViewport().GetTexture().GetImage();
-        var close = CropCenterCells(closeFull, cropCells: 8);
-        close.SavePng(Path.Combine(destDir, "godot-port-phase-e-close.png"));
-        close.SavePng("/opt/cursor/artifacts/godot-port-phase-e-close.png");
-        GD.Print($"Saved Phase E close → {destDir}");
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
 
-        if (_hud is not null)
-        {
-            _hud.Visible = false;
-        }
+        var full = GetViewport().GetTexture().GetImage();
+        // Bottom strip = toolbar.
+        var barH = Math.Min(160, full.GetHeight());
+        var bar = full.GetRegion(new Rect2I(0, full.GetHeight() - barH, full.GetWidth(), barH));
+        bar.SavePng(Path.Combine(destDir, "godot-port-ui-toolbar.png"));
+        bar.SavePng("/opt/cursor/artifacts/godot-port-ui-toolbar.png");
 
-        GD.Print("Phase E screenshot set complete.");
+        // Top-right stock panel crop.
+        var stockW = Math.Min(340, full.GetWidth());
+        var stockH = Math.Min(160, full.GetHeight());
+        var stock = full.GetRegion(new Rect2I(full.GetWidth() - stockW - 4, 4, stockW, stockH));
+        stock.SavePng(Path.Combine(destDir, "godot-port-ui-stock.png"));
+        stock.SavePng("/opt/cursor/artifacts/godot-port-ui-stock.png");
+        GD.Print($"Saved UI toolbar/stock → {destDir}");
+
+        GD.Print("Factory UI screenshot set complete.");
+        GetTree().Quit();
     }
 
     private static Image CropCenterCells(Image src, int cropCells)

@@ -1,4 +1,4 @@
-# tIndustry — Godot 4 .NET (Phase E)
+# tIndustry — Godot 4 .NET (Phase E + Factory UI)
 
 Playable factory loop: **miner → forno → junction → assemblatore → splitter → core** (filo di rame). Raylib resta dual path.
 
@@ -11,35 +11,39 @@ Playable factory loop: **miner → forno → junction → assemblatore → split
 
 ```bash
 godot4 --path godot
+# optional UI screenshot capture:
+TINDUSTRY_CAPTURE=1 godot4 --path godot
 ```
+
+## UI (FactoryHud)
+
+- **Toolbar** in basso: Nastro · Minatore · Forno · Assemblatore · Giunzione · Splitter (icone in box, selezione gialla)
+- **Ruota R** + indicatore direzione
+- **Core** in alto a destra: stock IT (ferro / lastre / rame / filo) + consegnati / nastro
+- Toast breve sulla selezione tool
+- Hotkeys **1–6** / **R** restano attivi; click UI non piazza sul mondo (`_UnhandledInput`)
 
 ## Controlli
 
 | Input | Azione |
 | --- | --- |
-| **1** / N | Tool nastro |
-| **2** / M | Tool minatore (2×2) |
-| **3** / F | Tool forno (2×2) |
-| **4** / A | Tool assemblatore (2×2) |
-| **5** / J | Tool giunzione (cross-axis) |
-| **6** / T | Tool splitter (T-fork) |
+| Toolbar click / **1–6** | Seleziona tool |
+| **Ruota** / **R** | Ruota direzione |
 | Click / trascina | Piazza (nastri/logistics: drag) |
-| **R** | Ruota direzione |
 | Destro | Rimuovi nastro/edificio |
 | WASD / middle-drag | Pan |
 | Rotella | Zoom |
 
 ## Cosa vedi
 
-- Seed Phase E: minatore ferro → forno → **giunzione** → assemblatore + minatore rame → **splitter** → core
-- Nastri Mindustry **full tile** + gallery corners (Blu1–4)
-- HUD IT: ore / lastre / rame / filo + conteggio J/S
-- Nessun combat · nessun power stub ancora
+- Seed Phase E + building pads + opaque items
+- HUD Control reale (non più wall di debug text)
+- Nessun combat · Phase F power/save ancora next
 
 ## Projects
 
 | Path | Role |
 | --- | --- |
-| `godot/` | Playable slice |
-| `src/TIndustry.Shared/` | BeltGrid (belt/junction/splitter), FactorySlice |
+| `godot/` | Playable slice + `FactoryHud` |
+| `src/TIndustry.Shared/` | BeltGrid / FactorySlice |
 | `TIndustry.Logistics` | Raylib dual path |
