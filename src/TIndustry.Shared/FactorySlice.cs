@@ -40,9 +40,166 @@ public sealed class FactorySlice
     public IReadOnlyList<SmelterStub> Smelters => smelters;
     public IReadOnlyList<SmelterStub> Assemblers => assemblers;
     public IReadOnlyList<GeneratorStub> Generators => generators;
+    public long NextItemId => nextItemId;
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public MinerProducer? Miner => miners.Count > 0 ? miners[0] : null;
+
+    public FactorySliceSaveData Capture()
+    {
+        var coreOrigin = CoreTiles.Count == 0
+            ? new GridPosition(9, 14)
+            : new GridPosition(CoreTiles.Min(t => t.X), CoreTiles.Min(t => t.Y));
+        var coreSize = CoreTiles.Count == 0
+            ? 2
+            : Math.Max(1, (int)Math.Round(Math.Sqrt(CoreTiles.Count)));
+
+        return new FactorySliceSaveData
+        {
+            Version = FactorySliceSaveData.CurrentVersion,
+            NextItemId = nextItemId,
+            CoreDeliveredItems = CoreDeliveredItems,
+            CoreX = coreOrigin.X,
+            CoreY = coreOrigin.Y,
+            CoreSize = coreSize,
+            Money = Wallet.Money,
+            Materials = Wallet.MaterialsSnapshot(),
+            Miners = miners.Select(m => new MinerSaveDto
+            {
+                X = m.Position.X,
+                Y = m.Position.Y,
+                Direction = m.Direction.ToString(),
+                Progress = m.Progress,
+                EjectIndex = m.EjectIndex,
+                OutputItemId = m.OutputItemId,
+                DefinitionId = m.DefinitionId
+            }).ToList(),
+            Smelters = smelters.Select(CaptureCraft).ToList(),
+            Assemblers = assemblers.Select(CaptureCraft).ToList(),
+            Generators = generators.Select(g => new GeneratorSaveDto
+            {
+                X = g.Position.X,
+                Y = g.Position.Y,
+                Direction = g.Direction.ToString(),
+                FuelBuffer = g.FuelBuffer,
+                BurnRemaining = g.BurnRemaining,
+                FuelConsumed = g.FuelConsumed
+            }).ToList(),
+            Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
+            {
+                X = c.Position.X,
+                Y = c.Position.Y,
+                Direction = c.Direction.ToString(),
+                DefinitionId = c.Definition.Id,
+                SplitterToggle = c.SplitterToggle,
+                Items = c.Items.Select(it => new ItemSaveDto
+                {
+                    Id = it.Id,
+                    ItemId = it.ItemId,
+                    Progress = it.Progress,
+                    Travel = it.Travel?.ToString()
+                }).ToList()
+            }).ToList()
+        };
+    }
+
+    private static CraftSaveDto CaptureCraft(SmelterStub craft) => new()
+    {
+        X = craft.Position.X,
+        Y = craft.Position.Y,
+        Direction = craft.Direction.ToString(),
+        RecipeId = craft.Recipe.Id,
+        DefinitionId = craft.DefinitionId,
+        Progress = craft.Progress,
+        IsCrafting = craft.IsCrafting,
+        InputBuffer = craft.InputBuffer.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+        OutputQueue = craft.OutputQueue.ToList(),
+        EjectIndex = craft.EjectIndex,
+        ItemsCrafted = craft.ItemsCrafted
+    };
+
+    public static FactorySlice Restore(FactoryContent content, FactorySliceSaveData data)
+    {
+        var belts = new BeltGrid();
+        foreach (var cell in data.Belts)
+        {
+            var def = content.FindConveyor(cell.DefinitionId)
+                ?? content.RequireConveyor("conveyor-basic");
+            var dir = ParseDirection(cell.Direction);
+            var items = cell.Items.Select(it => new TransportedItem(
+                it.Id,
+                it.ItemId,
+                it.Progress,
+                string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel))).ToList();
+            belts.TryRestore(new GridPosition(cell.X, cell.Y), dir, def, cell.SplitterToggle, items);
+        }
+
+        var core = CoreStockSink.MakeCoreTiles(
+            new GridPosition(data.CoreX, data.CoreY),
+            Math.Max(1, data.CoreSize));
+        var wallet = new EconomyWallet(data.Money, data.Materials);
+        var slice = new FactorySlice(content, belts, core, wallet)
+        {
+            nextItemId = Math.Max(1, data.NextItemId),
+            CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems)
+        };
+
+        foreach (var m in data.Miners)
+        {
+            var miner = new MinerProducer(
+                new GridPosition(m.X, m.Y),
+                ParseDirection(m.Direction),
+                outputItemId: m.OutputItemId,
+                definitionId: m.DefinitionId);
+            miner.RestoreProgress(m.Progress, m.EjectIndex);
+            slice.miners.Add(miner);
+        }
+
+        foreach (var s in data.Smelters)
+        {
+            slice.smelters.Add(RestoreCraft(content, s, SmelterStub.SmelterBuildingId));
+        }
+
+        foreach (var a in data.Assemblers)
+        {
+            slice.assemblers.Add(RestoreCraft(content, a, SmelterStub.AssemblerBuildingId));
+        }
+
+        foreach (var g in data.Generators)
+        {
+            var gen = new GeneratorStub(new GridPosition(g.X, g.Y), ParseDirection(g.Direction));
+            gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
+            slice.generators.Add(gen);
+        }
+
+        return slice;
+    }
+
+    private static SmelterStub RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId)
+    {
+        var recipe = content.FindRecipe(dto.RecipeId)
+            ?? content.FindRecipe(fallbackId == SmelterStub.AssemblerBuildingId
+                ? "craft-copper-wire"
+                : "smelt-iron")
+            ?? throw new InvalidDataException($"Ricetta '{dto.RecipeId}' mancante nel save.");
+        var buildingId = string.IsNullOrWhiteSpace(dto.DefinitionId) ? fallbackId : dto.DefinitionId;
+        var craft = new SmelterStub(
+            new GridPosition(dto.X, dto.Y),
+            ParseDirection(dto.Direction),
+            recipe,
+            buildingId);
+        craft.RestoreCraftState(
+            dto.Progress,
+            dto.IsCrafting,
+            dto.InputBuffer,
+            dto.OutputQueue,
+            dto.EjectIndex,
+            dto.ItemsCrafted);
+        return craft;
+    }
+
+    private static Direction ParseDirection(string? value) =>
+        Enum.TryParse<Direction>(value, ignoreCase: true, out var dir) ? dir : Direction.East;
 
     /// <summary>Phase C seed: miner → belts → forno → belts → core (plates stock).</summary>
     public static FactorySlice CreatePhaseCDemo(FactoryContent content, string beltId = "conveyor-basic")
@@ -888,6 +1045,62 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Phase F self-test: nessun filo al core entro 150s sim (power seed).");
+    }
+
+    /// <summary>Save/load round-trip: capture Phase F mid-sim, restore, keep wire delivery.</summary>
+    public static void SelfTestSaveLoad(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreatePhaseFDemo(content);
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 25; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        var snap = slice.Capture();
+        Assert(snap.Miners.Count >= 3, "capture miners");
+        Assert(snap.Generators.Count == 1, "capture generator");
+        Assert(snap.Belts.Count > 10, "capture belts");
+        Assert(snap.NextItemId >= 1, "nextItemId");
+
+        FactorySliceSaveStore.Delete("selftest-tmp");
+        FactorySliceSaveStore.Save("selftest-tmp", snap);
+        Assert(FactorySliceSaveStore.Exists("selftest-tmp"), "slot exists");
+        var loaded = FactorySliceSaveStore.Load("selftest-tmp");
+        var restored = Restore(content, loaded);
+
+        Assert(restored.Miners.Count == slice.Miners.Count, "miners count");
+        Assert(restored.Smelters.Count == slice.Smelters.Count, "smelters");
+        Assert(restored.Assemblers.Count == slice.Assemblers.Count, "assemblers");
+        Assert(restored.Generators.Count == slice.Generators.Count, "generators");
+        Assert(restored.Belts.Count == slice.Belts.Count, "belts");
+        Assert(restored.Wallet.Money == slice.Wallet.Money, "money");
+        Assert(restored.NextItemId == slice.NextItemId, "nextItemId match");
+
+        // Loaded generator keeps fuel if any was captured.
+        if (snap.Generators[0].FuelBuffer > 0 || snap.Generators[0].BurnRemaining > 0f)
+        {
+            Assert(
+                restored.Generators[0].FuelBuffer == snap.Generators[0].FuelBuffer
+                && Math.Abs(restored.Generators[0].BurnRemaining - snap.Generators[0].BurnRemaining) < 0.01f,
+                "generator fuel restore");
+        }
+
+        // Continue sim after load still delivers wire.
+        for (var i = 0; i < 30 * 150; i++)
+        {
+            restored.Tick(dt);
+            if (restored.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                FactorySliceSaveStore.Delete("selftest-tmp");
+                return;
+            }
+        }
+
+        FactorySliceSaveStore.Delete("selftest-tmp");
+        throw new InvalidOperationException(
+            "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
     }
 
     private static void Assert(bool condition, string message)

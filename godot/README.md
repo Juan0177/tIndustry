@@ -1,46 +1,37 @@
-# tIndustry — Godot 4 .NET (Phase F + Factory UI)
+# tIndustry — Godot 4 .NET (Phase F + save/load)
 
-Playable factory loop: **miner → forno (+ generatore) → junction → assemblatore → splitter → core**. Raylib resta dual path.
-
-## Requirements
-
-- Godot 4.4+ .NET + .NET SDK 8+
-- `data/content.json`
+Playable factory loop with **FactoryHud** and **JSON save/load**. Raylib resta dual path.
 
 ## Run
 
 ```bash
 godot4 --path godot
-TINDUSTRY_CAPTURE=1 godot4 --path godot   # Phase F screenshots
+TINDUSTRY_FRESH=1 godot4 --path godot          # ignore continua
+TINDUSTRY_CAPTURE=1 godot4 --path godot        # screenshots
 ```
 
-## UI (FactoryHud)
+## Save / load
 
-- **Toolbar**: Nastro · Minatore · Forno · Assemblatore · Giunzione · Splitter · **Generatore** · Ruota
-- **Core** panel: stock IT + `potenza ON/off`
-- Hotkeys **1–7** / **R**; click UI non piazza sul mondo
+| Azione | UI | Hotkey | Slot file |
+| --- | --- | --- | --- |
+| Salva continua | **Salva · F5** | F5 | `continua.json` |
+| Carica continua | **Carica · F9** | F9 | `continua.json` |
+| Salva slot | **Slot↑ · F6** | F6 | `slot-1.json` |
+| Carica slot | **Slot↓ · F7** | F7 | `slot-1.json` |
 
-## Controlli
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`).  
+On boot, **continua** auto-loads if present (skip with `TINDUSTRY_FRESH=1`).
 
-| Input | Azione |
-| --- | --- |
-| Toolbar / **1–7** | Tool (7/`G` = generatore) |
-| **Ruota** / **R** | Ruota direzione |
-| Click / trascina | Piazza |
-| Destro | Rimuovi |
-| WASD / middle-drag | Pan |
+Persists: belts (+items), miners/forni/assemblatori/generatori, wallet, nextItemId, core.
 
-## Phase F
+## Controlli build
 
-- Generatore 2×2 brucia **carbone** dai nastri
-- Adiacenza 4-connected → craft **+20%** velocità
-- Seed: coal miner → gen nord del forno + Phase E loop
-- Building pads + opaque items + junctions retained
+1–7 tools · R ruota · click piazza · destro rimuovi · WASD pan
 
 ## Projects
 
 | Path | Role |
 | --- | --- |
 | `godot/` | Playable slice + FactoryHud |
-| `src/TIndustry.Shared/` | FactorySlice / GeneratorStub / BeltGrid |
-| `TIndustry.Logistics` | Raylib dual path |
+| `src/TIndustry.Shared/` | FactorySlice + `FactorySliceSaveStore` |
+| `TIndustry.Logistics` | Raylib (GameSave v8 separate) |

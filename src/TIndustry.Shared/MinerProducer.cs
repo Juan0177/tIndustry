@@ -38,6 +38,13 @@ public sealed class MinerProducer
         Position = position;
         Direction = direction;
     }
+
+    public void RestoreProgress(float progress, int ejectIndex)
+    {
+        Progress = Math.Clamp(progress, 0f, 1f);
+        EjectIndex = ((ejectIndex % OutputTileCount) + OutputTileCount) % OutputTileCount;
+    }
+
     public float Progress { get; private set; }
     public int EjectIndex { get; private set; }
     public long ItemsProduced { get; private set; }

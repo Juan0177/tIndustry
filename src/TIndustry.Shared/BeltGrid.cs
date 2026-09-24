@@ -56,6 +56,27 @@ public sealed class BeltGrid
 
     public bool TryRemove(GridPosition position) => cells.Remove(position);
 
+    public void Clear() => cells.Clear();
+
+    /// <summary>Place or replace a cell and restore items/toggle (save/load).</summary>
+    public bool TryRestore(
+        GridPosition position,
+        Direction direction,
+        ConveyorDefinition definition,
+        int splitterToggle,
+        IEnumerable<TransportedItem> items)
+    {
+        if (definition.Kind == LogisticsKind.Belt)
+        {
+            DefaultDefinition ??= definition;
+        }
+
+        var cell = new BeltGridCell(position, direction, definition);
+        cell.RestoreState(splitterToggle, items);
+        cells[position] = cell;
+        return true;
+    }
+
     public bool TryOrient(GridPosition position, Direction direction)
     {
         if (!cells.TryGetValue(position, out var cell))
@@ -260,6 +281,12 @@ public sealed class BeltGridCell
             : DirectionMath.Left(Direction);
 
     public void AdvanceSplitterToggle() => splitterToggle++;
+
+    public void RestoreState(int toggle, IEnumerable<TransportedItem> restoredItems)
+    {
+        splitterToggle = Math.Max(0, toggle);
+        inner.RestoreItems(restoredItems);
+    }
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null) =>
         inner.TryInsert(item, fromDirection);

@@ -65,7 +65,15 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         UpdateHud();
 
-        // Optional capture: TINDUSTRY_CAPTURE=1 → Phase F screenshots then quit.
+        // Continue: auto-load continua after visuals exist (unless TINDUSTRY_FRESH=1).
+        if (OS.GetEnvironment("TINDUSTRY_FRESH") != "1"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE") != "1"
+            && FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId))
+        {
+            LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata", quietFail: true);
+        }
+
+        // Optional capture: TINDUSTRY_CAPTURE=1 → save/load screenshots then quit.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
         {
             var timer = GetTree().CreateTimer(1.2);
@@ -102,8 +110,73 @@ public partial class SpikeWorld : Node2D
 
         _hud.ToolChosen += OnHudToolChosen;
         _hud.RotateRequested += OnHudRotate;
+        _hud.SaveRequested += () => SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
+        _hud.LoadRequested += () => LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
+        _hud.SaveSlotRequested += () => SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
+        _hud.LoadSlotRequested += () => LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
         _hud.SetSelectedTool(ToHudTool(_tool));
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
+    }
+
+    private void SaveSlice(string slotId, string toast)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        try
+        {
+            FactorySliceSaveStore.Save(slotId, _slice.Capture());
+            _hud?.ShowToast(toast);
+            GD.Print($"Saved slice → {FactorySliceSaveStore.SlotPath(slotId)}");
+        }
+        catch (Exception ex)
+        {
+            _hud?.ShowToast("Salvataggio fallito");
+            GD.PushError($"Save failed: {ex.Message}");
+        }
+    }
+
+    private void LoadSlice(string slotId, string toast, bool quietFail = false)
+    {
+        if (!FactorySliceSaveStore.TryLoad(slotId, out var data) || data is null)
+        {
+            if (!quietFail)
+            {
+                _hud?.ShowToast($"Nessun save ({slotId})");
+            }
+
+            return;
+        }
+
+        try
+        {
+            var content = FactoryContent.Load(_contentPath);
+            _slice = FactorySlice.Restore(content, data);
+            _itemSprites.Clear();
+            if (_itemsLayer is not null)
+            {
+                foreach (var child in _itemsLayer.GetChildren())
+                {
+                    child.QueueFree();
+                }
+            }
+
+            _visualDirty = true;
+            _buildingsDirty = true;
+            RebuildBeltVisual();
+            RebuildBuildingVisuals();
+            UpdateHud();
+            QueueRedraw();
+            _hud?.ShowToast(toast);
+            GD.Print($"Loaded slice ← {FactorySliceSaveStore.SlotPath(slotId)}");
+        }
+        catch (Exception ex)
+        {
+            _hud?.ShowToast("Caricamento fallito");
+            GD.PushError($"Load failed: {ex.Message}");
+        }
     }
 
     private void OnHudToolChosen(FactoryHud.ToolKind kind)
@@ -229,6 +302,34 @@ public partial class SpikeWorld : Node2D
             if (key.Keycode == Key.Key7 || key.Keycode == Key.G)
             {
                 SelectTool(BuildTool.Generator, toast: true);
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.F5)
+            {
+                SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.F9)
+            {
+                LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.F6)
+            {
+                SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.F7)
+            {
+                LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -836,65 +937,41 @@ public partial class SpikeWorld : Node2D
         }
 
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
-
-        // Kick generator with fuel so pad shows live border in shots.
-        if (_slice.Generators.Count > 0)
-        {
-            _slice.Generators[0].TryAcceptFuel("coal");
-            _slice.Generators[0].TryAcceptFuel("coal");
-        }
-
         if (cam is not null)
         {
             cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
             cam.Zoom = new Vector2(0.55f, 0.55f);
         }
 
-        SelectTool(BuildTool.Generator);
+        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
+        SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
+
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 0; i < 12; i++)
+        for (var i = 0; i < 5; i++)
         {
             await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
         }
 
         var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-phase-f-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-phase-f-map.png");
-        GD.Print($"Saved Phase F map → {destDir}");
+        overview.SavePng(Path.Combine(destDir, "godot-port-save-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-save-map.png");
+        GD.Print($"Saved save-map → {destDir}");
 
-        // Close crop: generator + forno adjacency.
-        if (cam is not null)
-        {
-            cam.Position = new Vector2(7f * TileSize, 6.5f * TileSize);
-            cam.Zoom = new Vector2(1.05f, 1.05f);
-        }
-
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        var closeFull = GetViewport().GetTexture().GetImage();
-        var close = CropCenterCells(closeFull, cropCells: 8);
-        close.SavePng(Path.Combine(destDir, "godot-port-phase-f-close.png"));
-        close.SavePng("/opt/cursor/artifacts/godot-port-phase-f-close.png");
-        GD.Print($"Saved Phase F close → {destDir}");
-
-        // Toolbar strip with Generatore selected.
-        if (cam is not null)
-        {
-            cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
-            cam.Zoom = new Vector2(0.55f, 0.55f);
-        }
-
-        SelectTool(BuildTool.Generator, toast: true);
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var full = GetViewport().GetTexture().GetImage();
-        var barH = Math.Min(160, full.GetHeight());
+        var barH = Math.Min(180, full.GetHeight());
         var bar = full.GetRegion(new Rect2I(0, full.GetHeight() - barH, full.GetWidth(), barH));
-        bar.SavePng(Path.Combine(destDir, "godot-port-phase-f-toolbar.png"));
-        bar.SavePng("/opt/cursor/artifacts/godot-port-phase-f-toolbar.png");
+        bar.SavePng(Path.Combine(destDir, "godot-port-save-toolbar.png"));
+        bar.SavePng("/opt/cursor/artifacts/godot-port-save-toolbar.png");
 
-        GD.Print("Phase F screenshot set complete.");
+        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
+        var after = GetViewport().GetTexture().GetImage();
+        after.SavePng(Path.Combine(destDir, "godot-port-save-loaded.png"));
+        after.SavePng("/opt/cursor/artifacts/godot-port-save-loaded.png");
+
+        GD.Print("Save/load screenshot set complete.");
         GetTree().Quit();
     }
 

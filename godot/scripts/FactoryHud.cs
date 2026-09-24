@@ -38,6 +38,10 @@ public partial class FactoryHud : Control
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? RotateRequested;
+    public event Action? SaveRequested;
+    public event Action? LoadRequested;
+    public event Action? SaveSlotRequested;
+    public event Action? LoadSlotRequested;
 
     public override void _Ready()
     {
@@ -216,7 +220,7 @@ public partial class FactoryHud : Control
         panel.SetAnchorsPreset(LayoutPreset.BottomWide);
         panel.OffsetLeft = 12;
         panel.OffsetRight = -12;
-        panel.OffsetTop = -118;
+        panel.OffsetTop = -148;
         panel.OffsetBottom = -12;
         AddChild(panel);
 
@@ -314,7 +318,7 @@ public partial class FactoryHud : Control
         };
 
         var side = new VBoxContainer();
-        side.CustomMinimumSize = new Vector2(200, 0);
+        side.CustomMinimumSize = new Vector2(210, 0);
         side.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         side.AddThemeConstantOverride("separation", 6);
         root.AddChild(side);
@@ -327,6 +331,62 @@ public partial class FactoryHud : Control
         _hintLabel.AddThemeColorOverride("font_color", TextMuted);
         _hintLabel.AddThemeFontSizeOverride("font_size", 12);
         side.AddChild(_hintLabel);
+
+        var saveRow = new HBoxContainer();
+        saveRow.AddThemeConstantOverride("separation", 6);
+        side.AddChild(saveRow);
+        AddActionChip(saveRow, "Salva", "F5", () =>
+        {
+            SaveRequested?.Invoke();
+        });
+        AddActionChip(saveRow, "Carica", "F9", () =>
+        {
+            LoadRequested?.Invoke();
+        });
+
+        var slotRow = new HBoxContainer();
+        slotRow.AddThemeConstantOverride("separation", 6);
+        side.AddChild(slotRow);
+        AddActionChip(slotRow, "Slot↑", "F6", () =>
+        {
+            SaveSlotRequested?.Invoke();
+        });
+        AddActionChip(slotRow, "Slot↓", "F7", () =>
+        {
+            LoadSlotRequested?.Invoke();
+        });
+    }
+
+    private void AddActionChip(Control parent, string label, string hotkey, Action onClick)
+    {
+        var slot = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(96, 36),
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
+        parent.AddChild(slot);
+
+        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
+        slot.AddChild(center);
+        var text = new Label
+        {
+            Text = $"{label} · {hotkey}",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        text.AddThemeColorOverride("font_color", TextPrimary);
+        text.AddThemeFontSizeOverride("font_size", 12);
+        center.AddChild(text);
+
+        slot.GuiInput += e =>
+        {
+            if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                onClick();
+                AcceptEvent();
+            }
+        };
     }
 
     private void AddToolButton(

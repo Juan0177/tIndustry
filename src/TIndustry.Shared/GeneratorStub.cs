@@ -32,6 +32,13 @@ public sealed class GeneratorStub
         Direction = direction;
     }
 
+    public void RestoreFuel(int fuelBuffer, float burnRemaining, long fuelConsumed = 0)
+    {
+        FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+        BurnRemaining = Math.Max(0f, burnRemaining);
+        FuelConsumed = Math.Max(0, fuelConsumed);
+    }
+
     public IEnumerable<GridPosition> OccupiedTiles()
     {
         for (var y = 0; y < Size; y++)
