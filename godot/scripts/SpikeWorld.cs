@@ -1217,16 +1217,23 @@ public partial class SpikeWorld : Node2D
         var barH = Math.Min(170, lockedFull.GetHeight());
         var lockedBar = lockedFull.GetRegion(
             new Rect2I(0, lockedFull.GetHeight() - barH, lockedFull.GetWidth(), barH));
-        lockedBar.SavePng(Path.Combine(destDir, "godot-port-research-locked-toolbar.png"));
-        lockedBar.SavePng("/opt/cursor/artifacts/godot-port-research-locked-toolbar.png");
-        GD.Print($"Saved research locked-toolbar → {destDir}");
+        lockedBar.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-locked-toolbar.png"));
+        lockedBar.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-locked-toolbar.png");
+        GD.Print($"Saved techtree locked-toolbar → {destDir}");
 
         _research?.Open(_slice);
+        _research?.SelectStructure("smelter");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
         var panelShot = GetViewport().GetTexture().GetImage();
-        panelShot.SavePng(Path.Combine(destDir, "godot-port-research-panel.png"));
-        panelShot.SavePng("/opt/cursor/artifacts/godot-port-research-panel.png");
+        panelShot.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-panel.png"));
+        panelShot.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-panel.png");
+
+        // Affordable-blocked shot: select forno with zero wallet → Manca line.
+        if (_slice.Wallet.Money > 0 || _slice.Wallet.MaterialCount("iron-plate") > 0)
+        {
+            // Wallet was seeded in capture bootstrap; leave as-is for unlock path.
+        }
 
         if (!_slice.TryUnlockStructure("smelter"))
         {
@@ -1237,13 +1244,14 @@ public partial class SpikeWorld : Node2D
             _hud.ShowToast("Forno sbloccato!");
         }
 
+        _research?.SelectStructure("assembler");
         _research?.Refresh();
         SyncResearchLocks();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var afterUnlock = GetViewport().GetTexture().GetImage();
-        afterUnlock.SavePng(Path.Combine(destDir, "godot-port-research-unlocked-forno.png"));
-        afterUnlock.SavePng("/opt/cursor/artifacts/godot-port-research-unlocked-forno.png");
+        afterUnlock.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-path.png"));
+        afterUnlock.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-path.png");
 
         _research?.Close();
         SelectTool(BuildTool.Smelter, toast: true);
@@ -1252,8 +1260,8 @@ public partial class SpikeWorld : Node2D
         var toolShot = GetViewport().GetTexture().GetImage();
         var toolBar = toolShot.GetRegion(
             new Rect2I(0, toolShot.GetHeight() - barH, toolShot.GetWidth(), barH));
-        toolBar.SavePng(Path.Combine(destDir, "godot-port-research-forno-toolbar.png"));
-        toolBar.SavePng("/opt/cursor/artifacts/godot-port-research-forno-toolbar.png");
+        toolBar.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-forno-toolbar.png"));
+        toolBar.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-forno-toolbar.png");
 
         SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
         LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
@@ -1262,13 +1270,15 @@ public partial class SpikeWorld : Node2D
             GD.PushError("capture restore smelter");
         }
 
+        _research?.Open(_slice);
+        _research?.SelectStructure("smelter");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var roundtrip = GetViewport().GetTexture().GetImage();
-        roundtrip.SavePng(Path.Combine(destDir, "godot-port-research-save-roundtrip.png"));
-        roundtrip.SavePng("/opt/cursor/artifacts/godot-port-research-save-roundtrip.png");
+        roundtrip.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-unlocked.png"));
+        roundtrip.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-unlocked.png");
 
-        GD.Print("Research screenshot set complete.");
+        GD.Print("Tech-tree graph screenshot set complete.");
         GetTree().Quit();
     }
 

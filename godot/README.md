@@ -46,4 +46,4 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 
 ## Ricerca
 
-**T** apre il pannello Ricerca (lista IT). Sblocca Forno / Assemblatore / Giunzione / Splitter / Generatore / Selezionatore / Ponte spendendo denaro e lastre dal wallet. Salvataggio v2 include `unlockedStructures`.
+**T** apre il grafo Ricerca (stile Raylib): nodi + archi prerequisito, pan (Shift/RMB), Ctrl+rotella zoom, H reset, percorso evidenziato. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v2 include `unlockedStructures`.
