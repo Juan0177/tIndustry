@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell rounded L corner (galleria). Overlaps abutting strips.
+/// Full-cell paint-mockup gallery corner. Overlaps abutting strips.
 /// Items are hidden while on the corner cell. Base art: enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
@@ -36,12 +36,10 @@ public partial class BeltCornerTile : Node2D
         };
 
         // Exact tile span so N/S rails share one Y with strips. Strips overlap
-        // +2px under this corner; matching colors hide the butt.
+        // +2px under this corner; west light lip matches straight body at the butt.
         var span = (float)tileSize;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        // 0.42 matches full-tile straight body; SDF arc radius.
-        _material!.SetShaderParameter("half_width", 0.42f);
         _ = scrollPhaseTiles;
     }
 

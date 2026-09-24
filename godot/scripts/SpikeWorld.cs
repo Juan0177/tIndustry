@@ -577,7 +577,7 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-paint-arc-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-mockup-corner-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
         img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
@@ -593,19 +593,21 @@ public partial class SpikeWorld : Node2D
         AssertCellOpaque(img, cornerX0 - cell, cornerY0, cell, "straight(9,8)");
         AssertNorthEdgeFlush(img, cornerX0 - cell, cornerX0 + cell, cornerY0);
         AssertSeamRailContinuous(img, cornerX0, cornerY0, cell);
+        AssertMockupCorner(img, cornerX0, cornerY0, cell);
 
         var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var seamClose = Path.Combine(destDir, "godot-port-paint-arc-close.png");
+        var seamClose = Path.Combine(destDir, "godot-port-mockup-corner-close.png");
         err = alignClose.SavePng(seamClose);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
         alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
+        alignClose.SavePng(Path.Combine(destDir, "godot-port-mockup-corner-tile.png"));
 
         var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var seamElbow = Path.Combine(destDir, "godot-port-paint-arc-elbow.png");
+        var seamElbow = Path.Combine(destDir, "godot-port-mockup-corner-elbow.png");
         err = alignMap.SavePng(seamElbow);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
 
@@ -613,7 +615,7 @@ public partial class SpikeWorld : Node2D
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-paint-arc-overview.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-mockup-corner-overview.png"));
     }
 
     private static bool IsTerrain(Color c) =>
@@ -738,24 +740,72 @@ public partial class SpikeWorld : Node2D
             GD.PushError("SEAM FAIL: N/S rail band steps across straight↔corner join (rientranza).");
         }
 
-        // Body color across seam must match (no dark channel blotch).
-        // Sample past the entry umbra band so darken-at-mouth isn't a false fail.
+        // West lip of the gallery matches straight body (paint butt joint).
         var yBody = cornerY0 + cell / 4;
         var straightBody = img.GetPixel(cornerX0 - 8, yBody);
-        var cornerBody = img.GetPixel(cornerX0 + cell / 3, yBody);
-        var dr = Math.Abs(straightBody.R - cornerBody.R);
-        var dg = Math.Abs(straightBody.G - cornerBody.G);
-        var db = Math.Abs(straightBody.B - cornerBody.B);
+        var cornerLip = img.GetPixel(cornerX0 + 3, yBody);
+        var dr = Math.Abs(straightBody.R - cornerLip.R);
+        var dg = Math.Abs(straightBody.G - cornerLip.G);
+        var db = Math.Abs(straightBody.B - cornerLip.B);
         GD.Print(
             $"PixelCheck seam color: straight=({straightBody.R:F3},{straightBody.G:F3},{straightBody.B:F3}) " +
-            $"corner=({cornerBody.R:F3},{cornerBody.G:F3},{cornerBody.B:F3}) Δ=({dr:F3},{dg:F3},{db:F3})");
+            $"cornerLip=({cornerLip.R:F3},{cornerLip.G:F3},{cornerLip.B:F3}) Δ=({dr:F3},{dg:F3},{db:F3})");
         if (dr > 0.06f || dg > 0.06f || db > 0.06f)
         {
-            GD.PushError("SEAM FAIL: body color jumps across straight↔corner join.");
+            GD.PushError("SEAM FAIL: west lip color jumps across straight↔corner join.");
         }
 
         AssertInnerCornerKnuckle(img, cornerX0, cornerY0, cell);
         AssertEastRailFlush(img, cornerX0, cornerY0, cell);
+    }
+
+    /// <summary>
+    /// Paint mockup: dark gallery fill, light NE pad, yellow indicator in pocket.
+    /// </summary>
+    private static void AssertMockupCorner(Image img, int cornerX0, int cornerY0, int cell)
+    {
+        static bool IsCover(Color c) =>
+            !IsTerrain(c) && !IsRail(c) &&
+            c.R >= 30f / 255f && c.R <= 50f / 255f &&
+            c.G >= 35f / 255f && c.G <= 55f / 255f &&
+            c.B >= 40f / 255f && c.B <= 60f / 255f;
+
+        static bool IsPad(Color c) =>
+            !IsTerrain(c) && !IsRail(c) &&
+            c.R >= 40f / 255f && c.R <= 70f / 255f &&
+            c.G >= 50f / 255f && c.G <= 80f / 255f &&
+            c.B >= 55f / 255f && c.B <= 90f / 255f;
+
+        static bool IsYellow(Color c) =>
+            c.R >= 200f / 255f && c.G >= 150f / 255f && c.B <= 80f / 255f;
+
+        var mid = img.GetPixel(cornerX0 + cell / 2, cornerY0 + cell / 2);
+        var coverOk = IsCover(mid);
+        GD.Print(
+            $"PixelCheck mockup cover center: ({mid.R:F3},{mid.G:F3},{mid.B:F3}) cover={coverOk}");
+        if (!coverOk)
+        {
+            GD.PushError("MOCKUP FAIL: corner center is not dark gallery cover.");
+        }
+
+        // NE pocket ~ UV (0.82, 0.22) — light pad halo around the yellow.
+        var pad = img.GetPixel(cornerX0 + cell * 78 / 100, cornerY0 + cell * 28 / 100);
+        var padOk = IsPad(pad) || IsYellow(pad);
+        GD.Print(
+            $"PixelCheck mockup NE pad: ({pad.R:F3},{pad.G:F3},{pad.B:F3}) pad={padOk}");
+        if (!padOk)
+        {
+            GD.PushError("MOCKUP FAIL: NE pad is not light floor.");
+        }
+
+        var yel = img.GetPixel(cornerX0 + cell * 88 / 100, cornerY0 + cell * 19 / 100);
+        var yelOk = IsYellow(yel);
+        GD.Print(
+            $"PixelCheck mockup yellow: ({yel.R:F3},{yel.G:F3},{yel.B:F3}) yellow={yelOk}");
+        if (!yelOk)
+        {
+            GD.PushError("MOCKUP FAIL: yellow indicator missing in NE pocket.");
+        }
     }
 
     /// <summary>
