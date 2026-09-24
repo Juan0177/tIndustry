@@ -78,7 +78,7 @@ public partial class FactoryHud : Control
     {
         if (_dirLabel is not null)
         {
-            _dirLabel.Text = $"Dir: {directionIt}";
+            _dirLabel.Text = directionIt;
         }
     }
 
@@ -241,34 +241,57 @@ public partial class FactoryHud : Control
         AddToolButton(tools, ToolKind.Splitter, "6", "Splitter", "res://assets/splitter.png",
             new Color(0.75f, 0.80f, 0.95f));
 
-        var side = new VBoxContainer();
-        side.CustomMinimumSize = new Vector2(150, 0);
-        side.AddThemeConstantOverride("separation", 6);
-        root.AddChild(side);
-
-        var rotateRow = new HBoxContainer();
-        rotateRow.AddThemeConstantOverride("separation", 8);
-        side.AddChild(rotateRow);
-
+        // Rotate as a same-size toolbar slot (reliable hit target).
         var rotateSlot = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(128, 44),
+            Name = "RotateSlot",
+            CustomMinimumSize = new Vector2(96, 90),
             MouseFilter = MouseFilterEnum.Stop
         };
         rotateSlot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
-        rotateRow.AddChild(rotateSlot);
+        tools.AddChild(rotateSlot);
 
-        var rotateCenter = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
-        rotateSlot.AddChild(rotateCenter);
-        var rotateLabel = new Label
+        var rotMargin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        rotMargin.AddThemeConstantOverride("margin_left", 6);
+        rotMargin.AddThemeConstantOverride("margin_right", 6);
+        rotMargin.AddThemeConstantOverride("margin_top", 4);
+        rotMargin.AddThemeConstantOverride("margin_bottom", 4);
+        rotateSlot.AddChild(rotMargin);
+
+        var rotV = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        rotV.AddThemeConstantOverride("separation", 2);
+        rotMargin.AddChild(rotV);
+
+        var rotKey = new Label { Text = "R", MouseFilter = MouseFilterEnum.Ignore };
+        rotKey.AddThemeColorOverride("font_color", SlotSelected);
+        rotKey.AddThemeFontSizeOverride("font_size", 12);
+        rotV.AddChild(rotKey);
+
+        var rotCenter = new CenterContainer
         {
-            Text = "Ruota  ·  R",
-            MouseFilter = MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore
         };
-        rotateLabel.AddThemeColorOverride("font_color", TextPrimary);
-        rotateLabel.AddThemeFontSizeOverride("font_size", 14);
-        rotateCenter.AddChild(rotateLabel);
+        rotV.AddChild(rotCenter);
+        _dirLabel = new Label
+        {
+            Text = "Est",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _dirLabel.AddThemeColorOverride("font_color", TextPrimary);
+        _dirLabel.AddThemeFontSizeOverride("font_size", 16);
+        rotCenter.AddChild(_dirLabel);
+
+        var rotName = new Label
+        {
+            Text = "Ruota",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        rotName.AddThemeColorOverride("font_color", TextPrimary);
+        rotName.AddThemeFontSizeOverride("font_size", 11);
+        rotV.AddChild(rotName);
 
         rotateSlot.GuiInput += e =>
         {
@@ -280,10 +303,11 @@ public partial class FactoryHud : Control
             }
         };
 
-        _dirLabel = new Label { Text = "Dir: Est", VerticalAlignment = VerticalAlignment.Center };
-        _dirLabel.AddThemeColorOverride("font_color", TextPrimary);
-        _dirLabel.AddThemeFontSizeOverride("font_size", 14);
-        rotateRow.AddChild(_dirLabel);
+        var side = new VBoxContainer();
+        side.CustomMinimumSize = new Vector2(200, 0);
+        side.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        side.AddThemeConstantOverride("separation", 6);
+        root.AddChild(side);
 
         _hintLabel = new Label
         {
