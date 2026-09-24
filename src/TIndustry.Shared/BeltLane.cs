@@ -58,6 +58,12 @@ public sealed class BeltLane
     public ConveyorDefinition Definition { get; }
     public IReadOnlyList<BeltCell> Cells => cells;
 
+    /// <summary>
+    /// When true (spike default), ready items fall off the last cell.
+    /// When false, leave them for <see cref="CoreStockSink"/> / handoff consumers.
+    /// </summary>
+    public bool AutoDropAtEnd { get; set; } = true;
+
     public Direction DirectionAt(int cellIndex) => cellDirections[cellIndex];
 
     public Direction DirectionAt(GridPosition position)
@@ -72,6 +78,24 @@ public sealed class BeltLane
 
         return Direction;
     }
+
+    public bool TryGetCell(GridPosition position, out BeltCell cell)
+    {
+        for (var i = 0; i < cells.Count; i++)
+        {
+            if (cells[i].Position.Equals(position))
+            {
+                cell = cells[i];
+                return true;
+            }
+        }
+
+        cell = null!;
+        return false;
+    }
+
+    public bool TryInsertAt(GridPosition position, TransportedItem item) =>
+        TryGetCell(position, out var cell) && cell.TryInsert(item);
 
     public bool TrySpawnAtStart(string itemId)
     {
@@ -101,6 +125,11 @@ public sealed class BeltLane
             {
                 from.RemoveOutput();
             }
+        }
+
+        if (!AutoDropAtEnd)
+        {
+            return;
         }
 
         // Drop off end of belt (consumed / “arrived”)

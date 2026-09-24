@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="tIndustry Godot Spike"
-config/description="Vertical slice: camera + grid + Mindustry belt scroll + static miner"
+config/name="tIndustry Godot"
+config/description="Phase A: miner → nastro Mindustry → core magazzino (Shared sim)"
 run/main_scene="res://scenes/Spike.tscn"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://assets/miner.png"

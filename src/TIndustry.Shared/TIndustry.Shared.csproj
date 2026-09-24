@@ -5,6 +5,6 @@
     <Nullable>enable</Nullable>
     <RootNamespace>TIndustry.Shared</RootNamespace>
     <AssemblyName>TIndustry.Shared</AssemblyName>
-    <Description>Thin shared sim/data for Godot spike — not a full extract of TIndustry.Logistics.</Description>
+    <Description>Shared factory sim/data for Godot port Phase A — belt, content, miner, core sink. Raylib still independent.</Description>
   </PropertyGroup>
 </Project>
