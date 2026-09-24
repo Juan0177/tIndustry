@@ -6,8 +6,8 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Continuous Mindustry-style straight belt strip. Chevrons tip with flow (+local X);
 /// scroll is driven by <see cref="MindustryBeltVisual"/> (shared phase across L segments).
-/// Regular belts occupy the <b>full tile</b> (edge-to-edge). Thin (~0.78) thickness is
-/// reserved for bridges only — never use it here.
+/// Regular belts occupy the <b>full tile</b> — outer rails sit on tile edges (no green margin).
+/// Thin (~0.78) thickness is reserved for bridges only — never use it here.
 /// </summary>
 public partial class ScrollingBeltStrip : Node2D
 {
@@ -33,13 +33,11 @@ public partial class ScrollingBeltStrip : Node2D
         var minY = Math.Min(first.Y, last.Y);
         var maxY = Math.Max(first.Y, last.Y);
 
-        var horizontal = direction is Direction.East or Direction.West;
-        // Full-tile belt (Mindustry regular conveyor). Do NOT use ~0.78 — that is bridge-only.
-        // +1px length overlaps into adjacent corner cells so the join is one continuous border.
-        float thicknessPx = tileSize;
+        // Full-tile + 1px seal so rails sit on grid lines and joins have no subpixel gap.
+        float thicknessPx = tileSize + 1f;
         float lengthPx;
         Vector2 center;
-        if (horizontal)
+        if (direction is Direction.East or Direction.West)
         {
             lengthPx = (maxX - minX + 1) * tileSize + 1f;
             center = new Vector2((minX + maxX + 1) * 0.5f * tileSize, (first.Y + 0.5f) * tileSize);
@@ -54,7 +52,6 @@ public partial class ScrollingBeltStrip : Node2D
         _sprite!.Texture = CreateUnitTexture();
         _sprite.Centered = true;
         _sprite.Position = center;
-        // Always author as length × thickness in local space, then rotate so +local X = flow.
         _sprite.Scale = new Vector2(lengthPx, thicknessPx);
         _sprite.RotationDegrees = direction switch
         {
@@ -90,7 +87,6 @@ public partial class ScrollingBeltStrip : Node2D
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             ZIndex = 1,
-            // Straight strips sit under corner elbows.
         };
         AddChild(_sprite);
     }

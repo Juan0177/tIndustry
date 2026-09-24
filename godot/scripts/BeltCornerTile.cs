@@ -4,9 +4,9 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell corner tile (opaque, edge-to-edge). Outer rails align with
-/// <see cref="ScrollingBeltStrip"/>; recessed L channel joins the track band.
-/// Base art: enter-west → exit-south.
+/// Full-cell corner tile: opaque square covering 100% of the cell (no green in the
+/// unused quadrant). Outer rails align with <see cref="ScrollingBeltStrip"/>;
+/// recessed L channel joins the track band. Base art: enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
@@ -21,7 +21,6 @@ public partial class BeltCornerTile : Node2D
         _sprite.Position = new Vector2((cell.X + 0.5f) * tileSize, (cell.Y + 0.5f) * tileSize);
 
         var clockwise = BeltLane.IsClockwiseTurn(from, to);
-        // Base art: East→South (clockwise). Map other turns via rotation + optional Y flip.
         var baseFrom = clockwise ? from : MirrorHorizontal(from);
         _sprite.RotationDegrees = baseFrom switch
         {
@@ -31,17 +30,16 @@ public partial class BeltCornerTile : Node2D
             Direction.North => -90f,
             _ => 0f
         };
-        // Exact full tile + 1px overlap into adjacent straights so outer rails
-        // meet flush as one continuous border (corner draws above strips).
+        // Full tile + 1px seal into adjacent straights (corner draws above strips).
         var span = tileSize + 1f;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        // half_width 0.40 → channel spans UV 0.10–0.90 = track between straight rails.
-        _material!.SetShaderParameter("half_width", 0.40f);
+        // Narrower groove so unused quadrant clearly shows base_color (square fill).
+        _material!.SetShaderParameter("half_width", 0.32f);
         _ = scrollPhaseTiles;
     }
 
-    /// <summary>No-op: platform corner does not scroll marks.</summary>
+    /// <summary>No-op: corner does not scroll marks.</summary>
     public void SetScroll(float scrollTiles)
     {
         _ = scrollTiles;
@@ -63,13 +61,13 @@ public partial class BeltCornerTile : Node2D
             return;
         }
 
-        var shader = GD.Load<Shader>("res://shaders/belt_corner_v2.gdshader");
+        var shader = GD.Load<Shader>("res://shaders/belt_corner_v2.gdshader")
+            ?? GD.Load<Shader>("res://shaders/belt_corner.gdshader");
         _material = new ShaderMaterial { Shader = shader };
         _sprite = new Sprite2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            // Above adjacent strip ends so the elbow covers the butt join.
             ZIndex = 2
         };
         AddChild(_sprite);

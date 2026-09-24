@@ -1,11 +1,11 @@
 shader_type canvas_item;
 
-// Full-cell corner (100% of 1×1). Same body + rail language as belt_scroll
-// straights so outer borders form one continuous line at the join.
-// L is only a recessed groove in the same body — not a smaller platform pad.
+// Full-cell corner: opaque SQUARE covering 100% of the 1×1 tile.
+// Outer silhouette is square (rails on all four edges) — never a rounded pad
+// that leaves terrain in the unused quadrant. L is only a recessed groove.
 // Base art: enter west → exit south.
 
-uniform float half_width = 0.40;
+uniform float half_width = 0.32;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
 uniform vec4 rail_color : source_color = vec4(0.10, 0.12, 0.14, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
@@ -21,28 +21,28 @@ float sd_segment(vec2 p, vec2 a, vec2 b) {
 void fragment() {
 	vec2 p = UV;
 
-	// Solid full-tile body (identical footprint & color to a straight cell).
+	// Solid full-tile body first — unused quadrant stays base_color (square fill).
 	vec3 col = base_color.rgb;
 
-	// Perimeter rails — same 10% bands as belt_scroll. Openings only at
-	// west entry / south exit so side rails continue from adjacent straights.
-	float rail_n = step(p.y, 0.10);
-	float rail_s = step(0.90, p.y);
-	float rail_w = step(p.x, 0.10);
-	float rail_e = step(0.90, p.x);
-	float open_w = step(abs(p.y - 0.5), half_width) * step(p.x, 0.10);
-	float open_s = step(abs(p.x - 0.5), half_width) * step(0.90, p.y);
+	// Perimeter rails flush with tile edges (same 8% bands as belt_scroll).
+	float rail_n = step(p.y, 0.08);
+	float rail_s = step(0.92, p.y);
+	float rail_w = step(p.x, 0.08);
+	float rail_e = step(0.92, p.x);
+	// Openings only where the track enters/exits (west / south).
+	float open_w = step(abs(p.y - 0.5), half_width) * step(p.x, 0.08);
+	float open_s = step(abs(p.x - 0.5), half_width) * step(0.92, p.y);
 	float rail = max(max(rail_n, rail_s), max(rail_w, rail_e));
 	rail *= (1.0 - open_w) * (1.0 - open_s);
 
-	float groove_n = step(p.y, 0.16) * (1.0 - step(p.y, 0.10));
-	float groove_s = step(p.y, 0.90) * (1.0 - step(p.y, 0.84));
-	float groove_w = step(p.x, 0.16) * (1.0 - step(p.x, 0.10));
-	float groove_e = step(p.x, 0.90) * (1.0 - step(p.x, 0.84));
+	float groove_n = step(p.y, 0.14) * (1.0 - step(p.y, 0.08));
+	float groove_s = step(p.y, 0.92) * (1.0 - step(p.y, 0.86));
+	float groove_w = step(p.x, 0.14) * (1.0 - step(p.x, 0.08));
+	float groove_e = step(p.x, 0.92) * (1.0 - step(p.x, 0.86));
 	float groove = max(max(groove_n, groove_s), max(groove_w, groove_e));
 	groove *= (1.0 - open_w) * (1.0 - open_s);
 
-	// L groove (west→center→south), hard edge at half_width (= track band).
+	// L groove only — hard edge, no rounded outer SDF.
 	vec2 a = vec2(0.0, 0.5);
 	vec2 b = vec2(0.5, 0.5);
 	vec2 c = vec2(0.5, 1.0);

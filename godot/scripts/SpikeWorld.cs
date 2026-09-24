@@ -54,20 +54,14 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         UpdateHud();
 
-        var timer = GetTree().CreateTimer(4.0);
+        var timer = GetTree().CreateTimer(3.0);
         timer.Timeout += SavePortScreenshot;
         if (HasNode("Camera"))
         {
-            // Brief corner-framed still for align media, then overview.
+            // Zoom 1: pixel-verify belt outer edge == tile edge.
             var cam = GetNode<Camera2D>("Camera");
             cam.Position = new Vector2(10.5f * TileSize, 8.5f * TileSize);
-            cam.Zoom = new Vector2(1.35f, 1.35f);
-            var back = GetTree().CreateTimer(4.2);
-            back.Timeout += () =>
-            {
-                cam.Position = new Vector2(560, 700);
-                cam.Zoom = new Vector2(0.95f, 0.95f);
-            };
+            cam.Zoom = new Vector2(1f, 1f);
         }
     }
 
@@ -581,35 +575,97 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-phase-c-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-fulltile-flush-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
+        // Keep Phase C names updated too.
+        img.SavePng(Path.Combine(destDir, "godot-port-phase-c-map.png"));
 
-        // Camera is framed on corner cell (10,8) at screenshot time — crop around viewport center.
+        // Zoom 1, camera on corner (10,8): cell is 64×64 about viewport center.
         var vpW = img.GetWidth();
         var vpH = img.GetHeight();
-        var closeSize = Math.Min(360, Math.Min(vpW, vpH));
-        var mapSize = Math.Min(520, Math.Min(vpW, vpH));
+        var cell = 64;
+        var cornerX0 = (vpW / 2) - (cell / 2);
+        var cornerY0 = (vpH / 2) - (cell / 2);
+        AssertCellOpaque(img, cornerX0, cornerY0, cell, "corner(10,8)");
+        AssertCellOpaque(img, cornerX0 - cell, cornerY0, cell, "straight(9,8)");
+        AssertNorthEdgeFlush(img, cornerX0 - cell, cornerX0 + cell, cornerY0);
+
+        var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var alignClosePath = Path.Combine(destDir, "godot-port-corner-align-close.png");
-        err = alignClose.SavePng(alignClosePath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {alignClosePath}" : $"Align close failed: {err}");
+        var flushClose = Path.Combine(destDir, "godot-port-fulltile-flush-close.png");
+        err = alignClose.SavePng(flushClose);
+        GD.Print(err == Error.Ok ? $"Screenshot: {flushClose}" : $"Flush close failed: {err}");
+        alignClose.SavePng(Path.Combine(destDir, "godot-port-corner-align-close.png"));
 
+        var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var alignMapPath = Path.Combine(destDir, "godot-port-corner-align-map.png");
-        err = alignMap.SavePng(alignMapPath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {alignMapPath}" : $"Align map failed: {err}");
-
-        // Legacy name.
-        alignClose.SavePng(Path.Combine(destDir, "godot-belt-corner-align.png"));
+        var flushMap = Path.Combine(destDir, "godot-port-fulltile-flush-elbow.png");
+        err = alignMap.SavePng(flushMap);
+        GD.Print(err == Error.Ok ? $"Screenshot: {flushMap}" : $"Flush elbow failed: {err}");
 
         var cropW = Math.Min(880, vpW);
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
-        var closePath = Path.Combine(destDir, "godot-port-phase-c-close.png");
-        err = crop.SavePng(closePath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {closePath}" : $"Crop failed: {err}");
+        crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-overview.png"));
+    }
+
+    private static bool IsTerrain(Color c) =>
+        c.G > c.R + 5f / 255f && c.G >= c.B && c.B < 60f / 255f && c.R < 55f / 255f;
+
+    private static void AssertCellOpaque(Image img, int x0, int y0, int cell, string label)
+    {
+        var terrain = 0;
+        for (var y = y0; y < y0 + cell; y++)
+        {
+            for (var x = x0; x < x0 + cell; x++)
+            {
+                if (x < 0 || y < 0 || x >= img.GetWidth() || y >= img.GetHeight())
+                {
+                    continue;
+                }
+
+                if (IsTerrain(img.GetPixel(x, y)))
+                {
+                    terrain++;
+                }
+            }
+        }
+
+        var total = cell * cell;
+        GD.Print($"PixelCheck {label}: terrain={terrain}/{total} ({100.0 * terrain / total:F2}%)");
+        if (terrain > 0)
+        {
+            GD.PushError($"FULLTILE FAIL {label}: terrain pixels inside cell (want 0).");
+        }
+    }
+
+    private static void AssertNorthEdgeFlush(Image img, int x0, int x1, int yTop)
+    {
+        // Row yTop must be belt; row yTop-1 mostly terrain (tile edge).
+        var beltOnEdge = 0;
+        var span = 0;
+        for (var x = x0; x < x1; x++)
+        {
+            if (x < 0 || x >= img.GetWidth() || yTop < 1 || yTop >= img.GetHeight())
+            {
+                continue;
+            }
+
+            span++;
+            if (!IsTerrain(img.GetPixel(x, yTop)))
+            {
+                beltOnEdge++;
+            }
+        }
+
+        GD.Print($"PixelCheck north-edge flush: beltOnEdge={beltOnEdge}/{span}");
+        if (span > 0 && beltOnEdge < span * 0.95)
+        {
+            GD.PushError("FULLTILE FAIL north edge: belt does not sit on tile edge.");
+        }
     }
 }
