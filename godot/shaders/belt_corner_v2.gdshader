@@ -1,51 +1,45 @@
 shader_type canvas_item;
 
-// Paint mockup corner — pixel-matched:
-// dark gallery plate; NE concave outer-arc pocket (light) + yellow;
-// tiny SW inner fillet; N/E rails + SW knuckle; west light lip.
-// Base: enter west → exit south. No umbrae.
+// Corner recipe (base: enter side 1 / west → exit side 4 / south):
+//  1=W  2=N  3=E  4=S
+// Blu1 #191E24 — outer border on sides opposite the curve (2+3) + knuckle at focus (1∩4)
+// Blu2 #24292F — second border on those same outer sides (2+3)
+// Blu3 #323C46 — exterior of the arc (opposite the focus)
+// Blu4 #86A7B8 — tube arc from focus; interior is Blu4; covers Blu2 in part; stays inside Blu1
 
-uniform float arc_radius = 0.36;
-uniform vec4 cover_color : source_color = vec4(0.141, 0.161, 0.184, 1.0); // 36,41,47
-uniform vec4 pad_color : source_color = vec4(0.192, 0.231, 0.271, 1.0);   // 49,59,69
-uniform vec4 rail_color : source_color = vec4(0.098, 0.118, 0.141, 1.0);  // 25,30,36
-uniform vec4 yellow_color : source_color = vec4(1.0, 0.788, 0.047, 1.0);  // 255,201,12
+uniform float border1 = 0.08;
+uniform float border2 = 0.14;
+uniform float tube_radius = 0.95;
+uniform vec4 blu1 : source_color = vec4(0.098, 0.118, 0.141, 1.0); // #191E24
+uniform vec4 blu2 : source_color = vec4(0.141, 0.161, 0.184, 1.0); // #24292F
+uniform vec4 blu3 : source_color = vec4(0.196, 0.235, 0.275, 1.0); // #323C46
+uniform vec4 blu4 : source_color = vec4(0.525, 0.655, 0.722, 1.0); // #86A7B8
 
 void fragment() {
 	vec2 p = UV;
 
-	// Full-cell dark gallery.
-	vec3 col = cover_color.rgb;
+	// 1) Exterior fill (outside the arc, opposite the focus).
+	vec3 col = blu3.rgb;
 
-	// NE concave outer-arc pocket: outside quarter-circle from bend.
-	vec2 bend = vec2(0.5, 0.5);
-	float d_bend = length(p - bend);
-	float ne_pocket = step(0.5, p.x) * step(p.y, 0.5) * step(arc_radius, d_bend);
-	col = mix(col, pad_color.rgb, ne_pocket);
+	// 2) Second border Blu2 on outer sides of the curve (N=2, E=3).
+	float b2_n = step(p.y, border2);
+	float b2_e = step(1.0 - border2, p.x);
+	col = mix(col, blu2.rgb, max(b2_n, b2_e));
 
-	// Yellow indicator fully inside the pocket (clear of east rail).
-	vec2 yel_c = vec2(0.84, 0.20);
-	float yel_d = length(p - yel_c);
-	// Thin dark ring (paint outline), then yellow fill.
-	float in_ring = ne_pocket * step(yel_d, 0.055) * step(0.042, yel_d);
-	float in_yel = ne_pocket * step(yel_d, 0.042);
-	col = mix(col, rail_color.rgb, in_ring);
-	col = mix(col, yellow_color.rgb, in_yel);
+	// 3) Tube: filled arc from focus at inner corner (1∩4 = SW).
+	//    Interior = Blu4; exterior (already Blu3) stays where d > radius.
+	//    Contained under Blu1; overlaps Blu2 on N/E.
+	vec2 focus = vec2(0.0, 1.0);
+	float d = length(p - focus);
+	float aa = max(fwidth(d) * 1.25, 0.004);
+	float in_tube = 1.0 - smoothstep(tube_radius - aa, tube_radius + aa, d);
+	col = mix(col, blu4.rgb, in_tube);
 
-	// Tiny SW inner fillet (paint: small light bite near knuckle).
-	float in_fillet = step(length(p - vec2(0.10, 0.90)), 0.045)
-		* step(0.07, p.x) * step(p.y, 0.93);
-	col = mix(col, pad_color.rgb, in_fillet);
-
-	// West light lip — flush with straight body.
-	float west_lip = step(p.x, 0.07) * step(0.08, p.y) * step(p.y, 0.92);
-	col = mix(col, pad_color.rgb, west_lip);
-
-	// Frame: full N + E; SW knuckle only.
-	float rail_n = step(p.y, 0.08);
-	float rail_e = step(0.92, p.x);
-	float rail_sw = step(0.92, p.y) * step(p.x, 0.08);
-	col = mix(col, rail_color.rgb, max(max(rail_n, rail_e), rail_sw));
+	// 4) Outer border Blu1 on sides 2+3, plus focus knuckle square at 1∩4.
+	float b1_n = step(p.y, border1);
+	float b1_e = step(1.0 - border1, p.x);
+	float knuckle = step(p.x, border1) * step(1.0 - border1, p.y);
+	col = mix(col, blu1.rgb, max(max(b1_n, b1_e), knuckle));
 
 	COLOR = vec4(col, 1.0);
 }
