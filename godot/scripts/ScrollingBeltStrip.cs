@@ -69,6 +69,9 @@ public partial class ScrollingBeltStrip : Node2D
         _material.SetShaderParameter("marks_per_tile", 2.0f);
         _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
         _material.SetShaderParameter("scroll", 0f);
+
+        // Bridge thin-span: raise above underpass belts.
+        _sprite.ZIndex = scale < 0.99f ? 2 : 1;
     }
 
     public void SetScroll(float scrollTiles)

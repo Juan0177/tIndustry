@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cbridgephaseg01"
-path="res://.godot/imported/bridge.png-phaseg01.ctex"
+uid="uid://b03ox7udpto0s"
+path="res://.godot/imported/bridge.png-45e92e7939eaa570175431fd1d63ef16.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/bridge.png"
-dest_files=["res://.godot/imported/bridge.png-phaseg01.ctex"]
+dest_files=["res://.godot/imported/bridge.png-45e92e7939eaa570175431fd1d63ef16.ctex"]
 
 [params]
 

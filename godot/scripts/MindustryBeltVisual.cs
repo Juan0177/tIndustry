@@ -285,6 +285,12 @@ public partial class MindustryBeltVisual : Node2D
         var strip = new ScrollingBeltStrip { Name = $"Strip_{cells[0].X}_{cells[0].Y}" };
         AddChild(strip);
         strip.Configure(cells, direction, tileSize, phase, thicknessScale);
+        if (thicknessScale < 0.99f)
+        {
+            // Bridge thin-span sits above underpass belts, below end pads.
+            strip.ZIndex = 2;
+        }
+
         _strips.Add(strip);
     }
 

@@ -455,7 +455,8 @@ public sealed class FactorySlice
         slice.Belts.PlacePath([new GridPosition(18, 3)], beltDef); // overflow right of East = South
         slice.Belts.TryOrient(new GridPosition(18, 3), Direction.South);
 
-        // Bridge span 2 over mid tiles (16,12)→(18,12); underpass belt crosses mid.
+        // Bridge span 2 over mid (16,12)→(18,12); mid stays empty for thin-span visual.
+        // Underpass: belt corridor south of mid (proves mid freeness without covering the span).
         Assert(slice.TryPlaceBridge(new GridPosition(16, 12), Direction.East), "bridge seed");
         slice.Belts.PlacePath(
         [
@@ -468,14 +469,14 @@ public sealed class FactorySlice
             new GridPosition(20, 12)
         ], beltDef);
         slice.Belts.TryOrient(new GridPosition(20, 12), Direction.East);
-        // Cross under mid-span (empty bridge gap at 17,12).
+        // Parallel underpass corridor (y=13) — mid (17,12) remains empty for decision-14 thin span.
         slice.Belts.PlacePath(
         [
-            new GridPosition(17, 11),
-            new GridPosition(17, 12),
-            new GridPosition(17, 13)
+            new GridPosition(16, 13),
+            new GridPosition(17, 13),
+            new GridPosition(18, 13)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(17, 13), Direction.South);
+        slice.Belts.TryOrient(new GridPosition(18, 13), Direction.East);
 
         return slice;
     }
