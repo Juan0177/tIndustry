@@ -585,13 +585,19 @@ public partial class SpikeWorld : Node2D
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
-        // Tight corner proof crops (camera framed on cell 10,8).
-        var alignClose = img.GetRegion(new Rect2I(520, 240, 240, 240));
+        // Camera is framed on corner cell (10,8) at screenshot time — crop around viewport center.
+        var vpW = img.GetWidth();
+        var vpH = img.GetHeight();
+        var closeSize = Math.Min(360, Math.Min(vpW, vpH));
+        var mapSize = Math.Min(520, Math.Min(vpW, vpH));
+        var alignClose = img.GetRegion(new Rect2I(
+            (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
         var alignClosePath = Path.Combine(destDir, "godot-port-corner-align-close.png");
         err = alignClose.SavePng(alignClosePath);
         GD.Print(err == Error.Ok ? $"Screenshot: {alignClosePath}" : $"Align close failed: {err}");
 
-        var alignMap = img.GetRegion(new Rect2I(400, 120, 480, 480));
+        var alignMap = img.GetRegion(new Rect2I(
+            (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
         var alignMapPath = Path.Combine(destDir, "godot-port-corner-align-map.png");
         err = alignMap.SavePng(alignMapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {alignMapPath}" : $"Align map failed: {err}");
@@ -599,7 +605,9 @@ public partial class SpikeWorld : Node2D
         // Legacy name.
         alignClose.SavePng(Path.Combine(destDir, "godot-belt-corner-align.png"));
 
-        var crop = img.GetRegion(new Rect2I(200, 80, 880, 560));
+        var cropW = Math.Min(880, vpW);
+        var cropH = Math.Min(560, vpH);
+        var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         var closePath = Path.Combine(destDir, "godot-port-phase-c-close.png");
         err = crop.SavePng(closePath);
         GD.Print(err == Error.Ok ? $"Screenshot: {closePath}" : $"Crop failed: {err}");
