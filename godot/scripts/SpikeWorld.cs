@@ -577,7 +577,7 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-mockup-fit-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-mockup-polish-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
         img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
@@ -598,16 +598,16 @@ public partial class SpikeWorld : Node2D
         var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var seamClose = Path.Combine(destDir, "godot-port-mockup-fit-close.png");
+        var seamClose = Path.Combine(destDir, "godot-port-mockup-polish-close.png");
         err = alignClose.SavePng(seamClose);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
         alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
-        alignClose.SavePng(Path.Combine(destDir, "godot-port-mockup-fit-tile.png"));
+        alignClose.SavePng(Path.Combine(destDir, "godot-port-mockup-polish-tile.png"));
 
         var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var seamElbow = Path.Combine(destDir, "godot-port-mockup-fit-elbow.png");
+        var seamElbow = Path.Combine(destDir, "godot-port-mockup-polish-elbow.png");
         err = alignMap.SavePng(seamElbow);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
 
@@ -615,7 +615,7 @@ public partial class SpikeWorld : Node2D
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-mockup-fit-overview.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-mockup-polish-overview.png"));
     }
 
     private static bool IsTerrain(Color c) =>
@@ -788,8 +788,8 @@ public partial class SpikeWorld : Node2D
             GD.PushError("MOCKUP FAIL: corner center is not dark gallery cover.");
         }
 
-        // NE pocket ~ UV (0.84, 0.20) pad area — light floor around yellow.
-        var pad = img.GetPixel(cornerX0 + cell * 78 / 100, cornerY0 + cell * 22 / 100);
+        // NE pocket ~ UV (0.87, 0.20) — light floor just outside the arc.
+        var pad = img.GetPixel(cornerX0 + cell * 90 / 100, cornerY0 + cell * 12 / 100);
         var padOk = IsPad(pad) || IsYellow(pad);
         GD.Print(
             $"PixelCheck mockup NE pad: ({pad.R:F3},{pad.G:F3},{pad.B:F3}) pad={padOk}");
@@ -798,7 +798,7 @@ public partial class SpikeWorld : Node2D
             GD.PushError("MOCKUP FAIL: NE pad is not light floor.");
         }
 
-        var yel = img.GetPixel(cornerX0 + cell * 84 / 100, cornerY0 + cell * 20 / 100);
+        var yel = img.GetPixel(cornerX0 + cell * 87 / 100, cornerY0 + cell * 20 / 100);
         var yelOk = IsYellow(yel);
         GD.Print(
             $"PixelCheck mockup yellow: ({yel.R:F3},{yel.G:F3},{yel.B:F3}) yellow={yelOk}");
