@@ -1,11 +1,10 @@
 shader_type canvas_item;
 
 // Paint mockup corner (galleria) — rebuilt from pixel reference:
-// solid dark cover over the full cell; NE quarter-circle outer-arc pocket
-// (light pad + yellow); N/E rails + SW knuckle; west light lip. No umbrae.
+// solid dark cover over the full cell; circular NE pad halo + yellow
+// indicator; N/E rails + SW knuckle; west light lip. No umbrae.
 // Base orientation: enter west → exit south.
 
-uniform float arc_radius = 0.30;
 uniform vec4 cover_color : source_color = vec4(0.141, 0.161, 0.184, 1.0); // 36,41,47
 uniform vec4 pad_color : source_color = vec4(0.192, 0.231, 0.271, 1.0);   // 49,59,69
 uniform vec4 rail_color : source_color = vec4(0.098, 0.118, 0.141, 1.0);  // 25,30,36
@@ -14,20 +13,19 @@ uniform vec4 yellow_color : source_color = vec4(1.0, 0.788, 0.047, 1.0);  // 255
 void fragment() {
 	vec2 p = UV;
 
-	// Full-cell dark gallery plate.
+	// Full-cell dark gallery plate (covers path + unused quadrants).
 	vec3 col = cover_color.rgb;
 
-	// NE outer-arc pocket: outside quarter-circle centered at the bend.
-	vec2 bend = vec2(0.5, 0.5);
-	float d_bend = length(p - bend);
-	float ne_quad = step(0.5, p.x) * step(p.y, 0.5);
-	float in_pad = ne_quad * smoothstep(arc_radius - 0.01, arc_radius + 0.01, d_bend);
+	// NE pad halo around the yellow indicator (paint outer-arc pocket).
+	vec2 pad_c = vec2(0.82, 0.22);
+	float pad_r = 0.12;
+	float in_pad = 1.0 - smoothstep(pad_r - 0.01, pad_r + 0.008, length(p - pad_c));
 	col = mix(col, pad_color.rgb, in_pad);
 
-	// Yellow indicator in the pocket (paint mockup).
+	// Yellow indicator.
 	vec2 yel_c = vec2(0.88, 0.19);
 	float yel_r = 0.052;
-	float in_yel = in_pad * (1.0 - smoothstep(yel_r - 0.006, yel_r + 0.002, length(p - yel_c)));
+	float in_yel = 1.0 - smoothstep(yel_r - 0.006, yel_r + 0.002, length(p - yel_c));
 	col = mix(col, yellow_color.rgb, in_yel);
 
 	// West light lip — matches straight belt body at the butt joint.
