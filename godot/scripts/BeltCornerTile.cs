@@ -35,8 +35,8 @@ public partial class BeltCornerTile : Node2D
         var span = (float)tileSize;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        // 0.40 matches the soft SDF path arc; rails stay on absolute 8%/92% bands.
-        _material!.SetShaderParameter("half_width", 0.40f);
+        // 0.42 matches full-tile straight body (rails at 8%/92%); SDF arc radius.
+        _material!.SetShaderParameter("half_width", 0.42f);
         _ = scrollPhaseTiles;
     }
 
