@@ -55,6 +55,10 @@ void fragment() {
 	curved = max(curved, ne_arc);
 	rim *= curved;
 	groove_rim *= curved;
+	// Keep N/E frame rails thin — don't let bend rim merge into them.
+	float away_from_frame = step(0.16, p.y) * step(p.x, 0.84);
+	rim *= away_from_frame;
+	groove_rim *= away_from_frame;
 
 	belt = mix(belt, groove_color.rgb, clamp(groove_rim, 0.0, 1.0));
 	belt = mix(belt, rail_color.rgb, clamp(rim, 0.0, 1.0));
