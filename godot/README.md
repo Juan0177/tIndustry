@@ -1,4 +1,4 @@
-# tIndustry — Godot 4 .NET (sorter + bridge)
+# tIndustry — Godot 4 .NET (research + cursor)
 
 Playable factory loop with **FactoryHud**, **JSON save/load**, power stubs, **sorter** + **bridge** (decision 14 thin span). Raylib resta dual path.
 
@@ -43,3 +43,7 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 | `godot/` | Playable slice + FactoryHud |
 | `src/TIndustry.Shared/` | FactorySlice + BeltGrid sorter/bridge + save |
 | `TIndustry.Logistics` | Raylib (GameSave v8 separate) |
+
+## Ricerca
+
+**T** apre il pannello Ricerca (lista IT). Sblocca Forno / Assemblatore / Giunzione / Splitter / Generatore / Selezionatore / Ponte spendendo denaro e lastre dal wallet. Salvataggio v2 include `unlockedStructures`.

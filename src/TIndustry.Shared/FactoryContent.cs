@@ -34,6 +34,13 @@ public sealed class FactoryContent
     public string DisplayName(string itemId) =>
         FindMarketItem(itemId)?.DisplayName ?? itemId;
 
+    public StructureDefinition? FindStructure(string id) =>
+        Structures.FirstOrDefault(s => s.Id == id);
+
+    public StructureDefinition RequireStructure(string id) =>
+        FindStructure(id)
+        ?? throw new InvalidDataException($"Structure '{id}' non trovato nel content caricato.");
+
     public static FactoryContent Load(string contentJsonPath)
     {
         var json = File.ReadAllText(contentJsonPath);
@@ -91,7 +98,10 @@ public sealed class FactoryContent
             string.IsNullOrWhiteSpace(s.Kind) ? "building" : s.Kind,
             s.UnlockedByDefault,
             MapUnlock(s.Unlock),
-            s.IsStub);
+            s.IsStub,
+            (s.Prerequisites ?? [])
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToList());
 
     private static IReadOnlyList<ResourceAmount> MapAmounts(List<AmountDto>? list) =>
         (list ?? [])
@@ -172,6 +182,7 @@ public sealed class FactoryContent
         public bool UnlockedByDefault { get; set; }
         public UnlockDto? Unlock { get; set; }
         public bool IsStub { get; set; }
+        public List<string>? Prerequisites { get; set; }
     }
 
     private sealed class AmountDto
