@@ -33,19 +33,19 @@ public partial class ScrollingBeltStrip : Node2D
         var minY = Math.Min(first.Y, last.Y);
         var maxY = Math.Max(first.Y, last.Y);
 
-        // Exact tile thickness (integer bounds) so N/S rails share one Y with corners.
-        // +1px on length only — seals the butt join without shifting long-edge rails.
+        // Exact tile thickness (integer N/S rails). +2px length under corners
+        // so the corner (ZIndex above) covers the butt with matching colors.
         float thicknessPx = tileSize;
         float lengthPx;
         Vector2 center;
         if (direction is Direction.East or Direction.West)
         {
-            lengthPx = (maxX - minX + 1) * tileSize + 1f;
+            lengthPx = (maxX - minX + 1) * tileSize + 2f;
             center = new Vector2((minX + maxX + 1) * 0.5f * tileSize, (first.Y + 0.5f) * tileSize);
         }
         else
         {
-            lengthPx = (maxY - minY + 1) * tileSize + 1f;
+            lengthPx = (maxY - minY + 1) * tileSize + 2f;
             center = new Vector2((first.X + 0.5f) * tileSize, (minY + maxY + 1) * 0.5f * tileSize);
         }
 

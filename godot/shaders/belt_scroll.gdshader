@@ -36,6 +36,9 @@ void fragment() {
 	float py = (v - 0.5) * 2.2;
 	float in_band = step(0.16, v) * step(v, 0.84);
 	float mark = arrow_mark(px, py) * in_band;
+	// Soften marks at strip ends so cut arrows don't show under corner overlap.
+	float end_fade = smoothstep(0.0, 0.04, UV.x) * smoothstep(0.0, 0.04, 1.0 - UV.x);
+	mark *= end_fade;
 
 	float shade = 0.92 + 0.08 * smoothstep(0.0, 0.5, abs(v - 0.5));
 
