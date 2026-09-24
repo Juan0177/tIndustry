@@ -9,7 +9,7 @@ shader_type canvas_item;
 
 uniform float border1 = 0.08;
 uniform float border2 = 0.14;
-uniform float tube_radius = 0.88;
+uniform float tube_radius = 0.92;
 uniform vec4 blu1 : source_color = vec4(0.098, 0.118, 0.141, 1.0); // #191E24
 uniform vec4 blu2 : source_color = vec4(0.141, 0.161, 0.184, 1.0); // #24292F
 uniform vec4 blu3 : source_color = vec4(0.196, 0.235, 0.275, 1.0); // #323C46
