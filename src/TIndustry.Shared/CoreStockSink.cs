@@ -46,4 +46,25 @@ public static class CoreStockSink
 
         return delivered;
     }
+
+    public static int Drain(BeltGrid grid, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet)
+    {
+        var delivered = 0;
+        foreach (var cell in grid.Cells.Values)
+        {
+            if (!coreTiles.Contains(cell.OutputPosition))
+            {
+                continue;
+            }
+
+            while (cell.PeekOutput() is { } item)
+            {
+                cell.RemoveOutput();
+                wallet.AddMaterial(item.ItemId, 1);
+                delivered++;
+            }
+        }
+
+        return delivered;
+    }
 }

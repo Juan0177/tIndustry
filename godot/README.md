@@ -1,17 +1,15 @@
-# tIndustry — Godot 4 .NET (Phase A)
+# tIndustry — Godot 4 .NET (Phase B)
 
-Playable factory slice beyond the spike. Raylib on `main` remains the dual play/fix path until the port replaces it.
+Playable factory slice with **placeable Mindustry belts**. Raylib on `main` remains the dual play/fix path.
 
 ## Requirements
 
-- **Godot 4.4+ .NET** (mono) build — standard (non-.NET) editor cannot compile C#
-- .NET SDK 8+ (Godot C# projects target `net8.0`)
+- **Godot 4.4+ .NET** (mono) + .NET SDK 8+
 - Repo checkout with `data/content.json`
 
 ## Open / run
 
 ```bash
-# From repo root
 godot4 --path godot
 # or
 Godot_v4.4.1-stable_mono_linux.x86_64 --path godot
@@ -19,25 +17,31 @@ Godot_v4.4.1-stable_mono_linux.x86_64 --path godot
 
 Main scene: `godot/scenes/Spike.tscn`
 
-Controls: **WASD** / middle-drag pan, mouse wheel zoom.
+## Controls (IT)
 
-## What you should see (Phase A loop)
+| Input | Azione |
+| --- | --- |
+| Click sinistro / trascina | Piazza nastro (direzione corrente) |
+| **R** | Ruota direzione piazzamento |
+| Click destro / trascina | Rimuovi nastro |
+| WASD / middle-drag | Pan camera |
+| Rotella | Zoom |
 
-- Checkerboard grid + deposit tint under miner
-- **Minatore T1 statico** that actually produces `iron-ore` (Shared `MinerProducer`)
-- **L-belt** Mindustry visuals (scrolling chevrons + platform corner)
-- Items riding the belt into **Core magazzino** (blue tiles) → stock HUD
-- Italian HUD: stock «Ferro grezzo», progresso minatore, item sul nastro
-- **No combat**
+## Cosa vedi
+
+- Seed L-belt miner → core (loop già attivo)
+- Piazzamento libero: dritti con chevron scroll + **angoli piattaforma** dove il flusso gira 90°
+- Minatore T1 statico, core magazzino, HUD italiano
+- **Nessun combat**
 
 ## Projects
 
 | Path | Role |
 | --- | --- |
-| `godot/` | Godot 4 C# playable slice |
-| `src/TIndustry.Shared/` | Belt, content load, wallet, miner, core sink, smelter stub |
-| `TIndustry.Logistics.csproj` | Raylib game — dual path (build + `--self-test`) |
+| `godot/` | Godot playable slice |
+| `src/TIndustry.Shared/` | `BeltGrid`, content, miner, core sink |
+| `TIndustry.Logistics.csproj` | Raylib dual path |
 
 ## CI
 
-Godot is **optional / docs-only** in CI. Existing `dotnet` Raylib build/publish/self-test jobs are the gate. Shared is excluded from the Raylib csproj glob (`Compile Remove`).
+Godot optional. Gate = Raylib `dotnet build` / `--self-test`. Shared excluded from Raylib glob.

@@ -83,16 +83,7 @@ public sealed class MinerProducer
     /// </summary>
     public bool Tick(float deltaSeconds, BeltLane belt, ref long nextItemId)
     {
-        if (Efficiency <= 0f)
-        {
-            return false;
-        }
-
-        Progress = Math.Min(
-            1f,
-            Progress + deltaSeconds * Efficiency * MiningSpeed / MiningDurationSeconds);
-
-        if (Progress < 1f)
+        if (!AdvanceToReady(deltaSeconds))
         {
             return false;
         }
@@ -102,11 +93,17 @@ public sealed class MinerProducer
         {
             var slot = (start + step) % OutputTileCount;
             var outputPosition = OutputTileAt(slot);
-            if (!TryInsertOutward(belt, outputPosition, ref nextItemId))
+            if (!IsOutwardBeltCell(belt, outputPosition))
             {
                 continue;
             }
 
+            if (!belt.TryInsertAt(outputPosition, new TransportedItem(nextItemId, OutputItemId)))
+            {
+                continue;
+            }
+
+            nextItemId++;
             ItemsProduced++;
             EjectIndex = (slot + 1) % OutputTileCount;
             Progress = 0f;
@@ -116,20 +113,49 @@ public sealed class MinerProducer
         return false;
     }
 
-    private bool TryInsertOutward(BeltLane belt, GridPosition outputPosition, ref long nextItemId)
+    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId)
     {
-        if (!IsOutwardBeltCell(belt, outputPosition))
+        if (!AdvanceToReady(deltaSeconds))
         {
             return false;
         }
 
-        if (!belt.TryInsertAt(outputPosition, new TransportedItem(nextItemId, OutputItemId)))
+        var start = EjectIndex;
+        for (var step = 0; step < OutputTileCount; step++)
+        {
+            var slot = (start + step) % OutputTileCount;
+            var outputPosition = OutputTileAt(slot);
+            if (!IsOutwardBeltCell(grid, outputPosition))
+            {
+                continue;
+            }
+
+            if (!grid.TryInsert(outputPosition, new TransportedItem(nextItemId, OutputItemId)))
+            {
+                continue;
+            }
+
+            nextItemId++;
+            ItemsProduced++;
+            EjectIndex = (slot + 1) % OutputTileCount;
+            Progress = 0f;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool AdvanceToReady(float deltaSeconds)
+    {
+        if (Efficiency <= 0f)
         {
             return false;
         }
 
-        nextItemId++;
-        return true;
+        Progress = Math.Min(
+            1f,
+            Progress + deltaSeconds * Efficiency * MiningSpeed / MiningDurationSeconds);
+        return Progress >= 1f;
     }
 
     private bool IsOutwardBeltCell(BeltLane belt, GridPosition outputPosition)
@@ -141,20 +167,26 @@ public sealed class MinerProducer
                 continue;
             }
 
-            // Outward: belt direction should leave the miner footprint (not face into it).
-            var dir = belt.DirectionAt(i);
-            var next = outputPosition.Step(dir);
-            foreach (var tile in OccupiedTiles())
-            {
-                if (next.Equals(tile))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return IsOutwardDirection(belt.DirectionAt(i), outputPosition);
         }
 
         return false;
+    }
+
+    private bool IsOutwardBeltCell(BeltGrid grid, GridPosition outputPosition) =>
+        grid.TryGet(outputPosition, out var cell) && IsOutwardDirection(cell.Direction, outputPosition);
+
+    private bool IsOutwardDirection(Direction dir, GridPosition outputPosition)
+    {
+        var next = outputPosition.Step(dir);
+        foreach (var tile in OccupiedTiles())
+        {
+            if (next.Equals(tile))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

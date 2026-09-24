@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Phase A playable slice: static miner → Mindustry L-belt → core stock.
-/// Uses <see cref="FactorySlice"/> from TIndustry.Shared (no fake timer spawn).
+/// Phase B: placeable Mindustry belts + static miner → core stock loop.
+/// Click = piazza nastro · R = ruota · destro = rimuovi.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -19,6 +19,11 @@ public partial class SpikeWorld : Node2D
     private Node2D? _itemsLayer;
     private Label? _hud;
     private string _contentPath = "";
+    private Direction _placeDir = Direction.East;
+    private GridPosition? _hover;
+    private bool _draggingPlace;
+    private bool _draggingRemove;
+    private bool _visualDirty = true;
 
     public override void _Ready()
     {
@@ -30,11 +35,80 @@ public partial class SpikeWorld : Node2D
         _hud = GetNode<Label>("Hud/Status");
 
         PlaceMinerVisual();
-        BuildScrollingBelt();
+        EnsureBeltVisual();
+        RebuildBeltVisual();
         UpdateHud();
 
-        var timer = GetTree().CreateTimer(5.0);
+        var timer = GetTree().CreateTimer(6.0);
         timer.Timeout += SavePortScreenshot;
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        if (@event is InputEventKey key && key.Pressed && !key.Echo)
+        {
+            if (key.Keycode == Key.R)
+            {
+                _placeDir = DirectionMath.Right(_placeDir);
+                QueueRedraw();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
+
+        if (@event is InputEventMouseButton mouse)
+        {
+            var cell = ScreenToCell(mouse.Position);
+            if (mouse.ButtonIndex == MouseButton.Left)
+            {
+                if (mouse.Pressed)
+                {
+                    _draggingPlace = true;
+                    TryPlaceAt(cell);
+                    GetViewport().SetInputAsHandled();
+                }
+                else
+                {
+                    _draggingPlace = false;
+                }
+            }
+            else if (mouse.ButtonIndex == MouseButton.Right)
+            {
+                if (mouse.Pressed)
+                {
+                    _draggingRemove = true;
+                    TryRemoveAt(cell);
+                    GetViewport().SetInputAsHandled();
+                }
+                else
+                {
+                    _draggingRemove = false;
+                }
+            }
+        }
+        else if (@event is InputEventMouseMotion motion)
+        {
+            var cell = ScreenToCell(motion.Position);
+            if (!_hover.Equals(cell))
+            {
+                _hover = cell;
+                QueueRedraw();
+            }
+
+            if (_draggingPlace)
+            {
+                TryPlaceAt(cell);
+            }
+            else if (_draggingRemove)
+            {
+                TryRemoveAt(cell);
+            }
+        }
     }
 
     public override void _Process(double delta)
@@ -45,6 +119,12 @@ public partial class SpikeWorld : Node2D
         }
 
         _slice.Tick((float)delta);
+        if (_visualDirty)
+        {
+            RebuildBeltVisual();
+            _visualDirty = false;
+        }
+
         SyncItemSprites();
         UpdateHud();
         QueueRedraw();
@@ -81,7 +161,6 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        // Core stock tiles (ingresso magazzino).
         var coreFill = new Color(0.22f, 0.38f, 0.55f, 0.85f);
         var coreEdge = new Color(0.45f, 0.75f, 0.95f, 1f);
         foreach (var tile in _slice.CoreTiles)
@@ -91,13 +170,78 @@ public partial class SpikeWorld : Node2D
             DrawRect(rect, coreEdge, false, 2f);
         }
 
-        // Soft deposit tint under miner (on-deposit hint).
         var deposit = new Color(0.45f, 0.32f, 0.18f, 0.35f);
         foreach (var tile in _slice.Miner.OccupiedTiles())
         {
             var rect = new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize);
             DrawRect(rect, deposit);
         }
+
+        // Ghost placement preview.
+        if (_hover is { } hover
+            && hover.X >= 0 && hover.Y >= 0
+            && hover.X < MapWidth && hover.Y < MapHeight)
+        {
+            var ok = _slice.CanOccupy(hover);
+            var ghost = ok
+                ? new Color(0.35f, 0.85f, 0.55f, 0.35f)
+                : new Color(0.9f, 0.25f, 0.2f, 0.35f);
+            var rect = new Rect2(hover.X * TileSize, hover.Y * TileSize, TileSize, TileSize);
+            DrawRect(rect, ghost);
+            DrawRect(rect, new Color(0.9f, 0.95f, 0.85f, 0.9f), false, 2f);
+            DrawDirectionHint(hover, _placeDir);
+        }
+    }
+
+    private void DrawDirectionHint(GridPosition cell, Direction dir)
+    {
+        var center = CellCenter(cell);
+        var (dx, dy) = DirectionMath.ToOffset(dir);
+        var tip = center + new Vector2(dx, dy) * (TileSize * 0.32f);
+        DrawLine(center, tip, new Color(0.95f, 0.95f, 0.7f, 0.95f), 3f);
+        DrawCircle(tip, 4f, new Color(0.95f, 0.95f, 0.7f, 0.95f));
+    }
+
+    private void TryPlaceAt(GridPosition cell)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        if (!_slice.CanOccupy(cell))
+        {
+            return;
+        }
+
+        if (_slice.TryPlaceBelt(cell, _placeDir))
+        {
+            _visualDirty = true;
+        }
+    }
+
+    private void TryRemoveAt(GridPosition cell)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        if (_slice.TryRemoveBelt(cell))
+        {
+            _visualDirty = true;
+        }
+    }
+
+    private GridPosition ScreenToCell(Vector2 screenPos)
+    {
+        var canvas = GetCanvasTransform().AffineInverse() * screenPos;
+        // Account for camera: use get_global_mouse when available.
+        var world = GetGlobalMousePosition();
+        _ = canvas;
+        var x = Mathf.FloorToInt(world.X / TileSize);
+        var y = Mathf.FloorToInt(world.Y / TileSize);
+        return new GridPosition(x, y);
     }
 
     private void PlaceMinerVisual()
@@ -109,19 +253,13 @@ public partial class SpikeWorld : Node2D
 
         var miner = GetNode<Node2D>("Miner");
         var origin = _slice.Miner.Position;
-        // Center of 2×2 footprint.
         miner.Position = new Vector2(
             (origin.X + MinerProducer.Size * 0.5f) * TileSize,
             (origin.Y + MinerProducer.Size * 0.5f) * TileSize);
     }
 
-    private void BuildScrollingBelt()
+    private void EnsureBeltVisual()
     {
-        if (_slice is null)
-        {
-            return;
-        }
-
         var belts = GetNode<Node2D>("Belts");
         foreach (var child in belts.GetChildren())
         {
@@ -130,8 +268,19 @@ public partial class SpikeWorld : Node2D
 
         _beltVisual = new MindustryBeltVisual { Name = "MindustryBelt" };
         belts.AddChild(_beltVisual);
-        var path = _slice.Belt.Cells.Select(c => c.Position).ToList();
-        _beltVisual.Configure(path, _slice.Belt.Definition.RateItemsPerSecond, TileSize);
+    }
+
+    private void RebuildBeltVisual()
+    {
+        if (_slice is null || _beltVisual is null)
+        {
+            return;
+        }
+
+        _beltVisual.ConfigureFromGrid(
+            _slice.Belts,
+            _slice.BeltDefinition.RateItemsPerSecond,
+            TileSize);
     }
 
     private void SyncItemSprites()
@@ -143,12 +292,9 @@ public partial class SpikeWorld : Node2D
 
         var live = new HashSet<long>();
         var oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
-        var belt = _slice.Belt;
 
-        for (var cellIndex = 0; cellIndex < belt.Cells.Count; cellIndex++)
+        foreach (var cell in _slice.Belts.Cells.Values)
         {
-            var cell = belt.Cells[cellIndex];
-            var dir = belt.DirectionAt(cellIndex);
             foreach (var item in cell.Items)
             {
                 live.Add(item.Id);
@@ -167,7 +313,7 @@ public partial class SpikeWorld : Node2D
                 }
 
                 var from = CellCenter(cell.Position);
-                var to = CellCenter(cell.Position.Step(dir));
+                var to = CellCenter(cell.Position.Step(cell.Direction));
                 sprite.Position = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
             }
         }
@@ -189,15 +335,23 @@ public partial class SpikeWorld : Node2D
 
         var oreName = _slice.Content.DisplayName("iron-ore");
         var oreStock = _slice.Wallet.MaterialCount("iron-ore");
-        var onBelt = _slice.Belt.Cells.Sum(c => c.Items.Count);
+        var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
         var scroll = _beltVisual?.ScrollTiles ?? 0f;
         var progressPct = (int)(_slice.Miner.Progress * 100f);
+        var dirIt = _placeDir switch
+        {
+            Direction.North => "Nord",
+            Direction.East => "Est",
+            Direction.South => "Sud",
+            Direction.West => "Ovest",
+            _ => "?"
+        };
 
         _hud.Text =
-            $"tIndustry Godot — loop fabbrica  |  Nastro={_slice.Belt.Definition.Id}  {_slice.Belt.Definition.RateItemsPerSecond}/s\n" +
-            $"Minatore T1 (statico)  progresso={progressPct}%  prodotti={_slice.Miner.ItemsProduced}  |  sul nastro={onBelt}\n" +
+            $"tIndustry Godot — nastri piazzabili  |  Nastro={_slice.BeltDefinition.Id}  {_slice.BeltDefinition.RateItemsPerSecond}/s\n" +
+            $"Minatore T1 (statico)  progresso={progressPct}%  prodotti={_slice.Miner.ItemsProduced}  |  sul nastro={onBelt}  celle={_slice.Belts.Count}\n" +
             $"Core magazzino: {oreName} = {oreStock}  (consegnati={_slice.CoreDeliveredItems})  |  scroll={scroll:0.00}\n" +
-            "WASD / drag centrale = pan · rotella = zoom · nessun combat";
+            $"Piazza: click/trascina · R=ruota ({dirIt}) · destro=rimuovi · WASD/drag=pan · rotella=zoom · nessun combat";
     }
 
     private static Vector2 CellCenter(GridPosition cell) =>
@@ -257,17 +411,17 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-loop-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-place-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
         var crop = img.GetRegion(new Rect2I(80, 200, 900, 520));
-        var closePath = Path.Combine(destDir, "godot-port-loop-close.png");
+        var closePath = Path.Combine(destDir, "godot-port-place-close.png");
         err = crop.SavePng(closePath);
         GD.Print(err == Error.Ok ? $"Screenshot: {closePath}" : $"Crop failed: {err}");
 
-        // Also keep spike names for continuity.
-        img.SavePng(Path.Combine(destDir, "godot-belt-l-map.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-belt-l-close.png"));
+        // Continuity names.
+        img.SavePng(Path.Combine(destDir, "godot-port-loop-map.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-loop-close.png"));
     }
 }
