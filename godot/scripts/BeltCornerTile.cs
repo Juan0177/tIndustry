@@ -4,9 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell corner tile: opaque square covering 100% of the cell (no green in the
-/// unused quadrant). Outer rails align with <see cref="ScrollingBeltStrip"/>;
-/// recessed L channel joins the track band. Base art: enter-west → exit-south.
+/// Full-cell corner that overlaps abutting strips so the join is covered by one
+/// continuous surface (no dark butt line / color break). Base: enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
@@ -30,21 +29,17 @@ public partial class BeltCornerTile : Node2D
             Direction.North => -90f,
             _ => 0f
         };
-        // Exact tile span (integer bounds) so N/S rails share one Y with strips.
-        // Corner ZIndex is above strips; length overlap on strips seals the butt.
+
+        // Exact tile span so N/S rails share one Y with strips. Strips overlap
+        // +2px under this corner; matching colors hide the butt.
         var span = (float)tileSize;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        // Narrower groove so unused quadrant clearly shows base_color (square fill).
-        _material!.SetShaderParameter("half_width", 0.32f);
+        _material!.SetShaderParameter("half_width", 0.40f);
         _ = scrollPhaseTiles;
     }
 
-    /// <summary>No-op: corner does not scroll marks.</summary>
-    public void SetScroll(float scrollTiles)
-    {
-        _ = scrollTiles;
-    }
+    public void SetScroll(float scrollTiles) => _ = scrollTiles;
 
     private static Direction MirrorHorizontal(Direction d) => d switch
     {
