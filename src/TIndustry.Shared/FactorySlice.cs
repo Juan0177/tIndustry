@@ -1422,6 +1422,15 @@ public sealed class FactorySlice
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, new BeltGrid(), core);
 
+        var graph = TechTreeLayout.Build(content);
+        Assert(graph.Nodes.Count >= 9, "graph has structures");
+        Assert(graph.Edges.Count >= 1, "graph has prereq edges");
+        Assert(graph.Nodes.Any(n => n.Structure.Id == "smelter"), "smelter in graph");
+        var path = TechTreeLayout.CollectRelatedIds(graph, "assembler");
+        Assert(path.Contains("assembler"), "path includes selected");
+        Assert(TechTreeLayout.ClampZoom(0.1f) == TechTreeLayout.MinZoom, "zoom clamp lo");
+        Assert(TechTreeLayout.ClampZoom(9f) == TechTreeLayout.MaxZoom, "zoom clamp hi");
+
         Assert(slice.Research.IsUnlocked("conveyor-basic"), "default belt");
         Assert(slice.Research.IsUnlocked("miner"), "default miner");
         Assert(!slice.Research.IsUnlocked("smelter"), "forno locked");
