@@ -17,8 +17,8 @@ TINDUSTRY_CAPTURE=1 godot4 --path godot
 
 ## UI (FactoryHud)
 
-- **Toolbar** in basso: Nastro · Minatore · Forno · Assemblatore · Giunzione · Splitter (icone in box, selezione gialla)
-- **Ruota R** + indicatore direzione
+- **Toolbar** in basso: Nastro · Minatore · Forno · Assemblatore · Giunzione · Splitter · **Ruota** (mostra Dir)
+- Click **Ruota** (o tasto **R**) per ciclare direzione
 - **Core** in alto a destra: stock IT (ferro / lastre / rame / filo) + consegnati / nastro
 - Toast breve sulla selezione tool
 - Hotkeys **1–6** / **R** restano attivi; click UI non piazza sul mondo (`_UnhandledInput`)
