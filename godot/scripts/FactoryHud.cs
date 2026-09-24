@@ -10,6 +10,7 @@ public partial class FactoryHud : Control
 {
     public enum ToolKind
     {
+        Cursor,
         Belt,
         Miner,
         Smelter,
@@ -35,15 +36,17 @@ public partial class FactoryHud : Control
     private Label? _toastLabel;
     private Label? _hintLabel;
     private Label? _titleLabel;
-    private ToolKind _selected = ToolKind.Belt;
+    private ToolKind _selected = ToolKind.Cursor;
     private Tween? _toastTween;
 
     public event Action<ToolKind>? ToolChosen;
-    public event Action? RotateRequested;
     public event Action? SaveRequested;
     public event Action? LoadRequested;
     public event Action? SaveSlotRequested;
     public event Action? LoadSlotRequested;
+
+    public ToolKind SelectedTool => _selected;
+    public bool IsCursorMode => _selected == ToolKind.Cursor;
 
     public override void _Ready()
     {
@@ -54,7 +57,7 @@ public partial class FactoryHud : Control
         BuildStockPanel();
         BuildToolbar();
         BuildToast();
-        SetSelectedTool(ToolKind.Belt);
+        SetSelectedTool(ToolKind.Cursor);
         SetDirectionLabel("Est");
     }
 
@@ -63,13 +66,14 @@ public partial class FactoryHud : Control
         _selected = tool;
         foreach (var (kind, slot) in _toolSlots)
         {
+            var selected = kind == tool;
             var style = (StyleBoxFlat)slot.GetThemeStylebox("panel").Duplicate();
-            style.BorderColor = kind == tool ? SlotSelected : SlotIdle;
-            style.BorderWidthLeft = kind == tool ? 3 : 1;
-            style.BorderWidthTop = kind == tool ? 3 : 1;
-            style.BorderWidthRight = kind == tool ? 3 : 1;
-            style.BorderWidthBottom = kind == tool ? 3 : 1;
-            style.BgColor = kind == tool
+            style.BorderColor = selected ? SlotSelected : SlotIdle;
+            style.BorderWidthLeft = selected ? 3 : 1;
+            style.BorderWidthTop = selected ? 3 : 1;
+            style.BorderWidthRight = selected ? 3 : 1;
+            style.BorderWidthBottom = selected ? 3 : 1;
+            style.BgColor = selected
                 ? new Color(0.22f, 0.24f, 0.18f, 1f)
                 : SlotBg;
             slot.AddThemeStyleboxOverride("panel", style);
@@ -81,11 +85,21 @@ public partial class FactoryHud : Control
         }
     }
 
+    public void ClearToolSelection(bool toast = false)
+    {
+        SetSelectedTool(ToolKind.Cursor);
+        ToolChosen?.Invoke(ToolKind.Cursor);
+        if (toast)
+        {
+            ShowToast("Cursore");
+        }
+    }
+
     public void SetDirectionLabel(string directionIt)
     {
         if (_dirLabel is not null)
         {
-            _dirLabel.Text = directionIt;
+            _dirLabel.Text = $"R · direzione {directionIt}  ·  destro = elimina";
         }
     }
 
@@ -242,6 +256,8 @@ public partial class FactoryHud : Control
         tools.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         root.AddChild(tools);
 
+        // Cursor / hand — default; not a place tool. Esc or re-click also clears.
+        AddCursorButton(tools);
         AddToolButton(tools, ToolKind.Belt, "1", "Nastro", "res://assets/conveyor-basic.png",
             new Color(0.55f, 0.62f, 0.48f));
         AddToolButton(tools, ToolKind.Miner, "2", "Minatore", "res://assets/miner.png",
@@ -260,83 +276,31 @@ public partial class FactoryHud : Control
             new Color(0.70f, 0.90f, 0.55f));
         AddToolButton(tools, ToolKind.Bridge, "9", "Ponte", "res://assets/bridge.png",
             new Color(0.65f, 0.72f, 0.88f));
-
-        // Rotate as a same-size toolbar slot (reliable hit target).
-        var rotateSlot = new PanelContainer
-        {
-            Name = "RotateSlot",
-            CustomMinimumSize = new Vector2(72, 78),
-            MouseFilter = MouseFilterEnum.Stop
-        };
-        rotateSlot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
-        tools.AddChild(rotateSlot);
-
-        var rotMargin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        rotMargin.AddThemeConstantOverride("margin_left", 6);
-        rotMargin.AddThemeConstantOverride("margin_right", 6);
-        rotMargin.AddThemeConstantOverride("margin_top", 4);
-        rotMargin.AddThemeConstantOverride("margin_bottom", 4);
-        rotateSlot.AddChild(rotMargin);
-
-        var rotV = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        rotV.AddThemeConstantOverride("separation", 2);
-        rotMargin.AddChild(rotV);
-
-        var rotKey = new Label { Text = "R", MouseFilter = MouseFilterEnum.Ignore };
-        rotKey.AddThemeColorOverride("font_color", SlotSelected);
-        rotKey.AddThemeFontSizeOverride("font_size", 12);
-        rotV.AddChild(rotKey);
-
-        var rotCenter = new CenterContainer
-        {
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        rotV.AddChild(rotCenter);
-        _dirLabel = new Label
-        {
-            Text = "Est",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _dirLabel.AddThemeColorOverride("font_color", TextPrimary);
-        _dirLabel.AddThemeFontSizeOverride("font_size", 16);
-        rotCenter.AddChild(_dirLabel);
-
-        var rotName = new Label
-        {
-            Text = "Ruota",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        rotName.AddThemeColorOverride("font_color", TextPrimary);
-        rotName.AddThemeFontSizeOverride("font_size", 11);
-        rotV.AddChild(rotName);
-
-        rotateSlot.GuiInput += e =>
-        {
-            if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                RotateRequested?.Invoke();
-                ShowToast("Direzione ruotata");
-                AcceptEvent();
-            }
-        };
+        // Ruota / Elimina are NOT toolbar slots — R hotkey + RMB remove.
 
         var side = new VBoxContainer();
-        side.CustomMinimumSize = new Vector2(210, 0);
+        side.CustomMinimumSize = new Vector2(220, 0);
         side.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         side.AddThemeConstantOverride("separation", 6);
         root.AddChild(side);
 
         _hintLabel = new Label
         {
-            Text = ToolHint(ToolKind.Belt),
+            Text = ToolHint(ToolKind.Cursor),
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
         _hintLabel.AddThemeColorOverride("font_color", TextMuted);
         _hintLabel.AddThemeFontSizeOverride("font_size", 12);
         side.AddChild(_hintLabel);
+
+        _dirLabel = new Label
+        {
+            Text = "R · direzione Est",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
+        };
+        _dirLabel.AddThemeColorOverride("font_color", TextMuted);
+        _dirLabel.AddThemeFontSizeOverride("font_size", 12);
+        side.AddChild(_dirLabel);
 
         var saveRow = new HBoxContainer();
         saveRow.AddThemeConstantOverride("separation", 6);
@@ -361,6 +325,70 @@ public partial class FactoryHud : Control
         {
             LoadSlotRequested?.Invoke();
         });
+    }
+
+    private void AddCursorButton(Control parent)
+    {
+        var slot = new PanelContainer
+        {
+            Name = "CursorSlot",
+            CustomMinimumSize = new Vector2(72, 78),
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
+        parent.AddChild(slot);
+        _toolSlots[ToolKind.Cursor] = slot;
+
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        margin.AddThemeConstantOverride("margin_left", 6);
+        margin.AddThemeConstantOverride("margin_right", 6);
+        margin.AddThemeConstantOverride("margin_top", 4);
+        margin.AddThemeConstantOverride("margin_bottom", 4);
+        slot.AddChild(margin);
+
+        var vbox = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        vbox.AddThemeConstantOverride("separation", 2);
+        margin.AddChild(vbox);
+
+        var key = new Label { Text = "Esc", MouseFilter = MouseFilterEnum.Ignore };
+        key.AddThemeColorOverride("font_color", SlotSelected);
+        key.AddThemeFontSizeOverride("font_size", 11);
+        vbox.AddChild(key);
+
+        var center = new CenterContainer
+        {
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        vbox.AddChild(center);
+        var glyph = new Label
+        {
+            Text = "↖",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        glyph.AddThemeColorOverride("font_color", TextPrimary);
+        glyph.AddThemeFontSizeOverride("font_size", 28);
+        center.AddChild(glyph);
+
+        var name = new Label
+        {
+            Text = "Cursore",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        name.AddThemeColorOverride("font_color", TextPrimary);
+        name.AddThemeFontSizeOverride("font_size", 11);
+        vbox.AddChild(name);
+
+        slot.GuiInput += e =>
+        {
+            if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                ClearToolSelection(toast: true);
+                AcceptEvent();
+            }
+        };
     }
 
     private void AddActionChip(Control parent, string label, string hotkey, Action onClick)
@@ -464,6 +492,14 @@ public partial class FactoryHud : Control
         {
             if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
+                // Re-click selected place tool → back to cursor.
+                if (_selected == kind)
+                {
+                    ClearToolSelection(toast: true);
+                    AcceptEvent();
+                    return;
+                }
+
                 SetSelectedTool(kind);
                 ToolChosen?.Invoke(kind);
                 ShowToast($"{labelIt} selezionato");
@@ -543,6 +579,7 @@ public partial class FactoryHud : Control
 
     private static string ToolHint(ToolKind tool) => tool switch
     {
+        ToolKind.Cursor => "Cursore: pan / guarda · Esc o riesci sul tool per uscire",
         ToolKind.Belt => "Click/trascina: piazza nastro",
         ToolKind.Miner => "Click: piazza minatore 2×2",
         ToolKind.Smelter => "Click: piazza forno 2×2",

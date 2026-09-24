@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Playable factory slice + FactoryHud: sorter/bridge on Phase F (power + save/load).
-/// Hotkeys 1–9 + R + C (ciclo filtro); toolbar includes Selezionatore / Ponte.
+/// Playable factory slice + FactoryHud. Default = cursore (no place tool).
+/// Hotkeys 1–9 place · Esc/` cursore · R ruota · C filtro · RMB elimina.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -20,6 +20,7 @@ public partial class SpikeWorld : Node2D
 
     private enum BuildTool
     {
+        Cursor,
         Belt,
         Miner,
         Smelter,
@@ -39,7 +40,7 @@ public partial class SpikeWorld : Node2D
     private FactoryHud? _hud;
     private string _contentPath = "";
     private Direction _placeDir = Direction.East;
-    private BuildTool _tool = BuildTool.Belt;
+    private BuildTool _tool = BuildTool.Cursor;
     private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
     private GridPosition? _hover;
     private bool _draggingPlace;
@@ -81,10 +82,10 @@ public partial class SpikeWorld : Node2D
             LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata", quietFail: true);
         }
 
-        // Optional capture: TINDUSTRY_CAPTURE=1 → sorter/bridge screenshots then quit.
+        // Optional capture: TINDUSTRY_CAPTURE=1 → cursor UI screenshots then quit.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
         {
-            var timer = GetTree().CreateTimer(1.2);
+            var timer = GetTree().CreateTimer(1.0);
             timer.Timeout += () => _ = SavePortScreenshotsAsync();
         }
 
@@ -117,12 +118,11 @@ public partial class SpikeWorld : Node2D
         }
 
         _hud.ToolChosen += OnHudToolChosen;
-        _hud.RotateRequested += OnHudRotate;
         _hud.SaveRequested += () => SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
         _hud.LoadRequested += () => LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
         _hud.SaveSlotRequested += () => SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
         _hud.LoadSlotRequested += () => LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
-        _hud.SetSelectedTool(ToHudTool(_tool));
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
 
@@ -193,6 +193,14 @@ public partial class SpikeWorld : Node2D
         QueueRedraw();
     }
 
+    private void ClearToCursor(bool toast = true)
+    {
+        _tool = BuildTool.Cursor;
+        _draggingPlace = false;
+        _hud?.ClearToolSelection(toast);
+        QueueRedraw();
+    }
+
     private void OnHudRotate()
     {
         _placeDir = DirectionMath.Right(_placeDir);
@@ -207,7 +215,7 @@ public partial class SpikeWorld : Node2D
         _hud?.SetSelectedTool(ToHudTool(tool));
         if (toast)
         {
-            _hud?.ShowToast($"{ToolIt(tool)} selezionato");
+            _hud?.ShowToast(tool == BuildTool.Cursor ? "Cursore" : $"{ToolIt(tool)} selezionato");
         }
 
         QueueRedraw();
@@ -215,6 +223,7 @@ public partial class SpikeWorld : Node2D
 
     private static FactoryHud.ToolKind ToHudTool(BuildTool tool) => tool switch
     {
+        BuildTool.Cursor => FactoryHud.ToolKind.Cursor,
         BuildTool.Miner => FactoryHud.ToolKind.Miner,
         BuildTool.Smelter => FactoryHud.ToolKind.Smelter,
         BuildTool.Assembler => FactoryHud.ToolKind.Assembler,
@@ -223,11 +232,13 @@ public partial class SpikeWorld : Node2D
         BuildTool.Generator => FactoryHud.ToolKind.Generator,
         BuildTool.Sorter => FactoryHud.ToolKind.Sorter,
         BuildTool.Bridge => FactoryHud.ToolKind.Bridge,
-        _ => FactoryHud.ToolKind.Belt
+        BuildTool.Belt => FactoryHud.ToolKind.Belt,
+        _ => FactoryHud.ToolKind.Cursor
     };
 
     private static BuildTool FromHudTool(FactoryHud.ToolKind tool) => tool switch
     {
+        FactoryHud.ToolKind.Cursor => BuildTool.Cursor,
         FactoryHud.ToolKind.Miner => BuildTool.Miner,
         FactoryHud.ToolKind.Smelter => BuildTool.Smelter,
         FactoryHud.ToolKind.Assembler => BuildTool.Assembler,
@@ -236,11 +247,13 @@ public partial class SpikeWorld : Node2D
         FactoryHud.ToolKind.Generator => BuildTool.Generator,
         FactoryHud.ToolKind.Sorter => BuildTool.Sorter,
         FactoryHud.ToolKind.Bridge => BuildTool.Bridge,
-        _ => BuildTool.Belt
+        FactoryHud.ToolKind.Belt => BuildTool.Belt,
+        _ => BuildTool.Cursor
     };
 
     private static string ToolIt(BuildTool tool) => tool switch
     {
+        BuildTool.Cursor => "Cursore",
         BuildTool.Belt => "Nastro",
         BuildTool.Miner => "Minatore",
         BuildTool.Smelter => "Forno",
@@ -271,6 +284,13 @@ public partial class SpikeWorld : Node2D
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (key.Keycode == Key.Escape || key.Keycode == Key.Quoteleft)
+            {
+                ClearToCursor();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode == Key.Key1 || key.Keycode == Key.N)
             {
                 SelectTool(BuildTool.Belt, toast: true);
@@ -384,6 +404,12 @@ public partial class SpikeWorld : Node2D
             {
                 if (mouse.Pressed)
                 {
+                    if (_tool == BuildTool.Cursor)
+                    {
+                        // Cursor mode: no place — leave click for camera pan / look.
+                        return;
+                    }
+
                     _draggingPlace = _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
                         or BuildTool.Sorter;
                     TryPlaceAt(cell);
@@ -527,7 +553,8 @@ public partial class SpikeWorld : Node2D
 
         if (_hover is { } hover
             && hover.X >= 0 && hover.Y >= 0
-            && hover.X < MapWidth && hover.Y < MapHeight)
+            && hover.X < MapWidth && hover.Y < MapHeight
+            && _tool != BuildTool.Cursor)
         {
             DrawGhost(hover);
         }
@@ -625,7 +652,7 @@ public partial class SpikeWorld : Node2D
 
     private void TryPlaceAt(GridPosition cell)
     {
-        if (_slice is null)
+        if (_slice is null || _tool == BuildTool.Cursor)
         {
             return;
         }
@@ -1040,75 +1067,52 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (destDir is null || _slice is null)
+        if (destDir is null || _slice is null || _hud is null)
         {
-            GD.PushWarning("Nessuna cartella screenshot scrivibile / slice null.");
+            GD.PushWarning("Nessuna cartella screenshot / hud null.");
             return;
         }
 
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
-
-        // Overview: sorter corridor + bridge + craft loop.
         if (cam is not null)
         {
             cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
             cam.Zoom = new Vector2(0.5f, 0.5f);
         }
 
+        // Default: cursore selected, no Ruota slot.
+        ClearToCursor(toast: false);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 0; i < 4; i++)
-        {
-            await ToSignal(GetTree().CreateTimer(0.8), SceneTreeTimer.SignalName.Timeout);
-        }
+        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
 
         var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-map.png");
-        GD.Print($"Saved sorter-bridge map → {destDir}");
+        overview.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-map.png");
 
-        // Zoom on sorter (18,2).
-        if (cam is not null)
-        {
-            cam.Position = new Vector2(18.5f * TileSize, 2.5f * TileSize);
-            cam.Zoom = new Vector2(1.1f, 1.1f);
-        }
+        var barH = Math.Min(170, overview.GetHeight());
+        var bar = overview.GetRegion(new Rect2I(0, overview.GetHeight() - barH, overview.GetWidth(), barH));
+        bar.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-toolbar.png"));
+        bar.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-toolbar.png");
+        GD.Print($"Saved cursor toolbar → {destDir}");
 
+        // Select a place tool then Esc back to cursor.
+        SelectTool(BuildTool.Belt, toast: true);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
-        var sorterShot = GetViewport().GetTexture().GetImage();
-        sorterShot.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-sorter.png"));
-        sorterShot.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-sorter.png");
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var beltSel = GetViewport().GetTexture().GetImage();
+        var beltBar = beltSel.GetRegion(new Rect2I(0, beltSel.GetHeight() - barH, beltSel.GetWidth(), barH));
+        beltBar.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-nastro-selected.png"));
+        beltBar.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-nastro-selected.png");
 
-        // Zoom on bridge (16–18,12) thin span.
-        if (cam is not null)
-        {
-            cam.Position = new Vector2(17.5f * TileSize, 12.5f * TileSize);
-            cam.Zoom = new Vector2(1.15f, 1.15f);
-        }
-
+        ClearToCursor(toast: true);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
-        var bridgeShot = GetViewport().GetTexture().GetImage();
-        bridgeShot.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-bridge.png"));
-        bridgeShot.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-bridge.png");
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var back = GetViewport().GetTexture().GetImage();
+        var backBar = back.GetRegion(new Rect2I(0, back.GetHeight() - barH, back.GetWidth(), barH));
+        backBar.SavePng(Path.Combine(destDir, "godot-port-ui-cursor-after-esc.png"));
+        backBar.SavePng("/opt/cursor/artifacts/godot-port-ui-cursor-after-esc.png");
 
-        // Toolbar strip (tools 8/9 visible).
-        if (cam is not null)
-        {
-            cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
-            cam.Zoom = new Vector2(0.5f, 0.5f);
-        }
-
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
-        var full = GetViewport().GetTexture().GetImage();
-        var barH = Math.Min(170, full.GetHeight());
-        var bar = full.GetRegion(new Rect2I(0, full.GetHeight() - barH, full.GetWidth(), barH));
-        bar.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-toolbar.png"));
-        bar.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-toolbar.png");
-
-        GD.Print("Sorter/bridge screenshot set complete.");
+        GD.Print("Cursor UI screenshot set complete.");
         GetTree().Quit();
     }
 
