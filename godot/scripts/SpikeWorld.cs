@@ -54,8 +54,8 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         UpdateHud();
 
-        var timer = GetTree().CreateTimer(3.0);
-        timer.Timeout += SavePortScreenshot;
+        var timer = GetTree().CreateTimer(2.0);
+        timer.Timeout += () => _ = SavePortScreenshotsAsync();
         if (HasNode("Camera"))
         {
             // Zoom 1: pixel-verify belt outer edge == tile edge.
@@ -546,9 +546,8 @@ public partial class SpikeWorld : Node2D
             "content.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
     }
 
-    private void SavePortScreenshot()
+    private async Task SavePortScreenshotsAsync()
     {
-        var img = GetViewport().GetTexture().GetImage();
         var mediaCandidates = new[]
         {
             "/cursor/stores/bc-6a5b42f7-8a62-4dc2-b71f-4a3a4f9c2232/media",
@@ -571,51 +570,184 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (destDir is null)
+        if (destDir is null || _slice is null)
         {
-            GD.PushWarning("Nessuna cartella screenshot scrivibile.");
+            GD.PushWarning("Nessuna cartella screenshot scrivibile / slice null.");
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-corner-recipe-map.png");
-        var err = img.SavePng(mapPath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
-        img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
-        img.SavePng(Path.Combine(destDir, "godot-port-phase-c-map.png"));
+        if (_buildingsLayer is not null)
+        {
+            _buildingsLayer.Visible = false;
+        }
 
-        // Zoom 1, camera on corner (10,8): cell is 64×64 about viewport center.
+        if (_itemsLayer is not null)
+        {
+            _itemsLayer.Visible = false;
+        }
+
+        if (_hud is not null)
+        {
+            _hud.Visible = false;
+        }
+
+        var beltDef = _slice.BeltDefinition;
+        var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
+
+        // 1) Corner block alone — crop one cell.
+        await CaptureBeltLayout(
+            destDir,
+            "godot-port-corner-alone.png",
+            [
+                new GridPosition(9, 8),
+                new GridPosition(10, 8),
+                new GridPosition(10, 9)
+            ],
+            beltDef,
+            cam,
+            focusCellX: 10.5f,
+            focusCellY: 8.5f,
+            cropCells: 1);
+
+        // 2) Corner with conveyor belts (L).
+        await CaptureBeltLayout(
+            destDir,
+            "godot-port-corner-belts.png",
+            [
+                new GridPosition(7, 8),
+                new GridPosition(8, 8),
+                new GridPosition(9, 8),
+                new GridPosition(10, 8),
+                new GridPosition(10, 9),
+                new GridPosition(10, 10),
+                new GridPosition(10, 11)
+            ],
+            beltDef,
+            cam,
+            focusCellX: 9.5f,
+            focusCellY: 9.0f,
+            cropCells: 5);
+
+        // 3) U shape (open west).
+        await CaptureBeltLayout(
+            destDir,
+            "godot-port-corner-u.png",
+            [
+                new GridPosition(8, 8),
+                new GridPosition(9, 8),
+                new GridPosition(10, 8),
+                new GridPosition(10, 9),
+                new GridPosition(10, 10),
+                new GridPosition(9, 10),
+                new GridPosition(8, 10)
+            ],
+            beltDef,
+            cam,
+            focusCellX: 9.0f,
+            focusCellY: 9.0f,
+            cropCells: 5);
+
+        // 4) Z shape.
+        await CaptureBeltLayout(
+            destDir,
+            "godot-port-corner-z.png",
+            [
+                new GridPosition(7, 8),
+                new GridPosition(8, 8),
+                new GridPosition(9, 8),
+                new GridPosition(9, 9),
+                new GridPosition(9, 10),
+                new GridPosition(10, 10),
+                new GridPosition(11, 10),
+                new GridPosition(12, 10)
+            ],
+            beltDef,
+            cam,
+            focusCellX: 9.5f,
+            focusCellY: 9.0f,
+            cropCells: 6);
+
+        // Pixel asserts on the L/belts layout (reload + one more frame).
+        await CaptureBeltLayout(
+            destDir,
+            "godot-port-corner-recipe-close.png",
+            [
+                new GridPosition(7, 8),
+                new GridPosition(8, 8),
+                new GridPosition(9, 8),
+                new GridPosition(10, 8),
+                new GridPosition(10, 9),
+                new GridPosition(10, 10),
+                new GridPosition(10, 11)
+            ],
+            beltDef,
+            cam,
+            focusCellX: 10.5f,
+            focusCellY: 8.5f,
+            cropCells: 5,
+            runAsserts: true);
+
+        GD.Print("Corner shot set complete (alone / belts / U / Z).");
+    }
+
+    private void ClearAllBelts()
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        foreach (var pos in _slice.Belts.Cells.Keys.ToList())
+        {
+            _slice.TryRemoveBelt(pos);
+        }
+    }
+
+    private async Task CaptureBeltLayout(
+        string destDir,
+        string fileName,
+        List<GridPosition> path,
+        ConveyorDefinition beltDef,
+        Camera2D? cam,
+        float focusCellX,
+        float focusCellY,
+        int cropCells,
+        bool runAsserts = false)
+    {
+        ClearAllBelts();
+        _slice!.Belts.PlacePath(path, beltDef);
+        RebuildBeltVisual();
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(focusCellX * TileSize, focusCellY * TileSize);
+            cam.Zoom = new Vector2(1f, 1f);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        var img = GetViewport().GetTexture().GetImage();
         var vpW = img.GetWidth();
         var vpH = img.GetHeight();
-        var cell = 64;
-        var cornerX0 = (vpW / 2) - (cell / 2);
-        var cornerY0 = (vpH / 2) - (cell / 2);
-        AssertCellOpaque(img, cornerX0, cornerY0, cell, "corner(10,8)");
-        AssertCellOpaque(img, cornerX0 - cell, cornerY0, cell, "straight(9,8)");
-        AssertNorthEdgeFlush(img, cornerX0 - cell, cornerX0 + cell, cornerY0);
-        AssertSeamRailContinuous(img, cornerX0, cornerY0, cell);
-        AssertCornerRecipe(img, cornerX0, cornerY0, cell);
+        var size = TileSize * cropCells;
+        var region = img.GetRegion(new Rect2I(
+            (vpW - size) / 2, (vpH - size) / 2, size, size));
+        var pathOut = Path.Combine(destDir, fileName);
+        var err = region.SavePng(pathOut);
+        GD.Print(err == Error.Ok ? $"Screenshot: {pathOut}" : $"Screenshot failed: {err}");
 
-        var closeSize = cell * 5;
-        var alignClose = img.GetRegion(new Rect2I(
-            (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var seamClose = Path.Combine(destDir, "godot-port-corner-recipe-close.png");
-        err = alignClose.SavePng(seamClose);
-        GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
-        alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
-        alignClose.SavePng(Path.Combine(destDir, "godot-port-corner-recipe-tile.png"));
-
-        var mapSize = cell * 8;
-        var alignMap = img.GetRegion(new Rect2I(
-            (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var seamElbow = Path.Combine(destDir, "godot-port-corner-recipe-elbow.png");
-        err = alignMap.SavePng(seamElbow);
-        GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
-
-        var cropW = Math.Min(880, vpW);
-        var cropH = Math.Min(560, vpH);
-        var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
-        crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-corner-recipe-overview.png"));
+        if (runAsserts)
+        {
+            var cell = TileSize;
+            var cornerX0 = (vpW / 2) - (cell / 2);
+            var cornerY0 = (vpH / 2) - (cell / 2);
+            AssertCellOpaque(img, cornerX0, cornerY0, cell, "corner(10,8)");
+            AssertCellOpaque(img, cornerX0 - cell, cornerY0, cell, "straight(9,8)");
+            AssertNorthEdgeFlush(img, cornerX0 - cell, cornerX0 + cell, cornerY0);
+            AssertSeamRailContinuous(img, cornerX0, cornerY0, cell);
+            AssertCornerRecipe(img, cornerX0, cornerY0, cell);
+            img.SavePng(Path.Combine(destDir, "godot-port-corner-recipe-map.png"));
+        }
     }
 
     private static bool IsTerrain(Color c) =>

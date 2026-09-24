@@ -5,11 +5,11 @@ shader_type canvas_item;
 // Blu1 #191E24 — outer border on sides opposite the curve (2+3) + knuckle at focus (1∩4)
 // Blu2 #24292F — second border on those same outer sides (2+3)
 // Blu3 #323C46 — exterior of the arc (opposite the focus)
-// Blu4 #86A7B8 — tube arc from focus; interior is Blu4; covers Blu2 in part; stays inside Blu1
+// Blu4 #86A7B8 — tube arc from focus; hard edge on top of Blu2; stays inside Blu1
 
 uniform float border1 = 0.08;
 uniform float border2 = 0.14;
-uniform float tube_radius = 0.88;
+uniform float tube_radius = 0.92;
 uniform vec4 blu1 : source_color = vec4(0.098, 0.118, 0.141, 1.0); // #191E24
 uniform vec4 blu2 : source_color = vec4(0.141, 0.161, 0.184, 1.0); // #24292F
 uniform vec4 blu3 : source_color = vec4(0.196, 0.235, 0.275, 1.0); // #323C46
@@ -26,15 +26,13 @@ void fragment() {
 	float b2_e = step(1.0 - border2, p.x);
 	col = mix(col, blu2.rgb, max(b2_n, b2_e));
 
-	// 3) Tube: filled arc from focus at inner corner (1∩4 = SW).
+	// 3) Tube: hard-edged arc from focus (1∩4 = SW) — sits on top of Blu2, no fade.
 	vec2 focus = vec2(0.0, 1.0);
 	float d = length(p - focus);
-	float aa = max(fwidth(d) * 1.25, 0.004);
-	float in_tube = 1.0 - smoothstep(tube_radius - aa, tube_radius + aa, d);
+	float in_tube = step(d, tube_radius);
 	col = mix(col, blu4.rgb, in_tube);
 
-	// Exterior of the arc in the cell interior must stay Blu3
-	// (Blu2 bands on N/E remain where the tube does not cover them).
+	// Exterior of the arc in the cell interior stays Blu3.
 	float interior = step(border2, p.y) * step(p.x, 1.0 - border2);
 	col = mix(col, blu3.rgb, (1.0 - in_tube) * interior);
 
