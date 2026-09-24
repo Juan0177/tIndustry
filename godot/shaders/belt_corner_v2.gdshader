@@ -1,16 +1,15 @@
 shader_type canvas_item;
 
-// Full-cell rounded L corner (galleria / tunnel).
-// SDF capsule L → outer NE quarter-arc + inner fillet.
-// Dark pad in the NE pocket. Square N/E frame; SW knuckle only.
-// Path rim only on the curved bend (not entry/exit arms).
-// No mouth ombrette. Base: enter west → exit south.
+// Paint-matched rounded L corner (galleria).
+// Thick dark OUTER ARC (the yellow-dot pocket sits outside it).
+// Small INNER FILLET. Arms flush with full-tile straights (hw=0.42).
+// Flat colors, no mouth umbrae. Base: enter west → exit south.
 
 uniform float half_width = 0.42;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
 uniform vec4 rail_color : source_color = vec4(0.10, 0.12, 0.14, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
-// Above IsRail thresholds (R>30 or G>36) so pad ≠ rail for pixel checks.
+// NE pocket under the outer arc (same family as rail, slightly lifted for asserts).
 uniform vec4 pad_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
 
 float sd_segment(vec2 p, vec2 a, vec2 b) {
@@ -36,32 +35,37 @@ void fragment() {
 	float across_h = (p.y - 0.5) / hw;
 	float across_v = (0.5 - p.x) / hw;
 	float across = clamp(mix(across_h, across_v, on_vert), -1.0, 1.0);
-	float shade = 0.92 + 0.08 * smoothstep(0.0, 0.5, abs(across));
+
+	// Flat body (paint-like), tiny shade only.
+	float shade = 0.96 + 0.04 * smoothstep(0.0, 0.5, abs(across));
 	vec3 belt = base_color.rgb * shade;
 
-	// Rim along SDF boundary near the bend only (outer arc + inner fillet).
-	float rim = step(hw - 0.08, d) * step(d, hw);
-	float groove_rim = step(hw - 0.14, d) * (1.0 - step(hw - 0.08, d));
-	// Suppress on straight entry/exit arms so N/S and E/W seams stay flush.
-	float on_entry_arm = step(p.x, 0.40);
-	float on_exit_arm = step(0.60, p.y);
+	// Outer side of the L (toward NE) / inner side (toward SW fillet).
+	float on_outer = step(across, 0.0);       // across <= 0
+	float on_inner = 1.0 - on_outer;
+
+	// Bend only — keep entry/exit arms flush with straight rails.
+	float on_entry_arm = step(p.x, 0.42);
+	float on_exit_arm = step(0.58, p.y);
 	float curved = (1.0 - on_entry_arm) * (1.0 - on_exit_arm);
-	// Keep rim in the NE outer-arc quadrant even when y is mid-high.
-	float ne_arc = step(0.45, p.x) * step(p.y, 0.55);
-	curved = max(curved, ne_arc);
-	rim *= curved;
-	groove_rim *= curved;
-	// Keep N/E frame rails thin — don't let bend rim merge into them.
-	float away_from_frame = step(0.16, p.y) * step(p.x, 0.84);
-	rim *= away_from_frame;
-	groove_rim *= away_from_frame;
+	float ne_quad = step(0.42, p.x) * step(p.y, 0.58);
+	curved = max(curved, ne_quad);
 
-	belt = mix(belt, groove_color.rgb, clamp(groove_rim, 0.0, 1.0));
-	belt = mix(belt, rail_color.rgb, clamp(rim, 0.0, 1.0));
+	// THICK dark outer arc (paint "arco") — ~22% of half-width on the outer lip.
+	float arco = step(hw - 0.22, d) * step(d, hw) * on_outer * curved;
+	// Thin inner fillet rim (small rounded shoulder in the paint).
+	float fillet = step(hw - 0.10, d) * step(d, hw) * on_inner * curved;
+	// Keep N/E frame thin.
+	float away_frame = step(0.14, p.y) * step(p.x, 0.86);
+	arco *= away_frame;
+	fillet *= away_frame;
 
+	belt = mix(belt, rail_color.rgb, clamp(max(arco, fillet), 0.0, 1.0));
+
+	// NE pocket outside the belt, under the arc.
 	vec3 col = mix(pad_color.rgb, belt, in_belt);
 
-	// Square outer frame.
+	// Square outer frame — N/E full; SW knuckle only.
 	float rail_n = step(p.y, 0.08);
 	float rail_e = step(0.92, p.x);
 	float rail_s = step(0.92, p.y) * step(p.x, 0.08);
