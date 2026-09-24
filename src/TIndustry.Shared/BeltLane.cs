@@ -229,6 +229,16 @@ public sealed class BeltCell
         return true;
     }
 
+    /// <summary>Overwrite items for save/load (bypasses spacing / capacity checks).</summary>
+    public void RestoreItems(IEnumerable<TransportedItem> restored)
+    {
+        items.Clear();
+        foreach (var item in restored)
+        {
+            items.Add(item);
+        }
+    }
+
     public void Advance(float deltaSeconds)
     {
         var movement = Definition.RateItemsPerSecond * deltaSeconds;

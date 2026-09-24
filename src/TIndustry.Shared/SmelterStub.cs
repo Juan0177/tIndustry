@@ -49,6 +49,41 @@ public sealed class SmelterStub
         Direction = direction;
     }
 
+    public void RestoreCraftState(
+        float progress,
+        bool isCrafting,
+        IReadOnlyDictionary<string, int>? inputs,
+        IEnumerable<string>? outputs,
+        int ejectIndex,
+        long itemsCrafted = 0)
+    {
+        Progress = Math.Clamp(progress, 0f, 1f);
+        IsCrafting = isCrafting;
+        inputBuffer.Clear();
+        if (inputs is not null)
+        {
+            foreach (var (id, amount) in inputs)
+            {
+                if (amount > 0)
+                {
+                    inputBuffer[id] = amount;
+                }
+            }
+        }
+
+        outputQueue.Clear();
+        if (outputs is not null)
+        {
+            foreach (var id in outputs)
+            {
+                outputQueue.Enqueue(id);
+            }
+        }
+
+        EjectIndex = ((ejectIndex % OutputTileCount) + OutputTileCount) % OutputTileCount;
+        ItemsCrafted = Math.Max(0, itemsCrafted);
+    }
+
     public IEnumerable<GridPosition> OccupiedTiles()
     {
         for (var y = 0; y < Size; y++)
