@@ -24,34 +24,10 @@ public partial class BeltCornerTile : Node2D
         _sprite.Centered = true;
         _sprite.Position = new Vector2((cell.X + 0.5f) * tileSize, (cell.Y + 0.5f) * tileSize);
 
-        // Base sprite: from=East → to=South (CW). CCW uses horizontal flip first
-        // (East→South mirrored = West→South), then rotate.
-        var clockwise = BeltLane.IsClockwiseTurn(from, to);
-        float rotation;
-        var flipX = !clockwise;
-        if (clockwise)
-        {
-            rotation = from switch
-            {
-                Direction.East => 0f,
-                Direction.South => 90f,
-                Direction.West => 180f,
-                Direction.North => -90f,
-                _ => 0f
-            };
-        }
-        else
-        {
-            rotation = from switch
-            {
-                Direction.West => 0f,
-                Direction.South => -90f,
-                Direction.East => 180f,
-                Direction.North => 90f,
-                _ => 0f
-            };
-        }
-
+        // Base art: East→South (CW), Blu4 on W+S, knuckle SW.
+        // CCW: flipX first → West→South, then rotate. Z bottom S→E = flipX + −90°
+        // so Blu4 opens on N+E (not the old flipY mapping that left it on S+W).
+        var (rotation, flipX) = ResolveTransform(from, to);
         _sprite.RotationDegrees = rotation;
         var span = (float)tileSize;
         _sprite.Scale = new Vector2(flipX ? -span : span, span);
@@ -60,6 +36,34 @@ public partial class BeltCornerTile : Node2D
     }
 
     public void SetScroll(float scrollTiles) => _ = scrollTiles;
+
+    /// <summary>
+    /// Godot 2D: positive rotation is clockwise. FlipX mirrors the CW base into CCW.
+    /// </summary>
+    internal static (float RotationDegrees, bool FlipX) ResolveTransform(Direction from, Direction to)
+    {
+        var clockwise = BeltLane.IsClockwiseTurn(from, to);
+        if (clockwise)
+        {
+            return from switch
+            {
+                Direction.East => (0f, false),
+                Direction.South => (90f, false),
+                Direction.West => (180f, false),
+                Direction.North => (-90f, false),
+                _ => (0f, false)
+            };
+        }
+
+        return from switch
+        {
+            Direction.West => (0f, true),
+            Direction.South => (-90f, true), // S→E (Z bottom)
+            Direction.East => (180f, true),
+            Direction.North => (90f, true),
+            _ => (0f, true)
+        };
+    }
 
     private void EnsureVisual()
     {
