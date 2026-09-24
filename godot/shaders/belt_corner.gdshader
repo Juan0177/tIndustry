@@ -4,13 +4,9 @@ shader_type canvas_item;
 // SDF capsule L → outer NE quarter-arc + inner fillet.
 // Dark pad in the NE pocket. Square N/E frame; SW knuckle only.
 // Path rim only on the curved bend (not entry/exit arms).
-// Mouth ombrette = soft multiply only (no rail-tint lips → no seam steps).
-// shade_entry / shade_exit: C# zeros when neighbor is another corner (Z/U).
-// Base: enter west → exit south.
+// No mouth ombrette. Base: enter west → exit south.
 
 uniform float half_width = 0.42;
-uniform float shade_entry = 1.0;
-uniform float shade_exit = 1.0;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
 uniform vec4 rail_color : source_color = vec4(0.10, 0.12, 0.14, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
@@ -62,12 +58,6 @@ void fragment() {
 
 	belt = mix(belt, groove_color.rgb, clamp(groove_rim, 0.0, 1.0));
 	belt = mix(belt, rail_color.rgb, clamp(rim, 0.0, 1.0));
-
-	// Galleria mouth ombrette — multiply only, capped so body stays non-rail.
-	float entry_umbra = shade_entry * (1.0 - smoothstep(0.0, 0.30, p.x));
-	float exit_umbra = shade_exit * smoothstep(0.70, 1.0, p.y);
-	float umbra = min(max(entry_umbra, exit_umbra), 0.30) * in_belt;
-	belt *= 1.0 - umbra;
 
 	vec3 col = mix(pad_color.rgb, belt, in_belt);
 
