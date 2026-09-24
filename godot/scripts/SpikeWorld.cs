@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Phase E play slice + FactoryHud UI (toolbar / core stock).
-/// Hotkeys 1–6 + R still work alongside UI clicks.
+/// Phase F play slice + FactoryHud: power stubs (generator) on Phase E loop.
+/// Hotkeys 1–7 + R; toolbar includes Generatore.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -20,7 +20,8 @@ public partial class SpikeWorld : Node2D
         Smelter,
         Assembler,
         Junction,
-        Splitter
+        Splitter,
+        Generator
     }
 
     private FactorySlice? _slice;
@@ -41,12 +42,14 @@ public partial class SpikeWorld : Node2D
     private Texture2D? _plateTex;
     private Texture2D? _copperOreTex;
     private Texture2D? _copperWireTex;
+    private Texture2D? _coalTex;
+    private bool _lastGenLive;
 
     public override void _Ready()
     {
         _contentPath = ResolveContentPath();
         var content = FactoryContent.Load(_contentPath);
-        _slice = FactorySlice.CreatePhaseEDemo(content);
+        _slice = FactorySlice.CreatePhaseFDemo(content);
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureFactoryHud();
@@ -55,13 +58,14 @@ public partial class SpikeWorld : Node2D
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
         _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
         _copperWireTex = GD.Load<Texture2D>("res://assets/copper-wire.png");
+        _coalTex = GD.Load<Texture2D>("res://assets/coal.png");
 
         EnsureBeltVisual();
         RebuildBeltVisual();
         RebuildBuildingVisuals();
         UpdateHud();
 
-        // Optional capture: TINDUSTRY_CAPTURE=1 → UI screenshots then quit.
+        // Optional capture: TINDUSTRY_CAPTURE=1 → Phase F screenshots then quit.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
         {
             var timer = GetTree().CreateTimer(1.2);
@@ -71,7 +75,8 @@ public partial class SpikeWorld : Node2D
         if (HasNode("Camera"))
         {
             var cam = GetNode<Camera2D>("Camera");
-            cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
+            // Frame generator (6,5) + forno + coal miner + craft loop.
+            cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
             cam.Zoom = new Vector2(0.55f, 0.55f);
         }
     }
@@ -134,6 +139,7 @@ public partial class SpikeWorld : Node2D
         BuildTool.Assembler => FactoryHud.ToolKind.Assembler,
         BuildTool.Junction => FactoryHud.ToolKind.Junction,
         BuildTool.Splitter => FactoryHud.ToolKind.Splitter,
+        BuildTool.Generator => FactoryHud.ToolKind.Generator,
         _ => FactoryHud.ToolKind.Belt
     };
 
@@ -144,6 +150,7 @@ public partial class SpikeWorld : Node2D
         FactoryHud.ToolKind.Assembler => BuildTool.Assembler,
         FactoryHud.ToolKind.Junction => BuildTool.Junction,
         FactoryHud.ToolKind.Splitter => BuildTool.Splitter,
+        FactoryHud.ToolKind.Generator => BuildTool.Generator,
         _ => BuildTool.Belt
     };
 
@@ -155,6 +162,7 @@ public partial class SpikeWorld : Node2D
         BuildTool.Assembler => "Assemblatore",
         BuildTool.Junction => "Giunzione",
         BuildTool.Splitter => "Splitter",
+        BuildTool.Generator => "Generatore",
         _ => "?"
     };
 
@@ -214,6 +222,13 @@ public partial class SpikeWorld : Node2D
             if (key.Keycode == Key.Key6 || key.Keycode == Key.T)
             {
                 SelectTool(BuildTool.Splitter, toast: true);
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.Key7 || key.Keycode == Key.G)
+            {
+                SelectTool(BuildTool.Generator, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -297,6 +312,13 @@ public partial class SpikeWorld : Node2D
         }
 
         SyncItemSprites();
+        var genLive = _slice.Generators.Any(g => g.IsGenerating);
+        if (genLive != _lastGenLive)
+        {
+            _lastGenLive = genLive;
+            _buildingsDirty = true;
+        }
+
         UpdateHud();
         QueueRedraw();
     }
@@ -353,9 +375,12 @@ public partial class SpikeWorld : Node2D
         // Deposit tint under miners stays soft; the building pad is the readable frame.
         foreach (var miner in _slice.Miners)
         {
-            var deposit = miner.OutputItemId == "copper-ore"
-                ? new Color(0.55f, 0.38f, 0.22f, 0.4f)
-                : new Color(0.45f, 0.32f, 0.18f, 0.35f);
+            var deposit = miner.OutputItemId switch
+            {
+                "copper-ore" => new Color(0.55f, 0.38f, 0.22f, 0.4f),
+                "coal" => new Color(0.18f, 0.18f, 0.16f, 0.45f),
+                _ => new Color(0.45f, 0.32f, 0.18f, 0.35f)
+            };
             foreach (var tile in miner.OccupiedTiles())
             {
                 DrawRect(new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize), deposit);
@@ -382,6 +407,7 @@ public partial class SpikeWorld : Node2D
             BuildTool.Miner => MinerProducer.Size,
             BuildTool.Smelter => SmelterStub.Size,
             BuildTool.Assembler => SmelterStub.Size,
+            BuildTool.Generator => GeneratorStub.Size,
             _ => 1
         };
 
@@ -390,7 +416,8 @@ public partial class SpikeWorld : Node2D
             : _slice.CanOccupyFootprint(hover, size)
               || (_tool == BuildTool.Miner && _slice.Miners.Count == 1)
               || (_tool == BuildTool.Smelter && _slice.Smelters.Count == 1)
-              || (_tool == BuildTool.Assembler && _slice.Assemblers.Count == 1);
+              || (_tool == BuildTool.Assembler && _slice.Assemblers.Count == 1)
+              || (_tool == BuildTool.Generator && _slice.Generators.Count == 1);
 
         var ghost = ok
             ? new Color(0.35f, 0.85f, 0.55f, 0.35f)
@@ -469,6 +496,13 @@ public partial class SpikeWorld : Node2D
                 if (_slice.TryPlaceSplitter(cell, _placeDir))
                 {
                     _visualDirty = true;
+                }
+
+                break;
+            case BuildTool.Generator:
+                if (_slice.TryPlaceGenerator(cell, _placeDir))
+                {
+                    _buildingsDirty = true;
                 }
 
                 break;
@@ -571,6 +605,23 @@ public partial class SpikeWorld : Node2D
                 iconScale: 1.1f);
             node.Name = $"Assembler_{assembler.Position.X}_{assembler.Position.Y}";
             node.Position = FootprintCenter(assembler.Position, SmelterStub.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        foreach (var gen in _slice.Generators)
+        {
+            var live = gen.IsGenerating;
+            var node = BuildingPad.Create(
+                GeneratorStub.Size,
+                TileSize,
+                fill: new Color(0.18f, 0.16f, 0.12f, 1f),
+                border: live
+                    ? new Color(0.98f, 0.82f, 0.28f, 1f)
+                    : new Color(0.55f, 0.48f, 0.28f, 1f),
+                icon: GD.Load<Texture2D>("res://assets/generator.png"),
+                iconScale: 1.05f);
+            node.Name = $"Generator_{gen.Position.X}_{gen.Position.Y}";
+            node.Position = FootprintCenter(gen.Position, GeneratorStub.Size);
             _buildingsLayer.AddChild(node);
         }
     }
@@ -694,6 +745,7 @@ public partial class SpikeWorld : Node2D
         }
 
         var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
+        var gensLive = _slice.Generators.Count(g => g.IsGenerating);
         _hud.UpdateStock(
             ShortName(_slice.Content.DisplayName("iron-ore")),
             _slice.Wallet.MaterialCount("iron-ore"),
@@ -704,7 +756,9 @@ public partial class SpikeWorld : Node2D
             ShortName(_slice.Content.DisplayName("copper-wire")),
             _slice.Wallet.MaterialCount("copper-wire"),
             _slice.CoreDeliveredItems,
-            onBelt);
+            onBelt,
+            gensLive,
+            _slice.Generators.Count);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
 
@@ -721,6 +775,7 @@ public partial class SpikeWorld : Node2D
         "iron-plate" => _plateTex,
         "copper-ore" => _copperOreTex,
         "copper-wire" => _copperWireTex,
+        "coal" => _coalTex,
         _ => _oreTex
     };
 
@@ -782,49 +837,64 @@ public partial class SpikeWorld : Node2D
 
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
 
-        // Overview: factory + full UI chrome.
+        // Kick generator with fuel so pad shows live border in shots.
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Generators[0].TryAcceptFuel("coal");
+        }
+
         if (cam is not null)
         {
-            cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
+            cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
             cam.Zoom = new Vector2(0.55f, 0.55f);
         }
 
-        SelectTool(BuildTool.Smelter);
+        SelectTool(BuildTool.Generator);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 0; i < 8; i++)
+        for (var i = 0; i < 12; i++)
         {
             await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
         }
 
         var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-ui-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-ui-map.png");
-        GD.Print($"Saved UI map → {destDir}");
+        overview.SavePng(Path.Combine(destDir, "godot-port-phase-f-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-phase-f-map.png");
+        GD.Print($"Saved Phase F map → {destDir}");
 
-        // Toolbar focus: select giunzione so highlight is obvious.
-        SelectTool(BuildTool.Junction, toast: true);
-        _hud?.ShowToast("Giunzione selezionata");
+        // Close crop: generator + forno adjacency.
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(7f * TileSize, 6.5f * TileSize);
+            cam.Zoom = new Vector2(1.05f, 1.05f);
+        }
+
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var closeFull = GetViewport().GetTexture().GetImage();
+        var close = CropCenterCells(closeFull, cropCells: 8);
+        close.SavePng(Path.Combine(destDir, "godot-port-phase-f-close.png"));
+        close.SavePng("/opt/cursor/artifacts/godot-port-phase-f-close.png");
+        GD.Print($"Saved Phase F close → {destDir}");
 
+        // Toolbar strip with Generatore selected.
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
+            cam.Zoom = new Vector2(0.55f, 0.55f);
+        }
+
+        SelectTool(BuildTool.Generator, toast: true);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var full = GetViewport().GetTexture().GetImage();
-        // Bottom strip = toolbar.
         var barH = Math.Min(160, full.GetHeight());
         var bar = full.GetRegion(new Rect2I(0, full.GetHeight() - barH, full.GetWidth(), barH));
-        bar.SavePng(Path.Combine(destDir, "godot-port-ui-toolbar.png"));
-        bar.SavePng("/opt/cursor/artifacts/godot-port-ui-toolbar.png");
+        bar.SavePng(Path.Combine(destDir, "godot-port-phase-f-toolbar.png"));
+        bar.SavePng("/opt/cursor/artifacts/godot-port-phase-f-toolbar.png");
 
-        // Top-right stock panel crop.
-        var stockW = Math.Min(340, full.GetWidth());
-        var stockH = Math.Min(160, full.GetHeight());
-        var stock = full.GetRegion(new Rect2I(full.GetWidth() - stockW - 4, 4, stockW, stockH));
-        stock.SavePng(Path.Combine(destDir, "godot-port-ui-stock.png"));
-        stock.SavePng("/opt/cursor/artifacts/godot-port-ui-stock.png");
-        GD.Print($"Saved UI toolbar/stock → {destDir}");
-
-        GD.Print("Factory UI screenshot set complete.");
+        GD.Print("Phase F screenshot set complete.");
         GetTree().Quit();
     }
 

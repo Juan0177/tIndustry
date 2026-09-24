@@ -15,7 +15,8 @@ public partial class FactoryHud : Control
         Smelter,
         Assembler,
         Junction,
-        Splitter
+        Splitter,
+        Generator
     }
 
     private static readonly Color PanelBg = new(0.10f, 0.12f, 0.13f, 0.94f);
@@ -88,7 +89,9 @@ public partial class FactoryHud : Control
         string copperName, int copper,
         string wireName, int wire,
         long delivered,
-        int onBelt)
+        int onBelt,
+        int generatorsLive = 0,
+        int generatorsTotal = 0)
     {
         SetStock("iron-ore", oreName, ore);
         SetStock("iron-plate", plateName, plate);
@@ -96,7 +99,12 @@ public partial class FactoryHud : Control
         SetStock("copper-wire", wireName, wire);
         if (_titleLabel is not null)
         {
-            _titleLabel.Text = $"Core · consegnati {delivered} · nastro {onBelt}";
+            var power = generatorsTotal == 0
+                ? "potenza —"
+                : generatorsLive > 0
+                    ? $"potenza ON ({generatorsLive}/{generatorsTotal})"
+                    : $"potenza off ({generatorsLive}/{generatorsTotal})";
+            _titleLabel.Text = $"Core · consegnati {delivered} · nastro {onBelt} · {power}";
         }
     }
 
@@ -240,12 +248,14 @@ public partial class FactoryHud : Control
             new Color(0.85f, 0.88f, 0.90f));
         AddToolButton(tools, ToolKind.Splitter, "6", "Splitter", "res://assets/splitter.png",
             new Color(0.75f, 0.80f, 0.95f));
+        AddToolButton(tools, ToolKind.Generator, "7", "Generatore", "res://assets/generator.png",
+            new Color(0.95f, 0.78f, 0.35f));
 
         // Rotate as a same-size toolbar slot (reliable hit target).
         var rotateSlot = new PanelContainer
         {
             Name = "RotateSlot",
-            CustomMinimumSize = new Vector2(96, 90),
+            CustomMinimumSize = new Vector2(84, 86),
             MouseFilter = MouseFilterEnum.Stop
         };
         rotateSlot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
@@ -328,7 +338,7 @@ public partial class FactoryHud : Control
         Color accent)
     {
         var slot = new PanelContainer();
-        slot.CustomMinimumSize = new Vector2(96, 90);
+        slot.CustomMinimumSize = new Vector2(84, 86);
         slot.MouseFilter = MouseFilterEnum.Stop;
         slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         parent.AddChild(slot);
@@ -473,6 +483,7 @@ public partial class FactoryHud : Control
         ToolKind.Assembler => "Click: piazza assemblatore 2×2",
         ToolKind.Junction => "Click/trascina: giunzione",
         ToolKind.Splitter => "Click/trascina: splitter",
+        ToolKind.Generator => "Click: generatore 2×2 (carbone → potenza)",
         _ => ""
     };
 }
