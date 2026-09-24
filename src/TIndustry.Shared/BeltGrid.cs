@@ -1,8 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Placeable logistics grid: belts, junctions (cross-axis), splitters (T-fork).
-/// Advance + handoff mirrors Logistics ConveyorGrid (sans bridge/sorter).
+/// Placeable logistics grid: belts, junctions, splitters, sorters, bridges.
+/// Bridge mid-span is empty (ends only); sorter filters Mindustry-style.
 /// </summary>
 public sealed class BeltGrid
 {
@@ -42,7 +42,13 @@ public sealed class BeltGrid
             if (!ReferenceEquals(existing.Definition, definition)
                 && existing.Definition.Id != definition.Id)
             {
-                cells[position] = new BeltGridCell(position, direction, definition);
+                var rebuilt = new BeltGridCell(position, direction, definition);
+                if (definition.Kind == LogisticsKind.Sorter)
+                {
+                    rebuilt.SetFilterItem(BeltGridCell.DefaultSorterFilter);
+                }
+
+                cells[position] = rebuilt;
                 return true;
             }
 
@@ -50,29 +56,96 @@ public sealed class BeltGrid
             return true;
         }
 
-        cells[position] = new BeltGridCell(position, direction, definition);
+        var cell = new BeltGridCell(position, direction, definition);
+        if (definition.Kind == LogisticsKind.Sorter)
+        {
+            cell.SetFilterItem(BeltGridCell.DefaultSorterFilter);
+        }
+
+        cells[position] = cell;
         return true;
     }
 
-    public bool TryRemove(GridPosition position) => cells.Remove(position);
+    /// <summary>
+    /// Place paired bridge ends (span 2–4). Mid tiles stay empty so belts can cross.
+    /// </summary>
+    public bool TryPlaceBridge(
+        GridPosition entry,
+        Direction direction,
+        ConveyorDefinition definition,
+        Func<GridPosition, bool>? canOccupy = null)
+    {
+        if (definition.Kind != LogisticsKind.Bridge
+            || cells.ContainsKey(entry)
+            || (canOccupy is not null && !canOccupy(entry)))
+        {
+            return false;
+        }
+
+        GridPosition? exit = null;
+        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        {
+            var candidate = entry.Step(direction, span);
+            if (cells.ContainsKey(candidate))
+            {
+                continue;
+            }
+
+            if (canOccupy is not null && !canOccupy(candidate))
+            {
+                continue;
+            }
+
+            exit = candidate;
+            break;
+        }
+
+        if (exit is null)
+        {
+            return false;
+        }
+
+        cells[entry] = new BeltGridCell(entry, direction, definition, bridgePartner: exit);
+        cells[exit.Value] = new BeltGridCell(exit.Value, direction, definition, bridgePartner: entry);
+        return true;
+    }
+
+    public bool TryRemove(GridPosition position)
+    {
+        if (!cells.TryGetValue(position, out var cell))
+        {
+            return false;
+        }
+
+        if (cell.Kind == LogisticsKind.Bridge && cell.BridgePartner is { } partner)
+        {
+            cells.Remove(position);
+            cells.Remove(partner);
+            return true;
+        }
+
+        return cells.Remove(position);
+    }
 
     public void Clear() => cells.Clear();
 
-    /// <summary>Place or replace a cell and restore items/toggle (save/load).</summary>
+    /// <summary>Place or replace a cell and restore items/toggle/partner/filter (save/load).</summary>
     public bool TryRestore(
         GridPosition position,
         Direction direction,
         ConveyorDefinition definition,
         int splitterToggle,
-        IEnumerable<TransportedItem> items)
+        IEnumerable<TransportedItem> items,
+        GridPosition? bridgePartner = null,
+        string? filterItemId = null)
     {
         if (definition.Kind == LogisticsKind.Belt)
         {
             DefaultDefinition ??= definition;
         }
 
-        var cell = new BeltGridCell(position, direction, definition);
-        cell.RestoreState(splitterToggle, items);
+        var cell = new BeltGridCell(position, direction, definition, bridgePartner, splitterToggle, filterItemId);
+        cell.RestoreState(splitterToggle, items, bridgePartner, filterItemId);
         cells[position] = cell;
         return true;
     }
@@ -144,6 +217,18 @@ public sealed class BeltGrid
             return;
         }
 
+        if (cell.Kind == LogisticsKind.Bridge && cell.BridgePartner is { } partner)
+        {
+            if (IsBridgeEntry(cell, partner)
+                && cells.TryGetValue(partner, out var exitCell)
+                && exitCell.TryInsert(item, cell.Direction))
+            {
+                cell.RemoveOutput();
+                return;
+            }
+            // Bridge exit (or blocked entry): continue to facing neighbor below.
+        }
+
         if (cell.Kind == LogisticsKind.Splitter)
         {
             if (TryHandoffTo(cell, cell.PreferredSplitterExit, item)
@@ -155,8 +240,43 @@ public sealed class BeltGrid
             return;
         }
 
-        // Belt (and future bridge/sorter stubs): exit along facing.
+        if (cell.Kind == LogisticsKind.Sorter)
+        {
+            if (cell.MatchesFilter(item.ItemId))
+            {
+                TryHandoffTo(cell, cell.Direction, item);
+            }
+            else if (TryHandoffTo(cell, DirectionMath.Left(cell.Direction), item)
+                || TryHandoffTo(cell, DirectionMath.Right(cell.Direction), item))
+            {
+                // overflow routed sideways
+            }
+
+            return;
+        }
+
+        // Belt / bridge exit: facing neighbor.
         TryHandoffTo(cell, cell.Direction, item);
+    }
+
+    private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
+    {
+        var dx = partner.X - cell.Position.X;
+        var dy = partner.Y - cell.Position.Y;
+        var span = Math.Abs(dx) + Math.Abs(dy);
+        if (span < BeltGridCell.MinBridgeSpan || span > BeltGridCell.MaxBridgeSpan)
+        {
+            return false;
+        }
+
+        return cell.Direction switch
+        {
+            Direction.North => dx == 0 && dy < 0,
+            Direction.East => dy == 0 && dx > 0,
+            Direction.South => dx == 0 && dy > 0,
+            Direction.West => dy == 0 && dx < 0,
+            _ => false
+        };
     }
 
     private bool TryHandoffTo(BeltGridCell cell, Direction exit, TransportedItem item)
@@ -253,13 +373,30 @@ public sealed class BeltGrid
 
 public sealed class BeltGridCell
 {
+    public const int MinBridgeSpan = 2;
+    public const int MaxBridgeSpan = 4;
+    public const string DefaultSorterFilter = "iron-ore";
+
     private readonly BeltCell inner;
     private int splitterToggle;
+    private string? filterItemId;
 
-    public BeltGridCell(GridPosition position, Direction direction, ConveyorDefinition definition)
+    public BeltGridCell(
+        GridPosition position,
+        Direction direction,
+        ConveyorDefinition definition,
+        GridPosition? bridgePartner = null,
+        int splitterToggle = 0,
+        string? filterItemId = null)
     {
         Direction = direction;
+        BridgePartner = bridgePartner;
+        this.splitterToggle = Math.Max(0, splitterToggle);
         inner = new BeltCell(position, definition);
+        if (definition.Kind == LogisticsKind.Sorter)
+        {
+            SetFilterItem(filterItemId);
+        }
     }
 
     public GridPosition Position => inner.Position;
@@ -269,6 +406,8 @@ public sealed class BeltGridCell
     public IReadOnlyList<TransportedItem> Items => inner.Items;
     public GridPosition OutputPosition => Position.Step(Direction);
     public int SplitterToggle => splitterToggle;
+    public GridPosition? BridgePartner { get; set; }
+    public string? FilterItemId => filterItemId;
 
     public Direction PreferredSplitterExit =>
         splitterToggle % 2 == 0
@@ -282,9 +421,48 @@ public sealed class BeltGridCell
 
     public void AdvanceSplitterToggle() => splitterToggle++;
 
-    public void RestoreState(int toggle, IEnumerable<TransportedItem> restoredItems)
+    public bool MatchesFilter(string itemId) =>
+        Kind == LogisticsKind.Sorter
+        && !string.IsNullOrWhiteSpace(filterItemId)
+        && string.Equals(filterItemId, itemId, StringComparison.Ordinal);
+
+    public void SetFilterItem(string? itemId)
+    {
+        if (Kind != LogisticsKind.Sorter)
+        {
+            filterItemId = null;
+            return;
+        }
+
+        filterItemId = string.IsNullOrWhiteSpace(itemId) ? DefaultSorterFilter : itemId;
+    }
+
+    public void CycleFilterItem(IReadOnlyList<string> itemIds)
+    {
+        if (Kind != LogisticsKind.Sorter || itemIds.Count == 0)
+        {
+            return;
+        }
+
+        var current = filterItemId ?? DefaultSorterFilter;
+        var idx = itemIds.ToList().FindIndex(id => string.Equals(id, current, StringComparison.Ordinal));
+        var next = itemIds[(idx + 1 + itemIds.Count) % itemIds.Count];
+        SetFilterItem(next);
+    }
+
+    public void RestoreState(
+        int toggle,
+        IEnumerable<TransportedItem> restoredItems,
+        GridPosition? bridgePartner = null,
+        string? filter = null)
     {
         splitterToggle = Math.Max(0, toggle);
+        BridgePartner = bridgePartner;
+        if (Kind == LogisticsKind.Sorter)
+        {
+            SetFilterItem(filter);
+        }
+
         inner.RestoreItems(restoredItems);
     }
 

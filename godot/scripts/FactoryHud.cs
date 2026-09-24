@@ -16,7 +16,9 @@ public partial class FactoryHud : Control
         Assembler,
         Junction,
         Splitter,
-        Generator
+        Generator,
+        Sorter,
+        Bridge
     }
 
     private static readonly Color PanelBg = new(0.10f, 0.12f, 0.13f, 0.94f);
@@ -220,8 +222,8 @@ public partial class FactoryHud : Control
         panel.SetAnchorsPreset(LayoutPreset.BottomWide);
         panel.OffsetLeft = 12;
         panel.OffsetRight = -12;
-        panel.OffsetTop = -148;
-        panel.OffsetBottom = -12;
+        panel.OffsetTop = -138;
+        panel.OffsetBottom = -8;
         AddChild(panel);
 
         var margin = new MarginContainer();
@@ -254,12 +256,16 @@ public partial class FactoryHud : Control
             new Color(0.75f, 0.80f, 0.95f));
         AddToolButton(tools, ToolKind.Generator, "7", "Generatore", "res://assets/generator.png",
             new Color(0.95f, 0.78f, 0.35f));
+        AddToolButton(tools, ToolKind.Sorter, "8", "Selezionatore", "res://assets/sorter.png",
+            new Color(0.70f, 0.90f, 0.55f));
+        AddToolButton(tools, ToolKind.Bridge, "9", "Ponte", "res://assets/bridge.png",
+            new Color(0.65f, 0.72f, 0.88f));
 
         // Rotate as a same-size toolbar slot (reliable hit target).
         var rotateSlot = new PanelContainer
         {
             Name = "RotateSlot",
-            CustomMinimumSize = new Vector2(84, 86),
+            CustomMinimumSize = new Vector2(72, 78),
             MouseFilter = MouseFilterEnum.Stop
         };
         rotateSlot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
@@ -398,7 +404,7 @@ public partial class FactoryHud : Control
         Color accent)
     {
         var slot = new PanelContainer();
-        slot.CustomMinimumSize = new Vector2(84, 86);
+        slot.CustomMinimumSize = new Vector2(72, 78);
         slot.MouseFilter = MouseFilterEnum.Stop;
         slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         parent.AddChild(slot);
@@ -544,6 +550,8 @@ public partial class FactoryHud : Control
         ToolKind.Junction => "Click/trascina: giunzione",
         ToolKind.Splitter => "Click/trascina: splitter",
         ToolKind.Generator => "Click: generatore 2×2 (carbone → potenza)",
+        ToolKind.Sorter => "Click: selezionatore (C cicla filtro)",
+        ToolKind.Bridge => "Click: ponte span 2–4 (estremi 1×1, centro sottile)",
         _ => ""
     };
 }

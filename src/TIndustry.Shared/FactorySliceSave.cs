@@ -66,6 +66,9 @@ public sealed class BeltSaveDto
     public string Direction { get; set; } = "East";
     public string DefinitionId { get; set; } = "conveyor-basic";
     public int SplitterToggle { get; set; }
+    public int? BridgePartnerX { get; set; }
+    public int? BridgePartnerY { get; set; }
+    public string? FilterItemId { get; set; }
     public List<ItemSaveDto> Items { get; set; } = [];
 }
 

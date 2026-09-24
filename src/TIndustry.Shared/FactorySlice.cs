@@ -26,6 +26,8 @@ public sealed class FactorySlice
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
         SplitterDefinition = content.RequireConveyor("splitter");
+        SorterDefinition = content.RequireConveyor("sorter");
+        BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
     public FactoryContent Content { get; }
@@ -33,6 +35,8 @@ public sealed class FactorySlice
     public ConveyorDefinition BeltDefinition { get; }
     public ConveyorDefinition JunctionDefinition { get; }
     public ConveyorDefinition SplitterDefinition { get; }
+    public ConveyorDefinition SorterDefinition { get; }
+    public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public EconomyWallet Wallet { get; }
     public long CoreDeliveredItems { get; private set; }
@@ -92,6 +96,9 @@ public sealed class FactorySlice
                 Direction = c.Direction.ToString(),
                 DefinitionId = c.Definition.Id,
                 SplitterToggle = c.SplitterToggle,
+                BridgePartnerX = c.BridgePartner?.X,
+                BridgePartnerY = c.BridgePartner?.Y,
+                FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
                 Items = c.Items.Select(it => new ItemSaveDto
                 {
                     Id = it.Id,
@@ -131,7 +138,20 @@ public sealed class FactorySlice
                 it.ItemId,
                 it.Progress,
                 string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel))).ToList();
-            belts.TryRestore(new GridPosition(cell.X, cell.Y), dir, def, cell.SplitterToggle, items);
+            GridPosition? partner = null;
+            if (cell.BridgePartnerX is { } bx && cell.BridgePartnerY is { } by)
+            {
+                partner = new GridPosition(bx, by);
+            }
+
+            belts.TryRestore(
+                new GridPosition(cell.X, cell.Y),
+                dir,
+                def,
+                cell.SplitterToggle,
+                items,
+                partner,
+                cell.FilterItemId);
         }
 
         var core = CoreStockSink.MakeCoreTiles(
@@ -412,6 +432,54 @@ public sealed class FactorySlice
         return slice;
     }
 
+    /// <summary>
+    /// Sorter + bridge demo: Phase F loop + Mindustry sorter fork + thin bridge span (decision 14).
+    /// </summary>
+    public static FactorySlice CreateSorterBridgeDemo(FactoryContent content, string beltId = "conveyor-basic")
+    {
+        var slice = CreatePhaseFDemo(content, beltId);
+        var beltDef = slice.BeltDefinition;
+
+        // Sorter corridor (north of craft loop): feed → sorter → match east / overflow N+S.
+        slice.Belts.PlacePath(
+        [
+            new GridPosition(16, 2),
+            new GridPosition(17, 2)
+        ], beltDef);
+        slice.Belts.TryOrient(new GridPosition(17, 2), Direction.East);
+        Assert(slice.TryPlaceSorter(new GridPosition(18, 2), Direction.East), "sorter seed");
+        slice.Belts.PlacePath([new GridPosition(19, 2), new GridPosition(20, 2)], beltDef);
+        slice.Belts.TryOrient(new GridPosition(20, 2), Direction.East);
+        slice.Belts.PlacePath([new GridPosition(18, 1)], beltDef); // overflow left of East = North
+        slice.Belts.TryOrient(new GridPosition(18, 1), Direction.North);
+        slice.Belts.PlacePath([new GridPosition(18, 3)], beltDef); // overflow right of East = South
+        slice.Belts.TryOrient(new GridPosition(18, 3), Direction.South);
+
+        // Bridge span 2 over mid tiles (16,12)→(18,12); underpass belt crosses mid.
+        Assert(slice.TryPlaceBridge(new GridPosition(16, 12), Direction.East), "bridge seed");
+        slice.Belts.PlacePath(
+        [
+            new GridPosition(15, 12)
+        ], beltDef);
+        slice.Belts.TryOrient(new GridPosition(15, 12), Direction.East);
+        slice.Belts.PlacePath(
+        [
+            new GridPosition(19, 12),
+            new GridPosition(20, 12)
+        ], beltDef);
+        slice.Belts.TryOrient(new GridPosition(20, 12), Direction.East);
+        // Cross under mid-span (empty bridge gap at 17,12).
+        slice.Belts.PlacePath(
+        [
+            new GridPosition(17, 11),
+            new GridPosition(17, 12),
+            new GridPosition(17, 13)
+        ], beltDef);
+        slice.Belts.TryOrient(new GridPosition(17, 13), Direction.South);
+
+        return slice;
+    }
+
     /// <summary>Legacy L-belt demo without forno (ore → core).</summary>
     public static FactorySlice CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
@@ -504,6 +572,24 @@ public sealed class FactorySlice
 
     public bool TryPlaceSplitter(GridPosition position, Direction direction) =>
         Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy);
+
+    public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null)
+    {
+        if (!Belts.TryPlaceFree(position, direction, SorterDefinition, CanOccupy))
+        {
+            return false;
+        }
+
+        if (Belts.TryGet(position, out var cell) && cell.Kind == LogisticsKind.Sorter)
+        {
+            cell.SetFilterItem(filterItemId ?? BeltGridCell.DefaultSorterFilter);
+        }
+
+        return true;
+    }
+
+    public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
+        Belts.TryPlaceBridge(entry, direction, BridgeDefinition, CanOccupy);
 
     public bool TryRemoveBelt(GridPosition position) => Belts.TryRemove(position);
 
@@ -1101,6 +1187,157 @@ public sealed class FactorySlice
         FactorySliceSaveStore.Delete("selftest-tmp");
         throw new InvalidOperationException(
             "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
+    }
+
+    /// <summary>
+    /// Sorter Mindustry routing + bridge teleport (span 2–4) + save partner/filter + Phase F still delivers.
+    /// </summary>
+    public static void SelfTestSorterBridge(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var belt = content.RequireConveyor("conveyor-basic");
+        var sorter = content.RequireConveyor("sorter");
+        var bridge = content.RequireConveyor("conveyor-bridge");
+        Assert(sorter.Kind == LogisticsKind.Sorter, "sorter kind");
+        Assert(bridge.Kind == LogisticsKind.Bridge, "bridge kind");
+
+        // Sorter: match → facing; overflow → left/right.
+        var sortGrid = new BeltGrid();
+        sortGrid.TryPlaceFree(new GridPosition(1, 1), Direction.East, belt);
+        Assert(sortGrid.TryPlaceFree(new GridPosition(2, 1), Direction.East, sorter), "place sorter");
+        sortGrid.TryPlaceFree(new GridPosition(3, 1), Direction.East, belt);
+        sortGrid.TryPlaceFree(new GridPosition(2, 0), Direction.North, belt);
+        sortGrid.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
+        Assert(sortGrid.TryGet(new GridPosition(2, 1), out var sorterCell), "sorter cell");
+        Assert(sorterCell.Kind == LogisticsKind.Sorter && sorterCell.FilterItemId == "iron-ore",
+            "default filter iron-ore");
+        sorterCell.SetFilterItem("iron-ore");
+
+        Assert(sortGrid.TryInsert(new GridPosition(1, 1), new TransportedItem(1, "iron-ore")), "match in");
+        var matchForward = false;
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 12; i++)
+        {
+            sortGrid.Tick(dt);
+            if (sortGrid.TryGet(new GridPosition(3, 1), out var fwd)
+                && fwd.Items.Any(it => it.ItemId == "iron-ore"))
+            {
+                matchForward = true;
+                break;
+            }
+        }
+
+        Assert(matchForward, "filtered item exits facing");
+
+        // Clear and inject overflow item.
+        foreach (var cell in sortGrid.Cells.Values)
+        {
+            cell.RestoreState(cell.SplitterToggle, [], cell.BridgePartner, cell.FilterItemId);
+        }
+
+        Assert(sortGrid.TryInsert(new GridPosition(1, 1), new TransportedItem(2, "copper-ore")), "overflow in");
+        var overflowSide = false;
+        for (var i = 0; i < 30 * 12; i++)
+        {
+            sortGrid.Tick(dt);
+            if ((sortGrid.TryGet(new GridPosition(2, 0), out var n) && n.Items.Any(it => it.ItemId == "copper-ore"))
+                || (sortGrid.TryGet(new GridPosition(2, 2), out var s) && s.Items.Any(it => it.ItemId == "copper-ore")))
+            {
+                overflowSide = true;
+                break;
+            }
+        }
+
+        Assert(overflowSide, "unfiltered item exits left/right");
+        Assert(
+            !sortGrid.TryGet(new GridPosition(3, 1), out var stillFwd)
+            || stillFwd.Items.All(it => it.ItemId != "copper-ore"),
+            "unfiltered must not exit facing");
+
+        sorterCell.SetFilterItem("copper-wire");
+        Assert(sorterCell.FilterItemId == "copper-wire", "SetFilterItem");
+        sorterCell.CycleFilterItem(["iron-ore", "copper-ore", "iron-plate", "copper-wire"]);
+        Assert(sorterCell.FilterItemId == "iron-ore", "CycleFilterItem wrap");
+
+        // Bridge span 2: entry (1,0) → exit (3,0); mid empty.
+        var bridgeGrid = new BeltGrid();
+        bridgeGrid.TryPlaceFree(new GridPosition(0, 0), Direction.East, belt);
+        Assert(bridgeGrid.TryPlaceBridge(new GridPosition(1, 0), Direction.East, bridge), "place bridge");
+        Assert(bridgeGrid.Contains(new GridPosition(1, 0)) && bridgeGrid.Contains(new GridPosition(3, 0)),
+            "bridge ends span 2");
+        Assert(!bridgeGrid.Contains(new GridPosition(2, 0)), "mid-span empty");
+        Assert(bridgeGrid.TryGet(new GridPosition(1, 0), out var entry)
+            && entry.BridgePartner is { } p && p.Equals(new GridPosition(3, 0)),
+            "entry partner");
+        bridgeGrid.TryPlaceFree(new GridPosition(4, 0), Direction.East, belt);
+        // Cross belt under mid.
+        bridgeGrid.TryPlaceFree(new GridPosition(2, 0), Direction.South, belt);
+
+        Assert(bridgeGrid.TryInsert(new GridPosition(0, 0), new TransportedItem(10, "iron-plate")), "bridge feed");
+        var teleported = false;
+        for (var i = 0; i < 30 * 20; i++)
+        {
+            bridgeGrid.Tick(dt);
+            if ((bridgeGrid.TryGet(new GridPosition(4, 0), out var post) && post.Items.Count > 0)
+                || (bridgeGrid.TryGet(new GridPosition(3, 0), out var exit) && exit.Items.Count > 0))
+            {
+                teleported = true;
+                break;
+            }
+        }
+
+        Assert(teleported, "bridge teleports item to exit");
+        Assert(bridgeGrid.TryRemove(new GridPosition(1, 0)), "paired remove");
+        Assert(!bridgeGrid.Contains(new GridPosition(1, 0)) && !bridgeGrid.Contains(new GridPosition(3, 0)),
+            "both bridge ends removed");
+
+        // Place API + save/load partner/filter.
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        Assert(slice.TryPlaceSorter(new GridPosition(4, 4), Direction.East, "iron-plate"), "TryPlaceSorter");
+        Assert(slice.Belts.TryGet(new GridPosition(4, 4), out var placedSorter)
+            && placedSorter.FilterItemId == "iron-plate", "placed filter");
+        Assert(slice.TryPlaceBridge(new GridPosition(6, 4), Direction.East), "TryPlaceBridge");
+        Assert(slice.TryRemoveBelt(new GridPosition(6, 4)), "remove bridge pair");
+        Assert(!slice.Belts.Contains(new GridPosition(6, 4)) && !slice.Belts.Contains(new GridPosition(8, 4)),
+            "paired gone");
+        Assert(slice.TryPlaceBridge(new GridPosition(6, 4), Direction.East), "re-place bridge");
+
+        var snap = slice.Capture();
+        Assert(snap.Belts.Any(b => b.DefinitionId == "sorter" && b.FilterItemId == "iron-plate"),
+            "capture filter");
+        Assert(snap.Belts.Any(b =>
+                b.DefinitionId == "conveyor-bridge"
+                && b.BridgePartnerX is not null
+                && b.BridgePartnerY is not null),
+            "capture bridge partner");
+        FactorySliceSaveStore.Delete("selftest-sorter-bridge");
+        FactorySliceSaveStore.Save("selftest-sorter-bridge", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-sorter-bridge"));
+        Assert(restored.Belts.Cells.Values.Any(c =>
+                c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-plate"),
+            "restore filter");
+        Assert(restored.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Bridge) == 2,
+            "restore bridge pair");
+        FactorySliceSaveStore.Delete("selftest-sorter-bridge");
+
+        // Full demo seed still delivers wire (HUD/save/power kept).
+        var demo = CreateSorterBridgeDemo(content);
+        Assert(demo.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Sorter), "seed sorter");
+        Assert(demo.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Bridge) == 2, "seed bridge");
+        Assert(demo.Generators.Count == 1, "seed keeps generator");
+
+        for (var i = 0; i < 30 * 150; i++)
+        {
+            demo.Tick(dt);
+            if (demo.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Sorter/bridge self-test: nessun filo al core entro 150s sim.");
     }
 
     private static void Assert(bool condition, string message)

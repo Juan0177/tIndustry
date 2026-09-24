@@ -18,7 +18,8 @@ public partial class ScrollingBeltStrip : Node2D
         IReadOnlyList<GridPosition> path,
         Direction direction,
         int tileSize,
-        float scrollPhaseTiles = 0f)
+        float scrollPhaseTiles = 0f,
+        float thicknessScale = 1f)
     {
         if (path.Count == 0)
         {
@@ -33,19 +34,20 @@ public partial class ScrollingBeltStrip : Node2D
         var minY = Math.Min(first.Y, last.Y);
         var maxY = Math.Max(first.Y, last.Y);
 
-        // Exact tile thickness (integer N/S rails). +2px length under corners
-        // so the corner (ZIndex above) covers the butt with matching colors.
-        float thicknessPx = tileSize;
+        // Exact tile thickness (integer N/S rails) unless bridge thin-span override.
+        // +2px length under corners so the corner (ZIndex above) covers the butt.
+        var scale = Math.Clamp(thicknessScale, 0.2f, 1f);
+        float thicknessPx = tileSize * scale;
         float lengthPx;
         Vector2 center;
         if (direction is Direction.East or Direction.West)
         {
-            lengthPx = (maxX - minX + 1) * tileSize + 2f;
+            lengthPx = (maxX - minX + 1) * tileSize + (scale >= 0.99f ? 2f : 0f);
             center = new Vector2((minX + maxX + 1) * 0.5f * tileSize, (first.Y + 0.5f) * tileSize);
         }
         else
         {
-            lengthPx = (maxY - minY + 1) * tileSize + 2f;
+            lengthPx = (maxY - minY + 1) * tileSize + (scale >= 0.99f ? 2f : 0f);
             center = new Vector2((first.X + 0.5f) * tileSize, (minY + maxY + 1) * 0.5f * tileSize);
         }
 
@@ -63,7 +65,7 @@ public partial class ScrollingBeltStrip : Node2D
             _ => 0f
         };
 
-        _material!.SetShaderParameter("cell_count", (float)cellCount);
+        _material!.SetShaderParameter("cell_count", (float)Math.Max(1, cellCount));
         _material.SetShaderParameter("marks_per_tile", 2.0f);
         _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
         _material.SetShaderParameter("scroll", 0f);
