@@ -35,17 +35,18 @@ public partial class ScrollingBeltStrip : Node2D
 
         var horizontal = direction is Direction.East or Direction.West;
         // Full-tile belt (Mindustry regular conveyor). Do NOT use ~0.78 — that is bridge-only.
+        // +1px length overlaps into adjacent corner cells so the join is one continuous border.
         float thicknessPx = tileSize;
         float lengthPx;
         Vector2 center;
         if (horizontal)
         {
-            lengthPx = (maxX - minX + 1) * tileSize;
+            lengthPx = (maxX - minX + 1) * tileSize + 1f;
             center = new Vector2((minX + maxX + 1) * 0.5f * tileSize, (first.Y + 0.5f) * tileSize);
         }
         else
         {
-            lengthPx = (maxY - minY + 1) * tileSize;
+            lengthPx = (maxY - minY + 1) * tileSize + 1f;
             center = new Vector2((first.X + 0.5f) * tileSize, (minY + maxY + 1) * 0.5f * tileSize);
         }
 

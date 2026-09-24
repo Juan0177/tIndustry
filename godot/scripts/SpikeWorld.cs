@@ -54,8 +54,21 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         UpdateHud();
 
-        var timer = GetTree().CreateTimer(10.0);
+        var timer = GetTree().CreateTimer(4.0);
         timer.Timeout += SavePortScreenshot;
+        if (HasNode("Camera"))
+        {
+            // Brief corner-framed still for align media, then overview.
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(10.5f * TileSize, 8.5f * TileSize);
+            cam.Zoom = new Vector2(1.35f, 1.35f);
+            var back = GetTree().CreateTimer(4.2);
+            back.Timeout += () =>
+            {
+                cam.Position = new Vector2(560, 700);
+                cam.Zoom = new Vector2(0.95f, 0.95f);
+            };
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -572,7 +585,21 @@ public partial class SpikeWorld : Node2D
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
-        var crop = img.GetRegion(new Rect2I(60, 180, 920, 540));
+        // Tight corner proof crops (camera framed on cell 10,8).
+        var alignClose = img.GetRegion(new Rect2I(520, 240, 240, 240));
+        var alignClosePath = Path.Combine(destDir, "godot-port-corner-align-close.png");
+        err = alignClose.SavePng(alignClosePath);
+        GD.Print(err == Error.Ok ? $"Screenshot: {alignClosePath}" : $"Align close failed: {err}");
+
+        var alignMap = img.GetRegion(new Rect2I(400, 120, 480, 480));
+        var alignMapPath = Path.Combine(destDir, "godot-port-corner-align-map.png");
+        err = alignMap.SavePng(alignMapPath);
+        GD.Print(err == Error.Ok ? $"Screenshot: {alignMapPath}" : $"Align map failed: {err}");
+
+        // Legacy name.
+        alignClose.SavePng(Path.Combine(destDir, "godot-belt-corner-align.png"));
+
+        var crop = img.GetRegion(new Rect2I(200, 80, 880, 560));
         var closePath = Path.Combine(destDir, "godot-port-phase-c-close.png");
         err = crop.SavePng(closePath);
         GD.Print(err == Error.Ok ? $"Screenshot: {closePath}" : $"Crop failed: {err}");
