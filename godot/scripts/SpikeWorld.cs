@@ -261,7 +261,7 @@ public partial class SpikeWorld : Node2D
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
-        var crop = img.GetRegion(new Rect2I(40, 240, 820, 560));
+        var crop = img.GetRegion(new Rect2I(80, 200, 900, 520));
         var closePath = Path.Combine(destDir, "godot-port-loop-close.png");
         err = crop.SavePng(closePath);
         GD.Print(err == Error.Ok ? $"Screenshot: {closePath}" : $"Crop failed: {err}");
