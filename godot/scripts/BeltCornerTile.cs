@@ -35,7 +35,7 @@ public partial class BeltCornerTile : Node2D
         var span = (float)tileSize;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        _material!.SetShaderParameter("half_width", 0.40f);
+        _material!.SetShaderParameter("half_width", 0.42f);
         _ = scrollPhaseTiles;
     }
 

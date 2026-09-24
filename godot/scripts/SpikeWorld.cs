@@ -575,7 +575,7 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-seamless-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-inner-corner-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
         img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
@@ -595,7 +595,7 @@ public partial class SpikeWorld : Node2D
         var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var seamClose = Path.Combine(destDir, "godot-port-seamless-close.png");
+        var seamClose = Path.Combine(destDir, "godot-port-inner-corner-close.png");
         err = alignClose.SavePng(seamClose);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
         alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
@@ -603,7 +603,7 @@ public partial class SpikeWorld : Node2D
         var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var seamElbow = Path.Combine(destDir, "godot-port-seamless-elbow.png");
+        var seamElbow = Path.Combine(destDir, "godot-port-inner-corner-elbow.png");
         err = alignMap.SavePng(seamElbow);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
 
@@ -611,7 +611,7 @@ public partial class SpikeWorld : Node2D
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-seamless-overview.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-inner-corner-overview.png"));
     }
 
     private static bool IsTerrain(Color c) =>
@@ -749,6 +749,114 @@ public partial class SpikeWorld : Node2D
         if (dr > 0.06f || dg > 0.06f || db > 0.06f)
         {
             GD.PushError("SEAM FAIL: body color jumps across straight↔corner join.");
+        }
+
+        AssertInnerCornerKnuckle(img, cornerX0, cornerY0, cell);
+        AssertEastRailFlush(img, cornerX0, cornerY0, cell);
+    }
+
+    /// <summary>
+    /// SW ┘ knuckle must be solid rail; bottom edge beside it must NOT extend a
+    /// groove/rail stub (that read as the inner-corner notch).
+    /// </summary>
+    private static void AssertInnerCornerKnuckle(Image img, int cornerX0, int cornerY0, int cell)
+    {
+        var railBand = Math.Max(3, cell * 8 / 100);
+        var knuckleRails = 0;
+        var knuckleCells = 0;
+        for (var y = cornerY0 + cell - railBand; y < cornerY0 + cell; y++)
+        {
+            for (var x = cornerX0; x < cornerX0 + railBand; x++)
+            {
+                knuckleCells++;
+                if (IsRail(img.GetPixel(x, y)))
+                {
+                    knuckleRails++;
+                }
+            }
+        }
+
+        GD.Print($"PixelCheck SW knuckle: rail={knuckleRails}/{knuckleCells}");
+        if (knuckleCells > 0 && knuckleRails < knuckleCells * 0.9)
+        {
+            GD.PushError("CORNER FAIL: SW knuckle is not solid rail (inner notch).");
+        }
+
+        // Immediately east of knuckle on the bottom edge: body, not rail/groove stub.
+        var stubRails = 0;
+        var stubSamples = 0;
+        var yBot = cornerY0 + cell - 1;
+        for (var x = cornerX0 + railBand; x < cornerX0 + railBand + railBand && x < cornerX0 + cell - railBand; x++)
+        {
+            stubSamples++;
+            if (IsRail(img.GetPixel(x, yBot)))
+            {
+                stubRails++;
+            }
+        }
+
+        GD.Print($"PixelCheck SW bottom-beside-knuckle: rail={stubRails}/{stubSamples} (want 0)");
+        if (stubRails > 0)
+        {
+            GD.PushError("CORNER FAIL: south-rail stub east of SW knuckle (inner step).");
+        }
+    }
+
+    /// <summary>
+    /// East outer rail X must stay flush from corner into the vertical strip
+    /// (no SE bump / width jump at the join).
+    /// </summary>
+    private static void AssertEastRailFlush(Image img, int cornerX0, int cornerY0, int cell)
+    {
+        static int EastRailStart(Image image, int y, int xRight)
+        {
+            for (var x = xRight; x >= xRight - 16; x--)
+            {
+                if (x < 0 || y < 0 || x >= image.GetWidth() || y >= image.GetHeight())
+                {
+                    break;
+                }
+
+                if (!IsRail(image.GetPixel(x, y)))
+                {
+                    return x + 1;
+                }
+            }
+
+            return xRight - 16;
+        }
+
+        var xRight = cornerX0 + cell - 1;
+        var midCorner = EastRailStart(img, cornerY0 + cell / 2, xRight);
+        var botCorner = EastRailStart(img, cornerY0 + cell - 2, xRight);
+        var topVert = EastRailStart(img, cornerY0 + cell + 4, xRight);
+        var midVert = EastRailStart(img, cornerY0 + cell + cell / 2, xRight);
+        var d1 = Math.Abs(botCorner - midCorner);
+        var d2 = Math.Abs(topVert - botCorner);
+        var d3 = Math.Abs(midVert - midCorner);
+        GD.Print(
+            $"PixelCheck east rail: midCorner={midCorner} botCorner={botCorner} " +
+            $"topVert={topVert} midVert={midVert} Δ=({d1},{d2},{d3})");
+        if (d1 > 1 || d2 > 1 || d3 > 1)
+        {
+            GD.PushError("CORNER FAIL: east rail X jumps at corner→vertical (SE bump).");
+        }
+
+        // SE bottom interior (left of east rail) must not be a south-rail stub.
+        var seStub = 0;
+        var ySe = cornerY0 + cell - 1;
+        for (var x = cornerX0 + cell / 2; x < cornerX0 + cell - 8; x++)
+        {
+            if (IsRail(img.GetPixel(x, ySe)))
+            {
+                seStub++;
+            }
+        }
+
+        GD.Print($"PixelCheck SE south stub: rail={seStub} (want 0)");
+        if (seStub > 0)
+        {
+            GD.PushError("CORNER FAIL: SE south-rail stub present (outer bump).");
         }
     }
 }
