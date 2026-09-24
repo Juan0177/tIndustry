@@ -1,29 +1,80 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Minimal forno stub: buffers input ore, crafts a recipe on a timer, emits outputs to a callback.
-/// No power / coal OR logic yet — Phase A stub for Godot loop experiments.
+/// Minimal forno: belt intake → timed recipe → emit plates onto outward belts.
+/// No power/coal OR yet (Phase C stub).
 /// </summary>
 public sealed class SmelterStub
 {
     public const int Size = 2;
+    public const int FootprintArea = Size * Size;
+    public const int OutputTileCount = Size * 4;
     public const string BuildingId = "smelter";
 
     private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
     private readonly Queue<string> outputQueue = new();
 
-    public SmelterStub(GridPosition position, RecipeDefinition recipe)
+    public SmelterStub(GridPosition position, Direction direction, RecipeDefinition recipe)
     {
         Position = position;
+        Direction = direction;
         Recipe = recipe;
     }
 
-    public GridPosition Position { get; }
+    public GridPosition Position { get; private set; }
+    public Direction Direction { get; private set; }
     public RecipeDefinition Recipe { get; }
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
+    public long ItemsCrafted { get; private set; }
     public IReadOnlyDictionary<string, int> InputBuffer => inputBuffer;
     public IReadOnlyCollection<string> OutputQueue => outputQueue;
+    public int EjectIndex { get; private set; }
+
+    public void Relocate(GridPosition position, Direction direction)
+    {
+        Position = position;
+        Direction = direction;
+    }
+
+    public IEnumerable<GridPosition> OccupiedTiles()
+    {
+        for (var y = 0; y < Size; y++)
+        {
+            for (var x = 0; x < Size; x++)
+            {
+                yield return new GridPosition(Position.X + x, Position.Y + y);
+            }
+        }
+    }
+
+    public bool Occupies(GridPosition tile)
+    {
+        foreach (var t in OccupiedTiles())
+        {
+            if (t.Equals(tile))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public GridPosition OutputTileAt(int index)
+    {
+        var i = ((index % OutputTileCount) + OutputTileCount) % OutputTileCount;
+        var edge = DirectionMath.All[i / Size];
+        var offset = i % Size;
+        return edge switch
+        {
+            Direction.North => new GridPosition(Position.X + offset, Position.Y - 1),
+            Direction.East => new GridPosition(Position.X + Size, Position.Y + offset),
+            Direction.South => new GridPosition(Position.X + offset, Position.Y + Size),
+            Direction.West => new GridPosition(Position.X - 1, Position.Y + offset),
+            _ => Position
+        };
+    }
 
     public bool TryAccept(string itemId)
     {
@@ -43,16 +94,41 @@ public sealed class SmelterStub
         return true;
     }
 
-    public void Tick(float deltaSeconds, Action<string>? tryEmit)
+    /// <summary>Pull ready items from belts that point into the footprint.</summary>
+    public int AcceptFromBelts(BeltGrid belts)
     {
-        while (outputQueue.Count > 0 && tryEmit is not null)
+        var accepted = 0;
+        foreach (var cell in belts.Cells.Values)
         {
-            var item = outputQueue.Peek();
-            tryEmit(item);
-            // Caller must confirm emit by draining — for stub we assume success only via TryEmit helper.
-            break;
+            if (!Occupies(cell.OutputPosition))
+            {
+                continue;
+            }
+
+            while (cell.PeekOutput() is { } item)
+            {
+                if (!TryAccept(item.ItemId))
+                {
+                    break;
+                }
+
+                cell.RemoveOutput();
+                accepted++;
+            }
         }
 
+        return accepted;
+    }
+
+    public void Tick(float deltaSeconds, BeltGrid belts, ref long nextItemId)
+    {
+        AcceptFromBelts(belts);
+        AdvanceCraft(deltaSeconds);
+        EmitToBelts(belts, ref nextItemId);
+    }
+
+    private void AdvanceCraft(float deltaSeconds)
+    {
         if (!IsCrafting)
         {
             if (!CanStart())
@@ -77,22 +153,58 @@ public sealed class SmelterStub
             {
                 outputQueue.Enqueue(output.ItemId);
             }
+
+            ItemsCrafted += output.Amount;
         }
 
         IsCrafting = false;
         Progress = 0f;
     }
 
-    public bool TryDequeueOutput(out string itemId)
+    private void EmitToBelts(BeltGrid belts, ref long nextItemId)
     {
-        if (outputQueue.Count == 0)
+        while (outputQueue.Count > 0)
         {
-            itemId = "";
-            return false;
+            var itemId = outputQueue.Peek();
+            if (!TryInsertOutward(belts, itemId, ref nextItemId))
+            {
+                return;
+            }
+
+            outputQueue.Dequeue();
+        }
+    }
+
+    private bool TryInsertOutward(BeltGrid belts, string itemId, ref long nextItemId)
+    {
+        var start = EjectIndex;
+        for (var step = 0; step < OutputTileCount; step++)
+        {
+            var slot = (start + step) % OutputTileCount;
+            var outputPosition = OutputTileAt(slot);
+            if (!belts.TryGet(outputPosition, out var cell))
+            {
+                continue;
+            }
+
+            // Outward: next cell after belt must not re-enter footprint.
+            var next = outputPosition.Step(cell.Direction);
+            if (Occupies(next))
+            {
+                continue;
+            }
+
+            if (!belts.TryInsert(outputPosition, new TransportedItem(nextItemId, itemId)))
+            {
+                continue;
+            }
+
+            nextItemId++;
+            EjectIndex = (slot + 1) % OutputTileCount;
+            return true;
         }
 
-        itemId = outputQueue.Dequeue();
-        return true;
+        return false;
     }
 
     private bool CanStart()

@@ -4,8 +4,9 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell static blue metal platform pad (no scrolling arrows).
-/// Recessed L channel joins straight belts; base art enter-west → exit-south.
+/// Full-cell corner tile (opaque, edge-to-edge). Outer rails align with
+/// <see cref="ScrollingBeltStrip"/>; recessed L channel joins the track band.
+/// Base art: enter-west → exit-south.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
@@ -30,12 +31,13 @@ public partial class BeltCornerTile : Node2D
             Direction.North => -90f,
             _ => 0f
         };
-        // Full-cell platform (same footprint as regular belts). +1px covers seams vs straights.
+        // Exact full tile + 1px overlap into adjacent straights so outer rails
+        // meet flush as one continuous border (corner draws above strips).
         var span = tileSize + 1f;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
-        _material!.SetShaderParameter("half_width", 0.39f);
-        // Platform is static — scroll phase unused (kept in signature for call-site stability).
+        // half_width 0.40 → channel spans UV 0.10–0.90 = track between straight rails.
+        _material!.SetShaderParameter("half_width", 0.40f);
         _ = scrollPhaseTiles;
     }
 
@@ -61,13 +63,13 @@ public partial class BeltCornerTile : Node2D
             return;
         }
 
-        var shader = GD.Load<Shader>("res://shaders/belt_corner.gdshader");
+        var shader = GD.Load<Shader>("res://shaders/belt_corner_v2.gdshader");
         _material = new ShaderMaterial { Shader = shader };
         _sprite = new Sprite2D
         {
             Material = _material,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            // Above adjacent strip ends so the platform elbow reads cleanly.
+            // Above adjacent strip ends so the elbow covers the butt join.
             ZIndex = 2
         };
         AddChild(_sprite);
