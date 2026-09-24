@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell paint-mockup gallery corner. Overlaps abutting strips.
-/// Items are hidden while on the corner cell. Base art: enter-west → exit-south.
+/// Full-cell corner (recipe Blu1–4). Base art: enter-west → exit-south
+/// (incoming East → outgoing South, CW). Other turns = rotate / flipX.
 /// </summary>
 public partial class BeltCornerTile : Node2D
 {
@@ -24,35 +24,42 @@ public partial class BeltCornerTile : Node2D
         _sprite.Centered = true;
         _sprite.Position = new Vector2((cell.X + 0.5f) * tileSize, (cell.Y + 0.5f) * tileSize);
 
+        // Base sprite: from=East → to=South (CW). CCW uses horizontal flip first
+        // (East→South mirrored = West→South), then rotate.
         var clockwise = BeltLane.IsClockwiseTurn(from, to);
-        var baseFrom = clockwise ? from : MirrorHorizontal(from);
-        _sprite.RotationDegrees = baseFrom switch
+        float rotation;
+        var flipX = !clockwise;
+        if (clockwise)
         {
-            Direction.East => 0f,
-            Direction.South => 90f,
-            Direction.West => 180f,
-            Direction.North => -90f,
-            _ => 0f
-        };
+            rotation = from switch
+            {
+                Direction.East => 0f,
+                Direction.South => 90f,
+                Direction.West => 180f,
+                Direction.North => -90f,
+                _ => 0f
+            };
+        }
+        else
+        {
+            rotation = from switch
+            {
+                Direction.West => 0f,
+                Direction.South => -90f,
+                Direction.East => 180f,
+                Direction.North => 90f,
+                _ => 0f
+            };
+        }
 
-        // Exact tile span so N/S rails share one Y with strips. Strips overlap
-        // +2px under this corner; west light lip matches straight body at the butt.
+        _sprite.RotationDegrees = rotation;
         var span = (float)tileSize;
-        _sprite.Scale = new Vector2(span, clockwise ? span : -span);
+        _sprite.Scale = new Vector2(flipX ? -span : span, span);
 
         _ = scrollPhaseTiles;
     }
 
     public void SetScroll(float scrollTiles) => _ = scrollTiles;
-
-    private static Direction MirrorHorizontal(Direction d) => d switch
-    {
-        Direction.East => Direction.East,
-        Direction.West => Direction.West,
-        Direction.North => Direction.South,
-        Direction.South => Direction.North,
-        _ => d
-    };
 
     private void EnsureVisual()
     {
