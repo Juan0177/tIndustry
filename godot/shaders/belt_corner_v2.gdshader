@@ -25,7 +25,11 @@ void fragment() {
 
 	// Yellow indicator fully inside the pocket (clear of east rail).
 	vec2 yel_c = vec2(0.84, 0.20);
-	float in_yel = ne_pocket * step(length(p - yel_c), 0.048);
+	float yel_d = length(p - yel_c);
+	// Thin dark ring (paint outline), then yellow fill.
+	float in_ring = ne_pocket * step(yel_d, 0.055) * step(0.042, yel_d);
+	float in_yel = ne_pocket * step(yel_d, 0.042);
+	col = mix(col, rail_color.rgb, in_ring);
 	col = mix(col, yellow_color.rgb, in_yel);
 
 	// Tiny SW inner fillet (paint: small light bite near knuckle).
