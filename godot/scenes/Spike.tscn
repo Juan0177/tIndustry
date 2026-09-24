@@ -24,15 +24,4 @@ script = ExtResource("3_miner")
 centered = true
 
 [node name="Hud" type="CanvasLayer" parent="."]
-
-[node name="Status" type="Label" parent="Hud"]
-offset_left = 16.0
-offset_top = 12.0
-offset_right = 1100.0
-offset_bottom = 100.0
-theme_override_colors/font_color = Color(0.92, 0.95, 0.9, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
-theme_override_constants/shadow_offset_x = 1
-theme_override_constants/shadow_offset_y = 1
-theme_override_font_sizes/font_size = 16
-text = "tIndustry Godot spike"
+layer = 20
