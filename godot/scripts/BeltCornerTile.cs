@@ -30,8 +30,9 @@ public partial class BeltCornerTile : Node2D
             Direction.North => -90f,
             _ => 0f
         };
-        // Full tile + 1px seal into adjacent straights (corner draws above strips).
-        var span = tileSize + 1f;
+        // Exact tile span (integer bounds) so N/S rails share one Y with strips.
+        // Corner ZIndex is above strips; length overlap on strips seals the butt.
+        var span = (float)tileSize;
         _sprite.Scale = new Vector2(span, clockwise ? span : -span);
 
         // Narrower groove so unused quadrant clearly shows base_color (square fill).

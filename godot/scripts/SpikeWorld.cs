@@ -575,10 +575,10 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-fulltile-flush-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-seam-flush-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
-        // Keep Phase C names updated too.
+        img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
         img.SavePng(Path.Combine(destDir, "godot-port-phase-c-map.png"));
 
         // Zoom 1, camera on corner (10,8): cell is 64×64 about viewport center.
@@ -590,31 +590,35 @@ public partial class SpikeWorld : Node2D
         AssertCellOpaque(img, cornerX0, cornerY0, cell, "corner(10,8)");
         AssertCellOpaque(img, cornerX0 - cell, cornerY0, cell, "straight(9,8)");
         AssertNorthEdgeFlush(img, cornerX0 - cell, cornerX0 + cell, cornerY0);
+        AssertSeamRailContinuous(img, cornerX0, cornerY0, cell);
 
         var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var flushClose = Path.Combine(destDir, "godot-port-fulltile-flush-close.png");
-        err = alignClose.SavePng(flushClose);
-        GD.Print(err == Error.Ok ? $"Screenshot: {flushClose}" : $"Flush close failed: {err}");
-        alignClose.SavePng(Path.Combine(destDir, "godot-port-corner-align-close.png"));
+        var seamClose = Path.Combine(destDir, "godot-port-seam-flush-close.png");
+        err = alignClose.SavePng(seamClose);
+        GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
+        alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
 
         var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var flushMap = Path.Combine(destDir, "godot-port-fulltile-flush-elbow.png");
-        err = alignMap.SavePng(flushMap);
-        GD.Print(err == Error.Ok ? $"Screenshot: {flushMap}" : $"Flush elbow failed: {err}");
+        var seamElbow = Path.Combine(destDir, "godot-port-seam-flush-elbow.png");
+        err = alignMap.SavePng(seamElbow);
+        GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
 
         var cropW = Math.Min(880, vpW);
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-overview.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-seam-flush-overview.png"));
     }
 
     private static bool IsTerrain(Color c) =>
         c.G > c.R + 5f / 255f && c.G >= c.B && c.B < 60f / 255f && c.R < 55f / 255f;
+
+    private static bool IsRail(Color c) =>
+        !IsTerrain(c) && c.R <= 30f / 255f && c.G <= 36f / 255f && c.B <= 42f / 255f;
 
     private static void AssertCellOpaque(Image img, int x0, int y0, int cell, string label)
     {
@@ -645,7 +649,6 @@ public partial class SpikeWorld : Node2D
 
     private static void AssertNorthEdgeFlush(Image img, int x0, int x1, int yTop)
     {
-        // Row yTop must be belt; row yTop-1 mostly terrain (tile edge).
         var beltOnEdge = 0;
         var span = 0;
         for (var x = x0; x < x1; x++)
@@ -666,6 +669,71 @@ public partial class SpikeWorld : Node2D
         if (span > 0 && beltOnEdge < span * 0.95)
         {
             GD.PushError("FULLTILE FAIL north edge: belt does not sit on tile edge.");
+        }
+    }
+
+    /// <summary>
+    /// Top/bottom rail band thickness must match across the straight↔corner seam
+    /// (no rientranza / notch where west rail used to thicken N/S borders).
+    /// </summary>
+    private static void AssertSeamRailContinuous(Image img, int cornerX0, int cornerY0, int cell)
+    {
+        static int TopRailEnd(Image image, int x, int y0)
+        {
+            var end = y0 - 1;
+            for (var y = y0; y < y0 + 16; y++)
+            {
+                if (x < 0 || x >= image.GetWidth() || y < 0 || y >= image.GetHeight())
+                {
+                    break;
+                }
+
+                if (!IsRail(image.GetPixel(x, y)))
+                {
+                    break;
+                }
+
+                end = y;
+            }
+
+            return end;
+        }
+
+        static int BotRailStart(Image image, int x, int y0, int cellSize)
+        {
+            var start = y0 + cellSize;
+            for (var y = y0 + cellSize - 1; y >= y0 + cellSize - 16; y--)
+            {
+                if (x < 0 || x >= image.GetWidth() || y < 0 || y >= image.GetHeight())
+                {
+                    break;
+                }
+
+                if (!IsRail(image.GetPixel(x, y)))
+                {
+                    break;
+                }
+
+                start = y;
+            }
+
+            return start;
+        }
+
+        var straightX = cornerX0 - 8;
+        var seamX = cornerX0 + 2;
+        var topStraight = TopRailEnd(img, straightX, cornerY0);
+        var topSeam = TopRailEnd(img, seamX, cornerY0);
+        var botStraight = BotRailStart(img, straightX, cornerY0, cell);
+        var botSeam = BotRailStart(img, seamX, cornerY0, cell);
+        var topDelta = Math.Abs(topSeam - topStraight);
+        var botDelta = Math.Abs(botSeam - botStraight);
+        GD.Print(
+            $"PixelCheck seam rails: topStraightEnd={topStraight} topSeamEnd={topSeam} Δ={topDelta} " +
+            $"botStraightStart={botStraight} botSeamStart={botSeam} Δ={botDelta}");
+        if (topDelta > 1 || botDelta > 1)
+        {
+            GD.PushError("SEAM FAIL: N/S rail band steps across straight↔corner join (rientranza).");
         }
     }
 }

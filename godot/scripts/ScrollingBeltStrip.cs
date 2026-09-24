@@ -33,8 +33,9 @@ public partial class ScrollingBeltStrip : Node2D
         var minY = Math.Min(first.Y, last.Y);
         var maxY = Math.Max(first.Y, last.Y);
 
-        // Full-tile + 1px seal so rails sit on grid lines and joins have no subpixel gap.
-        float thicknessPx = tileSize + 1f;
+        // Exact tile thickness (integer bounds) so N/S rails share one Y with corners.
+        // +1px on length only — seals the butt join without shifting long-edge rails.
+        float thicknessPx = tileSize;
         float lengthPx;
         Vector2 center;
         if (direction is Direction.East or Direction.West)

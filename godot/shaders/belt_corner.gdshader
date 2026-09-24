@@ -1,8 +1,9 @@
 shader_type canvas_item;
 
-// Full-cell corner: opaque SQUARE covering 100% of the 1×1 tile.
-// Outer silhouette is square (rails on all four edges) — never a rounded pad
-// that leaves terrain in the unused quadrant. L is only a recessed groove.
+// Full-cell corner: opaque SQUARE. Rails on all four sides for the square
+// silhouette, but entry (west) / exit (south) rails are truncated so they
+// never invade the N/S (or E/W) border bands — that invasion was the
+// "rientranza" step at the straight↔corner seam.
 // Base art: enter west → exit south.
 
 uniform float half_width = 0.32;
@@ -20,24 +21,31 @@ float sd_segment(vec2 p, vec2 a, vec2 b) {
 
 void fragment() {
 	vec2 p = UV;
-
 	vec3 col = base_color.rgb;
 
+	// Continuous borders shared with abutting straights (same 8% bands).
 	float rail_n = step(p.y, 0.08);
-	float rail_s = step(0.92, p.y);
-	float rail_w = step(p.x, 0.08);
 	float rail_e = step(0.92, p.x);
-	float open_w = step(abs(p.y - 0.5), half_width) * step(p.x, 0.08);
-	float open_s = step(abs(p.x - 0.5), half_width) * step(0.92, p.y);
-	float rail = max(max(rail_n, rail_s), max(rail_w, rail_e));
-	rail *= (1.0 - open_w) * (1.0 - open_s);
+
+	// South rail continues the horizontal strip's bottom border, open at exit.
+	float open_s = step(abs(p.x - 0.5), half_width);
+	float rail_s = step(0.92, p.y) * (1.0 - open_s);
+
+	// West rail continues the vertical strip's left border BELOW the channel,
+	// and never enters the N/S rail bands (that caused the seam notch).
+	float open_w = step(abs(p.y - 0.5), half_width);
+	float rail_w = step(p.x, 0.08)
+		* step(0.14, p.y) * step(p.y, 0.86)
+		* (1.0 - open_w);
+
+	float rail = max(max(rail_n, rail_e), max(rail_s, rail_w));
 
 	float groove_n = step(p.y, 0.14) * (1.0 - step(p.y, 0.08));
-	float groove_s = step(p.y, 0.92) * (1.0 - step(p.y, 0.86));
-	float groove_w = step(p.x, 0.14) * (1.0 - step(p.x, 0.08));
 	float groove_e = step(p.x, 0.92) * (1.0 - step(p.x, 0.86));
-	float groove = max(max(groove_n, groove_s), max(groove_w, groove_e));
-	groove *= (1.0 - open_w) * (1.0 - open_s);
+	float groove_s = step(p.y, 0.92) * (1.0 - step(p.y, 0.86)) * (1.0 - open_s);
+	float groove_w = step(p.x, 0.14) * (1.0 - step(p.x, 0.08))
+		* step(0.14, p.y) * step(p.y, 0.86) * (1.0 - open_w);
+	float groove = max(max(groove_n, groove_e), max(groove_s, groove_w));
 
 	vec2 a = vec2(0.0, 0.5);
 	vec2 b = vec2(0.5, 0.5);
