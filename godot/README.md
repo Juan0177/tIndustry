@@ -1,48 +1,42 @@
-# tIndustry — Godot 4 .NET (Phase B)
+# tIndustry — Godot 4 .NET (Phase C)
 
-Playable factory slice with **placeable Mindustry belts**. Raylib on `main` remains the dual play/fix path.
+Playable factory loop: **miner → nastro → forno → nastro → core** (lastre). Raylib resta dual path.
 
 ## Requirements
 
-- **Godot 4.4+ .NET** (mono) + .NET SDK 8+
-- Repo checkout with `data/content.json`
+- Godot 4.4+ .NET + .NET SDK 8+
+- `data/content.json`
 
-## Open / run
+## Run
 
 ```bash
 godot4 --path godot
-# or
-Godot_v4.4.1-stable_mono_linux.x86_64 --path godot
 ```
 
-Main scene: `godot/scenes/Spike.tscn`
-
-## Controls (IT)
+## Controlli
 
 | Input | Azione |
 | --- | --- |
-| Click sinistro / trascina | Piazza nastro (direzione corrente) |
-| **R** | Ruota direzione piazzamento |
-| Click destro / trascina | Rimuovi nastro |
-| WASD / middle-drag | Pan camera |
+| **1** / N | Tool nastro |
+| **2** / M | Tool minatore (2×2 statico) |
+| **3** / F | Tool forno (2×2 stub) |
+| Click / trascina | Piazza (nastri: drag) |
+| **R** | Ruota direzione |
+| Destro | Rimuovi nastro/edificio |
+| WASD / middle-drag | Pan |
 | Rotella | Zoom |
 
 ## Cosa vedi
 
-- Seed L-belt miner → core (loop già attivo)
-- Piazzamento libero: dritti con chevron scroll + **angoli piattaforma** dove il flusso gira 90°
-- Nastri regolari = **tile piena** (edge-to-edge); il look sottile ~78% è solo per i **ponti** (non ancora in scena)
-- Minatore T1 statico, core magazzino, HUD italiano
-- **Nessun combat**
+- Seed Phase C: minatore → feed → **Forno** (`smelt-iron`) → output L → core
+- Nastri Mindustry **full tile** + platform corners
+- HUD IT: ore + lastre in magazzino
+- Nessun combat
 
 ## Projects
 
 | Path | Role |
 | --- | --- |
-| `godot/` | Godot playable slice |
-| `src/TIndustry.Shared/` | `BeltGrid`, content, miner, core sink |
-| `TIndustry.Logistics.csproj` | Raylib dual path |
-
-## CI
-
-Godot optional. Gate = Raylib `dotnet build` / `--self-test`. Shared excluded from Raylib glob.
+| `godot/` | Playable slice |
+| `src/TIndustry.Shared/` | BeltGrid, miner, forno stub, FactorySlice |
+| `TIndustry.Logistics` | Raylib dual path |
