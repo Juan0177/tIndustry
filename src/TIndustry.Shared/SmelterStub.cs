@@ -2,7 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Minimal craft machine: belt intake → timed recipe → emit onto outward belts.
-/// Used for forno (Phase C) and assembler (Phase D). No power/coal OR yet.
+/// Used for forno (Phase C) and assembler (Phase D). Phase F: optional powered speed.
 /// </summary>
 public sealed class SmelterStub
 {
@@ -37,6 +37,7 @@ public sealed class SmelterStub
     public bool IsAssembler => DefinitionId == AssemblerBuildingId;
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
+    public bool IsPowered { get; private set; }
     public long ItemsCrafted { get; private set; }
     public IReadOnlyDictionary<string, int> InputBuffer => inputBuffer;
     public IReadOnlyCollection<string> OutputQueue => outputQueue;
@@ -131,10 +132,12 @@ public sealed class SmelterStub
         return accepted;
     }
 
-    public void Tick(float deltaSeconds, BeltGrid belts, ref long nextItemId)
+    public void Tick(float deltaSeconds, BeltGrid belts, ref long nextItemId, bool powered = false)
     {
+        IsPowered = powered;
         AcceptFromBelts(belts);
-        AdvanceCraft(deltaSeconds);
+        var speed = powered ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
+        AdvanceCraft(deltaSeconds * speed);
         EmitToBelts(belts, ref nextItemId);
     }
 

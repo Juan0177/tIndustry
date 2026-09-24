@@ -2,6 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Playable factory slice: miners → belts → forni/assemblatori → core stock.
+/// Phase F: optional generators power adjacent craft machines (+20% speed).
 /// </summary>
 public sealed class FactorySlice
 {
@@ -9,6 +10,7 @@ public sealed class FactorySlice
     private readonly List<MinerProducer> miners = [];
     private readonly List<SmelterStub> smelters = [];
     private readonly List<SmelterStub> assemblers = [];
+    private readonly List<GeneratorStub> generators = [];
 
     public FactorySlice(
         FactoryContent content,
@@ -37,6 +39,7 @@ public sealed class FactorySlice
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
     public IReadOnlyList<SmelterStub> Assemblers => assemblers;
+    public IReadOnlyList<GeneratorStub> Generators => generators;
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public MinerProducer? Miner => miners.Count > 0 ? miners[0] : null;
@@ -230,6 +233,28 @@ public sealed class FactorySlice
         return slice;
     }
 
+    /// <summary>
+    /// Phase F seed: Phase E loop + coal miner → generator adjacent to forno (powered craft).
+    /// </summary>
+    public static FactorySlice CreatePhaseFDemo(FactoryContent content, string beltId = "conveyor-basic")
+    {
+        var slice = CreatePhaseEDemo(content, beltId);
+        var beltDef = slice.BeltDefinition;
+
+        // Generator north of forno (6,7) → adjacent on south edge.
+        Assert(slice.TryPlaceGenerator(new GridPosition(6, 5), Direction.East), "generator seed");
+        // Coal miner west of generator.
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "coal"), "coal miner");
+        slice.Belts.PlacePath(
+        [
+            new GridPosition(4, 5),
+            new GridPosition(5, 5)
+        ], beltDef);
+        slice.Belts.TryOrient(new GridPosition(5, 5), Direction.East);
+
+        return slice;
+    }
+
     /// <summary>Legacy L-belt demo without forno (ore → core).</summary>
     public static FactorySlice CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
@@ -298,6 +323,14 @@ public sealed class FactorySlice
         foreach (var craft in CraftMachines())
         {
             if (craft.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
+        foreach (var gen in generators)
+        {
+            if (gen.Occupies(tile))
             {
                 return true;
             }
@@ -377,6 +410,24 @@ public sealed class FactorySlice
         return true;
     }
 
+    public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East)
+    {
+        if (!CanOccupyFootprint(origin, GeneratorStub.Size))
+        {
+            if (generators.Count == 1
+                && FootprintClearExcept(origin, GeneratorStub.Size, generator: generators[0]))
+            {
+                generators[0].Relocate(origin, direction);
+                return true;
+            }
+
+            return false;
+        }
+
+        generators.Add(new GeneratorStub(origin, direction));
+        return true;
+    }
+
     public bool TryRemoveBuildingAt(GridPosition tile)
     {
         for (var i = miners.Count - 1; i >= 0; i--)
@@ -415,6 +466,17 @@ public sealed class FactorySlice
             return true;
         }
 
+        for (var i = generators.Count - 1; i >= 0; i--)
+        {
+            if (!generators[i].Occupies(tile))
+            {
+                continue;
+            }
+
+            generators.RemoveAt(i);
+            return true;
+        }
+
         return false;
     }
 
@@ -435,7 +497,8 @@ public sealed class FactorySlice
         GridPosition origin,
         int size,
         MinerProducer? miner = null,
-        SmelterStub? craft = null)
+        SmelterStub? craft = null,
+        GeneratorStub? generator = null)
     {
         for (var y = 0; y < size; y++)
         {
@@ -475,6 +538,19 @@ public sealed class FactorySlice
                         return false;
                     }
                 }
+
+                foreach (var g in generators)
+                {
+                    if (generator is not null && ReferenceEquals(g, generator))
+                    {
+                        continue;
+                    }
+
+                    if (g.Occupies(tile))
+                    {
+                        return false;
+                    }
+                }
             }
         }
 
@@ -491,9 +567,19 @@ public sealed class FactorySlice
         // Belts advance first so handoffs reach craft/core edges.
         Belts.Tick(deltaSeconds);
 
+        var liveGens = new List<GeneratorStub>();
+        foreach (var gen in generators)
+        {
+            if (gen.Tick(deltaSeconds, Belts))
+            {
+                liveGens.Add(gen);
+            }
+        }
+
         foreach (var craft in CraftMachines())
         {
-            craft.Tick(deltaSeconds, Belts, ref nextItemId);
+            var powered = liveGens.Any(g => g.IsAdjacentTo(craft.Position, SmelterStub.Size));
+            craft.Tick(deltaSeconds, Belts, ref nextItemId, powered);
         }
 
         // Second belt tick so freshly emitted items can move the same frame.
@@ -713,6 +799,95 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Phase E self-test: nessun filo al core entro 120s sim (junction/splitter seed).");
+    }
+
+    /// <summary>
+    /// Phase F: generator adjacency powers craft (+20%), seed still delivers wire.
+    /// </summary>
+    public static void SelfTestPowerStub(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var grid = new BeltGrid();
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, grid, core);
+
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "smelter");
+        Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of forno");
+        Assert(slice.Generators[0].IsAdjacentTo(slice.Smelters[0].Position, SmelterStub.Size), "adjacent");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel 1");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel 2");
+
+        var sm = slice.Smelters[0];
+        Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore for craft");
+
+        const float dt = 1f / 30f;
+        var sawPowered = false;
+        for (var i = 0; i < 30 * 8; i++)
+        {
+            slice.Tick(dt);
+            if (sm.IsPowered)
+            {
+                sawPowered = true;
+                break;
+            }
+        }
+
+        Assert(sawPowered, "forno powered while generator burns");
+
+        // Speed: powered progress > unpowered over same window.
+        var coldGrid = new BeltGrid();
+        var cold = new FactorySlice(content, coldGrid, core);
+        Assert(cold.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "cold smelter");
+        var coldSm = cold.Smelters[0];
+        Assert(coldSm.TryAccept("iron-ore") && coldSm.TryAccept("iron-ore"), "cold ore");
+
+        // Reset powered smelter craft.
+        var hot = slice;
+        var hotSm = hot.Smelters[0];
+        if (!hotSm.IsCrafting)
+        {
+            Assert(hotSm.TryAccept("iron-ore") && hotSm.TryAccept("iron-ore"), "hot ore");
+        }
+
+        // Ensure gen still fueled.
+        hot.Generators[0].TryAcceptFuel("coal");
+        var hotBefore = hotSm.Progress;
+        var coldBefore = coldSm.Progress;
+        for (var i = 0; i < 15; i++)
+        {
+            hot.Tick(dt);
+            cold.Tick(dt);
+        }
+
+        var hotDelta = hotSm.Progress - hotBefore;
+        var coldDelta = coldSm.Progress - coldBefore;
+        if (hotSm.IsCrafting && coldSm.IsCrafting && coldDelta > 0.001f)
+        {
+            Assert(hotDelta > coldDelta * 1.05f,
+                $"powered faster (hotΔ={hotDelta:F3} coldΔ={coldDelta:F3})");
+        }
+
+        Assert(slice.TryPlaceGenerator(new GridPosition(16, 4), Direction.South), "place second gen");
+        Assert(slice.TryRemoveBuildingAt(new GridPosition(16, 4)), "remove gen");
+
+        var demo = CreatePhaseFDemo(content);
+        Assert(demo.Generators.Count == 1, "seed generator");
+        Assert(demo.Miners.Any(m => m.OutputItemId == "coal"), "coal miner");
+        Assert(demo.Smelters.Count == 1 && demo.Assemblers.Count == 1, "craft chain");
+
+        for (var i = 0; i < 30 * 150; i++)
+        {
+            demo.Tick(dt);
+            if (demo.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Phase F self-test: nessun filo al core entro 150s sim (power seed).");
     }
 
     private static void Assert(bool condition, string message)
