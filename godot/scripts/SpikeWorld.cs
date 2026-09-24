@@ -737,7 +737,9 @@ public partial class SpikeWorld : Node2D
         }
 
         // Body color across seam must match (no dark channel blotch).
-        var yBody = cornerY0 + cell / 2;
+        // Sample off mid-band so a scrolling chevron on the straight can't
+        // false-fail against the corner body.
+        var yBody = cornerY0 + cell / 4;
         var straightBody = img.GetPixel(cornerX0 - 8, yBody);
         var cornerBody = img.GetPixel(cornerX0 + 8, yBody);
         var dr = Math.Abs(straightBody.R - cornerBody.R);

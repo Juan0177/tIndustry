@@ -40,9 +40,10 @@ void fragment() {
 	float rail_n = step(p.y, 0.08);
 	float rail_e = step(0.92, p.x);
 
-	// South: ONLY west of the path channel — continues H bottom into the ┘.
-	// No SE stub (that was the outer bump on the vertical join).
-	float rail_s = step(0.92, p.y) * step(p.x, 0.5 - half_width);
+	// South: ONLY west rail column (absolute 8%) — continues H bottom into the ┘.
+	// Do NOT use (0.5 - half_width): with half_width 0.40 that spills past the
+	// knuckle and reads as a bottom-edge step. No SE stub either.
+	float rail_s = step(0.92, p.y) * step(p.x, 0.08);
 
 	// West: mid-band below the entry (same as before), plus SW knuckle so the
 	// inner ┘ meets the south rail cleanly (no notch).
