@@ -222,15 +222,25 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var coreFill = new Color(0.22f, 0.38f, 0.55f, 0.85f);
-        var coreEdge = new Color(0.45f, 0.75f, 0.95f, 1f);
-        foreach (var tile in _slice.CoreTiles)
+        var coreFill = new Color(0.18f, 0.32f, 0.48f, 1f);
+        var coreEdge = new Color(0.55f, 0.82f, 1f, 1f);
+        // Draw core as one footprint box (not per-tile wash).
+        if (_slice.CoreTiles.Count > 0)
         {
-            var rect = new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize);
+            var minX = _slice.CoreTiles.Min(t => t.X);
+            var minY = _slice.CoreTiles.Min(t => t.Y);
+            var maxX = _slice.CoreTiles.Max(t => t.X);
+            var maxY = _slice.CoreTiles.Max(t => t.Y);
+            var rect = new Rect2(
+                minX * TileSize + 1,
+                minY * TileSize + 1,
+                (maxX - minX + 1) * TileSize - 2,
+                (maxY - minY + 1) * TileSize - 2);
             DrawRect(rect, coreFill);
-            DrawRect(rect, coreEdge, false, 2f);
+            DrawRect(rect, coreEdge, false, 3f);
         }
 
+        // Deposit tint under miners stays soft; the building pad is the readable frame.
         foreach (var miner in _slice.Miners)
         {
             var deposit = miner.OutputItemId == "copper-ore"
@@ -400,41 +410,44 @@ public partial class SpikeWorld : Node2D
 
         foreach (var miner in _slice.Miners)
         {
-            var node = new Node2D
-            {
-                Name = $"Miner_{miner.Position.X}_{miner.Position.Y}",
-                Position = FootprintCenter(miner.Position, MinerProducer.Size)
-            };
-            var sprite = new Sprite2D
-            {
-                Texture = GD.Load<Texture2D>("res://assets/miner.png"),
-                Centered = true,
-                Scale = Vector2.One
-            };
-            node.AddChild(sprite);
+            var node = BuildingPad.Create(
+                MinerProducer.Size,
+                TileSize,
+                fill: new Color(0.22f, 0.2f, 0.16f, 1f),
+                border: new Color(0.85f, 0.72f, 0.4f, 1f),
+                icon: GD.Load<Texture2D>("res://assets/miner.png"),
+                iconScale: 1.05f);
+            node.Name = $"Miner_{miner.Position.X}_{miner.Position.Y}";
+            node.Position = FootprintCenter(miner.Position, MinerProducer.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var smelter in _slice.Smelters)
         {
-            var node = new StaticSmelter
-            {
-                Name = $"Smelter_{smelter.Position.X}_{smelter.Position.Y}",
-                Position = FootprintCenter(smelter.Position, SmelterStub.Size)
-            };
+            var node = BuildingPad.Create(
+                SmelterStub.Size,
+                TileSize,
+                fill: new Color(0.2f, 0.16f, 0.14f, 1f),
+                border: new Color(0.95f, 0.55f, 0.28f, 1f),
+                icon: GD.Load<Texture2D>("res://assets/smelter.png"),
+                iconScale: 1.1f);
+            node.Name = $"Smelter_{smelter.Position.X}_{smelter.Position.Y}";
+            node.Position = FootprintCenter(smelter.Position, SmelterStub.Size);
             _buildingsLayer.AddChild(node);
-            node.EnsureSprite();
         }
 
         foreach (var assembler in _slice.Assemblers)
         {
-            var node = new StaticAssembler
-            {
-                Name = $"Assembler_{assembler.Position.X}_{assembler.Position.Y}",
-                Position = FootprintCenter(assembler.Position, SmelterStub.Size)
-            };
+            var node = BuildingPad.Create(
+                SmelterStub.Size,
+                TileSize,
+                fill: new Color(0.14f, 0.18f, 0.22f, 1f),
+                border: new Color(0.45f, 0.78f, 0.95f, 1f),
+                icon: GD.Load<Texture2D>("res://assets/assembler.png"),
+                iconScale: 1.1f);
+            node.Name = $"Assembler_{assembler.Position.X}_{assembler.Position.Y}";
+            node.Position = FootprintCenter(assembler.Position, SmelterStub.Size);
             _buildingsLayer.AddChild(node);
-            node.EnsureSprite();
         }
     }
 
@@ -481,16 +494,33 @@ public partial class SpikeWorld : Node2D
                 live.Add(item.Id);
                 if (!_itemSprites.TryGetValue(item.Id, out var sprite))
                 {
+                    var holder = new Node2D
+                    {
+                        Name = $"Item_{item.Id}",
+                        ZIndex = 5
+                    };
+                    // Opaque disc so PNG alpha never shows the belt through the item.
+                    var back = new Polygon2D
+                    {
+                        Name = "Back",
+                        Color = new Color(0.1f, 0.12f, 0.14f, 1f),
+                        Polygon =
+                        [
+                            new(-14, -14), new(14, -14), new(14, 14), new(-14, 14)
+                        ]
+                    };
+                    holder.AddChild(back);
                     var tex = ResolveItemTexture(item.ItemId);
                     sprite = new Sprite2D
                     {
+                        Name = "Sprite",
                         Texture = tex,
                         Centered = true,
-                        Scale = new Vector2(0.7f, 0.7f),
-                        ZIndex = 5,
-                        Modulate = new Color(1.15f, 1.05f, 0.95f)
+                        Scale = new Vector2(0.85f, 0.85f),
+                        Modulate = Colors.White
                     };
-                    _itemsLayer.AddChild(sprite);
+                    holder.AddChild(sprite);
+                    _itemsLayer.AddChild(holder);
                     _itemSprites[item.Id] = sprite;
                 }
                 else
@@ -500,20 +530,34 @@ public partial class SpikeWorld : Node2D
                     {
                         sprite.Texture = tex;
                     }
+
+                    sprite.Modulate = Colors.White;
                 }
 
                 var from = CellCenter(cell.Position);
                 var to = CellCenter(cell.Position.Step(cell.Direction));
-                sprite.Position = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
+                var pos = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
+                var holderNode = sprite.GetParent() as Node2D ?? sprite;
+                holderNode.Position = pos;
                 // Corner = galleria: items disappear while inside the turn.
-                sprite.Visible = !_slice.Belts.IsCorner(cell.Position);
+                holderNode.Visible = !_slice.Belts.IsCorner(cell.Position);
             }
         }
 
         var dead = _itemSprites.Keys.Where(id => !live.Contains(id)).ToList();
         foreach (var id in dead)
         {
-            _itemSprites[id].QueueFree();
+            var sprite = _itemSprites[id];
+            var parent = sprite.GetParent();
+            if (parent is not null && parent != _itemsLayer)
+            {
+                parent.QueueFree();
+            }
+            else
+            {
+                sprite.QueueFree();
+            }
+
             _itemSprites.Remove(id);
         }
     }
@@ -633,7 +677,7 @@ public partial class SpikeWorld : Node2D
 
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
 
-        // Phase D overview — keep buildings/HUD visible for the factory loop shot.
+        // Building-box proof — short wait so items appear; keep buildings visible.
         if (cam is not null)
         {
             cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
@@ -642,39 +686,37 @@ public partial class SpikeWorld : Node2D
 
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        // Let the loop run ~55s sim so copper-wire reaches core stock.
-        for (var i = 0; i < 55; i++)
+        for (var i = 0; i < 14; i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
         }
 
         var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-phase-d-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-phase-d-map.png");
-        GD.Print($"Saved Phase D map → {destDir}");
+        overview.SavePng(Path.Combine(destDir, "godot-port-building-box-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-building-box-map.png");
+        GD.Print($"Saved building-box map → {destDir}");
 
-        // Close crop on assembler cell (12,7) 2×2 + feeds.
         if (cam is not null)
         {
-            cam.Position = new Vector2(13f * TileSize, 8.5f * TileSize);
-            cam.Zoom = new Vector2(1f, 1f);
+            cam.Position = new Vector2(8f * TileSize, 8f * TileSize);
+            cam.Zoom = new Vector2(1.1f, 1.1f);
         }
 
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         var closeFull = GetViewport().GetTexture().GetImage();
         var close = CropCenterCells(closeFull, cropCells: 6);
-        close.SavePng(Path.Combine(destDir, "godot-port-phase-d-close.png"));
-        close.SavePng("/opt/cursor/artifacts/godot-port-phase-d-close.png");
-        GD.Print($"Saved Phase D close → {destDir}");
+        close.SavePng(Path.Combine(destDir, "godot-port-building-box-close.png"));
+        close.SavePng("/opt/cursor/artifacts/godot-port-building-box-close.png");
+        GD.Print($"Saved building-box close → {destDir}");
 
         if (_hud is not null)
         {
             _hud.Visible = false;
         }
 
-        GD.Print("Phase D screenshot set complete.");
+        GD.Print("Building-box screenshot set complete.");
     }
 
     private static Image CropCenterCells(Image src, int cropCells)
