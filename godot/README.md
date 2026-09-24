@@ -1,6 +1,6 @@
-# tIndustry — Godot 4 .NET (Phase C)
+# tIndustry — Godot 4 .NET (Phase D)
 
-Playable factory loop: **miner → nastro → forno → nastro → core** (lastre). Raylib resta dual path.
+Playable factory loop: **miner → nastro → forno → assemblatore → nastro → core** (filo di rame). Raylib resta dual path.
 
 ## Requirements
 
@@ -20,6 +20,7 @@ godot4 --path godot
 | **1** / N | Tool nastro |
 | **2** / M | Tool minatore (2×2 statico) |
 | **3** / F | Tool forno (2×2 stub) |
+| **4** / A | Tool assemblatore (2×2 stub) |
 | Click / trascina | Piazza (nastri: drag) |
 | **R** | Ruota direzione |
 | Destro | Rimuovi nastro/edificio |
@@ -28,15 +29,15 @@ godot4 --path godot
 
 ## Cosa vedi
 
-- Seed Phase C: minatore → feed → **Forno** (`smelt-iron`) → output L → core
-- Nastri Mindustry **full tile** + platform corners
-- HUD IT: ore + lastre in magazzino
-- Nessun combat
+- Seed Phase D: minatore ferro → forno (`smelt-iron`) + minatore rame → **Assemblatore** (`craft-copper-wire`) → core
+- Nastri Mindustry **full tile** + gallery corners (Blu1–4)
+- HUD IT: ore / lastre / rame / filo in magazzino
+- Nessun combat · nessun power stub ancora
 
 ## Projects
 
 | Path | Role |
 | --- | --- |
 | `godot/` | Playable slice |
-| `src/TIndustry.Shared/` | BeltGrid, miner, forno stub, FactorySlice |
+| `src/TIndustry.Shared/` | BeltGrid, miner, forno/assemblatore stub, FactorySlice |
 | `TIndustry.Logistics` | Raylib dual path |

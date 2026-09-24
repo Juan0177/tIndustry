@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Phase C: placeable belts + miner + forno stub (ore→plate→core).
-/// 1=nastro · 2=minatore · 3=forno · R=ruota · click piazza · destro rimuovi.
+/// Phase D: placeable belts + miner + forno + assemblatore (ore→plate+rame→wire→core).
+/// 1=nastro · 2=minatore · 3=forno · 4=assemblatore · R=ruota · click piazza · destro rimuovi.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -17,7 +17,8 @@ public partial class SpikeWorld : Node2D
     {
         Belt,
         Miner,
-        Smelter
+        Smelter,
+        Assembler
     }
 
     private FactorySlice? _slice;
@@ -36,18 +37,22 @@ public partial class SpikeWorld : Node2D
     private bool _buildingsDirty = true;
     private Texture2D? _oreTex;
     private Texture2D? _plateTex;
+    private Texture2D? _copperOreTex;
+    private Texture2D? _copperWireTex;
 
     public override void _Ready()
     {
         _contentPath = ResolveContentPath();
         var content = FactoryContent.Load(_contentPath);
-        _slice = FactorySlice.CreatePhaseCDemo(content);
+        _slice = FactorySlice.CreatePhaseDDemo(content);
 
         _itemsLayer = GetNode<Node2D>("Items");
         _hud = GetNode<Label>("Hud/Status");
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
+        _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
+        _copperWireTex = GD.Load<Texture2D>("res://assets/copper-wire.png");
 
         EnsureBeltVisual();
         RebuildBeltVisual();
@@ -58,10 +63,10 @@ public partial class SpikeWorld : Node2D
         timer.Timeout += () => _ = SavePortScreenshotsAsync();
         if (HasNode("Camera"))
         {
-            // Zoom 1: pixel-verify belt outer edge == tile edge.
+            // Frame Phase D seed: iron+copper lines + assembler + core.
             var cam = GetNode<Camera2D>("Camera");
-            cam.Position = new Vector2(10.5f * TileSize, 8.5f * TileSize);
-            cam.Zoom = new Vector2(1f, 1f);
+            cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
+            cam.Zoom = new Vector2(0.55f, 0.55f);
         }
     }
 
@@ -91,6 +96,13 @@ public partial class SpikeWorld : Node2D
             if (key.Keycode == Key.Key3 || key.Keycode == Key.F)
             {
                 _tool = BuildTool.Smelter;
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.Key4 || key.Keycode == Key.A)
+            {
+                _tool = BuildTool.Assembler;
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -221,7 +233,9 @@ public partial class SpikeWorld : Node2D
 
         foreach (var miner in _slice.Miners)
         {
-            var deposit = new Color(0.45f, 0.32f, 0.18f, 0.35f);
+            var deposit = miner.OutputItemId == "copper-ore"
+                ? new Color(0.55f, 0.38f, 0.22f, 0.4f)
+                : new Color(0.45f, 0.32f, 0.18f, 0.35f);
             foreach (var tile in miner.OccupiedTiles())
             {
                 DrawRect(new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize), deposit);
@@ -247,6 +261,7 @@ public partial class SpikeWorld : Node2D
         {
             BuildTool.Miner => MinerProducer.Size,
             BuildTool.Smelter => SmelterStub.Size,
+            BuildTool.Assembler => SmelterStub.Size,
             _ => 1
         };
 
@@ -254,7 +269,8 @@ public partial class SpikeWorld : Node2D
             ? _slice.CanOccupy(hover)
             : _slice.CanOccupyFootprint(hover, size)
               || (_tool == BuildTool.Miner && _slice.Miners.Count == 1)
-              || (_tool == BuildTool.Smelter && _slice.Smelters.Count == 1);
+              || (_tool == BuildTool.Smelter && _slice.Smelters.Count == 1)
+              || (_tool == BuildTool.Assembler && _slice.Assemblers.Count == 1);
 
         var ghost = ok
             ? new Color(0.35f, 0.85f, 0.55f, 0.35f)
@@ -310,6 +326,13 @@ public partial class SpikeWorld : Node2D
                 break;
             case BuildTool.Smelter:
                 if (_slice.TryPlaceSmelter(cell, _placeDir))
+                {
+                    _buildingsDirty = true;
+                }
+
+                break;
+            case BuildTool.Assembler:
+                if (_slice.TryPlaceAssembler(cell, _placeDir))
                 {
                     _buildingsDirty = true;
                 }
@@ -402,6 +425,17 @@ public partial class SpikeWorld : Node2D
             _buildingsLayer.AddChild(node);
             node.EnsureSprite();
         }
+
+        foreach (var assembler in _slice.Assemblers)
+        {
+            var node = new StaticAssembler
+            {
+                Name = $"Assembler_{assembler.Position.X}_{assembler.Position.Y}",
+                Position = FootprintCenter(assembler.Position, SmelterStub.Size)
+            };
+            _buildingsLayer.AddChild(node);
+            node.EnsureSprite();
+        }
     }
 
     private static Vector2 FootprintCenter(GridPosition origin, int size) =>
@@ -447,7 +481,7 @@ public partial class SpikeWorld : Node2D
                 live.Add(item.Id);
                 if (!_itemSprites.TryGetValue(item.Id, out var sprite))
                 {
-                    var tex = item.ItemId == "iron-plate" ? _plateTex : _oreTex;
+                    var tex = ResolveItemTexture(item.ItemId);
                     sprite = new Sprite2D
                     {
                         Texture = tex,
@@ -459,9 +493,13 @@ public partial class SpikeWorld : Node2D
                     _itemsLayer.AddChild(sprite);
                     _itemSprites[item.Id] = sprite;
                 }
-                else if (item.ItemId == "iron-plate" && _plateTex is not null)
+                else
                 {
-                    sprite.Texture = _plateTex;
+                    var tex = ResolveItemTexture(item.ItemId);
+                    if (tex is not null)
+                    {
+                        sprite.Texture = tex;
+                    }
                 }
 
                 var from = CellCenter(cell.Position);
@@ -489,19 +527,26 @@ public partial class SpikeWorld : Node2D
 
         var oreName = _slice.Content.DisplayName("iron-ore");
         var plateName = _slice.Content.DisplayName("iron-plate");
+        var copperName = _slice.Content.DisplayName("copper-ore");
+        var wireName = _slice.Content.DisplayName("copper-wire");
         var oreStock = _slice.Wallet.MaterialCount("iron-ore");
         var plateStock = _slice.Wallet.MaterialCount("iron-plate");
+        var copperStock = _slice.Wallet.MaterialCount("copper-ore");
+        var wireStock = _slice.Wallet.MaterialCount("copper-wire");
         var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
         var scroll = _beltVisual?.ScrollTiles ?? 0f;
         var miner = _slice.Miner;
         var progressPct = miner is null ? 0 : (int)(miner.Progress * 100f);
         var crafted = _slice.Smelters.Sum(s => s.ItemsCrafted);
         var smeltProg = _slice.Smelters.Count > 0 ? (int)(_slice.Smelters[0].Progress * 100f) : 0;
+        var wired = _slice.Assemblers.Sum(a => a.ItemsCrafted);
+        var asmProg = _slice.Assemblers.Count > 0 ? (int)(_slice.Assemblers[0].Progress * 100f) : 0;
         var toolIt = _tool switch
         {
             BuildTool.Belt => "Nastro",
             BuildTool.Miner => "Minatore",
             BuildTool.Smelter => "Forno",
+            BuildTool.Assembler => "Assemblatore",
             _ => "?"
         };
         var dirIt = _placeDir switch
@@ -514,11 +559,21 @@ public partial class SpikeWorld : Node2D
         };
 
         _hud.Text =
-            $"tIndustry Godot — Phase C  |  tool={toolIt}  dir={dirIt}  |  Nastro={_slice.BeltDefinition.Id}\n" +
-            $"Minatore×{_slice.Miners.Count} prog={progressPct}%  |  Forno×{_slice.Smelters.Count} craft={smeltProg}% prodotti={crafted}  |  nastro={onBelt}\n" +
-            $"Core: {oreName}={oreStock}  {plateName}={plateStock}  (consegnati={_slice.CoreDeliveredItems})  scroll={scroll:0.00}\n" +
-            "1=nastro · 2=minatore · 3=forno · R=ruota · click=piazza · destro=rimuovi · WASD=pan · nessun combat";
+            $"tIndustry Godot — Phase D  |  tool={toolIt}  dir={dirIt}  |  Nastro={_slice.BeltDefinition.Id}\n" +
+            $"Minatore×{_slice.Miners.Count} prog={progressPct}%  |  Forno×{_slice.Smelters.Count} craft={smeltProg}% prodotti={crafted}  |  " +
+            $"Assemblatore×{_slice.Assemblers.Count} craft={asmProg}% fili={wired}  |  nastro={onBelt}\n" +
+            $"Core: {oreName}={oreStock}  {plateName}={plateStock}  {copperName}={copperStock}  {wireName}={wireStock}  " +
+            $"(consegnati={_slice.CoreDeliveredItems})  scroll={scroll:0.00}\n" +
+            "1=nastro · 2=minatore · 3=forno · 4=assemblatore · R=ruota · click=piazza · destro=rimuovi · WASD=pan · nessun combat";
     }
+
+    private Texture2D? ResolveItemTexture(string itemId) => itemId switch
+    {
+        "iron-plate" => _plateTex,
+        "copper-ore" => _copperOreTex,
+        "copper-wire" => _copperWireTex,
+        _ => _oreTex
+    };
 
     private static Vector2 CellCenter(GridPosition cell) =>
         new((cell.X + 0.5f) * TileSize, (cell.Y + 0.5f) * TileSize);
@@ -573,6 +628,70 @@ public partial class SpikeWorld : Node2D
         if (destDir is null || _slice is null)
         {
             GD.PushWarning("Nessuna cartella screenshot scrivibile / slice null.");
+            return;
+        }
+
+        var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
+
+        // Phase D overview — keep buildings/HUD visible for the factory loop shot.
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(9.5f * TileSize, 10.5f * TileSize);
+            cam.Zoom = new Vector2(0.55f, 0.55f);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        // Let the loop run ~55s sim so copper-wire reaches core stock.
+        for (var i = 0; i < 55; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
+        }
+
+        var overview = GetViewport().GetTexture().GetImage();
+        overview.SavePng(Path.Combine(destDir, "godot-port-phase-d-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-phase-d-map.png");
+        GD.Print($"Saved Phase D map → {destDir}");
+
+        // Close crop on assembler cell (12,7) 2×2 + feeds.
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(13f * TileSize, 8.5f * TileSize);
+            cam.Zoom = new Vector2(1f, 1f);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var closeFull = GetViewport().GetTexture().GetImage();
+        var close = CropCenterCells(closeFull, cropCells: 6);
+        close.SavePng(Path.Combine(destDir, "godot-port-phase-d-close.png"));
+        close.SavePng("/opt/cursor/artifacts/godot-port-phase-d-close.png");
+        GD.Print($"Saved Phase D close → {destDir}");
+
+        if (_hud is not null)
+        {
+            _hud.Visible = false;
+        }
+
+        GD.Print("Phase D screenshot set complete.");
+    }
+
+    private static Image CropCenterCells(Image src, int cropCells)
+    {
+        var span = cropCells * TileSize;
+        var x0 = Math.Max(0, (src.GetWidth() - span) / 2);
+        var y0 = Math.Max(0, (src.GetHeight() - span) / 2);
+        var w = Math.Min(span, src.GetWidth() - x0);
+        var h = Math.Min(span, src.GetHeight() - y0);
+        return src.GetRegion(new Rect2I(x0, y0, w, h));
+    }
+
+    // Legacy corner QA capture kept for local debugging (not auto-run in Phase D).
+    private async Task SaveCornerShotSetAsync(string destDir)
+    {
+        if (_slice is null)
+        {
             return;
         }
 
