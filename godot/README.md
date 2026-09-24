@@ -1,6 +1,6 @@
-# tIndustry — Godot 4 .NET spike
+# tIndustry — Godot 4 .NET (Phase A)
 
-Vertical slice (**not** a full port). Raylib game on `main` play path is unchanged.
+Playable factory slice beyond the spike. Raylib on `main` remains the dual play/fix path until the port replaces it.
 
 ## Requirements
 
@@ -21,25 +21,23 @@ Main scene: `godot/scenes/Spike.tscn`
 
 Controls: **WASD** / middle-drag pan, mouse wheel zoom.
 
-## What you should see
+## What you should see (Phase A loop)
 
-- Checkerboard grid map
-- An **L-shaped** belt: scrolling arrows on straight legs + a **full-cell blue platform pad** at the corner (rivets, recessed L channel, **no arrows**)
-- Iron-ore icons **riding on top** of both legs and through the corner (same `BeltLane` Advance math as Logistics, per-cell direction)
-- **Static** miner sprite (`assets/miner.png`) — same as Raylib; no drill / tip spin
-
-### Corners / junctions
-
-This spike shows one **L corner** as a static platform pad (straight legs keep scrolling arrows). Cross/splitter UV and multi-way junctions remain follow-ups for the core port.
+- Checkerboard grid + deposit tint under miner
+- **Minatore T1 statico** that actually produces `iron-ore` (Shared `MinerProducer`)
+- **L-belt** Mindustry visuals (scrolling chevrons + platform corner)
+- Items riding the belt into **Core magazzino** (blue tiles) → stock HUD
+- Italian HUD: stock «Ferro grezzo», progresso minatore, item sul nastro
+- **No combat**
 
 ## Projects
 
 | Path | Role |
 | --- | --- |
-| `godot/` | Godot 4 C# spike app |
-| `src/TIndustry.Shared/` | Thin shared belt/grid/content DTOs (additive; Raylib does not reference it yet) |
-| `TIndustry.Logistics.csproj` | Existing Raylib game — **unchanged play path** |
+| `godot/` | Godot 4 C# playable slice |
+| `src/TIndustry.Shared/` | Belt, content load, wallet, miner, core sink, smelter stub |
+| `TIndustry.Logistics.csproj` | Raylib game — dual path (build + `--self-test`) |
 
 ## CI
 
-Godot is **optional / docs-only** in CI: runners do not install a headless Godot .NET editor. Existing `dotnet` Raylib build/publish jobs are untouched.
+Godot is **optional / docs-only** in CI. Existing `dotnet` Raylib build/publish/self-test jobs are the gate. Shared is excluded from the Raylib csproj glob (`Compile Remove`).

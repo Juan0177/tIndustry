@@ -4,80 +4,54 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Spike root: grid + Mindustry-style L belt (straight + 90° corner) with scrolling chevrons
-/// + items riding on top + static miner (no drill). Belt scroll speed = content.json rate.
+/// Phase A playable slice: static miner → Mindustry L-belt → core stock.
+/// Uses <see cref="FactorySlice"/> from TIndustry.Shared (no fake timer spawn).
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
     public const int TileSize = 64;
     public const int MapWidth = 24;
-    public const int MapHeight = 16;
+    public const int MapHeight = 18;
 
-    private BeltLane? _belt;
+    private FactorySlice? _slice;
     private MindustryBeltVisual? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Label? _hud;
-    private float _spawnAccum;
     private string _contentPath = "";
-    private ConveyorDefinition? _beltDef;
-    private List<GridPosition> _beltPath = [];
 
     public override void _Ready()
     {
         _contentPath = ResolveContentPath();
-        _beltDef = ConveyorContent.RequireBelt(_contentPath, "conveyor-basic");
+        var content = FactoryContent.Load(_contentPath);
+        _slice = FactorySlice.CreateSpikeDemo(content);
 
-        // L-path: east along y=8, then south at x=10 (corner at 10,8).
-        _beltPath = [];
-        for (var x = 4; x <= 10; x++)
-        {
-            _beltPath.Add(new GridPosition(x, 8));
-        }
-
-        for (var y = 9; y <= 13; y++)
-        {
-            _beltPath.Add(new GridPosition(10, y));
-        }
-
-        _belt = new BeltLane(_beltPath, _beltDef);
         _itemsLayer = GetNode<Node2D>("Items");
         _hud = GetNode<Label>("Hud/Status");
 
+        PlaceMinerVisual();
         BuildScrollingBelt();
         UpdateHud();
 
-        // Evidence capture after settle (store media + artifacts).
-        var timer = GetTree().CreateTimer(4.0);
-        timer.Timeout += SaveSpikeScreenshot;
+        var timer = GetTree().CreateTimer(5.0);
+        timer.Timeout += SavePortScreenshot;
     }
 
     public override void _Process(double delta)
     {
-        if (_belt is null || _beltDef is null)
+        if (_slice is null)
         {
             return;
         }
 
-        var dt = (float)delta;
-        _belt.Tick(dt);
-
-        _spawnAccum += dt;
-        // Spawn a bit faster than belt rate so multiple items are visible on the strip.
-        var interval = 0.55f / Math.Max(0.05f, _beltDef.RateItemsPerSecond);
-        if (_spawnAccum >= interval)
-        {
-            _spawnAccum = 0f;
-            _belt.TrySpawnAtStart("iron-ore");
-        }
-
+        _slice.Tick((float)delta);
         SyncItemSprites();
         UpdateHud();
+        QueueRedraw();
     }
 
     public override void _Draw()
     {
-        // Soft ground + grid (atmosphere, not flat fill only).
         var ground = new Color(0.14f, 0.18f, 0.16f);
         var groundAlt = new Color(0.16f, 0.21f, 0.18f);
         for (var y = 0; y < MapHeight; y++)
@@ -101,11 +75,49 @@ public partial class SpikeWorld : Node2D
             var py = y * TileSize;
             DrawLine(new Vector2(0, py), new Vector2(MapWidth * TileSize, py), grid, 1f);
         }
+
+        if (_slice is null)
+        {
+            return;
+        }
+
+        // Core stock tiles (ingresso magazzino).
+        var coreFill = new Color(0.22f, 0.38f, 0.55f, 0.85f);
+        var coreEdge = new Color(0.45f, 0.75f, 0.95f, 1f);
+        foreach (var tile in _slice.CoreTiles)
+        {
+            var rect = new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize);
+            DrawRect(rect, coreFill);
+            DrawRect(rect, coreEdge, false, 2f);
+        }
+
+        // Soft deposit tint under miner (on-deposit hint).
+        var deposit = new Color(0.45f, 0.32f, 0.18f, 0.35f);
+        foreach (var tile in _slice.Miner.OccupiedTiles())
+        {
+            var rect = new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize);
+            DrawRect(rect, deposit);
+        }
+    }
+
+    private void PlaceMinerVisual()
+    {
+        if (_slice is null || !HasNode("Miner"))
+        {
+            return;
+        }
+
+        var miner = GetNode<Node2D>("Miner");
+        var origin = _slice.Miner.Position;
+        // Center of 2×2 footprint.
+        miner.Position = new Vector2(
+            (origin.X + MinerProducer.Size * 0.5f) * TileSize,
+            (origin.Y + MinerProducer.Size * 0.5f) * TileSize);
     }
 
     private void BuildScrollingBelt()
     {
-        if (_belt is null || _beltDef is null)
+        if (_slice is null)
         {
             return;
         }
@@ -118,23 +130,25 @@ public partial class SpikeWorld : Node2D
 
         _beltVisual = new MindustryBeltVisual { Name = "MindustryBelt" };
         belts.AddChild(_beltVisual);
-        _beltVisual.Configure(_beltPath, _beltDef.RateItemsPerSecond, TileSize);
+        var path = _slice.Belt.Cells.Select(c => c.Position).ToList();
+        _beltVisual.Configure(path, _slice.Belt.Definition.RateItemsPerSecond, TileSize);
     }
 
     private void SyncItemSprites()
     {
-        if (_belt is null || _itemsLayer is null)
+        if (_slice is null || _itemsLayer is null)
         {
             return;
         }
 
         var live = new HashSet<long>();
         var oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
+        var belt = _slice.Belt;
 
-        for (var cellIndex = 0; cellIndex < _belt.Cells.Count; cellIndex++)
+        for (var cellIndex = 0; cellIndex < belt.Cells.Count; cellIndex++)
         {
-            var cell = _belt.Cells[cellIndex];
-            var dir = _belt.DirectionAt(cellIndex);
+            var cell = belt.Cells[cellIndex];
+            var dir = belt.DirectionAt(cellIndex);
             foreach (var item in cell.Items)
             {
                 live.Add(item.Id);
@@ -168,16 +182,22 @@ public partial class SpikeWorld : Node2D
 
     private void UpdateHud()
     {
-        if (_hud is null || _beltDef is null || _belt is null)
+        if (_hud is null || _slice is null)
         {
             return;
         }
 
-        var count = _belt.Cells.Sum(c => c.Items.Count);
+        var oreName = _slice.Content.DisplayName("iron-ore");
+        var oreStock = _slice.Wallet.MaterialCount("iron-ore");
+        var onBelt = _slice.Belt.Cells.Sum(c => c.Items.Count);
         var scroll = _beltVisual?.ScrollTiles ?? 0f;
+        var progressPct = (int)(_slice.Miner.Progress * 100f);
+
         _hud.Text =
-            $"tIndustry Godot spike  |  L-belt={_beltDef.Id} rate={_beltDef.RateItemsPerSecond}/s  |  items={count}  |  scroll={scroll:0.00}\n" +
-            "WASD / middle-drag pan · wheel zoom · L belt + platform corner · static miner";
+            $"tIndustry Godot — loop fabbrica  |  Nastro={_slice.Belt.Definition.Id}  {_slice.Belt.Definition.RateItemsPerSecond}/s\n" +
+            $"Minatore T1 (statico)  progresso={progressPct}%  prodotti={_slice.Miner.ItemsProduced}  |  sul nastro={onBelt}\n" +
+            $"Core magazzino: {oreName} = {oreStock}  (consegnati={_slice.CoreDeliveredItems})  |  scroll={scroll:0.00}\n" +
+            "WASD / drag centrale = pan · rotella = zoom · nessun combat";
     }
 
     private static Vector2 CellCenter(GridPosition cell) =>
@@ -206,7 +226,7 @@ public partial class SpikeWorld : Node2D
             "content.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
     }
 
-    private void SaveSpikeScreenshot()
+    private void SavePortScreenshot()
     {
         var img = GetViewport().GetTexture().GetImage();
         var mediaCandidates = new[]
@@ -237,24 +257,17 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-belt-l-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-loop-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
 
-        // Crop covering east leg + corner + south leg.
-        var crop = img.GetRegion(new Rect2I(80, 280, 720, 520));
-        var beltPath = Path.Combine(destDir, "godot-belt-l-close.png");
-        err = crop.SavePng(beltPath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {beltPath}" : $"Belt crop failed: {err}");
+        var crop = img.GetRegion(new Rect2I(40, 240, 820, 560));
+        var closePath = Path.Combine(destDir, "godot-port-loop-close.png");
+        err = crop.SavePng(closePath);
+        GD.Print(err == Error.Ok ? $"Screenshot: {closePath}" : $"Crop failed: {err}");
 
-        // Tight corner crop (camera ~560,620 zoom 1.05 → corner cell ~757,280 on 1280x720).
-        var corner = img.GetRegion(new Rect2I(600, 180, 320, 320));
-        var cornerPath = Path.Combine(destDir, "godot-belt-l-corner.png");
-        err = corner.SavePng(cornerPath);
-        GD.Print(err == Error.Ok ? $"Screenshot: {cornerPath}" : $"Corner crop failed: {err}");
-
-        // Also keep legacy spike names for doc continuity.
-        img.SavePng(Path.Combine(destDir, "godot-spike-map.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-spike-belt.png"));
+        // Also keep spike names for continuity.
+        img.SavePng(Path.Combine(destDir, "godot-belt-l-map.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-belt-l-close.png"));
     }
 }
