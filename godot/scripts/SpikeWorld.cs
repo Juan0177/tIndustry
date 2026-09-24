@@ -577,7 +577,7 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        var mapPath = Path.Combine(destDir, "godot-port-rounded-l-map.png");
+        var mapPath = Path.Combine(destDir, "godot-port-no-umbra-map.png");
         var err = img.SavePng(mapPath);
         GD.Print(err == Error.Ok ? $"Screenshot: {mapPath}" : $"Screenshot failed: {err}");
         img.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-map.png"));
@@ -597,7 +597,7 @@ public partial class SpikeWorld : Node2D
         var closeSize = cell * 5;
         var alignClose = img.GetRegion(new Rect2I(
             (vpW - closeSize) / 2, (vpH - closeSize) / 2, closeSize, closeSize));
-        var seamClose = Path.Combine(destDir, "godot-port-rounded-l-close.png");
+        var seamClose = Path.Combine(destDir, "godot-port-no-umbra-close.png");
         err = alignClose.SavePng(seamClose);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamClose}" : $"Seam close failed: {err}");
         alignClose.SavePng(Path.Combine(destDir, "godot-port-fulltile-flush-close.png"));
@@ -605,7 +605,7 @@ public partial class SpikeWorld : Node2D
         var mapSize = cell * 8;
         var alignMap = img.GetRegion(new Rect2I(
             (vpW - mapSize) / 2, (vpH - mapSize) / 2, mapSize, mapSize));
-        var seamElbow = Path.Combine(destDir, "godot-port-rounded-l-elbow.png");
+        var seamElbow = Path.Combine(destDir, "godot-port-no-umbra-elbow.png");
         err = alignMap.SavePng(seamElbow);
         GD.Print(err == Error.Ok ? $"Screenshot: {seamElbow}" : $"Seam elbow failed: {err}");
 
@@ -613,7 +613,7 @@ public partial class SpikeWorld : Node2D
         var cropH = Math.Min(560, vpH);
         var crop = img.GetRegion(new Rect2I((vpW - cropW) / 2, (vpH - cropH) / 2, cropW, cropH));
         crop.SavePng(Path.Combine(destDir, "godot-port-phase-c-close.png"));
-        crop.SavePng(Path.Combine(destDir, "godot-port-rounded-l-overview.png"));
+        crop.SavePng(Path.Combine(destDir, "godot-port-no-umbra-overview.png"));
     }
 
     private static bool IsTerrain(Color c) =>
