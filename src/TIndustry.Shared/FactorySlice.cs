@@ -22,11 +22,15 @@ public sealed class FactorySlice
         Wallet = wallet ?? new EconomyWallet();
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
+        JunctionDefinition = content.RequireConveyor("junction");
+        SplitterDefinition = content.RequireConveyor("splitter");
     }
 
     public FactoryContent Content { get; }
     public BeltGrid Belts { get; }
     public ConveyorDefinition BeltDefinition { get; }
+    public ConveyorDefinition JunctionDefinition { get; }
+    public ConveyorDefinition SplitterDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public EconomyWallet Wallet { get; }
     public long CoreDeliveredItems { get; private set; }
@@ -152,6 +156,80 @@ public sealed class FactorySlice
         return slice;
     }
 
+    /// <summary>
+    /// Phase E seed: Phase D craft loop + junction pass-through on plates + splitter fork on wire.
+    /// </summary>
+    public static FactorySlice CreatePhaseEDemo(FactoryContent content, string beltId = "conveyor-basic")
+    {
+        var beltDef = content.RequireConveyor(beltId);
+        var junctionDef = content.RequireConveyor("junction");
+        var splitterDef = content.RequireConveyor("splitter");
+        var smelt = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var wire = content.FindRecipe("craft-copper-wire")
+            ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
+        var grid = new BeltGrid();
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, grid, core);
+
+        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
+        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
+        slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
+        slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+
+        // Iron ore → forno.
+        grid.PlacePath([new GridPosition(4, 8), new GridPosition(5, 8)], beltDef);
+        grid.TryOrient(new GridPosition(5, 8), Direction.East);
+
+        // Plates → junction (10,8) pass-through → (11,8) into assembler.
+        grid.PlacePath([new GridPosition(8, 8), new GridPosition(9, 8)], beltDef);
+        grid.TryOrient(new GridPosition(9, 8), Direction.East);
+        Assert(grid.TryPlaceFree(new GridPosition(10, 8), Direction.East, junctionDef), "junction seed");
+        grid.PlacePath([new GridPosition(11, 8)], beltDef);
+        grid.TryOrient(new GridPosition(11, 8), Direction.East);
+
+        // Copper → assembler south (same corridor as Phase D).
+        grid.PlacePath(
+        [
+            new GridPosition(4, 11),
+            new GridPosition(5, 11),
+            new GridPosition(6, 11),
+            new GridPosition(7, 11),
+            new GridPosition(8, 11),
+            new GridPosition(9, 11),
+            new GridPosition(10, 11),
+            new GridPosition(11, 11),
+            new GridPosition(12, 11),
+            new GridPosition(12, 10),
+            new GridPosition(12, 9)
+        ], beltDef);
+        grid.TryOrient(new GridPosition(12, 9), Direction.North);
+
+        // Wire → splitter T-fork facing South.
+        grid.PlacePath([new GridPosition(14, 8), new GridPosition(14, 9)], beltDef);
+        grid.TryOrient(new GridPosition(14, 9), Direction.South);
+        Assert(grid.TryPlaceFree(new GridPosition(14, 10), Direction.South, splitterDef), "splitter seed");
+
+        // West arm → core (route east of copper column).
+        grid.PlacePath(
+        [
+            new GridPosition(13, 10),
+            new GridPosition(13, 11),
+            new GridPosition(13, 12),
+            new GridPosition(13, 13),
+            new GridPosition(12, 13),
+            new GridPosition(11, 13),
+            new GridPosition(10, 13)
+        ], beltDef);
+        grid.TryOrient(new GridPosition(10, 13), Direction.South);
+
+        // East arm dead-end (proves fork).
+        grid.PlacePath([new GridPosition(15, 10), new GridPosition(16, 10)], beltDef);
+        grid.TryOrient(new GridPosition(16, 10), Direction.East);
+
+        return slice;
+    }
+
     /// <summary>Legacy L-belt demo without forno (ore → core).</summary>
     public static FactorySlice CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
@@ -230,6 +308,12 @@ public sealed class FactorySlice
 
     public bool TryPlaceBelt(GridPosition position, Direction direction) =>
         Belts.TryPlaceFree(position, direction, BeltDefinition, CanOccupy);
+
+    public bool TryPlaceJunction(GridPosition position, Direction direction) =>
+        Belts.TryPlaceFree(position, direction, JunctionDefinition, CanOccupy);
+
+    public bool TryPlaceSplitter(GridPosition position, Direction direction) =>
+        Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy);
 
     public bool TryRemoveBelt(GridPosition position) => Belts.TryRemove(position);
 
@@ -518,6 +602,117 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Assembler loop self-test: nessun filo di rame al core entro 120s sim.");
+    }
+
+    /// <summary>
+    /// Phase E: junction cross-axis + splitter T-fork, then full wire loop still delivers.
+    /// </summary>
+    public static void SelfTestJunctionSplitter(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var belt = content.RequireConveyor("conveyor-basic");
+        var junction = content.RequireConveyor("junction");
+        var splitter = content.RequireConveyor("splitter");
+        var grid = new BeltGrid();
+
+        // Cross: west→east through junction, south→north through same cell.
+        grid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);
+        grid.TryPlaceFree(new GridPosition(1, 1), Direction.East, junction);
+        grid.TryPlaceFree(new GridPosition(2, 1), Direction.East, belt);
+        grid.TryPlaceFree(new GridPosition(1, 2), Direction.North, belt);
+        grid.TryPlaceFree(new GridPosition(1, 0), Direction.North, belt);
+
+        Assert(grid.TryInsert(new GridPosition(0, 1), new TransportedItem(1, "iron-plate")), "ew insert");
+        Assert(grid.TryInsert(new GridPosition(1, 2), new TransportedItem(2, "copper-ore")), "ns insert");
+
+        var ewArrived = false;
+        var nsArrived = false;
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 20; i++)
+        {
+            grid.Tick(dt);
+            if (grid.TryGet(new GridPosition(2, 1), out var ew) && ew.Items.Any(it => it.Id == 1))
+            {
+                ewArrived = true;
+            }
+
+            if (grid.TryGet(new GridPosition(1, 0), out var ns) && ns.Items.Any(it => it.Id == 2))
+            {
+                nsArrived = true;
+            }
+
+            if (ewArrived && nsArrived)
+            {
+                break;
+            }
+        }
+
+        Assert(ewArrived, "junction EW exit");
+        Assert(nsArrived, "junction NS exit");
+
+        // Splitter fair fork: feed → splitter facing South → left/right arms.
+        var splitGrid = new BeltGrid();
+        splitGrid.TryPlaceFree(new GridPosition(5, 0), Direction.South, belt);
+        splitGrid.TryPlaceFree(new GridPosition(5, 1), Direction.South, splitter);
+        splitGrid.TryPlaceFree(new GridPosition(4, 1), Direction.West, belt); // right of South
+        splitGrid.TryPlaceFree(new GridPosition(6, 1), Direction.East, belt); // left of South
+
+        Assert(splitGrid.TryInsert(new GridPosition(5, 0), new TransportedItem(10, "copper-wire")), "split in 1");
+        var leftHits = 0;
+        var rightHits = 0;
+        var injectedSecond = false;
+        for (var i = 0; i < 30 * 40; i++)
+        {
+            splitGrid.Tick(dt);
+            if (!injectedSecond
+                && splitGrid.TryGet(new GridPosition(5, 0), out var feed)
+                && feed.Items.Count == 0)
+            {
+                Assert(
+                    splitGrid.TryInsert(new GridPosition(5, 0), new TransportedItem(11, "copper-wire")),
+                    "split in 2");
+                injectedSecond = true;
+            }
+
+            if (splitGrid.TryGet(new GridPosition(6, 1), out var left))
+            {
+                leftHits = Math.Max(leftHits, left.Items.Count);
+            }
+
+            if (splitGrid.TryGet(new GridPosition(4, 1), out var right))
+            {
+                rightHits = Math.Max(rightHits, right.Items.Count);
+            }
+
+            if (injectedSecond && leftHits > 0 && rightHits > 0)
+            {
+                break;
+            }
+        }
+
+        Assert(injectedSecond, "second splitter feed");
+        Assert(leftHits > 0 && rightHits > 0, "splitter forks both arms");
+
+        // Full Phase E seed still delivers wire.
+        var slice = CreatePhaseEDemo(content);
+        Assert(slice.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Junction), "seed junction");
+        Assert(slice.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Splitter), "seed splitter");
+        Assert(slice.TryPlaceJunction(new GridPosition(18, 4), Direction.East), "place junction");
+        Assert(slice.TryPlaceSplitter(new GridPosition(18, 5), Direction.South), "place splitter");
+        Assert(slice.TryRemoveBelt(new GridPosition(18, 4)), "remove junction");
+        Assert(slice.TryRemoveBelt(new GridPosition(18, 5)), "remove splitter");
+
+        for (var i = 0; i < 30 * 120; i++)
+        {
+            slice.Tick(dt);
+            if (slice.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Phase E self-test: nessun filo al core entro 120s sim (junction/splitter seed).");
     }
 
     private static void Assert(bool condition, string message)
