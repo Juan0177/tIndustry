@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqgenphasef64"
-path="res://.godot/imported/generator.png-e75b58cc764bb4155b2713aaf3a62529.ctex"
+uid="uid://b03ox7udpto0s"
+path="res://.godot/imported/bridge.png-45e92e7939eaa570175431fd1d63ef16.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generator.png"
-dest_files=["res://.godot/imported/generator.png-e75b58cc764bb4155b2713aaf3a62529.ctex"]
+source_file="res://assets/bridge.png"
+dest_files=["res://.godot/imported/bridge.png-45e92e7939eaa570175431fd1d63ef16.ctex"]
 
 [params]
 

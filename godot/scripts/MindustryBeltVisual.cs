@@ -6,9 +6,12 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Builds Mindustry-style belt visuals from a cell path or a placeable <see cref="BeltGrid"/>:
 /// straight strips + platform corner tiles, shared scroll clock.
+/// Bridge: full 1×1 ends + thin (~0.78) mid-span (decision 14).
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
 {
+    public const float BridgeThicknessScale = 0.78f;
+
     private readonly List<ScrollingBeltStrip> _strips = [];
     private readonly List<BeltCornerTile> _corners = [];
     private float _scroll;
@@ -93,16 +96,37 @@ public partial class MindustryBeltVisual : Node2D
         var visited = new HashSet<GridPosition>();
         var phase = 0f;
 
-        // Junction / splitter icons (not gallery corners or strips).
+        // Junction / splitter / sorter icons (not gallery corners or strips).
         foreach (var (pos, cell) in grid.Cells)
         {
-            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Splitter))
+            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter))
             {
                 continue;
             }
 
             AddSpecial(pos, cell.Kind, cell.Direction, tileSize);
             visited.Add(pos);
+            phase += 1f;
+        }
+
+        // Bridges: full 1×1 ends + thin mid-span (once per pair, from entry).
+        foreach (var (pos, cell) in grid.Cells)
+        {
+            if (visited.Contains(pos)
+                || cell.Kind != LogisticsKind.Bridge
+                || cell.BridgePartner is not { } partner)
+            {
+                continue;
+            }
+
+            if (!IsBridgeEntryVisual(pos, cell.Direction, partner))
+            {
+                continue;
+            }
+
+            AddBridgePair(pos, partner, cell.Direction, tileSize, phase);
+            visited.Add(pos);
+            visited.Add(partner);
             phase += 1f;
         }
 
@@ -246,7 +270,12 @@ public partial class MindustryBeltVisual : Node2D
         }
     }
 
-    private void AddStrip(List<GridPosition> cells, Direction direction, int tileSize, float phase)
+    private void AddStrip(
+        List<GridPosition> cells,
+        Direction direction,
+        int tileSize,
+        float phase,
+        float thicknessScale = 1f)
     {
         if (cells.Count == 0)
         {
@@ -255,15 +284,71 @@ public partial class MindustryBeltVisual : Node2D
 
         var strip = new ScrollingBeltStrip { Name = $"Strip_{cells[0].X}_{cells[0].Y}" };
         AddChild(strip);
-        strip.Configure(cells, direction, tileSize, phase);
+        strip.Configure(cells, direction, tileSize, phase, thicknessScale);
+        if (thicknessScale < 0.99f)
+        {
+            // Bridge thin-span sits above underpass belts, below end pads.
+            strip.ZIndex = 2;
+        }
+
         _strips.Add(strip);
+    }
+
+    private void AddBridgePair(
+        GridPosition entry,
+        GridPosition exit,
+        Direction direction,
+        int tileSize,
+        float phase)
+    {
+        AddSpecial(entry, LogisticsKind.Bridge, direction, tileSize);
+        AddSpecial(exit, LogisticsKind.Bridge, direction, tileSize);
+
+        // Thin mid-span between ends (decision 14 ~78%). Include both ends in path
+        // so length covers center-to-center; end sprites sit above (ZIndex 3).
+        var spanCells = new List<GridPosition> { entry };
+        var cursor = entry.Step(direction);
+        var guard = 0;
+        while (!cursor.Equals(exit) && guard++ < BeltGridCell.MaxBridgeSpan + 1)
+        {
+            spanCells.Add(cursor);
+            cursor = cursor.Step(direction);
+        }
+
+        spanCells.Add(exit);
+        AddStrip(spanCells, direction, tileSize, phase, BridgeThicknessScale);
+    }
+
+    private static bool IsBridgeEntryVisual(GridPosition entry, Direction direction, GridPosition partner)
+    {
+        var dx = partner.X - entry.X;
+        var dy = partner.Y - entry.Y;
+        var span = Math.Abs(dx) + Math.Abs(dy);
+        if (span < BeltGridCell.MinBridgeSpan || span > BeltGridCell.MaxBridgeSpan)
+        {
+            return false;
+        }
+
+        return direction switch
+        {
+            Direction.North => dx == 0 && dy < 0,
+            Direction.East => dy == 0 && dx > 0,
+            Direction.South => dx == 0 && dy > 0,
+            Direction.West => dy == 0 && dx < 0,
+            _ => false
+        };
     }
 
     private void AddSpecial(GridPosition pos, LogisticsKind kind, Direction direction, int tileSize)
     {
-        var texPath = kind == LogisticsKind.Junction
-            ? "res://assets/junction.png"
-            : "res://assets/splitter.png";
+        var texPath = kind switch
+        {
+            LogisticsKind.Junction => "res://assets/junction.png",
+            LogisticsKind.Splitter => "res://assets/splitter.png",
+            LogisticsKind.Sorter => "res://assets/sorter.png",
+            LogisticsKind.Bridge => "res://assets/bridge.png",
+            _ => "res://assets/conveyor-basic.png"
+        };
         var node = new Node2D
         {
             Name = $"{kind}_{pos.X}_{pos.Y}",
@@ -276,8 +361,8 @@ public partial class MindustryBeltVisual : Node2D
             Centered = true,
             Scale = Vector2.One * (tileSize / 64f)
         };
-        // Splitter rotates with facing; junction is axis-symmetric.
-        if (kind == LogisticsKind.Splitter)
+        // Splitter / sorter / bridge rotate with facing; junction is axis-symmetric.
+        if (kind is LogisticsKind.Splitter or LogisticsKind.Sorter or LogisticsKind.Bridge)
         {
             sprite.RotationDegrees = direction switch
             {

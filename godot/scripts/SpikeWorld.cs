@@ -4,14 +4,19 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Phase F play slice + FactoryHud: power stubs (generator) on Phase E loop.
-/// Hotkeys 1–7 + R; toolbar includes Generatore.
+/// Playable factory slice + FactoryHud: sorter/bridge on Phase F (power + save/load).
+/// Hotkeys 1–9 + R + C (ciclo filtro); toolbar includes Selezionatore / Ponte.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
     public const int TileSize = 64;
     public const int MapWidth = 24;
     public const int MapHeight = 18;
+
+    private static readonly string[] SorterFilterIds =
+    [
+        "iron-ore", "copper-ore", "iron-plate", "copper-wire", "coal"
+    ];
 
     private enum BuildTool
     {
@@ -21,7 +26,9 @@ public partial class SpikeWorld : Node2D
         Assembler,
         Junction,
         Splitter,
-        Generator
+        Generator,
+        Sorter,
+        Bridge
     }
 
     private FactorySlice? _slice;
@@ -33,6 +40,7 @@ public partial class SpikeWorld : Node2D
     private string _contentPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Belt;
+    private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
     private GridPosition? _hover;
     private bool _draggingPlace;
     private bool _draggingRemove;
@@ -49,7 +57,7 @@ public partial class SpikeWorld : Node2D
     {
         _contentPath = ResolveContentPath();
         var content = FactoryContent.Load(_contentPath);
-        _slice = FactorySlice.CreatePhaseFDemo(content);
+        _slice = FactorySlice.CreateSorterBridgeDemo(content);
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureFactoryHud();
@@ -73,7 +81,7 @@ public partial class SpikeWorld : Node2D
             LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata", quietFail: true);
         }
 
-        // Optional capture: TINDUSTRY_CAPTURE=1 → save/load screenshots then quit.
+        // Optional capture: TINDUSTRY_CAPTURE=1 → sorter/bridge screenshots then quit.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
         {
             var timer = GetTree().CreateTimer(1.2);
@@ -83,9 +91,9 @@ public partial class SpikeWorld : Node2D
         if (HasNode("Camera"))
         {
             var cam = GetNode<Camera2D>("Camera");
-            // Frame generator (6,5) + forno + coal miner + craft loop.
-            cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
-            cam.Zoom = new Vector2(0.55f, 0.55f);
+            // Frame sorter (18,2) + bridge (16–18,12) + craft loop.
+            cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
+            cam.Zoom = new Vector2(0.5f, 0.5f);
         }
     }
 
@@ -213,6 +221,8 @@ public partial class SpikeWorld : Node2D
         BuildTool.Junction => FactoryHud.ToolKind.Junction,
         BuildTool.Splitter => FactoryHud.ToolKind.Splitter,
         BuildTool.Generator => FactoryHud.ToolKind.Generator,
+        BuildTool.Sorter => FactoryHud.ToolKind.Sorter,
+        BuildTool.Bridge => FactoryHud.ToolKind.Bridge,
         _ => FactoryHud.ToolKind.Belt
     };
 
@@ -224,6 +234,8 @@ public partial class SpikeWorld : Node2D
         FactoryHud.ToolKind.Junction => BuildTool.Junction,
         FactoryHud.ToolKind.Splitter => BuildTool.Splitter,
         FactoryHud.ToolKind.Generator => BuildTool.Generator,
+        FactoryHud.ToolKind.Sorter => BuildTool.Sorter,
+        FactoryHud.ToolKind.Bridge => BuildTool.Bridge,
         _ => BuildTool.Belt
     };
 
@@ -236,6 +248,8 @@ public partial class SpikeWorld : Node2D
         BuildTool.Junction => "Giunzione",
         BuildTool.Splitter => "Splitter",
         BuildTool.Generator => "Generatore",
+        BuildTool.Sorter => "Selezionatore",
+        BuildTool.Bridge => "Ponte",
         _ => "?"
     };
 
@@ -306,6 +320,27 @@ public partial class SpikeWorld : Node2D
                 return;
             }
 
+            if (key.Keycode == Key.Key8)
+            {
+                SelectTool(BuildTool.Sorter, toast: true);
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.Key9)
+            {
+                SelectTool(BuildTool.Bridge, toast: true);
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.C)
+            {
+                CycleSorterFilter();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode == Key.F5)
             {
                 SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
@@ -349,7 +384,8 @@ public partial class SpikeWorld : Node2D
             {
                 if (mouse.Pressed)
                 {
-                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter;
+                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
+                        or BuildTool.Sorter;
                     TryPlaceAt(cell);
                     GetViewport().SetInputAsHandled();
                 }
@@ -381,7 +417,8 @@ public partial class SpikeWorld : Node2D
                 QueueRedraw();
             }
 
-            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter)
+            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
+                or BuildTool.Sorter)
             {
                 TryPlaceAt(cell);
             }
@@ -534,9 +571,46 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (_tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter)
+        if (_tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
+            or BuildTool.Sorter or BuildTool.Bridge)
         {
             DrawDirectionHint(hover, _placeDir);
+        }
+
+        if (_tool == BuildTool.Bridge)
+        {
+            DrawBridgeGhost(hover);
+        }
+    }
+
+    private void DrawBridgeGhost(GridPosition entry)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        {
+            var exit = entry.Step(_placeDir, span);
+            if (!_slice.CanOccupy(entry) || !_slice.CanOccupy(exit))
+            {
+                continue;
+            }
+
+            if (_slice.Belts.Contains(entry) || _slice.Belts.Contains(exit))
+            {
+                continue;
+            }
+
+            var mid = new Color(0.55f, 0.7f, 0.95f, 0.28f);
+            var tip = new Color(0.7f, 0.85f, 1f, 0.55f);
+            DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
+            DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
+            var a = CellCenter(entry);
+            var b = CellCenter(exit);
+            DrawLine(a, b, mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
+            return;
         }
     }
 
@@ -607,7 +681,43 @@ public partial class SpikeWorld : Node2D
                 }
 
                 break;
+            case BuildTool.Sorter:
+                if (_slice.TryPlaceSorter(cell, _placeDir, _sorterFilterId))
+                {
+                    _visualDirty = true;
+                }
+
+                break;
+            case BuildTool.Bridge:
+                if (_slice.TryPlaceBridge(cell, _placeDir))
+                {
+                    _visualDirty = true;
+                }
+
+                break;
         }
+    }
+
+    private void CycleSorterFilter()
+    {
+        var idx = Array.FindIndex(
+            SorterFilterIds,
+            id => string.Equals(id, _sorterFilterId, StringComparison.Ordinal));
+        _sorterFilterId = SorterFilterIds[(idx + 1 + SorterFilterIds.Length) % SorterFilterIds.Length];
+
+        // Also cycle hovered / selected sorter cell if present.
+        if (_slice is not null
+            && _hover is { } hover
+            && _slice.Belts.TryGet(hover, out var cell)
+            && cell.Kind == LogisticsKind.Sorter)
+        {
+            cell.CycleFilterItem(SorterFilterIds);
+            _sorterFilterId = cell.FilterItemId ?? _sorterFilterId;
+            _visualDirty = true;
+        }
+
+        var label = _slice?.Content.DisplayName(_sorterFilterId) ?? _sorterFilterId;
+        _hud?.ShowToast($"Filtro: {label}");
     }
 
     private void TryRemoveAt(GridPosition cell)
@@ -937,41 +1047,68 @@ public partial class SpikeWorld : Node2D
         }
 
         var cam = HasNode("Camera") ? GetNode<Camera2D>("Camera") : null;
+
+        // Overview: sorter corridor + bridge + craft loop.
         if (cam is not null)
         {
-            cam.Position = new Vector2(9.5f * TileSize, 9.5f * TileSize);
-            cam.Zoom = new Vector2(0.55f, 0.55f);
+            cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
+            cam.Zoom = new Vector2(0.5f, 0.5f);
         }
 
-        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
-        SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
-
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 4; i++)
         {
-            await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
+            await ToSignal(GetTree().CreateTimer(0.8), SceneTreeTimer.SignalName.Timeout);
         }
 
         var overview = GetViewport().GetTexture().GetImage();
-        overview.SavePng(Path.Combine(destDir, "godot-port-save-map.png"));
-        overview.SavePng("/opt/cursor/artifacts/godot-port-save-map.png");
-        GD.Print($"Saved save-map → {destDir}");
+        overview.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-map.png"));
+        overview.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-map.png");
+        GD.Print($"Saved sorter-bridge map → {destDir}");
 
-        var full = GetViewport().GetTexture().GetImage();
-        var barH = Math.Min(180, full.GetHeight());
-        var bar = full.GetRegion(new Rect2I(0, full.GetHeight() - barH, full.GetWidth(), barH));
-        bar.SavePng(Path.Combine(destDir, "godot-port-save-toolbar.png"));
-        bar.SavePng("/opt/cursor/artifacts/godot-port-save-toolbar.png");
+        // Zoom on sorter (18,2).
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(18.5f * TileSize, 2.5f * TileSize);
+            cam.Zoom = new Vector2(1.1f, 1.1f);
+        }
 
-        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
-        var after = GetViewport().GetTexture().GetImage();
-        after.SavePng(Path.Combine(destDir, "godot-port-save-loaded.png"));
-        after.SavePng("/opt/cursor/artifacts/godot-port-save-loaded.png");
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var sorterShot = GetViewport().GetTexture().GetImage();
+        sorterShot.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-sorter.png"));
+        sorterShot.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-sorter.png");
 
-        GD.Print("Save/load screenshot set complete.");
+        // Zoom on bridge (16–18,12) thin span.
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(17.5f * TileSize, 12.5f * TileSize);
+            cam.Zoom = new Vector2(1.15f, 1.15f);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var bridgeShot = GetViewport().GetTexture().GetImage();
+        bridgeShot.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-bridge.png"));
+        bridgeShot.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-bridge.png");
+
+        // Toolbar strip (tools 8/9 visible).
+        if (cam is not null)
+        {
+            cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
+            cam.Zoom = new Vector2(0.5f, 0.5f);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var full = GetViewport().GetTexture().GetImage();
+        var barH = Math.Min(170, full.GetHeight());
+        var bar = full.GetRegion(new Rect2I(0, full.GetHeight() - barH, full.GetWidth(), barH));
+        bar.SavePng(Path.Combine(destDir, "godot-port-sorter-bridge-toolbar.png"));
+        bar.SavePng("/opt/cursor/artifacts/godot-port-sorter-bridge-toolbar.png");
+
+        GD.Print("Sorter/bridge screenshot set complete.");
         GetTree().Quit();
     }
 
