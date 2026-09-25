@@ -118,8 +118,8 @@ public partial class FactoryHud : Control
 
     /// <summary>Dock height from bottom (incl. margin); info strip sits fully above this.</summary>
     private const float DockHeightFromBottom = 200f;
-    private const float InfoStripHeight = 58f;
-    private const float InfoDockGap = 8f;
+    private const float InfoStripHeight = 72f;
+    private const float InfoDockGap = 10f;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? SaveRequested;
