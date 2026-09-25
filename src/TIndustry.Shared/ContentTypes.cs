@@ -44,7 +44,10 @@ public sealed record BuildingDefinition(
 public sealed record MarketItemDefinition(
     string ItemId,
     string DisplayName,
-    int SellPrice);
+    int SellPrice,
+    int? MinSellPrice = null,
+    int? MaxSellPrice = null,
+    int? SoftStock = null);
 
 public sealed record StructureDefinition(
     string Id,

@@ -89,7 +89,13 @@ public sealed class FactoryContent
         new(b.Id, b.MoneyCost, MapAmounts(b.BuildCost), b.RefundPercent <= 0 ? 100 : b.RefundPercent);
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
-        new(m.ItemId, string.IsNullOrWhiteSpace(m.DisplayName) ? m.ItemId : m.DisplayName, m.SellPrice);
+        new(
+            m.ItemId,
+            string.IsNullOrWhiteSpace(m.DisplayName) ? m.ItemId : m.DisplayName,
+            m.SellPrice,
+            m.MinSellPrice,
+            m.MaxSellPrice,
+            m.SoftStock);
 
     private static StructureDefinition MapStructure(StructureDto s) =>
         new(
@@ -172,6 +178,9 @@ public sealed class FactoryContent
         public string ItemId { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public int SellPrice { get; set; }
+        public int? MinSellPrice { get; set; }
+        public int? MaxSellPrice { get; set; }
+        public int? SoftStock { get; set; }
     }
 
     private sealed class StructureDto

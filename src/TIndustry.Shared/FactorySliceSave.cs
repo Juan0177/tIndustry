@@ -3,10 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace TIndustry.Shared;
 
-/// <summary>Godot factory-slice save (v2: research unlocks). v1 loads without research → CreateNew.</summary>
+/// <summary>Godot factory-slice save (v3: mercato session). v1/v2 load with empty sales.</summary>
 public sealed class FactorySliceSaveData
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -17,6 +17,9 @@ public sealed class FactorySliceSaveData
     public int Money { get; set; }
     public Dictionary<string, int> Materials { get; set; } = new(StringComparer.Ordinal);
     public List<string> UnlockedStructures { get; set; } = [];
+    public int StartingMoney { get; set; }
+    public int SaleIncome { get; set; }
+    public Dictionary<string, int> SoldByItem { get; set; } = new(StringComparer.Ordinal);
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];

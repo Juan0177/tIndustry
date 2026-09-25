@@ -17,13 +17,16 @@ public sealed class FactorySlice
         BeltGrid belts,
         IReadOnlySet<GridPosition> coreTiles,
         EconomyWallet? wallet = null,
-        ResearchState? research = null)
+        ResearchState? research = null,
+        EconomySession? session = null)
     {
         Content = content;
         Belts = belts;
         CoreTiles = coreTiles;
         Wallet = wallet ?? new EconomyWallet();
         Research = research ?? ResearchState.CreateNew(content);
+        Market = MarketCatalog.FromContent(content);
+        Session = session ?? new EconomySession(Wallet.Money);
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
@@ -42,6 +45,8 @@ public sealed class FactorySlice
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public EconomyWallet Wallet { get; }
     public ResearchState Research { get; }
+    public MarketCatalog Market { get; }
+    public EconomySession Session { get; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
@@ -72,6 +77,9 @@ public sealed class FactorySlice
             Money = Wallet.Money,
             Materials = Wallet.MaterialsSnapshot(),
             UnlockedStructures = Research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
+            SaleIncome = Session.SaleIncome,
+            SoldByItem = Session.SoldByItem.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+            StartingMoney = Session.StartingMoney,
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -163,7 +171,12 @@ public sealed class FactorySlice
             Math.Max(1, data.CoreSize));
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var research = ResearchState.FromSaved(data.UnlockedStructures, content);
-        var slice = new FactorySlice(content, belts, core, wallet, research)
+        var session = new EconomySession(data.StartingMoney > 0 ? data.StartingMoney : data.Money);
+        session.Restore(
+            data.StartingMoney > 0 ? data.StartingMoney : data.Money,
+            data.SaleIncome,
+            data.SoldByItem);
+        var slice = new FactorySlice(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems)
@@ -590,6 +603,34 @@ public sealed class FactorySlice
         var structure = Content.FindStructure(structureId);
         return structure is not null && Research.TryUnlock(structure, Wallet);
     }
+
+    /// <summary>Sell stocked materials at dynamic market price (stock before removal).</summary>
+    public bool TrySellFromWallet(string itemId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+        {
+            return false;
+        }
+
+        var stockBefore = Wallet.MaterialCount(itemId);
+        if (stockBefore < amount || !Wallet.TryRemoveMaterial(itemId, amount))
+        {
+            return false;
+        }
+
+        var unitPrice = Market.GetDynamicSellPrice(itemId, stockBefore);
+        var total = unitPrice * amount;
+        Wallet.AddMoney(total);
+        for (var i = 0; i < amount; i++)
+        {
+            Session.RecordSale(itemId, unitPrice);
+        }
+
+        return true;
+    }
+
+    public int PreviewSellPrice(string itemId) =>
+        Market.GetDynamicSellPrice(itemId, Wallet.MaterialCount(itemId));
 
     public static string? StructureIdForTool(string toolKey) => toolKey switch
     {
@@ -1485,6 +1526,61 @@ public sealed class FactorySlice
         var demo = CreateSorterBridgeDemo(content);
         Assert(demo.Research.IsUnlocked("sorter"), "demo sorter");
         Assert(demo.Research.IsUnlocked("generator"), "demo generator");
+    }
+
+    /// <summary>Mercato sell: dynamic price, session ledger, save v3 round-trip.</summary>
+    public static void SelfTestMercato(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+
+        Assert(slice.Market.Items.Count >= 4, "market items");
+        var listino = slice.Market.GetSellPrice("iron-ore");
+        Assert(listino >= 1, "listino ore");
+        Assert(slice.Market.GetDynamicSellPrice("iron-ore", 1) == listino
+            || slice.Market.GetDynamicSellPrice("iron-ore", 1) >= 1, "low stock ≈ listino");
+
+        var high = slice.Market.GetDynamicSellPrice("iron-ore", 80);
+        Assert(high <= listino, "high stock softens");
+
+        Assert(!slice.TrySellFromWallet("iron-ore", 1), "empty stock fail");
+        Assert(slice.Wallet.Money == 0, "money unchanged");
+
+        slice.Wallet.AddMaterial("iron-ore", 5);
+        var price1 = slice.PreviewSellPrice("iron-ore");
+        Assert(slice.TrySellFromWallet("iron-ore", 1), "sell 1");
+        Assert(slice.Wallet.MaterialCount("iron-ore") == 4, "stock -1");
+        Assert(slice.Wallet.Money == price1, "money +price");
+        Assert(slice.Session.SaleIncome == price1, "sale income");
+        Assert(slice.Session.SoldByItem.GetValueOrDefault("iron-ore") == 1, "sold count");
+
+        var moneyBefore = slice.Wallet.Money;
+        var remaining = slice.Wallet.MaterialCount("iron-ore");
+        var bulkPrice = slice.Market.GetDynamicSellPrice("iron-ore", remaining);
+        Assert(slice.TrySellFromWallet("iron-ore", remaining), "sell tutti");
+        Assert(slice.Wallet.MaterialCount("iron-ore") == 0, "ore empty");
+        Assert(slice.Wallet.Money == moneyBefore + bulkPrice * remaining, "tutti money");
+        Assert(slice.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "sold 5");
+
+        // Unlock still works after sell income.
+        slice.Wallet.AddMaterial("iron-plate", 40);
+        slice.Wallet.AddMoney(Math.Max(0, 250 - slice.Wallet.Money));
+        Assert(slice.TryUnlockStructure("smelter"), "unlock after sell");
+
+        var snap = slice.Capture();
+        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v3");
+        Assert(snap.SaleIncome == slice.Session.SaleIncome, "capture sale income");
+        Assert(snap.SoldByItem.GetValueOrDefault("iron-ore") == 5, "capture sold");
+
+        FactorySliceSaveStore.Delete("selftest-mercato");
+        FactorySliceSaveStore.Save("selftest-mercato", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-mercato"));
+        Assert(restored.Wallet.Money == slice.Wallet.Money, "restore money");
+        Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore income");
+        Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
+        Assert(restored.Research.IsUnlocked("smelter"), "restore research");
+        FactorySliceSaveStore.Delete("selftest-mercato");
     }
 
     private static void Assert(bool condition, string message)
