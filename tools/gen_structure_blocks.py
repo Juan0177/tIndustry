@@ -92,12 +92,11 @@ def draw_belt_t2() -> None:
     fill_rect(d, [0, 0, SIZE - 1, 7], BLU1)
     fill_rect(d, [0, SIZE - 8, SIZE - 1, SIZE - 1], BLU1)
     fill_rect(d, [0, 8, SIZE - 1, SIZE - 9], BLU2)
-    fill_rect(d, [4, 16, SIZE - 5, SIZE - 17], BLU3)
-    # double chevrons = faster
-    for x in (12, 28, 44):
-        chevron_right(d, x, 26, w=9, h=12, color=BLU4)
-        chevron_right(d, x + 6, 38, w=9, h=12, color=BLU4_DIM)
-    # T2 accent stripe
+    fill_rect(d, [4, 18, SIZE - 5, SIZE - 19], BLU3)
+    # Same single chevron row as T1 — border accent is the T2 tell.
+    for x in (16, 32, 48):
+        chevron_right(d, x, 32, w=10, h=14, color=BLU4)
+    # T2 accent stripe (highlighted bordino)
     fill_rect(d, [2, 10, SIZE - 3, 13], BLU4)
     fill_rect(d, [2, SIZE - 14, SIZE - 3, SIZE - 11], BLU4)
     border(d, BLU1, 2)
