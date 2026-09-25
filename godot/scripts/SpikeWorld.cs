@@ -1970,7 +1970,7 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "miner-gears")
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") is "miner-gears" or "miner-gears-fill")
         {
             await CaptureMinerGearsShotsAsync(destDir);
             return;
@@ -2167,9 +2167,13 @@ public partial class SpikeWorld : Node2D
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
 
+        var prefix = OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "miner-gears-fill"
+            ? "godot-port-miner-gears-fill"
+            : "godot-port-miner-gears";
+
         var world = GetViewport().GetTexture().GetImage();
-        world.SavePng(Path.Combine(destDir, "godot-port-miner-gears-world.png"));
-        world.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-world.png");
+        world.SavePng(Path.Combine(destDir, $"{prefix}-world.png"));
+        world.SavePng($"/opt/cursor/artifacts/{prefix}-world.png");
 
         // Close-ups: camera on T1
         if (HasNode("Camera"))
@@ -2181,8 +2185,8 @@ public partial class SpikeWorld : Node2D
 
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var t1 = GetViewport().GetTexture().GetImage();
-        t1.SavePng(Path.Combine(destDir, "godot-port-miner-gears-t1.png"));
-        t1.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-t1.png");
+        t1.SavePng(Path.Combine(destDir, $"{prefix}-t1.png"));
+        t1.SavePng($"/opt/cursor/artifacts/{prefix}-t1.png");
 
         // T2 isolated (middle)
         if (HasNode("Camera"))
@@ -2193,8 +2197,8 @@ public partial class SpikeWorld : Node2D
 
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var t2 = GetViewport().GetTexture().GetImage();
-        t2.SavePng(Path.Combine(destDir, "godot-port-miner-gears-t2.png"));
-        t2.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-t2.png");
+        t2.SavePng(Path.Combine(destDir, $"{prefix}-t2.png"));
+        t2.SavePng($"/opt/cursor/artifacts/{prefix}-t2.png");
 
         // T2 boosted (lit perno) — right miner + gen
         if (HasNode("Camera"))
@@ -2218,15 +2222,15 @@ public partial class SpikeWorld : Node2D
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var boosted = GetViewport().GetTexture().GetImage();
-        boosted.SavePng(Path.Combine(destDir, "godot-port-miner-gears-t2-boosted.png"));
-        boosted.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-t2-boosted.png");
+        boosted.SavePng(Path.Combine(destDir, $"{prefix}-t2-boosted.png"));
+        boosted.SavePng($"/opt/cursor/artifacts/{prefix}-t2-boosted.png");
 
         // Multi-frame spin while working (hold on boosted T2).
         for (var frame = 0; frame < 4; frame++)
         {
             await ToSignal(GetTree().CreateTimer(0.2), SceneTreeTimer.SignalName.Timeout);
             var spin = GetViewport().GetTexture().GetImage();
-            var name = $"godot-port-miner-gears-spin-{frame}.png";
+            var name = $"{prefix}-spin-{frame}.png";
             spin.SavePng(Path.Combine(destDir, name));
             spin.SavePng($"/opt/cursor/artifacts/{name}");
         }
@@ -2243,10 +2247,10 @@ public partial class SpikeWorld : Node2D
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var palette = GetViewport().GetTexture().GetImage();
-        palette.SavePng(Path.Combine(destDir, "godot-port-miner-gears-palette.png"));
-        palette.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-palette.png");
+        palette.SavePng(Path.Combine(destDir, $"{prefix}-palette.png"));
+        palette.SavePng($"/opt/cursor/artifacts/{prefix}-palette.png");
 
-        GD.Print("Miner gears screenshot set complete.");
+        GD.Print($"Miner gears screenshot set complete ({prefix}).");
         GetTree().Quit();
     }
 
