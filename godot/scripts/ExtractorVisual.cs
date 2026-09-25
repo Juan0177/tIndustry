@@ -18,6 +18,7 @@ public partial class ExtractorVisual : Node2D
             Origin = ex.Position
         };
         var padTex = GD.Load<Texture2D>("res://assets/extractor.png");
+        // Stretch the 64×64 pad; baked center is covered by the live filter dot.
         var pad = new Sprite2D
         {
             Texture = padTex,
@@ -27,14 +28,22 @@ public partial class ExtractorVisual : Node2D
         };
         root.AddChild(pad);
 
-        // Override center dot so we can recolor without baking.
-        var r = tileSize * 0.14f;
+        // Cover baked palette dot so recolor is unambiguous.
+        var coverR = tileSize * 0.13f;
+        root.AddChild(new Polygon2D
+        {
+            Name = "DotWell",
+            Color = new Color(0.10f, 0.11f, 0.12f),
+            Polygon = Circle(coverR, 12),
+            ZIndex = 1
+        });
+        var r = tileSize * 0.11f;
         root._dot = new Polygon2D
         {
             Name = "FilterDot",
             Color = ItemPalette.IdleGrey,
             Polygon = Circle(r, 12),
-            ZIndex = 1
+            ZIndex = 2
         };
         root.AddChild(root._dot);
         root.Sync(ex);

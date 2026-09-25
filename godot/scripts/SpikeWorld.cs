@@ -2381,22 +2381,9 @@ public partial class SpikeWorld : Node2D
         await CaptureCloseAsync(destDir, prefix, "extractor", 3.5f, 3.5f, 2.6f);
         await CaptureCloseAsync(destDir, prefix, "extractor-copper", 5.5f, 3.5f, 2.6f);
 
-        // Ensure forno still crafting before close-up.
-        foreach (var sm in _slice.Smelters)
-        {
-            sm.RestoreCraftState(0.5f, isCrafting: true, null, null, 0);
-        }
-
-        await CaptureCloseAsync(destDir, prefix, "smelter", 9f, 4f, 2.2f);
-
-        foreach (var asm in _slice.Assemblers)
-        {
-            asm.RestoreCraftState(0.5f, isCrafting: true, null, null, 0);
-        }
-
-        // Let press settle closed for active close-up.
-        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
-        await CaptureCloseAsync(destDir, prefix, "assembler", 13f, 4f, 2.2f);
+        // Keep craft alive across waits (Tick would finish Progress).
+        await HoldCraftAndCaptureAsync(destDir, prefix, "smelter", 9f, 4f, 2.2f, smelter: true);
+        await HoldCraftAndCaptureAsync(destDir, prefix, "assembler", 13f, 4f, 2.2f, smelter: false);
 
         if (_slice.Generators.Count > 0)
         {
@@ -2429,12 +2416,16 @@ public partial class SpikeWorld : Node2D
 
         for (var frame = 0; frame < 4; frame++)
         {
-            foreach (var sm in _slice.Smelters)
+            for (var i = 0; i < 8; i++)
             {
-                sm.RestoreCraftState(0.4f + frame * 0.05f, isCrafting: true, null, null, 0);
+                foreach (var sm in _slice.Smelters)
+                {
+                    sm.RestoreCraftState(0.2f, isCrafting: true, null, null, 0);
+                }
+
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             }
 
-            await ToSignal(GetTree().CreateTimer(0.28), SceneTreeTimer.SignalName.Timeout);
             var shot = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-smelter-anim-{frame}.png";
             shot.SavePng(Path.Combine(destDir, name));
@@ -2454,24 +2445,27 @@ public partial class SpikeWorld : Node2D
             asm.RestoreCraftState(0f, isCrafting: false, null, null, 0);
         }
 
-        await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+        for (var i = 0; i < 20; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
         var asmIdle = GetViewport().GetTexture().GetImage();
         asmIdle.SavePng(Path.Combine(destDir, $"{prefix}-assembler-idle.png"));
         asmIdle.SavePng($"/opt/cursor/artifacts/{prefix}-assembler-idle.png");
 
-        foreach (var asm in _slice.Assemblers)
-        {
-            asm.RestoreCraftState(0.3f, isCrafting: true, null, null, 0);
-        }
-
         for (var frame = 0; frame < 4; frame++)
         {
-            foreach (var asm in _slice.Assemblers)
+            for (var i = 0; i < 6; i++)
             {
-                asm.RestoreCraftState(0.3f, isCrafting: true, null, null, 0);
+                foreach (var asm in _slice.Assemblers)
+                {
+                    asm.RestoreCraftState(0.15f, isCrafting: true, null, null, 0);
+                }
+
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             }
 
-            await ToSignal(GetTree().CreateTimer(0.22), SceneTreeTimer.SignalName.Timeout);
             var shot = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-assembler-anim-{frame}.png";
             shot.SavePng(Path.Combine(destDir, name));
@@ -2568,6 +2562,49 @@ public partial class SpikeWorld : Node2D
 
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.3), SceneTreeTimer.SignalName.Timeout);
+        var shot = GetViewport().GetTexture().GetImage();
+        var name = $"{prefix}-{label}.png";
+        shot.SavePng(Path.Combine(destDir, name));
+        shot.SavePng($"/opt/cursor/artifacts/{name}");
+    }
+
+    private async Task HoldCraftAndCaptureAsync(
+        string destDir,
+        string prefix,
+        string label,
+        float camX,
+        float camY,
+        float zoom,
+        bool smelter)
+    {
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(camX * TileSize, camY * TileSize);
+            cam.Zoom = new Vector2(zoom, zoom);
+        }
+
+        // Hold craft for ~0.7s so press/glow settle without finishing the recipe.
+        for (var i = 0; i < 24; i++)
+        {
+            if (smelter)
+            {
+                foreach (var sm in _slice!.Smelters)
+                {
+                    sm.RestoreCraftState(0.15f, isCrafting: true, null, null, 0);
+                }
+            }
+            else
+            {
+                foreach (var asm in _slice!.Assemblers)
+                {
+                    asm.RestoreCraftState(0.15f, isCrafting: true, null, null, 0);
+                }
+            }
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
         var shot = GetViewport().GetTexture().GetImage();
         var name = $"{prefix}-{label}.png";
         shot.SavePng(Path.Combine(destDir, name));

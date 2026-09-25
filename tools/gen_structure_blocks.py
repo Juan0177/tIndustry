@@ -339,9 +339,9 @@ def draw_extractor() -> None:
     # Rounded inner frame
     d.rounded_rectangle([8, 8, SIZE - 9, SIZE - 9], radius=10, fill=PROD_MID, outline=BLU4)
     d.rounded_rectangle([12, 12, SIZE - 13, SIZE - 13], radius=8, fill=PROD_DARK)
-    # Center filter dot (idle grey)
-    d.ellipse([24, 24, 39, 39], fill=BLU4_DIM, outline=BLU4)
-    d.ellipse([28, 28, 35, 35], fill=(0x6A, 0x70, 0x78, 255))
+    # Center filter well — dark hole; palette shows idle grey ring+dot
+    d.ellipse([24, 24, 39, 39], fill=PROD_DARK, outline=BLU4_DIM)
+    d.ellipse([27, 27, 36, 36], fill=(0x6A, 0x70, 0x78, 255))
     border(d, PROD_DARK, 2)
     save(img, "extractor.png")
 
@@ -360,9 +360,11 @@ def draw_smelter() -> None:
     # Central chamber (octagon-ish via rect + diamond window)
     fill_rect(d, [20, 14, 43, 50], PROD_DARK)
     fill_rect(d, [22, 16, 41, 48], PROD_EDGE)
-    # Heat window (static mid-glow for palette)
-    d.ellipse([24, 22, 39, 42], fill=PROD_HOT, outline=PROD_ACCENT)
-    d.ellipse([28, 26, 35, 38], fill=WHITE)
+    # Heat window — dark (world heat-glow pulses while crafting)
+    d.ellipse([24, 22, 39, 42], fill=(0x2A, 0x18, 0x10, 255), outline=PROD_ACCENT)
+    d.ellipse([28, 26, 35, 38], fill=(0x18, 0x0C, 0x08, 255))
+    # Hint of embers for palette readability when idle
+    fill_rect(d, [30, 31, 33, 34], PROD_HOT)
     # Mirrored top/bottom vents
     for y in (8, 52):
         fill_rect(d, [22, y, 26, y + 3], PROD_DARK)

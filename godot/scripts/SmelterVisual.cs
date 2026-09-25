@@ -7,6 +7,7 @@ namespace TIndustry.Godot;
 public partial class SmelterVisual : Node2D
 {
     private Polygon2D? _glow;
+    private Polygon2D? _halo;
     private float _pulse;
     public GridPosition Origin { get; private set; }
 
@@ -41,7 +42,7 @@ public partial class SmelterVisual : Node2D
         };
         root.AddChild(root._glow);
         // Soft outer halo
-        root.AddChild(new Polygon2D
+        root._halo = new Polygon2D
         {
             Name = "HeatHalo",
             Color = new Color(1f, 0.35f, 0.08f, 0.0f),
@@ -49,7 +50,8 @@ public partial class SmelterVisual : Node2D
             Position = new Vector2(0, span * 0.02f),
             ZIndex = 0,
             Visible = false
-        });
+        };
+        root.AddChild(root._halo);
         root.Sync(sm, 0f);
         return root;
     }
@@ -61,13 +63,12 @@ public partial class SmelterVisual : Node2D
             return;
         }
 
-        var halo = GetNodeOrNull<Polygon2D>("HeatHalo");
         if (!sm.IsCrafting)
         {
             _glow.Visible = false;
-            if (halo is not null)
+            if (_halo is not null)
             {
-                halo.Visible = false;
+                _halo.Visible = false;
             }
 
             _pulse = 0f;
@@ -75,9 +76,9 @@ public partial class SmelterVisual : Node2D
         }
 
         _glow.Visible = true;
-        if (halo is not null)
+        if (_halo is not null)
         {
-            halo.Visible = true;
+            _halo.Visible = true;
         }
 
         _pulse += delta * 3.6f;
@@ -86,10 +87,10 @@ public partial class SmelterVisual : Node2D
         _glow.Color = new Color(1f, 0.42f + 0.35f * wave, 0.08f + 0.12f * wave, t);
         var s = 0.75f + 0.45f * wave;
         _glow.Scale = new Vector2(s, s);
-        if (halo is not null)
+        if (_halo is not null)
         {
-            halo.Color = new Color(1f, 0.3f, 0.05f, 0.12f + 0.22f * wave);
-            halo.Scale = new Vector2(0.9f + 0.35f * wave, 0.9f + 0.35f * wave);
+            _halo.Color = new Color(1f, 0.3f, 0.05f, 0.12f + 0.22f * wave);
+            _halo.Scale = new Vector2(0.9f + 0.35f * wave, 0.9f + 0.35f * wave);
         }
     }
 
