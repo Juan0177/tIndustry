@@ -5,9 +5,11 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
-### Aggiunto / migliorato
+### Cambiato
 
-_(vuoto — prossimo bump)_
+- **Godot 4 .NET = path ufficiale** per build & play; client Raylib (`TIndustry.Logistics`) demoted a **legacy** (manutenzione opzionale, zip release ancora Raylib)
+- README + `godot/README.md` allineati; CI aggiunge job **Godot + Shared** (publish Raylib invariato)
+- Docs store: decision 14 + piano port → Godot ufficiale; art polish opzionale; combat ancora deferred
 
 ## [0.2.11] — 2026-09-21
 

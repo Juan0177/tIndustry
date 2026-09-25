@@ -5,6 +5,6 @@
     <Nullable>enable</Nullable>
     <RootNamespace>TIndustry.Shared</RootNamespace>
     <AssemblyName>TIndustry.Shared</AssemblyName>
-    <Description>Shared factory sim/data for Godot port Phase A — belt, content, miner, core sink. Raylib still independent.</Description>
+    <Description>Official factory sim/data for the Godot 4 .NET client (belts, craft, power, save, campaign). Raylib client is legacy.</Description>
   </PropertyGroup>
 </Project>

@@ -1,14 +1,16 @@
-# tIndustry — Godot 4 .NET (Mindustry-style HUD)
+# tIndustry — Godot 4 .NET (**path ufficiale**)
 
-Playable factory loop with **corner sprite palette**, **JSON save/load**, power stubs, **sorter** + **bridge**. Raylib resta dual path.
+Client di gioco primario. Sim in `src/TIndustry.Shared/`. Il client Raylib (`TIndustry.Logistics`) è **legacy** (manutenzione opzionale).
 
 ## Run
 
 ```bash
 godot4 --path godot
 TINDUSTRY_FRESH=1 godot4 --path godot          # ignore continua
-TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=mindustry-ui godot4 --path godot
+TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=home godot4 --path godot
 ```
+
+Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.csproj`).
 
 ## Controlli build
 
@@ -45,9 +47,9 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 
 | Path | Role |
 | --- | --- |
-| `godot/` | Playable slice + FactoryHud Mindustry dock |
-| `src/TIndustry.Shared/` | FactorySlice + BeltGrid sorter/bridge + save |
-| `TIndustry.Logistics` | Raylib (GameSave v8 separate) |
+| `godot/` | **Official** playable client |
+| `src/TIndustry.Shared/` | Factory sim + content + save (shared) |
+| `TIndustry.Logistics` | **Legacy** Raylib client (optional maintenance) |
 
 ## Ricerca
 
