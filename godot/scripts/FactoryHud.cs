@@ -95,7 +95,6 @@ public partial class FactoryHud : Control
 
     private Label? _dirLabel;
     private Label? _toastLabel;
-    private Label? _hintLabel;
     private Label? _titleLabel;
     private Label? _moneyLabel;
     private PanelContainer? _objectivesPanel;
@@ -103,13 +102,12 @@ public partial class FactoryHud : Control
     private VBoxContainer? _objectivesList;
     private PanelContainer? _infoPanel;
     private Label? _infoName;
-    private Label? _infoDesc;
     private HBoxContainer? _infoCostRow;
-    private Label? _infoIo;
     private PanelContainer? _detailOverlay;
     private Label? _detailBody;
     private GridContainer? _blockGrid;
     private Label? _categoryTitle;
+    private PanelContainer? _buildDock;
     private ToolKind _selected = ToolKind.Cursor;
     private BuildCategory _category = BuildCategory.Logistics;
     private ToolKind? _hovered;
@@ -117,6 +115,11 @@ public partial class FactoryHud : Control
     private FactoryContent? _content;
     private EconomyWallet? _wallet;
     private int _money;
+
+    /// <summary>Dock height from bottom (incl. margin); info strip sits fully above this.</summary>
+    private const float DockHeightFromBottom = 188f;
+    private const float InfoStripHeight = 78f;
+    private const float InfoDockGap = 32f;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? SaveRequested;
@@ -138,8 +141,8 @@ public partial class FactoryHud : Control
 
         BuildStockPanel();
         BuildObjectivesPanel();
-        BuildBlockInfoPanel();
         BuildToolbar();
+        BuildBlockInfoStrip(); // after dock so strip draws above it (z-order)
         BuildDetailOverlay();
         BuildToast();
         SetSelectedTool(ToolKind.Cursor);
@@ -171,16 +174,6 @@ public partial class FactoryHud : Control
 
         RefreshToolChrome();
         RefreshBlockInfo();
-        if (_hintLabel is not null)
-        {
-            var hint = ToolHint(tool);
-            if (_lockedTools.Contains(tool) && tool != ToolKind.Cursor)
-            {
-                hint += " · bloccato (T)";
-            }
-
-            _hintLabel.Text = hint;
-        }
     }
 
     public void SetToolLocked(ToolKind tool, bool locked)
@@ -282,7 +275,7 @@ public partial class FactoryHud : Control
     {
         if (_dirLabel is not null)
         {
-            _dirLabel.Text = $"R · {directionIt}  ·  destro = elimina";
+            _dirLabel.Text = $"R · {directionIt} · destro = elimina";
         }
     }
 
@@ -517,24 +510,27 @@ public partial class FactoryHud : Control
         _objectivesPanel.OffsetBottom = 12 + 36 + lines * 20;
     }
 
-    private void BuildBlockInfoPanel()
+    private void BuildBlockInfoStrip()
     {
+        // Dense Mindustry strip: name + costs only; sits fully above the build dock.
         _infoPanel = MakePanel("BlockInfo");
         _infoPanel.SetAnchorsPreset(LayoutPreset.BottomRight);
         _infoPanel.GrowHorizontal = GrowDirection.Begin;
         _infoPanel.GrowVertical = GrowDirection.Begin;
-        _infoPanel.OffsetLeft = -440;
-        _infoPanel.OffsetRight = -12;
-        _infoPanel.OffsetTop = -360;
-        _infoPanel.OffsetBottom = -210;
+        _infoPanel.OffsetLeft = -300;
+        _infoPanel.OffsetRight = -8;
+        var stripBottom = DockHeightFromBottom + InfoDockGap;
+        _infoPanel.OffsetBottom = -stripBottom;
+        _infoPanel.OffsetTop = -(stripBottom + InfoStripHeight);
         _infoPanel.Visible = false;
+        _infoPanel.ZIndex = 20;
         AddChild(_infoPanel);
 
         var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        margin.AddThemeConstantOverride("margin_left", 10);
-        margin.AddThemeConstantOverride("margin_right", 10);
-        margin.AddThemeConstantOverride("margin_top", 8);
-        margin.AddThemeConstantOverride("margin_bottom", 8);
+        margin.AddThemeConstantOverride("margin_left", 8);
+        margin.AddThemeConstantOverride("margin_right", 8);
+        margin.AddThemeConstantOverride("margin_top", 6);
+        margin.AddThemeConstantOverride("margin_bottom", 6);
         _infoPanel.AddChild(margin);
 
         var root = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
@@ -542,24 +538,25 @@ public partial class FactoryHud : Control
         margin.AddChild(root);
 
         var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        header.AddThemeConstantOverride("separation", 8);
+        header.AddThemeConstantOverride("separation", 6);
         root.AddChild(header);
 
         _infoName = new Label
         {
             Text = "",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore
+            MouseFilter = MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center
         };
         _infoName.AddThemeColorOverride("font_color", TextPrimary);
-        _infoName.AddThemeFontSizeOverride("font_size", 15);
+        _infoName.AddThemeFontSizeOverride("font_size", 14);
         header.AddChild(_infoName);
 
         var infoBtn = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(28, 28),
+            CustomMinimumSize = new Vector2(26, 26),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = "Dettaglio"
+            TooltipText = "Dettaglio blocco"
         };
         infoBtn.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         header.AddChild(infoBtn);
@@ -572,7 +569,7 @@ public partial class FactoryHud : Control
             HorizontalAlignment = HorizontalAlignment.Center
         };
         q.AddThemeColorOverride("font_color", SlotSelected);
-        q.AddThemeFontSizeOverride("font_size", 14);
+        q.AddThemeFontSizeOverride("font_size", 13);
         infoCenter.AddChild(q);
         infoBtn.GuiInput += e =>
         {
@@ -583,50 +580,30 @@ public partial class FactoryHud : Control
             }
         };
 
-        _infoDesc = new Label
-        {
-            Text = "",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _infoDesc.AddThemeColorOverride("font_color", TextMuted);
-        _infoDesc.AddThemeFontSizeOverride("font_size", 12);
-        root.AddChild(_infoDesc);
-
-        _infoIo = new Label
-        {
-            Text = "",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _infoIo.AddThemeColorOverride("font_color", TextMuted);
-        _infoIo.AddThemeFontSizeOverride("font_size", 11);
-        root.AddChild(_infoIo);
-
         _infoCostRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        _infoCostRow.AddThemeConstantOverride("separation", 6);
+        _infoCostRow.AddThemeConstantOverride("separation", 4);
         root.AddChild(_infoCostRow);
     }
 
     private void BuildToolbar()
     {
-        // Bottom-right Mindustry dock: [grid][cats] over utility strip.
-        var dock = MakePanel("BuildDock");
-        dock.SetAnchorsPreset(LayoutPreset.BottomRight);
-        dock.GrowHorizontal = GrowDirection.Begin;
-        dock.GrowVertical = GrowDirection.Begin;
-        dock.OffsetLeft = -292;
-        dock.OffsetRight = -8;
-        dock.OffsetTop = -200;
-        dock.OffsetBottom = -8;
-        AddChild(dock);
+        // Bottom-right Mindustry dock: [grid][cats] over icon-only utility strip.
+        _buildDock = MakePanel("BuildDock");
+        _buildDock.SetAnchorsPreset(LayoutPreset.BottomRight);
+        _buildDock.GrowHorizontal = GrowDirection.Begin;
+        _buildDock.GrowVertical = GrowDirection.Begin;
+        _buildDock.OffsetLeft = -292;
+        _buildDock.OffsetRight = -8;
+        _buildDock.OffsetTop = -DockHeightFromBottom;
+        _buildDock.OffsetBottom = -8;
+        AddChild(_buildDock);
 
         var margin = new MarginContainer();
         margin.AddThemeConstantOverride("margin_left", 8);
         margin.AddThemeConstantOverride("margin_right", 8);
         margin.AddThemeConstantOverride("margin_top", 8);
         margin.AddThemeConstantOverride("margin_bottom", 8);
-        dock.AddChild(margin);
+        _buildDock.AddChild(margin);
 
         var col = new VBoxContainer();
         col.AddThemeConstantOverride("separation", 6);
@@ -666,32 +643,21 @@ public partial class FactoryHud : Control
         var util = new HBoxContainer();
         util.AddThemeConstantOverride("separation", 4);
         col.AddChild(util);
-        AddUtilityChip(util, "T", "Ricerca", () => ResearchRequested?.Invoke());
-        AddUtilityChip(util, "M", "Mercato", () => MercatoRequested?.Invoke());
-        AddUtilityChip(util, "G", "Campagna", () => CampaignRequested?.Invoke());
-        AddUtilityChip(util, "F5", "Salva", () => SaveRequested?.Invoke());
-        AddUtilityChip(util, "F9", "Carica", () => LoadRequested?.Invoke());
-        AddUtilityChip(util, "F6", "↑", () => SaveSlotRequested?.Invoke());
-        AddUtilityChip(util, "F7", "↓", () => LoadSlotRequested?.Invoke());
-
-        _hintLabel = new Label
-        {
-            Text = ToolHint(ToolKind.Cursor),
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _hintLabel.AddThemeColorOverride("font_color", TextMuted);
-        _hintLabel.AddThemeFontSizeOverride("font_size", 10);
-        col.AddChild(_hintLabel);
-
-        _dirLabel = new Label
-        {
-            Text = "R · direzione Est",
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _dirLabel.AddThemeColorOverride("font_color", TextMuted);
-        _dirLabel.AddThemeFontSizeOverride("font_size", 10);
-        col.AddChild(_dirLabel);
+        // Icon-only utilities; hotkeys only in tooltips.
+        AddUtilityIcon(util, "res://assets/research.png", null, "Ricerca", "T",
+            () => ResearchRequested?.Invoke());
+        AddUtilityIcon(util, null, "$", "Mercato", "M",
+            () => MercatoRequested?.Invoke());
+        AddUtilityIcon(util, null, "▣", "Campagna", "G",
+            () => CampaignRequested?.Invoke());
+        AddUtilityIcon(util, null, "⇩", "Salva continua", "F5",
+            () => SaveRequested?.Invoke());
+        AddUtilityIcon(util, null, "⇧", "Carica continua", "F9",
+            () => LoadRequested?.Invoke());
+        AddUtilityIcon(util, null, "▤", "Salva slot", "F6",
+            () => SaveSlotRequested?.Invoke());
+        AddUtilityIcon(util, null, "▥", "Carica slot", "F7",
+            () => LoadSlotRequested?.Invoke());
     }
 
     private void AddCategoryButton(
@@ -733,28 +699,50 @@ public partial class FactoryHud : Control
         };
     }
 
-    private void AddUtilityChip(Control parent, string hotkey, string tip, Action onClick)
+    private void AddUtilityIcon(
+        Control parent,
+        string? texPath,
+        string? glyph,
+        string tip,
+        string hotkeyHint,
+        Action onClick)
     {
         var slot = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(34, 28),
+            CustomMinimumSize = new Vector2(34, 30),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = $"{tip} · {hotkey}"
+            TooltipText = $"{tip} ({hotkeyHint})"
         };
         slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         parent.AddChild(slot);
 
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         slot.AddChild(center);
-        var text = new Label
+
+        if (!string.IsNullOrEmpty(texPath) && ResourceLoader.Exists(texPath))
         {
-            Text = hotkey,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        text.AddThemeColorOverride("font_color", TextPrimary);
-        text.AddThemeFontSizeOverride("font_size", 10);
-        center.AddChild(text);
+            var icon = new TextureRect
+            {
+                Texture = GD.Load<Texture2D>(texPath),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                CustomMinimumSize = new Vector2(20, 20),
+                MouseFilter = MouseFilterEnum.Ignore
+            };
+            center.AddChild(icon);
+        }
+        else
+        {
+            var text = new Label
+            {
+                Text = glyph ?? "·",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                MouseFilter = MouseFilterEnum.Ignore
+            };
+            text.AddThemeColorOverride("font_color", TextPrimary);
+            text.AddThemeFontSizeOverride("font_size", 14);
+            center.AddChild(text);
+        }
 
         slot.GuiInput += e =>
         {
@@ -934,8 +922,7 @@ public partial class FactoryHud : Control
 
     private void RefreshBlockInfo()
     {
-        if (_infoPanel is null || _infoName is null || _infoDesc is null
-            || _infoCostRow is null || _infoIo is null)
+        if (_infoPanel is null || _infoName is null || _infoCostRow is null)
         {
             return;
         }
@@ -943,7 +930,6 @@ public partial class FactoryHud : Control
         var focus = _hovered ?? (_selected == ToolKind.Cursor ? null : _selected);
         if (focus is null || focus == ToolKind.Cursor)
         {
-            // Still show selected place tool when nothing hovered.
             if (_selected != ToolKind.Cursor)
             {
                 focus = _selected;
@@ -965,11 +951,7 @@ public partial class FactoryHud : Control
         _infoPanel.Visible = true;
         var name = HotDisplayName(entry);
         var locked = _lockedTools.Contains(entry.Tool);
-        _infoName.Text = locked ? $"{name}  ·  bloccato" : name;
-        _infoDesc.Text = entry.HintIt;
-
-        // I/O line from recipe when available.
-        _infoIo.Text = ResolveIoLine(entry.StructureId);
+        _infoName.Text = locked ? $"{name} · bloccato" : name;
 
         foreach (var child in _infoCostRow.GetChildren())
         {
@@ -981,7 +963,7 @@ public partial class FactoryHud : Control
         {
             var free = new Label
             {
-                Text = "Costo: —",
+                Text = "—",
                 MouseFilter = MouseFilterEnum.Ignore
             };
             free.AddThemeColorOverride("font_color", TextMuted);
@@ -1258,6 +1240,18 @@ public partial class FactoryHud : Control
             + "Hotkey: " + entry.Hotkey
             + "\nR = ruota · destro = elimina · Esc = cursore";
         _detailOverlay.Visible = true;
+    }
+
+    /// <summary>Capture helper: open the ? detail modal for the current selection.</summary>
+    public void OpenBlockDetailForCapture() => OpenDetailOverlay();
+
+    /// <summary>Capture helper: close the ? detail modal.</summary>
+    public void CloseBlockDetailForCapture()
+    {
+        if (_detailOverlay is not null)
+        {
+            _detailOverlay.Visible = false;
+        }
     }
 
     private void BuildToast()

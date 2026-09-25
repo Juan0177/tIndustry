@@ -24,6 +24,7 @@ public partial class ResearchPanel : Control
     private TechTreeCanvas? _canvas;
     private PanelContainer? _detailPanel;
     private Label? _detailTitle;
+    private Label? _detailUsage;
     private Label? _detailState;
     private Label? _detailCost;
     private Label? _detailPrereq;
@@ -182,6 +183,11 @@ public partial class ResearchPanel : Control
         _detailTitle.AddThemeColorOverride("font_color", TitleColor);
         _detailTitle.AddThemeFontSizeOverride("font_size", 20);
         detailRoot.AddChild(_detailTitle);
+
+        _detailUsage = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        _detailUsage.AddThemeColorOverride("font_color", HintSoft);
+        _detailUsage.AddThemeFontSizeOverride("font_size", 13);
+        detailRoot.AddChild(_detailUsage);
 
         _detailState = new Label { Text = "" };
         _detailState.AddThemeFontSizeOverride("font_size", 14);
@@ -363,7 +369,7 @@ public partial class ResearchPanel : Control
     {
         RefreshDetailChrome();
         if (_slice is null || _selectedId is null
-            || _detailTitle is null || _detailState is null
+            || _detailTitle is null || _detailUsage is null || _detailState is null
             || _detailCost is null || _detailPrereq is null
             || _detailManca is null || _unlockButton is null)
         {
@@ -378,6 +384,7 @@ public partial class ResearchPanel : Control
 
         var state = _slice.Research.GetNodeState(structure);
         _detailTitle.Text = structure.DisplayName;
+        _detailUsage.Text = FormatStructureUsage(structure.Id, _slice.Content);
         _detailState.Text = state switch
         {
             ResearchNodeState.Unlocked => structure.IsStub
@@ -393,7 +400,8 @@ public partial class ResearchPanel : Control
             _ => new Color(140 / 255f, 148 / 255f, 142 / 255f)
         });
 
-        _detailCost.Text = "Costo: " + FormatUnlockRequirement(structure.Unlock);
+        _detailCost.Text = "Sblocco: " + FormatUnlockRequirement(structure.Unlock)
+            + "\nCostruzione: " + FormatBuildCost(structure.Id, _slice.Content);
         _detailPrereq.Text = FormatPrereqs(structure, _slice);
 
         var manca = FormatMissingUnlockResources(structure, _slice);
@@ -455,6 +463,89 @@ public partial class ResearchPanel : Control
         }
 
         Refresh();
+    }
+
+    private static string FormatStructureUsage(string structureId, FactoryContent content)
+    {
+        var hint = structureId switch
+        {
+            "miner" => "Estrae minerali dal deposito sotto · uscita su tutti i lati · 2×2",
+            "miner-advanced" => "T2: 2× velocità · +25% efficienza · uscita multi-lato",
+            "smelter" => "Fondi ore (carbone o corrente) · +20% craft se alimentato · 2×2",
+            "assembler" => "Assembla prodotti · R ruota uscita · 2×2",
+            "extractor" => "Tira 1 item da CORE/edificio · F filtro · R uscita",
+            "conveyor-basic" => "Nastro T1 · flusso unidirezionale · R/rotella",
+            "conveyor-fast" => "Nastro T2 · più veloce · R/rotella",
+            "conveyor-express" => "Nastro T3 · max velocità · R/rotella",
+            "junction" => "Incrocio a croce per nastri",
+            "splitter" => "Nastro a T · alterna sinistra/destra",
+            "sorter" => "Filtro item · match avanti, altri ai lati · C cicla",
+            "conveyor-bridge" => "Ponte span 2–4 · estremi 1×1",
+            "generator" => "Brucia carbone per energia · 2×2",
+            "power-node" => "Nodo T1 · 1×1 · raggio 6 · auto-link gen",
+            "power-node-t2" => "Nodo T2 · 2×2 · raggio 10 · auto-link gen",
+            _ => "Struttura di fabbrica."
+        };
+
+        var recipeId = structureId switch
+        {
+            "smelter" => "smelt-iron",
+            "assembler" => "craft-copper-wire",
+            _ => null
+        };
+        if (recipeId is null)
+        {
+            return "Uso: " + hint;
+        }
+
+        var recipe = content.FindRecipe(recipeId);
+        if (recipe is null)
+        {
+            return "Uso: " + hint;
+        }
+
+        string Fmt(IReadOnlyList<ResourceAmount> list) =>
+            string.Join(" + ", list.Select(a => $"{a.Amount}× {content.DisplayName(a.ItemId)}"));
+
+        return $"Uso: {hint}\nI/O: {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({recipe.DurationSeconds:0.#}s)";
+    }
+
+    private static string FormatBuildCost(string structureId, FactoryContent content)
+    {
+        var building = content.FindBuilding(structureId);
+        if (building is not null)
+        {
+            return FormatMoneyAndMats(building.MoneyCost, building.BuildCost, content);
+        }
+
+        var conveyor = content.FindConveyor(structureId);
+        if (conveyor is not null)
+        {
+            return FormatMoneyAndMats(conveyor.MoneyCost, conveyor.EffectiveBuildCost, content);
+        }
+
+        return "—";
+    }
+
+    private static string FormatMoneyAndMats(
+        int money,
+        IReadOnlyList<ResourceAmount> materials,
+        FactoryContent content)
+    {
+        var mats = string.Join(" + ",
+            materials.Where(m => m.Amount > 0)
+                .Select(m => $"{m.Amount}× {content.DisplayName(m.ItemId)}"));
+        if (money <= 0 && string.IsNullOrEmpty(mats))
+        {
+            return "—";
+        }
+
+        if (money <= 0)
+        {
+            return mats;
+        }
+
+        return string.IsNullOrEmpty(mats) ? $"${money}" : $"${money} + {mats}";
     }
 
     private static string FormatUnlockRequirement(UnlockRequirement? unlock)

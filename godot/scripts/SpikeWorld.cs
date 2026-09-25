@@ -1642,28 +1642,32 @@ public partial class SpikeWorld : Node2D
             GD.Print($"Screenshot: {name}");
         }
 
-        // 1) Corner palette (logistics sprites, no under-icon text).
+        // 1) Corner palette + icon-only utility row.
         ClearToCursor(toast: false);
         UpdateHud();
-        await SaveNamed("godot-port-mindustry-ui-palette.png");
+        await SaveNamed("godot-port-mindustry-ui-fix-palette.png");
 
-        // Crop dock corner for close-up.
+        // Crop dock corner for close-up (utility icons, no letter chips).
         var full = GetViewport().GetTexture().GetImage();
         var dockW = Math.Min(340, full.GetWidth());
         var dockH = Math.Min(260, full.GetHeight());
         var dock = full.GetRegion(new Rect2I(
             full.GetWidth() - dockW, full.GetHeight() - dockH, dockW, dockH));
-        dock.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-dock-close.png"));
-        dock.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-dock-close.png");
+        dock.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-fix-dock.png"));
+        dock.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-fix-dock.png");
 
-        // 2) Select miner → info panel + barred costs (0 iron-plate).
+        // 2) Select miner → dense info strip above palette (barred costs).
         _hud.SetSelectedTool(FactoryHud.ToolKind.Miner);
         OnHudToolChosen(FactoryHud.ToolKind.Miner);
         UpdateHud();
-        await SaveNamed("godot-port-mindustry-ui-info-barred.png");
+        await SaveNamed("godot-port-mindustry-ui-fix-info-strip.png");
 
-        // 3) Production category grid.
-        // Selecting smelter switches category via SetSelectedTool.
+        // 3) Open ? detail modal (prose / I/O lives here).
+        // Simulate via selecting then invoking detail through reflection-free path:
+        // click is hard in capture — select smelter and call ShowToast after opening research-style detail.
+        // FactoryHud OpenDetailOverlay is private; select tool then use Input simulation is heavy.
+        // Instead: press-like path by selecting and capturing strip; modal via temporary public call.
+        // Unlock smelter for production shot.
         if (!_slice.IsStructureUnlocked("smelter"))
         {
             _slice.Wallet.AddMoney(500);
@@ -1674,22 +1678,23 @@ public partial class SpikeWorld : Node2D
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.Smelter);
         OnHudToolChosen(FactoryHud.ToolKind.Smelter);
-        // Drain plates again so barred still visible if costs remain.
         while (_slice.Wallet.MaterialCount("iron-plate") > 0)
         {
             _slice.Wallet.TrySpend(0, [new ResourceAmount("iron-plate", 1)]);
         }
 
         UpdateHud();
-        await SaveNamed("godot-port-mindustry-ui-production.png");
+        _hud.OpenBlockDetailForCapture();
+        await SaveNamed("godot-port-mindustry-ui-fix-detail-modal.png");
+        _hud.CloseBlockDetailForCapture();
 
-        // 4) Tech tree icon nodes.
+        // 4) Tech tree icon-only nodes + selection usage panel.
         ClearToCursor(toast: false);
         _research?.Open(_slice);
         _research?.SelectStructure("smelter");
-        await SaveNamed("godot-port-mindustry-ui-techtree.png");
+        await SaveNamed("godot-port-mindustry-ui-fix-techtree.png");
 
-        GD.Print("Mindustry UI screenshot set complete.");
+        GD.Print("Mindustry UI fix screenshot set complete.");
         GetTree().Quit();
     }
 

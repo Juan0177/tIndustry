@@ -217,10 +217,10 @@ public partial class TechTreeCanvas : Control
             var isSelected = string.Equals(structure.Id, SelectedId, StringComparison.Ordinal);
             var onPath = pathIds.Contains(structure.Id);
 
-            // Icon cell centered in the layout footprint (Mindustry node feel).
-            var iconBox = Mathf.Min(nodeH - 4f * zoom, 52f * zoom);
+            // Icon-only square cell centered in the layout footprint.
+            var iconBox = Mathf.Min(nodeW, nodeH) * 0.88f;
             var cellX = nx + (nodeW - iconBox) * 0.5f;
-            var cellY = ny + 2f * zoom;
+            var cellY = ny + (nodeH - iconBox) * 0.5f;
 
             var fill = state switch
             {
@@ -292,28 +292,7 @@ public partial class TechTreeCanvas : Control
                     initials, HorizontalAlignment.Left, -1, fs, NodeTitle);
             }
 
-            // Compact status pip under icon (no long text card).
-            var pip = state switch
-            {
-                ResearchNodeState.Unlocked => "●",
-                ResearchNodeState.Available => "○",
-                _ => "×"
-            };
-            var pipSize = (int)Mathf.Clamp(11 * zoom, 9, 14);
-            var pipW = font.GetStringSize(pip, HorizontalAlignment.Left, -1, pipSize).X;
-            DrawString(font,
-                new Vector2(cellX + (iconBox - pipW) * 0.5f, cellY + iconBox + 2 + pipSize),
-                pip, HorizontalAlignment.Left, -1, pipSize, border);
-
-            if (isSelected || zoom >= 0.9f)
-            {
-                var titleSize = zoom < 0.75f ? 10 : 11;
-                var title = Truncate(structure.DisplayName, (int)(nodeW - 8), titleSize);
-                var titleW = font.GetStringSize(title, HorizontalAlignment.Left, -1, titleSize).X;
-                DrawString(font,
-                    new Vector2(nx + (nodeW - titleW) * 0.5f, ny + nodeH - 2),
-                    title, HorizontalAlignment.Left, -1, titleSize, NodeTitle);
-            }
+            // Icon only — no pip / title text under the tile (Mindustry).
         }
     }
 
