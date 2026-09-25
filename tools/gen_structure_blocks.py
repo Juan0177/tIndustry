@@ -6,6 +6,7 @@ Production = warm umber/amber; Power = gold; Core = steel cyan.
 """
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -120,21 +121,62 @@ def draw_junction() -> None:
 
 
 def draw_splitter() -> None:
-    """Square + medium dark border + azzurro corner circle with inner-border raccordo."""
-    img = new_img(BLU3)
+    """Thin pad; azzurro corner circle; SE border/pad arcs with the circle (raccordo)."""
+    img = new_img(BLU2)
+    pix = img.load()
+    # Body fill
+    for y in range(SIZE):
+        for x in range(SIZE):
+            pix[x, y] = BLU3
+
+    cx, cy, r = 49, 49, 11
+    # Concentric raccordo: pad edge follows circle (outer ring = thin border tone)
+    r_border = r + 6
+    r_pad = r + 3
+
+    def dist(x, y):
+        return math.hypot(x - cx, y - cy)
+
+    for y in range(SIZE):
+        for x in range(SIZE):
+            d = dist(x, y)
+            # SE quadrant relative to circle center (toward tile corner)
+            in_se = x >= cx - 1 and y >= cy - 1
+            if in_se and d <= r:
+                continue  # circle drawn later
+            if in_se and d <= r_pad:
+                pix[x, y] = BLU3  # gap between circle and pad edge
+            elif in_se and d <= r_border:
+                pix[x, y] = BLU1  # border arc following circle
+            elif in_se and d > r_border and (x > SIZE - 3 or y > SIZE - 3):
+                # Outside the arc toward the absolute SE corner — keep dark void / border stub
+                pix[x, y] = BLU1 if (x >= SIZE - 2 or y >= SIZE - 2) else BLU2
+            else:
+                # Main pad body (slightly inset)
+                if 3 <= x <= SIZE - 4 and 3 <= y <= SIZE - 4:
+                    pix[x, y] = BLU2
+                elif 1 <= x <= SIZE - 2 and 1 <= y <= SIZE - 2:
+                    pix[x, y] = BLU3
+
+    # Thin border on N / W / E-above-arc / S-left-of-arc
+    for i in range(2):
+        for x in range(SIZE):
+            # top always
+            pix[x, i] = BLU1
+            # bottom only west of raccordo
+            if x <= cx - r_border:
+                pix[x, SIZE - 1 - i] = BLU1
+        for y in range(SIZE):
+            pix[i, y] = BLU1
+            if y <= cy - r_border:
+                pix[SIZE - 1 - i, y] = BLU1
+
+    # Azzurro circle (primary accent)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [5, 5, SIZE - 6, SIZE - 6], BLU2)
-    fill_rect(d, [8, 8, SIZE - 9, SIZE - 9], BLU3)
-    # Medium-thick dark border
-    border(d, BLU1, 4)
-    # Inner-border raccordo (fillet) toward SE corner circle
-    d.pieslice([28, 28, 60, 60], start=0, end=90, fill=BLU4)
-    d.pieslice([34, 34, 56, 56], start=0, end=90, fill=BLU3)
-    # Azzurro circle in SE corner (rotation orients in-world)
-    cx, cy, r = 48, 48, 11
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLU4, outline=WHITE)
-    d.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=WHITE)
-    border(d, BLU1, 4)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLU4, outline=BLU1)
+    d.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], fill=BLU4_DIM)
+    d.ellipse([cx - 2, cy - 2, cx + 2, cy + 2], fill=WHITE)
+
     save(img, "splitter.png")
 
 
