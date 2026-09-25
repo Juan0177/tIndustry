@@ -332,77 +332,88 @@ def draw_miner_gear_assets() -> None:
 
 
 def draw_extractor() -> None:
+    """Square + rounded inner border; center grey dot (world recolors by filter)."""
     img = new_img(PROD_DARK)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], PROD_BODY)
-    fill_rect(d, [8, 8, SIZE - 9, SIZE - 9], BLU3)
-    # intake funnel from core side (bottom)
-    d.polygon([(12, 52), (32, 28), (52, 52)], fill=BLU2)
-    d.polygon([(18, 50), (32, 34), (46, 50)], fill=BLU4)
-    # outlet pipe top
-    fill_rect(d, [26, 8, 37, 30], BLU1)
-    fill_rect(d, [28, 10, 35, 28], BLU4)
-    chevron_down(d, 32, 18, w=10, h=7, color=WHITE)
-    # filter badge
-    fill_rect(d, [40, 10, 54, 22], PROD_ACCENT)
-    border(d, BLU1, 2)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], PROD_BODY)
+    # Rounded inner frame
+    d.rounded_rectangle([8, 8, SIZE - 9, SIZE - 9], radius=10, fill=PROD_MID, outline=BLU4)
+    d.rounded_rectangle([12, 12, SIZE - 13, SIZE - 13], radius=8, fill=PROD_DARK)
+    # Center filter well — dark hole; palette shows idle grey ring+dot
+    d.ellipse([24, 24, 39, 39], fill=PROD_DARK, outline=BLU4_DIM)
+    d.ellipse([27, 27, 36, 36], fill=(0x6A, 0x70, 0x78, 255))
+    border(d, PROD_DARK, 2)
     save(img, "extractor.png")
 
 
 def draw_smelter() -> None:
+    """Symmetric furnace: chamber + mirrored vents; warm production palette."""
     img = new_img(PROD_DARK)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], PROD_BODY)
-    fill_rect(d, [8, 14, SIZE - 9, SIZE - 7], PROD_MID)
-    # chimney
-    fill_rect(d, [26, 4, 37, 18], PROD_EDGE)
-    fill_rect(d, [28, 6, 35, 16], PROD_ACCENT)
-    # door / flame window
-    fill_rect(d, [18, 24, 45, 48], PROD_DARK)
-    fill_rect(d, [22, 28, 41, 44], PROD_HOT)
-    d.polygon([(32, 30), (26, 40), (30, 40), (28, 44), (36, 44), (34, 40), (38, 40)], fill=WHITE)
-    # vents
-    for x in (14, 20, 44, 50):
-        fill_rect(d, [x, 52, x + 3, 58], PROD_DARK)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], PROD_BODY)
+    fill_rect(d, [6, 6, SIZE - 7, SIZE - 7], PROD_MID)
+    # Symmetric side pillars
+    fill_rect(d, [8, 10, 16, 54], PROD_EDGE)
+    fill_rect(d, [SIZE - 17, 10, SIZE - 9, 54], PROD_EDGE)
+    fill_rect(d, [10, 12, 14, 52], PROD_DARK)
+    fill_rect(d, [SIZE - 15, 12, SIZE - 11, 52], PROD_DARK)
+    # Central chamber (octagon-ish via rect + diamond window)
+    fill_rect(d, [20, 14, 43, 50], PROD_DARK)
+    fill_rect(d, [22, 16, 41, 48], PROD_EDGE)
+    # Heat window — dark (world heat-glow pulses while crafting)
+    d.ellipse([24, 22, 39, 42], fill=(0x2A, 0x18, 0x10, 255), outline=PROD_ACCENT)
+    d.ellipse([28, 26, 35, 38], fill=(0x18, 0x0C, 0x08, 255))
+    # Hint of embers for palette readability when idle
+    fill_rect(d, [30, 31, 33, 34], PROD_HOT)
+    # Mirrored top/bottom vents
+    for y in (8, 52):
+        fill_rect(d, [22, y, 26, y + 3], PROD_DARK)
+        fill_rect(d, [28, y, 35, y + 3], PROD_DARK)
+        fill_rect(d, [37, y, 41, y + 3], PROD_DARK)
     border(d, PROD_DARK, 2)
     fill_rect(d, [0, 0, SIZE - 1, 1], PROD_HOT)
     save(img, "smelter.png")
 
 
 def draw_assembler() -> None:
-    img = new_img(PROD_DARK)
+    """Square border + two mirrored T-arms (idle/open pose for palette)."""
+    img = new_img(BLU1)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], BLU2)
-    fill_rect(d, [8, 8, SIZE - 9, SIZE - 9], BLU3)
-    # gear-ish plate
-    d.ellipse([16, 16, 47, 47], fill=BLU1, outline=BLU4, width=3)
-    d.ellipse([24, 24, 39, 39], fill=BLU4_DIM, outline=BLU4)
-    d.ellipse([28, 28, 35, 35], fill=PROD_ACCENT)
-    # corner mounts
-    for xy in [(8, 8), (48, 8), (8, 48), (48, 48)]:
-        fill_rect(d, [xy[0], xy[1], xy[0] + 7, xy[1] + 7], PROD_EDGE)
-    # I/O notches
-    fill_rect(d, [28, 3, 35, 10], BLU4)
-    fill_rect(d, [28, 53, 35, 60], BLU4)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], BLU2)
+    fill_rect(d, [6, 6, SIZE - 7, SIZE - 7], BLU3)
+    # Floor plate
+    fill_rect(d, [14, 28, 49, 35], BLU1)
+    # Left T (stem left, bar toward center) — open/rest
+    fill_rect(d, [10, 18, 18, 45], BLU4)       # vertical stem
+    fill_rect(d, [10, 28, 28, 35], BLU4)       # horizontal bar inward
+    # Right mirrored T
+    fill_rect(d, [45, 18, 53, 45], BLU4)
+    fill_rect(d, [35, 28, 53, 35], BLU4)
+    # Accent tips
+    fill_rect(d, [26, 30, 28, 33], PROD_ACCENT)
+    fill_rect(d, [35, 30, 37, 33], PROD_ACCENT)
     border(d, BLU1, 2)
     save(img, "assembler.png")
 
 
 def draw_generator() -> None:
+    """Border + two concentric circles; 4 dots at rest positions (N/E/S/W)."""
     img = new_img(POW_DARK)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], POW_BODY)
-    fill_rect(d, [8, 10, SIZE - 9, SIZE - 9], POW_MID)
-    # turbine housing
-    d.ellipse([14, 14, 49, 49], fill=POW_DARK, outline=POW_GOLD, width=3)
-    d.ellipse([22, 22, 41, 41], fill=POW_BODY, outline=POW_BRIGHT)
-    # blades
-    fill_rect(d, [30, 16, 33, 47], POW_GOLD)
-    fill_rect(d, [16, 30, 47, 33], POW_GOLD)
-    d.ellipse([28, 28, 35, 35], fill=POW_BRIGHT)
-    # fuel port
-    fill_rect(d, [10, 50, 22, 58], BLU1)
-    fill_rect(d, [12, 52, 20, 56], BLU4)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], POW_BODY)
+    fill_rect(d, [6, 6, SIZE - 7, SIZE - 7], POW_MID)
+    c = 32
+    # Outer / inner rings
+    d.ellipse([c - 22, c - 22, c + 22, c + 22], outline=POW_GOLD, width=3)
+    d.ellipse([c - 12, c - 12, c + 12, c + 12], outline=POW_BRIGHT, width=2)
+    d.ellipse([c - 6, c - 6, c + 6, c + 6], fill=POW_DARK, outline=POW_GOLD)
+    # 4 orbit dots at cardinal rest positions (mid-ring radius ~17)
+    r = 17
+    for ang in (0, 90, 180, 270):
+        rad = math.radians(ang - 90)
+        x = c + int(math.cos(rad) * r)
+        y = c + int(math.sin(rad) * r)
+        d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=POW_BRIGHT, outline=POW_GOLD)
     border(d, POW_DARK, 2)
     fill_rect(d, [0, 0, SIZE - 1, 1], POW_GOLD)
     save(img, "generator.png")
@@ -412,13 +423,11 @@ def draw_power_node(t2: bool = False) -> None:
     img = new_img(POW_DARK)
     d = ImageDraw.Draw(img)
     fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], POW_BODY)
-    # node disc
     r = 22 if not t2 else 26
     c = 32
     d.ellipse([c - r, c - r, c + r, c + r], fill=POW_MID, outline=POW_GOLD, width=3)
     d.ellipse([c - 10, c - 10, c + 10, c + 10], fill=POW_DARK, outline=POW_BRIGHT)
     d.ellipse([c - 4, c - 4, c + 4, c + 4], fill=POW_BRIGHT)
-    # link stubs
     for a, b in [((32, 4), (32, 12)), ((32, 52), (32, 60)), ((4, 32), (12, 32)), ((52, 32), (60, 32))]:
         fill_rect(d, [min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])], POW_GOLD)
     if t2:
@@ -429,14 +438,30 @@ def draw_power_node(t2: bool = False) -> None:
 
 
 def draw_core() -> None:
+    """Richer static core: layered frame, diamond lattice, cyan hub."""
     img = new_img(CORE_DARK)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], CORE_BODY)
-    fill_rect(d, [10, 10, SIZE - 11, SIZE - 11], CORE_MID)
-    # diamond core
-    d.polygon([(32, 14), (50, 32), (32, 50), (14, 32)], fill=CORE_DARK, outline=CORE_CYAN)
-    d.polygon([(32, 22), (42, 32), (32, 42), (22, 32)], fill=CORE_CYAN)
-    d.ellipse([28, 28, 35, 35], fill=WHITE)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], CORE_BODY)
+    fill_rect(d, [6, 6, SIZE - 7, SIZE - 7], CORE_MID)
+    # Outer bevel ring
+    d.ellipse([10, 10, 53, 53], outline=CORE_CYAN, width=2)
+    d.ellipse([14, 14, 49, 49], outline=BLU4_DIM, width=1)
+    # Corner bolts
+    for xy in [(8, 8), (50, 8), (8, 50), (50, 50)]:
+        fill_rect(d, [xy[0], xy[1], xy[0] + 5, xy[1] + 5], CORE_DARK)
+        d.ellipse([xy[0] + 1, xy[1] + 1, xy[0] + 4, xy[1] + 4], fill=CORE_CYAN)
+    # Diamond lattice
+    d.polygon([(32, 12), (52, 32), (32, 52), (12, 32)], outline=CORE_CYAN)
+    d.polygon([(32, 18), (46, 32), (32, 46), (18, 32)], fill=CORE_DARK, outline=BLU4)
+    d.polygon([(32, 24), (40, 32), (32, 40), (24, 32)], fill=CORE_CYAN)
+    # Hub
+    d.ellipse([28, 28, 35, 35], fill=WHITE, outline=CORE_DARK)
+    d.ellipse([30, 30, 33, 33], fill=CORE_CYAN)
+    # Cross tick marks
+    fill_rect(d, [31, 8, 32, 12], CORE_CYAN)
+    fill_rect(d, [31, 51, 32, 55], CORE_CYAN)
+    fill_rect(d, [8, 31, 12, 32], CORE_CYAN)
+    fill_rect(d, [51, 31, 55, 32], CORE_CYAN)
     border(d, CORE_DARK, 2)
     fill_rect(d, [0, 0, SIZE - 1, 1], CORE_CYAN)
     save(img, "core.png")

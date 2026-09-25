@@ -67,7 +67,6 @@ public partial class SpikeWorld : Node2D
     private Texture2D? _copperWireTex;
     private Texture2D? _coalTex;
     private Texture2D? _coreTex;
-    private bool _lastGenLive;
     private bool _returnHomeAfterCampaign;
 
     public override void _Ready()
@@ -995,14 +994,7 @@ public partial class SpikeWorld : Node2D
         }
 
         SyncItemSprites();
-        SyncMinerVisuals((float)delta);
-        var genLive = _slice.Generators.Any(g => g.IsGenerating);
-        if (genLive != _lastGenLive)
-        {
-            _lastGenLive = genLive;
-            _buildingsDirty = true;
-        }
-
+        SyncBuildingVisuals((float)delta);
         UpdateHud();
         CheckCampaignComplete();
         QueueRedraw();
@@ -1424,55 +1416,28 @@ public partial class SpikeWorld : Node2D
 
         foreach (var smelter in _slice.Smelters)
         {
-            var node = BuildingPad.Create(
-                SmelterStub.Size,
-                TileSize,
-                fill: new Color(0.2f, 0.16f, 0.14f, 1f),
-                border: new Color(0.95f, 0.55f, 0.28f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/smelter.png"));
-            node.Name = $"Smelter_{smelter.Position.X}_{smelter.Position.Y}";
+            var node = SmelterVisual.Create(smelter, TileSize);
             node.Position = FootprintCenter(smelter.Position, SmelterStub.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var assembler in _slice.Assemblers)
         {
-            var node = BuildingPad.Create(
-                SmelterStub.Size,
-                TileSize,
-                fill: new Color(0.14f, 0.18f, 0.22f, 1f),
-                border: new Color(0.45f, 0.78f, 0.95f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/assembler.png"));
-            node.Name = $"Assembler_{assembler.Position.X}_{assembler.Position.Y}";
+            var node = AssemblerVisual.Create(assembler, TileSize);
             node.Position = FootprintCenter(assembler.Position, SmelterStub.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var gen in _slice.Generators)
         {
-            var live = gen.IsGenerating;
-            var node = BuildingPad.Create(
-                GeneratorStub.Size,
-                TileSize,
-                fill: new Color(0.18f, 0.16f, 0.12f, 1f),
-                border: live
-                    ? new Color(0.98f, 0.82f, 0.28f, 1f)
-                    : new Color(0.55f, 0.48f, 0.28f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/generator.png"));
-            node.Name = $"Generator_{gen.Position.X}_{gen.Position.Y}";
+            var node = GeneratorVisual.Create(gen, TileSize);
             node.Position = FootprintCenter(gen.Position, GeneratorStub.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var ex in _slice.Extractors)
         {
-            var node = BuildingPad.Create(
-                ExtractorStub.Size,
-                TileSize,
-                fill: new Color(0.16f, 0.2f, 0.18f, 1f),
-                border: new Color(0.55f, 0.85f, 0.6f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/extractor.png"));
-            node.Name = $"Extractor_{ex.Position.X}_{ex.Position.Y}";
+            var node = ExtractorVisual.Create(ex, TileSize);
             node.Position = FootprintCenter(ex.Position, ExtractorStub.Size);
             _buildingsLayer.AddChild(node);
         }
@@ -1494,7 +1459,7 @@ public partial class SpikeWorld : Node2D
         }
     }
 
-    private void SyncMinerVisuals(float delta)
+    private void SyncBuildingVisuals(float delta)
     {
         if (_slice is null || _buildingsLayer is null)
         {
@@ -1503,18 +1468,63 @@ public partial class SpikeWorld : Node2D
 
         foreach (var child in _buildingsLayer.GetChildren())
         {
-            if (child is not MinerVisual visual)
+            switch (child)
             {
-                continue;
-            }
+                case MinerVisual minerVis:
+                    foreach (var miner in _slice.Miners)
+                    {
+                        if (miner.Position.Equals(minerVis.MinerOrigin))
+                        {
+                            minerVis.Sync(miner, delta);
+                            break;
+                        }
+                    }
 
-            foreach (var miner in _slice.Miners)
-            {
-                if (miner.Position.Equals(visual.MinerOrigin))
-                {
-                    visual.Sync(miner, delta);
                     break;
-                }
+                case ExtractorVisual exVis:
+                    foreach (var ex in _slice.Extractors)
+                    {
+                        if (ex.Position.Equals(exVis.Origin))
+                        {
+                            exVis.Sync(ex);
+                            break;
+                        }
+                    }
+
+                    break;
+                case SmelterVisual smVis:
+                    foreach (var sm in _slice.Smelters)
+                    {
+                        if (sm.Position.Equals(smVis.Origin))
+                        {
+                            smVis.Sync(sm, delta);
+                            break;
+                        }
+                    }
+
+                    break;
+                case AssemblerVisual asmVis:
+                    foreach (var asm in _slice.Assemblers)
+                    {
+                        if (asm.Position.Equals(asmVis.Origin))
+                        {
+                            asmVis.Sync(asm, delta);
+                            break;
+                        }
+                    }
+
+                    break;
+                case GeneratorVisual genVis:
+                    foreach (var gen in _slice.Generators)
+                    {
+                        if (gen.Position.Equals(genVis.Origin))
+                        {
+                            genVis.Sync(gen, delta);
+                            break;
+                        }
+                    }
+
+                    break;
             }
         }
     }
@@ -1977,6 +1987,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "prod-power-core")
+        {
+            await CaptureProdPowerCoreShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -2257,6 +2273,342 @@ public partial class SpikeWorld : Node2D
 
         GD.Print($"Miner gears screenshot set complete ({prefix}).");
         GetTree().Quit();
+    }
+
+    private async Task CaptureProdPowerCoreShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        const string prefix = "godot-port-prod-power-core";
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        SyncResearchLocks();
+
+        // Quiet showcase grid for production / power / core.
+        for (var x = 2; x <= 18; x++)
+        {
+            for (var y = 2; y <= 12; y++)
+            {
+                _slice.TryRemoveBuildingAt(new GridPosition(x, y));
+                _slice.TryRemoveBelt(new GridPosition(x, y));
+            }
+        }
+
+        // Row 1: extractor idle-grey | extractor copper | forno crafting | assembler crafting
+        _slice.TryPlaceExtractor(new GridPosition(3, 3), Direction.East, "iron-ore");
+        // Clear filter to show idle grey (SetFilterItem rejects empty — place then override via restore).
+        if (_slice.Extractors.Count > 0)
+        {
+            // Keep one with iron-ore; second with copper for recolor proof.
+        }
+
+        _slice.TryPlaceExtractor(new GridPosition(5, 3), Direction.East, "copper-ore");
+        _slice.TryPlaceSmelter(new GridPosition(8, 3), Direction.East);
+        _slice.TryPlaceAssembler(new GridPosition(12, 3), Direction.East);
+        // Row 2: generator burning | core already at demo footprint — place gen + leave core visible
+        _slice.TryPlaceGenerator(new GridPosition(3, 7), Direction.East);
+
+        // Force craft states for animation.
+        foreach (var sm in _slice.Smelters)
+        {
+            sm.RestoreCraftState(0.4f, isCrafting: true, null, null, 0);
+        }
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0.35f, isCrafting: true, null, null, 0);
+        }
+
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Generators[0].TryAcceptFuel("coal");
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        UpdateHud();
+
+        // Kick gen into burning.
+        for (var i = 0; i < 8; i++)
+        {
+            _slice.Tick(1f / 30f);
+        }
+
+        // Keep craft flags (Tick may complete without inputs).
+        foreach (var sm in _slice.Smelters)
+        {
+            sm.RestoreCraftState(0.45f, isCrafting: true, null, null, 0);
+        }
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0.4f, isCrafting: true, null, null, 0);
+        }
+
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(10f * TileSize, 7f * TileSize);
+            cam.Zoom = new Vector2(0.75f, 0.75f);
+        }
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Smelter);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+
+        var map = GetViewport().GetTexture().GetImage();
+        map.SavePng(Path.Combine(destDir, $"{prefix}-map.png"));
+        map.SavePng($"/opt/cursor/artifacts/{prefix}-map.png");
+
+        // Palette with production tool selected.
+        await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
+        var palette = GetViewport().GetTexture().GetImage();
+        palette.SavePng(Path.Combine(destDir, $"{prefix}-palette.png"));
+        palette.SavePng($"/opt/cursor/artifacts/{prefix}-palette.png");
+
+        // Isolated close-ups — zoomed hard, camera on footprint centers.
+        await CaptureCloseAsync(destDir, prefix, "extractor", 3.5f, 3.5f, 2.6f);
+        await CaptureCloseAsync(destDir, prefix, "extractor-copper", 5.5f, 3.5f, 2.6f);
+
+        // Keep craft alive across waits (Tick would finish Progress).
+        await HoldCraftAndCaptureAsync(destDir, prefix, "smelter", 9f, 4f, 2.2f, smelter: true);
+        await HoldCraftAndCaptureAsync(destDir, prefix, "assembler", 13f, 4f, 2.2f, smelter: false);
+
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Tick(1f / 30f);
+        }
+
+        await CaptureCloseAsync(destDir, prefix, "generator", 4f, 8f, 2.2f);
+
+        // Core (demo footprint ~9,14 size 2)
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(10f * TileSize, 15f * TileSize);
+            cam.Zoom = new Vector2(1.5f, 1.5f);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var core = GetViewport().GetTexture().GetImage();
+        core.SavePng(Path.Combine(destDir, $"{prefix}-core.png"));
+        core.SavePng($"/opt/cursor/artifacts/{prefix}-core.png");
+
+        // Active anim frames — smelter heat pulse
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(9f * TileSize, 4f * TileSize);
+            cam.Zoom = new Vector2(2.2f, 2.2f);
+        }
+
+        for (var frame = 0; frame < 4; frame++)
+        {
+            for (var i = 0; i < 8; i++)
+            {
+                foreach (var sm in _slice.Smelters)
+                {
+                    sm.RestoreCraftState(0.2f, isCrafting: true, null, null, 0);
+                }
+
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+
+            var shot = GetViewport().GetTexture().GetImage();
+            var name = $"{prefix}-smelter-anim-{frame}.png";
+            shot.SavePng(Path.Combine(destDir, name));
+            shot.SavePng($"/opt/cursor/artifacts/{name}");
+        }
+
+        // Assembler press
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(13f * TileSize, 4f * TileSize);
+            cam.Zoom = new Vector2(2.2f, 2.2f);
+        }
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0f, isCrafting: false, null, null, 0);
+        }
+
+        for (var i = 0; i < 20; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        var asmIdle = GetViewport().GetTexture().GetImage();
+        asmIdle.SavePng(Path.Combine(destDir, $"{prefix}-assembler-idle.png"));
+        asmIdle.SavePng($"/opt/cursor/artifacts/{prefix}-assembler-idle.png");
+
+        for (var frame = 0; frame < 4; frame++)
+        {
+            for (var i = 0; i < 6; i++)
+            {
+                foreach (var asm in _slice.Assemblers)
+                {
+                    asm.RestoreCraftState(0.15f, isCrafting: true, null, null, 0);
+                }
+
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+
+            var shot = GetViewport().GetTexture().GetImage();
+            var name = $"{prefix}-assembler-anim-{frame}.png";
+            shot.SavePng(Path.Combine(destDir, name));
+            shot.SavePng($"/opt/cursor/artifacts/{name}");
+        }
+
+        // Generator orbit while burning
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(4f * TileSize, 8f * TileSize);
+        }
+
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Generators[0].TryAcceptFuel("coal");
+        }
+
+        for (var i = 0; i < 6; i++)
+        {
+            _slice.Tick(1f / 30f);
+        }
+
+        for (var frame = 0; frame < 4; frame++)
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                _slice.Tick(1f / 30f);
+            }
+
+            await ToSignal(GetTree().CreateTimer(0.2), SceneTreeTimer.SignalName.Timeout);
+            var shot = GetViewport().GetTexture().GetImage();
+            var name = $"{prefix}-generator-orbit-{frame}.png";
+            shot.SavePng(Path.Combine(destDir, name));
+            shot.SavePng($"/opt/cursor/artifacts/{name}");
+        }
+
+        // Burn out so dots freeze (no rebuild — Sync freezes angle).
+        if (_slice.Generators.Count > 0)
+        {
+            var gen = _slice.Generators[0];
+            gen.RestoreFuel(0, 0f, gen.FuelConsumed);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var genStopped = GetViewport().GetTexture().GetImage();
+        genStopped.SavePng(Path.Combine(destDir, $"{prefix}-generator-stopped.png"));
+        genStopped.SavePng($"/opt/cursor/artifacts/{prefix}-generator-stopped.png");
+
+        // New fuel → orbit restarts from angle 0
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Tick(1f / 30f);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var genRestart = GetViewport().GetTexture().GetImage();
+        genRestart.SavePng(Path.Combine(destDir, $"{prefix}-generator-restart.png"));
+        genRestart.SavePng($"/opt/cursor/artifacts/{prefix}-generator-restart.png");
+
+        // Extractor recolor is static — already captured. One more anim hold for glow.
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(4f, 3.5f) * TileSize;
+            cam.Zoom = new Vector2(2.0f, 2.0f);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.3), SceneTreeTimer.SignalName.Timeout);
+        var exClose = GetViewport().GetTexture().GetImage();
+        exClose.SavePng(Path.Combine(destDir, $"{prefix}-extractor-iron.png"));
+        exClose.SavePng($"/opt/cursor/artifacts/{prefix}-extractor-iron.png");
+
+        GD.Print("Prod/power/core screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureCloseAsync(
+        string destDir,
+        string prefix,
+        string label,
+        float camX,
+        float camY,
+        float zoom)
+    {
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(camX * TileSize, camY * TileSize);
+            cam.Zoom = new Vector2(zoom, zoom);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.3), SceneTreeTimer.SignalName.Timeout);
+        var shot = GetViewport().GetTexture().GetImage();
+        var name = $"{prefix}-{label}.png";
+        shot.SavePng(Path.Combine(destDir, name));
+        shot.SavePng($"/opt/cursor/artifacts/{name}");
+    }
+
+    private async Task HoldCraftAndCaptureAsync(
+        string destDir,
+        string prefix,
+        string label,
+        float camX,
+        float camY,
+        float zoom,
+        bool smelter)
+    {
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(camX * TileSize, camY * TileSize);
+            cam.Zoom = new Vector2(zoom, zoom);
+        }
+
+        // Hold craft for ~0.7s so press/glow settle without finishing the recipe.
+        for (var i = 0; i < 45; i++)
+        {
+            if (smelter)
+            {
+                foreach (var sm in _slice!.Smelters)
+                {
+                    sm.RestoreCraftState(0.15f, isCrafting: true, null, null, 0);
+                }
+            }
+            else
+            {
+                foreach (var asm in _slice!.Assemblers)
+                {
+                    asm.RestoreCraftState(0.15f, isCrafting: true, null, null, 0);
+                }
+            }
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        var shot = GetViewport().GetTexture().GetImage();
+        var name = $"{prefix}-{label}.png";
+        shot.SavePng(Path.Combine(destDir, name));
+        shot.SavePng($"/opt/cursor/artifacts/{name}");
     }
 
     private async Task CaptureBeltT2ChevronShotsAsync(string destDir)
