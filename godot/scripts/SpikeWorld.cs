@@ -1338,6 +1338,7 @@ public partial class SpikeWorld : Node2D
 
         var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
         var gensLive = _slice.Generators.Count(g => g.IsGenerating);
+        _hud.BindEconomy(_slice.Content, _slice.Wallet);
         _hud.UpdateStock(
             ShortName(_slice.Content.DisplayName("iron-ore")),
             _slice.Wallet.MaterialCount("iron-ore"),

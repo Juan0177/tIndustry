@@ -3,7 +3,7 @@ using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
-/// <summary>Draws tech-tree nodes/edges; pan/zoom/select (Raylib-parity).</summary>
+/// <summary>Draws tech-tree icon nodes + orthogonal edges (Mindustry-leaning).</summary>
 public partial class TechTreeCanvas : Control
 {
     private static readonly Color CanvasFill = new(20 / 255f, 24 / 255f, 23 / 255f, 1f);
@@ -12,6 +12,8 @@ public partial class TechTreeCanvas : Control
     private static readonly Color PathEdge = new(235 / 255f, 200 / 255f, 110 / 255f, 1f);
     private static readonly Color Gold = new(211 / 255f, 164 / 255f, 76 / 255f, 1f);
     private static readonly Color NodeTitle = new(232 / 255f, 233 / 255f, 221 / 255f, 1f);
+
+    private readonly Dictionary<string, Texture2D?> _iconCache = new(StringComparer.Ordinal);
 
     public TechTreeLayout.Graph? Graph { get; set; }
     public ResearchState? Research { get; set; }
@@ -215,6 +217,11 @@ public partial class TechTreeCanvas : Control
             var isSelected = string.Equals(structure.Id, SelectedId, StringComparison.Ordinal);
             var onPath = pathIds.Contains(structure.Id);
 
+            // Icon cell centered in the layout footprint (Mindustry node feel).
+            var iconBox = Mathf.Min(nodeH - 4f * zoom, 52f * zoom);
+            var cellX = nx + (nodeW - iconBox) * 0.5f;
+            var cellY = ny + 2f * zoom;
+
             var fill = state switch
             {
                 ResearchNodeState.Unlocked => new Color(36 / 255f, 62 / 255f, 48 / 255f),
@@ -249,33 +256,114 @@ public partial class TechTreeCanvas : Control
 
             if (isSelected)
             {
-                DrawRect(new Rect2(nx - 3, ny - 3, nodeW + 6, nodeH + 6),
+                DrawRect(new Rect2(cellX - 4, cellY - 4, iconBox + 8, iconBox + 8),
                     new Color(Gold.R, Gold.G, Gold.B, 90 / 255f), true);
             }
             else if (onPath)
             {
-                DrawRect(new Rect2(nx - 2, ny - 2, nodeW + 4, nodeH + 4),
+                DrawRect(new Rect2(cellX - 2, cellY - 2, iconBox + 4, iconBox + 4),
                     new Color(Gold.R, Gold.G, Gold.B, 40 / 255f), true);
             }
 
-            DrawRect(new Rect2(nx, ny, nodeW, nodeH), fill, true);
-            DrawRect(new Rect2(nx, ny, nodeW, nodeH), border, false, 1.5f);
+            DrawRect(new Rect2(cellX, cellY, iconBox, iconBox), fill, true);
+            DrawRect(new Rect2(cellX, cellY, iconBox, iconBox), border, false, isSelected ? 2.4f : 1.5f);
 
-            var statusLabel = state switch
+            var tex = ResolveIcon(structure.Id);
+            var pad = 6f * zoom;
+            if (tex is not null)
             {
-                ResearchNodeState.Unlocked => structure.IsStub ? "SBLOCCATO · segnaposto" : "SBLOCCATO",
-                ResearchNodeState.Available => "DISPONIBILE",
-                _ => "BLOCCATO"
+                var modulate = state == ResearchNodeState.Locked
+                    ? new Color(0.55f, 0.55f, 0.55f, 0.85f)
+                    : Colors.White;
+                DrawTextureRect(
+                    tex,
+                    new Rect2(cellX + pad, cellY + pad, iconBox - pad * 2, iconBox - pad * 2),
+                    false,
+                    modulate);
+            }
+            else
+            {
+                // Letter plate fallback when no sprite ships yet.
+                var initials = Initials(structure.DisplayName);
+                var fs = (int)Mathf.Clamp(14 * zoom, 10, 18);
+                var tw = font.GetStringSize(initials, HorizontalAlignment.Left, -1, fs).X;
+                DrawString(font,
+                    new Vector2(cellX + (iconBox - tw) * 0.5f, cellY + iconBox * 0.55f),
+                    initials, HorizontalAlignment.Left, -1, fs, NodeTitle);
+            }
+
+            // Compact status pip under icon (no long text card).
+            var pip = state switch
+            {
+                ResearchNodeState.Unlocked => "●",
+                ResearchNodeState.Available => "○",
+                _ => "×"
             };
-            var titleSize = zoom < 0.75f ? 12 : 14;
-            var statusSize = zoom < 0.75f ? 10 : 11;
-            DrawString(font, new Vector2(nx + 10, ny + 8 + titleSize),
-                Truncate(structure.DisplayName, (int)(nodeW - 20), titleSize),
-                HorizontalAlignment.Left, -1, titleSize, NodeTitle);
-            DrawString(font, new Vector2(nx + 10, ny + Math.Max(30f, nodeH - 8)),
-                Truncate(statusLabel, (int)(nodeW - 20), statusSize),
-                HorizontalAlignment.Left, -1, statusSize, border);
+            var pipSize = (int)Mathf.Clamp(11 * zoom, 9, 14);
+            var pipW = font.GetStringSize(pip, HorizontalAlignment.Left, -1, pipSize).X;
+            DrawString(font,
+                new Vector2(cellX + (iconBox - pipW) * 0.5f, cellY + iconBox + 2 + pipSize),
+                pip, HorizontalAlignment.Left, -1, pipSize, border);
+
+            if (isSelected || zoom >= 0.9f)
+            {
+                var titleSize = zoom < 0.75f ? 10 : 11;
+                var title = Truncate(structure.DisplayName, (int)(nodeW - 8), titleSize);
+                var titleW = font.GetStringSize(title, HorizontalAlignment.Left, -1, titleSize).X;
+                DrawString(font,
+                    new Vector2(nx + (nodeW - titleW) * 0.5f, ny + nodeH - 2),
+                    title, HorizontalAlignment.Left, -1, titleSize, NodeTitle);
+            }
         }
+    }
+
+    private Texture2D? ResolveIcon(string structureId)
+    {
+        if (_iconCache.TryGetValue(structureId, out var cached))
+        {
+            return cached;
+        }
+
+        var path = structureId switch
+        {
+            "conveyor-basic" or "conveyor-fast" or "conveyor-express" => "res://assets/conveyor-basic.png",
+            "conveyor-bridge" => "res://assets/bridge.png",
+            "miner" or "miner-advanced" => "res://assets/miner.png",
+            "smelter" => "res://assets/smelter.png",
+            "assembler" => "res://assets/assembler.png",
+            "junction" => "res://assets/junction.png",
+            "splitter" => "res://assets/splitter.png",
+            "sorter" => "res://assets/sorter.png",
+            "generator" => "res://assets/generator.png",
+            "power-node" or "power-node-t2" => "res://assets/generator.png",
+            "extractor" => "res://assets/miner.png",
+            _ => $"res://assets/{structureId}.png"
+        };
+
+        Texture2D? tex = null;
+        if (ResourceLoader.Exists(path))
+        {
+            tex = GD.Load<Texture2D>(path);
+        }
+
+        _iconCache[structureId] = tex;
+        return tex;
+    }
+
+    private static string Initials(string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return "?";
+        }
+
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1)
+        {
+            return parts[0].Length <= 2 ? parts[0].ToUpperInvariant() : parts[0][..2].ToUpperInvariant();
+        }
+
+        return string.Concat(parts.Take(2).Select(p => char.ToUpperInvariant(p[0])));
     }
 
     private static string Truncate(string text, int maxWidthPx, int fontSize)
