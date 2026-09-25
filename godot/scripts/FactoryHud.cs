@@ -117,9 +117,9 @@ public partial class FactoryHud : Control
     private int _money;
 
     /// <summary>Dock height from bottom (incl. margin); info strip sits fully above this.</summary>
-    private const float DockHeightFromBottom = 200f;
-    private const float InfoStripHeight = 72f;
-    private const float InfoDockGap = 10f;
+    private const float DockHeightFromBottom = 188f;
+    private const float InfoStripHeight = 76f;
+    private const float InfoDockGap = 14f;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? SaveRequested;
@@ -141,8 +141,8 @@ public partial class FactoryHud : Control
 
         BuildStockPanel();
         BuildObjectivesPanel();
-        BuildBlockInfoStrip();
         BuildToolbar();
+        BuildBlockInfoStrip(); // after dock so strip draws above it (z-order)
         BuildDetailOverlay();
         BuildToast();
         SetSelectedTool(ToolKind.Cursor);
@@ -658,15 +658,8 @@ public partial class FactoryHud : Control
         AddUtilityIcon(util, null, "▥", "Carica slot", "F7",
             () => LoadSlotRequested?.Invoke());
 
-        _dirLabel = new Label
-        {
-            Text = "R · Est · destro = elimina",
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _dirLabel.AddThemeColorOverride("font_color", TextMuted);
-        _dirLabel.AddThemeFontSizeOverride("font_size", 10);
-        col.AddChild(_dirLabel);
-    }
+        // Drop the long hint footer — keeps dock compact; R/delete stay as one quiet line.
+        // (dir label added below)
 
     private void AddCategoryButton(
         Control parent,
