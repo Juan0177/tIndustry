@@ -2,7 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Core stock sink: items ready to leave a belt cell whose output tile is in the core
-/// set are removed and added to the wallet (stock-first, no auto-sell).
+/// set are removed. Default path stocks the wallet; optional auto-sell liquidates to $.
 /// </summary>
 public static class CoreStockSink
 {
@@ -22,9 +22,25 @@ public static class CoreStockSink
 
     /// <summary>
     /// Drain ready outputs from any belt cell that points into <paramref name="coreTiles"/>.
-    /// Returns how many items were stocked.
+    /// Returns how many items were stocked (stock-first; no auto-sell).
     /// </summary>
-    public static int Drain(BeltLane belt, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet)
+    public static int Drain(BeltLane belt, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet) =>
+        Drain(belt, coreTiles, wallet, market: null, session: null, autoSellAtCore: false);
+
+    public static int Drain(BeltGrid grid, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet) =>
+        Drain(grid, coreTiles, wallet, market: null, session: null, autoSellAtCore: false);
+
+    /// <summary>
+    /// Drain into stock, or liquidate immediately when <paramref name="autoSellAtCore"/> is on
+    /// (Raylib Mercato “Vendita automatica” parity).
+    /// </summary>
+    public static int Drain(
+        BeltLane belt,
+        IReadOnlySet<GridPosition> coreTiles,
+        EconomyWallet wallet,
+        MarketCatalog? market,
+        EconomySession? session,
+        bool autoSellAtCore)
     {
         var delivered = 0;
         for (var i = 0; i < belt.Cells.Count; i++)
@@ -39,7 +55,7 @@ public static class CoreStockSink
             while (cell.PeekOutput() is { } item)
             {
                 cell.RemoveOutput();
-                wallet.AddMaterial(item.ItemId, 1);
+                AcceptAtCore(wallet, item.ItemId, market, session, autoSellAtCore);
                 delivered++;
             }
         }
@@ -47,7 +63,13 @@ public static class CoreStockSink
         return delivered;
     }
 
-    public static int Drain(BeltGrid grid, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet)
+    public static int Drain(
+        BeltGrid grid,
+        IReadOnlySet<GridPosition> coreTiles,
+        EconomyWallet wallet,
+        MarketCatalog? market,
+        EconomySession? session,
+        bool autoSellAtCore)
     {
         var delivered = 0;
         foreach (var cell in grid.Cells.Values)
@@ -60,11 +82,31 @@ public static class CoreStockSink
             while (cell.PeekOutput() is { } item)
             {
                 cell.RemoveOutput();
-                wallet.AddMaterial(item.ItemId, 1);
+                AcceptAtCore(wallet, item.ItemId, market, session, autoSellAtCore);
                 delivered++;
             }
         }
 
         return delivered;
+    }
+
+    private static void AcceptAtCore(
+        EconomyWallet wallet,
+        string itemId,
+        MarketCatalog? market,
+        EconomySession? session,
+        bool autoSellAtCore)
+    {
+        if (!autoSellAtCore || market is null)
+        {
+            wallet.AddMaterial(itemId, 1);
+            return;
+        }
+
+        // Price from stock *before* this unit lands (same curve as manual Mercato sell).
+        var stockBefore = wallet.MaterialCount(itemId);
+        var unitPrice = market.GetDynamicSellPrice(itemId, stockBefore);
+        wallet.AddMoney(unitPrice);
+        session?.RecordSale(itemId, unitPrice);
     }
 }

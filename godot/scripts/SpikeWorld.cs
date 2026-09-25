@@ -287,6 +287,16 @@ public partial class SpikeWorld : Node2D
                 _hud?.ShowToast($"Vendita · Magazzino ${_slice.Wallet.Money}");
             }
         };
+        _mercato.AutoSellChanged += () =>
+        {
+            UpdateHud();
+            if (_slice is not null)
+            {
+                _hud?.ShowToast(_slice.AutoSellAtCore
+                    ? "Vendita automatica ON"
+                    : "Vendita automatica OFF");
+            }
+        };
     }
 
     private void EnsureCampaignSelectPanel()
@@ -1732,6 +1742,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "autosell")
+        {
+            await CaptureAutoSellShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -1778,6 +1794,75 @@ public partial class SpikeWorld : Node2D
         roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureAutoSellShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        // Seed stock so Mercato shows rows; toggle OFF then ON for panel shots.
+        _slice.Wallet.AddMaterial("iron-ore", 8);
+        _slice.AutoSellAtCore = false;
+        _mercato?.Open(_slice);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var offShot = GetViewport().GetTexture().GetImage();
+        offShot.SavePng(Path.Combine(destDir, "godot-port-autosell-off.png"));
+        offShot.SavePng("/opt/cursor/artifacts/godot-port-autosell-off.png");
+
+        _slice.AutoSellAtCore = true;
+        _mercato?.Close();
+        _mercato?.Open(_slice);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var onShot = GetViewport().GetTexture().GetImage();
+        onShot.SavePng(Path.Combine(destDir, "godot-port-autosell-on.png"));
+        onShot.SavePng("/opt/cursor/artifacts/godot-port-autosell-on.png");
+
+        // Live liquidate: spike demo with auto-sell until core sales register.
+        _mercato?.Close();
+        var demo = FactorySlice.CreateSpikeDemo(FactoryContent.Load(_contentPath));
+        demo.AutoSellAtCore = true;
+        _slice = demo;
+        _itemSprites.Clear();
+        if (_itemsLayer is not null)
+        {
+            foreach (var child in _itemsLayer.GetChildren())
+            {
+                child.QueueFree();
+            }
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        SyncResearchLocks();
+        UpdateHud();
+
+        var money0 = _slice.Wallet.Money;
+        for (var i = 0; i < 30 * 50; i++)
+        {
+            _slice.Tick(1f / 30f);
+            if (_slice.Session.SaleIncome > 0 && _slice.Wallet.Money > money0)
+            {
+                break;
+            }
+        }
+
+        _visualDirty = true;
+        UpdateHud();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var liveShot = GetViewport().GetTexture().GetImage();
+        liveShot.SavePng(Path.Combine(destDir, "godot-port-autosell-live.png"));
+        liveShot.SavePng("/opt/cursor/artifacts/godot-port-autosell-live.png");
+
+        GD.Print($"Auto-sell shots · money {_slice.Wallet.Money} · sales ${_slice.Session.SaleIncome}");
         GetTree().Quit();
     }
 

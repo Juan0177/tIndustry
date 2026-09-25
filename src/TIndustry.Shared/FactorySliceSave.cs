@@ -21,6 +21,7 @@ public sealed class FactorySliceSaveData
     public int SaleIncome { get; set; }
     public Dictionary<string, int> SoldByItem { get; set; } = new(StringComparer.Ordinal);
     public string? ActiveCampaignLevelId { get; set; }
+    public bool AutoSellAtCore { get; set; }
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];
