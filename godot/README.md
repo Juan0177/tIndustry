@@ -19,6 +19,7 @@ TINDUSTRY_CAPTURE=1 godot4 --path godot        # screenshots
 | Esc / \` | Cursore (nessun tool) |
 | 1–9 | Nastro … Ponte (2 = Minatore) |
 | M | Mercato (vendi stock) |
+| G | Campagna (seleziona livello) |
 | T | Ricerca (grafo) |
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
@@ -53,3 +54,7 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 ## Mercato
 
 **M** apre il Mercato: vendi stock del Core (1 / tutti) a prezzo dinamico (scende con stock alto). Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
+
+## Campagna
+
+**G** apre la selezione livelli (IT). Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` (save v4).

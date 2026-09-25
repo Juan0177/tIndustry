@@ -1,0 +1,150 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace TIndustry.Shared;
+
+/// <summary>
+/// Persisted campaign unlock/completion under AppData (<c>campaignProgress.json</c>).
+/// Objective evaluators mirror Raylib CampaignProgress.
+/// </summary>
+public sealed class CampaignProgress
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
+    public List<string> CompletedLevelIds { get; set; } = [];
+
+    public static string ProgressDirectory =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "tIndustry");
+
+    public static string ProgressPath =>
+        Path.Combine(ProgressDirectory, "campaignProgress.json");
+
+    public static CampaignProgress Load(string? path = null)
+    {
+        var resolved = path ?? ProgressPath;
+        try
+        {
+            if (!File.Exists(resolved))
+            {
+                return new CampaignProgress();
+            }
+
+            return JsonSerializer.Deserialize<CampaignProgress>(File.ReadAllText(resolved), JsonOptions)
+                ?? new CampaignProgress();
+        }
+        catch
+        {
+            return new CampaignProgress();
+        }
+    }
+
+    public void Save(string? path = null)
+    {
+        var resolved = path ?? ProgressPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(resolved) ?? ProgressDirectory);
+        CompletedLevelIds = CompletedLevelIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        File.WriteAllText(resolved, JsonSerializer.Serialize(this, JsonOptions));
+    }
+
+    public bool IsCompleted(string levelId) =>
+        CompletedLevelIds.Contains(levelId, StringComparer.Ordinal);
+
+    public bool IsUnlocked(CampaignLevelDefinition level, CampaignCatalog catalog)
+    {
+        if (catalog.Levels.Count == 0)
+        {
+            return false;
+        }
+
+        if (string.Equals(level.Id, catalog.Levels[0].Id, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (IsCompleted(level.Id))
+        {
+            return true;
+        }
+
+        foreach (var candidate in catalog.Levels)
+        {
+            if (string.Equals(candidate.UnlocksNext, level.Id, StringComparison.Ordinal)
+                && IsCompleted(candidate.Id))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void MarkComplete(string levelId, string? path = null)
+    {
+        if (!CompletedLevelIds.Contains(levelId, StringComparer.Ordinal))
+        {
+            CompletedLevelIds.Add(levelId);
+        }
+
+        Save(path);
+    }
+
+    public static int GetObjectiveCurrent(
+        CampaignObjectiveDefinition objective,
+        EconomyWallet wallet,
+        EconomySession session,
+        ResearchState research)
+    {
+        var target = Math.Max(1, objective.Amount);
+        return objective.Type switch
+        {
+            CampaignObjectiveType.EarnMoney =>
+                Math.Clamp(session.SaleIncome, 0, target),
+            CampaignObjectiveType.StockItem when !string.IsNullOrWhiteSpace(objective.ItemId) =>
+                Math.Clamp(wallet.MaterialCount(objective.ItemId!), 0, target),
+            CampaignObjectiveType.UnlockResearch when !string.IsNullOrWhiteSpace(objective.StructureId) =>
+                research.IsUnlocked(objective.StructureId!) ? 1 : 0,
+            CampaignObjectiveType.SellItem when !string.IsNullOrWhiteSpace(objective.ItemId) =>
+                Math.Clamp(session.SoldByItem.GetValueOrDefault(objective.ItemId!), 0, target),
+            _ => 0
+        };
+    }
+
+    public static int GetObjectiveTarget(CampaignObjectiveDefinition objective) =>
+        objective.Type == CampaignObjectiveType.UnlockResearch
+            ? 1
+            : Math.Max(1, objective.Amount);
+
+    public static bool IsObjectiveComplete(
+        CampaignObjectiveDefinition objective,
+        EconomyWallet wallet,
+        EconomySession session,
+        ResearchState research) =>
+        GetObjectiveCurrent(objective, wallet, session, research)
+        >= GetObjectiveTarget(objective);
+
+    public static bool AreAllObjectivesComplete(
+        CampaignLevelDefinition level,
+        EconomyWallet wallet,
+        EconomySession session,
+        ResearchState research)
+    {
+        var objectives = level.Objectives;
+        if (objectives is null || objectives.Count == 0)
+        {
+            return false;
+        }
+
+        return objectives.All(objective =>
+            IsObjectiveComplete(objective, wallet, session, research));
+    }
+}

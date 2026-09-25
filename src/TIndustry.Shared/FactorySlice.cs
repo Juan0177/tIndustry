@@ -47,6 +47,7 @@ public sealed class FactorySlice
     public ResearchState Research { get; }
     public MarketCatalog Market { get; }
     public EconomySession Session { get; }
+    public string? ActiveCampaignLevelId { get; set; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
@@ -80,6 +81,7 @@ public sealed class FactorySlice
             SaleIncome = Session.SaleIncome,
             SoldByItem = Session.SoldByItem.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
             StartingMoney = Session.StartingMoney,
+            ActiveCampaignLevelId = ActiveCampaignLevelId,
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -179,7 +181,8 @@ public sealed class FactorySlice
         var slice = new FactorySlice(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
-            CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems)
+            CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
+            ActiveCampaignLevelId = data.ActiveCampaignLevelId
         };
 
         foreach (var m in data.Miners)
@@ -631,6 +634,24 @@ public sealed class FactorySlice
 
     public int PreviewSellPrice(string itemId) =>
         Market.GetDynamicSellPrice(itemId, Wallet.MaterialCount(itemId));
+
+    /// <summary>Empty factory around fixed core with campaign wallet/session/research.</summary>
+    public static FactorySlice CreateCampaignSlice(
+        FactoryContent content,
+        CampaignCatalog catalog,
+        CampaignLevelDefinition level,
+        GridPosition coreOrigin,
+        int coreSize = 2)
+    {
+        var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
+        var wallet = catalog.CreateWallet(level);
+        var session = new EconomySession(level.StartingMoney);
+        var research = ResearchState.CreateNew(content);
+        return new FactorySlice(content, new BeltGrid(), core, wallet, research, session)
+        {
+            ActiveCampaignLevelId = level.Id
+        };
+    }
 
     public static string? StructureIdForTool(string toolKey) => toolKey switch
     {
@@ -1581,6 +1602,105 @@ public sealed class FactorySlice
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
         Assert(restored.Research.IsUnlocked("smelter"), "restore research");
         FactorySliceSaveStore.Delete("selftest-mercato");
+    }
+
+    /// <summary>Campaign catalog, objectives, progress unlock, save v4 level id.</summary>
+    public static void SelfTestCampaign(string contentJsonPath, string campaignJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var catalog = CampaignCatalog.Load(campaignJsonPath);
+        Assert(catalog.Levels.Count >= 2, "campaign levels");
+        var l01 = catalog.FirstLevel!;
+        Assert(l01.Objectives is { Count: >= 2 }, "L01 objectives");
+        Assert(l01.Objectives!.Any(o => o.Type == CampaignObjectiveType.SellItem), "L01 sell");
+        Assert(l01.Objectives!.Any(o => o.Type == CampaignObjectiveType.EarnMoney), "L01 earn");
+
+        var progressPath = Path.Combine(Path.GetTempPath(), $"tindustry-campaign-test-{Guid.NewGuid():N}.json");
+        try
+        {
+            if (File.Exists(progressPath))
+            {
+                File.Delete(progressPath);
+            }
+
+            var progress = CampaignProgress.Load(progressPath);
+            Assert(progress.IsUnlocked(l01, catalog), "L01 unlocked");
+            var l02 = catalog.Find(l01.UnlocksNext!);
+            Assert(l02 is not null, "L02 exists");
+            Assert(!progress.IsUnlocked(l02!, catalog), "L02 locked");
+
+            var slice = CreateCampaignSlice(content, catalog, l01, new GridPosition(9, 14));
+            Assert(slice.Wallet.Money == l01.StartingMoney, "start money");
+            Assert(slice.Session.SaleIncome == 0, "sale income 0");
+            Assert(slice.ActiveCampaignLevelId == l01.Id, "active level");
+
+            // sellItem + earnMoney via Mercato path
+            slice.Wallet.AddMaterial("iron-ore", 10);
+            Assert(slice.TrySellFromWallet("iron-ore", 3), "sell 3 ore");
+            Assert(CampaignProgress.IsObjectiveComplete(
+                l01.Objectives!.First(o => o.Type == CampaignObjectiveType.SellItem),
+                slice.Wallet, slice.Session, slice.Research), "sellItem done");
+            // May need more sells for $24 earnMoney depending on price
+            while (!CampaignProgress.AreAllObjectivesComplete(
+                       l01, slice.Wallet, slice.Session, slice.Research)
+                   && slice.Wallet.MaterialCount("iron-ore") > 0)
+            {
+                Assert(slice.TrySellFromWallet("iron-ore", 1), "sell more");
+            }
+
+            if (!CampaignProgress.AreAllObjectivesComplete(
+                    l01, slice.Wallet, slice.Session, slice.Research))
+            {
+                // Force earnMoney if soft prices didn't reach $24
+                var earn = l01.Objectives!.First(o => o.Type == CampaignObjectiveType.EarnMoney);
+                while (slice.Session.SaleIncome < earn.Amount)
+                {
+                    slice.Wallet.AddMaterial("iron-ore", 1);
+                    Assert(slice.TrySellFromWallet("iron-ore", 1), "force sell");
+                }
+            }
+
+            Assert(CampaignProgress.AreAllObjectivesComplete(
+                l01, slice.Wallet, slice.Session, slice.Research), "L01 complete");
+
+            // stockItem
+            var stockObj = new CampaignObjectiveDefinition(
+                CampaignObjectiveType.StockItem, 5, ItemId: "iron-ore", Label: "test stock");
+            slice.Wallet.AddMaterial("iron-ore", 5);
+            Assert(CampaignProgress.IsObjectiveComplete(stockObj, slice.Wallet, slice.Session, slice.Research),
+                "stock complete");
+
+            // unlockResearch
+            slice.Wallet.AddMoney(500);
+            slice.Wallet.AddMaterial("iron-plate", 40);
+            Assert(slice.TryUnlockStructure("smelter"), "unlock smelter");
+            var unlockObj = new CampaignObjectiveDefinition(
+                CampaignObjectiveType.UnlockResearch, 1, StructureId: "smelter");
+            Assert(CampaignProgress.IsObjectiveComplete(unlockObj, slice.Wallet, slice.Session, slice.Research),
+                "unlock complete");
+
+            progress.MarkComplete(l01.Id, progressPath);
+            var reloaded = CampaignProgress.Load(progressPath);
+            Assert(reloaded.IsCompleted(l01.Id), "progress saved");
+            Assert(reloaded.IsUnlocked(l02!, catalog), "L02 unlocked");
+
+            var snap = slice.Capture();
+            Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v4");
+            Assert(snap.ActiveCampaignLevelId == l01.Id, "capture level id");
+            FactorySliceSaveStore.Delete("selftest-campaign");
+            FactorySliceSaveStore.Save("selftest-campaign", snap);
+            var restored = Restore(content, FactorySliceSaveStore.Load("selftest-campaign"));
+            Assert(restored.ActiveCampaignLevelId == l01.Id, "restore level id");
+            Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore sales");
+            FactorySliceSaveStore.Delete("selftest-campaign");
+        }
+        finally
+        {
+            if (File.Exists(progressPath))
+            {
+                File.Delete(progressPath);
+            }
+        }
     }
 
     private static void Assert(bool condition, string message)

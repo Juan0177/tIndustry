@@ -40,7 +40,14 @@ public partial class SpikeWorld : Node2D
     private FactoryHud? _hud;
     private ResearchPanel? _research;
     private MercatoPanel? _mercato;
+    private CampaignSelectPanel? _campaignSelect;
+    private CampaignCatalog? _campaign;
+    private CampaignProgress? _progress;
+    private string _progressPath = CampaignProgress.ProgressPath;
+    private CampaignLevelDefinition? _activeLevel;
+    private bool _levelCompleteToastShown;
     private string _contentPath = "";
+    private string _campaignPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Cursor;
     private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
@@ -59,13 +66,18 @@ public partial class SpikeWorld : Node2D
     public override void _Ready()
     {
         _contentPath = ResolveContentPath();
+        _campaignPath = ResolveCampaignPath();
         var content = FactoryContent.Load(_contentPath);
+        _campaign = CampaignCatalog.Load(_campaignPath);
+        _progressPath = CampaignProgress.ProgressPath;
+        _progress = CampaignProgress.Load(_progressPath);
         _slice = FactorySlice.CreateSorterBridgeDemo(content);
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureFactoryHud();
         EnsureResearchPanel();
         EnsureMercatoPanel();
+        EnsureCampaignSelectPanel();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -79,8 +91,25 @@ public partial class SpikeWorld : Node2D
         SyncResearchLocks();
         UpdateHud();
 
-        // Mercato capture: stocked wallet + sell demo.
+        // Campaign capture: select + objectives on L01.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "campaign")
+        {
+            // Fresh progress so L02 stays locked in select shot.
+            var captureProgressPath = Path.Combine(Path.GetTempPath(), "tindustry-capture-campaign-progress.json");
+            if (File.Exists(captureProgressPath))
+            {
+                File.Delete(captureProgressPath);
+            }
+
+            _progressPath = captureProgressPath;
+            _progress = CampaignProgress.Load(_progressPath);
+            if (_campaign?.FirstLevel is { } l01)
+            {
+                StartCampaignLevel(l01, toast: false);
+            }
+        }
+        else if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
             && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "cursor"
             && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "research")
         {
@@ -173,6 +202,7 @@ public partial class SpikeWorld : Node2D
         _hud.LoadSlotRequested += () => LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
         _hud.ResearchRequested += ToggleResearch;
         _hud.MercatoRequested += ToggleMercato;
+        _hud.CampaignRequested += ToggleCampaign;
         _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
@@ -193,6 +223,7 @@ public partial class SpikeWorld : Node2D
         _research.UnlockedChanged += () =>
         {
             SyncResearchLocks();
+            CheckCampaignComplete();
             if (_slice is not null)
             {
                 _hud?.ShowToast("Sblocco applicato");
@@ -216,10 +247,31 @@ public partial class SpikeWorld : Node2D
         _mercato.SoldChanged += () =>
         {
             UpdateHud();
+            CheckCampaignComplete();
             if (_slice is not null)
             {
                 _hud?.ShowToast($"Vendita · Magazzino ${_slice.Wallet.Money}");
             }
+        };
+    }
+
+    private void EnsureCampaignSelectPanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("CampaignSelectPanel"))
+        {
+            _campaignSelect = layer.GetNode<CampaignSelectPanel>("CampaignSelectPanel");
+        }
+        else
+        {
+            _campaignSelect = new CampaignSelectPanel { Name = "CampaignSelectPanel" };
+            layer.AddChild(_campaignSelect);
+        }
+
+        _campaignSelect.LevelChosen += level =>
+        {
+            StartCampaignLevel(level, toast: true);
+            _campaignSelect.Close();
         };
     }
 
@@ -237,6 +289,7 @@ public partial class SpikeWorld : Node2D
         }
 
         _mercato?.Close();
+        _campaignSelect?.Close();
         ClearToCursor(toast: false);
         _research.Open(_slice);
     }
@@ -255,8 +308,99 @@ public partial class SpikeWorld : Node2D
         }
 
         _research?.Close();
+        _campaignSelect?.Close();
         ClearToCursor(toast: false);
         _mercato.Open(_slice);
+    }
+
+    private void ToggleCampaign()
+    {
+        if (_campaign is null || _progress is null || _campaignSelect is null)
+        {
+            return;
+        }
+
+        if (_campaignSelect.IsOpen)
+        {
+            _campaignSelect.Close();
+            return;
+        }
+
+        _research?.Close();
+        _mercato?.Close();
+        ClearToCursor(toast: false);
+        _campaignSelect.Open(_campaign, _progress);
+    }
+
+    private void StartCampaignLevel(CampaignLevelDefinition level, bool toast)
+    {
+        if (_campaign is null)
+        {
+            return;
+        }
+
+        var content = FactoryContent.Load(_contentPath);
+        _slice = FactorySlice.CreateCampaignSlice(
+            content, _campaign, level, new GridPosition(9, 14), coreSize: 2);
+        // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
+        // after placing miner, but also allow starting sells from stock if we add ore.
+        if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
+        {
+            _slice.Wallet.AddMaterial("iron-ore", 8);
+        }
+
+        _activeLevel = level;
+        _levelCompleteToastShown = false;
+        _tool = BuildTool.Cursor;
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        SyncResearchLocks();
+        UpdateHud();
+        if (toast)
+        {
+            _hud?.ShowToast($"Campagna · {level.Name}");
+        }
+    }
+
+    private void CheckCampaignComplete()
+    {
+        if (_slice is null || _activeLevel is null || _progress is null || _campaign is null)
+        {
+            return;
+        }
+
+        if (!CampaignProgress.AreAllObjectivesComplete(
+                _activeLevel, _slice.Wallet, _slice.Session, _slice.Research))
+        {
+            return;
+        }
+
+        if (!_progress.IsCompleted(_activeLevel.Id))
+        {
+            _progress.MarkComplete(_activeLevel.Id, _progressPath);
+        }
+
+        if (!_levelCompleteToastShown)
+        {
+            _levelCompleteToastShown = true;
+            _hud?.ShowToast($"Livello completato · {_activeLevel.Name}");
+            _campaignSelect?.Refresh();
+        }
+    }
+
+    private void RestoreActiveLevelFromSlice()
+    {
+        if (_slice?.ActiveCampaignLevelId is not { } id || _campaign is null)
+        {
+            _activeLevel = null;
+            _hud?.ClearObjectives();
+            return;
+        }
+
+        _activeLevel = _campaign.Find(id);
+        _levelCompleteToastShown = false;
     }
 
     private void SyncResearchLocks()
@@ -337,6 +481,7 @@ public partial class SpikeWorld : Node2D
             RebuildBeltVisual();
             RebuildBuildingVisuals();
             SyncResearchLocks();
+            RestoreActiveLevelFromSlice();
             UpdateHud();
             QueueRedraw();
             _hud?.ShowToast(toast);
@@ -468,7 +613,14 @@ public partial class SpikeWorld : Node2D
                 return;
             }
 
-            if (_research?.IsOpen == true || _mercato?.IsOpen == true)
+            if (key.Keycode == Key.G)
+            {
+                ToggleCampaign();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (_research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true)
             {
                 return;
             }
@@ -586,7 +738,7 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (_research?.IsOpen == true || _mercato?.IsOpen == true)
+        if (_research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true)
         {
             return;
         }
@@ -678,6 +830,7 @@ public partial class SpikeWorld : Node2D
         }
 
         UpdateHud();
+        CheckCampaignComplete();
         QueueRedraw();
     }
 
@@ -1200,6 +1353,19 @@ public partial class SpikeWorld : Node2D
             gensLive,
             _slice.Generators.Count);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
+        if (_activeLevel is not null)
+        {
+            _hud.UpdateObjectives(
+                _activeLevel,
+                _slice.Wallet,
+                _slice.Session,
+                _slice.Research,
+                id => ShortName(_slice.Content.DisplayName(id)));
+        }
+        else
+        {
+            _hud.ClearObjectives();
+        }
     }
 
     private static string ShortName(string display)
@@ -1243,6 +1409,87 @@ public partial class SpikeWorld : Node2D
 
         throw new FileNotFoundException(
             "content.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
+    }
+
+    private static string ResolveCampaignPath()
+    {
+        var candidates = new[]
+        {
+            ProjectSettings.GlobalizePath("res://../data/campaign.json"),
+            ProjectSettings.GlobalizePath("res://data/campaign.json"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "data", "campaign.json")),
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "data", "campaign.json")),
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "data", "campaign.json")),
+        };
+
+        foreach (var path in candidates)
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        throw new FileNotFoundException(
+            "campaign.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
+    }
+
+    private async Task CaptureCampaignShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null || _campaign is null || _progress is null)
+        {
+            return;
+        }
+
+        _campaignSelect?.Open(_campaign, _progress);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        var selectShot = GetViewport().GetTexture().GetImage();
+        selectShot.SavePng(Path.Combine(destDir, "godot-port-campaign-select.png"));
+        selectShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-select.png");
+        GD.Print($"Saved campaign select → {destDir}");
+
+        _campaignSelect?.Close();
+        if (_campaign.FirstLevel is { } l01)
+        {
+            StartCampaignLevel(l01, toast: false);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var objShot = GetViewport().GetTexture().GetImage();
+        objShot.SavePng(Path.Combine(destDir, "godot-port-campaign-objectives.png"));
+        objShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-objectives.png");
+
+        // Progress: sell toward L01 objectives.
+        while (_slice.Wallet.MaterialCount("iron-ore") > 0
+               && _activeLevel is not null
+               && !CampaignProgress.AreAllObjectivesComplete(
+                   _activeLevel, _slice.Wallet, _slice.Session, _slice.Research))
+        {
+            if (!_slice.TrySellFromWallet("iron-ore", 1))
+            {
+                break;
+            }
+        }
+
+        CheckCampaignComplete();
+        UpdateHud();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var progressShot = GetViewport().GetTexture().GetImage();
+        progressShot.SavePng(Path.Combine(destDir, "godot-port-campaign-progress.png"));
+        progressShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-progress.png");
+
+        _campaignSelect?.Open(_campaign, _progress);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var unlockedShot = GetViewport().GetTexture().GetImage();
+        unlockedShot.SavePng(Path.Combine(destDir, "godot-port-campaign-l02-unlocked.png"));
+        unlockedShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-l02-unlocked.png");
+
+        GD.Print("Campaign screenshot set complete.");
+        GetTree().Quit();
     }
 
     private async Task SavePortScreenshotsAsync()
@@ -1291,6 +1538,12 @@ public partial class SpikeWorld : Node2D
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "research")
         {
             await CaptureResearchShotsAsync(destDir);
+            return;
+        }
+
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "campaign")
+        {
+            await CaptureCampaignShotsAsync(destDir);
             return;
         }
 

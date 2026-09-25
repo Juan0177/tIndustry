@@ -1,4 +1,5 @@
 using Godot;
+using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
@@ -38,6 +39,9 @@ public partial class FactoryHud : Control
     private Label? _hintLabel;
     private Label? _titleLabel;
     private Label? _moneyLabel;
+    private PanelContainer? _objectivesPanel;
+    private Label? _objectivesTitle;
+    private VBoxContainer? _objectivesList;
     private ToolKind _selected = ToolKind.Cursor;
     private Tween? _toastTween;
 
@@ -48,6 +52,7 @@ public partial class FactoryHud : Control
     public event Action? LoadSlotRequested;
     public event Action? ResearchRequested;
     public event Action? MercatoRequested;
+    public event Action? CampaignRequested;
 
     public ToolKind SelectedTool => _selected;
     public bool IsCursorMode => _selected == ToolKind.Cursor;
@@ -59,10 +64,12 @@ public partial class FactoryHud : Control
         MouseFilter = MouseFilterEnum.Ignore;
 
         BuildStockPanel();
+        BuildObjectivesPanel();
         BuildToolbar();
         BuildToast();
         SetSelectedTool(ToolKind.Cursor);
         SetDirectionLabel("Est");
+        ClearObjectives();
     }
 
     public void SetSelectedTool(ToolKind tool)
@@ -284,29 +291,115 @@ public partial class FactoryHud : Control
         iconWrap.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         box.AddChild(iconWrap);
 
-        var center = new CenterContainer();
-        iconWrap.AddChild(center);
-        var tex = GD.Load<Texture2D>(texPath);
         var icon = new TextureRect
         {
-            Texture = tex,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            CustomMinimumSize = new Vector2(36, 36),
-            Modulate = Colors.White
+            CustomMinimumSize = new Vector2(40, 40)
         };
-        center.AddChild(icon);
+        if (ResourceLoader.Exists(texPath))
+        {
+            icon.Texture = GD.Load<Texture2D>(texPath);
+        }
+
+        iconWrap.AddChild(icon);
 
         var label = new Label
         {
             Text = $"{fallbackName}\n0",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
+            HorizontalAlignment = HorizontalAlignment.Center
         };
         label.AddThemeColorOverride("font_color", TextPrimary);
         label.AddThemeFontSizeOverride("font_size", 11);
         box.AddChild(label);
         _stockLabels[id] = label;
+    }
+
+    private void BuildObjectivesPanel()
+    {
+        _objectivesPanel = MakePanel("ObjectivesPanel");
+        _objectivesPanel.SetAnchorsPreset(LayoutPreset.TopLeft);
+        _objectivesPanel.OffsetLeft = 12;
+        _objectivesPanel.OffsetTop = 12;
+        _objectivesPanel.OffsetRight = 360;
+        _objectivesPanel.OffsetBottom = 140;
+        _objectivesPanel.Visible = false;
+        AddChild(_objectivesPanel);
+
+        var margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 12);
+        margin.AddThemeConstantOverride("margin_right", 12);
+        margin.AddThemeConstantOverride("margin_top", 10);
+        margin.AddThemeConstantOverride("margin_bottom", 10);
+        _objectivesPanel.AddChild(margin);
+
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 4);
+        margin.AddChild(vbox);
+
+        _objectivesTitle = new Label { Text = "OBIETTIVO" };
+        _objectivesTitle.AddThemeColorOverride("font_color", SlotSelected);
+        _objectivesTitle.AddThemeFontSizeOverride("font_size", 14);
+        vbox.AddChild(_objectivesTitle);
+
+        _objectivesList = new VBoxContainer();
+        _objectivesList.AddThemeConstantOverride("separation", 2);
+        vbox.AddChild(_objectivesList);
+    }
+
+    public void ClearObjectives()
+    {
+        if (_objectivesPanel is not null)
+        {
+            _objectivesPanel.Visible = false;
+        }
+
+        if (_objectivesList is null)
+        {
+            return;
+        }
+
+        foreach (var child in _objectivesList.GetChildren())
+        {
+            child.QueueFree();
+        }
+    }
+
+    public void UpdateObjectives(
+        CampaignLevelDefinition level,
+        EconomyWallet wallet,
+        EconomySession session,
+        ResearchState research,
+        Func<string, string>? itemName = null)
+    {
+        if (_objectivesPanel is null || _objectivesTitle is null || _objectivesList is null)
+        {
+            return;
+        }
+
+        _objectivesPanel.Visible = true;
+        _objectivesTitle.Text = $"OBIETTIVO · {level.Name}";
+
+        foreach (var child in _objectivesList.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var objectives = level.Objectives ?? [];
+        foreach (var objective in objectives)
+        {
+            var current = CampaignProgress.GetObjectiveCurrent(objective, wallet, session, research);
+            var done = CampaignProgress.IsObjectiveComplete(objective, wallet, session, research);
+            var text = CampaignCatalog.FormatObjectiveProgress(objective, current, itemName);
+            var label = new Label { Text = text };
+            label.AddThemeColorOverride("font_color",
+                done ? new Color(0.45f, 0.85f, 0.55f) : TextMuted);
+            label.AddThemeFontSizeOverride("font_size", 12);
+            _objectivesList.AddChild(label);
+        }
+
+        var lines = Math.Max(1, objectives.Count);
+        _objectivesPanel.OffsetBottom = 12 + 36 + lines * 20;
     }
 
     private void BuildToolbar()
@@ -391,6 +484,10 @@ public partial class FactoryHud : Control
         AddActionChip(saveRow, "Mercato", "M", () =>
         {
             MercatoRequested?.Invoke();
+        });
+        AddActionChip(saveRow, "Campagna", "G", () =>
+        {
+            CampaignRequested?.Invoke();
         });
         AddActionChip(saveRow, "Salva", "F5", () =>
         {

@@ -3,10 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace TIndustry.Shared;
 
-/// <summary>Godot factory-slice save (v3: mercato session). v1/v2 load with empty sales.</summary>
+/// <summary>Godot factory-slice save (v4: active campaign level). v1–v3 load with null level.</summary>
 public sealed class FactorySliceSaveData
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -20,6 +20,7 @@ public sealed class FactorySliceSaveData
     public int StartingMoney { get; set; }
     public int SaleIncome { get; set; }
     public Dictionary<string, int> SoldByItem { get; set; } = new(StringComparer.Ordinal);
+    public string? ActiveCampaignLevelId { get; set; }
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];

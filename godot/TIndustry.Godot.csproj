@@ -12,5 +12,6 @@
   <!-- Ship seed content.json next to the Godot project for the spike loader. -->
   <ItemGroup>
     <None Include="../data/content.json" Link="data/content.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../data/campaign.json" Link="data/campaign.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
