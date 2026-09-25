@@ -3,7 +3,8 @@ using Godot;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Opaque footprint box + border with optional centered icon (miner/forno/assemblatore).
+/// Full-footprint block sprite (opaque tile art) with optional thin edge highlight.
+/// Used for in-world buildings so map + palette share the same sprites.
 /// </summary>
 public static class BuildingPad
 {
@@ -25,6 +26,36 @@ public static class BuildingPad
             new(-half, half)
         ];
 
+        if (icon is not null)
+        {
+            // Stretch the 64×64 block art across the footprint (nearest-neighbor via TextureFilter).
+            var span = footprintTiles * tileSize;
+            var sprite = new Sprite2D
+            {
+                Name = "Block",
+                Texture = icon,
+                Centered = true,
+                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                Scale = new Vector2(span / icon.GetWidth(), span / icon.GetHeight()) * iconScale,
+                Modulate = Colors.White,
+                ZIndex = 0
+            };
+            root.AddChild(sprite);
+
+            var outline = new Line2D
+            {
+                Name = "Border",
+                Width = 2f,
+                DefaultColor = border,
+                Antialiased = false,
+                Closed = true,
+                Points = box,
+                ZIndex = 1
+            };
+            root.AddChild(outline);
+            return root;
+        }
+
         var pad = new Polygon2D
         {
             Name = "Pad",
@@ -34,7 +65,7 @@ public static class BuildingPad
         };
         root.AddChild(pad);
 
-        var outline = new Line2D
+        var fallbackOutline = new Line2D
         {
             Name = "Border",
             Width = 3.5f,
@@ -44,22 +75,7 @@ public static class BuildingPad
             Points = box,
             ZIndex = 1
         };
-        root.AddChild(outline);
-
-        if (icon is not null)
-        {
-            var sprite = new Sprite2D
-            {
-                Name = "Icon",
-                Texture = icon,
-                Centered = true,
-                Scale = Vector2.One * iconScale,
-                Modulate = Colors.White,
-                ZIndex = 2
-            };
-            root.AddChild(sprite);
-        }
-
+        root.AddChild(fallbackOutline);
         return root;
     }
 }

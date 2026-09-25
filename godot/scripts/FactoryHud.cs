@@ -64,7 +64,7 @@ public partial class FactoryHud : Control
     [
         new(ToolKind.Belt, "conveyor-basic", "res://assets/conveyor-basic.png", "1",
             "Nastro T1 · flusso unidirezionale · R/rotella"),
-        new(ToolKind.BeltFast, "conveyor-fast", "res://assets/conveyor-basic.png", "",
+        new(ToolKind.BeltFast, "conveyor-fast", "res://assets/conveyor-fast.png", "",
             "Nastro T2 · più veloce · sblocca in Ricerca"),
         new(ToolKind.Junction, "junction", "res://assets/junction.png", "5",
             "Incrocio a croce"),
@@ -80,13 +80,13 @@ public partial class FactoryHud : Control
     [
         new(ToolKind.Miner, "miner", "res://assets/miner.png", "2",
             "Estrae minerali · uscita su tutti i lati · 2×2"),
-        new(ToolKind.MinerAdvanced, "miner-advanced", "res://assets/miner.png", "",
+        new(ToolKind.MinerAdvanced, "miner-advanced", "res://assets/miner-advanced.png", "",
             "Minatore T2 · 2× velocità · sblocca in Ricerca"),
         new(ToolKind.Smelter, "smelter", "res://assets/smelter.png", "3",
             "Carbone o corrente · +20% craft se alimentato · 2×2"),
         new(ToolKind.Assembler, "assembler", "res://assets/assembler.png", "4",
             "Assembla prodotti · R ruota uscita · 2×2"),
-        new(ToolKind.Extractor, "extractor", "res://assets/miner.png", "",
+        new(ToolKind.Extractor, "extractor", "res://assets/extractor.png", "",
             "Estrae dal Core → nastro · F filtro · R uscita · 1×1")
     ];
 
@@ -94,7 +94,7 @@ public partial class FactoryHud : Control
     [
         new(ToolKind.Generator, "generator", "res://assets/generator.png", "7",
             "Brucia carbone per energia · 2×2"),
-        new(ToolKind.PowerNode, "power-node", "res://assets/generator.png", "",
+        new(ToolKind.PowerNode, "power-node", "res://assets/power-node.png", "",
             "Nodo T1 · raggio 6 · collega generatore ↔ forno")
     ];
 
