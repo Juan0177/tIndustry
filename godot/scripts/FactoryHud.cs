@@ -13,14 +13,18 @@ public partial class FactoryHud : Control
     {
         Cursor,
         Belt,
+        BeltFast,
         Miner,
+        MinerAdvanced,
         Smelter,
         Assembler,
         Junction,
         Splitter,
         Generator,
         Sorter,
-        Bridge
+        Bridge,
+        Extractor,
+        PowerNode
     }
 
     private enum BuildCategory
@@ -60,6 +64,8 @@ public partial class FactoryHud : Control
     [
         new(ToolKind.Belt, "conveyor-basic", "res://assets/conveyor-basic.png", "1",
             "Nastro T1 · flusso unidirezionale · R/rotella"),
+        new(ToolKind.BeltFast, "conveyor-fast", "res://assets/conveyor-basic.png", "",
+            "Nastro T2 · più veloce · sblocca in Ricerca"),
         new(ToolKind.Junction, "junction", "res://assets/junction.png", "5",
             "Incrocio a croce"),
         new(ToolKind.Splitter, "splitter", "res://assets/splitter.png", "6",
@@ -74,16 +80,22 @@ public partial class FactoryHud : Control
     [
         new(ToolKind.Miner, "miner", "res://assets/miner.png", "2",
             "Estrae minerali · uscita su tutti i lati · 2×2"),
+        new(ToolKind.MinerAdvanced, "miner-advanced", "res://assets/miner.png", "",
+            "Minatore T2 · 2× velocità · sblocca in Ricerca"),
         new(ToolKind.Smelter, "smelter", "res://assets/smelter.png", "3",
             "Carbone o corrente · +20% craft se alimentato · 2×2"),
         new(ToolKind.Assembler, "assembler", "res://assets/assembler.png", "4",
-            "Assembla prodotti · R ruota uscita · 2×2")
+            "Assembla prodotti · R ruota uscita · 2×2"),
+        new(ToolKind.Extractor, "extractor", "res://assets/miner.png", "",
+            "Estrae dal Core → nastro · F filtro · R uscita · 1×1")
     ];
 
     private static readonly PaletteEntry[] PowerEntries =
     [
         new(ToolKind.Generator, "generator", "res://assets/generator.png", "7",
-            "Brucia carbone per energia · 2×2")
+            "Brucia carbone per energia · 2×2"),
+        new(ToolKind.PowerNode, "power-node", "res://assets/generator.png", "",
+            "Nodo T1 · raggio 6 · collega generatore ↔ forno")
     ];
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
@@ -1364,10 +1376,11 @@ public partial class FactoryHud : Control
     private static BuildCategory CategoryFor(ToolKind tool) => tool switch
     {
         ToolKind.Cursor => BuildCategory.Tools,
-        ToolKind.Belt or ToolKind.Junction or ToolKind.Splitter or ToolKind.Sorter or ToolKind.Bridge
+        ToolKind.Belt or ToolKind.BeltFast or ToolKind.Junction or ToolKind.Splitter or ToolKind.Sorter or ToolKind.Bridge
             => BuildCategory.Logistics,
-        ToolKind.Miner or ToolKind.Smelter or ToolKind.Assembler => BuildCategory.Production,
-        ToolKind.Generator => BuildCategory.Power,
+        ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
+            => BuildCategory.Production,
+        ToolKind.Generator or ToolKind.PowerNode => BuildCategory.Power,
         _ => BuildCategory.Logistics
     };
 
@@ -1395,7 +1408,9 @@ public partial class FactoryHud : Control
     {
         ToolKind.Cursor => "Cursore",
         ToolKind.Belt => "Nastro",
+        ToolKind.BeltFast => "Nastro T2",
         ToolKind.Miner => "Minatore",
+        ToolKind.MinerAdvanced => "Minatore T2",
         ToolKind.Smelter => "Forno",
         ToolKind.Assembler => "Assemblatore",
         ToolKind.Junction => "Giunzione",
@@ -1403,6 +1418,8 @@ public partial class FactoryHud : Control
         ToolKind.Generator => "Generatore",
         ToolKind.Sorter => "Selezionatore",
         ToolKind.Bridge => "Ponte",
+        ToolKind.Extractor => "Estrattore",
+        ToolKind.PowerNode => "Nodo potenza",
         _ => tool.ToString()
     };
 
@@ -1412,7 +1429,9 @@ public partial class FactoryHud : Control
     public static string StructureIdFor(ToolKind tool) => tool switch
     {
         ToolKind.Belt => "conveyor-basic",
+        ToolKind.BeltFast => "conveyor-fast",
         ToolKind.Miner => "miner",
+        ToolKind.MinerAdvanced => "miner-advanced",
         ToolKind.Smelter => "smelter",
         ToolKind.Assembler => "assembler",
         ToolKind.Junction => "junction",
@@ -1420,6 +1439,8 @@ public partial class FactoryHud : Control
         ToolKind.Generator => "generator",
         ToolKind.Sorter => "sorter",
         ToolKind.Bridge => "conveyor-bridge",
+        ToolKind.Extractor => "extractor",
+        ToolKind.PowerNode => "power-node",
         _ => "conveyor-basic"
     };
 }

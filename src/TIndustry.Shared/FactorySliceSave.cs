@@ -26,7 +26,25 @@ public sealed class FactorySliceSaveData
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];
     public List<GeneratorSaveDto> Generators { get; set; } = [];
+    public List<ExtractorSaveDto> Extractors { get; set; } = [];
+    public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
     public List<BeltSaveDto> Belts { get; set; } = [];
+}
+
+public sealed class ExtractorSaveDto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string Direction { get; set; } = "East";
+    public string FilterItemId { get; set; } = ExtractorStub.DefaultFilterItemId;
+    public float Progress { get; set; }
+}
+
+public sealed class PowerNodeSaveDto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string DefinitionId { get; set; } = PowerNodeStub.Tier1Id;
 }
 
 public sealed class MinerSaveDto

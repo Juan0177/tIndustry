@@ -90,13 +90,17 @@ public sealed class ResearchState
     public static readonly string[] GodotSliceStructureIds =
     [
         "conveyor-basic",
+        "conveyor-fast",
         "miner",
+        "miner-advanced",
         "smelter",
         "assembler",
         "junction",
         "splitter",
         "generator",
         "sorter",
-        "conveyor-bridge"
+        "conveyor-bridge",
+        "extractor",
+        "power-node"
     ];
 }

@@ -11,6 +11,7 @@ public sealed class MinerProducer
     public const int OutputTileCount = Size * 4;
     public const float MiningDurationSeconds = 2f;
     public const string BasicId = "miner";
+    public const string AdvancedId = "miner-advanced";
     public const string DefaultOutputItemId = "iron-ore";
 
     public MinerProducer(
