@@ -33,13 +33,13 @@ public partial class MinerVisual : Node2D
         root.MinerOrigin = miner.Position;
 
         var span = MinerProducer.Size * tileSize;
-        var half = span * 0.5f - 1f;
+        var half = span * 0.5f;
         Vector2[] box =
         [
-            new(-half, -half),
-            new(half, -half),
-            new(half, half),
-            new(-half, half)
+            new(-half + 1f, -half + 1f),
+            new(half - 1f, -half + 1f),
+            new(half - 1f, half - 1f),
+            new(-half + 1f, half - 1f)
         ];
 
         var padPath = advanced
@@ -52,29 +52,32 @@ public partial class MinerVisual : Node2D
         var gearTex = GD.Load<Texture2D>(gearPath);
         var litTex = GD.Load<Texture2D>("res://assets/gear-perno-lit.png");
 
-        // Clip children to the square pad AABB (quarter-gears at corners).
-        var clip = new Polygon2D
+        // Control clip_contents reliably masks rotating gears to the square pad.
+        var clip = new Control
         {
             Name = "Clip",
-            Polygon = box,
-            Color = new Color(0f, 0f, 0f, 0.01f),
-            ClipChildren = ClipChildrenMode.Only,
+            ClipContents = true,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Position = new Vector2(-half, -half),
+            Size = new Vector2(span, span),
             ZIndex = 0
         };
         root.AddChild(clip);
 
-        var pad = new Sprite2D
+        var pad = new TextureRect
         {
             Name = "Pad",
             Texture = padTex,
-            Centered = true,
             TextureFilter = TextureFilterEnum.Nearest,
-            Scale = new Vector2(span / (float)padTex.GetWidth(), span / (float)padTex.GetHeight()),
-            ZIndex = 0
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.Scale,
+            Position = Vector2.Zero,
+            Size = new Vector2(span, span),
+            MouseFilter = Control.MouseFilterEnum.Ignore
         };
         clip.AddChild(pad);
 
-        // Gear pivots sit on opposite corners; only ~1/4 of each gear is visible.
+        // Gear pivots on opposite corners of the pad (local clip space).
         var gearScaleLarge = (span * 0.78f) / gearTex.GetWidth();
         var gearScaleSmall = (span * 0.52f) / gearTex.GetWidth();
 
@@ -84,7 +87,7 @@ public partial class MinerVisual : Node2D
             Texture = gearTex,
             Centered = true,
             TextureFilter = TextureFilterEnum.Nearest,
-            Position = new Vector2(-half, -half),
+            Position = Vector2.Zero,
             Scale = new Vector2(gearScaleLarge, gearScaleLarge),
             ZIndex = 1
         };
@@ -96,16 +99,17 @@ public partial class MinerVisual : Node2D
             Texture = gearTex,
             Centered = true,
             TextureFilter = TextureFilterEnum.Nearest,
-            Position = new Vector2(half, half),
+            Position = new Vector2(span, span),
             Scale = new Vector2(gearScaleSmall, gearScaleSmall),
             ZIndex = 1
         };
         clip.AddChild(root._smallGear);
 
-        // Lit perno overlays (T2 boost) — sit on pivots, above gears.
-        var litScale = 1.35f;
-        root._pernoLarge = MakePernoLit(litTex, root._largeGear.Position, litScale * gearScaleLarge);
-        root._pernoSmall = MakePernoLit(litTex, root._smallGear.Position, litScale * gearScaleSmall);
+        // Lit perno overlays (T2 boost) — world space at the same corners.
+        var litScaleLarge = 1.35f * gearScaleLarge;
+        var litScaleSmall = 1.35f * gearScaleSmall;
+        root._pernoLarge = MakePernoLit(litTex, new Vector2(-half, -half), litScaleLarge);
+        root._pernoSmall = MakePernoLit(litTex, new Vector2(half, half), litScaleSmall);
         root.AddChild(root._pernoLarge);
         root.AddChild(root._pernoSmall);
 
