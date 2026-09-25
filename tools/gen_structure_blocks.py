@@ -39,10 +39,22 @@ POW_GOLD = (0xD4, 0xB4, 0x4A, 255)
 POW_BRIGHT = (0xF0, 0xDC, 0x7A, 255)
 
 # Core
-CORE_DARK = (0x12, 0x1C, 0x28, 255)
-CORE_BODY = (0x2A, 0x4A, 0x6A, 255)
-CORE_MID = (0x3A, 0x68, 0x8A, 255)
-CORE_CYAN = (0x5A, 0xC8, 0xE8, 255)
+CORE_DARK = (0x12, 0x1A, 0x22, 255)
+CORE_BODY = (0x2A, 0x3A, 0x48, 255)
+CORE_MID = (0x3A, 0x52, 0x64, 255)
+CORE_CYAN = (0x5A, 0xC8, 0xD8, 255)
+
+# Gear colors
+RUST = (0x8A, 0x4A, 0x28, 255)
+RUST_MID = (0xA8, 0x5C, 0x32, 255)
+RUST_DARK = (0x5C, 0x2E, 0x18, 255)
+RUST_HUB = (0xC4, 0x7A, 0x3A, 255)
+GEAR_RED = (0xC4, 0x32, 0x28, 255)
+GEAR_RED_MID = (0xE0, 0x48, 0x38, 255)
+GEAR_RED_DARK = (0x7A, 0x18, 0x14, 255)
+GEAR_RED_HUB = (0xF0, 0x70, 0x58, 255)
+PERNO = (0x2A, 0x28, 0x24, 255)
+PERNO_LIT = (0xF0, 0xDC, 0x7A, 255)
 
 
 def new_img(fill=BLU2) -> Image.Image:
@@ -215,26 +227,104 @@ def draw_bridge() -> None:
     save(img, "bridge.png")
 
 
-def draw_miner(advanced: bool = False) -> None:
+def draw_gear(size: int, rust: bool) -> Image.Image:
+    """Full gear with transparent background; perno at center."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    cx = cy = size // 2
+    outer = size // 2 - 2
+    teeth = 8
+    body = RUST_MID if rust else GEAR_RED_MID
+    dark = RUST_DARK if rust else GEAR_RED_DARK
+    mid = RUST if rust else GEAR_RED
+    hub = RUST_HUB if rust else GEAR_RED_HUB
+    # Teeth
+    for i in range(teeth):
+        ang = i * (2 * math.pi / teeth)
+        # tooth tip
+        tx = cx + int(math.cos(ang) * (outer + 3))
+        ty = cy + int(math.sin(ang) * (outer + 3))
+        bx1 = cx + int(math.cos(ang - 0.22) * (outer - 2))
+        by1 = cy + int(math.sin(ang - 0.22) * (outer - 2))
+        bx2 = cx + int(math.cos(ang + 0.22) * (outer - 2))
+        by2 = cy + int(math.sin(ang + 0.22) * (outer - 2))
+        d.polygon([(tx, ty), (bx1, by1), (bx2, by2)], fill=body)
+    # Rim
+    d.ellipse([cx - outer, cy - outer, cx + outer, cy + outer], fill=mid, outline=dark)
+    d.ellipse([cx - outer + 3, cy - outer + 3, cx + outer - 3, cy + outer - 3], fill=body)
+    # Spokes
+    for i in range(4):
+        ang = i * (math.pi / 2) + 0.2
+        x2 = cx + int(math.cos(ang) * (outer - 5))
+        y2 = cy + int(math.sin(ang) * (outer - 5))
+        d.line([(cx, cy), (x2, y2)], fill=dark, width=3)
+    # Hub / perno
+    d.ellipse([cx - 6, cy - 6, cx + 6, cy + 6], fill=hub, outline=dark)
+    d.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=PERNO)
+    return img
+
+
+def paste_quarter_gear(base: Image.Image, gear: Image.Image, corner: str) -> None:
+    """Paste gear so only ~1/4 is visible in the named corner (pivot on corner)."""
+    # Pivot at corner of 64 tile; gear center sits on that corner.
+    if corner == "nw":
+        ox, oy = -gear.width // 2, -gear.height // 2
+    elif corner == "se":
+        ox, oy = SIZE - gear.width // 2, SIZE - gear.height // 2
+    elif corner == "ne":
+        ox, oy = SIZE - gear.width // 2, -gear.height // 2
+    else:
+        ox, oy = -gear.width // 2, SIZE - gear.height // 2
+    # Clip paste to tile
+    tmp = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    tmp.paste(gear, (ox, oy), gear)
+    base.alpha_composite(tmp)
+
+
+def draw_miner_body(advanced: bool = False) -> Image.Image:
     img = new_img(PROD_DARK)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [3, 3, SIZE - 4, SIZE - 4], PROD_BODY)
-    fill_rect(d, [6, 6, SIZE - 7, SIZE - 7], PROD_MID)
-    # drill tower
-    fill_rect(d, [22, 8, 41, 28], PROD_EDGE)
-    fill_rect(d, [25, 10, 38, 26], PROD_ACCENT if not advanced else POW_GOLD)
-    # bit
-    d.polygon([(32, 48), (22, 28), (42, 28)], fill=BLU1)
-    d.polygon([(32, 44), (26, 30), (38, 30)], fill=BLU4 if not advanced else POW_BRIGHT)
-    # base ring
-    d.ellipse([14, 36, 49, 55], outline=PROD_EDGE, width=3)
-    d.ellipse([20, 40, 43, 52], fill=PROD_DARK, outline=PROD_ACCENT)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], PROD_BODY)
+    fill_rect(d, [5, 5, SIZE - 6, SIZE - 6], PROD_MID)
+    # Central housing (static — no drill)
+    fill_rect(d, [22, 22, 41, 41], PROD_EDGE)
+    fill_rect(d, [26, 26, 37, 37], PROD_DARK)
     if advanced:
-        fill_rect(d, [8, 8, 18, 14], POW_GOLD)
-        fill_rect(d, [45, 8, 55, 14], POW_GOLD)
+        fill_rect(d, [0, 0, SIZE - 1, 1], GEAR_RED)
+    else:
+        fill_rect(d, [0, 0, SIZE - 1, 1], PROD_ACCENT)
     border(d, PROD_DARK, 2)
-    fill_rect(d, [0, 0, SIZE - 1, 1], PROD_ACCENT)
+    return img
+
+
+def draw_miner(advanced: bool = False) -> None:
+    """Pad + two corner-clipped gears (large NW, small SE) for palette static frame."""
+    img = draw_miner_body(advanced)
+    large = draw_gear(40, rust=not advanced)
+    small = draw_gear(28, rust=not advanced)
+    paste_quarter_gear(img, large, "nw")
+    paste_quarter_gear(img, small, "se")
     save(img, "miner-advanced.png" if advanced else "miner.png")
+
+
+def draw_miner_gear_assets() -> None:
+    """Full gear sprites for world animation (clipped in Godot)."""
+    draw_gear(48, rust=True).save(OUT / "gear-rust.png")
+    print(f"wrote {OUT / 'gear-rust.png'}")
+    draw_gear(48, rust=False).save(OUT / "gear-red.png")
+    print(f"wrote {OUT / 'gear-red.png'}")
+    # Pad-only bodies for world (gears overlaid animated)
+    draw_miner_body(False).save(OUT / "miner-pad.png")
+    print(f"wrote {OUT / 'miner-pad.png'}")
+    draw_miner_body(True).save(OUT / "miner-pad-advanced.png")
+    print(f"wrote {OUT / 'miner-pad-advanced.png'}")
+    # Lit perno overlay (small)
+    lit = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lit)
+    d.ellipse([2, 2, 13, 13], fill=PERNO_LIT)
+    d.ellipse([5, 5, 10, 10], fill=WHITE)
+    lit.save(OUT / "gear-perno-lit.png")
+    print(f"wrote {OUT / 'gear-perno-lit.png'}")
 
 
 def draw_extractor() -> None:
@@ -358,6 +448,7 @@ def main() -> None:
     draw_bridge()
     draw_miner(False)
     draw_miner(True)
+    draw_miner_gear_assets()
     draw_extractor()
     draw_smelter()
     draw_assembler()

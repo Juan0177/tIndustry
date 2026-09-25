@@ -50,7 +50,15 @@ public sealed class MinerProducer
     public int EjectIndex { get; private set; }
     public long ItemsProduced { get; private set; }
 
-    public float MiningSpeed => DefinitionId == "miner-advanced" ? 2f : 1f;
+    /// <summary>True while T2 miner is receiving adjacency/node power this tick.</summary>
+    public bool IsPowered { get; private set; }
+
+    /// <summary>On a deposit (gears should spin).</summary>
+    public bool IsWorking => Efficiency > 0f;
+
+    public float MiningSpeed => DefinitionId == AdvancedId ? 2f : 1f;
+
+    public bool CanReceivePower => DefinitionId == AdvancedId;
 
     public float Efficiency
     {
@@ -62,7 +70,7 @@ public sealed class MinerProducer
             }
 
             var raw = CoveredDepositTiles / (float)FootprintArea;
-            return DefinitionId == "miner-advanced" ? Math.Min(1f, raw * 1.25f) : raw;
+            return DefinitionId == AdvancedId ? Math.Min(1f, raw * 1.25f) : raw;
         }
     }
 
@@ -95,8 +103,9 @@ public sealed class MinerProducer
     /// <summary>
     /// Advances mining progress and tries to insert one ore onto an outward belt cell.
     /// </summary>
-    public bool Tick(float deltaSeconds, BeltLane belt, ref long nextItemId)
+    public bool Tick(float deltaSeconds, BeltLane belt, ref long nextItemId, bool powered = false)
     {
+        IsPowered = powered && CanReceivePower;
         if (!AdvanceToReady(deltaSeconds))
         {
             return false;
@@ -127,8 +136,9 @@ public sealed class MinerProducer
         return false;
     }
 
-    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId)
+    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId, bool powered = false)
     {
+        IsPowered = powered && CanReceivePower;
         if (!AdvanceToReady(deltaSeconds))
         {
             return false;
@@ -166,9 +176,10 @@ public sealed class MinerProducer
             return false;
         }
 
+        var powerMul = IsPowered ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
         Progress = Math.Min(
             1f,
-            Progress + deltaSeconds * Efficiency * MiningSpeed / MiningDurationSeconds);
+            Progress + deltaSeconds * Efficiency * MiningSpeed * powerMul / MiningDurationSeconds);
         return Progress >= 1f;
     }
 

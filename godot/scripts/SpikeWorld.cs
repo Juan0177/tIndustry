@@ -995,6 +995,7 @@ public partial class SpikeWorld : Node2D
         }
 
         SyncItemSprites();
+        SyncMinerVisuals((float)delta);
         var genLive = _slice.Generators.Any(g => g.IsGenerating);
         if (genLive != _lastGenLive)
         {
@@ -1416,18 +1417,7 @@ public partial class SpikeWorld : Node2D
 
         foreach (var miner in _slice.Miners)
         {
-            var advanced = miner.DefinitionId == MinerProducer.AdvancedId;
-            var node = BuildingPad.Create(
-                MinerProducer.Size,
-                TileSize,
-                fill: new Color(0.22f, 0.2f, 0.16f, 1f),
-                border: advanced
-                    ? new Color(0.95f, 0.82f, 0.35f, 1f)
-                    : new Color(0.85f, 0.72f, 0.4f, 1f),
-                icon: GD.Load<Texture2D>(advanced
-                    ? "res://assets/miner-advanced.png"
-                    : "res://assets/miner.png"));
-            node.Name = $"Miner_{miner.Position.X}_{miner.Position.Y}";
+            var node = MinerVisual.Create(miner, TileSize);
             node.Position = FootprintCenter(miner.Position, MinerProducer.Size);
             _buildingsLayer.AddChild(node);
         }
@@ -1501,6 +1491,31 @@ public partial class SpikeWorld : Node2D
             node.Name = $"PowerNode_{pn.Position.X}_{pn.Position.Y}";
             node.Position = FootprintCenter(pn.Position, pn.Size);
             _buildingsLayer.AddChild(node);
+        }
+    }
+
+    private void SyncMinerVisuals(float delta)
+    {
+        if (_slice is null || _buildingsLayer is null)
+        {
+            return;
+        }
+
+        foreach (var child in _buildingsLayer.GetChildren())
+        {
+            if (child is not MinerVisual visual)
+            {
+                continue;
+            }
+
+            foreach (var miner in _slice.Miners)
+            {
+                if (miner.Position.Equals(visual.MinerOrigin))
+                {
+                    visual.Sync(miner, delta);
+                    break;
+                }
+            }
         }
     }
 
@@ -1955,6 +1970,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "miner-gears")
+        {
+            await CaptureMinerGearsShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -2075,6 +2096,157 @@ public partial class SpikeWorld : Node2D
         palette.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-palette.png");
 
         GD.Print("Logistics redesign screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureMinerGearsShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        SyncResearchLocks();
+
+        // Quiet showcase row: T1 miner | T2 miner | T2 + generator (boosted).
+        for (var x = 2; x <= 16; x++)
+        {
+            for (var y = 2; y <= 8; y++)
+            {
+                _slice.TryRemoveBuildingAt(new GridPosition(x, y));
+                _slice.TryRemoveBelt(new GridPosition(x, y));
+            }
+        }
+
+        // T1 on iron deposit area if any; otherwise still shows pad+gears (idle if no deposit).
+        _slice.TryPlaceMiner(new GridPosition(3, 4), Direction.East);
+        _slice.TryPlaceMiner(new GridPosition(7, 4), Direction.East, definitionId: MinerProducer.AdvancedId);
+        _slice.TryPlaceMiner(new GridPosition(12, 4), Direction.East, definitionId: MinerProducer.AdvancedId);
+        _slice.TryPlaceGenerator(new GridPosition(12, 2), Direction.East);
+        // Fuel the gen so T2 lights perno.
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Generators[0].TryAcceptFuel("coal");
+        }
+
+        // Outward belts so miners can eject (keeps Progress cycling while working).
+        for (var x = 3; x <= 14; x++)
+        {
+            _slice.TryPlaceBelt(new GridPosition(x, 6), Direction.East, "conveyor-basic");
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        UpdateHud();
+
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(9f * TileSize, 5f * TileSize);
+            cam.Zoom = new Vector2(1.0f, 1.0f);
+        }
+
+        // Tick a bit so gen is live and miners progress.
+        for (var i = 0; i < 20; i++)
+        {
+            _slice.Tick(1f / 30f);
+        }
+
+        RebuildBuildingVisuals();
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Miner);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+
+        var world = GetViewport().GetTexture().GetImage();
+        world.SavePng(Path.Combine(destDir, "godot-port-miner-gears-world.png"));
+        world.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-world.png");
+
+        // Close-ups: camera on T1
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(4f * TileSize, 5f * TileSize);
+            cam.Zoom = new Vector2(1.6f, 1.6f);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var t1 = GetViewport().GetTexture().GetImage();
+        t1.SavePng(Path.Combine(destDir, "godot-port-miner-gears-t1.png"));
+        t1.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-t1.png");
+
+        // T2 isolated (middle)
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(8f * TileSize, 5f * TileSize);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var t2 = GetViewport().GetTexture().GetImage();
+        t2.SavePng(Path.Combine(destDir, "godot-port-miner-gears-t2.png"));
+        t2.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-t2.png");
+
+        // T2 boosted (lit perno) — right miner + gen
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(13f * TileSize, 4.5f * TileSize);
+        }
+
+        // Ensure gen still burning.
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+        }
+
+        for (var i = 0; i < 10; i++)
+        {
+            _slice.Tick(1f / 30f);
+        }
+
+        RebuildBuildingVisuals();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var boosted = GetViewport().GetTexture().GetImage();
+        boosted.SavePng(Path.Combine(destDir, "godot-port-miner-gears-t2-boosted.png"));
+        boosted.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-t2-boosted.png");
+
+        // Multi-frame spin while working (hold on boosted T2).
+        for (var frame = 0; frame < 4; frame++)
+        {
+            await ToSignal(GetTree().CreateTimer(0.2), SceneTreeTimer.SignalName.Timeout);
+            var spin = GetViewport().GetTexture().GetImage();
+            var name = $"godot-port-miner-gears-spin-{frame}.png";
+            spin.SavePng(Path.Combine(destDir, name));
+            spin.SavePng($"/opt/cursor/artifacts/{name}");
+        }
+
+        // Palette with miner selected (static composite art).
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(9f * TileSize, 5f * TileSize);
+            cam.Zoom = new Vector2(0.85f, 0.85f);
+        }
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.MinerAdvanced);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var palette = GetViewport().GetTexture().GetImage();
+        palette.SavePng(Path.Combine(destDir, "godot-port-miner-gears-palette.png"));
+        palette.SavePng("/opt/cursor/artifacts/godot-port-miner-gears-palette.png");
+
+        GD.Print("Miner gears screenshot set complete.");
         GetTree().Quit();
     }
 

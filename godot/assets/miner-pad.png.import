@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdlgn8btk5jeb"
-path="res://.godot/imported/miner-advanced.png-a56dc1784edc2c44c956a3b9d9e31a86.ctex"
+uid="uid://co8nhrxnjqsva"
+path="res://.godot/imported/miner-pad.png-0fd3bbc9547bca88e5776f8f6a230a03.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/miner-advanced.png"
-dest_files=["res://.godot/imported/miner-advanced.png-a56dc1784edc2c44c956a3b9d9e31a86.ctex"]
+source_file="res://assets/miner-pad.png"
+dest_files=["res://.godot/imported/miner-pad.png-0fd3bbc9547bca88e5776f8f6a230a03.ctex"]
 
 [params]
 
