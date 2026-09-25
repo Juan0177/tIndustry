@@ -66,6 +66,7 @@ public partial class SpikeWorld : Node2D
     private Texture2D? _copperOreTex;
     private Texture2D? _copperWireTex;
     private Texture2D? _coalTex;
+    private Texture2D? _coreTex;
     private bool _lastGenLive;
     private bool _returnHomeAfterCampaign;
 
@@ -91,6 +92,7 @@ public partial class SpikeWorld : Node2D
         _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
         _copperWireTex = GD.Load<Texture2D>("res://assets/copper-wire.png");
         _coalTex = GD.Load<Texture2D>("res://assets/coal.png");
+        _coreTex = GD.Load<Texture2D>("res://assets/core.png");
 
         EnsureBeltVisual();
         RebuildBeltVisual();
@@ -1081,9 +1083,7 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        var coreFill = new Color(0.18f, 0.32f, 0.48f, 1f);
-        var coreEdge = new Color(0.55f, 0.82f, 1f, 1f);
-        // Draw core as one footprint box (not per-tile wash).
+        // Core: same block sprite as palette language (cyan steel), full footprint.
         if (_slice.CoreTiles.Count > 0)
         {
             var minX = _slice.CoreTiles.Min(t => t.X);
@@ -1091,12 +1091,20 @@ public partial class SpikeWorld : Node2D
             var maxX = _slice.CoreTiles.Max(t => t.X);
             var maxY = _slice.CoreTiles.Max(t => t.Y);
             var rect = new Rect2(
-                minX * TileSize + 1,
-                minY * TileSize + 1,
-                (maxX - minX + 1) * TileSize - 2,
-                (maxY - minY + 1) * TileSize - 2);
-            DrawRect(rect, coreFill);
-            DrawRect(rect, coreEdge, false, 3f);
+                minX * TileSize,
+                minY * TileSize,
+                (maxX - minX + 1) * TileSize,
+                (maxY - minY + 1) * TileSize);
+            if (_coreTex is not null)
+            {
+                DrawTextureRect(_coreTex, rect, false);
+            }
+            else
+            {
+                DrawRect(rect, new Color(0.18f, 0.32f, 0.48f, 1f));
+            }
+
+            DrawRect(rect, new Color(0.35f, 0.78f, 0.9f, 1f), false, 2f);
         }
 
         // Deposit tint under miners stays soft; the building pad is the readable frame.
@@ -1406,13 +1414,17 @@ public partial class SpikeWorld : Node2D
 
         foreach (var miner in _slice.Miners)
         {
+            var advanced = miner.DefinitionId == MinerProducer.AdvancedId;
             var node = BuildingPad.Create(
                 MinerProducer.Size,
                 TileSize,
                 fill: new Color(0.22f, 0.2f, 0.16f, 1f),
-                border: new Color(0.85f, 0.72f, 0.4f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/miner.png"),
-                iconScale: 1.05f);
+                border: advanced
+                    ? new Color(0.95f, 0.82f, 0.35f, 1f)
+                    : new Color(0.85f, 0.72f, 0.4f, 1f),
+                icon: GD.Load<Texture2D>(advanced
+                    ? "res://assets/miner-advanced.png"
+                    : "res://assets/miner.png"));
             node.Name = $"Miner_{miner.Position.X}_{miner.Position.Y}";
             node.Position = FootprintCenter(miner.Position, MinerProducer.Size);
             _buildingsLayer.AddChild(node);
@@ -1425,8 +1437,7 @@ public partial class SpikeWorld : Node2D
                 TileSize,
                 fill: new Color(0.2f, 0.16f, 0.14f, 1f),
                 border: new Color(0.95f, 0.55f, 0.28f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/smelter.png"),
-                iconScale: 1.1f);
+                icon: GD.Load<Texture2D>("res://assets/smelter.png"));
             node.Name = $"Smelter_{smelter.Position.X}_{smelter.Position.Y}";
             node.Position = FootprintCenter(smelter.Position, SmelterStub.Size);
             _buildingsLayer.AddChild(node);
@@ -1439,8 +1450,7 @@ public partial class SpikeWorld : Node2D
                 TileSize,
                 fill: new Color(0.14f, 0.18f, 0.22f, 1f),
                 border: new Color(0.45f, 0.78f, 0.95f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/assembler.png"),
-                iconScale: 1.1f);
+                icon: GD.Load<Texture2D>("res://assets/assembler.png"));
             node.Name = $"Assembler_{assembler.Position.X}_{assembler.Position.Y}";
             node.Position = FootprintCenter(assembler.Position, SmelterStub.Size);
             _buildingsLayer.AddChild(node);
@@ -1456,8 +1466,7 @@ public partial class SpikeWorld : Node2D
                 border: live
                     ? new Color(0.98f, 0.82f, 0.28f, 1f)
                     : new Color(0.55f, 0.48f, 0.28f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/generator.png"),
-                iconScale: 1.05f);
+                icon: GD.Load<Texture2D>("res://assets/generator.png"));
             node.Name = $"Generator_{gen.Position.X}_{gen.Position.Y}";
             node.Position = FootprintCenter(gen.Position, GeneratorStub.Size);
             _buildingsLayer.AddChild(node);
@@ -1470,8 +1479,7 @@ public partial class SpikeWorld : Node2D
                 TileSize,
                 fill: new Color(0.16f, 0.2f, 0.18f, 1f),
                 border: new Color(0.55f, 0.85f, 0.6f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/miner.png"),
-                iconScale: 0.85f);
+                icon: GD.Load<Texture2D>("res://assets/extractor.png"));
             node.Name = $"Extractor_{ex.Position.X}_{ex.Position.Y}";
             node.Position = FootprintCenter(ex.Position, ExtractorStub.Size);
             _buildingsLayer.AddChild(node);
@@ -1479,13 +1487,15 @@ public partial class SpikeWorld : Node2D
 
         foreach (var pn in _slice.PowerNodes)
         {
+            var t2 = pn.DefinitionId == PowerNodeStub.Tier2Id;
             var node = BuildingPad.Create(
                 pn.Size,
                 TileSize,
                 fill: new Color(0.2f, 0.18f, 0.1f, 1f),
                 border: new Color(0.95f, 0.85f, 0.35f, 1f),
-                icon: GD.Load<Texture2D>("res://assets/generator.png"),
-                iconScale: 0.75f);
+                icon: GD.Load<Texture2D>(t2
+                    ? "res://assets/power-node-t2.png"
+                    : "res://assets/power-node.png"));
             node.Name = $"PowerNode_{pn.Position.X}_{pn.Position.Y}";
             node.Position = FootprintCenter(pn.Position, pn.Size);
             _buildingsLayer.AddChild(node);
@@ -1925,6 +1935,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "structures")
+        {
+            await CaptureStructuresShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -1971,6 +1987,76 @@ public partial class SpikeWorld : Node2D
         roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureStructuresShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        _slice.Research.ForceUnlock(PowerNodeStub.Tier2Id);
+        SyncResearchLocks();
+
+        // Demo already has T1 miner/forno/assembler/gen/junction/splitter/sorter/bridge/core.
+        // Add missing art showcase pieces on free tiles.
+        _slice.TryPlaceBelt(new GridPosition(4, 3), Direction.East, "conveyor-fast");
+        _slice.TryPlaceBelt(new GridPosition(5, 3), Direction.East, "conveyor-fast");
+        _slice.TryPlaceMiner(new GridPosition(16, 4), Direction.East, definitionId: MinerProducer.AdvancedId);
+        _slice.TryPlaceExtractor(new GridPosition(8, 14), Direction.North);
+        _slice.TryPlacePowerNode(new GridPosition(8, 4));
+        _slice.TryPlacePowerNode(new GridPosition(18, 7), PowerNodeStub.Tier2Id);
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        UpdateHud();
+
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(11f * TileSize, 9f * TileSize);
+            cam.Zoom = new Vector2(0.55f, 0.55f);
+        }
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Belt);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        var world = GetViewport().GetTexture().GetImage();
+        world.SavePng(Path.Combine(destDir, "godot-port-structures-world.png"));
+        world.SavePng("/opt/cursor/artifacts/godot-port-structures-world.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Junction);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var logistics = GetViewport().GetTexture().GetImage();
+        logistics.SavePng(Path.Combine(destDir, "godot-port-structures-palette-logistics.png"));
+        logistics.SavePng("/opt/cursor/artifacts/godot-port-structures-palette-logistics.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.MinerAdvanced);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var production = GetViewport().GetTexture().GetImage();
+        production.SavePng(Path.Combine(destDir, "godot-port-structures-palette-production.png"));
+        production.SavePng("/opt/cursor/artifacts/godot-port-structures-palette-production.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.PowerNode);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var power = GetViewport().GetTexture().GetImage();
+        power.SavePng(Path.Combine(destDir, "godot-port-structures-palette-power.png"));
+        power.SavePng("/opt/cursor/artifacts/godot-port-structures-palette-power.png");
+
+        GD.Print("Structures screenshot set complete.");
         GetTree().Quit();
     }
 

@@ -305,17 +305,21 @@ public partial class TechTreeCanvas : Control
 
         var path = structureId switch
         {
-            "conveyor-basic" or "conveyor-fast" or "conveyor-express" => "res://assets/conveyor-basic.png",
+            "conveyor-basic" => "res://assets/conveyor-basic.png",
+            "conveyor-fast" or "conveyor-express" => "res://assets/conveyor-fast.png",
             "conveyor-bridge" => "res://assets/bridge.png",
-            "miner" or "miner-advanced" => "res://assets/miner.png",
+            "miner" => "res://assets/miner.png",
+            "miner-advanced" => "res://assets/miner-advanced.png",
             "smelter" => "res://assets/smelter.png",
             "assembler" => "res://assets/assembler.png",
             "junction" => "res://assets/junction.png",
             "splitter" => "res://assets/splitter.png",
             "sorter" => "res://assets/sorter.png",
             "generator" => "res://assets/generator.png",
-            "power-node" or "power-node-t2" => "res://assets/generator.png",
-            "extractor" => "res://assets/miner.png",
+            "power-node" => "res://assets/power-node.png",
+            "power-node-t2" => "res://assets/power-node-t2.png",
+            "extractor" => "res://assets/extractor.png",
+            "core" => "res://assets/core.png",
             _ => $"res://assets/{structureId}.png"
         };
 
