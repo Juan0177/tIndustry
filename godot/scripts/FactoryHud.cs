@@ -118,8 +118,8 @@ public partial class FactoryHud : Control
 
     /// <summary>Dock height from bottom (incl. margin); info strip sits fully above this.</summary>
     private const float DockHeightFromBottom = 188f;
-    private const float InfoStripHeight = 76f;
-    private const float InfoDockGap = 14f;
+    private const float InfoStripHeight = 78f;
+    private const float InfoDockGap = 32f;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? SaveRequested;
@@ -523,6 +523,7 @@ public partial class FactoryHud : Control
         _infoPanel.OffsetBottom = -stripBottom;
         _infoPanel.OffsetTop = -(stripBottom + InfoStripHeight);
         _infoPanel.Visible = false;
+        _infoPanel.ZIndex = 20;
         AddChild(_infoPanel);
 
         var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
