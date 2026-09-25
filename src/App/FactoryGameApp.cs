@@ -5081,7 +5081,7 @@ internal static class FactoryGameApp
     }
 
     /// <summary>
-    /// Release label from assembly InformationalVersion (csproj Version), e.g. "v0.2.7".
+    /// Release label from assembly InformationalVersion (csproj Version), e.g. "v0.3.0".
     /// Drawn bottom-left on the play HUD; not hit-tested so it never blocks clicks.
     /// </summary>
     internal static string FormatGameVersionLabel()

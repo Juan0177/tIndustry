@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**Godot 4 .NET — path ufficiale** · Raylib **legacy** (v0.2.11) · [CHANGELOG](CHANGELOG.md)
+**v0.3.0** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.0) · **Godot 4 .NET ufficiale** · Raylib legacy
 
 ```
   miner ──▶ forno ──▶ lastre / fili ──▶ CORE / mercato
@@ -39,9 +39,25 @@ Combat / unità: **ancora fuori scope**.
 
 ## Download (legacy Raylib)
 
-Le release zip [`tIndustry-*-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) pubblicano ancora il client **Raylib** (`TIndustry.Logistics`, v0.2.11). Uso: manutenzione / confronto; **non** è più il path di sviluppo primario.
+Le release zip [`tIndustry-*-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) pubblicano ancora il client **Raylib** (`TIndustry.Logistics`, v0.3.0). Uso: manutenzione / confronto; **non** è più il path di sviluppo primario.
 
 Tag `v*` → [release.yml](.github/workflows/release.yml). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml) (Godot/Shared + publish Raylib).
+
+---
+
+## Cosa c’è in 0.3.0
+
+| Area | In gioco (Godot) |
+| --- | --- |
+| **Client** | Godot 4 .NET ufficiale · Raylib legacy |
+| **Mondo** | Slice giocabile · depositi da seed campagna/sandbox |
+| **Produzione** | Miner T1/T2 · forno · assemblatore · estrattore · generatore |
+| **Logistica** | Nastro T1/T2 · junction · splitter · sorter · ponte |
+| **Potenza** | Generatore + nodi · craft boostato se alimentato |
+| **Economia** | Stock Core · Mercato · vendita automatica opzionale |
+| **Progressione** | Home · Campagna · Ricerca (grafo) · unlock placeables |
+| **UI** | Palette Mindustry · info slot · tech tree a icone |
+| **Art** | Block 64×64 · gears miner · prod/power/core redesign |
 
 ---
 
@@ -72,22 +88,6 @@ Richiede [.NET 10 SDK](https://dotnet.microsoft.com/download) · Raylib-cs.
 
 ---
 
-## Cosa c’è (Godot)
-
-| Area | In gioco |
-| --- | --- |
-| **Mondo** | Slice giocabile, depositi da seed campagna/sandbox |
-| **Produzione** | Miner T1/T2, forno, assemblatore, estrattore, generatore |
-| **Logistica** | Nastro T1/T2, junction, splitter, sorter, ponte |
-| **Potenza** | Generatore + nodi T1/T2 · craft boostato se alimentato |
-| **Economia** | Stock Core · Mercato · vendita automatica opzionale |
-| **Progressione** | Home splash · Campagna · Ricerca (grafo) · unlock placeables |
-| **UI** | Palette angolo Mindustry · info slot · tech tree a icone |
-
-Art block 64×64 allineata mappa + palette; polish grafico in corso (opzionale).
-
----
-
 ## Prima sessione (Godot)
 
 1. Splash → **Continua** / **Campagna** / **Nuova partita**.
@@ -113,7 +113,7 @@ Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.
 
 ## Roadmap
 
-| Ora | Dopo |
+| Ora (0.3.0) | Dopo |
 | --- | --- |
 | Godot ufficiale · art polish opzionale · bilanciamento | Combat / unità (deferred) · eventuale ritiro Raylib |
 
