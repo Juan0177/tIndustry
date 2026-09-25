@@ -48,6 +48,7 @@ public sealed class FactorySlice
     public MarketCatalog Market { get; }
     public EconomySession Session { get; }
     public string? ActiveCampaignLevelId { get; set; }
+    public bool AutoSellAtCore { get; set; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
@@ -82,6 +83,7 @@ public sealed class FactorySlice
             SoldByItem = Session.SoldByItem.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
+            AutoSellAtCore = AutoSellAtCore,
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -182,7 +184,8 @@ public sealed class FactorySlice
         {
             nextItemId = Math.Max(1, data.NextItemId),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
-            ActiveCampaignLevelId = data.ActiveCampaignLevelId
+            ActiveCampaignLevelId = data.ActiveCampaignLevelId,
+            AutoSellAtCore = data.AutoSellAtCore
         };
 
         foreach (var m in data.Miners)
@@ -961,7 +964,8 @@ public sealed class FactorySlice
 
         // Second belt tick so freshly emitted items can move the same frame.
         Belts.Tick(0f);
-        CoreDeliveredItems += CoreStockSink.Drain(Belts, CoreTiles, Wallet);
+        CoreDeliveredItems += CoreStockSink.Drain(
+            Belts, CoreTiles, Wallet, Market, Session, AutoSellAtCore);
     }
 
     public static void SelfTest(string contentJsonPath)
@@ -1602,6 +1606,59 @@ public sealed class FactorySlice
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
         Assert(restored.Research.IsUnlocked("smelter"), "restore research");
         FactorySliceSaveStore.Delete("selftest-mercato");
+    }
+
+    /// <summary>Auto-sell at core: liquidate on drain; toggle persists in save.</summary>
+    public static void SelfTestAutoSell(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreateSpikeDemo(content);
+        slice.AutoSellAtCore = true;
+
+        var moneyBefore = slice.Wallet.Money;
+        var stockBefore = slice.Wallet.MaterialCount("iron-ore");
+        const float dt = 1f / 30f;
+        var soldViaAuto = false;
+        for (var i = 0; i < 30 * 45; i++)
+        {
+            slice.Tick(dt);
+            if (slice.CoreDeliveredItems > 0
+                && slice.Session.SaleIncome > 0
+                && slice.Wallet.Money > moneyBefore)
+            {
+                soldViaAuto = true;
+                break;
+            }
+        }
+
+        Assert(soldViaAuto, "auto-sell liquidates core deliveries");
+        Assert(slice.Wallet.MaterialCount("iron-ore") <= stockBefore, "stock not forced up");
+        Assert(slice.Session.SoldByItem.GetValueOrDefault("iron-ore") >= 1, "session recorded");
+
+        var snap = slice.Capture();
+        Assert(snap.AutoSellAtCore, "capture auto-sell");
+        FactorySliceSaveStore.Delete("selftest-autosell");
+        FactorySliceSaveStore.Save("selftest-autosell", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-autosell"));
+        Assert(restored.AutoSellAtCore, "restore auto-sell");
+        FactorySliceSaveStore.Delete("selftest-autosell");
+
+        // OFF path still stocks (stock-first default).
+        var stockSlice = CreateSpikeDemo(content);
+        Assert(!stockSlice.AutoSellAtCore, "default OFF");
+        moneyBefore = stockSlice.Wallet.Money;
+        for (var i = 0; i < 30 * 45; i++)
+        {
+            stockSlice.Tick(dt);
+            if (stockSlice.CoreDeliveredItems > 0 && stockSlice.Wallet.MaterialCount("iron-ore") > 0)
+            {
+                Assert(stockSlice.Session.SaleIncome == 0, "no auto sale when OFF");
+                Assert(stockSlice.Wallet.Money == moneyBefore, "money unchanged when OFF");
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Auto-sell OFF path: no stocked ore at core.");
     }
 
     /// <summary>Campaign catalog, objectives, progress unlock, save v4 level id.</summary>

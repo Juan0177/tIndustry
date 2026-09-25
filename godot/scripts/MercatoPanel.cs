@@ -17,9 +17,12 @@ public partial class MercatoPanel : Control
     private Label? _walletLabel;
     private Label? _hintLabel;
     private Label? _statusLabel;
+    private Label? _autoSellHint;
+    private Button? _autoSellToggle;
 
     public event Action? Closed;
     public event Action? SoldChanged;
+    public event Action? AutoSellChanged;
 
     public override void _Ready()
     {
@@ -34,6 +37,11 @@ public partial class MercatoPanel : Control
     {
         _slice = slice;
         Visible = true;
+        if (_autoSellToggle is not null)
+        {
+            SyncAutoSellToggle();
+        }
+
         Refresh();
     }
 
@@ -44,6 +52,52 @@ public partial class MercatoPanel : Control
     }
 
     public bool IsOpen => Visible;
+
+    private void SyncAutoSellToggle()
+    {
+        if (_autoSellToggle is null || _slice is null)
+        {
+            return;
+        }
+
+        var on = _slice.AutoSellAtCore;
+        _autoSellToggle.Text = on ? "Vendita automatica: ON" : "Vendita automatica: OFF";
+        _autoSellToggle.Modulate = on
+            ? new Color(0.95f, 0.90f, 0.45f, 1f)
+            : new Color(0.85f, 0.88f, 0.85f, 1f);
+    }
+
+    private void OnAutoSellTogglePressed()
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        _slice.AutoSellAtCore = !_slice.AutoSellAtCore;
+        if (_statusLabel is not null)
+        {
+            _statusLabel.Text = _slice.AutoSellAtCore
+                ? "Vendita automatica ON: il core liquida subito in $."
+                : "Vendita automatica OFF: magazzino; vendi qui.";
+        }
+
+        SyncAutoSellToggle();
+        RefreshAutoSellHint();
+        AutoSellChanged?.Invoke();
+    }
+
+    private void RefreshAutoSellHint()
+    {
+        if (_autoSellHint is null || _slice is null)
+        {
+            return;
+        }
+
+        _autoSellHint.Text = _slice.AutoSellAtCore
+            ? "ON: il core liquida subito in $."
+            : "OFF: magazzino; vendi qui.";
+    }
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -117,6 +171,23 @@ public partial class MercatoPanel : Control
         closeBtn.Pressed += Close;
         header.AddChild(closeBtn);
 
+        _autoSellToggle = new Button
+        {
+            Text = "Vendita automatica: OFF",
+            CustomMinimumSize = new Vector2(0, 36)
+        };
+        _autoSellToggle.Pressed += OnAutoSellTogglePressed;
+        root.AddChild(_autoSellToggle);
+
+        _autoSellHint = new Label
+        {
+            Text = "OFF: magazzino; vendi qui.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
+        };
+        _autoSellHint.AddThemeColorOverride("font_color", TextMuted);
+        _autoSellHint.AddThemeFontSizeOverride("font_size", 12);
+        root.AddChild(_autoSellHint);
+
         _hintLabel = new Label
         {
             Text = "Vendi stock del Core · prezzi reagiscono alla quantità · M apre / Esc chiude",
@@ -162,6 +233,9 @@ public partial class MercatoPanel : Control
             _walletLabel.Text =
                 $"Magazzino: ${_slice.Wallet.Money} · vendite ${_slice.Session.SaleIncome}";
         }
+
+        SyncAutoSellToggle();
+        RefreshAutoSellHint();
 
         if (_hintLabel is not null)
         {
