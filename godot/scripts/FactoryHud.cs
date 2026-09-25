@@ -523,9 +523,9 @@ public partial class FactoryHud : Control
         _infoPanel.SetAnchorsPreset(LayoutPreset.BottomRight);
         _infoPanel.GrowHorizontal = GrowDirection.Begin;
         _infoPanel.GrowVertical = GrowDirection.Begin;
-        _infoPanel.OffsetLeft = -420;
+        _infoPanel.OffsetLeft = -440;
         _infoPanel.OffsetRight = -12;
-        _infoPanel.OffsetTop = -320;
+        _infoPanel.OffsetTop = -360;
         _infoPanel.OffsetBottom = -210;
         _infoPanel.Visible = false;
         AddChild(_infoPanel);
