@@ -5,11 +5,69 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Aggiunto / migliorato
+
+_(vuoto — prossimo bump)_
+
+## [0.3.0] — 2026-09-25
+
+**Godot 4 .NET diventa il client ufficiale.** Raylib resta legacy (zip release ancora disponibili). Port slice completo: fabbrica, UI Mindustry, campagna, art, logistica.
+
 ### Cambiato
 
-- **Godot 4 .NET = path ufficiale** per build & play; client Raylib (`TIndustry.Logistics`) demoted a **legacy** (manutenzione opzionale, zip release ancora Raylib)
-- README + `godot/README.md` allineati; CI aggiunge job **Godot + Shared** (publish Raylib invariato)
-- Docs store: decision 14 + piano port → Godot ufficiale; art polish opzionale; combat ancora deferred
+- **Godot 4 .NET = path ufficiale** per build & play ([#111](https://github.com/Juan0177/tIndustry/pull/111))
+- Client Raylib (`TIndustry.Logistics`) demoted a **legacy** (manutenzione opzionale)
+- CI: job **Godot + Shared**; publish zip Raylib invariato (etichettato legacy)
+
+### Godot — gameplay & sistemi
+
+- Factory slice: nastri (corner gallery), craft (forno/assy), junction/splitter, power stubs ([#66](https://github.com/Juan0177/tIndustry/pull/66)–[#87](https://github.com/Juan0177/tIndustry/pull/87))
+- **Save/load** continua + slot ([#88](https://github.com/Juan0177/tIndustry/pull/88))
+- **Sorter + ponte** (decision 14 thin span) ([#89](https://github.com/Juan0177/tIndustry/pull/89))
+- **Ricerca** unlock + tech-tree grafo ([#91](https://github.com/Juan0177/tIndustry/pull/91)–[#92](https://github.com/Juan0177/tIndustry/pull/92))
+- **Mercato** sell + `$` HUD ([#93](https://github.com/Juan0177/tIndustry/pull/93)); **auto-sell** al Core ([#99](https://github.com/Juan0177/tIndustry/pull/99))
+- **Campagna** select + obiettivi HUD ([#94](https://github.com/Juan0177/tIndustry/pull/94))
+- **Home splash** Continua / Campagna / Nuova partita ([#98](https://github.com/Juan0177/tIndustry/pull/98))
+- **T2** nastro/miner, estrattore, power-node ([#100](https://github.com/Juan0177/tIndustry/pull/100))
+- **Map seed** terrain da campagna/sandbox ([#101](https://github.com/Juan0177/tIndustry/pull/101))
+
+### Godot — UI Mindustry
+
+- Palette angolo + categorie St/Lo/Pr/Po · info strip · tech tree icon-only ([#95](https://github.com/Juan0177/tIndustry/pull/95)–[#97](https://github.com/Juan0177/tIndustry/pull/97))
+- Cursor-default toolbar ([#90](https://github.com/Juan0177/tIndustry/pull/90))
+
+### Godot — art
+
+- Block sprites 64×64 coerenti mappa + palette ([#102](https://github.com/Juan0177/tIndustry/pull/102))
+- Nastro T2 single chevron ([#103](https://github.com/Juan0177/tIndustry/pull/103))
+- Logistics redesign splitter/sorter/bridge ([#104](https://github.com/Juan0177/tIndustry/pull/104)–[#105](https://github.com/Juan0177/tIndustry/pull/105))
+- Miner gear animato ([#106](https://github.com/Juan0177/tIndustry/pull/106)–[#109](https://github.com/Juan0177/tIndustry/pull/109))
+- Estrattore / forno / assemblatore / generatore / core redesign ([#110](https://github.com/Juan0177/tIndustry/pull/110))
+
+### Limitazioni
+
+- Combat / unità ancora deferred
+- Zip GitHub Release = client **Raylib legacy**; per Godot: `godot4 --path godot` (vedi README)
+- Art polish opzionale in corso
+
+### Come giocare (ufficiale — Godot)
+
+```bash
+dotnet build src/TIndustry.Shared/TIndustry.Shared.csproj
+dotnet build godot/TIndustry.Godot.csproj
+godot4 --path godot
+```
+
+Richiede Godot **4.4+** .NET. Dettagli: [`godot/README.md`](godot/README.md).
+
+### Legacy Raylib
+
+```bash
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
+O scarica gli zip dalla Release (`tIndustry-win-x64.zip` / `tIndustry-linux-x64.zip`).
 
 ## [0.2.11] — 2026-09-21
 
@@ -303,6 +361,7 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.3.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.0
 [0.2.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.0

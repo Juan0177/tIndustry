@@ -2088,8 +2088,8 @@ static void RunSelfTest(GameContent content)
         Assert(!ShowCornerFps(showFps: false, showOverlay: true), "Niente FPS angolo se contatore OFF.");
         var versionLabel = FactoryGameApp.FormatGameVersionLabel();
         Assert(versionLabel.StartsWith('v'), "Versione HUD deve iniziare con 'v'.");
-        Assert(versionLabel.Contains("0.2.", StringComparison.Ordinal),
-            "Versione HUD deve riflettere InformationalVersion csproj (0.2.x).");
+        Assert(versionLabel.Contains("0.3.", StringComparison.Ordinal),
+            "Versione HUD deve riflettere InformationalVersion csproj (0.3.x).");
         Assert(File.Exists(GameContentStore.UserJsonPath),
             "First launch deve materializzare content.json in AppData.");
 
