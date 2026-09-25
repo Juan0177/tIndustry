@@ -39,6 +39,7 @@ public partial class SpikeWorld : Node2D
     private Node2D? _buildingsLayer;
     private FactoryHud? _hud;
     private ResearchPanel? _research;
+    private MercatoPanel? _mercato;
     private string _contentPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Cursor;
@@ -64,6 +65,7 @@ public partial class SpikeWorld : Node2D
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureFactoryHud();
         EnsureResearchPanel();
+        EnsureMercatoPanel();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -77,9 +79,31 @@ public partial class SpikeWorld : Node2D
         SyncResearchLocks();
         UpdateHud();
 
-        // Research capture: locked start + wallet for unlock demo.
+        // Mercato capture: stocked wallet + sell demo.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
-            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "cursor")
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "cursor"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "research")
+        {
+            var fresh = FactoryContent.Load(_contentPath);
+            _slice = new FactorySlice(
+                fresh,
+                new BeltGrid(),
+                CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2));
+            _slice.Wallet.AddMoney(40);
+            _slice.Wallet.AddMaterial("iron-ore", 12);
+            _slice.Wallet.AddMaterial("iron-plate", 6);
+            _slice.Wallet.AddMaterial("copper-ore", 4);
+            _slice.Wallet.AddMaterial("copper-wire", 3);
+            _slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
+            _visualDirty = true;
+            _buildingsDirty = true;
+            RebuildBeltVisual();
+            RebuildBuildingVisuals();
+            SyncResearchLocks();
+            UpdateHud();
+        }
+        else if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "research")
         {
             var fresh = FactoryContent.Load(_contentPath);
             _slice = new FactorySlice(
@@ -107,7 +131,7 @@ public partial class SpikeWorld : Node2D
             LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata", quietFail: true);
         }
 
-        // Optional capture: TINDUSTRY_CAPTURE=1 → research screenshots then quit.
+        // Optional capture: TINDUSTRY_CAPTURE=1 → screenshots then quit.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
         {
             var timer = GetTree().CreateTimer(1.0);
@@ -148,6 +172,7 @@ public partial class SpikeWorld : Node2D
         _hud.SaveSlotRequested += () => SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
         _hud.LoadSlotRequested += () => LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
         _hud.ResearchRequested += ToggleResearch;
+        _hud.MercatoRequested += ToggleMercato;
         _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
@@ -175,6 +200,29 @@ public partial class SpikeWorld : Node2D
         };
     }
 
+    private void EnsureMercatoPanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("MercatoPanel"))
+        {
+            _mercato = layer.GetNode<MercatoPanel>("MercatoPanel");
+        }
+        else
+        {
+            _mercato = new MercatoPanel { Name = "MercatoPanel" };
+            layer.AddChild(_mercato);
+        }
+
+        _mercato.SoldChanged += () =>
+        {
+            UpdateHud();
+            if (_slice is not null)
+            {
+                _hud?.ShowToast($"Vendita · Magazzino ${_slice.Wallet.Money}");
+            }
+        };
+    }
+
     private void ToggleResearch()
     {
         if (_slice is null || _research is null)
@@ -188,8 +236,27 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        _mercato?.Close();
         ClearToCursor(toast: false);
         _research.Open(_slice);
+    }
+
+    private void ToggleMercato()
+    {
+        if (_slice is null || _mercato is null)
+        {
+            return;
+        }
+
+        if (_mercato.IsOpen)
+        {
+            _mercato.Close();
+            return;
+        }
+
+        _research?.Close();
+        ClearToCursor(toast: false);
+        _mercato.Open(_slice);
     }
 
     private void SyncResearchLocks()
@@ -394,7 +461,14 @@ public partial class SpikeWorld : Node2D
                 return;
             }
 
-            if (_research?.IsOpen == true)
+            if (key.Keycode == Key.M)
+            {
+                ToggleMercato();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (_research?.IsOpen == true || _mercato?.IsOpen == true)
             {
                 return;
             }
@@ -413,7 +487,7 @@ public partial class SpikeWorld : Node2D
                 return;
             }
 
-            if (key.Keycode == Key.Key2 || key.Keycode == Key.M)
+            if (key.Keycode == Key.Key2)
             {
                 SelectTool(BuildTool.Miner, toast: true);
                 GetViewport().SetInputAsHandled();
@@ -512,7 +586,7 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (_research?.IsOpen == true)
+        if (_research?.IsOpen == true || _mercato?.IsOpen == true)
         {
             return;
         }
@@ -1122,6 +1196,7 @@ public partial class SpikeWorld : Node2D
             _slice.Wallet.MaterialCount("copper-wire"),
             _slice.CoreDeliveredItems,
             onBelt,
+            _slice.Wallet.Money,
             gensLive,
             _slice.Generators.Count);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
@@ -1213,13 +1288,74 @@ public partial class SpikeWorld : Node2D
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "research")
+        {
+            await CaptureResearchShotsAsync(destDir);
+            return;
+        }
+
+        // Default / mercato: Core $ HUD + Mercato sell loop.
+        var coreShot = GetViewport().GetTexture().GetImage();
+        coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
+        coreShot.SavePng("/opt/cursor/artifacts/godot-port-mercato-core-money.png");
+        GD.Print($"Saved mercato core-money → {destDir}");
+
+        _mercato?.Open(_slice);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        var panelShot = GetViewport().GetTexture().GetImage();
+        panelShot.SavePng(Path.Combine(destDir, "godot-port-mercato-panel.png"));
+        panelShot.SavePng("/opt/cursor/artifacts/godot-port-mercato-panel.png");
+
+        var beforeMoney = _slice.Wallet.Money;
+        if (!_slice.TrySellFromWallet("iron-ore", 3))
+        {
+            GD.PushError("Capture sell iron-ore failed");
+        }
+        else
+        {
+            _hud.ShowToast($"Venduti 3 ore → +${_slice.Wallet.Money - beforeMoney}");
+        }
+
+        _mercato?.Refresh();
+        UpdateHud();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var sellShot = GetViewport().GetTexture().GetImage();
+        sellShot.SavePng(Path.Combine(destDir, "godot-port-mercato-sell.png"));
+        sellShot.SavePng("/opt/cursor/artifacts/godot-port-mercato-sell.png");
+
+        SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
+        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
+        if (_slice.Session.SaleIncome <= 0)
+        {
+            GD.PushError("capture restore sale income");
+        }
+
+        _mercato?.Open(_slice);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var roundtrip = GetViewport().GetTexture().GetImage();
+        roundtrip.SavePng(Path.Combine(destDir, "godot-port-mercato-save-roundtrip.png"));
+        roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
+
+        GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureResearchShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
         var lockedFull = GetViewport().GetTexture().GetImage();
         var barH = Math.Min(170, lockedFull.GetHeight());
         var lockedBar = lockedFull.GetRegion(
             new Rect2I(0, lockedFull.GetHeight() - barH, lockedFull.GetWidth(), barH));
         lockedBar.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-locked-toolbar.png"));
         lockedBar.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-locked-toolbar.png");
-        GD.Print($"Saved techtree locked-toolbar → {destDir}");
 
         _research?.Open(_slice);
         _research?.SelectStructure("smelter");
@@ -1229,19 +1365,9 @@ public partial class SpikeWorld : Node2D
         panelShot.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-panel.png"));
         panelShot.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-panel.png");
 
-        // Affordable-blocked shot: select forno with zero wallet → Manca line.
-        if (_slice.Wallet.Money > 0 || _slice.Wallet.MaterialCount("iron-plate") > 0)
-        {
-            // Wallet was seeded in capture bootstrap; leave as-is for unlock path.
-        }
-
         if (!_slice.TryUnlockStructure("smelter"))
         {
             GD.PushError("Capture unlock smelter failed");
-        }
-        else
-        {
-            _hud.ShowToast("Forno sbloccato!");
         }
 
         _research?.SelectStructure("assembler");
@@ -1252,31 +1378,6 @@ public partial class SpikeWorld : Node2D
         var afterUnlock = GetViewport().GetTexture().GetImage();
         afterUnlock.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-path.png"));
         afterUnlock.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-path.png");
-
-        _research?.Close();
-        SelectTool(BuildTool.Smelter, toast: true);
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
-        var toolShot = GetViewport().GetTexture().GetImage();
-        var toolBar = toolShot.GetRegion(
-            new Rect2I(0, toolShot.GetHeight() - barH, toolShot.GetWidth(), barH));
-        toolBar.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-forno-toolbar.png"));
-        toolBar.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-forno-toolbar.png");
-
-        SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
-        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
-        if (!_slice.Research.IsUnlocked("smelter"))
-        {
-            GD.PushError("capture restore smelter");
-        }
-
-        _research?.Open(_slice);
-        _research?.SelectStructure("smelter");
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
-        var roundtrip = GetViewport().GetTexture().GetImage();
-        roundtrip.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-unlocked.png"));
-        roundtrip.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-unlocked.png");
 
         GD.Print("Tech-tree graph screenshot set complete.");
         GetTree().Quit();

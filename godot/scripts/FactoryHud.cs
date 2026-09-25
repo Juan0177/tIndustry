@@ -37,6 +37,7 @@ public partial class FactoryHud : Control
     private Label? _toastLabel;
     private Label? _hintLabel;
     private Label? _titleLabel;
+    private Label? _moneyLabel;
     private ToolKind _selected = ToolKind.Cursor;
     private Tween? _toastTween;
 
@@ -46,6 +47,7 @@ public partial class FactoryHud : Control
     public event Action? SaveSlotRequested;
     public event Action? LoadSlotRequested;
     public event Action? ResearchRequested;
+    public event Action? MercatoRequested;
 
     public ToolKind SelectedTool => _selected;
     public bool IsCursorMode => _selected == ToolKind.Cursor;
@@ -173,6 +175,7 @@ public partial class FactoryHud : Control
         string wireName, int wire,
         long delivered,
         int onBelt,
+        int money = 0,
         int generatorsLive = 0,
         int generatorsTotal = 0)
     {
@@ -180,6 +183,11 @@ public partial class FactoryHud : Control
         SetStock("iron-plate", plateName, plate);
         SetStock("copper-ore", copperName, copper);
         SetStock("copper-wire", wireName, wire);
+        if (_moneyLabel is not null)
+        {
+            _moneyLabel.Text = $"Magazzino  ${money}  ·  M Mercato";
+        }
+
         if (_titleLabel is not null)
         {
             var power = generatorsTotal == 0
@@ -222,7 +230,7 @@ public partial class FactoryHud : Control
         panel.OffsetLeft = -320;
         panel.OffsetTop = 12;
         panel.OffsetRight = -12;
-        panel.OffsetBottom = 148;
+        panel.OffsetBottom = 168;
         AddChild(panel);
 
         var margin = new MarginContainer();
@@ -244,6 +252,14 @@ public partial class FactoryHud : Control
         _titleLabel.AddThemeColorOverride("font_color", TextMuted);
         _titleLabel.AddThemeFontSizeOverride("font_size", 13);
         vbox.AddChild(_titleLabel);
+
+        _moneyLabel = new Label
+        {
+            Text = "Magazzino  $0  ·  M Mercato"
+        };
+        _moneyLabel.AddThemeColorOverride("font_color", SlotSelected);
+        _moneyLabel.AddThemeFontSizeOverride("font_size", 14);
+        vbox.AddChild(_moneyLabel);
 
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 8);
@@ -371,6 +387,10 @@ public partial class FactoryHud : Control
         AddActionChip(saveRow, "Ricerca", "T", () =>
         {
             ResearchRequested?.Invoke();
+        });
+        AddActionChip(saveRow, "Mercato", "M", () =>
+        {
+            MercatoRequested?.Invoke();
         });
         AddActionChip(saveRow, "Salva", "F5", () =>
         {
