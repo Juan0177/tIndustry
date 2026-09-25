@@ -2585,7 +2585,7 @@ public partial class SpikeWorld : Node2D
         }
 
         // Hold craft for ~0.7s so press/glow settle without finishing the recipe.
-        for (var i = 0; i < 24; i++)
+        for (var i = 0; i < 45; i++)
         {
             if (smelter)
             {

@@ -87,7 +87,9 @@ public partial class AssemblerVisual : Node2D
     {
         var target = asm.IsCrafting ? 1f : 0f;
         var speed = asm.IsCrafting ? 2.8f : 3.5f;
-        _press = Mathf.MoveToward(_press, target, delta * speed);
+        // Floor delta so press settles under uncapped headless frame rates.
+        var step = Mathf.Max(delta, 1f / 30f) * speed;
+        _press = Mathf.MoveToward(_press, target, step);
         ApplyPress(_press);
     }
 
