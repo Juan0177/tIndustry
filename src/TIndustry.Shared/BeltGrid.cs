@@ -67,7 +67,7 @@ public sealed class BeltGrid
     }
 
     /// <summary>
-    /// Place paired bridge ends (span 2–4). Mid tiles stay empty so belts can cross.
+    /// Place paired bridge ends (span 2–5). Mid tiles stay empty so belts can cross.
     /// </summary>
     public bool TryPlaceBridge(
         GridPosition entry,
@@ -161,8 +161,56 @@ public sealed class BeltGrid
         return true;
     }
 
-    public bool TryInsert(GridPosition position, TransportedItem item, Direction? fromDirection = null) =>
-        cells.TryGetValue(position, out var cell) && cell.TryInsert(item, fromDirection);
+    public bool TryInsert(GridPosition position, TransportedItem item, Direction? fromDirection = null)
+    {
+        if (!cells.TryGetValue(position, out var cell))
+        {
+            return false;
+        }
+
+        // Bridge start: accept 3 sides (not span); teleport instantly to end when free.
+        if (cell.Kind == LogisticsKind.Bridge
+            && cell.BridgePartner is { } partner
+            && IsBridgeEntry(cell, partner))
+        {
+            if (fromDirection is { } incoming
+                && incoming == DirectionMath.Opposite(cell.Direction))
+            {
+                // Coming from the span side — reject.
+                return false;
+            }
+
+            if (cells.TryGetValue(partner, out var exitCell)
+                && exitCell.TryInsert(item, cell.Direction))
+            {
+                // Instantaneous start→end; ready to leave end immediately.
+                item.Progress = 1f;
+                return true;
+            }
+
+            // End blocked: hold on start, already ready to teleport next handoff.
+            if (!cell.TryInsert(item, fromDirection))
+            {
+                return false;
+            }
+
+            item.Progress = 1f;
+            return true;
+        }
+
+        // Bridge end: only receives via teleport from start (handled above / handoff).
+        if (cell.Kind == LogisticsKind.Bridge
+            && cell.BridgePartner is { } endPartner
+            && !IsBridgeEntry(cell, endPartner)
+            && fromDirection is { } approach
+            && approach == cell.Direction)
+        {
+            // External insert from the span side into the end pad — reject.
+            return false;
+        }
+
+        return cell.TryInsert(item, fromDirection);
+    }
 
     public void Tick(float deltaSeconds)
     {
@@ -223,10 +271,23 @@ public sealed class BeltGrid
                 && cells.TryGetValue(partner, out var exitCell)
                 && exitCell.TryInsert(item, cell.Direction))
             {
+                item.Progress = 1f; // instantaneous; end ready to eject
                 cell.RemoveOutput();
                 return;
             }
-            // Bridge exit (or blocked entry): continue to facing neighbor below.
+
+            if (!IsBridgeEntry(cell, partner))
+            {
+                // End: output to all 3 sides except the span (Opposite(Direction)).
+                if (TryHandoffTo(cell, cell.Direction, item)
+                    || TryHandoffTo(cell, DirectionMath.Left(cell.Direction), item)
+                    || TryHandoffTo(cell, DirectionMath.Right(cell.Direction), item))
+                {
+                    return;
+                }
+            }
+
+            return;
         }
 
         if (cell.Kind == LogisticsKind.Splitter)
@@ -282,7 +343,8 @@ public sealed class BeltGrid
     private bool TryHandoffTo(BeltGridCell cell, Direction exit, TransportedItem item)
     {
         var target = cell.Position.Step(exit);
-        if (!cells.TryGetValue(target, out var next) || !next.TryInsert(item, exit))
+        // Route through grid TryInsert so bridge start gets 3-side + instant teleport.
+        if (!TryInsert(target, item, exit))
         {
             return false;
         }
@@ -374,7 +436,7 @@ public sealed class BeltGrid
 public sealed class BeltGridCell
 {
     public const int MinBridgeSpan = 2;
-    public const int MaxBridgeSpan = 4;
+    public const int MaxBridgeSpan = 5;
     public const string DefaultSorterFilter = "iron-ore";
 
     private readonly BeltCell inner;

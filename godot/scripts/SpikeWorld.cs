@@ -1339,6 +1339,7 @@ public partial class SpikeWorld : Node2D
             SorterFilterIds,
             id => string.Equals(id, _sorterFilterId, StringComparison.Ordinal));
         _sorterFilterId = SorterFilterIds[(idx + 1 + SorterFilterIds.Length) % SorterFilterIds.Length];
+        _hud?.SetSorterFilterBrush(_sorterFilterId);
 
         // Also cycle hovered / selected sorter cell if present.
         if (_slice is not null
@@ -1348,6 +1349,7 @@ public partial class SpikeWorld : Node2D
         {
             cell.CycleFilterItem(SorterFilterIds);
             _sorterFilterId = cell.FilterItemId ?? _sorterFilterId;
+            _hud?.SetSorterFilterBrush(_sorterFilterId);
             _visualDirty = true;
         }
 
@@ -1947,6 +1949,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "logistics-redesign")
+        {
+            await CaptureLogisticsRedesignShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -1993,6 +2001,80 @@ public partial class SpikeWorld : Node2D
         roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureLogisticsRedesignShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        SyncResearchLocks();
+
+        // Clear a quiet row for showcase.
+        for (var x = 2; x <= 14; x++)
+        {
+            for (var y = 2; y <= 5; y++)
+            {
+                _slice.TryRemoveBelt(new GridPosition(x, y));
+            }
+        }
+
+        // Splitter + sorter (with iron-plate filter) + bridge span 3.
+        _slice.TryPlaceSplitter(new GridPosition(3, 3), Direction.East);
+        _slice.TryPlaceSorter(new GridPosition(5, 3), Direction.East, "iron-plate");
+        _slice.TryPlaceBridge(new GridPosition(8, 3), Direction.East); // shortest free → span 2 or more
+        // Force longer span for animation: block span-2 exit then re-place.
+        _slice.TryRemoveBelt(new GridPosition(8, 3));
+        _slice.TryPlaceBelt(new GridPosition(10, 3), Direction.South, "conveyor-basic");
+        _slice.TryPlaceBelt(new GridPosition(11, 3), Direction.South, "conveyor-basic");
+        _slice.TryPlaceBridge(new GridPosition(8, 3), Direction.East); // → (12,3) span 4
+
+        // Side output demo belts near bridge end.
+        _slice.TryPlaceBelt(new GridPosition(12, 2), Direction.North, "conveyor-basic");
+        _slice.TryPlaceBelt(new GridPosition(7, 3), Direction.East, "conveyor-basic");
+
+        _hud.SetSorterFilterBrush("iron-plate");
+        _visualDirty = true;
+        RebuildBeltVisual();
+        UpdateHud();
+
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(8f * TileSize, 4f * TileSize);
+            cam.Zoom = new Vector2(1.05f, 1.05f);
+        }
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Splitter);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
+        var world = GetViewport().GetTexture().GetImage();
+        world.SavePng(Path.Combine(destDir, "godot-port-logistics-redesign-world.png"));
+        world.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-world.png");
+
+        // Hold a few frames so bridge arrows animate through a cycle.
+        await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
+        var anim = GetViewport().GetTexture().GetImage();
+        anim.SavePng(Path.Combine(destDir, "godot-port-logistics-redesign-bridge-anim.png"));
+        anim.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-bridge-anim.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Sorter);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var palette = GetViewport().GetTexture().GetImage();
+        palette.SavePng(Path.Combine(destDir, "godot-port-logistics-redesign-palette.png"));
+        palette.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-palette.png");
+
+        GD.Print("Logistics redesign screenshot set complete.");
         GetTree().Quit();
     }
 

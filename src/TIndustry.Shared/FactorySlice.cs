@@ -1676,9 +1676,10 @@ public sealed class FactorySlice
         // Cross belt under mid.
         bridgeGrid.TryPlaceFree(new GridPosition(2, 0), Direction.South, belt);
 
+        // Assert instantaneous: after feed belt transit, exit has the item within ~1s (not ~4s of dual pad).
         Assert(bridgeGrid.TryInsert(new GridPosition(0, 0), new TransportedItem(10, "iron-plate")), "bridge feed");
         var teleported = false;
-        for (var i = 0; i < 30 * 20; i++)
+        for (var i = 0; i < 30 * 8; i++)
         {
             bridgeGrid.Tick(dt);
             if ((bridgeGrid.TryGet(new GridPosition(4, 0), out var post) && post.Items.Count > 0)
@@ -1690,6 +1691,34 @@ public sealed class FactorySlice
         }
 
         Assert(teleported, "bridge teleports item to exit");
+
+        // Span 5 placement (block shorter exits so max span is chosen).
+        var span5 = new BeltGrid();
+        span5.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
+        span5.TryPlaceFree(new GridPosition(3, 2), Direction.South, belt);
+        span5.TryPlaceFree(new GridPosition(4, 2), Direction.South, belt);
+        Assert(span5.TryPlaceBridge(new GridPosition(0, 2), Direction.East, bridge), "span5 place");
+        Assert(span5.Contains(new GridPosition(0, 2)) && span5.Contains(new GridPosition(5, 2)), "span5 ends");
+        Assert(BeltGridCell.MaxBridgeSpan == 5, "max span 5");
+        // End outputs to side (North) when facing East — 3-side I/O.
+        var ioGrid = new BeltGrid();
+        ioGrid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);
+        Assert(ioGrid.TryPlaceBridge(new GridPosition(1, 1), Direction.East, bridge), "io bridge");
+        ioGrid.TryPlaceFree(new GridPosition(3, 0), Direction.North, belt); // north of exit (3,1)
+        Assert(ioGrid.TryInsert(new GridPosition(0, 1), new TransportedItem(20, "coal")), "io feed");
+        var sideOut = false;
+        for (var i = 0; i < 30 * 10; i++)
+        {
+            ioGrid.Tick(dt);
+            if (ioGrid.TryGet(new GridPosition(3, 0), out var north) && north.Items.Count > 0)
+            {
+                sideOut = true;
+                break;
+            }
+        }
+
+        Assert(sideOut, "bridge end ejects to side (not only facing)");
+
         Assert(bridgeGrid.TryRemove(new GridPosition(1, 0)), "paired remove");
         Assert(!bridgeGrid.Contains(new GridPosition(1, 0)) && !bridgeGrid.Contains(new GridPosition(3, 0)),
             "both bridge ends removed");

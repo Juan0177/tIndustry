@@ -71,9 +71,9 @@ public partial class FactoryHud : Control
         new(ToolKind.Splitter, "splitter", "res://assets/splitter.png", "6",
             "Nastro a T · alterna sinistra/destra"),
         new(ToolKind.Sorter, "sorter", "res://assets/sorter.png", "8",
-            "Filtro item · C cicla · match avanti"),
+            "Filtro item · icona al centro · C cicla · match avanti"),
         new(ToolKind.Bridge, "conveyor-bridge", "res://assets/bridge.png", "9",
-            "Ponte span 2–4 · estremi 1×1")
+            "Ponte span 2–5 · I/O 3 lati · teleporto istantaneo")
     ];
 
     private static readonly PaletteEntry[] ProductionEntries =
@@ -127,6 +127,8 @@ public partial class FactoryHud : Control
     private ToolKind? _hovered;
     private Tween? _toastTween;
     private FactoryContent? _content;
+    private string _sorterFilterId = "iron-ore";
+    private TextureRect? _sorterFilterIcon;
     private EconomyWallet? _wallet;
     private int _money;
 
@@ -186,6 +188,22 @@ public partial class FactoryHud : Control
 
         RefreshToolChrome();
         RefreshBlockInfo();
+    }
+
+    /// <summary>Brush filter shown on the sorter palette glyph (and used when placing).</summary>
+    public void SetSorterFilterBrush(string itemId)
+    {
+        _sorterFilterId = string.IsNullOrWhiteSpace(itemId) ? "iron-ore" : itemId;
+        if (_sorterFilterIcon is not null)
+        {
+            ApplySorterFilterTexture(_sorterFilterIcon);
+        }
+    }
+
+    private void ApplySorterFilterTexture(TextureRect target)
+    {
+        var path = $"res://assets/{_sorterFilterId}.png";
+        target.Texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
     }
 
     public void SetToolLocked(ToolKind tool, bool locked)
@@ -811,6 +829,7 @@ public partial class FactoryHud : Control
         }
 
         _gridSlots.Clear();
+        _sorterFilterIcon = null;
         // Drop stale tool slot refs for place tools; cursor stays if present.
         var keep = new HashSet<ToolKind> { ToolKind.Cursor };
         foreach (var kind in _toolSlots.Keys.ToList())
@@ -856,6 +875,47 @@ public partial class FactoryHud : Control
             glyph.AddThemeColorOverride("font_color", TextPrimary);
             glyph.AddThemeFontSizeOverride("font_size", 26);
             center.AddChild(glyph);
+        }
+        else if (entry.Tool == ToolKind.Sorter)
+        {
+            // Frame + dynamic filter glyph (~70% of slot).
+            var stack = new Control
+            {
+                CustomMinimumSize = new Vector2(40, 40),
+                MouseFilter = MouseFilterEnum.Ignore
+            };
+            var frame = new TextureRect
+            {
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                CustomMinimumSize = new Vector2(40, 40),
+                MouseFilter = MouseFilterEnum.Ignore
+            };
+            if (ResourceLoader.Exists(entry.TexPath))
+            {
+                frame.Texture = GD.Load<Texture2D>(entry.TexPath);
+            }
+
+            frame.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            stack.AddChild(frame);
+
+            var filter = new TextureRect
+            {
+                Name = "SorterFilter",
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                CustomMinimumSize = new Vector2(28, 28),
+                MouseFilter = MouseFilterEnum.Ignore
+            };
+            filter.SetAnchorsPreset(LayoutPreset.Center);
+            filter.OffsetLeft = -14;
+            filter.OffsetTop = -14;
+            filter.OffsetRight = 14;
+            filter.OffsetBottom = 14;
+            ApplySorterFilterTexture(filter);
+            stack.AddChild(filter);
+            _sorterFilterIcon = filter;
+            center.AddChild(stack);
         }
         else
         {
