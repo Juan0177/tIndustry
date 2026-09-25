@@ -10,7 +10,7 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
 {
-    public const float BridgeThicknessScale = 0.78f;
+    public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
     private readonly List<ScrollingBeltStrip> _strips = [];
     private readonly List<BeltCornerTile> _corners = [];
@@ -104,7 +104,7 @@ public partial class MindustryBeltVisual : Node2D
                 continue;
             }
 
-            AddSpecial(pos, cell.Kind, cell.Direction, tileSize);
+            AddSpecial(pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
             visited.Add(pos);
             phase += 1f;
         }
@@ -319,19 +319,10 @@ public partial class MindustryBeltVisual : Node2D
         AddSpecial(entry, LogisticsKind.Bridge, direction, tileSize);
         AddSpecial(exit, LogisticsKind.Bridge, direction, tileSize);
 
-        // Thin mid-span between ends (decision 14 ~78%). Include both ends in path
-        // so length covers center-to-center; end sprites sit above (ZIndex 3).
-        var spanCells = new List<GridPosition> { entry };
-        var cursor = entry.Step(direction);
-        var guard = 0;
-        while (!cursor.Equals(exit) && guard++ < BeltGridCell.MaxBridgeSpan + 1)
-        {
-            spanCells.Add(cursor);
-            cursor = cursor.Step(direction);
-        }
-
-        spanCells.Add(exit);
-        AddStrip(spanCells, direction, tileSize, phase, BridgeThicknessScale);
+        var span = new BridgeSpanVisual { Name = $"BridgeSpan_{entry.X}_{entry.Y}" };
+        AddChild(span);
+        span.Configure(entry, exit, direction, tileSize);
+        _ = phase; // scroll phase unused — span uses its own light sequence
     }
 
     private static bool IsBridgeEntryVisual(GridPosition entry, Direction direction, GridPosition partner)
@@ -354,7 +345,12 @@ public partial class MindustryBeltVisual : Node2D
         };
     }
 
-    private void AddSpecial(GridPosition pos, LogisticsKind kind, Direction direction, int tileSize)
+    private void AddSpecial(
+        GridPosition pos,
+        LogisticsKind kind,
+        Direction direction,
+        int tileSize,
+        string? sorterFilterId = null)
     {
         var texPath = kind switch
         {
@@ -374,6 +370,7 @@ public partial class MindustryBeltVisual : Node2D
         {
             Texture = GD.Load<Texture2D>(texPath),
             Centered = true,
+            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = Vector2.One * (tileSize / 64f)
         };
         // Splitter / sorter / bridge rotate with facing; junction is axis-symmetric.
@@ -390,6 +387,31 @@ public partial class MindustryBeltVisual : Node2D
         }
 
         node.AddChild(sprite);
+
+        // Sorter: filtered item icon ~70% of tile (counter-rotated so glyph stays upright).
+        if (kind == LogisticsKind.Sorter)
+        {
+            var filterId = string.IsNullOrWhiteSpace(sorterFilterId)
+                ? BeltGridCell.DefaultSorterFilter
+                : sorterFilterId;
+            var filterPath = $"res://assets/{filterId}.png";
+            if (ResourceLoader.Exists(filterPath))
+            {
+                var glyph = new Sprite2D
+                {
+                    Name = "FilterIcon",
+                    Texture = GD.Load<Texture2D>(filterPath),
+                    Centered = true,
+                    TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                    Scale = Vector2.One * (tileSize * 0.70f / 64f),
+                    // Cancel parent/frame rotation so the item stays axis-aligned.
+                    RotationDegrees = -sprite.RotationDegrees,
+                    ZIndex = 1
+                };
+                node.AddChild(glyph);
+            }
+        }
+
         AddChild(node);
     }
 

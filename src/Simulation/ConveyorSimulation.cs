@@ -156,7 +156,7 @@ public sealed class EconomyWallet
 public sealed class ConveyorCell
 {
     public const int MinBridgeSpan = 2;
-    public const int MaxBridgeSpan = 4;
+    public const int MaxBridgeSpan = 5;
 
     private readonly List<TransportedItem> items;
     private int splitterToggle;

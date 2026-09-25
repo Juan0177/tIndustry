@@ -120,52 +120,55 @@ def draw_junction() -> None:
 
 
 def draw_splitter() -> None:
-    img = new_img(BLU2)
+    """Square + medium dark border + azzurro corner circle with inner-border raccordo."""
+    img = new_img(BLU3)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [4, 4, SIZE - 5, SIZE - 5], BLU3)
-    # T shape: in from top, out L/R
-    fill_rect(d, [26, 6, 37, 34], BLU4_DIM)
-    fill_rect(d, [28, 8, 35, 32], BLU4)
-    fill_rect(d, [8, 26, SIZE - 9, 37], BLU4_DIM)
-    fill_rect(d, [10, 28, SIZE - 11, 35], BLU4)
-    chevron_down(d, 32, 18, w=12, h=8, color=WHITE)
-    chevron_right(d, 48, 32, w=8, h=10, color=WHITE)
-    d.polygon([(16, 32), (24, 26), (24, 38)], fill=WHITE)  # left
-    border(d, BLU1, 2)
+    fill_rect(d, [5, 5, SIZE - 6, SIZE - 6], BLU2)
+    fill_rect(d, [8, 8, SIZE - 9, SIZE - 9], BLU3)
+    # Medium-thick dark border
+    border(d, BLU1, 4)
+    # Inner-border raccordo (fillet) toward SE corner circle
+    d.pieslice([28, 28, 60, 60], start=0, end=90, fill=BLU4)
+    d.pieslice([34, 34, 56, 56], start=0, end=90, fill=BLU3)
+    # Azzurro circle in SE corner (rotation orients in-world)
+    cx, cy, r = 48, 48, 11
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLU4, outline=WHITE)
+    d.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=WHITE)
+    border(d, BLU1, 4)
     save(img, "splitter.png")
 
 
 def draw_sorter() -> None:
+    """Thin-border square frame; filter icon is overlaid dynamically in Godot (~70%)."""
     img = new_img(BLU2)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [4, 4, SIZE - 5, SIZE - 5], BLU3)
-    fill_rect(d, [26, 6, 37, SIZE - 7], BLU4_DIM)
-    fill_rect(d, [28, 8, 35, SIZE - 9], BLU4)
-    # filter plate
-    fill_rect(d, [14, 22, 49, 41], BLU1)
-    fill_rect(d, [16, 24, 47, 39], PROD_ACCENT)
-    fill_rect(d, [20, 28, 43, 35], PROD_HOT)
-    # side reject notch
-    fill_rect(d, [6, 28, 14, 35], BLU4_DIM)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], BLU3)
+    # Soft inner well for the filter glyph
+    fill_rect(d, [10, 10, SIZE - 11, SIZE - 11], BLU2)
+    # Neutral empty mark (shown when no overlay / as underlay)
+    d.ellipse([26, 26, 37, 37], outline=BLU4_DIM, width=2)
     border(d, BLU1, 2)
     save(img, "sorter.png")
 
 
 def draw_bridge() -> None:
+    """Anchor pad: thin border + 4 corner circles joined as X (cut by 4 smaller body circles)."""
     img = new_img(BLU2)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [4, 4, SIZE - 5, SIZE - 5], BLU3)
-    # elevated thin span
-    fill_rect(d, [6, 24, SIZE - 7, 39], BLU1)
-    fill_rect(d, [8, 26, SIZE - 9, 37], BLU4_DIM)
-    fill_rect(d, [10, 28, SIZE - 11, 35], BLU4)
-    # end pylons
-    fill_rect(d, [8, 16, 18, 47], BLU1)
-    fill_rect(d, [45, 16, 55, 47], BLU1)
-    fill_rect(d, [10, 18, 16, 45], BLU3)
-    fill_rect(d, [47, 18, 53, 45], BLU3)
-    for x in (22, 32, 42):
-        chevron_right(d, x, 32, w=7, h=8, color=WHITE)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], BLU3)
+    # 4 large corner circles (Blu4) — X arms
+    r = 14
+    corners = [(10, 10), (SIZE - 11, 10), (10, SIZE - 11), (SIZE - 11, SIZE - 11)]
+    for cx, cy in corners:
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLU4)
+    # 4 smaller body-color circles to carve the X look (mid-edge cuts)
+    cut = 11
+    cuts = [(32, 8), (32, SIZE - 9), (8, 32), (SIZE - 9, 32)]
+    for cx, cy in cuts:
+        d.ellipse([cx - cut, cy - cut, cx + cut, cy + cut], fill=BLU3)
+    # Center hub
+    d.ellipse([26, 26, 37, 37], fill=BLU1, outline=BLU4)
+    d.ellipse([29, 29, 34, 34], fill=BLU4)
     border(d, BLU1, 2)
     save(img, "bridge.png")
 
