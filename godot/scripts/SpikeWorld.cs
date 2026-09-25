@@ -38,6 +38,7 @@ public partial class SpikeWorld : Node2D
     private Node2D? _itemsLayer;
     private Node2D? _buildingsLayer;
     private FactoryHud? _hud;
+    private HomePanel? _home;
     private ResearchPanel? _research;
     private MercatoPanel? _mercato;
     private CampaignSelectPanel? _campaignSelect;
@@ -62,6 +63,7 @@ public partial class SpikeWorld : Node2D
     private Texture2D? _copperWireTex;
     private Texture2D? _coalTex;
     private bool _lastGenLive;
+    private bool _returnHomeAfterCampaign;
 
     public override void _Ready()
     {
@@ -78,6 +80,7 @@ public partial class SpikeWorld : Node2D
         EnsureResearchPanel();
         EnsureMercatoPanel();
         EnsureCampaignSelectPanel();
+        EnsureHomePanel();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -174,19 +177,28 @@ public partial class SpikeWorld : Node2D
             UpdateHud();
         }
 
-        // Continue: auto-load continua after visuals exist (unless TINDUSTRY_FRESH=1).
-        if (OS.GetEnvironment("TINDUSTRY_FRESH") != "1"
-            && OS.GetEnvironment("TINDUSTRY_CAPTURE") != "1"
-            && FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId))
+        // Capture / fresh: skip Home (except home capture mode). Otherwise show splash.
+        var capture = OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1";
+        var captureMode = OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE");
+        if (capture && captureMode == "home")
         {
-            LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata", quietFail: true);
-        }
-
-        // Optional capture: TINDUSTRY_CAPTURE=1 → screenshots then quit.
-        if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
-        {
+            _home?.Open();
             var timer = GetTree().CreateTimer(1.0);
             timer.Timeout += () => _ = SavePortScreenshotsAsync();
+        }
+        else if (capture)
+        {
+            _home?.Close();
+            var timer = GetTree().CreateTimer(1.0);
+            timer.Timeout += () => _ = SavePortScreenshotsAsync();
+        }
+        else if (OS.GetEnvironment("TINDUSTRY_FRESH") == "1")
+        {
+            _home?.Close();
+        }
+        else
+        {
+            _home?.Open();
         }
 
         if (HasNode("Camera"))
@@ -292,9 +304,91 @@ public partial class SpikeWorld : Node2D
 
         _campaignSelect.LevelChosen += level =>
         {
+            _returnHomeAfterCampaign = false;
             StartCampaignLevel(level, toast: true);
             _campaignSelect.Close();
+            _home?.Close();
         };
+        _campaignSelect.Closed += () =>
+        {
+            if (_returnHomeAfterCampaign)
+            {
+                _returnHomeAfterCampaign = false;
+                _home?.Open();
+            }
+        };
+    }
+
+    private void EnsureHomePanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("HomePanel"))
+        {
+            _home = layer.GetNode<HomePanel>("HomePanel");
+        }
+        else
+        {
+            _home = new HomePanel { Name = "HomePanel" };
+            layer.AddChild(_home);
+        }
+
+        // Keep Home above other HUD so it covers dock/info while choosing.
+        layer.MoveChild(_home, layer.GetChildCount() - 1);
+
+        _home.ContinuaChosen += OnHomeContinua;
+        _home.CampaignChosen += OnHomeCampaign;
+        _home.NewGameChosen += OnHomeNewGame;
+        _home.QuitChosen += () => GetTree().Quit();
+    }
+
+    private void OnHomeContinua()
+    {
+        if (!FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId))
+        {
+            _home?.RefreshContinua();
+            _hud?.ShowToast("Nessun salvataggio continua");
+            return;
+        }
+
+        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata");
+        _home?.Close();
+    }
+
+    private void OnHomeCampaign()
+    {
+        _home?.Close();
+        _returnHomeAfterCampaign = true;
+        ToggleCampaign();
+    }
+
+    private void OnHomeNewGame()
+    {
+        StartNewSandbox(toast: true);
+        _home?.Close();
+    }
+
+    private void StartNewSandbox(bool toast)
+    {
+        var content = FactoryContent.Load(_contentPath);
+        _slice = new FactorySlice(
+            content,
+            new BeltGrid(),
+            CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2));
+        _slice.Wallet.AddMoney(180);
+        _activeLevel = null;
+        _levelCompleteToastShown = false;
+        _tool = BuildTool.Cursor;
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        SyncResearchLocks();
+        UpdateHud();
+        _hud?.ClearObjectives();
+        if (toast)
+        {
+            _hud?.ShowToast("Nuova partita · sandbox");
+        }
     }
 
     private void ToggleResearch()
@@ -350,6 +444,7 @@ public partial class SpikeWorld : Node2D
 
         _research?.Close();
         _mercato?.Close();
+        _home?.Close();
         ClearToCursor(toast: false);
         _campaignSelect.Open(_campaign, _progress);
     }
@@ -614,6 +709,11 @@ public partial class SpikeWorld : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (_home?.IsOpen == true)
+        {
+            return;
+        }
+
         if (_slice is null)
         {
             return;
@@ -649,7 +749,20 @@ public partial class SpikeWorld : Node2D
 
             if (key.Keycode == Key.Escape || key.Keycode == Key.Quoteleft)
             {
-                ClearToCursor();
+                if (_tool != BuildTool.Cursor)
+                {
+                    ClearToCursor();
+                }
+                else if (key.Keycode == Key.Escape)
+                {
+                    // Raylib parity: Esc from cursor → Home.
+                    _home?.Open();
+                }
+                else
+                {
+                    ClearToCursor();
+                }
+
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -825,7 +938,7 @@ public partial class SpikeWorld : Node2D
 
     public override void _Process(double delta)
     {
-        if (_slice is null)
+        if (_home?.IsOpen == true || _slice is null)
         {
             return;
         }
@@ -1457,6 +1570,41 @@ public partial class SpikeWorld : Node2D
             "campaign.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
     }
 
+    private async Task CaptureHomeShotsAsync(string destDir)
+    {
+        _home?.Open();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        var splash = GetViewport().GetTexture().GetImage();
+        splash.SavePng(Path.Combine(destDir, "godot-port-home-splash.png"));
+        splash.SavePng("/opt/cursor/artifacts/godot-port-home-splash.png");
+        GD.Print($"Saved home splash → {destDir}");
+
+        _home?.Close();
+        _returnHomeAfterCampaign = true;
+        if (_campaign is not null && _progress is not null)
+        {
+            _campaignSelect?.Open(_campaign, _progress);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var campagna = GetViewport().GetTexture().GetImage();
+        campagna.SavePng(Path.Combine(destDir, "godot-port-home-campagna.png"));
+        campagna.SavePng("/opt/cursor/artifacts/godot-port-home-campagna.png");
+
+        _campaignSelect?.Close();
+        StartNewSandbox(toast: false);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var sandbox = GetViewport().GetTexture().GetImage();
+        sandbox.SavePng(Path.Combine(destDir, "godot-port-home-sandbox.png"));
+        sandbox.SavePng("/opt/cursor/artifacts/godot-port-home-sandbox.png");
+
+        GD.Print("Home screenshot set complete.");
+        GetTree().Quit();
+    }
+
     private async Task CaptureCampaignShotsAsync(string destDir)
     {
         if (_slice is null || _hud is null || _campaign is null || _progress is null)
@@ -1573,6 +1721,12 @@ public partial class SpikeWorld : Node2D
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "mindustry-ui")
         {
             await CaptureMindustryUiShotsAsync(destDir);
+            return;
+        }
+
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "home")
+        {
+            await CaptureHomeShotsAsync(destDir);
             return;
         }
 
