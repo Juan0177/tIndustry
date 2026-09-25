@@ -1593,8 +1593,10 @@ public partial class SpikeWorld : Node2D
         campagna.SavePng(Path.Combine(destDir, "godot-port-home-campagna.png"));
         campagna.SavePng("/opt/cursor/artifacts/godot-port-home-campagna.png");
 
+        _returnHomeAfterCampaign = false;
         _campaignSelect?.Close();
         StartNewSandbox(toast: false);
+        _home?.Close();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var sandbox = GetViewport().GetTexture().GetImage();
