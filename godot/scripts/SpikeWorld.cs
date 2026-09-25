@@ -1970,7 +1970,8 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") is "miner-gears" or "miner-gears-fill")
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") is "miner-gears" or "miner-gears-fill"
+            or "miner-center-gear")
         {
             await CaptureMinerGearsShotsAsync(destDir);
             return;
@@ -2167,9 +2168,12 @@ public partial class SpikeWorld : Node2D
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
 
-        var prefix = OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "miner-gears-fill"
-            ? "godot-port-miner-gears-fill"
-            : "godot-port-miner-gears";
+        var prefix = OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") switch
+        {
+            "miner-center-gear" => "godot-port-miner-center-gear",
+            "miner-gears-fill" => "godot-port-miner-gears-fill",
+            _ => "godot-port-miner-gears"
+        };
 
         var world = GetViewport().GetTexture().GetImage();
         world.SavePng(Path.Combine(destDir, $"{prefix}-world.png"));
