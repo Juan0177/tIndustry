@@ -169,6 +169,7 @@ public partial class MindustryBeltVisual : Node2D
 
             var run = new List<GridPosition>();
             var cursor = pos;
+            string? runDefId = null;
             while (true)
             {
                 if (!grid.TryGet(cursor, out var runCell)
@@ -176,6 +177,17 @@ public partial class MindustryBeltVisual : Node2D
                     || grid.IsCorner(cursor)
                     || runCell.Kind != LogisticsKind.Belt)
                 {
+                    break;
+                }
+
+                var defId = runCell.Definition.Id;
+                if (runDefId is null)
+                {
+                    runDefId = defId;
+                }
+                else if (defId != runDefId)
+                {
+                    // Don't merge T1 and T2 into one strip (T2 needs accent rails).
                     break;
                 }
 
@@ -204,7 +216,8 @@ public partial class MindustryBeltVisual : Node2D
             }
 
             var dir = grid.Cells[run[0]].Direction;
-            AddStrip(run, dir, tileSize, phase);
+            var accent = runDefId == "conveyor-fast";
+            AddStrip(run, dir, tileSize, phase, accentRails: accent);
             phase += run.Count;
         }
 
@@ -216,7 +229,8 @@ public partial class MindustryBeltVisual : Node2D
                 continue;
             }
 
-            AddStrip([pos], cell.Direction, tileSize, phase);
+            var accent = cell.Definition.Id == "conveyor-fast";
+            AddStrip([pos], cell.Direction, tileSize, phase, accentRails: accent);
             phase += 1f;
             visited.Add(pos);
         }
@@ -275,7 +289,8 @@ public partial class MindustryBeltVisual : Node2D
         Direction direction,
         int tileSize,
         float phase,
-        float thicknessScale = 1f)
+        float thicknessScale = 1f,
+        bool accentRails = false)
     {
         if (cells.Count == 0)
         {
@@ -284,7 +299,7 @@ public partial class MindustryBeltVisual : Node2D
 
         var strip = new ScrollingBeltStrip { Name = $"Strip_{cells[0].X}_{cells[0].Y}" };
         AddChild(strip);
-        strip.Configure(cells, direction, tileSize, phase, thicknessScale);
+        strip.Configure(cells, direction, tileSize, phase, thicknessScale, accentRails);
         if (thicknessScale < 0.99f)
         {
             // Bridge thin-span sits above underpass belts, below end pads.

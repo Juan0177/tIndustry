@@ -1941,6 +1941,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "belt-t2")
+        {
+            await CaptureBeltT2ChevronShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -1987,6 +1993,63 @@ public partial class SpikeWorld : Node2D
         roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureBeltT2ChevronShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        SyncResearchLocks();
+
+        // Clear a showcase row: T1 left, T2 right (same arrow density; T2 has Blu4 bordino).
+        for (var x = 3; x <= 10; x++)
+        {
+            _slice.TryRemoveBelt(new GridPosition(x, 3));
+        }
+
+        _slice.TryPlaceBelt(new GridPosition(3, 3), Direction.East, "conveyor-basic");
+        _slice.TryPlaceBelt(new GridPosition(4, 3), Direction.East, "conveyor-basic");
+        _slice.TryPlaceBelt(new GridPosition(5, 3), Direction.East, "conveyor-basic");
+        _slice.TryPlaceBelt(new GridPosition(7, 3), Direction.East, "conveyor-fast");
+        _slice.TryPlaceBelt(new GridPosition(8, 3), Direction.East, "conveyor-fast");
+        _slice.TryPlaceBelt(new GridPosition(9, 3), Direction.East, "conveyor-fast");
+
+        _visualDirty = true;
+        RebuildBeltVisual();
+        UpdateHud();
+
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position = new Vector2(6.5f * TileSize, 4.5f * TileSize);
+            cam.Zoom = new Vector2(1.15f, 1.15f);
+        }
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Belt);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var worldT1 = GetViewport().GetTexture().GetImage();
+        worldT1.SavePng(Path.Combine(destDir, "godot-port-belt-t2-single-chevron-world.png"));
+        worldT1.SavePng("/opt/cursor/artifacts/godot-port-belt-t2-single-chevron-world.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.BeltFast);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        var palette = GetViewport().GetTexture().GetImage();
+        palette.SavePng(Path.Combine(destDir, "godot-port-belt-t2-single-chevron-palette.png"));
+        palette.SavePng("/opt/cursor/artifacts/godot-port-belt-t2-single-chevron-palette.png");
+
+        GD.Print("Belt T2 single-chevron screenshot set complete.");
         GetTree().Quit();
     }
 

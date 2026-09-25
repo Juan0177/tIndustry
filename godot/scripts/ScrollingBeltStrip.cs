@@ -19,7 +19,8 @@ public partial class ScrollingBeltStrip : Node2D
         Direction direction,
         int tileSize,
         float scrollPhaseTiles = 0f,
-        float thicknessScale = 1f)
+        float thicknessScale = 1f,
+        bool accentRails = false)
     {
         if (path.Count == 0)
         {
@@ -69,6 +70,8 @@ public partial class ScrollingBeltStrip : Node2D
         _material.SetShaderParameter("marks_per_tile", 2.0f);
         _material.SetShaderParameter("scroll_phase", scrollPhaseTiles);
         _material.SetShaderParameter("scroll", 0f);
+        // T2: Blu4 bordino only — same single arrow row as T1.
+        _material.SetShaderParameter("accent_rails", accentRails ? 1.0f : 0.0f);
 
         // Bridge thin-span: raise above underpass belts.
         _sprite.ZIndex = scale < 0.99f ? 2 : 1;

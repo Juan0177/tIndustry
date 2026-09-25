@@ -3,15 +3,18 @@ shader_type canvas_item;
 // Mindustry-style regular belt: FULL TILE — rails sit on UV edges (tile edges).
 // Thin spanning look is for bridges only — never shrink the strip in C#.
 // Rails + scrolling arrows tip toward +UV.x (flow); scroll rises with transport.
+// T2 (conveyor-fast): same single arrow row; accent_rails=1 draws Blu4 bordino.
 
 uniform float scroll = 0.0;
 uniform float scroll_phase = 0.0;
 uniform float cell_count = 1.0;
 uniform float marks_per_tile = 2.0;
+uniform float accent_rails = 0.0;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
 uniform vec4 mark_color : source_color = vec4(0.55, 0.68, 0.74, 1.0);
 uniform vec4 rail_color : source_color = vec4(0.10, 0.12, 0.14, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
+uniform vec4 accent_color : source_color = vec4(0.525, 0.655, 0.722, 1.0); // Blu4 #86A7B8
 
 // Explicit arrow pointing +u (flow). px in period, py across belt (-1..1).
 float arrow_mark(float px, float py) {
@@ -31,10 +34,13 @@ void fragment() {
 	// Rails on the absolute edges of the tile (flush with grid).
 	float rail = step(v, 0.08) + step(0.92, v);
 	float groove = (step(v, 0.14) - step(v, 0.08)) + (step(v, 0.92) - step(v, 0.86));
+	// T2 bordino: thin Blu4 stripe just inside the rails (same language as palette).
+	float accent = (step(v, 0.18) - step(v, 0.14)) + (step(v, 0.86) - step(v, 0.82));
+	accent *= step(0.5, accent_rails);
 
 	float px = fract(u * marks_per_tile);
 	float py = (v - 0.5) * 2.2;
-	float in_band = step(0.16, v) * step(v, 0.84);
+	float in_band = step(0.18, v) * step(v, 0.82);
 	float mark = arrow_mark(px, py) * in_band;
 	// Soften marks at strip ends so cut arrows don't show under corner overlap.
 	float end_fade = smoothstep(0.0, 0.04, UV.x) * smoothstep(0.0, 0.04, 1.0 - UV.x);
@@ -44,6 +50,7 @@ void fragment() {
 
 	vec3 col = base_color.rgb * shade;
 	col = mix(col, groove_color.rgb, clamp(groove, 0.0, 1.0));
+	col = mix(col, accent_color.rgb, clamp(accent, 0.0, 1.0));
 	col = mix(col, mark_color.rgb, mark);
 	col = mix(col, rail_color.rgb, clamp(rail, 0.0, 1.0));
 
