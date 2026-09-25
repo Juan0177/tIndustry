@@ -1146,8 +1146,8 @@ public partial class FactoryHud : Control
         }
 
         string Fmt(IReadOnlyList<ResourceAmount> list) =>
-            string.Join(" + ", list.Select(a =>
-                $"{a.Amount} {_content.DisplayName(a.ItemId)}"));
+            string.Join("+", list.Select(a =>
+                $"{a.Amount}×{_content.DisplayName(a.ItemId)}"));
 
         return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({recipe.DurationSeconds:0.#}s)";
     }
