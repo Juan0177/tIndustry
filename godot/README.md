@@ -1,18 +1,20 @@
-# tIndustry — Godot 4 .NET (research + cursor)
+# tIndustry — Godot 4 .NET (Mindustry-style HUD)
 
-Playable factory loop with **FactoryHud**, **JSON save/load**, power stubs, **sorter** + **bridge** (decision 14 thin span). Raylib resta dual path.
+Playable factory loop with **corner sprite palette**, **JSON save/load**, power stubs, **sorter** + **bridge**. Raylib resta dual path.
 
 ## Run
 
 ```bash
 godot4 --path godot
 TINDUSTRY_FRESH=1 godot4 --path godot          # ignore continua
-TINDUSTRY_CAPTURE=1 godot4 --path godot        # screenshots
+TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=mindustry-ui godot4 --path godot
 ```
 
 ## Controlli build
 
-**Cursore** (default) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · WASD pan
+**Cursore** (default, categoria St) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · WASD pan
+
+Palette Mindustry (angolo basso-destra): griglia sprite senza testo sotto; rail **St / Lo / Pr / Po**; hover/selezione apre pannello info (nome IT, I/O, costi con icona barrata se stock insufficiente); `?` apre dettaglio.
 
 | Hotkey | Azione |
 | --- | --- |
@@ -20,10 +22,10 @@ TINDUSTRY_CAPTURE=1 godot4 --path godot        # screenshots
 | 1–9 | Nastro … Ponte (2 = Minatore) |
 | M | Mercato (vendi stock) |
 | G | Campagna (seleziona livello) |
-| T | Ricerca (grafo) |
+| T | Ricerca (grafo icon-node) |
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
-| RMB | Elimina (non è uno slot toolbar) |
+| RMB | Elimina (non è uno slot palette) |
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
 
@@ -31,10 +33,10 @@ Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (bel
 
 | Azione | UI | Hotkey | Slot file |
 | --- | --- | --- | --- |
-| Salva continua | **Salva · F5** | F5 | `continua.json` |
-| Carica continua | **Carica · F9** | F9 | `continua.json` |
-| Salva slot | **Slot↑ · F6** | F6 | `slot-1.json` |
-| Carica slot | **Slot↓ · F7** | F7 | `slot-1.json` |
+| Salva continua | chip **F5** | F5 | `continua.json` |
+| Carica continua | chip **F9** | F9 | `continua.json` |
+| Salva slot | chip **F6** | F6 | `slot-1.json` |
+| Carica slot | chip **F7** | F7 | `slot-1.json` |
 
 Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`).  
 Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core.
@@ -43,13 +45,13 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 
 | Path | Role |
 | --- | --- |
-| `godot/` | Playable slice + FactoryHud |
+| `godot/` | Playable slice + FactoryHud Mindustry dock |
 | `src/TIndustry.Shared/` | FactorySlice + BeltGrid sorter/bridge + save |
 | `TIndustry.Logistics` | Raylib (GameSave v8 separate) |
 
 ## Ricerca
 
-**T** apre il grafo Ricerca (stile Raylib): nodi + archi prerequisito, pan (Shift/RMB), Ctrl+rotella zoom, H reset, percorso evidenziato. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
+**T** apre il grafo Ricerca: **nodi icona** + archi ortogonali, pan (Shift/RMB), Ctrl+rotella zoom, H reset, percorso evidenziato. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
 
 ## Mercato
 

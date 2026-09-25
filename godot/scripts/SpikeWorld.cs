@@ -110,8 +110,30 @@ public partial class SpikeWorld : Node2D
             }
         }
         else if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "mindustry-ui")
+        {
+            // Sparse wallet so cost chips show barred / insufficient materials.
+            var fresh = FactoryContent.Load(_contentPath);
+            _slice = new FactorySlice(
+                fresh,
+                new BeltGrid(),
+                CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2));
+            _slice.Wallet.AddMoney(5);
+            _slice.Wallet.AddMaterial("iron-ore", 2);
+            _slice.Wallet.AddMaterial("iron-plate", 0);
+            _slice.Wallet.AddMaterial("copper-ore", 1);
+            _slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
+            _visualDirty = true;
+            _buildingsDirty = true;
+            RebuildBeltVisual();
+            RebuildBuildingVisuals();
+            SyncResearchLocks();
+            UpdateHud();
+        }
+        else if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
             && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "cursor"
-            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "research")
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "research"
+            && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") != "mindustry-ui")
         {
             var fresh = FactoryContent.Load(_contentPath);
             _slice = new FactorySlice(
@@ -1338,6 +1360,7 @@ public partial class SpikeWorld : Node2D
 
         var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
         var gensLive = _slice.Generators.Count(g => g.IsGenerating);
+        _hud.BindEconomy(_slice.Content, _slice.Wallet);
         _hud.UpdateStock(
             ShortName(_slice.Content.DisplayName("iron-ore")),
             _slice.Wallet.MaterialCount("iron-ore"),
@@ -1547,6 +1570,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "mindustry-ui")
+        {
+            await CaptureMindustryUiShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -1593,6 +1622,74 @@ public partial class SpikeWorld : Node2D
         roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureMindustryUiShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        async Task SaveNamed(string name)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+            var img = GetViewport().GetTexture().GetImage();
+            img.SavePng(Path.Combine(destDir, name));
+            img.SavePng(Path.Combine("/opt/cursor/artifacts", name));
+            GD.Print($"Screenshot: {name}");
+        }
+
+        // 1) Corner palette (logistics sprites, no under-icon text).
+        ClearToCursor(toast: false);
+        UpdateHud();
+        await SaveNamed("godot-port-mindustry-ui-palette.png");
+
+        // Crop dock corner for close-up.
+        var full = GetViewport().GetTexture().GetImage();
+        var dockW = Math.Min(340, full.GetWidth());
+        var dockH = Math.Min(260, full.GetHeight());
+        var dock = full.GetRegion(new Rect2I(
+            full.GetWidth() - dockW, full.GetHeight() - dockH, dockW, dockH));
+        dock.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-dock-close.png"));
+        dock.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-dock-close.png");
+
+        // 2) Select miner → info panel + barred costs (0 iron-plate).
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Miner);
+        OnHudToolChosen(FactoryHud.ToolKind.Miner);
+        UpdateHud();
+        await SaveNamed("godot-port-mindustry-ui-info-barred.png");
+
+        // 3) Production category grid.
+        // Selecting smelter switches category via SetSelectedTool.
+        if (!_slice.IsStructureUnlocked("smelter"))
+        {
+            _slice.Wallet.AddMoney(500);
+            _slice.Wallet.AddMaterial("iron-plate", 40);
+            _ = _slice.TryUnlockStructure("smelter");
+            SyncResearchLocks();
+        }
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.Smelter);
+        OnHudToolChosen(FactoryHud.ToolKind.Smelter);
+        // Drain plates again so barred still visible if costs remain.
+        while (_slice.Wallet.MaterialCount("iron-plate") > 0)
+        {
+            _slice.Wallet.TrySpend(0, [new ResourceAmount("iron-plate", 1)]);
+        }
+
+        UpdateHud();
+        await SaveNamed("godot-port-mindustry-ui-production.png");
+
+        // 4) Tech tree icon nodes.
+        ClearToCursor(toast: false);
+        _research?.Open(_slice);
+        _research?.SelectStructure("smelter");
+        await SaveNamed("godot-port-mindustry-ui-techtree.png");
+
+        GD.Print("Mindustry UI screenshot set complete.");
         GetTree().Quit();
     }
 
