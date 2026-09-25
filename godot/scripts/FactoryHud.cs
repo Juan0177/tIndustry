@@ -101,6 +101,7 @@ public partial class FactoryHud : Control
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
     private PanelContainer? _infoPanel;
+    private Control? _infoSlot;
     private Label? _infoName;
     private HBoxContainer? _infoCostRow;
     private PanelContainer? _detailOverlay;
@@ -108,6 +109,7 @@ public partial class FactoryHud : Control
     private GridContainer? _blockGrid;
     private Label? _categoryTitle;
     private PanelContainer? _buildDock;
+    private VBoxContainer? _cornerStack;
     private ToolKind _selected = ToolKind.Cursor;
     private BuildCategory _category = BuildCategory.Logistics;
     private ToolKind? _hovered;
@@ -116,10 +118,9 @@ public partial class FactoryHud : Control
     private EconomyWallet? _wallet;
     private int _money;
 
-    /// <summary>Dock height from bottom (incl. margin); info strip sits fully above this.</summary>
-    private const float DockHeightFromBottom = 188f;
-    private const float InfoStripHeight = 78f;
-    private const float InfoDockGap = 32f;
+    /// <summary>Reserved height above the palette for the hover/select strip (empty = invisible).</summary>
+    private const float InfoSlotHeight = 78f;
+    private const float CornerStackWidth = 292f;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? SaveRequested;
@@ -141,8 +142,7 @@ public partial class FactoryHud : Control
 
         BuildStockPanel();
         BuildObjectivesPanel();
-        BuildToolbar();
-        BuildBlockInfoStrip(); // after dock so strip draws above it (z-order)
+        BuildCornerDock();
         BuildDetailOverlay();
         BuildToast();
         SetSelectedTool(ToolKind.Cursor);
@@ -510,36 +510,54 @@ public partial class FactoryHud : Control
         _objectivesPanel.OffsetBottom = 12 + 36 + lines * 20;
     }
 
-    private void BuildBlockInfoStrip()
+    private void BuildCornerDock()
     {
-        // Dense Mindustry strip: name + costs only; sits fully above the build dock.
+        // Bottom-right stack: [reserved info slot] then [build palette].
+        // Slot keeps fixed height when empty so the palette never jumps.
+        _cornerStack = new VBoxContainer
+        {
+            Name = "CornerDockStack",
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _cornerStack.SetAnchorsPreset(LayoutPreset.BottomRight);
+        _cornerStack.GrowHorizontal = GrowDirection.Begin;
+        _cornerStack.GrowVertical = GrowDirection.Begin;
+        _cornerStack.OffsetLeft = -CornerStackWidth - 8;
+        _cornerStack.OffsetRight = -8;
+        _cornerStack.OffsetBottom = -8;
+        _cornerStack.OffsetTop = -8; // grows upward via min sizes
+        _cornerStack.AddThemeConstantOverride("separation", 8);
+        AddChild(_cornerStack);
+
+        _infoSlot = new Control
+        {
+            Name = "InfoSlot",
+            CustomMinimumSize = new Vector2(CornerStackWidth, InfoSlotHeight),
+            SizeFlagsHorizontal = SizeFlags.Fill,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _cornerStack.AddChild(_infoSlot);
+
         _infoPanel = MakePanel("BlockInfo");
-        _infoPanel.SetAnchorsPreset(LayoutPreset.BottomRight);
-        _infoPanel.GrowHorizontal = GrowDirection.Begin;
-        _infoPanel.GrowVertical = GrowDirection.Begin;
-        _infoPanel.OffsetLeft = -300;
-        _infoPanel.OffsetRight = -8;
-        var stripBottom = DockHeightFromBottom + InfoDockGap;
-        _infoPanel.OffsetBottom = -stripBottom;
-        _infoPanel.OffsetTop = -(stripBottom + InfoStripHeight);
+        _infoPanel.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _infoPanel.Visible = false;
-        _infoPanel.ZIndex = 20;
-        AddChild(_infoPanel);
+        _infoPanel.MouseFilter = MouseFilterEnum.Ignore;
+        _infoSlot.AddChild(_infoPanel);
 
-        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        margin.AddThemeConstantOverride("margin_left", 8);
-        margin.AddThemeConstantOverride("margin_right", 8);
-        margin.AddThemeConstantOverride("margin_top", 6);
-        margin.AddThemeConstantOverride("margin_bottom", 6);
-        _infoPanel.AddChild(margin);
+        var infoMargin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        infoMargin.AddThemeConstantOverride("margin_left", 8);
+        infoMargin.AddThemeConstantOverride("margin_right", 8);
+        infoMargin.AddThemeConstantOverride("margin_top", 6);
+        infoMargin.AddThemeConstantOverride("margin_bottom", 6);
+        _infoPanel.AddChild(infoMargin);
 
-        var root = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        root.AddThemeConstantOverride("separation", 4);
-        margin.AddChild(root);
+        var infoRoot = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        infoRoot.AddThemeConstantOverride("separation", 4);
+        infoMargin.AddChild(infoRoot);
 
         var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         header.AddThemeConstantOverride("separation", 6);
-        root.AddChild(header);
+        infoRoot.AddChild(header);
 
         _infoName = new Label
         {
@@ -582,21 +600,13 @@ public partial class FactoryHud : Control
 
         _infoCostRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         _infoCostRow.AddThemeConstantOverride("separation", 4);
-        root.AddChild(_infoCostRow);
-    }
+        infoRoot.AddChild(_infoCostRow);
 
-    private void BuildToolbar()
-    {
-        // Bottom-right Mindustry dock: [grid][cats] over icon-only utility strip.
+        // Build palette dock — always below the reserved slot.
         _buildDock = MakePanel("BuildDock");
-        _buildDock.SetAnchorsPreset(LayoutPreset.BottomRight);
-        _buildDock.GrowHorizontal = GrowDirection.Begin;
-        _buildDock.GrowVertical = GrowDirection.Begin;
-        _buildDock.OffsetLeft = -292;
-        _buildDock.OffsetRight = -8;
-        _buildDock.OffsetTop = -DockHeightFromBottom;
-        _buildDock.OffsetBottom = -8;
-        AddChild(_buildDock);
+        _buildDock.CustomMinimumSize = new Vector2(CornerStackWidth, 0);
+        _buildDock.SizeFlagsHorizontal = SizeFlags.Fill;
+        _cornerStack.AddChild(_buildDock);
 
         var margin = new MarginContainer();
         margin.AddThemeConstantOverride("margin_left", 8);
@@ -643,7 +653,6 @@ public partial class FactoryHud : Control
         var util = new HBoxContainer();
         util.AddThemeConstantOverride("separation", 4);
         col.AddChild(util);
-        // Icon-only utilities; hotkeys only in tooltips.
         AddUtilityIcon(util, "res://assets/research.png", null, "Ricerca", "T",
             () => ResearchRequested?.Invoke());
         AddUtilityIcon(util, null, "$", "Mercato", "M",
@@ -658,6 +667,17 @@ public partial class FactoryHud : Control
             () => SaveSlotRequested?.Invoke());
         AddUtilityIcon(util, null, "▥", "Carica slot", "F7",
             () => LoadSlotRequested?.Invoke());
+    }
+
+    private void SetInfoSlotFilled(bool filled)
+    {
+        if (_infoPanel is null)
+        {
+            return;
+        }
+
+        _infoPanel.Visible = filled;
+        _infoPanel.MouseFilter = filled ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
     }
 
     private void AddCategoryButton(
@@ -936,7 +956,7 @@ public partial class FactoryHud : Control
             }
             else
             {
-                _infoPanel.Visible = false;
+                SetInfoSlotFilled(false);
                 return;
             }
         }
@@ -944,11 +964,11 @@ public partial class FactoryHud : Control
         var entry = FindEntry(focus.Value);
         if (entry is null)
         {
-            _infoPanel.Visible = false;
+            SetInfoSlotFilled(false);
             return;
         }
 
-        _infoPanel.Visible = true;
+        SetInfoSlotFilled(true);
         var name = HotDisplayName(entry);
         var locked = _lockedTools.Contains(entry.Tool);
         _infoName.Text = locked ? $"{name} · bloccato" : name;

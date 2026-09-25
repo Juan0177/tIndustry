@@ -1642,32 +1642,32 @@ public partial class SpikeWorld : Node2D
             GD.Print($"Screenshot: {name}");
         }
 
-        // 1) Corner palette + icon-only utility row.
+        // 1) Empty reserved info slot (cursor) — palette anchored, slot invisible.
         ClearToCursor(toast: false);
         UpdateHud();
-        await SaveNamed("godot-port-mindustry-ui-fix-palette.png");
+        await SaveNamed("godot-port-mindustry-ui-info-slot-empty.png");
 
-        // Crop dock corner for close-up (utility icons, no letter chips).
-        var full = GetViewport().GetTexture().GetImage();
-        var dockW = Math.Min(340, full.GetWidth());
-        var dockH = Math.Min(260, full.GetHeight());
-        var dock = full.GetRegion(new Rect2I(
-            full.GetWidth() - dockW, full.GetHeight() - dockH, dockW, dockH));
-        dock.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-fix-dock.png"));
-        dock.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-fix-dock.png");
+        var fullEmpty = GetViewport().GetTexture().GetImage();
+        var dockW = Math.Min(360, fullEmpty.GetWidth());
+        var dockH = Math.Min(300, fullEmpty.GetHeight());
+        var emptyCrop = fullEmpty.GetRegion(new Rect2I(
+            fullEmpty.GetWidth() - dockW, fullEmpty.GetHeight() - dockH, dockW, dockH));
+        emptyCrop.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-info-slot-empty-crop.png"));
+        emptyCrop.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-info-slot-empty-crop.png");
 
-        // 2) Select miner → dense info strip above palette (barred costs).
+        // 2) Filled slot — miner selected → name + barred costs in reserved strip.
         _hud.SetSelectedTool(FactoryHud.ToolKind.Miner);
         OnHudToolChosen(FactoryHud.ToolKind.Miner);
         UpdateHud();
-        await SaveNamed("godot-port-mindustry-ui-fix-info-strip.png");
+        await SaveNamed("godot-port-mindustry-ui-info-slot-filled.png");
 
-        // 3) Open ? detail modal (prose / I/O lives here).
-        // Simulate via selecting then invoking detail through reflection-free path:
-        // click is hard in capture — select smelter and call ShowToast after opening research-style detail.
-        // FactoryHud OpenDetailOverlay is private; select tool then use Input simulation is heavy.
-        // Instead: press-like path by selecting and capturing strip; modal via temporary public call.
-        // Unlock smelter for production shot.
+        var fullFilled = GetViewport().GetTexture().GetImage();
+        var filledCrop = fullFilled.GetRegion(new Rect2I(
+            fullFilled.GetWidth() - dockW, fullFilled.GetHeight() - dockH, dockW, dockH));
+        filledCrop.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-info-slot-filled-crop.png"));
+        filledCrop.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-info-slot-filled-crop.png");
+
+        // 3) ? modal still carries prose / I/O.
         if (!_slice.IsStructureUnlocked("smelter"))
         {
             _slice.Wallet.AddMoney(500);
@@ -1685,16 +1685,10 @@ public partial class SpikeWorld : Node2D
 
         UpdateHud();
         _hud.OpenBlockDetailForCapture();
-        await SaveNamed("godot-port-mindustry-ui-fix-detail-modal.png");
+        await SaveNamed("godot-port-mindustry-ui-info-slot-detail-modal.png");
         _hud.CloseBlockDetailForCapture();
 
-        // 4) Tech tree icon-only nodes + selection usage panel.
-        ClearToCursor(toast: false);
-        _research?.Open(_slice);
-        _research?.SelectStructure("smelter");
-        await SaveNamed("godot-port-mindustry-ui-fix-techtree.png");
-
-        GD.Print("Mindustry UI fix screenshot set complete.");
+        GD.Print("Mindustry info-slot screenshot set complete.");
         GetTree().Quit();
     }
 
