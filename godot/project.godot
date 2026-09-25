@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="tIndustry Godot"
+config/name="tIndustry"
 config/description="Phase C: miner + forno stub → lastre al core (Shared sim)"
 run/main_scene="res://scenes/Spike.tscn"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")

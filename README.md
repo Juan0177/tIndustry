@@ -1,137 +1,123 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.2.11** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.2.11)
+**Godot 4 .NET — path ufficiale** · Raylib **legacy** (v0.2.11) · [CHANGELOG](CHANGELOG.md)
 
 ```
-  miner ──▶ forno ──▶ lastre / piombo / titanio ──▶ CORE / mercato dinamico
-    │         ▲  carbone OPPURE corrente (+20%)
-  nastro   nodo potenza ◀── generatore (carbone)
-  sorter · splitter · ponte · T1/T2/T3 · grafite / silicio
+  miner ──▶ forno ──▶ lastre / fili ──▶ CORE / mercato
+    │         ▲  carbone OPPURE corrente
+  nastro   nodo potenza ◀── generatore
+  sorter · splitter · ponte · T1/T2 · campagna · ricerca
 ```
 
-**Mindustry** × **Tiny Industry**: logistica a nastro su mappa enorme, economia con portafoglio, ricerca a grafo, vendita al Mercato.
+**Mindustry** × **Tiny Industry**: logistica a nastro, economia con portafoglio, ricerca a grafo, vendita al Mercato — in **Godot 4 (.NET)**.
 
 Loop: *scout → estrai → trasporta → trasforma → vendi → sblocca → espandi*.
 
 ---
 
-## Download
+## Gioca (ufficiale) — Godot 4 .NET
 
-| Asset | Piattaforma |
+Richiede [Godot **4.4+** .NET](https://godotengine.org/download) e [.NET 8 SDK](https://dotnet.microsoft.com/download) (per il restore C# del progetto).
+
+```bash
+godot4 --path godot
+TINDUSTRY_FRESH=1 godot4 --path godot   # ignora salvataggio continua
+```
+
+Dettagli controlli, save, ricerca, mercato, campagna: [`godot/README.md`](godot/README.md).
+
+| Path | Ruolo |
 | --- | --- |
-| [`tIndustry-win-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) | Windows x64 (self-contained) |
-| [`tIndustry-linux-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) | Linux x64 (self-contained) |
+| `godot/` | Client ufficiale (HUD Mindustry, mondo, UI) |
+| `src/TIndustry.Shared/` | Sim/data condivisa (nastri, craft, power, save, campagna) |
+| `data/` | Seed `content.json` / `campaign.json` |
 
-Estrai ed esegui (`TIndustry.Logistics.exe` su Windows). Tag `v*` → zip via [release.yml](.github/workflows/release.yml). Push/PR → artifact CI via [build-publish.yml](.github/workflows/build-publish.yml).
+Combat / unità: **ancora fuori scope**.
 
 ---
 
-## Cosa c’è in 0.2.11
+## Download (legacy Raylib)
 
-| Area | In gioco |
-| --- | --- |
-| **Mondo** | Mappa **1000×1000**, depositi ferro / rame / carbone / **piombo** / **titanio** |
-| **Produzione** | Minatore **T1/T2**, forno multi-ricetta (ferro/piombo/titanio), assemblatore (fili/grafite/silicio), generatore |
-| **Logistica** | Nastro **T1/T2/T3**, incrocio, sdoppiatore, **selezionatore**, ponte · I/O belt + adiacenza |
-| **Potenza** | **Nodo T1/T2** · forno carbone **o** corrente (**+20%**) · CORE fuori grafo |
-| **Economia** | Stock-first · **Mercato dinamico** (prezzi reagiscono allo stock) · upgrade CORE |
-| **Grafica** | Glow forno, trivella idle, ombre soft · **atlas icone** (una texture) |
-| **Progressione** | Campagna **10 livelli** · tech tree con **zoom + path highlight** · tutorial **14** step |
-| **Polish 0.2.11** | Copy IT coerente · toast errore · strip overflow · ghost raggio nodi · save confirm |
+Le release zip [`tIndustry-*-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) pubblicano ancora il client **Raylib** (`TIndustry.Logistics`, v0.2.11). Uso: manutenzione / confronto; **non** è più il path di sviluppo primario.
 
-Non è combat Mindustry né idle clicker: conta il **layout** e il **reinvestimento**.
+Tag `v*` → [release.yml](.github/workflows/release.yml). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml) (Godot/Shared + publish Raylib).
 
 ---
 
 ## Da sorgente
 
+### Godot (consigliato)
+
 ```bash
-dotnet build TIndustry.Logistics.csproj
-dotnet run --project TIndustry.Logistics.csproj -- --self-test   # senza finestra
-dotnet run --project TIndustry.Logistics.csproj                  # GUI
+dotnet build src/TIndustry.Shared/TIndustry.Shared.csproj
+dotnet build godot/TIndustry.Godot.csproj
+godot4 --path godot
 ```
 
-Richiede [.NET 10 SDK](https://dotnet.microsoft.com/download) · Linux / Windows / macOS (Raylib-cs).
+### Raylib (legacy)
 
-Dopo un `git pull`: `dotnet build` (o `run`) così icone e seed finiscono in `bin/`. I nomi tier si riallineano da seed → AppData a ogni avvio. Etichette/icone stale? Rebuild + riavvio; ultima spiaggia: cancella solo `…/tIndustry/content/` (i `saves/` restano).
+```bash
+dotnet build TIndustry.Logistics.csproj
+dotnet run --project TIndustry.Logistics.csproj -- --self-test
+dotnet run --project TIndustry.Logistics.csproj
+```
+
+Richiede [.NET 10 SDK](https://dotnet.microsoft.com/download) · Raylib-cs.
 
 | Path | Ruolo |
 | --- | --- |
-| `src/App/` | Entry, loop, impostazioni |
-| `src/Simulation/` | Mondo, nastri, economia, save, potenza, ricerca |
-| `src/Content/` | Definizioni + loader JSON/Excel |
-| `src/UI/` | Dock / HUD / icone |
-| `assets/` · `data/` | Pack grafico + seed `content.json` / `campaign.json` |
-
-Namespace `TIndustry.Logistics` · `.csproj` in root.
-
-Flag: `--smoke-test`, `--capture`, `--export-excel [path]`.
+| `src/App/` · `src/Simulation/` · `src/UI/` · `src/Content/` | Client Raylib legacy |
+| `TIndustry.Logistics.csproj` | Entry Raylib (namespace `TIndustry.Logistics`) |
 
 ---
 
-## Prima sessione
+## Cosa c’è (Godot)
 
-1. Splash → **Nuova partita** (sandbox + tutorial) oppure **Campagna**.
-2. Scout ferro vicino al core (**H** = camera sul core); rame a sud, carbone a est, **piombo a ovest**.
-3. Minatore → **nastri uscenti** (o forno a contatto) → stock al CORE → Mercato **1** / **tutti** (prezzi soft con stock alto).
-4. **T** Ricerca → Forno → lastre (più profitto delle ore grezze); prova anche piombo → lastre di piombo → silicio.
-5. Generatore + **nodi** se i craft stallano; forno gira a carbone **oppure** corrente.
-6. Sorter / splitter / Nastro T2–T3 quando il layout si intasa. Overlay amber = uscita, ciano = ingresso.
-
-Default sbloccati: **Nastro T1** + **Minatore T1**.
-
----
-
-## Controlli
-
-| Input | Azione |
+| Area | In gioco |
 | --- | --- |
-| **WASD** / frecce · **Shift+drag** / mmb | Pan |
-| **Ctrl+rotella** · **Rotella** / **R** | Zoom · ruota pezzo / nastro |
-| **H** / **Home** | Camera sul core |
-| **1–8** | Nastro, minatore, forno, rimuovi, assy, incrocio, sdoppiatore, ponte |
-| **9** · **Q** / **E** / **Y** | Generatore · Nastro T1 / T2 / T3 |
-| **F** | Cicla filtro **selezionatore** |
-| Click · drag | Piazza (nastri in drag) |
-| **T** · **I** · **U** | Ricerca (Ctrl+rotella zoom, H reset) · Impostazioni · potenzia CORE |
-| **Esc** | Chiude toast → home |
-| **Backspace** | Salta tutorial |
+| **Mondo** | Slice giocabile, depositi da seed campagna/sandbox |
+| **Produzione** | Miner T1/T2, forno, assemblatore, estrattore, generatore |
+| **Logistica** | Nastro T1/T2, junction, splitter, sorter, ponte |
+| **Potenza** | Generatore + nodi T1/T2 · craft boostato se alimentato |
+| **Economia** | Stock Core · Mercato · vendita automatica opzionale |
+| **Progressione** | Home splash · Campagna · Ricerca (grafo) · unlock placeables |
+| **UI** | Palette angolo Mindustry · info slot · tech tree a icone |
+
+Art block 64×64 allineata mappa + palette; polish grafico in corso (opzionale).
 
 ---
 
-## Home, save, impostazioni
+## Prima sessione (Godot)
 
-**Home:** Continua · Campagna · Nuova partita · Gestione salvataggi · Impostazioni · Esci.
+1. Splash → **Continua** / **Campagna** / **Nuova partita**.
+2. Palette basso-destra: **St / Lo / Pr / Po**; **Esc** = cursore.
+3. Minatore → nastri → Core; **M** Mercato per vendere; **T** Ricerca per sblocchi.
+4. **G** Campagna per obiettivi; **F5/F9** salva/carica continua.
 
-| Cosa | Dove |
-| --- | --- |
-| Save | `%LocalAppData%/tIndustry/saves/` · Linux `~/.local/share/tIndustry/saves/` |
-| Autosave | `continua.json` · slot `slot-*.json` |
-| Settings | `…/tIndustry/settings.json` |
-| Content utente | `…/tIndustry/content/content.json` (seed al primo avvio + merge/sync) |
-
-**Impostazioni (I):** scala UI 100–200% · vendita automatica · FPS / strip risorse / overlay CPU·GPU·RAM · VSync · risoluzione (fino 4K) · limite FPS · modalità schermo.
+Default sbloccati: nastro T1 + minatore T1 (come nel seed Shared).
 
 ---
 
 ## Stack
 
-C# / **.NET 10** · **Raylib-cs** · seed JSON → AppData · sim ~30 Hz / render 60 FPS · un progetto `TIndustry.Logistics`.
+| | Ufficiale | Legacy |
+| --- | --- | --- |
+| Client | **Godot 4.4 .NET** (`godot/`) | Raylib-cs (`TIndustry.Logistics`) |
+| Sim | `TIndustry.Shared` (.NET 8) | `src/Simulation` (.NET 10) |
+| Contenuti | `data/*.json` | stesso seed + AppData Raylib |
 
-Niente Unity/Godot in early roadmap. Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.0 · Kenney CC0).
+Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.0 · Kenney CC0).
 
 ---
 
 ## Roadmap
 
-| Ora (0.2.11) | Dopo |
+| Ora | Dopo |
 | --- | --- |
-| Polish UX/HUD/copy IT · campagna 10 · atlas · tech-tree · P0 mercato/minerali | Combat / unità · polish lighting avanzato · bilanciamento continuo |
+| Godot ufficiale · art polish opzionale · bilanciamento | Combat / unità (deferred) · eventuale ritiro Raylib |
 
-Storia completa: [CHANGELOG.md](CHANGELOG.md).
-
-Criterio: una sessione deve far sentire *ho trovato il ferro, l’ho portato al forno, ho venduto lastre, ho sbloccato il Nastro T2, ho espanso*.
+Storia: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

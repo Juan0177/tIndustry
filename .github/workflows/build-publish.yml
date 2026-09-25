@@ -11,8 +11,30 @@ on:
       - "cursor/**"
 
 jobs:
+  # Official path: Shared sim + Godot 4 .NET client (build-only; editor binary not required).
+  godot-shared:
+    name: Godot + Shared
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build Shared
+        run: dotnet build src/TIndustry.Shared/TIndustry.Shared.csproj -c Release
+
+      - name: Build Godot C#
+        run: dotnet build godot/TIndustry.Godot.csproj -c Release
+
+  # Legacy Raylib client — kept for zip artifacts / regression until retired.
   publish-win-x64:
-    name: Publish win-x64
+    name: Publish win-x64 (Raylib legacy)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,7 +72,7 @@ jobs:
           if-no-files-found: error
 
   publish-linux-x64:
-    name: Publish linux-x64
+    name: Publish linux-x64 (Raylib legacy)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

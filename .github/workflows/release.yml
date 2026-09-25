@@ -1,5 +1,8 @@
 name: Release
 
+# Publishes self-contained Raylib client artifacts for tag v*.
+# Official play path is Godot 4 .NET (see README). Raylib kept for download parity until retired.
+
 on:
   push:
     tags:
