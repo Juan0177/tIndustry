@@ -81,7 +81,7 @@ public partial class FactoryHud : Control
         new(ToolKind.Miner, "miner", "res://assets/miner.png", "2",
             "Estrae minerali · uscita su tutti i lati · 2×2"),
         new(ToolKind.MinerAdvanced, "miner-advanced", "res://assets/miner-advanced.png", "",
-            "Minatore T2 · 2× velocità · sblocca in Ricerca"),
+            "Minatore T2 · 2× velocità · +20% se alimentato · sblocca in Ricerca"),
         new(ToolKind.Smelter, "smelter", "res://assets/smelter.png", "3",
             "Carbone o corrente · +20% craft se alimentato · 2×2"),
         new(ToolKind.Assembler, "assembler", "res://assets/assembler.png", "4",

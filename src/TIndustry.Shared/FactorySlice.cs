@@ -1137,12 +1137,7 @@ public sealed class FactorySlice
 
     public void Tick(float deltaSeconds)
     {
-        foreach (var miner in miners)
-        {
-            miner.Tick(deltaSeconds, Belts, ref nextItemId);
-        }
-
-        // Belts advance first so handoffs reach craft/core edges.
+        // Belts advance first so fuel reaches generators and handoffs reach craft/core.
         Belts.Tick(deltaSeconds);
 
         var liveGens = new List<GeneratorStub>();
@@ -1152,6 +1147,15 @@ public sealed class FactorySlice
             {
                 liveGens.Add(gen);
             }
+        }
+
+        // Miners after gens so T2 can apply adjacency/node power the same tick.
+        foreach (var miner in miners)
+        {
+            var powered = miner.CanReceivePower
+                && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, MinerProducer.Size))
+                    || IsPoweredViaNode(miner.Position, MinerProducer.Size, liveGens));
+            miner.Tick(deltaSeconds, Belts, ref nextItemId, powered);
         }
 
         foreach (var craft in CraftMachines())
@@ -1534,6 +1538,76 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Phase F self-test: nessun filo al core entro 150s sim (power seed).");
+    }
+
+    /// <summary>T2 miner gets +20% mining speed from adjacent live generator; T1 never powers.</summary>
+    public static void SelfTestMinerPower(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(18, 18), size: 2);
+
+        var hot = new FactorySlice(content, new BeltGrid(), core);
+        hot.UnlockGodotSliceDemo();
+        hot.Research.ForceUnlock(MinerProducer.AdvancedId);
+        Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+            "T2 miner");
+        Assert(hot.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of miner");
+        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, MinerProducer.Size), "adjacent");
+        Assert(hot.Generators[0].TryAcceptFuel("coal") && hot.Generators[0].TryAcceptFuel("coal"), "fuel");
+
+        var t2 = hot.Miners[0];
+        const float dt = 1f / 30f;
+        var sawPowered = false;
+        for (var i = 0; i < 30 * 8; i++)
+        {
+            hot.Tick(dt);
+            if (t2.IsPowered)
+            {
+                sawPowered = true;
+                break;
+            }
+        }
+
+        Assert(sawPowered, "T2 miner powered while generator burns");
+
+        // Speed: powered T2 progresses faster than unpowered T2.
+        var cold = new FactorySlice(content, new BeltGrid(), core);
+        cold.UnlockGodotSliceDemo();
+        cold.Research.ForceUnlock(MinerProducer.AdvancedId);
+        Assert(cold.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+            "cold T2");
+        var coldM = cold.Miners[0];
+
+        hot.Generators[0].TryAcceptFuel("coal");
+        var hotBefore = t2.Progress;
+        var coldBefore = coldM.Progress;
+        for (var i = 0; i < 20; i++)
+        {
+            hot.Tick(dt);
+            cold.Tick(dt);
+        }
+
+        if (t2.Progress >= hotBefore && coldM.Progress >= coldBefore)
+        {
+            var hotDelta = t2.Progress - hotBefore;
+            var coldDelta = coldM.Progress - coldBefore;
+            Assert(hotDelta > coldDelta * 1.05f,
+                $"T2 powered faster (hotΔ={hotDelta:F3} coldΔ={coldDelta:F3})");
+        }
+
+        // T1 never receives power even when adjacent to a live gen.
+        var t1Slice = new FactorySlice(content, new BeltGrid(), core);
+        t1Slice.UnlockGodotSliceDemo();
+        Assert(t1Slice.TryPlaceMiner(new GridPosition(4, 4), Direction.East), "T1 miner");
+        Assert(t1Slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen near T1");
+        Assert(t1Slice.Generators[0].TryAcceptFuel("coal"), "T1 fuel");
+        for (var i = 0; i < 30 * 4; i++)
+        {
+            t1Slice.Tick(dt);
+        }
+
+        Assert(!t1Slice.Miners[0].IsPowered, "T1 miner never powered");
+        Assert(!t1Slice.Miners[0].CanReceivePower, "T1 cannot receive power");
     }
 
     /// <summary>Save/load round-trip: capture Phase F mid-sim, restore, keep wire delivery.</summary>
