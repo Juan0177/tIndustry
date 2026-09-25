@@ -77,9 +77,10 @@ public partial class MinerVisual : Node2D
         };
         clip.AddChild(pad);
 
-        // Gear pivots on opposite corners of the pad (local clip space).
-        var gearScaleLarge = (span * 0.78f) / gearTex.GetWidth();
-        var gearScaleSmall = (span * 0.52f) / gearTex.GetWidth();
+        // Diameters ≈ 2× / 1.7× footprint so visible quarters fill the whole pad
+        // (pivot on opposite corners; ClipContents keeps only the in-pad quarter).
+        var gearScaleLarge = (span * 2.05f) / gearTex.GetWidth();
+        var gearScaleSmall = (span * 1.70f) / gearTex.GetWidth();
 
         root._largeGear = new Sprite2D
         {
@@ -105,11 +106,10 @@ public partial class MinerVisual : Node2D
         };
         clip.AddChild(root._smallGear);
 
-        // Lit perno overlays (T2 boost) — world space at the same corners.
-        var litScaleLarge = 1.35f * gearScaleLarge;
-        var litScaleSmall = 1.35f * gearScaleSmall;
-        root._pernoLarge = MakePernoLit(litTex, new Vector2(-half, -half), litScaleLarge);
-        root._pernoSmall = MakePernoLit(litTex, new Vector2(half, half), litScaleSmall);
+        // Lit perno overlays (T2 boost) — sized to the corner hub, not the full gear.
+        var litScale = (span * 0.16f) / litTex.GetWidth();
+        root._pernoLarge = MakePernoLit(litTex, new Vector2(-half, -half), litScale);
+        root._pernoSmall = MakePernoLit(litTex, new Vector2(half, half), litScale);
         root.AddChild(root._pernoLarge);
         root.AddChild(root._pernoSmall);
 

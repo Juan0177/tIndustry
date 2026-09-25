@@ -258,9 +258,11 @@ def draw_gear(size: int, rust: bool) -> Image.Image:
         x2 = cx + int(math.cos(ang) * (outer - 5))
         y2 = cy + int(math.sin(ang) * (outer - 5))
         d.line([(cx, cy), (x2, y2)], fill=dark, width=3)
-    # Hub / perno
-    d.ellipse([cx - 6, cy - 6, cx + 6, cy + 6], fill=hub, outline=dark)
-    d.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=PERNO)
+    # Hub / perno (scales with gear so corner pivots stay readable when large)
+    hub_r = max(6, size // 10)
+    perno_r = max(3, size // 20)
+    d.ellipse([cx - hub_r, cy - hub_r, cx + hub_r, cy + hub_r], fill=hub, outline=dark)
+    d.ellipse([cx - perno_r, cy - perno_r, cx + perno_r, cy + perno_r], fill=PERNO)
     return img
 
 
@@ -298,10 +300,13 @@ def draw_miner_body(advanced: bool = False) -> Image.Image:
 
 
 def draw_miner(advanced: bool = False) -> None:
-    """Pad + two corner-clipped gears (large NW, small SE) for palette static frame."""
+    """Pad + two corner-clipped gears (large NW, small SE) for palette static frame.
+
+    Diameters ≈ 2× / 1.7× tile so visible quarters fill the whole pad surface.
+    """
     img = draw_miner_body(advanced)
-    large = draw_gear(40, rust=not advanced)
-    small = draw_gear(28, rust=not advanced)
+    large = draw_gear(SIZE * 2, rust=not advanced)
+    small = draw_gear(int(SIZE * 1.7), rust=not advanced)
     paste_quarter_gear(img, large, "nw")
     paste_quarter_gear(img, small, "se")
     save(img, "miner-advanced.png" if advanced else "miner.png")
@@ -309,9 +314,10 @@ def draw_miner(advanced: bool = False) -> None:
 
 def draw_miner_gear_assets() -> None:
     """Full gear sprites for world animation (clipped in Godot)."""
-    draw_gear(48, rust=True).save(OUT / "gear-rust.png")
+    # Higher-res base so nearest-neighbor scale to ~2× footprint stays crisp.
+    draw_gear(64, rust=True).save(OUT / "gear-rust.png")
     print(f"wrote {OUT / 'gear-rust.png'}")
-    draw_gear(48, rust=False).save(OUT / "gear-red.png")
+    draw_gear(64, rust=False).save(OUT / "gear-red.png")
     print(f"wrote {OUT / 'gear-red.png'}")
     # Pad-only bodies for world (gears overlaid animated)
     draw_miner_body(False).save(OUT / "miner-pad.png")
