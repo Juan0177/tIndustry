@@ -229,45 +229,48 @@ def draw_bridge() -> None:
 
 
 def draw_gear(size: int, rust: bool, teeth: int = 6) -> Image.Image:
-    """Full gear with transparent background; perno at center. Default 6 teeth."""
+    """Classic top-down gear: blocky parallel-sided teeth + hub. No spokes."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     cx = cy = size // 2
-    # Leave 1px margin so teeth stay inside the texture bounds.
-    outer = size // 2 - 4
-    tooth_out = outer + 3
+    r_tip = size // 2 - 2
+    r_root = int(r_tip * 0.60)
+    r_face = int(r_root * 0.82)
+    # Constant pixel half-width → rectangular teeth (not flared wedges).
+    tooth_hw = max(3.0, r_tip * 0.20)
     body = RUST_MID if rust else GEAR_RED_MID
     dark = RUST_DARK if rust else GEAR_RED_DARK
     mid = RUST if rust else GEAR_RED
     hub = RUST_HUB if rust else GEAR_RED_HUB
-    half_w = 0.28  # tooth angular half-width
-    for i in range(teeth):
-        ang = i * (2 * math.pi / teeth) - math.pi / 2
-        tip = (cx + int(math.cos(ang) * tooth_out), cy + int(math.sin(ang) * tooth_out))
-        b1 = (
-            cx + int(math.cos(ang - half_w) * (outer - 1)),
-            cy + int(math.sin(ang - half_w) * (outer - 1)),
-        )
-        b2 = (
-            cx + int(math.cos(ang + half_w) * (outer - 1)),
-            cy + int(math.sin(ang + half_w) * (outer - 1)),
-        )
-        d.polygon([tip, b1, b2], fill=body)
-        d.line([b1, tip, b2], fill=dark, width=1)
-    # Rim
-    d.ellipse([cx - outer, cy - outer, cx + outer, cy + outer], fill=mid, outline=dark)
+
+    # Root disk first
     d.ellipse(
-        [cx - outer + 3, cy - outer + 3, cx + outer - 3, cy + outer - 3],
-        fill=body,
+        [cx - r_root, cy - r_root, cx + r_root, cy + r_root],
+        fill=mid,
+        outline=dark,
     )
-    # Spokes toward teeth
+
+    step = 2 * math.pi / teeth
     for i in range(teeth):
-        ang = i * (2 * math.pi / teeth) - math.pi / 2
-        x2 = cx + int(math.cos(ang) * (outer - 6))
-        y2 = cy + int(math.sin(ang) * (outer - 6))
-        d.line([(cx, cy), (x2, y2)], fill=dark, width=2)
-    hub_r = max(5, size // 9)
-    perno_r = max(2, size // 18)
+        a = i * step - math.pi / 2
+        ca, sa = math.cos(a), math.sin(a)
+        px, py = -sa, ca  # unit perpendicular
+        # Four corners of a rectangular tooth along the radial axis
+        root_l = (cx + int(ca * r_root + px * tooth_hw), cy + int(sa * r_root + py * tooth_hw))
+        root_r = (cx + int(ca * r_root - px * tooth_hw), cy + int(sa * r_root - py * tooth_hw))
+        tip_l = (cx + int(ca * r_tip + px * tooth_hw), cy + int(sa * r_tip + py * tooth_hw))
+        tip_r = (cx + int(ca * r_tip - px * tooth_hw), cy + int(sa * r_tip - py * tooth_hw))
+        d.polygon([root_l, tip_l, tip_r, root_r], fill=mid)
+        d.line([root_l, tip_l, tip_r, root_r, root_l], fill=dark, width=1)
+
+    # Solid face plate (no radial lines)
+    d.ellipse(
+        [cx - r_face, cy - r_face, cx + r_face, cy + r_face],
+        fill=body,
+        outline=dark,
+    )
+    hub_r = max(5, size // 7)
+    perno_r = max(2, size // 14)
     d.ellipse([cx - hub_r, cy - hub_r, cx + hub_r, cy + hub_r], fill=hub, outline=dark)
     d.ellipse([cx - perno_r, cy - perno_r, cx + perno_r, cy + perno_r], fill=PERNO)
     return img
@@ -302,8 +305,8 @@ def draw_miner_body(advanced: bool = False) -> Image.Image:
 def draw_miner(advanced: bool = False) -> None:
     """Bordered pad + one large centered 6-tooth gear that fits inside the frame."""
     img = draw_miner_body(advanced)
-    # Inner pad is ~48px; gear ~44 so teeth clear the BLU4 frame.
-    gear = draw_gear(44, rust=not advanced, teeth=6)
+    # Inner pad ~48px; gear 48 fills pad with teeth clear of Blu frame.
+    gear = draw_gear(48, rust=not advanced, teeth=6)
     ox = (SIZE - gear.width) // 2
     oy = (SIZE - gear.height) // 2
     img.alpha_composite(gear, (ox, oy))

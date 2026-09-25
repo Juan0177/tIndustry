@@ -1971,7 +1971,7 @@ public partial class SpikeWorld : Node2D
         }
 
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") is "miner-gears" or "miner-gears-fill"
-            or "miner-center-gear")
+            or "miner-center-gear" or "miner-real-gear")
         {
             await CaptureMinerGearsShotsAsync(destDir);
             return;
@@ -2170,6 +2170,7 @@ public partial class SpikeWorld : Node2D
 
         var prefix = OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") switch
         {
+            "miner-real-gear" => "godot-port-miner-real-gear",
             "miner-center-gear" => "godot-port-miner-center-gear",
             "miner-gears-fill" => "godot-port-miner-gears-fill",
             _ => "godot-port-miner-gears"

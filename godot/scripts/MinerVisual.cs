@@ -11,7 +11,7 @@ public partial class MinerVisual : Node2D
 {
     private const float SpinRadPerSec = 2.4f;
     /// <summary>Gear diameter as fraction of inner pad (inside border).</summary>
-    private const float GearFitFraction = 0.82f;
+    private const float GearFitFraction = 0.90f;
 
     private Sprite2D? _gear;
     private Sprite2D? _pernoLit;
