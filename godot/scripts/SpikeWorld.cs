@@ -2377,13 +2377,34 @@ public partial class SpikeWorld : Node2D
         palette.SavePng(Path.Combine(destDir, $"{prefix}-palette.png"));
         palette.SavePng($"/opt/cursor/artifacts/{prefix}-palette.png");
 
-        // Isolated close-ups.
-        await CaptureCloseAsync(destDir, prefix, "extractor", 4f, 3.5f, 2.0f);
-        // Recolor proof: copper extractor
-        await CaptureCloseAsync(destDir, prefix, "extractor-copper", 5.5f, 3.5f, 2.0f);
-        await CaptureCloseAsync(destDir, prefix, "smelter", 9f, 4f, 1.7f);
-        await CaptureCloseAsync(destDir, prefix, "assembler", 13f, 4f, 1.7f);
-        await CaptureCloseAsync(destDir, prefix, "generator", 4f, 8f, 1.7f);
+        // Isolated close-ups — zoomed hard, camera on footprint centers.
+        await CaptureCloseAsync(destDir, prefix, "extractor", 3.5f, 3.5f, 2.6f);
+        await CaptureCloseAsync(destDir, prefix, "extractor-copper", 5.5f, 3.5f, 2.6f);
+
+        // Ensure forno still crafting before close-up.
+        foreach (var sm in _slice.Smelters)
+        {
+            sm.RestoreCraftState(0.5f, isCrafting: true, null, null, 0);
+        }
+
+        await CaptureCloseAsync(destDir, prefix, "smelter", 9f, 4f, 2.2f);
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0.5f, isCrafting: true, null, null, 0);
+        }
+
+        // Let press settle closed for active close-up.
+        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
+        await CaptureCloseAsync(destDir, prefix, "assembler", 13f, 4f, 2.2f);
+
+        if (_slice.Generators.Count > 0)
+        {
+            _slice.Generators[0].TryAcceptFuel("coal");
+            _slice.Tick(1f / 30f);
+        }
+
+        await CaptureCloseAsync(destDir, prefix, "generator", 4f, 8f, 2.2f);
 
         // Core (demo footprint ~9,14 size 2)
         if (HasNode("Camera"))
@@ -2403,7 +2424,7 @@ public partial class SpikeWorld : Node2D
         {
             var cam = GetNode<Camera2D>("Camera");
             cam.Position = new Vector2(9f * TileSize, 4f * TileSize);
-            cam.Zoom = new Vector2(1.7f, 1.7f);
+            cam.Zoom = new Vector2(2.2f, 2.2f);
         }
 
         for (var frame = 0; frame < 4; frame++)
@@ -2413,7 +2434,7 @@ public partial class SpikeWorld : Node2D
                 sm.RestoreCraftState(0.4f + frame * 0.05f, isCrafting: true, null, null, 0);
             }
 
-            await ToSignal(GetTree().CreateTimer(0.22), SceneTreeTimer.SignalName.Timeout);
+            await ToSignal(GetTree().CreateTimer(0.28), SceneTreeTimer.SignalName.Timeout);
             var shot = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-smelter-anim-{frame}.png";
             shot.SavePng(Path.Combine(destDir, name));
@@ -2425,6 +2446,22 @@ public partial class SpikeWorld : Node2D
         {
             var cam = GetNode<Camera2D>("Camera");
             cam.Position = new Vector2(13f * TileSize, 4f * TileSize);
+            cam.Zoom = new Vector2(2.2f, 2.2f);
+        }
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0f, isCrafting: false, null, null, 0);
+        }
+
+        await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+        var asmIdle = GetViewport().GetTexture().GetImage();
+        asmIdle.SavePng(Path.Combine(destDir, $"{prefix}-assembler-idle.png"));
+        asmIdle.SavePng($"/opt/cursor/artifacts/{prefix}-assembler-idle.png");
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0.3f, isCrafting: true, null, null, 0);
         }
 
         for (var frame = 0; frame < 4; frame++)
@@ -2440,17 +2477,6 @@ public partial class SpikeWorld : Node2D
             shot.SavePng(Path.Combine(destDir, name));
             shot.SavePng($"/opt/cursor/artifacts/{name}");
         }
-
-        // Idle assembler (arms open)
-        foreach (var asm in _slice.Assemblers)
-        {
-            asm.RestoreCraftState(0f, isCrafting: false, null, null, 0);
-        }
-
-        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
-        var asmIdle = GetViewport().GetTexture().GetImage();
-        asmIdle.SavePng(Path.Combine(destDir, $"{prefix}-assembler-idle.png"));
-        asmIdle.SavePng($"/opt/cursor/artifacts/{prefix}-assembler-idle.png");
 
         // Generator orbit while burning
         if (HasNode("Camera"))

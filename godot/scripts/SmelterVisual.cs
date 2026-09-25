@@ -29,17 +29,27 @@ public partial class SmelterVisual : Node2D
         };
         root.AddChild(pad);
 
-        var r = span * 0.12f;
+        var r = span * 0.18f;
         root._glow = new Polygon2D
         {
             Name = "HeatGlow",
-            Color = new Color(1f, 0.55f, 0.2f, 0.35f),
+            Color = new Color(1f, 0.45f, 0.12f, 0.55f),
             Polygon = Circle(r, 16),
             Position = new Vector2(0, span * 0.02f),
             ZIndex = 1,
             Visible = false
         };
         root.AddChild(root._glow);
+        // Soft outer halo
+        root.AddChild(new Polygon2D
+        {
+            Name = "HeatHalo",
+            Color = new Color(1f, 0.35f, 0.08f, 0.0f),
+            Polygon = Circle(r * 1.55f, 16),
+            Position = new Vector2(0, span * 0.02f),
+            ZIndex = 0,
+            Visible = false
+        });
         root.Sync(sm, 0f);
         return root;
     }
@@ -51,19 +61,36 @@ public partial class SmelterVisual : Node2D
             return;
         }
 
+        var halo = GetNodeOrNull<Polygon2D>("HeatHalo");
         if (!sm.IsCrafting)
         {
             _glow.Visible = false;
+            if (halo is not null)
+            {
+                halo.Visible = false;
+            }
+
             _pulse = 0f;
             return;
         }
 
         _glow.Visible = true;
-        _pulse += delta * 3.2f;
-        var t = 0.45f + 0.35f * (0.5f + 0.5f * Mathf.Sin(_pulse));
-        _glow.Color = new Color(1f, 0.55f + 0.2f * t, 0.15f, t);
-        var s = 0.85f + 0.25f * t;
+        if (halo is not null)
+        {
+            halo.Visible = true;
+        }
+
+        _pulse += delta * 3.6f;
+        var wave = 0.5f + 0.5f * Mathf.Sin(_pulse);
+        var t = 0.40f + 0.55f * wave;
+        _glow.Color = new Color(1f, 0.42f + 0.35f * wave, 0.08f + 0.12f * wave, t);
+        var s = 0.75f + 0.45f * wave;
         _glow.Scale = new Vector2(s, s);
+        if (halo is not null)
+        {
+            halo.Color = new Color(1f, 0.3f, 0.05f, 0.12f + 0.22f * wave);
+            halo.Scale = new Vector2(0.9f + 0.35f * wave, 0.9f + 0.35f * wave);
+        }
     }
 
     private static Vector2[] Circle(float radius, int segments)
