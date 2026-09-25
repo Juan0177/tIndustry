@@ -22,14 +22,18 @@ public partial class SpikeWorld : Node2D
     {
         Cursor,
         Belt,
+        BeltFast,
         Miner,
+        MinerAdvanced,
         Smelter,
         Assembler,
         Junction,
         Splitter,
         Generator,
         Sorter,
-        Bridge
+        Bridge,
+        Extractor,
+        PowerNode
     }
 
     private FactorySlice? _slice;
@@ -540,14 +544,18 @@ public partial class SpikeWorld : Node2D
         var tools = new[]
         {
             FactoryHud.ToolKind.Belt,
+            FactoryHud.ToolKind.BeltFast,
             FactoryHud.ToolKind.Miner,
+            FactoryHud.ToolKind.MinerAdvanced,
             FactoryHud.ToolKind.Smelter,
             FactoryHud.ToolKind.Assembler,
             FactoryHud.ToolKind.Junction,
             FactoryHud.ToolKind.Splitter,
             FactoryHud.ToolKind.Generator,
             FactoryHud.ToolKind.Sorter,
-            FactoryHud.ToolKind.Bridge
+            FactoryHud.ToolKind.Bridge,
+            FactoryHud.ToolKind.Extractor,
+            FactoryHud.ToolKind.PowerNode
         };
         _hud.SetToolsLocked(tools.Select(t =>
             (t, !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(t)))));
@@ -667,6 +675,7 @@ public partial class SpikeWorld : Node2D
     {
         BuildTool.Cursor => FactoryHud.ToolKind.Cursor,
         BuildTool.Miner => FactoryHud.ToolKind.Miner,
+        BuildTool.MinerAdvanced => FactoryHud.ToolKind.MinerAdvanced,
         BuildTool.Smelter => FactoryHud.ToolKind.Smelter,
         BuildTool.Assembler => FactoryHud.ToolKind.Assembler,
         BuildTool.Junction => FactoryHud.ToolKind.Junction,
@@ -675,6 +684,9 @@ public partial class SpikeWorld : Node2D
         BuildTool.Sorter => FactoryHud.ToolKind.Sorter,
         BuildTool.Bridge => FactoryHud.ToolKind.Bridge,
         BuildTool.Belt => FactoryHud.ToolKind.Belt,
+        BuildTool.BeltFast => FactoryHud.ToolKind.BeltFast,
+        BuildTool.Extractor => FactoryHud.ToolKind.Extractor,
+        BuildTool.PowerNode => FactoryHud.ToolKind.PowerNode,
         _ => FactoryHud.ToolKind.Cursor
     };
 
@@ -682,6 +694,7 @@ public partial class SpikeWorld : Node2D
     {
         FactoryHud.ToolKind.Cursor => BuildTool.Cursor,
         FactoryHud.ToolKind.Miner => BuildTool.Miner,
+        FactoryHud.ToolKind.MinerAdvanced => BuildTool.MinerAdvanced,
         FactoryHud.ToolKind.Smelter => BuildTool.Smelter,
         FactoryHud.ToolKind.Assembler => BuildTool.Assembler,
         FactoryHud.ToolKind.Junction => BuildTool.Junction,
@@ -690,6 +703,9 @@ public partial class SpikeWorld : Node2D
         FactoryHud.ToolKind.Sorter => BuildTool.Sorter,
         FactoryHud.ToolKind.Bridge => BuildTool.Bridge,
         FactoryHud.ToolKind.Belt => BuildTool.Belt,
+        FactoryHud.ToolKind.BeltFast => BuildTool.BeltFast,
+        FactoryHud.ToolKind.Extractor => BuildTool.Extractor,
+        FactoryHud.ToolKind.PowerNode => BuildTool.PowerNode,
         _ => BuildTool.Cursor
     };
 
@@ -697,7 +713,9 @@ public partial class SpikeWorld : Node2D
     {
         BuildTool.Cursor => "Cursore",
         BuildTool.Belt => "Nastro",
+        BuildTool.BeltFast => "Nastro T2",
         BuildTool.Miner => "Minatore",
+        BuildTool.MinerAdvanced => "Minatore T2",
         BuildTool.Smelter => "Forno",
         BuildTool.Assembler => "Assemblatore",
         BuildTool.Junction => "Giunzione",
@@ -705,6 +723,8 @@ public partial class SpikeWorld : Node2D
         BuildTool.Generator => "Generatore",
         BuildTool.Sorter => "Selezionatore",
         BuildTool.Bridge => "Ponte",
+        BuildTool.Extractor => "Estrattore",
+        BuildTool.PowerNode => "Nodo potenza",
         _ => "?"
     };
 
@@ -901,8 +921,8 @@ public partial class SpikeWorld : Node2D
                         return;
                     }
 
-                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
-                        or BuildTool.Sorter;
+                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.BeltFast
+                        or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter;
                     TryPlaceAt(cell);
                     GetViewport().SetInputAsHandled();
                 }
@@ -934,8 +954,8 @@ public partial class SpikeWorld : Node2D
                 QueueRedraw();
             }
 
-            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
-                or BuildTool.Sorter)
+            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.BeltFast
+                or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter)
             {
                 TryPlaceAt(cell);
             }
@@ -1061,17 +1081,19 @@ public partial class SpikeWorld : Node2D
 
         var size = _tool switch
         {
-            BuildTool.Miner => MinerProducer.Size,
+            BuildTool.Miner or BuildTool.MinerAdvanced => MinerProducer.Size,
             BuildTool.Smelter => SmelterStub.Size,
             BuildTool.Assembler => SmelterStub.Size,
             BuildTool.Generator => GeneratorStub.Size,
+            BuildTool.PowerNode => 1,
+            BuildTool.Extractor => ExtractorStub.Size,
             _ => 1
         };
 
         var ok = size == 1
             ? _slice.CanOccupy(hover)
             : _slice.CanOccupyFootprint(hover, size)
-              || (_tool == BuildTool.Miner && _slice.Miners.Count == 1)
+              || (_tool is BuildTool.Miner or BuildTool.MinerAdvanced && _slice.Miners.Count == 1)
               || (_tool == BuildTool.Smelter && _slice.Smelters.Count == 1)
               || (_tool == BuildTool.Assembler && _slice.Assemblers.Count == 1)
               || (_tool == BuildTool.Generator && _slice.Generators.Count == 1);
@@ -1090,8 +1112,8 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (_tool is BuildTool.Belt or BuildTool.Junction or BuildTool.Splitter
-            or BuildTool.Sorter or BuildTool.Bridge)
+        if (_tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.Junction or BuildTool.Splitter
+            or BuildTool.Sorter or BuildTool.Bridge or BuildTool.Extractor)
         {
             DrawDirectionHint(hover, _placeDir);
         }
@@ -1165,8 +1187,22 @@ public partial class SpikeWorld : Node2D
                 }
 
                 break;
+            case BuildTool.BeltFast:
+                if (_slice.TryPlaceBelt(cell, _placeDir, "conveyor-fast"))
+                {
+                    _visualDirty = true;
+                }
+
+                break;
             case BuildTool.Miner:
                 if (_slice.TryPlaceMiner(cell, _placeDir))
+                {
+                    _buildingsDirty = true;
+                }
+
+                break;
+            case BuildTool.MinerAdvanced:
+                if (_slice.TryPlaceMiner(cell, _placeDir, definitionId: MinerProducer.AdvancedId))
                 {
                     _buildingsDirty = true;
                 }
@@ -1218,6 +1254,20 @@ public partial class SpikeWorld : Node2D
                 if (_slice.TryPlaceBridge(cell, _placeDir))
                 {
                     _visualDirty = true;
+                }
+
+                break;
+            case BuildTool.Extractor:
+                if (_slice.TryPlaceExtractor(cell, _placeDir))
+                {
+                    _buildingsDirty = true;
+                }
+
+                break;
+            case BuildTool.PowerNode:
+                if (_slice.TryPlacePowerNode(cell))
+                {
+                    _buildingsDirty = true;
                 }
 
                 break;
@@ -1359,6 +1409,34 @@ public partial class SpikeWorld : Node2D
                 iconScale: 1.05f);
             node.Name = $"Generator_{gen.Position.X}_{gen.Position.Y}";
             node.Position = FootprintCenter(gen.Position, GeneratorStub.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        foreach (var ex in _slice.Extractors)
+        {
+            var node = BuildingPad.Create(
+                ExtractorStub.Size,
+                TileSize,
+                fill: new Color(0.16f, 0.2f, 0.18f, 1f),
+                border: new Color(0.55f, 0.85f, 0.6f, 1f),
+                icon: GD.Load<Texture2D>("res://assets/miner.png"),
+                iconScale: 0.85f);
+            node.Name = $"Extractor_{ex.Position.X}_{ex.Position.Y}";
+            node.Position = FootprintCenter(ex.Position, ExtractorStub.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        foreach (var pn in _slice.PowerNodes)
+        {
+            var node = BuildingPad.Create(
+                pn.Size,
+                TileSize,
+                fill: new Color(0.2f, 0.18f, 0.1f, 1f),
+                border: new Color(0.95f, 0.85f, 0.35f, 1f),
+                icon: GD.Load<Texture2D>("res://assets/generator.png"),
+                iconScale: 0.75f);
+            node.Name = $"PowerNode_{pn.Position.X}_{pn.Position.Y}";
+            node.Position = FootprintCenter(pn.Position, pn.Size);
             _buildingsLayer.AddChild(node);
         }
     }
@@ -1748,6 +1826,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "t2")
+        {
+            await CaptureT2ShotsAsync(destDir);
+            return;
+        }
+
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
@@ -1794,6 +1878,57 @@ public partial class SpikeWorld : Node2D
         roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
+        GetTree().Quit();
+    }
+
+    private async Task CaptureT2ShotsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        SyncResearchLocks();
+        _slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East, "conveyor-fast");
+        _slice.TryPlaceBelt(new GridPosition(5, 8), Direction.East, "conveyor-fast");
+        _slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: MinerProducer.AdvancedId);
+        _slice.TryPlaceExtractor(new GridPosition(8, 14), Direction.North);
+        _slice.TryPlacePowerNode(new GridPosition(11, 12));
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        UpdateHud();
+
+        // Logistics: show BeltFast in palette.
+        _hud.SetSelectedTool(FactoryHud.ToolKind.BeltFast);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var logistics = GetViewport().GetTexture().GetImage();
+        logistics.SavePng(Path.Combine(destDir, "godot-port-t2-logistics.png"));
+        logistics.SavePng("/opt/cursor/artifacts/godot-port-t2-logistics.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.MinerAdvanced);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var production = GetViewport().GetTexture().GetImage();
+        production.SavePng(Path.Combine(destDir, "godot-port-t2-production.png"));
+        production.SavePng("/opt/cursor/artifacts/godot-port-t2-production.png");
+
+        _hud.SetSelectedTool(FactoryHud.ToolKind.PowerNode);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var power = GetViewport().GetTexture().GetImage();
+        power.SavePng(Path.Combine(destDir, "godot-port-t2-power.png"));
+        power.SavePng("/opt/cursor/artifacts/godot-port-t2-power.png");
+
+        GD.Print("T2 screenshot set complete.");
         GetTree().Quit();
     }
 

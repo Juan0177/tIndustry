@@ -11,6 +11,8 @@ public sealed class FactorySlice
     private readonly List<SmelterStub> smelters = [];
     private readonly List<SmelterStub> assemblers = [];
     private readonly List<GeneratorStub> generators = [];
+    private readonly List<ExtractorStub> extractors = [];
+    private readonly List<PowerNodeStub> powerNodes = [];
 
     public FactorySlice(
         FactoryContent content,
@@ -54,6 +56,8 @@ public sealed class FactorySlice
     public IReadOnlyList<SmelterStub> Smelters => smelters;
     public IReadOnlyList<SmelterStub> Assemblers => assemblers;
     public IReadOnlyList<GeneratorStub> Generators => generators;
+    public IReadOnlyList<ExtractorStub> Extractors => extractors;
+    public IReadOnlyList<PowerNodeStub> PowerNodes => powerNodes;
     public long NextItemId => nextItemId;
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
@@ -104,6 +108,20 @@ public sealed class FactorySlice
                 FuelBuffer = g.FuelBuffer,
                 BurnRemaining = g.BurnRemaining,
                 FuelConsumed = g.FuelConsumed
+            }).ToList(),
+            Extractors = extractors.Select(e => new ExtractorSaveDto
+            {
+                X = e.Position.X,
+                Y = e.Position.Y,
+                Direction = e.Direction.ToString(),
+                FilterItemId = e.FilterItemId,
+                Progress = e.Progress
+            }).ToList(),
+            PowerNodes = powerNodes.Select(n => new PowerNodeSaveDto
+            {
+                X = n.Position.X,
+                Y = n.Position.Y,
+                DefinitionId = n.DefinitionId
             }).ToList(),
             Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
             {
@@ -214,6 +232,21 @@ public sealed class FactorySlice
             var gen = new GeneratorStub(new GridPosition(g.X, g.Y), ParseDirection(g.Direction));
             gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
             slice.generators.Add(gen);
+        }
+
+        foreach (var e in data.Extractors)
+        {
+            var ex = new ExtractorStub(
+                new GridPosition(e.X, e.Y),
+                ParseDirection(e.Direction),
+                e.FilterItemId);
+            ex.RestoreProgress(e.Progress);
+            slice.extractors.Add(ex);
+        }
+
+        foreach (var n in data.PowerNodes)
+        {
+            slice.powerNodes.Add(new PowerNodeStub(new GridPosition(n.X, n.Y), n.DefinitionId));
         }
 
         return slice;
@@ -590,6 +623,22 @@ public sealed class FactorySlice
             }
         }
 
+        foreach (var ex in extractors)
+        {
+            if (ex.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
+        foreach (var node in powerNodes)
+        {
+            if (node.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -659,7 +708,9 @@ public sealed class FactorySlice
     public static string? StructureIdForTool(string toolKey) => toolKey switch
     {
         "belt" => "conveyor-basic",
+        "belt-fast" => "conveyor-fast",
         "miner" => "miner",
+        "miner-advanced" => "miner-advanced",
         "smelter" => "smelter",
         "assembler" => "assembler",
         "junction" => "junction",
@@ -667,14 +718,24 @@ public sealed class FactorySlice
         "generator" => "generator",
         "sorter" => "sorter",
         "bridge" => "conveyor-bridge",
+        "extractor" => "extractor",
+        "power-node" => "power-node",
         _ => null
     };
 
     private bool RequireUnlocked(string structureId) => Research.IsUnlocked(structureId);
 
-    public bool TryPlaceBelt(GridPosition position, Direction direction) =>
-        RequireUnlocked("conveyor-basic")
-        && Belts.TryPlaceFree(position, direction, BeltDefinition, CanOccupy);
+    public bool TryPlaceBelt(GridPosition position, Direction direction, string? conveyorId = null)
+    {
+        var id = string.IsNullOrWhiteSpace(conveyorId) ? "conveyor-basic" : conveyorId;
+        if (!RequireUnlocked(id))
+        {
+            return false;
+        }
+
+        var def = Content.FindConveyor(id) ?? Content.RequireConveyor("conveyor-basic");
+        return Belts.TryPlaceFree(position, direction, def, CanOccupy);
+    }
 
     public bool TryPlaceJunction(GridPosition position, Direction direction) =>
         RequireUnlocked("junction")
@@ -713,9 +774,11 @@ public sealed class FactorySlice
     public bool TryPlaceMiner(
         GridPosition origin,
         Direction direction,
-        string outputItemId = MinerProducer.DefaultOutputItemId)
+        string outputItemId = MinerProducer.DefaultOutputItemId,
+        string definitionId = MinerProducer.BasicId)
     {
-        if (!RequireUnlocked("miner"))
+        var id = string.IsNullOrWhiteSpace(definitionId) ? MinerProducer.BasicId : definitionId;
+        if (!RequireUnlocked(id))
         {
             return false;
         }
@@ -731,7 +794,7 @@ public sealed class FactorySlice
             return false;
         }
 
-        miners.Add(new MinerProducer(origin, direction, outputItemId: outputItemId));
+        miners.Add(new MinerProducer(origin, direction, outputItemId: outputItemId, definitionId: id));
         return true;
     }
 
@@ -808,6 +871,43 @@ public sealed class FactorySlice
         return true;
     }
 
+    public bool TryPlaceExtractor(
+        GridPosition origin,
+        Direction direction,
+        string filterItemId = ExtractorStub.DefaultFilterItemId)
+    {
+        if (!RequireUnlocked(ExtractorStub.BuildingId))
+        {
+            return false;
+        }
+
+        if (!CanOccupyFootprint(origin, ExtractorStub.Size))
+        {
+            return false;
+        }
+
+        extractors.Add(new ExtractorStub(origin, direction, filterItemId));
+        return true;
+    }
+
+    public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNodeStub.Tier1Id)
+    {
+        var id = definitionId == PowerNodeStub.Tier2Id ? PowerNodeStub.Tier2Id : PowerNodeStub.Tier1Id;
+        if (!RequireUnlocked(id))
+        {
+            return false;
+        }
+
+        var size = id == PowerNodeStub.Tier2Id ? 2 : 1;
+        if (!CanOccupyFootprint(origin, size))
+        {
+            return false;
+        }
+
+        powerNodes.Add(new PowerNodeStub(origin, id));
+        return true;
+    }
+
     public bool TryRemoveBuildingAt(GridPosition tile)
     {
         for (var i = miners.Count - 1; i >= 0; i--)
@@ -854,6 +954,28 @@ public sealed class FactorySlice
             }
 
             generators.RemoveAt(i);
+            return true;
+        }
+
+        for (var i = extractors.Count - 1; i >= 0; i--)
+        {
+            if (!extractors[i].Occupies(tile))
+            {
+                continue;
+            }
+
+            extractors.RemoveAt(i);
+            return true;
+        }
+
+        for (var i = powerNodes.Count - 1; i >= 0; i--)
+        {
+            if (!powerNodes[i].Occupies(tile))
+            {
+                continue;
+            }
+
+            powerNodes.RemoveAt(i);
             return true;
         }
 
@@ -931,6 +1053,22 @@ public sealed class FactorySlice
                         return false;
                     }
                 }
+
+                foreach (var ex in extractors)
+                {
+                    if (ex.Occupies(tile))
+                    {
+                        return false;
+                    }
+                }
+
+                foreach (var node in powerNodes)
+                {
+                    if (node.Occupies(tile))
+                    {
+                        return false;
+                    }
+                }
             }
         }
 
@@ -958,14 +1096,49 @@ public sealed class FactorySlice
 
         foreach (var craft in CraftMachines())
         {
-            var powered = liveGens.Any(g => g.IsAdjacentTo(craft.Position, SmelterStub.Size));
+            var powered = liveGens.Any(g => g.IsAdjacentTo(craft.Position, SmelterStub.Size))
+                || IsPoweredViaNode(craft.Position, SmelterStub.Size, liveGens);
             craft.Tick(deltaSeconds, Belts, ref nextItemId, powered);
+        }
+
+        foreach (var ex in extractors)
+        {
+            ex.Tick(deltaSeconds, Belts, Wallet, CoreTiles, ref nextItemId);
         }
 
         // Second belt tick so freshly emitted items can move the same frame.
         Belts.Tick(0f);
         CoreDeliveredItems += CoreStockSink.Drain(
             Belts, CoreTiles, Wallet, Market, Session, AutoSellAtCore);
+    }
+
+    private bool IsPoweredViaNode(
+        GridPosition craftOrigin,
+        int craftSize,
+        IReadOnlyList<GeneratorStub> liveGens)
+    {
+        if (liveGens.Count == 0 || powerNodes.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var node in powerNodes)
+        {
+            if (!node.IsAdjacentTo(craftOrigin, craftSize))
+            {
+                continue;
+            }
+
+            foreach (var gen in liveGens)
+            {
+                if (node.IsWithinRange(gen.Position, GeneratorStub.Size))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public static void SelfTest(string contentJsonPath)
@@ -1019,6 +1192,36 @@ public sealed class FactorySlice
         }
 
         throw new InvalidOperationException("Placeable belt self-test: nessun item al core.");
+    }
+
+    /// <summary>T2 belt/miner + extractor + power-node place APIs.</summary>
+    public static void SelfTestT2Tools(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.Research.ForceUnlock("conveyor-fast");
+        slice.Research.ForceUnlock("miner-advanced");
+        slice.Research.ForceUnlock("extractor");
+        slice.Research.ForceUnlock("power-node");
+
+        Assert(slice.TryPlaceBelt(new GridPosition(3, 8), Direction.East, "conveyor-fast"), "belt T2");
+        Assert(slice.Belts.TryGet(new GridPosition(3, 8), out var fast)
+            && fast.Definition.Id == "conveyor-fast", "belt T2 def");
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+            "miner T2");
+        Assert(slice.Miners.Any(m => m.DefinitionId == MinerProducer.AdvancedId), "miner T2 list");
+        Assert(slice.TryPlaceExtractor(new GridPosition(8, 14), Direction.North), "extractor");
+        Assert(slice.TryPlacePowerNode(new GridPosition(11, 12)), "power-node");
+        Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 1, "counts");
+
+        var snap = slice.Capture();
+        Assert(snap.Extractors.Count == 1 && snap.PowerNodes.Count == 1, "capture");
+        var restored = Restore(content, snap);
+        Assert(restored.Extractors.Count == 1, "restore extractor");
+        Assert(restored.PowerNodes.Count == 1, "restore node");
+        Assert(restored.Belts.TryGet(new GridPosition(3, 8), out var rf)
+            && rf.Definition.Id == "conveyor-fast", "restore belt T2");
     }
 
     /// <summary>Phase C: ore through forno yields iron-plate in core stock.</summary>
