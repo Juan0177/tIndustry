@@ -384,11 +384,14 @@ public partial class SpikeWorld : Node2D
     private void StartNewSandbox(bool toast)
     {
         var content = FactoryContent.Load(_contentPath);
-        _slice = new FactorySlice(
+        _slice = FactorySlice.CreateSandboxSlice(
             content,
-            new BeltGrid(),
-            CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2));
-        _slice.Wallet.AddMoney(180);
+            new GridPosition(9, 14),
+            coreSize: 2,
+            mapWidth: MapWidth,
+            mapHeight: MapHeight,
+            seed: 42,
+            startingMoney: 180);
         _activeLevel = null;
         _levelCompleteToastShown = false;
         _tool = BuildTool.Cursor;
@@ -399,9 +402,10 @@ public partial class SpikeWorld : Node2D
         SyncResearchLocks();
         UpdateHud();
         _hud?.ClearObjectives();
+        QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast("Nuova partita · sandbox");
+            _hud?.ShowToast($"Nuova partita · sandbox · seed {_slice.Terrain?.Seed ?? 42}");
         }
     }
 
@@ -472,7 +476,8 @@ public partial class SpikeWorld : Node2D
 
         var content = FactoryContent.Load(_contentPath);
         _slice = FactorySlice.CreateCampaignSlice(
-            content, _campaign, level, new GridPosition(9, 14), coreSize: 2);
+            content, _campaign, level, new GridPosition(9, 14), coreSize: 2,
+            mapWidth: MapWidth, mapHeight: MapHeight);
         // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
         // after placing miner, but also allow starting sells from stock if we add ore.
         if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
@@ -489,9 +494,10 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         SyncResearchLocks();
         UpdateHud();
+        QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast($"Campagna · {level.Name}");
+            _hud?.ShowToast($"Campagna · {level.Name} · seed {level.Seed}");
         }
     }
 
@@ -1001,14 +1007,32 @@ public partial class SpikeWorld : Node2D
 
     public override void _Draw()
     {
-        var ground = new Color(0.14f, 0.18f, 0.16f);
-        var groundAlt = new Color(0.16f, 0.21f, 0.18f);
         for (var y = 0; y < MapHeight; y++)
         {
             for (var x = 0; x < MapWidth; x++)
             {
                 var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
-                DrawRect(rect, ((x + y) % 2 == 0) ? ground : groundAlt);
+                var ground = ((x + y) % 2 == 0)
+                    ? new Color(0.12f, 0.16f, 0.13f, 1f)
+                    : new Color(0.10f, 0.14f, 0.11f, 1f);
+                if (_slice?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y)))
+                {
+                    var tile = terrain[x, y];
+                    ground = tile.Terrain switch
+                    {
+                        TerrainKind.Water => new Color(0.12f, 0.22f, 0.32f, 1f),
+                        TerrainKind.Grass => new Color(0.14f, 0.22f, 0.14f, 1f),
+                        TerrainKind.Soil => new Color(0.18f, 0.16f, 0.12f, 1f),
+                        TerrainKind.Stone => new Color(0.16f, 0.16f, 0.15f, 1f),
+                        _ => ground
+                    };
+                    if (((x + y) % 2) != 0)
+                    {
+                        ground = ground.Darkened(0.08f);
+                    }
+                }
+
+                DrawRect(rect, ground);
             }
         }
 
@@ -1028,6 +1052,33 @@ public partial class SpikeWorld : Node2D
         if (_slice is null)
         {
             return;
+        }
+
+        // Seeded deposits visible on the map (not only under miners).
+        if (_slice.Terrain is { } map)
+        {
+            for (var y = 0; y < MapHeight; y++)
+            {
+                for (var x = 0; x < MapWidth; x++)
+                {
+                    var deposit = map[x, y].Deposit;
+                    if (deposit == DepositKind.None)
+                    {
+                        continue;
+                    }
+
+                    var tint = deposit switch
+                    {
+                        DepositKind.Iron => new Color(0.55f, 0.38f, 0.22f, 0.45f),
+                        DepositKind.Copper => new Color(0.72f, 0.42f, 0.22f, 0.45f),
+                        DepositKind.Coal => new Color(0.12f, 0.12f, 0.1f, 0.55f),
+                        DepositKind.Lead => new Color(0.35f, 0.4f, 0.45f, 0.45f),
+                        DepositKind.Titanium => new Color(0.55f, 0.55f, 0.7f, 0.45f),
+                        _ => new Color(0.4f, 0.3f, 0.2f, 0.35f)
+                    };
+                    DrawRect(new Rect2(x * TileSize, y * TileSize, TileSize, TileSize), tint);
+                }
+            }
         }
 
         var coreFill = new Color(0.18f, 0.32f, 0.48f, 1f);
@@ -1695,6 +1746,42 @@ public partial class SpikeWorld : Node2D
         GetTree().Quit();
     }
 
+    private async Task CaptureMapSeedShotsAsync(string destDir)
+    {
+        _home?.Close();
+        if (_campaign?.FirstLevel is { } l01)
+        {
+            StartCampaignLevel(l01, toast: false);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        var campaign = GetViewport().GetTexture().GetImage();
+        campaign.SavePng(Path.Combine(destDir, "godot-port-mapseed-campaign.png"));
+        campaign.SavePng("/opt/cursor/artifacts/godot-port-mapseed-campaign.png");
+
+        StartNewSandbox(toast: false);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        var sandbox = GetViewport().GetTexture().GetImage();
+        sandbox.SavePng(Path.Combine(destDir, "godot-port-mapseed-sandbox.png"));
+        sandbox.SavePng("/opt/cursor/artifacts/godot-port-mapseed-sandbox.png");
+
+        // Second sandbox seed for contrast (swap via CreateSandboxSlice).
+        var content = FactoryContent.Load(_contentPath);
+        _slice = FactorySlice.CreateSandboxSlice(
+            content, new GridPosition(9, 14), mapWidth: MapWidth, mapHeight: MapHeight, seed: 777);
+        QueueRedraw();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        var alt = GetViewport().GetTexture().GetImage();
+        alt.SavePng(Path.Combine(destDir, "godot-port-mapseed-alt.png"));
+        alt.SavePng("/opt/cursor/artifacts/godot-port-mapseed-alt.png");
+
+        GD.Print($"Map-seed shots · campaign seed={_campaign?.FirstLevel?.Seed} sandbox=42 alt=777");
+        GetTree().Quit();
+    }
+
     private async Task CaptureCampaignShotsAsync(string destDir)
     {
         if (_slice is null || _hud is null || _campaign is null || _progress is null)
@@ -1805,6 +1892,12 @@ public partial class SpikeWorld : Node2D
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "campaign")
         {
             await CaptureCampaignShotsAsync(destDir);
+            return;
+        }
+
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "mapseed")
+        {
+            await CaptureMapSeedShotsAsync(destDir);
             return;
         }
 

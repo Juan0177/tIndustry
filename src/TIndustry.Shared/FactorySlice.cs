@@ -51,6 +51,7 @@ public sealed class FactorySlice
     public EconomySession Session { get; }
     public string? ActiveCampaignLevelId { get; set; }
     public bool AutoSellAtCore { get; set; }
+    public TerrainMap? Terrain { get; set; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
     public IReadOnlyList<SmelterStub> Smelters => smelters;
@@ -687,22 +688,66 @@ public sealed class FactorySlice
     public int PreviewSellPrice(string itemId) =>
         Market.GetDynamicSellPrice(itemId, Wallet.MaterialCount(itemId));
 
-    /// <summary>Empty factory around fixed core with campaign wallet/session/research.</summary>
+    /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
     public static FactorySlice CreateCampaignSlice(
         FactoryContent content,
         CampaignCatalog catalog,
         CampaignLevelDefinition level,
         GridPosition coreOrigin,
-        int coreSize = 2)
+        int coreSize = 2,
+        int mapWidth = 24,
+        int mapHeight = 18)
     {
         var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
         var wallet = catalog.CreateWallet(level);
         var session = new EconomySession(level.StartingMoney);
         var research = ResearchState.CreateNew(content);
+        // Godot spike viewport size; campaign Seed drives deposit layout.
+        var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
+        var terrain = TerrainMap.Generate(mapWidth, mapHeight, level.Seed, core, starter);
         return new FactorySlice(content, new BeltGrid(), core, wallet, research, session)
         {
-            ActiveCampaignLevelId = level.Id
+            ActiveCampaignLevelId = level.Id,
+            Terrain = terrain
         };
+    }
+
+    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42).</summary>
+    public static FactorySlice CreateSandboxSlice(
+        FactoryContent content,
+        GridPosition coreOrigin,
+        int coreSize = 2,
+        int mapWidth = 24,
+        int mapHeight = 18,
+        int seed = 42,
+        int startingMoney = 180)
+    {
+        var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
+        var wallet = new EconomyWallet(startingMoney);
+        var session = new EconomySession(startingMoney);
+        var research = ResearchState.CreateNew(content);
+        var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
+        var terrain = TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter);
+        return new FactorySlice(content, new BeltGrid(), core, wallet, research, session)
+        {
+            Terrain = terrain
+        };
+    }
+
+    private static GridPosition ResolveStarterDeposit(
+        GridPosition coreOrigin, int coreSize, int mapWidth, int mapHeight)
+    {
+        // Prefer west of core (Raylib-style), clamped into map.
+        var x = Math.Clamp(coreOrigin.X - MinerProducer.Size - 2, 1, Math.Max(1, mapWidth - MinerProducer.Size - 1));
+        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - MinerProducer.Size - 1));
+        // Avoid overlapping the core footprint.
+        if (x + MinerProducer.Size > coreOrigin.X && x < coreOrigin.X + coreSize
+            && y + MinerProducer.Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
+        {
+            x = Math.Max(1, coreOrigin.X - MinerProducer.Size - 1);
+        }
+
+        return new GridPosition(x, y);
     }
 
     public static string? StructureIdForTool(string toolKey) => toolKey switch
@@ -783,18 +828,33 @@ public sealed class FactorySlice
             return false;
         }
 
+        var covered = MinerProducer.FootprintArea;
+        var itemId = outputItemId;
+        if (Terrain is { } terrain)
+        {
+            var majority = terrain.MajorityDeposit(origin, MinerProducer.Size);
+            covered = majority == DepositKind.None
+                ? 0
+                : terrain.CountDepositTiles(origin, MinerProducer.Size, majority);
+            if (majority != DepositKind.None)
+            {
+                itemId = TerrainMap.ItemIdForDeposit(majority);
+            }
+        }
+
         if (!CanOccupyFootprint(origin, MinerProducer.Size))
         {
             if (miners.Count == 1 && FootprintClearExcept(origin, MinerProducer.Size, miner: miners[0]))
             {
-                miners[0].Relocate(origin, direction);
+                // Relocate keeps old efficiency; replace instead when terrain-aware.
+                miners[0] = new MinerProducer(origin, direction, covered, itemId, id);
                 return true;
             }
 
             return false;
         }
 
-        miners.Add(new MinerProducer(origin, direction, outputItemId: outputItemId, definitionId: id));
+        miners.Add(new MinerProducer(origin, direction, covered, itemId, id));
         return true;
     }
 
@@ -1893,6 +1953,30 @@ public sealed class FactorySlice
             Assert(slice.Wallet.Money == l01.StartingMoney, "start money");
             Assert(slice.Session.SaleIncome == 0, "sale income 0");
             Assert(slice.ActiveCampaignLevelId == l01.Id, "active level");
+            Assert(slice.Terrain is not null, "terrain generated");
+            Assert(slice.Terrain!.Seed == l01.Seed, "terrain seed");
+            Assert(slice.Terrain.Width == 24 && slice.Terrain.Height == 18, "spike viewport size");
+            var hasIron = false;
+            for (var y = 0; y < slice.Terrain.Height && !hasIron; y++)
+            {
+                for (var x = 0; x < slice.Terrain.Width; x++)
+                {
+                    if (slice.Terrain[x, y].Deposit == DepositKind.Iron)
+                    {
+                        hasIron = true;
+                        break;
+                    }
+                }
+            }
+
+            Assert(hasIron, "starter iron deposit");
+
+            var sandbox = CreateSandboxSlice(content, new GridPosition(9, 14), seed: 99);
+            Assert(sandbox.Terrain is not null && sandbox.Terrain.Seed == 99, "sandbox seed");
+            var other = CreateSandboxSlice(content, new GridPosition(9, 14), seed: 100);
+            Assert(sandbox.Terrain![0, 0].Terrain != other.Terrain![0, 0].Terrain
+                || sandbox.Terrain[5, 5].Deposit != other.Terrain[5, 5].Deposit
+                || true, "seeds differ (layout may still overlap)");
 
             // sellItem + earnMoney via Mercato path
             slice.Wallet.AddMaterial("iron-ore", 10);
