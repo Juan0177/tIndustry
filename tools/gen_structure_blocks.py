@@ -44,17 +44,18 @@ CORE_BODY = (0x2A, 0x3A, 0x48, 255)
 CORE_MID = (0x3A, 0x52, 0x64, 255)
 CORE_CYAN = (0x5A, 0xC8, 0xD8, 255)
 
-# Gear colors
-RUST = (0x8A, 0x4A, 0x28, 255)
-RUST_MID = (0xA8, 0x5C, 0x32, 255)
-RUST_DARK = (0x5C, 0x2E, 0x18, 255)
-RUST_HUB = (0xC4, 0x7A, 0x3A, 255)
+# Gear colors — T1 bronze/copper (reference), T2 red
+RUST = (0x9A, 0x6A, 0x38, 255)
+RUST_MID = (0xC4, 0x8A, 0x48, 255)
+RUST_DARK = (0x5C, 0x38, 0x1C, 255)
+RUST_HUB = (0xE0, 0xA8, 0x5C, 255)
 GEAR_RED = (0xC4, 0x32, 0x28, 255)
 GEAR_RED_MID = (0xE0, 0x48, 0x38, 255)
 GEAR_RED_DARK = (0x7A, 0x18, 0x14, 255)
 GEAR_RED_HUB = (0xF0, 0x70, 0x58, 255)
 PERNO = (0x2A, 0x28, 0x24, 255)
 PERNO_LIT = (0xF0, 0xDC, 0x7A, 255)
+ACCENT_DOT = (0xF0, 0xC8, 0x3A, 255)
 
 
 def new_img(fill=BLU2) -> Image.Image:
@@ -227,108 +228,102 @@ def draw_bridge() -> None:
     save(img, "bridge.png")
 
 
-def draw_gear(size: int, rust: bool) -> Image.Image:
-    """Full gear with transparent background; perno at center."""
+def draw_gear(size: int, rust: bool, teeth: int = 6) -> Image.Image:
+    """Full gear with transparent background; perno at center. Default 6 teeth."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     cx = cy = size // 2
-    outer = size // 2 - 2
-    teeth = 8
+    # Leave 1px margin so teeth stay inside the texture bounds.
+    outer = size // 2 - 4
+    tooth_out = outer + 3
     body = RUST_MID if rust else GEAR_RED_MID
     dark = RUST_DARK if rust else GEAR_RED_DARK
     mid = RUST if rust else GEAR_RED
     hub = RUST_HUB if rust else GEAR_RED_HUB
-    # Teeth
+    half_w = 0.28  # tooth angular half-width
     for i in range(teeth):
-        ang = i * (2 * math.pi / teeth)
-        # tooth tip
-        tx = cx + int(math.cos(ang) * (outer + 3))
-        ty = cy + int(math.sin(ang) * (outer + 3))
-        bx1 = cx + int(math.cos(ang - 0.22) * (outer - 2))
-        by1 = cy + int(math.sin(ang - 0.22) * (outer - 2))
-        bx2 = cx + int(math.cos(ang + 0.22) * (outer - 2))
-        by2 = cy + int(math.sin(ang + 0.22) * (outer - 2))
-        d.polygon([(tx, ty), (bx1, by1), (bx2, by2)], fill=body)
+        ang = i * (2 * math.pi / teeth) - math.pi / 2
+        tip = (cx + int(math.cos(ang) * tooth_out), cy + int(math.sin(ang) * tooth_out))
+        b1 = (
+            cx + int(math.cos(ang - half_w) * (outer - 1)),
+            cy + int(math.sin(ang - half_w) * (outer - 1)),
+        )
+        b2 = (
+            cx + int(math.cos(ang + half_w) * (outer - 1)),
+            cy + int(math.sin(ang + half_w) * (outer - 1)),
+        )
+        d.polygon([tip, b1, b2], fill=body)
+        d.line([b1, tip, b2], fill=dark, width=1)
     # Rim
     d.ellipse([cx - outer, cy - outer, cx + outer, cy + outer], fill=mid, outline=dark)
-    d.ellipse([cx - outer + 3, cy - outer + 3, cx + outer - 3, cy + outer - 3], fill=body)
-    # Spokes
-    for i in range(4):
-        ang = i * (math.pi / 2) + 0.2
-        x2 = cx + int(math.cos(ang) * (outer - 5))
-        y2 = cy + int(math.sin(ang) * (outer - 5))
-        d.line([(cx, cy), (x2, y2)], fill=dark, width=3)
-    # Hub / perno (scales with gear so corner pivots stay readable when large)
-    hub_r = max(6, size // 10)
-    perno_r = max(3, size // 20)
+    d.ellipse(
+        [cx - outer + 3, cy - outer + 3, cx + outer - 3, cy + outer - 3],
+        fill=body,
+    )
+    # Spokes toward teeth
+    for i in range(teeth):
+        ang = i * (2 * math.pi / teeth) - math.pi / 2
+        x2 = cx + int(math.cos(ang) * (outer - 6))
+        y2 = cy + int(math.sin(ang) * (outer - 6))
+        d.line([(cx, cy), (x2, y2)], fill=dark, width=2)
+    hub_r = max(5, size // 9)
+    perno_r = max(2, size // 18)
     d.ellipse([cx - hub_r, cy - hub_r, cx + hub_r, cy + hub_r], fill=hub, outline=dark)
     d.ellipse([cx - perno_r, cy - perno_r, cx + perno_r, cy + perno_r], fill=PERNO)
     return img
 
 
-def paste_quarter_gear(base: Image.Image, gear: Image.Image, corner: str) -> None:
-    """Paste gear so only ~1/4 is visible in the named corner (pivot on corner)."""
-    # Pivot at corner of 64 tile; gear center sits on that corner.
-    if corner == "nw":
-        ox, oy = -gear.width // 2, -gear.height // 2
-    elif corner == "se":
-        ox, oy = SIZE - gear.width // 2, SIZE - gear.height // 2
-    elif corner == "ne":
-        ox, oy = SIZE - gear.width // 2, -gear.height // 2
-    else:
-        ox, oy = -gear.width // 2, SIZE - gear.height // 2
-    # Clip paste to tile
-    tmp = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    tmp.paste(gear, (ox, oy), gear)
-    base.alpha_composite(tmp)
-
-
 def draw_miner_body(advanced: bool = False) -> Image.Image:
-    img = new_img(PROD_DARK)
+    """Square pad: dark outer rim, light blue-grey frame, dark interior + border accents."""
+    img = new_img(BLU1)
     d = ImageDraw.Draw(img)
-    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], PROD_BODY)
-    fill_rect(d, [5, 5, SIZE - 6, SIZE - 6], PROD_MID)
-    # Central housing (static — no drill)
-    fill_rect(d, [22, 22, 41, 41], PROD_EDGE)
-    fill_rect(d, [26, 26, 37, 37], PROD_DARK)
-    if advanced:
-        fill_rect(d, [0, 0, SIZE - 1, 1], GEAR_RED)
-    else:
-        fill_rect(d, [0, 0, SIZE - 1, 1], PROD_ACCENT)
-    border(d, PROD_DARK, 2)
+    # Light blue-grey frame (reference style)
+    fill_rect(d, [2, 2, SIZE - 3, SIZE - 3], BLU4)
+    # Dark interior pad (gear sits here; keep clear of frame)
+    fill_rect(d, [6, 6, SIZE - 7, SIZE - 7], BLU2)
+    fill_rect(d, [8, 8, SIZE - 9, SIZE - 9], BLU1)
+    # Mid-side dark pin accents on the BLU4 frame (belt-tile language)
+    mid = SIZE // 2
+    pin = 3
+    for x0, y0, x1, y1 in [
+        (mid - pin, 2, mid + pin, 5),  # N
+        (mid - pin, SIZE - 6, mid + pin, SIZE - 3),  # S
+        (2, mid - pin, 5, mid + pin),  # W
+        (SIZE - 6, mid - pin, SIZE - 3, mid + pin),  # E
+    ]:
+        fill_rect(d, [x0, y0, x1, y1], BLU1)
+    # Corner accents (small dots on frame)
+    for cx, cy in [(4, 4), (SIZE - 5, 4), (4, SIZE - 5), (SIZE - 5, SIZE - 5)]:
+        d.ellipse([cx - 1, cy - 1, cx + 1, cy + 1], fill=BLU4_DIM if not advanced else ACCENT_DOT)
+    border(d, BLACK, 2)
     return img
 
 
 def draw_miner(advanced: bool = False) -> None:
-    """Pad + two corner-clipped gears (large NW, small SE) for palette static frame.
-
-    Diameters ≈ 2× / 1.7× tile so visible quarters fill the whole pad surface.
-    """
+    """Bordered pad + one large centered 6-tooth gear that fits inside the frame."""
     img = draw_miner_body(advanced)
-    large = draw_gear(SIZE * 2, rust=not advanced)
-    small = draw_gear(int(SIZE * 1.7), rust=not advanced)
-    paste_quarter_gear(img, large, "nw")
-    paste_quarter_gear(img, small, "se")
+    # Inner pad is ~48px; gear ~44 so teeth clear the BLU4 frame.
+    gear = draw_gear(44, rust=not advanced, teeth=6)
+    ox = (SIZE - gear.width) // 2
+    oy = (SIZE - gear.height) // 2
+    img.alpha_composite(gear, (ox, oy))
     save(img, "miner-advanced.png" if advanced else "miner.png")
 
 
 def draw_miner_gear_assets() -> None:
-    """Full gear sprites for world animation (clipped in Godot)."""
-    # Higher-res base so nearest-neighbor scale to ~2× footprint stays crisp.
-    draw_gear(64, rust=True).save(OUT / "gear-rust.png")
+    """Full gear sprites for world animation (centered in Godot)."""
+    draw_gear(64, rust=True, teeth=6).save(OUT / "gear-rust.png")
     print(f"wrote {OUT / 'gear-rust.png'}")
-    draw_gear(64, rust=False).save(OUT / "gear-red.png")
+    draw_gear(64, rust=False, teeth=6).save(OUT / "gear-red.png")
     print(f"wrote {OUT / 'gear-red.png'}")
-    # Pad-only bodies for world (gears overlaid animated)
     draw_miner_body(False).save(OUT / "miner-pad.png")
     print(f"wrote {OUT / 'miner-pad.png'}")
     draw_miner_body(True).save(OUT / "miner-pad-advanced.png")
     print(f"wrote {OUT / 'miner-pad-advanced.png'}")
-    # Lit perno overlay (small)
     lit = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     d = ImageDraw.Draw(lit)
-    d.ellipse([2, 2, 13, 13], fill=PERNO_LIT)
-    d.ellipse([5, 5, 10, 10], fill=WHITE)
+    d.ellipse([1, 1, 14, 14], fill=PERNO_LIT)
+    d.ellipse([4, 4, 11, 11], fill=WHITE)
     lit.save(OUT / "gear-perno-lit.png")
     print(f"wrote {OUT / 'gear-perno-lit.png'}")
 
