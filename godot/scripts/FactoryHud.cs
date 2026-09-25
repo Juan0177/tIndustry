@@ -657,9 +657,7 @@ public partial class FactoryHud : Control
             () => SaveSlotRequested?.Invoke());
         AddUtilityIcon(util, null, "▥", "Carica slot", "F7",
             () => LoadSlotRequested?.Invoke());
-
-        // Drop the long hint footer — keeps dock compact; R/delete stay as one quiet line.
-        // (dir label added below)
+    }
 
     private void AddCategoryButton(
         Control parent,
