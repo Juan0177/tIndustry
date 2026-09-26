@@ -261,11 +261,15 @@ public sealed class FactorySlice
                 : "smelt-iron")
             ?? throw new InvalidDataException($"Ricetta '{dto.RecipeId}' mancante nel save.");
         var buildingId = string.IsNullOrWhiteSpace(dto.DefinitionId) ? fallbackId : dto.DefinitionId;
+        var available = buildingId == SmelterStub.AssemblerBuildingId
+            ? content.AssemblerRecipes()
+            : content.SmelterRecipes();
         var craft = new SmelterStub(
             new GridPosition(dto.X, dto.Y),
             ParseDirection(dto.Direction),
             recipe,
-            buildingId);
+            buildingId,
+            available);
         craft.RestoreCraftState(
             dto.Progress,
             dto.IsCrafting,
@@ -1121,7 +1125,9 @@ public sealed class FactorySlice
             return false;
         }
 
-        recipe ??= Content.FindRecipe("smelt-iron")
+        var recipes = Content.SmelterRecipes();
+        recipe ??= recipes.FirstOrDefault(r => r.Id == "smelt-iron")
+            ?? Content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
 
         if (!CanOccupyFootprint(origin, SmelterStub.Size))
@@ -1140,7 +1146,8 @@ public sealed class FactorySlice
             return false;
         }
 
-        smelters.Add(new SmelterStub(origin, direction, recipe, SmelterStub.SmelterBuildingId));
+        smelters.Add(new SmelterStub(
+            origin, direction, recipe, SmelterStub.SmelterBuildingId, recipes));
         return true;
     }
 
@@ -1151,7 +1158,9 @@ public sealed class FactorySlice
             return false;
         }
 
-        recipe ??= Content.FindRecipe("craft-copper-wire")
+        var recipes = Content.AssemblerRecipes();
+        recipe ??= recipes.FirstOrDefault(r => r.Id == "craft-copper-wire")
+            ?? Content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
 
         if (!CanOccupyFootprint(origin, SmelterStub.Size))
@@ -1170,7 +1179,8 @@ public sealed class FactorySlice
             return false;
         }
 
-        assemblers.Add(new SmelterStub(origin, direction, recipe, SmelterStub.AssemblerBuildingId));
+        assemblers.Add(new SmelterStub(
+            origin, direction, recipe, SmelterStub.AssemblerBuildingId, recipes));
         return true;
     }
 
@@ -1637,6 +1647,57 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Smelter loop self-test: nessuna lastra di ferro al core entro 90s sim.");
+    }
+
+    /// <summary>Multi-recipe forno/assy: lead ore / graphite auto-pick (Raylib parity).</summary>
+    public static void SelfTestMultiRecipe(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        Assert(content.SmelterRecipes().Count >= 3, "smelt recipes");
+        Assert(content.AssemblerRecipes().Count >= 3, "craft recipes");
+
+        var lead = content.FindRecipe("smelt-lead")
+            ?? throw new InvalidDataException("smelt-lead missing");
+        var smelter = new SmelterStub(
+            new GridPosition(0, 0),
+            Direction.East,
+            content.FindRecipe("smelt-iron")!,
+            SmelterStub.SmelterBuildingId,
+            content.SmelterRecipes());
+        Assert(smelter.TryAccept("lead-ore"), "accept lead");
+        Assert(smelter.TryAccept("lead-ore"), "accept lead 2");
+        Assert(!smelter.TryAccept("copper-ore"), "reject copper on forno");
+        long next = 1;
+        smelter.Tick(0.05f, new BeltGrid(), ref next, powered: true);
+        Assert(smelter.IsCrafting && smelter.Recipe.Id == "smelt-lead", "auto smelt-lead");
+
+        var graphite = content.FindRecipe("craft-graphite");
+        Assert(graphite is not null, "craft-graphite");
+        var assy = new SmelterStub(
+            new GridPosition(2, 0),
+            Direction.East,
+            content.FindRecipe("craft-copper-wire")!,
+            SmelterStub.AssemblerBuildingId,
+            content.AssemblerRecipes());
+        foreach (var input in graphite!.Inputs)
+        {
+            for (var n = 0; n < input.Amount; n++)
+            {
+                Assert(assy.TryAccept(input.ItemId), $"accept {input.ItemId}");
+            }
+        }
+
+        assy.Tick(0.05f, new BeltGrid(), ref next, powered: true);
+        Assert(assy.IsCrafting && assy.Recipe.Id == "craft-graphite", "auto craft-graphite");
+
+        // Place API wires recipe lists.
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place multi forno");
+        Assert(slice.Smelters[0].AvailableRecipes.Count >= 3, "forno has smelt-*");
+        Assert(slice.TryPlaceAssembler(new GridPosition(8, 4), Direction.East), "place multi assy");
+        Assert(slice.Assemblers[0].AvailableRecipes.Count >= 3, "assy has craft-*");
     }
 
     /// <summary>Phase D: plates + copper ore through assembler yield copper-wire in core.</summary>

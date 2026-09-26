@@ -1,8 +1,9 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Minimal craft machine: belt intake → timed recipe → emit onto outward belts.
+/// Craft machine: belt intake → timed recipe → emit onto outward belts.
 /// Used for forno (Phase C) and assembler (Phase D). Phase F: optional powered speed.
+/// Multi-recipe: auto-picks the first available recipe whose inputs are buffered (Raylib parity).
 /// </summary>
 public sealed class SmelterStub
 {
@@ -17,22 +18,28 @@ public sealed class SmelterStub
 
     private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
     private readonly Queue<string> outputQueue = new();
+    private RecipeDefinition activeRecipe;
 
     public SmelterStub(
         GridPosition position,
         Direction direction,
         RecipeDefinition recipe,
-        string buildingId = SmelterBuildingId)
+        string buildingId = SmelterBuildingId,
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
     {
         Position = position;
         Direction = direction;
-        Recipe = recipe;
+        AvailableRecipes = availableRecipes is { Count: > 0 }
+            ? availableRecipes
+            : [recipe];
+        activeRecipe = AvailableRecipes.FirstOrDefault(r => r.Id == recipe.Id) ?? AvailableRecipes[0];
         DefinitionId = string.IsNullOrWhiteSpace(buildingId) ? SmelterBuildingId : buildingId;
     }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }
-    public RecipeDefinition Recipe { get; }
+    public IReadOnlyList<RecipeDefinition> AvailableRecipes { get; }
+    public RecipeDefinition Recipe => activeRecipe;
     public string DefinitionId { get; }
     public bool IsAssembler => DefinitionId == AssemblerBuildingId;
     public float Progress { get; private set; }
@@ -125,14 +132,24 @@ public sealed class SmelterStub
 
     public bool TryAccept(string itemId)
     {
-        var need = Recipe.Inputs.FirstOrDefault(i => i.ItemId == itemId);
-        if (need is null)
+        var maxNeeded = 0;
+        foreach (var recipe in AvailableRecipes)
+        {
+            var needed = recipe.Inputs.FirstOrDefault(entry => entry.ItemId == itemId);
+            if (needed is not null)
+            {
+                maxNeeded = Math.Max(maxNeeded, needed.Amount);
+            }
+        }
+
+        if (maxNeeded <= 0)
         {
             return false;
         }
 
         var have = inputBuffer.GetValueOrDefault(itemId);
-        if (have >= need.Amount * 4)
+        // Cap buffer at 4× the largest single-recipe need (matches prior single-recipe headroom).
+        if (have >= maxNeeded * 4)
         {
             return false;
         }
@@ -180,14 +197,10 @@ public sealed class SmelterStub
     {
         if (!IsCrafting)
         {
-            if (!CanStart())
+            if (!TryStartCraft())
             {
                 return;
             }
-
-            ConsumeInputs();
-            IsCrafting = true;
-            Progress = 0f;
         }
 
         Progress += deltaSeconds / Math.Max(0.05f, Recipe.DurationSeconds);
@@ -208,6 +221,47 @@ public sealed class SmelterStub
 
         IsCrafting = false;
         Progress = 0f;
+    }
+
+    private bool TryStartCraft()
+    {
+        if (IsCrafting || outputQueue.Count > 0)
+        {
+            return false;
+        }
+
+        RecipeDefinition? chosen = null;
+        foreach (var recipe in AvailableRecipes)
+        {
+            if (recipe.Inputs.All(entry => inputBuffer.GetValueOrDefault(entry.ItemId) >= entry.Amount))
+            {
+                chosen = recipe;
+                break;
+            }
+        }
+
+        if (chosen is null)
+        {
+            return false;
+        }
+
+        activeRecipe = chosen;
+        foreach (var entry in chosen.Inputs)
+        {
+            var left = inputBuffer.GetValueOrDefault(entry.ItemId) - entry.Amount;
+            if (left <= 0)
+            {
+                inputBuffer.Remove(entry.ItemId);
+            }
+            else
+            {
+                inputBuffer[entry.ItemId] = left;
+            }
+        }
+
+        IsCrafting = true;
+        Progress = 0f;
+        return true;
     }
 
     private void EmitToBelts(BeltGrid belts, ref long nextItemId)
@@ -254,26 +308,5 @@ public sealed class SmelterStub
         }
 
         return false;
-    }
-
-    private bool CanStart()
-    {
-        foreach (var input in Recipe.Inputs)
-        {
-            if (inputBuffer.GetValueOrDefault(input.ItemId) < input.Amount)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private void ConsumeInputs()
-    {
-        foreach (var input in Recipe.Inputs)
-        {
-            inputBuffer[input.ItemId] = inputBuffer.GetValueOrDefault(input.ItemId) - input.Amount;
-        }
     }
 }

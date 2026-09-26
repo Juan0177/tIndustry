@@ -25,6 +25,12 @@ public sealed class FactoryContent
     public RecipeDefinition? FindRecipe(string id) =>
         Recipes.FirstOrDefault(r => r.Id == id);
 
+    public IReadOnlyList<RecipeDefinition> SmelterRecipes() =>
+        Recipes.Where(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal)).ToList();
+
+    public IReadOnlyList<RecipeDefinition> AssemblerRecipes() =>
+        Recipes.Where(r => r.Id.StartsWith("craft-", StringComparison.Ordinal)).ToList();
+
     public BuildingDefinition? FindBuilding(string id) =>
         Buildings.FirstOrDefault(b => b.Id == id);
 
