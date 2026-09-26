@@ -17,6 +17,7 @@ public partial class SettingsPanel : Control
     private ClientSettings? _draft;
     private CheckButton? _vsyncToggle;
     private CheckButton? _fpsToggle;
+    private CheckButton? _resourceToggle;
     private Label? _scaleLabel;
     private Label? _statusLabel;
     private HBoxContainer? _scaleRow;
@@ -81,9 +82,9 @@ public partial class SettingsPanel : Control
         var card = new PanelContainer { Name = "SettingsCard" };
         card.SetAnchorsPreset(LayoutPreset.Center);
         card.OffsetLeft = -240;
-        card.OffsetTop = -220;
+        card.OffsetTop = -260;
         card.OffsetRight = 240;
-        card.OffsetBottom = 220;
+        card.OffsetBottom = 260;
         card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
         {
             BgColor = CardBg,
@@ -145,6 +146,16 @@ public partial class SettingsPanel : Control
             }
         };
         root.AddChild(_fpsToggle);
+
+        _resourceToggle = new CheckButton { Text = "Mostra risorse sistema (CPU · GPU · RAM)" };
+        _resourceToggle.Toggled += on =>
+        {
+            if (_draft is not null)
+            {
+                _draft.ShowResourceOverlay = on;
+            }
+        };
+        root.AddChild(_resourceToggle);
 
         _scaleLabel = new Label { Text = "Scala UI" };
         _scaleLabel.AddThemeColorOverride("font_color", TextPrimary);
@@ -222,6 +233,11 @@ public partial class SettingsPanel : Control
         if (_fpsToggle is not null)
         {
             _fpsToggle.SetPressedNoSignal(_draft.ShowFps);
+        }
+
+        if (_resourceToggle is not null)
+        {
+            _resourceToggle.SetPressedNoSignal(_draft.ShowResourceOverlay);
         }
 
         if (_scaleLabel is not null)
