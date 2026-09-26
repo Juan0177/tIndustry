@@ -14,7 +14,11 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Godot/Shared**: forno **carbone OR corrente** (Raylib): buffer fuel + burn, craft bloccato senza; **+20%** se alimentato; save v6
 - **Godot/Shared**: **power buffer/capacity** (Raylib thin): core+gen ricarica, spend on craft, soft brownout → forno torna al carbone; HUD `pot. buf/cap`; save v7
 - **Godot**: **tutorial first-run** (8 step IT, Avanti/Salta, persist) + **Impostazioni** (VSync, scala UI, FPS overlay, rivedi tutorial) da Home / tasto I
+<<<<<<< HEAD
+- **Godot/Shared**: **map size da campagna** (`level.MapWidth/Height`, core centrato, clamp 128× per draw Godot); save v8 seed/WxH
+=======
 - **Shared**: **I/O adiacente** edificio↔edificio/core (Raylib): miner/forno transferiscono senza nastro se i footprint si toccano
+>>>>>>> origin/main
 
 ## [0.3.1] — 2026-09-26
 
