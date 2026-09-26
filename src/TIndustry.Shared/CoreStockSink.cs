@@ -74,7 +74,12 @@ public static class CoreStockSink
         var delivered = 0;
         foreach (var cell in grid.Cells.Values)
         {
-            if (!coreTiles.Contains(cell.OutputPosition))
+            // Face into core, or dead-end against core (wrong facing / no next belt).
+            var outInCore = coreTiles.Contains(cell.OutputPosition);
+            var sinksHere = outInCore
+                || (IsEdgeAdjacentToCore(cell.Position, coreTiles)
+                    && !grid.Contains(cell.OutputPosition));
+            if (!sinksHere)
             {
                 continue;
             }
@@ -88,6 +93,36 @@ public static class CoreStockSink
         }
 
         return delivered;
+    }
+
+    /// <summary>True when <paramref name="pos"/> shares a 4-edge with any core tile.</summary>
+    public static bool IsEdgeAdjacentToCore(GridPosition pos, IReadOnlySet<GridPosition> coreTiles)
+    {
+        foreach (var dir in DirectionMath.All)
+        {
+            if (coreTiles.Contains(pos.Step(dir)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Prefer a facing that steps into the core when the cell touches it.</summary>
+    public static Direction? PreferDirectionIntoCore(
+        GridPosition pos,
+        IReadOnlySet<GridPosition> coreTiles)
+    {
+        foreach (var dir in DirectionMath.All)
+        {
+            if (coreTiles.Contains(pos.Step(dir)))
+            {
+                return dir;
+            }
+        }
+
+        return null;
     }
 
     private static void AcceptAtCore(
