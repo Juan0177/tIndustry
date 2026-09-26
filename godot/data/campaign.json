@@ -1,0 +1,395 @@
+{
+  "levels": [
+    {
+      "id": "level-01-primi-passi",
+      "name": "Primi passi",
+      "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
+      "seed": 7429,
+      "mapWidth": 64,
+      "mapHeight": 48,
+      "startingMoney": 220,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 60
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 8
+        }
+      ],
+      "objectives": [
+        {
+          "type": "sellItem",
+          "itemId": "iron-ore",
+          "amount": 3,
+          "label": "Vendi 3 ferro grezzo"
+        },
+        {
+          "type": "earnMoney",
+          "amount": 24,
+          "label": "Guadagna $24 dalle vendite"
+        }
+      ],
+      "unlocksNext": "level-02-prima-fabbrica"
+    },
+    {
+      "id": "level-02-prima-fabbrica",
+      "name": "Prima fabbrica",
+      "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
+      "seed": 1337,
+      "mapWidth": 128,
+      "mapHeight": 96,
+      "startingMoney": 180,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 48
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 10
+        }
+      ],
+      "objectives": [
+        {
+          "type": "stockItem",
+          "itemId": "iron-ore",
+          "amount": 12,
+          "label": "Magazzino 12 ferro grezzo"
+        }
+      ],
+      "unlocksNext": "level-03-lastre"
+    },
+    {
+      "id": "level-03-lastre",
+      "name": "Lastre di ferro",
+      "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
+      "seed": 7429,
+      "mapWidth": 256,
+      "mapHeight": 192,
+      "startingMoney": 280,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 25
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 12
+        }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "smelter",
+          "amount": 1,
+          "label": "Sblocca il forno"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "iron-plate",
+          "amount": 12,
+          "label": "Magazzino 12 lastre di ferro"
+        }
+      ],
+      "unlocksNext": "level-04-fili"
+    },
+    {
+      "id": "level-04-fili",
+      "name": "Fili di rame",
+      "description": "Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.",
+      "seed": 9001,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 520,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 55
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 6
+        }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "assembler",
+          "amount": 1,
+          "label": "Sblocca l'assemblatore"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "copper-wire",
+          "amount": 4,
+          "label": "Magazzino 4 fili di rame"
+        },
+        {
+          "type": "sellItem",
+          "itemId": "copper-wire",
+          "amount": 2,
+          "label": "Vendi 2 fili di rame"
+        }
+      ],
+      "unlocksNext": "level-05-mercato"
+    },
+    {
+      "id": "level-05-mercato",
+      "name": "Economia Foundry",
+      "description": "Reinvestimento: vendi lastre e costruisci un piccolo surplus.",
+      "seed": 7429,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 160,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 12
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 8
+        }
+      ],
+      "objectives": [
+        {
+          "type": "earnMoney",
+          "amount": 150,
+          "label": "Guadagna $150 dalle vendite"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "iron-plate",
+          "amount": 20,
+          "label": "Magazzino 20 lastre"
+        }
+      ],
+      "unlocksNext": "level-06-corrente"
+    },
+    {
+      "id": "level-06-corrente",
+      "name": "Corrente",
+      "description": "Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).",
+      "seed": 5501,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 450,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 40
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 14
+        },
+        {
+          "itemId": "coal",
+          "amount": 24
+        }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "generator",
+          "amount": 1,
+          "label": "Sblocca il generatore"
+        },
+        {
+          "type": "unlockResearch",
+          "structureId": "power-node",
+          "amount": 1,
+          "label": "Sblocca il Nodo T1"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "coal",
+          "amount": 16,
+          "label": "Magazzino 16 carbone"
+        }
+      ],
+      "unlocksNext": "level-07-piombo"
+    },
+    {
+      "id": "level-07-piombo",
+      "name": "Venatura di piombo",
+      "description": "Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.",
+      "seed": 6103,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 320,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 35
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 12
+        },
+        {
+          "itemId": "coal",
+          "amount": 18
+        }
+      ],
+      "objectives": [
+        {
+          "type": "stockItem",
+          "itemId": "lead-ore",
+          "amount": 10,
+          "label": "Magazzino 10 piombo grezzo"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "lead-plate",
+          "amount": 6,
+          "label": "Magazzino 6 lastre di piombo"
+        }
+      ],
+      "unlocksNext": "level-08-logistica"
+    },
+    {
+      "id": "level-08-logistica",
+      "name": "Logistica selettiva",
+      "description": "Sblocca il selezionatore e spezza i flussi: ore e lastre su corsie separate.",
+      "seed": 8802,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 560,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 50
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 16
+        }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "junction",
+          "amount": 1,
+          "label": "Sblocca l'incrocio"
+        },
+        {
+          "type": "unlockResearch",
+          "structureId": "sorter",
+          "amount": 1,
+          "label": "Sblocca il selezionatore"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "iron-plate",
+          "amount": 28,
+          "label": "Magazzino 28 lastre di ferro"
+        }
+      ],
+      "unlocksNext": "level-09-titanio"
+    },
+    {
+      "id": "level-09-titanio",
+      "name": "Titanio raro",
+      "description": "Deposito scarso, forno lento: accumula lastre di titanio e prepara la chimica.",
+      "seed": 4242,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 400,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 45
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 18
+        },
+        {
+          "itemId": "coal",
+          "amount": 30
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 8
+        }
+      ],
+      "objectives": [
+        {
+          "type": "stockItem",
+          "itemId": "titanium-ore",
+          "amount": 6,
+          "label": "Magazzino 6 titanio grezzo"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "titanium-plate",
+          "amount": 3,
+          "label": "Magazzino 3 lastre di titanio"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "silicon",
+          "amount": 4,
+          "label": "Magazzino 4 silicio"
+        }
+      ],
+      "unlocksNext": "level-10-espansione"
+    },
+    {
+      "id": "level-10-espansione",
+      "name": "Espansione T2",
+      "description": "Minatore T2 e Nastro T2: scala la foundry e chiudi con un surplus di mercato.",
+      "seed": 10101,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
+      "startingMoney": 1100,
+      "startingMaterials": [
+        {
+          "itemId": "iron-plate",
+          "amount": 70
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 24
+        },
+        {
+          "itemId": "coal",
+          "amount": 20
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 6
+        }
+      ],
+      "objectives": [
+        {
+          "type": "unlockResearch",
+          "structureId": "miner-advanced",
+          "amount": 1,
+          "label": "Sblocca il Minatore T2"
+        },
+        {
+          "type": "unlockResearch",
+          "structureId": "conveyor-fast",
+          "amount": 1,
+          "label": "Sblocca il Nastro T2"
+        },
+        {
+          "type": "earnMoney",
+          "amount": 400,
+          "label": "Guadagna $400 dalle vendite"
+        },
+        {
+          "type": "stockItem",
+          "itemId": "graphite",
+          "amount": 8,
+          "label": "Magazzino 8 grafite"
+        }
+      ],
+      "unlocksNext": null
+    }
+  ]
+}

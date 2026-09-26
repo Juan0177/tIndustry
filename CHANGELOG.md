@@ -9,6 +9,25 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 _(vuoto — prossimo bump)_
 
+## [0.3.1] — 2026-09-26
+
+Patch release: i download ufficiali della Release sono **export Godot**, non più Raylib.
+
+### Cambiato
+
+- **Release assets**: `tIndustry-win-x64.zip` / `tIndustry-linux-x64.zip` = client **Godot** (`tIndustry.exe` / `tIndustry.x86_64`)
+- Alias `tIndustry-godot-*-x64.zip` (stesso contenuto)
+- Raylib solo come `tIndustry-raylib-legacy-*-x64.zip`
+- CI `release.yml`: install Godot 4.4.1 mono + templates → export Windows/Linux; Raylib in job separato
+- `godot/export_presets.cfg`, `godot/TIndustry.Godot.sln`, seed in `godot/data/`, script `tools/ci/setup-godot.sh` + `export-godot.sh`
+
+### Come giocare (download)
+
+1. Scarica [`tIndustry-win-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) (o linux)
+2. Estrai → avvia `tIndustry.exe` (Windows) / `tIndustry.x86_64` (Linux)
+
+Da sorgente: `godot4 --path godot` (vedi README).
+
 ## [0.3.0] — 2026-09-25
 
 **Godot 4 .NET diventa il client ufficiale.** Raylib resta legacy (zip release ancora disponibili). Port slice completo: fabbrica, UI Mindustry, campagna, art, logistica.
@@ -361,6 +380,7 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.3.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.0
 [0.2.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.1

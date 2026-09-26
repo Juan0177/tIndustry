@@ -1,8 +1,15 @@
 # tIndustry — Godot 4 .NET (**path ufficiale**)
 
-Client di gioco primario. Sim in `src/TIndustry.Shared/`. Il client Raylib (`TIndustry.Logistics`) è **legacy** (manutenzione opzionale).
+Client di gioco primario. Sim in `src/TIndustry.Shared/`. Il client Raylib (`TIndustry.Logistics`) è **legacy**.
 
-## Run
+## Download
+
+Release zip ufficiali = questo client:
+
+- Windows: `tIndustry-win-x64.zip` → `tIndustry.exe`
+- Linux: `tIndustry-linux-x64.zip` → `tIndustry.x86_64`
+
+## Run (da sorgente)
 
 ```bash
 godot4 --path godot
@@ -11,6 +18,13 @@ TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=home godot4 --path godot
 ```
 
 Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.csproj`).
+
+## Export locale (CI)
+
+```bash
+./tools/ci/setup-godot.sh   # editor + templates (una tantum)
+./tools/ci/export-godot.sh  # → dist/tIndustry-*-x64.zip
+```
 
 ## Controlli build
 

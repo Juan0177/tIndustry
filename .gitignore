@@ -41,3 +41,7 @@ godot/.godot/
 godot/**/bin/
 godot/**/obj/
 godot/.mono/
+
+# Local Godot export output
+dist/
+

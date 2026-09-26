@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.3.0** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.0) · **Godot 4 .NET ufficiale** · Raylib legacy
+**v0.3.1** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.1) · **Godot 4 .NET ufficiale** · Raylib legacy
 
 ```
   miner ──▶ forno ──▶ lastre / fili ──▶ CORE / mercato
@@ -37,15 +37,24 @@ Combat / unità: **ancora fuori scope**.
 
 ---
 
-## Download (legacy Raylib)
+## Download (ufficiale — Godot)
 
-Le release zip [`tIndustry-*-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) pubblicano ancora il client **Raylib** (`TIndustry.Logistics`, v0.3.0). Uso: manutenzione / confronto; **non** è più il path di sviluppo primario.
+| Asset | Contenuto |
+| --- | --- |
+| [`tIndustry-win-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) | **Godot** — estrai ed esegui `tIndustry.exe` |
+| [`tIndustry-linux-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) | **Godot** — estrai ed esegui `tIndustry.x86_64` |
 
-Tag `v*` → [release.yml](.github/workflows/release.yml). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml) (Godot/Shared + publish Raylib).
+Alias espliciti (stesso contenuto): `tIndustry-godot-win-x64.zip` / `tIndustry-godot-linux-x64.zip`.
+
+### Legacy Raylib
+
+Zip `tIndustry-raylib-legacy-*-x64.zip` sulla stessa Release — solo manutenzione / confronto.
+
+Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot + zip Raylib legacy). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml).
 
 ---
 
-## Cosa c’è in 0.3.0
+## Cosa c’è in 0.3.1
 
 | Area | In gioco (Godot) |
 | --- | --- |
@@ -113,9 +122,9 @@ Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.
 
 ## Roadmap
 
-| Ora (0.3.0) | Dopo |
+| Ora (0.3.1) | Dopo |
 | --- | --- |
-| Godot ufficiale · art polish opzionale · bilanciamento | Combat / unità (deferred) · eventuale ritiro Raylib |
+| Godot ufficiale · **zip release Godot** · art polish opzionale | Combat / unità (deferred) · eventuale ritiro Raylib |
 
 Storia: [CHANGELOG.md](CHANGELOG.md).
 
