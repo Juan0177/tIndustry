@@ -2818,6 +2818,12 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "structure-gifs")
+        {
+            await CaptureStructureGifsAsync(destDir);
+            return;
+        }
+
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "belt-t2")
         {
             await CaptureBeltT2ChevronShotsAsync(destDir);
@@ -3396,6 +3402,246 @@ public partial class SpikeWorld : Node2D
 
         GD.Print("Prod/power/core screenshot set complete.");
         GetTree().Quit();
+    }
+
+    /// <summary>
+    /// Dump cropped PNG frame sequences for every animated placeable (GIF assembly offline).
+    /// Env: TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=structure-gifs
+    /// Frames → {destDir}/godot-structure-gifs-frames/{id}/frame_XX.png
+    /// </summary>
+    private async Task CaptureStructureGifsAsync(string destDir)
+    {
+        if (_slice is null || _hud is null)
+        {
+            return;
+        }
+
+        const int frameCount = 28;
+        const int cropPx = 280;
+        var framesRoot = Path.Combine(destDir, "godot-structure-gifs-frames");
+        Directory.CreateDirectory(framesRoot);
+
+        _home?.Close();
+        foreach (var id in ResearchState.GodotSliceStructureIds)
+        {
+            _slice.Research.ForceUnlock(id);
+        }
+
+        // Express is not in the GodotSliceStructureIds list — unlock explicitly.
+        _slice.Research.ForceUnlock("conveyor-express");
+        _slice.Research.ForceUnlock(PowerNodeStub.Tier2Id);
+        _slice.EnsureDemoBuildStock();
+        SyncResearchLocks();
+
+        // Quiet 20×16 pad on the demo map (core stays at 9,14).
+        for (var x = 1; x <= 20; x++)
+        {
+            for (var y = 1; y <= 12; y++)
+            {
+                _slice.TryRemoveBuildingAt(new GridPosition(x, y));
+                _slice.TryRemoveBelt(new GridPosition(x, y));
+            }
+        }
+
+        // Belts T1 / T2 / express — short east runs on separate rows.
+        for (var x = 2; x <= 6; x++)
+        {
+            _slice.TryPlaceBelt(new GridPosition(x, 2), Direction.East, "conveyor-basic");
+        }
+
+        for (var x = 2; x <= 6; x++)
+        {
+            _slice.TryPlaceBelt(new GridPosition(x, 4), Direction.East, "conveyor-fast");
+        }
+
+        for (var x = 2; x <= 6; x++)
+        {
+            if (!_slice.TryPlaceBelt(new GridPosition(x, 1), Direction.East, "conveyor-express"))
+            {
+                GD.PrintErr($"structure-gifs: express place fail at ({x},1)");
+            }
+        }
+
+        // Bridge span 4 with underpass blockers.
+        _slice.TryPlaceBelt(new GridPosition(10, 3), Direction.South, "conveyor-basic");
+        _slice.TryPlaceBelt(new GridPosition(11, 3), Direction.South, "conveyor-basic");
+        if (!_slice.TryPlaceBridge(new GridPosition(8, 3), Direction.East))
+        {
+            GD.PrintErr("structure-gifs: bridge place fail");
+        }
+
+        // Miners + gen for T2 boost; outward belts so they keep working.
+        _slice.TryPlaceMiner(new GridPosition(2, 8), Direction.East);
+        _slice.TryPlaceMiner(new GridPosition(6, 8), Direction.East, definitionId: MinerProducer.AdvancedId);
+        _slice.TryPlaceMiner(new GridPosition(12, 8), Direction.East, definitionId: MinerProducer.AdvancedId);
+        _slice.TryPlaceGenerator(new GridPosition(12, 6), Direction.East);
+        for (var x = 2; x <= 16; x++)
+        {
+            _slice.TryPlaceBelt(new GridPosition(x, 10), Direction.East, "conveyor-basic");
+        }
+
+        // Craft + gen showcase row (separate from miner boost gen).
+        _slice.TryPlaceSmelter(new GridPosition(16, 2), Direction.East);
+        _slice.TryPlaceAssembler(new GridPosition(16, 5), Direction.East);
+        _slice.TryPlaceGenerator(new GridPosition(16, 8), Direction.East);
+        _slice.TryPlaceExtractor(new GridPosition(14, 2), Direction.East, "iron-ore");
+        _slice.TryPlaceSorter(new GridPosition(8, 6), Direction.East, "iron-plate");
+
+        if (_slice.Generators.Count > 0)
+        {
+            foreach (var gen in _slice.Generators)
+            {
+                gen.TryAcceptFuel("coal");
+                gen.TryAcceptFuel("coal");
+                gen.TryAcceptFuel("coal");
+            }
+        }
+
+        foreach (var sm in _slice.Smelters)
+        {
+            sm.RestoreCraftState(0.35f, isCrafting: true, null, null, 0);
+        }
+
+        foreach (var asm in _slice.Assemblers)
+        {
+            asm.RestoreCraftState(0.35f, isCrafting: true, null, null, 0);
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        UpdateHud();
+        _hud.Visible = false;
+        if (_fpsLabel is not null)
+        {
+            _fpsLabel.Visible = false;
+        }
+
+        if (_resourceLabel is not null)
+        {
+            _resourceLabel.Visible = false;
+        }
+
+        for (var i = 0; i < 12; i++)
+        {
+            _slice.Tick(1f / 30f);
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+
+        var assemblerPressPhase = 0;
+        // (folder, cam cell center X/Y, zoom)
+        var shots = new (string Id, float Cx, float Cy, float Zoom, Action? KeepAlive)[]
+        {
+            ("belt-t1", 4.0f, 2.5f, 2.4f, null),
+            ("belt-t2", 4.0f, 4.5f, 2.4f, null),
+            ("belt-express", 4.0f, 1.5f, 2.4f, null),
+            ("bridge", 10.0f, 3.5f, 1.35f, null),
+            ("miner-t1", 3.0f, 9.0f, 2.2f, null),
+            ("miner-t2", 7.0f, 9.0f, 2.2f, null),
+            ("miner-t2-boosted", 13.0f, 8.5f, 2.0f, () =>
+            {
+                if (_slice!.Generators.Count > 0)
+                {
+                    _slice.Generators[0].TryAcceptFuel("coal");
+                }
+            }),
+            ("smelter", 17.0f, 3.0f, 2.2f, () =>
+            {
+                foreach (var sm in _slice!.Smelters)
+                {
+                    sm.RestoreCraftState(0.2f, isCrafting: true, null, null, 0);
+                }
+            }),
+            ("assembler", 17.0f, 6.0f, 2.2f, () =>
+            {
+                // Cycle press open/closed so arms visibly move.
+                assemblerPressPhase++;
+                var crafting = (assemblerPressPhase / 10) % 2 == 0;
+                foreach (var asm in _slice!.Assemblers)
+                {
+                    asm.RestoreCraftState(0.15f, isCrafting: crafting, null, null, 0);
+                }
+            }),
+            ("generator", 17.0f, 9.0f, 2.2f, () =>
+            {
+                foreach (var gen in _slice!.Generators)
+                {
+                    if (gen.FuelBuffer + (gen.IsGenerating ? 1 : 0) < 2)
+                    {
+                        gen.TryAcceptFuel("coal");
+                    }
+                }
+            }),
+            ("extractor", 14.5f, 2.5f, 2.6f, null),
+            ("sorter", 8.5f, 6.5f, 2.8f, null),
+        };
+
+        var onlyEnv = OS.GetEnvironment("TINDUSTRY_STRUCTURE_GIF_ONLY");
+        var only = string.IsNullOrWhiteSpace(onlyEnv)
+            ? null
+            : onlyEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var shot in shots)
+        {
+            if (only is not null && !only.Contains(shot.Id))
+            {
+                continue;
+            }
+
+            var dir = Path.Combine(framesRoot, shot.Id);
+            Directory.CreateDirectory(dir);
+            if (HasNode("Camera"))
+            {
+                var cam = GetNode<Camera2D>("Camera");
+                cam.Position = new Vector2(shot.Cx * TileSize, shot.Cy * TileSize);
+                cam.Zoom = new Vector2(shot.Zoom, shot.Zoom);
+            }
+
+            // Settle camera / first sync.
+            for (var i = 0; i < 4; i++)
+            {
+                shot.KeepAlive?.Invoke();
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+
+            for (var frame = 0; frame < frameCount; frame++)
+            {
+                shot.KeepAlive?.Invoke();
+                // Advance sim a bit so miners/gen progress; visuals Sync in _Process.
+                _slice.Tick(1f / 20f);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+                var img = GetViewport().GetTexture().GetImage();
+                var crop = shot.Id == "bridge" ? 360 : cropPx;
+                var cropped = CropCenter(img, crop);
+                var path = Path.Combine(dir, $"frame_{frame:D2}.png");
+                cropped.SavePng(path);
+            }
+
+            GD.Print($"structure-gifs: wrote {frameCount} frames → {shot.Id}");
+        }
+
+        // Manifest for the offline ffmpeg pass.
+        var manifestIds = only is null ? shots.Select(s => s.Id) : shots.Select(s => s.Id).Where(id => only.Contains(id));
+        var manifest = Path.Combine(framesRoot, "manifest.txt");
+        await File.WriteAllLinesAsync(manifest, manifestIds);
+        GD.Print($"Structure GIF frames complete → {framesRoot}");
+        GetTree().Quit();
+    }
+
+    private static Image CropCenter(Image src, int size)
+    {
+        var w = src.GetWidth();
+        var h = src.GetHeight();
+        var side = Math.Min(size, Math.Min(w, h));
+        var x = Math.Max(0, (w - side) / 2);
+        var y = Math.Max(0, (h - side) / 2);
+        return src.GetRegion(new Rect2I(x, y, side, side));
     }
 
     private async Task CaptureCloseAsync(
