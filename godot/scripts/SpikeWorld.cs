@@ -2398,12 +2398,12 @@ public partial class SpikeWorld : Node2D
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         SaveBoth("godot-raylib-world-parity-ores.png");
 
-        // Zoom out enough to see world border near corner (NW of core).
+        // Zoom out and pin to NW corner so the world AABB border is in frame.
         if (HasNode("Camera"))
         {
             var cam = GetNode<Camera2D>("Camera");
-            cam.Zoom = new Vector2(0.12f, 0.12f);
-            cam.Position = new Vector2(80f * TileSize, 80f * TileSize);
+            cam.Zoom = new Vector2(0.22f, 0.22f);
+            cam.Position = new Vector2(14f * TileSize, 10f * TileSize);
             if (cam is SpikeCamera spike)
             {
                 spike.ClampToMap();
