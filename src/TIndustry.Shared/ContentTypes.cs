@@ -41,6 +41,11 @@ public sealed record BuildingDefinition(
     IReadOnlyList<ResourceAmount> BuildCost,
     int RefundPercent = 100);
 
+public sealed record CoreUpgradeDefinition(
+    int MoneyCost,
+    IReadOnlyList<ResourceAmount> BuildCost,
+    int SaleBonusPercent);
+
 public sealed record MarketItemDefinition(
     string ItemId,
     string DisplayName,

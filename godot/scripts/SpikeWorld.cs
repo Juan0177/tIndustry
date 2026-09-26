@@ -244,6 +244,7 @@ public partial class SpikeWorld : Node2D
         _hud.ResearchRequested += ToggleResearch;
         _hud.MercatoRequested += ToggleMercato;
         _hud.CampaignRequested += ToggleCampaign;
+        _hud.CoreUpgradeRequested += OnCoreUpgradeRequested;
         _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
@@ -448,6 +449,34 @@ public partial class SpikeWorld : Node2D
         _campaignSelect?.Close();
         ClearToCursor(toast: false);
         _mercato.Open(_slice);
+    }
+
+    private void OnCoreUpgradeRequested()
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        if (_slice.CoreUpgradeLevel > 0)
+        {
+            _hud?.ShowToast($"Core già a LV{_slice.CoreUpgradeLevel} (+{_slice.CoreSaleBonusPercent}%).");
+            return;
+        }
+
+        var need = _slice.FormatCoreUpgradeNeedMessage();
+        if (!string.IsNullOrEmpty(need))
+        {
+            _hud?.ShowToast(need);
+            return;
+        }
+
+        if (_slice.TryUpgradeCore())
+        {
+            _hud?.ShowToast($"Core potenziato: +{_slice.CoreSaleBonusPercent}% vendite!");
+            _hud?.SyncCoreUpgrade(_slice);
+            UpdateHud();
+        }
     }
 
     private void ToggleCampaign()
@@ -1705,6 +1734,7 @@ public partial class SpikeWorld : Node2D
         var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
         var gensLive = _slice.Generators.Count(g => g.IsGenerating);
         _hud.BindEconomy(_slice.Content, _slice.Wallet);
+        _hud.SyncCoreUpgrade(_slice);
         _hud.UpdateStock(
             ShortName(_slice.Content.DisplayName("iron-ore")),
             _slice.Wallet.MaterialCount("iron-ore"),

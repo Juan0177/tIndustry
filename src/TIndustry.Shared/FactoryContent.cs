@@ -14,6 +14,8 @@ public sealed class FactoryContent
     public IReadOnlyList<BuildingDefinition> Buildings { get; init; } = [];
     public IReadOnlyList<MarketItemDefinition> Market { get; init; } = [];
     public IReadOnlyList<StructureDefinition> Structures { get; init; } = [];
+    public CoreUpgradeDefinition CoreUpgrade { get; init; } =
+        new(150, [new ResourceAmount("iron-plate", 20)], 25);
 
     public ConveyorDefinition? FindConveyor(string id) =>
         Conveyors.FirstOrDefault(c => c.Id == id);
@@ -65,6 +67,7 @@ public sealed class FactoryContent
         var buildings = root.Buildings.Select(MapBuilding).ToList();
         var market = root.Market.Select(MapMarket).ToList();
         var structures = root.Structures.Select(MapStructure).ToList();
+        var coreUpgrade = MapCoreUpgrade(root.Economy?.CoreUpgrade);
 
         return new FactoryContent
         {
@@ -72,8 +75,28 @@ public sealed class FactoryContent
             Recipes = recipes,
             Buildings = buildings,
             Market = market,
-            Structures = structures
+            Structures = structures,
+            CoreUpgrade = coreUpgrade
         };
+    }
+
+    private static CoreUpgradeDefinition MapCoreUpgrade(CoreUpgradeDto? dto)
+    {
+        if (dto is null)
+        {
+            return new(150, [new ResourceAmount("iron-plate", 20)], 25);
+        }
+
+        var mats = MapAmounts(dto.BuildCost);
+        if (mats.Count == 0)
+        {
+            mats = [new ResourceAmount("iron-plate", 20)];
+        }
+
+        return new(
+            Math.Max(0, dto.MoneyCost),
+            mats,
+            Math.Max(0, dto.SaleBonusPercent <= 0 ? 25 : dto.SaleBonusPercent));
     }
 
     private static ConveyorDefinition MapConveyor(ConveyorDto c) =>
@@ -148,6 +171,19 @@ public sealed class FactoryContent
         public List<BuildingDto> Buildings { get; set; } = [];
         public List<MarketDto> Market { get; set; } = [];
         public List<StructureDto> Structures { get; set; } = [];
+        public EconomyDto? Economy { get; set; }
+    }
+
+    private sealed class EconomyDto
+    {
+        public CoreUpgradeDto? CoreUpgrade { get; set; }
+    }
+
+    private sealed class CoreUpgradeDto
+    {
+        public int MoneyCost { get; set; }
+        public List<AmountDto>? BuildCost { get; set; }
+        public int SaleBonusPercent { get; set; }
     }
 
     private sealed class ConveyorDto

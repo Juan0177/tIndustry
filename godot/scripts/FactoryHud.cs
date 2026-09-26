@@ -115,6 +115,7 @@ public partial class FactoryHud : Control
     private Label? _toastLabel;
     private Label? _titleLabel;
     private Label? _moneyLabel;
+    private Button? _coreUpgradeButton;
     private PanelContainer? _objectivesPanel;
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
@@ -150,6 +151,7 @@ public partial class FactoryHud : Control
     public event Action? ResearchRequested;
     public event Action? MercatoRequested;
     public event Action? CampaignRequested;
+    public event Action? CoreUpgradeRequested;
 
     public ToolKind SelectedTool => _selected;
     public bool IsCursorMode => _selected == ToolKind.Cursor;
@@ -349,6 +351,37 @@ public partial class FactoryHud : Control
         RefreshBlockInfo();
     }
 
+    /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
+    public void SyncCoreUpgrade(FactorySlice? slice)
+    {
+        if (_coreUpgradeButton is null)
+        {
+            return;
+        }
+
+        if (slice is null)
+        {
+            _coreUpgradeButton.Text = "CORE upgrade";
+            _coreUpgradeButton.Disabled = true;
+            return;
+        }
+
+        var upgrade = slice.Content.CoreUpgrade;
+        if (slice.CoreUpgradeLevel > 0)
+        {
+            _coreUpgradeButton.Text = $"CORE LV{slice.CoreUpgradeLevel} · +{slice.CoreSaleBonusPercent}% vendite";
+            _coreUpgradeButton.Disabled = true;
+            return;
+        }
+
+        var mats = string.Join(
+            "+",
+            upgrade.BuildCost.Select(e => $"{e.Amount}×{slice.Content.DisplayName(e.ItemId)}"));
+        _coreUpgradeButton.Text = $"CORE upgrade · ${upgrade.MoneyCost} + {mats}";
+        _coreUpgradeButton.Disabled = !slice.Wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost);
+        _coreUpgradeButton.TooltipText = slice.FormatCoreUpgradeNeedMessage();
+    }
+
     public void ShowToast(string message)
     {
         if (_toastLabel is null)
@@ -411,6 +444,19 @@ public partial class FactoryHud : Control
         _moneyLabel.AddThemeColorOverride("font_color", SlotSelected);
         _moneyLabel.AddThemeFontSizeOverride("font_size", 14);
         vbox.AddChild(_moneyLabel);
+
+        _coreUpgradeButton = new Button
+        {
+            Text = "CORE upgrade",
+            Flat = true,
+            FocusMode = FocusModeEnum.None,
+            MouseDefaultCursorShape = CursorShape.PointingHand
+        };
+        _coreUpgradeButton.AddThemeColorOverride("font_color", TextPrimary);
+        _coreUpgradeButton.AddThemeColorOverride("font_hover_color", SlotSelected);
+        _coreUpgradeButton.AddThemeFontSizeOverride("font_size", 12);
+        _coreUpgradeButton.Pressed += () => CoreUpgradeRequested?.Invoke();
+        vbox.AddChild(_coreUpgradeButton);
 
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 8);
