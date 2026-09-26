@@ -110,6 +110,16 @@ public sealed class ItemSaveDto
     public string? Travel { get; set; }
 }
 
+/// <summary>One save slot row for Gestione salvataggi.</summary>
+public sealed class SaveSlotInfo
+{
+    public required string Id { get; init; }
+    public required string Path { get; init; }
+    public DateTime ModifiedUtc { get; init; }
+    public int Money { get; init; }
+    public string? ActiveCampaignLevelId { get; init; }
+}
+
 /// <summary>JSON slots under LocalAppData/tIndustry/godot-saves/.</summary>
 public static class FactorySliceSaveStore
 {
@@ -142,7 +152,47 @@ public static class FactorySliceSaveStore
         return Path.Combine(SavesDirectory, $"{safe}.json");
     }
 
+    public static string CreateSlotId() =>
+        $"slot-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+
     public static bool Exists(string slotId) => File.Exists(SlotPath(slotId));
+
+    public static IReadOnlyList<SaveSlotInfo> ListSlots()
+    {
+        Directory.CreateDirectory(SavesDirectory);
+        var list = new List<SaveSlotInfo>();
+        foreach (var path in Directory.EnumerateFiles(SavesDirectory, "*.json"))
+        {
+            try
+            {
+                var id = Path.GetFileNameWithoutExtension(path);
+                var json = File.ReadAllText(path);
+                var data = JsonSerializer.Deserialize<FactorySliceSaveData>(json, JsonOptions);
+                if (data is null)
+                {
+                    continue;
+                }
+
+                list.Add(new SaveSlotInfo
+                {
+                    Id = id,
+                    Path = path,
+                    ModifiedUtc = File.GetLastWriteTimeUtc(path),
+                    Money = data.Money,
+                    ActiveCampaignLevelId = data.ActiveCampaignLevelId
+                });
+            }
+            catch
+            {
+                // Skip corrupt / unsupported files (Raylib parity).
+            }
+        }
+
+        return list
+            .OrderBy(s => s.Id == ContinueSlotId ? 0 : 1)
+            .ThenByDescending(s => s.ModifiedUtc)
+            .ToList();
+    }
 
     public static void Save(string slotId, FactorySliceSaveData data)
     {
@@ -192,5 +242,18 @@ public static class FactorySliceSaveStore
         {
             File.Delete(path);
         }
+    }
+
+    /// <summary>Copy continua (or any source) into a new timestamped slot.</summary>
+    public static string? DuplicateSlot(string sourceSlotId)
+    {
+        if (!TryLoad(sourceSlotId, out var data) || data is null)
+        {
+            return null;
+        }
+
+        var id = CreateSlotId();
+        Save(id, data);
+        return id;
     }
 }

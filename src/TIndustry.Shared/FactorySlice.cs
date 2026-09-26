@@ -1749,6 +1749,7 @@ public sealed class FactorySlice
         SelfTestFuelOrPower(contentJsonPath);
         SelfTestPowerBuffer(contentJsonPath);
         SelfTestAdjacentIo(contentJsonPath);
+        SelfTestSaveManager(contentJsonPath);
         var slice = CreateSpikeDemo(content);
         const float dt = 1f / 30f;
         for (var i = 0; i < 30 * 40; i++)
@@ -2529,6 +2530,33 @@ public sealed class FactorySlice
         FactorySliceSaveStore.Delete("selftest-tmp");
         throw new InvalidOperationException(
             "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
+    }
+
+    /// <summary>ListSlots / DuplicateSlot / Delete for Gestione salvataggi.</summary>
+    public static void SelfTestSaveManager(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreateSpikeDemo(content);
+        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
+        FactorySliceSaveStore.Delete("selftest-dup");
+        foreach (var old in FactorySliceSaveStore.ListSlots().Where(s => s.Id.StartsWith("slot-20", StringComparison.Ordinal)))
+        {
+            // leave other agent slots alone
+        }
+
+        FactorySliceSaveStore.Save(FactorySliceSaveStore.ContinueSlotId, slice.Capture());
+        Assert(FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId), "continua");
+        var listed = FactorySliceSaveStore.ListSlots();
+        Assert(listed.Any(s => s.Id == FactorySliceSaveStore.ContinueSlotId), "list continua");
+        Assert(listed[0].Id == FactorySliceSaveStore.ContinueSlotId, "continua first");
+
+        var dup = FactorySliceSaveStore.DuplicateSlot(FactorySliceSaveStore.ContinueSlotId);
+        Assert(dup is not null && FactorySliceSaveStore.Exists(dup), "duplicate");
+        Assert(FactorySliceSaveStore.ListSlots().Count >= 2, "list ≥2");
+
+        FactorySliceSaveStore.Delete(dup!);
+        Assert(!FactorySliceSaveStore.Exists(dup!), "deleted");
+        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
     }
 
     /// <summary>

@@ -15,6 +15,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Godot/Shared**: **power buffer/capacity** (Raylib thin): core+gen ricarica, spend on craft, soft brownout → forno torna al carbone; HUD `pot. buf/cap`; save v7
 - **Godot**: **tutorial first-run** (8 step IT, Avanti/Salta, persist) + **Impostazioni** (VSync, scala UI, FPS overlay, rivedi tutorial) da Home / tasto I
 - **Shared**: **I/O adiacente** edificio↔edificio/core (Raylib): miner/forno transferiscono senza nastro se i footprint si toccano
+- **Godot**: **Gestione salvataggi** (lista slot, Carica/Elimina/Duplica Continua) da Home
 
 ## [0.3.1] — 2026-09-26
 
