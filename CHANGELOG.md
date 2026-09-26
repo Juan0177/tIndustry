@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
+- **Godot/Shared**: tinte item/minerali distinte (Raylib `ItemColor`) — silhouettes bianche modulate via `ItemVisualColors` su depositi, cargo, HUD stock, sorter filter
 - **Godot/Shared**: parity mondo Raylib — minerali icone/scout patches, CORE centrato + camera H/Home, bordi mappa + clamp, terrain color Raylib, no tutorial spam in campagna
 
 ## [0.3.3] — 2026-09-26

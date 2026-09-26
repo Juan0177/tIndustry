@@ -1568,12 +1568,8 @@ public partial class SpikeWorld : Node2D
         // Deposit tint under miners stays soft; the building pad is the readable frame.
         foreach (var miner in _slice.Miners)
         {
-            var deposit = miner.OutputItemId switch
-            {
-                "copper-ore" => new Color(0.55f, 0.38f, 0.22f, 0.4f),
-                "coal" => new Color(0.18f, 0.18f, 0.16f, 0.45f),
-                _ => new Color(0.45f, 0.32f, 0.18f, 0.35f)
-            };
+            var c = ItemPalette.ColorFor(miner.OutputItemId);
+            var deposit = new Color(c.R, c.G, c.B, 0.4f);
             foreach (var tile in miner.OccupiedTiles())
             {
                 DrawRect(new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize), deposit);
@@ -1650,6 +1646,8 @@ public partial class SpikeWorld : Node2D
         var pad = new Color(0.2f, 0.18f, 0.14f, 0.55f);
         DrawRect(rect, pad);
 
+        var itemId = TerrainMap.ItemIdForDeposit(deposit);
+        var fill = ItemPalette.ColorFor(itemId);
         var tex = deposit switch
         {
             DepositKind.Iron => _oreTex,
@@ -1659,24 +1657,20 @@ public partial class SpikeWorld : Node2D
             DepositKind.Titanium => _titaniumOreTex,
             _ => null
         };
-        var fill = deposit switch
-        {
-            DepositKind.Iron => new Color(0.75f, 0.48f, 0.28f, 1f),
-            DepositKind.Copper => new Color(0.85f, 0.52f, 0.28f, 1f),
-            DepositKind.Coal => new Color(0.22f, 0.22f, 0.2f, 1f),
-            DepositKind.Lead => new Color(0.45f, 0.5f, 0.55f, 1f),
-            DepositKind.Titanium => new Color(0.65f, 0.65f, 0.82f, 1f),
-            _ => new Color(0.5f, 0.4f, 0.3f, 1f)
-        };
 
         if (screenTilePx >= 14f && tex is not null)
         {
             var inset = TileSize * 0.18f;
-            DrawTextureRect(tex, new Rect2(
-                x * TileSize + inset,
-                y * TileSize + inset,
-                TileSize - inset * 2f,
-                TileSize - inset * 2f), false);
+            // White silhouette PNGs — tint like Raylib GameIcons.TryDraw + UiTheme.ItemColor.
+            DrawTextureRect(
+                tex,
+                new Rect2(
+                    x * TileSize + inset,
+                    y * TileSize + inset,
+                    TileSize - inset * 2f,
+                    TileSize - inset * 2f),
+                false,
+                fill);
         }
         else
         {
@@ -2204,7 +2198,7 @@ public partial class SpikeWorld : Node2D
                         Texture = tex,
                         Centered = true,
                         Scale = new Vector2(0.85f, 0.85f),
-                        Modulate = Colors.White
+                        Modulate = ItemPalette.ColorFor(item.ItemId)
                     };
                     holder.AddChild(sprite);
                     _itemsLayer.AddChild(holder);
@@ -2218,7 +2212,7 @@ public partial class SpikeWorld : Node2D
                         sprite.Texture = tex;
                     }
 
-                    sprite.Modulate = Colors.White;
+                    sprite.Modulate = ItemPalette.ColorFor(item.ItemId);
                 }
 
                 var from = CellCenter(cell.Position);
@@ -2306,6 +2300,8 @@ public partial class SpikeWorld : Node2D
         "copper-ore" => _copperOreTex,
         "copper-wire" => _copperWireTex,
         "coal" => _coalTex,
+        "lead-ore" => _leadOreTex,
+        "titanium-ore" => _titaniumOreTex,
         _ => _oreTex
     };
 
@@ -2356,6 +2352,114 @@ public partial class SpikeWorld : Node2D
 
         throw new FileNotFoundException(
             "campaign.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
+    }
+
+    private async Task CaptureItemColorsShotsAsync(string destDir)
+    {
+        StartNewSandbox(toast: false);
+        _home?.Close();
+        _settings.ShowResourceOverlay = false;
+        SyncFpsOverlay();
+        SyncResourceOverlay();
+        SyncCameraMapBounds();
+
+        // Seed belt cargo of every ore + plate/wire so cargo tints are visible.
+        if (_slice is not null)
+        {
+            _slice.Research.ForceUnlock("conveyor-basic");
+            _slice.Research.ForceUnlock("sorter");
+            _slice.EnsureDemoBuildStock(ironPlates: 40, copperWire: 20, copperOre: 8);
+
+            var core = new GridPosition(
+                _slice.CoreTiles.Min(t => t.X),
+                _slice.CoreTiles.Min(t => t.Y));
+            var beltStart = new GridPosition(core.X - 6, core.Y + 4);
+            for (var i = 0; i < 8; i++)
+            {
+                var pos = new GridPosition(beltStart.X + i, beltStart.Y);
+                if (i == 3)
+                {
+                    _slice.TryPlaceSorter(pos, Direction.East, "copper-ore");
+                }
+                else
+                {
+                    _slice.TryPlaceBelt(pos, Direction.East);
+                }
+            }
+
+            _hud?.SetSorterFilterBrush("copper-ore");
+
+            string[] cargo =
+            [
+                "iron-ore", "copper-ore", "coal", "lead-ore", "titanium-ore",
+                "iron-plate", "copper-wire"
+            ];
+            long nextId = 9001;
+            for (var i = 0; i < cargo.Length; i++)
+            {
+                var cell = new GridPosition(beltStart.X + i, beltStart.Y);
+                _slice.Belts.TryInsert(
+                    cell,
+                    new TransportedItem(nextId++, cargo[i], progress: 0.35f + i * 0.02f));
+            }
+
+            RebuildBeltVisual();
+            SyncItemSprites();
+        }
+
+        // Frame starter deposit ring + cargo belt south of core.
+        FocusCameraOnCore();
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Zoom = new Vector2(0.55f, 0.55f);
+            cam.Position += new Vector2(-2f * TileSize, 3f * TileSize);
+            if (cam is SpikeCamera spike)
+            {
+                spike.ClampToMap();
+            }
+        }
+
+        QueueRedraw();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
+
+        void SaveBoth(string name)
+        {
+            var img = GetViewport().GetTexture().GetImage();
+            img.SavePng(Path.Combine(destDir, name));
+            img.SavePng(Path.Combine("/opt/cursor/artifacts", name));
+            var store = "/cursor/stores/bc-6a5b42f7-8a62-4dc2-b71f-4a3a4f9c2232/media";
+            try
+            {
+                Directory.CreateDirectory(store);
+                img.SavePng(Path.Combine(store, name));
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"store media save failed: {ex.Message}");
+            }
+
+            GD.Print($"Saved {name}");
+        }
+
+        SaveBoth("godot-item-colors-world.png");
+
+        // Zoom in on stock HUD (top-right core panel) — four tinted icons.
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Zoom = new Vector2(0.35f, 0.35f);
+            FocusCameraOnCore();
+        }
+
+        QueueRedraw();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
+        SaveBoth("godot-item-colors-hud.png");
+
+        GD.Print("Item color screenshot set complete.");
+        GetTree().Quit();
     }
 
     private async Task CaptureRaylibWorldParityShotsAsync(string destDir)
@@ -2603,6 +2707,12 @@ public partial class SpikeWorld : Node2D
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "raylib-world")
         {
             await CaptureRaylibWorldParityShotsAsync(destDir);
+            return;
+        }
+
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "item-colors")
+        {
+            await CaptureItemColorsShotsAsync(destDir);
             return;
         }
 
