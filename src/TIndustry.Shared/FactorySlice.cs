@@ -2,10 +2,20 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Playable factory slice: miners → belts → forni/assemblatori → core stock.
-/// Phase F: optional generators power adjacent craft machines (+20% speed).
+/// Phase F: generators feed a shared power buffer; connected craft spends for +20%.
+/// Soft brownout: empty buffer → forno falls back to coal; assembler loses bonus.
 /// </summary>
 public sealed class FactorySlice
 {
+    /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
+    public const float CorePowerCapacity = 24f;
+    /// <summary>Raylib <c>FactoryWorld.CorePowerGeneration</c> (always ticks into buffer).</summary>
+    public const float CorePowerGeneration = 12f;
+    /// <summary>Raylib <c>FactoryWorld.SmelterPowerDraw</c> (per second while powered craft).</summary>
+    public const float SmelterPowerDraw = 8f;
+    /// <summary>Raylib <c>FactoryWorld.AssemblerPowerDraw</c>.</summary>
+    public const float AssemblerPowerDraw = 10f;
+
     private long nextItemId = 1;
     private readonly List<MinerProducer> miners = [];
     private readonly List<SmelterStub> smelters = [];
@@ -53,6 +63,12 @@ public sealed class FactorySlice
     public bool AutoSellAtCore { get; set; }
     public int CoreUpgradeLevel { get; private set; }
     public int CoreSaleBonusPercent { get; private set; }
+    /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
+    public float PowerBuffer { get; private set; }
+    /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
+    public float PowerCapacity { get; private set; } = CorePowerCapacity;
+    /// <summary>Last tick generation rate (core + live gens).</summary>
+    public float PowerGenerationPerSecond { get; private set; } = CorePowerGeneration;
     public TerrainMap? Terrain { get; set; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
@@ -93,6 +109,8 @@ public sealed class FactorySlice
             AutoSellAtCore = AutoSellAtCore,
             CoreUpgradeLevel = CoreUpgradeLevel,
             CoreSaleBonusPercent = CoreSaleBonusPercent,
+            PowerBuffer = PowerBuffer,
+            PowerCapacity = PowerCapacity,
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -214,6 +232,13 @@ public sealed class FactorySlice
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
+        slice.SetPowerBuffer(data.PowerBuffer);
+        // Capacity recalculates on first Tick from live gens; seed from save when present.
+        if (data.PowerCapacity > 0f)
+        {
+            slice.PowerCapacity = Math.Max(CorePowerCapacity, data.PowerCapacity);
+            slice.PowerBuffer = Math.Clamp(slice.PowerBuffer, 0f, slice.PowerCapacity);
+        }
 
         foreach (var m in data.Miners)
         {
@@ -1528,20 +1553,34 @@ public sealed class FactorySlice
             }
         }
 
+        // Capacity + recharge (Raylib soft power network — no full link graph yet).
+        RecalculatePowerCapacity(liveGens.Count);
+        var generation = CorePowerGeneration
+            + liveGens.Count * GeneratorStub.GenerationPerSecond;
+        PowerGenerationPerSecond = generation;
+        PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
+
         // Miners after gens so T2 can apply adjacency/node power the same tick.
         foreach (var miner in miners)
         {
-            var powered = miner.CanReceivePower
+            var connected = miner.CanReceivePower
                 && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, MinerProducer.Size))
                     || IsPoweredViaNode(miner.Position, MinerProducer.Size, liveGens));
-            miner.Tick(deltaSeconds, Belts, ref nextItemId, powered);
+            miner.Tick(deltaSeconds, Belts, ref nextItemId, connected);
         }
 
         foreach (var craft in CraftMachines())
         {
-            var powered = liveGens.Any(g => g.IsAdjacentTo(craft.Position, SmelterStub.Size))
+            var connected = liveGens.Any(g => g.IsAdjacentTo(craft.Position, SmelterStub.Size))
                 || IsPoweredViaNode(craft.Position, SmelterStub.Size, liveGens);
-            craft.Tick(deltaSeconds, Belts, ref nextItemId, powered);
+            var draw = craft.IsAssembler ? AssemblerPowerDraw : SmelterPowerDraw;
+            craft.Tick(
+                deltaSeconds,
+                Belts,
+                ref nextItemId,
+                networkConnected: connected,
+                trySpendPower: TrySpendPower,
+                powerDrawPerSecond: draw);
         }
 
         foreach (var ex in extractors)
@@ -1553,6 +1592,58 @@ public sealed class FactorySlice
         Belts.Tick(0f);
         CoreDeliveredItems += CoreStockSink.Drain(
             Belts, CoreTiles, Wallet, Market, Session, AutoSellAtCore);
+    }
+
+    public void SetPowerBuffer(float buffer) =>
+        PowerBuffer = Math.Clamp(buffer, 0f, Math.Max(PowerCapacity, CorePowerCapacity));
+
+    public void RecalculatePowerCapacity(int liveGeneratorCount)
+    {
+        PowerCapacity = CorePowerCapacity
+            + Math.Max(0, liveGeneratorCount) * GeneratorStub.CapacityBonus;
+        PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
+    }
+
+    /// <summary>Drain shared buffer; false on brownout (Raylib parity).</summary>
+    public bool TrySpendPower(float amount)
+    {
+        if (amount <= 0f)
+        {
+            return true;
+        }
+
+        if (PowerBuffer < amount)
+        {
+            return false;
+        }
+
+        PowerBuffer -= amount;
+        return true;
+    }
+
+    /// <summary>
+    /// Spend only when the building is adjacency/node-connected to a live generator.
+    /// </summary>
+    public bool TrySpendPowerForBuilding(
+        GridPosition origin,
+        int size,
+        float amount,
+        IReadOnlyList<GeneratorStub>? liveGens = null)
+    {
+        if (amount <= 0f)
+        {
+            return true;
+        }
+
+        liveGens ??= generators.Where(g => g.IsGenerating).ToList();
+        var connected = liveGens.Any(g => g.IsAdjacentTo(origin, size))
+            || IsPoweredViaNode(origin, size, liveGens);
+        if (!connected)
+        {
+            return false;
+        }
+
+        return TrySpendPower(amount);
     }
 
     private bool IsPoweredViaNode(
@@ -1589,6 +1680,7 @@ public sealed class FactorySlice
         var content = FactoryContent.Load(contentJsonPath);
         SelfTestPlaceCosts(contentJsonPath);
         SelfTestFuelOrPower(contentJsonPath);
+        SelfTestPowerBuffer(contentJsonPath);
         var slice = CreateSpikeDemo(content);
         const float dt = 1f / 30f;
         for (var i = 0; i < 30 * 40; i++)
@@ -1759,7 +1851,7 @@ public sealed class FactorySlice
         Assert(smelter.TryAccept("lead-ore"), "accept lead 2");
         Assert(!smelter.TryAccept("copper-ore"), "reject copper on forno");
         long next = 1;
-        smelter.Tick(0.05f, new BeltGrid(), ref next, powered: true);
+        smelter.Tick(0.05f, new BeltGrid(), ref next, networkConnected: true);
         Assert(smelter.IsCrafting && smelter.Recipe.Id == "smelt-lead", "auto smelt-lead");
 
         var graphite = content.FindRecipe("craft-graphite");
@@ -1778,7 +1870,7 @@ public sealed class FactorySlice
             }
         }
 
-        assy.Tick(0.05f, new BeltGrid(), ref next, powered: true);
+        assy.Tick(0.05f, new BeltGrid(), ref next, networkConnected: true);
         Assert(assy.IsCrafting && assy.Recipe.Id == "craft-graphite", "auto craft-graphite");
 
         // Place API wires recipe lists.
@@ -2033,7 +2125,7 @@ public sealed class FactorySlice
         // Stall: no coal, no power — craft starts but progress frozen.
         var stalled = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
         Assert(stalled.TryAccept("iron-ore") && stalled.TryAccept("iron-ore"), "stall ore");
-        stalled.Tick(0.5f, belts, ref next, powered: false);
+        stalled.Tick(0.5f, belts, ref next, networkConnected: false);
         Assert(stalled.IsCrafting, "stall crafting");
         Assert(stalled.Progress < 0.001f, "stall no progress");
 
@@ -2041,14 +2133,14 @@ public sealed class FactorySlice
         var coalOnly = new SmelterStub(new GridPosition(2, 0), Direction.East, recipe);
         coalOnly.SeedFuel(2);
         Assert(coalOnly.TryAccept("iron-ore") && coalOnly.TryAccept("iron-ore"), "coal ore");
-        coalOnly.Tick(0.5f, belts, ref next, powered: false);
+        coalOnly.Tick(0.5f, belts, ref next, networkConnected: false);
         Assert(coalOnly.IsCrafting && coalOnly.Progress > 0.1f, "coal advances");
         Assert(coalOnly.FuelBuffer < 2 || coalOnly.IsBurningFuel, "fuel consumed");
 
         // Powered (+20%) faster than coal-only.
         var powered = new SmelterStub(new GridPosition(4, 0), Direction.East, recipe);
         Assert(powered.TryAccept("iron-ore") && powered.TryAccept("iron-ore"), "power ore");
-        powered.Tick(0.5f, belts, ref next, powered: true);
+        powered.Tick(0.5f, belts, ref next, networkConnected: true);
         Assert(powered.IsCrafting && powered.IsPowered, "powered craft");
         Assert(powered.Progress > coalOnly.Progress * 1.05f,
             $"power faster ({powered.Progress:F3} > coal {coalOnly.Progress:F3})");
@@ -2092,8 +2184,90 @@ public sealed class FactorySlice
             SmelterStub.AssemblerBuildingId);
         Assert(!assy.UsesCoalOrPower, "assy no coal gate");
         Assert(assy.TryAccept("iron-plate") && assy.TryAccept("copper-ore"), "assy inputs");
-        assy.Tick(0.5f, belts, ref next, powered: false);
+        assy.Tick(0.5f, belts, ref next, networkConnected: false);
         Assert(assy.IsCrafting && assy.Progress > 0.05f, "assy crafts without fuel");
+    }
+
+    /// <summary>P1.4: capacity/buffer recharge + soft brownout spend gate (Raylib parity thin).</summary>
+    public static void SelfTestPowerBuffer(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+
+        Assert(Math.Abs(slice.PowerCapacity - CorePowerCapacity) < 0.01f, "core capacity");
+        Assert(slice.PowerBuffer < 0.01f, "buffer starts empty");
+
+        // Core generation alone recharges toward CorePowerCapacity.
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 3; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        Assert(slice.PowerBuffer > 5f, "core gen fills buffer");
+        Assert(slice.PowerCapacity <= CorePowerCapacity + 0.01f, "no gen → core cap");
+
+        Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen");
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel2");
+
+        // Live gen expands capacity.
+        for (var i = 0; i < 5; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        Assert(slice.Generators[0].IsGenerating, "gen burning");
+        Assert(slice.PowerCapacity >= CorePowerCapacity + GeneratorStub.CapacityBonus - 0.01f,
+            "capacity + gen bonus");
+        Assert(slice.PowerGenerationPerSecond
+            >= CorePowerGeneration + GeneratorStub.GenerationPerSecond - 0.01f,
+            "gen rate");
+
+        // Connected craft spends buffer.
+        var sm = slice.Smelters[0];
+        Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore");
+        var before = slice.PowerBuffer;
+        for (var i = 0; i < 10; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        Assert(sm.IsCrafting && sm.IsPowered, "powered while buffer ok");
+        Assert(slice.PowerBuffer < before + GeneratorStub.GenerationPerSecond,
+            "spend drains vs unbounded fill");
+
+        // Soft brownout: empty buffer + no coal → craft stalls.
+        var brown = new FactorySlice(content, new BeltGrid(), core);
+        brown.UnlockGodotSliceDemo();
+        Assert(brown.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "brown forno");
+        brown.SetPowerBuffer(0f);
+        var bSm = brown.Smelters[0];
+        Assert(bSm.TryAccept("iron-ore") && bSm.TryAccept("iron-ore"), "brown ore");
+        long next = brown.nextItemId;
+        bSm.Tick(0.5f, brown.Belts, ref next, networkConnected: true,
+            trySpendPower: brown.TrySpendPower, powerDrawPerSecond: SmelterPowerDraw);
+        Assert(bSm.IsCrafting && !bSm.IsPowered && bSm.Progress < 0.001f, "brownout stall");
+
+        // Same forno with coal advances under brownout.
+        bSm.SeedFuel(2);
+        var prog0 = bSm.Progress;
+        bSm.Tick(0.5f, brown.Belts, ref next, networkConnected: true,
+            trySpendPower: brown.TrySpendPower, powerDrawPerSecond: SmelterPowerDraw);
+        Assert(bSm.Progress > prog0 + 0.1f, "coal under brownout");
+
+        // Save/restore buffer.
+        slice.SetPowerBuffer(18.5f);
+        var snap = slice.Capture();
+        Assert(Math.Abs(snap.PowerBuffer - 18.5f) < 0.01f, "capture buffer");
+        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v7");
+        var restored = Restore(content, snap);
+        Assert(Math.Abs(restored.PowerBuffer - 18.5f) < 0.01f, "restore buffer");
     }
 
     /// <summary>T2 miner gets +20% mining speed from adjacent live generator; T1 never powers.</summary>

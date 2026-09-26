@@ -6,7 +6,7 @@ namespace TIndustry.Shared;
 /// <summary>Godot factory-slice save (v4: active campaign level). v1–v3 load with null level.</summary>
 public sealed class FactorySliceSaveData
 {
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -24,6 +24,8 @@ public sealed class FactorySliceSaveData
     public bool AutoSellAtCore { get; set; }
     public int CoreUpgradeLevel { get; set; }
     public int CoreSaleBonusPercent { get; set; }
+    public float PowerBuffer { get; set; }
+    public float PowerCapacity { get; set; }
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];

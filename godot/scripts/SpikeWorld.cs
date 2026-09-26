@@ -1748,7 +1748,9 @@ public partial class SpikeWorld : Node2D
             onBelt,
             _slice.Wallet.Money,
             gensLive,
-            _slice.Generators.Count);
+            _slice.Generators.Count,
+            _slice.PowerBuffer,
+            _slice.PowerCapacity);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
         if (_activeLevel is not null)
         {

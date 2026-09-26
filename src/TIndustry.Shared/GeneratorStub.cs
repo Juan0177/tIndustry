@@ -2,7 +2,8 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Phase F power stub: 2×2 generator that burns coal from belts and
-/// marks adjacent craft machines as powered (no full PowerNetworks yet).
+/// feeds the slice power buffer (capacity/generation) while marking
+/// adjacent craft as network-connected for TrySpendPower.
 /// </summary>
 public sealed class GeneratorStub
 {
@@ -12,6 +13,11 @@ public sealed class GeneratorStub
     public const int FuelBufferCapacity = 8;
     public const float SecondsPerFuel = 8f;
     public const float PoweredCraftSpeedMultiplier = 1.20f;
+
+    /// <summary>Raylib parity: capacity added per live (burning) generator.</summary>
+    public const float CapacityBonus = 40f;
+    /// <summary>Raylib parity: watts added to the shared buffer while burning.</summary>
+    public const float GenerationPerSecond = 28f;
 
     public GeneratorStub(GridPosition position, Direction direction = Direction.East)
     {
