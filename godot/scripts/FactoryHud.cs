@@ -326,7 +326,9 @@ public partial class FactoryHud : Control
         int onBelt,
         int money = 0,
         int generatorsLive = 0,
-        int generatorsTotal = 0)
+        int generatorsTotal = 0,
+        float powerBuffer = -1f,
+        float powerCapacity = -1f)
     {
         SetStock("iron-ore", oreName, ore);
         SetStock("iron-plate", plateName, plate);
@@ -340,11 +342,28 @@ public partial class FactoryHud : Control
 
         if (_titleLabel is not null)
         {
-            var power = generatorsTotal == 0
-                ? "potenza —"
-                : generatorsLive > 0
+            string power;
+            if (powerCapacity > 0f && powerBuffer >= 0f)
+            {
+                power = $"pot. {powerBuffer:0}/{powerCapacity:0}";
+                if (generatorsTotal > 0)
+                {
+                    power += generatorsLive > 0
+                        ? $" ON ({generatorsLive}/{generatorsTotal})"
+                        : $" off ({generatorsLive}/{generatorsTotal})";
+                }
+            }
+            else if (generatorsTotal == 0)
+            {
+                power = "potenza —";
+            }
+            else
+            {
+                power = generatorsLive > 0
                     ? $"potenza ON ({generatorsLive}/{generatorsTotal})"
                     : $"potenza off ({generatorsLive}/{generatorsTotal})";
+            }
+
             _titleLabel.Text = $"Core · consegnati {delivered} · nastro {onBelt} · {power}";
         }
 

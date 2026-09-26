@@ -231,9 +231,14 @@ public sealed class SmelterStub
         return accepted;
     }
 
-    public void Tick(float deltaSeconds, BeltGrid belts, ref long nextItemId, bool powered = false)
+    public void Tick(
+        float deltaSeconds,
+        BeltGrid belts,
+        ref long nextItemId,
+        bool networkConnected = false,
+        Func<float, bool>? trySpendPower = null,
+        float powerDrawPerSecond = 0f)
     {
-        IsPowered = powered;
         AcceptFromBelts(belts);
 
         if (!IsCrafting)
@@ -241,14 +246,31 @@ public sealed class SmelterStub
             TryStartCraft();
         }
 
+        IsPowered = false;
         if (IsCrafting)
         {
             var canAdvance = false;
             var speed = 1f;
+            // Spend only while crafting (Raylib). Null callback = free power for unit tests.
+            var gotPower = false;
+            if (networkConnected)
+            {
+                if (trySpendPower is not null && powerDrawPerSecond > 0f)
+                {
+                    gotPower = trySpendPower(powerDrawPerSecond * deltaSeconds);
+                }
+                else
+                {
+                    gotPower = true;
+                }
+            }
+
+            IsPowered = gotPower;
+
             if (UsesCoalOrPower)
             {
-                // Forno: corrente (+20%) OR carbone (baseline). Else stall (keep progress).
-                if (powered)
+                // Forno: corrente (+20%) OR carbone (baseline). Soft brownout → coal.
+                if (gotPower)
                 {
                     canAdvance = true;
                     speed = GeneratorStub.PoweredCraftSpeedMultiplier;
@@ -261,9 +283,9 @@ public sealed class SmelterStub
             }
             else
             {
-                // Assembler: still crafts without a full power graph (Shared stub).
+                // Assembler: soft — crafts without power; +20% when spend succeeds.
                 canAdvance = true;
-                speed = powered ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
+                speed = gotPower ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
             }
 
             if (canAdvance)
