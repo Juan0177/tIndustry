@@ -216,7 +216,7 @@ public partial class MindustryBeltVisual : Node2D
             }
 
             var dir = grid.Cells[run[0]].Direction;
-            var accent = runDefId == "conveyor-fast";
+            var accent = runDefId is "conveyor-fast" or "conveyor-express";
             AddStrip(run, dir, tileSize, phase, accentRails: accent);
             phase += run.Count;
         }
@@ -229,7 +229,7 @@ public partial class MindustryBeltVisual : Node2D
                 continue;
             }
 
-            var accent = cell.Definition.Id == "conveyor-fast";
+            var accent = cell.Definition.Id is "conveyor-fast" or "conveyor-express";
             AddStrip([pos], cell.Direction, tileSize, phase, accentRails: accent);
             phase += 1f;
             visited.Add(pos);
