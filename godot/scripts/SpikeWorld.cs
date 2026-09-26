@@ -78,6 +78,8 @@ public partial class SpikeWorld : Node2D
     private Texture2D? _copperOreTex;
     private Texture2D? _copperWireTex;
     private Texture2D? _coalTex;
+    private Texture2D? _leadOreTex;
+    private Texture2D? _titaniumOreTex;
     private Texture2D? _coreTex;
     private bool _returnHomeAfterCampaign;
 
@@ -91,7 +93,14 @@ public partial class SpikeWorld : Node2D
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
         _progress = CampaignProgress.Load(_progressPath);
-        _slice = FactorySlice.CreateSorterBridgeDemo(content);
+        _slice = FactorySlice.CreateSandboxSlice(
+            content,
+            FactorySlice.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight),
+            coreSize: 2,
+            mapWidth: DefaultMapWidth,
+            mapHeight: DefaultMapHeight,
+            seed: 42,
+            startingMoney: 180);
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureFactoryHud();
@@ -110,6 +119,8 @@ public partial class SpikeWorld : Node2D
         _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
         _copperWireTex = GD.Load<Texture2D>("res://assets/copper-wire.png");
         _coalTex = GD.Load<Texture2D>("res://assets/coal.png");
+        _leadOreTex = GD.Load<Texture2D>("res://assets/lead-ore.png");
+        _titaniumOreTex = GD.Load<Texture2D>("res://assets/titanium-ore.png");
         _coreTex = GD.Load<Texture2D>("res://assets/core.png");
 
         EnsureBeltVisual();
@@ -227,10 +238,8 @@ public partial class SpikeWorld : Node2D
 
         if (HasNode("Camera"))
         {
-            var cam = GetNode<Camera2D>("Camera");
-            // Frame sorter (18,2) + bridge (16–18,12) + craft loop.
-            cam.Position = new Vector2(12f * TileSize, 8f * TileSize);
-            cam.Zoom = new Vector2(0.5f, 0.5f);
+            SyncCameraMapBounds();
+            FocusCameraOnCore();
         }
     }
 
@@ -669,6 +678,8 @@ public partial class SpikeWorld : Node2D
         SyncResearchLocks();
         UpdateHud();
         _hud?.ClearObjectives();
+        SyncCameraMapBounds();
+        FocusCameraOnCore();
         QueueRedraw();
         if (toast)
         {
@@ -787,13 +798,14 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         SyncResearchLocks();
         UpdateHud();
+        SyncCameraMapBounds();
         FocusCameraOnCore();
         QueueRedraw();
         if (toast)
         {
             var (w, h) = FactorySlice.ResolveCampaignMapSize(level);
             _hud?.ShowToast($"Campagna · {level.Name} · {w}×{h} · seed {level.Seed}");
-            BeginTutorialIfNeeded();
+            // Raylib: campaign disables first-run tutorial (objectives HUD only).
         }
     }
 
@@ -820,7 +832,31 @@ public partial class SpikeWorld : Node2D
         {
             // Allow deep zoom-out on 1000² without fighting Clamp.
             spike.MinZoom = edge >= 256 ? 0.08f : 0.12f;
+            // Playable zoom near core so deposits/icons are readable (Raylib icons need ~16px).
+            if (edge >= 256 && z < 0.35f)
+            {
+                z = 0.42f;
+                cam.Zoom = new Vector2(z, z);
+            }
         }
+
+        SyncCameraMapBounds();
+        if (cam is SpikeCamera spikeCam)
+        {
+            spikeCam.ClampToMap();
+        }
+    }
+
+    private void SyncCameraMapBounds()
+    {
+        if (!HasNode("Camera") || GetNode("Camera") is not SpikeCamera cam)
+        {
+            return;
+        }
+
+        cam.MapPixelWidth = ActiveMapWidth * TileSize;
+        cam.MapPixelHeight = ActiveMapHeight * TileSize;
+        cam.ClampToMap();
     }
 
     /// <summary>Viewport tile cull (Raylib WorldCamera.GetVisibleTileRange) for 1000² maps.</summary>
@@ -985,6 +1021,7 @@ public partial class SpikeWorld : Node2D
             SyncResearchLocks();
             RestoreActiveLevelFromSlice();
             UpdateHud();
+            SyncCameraMapBounds();
             FocusCameraOnCore();
             QueueRedraw();
             _hud?.ShowToast(toast);
@@ -1170,6 +1207,15 @@ public partial class SpikeWorld : Node2D
 
             if (_research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true)
             {
+                return;
+            }
+
+            if (key.Keycode is Key.H or Key.Home)
+            {
+                // Raylib parity: H / Home → jump camera to CORE.
+                FocusCameraOnCore();
+                _hud?.ShowToast("Camera sul CORE (H)");
+                GetViewport().SetInputAsHandled();
                 return;
             }
 
@@ -1418,60 +1464,61 @@ public partial class SpikeWorld : Node2D
         GetVisibleTileRange(out var visMinX, out var visMinY, out var visMaxX, out var visMaxY);
         var mapW = ActiveMapWidth;
         var mapH = ActiveMapHeight;
+        var camZoom = HasNode("Camera") ? Math.Max(0.01f, GetNode<Camera2D>("Camera").Zoom.X) : 1f;
+        var screenTilePx = TileSize * camZoom;
 
         for (var y = visMinY; y <= visMaxY; y++)
         {
             for (var x = visMinX; x <= visMaxX; x++)
             {
                 var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
-                var ground = ((x + y) % 2 == 0)
-                    ? new Color(0.12f, 0.16f, 0.13f, 1f)
-                    : new Color(0.10f, 0.14f, 0.11f, 1f);
+                var ground = TerrainColorRaylib(TerrainKind.Grass, x, y);
                 if (_slice?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y)))
                 {
-                    var tile = terrain[x, y];
-                    ground = tile.Terrain switch
-                    {
-                        TerrainKind.Water => new Color(0.12f, 0.22f, 0.32f, 1f),
-                        TerrainKind.Grass => new Color(0.14f, 0.22f, 0.14f, 1f),
-                        TerrainKind.Soil => new Color(0.18f, 0.16f, 0.12f, 1f),
-                        TerrainKind.Stone => new Color(0.16f, 0.16f, 0.15f, 1f),
-                        _ => ground
-                    };
-                    if (((x + y) % 2) != 0)
-                    {
-                        ground = ground.Darkened(0.08f);
-                    }
+                    ground = TerrainColorRaylib(terrain[x, y].Terrain, x, y);
                 }
 
                 DrawRect(rect, ground);
+                if (screenTilePx >= 12f && _slice?.Terrain is { } detailMap
+                    && detailMap.InBounds(new GridPosition(x, y)))
+                {
+                    DrawTerrainSpeckle(detailMap[x, y].Terrain, x, y, rect);
+                }
             }
         }
 
         // Grid only in view (full 1000² grid lines would dominate frame time).
-        var grid = new Color(0.22f, 0.28f, 0.24f, 0.85f);
-        var gridTop = visMinY * TileSize;
-        var gridBottom = (visMaxY + 1) * TileSize;
-        var gridLeft = visMinX * TileSize;
-        var gridRight = (visMaxX + 1) * TileSize;
-        for (var x = visMinX; x <= visMaxX + 1; x++)
+        if (screenTilePx >= 10f)
         {
-            var px = x * TileSize;
-            DrawLine(new Vector2(px, gridTop), new Vector2(px, gridBottom), grid, 1f);
+            var grid = new Color(0.22f, 0.28f, 0.24f, 0.55f);
+            var gridTop = visMinY * TileSize;
+            var gridBottom = (visMaxY + 1) * TileSize;
+            var gridLeft = visMinX * TileSize;
+            var gridRight = (visMaxX + 1) * TileSize;
+            for (var x = visMinX; x <= visMaxX + 1; x++)
+            {
+                var px = x * TileSize;
+                DrawLine(new Vector2(px, gridTop), new Vector2(px, gridBottom), grid, 1f);
+            }
+
+            for (var y = visMinY; y <= visMaxY + 1; y++)
+            {
+                var py = y * TileSize;
+                DrawLine(new Vector2(gridLeft, py), new Vector2(gridRight, py), grid, 1f);
+            }
         }
 
-        for (var y = visMinY; y <= visMaxY + 1; y++)
-        {
-            var py = y * TileSize;
-            DrawLine(new Vector2(gridLeft, py), new Vector2(gridRight, py), grid, 1f);
-        }
+        // World AABB border (visible when any edge is in view).
+        var border = new Color(0.85f, 0.78f, 0.45f, 0.95f);
+        var worldRect = new Rect2(0, 0, mapW * TileSize, mapH * TileSize);
+        DrawRect(worldRect, border, filled: false, width: Math.Max(2f, 3f / camZoom));
 
         if (_slice is null)
         {
             return;
         }
 
-        // Seeded deposits visible on the map (not only under miners) — culled.
+        // Seeded deposits — Raylib-style icons / bold patches (culled).
         if (_slice.Terrain is { } map)
         {
             for (var y = visMinY; y <= visMaxY; y++)
@@ -1489,16 +1536,7 @@ public partial class SpikeWorld : Node2D
                         continue;
                     }
 
-                    var tint = deposit switch
-                    {
-                        DepositKind.Iron => new Color(0.55f, 0.38f, 0.22f, 0.45f),
-                        DepositKind.Copper => new Color(0.72f, 0.42f, 0.22f, 0.45f),
-                        DepositKind.Coal => new Color(0.12f, 0.12f, 0.1f, 0.55f),
-                        DepositKind.Lead => new Color(0.35f, 0.4f, 0.45f, 0.45f),
-                        DepositKind.Titanium => new Color(0.55f, 0.55f, 0.7f, 0.45f),
-                        _ => new Color(0.4f, 0.3f, 0.2f, 0.35f)
-                    };
-                    DrawRect(new Rect2(x * TileSize, y * TileSize, TileSize, TileSize), tint);
+                    DrawDepositMarker(deposit, x, y, screenTilePx);
                 }
             }
         }
@@ -1548,6 +1586,105 @@ public partial class SpikeWorld : Node2D
             && _tool != BuildTool.Cursor)
         {
             DrawGhost(hover);
+        }
+    }
+
+    /// <summary>Raylib WorldGraphics.TerrainColor — richer base hues + micro hash variation.</summary>
+    private static Color TerrainColorRaylib(TerrainKind kind, int worldX, int worldY)
+    {
+        var baseColor = kind switch
+        {
+            TerrainKind.Grass => new Color(46 / 255f, 78 / 255f, 54 / 255f),
+            TerrainKind.Soil => new Color(108 / 255f, 88 / 255f, 58 / 255f),
+            TerrainKind.Stone => new Color(92 / 255f, 98 / 255f, 96 / 255f),
+            TerrainKind.Water => new Color(42 / 255f, 78 / 255f, 98 / 255f),
+            _ => new Color(0.1f, 0.12f, 0.1f)
+        };
+        var n1 = Hash01(worldX, worldY, 917);
+        var n2 = Hash01(worldX * 3 + 7, worldY * 5 - 3, 421);
+        var delta = ((n1 - 0.5f) * 22f + (n2 - 0.5f) * 10f) / 255f;
+        if (kind is TerrainKind.Grass or TerrainKind.Soil && ((worldX + worldY) & 1) == 0)
+        {
+            delta -= 4f / 255f;
+        }
+
+        return new Color(
+            Math.Clamp(baseColor.R + delta, 0f, 1f),
+            Math.Clamp(baseColor.G + delta, 0f, 1f),
+            Math.Clamp(baseColor.B + (kind == TerrainKind.Water ? delta * 0.5f : delta), 0f, 1f));
+    }
+
+    private static float Hash01(int x, int y, int salt)
+    {
+        unchecked
+        {
+            var v = (uint)(x * 374761393 + y * 668265263 + salt * 1442695041);
+            v = (v ^ (v >> 13)) * 1274126177u;
+            return (v ^ (v >> 16)) / (float)uint.MaxValue;
+        }
+    }
+
+    private void DrawTerrainSpeckle(TerrainKind kind, int worldX, int worldY, Rect2 rect)
+    {
+        if (kind == TerrainKind.Water)
+        {
+            return;
+        }
+
+        var speck = kind switch
+        {
+            TerrainKind.Grass => new Color(36 / 255f, 62 / 255f, 42 / 255f, 0.35f),
+            TerrainKind.Soil => new Color(86 / 255f, 68 / 255f, 42 / 255f, 0.35f),
+            _ => new Color(70 / 255f, 74 / 255f, 72 / 255f, 0.3f)
+        };
+        var hx = Hash01(worldX, worldY, 55);
+        var hy = Hash01(worldX, worldY, 77);
+        var sx = rect.Position.X + 4f + hx * (TileSize - 10f);
+        var sy = rect.Position.Y + 4f + hy * (TileSize - 10f);
+        DrawRect(new Rect2(sx, sy, Math.Max(2f, TileSize / 14f), Math.Max(2f, TileSize / 14f)), speck);
+    }
+
+    private void DrawDepositMarker(DepositKind deposit, int x, int y, float screenTilePx)
+    {
+        var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
+        var pad = new Color(0.2f, 0.18f, 0.14f, 0.55f);
+        DrawRect(rect, pad);
+
+        var tex = deposit switch
+        {
+            DepositKind.Iron => _oreTex,
+            DepositKind.Copper => _copperOreTex,
+            DepositKind.Coal => _coalTex,
+            DepositKind.Lead => _leadOreTex,
+            DepositKind.Titanium => _titaniumOreTex,
+            _ => null
+        };
+        var fill = deposit switch
+        {
+            DepositKind.Iron => new Color(0.75f, 0.48f, 0.28f, 1f),
+            DepositKind.Copper => new Color(0.85f, 0.52f, 0.28f, 1f),
+            DepositKind.Coal => new Color(0.22f, 0.22f, 0.2f, 1f),
+            DepositKind.Lead => new Color(0.45f, 0.5f, 0.55f, 1f),
+            DepositKind.Titanium => new Color(0.65f, 0.65f, 0.82f, 1f),
+            _ => new Color(0.5f, 0.4f, 0.3f, 1f)
+        };
+
+        if (screenTilePx >= 14f && tex is not null)
+        {
+            var inset = TileSize * 0.18f;
+            DrawTextureRect(tex, new Rect2(
+                x * TileSize + inset,
+                y * TileSize + inset,
+                TileSize - inset * 2f,
+                TileSize - inset * 2f), false);
+        }
+        else
+        {
+            // Raylib fallback circles when zoomed out.
+            var cx = (x + 0.5f) * TileSize;
+            var cy = (y + 0.5f) * TileSize;
+            DrawCircle(new Vector2(cx - TileSize * 0.15f, cy - TileSize * 0.1f), TileSize * 0.18f, fill);
+            DrawCircle(new Vector2(cx + TileSize * 0.12f, cy + TileSize * 0.1f), TileSize * 0.22f, fill);
         }
     }
 
@@ -2221,6 +2358,67 @@ public partial class SpikeWorld : Node2D
             "campaign.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
     }
 
+    private async Task CaptureRaylibWorldParityShotsAsync(string destDir)
+    {
+        // Ensure sandbox world with terrain + centered core (boot already does this).
+        StartNewSandbox(toast: false);
+        _home?.Close();
+        _settings.ShowResourceOverlay = false;
+        SyncFpsOverlay();
+        SyncResourceOverlay();
+        SyncCameraMapBounds();
+        FocusCameraOnCore();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+
+        void SaveBoth(string name)
+        {
+            var img = GetViewport().GetTexture().GetImage();
+            img.SavePng(Path.Combine(destDir, name));
+            img.SavePng(Path.Combine("/opt/cursor/artifacts", name));
+            GD.Print($"Saved {name} → {destDir}");
+        }
+
+        // Core centered + nearby starter minerals.
+        SaveBoth("godot-raylib-world-parity-core.png");
+
+        // Pan slightly west to frame starter iron/copper patches + icons.
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Position += new Vector2(-4f * TileSize, 0);
+            if (cam is SpikeCamera spike)
+            {
+                spike.ClampToMap();
+            }
+        }
+
+        QueueRedraw();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        SaveBoth("godot-raylib-world-parity-ores.png");
+
+        // Zoom out enough to see world border near corner (NW of core).
+        if (HasNode("Camera"))
+        {
+            var cam = GetNode<Camera2D>("Camera");
+            cam.Zoom = new Vector2(0.12f, 0.12f);
+            cam.Position = new Vector2(80f * TileSize, 80f * TileSize);
+            if (cam is SpikeCamera spike)
+            {
+                spike.ClampToMap();
+            }
+        }
+
+        QueueRedraw();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+        SaveBoth("godot-raylib-world-parity-border.png");
+
+        GD.Print("Raylib world parity screenshot set complete.");
+        GetTree().Quit();
+    }
+
     private async Task CaptureHomeShotsAsync(string destDir)
     {
         _home?.Open();
@@ -2399,6 +2597,12 @@ public partial class SpikeWorld : Node2D
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "research")
         {
             await CaptureResearchShotsAsync(destDir);
+            return;
+        }
+
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "raylib-world")
+        {
+            await CaptureRaylibWorldParityShotsAsync(destDir);
             return;
         }
 

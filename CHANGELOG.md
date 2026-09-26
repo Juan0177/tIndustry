@@ -5,6 +5,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Aggiunto / migliorato
+
+- **Godot/Shared**: parity mondo Raylib — minerali icone/scout patches, CORE centrato + camera H/Home, bordi mappa + clamp, terrain color Raylib, no tutorial spam in campagna
+
 ## [0.3.3] — 2026-09-26
 
 Godot QoL + mondo grande: gestione salvataggi completa, overlay risorse sistema, mappe **1000×1000** seed-based. Zip ufficiali restano **export Godot**.
