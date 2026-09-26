@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.3.1** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.1) · **Godot 4 .NET ufficiale** · Raylib legacy
+**v0.3.2** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.2) · **Godot 4 .NET ufficiale** · Raylib legacy
 
 ```
   miner ──▶ forno ──▶ lastre / fili ──▶ CORE / mercato
@@ -54,18 +54,18 @@ Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot + zip Ra
 
 ---
 
-## Cosa c’è in 0.3.1
+## Cosa c’è in 0.3.2
 
 | Area | In gioco (Godot) |
 | --- | --- |
 | **Client** | Godot 4 .NET ufficiale · Raylib legacy |
-| **Mondo** | Slice giocabile · depositi da seed campagna/sandbox |
-| **Produzione** | Miner T1/T2 · forno · assemblatore · estrattore · generatore |
-| **Logistica** | Nastro T1/T2 · junction · splitter · sorter · ponte |
-| **Potenza** | Generatore + nodi · craft boostato se alimentato |
-| **Economia** | Stock Core · Mercato · vendita automatica opzionale |
-| **Progressione** | Home · Campagna · Ricerca (grafo) · unlock placeables |
-| **UI** | Palette Mindustry · info slot · tech tree a icone |
+| **Mondo** | Slice giocabile · map size da campagna · seed/WxH in save |
+| **Produzione** | Miner T1/T2 · forno multi-ricetta · assemblatore · estrattore · generatore |
+| **Logistica** | Nastro T1/T2/T3 · junction · splitter · sorter · ponte · I/O adiacente |
+| **Potenza** | Generatore + nodi T1/T2 · buffer/capacity · fuel-or-power forno |
+| **Economia** | Costi/rimborsi place · CORE upgrade · Mercato · auto-sell |
+| **Progressione** | Home · Campagna · Ricerca · tutorial · Gestione salvataggi |
+| **UI** | Palette Mindustry · Impostazioni · info slot · tech tree a icone |
 | **Art** | Block 64×64 · gears miner · prod/power/core redesign |
 
 ---
@@ -122,9 +122,9 @@ Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.
 
 ## Roadmap
 
-| Ora (0.3.1) | Dopo |
+| Ora (0.3.2) | Dopo |
 | --- | --- |
-| Godot ufficiale · **zip release Godot** · art polish opzionale | Combat / unità (deferred) · eventuale ritiro Raylib |
+| Godot ufficiale · parity Raylib P0–P1 · **zip release Godot** | Combat / unità (deferred) · P2.4 polish · eventuale ritiro Raylib |
 
 Storia: [CHANGELOG.md](CHANGELOG.md).
 
