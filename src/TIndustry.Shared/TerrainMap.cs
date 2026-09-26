@@ -145,6 +145,29 @@ public sealed class TerrainMap
             PlaceDepositPatch(map, legacyOrigin, MinerProducer.Size, DepositKind.Iron);
         }
 
+        // Raylib scout patches on large maps — visible veins near the starter cluster.
+        if (width >= 256)
+        {
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X - 48, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y - 20, 2, height - 4)), 3, DepositKind.Iron);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X + 36, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 40, 2, height - 4)), 3, DepositKind.Iron);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X - 20, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 28, 2, height - 4)), 3, DepositKind.Copper);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X + 24, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y - 18, 2, height - 4)), 3, DepositKind.Coal);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X + 52, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 12, 2, height - 4)), 3, DepositKind.Lead);
+            PlaceDepositPatch(map, new GridPosition(
+                Math.Clamp(starterDepositOrigin.X - 36, 2, width - 4),
+                Math.Clamp(starterDepositOrigin.Y + 52, 2, height - 4)), 2, DepositKind.Titanium);
+        }
+
         return map;
     }
 
