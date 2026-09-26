@@ -5,7 +5,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Playable factory slice + FactoryHud + Ricerca. Default = cursore.
-/// Hotkeys 1–9 place · Esc cursore · T ricerca · R ruota · C filtro · RMB elimina.
+/// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
 /// </summary>
 public partial class SpikeWorld : Node2D
 {
@@ -48,6 +48,10 @@ public partial class SpikeWorld : Node2D
     private ResearchPanel? _research;
     private MercatoPanel? _mercato;
     private CampaignSelectPanel? _campaignSelect;
+    private SettingsPanel? _settingsPanel;
+    private TutorialPanel? _tutorial;
+    private ClientSettings _settings = new();
+    private Label? _fpsLabel;
     private CampaignCatalog? _campaign;
     private CampaignProgress? _progress;
     private string _progressPath = CampaignProgress.ProgressPath;
@@ -75,6 +79,8 @@ public partial class SpikeWorld : Node2D
     {
         _contentPath = ResolveContentPath();
         _campaignPath = ResolveCampaignPath();
+        _settings = ClientSettings.Load();
+        _settings.ApplyToEngine(GetTree().Root);
         var content = FactoryContent.Load(_contentPath);
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
@@ -86,7 +92,10 @@ public partial class SpikeWorld : Node2D
         EnsureResearchPanel();
         EnsureMercatoPanel();
         EnsureCampaignSelectPanel();
+        EnsureSettingsPanel();
+        EnsureTutorialPanel();
         EnsureHomePanel();
+        EnsureFpsOverlay();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -356,7 +365,122 @@ public partial class SpikeWorld : Node2D
         _home.ContinuaChosen += OnHomeContinua;
         _home.CampaignChosen += OnHomeCampaign;
         _home.NewGameChosen += OnHomeNewGame;
+        _home.SettingsChosen += OpenSettings;
         _home.QuitChosen += () => GetTree().Quit();
+    }
+
+    private void EnsureSettingsPanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("SettingsPanel"))
+        {
+            _settingsPanel = layer.GetNode<SettingsPanel>("SettingsPanel");
+        }
+        else
+        {
+            _settingsPanel = new SettingsPanel { Name = "SettingsPanel" };
+            layer.AddChild(_settingsPanel);
+        }
+
+        layer.MoveChild(_settingsPanel, layer.GetChildCount() - 1);
+        _settingsPanel.Closed += () => { };
+        _settingsPanel.Applied += OnSettingsApplied;
+        _settingsPanel.ReplayTutorialRequested += () => BeginTutorialIfNeeded(force: true);
+    }
+
+    private void EnsureTutorialPanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("TutorialPanel"))
+        {
+            _tutorial = layer.GetNode<TutorialPanel>("TutorialPanel");
+        }
+        else
+        {
+            _tutorial = new TutorialPanel { Name = "TutorialPanel" };
+            layer.AddChild(_tutorial);
+        }
+
+        layer.MoveChild(_tutorial, layer.GetChildCount() - 1);
+        _tutorial.Completed += () => _hud?.ShowToast("Tutorial completato");
+        _tutorial.Skipped += () => _hud?.ShowToast("Tutorial saltato");
+    }
+
+    private void EnsureFpsOverlay()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("FpsOverlay"))
+        {
+            _fpsLabel = layer.GetNode<Label>("FpsOverlay");
+        }
+        else
+        {
+            _fpsLabel = new Label
+            {
+                Name = "FpsOverlay",
+                MouseFilter = Control.MouseFilterEnum.Ignore
+            };
+            _fpsLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            _fpsLabel.OffsetLeft = -120;
+            _fpsLabel.OffsetTop = 8;
+            _fpsLabel.OffsetRight = -12;
+            _fpsLabel.OffsetBottom = 28;
+            _fpsLabel.HorizontalAlignment = HorizontalAlignment.Right;
+            _fpsLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.9f, 0.75f, 0.9f));
+            _fpsLabel.AddThemeFontSizeOverride("font_size", 13);
+            layer.AddChild(_fpsLabel);
+        }
+
+        SyncFpsOverlay();
+    }
+
+    private void SyncFpsOverlay()
+    {
+        if (_fpsLabel is null)
+        {
+            return;
+        }
+
+        _fpsLabel.Visible = _settings.ShowFps;
+    }
+
+    private void OpenSettings()
+    {
+        _home?.Close();
+        _research?.Close();
+        _mercato?.Close();
+        _campaignSelect?.Close();
+        _settingsPanel?.Open(_settings);
+    }
+
+    private void OnSettingsApplied()
+    {
+        SyncFpsOverlay();
+        _hud?.ShowToast(
+            $"Impostazioni · UI {ClientSettings.UiScaleLabel(_settings.UiScalePercent)} · VSync {(_settings.VSync ? "ON" : "OFF")}");
+    }
+
+    private void BeginTutorialIfNeeded(bool force = false)
+    {
+        if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
+        {
+            return;
+        }
+
+        if (!force && _settings.TutorialCompleted)
+        {
+            return;
+        }
+
+        if (force)
+        {
+            _settings.TutorialCompleted = false;
+            _settings.Save();
+        }
+
+        _home?.Close();
+        _settingsPanel?.Close();
+        _tutorial?.Open(_settings);
     }
 
     private void OnHomeContinua()
@@ -370,6 +494,7 @@ public partial class SpikeWorld : Node2D
 
         LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata");
         _home?.Close();
+        BeginTutorialIfNeeded();
     }
 
     private void OnHomeCampaign()
@@ -383,6 +508,7 @@ public partial class SpikeWorld : Node2D
     {
         StartNewSandbox(toast: true);
         _home?.Close();
+        BeginTutorialIfNeeded();
     }
 
     private void StartNewSandbox(bool toast)
@@ -530,6 +656,7 @@ public partial class SpikeWorld : Node2D
         if (toast)
         {
             _hud?.ShowToast($"Campagna · {level.Name} · seed {level.Seed}");
+            BeginTutorialIfNeeded();
         }
     }
 
@@ -785,6 +912,16 @@ public partial class SpikeWorld : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (_tutorial?.IsOpen == true)
+        {
+            return;
+        }
+
+        if (_settingsPanel?.IsOpen == true)
+        {
+            return;
+        }
+
         if (_home?.IsOpen == true)
         {
             return;
@@ -797,6 +934,13 @@ public partial class SpikeWorld : Node2D
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (key.Keycode == Key.I)
+            {
+                OpenSettings();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode == Key.T)
             {
                 ToggleResearch();
@@ -1014,6 +1158,11 @@ public partial class SpikeWorld : Node2D
 
     public override void _Process(double delta)
     {
+        if (_fpsLabel is not null && _settings.ShowFps)
+        {
+            _fpsLabel.Text = $"FPS {Engine.GetFramesPerSecond()}";
+        }
+
         if (_home?.IsOpen == true || _slice is null)
         {
             return;
