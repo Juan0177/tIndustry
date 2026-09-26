@@ -7,7 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
-_(vuoto — prossimo bump)_
+- **Godot/Shared**: costi di piazzamento + rimborso come Raylib (`FactorySlice` spende `BuildCost` / rimborsa su remove); sandbox Nuova partita parte con lastre/fili; toast IT se stock insufficiente
 
 ## [0.3.1] — 2026-09-26
 
