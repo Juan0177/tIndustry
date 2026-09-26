@@ -6,7 +6,7 @@ namespace TIndustry.Shared;
 /// <summary>Godot factory-slice save (v4: active campaign level). v1–v3 load with null level.</summary>
 public sealed class FactorySliceSaveData
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -73,6 +73,8 @@ public sealed class CraftSaveDto
     public List<string> OutputQueue { get; set; } = [];
     public int EjectIndex { get; set; }
     public long ItemsCrafted { get; set; }
+    public int FuelBuffer { get; set; }
+    public float BurnRemaining { get; set; }
 }
 
 public sealed class GeneratorSaveDto

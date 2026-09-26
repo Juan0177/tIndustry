@@ -11,6 +11,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Godot/Shared**: forno/assemblatore **multi-ricetta** (auto-pick `smelt-*` / `craft-*` come Raylib) — piombo, titanio, grafite, silicio craftabili
 - **Godot**: palette/place **Nastro T3** (`conveyor-express`) + **Nodo potenza T2** (`power-node-t2`)
 - **Godot/Shared**: **CORE upgrade** (+25% vendite) da `economy.coreUpgrade`, chip HUD, save v5
+- **Godot/Shared**: forno **carbone OR corrente** (Raylib): buffer fuel + burn, craft bloccato senza; **+20%** se alimentato; save v6
 
 ## [0.3.1] — 2026-09-26
 
