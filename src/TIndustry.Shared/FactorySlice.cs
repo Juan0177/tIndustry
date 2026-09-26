@@ -818,8 +818,8 @@ public sealed class FactorySlice
         return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
     }
 
-    /// <summary>Raylib maps go to 1000²; Godot per-tile draw clamps campaign edges.</summary>
-    public const int MaxGodotCampaignMapEdge = 128;
+    /// <summary>Raylib maps go to 1000²; Godot clamps campaign/sandbox edges for safety.</summary>
+    public const int MaxGodotCampaignMapEdge = 1000;
 
     public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 2) =>
         new(
@@ -870,13 +870,13 @@ public sealed class FactorySlice
         };
     }
 
-    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42).</summary>
+    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
     public static FactorySlice CreateSandboxSlice(
         FactoryContent content,
         GridPosition coreOrigin,
         int coreSize = 2,
-        int mapWidth = 24,
-        int mapHeight = 18,
+        int mapWidth = 1000,
+        int mapHeight = 1000,
         int seed = 42,
         int startingMoney = 180)
     {
@@ -3030,8 +3030,11 @@ public sealed class FactorySlice
             Assert(slice.Terrain is not null, "terrain generated");
             Assert(slice.Terrain!.Seed == l01.Seed, "terrain seed");
             var (expectW, expectH) = ResolveCampaignMapSize(l01);
+            Assert(expectW == 1000 && expectH == 1000, "campaign L01 is 1000×1000");
             Assert(slice.Terrain.Width == expectW && slice.Terrain.Height == expectH,
                 $"campaign map size {expectW}×{expectH}");
+            var sandboxBig = CreateSandboxSlice(content, CenteredCoreOrigin(1000, 1000));
+            Assert(sandboxBig.Terrain is { Width: 1000, Height: 1000 }, "sandbox default 1000²");
             var coreOrigin = CenteredCoreOrigin(expectW, expectH);
             Assert(slice.CoreTiles.Contains(coreOrigin), "core centered");
             var hasIron = false;

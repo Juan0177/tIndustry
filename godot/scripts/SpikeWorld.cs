@@ -10,8 +10,8 @@ namespace TIndustry.Godot;
 public partial class SpikeWorld : Node2D
 {
     public const int TileSize = 64;
-    public const int DefaultMapWidth = 24;
-    public const int DefaultMapHeight = 18;
+    public const int DefaultMapWidth = 1000;
+    public const int DefaultMapHeight = 1000;
 
     /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to spike defaults.</summary>
     public int ActiveMapWidth => _slice?.Terrain?.Width ?? DefaultMapWidth;
@@ -650,9 +650,10 @@ public partial class SpikeWorld : Node2D
     private void StartNewSandbox(bool toast)
     {
         var content = FactoryContent.Load(_contentPath);
+        var core = FactorySlice.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
         _slice = FactorySlice.CreateSandboxSlice(
             content,
-            new GridPosition(9, 14),
+            core,
             coreSize: 2,
             mapWidth: DefaultMapWidth,
             mapHeight: DefaultMapHeight,
@@ -807,10 +808,56 @@ public partial class SpikeWorld : Node2D
         var cx = _slice.CoreTiles.Average(t => t.X);
         var cy = _slice.CoreTiles.Average(t => t.Y);
         cam.Position = new Vector2((float)(cx + 0.5) * TileSize, (float)(cy + 0.5) * TileSize);
-        // Fit a bit of map around the core; zoom out on larger campaigns.
+        // Fit a bit of map around the core; zoom out on larger campaigns (culling keeps draw cheap).
         var edge = Math.Max(ActiveMapWidth, ActiveMapHeight);
-        var z = edge <= 32 ? 0.55f : edge <= 64 ? 0.35f : edge <= 96 ? 0.25f : 0.18f;
+        var z = edge <= 32 ? 0.55f
+            : edge <= 64 ? 0.35f
+            : edge <= 128 ? 0.25f
+            : edge <= 256 ? 0.18f
+            : 0.14f;
         cam.Zoom = new Vector2(z, z);
+        if (cam is SpikeCamera spike)
+        {
+            // Allow deep zoom-out on 1000² without fighting Clamp.
+            spike.MinZoom = edge >= 256 ? 0.08f : 0.12f;
+        }
+    }
+
+    /// <summary>Viewport tile cull (Raylib WorldCamera.GetVisibleTileRange) for 1000² maps.</summary>
+    private void GetVisibleTileRange(out int minX, out int minY, out int maxX, out int maxY)
+    {
+        var mapW = Math.Max(1, ActiveMapWidth);
+        var mapH = Math.Max(1, ActiveMapHeight);
+        if (!HasNode("Camera"))
+        {
+            minX = 0;
+            minY = 0;
+            maxX = mapW - 1;
+            maxY = mapH - 1;
+            return;
+        }
+
+        var cam = GetNode<Camera2D>("Camera");
+        var zoom = Math.Max(0.01f, cam.Zoom.X);
+        var vp = GetViewport().GetVisibleRect().Size;
+        var halfW = (vp.X / zoom) * 0.5f;
+        var halfH = (vp.Y / zoom) * 0.5f;
+        var left = cam.Position.X - halfW;
+        var top = cam.Position.Y - halfH;
+        var right = cam.Position.X + halfW;
+        var bottom = cam.Position.Y + halfH;
+        const int margin = 2;
+        minX = Math.Max(0, (int)MathF.Floor(left / TileSize) - margin);
+        minY = Math.Max(0, (int)MathF.Floor(top / TileSize) - margin);
+        maxX = Math.Min(mapW - 1, (int)MathF.Floor(right / TileSize) + margin);
+        maxY = Math.Min(mapH - 1, (int)MathF.Floor(bottom / TileSize) + margin);
+        if (minX > maxX || minY > maxY)
+        {
+            minX = 0;
+            minY = 0;
+            maxX = Math.Min(mapW - 1, 48);
+            maxY = Math.Min(mapH - 1, 36);
+        }
     }
 
     private void CheckCampaignComplete()
@@ -1368,9 +1415,13 @@ public partial class SpikeWorld : Node2D
 
     public override void _Draw()
     {
-        for (var y = 0; y < ActiveMapHeight; y++)
+        GetVisibleTileRange(out var visMinX, out var visMinY, out var visMaxX, out var visMaxY);
+        var mapW = ActiveMapWidth;
+        var mapH = ActiveMapHeight;
+
+        for (var y = visMinY; y <= visMaxY; y++)
         {
-            for (var x = 0; x < ActiveMapWidth; x++)
+            for (var x = visMinX; x <= visMaxX; x++)
             {
                 var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
                 var ground = ((x + y) % 2 == 0)
@@ -1397,17 +1448,22 @@ public partial class SpikeWorld : Node2D
             }
         }
 
+        // Grid only in view (full 1000² grid lines would dominate frame time).
         var grid = new Color(0.22f, 0.28f, 0.24f, 0.85f);
-        for (var x = 0; x <= ActiveMapWidth; x++)
+        var gridTop = visMinY * TileSize;
+        var gridBottom = (visMaxY + 1) * TileSize;
+        var gridLeft = visMinX * TileSize;
+        var gridRight = (visMaxX + 1) * TileSize;
+        for (var x = visMinX; x <= visMaxX + 1; x++)
         {
             var px = x * TileSize;
-            DrawLine(new Vector2(px, 0), new Vector2(px, ActiveMapHeight * TileSize), grid, 1f);
+            DrawLine(new Vector2(px, gridTop), new Vector2(px, gridBottom), grid, 1f);
         }
 
-        for (var y = 0; y <= ActiveMapHeight; y++)
+        for (var y = visMinY; y <= visMaxY + 1; y++)
         {
             var py = y * TileSize;
-            DrawLine(new Vector2(0, py), new Vector2(ActiveMapWidth * TileSize, py), grid, 1f);
+            DrawLine(new Vector2(gridLeft, py), new Vector2(gridRight, py), grid, 1f);
         }
 
         if (_slice is null)
@@ -1415,13 +1471,18 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        // Seeded deposits visible on the map (not only under miners).
+        // Seeded deposits visible on the map (not only under miners) — culled.
         if (_slice.Terrain is { } map)
         {
-            for (var y = 0; y < ActiveMapHeight; y++)
+            for (var y = visMinY; y <= visMaxY; y++)
             {
-                for (var x = 0; x < ActiveMapWidth; x++)
+                for (var x = visMinX; x <= visMaxX; x++)
                 {
+                    if (x < 0 || y < 0 || x >= mapW || y >= mapH)
+                    {
+                        continue;
+                    }
+
                     var deposit = map[x, y].Deposit;
                     if (deposit == DepositKind.None)
                     {
@@ -2220,8 +2281,9 @@ public partial class SpikeWorld : Node2D
 
         // Second sandbox seed for contrast (swap via CreateSandboxSlice).
         var content = FactoryContent.Load(_contentPath);
+        var core = FactorySlice.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
         _slice = FactorySlice.CreateSandboxSlice(
-            content, new GridPosition(9, 14), mapWidth: DefaultMapWidth, mapHeight: DefaultMapHeight, seed: 777);
+            content, core, mapWidth: DefaultMapWidth, mapHeight: DefaultMapHeight, seed: 777);
         QueueRedraw();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
