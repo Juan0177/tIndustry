@@ -7,7 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
-_(vuoto — prossimo bump)_
+- **Godot/Shared**: forno/assemblatore **multi-ricetta** (auto-pick `smelt-*` / `craft-*` come Raylib) — piombo, titanio, grafite, silicio craftabili
 
 ## [0.3.1] — 2026-09-26
 
