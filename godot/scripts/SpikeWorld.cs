@@ -129,6 +129,13 @@ public partial class SpikeWorld : Node2D
         SyncResearchLocks();
         UpdateHud();
 
+        // #region agent log
+        if (OS.GetEnvironment("TINDUSTRY_SEED_CORE_LINE") == "1" && _slice is not null)
+        {
+            SeedCoreDeliveryLine();
+        }
+        // #endregion
+
         // Campaign capture: select + objectives on L01.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
             && OS.GetEnvironment("TINDUSTRY_CAPTURE_MODE") == "campaign")
@@ -1536,6 +1543,15 @@ public partial class SpikeWorld : Node2D
                         continue;
                     }
 
+                    var tile = new GridPosition(x, y);
+                    // Belts/buildings own the tile — don't paint deposit icons as fake cargo.
+                    if (_slice.Belts.Contains(tile)
+                        || _slice.CoreTiles.Contains(tile)
+                        || _slice.IsBuildingTile(tile))
+                    {
+                        continue;
+                    }
+
                     DrawDepositMarker(deposit, x, y, screenTilePx);
                 }
             }
@@ -1925,7 +1941,29 @@ public partial class SpikeWorld : Node2D
 
         if (!placed && _slice.CanAffordStructure(structureId, costMul))
         {
-            // Occupancy / span / unlock edge — keep quiet unless drag just started.
+            // #region agent log
+            CoreDeliveryDebugLog.Write(
+                "C",
+                "SpikeWorld.cs:TryPlaceAt",
+                "place_rejected",
+                new
+                {
+                    tool = _tool.ToString(),
+                    x = cell.X,
+                    y = cell.Y,
+                    dir = _placeDir.ToString(),
+                    structureId,
+                    onCore = _slice.CoreTiles.Contains(cell),
+                    beltCount = _slice.Belts.Count,
+                    runId = "post-fix"
+                });
+            // #endregion
+            if (!_draggingPlace)
+            {
+                _hud?.ShowToast(_slice.CoreTiles.Contains(cell)
+                    ? "Non puoi costruire sul Core"
+                    : "Cella occupata o non valida");
+            }
         }
     }
 
@@ -1972,10 +2010,64 @@ public partial class SpikeWorld : Node2D
         }
     }
 
+    /// <summary>
+    /// Debug/bootstrap: miner on starter iron + east belts into Core (verifies Drain path).
+    /// </summary>
+    private void SeedCoreDeliveryLine()
+    {
+        if (_slice?.Terrain is null)
+        {
+            return;
+        }
+
+        var coreOrigin = new GridPosition(
+            _slice.CoreTiles.Min(t => t.X),
+            _slice.CoreTiles.Min(t => t.Y));
+        var minerPos = new GridPosition(
+            Math.Max(0, coreOrigin.X - MinerProducer.Size - 2),
+            coreOrigin.Y);
+        if (!_slice.TryPlaceMiner(minerPos, Direction.East))
+        {
+            GD.PrintErr($"SEED_CORE_LINE: miner fail at {minerPos}");
+            return;
+        }
+
+        for (var x = minerPos.X + MinerProducer.Size; x < coreOrigin.X; x++)
+        {
+            if (!_slice.TryPlaceBelt(new GridPosition(x, coreOrigin.Y), Direction.East))
+            {
+                GD.PrintErr($"SEED_CORE_LINE: belt fail at ({x},{coreOrigin.Y})");
+            }
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        UpdateHud();
+        // #region agent log
+        CoreDeliveryDebugLog.Write(
+            "C",
+            "SpikeWorld.cs:SeedCoreDeliveryLine",
+            "seeded",
+            new
+            {
+                minerX = minerPos.X,
+                minerY = minerPos.Y,
+                beltCount = _slice.Belts.Count,
+                plates = _slice.Wallet.MaterialCount("iron-plate"),
+                runId = "post-fix"
+            });
+        // #endregion
+        GD.Print($"SEED_CORE_LINE: belts={_slice.Belts.Count} miners={_slice.Miners.Count}");
+        _hud?.ShowToast($"Seed linea Core · nastro {_slice.Belts.Count}");
+    }
+
     private GridPosition ScreenToCell(Vector2 screenPos)
     {
-        _ = screenPos;
-        var world = GetGlobalMousePosition();
+        // Viewport → world via canvas transform (Camera2D zoom/pan). Do not use
+        // raw screen/tile division — that places far from the focused Core on 1000².
+        var world = GetViewport().GetCanvasTransform().AffineInverse() * screenPos;
         var x = Mathf.FloorToInt(world.X / TileSize);
         var y = Mathf.FloorToInt(world.Y / TileSize);
         return new GridPosition(x, y);

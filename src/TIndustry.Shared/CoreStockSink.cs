@@ -102,13 +102,20 @@ public static class CoreStockSink
                 });
             }
             // #endregion
-            if (!outInCore)
+            // Face into core, or dead-end against core (wrong facing / no next belt).
+            var sinksHere = outInCore
+                || (IsEdgeAdjacentToCore(cell.Position, coreTiles)
+                    && !grid.Contains(cell.OutputPosition));
+            if (!sinksHere)
             {
                 continue;
             }
 
             // #region agent log
-            pointingAtCore++;
+            if (outInCore)
+            {
+                pointingAtCore++;
+            }
             // #endregion
             while (cell.PeekOutput() is { } item)
             {
@@ -121,8 +128,10 @@ public static class CoreStockSink
                     dir = cell.Direction.ToString(),
                     outX = cell.OutputPosition.X,
                     outY = cell.OutputPosition.Y,
+                    outInCore,
                     item.ItemId,
-                    item.Progress
+                    item.Progress,
+                    runId = "post-fix"
                 });
                 // #endregion
                 cell.RemoveOutput();
@@ -174,6 +183,36 @@ public static class CoreStockSink
         // #endregion
 
         return delivered;
+    }
+
+    /// <summary>True when <paramref name="pos"/> shares a 4-edge with any core tile.</summary>
+    public static bool IsEdgeAdjacentToCore(GridPosition pos, IReadOnlySet<GridPosition> coreTiles)
+    {
+        foreach (var dir in DirectionMath.All)
+        {
+            if (coreTiles.Contains(pos.Step(dir)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Prefer a facing that steps into the core when the cell touches it.</summary>
+    public static Direction? PreferDirectionIntoCore(
+        GridPosition pos,
+        IReadOnlySet<GridPosition> coreTiles)
+    {
+        foreach (var dir in DirectionMath.All)
+        {
+            if (coreTiles.Contains(pos.Step(dir)))
+            {
+                return dir;
+            }
+        }
+
+        return null;
     }
 
     private static void AcceptAtCore(

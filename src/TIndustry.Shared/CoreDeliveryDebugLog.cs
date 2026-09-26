@@ -4,7 +4,7 @@ namespace TIndustry.Shared;
 /// TEMP debug instrumentation for Core belt delivery bug (v0.3.4).
 /// Writes NDJSON to /tmp/cursor-debug-core-delivery/debug.log — remove after fix confirmed.
 /// </summary>
-internal static class CoreDeliveryDebugLog
+public static class CoreDeliveryDebugLog
 {
     private const string Dir = "/tmp/cursor-debug-core-delivery";
     private const string Path = Dir + "/debug.log";

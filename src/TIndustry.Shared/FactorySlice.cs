@@ -1104,26 +1104,66 @@ public sealed class FactorySlice
         var id = string.IsNullOrWhiteSpace(conveyorId) ? "conveyor-basic" : conveyorId;
         if (!RequireUnlocked(id))
         {
+            // #region agent log
+            CoreDeliveryDebugLog.Write("C", "FactorySlice.cs:TryPlaceBelt", "place_fail",
+                new { reason = "locked", x = position.X, y = position.Y, id });
+            // #endregion
             return false;
         }
 
         var def = Content.FindConveyor(id) ?? Content.RequireConveyor("conveyor-basic");
         if (Belts.Cells.ContainsKey(position) || !CanOccupy(position))
         {
+            // #region agent log
+            CoreDeliveryDebugLog.Write("C", "FactorySlice.cs:TryPlaceBelt", "place_fail",
+                new
+                {
+                    reason = Belts.Cells.ContainsKey(position) ? "occupied_belt" : "can_occupy",
+                    x = position.X,
+                    y = position.Y,
+                    onCore = CoreTiles.Contains(position)
+                });
+            // #endregion
             return false;
+        }
+
+        // Belts that touch the Core must face into it so Drain can absorb.
+        if (CoreStockSink.PreferDirectionIntoCore(position, CoreTiles) is { } intoCore)
+        {
+            direction = intoCore;
         }
 
         if (!TryChargeConveyor(def))
         {
+            // #region agent log
+            CoreDeliveryDebugLog.Write("C", "FactorySlice.cs:TryPlaceBelt", "place_fail",
+                new { reason = "charge", x = position.X, y = position.Y });
+            // #endregion
             return false;
         }
 
         if (!Belts.TryPlaceFree(position, direction, def, CanOccupy))
         {
             RefundConveyor(def);
+            // #region agent log
+            CoreDeliveryDebugLog.Write("C", "FactorySlice.cs:TryPlaceBelt", "place_fail",
+                new { reason = "try_place_free", x = position.X, y = position.Y });
+            // #endregion
             return false;
         }
 
+        // #region agent log
+        CoreDeliveryDebugLog.Write("C", "FactorySlice.cs:TryPlaceBelt", "place_ok",
+            new
+            {
+                x = position.X,
+                y = position.Y,
+                dir = direction.ToString(),
+                id,
+                beltCount = Belts.Count,
+                runId = "post-fix"
+            });
+        // #endregion
         return true;
     }
 
