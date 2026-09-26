@@ -7,8 +7,21 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
-- **Godot/Shared**: tinte item/minerali distinte (Raylib `ItemColor`) — silhouettes bianche modulate via `ItemVisualColors` su depositi, cargo, HUD stock, sorter filter
-- **Godot/Shared**: parity mondo Raylib — minerali icone/scout patches, CORE centrato + camera H/Home, bordi mappa + clamp, terrain color Raylib, no tutorial spam in campagna
+## [0.3.4] — 2026-09-26
+
+Parity mondo Raylib: minerali, CORE centrato, H→core, bordi mappa, terrain, **tinte item distinte**. Zip ufficiali restano **export Godot**.
+
+### Aggiunto / migliorato
+
+- **Godot/Shared**: parity mondo Raylib — minerali icone/scout patches, CORE centrato + camera H/Home, bordi mappa + clamp, terrain color Raylib, no tutorial spam in campagna ([#129](https://github.com/Juan0177/tIndustry/pull/129))
+- **Godot/Shared**: tinte item/minerali distinte (Raylib `ItemColor`) — silhouettes bianche modulate via `ItemVisualColors` su depositi, cargo, HUD stock, sorter filter ([#130](https://github.com/Juan0177/tIndustry/pull/130))
+
+### Come giocare (download)
+
+1. Scarica [`tIndustry-win-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) (o linux)
+2. Estrai → avvia `tIndustry.exe` (Windows) / `tIndustry.x86_64` (Linux)
+
+Da sorgente: `godot4 --path godot` (vedi README).
 
 ## [0.3.3] — 2026-09-26
 
@@ -422,6 +435,7 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.3.4]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.1

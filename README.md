@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.3.3** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.3) · **Godot 4 .NET ufficiale** · Raylib legacy
+**v0.3.4** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.4) · **Godot 4 .NET ufficiale** · Raylib legacy
 
 ```
   miner ──▶ forno ──▶ lastre / fili ──▶ CORE / mercato
@@ -54,19 +54,19 @@ Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot + zip Ra
 
 ---
 
-## Cosa c’è in 0.3.3
+## Cosa c’è in 0.3.4
 
 | Area | In gioco (Godot) |
 | --- | --- |
 | **Client** | Godot 4 .NET ufficiale · Raylib legacy |
-| **Mondo** | **1000×1000** seed · viewport cull · campagna/sandbox |
+| **Mondo** | **1000×1000** seed · CORE centro · H→core · bordi/clamp · minerali visibili |
 | **Produzione** | Miner T1/T2 · forno multi-ricetta · assemblatore · estrattore · generatore |
 | **Logistica** | Nastro T1/T2/T3 · junction · splitter · sorter · ponte · I/O adiacente |
 | **Potenza** | Generatore + nodi T1/T2 · buffer/capacity · fuel-or-power forno |
 | **Economia** | Costi/rimborsi place · CORE upgrade · Mercato · auto-sell |
 | **Progressione** | Home · Campagna · Ricerca · tutorial · Gestione salvataggi (autosave/Salva come) |
-| **UI** | Palette Mindustry · Impostazioni · overlay risorse (FPS/CPU/RAM/GPU) |
-| **Art** | Block 64×64 · gears miner · prod/power/core redesign |
+| **UI** | Palette Mindustry · Impostazioni · overlay risorse · item tint Raylib |
+| **Art** | Block 64×64 · terrain Raylib-like · ore icons tintati · gears miner |
 
 ---
 
@@ -122,7 +122,7 @@ Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.
 
 ## Roadmap
 
-| Ora (0.3.3) | Dopo |
+| Ora (0.3.4) | Dopo |
 | --- | --- |
 | Godot · 1000² · saves full · overlay risorse | Combat / unità (deferred) · P2.4 polish · eventuale ritiro Raylib |
 
