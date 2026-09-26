@@ -71,38 +71,11 @@ public static class CoreStockSink
         EconomySession? session,
         bool autoSellAtCore)
     {
-        // #region agent log
-        var candidates = new List<object>();
-        var pointingAtCore = 0;
-        var readyAtCoreEdge = 0;
-        var itemsNearCore = new List<object>();
-        // #endregion
         var delivered = 0;
         foreach (var cell in grid.Cells.Values)
         {
-            // #region agent log
-            var outInCore = coreTiles.Contains(cell.OutputPosition);
-            var cellInCore = coreTiles.Contains(cell.Position);
-            var dist = coreTiles.Count == 0
-                ? 99
-                : coreTiles.Min(t => Math.Abs(t.X - cell.Position.X) + Math.Abs(t.Y - cell.Position.Y));
-            if (dist <= 2 && cell.Items.Count > 0)
-            {
-                itemsNearCore.Add(new
-                {
-                    x = cell.Position.X,
-                    y = cell.Position.Y,
-                    dir = cell.Direction.ToString(),
-                    outX = cell.OutputPosition.X,
-                    outY = cell.OutputPosition.Y,
-                    outInCore,
-                    cellInCore,
-                    dist,
-                    items = cell.Items.Select(i => new { i.ItemId, i.Progress, travel = i.Travel?.ToString() }).ToList()
-                });
-            }
-            // #endregion
             // Face into core, or dead-end against core (wrong facing / no next belt).
+            var outInCore = coreTiles.Contains(cell.OutputPosition);
             var sinksHere = outInCore
                 || (IsEdgeAdjacentToCore(cell.Position, coreTiles)
                     && !grid.Contains(cell.OutputPosition));
@@ -111,76 +84,13 @@ public static class CoreStockSink
                 continue;
             }
 
-            // #region agent log
-            if (outInCore)
-            {
-                pointingAtCore++;
-            }
-            // #endregion
             while (cell.PeekOutput() is { } item)
             {
-                // #region agent log
-                readyAtCoreEdge++;
-                candidates.Add(new
-                {
-                    x = cell.Position.X,
-                    y = cell.Position.Y,
-                    dir = cell.Direction.ToString(),
-                    outX = cell.OutputPosition.X,
-                    outY = cell.OutputPosition.Y,
-                    outInCore,
-                    item.ItemId,
-                    item.Progress,
-                    runId = "post-fix"
-                });
-                // #endregion
                 cell.RemoveOutput();
                 AcceptAtCore(wallet, item.ItemId, market, session, autoSellAtCore);
                 delivered++;
             }
-
-            // #region agent log
-            if (cell.Items.Count > 0)
-            {
-                candidates.Add(new
-                {
-                    x = cell.Position.X,
-                    y = cell.Position.Y,
-                    dir = cell.Direction.ToString(),
-                    outX = cell.OutputPosition.X,
-                    outY = cell.OutputPosition.Y,
-                    status = "pointing_but_not_ready",
-                    items = cell.Items.Select(i => new { i.ItemId, i.Progress }).ToList()
-                });
-            }
-            // #endregion
         }
-
-        // #region agent log
-        if (delivered > 0 || pointingAtCore > 0 || itemsNearCore.Count > 0
-            || CoreDeliveryDebugLog.ShouldLogSummary())
-        {
-            CoreDeliveryDebugLog.Write(
-                "A",
-                "CoreStockSink.cs:Drain(BeltGrid)",
-                "drain_pass",
-                new
-                {
-                    pointingAtCore,
-                    readyAtCoreEdge,
-                    delivered,
-                    autoSellAtCore,
-                    ironOre = wallet.MaterialCount("iron-ore"),
-                    copperOre = wallet.MaterialCount("copper-ore"),
-                    money = wallet.Money,
-                    coreTiles = coreTiles.Select(t => new { t.X, t.Y }).ToList(),
-                    candidates,
-                    itemsNearCore,
-                    beltCellCount = grid.Count,
-                    beltItemCount = grid.Cells.Values.Sum(c => c.Items.Count)
-                });
-        }
-        // #endregion
 
         return delivered;
     }
@@ -225,13 +135,6 @@ public static class CoreStockSink
         if (!autoSellAtCore || market is null)
         {
             wallet.AddMaterial(itemId, 1);
-            // #region agent log
-            CoreDeliveryDebugLog.Write(
-                "D,E",
-                "CoreStockSink.cs:AcceptAtCore",
-                "stocked",
-                new { itemId, count = wallet.MaterialCount(itemId), autoSellAtCore });
-            // #endregion
             return;
         }
 
@@ -240,12 +143,5 @@ public static class CoreStockSink
         var unitPrice = market.GetDynamicSellPrice(itemId, stockBefore);
         wallet.AddMoney(unitPrice);
         session?.RecordSale(itemId, unitPrice);
-        // #region agent log
-        CoreDeliveryDebugLog.Write(
-            "E",
-            "CoreStockSink.cs:AcceptAtCore",
-            "auto_sold",
-            new { itemId, stockBefore, unitPrice, money = wallet.Money });
-        // #endregion
     }
 }

@@ -129,12 +129,10 @@ public partial class SpikeWorld : Node2D
         SyncResearchLocks();
         UpdateHud();
 
-        // #region agent log
         if (OS.GetEnvironment("TINDUSTRY_SEED_CORE_LINE") == "1" && _slice is not null)
         {
             SeedCoreDeliveryLine();
         }
-        // #endregion
 
         // Campaign capture: select + objectives on L01.
         if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1"
@@ -1941,23 +1939,6 @@ public partial class SpikeWorld : Node2D
 
         if (!placed && _slice.CanAffordStructure(structureId, costMul))
         {
-            // #region agent log
-            CoreDeliveryDebugLog.Write(
-                "C",
-                "SpikeWorld.cs:TryPlaceAt",
-                "place_rejected",
-                new
-                {
-                    tool = _tool.ToString(),
-                    x = cell.X,
-                    y = cell.Y,
-                    dir = _placeDir.ToString(),
-                    structureId,
-                    onCore = _slice.CoreTiles.Contains(cell),
-                    beltCount = _slice.Belts.Count,
-                    runId = "post-fix"
-                });
-            // #endregion
             if (!_draggingPlace)
             {
                 _hud?.ShowToast(_slice.CoreTiles.Contains(cell)
@@ -2011,7 +1992,8 @@ public partial class SpikeWorld : Node2D
     }
 
     /// <summary>
-    /// Debug/bootstrap: miner on starter iron + east belts into Core (verifies Drain path).
+    /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>): miner on starter iron
+    /// + east belts into Core for quick delivery checks.
     /// </summary>
     private void SeedCoreDeliveryLine()
     {
@@ -2045,20 +2027,6 @@ public partial class SpikeWorld : Node2D
         RebuildBeltVisual();
         RebuildBuildingVisuals();
         UpdateHud();
-        // #region agent log
-        CoreDeliveryDebugLog.Write(
-            "C",
-            "SpikeWorld.cs:SeedCoreDeliveryLine",
-            "seeded",
-            new
-            {
-                minerX = minerPos.X,
-                minerY = minerPos.Y,
-                beltCount = _slice.Belts.Count,
-                plates = _slice.Wallet.MaterialCount("iron-plate"),
-                runId = "post-fix"
-            });
-        // #endregion
         GD.Print($"SEED_CORE_LINE: belts={_slice.Belts.Count} miners={_slice.Miners.Count}");
         _hud?.ShowToast($"Seed linea Core · nastro {_slice.Belts.Count}");
     }

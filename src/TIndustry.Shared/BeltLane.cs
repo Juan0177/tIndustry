@@ -134,26 +134,8 @@ public sealed class BeltLane
 
         // Drop off end of belt (consumed / “arrived”)
         var last = cells[^1];
-        if (last.PeekOutput() is { } dropping)
+        if (last.PeekOutput() is not null)
         {
-            // #region agent log
-            if (CoreDeliveryDebugLog.ShouldLogAutoDrop())
-            {
-                CoreDeliveryDebugLog.Write(
-                    "C,E",
-                    "BeltLane.cs:Tick",
-                    "auto_drop_at_end",
-                    new
-                    {
-                        x = last.Position.X,
-                        y = last.Position.Y,
-                        dir = DirectionAt(cells.Count - 1).ToString(),
-                        dropping.ItemId,
-                        dropping.Progress,
-                        cellCount = cells.Count
-                    });
-            }
-            // #endregion
             last.RemoveOutput();
         }
     }

@@ -346,28 +346,6 @@ public sealed class BeltGrid
         // Route through grid TryInsert so bridge start gets 3-side + instant teleport.
         if (!TryInsert(target, item, exit))
         {
-            // #region agent log
-            if (!cells.ContainsKey(target) && item.Progress >= 1f
-                && CoreDeliveryDebugLog.ShouldLogEdgeLeave())
-            {
-                CoreDeliveryDebugLog.Write(
-                    "A,B",
-                    "BeltGrid.cs:TryHandoffTo",
-                    "edge_leave_blocked",
-                    new
-                    {
-                        fromX = cell.Position.X,
-                        fromY = cell.Position.Y,
-                        dir = cell.Direction.ToString(),
-                        exit = exit.ToString(),
-                        targetX = target.X,
-                        targetY = target.Y,
-                        item.ItemId,
-                        item.Progress,
-                        targetOccupiedByBelt = false
-                    });
-            }
-            // #endregion
             return false;
         }
 
