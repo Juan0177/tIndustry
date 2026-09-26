@@ -5,18 +5,29 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-09-26
+
+Parity patch: Godot recupera i gap Raylib (P0–P1) — costi, multi-ricetta, power, tutorial, crumbs mid-game. Zip ufficiali restano **export Godot** (come 0.3.1).
+
 ### Aggiunto / migliorato
 
-- **Godot/Shared**: costi di piazzamento + rimborso come Raylib (`FactorySlice` spende `BuildCost` / rimborsa su remove); sandbox Nuova partita parte con lastre/fili; toast IT se stock insufficiente
-- **Godot/Shared**: forno/assemblatore **multi-ricetta** (auto-pick `smelt-*` / `craft-*` come Raylib) — piombo, titanio, grafite, silicio craftabili
-- **Godot**: palette/place **Nastro T3** (`conveyor-express`) + **Nodo potenza T2** (`power-node-t2`)
-- **Godot/Shared**: **CORE upgrade** (+25% vendite) da `economy.coreUpgrade`, chip HUD, save v5
-- **Godot/Shared**: forno **carbone OR corrente** (Raylib): buffer fuel + burn, craft bloccato senza; **+20%** se alimentato; save v6
-- **Godot/Shared**: **power buffer/capacity** (Raylib thin): core+gen ricarica, spend on craft, soft brownout → forno torna al carbone; HUD `pot. buf/cap`; save v7
-- **Godot**: **tutorial first-run** (8 step IT, Avanti/Salta, persist) + **Impostazioni** (VSync, scala UI, FPS overlay, rivedi tutorial) da Home / tasto I
-- **Shared**: **I/O adiacente** edificio↔edificio/core (Raylib): miner/forno transferiscono senza nastro se i footprint si toccano
-- **Godot/Shared**: **map size da campagna** (`level.MapWidth/Height`, core centrato, clamp 128× per draw Godot); save v8 seed/WxH
-- **Godot**: **Gestione salvataggi** (lista slot, Carica/Elimina/Duplica Continua) da Home
+- **Godot/Shared**: costi di piazzamento + rimborso come Raylib (`FactorySlice` spende `BuildCost` / rimborsa su remove); sandbox Nuova partita parte con lastre/fili; toast IT se stock insufficiente ([#114](https://github.com/Juan0177/tIndustry/pull/114))
+- **Godot/Shared**: forno/assemblatore **multi-ricetta** (auto-pick `smelt-*` / `craft-*` come Raylib) — piombo, titanio, grafite, silicio craftabili ([#115](https://github.com/Juan0177/tIndustry/pull/115))
+- **Godot**: palette/place **Nastro T3** (`conveyor-express`) + **Nodo potenza T2** (`power-node-t2`) ([#116](https://github.com/Juan0177/tIndustry/pull/116))
+- **Godot/Shared**: **CORE upgrade** (+25% vendite) da `economy.coreUpgrade`, chip HUD, save v5 ([#117](https://github.com/Juan0177/tIndustry/pull/117))
+- **Godot/Shared**: forno **carbone OR corrente** (Raylib): buffer fuel + burn, craft bloccato senza; **+20%** se alimentato; save v6 ([#118](https://github.com/Juan0177/tIndustry/pull/118))
+- **Godot/Shared**: **power buffer/capacity** (Raylib thin): core+gen ricarica, spend on craft, soft brownout → forno torna al carbone; HUD `pot. buf/cap`; save v7 ([#119](https://github.com/Juan0177/tIndustry/pull/119))
+- **Godot**: **tutorial first-run** (8 step IT, Avanti/Salta, persist) + **Impostazioni** (VSync, scala UI, FPS overlay, rivedi tutorial) da Home / tasto I ([#120](https://github.com/Juan0177/tIndustry/pull/120))
+- **Shared**: **I/O adiacente** edificio↔edificio/core (Raylib): miner/forno transferiscono senza nastro se i footprint si toccano ([#121](https://github.com/Juan0177/tIndustry/pull/121))
+- **Godot/Shared**: **map size da campagna** (`level.MapWidth/Height`, core centrato, clamp 128× per draw Godot); save v8 seed/WxH ([#122](https://github.com/Juan0177/tIndustry/pull/122))
+- **Godot**: **Gestione salvataggi** (lista slot, Carica/Elimina/Duplica Continua) da Home ([#123](https://github.com/Juan0177/tIndustry/pull/123))
+
+### Come giocare (download)
+
+1. Scarica [`tIndustry-win-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) (o linux)
+2. Estrai → avvia `tIndustry.exe` (Windows) / `tIndustry.x86_64` (Linux)
+
+Da sorgente: `godot4 --path godot` (vedi README).
 
 ## [0.3.1] — 2026-09-26
 
@@ -389,6 +400,7 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.3.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.0
 [0.2.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.2.2
