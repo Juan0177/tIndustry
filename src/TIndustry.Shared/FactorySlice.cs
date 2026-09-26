@@ -1141,17 +1141,13 @@ public sealed class FactorySlice
             return false;
         }
 
-<<<<<<< HEAD
-        smelters.Add(new SmelterStub(
-            origin, direction, recipe, SmelterStub.SmelterBuildingId, recipes));
-=======
         if (!TryChargeBuilding(SmelterStub.SmelterBuildingId))
         {
             return false;
         }
 
-        smelters.Add(new SmelterStub(origin, direction, recipe, SmelterStub.SmelterBuildingId));
->>>>>>> origin/main
+        smelters.Add(new SmelterStub(
+            origin, direction, recipe, SmelterStub.SmelterBuildingId, recipes));
         return true;
     }
 
@@ -1178,17 +1174,13 @@ public sealed class FactorySlice
             return false;
         }
 
-<<<<<<< HEAD
-        assemblers.Add(new SmelterStub(
-            origin, direction, recipe, SmelterStub.AssemblerBuildingId, recipes));
-=======
         if (!TryChargeBuilding(SmelterStub.AssemblerBuildingId))
         {
             return false;
         }
 
-        assemblers.Add(new SmelterStub(origin, direction, recipe, SmelterStub.AssemblerBuildingId));
->>>>>>> origin/main
+        assemblers.Add(new SmelterStub(
+            origin, direction, recipe, SmelterStub.AssemblerBuildingId, recipes));
         return true;
     }
 
