@@ -3030,8 +3030,11 @@ public sealed class FactorySlice
             Assert(slice.Terrain is not null, "terrain generated");
             Assert(slice.Terrain!.Seed == l01.Seed, "terrain seed");
             var (expectW, expectH) = ResolveCampaignMapSize(l01);
+            Assert(expectW == 1000 && expectH == 1000, "campaign L01 is 1000×1000");
             Assert(slice.Terrain.Width == expectW && slice.Terrain.Height == expectH,
                 $"campaign map size {expectW}×{expectH}");
+            var sandboxBig = CreateSandboxSlice(content, CenteredCoreOrigin(1000, 1000));
+            Assert(sandboxBig.Terrain is { Width: 1000, Height: 1000 }, "sandbox default 1000²");
             var coreOrigin = CenteredCoreOrigin(expectW, expectH);
             Assert(slice.CoreTiles.Contains(coreOrigin), "core centered");
             var hasIron = false;
