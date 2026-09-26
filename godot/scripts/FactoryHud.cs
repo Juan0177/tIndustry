@@ -14,6 +14,7 @@ public partial class FactoryHud : Control
         Cursor,
         Belt,
         BeltFast,
+        BeltExpress,
         Miner,
         MinerAdvanced,
         Smelter,
@@ -24,7 +25,8 @@ public partial class FactoryHud : Control
         Sorter,
         Bridge,
         Extractor,
-        PowerNode
+        PowerNode,
+        PowerNodeT2
     }
 
     private enum BuildCategory
@@ -66,6 +68,8 @@ public partial class FactoryHud : Control
             "Nastro T1 · flusso unidirezionale · R/rotella"),
         new(ToolKind.BeltFast, "conveyor-fast", "res://assets/conveyor-fast.png", "",
             "Nastro T2 · più veloce · sblocca in Ricerca"),
+        new(ToolKind.BeltExpress, "conveyor-express", "res://assets/conveyor-fast.png", "",
+            "Nastro T3 · max velocità · sblocca in Ricerca"),
         new(ToolKind.Junction, "junction", "res://assets/junction.png", "5",
             "Incrocio a croce"),
         new(ToolKind.Splitter, "splitter", "res://assets/splitter.png", "6",
@@ -95,7 +99,9 @@ public partial class FactoryHud : Control
         new(ToolKind.Generator, "generator", "res://assets/generator.png", "7",
             "Brucia carbone per energia · 2×2"),
         new(ToolKind.PowerNode, "power-node", "res://assets/power-node.png", "",
-            "Nodo T1 · raggio 6 · collega generatore ↔ forno")
+            "Nodo T1 · raggio 6 · collega generatore ↔ forno"),
+        new(ToolKind.PowerNodeT2, "power-node-t2", "res://assets/power-node-t2.png", "",
+            "Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca")
     ];
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
@@ -1482,11 +1488,11 @@ public partial class FactoryHud : Control
     private static BuildCategory CategoryFor(ToolKind tool) => tool switch
     {
         ToolKind.Cursor => BuildCategory.Tools,
-        ToolKind.Belt or ToolKind.BeltFast or ToolKind.Junction or ToolKind.Splitter or ToolKind.Sorter or ToolKind.Bridge
+        ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.Junction or ToolKind.Splitter or ToolKind.Sorter or ToolKind.Bridge
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             => BuildCategory.Production,
-        ToolKind.Generator or ToolKind.PowerNode => BuildCategory.Power,
+        ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 => BuildCategory.Power,
         _ => BuildCategory.Logistics
     };
 
@@ -1515,6 +1521,7 @@ public partial class FactoryHud : Control
         ToolKind.Cursor => "Cursore",
         ToolKind.Belt => "Nastro",
         ToolKind.BeltFast => "Nastro T2",
+        ToolKind.BeltExpress => "Nastro T3",
         ToolKind.Miner => "Minatore",
         ToolKind.MinerAdvanced => "Minatore T2",
         ToolKind.Smelter => "Forno",
@@ -1526,6 +1533,7 @@ public partial class FactoryHud : Control
         ToolKind.Bridge => "Ponte",
         ToolKind.Extractor => "Estrattore",
         ToolKind.PowerNode => "Nodo potenza",
+        ToolKind.PowerNodeT2 => "Nodo T2",
         _ => tool.ToString()
     };
 
@@ -1536,6 +1544,7 @@ public partial class FactoryHud : Control
     {
         ToolKind.Belt => "conveyor-basic",
         ToolKind.BeltFast => "conveyor-fast",
+        ToolKind.BeltExpress => "conveyor-express",
         ToolKind.Miner => "miner",
         ToolKind.MinerAdvanced => "miner-advanced",
         ToolKind.Smelter => "smelter",
@@ -1547,6 +1556,7 @@ public partial class FactoryHud : Control
         ToolKind.Bridge => "conveyor-bridge",
         ToolKind.Extractor => "extractor",
         ToolKind.PowerNode => "power-node",
+        ToolKind.PowerNodeT2 => "power-node-t2",
         _ => "conveyor-basic"
     };
 }

@@ -830,6 +830,7 @@ public sealed class FactorySlice
     {
         "belt" => "conveyor-basic",
         "belt-fast" => "conveyor-fast",
+        "belt-express" => "conveyor-express",
         "miner" => "miner",
         "miner-advanced" => "miner-advanced",
         "smelter" => "smelter",
@@ -841,6 +842,7 @@ public sealed class FactorySlice
         "bridge" => "conveyor-bridge",
         "extractor" => "extractor",
         "power-node" => "power-node",
+        "power-node-t2" => "power-node-t2",
         _ => null
     };
 
@@ -1657,7 +1659,7 @@ public sealed class FactorySlice
         throw new InvalidOperationException("Placeable belt self-test: nessun item al core.");
     }
 
-    /// <summary>T2 belt/miner + extractor + power-node place APIs.</summary>
+    /// <summary>T2/T3 belt/miner + extractor + power-node T1/T2 place APIs.</summary>
     public static void SelfTestT2Tools(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
@@ -1665,27 +1667,37 @@ public sealed class FactorySlice
         var slice = new FactorySlice(content, new BeltGrid(), core);
         slice.EnsureDemoBuildStock();
         slice.Research.ForceUnlock("conveyor-fast");
+        slice.Research.ForceUnlock("conveyor-express");
         slice.Research.ForceUnlock("miner-advanced");
         slice.Research.ForceUnlock("extractor");
         slice.Research.ForceUnlock("power-node");
+        slice.Research.ForceUnlock("power-node-t2");
 
         Assert(slice.TryPlaceBelt(new GridPosition(3, 8), Direction.East, "conveyor-fast"), "belt T2");
         Assert(slice.Belts.TryGet(new GridPosition(3, 8), out var fast)
             && fast.Definition.Id == "conveyor-fast", "belt T2 def");
+        Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East, "conveyor-express"), "belt T3");
+        Assert(slice.Belts.TryGet(new GridPosition(4, 8), out var express)
+            && express.Definition.Id == "conveyor-express", "belt T3 def");
         Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
             "miner T2");
         Assert(slice.Miners.Any(m => m.DefinitionId == MinerProducer.AdvancedId), "miner T2 list");
         Assert(slice.TryPlaceExtractor(new GridPosition(8, 14), Direction.North), "extractor");
         Assert(slice.TryPlacePowerNode(new GridPosition(11, 12)), "power-node");
-        Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 1, "counts");
+        Assert(slice.TryPlacePowerNode(new GridPosition(14, 12), PowerNodeStub.Tier2Id), "power-node-t2");
+        Assert(slice.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id && n.Size == 2), "T2 size");
+        Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 2, "counts");
 
         var snap = slice.Capture();
-        Assert(snap.Extractors.Count == 1 && snap.PowerNodes.Count == 1, "capture");
+        Assert(snap.Extractors.Count == 1 && snap.PowerNodes.Count == 2, "capture");
         var restored = Restore(content, snap);
         Assert(restored.Extractors.Count == 1, "restore extractor");
-        Assert(restored.PowerNodes.Count == 1, "restore node");
+        Assert(restored.PowerNodes.Count == 2, "restore nodes");
+        Assert(restored.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id), "restore T2");
         Assert(restored.Belts.TryGet(new GridPosition(3, 8), out var rf)
             && rf.Definition.Id == "conveyor-fast", "restore belt T2");
+        Assert(restored.Belts.TryGet(new GridPosition(4, 8), out var re)
+            && re.Definition.Id == "conveyor-express", "restore belt T3");
     }
 
     /// <summary>Phase C: ore through forno yields iron-plate in core stock.</summary>

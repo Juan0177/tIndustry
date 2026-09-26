@@ -23,6 +23,7 @@ public partial class SpikeWorld : Node2D
         Cursor,
         Belt,
         BeltFast,
+        BeltExpress,
         Miner,
         MinerAdvanced,
         Smelter,
@@ -33,7 +34,8 @@ public partial class SpikeWorld : Node2D
         Sorter,
         Bridge,
         Extractor,
-        PowerNode
+        PowerNode,
+        PowerNodeT2
     }
 
     private FactorySlice? _slice;
@@ -581,6 +583,7 @@ public partial class SpikeWorld : Node2D
         {
             FactoryHud.ToolKind.Belt,
             FactoryHud.ToolKind.BeltFast,
+            FactoryHud.ToolKind.BeltExpress,
             FactoryHud.ToolKind.Miner,
             FactoryHud.ToolKind.MinerAdvanced,
             FactoryHud.ToolKind.Smelter,
@@ -591,7 +594,8 @@ public partial class SpikeWorld : Node2D
             FactoryHud.ToolKind.Sorter,
             FactoryHud.ToolKind.Bridge,
             FactoryHud.ToolKind.Extractor,
-            FactoryHud.ToolKind.PowerNode
+            FactoryHud.ToolKind.PowerNode,
+            FactoryHud.ToolKind.PowerNodeT2
         };
         _hud.SetToolsLocked(tools.Select(t =>
             (t, !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(t)))));
@@ -721,8 +725,10 @@ public partial class SpikeWorld : Node2D
         BuildTool.Bridge => FactoryHud.ToolKind.Bridge,
         BuildTool.Belt => FactoryHud.ToolKind.Belt,
         BuildTool.BeltFast => FactoryHud.ToolKind.BeltFast,
+        BuildTool.BeltExpress => FactoryHud.ToolKind.BeltExpress,
         BuildTool.Extractor => FactoryHud.ToolKind.Extractor,
         BuildTool.PowerNode => FactoryHud.ToolKind.PowerNode,
+        BuildTool.PowerNodeT2 => FactoryHud.ToolKind.PowerNodeT2,
         _ => FactoryHud.ToolKind.Cursor
     };
 
@@ -740,8 +746,10 @@ public partial class SpikeWorld : Node2D
         FactoryHud.ToolKind.Bridge => BuildTool.Bridge,
         FactoryHud.ToolKind.Belt => BuildTool.Belt,
         FactoryHud.ToolKind.BeltFast => BuildTool.BeltFast,
+        FactoryHud.ToolKind.BeltExpress => BuildTool.BeltExpress,
         FactoryHud.ToolKind.Extractor => BuildTool.Extractor,
         FactoryHud.ToolKind.PowerNode => BuildTool.PowerNode,
+        FactoryHud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
         _ => BuildTool.Cursor
     };
 
@@ -750,6 +758,7 @@ public partial class SpikeWorld : Node2D
         BuildTool.Cursor => "Cursore",
         BuildTool.Belt => "Nastro",
         BuildTool.BeltFast => "Nastro T2",
+        BuildTool.BeltExpress => "Nastro T3",
         BuildTool.Miner => "Minatore",
         BuildTool.MinerAdvanced => "Minatore T2",
         BuildTool.Smelter => "Forno",
@@ -761,6 +770,7 @@ public partial class SpikeWorld : Node2D
         BuildTool.Bridge => "Ponte",
         BuildTool.Extractor => "Estrattore",
         BuildTool.PowerNode => "Nodo potenza",
+        BuildTool.PowerNodeT2 => "Nodo T2",
         _ => "?"
     };
 
@@ -957,7 +967,7 @@ public partial class SpikeWorld : Node2D
                         return;
                     }
 
-                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.BeltFast
+                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
                         or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter;
                     TryPlaceAt(cell);
                     GetViewport().SetInputAsHandled();
@@ -990,7 +1000,7 @@ public partial class SpikeWorld : Node2D
                 QueueRedraw();
             }
 
-            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.BeltFast
+            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
                 or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter)
             {
                 TryPlaceAt(cell);
@@ -1167,6 +1177,7 @@ public partial class SpikeWorld : Node2D
             BuildTool.Assembler => SmelterStub.Size,
             BuildTool.Generator => GeneratorStub.Size,
             BuildTool.PowerNode => 1,
+            BuildTool.PowerNodeT2 => 2,
             BuildTool.Extractor => ExtractorStub.Size,
             _ => 1
         };
@@ -1193,7 +1204,8 @@ public partial class SpikeWorld : Node2D
             }
         }
 
-        if (_tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.Junction or BuildTool.Splitter
+        if (_tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
+            or BuildTool.Junction or BuildTool.Splitter
             or BuildTool.Sorter or BuildTool.Bridge or BuildTool.Extractor)
         {
             DrawDirectionHint(hover, _placeDir);
@@ -1286,6 +1298,14 @@ public partial class SpikeWorld : Node2D
                 }
 
                 break;
+            case BuildTool.BeltExpress:
+                placed = _slice.TryPlaceBelt(cell, _placeDir, "conveyor-express");
+                if (placed)
+                {
+                    _visualDirty = true;
+                }
+
+                break;
             case BuildTool.Miner:
                 placed = _slice.TryPlaceMiner(cell, _placeDir);
                 if (placed)
@@ -1368,6 +1388,14 @@ public partial class SpikeWorld : Node2D
                 break;
             case BuildTool.PowerNode:
                 placed = _slice.TryPlacePowerNode(cell);
+                if (placed)
+                {
+                    _buildingsDirty = true;
+                }
+
+                break;
+            case BuildTool.PowerNodeT2:
+                placed = _slice.TryPlacePowerNode(cell, PowerNodeStub.Tier2Id);
                 if (placed)
                 {
                     _buildingsDirty = true;
