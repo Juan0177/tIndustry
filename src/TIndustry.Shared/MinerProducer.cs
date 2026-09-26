@@ -136,12 +136,21 @@ public sealed class MinerProducer
         return false;
     }
 
-    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId, bool powered = false)
+    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId, bool powered = false,
+        Func<string, bool>? tryDeliverAdjacent = null)
     {
         IsPowered = powered && CanReceivePower;
         if (!AdvanceToReady(deltaSeconds))
         {
             return false;
+        }
+
+        // Prefer footprint-touch transfer (Raylib parity) before belt eject.
+        if (tryDeliverAdjacent?.Invoke(OutputItemId) == true)
+        {
+            ItemsProduced++;
+            Progress = 0f;
+            return true;
         }
 
         var start = EjectIndex;
