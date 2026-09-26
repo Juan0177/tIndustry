@@ -54,6 +54,7 @@ public partial class SpikeWorld : Node2D
     private CampaignSelectPanel? _campaignSelect;
     private SettingsPanel? _settingsPanel;
     private TutorialPanel? _tutorial;
+    private SavesPanel? _saves;
     private ClientSettings _settings = new();
     private Label? _fpsLabel;
     private CampaignCatalog? _campaign;
@@ -98,6 +99,7 @@ public partial class SpikeWorld : Node2D
         EnsureCampaignSelectPanel();
         EnsureSettingsPanel();
         EnsureTutorialPanel();
+        EnsureSavesPanel();
         EnsureHomePanel();
         EnsureFpsOverlay();
         EnsureBuildingsLayer();
@@ -369,8 +371,45 @@ public partial class SpikeWorld : Node2D
         _home.ContinuaChosen += OnHomeContinua;
         _home.CampaignChosen += OnHomeCampaign;
         _home.NewGameChosen += OnHomeNewGame;
+        _home.SavesChosen += OpenSavesManager;
         _home.SettingsChosen += OpenSettings;
         _home.QuitChosen += () => GetTree().Quit();
+    }
+
+    private void EnsureSavesPanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("SavesPanel"))
+        {
+            _saves = layer.GetNode<SavesPanel>("SavesPanel");
+        }
+        else
+        {
+            _saves = new SavesPanel { Name = "SavesPanel" };
+            layer.AddChild(_saves);
+        }
+
+        layer.MoveChild(_saves, layer.GetChildCount() - 1);
+        _saves.SlotLoadRequested += OnSavesSlotLoad;
+        _saves.Closed += () => _home?.Open();
+    }
+
+    private void OpenSavesManager()
+    {
+        _home?.Close();
+        _research?.Close();
+        _mercato?.Close();
+        _campaignSelect?.Close();
+        _settingsPanel?.Close();
+        _saves?.Open();
+    }
+
+    private void OnSavesSlotLoad(string slotId)
+    {
+        LoadSlice(slotId, $"Caricato · {slotId}");
+        _saves?.Close();
+        _home?.Close();
+        BeginTutorialIfNeeded();
     }
 
     private void EnsureSettingsPanel()
@@ -935,6 +974,11 @@ public partial class SpikeWorld : Node2D
     public override void _UnhandledInput(InputEvent @event)
     {
         if (_tutorial?.IsOpen == true)
+        {
+            return;
+        }
+
+        if (_saves?.IsOpen == true)
         {
             return;
         }

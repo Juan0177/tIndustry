@@ -21,6 +21,7 @@ public partial class HomePanel : Control
     public event Action? ContinuaChosen;
     public event Action? CampaignChosen;
     public event Action? NewGameChosen;
+    public event Action? SavesChosen;
     public event Action? SettingsChosen;
     public event Action? QuitChosen;
 
@@ -88,9 +89,9 @@ public partial class HomePanel : Control
         var card = new PanelContainer { Name = "HomeCard" };
         card.SetAnchorsPreset(LayoutPreset.Center);
         card.OffsetLeft = -220;
-        card.OffsetTop = -230;
+        card.OffsetTop = -260;
         card.OffsetRight = 220;
-        card.OffsetBottom = 230;
+        card.OffsetBottom = 260;
         card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
         {
             BgColor = CardBg,
@@ -138,6 +139,7 @@ public partial class HomePanel : Control
         root.AddChild(_continuaBtn);
         root.AddChild(MakeMenuButton("Campagna", () => CampaignChosen?.Invoke()));
         root.AddChild(MakeMenuButton("Nuova partita", () => NewGameChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("Gestione salvataggi", () => SavesChosen?.Invoke()));
         root.AddChild(MakeMenuButton("Impostazioni", () => SettingsChosen?.Invoke()));
         root.AddChild(MakeMenuButton("Esci", () => QuitChosen?.Invoke()));
 
