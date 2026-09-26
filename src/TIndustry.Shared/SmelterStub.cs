@@ -237,7 +237,8 @@ public sealed class SmelterStub
         ref long nextItemId,
         bool networkConnected = false,
         Func<float, bool>? trySpendPower = null,
-        float powerDrawPerSecond = 0f)
+        float powerDrawPerSecond = 0f,
+        Func<string, bool>? tryDeliverAdjacent = null)
     {
         AcceptFromBelts(belts);
 
@@ -294,7 +295,30 @@ public sealed class SmelterStub
             }
         }
 
-        EmitToBelts(belts, ref nextItemId);
+        EmitOutputs(belts, ref nextItemId, tryDeliverAdjacent);
+    }
+
+    private void EmitOutputs(
+        BeltGrid belts,
+        ref long nextItemId,
+        Func<string, bool>? tryDeliverAdjacent)
+    {
+        while (outputQueue.Count > 0)
+        {
+            var itemId = outputQueue.Peek();
+            if (tryDeliverAdjacent?.Invoke(itemId) == true)
+            {
+                outputQueue.Dequeue();
+                continue;
+            }
+
+            if (!TryInsertOutward(belts, itemId, ref nextItemId))
+            {
+                return;
+            }
+
+            outputQueue.Dequeue();
+        }
     }
 
     /// <summary>Burns coal; true while forno can craft on carbone this tick.</summary>
@@ -386,20 +410,6 @@ public sealed class SmelterStub
         IsCrafting = true;
         Progress = 0f;
         return true;
-    }
-
-    private void EmitToBelts(BeltGrid belts, ref long nextItemId)
-    {
-        while (outputQueue.Count > 0)
-        {
-            var itemId = outputQueue.Peek();
-            if (!TryInsertOutward(belts, itemId, ref nextItemId))
-            {
-                return;
-            }
-
-            outputQueue.Dequeue();
-        }
     }
 
     private bool TryInsertOutward(BeltGrid belts, string itemId, ref long nextItemId)
