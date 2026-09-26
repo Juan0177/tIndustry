@@ -373,7 +373,20 @@ public partial class SpikeWorld : Node2D
         _home.NewGameChosen += OnHomeNewGame;
         _home.SavesChosen += OpenSavesManager;
         _home.SettingsChosen += OpenSettings;
-        _home.QuitChosen += () => GetTree().Quit();
+        _home.QuitChosen += () =>
+        {
+            AutoSaveContinue(quiet: true);
+            GetTree().Quit();
+        };
+    }
+
+    public override void _Notification(int what)
+    {
+        // Raylib parity: persist Continua when the window closes mid-session.
+        if (what == NotificationWMCloseRequest)
+        {
+            AutoSaveContinue(quiet: true);
+        }
     }
 
     private void EnsureSavesPanel()
@@ -391,6 +404,7 @@ public partial class SpikeWorld : Node2D
 
         layer.MoveChild(_saves, layer.GetChildCount() - 1);
         _saves.SlotLoadRequested += OnSavesSlotLoad;
+        _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
     }
 
@@ -410,6 +424,43 @@ public partial class SpikeWorld : Node2D
         _saves?.Close();
         _home?.Close();
         BeginTutorialIfNeeded();
+    }
+
+    private void OnSavesSaveAs()
+    {
+        if (_slice is null)
+        {
+            _hud?.ShowToast("Nessuna partita attiva da salvare");
+            return;
+        }
+
+        var id = FactorySliceSaveStore.CreateSlotId();
+        SaveSlice(id, $"Salvato come {id}");
+        _saves?.NotifySavedAs(id);
+    }
+
+    /// <summary>Raylib AutoSaveContinue: write live slice to Continua when leaving play.</summary>
+    private void AutoSaveContinue(bool quiet = false)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        try
+        {
+            FactorySliceSaveStore.Save(FactorySliceSaveStore.ContinueSlotId, _slice.Capture());
+            if (!quiet)
+            {
+                _hud?.ShowToast("Continua aggiornata");
+            }
+
+            GD.Print($"Autosave Continua → {FactorySliceSaveStore.SlotPath(FactorySliceSaveStore.ContinueSlotId)}");
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"Autosave failed: {ex.Message}");
+        }
     }
 
     private void EnsureSettingsPanel()
@@ -1041,7 +1092,8 @@ public partial class SpikeWorld : Node2D
                 }
                 else if (key.Keycode == Key.Escape)
                 {
-                    // Raylib parity: Esc from cursor → Home.
+                    // Raylib parity: autosave Continua then Esc → Home.
+                    AutoSaveContinue(quiet: true);
                     _home?.Open();
                 }
                 else

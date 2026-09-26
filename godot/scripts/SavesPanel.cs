@@ -4,26 +4,28 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Gestione salvataggi (Raylib thin): lista slot, Carica / Elimina / Duplica Continua.
+/// Gestione salvataggi (Raylib parity): lista slot, Carica / Elimina (confirm) /
+/// Duplica Continua / Salva come / tastiera ↑↓.
 /// </summary>
 public partial class SavesPanel : Control
 {
     private static readonly Color Dim = new(0.04f, 0.05f, 0.05f, 0.82f);
     private static readonly Color CardBg = new(0.08f, 0.10f, 0.11f, 0.96f);
     private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
     private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-    private static readonly Color RowBg = new(0.16f, 0.18f, 0.17f, 1f);
-    private static readonly Color RowSelected = new(0.28f, 0.26f, 0.14f, 1f);
 
     private VBoxContainer? _list;
     private Label? _hint;
     private Label? _status;
+    private Button? _deleteButton;
     private string? _selectedId;
     private string? _deleteArmedId;
+    private IReadOnlyList<SaveSlotInfo> _slots = [];
 
     public event Action? Closed;
     public event Action<string>? SlotLoadRequested;
+    /// <summary>Request a live-session snapshot into a new timestamped slot (Salva come).</summary>
+    public event Action? SaveAsRequested;
 
     public override void _Ready()
     {
@@ -57,9 +59,33 @@ public partial class SavesPanel : Control
             return;
         }
 
-        if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
+        {
+            return;
+        }
+
+        if (key.Keycode == Key.Escape)
         {
             Close();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (_slots.Count == 0)
+        {
+            return;
+        }
+
+        if (key.Keycode is Key.Up or Key.Down)
+        {
+            MoveSelection(key.Keycode == Key.Down ? 1 : -1);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (key.Keycode == Key.Enter || key.Keycode == Key.KpEnter)
+        {
+            OnLoadPressed();
             GetViewport().SetInputAsHandled();
         }
     }
@@ -72,10 +98,10 @@ public partial class SavesPanel : Control
 
         var card = new PanelContainer { Name = "SavesCard" };
         card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -340;
-        card.OffsetTop = -280;
-        card.OffsetRight = 340;
-        card.OffsetBottom = 280;
+        card.OffsetLeft = -380;
+        card.OffsetTop = -300;
+        card.OffsetRight = 380;
+        card.OffsetBottom = 300;
         card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
         {
             BgColor = CardBg,
@@ -110,7 +136,7 @@ public partial class SavesPanel : Control
 
         _hint = new Label
         {
-            Text = "Seleziona uno slot · Carica / Elimina · Duplica Continua crea una copia.",
+            Text = "↑↓ seleziona · Invio carica · Elimina (due click) · Duplica Continua · Salva come.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -120,7 +146,7 @@ public partial class SavesPanel : Control
 
         var scroll = new ScrollContainer
         {
-            CustomMinimumSize = new Vector2(0, 280),
+            CustomMinimumSize = new Vector2(0, 300),
             SizeFlagsVertical = SizeFlags.ExpandFill
         };
         root.AddChild(scroll);
@@ -140,8 +166,10 @@ public partial class SavesPanel : Control
         root.AddChild(actions);
 
         actions.AddChild(MakeAction("Carica", OnLoadPressed));
-        actions.AddChild(MakeAction("Elimina", OnDeletePressed));
+        _deleteButton = MakeAction("Elimina", OnDeletePressed);
+        actions.AddChild(_deleteButton);
         actions.AddChild(MakeAction("Duplica Continua", OnDuplicateContinua));
+        actions.AddChild(MakeAction("Salva come", OnSaveAsPressed));
         actions.AddChild(MakeAction("Indietro", Close));
     }
 
@@ -157,6 +185,32 @@ public partial class SavesPanel : Control
         return btn;
     }
 
+    private void MoveSelection(int delta)
+    {
+        if (_slots.Count == 0)
+        {
+            return;
+        }
+
+        var idx = 0;
+        if (!string.IsNullOrWhiteSpace(_selectedId))
+        {
+            for (var i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].Id == _selectedId)
+                {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+
+        idx = (idx + delta + _slots.Count) % _slots.Count;
+        _selectedId = _slots[idx].Id;
+        _deleteArmedId = null;
+        Refresh();
+    }
+
     private void Refresh()
     {
         if (_list is null)
@@ -169,12 +223,12 @@ public partial class SavesPanel : Control
             child.QueueFree();
         }
 
-        var slots = FactorySliceSaveStore.ListSlots();
-        if (slots.Count == 0)
+        _slots = FactorySliceSaveStore.ListSlots();
+        if (_slots.Count == 0)
         {
             var empty = new Label
             {
-                Text = "Nessun salvataggio. Usa F5 in partita o Continua dopo la prima sessione.",
+                Text = "Nessun salvataggio. F5 in partita, Continua, o Salva come dopo la prima sessione.",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -185,16 +239,23 @@ public partial class SavesPanel : Control
                 _status.Text = "";
             }
 
+            SyncDeleteButton();
             return;
         }
 
-        foreach (var slot in slots)
+        if (string.IsNullOrWhiteSpace(_selectedId)
+            || !_slots.Any(s => s.Id == _selectedId))
+        {
+            _selectedId = _slots[0].Id;
+        }
+
+        foreach (var slot in _slots)
         {
             var id = slot.Id;
             var row = new Button
             {
                 Text = FormatRow(slot),
-                CustomMinimumSize = new Vector2(0, 40),
+                CustomMinimumSize = new Vector2(0, 42),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Alignment = HorizontalAlignment.Left
             };
@@ -210,12 +271,24 @@ public partial class SavesPanel : Control
 
         if (_status is not null)
         {
-            _status.Text = _selectedId is null
-                ? $"{slots.Count} slot"
-                : _deleteArmedId == _selectedId
-                    ? $"Conferma Elimina su «{_selectedId}»"
-                    : $"Selezionato: {_selectedId}";
+            _status.Text = _deleteArmedId == _selectedId
+                ? $"Conferma Elimina su «{_selectedId}»"
+                : $"Selezionato: {_selectedId} · {_slots.Count} slot";
         }
+
+        SyncDeleteButton();
+    }
+
+    private void SyncDeleteButton()
+    {
+        if (_deleteButton is null)
+        {
+            return;
+        }
+
+        _deleteButton.Text = _deleteArmedId is not null && _deleteArmedId == _selectedId
+            ? "Conferma elimina"
+            : "Elimina";
     }
 
     private static string FormatRow(SaveSlotInfo slot)
@@ -225,12 +298,13 @@ public partial class SavesPanel : Control
             ? "sandbox"
             : slot.ActiveCampaignLevelId;
         var label = slot.Id == FactorySliceSaveStore.ContinueSlotId
-            ? "Continua"
+            ? "Continua (salvataggio automatico)"
             : slot.Id;
         var map = slot.MapWidth > 0 && slot.MapHeight > 0
             ? $"  ·  {slot.MapWidth}×{slot.MapHeight}"
             : "";
-        return $"{label}  ·  ${slot.Money}  ·  {campaign}{map}  ·  {when}";
+        var seed = slot.Seed != 0 ? $"  ·  seed {slot.Seed}" : "";
+        return $"{label}  ·  ${slot.Money}{seed}{map}  ·  {campaign}  ·  {when}";
     }
 
     private void OnLoadPressed()
@@ -295,6 +369,23 @@ public partial class SavesPanel : Control
         if (_status is not null)
         {
             _status.Text = $"Creato {id}";
+        }
+    }
+
+    private void OnSaveAsPressed()
+    {
+        SaveAsRequested?.Invoke();
+    }
+
+    /// <summary>Called by SpikeWorld after a successful Salva come snapshot.</summary>
+    public void NotifySavedAs(string slotId)
+    {
+        _selectedId = slotId;
+        _deleteArmedId = null;
+        Refresh();
+        if (_status is not null)
+        {
+            _status.Text = $"Salvato come {slotId}";
         }
     }
 }

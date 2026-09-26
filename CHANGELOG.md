@@ -5,6 +5,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Aggiunto / migliorato
+
+- **Godot**: Gestione salvataggi full — autosave Continua (Esc/Home/Esci), Salva come, seed in lista, ↑↓, Conferma elimina
+
 ## [0.3.2] — 2026-09-26
 
 Parity patch: Godot recupera i gap Raylib (P0–P1) — costi, multi-ricetta, power, tutorial, crumbs mid-game. Zip ufficiali restano **export Godot** (come 0.3.1).
