@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto / migliorato
 
+- **Godot/Shared**: costi di piazzamento + rimborso come Raylib (`FactorySlice` spende `BuildCost` / rimborsa su remove); sandbox Nuova partita parte con lastre/fili; toast IT se stock insufficiente
 - **Godot/Shared**: forno/assemblatore **multi-ricetta** (auto-pick `smelt-*` / `craft-*` come Raylib) — piombo, titanio, grafite, silicio craftabili
 
 ## [0.3.1] — 2026-09-26

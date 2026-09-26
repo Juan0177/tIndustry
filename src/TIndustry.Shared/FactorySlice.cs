@@ -654,6 +654,9 @@ public sealed class FactorySlice
         {
             Research.ForceUnlock(id);
         }
+
+        // Seed layouts call TryPlace* (now charged) — stock enough for demo footprints.
+        EnsureDemoBuildStock();
     }
 
     public bool IsStructureUnlocked(string structureId) => Research.IsUnlocked(structureId);
@@ -727,7 +730,14 @@ public sealed class FactorySlice
         int startingMoney = 180)
     {
         var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
-        var wallet = new EconomyWallet(startingMoney);
+        // Parity with Raylib CreateStartingWallet: plates/wire so first place isn't free-or-impossible.
+        var wallet = new EconomyWallet(
+            startingMoney,
+            new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                ["iron-plate"] = 48,
+                ["copper-wire"] = 10
+            });
         var session = new EconomySession(startingMoney);
         var research = ResearchState.CreateNew(content);
         var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
@@ -774,6 +784,168 @@ public sealed class FactorySlice
 
     private bool RequireUnlocked(string structureId) => Research.IsUnlocked(structureId);
 
+    /// <summary>True if wallet covers money + materials for a structure (bridge = ×2 heads).</summary>
+    public bool CanAffordStructure(string structureId, int multiplicity = 1)
+    {
+        multiplicity = Math.Max(1, multiplicity);
+        if (Content.FindBuilding(structureId) is { } building)
+        {
+            return Wallet.CanAfford(
+                building.MoneyCost * multiplicity,
+                ScaleAmounts(building.BuildCost, multiplicity));
+        }
+
+        if (Content.FindConveyor(structureId) is { } conveyor)
+        {
+            return Wallet.CanAfford(
+                conveyor.MoneyCost * multiplicity,
+                ScaleAmounts(conveyor.EffectiveBuildCost, multiplicity));
+        }
+
+        return true;
+    }
+
+    /// <summary>Italian shortfall hint for toast / HUD (empty when affordable).</summary>
+    public string FormatNeedMessage(string structureId, int multiplicity = 1)
+    {
+        multiplicity = Math.Max(1, multiplicity);
+        int money;
+        IReadOnlyList<ResourceAmount> mats;
+        if (Content.FindBuilding(structureId) is { } building)
+        {
+            money = building.MoneyCost * multiplicity;
+            mats = ScaleAmounts(building.BuildCost, multiplicity);
+        }
+        else if (Content.FindConveyor(structureId) is { } conveyor)
+        {
+            money = conveyor.MoneyCost * multiplicity;
+            mats = ScaleAmounts(conveyor.EffectiveBuildCost, multiplicity);
+        }
+        else
+        {
+            return "";
+        }
+
+        if (Wallet.CanAfford(money, mats))
+        {
+            return "";
+        }
+
+        var parts = new List<string>();
+        if (Wallet.Money < money)
+        {
+            parts.Add($"${money - Wallet.Money}");
+        }
+
+        foreach (var entry in mats)
+        {
+            var have = Wallet.MaterialCount(entry.ItemId);
+            if (have < entry.Amount)
+            {
+                var name = Content.DisplayName(entry.ItemId);
+                parts.Add($"{entry.Amount - have}× {name}");
+            }
+        }
+
+        return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
+    }
+
+    private bool TryCharge(int money, IReadOnlyList<ResourceAmount> materials) =>
+        Wallet.TrySpend(money, materials);
+
+    private void Refund(int money, IReadOnlyList<ResourceAmount> materials, int refundPercent = 100)
+    {
+        var pct = Math.Clamp(refundPercent, 0, 100);
+        if (pct <= 0)
+        {
+            return;
+        }
+
+        Wallet.AddMoney(money * pct / 100);
+        foreach (var entry in materials)
+        {
+            var amount = entry.Amount * pct / 100;
+            if (amount > 0)
+            {
+                Wallet.AddMaterial(entry.ItemId, amount);
+            }
+        }
+    }
+
+    private bool TryChargeConveyor(ConveyorDefinition def, int multiplicity = 1)
+    {
+        multiplicity = Math.Max(1, multiplicity);
+        return TryCharge(
+            def.MoneyCost * multiplicity,
+            ScaleAmounts(def.EffectiveBuildCost, multiplicity));
+    }
+
+    private void RefundConveyor(ConveyorDefinition def, int multiplicity = 1) =>
+        Refund(
+            def.MoneyCost * Math.Max(1, multiplicity),
+            ScaleAmounts(def.EffectiveBuildCost, Math.Max(1, multiplicity)),
+            refundPercent: 100);
+
+    private bool TryChargeBuilding(string buildingId)
+    {
+        var cost = Content.FindBuilding(buildingId);
+        return cost is null || TryCharge(cost.MoneyCost, cost.BuildCost);
+    }
+
+    private void RefundBuilding(string buildingId)
+    {
+        var cost = Content.FindBuilding(buildingId);
+        if (cost is null)
+        {
+            return;
+        }
+
+        Refund(cost.MoneyCost, cost.BuildCost, cost.RefundPercent);
+    }
+
+    private static IReadOnlyList<ResourceAmount> ScaleAmounts(
+        IReadOnlyList<ResourceAmount> amounts, int multiplicity)
+    {
+        if (multiplicity == 1 || amounts.Count == 0)
+        {
+            return amounts;
+        }
+
+        var scaled = new ResourceAmount[amounts.Count];
+        for (var i = 0; i < amounts.Count; i++)
+        {
+            scaled[i] = new ResourceAmount(amounts[i].ItemId, amounts[i].Amount * multiplicity);
+        }
+
+        return scaled;
+    }
+
+    /// <summary>Demo / self-test stock so seed layouts can place without a prior Mercato loop.</summary>
+    public void EnsureDemoBuildStock(
+        int ironPlates = 200,
+        int copperWire = 80,
+        int copperOre = 40,
+        int money = 0)
+    {
+        void TopUp(string itemId, int target)
+        {
+            var need = Math.Max(0, target - Wallet.MaterialCount(itemId));
+            if (need > 0)
+            {
+                Wallet.AddMaterial(itemId, need);
+            }
+        }
+
+        TopUp("iron-plate", ironPlates);
+        TopUp("copper-wire", copperWire);
+        TopUp("copper-ore", copperOre);
+
+        if (money > Wallet.Money)
+        {
+            Wallet.AddMoney(money - Wallet.Money);
+        }
+    }
+
     public bool TryPlaceBelt(GridPosition position, Direction direction, string? conveyorId = null)
     {
         var id = string.IsNullOrWhiteSpace(conveyorId) ? "conveyor-basic" : conveyorId;
@@ -783,26 +955,76 @@ public sealed class FactorySlice
         }
 
         var def = Content.FindConveyor(id) ?? Content.RequireConveyor("conveyor-basic");
-        return Belts.TryPlaceFree(position, direction, def, CanOccupy);
+        if (Belts.Cells.ContainsKey(position) || !CanOccupy(position))
+        {
+            return false;
+        }
+
+        if (!TryChargeConveyor(def))
+        {
+            return false;
+        }
+
+        if (!Belts.TryPlaceFree(position, direction, def, CanOccupy))
+        {
+            RefundConveyor(def);
+            return false;
+        }
+
+        return true;
     }
 
-    public bool TryPlaceJunction(GridPosition position, Direction direction) =>
-        RequireUnlocked("junction")
-        && Belts.TryPlaceFree(position, direction, JunctionDefinition, CanOccupy);
+    public bool TryPlaceJunction(GridPosition position, Direction direction)
+    {
+        if (!RequireUnlocked("junction")
+            || Belts.Cells.ContainsKey(position)
+            || !CanOccupy(position)
+            || !TryChargeConveyor(JunctionDefinition))
+        {
+            return false;
+        }
 
-    public bool TryPlaceSplitter(GridPosition position, Direction direction) =>
-        RequireUnlocked("splitter")
-        && Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy);
+        if (!Belts.TryPlaceFree(position, direction, JunctionDefinition, CanOccupy))
+        {
+            RefundConveyor(JunctionDefinition);
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryPlaceSplitter(GridPosition position, Direction direction)
+    {
+        if (!RequireUnlocked("splitter")
+            || Belts.Cells.ContainsKey(position)
+            || !CanOccupy(position)
+            || !TryChargeConveyor(SplitterDefinition))
+        {
+            return false;
+        }
+
+        if (!Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy))
+        {
+            RefundConveyor(SplitterDefinition);
+            return false;
+        }
+
+        return true;
+    }
 
     public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null)
     {
-        if (!RequireUnlocked("sorter"))
+        if (!RequireUnlocked("sorter")
+            || Belts.Cells.ContainsKey(position)
+            || !CanOccupy(position)
+            || !TryChargeConveyor(SorterDefinition))
         {
             return false;
         }
 
         if (!Belts.TryPlaceFree(position, direction, SorterDefinition, CanOccupy))
         {
+            RefundConveyor(SorterDefinition);
             return false;
         }
 
@@ -814,11 +1036,39 @@ public sealed class FactorySlice
         return true;
     }
 
-    public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
-        RequireUnlocked("conveyor-bridge")
-        && Belts.TryPlaceBridge(entry, direction, BridgeDefinition, CanOccupy);
+    public bool TryPlaceBridge(GridPosition entry, Direction direction)
+    {
+        if (!RequireUnlocked("conveyor-bridge") || !TryChargeConveyor(BridgeDefinition, multiplicity: 2))
+        {
+            return false;
+        }
 
-    public bool TryRemoveBelt(GridPosition position) => Belts.TryRemove(position);
+        if (!Belts.TryPlaceBridge(entry, direction, BridgeDefinition, CanOccupy))
+        {
+            RefundConveyor(BridgeDefinition, multiplicity: 2);
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryRemoveBelt(GridPosition position)
+    {
+        if (!Belts.TryGet(position, out var cell))
+        {
+            return false;
+        }
+
+        var def = cell.Definition;
+        var multiplicity = cell.Kind == LogisticsKind.Bridge ? 2 : 1;
+        if (!Belts.TryRemove(position))
+        {
+            return false;
+        }
+
+        RefundConveyor(def, multiplicity);
+        return true;
+    }
 
     public bool TryPlaceMiner(
         GridPosition origin,
@@ -851,10 +1101,16 @@ public sealed class FactorySlice
             if (miners.Count == 1 && FootprintClearExcept(origin, MinerProducer.Size, miner: miners[0]))
             {
                 // Relocate keeps old efficiency; replace instead when terrain-aware.
+                // No charge — same building moved.
                 miners[0] = new MinerProducer(origin, direction, covered, itemId, id);
                 return true;
             }
 
+            return false;
+        }
+
+        if (!TryChargeBuilding(id))
+        {
             return false;
         }
 
@@ -885,8 +1141,17 @@ public sealed class FactorySlice
             return false;
         }
 
+<<<<<<< HEAD
         smelters.Add(new SmelterStub(
             origin, direction, recipe, SmelterStub.SmelterBuildingId, recipes));
+=======
+        if (!TryChargeBuilding(SmelterStub.SmelterBuildingId))
+        {
+            return false;
+        }
+
+        smelters.Add(new SmelterStub(origin, direction, recipe, SmelterStub.SmelterBuildingId));
+>>>>>>> origin/main
         return true;
     }
 
@@ -913,8 +1178,17 @@ public sealed class FactorySlice
             return false;
         }
 
+<<<<<<< HEAD
         assemblers.Add(new SmelterStub(
             origin, direction, recipe, SmelterStub.AssemblerBuildingId, recipes));
+=======
+        if (!TryChargeBuilding(SmelterStub.AssemblerBuildingId))
+        {
+            return false;
+        }
+
+        assemblers.Add(new SmelterStub(origin, direction, recipe, SmelterStub.AssemblerBuildingId));
+>>>>>>> origin/main
         return true;
     }
 
@@ -937,6 +1211,11 @@ public sealed class FactorySlice
             return false;
         }
 
+        if (!TryChargeBuilding(GeneratorStub.BuildingId))
+        {
+            return false;
+        }
+
         generators.Add(new GeneratorStub(origin, direction));
         return true;
     }
@@ -952,6 +1231,11 @@ public sealed class FactorySlice
         }
 
         if (!CanOccupyFootprint(origin, ExtractorStub.Size))
+        {
+            return false;
+        }
+
+        if (!TryChargeBuilding(ExtractorStub.BuildingId))
         {
             return false;
         }
@@ -974,6 +1258,11 @@ public sealed class FactorySlice
             return false;
         }
 
+        if (!TryChargeBuilding(id))
+        {
+            return false;
+        }
+
         powerNodes.Add(new PowerNodeStub(origin, id));
         return true;
     }
@@ -989,7 +1278,9 @@ public sealed class FactorySlice
                     continue;
                 }
 
+                var id = miners[i].DefinitionId;
                 miners.RemoveAt(i);
+                RefundBuilding(id);
                 return true;
             }
         }
@@ -1002,6 +1293,7 @@ public sealed class FactorySlice
             }
 
             smelters.RemoveAt(i);
+            RefundBuilding(SmelterStub.SmelterBuildingId);
             return true;
         }
 
@@ -1013,6 +1305,7 @@ public sealed class FactorySlice
             }
 
             assemblers.RemoveAt(i);
+            RefundBuilding(SmelterStub.AssemblerBuildingId);
             return true;
         }
 
@@ -1024,6 +1317,7 @@ public sealed class FactorySlice
             }
 
             generators.RemoveAt(i);
+            RefundBuilding(GeneratorStub.BuildingId);
             return true;
         }
 
@@ -1035,6 +1329,7 @@ public sealed class FactorySlice
             }
 
             extractors.RemoveAt(i);
+            RefundBuilding(ExtractorStub.BuildingId);
             return true;
         }
 
@@ -1045,7 +1340,9 @@ public sealed class FactorySlice
                 continue;
             }
 
+            var id = powerNodes[i].DefinitionId;
             powerNodes.RemoveAt(i);
+            RefundBuilding(id);
             return true;
         }
 
@@ -1218,6 +1515,7 @@ public sealed class FactorySlice
     public static void SelfTest(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
+        SelfTestPlaceCosts(contentJsonPath);
         var slice = CreateSpikeDemo(content);
         const float dt = 1f / 30f;
         for (var i = 0; i < 30 * 40; i++)
@@ -1233,12 +1531,49 @@ public sealed class FactorySlice
             "FactorySlice self-test fallito: nessun ferro grezzo arrivato al core entro 40s sim.");
     }
 
+    /// <summary>Build costs charge wallet on place and refund on remove (Raylib parity).</summary>
+    public static void SelfTestPlaceCosts(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var wallet = new EconomyWallet(
+            0,
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 10 });
+        var slice = new FactorySlice(content, new BeltGrid(), core, wallet);
+        var minerCost = content.FindBuilding("miner")!.BuildCost.Sum(e => e.Amount);
+        var beltCost = content.FindConveyor("conveyor-basic")!.EffectiveBuildCost.Sum(e => e.Amount);
+
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "cost place miner");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10 - minerCost, "miner spent plates");
+        Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East), "cost place belt");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10 - minerCost - beltCost, "belt spent plates");
+        Assert(!slice.CanAffordStructure("smelter"), "cannot afford smelter yet");
+        Assert(!slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East), "refuse smelter");
+
+        Assert(slice.TryRemoveBelt(new GridPosition(4, 8)), "refund belt");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10 - minerCost, "belt refunded");
+        Assert(slice.TryRemoveBuildingAt(new GridPosition(2, 7)), "refund miner");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10, "miner refunded full");
+
+        // Bridge charges ×2 heads.
+        slice.EnsureDemoBuildStock(ironPlates: 20, copperWire: 10, copperOre: 4);
+        slice.Research.ForceUnlock("conveyor-bridge");
+        var beforeBridge = slice.Wallet.MaterialCount("iron-plate");
+        var bridgePlates = content.FindConveyor("conveyor-bridge")!.EffectiveBuildCost
+            .Where(e => e.ItemId == "iron-plate").Sum(e => e.Amount) * 2;
+        Assert(slice.TryPlaceBridge(new GridPosition(2, 3), Direction.East), "bridge place");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == beforeBridge - bridgePlates, "bridge ×2 cost");
+        Assert(slice.TryRemoveBelt(new GridPosition(2, 3)), "bridge remove");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == beforeBridge, "bridge refund ×2");
+    }
+
     public static void SelfTestPlaceable(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, grid, core);
+        slice.EnsureDemoBuildStock();
         Assert(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "miner");
 
         Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East), "place (4,8)");
@@ -1274,6 +1609,7 @@ public sealed class FactorySlice
         var content = FactoryContent.Load(contentJsonPath);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.EnsureDemoBuildStock();
         slice.Research.ForceUnlock("conveyor-fast");
         slice.Research.ForceUnlock("miner-advanced");
         slice.Research.ForceUnlock("extractor");
