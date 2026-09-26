@@ -1,0 +1,790 @@
+{
+  "conveyors": [
+    {
+      "id": "conveyor-basic",
+      "tier": 1,
+      "rateItemsPerSecond": 0.5,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        }
+      ],
+      "unlock": null,
+      "kind": "belt"
+    },
+    {
+      "id": "conveyor-fast",
+      "tier": 2,
+      "rateItemsPerSecond": 1.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
+      ],
+      "unlock": {
+        "money": 450,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 50
+          }
+        ]
+      },
+      "kind": "belt"
+    },
+    {
+      "id": "junction",
+      "tier": 1,
+      "rateItemsPerSecond": 0.75,
+      "capacity": 2,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 200,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 10
+          }
+        ]
+      },
+      "kind": "junction"
+    },
+    {
+      "id": "splitter",
+      "tier": 1,
+      "rateItemsPerSecond": 0.75,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        }
+      ],
+      "unlock": {
+        "money": 280,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 15
+          }
+        ]
+      },
+      "kind": "splitter"
+    },
+    {
+      "id": "sorter",
+      "tier": 1,
+      "rateItemsPerSecond": 0.75,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
+      ],
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 18
+          }
+        ]
+      },
+      "kind": "sorter"
+    },
+    {
+      "id": "conveyor-bridge",
+      "tier": 1,
+      "rateItemsPerSecond": 0.5,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
+      ],
+      "unlock": {
+        "money": 340,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 20
+          }
+        ]
+      },
+      "kind": "bridge"
+    },
+    {
+      "id": "conveyor-express",
+      "tier": 3,
+      "rateItemsPerSecond": 2.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 3
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 850,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 80
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 20
+          }
+        ]
+      },
+      "kind": "belt"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "smelt-iron",
+      "durationSeconds": 2.0,
+      "inputs": [
+        {
+          "itemId": "iron-ore",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "smelt-lead",
+      "durationSeconds": 1.8,
+      "inputs": [
+        {
+          "itemId": "lead-ore",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "smelt-titanium",
+      "durationSeconds": 3.2,
+      "inputs": [
+        {
+          "itemId": "titanium-ore",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "titanium-plate",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "craft-copper-wire",
+      "durationSeconds": 1.5,
+      "inputs": [
+        {
+          "itemId": "copper-ore",
+          "amount": 1
+        },
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "craft-graphite",
+      "durationSeconds": 1.2,
+      "inputs": [
+        {
+          "itemId": "coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "graphite",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "craft-silicon",
+      "durationSeconds": 2.4,
+      "inputs": [
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        },
+        {
+          "itemId": "coal",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "silicon",
+          "amount": 1
+        }
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "id": "conveyor-basic",
+      "displayName": "Nastro T1",
+      "kind": "conveyor",
+      "unlockedByDefault": true,
+      "unlock": null,
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "miner",
+      "displayName": "Minatore T1",
+      "kind": "building",
+      "unlockedByDefault": true,
+      "unlock": null,
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "extractor",
+      "displayName": "Estrattore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 80,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "miner"
+      ]
+    },
+    {
+      "id": "smelter",
+      "displayName": "Forno",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 250,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 15
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "miner"
+      ]
+    },
+    {
+      "id": "conveyor-fast",
+      "displayName": "Nastro T2",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 450,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 50
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "smelter"
+      ]
+    },
+    {
+      "id": "junction",
+      "displayName": "Incrocio",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 200,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 10
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-basic"
+      ]
+    },
+    {
+      "id": "splitter",
+      "displayName": "Sdoppiatore",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 280,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 15
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "junction"
+      ]
+    },
+    {
+      "id": "sorter",
+      "displayName": "Selezionatore",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 18
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "junction"
+      ]
+    },
+    {
+      "id": "conveyor-bridge",
+      "displayName": "Nastro ponte",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 340,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 20
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "junction"
+      ]
+    },
+    {
+      "id": "conveyor-express",
+      "displayName": "Nastro T3",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 850,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 80
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 20
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-fast"
+      ]
+    },
+    {
+      "id": "assembler",
+      "displayName": "Assemblatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 480,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 22
+          },
+          {
+            "itemId": "copper-ore",
+            "amount": 4
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "smelter"
+      ]
+    },
+    {
+      "id": "generator",
+      "displayName": "Generatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 280,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 12
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "smelter"
+      ]
+    },
+    {
+      "id": "power-node",
+      "displayName": "Nodo T1",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 140,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 4
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 2
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "smelter"
+      ]
+    },
+    {
+      "id": "power-node-t2",
+      "displayName": "Nodo T2",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "power-node",
+        "generator"
+      ]
+    },
+    {
+      "id": "miner-advanced",
+      "displayName": "Minatore T2",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 550,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 40
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 8
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "miner",
+        "smelter"
+      ]
+    }
+  ],
+  "market": [
+    {
+      "itemId": "iron-ore",
+      "displayName": "Ferro grezzo",
+      "sellPrice": 8,
+      "minSellPrice": 3,
+      "maxSellPrice": 14,
+      "softStock": 24
+    },
+    {
+      "itemId": "iron-plate",
+      "displayName": "Lastra di ferro",
+      "sellPrice": 30,
+      "minSellPrice": 12,
+      "maxSellPrice": 48,
+      "softStock": 20
+    },
+    {
+      "itemId": "copper-ore",
+      "displayName": "Rame grezzo",
+      "sellPrice": 6,
+      "minSellPrice": 2,
+      "maxSellPrice": 11,
+      "softStock": 24
+    },
+    {
+      "itemId": "copper-wire",
+      "displayName": "Filo di rame",
+      "sellPrice": 16,
+      "minSellPrice": 6,
+      "maxSellPrice": 28,
+      "softStock": 20
+    },
+    {
+      "itemId": "coal",
+      "displayName": "Carbone",
+      "sellPrice": 4,
+      "minSellPrice": 1,
+      "maxSellPrice": 8,
+      "softStock": 30
+    },
+    {
+      "itemId": "lead-ore",
+      "displayName": "Piombo grezzo",
+      "sellPrice": 5,
+      "minSellPrice": 2,
+      "maxSellPrice": 10,
+      "softStock": 24
+    },
+    {
+      "itemId": "lead-plate",
+      "displayName": "Lastra di piombo",
+      "sellPrice": 18,
+      "minSellPrice": 7,
+      "maxSellPrice": 32,
+      "softStock": 18
+    },
+    {
+      "itemId": "titanium-ore",
+      "displayName": "Titanio grezzo",
+      "sellPrice": 12,
+      "minSellPrice": 5,
+      "maxSellPrice": 22,
+      "softStock": 16
+    },
+    {
+      "itemId": "titanium-plate",
+      "displayName": "Lastra di titanio",
+      "sellPrice": 45,
+      "minSellPrice": 18,
+      "maxSellPrice": 72,
+      "softStock": 12
+    },
+    {
+      "itemId": "graphite",
+      "displayName": "Grafite",
+      "sellPrice": 10,
+      "minSellPrice": 4,
+      "maxSellPrice": 18,
+      "softStock": 20
+    },
+    {
+      "itemId": "silicon",
+      "displayName": "Silicio",
+      "sellPrice": 28,
+      "minSellPrice": 11,
+      "maxSellPrice": 48,
+      "softStock": 16
+    }
+  ],
+  "buildings": [
+    {
+      "id": "miner",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 4
+        }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "miner-advanced",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 10
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 4
+        }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "smelter",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 6
+        }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "assembler",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 8
+        },
+        {
+          "itemId": "copper-ore",
+          "amount": 2
+        }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "generator",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 8
+        }
+      ],
+      "refundPercent": 100
+    },
+    {
+      "id": "power-node",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ],
+      "refundPercent": 100,
+      "footprint": 1,
+      "maxPowerLinks": 4,
+      "powerLinkRange": 6
+    },
+    {
+      "id": "power-node-t2",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 6
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 4
+        }
+      ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "maxPowerLinks": 8,
+      "powerLinkRange": 10
+    },
+    {
+      "id": "extractor",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        }
+      ],
+      "refundPercent": 100
+    }
+  ],
+  "economy": {
+    "coreUpgrade": {
+      "moneyCost": 150,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 20
+        }
+      ],
+      "saleBonusPercent": 25
+    },
+    "refundPolicyNote": "Piazzamento: solo materiali (niente $). Blueprint in Ricerca: soldi + materiali. Rimozione: rimborso 100% materiali. Nodi: collegamento automatico entro raggio (priorità generatore → nodi → forni/assemblatori; mai CORE). Nodo T1: 1×1 / 4 collegamenti / raggio 6. Nodo T2: 2×2 / 8 / raggio 10. Rete attiva solo con percorso fino a un generatore con carbone. Adiacenza 4-dir: edifici a contatto di un gen (o in cluster) senza nodi. CORE fuori dalla rete potenza."
+  }
+}

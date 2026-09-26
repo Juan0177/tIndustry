@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>TIndustry.Shared</RootNamespace>
     <AssemblyName>TIndustry.Shared</AssemblyName>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Description>Official factory sim/data for the Godot 4 .NET client (belts, craft, power, save, campaign). Raylib client is legacy.</Description>
   </PropertyGroup>
 </Project>

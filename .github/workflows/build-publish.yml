@@ -29,10 +29,18 @@ jobs:
       - name: Build Shared
         run: dotnet build src/TIndustry.Shared/TIndustry.Shared.csproj -c Release
 
+      - name: Ensure Godot solution
+        run: |
+          if [[ ! -f godot/TIndustry.Godot.sln ]]; then
+            (cd godot && dotnet new sln -n TIndustry.Godot --format sln --force)
+            (cd godot && dotnet sln TIndustry.Godot.sln add TIndustry.Godot.csproj)
+            (cd godot && dotnet sln TIndustry.Godot.sln add ../src/TIndustry.Shared/TIndustry.Shared.csproj)
+          fi
+
       - name: Build Godot C#
         run: dotnet build godot/TIndustry.Godot.csproj -c Release
 
-  # Legacy Raylib client — kept for zip artifacts / regression until retired.
+  # Legacy Raylib client — regression + optional download artifact.
   publish-win-x64:
     name: Publish win-x64 (Raylib legacy)
     runs-on: ubuntu-latest
@@ -62,13 +70,13 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
-          -o artifacts/win-x64
+          -o artifacts/raylib-win-x64
 
-      - name: Upload win-x64 artifact
+      - name: Upload win-x64 artifact (Raylib legacy)
         uses: actions/upload-artifact@v4
         with:
-          name: tIndustry-win-x64
-          path: artifacts/win-x64/
+          name: tIndustry-raylib-legacy-win-x64
+          path: artifacts/raylib-win-x64/
           if-no-files-found: error
 
   publish-linux-x64:
@@ -91,11 +99,11 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
-          -o artifacts/linux-x64
+          -o artifacts/raylib-linux-x64
 
-      - name: Upload linux-x64 artifact
+      - name: Upload linux-x64 artifact (Raylib legacy)
         uses: actions/upload-artifact@v4
         with:
-          name: tIndustry-linux-x64
-          path: artifacts/linux-x64/
+          name: tIndustry-raylib-legacy-linux-x64
+          path: artifacts/raylib-linux-x64/
           if-no-files-found: error
