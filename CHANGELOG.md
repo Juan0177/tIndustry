@@ -5,11 +5,22 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-09-26
+
+Godot QoL + mondo grande: gestione salvataggi completa, overlay risorse sistema, mappe **1000×1000** seed-based. Zip ufficiali restano **export Godot**.
+
 ### Aggiunto / migliorato
 
-- **Godot**: Gestione salvataggi full — autosave Continua (Esc/Home/Esci), Salva come, seed in lista, ↑↓, Conferma elimina
-- **Godot/Shared**: overlay **risorse sistema** (FPS · CPU · RAM · GPU · tempo processo) da Impostazioni
-- **Godot/Shared**: mondo **1000×1000** seed-based (campagna + sandbox), clamp 1000, draw con **viewport culling**
+- **Godot**: Gestione salvataggi full — autosave Continua (Esc/Home/Esci), Salva come, seed in lista, ↑↓, Conferma elimina ([#125](https://github.com/Juan0177/tIndustry/pull/125))
+- **Godot/Shared**: overlay **risorse sistema** (FPS · CPU · RAM · GPU · tempo processo) da Impostazioni ([#126](https://github.com/Juan0177/tIndustry/pull/126))
+- **Godot/Shared**: mondo **1000×1000** seed-based (campagna + sandbox), clamp 1000, draw con **viewport culling** ([#127](https://github.com/Juan0177/tIndustry/pull/127))
+
+### Come giocare (download)
+
+1. Scarica [`tIndustry-win-x64.zip`](https://github.com/Juan0177/tIndustry/releases/latest) (o linux)
+2. Estrai → avvia `tIndustry.exe` (Windows) / `tIndustry.x86_64` (Linux)
+
+Da sorgente: `godot4 --path godot` (vedi README).
 
 ## [0.3.2] — 2026-09-26
 
@@ -406,6 +417,7 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.3.3]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.0
