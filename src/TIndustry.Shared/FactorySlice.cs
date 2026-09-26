@@ -1624,15 +1624,18 @@ public sealed class FactorySlice
         Assert(slice.TryPlacePowerNode(new GridPosition(11, 12)), "power-node");
         Assert(slice.TryPlacePowerNode(new GridPosition(14, 12), PowerNodeStub.Tier2Id), "power-node-t2");
         Assert(slice.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id && n.Size == 2), "T2 size");
-        Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 1, "counts");
+        Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 2, "counts");
 
         var snap = slice.Capture();
-        Assert(snap.Extractors.Count == 1 && snap.PowerNodes.Count == 1, "capture");
+        Assert(snap.Extractors.Count == 1 && snap.PowerNodes.Count == 2, "capture");
         var restored = Restore(content, snap);
         Assert(restored.Extractors.Count == 1, "restore extractor");
-        Assert(restored.PowerNodes.Count == 1, "restore node");
+        Assert(restored.PowerNodes.Count == 2, "restore nodes");
+        Assert(restored.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id), "restore T2");
         Assert(restored.Belts.TryGet(new GridPosition(3, 8), out var rf)
             && rf.Definition.Id == "conveyor-fast", "restore belt T2");
+        Assert(restored.Belts.TryGet(new GridPosition(4, 8), out var re)
+            && re.Definition.Id == "conveyor-express", "restore belt T3");
     }
 
     /// <summary>Phase C: ore through forno yields iron-plate in core stock.</summary>
