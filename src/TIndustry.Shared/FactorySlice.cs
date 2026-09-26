@@ -161,7 +161,9 @@ public sealed class FactorySlice
         InputBuffer = craft.InputBuffer.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
         OutputQueue = craft.OutputQueue.ToList(),
         EjectIndex = craft.EjectIndex,
-        ItemsCrafted = craft.ItemsCrafted
+        ItemsCrafted = craft.ItemsCrafted,
+        FuelBuffer = craft.FuelBuffer,
+        BurnRemaining = craft.BurnRemaining
     };
 
     public static FactorySlice Restore(FactoryContent content, FactorySliceSaveData data)
@@ -282,7 +284,9 @@ public sealed class FactorySlice
             dto.InputBuffer,
             dto.OutputQueue,
             dto.EjectIndex,
-            dto.ItemsCrafted);
+            dto.ItemsCrafted,
+            dto.FuelBuffer,
+            dto.BurnRemaining);
         return craft;
     }
 
@@ -303,6 +307,7 @@ public sealed class FactorySlice
         // Miner 2×2 at (2,7); forno 2×2 at (6,7).
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
         slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, recipe);
+        SeedSmelterFuel(slice);
 
         // Feed: (4,8)(5,8) → into forno west edge (6,8).
         grid.PlacePath(
@@ -351,6 +356,7 @@ public sealed class FactorySlice
         slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
         // Copper miner south of iron row.
         slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+        SeedSmelterFuel(slice);
 
         // Iron ore feed into forno.
         grid.PlacePath(
@@ -427,6 +433,7 @@ public sealed class FactorySlice
         slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
         slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
         slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+        SeedSmelterFuel(slice);
 
         // Iron ore → forno.
         grid.PlacePath([new GridPosition(4, 8), new GridPosition(5, 8)], beltDef);
@@ -663,6 +670,15 @@ public sealed class FactorySlice
 
         // Seed layouts call TryPlace* (now charged) — stock enough for demo footprints.
         EnsureDemoBuildStock();
+    }
+
+    /// <summary>Demos without a live generator: top up forno coal so craft can run.</summary>
+    public static void SeedSmelterFuel(FactorySlice slice, int units = SmelterStub.FuelBufferCapacity)
+    {
+        foreach (var sm in slice.Smelters)
+        {
+            sm.SeedFuel(units);
+        }
     }
 
     public bool IsStructureUnlocked(string structureId) => Research.IsUnlocked(structureId);
@@ -1572,6 +1588,7 @@ public sealed class FactorySlice
     {
         var content = FactoryContent.Load(contentJsonPath);
         SelfTestPlaceCosts(contentJsonPath);
+        SelfTestFuelOrPower(contentJsonPath);
         var slice = CreateSpikeDemo(content);
         const float dt = 1f / 30f;
         for (var i = 0; i < 30 * 40; i++)
@@ -1948,12 +1965,13 @@ public sealed class FactorySlice
 
         Assert(sawPowered, "forno powered while generator burns");
 
-        // Speed: powered progress > unpowered over same window.
+        // Speed: powered progress > coal-only over same window.
         var coldGrid = new BeltGrid();
         var cold = new FactorySlice(content, coldGrid, core);
         cold.UnlockGodotSliceDemo();
         Assert(cold.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "cold smelter");
         var coldSm = cold.Smelters[0];
+        coldSm.SeedFuel();
         Assert(coldSm.TryAccept("iron-ore") && coldSm.TryAccept("iron-ore"), "cold ore");
 
         // Reset powered smelter craft.
@@ -2001,6 +2019,81 @@ public sealed class FactorySlice
 
         throw new InvalidOperationException(
             "Phase F self-test: nessun filo al core entro 150s sim (power seed).");
+    }
+
+    /// <summary>Forno: coal OR power required; +20% when powered (Raylib parity).</summary>
+    public static void SelfTestFuelOrPower(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var belts = new BeltGrid();
+        long next = 1;
+
+        // Stall: no coal, no power — craft starts but progress frozen.
+        var stalled = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
+        Assert(stalled.TryAccept("iron-ore") && stalled.TryAccept("iron-ore"), "stall ore");
+        stalled.Tick(0.5f, belts, ref next, powered: false);
+        Assert(stalled.IsCrafting, "stall crafting");
+        Assert(stalled.Progress < 0.001f, "stall no progress");
+
+        // Coal-only advances at 1×.
+        var coalOnly = new SmelterStub(new GridPosition(2, 0), Direction.East, recipe);
+        coalOnly.SeedFuel(2);
+        Assert(coalOnly.TryAccept("iron-ore") && coalOnly.TryAccept("iron-ore"), "coal ore");
+        coalOnly.Tick(0.5f, belts, ref next, powered: false);
+        Assert(coalOnly.IsCrafting && coalOnly.Progress > 0.1f, "coal advances");
+        Assert(coalOnly.FuelBuffer < 2 || coalOnly.IsBurningFuel, "fuel consumed");
+
+        // Powered (+20%) faster than coal-only.
+        var powered = new SmelterStub(new GridPosition(4, 0), Direction.East, recipe);
+        Assert(powered.TryAccept("iron-ore") && powered.TryAccept("iron-ore"), "power ore");
+        powered.Tick(0.5f, belts, ref next, powered: true);
+        Assert(powered.IsCrafting && powered.IsPowered, "powered craft");
+        Assert(powered.Progress > coalOnly.Progress * 1.05f,
+            $"power faster ({powered.Progress:F3} > coal {coalOnly.Progress:F3})");
+
+        // Belts deliver coal into forno fuel buffer.
+        var feed = content.RequireConveyor("conveyor-basic");
+        var grid = new BeltGrid();
+        Assert(grid.TryPlaceFree(new GridPosition(0, 2), Direction.North, feed), "coal belt");
+        Assert(grid.TryInsert(new GridPosition(0, 2), new TransportedItem(next++, "coal")), "coal insert");
+        Assert(grid.TryGet(new GridPosition(0, 2), out var cell) && cell.Items.Count == 1, "coal on belt");
+        cell.Items[0].Progress = 1f;
+        var fed = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
+        Assert(fed.AcceptFromBelts(grid) == 1 && fed.FuelBuffer == 1, "belt → fuel");
+
+        // Save/restore fuel state.
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "place forno");
+        slice.Smelters[0].RestoreCraftState(
+            0.25f,
+            true,
+            new Dictionary<string, int> { ["iron-ore"] = 1 },
+            Array.Empty<string>(),
+            0,
+            0,
+            fuelBuffer: 3,
+            burnRemaining: 2.5f);
+        var snap = slice.Capture();
+        Assert(snap.Smelters[0].FuelBuffer == 3 && Math.Abs(snap.Smelters[0].BurnRemaining - 2.5f) < 0.01f,
+            "capture fuel");
+        var restored = Restore(content, snap);
+        Assert(restored.Smelters[0].FuelBuffer == 3, "restore fuel buffer");
+        Assert(Math.Abs(restored.Smelters[0].BurnRemaining - 2.5f) < 0.01f, "restore burn");
+
+        // Assembler ignores fuel gate (still crafts unpowered).
+        var assy = new SmelterStub(
+            new GridPosition(8, 0),
+            Direction.East,
+            content.FindRecipe("craft-copper-wire")!,
+            SmelterStub.AssemblerBuildingId);
+        Assert(!assy.UsesCoalOrPower, "assy no coal gate");
+        Assert(assy.TryAccept("iron-plate") && assy.TryAccept("copper-ore"), "assy inputs");
+        assy.Tick(0.5f, belts, ref next, powered: false);
+        Assert(assy.IsCrafting && assy.Progress > 0.05f, "assy crafts without fuel");
     }
 
     /// <summary>T2 miner gets +20% mining speed from adjacent live generator; T1 never powers.</summary>

@@ -16,6 +16,11 @@ public sealed class SmelterStub
     /// <summary>Legacy alias — prefer <see cref="SmelterBuildingId"/>.</summary>
     public const string BuildingId = SmelterBuildingId;
 
+    public const string FuelItemId = "coal";
+    public const int FuelBufferCapacity = 8;
+    /// <summary>Seconds of coal-only craft time from one fuel unit (Raylib parity).</summary>
+    public const float SecondsPerFuel = 6f;
+
     private readonly Dictionary<string, int> inputBuffer = new(StringComparer.Ordinal);
     private readonly Queue<string> outputQueue = new();
     private RecipeDefinition activeRecipe;
@@ -42,9 +47,14 @@ public sealed class SmelterStub
     public RecipeDefinition Recipe => activeRecipe;
     public string DefinitionId { get; }
     public bool IsAssembler => DefinitionId == AssemblerBuildingId;
+    /// <summary>Forno only: coal-or-power gate. Assembler ignores fuel.</summary>
+    public bool UsesCoalOrPower => !IsAssembler;
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
     public bool IsPowered { get; private set; }
+    public int FuelBuffer { get; private set; }
+    public float BurnRemaining { get; private set; }
+    public bool IsBurningFuel => BurnRemaining > 0f;
     public long ItemsCrafted { get; private set; }
     public IReadOnlyDictionary<string, int> InputBuffer => inputBuffer;
     public IReadOnlyCollection<string> OutputQueue => outputQueue;
@@ -62,7 +72,9 @@ public sealed class SmelterStub
         IReadOnlyDictionary<string, int>? inputs,
         IEnumerable<string>? outputs,
         int ejectIndex,
-        long itemsCrafted = 0)
+        long itemsCrafted = 0,
+        int fuelBuffer = 0,
+        float burnRemaining = 0f)
     {
         Progress = Math.Clamp(progress, 0f, 1f);
         IsCrafting = isCrafting;
@@ -89,6 +101,38 @@ public sealed class SmelterStub
 
         EjectIndex = ((ejectIndex % OutputTileCount) + OutputTileCount) % OutputTileCount;
         ItemsCrafted = Math.Max(0, itemsCrafted);
+        if (UsesCoalOrPower)
+        {
+            FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+            BurnRemaining = Math.Max(0f, burnRemaining);
+        }
+        else
+        {
+            FuelBuffer = 0;
+            BurnRemaining = 0f;
+        }
+    }
+
+    public bool TryAcceptFuel(string itemId)
+    {
+        if (!UsesCoalOrPower || itemId != FuelItemId || FuelBuffer >= FuelBufferCapacity)
+        {
+            return false;
+        }
+
+        FuelBuffer++;
+        return true;
+    }
+
+    /// <summary>Demo/self-test: fill coal buffer so forno can craft without a live gen.</summary>
+    public void SeedFuel(int units = FuelBufferCapacity)
+    {
+        if (!UsesCoalOrPower)
+        {
+            return;
+        }
+
+        FuelBuffer = Math.Clamp(units, 0, FuelBufferCapacity);
     }
 
     public IEnumerable<GridPosition> OccupiedTiles()
@@ -171,7 +215,10 @@ public sealed class SmelterStub
 
             while (cell.PeekOutput() is { } item)
             {
-                if (!TryAccept(item.ItemId))
+                var took = UsesCoalOrPower && item.ItemId == FuelItemId
+                    ? TryAcceptFuel(item.ItemId)
+                    : TryAccept(item.ItemId);
+                if (!took)
                 {
                     break;
                 }
@@ -188,19 +235,74 @@ public sealed class SmelterStub
     {
         IsPowered = powered;
         AcceptFromBelts(belts);
-        var speed = powered ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
-        AdvanceCraft(deltaSeconds * speed);
+
+        if (!IsCrafting)
+        {
+            TryStartCraft();
+        }
+
+        if (IsCrafting)
+        {
+            var canAdvance = false;
+            var speed = 1f;
+            if (UsesCoalOrPower)
+            {
+                // Forno: corrente (+20%) OR carbone (baseline). Else stall (keep progress).
+                if (powered)
+                {
+                    canAdvance = true;
+                    speed = GeneratorStub.PoweredCraftSpeedMultiplier;
+                }
+                else if (TickFuel(deltaSeconds))
+                {
+                    canAdvance = true;
+                    speed = 1f;
+                }
+            }
+            else
+            {
+                // Assembler: still crafts without a full power graph (Shared stub).
+                canAdvance = true;
+                speed = powered ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
+            }
+
+            if (canAdvance)
+            {
+                AdvanceCraft(deltaSeconds * speed);
+            }
+        }
+
         EmitToBelts(belts, ref nextItemId);
+    }
+
+    /// <summary>Burns coal; true while forno can craft on carbone this tick.</summary>
+    public bool TickFuel(float deltaSeconds)
+    {
+        if (!UsesCoalOrPower)
+        {
+            return false;
+        }
+
+        if (BurnRemaining <= 0f)
+        {
+            if (FuelBuffer <= 0)
+            {
+                return false;
+            }
+
+            FuelBuffer--;
+            BurnRemaining = SecondsPerFuel;
+        }
+
+        BurnRemaining = Math.Max(0f, BurnRemaining - deltaSeconds);
+        return true;
     }
 
     private void AdvanceCraft(float deltaSeconds)
     {
         if (!IsCrafting)
         {
-            if (!TryStartCraft())
-            {
-                return;
-            }
+            return;
         }
 
         Progress += deltaSeconds / Math.Max(0.05f, Recipe.DurationSeconds);
