@@ -1589,6 +1589,9 @@ public sealed class FactorySlice
 
     public void Tick(float deltaSeconds)
     {
+        // #region agent log
+        CoreDeliveryDebugLog.NextTick();
+        // #endregion
         // Belts advance first so fuel reaches generators and handoffs reach craft/core.
         Belts.Tick(deltaSeconds);
 
@@ -1646,8 +1649,52 @@ public sealed class FactorySlice
 
         // Second belt tick so freshly emitted items can move the same frame.
         Belts.Tick(0f);
-        CoreDeliveredItems += CoreStockSink.Drain(
+        // #region agent log
+        var tick = CoreDeliveryDebugLog.Tick;
+        var beforeDelivered = CoreDeliveredItems;
+        var beforeIron = Wallet.MaterialCount("iron-ore");
+        var beforeMoney = Wallet.Money;
+        var beltSnap = Belts.Cells.Values
+            .Where(c => c.Items.Count > 0)
+            .Select(c => new
+            {
+                x = c.Position.X,
+                y = c.Position.Y,
+                dir = c.Direction.ToString(),
+                outX = c.OutputPosition.X,
+                outY = c.OutputPosition.Y,
+                outInCore = CoreTiles.Contains(c.OutputPosition),
+                items = c.Items.Select(i => new { i.ItemId, i.Progress }).ToList()
+            })
+            .ToList();
+        // #endregion
+        var drained = CoreStockSink.Drain(
             Belts, CoreTiles, Wallet, Market, Session, AutoSellAtCore);
+        CoreDeliveredItems += drained;
+        // #region agent log
+        if (drained > 0 || beltSnap.Count > 0 || CoreDeliveryDebugLog.ShouldLogSummary())
+        {
+            CoreDeliveryDebugLog.Write(
+                "A,D,E",
+                "FactorySlice.cs:Tick",
+                "post_drain",
+                new
+                {
+                    tick,
+                    drained,
+                    beforeDelivered,
+                    afterDelivered = CoreDeliveredItems,
+                    beforeIron,
+                    afterIron = Wallet.MaterialCount("iron-ore"),
+                    beforeMoney,
+                    afterMoney = Wallet.Money,
+                    autoSellAtCore = AutoSellAtCore,
+                    coreTiles = CoreTiles.Select(t => new { t.X, t.Y }).ToList(),
+                    beltItemCells = beltSnap,
+                    minerCount = miners.Count
+                });
+        }
+        // #endregion
     }
 
     public void SetPowerBuffer(float buffer) =>
@@ -1743,6 +1790,24 @@ public sealed class FactorySlice
             if (CoreTiles.Contains(neighbor))
             {
                 CoreDeliveredItems++;
+                // #region agent log
+                CoreDeliveryDebugLog.Write(
+                    "A,D",
+                    "FactorySlice.cs:TryDeliverAdjacent",
+                    "adjacent_core_accept",
+                    new
+                    {
+                        originX = origin.X,
+                        originY = origin.Y,
+                        size,
+                        neighborX = neighbor.X,
+                        neighborY = neighbor.Y,
+                        itemId,
+                        autoSellAtCore = AutoSellAtCore,
+                        ironOre = Wallet.MaterialCount(itemId == "iron-ore" ? "iron-ore" : itemId),
+                        coreDelivered = CoreDeliveredItems
+                    });
+                // #endregion
                 if (AutoSellAtCore)
                 {
                     var price = EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
