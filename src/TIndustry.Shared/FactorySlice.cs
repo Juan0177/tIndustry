@@ -111,6 +111,9 @@ public sealed class FactorySlice
             CoreSaleBonusPercent = CoreSaleBonusPercent,
             PowerBuffer = PowerBuffer,
             PowerCapacity = PowerCapacity,
+            Seed = Terrain?.Seed ?? 0,
+            MapWidth = Terrain?.Width ?? 0,
+            MapHeight = Terrain?.Height ?? 0,
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -281,6 +284,23 @@ public sealed class FactorySlice
         foreach (var n in data.PowerNodes)
         {
             slice.powerNodes.Add(new PowerNodeStub(new GridPosition(n.X, n.Y), n.DefinitionId));
+        }
+
+        if (data.MapWidth >= 12 && data.MapHeight >= 8)
+        {
+            var w = Math.Min(Math.Max(12, data.MapWidth), MaxGodotCampaignMapEdge);
+            var h = Math.Min(Math.Max(8, data.MapHeight), MaxGodotCampaignMapEdge);
+            var starter = ResolveStarterDeposit(
+                new GridPosition(data.CoreX, data.CoreY),
+                Math.Max(1, data.CoreSize),
+                w,
+                h);
+            slice.Terrain = TerrainMap.Generate(
+                w,
+                h,
+                data.Seed,
+                slice.CoreTiles,
+                starter);
         }
 
         return slice;
@@ -798,23 +818,51 @@ public sealed class FactorySlice
         return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
     }
 
+    /// <summary>Raylib maps go to 1000²; Godot per-tile draw clamps campaign edges.</summary>
+    public const int MaxGodotCampaignMapEdge = 128;
+
+    public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 2) =>
+        new(
+            Math.Max(0, (Math.Max(coreSize, mapWidth) - coreSize) / 2),
+            Math.Max(0, (Math.Max(coreSize, mapHeight) - coreSize) / 2));
+
+    public static (int Width, int Height) ResolveCampaignMapSize(CampaignLevelDefinition level)
+    {
+        var w = Math.Max(12, level.MapWidth);
+        var h = Math.Max(8, level.MapHeight);
+        w = Math.Min(w, MaxGodotCampaignMapEdge);
+        h = Math.Min(h, MaxGodotCampaignMapEdge);
+        return (w, h);
+    }
+
     /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
     public static FactorySlice CreateCampaignSlice(
         FactoryContent content,
         CampaignCatalog catalog,
         CampaignLevelDefinition level,
-        GridPosition coreOrigin,
+        GridPosition? coreOrigin = null,
         int coreSize = 2,
-        int mapWidth = 24,
-        int mapHeight = 18)
+        int? mapWidth = null,
+        int? mapHeight = null)
     {
-        var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
+        var (w, h) = ResolveCampaignMapSize(level);
+        if (mapWidth is int mw)
+        {
+            w = Math.Clamp(Math.Max(12, mw), 12, MaxGodotCampaignMapEdge);
+        }
+
+        if (mapHeight is int mh)
+        {
+            h = Math.Clamp(Math.Max(8, mh), 8, MaxGodotCampaignMapEdge);
+        }
+
+        var origin = coreOrigin ?? CenteredCoreOrigin(w, h, coreSize);
+        var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
         var wallet = catalog.CreateWallet(level);
         var session = new EconomySession(level.StartingMoney);
         var research = ResearchState.CreateNew(content);
-        // Godot spike viewport size; campaign Seed drives deposit layout.
-        var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
-        var terrain = TerrainMap.Generate(mapWidth, mapHeight, level.Seed, core, starter);
+        var starter = ResolveStarterDeposit(origin, coreSize, w, h);
+        var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
         return new FactorySlice(content, new BeltGrid(), core, wallet, research, session)
         {
             ActiveCampaignLevelId = level.Id,
@@ -2975,13 +3023,17 @@ public sealed class FactorySlice
             Assert(l02 is not null, "L02 exists");
             Assert(!progress.IsUnlocked(l02!, catalog), "L02 locked");
 
-            var slice = CreateCampaignSlice(content, catalog, l01, new GridPosition(9, 14));
+            var slice = CreateCampaignSlice(content, catalog, l01);
             Assert(slice.Wallet.Money == l01.StartingMoney, "start money");
             Assert(slice.Session.SaleIncome == 0, "sale income 0");
             Assert(slice.ActiveCampaignLevelId == l01.Id, "active level");
             Assert(slice.Terrain is not null, "terrain generated");
             Assert(slice.Terrain!.Seed == l01.Seed, "terrain seed");
-            Assert(slice.Terrain.Width == 24 && slice.Terrain.Height == 18, "spike viewport size");
+            var (expectW, expectH) = ResolveCampaignMapSize(l01);
+            Assert(slice.Terrain.Width == expectW && slice.Terrain.Height == expectH,
+                $"campaign map size {expectW}×{expectH}");
+            var coreOrigin = CenteredCoreOrigin(expectW, expectH);
+            Assert(slice.CoreTiles.Contains(coreOrigin), "core centered");
             var hasIron = false;
             for (var y = 0; y < slice.Terrain.Height && !hasIron; y++)
             {

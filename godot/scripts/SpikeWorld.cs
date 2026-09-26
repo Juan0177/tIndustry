@@ -10,8 +10,12 @@ namespace TIndustry.Godot;
 public partial class SpikeWorld : Node2D
 {
     public const int TileSize = 64;
-    public const int MapWidth = 24;
-    public const int MapHeight = 18;
+    public const int DefaultMapWidth = 24;
+    public const int DefaultMapHeight = 18;
+
+    /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to spike defaults.</summary>
+    public int ActiveMapWidth => _slice?.Terrain?.Width ?? DefaultMapWidth;
+    public int ActiveMapHeight => _slice?.Terrain?.Height ?? DefaultMapHeight;
 
     private static readonly string[] SorterFilterIds =
     [
@@ -557,8 +561,8 @@ public partial class SpikeWorld : Node2D
             content,
             new GridPosition(9, 14),
             coreSize: 2,
-            mapWidth: MapWidth,
-            mapHeight: MapHeight,
+            mapWidth: DefaultMapWidth,
+            mapHeight: DefaultMapHeight,
             seed: 42,
             startingMoney: 180);
         _activeLevel = null;
@@ -672,9 +676,7 @@ public partial class SpikeWorld : Node2D
         }
 
         var content = FactoryContent.Load(_contentPath);
-        _slice = FactorySlice.CreateCampaignSlice(
-            content, _campaign, level, new GridPosition(9, 14), coreSize: 2,
-            mapWidth: MapWidth, mapHeight: MapHeight);
+        _slice = FactorySlice.CreateCampaignSlice(content, _campaign, level);
         // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
         // after placing miner, but also allow starting sells from stock if we add ore.
         if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
@@ -691,12 +693,31 @@ public partial class SpikeWorld : Node2D
         RebuildBuildingVisuals();
         SyncResearchLocks();
         UpdateHud();
+        FocusCameraOnCore();
         QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast($"Campagna · {level.Name} · seed {level.Seed}");
+            var (w, h) = FactorySlice.ResolveCampaignMapSize(level);
+            _hud?.ShowToast($"Campagna · {level.Name} · {w}×{h} · seed {level.Seed}");
             BeginTutorialIfNeeded();
         }
+    }
+
+    private void FocusCameraOnCore()
+    {
+        if (!HasNode("Camera") || _slice is null || _slice.CoreTiles.Count == 0)
+        {
+            return;
+        }
+
+        var cam = GetNode<Camera2D>("Camera");
+        var cx = _slice.CoreTiles.Average(t => t.X);
+        var cy = _slice.CoreTiles.Average(t => t.Y);
+        cam.Position = new Vector2((float)(cx + 0.5) * TileSize, (float)(cy + 0.5) * TileSize);
+        // Fit a bit of map around the core; zoom out on larger campaigns.
+        var edge = Math.Max(ActiveMapWidth, ActiveMapHeight);
+        var z = edge <= 32 ? 0.55f : edge <= 64 ? 0.35f : edge <= 96 ? 0.25f : 0.18f;
+        cam.Zoom = new Vector2(z, z);
     }
 
     private void CheckCampaignComplete()
@@ -824,6 +845,7 @@ public partial class SpikeWorld : Node2D
             SyncResearchLocks();
             RestoreActiveLevelFromSlice();
             UpdateHud();
+            FocusCameraOnCore();
             QueueRedraw();
             _hud?.ShowToast(toast);
             GD.Print($"Loaded slice ← {FactorySliceSaveStore.SlotPath(slotId)}");
@@ -1234,9 +1256,9 @@ public partial class SpikeWorld : Node2D
 
     public override void _Draw()
     {
-        for (var y = 0; y < MapHeight; y++)
+        for (var y = 0; y < ActiveMapHeight; y++)
         {
-            for (var x = 0; x < MapWidth; x++)
+            for (var x = 0; x < ActiveMapWidth; x++)
             {
                 var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
                 var ground = ((x + y) % 2 == 0)
@@ -1264,16 +1286,16 @@ public partial class SpikeWorld : Node2D
         }
 
         var grid = new Color(0.22f, 0.28f, 0.24f, 0.85f);
-        for (var x = 0; x <= MapWidth; x++)
+        for (var x = 0; x <= ActiveMapWidth; x++)
         {
             var px = x * TileSize;
-            DrawLine(new Vector2(px, 0), new Vector2(px, MapHeight * TileSize), grid, 1f);
+            DrawLine(new Vector2(px, 0), new Vector2(px, ActiveMapHeight * TileSize), grid, 1f);
         }
 
-        for (var y = 0; y <= MapHeight; y++)
+        for (var y = 0; y <= ActiveMapHeight; y++)
         {
             var py = y * TileSize;
-            DrawLine(new Vector2(0, py), new Vector2(MapWidth * TileSize, py), grid, 1f);
+            DrawLine(new Vector2(0, py), new Vector2(ActiveMapWidth * TileSize, py), grid, 1f);
         }
 
         if (_slice is null)
@@ -1284,9 +1306,9 @@ public partial class SpikeWorld : Node2D
         // Seeded deposits visible on the map (not only under miners).
         if (_slice.Terrain is { } map)
         {
-            for (var y = 0; y < MapHeight; y++)
+            for (var y = 0; y < ActiveMapHeight; y++)
             {
-                for (var x = 0; x < MapWidth; x++)
+                for (var x = 0; x < ActiveMapWidth; x++)
                 {
                     var deposit = map[x, y].Deposit;
                     if (deposit == DepositKind.None)
@@ -1349,7 +1371,7 @@ public partial class SpikeWorld : Node2D
 
         if (_hover is { } hover
             && hover.X >= 0 && hover.Y >= 0
-            && hover.X < MapWidth && hover.Y < MapHeight
+            && hover.X < ActiveMapWidth && hover.Y < ActiveMapHeight
             && _tool != BuildTool.Cursor)
         {
             DrawGhost(hover);
@@ -2087,7 +2109,7 @@ public partial class SpikeWorld : Node2D
         // Second sandbox seed for contrast (swap via CreateSandboxSlice).
         var content = FactoryContent.Load(_contentPath);
         _slice = FactorySlice.CreateSandboxSlice(
-            content, new GridPosition(9, 14), mapWidth: MapWidth, mapHeight: MapHeight, seed: 777);
+            content, new GridPosition(9, 14), mapWidth: DefaultMapWidth, mapHeight: DefaultMapHeight, seed: 777);
         QueueRedraw();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);

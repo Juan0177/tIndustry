@@ -227,7 +227,10 @@ public partial class SavesPanel : Control
         var label = slot.Id == FactorySliceSaveStore.ContinueSlotId
             ? "Continua"
             : slot.Id;
-        return $"{label}  ·  ${slot.Money}  ·  {campaign}  ·  {when}";
+        var map = slot.MapWidth > 0 && slot.MapHeight > 0
+            ? $"  ·  {slot.MapWidth}×{slot.MapHeight}"
+            : "";
+        return $"{label}  ·  ${slot.Money}  ·  {campaign}{map}  ·  {when}";
     }
 
     private void OnLoadPressed()
