@@ -5,8 +5,8 @@
       "name": "Primi passi",
       "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
       "seed": 7429,
-      "mapWidth": 64,
-      "mapHeight": 48,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
       "startingMoney": 220,
       "startingMaterials": [
         {
@@ -38,8 +38,8 @@
       "name": "Prima fabbrica",
       "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
       "seed": 1337,
-      "mapWidth": 128,
-      "mapHeight": 96,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
       "startingMoney": 180,
       "startingMaterials": [
         {
@@ -66,8 +66,8 @@
       "name": "Lastre di ferro",
       "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
       "seed": 7429,
-      "mapWidth": 256,
-      "mapHeight": 192,
+      "mapWidth": 1000,
+      "mapHeight": 1000,
       "startingMoney": 280,
       "startingMaterials": [
         {

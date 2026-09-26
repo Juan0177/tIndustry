@@ -818,8 +818,8 @@ public sealed class FactorySlice
         return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
     }
 
-    /// <summary>Raylib maps go to 1000²; Godot per-tile draw clamps campaign edges.</summary>
-    public const int MaxGodotCampaignMapEdge = 128;
+    /// <summary>Raylib maps go to 1000²; Godot clamps campaign/sandbox edges for safety.</summary>
+    public const int MaxGodotCampaignMapEdge = 1000;
 
     public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 2) =>
         new(
@@ -870,13 +870,13 @@ public sealed class FactorySlice
         };
     }
 
-    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42).</summary>
+    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
     public static FactorySlice CreateSandboxSlice(
         FactoryContent content,
         GridPosition coreOrigin,
         int coreSize = 2,
-        int mapWidth = 24,
-        int mapHeight = 18,
+        int mapWidth = 1000,
+        int mapHeight = 1000,
         int seed = 42,
         int startingMoney = 180)
     {

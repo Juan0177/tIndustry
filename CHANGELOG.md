@@ -9,6 +9,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 - **Godot**: Gestione salvataggi full — autosave Continua (Esc/Home/Esci), Salva come, seed in lista, ↑↓, Conferma elimina
 - **Godot/Shared**: overlay **risorse sistema** (FPS · CPU · RAM · GPU · tempo processo) da Impostazioni
+- **Godot/Shared**: mondo **1000×1000** seed-based (campagna + sandbox), clamp 1000, draw con **viewport culling**
 
 ## [0.3.2] — 2026-09-26
 

@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 public partial class SpikeCamera : Camera2D
 {
     [Export] public float PanSpeed { get; set; } = 420f;
-    [Export] public float MinZoom { get; set; } = 0.35f;
+    [Export] public float MinZoom { get; set; } = 0.08f;
     [Export] public float MaxZoom { get; set; } = 2.5f;
     [Export] public float ZoomStep { get; set; } = 0.1f;
 
