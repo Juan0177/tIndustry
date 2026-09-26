@@ -51,6 +51,8 @@ public sealed class FactorySlice
     public EconomySession Session { get; }
     public string? ActiveCampaignLevelId { get; set; }
     public bool AutoSellAtCore { get; set; }
+    public int CoreUpgradeLevel { get; private set; }
+    public int CoreSaleBonusPercent { get; private set; }
     public TerrainMap? Terrain { get; set; }
     public long CoreDeliveredItems { get; private set; }
     public IReadOnlyList<MinerProducer> Miners => miners;
@@ -89,6 +91,8 @@ public sealed class FactorySlice
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
             AutoSellAtCore = AutoSellAtCore,
+            CoreUpgradeLevel = CoreUpgradeLevel,
+            CoreSaleBonusPercent = CoreSaleBonusPercent,
             Miners = miners.Select(m => new MinerSaveDto
             {
                 X = m.Position.X,
@@ -204,7 +208,9 @@ public sealed class FactorySlice
             nextItemId = Math.Max(1, data.NextItemId),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
             ActiveCampaignLevelId = data.ActiveCampaignLevelId,
-            AutoSellAtCore = data.AutoSellAtCore
+            AutoSellAtCore = data.AutoSellAtCore,
+            CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
+            CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
 
         foreach (var m in data.Miners)
@@ -667,7 +673,7 @@ public sealed class FactorySlice
         return structure is not null && Research.TryUnlock(structure, Wallet);
     }
 
-    /// <summary>Sell stocked materials at dynamic market price (stock before removal).</summary>
+    /// <summary>Sell stocked materials at dynamic market price (stock before removal) + CORE bonus.</summary>
     public bool TrySellFromWallet(string itemId, int amount)
     {
         if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
@@ -681,7 +687,7 @@ public sealed class FactorySlice
             return false;
         }
 
-        var unitPrice = Market.GetDynamicSellPrice(itemId, stockBefore);
+        var unitPrice = EffectiveSalePrice(itemId, stockBefore);
         var total = unitPrice * amount;
         Wallet.AddMoney(total);
         for (var i = 0; i < amount; i++)
@@ -693,7 +699,63 @@ public sealed class FactorySlice
     }
 
     public int PreviewSellPrice(string itemId) =>
-        Market.GetDynamicSellPrice(itemId, Wallet.MaterialCount(itemId));
+        EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
+
+    public int EffectiveSalePrice(string itemId, int stockBeforeSell)
+    {
+        var price = Market.GetDynamicSellPrice(itemId, stockBeforeSell);
+        if (CoreUpgradeLevel <= 0 || CoreSaleBonusPercent <= 0)
+        {
+            return price;
+        }
+
+        return price + price * CoreSaleBonusPercent / 100;
+    }
+
+    public bool TryUpgradeCore()
+    {
+        var upgrade = Content.CoreUpgrade;
+        if (CoreUpgradeLevel > 0
+            || !Wallet.TrySpend(upgrade.MoneyCost, upgrade.BuildCost))
+        {
+            return false;
+        }
+
+        CoreUpgradeLevel = 1;
+        CoreSaleBonusPercent = upgrade.SaleBonusPercent;
+        return true;
+    }
+
+    public string FormatCoreUpgradeNeedMessage()
+    {
+        var upgrade = Content.CoreUpgrade;
+        if (CoreUpgradeLevel > 0)
+        {
+            return $"Core già a LV{CoreUpgradeLevel} (+{CoreSaleBonusPercent}%).";
+        }
+
+        if (Wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost))
+        {
+            return "";
+        }
+
+        var parts = new List<string>();
+        if (Wallet.Money < upgrade.MoneyCost)
+        {
+            parts.Add($"${upgrade.MoneyCost - Wallet.Money}");
+        }
+
+        foreach (var entry in upgrade.BuildCost)
+        {
+            var have = Wallet.MaterialCount(entry.ItemId);
+            if (have < entry.Amount)
+            {
+                parts.Add($"{entry.Amount - have}× {Content.DisplayName(entry.ItemId)}");
+            }
+        }
+
+        return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
+    }
 
     /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
     public static FactorySlice CreateCampaignSlice(
@@ -2361,6 +2423,36 @@ public sealed class FactorySlice
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
         Assert(restored.Research.IsUnlocked("smelter"), "restore research");
         FactorySliceSaveStore.Delete("selftest-mercato");
+    }
+
+    /// <summary>CORE upgrade: one-shot spend, +sale bonus, save v5 round-trip.</summary>
+    public static void SelfTestCoreUpgrade(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        Assert(content.CoreUpgrade.SaleBonusPercent == 25, "core bonus 25");
+        Assert(content.CoreUpgrade.MoneyCost == 150, "core money");
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var wallet = new EconomyWallet(
+            200,
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 25 });
+        var slice = new FactorySlice(content, new BeltGrid(), core, wallet);
+        Assert(slice.CoreUpgradeLevel == 0, "start LV0");
+        slice.Wallet.AddMaterial("iron-ore", 5);
+        var basePrice = slice.Market.GetDynamicSellPrice("iron-ore", 5);
+        slice.Wallet.AddMoney(Math.Max(0, content.CoreUpgrade.MoneyCost - slice.Wallet.Money));
+        Assert(slice.TryUpgradeCore(), "upgrade");
+        Assert(slice.CoreUpgradeLevel == 1 && slice.CoreSaleBonusPercent == 25, "LV1");
+        Assert(!slice.TryUpgradeCore(), "one-shot");
+        var boosted = slice.PreviewSellPrice("iron-ore");
+        Assert(boosted == basePrice + basePrice * 25 / 100, "preview boost");
+        var moneyBefore = slice.Wallet.Money;
+        Assert(slice.TrySellFromWallet("iron-ore", 1), "sell boosted");
+        Assert(slice.Wallet.Money == moneyBefore + boosted, "money includes bonus");
+
+        var snap = slice.Capture();
+        Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySliceSaveData.CurrentVersion, "capture");
+        var restored = Restore(content, snap);
+        Assert(restored.CoreUpgradeLevel == 1 && restored.CoreSaleBonusPercent == 25, "restore");
     }
 
     /// <summary>Auto-sell at core: liquidate on drain; toggle persists in save.</summary>
