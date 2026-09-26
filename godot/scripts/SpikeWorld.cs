@@ -1230,99 +1230,126 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
+        var costMul = _tool == BuildTool.Bridge ? 2 : 1;
+        if (!_slice.CanAffordStructure(structureId, costMul))
+        {
+            var need = _slice.FormatNeedMessage(structureId, costMul);
+            _hud?.ShowToast(string.IsNullOrEmpty(need) ? "Risorse insufficienti" : need);
+            return;
+        }
+
+        var placed = false;
         switch (_tool)
         {
             case BuildTool.Belt:
-                if (_slice.TryPlaceBelt(cell, _placeDir))
+                placed = _slice.TryPlaceBelt(cell, _placeDir);
+                if (placed)
                 {
                     _visualDirty = true;
                 }
 
                 break;
             case BuildTool.BeltFast:
-                if (_slice.TryPlaceBelt(cell, _placeDir, "conveyor-fast"))
+                placed = _slice.TryPlaceBelt(cell, _placeDir, "conveyor-fast");
+                if (placed)
                 {
                     _visualDirty = true;
                 }
 
                 break;
             case BuildTool.Miner:
-                if (_slice.TryPlaceMiner(cell, _placeDir))
+                placed = _slice.TryPlaceMiner(cell, _placeDir);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
             case BuildTool.MinerAdvanced:
-                if (_slice.TryPlaceMiner(cell, _placeDir, definitionId: MinerProducer.AdvancedId))
+                placed = _slice.TryPlaceMiner(cell, _placeDir, definitionId: MinerProducer.AdvancedId);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
             case BuildTool.Smelter:
-                if (_slice.TryPlaceSmelter(cell, _placeDir))
+                placed = _slice.TryPlaceSmelter(cell, _placeDir);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
             case BuildTool.Assembler:
-                if (_slice.TryPlaceAssembler(cell, _placeDir))
+                placed = _slice.TryPlaceAssembler(cell, _placeDir);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
             case BuildTool.Junction:
-                if (_slice.TryPlaceJunction(cell, _placeDir))
+                placed = _slice.TryPlaceJunction(cell, _placeDir);
+                if (placed)
                 {
                     _visualDirty = true;
                 }
 
                 break;
             case BuildTool.Splitter:
-                if (_slice.TryPlaceSplitter(cell, _placeDir))
+                placed = _slice.TryPlaceSplitter(cell, _placeDir);
+                if (placed)
                 {
                     _visualDirty = true;
                 }
 
                 break;
             case BuildTool.Generator:
-                if (_slice.TryPlaceGenerator(cell, _placeDir))
+                placed = _slice.TryPlaceGenerator(cell, _placeDir);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
             case BuildTool.Sorter:
-                if (_slice.TryPlaceSorter(cell, _placeDir, _sorterFilterId))
+                placed = _slice.TryPlaceSorter(cell, _placeDir, _sorterFilterId);
+                if (placed)
                 {
                     _visualDirty = true;
                 }
 
                 break;
             case BuildTool.Bridge:
-                if (_slice.TryPlaceBridge(cell, _placeDir))
+                placed = _slice.TryPlaceBridge(cell, _placeDir);
+                if (placed)
                 {
                     _visualDirty = true;
                 }
 
                 break;
             case BuildTool.Extractor:
-                if (_slice.TryPlaceExtractor(cell, _placeDir))
+                placed = _slice.TryPlaceExtractor(cell, _placeDir);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
             case BuildTool.PowerNode:
-                if (_slice.TryPlacePowerNode(cell))
+                placed = _slice.TryPlacePowerNode(cell);
+                if (placed)
                 {
                     _buildingsDirty = true;
                 }
 
                 break;
+        }
+
+        if (!placed && _slice.CanAffordStructure(structureId, costMul))
+        {
+            // Occupancy / span / unlock edge — keep quiet unless drag just started.
         }
     }
 
@@ -2055,6 +2082,7 @@ public partial class SpikeWorld : Node2D
             _slice.Research.ForceUnlock(id);
         }
 
+        _slice.EnsureDemoBuildStock();
         SyncResearchLocks();
 
         // Clear a quiet row for showcase.
@@ -2129,6 +2157,7 @@ public partial class SpikeWorld : Node2D
             _slice.Research.ForceUnlock(id);
         }
 
+        _slice.EnsureDemoBuildStock();
         SyncResearchLocks();
 
         // Quiet showcase row: T1 miner | T2 miner | T2 + generator (boosted).
@@ -2289,6 +2318,7 @@ public partial class SpikeWorld : Node2D
             _slice.Research.ForceUnlock(id);
         }
 
+        _slice.EnsureDemoBuildStock();
         SyncResearchLocks();
 
         // Quiet showcase grid for production / power / core.
@@ -2624,6 +2654,7 @@ public partial class SpikeWorld : Node2D
             _slice.Research.ForceUnlock(id);
         }
 
+        _slice.EnsureDemoBuildStock();
         SyncResearchLocks();
 
         // Clear a showcase row: T1 left, T2 right (same arrow density; T2 has Blu4 bordino).
@@ -2751,6 +2782,7 @@ public partial class SpikeWorld : Node2D
             _slice.Research.ForceUnlock(id);
         }
 
+        _slice.EnsureDemoBuildStock();
         SyncResearchLocks();
         _slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East, "conveyor-fast");
         _slice.TryPlaceBelt(new GridPosition(5, 8), Direction.East, "conveyor-fast");
