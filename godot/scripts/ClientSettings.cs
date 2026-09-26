@@ -23,6 +23,8 @@ public sealed class ClientSettings
     /// <summary>HUD/content scale percent (100/125/150/200).</summary>
     public int UiScalePercent { get; set; } = 125;
     public bool ShowFps { get; set; }
+    /// <summary>Session overlay: FPS · CPU · RAM · GPU (Raylib ShowResourceOverlay).</summary>
+    public bool ShowResourceOverlay { get; set; } = true;
     /// <summary>True after first-run tutorial is finished or skipped.</summary>
     public bool TutorialCompleted { get; set; }
 
@@ -73,6 +75,7 @@ public sealed class ClientSettings
         VSync = VSync,
         UiScalePercent = UiScalePercent,
         ShowFps = ShowFps,
+        ShowResourceOverlay = ShowResourceOverlay,
         TutorialCompleted = TutorialCompleted
     };
 
@@ -81,6 +84,7 @@ public sealed class ClientSettings
         VSync = other.VSync;
         UiScalePercent = other.UiScalePercent;
         ShowFps = other.ShowFps;
+        ShowResourceOverlay = other.ShowResourceOverlay;
         TutorialCompleted = other.TutorialCompleted;
         Normalize();
     }

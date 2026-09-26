@@ -57,6 +57,7 @@ public partial class SpikeWorld : Node2D
     private SavesPanel? _saves;
     private ClientSettings _settings = new();
     private Label? _fpsLabel;
+    private Label? _resourceLabel;
     private CampaignCatalog? _campaign;
     private CampaignProgress? _progress;
     private string _progressPath = CampaignProgress.ProgressPath;
@@ -102,6 +103,7 @@ public partial class SpikeWorld : Node2D
         EnsureSavesPanel();
         EnsureHomePanel();
         EnsureFpsOverlay();
+        EnsureResourceOverlay();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -528,6 +530,34 @@ public partial class SpikeWorld : Node2D
         SyncFpsOverlay();
     }
 
+    private void EnsureResourceOverlay()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("ResourceOverlay"))
+        {
+            _resourceLabel = layer.GetNode<Label>("ResourceOverlay");
+        }
+        else
+        {
+            _resourceLabel = new Label
+            {
+                Name = "ResourceOverlay",
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                Text = "FPS —\nCPU —\nRAM —"
+            };
+            _resourceLabel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+            _resourceLabel.OffsetLeft = 12;
+            _resourceLabel.OffsetTop = 56;
+            _resourceLabel.OffsetRight = 280;
+            _resourceLabel.OffsetBottom = 140;
+            _resourceLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.93f, 0.86f, 0.92f));
+            _resourceLabel.AddThemeFontSizeOverride("font_size", 13);
+            layer.AddChild(_resourceLabel);
+        }
+
+        SyncResourceOverlay();
+    }
+
     private void SyncFpsOverlay()
     {
         if (_fpsLabel is null)
@@ -535,7 +565,18 @@ public partial class SpikeWorld : Node2D
             return;
         }
 
-        _fpsLabel.Visible = _settings.ShowFps;
+        // Raylib: corner FPS only when resource overlay is off.
+        _fpsLabel.Visible = _settings.ShowFps && !_settings.ShowResourceOverlay;
+    }
+
+    private void SyncResourceOverlay()
+    {
+        if (_resourceLabel is null)
+        {
+            return;
+        }
+
+        _resourceLabel.Visible = _settings.ShowResourceOverlay;
     }
 
     private void OpenSettings()
@@ -550,6 +591,7 @@ public partial class SpikeWorld : Node2D
     private void OnSettingsApplied()
     {
         SyncFpsOverlay();
+        SyncResourceOverlay();
         _hud?.ShowToast(
             $"Impostazioni · UI {ClientSettings.UiScaleLabel(_settings.UiScalePercent)} · VSync {(_settings.VSync ? "ON" : "OFF")}");
     }
@@ -1276,9 +1318,27 @@ public partial class SpikeWorld : Node2D
 
     public override void _Process(double delta)
     {
-        if (_fpsLabel is not null && _settings.ShowFps)
+        if (_fpsLabel is not null && _settings.ShowFps && !_settings.ShowResourceOverlay)
         {
             _fpsLabel.Text = $"FPS {Engine.GetFramesPerSecond()}";
+        }
+
+        if (_settings.ShowResourceOverlay)
+        {
+            SystemMonitor.Update((float)delta);
+            if (_resourceLabel is not null)
+            {
+                var fps = Engine.GetFramesPerSecond();
+                var procMs = Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
+                var gpu = SystemMonitor.GpuLabel;
+                var lines = $"FPS {fps}\nCPU {SystemMonitor.CpuPercent:0.0}%\nRAM {SystemMonitor.FormatRam()}\nProc {procMs:0.0} ms";
+                if (!string.IsNullOrWhiteSpace(gpu))
+                {
+                    lines += $"\n{gpu}";
+                }
+
+                _resourceLabel.Text = lines;
+            }
         }
 
         if (_home?.IsOpen == true || _slice is null)
