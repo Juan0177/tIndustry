@@ -212,6 +212,7 @@ public partial class FactoryHud : Control
     {
         var path = $"res://assets/{_sorterFilterId}.png";
         target.Texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+        ItemPalette.Tint(target, _sorterFilterId);
     }
 
     public void SetToolLocked(ToolKind tool, bool locked)
@@ -511,6 +512,7 @@ public partial class FactoryHud : Control
             icon.Texture = GD.Load<Texture2D>(texPath);
         }
 
+        ItemPalette.Tint(icon, id);
         iconWrap.AddChild(icon);
 
         var label = new Label
@@ -1190,6 +1192,7 @@ public partial class FactoryHud : Control
         if (ResourceLoader.Exists(texPath))
         {
             icon.Texture = GD.Load<Texture2D>(texPath);
+            ItemPalette.Tint(icon, itemId);
         }
 
         iconHost.AddChild(icon);

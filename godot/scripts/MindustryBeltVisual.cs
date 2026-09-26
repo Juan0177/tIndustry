@@ -406,7 +406,8 @@ public partial class MindustryBeltVisual : Node2D
                     Scale = Vector2.One * (tileSize * 0.70f / 64f),
                     // Cancel parent/frame rotation so the item stays axis-aligned.
                     RotationDegrees = -sprite.RotationDegrees,
-                    ZIndex = 1
+                    ZIndex = 1,
+                    Modulate = ItemPalette.ColorFor(filterId)
                 };
                 node.AddChild(glyph);
             }

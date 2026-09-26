@@ -1792,6 +1792,12 @@ public sealed class FactorySlice
 
     public static void SelfTest(string contentJsonPath)
     {
+        var colorFail = ItemVisualColors.SelfTest();
+        if (colorFail is not null)
+        {
+            throw new InvalidOperationException($"ItemVisualColors: {colorFail}");
+        }
+
         var content = FactoryContent.Load(contentJsonPath);
         SelfTestPlaceCosts(contentJsonPath);
         SelfTestFuelOrPower(contentJsonPath);
