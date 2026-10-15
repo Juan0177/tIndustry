@@ -8,23 +8,35 @@ namespace TIndustry.Shared;
 public sealed class Factory
 {
     /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
-    public const float CorePowerCapacity = 24f;
+    public const float CorePowerCapacity = GameState.CorePowerCapacity;
     /// <summary>Raylib <c>FactoryWorld.CorePowerGeneration</c> (always ticks into buffer).</summary>
-    public const float CorePowerGeneration = 12f;
+    public const float CorePowerGeneration = GameState.CorePowerGeneration;
     /// <summary>Raylib <c>FactoryWorld.SmelterPowerDraw</c> (per second while powered craft).</summary>
-    public const float SmelterPowerDraw = 8f;
+    public const float SmelterPowerDraw = CraftingSystem.SmelterPowerDraw;
     /// <summary>Raylib <c>FactoryWorld.AssemblerPowerDraw</c>.</summary>
-    public const float AssemblerPowerDraw = 10f;
+    public const float AssemblerPowerDraw = CraftingSystem.AssemblerPowerDraw;
 
-    private long nextItemId = 1;
-    /// <summary>Next stable building id (miners, crafters, generators, extractors, power nodes).</summary>
-    private long nextEntityId = 1;
-    private readonly List<Miner> miners = [];
-    private readonly List<Crafter> smelters = [];
-    private readonly List<Crafter> assemblers = [];
-    private readonly List<Generator> generators = [];
-    private readonly List<Extractor> extractors = [];
-    private readonly List<PowerNode> powerNodes = [];
+    /// <summary>The whole simulation state; <see cref="Simulation.Step"/> advances it.</summary>
+    public GameState State { get; }
+
+    private long nextItemId
+    {
+        get => State.NextItemId;
+        set => State.NextItemId = value;
+    }
+
+    private long nextEntityId
+    {
+        get => State.NextEntityId;
+        set => State.NextEntityId = value;
+    }
+
+    private List<Miner> miners => State.Miners;
+    private List<Crafter> smelters => State.Smelters;
+    private List<Crafter> assemblers => State.Assemblers;
+    private List<Generator> generators => State.Generators;
+    private List<Extractor> extractors => State.Extractors;
+    private List<PowerNode> powerNodes => State.PowerNodes;
 
     public Factory(
         FactoryContent content,
@@ -34,13 +46,15 @@ public sealed class Factory
         ResearchState? research = null,
         EconomySession? session = null)
     {
-        Content = content;
-        Belts = belts;
-        CoreTiles = coreTiles;
-        Wallet = wallet ?? new EconomyWallet();
-        Research = research ?? ResearchState.CreateNew(content);
-        Market = MarketCatalog.FromContent(content);
-        Session = session ?? new EconomySession(Wallet.Money);
+        var resolvedWallet = wallet ?? new EconomyWallet();
+        State = new GameState(
+            content,
+            belts,
+            coreTiles,
+            resolvedWallet,
+            research ?? ResearchState.CreateNew(content),
+            session ?? new EconomySession(resolvedWallet.Money),
+            MarketCatalog.FromContent(content));
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
@@ -49,30 +63,71 @@ public sealed class Factory
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
-    public FactoryContent Content { get; }
-    public BeltGrid Belts { get; }
+    public FactoryContent Content => State.Content;
+    public BeltGrid Belts => State.Belts;
     public ConveyorDefinition BeltDefinition { get; }
     public ConveyorDefinition JunctionDefinition { get; }
     public ConveyorDefinition SplitterDefinition { get; }
     public ConveyorDefinition SorterDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
-    public IReadOnlySet<GridPosition> CoreTiles { get; }
-    public EconomyWallet Wallet { get; }
-    public ResearchState Research { get; }
-    public MarketCatalog Market { get; }
-    public EconomySession Session { get; }
-    public string? ActiveCampaignLevelId { get; set; }
-    public bool AutoSellAtCore { get; set; }
-    public int CoreUpgradeLevel { get; private set; }
-    public int CoreSaleBonusPercent { get; private set; }
+    public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
+    public EconomyWallet Wallet => State.Wallet;
+    public ResearchState Research => State.Research;
+    public MarketCatalog Market => State.Market;
+    public EconomySession Session => State.Session;
+    public string? ActiveCampaignLevelId
+    {
+        get => State.ActiveCampaignLevelId;
+        set => State.ActiveCampaignLevelId = value;
+    }
+
+    public bool AutoSellAtCore
+    {
+        get => State.AutoSellAtCore;
+        set => State.AutoSellAtCore = value;
+    }
+
+    public int CoreUpgradeLevel
+    {
+        get => State.CoreUpgradeLevel;
+        private set => State.CoreUpgradeLevel = value;
+    }
+
+    public int CoreSaleBonusPercent
+    {
+        get => State.CoreSaleBonusPercent;
+        private set => State.CoreSaleBonusPercent = value;
+    }
+
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
-    public float PowerBuffer { get; private set; }
+    public float PowerBuffer
+    {
+        get => State.PowerBuffer;
+        private set => State.PowerBuffer = value;
+    }
+
     /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
-    public float PowerCapacity { get; private set; } = CorePowerCapacity;
+    public float PowerCapacity
+    {
+        get => State.PowerCapacity;
+        private set => State.PowerCapacity = value;
+    }
+
     /// <summary>Last tick generation rate (core + live gens).</summary>
-    public float PowerGenerationPerSecond { get; private set; } = CorePowerGeneration;
-    public TerrainMap? Terrain { get; set; }
-    public long CoreDeliveredItems { get; private set; }
+    public float PowerGenerationPerSecond => State.PowerGenerationPerSecond;
+
+    public TerrainMap? Terrain
+    {
+        get => State.Terrain;
+        set => State.Terrain = value;
+    }
+
+    public long CoreDeliveredItems
+    {
+        get => State.CoreDeliveredItems;
+        private set => State.CoreDeliveredItems = value;
+    }
+
     public IReadOnlyList<Miner> Miners => miners;
     public IReadOnlyList<Crafter> Smelters => smelters;
     public IReadOnlyList<Crafter> Assemblers => assemblers;
@@ -83,7 +138,11 @@ public sealed class Factory
     public long NextEntityId => nextEntityId;
 
     /// <summary>Fixed ticks simulated so far (<see cref="SimulationClock.TickSeconds"/> each).</summary>
-    public long CurrentTick { get; private set; }
+    public long CurrentTick
+    {
+        get => State.CurrentTick;
+        private set => State.CurrentTick = value;
+    }
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;
@@ -819,16 +878,8 @@ public sealed class Factory
     public int PreviewSellPrice(string itemId) =>
         EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
 
-    public int EffectiveSalePrice(string itemId, int stockBeforeSell)
-    {
-        var price = Market.GetDynamicSellPrice(itemId, stockBeforeSell);
-        if (CoreUpgradeLevel <= 0 || CoreSaleBonusPercent <= 0)
-        {
-            return price;
-        }
-
-        return price + price * CoreSaleBonusPercent / 100;
-    }
+    public int EffectiveSalePrice(string itemId, int stockBeforeSell) =>
+        State.EffectiveSalePrice(itemId, stockBeforeSell);
 
     public bool TryUpgradeCore()
     {
@@ -1557,18 +1608,7 @@ public sealed class Factory
         return false;
     }
 
-    private IEnumerable<Crafter> CraftMachines()
-    {
-        foreach (var s in smelters)
-        {
-            yield return s;
-        }
-
-        foreach (var a in assemblers)
-        {
-            yield return a;
-        }
-    }
+    private IEnumerable<Crafter> CraftMachines() => State.CraftMachines();
 
     private bool FootprintClearExcept(
         GridPosition origin,
@@ -1651,101 +1691,15 @@ public sealed class Factory
     }
 
     /// <summary>Advances the simulation by exactly one fixed tick (<see cref="SimulationClock.TickSeconds"/>).</summary>
-    public void Step()
-    {
-        Tick(SimulationClock.TickSeconds);
-        CurrentTick++;
-    }
+    public void Step() => Simulation.Step(State);
 
-    private void Tick(float deltaSeconds)
-    {
-        // Belts advance first so fuel reaches generators and handoffs reach craft/core.
-        Belts.Tick(deltaSeconds);
+    public void SetPowerBuffer(float buffer) => State.SetPowerBuffer(buffer);
 
-        var liveGens = new List<Generator>();
-        foreach (var gen in generators)
-        {
-            if (gen.Tick(deltaSeconds, Belts))
-            {
-                liveGens.Add(gen);
-            }
-        }
-
-        // Capacity + recharge (Raylib soft power network — no full link graph yet).
-        RecalculatePowerCapacity(liveGens.Count);
-        var generation = CorePowerGeneration
-            + liveGens.Count * Generator.GenerationPerSecond;
-        PowerGenerationPerSecond = generation;
-        PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
-
-        // Miners after gens so T2 can apply adjacency/node power the same tick.
-        foreach (var miner in miners)
-        {
-            var connected = miner.CanReceivePower
-                && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, Miner.Size))
-                    || IsPoweredViaNode(miner.Position, Miner.Size, liveGens));
-            miner.Tick(
-                deltaSeconds,
-                Belts,
-                ref nextItemId,
-                connected,
-                itemId => TryDeliverAdjacent(miner.Position, Miner.Size, itemId));
-        }
-
-        foreach (var craft in CraftMachines())
-        {
-            var connected = liveGens.Any(g => g.IsAdjacentTo(craft.Position, Crafter.Size))
-                || IsPoweredViaNode(craft.Position, Crafter.Size, liveGens);
-            var draw = craft.IsAssembler ? AssemblerPowerDraw : SmelterPowerDraw;
-            var exclude = craft;
-            craft.Tick(
-                deltaSeconds,
-                Belts,
-                ref nextItemId,
-                networkConnected: connected,
-                trySpendPower: TrySpendPower,
-                powerDrawPerSecond: draw,
-                tryDeliverAdjacent: itemId =>
-                    TryDeliverAdjacent(craft.Position, Crafter.Size, itemId, exclude));
-        }
-
-        foreach (var ex in extractors)
-        {
-            ex.Tick(deltaSeconds, Belts, Wallet, CoreTiles, ref nextItemId);
-        }
-
-        // Second belt tick so freshly emitted items can move the same frame.
-        Belts.Tick(0f);
-        CoreDeliveredItems += CoreStockSink.Drain(
-            Belts, CoreTiles, Wallet, Market, Session, AutoSellAtCore);
-    }
-
-    public void SetPowerBuffer(float buffer) =>
-        PowerBuffer = Math.Clamp(buffer, 0f, Math.Max(PowerCapacity, CorePowerCapacity));
-
-    public void RecalculatePowerCapacity(int liveGeneratorCount)
-    {
-        PowerCapacity = CorePowerCapacity
-            + Math.Max(0, liveGeneratorCount) * Generator.CapacityBonus;
-        PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
-    }
+    public void RecalculatePowerCapacity(int liveGeneratorCount) =>
+        State.RecalculatePowerCapacity(liveGeneratorCount);
 
     /// <summary>Drain shared buffer; false on brownout (Raylib parity).</summary>
-    public bool TrySpendPower(float amount)
-    {
-        if (amount <= 0f)
-        {
-            return true;
-        }
-
-        if (PowerBuffer < amount)
-        {
-            return false;
-        }
-
-        PowerBuffer -= amount;
-        return true;
-    }
+    public bool TrySpendPower(float amount) => State.TrySpendPower(amount);
 
     /// <summary>
     /// Spend only when the building is adjacency/node-connected to a live generator.
@@ -1754,23 +1708,8 @@ public sealed class Factory
         GridPosition origin,
         int size,
         float amount,
-        IReadOnlyList<Generator>? liveGens = null)
-    {
-        if (amount <= 0f)
-        {
-            return true;
-        }
-
-        liveGens ??= generators.Where(g => g.IsGenerating).ToList();
-        var connected = liveGens.Any(g => g.IsAdjacentTo(origin, size))
-            || IsPoweredViaNode(origin, size, liveGens);
-        if (!connected)
-        {
-            return false;
-        }
-
-        return TrySpendPower(amount);
-    }
+        IReadOnlyList<Generator>? liveGens = null) =>
+        State.TrySpendPowerForBuilding(origin, size, amount, liveGens);
 
     /// <summary>
     /// Direct building→building (or building→core) when footprints touch (Raylib parity).
@@ -1780,85 +1719,8 @@ public sealed class Factory
         GridPosition origin,
         int size,
         string itemId,
-        Crafter? excludeCrafter = null)
-    {
-        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(origin, size))
-        {
-            foreach (var craft in CraftMachines())
-            {
-                if (excludeCrafter is not null && ReferenceEquals(craft, excludeCrafter))
-                {
-                    continue;
-                }
-
-                if (!craft.Occupies(neighbor))
-                {
-                    continue;
-                }
-
-                // Coal into forno fuel buffer when applicable.
-                if (craft.UsesCoalOrPower
-                    && itemId == Crafter.FuelItemId
-                    && craft.TryAcceptFuel(itemId))
-                {
-                    return true;
-                }
-
-                if (craft.TryAccept(itemId))
-                {
-                    return true;
-                }
-            }
-
-            if (CoreTiles.Contains(neighbor))
-            {
-                CoreDeliveredItems++;
-                if (AutoSellAtCore)
-                {
-                    var price = EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
-                    Wallet.AddMoney(price);
-                    Session.RecordSale(itemId, price);
-                }
-                else
-                {
-                    Wallet.AddMaterial(itemId, 1);
-                }
-
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private bool IsPoweredViaNode(
-        GridPosition craftOrigin,
-        int craftSize,
-        IReadOnlyList<Generator> liveGens)
-    {
-        if (liveGens.Count == 0 || powerNodes.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (var node in powerNodes)
-        {
-            if (!node.IsAdjacentTo(craftOrigin, craftSize))
-            {
-                continue;
-            }
-
-            foreach (var gen in liveGens)
-            {
-                if (node.IsWithinRange(gen.Position, Generator.Size))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
+        Crafter? excludeCrafter = null) =>
+        State.TryDeliverAdjacent(origin, size, itemId, excludeCrafter);
 
     /// <summary>Guard for demo/seed layouts: throws if a scripted placement fails.</summary>
     private static void Require(bool condition, string message)
