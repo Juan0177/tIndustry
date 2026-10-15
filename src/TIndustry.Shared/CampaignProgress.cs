@@ -18,10 +18,7 @@ public sealed class CampaignProgress
 
     public List<string> CompletedLevelIds { get; set; } = [];
 
-    public static string ProgressDirectory =>
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "tIndustry");
+    public static string ProgressDirectory => GameDataPaths.Root;
 
     public static string ProgressPath =>
         Path.Combine(ProgressDirectory, "campaignProgress.json");

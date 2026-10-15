@@ -388,6 +388,57 @@ public partial class SpikeWorld
 
         _home?.Close();
         _settingsPanel?.Close();
+        _tutorialCamAnchor = null;
         _tutorial?.Open(_settings);
+    }
+
+    /// <summary>
+    /// Per-frame: hide the tutorial card under full-screen panels and auto-complete the current step
+    /// once the player has done what it asks.
+    /// </summary>
+    private void SyncTutorial()
+    {
+        if (_tutorial is null || !_tutorial.IsOpen)
+        {
+            return;
+        }
+
+        var modalOpen = _home?.IsOpen == true || _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
+            || _research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true;
+        _tutorial.SetSuppressed(modalOpen);
+
+        if (_slice is null)
+        {
+            return;
+        }
+
+        var done = _tutorial.CurrentStep switch
+        {
+            TutorialPanel.Step.Camera => CameraMovedSinceTutorialStart(),
+            TutorialPanel.Step.Palette => _tool != BuildTool.Cursor,
+            TutorialPanel.Step.Miner => _slice.Miners.Count > 0,
+            TutorialPanel.Step.BeltToCore => _slice.CoreDeliveredItems > 0,
+            TutorialPanel.Step.Mercato => _mercato?.IsOpen == true,
+            TutorialPanel.Step.Ricerca => _research?.IsOpen == true,
+            TutorialPanel.Step.Forno => _slice.Smelters.Count > 0,
+            _ => false
+        };
+        if (done)
+        {
+            _tutorial.CompleteStep(_tutorial.CurrentStep);
+        }
+    }
+
+    private bool CameraMovedSinceTutorialStart()
+    {
+        if (GetNodeOrNull<Camera2D>("Camera") is not { } cam)
+        {
+            return false;
+        }
+
+        var now = (cam.Position, cam.Zoom.X);
+        _tutorialCamAnchor ??= now;
+        var anchor = _tutorialCamAnchor.Value;
+        return anchor.Position.DistanceTo(now.Position) > TileSize * 2 || Math.Abs(anchor.Zoom - now.X) > 0.05f;
     }
 }

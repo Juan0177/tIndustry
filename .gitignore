@@ -45,3 +45,6 @@ godot/.mono/
 # Local Godot export output
 dist/
 
+
+# Dev capture output (TINDUSTRY_CAPTURE)
+godot/artifacts/

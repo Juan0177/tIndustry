@@ -80,18 +80,6 @@ public partial class SpikeWorld
         {
             var img = GetViewport().GetTexture().GetImage();
             img.SavePng(Path.Combine(destDir, name));
-            img.SavePng(Path.Combine("/opt/cursor/artifacts", name));
-            var store = "/cursor/stores/bc-6a5b42f7-8a62-4dc2-b71f-4a3a4f9c2232/media";
-            try
-            {
-                Directory.CreateDirectory(store);
-                img.SavePng(Path.Combine(store, name));
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"store media save failed: {ex.Message}");
-            }
-
             GD.Print($"Saved {name}");
         }
 
@@ -131,7 +119,6 @@ public partial class SpikeWorld
         {
             var img = GetViewport().GetTexture().GetImage();
             img.SavePng(Path.Combine(destDir, name));
-            img.SavePng(Path.Combine("/opt/cursor/artifacts", name));
             GD.Print($"Saved {name} → {destDir}");
         }
 
@@ -182,7 +169,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
         var splash = GetViewport().GetTexture().GetImage();
         splash.SavePng(Path.Combine(destDir, "godot-port-home-splash.png"));
-        splash.SavePng("/opt/cursor/artifacts/godot-port-home-splash.png");
         GD.Print($"Saved home splash → {destDir}");
 
         _home?.Close();
@@ -196,7 +182,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var campagna = GetViewport().GetTexture().GetImage();
         campagna.SavePng(Path.Combine(destDir, "godot-port-home-campagna.png"));
-        campagna.SavePng("/opt/cursor/artifacts/godot-port-home-campagna.png");
 
         _returnHomeAfterCampaign = false;
         _campaignSelect?.Close();
@@ -206,7 +191,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var sandbox = GetViewport().GetTexture().GetImage();
         sandbox.SavePng(Path.Combine(destDir, "godot-port-home-sandbox.png"));
-        sandbox.SavePng("/opt/cursor/artifacts/godot-port-home-sandbox.png");
 
         GD.Print("Home screenshot set complete.");
         GetTree().Quit();
@@ -224,14 +208,12 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
         var campaign = GetViewport().GetTexture().GetImage();
         campaign.SavePng(Path.Combine(destDir, "godot-port-mapseed-campaign.png"));
-        campaign.SavePng("/opt/cursor/artifacts/godot-port-mapseed-campaign.png");
 
         StartNewSandbox(toast: false);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var sandbox = GetViewport().GetTexture().GetImage();
         sandbox.SavePng(Path.Combine(destDir, "godot-port-mapseed-sandbox.png"));
-        sandbox.SavePng("/opt/cursor/artifacts/godot-port-mapseed-sandbox.png");
 
         // Second sandbox seed for contrast (swap via CreateSandboxSlice).
         var content = FactoryContent.Load(_contentPath);
@@ -243,7 +225,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var alt = GetViewport().GetTexture().GetImage();
         alt.SavePng(Path.Combine(destDir, "godot-port-mapseed-alt.png"));
-        alt.SavePng("/opt/cursor/artifacts/godot-port-mapseed-alt.png");
 
         GD.Print($"Map-seed shots · campaign seed={_campaign?.FirstLevel?.Seed} sandbox=42 alt=777");
         GetTree().Quit();
@@ -261,7 +242,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
         var selectShot = GetViewport().GetTexture().GetImage();
         selectShot.SavePng(Path.Combine(destDir, "godot-port-campaign-select.png"));
-        selectShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-select.png");
         GD.Print($"Saved campaign select → {destDir}");
 
         _campaignSelect?.Close();
@@ -274,7 +254,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var objShot = GetViewport().GetTexture().GetImage();
         objShot.SavePng(Path.Combine(destDir, "godot-port-campaign-objectives.png"));
-        objShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-objectives.png");
 
         // Progress: sell toward L01 objectives.
         while (_slice.Wallet.MaterialCount("iron-ore") > 0
@@ -294,14 +273,12 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var progressShot = GetViewport().GetTexture().GetImage();
         progressShot.SavePng(Path.Combine(destDir, "godot-port-campaign-progress.png"));
-        progressShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-progress.png");
 
         _campaignSelect?.Open(_campaign, _progress);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var unlockedShot = GetViewport().GetTexture().GetImage();
         unlockedShot.SavePng(Path.Combine(destDir, "godot-port-campaign-l02-unlocked.png"));
-        unlockedShot.SavePng("/opt/cursor/artifacts/godot-port-campaign-l02-unlocked.png");
 
         GD.Print("Campaign screenshot set complete.");
         GetTree().Quit();
@@ -309,27 +286,7 @@ public partial class SpikeWorld
 
     private async Task SavePortScreenshotsAsync()
     {
-        var mediaCandidates = new[]
-        {
-            "/cursor/stores/bc-6a5b42f7-8a62-4dc2-b71f-4a3a4f9c2232/media",
-            ProjectSettings.GlobalizePath("res://artifacts"),
-            "/opt/cursor/artifacts"
-        };
-
-        string? destDir = null;
-        foreach (var d in mediaCandidates)
-        {
-            try
-            {
-                Directory.CreateDirectory(d);
-                destDir = d;
-                break;
-            }
-            catch
-            {
-                // try next
-            }
-        }
+        var destDir = CaptureDirectory();
 
         if (destDir is null || _slice is null || _hud is null)
         {
@@ -438,7 +395,6 @@ public partial class SpikeWorld
         // Default / mercato: Core $ HUD + Mercato sell loop.
         var coreShot = GetViewport().GetTexture().GetImage();
         coreShot.SavePng(Path.Combine(destDir, "godot-port-mercato-core-money.png"));
-        coreShot.SavePng("/opt/cursor/artifacts/godot-port-mercato-core-money.png");
         GD.Print($"Saved mercato core-money → {destDir}");
 
         _mercato?.Open(_slice);
@@ -446,7 +402,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
         var panelShot = GetViewport().GetTexture().GetImage();
         panelShot.SavePng(Path.Combine(destDir, "godot-port-mercato-panel.png"));
-        panelShot.SavePng("/opt/cursor/artifacts/godot-port-mercato-panel.png");
 
         var beforeMoney = _slice.Wallet.Money;
         if (!_slice.TrySellFromWallet("iron-ore", 3))
@@ -464,7 +419,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var sellShot = GetViewport().GetTexture().GetImage();
         sellShot.SavePng(Path.Combine(destDir, "godot-port-mercato-sell.png"));
-        sellShot.SavePng("/opt/cursor/artifacts/godot-port-mercato-sell.png");
 
         SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
         LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
@@ -478,7 +432,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var roundtrip = GetViewport().GetTexture().GetImage();
         roundtrip.SavePng(Path.Combine(destDir, "godot-port-mercato-save-roundtrip.png"));
-        roundtrip.SavePng("/opt/cursor/artifacts/godot-port-mercato-save-roundtrip.png");
 
         GD.Print("Mercato screenshot set complete.");
         GetTree().Quit();
@@ -540,20 +493,17 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
         var world = GetViewport().GetTexture().GetImage();
         world.SavePng(Path.Combine(destDir, "godot-port-logistics-redesign-world.png"));
-        world.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-world.png");
 
         // Hold a few frames so bridge arrows animate through a cycle.
         await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
         var anim = GetViewport().GetTexture().GetImage();
         anim.SavePng(Path.Combine(destDir, "godot-port-logistics-redesign-bridge-anim.png"));
-        anim.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-bridge-anim.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.Sorter);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var palette = GetViewport().GetTexture().GetImage();
         palette.SavePng(Path.Combine(destDir, "godot-port-logistics-redesign-palette.png"));
-        palette.SavePng("/opt/cursor/artifacts/godot-port-logistics-redesign-palette.png");
 
         GD.Print("Logistics redesign screenshot set complete.");
         GetTree().Quit();
@@ -638,7 +588,6 @@ public partial class SpikeWorld
 
         var world = GetViewport().GetTexture().GetImage();
         world.SavePng(Path.Combine(destDir, $"{prefix}-world.png"));
-        world.SavePng($"/opt/cursor/artifacts/{prefix}-world.png");
 
         // Close-ups: camera on T1
         if (HasNode("Camera"))
@@ -651,7 +600,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var t1 = GetViewport().GetTexture().GetImage();
         t1.SavePng(Path.Combine(destDir, $"{prefix}-t1.png"));
-        t1.SavePng($"/opt/cursor/artifacts/{prefix}-t1.png");
 
         // T2 isolated (middle)
         if (HasNode("Camera"))
@@ -663,7 +611,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var t2 = GetViewport().GetTexture().GetImage();
         t2.SavePng(Path.Combine(destDir, $"{prefix}-t2.png"));
-        t2.SavePng($"/opt/cursor/artifacts/{prefix}-t2.png");
 
         // T2 boosted (lit perno) — right miner + gen
         if (HasNode("Camera"))
@@ -688,7 +635,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var boosted = GetViewport().GetTexture().GetImage();
         boosted.SavePng(Path.Combine(destDir, $"{prefix}-t2-boosted.png"));
-        boosted.SavePng($"/opt/cursor/artifacts/{prefix}-t2-boosted.png");
 
         // Multi-frame spin while working (hold on boosted T2).
         for (var frame = 0; frame < 4; frame++)
@@ -697,7 +643,6 @@ public partial class SpikeWorld
             var spin = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-spin-{frame}.png";
             spin.SavePng(Path.Combine(destDir, name));
-            spin.SavePng($"/opt/cursor/artifacts/{name}");
         }
 
         // Palette with miner selected (static composite art).
@@ -713,7 +658,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var palette = GetViewport().GetTexture().GetImage();
         palette.SavePng(Path.Combine(destDir, $"{prefix}-palette.png"));
-        palette.SavePng($"/opt/cursor/artifacts/{prefix}-palette.png");
 
         GD.Print($"Miner gears screenshot set complete ({prefix}).");
         GetTree().Quit();
@@ -814,13 +758,11 @@ public partial class SpikeWorld
 
         var map = GetViewport().GetTexture().GetImage();
         map.SavePng(Path.Combine(destDir, $"{prefix}-map.png"));
-        map.SavePng($"/opt/cursor/artifacts/{prefix}-map.png");
 
         // Palette with production tool selected.
         await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         var palette = GetViewport().GetTexture().GetImage();
         palette.SavePng(Path.Combine(destDir, $"{prefix}-palette.png"));
-        palette.SavePng($"/opt/cursor/artifacts/{prefix}-palette.png");
 
         // Isolated close-ups — zoomed hard, camera on footprint centers.
         await CaptureCloseAsync(destDir, prefix, "extractor", 3.5f, 3.5f, 2.6f);
@@ -849,7 +791,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var core = GetViewport().GetTexture().GetImage();
         core.SavePng(Path.Combine(destDir, $"{prefix}-core.png"));
-        core.SavePng($"/opt/cursor/artifacts/{prefix}-core.png");
 
         // Active anim frames — smelter heat pulse
         if (HasNode("Camera"))
@@ -874,7 +815,6 @@ public partial class SpikeWorld
             var shot = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-smelter-anim-{frame}.png";
             shot.SavePng(Path.Combine(destDir, name));
-            shot.SavePng($"/opt/cursor/artifacts/{name}");
         }
 
         // Assembler press
@@ -897,7 +837,6 @@ public partial class SpikeWorld
 
         var asmIdle = GetViewport().GetTexture().GetImage();
         asmIdle.SavePng(Path.Combine(destDir, $"{prefix}-assembler-idle.png"));
-        asmIdle.SavePng($"/opt/cursor/artifacts/{prefix}-assembler-idle.png");
 
         for (var frame = 0; frame < 4; frame++)
         {
@@ -914,7 +853,6 @@ public partial class SpikeWorld
             var shot = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-assembler-anim-{frame}.png";
             shot.SavePng(Path.Combine(destDir, name));
-            shot.SavePng($"/opt/cursor/artifacts/{name}");
         }
 
         // Generator orbit while burning
@@ -946,7 +884,6 @@ public partial class SpikeWorld
             var shot = GetViewport().GetTexture().GetImage();
             var name = $"{prefix}-generator-orbit-{frame}.png";
             shot.SavePng(Path.Combine(destDir, name));
-            shot.SavePng($"/opt/cursor/artifacts/{name}");
         }
 
         // Burn out so dots freeze (no rebuild — Sync freezes angle).
@@ -959,7 +896,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var genStopped = GetViewport().GetTexture().GetImage();
         genStopped.SavePng(Path.Combine(destDir, $"{prefix}-generator-stopped.png"));
-        genStopped.SavePng($"/opt/cursor/artifacts/{prefix}-generator-stopped.png");
 
         // New fuel → orbit restarts from angle 0
         if (_slice.Generators.Count > 0)
@@ -971,7 +907,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var genRestart = GetViewport().GetTexture().GetImage();
         genRestart.SavePng(Path.Combine(destDir, $"{prefix}-generator-restart.png"));
-        genRestart.SavePng($"/opt/cursor/artifacts/{prefix}-generator-restart.png");
 
         // Extractor recolor is static — already captured. One more anim hold for glow.
         if (HasNode("Camera"))
@@ -984,7 +919,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.3), SceneTreeTimer.SignalName.Timeout);
         var exClose = GetViewport().GetTexture().GetImage();
         exClose.SavePng(Path.Combine(destDir, $"{prefix}-extractor-iron.png"));
-        exClose.SavePng($"/opt/cursor/artifacts/{prefix}-extractor-iron.png");
 
         GD.Print("Prod/power/core screenshot set complete.");
         GetTree().Quit();
@@ -1010,7 +944,6 @@ public partial class SpikeWorld
         var shot = GetViewport().GetTexture().GetImage();
         var name = $"{prefix}-{label}.png";
         shot.SavePng(Path.Combine(destDir, name));
-        shot.SavePng($"/opt/cursor/artifacts/{name}");
     }
 
     private async Task HoldCraftAndCaptureAsync(
@@ -1053,7 +986,6 @@ public partial class SpikeWorld
         var shot = GetViewport().GetTexture().GetImage();
         var name = $"{prefix}-{label}.png";
         shot.SavePng(Path.Combine(destDir, name));
-        shot.SavePng($"/opt/cursor/artifacts/{name}");
     }
 
     private async Task CaptureBeltT2ChevronShotsAsync(string destDir)
@@ -1101,14 +1033,12 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var worldT1 = GetViewport().GetTexture().GetImage();
         worldT1.SavePng(Path.Combine(destDir, "godot-port-belt-t2-single-chevron-world.png"));
-        worldT1.SavePng("/opt/cursor/artifacts/godot-port-belt-t2-single-chevron-world.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.BeltFast);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var palette = GetViewport().GetTexture().GetImage();
         palette.SavePng(Path.Combine(destDir, "godot-port-belt-t2-single-chevron-palette.png"));
-        palette.SavePng("/opt/cursor/artifacts/godot-port-belt-t2-single-chevron-palette.png");
 
         GD.Print("Belt T2 single-chevron screenshot set complete.");
         GetTree().Quit();
@@ -1157,28 +1087,24 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
         var world = GetViewport().GetTexture().GetImage();
         world.SavePng(Path.Combine(destDir, "godot-port-structures-world.png"));
-        world.SavePng("/opt/cursor/artifacts/godot-port-structures-world.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.Junction);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var logistics = GetViewport().GetTexture().GetImage();
         logistics.SavePng(Path.Combine(destDir, "godot-port-structures-palette-logistics.png"));
-        logistics.SavePng("/opt/cursor/artifacts/godot-port-structures-palette-logistics.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.MinerAdvanced);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var production = GetViewport().GetTexture().GetImage();
         production.SavePng(Path.Combine(destDir, "godot-port-structures-palette-production.png"));
-        production.SavePng("/opt/cursor/artifacts/godot-port-structures-palette-production.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.PowerNode);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         var power = GetViewport().GetTexture().GetImage();
         power.SavePng(Path.Combine(destDir, "godot-port-structures-palette-power.png"));
-        power.SavePng("/opt/cursor/artifacts/godot-port-structures-palette-power.png");
 
         GD.Print("Structures screenshot set complete.");
         GetTree().Quit();
@@ -1216,21 +1142,18 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var logistics = GetViewport().GetTexture().GetImage();
         logistics.SavePng(Path.Combine(destDir, "godot-port-t2-logistics.png"));
-        logistics.SavePng("/opt/cursor/artifacts/godot-port-t2-logistics.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.MinerAdvanced);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var production = GetViewport().GetTexture().GetImage();
         production.SavePng(Path.Combine(destDir, "godot-port-t2-production.png"));
-        production.SavePng("/opt/cursor/artifacts/godot-port-t2-production.png");
 
         _hud.SetSelectedTool(FactoryHud.ToolKind.PowerNode);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(GetTree().CreateTimer(0.4), SceneTreeTimer.SignalName.Timeout);
         var power = GetViewport().GetTexture().GetImage();
         power.SavePng(Path.Combine(destDir, "godot-port-t2-power.png"));
-        power.SavePng("/opt/cursor/artifacts/godot-port-t2-power.png");
 
         GD.Print("T2 screenshot set complete.");
         GetTree().Quit();
@@ -1251,7 +1174,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var offShot = GetViewport().GetTexture().GetImage();
         offShot.SavePng(Path.Combine(destDir, "godot-port-autosell-off.png"));
-        offShot.SavePng("/opt/cursor/artifacts/godot-port-autosell-off.png");
 
         _slice.AutoSellAtCore = true;
         _mercato?.Close();
@@ -1260,7 +1182,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var onShot = GetViewport().GetTexture().GetImage();
         onShot.SavePng(Path.Combine(destDir, "godot-port-autosell-on.png"));
-        onShot.SavePng("/opt/cursor/artifacts/godot-port-autosell-on.png");
 
         // Live liquidate: spike demo with auto-sell until core sales register.
         _mercato?.Close();
@@ -1299,7 +1220,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var liveShot = GetViewport().GetTexture().GetImage();
         liveShot.SavePng(Path.Combine(destDir, "godot-port-autosell-live.png"));
-        liveShot.SavePng("/opt/cursor/artifacts/godot-port-autosell-live.png");
 
         GD.Print($"Auto-sell shots · money {_slice.Wallet.Money} · sales ${_slice.Session.SaleIncome}");
         GetTree().Quit();
@@ -1318,7 +1238,6 @@ public partial class SpikeWorld
             await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
             var img = GetViewport().GetTexture().GetImage();
             img.SavePng(Path.Combine(destDir, name));
-            img.SavePng(Path.Combine("/opt/cursor/artifacts", name));
             GD.Print($"Screenshot: {name}");
         }
 
@@ -1333,7 +1252,6 @@ public partial class SpikeWorld
         var emptyCrop = fullEmpty.GetRegion(new Rect2I(
             fullEmpty.GetWidth() - dockW, fullEmpty.GetHeight() - dockH, dockW, dockH));
         emptyCrop.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-info-slot-empty-crop.png"));
-        emptyCrop.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-info-slot-empty-crop.png");
 
         // 2) Filled slot — miner selected → name + barred costs in reserved strip.
         _hud.SetSelectedTool(FactoryHud.ToolKind.Miner);
@@ -1345,7 +1263,6 @@ public partial class SpikeWorld
         var filledCrop = fullFilled.GetRegion(new Rect2I(
             fullFilled.GetWidth() - dockW, fullFilled.GetHeight() - dockH, dockW, dockH));
         filledCrop.SavePng(Path.Combine(destDir, "godot-port-mindustry-ui-info-slot-filled-crop.png"));
-        filledCrop.SavePng("/opt/cursor/artifacts/godot-port-mindustry-ui-info-slot-filled-crop.png");
 
         // 3) ? modal still carries prose / I/O.
         if (!_slice.IsStructureUnlocked("smelter"))
@@ -1384,7 +1301,6 @@ public partial class SpikeWorld
         var lockedBar = lockedFull.GetRegion(
             new Rect2I(0, lockedFull.GetHeight() - barH, lockedFull.GetWidth(), barH));
         lockedBar.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-locked-toolbar.png"));
-        lockedBar.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-locked-toolbar.png");
 
         _research?.Open(_slice);
         _research?.SelectStructure("smelter");
@@ -1392,7 +1308,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.55), SceneTreeTimer.SignalName.Timeout);
         var panelShot = GetViewport().GetTexture().GetImage();
         panelShot.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-panel.png"));
-        panelShot.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-panel.png");
 
         if (!_slice.TryUnlockStructure("smelter"))
         {
@@ -1406,7 +1321,6 @@ public partial class SpikeWorld
         await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
         var afterUnlock = GetViewport().GetTexture().GetImage();
         afterUnlock.SavePng(Path.Combine(destDir, "godot-port-techtree-graph-path.png"));
-        afterUnlock.SavePng("/opt/cursor/artifacts/godot-port-techtree-graph-path.png");
 
         GD.Print("Tech-tree graph screenshot set complete.");
         GetTree().Quit();
@@ -1876,6 +1790,29 @@ public partial class SpikeWorld
         if (seStub > 0)
         {
             GD.PushError("CORNER FAIL: SE south-rail stub present (outer bump).");
+        }
+    }
+
+    /// <summary>
+    /// Output folder for capture modes: <c>TINDUSTRY_CAPTURE_DIR</c>, else <c>godot/artifacts</c> (gitignored).
+    /// </summary>
+    private static string? CaptureDirectory()
+    {
+        var dir = OS.GetEnvironment("TINDUSTRY_CAPTURE_DIR");
+        if (string.IsNullOrWhiteSpace(dir))
+        {
+            dir = ProjectSettings.GlobalizePath("res://artifacts");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"Capture dir non creabile ({dir}): {ex.Message}");
+            return null;
         }
     }
 }

@@ -2,7 +2,7 @@ using Godot;
 
 namespace TIndustry.Godot;
 
-/// <summary>WASD / middle-drag pan + wheel zoom; clamps to map AABB (Raylib ClampToMap).</summary>
+/// <summary>WASD / middle-drag (or left-drag in cursor mode) pan + wheel zoom; clamps to map AABB (Raylib ClampToMap).</summary>
 public partial class SpikeCamera : Camera2D
 {
     [Export] public float PanSpeed { get; set; } = 420f;
@@ -14,6 +14,9 @@ public partial class SpikeCamera : Camera2D
     public float MapPixelWidth { get; set; }
     public float MapPixelHeight { get; set; }
 
+    /// <summary>Set by the world while the cursor tool is active: left-drag pans like middle-drag.</summary>
+    public bool LeftDragPans { get; set; }
+
     private bool _dragging;
     private Vector2 _dragLast;
 
@@ -21,10 +24,12 @@ public partial class SpikeCamera : Camera2D
     {
         if (@event is InputEventMouseButton mouseButton)
         {
-            if (mouseButton.ButtonIndex == MouseButton.Middle)
+            var leftPan = mouseButton.ButtonIndex == MouseButton.Left
+                && (mouseButton.Pressed ? LeftDragPans : _dragging);
+            if (mouseButton.ButtonIndex == MouseButton.Middle || leftPan)
             {
                 _dragging = mouseButton.Pressed;
-                _dragLast = GetViewport().GetMousePosition();
+                _dragLast = mouseButton.Position;
                 GetViewport().SetInputAsHandled();
             }
             else if (mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.WheelUp)
@@ -40,7 +45,7 @@ public partial class SpikeCamera : Camera2D
         }
         else if (@event is InputEventMouseMotion motion && _dragging)
         {
-            var mouse = GetViewport().GetMousePosition();
+            var mouse = motion.Position;
             var delta = (_dragLast - mouse) / Zoom;
             Position += delta;
             ClampToMap();

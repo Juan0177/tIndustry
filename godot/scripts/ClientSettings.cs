@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
@@ -24,7 +25,7 @@ public sealed class ClientSettings
     public int UiScalePercent { get; set; } = 125;
     public bool ShowFps { get; set; }
     /// <summary>Session overlay: FPS · CPU · RAM · GPU (Raylib ShowResourceOverlay).</summary>
-    public bool ShowResourceOverlay { get; set; } = true;
+    public bool ShowResourceOverlay { get; set; }
     /// <summary>True after first-run tutorial is finished or skipped.</summary>
     public bool TutorialCompleted { get; set; }
 
@@ -33,7 +34,7 @@ public sealed class ClientSettings
         get
         {
             var path = Path.Combine(
-                OS.GetUserDataDir(),
+                GameDataPaths.Override ?? OS.GetUserDataDir(),
                 "tIndustry");
             Directory.CreateDirectory(path);
             return path;

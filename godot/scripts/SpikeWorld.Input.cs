@@ -122,11 +122,6 @@ public partial class SpikeWorld
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (_tutorial?.IsOpen == true)
-        {
-            return;
-        }
-
         if (_saves?.IsOpen == true)
         {
             return;
@@ -233,7 +228,7 @@ public partial class SpikeWorld
                 return;
             }
 
-            if (key.Keycode == Key.Key4 || key.Keycode == Key.A)
+            if (key.Keycode == Key.Key4)
             {
                 SelectTool(BuildTool.Assembler, toast: true);
                 GetViewport().SetInputAsHandled();
@@ -254,7 +249,7 @@ public partial class SpikeWorld
                 return;
             }
 
-            if (key.Keycode == Key.Key7 || key.Keycode == Key.G)
+            if (key.Keycode == Key.Key7)
             {
                 SelectTool(BuildTool.Generator, toast: true);
                 GetViewport().SetInputAsHandled();
@@ -332,7 +327,7 @@ public partial class SpikeWorld
                 {
                     if (_tool == BuildTool.Cursor)
                     {
-                        // Cursor mode: no place — leave click for camera pan / look.
+                        // Cursor mode: no place — SpikeCamera.LeftDragPans pans the view.
                         return;
                     }
 

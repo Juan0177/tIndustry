@@ -54,6 +54,7 @@ public partial class SpikeWorld : Node2D
     private CampaignSelectPanel? _campaignSelect;
     private SettingsPanel? _settingsPanel;
     private TutorialPanel? _tutorial;
+    private (Vector2 Position, float Zoom)? _tutorialCamAnchor;
     private SavesPanel? _saves;
     private ClientSettings _settings = new();
     private Label? _fpsLabel;
@@ -232,7 +233,7 @@ public partial class SpikeWorld : Node2D
             var timer = GetTree().CreateTimer(1.0);
             timer.Timeout += () => _ = SavePortScreenshotsAsync();
         }
-        else if (OS.GetEnvironment("TINDUSTRY_FRESH") == "1")
+        else if (OS.GetEnvironment("TINDUSTRY_FRESH") == "1" && !PlaytestRequested)
         {
             _home?.Close();
         }
@@ -246,6 +247,8 @@ public partial class SpikeWorld : Node2D
             SyncCameraMapBounds();
             FocusCameraOnCore();
         }
+
+        StartPlaytestIfRequested();
     }
 
     public override void _Process(double delta)
@@ -271,6 +274,12 @@ public partial class SpikeWorld : Node2D
 
                 _resourceLabel.Text = lines;
             }
+        }
+
+        SyncTutorial();
+        if (GetNodeOrNull<SpikeCamera>("Camera") is { } cam)
+        {
+            cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true;
         }
 
         if (_home?.IsOpen == true || _slice is null)
