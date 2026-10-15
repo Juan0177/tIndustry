@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Tutorial / UI
 
+- **Ricerca a rami per tipologia** (come Mindustry): sotto il CORE un ramo **Logistica** (Nastro T1 → T2 → T3; Incrocio → Sdoppiatore / Selezionatore / Ponte), uno **Produzione** (Minatore → Estrattore, Forno → Assemblatore, Minatore T2) e uno **Energia** (Generatore → Nodo T1 → Nodo T2). Un solo genitore per blocco: Nastro T2, Generatore e Minatore T2 non richiedono più il Forno (restano vincolati dal costo in lastre); costi invariati
 - **HUD stile Mindustry**: colonna in alto a sinistra con pulsanti etichettati **Menu · Ricerca · Mercato · Campagna** (al posto di 7 icone senza nome); pannello CORE con **Fondi** (non più "Magazzino $"), energia e **tutte** le risorse possedute come icona + numero; obiettivi sotto; tolti i contatori tecnici "consegnati / nastro"
 - **Palette**: categorie a icone al posto di St/Lo/Pr/Po; niente numeri tagliati sugli slot, il tasto rapido è nel pannello info (`[2]`) e nel tooltip
 - **Ricerca stile Mindustry**: albero dall'alto con **CORE** come radice e ogni blocco sotto il suo prerequisito (layout ad albero ordinato, linee a gomito, prerequisiti extra tratteggiati); nodi quadrati con il **nome sotto**; bordo dorato = sbloccabile ora, **lucchetto** finché non sblocchi il precedente; tooltip con costo e cosa manca; selezione iniziale sul primo blocco sbloccabile; trascina col sinistro, rotella = zoom, H = vista intera

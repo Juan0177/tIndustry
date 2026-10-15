@@ -37,9 +37,13 @@ public sealed class TechTreeLayoutTests
     [Fact]
     public void PrimaryParentIsTheDeepestPrerequisite()
     {
-        // miner-advanced needs miner (row 1) and smelter (row 2): it hangs under the smelter.
-        Assert.Contains(Graph.Edges, e => e is { FromId: "smelter", ToId: "miner-advanced", Primary: true });
-        Assert.Contains(Graph.Edges, e => e is { FromId: "miner", ToId: "miner-advanced", Primary: false });
+        // Layout rule for content with several prerequisites (the shipped tree has none).
+        static StructureDefinition S(string id, params string[] requires) =>
+            new(id, id, "building", UnlockedByDefault: false, Unlock: null, Prerequisites: requires);
+        var graph = TechTreeLayout.Build([S("a"), S("b", "a"), S("c", "a", "b")]);
+
+        Assert.Contains(graph.Edges, e => e is { FromId: "b", ToId: "c", Primary: true });
+        Assert.Contains(graph.Edges, e => e is { FromId: "a", ToId: "c", Primary: false });
     }
 
     [Fact]
@@ -59,8 +63,8 @@ public sealed class TechTreeLayoutTests
     public void RelatedIdsFollowPrerequisitesAndUnlocks()
     {
         var related = TechTreeLayout.CollectRelatedIds(Graph, "smelter");
-        Assert.Contains("miner", related);          // prerequisite
-        Assert.Contains("conveyor-express", related); // unlocked downstream
-        Assert.DoesNotContain("splitter", related);   // other branch
+        Assert.Contains("miner", related);                // prerequisite
+        Assert.Contains("assembler", related);            // unlocked downstream
+        Assert.DoesNotContain("conveyor-express", related); // other branch (Logistica)
     }
 }
