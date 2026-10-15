@@ -75,6 +75,21 @@ Workflow GitHub Actions **non automatici su push/PR**: tag `v*` o avvio manuale 
 
 ## Da sorgente
 
+Avvio in un colpo solo (controlla .NET 8 e Godot 4.4 mono, compila, importa gli asset se serve, avvia il gioco):
+
+```bash
+dev.cmd                    # Windows, dalla radice del repo (usa Git Bash)
+tools/dev/dev.sh           # bash; stesse opzioni
+dev.cmd --profilo-temp     # non tocca impostazioni e salvataggi reali
+dev.cmd --nuova            # salta la Home
+dev.cmd --editor           # apre l'editor Godot
+dev.cmd --test             # esegue anche i test prima di avviare
+dev.cmd --playtest ui      # playtest automatico (anche: tutorial), screenshot in .dev/
+dev.cmd --help             # tutte le opzioni
+```
+
+Passo per passo:
+
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q
 dotnet test tests/TIndustry.Shared.Tests -c Release --no-build

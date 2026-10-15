@@ -51,3 +51,6 @@ godot/artifacts/
 
 # Copy of data/ made by tools/ci/export-godot.sh at export time
 godot/data/
+
+# Output di tools/dev/dev.sh (playtest)
+.dev/

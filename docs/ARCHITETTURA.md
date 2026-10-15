@@ -89,6 +89,8 @@ Il salvataggio è `FactorySaveData` / `FactorySaveStore` (`src/TIndustry.Shared/
 
 ## Test e playtest
 
+`tools/dev/dev.sh` (Windows: `dev.cmd`) fa tutto in un comando: controllo strumenti, build, test (`--test`), import asset se manca la cache, avvio del gioco o del playtest (`--playtest ui|tutorial`). Opzioni in `--help`.
+
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q
 dotnet test tests/TIndustry.Shared.Tests -c Release --no-build
