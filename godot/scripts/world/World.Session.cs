@@ -161,13 +161,6 @@ public partial class World
 
         var content = FactoryContent.Load(_contentPath);
         var factory = NewGame.Campaign(content, _campaign, level);
-        // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
-        // after placing miner, but also allow starting sells from stock if we add ore.
-        if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
-        {
-            factory.Wallet.AddMaterial("iron-ore", 8);
-        }
-
         AttachGame(factory);
 
         _continueAutoSave.MarkPlayed();
@@ -210,10 +203,10 @@ public partial class World
             : edge <= 256 ? 0.18f
             : 0.14f;
         cam.Zoom = new Vector2(z, z);
-        if (cam is WorldCamera spike)
+        if (cam is WorldCamera worldCam)
         {
             // Allow deep zoom-out on 1000² without fighting Clamp.
-            spike.MinZoom = edge >= 256 ? 0.08f : 0.12f;
+            worldCam.MinZoom = edge >= 256 ? 0.08f : 0.12f;
             // Playable zoom near core so deposits/icons are readable (Raylib icons need ~16px).
             if (edge >= 256 && z < 0.35f)
             {
@@ -223,9 +216,9 @@ public partial class World
         }
 
         SyncCameraMapBounds();
-        if (cam is WorldCamera spikeCam)
+        if (cam is WorldCamera mapCam)
         {
-            spikeCam.ClampToMap();
+            mapCam.ClampToMap();
         }
     }
 
@@ -374,8 +367,24 @@ public partial class World
     /// <summary>Returns true when the slot was loaded; on failure the current game is untouched.</summary>
     private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
     {
-        var content = FactoryContent.Load(_contentPath);
-        if (!FactorySaveStore.TryLoad(content, slotId, out var loaded, out var error) || loaded is null)
+        SimHost? loaded = null;
+        string? error = null;
+        try
+        {
+            var content = FactoryContent.Load(_contentPath);
+            if (!FactorySaveStore.TryLoad(content, slotId, out loaded, out error))
+            {
+                loaded = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"Load failed: {ex.Message}");
+            loaded = null;
+            error = "Salvataggio non leggibile.";
+        }
+
+        if (loaded is null)
         {
             if (!quietFail)
             {
@@ -388,6 +397,7 @@ public partial class World
             return false;
         }
 
+        var previous = _host;
         try
         {
             AttachGame(loaded);
@@ -417,6 +427,14 @@ public partial class World
         }
         catch (Exception ex)
         {
+            // Put the previous game back so a failed load leaves the current game untouched.
+            if (previous is not null)
+            {
+                AttachGame(previous);
+                _visualDirty = true;
+                _buildingsDirty = true;
+            }
+
             _hud?.ShowToast("Caricamento fallito");
             showOnPanel?.Invoke("Caricamento fallito");
             GD.PushError($"Load failed: {ex.Message}");

@@ -25,7 +25,7 @@ public readonly record struct TerrainTile(TerrainKind Terrain, DepositKind Depos
 
 /// <summary>
 /// Seeded procedural terrain + deposits (ported from Raylib TerrainMap.Generate).
-/// Godot spike clamps width/height; campaign seed drives patch layout.
+/// The Godot client clamps width/height; campaign seed drives patch layout.
 /// </summary>
 public sealed class TerrainMap
 {

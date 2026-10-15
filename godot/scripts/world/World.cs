@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Playable factory slice + Hud + Ricerca. Default = cursore.
+/// Playable world (factory view) + Hud + Ricerca. Default = cursore.
 /// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
 /// </summary>
 public partial class World : Node2D
@@ -13,7 +13,7 @@ public partial class World : Node2D
     public const int DefaultMapWidth = 1000;
     public const int DefaultMapHeight = 1000;
 
-    /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to spike defaults.</summary>
+    /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to default size.</summary>
     public int ActiveMapWidth => _view?.Terrain?.Width ?? DefaultMapWidth;
     public int ActiveMapHeight => _view?.Terrain?.Height ?? DefaultMapHeight;
 

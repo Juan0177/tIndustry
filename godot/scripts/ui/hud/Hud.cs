@@ -174,7 +174,7 @@ public partial class Hud : Control
     }
 
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(IGameView? slice) => _core.SyncCoreUpgrade(slice);
+    public void SyncCoreUpgrade(IGameView? factory) => _core.SyncCoreUpgrade(factory);
 
     public void ClearObjectives() => _core.ClearObjectives();
 

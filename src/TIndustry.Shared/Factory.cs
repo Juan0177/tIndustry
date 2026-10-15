@@ -1,7 +1,7 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Playable factory slice: miners → belts → forni/assemblatori → core stock.
+/// Playable factory simulation: miners → belts → forni/assemblatori → core stock.
 /// Phase F: generators feed a shared power buffer; connected craft spends for +20%.
 /// Soft brownout: empty buffer → forno falls back to coal; assembler loses bonus.
 /// </summary>
@@ -331,7 +331,7 @@ public sealed class Factory : IGameView
         var research = ResearchState.FromSaved(data.UnlockedStructures, content);
         var session = new EconomySession(data.StartingMoney);
         session.Restore(data.StartingMoney, data.SaleIncome, data.SoldByItem);
-        var slice = new Factory(content, belts, core, wallet, research, session)
+        var factory = new Factory(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
             CurrentTick = Math.Max(0, data.CurrentTick),
@@ -341,13 +341,14 @@ public sealed class Factory : IGameView
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
-        slice.SetPowerBuffer(data.PowerBuffer);
-        // Capacity recalculates on first Tick from live gens; seed from save when present.
+        // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
+        // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
         {
-            slice.PowerCapacity = Math.Max(CorePowerCapacity, data.PowerCapacity);
-            slice.PowerBuffer = Math.Clamp(slice.PowerBuffer, 0f, slice.PowerCapacity);
+            factory.PowerCapacity = Math.Max(CorePowerCapacity, data.PowerCapacity);
         }
+
+        factory.PowerBuffer = Math.Clamp(data.PowerBuffer, 0f, factory.PowerCapacity);
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
@@ -358,8 +359,8 @@ public sealed class Factory : IGameView
             .Concat(data.PowerNodes.Select(d => d.Id))
             .DefaultIfEmpty(0)
             .Max();
-        slice.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);
-        long RestoredId(long savedId) => savedId > 0 ? savedId : slice.nextEntityId++;
+        factory.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);
+        long RestoredId(long savedId) => savedId > 0 ? savedId : factory.nextEntityId++;
 
         foreach (var m in data.Miners)
         {
@@ -370,24 +371,24 @@ public sealed class Factory : IGameView
                 definitionId: m.DefinitionId,
                 id: RestoredId(m.Id));
             miner.RestoreProgress(m.Progress, m.EjectIndex);
-            slice.miners.Add(miner);
+            factory.miners.Add(miner);
         }
 
         foreach (var s in data.Smelters)
         {
-            slice.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId, RestoredId(s.Id)));
+            factory.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId, RestoredId(s.Id)));
         }
 
         foreach (var a in data.Assemblers)
         {
-            slice.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
+            factory.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
         }
 
         foreach (var g in data.Generators)
         {
             var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id));
             gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
-            slice.generators.Add(gen);
+            factory.generators.Add(gen);
         }
 
         foreach (var e in data.Extractors)
@@ -398,12 +399,12 @@ public sealed class Factory : IGameView
                 e.FilterItemId,
                 RestoredId(e.Id));
             ex.RestoreProgress(e.Progress);
-            slice.extractors.Add(ex);
+            factory.extractors.Add(ex);
         }
 
         foreach (var n in data.PowerNodes)
         {
-            slice.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
+            factory.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
         }
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
@@ -415,21 +416,21 @@ public sealed class Factory : IGameView
                 Math.Max(1, data.CoreSize),
                 w,
                 h);
-            slice.Terrain = TerrainMap.Generate(
+            factory.Terrain = TerrainMap.Generate(
                 w,
                 h,
                 data.Seed,
-                slice.CoreTiles,
+                factory.CoreTiles,
                 starter);
         }
 
-        SortById(slice.miners, m => m.Id);
-        SortById(slice.smelters, s => s.Id);
-        SortById(slice.assemblers, a => a.Id);
-        SortById(slice.generators, g => g.Id);
-        SortById(slice.extractors, e => e.Id);
-        SortById(slice.powerNodes, n => n.Id);
-        return slice;
+        SortById(factory.miners, m => m.Id);
+        SortById(factory.smelters, s => s.Id);
+        SortById(factory.assemblers, a => a.Id);
+        SortById(factory.generators, g => g.Id);
+        SortById(factory.extractors, e => e.Id);
+        SortById(factory.powerNodes, n => n.Id);
+        return factory;
     }
 
     /// <summary>Systems iterate buildings in ascending id order (stable sort keeps list order on ties).</summary>
@@ -481,13 +482,13 @@ public sealed class Factory : IGameView
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockAllForDemo();
+        var factory = new Factory(content, grid, core);
+        factory.UnlockAllForDemo();
 
         // Miner 2×2 at (2,7); forno 2×2 at (6,7).
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
-        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, recipe);
-        SeedSmelterFuel(slice);
+        factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
+        factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, recipe);
+        SeedSmelterFuel(factory);
 
         // Feed: (4,8)(5,8) → into forno west edge (6,8).
         grid.PlacePath(
@@ -511,7 +512,7 @@ public sealed class Factory : IGameView
             new GridPosition(10, 13)
         ], beltDef);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -527,16 +528,16 @@ public sealed class Factory : IGameView
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockAllForDemo();
+        var factory = new Factory(content, grid, core);
+        factory.UnlockAllForDemo();
 
         // Iron miner (2,7) → forno (6,7) → plates east toward assembler (12,7).
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
-        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
-        slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
+        factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
+        factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
+        factory.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
         // Copper miner south of iron row.
-        slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
-        SeedSmelterFuel(slice);
+        factory.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+        SeedSmelterFuel(factory);
 
         // Iron ore feed into forno.
         grid.PlacePath(
@@ -589,7 +590,7 @@ public sealed class Factory : IGameView
         ], beltDef);
         grid.TryOrient(new GridPosition(10, 13), Direction.South);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -606,14 +607,14 @@ public sealed class Factory : IGameView
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockAllForDemo();
+        var factory = new Factory(content, grid, core);
+        factory.UnlockAllForDemo();
 
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
-        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
-        slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
-        slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
-        SeedSmelterFuel(slice);
+        factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
+        factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
+        factory.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
+        factory.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+        SeedSmelterFuel(factory);
 
         // Iron ore → forno.
         grid.PlacePath([new GridPosition(4, 8), new GridPosition(5, 8)], beltDef);
@@ -665,7 +666,7 @@ public sealed class Factory : IGameView
         grid.PlacePath([new GridPosition(15, 10), new GridPosition(16, 10)], beltDef);
         grid.TryOrient(new GridPosition(16, 10), Direction.East);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -673,21 +674,21 @@ public sealed class Factory : IGameView
     /// </summary>
     public static Factory CreatePhaseFDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
-        var slice = CreatePhaseEDemo(content, beltId);
-        var beltDef = slice.BeltDefinition;
+        var factory = CreatePhaseEDemo(content, beltId);
+        var beltDef = factory.BeltDefinition;
 
         // Generator north of forno (6,7) → adjacent on south edge.
-        Require(slice.TryPlaceGenerator(new GridPosition(6, 5), Direction.East), "generator seed");
+        Require(factory.TryPlaceGenerator(new GridPosition(6, 5), Direction.East), "generator seed");
         // Coal miner west of generator.
-        Require(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "coal"), "coal miner");
-        slice.Belts.PlacePath(
+        Require(factory.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "coal"), "coal miner");
+        factory.Belts.PlacePath(
         [
             new GridPosition(4, 5),
             new GridPosition(5, 5)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(5, 5), Direction.East);
+        factory.Belts.TryOrient(new GridPosition(5, 5), Direction.East);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -695,48 +696,48 @@ public sealed class Factory : IGameView
     /// </summary>
     public static Factory CreateSorterBridgeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
-        var slice = CreatePhaseFDemo(content, beltId);
-        var beltDef = slice.BeltDefinition;
+        var factory = CreatePhaseFDemo(content, beltId);
+        var beltDef = factory.BeltDefinition;
 
         // Sorter corridor (north of craft loop): feed → sorter → match east / overflow N+S.
-        slice.Belts.PlacePath(
+        factory.Belts.PlacePath(
         [
             new GridPosition(16, 2),
             new GridPosition(17, 2)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(17, 2), Direction.East);
-        Require(slice.TryPlaceSorter(new GridPosition(18, 2), Direction.East), "sorter seed");
-        slice.Belts.PlacePath([new GridPosition(19, 2), new GridPosition(20, 2)], beltDef);
-        slice.Belts.TryOrient(new GridPosition(20, 2), Direction.East);
-        slice.Belts.PlacePath([new GridPosition(18, 1)], beltDef); // overflow left of East = North
-        slice.Belts.TryOrient(new GridPosition(18, 1), Direction.North);
-        slice.Belts.PlacePath([new GridPosition(18, 3)], beltDef); // overflow right of East = South
-        slice.Belts.TryOrient(new GridPosition(18, 3), Direction.South);
+        factory.Belts.TryOrient(new GridPosition(17, 2), Direction.East);
+        Require(factory.TryPlaceSorter(new GridPosition(18, 2), Direction.East), "sorter seed");
+        factory.Belts.PlacePath([new GridPosition(19, 2), new GridPosition(20, 2)], beltDef);
+        factory.Belts.TryOrient(new GridPosition(20, 2), Direction.East);
+        factory.Belts.PlacePath([new GridPosition(18, 1)], beltDef); // overflow left of East = North
+        factory.Belts.TryOrient(new GridPosition(18, 1), Direction.North);
+        factory.Belts.PlacePath([new GridPosition(18, 3)], beltDef); // overflow right of East = South
+        factory.Belts.TryOrient(new GridPosition(18, 3), Direction.South);
 
         // Bridge span 2 over mid (16,12)→(18,12); mid stays empty for thin-span visual.
         // Underpass: belt corridor south of mid (proves mid freeness without covering the span).
-        Require(slice.TryPlaceBridge(new GridPosition(16, 12), Direction.East), "bridge seed");
-        slice.Belts.PlacePath(
+        Require(factory.TryPlaceBridge(new GridPosition(16, 12), Direction.East), "bridge seed");
+        factory.Belts.PlacePath(
         [
             new GridPosition(15, 12)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(15, 12), Direction.East);
-        slice.Belts.PlacePath(
+        factory.Belts.TryOrient(new GridPosition(15, 12), Direction.East);
+        factory.Belts.PlacePath(
         [
             new GridPosition(19, 12),
             new GridPosition(20, 12)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(20, 12), Direction.East);
+        factory.Belts.TryOrient(new GridPosition(20, 12), Direction.East);
         // Parallel underpass corridor (y=13) — mid (17,12) remains empty for decision-14 thin span.
-        slice.Belts.PlacePath(
+        factory.Belts.PlacePath(
         [
             new GridPosition(16, 13),
             new GridPosition(17, 13),
             new GridPosition(18, 13)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(18, 13), Direction.East);
+        factory.Belts.TryOrient(new GridPosition(18, 13), Direction.East);
 
-        return slice;
+        return factory;
     }
 
     public bool CanOccupy(GridPosition position) => CanOccupyFootprint(position, 1);
@@ -811,7 +812,7 @@ public sealed class Factory : IGameView
         return false;
     }
 
-    /// <summary>Unlock all Godot-slice placeables so seeded demos keep working under gates.</summary>
+    /// <summary>Unlock all placeables so seeded demos keep working under gates.</summary>
     public void UnlockAllForDemo()
     {
         foreach (var id in ResearchState.DemoStructureIds)
@@ -824,9 +825,9 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>Demos without a live generator: top up forno coal so craft can run.</summary>
-    public static void SeedSmelterFuel(Factory slice, int units = Crafter.FuelBufferCapacity)
+    public static void SeedSmelterFuel(Factory factory, int units = Crafter.FuelBufferCapacity)
     {
-        foreach (var sm in slice.Smelters)
+        foreach (var sm in factory.Smelters)
         {
             sm.SeedFuel(units);
         }

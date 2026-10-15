@@ -59,7 +59,7 @@ public sealed class BeltLane
     public IReadOnlyList<BeltCell> Cells => cells;
 
     /// <summary>
-    /// When true (spike default), ready items fall off the last cell.
+    /// When true (default), ready items fall off the last cell.
     /// When false, leave them for <see cref="CoreStockSink"/> / handoff consumers.
     /// </summary>
     public bool AutoDropAtEnd { get; set; } = true;
