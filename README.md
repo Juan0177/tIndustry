@@ -1,7 +1,7 @@
 # tIndustry
 
 [![Build publish](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml/badge.svg)](https://github.com/Juan0177/tIndustry/actions/workflows/build-publish.yml)
-**v0.3.4** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.4) · **Godot 4 .NET ufficiale** · Raylib legacy
+**v0.3.4** · [CHANGELOG](CHANGELOG.md) · [Release](https://github.com/Juan0177/tIndustry/releases/tag/v0.3.4) · **Godot 4 .NET**
 
 ```
   miner ──▶ forno ──▶ lastre / fili ──▶ CORE / mercato
@@ -30,7 +30,8 @@ Dettagli controlli, save, ricerca, mercato, campagna: [`godot/README.md`](godot/
 | Path | Ruolo |
 | --- | --- |
 | `godot/` | Client ufficiale (HUD Mindustry, mondo, UI) |
-| `src/TIndustry.Shared/` | Sim/data condivisa (nastri, craft, power, save, campagna) |
+| `src/TIndustry.Shared/` | Sim/data (nastri, craft, power, save, campagna) |
+| `tests/` | Test xUnit della sim |
 | `data/` | Seed `content.json` / `campaign.json` |
 
 Combat / unità: **ancora fuori scope**.
@@ -46,11 +47,9 @@ Combat / unità: **ancora fuori scope**.
 
 Alias espliciti (stesso contenuto): `tIndustry-godot-win-x64.zip` / `tIndustry-godot-linux-x64.zip`.
 
-### Legacy Raylib
+Il vecchio client Raylib è stato rimosso dopo la 0.3.4: i suoi zip restano sulle Release ≤ v0.3.4 e il codice nel tag `v0.3.4`.
 
-Zip `tIndustry-raylib-legacy-*-x64.zip` sulla stessa Release — solo manutenzione / confronto.
-
-Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot + zip Raylib legacy). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml).
+Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml).
 
 ---
 
@@ -58,7 +57,7 @@ Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot + zip Ra
 
 | Area | In gioco (Godot) |
 | --- | --- |
-| **Client** | Godot 4 .NET ufficiale · Raylib legacy |
+| **Client** | Godot 4 .NET |
 | **Mondo** | **1000×1000** seed · CORE centro · H→core · bordi/clamp · minerali visibili |
 | **Produzione** | Miner T1/T2 · forno multi-ricetta · assemblatore · estrattore · generatore |
 | **Logistica** | Nastro T1/T2/T3 · junction · splitter · sorter · ponte · I/O adiacente |
@@ -72,28 +71,13 @@ Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot + zip Ra
 
 ## Da sorgente
 
-### Godot (consigliato)
-
 ```bash
-dotnet build src/TIndustry.Shared/TIndustry.Shared.csproj
-dotnet build godot/TIndustry.Godot.csproj
+dotnet build tIndustry.sln
+dotnet test tests/TIndustry.Shared.Tests
 godot4 --path godot
 ```
 
-### Raylib (legacy)
-
-```bash
-dotnet build TIndustry.Logistics.csproj
-dotnet run --project TIndustry.Logistics.csproj -- --self-test
-dotnet run --project TIndustry.Logistics.csproj
-```
-
-Richiede [.NET 10 SDK](https://dotnet.microsoft.com/download) · Raylib-cs.
-
-| Path | Ruolo |
-| --- | --- |
-| `src/App/` · `src/Simulation/` · `src/UI/` · `src/Content/` | Client Raylib legacy |
-| `TIndustry.Logistics.csproj` | Entry Raylib (namespace `TIndustry.Logistics`) |
+`tests/TIndustry.Shared.Tests` (xUnit) esegue gli scenari della sim — nastri, craft, potenza, save, ricerca, mercato, campagna — su una cartella salvataggi temporanea. Gira in CI su ogni push/PR.
 
 ---
 
@@ -110,11 +94,12 @@ Default sbloccati: nastro T1 + minatore T1 (come nel seed Shared).
 
 ## Stack
 
-| | Ufficiale | Legacy |
-| --- | --- | --- |
-| Client | **Godot 4.4 .NET** (`godot/`) | Raylib-cs (`TIndustry.Logistics`) |
-| Sim | `TIndustry.Shared` (.NET 8) | `src/Simulation` (.NET 10) |
-| Contenuti | `data/*.json` | stesso seed + AppData Raylib |
+| | |
+| --- | --- |
+| Client | **Godot 4.4 .NET** (`godot/`) |
+| Sim | `TIndustry.Shared` (.NET 8) |
+| Test | `tests/TIndustry.Shared.Tests` (xUnit) |
+| Contenuti | `data/*.json` |
 
 Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.0 · Kenney CC0).
 
@@ -124,7 +109,7 @@ Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.
 
 | Ora (0.3.4) | Dopo |
 | --- | --- |
-| Godot · 1000² · saves full · overlay risorse | Combat / unità (deferred) · P2.4 polish · eventuale ritiro Raylib |
+| Godot · 1000² · saves full · overlay risorse | Combat / unità (deferred) · P2.4 polish |
 
 Storia: [CHANGELOG.md](CHANGELOG.md).
 

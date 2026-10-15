@@ -7,13 +7,27 @@
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/TIndustry.Logistics.csproj",
+        "${workspaceFolder}/tIndustry.sln",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
       "problemMatcher": "$msCompile",
       "group": {
         "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "test Shared",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/tests/TIndustry.Shared.Tests/TIndustry.Shared.Tests.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "test",
         "isDefault": true
       }
     }

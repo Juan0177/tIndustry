@@ -1,6 +1,6 @@
 # tIndustry — Godot 4 .NET (**path ufficiale**)
 
-Client di gioco primario. Sim in `src/TIndustry.Shared/`. Il client Raylib (`TIndustry.Logistics`) è **legacy**.
+Client di gioco primario. Sim in `src/TIndustry.Shared/`.
 
 ## Download
 
@@ -63,7 +63,6 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 | --- | --- |
 | `godot/` | **Official** playable client |
 | `src/TIndustry.Shared/` | Factory sim + content + save (shared) |
-| `TIndustry.Logistics` | **Legacy** Raylib client (optional maintenance) |
 
 ## Ricerca
 

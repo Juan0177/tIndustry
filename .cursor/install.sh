@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Idempotent Cloud Agent bootstrap for the tIndustry .NET 10 / Raylib project.
+# Idempotent Cloud Agent bootstrap for tIndustry (Godot 4 .NET client + Shared sim).
 set -euo pipefail
 
-DOTNET_CHANNEL="10.0"
+DOTNET_CHANNEL="8.0"
 DOTNET_INSTALL_DIR="/usr/lib/dotnet"
 
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export DOTNET_NOLOGO=1
 
-echo "==> Installing system libraries (Raylib native deps + headless X server)"
+echo "==> Installing system libraries (GL/X11 libs + headless X server for Godot)"
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
   xvfb \
@@ -51,7 +51,7 @@ echo "==> dnx available: $(command -v dnx || echo missing)"
 
 echo "==> Restoring and building the solution"
 cd "$(dirname "$0")/.."
-dotnet restore
-dotnet build -c Release
+dotnet restore tIndustry.sln
+dotnet build tIndustry.sln -c Release
 
 echo "==> Install complete."
