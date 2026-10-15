@@ -3,7 +3,7 @@ using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
-/// <summary>Draws tech-tree icon nodes + orthogonal edges (Mindustry-leaning).</summary>
+/// <summary>Mindustry-style research tree: CORE on top, square icon nodes with names, elbow links.</summary>
 public partial class TechTreeCanvas : Control
 {
     private static readonly Color CanvasFill = new(20 / 255f, 24 / 255f, 23 / 255f, 1f);
@@ -51,13 +51,18 @@ public partial class TechTreeCanvas : Control
 
         var minX = Graph.Nodes.Min(n => (float)n.X);
         var minY = Graph.Nodes.Min(n => (float)n.Y);
-        var maxX = Graph.Nodes.Max(n => (float)n.X) + TechTreeLayout.NodeWidth;
-        var maxY = Graph.Nodes.Max(n => (float)n.Y) + TechTreeLayout.NodeHeight;
+        var labelOverhang = (TechTreeLayout.SlotWidth - TechTreeLayout.NodeSize) / 2f;
+        minX -= labelOverhang;
+        var maxX = Graph.Nodes.Max(n => (float)n.X) + TechTreeLayout.NodeWidth + labelOverhang;
+        var maxY = Graph.Nodes.Max(n => (float)n.Y) + TechTreeLayout.NodeHeight + 28f; // + name label
         const float pad = 32f;
         var fit = Math.Min((Size.X - pad * 2) / (maxX - minX), (Size.Y - pad * 2) / (maxY - minY));
-        Zoom = TechTreeLayout.ClampZoom(Math.Min(fit, 1f));
+        // Readable first (names never shrink below ~0.7); a bigger tree is panned, like Mindustry.
+        Zoom = TechTreeLayout.ClampZoom(Math.Clamp(fit, MinReadableZoom, 1f));
         _panX = (Size.X - (maxX - minX) * Zoom) / 2f - minX * Zoom;
-        _panY = (Size.Y - (maxY - minY) * Zoom) / 2f - minY * Zoom;
+        _panY = (maxY - minY) * Zoom <= Size.Y - pad * 2
+            ? (Size.Y - (maxY - minY) * Zoom) / 2f - minY * Zoom
+            : pad - minY * Zoom; // too tall: keep CORE at the top
         QueueRedraw();
         ViewChanged?.Invoke();
     }
@@ -114,6 +119,11 @@ public partial class TechTreeCanvas : Control
             return;
         }
 
+        if (@event is InputEventMouseMotion hover && !_panning)
+        {
+            UpdateHover(hover.Position);
+        }
+
         if (@event is InputEventMouseMotion motion && (_panning || _pressPending))
         {
             // A left click turns into a drag after a few pixels (so small jitters still select).
@@ -136,6 +146,7 @@ public partial class TechTreeCanvas : Control
     }
 
     private const float DragThreshold = 6f;
+    private const float MinReadableZoom = 0.7f;
 
     private void ZoomAt(float direction, Vector2 mouse)
     {
@@ -153,29 +164,55 @@ public partial class TechTreeCanvas : Control
         ViewChanged?.Invoke();
     }
 
-    private void TrySelectAt(Vector2 local)
+    private string? NodeAt(Vector2 local)
     {
         if (Graph is null)
         {
-            return;
+            return null;
         }
 
         var zoom = TechTreeLayout.ClampZoom(Zoom);
-        var nodeW = TechTreeLayout.NodeWidth * zoom;
-        var nodeH = TechTreeLayout.NodeHeight * zoom;
+        var size = TechTreeLayout.NodeSize * zoom;
         for (var i = Graph.Nodes.Count - 1; i >= 0; i--)
         {
             var node = Graph.Nodes[i];
-            var nx = node.X * zoom + _panX;
-            var ny = node.Y * zoom + _panY;
-            if (local.X >= nx && local.X <= nx + nodeW
-                && local.Y >= ny && local.Y <= ny + nodeH)
+            var rect = new Rect2(node.X * zoom + _panX, node.Y * zoom + _panY, size, size);
+            if (rect.Grow(2f).HasPoint(local))
             {
-                NodeSelected?.Invoke(node.Structure.Id);
-                return;
+                return node.Structure.Id;
             }
         }
+
+        return null;
     }
+
+    private void TrySelectAt(Vector2 local)
+    {
+        if (NodeAt(local) is { } id)
+        {
+            NodeSelected?.Invoke(id);
+        }
+    }
+
+    /// <summary>Hover text (name · state · cost) supplied by the research panel.</summary>
+    public Func<string, string>? TooltipFor { get; set; }
+
+    public override string _GetTooltip(Vector2 atPosition) =>
+        NodeAt(atPosition) is { } id && TooltipFor is not null ? TooltipFor(id) : "";
+
+    private ResearchNodeState StateOf(TechTreeLayout.Node node) =>
+        node.IsRoot ? ResearchNodeState.Unlocked : Research!.GetNodeState(node.Structure);
+
+    // Mindustry palette: neutral greys for what you have, pale gold for what you can research next.
+    private static readonly Color Accent = new(1f, 0.83f, 0.50f, 1f);
+    private static readonly Color NodeBg = new(0.13f, 0.14f, 0.15f, 1f);
+    private static readonly Color NodeBgLocked = new(0.08f, 0.085f, 0.09f, 1f);
+    private static readonly Color BorderUnlocked = new(0.62f, 0.65f, 0.66f, 1f);
+    private static readonly Color BorderLocked = new(0.24f, 0.26f, 0.27f, 1f);
+    private static readonly Color LineUnlocked = new(0.55f, 0.58f, 0.60f, 1f);
+    private static readonly Color LineAvailable = new(0.78f, 0.66f, 0.42f, 1f);
+    private static readonly Color LineLocked = new(0.22f, 0.24f, 0.25f, 1f);
+    private static readonly Color CoreCyan = new(0.35f, 0.78f, 0.9f, 1f);
 
     public override void _Draw()
     {
@@ -191,130 +228,131 @@ public partial class TechTreeCanvas : Control
         }
 
         var zoom = TechTreeLayout.ClampZoom(Zoom);
+        var nodeSize = TechTreeLayout.NodeSize * zoom;
+        var byId = Graph.Nodes.ToDictionary(n => n.Structure.Id, StringComparer.Ordinal);
         var pathIds = string.IsNullOrEmpty(SelectedId)
             ? new HashSet<string>(StringComparer.Ordinal)
             : TechTreeLayout.CollectRelatedIds(Graph, SelectedId);
+        Vector2 Screen(int x, int y) => new(x * zoom + _panX, y * zoom + _panY);
 
-        foreach (var edge in Graph.Edges)
+        // Edges first: extra prerequisites dashed underneath, tree edges on top.
+        foreach (var edge in Graph.Edges.OrderBy(e => e.Primary))
         {
-            var fromUnlocked = Research.IsUnlocked(edge.FromId);
-            var toNode = Graph.Nodes.First(n => n.Structure.Id == edge.ToId);
-            var toState = Research.GetNodeState(toNode.Structure);
+            var toState = StateOf(byId[edge.ToId]);
             var onPath = TechTreeLayout.IsEdgeOnPath(edge, pathIds);
-            var edgeColor = onPath
+            var color = onPath
                 ? PathEdge
-                : toState == ResearchNodeState.Unlocked
-                    ? new Color(80 / 255f, 160 / 255f, 110 / 255f, 160 / 255f)
-                    : toState == ResearchNodeState.Available && fromUnlocked
-                        ? new Color(200 / 255f, 160 / 255f, 90 / 255f, 140 / 255f)
-                        : new Color(55 / 255f, 62 / 255f, 58 / 255f, 120 / 255f);
-            var thickness = onPath ? 3.6f : 2.2f;
-            var x1 = edge.FromX * zoom + _panX;
-            var y1 = edge.FromY * zoom + _panY;
-            var x2 = edge.ToX * zoom + _panX;
-            var y2 = edge.ToY * zoom + _panY;
-            var midX = (x1 + x2) * 0.5f;
-            DrawLine(new Vector2(x1, y1), new Vector2(midX, y1), edgeColor, thickness);
-            DrawLine(new Vector2(midX, y1), new Vector2(midX, y2), edgeColor, thickness);
-            DrawLine(new Vector2(midX, y2), new Vector2(x2, y2), edgeColor, thickness);
-            var tip = onPath ? 12f : 10f;
-            DrawColoredPolygon(
-                [
-                    new Vector2(x2, y2),
-                    new Vector2(x2 - tip, y2 - tip * 0.5f),
-                    new Vector2(x2 - tip, y2 + tip * 0.5f)
-                ],
-                edgeColor);
+                : toState switch
+                {
+                    ResearchNodeState.Unlocked => LineUnlocked,
+                    ResearchNodeState.Available => LineAvailable,
+                    _ => LineLocked
+                };
+            var width = Mathf.Max(1.5f, (edge.Primary ? 3f : 2f) * zoom);
+            var a = Screen(edge.FromX, edge.FromY);
+            var b = Screen(edge.ToX, edge.ToY);
+            var midY = (a.Y + b.Y) / 2f;
+            Vector2[] pts = [a, new(a.X, midY), new(b.X, midY), b];
+            for (var k = 0; k < pts.Length - 1; k++)
+            {
+                if (edge.Primary)
+                {
+                    DrawLine(pts[k], pts[k + 1], color, width);
+                }
+                else
+                {
+                    DrawDashedLine(pts[k], pts[k + 1], color with { A = 0.8f }, width, 8f * zoom);
+                }
+            }
         }
 
-        var nodeW = TechTreeLayout.NodeWidth * zoom;
-        var nodeH = TechTreeLayout.NodeHeight * zoom;
         var font = ThemeDB.FallbackFont;
+        var labelSize = (int)Mathf.Clamp(13 * zoom, 11, 16);
         foreach (var node in Graph.Nodes)
         {
-            var structure = node.Structure;
-            var nx = node.X * zoom + _panX;
-            var ny = node.Y * zoom + _panY;
-            var state = Research.GetNodeState(structure);
-            var isSelected = string.Equals(structure.Id, SelectedId, StringComparison.Ordinal);
-            var onPath = pathIds.Contains(structure.Id);
+            var state = StateOf(node);
+            var id = node.Structure.Id;
+            var isSelected = string.Equals(id, SelectedId, StringComparison.Ordinal);
+            var isHover = string.Equals(id, _hoverId, StringComparison.Ordinal);
+            var rect = new Rect2(Screen(node.X, node.Y), new Vector2(nodeSize, nodeSize));
 
-            // Icon-only square cell centered in the layout footprint.
-            var iconBox = Mathf.Min(nodeW, nodeH) * 0.88f;
-            var cellX = nx + (nodeW - iconBox) * 0.5f;
-            var cellY = ny + (nodeH - iconBox) * 0.5f;
-
-            var fill = state switch
-            {
-                ResearchNodeState.Unlocked => new Color(36 / 255f, 62 / 255f, 48 / 255f),
-                ResearchNodeState.Available => new Color(58 / 255f, 48 / 255f, 32 / 255f),
-                _ => new Color(28 / 255f, 32 / 255f, 31 / 255f)
-            };
-            if (isSelected)
-            {
-                fill = state switch
+            var border = node.IsRoot
+                ? CoreCyan
+                : state switch
                 {
-                    ResearchNodeState.Unlocked => new Color(48 / 255f, 84 / 255f, 64 / 255f),
-                    ResearchNodeState.Available => new Color(78 / 255f, 64 / 255f, 40 / 255f),
-                    _ => new Color(42 / 255f, 48 / 255f, 46 / 255f)
+                    ResearchNodeState.Unlocked => BorderUnlocked,
+                    ResearchNodeState.Available => Accent,
+                    _ => BorderLocked
                 };
-            }
-            else if (onPath)
+            if (isSelected || isHover)
             {
-                fill = state switch
+                DrawRect(rect.Grow(5f * zoom), border with { A = isSelected ? 0.35f : 0.18f }, true);
+            }
+
+            DrawRect(rect, state == ResearchNodeState.Locked ? NodeBgLocked : NodeBg, true);
+            DrawRect(rect, border, false, Mathf.Max(1.5f, (isSelected ? 4f : 2.5f) * zoom));
+
+            var inner = rect.Grow(-8f * zoom);
+            if (state == ResearchNodeState.Locked)
+            {
+                // Like Mindustry: a lock until the prerequisites are researched.
+                if (LockIcon is { } lockTex)
                 {
-                    ResearchNodeState.Unlocked => new Color(42 / 255f, 72 / 255f, 56 / 255f),
-                    ResearchNodeState.Available => new Color(68 / 255f, 56 / 255f, 36 / 255f),
-                    _ => new Color(36 / 255f, 40 / 255f, 38 / 255f)
+                    DrawTextureRect(lockTex, inner.Grow(-inner.Size.X * 0.18f), false, BorderLocked.Lightened(0.25f));
+                }
+            }
+            else if (ResolveIcon(id) is { } tex)
+            {
+                DrawTextureRect(tex, inner, false,
+                    state == ResearchNodeState.Available ? new Color(1f, 1f, 1f, 0.82f) : Colors.White);
+            }
+
+            var label = node.IsRoot ? "CORE" : node.Structure.DisplayName;
+            var labelColor = node.IsRoot
+                ? CoreCyan
+                : state switch
+                {
+                    ResearchNodeState.Unlocked => NodeTitle,
+                    ResearchNodeState.Available => Accent,
+                    _ => HintSoft with { A = 0.55f }
                 };
+            var maxW = (int)(TechTreeLayout.SlotWidth * zoom) - 2;
+            var text = Truncate(label, maxW, labelSize);
+            var tw = font.GetStringSize(text, HorizontalAlignment.Left, -1, labelSize).X;
+            DrawString(font,
+                new Vector2(rect.Position.X + (nodeSize - tw) / 2f, rect.End.Y + 6f * zoom + labelSize),
+                text, HorizontalAlignment.Left, -1, labelSize, labelColor);
+        }
+    }
+
+    private string? _hoverId;
+    private Texture2D? _lockIcon;
+    private bool _lockLoaded;
+
+    private Texture2D? LockIcon
+    {
+        get
+        {
+            if (!_lockLoaded)
+            {
+                _lockLoaded = true;
+                _lockIcon = ResourceLoader.Exists("res://assets/ui/locked.png")
+                    ? GD.Load<Texture2D>("res://assets/ui/locked.png")
+                    : null;
             }
 
-            var border = state switch
-            {
-                ResearchNodeState.Unlocked => new Color(112 / 255f, 218 / 255f, 145 / 255f),
-                ResearchNodeState.Available => new Color(220 / 255f, 170 / 255f, 110 / 255f),
-                _ => new Color(90 / 255f, 96 / 255f, 92 / 255f)
-            };
+            return _lockIcon;
+        }
+    }
 
-            if (isSelected)
-            {
-                DrawRect(new Rect2(cellX - 4, cellY - 4, iconBox + 8, iconBox + 8),
-                    new Color(Gold.R, Gold.G, Gold.B, 90 / 255f), true);
-            }
-            else if (onPath)
-            {
-                DrawRect(new Rect2(cellX - 2, cellY - 2, iconBox + 4, iconBox + 4),
-                    new Color(Gold.R, Gold.G, Gold.B, 40 / 255f), true);
-            }
-
-            DrawRect(new Rect2(cellX, cellY, iconBox, iconBox), fill, true);
-            DrawRect(new Rect2(cellX, cellY, iconBox, iconBox), border, false, isSelected ? 2.4f : 1.5f);
-
-            var tex = ResolveIcon(structure.Id);
-            var pad = 6f * zoom;
-            if (tex is not null)
-            {
-                var modulate = state == ResearchNodeState.Locked
-                    ? new Color(0.55f, 0.55f, 0.55f, 0.85f)
-                    : Colors.White;
-                DrawTextureRect(
-                    tex,
-                    new Rect2(cellX + pad, cellY + pad, iconBox - pad * 2, iconBox - pad * 2),
-                    false,
-                    modulate);
-            }
-            else
-            {
-                // Letter plate fallback when no sprite ships yet.
-                var initials = Initials(structure.DisplayName);
-                var fs = (int)Mathf.Clamp(14 * zoom, 10, 18);
-                var tw = font.GetStringSize(initials, HorizontalAlignment.Left, -1, fs).X;
-                DrawString(font,
-                    new Vector2(cellX + (iconBox - tw) * 0.5f, cellY + iconBox * 0.55f),
-                    initials, HorizontalAlignment.Left, -1, fs, NodeTitle);
-            }
-
-            // Icon only — no pip / title text under the tile (Mindustry).
+    private void UpdateHover(Vector2 local)
+    {
+        var id = NodeAt(local);
+        if (!string.Equals(id, _hoverId, StringComparison.Ordinal))
+        {
+            _hoverId = id;
+            MouseDefaultCursorShape = id is null ? CursorShape.Arrow : CursorShape.PointingHand;
+            QueueRedraw();
         }
     }
 
