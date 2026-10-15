@@ -218,17 +218,16 @@ public partial class World
         _saves?.NotifySavedAs(id);
     }
 
-    /// <summary>Raylib AutoSaveContinue: write live slice to Continua when leaving play.</summary>
+    /// <summary>Raylib AutoSaveContinue: write live slice to Continua when leaving play (only if a game was played).</summary>
     private void AutoSaveContinue(bool quiet = false)
     {
-        if (_slice is null)
-        {
-            return;
-        }
-
         try
         {
-            FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, _slice.Capture());
+            if (!_continueAutoSave.TrySave(_slice))
+            {
+                return; // nothing played this session: keep the existing Continua untouched
+            }
+
             if (!quiet)
             {
                 _hud?.ShowToast("Continua aggiornata");
