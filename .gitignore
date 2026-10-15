@@ -46,5 +46,5 @@ godot/.mono/
 dist/
 
 
-# Dev capture output (TINDUSTRY_CAPTURE)
+# Dev capture output (TINDUSTRY_CAPTURE_DIR)
 godot/artifacts/

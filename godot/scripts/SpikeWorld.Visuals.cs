@@ -16,11 +16,6 @@ public partial class SpikeWorld
 
         _buildingsLayer = new Node2D { Name = "Buildings", ZIndex = BuildingsZ };
         AddChild(_buildingsLayer);
-        // Hide legacy scene Miner node if present — rebuilt dynamically.
-        if (HasNode("Miner"))
-        {
-            GetNode("Miner").QueueFree();
-        }
     }
 
     private void RebuildBuildingVisuals()

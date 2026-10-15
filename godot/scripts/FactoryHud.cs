@@ -1462,18 +1462,6 @@ public partial class FactoryHud : Control
         _detailOverlay.Visible = true;
     }
 
-    /// <summary>Capture helper: open the ? detail modal for the current selection.</summary>
-    public void OpenBlockDetailForCapture() => OpenDetailOverlay();
-
-    /// <summary>Capture helper: close the ? detail modal.</summary>
-    public void CloseBlockDetailForCapture()
-    {
-        if (_detailOverlay is not null)
-        {
-            _detailOverlay.Visible = false;
-        }
-    }
-
     private void BuildToast()
     {
         _toastLabel = new Label

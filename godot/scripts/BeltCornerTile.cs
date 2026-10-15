@@ -72,8 +72,7 @@ public partial class BeltCornerTile : Node2D
             return;
         }
 
-        var shader = GD.Load<Shader>("res://shaders/belt_corner_v2.gdshader")
-            ?? GD.Load<Shader>("res://shaders/belt_corner.gdshader");
+        var shader = GD.Load<Shader>("res://shaders/belt_corner_v2.gdshader");
         _material = new ShaderMaterial { Shader = shader };
         _sprite = new Sprite2D
         {

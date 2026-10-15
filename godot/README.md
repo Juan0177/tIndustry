@@ -14,7 +14,6 @@ Release zip ufficiali = questo client:
 ```bash
 godot4 --path godot
 TINDUSTRY_FRESH=1 godot4 --path godot          # ignore continua
-TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=home godot4 --path godot
 ```
 
 Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.csproj`).
@@ -54,7 +53,7 @@ Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (bel
 TINDUSTRY_DATA_DIR=/tmp/tind-profile TINDUSTRY_CAPTURE_DIR=/tmp/tind-shots   TINDUSTRY_PLAYTEST=tutorial godot4 --path godot --resolution 1280x720
 ```
 
-`TINDUSTRY_PLAYTEST=tutorial` gioca il tutorial con input simulati e salva un PNG per passo (exit 0 = OK). `TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=<home|research|campaign|…>` salva screenshot delle schermate in `TINDUSTRY_CAPTURE_DIR` (default `godot/artifacts/`).
+`TINDUSTRY_PLAYTEST=tutorial` gioca il tutorial con input simulati e salva un PNG per passo (exit 0 = OK). Gli screenshot vanno in `TINDUSTRY_CAPTURE_DIR` (default `godot/artifacts/`).
 
 ## Save / load
 

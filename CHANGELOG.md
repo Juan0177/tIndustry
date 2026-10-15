@@ -17,6 +17,12 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Comandi**: trascina col tasto sinistro per muovere la visuale in modalità cursore (prima solo rotella premuta, ma il tutorial diceva "trascina"); tolti gli alias in conflitto **A** (assemblatore, ma A = pan WASD) e **G** (generatore, ma G = Campagna)
 - **Impostazioni**: overlay risorse (FPS/CPU/RAM/GPU) **spento di default** per i nuovi giocatori
 
+### Pulizia
+
+- Rimosse le modalità di cattura `TINDUSTRY_CAPTURE` / `TINDUSTRY_CAPTURE_MODE` (ereditate da Cursor); restano `TINDUSTRY_PLAYTEST` e `TINDUSTRY_CAPTURE_DIR`
+- Rimossi `StaticMiner`/`StaticAssembler`/`StaticSmelter`, il nodo `Miner` della scena, lo shader `belt_corner.gdshader`, le cartelle `.cursor/` e `assets/` in radice (attribuzioni spostate in `godot/assets/ATTRIBUTION.md`)
+
+
 ### Sviluppo
 
 - **Testo e icone nitidi**: la UI usa il filtro lineare con mipmap (la mappa resta Nearest per la pixel art); prima icone 64px ridotte a 16–26px e testo alla scala 125% erano sgranati

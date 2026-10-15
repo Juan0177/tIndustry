@@ -1,8 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://tindustry_spike01"]
+[gd_scene load_steps=3 format=3 uid="uid://tindustry_spike01"]
 
 [ext_resource type="Script" path="res://scripts/SpikeWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/SpikeCamera.cs" id="2_cam"]
-[ext_resource type="Script" path="res://scripts/StaticMiner.cs" id="3_miner"]
 
 [node name="Spike" type="Node2D"]
 script = ExtResource("1_world")
@@ -15,13 +14,6 @@ script = ExtResource("2_cam")
 [node name="Belts" type="Node2D" parent="."]
 
 [node name="Items" type="Node2D" parent="."]
-
-[node name="Miner" type="Node2D" parent="."]
-position = Vector2(192, 512)
-script = ExtResource("3_miner")
-
-[node name="Sprite" type="Sprite2D" parent="Miner"]
-centered = true
 
 [node name="Hud" type="CanvasLayer" parent="."]
 layer = 20

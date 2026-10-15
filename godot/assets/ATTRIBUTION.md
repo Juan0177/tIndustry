@@ -9,7 +9,7 @@ Industrial / resource / building glyphs under
 
 Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://github.com/game-icons/icons)
 
-| Asset (in `assets/icons/`) | Author | Original icon |
+| Asset (in `godot/assets/`) | Author | Original icon |
 | --- | --- | --- |
 | `items/iron-ore.png` | Lorc | rock |
 | `items/copper-ore.png` | Lorc | rock (orange tint) |
@@ -38,8 +38,6 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `categories/logistics.png` | Delapouite | plain-arrow |
 | `categories/tools.png` | Lorc | cog |
 
-Converted to white-on-transparent 64×64 PNG for Raylib tinting.
-
 Authors: [Delapouite](https://delapouite.com) · [Lorc](https://lorcblog.blogspot.com)
 
 ### Kenney (CC0 1.0)
@@ -58,15 +56,6 @@ License: [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/ze
 | `ui/settings.png`, `ui/menu.png`, `ui/locked.png`, `ui/power.png`, `categories/power.png` | Game Icons | gear / menuGrid / locked / power |
 
 Packs: https://kenney.nl/assets/board-game-icons · https://kenney.nl/assets/game-icons
-
-## Thumbnail / splash
-
-`assets/thumbnail.png` — generated store/GitHub thumbnail for the startup splash
-(industrial emblem composition). Shown at launch; not derived from a third-party pack.
-
-## Fonts
-
-DejaVu Sans (`assets/fonts/`) — Bitstream Vera / DejaVu license (see font package).
 
 ## Copies in the Godot client
 
