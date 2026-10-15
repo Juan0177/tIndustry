@@ -22,6 +22,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - Rimosse le modalità di cattura `TINDUSTRY_CAPTURE` / `TINDUSTRY_CAPTURE_MODE` (ereditate da Cursor); restano `TINDUSTRY_PLAYTEST` e `TINDUSTRY_CAPTURE_DIR`
 - Rimossi `StaticMiner`/`StaticAssembler`/`StaticSmelter`, il nodo `Miner` della scena, lo shader `belt_corner.gdshader`, le cartelle `.cursor/` e `assets/` in radice (attribuzioni spostate in `godot/assets/ATTRIBUTION.md`)
 - Rinomine con i nomi veri: `SpikeWorld`→`World`, `SpikeCamera`→`WorldCamera`, `Spike.tscn`→`Main.tscn` (nodo radice `Main`), `FactorySlice`→`Factory`, `FactorySliceSaveData/Store`→`FactorySaveData/Store`, `SmelterStub`→`Crafter`, `GeneratorStub`→`Generator`, `ExtractorStub`→`Extractor`, `PowerNodeStub`→`PowerNode`, `MinerProducer`→`Miner`, `StructureDefinition.Requires`→`Prerequisites`; test su percorsi dei dati e riferimenti del progetto Godot. Nessun cambio di comportamento né di formato dei salvataggi
+- Cartelle per area: `godot/scripts/` in `world/`, `visuals/{belts,buildings,items}/`, `ui/{hud,panels}/`, `settings/`, `dev/`; `src/TIndustry.Shared/` in `Content/`, `Grid/`, `Buildings/`, `Power/`, `Economy/`, `Research/`, `Campaign/`, `Save/` (resta `Factory.cs` in radice); `SystemMonitor` passa al progetto Godot (`TIndustry.Godot`). Solo spostamenti, nessun cambio di comportamento
 
 
 ### Sviluppo
