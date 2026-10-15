@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 /// <summary>Build tool selection and mouse/keyboard input.</summary>
 public partial class World
 {
-    private void OnHudToolChosen(FactoryHud.ToolKind kind)
+    private void OnHudToolChosen(Hud.ToolKind kind)
     {
         _tool = FromHudTool(kind);
         QueueRedraw();
@@ -32,7 +32,7 @@ public partial class World
     {
         if (tool != BuildTool.Cursor
             && _slice is not null
-            && !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(ToHudTool(tool))))
+            && !_slice.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
         {
             _hud?.ShowToast($"{ToolIt(tool)} bloccato: sbloccalo in Ricerca (T).");
             return;
@@ -48,45 +48,45 @@ public partial class World
         QueueRedraw();
     }
 
-    private static FactoryHud.ToolKind ToHudTool(BuildTool tool) => tool switch
+    private static Hud.ToolKind ToHudTool(BuildTool tool) => tool switch
     {
-        BuildTool.Cursor => FactoryHud.ToolKind.Cursor,
-        BuildTool.Miner => FactoryHud.ToolKind.Miner,
-        BuildTool.MinerAdvanced => FactoryHud.ToolKind.MinerAdvanced,
-        BuildTool.Smelter => FactoryHud.ToolKind.Smelter,
-        BuildTool.Assembler => FactoryHud.ToolKind.Assembler,
-        BuildTool.Junction => FactoryHud.ToolKind.Junction,
-        BuildTool.Splitter => FactoryHud.ToolKind.Splitter,
-        BuildTool.Generator => FactoryHud.ToolKind.Generator,
-        BuildTool.Sorter => FactoryHud.ToolKind.Sorter,
-        BuildTool.Bridge => FactoryHud.ToolKind.Bridge,
-        BuildTool.Belt => FactoryHud.ToolKind.Belt,
-        BuildTool.BeltFast => FactoryHud.ToolKind.BeltFast,
-        BuildTool.BeltExpress => FactoryHud.ToolKind.BeltExpress,
-        BuildTool.Extractor => FactoryHud.ToolKind.Extractor,
-        BuildTool.PowerNode => FactoryHud.ToolKind.PowerNode,
-        BuildTool.PowerNodeT2 => FactoryHud.ToolKind.PowerNodeT2,
-        _ => FactoryHud.ToolKind.Cursor
+        BuildTool.Cursor => Hud.ToolKind.Cursor,
+        BuildTool.Miner => Hud.ToolKind.Miner,
+        BuildTool.MinerAdvanced => Hud.ToolKind.MinerAdvanced,
+        BuildTool.Smelter => Hud.ToolKind.Smelter,
+        BuildTool.Assembler => Hud.ToolKind.Assembler,
+        BuildTool.Junction => Hud.ToolKind.Junction,
+        BuildTool.Splitter => Hud.ToolKind.Splitter,
+        BuildTool.Generator => Hud.ToolKind.Generator,
+        BuildTool.Sorter => Hud.ToolKind.Sorter,
+        BuildTool.Bridge => Hud.ToolKind.Bridge,
+        BuildTool.Belt => Hud.ToolKind.Belt,
+        BuildTool.BeltFast => Hud.ToolKind.BeltFast,
+        BuildTool.BeltExpress => Hud.ToolKind.BeltExpress,
+        BuildTool.Extractor => Hud.ToolKind.Extractor,
+        BuildTool.PowerNode => Hud.ToolKind.PowerNode,
+        BuildTool.PowerNodeT2 => Hud.ToolKind.PowerNodeT2,
+        _ => Hud.ToolKind.Cursor
     };
 
-    private static BuildTool FromHudTool(FactoryHud.ToolKind tool) => tool switch
+    private static BuildTool FromHudTool(Hud.ToolKind tool) => tool switch
     {
-        FactoryHud.ToolKind.Cursor => BuildTool.Cursor,
-        FactoryHud.ToolKind.Miner => BuildTool.Miner,
-        FactoryHud.ToolKind.MinerAdvanced => BuildTool.MinerAdvanced,
-        FactoryHud.ToolKind.Smelter => BuildTool.Smelter,
-        FactoryHud.ToolKind.Assembler => BuildTool.Assembler,
-        FactoryHud.ToolKind.Junction => BuildTool.Junction,
-        FactoryHud.ToolKind.Splitter => BuildTool.Splitter,
-        FactoryHud.ToolKind.Generator => BuildTool.Generator,
-        FactoryHud.ToolKind.Sorter => BuildTool.Sorter,
-        FactoryHud.ToolKind.Bridge => BuildTool.Bridge,
-        FactoryHud.ToolKind.Belt => BuildTool.Belt,
-        FactoryHud.ToolKind.BeltFast => BuildTool.BeltFast,
-        FactoryHud.ToolKind.BeltExpress => BuildTool.BeltExpress,
-        FactoryHud.ToolKind.Extractor => BuildTool.Extractor,
-        FactoryHud.ToolKind.PowerNode => BuildTool.PowerNode,
-        FactoryHud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
+        Hud.ToolKind.Cursor => BuildTool.Cursor,
+        Hud.ToolKind.Miner => BuildTool.Miner,
+        Hud.ToolKind.MinerAdvanced => BuildTool.MinerAdvanced,
+        Hud.ToolKind.Smelter => BuildTool.Smelter,
+        Hud.ToolKind.Assembler => BuildTool.Assembler,
+        Hud.ToolKind.Junction => BuildTool.Junction,
+        Hud.ToolKind.Splitter => BuildTool.Splitter,
+        Hud.ToolKind.Generator => BuildTool.Generator,
+        Hud.ToolKind.Sorter => BuildTool.Sorter,
+        Hud.ToolKind.Bridge => BuildTool.Bridge,
+        Hud.ToolKind.Belt => BuildTool.Belt,
+        Hud.ToolKind.BeltFast => BuildTool.BeltFast,
+        Hud.ToolKind.BeltExpress => BuildTool.BeltExpress,
+        Hud.ToolKind.Extractor => BuildTool.Extractor,
+        Hud.ToolKind.PowerNode => BuildTool.PowerNode,
+        Hud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
         _ => BuildTool.Cursor
     };
 

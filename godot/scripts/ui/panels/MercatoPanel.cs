@@ -178,7 +178,7 @@ public partial class MercatoPanel : Control
         title.AddThemeColorOverride("font_color", Accent);
         title.AddThemeFontSizeOverride("font_size", 22);
         header.AddChild(title);
-        header.AddChild(Icon(FactoryHud.ItemTexture("money"), 22, MoneyColor));
+        header.AddChild(Icon(HudStyle.ItemTexture("money"), 22, MoneyColor));
         _walletLabel = new Label { Text = "$0", VerticalAlignment = VerticalAlignment.Center };
         _walletLabel.AddThemeColorOverride("font_color", MoneyColor);
         _walletLabel.AddThemeFontSizeOverride("font_size", 18);
@@ -400,7 +400,7 @@ public partial class MercatoPanel : Control
         var nameBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         nameBox.AddThemeConstantOverride("separation", 8);
         h.AddChild(nameBox);
-        var icon = Icon(FactoryHud.ItemTexture(item.ItemId), 26);
+        var icon = Icon(HudStyle.ItemTexture(item.ItemId), 26);
         ItemPalette.Tint(icon, item.ItemId);
         nameBox.AddChild(icon);
         var name = new Label { Text = item.DisplayName, VerticalAlignment = VerticalAlignment.Center };
