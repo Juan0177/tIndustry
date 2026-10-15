@@ -41,7 +41,7 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 - Dati di gioco solo in `data/` (`content.json`, `campaign.json`); `godot/data/` è generata dall'export ed è ignorata da git.
 - Icone solo in `godot/assets/` (piatto), con attribuzione in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
-- Salvataggi alla versione 9 (`FactorySaveData.CurrentVersion`); cambiare il formato = alzare la versione.
+- Salvataggi alla versione 10 (`FactorySaveData.CurrentVersion`); cambiare il formato = alzare la versione.
 - La simulazione è a tick fisso (60 Hz), guidata da comandi (`SimHost`) e deterministica: in `Step()` niente tempo, niente ordine di `Dictionary`/`HashSet`, niente orologio né `Random` non seminato, niente parallelismo né formati dipendenti dalla cultura. Regole in `docs/ARCHITETTURA.md`, modello di sincronizzazione in `docs/decisioni/0002-sincronizzazione-ibrida.md`.
 
 ## Dove guardare
