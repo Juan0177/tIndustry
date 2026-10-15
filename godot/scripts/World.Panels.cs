@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>HUD panels and overlays (Ricerca, Mercato, Campagna, Home, Salvataggi, Impostazioni, Tutorial, FPS/risorse).</summary>
-public partial class SpikeWorld
+public partial class World
 {
     private void EnsureFactoryHud()
     {
@@ -209,7 +209,7 @@ public partial class SpikeWorld
             return;
         }
 
-        var id = FactorySliceSaveStore.CreateSlotId();
+        var id = FactorySaveStore.CreateSlotId();
         SaveSlice(id, $"Salvato come {id}");
         _saves?.NotifySavedAs(id);
     }
@@ -224,13 +224,13 @@ public partial class SpikeWorld
 
         try
         {
-            FactorySliceSaveStore.Save(FactorySliceSaveStore.ContinueSlotId, _slice.Capture());
+            FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, _slice.Capture());
             if (!quiet)
             {
                 _hud?.ShowToast("Continua aggiornata");
             }
 
-            GD.Print($"Autosave Continua → {FactorySliceSaveStore.SlotPath(FactorySliceSaveStore.ContinueSlotId)}");
+            GD.Print($"Autosave Continua → {FactorySaveStore.SlotPath(FactorySaveStore.ContinueSlotId)}");
         }
         catch (Exception ex)
         {

@@ -14,7 +14,7 @@ public partial class AssemblerVisual : Node2D
     private float _span;
     public GridPosition Origin { get; private set; }
 
-    public static AssemblerVisual Create(SmelterStub asm, int tileSize)
+    public static AssemblerVisual Create(Crafter asm, int tileSize)
     {
         var root = new AssemblerVisual
         {
@@ -22,7 +22,7 @@ public partial class AssemblerVisual : Node2D
             ZIndex = 3,
             Origin = asm.Position
         };
-        var span = SmelterStub.Size * tileSize;
+        var span = Crafter.Size * tileSize;
         root._span = span;
         var half = span * 0.5f;
 
@@ -83,7 +83,7 @@ public partial class AssemblerVisual : Node2D
         return root;
     }
 
-    public void Sync(SmelterStub asm, float delta)
+    public void Sync(Crafter asm, float delta)
     {
         var target = asm.IsCrafting ? 1f : 0f;
         var speed = asm.IsCrafting ? 2.8f : 3.5f;

@@ -3,16 +3,16 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Redirects <see cref="FactorySliceSaveStore"/> to a temp dir for the whole run.</summary>
+/// <summary>Redirects <see cref="FactorySaveStore"/> to a temp dir for the whole run.</summary>
 public sealed class TempSaveStoreFixture : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"tindustry-tests-{Guid.NewGuid():N}");
 
-    public TempSaveStoreFixture() => FactorySliceSaveStore.SavesDirectoryOverride = _dir;
+    public TempSaveStoreFixture() => FactorySaveStore.SavesDirectoryOverride = _dir;
 
     public void Dispose()
     {
-        FactorySliceSaveStore.SavesDirectoryOverride = null;
+        FactorySaveStore.SavesDirectoryOverride = null;
         if (Directory.Exists(_dir))
         {
             Directory.Delete(_dir, recursive: true);

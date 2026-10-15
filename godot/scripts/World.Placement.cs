@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>Placing/removing structures on the grid and screen→cell mapping.</summary>
-public partial class SpikeWorld
+public partial class World
 {
     private void TryPlaceAt(GridPosition cell)
     {
@@ -64,7 +64,7 @@ public partial class SpikeWorld
 
                 break;
             case BuildTool.MinerAdvanced:
-                placed = _slice.TryPlaceMiner(cell, _placeDir, definitionId: MinerProducer.AdvancedId);
+                placed = _slice.TryPlaceMiner(cell, _placeDir, definitionId: Miner.AdvancedId);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -144,7 +144,7 @@ public partial class SpikeWorld
 
                 break;
             case BuildTool.PowerNodeT2:
-                placed = _slice.TryPlacePowerNode(cell, PowerNodeStub.Tier2Id);
+                placed = _slice.TryPlacePowerNode(cell, PowerNode.Tier2Id);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -222,7 +222,7 @@ public partial class SpikeWorld
             _slice.CoreTiles.Min(t => t.X),
             _slice.CoreTiles.Min(t => t.Y));
         var minerPos = new GridPosition(
-            Math.Max(0, coreOrigin.X - MinerProducer.Size - 2),
+            Math.Max(0, coreOrigin.X - Miner.Size - 2),
             coreOrigin.Y);
         if (!_slice.TryPlaceMiner(minerPos, Direction.East))
         {
@@ -230,7 +230,7 @@ public partial class SpikeWorld
             return;
         }
 
-        for (var x = minerPos.X + MinerProducer.Size; x < coreOrigin.X; x++)
+        for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
         {
             if (!_slice.TryPlaceBelt(new GridPosition(x, coreOrigin.Y), Direction.East))
             {

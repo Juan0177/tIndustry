@@ -1,13 +1,13 @@
 using TIndustry.Shared;
-using static TIndustry.Shared.FactorySlice;
+using static TIndustry.Shared.Factory;
 
 namespace TIndustry.Shared.Tests;
 
 /// <summary>
-/// Scenario checks for <see cref="FactorySlice"/> (moved out of the sim; each throws on failure).
-/// Run via <see cref="FactorySliceSelfTests"/>.
+/// Scenario checks for <see cref="Factory"/> (moved out of the sim; each throws on failure).
+/// Run via <see cref="FactorySelfTests"/>.
 /// </summary>
-internal static class FactorySliceScenarios
+internal static class FactoryScenarios
 {
     public static void SelfTest(string contentJsonPath)
     {
@@ -35,7 +35,7 @@ internal static class FactorySliceScenarios
         }
 
         throw new InvalidOperationException(
-            "FactorySlice self-test fallito: nessun ferro grezzo arrivato al core entro 40s sim.");
+            "Factory self-test fallito: nessun ferro grezzo arrivato al core entro 40s sim.");
     }
 
     /// <summary>Build costs charge wallet on place and refund on remove (Raylib parity).</summary>
@@ -46,7 +46,7 @@ internal static class FactorySliceScenarios
         var wallet = new EconomyWallet(
             0,
             new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 10 });
-        var slice = new FactorySlice(content, new BeltGrid(), core, wallet);
+        var slice = new Factory(content, new BeltGrid(), core, wallet);
         var minerCost = content.FindBuilding("miner")!.BuildCost.Sum(e => e.Amount);
         var beltCost = content.FindConveyor("conveyor-basic")!.EffectiveBuildCost.Sum(e => e.Amount);
 
@@ -79,7 +79,7 @@ internal static class FactorySliceScenarios
         var content = FactoryContent.Load(contentJsonPath);
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, grid, core);
+        var slice = new Factory(content, grid, core);
         slice.EnsureDemoBuildStock();
         Assert(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "miner");
 
@@ -115,7 +115,7 @@ internal static class FactorySliceScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
         slice.EnsureDemoBuildStock();
         slice.Research.ForceUnlock("conveyor-fast");
         slice.Research.ForceUnlock("conveyor-express");
@@ -130,13 +130,13 @@ internal static class FactorySliceScenarios
         Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East, "conveyor-express"), "belt T3");
         Assert(slice.Belts.TryGet(new GridPosition(4, 8), out var express)
             && express.Definition.Id == "conveyor-express", "belt T3 def");
-        Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: Miner.AdvancedId),
             "miner T2");
-        Assert(slice.Miners.Any(m => m.DefinitionId == MinerProducer.AdvancedId), "miner T2 list");
+        Assert(slice.Miners.Any(m => m.DefinitionId == Miner.AdvancedId), "miner T2 list");
         Assert(slice.TryPlaceExtractor(new GridPosition(8, 14), Direction.North), "extractor");
         Assert(slice.TryPlacePowerNode(new GridPosition(11, 12)), "power-node");
-        Assert(slice.TryPlacePowerNode(new GridPosition(14, 12), PowerNodeStub.Tier2Id), "power-node-t2");
-        Assert(slice.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id && n.Size == 2), "T2 size");
+        Assert(slice.TryPlacePowerNode(new GridPosition(14, 12), PowerNode.Tier2Id), "power-node-t2");
+        Assert(slice.PowerNodes.Any(n => n.DefinitionId == PowerNode.Tier2Id && n.Size == 2), "T2 size");
         Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 2, "counts");
 
         var snap = slice.Capture();
@@ -144,7 +144,7 @@ internal static class FactorySliceScenarios
         var restored = Restore(content, snap);
         Assert(restored.Extractors.Count == 1, "restore extractor");
         Assert(restored.PowerNodes.Count == 2, "restore nodes");
-        Assert(restored.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id), "restore T2");
+        Assert(restored.PowerNodes.Any(n => n.DefinitionId == PowerNode.Tier2Id), "restore T2");
         Assert(restored.Belts.TryGet(new GridPosition(3, 8), out var rf)
             && rf.Definition.Id == "conveyor-fast", "restore belt T2");
         Assert(restored.Belts.TryGet(new GridPosition(4, 8), out var re)
@@ -183,11 +183,11 @@ internal static class FactorySliceScenarios
 
         var lead = content.FindRecipe("smelt-lead")
             ?? throw new InvalidDataException("smelt-lead missing");
-        var smelter = new SmelterStub(
+        var smelter = new Crafter(
             new GridPosition(0, 0),
             Direction.East,
             content.FindRecipe("smelt-iron")!,
-            SmelterStub.SmelterBuildingId,
+            Crafter.SmelterBuildingId,
             content.SmelterRecipes());
         Assert(smelter.TryAccept("lead-ore"), "accept lead");
         Assert(smelter.TryAccept("lead-ore"), "accept lead 2");
@@ -198,11 +198,11 @@ internal static class FactorySliceScenarios
 
         var graphite = content.FindRecipe("craft-graphite");
         Assert(graphite is not null, "craft-graphite");
-        var assy = new SmelterStub(
+        var assy = new Crafter(
             new GridPosition(2, 0),
             Direction.East,
             content.FindRecipe("craft-copper-wire")!,
-            SmelterStub.AssemblerBuildingId,
+            Crafter.AssemblerBuildingId,
             content.AssemblerRecipes());
         foreach (var input in graphite!.Inputs)
         {
@@ -217,7 +217,7 @@ internal static class FactorySliceScenarios
 
         // Place API wires recipe lists.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
         slice.UnlockGodotSliceDemo();
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place multi forno");
         Assert(slice.Smelters[0].AvailableRecipes.Count >= 3, "forno has smelt-*");
@@ -373,12 +373,12 @@ internal static class FactorySliceScenarios
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, grid, core);
+        var slice = new Factory(content, grid, core);
         slice.UnlockGodotSliceDemo();
 
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "smelter");
         Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of forno");
-        Assert(slice.Generators[0].IsAdjacentTo(slice.Smelters[0].Position, SmelterStub.Size), "adjacent");
+        Assert(slice.Generators[0].IsAdjacentTo(slice.Smelters[0].Position, Crafter.Size), "adjacent");
         Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel 1");
         Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel 2");
 
@@ -401,7 +401,7 @@ internal static class FactorySliceScenarios
 
         // Speed: powered progress > coal-only over same window.
         var coldGrid = new BeltGrid();
-        var cold = new FactorySlice(content, coldGrid, core);
+        var cold = new Factory(content, coldGrid, core);
         cold.UnlockGodotSliceDemo();
         Assert(cold.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "cold smelter");
         var coldSm = cold.Smelters[0];
@@ -465,14 +465,14 @@ internal static class FactorySliceScenarios
         long next = 1;
 
         // Stall: no coal, no power — craft starts but progress frozen.
-        var stalled = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
+        var stalled = new Crafter(new GridPosition(0, 0), Direction.East, recipe);
         Assert(stalled.TryAccept("iron-ore") && stalled.TryAccept("iron-ore"), "stall ore");
         stalled.Tick(0.5f, belts, ref next, networkConnected: false);
         Assert(stalled.IsCrafting, "stall crafting");
         Assert(stalled.Progress < 0.001f, "stall no progress");
 
         // Coal-only advances at 1×.
-        var coalOnly = new SmelterStub(new GridPosition(2, 0), Direction.East, recipe);
+        var coalOnly = new Crafter(new GridPosition(2, 0), Direction.East, recipe);
         coalOnly.SeedFuel(2);
         Assert(coalOnly.TryAccept("iron-ore") && coalOnly.TryAccept("iron-ore"), "coal ore");
         coalOnly.Tick(0.5f, belts, ref next, networkConnected: false);
@@ -480,7 +480,7 @@ internal static class FactorySliceScenarios
         Assert(coalOnly.FuelBuffer < 2 || coalOnly.IsBurningFuel, "fuel consumed");
 
         // Powered (+20%) faster than coal-only.
-        var powered = new SmelterStub(new GridPosition(4, 0), Direction.East, recipe);
+        var powered = new Crafter(new GridPosition(4, 0), Direction.East, recipe);
         Assert(powered.TryAccept("iron-ore") && powered.TryAccept("iron-ore"), "power ore");
         powered.Tick(0.5f, belts, ref next, networkConnected: true);
         Assert(powered.IsCrafting && powered.IsPowered, "powered craft");
@@ -494,12 +494,12 @@ internal static class FactorySliceScenarios
         Assert(grid.TryInsert(new GridPosition(0, 2), new TransportedItem(next++, "coal")), "coal insert");
         Assert(grid.TryGet(new GridPosition(0, 2), out var cell) && cell.Items.Count == 1, "coal on belt");
         cell.Items[0].Progress = 1f;
-        var fed = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
+        var fed = new Crafter(new GridPosition(0, 0), Direction.East, recipe);
         Assert(fed.AcceptFromBelts(grid) == 1 && fed.FuelBuffer == 1, "belt → fuel");
 
         // Save/restore fuel state.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
         slice.UnlockGodotSliceDemo();
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "place forno");
         slice.Smelters[0].RestoreCraftState(
@@ -519,11 +519,11 @@ internal static class FactorySliceScenarios
         Assert(Math.Abs(restored.Smelters[0].BurnRemaining - 2.5f) < 0.01f, "restore burn");
 
         // Assembler ignores fuel gate (still crafts unpowered).
-        var assy = new SmelterStub(
+        var assy = new Crafter(
             new GridPosition(8, 0),
             Direction.East,
             content.FindRecipe("craft-copper-wire")!,
-            SmelterStub.AssemblerBuildingId);
+            Crafter.AssemblerBuildingId);
         Assert(!assy.UsesCoalOrPower, "assy no coal gate");
         Assert(assy.TryAccept("iron-plate") && assy.TryAccept("copper-ore"), "assy inputs");
         assy.Tick(0.5f, belts, ref next, networkConnected: false);
@@ -537,7 +537,7 @@ internal static class FactorySliceScenarios
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
         slice.UnlockGodotSliceDemo();
 
         Assert(Math.Abs(slice.PowerCapacity - CorePowerCapacity) < 0.01f, "core capacity");
@@ -565,10 +565,10 @@ internal static class FactorySliceScenarios
         }
 
         Assert(slice.Generators[0].IsGenerating, "gen burning");
-        Assert(slice.PowerCapacity >= CorePowerCapacity + GeneratorStub.CapacityBonus - 0.01f,
+        Assert(slice.PowerCapacity >= CorePowerCapacity + Generator.CapacityBonus - 0.01f,
             "capacity + gen bonus");
         Assert(slice.PowerGenerationPerSecond
-            >= CorePowerGeneration + GeneratorStub.GenerationPerSecond - 0.01f,
+            >= CorePowerGeneration + Generator.GenerationPerSecond - 0.01f,
             "gen rate");
 
         // Connected craft spends buffer.
@@ -581,11 +581,11 @@ internal static class FactorySliceScenarios
         }
 
         Assert(sm.IsCrafting && sm.IsPowered, "powered while buffer ok");
-        Assert(slice.PowerBuffer < before + GeneratorStub.GenerationPerSecond,
+        Assert(slice.PowerBuffer < before + Generator.GenerationPerSecond,
             "spend drains vs unbounded fill");
 
         // Soft brownout: empty buffer + no coal → craft stalls.
-        var brown = new FactorySlice(content, new BeltGrid(), core);
+        var brown = new Factory(content, new BeltGrid(), core);
         brown.UnlockGodotSliceDemo();
         Assert(brown.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "brown forno");
         brown.SetPowerBuffer(0f);
@@ -607,7 +607,7 @@ internal static class FactorySliceScenarios
         slice.SetPowerBuffer(18.5f);
         var snap = slice.Capture();
         Assert(Math.Abs(snap.PowerBuffer - 18.5f) < 0.01f, "capture buffer");
-        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v7");
+        Assert(snap.Version == FactorySaveData.CurrentVersion, "save v7");
         var restored = Restore(content, snap);
         Assert(Math.Abs(restored.PowerBuffer - 18.5f) < 0.01f, "restore buffer");
     }
@@ -619,7 +619,7 @@ internal static class FactorySliceScenarios
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
         slice.UnlockGodotSliceDemo();
 
         // Miner (2,4) east-adjacent to forno (4,4) — footprints touch on x=3|4 edge.
@@ -627,8 +627,8 @@ internal static class FactorySliceScenarios
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
         SeedSmelterFuel(slice);
         Assert(BuildingIo.FootprintsAdjacent(
-            slice.Miners[0].Position, MinerProducer.Size,
-            slice.Smelters[0].Position, SmelterStub.Size), "touch");
+            slice.Miners[0].Position, Miner.Size,
+            slice.Smelters[0].Position, Crafter.Size), "touch");
 
         const float dt = 1f / 30f;
         var gotOre = false;
@@ -648,7 +648,7 @@ internal static class FactorySliceScenarios
         // Craft output → core when forno east edge touches core west (core at 8,4; forno 4,4 size2 ends at 5 → not adjacent).
         // Place forno at (6,4) touching core (8,4).
         var core2 = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
-        var direct = new FactorySlice(content, new BeltGrid(), core2);
+        var direct = new Factory(content, new BeltGrid(), core2);
         direct.UnlockGodotSliceDemo();
         Assert(direct.TryPlaceSmelter(new GridPosition(6, 4), Direction.East, recipe), "forno@core");
         SeedSmelterFuel(direct);
@@ -675,7 +675,7 @@ internal static class FactorySliceScenarios
 
         // Also accept direct TryDeliverAdjacent API.
         Assert(direct.TryDeliverAdjacent(
-            new GridPosition(6, 4), SmelterStub.Size, "iron-plate"), "API → core");
+            new GridPosition(6, 4), Crafter.Size, "iron-plate"), "API → core");
         Assert(direct.Wallet.MaterialCount("iron-plate") > 0, "plate in wallet");
     }
 
@@ -685,13 +685,13 @@ internal static class FactorySliceScenarios
         var content = FactoryContent.Load(contentJsonPath);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(18, 18), size: 2);
 
-        var hot = new FactorySlice(content, new BeltGrid(), core);
+        var hot = new Factory(content, new BeltGrid(), core);
         hot.UnlockGodotSliceDemo();
-        hot.Research.ForceUnlock(MinerProducer.AdvancedId);
-        Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+        hot.Research.ForceUnlock(Miner.AdvancedId);
+        Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId),
             "T2 miner");
         Assert(hot.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of miner");
-        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, MinerProducer.Size), "adjacent");
+        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, Miner.Size), "adjacent");
         Assert(hot.Generators[0].TryAcceptFuel("coal") && hot.Generators[0].TryAcceptFuel("coal"), "fuel");
 
         var t2 = hot.Miners[0];
@@ -710,10 +710,10 @@ internal static class FactorySliceScenarios
         Assert(sawPowered, "T2 miner powered while generator burns");
 
         // Speed: powered T2 progresses faster than unpowered T2.
-        var cold = new FactorySlice(content, new BeltGrid(), core);
+        var cold = new Factory(content, new BeltGrid(), core);
         cold.UnlockGodotSliceDemo();
-        cold.Research.ForceUnlock(MinerProducer.AdvancedId);
-        Assert(cold.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+        cold.Research.ForceUnlock(Miner.AdvancedId);
+        Assert(cold.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId),
             "cold T2");
         var coldM = cold.Miners[0];
 
@@ -735,7 +735,7 @@ internal static class FactorySliceScenarios
         }
 
         // T1 never receives power even when adjacent to a live gen.
-        var t1Slice = new FactorySlice(content, new BeltGrid(), core);
+        var t1Slice = new Factory(content, new BeltGrid(), core);
         t1Slice.UnlockGodotSliceDemo();
         Assert(t1Slice.TryPlaceMiner(new GridPosition(4, 4), Direction.East), "T1 miner");
         Assert(t1Slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen near T1");
@@ -766,10 +766,10 @@ internal static class FactorySliceScenarios
         Assert(snap.Belts.Count > 10, "capture belts");
         Assert(snap.NextItemId >= 1, "nextItemId");
 
-        FactorySliceSaveStore.Delete("selftest-tmp");
-        FactorySliceSaveStore.Save("selftest-tmp", snap);
-        Assert(FactorySliceSaveStore.Exists("selftest-tmp"), "slot exists");
-        var loaded = FactorySliceSaveStore.Load("selftest-tmp");
+        FactorySaveStore.Delete("selftest-tmp");
+        FactorySaveStore.Save("selftest-tmp", snap);
+        Assert(FactorySaveStore.Exists("selftest-tmp"), "slot exists");
+        var loaded = FactorySaveStore.Load("selftest-tmp");
         var restored = Restore(content, loaded);
 
         Assert(restored.Miners.Count == slice.Miners.Count, "miners count");
@@ -795,12 +795,12 @@ internal static class FactorySliceScenarios
             restored.Tick(dt);
             if (restored.Wallet.MaterialCount("copper-wire") > 0)
             {
-                FactorySliceSaveStore.Delete("selftest-tmp");
+                FactorySaveStore.Delete("selftest-tmp");
                 return;
             }
         }
 
-        FactorySliceSaveStore.Delete("selftest-tmp");
+        FactorySaveStore.Delete("selftest-tmp");
         throw new InvalidOperationException(
             "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
     }
@@ -810,26 +810,26 @@ internal static class FactorySliceScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var slice = CreateSpikeDemo(content);
-        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
-        FactorySliceSaveStore.Delete("selftest-dup");
-        foreach (var old in FactorySliceSaveStore.ListSlots().Where(s => s.Id.StartsWith("slot-20", StringComparison.Ordinal)))
+        FactorySaveStore.Delete(FactorySaveStore.ContinueSlotId);
+        FactorySaveStore.Delete("selftest-dup");
+        foreach (var old in FactorySaveStore.ListSlots().Where(s => s.Id.StartsWith("slot-20", StringComparison.Ordinal)))
         {
             // leave other agent slots alone
         }
 
-        FactorySliceSaveStore.Save(FactorySliceSaveStore.ContinueSlotId, slice.Capture());
-        Assert(FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId), "continua");
-        var listed = FactorySliceSaveStore.ListSlots();
-        Assert(listed.Any(s => s.Id == FactorySliceSaveStore.ContinueSlotId), "list continua");
-        Assert(listed[0].Id == FactorySliceSaveStore.ContinueSlotId, "continua first");
+        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, slice.Capture());
+        Assert(FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId), "continua");
+        var listed = FactorySaveStore.ListSlots();
+        Assert(listed.Any(s => s.Id == FactorySaveStore.ContinueSlotId), "list continua");
+        Assert(listed[0].Id == FactorySaveStore.ContinueSlotId, "continua first");
 
-        var dup = FactorySliceSaveStore.DuplicateSlot(FactorySliceSaveStore.ContinueSlotId);
-        Assert(dup is not null && FactorySliceSaveStore.Exists(dup), "duplicate");
-        Assert(FactorySliceSaveStore.ListSlots().Count >= 2, "list ≥2");
+        var dup = FactorySaveStore.DuplicateSlot(FactorySaveStore.ContinueSlotId);
+        Assert(dup is not null && FactorySaveStore.Exists(dup), "duplicate");
+        Assert(FactorySaveStore.ListSlots().Count >= 2, "list ≥2");
 
-        FactorySliceSaveStore.Delete(dup!);
-        Assert(!FactorySliceSaveStore.Exists(dup!), "deleted");
-        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
+        FactorySaveStore.Delete(dup!);
+        Assert(!FactorySaveStore.Exists(dup!), "deleted");
+        FactorySaveStore.Delete(FactorySaveStore.ContinueSlotId);
     }
 
     /// <summary>
@@ -965,7 +965,7 @@ internal static class FactorySliceScenarios
 
         // Place API + save/load partner/filter.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
         slice.UnlockGodotSliceDemo();
         Assert(slice.TryPlaceSorter(new GridPosition(4, 4), Direction.East, "iron-plate"), "TryPlaceSorter");
         Assert(slice.Belts.TryGet(new GridPosition(4, 4), out var placedSorter)
@@ -984,15 +984,15 @@ internal static class FactorySliceScenarios
                 && b.BridgePartnerX is not null
                 && b.BridgePartnerY is not null),
             "capture bridge partner");
-        FactorySliceSaveStore.Delete("selftest-sorter-bridge");
-        FactorySliceSaveStore.Save("selftest-sorter-bridge", snap);
-        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-sorter-bridge"));
+        FactorySaveStore.Delete("selftest-sorter-bridge");
+        FactorySaveStore.Save("selftest-sorter-bridge", snap);
+        var restored = Restore(content, FactorySaveStore.Load("selftest-sorter-bridge"));
         Assert(restored.Belts.Cells.Values.Any(c =>
                 c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-plate"),
             "restore filter");
         Assert(restored.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Bridge) == 2,
             "restore bridge pair");
-        FactorySliceSaveStore.Delete("selftest-sorter-bridge");
+        FactorySaveStore.Delete("selftest-sorter-bridge");
 
         // Full demo seed still delivers wire (HUD/save/power kept).
         var demo = CreateSorterBridgeDemo(content);
@@ -1018,7 +1018,7 @@ internal static class FactorySliceScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
 
         var graph = TechTreeLayout.Build(content);
         Assert(graph.Nodes.Count >= 9, "graph has structures");
@@ -1068,16 +1068,16 @@ internal static class FactorySliceScenarios
         var snap = slice.Capture();
         Assert(snap.UnlockedStructures.Contains("smelter"), "capture smelter");
         Assert(snap.UnlockedStructures.Contains("conveyor-bridge"), "capture bridge");
-        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v2");
+        Assert(snap.Version == FactorySaveData.CurrentVersion, "save v2");
 
-        FactorySliceSaveStore.Delete("selftest-research");
-        FactorySliceSaveStore.Save("selftest-research", snap);
-        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-research"));
+        FactorySaveStore.Delete("selftest-research");
+        FactorySaveStore.Save("selftest-research", snap);
+        var restored = Restore(content, FactorySaveStore.Load("selftest-research"));
         Assert(restored.Research.IsUnlocked("smelter"), "restore smelter");
         Assert(restored.Research.IsUnlocked("sorter"), "restore sorter");
         Assert(restored.Research.IsUnlocked("conveyor-basic"), "restore defaults");
         Assert(restored.Wallet.Money == slice.Wallet.Money, "money after unlocks");
-        FactorySliceSaveStore.Delete("selftest-research");
+        FactorySaveStore.Delete("selftest-research");
 
         // Demo seed still unlocks all slice tools.
         var demo = CreateSorterBridgeDemo(content);
@@ -1090,7 +1090,7 @@ internal static class FactorySliceScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, new BeltGrid(), core);
+        var slice = new Factory(content, new BeltGrid(), core);
 
         Assert(slice.Market.Items.Count >= 4, "market items");
         var listino = slice.Market.GetSellPrice("iron-ore");
@@ -1126,18 +1126,18 @@ internal static class FactorySliceScenarios
         Assert(slice.TryUnlockStructure("smelter"), "unlock after sell");
 
         var snap = slice.Capture();
-        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v3");
+        Assert(snap.Version == FactorySaveData.CurrentVersion, "save v3");
         Assert(snap.SaleIncome == slice.Session.SaleIncome, "capture sale income");
         Assert(snap.SoldByItem.GetValueOrDefault("iron-ore") == 5, "capture sold");
 
-        FactorySliceSaveStore.Delete("selftest-mercato");
-        FactorySliceSaveStore.Save("selftest-mercato", snap);
-        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-mercato"));
+        FactorySaveStore.Delete("selftest-mercato");
+        FactorySaveStore.Save("selftest-mercato", snap);
+        var restored = Restore(content, FactorySaveStore.Load("selftest-mercato"));
         Assert(restored.Wallet.Money == slice.Wallet.Money, "restore money");
         Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore income");
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
         Assert(restored.Research.IsUnlocked("smelter"), "restore research");
-        FactorySliceSaveStore.Delete("selftest-mercato");
+        FactorySaveStore.Delete("selftest-mercato");
     }
 
     /// <summary>CORE upgrade: one-shot spend, +sale bonus, save v5 round-trip.</summary>
@@ -1150,7 +1150,7 @@ internal static class FactorySliceScenarios
         var wallet = new EconomyWallet(
             200,
             new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 25 });
-        var slice = new FactorySlice(content, new BeltGrid(), core, wallet);
+        var slice = new Factory(content, new BeltGrid(), core, wallet);
         Assert(slice.CoreUpgradeLevel == 0, "start LV0");
         slice.Wallet.AddMaterial("iron-ore", 5);
         var basePrice = slice.Market.GetDynamicSellPrice("iron-ore", 5);
@@ -1165,7 +1165,7 @@ internal static class FactorySliceScenarios
         Assert(slice.Wallet.Money == moneyBefore + boosted, "money includes bonus");
 
         var snap = slice.Capture();
-        Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySliceSaveData.CurrentVersion, "capture");
+        Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySaveData.CurrentVersion, "capture");
         var restored = Restore(content, snap);
         Assert(restored.CoreUpgradeLevel == 1 && restored.CoreSaleBonusPercent == 25, "restore");
     }
@@ -1199,11 +1199,11 @@ internal static class FactorySliceScenarios
 
         var snap = slice.Capture();
         Assert(snap.AutoSellAtCore, "capture auto-sell");
-        FactorySliceSaveStore.Delete("selftest-autosell");
-        FactorySliceSaveStore.Save("selftest-autosell", snap);
-        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-autosell"));
+        FactorySaveStore.Delete("selftest-autosell");
+        FactorySaveStore.Save("selftest-autosell", snap);
+        var restored = Restore(content, FactorySaveStore.Load("selftest-autosell"));
         Assert(restored.AutoSellAtCore, "restore auto-sell");
-        FactorySliceSaveStore.Delete("selftest-autosell");
+        FactorySaveStore.Delete("selftest-autosell");
 
         // OFF path still stocks (stock-first default).
         var stockSlice = CreateSpikeDemo(content);
@@ -1335,14 +1335,14 @@ internal static class FactorySliceScenarios
             Assert(reloaded.IsUnlocked(l02!, catalog), "L02 unlocked");
 
             var snap = slice.Capture();
-            Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v4");
+            Assert(snap.Version == FactorySaveData.CurrentVersion, "save v4");
             Assert(snap.ActiveCampaignLevelId == l01.Id, "capture level id");
-            FactorySliceSaveStore.Delete("selftest-campaign");
-            FactorySliceSaveStore.Save("selftest-campaign", snap);
-            var restored = Restore(content, FactorySliceSaveStore.Load("selftest-campaign"));
+            FactorySaveStore.Delete("selftest-campaign");
+            FactorySaveStore.Save("selftest-campaign", snap);
+            var restored = Restore(content, FactorySaveStore.Load("selftest-campaign"));
             Assert(restored.ActiveCampaignLevelId == l01.Id, "restore level id");
             Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore sales");
-            FactorySliceSaveStore.Delete("selftest-campaign");
+            FactorySaveStore.Delete("selftest-campaign");
         }
         finally
         {

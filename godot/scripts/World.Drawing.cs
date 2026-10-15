@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>Immediate-mode drawing: terrain, deposits, placement ghost, direction hints.</summary>
-public partial class SpikeWorld
+public partial class World
 {
     public override void _Draw()
     {
@@ -225,13 +225,13 @@ public partial class SpikeWorld
 
         var size = _tool switch
         {
-            BuildTool.Miner or BuildTool.MinerAdvanced => MinerProducer.Size,
-            BuildTool.Smelter => SmelterStub.Size,
-            BuildTool.Assembler => SmelterStub.Size,
-            BuildTool.Generator => GeneratorStub.Size,
+            BuildTool.Miner or BuildTool.MinerAdvanced => Miner.Size,
+            BuildTool.Smelter => Crafter.Size,
+            BuildTool.Assembler => Crafter.Size,
+            BuildTool.Generator => Generator.Size,
             BuildTool.PowerNode => 1,
             BuildTool.PowerNodeT2 => 2,
-            BuildTool.Extractor => ExtractorStub.Size,
+            BuildTool.Extractor => Extractor.Size,
             _ => 1
         };
 

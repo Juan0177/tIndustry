@@ -9,7 +9,7 @@ public partial class ExtractorVisual : Node2D
     private Polygon2D? _dot;
     public GridPosition Origin { get; private set; }
 
-    public static ExtractorVisual Create(ExtractorStub ex, int tileSize)
+    public static ExtractorVisual Create(Extractor ex, int tileSize)
     {
         var root = new ExtractorVisual
         {
@@ -50,7 +50,7 @@ public partial class ExtractorVisual : Node2D
         return root;
     }
 
-    public void Sync(ExtractorStub ex)
+    public void Sync(Extractor ex)
     {
         if (_dot is null)
         {

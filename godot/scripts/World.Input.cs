@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>Build tool selection and mouse/keyboard input.</summary>
-public partial class SpikeWorld
+public partial class World
 {
     private void OnHudToolChosen(FactoryHud.ToolKind kind)
     {
@@ -279,28 +279,28 @@ public partial class SpikeWorld
 
             if (key.Keycode == Key.F5)
             {
-                SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
+                SaveSlice(FactorySaveStore.ContinueSlotId, "Partita salvata (continua)");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F9)
             {
-                LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
+                LoadSlice(FactorySaveStore.ContinueSlotId, "Partita caricata (continua)");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F6)
             {
-                SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
+                SaveSlice(FactorySaveStore.QuickSlotId, "Slot-1 salvato");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F7)
             {
-                LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
+                LoadSlice(FactorySaveStore.QuickSlotId, "Slot-1 caricato");
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -327,7 +327,7 @@ public partial class SpikeWorld
                 {
                     if (_tool == BuildTool.Cursor)
                     {
-                        // Cursor mode: no place — SpikeCamera.LeftDragPans pans the view.
+                        // Cursor mode: no place — WorldCamera.LeftDragPans pans the view.
                         return;
                     }
 

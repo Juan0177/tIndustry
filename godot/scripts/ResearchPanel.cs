@@ -19,7 +19,7 @@ public partial class ResearchPanel : Control
     private static readonly Color MancaCoral = new(220 / 255f, 140 / 255f, 120 / 255f, 1f);
     private static readonly Color Gold = new(211 / 255f, 164 / 255f, 76 / 255f, 1f);
 
-    private FactorySlice? _slice;
+    private Factory? _slice;
     private TechTreeLayout.Graph? _graph;
     private TechTreeCanvas? _canvas;
     private PanelContainer? _detailPanel;
@@ -49,7 +49,7 @@ public partial class ResearchPanel : Control
         BuildUi();
     }
 
-    public void Open(FactorySlice slice)
+    public void Open(Factory slice)
     {
         _slice = slice;
         _statusMessage = null;
@@ -609,7 +609,7 @@ public partial class ResearchPanel : Control
             : $"${unlock.Money} + {materials}";
     }
 
-    private static string FormatMissingUnlockResources(StructureDefinition structure, FactorySlice slice)
+    private static string FormatMissingUnlockResources(StructureDefinition structure, Factory slice)
     {
         if (slice.Research.IsUnlocked(structure.Id) || !slice.Research.MeetsPrerequisites(structure))
         {
@@ -639,14 +639,14 @@ public partial class ResearchPanel : Control
         return missing.Count == 0 ? string.Empty : "Manca: " + string.Join(" + ", missing);
     }
 
-    private static string FormatPrereqs(StructureDefinition structure, FactorySlice slice)
+    private static string FormatPrereqs(StructureDefinition structure, Factory slice)
     {
-        if (structure.Requires.Count == 0)
+        if (structure.Prerequisites.Count == 0)
         {
             return "Prerequisiti: nessuno";
         }
 
-        var bits = structure.Requires.Select(id =>
+        var bits = structure.Prerequisites.Select(id =>
         {
             var name = slice.Content.FindStructure(id)?.DisplayName ?? id;
             return slice.Research.IsUnlocked(id) ? name : $"{name} (manca)";

@@ -8,7 +8,7 @@ namespace TIndustry.Godot;
 /// synthetic key/mouse events and save a frame per step to <see cref="CaptureDirectory"/>.
 /// Requires <c>TINDUSTRY_DATA_DIR</c> so it never touches the player's real settings or saves.
 /// </summary>
-public partial class SpikeWorld
+public partial class World
 {
     private const string PlaytestEnv = "TINDUSTRY_PLAYTEST";
 
@@ -117,7 +117,7 @@ public partial class SpikeWorld
         }
 
         var core = new GridPosition(_slice!.CoreTiles.Min(t => t.X), _slice.CoreTiles.Min(t => t.Y));
-        var minerCell = new GridPosition(Math.Max(0, core.X - MinerProducer.Size - 2), core.Y);
+        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
         await PlaytestClick(CellToScreen(minerCell));
         await PlaytestWait(0.3);
         await Shot("step3-miner-placed");
@@ -129,7 +129,7 @@ public partial class SpikeWorld
 
         // 4) Belt: key 1 then drag from the miner output to the Core.
         await PlaytestKey(Key.Key1);
-        var from = CellToScreen(new GridPosition(minerCell.X + MinerProducer.Size, core.Y));
+        var from = CellToScreen(new GridPosition(minerCell.X + Miner.Size, core.Y));
         var to = CellToScreen(new GridPosition(core.X - 1, core.Y));
         await PlaytestDrag(MouseButton.Left, from, to);
         await PlaytestKey(Key.Escape);

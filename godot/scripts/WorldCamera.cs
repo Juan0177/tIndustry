@@ -3,7 +3,7 @@ using Godot;
 namespace TIndustry.Godot;
 
 /// <summary>WASD / middle-drag (or left-drag in cursor mode) pan + wheel zoom; clamps to map AABB (Raylib ClampToMap).</summary>
-public partial class SpikeCamera : Camera2D
+public partial class WorldCamera : Camera2D
 {
     [Export] public float PanSpeed { get; set; } = 420f;
     [Export] public float MinZoom { get; set; } = 0.08f;
