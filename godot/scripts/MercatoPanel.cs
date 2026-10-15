@@ -19,6 +19,7 @@ public partial class MercatoPanel : Control
     private Label? _statusLabel;
     private Label? _autoSellHint;
     private Button? _autoSellToggle;
+    private ScrollContainer? _scroll;
 
     public event Action? Closed;
     public event Action? SoldChanged;
@@ -61,10 +62,26 @@ public partial class MercatoPanel : Control
         }
 
         var on = _slice.AutoSellAtCore;
-        _autoSellToggle.Text = on ? "Vendita automatica: ON" : "Vendita automatica: OFF";
-        _autoSellToggle.Modulate = on
-            ? new Color(0.95f, 0.90f, 0.45f, 1f)
-            : new Color(0.85f, 0.88f, 0.85f, 1f);
+        _autoSellToggle.Text = on ? "ON" : "OFF";
+        foreach (var state in new[] { "normal", "hover", "pressed" })
+        {
+            _autoSellToggle.AddThemeStyleboxOverride(state, new StyleBoxFlat
+            {
+                BgColor = on ? new Color(0.30f, 0.26f, 0.10f, 1f) : new Color(0.16f, 0.18f, 0.17f, 1f),
+                BorderColor = on ? Accent : new Color(0.40f, 0.44f, 0.42f, 1f),
+                BorderWidthLeft = 2,
+                BorderWidthTop = 2,
+                BorderWidthRight = 2,
+                BorderWidthBottom = 2,
+                CornerRadiusTopLeft = 4,
+                CornerRadiusTopRight = 4,
+                CornerRadiusBottomLeft = 4,
+                CornerRadiusBottomRight = 4
+            });
+        }
+
+        _autoSellToggle.AddThemeColorOverride("font_color", on ? Accent : TextMuted);
+        _autoSellToggle.AddThemeColorOverride("font_hover_color", on ? Accent : TextPrimary);
     }
 
     private void OnAutoSellTogglePressed()
@@ -78,8 +95,8 @@ public partial class MercatoPanel : Control
         if (_statusLabel is not null)
         {
             _statusLabel.Text = _slice.AutoSellAtCore
-                ? "Vendita automatica ON: il core liquida subito in $."
-                : "Vendita automatica OFF: magazzino; vendi qui.";
+                ? "Vendita automatica attivata."
+                : "Vendita automatica disattivata.";
         }
 
         SyncAutoSellToggle();
@@ -95,8 +112,8 @@ public partial class MercatoPanel : Control
         }
 
         _autoSellHint.Text = _slice.AutoSellAtCore
-            ? "ON: il core liquida subito in $."
-            : "OFF: magazzino; vendi qui.";
+            ? "Tutto ciò che arriva al CORE viene venduto subito."
+            : "Gli oggetti restano nel CORE: vendili da qui.";
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -124,12 +141,12 @@ public partial class MercatoPanel : Control
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var panel = new PanelContainer { Name = "MercatoCard" };
-        panel.SetAnchorsPreset(LayoutPreset.Center);
-        panel.OffsetLeft = -380;
-        panel.OffsetTop = -260;
-        panel.OffsetRight = 380;
-        panel.OffsetBottom = 260;
+        // Card sized to its content (Mindustry dialogs): no fixed height, no empty slab.
+        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(center);
+
+        var panel = new PanelContainer { Name = "MercatoCard", CustomMinimumSize = new Vector2(660, 0) };
         panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
         {
             BgColor = PanelBg,
@@ -138,82 +155,160 @@ public partial class MercatoPanel : Control
             BorderWidthTop = 2,
             BorderWidthRight = 2,
             BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4,
+            CornerRadiusBottomRight = 4,
             ContentMarginLeft = 16,
             ContentMarginRight = 16,
-            ContentMarginTop = 14,
-            ContentMarginBottom = 14
+            ContentMarginTop = 12,
+            ContentMarginBottom = 12
         });
-        AddChild(panel);
+        center.AddChild(panel);
 
         var root = new VBoxContainer();
         root.AddThemeConstantOverride("separation", 10);
         panel.AddChild(root);
 
+        // Title · Fondi
         var header = new HBoxContainer();
-        header.AddThemeConstantOverride("separation", 10);
+        header.AddThemeConstantOverride("separation", 8);
         root.AddChild(header);
-
         var title = new Label { Text = "Mercato", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        title.AddThemeColorOverride("font_color", TextPrimary);
+        title.AddThemeColorOverride("font_color", Accent);
         title.AddThemeFontSizeOverride("font_size", 22);
         header.AddChild(title);
-
-        _walletLabel = new Label { Text = "Magazzino: $0" };
-        _walletLabel.AddThemeColorOverride("font_color", TextMuted);
-        _walletLabel.AddThemeFontSizeOverride("font_size", 14);
+        header.AddChild(Icon(FactoryHud.ItemTexture("money"), 22, MoneyColor));
+        _walletLabel = new Label { Text = "$0", VerticalAlignment = VerticalAlignment.Center };
+        _walletLabel.AddThemeColorOverride("font_color", MoneyColor);
+        _walletLabel.AddThemeFontSizeOverride("font_size", 18);
         header.AddChild(_walletLabel);
 
-        var closeBtn = new Button { Text = "Indietro · Esc" };
-        closeBtn.Pressed += Close;
-        header.AddChild(closeBtn);
-
+        // Vendita automatica (toggle + one-line explanation)
+        var autoRow = new HBoxContainer();
+        autoRow.AddThemeConstantOverride("separation", 10);
+        root.AddChild(autoRow);
+        var autoLabel = new Label { Text = "Vendita automatica al CORE", VerticalAlignment = VerticalAlignment.Center };
+        autoLabel.AddThemeColorOverride("font_color", TextPrimary);
+        autoLabel.AddThemeFontSizeOverride("font_size", 14);
+        autoRow.AddChild(autoLabel);
         _autoSellToggle = new Button
         {
-            Text = "Vendita automatica: OFF",
-            CustomMinimumSize = new Vector2(0, 36)
+            Text = "OFF",
+            CustomMinimumSize = new Vector2(64, 30),
+            FocusMode = FocusModeEnum.None,
+            MouseDefaultCursorShape = CursorShape.PointingHand
         };
+        _autoSellToggle.AddThemeFontSizeOverride("font_size", 13);
         _autoSellToggle.Pressed += OnAutoSellTogglePressed;
-        root.AddChild(_autoSellToggle);
-
+        autoRow.AddChild(_autoSellToggle);
         _autoSellHint = new Label
         {
-            Text = "OFF: magazzino; vendi qui.",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
         _autoSellHint.AddThemeColorOverride("font_color", TextMuted);
         _autoSellHint.AddThemeFontSizeOverride("font_size", 12);
-        root.AddChild(_autoSellHint);
+        autoRow.AddChild(_autoSellHint);
 
-        _hintLabel = new Label
+        root.AddChild(new HSeparator());
+
+        // Table header
+        var columns = new HBoxContainer();
+        columns.AddThemeConstantOverride("separation", 10);
+        root.AddChild(columns);
+        AddColumnHeader(columns, "Oggetto", 0, expand: true);
+        AddColumnHeader(columns, "Quantità", ColStock);
+        AddColumnHeader(columns, "Prezzo", ColPrice);
+        AddColumnHeader(columns, "Valore", ColValue);
+        AddColumnHeader(columns, "", ColActions);
+
+        var scroll = new ScrollContainer
         {
-            Text = "Vendi stock del Core · prezzi reagiscono alla quantità · M apre / Esc chiude",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
+        root.AddChild(scroll);
+        _scroll = scroll;
+
+        _list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _list.AddThemeConstantOverride("separation", 4);
+        scroll.AddChild(_list);
+
+        _hintLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _hintLabel.AddThemeColorOverride("font_color", TextMuted);
         _hintLabel.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(_hintLabel);
 
-        var scroll = new ScrollContainer
-        {
-            CustomMinimumSize = new Vector2(0, 320),
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
-        };
-        root.AddChild(scroll);
-
-        _list = new VBoxContainer();
-        _list.AddThemeConstantOverride("separation", 6);
-        _list.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        scroll.AddChild(_list);
-
-        _statusLabel = new Label { Text = "" };
+        // Footer: status · Indietro (Mindustry puts "back" at the bottom)
+        var footer = new HBoxContainer();
+        footer.AddThemeConstantOverride("separation", 10);
+        root.AddChild(footer);
+        _statusLabel = new Label { Text = "", SizeFlagsHorizontal = SizeFlags.ExpandFill, VerticalAlignment = VerticalAlignment.Center };
         _statusLabel.AddThemeColorOverride("font_color", Accent);
         _statusLabel.AddThemeFontSizeOverride("font_size", 13);
-        root.AddChild(_statusLabel);
+        footer.AddChild(_statusLabel);
+        var closeBtn = new Button { Text = "Indietro", CustomMinimumSize = new Vector2(140, 36), FocusMode = FocusModeEnum.None };
+        closeBtn.Pressed += Close;
+        footer.AddChild(closeBtn);
+    }
+
+    private const float ColStock = 80f;
+    private const float ColPrice = 96f;
+    private const float ColValue = 80f;
+    private const float ColActions = 176f;
+    private const float RowHeight = 40f;
+    private const int MaxVisibleRows = 8;
+
+    private static readonly Color MoneyColor = new(0.98f, 0.82f, 0.38f, 1f);
+    private static readonly Color PriceDown = new(0.90f, 0.55f, 0.40f, 1f);
+
+    private static TextureRect Icon(Texture2D? tex, float size, Color? tint = null)
+    {
+        var icon = new TextureRect
+        {
+            Texture = tex,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(size, size),
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        if (tint is { } t)
+        {
+            icon.Modulate = t;
+        }
+
+        return icon;
+    }
+
+    private static void AddColumnHeader(HBoxContainer row, string text, float width, bool expand = false)
+    {
+        var label = new Label
+        {
+            Text = text,
+            CustomMinimumSize = new Vector2(width, 0),
+            SizeFlagsHorizontal = expand ? SizeFlags.ExpandFill : SizeFlags.ShrinkBegin,
+            HorizontalAlignment = expand ? HorizontalAlignment.Left : HorizontalAlignment.Right
+        };
+        label.AddThemeColorOverride("font_color", TextMuted);
+        label.AddThemeFontSizeOverride("font_size", 12);
+        row.AddChild(label);
+    }
+
+    private static Label Cell(string text, float width, Color color, int size = 14)
+    {
+        var label = new Label
+        {
+            Text = text,
+            CustomMinimumSize = new Vector2(width, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        label.AddThemeColorOverride("font_color", color);
+        label.AddThemeFontSizeOverride("font_size", size);
+        return label;
     }
 
     public void Refresh()
@@ -230,8 +325,8 @@ public partial class MercatoPanel : Control
 
         if (_walletLabel is not null)
         {
-            _walletLabel.Text =
-                $"Magazzino: ${_slice.Wallet.Money} · vendite ${_slice.Session.SaleIncome}";
+            _walletLabel.Text = $"${_slice.Wallet.Money}";
+            _walletLabel.TooltipText = $"Fondi · venduto finora ${_slice.Session.SaleIncome}";
         }
 
         SyncAutoSellToggle();
@@ -239,8 +334,7 @@ public partial class MercatoPanel : Control
 
         if (_hintLabel is not null)
         {
-            _hintLabel.Text = _slice.Market.BestValueHint()
-                + " · M apre / Esc chiude";
+            _hintLabel.Text = _slice.Market.BestValueHint();
         }
 
         var rows = 0;
@@ -254,21 +348,25 @@ public partial class MercatoPanel : Control
 
             AddRow(item, stock);
             rows++;
-            if (rows >= 8)
-            {
-                break;
-            }
         }
 
         if (rows == 0)
         {
             var empty = new Label
             {
-                Text = "Nessuna merce in magazzino. Porta ore/lastre al Core, poi vendi qui."
+                Text = "Niente da vendere: porta minerali o lastre al CORE con i nastri.",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                CustomMinimumSize = new Vector2(0, RowHeight)
             };
             empty.AddThemeColorOverride("font_color", TextMuted);
             empty.AddThemeFontSizeOverride("font_size", 14);
             _list.AddChild(empty);
+            rows = 1;
+        }
+
+        if (_scroll is not null)
+        {
+            _scroll.CustomMinimumSize = new Vector2(0, Math.Min(rows, MaxVisibleRows) * (RowHeight + 4));
         }
     }
 
@@ -282,25 +380,16 @@ public partial class MercatoPanel : Control
         var price = _slice.PreviewSellPrice(item.ItemId);
         var row = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(0, 52),
+            CustomMinimumSize = new Vector2(0, RowHeight),
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
         row.AddThemeStyleboxOverride("panel", new StyleBoxFlat
         {
             BgColor = RowBg,
-            BorderColor = new Color(0.30f, 0.34f, 0.32f),
-            BorderWidthLeft = 1,
-            BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 10,
-            ContentMarginRight = 10,
-            ContentMarginTop = 6,
-            ContentMarginBottom = 6
+            ContentMarginLeft = 8,
+            ContentMarginRight = 6,
+            ContentMarginTop = 2,
+            ContentMarginBottom = 2
         });
         _list.AddChild(row);
 
@@ -308,46 +397,42 @@ public partial class MercatoPanel : Control
         h.AddThemeConstantOverride("separation", 10);
         row.AddChild(h);
 
-        var info = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        h.AddChild(info);
-
-        var name = new Label { Text = $"{item.DisplayName}  ·  stock {stock}" };
+        var nameBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        nameBox.AddThemeConstantOverride("separation", 8);
+        h.AddChild(nameBox);
+        var icon = Icon(FactoryHud.ItemTexture(item.ItemId), 26);
+        ItemPalette.Tint(icon, item.ItemId);
+        nameBox.AddChild(icon);
+        var name = new Label { Text = item.DisplayName, VerticalAlignment = VerticalAlignment.Center };
         name.AddThemeColorOverride("font_color", TextPrimary);
         name.AddThemeFontSizeOverride("font_size", 14);
-        info.AddChild(name);
+        nameBox.AddChild(name);
 
-        var priceLabel = new Label
-        {
-            Text = $"Prezzo ${price}/u  ·  tutti ${price * stock}  ·  listino ${item.SellPrice}"
-        };
-        priceLabel.AddThemeColorOverride("font_color", TextMuted);
-        priceLabel.AddThemeFontSizeOverride("font_size", 12);
-        info.AddChild(priceLabel);
+        h.AddChild(Cell($"{stock}", ColStock, TextPrimary));
+        var priceCell = Cell($"${price}", ColPrice, price < item.SellPrice ? PriceDown : TextPrimary);
+        priceCell.TooltipText = price < item.SellPrice
+            ? $"Listino ${item.SellPrice}: il prezzo scende se vendi molto dello stesso oggetto"
+            : $"Listino ${item.SellPrice}";
+        priceCell.MouseFilter = MouseFilterEnum.Pass;
+        h.AddChild(priceCell);
+        h.AddChild(Cell($"${price * stock}", ColValue, MoneyColor));
 
-        var btn1 = new Button
-        {
-            Text = "1",
-            CustomMinimumSize = new Vector2(56, 36)
-        };
+        var actions = new HBoxContainer { CustomMinimumSize = new Vector2(ColActions, 0) };
+        actions.AddThemeConstantOverride("separation", 4);
+        h.AddChild(actions);
         var id = item.ItemId;
+        var btn1 = new Button { Text = "Vendi 1", CustomMinimumSize = new Vector2(80, 32), FocusMode = FocusModeEnum.None };
         btn1.Pressed += () => Sell(id, 1);
-        h.AddChild(btn1);
-
-        var btnAll = new Button
-        {
-            Text = "tutti",
-            CustomMinimumSize = new Vector2(72, 36)
-        };
+        actions.AddChild(btn1);
+        var btnAll = new Button { Text = "Vendi tutto", CustomMinimumSize = new Vector2(92, 32), FocusMode = FocusModeEnum.None };
         btnAll.Pressed += () =>
         {
-            if (_slice is null)
+            if (_slice is not null)
             {
-                return;
+                Sell(id, _slice.Wallet.MaterialCount(id));
             }
-
-            Sell(id, _slice.Wallet.MaterialCount(id));
         };
-        h.AddChild(btnAll);
+        actions.AddChild(btnAll);
     }
 
     private void Sell(string itemId, int amount)

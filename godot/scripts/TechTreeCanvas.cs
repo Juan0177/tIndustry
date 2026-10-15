@@ -26,6 +26,7 @@ public partial class TechTreeCanvas : Control
     private float _panX;
     private float _panY;
     private bool _panning;
+    private bool _pressPending;
     private Vector2 _panAnchor;
     private float _panStartX;
     private float _panStartY;
@@ -36,99 +37,120 @@ public partial class TechTreeCanvas : Control
         ClipContents = true;
     }
 
+    /// <summary>Fit the whole tree in view, centered (H / Home, and on open).</summary>
     public void ResetView()
     {
-        _panX = 0f;
-        _panY = 0f;
-        Zoom = 1f;
         _panning = false;
+        _pressPending = false;
+        if (Graph is null || Graph.Nodes.Count == 0 || Size.X < 1f || Size.Y < 1f)
+        {
+            // Not laid out yet: retry once the control has a size.
+            Callable.From(FitWhenSized).CallDeferred();
+            return;
+        }
+
+        var minX = Graph.Nodes.Min(n => (float)n.X);
+        var minY = Graph.Nodes.Min(n => (float)n.Y);
+        var maxX = Graph.Nodes.Max(n => (float)n.X) + TechTreeLayout.NodeWidth;
+        var maxY = Graph.Nodes.Max(n => (float)n.Y) + TechTreeLayout.NodeHeight;
+        const float pad = 32f;
+        var fit = Math.Min((Size.X - pad * 2) / (maxX - minX), (Size.Y - pad * 2) / (maxY - minY));
+        Zoom = TechTreeLayout.ClampZoom(Math.Min(fit, 1f));
+        _panX = (Size.X - (maxX - minX) * Zoom) / 2f - minX * Zoom;
+        _panY = (Size.Y - (maxY - minY) * Zoom) / 2f - minY * Zoom;
         QueueRedraw();
         ViewChanged?.Invoke();
     }
 
+    private void FitWhenSized()
+    {
+        if (Graph is not null && Size.X >= 1f && Size.Y >= 1f)
+        {
+            ResetView();
+        }
+    }
+
+    /// <summary>Mindustry-style: drag (left/middle/right) pans, wheel zooms at the cursor, click selects.</summary>
     public override void _GuiInput(InputEvent @event)
     {
-        var mouse = GetLocalMousePosition();
-        var over = new Rect2(Vector2.Zero, Size).HasPoint(mouse);
-
         if (@event is InputEventMouseButton mb)
         {
-            if (mb.Pressed
-                && (mb.ButtonIndex == MouseButton.Middle
-                    || mb.ButtonIndex == MouseButton.Right
-                    || (mb.ButtonIndex == MouseButton.Left && mb.ShiftPressed))
-                && over)
+            var at = mb.Position;
+            if (mb.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             {
-                _panning = true;
-                _panAnchor = mouse;
-                _panStartX = _panX;
-                _panStartY = _panY;
+                if (mb.Pressed)
+                {
+                    ZoomAt(mb.ButtonIndex == MouseButton.WheelUp ? 1f : -1f, at);
+                }
+
                 AcceptEvent();
                 return;
             }
 
-            if (!mb.Pressed
-                && mb.ButtonIndex is MouseButton.Middle or MouseButton.Right or MouseButton.Left
-                && _panning)
+            if (mb.ButtonIndex is MouseButton.Left or MouseButton.Middle or MouseButton.Right)
             {
-                _panning = false;
+                if (mb.Pressed)
+                {
+                    _pressPending = mb.ButtonIndex == MouseButton.Left;
+                    _panning = mb.ButtonIndex != MouseButton.Left;
+                    _panAnchor = at;
+                    _panStartX = _panX;
+                    _panStartY = _panY;
+                }
+                else
+                {
+                    if (_pressPending && mb.ButtonIndex == MouseButton.Left)
+                    {
+                        TrySelectAt(at);
+                    }
+
+                    _pressPending = false;
+                    _panning = false;
+                }
+
                 AcceptEvent();
-                return;
             }
 
-            if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelUp && over)
-            {
-                ApplyWheel(1f, mouse, mb.CtrlPressed);
-                AcceptEvent();
-                return;
-            }
-
-            if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelDown && over)
-            {
-                ApplyWheel(-1f, mouse, mb.CtrlPressed);
-                AcceptEvent();
-                return;
-            }
-
-            if (mb.Pressed && mb.ButtonIndex == MouseButton.Left && !mb.ShiftPressed && !_panning && over)
-            {
-                TrySelectAt(mouse);
-                AcceptEvent();
-            }
+            return;
         }
 
-        if (@event is InputEventMouseMotion && _panning)
+        if (@event is InputEventMouseMotion motion && (_panning || _pressPending))
         {
-            var local = GetLocalMousePosition();
-            _panX = _panStartX + (local.X - _panAnchor.X);
-            _panY = _panStartY + (local.Y - _panAnchor.Y);
-            QueueRedraw();
-            ViewChanged?.Invoke();
+            // A left click turns into a drag after a few pixels (so small jitters still select).
+            if (_pressPending && motion.Position.DistanceTo(_panAnchor) > DragThreshold)
+            {
+                _pressPending = false;
+                _panning = true;
+            }
+
+            if (_panning)
+            {
+                _panX = _panStartX + (motion.Position.X - _panAnchor.X);
+                _panY = _panStartY + (motion.Position.Y - _panAnchor.Y);
+                QueueRedraw();
+                ViewChanged?.Invoke();
+            }
+
             AcceptEvent();
         }
     }
 
-    private void ApplyWheel(float direction, Vector2 mouse, bool ctrl)
+    private const float DragThreshold = 6f;
+
+    private void ZoomAt(float direction, Vector2 mouse)
     {
-        if (ctrl)
+        var before = TechTreeLayout.ClampZoom(Zoom);
+        var after = TechTreeLayout.ClampZoom(before * (direction > 0 ? 1.12f : 1f / 1.12f));
+        if (Math.Abs(after - before) < 0.0001f)
         {
-            var before = TechTreeLayout.ClampZoom(Zoom);
-            var after = TechTreeLayout.ClampZoom(before * (direction > 0 ? 1.12f : 1f / 1.12f));
-            if (Math.Abs(after - before) > 0.0001f)
-            {
-                _panX = mouse.X - (mouse.X - _panX) * (after / before);
-                _panY = mouse.Y - (mouse.Y - _panY) * (after / before);
-                Zoom = after;
-                QueueRedraw();
-                ViewChanged?.Invoke();
-            }
+            return;
         }
-        else
-        {
-            _panY += direction * 36f;
-            QueueRedraw();
-            ViewChanged?.Invoke();
-        }
+
+        _panX = mouse.X - (mouse.X - _panX) * (after / before);
+        _panY = mouse.Y - (mouse.Y - _panY) * (after / before);
+        Zoom = after;
+        QueueRedraw();
+        ViewChanged?.Invoke();
     }
 
     private void TrySelectAt(Vector2 local)

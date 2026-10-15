@@ -84,7 +84,7 @@ godot4 --path godot
 ## Prima sessione (Godot)
 
 1. Splash → **Continua** / **Campagna** / **Nuova partita**.
-2. Palette basso-destra: **St / Lo / Pr / Po**; **Esc** = cursore.
+2. In alto a sinistra: Menu · Ricerca · Mercato · Campagna, poi Fondi, energia e risorse del CORE. Palette in basso a destra con le categorie a icone (Strumenti, Logistica, Produzione, Potenza); **Esc** = cursore.
 3. Minatore → nastri → Core; **M** Mercato per vendere; **T** Ricerca per sblocchi.
 4. **G** Campagna per obiettivi; **F5/F9** salva/carica continua.
 

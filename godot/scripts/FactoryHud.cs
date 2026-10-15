@@ -105,7 +105,7 @@ public partial class FactoryHud : Control
     ];
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
-    private readonly Dictionary<string, Label> _stockLabels = [];
+    private readonly Dictionary<string, (Control Cell, Label Count)> _stockCells = [];
     private readonly Dictionary<string, int> _stockCounts = [];
     private readonly HashSet<ToolKind> _lockedTools = [];
     private readonly Dictionary<BuildCategory, PanelContainer> _categorySlots = [];
@@ -113,9 +113,16 @@ public partial class FactoryHud : Control
 
     private Label? _dirLabel;
     private Label? _toastLabel;
-    private Label? _titleLabel;
+    private Label? _powerLabel;
+    private TextureRect? _powerIcon;
     private Label? _moneyLabel;
+    private GridContainer? _stockGrid;
+    private Label? _stockEmpty;
     private Button? _coreUpgradeButton;
+    private HBoxContainer? _coreUpgradeCost;
+    private (int Level, bool Affordable, int Money)? _coreUpgradeKey;
+    private VBoxContainer? _topLeft;
+    private Label? _infoHotkey;
     private PanelContainer? _objectivesPanel;
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
@@ -152,6 +159,17 @@ public partial class FactoryHud : Control
     public event Action? MercatoRequested;
     public event Action? CampaignRequested;
     public event Action? CoreUpgradeRequested;
+    public event Action? MenuRequested;
+
+    /// <summary>Core stock order (Mindustry shows every core item; we show the ones you have).</summary>
+    private static readonly string[] StockOrder =
+    [
+        "iron-ore", "copper-ore", "coal", "lead-ore", "titanium-ore",
+        "iron-plate", "copper-wire", "lead-plate", "titanium-plate", "graphite", "silicon"
+    ];
+
+    private static readonly Color MoneyColor = new(0.98f, 0.82f, 0.38f, 1f);
+    private static readonly Color PowerColor = new(0.98f, 0.90f, 0.42f, 1f);
 
     public ToolKind SelectedTool => _selected;
     public bool IsCursorMode => _selected == ToolKind.Cursor;
@@ -162,8 +180,7 @@ public partial class FactoryHud : Control
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
 
-        BuildStockPanel();
-        BuildObjectivesPanel();
+        BuildTopLeftColumn();
         BuildCornerDock();
         BuildDetailOverlay();
         BuildToast();
@@ -176,6 +193,14 @@ public partial class FactoryHud : Control
     /// <summary>Bind content + wallet so the info panel can show costs / barred mats.</summary>
     public void BindEconomy(FactoryContent? content, EconomyWallet? wallet)
     {
+        if (!ReferenceEquals(content, _content) && content is not null)
+        {
+            foreach (var (id, cell) in _stockCells)
+            {
+                cell.Cell.TooltipText = content.DisplayName(id);
+            }
+        }
+
         _content = content;
         _wallet = wallet;
         RefreshBlockInfo();
@@ -331,41 +356,42 @@ public partial class FactoryHud : Control
         float powerBuffer = -1f,
         float powerCapacity = -1f)
     {
-        SetStock("iron-ore", oreName, ore);
-        SetStock("iron-plate", plateName, plate);
-        SetStock("copper-ore", copperName, copper);
-        SetStock("copper-wire", wireName, wire);
         _money = money;
         if (_moneyLabel is not null)
         {
-            _moneyLabel.Text = $"Magazzino  ${money}  ·  M Mercato";
+            _moneyLabel.Text = $"${money}";
         }
 
-        if (_titleLabel is not null)
+        var any = false;
+        foreach (var id in StockOrder)
         {
-            string power;
-            if (powerCapacity > 0f && powerBuffer >= 0f)
+            var count = _wallet?.MaterialCount(id) ?? id switch
             {
-                power = $"pot. {powerBuffer:0}/{powerCapacity:0}";
-                if (generatorsTotal > 0)
-                {
-                    power += generatorsLive > 0
-                        ? $" ON ({generatorsLive}/{generatorsTotal})"
-                        : $" off ({generatorsLive}/{generatorsTotal})";
-                }
-            }
-            else if (generatorsTotal == 0)
-            {
-                power = "potenza —";
-            }
-            else
-            {
-                power = generatorsLive > 0
-                    ? $"potenza ON ({generatorsLive}/{generatorsTotal})"
-                    : $"potenza off ({generatorsLive}/{generatorsTotal})";
-            }
+                "iron-ore" => ore,
+                "iron-plate" => plate,
+                "copper-ore" => copper,
+                "copper-wire" => wire,
+                _ => 0
+            };
+            SetStock(id, count);
+            any |= count > 0;
+        }
 
-            _titleLabel.Text = $"Core · consegnati {delivered} · nastro {onBelt} · {power}";
+        if (_stockEmpty is not null)
+        {
+            _stockEmpty.Visible = !any;
+        }
+
+        if (_powerLabel is not null && _powerIcon is not null)
+        {
+            var hasGrid = powerCapacity > 0f && powerBuffer >= 0f;
+            _powerLabel.Text = hasGrid ? $"{powerBuffer:0}/{powerCapacity:0}" : "—";
+            var low = hasGrid && powerBuffer < powerCapacity * 0.2f;
+            var tint = !hasGrid ? TextMuted : low ? Insufficient : PowerColor;
+            _powerLabel.AddThemeColorOverride("font_color", tint);
+            _powerIcon.Modulate = tint;
+            var gens = generatorsTotal > 0 ? $" · generatori attivi {generatorsLive}/{generatorsTotal}" : "";
+            _powerLabel.TooltipText = hasGrid ? $"Energia accumulata / capacità{gens}" : "Nessuna rete elettrica";
         }
 
         RefreshBlockInfo();
@@ -374,14 +400,29 @@ public partial class FactoryHud : Control
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
     public void SyncCoreUpgrade(FactorySlice? slice)
     {
-        if (_coreUpgradeButton is null)
+        if (_coreUpgradeButton is null || _coreUpgradeCost is null)
         {
             return;
         }
 
+        var level = slice?.CoreUpgradeLevel ?? -1;
+        var affordable = slice is not null
+            && slice.Wallet.CanAfford(slice.Content.CoreUpgrade.MoneyCost, slice.Content.CoreUpgrade.BuildCost);
+        var key = (level, affordable, slice?.Wallet.Money ?? 0);
+        if (_coreUpgradeKey == key)
+        {
+            return;
+        }
+
+        _coreUpgradeKey = key;
+        foreach (var child in _coreUpgradeCost.GetChildren())
+        {
+            child.QueueFree();
+        }
+
         if (slice is null)
         {
-            _coreUpgradeButton.Text = "CORE upgrade";
+            _coreUpgradeButton.Text = "Potenzia CORE";
             _coreUpgradeButton.Disabled = true;
             return;
         }
@@ -391,15 +432,23 @@ public partial class FactoryHud : Control
         {
             _coreUpgradeButton.Text = $"CORE LV{slice.CoreUpgradeLevel} · +{slice.CoreSaleBonusPercent}% vendite";
             _coreUpgradeButton.Disabled = true;
+            _coreUpgradeButton.TooltipText = "";
             return;
         }
 
-        var mats = string.Join(
-            "+",
-            upgrade.BuildCost.Select(e => $"{e.Amount}×{slice.Content.DisplayName(e.ItemId)}"));
-        _coreUpgradeButton.Text = $"CORE upgrade · ${upgrade.MoneyCost} + {mats}";
-        _coreUpgradeButton.Disabled = !slice.Wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost);
+        _coreUpgradeButton.Text = "Potenzia CORE";
+        _coreUpgradeButton.Disabled = !affordable;
         _coreUpgradeButton.TooltipText = slice.FormatCoreUpgradeNeedMessage();
+        if (upgrade.MoneyCost > 0)
+        {
+            _coreUpgradeCost.AddChild(MakeMoneyChip(upgrade.MoneyCost, slice.Wallet.Money >= upgrade.MoneyCost));
+        }
+
+        foreach (var cost in upgrade.BuildCost.Where(c => c.Amount > 0))
+        {
+            _coreUpgradeCost.AddChild(MakeCostChip(
+                cost.ItemId, cost.Amount, slice.Wallet.MaterialCount(cost.ItemId) >= cost.Amount));
+        }
     }
 
     public void ShowToast(string message)
@@ -417,131 +466,232 @@ public partial class FactoryHud : Control
         _toastTween.TweenProperty(_toastLabel, "modulate:a", 0f, 0.45);
     }
 
-    private void SetStock(string id, string name, int count)
+    private void SetStock(string id, int count)
     {
         _stockCounts[id] = count;
-        if (_stockLabels.TryGetValue(id, out var label))
+        if (!_stockCells.TryGetValue(id, out var cell))
         {
-            label.Text = $"{name}\n{count}";
+            return;
+        }
+
+        cell.Cell.Visible = count > 0;
+        var text = FormatCount(count);
+        if (cell.Count.Text != text)
+        {
+            cell.Count.Text = text;
         }
     }
 
-    private void BuildStockPanel()
+    /// <summary>Mindustry-style compact counts: 950 · 1.2k · 340k.</summary>
+    private static string FormatCount(int n) => n switch
     {
-        var panel = MakePanel("StockPanel");
-        panel.SetAnchorsPreset(LayoutPreset.TopRight);
-        panel.GrowHorizontal = GrowDirection.Begin;
-        panel.OffsetLeft = -320;
-        panel.OffsetTop = 12;
-        panel.OffsetRight = -12;
-        panel.OffsetBottom = 168;
-        AddChild(panel);
+        >= 100_000 => $"{n / 1000}k",
+        >= 1_000 => $"{n / 1000f:0.#}k",
+        _ => n.ToString()
+    };
 
-        var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left", 12);
-        margin.AddThemeConstantOverride("margin_right", 12);
-        margin.AddThemeConstantOverride("margin_top", 10);
-        margin.AddThemeConstantOverride("margin_bottom", 10);
+    /// <summary>Item icon (white silhouette; tint with <see cref="ItemPalette.Tint"/>).</summary>
+    public static Texture2D? ItemTexture(string itemId)
+    {
+        var path = $"res://assets/{itemId}.png";
+        return ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+    }
+
+    private static TextureRect MakeIcon(Texture2D? tex, float size, Color? tint = null)
+    {
+        var icon = new TextureRect
+        {
+            Texture = tex,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(size, size),
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        if (tint is { } t)
+        {
+            icon.Modulate = t;
+        }
+
+        return icon;
+    }
+
+    /// <summary>Top-left column (Mindustry layout): menu buttons → core resources → campaign objectives.</summary>
+    private void BuildTopLeftColumn()
+    {
+        _topLeft = new VBoxContainer { Name = "TopLeftColumn", MouseFilter = MouseFilterEnum.Ignore };
+        _topLeft.SetAnchorsPreset(LayoutPreset.TopLeft);
+        _topLeft.OffsetLeft = 10;
+        _topLeft.OffsetTop = 10;
+        _topLeft.AddThemeConstantOverride("separation", 6);
+        AddChild(_topLeft);
+
+        var menuRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        menuRow.AddThemeConstantOverride("separation", 4);
+        _topLeft.AddChild(menuRow);
+        AddMenuButton(menuRow, "res://assets/ui/menu.png", "Menu", "Esc", () => MenuRequested?.Invoke());
+        AddMenuButton(menuRow, "res://assets/ui/research.png", "Ricerca", "T", () => ResearchRequested?.Invoke());
+        AddMenuButton(menuRow, "res://assets/ui/sell.png", "Mercato", "M", () => MercatoRequested?.Invoke());
+        AddMenuButton(menuRow, "res://assets/core.png", "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
+
+        BuildCorePanel();
+        BuildObjectivesPanel();
+    }
+
+    private void AddMenuButton(Control parent, string texPath, string label, string hotkey, Action onClick, bool tintIcon = true)
+    {
+        var button = new Button
+        {
+            Text = label,
+            Icon = ResourceLoader.Exists(texPath) ? GD.Load<Texture2D>(texPath) : null,
+            FocusMode = FocusModeEnum.None,
+            TooltipText = $"{label} ({hotkey})",
+            MouseDefaultCursorShape = CursorShape.PointingHand,
+            CustomMinimumSize = new Vector2(0, 34)
+        };
+        button.AddThemeConstantOverride("icon_max_width", 18);
+        button.AddThemeConstantOverride("h_separation", 6);
+        button.AddThemeFontSizeOverride("font_size", 13);
+        button.AddThemeColorOverride("font_color", TextPrimary);
+        button.AddThemeColorOverride("font_hover_color", SlotSelected);
+        button.AddThemeColorOverride("font_pressed_color", SlotSelected);
+        button.AddThemeColorOverride("icon_normal_color", tintIcon ? TextPrimary : Colors.White);
+        button.AddThemeColorOverride("icon_hover_color", tintIcon ? SlotSelected : Colors.White);
+        button.AddThemeColorOverride("icon_pressed_color", tintIcon ? SlotSelected : Colors.White);
+        foreach (var state in new[] { "normal", "hover", "pressed" })
+        {
+            var style = MakeSlotStyle(state == "hover" ? SlotSelected : PanelEdge, 1);
+            style.BgColor = state == "pressed" ? new Color(0.22f, 0.22f, 0.16f, 0.95f) : PanelBg;
+            style.ContentMarginLeft = 8;
+            style.ContentMarginRight = 10;
+            button.AddThemeStyleboxOverride(state, style);
+        }
+
+        button.Pressed += onClick;
+        parent.AddChild(button);
+    }
+
+    private void BuildCorePanel()
+    {
+        var panel = MakePanel("CorePanel");
+        panel.CustomMinimumSize = new Vector2(236, 0);
+        panel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        _topLeft!.AddChild(panel);
+
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        margin.AddThemeConstantOverride("margin_left", 10);
+        margin.AddThemeConstantOverride("margin_right", 10);
+        margin.AddThemeConstantOverride("margin_top", 8);
+        margin.AddThemeConstantOverride("margin_bottom", 6);
         panel.AddChild(margin);
 
-        var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 8);
+        var vbox = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        vbox.AddThemeConstantOverride("separation", 6);
         margin.AddChild(vbox);
 
-        _titleLabel = new Label
-        {
-            Text = "Core",
-            HorizontalAlignment = HorizontalAlignment.Left
-        };
-        _titleLabel.AddThemeColorOverride("font_color", TextMuted);
-        _titleLabel.AddThemeFontSizeOverride("font_size", 13);
-        vbox.AddChild(_titleLabel);
+        // Fondi · energia
+        var head = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        head.AddThemeConstantOverride("separation", 6);
+        vbox.AddChild(head);
+        head.AddChild(MakeIcon(ItemTexture("money"), 20, MoneyColor));
+        _moneyLabel = new Label { Text = "$0", TooltipText = "Fondi", MouseFilter = MouseFilterEnum.Pass };
+        _moneyLabel.AddThemeColorOverride("font_color", MoneyColor);
+        _moneyLabel.AddThemeFontSizeOverride("font_size", 16);
+        head.AddChild(_moneyLabel);
+        head.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
+        _powerIcon = MakeIcon(
+            ResourceLoader.Exists("res://assets/ui/power.png") ? GD.Load<Texture2D>("res://assets/ui/power.png") : null,
+            16,
+            TextMuted);
+        _powerIcon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        head.AddChild(_powerIcon);
+        _powerLabel = new Label { Text = "—", MouseFilter = MouseFilterEnum.Pass, VerticalAlignment = VerticalAlignment.Center };
+        _powerLabel.AddThemeFontSizeOverride("font_size", 13);
+        head.AddChild(_powerLabel);
 
-        _moneyLabel = new Label
+        // Core items: icon + count, only what you have (names on hover).
+        _stockGrid = new GridContainer { Columns = 4, MouseFilter = MouseFilterEnum.Ignore };
+        _stockGrid.AddThemeConstantOverride("h_separation", 10);
+        _stockGrid.AddThemeConstantOverride("v_separation", 4);
+        vbox.AddChild(_stockGrid);
+        foreach (var id in StockOrder)
         {
-            Text = "Magazzino  $0  ·  M Mercato"
-        };
-        _moneyLabel.AddThemeColorOverride("font_color", SlotSelected);
-        _moneyLabel.AddThemeFontSizeOverride("font_size", 14);
-        vbox.AddChild(_moneyLabel);
+            AddStockCell(_stockGrid, id);
+        }
 
+        _stockEmpty = new Label { Text = "Core vuoto: porta minerali con i nastri", MouseFilter = MouseFilterEnum.Ignore };
+        _stockEmpty.AddThemeColorOverride("font_color", TextMuted);
+        _stockEmpty.AddThemeFontSizeOverride("font_size", 11);
+        vbox.AddChild(_stockEmpty);
+
+        var upgradeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        upgradeRow.AddThemeConstantOverride("separation", 6);
+        vbox.AddChild(upgradeRow);
         _coreUpgradeButton = new Button
         {
-            Text = "CORE upgrade",
+            Text = "Potenzia CORE",
             Flat = true,
             FocusMode = FocusModeEnum.None,
             MouseDefaultCursorShape = CursorShape.PointingHand
         };
         _coreUpgradeButton.AddThemeColorOverride("font_color", TextPrimary);
         _coreUpgradeButton.AddThemeColorOverride("font_hover_color", SlotSelected);
+        _coreUpgradeButton.AddThemeColorOverride("font_disabled_color", TextMuted);
         _coreUpgradeButton.AddThemeFontSizeOverride("font_size", 12);
         _coreUpgradeButton.Pressed += () => CoreUpgradeRequested?.Invoke();
-        vbox.AddChild(_coreUpgradeButton);
-
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 8);
-        vbox.AddChild(row);
-
-        AddStockSlot(row, "iron-ore", "res://assets/iron-ore.png", "Ferro grezzo");
-        AddStockSlot(row, "iron-plate", "res://assets/iron-plate.png", "Lastra ferro");
-        AddStockSlot(row, "copper-ore", "res://assets/copper-ore.png", "Rame grezzo");
-        AddStockSlot(row, "copper-wire", "res://assets/copper-wire.png", "Filo rame");
+        upgradeRow.AddChild(_coreUpgradeButton);
+        _coreUpgradeCost = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        _coreUpgradeCost.AddThemeConstantOverride("separation", 4);
+        upgradeRow.AddChild(_coreUpgradeCost);
     }
 
-    private void AddStockSlot(Control parent, string id, string texPath, string fallbackName)
+    private void AddStockCell(Control parent, string id)
     {
-        var box = new VBoxContainer();
-        box.CustomMinimumSize = new Vector2(68, 0);
-        box.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        parent.AddChild(box);
-
-        var iconWrap = new PanelContainer();
-        iconWrap.CustomMinimumSize = new Vector2(48, 48);
-        iconWrap.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
-        iconWrap.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
-        box.AddChild(iconWrap);
-
-        var icon = new TextureRect
+        var cell = new HBoxContainer
         {
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            CustomMinimumSize = new Vector2(40, 40)
+            Visible = false,
+            MouseFilter = MouseFilterEnum.Pass,
+            TooltipText = _content?.DisplayName(id) ?? id,
+            CustomMinimumSize = new Vector2(46, 22)
         };
-        if (ResourceLoader.Exists(texPath))
-        {
-            icon.Texture = GD.Load<Texture2D>(texPath);
-        }
-
+        cell.AddThemeConstantOverride("separation", 3);
+        parent.AddChild(cell);
+        var icon = MakeIcon(ItemTexture(id), 20);
         ItemPalette.Tint(icon, id);
-        iconWrap.AddChild(icon);
+        cell.AddChild(icon);
+        var count = new Label { Text = "0", MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
+        count.AddThemeColorOverride("font_color", TextPrimary);
+        count.AddThemeFontSizeOverride("font_size", 13);
+        cell.AddChild(count);
+        _stockCells[id] = (cell, count);
+    }
 
-        var label = new Label
-        {
-            Text = $"{fallbackName}\n0",
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        label.AddThemeColorOverride("font_color", TextPrimary);
+    private Control MakeMoneyChip(int amount, bool ok)
+    {
+        var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        row.AddThemeConstantOverride("separation", 2);
+        var icon = MakeIcon(ItemTexture("money"), 16, ok ? MoneyColor : Insufficient);
+        icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        row.AddChild(icon);
+        var label = new Label { Text = $"{amount}", MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
+        label.AddThemeColorOverride("font_color", ok ? TextPrimary : Insufficient);
         label.AddThemeFontSizeOverride("font_size", 11);
-        box.AddChild(label);
-        _stockLabels[id] = label;
+        row.AddChild(label);
+        return row;
     }
 
     private void BuildObjectivesPanel()
     {
         _objectivesPanel = MakePanel("ObjectivesPanel");
-        _objectivesPanel.SetAnchorsPreset(LayoutPreset.TopLeft);
-        _objectivesPanel.OffsetLeft = 12;
-        _objectivesPanel.OffsetTop = 12;
-        _objectivesPanel.OffsetRight = 360;
-        _objectivesPanel.OffsetBottom = 140;
+        _objectivesPanel.CustomMinimumSize = new Vector2(236, 0);
+        _objectivesPanel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
         _objectivesPanel.Visible = false;
-        AddChild(_objectivesPanel);
+        _topLeft!.AddChild(_objectivesPanel);
 
         var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left", 12);
-        margin.AddThemeConstantOverride("margin_right", 12);
-        margin.AddThemeConstantOverride("margin_top", 10);
-        margin.AddThemeConstantOverride("margin_bottom", 10);
+        margin.AddThemeConstantOverride("margin_left", 10);
+        margin.AddThemeConstantOverride("margin_right", 10);
+        margin.AddThemeConstantOverride("margin_top", 8);
+        margin.AddThemeConstantOverride("margin_bottom", 8);
         _objectivesPanel.AddChild(margin);
 
         var vbox = new VBoxContainer();
@@ -550,7 +700,7 @@ public partial class FactoryHud : Control
 
         _objectivesTitle = new Label { Text = "OBIETTIVO" };
         _objectivesTitle.AddThemeColorOverride("font_color", SlotSelected);
-        _objectivesTitle.AddThemeFontSizeOverride("font_size", 14);
+        _objectivesTitle.AddThemeFontSizeOverride("font_size", 13);
         vbox.AddChild(_objectivesTitle);
 
         _objectivesList = new VBoxContainer();
@@ -609,8 +759,6 @@ public partial class FactoryHud : Control
             _objectivesList.AddChild(label);
         }
 
-        var lines = Math.Max(1, objectives.Count);
-        _objectivesPanel.OffsetBottom = 12 + 36 + lines * 20;
     }
 
     private void BuildCornerDock()
@@ -672,6 +820,11 @@ public partial class FactoryHud : Control
         _infoName.AddThemeColorOverride("font_color", TextPrimary);
         _infoName.AddThemeFontSizeOverride("font_size", 14);
         header.AddChild(_infoName);
+
+        _infoHotkey = new Label { MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
+        _infoHotkey.AddThemeColorOverride("font_color", TextMuted);
+        _infoHotkey.AddThemeFontSizeOverride("font_size", 12);
+        header.AddChild(_infoHotkey);
 
         var infoBtn = new PanelContainer
         {
@@ -748,28 +901,11 @@ public partial class FactoryHud : Control
         var catRail = new VBoxContainer();
         catRail.AddThemeConstantOverride("separation", 4);
         top.AddChild(catRail);
-        AddCategoryButton(catRail, BuildCategory.Tools, "St", CatTools, "Strumenti");
-        AddCategoryButton(catRail, BuildCategory.Logistics, "Lo", CatLogistics, "Logistica");
-        AddCategoryButton(catRail, BuildCategory.Production, "Pr", CatProduction, "Produzione");
-        AddCategoryButton(catRail, BuildCategory.Power, "Po", CatPower, "Potenza");
+        AddCategoryButton(catRail, BuildCategory.Tools, "res://assets/ui/cat-tools.png", CatTools, "Strumenti");
+        AddCategoryButton(catRail, BuildCategory.Logistics, "res://assets/ui/cat-logistics.png", CatLogistics, "Logistica");
+        AddCategoryButton(catRail, BuildCategory.Production, "res://assets/ui/cat-production.png", CatProduction, "Produzione");
+        AddCategoryButton(catRail, BuildCategory.Power, "res://assets/ui/cat-power.png", CatPower, "Potenza");
 
-        var util = new HBoxContainer();
-        util.AddThemeConstantOverride("separation", 4);
-        col.AddChild(util);
-        AddUtilityIcon(util, "res://assets/research.png", null, "Ricerca", "T",
-            () => ResearchRequested?.Invoke());
-        AddUtilityIcon(util, null, "$", "Mercato", "M",
-            () => MercatoRequested?.Invoke());
-        AddUtilityIcon(util, null, "▣", "Campagna", "G",
-            () => CampaignRequested?.Invoke());
-        AddUtilityIcon(util, null, "⇩", "Salva continua", "F5",
-            () => SaveRequested?.Invoke());
-        AddUtilityIcon(util, null, "⇧", "Carica continua", "F9",
-            () => LoadRequested?.Invoke());
-        AddUtilityIcon(util, null, "▤", "Salva slot", "F6",
-            () => SaveSlotRequested?.Invoke());
-        AddUtilityIcon(util, null, "▥", "Carica slot", "F7",
-            () => LoadSlotRequested?.Invoke());
     }
 
     private void SetInfoSlotFilled(bool filled)
@@ -786,7 +922,7 @@ public partial class FactoryHud : Control
     private void AddCategoryButton(
         Control parent,
         BuildCategory category,
-        string glyph,
+        string iconPath,
         Color tint,
         string tooltip)
     {
@@ -802,76 +938,14 @@ public partial class FactoryHud : Control
 
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         slot.AddChild(center);
-        var label = new Label
-        {
-            Text = glyph,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        label.AddThemeColorOverride("font_color", tint);
-        label.AddThemeFontSizeOverride("font_size", 13);
-        center.AddChild(label);
+        center.AddChild(MakeIcon(
+            ResourceLoader.Exists(iconPath) ? GD.Load<Texture2D>(iconPath) : null, 24, tint));
 
         slot.GuiInput += e =>
         {
             if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
                 ShowCategory(category);
-                AcceptEvent();
-            }
-        };
-    }
-
-    private void AddUtilityIcon(
-        Control parent,
-        string? texPath,
-        string? glyph,
-        string tip,
-        string hotkeyHint,
-        Action onClick)
-    {
-        var slot = new PanelContainer
-        {
-            CustomMinimumSize = new Vector2(34, 30),
-            MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = $"{tip} ({hotkeyHint})"
-        };
-        slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
-        parent.AddChild(slot);
-
-        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
-        slot.AddChild(center);
-
-        if (!string.IsNullOrEmpty(texPath) && ResourceLoader.Exists(texPath))
-        {
-            var icon = new TextureRect
-            {
-                Texture = GD.Load<Texture2D>(texPath),
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                CustomMinimumSize = new Vector2(20, 20),
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            center.AddChild(icon);
-        }
-        else
-        {
-            var text = new Label
-            {
-                Text = glyph ?? "·",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            text.AddThemeColorOverride("font_color", TextPrimary);
-            text.AddThemeFontSizeOverride("font_size", 14);
-            center.AddChild(text);
-        }
-
-        slot.GuiInput += e =>
-        {
-            if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                onClick();
                 AcceptEvent();
             }
         };
@@ -927,7 +1001,7 @@ public partial class FactoryHud : Control
             MouseFilter = MouseFilterEnum.Stop,
             TooltipText = entry.Tool == ToolKind.Cursor
                 ? "Cursore"
-                : $"{HotDisplayName(entry)} · {entry.Hotkey}"
+                : string.IsNullOrEmpty(entry.Hotkey) ? HotDisplayName(entry) : $"{HotDisplayName(entry)} [{entry.Hotkey}]"
         };
         slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         parent.AddChild(slot);
@@ -1006,19 +1080,6 @@ public partial class FactoryHud : Control
 
             center.AddChild(icon);
         }
-
-        // Tiny hotkey badge — top-left, not under-icon text.
-        var badge = new Label
-        {
-            Text = entry.Hotkey,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        badge.AddThemeColorOverride("font_color", new Color(SlotSelected.R, SlotSelected.G, SlotSelected.B, 0.85f));
-        badge.AddThemeFontSizeOverride("font_size", 9);
-        badge.SetAnchorsPreset(LayoutPreset.TopLeft);
-        badge.OffsetLeft = 3;
-        badge.OffsetTop = 1;
-        slot.AddChild(badge);
 
         slot.MouseEntered += () =>
         {
@@ -1117,6 +1178,10 @@ public partial class FactoryHud : Control
         var name = HotDisplayName(entry);
         var locked = _lockedTools.Contains(entry.Tool);
         _infoName.Text = locked ? $"{name} · bloccato" : name;
+        if (_infoHotkey is not null)
+        {
+            _infoHotkey.Text = string.IsNullOrEmpty(entry.Hotkey) ? "" : $"[{entry.Hotkey}]";
+        }
 
         foreach (var child in _infoCostRow.GetChildren())
         {
@@ -1148,14 +1213,7 @@ public partial class FactoryHud : Control
         if (money > 0)
         {
             var cashOk = (_wallet?.Money ?? _money) >= money;
-            var cash = new Label
-            {
-                Text = $"${money}",
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            cash.AddThemeColorOverride("font_color", cashOk ? TextPrimary : Insufficient);
-            cash.AddThemeFontSizeOverride("font_size", 12);
-            _infoCostRow.AddChild(cash);
+            _infoCostRow.AddChild(MakeMoneyChip(money, cashOk));
         }
     }
 

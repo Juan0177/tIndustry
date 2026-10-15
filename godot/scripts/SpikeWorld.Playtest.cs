@@ -44,6 +44,7 @@ public partial class SpikeWorld
         var ok = name switch
         {
             "tutorial" => await PlaytestTutorialAsync(dir),
+            "ui" => await PlaytestUiAsync(dir),
             _ => Fail($"playtest sconosciuto: {name}")
         };
         GD.Print(ok ? "PLAYTEST OK" : "PLAYTEST FAIL");
@@ -170,6 +171,50 @@ public partial class SpikeWorld
     }
 
     /// <summary>World cell → window pixels (what a real mouse event carries, before stretch/UI scale).</summary>
+    /// <summary>Screens of the main UI with a running factory: HUD, belt→CORE close-up, Mercato, Ricerca.</summary>
+    private async Task<bool> PlaytestUiAsync(string dir)
+    {
+        async Task Shot(string label)
+        {
+            await PlaytestWait(0.3);
+            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-{label}.png"));
+        }
+
+        _settings.TutorialCompleted = true;
+        OnHomeNewGame();
+        _tutorial?.Close();
+        SeedCoreDeliveryLine();
+        FocusCameraOnCore();
+        for (var i = 0; i < 60 && _slice!.CoreDeliveredItems < 3; i++)
+        {
+            await PlaytestWait(0.25);
+        }
+
+        await Shot("hud");
+
+        if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
+        {
+            var core = new GridPosition(_slice!.CoreTiles.Min(t => t.X), _slice.CoreTiles.Min(t => t.Y));
+            cam.Position = CellCenter(new GridPosition(core.X - 1, core.Y));
+            cam.Zoom = new Vector2(1.6f, 1.6f);
+            await Shot("belt-into-core");
+            FocusCameraOnCore();
+        }
+
+        await PlaytestKey(Key.Key2);
+        await Shot("palette-info");
+        await PlaytestKey(Key.Escape);
+
+        await PlaytestKey(Key.M);
+        await Shot("mercato");
+        await PlaytestKey(Key.M);
+
+        await PlaytestKey(Key.T);
+        await Shot("ricerca");
+        await PlaytestKey(Key.T);
+        return _slice!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
+    }
+
     private Vector2 CellToScreen(GridPosition cell) =>
         ViewportToWindow(GetViewport().GetCanvasTransform() * CellCenter(cell));
 

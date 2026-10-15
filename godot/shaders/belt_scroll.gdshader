@@ -11,7 +11,8 @@ uniform float cell_count = 1.0;
 uniform float marks_per_tile = 2.0;
 uniform float accent_rails = 0.0;
 uniform vec4 base_color : source_color = vec4(0.20, 0.24, 0.28, 1.0);
-uniform vec4 mark_color : source_color = vec4(0.55, 0.68, 0.74, 1.0);
+// Muted like Mindustry conveyors: the arrows hint direction, the cargo is what reads.
+uniform vec4 mark_color : source_color = vec4(0.40, 0.49, 0.55, 1.0);
 uniform vec4 rail_color : source_color = vec4(0.10, 0.12, 0.14, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.14, 0.16, 0.19, 1.0);
 uniform vec4 accent_color : source_color = vec4(0.525, 0.655, 0.722, 1.0); // Blu4 #86A7B8
