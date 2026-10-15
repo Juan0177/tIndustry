@@ -307,6 +307,15 @@ public partial class SavesPanel : Control
         return $"{label}  ·  ${slot.Money}{seed}{map}  ·  {campaign}  ·  {when}";
     }
 
+    /// <summary>Shows a message on the status line (e.g. a failed load) without closing the panel.</summary>
+    public void ShowStatus(string message)
+    {
+        if (_status is not null)
+        {
+            _status.Text = message;
+        }
+    }
+
     private void OnLoadPressed()
     {
         if (string.IsNullOrWhiteSpace(_selectedId))

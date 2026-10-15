@@ -195,7 +195,11 @@ public partial class World
 
     private void OnSavesSlotLoad(string slotId)
     {
-        LoadSlice(slotId, $"Caricato · {slotId}");
+        if (!LoadSlice(slotId, $"Caricato · {slotId}", showOnPanel: m => _saves?.ShowStatus(m)))
+        {
+            return; // stay on the saves panel with the error visible
+        }
+
         _saves?.Close();
         _home?.Close();
         BeginTutorialIfNeeded();

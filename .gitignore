@@ -48,3 +48,6 @@ dist/
 
 # Dev capture output (TINDUSTRY_CAPTURE_DIR)
 godot/artifacts/
+
+# Copy of data/ made by tools/ci/export-godot.sh at export time
+godot/data/

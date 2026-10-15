@@ -6,7 +6,7 @@ namespace TIndustry.Shared;
 /// <summary>Godot factory-slice save (v4: active campaign level). v1–v3 load with null level.</summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -223,6 +223,11 @@ public static class FactorySaveStore
         var json = File.ReadAllText(path);
         var data = JsonSerializer.Deserialize<FactorySaveData>(json, JsonOptions)
             ?? throw new InvalidDataException($"Save JSON non valido: {path}");
+        if (data.Version >= 1 && data.Version < FactorySaveData.CurrentVersion)
+        {
+            throw new InvalidDataException("Salvataggio di una versione precedente: non compatibile.");
+        }
+
         if (data.Version < 1 || data.Version > FactorySaveData.CurrentVersion)
         {
             throw new InvalidDataException($"Versione save non supportata: {data.Version}");
@@ -231,16 +236,34 @@ public static class FactorySaveStore
         return data;
     }
 
-    public static bool TryLoad(string slotId, out FactorySaveData? data)
+    public static bool TryLoad(string slotId, out FactorySaveData? data) =>
+        TryLoad(slotId, out data, out _);
+
+    /// <summary>Like <see cref="Load"/> but never throws; <paramref name="error"/> carries the player-facing reason.</summary>
+    public static bool TryLoad(string slotId, out FactorySaveData? data, out string? error)
     {
         try
         {
             data = Load(slotId);
+            error = null;
             return true;
         }
-        catch
+        catch (InvalidDataException ex)
         {
             data = null;
+            error = ex.Message;
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            data = null;
+            error = null; // missing slot: callers show their own "no save" text
+            return false;
+        }
+        catch (Exception)
+        {
+            data = null;
+            error = "Salvataggio non leggibile.";
             return false;
         }
     }

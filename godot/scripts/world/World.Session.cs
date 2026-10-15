@@ -15,7 +15,11 @@ public partial class World
             return;
         }
 
-        LoadSlice(FactorySaveStore.ContinueSlotId, "Continua caricata");
+        if (!LoadSlice(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)))
+        {
+            return; // stay on Home with the error visible
+        }
+
         _home?.Close();
         BeginTutorialIfNeeded();
     }
@@ -367,16 +371,20 @@ public partial class World
         }
     }
 
-    private void LoadSlice(string slotId, string toast, bool quietFail = false)
+    /// <summary>Returns true when the slot was loaded; on failure the current game is untouched.</summary>
+    private bool LoadSlice(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
     {
-        if (!FactorySaveStore.TryLoad(slotId, out var data) || data is null)
+        if (!FactorySaveStore.TryLoad(slotId, out var data, out var error) || data is null)
         {
             if (!quietFail)
             {
-                _hud?.ShowToast($"Nessun save ({slotId})");
+                // Incompatible (older) saves explain themselves; the current game is left untouched.
+                var message = error ?? $"Nessun save ({slotId})";
+                _hud?.ShowToast(message);
+                showOnPanel?.Invoke(message);
             }
 
-            return;
+            return false;
         }
 
         try
@@ -404,11 +412,14 @@ public partial class World
             QueueRedraw();
             _hud?.ShowToast(toast);
             GD.Print($"Loaded slice ← {FactorySaveStore.SlotPath(slotId)}");
+            return true;
         }
         catch (Exception ex)
         {
             _hud?.ShowToast("Caricamento fallito");
+            showOnPanel?.Invoke("Caricamento fallito");
             GD.PushError($"Load failed: {ex.Message}");
+            return false;
         }
     }
 }
