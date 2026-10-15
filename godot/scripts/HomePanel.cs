@@ -5,7 +5,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Mindustry-dark home: Continua / Campagna / Nuova partita / Esci.
-/// Shown over Spike until the player picks a route.
+/// Shown over Main until the player picks a route.
 /// </summary>
 public partial class HomePanel : Control
 {
@@ -47,7 +47,7 @@ public partial class HomePanel : Control
 
     public void RefreshContinua()
     {
-        var has = FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId);
+        var has = FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId);
         if (_continuaBtn is not null)
         {
             _continuaBtn.Disabled = !has;

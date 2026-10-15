@@ -12,7 +12,7 @@ public partial class MercatoPanel : Control
     private static readonly Color TextMuted = new(0.70f, 0.76f, 0.70f, 1f);
     private static readonly Color RowBg = new(0.16f, 0.18f, 0.17f, 1f);
 
-    private FactorySlice? _slice;
+    private Factory? _slice;
     private VBoxContainer? _list;
     private Label? _walletLabel;
     private Label? _hintLabel;
@@ -34,7 +34,7 @@ public partial class MercatoPanel : Control
         BuildUi();
     }
 
-    public void Open(FactorySlice slice)
+    public void Open(Factory slice)
     {
         _slice = slice;
         Visible = true;

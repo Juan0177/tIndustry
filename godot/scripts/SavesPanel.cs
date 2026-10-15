@@ -223,7 +223,7 @@ public partial class SavesPanel : Control
             child.QueueFree();
         }
 
-        _slots = FactorySliceSaveStore.ListSlots();
+        _slots = FactorySaveStore.ListSlots();
         if (_slots.Count == 0)
         {
             var empty = new Label
@@ -297,7 +297,7 @@ public partial class SavesPanel : Control
         var campaign = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId)
             ? "sandbox"
             : slot.ActiveCampaignLevelId;
-        var label = slot.Id == FactorySliceSaveStore.ContinueSlotId
+        var label = slot.Id == FactorySaveStore.ContinueSlotId
             ? "Continua (salvataggio automatico)"
             : slot.Id;
         var map = slot.MapWidth > 0 && slot.MapHeight > 0
@@ -341,7 +341,7 @@ public partial class SavesPanel : Control
             return;
         }
 
-        FactorySliceSaveStore.Delete(_selectedId);
+        FactorySaveStore.Delete(_selectedId);
         _deleteArmedId = null;
         _selectedId = null;
         Refresh();
@@ -353,7 +353,7 @@ public partial class SavesPanel : Control
 
     private void OnDuplicateContinua()
     {
-        var id = FactorySliceSaveStore.DuplicateSlot(FactorySliceSaveStore.ContinueSlotId);
+        var id = FactorySaveStore.DuplicateSlot(FactorySaveStore.ContinueSlotId);
         if (id is null)
         {
             if (_status is not null)
@@ -377,7 +377,7 @@ public partial class SavesPanel : Control
         SaveAsRequested?.Invoke();
     }
 
-    /// <summary>Called by SpikeWorld after a successful Salva come snapshot.</summary>
+    /// <summary>Called by World after a successful Salva come snapshot.</summary>
     public void NotifySavedAs(string slotId)
     {
         _selectedId = slotId;

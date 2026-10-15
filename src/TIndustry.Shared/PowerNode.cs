@@ -4,12 +4,12 @@ namespace TIndustry.Shared;
 /// Power-node stub: relays live generator adjacency within LinkRange so craft
 /// machines near a node can receive the +20% powered bonus (no full PowerNetworks graph).
 /// </summary>
-public sealed class PowerNodeStub
+public sealed class PowerNode
 {
     public const string Tier1Id = "power-node";
     public const string Tier2Id = "power-node-t2";
 
-    public PowerNodeStub(GridPosition position, string definitionId = Tier1Id)
+    public PowerNode(GridPosition position, string definitionId = Tier1Id)
     {
         Position = position;
         DefinitionId = definitionId == Tier2Id ? Tier2Id : Tier1Id;

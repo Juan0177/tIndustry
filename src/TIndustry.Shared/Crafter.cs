@@ -5,7 +5,7 @@ namespace TIndustry.Shared;
 /// Used for forno (Phase C) and assembler (Phase D). Phase F: optional powered speed.
 /// Multi-recipe: auto-picks the first available recipe whose inputs are buffered (Raylib parity).
 /// </summary>
-public sealed class SmelterStub
+public sealed class Crafter
 {
     public const int Size = 2;
     public const int FootprintArea = Size * Size;
@@ -25,7 +25,7 @@ public sealed class SmelterStub
     private readonly Queue<string> outputQueue = new();
     private RecipeDefinition activeRecipe;
 
-    public SmelterStub(
+    public Crafter(
         GridPosition position,
         Direction direction,
         RecipeDefinition recipe,
@@ -274,7 +274,7 @@ public sealed class SmelterStub
                 if (gotPower)
                 {
                     canAdvance = true;
-                    speed = GeneratorStub.PoweredCraftSpeedMultiplier;
+                    speed = Generator.PoweredCraftSpeedMultiplier;
                 }
                 else if (TickFuel(deltaSeconds))
                 {
@@ -286,7 +286,7 @@ public sealed class SmelterStub
             {
                 // Assembler: soft — crafts without power; +20% when spend succeeds.
                 canAdvance = true;
-                speed = gotPower ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
+                speed = gotPower ? Generator.PoweredCraftSpeedMultiplier : 1f;
             }
 
             if (canAdvance)

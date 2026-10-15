@@ -15,7 +15,7 @@ public partial class GeneratorVisual : Node2D
     private long _lastFuelConsumed = -1;
     public GridPosition Origin { get; private set; }
 
-    public static GeneratorVisual Create(GeneratorStub gen, int tileSize)
+    public static GeneratorVisual Create(Generator gen, int tileSize)
     {
         var root = new GeneratorVisual
         {
@@ -23,7 +23,7 @@ public partial class GeneratorVisual : Node2D
             ZIndex = 3,
             Origin = gen.Position
         };
-        var span = GeneratorStub.Size * tileSize;
+        var span = Generator.Size * tileSize;
         var half = span * 0.5f;
 
         var pad = new Polygon2D
@@ -88,7 +88,7 @@ public partial class GeneratorVisual : Node2D
         return root;
     }
 
-    public void Sync(GeneratorStub gen, float delta)
+    public void Sync(Generator gen, float delta)
     {
         if (gen.FuelConsumed != _lastFuelConsumed)
         {

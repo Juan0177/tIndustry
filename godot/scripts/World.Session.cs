@@ -4,18 +4,18 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>Game session flow: Home/Campagna/Nuova partita, camera, campaign completion, research locks, save/load.</summary>
-public partial class SpikeWorld
+public partial class World
 {
     private void OnHomeContinua()
     {
-        if (!FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId))
+        if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
         {
             _home?.RefreshContinua();
             _hud?.ShowToast("Nessun salvataggio continua");
             return;
         }
 
-        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata");
+        LoadSlice(FactorySaveStore.ContinueSlotId, "Continua caricata");
         _home?.Close();
         BeginTutorialIfNeeded();
     }
@@ -37,8 +37,8 @@ public partial class SpikeWorld
     private void StartNewSandbox(bool toast)
     {
         var content = FactoryContent.Load(_contentPath);
-        var core = FactorySlice.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
-        _slice = FactorySlice.CreateSandboxSlice(
+        var core = Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
+        _slice = Factory.CreateSandboxSlice(
             content,
             core,
             coreSize: 2,
@@ -159,7 +159,7 @@ public partial class SpikeWorld
         }
 
         var content = FactoryContent.Load(_contentPath);
-        _slice = FactorySlice.CreateCampaignSlice(content, _campaign, level);
+        _slice = Factory.CreateCampaignSlice(content, _campaign, level);
         // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
         // after placing miner, but also allow starting sells from stock if we add ore.
         if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
@@ -181,7 +181,7 @@ public partial class SpikeWorld
         QueueRedraw();
         if (toast)
         {
-            var (w, h) = FactorySlice.ResolveCampaignMapSize(level);
+            var (w, h) = Factory.ResolveCampaignMapSize(level);
             _hud?.ShowToast($"Campagna · {level.Name} · {w}×{h} · seed {level.Seed}");
             // Raylib: campaign disables first-run tutorial (objectives HUD only).
         }
@@ -206,7 +206,7 @@ public partial class SpikeWorld
             : edge <= 256 ? 0.18f
             : 0.14f;
         cam.Zoom = new Vector2(z, z);
-        if (cam is SpikeCamera spike)
+        if (cam is WorldCamera spike)
         {
             // Allow deep zoom-out on 1000² without fighting Clamp.
             spike.MinZoom = edge >= 256 ? 0.08f : 0.12f;
@@ -219,7 +219,7 @@ public partial class SpikeWorld
         }
 
         SyncCameraMapBounds();
-        if (cam is SpikeCamera spikeCam)
+        if (cam is WorldCamera spikeCam)
         {
             spikeCam.ClampToMap();
         }
@@ -227,7 +227,7 @@ public partial class SpikeWorld
 
     private void SyncCameraMapBounds()
     {
-        if (!HasNode("Camera") || GetNode("Camera") is not SpikeCamera cam)
+        if (!HasNode("Camera") || GetNode("Camera") is not WorldCamera cam)
         {
             return;
         }
@@ -356,9 +356,9 @@ public partial class SpikeWorld
 
         try
         {
-            FactorySliceSaveStore.Save(slotId, _slice.Capture());
+            FactorySaveStore.Save(slotId, _slice.Capture());
             _hud?.ShowToast(toast);
-            GD.Print($"Saved slice → {FactorySliceSaveStore.SlotPath(slotId)}");
+            GD.Print($"Saved slice → {FactorySaveStore.SlotPath(slotId)}");
         }
         catch (Exception ex)
         {
@@ -369,7 +369,7 @@ public partial class SpikeWorld
 
     private void LoadSlice(string slotId, string toast, bool quietFail = false)
     {
-        if (!FactorySliceSaveStore.TryLoad(slotId, out var data) || data is null)
+        if (!FactorySaveStore.TryLoad(slotId, out var data) || data is null)
         {
             if (!quietFail)
             {
@@ -382,7 +382,7 @@ public partial class SpikeWorld
         try
         {
             var content = FactoryContent.Load(_contentPath);
-            _slice = FactorySlice.Restore(content, data);
+            _slice = Factory.Restore(content, data);
             _itemSprites.Clear();
             if (_itemsLayer is not null)
             {
@@ -403,7 +403,7 @@ public partial class SpikeWorld
             FocusCameraOnCore();
             QueueRedraw();
             _hud?.ShowToast(toast);
-            GD.Print($"Loaded slice ← {FactorySliceSaveStore.SlotPath(slotId)}");
+            GD.Print($"Loaded slice ← {FactorySaveStore.SlotPath(slotId)}");
         }
         catch (Exception ex)
         {

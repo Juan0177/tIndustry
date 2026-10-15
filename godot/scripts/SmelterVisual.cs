@@ -11,7 +11,7 @@ public partial class SmelterVisual : Node2D
     private float _pulse;
     public GridPosition Origin { get; private set; }
 
-    public static SmelterVisual Create(SmelterStub sm, int tileSize)
+    public static SmelterVisual Create(Crafter sm, int tileSize)
     {
         var root = new SmelterVisual
         {
@@ -19,7 +19,7 @@ public partial class SmelterVisual : Node2D
             ZIndex = 3,
             Origin = sm.Position
         };
-        var span = SmelterStub.Size * tileSize;
+        var span = Crafter.Size * tileSize;
         var padTex = GD.Load<Texture2D>("res://assets/smelter.png");
         var pad = new Sprite2D
         {
@@ -56,7 +56,7 @@ public partial class SmelterVisual : Node2D
         return root;
     }
 
-    public void Sync(SmelterStub sm, float delta)
+    public void Sync(Crafter sm, float delta)
     {
         if (_glow is null)
         {

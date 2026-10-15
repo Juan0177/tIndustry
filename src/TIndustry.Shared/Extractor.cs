@@ -4,14 +4,14 @@ namespace TIndustry.Shared;
 /// 1×1 extractor: pulls a filtered item from Core wallet or adjacent craft output
 /// onto an outward belt (Raylib ExtractorBuilding parity, Shared stub).
 /// </summary>
-public sealed class ExtractorStub
+public sealed class Extractor
 {
     public const int Size = 1;
     public const float IntervalSeconds = 0.4f;
     public const string BuildingId = "extractor";
     public const string DefaultFilterItemId = "iron-plate";
 
-    public ExtractorStub(
+    public Extractor(
         GridPosition position,
         Direction direction,
         string filterItemId = DefaultFilterItemId)

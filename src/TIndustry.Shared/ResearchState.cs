@@ -44,7 +44,7 @@ public sealed class ResearchState
     public void ForceUnlock(string structureId) => unlocked.Add(structureId);
 
     public bool MeetsPrerequisites(StructureDefinition structure) =>
-        structure.Requires.All(IsUnlocked);
+        structure.Prerequisites.All(IsUnlocked);
 
     public ResearchNodeState GetNodeState(StructureDefinition structure)
     {

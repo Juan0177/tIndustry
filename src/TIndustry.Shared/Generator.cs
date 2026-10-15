@@ -5,7 +5,7 @@ namespace TIndustry.Shared;
 /// feeds the slice power buffer (capacity/generation) while marking
 /// adjacent craft as network-connected for TrySpendPower.
 /// </summary>
-public sealed class GeneratorStub
+public sealed class Generator
 {
     public const int Size = 2;
     public const string BuildingId = "generator";
@@ -19,7 +19,7 @@ public sealed class GeneratorStub
     /// <summary>Raylib parity: watts added to the shared buffer while burning.</summary>
     public const float GenerationPerSecond = 28f;
 
-    public GeneratorStub(GridPosition position, Direction direction = Direction.East)
+    public Generator(GridPosition position, Direction direction = Direction.East)
     {
         Position = position;
         Direction = direction;

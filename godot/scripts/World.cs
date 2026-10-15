@@ -7,7 +7,7 @@ namespace TIndustry.Godot;
 /// Playable factory slice + FactoryHud + Ricerca. Default = cursore.
 /// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
 /// </summary>
-public partial class SpikeWorld : Node2D
+public partial class World : Node2D
 {
     public const int TileSize = 64;
     public const int DefaultMapWidth = 1000;
@@ -42,7 +42,7 @@ public partial class SpikeWorld : Node2D
         PowerNodeT2
     }
 
-    private FactorySlice? _slice;
+    private Factory? _slice;
     private MindustryBeltVisual? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
@@ -94,9 +94,9 @@ public partial class SpikeWorld : Node2D
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
         _progress = CampaignProgress.Load(_progressPath);
-        _slice = FactorySlice.CreateSandboxSlice(
+        _slice = Factory.CreateSandboxSlice(
             content,
-            FactorySlice.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight),
+            Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight),
             coreSize: 2,
             mapWidth: DefaultMapWidth,
             mapHeight: DefaultMapHeight,
@@ -181,7 +181,7 @@ public partial class SpikeWorld : Node2D
         }
 
         SyncTutorial();
-        if (GetNodeOrNull<SpikeCamera>("Camera") is { } cam)
+        if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
             cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true;
         }

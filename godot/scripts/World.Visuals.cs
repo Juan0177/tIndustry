@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>Building/belt/item node visuals and HUD text sync.</summary>
-public partial class SpikeWorld
+public partial class World
 {
     private void EnsureBuildingsLayer()
     {
@@ -35,41 +35,41 @@ public partial class SpikeWorld
         foreach (var miner in _slice.Miners)
         {
             var node = MinerVisual.Create(miner, TileSize);
-            node.Position = FootprintCenter(miner.Position, MinerProducer.Size);
+            node.Position = FootprintCenter(miner.Position, Miner.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var smelter in _slice.Smelters)
         {
             var node = SmelterVisual.Create(smelter, TileSize);
-            node.Position = FootprintCenter(smelter.Position, SmelterStub.Size);
+            node.Position = FootprintCenter(smelter.Position, Crafter.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var assembler in _slice.Assemblers)
         {
             var node = AssemblerVisual.Create(assembler, TileSize);
-            node.Position = FootprintCenter(assembler.Position, SmelterStub.Size);
+            node.Position = FootprintCenter(assembler.Position, Crafter.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var gen in _slice.Generators)
         {
             var node = GeneratorVisual.Create(gen, TileSize);
-            node.Position = FootprintCenter(gen.Position, GeneratorStub.Size);
+            node.Position = FootprintCenter(gen.Position, Generator.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var ex in _slice.Extractors)
         {
             var node = ExtractorVisual.Create(ex, TileSize);
-            node.Position = FootprintCenter(ex.Position, ExtractorStub.Size);
+            node.Position = FootprintCenter(ex.Position, Extractor.Size);
             _buildingsLayer.AddChild(node);
         }
 
         foreach (var pn in _slice.PowerNodes)
         {
-            var t2 = pn.DefinitionId == PowerNodeStub.Tier2Id;
+            var t2 = pn.DefinitionId == PowerNode.Tier2Id;
             var node = BuildingPad.Create(
                 pn.Size,
                 TileSize,

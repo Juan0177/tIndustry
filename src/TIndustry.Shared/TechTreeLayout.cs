@@ -50,7 +50,7 @@ public static class TechTreeLayout
     public sealed record Graph(IReadOnlyList<Node> Nodes, IReadOnlyList<Edge> Edges);
 
     public static readonly StructureDefinition Root =
-        new(RootId, "CORE", "core", UnlockedByDefault: true, Unlock: null);
+        new(RootId, "CORE", "core", UnlockedByDefault: true, Unlock: null, IsStub: false, Prerequisites: []);
 
     public static Graph Build(IEnumerable<StructureDefinition> structures)
     {
@@ -71,7 +71,7 @@ public static class TechTreeLayout
                 return 0; // unknown id or a cycle in content: treat as a root
             }
 
-            var parents = s.Requires.Where(byId.ContainsKey).ToList();
+            var parents = s.Prerequisites.Where(byId.ContainsKey).ToList();
             var value = parents.Count == 0 ? 1 : parents.Max(p => DepthOf(p, visiting)) + 1;
             visiting.Remove(id);
             depth[id] = value;
@@ -87,10 +87,10 @@ public static class TechTreeLayout
         var parentOf = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var s in list)
         {
-            var parents = s.Requires.Where(byId.ContainsKey).ToList();
+            var parents = s.Prerequisites.Where(byId.ContainsKey).ToList();
             parentOf[s.Id] = parents.Count == 0
                 ? RootId
-                : parents.OrderByDescending(p => depth[p]).ThenBy(p => s.Requires.ToList().IndexOf(p)).First();
+                : parents.OrderByDescending(p => depth[p]).ThenBy(p => s.Prerequisites.ToList().IndexOf(p)).First();
         }
 
         var children = new Dictionary<string, List<string>>(StringComparer.Ordinal) { [RootId] = [] };
@@ -174,7 +174,7 @@ public static class TechTreeLayout
         foreach (var s in list)
         {
             Link(parentOf[s.Id], s.Id, primary: true);
-            foreach (var extra in s.Requires.Where(byId.ContainsKey).Where(p => p != parentOf[s.Id]))
+            foreach (var extra in s.Prerequisites.Where(byId.ContainsKey).Where(p => p != parentOf[s.Id]))
             {
                 Link(extra, s.Id, primary: false);
             }

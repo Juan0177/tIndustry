@@ -4,7 +4,7 @@ namespace TIndustry.Shared;
 /// Static miner produce loop (shared math with Logistics MinerBuilding).
 /// Size 2×2; ejects onto adjacent belt cells facing outward from the footprint.
 /// </summary>
-public sealed class MinerProducer
+public sealed class Miner
 {
     public const int Size = 2;
     public const int FootprintArea = Size * Size;
@@ -14,7 +14,7 @@ public sealed class MinerProducer
     public const string AdvancedId = "miner-advanced";
     public const string DefaultOutputItemId = "iron-ore";
 
-    public MinerProducer(
+    public Miner(
         GridPosition position,
         Direction direction,
         int coveredDepositTiles = FootprintArea,
@@ -185,7 +185,7 @@ public sealed class MinerProducer
             return false;
         }
 
-        var powerMul = IsPowered ? GeneratorStub.PoweredCraftSpeedMultiplier : 1f;
+        var powerMul = IsPowered ? Generator.PoweredCraftSpeedMultiplier : 1f;
         Progress = Math.Min(
             1f,
             Progress + deltaSeconds * Efficiency * MiningSpeed * powerMul / MiningDurationSeconds);

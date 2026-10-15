@@ -39,7 +39,7 @@ public sealed class TechTreeLayoutTests
     {
         // Layout rule for content with several prerequisites (the shipped tree has none).
         static StructureDefinition S(string id, params string[] requires) =>
-            new(id, id, "building", UnlockedByDefault: false, Unlock: null, Prerequisites: requires);
+            new(id, id, "building", UnlockedByDefault: false, Unlock: null, IsStub: false, Prerequisites: requires);
         var graph = TechTreeLayout.Build([S("a"), S("b", "a"), S("c", "a", "b")]);
 
         Assert.Contains(graph.Edges, e => e is { FromId: "b", ToId: "c", Primary: true });

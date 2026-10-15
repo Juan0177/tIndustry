@@ -5,7 +5,7 @@ namespace TIndustry.Shared;
 /// Phase F: generators feed a shared power buffer; connected craft spends for +20%.
 /// Soft brownout: empty buffer → forno falls back to coal; assembler loses bonus.
 /// </summary>
-public sealed class FactorySlice
+public sealed class Factory
 {
     /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
     public const float CorePowerCapacity = 24f;
@@ -17,14 +17,14 @@ public sealed class FactorySlice
     public const float AssemblerPowerDraw = 10f;
 
     private long nextItemId = 1;
-    private readonly List<MinerProducer> miners = [];
-    private readonly List<SmelterStub> smelters = [];
-    private readonly List<SmelterStub> assemblers = [];
-    private readonly List<GeneratorStub> generators = [];
-    private readonly List<ExtractorStub> extractors = [];
-    private readonly List<PowerNodeStub> powerNodes = [];
+    private readonly List<Miner> miners = [];
+    private readonly List<Crafter> smelters = [];
+    private readonly List<Crafter> assemblers = [];
+    private readonly List<Generator> generators = [];
+    private readonly List<Extractor> extractors = [];
+    private readonly List<PowerNode> powerNodes = [];
 
-    public FactorySlice(
+    public Factory(
         FactoryContent content,
         BeltGrid belts,
         IReadOnlySet<GridPosition> coreTiles,
@@ -71,18 +71,18 @@ public sealed class FactorySlice
     public float PowerGenerationPerSecond { get; private set; } = CorePowerGeneration;
     public TerrainMap? Terrain { get; set; }
     public long CoreDeliveredItems { get; private set; }
-    public IReadOnlyList<MinerProducer> Miners => miners;
-    public IReadOnlyList<SmelterStub> Smelters => smelters;
-    public IReadOnlyList<SmelterStub> Assemblers => assemblers;
-    public IReadOnlyList<GeneratorStub> Generators => generators;
-    public IReadOnlyList<ExtractorStub> Extractors => extractors;
-    public IReadOnlyList<PowerNodeStub> PowerNodes => powerNodes;
+    public IReadOnlyList<Miner> Miners => miners;
+    public IReadOnlyList<Crafter> Smelters => smelters;
+    public IReadOnlyList<Crafter> Assemblers => assemblers;
+    public IReadOnlyList<Generator> Generators => generators;
+    public IReadOnlyList<Extractor> Extractors => extractors;
+    public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public long NextItemId => nextItemId;
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
-    public MinerProducer? Miner => miners.Count > 0 ? miners[0] : null;
+    public Miner? Miner => miners.Count > 0 ? miners[0] : null;
 
-    public FactorySliceSaveData Capture()
+    public FactorySaveData Capture()
     {
         var coreOrigin = CoreTiles.Count == 0
             ? new GridPosition(9, 14)
@@ -91,9 +91,9 @@ public sealed class FactorySlice
             ? 2
             : Math.Max(1, (int)Math.Round(Math.Sqrt(CoreTiles.Count)));
 
-        return new FactorySliceSaveData
+        return new FactorySaveData
         {
-            Version = FactorySliceSaveData.CurrentVersion,
+            Version = FactorySaveData.CurrentVersion,
             NextItemId = nextItemId,
             CoreDeliveredItems = CoreDeliveredItems,
             CoreX = coreOrigin.X,
@@ -170,7 +170,7 @@ public sealed class FactorySlice
         };
     }
 
-    private static CraftSaveDto CaptureCraft(SmelterStub craft) => new()
+    private static CraftSaveDto CaptureCraft(Crafter craft) => new()
     {
         X = craft.Position.X,
         Y = craft.Position.Y,
@@ -187,7 +187,7 @@ public sealed class FactorySlice
         BurnRemaining = craft.BurnRemaining
     };
 
-    public static FactorySlice Restore(FactoryContent content, FactorySliceSaveData data)
+    public static Factory Restore(FactoryContent content, FactorySaveData data)
     {
         var belts = new BeltGrid();
         foreach (var cell in data.Belts)
@@ -226,7 +226,7 @@ public sealed class FactorySlice
             data.StartingMoney > 0 ? data.StartingMoney : data.Money,
             data.SaleIncome,
             data.SoldByItem);
-        var slice = new FactorySlice(content, belts, core, wallet, research, session)
+        var slice = new Factory(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
@@ -245,7 +245,7 @@ public sealed class FactorySlice
 
         foreach (var m in data.Miners)
         {
-            var miner = new MinerProducer(
+            var miner = new Miner(
                 new GridPosition(m.X, m.Y),
                 ParseDirection(m.Direction),
                 outputItemId: m.OutputItemId,
@@ -256,24 +256,24 @@ public sealed class FactorySlice
 
         foreach (var s in data.Smelters)
         {
-            slice.smelters.Add(RestoreCraft(content, s, SmelterStub.SmelterBuildingId));
+            slice.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId));
         }
 
         foreach (var a in data.Assemblers)
         {
-            slice.assemblers.Add(RestoreCraft(content, a, SmelterStub.AssemblerBuildingId));
+            slice.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId));
         }
 
         foreach (var g in data.Generators)
         {
-            var gen = new GeneratorStub(new GridPosition(g.X, g.Y), ParseDirection(g.Direction));
+            var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction));
             gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
             slice.generators.Add(gen);
         }
 
         foreach (var e in data.Extractors)
         {
-            var ex = new ExtractorStub(
+            var ex = new Extractor(
                 new GridPosition(e.X, e.Y),
                 ParseDirection(e.Direction),
                 e.FilterItemId);
@@ -283,7 +283,7 @@ public sealed class FactorySlice
 
         foreach (var n in data.PowerNodes)
         {
-            slice.powerNodes.Add(new PowerNodeStub(new GridPosition(n.X, n.Y), n.DefinitionId));
+            slice.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId));
         }
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
@@ -306,18 +306,18 @@ public sealed class FactorySlice
         return slice;
     }
 
-    private static SmelterStub RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId)
+    private static Crafter RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId)
     {
         var recipe = content.FindRecipe(dto.RecipeId)
-            ?? content.FindRecipe(fallbackId == SmelterStub.AssemblerBuildingId
+            ?? content.FindRecipe(fallbackId == Crafter.AssemblerBuildingId
                 ? "craft-copper-wire"
                 : "smelt-iron")
             ?? throw new InvalidDataException($"Ricetta '{dto.RecipeId}' mancante nel save.");
         var buildingId = string.IsNullOrWhiteSpace(dto.DefinitionId) ? fallbackId : dto.DefinitionId;
-        var available = buildingId == SmelterStub.AssemblerBuildingId
+        var available = buildingId == Crafter.AssemblerBuildingId
             ? content.AssemblerRecipes()
             : content.SmelterRecipes();
-        var craft = new SmelterStub(
+        var craft = new Crafter(
             new GridPosition(dto.X, dto.Y),
             ParseDirection(dto.Direction),
             recipe,
@@ -339,14 +339,14 @@ public sealed class FactorySlice
         Enum.TryParse<Direction>(value, ignoreCase: true, out var dir) ? dir : Direction.East;
 
     /// <summary>Phase C seed: miner → belts → forno → belts → core (plates stock).</summary>
-    public static FactorySlice CreatePhaseCDemo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory CreatePhaseCDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var beltDef = content.RequireConveyor(beltId);
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, grid, core);
+        var slice = new Factory(content, grid, core);
         slice.UnlockGodotSliceDemo();
 
         // Miner 2×2 at (2,7); forno 2×2 at (6,7).
@@ -383,7 +383,7 @@ public sealed class FactorySlice
     /// Phase D seed: iron miner→forno→plates + copper miner → assemblatore
     /// (<c>craft-copper-wire</c>) → wire → core.
     /// </summary>
-    public static FactorySlice CreatePhaseDDemo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory CreatePhaseDDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var beltDef = content.RequireConveyor(beltId);
         var smelt = content.FindRecipe("smelt-iron")
@@ -392,7 +392,7 @@ public sealed class FactorySlice
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, grid, core);
+        var slice = new Factory(content, grid, core);
         slice.UnlockGodotSliceDemo();
 
         // Iron miner (2,7) → forno (6,7) → plates east toward assembler (12,7).
@@ -460,7 +460,7 @@ public sealed class FactorySlice
     /// <summary>
     /// Phase E seed: Phase D craft loop + junction pass-through on plates + splitter fork on wire.
     /// </summary>
-    public static FactorySlice CreatePhaseEDemo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory CreatePhaseEDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var beltDef = content.RequireConveyor(beltId);
         var junctionDef = content.RequireConveyor("junction");
@@ -471,7 +471,7 @@ public sealed class FactorySlice
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, grid, core);
+        var slice = new Factory(content, grid, core);
         slice.UnlockGodotSliceDemo();
 
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
@@ -536,7 +536,7 @@ public sealed class FactorySlice
     /// <summary>
     /// Phase F seed: Phase E loop + coal miner → generator adjacent to forno (powered craft).
     /// </summary>
-    public static FactorySlice CreatePhaseFDemo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory CreatePhaseFDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var slice = CreatePhaseEDemo(content, beltId);
         var beltDef = slice.BeltDefinition;
@@ -558,7 +558,7 @@ public sealed class FactorySlice
     /// <summary>
     /// Sorter + bridge demo: Phase F loop + Mindustry sorter fork + thin bridge span (decision 14).
     /// </summary>
-    public static FactorySlice CreateSorterBridgeDemo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory CreateSorterBridgeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var slice = CreatePhaseFDemo(content, beltId);
         var beltDef = slice.BeltDefinition;
@@ -605,13 +605,13 @@ public sealed class FactorySlice
     }
 
     /// <summary>Legacy L-belt demo without forno (ore → core).</summary>
-    public static FactorySlice CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var beltDef = content.RequireConveyor(beltId);
         var grid = new BeltGrid();
         grid.PlacePath(BuildSpikeLPath(), beltDef);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new FactorySlice(content, grid, core);
+        var slice = new Factory(content, grid, core);
         slice.UnlockGodotSliceDemo();
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
         return slice;
@@ -718,7 +718,7 @@ public sealed class FactorySlice
     }
 
     /// <summary>Demos without a live generator: top up forno coal so craft can run.</summary>
-    public static void SeedSmelterFuel(FactorySlice slice, int units = SmelterStub.FuelBufferCapacity)
+    public static void SeedSmelterFuel(Factory slice, int units = Crafter.FuelBufferCapacity)
     {
         foreach (var sm in slice.Smelters)
         {
@@ -836,7 +836,7 @@ public sealed class FactorySlice
     }
 
     /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
-    public static FactorySlice CreateCampaignSlice(
+    public static Factory CreateCampaignSlice(
         FactoryContent content,
         CampaignCatalog catalog,
         CampaignLevelDefinition level,
@@ -863,7 +863,7 @@ public sealed class FactorySlice
         var research = ResearchState.CreateNew(content);
         var starter = ResolveStarterDeposit(origin, coreSize, w, h);
         var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
-        return new FactorySlice(content, new BeltGrid(), core, wallet, research, session)
+        return new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             ActiveCampaignLevelId = level.Id,
             Terrain = terrain
@@ -871,7 +871,7 @@ public sealed class FactorySlice
     }
 
     /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
-    public static FactorySlice CreateSandboxSlice(
+    public static Factory CreateSandboxSlice(
         FactoryContent content,
         GridPosition coreOrigin,
         int coreSize = 2,
@@ -893,7 +893,7 @@ public sealed class FactorySlice
         var research = ResearchState.CreateNew(content);
         var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
         var terrain = TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter);
-        return new FactorySlice(content, new BeltGrid(), core, wallet, research, session)
+        return new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             Terrain = terrain
         };
@@ -903,13 +903,13 @@ public sealed class FactorySlice
         GridPosition coreOrigin, int coreSize, int mapWidth, int mapHeight)
     {
         // Prefer west of core (Raylib-style), clamped into map.
-        var x = Math.Clamp(coreOrigin.X - MinerProducer.Size - 2, 1, Math.Max(1, mapWidth - MinerProducer.Size - 1));
-        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - MinerProducer.Size - 1));
+        var x = Math.Clamp(coreOrigin.X - Miner.Size - 2, 1, Math.Max(1, mapWidth - Miner.Size - 1));
+        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - Miner.Size - 1));
         // Avoid overlapping the core footprint.
-        if (x + MinerProducer.Size > coreOrigin.X && x < coreOrigin.X + coreSize
-            && y + MinerProducer.Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
+        if (x + Miner.Size > coreOrigin.X && x < coreOrigin.X + coreSize
+            && y + Miner.Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
         {
-            x = Math.Max(1, coreOrigin.X - MinerProducer.Size - 1);
+            x = Math.Max(1, coreOrigin.X - Miner.Size - 1);
         }
 
         return new GridPosition(x, y);
@@ -1232,36 +1232,36 @@ public sealed class FactorySlice
     public bool TryPlaceMiner(
         GridPosition origin,
         Direction direction,
-        string outputItemId = MinerProducer.DefaultOutputItemId,
-        string definitionId = MinerProducer.BasicId)
+        string outputItemId = Miner.DefaultOutputItemId,
+        string definitionId = Miner.BasicId)
     {
-        var id = string.IsNullOrWhiteSpace(definitionId) ? MinerProducer.BasicId : definitionId;
+        var id = string.IsNullOrWhiteSpace(definitionId) ? Miner.BasicId : definitionId;
         if (!RequireUnlocked(id))
         {
             return false;
         }
 
-        var covered = MinerProducer.FootprintArea;
+        var covered = Miner.FootprintArea;
         var itemId = outputItemId;
         if (Terrain is { } terrain)
         {
-            var majority = terrain.MajorityDeposit(origin, MinerProducer.Size);
+            var majority = terrain.MajorityDeposit(origin, Miner.Size);
             covered = majority == DepositKind.None
                 ? 0
-                : terrain.CountDepositTiles(origin, MinerProducer.Size, majority);
+                : terrain.CountDepositTiles(origin, Miner.Size, majority);
             if (majority != DepositKind.None)
             {
                 itemId = TerrainMap.ItemIdForDeposit(majority);
             }
         }
 
-        if (!CanOccupyFootprint(origin, MinerProducer.Size))
+        if (!CanOccupyFootprint(origin, Miner.Size))
         {
-            if (miners.Count == 1 && FootprintClearExcept(origin, MinerProducer.Size, miner: miners[0]))
+            if (miners.Count == 1 && FootprintClearExcept(origin, Miner.Size, miner: miners[0]))
             {
                 // Relocate keeps old efficiency; replace instead when terrain-aware.
                 // No charge — same building moved.
-                miners[0] = new MinerProducer(origin, direction, covered, itemId, id);
+                miners[0] = new Miner(origin, direction, covered, itemId, id);
                 return true;
             }
 
@@ -1273,7 +1273,7 @@ public sealed class FactorySlice
             return false;
         }
 
-        miners.Add(new MinerProducer(origin, direction, covered, itemId, id));
+        miners.Add(new Miner(origin, direction, covered, itemId, id));
         return true;
     }
 
@@ -1289,9 +1289,9 @@ public sealed class FactorySlice
             ?? Content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
 
-        if (!CanOccupyFootprint(origin, SmelterStub.Size))
+        if (!CanOccupyFootprint(origin, Crafter.Size))
         {
-            if (smelters.Count == 1 && FootprintClearExcept(origin, SmelterStub.Size, craft: smelters[0]))
+            if (smelters.Count == 1 && FootprintClearExcept(origin, Crafter.Size, craft: smelters[0]))
             {
                 smelters[0].Relocate(origin, direction);
                 return true;
@@ -1300,13 +1300,13 @@ public sealed class FactorySlice
             return false;
         }
 
-        if (!TryChargeBuilding(SmelterStub.SmelterBuildingId))
+        if (!TryChargeBuilding(Crafter.SmelterBuildingId))
         {
             return false;
         }
 
-        smelters.Add(new SmelterStub(
-            origin, direction, recipe, SmelterStub.SmelterBuildingId, recipes));
+        smelters.Add(new Crafter(
+            origin, direction, recipe, Crafter.SmelterBuildingId, recipes));
         return true;
     }
 
@@ -1322,9 +1322,9 @@ public sealed class FactorySlice
             ?? Content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
 
-        if (!CanOccupyFootprint(origin, SmelterStub.Size))
+        if (!CanOccupyFootprint(origin, Crafter.Size))
         {
-            if (assemblers.Count == 1 && FootprintClearExcept(origin, SmelterStub.Size, craft: assemblers[0]))
+            if (assemblers.Count == 1 && FootprintClearExcept(origin, Crafter.Size, craft: assemblers[0]))
             {
                 assemblers[0].Relocate(origin, direction);
                 return true;
@@ -1333,13 +1333,13 @@ public sealed class FactorySlice
             return false;
         }
 
-        if (!TryChargeBuilding(SmelterStub.AssemblerBuildingId))
+        if (!TryChargeBuilding(Crafter.AssemblerBuildingId))
         {
             return false;
         }
 
-        assemblers.Add(new SmelterStub(
-            origin, direction, recipe, SmelterStub.AssemblerBuildingId, recipes));
+        assemblers.Add(new Crafter(
+            origin, direction, recipe, Crafter.AssemblerBuildingId, recipes));
         return true;
     }
 
@@ -1350,10 +1350,10 @@ public sealed class FactorySlice
             return false;
         }
 
-        if (!CanOccupyFootprint(origin, GeneratorStub.Size))
+        if (!CanOccupyFootprint(origin, Generator.Size))
         {
             if (generators.Count == 1
-                && FootprintClearExcept(origin, GeneratorStub.Size, generator: generators[0]))
+                && FootprintClearExcept(origin, Generator.Size, generator: generators[0]))
             {
                 generators[0].Relocate(origin, direction);
                 return true;
@@ -1362,48 +1362,48 @@ public sealed class FactorySlice
             return false;
         }
 
-        if (!TryChargeBuilding(GeneratorStub.BuildingId))
+        if (!TryChargeBuilding(Generator.BuildingId))
         {
             return false;
         }
 
-        generators.Add(new GeneratorStub(origin, direction));
+        generators.Add(new Generator(origin, direction));
         return true;
     }
 
     public bool TryPlaceExtractor(
         GridPosition origin,
         Direction direction,
-        string filterItemId = ExtractorStub.DefaultFilterItemId)
+        string filterItemId = Extractor.DefaultFilterItemId)
     {
-        if (!RequireUnlocked(ExtractorStub.BuildingId))
+        if (!RequireUnlocked(Extractor.BuildingId))
         {
             return false;
         }
 
-        if (!CanOccupyFootprint(origin, ExtractorStub.Size))
+        if (!CanOccupyFootprint(origin, Extractor.Size))
         {
             return false;
         }
 
-        if (!TryChargeBuilding(ExtractorStub.BuildingId))
+        if (!TryChargeBuilding(Extractor.BuildingId))
         {
             return false;
         }
 
-        extractors.Add(new ExtractorStub(origin, direction, filterItemId));
+        extractors.Add(new Extractor(origin, direction, filterItemId));
         return true;
     }
 
-    public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNodeStub.Tier1Id)
+    public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNode.Tier1Id)
     {
-        var id = definitionId == PowerNodeStub.Tier2Id ? PowerNodeStub.Tier2Id : PowerNodeStub.Tier1Id;
+        var id = definitionId == PowerNode.Tier2Id ? PowerNode.Tier2Id : PowerNode.Tier1Id;
         if (!RequireUnlocked(id))
         {
             return false;
         }
 
-        var size = id == PowerNodeStub.Tier2Id ? 2 : 1;
+        var size = id == PowerNode.Tier2Id ? 2 : 1;
         if (!CanOccupyFootprint(origin, size))
         {
             return false;
@@ -1414,7 +1414,7 @@ public sealed class FactorySlice
             return false;
         }
 
-        powerNodes.Add(new PowerNodeStub(origin, id));
+        powerNodes.Add(new PowerNode(origin, id));
         return true;
     }
 
@@ -1444,7 +1444,7 @@ public sealed class FactorySlice
             }
 
             smelters.RemoveAt(i);
-            RefundBuilding(SmelterStub.SmelterBuildingId);
+            RefundBuilding(Crafter.SmelterBuildingId);
             return true;
         }
 
@@ -1456,7 +1456,7 @@ public sealed class FactorySlice
             }
 
             assemblers.RemoveAt(i);
-            RefundBuilding(SmelterStub.AssemblerBuildingId);
+            RefundBuilding(Crafter.AssemblerBuildingId);
             return true;
         }
 
@@ -1468,7 +1468,7 @@ public sealed class FactorySlice
             }
 
             generators.RemoveAt(i);
-            RefundBuilding(GeneratorStub.BuildingId);
+            RefundBuilding(Generator.BuildingId);
             return true;
         }
 
@@ -1480,7 +1480,7 @@ public sealed class FactorySlice
             }
 
             extractors.RemoveAt(i);
-            RefundBuilding(ExtractorStub.BuildingId);
+            RefundBuilding(Extractor.BuildingId);
             return true;
         }
 
@@ -1500,7 +1500,7 @@ public sealed class FactorySlice
         return false;
     }
 
-    private IEnumerable<SmelterStub> CraftMachines()
+    private IEnumerable<Crafter> CraftMachines()
     {
         foreach (var s in smelters)
         {
@@ -1516,9 +1516,9 @@ public sealed class FactorySlice
     private bool FootprintClearExcept(
         GridPosition origin,
         int size,
-        MinerProducer? miner = null,
-        SmelterStub? craft = null,
-        GeneratorStub? generator = null)
+        Miner? miner = null,
+        Crafter? craft = null,
+        Generator? generator = null)
     {
         for (var y = 0; y < size; y++)
         {
@@ -1598,7 +1598,7 @@ public sealed class FactorySlice
         // Belts advance first so fuel reaches generators and handoffs reach craft/core.
         Belts.Tick(deltaSeconds);
 
-        var liveGens = new List<GeneratorStub>();
+        var liveGens = new List<Generator>();
         foreach (var gen in generators)
         {
             if (gen.Tick(deltaSeconds, Belts))
@@ -1610,7 +1610,7 @@ public sealed class FactorySlice
         // Capacity + recharge (Raylib soft power network — no full link graph yet).
         RecalculatePowerCapacity(liveGens.Count);
         var generation = CorePowerGeneration
-            + liveGens.Count * GeneratorStub.GenerationPerSecond;
+            + liveGens.Count * Generator.GenerationPerSecond;
         PowerGenerationPerSecond = generation;
         PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
 
@@ -1618,20 +1618,20 @@ public sealed class FactorySlice
         foreach (var miner in miners)
         {
             var connected = miner.CanReceivePower
-                && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, MinerProducer.Size))
-                    || IsPoweredViaNode(miner.Position, MinerProducer.Size, liveGens));
+                && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, Miner.Size))
+                    || IsPoweredViaNode(miner.Position, Miner.Size, liveGens));
             miner.Tick(
                 deltaSeconds,
                 Belts,
                 ref nextItemId,
                 connected,
-                itemId => TryDeliverAdjacent(miner.Position, MinerProducer.Size, itemId));
+                itemId => TryDeliverAdjacent(miner.Position, Miner.Size, itemId));
         }
 
         foreach (var craft in CraftMachines())
         {
-            var connected = liveGens.Any(g => g.IsAdjacentTo(craft.Position, SmelterStub.Size))
-                || IsPoweredViaNode(craft.Position, SmelterStub.Size, liveGens);
+            var connected = liveGens.Any(g => g.IsAdjacentTo(craft.Position, Crafter.Size))
+                || IsPoweredViaNode(craft.Position, Crafter.Size, liveGens);
             var draw = craft.IsAssembler ? AssemblerPowerDraw : SmelterPowerDraw;
             var exclude = craft;
             craft.Tick(
@@ -1642,7 +1642,7 @@ public sealed class FactorySlice
                 trySpendPower: TrySpendPower,
                 powerDrawPerSecond: draw,
                 tryDeliverAdjacent: itemId =>
-                    TryDeliverAdjacent(craft.Position, SmelterStub.Size, itemId, exclude));
+                    TryDeliverAdjacent(craft.Position, Crafter.Size, itemId, exclude));
         }
 
         foreach (var ex in extractors)
@@ -1662,7 +1662,7 @@ public sealed class FactorySlice
     public void RecalculatePowerCapacity(int liveGeneratorCount)
     {
         PowerCapacity = CorePowerCapacity
-            + Math.Max(0, liveGeneratorCount) * GeneratorStub.CapacityBonus;
+            + Math.Max(0, liveGeneratorCount) * Generator.CapacityBonus;
         PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
     }
 
@@ -1690,7 +1690,7 @@ public sealed class FactorySlice
         GridPosition origin,
         int size,
         float amount,
-        IReadOnlyList<GeneratorStub>? liveGens = null)
+        IReadOnlyList<Generator>? liveGens = null)
     {
         if (amount <= 0f)
         {
@@ -1716,7 +1716,7 @@ public sealed class FactorySlice
         GridPosition origin,
         int size,
         string itemId,
-        SmelterStub? excludeCrafter = null)
+        Crafter? excludeCrafter = null)
     {
         foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(origin, size))
         {
@@ -1734,7 +1734,7 @@ public sealed class FactorySlice
 
                 // Coal into forno fuel buffer when applicable.
                 if (craft.UsesCoalOrPower
-                    && itemId == SmelterStub.FuelItemId
+                    && itemId == Crafter.FuelItemId
                     && craft.TryAcceptFuel(itemId))
                 {
                     return true;
@@ -1770,7 +1770,7 @@ public sealed class FactorySlice
     private bool IsPoweredViaNode(
         GridPosition craftOrigin,
         int craftSize,
-        IReadOnlyList<GeneratorStub> liveGens)
+        IReadOnlyList<Generator> liveGens)
     {
         if (liveGens.Count == 0 || powerNodes.Count == 0)
         {
@@ -1786,7 +1786,7 @@ public sealed class FactorySlice
 
             foreach (var gen in liveGens)
             {
-                if (node.IsWithinRange(gen.Position, GeneratorStub.Size))
+                if (node.IsWithinRange(gen.Position, Generator.Size))
                 {
                     return true;
                 }

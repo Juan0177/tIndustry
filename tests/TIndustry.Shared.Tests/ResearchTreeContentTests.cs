@@ -40,7 +40,7 @@ public sealed class ResearchTreeContentTests
     {
         var structure = Content.FindStructure(id);
         Assert.NotNull(structure);
-        Assert.Equal(parent is null ? [] : [parent], structure.Requires);
+        Assert.Equal(parent is null ? [] : [parent], structure.Prerequisites);
     }
 
     [Fact]

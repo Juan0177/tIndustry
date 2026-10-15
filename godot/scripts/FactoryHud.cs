@@ -394,7 +394,7 @@ public partial class FactoryHud : Control
     }
 
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(FactorySlice? slice)
+    public void SyncCoreUpgrade(Factory? slice)
     {
         if (_coreUpgradeButton is null || _coreUpgradeCost is null)
         {

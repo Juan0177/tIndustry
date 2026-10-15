@@ -36,5 +36,5 @@ public static class BuildingIo
 
     /// <summary>True when two axis-aligned footprints share a 4-connected edge.</summary>
     public static bool FootprintsAdjacent(GridPosition a, int sizeA, GridPosition b, int sizeB) =>
-        GeneratorStub.FootprintsAdjacent(a, sizeA, b, sizeB);
+        Generator.FootprintsAdjacent(a, sizeA, b, sizeB);
 }

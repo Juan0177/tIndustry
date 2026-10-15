@@ -20,9 +20,9 @@ public partial class MinerVisual : Node2D
 
     public GridPosition MinerOrigin { get; private set; }
 
-    public static MinerVisual Create(MinerProducer miner, int tileSize)
+    public static MinerVisual Create(Miner miner, int tileSize)
     {
-        var advanced = miner.DefinitionId == MinerProducer.AdvancedId;
+        var advanced = miner.DefinitionId == Miner.AdvancedId;
         var root = new MinerVisual
         {
             Name = $"Miner_{miner.Position.X}_{miner.Position.Y}",
@@ -31,7 +31,7 @@ public partial class MinerVisual : Node2D
         root._advanced = advanced;
         root.MinerOrigin = miner.Position;
 
-        var span = MinerProducer.Size * tileSize;
+        var span = Miner.Size * tileSize;
         var half = span * 0.5f;
         const float borderInset = 8f;
         var inner = span - borderInset * 2f;
@@ -117,7 +117,7 @@ public partial class MinerVisual : Node2D
         };
 
     /// <summary>Advance gear spin while working; show lit center perno when T2 is powered.</summary>
-    public void Sync(MinerProducer miner, float delta)
+    public void Sync(Miner miner, float delta)
     {
         var working = miner.Efficiency > 0f;
         if (working && _gear is not null)

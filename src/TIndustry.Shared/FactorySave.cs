@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>Godot factory-slice save (v4: active campaign level). v1–v3 load with null level.</summary>
-public sealed class FactorySliceSaveData
+public sealed class FactorySaveData
 {
     public const int CurrentVersion = 8;
 
@@ -44,7 +44,7 @@ public sealed class ExtractorSaveDto
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
-    public string FilterItemId { get; set; } = ExtractorStub.DefaultFilterItemId;
+    public string FilterItemId { get; set; } = Extractor.DefaultFilterItemId;
     public float Progress { get; set; }
 }
 
@@ -52,7 +52,7 @@ public sealed class PowerNodeSaveDto
 {
     public int X { get; set; }
     public int Y { get; set; }
-    public string DefinitionId { get; set; } = PowerNodeStub.Tier1Id;
+    public string DefinitionId { get; set; } = PowerNode.Tier1Id;
 }
 
 public sealed class MinerSaveDto
@@ -62,8 +62,8 @@ public sealed class MinerSaveDto
     public string Direction { get; set; } = "East";
     public float Progress { get; set; }
     public int EjectIndex { get; set; }
-    public string OutputItemId { get; set; } = MinerProducer.DefaultOutputItemId;
-    public string DefinitionId { get; set; } = MinerProducer.BasicId;
+    public string OutputItemId { get; set; } = Miner.DefaultOutputItemId;
+    public string DefinitionId { get; set; } = Miner.BasicId;
 }
 
 public sealed class CraftSaveDto
@@ -72,7 +72,7 @@ public sealed class CraftSaveDto
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
     public string RecipeId { get; set; } = "smelt-iron";
-    public string DefinitionId { get; set; } = SmelterStub.SmelterBuildingId;
+    public string DefinitionId { get; set; } = Crafter.SmelterBuildingId;
     public float Progress { get; set; }
     public bool IsCrafting { get; set; }
     public Dictionary<string, int> InputBuffer { get; set; } = new(StringComparer.Ordinal);
@@ -128,7 +128,7 @@ public sealed class SaveSlotInfo
 }
 
 /// <summary>JSON slots under LocalAppData/tIndustry/godot-saves/.</summary>
-public static class FactorySliceSaveStore
+public static class FactorySaveStore
 {
     public const string ContinueSlotId = "continua";
     public const string QuickSlotId = "slot-1";
@@ -174,7 +174,7 @@ public static class FactorySliceSaveStore
             {
                 var id = Path.GetFileNameWithoutExtension(path);
                 var json = File.ReadAllText(path);
-                var data = JsonSerializer.Deserialize<FactorySliceSaveData>(json, JsonOptions);
+                var data = JsonSerializer.Deserialize<FactorySaveData>(json, JsonOptions);
                 if (data is null)
                 {
                     continue;
@@ -204,15 +204,15 @@ public static class FactorySliceSaveStore
             .ToList();
     }
 
-    public static void Save(string slotId, FactorySliceSaveData data)
+    public static void Save(string slotId, FactorySaveData data)
     {
         Directory.CreateDirectory(SavesDirectory);
-        data.Version = FactorySliceSaveData.CurrentVersion;
+        data.Version = FactorySaveData.CurrentVersion;
         var json = JsonSerializer.Serialize(data, JsonOptions);
         File.WriteAllText(SlotPath(slotId), json);
     }
 
-    public static FactorySliceSaveData Load(string slotId)
+    public static FactorySaveData Load(string slotId)
     {
         var path = SlotPath(slotId);
         if (!File.Exists(path))
@@ -221,9 +221,9 @@ public static class FactorySliceSaveStore
         }
 
         var json = File.ReadAllText(path);
-        var data = JsonSerializer.Deserialize<FactorySliceSaveData>(json, JsonOptions)
+        var data = JsonSerializer.Deserialize<FactorySaveData>(json, JsonOptions)
             ?? throw new InvalidDataException($"Save JSON non valido: {path}");
-        if (data.Version < 1 || data.Version > FactorySliceSaveData.CurrentVersion)
+        if (data.Version < 1 || data.Version > FactorySaveData.CurrentVersion)
         {
             throw new InvalidDataException($"Versione save non supportata: {data.Version}");
         }
@@ -231,7 +231,7 @@ public static class FactorySliceSaveStore
         return data;
     }
 
-    public static bool TryLoad(string slotId, out FactorySliceSaveData? data)
+    public static bool TryLoad(string slotId, out FactorySaveData? data)
     {
         try
         {

@@ -15,7 +15,7 @@ public partial class TutorialPanel : Control
     private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
     private static readonly Color Done = new(0.55f, 0.85f, 0.50f, 1f);
 
-    /// <summary>Step ids the world checks against (see SpikeWorld.SyncTutorial).</summary>
+    /// <summary>Step ids the world checks against (see World.SyncTutorial).</summary>
     public enum Step
     {
         Camera,
