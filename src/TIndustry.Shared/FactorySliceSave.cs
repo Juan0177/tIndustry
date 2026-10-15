@@ -142,8 +142,11 @@ public static class FactorySliceSaveStore
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
+    /// <summary>Tests point this at a temp dir so they never touch the player's real slots.</summary>
+    public static string? SavesDirectoryOverride { get; set; }
+
     public static string SavesDirectory =>
-        Path.Combine(
+        SavesDirectoryOverride ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "tIndustry",
             "godot-saves");

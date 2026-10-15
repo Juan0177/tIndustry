@@ -1,7 +1,6 @@
 name: Release
 
-# Primary assets: Godot 4 .NET Windows/Linux exports.
-# Optional legacy: Raylib self-contained zips (clearly suffixed).
+# Assets: Godot 4 .NET Windows/Linux exports.
 
 on:
   push:
@@ -32,6 +31,9 @@ jobs:
             8.0.x
             10.0.x
 
+      - name: Test Shared
+        run: dotnet test tests/TIndustry.Shared.Tests/TIndustry.Shared.Tests.csproj -c Release
+
       - name: Install Godot + export templates
         run: |
           chmod +x tools/ci/setup-godot.sh tools/ci/export-godot.sh
@@ -54,47 +56,9 @@ jobs:
             dist/tIndustry-godot-linux-x64.zip
           if-no-files-found: error
 
-  publish-raylib-legacy:
-    name: Publish Raylib legacy zips
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Restore / build / self-test
-        run: |
-          dotnet restore TIndustry.Logistics.csproj
-          dotnet build TIndustry.Logistics.csproj -c Release --no-restore
-          dotnet run --project TIndustry.Logistics.csproj -c Release --no-build -- --self-test
-
-      - name: Publish win-x64 + linux-x64
-        run: |
-          mkdir -p artifacts/raylib-win artifacts/raylib-linux dist
-          dotnet publish TIndustry.Logistics.csproj -c Release -r win-x64 --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-            -o artifacts/raylib-win
-          dotnet publish TIndustry.Logistics.csproj -c Release -r linux-x64 --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-            -o artifacts/raylib-linux
-          (cd artifacts/raylib-win && zip -qr ../../dist/tIndustry-raylib-legacy-win-x64.zip .)
-          (cd artifacts/raylib-linux && zip -qr ../../dist/tIndustry-raylib-legacy-linux-x64.zip .)
-          ls -lh dist/
-
-      - name: Upload Raylib legacy zips
-        uses: actions/upload-artifact@v4
-        with:
-          name: tIndustry-raylib-legacy-zips
-          path: dist/tIndustry-raylib-legacy-*.zip
-          if-no-files-found: error
-
   github-release:
     name: Create GitHub Release
-    needs: [export-godot, publish-raylib-legacy]
+    needs: [export-godot]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -105,12 +69,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tIndustry-godot-zips
-          path: dist
-
-      - name: Download Raylib legacy zips
-        uses: actions/download-artifact@v4
-        with:
-          name: tIndustry-raylib-legacy-zips
           path: dist
 
       - name: List dist
@@ -124,8 +82,6 @@ jobs:
             dist/tIndustry-linux-x64.zip
             dist/tIndustry-godot-win-x64.zip
             dist/tIndustry-godot-linux-x64.zip
-            dist/tIndustry-raylib-legacy-win-x64.zip
-            dist/tIndustry-raylib-legacy-linux-x64.zip
           generate_release_notes: true
           draft: false
           fail_on_unmatched_files: true

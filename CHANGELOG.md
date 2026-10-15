@@ -5,7 +5,16 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Rimosso
+
+- **Client Raylib legacy** (`TIndustry.Logistics`, `src/App|Simulation|UI|Content`): Godot 4 .NET è l'unico client. Ultimo codice Raylib nel tag `v0.3.4`; niente più zip `tIndustry-raylib-legacy-*` nelle Release.
+
 ### Aggiunto / migliorato
+
+- **Test**: progetto xUnit `tests/TIndustry.Shared.Tests` che esegue i 22 scenari self-test della sim Shared (prima mai lanciati) — sostituisce il `--self-test` Raylib come gate CI
+- **Shared**: `FactorySliceSaveStore.SavesDirectoryOverride` — i test non toccano più i salvataggi reali del giocatore
+- **CI**: workflow non più automatici su push/PR — `build-publish.yml` solo manuale; `release.yml` (tag `v*` o manuale) esegue i test Shared prima dell'export
+- **Repo**: `tIndustry.sln` alla radice (Shared + test + Godot); CI e release solo .NET 8 / Godot
 
 ## [0.3.4] — 2026-09-26
 
