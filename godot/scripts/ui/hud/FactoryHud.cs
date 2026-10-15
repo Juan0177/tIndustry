@@ -1,5 +1,6 @@
 using Godot;
 using TIndustry.Shared;
+using static TIndustry.Godot.HudStyle;
 
 namespace TIndustry.Godot;
 
@@ -43,19 +44,6 @@ public partial class FactoryHud : Control
         string TexPath,
         string Hotkey,
         string HintIt);
-
-    private static readonly Color PanelBg = new(0.08f, 0.09f, 0.10f, 0.92f);
-    private static readonly Color PanelEdge = new(0.28f, 0.32f, 0.30f, 1f);
-    private static readonly Color SlotBg = new(0.14f, 0.16f, 0.15f, 1f);
-    private static readonly Color SlotIdle = new(0.38f, 0.42f, 0.40f, 1f);
-    private static readonly Color SlotSelected = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-    private static readonly Color Insufficient = new(0.90f, 0.38f, 0.32f, 1f);
-    private static readonly Color CatTools = new(0.78f, 0.52f, 0.48f, 1f);
-    private static readonly Color CatLogistics = new(0.48f, 0.68f, 0.84f, 1f);
-    private static readonly Color CatProduction = new(0.84f, 0.60f, 0.30f, 1f);
-    private static readonly Color CatPower = new(0.92f, 0.80f, 0.30f, 1f);
 
     private static readonly PaletteEntry[] ToolsEntries =
     [
@@ -163,9 +151,6 @@ public partial class FactoryHud : Control
         "iron-ore", "copper-ore", "coal", "lead-ore", "titanium-ore",
         "iron-plate", "copper-wire", "lead-plate", "titanium-plate", "graphite", "silicon"
     ];
-
-    private static readonly Color MoneyColor = new(0.98f, 0.82f, 0.38f, 1f);
-    private static readonly Color PowerColor = new(0.98f, 0.90f, 0.42f, 1f);
 
     public ToolKind SelectedTool => _selected;
     public bool IsCursorMode => _selected == ToolKind.Cursor;
@@ -443,7 +428,7 @@ public partial class FactoryHud : Control
         foreach (var cost in upgrade.BuildCost.Where(c => c.Amount > 0))
         {
             _coreUpgradeCost.AddChild(MakeCostChip(
-                cost.ItemId, cost.Amount, slice.Wallet.MaterialCount(cost.ItemId) >= cost.Amount));
+                cost.ItemId, cost.Amount, slice.Wallet.MaterialCount(cost.ItemId) >= cost.Amount, _content));
         }
     }
 
@@ -476,39 +461,6 @@ public partial class FactoryHud : Control
         {
             cell.Count.Text = text;
         }
-    }
-
-    /// <summary>Mindustry-style compact counts: 950 · 1.2k · 340k.</summary>
-    private static string FormatCount(int n) => n switch
-    {
-        >= 100_000 => $"{n / 1000}k",
-        >= 1_000 => $"{n / 1000f:0.#}k",
-        _ => n.ToString()
-    };
-
-    /// <summary>Item icon (white silhouette; tint with <see cref="ItemPalette.Tint"/>).</summary>
-    public static Texture2D? ItemTexture(string itemId)
-    {
-        var path = $"res://assets/{itemId}.png";
-        return ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-    }
-
-    private static TextureRect MakeIcon(Texture2D? tex, float size, Color? tint = null)
-    {
-        var icon = new TextureRect
-        {
-            Texture = tex,
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            CustomMinimumSize = new Vector2(size, size),
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        if (tint is { } t)
-        {
-            icon.Modulate = t;
-        }
-
-        return icon;
     }
 
     /// <summary>Top-left column (Mindustry layout): menu buttons → core resources → campaign objectives.</summary>
@@ -659,20 +611,6 @@ public partial class FactoryHud : Control
         count.AddThemeFontSizeOverride("font_size", 13);
         cell.AddChild(count);
         _stockCells[id] = (cell, count);
-    }
-
-    private Control MakeMoneyChip(int amount, bool ok)
-    {
-        var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        row.AddThemeConstantOverride("separation", 2);
-        var icon = MakeIcon(ItemTexture("money"), 16, ok ? MoneyColor : Insufficient);
-        icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        row.AddChild(icon);
-        var label = new Label { Text = $"{amount}", MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
-        label.AddThemeColorOverride("font_color", ok ? TextPrimary : Insufficient);
-        label.AddThemeFontSizeOverride("font_size", 11);
-        row.AddChild(label);
-        return row;
     }
 
     private void BuildObjectivesPanel()
@@ -1203,7 +1141,7 @@ public partial class FactoryHud : Control
             var have = _wallet?.MaterialCount(mat.ItemId)
                 ?? (_stockCounts.TryGetValue(mat.ItemId, out var c) ? c : 0);
             var ok = have >= mat.Amount;
-            _infoCostRow.AddChild(MakeCostChip(mat.ItemId, mat.Amount, ok));
+            _infoCostRow.AddChild(MakeCostChip(mat.ItemId, mat.Amount, ok, _content));
         }
 
         if (money > 0)
@@ -1211,83 +1149,6 @@ public partial class FactoryHud : Control
             var cashOk = (_wallet?.Money ?? _money) >= money;
             _infoCostRow.AddChild(MakeMoneyChip(money, cashOk));
         }
-    }
-
-    private Control MakeCostChip(string itemId, int amount, bool ok)
-    {
-        var wrap = new PanelContainer
-        {
-            CustomMinimumSize = new Vector2(44, 28),
-            MouseFilter = MouseFilterEnum.Ignore,
-            TooltipText = _content?.DisplayName(itemId) ?? itemId
-        };
-        wrap.AddThemeStyleboxOverride("panel", MakeSlotStyle(ok ? SlotIdle : Insufficient, 1));
-
-        var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        row.AddThemeConstantOverride("separation", 2);
-        wrap.AddChild(row);
-
-        var iconHost = new Control
-        {
-            CustomMinimumSize = new Vector2(22, 22),
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        row.AddChild(iconHost);
-
-        var texPath = $"res://assets/{itemId}.png";
-        var icon = new TextureRect
-        {
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            CustomMinimumSize = new Vector2(20, 20),
-            Position = new Vector2(1, 1),
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        if (ResourceLoader.Exists(texPath))
-        {
-            icon.Texture = GD.Load<Texture2D>(texPath);
-            ItemPalette.Tint(icon, itemId);
-        }
-
-        iconHost.AddChild(icon);
-
-        if (!ok)
-        {
-            // Mindustry-style red slash over missing material.
-            var slash = new ColorRect
-            {
-                Color = Insufficient,
-                MouseFilter = MouseFilterEnum.Ignore,
-                Rotation = Mathf.DegToRad(-38f),
-                PivotOffset = new Vector2(11, 1)
-            };
-            slash.Position = new Vector2(0, 10);
-            slash.Size = new Vector2(24, 3);
-            iconHost.AddChild(slash);
-
-            var slash2 = new ColorRect
-            {
-                Color = new Color(0.15f, 0.05f, 0.05f, 0.85f),
-                MouseFilter = MouseFilterEnum.Ignore,
-                Rotation = Mathf.DegToRad(-38f),
-                PivotOffset = new Vector2(11, 1)
-            };
-            slash2.Position = new Vector2(0, 12);
-            slash2.Size = new Vector2(24, 2);
-            iconHost.AddChild(slash2);
-        }
-
-        var qty = new Label
-        {
-            Text = $"×{amount}",
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        qty.AddThemeColorOverride("font_color", ok ? TextPrimary : Insufficient);
-        qty.AddThemeFontSizeOverride("font_size", 11);
-        row.AddChild(qty);
-
-        return wrap;
     }
 
     private void ResolveCost(string structureId, out int money, out IReadOnlyList<ResourceAmount> materials)
@@ -1484,52 +1345,6 @@ public partial class FactoryHud : Control
         _toastLabel.Modulate = new Color(1, 1, 1, 0);
         AddChild(_toastLabel);
     }
-
-    private static PanelContainer MakePanel(string name)
-    {
-        var panel = new PanelContainer
-        {
-            Name = name,
-            MouseFilter = MouseFilterEnum.Stop
-        };
-        var style = new StyleBoxFlat
-        {
-            BgColor = PanelBg,
-            BorderColor = PanelEdge,
-            BorderWidthLeft = 1,
-            BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 0,
-            ContentMarginRight = 0,
-            ContentMarginTop = 0,
-            ContentMarginBottom = 0
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
-        return panel;
-    }
-
-    private static StyleBoxFlat MakeSlotStyle(Color border, int width) => new()
-    {
-        BgColor = SlotBg,
-        BorderColor = border,
-        BorderWidthLeft = width,
-        BorderWidthTop = width,
-        BorderWidthRight = width,
-        BorderWidthBottom = width,
-        CornerRadiusTopLeft = 3,
-        CornerRadiusTopRight = 3,
-        CornerRadiusBottomLeft = 3,
-        CornerRadiusBottomRight = 3,
-        ContentMarginLeft = 2,
-        ContentMarginRight = 2,
-        ContentMarginTop = 2,
-        ContentMarginBottom = 2
-    };
 
     private static PaletteEntry[] EntriesFor(BuildCategory category) => category switch
     {
