@@ -307,4 +307,24 @@ public partial class SpikeWorld
         GD.PushError($"PLAYTEST: {message}");
         return false;
     }
+
+    private static string? CaptureDirectory()
+    {
+        var dir = OS.GetEnvironment("TINDUSTRY_CAPTURE_DIR");
+        if (string.IsNullOrWhiteSpace(dir))
+        {
+            dir = ProjectSettings.GlobalizePath("res://artifacts");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"Capture dir non creabile ({dir}): {ex.Message}");
+            return null;
+        }
+    }
 }

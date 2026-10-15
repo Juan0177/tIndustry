@@ -101,7 +101,7 @@ Default sbloccati: nastro T1 + minatore T1 (come nel seed Shared).
 | Test | `tests/TIndustry.Shared.Tests` (xUnit) |
 | Contenuti | `data/*.json` |
 
-Icone: [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md) (game-icons.net CC BY 3.0 · Kenney CC0).
+Icone: [`godot/assets/ATTRIBUTION.md`](godot/assets/ATTRIBUTION.md) (game-icons.net CC BY 3.0 · Kenney CC0).
 
 ---
 

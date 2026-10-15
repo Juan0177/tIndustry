@@ -373,11 +373,6 @@ public partial class SpikeWorld
 
     private void BeginTutorialIfNeeded(bool force = false)
     {
-        if (OS.GetEnvironment("TINDUSTRY_CAPTURE") == "1")
-        {
-            return;
-        }
-
         if (!force && _settings.TutorialCompleted)
         {
             return;

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-OUT = Path("/workspace/godot/assets")
+OUT = Path(__file__).resolve().parent.parent / "godot" / "assets"
 SIZE = 64
 
 # Blu logistics (match belt_corner_v2.gdshader)
