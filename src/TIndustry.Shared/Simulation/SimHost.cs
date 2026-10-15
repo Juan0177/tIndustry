@@ -17,6 +17,16 @@ public sealed class SimHost
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
     }
 
+    /// <summary>Canonical snapshot bytes of the current state.</summary>
+    public byte[] CreateSnapshot() => Snapshot.Write(factory.State);
+
+    /// <summary>FNV-1a 64 of the canonical snapshot.</summary>
+    public ulong Checksum() => Snapshot.Checksum(CreateSnapshot());
+
+    /// <summary>Host resuming from a snapshot (empty command queue, fresh clock).</summary>
+    public static SimHost FromSnapshot(FactoryContent content, byte[] snapshot) =>
+        new(new Factory(Snapshot.Read(content, snapshot)));
+
     /// <summary>Read-only view of the game for graphics and HUD.</summary>
     public IGameView State => factory;
 
