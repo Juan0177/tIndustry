@@ -114,6 +114,7 @@ public partial class SpikeWorld : Node2D
         EnsureHomePanel();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
+        UseSmoothUiFiltering();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
@@ -353,4 +354,28 @@ public partial class SpikeWorld : Node2D
             "campaign.json non trovato. Apri il progetto dalla cartella godot/ del repo tIndustry.");
     }
 
+    /// <summary>
+    /// The project default is Nearest (crisp pixel-art blocks on the map). UI is scaled (UI scale 125%,
+    /// 64px icons drawn at 16–26px), where Nearest drops pixels: grainy text and icons. Smooth filtering
+    /// for everything on the HUD layer only; children inherit it.
+    /// </summary>
+    private void UseSmoothUiFiltering()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        foreach (var child in layer.GetChildren())
+        {
+            if (child is CanvasItem item)
+            {
+                item.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
+            }
+        }
+
+        layer.ChildEnteredTree += node =>
+        {
+            if (node.GetParent() == layer && node is CanvasItem item)
+            {
+                item.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
+            }
+        };
+    }
 }
