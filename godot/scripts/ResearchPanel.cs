@@ -54,7 +54,11 @@ public partial class ResearchPanel : Control
         _slice = slice;
         _statusMessage = null;
         _graph = TechTreeLayout.Build(slice.Content);
-        _selectedId ??= _graph.Nodes.FirstOrDefault()?.Structure.Id;
+        // Default focus: the first thing you can research now (Mindustry draws the eye there too).
+        _selectedId ??= _graph.Nodes
+            .Where(n => !n.IsRoot)
+            .FirstOrDefault(n => slice.Research.GetNodeState(n.Structure) == ResearchNodeState.Available)
+            ?.Structure.Id ?? TechTreeLayout.RootId;
         if (_canvas is not null)
         {
             _canvas.Graph = _graph;
@@ -156,6 +160,7 @@ public partial class ResearchPanel : Control
 
         _canvas = new TechTreeCanvas { Name = "TechTreeCanvas" };
         _canvas.NodeSelected += SelectId;
+        _canvas.TooltipFor = NodeTooltip;
         _canvas.ViewChanged += RefreshDetailChrome;
         AddChild(_canvas);
 
@@ -281,7 +286,7 @@ public partial class ResearchPanel : Control
             return;
         }
 
-        var detailW = Math.Clamp(size.X / 3f, 280f, 360f);
+        var detailW = Math.Clamp(size.X * 0.26f, 260f, 340f);
         var detailX = size.X - detailW - 28f;
         var detailY = 118f;
         var detailH = Math.Max(220f, size.Y - detailY - 90f);
@@ -347,7 +352,7 @@ public partial class ResearchPanel : Control
         if (_walletLabel is not null)
         {
             _walletLabel.Text =
-                $"Fondi: ${_slice.Wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato";
+                $"Fondi: ${_slice.Wallet.Money}   ·   bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente";
         }
 
         RefreshDetail();
@@ -373,6 +378,19 @@ public partial class ResearchPanel : Control
             || _detailCost is null || _detailPrereq is null
             || _detailManca is null || _unlockButton is null)
         {
+            return;
+        }
+
+        if (_selectedId == TechTreeLayout.RootId)
+        {
+            _detailTitle.Text = "CORE";
+            _detailUsage.Text = "Il cuore della base: qui arrivano le risorse. Ogni ricerca parte da qui.";
+            _detailState.Text = "";
+            _detailCost.Text = "";
+            _detailPrereq.Text = "";
+            _detailManca.Text = "";
+            _unlockButton.Disabled = true;
+            _unlockButton.Text = "Seleziona un blocco";
             return;
         }
 
@@ -463,6 +481,35 @@ public partial class ResearchPanel : Control
         }
 
         Refresh();
+    }
+
+    /// <summary>Hover text on a tree node: name, state and what it costs / what is missing.</summary>
+    private string NodeTooltip(string id)
+    {
+        if (_slice is null)
+        {
+            return "";
+        }
+
+        if (id == TechTreeLayout.RootId)
+        {
+            return "CORE";
+        }
+
+        var structure = _slice.Content.FindStructure(id);
+        if (structure is null)
+        {
+            return "";
+        }
+
+        return _slice.Research.GetNodeState(structure) switch
+        {
+            ResearchNodeState.Unlocked => $"{structure.DisplayName}\nSbloccato",
+            ResearchNodeState.Available =>
+                $"{structure.DisplayName}\nSblocco: {FormatUnlockRequirement(structure.Unlock)}"
+                + (FormatMissingUnlockResources(structure, _slice) is { Length: > 0 } manca ? $"\n{manca}" : ""),
+            _ => $"{structure.DisplayName}\n{FormatPrereqs(structure, _slice)}"
+        };
     }
 
     private static string FormatStructureUsage(string structureId, FactoryContent content)

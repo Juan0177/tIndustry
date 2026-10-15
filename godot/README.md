@@ -77,7 +77,7 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 
 ## Ricerca
 
-**T** apre il grafo Ricerca: **nodi icona** + archi ortogonali, trascina per muoverti, rotella zoom, H vista intera, percorso evidenziato. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
 
 ## Mercato
 
