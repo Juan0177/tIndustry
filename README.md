@@ -49,7 +49,7 @@ Alias espliciti (stesso contenuto): `tIndustry-godot-win-x64.zip` / `tIndustry-g
 
 Il vecchio client Raylib è stato rimosso dopo la 0.3.4: i suoi zip restano sulle Release ≤ v0.3.4 e il codice nel tag `v0.3.4`.
 
-Tag `v*` → [release.yml](.github/workflows/release.yml) (export Godot). Push/PR → [build-publish.yml](.github/workflows/build-publish.yml).
+Workflow GitHub Actions **non automatici su push/PR**: tag `v*` o avvio manuale → [release.yml](.github/workflows/release.yml) (test + export Godot); build + test su richiesta → [build-publish.yml](.github/workflows/build-publish.yml) (solo manuale).
 
 ---
 
@@ -77,7 +77,7 @@ dotnet test tests/TIndustry.Shared.Tests
 godot4 --path godot
 ```
 
-`tests/TIndustry.Shared.Tests` (xUnit) esegue gli scenari della sim — nastri, craft, potenza, save, ricerca, mercato, campagna — su una cartella salvataggi temporanea. Gira in CI su ogni push/PR.
+`tests/TIndustry.Shared.Tests` (xUnit) esegue gli scenari della sim — nastri, craft, potenza, save, ricerca, mercato, campagna — su una cartella salvataggi temporanea. Girano nel workflow di release e su richiesta (build-publish manuale).
 
 ---
 

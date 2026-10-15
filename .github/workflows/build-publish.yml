@@ -1,14 +1,8 @@
 name: Build publish
 
+# Manual only (Actions → Build publish → Run workflow). Releases run tests in release.yml.
 on:
-  push:
-    branches:
-      - main
-      - "cursor/**"
-  pull_request:
-    branches:
-      - main
-      - "cursor/**"
+  workflow_dispatch:
 
 jobs:
   # Official path: Shared sim + Godot 4 .NET client (build-only; editor binary not required).

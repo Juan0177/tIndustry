@@ -31,6 +31,9 @@ jobs:
             8.0.x
             10.0.x
 
+      - name: Test Shared
+        run: dotnet test tests/TIndustry.Shared.Tests/TIndustry.Shared.Tests.csproj -c Release
+
       - name: Install Godot + export templates
         run: |
           chmod +x tools/ci/setup-godot.sh tools/ci/export-godot.sh
