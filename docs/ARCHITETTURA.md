@@ -13,7 +13,8 @@ tIndustry/
 │  ├─ decisioni/                ADR (0001-server-csharp.md)
 │  └─ superpowers/              specifiche e piani
 ├─ src/TIndustry.Shared/        simulazione (futuro codice comune a client e server)
-│  ├─ Factory.cs                stato e Tick della fabbrica
+│  ├─ Factory.cs                stato e Step (tick fisso) della fabbrica
+│  ├─ Simulation/               SimulationClock (tempo di frame → tick fissi da 1/60 s)
 │  ├─ Content/                  ContentTypes, FactoryContent, ConveyorContent, MarketCatalog, ItemVisualColors
 │  ├─ Grid/                     GridTypes, BeltGrid, BeltLane, TransportedItem, TerrainMap
 │  ├─ Buildings/                Miner, Crafter (forno e assemblatore), Extractor, BuildingIo, CoreStockSink
@@ -50,7 +51,7 @@ tIndustry/
 ## Ciclo di un frame
 
 1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`). L'input non passa da `_Process`: arriva dai callback di Godot (`World._UnhandledInput` in `World.Input.cs`) e diventa piazzamenti/rimozioni (`World.Placement.cs`) sulla `Factory`.
-2. `World` chiama `Factory.Tick(dt)` (`src/TIndustry.Shared/Factory.cs`): nastri, minatori, forni/assemblatori, estrattori, potenza, consegna al Core, economia.
+2. `World` passa il tempo del frame a `SimulationClock.Accumulate` (`src/TIndustry.Shared/Simulation/`), che restituisce quanti tick fissi da 1/60 s eseguire (al massimo 5); per ciascuno chiama `Factory.Step()` (`src/TIndustry.Shared/Factory.cs`): nastri, potenza, minatori, forni/assemblatori, estrattori, consegna al Core, economia. La simulazione non vede mai il tempo del frame.
 3. Se la griglia o gli edifici sono cambiati, `World` ricostruisce i visual dei nastri e degli edifici; poi sincronizza sprite degli oggetti e animazioni (`World.Visuals.cs`, `godot/scripts/visuals/`).
 4. `World.UpdateHud` chiama `Hud.UpdateStock`, che inoltra a `CorePanel` (fondi, energia, risorse); `BuildPalette` e `BlockInfoPanel` seguono selezione e sblocchi.
 5. Controllo di completamento della campagna e `QueueRedraw` (`World.Drawing.cs` disegna terreno e griglia).

@@ -9,13 +9,17 @@ public sealed class PowerNode
     public const string Tier1Id = "power-node";
     public const string Tier2Id = "power-node-t2";
 
-    public PowerNode(GridPosition position, string definitionId = Tier1Id)
+    public PowerNode(GridPosition position, string definitionId = Tier1Id, long id = 0)
     {
+        Id = id;
         Position = position;
         DefinitionId = definitionId == Tier2Id ? Tier2Id : Tier1Id;
         Size = DefinitionId == Tier2Id ? 2 : 1;
         LinkRange = DefinitionId == Tier2Id ? 10f : 6f;
     }
+
+    /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
+    public long Id { get; }
 
     public GridPosition Position { get; private set; }
     public string DefinitionId { get; }

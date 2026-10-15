@@ -24,10 +24,9 @@ internal static class FactoryScenarios
         SelfTestAdjacentIo(contentJsonPath);
         SelfTestSaveManager(contentJsonPath);
         var slice = CreateSpikeDemo(content);
-        const float dt = 1f / 30f;
-        for (var i = 0; i < 30 * 40; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 40; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.CoreDeliveredItems > 0 && slice.Wallet.MaterialCount("iron-ore") > 0)
             {
                 return;
@@ -97,10 +96,9 @@ internal static class FactoryScenarios
         Assert(slice.TryPlaceBelt(new GridPosition(10, 13), Direction.South), "place (10,13)");
 
         Assert(grid.IsCorner(new GridPosition(10, 8)), "corner detect (10,8)");
-        const float dt = 1f / 30f;
-        for (var i = 0; i < 30 * 45; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 45; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.CoreDeliveredItems > 0)
             {
                 return;
@@ -159,11 +157,10 @@ internal static class FactoryScenarios
         Assert(slice.Smelters.Count == 1, "forno seed");
         Assert(slice.Miners.Count == 1, "miner seed");
 
-        const float dt = 1f / 30f;
         // Mining 2s + belt + smelt 2s + belt — budget ~90s sim.
-        for (var i = 0; i < 30 * 90; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 90; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.Wallet.MaterialCount("iron-plate") > 0)
             {
                 return;
@@ -237,11 +234,10 @@ internal static class FactoryScenarios
         Assert(slice.TryPlaceAssembler(new GridPosition(16, 4), Direction.South), "place second assembler");
         Assert(slice.TryRemoveBuildingAt(new GridPosition(16, 4)), "remove assembler");
 
-        const float dt = 1f / 30f;
         // Iron mine+smelt + copper mine + craft 1.5s + belts — budget ~120s sim.
-        for (var i = 0; i < 30 * 120; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 120; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.Wallet.MaterialCount("copper-wire") > 0)
             {
                 return;
@@ -350,9 +346,9 @@ internal static class FactoryScenarios
         Assert(slice.TryRemoveBelt(new GridPosition(18, 4)), "remove junction");
         Assert(slice.TryRemoveBelt(new GridPosition(18, 5)), "remove splitter");
 
-        for (var i = 0; i < 30 * 120; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 120; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.Wallet.MaterialCount("copper-wire") > 0)
             {
                 return;
@@ -385,11 +381,10 @@ internal static class FactoryScenarios
         var sm = slice.Smelters[0];
         Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore for craft");
 
-        const float dt = 1f / 30f;
         var sawPowered = false;
-        for (var i = 0; i < 30 * 8; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 8; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (sm.IsPowered)
             {
                 sawPowered = true;
@@ -420,10 +415,11 @@ internal static class FactoryScenarios
         hot.Generators[0].TryAcceptFuel("coal");
         var hotBefore = hotSm.Progress;
         var coldBefore = coldSm.Progress;
-        for (var i = 0; i < 15; i++)
+        // Was 15 × Tick(1/30 s): same 15/30 s as 30 fixed 1/60 s ticks.
+        for (var i = 0; i < 30; i++)
         {
-            hot.Tick(dt);
-            cold.Tick(dt);
+            hot.Step();
+            cold.Step();
         }
 
         var hotDelta = hotSm.Progress - hotBefore;
@@ -442,9 +438,9 @@ internal static class FactoryScenarios
         Assert(demo.Miners.Any(m => m.OutputItemId == "coal"), "coal miner");
         Assert(demo.Smelters.Count == 1 && demo.Assemblers.Count == 1, "craft chain");
 
-        for (var i = 0; i < 30 * 150; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 150; i++)
         {
-            demo.Tick(dt);
+            demo.Step();
             if (demo.Wallet.MaterialCount("copper-wire") > 0)
             {
                 return;
@@ -544,10 +540,9 @@ internal static class FactoryScenarios
         Assert(slice.PowerBuffer < 0.01f, "buffer starts empty");
 
         // Core generation alone recharges toward CorePowerCapacity.
-        const float dt = 1f / 30f;
-        for (var i = 0; i < 30 * 3; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 3; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
         }
 
         Assert(slice.PowerBuffer > 5f, "core gen fills buffer");
@@ -559,9 +554,10 @@ internal static class FactoryScenarios
         Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel2");
 
         // Live gen expands capacity.
-        for (var i = 0; i < 5; i++)
+        // Was 5 × Tick(1/30 s): same 5/30 s as 10 fixed 1/60 s ticks.
+        for (var i = 0; i < 10; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
         }
 
         Assert(slice.Generators[0].IsGenerating, "gen burning");
@@ -575,9 +571,10 @@ internal static class FactoryScenarios
         var sm = slice.Smelters[0];
         Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore");
         var before = slice.PowerBuffer;
-        for (var i = 0; i < 10; i++)
+        // Was 10 × Tick(1/30 s): same 10/30 s as 20 fixed 1/60 s ticks.
+        for (var i = 0; i < 20; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
         }
 
         Assert(sm.IsCrafting && sm.IsPowered, "powered while buffer ok");
@@ -630,11 +627,10 @@ internal static class FactoryScenarios
             slice.Miners[0].Position, Miner.Size,
             slice.Smelters[0].Position, Crafter.Size), "touch");
 
-        const float dt = 1f / 30f;
         var gotOre = false;
-        for (var i = 0; i < 30 * 20; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 20; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.Smelters[0].InputBuffer.GetValueOrDefault("iron-ore") > 0)
             {
                 gotOre = true;
@@ -655,18 +651,18 @@ internal static class FactoryScenarios
         var sm = direct.Smelters[0];
         Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "feed ore");
         // Force complete craft into output queue then emit adjacent.
-        for (var i = 0; i < 30 * 10 && sm.ItemsCrafted == 0; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 10 && sm.ItemsCrafted == 0; i++)
         {
-            direct.Tick(dt);
+            direct.Step();
         }
 
         Assert(sm.ItemsCrafted > 0 || direct.Wallet.MaterialCount("iron-plate") > 0
             || direct.CoreDeliveredItems > 0, "craft advanced");
 
         // Drain remaining queue via adjacent to core.
-        for (var i = 0; i < 30 * 5; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 5; i++)
         {
-            direct.Tick(dt);
+            direct.Step();
             if (direct.Wallet.MaterialCount("iron-plate") > 0)
             {
                 return;
@@ -695,11 +691,10 @@ internal static class FactoryScenarios
         Assert(hot.Generators[0].TryAcceptFuel("coal") && hot.Generators[0].TryAcceptFuel("coal"), "fuel");
 
         var t2 = hot.Miners[0];
-        const float dt = 1f / 30f;
         var sawPowered = false;
-        for (var i = 0; i < 30 * 8; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 8; i++)
         {
-            hot.Tick(dt);
+            hot.Step();
             if (t2.IsPowered)
             {
                 sawPowered = true;
@@ -720,10 +715,11 @@ internal static class FactoryScenarios
         hot.Generators[0].TryAcceptFuel("coal");
         var hotBefore = t2.Progress;
         var coldBefore = coldM.Progress;
-        for (var i = 0; i < 20; i++)
+        // Was 20 × Tick(1/30 s): same 20/30 s as 40 fixed 1/60 s ticks.
+        for (var i = 0; i < 40; i++)
         {
-            hot.Tick(dt);
-            cold.Tick(dt);
+            hot.Step();
+            cold.Step();
         }
 
         if (t2.Progress >= hotBefore && coldM.Progress >= coldBefore)
@@ -740,9 +736,9 @@ internal static class FactoryScenarios
         Assert(t1Slice.TryPlaceMiner(new GridPosition(4, 4), Direction.East), "T1 miner");
         Assert(t1Slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen near T1");
         Assert(t1Slice.Generators[0].TryAcceptFuel("coal"), "T1 fuel");
-        for (var i = 0; i < 30 * 4; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 4; i++)
         {
-            t1Slice.Tick(dt);
+            t1Slice.Step();
         }
 
         Assert(!t1Slice.Miners[0].IsPowered, "T1 miner never powered");
@@ -754,10 +750,9 @@ internal static class FactoryScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var slice = CreatePhaseFDemo(content);
-        const float dt = 1f / 30f;
-        for (var i = 0; i < 30 * 25; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 25; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
         }
 
         var snap = slice.Capture();
@@ -790,9 +785,9 @@ internal static class FactoryScenarios
         }
 
         // Continue sim after load still delivers wire.
-        for (var i = 0; i < 30 * 150; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 150; i++)
         {
-            restored.Tick(dt);
+            restored.Step();
             if (restored.Wallet.MaterialCount("copper-wire") > 0)
             {
                 FactorySaveStore.Delete("selftest-tmp");
@@ -1000,9 +995,9 @@ internal static class FactoryScenarios
         Assert(demo.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Bridge) == 2, "seed bridge");
         Assert(demo.Generators.Count == 1, "seed keeps generator");
 
-        for (var i = 0; i < 30 * 150; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 150; i++)
         {
-            demo.Tick(dt);
+            demo.Step();
             if (demo.Wallet.MaterialCount("copper-wire") > 0)
             {
                 return;
@@ -1179,11 +1174,10 @@ internal static class FactoryScenarios
 
         var moneyBefore = slice.Wallet.Money;
         var stockBefore = slice.Wallet.MaterialCount("iron-ore");
-        const float dt = 1f / 30f;
         var soldViaAuto = false;
-        for (var i = 0; i < 30 * 45; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 45; i++)
         {
-            slice.Tick(dt);
+            slice.Step();
             if (slice.CoreDeliveredItems > 0
                 && slice.Session.SaleIncome > 0
                 && slice.Wallet.Money > moneyBefore)
@@ -1209,9 +1203,9 @@ internal static class FactoryScenarios
         var stockSlice = CreateSpikeDemo(content);
         Assert(!stockSlice.AutoSellAtCore, "default OFF");
         moneyBefore = stockSlice.Wallet.Money;
-        for (var i = 0; i < 30 * 45; i++)
+        for (var i = 0; i < SimulationClock.TickRate * 45; i++)
         {
-            stockSlice.Tick(dt);
+            stockSlice.Step();
             if (stockSlice.CoreDeliveredItems > 0 && stockSlice.Wallet.MaterialCount("iron-ore") > 0)
             {
                 Assert(stockSlice.Session.SaleIncome == 0, "no auto sale when OFF");

@@ -43,6 +43,8 @@ public partial class World : Node2D
     }
 
     private Factory? _slice;
+    // Frame time → whole fixed ticks (60/s); the sim never sees the frame delta.
+    private readonly SimulationClock _clock = new();
     // The startup sandbox behind Home is not a played game: it must not overwrite Continua.
     private readonly ContinueAutoSave _continueAutoSave = new();
     private MindustryBeltVisual? _beltVisual;
@@ -193,7 +195,12 @@ public partial class World : Node2D
             return;
         }
 
-        _slice.Tick((float)delta);
+        var ticks = _clock.Accumulate(delta);
+        for (var i = 0; i < ticks; i++)
+        {
+            _slice.Step();
+        }
+
         if (_visualDirty)
         {
             RebuildBeltVisual();

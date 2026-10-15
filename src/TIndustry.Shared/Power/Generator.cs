@@ -19,11 +19,15 @@ public sealed class Generator
     /// <summary>Raylib parity: watts added to the shared buffer while burning.</summary>
     public const float GenerationPerSecond = 28f;
 
-    public Generator(GridPosition position, Direction direction = Direction.East)
+    public Generator(GridPosition position, Direction direction = Direction.East, long id = 0)
     {
+        Id = id;
         Position = position;
         Direction = direction;
     }
+
+    /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
+    public long Id { get; }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }

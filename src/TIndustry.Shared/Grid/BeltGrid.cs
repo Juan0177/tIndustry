@@ -3,10 +3,12 @@ namespace TIndustry.Shared;
 /// <summary>
 /// Placeable logistics grid: belts, junctions, splitters, sorters, bridges.
 /// Bridge mid-span is empty (ends only); sorter filters Mindustry-style.
+/// Cells are kept in canonical (Y, X) order: every pass over the grid (advance, handoff,
+/// core drain, save) visits them the same way regardless of placement history.
 /// </summary>
 public sealed class BeltGrid
 {
-    private readonly Dictionary<GridPosition, BeltGridCell> cells = new();
+    private readonly SortedDictionary<GridPosition, BeltGridCell> cells = new(CanonicalOrder.Instance);
 
     public IReadOnlyDictionary<GridPosition, BeltGridCell> Cells => cells;
 
@@ -431,6 +433,22 @@ public sealed class BeltGrid
         DirectionMath.ToOffset(a).Dx * DirectionMath.ToOffset(b).Dx
             + DirectionMath.ToOffset(a).Dy * DirectionMath.ToOffset(b).Dy
         == 0;
+
+    /// <summary>Row-major order: Y first, then X.</summary>
+    public sealed class CanonicalOrder : IComparer<GridPosition>
+    {
+        public static readonly CanonicalOrder Instance = new();
+
+        private CanonicalOrder()
+        {
+        }
+
+        public int Compare(GridPosition a, GridPosition b)
+        {
+            var byRow = a.Y.CompareTo(b.Y);
+            return byRow != 0 ? byRow : a.X.CompareTo(b.X);
+        }
+    }
 }
 
 public sealed class BeltGridCell

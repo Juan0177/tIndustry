@@ -10,6 +10,10 @@ public sealed class FactorySaveData
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
+    /// <summary>Next stable building id (0 / missing = save written before ids; reassigned on load).</summary>
+    public long NextEntityId { get; set; }
+    /// <summary>Fixed simulation ticks elapsed.</summary>
+    public long CurrentTick { get; set; }
     public long CoreDeliveredItems { get; set; }
     public int CoreX { get; set; } = 9;
     public int CoreY { get; set; } = 14;
@@ -41,6 +45,8 @@ public sealed class FactorySaveData
 
 public sealed class ExtractorSaveDto
 {
+    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
@@ -50,6 +56,8 @@ public sealed class ExtractorSaveDto
 
 public sealed class PowerNodeSaveDto
 {
+    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public string DefinitionId { get; set; } = PowerNode.Tier1Id;
@@ -57,6 +65,8 @@ public sealed class PowerNodeSaveDto
 
 public sealed class MinerSaveDto
 {
+    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
@@ -68,6 +78,8 @@ public sealed class MinerSaveDto
 
 public sealed class CraftSaveDto
 {
+    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
@@ -85,6 +97,8 @@ public sealed class CraftSaveDto
 
 public sealed class GeneratorSaveDto
 {
+    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
@@ -133,7 +147,8 @@ public static class FactorySaveStore
     public const string ContinueSlotId = "continua";
     public const string QuickSlotId = "slot-1";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    /// <summary>Save JSON format (also used by tests to compare captures byte for byte).</summary>
+    public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
