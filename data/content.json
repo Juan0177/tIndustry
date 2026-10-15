@@ -360,7 +360,7 @@
       },
       "isStub": false,
       "prerequisites": [
-        "smelter"
+        "conveyor-basic"
       ]
     },
     {
@@ -500,9 +500,7 @@
         ]
       },
       "isStub": false,
-      "prerequisites": [
-        "smelter"
-      ]
+      "prerequisites": []
     },
     {
       "id": "power-node",
@@ -524,7 +522,7 @@
       },
       "isStub": false,
       "prerequisites": [
-        "smelter"
+        "generator"
       ]
     },
     {
@@ -547,8 +545,7 @@
       },
       "isStub": false,
       "prerequisites": [
-        "power-node",
-        "generator"
+        "power-node"
       ]
     },
     {
@@ -571,8 +568,7 @@
       },
       "isStub": false,
       "prerequisites": [
-        "miner",
-        "smelter"
+        "miner"
       ]
     }
   ],
