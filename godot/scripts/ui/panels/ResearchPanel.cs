@@ -50,23 +50,23 @@ public partial class ResearchPanel : Control
         BuildUi();
     }
 
-    public void Open(IGameView slice, Action<SimCommand> submit)
+    public void Open(IGameView factory, Action<SimCommand> submit)
     {
-        _view = slice;
+        _view = factory;
         _submit = submit;
         _statusMessage = null;
-        _graph = TechTreeLayout.Build(slice.Content);
+        _graph = TechTreeLayout.Build(factory.Content);
         // Default focus: the first thing you can research now (Mindustry draws the eye there too).
         _selectedId ??= _graph.Nodes
             .Where(n => !n.IsRoot)
-            .FirstOrDefault(n => slice.Research.GetNodeState(n.Structure) == ResearchNodeState.Available)
+            .FirstOrDefault(n => factory.Research.GetNodeState(n.Structure) == ResearchNodeState.Available)
             ?.Structure.Id ?? TechTreeLayout.RootId;
         if (_canvas is not null)
         {
             _canvas.Graph = _graph;
             _canvas.ResetView();
             _canvas.SelectedId = _selectedId;
-            _canvas.Research = slice.Research;
+            _canvas.Research = factory.Research;
         }
 
         Visible = true;
@@ -623,27 +623,27 @@ public partial class ResearchPanel : Control
             : $"${unlock.Money} + {materials}";
     }
 
-    private static string FormatMissingUnlockResources(StructureDefinition structure, IGameView slice)
+    private static string FormatMissingUnlockResources(StructureDefinition structure, IGameView factory)
     {
-        if (slice.Research.IsUnlocked(structure.Id) || !slice.Research.MeetsPrerequisites(structure))
+        if (factory.Research.IsUnlocked(structure.Id) || !factory.Research.MeetsPrerequisites(structure))
         {
             return string.Empty;
         }
 
-        if (structure.Unlock is null || slice.Research.CanUnlock(structure, slice.Wallet))
+        if (structure.Unlock is null || factory.Research.CanUnlock(structure, factory.Wallet))
         {
             return string.Empty;
         }
 
         var missing = new List<string>();
-        if (slice.Wallet.Money < structure.Unlock.Money)
+        if (factory.Wallet.Money < structure.Unlock.Money)
         {
-            missing.Add($"${structure.Unlock.Money - slice.Wallet.Money}");
+            missing.Add($"${structure.Unlock.Money - factory.Wallet.Money}");
         }
 
         foreach (var entry in structure.Unlock.Materials)
         {
-            var have = slice.Wallet.MaterialCount(entry.ItemId);
+            var have = factory.Wallet.MaterialCount(entry.ItemId);
             if (have < entry.Amount)
             {
                 missing.Add($"{entry.Amount - have} {ItemShortLabel(entry.ItemId)}");
@@ -653,7 +653,7 @@ public partial class ResearchPanel : Control
         return missing.Count == 0 ? string.Empty : "Manca: " + string.Join(" + ", missing);
     }
 
-    private static string FormatPrereqs(StructureDefinition structure, IGameView slice)
+    private static string FormatPrereqs(StructureDefinition structure, IGameView factory)
     {
         if (structure.Prerequisites.Count == 0)
         {
@@ -662,8 +662,8 @@ public partial class ResearchPanel : Control
 
         var bits = structure.Prerequisites.Select(id =>
         {
-            var name = slice.Content.FindStructure(id)?.DisplayName ?? id;
-            return slice.Research.IsUnlocked(id) ? name : $"{name} (manca)";
+            var name = factory.Content.FindStructure(id)?.DisplayName ?? id;
+            return factory.Research.IsUnlocked(id) ? name : $"{name} (manca)";
         });
         return "Prerequisiti: " + string.Join(", ", bits);
     }

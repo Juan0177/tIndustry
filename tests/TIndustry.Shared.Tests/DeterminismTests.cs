@@ -100,15 +100,18 @@ public sealed class DeterminismTests
     {
         var content = LoadContent();
         var original = Factory.CreateSorterBridgeDemo(content);
-        original.RunTicks(300);
+        // Restore after tick 600: the generator has filled the power buffer beyond the core's own
+        // capacity by then, so the round trip also has to keep the stored energy.
+        original.RunTicks(700);
+        Assert.True(original.PowerBuffer > Factory.CorePowerCapacity, "power in play at restore");
 
         var copy = Factory.Restore(content, original.Capture());
         Assert.Equal(Serialize(original), Serialize(copy));
 
-        original.RunTicks(600);
-        copy.RunTicks(600);
+        original.RunTicks(300);
+        copy.RunTicks(300);
 
-        Assert.Equal(900, copy.CurrentTick);
+        Assert.Equal(1000, copy.CurrentTick);
         Assert.Equal(Serialize(original), Serialize(copy));
     }
 

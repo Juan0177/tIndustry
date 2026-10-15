@@ -1,6 +1,6 @@
 namespace TIndustry.Shared;
 
-/// <summary>Sale / spend ledger for slice economy (enough for Mercato + future campaign).</summary>
+/// <summary>Sale / spend ledger for the game economy (enough for Mercato + future campaign).</summary>
 public sealed class EconomySession : ISessionView
 {
     private readonly Dictionary<string, int> soldByItem = new(StringComparer.Ordinal);

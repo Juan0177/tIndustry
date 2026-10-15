@@ -29,6 +29,12 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - HUD in componenti: `FactoryHud` (1.626 righe) diventa `Hud` che compone `CorePanel` (colonna in alto a sinistra), `BuildPalette` (categorie e griglia), `BlockInfoPanel` (striscia info e dettaglio `?`) e `HudStyle` (colori e widget condivisi). Aspetto e comportamento invariati
 - Dati in un solo posto: `godot/data/` esce da git (è una copia di `data/` che l'export rigenera da sé; in sviluppo il gioco legge `data/`). Nuovi test di validazione dei contenuti (id unici, prerequisiti esistenti e senza cicli, icone presenti per strutture e oggetti del mercato, obiettivi di campagna su id noti) e test di salvataggio/ricarica
 
+### Correzioni
+
+- **Energia accumulata non più persa**: caricando un salvataggio (o un'istantanea) la riserva di energia sopra il minimo del CORE tornava a 24 perché veniva limitata prima di ripristinare la capacità; ora capacità e riserva tornano identiche
+- **Caricamento più robusto**: un salvataggio di una versione futura o con contenuti illeggibili mostra "Salvataggio non leggibile." invece di testo tecnico, e un caricamento fallito lascia intatta la partita in corso
+- Livello 1 della campagna: le 8 unità di minerale di ferro iniziali sono ora parte della creazione del livello (`NewGame.Campaign`), non del solo client
+
 ### Documentazione
 
 - Nuovi `docs/ARCHITETTURA.md` (mappa delle cartelle, ciclo di un frame, dati, salvataggi, come aggiungere un blocco, test), `docs/decisioni/0001-server-csharp.md` (server multiplayer in C#) e `CLAUDE.md` (istruzioni per gli agenti); README aggiornati ai nuovi nomi e percorsi
