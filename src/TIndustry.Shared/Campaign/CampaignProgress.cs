@@ -97,9 +97,9 @@ public sealed class CampaignProgress
 
     public static int GetObjectiveCurrent(
         CampaignObjectiveDefinition objective,
-        EconomyWallet wallet,
-        EconomySession session,
-        ResearchState research)
+        IWalletView wallet,
+        ISessionView session,
+        IResearchView research)
     {
         var target = Math.Max(1, objective.Amount);
         return objective.Type switch
@@ -123,17 +123,17 @@ public sealed class CampaignProgress
 
     public static bool IsObjectiveComplete(
         CampaignObjectiveDefinition objective,
-        EconomyWallet wallet,
-        EconomySession session,
-        ResearchState research) =>
+        IWalletView wallet,
+        ISessionView session,
+        IResearchView research) =>
         GetObjectiveCurrent(objective, wallet, session, research)
         >= GetObjectiveTarget(objective);
 
     public static bool AreAllObjectivesComplete(
         CampaignLevelDefinition level,
-        EconomyWallet wallet,
-        EconomySession session,
-        ResearchState research)
+        IWalletView wallet,
+        ISessionView session,
+        IResearchView research)
     {
         var objectives = level.Objectives;
         if (objectives is null || objectives.Count == 0)

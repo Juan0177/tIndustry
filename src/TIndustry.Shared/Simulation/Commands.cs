@@ -60,6 +60,12 @@ public sealed record SetAutoSell(int PlayerId, bool Enabled) : SimCommand(Player
 public sealed record UpgradeCore(int PlayerId) : SimCommand(PlayerId);
 
 /// <summary>
+/// Sets the filter of the sorter on <paramref name="Tile"/> (replaces the client's direct
+/// <c>BeltGridCell.CycleFilterItem</c>). <paramref name="ItemId"/> must be one of <see cref="SorterFilters.Ids"/>.
+/// </summary>
+public sealed record SetSorterFilter(int PlayerId, GridPosition Tile, string ItemId) : SimCommand(PlayerId);
+
+/// <summary>
 /// Rejection reasons for <see cref="SimHost.CommandRejected"/>: the Italian texts the Godot client
 /// shows in its toasts / status labels today, gathered in one place.
 /// </summary>
@@ -71,7 +77,10 @@ public static class CommandReasons
     /// <summary>Placement on a CORE tile (World.Placement).</summary>
     public const string OnCore = "Non puoi costruire sul Core";
 
-    /// <summary>Placement on an occupied / invalid tile (World.Placement).</summary>
+    /// <summary>
+    /// Placement on an occupied / invalid tile (World.Placement). Today's client text wins over the
+    /// spec's paraphrase "Spazio occupato.".
+    /// </summary>
     public const string Occupied = "Cella occupata o non valida";
 
     /// <summary>Research: already unlocked (ResearchPanel).</summary>
@@ -89,7 +98,10 @@ public static class CommandReasons
     /// <summary>Remove on an empty tile (the client shows nothing today).</summary>
     public const string NothingToRemove = "Niente da rimuovere.";
 
-    /// <summary>Malformed command (unknown id, non-positive amount): the client never sends one today.</summary>
+    /// <summary>
+    /// Malformed command (unknown id, non-positive amount, sorter filter on a non-sorter tile or with
+    /// an item outside <see cref="SorterFilters.Ids"/>): the client never sends one today.
+    /// </summary>
     public const string InvalidCommand = "Comando non valido.";
 
     /// <summary>Locked structure: "<c>{tool} bloccato: sbloccalo in Ricerca (T).</c>" (World.Placement).</summary>

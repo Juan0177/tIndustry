@@ -147,6 +147,7 @@ public sealed class Factory : IGameView
     IReadOnlyDictionary<GridPosition, BeltGridCell> IGameView.Belts => Belts.Cells;
     IWalletView IGameView.Wallet => Wallet;
     IResearchView IGameView.Research => Research;
+    ISessionView IGameView.Session => Session;
 
     public bool IsBeltCorner(GridPosition position) => Belts.IsCorner(position);
 

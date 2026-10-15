@@ -42,18 +42,31 @@ public sealed class SimHost
     /// Accumulates frame time and runs the ticks due (at most <see cref="SimulationClock.MaxTicksPerFrame"/>).
     /// Returns the number of ticks run.
     /// </summary>
+    /// <remarks>
+    /// Handler-exception policy: an exception thrown by a <see cref="CommandApplied"/> /
+    /// <see cref="CommandRejected"/> subscriber never interrupts the simulation. Every subscriber is
+    /// called, every due command is applied and every tick of the frame runs; the exceptions are
+    /// collected and rethrown together as one <see cref="AggregateException"/> when
+    /// <see cref="Advance"/> has finished. The host stays consistent and usable afterwards.
+    /// </remarks>
     public int Advance(double frameSeconds)
     {
         var ticks = clock.Accumulate(frameSeconds);
+        List<Exception>? handlerErrors = null;
         for (var i = 0; i < ticks; i++)
         {
-            RunTick();
+            RunTick(ref handlerErrors);
+        }
+
+        if (handlerErrors is not null)
+        {
+            throw new AggregateException("Un gestore di eventi di SimHost ha lanciato un'eccezione.", handlerErrors);
         }
 
         return ticks;
     }
 
-    private void RunTick()
+    private void RunTick(ref List<Exception>? handlerErrors)
     {
         var tick = factory.CurrentTick + 1;
         // Due commands in arrival order (late ones included); later ones stay queued.
@@ -74,15 +87,38 @@ public sealed class SimHost
             var reason = Apply(command);
             if (reason is null)
             {
-                CommandApplied?.Invoke(command);
+                Raise(CommandApplied, h => h(command), ref handlerErrors);
             }
             else
             {
-                CommandRejected?.Invoke(command, reason);
+                Raise(CommandRejected, h => h(command, reason), ref handlerErrors);
             }
         }
 
         factory.Step();
+    }
+
+    /// <summary>Calls each subscriber separately so one failing handler cannot skip the others.</summary>
+    private static void Raise<THandler>(
+        THandler? handlers, Action<THandler> invoke, ref List<Exception>? errors)
+        where THandler : Delegate
+    {
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                invoke((THandler)handler);
+            }
+            catch (Exception ex)
+            {
+                (errors ??= []).Add(ex);
+            }
+        }
     }
 
     /// <summary>Validates and applies one command; returns null when applied, else the reason.</summary>
@@ -97,6 +133,7 @@ public sealed class SimHost
         Sell sell => ApplySell(sell),
         SetAutoSell autoSell => SetAutoSellAndAccept(autoSell.Enabled),
         UpgradeCore => ApplyUpgradeCore(),
+        SetSorterFilter filter => ApplySetSorterFilter(filter),
         _ => CommandReasons.InvalidCommand
     };
 
@@ -221,6 +258,19 @@ public sealed class SimHost
     private string? SetAutoSellAndAccept(bool enabled)
     {
         factory.AutoSellAtCore = enabled;
+        return null;
+    }
+
+    private string? ApplySetSorterFilter(SetSorterFilter command)
+    {
+        if (!SorterFilters.IsValid(command.ItemId)
+            || !factory.Belts.TryGet(command.Tile, out var cell)
+            || cell.Kind != LogisticsKind.Sorter)
+        {
+            return CommandReasons.InvalidCommand;
+        }
+
+        cell.SetFilterItem(command.ItemId);
         return null;
     }
 

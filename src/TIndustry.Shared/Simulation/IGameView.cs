@@ -12,6 +12,16 @@ public interface IWalletView
     bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost);
 }
 
+/// <summary>Read-only sales record of the session (implemented by <see cref="EconomySession"/>).</summary>
+public interface ISessionView
+{
+    int StartingMoney { get; }
+
+    int SaleIncome { get; }
+
+    IReadOnlyDictionary<string, int> SoldByItem { get; }
+}
+
 /// <summary>Read-only research state (implemented by <see cref="ResearchState"/>).</summary>
 public interface IResearchView
 {
@@ -62,7 +72,7 @@ public interface IGameView
 
     MarketCatalog Market { get; }
 
-    EconomySession Session { get; }
+    ISessionView Session { get; }
 
     IReadOnlySet<GridPosition> CoreTiles { get; }
 
