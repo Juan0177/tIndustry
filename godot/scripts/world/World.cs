@@ -94,7 +94,7 @@ public partial class World : Node2D
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
         _progress = CampaignProgress.Load(_progressPath);
-        AttachGame(Factory.CreateSandboxSlice(
+        AttachGame(NewGame.Sandbox(
             content,
             Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight),
             coreSize: 2,

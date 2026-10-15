@@ -46,7 +46,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         var content = LoadContent();
         ulong Run()
         {
-            var host = new SimHost(Factory.CreateSpikeDemo(content));
+            var host = new SimHost(NewGame.Demo(content));
             SubmitScript(host);
             RunTicks(host, 10_000);
             return host.Checksum();
@@ -59,7 +59,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     public void SnapshotRoundTripMidGame()
     {
         var content = LoadContent();
-        var host1 = new SimHost(Factory.CreateSpikeDemo(content));
+        var host1 = new SimHost(NewGame.Demo(content));
         SubmitScript(host1);
         RunTicks(host1, 3000);
 
@@ -77,7 +77,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     public void SnapshotSurvivesJsonRoundTrip()
     {
         var content = LoadContent();
-        var host = new SimHost(Factory.CreateSpikeDemo(content));
+        var host = new SimHost(NewGame.Demo(content));
         SubmitScript(host);
         RunTicks(host, 1500);
 
@@ -95,8 +95,8 @@ public sealed class SnapshotTests(ITestOutputHelper output)
 
         Factory Build(bool reverse)
         {
-            var f = Factory.CreateSandboxSlice(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120);
-            f.UnlockGodotSliceDemo();
+            var f = NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120);
+            f.UnlockAllForDemo();
             // Buildings in the SAME order in both: ids are part of the state by design.
             Assert.True(f.TryPlaceGenerator(new GridPosition(20, 20)));
             Assert.True(f.TryPlacePowerNode(new GridPosition(30, 20)));
@@ -143,8 +143,8 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     public void MeasureLargeMap()
     {
         var content = LoadContent();
-        var factory = Factory.CreateSandboxSlice(content, new GridPosition(500, 500), mapWidth: 1000, mapHeight: 1000);
-        factory.UnlockGodotSliceDemo();
+        var factory = NewGame.Sandbox(content, new GridPosition(500, 500), mapWidth: 1000, mapHeight: 1000);
+        factory.UnlockAllForDemo();
         factory.Wallet.AddMaterial("iron-plate", 100_000_000);
         var belts = 0;
         for (var y = 0; y < 1000; y += 4)

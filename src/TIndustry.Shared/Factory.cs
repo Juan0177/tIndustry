@@ -485,7 +485,7 @@ public sealed class Factory : IGameView
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
 
         // Miner 2×2 at (2,7); forno 2×2 at (6,7).
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
@@ -531,7 +531,7 @@ public sealed class Factory : IGameView
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
 
         // Iron miner (2,7) → forno (6,7) → plates east toward assembler (12,7).
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
@@ -610,7 +610,7 @@ public sealed class Factory : IGameView
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
 
         slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
         slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
@@ -742,35 +742,6 @@ public sealed class Factory : IGameView
         return slice;
     }
 
-    /// <summary>Legacy L-belt demo without forno (ore → core).</summary>
-    public static Factory CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
-    {
-        var beltDef = content.RequireConveyor(beltId);
-        var grid = new BeltGrid();
-        grid.PlacePath(BuildSpikeLPath(), beltDef);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
-        return slice;
-    }
-
-    public static List<GridPosition> BuildSpikeLPath()
-    {
-        var path = new List<GridPosition>();
-        for (var x = 4; x <= 10; x++)
-        {
-            path.Add(new GridPosition(x, 8));
-        }
-
-        for (var y = 9; y <= 13; y++)
-        {
-            path.Add(new GridPosition(10, y));
-        }
-
-        return path;
-    }
-
     public bool CanOccupy(GridPosition position) => CanOccupyFootprint(position, 1);
 
     public bool CanOccupyFootprint(GridPosition origin, int size)
@@ -844,9 +815,9 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>Unlock all Godot-slice placeables so seeded demos keep working under gates.</summary>
-    public void UnlockGodotSliceDemo()
+    public void UnlockAllForDemo()
     {
-        foreach (var id in ResearchState.GodotSliceStructureIds)
+        foreach (var id in ResearchState.DemoStructureIds)
         {
             Research.ForceUnlock(id);
         }
@@ -965,71 +936,7 @@ public sealed class Factory : IGameView
         return (w, h);
     }
 
-    /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
-    public static Factory CreateCampaignSlice(
-        FactoryContent content,
-        CampaignCatalog catalog,
-        CampaignLevelDefinition level,
-        GridPosition? coreOrigin = null,
-        int coreSize = 2,
-        int? mapWidth = null,
-        int? mapHeight = null)
-    {
-        var (w, h) = ResolveCampaignMapSize(level);
-        if (mapWidth is int mw)
-        {
-            w = Math.Clamp(Math.Max(12, mw), 12, MaxGodotCampaignMapEdge);
-        }
-
-        if (mapHeight is int mh)
-        {
-            h = Math.Clamp(Math.Max(8, mh), 8, MaxGodotCampaignMapEdge);
-        }
-
-        var origin = coreOrigin ?? CenteredCoreOrigin(w, h, coreSize);
-        var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
-        var wallet = catalog.CreateWallet(level);
-        var session = new EconomySession(level.StartingMoney);
-        var research = ResearchState.CreateNew(content);
-        var starter = ResolveStarterDeposit(origin, coreSize, w, h);
-        var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
-        return new Factory(content, new BeltGrid(), core, wallet, research, session)
-        {
-            ActiveCampaignLevelId = level.Id,
-            Terrain = terrain
-        };
-    }
-
-    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
-    public static Factory CreateSandboxSlice(
-        FactoryContent content,
-        GridPosition coreOrigin,
-        int coreSize = 2,
-        int mapWidth = 1000,
-        int mapHeight = 1000,
-        int seed = 42,
-        int startingMoney = 180)
-    {
-        var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
-        // Parity with Raylib CreateStartingWallet: plates/wire so first place isn't free-or-impossible.
-        var wallet = new EconomyWallet(
-            startingMoney,
-            new Dictionary<string, int>(StringComparer.Ordinal)
-            {
-                ["iron-plate"] = 48,
-                ["copper-wire"] = 10
-            });
-        var session = new EconomySession(startingMoney);
-        var research = ResearchState.CreateNew(content);
-        var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
-        var terrain = TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter);
-        return new Factory(content, new BeltGrid(), core, wallet, research, session)
-        {
-            Terrain = terrain
-        };
-    }
-
-    private static GridPosition ResolveStarterDeposit(
+    internal static GridPosition ResolveStarterDeposit(
         GridPosition coreOrigin, int coreSize, int mapWidth, int mapHeight)
     {
         // Prefer west of core (Raylib-style), clamped into map.

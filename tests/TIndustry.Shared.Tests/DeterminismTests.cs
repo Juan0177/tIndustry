@@ -27,7 +27,7 @@ public sealed class DeterminismTests
     [Fact]
     public void StepAdvancesExactlyOneTick()
     {
-        var factory = Factory.CreateSpikeDemo(LoadContent());
+        var factory = NewGame.Demo(LoadContent());
         Assert.Equal(0, factory.CurrentTick);
         factory.Step();
         Assert.Equal(1, factory.CurrentTick);
@@ -50,7 +50,7 @@ public sealed class DeterminismTests
         const long target = 1200;
         var content = LoadContent();
 
-        var a = Factory.CreateSpikeDemo(content);
+        var a = NewGame.Demo(content);
         var clockA = new SimulationClock();
         while (a.CurrentTick < target)
         {
@@ -61,7 +61,7 @@ public sealed class DeterminismTests
             }
         }
 
-        var b = Factory.CreateSpikeDemo(content);
+        var b = NewGame.Demo(content);
         var clockB = new SimulationClock();
         var random = new Random(42);
         while (b.CurrentTick < target)
@@ -117,7 +117,7 @@ public sealed class DeterminismTests
     {
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var factory = new Factory(LoadContent(), new BeltGrid(), core);
-        factory.UnlockGodotSliceDemo();
+        factory.UnlockAllForDemo();
         // T1 miner on iron (no terrain = full deposit) touching the CORE west edge.
         Assert.True(factory.TryPlaceMiner(new GridPosition(7, 14), Direction.East));
 
@@ -134,7 +134,7 @@ public sealed class DeterminismTests
     {
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var factory = new Factory(content, new BeltGrid(), core);
-        factory.UnlockGodotSliceDemo();
+        factory.UnlockAllForDemo();
 
         var belts = Enumerable.Range(4, 5).Select(x => new GridPosition(x, 14)).ToList();
         if (reverse)

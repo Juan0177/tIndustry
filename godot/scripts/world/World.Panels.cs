@@ -195,7 +195,7 @@ public partial class World
 
     private void OnSavesSlotLoad(string slotId)
     {
-        if (!LoadSlice(slotId, $"Caricato · {slotId}", showOnPanel: m => _saves?.ShowStatus(m)))
+        if (!LoadGame(slotId, $"Caricato · {slotId}", showOnPanel: m => _saves?.ShowStatus(m)))
         {
             return; // stay on the saves panel with the error visible
         }
@@ -214,7 +214,7 @@ public partial class World
         }
 
         var id = FactorySaveStore.CreateSlotId();
-        SaveSlice(id, $"Salvato come {id}");
+        SaveGame(id, $"Salvato come {id}");
         _saves?.NotifySavedAs(id);
     }
 
