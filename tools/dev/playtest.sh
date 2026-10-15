@@ -8,6 +8,7 @@ NAME="${1:?usage: playtest.sh <ui|tutorial> <outdir>}"
 OUT="${2:?usage: playtest.sh <ui|tutorial> <outdir>}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 mkdir -p "$OUT"
+rm -f "$OUT"/*.png "$OUT/log.txt"  # no stale shots from a previous run
 DATA="$(mktemp -d)"
 trap 'rm -rf "$DATA"' EXIT
 win() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else echo "$1"; fi; }

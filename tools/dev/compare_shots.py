@@ -6,20 +6,36 @@ import sys
 from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw
 
-# (left, top, right, bottom) rectangles painted black on both images before diffing.
+# Global mask, painted black on both images before diffing.
 MASKS = [
     (1180, 0, 1280, 30),  # FPS counter
-    # Known animated / timing-dependent zones (found by diffing two identical runs):
-    (470, 325, 745, 455),  # miner gear + belt items next to the CORE at default zoom
-    (200, 300, 720, 540),  # same machines in the zoomed ui-belt-into-core shot
-    (50, 108, 95, 135),    # HUD first resource counter (value depends on tick timing)
 ]
 
+# Extra masks per screenshot, only where animation/timing noise was observed by diffing
+# identical runs. A real change inside these rectangles would be MISSED.
+GEAR = (470, 325, 745, 455)  # miner gear + belt items beside the CORE (animated);
+#                              a sprite/layout change of those machines goes unseen
+HUD_COUNT = (30, 100, 95, 135)  # HUD first resource counter value (tick timing);
+#                                a change to that counter's look/position goes unseen
+FILE_MASKS = {
+    "ui-hud.png": [GEAR],
+    "ui-palette-info.png": [GEAR],
+    "ui-mercato.png": [GEAR],  # only the belt strip under the modal edge varies
+    # zoomed view: the machines fill this area; a change there goes unseen
+    "ui-belt-into-core.png": [(200, 300, 720, 540)],
+    "tutorial-03-step3-miner-placed.png": [GEAR],
+    "tutorial-04-step5-mercato.png": [GEAR],
+    "tutorial-05-mercato-open.png": [GEAR, HUD_COUNT],
+    "tutorial-06-step7-forno.png": [GEAR],
+    "tutorial-07-step8-impostazioni.png": [GEAR],
+    "tutorial-08-done.png": [GEAR],
+}
 
-def masked(img):
+
+def masked(img, name):
     img = img.convert("RGB")
     d = ImageDraw.Draw(img)
-    for m in MASKS:
+    for m in MASKS + FILE_MASKS.get(name, []):
         d.rectangle((m[0], m[1], m[2] - 1, m[3] - 1), fill=(0, 0, 0))
     return img
 
@@ -42,7 +58,7 @@ def main(a, b):
             print(f"{n}: size {ia.size} vs {ib.size}")
             bad += 1
             continue
-        box = ImageChops.difference(masked(ia), masked(ib)).getbbox()
+        box = ImageChops.difference(masked(ia, n), masked(ib, n)).getbbox()
         if box:
             print(f"{n}: differs, bbox={box}")
             bad += 1
