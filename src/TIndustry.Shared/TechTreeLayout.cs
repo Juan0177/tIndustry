@@ -15,7 +15,7 @@ public static class TechTreeLayout
     public const int OriginY = 128;
     public const int LaneGap = 20;
 
-    public const float MinZoom = 0.55f;
+    public const float MinZoom = 0.35f;
     public const float MaxZoom = 1.85f;
 
     public sealed record Node(

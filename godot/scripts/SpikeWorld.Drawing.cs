@@ -97,29 +97,7 @@ public partial class SpikeWorld
             }
         }
 
-        // Core: same block sprite as palette language (cyan steel), full footprint.
-        if (_slice.CoreTiles.Count > 0)
-        {
-            var minX = _slice.CoreTiles.Min(t => t.X);
-            var minY = _slice.CoreTiles.Min(t => t.Y);
-            var maxX = _slice.CoreTiles.Max(t => t.X);
-            var maxY = _slice.CoreTiles.Max(t => t.Y);
-            var rect = new Rect2(
-                minX * TileSize,
-                minY * TileSize,
-                (maxX - minX + 1) * TileSize,
-                (maxY - minY + 1) * TileSize);
-            if (_coreTex is not null)
-            {
-                DrawTextureRect(_coreTex, rect, false);
-            }
-            else
-            {
-                DrawRect(rect, new Color(0.18f, 0.32f, 0.48f, 1f));
-            }
-
-            DrawRect(rect, new Color(0.35f, 0.78f, 0.9f, 1f), false, 2f);
-        }
+        // Core is a node in the Buildings layer (see AddCoreVisual) so belt items slide under it.
 
         // Deposit tint under miners stays soft; the building pad is the readable frame.
         foreach (var miner in _slice.Miners)

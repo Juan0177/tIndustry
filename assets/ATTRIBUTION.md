@@ -67,3 +67,7 @@ Packs: https://kenney.nl/assets/board-game-icons · https://kenney.nl/assets/gam
 ## Fonts
 
 DejaVu Sans (`assets/fonts/`) — Bitstream Vera / DejaVu license (see font package).
+
+## Copies in the Godot client
+
+`godot/assets/{money,graphite,silicon,lead-plate,titanium-plate}.png` and `godot/assets/ui/*.png` are copies of the icons above (`items/…`, `ui/…`, `categories/…` → `ui/cat-…`; `cat-logistics.png` rotated 90° to point along the belt), same authors and licenses.

@@ -57,8 +57,8 @@ public partial class ResearchPanel : Control
         _selectedId ??= _graph.Nodes.FirstOrDefault()?.Structure.Id;
         if (_canvas is not null)
         {
-            _canvas.ResetView();
             _canvas.Graph = _graph;
+            _canvas.ResetView();
             _canvas.SelectedId = _selectedId;
             _canvas.Research = slice.Research;
         }
@@ -138,7 +138,7 @@ public partial class ResearchPanel : Control
 
         var hint = new Label
         {
-            Text = "Nodi e prerequisiti · T apre / Esc chiude · Shift+trascina · Ctrl+rotella zoom · H reset",
+            Text = "Trascina per muoverti · rotella = zoom · click su un nodo per i dettagli · H = vista intera · T / Esc chiude",
             Position = new Vector2(28, 58)
         };
         hint.AddThemeColorOverride("font_color", HintMuted);
@@ -147,7 +147,7 @@ public partial class ResearchPanel : Control
 
         _walletLabel = new Label
         {
-            Text = "Magazzino: $0",
+            Text = "Fondi: $0",
             Position = new Vector2(28, 80)
         };
         _walletLabel.AddThemeColorOverride("font_color", HintSoft);
@@ -347,7 +347,7 @@ public partial class ResearchPanel : Control
         if (_walletLabel is not null)
         {
             _walletLabel.Text =
-                $"Magazzino: $ {_slice.Wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato";
+                $"Fondi: ${_slice.Wallet.Money}   ·   verde = sbloccato · ambra = disponibile · grigio = bloccato";
         }
 
         RefreshDetail();
@@ -471,7 +471,7 @@ public partial class ResearchPanel : Control
         {
             "miner" => "Estrae minerali dal deposito sotto · uscita su tutti i lati · 2×2",
             "miner-advanced" => "T2: 2× velocità · +25% efficienza · +20% se alimentato · uscita multi-lato",
-            "smelter" => "Fondi ore (carbone o corrente) · +20% craft se alimentato · 2×2",
+            "smelter" => "Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2",
             "assembler" => "Assembla prodotti · R ruota uscita · 2×2",
             "extractor" => "Tira 1 item da CORE/edificio · F filtro · R uscita",
             "conveyor-basic" => "Nastro T1 · flusso unidirezionale · R/rotella",

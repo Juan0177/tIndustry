@@ -28,9 +28,11 @@ Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.c
 
 ## Controlli build
 
-**Cursore** (default, categoria St) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
+**Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
 
-Palette Mindustry (angolo basso-destra): griglia sprite senza testo sotto; rail **St / Lo / Pr / Po**; hover/selezione apre pannello info (nome IT, I/O, costi con icona barrata se stock insufficiente); `?` apre dettaglio.
+Palette Mindustry (angolo basso-destra): griglia sprite senza testo né numeri; rail categorie a icone (Strumenti / Logistica / Produzione / Potenza); hover/selezione apre il pannello info (nome, tasto rapido `[2]`, costi con icona barrata se mancano); `?` apre dettaglio.
+
+HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato · Campagna**, poi pannello CORE con **Fondi**, energia e solo le risorse che hai (icona + numero, nome al passaggio del mouse), **Potenzia CORE** con i costi, e gli obiettivi di campagna.
 
 | Hotkey | Azione |
 | --- | --- |
@@ -75,7 +77,7 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 
 ## Ricerca
 
-**T** apre il grafo Ricerca: **nodi icona** + archi ortogonali, pan (Shift/RMB), Ctrl+rotella zoom, H reset, percorso evidenziato. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
+**T** apre il grafo Ricerca: **nodi icona** + archi ortogonali, trascina per muoverti, rotella zoom, H vista intera, percorso evidenziato. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
 
 ## Mercato
 

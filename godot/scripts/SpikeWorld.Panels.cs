@@ -34,6 +34,11 @@ public partial class SpikeWorld
         _hud.MercatoRequested += ToggleMercato;
         _hud.CampaignRequested += ToggleCampaign;
         _hud.CoreUpgradeRequested += OnCoreUpgradeRequested;
+        _hud.MenuRequested += () =>
+        {
+            AutoSaveContinue(quiet: true);
+            _home?.Open();
+        };
         _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
@@ -81,7 +86,7 @@ public partial class SpikeWorld
             CheckCampaignComplete();
             if (_slice is not null)
             {
-                _hud?.ShowToast($"Vendita · Magazzino ${_slice.Wallet.Money}");
+                _hud?.ShowToast($"Venduto · Fondi ${_slice.Wallet.Money}");
             }
         };
         _mercato.AutoSellChanged += () =>
@@ -317,11 +322,13 @@ public partial class SpikeWorld
                 MouseFilter = Control.MouseFilterEnum.Ignore,
                 Text = "FPS —\nCPU —\nRAM —"
             };
-            _resourceLabel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
-            _resourceLabel.OffsetLeft = 12;
-            _resourceLabel.OffsetTop = 56;
-            _resourceLabel.OffsetRight = 280;
-            _resourceLabel.OffsetBottom = 140;
+            // Top-right: the top-left column belongs to menu / core / objectives.
+            _resourceLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            _resourceLabel.OffsetLeft = -280;
+            _resourceLabel.OffsetTop = 8;
+            _resourceLabel.OffsetRight = -12;
+            _resourceLabel.OffsetBottom = 120;
+            _resourceLabel.HorizontalAlignment = HorizontalAlignment.Right;
             _resourceLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.93f, 0.86f, 0.92f));
             _resourceLabel.AddThemeFontSizeOverride("font_size", 13);
             layer.AddChild(_resourceLabel);

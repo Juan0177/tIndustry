@@ -14,7 +14,7 @@ public partial class SpikeWorld
             return;
         }
 
-        _buildingsLayer = new Node2D { Name = "Buildings", ZIndex = 3 };
+        _buildingsLayer = new Node2D { Name = "Buildings", ZIndex = BuildingsZ };
         AddChild(_buildingsLayer);
         // Hide legacy scene Miner node if present — rebuilt dynamically.
         if (HasNode("Miner"))
@@ -34,6 +34,8 @@ public partial class SpikeWorld
         {
             child.QueueFree();
         }
+
+        AddCoreVisual();
 
         foreach (var miner in _slice.Miners)
         {
@@ -200,29 +202,40 @@ public partial class SpikeWorld
                 live.Add(item.Id);
                 if (!_itemSprites.TryGetValue(item.Id, out var sprite))
                 {
+                    // Above every belt piece (≤5), below buildings (BuildingsZ + 3): items ride on top of
+                    // the chevrons and slide under the Core / machines at the hand-off.
                     var holder = new Node2D
                     {
                         Name = $"Item_{item.Id}",
-                        ZIndex = 5
+                        ZIndex = ItemsZ
                     };
-                    // Opaque disc so PNG alpha never shows the belt through the item.
-                    var back = new Polygon2D
+                    // Solid silhouette behind the icon: an outline ring plus an opaque fill, so the
+                    // belt chevrons never show through the icon's see-through facets.
+                    var solid = ItemSilhouette.Solid(ResolveItemTexture(item.ItemId));
+                    var dark = ItemPalette.OutlineFor(item.ItemId).Darkened(0.35f);
+                    holder.AddChild(new Sprite2D
                     {
-                        Name = "Back",
-                        Color = new Color(0.1f, 0.12f, 0.14f, 1f),
-                        Polygon =
-                        [
-                            new(-14, -14), new(14, -14), new(14, 14), new(-14, 14)
-                        ]
-                    };
-                    holder.AddChild(back);
+                        Name = "Outline",
+                        Texture = solid,
+                        Centered = true,
+                        Scale = new Vector2(ItemScale * 1.2f, ItemScale * 1.2f),
+                        Modulate = dark
+                    });
+                    holder.AddChild(new Sprite2D
+                    {
+                        Name = "Fill",
+                        Texture = solid,
+                        Centered = true,
+                        Scale = new Vector2(ItemScale, ItemScale),
+                        Modulate = dark
+                    });
                     var tex = ResolveItemTexture(item.ItemId);
                     sprite = new Sprite2D
                     {
                         Name = "Sprite",
                         Texture = tex,
                         Centered = true,
-                        Scale = new Vector2(0.85f, 0.85f),
+                        Scale = new Vector2(ItemScale, ItemScale),
                         Modulate = ItemPalette.ColorFor(item.ItemId)
                     };
                     holder.AddChild(sprite);
@@ -235,6 +248,14 @@ public partial class SpikeWorld
                     if (tex is not null)
                     {
                         sprite.Texture = tex;
+                        var solidTex = ItemSilhouette.Solid(tex);
+                        foreach (var name in new[] { "Outline", "Fill" })
+                        {
+                            if (sprite.GetParent()?.GetNodeOrNull<Sprite2D>(name) is { } layer)
+                            {
+                                layer.Texture = solidTex;
+                            }
+                        }
                     }
 
                     sprite.Modulate = ItemPalette.ColorFor(item.ItemId);
@@ -332,4 +353,58 @@ public partial class SpikeWorld
 
     private static Vector2 CellCenter(GridPosition cell) =>
         new((cell.X + 0.5f) * TileSize, (cell.Y + 0.5f) * TileSize);
+
+    /// <summary>Belt items at ~half a tile, like Mindustry (texture is 64px = 1 tile).</summary>
+    private const float ItemScale = 0.55f;
+
+    /// <summary>Draw order: belts (0–5) &lt; items &lt; buildings (+ their own child layers).</summary>
+    private const int ItemsZ = 7;
+    private const int BuildingsZ = 8;
+
+    /// <summary>CORE sprite + outline as a building node (z above belt items).</summary>
+    private void AddCoreVisual()
+    {
+        if (_slice is null || _buildingsLayer is null || _slice.CoreTiles.Count == 0)
+        {
+            return;
+        }
+
+        var minX = _slice.CoreTiles.Min(t => t.X);
+        var minY = _slice.CoreTiles.Min(t => t.Y);
+        var size = new Vector2(
+            (_slice.CoreTiles.Max(t => t.X) - minX + 1) * TileSize,
+            (_slice.CoreTiles.Max(t => t.Y) - minY + 1) * TileSize);
+        var root = new Node2D
+        {
+            Name = "Core",
+            ZIndex = 3,
+            Position = new Vector2(minX * TileSize, minY * TileSize)
+        };
+        if (_coreTex is not null)
+        {
+            root.AddChild(new Sprite2D
+            {
+                Texture = _coreTex,
+                Centered = false,
+                Scale = size / _coreTex.GetSize()
+            });
+        }
+        else
+        {
+            root.AddChild(new Polygon2D
+            {
+                Color = new Color(0.18f, 0.32f, 0.48f, 1f),
+                Polygon = [Vector2.Zero, new(size.X, 0), size, new(0, size.Y)]
+            });
+        }
+
+        root.AddChild(new Line2D
+        {
+            Points = [Vector2.Zero, new(size.X, 0), size, new(0, size.Y)],
+            Closed = true,
+            Width = 2f,
+            DefaultColor = new Color(0.35f, 0.78f, 0.9f, 1f)
+        });
+        _buildingsLayer.AddChild(root);
+    }
 }

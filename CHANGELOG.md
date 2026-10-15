@@ -7,6 +7,11 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Tutorial / UI
 
+- **HUD stile Mindustry**: colonna in alto a sinistra con pulsanti etichettati **Menu · Ricerca · Mercato · Campagna** (al posto di 7 icone senza nome); pannello CORE con **Fondi** (non più "Magazzino $"), energia e **tutte** le risorse possedute come icona + numero; obiettivi sotto; tolti i contatori tecnici "consegnati / nastro"
+- **Palette**: categorie a icone al posto di St/Lo/Pr/Po; niente numeri tagliati sugli slot, il tasto rapido è nel pannello info (`[2]`) e nel tooltip
+- **Ricerca**: trascina col sinistro per muoverti, rotella = zoom sul cursore, all'apertura l'albero è adattato alla vista (H lo ripristina)
+- **Mercato**: tabella compatta con icona, quantità, prezzo (arancione se sotto listino), valore, **Vendi 1 / Vendi tutto**; pannello alto quanto il contenuto; interruttore ON/OFF ben visibile
+- **Nastri**: gli oggetti sono a mezza casella con sagoma piena e contorno scuro (non si vede più la belt attraverso), passano **sotto** il CORE all'ingresso invece di sovrapporsi; frecce della belt più discrete
 - **Tutorial non bloccante**: scheda in basso a sinistra, il gioco resta giocabile; ogni passo avanza **da solo** quando lo completi (visuale, palette, minatore, nastro→CORE, Mercato, Ricerca, forno) con "✓ fatto"; testi corretti sui comandi reali
 - **Comandi**: trascina col tasto sinistro per muovere la visuale in modalità cursore (prima solo rotella premuta, ma il tutorial diceva "trascina"); tolti gli alias in conflitto **A** (assemblatore, ma A = pan WASD) e **G** (generatore, ma G = Campagna)
 - **Impostazioni**: overlay risorse (FPS/CPU/RAM/GPU) **spento di default** per i nuovi giocatori
