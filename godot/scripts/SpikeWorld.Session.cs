@@ -1,0 +1,414 @@
+using Godot;
+using TIndustry.Shared;
+
+namespace TIndustry.Godot;
+
+/// <summary>Game session flow: Home/Campagna/Nuova partita, camera, campaign completion, research locks, save/load.</summary>
+public partial class SpikeWorld
+{
+    private void OnHomeContinua()
+    {
+        if (!FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId))
+        {
+            _home?.RefreshContinua();
+            _hud?.ShowToast("Nessun salvataggio continua");
+            return;
+        }
+
+        LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Continua caricata");
+        _home?.Close();
+        BeginTutorialIfNeeded();
+    }
+
+    private void OnHomeCampaign()
+    {
+        _home?.Close();
+        _returnHomeAfterCampaign = true;
+        ToggleCampaign();
+    }
+
+    private void OnHomeNewGame()
+    {
+        StartNewSandbox(toast: true);
+        _home?.Close();
+        BeginTutorialIfNeeded();
+    }
+
+    private void StartNewSandbox(bool toast)
+    {
+        var content = FactoryContent.Load(_contentPath);
+        var core = FactorySlice.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
+        _slice = FactorySlice.CreateSandboxSlice(
+            content,
+            core,
+            coreSize: 2,
+            mapWidth: DefaultMapWidth,
+            mapHeight: DefaultMapHeight,
+            seed: 42,
+            startingMoney: 180);
+        _activeLevel = null;
+        _levelCompleteToastShown = false;
+        _tool = BuildTool.Cursor;
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        SyncResearchLocks();
+        UpdateHud();
+        _hud?.ClearObjectives();
+        SyncCameraMapBounds();
+        FocusCameraOnCore();
+        QueueRedraw();
+        if (toast)
+        {
+            _hud?.ShowToast($"Nuova partita · sandbox · seed {_slice.Terrain?.Seed ?? 42}");
+        }
+    }
+
+    private void ToggleResearch()
+    {
+        if (_slice is null || _research is null)
+        {
+            return;
+        }
+
+        if (_research.IsOpen)
+        {
+            _research.Close();
+            return;
+        }
+
+        _mercato?.Close();
+        _campaignSelect?.Close();
+        ClearToCursor(toast: false);
+        _research.Open(_slice);
+    }
+
+    private void ToggleMercato()
+    {
+        if (_slice is null || _mercato is null)
+        {
+            return;
+        }
+
+        if (_mercato.IsOpen)
+        {
+            _mercato.Close();
+            return;
+        }
+
+        _research?.Close();
+        _campaignSelect?.Close();
+        ClearToCursor(toast: false);
+        _mercato.Open(_slice);
+    }
+
+    private void OnCoreUpgradeRequested()
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        if (_slice.CoreUpgradeLevel > 0)
+        {
+            _hud?.ShowToast($"Core già a LV{_slice.CoreUpgradeLevel} (+{_slice.CoreSaleBonusPercent}%).");
+            return;
+        }
+
+        var need = _slice.FormatCoreUpgradeNeedMessage();
+        if (!string.IsNullOrEmpty(need))
+        {
+            _hud?.ShowToast(need);
+            return;
+        }
+
+        if (_slice.TryUpgradeCore())
+        {
+            _hud?.ShowToast($"Core potenziato: +{_slice.CoreSaleBonusPercent}% vendite!");
+            _hud?.SyncCoreUpgrade(_slice);
+            UpdateHud();
+        }
+    }
+
+    private void ToggleCampaign()
+    {
+        if (_campaign is null || _progress is null || _campaignSelect is null)
+        {
+            return;
+        }
+
+        if (_campaignSelect.IsOpen)
+        {
+            _campaignSelect.Close();
+            return;
+        }
+
+        _research?.Close();
+        _mercato?.Close();
+        _home?.Close();
+        ClearToCursor(toast: false);
+        _campaignSelect.Open(_campaign, _progress);
+    }
+
+    private void StartCampaignLevel(CampaignLevelDefinition level, bool toast)
+    {
+        if (_campaign is null)
+        {
+            return;
+        }
+
+        var content = FactoryContent.Load(_contentPath);
+        _slice = FactorySlice.CreateCampaignSlice(content, _campaign, level);
+        // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
+        // after placing miner, but also allow starting sells from stock if we add ore.
+        if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
+        {
+            _slice.Wallet.AddMaterial("iron-ore", 8);
+        }
+
+        _activeLevel = level;
+        _levelCompleteToastShown = false;
+        _tool = BuildTool.Cursor;
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        SyncResearchLocks();
+        UpdateHud();
+        SyncCameraMapBounds();
+        FocusCameraOnCore();
+        QueueRedraw();
+        if (toast)
+        {
+            var (w, h) = FactorySlice.ResolveCampaignMapSize(level);
+            _hud?.ShowToast($"Campagna · {level.Name} · {w}×{h} · seed {level.Seed}");
+            // Raylib: campaign disables first-run tutorial (objectives HUD only).
+        }
+    }
+
+    private void FocusCameraOnCore()
+    {
+        if (!HasNode("Camera") || _slice is null || _slice.CoreTiles.Count == 0)
+        {
+            return;
+        }
+
+        var cam = GetNode<Camera2D>("Camera");
+        var cx = _slice.CoreTiles.Average(t => t.X);
+        var cy = _slice.CoreTiles.Average(t => t.Y);
+        cam.Position = new Vector2((float)(cx + 0.5) * TileSize, (float)(cy + 0.5) * TileSize);
+        // Fit a bit of map around the core; zoom out on larger campaigns (culling keeps draw cheap).
+        var edge = Math.Max(ActiveMapWidth, ActiveMapHeight);
+        var z = edge <= 32 ? 0.55f
+            : edge <= 64 ? 0.35f
+            : edge <= 128 ? 0.25f
+            : edge <= 256 ? 0.18f
+            : 0.14f;
+        cam.Zoom = new Vector2(z, z);
+        if (cam is SpikeCamera spike)
+        {
+            // Allow deep zoom-out on 1000² without fighting Clamp.
+            spike.MinZoom = edge >= 256 ? 0.08f : 0.12f;
+            // Playable zoom near core so deposits/icons are readable (Raylib icons need ~16px).
+            if (edge >= 256 && z < 0.35f)
+            {
+                z = 0.42f;
+                cam.Zoom = new Vector2(z, z);
+            }
+        }
+
+        SyncCameraMapBounds();
+        if (cam is SpikeCamera spikeCam)
+        {
+            spikeCam.ClampToMap();
+        }
+    }
+
+    private void SyncCameraMapBounds()
+    {
+        if (!HasNode("Camera") || GetNode("Camera") is not SpikeCamera cam)
+        {
+            return;
+        }
+
+        cam.MapPixelWidth = ActiveMapWidth * TileSize;
+        cam.MapPixelHeight = ActiveMapHeight * TileSize;
+        cam.ClampToMap();
+    }
+
+    /// <summary>Viewport tile cull (Raylib WorldCamera.GetVisibleTileRange) for 1000² maps.</summary>
+    private void GetVisibleTileRange(out int minX, out int minY, out int maxX, out int maxY)
+    {
+        var mapW = Math.Max(1, ActiveMapWidth);
+        var mapH = Math.Max(1, ActiveMapHeight);
+        if (!HasNode("Camera"))
+        {
+            minX = 0;
+            minY = 0;
+            maxX = mapW - 1;
+            maxY = mapH - 1;
+            return;
+        }
+
+        var cam = GetNode<Camera2D>("Camera");
+        var zoom = Math.Max(0.01f, cam.Zoom.X);
+        var vp = GetViewport().GetVisibleRect().Size;
+        var halfW = (vp.X / zoom) * 0.5f;
+        var halfH = (vp.Y / zoom) * 0.5f;
+        var left = cam.Position.X - halfW;
+        var top = cam.Position.Y - halfH;
+        var right = cam.Position.X + halfW;
+        var bottom = cam.Position.Y + halfH;
+        const int margin = 2;
+        minX = Math.Max(0, (int)MathF.Floor(left / TileSize) - margin);
+        minY = Math.Max(0, (int)MathF.Floor(top / TileSize) - margin);
+        maxX = Math.Min(mapW - 1, (int)MathF.Floor(right / TileSize) + margin);
+        maxY = Math.Min(mapH - 1, (int)MathF.Floor(bottom / TileSize) + margin);
+        if (minX > maxX || minY > maxY)
+        {
+            minX = 0;
+            minY = 0;
+            maxX = Math.Min(mapW - 1, 48);
+            maxY = Math.Min(mapH - 1, 36);
+        }
+    }
+
+    private void CheckCampaignComplete()
+    {
+        if (_slice is null || _activeLevel is null || _progress is null || _campaign is null)
+        {
+            return;
+        }
+
+        if (!CampaignProgress.AreAllObjectivesComplete(
+                _activeLevel, _slice.Wallet, _slice.Session, _slice.Research))
+        {
+            return;
+        }
+
+        if (!_progress.IsCompleted(_activeLevel.Id))
+        {
+            _progress.MarkComplete(_activeLevel.Id, _progressPath);
+        }
+
+        if (!_levelCompleteToastShown)
+        {
+            _levelCompleteToastShown = true;
+            _hud?.ShowToast($"Livello completato · {_activeLevel.Name}");
+            _campaignSelect?.Refresh();
+        }
+    }
+
+    private void RestoreActiveLevelFromSlice()
+    {
+        if (_slice?.ActiveCampaignLevelId is not { } id || _campaign is null)
+        {
+            _activeLevel = null;
+            _hud?.ClearObjectives();
+            return;
+        }
+
+        _activeLevel = _campaign.Find(id);
+        _levelCompleteToastShown = false;
+    }
+
+    private void SyncResearchLocks()
+    {
+        if (_hud is null || _slice is null)
+        {
+            return;
+        }
+
+        var tools = new[]
+        {
+            FactoryHud.ToolKind.Belt,
+            FactoryHud.ToolKind.BeltFast,
+            FactoryHud.ToolKind.BeltExpress,
+            FactoryHud.ToolKind.Miner,
+            FactoryHud.ToolKind.MinerAdvanced,
+            FactoryHud.ToolKind.Smelter,
+            FactoryHud.ToolKind.Assembler,
+            FactoryHud.ToolKind.Junction,
+            FactoryHud.ToolKind.Splitter,
+            FactoryHud.ToolKind.Generator,
+            FactoryHud.ToolKind.Sorter,
+            FactoryHud.ToolKind.Bridge,
+            FactoryHud.ToolKind.Extractor,
+            FactoryHud.ToolKind.PowerNode,
+            FactoryHud.ToolKind.PowerNodeT2
+        };
+        _hud.SetToolsLocked(tools.Select(t =>
+            (t, !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(t)))));
+
+        if (_tool != BuildTool.Cursor && _hud.IsToolLocked(ToHudTool(_tool)))
+        {
+            ClearToCursor(toast: false);
+        }
+    }
+
+    private void SaveSlice(string slotId, string toast)
+    {
+        if (_slice is null)
+        {
+            return;
+        }
+
+        try
+        {
+            FactorySliceSaveStore.Save(slotId, _slice.Capture());
+            _hud?.ShowToast(toast);
+            GD.Print($"Saved slice → {FactorySliceSaveStore.SlotPath(slotId)}");
+        }
+        catch (Exception ex)
+        {
+            _hud?.ShowToast("Salvataggio fallito");
+            GD.PushError($"Save failed: {ex.Message}");
+        }
+    }
+
+    private void LoadSlice(string slotId, string toast, bool quietFail = false)
+    {
+        if (!FactorySliceSaveStore.TryLoad(slotId, out var data) || data is null)
+        {
+            if (!quietFail)
+            {
+                _hud?.ShowToast($"Nessun save ({slotId})");
+            }
+
+            return;
+        }
+
+        try
+        {
+            var content = FactoryContent.Load(_contentPath);
+            _slice = FactorySlice.Restore(content, data);
+            _itemSprites.Clear();
+            if (_itemsLayer is not null)
+            {
+                foreach (var child in _itemsLayer.GetChildren())
+                {
+                    child.QueueFree();
+                }
+            }
+
+            _visualDirty = true;
+            _buildingsDirty = true;
+            RebuildBeltVisual();
+            RebuildBuildingVisuals();
+            SyncResearchLocks();
+            RestoreActiveLevelFromSlice();
+            UpdateHud();
+            SyncCameraMapBounds();
+            FocusCameraOnCore();
+            QueueRedraw();
+            _hud?.ShowToast(toast);
+            GD.Print($"Loaded slice ← {FactorySliceSaveStore.SlotPath(slotId)}");
+        }
+        catch (Exception ex)
+        {
+            _hud?.ShowToast("Caricamento fallito");
+            GD.PushError($"Load failed: {ex.Message}");
+        }
+    }
+}

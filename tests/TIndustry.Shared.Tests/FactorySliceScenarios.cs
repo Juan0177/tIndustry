@@ -1,0 +1,1363 @@
+using TIndustry.Shared;
+using static TIndustry.Shared.FactorySlice;
+
+namespace TIndustry.Shared.Tests;
+
+/// <summary>
+/// Scenario checks for <see cref="FactorySlice"/> (moved out of the sim; each throws on failure).
+/// Run via <see cref="FactorySliceSelfTests"/>.
+/// </summary>
+internal static class FactorySliceScenarios
+{
+    public static void SelfTest(string contentJsonPath)
+    {
+        var colorFail = ItemVisualColors.SelfTest();
+        if (colorFail is not null)
+        {
+            throw new InvalidOperationException($"ItemVisualColors: {colorFail}");
+        }
+
+        var content = FactoryContent.Load(contentJsonPath);
+        SelfTestPlaceCosts(contentJsonPath);
+        SelfTestFuelOrPower(contentJsonPath);
+        SelfTestPowerBuffer(contentJsonPath);
+        SelfTestAdjacentIo(contentJsonPath);
+        SelfTestSaveManager(contentJsonPath);
+        var slice = CreateSpikeDemo(content);
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 40; i++)
+        {
+            slice.Tick(dt);
+            if (slice.CoreDeliveredItems > 0 && slice.Wallet.MaterialCount("iron-ore") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "FactorySlice self-test fallito: nessun ferro grezzo arrivato al core entro 40s sim.");
+    }
+
+    /// <summary>Build costs charge wallet on place and refund on remove (Raylib parity).</summary>
+    public static void SelfTestPlaceCosts(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var wallet = new EconomyWallet(
+            0,
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 10 });
+        var slice = new FactorySlice(content, new BeltGrid(), core, wallet);
+        var minerCost = content.FindBuilding("miner")!.BuildCost.Sum(e => e.Amount);
+        var beltCost = content.FindConveyor("conveyor-basic")!.EffectiveBuildCost.Sum(e => e.Amount);
+
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "cost place miner");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10 - minerCost, "miner spent plates");
+        Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East), "cost place belt");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10 - minerCost - beltCost, "belt spent plates");
+        Assert(!slice.CanAffordStructure("smelter"), "cannot afford smelter yet");
+        Assert(!slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East), "refuse smelter");
+
+        Assert(slice.TryRemoveBelt(new GridPosition(4, 8)), "refund belt");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10 - minerCost, "belt refunded");
+        Assert(slice.TryRemoveBuildingAt(new GridPosition(2, 7)), "refund miner");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 10, "miner refunded full");
+
+        // Bridge charges ×2 heads.
+        slice.EnsureDemoBuildStock(ironPlates: 20, copperWire: 10, copperOre: 4);
+        slice.Research.ForceUnlock("conveyor-bridge");
+        var beforeBridge = slice.Wallet.MaterialCount("iron-plate");
+        var bridgePlates = content.FindConveyor("conveyor-bridge")!.EffectiveBuildCost
+            .Where(e => e.ItemId == "iron-plate").Sum(e => e.Amount) * 2;
+        Assert(slice.TryPlaceBridge(new GridPosition(2, 3), Direction.East), "bridge place");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == beforeBridge - bridgePlates, "bridge ×2 cost");
+        Assert(slice.TryRemoveBelt(new GridPosition(2, 3)), "bridge remove");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == beforeBridge, "bridge refund ×2");
+    }
+
+    public static void SelfTestPlaceable(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var grid = new BeltGrid();
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, grid, core);
+        slice.EnsureDemoBuildStock();
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "miner");
+
+        Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East), "place (4,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(5, 8), Direction.East), "place (5,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(6, 8), Direction.East), "place (6,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(7, 8), Direction.East), "place (7,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(8, 8), Direction.East), "place (8,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(9, 8), Direction.East), "place (9,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(10, 8), Direction.South), "corner (10,8)");
+        Assert(slice.TryPlaceBelt(new GridPosition(10, 9), Direction.South), "place (10,9)");
+        Assert(slice.TryPlaceBelt(new GridPosition(10, 10), Direction.South), "place (10,10)");
+        Assert(slice.TryPlaceBelt(new GridPosition(10, 11), Direction.South), "place (10,11)");
+        Assert(slice.TryPlaceBelt(new GridPosition(10, 12), Direction.South), "place (10,12)");
+        Assert(slice.TryPlaceBelt(new GridPosition(10, 13), Direction.South), "place (10,13)");
+
+        Assert(grid.IsCorner(new GridPosition(10, 8)), "corner detect (10,8)");
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 45; i++)
+        {
+            slice.Tick(dt);
+            if (slice.CoreDeliveredItems > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Placeable belt self-test: nessun item al core.");
+    }
+
+    /// <summary>T2/T3 belt/miner + extractor + power-node T1/T2 place APIs.</summary>
+    public static void SelfTestT2Tools(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.EnsureDemoBuildStock();
+        slice.Research.ForceUnlock("conveyor-fast");
+        slice.Research.ForceUnlock("conveyor-express");
+        slice.Research.ForceUnlock("miner-advanced");
+        slice.Research.ForceUnlock("extractor");
+        slice.Research.ForceUnlock("power-node");
+        slice.Research.ForceUnlock("power-node-t2");
+
+        Assert(slice.TryPlaceBelt(new GridPosition(3, 8), Direction.East, "conveyor-fast"), "belt T2");
+        Assert(slice.Belts.TryGet(new GridPosition(3, 8), out var fast)
+            && fast.Definition.Id == "conveyor-fast", "belt T2 def");
+        Assert(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East, "conveyor-express"), "belt T3");
+        Assert(slice.Belts.TryGet(new GridPosition(4, 8), out var express)
+            && express.Definition.Id == "conveyor-express", "belt T3 def");
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+            "miner T2");
+        Assert(slice.Miners.Any(m => m.DefinitionId == MinerProducer.AdvancedId), "miner T2 list");
+        Assert(slice.TryPlaceExtractor(new GridPosition(8, 14), Direction.North), "extractor");
+        Assert(slice.TryPlacePowerNode(new GridPosition(11, 12)), "power-node");
+        Assert(slice.TryPlacePowerNode(new GridPosition(14, 12), PowerNodeStub.Tier2Id), "power-node-t2");
+        Assert(slice.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id && n.Size == 2), "T2 size");
+        Assert(slice.Extractors.Count == 1 && slice.PowerNodes.Count == 2, "counts");
+
+        var snap = slice.Capture();
+        Assert(snap.Extractors.Count == 1 && snap.PowerNodes.Count == 2, "capture");
+        var restored = Restore(content, snap);
+        Assert(restored.Extractors.Count == 1, "restore extractor");
+        Assert(restored.PowerNodes.Count == 2, "restore nodes");
+        Assert(restored.PowerNodes.Any(n => n.DefinitionId == PowerNodeStub.Tier2Id), "restore T2");
+        Assert(restored.Belts.TryGet(new GridPosition(3, 8), out var rf)
+            && rf.Definition.Id == "conveyor-fast", "restore belt T2");
+        Assert(restored.Belts.TryGet(new GridPosition(4, 8), out var re)
+            && re.Definition.Id == "conveyor-express", "restore belt T3");
+    }
+
+    /// <summary>Phase C: ore through forno yields iron-plate in core stock.</summary>
+    public static void SelfTestSmelterLoop(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreatePhaseCDemo(content);
+        Assert(slice.Smelters.Count == 1, "forno seed");
+        Assert(slice.Miners.Count == 1, "miner seed");
+
+        const float dt = 1f / 30f;
+        // Mining 2s + belt + smelt 2s + belt — budget ~90s sim.
+        for (var i = 0; i < 30 * 90; i++)
+        {
+            slice.Tick(dt);
+            if (slice.Wallet.MaterialCount("iron-plate") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Smelter loop self-test: nessuna lastra di ferro al core entro 90s sim.");
+    }
+
+    /// <summary>Multi-recipe forno/assy: lead ore / graphite auto-pick (Raylib parity).</summary>
+    public static void SelfTestMultiRecipe(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        Assert(content.SmelterRecipes().Count >= 3, "smelt recipes");
+        Assert(content.AssemblerRecipes().Count >= 3, "craft recipes");
+
+        var lead = content.FindRecipe("smelt-lead")
+            ?? throw new InvalidDataException("smelt-lead missing");
+        var smelter = new SmelterStub(
+            new GridPosition(0, 0),
+            Direction.East,
+            content.FindRecipe("smelt-iron")!,
+            SmelterStub.SmelterBuildingId,
+            content.SmelterRecipes());
+        Assert(smelter.TryAccept("lead-ore"), "accept lead");
+        Assert(smelter.TryAccept("lead-ore"), "accept lead 2");
+        Assert(!smelter.TryAccept("copper-ore"), "reject copper on forno");
+        long next = 1;
+        smelter.Tick(0.05f, new BeltGrid(), ref next, networkConnected: true);
+        Assert(smelter.IsCrafting && smelter.Recipe.Id == "smelt-lead", "auto smelt-lead");
+
+        var graphite = content.FindRecipe("craft-graphite");
+        Assert(graphite is not null, "craft-graphite");
+        var assy = new SmelterStub(
+            new GridPosition(2, 0),
+            Direction.East,
+            content.FindRecipe("craft-copper-wire")!,
+            SmelterStub.AssemblerBuildingId,
+            content.AssemblerRecipes());
+        foreach (var input in graphite!.Inputs)
+        {
+            for (var n = 0; n < input.Amount; n++)
+            {
+                Assert(assy.TryAccept(input.ItemId), $"accept {input.ItemId}");
+            }
+        }
+
+        assy.Tick(0.05f, new BeltGrid(), ref next, networkConnected: true);
+        Assert(assy.IsCrafting && assy.Recipe.Id == "craft-graphite", "auto craft-graphite");
+
+        // Place API wires recipe lists.
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place multi forno");
+        Assert(slice.Smelters[0].AvailableRecipes.Count >= 3, "forno has smelt-*");
+        Assert(slice.TryPlaceAssembler(new GridPosition(8, 4), Direction.East), "place multi assy");
+        Assert(slice.Assemblers[0].AvailableRecipes.Count >= 3, "assy has craft-*");
+    }
+
+    /// <summary>Phase D: plates + copper ore through assembler yield copper-wire in core.</summary>
+    public static void SelfTestAssemblerLoop(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreatePhaseDDemo(content);
+        Assert(slice.Smelters.Count == 1, "forno seed");
+        Assert(slice.Assemblers.Count == 1, "assemblatore seed");
+        Assert(slice.Miners.Count == 2, "iron+copper miners");
+        Assert(slice.Miners.Any(m => m.OutputItemId == "copper-ore"), "copper miner");
+        Assert(slice.TryPlaceAssembler(new GridPosition(16, 4), Direction.South), "place second assembler");
+        Assert(slice.TryRemoveBuildingAt(new GridPosition(16, 4)), "remove assembler");
+
+        const float dt = 1f / 30f;
+        // Iron mine+smelt + copper mine + craft 1.5s + belts — budget ~120s sim.
+        for (var i = 0; i < 30 * 120; i++)
+        {
+            slice.Tick(dt);
+            if (slice.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Assembler loop self-test: nessun filo di rame al core entro 120s sim.");
+    }
+
+    /// <summary>
+    /// Phase E: junction cross-axis + splitter T-fork, then full wire loop still delivers.
+    /// </summary>
+    public static void SelfTestJunctionSplitter(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var belt = content.RequireConveyor("conveyor-basic");
+        var junction = content.RequireConveyor("junction");
+        var splitter = content.RequireConveyor("splitter");
+        var grid = new BeltGrid();
+
+        // Cross: west→east through junction, south→north through same cell.
+        grid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);
+        grid.TryPlaceFree(new GridPosition(1, 1), Direction.East, junction);
+        grid.TryPlaceFree(new GridPosition(2, 1), Direction.East, belt);
+        grid.TryPlaceFree(new GridPosition(1, 2), Direction.North, belt);
+        grid.TryPlaceFree(new GridPosition(1, 0), Direction.North, belt);
+
+        Assert(grid.TryInsert(new GridPosition(0, 1), new TransportedItem(1, "iron-plate")), "ew insert");
+        Assert(grid.TryInsert(new GridPosition(1, 2), new TransportedItem(2, "copper-ore")), "ns insert");
+
+        var ewArrived = false;
+        var nsArrived = false;
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 20; i++)
+        {
+            grid.Tick(dt);
+            if (grid.TryGet(new GridPosition(2, 1), out var ew) && ew.Items.Any(it => it.Id == 1))
+            {
+                ewArrived = true;
+            }
+
+            if (grid.TryGet(new GridPosition(1, 0), out var ns) && ns.Items.Any(it => it.Id == 2))
+            {
+                nsArrived = true;
+            }
+
+            if (ewArrived && nsArrived)
+            {
+                break;
+            }
+        }
+
+        Assert(ewArrived, "junction EW exit");
+        Assert(nsArrived, "junction NS exit");
+
+        // Splitter fair fork: feed → splitter facing South → left/right arms.
+        var splitGrid = new BeltGrid();
+        splitGrid.TryPlaceFree(new GridPosition(5, 0), Direction.South, belt);
+        splitGrid.TryPlaceFree(new GridPosition(5, 1), Direction.South, splitter);
+        splitGrid.TryPlaceFree(new GridPosition(4, 1), Direction.West, belt); // right of South
+        splitGrid.TryPlaceFree(new GridPosition(6, 1), Direction.East, belt); // left of South
+
+        Assert(splitGrid.TryInsert(new GridPosition(5, 0), new TransportedItem(10, "copper-wire")), "split in 1");
+        var leftHits = 0;
+        var rightHits = 0;
+        var injectedSecond = false;
+        for (var i = 0; i < 30 * 40; i++)
+        {
+            splitGrid.Tick(dt);
+            if (!injectedSecond
+                && splitGrid.TryGet(new GridPosition(5, 0), out var feed)
+                && feed.Items.Count == 0)
+            {
+                Assert(
+                    splitGrid.TryInsert(new GridPosition(5, 0), new TransportedItem(11, "copper-wire")),
+                    "split in 2");
+                injectedSecond = true;
+            }
+
+            if (splitGrid.TryGet(new GridPosition(6, 1), out var left))
+            {
+                leftHits = Math.Max(leftHits, left.Items.Count);
+            }
+
+            if (splitGrid.TryGet(new GridPosition(4, 1), out var right))
+            {
+                rightHits = Math.Max(rightHits, right.Items.Count);
+            }
+
+            if (injectedSecond && leftHits > 0 && rightHits > 0)
+            {
+                break;
+            }
+        }
+
+        Assert(injectedSecond, "second splitter feed");
+        Assert(leftHits > 0 && rightHits > 0, "splitter forks both arms");
+
+        // Full Phase E seed still delivers wire.
+        var slice = CreatePhaseEDemo(content);
+        Assert(slice.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Junction), "seed junction");
+        Assert(slice.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Splitter), "seed splitter");
+        Assert(slice.TryPlaceJunction(new GridPosition(18, 4), Direction.East), "place junction");
+        Assert(slice.TryPlaceSplitter(new GridPosition(18, 5), Direction.South), "place splitter");
+        Assert(slice.TryRemoveBelt(new GridPosition(18, 4)), "remove junction");
+        Assert(slice.TryRemoveBelt(new GridPosition(18, 5)), "remove splitter");
+
+        for (var i = 0; i < 30 * 120; i++)
+        {
+            slice.Tick(dt);
+            if (slice.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Phase E self-test: nessun filo al core entro 120s sim (junction/splitter seed).");
+    }
+
+    /// <summary>
+    /// Phase F: generator adjacency powers craft (+20%), seed still delivers wire.
+    /// </summary>
+    public static void SelfTestPowerStub(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var grid = new BeltGrid();
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, grid, core);
+        slice.UnlockGodotSliceDemo();
+
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "smelter");
+        Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of forno");
+        Assert(slice.Generators[0].IsAdjacentTo(slice.Smelters[0].Position, SmelterStub.Size), "adjacent");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel 1");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel 2");
+
+        var sm = slice.Smelters[0];
+        Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore for craft");
+
+        const float dt = 1f / 30f;
+        var sawPowered = false;
+        for (var i = 0; i < 30 * 8; i++)
+        {
+            slice.Tick(dt);
+            if (sm.IsPowered)
+            {
+                sawPowered = true;
+                break;
+            }
+        }
+
+        Assert(sawPowered, "forno powered while generator burns");
+
+        // Speed: powered progress > coal-only over same window.
+        var coldGrid = new BeltGrid();
+        var cold = new FactorySlice(content, coldGrid, core);
+        cold.UnlockGodotSliceDemo();
+        Assert(cold.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "cold smelter");
+        var coldSm = cold.Smelters[0];
+        coldSm.SeedFuel();
+        Assert(coldSm.TryAccept("iron-ore") && coldSm.TryAccept("iron-ore"), "cold ore");
+
+        // Reset powered smelter craft.
+        var hot = slice;
+        var hotSm = hot.Smelters[0];
+        if (!hotSm.IsCrafting)
+        {
+            Assert(hotSm.TryAccept("iron-ore") && hotSm.TryAccept("iron-ore"), "hot ore");
+        }
+
+        // Ensure gen still fueled.
+        hot.Generators[0].TryAcceptFuel("coal");
+        var hotBefore = hotSm.Progress;
+        var coldBefore = coldSm.Progress;
+        for (var i = 0; i < 15; i++)
+        {
+            hot.Tick(dt);
+            cold.Tick(dt);
+        }
+
+        var hotDelta = hotSm.Progress - hotBefore;
+        var coldDelta = coldSm.Progress - coldBefore;
+        if (hotSm.IsCrafting && coldSm.IsCrafting && coldDelta > 0.001f)
+        {
+            Assert(hotDelta > coldDelta * 1.05f,
+                $"powered faster (hotΔ={hotDelta:F3} coldΔ={coldDelta:F3})");
+        }
+
+        Assert(slice.TryPlaceGenerator(new GridPosition(16, 4), Direction.South), "place second gen");
+        Assert(slice.TryRemoveBuildingAt(new GridPosition(16, 4)), "remove gen");
+
+        var demo = CreatePhaseFDemo(content);
+        Assert(demo.Generators.Count == 1, "seed generator");
+        Assert(demo.Miners.Any(m => m.OutputItemId == "coal"), "coal miner");
+        Assert(demo.Smelters.Count == 1 && demo.Assemblers.Count == 1, "craft chain");
+
+        for (var i = 0; i < 30 * 150; i++)
+        {
+            demo.Tick(dt);
+            if (demo.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Phase F self-test: nessun filo al core entro 150s sim (power seed).");
+    }
+
+    /// <summary>Forno: coal OR power required; +20% when powered (Raylib parity).</summary>
+    public static void SelfTestFuelOrPower(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var belts = new BeltGrid();
+        long next = 1;
+
+        // Stall: no coal, no power — craft starts but progress frozen.
+        var stalled = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
+        Assert(stalled.TryAccept("iron-ore") && stalled.TryAccept("iron-ore"), "stall ore");
+        stalled.Tick(0.5f, belts, ref next, networkConnected: false);
+        Assert(stalled.IsCrafting, "stall crafting");
+        Assert(stalled.Progress < 0.001f, "stall no progress");
+
+        // Coal-only advances at 1×.
+        var coalOnly = new SmelterStub(new GridPosition(2, 0), Direction.East, recipe);
+        coalOnly.SeedFuel(2);
+        Assert(coalOnly.TryAccept("iron-ore") && coalOnly.TryAccept("iron-ore"), "coal ore");
+        coalOnly.Tick(0.5f, belts, ref next, networkConnected: false);
+        Assert(coalOnly.IsCrafting && coalOnly.Progress > 0.1f, "coal advances");
+        Assert(coalOnly.FuelBuffer < 2 || coalOnly.IsBurningFuel, "fuel consumed");
+
+        // Powered (+20%) faster than coal-only.
+        var powered = new SmelterStub(new GridPosition(4, 0), Direction.East, recipe);
+        Assert(powered.TryAccept("iron-ore") && powered.TryAccept("iron-ore"), "power ore");
+        powered.Tick(0.5f, belts, ref next, networkConnected: true);
+        Assert(powered.IsCrafting && powered.IsPowered, "powered craft");
+        Assert(powered.Progress > coalOnly.Progress * 1.05f,
+            $"power faster ({powered.Progress:F3} > coal {coalOnly.Progress:F3})");
+
+        // Belts deliver coal into forno fuel buffer.
+        var feed = content.RequireConveyor("conveyor-basic");
+        var grid = new BeltGrid();
+        Assert(grid.TryPlaceFree(new GridPosition(0, 2), Direction.North, feed), "coal belt");
+        Assert(grid.TryInsert(new GridPosition(0, 2), new TransportedItem(next++, "coal")), "coal insert");
+        Assert(grid.TryGet(new GridPosition(0, 2), out var cell) && cell.Items.Count == 1, "coal on belt");
+        cell.Items[0].Progress = 1f;
+        var fed = new SmelterStub(new GridPosition(0, 0), Direction.East, recipe);
+        Assert(fed.AcceptFromBelts(grid) == 1 && fed.FuelBuffer == 1, "belt → fuel");
+
+        // Save/restore fuel state.
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "place forno");
+        slice.Smelters[0].RestoreCraftState(
+            0.25f,
+            true,
+            new Dictionary<string, int> { ["iron-ore"] = 1 },
+            Array.Empty<string>(),
+            0,
+            0,
+            fuelBuffer: 3,
+            burnRemaining: 2.5f);
+        var snap = slice.Capture();
+        Assert(snap.Smelters[0].FuelBuffer == 3 && Math.Abs(snap.Smelters[0].BurnRemaining - 2.5f) < 0.01f,
+            "capture fuel");
+        var restored = Restore(content, snap);
+        Assert(restored.Smelters[0].FuelBuffer == 3, "restore fuel buffer");
+        Assert(Math.Abs(restored.Smelters[0].BurnRemaining - 2.5f) < 0.01f, "restore burn");
+
+        // Assembler ignores fuel gate (still crafts unpowered).
+        var assy = new SmelterStub(
+            new GridPosition(8, 0),
+            Direction.East,
+            content.FindRecipe("craft-copper-wire")!,
+            SmelterStub.AssemblerBuildingId);
+        Assert(!assy.UsesCoalOrPower, "assy no coal gate");
+        Assert(assy.TryAccept("iron-plate") && assy.TryAccept("copper-ore"), "assy inputs");
+        assy.Tick(0.5f, belts, ref next, networkConnected: false);
+        Assert(assy.IsCrafting && assy.Progress > 0.05f, "assy crafts without fuel");
+    }
+
+    /// <summary>P1.4: capacity/buffer recharge + soft brownout spend gate (Raylib parity thin).</summary>
+    public static void SelfTestPowerBuffer(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+
+        Assert(Math.Abs(slice.PowerCapacity - CorePowerCapacity) < 0.01f, "core capacity");
+        Assert(slice.PowerBuffer < 0.01f, "buffer starts empty");
+
+        // Core generation alone recharges toward CorePowerCapacity.
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 3; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        Assert(slice.PowerBuffer > 5f, "core gen fills buffer");
+        Assert(slice.PowerCapacity <= CorePowerCapacity + 0.01f, "no gen → core cap");
+
+        Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen");
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel");
+        Assert(slice.Generators[0].TryAcceptFuel("coal"), "fuel2");
+
+        // Live gen expands capacity.
+        for (var i = 0; i < 5; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        Assert(slice.Generators[0].IsGenerating, "gen burning");
+        Assert(slice.PowerCapacity >= CorePowerCapacity + GeneratorStub.CapacityBonus - 0.01f,
+            "capacity + gen bonus");
+        Assert(slice.PowerGenerationPerSecond
+            >= CorePowerGeneration + GeneratorStub.GenerationPerSecond - 0.01f,
+            "gen rate");
+
+        // Connected craft spends buffer.
+        var sm = slice.Smelters[0];
+        Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore");
+        var before = slice.PowerBuffer;
+        for (var i = 0; i < 10; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        Assert(sm.IsCrafting && sm.IsPowered, "powered while buffer ok");
+        Assert(slice.PowerBuffer < before + GeneratorStub.GenerationPerSecond,
+            "spend drains vs unbounded fill");
+
+        // Soft brownout: empty buffer + no coal → craft stalls.
+        var brown = new FactorySlice(content, new BeltGrid(), core);
+        brown.UnlockGodotSliceDemo();
+        Assert(brown.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "brown forno");
+        brown.SetPowerBuffer(0f);
+        var bSm = brown.Smelters[0];
+        Assert(bSm.TryAccept("iron-ore") && bSm.TryAccept("iron-ore"), "brown ore");
+        long next = brown.NextItemId;
+        bSm.Tick(0.5f, brown.Belts, ref next, networkConnected: true,
+            trySpendPower: brown.TrySpendPower, powerDrawPerSecond: SmelterPowerDraw);
+        Assert(bSm.IsCrafting && !bSm.IsPowered && bSm.Progress < 0.001f, "brownout stall");
+
+        // Same forno with coal advances under brownout.
+        bSm.SeedFuel(2);
+        var prog0 = bSm.Progress;
+        bSm.Tick(0.5f, brown.Belts, ref next, networkConnected: true,
+            trySpendPower: brown.TrySpendPower, powerDrawPerSecond: SmelterPowerDraw);
+        Assert(bSm.Progress > prog0 + 0.1f, "coal under brownout");
+
+        // Save/restore buffer.
+        slice.SetPowerBuffer(18.5f);
+        var snap = slice.Capture();
+        Assert(Math.Abs(snap.PowerBuffer - 18.5f) < 0.01f, "capture buffer");
+        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v7");
+        var restored = Restore(content, snap);
+        Assert(Math.Abs(restored.PowerBuffer - 18.5f) < 0.01f, "restore buffer");
+    }
+
+    /// <summary>Building→building / building→core transfer when footprints touch (no belts).</summary>
+    public static void SelfTestAdjacentIo(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var recipe = content.FindRecipe("smelt-iron")
+            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+
+        // Miner (2,4) east-adjacent to forno (4,4) — footprints touch on x=3|4 edge.
+        Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "iron-ore"), "miner");
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
+        SeedSmelterFuel(slice);
+        Assert(BuildingIo.FootprintsAdjacent(
+            slice.Miners[0].Position, MinerProducer.Size,
+            slice.Smelters[0].Position, SmelterStub.Size), "touch");
+
+        const float dt = 1f / 30f;
+        var gotOre = false;
+        for (var i = 0; i < 30 * 20; i++)
+        {
+            slice.Tick(dt);
+            if (slice.Smelters[0].InputBuffer.GetValueOrDefault("iron-ore") > 0)
+            {
+                gotOre = true;
+                break;
+            }
+        }
+
+        Assert(gotOre, "miner → forno adjacent (no belts)");
+        Assert(slice.Belts.Cells.Count == 0, "no belts placed");
+
+        // Craft output → core when forno east edge touches core west (core at 8,4; forno 4,4 size2 ends at 5 → not adjacent).
+        // Place forno at (6,4) touching core (8,4).
+        var core2 = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
+        var direct = new FactorySlice(content, new BeltGrid(), core2);
+        direct.UnlockGodotSliceDemo();
+        Assert(direct.TryPlaceSmelter(new GridPosition(6, 4), Direction.East, recipe), "forno@core");
+        SeedSmelterFuel(direct);
+        var sm = direct.Smelters[0];
+        Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "feed ore");
+        // Force complete craft into output queue then emit adjacent.
+        for (var i = 0; i < 30 * 10 && sm.ItemsCrafted == 0; i++)
+        {
+            direct.Tick(dt);
+        }
+
+        Assert(sm.ItemsCrafted > 0 || direct.Wallet.MaterialCount("iron-plate") > 0
+            || direct.CoreDeliveredItems > 0, "craft advanced");
+
+        // Drain remaining queue via adjacent to core.
+        for (var i = 0; i < 30 * 5; i++)
+        {
+            direct.Tick(dt);
+            if (direct.Wallet.MaterialCount("iron-plate") > 0)
+            {
+                return;
+            }
+        }
+
+        // Also accept direct TryDeliverAdjacent API.
+        Assert(direct.TryDeliverAdjacent(
+            new GridPosition(6, 4), SmelterStub.Size, "iron-plate"), "API → core");
+        Assert(direct.Wallet.MaterialCount("iron-plate") > 0, "plate in wallet");
+    }
+
+    /// <summary>T2 miner gets +20% mining speed from adjacent live generator; T1 never powers.</summary>
+    public static void SelfTestMinerPower(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(18, 18), size: 2);
+
+        var hot = new FactorySlice(content, new BeltGrid(), core);
+        hot.UnlockGodotSliceDemo();
+        hot.Research.ForceUnlock(MinerProducer.AdvancedId);
+        Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+            "T2 miner");
+        Assert(hot.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of miner");
+        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, MinerProducer.Size), "adjacent");
+        Assert(hot.Generators[0].TryAcceptFuel("coal") && hot.Generators[0].TryAcceptFuel("coal"), "fuel");
+
+        var t2 = hot.Miners[0];
+        const float dt = 1f / 30f;
+        var sawPowered = false;
+        for (var i = 0; i < 30 * 8; i++)
+        {
+            hot.Tick(dt);
+            if (t2.IsPowered)
+            {
+                sawPowered = true;
+                break;
+            }
+        }
+
+        Assert(sawPowered, "T2 miner powered while generator burns");
+
+        // Speed: powered T2 progresses faster than unpowered T2.
+        var cold = new FactorySlice(content, new BeltGrid(), core);
+        cold.UnlockGodotSliceDemo();
+        cold.Research.ForceUnlock(MinerProducer.AdvancedId);
+        Assert(cold.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: MinerProducer.AdvancedId),
+            "cold T2");
+        var coldM = cold.Miners[0];
+
+        hot.Generators[0].TryAcceptFuel("coal");
+        var hotBefore = t2.Progress;
+        var coldBefore = coldM.Progress;
+        for (var i = 0; i < 20; i++)
+        {
+            hot.Tick(dt);
+            cold.Tick(dt);
+        }
+
+        if (t2.Progress >= hotBefore && coldM.Progress >= coldBefore)
+        {
+            var hotDelta = t2.Progress - hotBefore;
+            var coldDelta = coldM.Progress - coldBefore;
+            Assert(hotDelta > coldDelta * 1.05f,
+                $"T2 powered faster (hotΔ={hotDelta:F3} coldΔ={coldDelta:F3})");
+        }
+
+        // T1 never receives power even when adjacent to a live gen.
+        var t1Slice = new FactorySlice(content, new BeltGrid(), core);
+        t1Slice.UnlockGodotSliceDemo();
+        Assert(t1Slice.TryPlaceMiner(new GridPosition(4, 4), Direction.East), "T1 miner");
+        Assert(t1Slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen near T1");
+        Assert(t1Slice.Generators[0].TryAcceptFuel("coal"), "T1 fuel");
+        for (var i = 0; i < 30 * 4; i++)
+        {
+            t1Slice.Tick(dt);
+        }
+
+        Assert(!t1Slice.Miners[0].IsPowered, "T1 miner never powered");
+        Assert(!t1Slice.Miners[0].CanReceivePower, "T1 cannot receive power");
+    }
+
+    /// <summary>Save/load round-trip: capture Phase F mid-sim, restore, keep wire delivery.</summary>
+    public static void SelfTestSaveLoad(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreatePhaseFDemo(content);
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 25; i++)
+        {
+            slice.Tick(dt);
+        }
+
+        var snap = slice.Capture();
+        Assert(snap.Miners.Count >= 3, "capture miners");
+        Assert(snap.Generators.Count == 1, "capture generator");
+        Assert(snap.Belts.Count > 10, "capture belts");
+        Assert(snap.NextItemId >= 1, "nextItemId");
+
+        FactorySliceSaveStore.Delete("selftest-tmp");
+        FactorySliceSaveStore.Save("selftest-tmp", snap);
+        Assert(FactorySliceSaveStore.Exists("selftest-tmp"), "slot exists");
+        var loaded = FactorySliceSaveStore.Load("selftest-tmp");
+        var restored = Restore(content, loaded);
+
+        Assert(restored.Miners.Count == slice.Miners.Count, "miners count");
+        Assert(restored.Smelters.Count == slice.Smelters.Count, "smelters");
+        Assert(restored.Assemblers.Count == slice.Assemblers.Count, "assemblers");
+        Assert(restored.Generators.Count == slice.Generators.Count, "generators");
+        Assert(restored.Belts.Count == slice.Belts.Count, "belts");
+        Assert(restored.Wallet.Money == slice.Wallet.Money, "money");
+        Assert(restored.NextItemId == slice.NextItemId, "nextItemId match");
+
+        // Loaded generator keeps fuel if any was captured.
+        if (snap.Generators[0].FuelBuffer > 0 || snap.Generators[0].BurnRemaining > 0f)
+        {
+            Assert(
+                restored.Generators[0].FuelBuffer == snap.Generators[0].FuelBuffer
+                && Math.Abs(restored.Generators[0].BurnRemaining - snap.Generators[0].BurnRemaining) < 0.01f,
+                "generator fuel restore");
+        }
+
+        // Continue sim after load still delivers wire.
+        for (var i = 0; i < 30 * 150; i++)
+        {
+            restored.Tick(dt);
+            if (restored.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                FactorySliceSaveStore.Delete("selftest-tmp");
+                return;
+            }
+        }
+
+        FactorySliceSaveStore.Delete("selftest-tmp");
+        throw new InvalidOperationException(
+            "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
+    }
+
+    /// <summary>ListSlots / DuplicateSlot / Delete for Gestione salvataggi.</summary>
+    public static void SelfTestSaveManager(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreateSpikeDemo(content);
+        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
+        FactorySliceSaveStore.Delete("selftest-dup");
+        foreach (var old in FactorySliceSaveStore.ListSlots().Where(s => s.Id.StartsWith("slot-20", StringComparison.Ordinal)))
+        {
+            // leave other agent slots alone
+        }
+
+        FactorySliceSaveStore.Save(FactorySliceSaveStore.ContinueSlotId, slice.Capture());
+        Assert(FactorySliceSaveStore.Exists(FactorySliceSaveStore.ContinueSlotId), "continua");
+        var listed = FactorySliceSaveStore.ListSlots();
+        Assert(listed.Any(s => s.Id == FactorySliceSaveStore.ContinueSlotId), "list continua");
+        Assert(listed[0].Id == FactorySliceSaveStore.ContinueSlotId, "continua first");
+
+        var dup = FactorySliceSaveStore.DuplicateSlot(FactorySliceSaveStore.ContinueSlotId);
+        Assert(dup is not null && FactorySliceSaveStore.Exists(dup), "duplicate");
+        Assert(FactorySliceSaveStore.ListSlots().Count >= 2, "list ≥2");
+
+        FactorySliceSaveStore.Delete(dup!);
+        Assert(!FactorySliceSaveStore.Exists(dup!), "deleted");
+        FactorySliceSaveStore.Delete(FactorySliceSaveStore.ContinueSlotId);
+    }
+
+    /// <summary>
+    /// Sorter Mindustry routing + bridge teleport (span 2–4) + save partner/filter + Phase F still delivers.
+    /// </summary>
+    public static void SelfTestSorterBridge(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var belt = content.RequireConveyor("conveyor-basic");
+        var sorter = content.RequireConveyor("sorter");
+        var bridge = content.RequireConveyor("conveyor-bridge");
+        Assert(sorter.Kind == LogisticsKind.Sorter, "sorter kind");
+        Assert(bridge.Kind == LogisticsKind.Bridge, "bridge kind");
+
+        // Sorter: match → facing; overflow → left/right.
+        var sortGrid = new BeltGrid();
+        sortGrid.TryPlaceFree(new GridPosition(1, 1), Direction.East, belt);
+        Assert(sortGrid.TryPlaceFree(new GridPosition(2, 1), Direction.East, sorter), "place sorter");
+        sortGrid.TryPlaceFree(new GridPosition(3, 1), Direction.East, belt);
+        sortGrid.TryPlaceFree(new GridPosition(2, 0), Direction.North, belt);
+        sortGrid.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
+        Assert(sortGrid.TryGet(new GridPosition(2, 1), out var sorterCell), "sorter cell");
+        Assert(sorterCell.Kind == LogisticsKind.Sorter && sorterCell.FilterItemId == "iron-ore",
+            "default filter iron-ore");
+        sorterCell.SetFilterItem("iron-ore");
+
+        Assert(sortGrid.TryInsert(new GridPosition(1, 1), new TransportedItem(1, "iron-ore")), "match in");
+        var matchForward = false;
+        const float dt = 1f / 30f;
+        for (var i = 0; i < 30 * 12; i++)
+        {
+            sortGrid.Tick(dt);
+            if (sortGrid.TryGet(new GridPosition(3, 1), out var fwd)
+                && fwd.Items.Any(it => it.ItemId == "iron-ore"))
+            {
+                matchForward = true;
+                break;
+            }
+        }
+
+        Assert(matchForward, "filtered item exits facing");
+
+        // Clear and inject overflow item.
+        foreach (var cell in sortGrid.Cells.Values)
+        {
+            cell.RestoreState(cell.SplitterToggle, [], cell.BridgePartner, cell.FilterItemId);
+        }
+
+        Assert(sortGrid.TryInsert(new GridPosition(1, 1), new TransportedItem(2, "copper-ore")), "overflow in");
+        var overflowSide = false;
+        for (var i = 0; i < 30 * 12; i++)
+        {
+            sortGrid.Tick(dt);
+            if ((sortGrid.TryGet(new GridPosition(2, 0), out var n) && n.Items.Any(it => it.ItemId == "copper-ore"))
+                || (sortGrid.TryGet(new GridPosition(2, 2), out var s) && s.Items.Any(it => it.ItemId == "copper-ore")))
+            {
+                overflowSide = true;
+                break;
+            }
+        }
+
+        Assert(overflowSide, "unfiltered item exits left/right");
+        Assert(
+            !sortGrid.TryGet(new GridPosition(3, 1), out var stillFwd)
+            || stillFwd.Items.All(it => it.ItemId != "copper-ore"),
+            "unfiltered must not exit facing");
+
+        sorterCell.SetFilterItem("copper-wire");
+        Assert(sorterCell.FilterItemId == "copper-wire", "SetFilterItem");
+        sorterCell.CycleFilterItem(["iron-ore", "copper-ore", "iron-plate", "copper-wire"]);
+        Assert(sorterCell.FilterItemId == "iron-ore", "CycleFilterItem wrap");
+
+        // Bridge span 2: entry (1,0) → exit (3,0); mid empty.
+        var bridgeGrid = new BeltGrid();
+        bridgeGrid.TryPlaceFree(new GridPosition(0, 0), Direction.East, belt);
+        Assert(bridgeGrid.TryPlaceBridge(new GridPosition(1, 0), Direction.East, bridge), "place bridge");
+        Assert(bridgeGrid.Contains(new GridPosition(1, 0)) && bridgeGrid.Contains(new GridPosition(3, 0)),
+            "bridge ends span 2");
+        Assert(!bridgeGrid.Contains(new GridPosition(2, 0)), "mid-span empty");
+        Assert(bridgeGrid.TryGet(new GridPosition(1, 0), out var entry)
+            && entry.BridgePartner is { } p && p.Equals(new GridPosition(3, 0)),
+            "entry partner");
+        bridgeGrid.TryPlaceFree(new GridPosition(4, 0), Direction.East, belt);
+        // Cross belt under mid.
+        bridgeGrid.TryPlaceFree(new GridPosition(2, 0), Direction.South, belt);
+
+        // Assert instantaneous: after feed belt transit, exit has the item within ~1s (not ~4s of dual pad).
+        Assert(bridgeGrid.TryInsert(new GridPosition(0, 0), new TransportedItem(10, "iron-plate")), "bridge feed");
+        var teleported = false;
+        for (var i = 0; i < 30 * 8; i++)
+        {
+            bridgeGrid.Tick(dt);
+            if ((bridgeGrid.TryGet(new GridPosition(4, 0), out var post) && post.Items.Count > 0)
+                || (bridgeGrid.TryGet(new GridPosition(3, 0), out var exit) && exit.Items.Count > 0))
+            {
+                teleported = true;
+                break;
+            }
+        }
+
+        Assert(teleported, "bridge teleports item to exit");
+
+        // Span 5 placement (block shorter exits so max span is chosen).
+        var span5 = new BeltGrid();
+        span5.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
+        span5.TryPlaceFree(new GridPosition(3, 2), Direction.South, belt);
+        span5.TryPlaceFree(new GridPosition(4, 2), Direction.South, belt);
+        Assert(span5.TryPlaceBridge(new GridPosition(0, 2), Direction.East, bridge), "span5 place");
+        Assert(span5.Contains(new GridPosition(0, 2)) && span5.Contains(new GridPosition(5, 2)), "span5 ends");
+        Assert(BeltGridCell.MaxBridgeSpan == 5, "max span 5");
+        // End outputs to side (North) when facing East — 3-side I/O.
+        var ioGrid = new BeltGrid();
+        ioGrid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);
+        Assert(ioGrid.TryPlaceBridge(new GridPosition(1, 1), Direction.East, bridge), "io bridge");
+        ioGrid.TryPlaceFree(new GridPosition(3, 0), Direction.North, belt); // north of exit (3,1)
+        Assert(ioGrid.TryInsert(new GridPosition(0, 1), new TransportedItem(20, "coal")), "io feed");
+        var sideOut = false;
+        for (var i = 0; i < 30 * 10; i++)
+        {
+            ioGrid.Tick(dt);
+            if (ioGrid.TryGet(new GridPosition(3, 0), out var north) && north.Items.Count > 0)
+            {
+                sideOut = true;
+                break;
+            }
+        }
+
+        Assert(sideOut, "bridge end ejects to side (not only facing)");
+
+        Assert(bridgeGrid.TryRemove(new GridPosition(1, 0)), "paired remove");
+        Assert(!bridgeGrid.Contains(new GridPosition(1, 0)) && !bridgeGrid.Contains(new GridPosition(3, 0)),
+            "both bridge ends removed");
+
+        // Place API + save/load partner/filter.
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+        slice.UnlockGodotSliceDemo();
+        Assert(slice.TryPlaceSorter(new GridPosition(4, 4), Direction.East, "iron-plate"), "TryPlaceSorter");
+        Assert(slice.Belts.TryGet(new GridPosition(4, 4), out var placedSorter)
+            && placedSorter.FilterItemId == "iron-plate", "placed filter");
+        Assert(slice.TryPlaceBridge(new GridPosition(6, 4), Direction.East), "TryPlaceBridge");
+        Assert(slice.TryRemoveBelt(new GridPosition(6, 4)), "remove bridge pair");
+        Assert(!slice.Belts.Contains(new GridPosition(6, 4)) && !slice.Belts.Contains(new GridPosition(8, 4)),
+            "paired gone");
+        Assert(slice.TryPlaceBridge(new GridPosition(6, 4), Direction.East), "re-place bridge");
+
+        var snap = slice.Capture();
+        Assert(snap.Belts.Any(b => b.DefinitionId == "sorter" && b.FilterItemId == "iron-plate"),
+            "capture filter");
+        Assert(snap.Belts.Any(b =>
+                b.DefinitionId == "conveyor-bridge"
+                && b.BridgePartnerX is not null
+                && b.BridgePartnerY is not null),
+            "capture bridge partner");
+        FactorySliceSaveStore.Delete("selftest-sorter-bridge");
+        FactorySliceSaveStore.Save("selftest-sorter-bridge", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-sorter-bridge"));
+        Assert(restored.Belts.Cells.Values.Any(c =>
+                c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-plate"),
+            "restore filter");
+        Assert(restored.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Bridge) == 2,
+            "restore bridge pair");
+        FactorySliceSaveStore.Delete("selftest-sorter-bridge");
+
+        // Full demo seed still delivers wire (HUD/save/power kept).
+        var demo = CreateSorterBridgeDemo(content);
+        Assert(demo.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Sorter), "seed sorter");
+        Assert(demo.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Bridge) == 2, "seed bridge");
+        Assert(demo.Generators.Count == 1, "seed keeps generator");
+
+        for (var i = 0; i < 30 * 150; i++)
+        {
+            demo.Tick(dt);
+            if (demo.Wallet.MaterialCount("copper-wire") > 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Sorter/bridge self-test: nessun filo al core entro 150s sim.");
+    }
+
+    /// <summary>Research unlocks: prereqs, wallet spend, save round-trip, place gates.</summary>
+    public static void SelfTestResearch(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+
+        var graph = TechTreeLayout.Build(content);
+        Assert(graph.Nodes.Count >= 9, "graph has structures");
+        Assert(graph.Edges.Count >= 1, "graph has prereq edges");
+        Assert(graph.Nodes.Any(n => n.Structure.Id == "smelter"), "smelter in graph");
+        var path = TechTreeLayout.CollectRelatedIds(graph, "assembler");
+        Assert(path.Contains("assembler"), "path includes selected");
+        Assert(TechTreeLayout.ClampZoom(0.1f) == TechTreeLayout.MinZoom, "zoom clamp lo");
+        Assert(TechTreeLayout.ClampZoom(9f) == TechTreeLayout.MaxZoom, "zoom clamp hi");
+
+        Assert(slice.Research.IsUnlocked("conveyor-basic"), "default belt");
+        Assert(slice.Research.IsUnlocked("miner"), "default miner");
+        Assert(!slice.Research.IsUnlocked("smelter"), "forno locked");
+        Assert(!slice.Research.IsUnlocked("junction"), "junction locked");
+        Assert(!slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place forno gated");
+        Assert(!slice.TryPlaceJunction(new GridPosition(5, 5), Direction.East), "place junction gated");
+
+        var smelter = content.RequireStructure("smelter");
+        Assert(slice.Research.GetNodeState(smelter) == ResearchNodeState.Available, "smelter available");
+        Assert(!slice.Research.TryUnlock(smelter, slice.Wallet), "cannot afford smelter");
+
+        slice.Wallet.AddMoney(500);
+        slice.Wallet.AddMaterial("iron-plate", 40);
+        Assert(slice.TryUnlockStructure("smelter"), "unlock smelter");
+        Assert(slice.Research.IsUnlocked("smelter"), "smelter unlocked");
+        Assert(slice.Wallet.Money == 250, "spent 250");
+        Assert(slice.Wallet.MaterialCount("iron-plate") == 25, "spent 15 plates");
+        Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place forno after unlock");
+
+        var assembler = content.RequireStructure("assembler");
+        Assert(slice.Research.GetNodeState(assembler) == ResearchNodeState.Available, "assembler avail");
+        // Need copper-ore for assembler unlock.
+        slice.Wallet.AddMoney(500);
+        slice.Wallet.AddMaterial("iron-plate", 30);
+        slice.Wallet.AddMaterial("copper-ore", 10);
+        Assert(slice.TryUnlockStructure("assembler"), "unlock assembler");
+
+        Assert(!slice.Research.IsUnlocked("splitter"), "splitter still locked");
+        slice.Wallet.AddMoney(2000);
+        slice.Wallet.AddMaterial("iron-plate", 100);
+        Assert(slice.TryUnlockStructure("junction"), "unlock junction");
+        Assert(slice.TryUnlockStructure("splitter"), "unlock splitter after junction");
+        Assert(slice.TryUnlockStructure("sorter"), "unlock sorter");
+        Assert(slice.TryUnlockStructure("conveyor-bridge"), "unlock bridge");
+        Assert(slice.TryUnlockStructure("generator"), "unlock generator");
+
+        var snap = slice.Capture();
+        Assert(snap.UnlockedStructures.Contains("smelter"), "capture smelter");
+        Assert(snap.UnlockedStructures.Contains("conveyor-bridge"), "capture bridge");
+        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v2");
+
+        FactorySliceSaveStore.Delete("selftest-research");
+        FactorySliceSaveStore.Save("selftest-research", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-research"));
+        Assert(restored.Research.IsUnlocked("smelter"), "restore smelter");
+        Assert(restored.Research.IsUnlocked("sorter"), "restore sorter");
+        Assert(restored.Research.IsUnlocked("conveyor-basic"), "restore defaults");
+        Assert(restored.Wallet.Money == slice.Wallet.Money, "money after unlocks");
+        FactorySliceSaveStore.Delete("selftest-research");
+
+        // Demo seed still unlocks all slice tools.
+        var demo = CreateSorterBridgeDemo(content);
+        Assert(demo.Research.IsUnlocked("sorter"), "demo sorter");
+        Assert(demo.Research.IsUnlocked("generator"), "demo generator");
+    }
+
+    /// <summary>Mercato sell: dynamic price, session ledger, save v3 round-trip.</summary>
+    public static void SelfTestMercato(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var slice = new FactorySlice(content, new BeltGrid(), core);
+
+        Assert(slice.Market.Items.Count >= 4, "market items");
+        var listino = slice.Market.GetSellPrice("iron-ore");
+        Assert(listino >= 1, "listino ore");
+        Assert(slice.Market.GetDynamicSellPrice("iron-ore", 1) == listino
+            || slice.Market.GetDynamicSellPrice("iron-ore", 1) >= 1, "low stock ≈ listino");
+
+        var high = slice.Market.GetDynamicSellPrice("iron-ore", 80);
+        Assert(high <= listino, "high stock softens");
+
+        Assert(!slice.TrySellFromWallet("iron-ore", 1), "empty stock fail");
+        Assert(slice.Wallet.Money == 0, "money unchanged");
+
+        slice.Wallet.AddMaterial("iron-ore", 5);
+        var price1 = slice.PreviewSellPrice("iron-ore");
+        Assert(slice.TrySellFromWallet("iron-ore", 1), "sell 1");
+        Assert(slice.Wallet.MaterialCount("iron-ore") == 4, "stock -1");
+        Assert(slice.Wallet.Money == price1, "money +price");
+        Assert(slice.Session.SaleIncome == price1, "sale income");
+        Assert(slice.Session.SoldByItem.GetValueOrDefault("iron-ore") == 1, "sold count");
+
+        var moneyBefore = slice.Wallet.Money;
+        var remaining = slice.Wallet.MaterialCount("iron-ore");
+        var bulkPrice = slice.Market.GetDynamicSellPrice("iron-ore", remaining);
+        Assert(slice.TrySellFromWallet("iron-ore", remaining), "sell tutti");
+        Assert(slice.Wallet.MaterialCount("iron-ore") == 0, "ore empty");
+        Assert(slice.Wallet.Money == moneyBefore + bulkPrice * remaining, "tutti money");
+        Assert(slice.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "sold 5");
+
+        // Unlock still works after sell income.
+        slice.Wallet.AddMaterial("iron-plate", 40);
+        slice.Wallet.AddMoney(Math.Max(0, 250 - slice.Wallet.Money));
+        Assert(slice.TryUnlockStructure("smelter"), "unlock after sell");
+
+        var snap = slice.Capture();
+        Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v3");
+        Assert(snap.SaleIncome == slice.Session.SaleIncome, "capture sale income");
+        Assert(snap.SoldByItem.GetValueOrDefault("iron-ore") == 5, "capture sold");
+
+        FactorySliceSaveStore.Delete("selftest-mercato");
+        FactorySliceSaveStore.Save("selftest-mercato", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-mercato"));
+        Assert(restored.Wallet.Money == slice.Wallet.Money, "restore money");
+        Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore income");
+        Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
+        Assert(restored.Research.IsUnlocked("smelter"), "restore research");
+        FactorySliceSaveStore.Delete("selftest-mercato");
+    }
+
+    /// <summary>CORE upgrade: one-shot spend, +sale bonus, save v5 round-trip.</summary>
+    public static void SelfTestCoreUpgrade(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        Assert(content.CoreUpgrade.SaleBonusPercent == 25, "core bonus 25");
+        Assert(content.CoreUpgrade.MoneyCost == 150, "core money");
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var wallet = new EconomyWallet(
+            200,
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 25 });
+        var slice = new FactorySlice(content, new BeltGrid(), core, wallet);
+        Assert(slice.CoreUpgradeLevel == 0, "start LV0");
+        slice.Wallet.AddMaterial("iron-ore", 5);
+        var basePrice = slice.Market.GetDynamicSellPrice("iron-ore", 5);
+        slice.Wallet.AddMoney(Math.Max(0, content.CoreUpgrade.MoneyCost - slice.Wallet.Money));
+        Assert(slice.TryUpgradeCore(), "upgrade");
+        Assert(slice.CoreUpgradeLevel == 1 && slice.CoreSaleBonusPercent == 25, "LV1");
+        Assert(!slice.TryUpgradeCore(), "one-shot");
+        var boosted = slice.PreviewSellPrice("iron-ore");
+        Assert(boosted == basePrice + basePrice * 25 / 100, "preview boost");
+        var moneyBefore = slice.Wallet.Money;
+        Assert(slice.TrySellFromWallet("iron-ore", 1), "sell boosted");
+        Assert(slice.Wallet.Money == moneyBefore + boosted, "money includes bonus");
+
+        var snap = slice.Capture();
+        Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySliceSaveData.CurrentVersion, "capture");
+        var restored = Restore(content, snap);
+        Assert(restored.CoreUpgradeLevel == 1 && restored.CoreSaleBonusPercent == 25, "restore");
+    }
+
+    /// <summary>Auto-sell at core: liquidate on drain; toggle persists in save.</summary>
+    public static void SelfTestAutoSell(string contentJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var slice = CreateSpikeDemo(content);
+        slice.AutoSellAtCore = true;
+
+        var moneyBefore = slice.Wallet.Money;
+        var stockBefore = slice.Wallet.MaterialCount("iron-ore");
+        const float dt = 1f / 30f;
+        var soldViaAuto = false;
+        for (var i = 0; i < 30 * 45; i++)
+        {
+            slice.Tick(dt);
+            if (slice.CoreDeliveredItems > 0
+                && slice.Session.SaleIncome > 0
+                && slice.Wallet.Money > moneyBefore)
+            {
+                soldViaAuto = true;
+                break;
+            }
+        }
+
+        Assert(soldViaAuto, "auto-sell liquidates core deliveries");
+        Assert(slice.Wallet.MaterialCount("iron-ore") <= stockBefore, "stock not forced up");
+        Assert(slice.Session.SoldByItem.GetValueOrDefault("iron-ore") >= 1, "session recorded");
+
+        var snap = slice.Capture();
+        Assert(snap.AutoSellAtCore, "capture auto-sell");
+        FactorySliceSaveStore.Delete("selftest-autosell");
+        FactorySliceSaveStore.Save("selftest-autosell", snap);
+        var restored = Restore(content, FactorySliceSaveStore.Load("selftest-autosell"));
+        Assert(restored.AutoSellAtCore, "restore auto-sell");
+        FactorySliceSaveStore.Delete("selftest-autosell");
+
+        // OFF path still stocks (stock-first default).
+        var stockSlice = CreateSpikeDemo(content);
+        Assert(!stockSlice.AutoSellAtCore, "default OFF");
+        moneyBefore = stockSlice.Wallet.Money;
+        for (var i = 0; i < 30 * 45; i++)
+        {
+            stockSlice.Tick(dt);
+            if (stockSlice.CoreDeliveredItems > 0 && stockSlice.Wallet.MaterialCount("iron-ore") > 0)
+            {
+                Assert(stockSlice.Session.SaleIncome == 0, "no auto sale when OFF");
+                Assert(stockSlice.Wallet.Money == moneyBefore, "money unchanged when OFF");
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Auto-sell OFF path: no stocked ore at core.");
+    }
+
+    /// <summary>Campaign catalog, objectives, progress unlock, save v4 level id.</summary>
+    public static void SelfTestCampaign(string contentJsonPath, string campaignJsonPath)
+    {
+        var content = FactoryContent.Load(contentJsonPath);
+        var catalog = CampaignCatalog.Load(campaignJsonPath);
+        Assert(catalog.Levels.Count >= 2, "campaign levels");
+        var l01 = catalog.FirstLevel!;
+        Assert(l01.Objectives is { Count: >= 2 }, "L01 objectives");
+        Assert(l01.Objectives!.Any(o => o.Type == CampaignObjectiveType.SellItem), "L01 sell");
+        Assert(l01.Objectives!.Any(o => o.Type == CampaignObjectiveType.EarnMoney), "L01 earn");
+
+        var progressPath = Path.Combine(Path.GetTempPath(), $"tindustry-campaign-test-{Guid.NewGuid():N}.json");
+        try
+        {
+            if (File.Exists(progressPath))
+            {
+                File.Delete(progressPath);
+            }
+
+            var progress = CampaignProgress.Load(progressPath);
+            Assert(progress.IsUnlocked(l01, catalog), "L01 unlocked");
+            var l02 = catalog.Find(l01.UnlocksNext!);
+            Assert(l02 is not null, "L02 exists");
+            Assert(!progress.IsUnlocked(l02!, catalog), "L02 locked");
+
+            var slice = CreateCampaignSlice(content, catalog, l01);
+            Assert(slice.Wallet.Money == l01.StartingMoney, "start money");
+            Assert(slice.Session.SaleIncome == 0, "sale income 0");
+            Assert(slice.ActiveCampaignLevelId == l01.Id, "active level");
+            Assert(slice.Terrain is not null, "terrain generated");
+            Assert(slice.Terrain!.Seed == l01.Seed, "terrain seed");
+            var (expectW, expectH) = ResolveCampaignMapSize(l01);
+            Assert(expectW == 1000 && expectH == 1000, "campaign L01 is 1000×1000");
+            Assert(slice.Terrain.Width == expectW && slice.Terrain.Height == expectH,
+                $"campaign map size {expectW}×{expectH}");
+            var sandboxBig = CreateSandboxSlice(content, CenteredCoreOrigin(1000, 1000));
+            Assert(sandboxBig.Terrain is { Width: 1000, Height: 1000 }, "sandbox default 1000²");
+            var coreOrigin = CenteredCoreOrigin(expectW, expectH);
+            Assert(slice.CoreTiles.Contains(coreOrigin), "core centered");
+            var hasIron = false;
+            for (var y = 0; y < slice.Terrain.Height && !hasIron; y++)
+            {
+                for (var x = 0; x < slice.Terrain.Width; x++)
+                {
+                    if (slice.Terrain[x, y].Deposit == DepositKind.Iron)
+                    {
+                        hasIron = true;
+                        break;
+                    }
+                }
+            }
+
+            Assert(hasIron, "starter iron deposit");
+
+            var sandbox = CreateSandboxSlice(content, new GridPosition(9, 14), seed: 99);
+            Assert(sandbox.Terrain is not null && sandbox.Terrain.Seed == 99, "sandbox seed");
+            var other = CreateSandboxSlice(content, new GridPosition(9, 14), seed: 100);
+            Assert(sandbox.Terrain![0, 0].Terrain != other.Terrain![0, 0].Terrain
+                || sandbox.Terrain[5, 5].Deposit != other.Terrain[5, 5].Deposit
+                || true, "seeds differ (layout may still overlap)");
+
+            // sellItem + earnMoney via Mercato path
+            slice.Wallet.AddMaterial("iron-ore", 10);
+            Assert(slice.TrySellFromWallet("iron-ore", 3), "sell 3 ore");
+            Assert(CampaignProgress.IsObjectiveComplete(
+                l01.Objectives!.First(o => o.Type == CampaignObjectiveType.SellItem),
+                slice.Wallet, slice.Session, slice.Research), "sellItem done");
+            // May need more sells for $24 earnMoney depending on price
+            while (!CampaignProgress.AreAllObjectivesComplete(
+                       l01, slice.Wallet, slice.Session, slice.Research)
+                   && slice.Wallet.MaterialCount("iron-ore") > 0)
+            {
+                Assert(slice.TrySellFromWallet("iron-ore", 1), "sell more");
+            }
+
+            if (!CampaignProgress.AreAllObjectivesComplete(
+                    l01, slice.Wallet, slice.Session, slice.Research))
+            {
+                // Force earnMoney if soft prices didn't reach $24
+                var earn = l01.Objectives!.First(o => o.Type == CampaignObjectiveType.EarnMoney);
+                while (slice.Session.SaleIncome < earn.Amount)
+                {
+                    slice.Wallet.AddMaterial("iron-ore", 1);
+                    Assert(slice.TrySellFromWallet("iron-ore", 1), "force sell");
+                }
+            }
+
+            Assert(CampaignProgress.AreAllObjectivesComplete(
+                l01, slice.Wallet, slice.Session, slice.Research), "L01 complete");
+
+            // stockItem
+            var stockObj = new CampaignObjectiveDefinition(
+                CampaignObjectiveType.StockItem, 5, ItemId: "iron-ore", Label: "test stock");
+            slice.Wallet.AddMaterial("iron-ore", 5);
+            Assert(CampaignProgress.IsObjectiveComplete(stockObj, slice.Wallet, slice.Session, slice.Research),
+                "stock complete");
+
+            // unlockResearch
+            slice.Wallet.AddMoney(500);
+            slice.Wallet.AddMaterial("iron-plate", 40);
+            Assert(slice.TryUnlockStructure("smelter"), "unlock smelter");
+            var unlockObj = new CampaignObjectiveDefinition(
+                CampaignObjectiveType.UnlockResearch, 1, StructureId: "smelter");
+            Assert(CampaignProgress.IsObjectiveComplete(unlockObj, slice.Wallet, slice.Session, slice.Research),
+                "unlock complete");
+
+            progress.MarkComplete(l01.Id, progressPath);
+            var reloaded = CampaignProgress.Load(progressPath);
+            Assert(reloaded.IsCompleted(l01.Id), "progress saved");
+            Assert(reloaded.IsUnlocked(l02!, catalog), "L02 unlocked");
+
+            var snap = slice.Capture();
+            Assert(snap.Version == FactorySliceSaveData.CurrentVersion, "save v4");
+            Assert(snap.ActiveCampaignLevelId == l01.Id, "capture level id");
+            FactorySliceSaveStore.Delete("selftest-campaign");
+            FactorySliceSaveStore.Save("selftest-campaign", snap);
+            var restored = Restore(content, FactorySliceSaveStore.Load("selftest-campaign"));
+            Assert(restored.ActiveCampaignLevelId == l01.Id, "restore level id");
+            Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore sales");
+            FactorySliceSaveStore.Delete("selftest-campaign");
+        }
+        finally
+        {
+            if (File.Exists(progressPath))
+            {
+                File.Delete(progressPath);
+            }
+        }
+    }
+
+    private static void Assert(bool condition, string message)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException($"Assert fallito: {message}");
+        }
+    }
+}

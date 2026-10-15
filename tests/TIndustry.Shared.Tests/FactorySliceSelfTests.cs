@@ -15,34 +15,34 @@ public sealed class FactorySliceSelfTests
 
     public static TheoryData<string> Scenarios => new()
     {
-        nameof(FactorySlice.SelfTest),
-        nameof(FactorySlice.SelfTestPlaceCosts),
-        nameof(FactorySlice.SelfTestPlaceable),
-        nameof(FactorySlice.SelfTestT2Tools),
-        nameof(FactorySlice.SelfTestSmelterLoop),
-        nameof(FactorySlice.SelfTestMultiRecipe),
-        nameof(FactorySlice.SelfTestAssemblerLoop),
-        nameof(FactorySlice.SelfTestJunctionSplitter),
-        nameof(FactorySlice.SelfTestPowerStub),
-        nameof(FactorySlice.SelfTestFuelOrPower),
-        nameof(FactorySlice.SelfTestPowerBuffer),
-        nameof(FactorySlice.SelfTestAdjacentIo),
-        nameof(FactorySlice.SelfTestMinerPower),
-        nameof(FactorySlice.SelfTestSaveLoad),
-        nameof(FactorySlice.SelfTestSaveManager),
-        nameof(FactorySlice.SelfTestSorterBridge),
-        nameof(FactorySlice.SelfTestResearch),
-        nameof(FactorySlice.SelfTestMercato),
-        nameof(FactorySlice.SelfTestCoreUpgrade),
-        nameof(FactorySlice.SelfTestAutoSell),
+        nameof(FactorySliceScenarios.SelfTest),
+        nameof(FactorySliceScenarios.SelfTestPlaceCosts),
+        nameof(FactorySliceScenarios.SelfTestPlaceable),
+        nameof(FactorySliceScenarios.SelfTestT2Tools),
+        nameof(FactorySliceScenarios.SelfTestSmelterLoop),
+        nameof(FactorySliceScenarios.SelfTestMultiRecipe),
+        nameof(FactorySliceScenarios.SelfTestAssemblerLoop),
+        nameof(FactorySliceScenarios.SelfTestJunctionSplitter),
+        nameof(FactorySliceScenarios.SelfTestPowerStub),
+        nameof(FactorySliceScenarios.SelfTestFuelOrPower),
+        nameof(FactorySliceScenarios.SelfTestPowerBuffer),
+        nameof(FactorySliceScenarios.SelfTestAdjacentIo),
+        nameof(FactorySliceScenarios.SelfTestMinerPower),
+        nameof(FactorySliceScenarios.SelfTestSaveLoad),
+        nameof(FactorySliceScenarios.SelfTestSaveManager),
+        nameof(FactorySliceScenarios.SelfTestSorterBridge),
+        nameof(FactorySliceScenarios.SelfTestResearch),
+        nameof(FactorySliceScenarios.SelfTestMercato),
+        nameof(FactorySliceScenarios.SelfTestCoreUpgrade),
+        nameof(FactorySliceScenarios.SelfTestAutoSell),
     };
 
     [Theory]
     [MemberData(nameof(Scenarios))]
     public void Scenario(string name)
     {
-        var method = typeof(FactorySlice).GetMethod(name, [typeof(string)])
-            ?? throw new MissingMethodException(nameof(FactorySlice), name);
+        var method = typeof(FactorySliceScenarios).GetMethod(name, [typeof(string)])
+            ?? throw new MissingMethodException(nameof(FactorySliceScenarios), name);
         try
         {
             method.Invoke(null, [ContentPath]);
@@ -54,7 +54,7 @@ public sealed class FactorySliceSelfTests
     }
 
     [Fact]
-    public void Campaign() => FactorySlice.SelfTestCampaign(ContentPath, CampaignPath);
+    public void Campaign() => FactorySliceScenarios.SelfTestCampaign(ContentPath, CampaignPath);
 
     [Fact]
     public void ItemVisualColorsAreDistinct() => Assert.Null(ItemVisualColors.SelfTest());
