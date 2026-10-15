@@ -2,12 +2,12 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace TIndustry.Shared;
+namespace TIndustry.Godot;
 
 /// <summary>
 /// Best-effort CPU / RAM / GPU sampling for the Impostazioni "risorse sistema" overlay.
 /// Linux prefers /proc; GPU via nvidia-smi when present (otherwise omitted).
-/// Shared so Godot and Raylib can both show session stats.
+/// Godot-side only (not part of the shared simulation).
 /// </summary>
 public static class SystemMonitor
 {
