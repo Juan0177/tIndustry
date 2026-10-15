@@ -12,6 +12,8 @@ Gioco di logistica industriale (Mindustry × Tiny Industry) in Godot 4.4 .NET. S
 
 ## Comandi
 
+Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--editor] [--test] [--playtest ui|tutorial] [--solo-build]` (Windows: `dev.cmd`, stesse opzioni). Per prove usa sempre `--profilo-temp`.
+
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q       # atteso: 0 errori, 0 avvisi
 dotnet test tests/TIndustry.Shared.Tests -c Release --no-build

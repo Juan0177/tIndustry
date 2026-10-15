@@ -36,6 +36,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Sviluppo
 
+- **Avvio in dev all-in-one**: `dev.cmd` (Windows) / `tools/dev/dev.sh` controlla .NET 8 e Godot 4.4 mono, compila, importa gli asset se serve e avvia il gioco; opzioni `--profilo-temp`, `--nuova`, `--editor`, `--test`, `--playtest ui|tutorial`, `--solo-build`, `--import`
 - **Testo e icone nitidi**: la UI usa il filtro lineare con mipmap (la mappa resta Nearest per la pixel art); prima icone 64px ridotte a 16–26px e testo alla scala 125% erano sgranati
 - **Playtest isolati**: con `TINDUSTRY_PLAYTEST` gli input reali (mouse/tastiera sulla finestra) vengono ignorati; un click o Esc durante la prova la faceva fallire a caso. Il playtest `ui` lo verifica
 - Rimossi 4 eventi HUD inutilizzati (0 avvisi di build)
