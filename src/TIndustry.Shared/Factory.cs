@@ -63,6 +63,18 @@ public sealed class Factory : IGameView
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
+    /// <summary>Wraps an existing state (used by snapshots); definitions come from its content.</summary>
+    internal Factory(GameState state)
+    {
+        State = state ?? throw new ArgumentNullException(nameof(state));
+        BeltDefinition = state.Belts.DefaultDefinition
+            ?? state.Content.RequireConveyor("conveyor-basic");
+        JunctionDefinition = state.Content.RequireConveyor("junction");
+        SplitterDefinition = state.Content.RequireConveyor("splitter");
+        SorterDefinition = state.Content.RequireConveyor("sorter");
+        BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
+    }
+
     public FactoryContent Content => State.Content;
     public BeltGrid Belts => State.Belts;
     public ConveyorDefinition BeltDefinition { get; }
