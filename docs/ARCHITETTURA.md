@@ -67,7 +67,7 @@ Con la Home aperta o senza `Factory` il frame salta i passi 2–5.
 
 `GameDataPaths.Root` (`src/TIndustry.Shared/Save/GameDataPaths.cs`) è la radice dei dati del giocatore: `%LOCALAPPDATA%/tIndustry` (Linux `~/.local/share/tIndustry`), oppure la cartella indicata da `TINDUSTRY_DATA_DIR`. Sotto: `godot-saves/` (salvataggi) e `campaignProgress.json`.
 
-Le impostazioni (`settings.json`, `ClientSettings.SettingsDirectory`) seguono un'altra regola: con `TINDUSTRY_DATA_DIR` stanno in `<TINDUSTRY_DATA_DIR>/tIndustry/settings.json`, altrimenti nella cartella utente di Godot (`%APPDATA%\Godotpp_userdata	Industry	Industry\settings.json`).
+Le impostazioni (`settings.json`, `ClientSettings.SettingsDirectory`) seguono un'altra regola: con `TINDUSTRY_DATA_DIR` stanno in `<TINDUSTRY_DATA_DIR>/tIndustry/settings.json`, altrimenti nella cartella utente di Godot (`%APPDATA%\Godot\app_userdata\tIndustry\tIndustry\settings.json`).
 
 Il salvataggio è `FactorySaveData` / `FactorySaveStore` (`src/TIndustry.Shared/Save/FactorySave.cs`), **versione 9**. Un file di versione precedente è rifiutato con "Salvataggio di una versione precedente: non compatibile."; un file illeggibile con "Salvataggio non leggibile."; in entrambi i casi la partita corrente non cambia. Cambiare il formato richiede di alzare `CurrentVersion`.
 
