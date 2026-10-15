@@ -254,10 +254,16 @@ public static class FactorySaveStore
             error = ex.Message;
             return false;
         }
+        catch (FileNotFoundException)
+        {
+            data = null;
+            error = null; // missing slot: callers show their own "no save" text
+            return false;
+        }
         catch (Exception)
         {
             data = null;
-            error = null;
+            error = "Salvataggio non leggibile.";
             return false;
         }
     }

@@ -45,8 +45,19 @@ public partial class HomePanel : Control
 
     public bool IsOpen => Visible;
 
+    /// <summary>Shows a load error in place of the hint line (until the next refresh).</summary>
+    public void ShowError(string message)
+    {
+        if (_hint is not null)
+        {
+            _hint.Text = message;
+            _hint.AddThemeColorOverride("font_color", new Color(0.95f, 0.45f, 0.40f, 1f));
+        }
+    }
+
     public void RefreshContinua()
     {
+        _hint?.AddThemeColorOverride("font_color", TextMuted);
         var has = FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId);
         if (_continuaBtn is not null)
         {

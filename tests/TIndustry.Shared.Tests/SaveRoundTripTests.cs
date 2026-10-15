@@ -63,6 +63,24 @@ public sealed class SaveRoundTripTests
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
     }
 
+    [Fact]
+    public void CorruptSaveReportsUnreadableMessage()
+    {
+        Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
+        File.WriteAllText(FactorySaveStore.SlotPath("rotto"), "{ not json");
+
+        Assert.False(FactorySaveStore.TryLoad("rotto", out var data, out var error));
+        Assert.Null(data);
+        Assert.Equal("Salvataggio non leggibile.", error);
+    }
+
+    [Fact]
+    public void MissingSaveHasNoErrorMessage()
+    {
+        Assert.False(FactorySaveStore.TryLoad("inesistente", out _, out var error));
+        Assert.Null(error);
+    }
+
     private static void RewriteVersion(string slotId, int version)
     {
         var path = FactorySaveStore.SlotPath(slotId);
