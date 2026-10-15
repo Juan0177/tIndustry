@@ -45,11 +45,11 @@ tIndustry/
 
 `godot/data/` esiste solo dopo l'export (è una copia di `data/`) ed è ignorata da git.
 
-**Nomi storici.** Alcuni nomi interni conservano ancora la dicitura dei prototipi "spike/slice" e non sono stati rinominati: `Factory.CreateSpikeDemo`, `Factory.BuildSpikeLPath`, `Factory.CreateSandboxSlice`, `Factory.CreateCampaignSlice`, il campo `World._slice` e i metodi `SaveSlice`/`LoadSlice`. Indicano comunque la `Factory` corrente.
+**Nomi storici.** Alcuni nomi interni conservano ancora la dicitura dei prototipi "spike/slice" e non sono stati rinominati, tra gli altri: `Factory.CreateSpikeDemo`, `Factory.BuildSpikeLPath`, `Factory.CreateSandboxSlice`, `Factory.CreateCampaignSlice`, il campo `World._slice` e i metodi `SaveSlice`/`LoadSlice`. Indicano comunque la `Factory` corrente. Resta anche il nodo HUD: `World.Panels.cs` lo crea come "FactoryHud" e `Hud._Ready` lo rinomina in "FactoryHudRoot".
 
 ## Ciclo di un frame
 
-1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`); l'input è gestito in `World.Input.cs` e diventa piazzamenti/rimozioni (`World.Placement.cs`) sulla `Factory`.
+1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`). L'input non passa da `_Process`: arriva dai callback di Godot (`World._UnhandledInput` in `World.Input.cs`) e diventa piazzamenti/rimozioni (`World.Placement.cs`) sulla `Factory`.
 2. `World` chiama `Factory.Tick(dt)` (`src/TIndustry.Shared/Factory.cs`): nastri, minatori, forni/assemblatori, estrattori, potenza, consegna al Core, economia.
 3. Se la griglia o gli edifici sono cambiati, `World` ricostruisce i visual dei nastri e degli edifici; poi sincronizza sprite degli oggetti e animazioni (`World.Visuals.cs`, `godot/scripts/visuals/`).
 4. `World.UpdateHud` chiama `Hud.UpdateStock`, che inoltra a `CorePanel` (fondi, energia, risorse); `BuildPalette` e `BlockInfoPanel` seguono selezione e sblocchi.
@@ -74,9 +74,16 @@ Il salvataggio è `FactorySaveData` / `FactorySaveStore` (`src/TIndustry.Shared/
 ## Come aggiungere un blocco
 
 1. **`data/content.json`**: aggiungi la struttura (id, costi, prerequisiti per la ricerca, ricetta/parametri). Se serve un nuovo oggetto, aggiungilo anche lì (e al mercato se vendibile).
-2. **Icona** in `godot/assets/` (PNG 64×64, nome = id); aggiungi la riga in `godot/assets/ATTRIBUTION.md` con autore e licenza.
-3. **Palette**: aggiungi la voce in `BuildPalette` (`godot/scripts/ui/hud/BuildPalette.cs`) nella categoria giusta.
-4. **Visual** in `godot/scripts/visuals/buildings/` (o riusa uno esistente) e collegalo in `World.Visuals.cs`.
+2. **Icona** in `godot/assets/` (PNG, di norma 64×64; nome = id della struttura); aggiungi la riga in `godot/assets/ATTRIBUTION.md` con autore e licenza. Eccezioni: `conveyor-express` usa `conveyor-fast.png` e `conveyor-bridge` usa `bridge.png` (fallback in `TechTreeCanvas.ResolveIcon` e `ContentValidationTests.IconFileFor`; le righe della palette puntano direttamente al file).
+3. **Strumento di costruzione** (se il blocco è piazzabile dalla palette), da collegare in questi punti:
+   - `Hud.ToolKind` e `Hud.StructureIdFor` (`godot/scripts/ui/hud/Hud.cs`): nuova voce dell'enum e mappatura sull'id della struttura;
+   - `BuildPalette.cs` (`godot/scripts/ui/hud/`): riga nella tabella della categoria (`ToolsEntries`, `LogisticsEntries`, `ProductionEntries` o `PowerEntries`), `CategoryFor` e nome mostrato (`ToolDisplayFallback`);
+   - enum `World.BuildTool` (`godot/scripts/world/World.cs`);
+   - `World.Input.cs`: `ToHudTool`, `FromHudTool`, il nome mostrato nel toast e l'eventuale tasto rapido in `_UnhandledInput`;
+   - `World.Placement.cs`: ramo nello `switch` del piazzamento (chiama `Factory.TryPlace…` e imposta `_buildingsDirty` o `_visualDirty`);
+   - `World.Session.cs`: aggiungi il tool all'elenco di `SyncResearchLocks`, altrimenti non viene bloccato dalla ricerca;
+   - `World.Drawing.cs`: dimensione dell'anteprima (ghost) e, per i blocchi orientabili, l'elenco che mostra la freccia di direzione.
+4. **Visual** in `godot/scripts/visuals/buildings/` (o riusa uno esistente): creazione e aggiornamento in `World.Visuals.cs`. I nastri e simili sono disegnati da `MindustryBeltVisual`.
 5. **Simulazione**: se il comportamento è nuovo, aggiungilo in `src/TIndustry.Shared/Buildings/` o `Power/` e richiamalo da `Factory`.
 6. **Test**: `ContentValidationTests` deve restare verde (icona presente, prerequisiti validi); aggiungi uno scenario in `tests/TIndustry.Shared.Tests/` se c'è logica nuova.
 

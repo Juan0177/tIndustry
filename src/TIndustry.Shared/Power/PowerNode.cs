@@ -1,7 +1,7 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Power-node stub: relays live generator adjacency within LinkRange so craft
+/// Power node: relays live generator adjacency within LinkRange so craft
 /// machines near a node can receive the +20% powered bonus (no full PowerNetworks graph).
 /// </summary>
 public sealed class PowerNode

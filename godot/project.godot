@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="tIndustry"
-config/description="Phase C: miner + forno stub → lastre al core (Shared sim)"
+config/description="Gioco di fabbrica 2D: estrai, fondi e assembla risorse e consegnale al core"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://assets/miner.png"
