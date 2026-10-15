@@ -46,14 +46,16 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
 
-## Prove automatiche (sviluppo)
+## Prove automatiche
 
 ```bash
-# Profilo isolato: non tocca impostazioni/salvataggi reali
-TINDUSTRY_DATA_DIR=/tmp/tind-profile TINDUSTRY_CAPTURE_DIR=/tmp/tind-shots   TINDUSTRY_PLAYTEST=tutorial godot4 --path godot --resolution 1280x720
+tools/dev/playtest.sh ui /tmp/shots-ui          # oppure: tutorial
+python tools/dev/compare_shots.py <baseline> <nuovi>
 ```
 
-`TINDUSTRY_PLAYTEST=tutorial` gioca il tutorial con input simulati e salva un PNG per passo (exit 0 = OK). Gli screenshot vanno in `TINDUSTRY_CAPTURE_DIR` (default `godot/artifacts/`).
+`tools/dev/playtest.sh` lancia il gioco con `TINDUSTRY_PLAYTEST=ui|tutorial`, input simulati e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`): non tocca impostazioni e salvataggi reali. Salva un PNG per passo e `log.txt` nella cartella indicata; esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona FPS.
+
+Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TINDUSTRY_CAPTURE_DIR` cambia dove vanno gli screenshot (default `godot/artifacts/`).
 
 ## Save / load
 
@@ -64,7 +66,7 @@ TINDUSTRY_DATA_DIR=/tmp/tind-profile TINDUSTRY_CAPTURE_DIR=/tmp/tind-shots   TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`).  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 9: i salvataggi più vecchi non sono compatibili.  
 Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core.
 
 ## Projects
@@ -73,6 +75,9 @@ Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextI
 | --- | --- |
 | `godot/` | **Official** playable client |
 | `src/TIndustry.Shared/` | Factory sim + content + save (shared) |
+| `data/` | Contenuti (`content.json`, `campaign.json`), unica fonte |
+
+Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 

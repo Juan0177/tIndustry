@@ -1,7 +1,7 @@
 # Riordino del progetto tIndustry — design
 
 - **Data:** 2026-10-15
-- **Stato:** proposta, da approvare
+- **Stato:** approvata e implementata (PR #139–#144)
 - **Sotto-progetto:** 1 di 5 (vedi [Roadmap](#roadmap-dei-sotto-progetti))
 
 ## Perché

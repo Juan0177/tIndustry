@@ -2,7 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// 1×1 extractor: pulls a filtered item from Core wallet or adjacent craft output
-/// onto an outward belt (Raylib ExtractorBuilding parity, Shared stub).
+/// onto an outward belt (Raylib ExtractorBuilding parity).
 /// </summary>
 public sealed class Extractor
 {

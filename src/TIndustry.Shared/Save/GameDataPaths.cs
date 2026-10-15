@@ -1,8 +1,9 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Root folder for player data (saves, campaign progress, client settings).
-/// <c>TINDUSTRY_DATA_DIR</c> redirects everything to an isolated profile for dev runs.
+/// Root folder for player data (saves and campaign progress).
+/// Client settings live under Godot's user dir (see <c>ClientSettings.SettingsDirectory</c>);
+/// <c>TINDUSTRY_DATA_DIR</c> redirects both to an isolated profile for dev runs.
 /// </summary>
 public static class GameDataPaths
 {

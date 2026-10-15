@@ -1,7 +1,7 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Phase F power stub: 2×2 generator that burns coal from belts and
+/// 2×2 generator that burns coal from belts and
 /// feeds the slice power buffer (capacity/generation) while marking
 /// adjacent craft as network-connected for TrySpendPower.
 /// </summary>

@@ -11,32 +11,31 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 
 | Asset (in `godot/assets/`) | Author | Original icon |
 | --- | --- | --- |
-| `items/iron-ore.png` | Lorc | rock |
-| `items/copper-ore.png` | Lorc | rock (orange tint) |
-| `items/coal.png` | Lorc | rock (charcoal tint) |
-| `items/lead-ore.png` | Lorc | rock (slate-blue tint) |
-| `items/titanium-ore.png` | Lorc | rock (cyan tint) |
-| `items/iron-plate.png` | Delapouite | metal-plate |
-| `items/lead-plate.png` | Delapouite | metal-plate (lead tint) |
-| `items/titanium-plate.png` | Delapouite | metal-plate (titanium tint) |
-| `items/graphite.png` | Lorc | rock (graphite tint) |
-| `items/silicon.png` | Delapouite | metal-plate (silicon tint) |
-| `items/copper-wire.png` | Delapouite | wire-coil |
-| `items/money.png` | Delapouite | coins |
+| `iron-ore.png` | Lorc | rock |
+| `copper-ore.png` | Lorc | rock (orange tint) |
+| `coal.png` | Lorc | rock (charcoal tint) |
+| `lead-ore.png` | Lorc | rock (slate-blue tint) |
+| `titanium-ore.png` | Lorc | rock (cyan tint) |
+| `iron-plate.png` | Delapouite | metal-plate |
+| `lead-plate.png` | Delapouite | metal-plate (lead tint) |
+| `titanium-plate.png` | Delapouite | metal-plate (titanium tint) |
+| `graphite.png` | Lorc | rock (graphite tint) |
+| `silicon.png` | Delapouite | metal-plate (silicon tint) |
+| `copper-wire.png` | Delapouite | wire-coil |
+| `money.png` | Delapouite | coins |
 | `ui/sell.png` | Delapouite | receive-money |
-| `buildings/miner.png` | Lorc | drill (trivella / auger industriale) |
-| `buildings/smelter.png` | Delapouite | furnace |
-| `buildings/assembler.png` | Lorc | gears |
-| `buildings/generator.png` | Lorc | lightning-helix |
-| `buildings/conveyor-basic.png` | Delapouite | plain-arrow |
-| `buildings/conveyor-fast.png` | Lorc | fast-arrow |
-| `buildings/splitter.png` | Delapouite | split-arrows |
-| `buildings/sorter.png` | (procedural) | funnel filter glyph |
-| `buildings/bridge.png` | Delapouite | cable-stayed-bridge |
-| `buildings/remove.png` | Lorc | cross-mark |
-| `categories/production.png` | Delapouite | factory |
-| `categories/logistics.png` | Delapouite | plain-arrow |
-| `categories/tools.png` | Lorc | cog |
+| `miner.png` | Lorc | drill (trivella / auger industriale) |
+| `smelter.png` | Delapouite | furnace |
+| `assembler.png` | Lorc | gears |
+| `generator.png` | Lorc | lightning-helix |
+| `conveyor-basic.png` | Delapouite | plain-arrow |
+| `conveyor-fast.png` | Lorc | fast-arrow |
+| `splitter.png` | Delapouite | split-arrows |
+| `sorter.png` | (procedural) | funnel filter glyph |
+| `bridge.png` | Delapouite | cable-stayed-bridge |
+| `ui/cat-production.png` | Delapouite | factory |
+| `ui/cat-logistics.png` | Delapouite | plain-arrow |
+| `ui/cat-tools.png` | Lorc | cog |
 
 Authors: [Delapouite](https://delapouite.com) · [Lorc](https://lorcblog.blogspot.com)
 
@@ -50,13 +49,12 @@ License: [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/ze
 
 | Asset | Pack | Original |
 | --- | --- | --- |
-| `buildings/junction.png` | Board Game Icons | arrow_cross |
-| `ui/dir-*.png` | Board Game Icons | direction_n/e/s/w |
+| `junction.png` | Board Game Icons | arrow_cross |
 | `ui/research.png` | Board Game Icons | book_open |
-| `ui/settings.png`, `ui/menu.png`, `ui/locked.png`, `ui/power.png`, `categories/power.png` | Game Icons | gear / menuGrid / locked / power |
+| `ui/settings.png`, `ui/menu.png`, `ui/locked.png`, `ui/power.png`, `ui/cat-power.png` | Game Icons | gear / menuGrid / locked / power |
 
 Packs: https://kenney.nl/assets/board-game-icons · https://kenney.nl/assets/game-icons
 
-## Copies in the Godot client
+## Layout
 
-`godot/assets/{money,graphite,silicon,lead-plate,titanium-plate}.png` and `godot/assets/ui/*.png` are copies of the icons above (`items/…`, `ui/…`, `categories/…` → `ui/cat-…`; `cat-logistics.png` rotated 90° to point along the belt), same authors and licenses.
+Tutte le icone stanno in `godot/assets/` (cartella piatta, unica copia); quelle dell'interfaccia sono in `godot/assets/ui/` (`ui/cat-*.png` sono le icone di categoria della palette; `cat-logistics.png` è ruotata di 90° per puntare lungo il nastro). Stessi autori e licenze indicati sopra.

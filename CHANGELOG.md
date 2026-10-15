@@ -24,8 +24,11 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - Rinomine con i nomi veri: `SpikeWorld`→`World`, `SpikeCamera`→`WorldCamera`, `Spike.tscn`→`Main.tscn` (nodo radice `Main`), `FactorySlice`→`Factory`, `FactorySliceSaveData/Store`→`FactorySaveData/Store`, `SmelterStub`→`Crafter`, `GeneratorStub`→`Generator`, `ExtractorStub`→`Extractor`, `PowerNodeStub`→`PowerNode`, `MinerProducer`→`Miner`, `StructureDefinition.Requires`→`Prerequisites`; test su percorsi dei dati e riferimenti del progetto Godot. Nessun cambio di comportamento né di formato dei salvataggi
 - Cartelle per area: `godot/scripts/` in `world/`, `visuals/{belts,buildings,items}/`, `ui/{hud,panels}/`, `settings/`, `dev/`; `src/TIndustry.Shared/` in `Content/`, `Grid/`, `Buildings/`, `Power/`, `Economy/`, `Research/`, `Campaign/`, `Save/` (resta `Factory.cs` in radice); `SystemMonitor` passa al progetto Godot (`TIndustry.Godot`). Solo spostamenti, nessun cambio di comportamento
 - HUD in componenti: `FactoryHud` (1.626 righe) diventa `Hud` che compone `CorePanel` (colonna in alto a sinistra), `BuildPalette` (categorie e griglia), `BlockInfoPanel` (striscia info e dettaglio `?`) e `HudStyle` (colori e widget condivisi). Aspetto e comportamento invariati
-
 - Dati in un solo posto: `godot/data/` esce da git (è una copia di `data/` che l'export rigenera da sé; in sviluppo il gioco legge `data/`). Nuovi test di validazione dei contenuti (id unici, prerequisiti esistenti e senza cicli, icone presenti per strutture e oggetti del mercato, obiettivi di campagna su id noti) e test di salvataggio/ricarica
+
+### Documentazione
+
+- Nuovi `docs/ARCHITETTURA.md` (mappa delle cartelle, ciclo di un frame, dati, salvataggi, come aggiungere un blocco, test), `docs/decisioni/0001-server-csharp.md` (server multiplayer in C#) e `CLAUDE.md` (istruzioni per gli agenti); README aggiornati ai nuovi nomi e percorsi
 
 ### Cambiato
 
@@ -39,7 +42,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - `SpikeWorld.cs` diviso in partial per responsabilità; i self-test di `FactorySlice` spostati nei test (−1.300 righe dal codice di gioco)
 - `TINDUSTRY_DATA_DIR`: profilo dati isolato (impostazioni, salvataggi, campagna) per prove senza toccare i dati del giocatore
 - `TINDUSTRY_PLAYTEST=tutorial`: playtest scriptato con input simulati (richiede `TINDUSTRY_DATA_DIR`), un'immagine per passo
-- Modalità `TINDUSTRY_CAPTURE` senza percorsi Cursor hardcoded: output in `TINDUSTRY_CAPTURE_DIR` o `godot/artifacts/` (ignorata da git)
+- Le modalità `TINDUSTRY_CAPTURE` sono state rimosse in favore dei playtest scriptati (`TINDUSTRY_PLAYTEST`); gli screenshot dei playtest vanno in `TINDUSTRY_CAPTURE_DIR` o `godot/artifacts/` (ignorata da git)
 
 ### Rimosso
 

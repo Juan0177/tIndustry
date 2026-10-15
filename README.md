@@ -30,9 +30,13 @@ Dettagli controlli, save, ricerca, mercato, campagna: [`godot/README.md`](godot/
 | Path | Ruolo |
 | --- | --- |
 | `godot/` | Client ufficiale (HUD Mindustry, mondo, UI) |
-| `src/TIndustry.Shared/` | Sim/data (nastri, craft, power, save, campagna) |
-| `tests/` | Test xUnit della sim |
-| `data/` | Seed `content.json` / `campaign.json` |
+| `src/TIndustry.Shared/` | Simulazione e dati (nastri, craft, potenza, salvataggi, campagna) |
+| `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json` |
+| `tests/` | Test xUnit della simulazione |
+| `docs/` | [Architettura](docs/ARCHITETTURA.md), [decisioni](docs/decisioni/), specifiche |
+| `tools/` | Script: export in `tools/ci/`, playtest e confronto screenshot in `tools/dev/` |
+
+Per chi sviluppa (anche con agenti): [`CLAUDE.md`](CLAUDE.md) e [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
 Combat / unità: **ancora fuori scope**.
 
@@ -72,12 +76,13 @@ Workflow GitHub Actions **non automatici su push/PR**: tag `v*` o avvio manuale 
 ## Da sorgente
 
 ```bash
-dotnet build tIndustry.sln
-dotnet test tests/TIndustry.Shared.Tests
+dotnet build tIndustry.sln -c Release -nologo -v q
+dotnet test tests/TIndustry.Shared.Tests -c Release --no-build
 godot4 --path godot
+tools/dev/playtest.sh ui /tmp/shots-ui         # oppure: tutorial (profilo dati isolato)
 ```
 
-`tests/TIndustry.Shared.Tests` (xUnit) esegue gli scenari della sim — nastri, craft, potenza, save, ricerca, mercato, campagna — su una cartella salvataggi temporanea. Girano nel workflow di release e su richiesta (build-publish manuale).
+`tests/TIndustry.Shared.Tests` (xUnit) esegue gli scenari della sim — nastri, craft, potenza, save, ricerca, mercato, campagna — e valida `data/` su una cartella salvataggi temporanea. Girano nel workflow di release e su richiesta (build-publish manuale). I playtest (`tools/dev/playtest.sh`) giocano la UI e il tutorial con input simulati senza toccare i dati del giocatore.
 
 ---
 
