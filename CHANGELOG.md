@@ -25,6 +25,11 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - Cartelle per area: `godot/scripts/` in `world/`, `visuals/{belts,buildings,items}/`, `ui/{hud,panels}/`, `settings/`, `dev/`; `src/TIndustry.Shared/` in `Content/`, `Grid/`, `Buildings/`, `Power/`, `Economy/`, `Research/`, `Campaign/`, `Save/` (resta `Factory.cs` in radice); `SystemMonitor` passa al progetto Godot (`TIndustry.Godot`). Solo spostamenti, nessun cambio di comportamento
 - HUD in componenti: `FactoryHud` (1.626 righe) diventa `Hud` che compone `CorePanel` (colonna in alto a sinistra), `BuildPalette` (categorie e griglia), `BlockInfoPanel` (striscia info e dettaglio `?`) e `HudStyle` (colori e widget condivisi). Aspetto e comportamento invariati
 
+- Dati in un solo posto: `godot/data/` esce da git (è una copia di `data/` che l'export rigenera da sé; in sviluppo il gioco legge `data/`). Nuovi test di validazione dei contenuti (id unici, prerequisiti esistenti e senza cicli, icone presenti per strutture e oggetti del mercato, obiettivi di campagna su id noti) e test di salvataggio/ricarica
+
+### Cambiato
+
+- **Salvataggi**: versione 9. I salvataggi di versioni precedenti non sono più compatibili: caricandoli compare il messaggio "Salvataggio di una versione precedente: non compatibile." e la partita corrente resta com'è
 
 ### Sviluppo
 

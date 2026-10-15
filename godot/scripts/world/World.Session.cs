@@ -369,11 +369,12 @@ public partial class World
 
     private void LoadSlice(string slotId, string toast, bool quietFail = false)
     {
-        if (!FactorySaveStore.TryLoad(slotId, out var data) || data is null)
+        if (!FactorySaveStore.TryLoad(slotId, out var data, out var error) || data is null)
         {
             if (!quietFail)
             {
-                _hud?.ShowToast($"Nessun save ({slotId})");
+                // Incompatible (older) saves explain themselves; the current game is left untouched.
+                _hud?.ShowToast(error ?? $"Nessun save ({slotId})");
             }
 
             return;
