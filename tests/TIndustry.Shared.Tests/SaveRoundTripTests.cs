@@ -13,7 +13,7 @@ public sealed class SaveRoundTripTests
     public void NewGameSavesAndReloads()
     {
         var content = FactoryContent.Load(ContentPath);
-        var slice = Factory.CreateSandboxSlice(content, new GridPosition(9, 14), seed: 7);
+        var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
         Assert.True(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East));
         Assert.True(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East));
 
@@ -30,7 +30,7 @@ public sealed class SaveRoundTripTests
     public void OldSaveVersionIsRejectedWithClearMessage()
     {
         var content = FactoryContent.Load(ContentPath);
-        var slice = Factory.CreateSandboxSlice(content, new GridPosition(9, 14), seed: 7);
+        var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
         FactorySaveStore.Save("vecchio", slice.Capture());
         RewriteVersion("vecchio", FactorySaveData.CurrentVersion - 1);
 
@@ -42,7 +42,7 @@ public sealed class SaveRoundTripTests
     public void FutureSaveVersionIsRejected()
     {
         var content = FactoryContent.Load(ContentPath);
-        var slice = Factory.CreateSandboxSlice(content, new GridPosition(9, 14), seed: 7);
+        var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
         FactorySaveStore.Save("futuro", slice.Capture());
         RewriteVersion("futuro", FactorySaveData.CurrentVersion + 1);
 
@@ -54,7 +54,7 @@ public sealed class SaveRoundTripTests
     public void TryLoadReportsTheErrorMessage()
     {
         var content = FactoryContent.Load(ContentPath);
-        var slice = Factory.CreateSandboxSlice(content, new GridPosition(9, 14), seed: 7);
+        var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
         FactorySaveStore.Save("vecchio2", slice.Capture());
         RewriteVersion("vecchio2", FactorySaveData.CurrentVersion - 1);
 

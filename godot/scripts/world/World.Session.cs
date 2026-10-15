@@ -15,7 +15,7 @@ public partial class World
             return;
         }
 
-        if (!LoadSlice(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)))
+        if (!LoadGame(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)))
         {
             return; // stay on Home with the error visible
         }
@@ -42,7 +42,7 @@ public partial class World
     {
         var content = FactoryContent.Load(_contentPath);
         var core = Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
-        AttachGame(Factory.CreateSandboxSlice(
+        AttachGame(NewGame.Sandbox(
             content,
             core,
             coreSize: 2,
@@ -160,7 +160,7 @@ public partial class World
         }
 
         var content = FactoryContent.Load(_contentPath);
-        var factory = Factory.CreateCampaignSlice(content, _campaign, level);
+        var factory = NewGame.Campaign(content, _campaign, level);
         // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
         // after placing miner, but also allow starting sells from stock if we add ore.
         if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
@@ -304,7 +304,7 @@ public partial class World
         }
     }
 
-    private void RestoreActiveLevelFromSlice()
+    private void RestoreActiveLevelFromGame()
     {
         if (_view?.ActiveCampaignLevelId is not { } id || _campaign is null)
         {
@@ -351,7 +351,7 @@ public partial class World
         }
     }
 
-    private void SaveSlice(string slotId, string toast)
+    private void SaveGame(string slotId, string toast)
     {
         if (_view is null)
         {
@@ -372,7 +372,7 @@ public partial class World
     }
 
     /// <summary>Returns true when the slot was loaded; on failure the current game is untouched.</summary>
-    private bool LoadSlice(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
+    private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
     {
         if (!FactorySaveStore.TryLoad(slotId, out var data, out var error) || data is null)
         {
@@ -406,7 +406,7 @@ public partial class World
             RebuildBeltVisual();
             RebuildBuildingVisuals();
             SyncResearchLocks();
-            RestoreActiveLevelFromSlice();
+            RestoreActiveLevelFromGame();
             UpdateHud();
             SyncCameraMapBounds();
             FocusCameraOnCore();
