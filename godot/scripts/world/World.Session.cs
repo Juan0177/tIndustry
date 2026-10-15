@@ -322,24 +322,24 @@ public partial class World
 
         var tools = new[]
         {
-            FactoryHud.ToolKind.Belt,
-            FactoryHud.ToolKind.BeltFast,
-            FactoryHud.ToolKind.BeltExpress,
-            FactoryHud.ToolKind.Miner,
-            FactoryHud.ToolKind.MinerAdvanced,
-            FactoryHud.ToolKind.Smelter,
-            FactoryHud.ToolKind.Assembler,
-            FactoryHud.ToolKind.Junction,
-            FactoryHud.ToolKind.Splitter,
-            FactoryHud.ToolKind.Generator,
-            FactoryHud.ToolKind.Sorter,
-            FactoryHud.ToolKind.Bridge,
-            FactoryHud.ToolKind.Extractor,
-            FactoryHud.ToolKind.PowerNode,
-            FactoryHud.ToolKind.PowerNodeT2
+            Hud.ToolKind.Belt,
+            Hud.ToolKind.BeltFast,
+            Hud.ToolKind.BeltExpress,
+            Hud.ToolKind.Miner,
+            Hud.ToolKind.MinerAdvanced,
+            Hud.ToolKind.Smelter,
+            Hud.ToolKind.Assembler,
+            Hud.ToolKind.Junction,
+            Hud.ToolKind.Splitter,
+            Hud.ToolKind.Generator,
+            Hud.ToolKind.Sorter,
+            Hud.ToolKind.Bridge,
+            Hud.ToolKind.Extractor,
+            Hud.ToolKind.PowerNode,
+            Hud.ToolKind.PowerNodeT2
         };
         _hud.SetToolsLocked(tools.Select(t =>
-            (t, !_slice.IsStructureUnlocked(FactoryHud.StructureIdFor(t)))));
+            (t, !_slice.IsStructureUnlocked(Hud.StructureIdFor(t)))));
 
         if (_tool != BuildTool.Cursor && _hud.IsToolLocked(ToHudTool(_tool)))
         {

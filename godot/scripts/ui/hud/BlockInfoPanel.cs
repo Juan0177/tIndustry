@@ -1,7 +1,7 @@
 using Godot;
 using TIndustry.Shared;
 using static TIndustry.Godot.HudStyle;
-using ToolKind = TIndustry.Godot.FactoryHud.ToolKind;
+using ToolKind = TIndustry.Godot.Hud.ToolKind;
 
 namespace TIndustry.Godot;
 
@@ -32,7 +32,7 @@ public partial class BlockInfoPanel : Control
     public BlockInfoPanel()
     {
         Name = "InfoSlot";
-        CustomMinimumSize = new Vector2(FactoryHud.CornerStackWidth, InfoSlotHeight);
+        CustomMinimumSize = new Vector2(Hud.CornerStackWidth, InfoSlotHeight);
         SizeFlagsHorizontal = SizeFlags.Fill;
         MouseFilter = MouseFilterEnum.Ignore;
     }

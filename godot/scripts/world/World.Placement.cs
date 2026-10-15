@@ -13,7 +13,7 @@ public partial class World
             return;
         }
 
-        var structureId = FactoryHud.StructureIdFor(ToHudTool(_tool));
+        var structureId = Hud.StructureIdFor(ToHudTool(_tool));
         if (!_slice.IsStructureUnlocked(structureId))
         {
             _hud?.ShowToast($"{ToolIt(_tool)} bloccato: sbloccalo in Ricerca (T).");

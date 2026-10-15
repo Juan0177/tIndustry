@@ -10,7 +10,7 @@ namespace TIndustry.Godot;
 /// Composes <see cref="CorePanel"/> (top-left), <see cref="BlockInfoPanel"/> and
 /// <see cref="BuildPalette"/> (bottom-right stack) and the toast; World talks only to this class.
 /// </summary>
-public partial class FactoryHud : Control
+public partial class Hud : Control
 {
     public enum ToolKind
     {
@@ -61,7 +61,7 @@ public partial class FactoryHud : Control
     public ToolKind SelectedTool => _palette.Selected;
     public bool IsCursorMode => _palette.Selected == ToolKind.Cursor;
 
-    public FactoryHud()
+    public Hud()
     {
         _core.MenuRequested += () => MenuRequested?.Invoke();
         _core.ResearchRequested += () => ResearchRequested?.Invoke();

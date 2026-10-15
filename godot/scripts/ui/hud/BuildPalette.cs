@@ -1,8 +1,8 @@
 using Godot;
 using TIndustry.Shared;
 using static TIndustry.Godot.HudStyle;
-using BuildCategory = TIndustry.Godot.FactoryHud.BuildCategory;
-using ToolKind = TIndustry.Godot.FactoryHud.ToolKind;
+using BuildCategory = TIndustry.Godot.Hud.BuildCategory;
+using ToolKind = TIndustry.Godot.Hud.ToolKind;
 
 namespace TIndustry.Godot;
 
@@ -96,7 +96,7 @@ public partial class BuildPalette : PanelContainer
     public BuildPalette()
     {
         StylePanel(this, "BuildDock");
-        CustomMinimumSize = new Vector2(FactoryHud.CornerStackWidth, 0);
+        CustomMinimumSize = new Vector2(Hud.CornerStackWidth, 0);
         SizeFlagsHorizontal = SizeFlags.Fill;
     }
 

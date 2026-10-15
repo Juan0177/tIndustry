@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 /// <summary>HUD panels and overlays (Ricerca, Mercato, Campagna, Home, Salvataggi, Impostazioni, Tutorial, FPS/risorse).</summary>
 public partial class World
 {
-    private void EnsureFactoryHud()
+    private void EnsureHud()
     {
         var layer = GetNode<CanvasLayer>("Hud");
         // Demote legacy debug label if present.
@@ -17,11 +17,11 @@ public partial class World
 
         if (layer.HasNode("FactoryHud"))
         {
-            _hud = layer.GetNode<FactoryHud>("FactoryHud");
+            _hud = layer.GetNode<Hud>("FactoryHud");
         }
         else
         {
-            _hud = new FactoryHud { Name = "FactoryHud" };
+            _hud = new Hud { Name = "FactoryHud" };
             layer.AddChild(_hud);
         }
 
@@ -35,7 +35,7 @@ public partial class World
             AutoSaveContinue(quiet: true);
             _home?.Open();
         };
-        _hud.SetSelectedTool(FactoryHud.ToolKind.Cursor);
+        _hud.SetSelectedTool(Hud.ToolKind.Cursor);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
     }
 

@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Playable factory slice + FactoryHud + Ricerca. Default = cursore.
+/// Playable factory slice + Hud + Ricerca. Default = cursore.
 /// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
 /// </summary>
 public partial class World : Node2D
@@ -47,7 +47,7 @@ public partial class World : Node2D
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Node2D? _buildingsLayer;
-    private FactoryHud? _hud;
+    private Hud? _hud;
     private HomePanel? _home;
     private ResearchPanel? _research;
     private MercatoPanel? _mercato;
@@ -104,7 +104,7 @@ public partial class World : Node2D
             startingMoney: 180);
 
         _itemsLayer = GetNode<Node2D>("Items");
-        EnsureFactoryHud();
+        EnsureHud();
         EnsureResearchPanel();
         EnsureMercatoPanel();
         EnsureCampaignSelectPanel();
