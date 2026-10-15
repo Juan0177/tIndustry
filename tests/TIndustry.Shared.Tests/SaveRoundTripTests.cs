@@ -17,8 +17,9 @@ public sealed class SaveRoundTripTests
         Assert.True(slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East));
         Assert.True(slice.TryPlaceBelt(new GridPosition(4, 8), Direction.East));
 
-        FactorySaveStore.Save("roundtrip", slice.Capture());
-        var reloaded = Factory.Restore(content, FactorySaveStore.Load("roundtrip"));
+        FactorySaveStore.Save("roundtrip", new SimHost(slice));
+        Assert.True(FactorySaveStore.TryLoad(content, "roundtrip", out var host, out _));
+        var reloaded = (Factory)host!.State;
 
         Assert.Equal(slice.Miners.Count, reloaded.Miners.Count);
         Assert.Equal(slice.Belts.Count, reloaded.Belts.Count);
@@ -31,11 +32,11 @@ public sealed class SaveRoundTripTests
     {
         var content = FactoryContent.Load(ContentPath);
         var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
-        FactorySaveStore.Save("vecchio", slice.Capture());
+        FactorySaveStore.Save("vecchio", new SimHost(slice));
         RewriteVersion("vecchio", FactorySaveData.CurrentVersion - 1);
 
-        var ex = Assert.Throws<InvalidDataException>(() => FactorySaveStore.Load("vecchio"));
-        Assert.Equal("Salvataggio di una versione precedente: non compatibile.", ex.Message);
+        Assert.False(FactorySaveStore.TryLoad(content, "vecchio", out _, out var error));
+        Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
     }
 
     [Fact]
@@ -43,11 +44,11 @@ public sealed class SaveRoundTripTests
     {
         var content = FactoryContent.Load(ContentPath);
         var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
-        FactorySaveStore.Save("futuro", slice.Capture());
+        FactorySaveStore.Save("futuro", new SimHost(slice));
         RewriteVersion("futuro", FactorySaveData.CurrentVersion + 1);
 
-        var ex = Assert.Throws<InvalidDataException>(() => FactorySaveStore.Load("futuro"));
-        Assert.Equal($"Versione save non supportata: {FactorySaveData.CurrentVersion + 1}", ex.Message);
+        Assert.False(FactorySaveStore.TryLoad(content, "futuro", out _, out var error));
+        Assert.Equal($"Versione save non supportata: {FactorySaveData.CurrentVersion + 1}", error);
     }
 
     [Fact]
@@ -55,11 +56,11 @@ public sealed class SaveRoundTripTests
     {
         var content = FactoryContent.Load(ContentPath);
         var slice = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
-        FactorySaveStore.Save("vecchio2", slice.Capture());
+        FactorySaveStore.Save("vecchio2", new SimHost(slice));
         RewriteVersion("vecchio2", FactorySaveData.CurrentVersion - 1);
 
-        Assert.False(FactorySaveStore.TryLoad("vecchio2", out var data, out var error));
-        Assert.Null(data);
+        Assert.False(FactorySaveStore.TryLoad(content, "vecchio2", out var host, out var error));
+        Assert.Null(host);
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
     }
 
@@ -69,17 +70,19 @@ public sealed class SaveRoundTripTests
         Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
         File.WriteAllText(FactorySaveStore.SlotPath("rotto"), "{ not json");
 
-        Assert.False(FactorySaveStore.TryLoad("rotto", out var data, out var error));
-        Assert.Null(data);
+        Assert.False(FactorySaveStore.TryLoad(LoadContent(), "rotto", out var host, out var error));
+        Assert.Null(host);
         Assert.Equal("Salvataggio non leggibile.", error);
     }
 
     [Fact]
     public void MissingSaveHasNoErrorMessage()
     {
-        Assert.False(FactorySaveStore.TryLoad("inesistente", out _, out var error));
+        Assert.False(FactorySaveStore.TryLoad(LoadContent(), "inesistente", out _, out var error));
         Assert.Null(error);
     }
+
+    private static FactoryContent LoadContent() => FactoryContent.Load(ContentPath);
 
     private static void RewriteVersion(string slotId, int version)
     {

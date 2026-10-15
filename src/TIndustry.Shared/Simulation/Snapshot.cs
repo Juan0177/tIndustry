@@ -36,10 +36,12 @@ public static class Snapshot
         ArgumentNullException.ThrowIfNull(data);
         var dto = JsonSerializer.Deserialize<FactorySaveData>(data, Options)
             ?? throw new InvalidDataException("Istantanea vuota o non valida.");
-        var state = Factory.Restore(content, dto).State;
-        // Save loading maps StartingMoney 0 to the current money (legacy saves); a snapshot is exact.
-        state.Session.Restore(dto.StartingMoney, dto.SaleIncome, dto.SoldByItem);
-        return state;
+        if (dto.Version != FactorySaveData.CurrentVersion)
+        {
+            throw new InvalidDataException($"Versione istantanea non supportata: {dto.Version}");
+        }
+
+        return Factory.Restore(content, dto).State;
     }
 
     /// <summary>FNV-1a 64 bit over the snapshot bytes.</summary>

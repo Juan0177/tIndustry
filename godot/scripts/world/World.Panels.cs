@@ -223,7 +223,7 @@ public partial class World
     {
         try
         {
-            if (!_continueAutoSave.TrySave(_view))
+            if (!_continueAutoSave.TrySave(_host))
             {
                 return; // nothing played this session: keep the existing Continua untouched
             }

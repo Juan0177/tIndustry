@@ -112,7 +112,4 @@ public interface IGameView
     bool CanOccupyFootprint(GridPosition origin, int size);
 
     bool IsBuildingTile(GridPosition tile);
-
-    /// <summary>Canonical capture of the whole state (saving).</summary>
-    FactorySaveData Capture();
 }

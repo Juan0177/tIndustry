@@ -3,14 +3,17 @@ using System.Text.Json.Serialization;
 
 namespace TIndustry.Shared;
 
-/// <summary>Godot factory-slice save (v4: active campaign level). v1–v3 load with null level.</summary>
+/// <summary>
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 10 is the
+/// first format where a save file is metadata plus this snapshot; older files are not compatible.
+/// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
-    /// <summary>Next stable building id (0 / missing = save written before ids; reassigned on load).</summary>
+    /// <summary>Next stable building id.</summary>
     public long NextEntityId { get; set; }
     /// <summary>Fixed simulation ticks elapsed.</summary>
     public long CurrentTick { get; set; }
@@ -30,7 +33,7 @@ public sealed class FactorySaveData
     public int CoreSaleBonusPercent { get; set; }
     public float PowerBuffer { get; set; }
     public float PowerCapacity { get; set; }
-    /// <summary>Terrain seed (0 = none / legacy save).</summary>
+    /// <summary>Terrain seed (0 = no terrain).</summary>
     public int Seed { get; set; }
     public int MapWidth { get; set; }
     public int MapHeight { get; set; }
@@ -45,7 +48,7 @@ public sealed class FactorySaveData
 
 public sealed class ExtractorSaveDto
 {
-    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    /// <summary>Stable building id.</summary>
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
@@ -56,7 +59,7 @@ public sealed class ExtractorSaveDto
 
 public sealed class PowerNodeSaveDto
 {
-    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    /// <summary>Stable building id.</summary>
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
@@ -65,7 +68,7 @@ public sealed class PowerNodeSaveDto
 
 public sealed class MinerSaveDto
 {
-    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    /// <summary>Stable building id.</summary>
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
@@ -78,7 +81,7 @@ public sealed class MinerSaveDto
 
 public sealed class CraftSaveDto
 {
-    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    /// <summary>Stable building id.</summary>
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
@@ -97,7 +100,7 @@ public sealed class CraftSaveDto
 
 public sealed class GeneratorSaveDto
 {
-    /// <summary>Stable building id (0 = legacy save without ids).</summary>
+    /// <summary>Stable building id.</summary>
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
@@ -128,6 +131,24 @@ public sealed class ItemSaveDto
     public string? Travel { get; set; }
 }
 
+/// <summary>
+/// Save file v10 (one JSON file per slot): the fields the slot list needs, plus the canonical snapshot
+/// (<see cref="Snapshot"/>, base64) holding the whole game state. The pending command queue and the
+/// simulation clock are not saved: a save is the applied state at a tick boundary.
+/// </summary>
+public sealed class SaveFileData
+{
+    public int Version { get; set; } = FactorySaveData.CurrentVersion;
+    public int Money { get; set; }
+    /// <summary>Terrain seed (0 = no terrain).</summary>
+    public int Seed { get; set; }
+    public int MapWidth { get; set; }
+    public int MapHeight { get; set; }
+    public string? ActiveCampaignLevelId { get; set; }
+    /// <summary>Canonical snapshot bytes, base64.</summary>
+    public string? Snapshot { get; set; }
+}
+
 /// <summary>One save slot row for Gestione salvataggi.</summary>
 public sealed class SaveSlotInfo
 {
@@ -146,6 +167,9 @@ public static class FactorySaveStore
 {
     public const string ContinueSlotId = "continua";
     public const string QuickSlotId = "slot-1";
+
+    private const string OlderVersionMessage = "Salvataggio di una versione precedente: non compatibile.";
+    private const string UnreadableMessage = "Salvataggio non leggibile.";
 
     /// <summary>Save JSON format (also used by tests to compare captures byte for byte).</summary>
     public static readonly JsonSerializerOptions JsonOptions = new()
@@ -189,7 +213,7 @@ public static class FactorySaveStore
             {
                 var id = Path.GetFileNameWithoutExtension(path);
                 var json = File.ReadAllText(path);
-                var data = JsonSerializer.Deserialize<FactorySaveData>(json, JsonOptions);
+                var data = JsonSerializer.Deserialize<SaveFileData>(json, JsonOptions);
                 if (data is null)
                 {
                     continue;
@@ -219,15 +243,58 @@ public static class FactorySaveStore
             .ToList();
     }
 
-    public static void Save(string slotId, FactorySaveData data)
+    /// <summary>Writes the applied state of <paramref name="host"/> (not its queued commands) to the slot.</summary>
+    public static void Save(string slotId, SimHost host)
     {
+        ArgumentNullException.ThrowIfNull(host);
+        var view = host.State;
+        var file = new SaveFileData
+        {
+            Version = FactorySaveData.CurrentVersion,
+            Money = view.Wallet.Money,
+            Seed = view.Terrain?.Seed ?? 0,
+            MapWidth = view.Terrain?.Width ?? 0,
+            MapHeight = view.Terrain?.Height ?? 0,
+            ActiveCampaignLevelId = view.ActiveCampaignLevelId,
+            Snapshot = Convert.ToBase64String(host.CreateSnapshot())
+        };
         Directory.CreateDirectory(SavesDirectory);
-        data.Version = FactorySaveData.CurrentVersion;
-        var json = JsonSerializer.Serialize(data, JsonOptions);
-        File.WriteAllText(SlotPath(slotId), json);
+        File.WriteAllText(SlotPath(slotId), JsonSerializer.Serialize(file, JsonOptions));
     }
 
-    public static FactorySaveData Load(string slotId)
+    /// <summary>
+    /// Loads a slot into a new host (empty command queue, fresh clock); never throws.
+    /// <paramref name="error"/> carries the player-facing reason, or null for a missing slot.
+    /// </summary>
+    public static bool TryLoad(FactoryContent content, string slotId, out SimHost? host, out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        try
+        {
+            var file = ReadFile(slotId);
+            host = SimHost.FromSnapshot(content, Convert.FromBase64String(file.Snapshot!));
+            error = null;
+            return true;
+        }
+        catch (InvalidDataException ex)
+        {
+            error = ex.Message;
+        }
+        catch (FileNotFoundException)
+        {
+            error = null; // missing slot: callers show their own "no save" text
+        }
+        catch (Exception)
+        {
+            error = UnreadableMessage;
+        }
+
+        host = null;
+        return false;
+    }
+
+    /// <summary>Reads and validates the file envelope (version, snapshot present).</summary>
+    private static SaveFileData ReadFile(string slotId)
     {
         var path = SlotPath(slotId);
         if (!File.Exists(path))
@@ -235,12 +302,11 @@ public static class FactorySaveStore
             throw new FileNotFoundException($"Save non trovato: {path}");
         }
 
-        var json = File.ReadAllText(path);
-        var data = JsonSerializer.Deserialize<FactorySaveData>(json, JsonOptions)
-            ?? throw new InvalidDataException($"Save JSON non valido: {path}");
+        var data = JsonSerializer.Deserialize<SaveFileData>(File.ReadAllText(path), JsonOptions)
+            ?? throw new InvalidDataException(UnreadableMessage);
         if (data.Version >= 1 && data.Version < FactorySaveData.CurrentVersion)
         {
-            throw new InvalidDataException("Salvataggio di una versione precedente: non compatibile.");
+            throw new InvalidDataException(OlderVersionMessage);
         }
 
         if (data.Version < 1 || data.Version > FactorySaveData.CurrentVersion)
@@ -248,39 +314,12 @@ public static class FactorySaveStore
             throw new InvalidDataException($"Versione save non supportata: {data.Version}");
         }
 
+        if (string.IsNullOrEmpty(data.Snapshot))
+        {
+            throw new InvalidDataException(UnreadableMessage);
+        }
+
         return data;
-    }
-
-    public static bool TryLoad(string slotId, out FactorySaveData? data) =>
-        TryLoad(slotId, out data, out _);
-
-    /// <summary>Like <see cref="Load"/> but never throws; <paramref name="error"/> carries the player-facing reason.</summary>
-    public static bool TryLoad(string slotId, out FactorySaveData? data, out string? error)
-    {
-        try
-        {
-            data = Load(slotId);
-            error = null;
-            return true;
-        }
-        catch (InvalidDataException ex)
-        {
-            data = null;
-            error = ex.Message;
-            return false;
-        }
-        catch (FileNotFoundException)
-        {
-            data = null;
-            error = null; // missing slot: callers show their own "no save" text
-            return false;
-        }
-        catch (Exception)
-        {
-            data = null;
-            error = "Salvataggio non leggibile.";
-            return false;
-        }
     }
 
     public static void Delete(string slotId)
@@ -292,16 +331,20 @@ public static class FactorySaveStore
         }
     }
 
-    /// <summary>Copy continua (or any source) into a new timestamped slot.</summary>
+    /// <summary>Copy continua (or any source) into a new timestamped slot; null if the source is not loadable.</summary>
     public static string? DuplicateSlot(string sourceSlotId)
     {
-        if (!TryLoad(sourceSlotId, out var data) || data is null)
+        try
+        {
+            ReadFile(sourceSlotId);
+        }
+        catch (Exception)
         {
             return null;
         }
 
         var id = CreateSlotId();
-        Save(id, data);
+        File.Copy(SlotPath(sourceSlotId), SlotPath(id), overwrite: true);
         return id;
     }
 }
