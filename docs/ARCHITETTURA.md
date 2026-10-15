@@ -110,7 +110,13 @@ Il salvataggio è `SaveFileData` / `FactorySaveStore` (`src/TIndustry.Shared/Sav
    - `World.Session.cs`: aggiungi il tool all'elenco di `SyncResearchLocks`, altrimenti non viene bloccato dalla ricerca;
    - `World.Drawing.cs`: dimensione dell'anteprima (ghost) e, per i blocchi orientabili, l'elenco che mostra la freccia di direzione.
 4. **Visual** in `godot/scripts/visuals/buildings/` (o riusa uno esistente): creazione e aggiornamento in `World.Visuals.cs`. I nastri e simili sono disegnati da `MindustryBeltVisual`.
-5. **Simulazione**: aggiungi il valore a `BuildingKind` (`Simulation/Commands.cs`) e la sua applicazione in `SimHost` (`StructureId`, `ApplyPlaceBuilding`; i motivi di rifiuto stanno in `CommandReasons`). Se il comportamento è nuovo, scrivilo in `src/TIndustry.Shared/Buildings/` o `Power/` e richiamalo dal sistema giusto in `Simulation/Systems/`, rispettando le regole di determinismo; se l'edificio ha stato, includilo in `Factory.Capture`/`Restore` (istantanea e salvataggio) e, cambiando il formato, alza `FactorySaveData.CurrentVersion`.
+5. **Simulazione** (se il blocco è piazzabile con `PlaceBuilding`; tutti i punti in `src/TIndustry.Shared/Simulation/`; se ne manca uno il piazzamento fallisce in modo fuorviante):
+   - `BuildingKind` (`Commands.cs`): nuovo valore;
+   - `CommandReasons.ToolName(BuildingKind)` (`Commands.cs`): il nome mostrato, altrimenti il toast di blocco dice "? bloccato…";
+   - `SimHost.StructureId` (`SimHost.cs`): mappatura sull'id della struttura (con `null` il comando è "Comando non valido.");
+   - lo `switch` di piazzamento in `SimHost.ApplyPlaceBuilding`: un ramo che chiama il `Factory.TryPlace…` del blocco; senza ramo cade su `_ => false` e il rifiuto è "occupata". Il metodo `Factory.TryPlace…` deve esistere (`StructureId` e lo `switch` lo presuppongono);
+   - comportamento nuovo: scrivilo in `src/TIndustry.Shared/Buildings/` o `Power/` e richiamalo dal sistema giusto in `Simulation/Systems/`, rispettando le regole di determinismo;
+   - se l'edificio ha stato, includilo in `Factory.Capture`/`Restore` (istantanea e salvataggio) e, cambiando il formato, alza `FactorySaveData.CurrentVersion`.
 6. **Test**: `ContentValidationTests` deve restare verde (icona presente, prerequisiti validi); aggiungi uno scenario in `tests/TIndustry.Shared.Tests/` se c'è logica nuova.
 
 ## Test e playtest
