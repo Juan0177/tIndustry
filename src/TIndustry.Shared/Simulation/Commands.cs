@@ -1,0 +1,123 @@
+namespace TIndustry.Shared;
+
+/// <summary>
+/// A player's request to change the game. Queued by <see cref="SimHost.Submit"/>, validated and
+/// applied at the start of tick <see cref="Tick"/>; the outcome comes back as an event.
+/// </summary>
+public abstract record SimCommand(int PlayerId)
+{
+    /// <summary>Tick at whose start the command is applied (0 = "next tick", set on submit).</summary>
+    public long Tick { get; init; }
+}
+
+/// <summary>Buildings and logistics pieces placed by <see cref="PlaceBuilding"/> (belts use <see cref="PlaceBelt"/>).</summary>
+public enum BuildingKind
+{
+    Junction,
+    Splitter,
+    Sorter,
+    Bridge,
+    Miner,
+    MinerAdvanced,
+    Smelter,
+    Assembler,
+    Generator,
+    Extractor,
+    PowerNode,
+    PowerNodeT2
+}
+
+/// <summary>Replaces <see cref="Factory.TryPlaceBelt"/>.</summary>
+public sealed record PlaceBelt(int PlayerId, GridPosition Position, Direction Direction, string ConveyorId)
+    : SimCommand(PlayerId);
+
+/// <summary>
+/// Replaces the <c>TryPlace…</c> methods for junction, splitter, sorter, bridge, miners, forno,
+/// assembler, generator, extractor and power nodes. <paramref name="RecipeId"/> applies to forno /
+/// assembler (null = today's default recipe); <paramref name="FilterItemId"/> to sorter / extractor.
+/// </summary>
+public sealed record PlaceBuilding(
+    int PlayerId,
+    BuildingKind Kind,
+    GridPosition Origin,
+    Direction Direction,
+    string? RecipeId = null,
+    string? FilterItemId = null) : SimCommand(PlayerId);
+
+/// <summary>Replaces <see cref="Factory.TryRemoveBuildingAt"/> then <see cref="Factory.TryRemoveBelt"/>.</summary>
+public sealed record Remove(int PlayerId, GridPosition Tile) : SimCommand(PlayerId);
+
+/// <summary>Replaces <see cref="Factory.TryUnlockStructure"/>.</summary>
+public sealed record UnlockStructure(int PlayerId, string StructureId) : SimCommand(PlayerId);
+
+/// <summary>Replaces <see cref="Factory.TrySellFromWallet"/>.</summary>
+public sealed record Sell(int PlayerId, string ItemId, int Amount) : SimCommand(PlayerId);
+
+/// <summary>Replaces assigning <see cref="Factory.AutoSellAtCore"/>.</summary>
+public sealed record SetAutoSell(int PlayerId, bool Enabled) : SimCommand(PlayerId);
+
+/// <summary>Replaces <see cref="Factory.TryUpgradeCore"/>.</summary>
+public sealed record UpgradeCore(int PlayerId) : SimCommand(PlayerId);
+
+/// <summary>
+/// Rejection reasons for <see cref="SimHost.CommandRejected"/>: the Italian texts the Godot client
+/// shows in its toasts / status labels today, gathered in one place.
+/// </summary>
+public static class CommandReasons
+{
+    /// <summary>Fallback when <see cref="Factory.FormatNeedMessage"/> is empty (World.Placement, World.Session).</summary>
+    public const string InsufficientResources = "Risorse insufficienti";
+
+    /// <summary>Placement on a CORE tile (World.Placement).</summary>
+    public const string OnCore = "Non puoi costruire sul Core";
+
+    /// <summary>Placement on an occupied / invalid tile (World.Placement).</summary>
+    public const string Occupied = "Cella occupata o non valida";
+
+    /// <summary>Research: already unlocked (ResearchPanel).</summary>
+    public const string AlreadyUnlocked = "Già sbloccato.";
+
+    /// <summary>Research: prerequisites missing (ResearchPanel).</summary>
+    public const string MissingPrerequisites = "Prerequisiti mancanti.";
+
+    /// <summary>Research: cannot pay the unlock (ResearchPanel).</summary>
+    public const string UnlockUnaffordable = "Risorse insufficienti per sbloccare.";
+
+    /// <summary>Mercato: sale failed (MercatoPanel).</summary>
+    public const string SellFailed = "Vendita fallita (stock insufficiente).";
+
+    /// <summary>Remove on an empty tile (the client shows nothing today).</summary>
+    public const string NothingToRemove = "Niente da rimuovere.";
+
+    /// <summary>Malformed command (unknown id, non-positive amount): the client never sends one today.</summary>
+    public const string InvalidCommand = "Comando non valido.";
+
+    /// <summary>Locked structure: "<c>{tool} bloccato: sbloccalo in Ricerca (T).</c>" (World.Placement).</summary>
+    public static string Locked(string toolName) => $"{toolName} bloccato: sbloccalo in Ricerca (T).";
+
+    /// <summary>Tool name the client uses in the locked toast (World.Input <c>ToolIt</c>).</summary>
+    public static string ToolName(BuildingKind kind) => kind switch
+    {
+        BuildingKind.Junction => "Giunzione",
+        BuildingKind.Splitter => "Splitter",
+        BuildingKind.Sorter => "Selezionatore",
+        BuildingKind.Bridge => "Ponte",
+        BuildingKind.Miner => "Minatore",
+        BuildingKind.MinerAdvanced => "Minatore T2",
+        BuildingKind.Smelter => "Forno",
+        BuildingKind.Assembler => "Assemblatore",
+        BuildingKind.Generator => "Generatore",
+        BuildingKind.Extractor => "Estrattore",
+        BuildingKind.PowerNode => "Nodo potenza",
+        BuildingKind.PowerNodeT2 => "Nodo T2",
+        _ => "?"
+    };
+
+    /// <summary>Belt tool name by conveyor id (World.Input <c>ToolIt</c>).</summary>
+    public static string BeltToolName(string conveyorId) => conveyorId switch
+    {
+        "conveyor-fast" => "Nastro T2",
+        "conveyor-express" => "Nastro T3",
+        _ => "Nastro"
+    };
+}

@@ -1,7 +1,7 @@
 namespace TIndustry.Shared;
 
 /// <summary>Stock-first wallet (materials + money). Mirror of Logistics EconomyWallet.</summary>
-public sealed class EconomyWallet
+public sealed class EconomyWallet : IWalletView
 {
     private readonly Dictionary<string, int> materials;
 
@@ -18,6 +18,8 @@ public sealed class EconomyWallet
     public int MaterialCount(string itemId) => materials.GetValueOrDefault(itemId);
 
     public Dictionary<string, int> MaterialsSnapshot() => new(materials, StringComparer.Ordinal);
+
+    IReadOnlyDictionary<string, int> IWalletView.MaterialsSnapshot() => MaterialsSnapshot();
 
     public bool CanAfford(int money, IReadOnlyList<ResourceAmount> cost)
     {
