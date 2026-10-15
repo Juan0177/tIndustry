@@ -28,7 +28,7 @@ Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.c
 
 ## Controlli build
 
-**Cursore** (default, categoria St) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · WASD pan
+**Cursore** (default, categoria St) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
 
 Palette Mindustry (angolo basso-destra): griglia sprite senza testo sotto; rail **St / Lo / Pr / Po**; hover/selezione apre pannello info (nome IT, I/O, costi con icona barrata se stock insufficiente); `?` apre dettaglio.
 
@@ -44,6 +44,15 @@ Palette Mindustry (angolo basso-destra): griglia sprite senza testo sotto; rail 
 | RMB | Elimina (non è uno slot palette) |
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
+
+## Prove automatiche (sviluppo)
+
+```bash
+# Profilo isolato: non tocca impostazioni/salvataggi reali
+TINDUSTRY_DATA_DIR=/tmp/tind-profile TINDUSTRY_CAPTURE_DIR=/tmp/tind-shots   TINDUSTRY_PLAYTEST=tutorial godot4 --path godot --resolution 1280x720
+```
+
+`TINDUSTRY_PLAYTEST=tutorial` gioca il tutorial con input simulati e salva un PNG per passo (exit 0 = OK). `TINDUSTRY_CAPTURE=1 TINDUSTRY_CAPTURE_MODE=<home|research|campaign|…>` salva screenshot delle schermate in `TINDUSTRY_CAPTURE_DIR` (default `godot/artifacts/`).
 
 ## Save / load
 

@@ -5,6 +5,19 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Tutorial / UI
+
+- **Tutorial non bloccante**: scheda in basso a sinistra, il gioco resta giocabile; ogni passo avanza **da solo** quando lo completi (visuale, palette, minatore, nastro→CORE, Mercato, Ricerca, forno) con "✓ fatto"; testi corretti sui comandi reali
+- **Comandi**: trascina col tasto sinistro per muovere la visuale in modalità cursore (prima solo rotella premuta, ma il tutorial diceva "trascina"); tolti gli alias in conflitto **A** (assemblatore, ma A = pan WASD) e **G** (generatore, ma G = Campagna)
+- **Impostazioni**: overlay risorse (FPS/CPU/RAM/GPU) **spento di default** per i nuovi giocatori
+
+### Sviluppo
+
+- `SpikeWorld.cs` diviso in partial per responsabilità; i self-test di `FactorySlice` spostati nei test (−1.300 righe dal codice di gioco)
+- `TINDUSTRY_DATA_DIR`: profilo dati isolato (impostazioni, salvataggi, campagna) per prove senza toccare i dati del giocatore
+- `TINDUSTRY_PLAYTEST=tutorial`: playtest scriptato con input simulati (richiede `TINDUSTRY_DATA_DIR`), un'immagine per passo
+- Modalità `TINDUSTRY_CAPTURE` senza percorsi Cursor hardcoded: output in `TINDUSTRY_CAPTURE_DIR` o `godot/artifacts/` (ignorata da git)
+
 ### Rimosso
 
 - **Client Raylib legacy** (`TIndustry.Logistics`, `src/App|Simulation|UI|Content`): Godot 4 .NET è l'unico client. Ultimo codice Raylib nel tag `v0.3.4`; niente più zip `tIndustry-raylib-legacy-*` nelle Release.

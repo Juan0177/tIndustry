@@ -146,10 +146,7 @@ public static class FactorySliceSaveStore
     public static string? SavesDirectoryOverride { get; set; }
 
     public static string SavesDirectory =>
-        SavesDirectoryOverride ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "tIndustry",
-            "godot-saves");
+        SavesDirectoryOverride ?? Path.Combine(GameDataPaths.Root, "godot-saves");
 
     public static string SlotPath(string slotId)
     {
