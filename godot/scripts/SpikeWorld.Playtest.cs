@@ -12,6 +12,21 @@ public partial class SpikeWorld
 {
     private const string PlaytestEnv = "TINDUSTRY_PLAYTEST";
 
+    /// <summary>Device id stamped on synthetic events; anything else is the player's real input.</summary>
+    private const int PlaytestDevice = 4242;
+
+    /// <summary>
+    /// While a playtest runs, drop real mouse/keyboard input before UI and world see it: the window is on
+    /// the player's screen and a stray click or Esc made runs flaky (Home opened mid-test).
+    /// </summary>
+    public override void _Input(InputEvent @event)
+    {
+        if (PlaytestRequested && @event.Device != PlaytestDevice)
+        {
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     private static bool PlaytestRequested => !string.IsNullOrWhiteSpace(OS.GetEnvironment(PlaytestEnv));
 
     private void StartPlaytestIfRequested()
@@ -183,6 +198,17 @@ public partial class SpikeWorld
         _settings.TutorialCompleted = true;
         OnHomeNewGame();
         _tutorial?.Close();
+
+        // Isolation check: an event from a real device (the player's mouse/keyboard on this window)
+        // must not reach the game while a playtest drives it.
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, PhysicalKeycode = Key.Escape, Pressed = true });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, PhysicalKeycode = Key.Escape, Pressed = false });
+        await PlaytestWait(0.2);
+        if (_home?.IsOpen == true)
+        {
+            return Fail("un input reale (Esc) ha raggiunto il gioco durante il playtest");
+        }
         SeedCoreDeliveryLine();
         FocusCameraOnCore();
         for (var i = 0; i < 60 && _slice!.CoreDeliveredItems < 3; i++)
@@ -225,9 +251,9 @@ public partial class SpikeWorld
 
     private async Task PlaytestKey(Key key)
     {
-        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = true });
+        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = true, Device = PlaytestDevice });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = false });
+        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = false, Device = PlaytestDevice });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
@@ -237,12 +263,12 @@ public partial class SpikeWorld
         Input.ParseInputEvent(new InputEventMouseButton
         {
             ButtonIndex = MouseButton.Left, Pressed = true, Position = at, GlobalPosition = at,
-            ButtonMask = MouseButtonMask.Left
+            ButtonMask = MouseButtonMask.Left, Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            ButtonIndex = MouseButton.Left, Pressed = false, Position = at, GlobalPosition = at
+            ButtonIndex = MouseButton.Left, Pressed = false, Position = at, GlobalPosition = at, Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
@@ -253,7 +279,8 @@ public partial class SpikeWorld
         PlaytestMove(from, 0);
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            ButtonIndex = button, Pressed = true, Position = from, GlobalPosition = from, ButtonMask = mask
+            ButtonIndex = button, Pressed = true, Position = from, GlobalPosition = from, ButtonMask = mask,
+            Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         for (var i = 1; i <= steps; i++)
@@ -264,13 +291,16 @@ public partial class SpikeWorld
 
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            ButtonIndex = button, Pressed = false, Position = to, GlobalPosition = to
+            ButtonIndex = button, Pressed = false, Position = to, GlobalPosition = to, Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
     private static void PlaytestMove(Vector2 at, MouseButtonMask mask) =>
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = at, GlobalPosition = at, ButtonMask = mask });
+        Input.ParseInputEvent(new InputEventMouseMotion
+        {
+            Position = at, GlobalPosition = at, ButtonMask = mask, Device = PlaytestDevice
+        });
 
     private static bool Fail(string message)
     {

@@ -26,10 +26,6 @@ public partial class SpikeWorld
         }
 
         _hud.ToolChosen += OnHudToolChosen;
-        _hud.SaveRequested += () => SaveSlice(FactorySliceSaveStore.ContinueSlotId, "Partita salvata (continua)");
-        _hud.LoadRequested += () => LoadSlice(FactorySliceSaveStore.ContinueSlotId, "Partita caricata (continua)");
-        _hud.SaveSlotRequested += () => SaveSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 salvato");
-        _hud.LoadSlotRequested += () => LoadSlice(FactorySliceSaveStore.QuickSlotId, "Slot-1 caricato");
         _hud.ResearchRequested += ToggleResearch;
         _hud.MercatoRequested += ToggleMercato;
         _hud.CampaignRequested += ToggleCampaign;

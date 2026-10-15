@@ -18,6 +18,9 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Sviluppo
 
+- **Testo e icone nitidi**: la UI usa il filtro lineare con mipmap (la mappa resta Nearest per la pixel art); prima icone 64px ridotte a 16–26px e testo alla scala 125% erano sgranati
+- **Playtest isolati**: con `TINDUSTRY_PLAYTEST` gli input reali (mouse/tastiera sulla finestra) vengono ignorati; un click o Esc durante la prova la faceva fallire a caso. Il playtest `ui` lo verifica
+- Rimossi 4 eventi HUD inutilizzati (0 avvisi di build)
 - `SpikeWorld.cs` diviso in partial per responsabilità; i self-test di `FactorySlice` spostati nei test (−1.300 righe dal codice di gioco)
 - `TINDUSTRY_DATA_DIR`: profilo dati isolato (impostazioni, salvataggi, campagna) per prove senza toccare i dati del giocatore
 - `TINDUSTRY_PLAYTEST=tutorial`: playtest scriptato con input simulati (richiede `TINDUSTRY_DATA_DIR`), un'immagine per passo

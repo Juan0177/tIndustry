@@ -151,10 +151,6 @@ public partial class FactoryHud : Control
     private const float CornerStackWidth = 292f;
 
     public event Action<ToolKind>? ToolChosen;
-    public event Action? SaveRequested;
-    public event Action? LoadRequested;
-    public event Action? SaveSlotRequested;
-    public event Action? LoadSlotRequested;
     public event Action? ResearchRequested;
     public event Action? MercatoRequested;
     public event Action? CampaignRequested;
