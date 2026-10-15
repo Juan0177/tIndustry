@@ -43,6 +43,8 @@ public partial class World : Node2D
     }
 
     private Factory? _slice;
+    // The startup sandbox behind Home is not a played game: it must not overwrite Continua.
+    private readonly ContinueAutoSave _continueAutoSave = new();
     private MindustryBeltVisual? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;

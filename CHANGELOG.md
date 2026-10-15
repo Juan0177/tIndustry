@@ -33,6 +33,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 ### Cambiato
 
 - **Salvataggi**: versione 9. I salvataggi di versioni precedenti non sono più compatibili: caricandoli compare il messaggio "Salvataggio di una versione precedente: non compatibile." e la partita corrente resta com'è
+- **Continua non più sovrascritto a vuoto**: l'autosave alla chiusura (Esci, chiusura finestra, Menu/Esc → Home) scrive su Continua solo se in questa sessione hai giocato (nuova partita, livello di campagna o caricamento riuscito). Prima, aprire il gioco e uscire subito sostituiva Continua con la sandbox di avvio, anche quando il salvataggio era solo di una versione non compatibile
 
 ### Sviluppo
 

@@ -195,6 +195,13 @@ public partial class World
             GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-{label}.png"));
         }
 
+        // Leaving Home before playing (Esci / window close) must not write the startup sandbox to Continua.
+        AutoSaveContinue(quiet: true);
+        if (FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
+        {
+            return Fail("autosave su Continua senza una partita giocata");
+        }
+
         _settings.TutorialCompleted = true;
         OnHomeNewGame();
         _tutorial?.Close();
@@ -238,6 +245,13 @@ public partial class World
         await PlaytestKey(Key.T);
         await Shot("ricerca");
         await PlaytestKey(Key.T);
+
+        AutoSaveContinue(quiet: true);
+        if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
+        {
+            return Fail("autosave su Continua mancante dopo una partita giocata");
+        }
+
         return _slice!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
     }
 
