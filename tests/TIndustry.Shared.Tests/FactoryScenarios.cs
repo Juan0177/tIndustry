@@ -762,10 +762,8 @@ internal static class FactoryScenarios
         Assert(snap.NextItemId >= 1, "nextItemId");
 
         FactorySaveStore.Delete("selftest-tmp");
-        FactorySaveStore.Save("selftest-tmp", snap);
+        var restored = SaveAndReload(content, "selftest-tmp", slice);
         Assert(FactorySaveStore.Exists("selftest-tmp"), "slot exists");
-        var loaded = FactorySaveStore.Load("selftest-tmp");
-        var restored = Restore(content, loaded);
 
         Assert(restored.Miners.Count == slice.Miners.Count, "miners count");
         Assert(restored.Smelters.Count == slice.Smelters.Count, "smelters");
@@ -800,6 +798,16 @@ internal static class FactoryScenarios
             "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
     }
 
+    /// <summary>Saves <paramref name="game"/> to <paramref name="slotId"/> and loads it back as a new factory.</summary>
+    private static Factory SaveAndReload(FactoryContent content, string slotId, Factory game)
+    {
+        FactorySaveStore.Save(slotId, new SimHost(game));
+        Assert(
+            FactorySaveStore.TryLoad(content, slotId, out var host, out var error),
+            $"load {slotId}: {error}");
+        return (Factory)host!.State;
+    }
+
     /// <summary>ListSlots / DuplicateSlot / Delete for Gestione salvataggi.</summary>
     public static void SelfTestSaveManager(string contentJsonPath)
     {
@@ -812,7 +820,7 @@ internal static class FactoryScenarios
             // leave other agent slots alone
         }
 
-        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, slice.Capture());
+        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, new SimHost(slice));
         Assert(FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId), "continua");
         var listed = FactorySaveStore.ListSlots();
         Assert(listed.Any(s => s.Id == FactorySaveStore.ContinueSlotId), "list continua");
@@ -980,8 +988,7 @@ internal static class FactoryScenarios
                 && b.BridgePartnerY is not null),
             "capture bridge partner");
         FactorySaveStore.Delete("selftest-sorter-bridge");
-        FactorySaveStore.Save("selftest-sorter-bridge", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-sorter-bridge"));
+        var restored = SaveAndReload(content, "selftest-sorter-bridge", slice);
         Assert(restored.Belts.Cells.Values.Any(c =>
                 c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-plate"),
             "restore filter");
@@ -1066,8 +1073,7 @@ internal static class FactoryScenarios
         Assert(snap.Version == FactorySaveData.CurrentVersion, "save v2");
 
         FactorySaveStore.Delete("selftest-research");
-        FactorySaveStore.Save("selftest-research", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-research"));
+        var restored = SaveAndReload(content, "selftest-research", slice);
         Assert(restored.Research.IsUnlocked("smelter"), "restore smelter");
         Assert(restored.Research.IsUnlocked("sorter"), "restore sorter");
         Assert(restored.Research.IsUnlocked("conveyor-basic"), "restore defaults");
@@ -1126,8 +1132,7 @@ internal static class FactoryScenarios
         Assert(snap.SoldByItem.GetValueOrDefault("iron-ore") == 5, "capture sold");
 
         FactorySaveStore.Delete("selftest-mercato");
-        FactorySaveStore.Save("selftest-mercato", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-mercato"));
+        var restored = SaveAndReload(content, "selftest-mercato", slice);
         Assert(restored.Wallet.Money == slice.Wallet.Money, "restore money");
         Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore income");
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
@@ -1194,8 +1199,7 @@ internal static class FactoryScenarios
         var snap = slice.Capture();
         Assert(snap.AutoSellAtCore, "capture auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
-        FactorySaveStore.Save("selftest-autosell", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-autosell"));
+        var restored = SaveAndReload(content, "selftest-autosell", slice);
         Assert(restored.AutoSellAtCore, "restore auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
 
@@ -1332,8 +1336,7 @@ internal static class FactoryScenarios
             Assert(snap.Version == FactorySaveData.CurrentVersion, "save v4");
             Assert(snap.ActiveCampaignLevelId == l01.Id, "capture level id");
             FactorySaveStore.Delete("selftest-campaign");
-            FactorySaveStore.Save("selftest-campaign", snap);
-            var restored = Restore(content, FactorySaveStore.Load("selftest-campaign"));
+            var restored = SaveAndReload(content, "selftest-campaign", slice);
             Assert(restored.ActiveCampaignLevelId == l01.Id, "restore level id");
             Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore sales");
             FactorySaveStore.Delete("selftest-campaign");

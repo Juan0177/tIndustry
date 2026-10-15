@@ -17,7 +17,10 @@ public partial class World
     private readonly Dictionary<SimCommand, int> _quietRefusals = [];
 
     /// <summary>Starts a game on <paramref name="factory"/>: fresh host, so the tick clock restarts at 0.</summary>
-    private void AttachGame(Factory factory)
+    private void AttachGame(Factory factory) => AttachGame(new SimHost(factory));
+
+    /// <summary>Makes <paramref name="host"/> the running game (new game, campaign level or loaded save).</summary>
+    private void AttachGame(SimHost host)
     {
         if (_host is not null)
         {
@@ -25,7 +28,7 @@ public partial class World
             _host.CommandRejected -= OnCommandRejected;
         }
 
-        _host = new SimHost(factory);
+        _host = host;
         _host.CommandApplied += OnCommandApplied;
         _host.CommandRejected += OnCommandRejected;
         _quietRefusals.Clear();

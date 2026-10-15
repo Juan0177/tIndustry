@@ -353,16 +353,16 @@ public partial class World
 
     private void SaveGame(string slotId, string toast)
     {
-        if (_view is null)
+        if (_host is null)
         {
             return;
         }
 
         try
         {
-            FactorySaveStore.Save(slotId, _view.Capture());
+            FactorySaveStore.Save(slotId, _host);
             _hud?.ShowToast(toast);
-            GD.Print($"Saved slice → {FactorySaveStore.SlotPath(slotId)}");
+            GD.Print($"Saved game → {FactorySaveStore.SlotPath(slotId)}");
         }
         catch (Exception ex)
         {
@@ -374,7 +374,8 @@ public partial class World
     /// <summary>Returns true when the slot was loaded; on failure the current game is untouched.</summary>
     private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
     {
-        if (!FactorySaveStore.TryLoad(slotId, out var data, out var error) || data is null)
+        var content = FactoryContent.Load(_contentPath);
+        if (!FactorySaveStore.TryLoad(content, slotId, out var loaded, out var error) || loaded is null)
         {
             if (!quietFail)
             {
@@ -389,8 +390,7 @@ public partial class World
 
         try
         {
-            var content = FactoryContent.Load(_contentPath);
-            AttachGame(Factory.Restore(content, data));
+            AttachGame(loaded);
             _continueAutoSave.MarkPlayed();
             _itemSprites.Clear();
             if (_itemsLayer is not null)
@@ -412,7 +412,7 @@ public partial class World
             FocusCameraOnCore();
             QueueRedraw();
             _hud?.ShowToast(toast);
-            GD.Print($"Loaded slice ← {FactorySaveStore.SlotPath(slotId)}");
+            GD.Print($"Loaded game ← {FactorySaveStore.SlotPath(slotId)}");
             return true;
         }
         catch (Exception ex)

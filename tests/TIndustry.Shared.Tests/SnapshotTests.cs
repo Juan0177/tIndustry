@@ -63,6 +63,9 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         SubmitScript(host1);
         RunTicks(host1, 3000);
 
+        // Guard against a vacuous pass: the snapshot must be taken with real activity in it.
+        Assert.True(host1.State.Belts.Values.Sum(c => c.Items.Count) > 0, "nessun oggetto in transito sui nastri");
+
         var host2 = SimHost.FromSnapshot(content, host1.CreateSnapshot());
         Assert.Equal(host1.Checksum(), host2.Checksum());
 
@@ -139,7 +142,10 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     public void ChecksumKnownVector() =>
         Assert.Equal(TIndustryFnv1a64, Snapshot.Checksum(Encoding.UTF8.GetBytes("tIndustry")));
 
-    [Fact]
+    // Manual measurement, kept out of the default run (building 62k belts is slow). To run it:
+    // remove the Skip argument (or use a temporary copy) and run
+    // dotnet test tests/TIndustry.Shared.Tests -c Release --filter MeasureLargeMap --logger "console;verbosity=detailed"
+    [Fact(Skip = "misura manuale: 1000x1000 con ~62k nastri, lenta; togli Skip per eseguirla")]
     public void MeasureLargeMap()
     {
         var content = LoadContent();

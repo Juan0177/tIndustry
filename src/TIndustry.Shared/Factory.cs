@@ -329,11 +329,8 @@ public sealed class Factory : IGameView
             Math.Max(1, data.CoreSize));
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var research = ResearchState.FromSaved(data.UnlockedStructures, content);
-        var session = new EconomySession(data.StartingMoney > 0 ? data.StartingMoney : data.Money);
-        session.Restore(
-            data.StartingMoney > 0 ? data.StartingMoney : data.Money,
-            data.SaleIncome,
-            data.SoldByItem);
+        var session = new EconomySession(data.StartingMoney);
+        session.Restore(data.StartingMoney, data.SaleIncome, data.SoldByItem);
         var slice = new Factory(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
@@ -352,7 +349,7 @@ public sealed class Factory : IGameView
             slice.PowerBuffer = Math.Clamp(slice.PowerBuffer, 0f, slice.PowerCapacity);
         }
 
-        // Saves written before stable ids (id 0) get fresh ids in list order.
+        // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
             .Concat(data.Smelters.Select(d => d.Id))
             .Concat(data.Assemblers.Select(d => d.Id))
