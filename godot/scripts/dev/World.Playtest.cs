@@ -116,7 +116,7 @@ public partial class World
             return false;
         }
 
-        var core = new GridPosition(_slice!.CoreTiles.Min(t => t.X), _slice.CoreTiles.Min(t => t.Y));
+        var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
         await PlaytestClick(CellToScreen(minerCell));
         await PlaytestWait(0.3);
@@ -218,7 +218,7 @@ public partial class World
         }
         SeedCoreDeliveryLine();
         FocusCameraOnCore();
-        for (var i = 0; i < 60 && _slice!.CoreDeliveredItems < 3; i++)
+        for (var i = 0; i < 60 && _view!.CoreDeliveredItems < 3; i++)
         {
             await PlaytestWait(0.25);
         }
@@ -227,7 +227,7 @@ public partial class World
 
         if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
         {
-            var core = new GridPosition(_slice!.CoreTiles.Min(t => t.X), _slice.CoreTiles.Min(t => t.Y));
+            var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
             cam.Position = CellCenter(new GridPosition(core.X - 1, core.Y));
             cam.Zoom = new Vector2(1.6f, 1.6f);
             await Shot("belt-into-core");
@@ -252,7 +252,7 @@ public partial class World
             return Fail("autosave su Continua mancante dopo una partita giocata");
         }
 
-        return _slice!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
+        return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
     }
 
     private Vector2 CellToScreen(GridPosition cell) =>

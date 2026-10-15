@@ -151,6 +151,9 @@ public sealed class Factory : IGameView
 
     public bool IsBeltCorner(GridPosition position) => Belts.IsCorner(position);
 
+    public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
+        Belts.TryGetIncomingDirection(position, out incoming);
+
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;
 

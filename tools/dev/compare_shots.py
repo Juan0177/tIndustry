@@ -17,7 +17,12 @@ GEAR = (470, 325, 745, 455)  # miner gear + belt items beside the CORE (animated
 #                              a sprite/layout change of those machines goes unseen
 HUD_COUNT = (30, 100, 95, 135)  # HUD first resource counter value (tick timing);
 #                                a change to that counter's look/position goes unseen
+# HUD power digit in the very first tutorial frame: it shows the power buffer after however many
+# ticks the first frame ran (frame length varies), so it is timing noise. A change to that digit's
+# look/position in this one screenshot goes unseen.
+POWER_DIGIT = (258, 77, 272, 95)
 FILE_MASKS = {
+    "tutorial-01-step1-camera.png": [POWER_DIGIT],
     "ui-hud.png": [GEAR],
     "ui-palette-info.png": [GEAR],
     "ui-mercato.png": [GEAR],  # only the belt strip under the modal edge varies

@@ -51,6 +51,9 @@ public interface IGameView
     /// <summary>Belt cell turning a corner (visual only; <see cref="BeltGrid.IsCorner"/>).</summary>
     bool IsBeltCorner(GridPosition position);
 
+    /// <summary>Direction of the belt feeding the position (visual only).</summary>
+    bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming);
+
     /// <summary>Default belt definition (HUD shows its rate).</summary>
     ConveyorDefinition BeltDefinition { get; }
 

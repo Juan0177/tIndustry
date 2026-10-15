@@ -21,7 +21,7 @@ public partial class BlockInfoPanel : Control
     private PanelContainer? _detailOverlay;
     private Label? _detailBody;
     private FactoryContent? _content;
-    private EconomyWallet? _wallet;
+    private IWalletView? _wallet;
 
     /// <summary>The "?" button was clicked; the HUD answers with <see cref="OpenDetail"/>.</summary>
     public event Action? DetailRequested;
@@ -110,7 +110,7 @@ public partial class BlockInfoPanel : Control
     }
 
     /// <summary>Bind content (names, recipes, costs) and wallet (have / missing materials).</summary>
-    public void Bind(FactoryContent? content, EconomyWallet? wallet)
+    public void Bind(FactoryContent? content, IWalletView? wallet)
     {
         _content = content;
         _wallet = wallet;

@@ -32,7 +32,7 @@ public partial class CorePanel : VBoxContainer
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
     private FactoryContent? _content;
-    private EconomyWallet? _wallet;
+    private IWalletView? _wallet;
     private int _money;
 
     public event Action? MenuRequested;
@@ -69,7 +69,7 @@ public partial class CorePanel : VBoxContainer
     }
 
     /// <summary>Bind content (stock tooltips, cost chip names) and wallet (stock counts).</summary>
-    public void Bind(FactoryContent? content, EconomyWallet? wallet)
+    public void Bind(FactoryContent? content, IWalletView? wallet)
     {
         if (!ReferenceEquals(content, _content) && content is not null)
         {
@@ -139,7 +139,7 @@ public partial class CorePanel : VBoxContainer
     }
 
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(Factory? slice)
+    public void SyncCoreUpgrade(IGameView? slice)
     {
         if (_coreUpgradeButton is null || _coreUpgradeCost is null)
         {
@@ -212,9 +212,9 @@ public partial class CorePanel : VBoxContainer
 
     public void UpdateObjectives(
         CampaignLevelDefinition level,
-        EconomyWallet wallet,
-        EconomySession session,
-        ResearchState research,
+        IWalletView wallet,
+        ISessionView session,
+        IResearchView research,
         Func<string, string>? itemName = null)
     {
         if (_objectivesPanel is null || _objectivesTitle is null || _objectivesList is null)

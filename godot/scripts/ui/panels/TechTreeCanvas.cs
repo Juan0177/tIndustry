@@ -16,7 +16,7 @@ public partial class TechTreeCanvas : Control
     private readonly Dictionary<string, Texture2D?> _iconCache = new(StringComparer.Ordinal);
 
     public TechTreeLayout.Graph? Graph { get; set; }
-    public ResearchState? Research { get; set; }
+    public IResearchView? Research { get; set; }
     public string? SelectedId { get; set; }
     public float Zoom { get; private set; } = 1f;
 

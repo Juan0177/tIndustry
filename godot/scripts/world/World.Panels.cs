@@ -56,7 +56,7 @@ public partial class World
         {
             SyncResearchLocks();
             CheckCampaignComplete();
-            if (_slice is not null)
+            if (_view is not null)
             {
                 _hud?.ShowToast("Sblocco applicato");
             }
@@ -80,17 +80,17 @@ public partial class World
         {
             UpdateHud();
             CheckCampaignComplete();
-            if (_slice is not null)
+            if (_view is not null)
             {
-                _hud?.ShowToast($"Venduto · Fondi ${_slice.Wallet.Money}");
+                _hud?.ShowToast($"Venduto · Fondi ${_view.Wallet.Money}");
             }
         };
         _mercato.AutoSellChanged += () =>
         {
             UpdateHud();
-            if (_slice is not null)
+            if (_view is not null)
             {
-                _hud?.ShowToast(_slice.AutoSellAtCore
+                _hud?.ShowToast(_view.AutoSellAtCore
                     ? "Vendita automatica ON"
                     : "Vendita automatica OFF");
             }
@@ -207,7 +207,7 @@ public partial class World
 
     private void OnSavesSaveAs()
     {
-        if (_slice is null)
+        if (_view is null)
         {
             _hud?.ShowToast("Nessuna partita attiva da salvare");
             return;
@@ -223,7 +223,7 @@ public partial class World
     {
         try
         {
-            if (!_continueAutoSave.TrySave(_slice))
+            if (!_continueAutoSave.TrySave(_view))
             {
                 return; // nothing played this session: keep the existing Continua untouched
             }
@@ -408,7 +408,7 @@ public partial class World
             || _research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true;
         _tutorial.SetSuppressed(modalOpen);
 
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
@@ -417,11 +417,11 @@ public partial class World
         {
             TutorialPanel.Step.Camera => CameraMovedSinceTutorialStart(),
             TutorialPanel.Step.Palette => _tool != BuildTool.Cursor,
-            TutorialPanel.Step.Miner => _slice.Miners.Count > 0,
-            TutorialPanel.Step.BeltToCore => _slice.CoreDeliveredItems > 0,
+            TutorialPanel.Step.Miner => _view.Miners.Count > 0,
+            TutorialPanel.Step.BeltToCore => _view.CoreDeliveredItems > 0,
             TutorialPanel.Step.Mercato => _mercato?.IsOpen == true,
             TutorialPanel.Step.Ricerca => _research?.IsOpen == true,
-            TutorialPanel.Step.Forno => _slice.Smelters.Count > 0,
+            TutorialPanel.Step.Forno => _view.Smelters.Count > 0,
             _ => false
         };
         if (done)
