@@ -27,7 +27,7 @@ public sealed class SystemOrderTests
     public void StepIsPureOverState()
     {
         var content = FactoryContent.Load(ContentPath);
-        var seed = Factory.CreateSpikeDemo(content);
+        var seed = NewGame.Demo(content);
         seed.RunSeconds(2f);
         var snapshot = seed.Capture();
 

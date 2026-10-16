@@ -279,28 +279,28 @@ public partial class World
 
             if (key.Keycode == Key.F5)
             {
-                SaveSlice(FactorySaveStore.ContinueSlotId, "Partita salvata (continua)");
+                SaveGame(FactorySaveStore.ContinueSlotId, "Partita salvata (continua)");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F9)
             {
-                LoadSlice(FactorySaveStore.ContinueSlotId, "Partita caricata (continua)");
+                LoadGame(FactorySaveStore.ContinueSlotId, "Partita caricata (continua)");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F6)
             {
-                SaveSlice(FactorySaveStore.QuickSlotId, "Slot-1 salvato");
+                SaveGame(FactorySaveStore.QuickSlotId, "Slot-1 salvato");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F7)
             {
-                LoadSlice(FactorySaveStore.QuickSlotId, "Slot-1 caricato");
+                LoadGame(FactorySaveStore.QuickSlotId, "Slot-1 caricato");
                 GetViewport().SetInputAsHandled();
                 return;
             }

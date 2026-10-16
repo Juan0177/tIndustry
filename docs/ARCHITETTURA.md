@@ -46,7 +46,7 @@ tIndustry/
 
 `godot/data/` esiste solo dopo l'export (è una copia di `data/`) ed è ignorata da git.
 
-**Nomi storici.** Alcuni nomi interni conservano ancora la dicitura dei prototipi "spike/slice" e non sono stati rinominati, tra gli altri: `Factory.CreateSpikeDemo`, `Factory.BuildSpikeLPath`, `Factory.CreateSandboxSlice`, `Factory.CreateCampaignSlice`, il campo `World._slice` e i metodi `SaveSlice`/`LoadSlice`. Indicano comunque la `Factory` corrente. Resta anche il nodo HUD: `World.Panels.cs` lo crea come "FactoryHud" e `Hud._Ready` lo rinomina in "FactoryHudRoot".
+**Nomi storici.** I nomi dei prototipi "spike/slice" sono stati sostituiti: le partite nuove si costruiscono con `NewGame.Sandbox` / `NewGame.Campaign` / `NewGame.Demo` (`src/TIndustry.Shared/Simulation/NewGame.cs`), il percorso a L della demo è `DemoLayouts.LPath()`, il client usa `SaveGame` / `LoadGame`. Resta il nodo HUD: `World.Panels.cs` lo crea come "FactoryHud" e `Hud._Ready` lo rinomina in "FactoryHudRoot".
 
 ## Ciclo di un frame
 
@@ -70,7 +70,7 @@ Con la Home aperta o senza `Factory` il frame salta i passi 2–5.
 
 Le impostazioni (`settings.json`, `ClientSettings.SettingsDirectory`) seguono un'altra regola: con `TINDUSTRY_DATA_DIR` stanno in `<TINDUSTRY_DATA_DIR>/tIndustry/settings.json`, altrimenti nella cartella utente di Godot (`%APPDATA%\Godot\app_userdata\tIndustry\tIndustry\settings.json`).
 
-Il salvataggio è `FactorySaveData` / `FactorySaveStore` (`src/TIndustry.Shared/Save/FactorySave.cs`), **versione 9**. Un file di versione precedente è rifiutato con "Salvataggio di una versione precedente: non compatibile."; un file illeggibile con "Salvataggio non leggibile."; in entrambi i casi la partita corrente non cambia. Cambiare il formato richiede di alzare `CurrentVersion`.
+Il salvataggio è `SaveFileData` / `FactorySaveStore` (`src/TIndustry.Shared/Save/FactorySave.cs`), **versione 10**: un file JSON con i metadati dell'elenco (fondi, seme, mappa, livello) e l'istantanea canonica (`Snapshot`, in base64; la struttura è `FactorySaveData`). Si scrive con `FactorySaveStore.Save(slot, SimHost)` e si legge con `TryLoad(content, slot, out SimHost?, out error)`; comandi in coda e orologio non sono salvati (il salvataggio è lo stato applicato). Un file di versione precedente è rifiutato con "Salvataggio di una versione precedente: non compatibile."; un file illeggibile con "Salvataggio non leggibile."; in entrambi i casi la partita corrente non cambia. Cambiare il formato richiede di alzare `CurrentVersion`.
 
 ## Come aggiungere un blocco
 

@@ -56,7 +56,7 @@ public partial class MindustryBeltVisual : Node2D
 
             if (i - 1 >= segStart)
             {
-                var straight = Slice(path, segStart, i - 1);
+                var straight = SubPath(path, segStart, i - 1);
                 var dir = ResolveStripDirection(path, straight, segStart);
                 AddStrip(straight, dir, tileSize, phase);
                 phase += straight.Count;
@@ -72,7 +72,7 @@ public partial class MindustryBeltVisual : Node2D
 
         if (segStart <= path.Count - 1)
         {
-            var straight = Slice(path, segStart, path.Count - 1);
+            var straight = SubPath(path, segStart, path.Count - 1);
             var dir = ResolveStripDirection(path, straight, segStart);
             AddStrip(straight, dir, tileSize, phase);
         }
@@ -417,7 +417,7 @@ public partial class MindustryBeltVisual : Node2D
         AddChild(node);
     }
 
-    private static List<GridPosition> Slice(IReadOnlyList<GridPosition> path, int fromInclusive, int toInclusive)
+    private static List<GridPosition> SubPath(IReadOnlyList<GridPosition> path, int fromInclusive, int toInclusive)
     {
         var list = new List<GridPosition>(toInclusive - fromInclusive + 1);
         for (var i = fromInclusive; i <= toInclusive; i++)

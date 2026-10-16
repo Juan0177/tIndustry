@@ -87,7 +87,7 @@ public sealed class ResearchState : IResearchView
     }
 
     /// <summary>Godot slice tools that map to research structures (v1 list).</summary>
-    public static readonly string[] GodotSliceStructureIds =
+    public static readonly string[] DemoStructureIds =
     [
         "conveyor-basic",
         "conveyor-fast",

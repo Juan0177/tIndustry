@@ -23,7 +23,7 @@ internal static class FactoryScenarios
         SelfTestPowerBuffer(contentJsonPath);
         SelfTestAdjacentIo(contentJsonPath);
         SelfTestSaveManager(contentJsonPath);
-        var slice = CreateSpikeDemo(content);
+        var slice = NewGame.Demo(content);
         for (var i = 0; i < SimulationClock.TickRate * 40; i++)
         {
             slice.Step();
@@ -215,7 +215,7 @@ internal static class FactoryScenarios
         // Place API wires recipe lists.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, new BeltGrid(), core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place multi forno");
         Assert(slice.Smelters[0].AvailableRecipes.Count >= 3, "forno has smelt-*");
         Assert(slice.TryPlaceAssembler(new GridPosition(8, 4), Direction.East), "place multi assy");
@@ -370,7 +370,7 @@ internal static class FactoryScenarios
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
 
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "smelter");
         Assert(slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of forno");
@@ -397,7 +397,7 @@ internal static class FactoryScenarios
         // Speed: powered progress > coal-only over same window.
         var coldGrid = new BeltGrid();
         var cold = new Factory(content, coldGrid, core);
-        cold.UnlockGodotSliceDemo();
+        cold.UnlockAllForDemo();
         Assert(cold.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "cold smelter");
         var coldSm = cold.Smelters[0];
         coldSm.SeedFuel();
@@ -496,7 +496,7 @@ internal static class FactoryScenarios
         // Save/restore fuel state.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, new BeltGrid(), core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
         Assert(slice.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "place forno");
         slice.Smelters[0].RestoreCraftState(
             0.25f,
@@ -534,7 +534,7 @@ internal static class FactoryScenarios
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, new BeltGrid(), core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
 
         Assert(Math.Abs(slice.PowerCapacity - CorePowerCapacity) < 0.01f, "core capacity");
         Assert(slice.PowerBuffer < 0.01f, "buffer starts empty");
@@ -583,7 +583,7 @@ internal static class FactoryScenarios
 
         // Soft brownout: empty buffer + no coal → craft stalls.
         var brown = new Factory(content, new BeltGrid(), core);
-        brown.UnlockGodotSliceDemo();
+        brown.UnlockAllForDemo();
         Assert(brown.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "brown forno");
         brown.SetPowerBuffer(0f);
         var bSm = brown.Smelters[0];
@@ -617,7 +617,7 @@ internal static class FactoryScenarios
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
         var slice = new Factory(content, new BeltGrid(), core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
 
         // Miner (2,4) east-adjacent to forno (4,4) — footprints touch on x=3|4 edge.
         Assert(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "iron-ore"), "miner");
@@ -645,7 +645,7 @@ internal static class FactoryScenarios
         // Place forno at (6,4) touching core (8,4).
         var core2 = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
         var direct = new Factory(content, new BeltGrid(), core2);
-        direct.UnlockGodotSliceDemo();
+        direct.UnlockAllForDemo();
         Assert(direct.TryPlaceSmelter(new GridPosition(6, 4), Direction.East, recipe), "forno@core");
         SeedSmelterFuel(direct);
         var sm = direct.Smelters[0];
@@ -682,7 +682,7 @@ internal static class FactoryScenarios
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(18, 18), size: 2);
 
         var hot = new Factory(content, new BeltGrid(), core);
-        hot.UnlockGodotSliceDemo();
+        hot.UnlockAllForDemo();
         hot.Research.ForceUnlock(Miner.AdvancedId);
         Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId),
             "T2 miner");
@@ -706,7 +706,7 @@ internal static class FactoryScenarios
 
         // Speed: powered T2 progresses faster than unpowered T2.
         var cold = new Factory(content, new BeltGrid(), core);
-        cold.UnlockGodotSliceDemo();
+        cold.UnlockAllForDemo();
         cold.Research.ForceUnlock(Miner.AdvancedId);
         Assert(cold.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId),
             "cold T2");
@@ -731,18 +731,18 @@ internal static class FactoryScenarios
         }
 
         // T1 never receives power even when adjacent to a live gen.
-        var t1Slice = new Factory(content, new BeltGrid(), core);
-        t1Slice.UnlockGodotSliceDemo();
-        Assert(t1Slice.TryPlaceMiner(new GridPosition(4, 4), Direction.East), "T1 miner");
-        Assert(t1Slice.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen near T1");
-        Assert(t1Slice.Generators[0].TryAcceptFuel("coal"), "T1 fuel");
+        var t1Game = new Factory(content, new BeltGrid(), core);
+        t1Game.UnlockAllForDemo();
+        Assert(t1Game.TryPlaceMiner(new GridPosition(4, 4), Direction.East), "T1 miner");
+        Assert(t1Game.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen near T1");
+        Assert(t1Game.Generators[0].TryAcceptFuel("coal"), "T1 fuel");
         for (var i = 0; i < SimulationClock.TickRate * 4; i++)
         {
-            t1Slice.Step();
+            t1Game.Step();
         }
 
-        Assert(!t1Slice.Miners[0].IsPowered, "T1 miner never powered");
-        Assert(!t1Slice.Miners[0].CanReceivePower, "T1 cannot receive power");
+        Assert(!t1Game.Miners[0].IsPowered, "T1 miner never powered");
+        Assert(!t1Game.Miners[0].CanReceivePower, "T1 cannot receive power");
     }
 
     /// <summary>Save/load round-trip: capture Phase F mid-sim, restore, keep wire delivery.</summary>
@@ -762,10 +762,8 @@ internal static class FactoryScenarios
         Assert(snap.NextItemId >= 1, "nextItemId");
 
         FactorySaveStore.Delete("selftest-tmp");
-        FactorySaveStore.Save("selftest-tmp", snap);
+        var restored = SaveAndReload(content, "selftest-tmp", slice);
         Assert(FactorySaveStore.Exists("selftest-tmp"), "slot exists");
-        var loaded = FactorySaveStore.Load("selftest-tmp");
-        var restored = Restore(content, loaded);
 
         Assert(restored.Miners.Count == slice.Miners.Count, "miners count");
         Assert(restored.Smelters.Count == slice.Smelters.Count, "smelters");
@@ -800,11 +798,21 @@ internal static class FactoryScenarios
             "Save/load self-test: nessun filo al core dopo restore entro 150s sim.");
     }
 
+    /// <summary>Saves <paramref name="game"/> to <paramref name="slotId"/> and loads it back as a new factory.</summary>
+    private static Factory SaveAndReload(FactoryContent content, string slotId, Factory game)
+    {
+        FactorySaveStore.Save(slotId, new SimHost(game));
+        Assert(
+            FactorySaveStore.TryLoad(content, slotId, out var host, out var error),
+            $"load {slotId}: {error}");
+        return (Factory)host!.State;
+    }
+
     /// <summary>ListSlots / DuplicateSlot / Delete for Gestione salvataggi.</summary>
     public static void SelfTestSaveManager(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var slice = CreateSpikeDemo(content);
+        var slice = NewGame.Demo(content);
         FactorySaveStore.Delete(FactorySaveStore.ContinueSlotId);
         FactorySaveStore.Delete("selftest-dup");
         foreach (var old in FactorySaveStore.ListSlots().Where(s => s.Id.StartsWith("slot-20", StringComparison.Ordinal)))
@@ -812,7 +820,7 @@ internal static class FactoryScenarios
             // leave other agent slots alone
         }
 
-        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, slice.Capture());
+        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, new SimHost(slice));
         Assert(FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId), "continua");
         var listed = FactorySaveStore.ListSlots();
         Assert(listed.Any(s => s.Id == FactorySaveStore.ContinueSlotId), "list continua");
@@ -961,7 +969,7 @@ internal static class FactoryScenarios
         // Place API + save/load partner/filter.
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var slice = new Factory(content, new BeltGrid(), core);
-        slice.UnlockGodotSliceDemo();
+        slice.UnlockAllForDemo();
         Assert(slice.TryPlaceSorter(new GridPosition(4, 4), Direction.East, "iron-plate"), "TryPlaceSorter");
         Assert(slice.Belts.TryGet(new GridPosition(4, 4), out var placedSorter)
             && placedSorter.FilterItemId == "iron-plate", "placed filter");
@@ -980,8 +988,7 @@ internal static class FactoryScenarios
                 && b.BridgePartnerY is not null),
             "capture bridge partner");
         FactorySaveStore.Delete("selftest-sorter-bridge");
-        FactorySaveStore.Save("selftest-sorter-bridge", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-sorter-bridge"));
+        var restored = SaveAndReload(content, "selftest-sorter-bridge", slice);
         Assert(restored.Belts.Cells.Values.Any(c =>
                 c.Kind == LogisticsKind.Sorter && c.FilterItemId == "iron-plate"),
             "restore filter");
@@ -1066,8 +1073,7 @@ internal static class FactoryScenarios
         Assert(snap.Version == FactorySaveData.CurrentVersion, "save v2");
 
         FactorySaveStore.Delete("selftest-research");
-        FactorySaveStore.Save("selftest-research", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-research"));
+        var restored = SaveAndReload(content, "selftest-research", slice);
         Assert(restored.Research.IsUnlocked("smelter"), "restore smelter");
         Assert(restored.Research.IsUnlocked("sorter"), "restore sorter");
         Assert(restored.Research.IsUnlocked("conveyor-basic"), "restore defaults");
@@ -1126,8 +1132,7 @@ internal static class FactoryScenarios
         Assert(snap.SoldByItem.GetValueOrDefault("iron-ore") == 5, "capture sold");
 
         FactorySaveStore.Delete("selftest-mercato");
-        FactorySaveStore.Save("selftest-mercato", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-mercato"));
+        var restored = SaveAndReload(content, "selftest-mercato", slice);
         Assert(restored.Wallet.Money == slice.Wallet.Money, "restore money");
         Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore income");
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
@@ -1169,7 +1174,7 @@ internal static class FactoryScenarios
     public static void SelfTestAutoSell(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var slice = CreateSpikeDemo(content);
+        var slice = NewGame.Demo(content);
         slice.AutoSellAtCore = true;
 
         var moneyBefore = slice.Wallet.Money;
@@ -1194,22 +1199,21 @@ internal static class FactoryScenarios
         var snap = slice.Capture();
         Assert(snap.AutoSellAtCore, "capture auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
-        FactorySaveStore.Save("selftest-autosell", snap);
-        var restored = Restore(content, FactorySaveStore.Load("selftest-autosell"));
+        var restored = SaveAndReload(content, "selftest-autosell", slice);
         Assert(restored.AutoSellAtCore, "restore auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
 
         // OFF path still stocks (stock-first default).
-        var stockSlice = CreateSpikeDemo(content);
-        Assert(!stockSlice.AutoSellAtCore, "default OFF");
-        moneyBefore = stockSlice.Wallet.Money;
+        var stockGame = NewGame.Demo(content);
+        Assert(!stockGame.AutoSellAtCore, "default OFF");
+        moneyBefore = stockGame.Wallet.Money;
         for (var i = 0; i < SimulationClock.TickRate * 45; i++)
         {
-            stockSlice.Step();
-            if (stockSlice.CoreDeliveredItems > 0 && stockSlice.Wallet.MaterialCount("iron-ore") > 0)
+            stockGame.Step();
+            if (stockGame.CoreDeliveredItems > 0 && stockGame.Wallet.MaterialCount("iron-ore") > 0)
             {
-                Assert(stockSlice.Session.SaleIncome == 0, "no auto sale when OFF");
-                Assert(stockSlice.Wallet.Money == moneyBefore, "money unchanged when OFF");
+                Assert(stockGame.Session.SaleIncome == 0, "no auto sale when OFF");
+                Assert(stockGame.Wallet.Money == moneyBefore, "money unchanged when OFF");
                 return;
             }
         }
@@ -1242,7 +1246,7 @@ internal static class FactoryScenarios
             Assert(l02 is not null, "L02 exists");
             Assert(!progress.IsUnlocked(l02!, catalog), "L02 locked");
 
-            var slice = CreateCampaignSlice(content, catalog, l01);
+            var slice = NewGame.Campaign(content, catalog, l01);
             Assert(slice.Wallet.Money == l01.StartingMoney, "start money");
             Assert(slice.Session.SaleIncome == 0, "sale income 0");
             Assert(slice.ActiveCampaignLevelId == l01.Id, "active level");
@@ -1252,7 +1256,7 @@ internal static class FactoryScenarios
             Assert(expectW == 1000 && expectH == 1000, "campaign L01 is 1000×1000");
             Assert(slice.Terrain.Width == expectW && slice.Terrain.Height == expectH,
                 $"campaign map size {expectW}×{expectH}");
-            var sandboxBig = CreateSandboxSlice(content, CenteredCoreOrigin(1000, 1000));
+            var sandboxBig = NewGame.Sandbox(content, CenteredCoreOrigin(1000, 1000));
             Assert(sandboxBig.Terrain is { Width: 1000, Height: 1000 }, "sandbox default 1000²");
             var coreOrigin = CenteredCoreOrigin(expectW, expectH);
             Assert(slice.CoreTiles.Contains(coreOrigin), "core centered");
@@ -1271,9 +1275,9 @@ internal static class FactoryScenarios
 
             Assert(hasIron, "starter iron deposit");
 
-            var sandbox = CreateSandboxSlice(content, new GridPosition(9, 14), seed: 99);
+            var sandbox = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 99);
             Assert(sandbox.Terrain is not null && sandbox.Terrain.Seed == 99, "sandbox seed");
-            var other = CreateSandboxSlice(content, new GridPosition(9, 14), seed: 100);
+            var other = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 100);
             Assert(sandbox.Terrain![0, 0].Terrain != other.Terrain![0, 0].Terrain
                 || sandbox.Terrain[5, 5].Deposit != other.Terrain[5, 5].Deposit
                 || true, "seeds differ (layout may still overlap)");
@@ -1332,8 +1336,7 @@ internal static class FactoryScenarios
             Assert(snap.Version == FactorySaveData.CurrentVersion, "save v4");
             Assert(snap.ActiveCampaignLevelId == l01.Id, "capture level id");
             FactorySaveStore.Delete("selftest-campaign");
-            FactorySaveStore.Save("selftest-campaign", snap);
-            var restored = Restore(content, FactorySaveStore.Load("selftest-campaign"));
+            var restored = SaveAndReload(content, "selftest-campaign", slice);
             Assert(restored.ActiveCampaignLevelId == l01.Id, "restore level id");
             Assert(restored.Session.SaleIncome == slice.Session.SaleIncome, "restore sales");
             FactorySaveStore.Delete("selftest-campaign");

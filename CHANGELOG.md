@@ -34,7 +34,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Cambiato
 
-- **Salvataggi**: versione 9. I salvataggi di versioni precedenti non sono più compatibili: caricandoli compare il messaggio "Salvataggio di una versione precedente: non compatibile." e la partita corrente resta com'è
+- **Salvataggi versione 10**: il file contiene i metadati dello slot più l'istantanea canonica dello stato (`FactorySaveStore.Save(slot, SimHost)` / `TryLoad(content, slot, …)`); i salvataggi v9 e precedenti non si caricano più. I salvataggi di versioni precedenti non sono più compatibili: caricandoli compare il messaggio "Salvataggio di una versione precedente: non compatibile." e la partita corrente resta com'è. Le partite nuove si costruiscono con `NewGame.Sandbox/Campaign/Demo`; spariti i nomi `Slice`/`Spike` (`CreateSandboxSlice`, `CreateSpikeDemo`, `UnlockGodotSliceDemo`, `SaveSlice`/`LoadSlice`…)
 - **Continua non più sovrascritto a vuoto**: l'autosave alla chiusura (Esci, chiusura finestra, Menu/Esc → Home) scrive su Continua solo se in questa sessione hai giocato (nuova partita, livello di campagna o caricamento riuscito). Prima, aprire il gioco e uscire subito sostituiva Continua con la sandbox di avvio, anche quando il salvataggio era solo di una versione non compatibile
 
 ### Sviluppo

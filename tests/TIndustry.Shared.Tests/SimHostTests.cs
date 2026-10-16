@@ -20,7 +20,7 @@ public sealed class SimHostTests
 
     /// <summary>Small sandbox: $180, 48 iron plates, 10 copper wire; only belts and miners unlocked.</summary>
     private static Factory NewSandbox(FactoryContent content) =>
-        Factory.CreateSandboxSlice(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120);
+        NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120);
 
     [Fact]
     public void SubmittedCommandAppliesOnNextTick()
@@ -289,7 +289,7 @@ public sealed class SimHostTests
     public void SetSorterFilterChangesTheSorterOnly()
     {
         var factory = NewSandbox(LoadContent());
-        factory.UnlockGodotSliceDemo();
+        factory.UnlockAllForDemo();
         var sorter = new GridPosition(20, 20);
         Assert.True(factory.TryPlaceSorter(sorter, Direction.East));
 
