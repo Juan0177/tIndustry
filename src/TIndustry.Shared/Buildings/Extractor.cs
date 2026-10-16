@@ -14,12 +14,17 @@ public sealed class Extractor
     public Extractor(
         GridPosition position,
         Direction direction,
-        string filterItemId = DefaultFilterItemId)
+        string filterItemId = DefaultFilterItemId,
+        long id = 0)
     {
+        Id = id;
         Position = position;
         Direction = direction;
         FilterItemId = string.IsNullOrWhiteSpace(filterItemId) ? DefaultFilterItemId : filterItemId;
     }
+
+    /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
+    public long Id { get; }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }

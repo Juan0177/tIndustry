@@ -30,8 +30,10 @@ public sealed class Crafter
         Direction direction,
         RecipeDefinition recipe,
         string buildingId = SmelterBuildingId,
-        IReadOnlyList<RecipeDefinition>? availableRecipes = null)
+        IReadOnlyList<RecipeDefinition>? availableRecipes = null,
+        long id = 0)
     {
+        Id = id;
         Position = position;
         Direction = direction;
         AvailableRecipes = availableRecipes is { Count: > 0 }
@@ -40,6 +42,9 @@ public sealed class Crafter
         activeRecipe = AvailableRecipes.FirstOrDefault(r => r.Id == recipe.Id) ?? AvailableRecipes[0];
         DefinitionId = string.IsNullOrWhiteSpace(buildingId) ? SmelterBuildingId : buildingId;
     }
+
+    /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
+    public long Id { get; }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }

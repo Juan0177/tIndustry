@@ -17,6 +17,8 @@ public sealed class Factory
     public const float AssemblerPowerDraw = 10f;
 
     private long nextItemId = 1;
+    /// <summary>Next stable building id (miners, crafters, generators, extractors, power nodes).</summary>
+    private long nextEntityId = 1;
     private readonly List<Miner> miners = [];
     private readonly List<Crafter> smelters = [];
     private readonly List<Crafter> assemblers = [];
@@ -78,6 +80,10 @@ public sealed class Factory
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public long NextItemId => nextItemId;
+    public long NextEntityId => nextEntityId;
+
+    /// <summary>Fixed ticks simulated so far (<see cref="SimulationClock.TickSeconds"/> each).</summary>
+    public long CurrentTick { get; private set; }
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;
@@ -95,15 +101,17 @@ public sealed class Factory
         {
             Version = FactorySaveData.CurrentVersion,
             NextItemId = nextItemId,
+            NextEntityId = nextEntityId,
+            CurrentTick = CurrentTick,
             CoreDeliveredItems = CoreDeliveredItems,
             CoreX = coreOrigin.X,
             CoreY = coreOrigin.Y,
             CoreSize = coreSize,
             Money = Wallet.Money,
-            Materials = Wallet.MaterialsSnapshot(),
+            Materials = SortedByKey(Wallet.MaterialsSnapshot()),
             UnlockedStructures = Research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
             SaleIncome = Session.SaleIncome,
-            SoldByItem = Session.SoldByItem.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+            SoldByItem = SortedByKey(Session.SoldByItem),
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
             AutoSellAtCore = AutoSellAtCore,
@@ -114,8 +122,10 @@ public sealed class Factory
             Seed = Terrain?.Seed ?? 0,
             MapWidth = Terrain?.Width ?? 0,
             MapHeight = Terrain?.Height ?? 0,
-            Miners = miners.Select(m => new MinerSaveDto
+            // Canonical order (ids, then belt cells by Y, X) so captures compare byte for byte.
+            Miners = miners.OrderBy(m => m.Id).Select(m => new MinerSaveDto
             {
+                Id = m.Id,
                 X = m.Position.X,
                 Y = m.Position.Y,
                 Direction = m.Direction.ToString(),
@@ -124,10 +134,11 @@ public sealed class Factory
                 OutputItemId = m.OutputItemId,
                 DefinitionId = m.DefinitionId
             }).ToList(),
-            Smelters = smelters.Select(CaptureCraft).ToList(),
-            Assemblers = assemblers.Select(CaptureCraft).ToList(),
-            Generators = generators.Select(g => new GeneratorSaveDto
+            Smelters = smelters.OrderBy(s => s.Id).Select(CaptureCraft).ToList(),
+            Assemblers = assemblers.OrderBy(a => a.Id).Select(CaptureCraft).ToList(),
+            Generators = generators.OrderBy(g => g.Id).Select(g => new GeneratorSaveDto
             {
+                Id = g.Id,
                 X = g.Position.X,
                 Y = g.Position.Y,
                 Direction = g.Direction.ToString(),
@@ -135,20 +146,23 @@ public sealed class Factory
                 BurnRemaining = g.BurnRemaining,
                 FuelConsumed = g.FuelConsumed
             }).ToList(),
-            Extractors = extractors.Select(e => new ExtractorSaveDto
+            Extractors = extractors.OrderBy(e => e.Id).Select(e => new ExtractorSaveDto
             {
+                Id = e.Id,
                 X = e.Position.X,
                 Y = e.Position.Y,
                 Direction = e.Direction.ToString(),
                 FilterItemId = e.FilterItemId,
                 Progress = e.Progress
             }).ToList(),
-            PowerNodes = powerNodes.Select(n => new PowerNodeSaveDto
+            PowerNodes = powerNodes.OrderBy(n => n.Id).Select(n => new PowerNodeSaveDto
             {
+                Id = n.Id,
                 X = n.Position.X,
                 Y = n.Position.Y,
                 DefinitionId = n.DefinitionId
             }).ToList(),
+            // BeltGrid.Cells already enumerates in canonical (Y, X) order.
             Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
             {
                 X = c.Position.X,
@@ -170,8 +184,21 @@ public sealed class Factory
         };
     }
 
+    private static Dictionary<string, int> SortedByKey(IEnumerable<KeyValuePair<string, int>> source)
+    {
+        // Fresh dictionary filled in ordinal key order: enumerates (and serializes) in that order.
+        var sorted = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var kv in source.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        {
+            sorted[kv.Key] = kv.Value;
+        }
+
+        return sorted;
+    }
+
     private static CraftSaveDto CaptureCraft(Crafter craft) => new()
     {
+        Id = craft.Id,
         X = craft.Position.X,
         Y = craft.Position.Y,
         Direction = craft.Direction.ToString(),
@@ -179,7 +206,7 @@ public sealed class Factory
         DefinitionId = craft.DefinitionId,
         Progress = craft.Progress,
         IsCrafting = craft.IsCrafting,
-        InputBuffer = craft.InputBuffer.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+        InputBuffer = SortedByKey(craft.InputBuffer),
         OutputQueue = craft.OutputQueue.ToList(),
         EjectIndex = craft.EjectIndex,
         ItemsCrafted = craft.ItemsCrafted,
@@ -229,6 +256,7 @@ public sealed class Factory
         var slice = new Factory(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
+            CurrentTick = Math.Max(0, data.CurrentTick),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
             ActiveCampaignLevelId = data.ActiveCampaignLevelId,
             AutoSellAtCore = data.AutoSellAtCore,
@@ -243,30 +271,43 @@ public sealed class Factory
             slice.PowerBuffer = Math.Clamp(slice.PowerBuffer, 0f, slice.PowerCapacity);
         }
 
+        // Saves written before stable ids (id 0) get fresh ids in list order.
+        var maxSavedId = data.Miners.Select(d => d.Id)
+            .Concat(data.Smelters.Select(d => d.Id))
+            .Concat(data.Assemblers.Select(d => d.Id))
+            .Concat(data.Generators.Select(d => d.Id))
+            .Concat(data.Extractors.Select(d => d.Id))
+            .Concat(data.PowerNodes.Select(d => d.Id))
+            .DefaultIfEmpty(0)
+            .Max();
+        slice.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);
+        long RestoredId(long savedId) => savedId > 0 ? savedId : slice.nextEntityId++;
+
         foreach (var m in data.Miners)
         {
             var miner = new Miner(
                 new GridPosition(m.X, m.Y),
                 ParseDirection(m.Direction),
                 outputItemId: m.OutputItemId,
-                definitionId: m.DefinitionId);
+                definitionId: m.DefinitionId,
+                id: RestoredId(m.Id));
             miner.RestoreProgress(m.Progress, m.EjectIndex);
             slice.miners.Add(miner);
         }
 
         foreach (var s in data.Smelters)
         {
-            slice.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId));
+            slice.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId, RestoredId(s.Id)));
         }
 
         foreach (var a in data.Assemblers)
         {
-            slice.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId));
+            slice.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
         }
 
         foreach (var g in data.Generators)
         {
-            var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction));
+            var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id));
             gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
             slice.generators.Add(gen);
         }
@@ -276,14 +317,15 @@ public sealed class Factory
             var ex = new Extractor(
                 new GridPosition(e.X, e.Y),
                 ParseDirection(e.Direction),
-                e.FilterItemId);
+                e.FilterItemId,
+                RestoredId(e.Id));
             ex.RestoreProgress(e.Progress);
             slice.extractors.Add(ex);
         }
 
         foreach (var n in data.PowerNodes)
         {
-            slice.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId));
+            slice.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
         }
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
@@ -303,10 +345,24 @@ public sealed class Factory
                 starter);
         }
 
+        SortById(slice.miners, m => m.Id);
+        SortById(slice.smelters, s => s.Id);
+        SortById(slice.assemblers, a => a.Id);
+        SortById(slice.generators, g => g.Id);
+        SortById(slice.extractors, e => e.Id);
+        SortById(slice.powerNodes, n => n.Id);
         return slice;
     }
 
-    private static Crafter RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId)
+    /// <summary>Systems iterate buildings in ascending id order (stable sort keeps list order on ties).</summary>
+    private static void SortById<T>(List<T> list, Func<T, long> id)
+    {
+        var sorted = list.OrderBy(id).ToList();
+        list.Clear();
+        list.AddRange(sorted);
+    }
+
+    private static Crafter RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId, long id)
     {
         var recipe = content.FindRecipe(dto.RecipeId)
             ?? content.FindRecipe(fallbackId == Crafter.AssemblerBuildingId
@@ -322,7 +378,8 @@ public sealed class Factory
             ParseDirection(dto.Direction),
             recipe,
             buildingId,
-            available);
+            available,
+            id);
         craft.RestoreCraftState(
             dto.Progress,
             dto.IsCrafting,
@@ -1261,7 +1318,7 @@ public sealed class Factory
             {
                 // Relocate keeps old efficiency; replace instead when terrain-aware.
                 // No charge — same building moved.
-                miners[0] = new Miner(origin, direction, covered, itemId, id);
+                miners[0] = new Miner(origin, direction, covered, itemId, id, miners[0].Id);
                 return true;
             }
 
@@ -1273,7 +1330,7 @@ public sealed class Factory
             return false;
         }
 
-        miners.Add(new Miner(origin, direction, covered, itemId, id));
+        miners.Add(new Miner(origin, direction, covered, itemId, id, nextEntityId++));
         return true;
     }
 
@@ -1306,7 +1363,7 @@ public sealed class Factory
         }
 
         smelters.Add(new Crafter(
-            origin, direction, recipe, Crafter.SmelterBuildingId, recipes));
+            origin, direction, recipe, Crafter.SmelterBuildingId, recipes, nextEntityId++));
         return true;
     }
 
@@ -1339,7 +1396,7 @@ public sealed class Factory
         }
 
         assemblers.Add(new Crafter(
-            origin, direction, recipe, Crafter.AssemblerBuildingId, recipes));
+            origin, direction, recipe, Crafter.AssemblerBuildingId, recipes, nextEntityId++));
         return true;
     }
 
@@ -1367,7 +1424,7 @@ public sealed class Factory
             return false;
         }
 
-        generators.Add(new Generator(origin, direction));
+        generators.Add(new Generator(origin, direction, nextEntityId++));
         return true;
     }
 
@@ -1391,7 +1448,7 @@ public sealed class Factory
             return false;
         }
 
-        extractors.Add(new Extractor(origin, direction, filterItemId));
+        extractors.Add(new Extractor(origin, direction, filterItemId, nextEntityId++));
         return true;
     }
 
@@ -1414,7 +1471,7 @@ public sealed class Factory
             return false;
         }
 
-        powerNodes.Add(new PowerNode(origin, id));
+        powerNodes.Add(new PowerNode(origin, id, nextEntityId++));
         return true;
     }
 
@@ -1593,7 +1650,14 @@ public sealed class Factory
         return true;
     }
 
-    public void Tick(float deltaSeconds)
+    /// <summary>Advances the simulation by exactly one fixed tick (<see cref="SimulationClock.TickSeconds"/>).</summary>
+    public void Step()
+    {
+        Tick(SimulationClock.TickSeconds);
+        CurrentTick++;
+    }
+
+    private void Tick(float deltaSeconds)
     {
         // Belts advance first so fuel reaches generators and handoffs reach craft/core.
         Belts.Tick(deltaSeconds);

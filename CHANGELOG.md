@@ -37,6 +37,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Sviluppo
 
+- **Simulazione a passo fisso (1/5 del sotto-progetto 2)**: la fabbrica avanza a tick fissi di 1/60 s (`Factory.Step()`, contatore `CurrentTick`); `SimulationClock` converte il tempo di frame in tick con un tetto di 5 per frame. I nastri sono percorsi in ordine canonico (riga, poi colonna) e gli edifici hanno un id stabile salvato (`Id`, `NextEntityId`, `CurrentTick` nel salvataggio; i file senza id li ricevono al caricamento). Nuovi test di determinismo (FPS diversi, ordine di piazzamento, salvataggio a metà partita, ritmo di gioco). Ritmo di gioco invariato per il giocatore
 - **Avvio in dev all-in-one**: `dev.cmd` (Windows) / `tools/dev/dev.sh` controlla .NET 8 e Godot 4.4 mono, compila, importa gli asset se serve e avvia il gioco; opzioni `--profilo-temp`, `--nuova`, `--editor`, `--test`, `--playtest ui|tutorial`, `--solo-build`, `--import`
 - **Testo e icone nitidi**: la UI usa il filtro lineare con mipmap (la mappa resta Nearest per la pixel art); prima icone 64px ridotte a 16–26px e testo alla scala 125% erano sgranati
 - **Playtest isolati**: con `TINDUSTRY_PLAYTEST` gli input reali (mouse/tastiera sulla finestra) vengono ignorati; un click o Esc durante la prova la faceva fallire a caso. Il playtest `ui` lo verifica

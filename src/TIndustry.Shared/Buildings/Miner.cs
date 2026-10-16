@@ -19,14 +19,19 @@ public sealed class Miner
         Direction direction,
         int coveredDepositTiles = FootprintArea,
         string outputItemId = DefaultOutputItemId,
-        string definitionId = BasicId)
+        string definitionId = BasicId,
+        long id = 0)
     {
+        Id = id;
         Position = position;
         Direction = direction;
         CoveredDepositTiles = coveredDepositTiles;
         OutputItemId = string.IsNullOrWhiteSpace(outputItemId) ? DefaultOutputItemId : outputItemId;
         DefinitionId = string.IsNullOrWhiteSpace(definitionId) ? BasicId : definitionId;
     }
+
+    /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
+    public long Id { get; }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }
