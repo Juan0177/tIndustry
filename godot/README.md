@@ -56,22 +56,22 @@ $env:TINDUSTRY_DEV_AVVIO = "sblocca tutto; soldi 10000; velocita 4"   # facoltat
 godot4 --path godot
 ```
 
-In alto al centro compare la riga di stato: velocità, tick, tempo di gioco e cella sotto il mouse.
+In alto a destra compare la **barra della velocità**: `⏸ ×1 ×10 ×60` (quella attiva è evidenziata), `+1h` / `+6h` per simulare subito ore di gioco e `console`. Sotto, la riga di stato con velocità, tick, tempo di gioco e cella sotto il mouse.
 
 | Tasto | Azione |
 | --- | --- |
 | F1 | Apri / chiudi la console (Esc chiude) |
 | F2 | Pausa / riprendi |
-| F3 / F4 | Più lento / più veloce (0.25× … 32×) |
+| F3 / F4 | Più lento / più veloce (0.25× · 0.5× · 1× · 2× · 5× · 10× · 30× · 60×) |
 | . | In pausa: avanza di un tick |
 
 Nella console: Invio esegue, ↑/↓ cronologia, Tab completa il comando.
 
 | Comando | Effetto |
 | --- | --- |
-| `velocita <x>` | velocità della simulazione 0.1–32 (`0` = pausa) |
+| `velocita <x>` | velocità della simulazione 0.1–60 (`0` = pausa) |
 | `pausa` · `passo [n]` | pausa / riprendi · in pausa avanza di n tick (1 tick = 1/60 s) |
-| `avanti <secondi>` | simula subito fino a 3600 s di gioco |
+| `avanti <secondi>` | simula subito fino a 21600 s (6 h) di gioco |
 | `soldi <n>` | aggiunge (o toglie, se negativo) fondi |
 | `dai <oggetto\|tutto> [n]` | aggiunge n oggetti al CORE (default 100) |
 | `sblocca <blocco\|tutto>` | sblocca in Ricerca senza pagare |

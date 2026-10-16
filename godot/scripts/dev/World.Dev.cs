@@ -13,6 +13,7 @@ public partial class World
     private DevConsole? _dev;
     private DevConsolePanel? _devPanel;
     private Label? _devStatus;
+    private DevSpeedBar? _devSpeedBar;
 
     private static bool DevModeRequested =>
         DevConsole.RequestedByEnvironment && OS.IsDebugBuild() && !PlaytestRequested;
@@ -26,25 +27,56 @@ public partial class World
             return;
         }
 
-        _dev = new DevConsole();
+        var dev = new DevConsole();
+        _dev = dev;
         var layer = GetNode<CanvasLayer>("Hud");
+
+        // Top-right corner: the top-left column belongs to menu / core / objectives.
+        _devSpeedBar = new DevSpeedBar();
+        _devSpeedBar.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopRight);
+        // Zero-size anchor point 12 px from the right edge; the bar grows leftwards from it.
+        _devSpeedBar.OffsetLeft = _devSpeedBar.OffsetRight = -12;
+        _devSpeedBar.OffsetTop = 8;
+        _devSpeedBar.SpeedChosen += speed =>
+        {
+            dev.SetSpeed(speed);
+            RefreshDevSpeedBar();
+        };
+        _devSpeedBar.PauseToggled += () =>
+        {
+            dev.TogglePause();
+            RefreshDevSpeedBar();
+        };
+        _devSpeedBar.FastForwardRequested += seconds => OnDevCommand($"avanti {seconds}", toast: true);
+        _devSpeedBar.ConsoleRequested += () => _devPanel?.Toggle();
+        layer.AddChild(_devSpeedBar);
 
         _devStatus = new Label
         {
             Name = "DevStatus",
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Right
         };
-        _devStatus.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
-        _devStatus.OffsetLeft = -260;
-        _devStatus.OffsetRight = 260;
-        _devStatus.OffsetTop = 6;
-        _devStatus.OffsetBottom = 26;
+        _devStatus.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+        _devStatus.OffsetLeft = -520;
+        _devStatus.OffsetRight = -14;
+        _devStatus.OffsetTop = 44;
+        _devStatus.OffsetBottom = 64;
         _devStatus.AddThemeColorOverride("font_color", HudStyle.SlotSelected);
         _devStatus.AddThemeColorOverride("font_outline_color", Colors.Black);
         _devStatus.AddThemeConstantOverride("outline_size", 4);
         _devStatus.AddThemeFontSizeOverride("font_size", 14);
         layer.AddChild(_devStatus);
+
+        // FPS / resource overlays share the top-right corner: move them below the bar.
+        foreach (var overlay in new Control?[] { _fpsLabel, _resourceLabel })
+        {
+            if (overlay is not null)
+            {
+                overlay.OffsetTop += 60;
+                overlay.OffsetBottom += 60;
+            }
+        }
 
         // Created after every other panel: drawn on top of Home, Ricerca, Saves…
         _devPanel = new DevConsolePanel();
@@ -88,6 +120,15 @@ public partial class World
 
         var cell = _hover is { } h ? $" · cella {h.X},{h.Y}" : "";
         _devStatus.Text = _dev.StatusText(_slice) + cell;
+        RefreshDevSpeedBar();
+    }
+
+    private void RefreshDevSpeedBar()
+    {
+        if (_dev is not null)
+        {
+            _devSpeedBar?.Refresh(_dev.Speed, _dev.Paused);
+        }
     }
 
     /// <summary>Dev hotkeys; true when <paramref name="key"/> was one of them.</summary>
@@ -120,7 +161,10 @@ public partial class World
         }
     }
 
-    private void OnDevCommand(string line)
+    /// <param name="toast">Also show the last output line as a toast (commands run from the speed bar).</param>
+    private void OnDevCommand(string line) => OnDevCommand(line, toast: false);
+
+    private void OnDevCommand(string line, bool toast)
     {
         if (_dev is null || _devPanel is null || _slice is null)
         {
@@ -136,6 +180,11 @@ public partial class World
         foreach (var text in result.Lines)
         {
             _devPanel.Print(text);
+        }
+
+        if (toast && result.Lines.Count > 0)
+        {
+            _hud?.ShowToast(result.Lines[^1]);
         }
 
         if (result.ResearchChanged)

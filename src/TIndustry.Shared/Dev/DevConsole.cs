@@ -39,13 +39,16 @@ public sealed class DevConsole
     /// <summary>Commands run at the start of every game, separated by <c>;</c> (e.g. <c>sblocca tutto; soldi 10000</c>).</summary>
     public const string StartupEnvVar = "TINDUSTRY_DEV_AVVIO";
     public const float MinSpeed = 0.1f;
-    public const float MaxSpeed = 32f;
-    /// <summary><c>avanti</c> limit: one hour of game time per command.</summary>
-    public const int MaxFastForwardSeconds = 3600;
+    public const float MaxSpeed = 60f;
+    /// <summary><c>avanti</c> limit: six hours of game time per command (the +6h button).</summary>
+    public const int MaxFastForwardSeconds = 6 * 3600;
     public const int DefaultGiveAmount = 100;
 
     /// <summary>Speeds the hotkeys step through (slower / faster).</summary>
-    public static readonly float[] SpeedSteps = [0.25f, 0.5f, 1f, 2f, 4f, 8f, 16f, 32f];
+    public static readonly float[] SpeedSteps = [0.25f, 0.5f, 1f, 2f, 5f, 10f, 30f, 60f];
+
+    /// <summary>Speeds offered by the on-screen speed bar.</summary>
+    public static readonly float[] BarSpeeds = [1f, 10f, 60f];
 
     public static readonly string[] CommandNames =
     [
@@ -55,10 +58,10 @@ public sealed class DevConsole
 
     private static readonly string[] HelpLines =
     [
-        "velocita <x>        velocità della simulazione (0.1–32, 0 = pausa); senza x mostra quella attuale",
+        "velocita <x>        velocità della simulazione (0.1–60, 0 = pausa); senza x mostra quella attuale",
         "pausa               mette in pausa / riprende",
         "passo [n]           in pausa: avanza di n tick (1 tick = 1/60 s)",
-        "avanti <secondi>    simula subito <secondi> di gioco (max 3600)",
+        "avanti <secondi>    simula subito <secondi> di gioco (max 21600 = 6 h)",
         "soldi <n>           aggiunge n ai fondi (negativo per toglierli)",
         "dai <oggetto|tutto> [n]  aggiunge n oggetti al CORE (default 100)",
         "sblocca <blocco|tutto>   sblocca in Ricerca senza pagare",
@@ -68,7 +71,7 @@ public sealed class DevConsole
         "vai <x> <y> | core  sposta la visuale",
         "vinci               completa il livello di campagna attivo",
         "pulisci             svuota la console",
-        "Tasti: F1 console · F2 pausa · F3/F4 più lento/veloce · . un tick (in pausa)"
+        "Tasti: F1 console · F2 pausa · F3/F4 più lento/veloce · . un tick (in pausa) · barra in alto a destra"
     ];
 
     private float speed = 1f;
@@ -120,7 +123,7 @@ public sealed class DevConsole
 
     /// <summary>
     /// Ticks to run this frame: frame time scaled by <see cref="Speed"/>, the per-frame cap scaled with it
-    /// so 16× is not clipped to 5 ticks; while paused only the queued single steps.
+    /// so 10× is not clipped to 5 ticks; while paused only the queued single steps.
     /// </summary>
     public int TicksForFrame(SimulationClock clock, double frameSeconds)
     {

@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Dev console drawn over the top of the screen (<c>TINDUSTRY_DEV=1</c>, debug builds only).
+/// Dev console drawn across the screen under the speed bar (<c>TINDUSTRY_DEV=1</c>, debug builds only).
 /// F1 toggles · Enter runs · ↑/↓ history · Tab completes the command name · Esc closes.
 /// Commands are executed by the world through <see cref="CommandSubmitted"/>.
 /// </summary>
@@ -26,7 +26,9 @@ public partial class DevConsolePanel : Control
     {
         Name = "DevConsolePanel";
         SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
-        OffsetBottom = 300;
+        // Below the speed bar and status line, which stay visible and clickable.
+        OffsetTop = 72;
+        OffsetBottom = 372;
         Visible = false;
         BuildUi();
         Print("Console dev · scrivi aiuto per i comandi · F1 per chiudere");

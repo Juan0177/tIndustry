@@ -37,7 +37,7 @@ public sealed class DevConsoleTests
     public void HighSpeedIsNotClippedToTheNormalFrameCap()
     {
         var dev = new DevConsole();
-        dev.SetSpeed(16);
+        dev.SetSpeed(DevConsole.MaxSpeed);
         var clock = new SimulationClock();
         var total = 0;
         for (var i = 0; i < 60; i++)
@@ -45,7 +45,16 @@ public sealed class DevConsoleTests
             total += dev.TicksForFrame(clock, 1.0 / 60);
         }
 
-        Assert.Equal(16 * 60, total);
+        // Repeated subtraction of 1/60 can leave the last tick in the accumulator for the next frame.
+        Assert.InRange(total, (int)DevConsole.MaxSpeed * 60 - 1, (int)DevConsole.MaxSpeed * 60);
+    }
+
+    [Fact]
+    public void BarAndHotkeySpeedsAreReachable()
+    {
+        Assert.All(DevConsole.BarSpeeds, s => Assert.Contains(s, DevConsole.SpeedSteps));
+        Assert.Equal(DevConsole.MaxSpeed, DevConsole.SpeedSteps[^1]);
+        Assert.Equal(DevConsole.MaxSpeed, DevConsole.BarSpeeds[^1]);
     }
 
     [Fact]

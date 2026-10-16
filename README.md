@@ -74,7 +74,7 @@ Controlla gli strumenti, compila, importa gli asset se serve e avvia il gioco. O
 | --- | --- |
 | `--profilo-temp` | profilo dati temporaneo: non tocca impostazioni e salvataggi reali (**consigliato per le prove**) |
 | `--nuova` | salta la Home e apre una nuova partita |
-| `--dev` | modalità dev: console (F1), pausa (F2), velocità (F3/F4), trucchi — vedi [`godot/README.md`](godot/README.md#modalità-dev) |
+| `--dev` | modalità dev: barra della velocità, console (F1), pausa (F2), trucchi — vedi [`godot/README.md`](godot/README.md#modalità-dev) |
 | `--editor` | apre l'editor Godot |
 | `--test` | esegue i test prima di avviare |
 | `--playtest ui\|tutorial` | playtest automatico con screenshot in `.dev/` |
