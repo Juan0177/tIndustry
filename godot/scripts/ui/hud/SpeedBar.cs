@@ -4,11 +4,11 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Dev-mode speed bar in the top-right corner: segmented pause / ×1 / ×10 / ×60, jumps +1h / +6h,
-/// and a button for the console. The active speed is highlighted; <see cref="Refresh"/> keeps it in sync
-/// with hotkeys and console commands.
+/// Speed bar in the top-right corner: segmented pause / ×1 / ×10 / ×60, time jumps +1h / +6h, and in dev
+/// mode a button for the console. The active speed is highlighted; <see cref="Refresh"/> keeps it in sync
+/// with Space, hotkeys and console commands.
 /// </summary>
-public partial class DevSpeedBar : Control
+public partial class SpeedBar : Control
 {
     private static readonly Color ActiveBg = new(0.30f, 0.26f, 0.10f, 0.95f);
     private static readonly Color HoverBg = new(0.16f, 0.17f, 0.15f, 0.95f);
@@ -21,9 +21,12 @@ public partial class DevSpeedBar : Control
     public event Action<int>? FastForwardRequested;
     public event Action? ConsoleRequested;
 
+    /// <summary>Set before adding to the tree: shows the console button (dev mode only).</summary>
+    public bool ShowConsoleButton { get; init; }
+
     public override void _Ready()
     {
-        Name = "DevSpeedBar";
+        Name = "SpeedBar";
         MouseFilter = MouseFilterEnum.Ignore;
         BuildUi();
     }
@@ -51,12 +54,12 @@ public partial class DevSpeedBar : Control
         AddChild(row);
 
         var speeds = Group(row);
-        _pauseButton = MakeButton("⏸", "Pausa (F2)", () => PauseToggled?.Invoke());
+        _pauseButton = MakeButton("⏸", "Pausa / riprendi (Spazio)", () => PauseToggled?.Invoke());
         speeds.AddChild(_pauseButton);
-        foreach (var speed in DevConsole.BarSpeeds)
+        foreach (var speed in GameSpeed.BarSpeeds)
         {
             var label = $"×{speed:0.##}";
-            var button = MakeButton(label, $"Velocità {label} (F3/F4)", () => SpeedChosen?.Invoke(speed));
+            var button = MakeButton(label, $"Velocità {label}", () => SpeedChosen?.Invoke(speed));
             speeds.AddChild(button);
             _speedButtons.Add((speed, button));
         }
@@ -64,11 +67,14 @@ public partial class DevSpeedBar : Control
         foreach (var (label, seconds) in new[] { ("+1h", 3600), ("+6h", 6 * 3600) })
         {
             var group = Group(row);
-            group.AddChild(MakeButton(label, $"Simula subito {label[1..]} di gioco", () => FastForwardRequested?.Invoke(seconds)));
+            group.AddChild(MakeButton(label, $"Salta avanti di {label[1..]} di gioco", () => FastForwardRequested?.Invoke(seconds)));
         }
 
-        var console = Group(row);
-        console.AddChild(MakeButton("console", "Console dev (F1)", () => ConsoleRequested?.Invoke()));
+        if (ShowConsoleButton)
+        {
+            var console = Group(row);
+            console.AddChild(MakeButton("console", "Console dev (F1)", () => ConsoleRequested?.Invoke()));
+        }
     }
 
     /// <summary>A bordered pill holding buttons side by side (one segment per button).</summary>

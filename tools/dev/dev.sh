@@ -11,7 +11,7 @@ Senza opzioni: controlla gli strumenti, compila, importa gli asset se serve e av
 
   --editor          apre l'editor Godot invece del gioco
   --nuova           salta la Home e parte da una nuova partita (TINDUSTRY_FRESH=1)
-  --dev             modalità dev (TINDUSTRY_DEV=1): barra della velocità, console F1, pausa F2
+  --dev             modalità dev (TINDUSTRY_DEV=1): console F1, velocità F3/F4, trucchi
   --profilo-temp    profilo dati temporaneo: impostazioni e salvataggi reali non vengono toccati
   --profilo DIR     usa DIR come profilo dati (persistente tra un avvio e l'altro)
   --test            esegue anche i test xUnit prima di avviare
@@ -111,7 +111,7 @@ fi
 [ "$FRESH" = 1 ] && export TINDUSTRY_FRESH=1
 if [ "$DEV" = 1 ]; then
   export TINDUSTRY_DEV=1
-  echo "Modalità dev: F1 console · F2 pausa · F3/F4 velocità${TINDUSTRY_DEV_AVVIO:+ · avvio: $TINDUSTRY_DEV_AVVIO}"
+  echo "Modalità dev: F1 console · F3/F4 velocità${TINDUSTRY_DEV_AVVIO:+ · avvio: $TINDUSTRY_DEV_AVVIO}"
 fi
 
 if [ "$EDITOR" = 1 ]; then

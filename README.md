@@ -50,6 +50,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Energia** | Generatore, nodi T1/T2 con buffer di capacità |
 | **Economia** | Fondi, costi e rimborsi di piazzamento, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
+| **Tempo** | Pausa (Spazio), ×1 / ×10 / ×60, salti +1h / +6h; in pausa i piazzamenti restano fantasmi e si costruiscono alla ripresa |
 | **Campagna** | 10 livelli, da *Primi passi* a *Espansione T2*, con tutorial non bloccante |
 | **Salvataggi** | Continua (autosave), slot, Salva come; formato versione 9 |
 
@@ -74,7 +75,7 @@ Controlla gli strumenti, compila, importa gli asset se serve e avvia il gioco. O
 | --- | --- |
 | `--profilo-temp` | profilo dati temporaneo: non tocca impostazioni e salvataggi reali (**consigliato per le prove**) |
 | `--nuova` | salta la Home e apre una nuova partita |
-| `--dev` | modalità dev: barra della velocità, console (F1), pausa (F2), trucchi — vedi [`godot/README.md`](godot/README.md#modalità-dev) |
+| `--dev` | modalità dev: console (F1), velocità F3/F4, trucchi — vedi [`godot/README.md`](godot/README.md#modalità-dev) |
 | `--editor` | apre l'editor Godot |
 | `--test` | esegue i test prima di avviare |
 | `--playtest ui\|tutorial` | playtest automatico con screenshot in `.dev/` |

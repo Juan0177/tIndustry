@@ -31,10 +31,13 @@ Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.c
 
 Palette Mindustry (angolo basso-destra): griglia sprite senza testo né numeri; rail categorie a icone (Strumenti / Logistica / Produzione / Potenza); hover/selezione apre il pannello info (nome, tasto rapido `[2]`, costi con icona barrata se mancano); `?` apre dettaglio.
 
+**Velocità** (in alto a destra): `⏸ ×1 ×10 ×60` (la velocità attiva è evidenziata), `+1h` / `+6h` saltano avanti nel tempo: il gioco va in pausa e una barra di caricamento mostra l'avanzamento. **Spazio** mette in pausa / riprende. In pausa i blocchi che piazzi restano **fantasmi semitrasparenti** (bordo azzurro, stile Mindustry): alla ripresa vengono costruiti nell'ordine in cui li hai messi, appena hai le risorse (bordo arancione = in attesa di risorse); click destro su un fantasma lo annulla. I fantasmi non finiscono nei salvataggi.
+
 HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato · Campagna**, poi pannello CORE con **Fondi**, energia e solo le risorse che hai (icona + numero, nome al passaggio del mouse), **Potenzia CORE** con i costi, e gli obiettivi di campagna.
 
 | Hotkey | Azione |
 | --- | --- |
+| Spazio | Pausa / riprendi |
 | Esc / \` | Cursore (nessun tool) |
 | 1–9 | Nastro … Ponte (2 = Minatore) |
 | M | Mercato (vendi stock) |
@@ -56,12 +59,11 @@ $env:TINDUSTRY_DEV_AVVIO = "sblocca tutto; soldi 10000; velocita 4"   # facoltat
 godot4 --path godot
 ```
 
-In alto a destra compare la **barra della velocità**: `⏸ ×1 ×10 ×60` (quella attiva è evidenziata), `+1h` / `+6h` per simulare subito ore di gioco e `console`. Sotto, la riga di stato con velocità, tick, tempo di gioco e cella sotto il mouse.
+La barra della velocità guadagna il pulsante `console`; sotto, la riga di stato mostra velocità, tick, tempo di gioco e cella sotto il mouse.
 
 | Tasto | Azione |
 | --- | --- |
 | F1 | Apri / chiudi la console (Esc chiude) |
-| F2 | Pausa / riprendi |
 | F3 / F4 | Più lento / più veloce (0.25× · 0.5× · 1× · 2× · 5× · 10× · 30× · 60×) |
 | . | In pausa: avanza di un tick |
 
@@ -71,7 +73,7 @@ Nella console: Invio esegue, ↑/↓ cronologia, Tab completa il comando.
 | --- | --- |
 | `velocita <x>` | velocità della simulazione 0.1–60 (`0` = pausa) |
 | `pausa` · `passo [n]` | pausa / riprendi · in pausa avanza di n tick (1 tick = 1/60 s) |
-| `avanti <secondi>` | simula subito fino a 21600 s (6 h) di gioco |
+| `avanti <secondi>` | salta avanti fino a 21600 s (6 h), con la barra di caricamento |
 | `soldi <n>` | aggiunge (o toglie, se negativo) fondi |
 | `dai <oggetto\|tutto> [n]` | aggiunge n oggetti al CORE (default 100) |
 | `sblocca <blocco\|tutto>` | sblocca in Ricerca senza pagare |

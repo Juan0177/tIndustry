@@ -14,10 +14,10 @@ tIndustry/
 │  └─ superpowers/              specifiche e piani
 ├─ src/TIndustry.Shared/        simulazione (futuro codice comune a client e server)
 │  ├─ Factory.cs                stato e Step (tick fisso) della fabbrica
-│  ├─ Simulation/               SimulationClock (tempo di frame → tick fissi da 1/60 s)
+│  ├─ Simulation/               SimulationClock (tempo di frame → tick fissi da 1/60 s), GameSpeed (pausa, ×1/×10/×60), TimeJump (+1h/+6h)
 │  ├─ Content/                  ContentTypes, FactoryContent, ConveyorContent, MarketCatalog, ItemVisualColors
 │  ├─ Grid/                     GridTypes, BeltGrid, BeltLane, TransportedItem, TerrainMap
-│  ├─ Buildings/                Miner, Crafter (forno e assemblatore), Extractor, BuildingIo, CoreStockSink
+│  ├─ Buildings/                Miner, Crafter (forno e assemblatore), Extractor, BuildingIo, CoreStockSink, BuildQueue (fantasmi in pausa)
 │  ├─ Power/                    Generator, PowerNode
 │  ├─ Economy/                  EconomyWallet, EconomySession
 │  ├─ Research/                 ResearchState, TechTreeLayout
@@ -30,12 +30,12 @@ tIndustry/
 │  ├─ shaders/                  belt_scroll, belt_corner_v2
 │  ├─ assets/                   icone (cartella piatta; ui/ per quelle dell'interfaccia) + ATTRIBUTION.md
 │  └─ scripts/
-│     ├─ world/                 World + partial (Input, Placement, Session, Drawing, Visuals, Panels), WorldCamera
+│     ├─ world/                 World + partial (Input, Placement, Session, Speed, Drawing, Visuals, Panels), WorldCamera
 │     ├─ visuals/belts/         MindustryBeltVisual, ScrollingBeltStrip, BeltCornerTile, BridgeSpanVisual
 │     ├─ visuals/buildings/     MinerVisual, SmelterVisual, AssemblerVisual, GeneratorVisual, ExtractorVisual, BuildingPad
 │     ├─ visuals/items/         ItemPalette, ItemSilhouette
-│     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, HudStyle
-│     ├─ ui/panels/             Home, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
+│     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, SpeedBar, HudStyle
+│     ├─ ui/panels/             Home, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect, TimeJump
 │     ├─ settings/              ClientSettings
 │     └─ dev/                   World.Playtest.cs, World.Dev.cs + DevConsolePanel (modalità dev), SystemMonitor
 ├─ tests/TIndustry.Shared.Tests/  test xUnit (scenari della sim, validazione dei contenuti, salvataggi)
@@ -52,7 +52,7 @@ tIndustry/
 ## Ciclo di un frame
 
 1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`). L'input non passa da `_Process`: arriva dai callback di Godot (`World._UnhandledInput` in `World.Input.cs`) e diventa piazzamenti/rimozioni (`World.Placement.cs`) sulla `Factory`.
-2. `World` passa il tempo del frame a `SimulationClock.Accumulate` (`src/TIndustry.Shared/Simulation/`), che restituisce quanti tick fissi da 1/60 s eseguire (al massimo 5; in modalità dev `DevConsole` scala tempo e tetto con la velocità, o li ferma in pausa); per ciascuno chiama `Factory.Step()` (`src/TIndustry.Shared/Factory.cs`): nastri, potenza, minatori, forni/assemblatori, estrattori, consegna al Core, economia. La simulazione non vede mai il tempo del frame.
+2. `World` passa il tempo del frame a `SimulationClock.Accumulate` (`src/TIndustry.Shared/Simulation/`), che restituisce quanti tick fissi da 1/60 s eseguire (al massimo 5; `GameSpeed` scala tempo e tetto con la velocità scelta dalla barra, o li ferma in pausa; un `TimeJump` avanza invece a fette di ~12 ms per frame); per ciascuno chiama `Factory.Step()` (`src/TIndustry.Shared/Factory.cs`): nastri, potenza, minatori, forni/assemblatori, estrattori, consegna al Core, economia. La simulazione non vede mai il tempo del frame.
 3. Se la griglia o gli edifici sono cambiati, `World` ricostruisce i visual dei nastri e degli edifici; poi sincronizza sprite degli oggetti e animazioni (`World.Visuals.cs`, `godot/scripts/visuals/`).
 4. `World.UpdateHud` chiama `Hud.UpdateStock`, che inoltra a `CorePanel` (fondi, energia, risorse); `BuildPalette` e `BlockInfoPanel` seguono selezione e sblocchi.
 5. Controllo di completamento della campagna e `QueueRedraw` (`World.Drawing.cs` disegna terreno e griglia).

@@ -110,6 +110,8 @@ public partial class World
             }
         }
 
+        DrawPlannedBuilds();
+
         if (_hover is { } hover
             && hover.X >= 0 && hover.Y >= 0
             && hover.X < ActiveMapWidth && hover.Y < ActiveMapHeight
@@ -223,17 +225,7 @@ public partial class World
             return;
         }
 
-        var size = _tool switch
-        {
-            BuildTool.Miner or BuildTool.MinerAdvanced => Miner.Size,
-            BuildTool.Smelter => Crafter.Size,
-            BuildTool.Assembler => Crafter.Size,
-            BuildTool.Generator => Generator.Size,
-            BuildTool.PowerNode => 1,
-            BuildTool.PowerNodeT2 => 2,
-            BuildTool.Extractor => Extractor.Size,
-            _ => 1
-        };
+        var size = ToolSize(_tool);
 
         var ok = size == 1
             ? _slice.CanOccupy(hover)

@@ -25,7 +25,7 @@ python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
 ```
 
 `TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo).
-`TINDUSTRY_DEV=1` (solo build di debug) attiva console F1, pausa/velocità e trucchi; `TINDUSTRY_DEV_AVVIO` esegue comandi a ogni partita (vedi `godot/README.md`).
+`TINDUSTRY_DEV=1` (solo build di debug) attiva console F1, velocità F3/F4 e trucchi; `TINDUSTRY_DEV_AVVIO` esegue comandi a ogni partita (vedi `godot/README.md`).
 
 Dopo `godot4 --import`, ripristina i `.import` che differiscono solo per fine riga:
 

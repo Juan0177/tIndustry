@@ -4,16 +4,14 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Dev mode (<c>TINDUSTRY_DEV=1</c>, debug builds only — exported release games ignore it):
-/// console (F1), pause (F2), slower/faster (F3/F4), single tick while paused (.), and a status line
-/// with speed, tick, game time and the cell under the mouse. Off during scripted playtests.
+/// Dev mode (<c>TINDUSTRY_DEV=1</c>, debug builds only — exported release games ignore it): console (F1)
+/// and a console button on the speed bar, slower/faster (F3/F4), single tick while paused (.), and a status
+/// line with speed, tick, game time and the cell under the mouse. Off during scripted playtests.
 /// </summary>
 public partial class World
 {
     private DevConsole? _dev;
     private DevConsolePanel? _devPanel;
-    private Label? _devStatus;
-    private DevSpeedBar? _devSpeedBar;
 
     private static bool DevModeRequested =>
         DevConsole.RequestedByEnvironment && OS.IsDebugBuild() && !PlaytestRequested;
@@ -27,60 +25,10 @@ public partial class World
             return;
         }
 
-        var dev = new DevConsole();
-        _dev = dev;
-        var layer = GetNode<CanvasLayer>("Hud");
-
-        // Top-right corner: the top-left column belongs to menu / core / objectives.
-        _devSpeedBar = new DevSpeedBar();
-        _devSpeedBar.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopRight);
-        // Zero-size anchor point 12 px from the right edge; the bar grows leftwards from it.
-        _devSpeedBar.OffsetLeft = _devSpeedBar.OffsetRight = -12;
-        _devSpeedBar.OffsetTop = 8;
-        _devSpeedBar.SpeedChosen += speed =>
-        {
-            dev.SetSpeed(speed);
-            RefreshDevSpeedBar();
-        };
-        _devSpeedBar.PauseToggled += () =>
-        {
-            dev.TogglePause();
-            RefreshDevSpeedBar();
-        };
-        _devSpeedBar.FastForwardRequested += seconds => OnDevCommand($"avanti {seconds}", toast: true);
-        _devSpeedBar.ConsoleRequested += () => _devPanel?.Toggle();
-        layer.AddChild(_devSpeedBar);
-
-        _devStatus = new Label
-        {
-            Name = "DevStatus",
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-        _devStatus.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-        _devStatus.OffsetLeft = -520;
-        _devStatus.OffsetRight = -14;
-        _devStatus.OffsetTop = 44;
-        _devStatus.OffsetBottom = 64;
-        _devStatus.AddThemeColorOverride("font_color", HudStyle.SlotSelected);
-        _devStatus.AddThemeColorOverride("font_outline_color", Colors.Black);
-        _devStatus.AddThemeConstantOverride("outline_size", 4);
-        _devStatus.AddThemeFontSizeOverride("font_size", 14);
-        layer.AddChild(_devStatus);
-
-        // FPS / resource overlays share the top-right corner: move them below the bar.
-        foreach (var overlay in new Control?[] { _fpsLabel, _resourceLabel })
-        {
-            if (overlay is not null)
-            {
-                overlay.OffsetTop += 60;
-                overlay.OffsetBottom += 60;
-            }
-        }
-
+        _dev = new DevConsole(_speed);
         // Created after every other panel: drawn on top of Home, Ricerca, Saves…
         _devPanel = new DevConsolePanel();
-        layer.AddChild(_devPanel);
+        GetNode<CanvasLayer>("Hud").AddChild(_devPanel);
         _devPanel.CommandSubmitted += OnDevCommand;
         GD.Print($"{DevConsole.EnvVar}=1: modalità dev attiva (F1 console)");
         QueueDevStartupCommands();
@@ -107,28 +55,16 @@ public partial class World
         }
     }
 
-    /// <summary>Simulation ticks for this frame: dev speed/pause when active, else the plain fixed clock.</summary>
-    private int SimTicksThisFrame(double delta) =>
-        _dev?.TicksForFrame(_clock, delta) ?? _clock.Accumulate(delta);
-
-    private void UpdateDevStatus()
+    /// <summary>Dev status for the line under the speed bar, or null outside dev mode.</summary>
+    private string? DevStatusText()
     {
-        if (_dev is null || _devStatus is null || _slice is null)
+        if (_dev is null || _slice is null)
         {
-            return;
+            return null;
         }
 
         var cell = _hover is { } h ? $" · cella {h.X},{h.Y}" : "";
-        _devStatus.Text = _dev.StatusText(_slice) + cell;
-        RefreshDevSpeedBar();
-    }
-
-    private void RefreshDevSpeedBar()
-    {
-        if (_dev is not null)
-        {
-            _devSpeedBar?.Refresh(_dev.Speed, _dev.Paused);
-        }
+        return _dev.StatusText(_slice) + cell;
     }
 
     /// <summary>Dev hotkeys; true when <paramref name="key"/> was one of them.</summary>
@@ -141,30 +77,26 @@ public partial class World
 
         switch (key.Keycode)
         {
-            case Key.F2:
-                _dev.TogglePause();
-                _hud?.ShowToast(_dev.Paused ? "Pausa (F2)" : "Ripresa");
-                return true;
             case Key.F3:
-                _dev.StepSpeed(-1);
-                _hud?.ShowToast($"Velocità {_dev.Speed:0.##}×");
-                return true;
+                _speed.StepSpeed(-1);
+                _hud?.ShowToast($"Velocità {_speed.Speed:0.##}×");
+                break;
             case Key.F4:
-                _dev.StepSpeed(1);
-                _hud?.ShowToast($"Velocità {_dev.Speed:0.##}×");
-                return true;
-            case Key.Period when _dev.Paused:
-                _dev.QueueSteps(1);
-                return true;
+                _speed.StepSpeed(1);
+                _hud?.ShowToast($"Velocità {_speed.Speed:0.##}×");
+                break;
+            case Key.Period when _speed.Paused:
+                _speed.QueueSteps(1);
+                break;
             default:
                 return false;
         }
+
+        RefreshSpeedUi();
+        return true;
     }
 
-    /// <param name="toast">Also show the last output line as a toast (commands run from the speed bar).</param>
-    private void OnDevCommand(string line) => OnDevCommand(line, toast: false);
-
-    private void OnDevCommand(string line, bool toast)
+    private void OnDevCommand(string line)
     {
         if (_dev is null || _devPanel is null || _slice is null)
         {
@@ -180,11 +112,6 @@ public partial class World
         foreach (var text in result.Lines)
         {
             _devPanel.Print(text);
-        }
-
-        if (toast && result.Lines.Count > 0)
-        {
-            _hud?.ShowToast(result.Lines[^1]);
         }
 
         if (result.ResearchChanged)
@@ -213,6 +140,12 @@ public partial class World
         {
             UpdateHud();
             CheckCampaignComplete();
+        }
+
+        RefreshSpeedUi();
+        if (result.JumpSeconds is { } seconds)
+        {
+            StartTimeJump(seconds);
         }
     }
 }

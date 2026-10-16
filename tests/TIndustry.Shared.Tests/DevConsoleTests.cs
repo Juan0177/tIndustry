@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Dev console (<c>TINDUSTRY_DEV=1</c>): speed, pause, single steps and cheat commands.</summary>
+/// <summary>Dev console (<c>TINDUSTRY_DEV=1</c>): speed and jump commands, cheats, completion.</summary>
 public sealed class DevConsoleTests
 {
     private static readonly string ContentPath =
@@ -20,117 +20,44 @@ public sealed class DevConsoleTests
             startingMoney: 180);
 
     [Fact]
-    public void NormalSpeedRunsOneTickPerSixtiethOfASecond()
+    public void SpeedCommandsDriveTheSharedGameSpeed()
     {
-        var dev = new DevConsole();
-        var clock = new SimulationClock();
-        var total = 0;
-        for (var i = 0; i < 60; i++)
-        {
-            total += dev.TicksForFrame(clock, 1.0 / 60);
-        }
-
-        Assert.Equal(60, total);
-    }
-
-    [Fact]
-    public void HighSpeedIsNotClippedToTheNormalFrameCap()
-    {
-        var dev = new DevConsole();
-        dev.SetSpeed(DevConsole.MaxSpeed);
-        var clock = new SimulationClock();
-        var total = 0;
-        for (var i = 0; i < 60; i++)
-        {
-            total += dev.TicksForFrame(clock, 1.0 / 60);
-        }
-
-        // Repeated subtraction of 1/60 can leave the last tick in the accumulator for the next frame.
-        Assert.InRange(total, (int)DevConsole.MaxSpeed * 60 - 1, (int)DevConsole.MaxSpeed * 60);
-    }
-
-    [Fact]
-    public void BarAndHotkeySpeedsAreReachable()
-    {
-        Assert.All(DevConsole.BarSpeeds, s => Assert.Contains(s, DevConsole.SpeedSteps));
-        Assert.Equal(DevConsole.MaxSpeed, DevConsole.SpeedSteps[^1]);
-        Assert.Equal(DevConsole.MaxSpeed, DevConsole.BarSpeeds[^1]);
-    }
-
-    [Fact]
-    public void PauseRunsOnlyQueuedSteps()
-    {
-        var dev = new DevConsole();
-        var clock = new SimulationClock();
-        dev.TogglePause();
-        Assert.Equal(0, dev.TicksForFrame(clock, 1.0));
-
-        dev.QueueSteps(3);
-        Assert.Equal(3, dev.TicksForFrame(clock, 1.0 / 60));
-        Assert.Equal(0, dev.TicksForFrame(clock, 1.0 / 60));
-        Assert.True(dev.Paused);
-    }
-
-    [Fact]
-    public void SpeedZeroPausesAndSpeedIsClamped()
-    {
-        var dev = new DevConsole();
+        var speed = new GameSpeed();
+        var dev = new DevConsole(speed);
         var factory = NewSandbox();
         dev.Execute("velocita 0", factory);
-        Assert.True(dev.Paused);
+        Assert.True(speed.Paused);
 
         dev.Execute("vel 1000", factory);
-        Assert.False(dev.Paused);
-        Assert.Equal(DevConsole.MaxSpeed, dev.Speed);
+        Assert.False(speed.Paused);
+        Assert.Equal(GameSpeed.MaxSpeed, speed.Speed);
 
         dev.Execute("speed 0,5", factory);
-        Assert.Equal(0.5f, dev.Speed);
+        Assert.Equal(0.5f, speed.Speed);
+
+        dev.Execute("pausa", factory);
+        Assert.True(speed.Paused);
+        dev.Execute("passo 3", factory);
+        Assert.Equal(3, speed.TicksForFrame(new SimulationClock(), 1.0));
     }
 
     [Fact]
-    public void SpeedHotkeysWalkTheSteps()
+    public void FastForwardAsksForATimeJump()
     {
-        var dev = new DevConsole();
-        dev.StepSpeed(1);
-        Assert.Equal(2f, dev.Speed);
-        dev.StepSpeed(-1);
-        dev.StepSpeed(-1);
-        Assert.Equal(0.5f, dev.Speed);
-        for (var i = 0; i < 20; i++)
-        {
-            dev.StepSpeed(1);
-        }
-
-        Assert.Equal(DevConsole.SpeedSteps[^1], dev.Speed);
-    }
-
-    [Fact]
-    public void FastForwardAdvancesTheSimulation()
-    {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
-        var result = dev.Execute("avanti 10", factory);
 
-        Assert.Equal(600, factory.CurrentTick);
-        Assert.True(result.WorldChanged);
-    }
-
-    [Fact]
-    public void FastForwardRejectsOutOfRange()
-    {
-        var dev = new DevConsole();
-        var factory = NewSandbox();
-        dev.Execute($"avanti {DevConsole.MaxFastForwardSeconds + 1}", factory);
-        dev.Execute("avanti -5", factory);
-        dev.Execute("avanti tanto", factory);
-
+        Assert.Equal(120, dev.Execute("avanti 120", factory).JumpSeconds);
         Assert.Equal(0, factory.CurrentTick);
+        Assert.Null(dev.Execute($"avanti {TimeJump.MaxSeconds + 1}", factory).JumpSeconds);
+        Assert.Null(dev.Execute("avanti -5", factory).JumpSeconds);
+        Assert.Null(dev.Execute("avanti tanto", factory).JumpSeconds);
     }
 
     [Fact]
     public void MoneyAndItemsAreAdded()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
         var money = factory.Wallet.Money;
         var plates = factory.Wallet.MaterialCount("iron-plate");
@@ -148,7 +75,7 @@ public sealed class DevConsoleTests
     [Fact]
     public void GiveAllCoversEveryKnownItemAndRejectsUnknown()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
         dev.Execute("dai tutto 7", factory);
         foreach (var id in DevConsole.KnownItemIds(factory.Content))
@@ -164,7 +91,7 @@ public sealed class DevConsoleTests
     [Fact]
     public void UnlockAllUnlocksEveryStructure()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
         Assert.Contains(factory.Content.Structures, s => !factory.IsStructureUnlocked(s.Id));
 
@@ -178,7 +105,7 @@ public sealed class DevConsoleTests
     [Fact]
     public void UnlockSingleStructure()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
         Assert.False(factory.IsStructureUnlocked("smelter"));
 
@@ -190,7 +117,7 @@ public sealed class DevConsoleTests
     [Fact]
     public void PowerFillsTheBuffer()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
         factory.SetPowerBuffer(0);
 
@@ -202,7 +129,7 @@ public sealed class DevConsoleTests
     [Fact]
     public void GoToAndWinReportClientActions()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
 
         Assert.Equal(new GridPosition(10, 20), dev.Execute("vai 10 20", factory).CameraTarget);
@@ -216,7 +143,7 @@ public sealed class DevConsoleTests
     [Fact]
     public void UnknownCommandAndHelpPrintSomething()
     {
-        var dev = new DevConsole();
+        var dev = new DevConsole(new GameSpeed());
         var factory = NewSandbox();
 
         Assert.Contains("sconosciuto", dev.Execute("boh", factory).Lines[0]);
@@ -239,11 +166,4 @@ public sealed class DevConsoleTests
         Assert.Empty(DevConsole.SplitCommands(null));
     }
 
-    [Fact]
-    public void GameTimeFormatting()
-    {
-        Assert.Equal("00:00", DevConsole.FormatGameTime(0));
-        Assert.Equal("01:30", DevConsole.FormatGameTime(90 * 60));
-        Assert.Equal("1:00:05", DevConsole.FormatGameTime(3605 * 60));
-    }
 }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 
 namespace TIndustry.Shared;
@@ -13,6 +12,9 @@ public sealed class DevCommandResult
 
     /// <summary>The simulation advanced or the wallet changed outside the normal frame loop.</summary>
     public bool WorldChanged { get; set; }
+
+    /// <summary>Jump this many seconds of game time ahead (the client runs it with a progress bar).</summary>
+    public int? JumpSeconds { get; set; }
 
     /// <summary>Move the camera to this cell.</summary>
     public GridPosition? CameraTarget { get; set; }
@@ -29,7 +31,7 @@ public sealed class DevCommandResult
 }
 
 /// <summary>
-/// Dev-only console (<c>TINDUSTRY_DEV=1</c>): simulation speed, pause and single-step, plus cheats on a
+/// Dev-only console (<c>TINDUSTRY_DEV=1</c>): drives the game's <see cref="GameSpeed"/> (speed, pause, single-step) and time jumps, plus cheats on a
 /// <see cref="Factory"/> (money, items, unlocks, power). Commands are Italian with English aliases.
 /// Pure logic: the Godot client owns the window, input and camera.
 /// </summary>
@@ -38,17 +40,7 @@ public sealed class DevConsole
     public const string EnvVar = "TINDUSTRY_DEV";
     /// <summary>Commands run at the start of every game, separated by <c>;</c> (e.g. <c>sblocca tutto; soldi 10000</c>).</summary>
     public const string StartupEnvVar = "TINDUSTRY_DEV_AVVIO";
-    public const float MinSpeed = 0.1f;
-    public const float MaxSpeed = 60f;
-    /// <summary><c>avanti</c> limit: six hours of game time per command (the +6h button).</summary>
-    public const int MaxFastForwardSeconds = 6 * 3600;
     public const int DefaultGiveAmount = 100;
-
-    /// <summary>Speeds the hotkeys step through (slower / faster).</summary>
-    public static readonly float[] SpeedSteps = [0.25f, 0.5f, 1f, 2f, 5f, 10f, 30f, 60f];
-
-    /// <summary>Speeds offered by the on-screen speed bar.</summary>
-    public static readonly float[] BarSpeeds = [1f, 10f, 60f];
 
     public static readonly string[] CommandNames =
     [
@@ -61,7 +53,7 @@ public sealed class DevConsole
         "velocita <x>        velocità della simulazione (0.1–60, 0 = pausa); senza x mostra quella attuale",
         "pausa               mette in pausa / riprende",
         "passo [n]           in pausa: avanza di n tick (1 tick = 1/60 s)",
-        "avanti <secondi>    simula subito <secondi> di gioco (max 21600 = 6 h)",
+        "avanti <secondi>    salta avanti di <secondi> di gioco (max 21600 = 6 h), con barra di caricamento",
         "soldi <n>           aggiunge n ai fondi (negativo per toglierli)",
         "dai <oggetto|tutto> [n]  aggiunge n oggetti al CORE (default 100)",
         "sblocca <blocco|tutto>   sblocca in Ricerca senza pagare",
@@ -71,16 +63,19 @@ public sealed class DevConsole
         "vai <x> <y> | core  sposta la visuale",
         "vinci               completa il livello di campagna attivo",
         "pulisci             svuota la console",
-        "Tasti: F1 console · F2 pausa · F3/F4 più lento/veloce · . un tick (in pausa) · barra in alto a destra"
+        "Tasti: F1 console · Spazio pausa · F3/F4 più lento/veloce · . un tick (in pausa)"
     ];
 
-    private float speed = 1f;
-    private int pendingSteps;
+    public DevConsole(GameSpeed speed)
+    {
+        Speed = speed;
+    }
 
     /// <summary>True when the environment asks for dev mode (the client also requires a debug build).</summary>
     public static bool RequestedByEnvironment => Environment.GetEnvironmentVariable(EnvVar) == "1";
 
-    public float Speed => speed;
+    /// <summary>The game's speed, shared with the speed bar and Space.</summary>
+    public GameSpeed Speed { get; }
 
     /// <summary>Commands from <see cref="StartupEnvVar"/>, split on <c>;</c>.</summary>
     public static IReadOnlyList<string> StartupCommands() =>
@@ -89,60 +84,11 @@ public sealed class DevConsole
     public static IReadOnlyList<string> SplitCommands(string? text) =>
         (text ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    public bool Paused { get; private set; }
-
-    public void SetSpeed(float value)
-    {
-        if (value <= 0f)
-        {
-            Paused = true;
-            return;
-        }
-
-        speed = Math.Clamp(value, MinSpeed, MaxSpeed);
-        Paused = false;
-    }
-
-    public void TogglePause() => Paused = !Paused;
-
-    /// <summary>Next lower (<paramref name="direction"/> &lt; 0) or higher hotkey speed.</summary>
-    public void StepSpeed(int direction)
-    {
-        var next = direction < 0
-            ? SpeedSteps.LastOrDefault(s => s < speed - 0.001f, SpeedSteps[0])
-            : SpeedSteps.FirstOrDefault(s => s > speed + 0.001f, SpeedSteps[^1]);
-        speed = next;
-    }
-
-    /// <summary>Queue single ticks to run while paused (pauses first if running).</summary>
-    public void QueueSteps(int ticks)
-    {
-        Paused = true;
-        pendingSteps += Math.Max(0, ticks);
-    }
-
-    /// <summary>
-    /// Ticks to run this frame: frame time scaled by <see cref="Speed"/>, the per-frame cap scaled with it
-    /// so 10× is not clipped to 5 ticks; while paused only the queued single steps.
-    /// </summary>
-    public int TicksForFrame(SimulationClock clock, double frameSeconds)
-    {
-        if (Paused)
-        {
-            var steps = pendingSteps;
-            pendingSteps = 0;
-            return steps;
-        }
-
-        var cap = (int)Math.Ceiling(SimulationClock.MaxTicksPerFrame * Math.Max(1f, speed));
-        return clock.Accumulate(frameSeconds * speed, cap);
-    }
-
     /// <summary>Short status for the on-screen overlay.</summary>
     public string StatusText(Factory factory)
     {
-        var state = Paused ? "PAUSA" : $"{FormatSpeed(speed)}×";
-        return $"DEV · {state} · tick {factory.CurrentTick} · {FormatGameTime(factory.CurrentTick)}";
+        var state = Speed.Paused ? "PAUSA" : $"{FormatSpeed(Speed.Speed)}×";
+        return $"DEV · {state} · tick {factory.CurrentTick} · {TimeJump.FormatGameTime(factory.CurrentTick)}";
     }
 
     public DevCommandResult Execute(string line, Factory factory)
@@ -164,8 +110,8 @@ public sealed class DevConsole
                 SpeedCommand(args, result);
                 break;
             case "pausa" or "pause" or "p":
-                TogglePause();
-                result.Add(Paused ? "In pausa." : $"Ripresa a {FormatSpeed(speed)}×.");
+                Speed.TogglePause();
+                result.Add(Speed.Paused ? "In pausa." : $"Ripresa a {FormatSpeed(Speed.Speed)}×.");
                 break;
             case "passo" or "step":
                 var n = 1;
@@ -174,11 +120,11 @@ public sealed class DevConsole
                     break;
                 }
 
-                QueueSteps(n);
+                Speed.QueueSteps(n);
                 result.Add($"In pausa: avanzo di {Math.Max(0, n)} tick.");
                 break;
             case "avanti" or "ff":
-                FastForward(args, factory, result);
+                FastForward(args, result);
                 break;
             case "soldi" or "money":
                 if (args.Length == 0)
@@ -254,19 +200,15 @@ public sealed class DevConsole
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-    public static string FormatGameTime(long ticks)
-    {
-        var t = TimeSpan.FromSeconds(ticks / (double)SimulationClock.TickRate);
-        return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t:mm\\:ss}" : $"{t:mm\\:ss}";
-    }
-
     private static string FormatSpeed(float s) => s.ToString("0.##", CultureInfo.InvariantCulture);
 
     private void SpeedCommand(string[] args, DevCommandResult result)
     {
         if (args.Length == 0)
         {
-            result.Add(Paused ? $"In pausa (velocità {FormatSpeed(speed)}×)." : $"Velocità {FormatSpeed(speed)}×.");
+            result.Add(Speed.Paused
+                ? $"In pausa (velocità {FormatSpeed(Speed.Speed)}×)."
+                : $"Velocità {FormatSpeed(Speed.Speed)}×.");
             return;
         }
 
@@ -275,15 +217,15 @@ public sealed class DevConsole
             return;
         }
 
-        SetSpeed(value);
-        result.Add(Paused ? "In pausa." : $"Velocità {FormatSpeed(speed)}×.");
-        if (value > MaxSpeed)
+        Speed.SetSpeed(value);
+        result.Add(Speed.Paused ? "In pausa." : $"Velocità {FormatSpeed(Speed.Speed)}×.");
+        if (value > GameSpeed.MaxSpeed)
         {
-            result.Add($"(massimo {FormatSpeed(MaxSpeed)}×; per saltare avanti usa: avanti <secondi>)");
+            result.Add($"(massimo {FormatSpeed(GameSpeed.MaxSpeed)}×; per saltare avanti usa: avanti <secondi>)");
         }
     }
 
-    private static void FastForward(string[] args, Factory factory, DevCommandResult result)
+    private static void FastForward(string[] args, DevCommandResult result)
     {
         if (args.Length == 0)
         {
@@ -296,21 +238,14 @@ public sealed class DevConsole
             return;
         }
 
-        if (seconds <= 0 || seconds > MaxFastForwardSeconds)
+        if (seconds <= 0 || seconds > TimeJump.MaxSeconds)
         {
-            result.Add($"Secondi tra 1 e {MaxFastForwardSeconds}.");
+            result.Add($"Secondi tra 1 e {TimeJump.MaxSeconds}.");
             return;
         }
 
-        var watch = Stopwatch.StartNew();
-        var ticks = seconds * SimulationClock.TickRate;
-        for (var i = 0; i < ticks; i++)
-        {
-            factory.Step();
-        }
-
-        result.WorldChanged = true;
-        result.Add($"Avanti di {FormatGameTime(ticks)} ({ticks} tick) in {watch.ElapsedMilliseconds} ms.");
+        result.JumpSeconds = seconds;
+        result.Add($"Salto avanti di {TimeJump.FormatGameTime((long)seconds * SimulationClock.TickRate)}.");
     }
 
     private static void Give(string[] args, Factory factory, DevCommandResult result)

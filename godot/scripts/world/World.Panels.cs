@@ -294,9 +294,10 @@ public partial class World
             };
             _fpsLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
             _fpsLabel.OffsetLeft = -120;
-            _fpsLabel.OffsetTop = 8;
+            // Below the speed bar and its status line (top-right corner).
+            _fpsLabel.OffsetTop = 68;
             _fpsLabel.OffsetRight = -12;
-            _fpsLabel.OffsetBottom = 28;
+            _fpsLabel.OffsetBottom = 88;
             _fpsLabel.HorizontalAlignment = HorizontalAlignment.Right;
             _fpsLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.9f, 0.75f, 0.9f));
             _fpsLabel.AddThemeFontSizeOverride("font_size", 13);
@@ -321,12 +322,12 @@ public partial class World
                 MouseFilter = Control.MouseFilterEnum.Ignore,
                 Text = "FPS —\nCPU —\nRAM —"
             };
-            // Top-right: the top-left column belongs to menu / core / objectives.
+            // Top-right, under the speed bar: the top-left column belongs to menu / core / objectives.
             _resourceLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
             _resourceLabel.OffsetLeft = -280;
-            _resourceLabel.OffsetTop = 8;
+            _resourceLabel.OffsetTop = 68;
             _resourceLabel.OffsetRight = -12;
-            _resourceLabel.OffsetBottom = 120;
+            _resourceLabel.OffsetBottom = 180;
             _resourceLabel.HorizontalAlignment = HorizontalAlignment.Right;
             _resourceLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.93f, 0.86f, 0.92f));
             _resourceLabel.AddThemeFontSizeOverride("font_size", 13);

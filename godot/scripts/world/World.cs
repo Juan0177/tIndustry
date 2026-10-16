@@ -109,6 +109,7 @@ public partial class World : Node2D
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureHud();
+        EnsureSpeedBar();
         EnsureResearchPanel();
         EnsureMercatoPanel();
         EnsureCampaignSelectPanel();
@@ -118,6 +119,7 @@ public partial class World : Node2D
         EnsureHomePanel();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
+        EnsureTimeJumpPanel();
         EnsureDevTools();
         UseSmoothUiFiltering();
         EnsureBuildingsLayer();
@@ -189,21 +191,18 @@ public partial class World : Node2D
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
             cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true;
-            cam.KeyboardPanEnabled = !DevConsoleOpen;
+            cam.KeyboardPanEnabled = !DevConsoleOpen && !Jumping;
         }
+
+        SyncSpeedBarVisibility();
 
         if (_home?.IsOpen == true || _slice is null)
         {
             return;
         }
 
-        var ticks = SimTicksThisFrame(delta);
-        for (var i = 0; i < ticks; i++)
-        {
-            _slice.Step();
-        }
-
-        UpdateDevStatus();
+        AdvanceSimulation(delta);
+        RefreshSpeedUi();
 
         if (_visualDirty)
         {

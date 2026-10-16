@@ -137,13 +137,21 @@ public partial class World
             return;
         }
 
-        if (_slice is null || DevConsoleOpen)
+        // During a time jump the game is paused behind the progress bar: no input reaches the world.
+        if (_slice is null || DevConsoleOpen || Jumping)
         {
             return;
         }
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (key.Keycode == Key.Space)
+            {
+                TogglePause();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (HandleDevHotkey(key))
             {
                 GetViewport().SetInputAsHandled();

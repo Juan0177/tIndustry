@@ -21,6 +21,13 @@ public partial class World
         }
 
         var costMul = _tool == BuildTool.Bridge ? 2 : 1;
+        if (_speed.Paused)
+        {
+            // Paused: a see-through ghost, built after resume once affordable.
+            PlanAt(cell, structureId, costMul);
+            return;
+        }
+
         if (!_slice.CanAffordStructure(structureId, costMul))
         {
             var need = _slice.FormatNeedMessage(structureId, costMul);
@@ -28,11 +35,31 @@ public partial class World
             return;
         }
 
+        var placed = PlaceStructure(_tool, cell, _placeDir, _sorterFilterId);
+        if (!placed && _slice.CanAffordStructure(structureId, costMul))
+        {
+            if (!_draggingPlace)
+            {
+                _hud?.ShowToast(_slice.CoreTiles.Contains(cell)
+                    ? "Non puoi costruire sul Core"
+                    : "Cella occupata o non valida");
+            }
+        }
+    }
+
+    /// <summary>Builds <paramref name="tool"/> at <paramref name="cell"/> (charged); used directly and by planned ghosts.</summary>
+    private bool PlaceStructure(BuildTool tool, GridPosition cell, Direction dir, string? filterItemId)
+    {
+        if (_slice is null)
+        {
+            return false;
+        }
+
         var placed = false;
-        switch (_tool)
+        switch (tool)
         {
             case BuildTool.Belt:
-                placed = _slice.TryPlaceBelt(cell, _placeDir);
+                placed = _slice.TryPlaceBelt(cell, dir);
                 if (placed)
                 {
                     _visualDirty = true;
@@ -40,7 +67,7 @@ public partial class World
 
                 break;
             case BuildTool.BeltFast:
-                placed = _slice.TryPlaceBelt(cell, _placeDir, "conveyor-fast");
+                placed = _slice.TryPlaceBelt(cell, dir, "conveyor-fast");
                 if (placed)
                 {
                     _visualDirty = true;
@@ -48,7 +75,7 @@ public partial class World
 
                 break;
             case BuildTool.BeltExpress:
-                placed = _slice.TryPlaceBelt(cell, _placeDir, "conveyor-express");
+                placed = _slice.TryPlaceBelt(cell, dir, "conveyor-express");
                 if (placed)
                 {
                     _visualDirty = true;
@@ -56,7 +83,7 @@ public partial class World
 
                 break;
             case BuildTool.Miner:
-                placed = _slice.TryPlaceMiner(cell, _placeDir);
+                placed = _slice.TryPlaceMiner(cell, dir);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -64,7 +91,7 @@ public partial class World
 
                 break;
             case BuildTool.MinerAdvanced:
-                placed = _slice.TryPlaceMiner(cell, _placeDir, definitionId: Miner.AdvancedId);
+                placed = _slice.TryPlaceMiner(cell, dir, definitionId: Miner.AdvancedId);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -72,7 +99,7 @@ public partial class World
 
                 break;
             case BuildTool.Smelter:
-                placed = _slice.TryPlaceSmelter(cell, _placeDir);
+                placed = _slice.TryPlaceSmelter(cell, dir);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -80,7 +107,7 @@ public partial class World
 
                 break;
             case BuildTool.Assembler:
-                placed = _slice.TryPlaceAssembler(cell, _placeDir);
+                placed = _slice.TryPlaceAssembler(cell, dir);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -88,7 +115,7 @@ public partial class World
 
                 break;
             case BuildTool.Junction:
-                placed = _slice.TryPlaceJunction(cell, _placeDir);
+                placed = _slice.TryPlaceJunction(cell, dir);
                 if (placed)
                 {
                     _visualDirty = true;
@@ -96,7 +123,7 @@ public partial class World
 
                 break;
             case BuildTool.Splitter:
-                placed = _slice.TryPlaceSplitter(cell, _placeDir);
+                placed = _slice.TryPlaceSplitter(cell, dir);
                 if (placed)
                 {
                     _visualDirty = true;
@@ -104,7 +131,7 @@ public partial class World
 
                 break;
             case BuildTool.Generator:
-                placed = _slice.TryPlaceGenerator(cell, _placeDir);
+                placed = _slice.TryPlaceGenerator(cell, dir);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -112,7 +139,7 @@ public partial class World
 
                 break;
             case BuildTool.Sorter:
-                placed = _slice.TryPlaceSorter(cell, _placeDir, _sorterFilterId);
+                placed = _slice.TryPlaceSorter(cell, dir, filterItemId ?? _sorterFilterId);
                 if (placed)
                 {
                     _visualDirty = true;
@@ -120,7 +147,7 @@ public partial class World
 
                 break;
             case BuildTool.Bridge:
-                placed = _slice.TryPlaceBridge(cell, _placeDir);
+                placed = _slice.TryPlaceBridge(cell, dir);
                 if (placed)
                 {
                     _visualDirty = true;
@@ -128,7 +155,7 @@ public partial class World
 
                 break;
             case BuildTool.Extractor:
-                placed = _slice.TryPlaceExtractor(cell, _placeDir);
+                placed = _slice.TryPlaceExtractor(cell, dir);
                 if (placed)
                 {
                     _buildingsDirty = true;
@@ -153,15 +180,7 @@ public partial class World
                 break;
         }
 
-        if (!placed && _slice.CanAffordStructure(structureId, costMul))
-        {
-            if (!_draggingPlace)
-            {
-                _hud?.ShowToast(_slice.CoreTiles.Contains(cell)
-                    ? "Non puoi costruire sul Core"
-                    : "Cella occupata o non valida");
-            }
-        }
+        return placed;
     }
 
     private void CycleSorterFilter()
@@ -192,6 +211,13 @@ public partial class World
     {
         if (_slice is null)
         {
+            return;
+        }
+
+        if (_buildQueue.RemoveAt(cell))
+        {
+            // Right-click on a ghost cancels the plan; the world underneath is untouched.
+            QueueRedraw();
             return;
         }
 
