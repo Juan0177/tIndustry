@@ -5,7 +5,7 @@ namespace TIndustry.Shared;
 /// Phase F: generators feed a shared power buffer; connected craft spends for +20%.
 /// Soft brownout: empty buffer → forno falls back to coal; assembler loses bonus.
 /// </summary>
-public sealed class Factory
+public sealed class Factory : IGameView
 {
     /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
     public const float CorePowerCapacity = GameState.CorePowerCapacity;
@@ -143,6 +143,16 @@ public sealed class Factory
         get => State.CurrentTick;
         private set => State.CurrentTick = value;
     }
+
+    IReadOnlyDictionary<GridPosition, BeltGridCell> IGameView.Belts => Belts.Cells;
+    IWalletView IGameView.Wallet => Wallet;
+    IResearchView IGameView.Research => Research;
+    ISessionView IGameView.Session => Session;
+
+    public bool IsBeltCorner(GridPosition position) => Belts.IsCorner(position);
+
+    public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
+        Belts.TryGetIncomingDirection(position, out incoming);
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;

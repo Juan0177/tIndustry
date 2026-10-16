@@ -12,7 +12,10 @@ public partial class MercatoPanel : Control
     private static readonly Color TextMuted = new(0.70f, 0.76f, 0.70f, 1f);
     private static readonly Color RowBg = new(0.16f, 0.18f, 0.17f, 1f);
 
-    private Factory? _slice;
+    private IGameView? _view;
+    private Action<SimCommand>? _submit;
+    // Sales submitted and not yet answered, in order: (money, amount, name) at click time.
+    private readonly Queue<(int Money, int Amount, string Name)> _pendingSales = new();
     private VBoxContainer? _list;
     private Label? _walletLabel;
     private Label? _hintLabel;
@@ -34,9 +37,11 @@ public partial class MercatoPanel : Control
         BuildUi();
     }
 
-    public void Open(Factory slice)
+    public void Open(IGameView slice, Action<SimCommand> submit)
     {
-        _slice = slice;
+        _view = slice;
+        _submit = submit;
+        _pendingSales.Clear();
         Visible = true;
         if (_autoSellToggle is not null)
         {
@@ -56,12 +61,12 @@ public partial class MercatoPanel : Control
 
     private void SyncAutoSellToggle()
     {
-        if (_autoSellToggle is null || _slice is null)
+        if (_autoSellToggle is null || _view is null)
         {
             return;
         }
 
-        var on = _slice.AutoSellAtCore;
+        var on = _view.AutoSellAtCore;
         _autoSellToggle.Text = on ? "ON" : "OFF";
         foreach (var state in new[] { "normal", "hover", "pressed" })
         {
@@ -86,32 +91,71 @@ public partial class MercatoPanel : Control
 
     private void OnAutoSellTogglePressed()
     {
-        if (_slice is null)
+        if (_view is null || _submit is null)
         {
             return;
         }
 
-        _slice.AutoSellAtCore = !_slice.AutoSellAtCore;
-        if (_statusLabel is not null)
+        _submit(new SetAutoSell(0, !_view.AutoSellAtCore));
+    }
+
+    /// <summary>Host applied a Mercato command: update status, toggle and notify the world.</summary>
+    public void OnCommandApplied(SimCommand command)
+    {
+        if (_view is null)
         {
-            _statusLabel.Text = _slice.AutoSellAtCore
-                ? "Vendita automatica attivata."
-                : "Vendita automatica disattivata.";
+            return;
         }
 
-        SyncAutoSellToggle();
-        RefreshAutoSellHint();
-        AutoSellChanged?.Invoke();
+        switch (command)
+        {
+            case SetAutoSell:
+                if (_statusLabel is not null)
+                {
+                    _statusLabel.Text = _view.AutoSellAtCore
+                        ? "Vendita automatica attivata."
+                        : "Vendita automatica disattivata.";
+                }
+
+                SyncAutoSellToggle();
+                RefreshAutoSellHint();
+                AutoSellChanged?.Invoke();
+                break;
+            case Sell when _pendingSales.Count > 0:
+                var (before, amount, name) = _pendingSales.Dequeue();
+                if (_statusLabel is not null)
+                {
+                    _statusLabel.Text = $"Venduti {amount}× {name} → +${_view.Wallet.Money - before}";
+                }
+
+                SoldChanged?.Invoke();
+                Refresh();
+                break;
+        }
+    }
+
+    /// <summary>Host refused a Mercato command: show its reason.</summary>
+    public void OnCommandRejected(SimCommand command, string reason)
+    {
+        if (command is Sell && _pendingSales.Count > 0)
+        {
+            _pendingSales.Dequeue();
+        }
+
+        if (command is Sell or SetAutoSell && _statusLabel is not null)
+        {
+            _statusLabel.Text = reason;
+        }
     }
 
     private void RefreshAutoSellHint()
     {
-        if (_autoSellHint is null || _slice is null)
+        if (_autoSellHint is null || _view is null)
         {
             return;
         }
 
-        _autoSellHint.Text = _slice.AutoSellAtCore
+        _autoSellHint.Text = _view.AutoSellAtCore
             ? "Tutto ciò che arriva al CORE viene venduto subito."
             : "Gli oggetti restano nel CORE: vendili da qui.";
     }
@@ -313,7 +357,7 @@ public partial class MercatoPanel : Control
 
     public void Refresh()
     {
-        if (_slice is null || _list is null)
+        if (_view is null || _list is null)
         {
             return;
         }
@@ -325,8 +369,8 @@ public partial class MercatoPanel : Control
 
         if (_walletLabel is not null)
         {
-            _walletLabel.Text = $"${_slice.Wallet.Money}";
-            _walletLabel.TooltipText = $"Fondi · venduto finora ${_slice.Session.SaleIncome}";
+            _walletLabel.Text = $"${_view.Wallet.Money}";
+            _walletLabel.TooltipText = $"Fondi · venduto finora ${_view.Session.SaleIncome}";
         }
 
         SyncAutoSellToggle();
@@ -334,13 +378,13 @@ public partial class MercatoPanel : Control
 
         if (_hintLabel is not null)
         {
-            _hintLabel.Text = _slice.Market.BestValueHint();
+            _hintLabel.Text = _view.Market.BestValueHint();
         }
 
         var rows = 0;
-        foreach (var item in _slice.Market.Items)
+        foreach (var item in _view.Market.Items)
         {
-            var stock = _slice.Wallet.MaterialCount(item.ItemId);
+            var stock = _view.Wallet.MaterialCount(item.ItemId);
             if (stock <= 0)
             {
                 continue;
@@ -372,12 +416,12 @@ public partial class MercatoPanel : Control
 
     private void AddRow(MarketItemDefinition item, int stock)
     {
-        if (_slice is null || _list is null)
+        if (_view is null || _list is null)
         {
             return;
         }
 
-        var price = _slice.PreviewSellPrice(item.ItemId);
+        var price = _view.PreviewSellPrice(item.ItemId);
         var row = new PanelContainer
         {
             CustomMinimumSize = new Vector2(0, RowHeight),
@@ -422,45 +466,27 @@ public partial class MercatoPanel : Control
         h.AddChild(actions);
         var id = item.ItemId;
         var btn1 = new Button { Text = "Vendi 1", CustomMinimumSize = new Vector2(80, 32), FocusMode = FocusModeEnum.None };
-        btn1.Pressed += () => Sell(id, 1);
+        btn1.Pressed += () => RequestSale(id, 1);
         actions.AddChild(btn1);
         var btnAll = new Button { Text = "Vendi tutto", CustomMinimumSize = new Vector2(92, 32), FocusMode = FocusModeEnum.None };
         btnAll.Pressed += () =>
         {
-            if (_slice is not null)
+            if (_view is not null)
             {
-                Sell(id, _slice.Wallet.MaterialCount(id));
+                RequestSale(id, _view.Wallet.MaterialCount(id));
             }
         };
         actions.AddChild(btnAll);
     }
 
-    private void Sell(string itemId, int amount)
+    private void RequestSale(string itemId, int amount)
     {
-        if (_slice is null || amount <= 0)
+        if (_view is null || _submit is null || amount <= 0)
         {
             return;
         }
 
-        var before = _slice.Wallet.Money;
-        var name = _slice.Market.GetDisplayName(itemId);
-        if (!_slice.TrySellFromWallet(itemId, amount))
-        {
-            if (_statusLabel is not null)
-            {
-                _statusLabel.Text = "Vendita fallita (stock insufficiente).";
-            }
-
-            return;
-        }
-
-        var gained = _slice.Wallet.Money - before;
-        if (_statusLabel is not null)
-        {
-            _statusLabel.Text = $"Venduti {amount}× {name} → +${gained}";
-        }
-
-        SoldChanged?.Invoke();
-        Refresh();
+        _pendingSales.Enqueue((_view.Wallet.Money, amount, _view.Market.GetDisplayName(itemId)));
+        _submit(new Sell(0, itemId, amount));
     }
 }

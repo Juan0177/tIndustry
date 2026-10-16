@@ -12,7 +12,7 @@ public sealed class ContinueAutoSave
     public void MarkPlayed() => HasPlayed = true;
 
     /// <summary>Writes <paramref name="slice"/> to Continua when allowed; returns true if it was written.</summary>
-    public bool TrySave(Factory? slice)
+    public bool TrySave(IGameView? slice)
     {
         if (!HasPlayed || slice is null)
         {

@@ -8,7 +8,7 @@ public enum ResearchNodeState
 }
 
 /// <summary>Thin research unlock state — mirror of Raylib ResearchState for Godot slice.</summary>
-public sealed class ResearchState
+public sealed class ResearchState : IResearchView
 {
     private readonly HashSet<string> unlocked;
 
@@ -58,7 +58,7 @@ public sealed class ResearchState
             : ResearchNodeState.Locked;
     }
 
-    public bool CanUnlock(StructureDefinition structure, EconomyWallet wallet) =>
+    public bool CanUnlock(StructureDefinition structure, IWalletView wallet) =>
         !IsUnlocked(structure.Id)
         && MeetsPrerequisites(structure)
         && (structure.Unlock is null

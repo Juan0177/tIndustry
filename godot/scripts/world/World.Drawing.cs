@@ -20,13 +20,13 @@ public partial class World
             {
                 var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
                 var ground = TerrainColorRaylib(TerrainKind.Grass, x, y);
-                if (_slice?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y)))
+                if (_view?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y)))
                 {
                     ground = TerrainColorRaylib(terrain[x, y].Terrain, x, y);
                 }
 
                 DrawRect(rect, ground);
-                if (screenTilePx >= 12f && _slice?.Terrain is { } detailMap
+                if (screenTilePx >= 12f && _view?.Terrain is { } detailMap
                     && detailMap.InBounds(new GridPosition(x, y)))
                 {
                     DrawTerrainSpeckle(detailMap[x, y].Terrain, x, y, rect);
@@ -60,13 +60,13 @@ public partial class World
         var worldRect = new Rect2(0, 0, mapW * TileSize, mapH * TileSize);
         DrawRect(worldRect, border, filled: false, width: Math.Max(2f, 3f / camZoom));
 
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
 
         // Seeded deposits — Raylib-style icons / bold patches (culled).
-        if (_slice.Terrain is { } map)
+        if (_view.Terrain is { } map)
         {
             for (var y = visMinY; y <= visMaxY; y++)
             {
@@ -85,9 +85,9 @@ public partial class World
 
                     var tile = new GridPosition(x, y);
                     // Belts/buildings own the tile — don't paint deposit icons as fake cargo.
-                    if (_slice.Belts.Contains(tile)
-                        || _slice.CoreTiles.Contains(tile)
-                        || _slice.IsBuildingTile(tile))
+                    if (_view.Belts.ContainsKey(tile)
+                        || _view.CoreTiles.Contains(tile)
+                        || _view.IsBuildingTile(tile))
                     {
                         continue;
                     }
@@ -100,7 +100,7 @@ public partial class World
         // Core is a node in the Buildings layer (see AddCoreVisual) so belt items slide under it.
 
         // Deposit tint under miners stays soft; the building pad is the readable frame.
-        foreach (var miner in _slice.Miners)
+        foreach (var miner in _view.Miners)
         {
             var c = ItemPalette.ColorFor(miner.OutputItemId);
             var deposit = new Color(c.R, c.G, c.B, 0.4f);
@@ -218,7 +218,7 @@ public partial class World
 
     private void DrawGhost(GridPosition hover)
     {
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
@@ -236,12 +236,12 @@ public partial class World
         };
 
         var ok = size == 1
-            ? _slice.CanOccupy(hover)
-            : _slice.CanOccupyFootprint(hover, size)
-              || (_tool is BuildTool.Miner or BuildTool.MinerAdvanced && _slice.Miners.Count == 1)
-              || (_tool == BuildTool.Smelter && _slice.Smelters.Count == 1)
-              || (_tool == BuildTool.Assembler && _slice.Assemblers.Count == 1)
-              || (_tool == BuildTool.Generator && _slice.Generators.Count == 1);
+            ? _view.CanOccupy(hover)
+            : _view.CanOccupyFootprint(hover, size)
+              || (_tool is BuildTool.Miner or BuildTool.MinerAdvanced && _view.Miners.Count == 1)
+              || (_tool == BuildTool.Smelter && _view.Smelters.Count == 1)
+              || (_tool == BuildTool.Assembler && _view.Assemblers.Count == 1)
+              || (_tool == BuildTool.Generator && _view.Generators.Count == 1);
 
         var ghost = ok
             ? new Color(0.35f, 0.85f, 0.55f, 0.35f)
@@ -272,7 +272,7 @@ public partial class World
 
     private void DrawBridgeGhost(GridPosition entry)
     {
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
@@ -280,12 +280,12 @@ public partial class World
         for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
         {
             var exit = entry.Step(_placeDir, span);
-            if (!_slice.CanOccupy(entry) || !_slice.CanOccupy(exit))
+            if (!_view.CanOccupy(entry) || !_view.CanOccupy(exit))
             {
                 continue;
             }
 
-            if (_slice.Belts.Contains(entry) || _slice.Belts.Contains(exit))
+            if (_view.Belts.ContainsKey(entry) || _view.Belts.ContainsKey(exit))
             {
                 continue;
             }

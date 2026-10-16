@@ -8,243 +8,113 @@ public partial class World
 {
     private void TryPlaceAt(GridPosition cell)
     {
-        if (_slice is null || _tool == BuildTool.Cursor)
+        if (_view is null || _tool == BuildTool.Cursor)
         {
             return;
         }
 
-        var structureId = Hud.StructureIdFor(ToHudTool(_tool));
-        if (!_slice.IsStructureUnlocked(structureId))
+        SimCommand command = _tool switch
         {
-            _hud?.ShowToast($"{ToolIt(_tool)} bloccato: sbloccalo in Ricerca (T).");
-            return;
-        }
+            BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic"),
+            BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast"),
+            BuildTool.BeltExpress => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-express"),
+            BuildTool.Miner => Place(BuildingKind.Miner),
+            BuildTool.MinerAdvanced => Place(BuildingKind.MinerAdvanced),
+            BuildTool.Smelter => Place(BuildingKind.Smelter),
+            BuildTool.Assembler => Place(BuildingKind.Assembler),
+            BuildTool.Junction => Place(BuildingKind.Junction),
+            BuildTool.Splitter => Place(BuildingKind.Splitter),
+            BuildTool.Generator => Place(BuildingKind.Generator),
+            BuildTool.Sorter => new PlaceBuilding(
+                LocalPlayer, BuildingKind.Sorter, cell, _placeDir, FilterItemId: _sorterFilterId),
+            BuildTool.Bridge => Place(BuildingKind.Bridge),
+            BuildTool.Extractor => Place(BuildingKind.Extractor),
+            BuildTool.PowerNode => Place(BuildingKind.PowerNode),
+            BuildTool.PowerNodeT2 => Place(BuildingKind.PowerNodeT2),
+            _ => throw new InvalidOperationException($"Strumento non piazzabile: {_tool}")
+        };
 
-        var costMul = _tool == BuildTool.Bridge ? 2 : 1;
-        if (!_slice.CanAffordStructure(structureId, costMul))
-        {
-            var need = _slice.FormatNeedMessage(structureId, costMul);
-            _hud?.ShowToast(string.IsNullOrEmpty(need) ? "Risorse insufficienti" : need);
-            return;
-        }
+        // Outcome (graphics refresh, rejection toast) arrives through the host events.
+        SubmitCommand(command, quietWhenBlocked: _draggingPlace);
 
-        var placed = false;
-        switch (_tool)
-        {
-            case BuildTool.Belt:
-                placed = _slice.TryPlaceBelt(cell, _placeDir);
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.BeltFast:
-                placed = _slice.TryPlaceBelt(cell, _placeDir, "conveyor-fast");
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.BeltExpress:
-                placed = _slice.TryPlaceBelt(cell, _placeDir, "conveyor-express");
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.Miner:
-                placed = _slice.TryPlaceMiner(cell, _placeDir);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.MinerAdvanced:
-                placed = _slice.TryPlaceMiner(cell, _placeDir, definitionId: Miner.AdvancedId);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.Smelter:
-                placed = _slice.TryPlaceSmelter(cell, _placeDir);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.Assembler:
-                placed = _slice.TryPlaceAssembler(cell, _placeDir);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.Junction:
-                placed = _slice.TryPlaceJunction(cell, _placeDir);
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.Splitter:
-                placed = _slice.TryPlaceSplitter(cell, _placeDir);
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.Generator:
-                placed = _slice.TryPlaceGenerator(cell, _placeDir);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.Sorter:
-                placed = _slice.TryPlaceSorter(cell, _placeDir, _sorterFilterId);
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.Bridge:
-                placed = _slice.TryPlaceBridge(cell, _placeDir);
-                if (placed)
-                {
-                    _visualDirty = true;
-                }
-
-                break;
-            case BuildTool.Extractor:
-                placed = _slice.TryPlaceExtractor(cell, _placeDir);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.PowerNode:
-                placed = _slice.TryPlacePowerNode(cell);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-            case BuildTool.PowerNodeT2:
-                placed = _slice.TryPlacePowerNode(cell, PowerNode.Tier2Id);
-                if (placed)
-                {
-                    _buildingsDirty = true;
-                }
-
-                break;
-        }
-
-        if (!placed && _slice.CanAffordStructure(structureId, costMul))
-        {
-            if (!_draggingPlace)
-            {
-                _hud?.ShowToast(_slice.CoreTiles.Contains(cell)
-                    ? "Non puoi costruire sul Core"
-                    : "Cella occupata o non valida");
-            }
-        }
+        PlaceBuilding Place(BuildingKind kind) => new(LocalPlayer, kind, cell, _placeDir);
     }
 
     private void CycleSorterFilter()
     {
-        var idx = Array.FindIndex(
-            SorterFilterIds,
-            id => string.Equals(id, _sorterFilterId, StringComparison.Ordinal));
-        _sorterFilterId = SorterFilterIds[(idx + 1 + SorterFilterIds.Length) % SorterFilterIds.Length];
+        _sorterFilterId = SorterFilters.Cycle(_sorterFilterId);
         _hud?.SetSorterFilterBrush(_sorterFilterId);
 
         // Also cycle hovered / selected sorter cell if present.
-        if (_slice is not null
+        if (_view is not null
             && _hover is { } hover
-            && _slice.Belts.TryGet(hover, out var cell)
+            && _view.Belts.TryGetValue(hover, out var cell)
             && cell.Kind == LogisticsKind.Sorter)
         {
-            cell.CycleFilterItem(SorterFilterIds);
-            _sorterFilterId = cell.FilterItemId ?? _sorterFilterId;
+            _sorterFilterId = SorterFilters.Cycle(cell.FilterItemId);
+            SubmitCommand(new SetSorterFilter(LocalPlayer, hover, _sorterFilterId));
             _hud?.SetSorterFilterBrush(_sorterFilterId);
-            _visualDirty = true;
         }
 
-        var label = _slice?.Content.DisplayName(_sorterFilterId) ?? _sorterFilterId;
+        var label = _view?.Content.DisplayName(_sorterFilterId) ?? _sorterFilterId;
         _hud?.ShowToast($"Filtro: {label}");
     }
 
     private void TryRemoveAt(GridPosition cell)
     {
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
 
-        if (_slice.TryRemoveBuildingAt(cell))
-        {
-            _buildingsDirty = true;
-            return;
-        }
-
-        if (_slice.TryRemoveBelt(cell))
-        {
-            _visualDirty = true;
-        }
+        SubmitCommand(new Remove(LocalPlayer, cell));
     }
 
     /// <summary>
     /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>): miner on starter iron
-    /// + east belts into Core for quick delivery checks.
+    /// + east belts into Core for quick delivery checks. Goes through the same commands as the player.
     /// </summary>
     private void SeedCoreDeliveryLine()
     {
-        if (_slice?.Terrain is null)
+        if (_view?.Terrain is null || _host is null)
         {
             return;
         }
 
         var coreOrigin = new GridPosition(
-            _slice.CoreTiles.Min(t => t.X),
-            _slice.CoreTiles.Min(t => t.Y));
+            _view.CoreTiles.Min(t => t.X),
+            _view.CoreTiles.Min(t => t.Y));
         var minerPos = new GridPosition(
             Math.Max(0, coreOrigin.X - Miner.Size - 2),
             coreOrigin.Y);
-        if (!_slice.TryPlaceMiner(minerPos, Direction.East))
-        {
-            GD.PrintErr($"SEED_CORE_LINE: miner fail at {minerPos}");
-            return;
-        }
+        void Seed(string what, GridPosition at) => GD.PrintErr($"SEED_CORE_LINE: {what} fail at {at}");
 
+        // Dev seed: report refusals on the console instead of toasting them.
+        void OnRejected(SimCommand command, string reason) =>
+            Seed(command is PlaceBuilding ? "miner" : "belt", command switch
+            {
+                PlaceBuilding b => b.Origin,
+                PlaceBelt b => b.Position,
+                _ => minerPos
+            });
+        _host.CommandRejected += OnRejected;
+        _host.Submit(new PlaceBuilding(LocalPlayer, BuildingKind.Miner, minerPos, Direction.East));
         for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
         {
-            if (!_slice.TryPlaceBelt(new GridPosition(x, coreOrigin.Y), Direction.East))
-            {
-                GD.PrintErr($"SEED_CORE_LINE: belt fail at ({x},{coreOrigin.Y})");
-            }
+            _host.Submit(new PlaceBelt(LocalPlayer, new GridPosition(x, coreOrigin.Y), Direction.East, "conveyor-basic"));
         }
+
+        // One tick applies the whole line (commands keep arrival order).
+        AdvanceHost(SimulationClock.TickSeconds);
+        _host.CommandRejected -= OnRejected;
 
         _visualDirty = true;
         _buildingsDirty = true;
         RebuildBeltVisual();
         RebuildBuildingVisuals();
         UpdateHud();
-        GD.Print($"SEED_CORE_LINE: belts={_slice.Belts.Count} miners={_slice.Miners.Count}");
-        _hud?.ShowToast($"Seed linea Core · nastro {_slice.Belts.Count}");
+        GD.Print($"SEED_CORE_LINE: belts={_view.Belts.Count} miners={_view.Miners.Count}");
+        _hud?.ShowToast($"Seed linea Core · nastro {_view.Belts.Count}");
     }
 
     private GridPosition ScreenToCell(Vector2 screenPos)

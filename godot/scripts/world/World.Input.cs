@@ -31,8 +31,8 @@ public partial class World
     private void SelectTool(BuildTool tool, bool toast = false)
     {
         if (tool != BuildTool.Cursor
-            && _slice is not null
-            && !_slice.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
+            && _view is not null
+            && !_view.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
         {
             _hud?.ShowToast($"{ToolIt(tool)} bloccato: sbloccalo in Ricerca (T).");
             return;
@@ -137,7 +137,7 @@ public partial class World
             return;
         }
 
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }

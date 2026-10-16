@@ -82,13 +82,14 @@ public partial class MindustryBeltVisual : Node2D
     /// Rebuild from a placeable grid: platform corners where flow turns 90°,
     /// otherwise merged straight strips along each run.
     /// </summary>
-    public void ConfigureFromGrid(BeltGrid grid, float rateItemsPerSecond, int tileSize)
+    public void ConfigureFromGrid(IGameView view, float rateItemsPerSecond, int tileSize)
     {
+        var cells = view.Belts;
         ClearVisuals();
         _rateTilesPerSecond = Math.Max(0.05f, rateItemsPerSecond);
         _scroll = 0f;
 
-        if (grid.Count == 0)
+        if (cells.Count == 0)
         {
             return;
         }
@@ -97,7 +98,7 @@ public partial class MindustryBeltVisual : Node2D
         var phase = 0f;
 
         // Junction / splitter / sorter icons (not gallery corners or strips).
-        foreach (var (pos, cell) in grid.Cells)
+        foreach (var (pos, cell) in cells)
         {
             if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter))
             {
@@ -110,7 +111,7 @@ public partial class MindustryBeltVisual : Node2D
         }
 
         // Bridges: full 1×1 ends + thin mid-span (once per pair, from entry).
-        foreach (var (pos, cell) in grid.Cells)
+        foreach (var (pos, cell) in cells)
         {
             if (visited.Contains(pos)
                 || cell.Kind != LogisticsKind.Bridge
@@ -131,11 +132,11 @@ public partial class MindustryBeltVisual : Node2D
         }
 
         // Corners first (platform pads) — belts only.
-        foreach (var (pos, cell) in grid.Cells)
+        foreach (var (pos, cell) in cells)
         {
             if (visited.Contains(pos)
-                || !grid.IsCorner(pos)
-                || !grid.TryGetIncomingDirection(pos, out var incoming))
+                || !view.IsBeltCorner(pos)
+                || !view.TryGetBeltIncomingDirection(pos, out var incoming))
             {
                 continue;
             }
@@ -149,17 +150,17 @@ public partial class MindustryBeltVisual : Node2D
         }
 
         // Straight runs: start at cells that are not corners and not mid-run.
-        foreach (var (pos, cell) in grid.Cells.OrderBy(kv => kv.Key.Y).ThenBy(kv => kv.Key.X))
+        foreach (var (pos, cell) in cells.OrderBy(kv => kv.Key.Y).ThenBy(kv => kv.Key.X))
         {
-            if (visited.Contains(pos) || grid.IsCorner(pos) || cell.Kind != LogisticsKind.Belt)
+            if (visited.Contains(pos) || view.IsBeltCorner(pos) || cell.Kind != LogisticsKind.Belt)
             {
                 continue;
             }
 
             // Prefer starting at head of a straight run (no same-dir predecessor).
             var pred = pos.Step(DirectionMath.Opposite(cell.Direction));
-            if (grid.TryGet(pred, out var predCell)
-                && !grid.IsCorner(pred)
+            if (cells.TryGetValue(pred, out var predCell)
+                && !view.IsBeltCorner(pred)
                 && predCell.Kind == LogisticsKind.Belt
                 && predCell.Direction == cell.Direction
                 && !visited.Contains(pred))
@@ -172,9 +173,9 @@ public partial class MindustryBeltVisual : Node2D
             string? runDefId = null;
             while (true)
             {
-                if (!grid.TryGet(cursor, out var runCell)
+                if (!cells.TryGetValue(cursor, out var runCell)
                     || visited.Contains(cursor)
-                    || grid.IsCorner(cursor)
+                    || view.IsBeltCorner(cursor)
                     || runCell.Kind != LogisticsKind.Belt)
                 {
                     break;
@@ -194,7 +195,7 @@ public partial class MindustryBeltVisual : Node2D
                 if (run.Count > 0)
                 {
                     var prev = run[^1];
-                    if (!grid.TryGet(prev, out var prevCell) || prevCell.Direction != runCell.Direction)
+                    if (!cells.TryGetValue(prev, out var prevCell) || prevCell.Direction != runCell.Direction)
                     {
                         break;
                     }
@@ -215,14 +216,14 @@ public partial class MindustryBeltVisual : Node2D
                 continue;
             }
 
-            var dir = grid.Cells[run[0]].Direction;
+            var dir = cells[run[0]].Direction;
             var accent = runDefId is "conveyor-fast" or "conveyor-express";
             AddStrip(run, dir, tileSize, phase, accentRails: accent);
             phase += run.Count;
         }
 
         // Orphan belt cells (e.g. isolated after edits).
-        foreach (var (pos, cell) in grid.Cells)
+        foreach (var (pos, cell) in cells)
         {
             if (visited.Contains(pos) || cell.Kind != LogisticsKind.Belt)
             {
