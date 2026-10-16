@@ -18,9 +18,9 @@ public sealed class SimulationClock
 
     /// <summary>
     /// Adds <paramref name="frameSeconds"/> and returns how many ticks to run now
-    /// (never more than <see cref="MaxTicksPerFrame"/>; time beyond the cap is dropped).
+    /// (never more than <paramref name="maxTicks"/>; time beyond the cap is dropped).
     /// </summary>
-    public int Accumulate(double frameSeconds)
+    public int Accumulate(double frameSeconds, int maxTicks = MaxTicksPerFrame)
     {
         if (double.IsFinite(frameSeconds) && frameSeconds > 0)
         {
@@ -28,7 +28,7 @@ public sealed class SimulationClock
         }
 
         var ticks = 0;
-        while (accumulator >= TickDuration && ticks < MaxTicksPerFrame)
+        while (accumulator >= TickDuration && ticks < maxTicks)
         {
             accumulator -= TickDuration;
             ticks++;

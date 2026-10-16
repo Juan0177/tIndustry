@@ -22,6 +22,7 @@ tIndustry/
 │  ├─ Economy/                  EconomyWallet, EconomySession
 │  ├─ Research/                 ResearchState, TechTreeLayout
 │  ├─ Campaign/                 CampaignCatalog, CampaignProgress
+│  ├─ Dev/                      DevConsole (comandi e velocità della modalità dev, TINDUSTRY_DEV=1)
 │  └─ Save/                     FactorySave (FactorySaveData, FactorySaveStore), GameDataPaths
 ├─ godot/
 │  ├─ project.godot · export_presets.cfg · TIndustry.Godot.csproj
@@ -36,7 +37,7 @@ tIndustry/
 │     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, HudStyle
 │     ├─ ui/panels/             Home, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
 │     ├─ settings/              ClientSettings
-│     └─ dev/                   World.Playtest.cs, SystemMonitor
+│     └─ dev/                   World.Playtest.cs, World.Dev.cs + DevConsolePanel (modalità dev), SystemMonitor
 ├─ tests/TIndustry.Shared.Tests/  test xUnit (scenari della sim, validazione dei contenuti, salvataggi)
 └─ tools/
    ├─ ci/                       setup-godot.sh, export-godot.sh
@@ -51,7 +52,7 @@ tIndustry/
 ## Ciclo di un frame
 
 1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`). L'input non passa da `_Process`: arriva dai callback di Godot (`World._UnhandledInput` in `World.Input.cs`) e diventa piazzamenti/rimozioni (`World.Placement.cs`) sulla `Factory`.
-2. `World` passa il tempo del frame a `SimulationClock.Accumulate` (`src/TIndustry.Shared/Simulation/`), che restituisce quanti tick fissi da 1/60 s eseguire (al massimo 5); per ciascuno chiama `Factory.Step()` (`src/TIndustry.Shared/Factory.cs`): nastri, potenza, minatori, forni/assemblatori, estrattori, consegna al Core, economia. La simulazione non vede mai il tempo del frame.
+2. `World` passa il tempo del frame a `SimulationClock.Accumulate` (`src/TIndustry.Shared/Simulation/`), che restituisce quanti tick fissi da 1/60 s eseguire (al massimo 5; in modalità dev `DevConsole` scala tempo e tetto con la velocità, o li ferma in pausa); per ciascuno chiama `Factory.Step()` (`src/TIndustry.Shared/Factory.cs`): nastri, potenza, minatori, forni/assemblatori, estrattori, consegna al Core, economia. La simulazione non vede mai il tempo del frame.
 3. Se la griglia o gli edifici sono cambiati, `World` ricostruisce i visual dei nastri e degli edifici; poi sincronizza sprite degli oggetti e animazioni (`World.Visuals.cs`, `godot/scripts/visuals/`).
 4. `World.UpdateHud` chiama `Hud.UpdateStock`, che inoltra a `CorePanel` (fondi, energia, risorse); `BuildPalette` e `BlockInfoPanel` seguono selezione e sblocchi.
 5. Controllo di completamento della campagna e `QueueRedraw` (`World.Drawing.cs` disegna terreno e griglia).

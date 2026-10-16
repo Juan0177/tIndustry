@@ -46,6 +46,45 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
 
+## Modalità dev
+
+Solo per sviluppo: si attiva con `TINDUSTRY_DEV=1` (o `tools/dev/dev.sh --dev`) e funziona solo nelle build di debug (`godot4 --path godot`, editor); il gioco esportato per i giocatori la ignora. Spenta durante i playtest.
+
+```powershell
+$env:TINDUSTRY_DEV = "1"
+$env:TINDUSTRY_DEV_AVVIO = "sblocca tutto; soldi 10000; velocita 4"   # facoltativo
+godot4 --path godot
+```
+
+In alto al centro compare la riga di stato: velocità, tick, tempo di gioco e cella sotto il mouse.
+
+| Tasto | Azione |
+| --- | --- |
+| F1 | Apri / chiudi la console (Esc chiude) |
+| F2 | Pausa / riprendi |
+| F3 / F4 | Più lento / più veloce (0.25× … 32×) |
+| . | In pausa: avanza di un tick |
+
+Nella console: Invio esegue, ↑/↓ cronologia, Tab completa il comando.
+
+| Comando | Effetto |
+| --- | --- |
+| `velocita <x>` | velocità della simulazione 0.1–32 (`0` = pausa) |
+| `pausa` · `passo [n]` | pausa / riprendi · in pausa avanza di n tick (1 tick = 1/60 s) |
+| `avanti <secondi>` | simula subito fino a 3600 s di gioco |
+| `soldi <n>` | aggiunge (o toglie, se negativo) fondi |
+| `dai <oggetto\|tutto> [n]` | aggiunge n oggetti al CORE (default 100) |
+| `sblocca <blocco\|tutto>` | sblocca in Ricerca senza pagare |
+| `energia` | riempie il buffer di energia |
+| `vai <x> <y>` · `vai core` | sposta la visuale |
+| `vinci` | completa il livello di campagna attivo |
+| `info` · `oggetti` · `blocchi` | stato della partita · id validi |
+| `pulisci` · `aiuto` | svuota la console · elenco comandi |
+
+Ogni comando ha anche un alias inglese (`speed`, `give`, `unlock`, `money`, `ff`, `tp`…). `TINDUSTRY_DEV_AVVIO` esegue i comandi (separati da `;`) all'inizio di ogni partita: nuova, livello di campagna o caricamento.
+
+I trucchi finiscono nei salvataggi come una partita normale: per le prove usa un profilo temporaneo (`--profilo-temp` o `TINDUSTRY_DATA_DIR`).
+
 ## Prove automatiche
 
 ```bash

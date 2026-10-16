@@ -11,6 +11,7 @@ Senza opzioni: controlla gli strumenti, compila, importa gli asset se serve e av
 
   --editor          apre l'editor Godot invece del gioco
   --nuova           salta la Home e parte da una nuova partita (TINDUSTRY_FRESH=1)
+  --dev             modalità dev (TINDUSTRY_DEV=1): console F1, pausa F2, velocità F3/F4
   --profilo-temp    profilo dati temporaneo: impostazioni e salvataggi reali non vengono toccati
   --profilo DIR     usa DIR come profilo dati (persistente tra un avvio e l'altro)
   --test            esegue anche i test xUnit prima di avviare
@@ -20,14 +21,16 @@ Senza opzioni: controlla gli strumenti, compila, importa gli asset se serve e av
   -h, --help        mostra questo aiuto
 
 Variabili: GODOT=<comando Godot 4.4 mono> (default: godot4).
+           TINDUSTRY_DEV_AVVIO="sblocca tutto; soldi 10000" comandi console a ogni partita (con --dev).
 EOF
 }
 
-EDITOR=0 FRESH=0 TEMP_PROFILE=0 PROFILE="" RUN_TESTS=0 PLAYTEST="" BUILD_ONLY=0 FORCE_IMPORT=0
+EDITOR=0 FRESH=0 DEV=0 TEMP_PROFILE=0 PROFILE="" RUN_TESTS=0 PLAYTEST="" BUILD_ONLY=0 FORCE_IMPORT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --editor) EDITOR=1 ;;
     --nuova) FRESH=1 ;;
+    --dev) DEV=1 ;;
     --profilo-temp) TEMP_PROFILE=1 ;;
     --profilo) PROFILE="${2:?--profilo richiede una cartella}"; shift ;;
     --test) RUN_TESTS=1 ;;
@@ -106,6 +109,10 @@ else
   echo "Profilo dati: quello reale del giocatore (usa --profilo-temp per non toccarlo)"
 fi
 [ "$FRESH" = 1 ] && export TINDUSTRY_FRESH=1
+if [ "$DEV" = 1 ]; then
+  export TINDUSTRY_DEV=1
+  echo "Modalità dev: F1 console · F2 pausa · F3/F4 velocità${TINDUSTRY_DEV_AVVIO:+ · avvio: $TINDUSTRY_DEV_AVVIO}"
+fi
 
 if [ "$EDITOR" = 1 ]; then
   step "Editor Godot"

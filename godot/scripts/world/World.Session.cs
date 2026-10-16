@@ -51,6 +51,7 @@ public partial class World
             seed: 42,
             startingMoney: 180);
         _continueAutoSave.MarkPlayed();
+        QueueDevStartupCommands();
         _activeLevel = null;
         _levelCompleteToastShown = false;
         _tool = BuildTool.Cursor;
@@ -173,6 +174,7 @@ public partial class World
         }
 
         _continueAutoSave.MarkPlayed();
+        QueueDevStartupCommands();
         _activeLevel = level;
         _levelCompleteToastShown = false;
         _tool = BuildTool.Cursor;
@@ -394,6 +396,7 @@ public partial class World
             var content = FactoryContent.Load(_contentPath);
             _slice = Factory.Restore(content, data);
             _continueAutoSave.MarkPlayed();
+            QueueDevStartupCommands();
             _itemSprites.Clear();
             if (_itemsLayer is not null)
             {

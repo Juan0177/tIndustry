@@ -137,13 +137,19 @@ public partial class World
             return;
         }
 
-        if (_slice is null)
+        if (_slice is null || DevConsoleOpen)
         {
             return;
         }
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (HandleDevHotkey(key))
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode == Key.I)
             {
                 OpenSettings();

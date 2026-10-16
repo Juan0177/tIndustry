@@ -12,7 +12,7 @@ Gioco di logistica industriale (Mindustry × Tiny Industry) in Godot 4.4 .NET. S
 
 ## Comandi
 
-Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--editor] [--test] [--playtest ui|tutorial] [--solo-build]` (Windows: `dev.cmd`, stesse opzioni). Per prove usa sempre `--profilo-temp`.
+Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--dev] [--editor] [--test] [--playtest ui|tutorial] [--solo-build]` (Windows: `dev.cmd`, stesse opzioni). Per prove usa sempre `--profilo-temp`.
 
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q       # atteso: 0 errori, 0 avvisi
@@ -25,6 +25,7 @@ python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
 ```
 
 `TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo).
+`TINDUSTRY_DEV=1` (solo build di debug) attiva console F1, pausa/velocità e trucchi; `TINDUSTRY_DEV_AVVIO` esegue comandi a ogni partita (vedi `godot/README.md`).
 
 Dopo `godot4 --import`, ripristina i `.import` che differiscono solo per fine riga:
 

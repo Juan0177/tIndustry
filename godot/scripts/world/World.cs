@@ -118,6 +118,7 @@ public partial class World : Node2D
         EnsureHomePanel();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
+        EnsureDevTools();
         UseSmoothUiFiltering();
         EnsureBuildingsLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
@@ -188,6 +189,7 @@ public partial class World : Node2D
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
             cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true;
+            cam.KeyboardPanEnabled = !DevConsoleOpen;
         }
 
         if (_home?.IsOpen == true || _slice is null)
@@ -195,11 +197,13 @@ public partial class World : Node2D
             return;
         }
 
-        var ticks = _clock.Accumulate(delta);
+        var ticks = SimTicksThisFrame(delta);
         for (var i = 0; i < ticks; i++)
         {
             _slice.Step();
         }
+
+        UpdateDevStatus();
 
         if (_visualDirty)
         {

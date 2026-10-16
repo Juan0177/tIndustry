@@ -17,6 +17,9 @@ public partial class WorldCamera : Camera2D
     /// <summary>Set by the world while the cursor tool is active: left-drag pans like middle-drag.</summary>
     public bool LeftDragPans { get; set; }
 
+    /// <summary>Off while a text field (dev console) has the keyboard: typing W/A/S/D must not pan.</summary>
+    public bool KeyboardPanEnabled { get; set; } = true;
+
     private bool _dragging;
     private Vector2 _dragLast;
 
@@ -56,6 +59,11 @@ public partial class WorldCamera : Camera2D
 
     public override void _Process(double delta)
     {
+        if (!KeyboardPanEnabled)
+        {
+            return;
+        }
+
         var dir = Vector2.Zero;
         if (Input.IsActionPressed("pan_up")) dir.Y -= 1;
         if (Input.IsActionPressed("pan_down")) dir.Y += 1;
