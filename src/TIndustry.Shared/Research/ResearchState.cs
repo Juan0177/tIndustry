@@ -7,7 +7,7 @@ public enum ResearchNodeState
     Unlocked
 }
 
-/// <summary>Thin research unlock state — mirror of Raylib ResearchState for Godot slice.</summary>
+/// <summary>Thin research unlock state — mirror of Raylib ResearchState for the Godot client.</summary>
 public sealed class ResearchState : IResearchView
 {
     private readonly HashSet<string> unlocked;
@@ -86,7 +86,7 @@ public sealed class ResearchState : IResearchView
         return true;
     }
 
-    /// <summary>Godot slice tools that map to research structures (v1 list).</summary>
+    /// <summary>Godot client tools that map to research structures (v1 list).</summary>
     public static readonly string[] DemoStructureIds =
     [
         "conveyor-basic",

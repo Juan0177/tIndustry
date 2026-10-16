@@ -175,4 +175,24 @@ public sealed class SnapshotTests(ITestOutputHelper output)
             $"CreateSnapshot {snapMs:F1} ms, Checksum {sumMs:F1} ms, sum {checksum:X16}");
         Assert.NotEmpty(snapshot);
     }
+
+    [Fact]
+    public void SnapshotKeepsStoredPowerAboveCoreCapacity()
+    {
+        var content = FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
+        var host = new SimHost(Factory.CreatePhaseFDemo(content));
+        for (var i = 0; i < 900 && host.State.PowerBuffer <= Factory.CorePowerCapacity; i++)
+        {
+            host.Advance(SimulationClock.TickSeconds);
+        }
+
+        // A running generator raises the capacity and lets the buffer grow past the core's own 24.
+        Assert.True(host.State.PowerBuffer > Factory.CorePowerCapacity, "buffer above core capacity");
+
+        var copy = SimHost.FromSnapshot(content, host.CreateSnapshot());
+
+        Assert.Equal(host.State.PowerBuffer, copy.State.PowerBuffer);
+        Assert.Equal(host.State.PowerCapacity, copy.State.PowerCapacity);
+        Assert.Equal(host.Checksum(), copy.Checksum());
+    }
 }

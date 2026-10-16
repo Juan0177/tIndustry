@@ -37,9 +37,9 @@ public partial class MercatoPanel : Control
         BuildUi();
     }
 
-    public void Open(IGameView slice, Action<SimCommand> submit)
+    public void Open(IGameView factory, Action<SimCommand> submit)
     {
-        _view = slice;
+        _view = factory;
         _submit = submit;
         _pendingSales.Clear();
         Visible = true;

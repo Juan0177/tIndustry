@@ -98,4 +98,19 @@ public sealed class SaveV10Tests
         Assert.Equal(120, slot.MapWidth);
         Assert.Equal(100, slot.MapHeight);
     }
+
+    [Fact]
+    public void FutureVersionSaveIsUnreadableWithoutTechnicalText()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v11-futuro", host);
+        var path = FactorySaveStore.SlotPath("v11-futuro");
+        var json = File.ReadAllText(path);
+        File.WriteAllText(path, json.Replace("\"version\": 10", "\"version\": 11"));
+
+        Assert.False(FactorySaveStore.TryLoad(content, "v11-futuro", out var loaded, out var error));
+        Assert.Null(loaded);
+        Assert.Equal("Salvataggio non leggibile.", error);
+    }
 }

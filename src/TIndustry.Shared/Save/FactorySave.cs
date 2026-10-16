@@ -278,7 +278,9 @@ public static class FactorySaveStore
         }
         catch (InvalidDataException ex)
         {
-            error = ex.Message;
+            // Only the "older version" text is meant for the player; technical detail
+            // (future version, bad snapshot) collapses into the generic unreadable message.
+            error = ex.Message == OlderVersionMessage ? OlderVersionMessage : UnreadableMessage;
         }
         catch (FileNotFoundException)
         {

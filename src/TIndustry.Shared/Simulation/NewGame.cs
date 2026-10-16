@@ -60,6 +60,12 @@ public static class NewGame
         var research = ResearchState.CreateNew(content);
         var starter = Factory.ResolveStarterDeposit(origin, coreSize, w, h);
         var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
+        // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly.
+        if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
+        {
+            wallet.AddMaterial("iron-ore", 8);
+        }
+
         return new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             ActiveCampaignLevelId = level.Id,

@@ -218,7 +218,7 @@ public partial class World
         _saves?.NotifySavedAs(id);
     }
 
-    /// <summary>Raylib AutoSaveContinue: write live slice to Continua when leaving play (only if a game was played).</summary>
+    /// <summary>Raylib AutoSaveContinue: write live factory to Continua when leaving play (only if a game was played).</summary>
     private void AutoSaveContinue(bool quiet = false)
     {
         try
