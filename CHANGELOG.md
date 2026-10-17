@@ -5,6 +5,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Documentazione
+
+- **Diario di lavoro** in `docs/diario/`: un file per piano di implementazione completato (task, PR, revisioni, decisioni autonome, rinvii, verifiche), con il diario del sotto-progetto 2; `.gitattributes` forza LF sui `.md` per non vederli modificati dopo l'apertura in Obsidian
+
 ### Tutorial / UI
 
 - **Ricerca a rami per tipologia** (come Mindustry): sotto il CORE un ramo **Logistica** (Nastro T1 → T2 → T3; Incrocio → Sdoppiatore / Selezionatore / Ponte), uno **Produzione** (Minatore → Estrattore, Forno → Assemblatore, Minatore T2) e uno **Energia** (Generatore → Nodo T1 → Nodo T2). Un solo genitore per blocco: Nastro T2, Generatore e Minatore T2 non richiedono più il Forno (restano vincolati dal costo in lastre); costi invariati

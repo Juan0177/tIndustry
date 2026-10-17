@@ -43,6 +43,7 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 - Icone solo in `godot/assets/` (piatto), con attribuzione in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
 - Salvataggi alla versione 10 (`FactorySaveData.CurrentVersion`); cambiare il formato = alzare la versione.
+- **Diario di lavoro**: a fine di ogni piano di implementazione copia il registro (`.superpowers/sdd/<piano>/progress.md`) in `docs/diario/AAAA-MM-GG-<nome>.md` (formato in `docs/diario/README.md`) *prima* di cancellare `.superpowers/sdd/`.
 - La simulazione è a tick fisso (60 Hz), guidata da comandi (`SimHost`) e deterministica: in `Step()` niente tempo, niente ordine di `Dictionary`/`HashSet`, niente orologio né `Random` non seminato, niente parallelismo né formati dipendenti dalla cultura. Regole in `docs/ARCHITETTURA.md`, modello di sincronizzazione in `docs/decisioni/0002-sincronizzazione-ibrida.md`.
 
 ## Dove guardare
@@ -50,4 +51,5 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 - `docs/ARCHITETTURA.md` — mappa delle cartelle, ciclo di frame, dati, salvataggi, come aggiungere un blocco.
 - `docs/decisioni/` — decisioni architetturali (ADR).
 - `docs/superpowers/` — specifiche e piani di lavoro.
+- `docs/diario/` — diario di lavoro per piano completato (task, PR, decisioni, rinvii).
 - `godot/README.md` — controlli e funzioni del gioco; `CHANGELOG.md` — storia.
