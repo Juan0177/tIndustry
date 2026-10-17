@@ -22,6 +22,12 @@ public static class Construction
     /// <summary>100% expressed in basis points (refund shares).</summary>
     public const int FullRefundBasisPoints = 10_000;
 
+    /// <summary>
+    /// Ticks in a row (one second) a worked site may stay stalled for materials before its plan goes to the
+    /// back of the drone's queue, when other plans wait (Mindustry's <c>plan.stuck</c>).
+    /// </summary>
+    public const int StuckTicks = 60;
+
     /// <summary>Build cost (time units) of <paramref name="spec"/>; money does not count.</summary>
     public static float BuildCost(FactoryContent c, BuildSpec spec)
     {
@@ -137,7 +143,7 @@ public static class Construction
         };
         for (var i = 0; i < cost.Count; i++)
         {
-            site.Spent[i] = cost[i].Amount;
+            site.SpentLines[i] = cost[i].Amount;
         }
 
         s.Sites.Add(site);
@@ -218,7 +224,7 @@ public static class Construction
                 Available(s.Wallet, site.Cost[i].ItemId));
             if (take > 0 && Take(s.Wallet, site.Cost[i].ItemId, take))
             {
-                site.Spent[i] += take;
+                site.SpentLines[i] += take;
             }
         }
 
@@ -273,7 +279,7 @@ public static class Construction
                 s.Wallet.AddMoney(give);
             }
 
-            site.Refunded[i] += give;
+            site.RefundedLines[i] += give;
         }
 
         if (site.Progress > 0f)

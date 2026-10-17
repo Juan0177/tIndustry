@@ -98,12 +98,36 @@ public sealed class SiteSaveDto
     public BuildSpecSaveDto Spec { get; set; } = new();
     public List<GridCellSaveDto> Tiles { get; set; } = [];
     public float Progress { get; set; }
-    public List<int> Spent { get; set; } = [];
-    public List<int> Refunded { get; set; } = [];
+
+    /// <summary>
+    /// Taken from the Core so far, one line per cost item in ordinal order (money: no item id). Mapped onto
+    /// the recomputed cost by item id, so a content update that changes the cost lines cannot move them.
+    /// </summary>
+    public List<CostLineSaveDto>? SpentByItem { get; set; }
+
+    /// <summary>Given back so far, same lines as <see cref="SpentByItem"/>.</summary>
+    public List<CostLineSaveDto>? RefundedByItem { get; set; }
+
+    /// <summary>Older v11 saves: spent per cost line by index (read only when <see cref="SpentByItem"/> is absent).</summary>
+    public List<int>? Spent { get; set; }
+
+    /// <summary>Older v11 saves: refunded per cost line by index.</summary>
+    public List<int>? Refunded { get; set; }
+
+    /// <summary>Ticks in a row the site has been stalled while worked on (absent in older v11 saves: 0).</summary>
+    public int StalledTicks { get; set; }
+
     public bool Deconstructing { get; set; }
     /// <summary>Refund share in basis points (0–10000).</summary>
     public int RefundBasisPoints { get; set; }
     public int Owner { get; set; }
+}
+
+/// <summary>One cost line of a site: <see cref="ItemId"/> null means money.</summary>
+public sealed class CostLineSaveDto
+{
+    public string? ItemId { get; set; }
+    public int Amount { get; set; }
 }
 
 public sealed class GridCellSaveDto

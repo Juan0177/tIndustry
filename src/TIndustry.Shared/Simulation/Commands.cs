@@ -44,8 +44,13 @@ public sealed record PlaceBuilding(
     string? RecipeId = null,
     string? FilterItemId = null) : SimCommand(PlayerId);
 
-/// <summary>Replaces <see cref="Factory.TryRemoveBuildingAt"/> then <see cref="Factory.TryRemoveBelt"/>.</summary>
-public sealed record Remove(int PlayerId, GridPosition Tile) : SimCommand(PlayerId);
+/// <summary>
+/// Takes away what stands on <paramref name="Tile"/> (see <see cref="SimHost"/> for the order). A single
+/// right-click toggles: a second Remove on a block marked for dismantling takes the mark off. With
+/// <paramref name="OnlyMark"/> (every cell of a right-drag) it only marks or cancels build plans and sites and
+/// never takes a dismantling mark off, so overlapping drags keep all their marks.
+/// </summary>
+public sealed record Remove(int PlayerId, GridPosition Tile, bool OnlyMark = false) : SimCommand(PlayerId);
 
 /// <summary>Replaces <see cref="Factory.TryUnlockStructure"/>.</summary>
 public sealed record UnlockStructure(int PlayerId, string StructureId) : SimCommand(PlayerId);

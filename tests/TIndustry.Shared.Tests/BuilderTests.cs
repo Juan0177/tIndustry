@@ -164,7 +164,7 @@ public sealed class BuilderTests
     }
 
     [Fact]
-    public void FiftyDraggedBeltsWaitForMaterialsThenFinishInOrder()
+    public void FiftyDraggedBeltsWaitForMaterialsThenAllFinish()
     {
         var factory = NewFactory(ironPlates: 0);
         var host = new SimHost(factory);
@@ -186,11 +186,17 @@ public sealed class BuilderTests
 
         host.AdvanceTicks(600);
 
+        // Every stalled site goes to the back of the queue after a second: the drone tries the next ones,
+        // leaving each site where it stopped.
         Assert.Empty(rejected);
         Assert.Empty(factory.Belts.Cells);
         Assert.Equal(50, factory.PlansOf(Player).Count);
-        var stalled = Assert.Single(factory.Sites);
-        Assert.Equal(new CostEntry(Iron, 1), stalled.Missing);
+        Assert.InRange(factory.Sites.Count, 2, 50);
+        Assert.All(factory.Sites, site =>
+        {
+            Assert.False(site.Deconstructing);
+            Assert.Equal(new CostEntry(Iron, 1), site.Missing);
+        });
 
         factory.Wallet.AddMaterial(Iron, 50);
         var siteOrigins = new Dictionary<long, GridPosition>();
@@ -204,9 +210,177 @@ public sealed class BuilderTests
             return factory.Belts.Count == 50 && factory.Sites.Count == 0;
         });
 
-        Assert.Equal(tiles, finished.Select(id => siteOrigins[id]).ToList());
+        Assert.Equal(50, finished.Count);
+        Assert.Equal(tiles.ToHashSet(), finished.Select(id => siteOrigins[id]).ToHashSet());
         Assert.Equal(0, factory.Wallet.MaterialCount(Iron));
         Assert.Empty(factory.PlansOf(Player));
+    }
+
+    [Fact]
+    public void StuckSiteGoesToTheBackAndResumesWhenMaterialsArrive()
+    {
+        var factory = NewFactory(ironPlates: 100);
+        var host = new SimHost(factory);
+        var finished = new List<long>();
+        host.EventRaised += e =>
+        {
+            if (e is ConstructFinished done)
+            {
+                finished.Add(done.SiteId);
+            }
+        };
+        host.Submit(new PlaceBuilding(Player, BuildingKind.MinerAdvanced, NearMiner, Direction.East));
+        var belts = Enumerable.Range(0, 5).Select(i => new GridPosition(23 + i, 24)).ToList();
+        foreach (var tile in belts)
+        {
+            host.Submit(Belt(tile));
+        }
+
+        host.AdvanceTicks(1);
+        var drone = Drone(factory);
+        var miner = Assert.Single(factory.Sites);
+        Assert.Equal(miner.Id, drone.CurrentSiteId);
+
+        // No copper wire: the miner stalls at 0 and, after 60 stalled ticks, goes to the back of the queue.
+        var rotated = 1 + RunUntil(host, () => drone.Plans[0].Spec.Origin != NearMiner, maxTicks: 200);
+        Assert.InRange(rotated, 60, 62);
+        Assert.Equal(6, drone.Plans.Count);
+        Assert.Equal(NearMiner, drone.Plans[^1].Spec.Origin);
+        Assert.Contains(miner, factory.Sites); // the site stays where it stopped
+
+        RunUntil(host, () => belts.All(factory.Belts.Contains));
+        Assert.Equal(95, factory.Wallet.MaterialCount(Iron));
+        var plan = Assert.Single(drone.Plans);
+        Assert.Equal(NearMiner, plan.Spec.Origin);
+
+        // Back at the head of the queue, the drone picks the same site up again.
+        RunUntil(host, () => drone.CurrentSiteId == miner.Id, maxTicks: 600);
+        host.AdvanceTicks(600); // alone in the queue: it just waits
+        Assert.Equal(miner.Id, drone.CurrentSiteId);
+        Assert.Equal(0f, miner.Progress);
+
+        factory.Wallet.AddMaterial("copper-wire", 4);
+        RunUntil(host, () => factory.Miners.Count == 1);
+        Assert.Equal(miner.Id, finished[^1]);
+        Assert.Equal(6, finished.Count);
+        Assert.Empty(factory.Sites);
+        Assert.Empty(drone.Plans);
+    }
+
+    [Fact]
+    public void RemoveOnStuckSiteRefundsItWhenItsTurnComes()
+    {
+        var factory = NewFactory(ironPlates: 100);
+        factory.Wallet.AddMaterial("copper-wire", 1);
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBuilding(Player, BuildingKind.MinerAdvanced, NearMiner, Direction.East));
+        host.Submit(Belt(new GridPosition(23, 24)));
+        host.Submit(Belt(new GridPosition(24, 24)));
+        host.AdvanceTicks(1);
+        var drone = Drone(factory);
+        var miner = Assert.Single(factory.Sites);
+        RunUntil(host, () => drone.Plans[0].Spec.Origin != NearMiner, maxTicks: 200);
+        Assert.InRange(miner.Progress, 0.2f, 0.3f); // one wire of four
+        Assert.Equal(0, factory.Wallet.MaterialCount("copper-wire"));
+
+        host.Submit(new Remove(Player, new GridPosition(NearMiner.X + 1, NearMiner.Y + 1)));
+        host.AdvanceTicks(1);
+        Assert.True(miner.Deconstructing);
+        Assert.Equal(3, drone.Plans.Count); // its plan stays: the drone takes the site apart on its turn
+
+        RunUntil(host, () => factory.Sites.Count == 0 && drone.Plans.Count == 0);
+        Assert.Empty(factory.Miners);
+        Assert.Equal(1, factory.Wallet.MaterialCount("copper-wire"));
+        Assert.Equal(98, factory.Wallet.MaterialCount(Iron)); // 100 − 2 belts, the miner's share back
+    }
+
+    [Fact]
+    public void BridgeBreakingPlanIsCancelledFromItsOtherEnd()
+    {
+        var factory = NewBridgeFactory();
+        FillSpan(factory, 101, 102, 103, 104);
+        var entry = new GridPosition(105, 50);
+        var exit = new GridPosition(100, 50);
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec("conveyor-bridge", BuildingKind.Bridge, entry, Direction.West), charge: false));
+        var host = new SimHost(factory);
+
+        host.Submit(new Remove(Player, entry));
+        host.AdvanceTicks(1);
+        Assert.Single(factory.PlansOf(Player));
+
+        host.Submit(new Remove(Player, exit));
+        host.AdvanceTicks(1);
+
+        Assert.Empty(factory.PlansOf(Player));
+        host.AdvanceTicks(600);
+        Assert.True(factory.Belts.TryGet(entry, out var cell) && cell.BridgePartner == exit);
+        Assert.Empty(factory.Sites);
+    }
+
+    [Fact]
+    public void MarkingRemovesNeverTakeAMarkOff()
+    {
+        var factory = NewFactory(ironPlates: 0);
+        var host = new SimHost(factory);
+        var row = Enumerable.Range(0, 10).Select(i => new GridPosition(80 + i, 30)).ToList();
+        foreach (var tile in row)
+        {
+            Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, tile, Direction.East), charge: false));
+        }
+
+        // Two overlapping removal drags: cells 0-6, then 4-9.
+        foreach (var tile in row.Take(7).Concat(row.Skip(4)))
+        {
+            host.Submit(new Remove(Player, tile, OnlyMark: true));
+        }
+
+        host.AdvanceTicks(1);
+        Assert.Equal(row, factory.PlansOf(Player).Select(p => p.Spec.Origin).ToList());
+        Assert.All(factory.PlansOf(Player), p => Assert.True(p.Breaking));
+
+        // A marking remove still cancels a queued build plan.
+        var planned = new GridPosition(80, 32);
+        host.Submit(Belt(planned));
+        host.AdvanceTicks(1);
+        Assert.Contains(factory.PlansOf(Player), p => p.Spec.Origin == planned);
+        host.Submit(new Remove(Player, planned, OnlyMark: true));
+        host.AdvanceTicks(1);
+        Assert.DoesNotContain(factory.PlansOf(Player), p => p.Spec.Origin == planned);
+
+        // A plain Remove (single right-click) still toggles the mark.
+        host.Submit(new Remove(Player, row[5]));
+        host.AdvanceTicks(1);
+        Assert.Equal(9, factory.PlansOf(Player).Count);
+        Assert.DoesNotContain(factory.PlansOf(Player), p => p.Spec.Origin == row[5]);
+    }
+
+    [Fact]
+    public void BeltPlannedBesideTheCoreFacesIt()
+    {
+        var factory = NewFactory(ironPlates: 1);
+        var host = new SimHost(factory);
+        var beside = new GridPosition(CoreOrigin.X - 1, CoreOrigin.Y); // west of the Core
+
+        host.Submit(new PlaceBelt(Player, beside, Direction.North, "conveyor-basic"));
+        host.AdvanceTicks(1);
+
+        var plan = Assert.Single(factory.PlansOf(Player));
+        Assert.Equal(Direction.East, plan.Spec.Direction);
+        RunUntil(host, () => factory.Belts.Contains(beside));
+        Assert.True(factory.Belts.TryGet(beside, out var cell));
+        Assert.Equal(Direction.East, cell.Direction);
+    }
+
+    [Fact]
+    public void BlockOverlappingTheCoreIsRefusedAsOnCore()
+    {
+        var factory = NewFactory(ironPlates: 10);
+        // Origin outside the Core, the 2x2 footprint covers its corner (20, 20).
+        var spec = new BuildSpec(Miner.BasicId, BuildingKind.Miner, new GridPosition(19, 19), Direction.East);
+
+        Assert.False(factory.CanPlace(spec, out var reason));
+        Assert.Equal(CommandReasons.OnCore, reason);
     }
 
     [Fact]
@@ -340,6 +514,22 @@ public sealed class BuilderTests
         Assert.Equal(Crafter.Size * Crafter.Size, breakTiles.Count); // the whole smelter, not the clicked cell
         Assert.Contains(smelterOrigin, breakTiles);
         Assert.Equal([new GridPosition(40, 40)], view.PlanTiles(emptyBreak));
+
+        // A bridge plan covers both ends; a breaking plan on either end covers the whole bridge.
+        var bridgeEntry = new GridPosition(50, 40);
+        var bridgePlan = new BuildPlan(
+            new BuildSpec("conveyor-bridge", BuildingKind.Bridge, bridgeEntry, Direction.East), Breaking: false);
+        Assert.Equal([bridgeEntry, new GridPosition(52, 40)], view.PlanTiles(bridgePlan));
+        Assert.True(factory.PlaceInstant(bridgePlan.Spec, charge: false));
+        var bridgeExit = new GridPosition(52, 40);
+        foreach (var end in new[] { bridgeEntry, bridgeExit })
+        {
+            var breakBridge = new BuildPlan(bridgePlan.Spec with { Origin = end }, Breaking: true);
+            var tiles = view.PlanTiles(breakBridge);
+            Assert.Equal(2, tiles.Count);
+            Assert.Contains(bridgeEntry, tiles);
+            Assert.Contains(bridgeExit, tiles);
+        }
     }
 
     [Fact]
@@ -356,13 +546,20 @@ public sealed class BuilderTests
         var events = new List<SimEvent>();
         host.EventRaised += events.Add;
 
+        // A second right-click on another cell of the same block takes the mark off again.
+        var other = new GridPosition(origin.X + 1, origin.Y);
         host.Submit(new Remove(Player, origin));
-        host.Submit(new Remove(Player, new GridPosition(origin.X + 1, origin.Y))); // same building: no second plan
+        host.Submit(new Remove(Player, other));
+        host.AdvanceTicks(1);
+        Assert.Empty(factory.PlansOf(Player));
+        Assert.Single(factory.Smelters);
+
+        host.Submit(new Remove(Player, other));
         host.AdvanceTicks(1);
 
         var plan = Assert.Single(factory.PlansOf(Player));
         Assert.True(plan.Breaking);
-        Assert.Equal(origin, plan.Spec.Origin);
+        Assert.Equal(other, plan.Spec.Origin);
 
         RunUntil(host, () => events.Count > 0);
 
@@ -635,7 +832,7 @@ public sealed class BuilderTests
         Assert.Equal(a, b);
     }
 
-    /// <summary>Drones (exact float bits), queues and sites: not in the snapshot until saves carry them.</summary>
+    /// <summary>Drones (exact float bits), queues and sites, compared field by field next to the snapshot checksum.</summary>
     private static string Fingerprint(Factory factory)
     {
         var sb = new StringBuilder();

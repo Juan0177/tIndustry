@@ -3,7 +3,8 @@ namespace TIndustry.Shared;
 /// <summary>
 /// Moves the drones and starts their sites (Mindustry's builder AI and <c>beginPlace</c>). Per drone, in
 /// id order: with plans and no site it flies straight to the first plan's centre and, once within
-/// <c>buildRange − 1</c>, revalidates the plan and turns it into a site; with no plans it flies back to
+/// <c>buildRange − 1</c>, revalidates the plan and turns it into a site (or resumes the site the plan left
+/// standing when it was sent to the back of the queue); with no plans it flies back to
 /// the rest point beside the Core. A drone with a site keeps within range of the site's cells.
 /// </summary>
 public sealed class BuilderSystem : ISimulationSystem
@@ -118,10 +119,19 @@ public sealed class BuilderSystem : ISimulationSystem
         builder.Y += dy * scale;
     }
 
-    /// <summary>Turns the first plan into a site, or drops it when it can no longer start.</summary>
+    /// <summary>
+    /// Turns the first plan into a site, or drops it when it can no longer start. A plan whose site already
+    /// stands (it went to the back of the queue while stalled) picks that site up where it stopped.
+    /// </summary>
     private static void BeginWork(GameState state, Factory factory, BuilderUnit builder)
     {
         var plan = builder.Plans[0];
+        if (factory.SiteOfPlan(plan) is { } waiting)
+        {
+            builder.CurrentSiteId = waiting.Id;
+            return;
+        }
+
         if (plan.Breaking)
         {
             if (factory.TryGetSpecAt(plan.Spec.Origin, out _, out _))

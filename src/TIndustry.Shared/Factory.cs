@@ -215,6 +215,30 @@ public sealed class Factory : IGameView
             : [plan.Spec.Origin];
     }
 
+    /// <summary>
+    /// The site standing for build plan <paramref name="plan"/>: the site under construction with the same spec
+    /// (taken apart too, once cancelled). A plan sent to the back of the queue while stalled keeps its site on
+    /// the map; null for a breaking plan or a plan not started yet.
+    /// </summary>
+    public ConstructSite? SiteOfPlan(BuildPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        if (plan.Breaking)
+        {
+            return null;
+        }
+
+        foreach (var site in State.Sites)
+        {
+            if (site.Spec == plan.Spec)
+            {
+                return site;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>First drone of <paramref name="playerId"/> (lowest id), or null.</summary>
     public BuilderUnit? BuilderOf(int playerId)
     {
@@ -442,8 +466,9 @@ public sealed class Factory : IGameView
                 Spec = CaptureSpec(site.Spec),
                 Tiles = site.Tiles.Select(t => new GridCellSaveDto { X = t.X, Y = t.Y }).ToList(),
                 Progress = site.Progress,
-                Spent = site.Spent.ToList(),
-                Refunded = site.Refunded.ToList(),
+                SpentByItem = CaptureCostLines(site.Cost, site.Spent),
+                RefundedByItem = CaptureCostLines(site.Cost, site.Refunded),
+                StalledTicks = site.StalledTicks,
                 Deconstructing = site.Deconstructing,
                 RefundBasisPoints = site.RefundBasisPoints,
                 Owner = site.OwnerPlayerId
@@ -480,6 +505,48 @@ public sealed class Factory : IGameView
         RecipeId = spec.RecipeId,
         FilterItemId = spec.FilterItemId
     };
+
+    /// <summary>One line per cost item, money (no item id) first, then materials in ordinal id order.</summary>
+    private static List<CostLineSaveDto> CaptureCostLines(IReadOnlyList<CostEntry> cost, IReadOnlyList<int> values) =>
+        cost.Select((entry, i) => new CostLineSaveDto { ItemId = entry.ItemId, Amount = values[i] })
+            .OrderBy(line => line.ItemId is not null)
+            .ThenBy(line => line.ItemId, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
+    /// Saved per-item lines of a site (<paramref name="byItem"/>), or, for older v11 saves without them, the
+    /// index lists (<paramref name="byIndex"/>) paired with <paramref name="cost"/>.
+    /// </summary>
+    private static List<(string? ItemId, int Amount)> SavedCostLines(
+        List<CostLineSaveDto>? byItem, List<int>? byIndex, IReadOnlyList<CostEntry> cost)
+    {
+        if (byItem is not null)
+        {
+            return byItem.Select(line => (line.ItemId, line.Amount)).ToList();
+        }
+
+        var lines = new List<(string? ItemId, int Amount)>();
+        for (var i = 0; i < cost.Count && byIndex is not null && i < byIndex.Count; i++)
+        {
+            lines.Add((cost[i].ItemId, byIndex[i]));
+        }
+
+        return lines;
+    }
+
+    /// <summary>Amount of the saved line for <paramref name="itemId"/> (0 when the save has none).</summary>
+    private static int SavedAmount(List<(string? ItemId, int Amount)> lines, string? itemId)
+    {
+        foreach (var line in lines)
+        {
+            if (string.Equals(line.ItemId, itemId, StringComparison.Ordinal))
+            {
+                return line.Amount;
+            }
+        }
+
+        return 0;
+    }
 
     private static BuildSpec RestoreSpec(BuildSpecSaveDto dto) => new(
         dto.StructureId,
@@ -647,26 +714,16 @@ public sealed class Factory : IGameView
 
         foreach (var d in data.Sites.OrderBy(d => d.Id))
         {
-            var spec = RestoreSpec(d.Spec);
-            // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
-            var site = new ConstructSite(
-                d.Id,
-                spec,
-                d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList(),
-                factory.CostOf(spec),
-                d.Owner)
-            {
-                Progress = d.Progress,
-                Deconstructing = d.Deconstructing,
-                RefundBasisPoints = d.RefundBasisPoints
-            };
-            for (var i = 0; i < site.Cost.Count; i++)
-            {
-                site.Spent[i] = i < d.Spent.Count ? d.Spent[i] : 0;
-                site.Refunded[i] = i < d.Refunded.Count ? d.Refunded[i] : 0;
-            }
+            factory.RestoreSite(d);
+        }
 
-            factory.State.Sites.Add(site);
+        // A drone whose current site is gone starts its first plan again.
+        foreach (var builder in factory.State.Builders)
+        {
+            if (builder.CurrentSiteId is { } siteId && !factory.State.Sites.Any(site => site.Id == siteId))
+            {
+                builder.CurrentSiteId = null;
+            }
         }
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
@@ -693,6 +750,93 @@ public sealed class Factory : IGameView
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         return factory;
+    }
+
+    /// <summary>
+    /// Restores one saved site, validating what a hand-edited or content-drifted save could carry: progress
+    /// within [0, 1], refund share within [0, 10000] basis points, spent/refunded within [0, cost] and mapped
+    /// by item id, cells recomputed when none were saved. A site whose spec is no longer buildable is dropped
+    /// with its plan, and what it took from the Core goes back (its refund share, less what was refunded).
+    /// </summary>
+    private void RestoreSite(SiteSaveDto d)
+    {
+        var spec = RestoreSpec(d.Spec);
+        var refundBasisPoints = Math.Clamp(d.RefundBasisPoints, 0, Construction.FullRefundBasisPoints);
+        var savedCost = CostOf(spec);
+        var spent = SavedCostLines(d.SpentByItem, d.Spent, savedCost);
+        var refunded = SavedCostLines(d.RefundedByItem, d.Refunded, savedCost);
+        if (!IsValidSpec(spec))
+        {
+            foreach (var (itemId, amount) in spent)
+            {
+                var back = (int)((long)Math.Max(0, amount) * refundBasisPoints / Construction.FullRefundBasisPoints)
+                    - Math.Max(0, SavedAmount(refunded, itemId));
+                if (back <= 0)
+                {
+                    continue;
+                }
+
+                if (itemId is null)
+                {
+                    Wallet.AddMoney(back);
+                }
+                else
+                {
+                    Wallet.AddMaterial(itemId, back);
+                }
+            }
+
+            DropPlansOfSite(d.Id, spec);
+            return;
+        }
+
+        // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
+        var tiles = d.Tiles.Count > 0
+            ? d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList()
+            : Footprint(spec);
+        var site = new ConstructSite(d.Id, spec, tiles, savedCost, d.Owner)
+        {
+            Progress = float.IsNaN(d.Progress) ? 0f : Math.Clamp(d.Progress, 0f, 1f),
+            Deconstructing = d.Deconstructing,
+            RefundBasisPoints = refundBasisPoints,
+            StalledTicks = Math.Clamp(d.StalledTicks, 0, Construction.StuckTicks)
+        };
+        for (var i = 0; i < site.Cost.Count; i++)
+        {
+            var amount = site.Cost[i].Amount;
+            site.SpentLines[i] = Math.Clamp(SavedAmount(spent, site.Cost[i].ItemId), 0, amount);
+            site.RefundedLines[i] = Math.Clamp(SavedAmount(refunded, site.Cost[i].ItemId), 0, amount);
+        }
+
+        State.Sites.Add(site);
+    }
+
+    /// <summary>Removes the plan of a dropped site: the current plan of the drone working on it, else a waiting build plan for it.</summary>
+    private void DropPlansOfSite(long siteId, BuildSpec spec)
+    {
+        foreach (var builder in State.Builders)
+        {
+            if (builder.CurrentSiteId == siteId)
+            {
+                builder.CurrentSiteId = null;
+                if (builder.PlanQueue.Count > 0)
+                {
+                    builder.PlanQueue.RemoveAt(0);
+                }
+
+                return;
+            }
+        }
+
+        foreach (var builder in State.Builders)
+        {
+            var index = builder.PlanQueue.FindIndex(plan => !plan.Breaking && plan.Spec == spec);
+            if (index >= 0)
+            {
+                builder.PlanQueue.RemoveAt(index);
+                return;
+            }
+        }
     }
 
     /// <summary>Systems iterate buildings in ascending id order (stable sort keeps list order on ties).</summary>
@@ -1610,7 +1754,7 @@ public sealed class Factory : IGameView
         };
         reason = ok
             ? null
-            : CoreTiles.Contains(spec.Origin) ? CommandReasons.OnCore : CommandReasons.Occupied;
+            : Footprint(spec).Any(CoreTiles.Contains) ? CommandReasons.OnCore : CommandReasons.Occupied;
         return ok;
     }
 
