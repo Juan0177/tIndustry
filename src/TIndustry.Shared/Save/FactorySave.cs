@@ -4,12 +4,13 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 10 is the
-/// first format where a save file is metadata plus this snapshot; older files are not compatible.
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 10 was the
+/// first format where a save file is metadata plus this snapshot; version 11 adds the rules, drones,
+/// plan queues and construction sites. Older files are not compatible.
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -44,6 +45,71 @@ public sealed class FactorySaveData
     public List<ExtractorSaveDto> Extractors { get; set; } = [];
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
     public List<BeltSaveDto> Belts { get; set; } = [];
+    public GameRulesSaveDto Rules { get; set; } = new();
+    /// <summary>Construction drones, in id order.</summary>
+    public List<BuilderSaveDto> Builders { get; set; } = [];
+    /// <summary>Construction and deconstruction sites, in id order.</summary>
+    public List<SiteSaveDto> Sites { get; set; } = [];
+}
+
+public sealed class GameRulesSaveDto
+{
+    public int RefundPercent { get; set; } = 100;
+    public bool InstantBuild { get; set; }
+}
+
+public sealed class BuildSpecSaveDto
+{
+    public string StructureId { get; set; } = string.Empty;
+    /// <summary>Building kind name; null for a plain belt.</summary>
+    public string? Kind { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string Direction { get; set; } = "East";
+    public string? RecipeId { get; set; }
+    public string? FilterItemId { get; set; }
+}
+
+public sealed class BuildPlanSaveDto
+{
+    public BuildSpecSaveDto Spec { get; set; } = new();
+    public bool Breaking { get; set; }
+}
+
+public sealed class BuilderSaveDto
+{
+    public long Id { get; set; }
+    public int Owner { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Rotation { get; set; }
+    public long? CurrentSiteId { get; set; }
+    /// <summary>Build queue in queue order (first = current).</summary>
+    public List<BuildPlanSaveDto> Plans { get; set; } = [];
+}
+
+/// <summary>
+/// A construction site. The cost is not saved (recomputed from the spec); the cells are, because a
+/// bridge keeps the exit chosen when the site started. <c>Missing</c> is transient and not saved.
+/// </summary>
+public sealed class SiteSaveDto
+{
+    public long Id { get; set; }
+    public BuildSpecSaveDto Spec { get; set; } = new();
+    public List<GridCellSaveDto> Tiles { get; set; } = [];
+    public float Progress { get; set; }
+    public List<int> Spent { get; set; } = [];
+    public List<int> Refunded { get; set; } = [];
+    public bool Deconstructing { get; set; }
+    /// <summary>Refund share in basis points (0–10000).</summary>
+    public int RefundBasisPoints { get; set; }
+    public int Owner { get; set; }
+}
+
+public sealed class GridCellSaveDto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
 }
 
 public sealed class ExtractorSaveDto

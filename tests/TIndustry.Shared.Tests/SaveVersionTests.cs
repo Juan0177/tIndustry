@@ -3,9 +3,9 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v10: metadata + canonical snapshot, written and read through <see cref="SimHost"/>.</summary>
+/// <summary>Save format v11: metadata + canonical snapshot, written and read through <see cref="SimHost"/>.</summary>
 [Collection(SaveStoreCollection.Name)]
-public sealed class SaveV10Tests
+public sealed class SaveVersionTests
 {
     private static readonly string ContentPath =
         Path.Combine(AppContext.BaseDirectory, "data", "content.json");
@@ -24,7 +24,6 @@ public sealed class SaveV10Tests
     public void NewGameSaveLoadKeepsChecksum()
     {
         var content = LoadContent();
-        // Saves do not carry drones and sites yet (sp3 task 3): pin instant placement.
         var host = new SimHost(NewGame.Sandbox(
             content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7,
             rules: new GameRules(InstantBuild: true)));
@@ -37,8 +36,8 @@ public sealed class SaveV10Tests
         RunTicks(host, 600);
         var before = host.Checksum();
 
-        FactorySaveStore.Save("v10-checksum", host);
-        Assert.True(FactorySaveStore.TryLoad(content, "v10-checksum", out var loaded, out var error), error);
+        FactorySaveStore.Save("v11-checksum", host);
+        Assert.True(FactorySaveStore.TryLoad(content, "v11-checksum", out var loaded, out var error), error);
 
         Assert.NotNull(loaded);
         Assert.Null(error);
@@ -55,10 +54,25 @@ public sealed class SaveV10Tests
         FactorySaveStore.Save("v9-rifiutato", host);
         var path = FactorySaveStore.SlotPath("v9-rifiutato");
         var json = File.ReadAllText(path);
-        Assert.Contains("\"version\": 10", json);
-        File.WriteAllText(path, json.Replace("\"version\": 10", "\"version\": 9"));
+        Assert.Contains("\"version\": 11", json);
+        File.WriteAllText(path, json.Replace("\"version\": 11", "\"version\": 9"));
 
         Assert.False(FactorySaveStore.TryLoad(content, "v9-rifiutato", out var loaded, out var error));
+        Assert.Null(loaded);
+        Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
+    }
+
+    [Fact]
+    public void Version10SaveIsRejectedWithClearMessage()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v10-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v10-rifiutato");
+        var json = File.ReadAllText(path);
+        File.WriteAllText(path, json.Replace("\"version\": 11", "\"version\": 10"));
+
+        Assert.False(FactorySaveStore.TryLoad(content, "v10-rifiutato", out var loaded, out var error));
         Assert.Null(loaded);
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
     }
@@ -73,8 +87,8 @@ public sealed class SaveV10Tests
         var cell = new GridPosition(30, 30);
 
         host.Submit(new PlaceBelt(1, cell, Direction.East, "conveyor-basic"));
-        FactorySaveStore.Save("v10-pendente", host);
-        Assert.True(FactorySaveStore.TryLoad(content, "v10-pendente", out var loaded, out var error), error);
+        FactorySaveStore.Save("v11-pendente", host);
+        Assert.True(FactorySaveStore.TryLoad(content, "v11-pendente", out var loaded, out var error), error);
 
         // A save holds the applied state only: the queued command is not in it.
         Assert.Equal(beltsBefore, loaded!.State.Belts.Count);
@@ -92,9 +106,9 @@ public sealed class SaveV10Tests
         var content = LoadContent();
         var host = new SimHost(NewGame.Sandbox(
             content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 100, seed: 11, startingMoney: 333));
-        FactorySaveStore.Save("v10-elenco", host);
+        FactorySaveStore.Save("v11-elenco", host);
 
-        var slot = Assert.Single(FactorySaveStore.ListSlots(), s => s.Id == "v10-elenco");
+        var slot = Assert.Single(FactorySaveStore.ListSlots(), s => s.Id == "v11-elenco");
         Assert.Equal(333, slot.Money);
         Assert.Equal(11, slot.Seed);
         Assert.Equal(120, slot.MapWidth);
@@ -109,7 +123,7 @@ public sealed class SaveV10Tests
         FactorySaveStore.Save("v11-futuro", host);
         var path = FactorySaveStore.SlotPath("v11-futuro");
         var json = File.ReadAllText(path);
-        File.WriteAllText(path, json.Replace("\"version\": 10", "\"version\": 11"));
+        File.WriteAllText(path, json.Replace("\"version\": 11", "\"version\": 12"));
 
         Assert.False(FactorySaveStore.TryLoad(content, "v11-futuro", out var loaded, out var error));
         Assert.Null(loaded);

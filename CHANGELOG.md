@@ -15,6 +15,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Costruzione in corso (sotto-progetto 3, parte 2)**: ogni partita nuova ha il **drone** del giocatore (`BuilderUnit`) al centro del Core, con una coda di piani (`BuildPlan`). Con la costruzione vera (`InstantBuild` spento) `PlaceBuilding` / `PlaceBelt` accodano un piano controllando solo sblocco e celle libere (anche dai piani di qualunque giocatore), senza più il rifiuto "Risorse insufficienti"; il drone vola verso il primo piano (22,5 tile/s), a distanza ≤ `buildRange − 1` ricontrolla le celle e avvia il cantiere, poi torna a riposo accanto al Core. `Remove` cancella un piano, annulla un cantiere in costruzione (rimborso del 100% di quanto speso) o accoda lo smontaggio di un edificio o nastro. Nuovi sistemi `Builder` e `Construct` in testa all'ordine fisso, eventi `PlanDropped` / `ConstructFinished` / `DeconstructFinished` (`SimHost.EventRaised`) e in `IGameView` droni, cantieri e code. Il client usa ancora la costruzione istantanea fino alla parte 5
 - Tolto il "riposizionamento gratuito": piazzare un secondo minatore, forno, assemblatore o generatore su un'area occupata dall'unico esistente non lo sposta più gratis
 
+### Cambiato
+
+- **Salvataggi v11** (costruzione in corso, parte 3): il salvataggio e l'istantanea portano le regole di partita, i droni con la coda dei piani e i cantieri (con le loro celle e quanto già speso o rimborsato). I salvataggi v10 non si caricano più ("Salvataggio di una versione precedente: non compatibile."); una partita caricata mantiene le regole con cui è stata salvata
+
 ### Tutorial / UI
 
 - **Ricerca a rami per tipologia** (come Mindustry): sotto il CORE un ramo **Logistica** (Nastro T1 → T2 → T3; Incrocio → Sdoppiatore / Selezionatore / Ponte), uno **Produzione** (Minatore → Estrattore, Forno → Assemblatore, Minatore T2) e uno **Energia** (Generatore → Nodo T1 → Nodo T2). Un solo genitore per blocco: Nastro T2, Generatore e Minatore T2 non richiedono più il Forno (restano vincolati dal costo in lastre); costi invariati
