@@ -14,7 +14,7 @@ public sealed class GameState
 
     /// <summary>Next item id (field: passed by <c>ref</c> to buildings that emit items).</summary>
     public long NextItemId = 1;
-    /// <summary>Next stable building id (miners, crafters, generators, extractors, power nodes).</summary>
+    /// <summary>Next stable entity id (buildings and construction sites).</summary>
     public long NextEntityId = 1;
 
     public GameState(
@@ -50,6 +50,12 @@ public sealed class GameState
     public List<Generator> Generators { get; } = [];
     public List<Extractor> Extractors { get; } = [];
     public List<PowerNode> PowerNodes { get; } = [];
+
+    /// <summary>Construction and deconstruction sites, in ascending id order.</summary>
+    public List<ConstructSite> Sites { get; } = [];
+
+    /// <summary>Rules of this game (refund share, instant build).</summary>
+    public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }
     public bool AutoSellAtCore { get; set; }

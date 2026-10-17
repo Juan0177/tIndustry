@@ -764,8 +764,17 @@ public sealed class Factory : IGameView
         return true;
     }
 
+    /// <summary>True when a building or a construction site covers <paramref name="tile"/>.</summary>
     public bool IsBuildingTile(GridPosition tile)
     {
+        foreach (var site in State.Sites)
+        {
+            if (site.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         foreach (var miner in miners)
         {
             foreach (var t in miner.OccupiedTiles())
@@ -1136,115 +1145,31 @@ public sealed class Factory : IGameView
 
     public bool TryPlaceBelt(GridPosition position, Direction direction, string? conveyorId = null)
     {
-        var id = string.IsNullOrWhiteSpace(conveyorId) ? "conveyor-basic" : conveyorId;
+        var id = string.IsNullOrWhiteSpace(conveyorId) ? BuildSpec.DefaultConveyorId : conveyorId;
         if (!RequireUnlocked(id))
         {
             return false;
         }
 
-        var def = Content.FindConveyor(id) ?? Content.RequireConveyor("conveyor-basic");
-        if (Belts.Cells.ContainsKey(position) || !CanOccupy(position))
-        {
-            return false;
-        }
-
-        // Belts that touch the Core must face into it so Drain can absorb.
-        if (CoreStockSink.PreferDirectionIntoCore(position, CoreTiles) is { } intoCore)
-        {
-            direction = intoCore;
-        }
-
-        if (!TryChargeConveyor(def))
-        {
-            return false;
-        }
-
-        if (!Belts.TryPlaceFree(position, direction, def, CanOccupy))
-        {
-            RefundConveyor(def);
-            return false;
-        }
-
-        return true;
+        var def = Content.FindConveyor(id) ?? Content.RequireConveyor(BuildSpec.DefaultConveyorId);
+        return PlaceBelt(position, direction, def, charge: true);
     }
 
-    public bool TryPlaceJunction(GridPosition position, Direction direction)
-    {
-        if (!RequireUnlocked("junction")
-            || Belts.Cells.ContainsKey(position)
-            || !CanOccupy(position)
-            || !TryChargeConveyor(JunctionDefinition))
-        {
-            return false;
-        }
+    public bool TryPlaceJunction(GridPosition position, Direction direction) =>
+        RequireUnlocked("junction")
+        && PlaceLogistics(position, direction, JunctionDefinition, charge: true);
 
-        if (!Belts.TryPlaceFree(position, direction, JunctionDefinition, CanOccupy))
-        {
-            RefundConveyor(JunctionDefinition);
-            return false;
-        }
+    public bool TryPlaceSplitter(GridPosition position, Direction direction) =>
+        RequireUnlocked("splitter")
+        && PlaceLogistics(position, direction, SplitterDefinition, charge: true);
 
-        return true;
-    }
+    public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null) =>
+        RequireUnlocked("sorter")
+        && PlaceLogistics(position, direction, SorterDefinition, charge: true, filterItemId);
 
-    public bool TryPlaceSplitter(GridPosition position, Direction direction)
-    {
-        if (!RequireUnlocked("splitter")
-            || Belts.Cells.ContainsKey(position)
-            || !CanOccupy(position)
-            || !TryChargeConveyor(SplitterDefinition))
-        {
-            return false;
-        }
-
-        if (!Belts.TryPlaceFree(position, direction, SplitterDefinition, CanOccupy))
-        {
-            RefundConveyor(SplitterDefinition);
-            return false;
-        }
-
-        return true;
-    }
-
-    public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null)
-    {
-        if (!RequireUnlocked("sorter")
-            || Belts.Cells.ContainsKey(position)
-            || !CanOccupy(position)
-            || !TryChargeConveyor(SorterDefinition))
-        {
-            return false;
-        }
-
-        if (!Belts.TryPlaceFree(position, direction, SorterDefinition, CanOccupy))
-        {
-            RefundConveyor(SorterDefinition);
-            return false;
-        }
-
-        if (Belts.TryGet(position, out var cell) && cell.Kind == LogisticsKind.Sorter)
-        {
-            cell.SetFilterItem(filterItemId ?? BeltGridCell.DefaultSorterFilter);
-        }
-
-        return true;
-    }
-
-    public bool TryPlaceBridge(GridPosition entry, Direction direction)
-    {
-        if (!RequireUnlocked("conveyor-bridge") || !TryChargeConveyor(BridgeDefinition, multiplicity: 2))
-        {
-            return false;
-        }
-
-        if (!Belts.TryPlaceBridge(entry, direction, BridgeDefinition, CanOccupy))
-        {
-            RefundConveyor(BridgeDefinition, multiplicity: 2);
-            return false;
-        }
-
-        return true;
-    }
+    public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
+        RequireUnlocked("conveyor-bridge")
+        && PlaceBridge(entry, direction, charge: true, exit: null);
 
     public bool TryRemoveBelt(GridPosition position)
     {
@@ -1271,11 +1196,451 @@ public sealed class Factory : IGameView
         string definitionId = Miner.BasicId)
     {
         var id = string.IsNullOrWhiteSpace(definitionId) ? Miner.BasicId : definitionId;
-        if (!RequireUnlocked(id))
+        return RequireUnlocked(id) && PlaceMiner(origin, direction, outputItemId, id, charge: true);
+    }
+
+    public bool TryPlaceSmelter(GridPosition origin, Direction direction, RecipeDefinition? recipe = null) =>
+        RequireUnlocked(Crafter.SmelterBuildingId)
+        && PlaceCrafter(origin, direction, recipe, Crafter.SmelterBuildingId, charge: true);
+
+    public bool TryPlaceAssembler(GridPosition origin, Direction direction, RecipeDefinition? recipe = null) =>
+        RequireUnlocked(Crafter.AssemblerBuildingId)
+        && PlaceCrafter(origin, direction, recipe, Crafter.AssemblerBuildingId, charge: true);
+
+    public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East) =>
+        RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, charge: true);
+
+    public bool TryPlaceExtractor(
+        GridPosition origin,
+        Direction direction,
+        string filterItemId = Extractor.DefaultFilterItemId) =>
+        RequireUnlocked(Extractor.BuildingId) && PlaceExtractor(origin, direction, filterItemId, charge: true);
+
+    public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNode.Tier1Id)
+    {
+        var id = definitionId == PowerNode.Tier2Id ? PowerNode.Tier2Id : PowerNode.Tier1Id;
+        return RequireUnlocked(id) && PlacePowerNode(origin, id, charge: true);
+    }
+
+    public bool TryRemoveBuildingAt(GridPosition tile)
+    {
+        if (!TryRemoveBuildingEntity(tile, out var buildingId))
         {
             return false;
         }
 
+        RefundBuilding(buildingId);
+        return true;
+    }
+
+    // ---- Spec primitives (construction sites, commands) ----
+
+    /// <summary>Cells <paramref name="spec"/> covers: its square, or both ends of a bridge.</summary>
+    public IReadOnlyList<GridPosition> Footprint(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        if (spec.Kind == BuildingKind.Bridge)
+        {
+            // An existing bridge covers its own ends; a new one ends on the first free cell in range.
+            if (Belts.TryGet(spec.Origin, out var cell)
+                && cell.Kind == LogisticsKind.Bridge
+                && cell.BridgePartner is { } partner)
+            {
+                return [spec.Origin, partner];
+            }
+
+            return FindBridgeExit(spec.Origin, spec.Direction) is { } exit
+                ? [spec.Origin, exit]
+                : [spec.Origin];
+        }
+
+        var size = FootprintSize(spec);
+        var tiles = new List<GridPosition>(size * size);
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                tiles.Add(new GridPosition(spec.Origin.X + x, spec.Origin.Y + y));
+            }
+        }
+
+        return tiles;
+    }
+
+    /// <summary>
+    /// Whole cost of <paramref name="spec"/> (bridge = both ends): money first when &gt; 0, then
+    /// materials in ordinal id order.
+    /// </summary>
+    public IReadOnlyList<CostEntry> CostOf(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        return Construction.CostOf(Content, spec);
+    }
+
+    /// <summary>
+    /// Share (0–100) of the cost given back when the finished <paramref name="spec"/> is taken apart:
+    /// the game's <see cref="GameRules.RefundPercent"/> × the building's own refund percent.
+    /// </summary>
+    public int RefundPercentFor(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        var own = spec.Kind is not null && Content.FindBuilding(spec.StructureId) is { } building
+            ? building.RefundPercent
+            : 100;
+        return Math.Clamp(State.Rules.RefundPercent, 0, 100) * Math.Clamp(own, 0, 100) / 100;
+    }
+
+    /// <summary>
+    /// True when the cells of <paramref name="spec"/> are free (no Core, building, belt or site).
+    /// Does not check research or resources. <paramref name="reason"/> is the Italian refusal text.
+    /// </summary>
+    public bool CanPlace(BuildSpec spec, out string? reason)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        var ok = spec.Kind switch
+        {
+            null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter =>
+                !Belts.Contains(spec.Origin) && CanOccupy(spec.Origin),
+            BuildingKind.Bridge =>
+                !Belts.Contains(spec.Origin)
+                && CanOccupy(spec.Origin)
+                && FindBridgeExit(spec.Origin, spec.Direction) is not null,
+            _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
+        };
+        reason = ok
+            ? null
+            : CoreTiles.Contains(spec.Origin) ? CommandReasons.OnCore : CommandReasons.Occupied;
+        return ok;
+    }
+
+    /// <summary>
+    /// Places <paramref name="spec"/> now. With <paramref name="charge"/> it pays like the matching
+    /// <c>TryPlace…</c> (fails, unchanged, when the wallet is short); without it nothing is paid.
+    /// Returns false, changing nothing, when the cells are not valid. Research is not checked.
+    /// </summary>
+    public bool PlaceInstant(BuildSpec spec, bool charge) => PlaceInstant(spec, charge, bridgeExit: null);
+
+    /// <summary><see cref="PlaceInstant(BuildSpec, bool)"/> with a bridge forced to end on <paramref name="bridgeExit"/>.</summary>
+    internal bool PlaceInstant(BuildSpec spec, bool charge, GridPosition? bridgeExit)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        var origin = spec.Origin;
+        var dir = spec.Direction;
+        switch (spec.Kind)
+        {
+            case null:
+                return Content.FindConveyor(spec.StructureId) is { } conveyor
+                    && PlaceBelt(origin, dir, conveyor, charge);
+            case BuildingKind.Junction:
+                return PlaceLogistics(origin, dir, JunctionDefinition, charge);
+            case BuildingKind.Splitter:
+                return PlaceLogistics(origin, dir, SplitterDefinition, charge);
+            case BuildingKind.Sorter:
+                return PlaceLogistics(origin, dir, SorterDefinition, charge, spec.FilterItemId);
+            case BuildingKind.Bridge:
+                return PlaceBridge(origin, dir, charge, bridgeExit);
+            case BuildingKind.Miner:
+                return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.BasicId, charge);
+            case BuildingKind.MinerAdvanced:
+                return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.AdvancedId, charge);
+            case BuildingKind.Smelter:
+            case BuildingKind.Assembler:
+            {
+                var buildingId = spec.Kind == BuildingKind.Smelter
+                    ? Crafter.SmelterBuildingId
+                    : Crafter.AssemblerBuildingId;
+                RecipeDefinition? recipe = null;
+                if (spec.RecipeId is { } recipeId)
+                {
+                    var available = spec.Kind == BuildingKind.Smelter
+                        ? Content.SmelterRecipes()
+                        : Content.AssemblerRecipes();
+                    recipe = available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
+                    if (recipe is null)
+                    {
+                        return false;
+                    }
+                }
+
+                return PlaceCrafter(origin, dir, recipe, buildingId, charge);
+            }
+            case BuildingKind.Generator:
+                return PlaceGenerator(origin, dir, charge);
+            case BuildingKind.Extractor:
+                return PlaceExtractor(origin, dir, spec.FilterItemId ?? Extractor.DefaultFilterItemId, charge);
+            case BuildingKind.PowerNode:
+                return PlacePowerNode(origin, PowerNode.Tier1Id, charge);
+            case BuildingKind.PowerNodeT2:
+                return PlacePowerNode(origin, PowerNode.Tier2Id, charge);
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// The spec of the building or belt piece on <paramref name="tile"/> (a bridge reads from its entry)
+    /// and its entity id (0 for belt pieces, which have none).
+    /// </summary>
+    public bool TryGetSpecAt(GridPosition tile, out BuildSpec spec, out long entityId)
+    {
+        foreach (var m in miners)
+        {
+            if (m.OccupiedTiles().Contains(tile))
+            {
+                var kind = m.DefinitionId == Miner.AdvancedId ? BuildingKind.MinerAdvanced : BuildingKind.Miner;
+                spec = new BuildSpec(m.DefinitionId, kind, m.Position, m.Direction);
+                entityId = m.Id;
+                return true;
+            }
+        }
+
+        foreach (var c in CraftMachines())
+        {
+            if (c.Occupies(tile))
+            {
+                var kind = c.IsAssembler ? BuildingKind.Assembler : BuildingKind.Smelter;
+                spec = new BuildSpec(c.DefinitionId, kind, c.Position, c.Direction, c.Recipe.Id);
+                entityId = c.Id;
+                return true;
+            }
+        }
+
+        foreach (var g in generators)
+        {
+            if (g.Occupies(tile))
+            {
+                spec = new BuildSpec(Generator.BuildingId, BuildingKind.Generator, g.Position, g.Direction);
+                entityId = g.Id;
+                return true;
+            }
+        }
+
+        foreach (var e in extractors)
+        {
+            if (e.Occupies(tile))
+            {
+                spec = new BuildSpec(
+                    Extractor.BuildingId, BuildingKind.Extractor, e.Position, e.Direction, FilterItemId: e.FilterItemId);
+                entityId = e.Id;
+                return true;
+            }
+        }
+
+        foreach (var n in powerNodes)
+        {
+            if (n.Occupies(tile))
+            {
+                var kind = n.DefinitionId == PowerNode.Tier2Id ? BuildingKind.PowerNodeT2 : BuildingKind.PowerNode;
+                spec = new BuildSpec(n.DefinitionId, kind, n.Position, Direction.East);
+                entityId = n.Id;
+                return true;
+            }
+        }
+
+        if (Belts.TryGet(tile, out var cell))
+        {
+            entityId = 0;
+            var id = cell.Definition.Id;
+            switch (cell.Kind)
+            {
+                case LogisticsKind.Junction:
+                    spec = new BuildSpec(id, BuildingKind.Junction, tile, cell.Direction);
+                    return true;
+                case LogisticsKind.Splitter:
+                    spec = new BuildSpec(id, BuildingKind.Splitter, tile, cell.Direction);
+                    return true;
+                case LogisticsKind.Sorter:
+                    spec = new BuildSpec(id, BuildingKind.Sorter, tile, cell.Direction, FilterItemId: cell.FilterItemId);
+                    return true;
+                case LogisticsKind.Bridge when cell.BridgePartner is { } partner:
+                    var entry = IsAhead(tile, cell.Direction, partner) ? tile : partner;
+                    spec = new BuildSpec(id, BuildingKind.Bridge, entry, cell.Direction);
+                    return true;
+                default:
+                    spec = new BuildSpec(id, null, tile, cell.Direction);
+                    return true;
+            }
+        }
+
+        spec = null!;
+        entityId = 0;
+        return false;
+    }
+
+    /// <summary>
+    /// Removes the building or belt piece on <paramref name="tile"/> now. With <paramref name="refund"/>
+    /// it gives back <c>floor(cost × </c><see cref="RefundPercentFor"/><c> / 100)</c> per cost line.
+    /// </summary>
+    public bool RemoveInstant(GridPosition tile, bool refund)
+    {
+        if (!TryGetSpecAt(tile, out var spec, out _))
+        {
+            return false;
+        }
+
+        var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Splitter
+            or BuildingKind.Sorter or BuildingKind.Bridge
+            ? Belts.TryRemove(tile)
+            : TryRemoveBuildingEntity(tile, out _);
+        if (!removed)
+        {
+            return false;
+        }
+
+        if (refund)
+        {
+            var percent = RefundPercentFor(spec);
+            foreach (var entry in CostOf(spec))
+            {
+                var amount = entry.Amount * percent / 100;
+                if (entry.ItemId is { } itemId)
+                {
+                    Wallet.AddMaterial(itemId, amount);
+                }
+                else if (amount > 0)
+                {
+                    Wallet.AddMoney(amount);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private int FootprintSize(BuildSpec spec) => spec.Kind switch
+    {
+        BuildingKind.Miner or BuildingKind.MinerAdvanced => Miner.Size,
+        BuildingKind.Smelter or BuildingKind.Assembler => Crafter.Size,
+        BuildingKind.Generator => Generator.Size,
+        BuildingKind.Extractor => Extractor.Size,
+        BuildingKind.PowerNodeT2 => 2,
+        _ => 1
+    };
+
+    /// <summary>First free bridge end 2–5 cells ahead of <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).</summary>
+    private GridPosition? FindBridgeExit(GridPosition entry, Direction direction)
+    {
+        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        {
+            var candidate = entry.Step(direction, span);
+            if (!Belts.Contains(candidate) && CanOccupy(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsAhead(GridPosition from, Direction direction, GridPosition target)
+    {
+        for (var span = 1; span <= BeltGridCell.MaxBridgeSpan; span++)
+        {
+            if (from.Step(direction, span).Equals(target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool PlaceBelt(GridPosition position, Direction direction, ConveyorDefinition def, bool charge)
+    {
+        if (Belts.Cells.ContainsKey(position) || !CanOccupy(position))
+        {
+            return false;
+        }
+
+        // Belts that touch the Core must face into it so Drain can absorb.
+        if (CoreStockSink.PreferDirectionIntoCore(position, CoreTiles) is { } intoCore)
+        {
+            direction = intoCore;
+        }
+
+        if (charge && !TryChargeConveyor(def))
+        {
+            return false;
+        }
+
+        if (!Belts.TryPlaceFree(position, direction, def, CanOccupy))
+        {
+            if (charge)
+            {
+                RefundConveyor(def);
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool PlaceLogistics(
+        GridPosition position,
+        Direction direction,
+        ConveyorDefinition def,
+        bool charge,
+        string? sorterFilter = null)
+    {
+        if (Belts.Cells.ContainsKey(position)
+            || !CanOccupy(position)
+            || (charge && !TryChargeConveyor(def)))
+        {
+            return false;
+        }
+
+        if (!Belts.TryPlaceFree(position, direction, def, CanOccupy))
+        {
+            if (charge)
+            {
+                RefundConveyor(def);
+            }
+
+            return false;
+        }
+
+        if (def.Kind == LogisticsKind.Sorter
+            && Belts.TryGet(position, out var cell)
+            && cell.Kind == LogisticsKind.Sorter)
+        {
+            cell.SetFilterItem(sorterFilter ?? BeltGridCell.DefaultSorterFilter);
+        }
+
+        return true;
+    }
+
+    /// <summary>Bridge from <paramref name="entry"/>; <paramref name="exit"/> forces the far end (finished sites).</summary>
+    private bool PlaceBridge(GridPosition entry, Direction direction, bool charge, GridPosition? exit)
+    {
+        if (charge && !TryChargeConveyor(BridgeDefinition, multiplicity: 2))
+        {
+            return false;
+        }
+
+        Func<GridPosition, bool> canOccupy = exit is { } forced
+            ? p => CanOccupy(p) && (p.Equals(entry) || p.Equals(forced))
+            : CanOccupy;
+        if (!Belts.TryPlaceBridge(entry, direction, BridgeDefinition, canOccupy))
+        {
+            if (charge)
+            {
+                RefundConveyor(BridgeDefinition, multiplicity: 2);
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool PlaceMiner(
+        GridPosition origin,
+        Direction direction,
+        string outputItemId,
+        string definitionId,
+        bool charge)
+    {
         var covered = Miner.FootprintArea;
         var itemId = outputItemId;
         if (Terrain is { } terrain)
@@ -1290,114 +1655,42 @@ public sealed class Factory : IGameView
             }
         }
 
-        if (!CanOccupyFootprint(origin, Miner.Size))
-        {
-            if (miners.Count == 1 && FootprintClearExcept(origin, Miner.Size, miner: miners[0]))
-            {
-                // Relocate keeps old efficiency; replace instead when terrain-aware.
-                // No charge — same building moved.
-                miners[0] = new Miner(origin, direction, covered, itemId, id, miners[0].Id);
-                return true;
-            }
-
-            return false;
-        }
-
-        if (!TryChargeBuilding(id))
+        if (!CanOccupyFootprint(origin, Miner.Size) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
-        miners.Add(new Miner(origin, direction, covered, itemId, id, nextEntityId++));
+        miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
         return true;
     }
 
-    public bool TryPlaceSmelter(GridPosition origin, Direction direction, RecipeDefinition? recipe = null)
+    private bool PlaceCrafter(
+        GridPosition origin,
+        Direction direction,
+        RecipeDefinition? recipe,
+        string buildingId,
+        bool charge)
     {
-        if (!RequireUnlocked("smelter"))
+        var isAssembler = buildingId == Crafter.AssemblerBuildingId;
+        var recipes = isAssembler ? Content.AssemblerRecipes() : Content.SmelterRecipes();
+        var defaultRecipeId = isAssembler ? "craft-copper-wire" : "smelt-iron";
+        recipe ??= recipes.FirstOrDefault(r => r.Id == defaultRecipeId)
+            ?? Content.FindRecipe(defaultRecipeId)
+            ?? throw new InvalidDataException($"Ricetta {defaultRecipeId} mancante.");
+
+        if (!CanOccupyFootprint(origin, Crafter.Size) || (charge && !TryChargeBuilding(buildingId)))
         {
             return false;
         }
 
-        var recipes = Content.SmelterRecipes();
-        recipe ??= recipes.FirstOrDefault(r => r.Id == "smelt-iron")
-            ?? Content.FindRecipe("smelt-iron")
-            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
-
-        if (!CanOccupyFootprint(origin, Crafter.Size))
-        {
-            if (smelters.Count == 1 && FootprintClearExcept(origin, Crafter.Size, craft: smelters[0]))
-            {
-                smelters[0].Relocate(origin, direction);
-                return true;
-            }
-
-            return false;
-        }
-
-        if (!TryChargeBuilding(Crafter.SmelterBuildingId))
-        {
-            return false;
-        }
-
-        smelters.Add(new Crafter(
-            origin, direction, recipe, Crafter.SmelterBuildingId, recipes, nextEntityId++));
+        (isAssembler ? assemblers : smelters).Add(new Crafter(
+            origin, direction, recipe, buildingId, recipes, nextEntityId++));
         return true;
     }
 
-    public bool TryPlaceAssembler(GridPosition origin, Direction direction, RecipeDefinition? recipe = null)
+    private bool PlaceGenerator(GridPosition origin, Direction direction, bool charge)
     {
-        if (!RequireUnlocked("assembler"))
-        {
-            return false;
-        }
-
-        var recipes = Content.AssemblerRecipes();
-        recipe ??= recipes.FirstOrDefault(r => r.Id == "craft-copper-wire")
-            ?? Content.FindRecipe("craft-copper-wire")
-            ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
-
-        if (!CanOccupyFootprint(origin, Crafter.Size))
-        {
-            if (assemblers.Count == 1 && FootprintClearExcept(origin, Crafter.Size, craft: assemblers[0]))
-            {
-                assemblers[0].Relocate(origin, direction);
-                return true;
-            }
-
-            return false;
-        }
-
-        if (!TryChargeBuilding(Crafter.AssemblerBuildingId))
-        {
-            return false;
-        }
-
-        assemblers.Add(new Crafter(
-            origin, direction, recipe, Crafter.AssemblerBuildingId, recipes, nextEntityId++));
-        return true;
-    }
-
-    public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East)
-    {
-        if (!RequireUnlocked("generator"))
-        {
-            return false;
-        }
-
-        if (!CanOccupyFootprint(origin, Generator.Size))
-        {
-            if (generators.Count == 1
-                && FootprintClearExcept(origin, Generator.Size, generator: generators[0]))
-            {
-                generators[0].Relocate(origin, direction);
-                return true;
-            }
-
-            return false;
-        }
-
-        if (!TryChargeBuilding(Generator.BuildingId))
+        if (!CanOccupyFootprint(origin, Generator.Size) || (charge && !TryChargeBuilding(Generator.BuildingId)))
         {
             return false;
         }
@@ -1406,22 +1699,9 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    public bool TryPlaceExtractor(
-        GridPosition origin,
-        Direction direction,
-        string filterItemId = Extractor.DefaultFilterItemId)
+    private bool PlaceExtractor(GridPosition origin, Direction direction, string filterItemId, bool charge)
     {
-        if (!RequireUnlocked(Extractor.BuildingId))
-        {
-            return false;
-        }
-
-        if (!CanOccupyFootprint(origin, Extractor.Size))
-        {
-            return false;
-        }
-
-        if (!TryChargeBuilding(Extractor.BuildingId))
+        if (!CanOccupyFootprint(origin, Extractor.Size) || (charge && !TryChargeBuilding(Extractor.BuildingId)))
         {
             return false;
         }
@@ -1430,21 +1710,10 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNode.Tier1Id)
+    private bool PlacePowerNode(GridPosition origin, string id, bool charge)
     {
-        var id = definitionId == PowerNode.Tier2Id ? PowerNode.Tier2Id : PowerNode.Tier1Id;
-        if (!RequireUnlocked(id))
-        {
-            return false;
-        }
-
         var size = id == PowerNode.Tier2Id ? 2 : 1;
-        if (!CanOccupyFootprint(origin, size))
-        {
-            return false;
-        }
-
-        if (!TryChargeBuilding(id))
+        if (!CanOccupyFootprint(origin, size) || (charge && !TryChargeBuilding(id)))
         {
             return false;
         }
@@ -1453,169 +1722,74 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    public bool TryRemoveBuildingAt(GridPosition tile)
+    /// <summary>Removes the building on <paramref name="tile"/> without refund; returns its definition id.</summary>
+    private bool TryRemoveBuildingEntity(GridPosition tile, out string buildingId)
     {
         for (var i = miners.Count - 1; i >= 0; i--)
         {
-            foreach (var t in miners[i].OccupiedTiles())
+            if (miners[i].OccupiedTiles().Contains(tile))
             {
-                if (!t.Equals(tile))
-                {
-                    continue;
-                }
-
-                var id = miners[i].DefinitionId;
+                buildingId = miners[i].DefinitionId;
                 miners.RemoveAt(i);
-                RefundBuilding(id);
                 return true;
             }
         }
 
         for (var i = smelters.Count - 1; i >= 0; i--)
         {
-            if (!smelters[i].Occupies(tile))
+            if (smelters[i].Occupies(tile))
             {
-                continue;
+                buildingId = Crafter.SmelterBuildingId;
+                smelters.RemoveAt(i);
+                return true;
             }
-
-            smelters.RemoveAt(i);
-            RefundBuilding(Crafter.SmelterBuildingId);
-            return true;
         }
 
         for (var i = assemblers.Count - 1; i >= 0; i--)
         {
-            if (!assemblers[i].Occupies(tile))
+            if (assemblers[i].Occupies(tile))
             {
-                continue;
+                buildingId = Crafter.AssemblerBuildingId;
+                assemblers.RemoveAt(i);
+                return true;
             }
-
-            assemblers.RemoveAt(i);
-            RefundBuilding(Crafter.AssemblerBuildingId);
-            return true;
         }
 
         for (var i = generators.Count - 1; i >= 0; i--)
         {
-            if (!generators[i].Occupies(tile))
+            if (generators[i].Occupies(tile))
             {
-                continue;
+                buildingId = Generator.BuildingId;
+                generators.RemoveAt(i);
+                return true;
             }
-
-            generators.RemoveAt(i);
-            RefundBuilding(Generator.BuildingId);
-            return true;
         }
 
         for (var i = extractors.Count - 1; i >= 0; i--)
         {
-            if (!extractors[i].Occupies(tile))
+            if (extractors[i].Occupies(tile))
             {
-                continue;
+                buildingId = Extractor.BuildingId;
+                extractors.RemoveAt(i);
+                return true;
             }
-
-            extractors.RemoveAt(i);
-            RefundBuilding(Extractor.BuildingId);
-            return true;
         }
 
         for (var i = powerNodes.Count - 1; i >= 0; i--)
         {
-            if (!powerNodes[i].Occupies(tile))
+            if (powerNodes[i].Occupies(tile))
             {
-                continue;
+                buildingId = powerNodes[i].DefinitionId;
+                powerNodes.RemoveAt(i);
+                return true;
             }
-
-            var id = powerNodes[i].DefinitionId;
-            powerNodes.RemoveAt(i);
-            RefundBuilding(id);
-            return true;
         }
 
+        buildingId = "";
         return false;
     }
 
     private IEnumerable<Crafter> CraftMachines() => State.CraftMachines();
-
-    private bool FootprintClearExcept(
-        GridPosition origin,
-        int size,
-        Miner? miner = null,
-        Crafter? craft = null,
-        Generator? generator = null)
-    {
-        for (var y = 0; y < size; y++)
-        {
-            for (var x = 0; x < size; x++)
-            {
-                var tile = new GridPosition(origin.X + x, origin.Y + y);
-                if (tile.X < 0 || tile.Y < 0 || CoreTiles.Contains(tile) || Belts.Contains(tile))
-                {
-                    return false;
-                }
-
-                foreach (var m in miners)
-                {
-                    if (miner is not null && ReferenceEquals(m, miner))
-                    {
-                        continue;
-                    }
-
-                    foreach (var t in m.OccupiedTiles())
-                    {
-                        if (t.Equals(tile))
-                        {
-                            return false;
-                        }
-                    }
-                }
-
-                foreach (var s in CraftMachines())
-                {
-                    if (craft is not null && ReferenceEquals(s, craft))
-                    {
-                        continue;
-                    }
-
-                    if (s.Occupies(tile))
-                    {
-                        return false;
-                    }
-                }
-
-                foreach (var g in generators)
-                {
-                    if (generator is not null && ReferenceEquals(g, generator))
-                    {
-                        continue;
-                    }
-
-                    if (g.Occupies(tile))
-                    {
-                        return false;
-                    }
-                }
-
-                foreach (var ex in extractors)
-                {
-                    if (ex.Occupies(tile))
-                    {
-                        return false;
-                    }
-                }
-
-                foreach (var node in powerNodes)
-                {
-                    if (node.Occupies(tile))
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
 
     /// <summary>Advances the simulation by exactly one fixed tick (<see cref="SimulationClock.TickSeconds"/>).</summary>
     public void Step() => Simulation.Step(State);

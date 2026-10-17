@@ -9,6 +9,11 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 - **Diario di lavoro** in `docs/diario/`: un file per piano di implementazione completato (task, PR, revisioni, decisioni autonome, rinvii, verifiche), con il diario del sotto-progetto 2; `.gitattributes` forza LF sui `.md` per non vederli modificati dopo l'apertura in Obsidian
 
+### Sviluppo
+
+- **Costruzione in corso (sotto-progetto 3, parte 1)**: base della simulazione per i cantieri come Mindustry. Nuove regole di partita `GameRules` (`RefundPercent`, `InstantBuild`), `BuildSpec` (cosa costruire e dove) e cantieri `ConstructSite` con `Construction`: tempo `(20 + Σ quantità × peso) × moltiplicatore` diviso per la velocità del drone, risorse prelevate dal Core man mano, cantiere fermo quando mancano e ripartenza da solo, smontaggio con rimborso graduale (edificio finito: regola di partita × rimborso dell'edificio; cantiere annullato: il 100% di quanto speso). I cantieri occupano le loro celle. Dati: `buildWeights` e `units.drone` in `content.json`, `refundPercent` per livello in `campaign.json` (livelli 1–3 al 100%, dal 4 al 50%). I comandi di piazzamento passano da `Factory.PlaceInstant`; il gioco non cambia ancora: drone e piani arrivano nella parte 2
+- Tolto il "riposizionamento gratuito": piazzare un secondo minatore, forno, assemblatore o generatore su un'area occupata dall'unico esistente non lo sposta più gratis
+
 ### Tutorial / UI
 
 - **Ricerca a rami per tipologia** (come Mindustry): sotto il CORE un ramo **Logistica** (Nastro T1 → T2 → T3; Incrocio → Sdoppiatore / Selezionatore / Ponte), uno **Produzione** (Minatore → Estrattore, Forno → Assemblatore, Minatore T2) e uno **Energia** (Generatore → Nodo T1 → Nodo T2). Un solo genitore per blocco: Nastro T2, Generatore e Minatore T2 non richiedono più il Forno (restano vincolati dal costo in lastre); costi invariati

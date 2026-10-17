@@ -17,6 +17,25 @@ public sealed class FactoryContent
     public CoreUpgradeDefinition CoreUpgrade { get; init; } =
         new(150, [new ResourceAmount("iron-plate", 20)], 25);
 
+    /// <summary>Mindustry's <c>item.cost</c> per item id (build-time weight); missing items weigh 1.</summary>
+    public IReadOnlyDictionary<string, float> BuildWeights { get; init; } =
+        new Dictionary<string, float>(StringComparer.Ordinal);
+
+    /// <summary>The player's builder drone (Mindustry's alpha).</summary>
+    public UnitDefinition Drone { get; init; } = DefaultDrone;
+
+    internal static readonly UnitDefinition DefaultDrone = new(0.5f, 27.5f, 22.5f);
+
+    /// <summary>Build-time weight of one unit of <paramref name="itemId"/> (default 1).</summary>
+    public float BuildWeight(string itemId) =>
+        BuildWeights.TryGetValue(itemId, out var weight) ? weight : 1f;
+
+    /// <summary>Build-time multiplier of a building or conveyor (default 1).</summary>
+    public float BuildCostMultiplier(string structureId) =>
+        FindBuilding(structureId)?.BuildCostMultiplier
+        ?? FindConveyor(structureId)?.BuildCostMultiplier
+        ?? 1f;
+
     public ConveyorDefinition? FindConveyor(string id) =>
         Conveyors.FirstOrDefault(c => c.Id == id);
 
@@ -68,6 +87,8 @@ public sealed class FactoryContent
         var market = root.Market.Select(MapMarket).ToList();
         var structures = root.Structures.Select(MapStructure).ToList();
         var coreUpgrade = MapCoreUpgrade(root.Economy?.CoreUpgrade);
+        var buildWeights = MapBuildWeights(root.BuildWeights);
+        var drone = MapUnit("drone", root.Units?.Drone);
 
         return new FactoryContent
         {
@@ -76,9 +97,46 @@ public sealed class FactoryContent
             Buildings = buildings,
             Market = market,
             Structures = structures,
-            CoreUpgrade = coreUpgrade
+            CoreUpgrade = coreUpgrade,
+            BuildWeights = buildWeights,
+            Drone = drone
         };
     }
+
+    private static IReadOnlyDictionary<string, float> MapBuildWeights(Dictionary<string, float>? weights)
+    {
+        var map = new Dictionary<string, float>(StringComparer.Ordinal);
+        foreach (var (itemId, weight) in weights ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || !(weight > 0f) || !float.IsFinite(weight))
+            {
+                throw new InvalidDataException($"content.json: buildWeights['{itemId}'] deve essere > 0.");
+            }
+
+            map[itemId] = weight;
+        }
+
+        return map;
+    }
+
+    private static UnitDefinition MapUnit(string unitId, UnitDto? dto)
+    {
+        if (dto is null)
+        {
+            throw new InvalidDataException($"content.json: manca units.{unitId}.");
+        }
+
+        if (!(dto.BuildSpeed > 0f) || !(dto.BuildRange > 1f) || !(dto.Speed > 0f))
+        {
+            throw new InvalidDataException(
+                $"content.json: units.{unitId} richiede buildSpeed > 0, buildRange > 1 e speed > 0.");
+        }
+
+        return new UnitDefinition(dto.BuildSpeed, dto.BuildRange, dto.Speed);
+    }
+
+    private static float MapMultiplier(float? multiplier) =>
+        multiplier is { } m && m > 0f && float.IsFinite(m) ? m : 1f;
 
     private static CoreUpgradeDefinition MapCoreUpgrade(CoreUpgradeDto? dto)
     {
@@ -109,13 +167,19 @@ public sealed class FactoryContent
             c.MoneyCost,
             MapAmounts(c.BuildCost),
             MapUnlock(c.Unlock),
-            ParseKind(c.Kind));
+            ParseKind(c.Kind),
+            MapMultiplier(c.BuildCostMultiplier));
 
     private static RecipeDefinition MapRecipe(RecipeDto r) =>
         new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs));
 
     private static BuildingDefinition MapBuilding(BuildingDto b) =>
-        new(b.Id, b.MoneyCost, MapAmounts(b.BuildCost), b.RefundPercent <= 0 ? 100 : b.RefundPercent);
+        new(
+            b.Id,
+            b.MoneyCost,
+            MapAmounts(b.BuildCost),
+            b.RefundPercent <= 0 ? 100 : b.RefundPercent,
+            MapMultiplier(b.BuildCostMultiplier));
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
         new(
@@ -172,6 +236,20 @@ public sealed class FactoryContent
         public List<MarketDto> Market { get; set; } = [];
         public List<StructureDto> Structures { get; set; } = [];
         public EconomyDto? Economy { get; set; }
+        public Dictionary<string, float>? BuildWeights { get; set; }
+        public UnitsDto? Units { get; set; }
+    }
+
+    private sealed class UnitsDto
+    {
+        public UnitDto? Drone { get; set; }
+    }
+
+    private sealed class UnitDto
+    {
+        public float BuildSpeed { get; set; }
+        public float BuildRange { get; set; }
+        public float Speed { get; set; }
     }
 
     private sealed class EconomyDto
@@ -197,6 +275,7 @@ public sealed class FactoryContent
         public List<AmountDto>? BuildCost { get; set; }
         public UnlockDto? Unlock { get; set; }
         public string? Kind { get; set; }
+        public float? BuildCostMultiplier { get; set; }
     }
 
     private sealed class RecipeDto
@@ -213,6 +292,7 @@ public sealed class FactoryContent
         public int MoneyCost { get; set; }
         public List<AmountDto>? BuildCost { get; set; }
         public int RefundPercent { get; set; } = 100;
+        public float? BuildCostMultiplier { get; set; }
     }
 
     private sealed class MarketDto
