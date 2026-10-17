@@ -10,6 +10,7 @@ tIndustry/
 ├─ data/                        unica fonte dei contenuti: content.json, campaign.json
 ├─ docs/
 │  ├─ ARCHITETTURA.md           questo file
+│  ├─ diario/                   diario di lavoro: un file per piano completato
 │  ├─ decisioni/                ADR (0001-server-csharp.md, 0002-sincronizzazione-ibrida.md)
 │  └─ superpowers/              specifiche e piani
 ├─ src/TIndustry.Shared/        simulazione (futuro codice comune a client e server)
