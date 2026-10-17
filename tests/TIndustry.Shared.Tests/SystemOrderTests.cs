@@ -24,6 +24,22 @@ public sealed class SystemOrderTests
     }
 
     [Fact]
+    public void StepRunsFullSequenceWithDt()
+    {
+        var content = FactoryContent.Load(ContentPath);
+        var state = NewGame.Demo(content).State;
+        var trace = new List<(string Name, float Dt)>();
+
+        Simulation.Step(state, (name, dt) => trace.Add((name, dt)));
+
+        var tick = SimulationClock.TickSeconds;
+        Assert.Equal(
+            [("Belt", tick), ("Power", tick), ("Mining", tick), ("Crafting", tick),
+             ("Extraction", tick), ("Belt", 0f), ("CoreDelivery", tick)],
+            trace);
+    }
+
+    [Fact]
     public void StepIsPureOverState()
     {
         var content = FactoryContent.Load(ContentPath);

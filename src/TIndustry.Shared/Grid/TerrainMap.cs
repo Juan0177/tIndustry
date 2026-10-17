@@ -47,6 +47,15 @@ public sealed class TerrainMap
     public bool InBounds(GridPosition position) =>
         position.X >= 0 && position.Y >= 0 && position.X < Width && position.Y < Height;
 
+    /// <summary>Builds a map from explicit tiles (<c>tiles[x, y]</c>); used by tests and tools.</summary>
+    public static TerrainMap FromTiles(TerrainTile[,] tiles, int seed = 0)
+    {
+        ArgumentNullException.ThrowIfNull(tiles);
+        var map = new TerrainMap(tiles.GetLength(0), tiles.GetLength(1)) { Seed = seed };
+        Array.Copy(tiles, map.tiles, tiles.Length);
+        return map;
+    }
+
     public static TerrainMap Generate(
         int width,
         int height,
@@ -235,7 +244,12 @@ public sealed class TerrainMap
             return DepositKind.None;
         }
 
-        return counts.OrderByDescending(kv => kv.Value).First().Key;
+        // Most tiles wins; on a tie the lowest deposit id (ordinal string order) wins, never the
+        // Dictionary enumeration order.
+        return counts
+            .OrderByDescending(kv => kv.Value)
+            .ThenBy(kv => ItemIdForDeposit(kv.Key), StringComparer.Ordinal)
+            .First().Key;
     }
 
     public static string ItemIdForDeposit(DepositKind deposit) => deposit switch
