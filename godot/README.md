@@ -27,22 +27,22 @@ Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.c
 
 ## Controlli build
 
-**Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
+**Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click pianifica · **destro** cancella o smonta · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
 
 ### Costruzione (come Mindustry)
 
-Piazzare non crea il blocco subito: diventa un **piano**, una sagoma semitrasparente col contorno giallo. Trascinando i nastri compare una sagoma per cella. Il **drone** parte dal CORE, vola verso il primo piano della coda e lo costruisce: lo sprite si disegna dal basso mentre il raggio parte dal drone. Le risorse escono dal CORE man mano e non bloccano il piazzamento: se mancano, il cantiere si ferma e, passandoci sopra col mouse, dice cosa manca ("Mancano: 3 Lastra di ferro", oppure "Mancano: $20"). Riparte da solo quando le risorse arrivano. Con la coda vuota il drone torna accanto al CORE.
+Piazzare non crea il blocco subito: diventa un **piano**, una sagoma semitrasparente col contorno giallo. Trascinando i nastri compare una sagoma per cella. Il **drone** parte dal CORE, vola verso il primo piano della coda e lo costruisce: lo sprite si disegna dal basso mentre il raggio parte dal drone. Le risorse escono dal CORE man mano e non bloccano il piazzamento: se mancano, il cantiere si ferma e, passandoci sopra col mouse, dice cosa manca ("Mancano: 3 Lastra di ferro", oppure "Mancano: $20"). Riparte da solo quando le risorse arrivano. Se un cantiere resta fermo per un secondo e in coda ci sono altri piani, il drone lo lascia dov'è (con quello che ha già speso) e passa ai successivi, come in Mindustry: il piano fermo va in fondo alla coda e il cantiere riprende quando ritocca a lui. Un nastro accanto al CORE è pianificato già rivolto verso il CORE. Con la coda vuota il drone torna accanto al CORE.
 
 Tasto **destro**:
 
-- su un **piano** non ancora iniziato lo cancella;
-- su un **cantiere** in costruzione lo annulla: il drone lo smonta e restituisce man mano tutto quello già speso;
-- su un **edificio** o un **nastro** lo segna in rosso: il drone lo smonta e rimborsa man mano (100% nella partita normale e nei livelli 1–3 della campagna, 50% dal livello 4); gli oggetti dentro vanno persi;
+- su un **piano** non ancora iniziato lo cancella; su un blocco già segnato per lo smontaggio toglie il segno, da qualunque cella del blocco (anche dall'altro capo di un ponte);
+- su un **cantiere** in costruzione lo annulla: il drone lo smonta e restituisce man mano tutto quello già speso (un cantiere lasciato fermo viene smontato quando ritocca a lui);
+- su un **edificio** o un **nastro** lo segna in rosso (riempimento rosso traslucido): il drone lo smonta e rimborsa man mano (100% nella partita normale e nei livelli 1–3 della campagna, 50% dal livello 4); gli oggetti dentro vanno persi;
 - su un cantiere già in smontaggio o su una cella vuota non fa nulla.
 
-Tenendo premuto il destro e trascinando si agisce su più blocchi, una volta per blocco.
+Tenendo premuto il destro e trascinando si **segnano** più blocchi, una volta per blocco: il trascinamento segna, cancella piani e annulla cantieri, ma non toglie mai un segno di smontaggio, anche ripassando su blocchi già segnati o con due trascinamenti sovrapposti. Solo un clic destro singolo, senza trascinare, toglie un segno. Un trascinamento veloce non lascia buchi: le celle saltate fra due movimenti del mouse vengono riempite (anche piazzando nastri).
 
-**Coda nell'HUD**: nella colonna in alto a sinistra, sotto le risorse del CORE, un riquadro mostra il blocco in lavorazione con la sua barra (rossa se si smonta) e "+N" piani in attesa. Un clic sposta la visuale sul cantiere. Il riquadro sparisce quando la coda è vuota. Se un piano non si può più costruire quando il drone arriva (cella occupata, blocco non sbloccato) un avviso dice il motivo.
+**Coda nell'HUD**: nella colonna in alto a sinistra, sotto le risorse del CORE, un riquadro mostra il blocco in lavorazione con la sua barra (rossa se si smonta, ambra con "Manca: <materiale>" se il cantiere è fermo per le risorse) e "+N" piani in attesa. Un clic sposta la visuale sul cantiere. Il riquadro sparisce quando la coda è vuota. Se un piano non si può più costruire quando il drone arriva (cella occupata, blocco non sbloccato) un avviso dice il motivo.
 
 Palette Mindustry (angolo basso-destra): griglia sprite senza testo né numeri; rail categorie a icone (Strumenti / Logistica / Produzione / Potenza); hover/selezione apre il pannello info (nome, tasto rapido `[2]`, costi con icona barrata se mancano); `?` apre dettaglio.
 
@@ -57,7 +57,7 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | T | Ricerca (grafo icon-node) |
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
-| RMB | Cancella un piano, annulla un cantiere o smonta un blocco (non è uno slot palette) |
+| RMB | Cancella un piano, annulla un cantiere o segna un blocco da smontare; clic singolo toglie il segno, trascinare segna soltanto (non è uno slot palette) |
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
 

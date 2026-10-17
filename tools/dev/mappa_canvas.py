@@ -68,7 +68,7 @@ nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
 # --- Fatto -----------------------------------------------------------------
-fatto = Column("g-fatto", "✅ Fatto", X[0], "4")
+fatto = Column("g-fatto", "Fatto", X[0], "4")
 fatto.card("sp1", "**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146")
 fatto.card("sp2", "**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
@@ -76,23 +76,23 @@ fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice d
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
-sp3 = Column("g-sp3", "🔨 In corso · SP3 Costruzione come Mindustry", X[1], "3")
+sp3 = Column("g-sp3", "In corso · SP3 Costruzione come Mindustry", X[1], "3")
 tasks = [
-    sp3.card("t0", "**Task 0** · base degli screenshot ✅", "4"),
-    sp3.card("t1", "**Task 1** · regole, dati, cantiere ✅\nin main (#159, correzioni in #160)", "4"),
-    sp3.card("t2", "**Task 2** · drone, piani, comandi ✅\nin main (#160)", "4"),
-    sp3.card("t3", "**Task 3** · salvataggi v11 ✅\nin main (#161)", "4"),
-    sp3.card("t4", "**Task 4** · grafica di piani, cantieri e drone ✅\nfatto, in attesa della PR #164", "4"),
-    sp3.card("t5", "**Task 5** · costruzione vera nel gioco, coda nell'HUD, tutorial ✅\nfatto, in attesa della PR #164", "4"),
-    sp3.card("t6", "**Task 6** · documentazione e [[0003-costruzione-come-mindustry|ADR 0003]] ✅\nfatto, PR #166", "4"),
-    sp3.card("tf", "**Revisione finale e diario** ⏳\nin corso"),
+    sp3.card("t0", "**Task 0** · base degli screenshot\nfatto", "4"),
+    sp3.card("t1", "**Task 1** · regole, dati, cantiere\nfatto, in main (#159, correzioni in #160)", "4"),
+    sp3.card("t2", "**Task 2** · drone, piani, comandi\nfatto, in main (#160)", "4"),
+    sp3.card("t3", "**Task 3** · salvataggi v11\nfatto, in main (#161)", "4"),
+    sp3.card("t4", "**Task 4** · grafica di piani, cantieri e drone\nfatto, in main con la PR #166", "4"),
+    sp3.card("t5", "**Task 5** · costruzione vera nel gioco, coda nell'HUD, tutorial\nfatto, in main con la PR #166", "4"),
+    sp3.card("t6", "**Task 6** · documentazione e [[0003-costruzione-come-mindustry|ADR 0003]]\nfatto, PR #166", "4"),
+    sp3.card("tf", "**Revisione finale e correzioni**\nin corso"),
 ]
 sp3.card("sp3docs", "**Documenti**\n- [[2026-10-17-costruzione-in-corso-design|spec]]\n- [[2026-10-17-costruzione-in-corso|piano]]")
 sp3.close()
 chain(tasks)
 
 # --- Prossimi --------------------------------------------------------------
-nxt = Column("g-next", "🗺️ Prossimi (ordine proposto)", X[2], "5")
+nxt = Column("g-next", "Prossimi (ordine proposto)", X[2], "5")
 roadmap = [
     nxt.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra (generatore in tools/art/): edifici, nastri, oggetti, drone e Core nei 3 tier."),
     nxt.card("tier", "**T + SP4 · Tier e drone comandato**\nCore shard / foundation / nucleus, drone alpha / beta / gamma; il drone lo muovi tu."),
@@ -105,7 +105,7 @@ nxt.close()
 chain(roadmap)
 
 # --- Aperti ----------------------------------------------------------------
-aperti = Column("g-aperti", "⚠️ Aperti", X[3], "1")
+aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
 aperti.card("a2", "**Progetti di Claude Code**\nDa indagare dopo il sotto-progetto 3.")
 aperti.card("a3", "**Grafica (G1–G4) e tier**\nIn attesa del via dopo il sotto-progetto 3.")
