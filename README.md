@@ -74,7 +74,7 @@ Gli zip `tIndustry-godot-*-x64.zip` hanno lo stesso contenuto (nomi storici).
 | Tasto | Azione | Tasto | Azione |
 | --- | --- | --- | --- |
 | `1`–`9` | scegli il blocco | `R` | ruota |
-| clic / trascina | piazza | tasto destro | rimuovi |
+| clic / trascina | pianifica (il drone costruisce) | tasto destro | cancella o smonta |
 | `WASD` / trascina | sposta la visuale | rotella | zoom |
 | `H` | torna al CORE | `Esc` | cursore (nessun blocco) |
 | `M` · `T` · `G` | Mercato · Ricerca · Campagna | `C` | cambia il filtro del selezionatore |
@@ -108,10 +108,10 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | --- | --- | --- |
 | Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
 | Fatto | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
-| In corso | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali (simulazione in `main`, grafica in arrivo) |
-| **G1–G4 · Upgrade grafico** | Pixel-art originale in stile Mindustry: blocchi, terreno, effetti e luci, interfaccia |
-| **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
-| **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
+| In corso | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)); simulazione in `main`, gioco e documentazione in arrivo con le PR #164 e #166 |
+| Previsto | **G1–G4 · Upgrade grafico** | Pixel-art originale in stile Mindustry: blocchi, terreno, effetti e luci, interfaccia |
+| Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
+| Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
 ---
 

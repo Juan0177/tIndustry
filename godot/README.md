@@ -29,6 +29,21 @@ Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.c
 
 **Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click piazza · **destro** elimina · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
 
+### Costruzione (come Mindustry)
+
+Piazzare non crea il blocco subito: diventa un **piano**, una sagoma semitrasparente col contorno giallo. Trascinando i nastri compare una sagoma per cella. Il **drone** parte dal CORE, vola verso il primo piano della coda e lo costruisce: lo sprite si disegna dal basso mentre il raggio parte dal drone. Le risorse escono dal CORE man mano e non bloccano il piazzamento: se mancano, il cantiere si ferma e, passandoci sopra col mouse, dice cosa manca ("Mancano: 3 Lastra di ferro", oppure "Mancano: $20"). Riparte da solo quando le risorse arrivano. Con la coda vuota il drone torna accanto al CORE.
+
+Tasto **destro**:
+
+- su un **piano** non ancora iniziato lo cancella;
+- su un **cantiere** in costruzione lo annulla: il drone lo smonta e restituisce man mano tutto quello già speso;
+- su un **edificio** o un **nastro** lo segna in rosso: il drone lo smonta e rimborsa man mano (100% nella partita normale e nei livelli 1–3 della campagna, 50% dal livello 4); gli oggetti dentro vanno persi;
+- su un cantiere già in smontaggio o su una cella vuota non fa nulla.
+
+Tenendo premuto il destro e trascinando si agisce su più blocchi, una volta per blocco.
+
+**Coda nell'HUD**: nella colonna in alto a sinistra, sotto le risorse del CORE, un riquadro mostra il blocco in lavorazione con la sua barra (rossa se si smonta) e "+N" piani in attesa. Un clic sposta la visuale sul cantiere. Il riquadro sparisce quando la coda è vuota. Se un piano non si può più costruire quando il drone arriva (cella occupata, blocco non sbloccato) un avviso dice il motivo.
+
 Palette Mindustry (angolo basso-destra): griglia sprite senza testo né numeri; rail categorie a icone (Strumenti / Logistica / Produzione / Potenza); hover/selezione apre il pannello info (nome, tasto rapido `[2]`, costi con icona barrata se mancano); `?` apre dettaglio.
 
 HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato · Campagna**, poi pannello CORE con **Fondi**, energia e solo le risorse che hai (icona + numero, nome al passaggio del mouse), **Potenzia CORE** con i costi, e gli obiettivi di campagna.
@@ -42,7 +57,7 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | T | Ricerca (grafo icon-node) |
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
-| RMB | Elimina (non è uno slot palette) |
+| RMB | Cancella un piano, annulla un cantiere o smonta un blocco (non è uno slot palette) |
 
 Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
 
@@ -66,8 +81,8 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 10 (metadati + istantanea): i salvataggi più vecchi non sono compatibili.  
-Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core.
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 11 (metadati + istantanea): i salvataggi più vecchi non sono compatibili.  
+Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
 ## Projects
 
