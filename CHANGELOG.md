@@ -31,6 +31,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Correzioni
 
+- **Salvataggio atomico**: lo slot si scrive su un file temporaneo e poi si rinomina, quindi un crash durante il salvataggio non lascia più un salvataggio troncato
+- **Doppio input nello stesso tick**: due pressioni di **C** su un selezionatore, due clic sull'interruttore di vendita automatica o due vendite ravvicinate non si annullano più e ogni vendita mostra il proprio guadagno
+- **Caricamento fallito**: se il caricamento di un salvataggio fallisce, la partita precedente torna completa (ricerca, livello di campagna, visuale, oggetti sui nastri); al primo caricamento si resta senza partita
+- **Potenziamento del CORE**: il rifiuto dell'host dice il motivo preciso (già al livello massimo, fondi o materiali mancanti)
 - **Energia accumulata non più persa**: caricando un salvataggio (o un'istantanea) la riserva di energia sopra il minimo del CORE tornava a 24 perché veniva limitata prima di ripristinare la capacità; ora capacità e riserva tornano identiche
 - **Caricamento più robusto**: un salvataggio di una versione futura o con contenuti illeggibili mostra "Salvataggio non leggibile." invece di testo tecnico, e un caricamento fallito lascia intatta la partita in corso
 - Livello 1 della campagna: le 8 unità di minerale di ferro iniziali sono ora parte della creazione del livello (`NewGame.Campaign`), non del solo client
