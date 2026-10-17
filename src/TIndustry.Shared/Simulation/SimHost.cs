@@ -184,49 +184,33 @@ public sealed class SimHost
 
     private string? ApplyPlaceBelt(PlaceBelt command)
     {
-        var conveyorId = string.IsNullOrWhiteSpace(command.ConveyorId) ? "conveyor-basic" : command.ConveyorId;
-        if (factory.Content.FindConveyor(conveyorId) is null)
+        var spec = BuildSpec.FromCommand(command);
+        if (!factory.IsValidSpec(spec))
         {
             return CommandReasons.InvalidCommand;
         }
 
-        return CheckBuildable(conveyorId, CommandReasons.BeltToolName(conveyorId), multiplicity: 1)
-            ?? PlacedOrOccupied(
-                factory.PlaceInstant(BuildSpec.FromCommand(command), charge: true),
-                command.Position);
+        return CheckBuildable(spec.StructureId, CommandReasons.BeltToolName(spec.StructureId), multiplicity: 1)
+            ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
     }
 
     private string? ApplyPlaceBuilding(PlaceBuilding command)
     {
-        var structureId = BuildSpec.StructureIdFor(command.Kind);
-        if (structureId is null)
+        if (BuildSpec.StructureIdFor(command.Kind) is null)
         {
             return CommandReasons.InvalidCommand;
         }
 
-        RecipeDefinition? recipe = null;
-        if (command.RecipeId is { } recipeId
-            && (command.Kind is BuildingKind.Smelter or BuildingKind.Assembler))
+        // Unknown recipe for forno / assembler: invalid before the research and resource checks.
+        var spec = BuildSpec.FromCommand(command);
+        if (!factory.IsValidSpec(spec))
         {
-            var available = command.Kind == BuildingKind.Smelter
-                ? factory.Content.SmelterRecipes()
-                : factory.Content.AssemblerRecipes();
-            recipe = available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
-            if (recipe is null)
-            {
-                return CommandReasons.InvalidCommand;
-            }
+            return CommandReasons.InvalidCommand;
         }
 
         var multiplicity = command.Kind == BuildingKind.Bridge ? 2 : 1;
-        var blocked = CheckBuildable(structureId, CommandReasons.ToolName(command.Kind), multiplicity);
-        if (blocked is not null)
-        {
-            return blocked;
-        }
-
-        var placed = factory.PlaceInstant(BuildSpec.FromCommand(command), charge: true);
-        return PlacedOrOccupied(placed, command.Origin);
+        return CheckBuildable(spec.StructureId, CommandReasons.ToolName(command.Kind), multiplicity)
+            ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
     }
 
     /// <summary>Same checks, same order and same texts as the client's placement today.</summary>

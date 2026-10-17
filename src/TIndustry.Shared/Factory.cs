@@ -1278,25 +1278,64 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Share (0–100) of the cost given back when the finished <paramref name="spec"/> is taken apart:
-    /// the game's <see cref="GameRules.RefundPercent"/> × the building's own refund percent.
+    /// Share of the cost given back when the finished <paramref name="spec"/> is taken apart, in basis
+    /// points (0–10000): the game's <see cref="GameRules.RefundPercent"/> × the building's own refund
+    /// percent. Each cost line then gives back <c>floor(amount × basisPoints / 10000)</c> (one floor).
     /// </summary>
-    public int RefundPercentFor(BuildSpec spec)
+    public int RefundBasisPointsFor(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
         var own = spec.Kind is not null && Content.FindBuilding(spec.StructureId) is { } building
             ? building.RefundPercent
             : 100;
-        return Math.Clamp(State.Rules.RefundPercent, 0, 100) * Math.Clamp(own, 0, 100) / 100;
+        return Math.Clamp(State.Rules.RefundPercent, 0, 100) * Math.Clamp(own, 0, 100);
     }
 
     /// <summary>
-    /// True when the cells of <paramref name="spec"/> are free (no Core, building, belt or site).
-    /// Does not check research or resources. <paramref name="reason"/> is the Italian refusal text.
+    /// True when <paramref name="spec"/> names something buildable: a known conveyor (belt specs), the
+    /// structure id of its kind, and for forno / assembler a recipe of that machine (or none).
+    /// </summary>
+    public bool IsValidSpec(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        if (spec.Kind is not { } kind)
+        {
+            return Content.FindConveyor(spec.StructureId) is not null;
+        }
+
+        if (!string.Equals(BuildSpec.StructureIdFor(kind), spec.StructureId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (spec.RecipeId is { } recipeId && kind is BuildingKind.Smelter or BuildingKind.Assembler)
+        {
+            return FindRecipeFor(kind, recipeId) is not null;
+        }
+
+        return true;
+    }
+
+    private RecipeDefinition? FindRecipeFor(BuildingKind kind, string recipeId)
+    {
+        var available = kind == BuildingKind.Smelter ? Content.SmelterRecipes() : Content.AssemblerRecipes();
+        return available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// True when <paramref name="spec"/> is valid (<see cref="IsValidSpec"/>) and its cells are free
+    /// (no Core, building, belt or site). Does not check research or resources.
+    /// <paramref name="reason"/> is the Italian refusal text.
     /// </summary>
     public bool CanPlace(BuildSpec spec, out string? reason)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (!IsValidSpec(spec))
+        {
+            reason = CommandReasons.InvalidCommand;
+            return false;
+        }
+
         var ok = spec.Kind switch
         {
             null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter =>
@@ -1316,7 +1355,7 @@ public sealed class Factory : IGameView
     /// <summary>
     /// Places <paramref name="spec"/> now. With <paramref name="charge"/> it pays like the matching
     /// <c>TryPlace…</c> (fails, unchanged, when the wallet is short); without it nothing is paid.
-    /// Returns false, changing nothing, when the cells are not valid. Research is not checked.
+    /// Returns false, changing nothing, when the spec is invalid or its cells are not. Research is not checked.
     /// </summary>
     public bool PlaceInstant(BuildSpec spec, bool charge) => PlaceInstant(spec, charge, bridgeExit: null);
 
@@ -1324,6 +1363,11 @@ public sealed class Factory : IGameView
     internal bool PlaceInstant(BuildSpec spec, bool charge, GridPosition? bridgeExit)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (!IsValidSpec(spec))
+        {
+            return false;
+        }
+
         var origin = spec.Origin;
         var dir = spec.Direction;
         switch (spec.Kind)
@@ -1349,18 +1393,8 @@ public sealed class Factory : IGameView
                 var buildingId = spec.Kind == BuildingKind.Smelter
                     ? Crafter.SmelterBuildingId
                     : Crafter.AssemblerBuildingId;
-                RecipeDefinition? recipe = null;
-                if (spec.RecipeId is { } recipeId)
-                {
-                    var available = spec.Kind == BuildingKind.Smelter
-                        ? Content.SmelterRecipes()
-                        : Content.AssemblerRecipes();
-                    recipe = available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
-                    if (recipe is null)
-                    {
-                        return false;
-                    }
-                }
+                // IsValidSpec guarantees a non-null RecipeId names a recipe of this machine.
+                var recipe = spec.RecipeId is { } recipeId ? FindRecipeFor(spec.Kind.Value, recipeId) : null;
 
                 return PlaceCrafter(origin, dir, recipe, buildingId, charge);
             }
@@ -1469,7 +1503,7 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// Removes the building or belt piece on <paramref name="tile"/> now. With <paramref name="refund"/>
-    /// it gives back <c>floor(cost × </c><see cref="RefundPercentFor"/><c> / 100)</c> per cost line.
+    /// it gives back <c>floor(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line.
     /// </summary>
     public bool RemoveInstant(GridPosition tile, bool refund)
     {
@@ -1489,10 +1523,10 @@ public sealed class Factory : IGameView
 
         if (refund)
         {
-            var percent = RefundPercentFor(spec);
+            var basisPoints = RefundBasisPointsFor(spec);
             foreach (var entry in CostOf(spec))
             {
-                var amount = entry.Amount * percent / 100;
+                var amount = (int)((long)entry.Amount * basisPoints / Construction.FullRefundBasisPoints);
                 if (entry.ItemId is { } itemId)
                 {
                     Wallet.AddMaterial(itemId, amount);
