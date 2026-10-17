@@ -71,25 +71,15 @@ nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
 fatto = Column("g-fatto", "Fatto", X[0], "4")
 fatto.card("sp1", "**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146")
 fatto.card("sp2", "**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]")
+fatto.card("sp3", "**SP3 · Costruzione come Mindustry**\nPiani, drone e cantieri con consegna dal Core, smontaggio con rimborso graduale, coda nell'HUD, salvataggi v11.\nPR #159–#166 · [[2026-10-17-costruzione-in-corso|diario]] · [[0003-costruzione-come-mindustry|ADR 0003]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
 fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0003-costruzione-come-mindustry|0003]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
-sp3 = Column("g-sp3", "In corso · SP3 Costruzione come Mindustry", X[1], "3")
-tasks = [
-    sp3.card("t0", "**Task 0** · base degli screenshot\nfatto", "4"),
-    sp3.card("t1", "**Task 1** · regole, dati, cantiere\nfatto, in main (#159, correzioni in #160)", "4"),
-    sp3.card("t2", "**Task 2** · drone, piani, comandi\nfatto, in main (#160)", "4"),
-    sp3.card("t3", "**Task 3** · salvataggi v11\nfatto, in main (#161)", "4"),
-    sp3.card("t4", "**Task 4** · grafica di piani, cantieri e drone\nfatto, in main con la PR #166", "4"),
-    sp3.card("t5", "**Task 5** · costruzione vera nel gioco, coda nell'HUD, tutorial\nfatto, in main con la PR #166", "4"),
-    sp3.card("t6", "**Task 6** · documentazione e [[0003-costruzione-come-mindustry|ADR 0003]]\nfatto, PR #166", "4"),
-    sp3.card("tf", "**Revisione finale e correzioni**\nin corso"),
-]
-sp3.card("sp3docs", "**Documenti**\n- [[2026-10-17-costruzione-in-corso-design|spec]]\n- [[2026-10-17-costruzione-in-corso|piano]]")
-sp3.close()
-chain(tasks)
+corso = Column("g-sp3", "In corso", X[1], "3")
+corso.card("nessuno", "**Nessun lavoro in corso**\nProssimo passo da decidere (G1 arte dei blocchi, Progetti di Claude Code).")
+corso.close()
 
 # --- Prossimi --------------------------------------------------------------
 nxt = Column("g-next", "Prossimi (ordine proposto)", X[2], "5")
@@ -107,12 +97,11 @@ chain(roadmap)
 # --- Aperti ----------------------------------------------------------------
 aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
-aperti.card("a2", "**Progetti di Claude Code**\nDa indagare dopo il sotto-progetto 3.")
-aperti.card("a3", "**Grafica (G1–G4) e tier**\nIn attesa del via dopo il sotto-progetto 3.")
+aperti.card("a2", "**Progetti di Claude Code**\nDa indagare.")
+aperti.card("a3", "**Grafica (G1–G4) e tier**\nIn attesa del via.")
 aperti.close()
 
-link("sp2", "t0")
-link("tf", "g1")
+link("sp3", "g1")
 
 
 def obsidian_json(items):
