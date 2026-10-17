@@ -46,8 +46,12 @@ public partial class Hud : Control
     private readonly CorePanel _core = new();
     private readonly BuildPalette _palette = new();
     private readonly BlockInfoPanel _info = new();
+    private readonly BuildQueuePanel _queue = new();
 
     private Label? _dirLabel;
+    private PanelContainer? _siteTip;
+    private Label? _siteTipLabel;
+    private string? _siteTipText;
     private Label? _toastLabel;
     private Tween? _toastTween;
 
@@ -57,6 +61,9 @@ public partial class Hud : Control
     public event Action? CampaignRequested;
     public event Action? CoreUpgradeRequested;
     public event Action? MenuRequested;
+
+    /// <summary>Click on the build queue: world rect of the block the drone works on.</summary>
+    public event Action<Rect2>? BuildQueueFocusRequested;
 
     public ToolKind SelectedTool => _palette.Selected;
     public bool IsCursorMode => _palette.Selected == ToolKind.Cursor;
@@ -76,6 +83,7 @@ public partial class Hud : Control
             ToolChosen?.Invoke(tool);
         };
         _palette.ToastRequested += ShowToast;
+        _queue.FocusRequested += rect => BuildQueueFocusRequested?.Invoke(rect);
 
         _info.Stock = _core;
         _info.DetailRequested += () =>
@@ -94,9 +102,11 @@ public partial class Hud : Control
         MouseFilter = MouseFilterEnum.Ignore;
 
         AddChild(_core);
+        AddChild(_queue);
         BuildCornerDock();
         AddChild(_info.BuildDetailOverlay());
         BuildToast();
+        BuildSiteTooltip();
         SetSelectedTool(ToolKind.Cursor);
         SetDirectionLabel("Est");
         ClearObjectives();
@@ -186,6 +196,37 @@ public partial class Hud : Control
         Func<string, string>? itemName = null) =>
         _core.UpdateObjectives(level, wallet, session, research, itemName);
 
+    /// <summary>Build queue box (top centre): the local drone's current block, its bar and the plans left.</summary>
+    public void SyncBuildQueue(IGameView? view) => _queue.Sync(view);
+
+    /// <summary>
+    /// Tooltip beside the mouse at <paramref name="mouse"/> (viewport coordinates) over a stalled site
+    /// ("Mancano: …"); null hides it. The text is set only when it changes.
+    /// </summary>
+    public void SetSiteTooltip(string? text, Vector2 mouse)
+    {
+        if (_siteTip is null || _siteTipLabel is null)
+        {
+            return;
+        }
+
+        if (text is null)
+        {
+            _siteTip.Visible = false;
+            return;
+        }
+
+        if (!string.Equals(_siteTipText, text, StringComparison.Ordinal))
+        {
+            _siteTipText = text;
+            _siteTipLabel.Text = text;
+            _siteTip.ResetSize();
+        }
+
+        _siteTip.Position = mouse + new Vector2(16, 18);
+        _siteTip.Visible = true;
+    }
+
     public void ShowToast(string message)
     {
         if (_toastLabel is null)
@@ -263,6 +304,24 @@ public partial class Hud : Control
         cornerStack.AddChild(_info);
         // Build palette dock — always below the reserved slot.
         cornerStack.AddChild(_palette);
+    }
+
+    private void BuildSiteTooltip()
+    {
+        _siteTip = MakePanel("SiteTooltip");
+        _siteTip.MouseFilter = MouseFilterEnum.Ignore;
+        _siteTip.Visible = false;
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        margin.AddThemeConstantOverride("margin_left", 8);
+        margin.AddThemeConstantOverride("margin_right", 8);
+        margin.AddThemeConstantOverride("margin_top", 4);
+        margin.AddThemeConstantOverride("margin_bottom", 4);
+        _siteTip.AddChild(margin);
+        _siteTipLabel = new Label { MouseFilter = MouseFilterEnum.Ignore };
+        _siteTipLabel.AddThemeColorOverride("font_color", Insufficient);
+        _siteTipLabel.AddThemeFontSizeOverride("font_size", 13);
+        margin.AddChild(_siteTipLabel);
+        AddChild(_siteTip);
     }
 
     private void BuildToast()

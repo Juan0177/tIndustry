@@ -74,12 +74,14 @@ public partial class World
     }
 
     /// <summary>
-    /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>): miner on starter iron
-    /// + east belts into Core for quick delivery checks. Goes through the same commands as the player.
+    /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>, ui playtest): miner on starter iron + east
+    /// belts into Core for quick delivery checks. Dev tool: the line stands at once, as with
+    /// <c>InstantBuild</c> local to the seed, so it reaches past the read-only view to
+    /// <see cref="Factory.PlaceInstant(BuildSpec, bool)"/> and pays like a placement.
     /// </summary>
     private void SeedCoreDeliveryLine()
     {
-        if (_view?.Terrain is null || _host is null)
+        if (_view?.Terrain is null || _view is not Factory factory)
         {
             return;
         }
@@ -90,32 +92,18 @@ public partial class World
         var minerPos = new GridPosition(
             Math.Max(0, coreOrigin.X - Miner.Size - 2),
             coreOrigin.Y);
-        // Dev seed: also log refusals on the console. The standard handler still toasts them too.
-        void OnRejected(SimCommand command, string reason) =>
-            GD.PrintErr($"SEED_CORE_LINE: {command.GetType().Name} refused ({reason})");
-
-        _host.CommandRejected += OnRejected;
-        try
+        void Place(BuildSpec spec)
         {
-            _host.Submit(new PlaceBuilding(LocalPlayer, BuildingKind.Miner, minerPos, Direction.East));
-            for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
+            if (!factory.PlaceInstant(spec, charge: true))
             {
-                _host.Submit(new PlaceBelt(LocalPlayer, new GridPosition(x, coreOrigin.Y), Direction.East, "conveyor-basic"));
-            }
-
-            // One tick applies the whole line (commands keep arrival order).
-            _host.AdvanceTicks(1);
-        }
-        catch (AggregateException ex)
-        {
-            foreach (var inner in ex.InnerExceptions)
-            {
-                GD.PushError($"SimHost handler: {inner}");
+                GD.PrintErr($"SEED_CORE_LINE: {spec.StructureId} su {spec.Origin} rifiutato");
             }
         }
-        finally
+
+        Place(new BuildSpec(Miner.BasicId, BuildingKind.Miner, minerPos, Direction.East));
+        for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
         {
-            _host.CommandRejected -= OnRejected;
+            Place(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(x, coreOrigin.Y), Direction.East));
         }
 
         _visualDirty = true;

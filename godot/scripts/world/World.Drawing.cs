@@ -237,11 +237,7 @@ public partial class World
 
         var ok = size == 1
             ? _view.CanOccupy(hover)
-            : _view.CanOccupyFootprint(hover, size)
-              || (_tool is BuildTool.Miner or BuildTool.MinerAdvanced && _view.Miners.Count == 1)
-              || (_tool == BuildTool.Smelter && _view.Smelters.Count == 1)
-              || (_tool == BuildTool.Assembler && _view.Assemblers.Count == 1)
-              || (_tool == BuildTool.Generator && _view.Generators.Count == 1);
+            : _view.CanOccupyFootprint(hover, size);
         // Cells already taken by a pending plan are refused like occupied ones (sites count as buildings).
         ok = ok && !FootprintPlanned(hover, size);
 

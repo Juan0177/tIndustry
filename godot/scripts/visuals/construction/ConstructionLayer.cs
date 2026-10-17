@@ -7,10 +7,21 @@ namespace TIndustry.Godot;
 /// Everything about construction, in one node above buildings and items (the HUD is a CanvasLayer, so
 /// it stays on top): the local player's plans (drawn here), the sites (a sprite each with the
 /// <c>construct</c> shader) and the drones with their build beam (<see cref="DroneVisual"/>).
-/// Reads <see cref="IGameView"/> only; plans are redrawn only when the simulation ticked.
+/// Reads <see cref="IGameView"/> only; plans are redrawn only when the simulation ticked. The per-frame
+/// sync reuses its buffers: nothing is allocated while the sets of sites and drones stay the same.
 /// </summary>
 public partial class ConstructionLayer : Node2D
 {
+    /// <summary>Which structure visuals of the world a construction change touches.</summary>
+    [Flags]
+    public enum StructureLayers
+    {
+        None = 0,
+        Buildings = 1,
+        Belts = 2,
+        Both = Buildings | Belts
+    }
+
     /// <summary>Mindustry's <c>Pal.accent</c>: plans, beam and site outline.</summary>
     public static readonly Color Accent = new("FFD37F");
 
@@ -21,28 +32,51 @@ public partial class ConstructionLayer : Node2D
     private const float PlanAlpha = 0.35f;
     private const int SitesZ = 1;
 
+    private static readonly StringName ProgressParam = "progress";
+    private static readonly StringName ColorParam = "color";
+    private static readonly StringName TimeParam = "time";
     private static readonly Dictionary<string, Texture2D?> Textures = new(StringComparer.Ordinal);
     private static Texture2D? _blank;
 
     private readonly Shader _shader = GD.Load<Shader>("res://shaders/construct.gdshader");
     private readonly Dictionary<long, SiteVisual> _sites = [];
     private readonly Dictionary<long, DroneVisual> _drones = [];
+    private readonly HashSet<long> _live = [];
+    private readonly List<long> _gone = [];
     private IGameView? _view;
     private long _lastTick = -1;
     private bool _drewPlans;
 
-    private sealed class SiteVisual(Node2D root, ShaderMaterial material)
+    private sealed class SiteVisual(Node2D root, ShaderMaterial material, BuildSpec spec)
     {
         public Node2D Root { get; } = root;
         public ShaderMaterial Material { get; } = material;
+        public BuildSpec Spec { get; } = spec;
         public float Time { get; set; }
     }
 
+    /// <summary>World layer that draws <paramref name="spec"/> once built: belts and logistics, or buildings.</summary>
+    public static StructureLayers LayerOf(BuildSpec spec) =>
+        spec.Kind is null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter or BuildingKind.Bridge
+            ? StructureLayers.Belts
+            : StructureLayers.Buildings;
+
     /// <summary>
-    /// Brings sites, drones and plans up to date with <paramref name="view"/>. Returns true when a site
-    /// appeared or vanished this frame: blocks and belts under it changed, so their visuals must be rebuilt.
+    /// Layer a just finished site changes. Its event arrives before the next <see cref="Sync"/>, so the site
+    /// is still known here; one that came and went between two frames was never seen and touches both.
     /// </summary>
-    public bool Sync(IGameView? view, float delta)
+    public StructureLayers LayerOfSite(long siteId) =>
+        _sites.TryGetValue(siteId, out var visual) ? LayerOf(visual.Spec) : StructureLayers.Both;
+
+    /// <summary>True once the site has been drawn: for a deconstruction, its block's removal was seen.</summary>
+    public bool HasSeenSite(long siteId) => _sites.ContainsKey(siteId);
+
+    /// <summary>
+    /// Brings sites, drones and plans up to date with <paramref name="view"/>. Returns the layers whose
+    /// blocks changed under a site that appeared this frame: a deconstruction takes its block away when it
+    /// starts. A construction changes the world only when it finishes (see <see cref="LayerOfSite"/>).
+    /// </summary>
+    public StructureLayers Sync(IGameView? view, float delta)
     {
         if (!ReferenceEquals(view, _view))
         {
@@ -52,22 +86,22 @@ public partial class ConstructionLayer : Node2D
 
         if (view is null)
         {
-            return false;
+            return StructureLayers.None;
         }
 
-        var sitesChanged = SyncSites(view, delta);
+        var changed = SyncSites(view, delta);
         SyncDrones(view, delta);
 
         if (view.CurrentTick != _lastTick)
         {
             _lastTick = view.CurrentTick;
-            if (_drewPlans || view.PlansOf(LocalPlayer).Count > 0)
+            if (_drewPlans || HasLocalPlans(view))
             {
                 QueueRedraw();
             }
         }
 
-        return sitesChanged;
+        return changed;
     }
 
     public override void _Draw()
@@ -93,6 +127,19 @@ public partial class ConstructionLayer : Node2D
                 _drewPlans = true;
             }
         }
+    }
+
+    private static bool HasLocalPlans(IGameView view)
+    {
+        foreach (var builder in view.Builders)
+        {
+            if (builder.OwnerPlayerId == LocalPlayer && builder.Plans.Count > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void DrawPlan(BuildPlan plan)
@@ -142,37 +189,59 @@ public partial class ConstructionLayer : Node2D
         DrawRect(rect, Accent, filled: false, width: -1f);
     }
 
-    /// <summary>One sprite (two for a bridge) per site with its own shader material; returns true on add/remove.</summary>
-    private bool SyncSites(IGameView view, float delta)
+    /// <summary>
+    /// One sprite (two for a bridge) per site with its own shader material. Returns the layers of the new
+    /// sites that start as deconstructions: their block is gone now.
+    /// </summary>
+    private StructureLayers SyncSites(IGameView view, float delta)
     {
-        var changed = false;
-        var live = new HashSet<long>();
+        var changed = StructureLayers.None;
+        _live.Clear();
         foreach (var site in view.Sites)
         {
-            live.Add(site.Id);
+            _live.Add(site.Id);
             if (!_sites.TryGetValue(site.Id, out var visual))
             {
                 visual = CreateSiteVisual(site);
                 _sites[site.Id] = visual;
                 AddChild(visual.Root);
-                changed = true;
+                if (site.Deconstructing)
+                {
+                    changed |= LayerOf(site.Spec);
+                }
             }
 
             // A site stalled for resources pulses at half frequency.
             visual.Time += site.Missing is null ? delta : delta * 0.5f;
-            visual.Material.SetShaderParameter("progress", site.Progress);
-            visual.Material.SetShaderParameter("color", ColorOf(site));
-            visual.Material.SetShaderParameter("time", visual.Time);
+            visual.Material.SetShaderParameter(ProgressParam, site.Progress);
+            visual.Material.SetShaderParameter(ColorParam, ColorOf(site));
+            visual.Material.SetShaderParameter(TimeParam, visual.Time);
         }
 
-        foreach (var id in _sites.Keys.Where(id => !live.Contains(id)).ToList())
+        if (_sites.Count != _live.Count)
         {
-            _sites[id].Root.QueueFree();
-            _sites.Remove(id);
-            changed = true;
+            CollectGone(_sites.Keys);
+            foreach (var id in _gone)
+            {
+                _sites[id].Root.QueueFree();
+                _sites.Remove(id);
+            }
         }
 
         return changed;
+    }
+
+    /// <summary>Fills <see cref="_gone"/> with the ids of <paramref name="known"/> missing from <see cref="_live"/>.</summary>
+    private void CollectGone(IEnumerable<long> known)
+    {
+        _gone.Clear();
+        foreach (var id in known)
+        {
+            if (!_live.Contains(id))
+            {
+                _gone.Add(id);
+            }
+        }
     }
 
     private SiteVisual CreateSiteVisual(ConstructSite site)
@@ -195,7 +264,7 @@ public partial class ConstructionLayer : Node2D
             root.AddChild(SiteSprite(tex, material, Bounds(site.Tiles), 0f));
         }
 
-        return new SiteVisual(root, material);
+        return new SiteVisual(root, material, spec);
     }
 
     private static Sprite2D SiteSprite(Texture2D tex, ShaderMaterial material, Rect2 rect, float angle) => new()
@@ -211,10 +280,10 @@ public partial class ConstructionLayer : Node2D
 
     private void SyncDrones(IGameView view, float delta)
     {
-        var live = new HashSet<long>();
+        _live.Clear();
         foreach (var builder in view.Builders)
         {
-            live.Add(builder.Id);
+            _live.Add(builder.Id);
             if (!_drones.TryGetValue(builder.Id, out var drone))
             {
                 drone = DroneVisual.Create(builder);
@@ -233,10 +302,14 @@ public partial class ConstructionLayer : Node2D
             drone.Sync(builder, view.CurrentTick, delta, beam, beamColor);
         }
 
-        foreach (var id in _drones.Keys.Where(id => !live.Contains(id)).ToList())
+        if (_drones.Count != _live.Count)
         {
-            _drones[id].QueueFree();
-            _drones.Remove(id);
+            CollectGone(_drones.Keys);
+            foreach (var id in _gone)
+            {
+                _drones[id].QueueFree();
+                _drones.Remove(id);
+            }
         }
     }
 
@@ -277,7 +350,7 @@ public partial class ConstructionLayer : Node2D
         new(tile.X * World.TileSize, tile.Y * World.TileSize, World.TileSize, World.TileSize);
 
     /// <summary>World rect covering <paramref name="tiles"/>.</summary>
-    private static Rect2 Bounds(IReadOnlyList<GridPosition> tiles)
+    public static Rect2 Bounds(IReadOnlyList<GridPosition> tiles)
     {
         var rect = CellRect(tiles[0]);
         for (var i = 1; i < tiles.Count; i++)
@@ -295,7 +368,7 @@ public partial class ConstructionLayer : Node2D
     }
 
     /// <summary>Block sprite of a structure id (flat <c>assets/</c>); a white square when there is none.</summary>
-    private static Texture2D TextureFor(string structureId)
+    public static Texture2D TextureFor(string structureId)
     {
         if (!Textures.TryGetValue(structureId, out var tex))
         {

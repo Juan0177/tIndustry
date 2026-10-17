@@ -71,8 +71,10 @@ public partial class World : Node2D
     private BuildTool _tool = BuildTool.Cursor;
     private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
     private GridPosition? _hover;
+    private Vector2 _hoverScreen;
     private bool _draggingPlace;
     private bool _draggingRemove;
+    private GridPosition? _lastRemoveCell;
     private bool _visualDirty = true;
     private bool _buildingsDirty = true;
     private Texture2D? _oreTex;
@@ -191,6 +193,7 @@ public partial class World : Node2D
 
         if (_home?.IsOpen == true || _view is null)
         {
+            _hud?.SetSiteTooltip(null, default);
             return;
         }
 
@@ -209,7 +212,9 @@ public partial class World : Node2D
             _buildingsDirty = false;
         }
 
+        _structureCount = StructureCount();
         SyncItemSprites();
+        SyncSiteTooltip();
         SyncBuildingVisuals((float)delta);
         UpdateHud();
         CheckCampaignComplete();

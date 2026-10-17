@@ -22,6 +22,24 @@ public partial class DroneVisual : Node2D
     private const float SnapTiles = 4f;
 
     private static readonly Color Edge = new(0.16f, 0.13f, 0.09f, 1f);
+    private static readonly Color WingColor = ConstructionLayer.Accent.Darkened(0.18f);
+
+    /// <summary>Hull pieces in tiles, (forward, across): left wing, right wing, body (drawn last, on top).</summary>
+    private static readonly Vector2[][] Shape =
+    [
+        [new(0.06f, -0.08f), new(-0.26f, -0.45f), new(-0.36f, -0.40f), new(-0.20f, -0.07f)],
+        [new(0.06f, 0.08f), new(-0.20f, 0.07f), new(-0.36f, 0.40f), new(-0.26f, 0.45f)],
+        [new(NoseTiles, 0f), new(-TailTiles, -0.17f), new(-0.20f, 0f), new(-TailTiles, 0.17f)]
+    ];
+
+    private const int BodyShape = 2;
+
+    // Draw buffers, filled in place every frame (no per-frame allocation).
+    private readonly Vector2[][] _poly = [new Vector2[4], new Vector2[4], new Vector2[4]];
+    private readonly Vector2[][] _outline = [new Vector2[5], new Vector2[5], new Vector2[5]];
+    private readonly Vector2[] _corners = new Vector2[4];
+    private readonly Vector2[] _hullScratch = new Vector2[5];
+    private readonly Vector2[][] _hulls = [new Vector2[3], new Vector2[4], new Vector2[5]];
 
     private Vector2 _from;
     private Vector2 _to;
@@ -109,16 +127,20 @@ public partial class DroneVisual : Node2D
             i++;
         }
 
-        Vector2 P(float fwd, float across) => heading * (fwd * t) + side * (across * t);
-
-        Vector2[] leftWing = [P(0.06f, -0.08f), P(-0.26f, -0.45f), P(-0.36f, -0.40f), P(-0.20f, -0.07f)];
-        Vector2[] rightWing = [P(0.06f, 0.08f), P(-0.20f, 0.07f), P(-0.36f, 0.40f), P(-0.26f, 0.45f)];
-        Vector2[] body = [P(NoseTiles, 0f), P(-TailTiles, -0.17f), P(-0.20f, 0f), P(-TailTiles, 0.17f)];
-        var wingColor = ConstructionLayer.Accent.Darkened(0.18f);
-        foreach (var poly in new[] { leftWing, rightWing, body })
+        for (var p = 0; p < Shape.Length; p++)
         {
-            DrawColoredPolygon(poly, poly == body ? ConstructionLayer.Accent : wingColor);
-            DrawPolyline([.. poly, poly[0]], Edge, 2f);
+            var shape = Shape[p];
+            var poly = _poly[p];
+            var outline = _outline[p];
+            for (var k = 0; k < shape.Length; k++)
+            {
+                poly[k] = heading * (shape[k].X * t) + side * (shape[k].Y * t);
+                outline[k] = poly[k];
+            }
+
+            outline[shape.Length] = poly[0];
+            DrawColoredPolygon(poly, p == BodyShape ? ConstructionLayer.Accent : WingColor);
+            DrawPolyline(outline, Edge, 2f);
         }
     }
 
@@ -132,18 +154,75 @@ public partial class DroneVisual : Node2D
 
         var flicker = 0.85f + 0.15f * Mathf.Sin(_clock * 23f);
         var r = new Rect2(rect.Position - Position, rect.Size);
-        Vector2[] corners = [r.Position, new(r.End.X, r.Position.Y), r.End, new(r.Position.X, r.End.Y)];
-        var hull = Geometry2D.ConvexHull([nose, .. corners]);
-        if (hull.Length >= 3)
+        _corners[0] = r.Position;
+        _corners[1] = new Vector2(r.End.X, r.Position.Y);
+        _corners[2] = r.End;
+        _corners[3] = new Vector2(r.Position.X, r.End.Y);
+        if (FanOutline(nose, r) is { } fan)
         {
-            DrawColoredPolygon(hull, new Color(_beamColor, BeamFillAlpha * flicker));
+            DrawColoredPolygon(fan, new Color(_beamColor, BeamFillAlpha * flicker));
         }
 
         var line = new Color(_beamColor, flicker);
-        foreach (var corner in corners)
+        foreach (var corner in _corners)
         {
             DrawLine(nose, corner, line, -1f);
         }
+    }
+
+    /// <summary>
+    /// Convex hull of the nose and the site rect, in a reused buffer: the rect itself when the nose is inside,
+    /// otherwise the nose plus the rect corners it does not hide (walked clockwise from the nose).
+    /// </summary>
+    private Vector2[]? FanOutline(Vector2 nose, Rect2 r)
+    {
+        if (r.HasPoint(nose))
+        {
+            return _corners;
+        }
+
+        // The nose sees a run of edges from outside. The corners inside that run (both edges seen) leave
+        // the hull; the walk starts at the corner where the seen run ends, then goes round to where it begins.
+        var start = 0;
+        for (var i = 0; i < 4; i++)
+        {
+            if (SeesEdge((i + 3) % 4, nose) && !SeesEdge(i, nose))
+            {
+                start = i;
+                break;
+            }
+        }
+
+        var count = 0;
+        _hullScratch[count++] = nose;
+        for (var step = 0; step < 4; step++)
+        {
+            var i = (start + step) % 4;
+            if (!(SeesEdge((i + 3) % 4, nose) && SeesEdge(i, nose)))
+            {
+                _hullScratch[count++] = _corners[i];
+            }
+        }
+
+        if (count < 3)
+        {
+            return null;
+        }
+
+        var hull = _hulls[count - 3];
+        Array.Copy(_hullScratch, hull, count);
+        return hull;
+    }
+
+    /// <summary>
+    /// True when <paramref name="nose"/> lies strictly outside edge <paramref name="i"/> (corner i → i+1).
+    /// The corners run clockwise on screen (y down), so outside is where the cross product is negative.
+    /// </summary>
+    private bool SeesEdge(int i, Vector2 nose)
+    {
+        var a = _corners[i];
+        var b = _corners[(i + 1) % 4];
+        return (b - a).Cross(nose - a) < 0f;
     }
 
     private float Alpha() => Mathf.Clamp(_sinceTick / SimulationClock.TickSeconds, 0f, 1f);

@@ -30,6 +30,7 @@ public partial class World
         _hud.MercatoRequested += ToggleMercato;
         _hud.CampaignRequested += ToggleCampaign;
         _hud.CoreUpgradeRequested += OnCoreUpgradeRequested;
+        _hud.BuildQueueFocusRequested += FocusCameraOn;
         _hud.MenuRequested += () =>
         {
             AutoSaveContinue(quiet: true);

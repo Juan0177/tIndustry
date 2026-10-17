@@ -346,18 +346,21 @@ public partial class World
                 if (mouse.Pressed)
                 {
                     _draggingRemove = true;
+                    _lastRemoveCell = cell;
                     TryRemoveAt(cell);
                     GetViewport().SetInputAsHandled();
                 }
                 else
                 {
                     _draggingRemove = false;
+                    _lastRemoveCell = null;
                 }
             }
         }
         else if (@event is InputEventMouseMotion motion)
         {
             var cell = ScreenToCell(motion.Position);
+            _hoverScreen = motion.Position;
             if (!_hover.Equals(cell))
             {
                 _hover = cell;
@@ -369,8 +372,11 @@ public partial class World
             {
                 TryPlaceAt(cell);
             }
-            else if (_draggingRemove)
+            else if (_draggingRemove && !cell.Equals(_lastRemoveCell))
             {
+                // Once per cell and drag: a second Remove on the same cell would cancel the breaking
+                // plan the first one just queued.
+                _lastRemoveCell = cell;
                 TryRemoveAt(cell);
             }
         }
