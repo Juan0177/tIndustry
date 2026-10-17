@@ -109,23 +109,24 @@ public partial class World
     private static List<GridPosition> DragCells(GridPosition from, GridPosition to)
     {
         var cells = new List<GridPosition>();
+        // 4-connected line (one axis per step, as Mindustry does for belts): every cell shares an edge
+        // with the previous one, so a fast diagonal drag never leaves corner-only gaps.
         int x = from.X, y = from.Y;
-        int dx = Math.Abs(to.X - x), dy = -Math.Abs(to.Y - y);
+        int dx = Math.Abs(to.X - x), dy = Math.Abs(to.Y - y);
         int sx = x < to.X ? 1 : -1, sy = y < to.Y ? 1 : -1;
-        var err = dx + dy;
-        while (x != to.X || y != to.Y)
+        int ix = 0, iy = 0;
+        while (ix < dx || iy < dy)
         {
-            var e2 = 2 * err;
-            if (e2 >= dy)
+            // Step along the axis that lags behind the ideal line; ties go to x.
+            if ((1 + 2 * ix) * dy <= (1 + 2 * iy) * dx && ix < dx)
             {
-                err += dy;
                 x += sx;
+                ix++;
             }
-
-            if (e2 <= dx)
+            else
             {
-                err += dx;
                 y += sy;
+                iy++;
             }
 
             cells.Add(new GridPosition(x, y));
