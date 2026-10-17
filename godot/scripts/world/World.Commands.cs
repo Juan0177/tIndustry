@@ -34,6 +34,22 @@ public partial class World
         _quietRefusals.Clear();
     }
 
+    /// <summary>Commands submitted but not yet applied (empty without a game).</summary>
+    private IReadOnlyList<SimCommand> PendingCommands => _host?.Pending ?? [];
+
+    /// <summary>Drops the running game (back to "no game"): the host stops reaching the world.</summary>
+    private void DetachGame()
+    {
+        if (_host is not null)
+        {
+            _host.CommandApplied -= OnCommandApplied;
+            _host.CommandRejected -= OnCommandRejected;
+        }
+
+        _host = null;
+        _quietRefusals.Clear();
+    }
+
     private void SubmitCommand(SimCommand command, bool quietWhenBlocked = false)
     {
         if (_host is null)
@@ -110,7 +126,7 @@ public partial class World
                 _research?.OnCommandApplied(command);
                 break;
             case Sell or SetAutoSell:
-                _mercato?.OnCommandApplied(command);
+                _mercato?.OnCommandApplied(command, _host?.LastCommandMoneyDelta ?? 0);
                 break;
             case UpgradeCore when _view is not null:
                 _hud?.ShowToast($"Core potenziato: +{_view.CoreSaleBonusPercent}% vendite!");
