@@ -34,7 +34,7 @@ public sealed class SimHost
     /// Commands submitted but not yet applied, in submit order (read-only). The client uses it to
     /// derive the "effective" value of a toggle/cycle when the same input arrives twice in one tick.
     /// </summary>
-    public IReadOnlyList<SimCommand> Pending => pending;
+    public IReadOnlyList<SimCommand> Pending => pending.AsReadOnly();
 
     /// <summary>
     /// Change in money caused by the command currently being reported by <see cref="CommandApplied"/>
