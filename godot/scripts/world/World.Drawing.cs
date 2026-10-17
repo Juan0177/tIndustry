@@ -259,7 +259,12 @@ public partial class World
             or BuildTool.Junction or BuildTool.Splitter
             or BuildTool.Sorter or BuildTool.Bridge or BuildTool.Extractor)
         {
-            DrawDirectionHint(hover, _placeDir);
+            // A belt touching the Core is planned facing it (as the simulation does): show that direction.
+            var direction = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
+                && CoreStockSink.PreferDirectionIntoCore(hover, _view.CoreTiles) is { } intoCore
+                    ? intoCore
+                    : _placeDir;
+            DrawDirectionHint(hover, direction);
         }
 
         if (_tool == BuildTool.Bridge)

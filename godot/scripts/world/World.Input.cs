@@ -333,6 +333,7 @@ public partial class World
 
                     _draggingPlace = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
                         or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter;
+                    _dragCell = cell;
                     TryPlaceAt(cell);
                     GetViewport().SetInputAsHandled();
                 }
@@ -345,13 +346,21 @@ public partial class World
             {
                 if (mouse.Pressed)
                 {
+                    // Nothing is sent yet: a click toggles on release, a drag marks once it moves.
                     _draggingRemove = true;
+                    _removeMoved = false;
+                    _removeStart = cell;
+                    _dragCell = cell;
                     _removedThisDrag.Clear();
-                    RemoveOnceInDrag(cell);
                     GetViewport().SetInputAsHandled();
                 }
                 else
                 {
+                    if (_draggingRemove && !_removeMoved)
+                    {
+                        TryRemoveAt(_removeStart, onlyMark: false);
+                    }
+
                     _draggingRemove = false;
                     _removedThisDrag.Clear();
                 }
@@ -370,11 +379,28 @@ public partial class World
             if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
                 or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter)
             {
-                TryPlaceAt(cell);
+                // A fast drag skips cells between two motion events: fill them in order.
+                foreach (var step in DragCells(_dragCell, cell))
+                {
+                    TryPlaceAt(step);
+                }
+
+                _dragCell = cell;
             }
-            else if (_draggingRemove)
+            else if (_draggingRemove && !cell.Equals(_dragCell))
             {
-                RemoveOnceInDrag(cell);
+                if (!_removeMoved)
+                {
+                    _removeMoved = true;
+                    RemoveOnceInDrag(_removeStart);
+                }
+
+                foreach (var step in DragCells(_dragCell, cell))
+                {
+                    RemoveOnceInDrag(step);
+                }
+
+                _dragCell = cell;
             }
         }
     }

@@ -63,20 +63,23 @@ public partial class World
         _hud?.ShowToast($"Filtro: {label}");
     }
 
-    private void TryRemoveAt(GridPosition cell)
+    /// <summary>
+    /// Remove on <paramref name="cell"/>. A single right-click toggles (it takes a dismantling mark off);
+    /// with <paramref name="onlyMark"/> (right-drags) it only marks, so overlapping drags keep their marks.
+    /// </summary>
+    private void TryRemoveAt(GridPosition cell, bool onlyMark)
     {
         if (_view is null)
         {
             return;
         }
 
-        SubmitCommand(new Remove(LocalPlayer, cell));
+        SubmitCommand(new Remove(LocalPlayer, cell, onlyMark));
     }
 
     /// <summary>
-    /// Right-drag: <see cref="TryRemoveAt"/> once per block in the whole drag, like Mindustry's removal drag.
-    /// A second Remove on a block would cancel the breaking plan the first one queued, so every cell of the
-    /// block (its footprint, or the site's cells) counts as done after the first.
+    /// Right-drag: a marking <see cref="TryRemoveAt"/> once per block in the whole drag, like Mindustry's
+    /// removal drag. Every cell of the block (its footprint, or the site's cells) counts as done after the first.
     /// </summary>
     private void RemoveOnceInDrag(GridPosition cell)
     {
@@ -96,7 +99,39 @@ public partial class World
             _removedThisDrag.UnionWith(_view.PlanTiles(probe));
         }
 
-        TryRemoveAt(cell);
+        TryRemoveAt(cell, onlyMark: true);
+    }
+
+    /// <summary>
+    /// Cells from <paramref name="from"/> (excluded) to <paramref name="to"/> (included) along a Bresenham line,
+    /// in order: what a drag crossed between two motion events.
+    /// </summary>
+    private static List<GridPosition> DragCells(GridPosition from, GridPosition to)
+    {
+        var cells = new List<GridPosition>();
+        int x = from.X, y = from.Y;
+        int dx = Math.Abs(to.X - x), dy = -Math.Abs(to.Y - y);
+        int sx = x < to.X ? 1 : -1, sy = y < to.Y ? 1 : -1;
+        var err = dx + dy;
+        while (x != to.X || y != to.Y)
+        {
+            var e2 = 2 * err;
+            if (e2 >= dy)
+            {
+                err += dy;
+                x += sx;
+            }
+
+            if (e2 <= dx)
+            {
+                err += dx;
+                y += sy;
+            }
+
+            cells.Add(new GridPosition(x, y));
+        }
+
+        return cells;
     }
 
     /// <summary>

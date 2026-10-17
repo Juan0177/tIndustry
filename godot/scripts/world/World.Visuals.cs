@@ -47,7 +47,25 @@ public partial class World
     private string? _siteTipText;
 
     /// <summary>
-    /// Hover on a site stalled for resources: "Mancano: {n} {oggetto}", n being what its limiting cost line is
+    /// The cell under the mouse from its last known position and the current camera, every frame: a zoom or a
+    /// pan moves the world under a still mouse.
+    /// </summary>
+    private void SyncHover()
+    {
+        if (_hover is null)
+        {
+            return;
+        }
+
+        var cell = ScreenToCell(_hoverScreen);
+        if (!_hover.Equals(cell))
+        {
+            _hover = cell;
+        }
+    }
+
+    /// <summary>
+    /// Hover on a site stalled for resources (not while the mouse is over the HUD): "Mancano: {n} {oggetto}", n being what its limiting cost line is
     /// still short of (<see cref="ConstructSite.Missing"/>); money shows as "$n" like the other cost texts.
     /// </summary>
     private void SyncSiteTooltip()
@@ -58,6 +76,7 @@ public partial class World
         }
 
         if (_view is null
+            || GetViewport().GuiGetHoveredControl() is not null
             || _hover is not { } hover
             || !_view.TryGetSiteAt(hover, out var site)
             || site.Deconstructing

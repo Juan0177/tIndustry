@@ -306,7 +306,8 @@ public partial class World
 
     /// <summary>
     /// Right-drag over the seed line (miner + belts) out to the Core and back, ending on other cells of the
-    /// miner: every block must end with a breaking plan, a deconstruction or nothing left (never toggled back).
+    /// miner, then a second drag over cells already marked: every block must end with a breaking plan, a
+    /// deconstruction or nothing left (never toggled back).
     /// No screenshot: it runs after the last one.
     /// </summary>
     private async Task<bool> PlaytestRemoveDragOutAndBackAsync()
@@ -347,6 +348,22 @@ public partial class World
             if (!RemovedOrBeingRemoved(cell))
             {
                 return Fail($"trascinamento col destro andata e ritorno: {cell} senza smontaggio");
+            }
+        }
+
+        // A second drag over cells already marked (starting on one) only marks: nothing is toggled back.
+        await PlaytestDrag(MouseButton.Right, CellToScreen(lastBelt), CellToScreen(new GridPosition(minerCell.X + 1, core.Y)));
+        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
+        {
+            return Fail("comandi del secondo trascinamento non applicati");
+        }
+
+        for (var x = minerCell.X; x <= lastBelt.X; x++)
+        {
+            var cell = new GridPosition(x, core.Y);
+            if (!RemovedOrBeingRemoved(cell))
+            {
+                return Fail($"secondo trascinamento col destro: {cell} smarcato");
             }
         }
 

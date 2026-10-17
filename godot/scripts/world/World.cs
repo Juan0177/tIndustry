@@ -74,8 +74,14 @@ public partial class World : Node2D
     private Vector2 _hoverScreen;
     private bool _draggingPlace;
     private bool _draggingRemove;
-    // Cells a right-drag already covered: a block gets one Remove per drag, never a second that cancels it.
+    // Cells a right-drag already covered: a block gets one Remove per drag.
     private readonly HashSet<GridPosition> _removedThisDrag = [];
+    // Last cell a left or right drag reached: the next one fills the cells in between.
+    private GridPosition _dragCell;
+    // Where the right button went down, and whether the drag has left that cell: a click without moving
+    // toggles the mark there on release, a real drag only marks.
+    private GridPosition _removeStart;
+    private bool _removeMoved;
     private bool _visualDirty = true;
     private bool _buildingsDirty = true;
     private Texture2D? _oreTex;
@@ -220,6 +226,7 @@ public partial class World : Node2D
 
         _structureCount = StructureCount();
         SyncItemSprites();
+        SyncHover();
         SyncSiteTooltip();
         SyncBuildingVisuals((float)delta);
         UpdateHud();
