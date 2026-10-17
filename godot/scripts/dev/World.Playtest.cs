@@ -284,7 +284,7 @@ public partial class World
 
     /// <summary>
     /// Right-drag over the seed line (miner + belts) out to the Core and back, ending on other cells of the
-    /// miner: every block must end with a breaking plan or a deconstruction. A drag never toggles a cell back.
+    /// miner: every block must end with a breaking plan, a deconstruction or nothing left (never toggled back).
     /// No screenshot: it runs after the last one.
     /// </summary>
     private async Task<bool> PlaytestRemoveDragOutAndBackAsync()
@@ -297,6 +297,14 @@ public partial class World
             cam.Position = CellCenter(new GridPosition(core.X - 2, core.Y));
             cam.Zoom = new Vector2(1.6f, 1.6f);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        for (var x = minerCell.X; x <= lastBelt.X; x++)
+        {
+            if (_view.CanOccupy(new GridPosition(x, core.Y)))
+            {
+                return Fail($"linea del seed incompleta prima del trascinamento: {x},{core.Y} vuota");
+            }
         }
 
         await PlaytestDrag(MouseButton.Right,
@@ -314,22 +322,31 @@ public partial class World
         for (var x = minerCell.X; x <= lastBelt.X; x++)
         {
             var cell = new GridPosition(x, core.Y);
-            if (!BeingRemoved(cell))
+            if (!RemovedOrBeingRemoved(cell))
             {
                 return Fail($"trascinamento col destro andata e ritorno: {cell} senza smontaggio");
             }
         }
 
-        GD.Print("PLAYTEST step ok: smontaggio trascinato andata e ritorno");
+        GD.Print($"PLAYTEST step ok: smontaggio trascinato andata e ritorno (fps {Engine.GetFramesPerSecond()})");
         return true;
     }
 
-    /// <summary>True when the block on <paramref name="cell"/> has a breaking plan queued or is being taken apart.</summary>
-    private bool BeingRemoved(GridPosition cell)
+    /// <summary>
+    /// True when the block on <paramref name="cell"/> is going or gone: a breaking plan queued, a deconstruction
+    /// running, or nothing left standing. Counting "gone" keeps the check independent of the frame rate (at
+    /// 60 fps the drag outlasts the miner's deconstruction); a toggled cell keeps its block with no plan.
+    /// </summary>
+    private bool RemovedOrBeingRemoved(GridPosition cell)
     {
         if (_view!.TryGetSiteAt(cell, out var site))
         {
             return site.Deconstructing;
+        }
+
+        if (_view.CanOccupy(cell))
+        {
+            return true;
         }
 
         foreach (var plan in _view.PlansOf(LocalPlayer))
