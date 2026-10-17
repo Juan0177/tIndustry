@@ -83,6 +83,9 @@ public static class CommandReasons
     /// </summary>
     public const string Occupied = "Cella occupata o non valida";
 
+    /// <summary><see cref="PlanDropped"/>: the structure was locked when the drone reached the plan.</summary>
+    public const string LockedByResearch = "Bloccato dalla ricerca";
+
     /// <summary>Research: already unlocked (ResearchPanel).</summary>
     public const string AlreadyUnlocked = "Già sbloccato.";
 

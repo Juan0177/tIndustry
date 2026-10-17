@@ -48,6 +48,12 @@ public sealed class SimHost
     /// <summary>Raised with the Italian reason when a command is refused; the state is unchanged.</summary>
     public event Action<SimCommand, string>? CommandRejected;
 
+    /// <summary>
+    /// Raised after each tick for every <see cref="SimEvent"/> the systems queued during it, in order
+    /// (plans dropped, sites finished). Same handler-exception policy as <see cref="CommandApplied"/>.
+    /// </summary>
+    public event Action<SimEvent>? EventRaised;
+
     /// <summary>Queues <paramref name="command"/>; with <c>Tick == 0</c> it is applied on the next tick.</summary>
     public void Submit(SimCommand command)
     {
@@ -66,7 +72,7 @@ public sealed class SimHost
     /// </summary>
     /// <remarks>
     /// Handler-exception policy: an exception thrown by a <see cref="CommandApplied"/> /
-    /// <see cref="CommandRejected"/> subscriber never interrupts the simulation. Every subscriber is
+    /// <see cref="CommandRejected"/> / <see cref="EventRaised"/> subscriber never interrupts the simulation. Every subscriber is
     /// called, every due command is applied and every tick of the frame runs; the exceptions are
     /// collected and rethrown together as one <see cref="AggregateException"/> when
     /// <see cref="Advance"/> has finished. The host stays consistent and usable afterwards.
@@ -141,6 +147,20 @@ public sealed class SimHost
         }
 
         factory.Step();
+
+        var events = factory.State.Events;
+        if (events.Count == 0)
+        {
+            return;
+        }
+
+        // Drain first: handlers see a stable list and the next tick starts clean.
+        var raised = events.ToArray();
+        events.Clear();
+        foreach (var simEvent in raised)
+        {
+            Raise(EventRaised, h => h(simEvent), ref handlerErrors);
+        }
     }
 
     /// <summary>Calls each subscriber separately so one failing handler cannot skip the others.</summary>
@@ -171,9 +191,7 @@ public sealed class SimHost
     {
         PlaceBelt belt => ApplyPlaceBelt(belt),
         PlaceBuilding building => ApplyPlaceBuilding(building),
-        Remove remove => factory.TryRemoveBuildingAt(remove.Tile) || factory.TryRemoveBelt(remove.Tile)
-            ? null
-            : CommandReasons.NothingToRemove,
+        Remove remove => ApplyRemove(remove),
         UnlockStructure unlock => ApplyUnlock(unlock),
         Sell sell => ApplySell(sell),
         SetAutoSell autoSell => SetAutoSellAndAccept(autoSell.Enabled),
@@ -190,8 +208,11 @@ public sealed class SimHost
             return CommandReasons.InvalidCommand;
         }
 
-        return CheckBuildable(spec.StructureId, CommandReasons.BeltToolName(spec.StructureId), multiplicity: 1)
-            ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
+        var toolName = CommandReasons.BeltToolName(spec.StructureId);
+        return factory.State.Rules.InstantBuild
+            ? CheckBuildable(spec.StructureId, toolName, multiplicity: 1)
+                ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin)
+            : QueuePlan(command.PlayerId, spec, toolName);
     }
 
     private string? ApplyPlaceBuilding(PlaceBuilding command)
@@ -208,9 +229,142 @@ public sealed class SimHost
             return CommandReasons.InvalidCommand;
         }
 
+        var toolName = CommandReasons.ToolName(command.Kind);
+        if (!factory.State.Rules.InstantBuild)
+        {
+            return QueuePlan(command.PlayerId, spec, toolName);
+        }
+
         var multiplicity = command.Kind == BuildingKind.Bridge ? 2 : 1;
-        return CheckBuildable(spec.StructureId, CommandReasons.ToolName(command.Kind), multiplicity)
+        return CheckBuildable(spec.StructureId, toolName, multiplicity)
             ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
+    }
+
+    /// <summary>
+    /// Queues a build plan on the player's drone: the structure must be unlocked and its cells free of
+    /// blocks, belts, sites and other players' plans. Resources are not checked (the site waits for them).
+    /// </summary>
+    private string? QueuePlan(int playerId, BuildSpec spec, string toolName)
+    {
+        if (!factory.IsStructureUnlocked(spec.StructureId))
+        {
+            return CommandReasons.Locked(toolName);
+        }
+
+        if (!factory.CanPlace(spec, out var reason))
+        {
+            return reason;
+        }
+
+        foreach (var tile in factory.Footprint(spec))
+        {
+            if (factory.IsPlannedTile(tile))
+            {
+                return CommandReasons.Occupied;
+            }
+        }
+
+        // A game without the player's drone cannot take plans (new games always have player 0's).
+        var builder = factory.BuilderOf(playerId);
+        if (builder is null)
+        {
+            return CommandReasons.InvalidCommand;
+        }
+
+        builder.Plans.Add(new BuildPlan(spec, Breaking: false));
+        return null;
+    }
+
+    /// <summary>
+    /// Instant build: removes the building, else the belt piece, with today's refund. Otherwise, in order:
+    /// cancels the player's queued plan on the tile; cancels a site under construction (100% of what it
+    /// spent comes back); leaves a site being taken apart alone (silent refusal); queues a breaking plan for a block or
+    /// belt piece (once); refuses silently on an empty tile.
+    /// </summary>
+    private string? ApplyRemove(Remove command)
+    {
+        var tile = command.Tile;
+        if (factory.State.Rules.InstantBuild)
+        {
+            return factory.TryRemoveBuildingAt(tile) || factory.TryRemoveBelt(tile)
+                ? null
+                : CommandReasons.NothingToRemove;
+        }
+
+        var builder = factory.BuilderOf(command.PlayerId);
+        if (builder is not null && TryCancelQueuedPlan(builder, tile))
+        {
+            return null;
+        }
+
+        if (factory.TryGetSiteAt(tile, out var site))
+        {
+            if (site.Deconstructing)
+            {
+                // Already being taken apart: nothing changes.
+                return CommandReasons.NothingToRemove;
+            }
+
+            Construction.Cancel(site);
+            return null;
+        }
+
+        if (!factory.TryGetSpecAt(tile, out var spec, out _))
+        {
+            return CommandReasons.NothingToRemove;
+        }
+
+        if (builder is null)
+        {
+            return CommandReasons.InvalidCommand;
+        }
+
+        if (!IsBreakingPlanned(spec))
+        {
+            builder.Plans.Add(new BuildPlan(spec with { Origin = tile }, Breaking: true));
+        }
+
+        return null;
+    }
+
+    /// <summary>Removes the first not yet started plan of <paramref name="builder"/> covering <paramref name="tile"/>.</summary>
+    private bool TryCancelQueuedPlan(BuilderUnit builder, GridPosition tile)
+    {
+        // The first plan has started once the drone has a site for it.
+        var first = builder.CurrentSiteId is null ? 0 : 1;
+        for (var i = first; i < builder.Plans.Count; i++)
+        {
+            var plan = builder.Plans[i];
+            var covers = plan.Breaking
+                ? plan.Spec.Origin.Equals(tile)
+                : factory.Footprint(plan.Spec).Contains(tile);
+            if (covers)
+            {
+                builder.Plans.RemoveAt(i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>True when a breaking plan of any player already targets the block <paramref name="spec"/> describes.</summary>
+    private bool IsBreakingPlanned(BuildSpec spec)
+    {
+        foreach (var builder in factory.State.Builders)
+        {
+            foreach (var plan in builder.Plans)
+            {
+                if (plan.Breaking
+                    && factory.TryGetSpecAt(plan.Spec.Origin, out var target, out _)
+                    && target == spec)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Same checks, same order and same texts as the client's placement today.</summary>

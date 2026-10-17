@@ -49,7 +49,8 @@ public partial class World
             mapWidth: DefaultMapWidth,
             mapHeight: DefaultMapHeight,
             seed: 42,
-            startingMoney: 180));
+            startingMoney: 180,
+            rules: new GameRules(InstantBuild: true))); // TODO(sp3-task5): costruzione vera
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
@@ -160,7 +161,8 @@ public partial class World
         }
 
         var content = FactoryContent.Load(_contentPath);
-        var factory = NewGame.Campaign(content, _campaign, level);
+        var factory = NewGame.Campaign(
+            content, _campaign, level, rules: new GameRules(InstantBuild: true)); // TODO(sp3-task5): costruzione vera
         AttachGame(factory);
 
         _continueAutoSave.MarkPlayed();

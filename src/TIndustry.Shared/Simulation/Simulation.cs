@@ -26,9 +26,13 @@ public static class Simulation
     public const int TickRate = SimulationClock.TickRate;
     public const float TickSeconds = SimulationClock.TickSeconds;
 
-    /// <summary>Belt, Power, Mining, Crafting, Extraction, Belt (settle, Dt 0), CoreDelivery.</summary>
+    /// <summary>
+    /// Builder, Construct, Belt, Power, Mining, Crafting, Extraction, Belt (settle, Dt 0), CoreDelivery.
+    /// </summary>
     public static IReadOnlyList<ISimulationSystem> Systems { get; } =
     [
+        new BuilderSystem(),
+        new ConstructSystem(),
         new BeltSystem(advance: true),
         new PowerSystem(),
         new MiningSystem(),
@@ -43,6 +47,8 @@ public static class Simulation
     /// <param name="trace">Optional hook called before each system with its name and the dt it uses (tests).</param>
     public static void Step(GameState state, Action<string, float>? trace = null)
     {
+        // Events describe one tick: whoever wanted the previous tick's has drained them (SimHost).
+        state.Events.Clear();
         var ctx = new SystemContext();
         foreach (var system in Systems)
         {

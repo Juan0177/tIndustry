@@ -166,6 +166,144 @@ public sealed class Factory : IGameView
     public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
         Belts.TryGetIncomingDirection(position, out incoming);
 
+    public IReadOnlyList<BuilderUnit> Builders => State.Builders;
+    public IReadOnlyList<ConstructSite> Sites => State.Sites;
+
+    public bool TryGetSiteAt(GridPosition tile, out ConstructSite site)
+    {
+        foreach (var candidate in State.Sites)
+        {
+            if (candidate.Occupies(tile))
+            {
+                site = candidate;
+                return true;
+            }
+        }
+
+        site = null!;
+        return false;
+    }
+
+    /// <summary>Plans of <paramref name="playerId"/>'s drones, in drone id then queue order.</summary>
+    public IReadOnlyList<BuildPlan> PlansOf(int playerId)
+    {
+        var plans = new List<BuildPlan>();
+        foreach (var builder in State.Builders)
+        {
+            if (builder.OwnerPlayerId == playerId)
+            {
+                plans.AddRange(builder.Plans);
+            }
+        }
+
+        return plans;
+    }
+
+    /// <summary>First drone of <paramref name="playerId"/> (lowest id), or null.</summary>
+    public BuilderUnit? BuilderOf(int playerId)
+    {
+        foreach (var builder in State.Builders)
+        {
+            if (builder.OwnerPlayerId == playerId)
+            {
+                return builder;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Adds a drone for <paramref name="ownerPlayerId"/> at the centre of the Core (new games).</summary>
+    public BuilderUnit AddBuilder(int ownerPlayerId)
+    {
+        var (x, y) = CoreCentre();
+        var builder = new BuilderUnit(nextEntityId++, ownerPlayerId, x, y);
+        State.Builders.Add(builder);
+        return builder;
+    }
+
+    /// <summary>Centre of the Core's cells, in tiles (0, 0 without a Core).</summary>
+    public (float X, float Y) CoreCentre()
+    {
+        if (CoreTiles.Count == 0)
+        {
+            return (0f, 0f);
+        }
+
+        var (minX, minY, maxX, maxY) = CoreBounds();
+        return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
+    }
+
+    /// <summary>
+    /// Where an idle drone waits: the centre of the cell one tile west of the Core, in the middle of its
+    /// west side (the upper middle cell for an even-sized Core).
+    /// </summary>
+    public (float X, float Y) BuilderRestPoint()
+    {
+        if (CoreTiles.Count == 0)
+        {
+            return (0f, 0f);
+        }
+
+        var (minX, minY, _, maxY) = CoreBounds();
+        var cellY = minY + (maxY - minY) / 2;
+        return (minX - 1 + 0.5f, cellY + 0.5f);
+    }
+
+    private (int MinX, int MinY, int MaxX, int MaxY) CoreBounds()
+    {
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var t in CoreTiles)
+        {
+            minX = Math.Min(minX, t.X);
+            minY = Math.Min(minY, t.Y);
+            maxX = Math.Max(maxX, t.X);
+            maxY = Math.Max(maxY, t.Y);
+        }
+
+        return (minX, minY, maxX, maxY);
+    }
+
+    /// <summary>
+    /// Centre of <paramref name="spec"/>'s block, in tiles (a bridge: its entry cell). For a breaking plan
+    /// use the clicked cell instead (<see cref="PlanCentre"/>).
+    /// </summary>
+    public (float X, float Y) SpecCentre(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        var half = FootprintSize(spec) / 2f;
+        return (spec.Origin.X + half, spec.Origin.Y + half);
+    }
+
+    /// <summary>Where the drone heads for <paramref name="plan"/>: the block's centre, or the clicked cell's when breaking.</summary>
+    public (float X, float Y) PlanCentre(BuildPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return plan.Breaking
+            ? (plan.Spec.Origin.X + 0.5f, plan.Spec.Origin.Y + 0.5f)
+            : SpecCentre(plan.Spec);
+    }
+
+    /// <summary>
+    /// True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>. Breaking
+    /// plans stand on something that exists, so they never reserve cells.
+    /// </summary>
+    public bool IsPlannedTile(GridPosition tile)
+    {
+        foreach (var builder in State.Builders)
+        {
+            foreach (var plan in builder.Plans)
+            {
+                if (!plan.Breaking && Footprint(plan.Spec).Contains(tile))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;
 
@@ -341,6 +479,8 @@ public sealed class Factory : IGameView
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
+        // TODO(sp3-task3): saves carry no rules yet; loaded games keep building instantly until they do.
+        factory.State.Rules = new GameRules(InstantBuild: true);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
