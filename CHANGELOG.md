@@ -7,7 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto
 
-- **Costruzione come Mindustry: piani, drone, cantieri, smontaggio con rimborso** (sotto-progetto 3, parte 4). Le partite nuove usano la costruzione vera: piazzare o trascinare nastri crea piani fantasma, il drone vola a costruirli uno alla volta e il blocco si disegna dal basso; senza materiali il cantiere si ferma (tooltip "Mancano: N oggetto") e riparte quando arrivano. Tasto destro: cancella un piano, annulla un cantiere (rimborso di quanto speso) o pianifica lo smontaggio, in rosso, anche trascinando su più blocchi. Nuovo riquadro della coda in alto al centro (blocco in lavorazione, barra, "+N" piani; clic = camera sul cantiere). Un piano scartato mostra il motivo; niente più "Risorse insufficienti" al piazzamento. Il tutorial avanza quando il minatore è finito e spiega il drone
+- **Costruzione come Mindustry: piani, drone, cantieri, smontaggio con rimborso** (sotto-progetto 3, parte 4). Le partite nuove usano la costruzione vera: piazzare o trascinare nastri crea piani fantasma, il drone vola a costruirli uno alla volta e il blocco si disegna dal basso; senza materiali il cantiere si ferma (tooltip "Mancano: N oggetto") e riparte quando arrivano. Tasto destro: cancella un piano, annulla un cantiere (rimborso di quanto speso) o pianifica lo smontaggio, in rosso, anche trascinando su più blocchi. Nuovo riquadro della coda in alto a sinistra, sotto le risorse del Core (blocco in lavorazione, barra, "+N" piani; clic = camera sul cantiere). Un piano scartato mostra il motivo; niente più "Risorse insufficienti" al piazzamento. Il tutorial avanza quando il minatore è finito e spiega il drone
 
 ### Documentazione
 

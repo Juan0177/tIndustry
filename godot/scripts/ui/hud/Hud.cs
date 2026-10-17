@@ -84,6 +84,7 @@ public partial class Hud : Control
         };
         _palette.ToastRequested += ShowToast;
         _queue.FocusRequested += rect => BuildQueueFocusRequested?.Invoke(rect);
+        _core.PlaceBelowStock(_queue);
 
         _info.Stock = _core;
         _info.DetailRequested += () =>
@@ -102,7 +103,6 @@ public partial class Hud : Control
         MouseFilter = MouseFilterEnum.Ignore;
 
         AddChild(_core);
-        AddChild(_queue);
         BuildCornerDock();
         AddChild(_info.BuildDetailOverlay());
         BuildToast();
@@ -196,7 +196,7 @@ public partial class Hud : Control
         Func<string, string>? itemName = null) =>
         _core.UpdateObjectives(level, wallet, session, research, itemName);
 
-    /// <summary>Build queue box (top centre): the local drone's current block, its bar and the plans left.</summary>
+    /// <summary>Build queue box (top-left column, under the core resources): current block, its bar and the plans left.</summary>
     public void SyncBuildQueue(IGameView? view) => _queue.Sync(view);
 
     /// <summary>

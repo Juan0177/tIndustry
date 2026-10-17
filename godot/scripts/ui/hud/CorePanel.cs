@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Top-left HUD column (Mindustry layout): menu buttons → core resources (funds, power, stock,
-/// CORE upgrade) → campaign objectives. Owns the last stock counts and funds shown.
+/// CORE upgrade) → build queue → campaign objectives. Owns the last stock counts and funds shown.
 /// </summary>
 public partial class CorePanel : VBoxContainer
 {
@@ -20,6 +20,7 @@ public partial class CorePanel : VBoxContainer
     private readonly Dictionary<string, (Control Cell, Label Count)> _stockCells = [];
     private readonly Dictionary<string, int> _stockCounts = [];
 
+    private Control? _belowStock;
     private Label? _powerLabel;
     private TextureRect? _powerIcon;
     private Label? _moneyLabel;
@@ -65,7 +66,23 @@ public partial class CorePanel : VBoxContainer
         AddMenuButton(menuRow, "res://assets/core.png", "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
 
         BuildCorePanel();
+        if (_belowStock is not null)
+        {
+            AddChild(_belowStock);
+        }
+
         BuildObjectivesPanel();
+    }
+
+    /// <summary>
+    /// Puts <paramref name="control"/> in this column right under the core resources (the build queue): it
+    /// flows with the column, so it never covers the menu buttons whatever the window width or UI scale.
+    /// Call before the panel enters the tree.
+    /// </summary>
+    public void PlaceBelowStock(Control control)
+    {
+        control.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        _belowStock = control;
     }
 
     /// <summary>Bind content (stock tooltips, cost chip names) and wallet (stock counts).</summary>

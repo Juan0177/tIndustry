@@ -74,6 +74,32 @@ public partial class World
     }
 
     /// <summary>
+    /// Right-drag: <see cref="TryRemoveAt"/> once per block in the whole drag, like Mindustry's removal drag.
+    /// A second Remove on a block would cancel the breaking plan the first one queued, so every cell of the
+    /// block (its footprint, or the site's cells) counts as done after the first.
+    /// </summary>
+    private void RemoveOnceInDrag(GridPosition cell)
+    {
+        if (_view is null || !_removedThisDrag.Add(cell))
+        {
+            return;
+        }
+
+        if (_view.TryGetSiteAt(cell, out var site))
+        {
+            _removedThisDrag.UnionWith(site.Tiles);
+        }
+        else
+        {
+            // A breaking plan covers the whole block standing on the cell (just the cell when it is empty).
+            var probe = new BuildPlan(new BuildSpec("", null, cell, Direction.East), Breaking: true);
+            _removedThisDrag.UnionWith(_view.PlanTiles(probe));
+        }
+
+        TryRemoveAt(cell);
+    }
+
+    /// <summary>
     /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>, ui playtest): miner on starter iron + east
     /// belts into Core for quick delivery checks. Dev tool: the line stands at once, as with
     /// <c>InstantBuild</c> local to the seed, so it reaches past the read-only view to

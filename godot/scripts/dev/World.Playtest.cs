@@ -268,6 +268,11 @@ public partial class World
         await Shot("ricerca");
         await PlaytestKey(Key.T);
 
+        if (!await PlaytestRemoveDragOutAndBackAsync())
+        {
+            return false;
+        }
+
         AutoSaveContinue(quiet: true);
         if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
         {
@@ -275,6 +280,67 @@ public partial class World
         }
 
         return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
+    }
+
+    /// <summary>
+    /// Right-drag over the seed line (miner + belts) out to the Core and back, ending on other cells of the
+    /// miner: every block must end with a breaking plan or a deconstruction. A drag never toggles a cell back.
+    /// No screenshot: it runs after the last one.
+    /// </summary>
+    private async Task<bool> PlaytestRemoveDragOutAndBackAsync()
+    {
+        var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
+        var lastBelt = new GridPosition(core.X - 1, core.Y);
+        if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
+        {
+            cam.Position = CellCenter(new GridPosition(core.X - 2, core.Y));
+            cam.Zoom = new Vector2(1.6f, 1.6f);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        await PlaytestDrag(MouseButton.Right,
+        [
+            CellToScreen(minerCell),
+            CellToScreen(lastBelt),
+            CellToScreen(new GridPosition(minerCell.X + 1, core.Y)),
+            CellToScreen(new GridPosition(minerCell.X, core.Y + 1))
+        ]);
+        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
+        {
+            return Fail("comandi del trascinamento non applicati");
+        }
+
+        for (var x = minerCell.X; x <= lastBelt.X; x++)
+        {
+            var cell = new GridPosition(x, core.Y);
+            if (!BeingRemoved(cell))
+            {
+                return Fail($"trascinamento col destro andata e ritorno: {cell} senza smontaggio");
+            }
+        }
+
+        GD.Print("PLAYTEST step ok: smontaggio trascinato andata e ritorno");
+        return true;
+    }
+
+    /// <summary>True when the block on <paramref name="cell"/> has a breaking plan queued or is being taken apart.</summary>
+    private bool BeingRemoved(GridPosition cell)
+    {
+        if (_view!.TryGetSiteAt(cell, out var site))
+        {
+            return site.Deconstructing;
+        }
+
+        foreach (var plan in _view.PlansOf(LocalPlayer))
+        {
+            if (plan.Breaking && _view.PlanTiles(plan).Contains(cell))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Seconds a single building may take to be built (it needs well under one).</summary>
@@ -363,9 +429,19 @@ public partial class World
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private async Task PlaytestDrag(MouseButton button, Vector2 from, Vector2 to, int steps = 16)
+    private Task PlaytestDrag(MouseButton button, Vector2 from, Vector2 to, int steps = 16) =>
+        PlaytestDrag(button, [from, to], steps);
+
+    /// <summary>Press at the first point, move through the others (<paramref name="steps"/> moves per leg), release.</summary>
+    private async Task PlaytestDrag(MouseButton button, Vector2[] path, int steps = 16)
     {
-        var mask = button == MouseButton.Left ? MouseButtonMask.Left : MouseButtonMask.Middle;
+        var mask = button switch
+        {
+            MouseButton.Left => MouseButtonMask.Left,
+            MouseButton.Right => MouseButtonMask.Right,
+            _ => MouseButtonMask.Middle
+        };
+        var from = path[0];
         PlaytestMove(from, 0);
         Input.ParseInputEvent(new InputEventMouseButton
         {
@@ -373,12 +449,16 @@ public partial class World
             Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 1; i <= steps; i++)
+        for (var leg = 1; leg < path.Length; leg++)
         {
-            PlaytestMove(from.Lerp(to, i / (float)steps), mask);
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            for (var i = 1; i <= steps; i++)
+            {
+                PlaytestMove(path[leg - 1].Lerp(path[leg], i / (float)steps), mask);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
         }
 
+        var to = path[^1];
         Input.ParseInputEvent(new InputEventMouseButton
         {
             ButtonIndex = button, Pressed = false, Position = to, GlobalPosition = to, Device = PlaytestDevice

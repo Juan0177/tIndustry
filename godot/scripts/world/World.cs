@@ -74,7 +74,8 @@ public partial class World : Node2D
     private Vector2 _hoverScreen;
     private bool _draggingPlace;
     private bool _draggingRemove;
-    private GridPosition? _lastRemoveCell;
+    // Cells a right-drag already covered: a block gets one Remove per drag, never a second that cancels it.
+    private readonly HashSet<GridPosition> _removedThisDrag = [];
     private bool _visualDirty = true;
     private bool _buildingsDirty = true;
     private Texture2D? _oreTex;

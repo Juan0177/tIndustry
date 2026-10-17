@@ -8,7 +8,8 @@ namespace TIndustry.Godot;
 /// it stays on top): the local player's plans (drawn here), the sites (a sprite each with the
 /// <c>construct</c> shader) and the drones with their build beam (<see cref="DroneVisual"/>).
 /// Reads <see cref="IGameView"/> only; plans are redrawn only when the simulation ticked. The per-frame
-/// sync reuses its buffers: nothing is allocated while the sets of sites and drones stay the same.
+/// sync walks the view's lists by index (no boxed enumerators) and reuses its buffers: nothing is allocated
+/// while the sets of sites and drones stay the same.
 /// </summary>
 public partial class ConstructionLayer : Node2D
 {
@@ -112,8 +113,10 @@ public partial class ConstructionLayer : Node2D
             return;
         }
 
-        foreach (var builder in _view.Builders)
+        var builders = _view.Builders;
+        for (var b = 0; b < builders.Count; b++)
         {
+            var builder = builders[b];
             if (builder.OwnerPlayerId != LocalPlayer)
             {
                 continue;
@@ -131,8 +134,10 @@ public partial class ConstructionLayer : Node2D
 
     private static bool HasLocalPlans(IGameView view)
     {
-        foreach (var builder in view.Builders)
+        var builders = view.Builders;
+        for (var i = 0; i < builders.Count; i++)
         {
+            var builder = builders[i];
             if (builder.OwnerPlayerId == LocalPlayer && builder.Plans.Count > 0)
             {
                 return true;
@@ -160,9 +165,9 @@ public partial class ConstructionLayer : Node2D
         if (spec.Kind is null)
         {
             // Belt: its arrow sprite turned to the belt's direction.
-            foreach (var tile in tiles)
+            for (var i = 0; i < tiles.Count; i++)
             {
-                var cell = CellRect(tile);
+                var cell = CellRect(tiles[i]);
                 DrawSetTransform(cell.GetCenter(), DirectionAngle(spec.Direction), Vector2.One);
                 DrawTextureRect(tex, new Rect2(-cell.Size / 2f, cell.Size), false, ghost);
                 DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
@@ -175,10 +180,10 @@ public partial class ConstructionLayer : Node2D
         if (spec.Kind == BuildingKind.Bridge)
         {
             // Both ends; the exit is where a bridge placed now would end.
-            foreach (var tile in tiles)
+            for (var i = 0; i < tiles.Count; i++)
             {
-                DrawTextureRect(tex, CellRect(tile), false, ghost);
-                DrawRect(CellRect(tile), Accent, filled: false, width: -1f);
+                DrawTextureRect(tex, CellRect(tiles[i]), false, ghost);
+                DrawRect(CellRect(tiles[i]), Accent, filled: false, width: -1f);
             }
 
             return;
@@ -197,8 +202,10 @@ public partial class ConstructionLayer : Node2D
     {
         var changed = StructureLayers.None;
         _live.Clear();
-        foreach (var site in view.Sites)
+        var sites = view.Sites;
+        for (var i = 0; i < sites.Count; i++)
         {
+            var site = sites[i];
             _live.Add(site.Id);
             if (!_sites.TryGetValue(site.Id, out var visual))
             {
@@ -220,7 +227,7 @@ public partial class ConstructionLayer : Node2D
 
         if (_sites.Count != _live.Count)
         {
-            CollectGone(_sites.Keys);
+            CollectGone(_sites);
             foreach (var id in _gone)
             {
                 _sites[id].Root.QueueFree();
@@ -232,10 +239,10 @@ public partial class ConstructionLayer : Node2D
     }
 
     /// <summary>Fills <see cref="_gone"/> with the ids of <paramref name="known"/> missing from <see cref="_live"/>.</summary>
-    private void CollectGone(IEnumerable<long> known)
+    private void CollectGone<T>(Dictionary<long, T> known)
     {
         _gone.Clear();
-        foreach (var id in known)
+        foreach (var id in known.Keys)
         {
             if (!_live.Contains(id))
             {
@@ -281,8 +288,10 @@ public partial class ConstructionLayer : Node2D
     private void SyncDrones(IGameView view, float delta)
     {
         _live.Clear();
-        foreach (var builder in view.Builders)
+        var builders = view.Builders;
+        for (var i = 0; i < builders.Count; i++)
         {
+            var builder = builders[i];
             _live.Add(builder.Id);
             if (!_drones.TryGetValue(builder.Id, out var drone))
             {
@@ -304,7 +313,7 @@ public partial class ConstructionLayer : Node2D
 
         if (_drones.Count != _live.Count)
         {
-            CollectGone(_drones.Keys);
+            CollectGone(_drones);
             foreach (var id in _gone)
             {
                 _drones[id].QueueFree();
@@ -315,8 +324,10 @@ public partial class ConstructionLayer : Node2D
 
     private static ConstructSite? FindSite(IGameView view, long id)
     {
-        foreach (var site in view.Sites)
+        var sites = view.Sites;
+        for (var i = 0; i < sites.Count; i++)
         {
+            var site = sites[i];
             if (site.Id == id)
             {
                 return site;

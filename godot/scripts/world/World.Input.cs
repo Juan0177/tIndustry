@@ -346,14 +346,14 @@ public partial class World
                 if (mouse.Pressed)
                 {
                     _draggingRemove = true;
-                    _lastRemoveCell = cell;
-                    TryRemoveAt(cell);
+                    _removedThisDrag.Clear();
+                    RemoveOnceInDrag(cell);
                     GetViewport().SetInputAsHandled();
                 }
                 else
                 {
                     _draggingRemove = false;
-                    _lastRemoveCell = null;
+                    _removedThisDrag.Clear();
                 }
             }
         }
@@ -372,12 +372,9 @@ public partial class World
             {
                 TryPlaceAt(cell);
             }
-            else if (_draggingRemove && !cell.Equals(_lastRemoveCell))
+            else if (_draggingRemove)
             {
-                // Once per cell and drag: a second Remove on the same cell would cancel the breaking
-                // plan the first one just queued.
-                _lastRemoveCell = cell;
-                TryRemoveAt(cell);
+                RemoveOnceInDrag(cell);
             }
         }
     }

@@ -34,9 +34,6 @@ public partial class BuildQueuePanel : PanelContainer
     {
         StylePanel(this, "BuildQueuePanel");
         Visible = false;
-        SetAnchorsPreset(LayoutPreset.CenterTop);
-        GrowHorizontal = GrowDirection.Both;
-        OffsetTop = 10;
         TooltipText = "Coda di costruzione · clic = mostra il cantiere";
         MouseDefaultCursorShape = CursorShape.PointingHand;
     }
@@ -114,14 +111,7 @@ public partial class BuildQueuePanel : PanelContainer
         ConstructSite? site = null;
         if (builder.CurrentSiteId is { } siteId)
         {
-            foreach (var s in view.Sites)
-            {
-                if (s.Id == siteId)
-                {
-                    site = s;
-                    break;
-                }
-            }
+            site = SiteById(view, siteId);
         }
 
         var spec = site?.Spec ?? plan.Spec;
@@ -182,15 +172,9 @@ public partial class BuildQueuePanel : PanelContainer
             return null;
         }
 
-        if (builder.CurrentSiteId is { } siteId)
+        if (builder.CurrentSiteId is { } siteId && SiteById(view, siteId) is { } site)
         {
-            foreach (var site in view.Sites)
-            {
-                if (site.Id == siteId)
-                {
-                    return ConstructionLayer.Bounds(site.Tiles);
-                }
-            }
+            return ConstructionLayer.Bounds(site.Tiles);
         }
 
         return ConstructionLayer.Bounds(view.PlanTiles(builder.Plans[0]));
@@ -203,11 +187,27 @@ public partial class BuildQueuePanel : PanelContainer
             return null;
         }
 
-        foreach (var builder in view.Builders)
+        // Index loops: a foreach over the read-only lists would box an enumerator every frame.
+        var builders = view.Builders;
+        for (var i = 0; i < builders.Count; i++)
         {
-            if (builder.OwnerPlayerId == LocalPlayer)
+            if (builders[i].OwnerPlayerId == LocalPlayer)
             {
-                return builder;
+                return builders[i];
+            }
+        }
+
+        return null;
+    }
+
+    private static ConstructSite? SiteById(IGameView view, long siteId)
+    {
+        var sites = view.Sites;
+        for (var i = 0; i < sites.Count; i++)
+        {
+            if (sites[i].Id == siteId)
+            {
+                return sites[i];
             }
         }
 

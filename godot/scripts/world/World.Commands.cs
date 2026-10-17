@@ -35,6 +35,7 @@ public partial class World
         _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
         _structureCount = StructureCount();
+        ConstructFinishedCount = 0;
     }
 
     /// <summary>Commands submitted but not yet applied (empty without a game).</summary>
@@ -163,7 +164,7 @@ public partial class World
         }
     }
 
-    /// <summary>Sites finished since the game started in this window (the tutorial playtest waits on it).</summary>
+    /// <summary>Sites finished in the running game, from 0 when it was attached (the tutorial playtest waits on it).</summary>
     private int ConstructFinishedCount { get; set; }
 
     // Blocks and belts standing at the end of the last frame: tells whether a command changed them directly.
