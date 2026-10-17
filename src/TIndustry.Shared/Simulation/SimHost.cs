@@ -88,6 +88,27 @@ public sealed class SimHost
         return ticks;
     }
 
+    /// <summary>
+    /// Runs exactly <paramref name="ticks"/> ticks now, ignoring frame time and the per-frame cap
+    /// (scripted setup, tools). Same handler-exception policy as <see cref="Advance"/>.
+    /// </summary>
+    public int AdvanceTicks(int ticks)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(ticks);
+        List<Exception>? handlerErrors = null;
+        for (var i = 0; i < ticks; i++)
+        {
+            RunTick(ref handlerErrors);
+        }
+
+        if (handlerErrors is not null)
+        {
+            throw new AggregateException("Un gestore di eventi di SimHost ha lanciato un'eccezione.", handlerErrors);
+        }
+
+        return ticks;
+    }
+
     private void RunTick(ref List<Exception>? handlerErrors)
     {
         var tick = factory.CurrentTick + 1;

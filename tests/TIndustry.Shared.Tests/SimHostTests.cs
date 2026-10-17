@@ -485,4 +485,24 @@ public sealed class SimHostTests
             $"Servono ${content.CoreUpgrade.MoneyCost} · {entry.Amount}× {content.DisplayName(entry.ItemId)}",
             reason);
     }
+
+    [Fact]
+    public void AdvanceTicksRunsExactlyThatManyTicksWithoutTouchingTheClock()
+    {
+        var host = new SimHost(NewSandbox(LoadContent()));
+        host.Submit(new PlaceBelt(1, new GridPosition(10, 10), Direction.East, "conveyor-basic"));
+
+        Assert.Equal(1, host.AdvanceTicks(1));
+        Assert.Equal(1, host.State.CurrentTick);
+        Assert.True(host.State.Belts.ContainsKey(new GridPosition(10, 10)));
+
+        // More than the per-frame cap is fine: it is an explicit request, not frame time.
+        Assert.Equal(8, host.AdvanceTicks(8));
+        Assert.Equal(9, host.State.CurrentTick);
+        Assert.Equal(0, host.AdvanceTicks(0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => host.AdvanceTicks(-1));
+
+        // The frame clock is independent: a 1/60 s frame is still exactly one tick.
+        Assert.Equal(1, host.Advance(SimulationClock.TickSeconds));
+    }
 }
