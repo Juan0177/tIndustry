@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TIndustry.Shared;
 using Xunit;
 
@@ -138,6 +139,153 @@ public sealed class ConstructionSaveTests
         Assert.Equal(drone.CurrentSiteId, droneBack.CurrentSiteId);
         Assert.Equal(drone.Plans, droneBack.Plans);
         Assert.Equal(factory.State.NextEntityId, back.NextEntityId);
+    }
+
+    /// <summary>Host with one site of <paramref name="kind"/> at (24, 20) worked on for <paramref name="ticks"/> ticks.</summary>
+    private static (Factory Factory, SimHost Host) WithSite(BuildingKind kind, int ticks, string? recipeId = null)
+    {
+        var factory = NewFactory(new GameRules());
+        factory.Wallet.AddMaterial("copper-wire", 1000);
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBuilding(Player, kind, new GridPosition(24, 20), Direction.East, recipeId));
+        host.Submit(new PlaceBelt(Player, new GridPosition(60, 20), Direction.East, "conveyor-basic"));
+        host.AdvanceTicks(ticks);
+        var site = Assert.Single(factory.Sites);
+        Assert.InRange(site.Progress, 0.05f, 0.95f);
+        return (factory, host);
+    }
+
+    [Fact]
+    public void StalledTicksSurviveASave()
+    {
+        var factory = NewFactory(new GameRules());
+        var host = new SimHost(factory);
+        // No copper wire: the advanced miner stalls at once and goes to the back after 60 ticks.
+        host.Submit(new PlaceBuilding(Player, BuildingKind.MinerAdvanced, new GridPosition(24, 20), Direction.East));
+        host.Submit(new PlaceBelt(Player, new GridPosition(23, 24), Direction.East, "conveyor-basic"));
+        host.AdvanceTicks(40);
+        Assert.Equal(new GridPosition(24, 20), factory.Builders[0].Plans[0].Spec.Origin);
+
+        var loaded = RoundTrip(host, "v11-fermo");
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+        host.AdvanceTicks(30);
+        loaded.AdvanceTicks(30);
+
+        Assert.Equal(new GridPosition(23, 24), factory.Builders[0].Plans[0].Spec.Origin);
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+    }
+
+    [Fact]
+    public void RestoreClampsSiteValuesAndRebuildsEmptyCells()
+    {
+        var (factory, _) = WithSite(BuildingKind.Miner, 20);
+        var data = factory.Capture();
+        var dto = data.Sites[0];
+        dto.Progress = 7f;
+        dto.RefundBasisPoints = 99_999;
+        dto.Tiles = [];
+        dto.SpentByItem = [new CostLineSaveDto { ItemId = Iron, Amount = 999 }];
+        dto.RefundedByItem = [new CostLineSaveDto { ItemId = Iron, Amount = -5 }];
+
+        var site = Assert.Single(Factory.Restore(Content, data).Sites);
+
+        Assert.Equal(1f, site.Progress);
+        Assert.Equal(Construction.FullRefundBasisPoints, site.RefundBasisPoints);
+        Assert.Equal([4], site.Spent);
+        Assert.Equal([0], site.Refunded);
+        Assert.Equal(Miner.Size * Miner.Size, site.Tiles.Count);
+        Assert.Contains(new GridPosition(25, 21), site.Tiles);
+
+        dto.Progress = -3f;
+        dto.RefundBasisPoints = -1;
+        var again = Assert.Single(Factory.Restore(Content, data).Sites);
+        Assert.Equal(0f, again.Progress);
+        Assert.Equal(0, again.RefundBasisPoints);
+    }
+
+    [Fact]
+    public void RestoreDropsSiteWhoseSpecIsNoLongerValid()
+    {
+        var (factory, _) = WithSite(BuildingKind.Smelter, 20);
+        var spent = factory.Sites[0].Spent[0];
+        Assert.True(spent > 0);
+        var ironBefore = factory.Wallet.MaterialCount(Iron);
+        var data = factory.Capture();
+        // A recipe that a content update removed: the site could never finish.
+        data.Sites[0].Spec.RecipeId = "ricetta-sparita";
+        data.Builders[0].Plans[0].Spec.RecipeId = "ricetta-sparita";
+
+        var restored = Factory.Restore(Content, data);
+
+        Assert.Empty(restored.Sites);
+        var drone = restored.Builders[0];
+        Assert.Null(drone.CurrentSiteId);
+        var next = Assert.Single(drone.Plans);
+        Assert.Equal(new GridPosition(60, 20), next.Spec.Origin);
+        Assert.Equal(ironBefore + spent, restored.Wallet.MaterialCount(Iron));
+    }
+
+    [Fact]
+    public void RestoreClearsACurrentSiteThatDoesNotExist()
+    {
+        var factory = NewFactory(new GameRules());
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBelt(Player, new GridPosition(60, 20), Direction.East, "conveyor-basic"));
+        host.AdvanceTicks(1);
+        var data = factory.Capture();
+        data.Builders[0].CurrentSiteId = 12_345;
+
+        var drone = Factory.Restore(Content, data).Builders[0];
+
+        Assert.Null(drone.CurrentSiteId);
+        Assert.Single(drone.Plans);
+    }
+
+    [Fact]
+    public void SpentIsSavedPerItemAndMappedByItemId()
+    {
+        var (factory, _) = WithSite(BuildingKind.MinerAdvanced, 30);
+        var site = factory.Sites[0];
+        Assert.Equal([new CostEntry("copper-wire", 4), new CostEntry(Iron, 10)], site.Cost);
+        var data = factory.Capture();
+        var dto = data.Sites[0];
+
+        // Written per item, in ordinal order; the old index lists are no longer written.
+        Assert.Equal(
+            [("copper-wire", site.Spent[0]), (Iron, site.Spent[1])],
+            dto.SpentByItem!.Select(l => (l.ItemId, l.Amount)).ToList());
+        Assert.Null(dto.Spent);
+        Assert.Null(dto.Refunded);
+
+        // Lines in another order, plus one the block no longer costs: mapped by item id, the extra dropped.
+        dto.SpentByItem =
+        [
+            new CostLineSaveDto { ItemId = Iron, Amount = 3 },
+            new CostLineSaveDto { ItemId = "gold", Amount = 7 },
+            new CostLineSaveDto { ItemId = "copper-wire", Amount = 1 }
+        ];
+        Assert.Equal([1, 3], Assert.Single(Factory.Restore(Content, data).Sites).Spent);
+    }
+
+    [Fact]
+    public void SpentFromAnOlderV11SaveIsMappedByIndex()
+    {
+        var (factory, _) = WithSite(BuildingKind.MinerAdvanced, 30);
+        var data = factory.Capture();
+        var dto = data.Sites[0];
+        // As written before the per-item lines existed.
+        var legacy = JsonSerializer.Deserialize<SiteSaveDto>(
+            """{ "spent": [1, 3], "refunded": [0, 1] }""", FactorySaveStore.JsonOptions)!;
+        Assert.Null(legacy.SpentByItem);
+        dto.SpentByItem = null;
+        dto.RefundedByItem = null;
+        dto.Spent = legacy.Spent;
+        dto.Refunded = legacy.Refunded;
+
+        var site = Assert.Single(Factory.Restore(Content, data).Sites);
+
+        Assert.Equal([1, 3], site.Spent);
+        Assert.Equal([0, 1], site.Refunded);
     }
 
     [Fact]

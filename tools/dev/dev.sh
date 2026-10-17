@@ -74,7 +74,11 @@ fi
 
 if [ "$FORCE_IMPORT" = 1 ] || [ ! -d godot/.godot/imported ]; then
   step "Importazione asset Godot"
-  "$GODOT" --headless --path godot --import >/dev/null 2>&1 || fail "Importazione fallita (riprova con: $GODOT --headless --path godot --import)."
+  # The importer runs the editor, which builds user:// from %APPDATA%: give it a throwaway one so the
+  # player's real app_userdata (.recovery_mode_lock, caches) is never touched.
+  IMPORT_APPDATA="$(mktemp -d)"
+  APPDATA="$(win "$IMPORT_APPDATA")" "$GODOT" --headless --path godot --import >/dev/null 2>&1 || { rm -rf "$IMPORT_APPDATA"; fail "Importazione fallita (riprova con: $GODOT --headless --path godot --import)."; }
+  rm -rf "$IMPORT_APPDATA"
   # Godot rewrites line endings of tracked .import files: drop changes that are only that.
   if command -v git >/dev/null 2>&1; then
     for f in $(git ls-files -m godot/assets 2>/dev/null); do

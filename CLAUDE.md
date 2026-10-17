@@ -17,15 +17,15 @@ Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--editor] [--tes
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q       # atteso: 0 errori, 0 avvisi
 dotnet test tests/TIndustry.Shared.Tests -c Release --no-build
-godot4 --headless --path godot --import                  # poi ripristina i .import (sotto)
-godot4 --headless --path godot --build-solutions --quit
+APPDATA="$(mktemp -d)" godot4 --headless --path godot --import   # poi ripristina i .import (sotto)
+APPDATA="$(mktemp -d)" godot4 --headless --path godot --build-solutions --quit
 godot4 --path godot                                      # avvia il gioco (legge data/)
 tools/dev/playtest.sh ui /tmp/shots-ui                   # idem: tutorial; PLAYTEST OK, 0 ERROR
 python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
 ```
 
 `TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo).
-Con un profilo temporaneo/esplicito gli script passano `--log-file <profilo>/godot.log` e, per playtest e partite (non per l'editor), puntano `APPDATA` al profilo: su Windows Godot costruisce `user://` da `%APPDATA%`, quindi log, `shader_cache`, `vulkan` e `.recovery_mode_lock` restano nel profilo e `%APPDATA%\Godot\app_userdata\tIndustry` non viene toccato. Godot 4.4 non ha un'opzione CLI per `user://`; `use_custom_user_dir` cambia solo il nome sotto `%APPDATA%`. L'editor (`--editor`) usa ancora il `%APPDATA%` reale.
+Con un profilo temporaneo/esplicito gli script passano `--log-file <profilo>/godot.log` e, per playtest e partite (non per l'editor), puntano `APPDATA` al profilo: su Windows Godot costruisce `user://` da `%APPDATA%`, quindi log, `shader_cache`, `vulkan` e `.recovery_mode_lock` restano nel profilo e `%APPDATA%\Godot\app_userdata\tIndustry` non viene toccato. Godot 4.4 non ha un'opzione CLI per `user://`; `use_custom_user_dir` cambia solo il nome sotto `%APPDATA%`. L'editor (`--editor`) usa ancora il `%APPDATA%` reale; per `--import` e `--build-solutions` da riga di comando metti `APPDATA` su una cartella temporanea (come sopra; `dev.sh` lo fa da solo per l'importazione).
 
 Dopo `godot4 --import`, ripristina i `.import` che differiscono solo per fine riga:
 
@@ -42,7 +42,8 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 - Dati di gioco solo in `data/` (`content.json`, `campaign.json`); `godot/data/` è generata dall'export ed è ignorata da git.
 - Icone solo in `godot/assets/` (piatto), con attribuzione in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
-- Salvataggi alla versione 10 (`FactorySaveData.CurrentVersion`); cambiare il formato = alzare la versione.
+- Salvataggi alla versione 11 (`FactorySaveData.CurrentVersion`); cambiare il formato = alzare la versione.
+- Costruzione come Mindustry (piani, drone, cantieri: `docs/decisioni/0003-costruzione-come-mindustry.md`). I test che non provano la costruzione usano `GameRules(InstantBuild: true)` (per esempio `NewGame.Sandbox(..., rules: new GameRules(InstantBuild: true))`), così i piazzamenti tramite `SimHost` sono istantanei; i `Factory.TryPlace…` piazzano sempre subito.
 - **Diario di lavoro**: a fine di ogni piano di implementazione copia il registro (`.superpowers/sdd/<piano>/progress.md`) in `docs/diario/AAAA-MM-GG-<nome>.md` (formato in `docs/diario/README.md`) *prima* di cancellare `.superpowers/sdd/`.
 - La simulazione è a tick fisso (60 Hz), guidata da comandi (`SimHost`) e deterministica: in `Step()` niente tempo, niente ordine di `Dictionary`/`HashSet`, niente orologio né `Random` non seminato, niente parallelismo né formati dipendenti dalla cultura. Regole in `docs/ARCHITETTURA.md`, modello di sincronizzazione in `docs/decisioni/0002-sincronizzazione-ibrida.md`.
 

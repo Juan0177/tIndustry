@@ -31,6 +31,7 @@ public partial class ConstructionLayer : Node2D
 
     private const int LocalPlayer = 0;
     private const float PlanAlpha = 0.35f;
+    private const float BreakFillAlpha = 0.3f;
     private const int SitesZ = 1;
 
     private static readonly StringName ProgressParam = "progress";
@@ -122,12 +123,18 @@ public partial class ConstructionLayer : Node2D
                 continue;
             }
 
-            // The first plan has a site once work began: the site shows it.
-            var first = builder.CurrentSiteId is null ? 0 : 1;
-            for (var i = first; i < builder.Plans.Count; i++)
+            // A plan whose site stands (the current one, or one sent to the back while stalled) is shown by
+            // the site. Plans still count as drawn so the layer keeps redrawing while any exist.
+            for (var i = 0; i < builder.Plans.Count; i++)
             {
-                DrawPlan(builder.Plans[i]);
                 _drewPlans = true;
+                var plan = builder.Plans[i];
+                if ((i == 0 && builder.CurrentSiteId is not null) || _view.SiteOfPlan(plan) is not null)
+                {
+                    continue;
+                }
+
+                DrawPlan(plan);
             }
         }
     }
@@ -152,7 +159,9 @@ public partial class ConstructionLayer : Node2D
         var tiles = _view!.PlanTiles(plan);
         if (plan.Breaking)
         {
+            // Mindustry style: a translucent red fill over the whole block, plus the outline and the X.
             var box = Bounds(tiles);
+            DrawRect(box, new Color(Remove, BreakFillAlpha));
             DrawRect(box, Remove, filled: false, width: -1f);
             DrawLine(box.Position, box.End, Remove, -1f);
             DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), Remove, -1f);

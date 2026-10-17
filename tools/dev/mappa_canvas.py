@@ -63,36 +63,26 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-17, sera."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
 # --- Fatto -----------------------------------------------------------------
-fatto = Column("g-fatto", "✅ Fatto", X[0], "4")
+fatto = Column("g-fatto", "Fatto", X[0], "4")
 fatto.card("sp1", "**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146")
 fatto.card("sp2", "**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]")
+fatto.card("sp3", "**SP3 · Costruzione come Mindustry**\nPiani, drone e cantieri con consegna dal Core, smontaggio con rimborso graduale, coda nell'HUD, salvataggi v11.\nPR #159–#166 · [[2026-10-17-costruzione-in-corso|diario]] · [[0003-costruzione-come-mindustry|ADR 0003]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
-fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR)\n- [[docs/diario/README|diario dei lavori]]")
+fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0003-costruzione-come-mindustry|0003]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
-sp3 = Column("g-sp3", "🔨 In corso · SP3 Costruzione come Mindustry", X[1], "3")
-tasks = [
-    sp3.card("t0", "**Task 0** · base degli screenshot ✅", "4"),
-    sp3.card("t1", "**Task 1** · regole, dati, cantiere ✅\nin main (#159, correzioni in #160)", "4"),
-    sp3.card("t2", "**Task 2** · drone, piani, comandi ✅\nin main (#160)", "4"),
-    sp3.card("t3", "**Task 3** · salvataggi v11 ✅\nin main (#161)", "4"),
-    sp3.card("t4", "**Task 4** · grafica di piani, cantieri e drone ✅\narriva con la PR del Task 5", "4"),
-    sp3.card("t5", "**Task 5** · costruzione vera nel gioco, coda nell'HUD, tutorial ⏳\nPR 4"),
-    sp3.card("t6", "**Task 6** · documentazione e ADR 0003 ⏳\nPR 5", "0"),
-    sp3.card("tf", "**Revisione finale e diario** ⏳", "0"),
-]
-sp3.card("sp3docs", "**Documenti**\n- [[2026-10-17-costruzione-in-corso-design|spec]]\n- [[2026-10-17-costruzione-in-corso|piano]]")
-sp3.close()
-chain(tasks)
+corso = Column("g-sp3", "In corso", X[1], "3")
+corso.card("nessuno", "**Nessun lavoro in corso**\nProssimo passo da decidere (G1 arte dei blocchi, Progetti di Claude Code).")
+corso.close()
 
 # --- Prossimi --------------------------------------------------------------
-nxt = Column("g-next", "🗺️ Prossimi (ordine proposto)", X[2], "5")
+nxt = Column("g-next", "Prossimi (ordine proposto)", X[2], "5")
 roadmap = [
     nxt.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra (generatore in tools/art/): edifici, nastri, oggetti, drone e Core nei 3 tier."),
     nxt.card("tier", "**T + SP4 · Tier e drone comandato**\nCore shard / foundation / nucleus, drone alpha / beta / gamma; il drone lo muovi tu."),
@@ -105,15 +95,21 @@ nxt.close()
 chain(roadmap)
 
 # --- Aperti ----------------------------------------------------------------
-aperti = Column("g-aperti", "⚠️ Aperti", X[3], "1")
+aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
-aperti.card("a2", "**Progetti di Claude Code**\nDa indagare dopo il sotto-progetto 3.")
-aperti.card("a3", "**Grafica (G1–G4) e tier**\nIn attesa del via dopo il sotto-progetto 3.")
+aperti.card("a2", "**Progetti di Claude Code**\nDa indagare.")
+aperti.card("a3", "**Grafica (G1–G4) e tier**\nIn attesa del via.")
 aperti.close()
 
-link("sp2", "t0")
-link("tf", "g1")
+link("sp3", "g1")
 
-with open("docs/mappa-progetto.canvas", "w", encoding="utf-8") as fh:
-    json.dump({"nodes": nodes, "edges": edges}, fh, ensure_ascii=False, indent=1)
+
+def obsidian_json(items):
+    """One compact object per line, tab-indented: the layout Obsidian writes when it saves a canvas."""
+    return ",\n".join("\t\t" + json.dumps(i, ensure_ascii=False, separators=(",", ":")) for i in items)
+
+
+with open("docs/mappa-progetto.canvas", "w", encoding="utf-8", newline="\n") as fh:
+    fh.write('{\n\t"nodes":[\n' + obsidian_json(nodes) + '\n\t],\n\t"edges":[\n'
+             + obsidian_json(edges) + '\n\t]\n}')
 print(f"{len(nodes)} nodi, {len(edges)} collegamenti")

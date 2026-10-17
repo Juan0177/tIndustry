@@ -90,6 +90,12 @@ public interface IGameView
     /// <summary>True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>.</summary>
     bool IsPlannedTile(GridPosition tile);
 
+    /// <summary>
+    /// The site already standing for build plan <paramref name="plan"/> (the current one, or one left where it
+    /// stopped when its stalled plan went to the back of the queue); null when the plan has none.
+    /// </summary>
+    ConstructSite? SiteOfPlan(BuildPlan plan);
+
     IWalletView Wallet { get; }
 
     IResearchView Research { get; }

@@ -209,10 +209,20 @@ public sealed class SimHost
         }
 
         var toolName = CommandReasons.BeltToolName(spec.StructureId);
-        return factory.State.Rules.InstantBuild
-            ? CheckBuildable(spec.StructureId, toolName, multiplicity: 1)
-                ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin)
-            : QueuePlan(command.PlayerId, spec, toolName);
+        if (factory.State.Rules.InstantBuild)
+        {
+            return CheckBuildable(spec.StructureId, toolName, multiplicity: 1)
+                ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
+        }
+
+        // A belt touching the Core turns to face it when built: the plan says so from the start, so the
+        // plan, its site and the finished belt all point the same way.
+        if (CoreStockSink.PreferDirectionIntoCore(spec.Origin, factory.CoreTiles) is { } intoCore)
+        {
+            spec = spec with { Direction = intoCore };
+        }
+
+        return QueuePlan(command.PlayerId, spec, toolName);
     }
 
     private string? ApplyPlaceBuilding(PlaceBuilding command)
@@ -277,9 +287,10 @@ public sealed class SimHost
 
     /// <summary>
     /// Instant build: removes the building, else the belt piece, with today's refund. Otherwise, in order:
-    /// cancels the player's queued plan on the tile; cancels a site under construction (100% of what it
-    /// spent comes back); leaves a site being taken apart alone (silent refusal); queues a breaking plan for a block or
-    /// belt piece (once); refuses silently on an empty tile.
+    /// cancels the player's not yet started plan covering the tile (a breaking plan from any cell of its
+    /// block, but not with <see cref="Remove.OnlyMark"/>); cancels a site under construction (100% of what it
+    /// spent comes back); leaves a site being taken apart alone (silent refusal); queues a breaking plan for a
+    /// block or belt piece (once); refuses silently on an empty tile.
     /// </summary>
     private string? ApplyRemove(Remove command)
     {
@@ -292,7 +303,7 @@ public sealed class SimHost
         }
 
         var builder = factory.BuilderOf(command.PlayerId);
-        if (builder is not null && TryCancelQueuedPlan(builder, tile))
+        if (builder is not null && TryCancelQueuedPlan(builder, tile, cancelBreaking: !command.OnlyMark))
         {
             return null;
         }
@@ -327,18 +338,24 @@ public sealed class SimHost
         return null;
     }
 
-    /// <summary>Removes the first not yet started plan of <paramref name="builder"/> covering <paramref name="tile"/>.</summary>
-    private bool TryCancelQueuedPlan(BuilderUnit builder, GridPosition tile)
+    /// <summary>
+    /// Removes the first not yet started plan of <paramref name="builder"/> covering <paramref name="tile"/>
+    /// (a breaking plan covers its whole block). A plan whose site already stands (the current one, or one
+    /// sent to the back of the queue while stalled) is left to the site: cancelling the site takes it apart.
+    /// </summary>
+    private bool TryCancelQueuedPlan(BuilderUnit builder, GridPosition tile, bool cancelBreaking)
     {
         // The first plan has started once the drone has a site for it.
         var first = builder.CurrentSiteId is null ? 0 : 1;
         for (var i = first; i < builder.Plans.Count; i++)
         {
             var plan = builder.Plans[i];
-            var covers = plan.Breaking
-                ? plan.Spec.Origin.Equals(tile)
-                : factory.Footprint(plan.Spec).Contains(tile);
-            if (covers)
+            if (plan.Breaking ? !cancelBreaking : factory.SiteOfPlan(plan) is not null)
+            {
+                continue;
+            }
+
+            if (factory.PlanTiles(plan).Contains(tile))
             {
                 builder.PlanQueue.RemoveAt(i);
                 return true;

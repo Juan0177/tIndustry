@@ -6,8 +6,9 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// The local drone's build queue (Mindustry's build plan box): the block being worked on with its
-/// progress bar (red while taking apart) and "+N" plans still waiting. A click asks the world to centre
-/// the camera on that block. Hidden while the queue is empty. Widgets change only when what they show does.
+/// progress bar (red while taking apart, amber with "Manca: ..." while stalled for materials) and "+N"
+/// plans still waiting. A click asks the world to centre the camera on that block. Hidden while the queue
+/// is empty. Widgets change only when what they show does.
 /// </summary>
 public partial class BuildQueuePanel : PanelContainer
 {
@@ -18,12 +19,18 @@ public partial class BuildQueuePanel : PanelContainer
 
     private static readonly Color BarBack = new(0.14f, 0.16f, 0.15f, 1f);
 
+    /// <summary>Bar colour of a site stalled for materials (amber, like Mindustry's warning).</summary>
+    private static readonly Color Stalled = new("F5A623");
+
     private TextureRect? _icon;
     private Label? _name;
     private ColorRect? _barFill;
     private Label? _more;
+    private Label? _missing;
     private string? _structureId;
     private bool _deconstructing;
+    private bool _stalled;
+    private CostEntry? _missingShown;
     private int _waiting = -1;
     private IGameView? _view;
 
@@ -86,6 +93,11 @@ public partial class BuildQueuePanel : PanelContainer
         };
         bar.AddChild(_barFill);
 
+        _missing = new Label { MouseFilter = MouseFilterEnum.Ignore, Visible = false };
+        _missing.AddThemeColorOverride("font_color", Insufficient);
+        _missing.AddThemeFontSizeOverride("font_size", 11);
+        column.AddChild(_missing);
+
         _more = new Label
         {
             MouseFilter = MouseFilterEnum.Ignore,
@@ -108,11 +120,8 @@ public partial class BuildQueuePanel : PanelContainer
         }
 
         var plan = builder.Plans[0];
-        ConstructSite? site = null;
-        if (builder.CurrentSiteId is { } siteId)
-        {
-            site = SiteById(view, siteId);
-        }
+        // Before the drone is back at a plan sent to the back while stalled, its site still stands.
+        var site = builder.CurrentSiteId is { } siteId ? SiteById(view, siteId) : view.SiteOfPlan(plan);
 
         var spec = site?.Spec ?? plan.Spec;
         var deconstructing = site?.Deconstructing ?? plan.Breaking;
@@ -130,10 +139,28 @@ public partial class BuildQueuePanel : PanelContainer
             }
         }
 
-        if (deconstructing != _deconstructing && _barFill is not null)
+        var missing = site is { Deconstructing: false } ? site.Missing : null;
+        var stalled = missing is not null;
+        if ((deconstructing != _deconstructing || stalled != _stalled) && _barFill is not null)
         {
             _deconstructing = deconstructing;
-            _barFill.Color = deconstructing ? ConstructionLayer.Remove : ConstructionLayer.Accent;
+            _stalled = stalled;
+            _barFill.Color = deconstructing ? ConstructionLayer.Remove
+                : stalled ? Stalled
+                : ConstructionLayer.Accent;
+        }
+
+        if (missing != _missingShown && _missing is not null)
+        {
+            _missingShown = missing;
+            _missing.Visible = missing is not null;
+            if (missing is { } line)
+            {
+                // Same wording as the site tooltip; money is named, materials by their display name.
+                _missing.Text = line.ItemId is null
+                    ? "Manca: denaro"
+                    : $"Manca: {view.Content.DisplayName(line.ItemId)}";
+            }
         }
 
         if (_barFill is not null)
@@ -172,7 +199,8 @@ public partial class BuildQueuePanel : PanelContainer
             return null;
         }
 
-        if (builder.CurrentSiteId is { } siteId && SiteById(view, siteId) is { } site)
+        var site = builder.CurrentSiteId is { } siteId ? SiteById(view, siteId) : view.SiteOfPlan(builder.Plans[0]);
+        if (site is { Tiles.Count: > 0 })
         {
             return ConstructionLayer.Bounds(site.Tiles);
         }

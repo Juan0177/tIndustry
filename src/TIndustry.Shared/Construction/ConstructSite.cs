@@ -21,8 +21,10 @@ public sealed class ConstructSite
         Spec = spec;
         Tiles = tiles.ToArray();
         Cost = cost.ToArray();
-        Spent = new int[Cost.Count];
-        Refunded = new int[Cost.Count];
+        SpentLines = new int[Cost.Count];
+        RefundedLines = new int[Cost.Count];
+        Spent = Array.AsReadOnly(SpentLines);
+        Refunded = Array.AsReadOnly(RefundedLines);
         OwnerPlayerId = ownerPlayerId;
     }
 
@@ -35,11 +37,17 @@ public sealed class ConstructSite
     /// <summary>0 = nothing built, 1 = complete.</summary>
     public float Progress { get; internal set; }
 
-    /// <summary>Taken from the Core so far, per <see cref="Cost"/> line.</summary>
-    public int[] Spent { get; }
+    /// <summary>Taken from the Core so far, per <see cref="Cost"/> line (read-only).</summary>
+    public IReadOnlyList<int> Spent { get; }
 
-    /// <summary>Given back so far while deconstructing, per <see cref="Cost"/> line.</summary>
-    public int[] Refunded { get; }
+    /// <summary>Given back so far while deconstructing, per <see cref="Cost"/> line (read-only).</summary>
+    public IReadOnlyList<int> Refunded { get; }
+
+    /// <summary>The live values behind <see cref="Spent"/>; only construction and restore change them.</summary>
+    internal int[] SpentLines { get; }
+
+    /// <summary>The live values behind <see cref="Refunded"/>.</summary>
+    internal int[] RefundedLines { get; }
 
     /// <summary>Whole cost of the block: money first (if any), then materials by ordinal id.</summary>
     public IReadOnlyList<CostEntry> Cost { get; }
@@ -60,6 +68,13 @@ public sealed class ConstructSite
     /// (cost − spent − available); null when the last tick was not stalled.
     /// </summary>
     public CostEntry? Missing { get; internal set; }
+
+    /// <summary>
+    /// Ticks in a row the site has been stalled while its drone worked on it (capped at
+    /// <see cref="Construction.StuckTicks"/>). At the cap, with other plans waiting, the drone moves the site's
+    /// plan to the back of its queue (Mindustry's <c>plan.stuck</c>); the site stays where it stopped.
+    /// </summary>
+    public int StalledTicks { get; internal set; }
 
     public bool Occupies(GridPosition tile)
     {
