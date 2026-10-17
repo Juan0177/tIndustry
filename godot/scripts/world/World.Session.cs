@@ -15,7 +15,7 @@ public partial class World
             return;
         }
 
-        if (!LoadSlice(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)))
+        if (!LoadGame(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)))
         {
             return; // stay on Home with the error visible
         }
@@ -42,14 +42,14 @@ public partial class World
     {
         var content = FactoryContent.Load(_contentPath);
         var core = Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
-        _slice = Factory.CreateSandboxSlice(
+        AttachGame(NewGame.Sandbox(
             content,
             core,
             coreSize: 2,
             mapWidth: DefaultMapWidth,
             mapHeight: DefaultMapHeight,
             seed: 42,
-            startingMoney: 180);
+            startingMoney: 180));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
@@ -66,13 +66,13 @@ public partial class World
         QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast($"Nuova partita · sandbox · seed {_slice.Terrain?.Seed ?? 42}");
+            _hud?.ShowToast($"Nuova partita · sandbox · seed {_view?.Terrain?.Seed ?? 42}");
         }
     }
 
     private void ToggleResearch()
     {
-        if (_slice is null || _research is null)
+        if (_view is null || _research is null)
         {
             return;
         }
@@ -86,12 +86,12 @@ public partial class World
         _mercato?.Close();
         _campaignSelect?.Close();
         ClearToCursor(toast: false);
-        _research.Open(_slice);
+        _research.Open(_view, c => SubmitCommand(c));
     }
 
     private void ToggleMercato()
     {
-        if (_slice is null || _mercato is null)
+        if (_view is null || _mercato is null)
         {
             return;
         }
@@ -105,35 +105,31 @@ public partial class World
         _research?.Close();
         _campaignSelect?.Close();
         ClearToCursor(toast: false);
-        _mercato.Open(_slice);
+        _mercato.Open(_view, c => SubmitCommand(c));
     }
 
     private void OnCoreUpgradeRequested()
     {
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
 
-        if (_slice.CoreUpgradeLevel > 0)
+        if (_view.CoreUpgradeLevel > 0)
         {
-            _hud?.ShowToast($"Core già a LV{_slice.CoreUpgradeLevel} (+{_slice.CoreSaleBonusPercent}%).");
+            _hud?.ShowToast($"Core già a LV{_view.CoreUpgradeLevel} (+{_view.CoreSaleBonusPercent}%).");
             return;
         }
 
-        var need = _slice.FormatCoreUpgradeNeedMessage();
+        var need = _view.FormatCoreUpgradeNeedMessage();
         if (!string.IsNullOrEmpty(need))
         {
             _hud?.ShowToast(need);
             return;
         }
 
-        if (_slice.TryUpgradeCore())
-        {
-            _hud?.ShowToast($"Core potenziato: +{_slice.CoreSaleBonusPercent}% vendite!");
-            _hud?.SyncCoreUpgrade(_slice);
-            UpdateHud();
-        }
+        // Toast and HUD refresh follow the host's CommandApplied (see OnCommandApplied).
+        SubmitCommand(new UpgradeCore(LocalPlayer));
     }
 
     private void ToggleCampaign()
@@ -164,13 +160,8 @@ public partial class World
         }
 
         var content = FactoryContent.Load(_contentPath);
-        _slice = Factory.CreateCampaignSlice(content, _campaign, level);
-        // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly
-        // after placing miner, but also allow starting sells from stock if we add ore.
-        if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
-        {
-            _slice.Wallet.AddMaterial("iron-ore", 8);
-        }
+        var factory = NewGame.Campaign(content, _campaign, level);
+        AttachGame(factory);
 
         _continueAutoSave.MarkPlayed();
         _activeLevel = level;
@@ -195,14 +186,14 @@ public partial class World
 
     private void FocusCameraOnCore()
     {
-        if (!HasNode("Camera") || _slice is null || _slice.CoreTiles.Count == 0)
+        if (!HasNode("Camera") || _view is null || _view.CoreTiles.Count == 0)
         {
             return;
         }
 
         var cam = GetNode<Camera2D>("Camera");
-        var cx = _slice.CoreTiles.Average(t => t.X);
-        var cy = _slice.CoreTiles.Average(t => t.Y);
+        var cx = _view.CoreTiles.Average(t => t.X);
+        var cy = _view.CoreTiles.Average(t => t.Y);
         cam.Position = new Vector2((float)(cx + 0.5) * TileSize, (float)(cy + 0.5) * TileSize);
         // Fit a bit of map around the core; zoom out on larger campaigns (culling keeps draw cheap).
         var edge = Math.Max(ActiveMapWidth, ActiveMapHeight);
@@ -212,10 +203,10 @@ public partial class World
             : edge <= 256 ? 0.18f
             : 0.14f;
         cam.Zoom = new Vector2(z, z);
-        if (cam is WorldCamera spike)
+        if (cam is WorldCamera worldCam)
         {
             // Allow deep zoom-out on 1000² without fighting Clamp.
-            spike.MinZoom = edge >= 256 ? 0.08f : 0.12f;
+            worldCam.MinZoom = edge >= 256 ? 0.08f : 0.12f;
             // Playable zoom near core so deposits/icons are readable (Raylib icons need ~16px).
             if (edge >= 256 && z < 0.35f)
             {
@@ -225,9 +216,9 @@ public partial class World
         }
 
         SyncCameraMapBounds();
-        if (cam is WorldCamera spikeCam)
+        if (cam is WorldCamera mapCam)
         {
-            spikeCam.ClampToMap();
+            mapCam.ClampToMap();
         }
     }
 
@@ -282,13 +273,13 @@ public partial class World
 
     private void CheckCampaignComplete()
     {
-        if (_slice is null || _activeLevel is null || _progress is null || _campaign is null)
+        if (_view is null || _activeLevel is null || _progress is null || _campaign is null)
         {
             return;
         }
 
         if (!CampaignProgress.AreAllObjectivesComplete(
-                _activeLevel, _slice.Wallet, _slice.Session, _slice.Research))
+                _activeLevel, _view.Wallet, _view.Session, _view.Research))
         {
             return;
         }
@@ -306,9 +297,9 @@ public partial class World
         }
     }
 
-    private void RestoreActiveLevelFromSlice()
+    private void RestoreActiveLevelFromGame()
     {
-        if (_slice?.ActiveCampaignLevelId is not { } id || _campaign is null)
+        if (_view?.ActiveCampaignLevelId is not { } id || _campaign is null)
         {
             _activeLevel = null;
             _hud?.ClearObjectives();
@@ -321,7 +312,7 @@ public partial class World
 
     private void SyncResearchLocks()
     {
-        if (_hud is null || _slice is null)
+        if (_hud is null || _view is null)
         {
             return;
         }
@@ -345,7 +336,7 @@ public partial class World
             Hud.ToolKind.PowerNodeT2
         };
         _hud.SetToolsLocked(tools.Select(t =>
-            (t, !_slice.IsStructureUnlocked(Hud.StructureIdFor(t)))));
+            (t, !_view.IsStructureUnlocked(Hud.StructureIdFor(t)))));
 
         if (_tool != BuildTool.Cursor && _hud.IsToolLocked(ToHudTool(_tool)))
         {
@@ -353,18 +344,18 @@ public partial class World
         }
     }
 
-    private void SaveSlice(string slotId, string toast)
+    private void SaveGame(string slotId, string toast)
     {
-        if (_slice is null)
+        if (_host is null)
         {
             return;
         }
 
         try
         {
-            FactorySaveStore.Save(slotId, _slice.Capture());
+            FactorySaveStore.Save(slotId, _host);
             _hud?.ShowToast(toast);
-            GD.Print($"Saved slice → {FactorySaveStore.SlotPath(slotId)}");
+            GD.Print($"Saved game → {FactorySaveStore.SlotPath(slotId)}");
         }
         catch (Exception ex)
         {
@@ -374,9 +365,26 @@ public partial class World
     }
 
     /// <summary>Returns true when the slot was loaded; on failure the current game is untouched.</summary>
-    private bool LoadSlice(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
+    private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
     {
-        if (!FactorySaveStore.TryLoad(slotId, out var data, out var error) || data is null)
+        SimHost? loaded = null;
+        string? error = null;
+        try
+        {
+            var content = FactoryContent.Load(_contentPath);
+            if (!FactorySaveStore.TryLoad(content, slotId, out loaded, out error))
+            {
+                loaded = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"Load failed: {ex.Message}");
+            loaded = null;
+            error = "Salvataggio non leggibile.";
+        }
+
+        if (loaded is null)
         {
             if (!quietFail)
             {
@@ -389,10 +397,10 @@ public partial class World
             return false;
         }
 
+        var previous = _host;
         try
         {
-            var content = FactoryContent.Load(_contentPath);
-            _slice = Factory.Restore(content, data);
+            AttachGame(loaded);
             _continueAutoSave.MarkPlayed();
             _itemSprites.Clear();
             if (_itemsLayer is not null)
@@ -408,17 +416,25 @@ public partial class World
             RebuildBeltVisual();
             RebuildBuildingVisuals();
             SyncResearchLocks();
-            RestoreActiveLevelFromSlice();
+            RestoreActiveLevelFromGame();
             UpdateHud();
             SyncCameraMapBounds();
             FocusCameraOnCore();
             QueueRedraw();
             _hud?.ShowToast(toast);
-            GD.Print($"Loaded slice ← {FactorySaveStore.SlotPath(slotId)}");
+            GD.Print($"Loaded game ← {FactorySaveStore.SlotPath(slotId)}");
             return true;
         }
         catch (Exception ex)
         {
+            // Put the previous game back so a failed load leaves the current game untouched.
+            if (previous is not null)
+            {
+                AttachGame(previous);
+                _visualDirty = true;
+                _buildingsDirty = true;
+            }
+
             _hud?.ShowToast("Caricamento fallito");
             showOnPanel?.Invoke("Caricamento fallito");
             GD.PushError($"Load failed: {ex.Message}");

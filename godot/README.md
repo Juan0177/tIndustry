@@ -66,7 +66,7 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 9: i salvataggi più vecchi non sono compatibili.  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 10 (metadati + istantanea): i salvataggi più vecchi non sono compatibili.  
 Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core.
 
 ## Projects

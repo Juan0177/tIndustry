@@ -19,7 +19,8 @@ public partial class ResearchPanel : Control
     private static readonly Color MancaCoral = new(220 / 255f, 140 / 255f, 120 / 255f, 1f);
     private static readonly Color Gold = new(211 / 255f, 164 / 255f, 76 / 255f, 1f);
 
-    private Factory? _slice;
+    private IGameView? _view;
+    private Action<SimCommand>? _submit;
     private TechTreeLayout.Graph? _graph;
     private TechTreeCanvas? _canvas;
     private PanelContainer? _detailPanel;
@@ -49,22 +50,23 @@ public partial class ResearchPanel : Control
         BuildUi();
     }
 
-    public void Open(Factory slice)
+    public void Open(IGameView factory, Action<SimCommand> submit)
     {
-        _slice = slice;
+        _view = factory;
+        _submit = submit;
         _statusMessage = null;
-        _graph = TechTreeLayout.Build(slice.Content);
+        _graph = TechTreeLayout.Build(factory.Content);
         // Default focus: the first thing you can research now (Mindustry draws the eye there too).
         _selectedId ??= _graph.Nodes
             .Where(n => !n.IsRoot)
-            .FirstOrDefault(n => slice.Research.GetNodeState(n.Structure) == ResearchNodeState.Available)
+            .FirstOrDefault(n => factory.Research.GetNodeState(n.Structure) == ResearchNodeState.Available)
             ?.Structure.Id ?? TechTreeLayout.RootId;
         if (_canvas is not null)
         {
             _canvas.Graph = _graph;
             _canvas.ResetView();
             _canvas.SelectedId = _selectedId;
-            _canvas.Research = slice.Research;
+            _canvas.Research = factory.Research;
         }
 
         Visible = true;
@@ -335,16 +337,16 @@ public partial class ResearchPanel : Control
 
     public void Refresh()
     {
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
 
-        _graph = TechTreeLayout.Build(_slice.Content);
+        _graph = TechTreeLayout.Build(_view.Content);
         if (_canvas is not null)
         {
             _canvas.Graph = _graph;
-            _canvas.Research = _slice.Research;
+            _canvas.Research = _view.Research;
             _canvas.SelectedId = _selectedId;
             _canvas.QueueRedraw();
         }
@@ -352,7 +354,7 @@ public partial class ResearchPanel : Control
         if (_walletLabel is not null)
         {
             _walletLabel.Text =
-                $"Fondi: ${_slice.Wallet.Money}   ·   bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente";
+                $"Fondi: ${_view.Wallet.Money}   ·   bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente";
         }
 
         RefreshDetail();
@@ -373,7 +375,7 @@ public partial class ResearchPanel : Control
     private void RefreshDetail()
     {
         RefreshDetailChrome();
-        if (_slice is null || _selectedId is null
+        if (_view is null || _selectedId is null
             || _detailTitle is null || _detailUsage is null || _detailState is null
             || _detailCost is null || _detailPrereq is null
             || _detailManca is null || _unlockButton is null)
@@ -394,15 +396,15 @@ public partial class ResearchPanel : Control
             return;
         }
 
-        var structure = _slice.Content.FindStructure(_selectedId);
+        var structure = _view.Content.FindStructure(_selectedId);
         if (structure is null)
         {
             return;
         }
 
-        var state = _slice.Research.GetNodeState(structure);
+        var state = _view.Research.GetNodeState(structure);
         _detailTitle.Text = structure.DisplayName;
-        _detailUsage.Text = FormatStructureUsage(structure.Id, _slice.Content);
+        _detailUsage.Text = FormatStructureUsage(structure.Id, _view.Content);
         _detailState.Text = state switch
         {
             ResearchNodeState.Unlocked => structure.IsStub
@@ -419,10 +421,10 @@ public partial class ResearchPanel : Control
         });
 
         _detailCost.Text = "Sblocco: " + FormatUnlockRequirement(structure.Unlock)
-            + "\nCostruzione: " + FormatBuildCost(structure.Id, _slice.Content);
-        _detailPrereq.Text = FormatPrereqs(structure, _slice);
+            + "\nCostruzione: " + FormatBuildCost(structure.Id, _view.Content);
+        _detailPrereq.Text = FormatPrereqs(structure, _view);
 
-        var manca = FormatMissingUnlockResources(structure, _slice);
+        var manca = FormatMissingUnlockResources(structure, _view);
         if (!string.IsNullOrEmpty(manca))
         {
             _detailManca.Text = manca;
@@ -438,55 +440,67 @@ public partial class ResearchPanel : Control
             _detailManca.Text = "";
         }
 
-        var canUnlock = _slice.Research.CanUnlock(structure, _slice.Wallet);
+        var canUnlock = _view.Research.CanUnlock(structure, _view.Wallet);
         _unlockButton.Disabled = !canUnlock;
-        _unlockButton.Text = _slice.Research.IsUnlocked(structure.Id)
+        _unlockButton.Text = _view.Research.IsUnlocked(structure.Id)
             ? "Già sbloccato"
-            : !_slice.Research.MeetsPrerequisites(structure)
+            : !_view.Research.MeetsPrerequisites(structure)
                 ? "Prerequisiti mancanti"
                 : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
     }
 
     private void OnUnlockPressed()
     {
-        if (_slice is null || _selectedId is null)
+        if (_view is null || _selectedId is null || _submit is null)
         {
             return;
         }
 
-        var structure = _slice.Content.FindStructure(_selectedId);
-        if (structure is null)
+        if (_view.Content.FindStructure(_selectedId) is null)
         {
             return;
         }
 
-        if (_slice.Research.IsUnlocked(structure.Id))
+        // Outcome (and the Italian reason on refusal) comes back through the host events.
+        _submit(new UnlockStructure(0, _selectedId));
+    }
+
+    /// <summary>Host applied a command: refresh the tree and report an unlock.</summary>
+    public void OnCommandApplied(SimCommand command)
+    {
+        if (command is not UnlockStructure unlock || _view is null)
         {
-            _statusMessage = "Già sbloccato.";
+            return;
         }
-        else if (!_slice.Research.MeetsPrerequisites(structure))
-        {
-            _statusMessage = "Prerequisiti mancanti.";
-        }
-        else if (_slice.TryUnlockStructure(_selectedId))
+
+        var structure = _view.Content.FindStructure(unlock.StructureId);
+        if (structure is not null)
         {
             _statusMessage = structure.IsStub
                 ? $"{structure.DisplayName} sbloccato (segnaposto — non costruibile ancora)."
                 : $"{structure.DisplayName} sbloccato!";
-            UnlockedChanged?.Invoke();
-        }
-        else
-        {
-            _statusMessage = "Risorse insufficienti per sbloccare.";
         }
 
+        UnlockedChanged?.Invoke();
+        Refresh();
+    }
+
+    /// <summary>Host refused a command: show its reason in the status line.</summary>
+    public void OnCommandRejected(SimCommand command, string reason)
+    {
+        if (command is not UnlockStructure)
+        {
+            return;
+        }
+
+        _statusMessage = reason;
         Refresh();
     }
 
     /// <summary>Hover text on a tree node: name, state and what it costs / what is missing.</summary>
     private string NodeTooltip(string id)
     {
-        if (_slice is null)
+        if (_view is null)
         {
             return "";
         }
@@ -496,19 +510,19 @@ public partial class ResearchPanel : Control
             return "CORE";
         }
 
-        var structure = _slice.Content.FindStructure(id);
+        var structure = _view.Content.FindStructure(id);
         if (structure is null)
         {
             return "";
         }
 
-        return _slice.Research.GetNodeState(structure) switch
+        return _view.Research.GetNodeState(structure) switch
         {
             ResearchNodeState.Unlocked => $"{structure.DisplayName}\nSbloccato",
             ResearchNodeState.Available =>
                 $"{structure.DisplayName}\nSblocco: {FormatUnlockRequirement(structure.Unlock)}"
-                + (FormatMissingUnlockResources(structure, _slice) is { Length: > 0 } manca ? $"\n{manca}" : ""),
-            _ => $"{structure.DisplayName}\n{FormatPrereqs(structure, _slice)}"
+                + (FormatMissingUnlockResources(structure, _view) is { Length: > 0 } manca ? $"\n{manca}" : ""),
+            _ => $"{structure.DisplayName}\n{FormatPrereqs(structure, _view)}"
         };
     }
 
@@ -609,27 +623,27 @@ public partial class ResearchPanel : Control
             : $"${unlock.Money} + {materials}";
     }
 
-    private static string FormatMissingUnlockResources(StructureDefinition structure, Factory slice)
+    private static string FormatMissingUnlockResources(StructureDefinition structure, IGameView factory)
     {
-        if (slice.Research.IsUnlocked(structure.Id) || !slice.Research.MeetsPrerequisites(structure))
+        if (factory.Research.IsUnlocked(structure.Id) || !factory.Research.MeetsPrerequisites(structure))
         {
             return string.Empty;
         }
 
-        if (structure.Unlock is null || slice.Research.CanUnlock(structure, slice.Wallet))
+        if (structure.Unlock is null || factory.Research.CanUnlock(structure, factory.Wallet))
         {
             return string.Empty;
         }
 
         var missing = new List<string>();
-        if (slice.Wallet.Money < structure.Unlock.Money)
+        if (factory.Wallet.Money < structure.Unlock.Money)
         {
-            missing.Add($"${structure.Unlock.Money - slice.Wallet.Money}");
+            missing.Add($"${structure.Unlock.Money - factory.Wallet.Money}");
         }
 
         foreach (var entry in structure.Unlock.Materials)
         {
-            var have = slice.Wallet.MaterialCount(entry.ItemId);
+            var have = factory.Wallet.MaterialCount(entry.ItemId);
             if (have < entry.Amount)
             {
                 missing.Add($"{entry.Amount - have} {ItemShortLabel(entry.ItemId)}");
@@ -639,7 +653,7 @@ public partial class ResearchPanel : Control
         return missing.Count == 0 ? string.Empty : "Manca: " + string.Join(" + ", missing);
     }
 
-    private static string FormatPrereqs(StructureDefinition structure, Factory slice)
+    private static string FormatPrereqs(StructureDefinition structure, IGameView factory)
     {
         if (structure.Prerequisites.Count == 0)
         {
@@ -648,8 +662,8 @@ public partial class ResearchPanel : Control
 
         var bits = structure.Prerequisites.Select(id =>
         {
-            var name = slice.Content.FindStructure(id)?.DisplayName ?? id;
-            return slice.Research.IsUnlocked(id) ? name : $"{name} (manca)";
+            var name = factory.Content.FindStructure(id)?.DisplayName ?? id;
+            return factory.Research.IsUnlocked(id) ? name : $"{name} (manca)";
         });
         return "Prerequisiti: " + string.Join(", ", bits);
     }

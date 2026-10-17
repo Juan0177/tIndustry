@@ -31,8 +31,8 @@ public partial class World
     private void SelectTool(BuildTool tool, bool toast = false)
     {
         if (tool != BuildTool.Cursor
-            && _slice is not null
-            && !_slice.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
+            && _view is not null
+            && !_view.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
         {
             _hud?.ShowToast($"{ToolIt(tool)} bloccato: sbloccalo in Ricerca (T).");
             return;
@@ -137,7 +137,7 @@ public partial class World
             return;
         }
 
-        if (_slice is null)
+        if (_view is null)
         {
             return;
         }
@@ -279,28 +279,28 @@ public partial class World
 
             if (key.Keycode == Key.F5)
             {
-                SaveSlice(FactorySaveStore.ContinueSlotId, "Partita salvata (continua)");
+                SaveGame(FactorySaveStore.ContinueSlotId, "Partita salvata (continua)");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F9)
             {
-                LoadSlice(FactorySaveStore.ContinueSlotId, "Partita caricata (continua)");
+                LoadGame(FactorySaveStore.ContinueSlotId, "Partita caricata (continua)");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F6)
             {
-                SaveSlice(FactorySaveStore.QuickSlotId, "Slot-1 salvato");
+                SaveGame(FactorySaveStore.QuickSlotId, "Slot-1 salvato");
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F7)
             {
-                LoadSlice(FactorySaveStore.QuickSlotId, "Slot-1 caricato");
+                LoadGame(FactorySaveStore.QuickSlotId, "Slot-1 caricato");
                 GetViewport().SetInputAsHandled();
                 return;
             }

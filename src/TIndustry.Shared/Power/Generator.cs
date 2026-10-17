@@ -2,7 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// 2×2 generator that burns coal from belts and
-/// feeds the slice power buffer (capacity/generation) while marking
+/// feeds the factory power buffer (capacity/generation) while marking
 /// adjacent craft as network-connected for TrySpendPower.
 /// </summary>
 public sealed class Generator

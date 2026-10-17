@@ -20,7 +20,7 @@ public partial class World
 
     private void RebuildBuildingVisuals()
     {
-        if (_slice is null || _buildingsLayer is null)
+        if (_view is null || _buildingsLayer is null)
         {
             return;
         }
@@ -32,42 +32,42 @@ public partial class World
 
         AddCoreVisual();
 
-        foreach (var miner in _slice.Miners)
+        foreach (var miner in _view.Miners)
         {
             var node = MinerVisual.Create(miner, TileSize);
             node.Position = FootprintCenter(miner.Position, Miner.Size);
             _buildingsLayer.AddChild(node);
         }
 
-        foreach (var smelter in _slice.Smelters)
+        foreach (var smelter in _view.Smelters)
         {
             var node = SmelterVisual.Create(smelter, TileSize);
             node.Position = FootprintCenter(smelter.Position, Crafter.Size);
             _buildingsLayer.AddChild(node);
         }
 
-        foreach (var assembler in _slice.Assemblers)
+        foreach (var assembler in _view.Assemblers)
         {
             var node = AssemblerVisual.Create(assembler, TileSize);
             node.Position = FootprintCenter(assembler.Position, Crafter.Size);
             _buildingsLayer.AddChild(node);
         }
 
-        foreach (var gen in _slice.Generators)
+        foreach (var gen in _view.Generators)
         {
             var node = GeneratorVisual.Create(gen, TileSize);
             node.Position = FootprintCenter(gen.Position, Generator.Size);
             _buildingsLayer.AddChild(node);
         }
 
-        foreach (var ex in _slice.Extractors)
+        foreach (var ex in _view.Extractors)
         {
             var node = ExtractorVisual.Create(ex, TileSize);
             node.Position = FootprintCenter(ex.Position, Extractor.Size);
             _buildingsLayer.AddChild(node);
         }
 
-        foreach (var pn in _slice.PowerNodes)
+        foreach (var pn in _view.PowerNodes)
         {
             var t2 = pn.DefinitionId == PowerNode.Tier2Id;
             var node = BuildingPad.Create(
@@ -86,7 +86,7 @@ public partial class World
 
     private void SyncBuildingVisuals(float delta)
     {
-        if (_slice is null || _buildingsLayer is null)
+        if (_view is null || _buildingsLayer is null)
         {
             return;
         }
@@ -96,7 +96,7 @@ public partial class World
             switch (child)
             {
                 case MinerVisual minerVis:
-                    foreach (var miner in _slice.Miners)
+                    foreach (var miner in _view.Miners)
                     {
                         if (miner.Position.Equals(minerVis.MinerOrigin))
                         {
@@ -107,7 +107,7 @@ public partial class World
 
                     break;
                 case ExtractorVisual exVis:
-                    foreach (var ex in _slice.Extractors)
+                    foreach (var ex in _view.Extractors)
                     {
                         if (ex.Position.Equals(exVis.Origin))
                         {
@@ -118,7 +118,7 @@ public partial class World
 
                     break;
                 case SmelterVisual smVis:
-                    foreach (var sm in _slice.Smelters)
+                    foreach (var sm in _view.Smelters)
                     {
                         if (sm.Position.Equals(smVis.Origin))
                         {
@@ -129,7 +129,7 @@ public partial class World
 
                     break;
                 case AssemblerVisual asmVis:
-                    foreach (var asm in _slice.Assemblers)
+                    foreach (var asm in _view.Assemblers)
                     {
                         if (asm.Position.Equals(asmVis.Origin))
                         {
@@ -140,7 +140,7 @@ public partial class World
 
                     break;
                 case GeneratorVisual genVis:
-                    foreach (var gen in _slice.Generators)
+                    foreach (var gen in _view.Generators)
                     {
                         if (gen.Position.Equals(genVis.Origin))
                         {
@@ -171,26 +171,26 @@ public partial class World
 
     private void RebuildBeltVisual()
     {
-        if (_slice is null || _beltVisual is null)
+        if (_view is null || _beltVisual is null)
         {
             return;
         }
 
         _beltVisual.ConfigureFromGrid(
-            _slice.Belts,
-            _slice.BeltDefinition.RateItemsPerSecond,
+            _view,
+            _view.BeltDefinition.RateItemsPerSecond,
             TileSize);
     }
 
     private void SyncItemSprites()
     {
-        if (_slice is null || _itemsLayer is null)
+        if (_view is null || _itemsLayer is null)
         {
             return;
         }
 
         var live = new HashSet<long>();
-        foreach (var cell in _slice.Belts.Cells.Values)
+        foreach (var cell in _view.Belts.Values)
         {
             foreach (var item in cell.Items)
             {
@@ -262,7 +262,7 @@ public partial class World
                 var holderNode = sprite.GetParent() as Node2D ?? sprite;
                 holderNode.Position = pos;
                 // Corner = galleria: items disappear while inside the turn.
-                holderNode.Visible = !_slice.Belts.IsCorner(cell.Position);
+                holderNode.Visible = !_view.IsBeltCorner(cell.Position);
             }
         }
 
@@ -286,40 +286,40 @@ public partial class World
 
     private void UpdateHud()
     {
-        if (_hud is null || _slice is null)
+        if (_hud is null || _view is null)
         {
             return;
         }
 
-        var onBelt = _slice.Belts.Cells.Values.Sum(c => c.Items.Count);
-        var gensLive = _slice.Generators.Count(g => g.IsGenerating);
-        _hud.BindEconomy(_slice.Content, _slice.Wallet);
-        _hud.SyncCoreUpgrade(_slice);
+        var onBelt = _view.Belts.Values.Sum(c => c.Items.Count);
+        var gensLive = _view.Generators.Count(g => g.IsGenerating);
+        _hud.BindEconomy(_view.Content, _view.Wallet);
+        _hud.SyncCoreUpgrade(_view);
         _hud.UpdateStock(
-            ShortName(_slice.Content.DisplayName("iron-ore")),
-            _slice.Wallet.MaterialCount("iron-ore"),
-            ShortName(_slice.Content.DisplayName("iron-plate")),
-            _slice.Wallet.MaterialCount("iron-plate"),
-            ShortName(_slice.Content.DisplayName("copper-ore")),
-            _slice.Wallet.MaterialCount("copper-ore"),
-            ShortName(_slice.Content.DisplayName("copper-wire")),
-            _slice.Wallet.MaterialCount("copper-wire"),
-            _slice.CoreDeliveredItems,
+            ShortName(_view.Content.DisplayName("iron-ore")),
+            _view.Wallet.MaterialCount("iron-ore"),
+            ShortName(_view.Content.DisplayName("iron-plate")),
+            _view.Wallet.MaterialCount("iron-plate"),
+            ShortName(_view.Content.DisplayName("copper-ore")),
+            _view.Wallet.MaterialCount("copper-ore"),
+            ShortName(_view.Content.DisplayName("copper-wire")),
+            _view.Wallet.MaterialCount("copper-wire"),
+            _view.CoreDeliveredItems,
             onBelt,
-            _slice.Wallet.Money,
+            _view.Wallet.Money,
             gensLive,
-            _slice.Generators.Count,
-            _slice.PowerBuffer,
-            _slice.PowerCapacity);
+            _view.Generators.Count,
+            _view.PowerBuffer,
+            _view.PowerCapacity);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
         if (_activeLevel is not null)
         {
             _hud.UpdateObjectives(
                 _activeLevel,
-                _slice.Wallet,
-                _slice.Session,
-                _slice.Research,
-                id => ShortName(_slice.Content.DisplayName(id)));
+                _view.Wallet,
+                _view.Session,
+                _view.Research,
+                id => ShortName(_view.Content.DisplayName(id)));
         }
         else
         {
@@ -359,16 +359,16 @@ public partial class World
     /// <summary>CORE sprite + outline as a building node (z above belt items).</summary>
     private void AddCoreVisual()
     {
-        if (_slice is null || _buildingsLayer is null || _slice.CoreTiles.Count == 0)
+        if (_view is null || _buildingsLayer is null || _view.CoreTiles.Count == 0)
         {
             return;
         }
 
-        var minX = _slice.CoreTiles.Min(t => t.X);
-        var minY = _slice.CoreTiles.Min(t => t.Y);
+        var minX = _view.CoreTiles.Min(t => t.X);
+        var minY = _view.CoreTiles.Min(t => t.Y);
         var size = new Vector2(
-            (_slice.CoreTiles.Max(t => t.X) - minX + 1) * TileSize,
-            (_slice.CoreTiles.Max(t => t.Y) - minY + 1) * TileSize);
+            (_view.CoreTiles.Max(t => t.X) - minX + 1) * TileSize,
+            (_view.CoreTiles.Max(t => t.Y) - minY + 1) * TileSize);
         var root = new Node2D
         {
             Name = "Core",

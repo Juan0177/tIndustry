@@ -1,30 +1,42 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Playable factory slice: miners → belts → forni/assemblatori → core stock.
+/// Playable factory simulation: miners → belts → forni/assemblatori → core stock.
 /// Phase F: generators feed a shared power buffer; connected craft spends for +20%.
 /// Soft brownout: empty buffer → forno falls back to coal; assembler loses bonus.
 /// </summary>
-public sealed class Factory
+public sealed class Factory : IGameView
 {
     /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
-    public const float CorePowerCapacity = 24f;
+    public const float CorePowerCapacity = GameState.CorePowerCapacity;
     /// <summary>Raylib <c>FactoryWorld.CorePowerGeneration</c> (always ticks into buffer).</summary>
-    public const float CorePowerGeneration = 12f;
+    public const float CorePowerGeneration = GameState.CorePowerGeneration;
     /// <summary>Raylib <c>FactoryWorld.SmelterPowerDraw</c> (per second while powered craft).</summary>
-    public const float SmelterPowerDraw = 8f;
+    public const float SmelterPowerDraw = CraftingSystem.SmelterPowerDraw;
     /// <summary>Raylib <c>FactoryWorld.AssemblerPowerDraw</c>.</summary>
-    public const float AssemblerPowerDraw = 10f;
+    public const float AssemblerPowerDraw = CraftingSystem.AssemblerPowerDraw;
 
-    private long nextItemId = 1;
-    /// <summary>Next stable building id (miners, crafters, generators, extractors, power nodes).</summary>
-    private long nextEntityId = 1;
-    private readonly List<Miner> miners = [];
-    private readonly List<Crafter> smelters = [];
-    private readonly List<Crafter> assemblers = [];
-    private readonly List<Generator> generators = [];
-    private readonly List<Extractor> extractors = [];
-    private readonly List<PowerNode> powerNodes = [];
+    /// <summary>The whole simulation state; <see cref="Simulation.Step"/> advances it.</summary>
+    public GameState State { get; }
+
+    private long nextItemId
+    {
+        get => State.NextItemId;
+        set => State.NextItemId = value;
+    }
+
+    private long nextEntityId
+    {
+        get => State.NextEntityId;
+        set => State.NextEntityId = value;
+    }
+
+    private List<Miner> miners => State.Miners;
+    private List<Crafter> smelters => State.Smelters;
+    private List<Crafter> assemblers => State.Assemblers;
+    private List<Generator> generators => State.Generators;
+    private List<Extractor> extractors => State.Extractors;
+    private List<PowerNode> powerNodes => State.PowerNodes;
 
     public Factory(
         FactoryContent content,
@@ -34,13 +46,15 @@ public sealed class Factory
         ResearchState? research = null,
         EconomySession? session = null)
     {
-        Content = content;
-        Belts = belts;
-        CoreTiles = coreTiles;
-        Wallet = wallet ?? new EconomyWallet();
-        Research = research ?? ResearchState.CreateNew(content);
-        Market = MarketCatalog.FromContent(content);
-        Session = session ?? new EconomySession(Wallet.Money);
+        var resolvedWallet = wallet ?? new EconomyWallet();
+        State = new GameState(
+            content,
+            belts,
+            coreTiles,
+            resolvedWallet,
+            research ?? ResearchState.CreateNew(content),
+            session ?? new EconomySession(resolvedWallet.Money),
+            MarketCatalog.FromContent(content));
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
@@ -49,30 +63,83 @@ public sealed class Factory
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
-    public FactoryContent Content { get; }
-    public BeltGrid Belts { get; }
+    /// <summary>Wraps an existing state (used by snapshots); definitions come from its content.</summary>
+    internal Factory(GameState state)
+    {
+        State = state ?? throw new ArgumentNullException(nameof(state));
+        BeltDefinition = state.Belts.DefaultDefinition
+            ?? state.Content.RequireConveyor("conveyor-basic");
+        JunctionDefinition = state.Content.RequireConveyor("junction");
+        SplitterDefinition = state.Content.RequireConveyor("splitter");
+        SorterDefinition = state.Content.RequireConveyor("sorter");
+        BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
+    }
+
+    public FactoryContent Content => State.Content;
+    public BeltGrid Belts => State.Belts;
     public ConveyorDefinition BeltDefinition { get; }
     public ConveyorDefinition JunctionDefinition { get; }
     public ConveyorDefinition SplitterDefinition { get; }
     public ConveyorDefinition SorterDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
-    public IReadOnlySet<GridPosition> CoreTiles { get; }
-    public EconomyWallet Wallet { get; }
-    public ResearchState Research { get; }
-    public MarketCatalog Market { get; }
-    public EconomySession Session { get; }
-    public string? ActiveCampaignLevelId { get; set; }
-    public bool AutoSellAtCore { get; set; }
-    public int CoreUpgradeLevel { get; private set; }
-    public int CoreSaleBonusPercent { get; private set; }
+    public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
+    public EconomyWallet Wallet => State.Wallet;
+    public ResearchState Research => State.Research;
+    public MarketCatalog Market => State.Market;
+    public EconomySession Session => State.Session;
+    public string? ActiveCampaignLevelId
+    {
+        get => State.ActiveCampaignLevelId;
+        set => State.ActiveCampaignLevelId = value;
+    }
+
+    public bool AutoSellAtCore
+    {
+        get => State.AutoSellAtCore;
+        set => State.AutoSellAtCore = value;
+    }
+
+    public int CoreUpgradeLevel
+    {
+        get => State.CoreUpgradeLevel;
+        private set => State.CoreUpgradeLevel = value;
+    }
+
+    public int CoreSaleBonusPercent
+    {
+        get => State.CoreSaleBonusPercent;
+        private set => State.CoreSaleBonusPercent = value;
+    }
+
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
-    public float PowerBuffer { get; private set; }
+    public float PowerBuffer
+    {
+        get => State.PowerBuffer;
+        private set => State.PowerBuffer = value;
+    }
+
     /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
-    public float PowerCapacity { get; private set; } = CorePowerCapacity;
+    public float PowerCapacity
+    {
+        get => State.PowerCapacity;
+        private set => State.PowerCapacity = value;
+    }
+
     /// <summary>Last tick generation rate (core + live gens).</summary>
-    public float PowerGenerationPerSecond { get; private set; } = CorePowerGeneration;
-    public TerrainMap? Terrain { get; set; }
-    public long CoreDeliveredItems { get; private set; }
+    public float PowerGenerationPerSecond => State.PowerGenerationPerSecond;
+
+    public TerrainMap? Terrain
+    {
+        get => State.Terrain;
+        set => State.Terrain = value;
+    }
+
+    public long CoreDeliveredItems
+    {
+        get => State.CoreDeliveredItems;
+        private set => State.CoreDeliveredItems = value;
+    }
+
     public IReadOnlyList<Miner> Miners => miners;
     public IReadOnlyList<Crafter> Smelters => smelters;
     public IReadOnlyList<Crafter> Assemblers => assemblers;
@@ -83,7 +150,21 @@ public sealed class Factory
     public long NextEntityId => nextEntityId;
 
     /// <summary>Fixed ticks simulated so far (<see cref="SimulationClock.TickSeconds"/> each).</summary>
-    public long CurrentTick { get; private set; }
+    public long CurrentTick
+    {
+        get => State.CurrentTick;
+        private set => State.CurrentTick = value;
+    }
+
+    IReadOnlyDictionary<GridPosition, BeltGridCell> IGameView.Belts => Belts.Cells;
+    IWalletView IGameView.Wallet => Wallet;
+    IResearchView IGameView.Research => Research;
+    ISessionView IGameView.Session => Session;
+
+    public bool IsBeltCorner(GridPosition position) => Belts.IsCorner(position);
+
+    public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
+        Belts.TryGetIncomingDirection(position, out incoming);
 
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;
@@ -248,12 +329,9 @@ public sealed class Factory
             Math.Max(1, data.CoreSize));
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var research = ResearchState.FromSaved(data.UnlockedStructures, content);
-        var session = new EconomySession(data.StartingMoney > 0 ? data.StartingMoney : data.Money);
-        session.Restore(
-            data.StartingMoney > 0 ? data.StartingMoney : data.Money,
-            data.SaleIncome,
-            data.SoldByItem);
-        var slice = new Factory(content, belts, core, wallet, research, session)
+        var session = new EconomySession(data.StartingMoney);
+        session.Restore(data.StartingMoney, data.SaleIncome, data.SoldByItem);
+        var factory = new Factory(content, belts, core, wallet, research, session)
         {
             nextItemId = Math.Max(1, data.NextItemId),
             CurrentTick = Math.Max(0, data.CurrentTick),
@@ -263,15 +341,16 @@ public sealed class Factory
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
-        slice.SetPowerBuffer(data.PowerBuffer);
-        // Capacity recalculates on first Tick from live gens; seed from save when present.
+        // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
+        // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
         {
-            slice.PowerCapacity = Math.Max(CorePowerCapacity, data.PowerCapacity);
-            slice.PowerBuffer = Math.Clamp(slice.PowerBuffer, 0f, slice.PowerCapacity);
+            factory.PowerCapacity = Math.Max(CorePowerCapacity, data.PowerCapacity);
         }
 
-        // Saves written before stable ids (id 0) get fresh ids in list order.
+        factory.PowerBuffer = Math.Clamp(data.PowerBuffer, 0f, factory.PowerCapacity);
+
+        // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
             .Concat(data.Smelters.Select(d => d.Id))
             .Concat(data.Assemblers.Select(d => d.Id))
@@ -280,8 +359,8 @@ public sealed class Factory
             .Concat(data.PowerNodes.Select(d => d.Id))
             .DefaultIfEmpty(0)
             .Max();
-        slice.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);
-        long RestoredId(long savedId) => savedId > 0 ? savedId : slice.nextEntityId++;
+        factory.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);
+        long RestoredId(long savedId) => savedId > 0 ? savedId : factory.nextEntityId++;
 
         foreach (var m in data.Miners)
         {
@@ -292,24 +371,24 @@ public sealed class Factory
                 definitionId: m.DefinitionId,
                 id: RestoredId(m.Id));
             miner.RestoreProgress(m.Progress, m.EjectIndex);
-            slice.miners.Add(miner);
+            factory.miners.Add(miner);
         }
 
         foreach (var s in data.Smelters)
         {
-            slice.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId, RestoredId(s.Id)));
+            factory.smelters.Add(RestoreCraft(content, s, Crafter.SmelterBuildingId, RestoredId(s.Id)));
         }
 
         foreach (var a in data.Assemblers)
         {
-            slice.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
+            factory.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
         }
 
         foreach (var g in data.Generators)
         {
             var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id));
             gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
-            slice.generators.Add(gen);
+            factory.generators.Add(gen);
         }
 
         foreach (var e in data.Extractors)
@@ -320,12 +399,12 @@ public sealed class Factory
                 e.FilterItemId,
                 RestoredId(e.Id));
             ex.RestoreProgress(e.Progress);
-            slice.extractors.Add(ex);
+            factory.extractors.Add(ex);
         }
 
         foreach (var n in data.PowerNodes)
         {
-            slice.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
+            factory.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
         }
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
@@ -337,21 +416,21 @@ public sealed class Factory
                 Math.Max(1, data.CoreSize),
                 w,
                 h);
-            slice.Terrain = TerrainMap.Generate(
+            factory.Terrain = TerrainMap.Generate(
                 w,
                 h,
                 data.Seed,
-                slice.CoreTiles,
+                factory.CoreTiles,
                 starter);
         }
 
-        SortById(slice.miners, m => m.Id);
-        SortById(slice.smelters, s => s.Id);
-        SortById(slice.assemblers, a => a.Id);
-        SortById(slice.generators, g => g.Id);
-        SortById(slice.extractors, e => e.Id);
-        SortById(slice.powerNodes, n => n.Id);
-        return slice;
+        SortById(factory.miners, m => m.Id);
+        SortById(factory.smelters, s => s.Id);
+        SortById(factory.assemblers, a => a.Id);
+        SortById(factory.generators, g => g.Id);
+        SortById(factory.extractors, e => e.Id);
+        SortById(factory.powerNodes, n => n.Id);
+        return factory;
     }
 
     /// <summary>Systems iterate buildings in ascending id order (stable sort keeps list order on ties).</summary>
@@ -403,13 +482,13 @@ public sealed class Factory
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        var factory = new Factory(content, grid, core);
+        factory.UnlockAllForDemo();
 
         // Miner 2×2 at (2,7); forno 2×2 at (6,7).
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
-        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, recipe);
-        SeedSmelterFuel(slice);
+        factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
+        factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, recipe);
+        SeedSmelterFuel(factory);
 
         // Feed: (4,8)(5,8) → into forno west edge (6,8).
         grid.PlacePath(
@@ -433,7 +512,7 @@ public sealed class Factory
             new GridPosition(10, 13)
         ], beltDef);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -449,16 +528,16 @@ public sealed class Factory
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        var factory = new Factory(content, grid, core);
+        factory.UnlockAllForDemo();
 
         // Iron miner (2,7) → forno (6,7) → plates east toward assembler (12,7).
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
-        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
-        slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
+        factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
+        factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
+        factory.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
         // Copper miner south of iron row.
-        slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
-        SeedSmelterFuel(slice);
+        factory.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+        SeedSmelterFuel(factory);
 
         // Iron ore feed into forno.
         grid.PlacePath(
@@ -511,7 +590,7 @@ public sealed class Factory
         ], beltDef);
         grid.TryOrient(new GridPosition(10, 13), Direction.South);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -528,14 +607,14 @@ public sealed class Factory
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
+        var factory = new Factory(content, grid, core);
+        factory.UnlockAllForDemo();
 
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
-        slice.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
-        slice.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
-        slice.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
-        SeedSmelterFuel(slice);
+        factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East, "iron-ore");
+        factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East, smelt);
+        factory.TryPlaceAssembler(new GridPosition(12, 7), Direction.East, wire);
+        factory.TryPlaceMiner(new GridPosition(2, 10), Direction.East, "copper-ore");
+        SeedSmelterFuel(factory);
 
         // Iron ore → forno.
         grid.PlacePath([new GridPosition(4, 8), new GridPosition(5, 8)], beltDef);
@@ -587,7 +666,7 @@ public sealed class Factory
         grid.PlacePath([new GridPosition(15, 10), new GridPosition(16, 10)], beltDef);
         grid.TryOrient(new GridPosition(16, 10), Direction.East);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -595,21 +674,21 @@ public sealed class Factory
     /// </summary>
     public static Factory CreatePhaseFDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
-        var slice = CreatePhaseEDemo(content, beltId);
-        var beltDef = slice.BeltDefinition;
+        var factory = CreatePhaseEDemo(content, beltId);
+        var beltDef = factory.BeltDefinition;
 
         // Generator north of forno (6,7) → adjacent on south edge.
-        Require(slice.TryPlaceGenerator(new GridPosition(6, 5), Direction.East), "generator seed");
+        Require(factory.TryPlaceGenerator(new GridPosition(6, 5), Direction.East), "generator seed");
         // Coal miner west of generator.
-        Require(slice.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "coal"), "coal miner");
-        slice.Belts.PlacePath(
+        Require(factory.TryPlaceMiner(new GridPosition(2, 4), Direction.East, "coal"), "coal miner");
+        factory.Belts.PlacePath(
         [
             new GridPosition(4, 5),
             new GridPosition(5, 5)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(5, 5), Direction.East);
+        factory.Belts.TryOrient(new GridPosition(5, 5), Direction.East);
 
-        return slice;
+        return factory;
     }
 
     /// <summary>
@@ -617,77 +696,48 @@ public sealed class Factory
     /// </summary>
     public static Factory CreateSorterBridgeDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
-        var slice = CreatePhaseFDemo(content, beltId);
-        var beltDef = slice.BeltDefinition;
+        var factory = CreatePhaseFDemo(content, beltId);
+        var beltDef = factory.BeltDefinition;
 
         // Sorter corridor (north of craft loop): feed → sorter → match east / overflow N+S.
-        slice.Belts.PlacePath(
+        factory.Belts.PlacePath(
         [
             new GridPosition(16, 2),
             new GridPosition(17, 2)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(17, 2), Direction.East);
-        Require(slice.TryPlaceSorter(new GridPosition(18, 2), Direction.East), "sorter seed");
-        slice.Belts.PlacePath([new GridPosition(19, 2), new GridPosition(20, 2)], beltDef);
-        slice.Belts.TryOrient(new GridPosition(20, 2), Direction.East);
-        slice.Belts.PlacePath([new GridPosition(18, 1)], beltDef); // overflow left of East = North
-        slice.Belts.TryOrient(new GridPosition(18, 1), Direction.North);
-        slice.Belts.PlacePath([new GridPosition(18, 3)], beltDef); // overflow right of East = South
-        slice.Belts.TryOrient(new GridPosition(18, 3), Direction.South);
+        factory.Belts.TryOrient(new GridPosition(17, 2), Direction.East);
+        Require(factory.TryPlaceSorter(new GridPosition(18, 2), Direction.East), "sorter seed");
+        factory.Belts.PlacePath([new GridPosition(19, 2), new GridPosition(20, 2)], beltDef);
+        factory.Belts.TryOrient(new GridPosition(20, 2), Direction.East);
+        factory.Belts.PlacePath([new GridPosition(18, 1)], beltDef); // overflow left of East = North
+        factory.Belts.TryOrient(new GridPosition(18, 1), Direction.North);
+        factory.Belts.PlacePath([new GridPosition(18, 3)], beltDef); // overflow right of East = South
+        factory.Belts.TryOrient(new GridPosition(18, 3), Direction.South);
 
         // Bridge span 2 over mid (16,12)→(18,12); mid stays empty for thin-span visual.
         // Underpass: belt corridor south of mid (proves mid freeness without covering the span).
-        Require(slice.TryPlaceBridge(new GridPosition(16, 12), Direction.East), "bridge seed");
-        slice.Belts.PlacePath(
+        Require(factory.TryPlaceBridge(new GridPosition(16, 12), Direction.East), "bridge seed");
+        factory.Belts.PlacePath(
         [
             new GridPosition(15, 12)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(15, 12), Direction.East);
-        slice.Belts.PlacePath(
+        factory.Belts.TryOrient(new GridPosition(15, 12), Direction.East);
+        factory.Belts.PlacePath(
         [
             new GridPosition(19, 12),
             new GridPosition(20, 12)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(20, 12), Direction.East);
+        factory.Belts.TryOrient(new GridPosition(20, 12), Direction.East);
         // Parallel underpass corridor (y=13) — mid (17,12) remains empty for decision-14 thin span.
-        slice.Belts.PlacePath(
+        factory.Belts.PlacePath(
         [
             new GridPosition(16, 13),
             new GridPosition(17, 13),
             new GridPosition(18, 13)
         ], beltDef);
-        slice.Belts.TryOrient(new GridPosition(18, 13), Direction.East);
+        factory.Belts.TryOrient(new GridPosition(18, 13), Direction.East);
 
-        return slice;
-    }
-
-    /// <summary>Legacy L-belt demo without forno (ore → core).</summary>
-    public static Factory CreateSpikeDemo(FactoryContent content, string beltId = "conveyor-basic")
-    {
-        var beltDef = content.RequireConveyor(beltId);
-        var grid = new BeltGrid();
-        grid.PlacePath(BuildSpikeLPath(), beltDef);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var slice = new Factory(content, grid, core);
-        slice.UnlockGodotSliceDemo();
-        slice.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
-        return slice;
-    }
-
-    public static List<GridPosition> BuildSpikeLPath()
-    {
-        var path = new List<GridPosition>();
-        for (var x = 4; x <= 10; x++)
-        {
-            path.Add(new GridPosition(x, 8));
-        }
-
-        for (var y = 9; y <= 13; y++)
-        {
-            path.Add(new GridPosition(10, y));
-        }
-
-        return path;
+        return factory;
     }
 
     public bool CanOccupy(GridPosition position) => CanOccupyFootprint(position, 1);
@@ -762,10 +812,10 @@ public sealed class Factory
         return false;
     }
 
-    /// <summary>Unlock all Godot-slice placeables so seeded demos keep working under gates.</summary>
-    public void UnlockGodotSliceDemo()
+    /// <summary>Unlock all placeables so seeded demos keep working under gates.</summary>
+    public void UnlockAllForDemo()
     {
-        foreach (var id in ResearchState.GodotSliceStructureIds)
+        foreach (var id in ResearchState.DemoStructureIds)
         {
             Research.ForceUnlock(id);
         }
@@ -775,9 +825,9 @@ public sealed class Factory
     }
 
     /// <summary>Demos without a live generator: top up forno coal so craft can run.</summary>
-    public static void SeedSmelterFuel(Factory slice, int units = Crafter.FuelBufferCapacity)
+    public static void SeedSmelterFuel(Factory factory, int units = Crafter.FuelBufferCapacity)
     {
-        foreach (var sm in slice.Smelters)
+        foreach (var sm in factory.Smelters)
         {
             sm.SeedFuel(units);
         }
@@ -819,16 +869,8 @@ public sealed class Factory
     public int PreviewSellPrice(string itemId) =>
         EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
 
-    public int EffectiveSalePrice(string itemId, int stockBeforeSell)
-    {
-        var price = Market.GetDynamicSellPrice(itemId, stockBeforeSell);
-        if (CoreUpgradeLevel <= 0 || CoreSaleBonusPercent <= 0)
-        {
-            return price;
-        }
-
-        return price + price * CoreSaleBonusPercent / 100;
-    }
+    public int EffectiveSalePrice(string itemId, int stockBeforeSell) =>
+        State.EffectiveSalePrice(itemId, stockBeforeSell);
 
     public bool TryUpgradeCore()
     {
@@ -892,71 +934,7 @@ public sealed class Factory
         return (w, h);
     }
 
-    /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
-    public static Factory CreateCampaignSlice(
-        FactoryContent content,
-        CampaignCatalog catalog,
-        CampaignLevelDefinition level,
-        GridPosition? coreOrigin = null,
-        int coreSize = 2,
-        int? mapWidth = null,
-        int? mapHeight = null)
-    {
-        var (w, h) = ResolveCampaignMapSize(level);
-        if (mapWidth is int mw)
-        {
-            w = Math.Clamp(Math.Max(12, mw), 12, MaxGodotCampaignMapEdge);
-        }
-
-        if (mapHeight is int mh)
-        {
-            h = Math.Clamp(Math.Max(8, mh), 8, MaxGodotCampaignMapEdge);
-        }
-
-        var origin = coreOrigin ?? CenteredCoreOrigin(w, h, coreSize);
-        var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
-        var wallet = catalog.CreateWallet(level);
-        var session = new EconomySession(level.StartingMoney);
-        var research = ResearchState.CreateNew(content);
-        var starter = ResolveStarterDeposit(origin, coreSize, w, h);
-        var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
-        return new Factory(content, new BeltGrid(), core, wallet, research, session)
-        {
-            ActiveCampaignLevelId = level.Id,
-            Terrain = terrain
-        };
-    }
-
-    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
-    public static Factory CreateSandboxSlice(
-        FactoryContent content,
-        GridPosition coreOrigin,
-        int coreSize = 2,
-        int mapWidth = 1000,
-        int mapHeight = 1000,
-        int seed = 42,
-        int startingMoney = 180)
-    {
-        var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
-        // Parity with Raylib CreateStartingWallet: plates/wire so first place isn't free-or-impossible.
-        var wallet = new EconomyWallet(
-            startingMoney,
-            new Dictionary<string, int>(StringComparer.Ordinal)
-            {
-                ["iron-plate"] = 48,
-                ["copper-wire"] = 10
-            });
-        var session = new EconomySession(startingMoney);
-        var research = ResearchState.CreateNew(content);
-        var starter = ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
-        var terrain = TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter);
-        return new Factory(content, new BeltGrid(), core, wallet, research, session)
-        {
-            Terrain = terrain
-        };
-    }
-
-    private static GridPosition ResolveStarterDeposit(
+    internal static GridPosition ResolveStarterDeposit(
         GridPosition coreOrigin, int coreSize, int mapWidth, int mapHeight)
     {
         // Prefer west of core (Raylib-style), clamped into map.
@@ -1557,18 +1535,7 @@ public sealed class Factory
         return false;
     }
 
-    private IEnumerable<Crafter> CraftMachines()
-    {
-        foreach (var s in smelters)
-        {
-            yield return s;
-        }
-
-        foreach (var a in assemblers)
-        {
-            yield return a;
-        }
-    }
+    private IEnumerable<Crafter> CraftMachines() => State.CraftMachines();
 
     private bool FootprintClearExcept(
         GridPosition origin,
@@ -1651,101 +1618,15 @@ public sealed class Factory
     }
 
     /// <summary>Advances the simulation by exactly one fixed tick (<see cref="SimulationClock.TickSeconds"/>).</summary>
-    public void Step()
-    {
-        Tick(SimulationClock.TickSeconds);
-        CurrentTick++;
-    }
+    public void Step() => Simulation.Step(State);
 
-    private void Tick(float deltaSeconds)
-    {
-        // Belts advance first so fuel reaches generators and handoffs reach craft/core.
-        Belts.Tick(deltaSeconds);
+    public void SetPowerBuffer(float buffer) => State.SetPowerBuffer(buffer);
 
-        var liveGens = new List<Generator>();
-        foreach (var gen in generators)
-        {
-            if (gen.Tick(deltaSeconds, Belts))
-            {
-                liveGens.Add(gen);
-            }
-        }
-
-        // Capacity + recharge (Raylib soft power network — no full link graph yet).
-        RecalculatePowerCapacity(liveGens.Count);
-        var generation = CorePowerGeneration
-            + liveGens.Count * Generator.GenerationPerSecond;
-        PowerGenerationPerSecond = generation;
-        PowerBuffer = Math.Min(PowerCapacity, PowerBuffer + generation * deltaSeconds);
-
-        // Miners after gens so T2 can apply adjacency/node power the same tick.
-        foreach (var miner in miners)
-        {
-            var connected = miner.CanReceivePower
-                && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, Miner.Size))
-                    || IsPoweredViaNode(miner.Position, Miner.Size, liveGens));
-            miner.Tick(
-                deltaSeconds,
-                Belts,
-                ref nextItemId,
-                connected,
-                itemId => TryDeliverAdjacent(miner.Position, Miner.Size, itemId));
-        }
-
-        foreach (var craft in CraftMachines())
-        {
-            var connected = liveGens.Any(g => g.IsAdjacentTo(craft.Position, Crafter.Size))
-                || IsPoweredViaNode(craft.Position, Crafter.Size, liveGens);
-            var draw = craft.IsAssembler ? AssemblerPowerDraw : SmelterPowerDraw;
-            var exclude = craft;
-            craft.Tick(
-                deltaSeconds,
-                Belts,
-                ref nextItemId,
-                networkConnected: connected,
-                trySpendPower: TrySpendPower,
-                powerDrawPerSecond: draw,
-                tryDeliverAdjacent: itemId =>
-                    TryDeliverAdjacent(craft.Position, Crafter.Size, itemId, exclude));
-        }
-
-        foreach (var ex in extractors)
-        {
-            ex.Tick(deltaSeconds, Belts, Wallet, CoreTiles, ref nextItemId);
-        }
-
-        // Second belt tick so freshly emitted items can move the same frame.
-        Belts.Tick(0f);
-        CoreDeliveredItems += CoreStockSink.Drain(
-            Belts, CoreTiles, Wallet, Market, Session, AutoSellAtCore);
-    }
-
-    public void SetPowerBuffer(float buffer) =>
-        PowerBuffer = Math.Clamp(buffer, 0f, Math.Max(PowerCapacity, CorePowerCapacity));
-
-    public void RecalculatePowerCapacity(int liveGeneratorCount)
-    {
-        PowerCapacity = CorePowerCapacity
-            + Math.Max(0, liveGeneratorCount) * Generator.CapacityBonus;
-        PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
-    }
+    public void RecalculatePowerCapacity(int liveGeneratorCount) =>
+        State.RecalculatePowerCapacity(liveGeneratorCount);
 
     /// <summary>Drain shared buffer; false on brownout (Raylib parity).</summary>
-    public bool TrySpendPower(float amount)
-    {
-        if (amount <= 0f)
-        {
-            return true;
-        }
-
-        if (PowerBuffer < amount)
-        {
-            return false;
-        }
-
-        PowerBuffer -= amount;
-        return true;
-    }
+    public bool TrySpendPower(float amount) => State.TrySpendPower(amount);
 
     /// <summary>
     /// Spend only when the building is adjacency/node-connected to a live generator.
@@ -1754,23 +1635,8 @@ public sealed class Factory
         GridPosition origin,
         int size,
         float amount,
-        IReadOnlyList<Generator>? liveGens = null)
-    {
-        if (amount <= 0f)
-        {
-            return true;
-        }
-
-        liveGens ??= generators.Where(g => g.IsGenerating).ToList();
-        var connected = liveGens.Any(g => g.IsAdjacentTo(origin, size))
-            || IsPoweredViaNode(origin, size, liveGens);
-        if (!connected)
-        {
-            return false;
-        }
-
-        return TrySpendPower(amount);
-    }
+        IReadOnlyList<Generator>? liveGens = null) =>
+        State.TrySpendPowerForBuilding(origin, size, amount, liveGens);
 
     /// <summary>
     /// Direct building→building (or building→core) when footprints touch (Raylib parity).
@@ -1780,85 +1646,8 @@ public sealed class Factory
         GridPosition origin,
         int size,
         string itemId,
-        Crafter? excludeCrafter = null)
-    {
-        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(origin, size))
-        {
-            foreach (var craft in CraftMachines())
-            {
-                if (excludeCrafter is not null && ReferenceEquals(craft, excludeCrafter))
-                {
-                    continue;
-                }
-
-                if (!craft.Occupies(neighbor))
-                {
-                    continue;
-                }
-
-                // Coal into forno fuel buffer when applicable.
-                if (craft.UsesCoalOrPower
-                    && itemId == Crafter.FuelItemId
-                    && craft.TryAcceptFuel(itemId))
-                {
-                    return true;
-                }
-
-                if (craft.TryAccept(itemId))
-                {
-                    return true;
-                }
-            }
-
-            if (CoreTiles.Contains(neighbor))
-            {
-                CoreDeliveredItems++;
-                if (AutoSellAtCore)
-                {
-                    var price = EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
-                    Wallet.AddMoney(price);
-                    Session.RecordSale(itemId, price);
-                }
-                else
-                {
-                    Wallet.AddMaterial(itemId, 1);
-                }
-
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private bool IsPoweredViaNode(
-        GridPosition craftOrigin,
-        int craftSize,
-        IReadOnlyList<Generator> liveGens)
-    {
-        if (liveGens.Count == 0 || powerNodes.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (var node in powerNodes)
-        {
-            if (!node.IsAdjacentTo(craftOrigin, craftSize))
-            {
-                continue;
-            }
-
-            foreach (var gen in liveGens)
-            {
-                if (node.IsWithinRange(gen.Position, Generator.Size))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
+        Crafter? excludeCrafter = null) =>
+        State.TryDeliverAdjacent(origin, size, itemId, excludeCrafter);
 
     /// <summary>Guard for demo/seed layouts: throws if a scripted placement fails.</summary>
     private static void Require(bool condition, string message)

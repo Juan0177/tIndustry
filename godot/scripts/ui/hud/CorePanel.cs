@@ -32,7 +32,7 @@ public partial class CorePanel : VBoxContainer
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
     private FactoryContent? _content;
-    private EconomyWallet? _wallet;
+    private IWalletView? _wallet;
     private int _money;
 
     public event Action? MenuRequested;
@@ -69,7 +69,7 @@ public partial class CorePanel : VBoxContainer
     }
 
     /// <summary>Bind content (stock tooltips, cost chip names) and wallet (stock counts).</summary>
-    public void Bind(FactoryContent? content, EconomyWallet? wallet)
+    public void Bind(FactoryContent? content, IWalletView? wallet)
     {
         if (!ReferenceEquals(content, _content) && content is not null)
         {
@@ -139,17 +139,17 @@ public partial class CorePanel : VBoxContainer
     }
 
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(Factory? slice)
+    public void SyncCoreUpgrade(IGameView? factory)
     {
         if (_coreUpgradeButton is null || _coreUpgradeCost is null)
         {
             return;
         }
 
-        var level = slice?.CoreUpgradeLevel ?? -1;
-        var affordable = slice is not null
-            && slice.Wallet.CanAfford(slice.Content.CoreUpgrade.MoneyCost, slice.Content.CoreUpgrade.BuildCost);
-        var key = (level, affordable, slice?.Wallet.Money ?? 0);
+        var level = factory?.CoreUpgradeLevel ?? -1;
+        var affordable = factory is not null
+            && factory.Wallet.CanAfford(factory.Content.CoreUpgrade.MoneyCost, factory.Content.CoreUpgrade.BuildCost);
+        var key = (level, affordable, factory?.Wallet.Money ?? 0);
         if (_coreUpgradeKey == key)
         {
             return;
@@ -161,17 +161,17 @@ public partial class CorePanel : VBoxContainer
             child.QueueFree();
         }
 
-        if (slice is null)
+        if (factory is null)
         {
             _coreUpgradeButton.Text = "Potenzia CORE";
             _coreUpgradeButton.Disabled = true;
             return;
         }
 
-        var upgrade = slice.Content.CoreUpgrade;
-        if (slice.CoreUpgradeLevel > 0)
+        var upgrade = factory.Content.CoreUpgrade;
+        if (factory.CoreUpgradeLevel > 0)
         {
-            _coreUpgradeButton.Text = $"CORE LV{slice.CoreUpgradeLevel} · +{slice.CoreSaleBonusPercent}% vendite";
+            _coreUpgradeButton.Text = $"CORE LV{factory.CoreUpgradeLevel} · +{factory.CoreSaleBonusPercent}% vendite";
             _coreUpgradeButton.Disabled = true;
             _coreUpgradeButton.TooltipText = "";
             return;
@@ -179,16 +179,16 @@ public partial class CorePanel : VBoxContainer
 
         _coreUpgradeButton.Text = "Potenzia CORE";
         _coreUpgradeButton.Disabled = !affordable;
-        _coreUpgradeButton.TooltipText = slice.FormatCoreUpgradeNeedMessage();
+        _coreUpgradeButton.TooltipText = factory.FormatCoreUpgradeNeedMessage();
         if (upgrade.MoneyCost > 0)
         {
-            _coreUpgradeCost.AddChild(MakeMoneyChip(upgrade.MoneyCost, slice.Wallet.Money >= upgrade.MoneyCost));
+            _coreUpgradeCost.AddChild(MakeMoneyChip(upgrade.MoneyCost, factory.Wallet.Money >= upgrade.MoneyCost));
         }
 
         foreach (var cost in upgrade.BuildCost.Where(c => c.Amount > 0))
         {
             _coreUpgradeCost.AddChild(MakeCostChip(
-                cost.ItemId, cost.Amount, slice.Wallet.MaterialCount(cost.ItemId) >= cost.Amount, _content));
+                cost.ItemId, cost.Amount, factory.Wallet.MaterialCount(cost.ItemId) >= cost.Amount, _content));
         }
     }
 
@@ -212,9 +212,9 @@ public partial class CorePanel : VBoxContainer
 
     public void UpdateObjectives(
         CampaignLevelDefinition level,
-        EconomyWallet wallet,
-        EconomySession session,
-        ResearchState research,
+        IWalletView wallet,
+        ISessionView session,
+        IResearchView research,
         Func<string, string>? itemName = null)
     {
         if (_objectivesPanel is null || _objectivesTitle is null || _objectivesList is null)

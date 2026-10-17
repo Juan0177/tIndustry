@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Playable factory slice + Hud + Ricerca. Default = cursore.
+/// Playable world (factory view) + Hud + Ricerca. Default = cursore.
 /// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
 /// </summary>
 public partial class World : Node2D
@@ -13,14 +13,9 @@ public partial class World : Node2D
     public const int DefaultMapWidth = 1000;
     public const int DefaultMapHeight = 1000;
 
-    /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to spike defaults.</summary>
-    public int ActiveMapWidth => _slice?.Terrain?.Width ?? DefaultMapWidth;
-    public int ActiveMapHeight => _slice?.Terrain?.Height ?? DefaultMapHeight;
-
-    private static readonly string[] SorterFilterIds =
-    [
-        "iron-ore", "copper-ore", "iron-plate", "copper-wire", "coal"
-    ];
+    /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to default size.</summary>
+    public int ActiveMapWidth => _view?.Terrain?.Width ?? DefaultMapWidth;
+    public int ActiveMapHeight => _view?.Terrain?.Height ?? DefaultMapHeight;
 
     private enum BuildTool
     {
@@ -42,9 +37,10 @@ public partial class World : Node2D
         PowerNodeT2
     }
 
-    private Factory? _slice;
-    // Frame time → whole fixed ticks (60/s); the sim never sees the frame delta.
-    private readonly SimulationClock _clock = new();
+    // The simulation lives behind the host: the client reads IGameView and submits commands.
+    // A fresh host per game (new / campaign level / load) restarts the fixed-tick clock at tick 0.
+    private SimHost? _host;
+    private IGameView? _view => _host?.State;
     // The startup sandbox behind Home is not a played game: it must not overwrite Continua.
     private readonly ContinueAutoSave _continueAutoSave = new();
     private MindustryBeltVisual? _beltVisual;
@@ -98,14 +94,14 @@ public partial class World : Node2D
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
         _progress = CampaignProgress.Load(_progressPath);
-        _slice = Factory.CreateSandboxSlice(
+        AttachGame(NewGame.Sandbox(
             content,
             Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight),
             coreSize: 2,
             mapWidth: DefaultMapWidth,
             mapHeight: DefaultMapHeight,
             seed: 42,
-            startingMoney: 180);
+            startingMoney: 180));
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureHud();
@@ -135,7 +131,7 @@ public partial class World : Node2D
         SyncResearchLocks();
         UpdateHud();
 
-        if (OS.GetEnvironment("TINDUSTRY_SEED_CORE_LINE") == "1" && _slice is not null)
+        if (OS.GetEnvironment("TINDUSTRY_SEED_CORE_LINE") == "1" && _view is not null)
         {
             SeedCoreDeliveryLine();
         }
@@ -190,16 +186,12 @@ public partial class World : Node2D
             cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true;
         }
 
-        if (_home?.IsOpen == true || _slice is null)
+        if (_home?.IsOpen == true || _view is null)
         {
             return;
         }
 
-        var ticks = _clock.Accumulate(delta);
-        for (var i = 0; i < ticks; i++)
-        {
-            _slice.Step();
-        }
+        AdvanceHost(delta);
 
         if (_visualDirty)
         {

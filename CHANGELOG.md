@@ -19,6 +19,9 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Pulizia
 
+- Simulazione: lo stato di gioco passa in `GameState` e la logica per tick in sette sistemi (`Belt`, `Power`, `Mining`, `Crafting`, `Extraction`, `Belt` a passo zero, `CoreDelivery`) eseguiti in ordine fisso da `Simulation.Step`; `Factory` resta la facciata per piazzamento ed economia. Solo spostamento, nessun cambio di comportamento
+- Comandi e `SimHost`: ogni modifica al gioco (piazzare, rimuovere, sbloccare, vendere, vendita automatica, potenziare il CORE, filtro del selezionatore) è un comando validato all'applicazione, con esito come evento `CommandApplied` / `CommandRejected` con i testi italiani di prima. Nuovo comando `SetSorterFilter` e lista condivisa `SorterFilters`. Il client Godot tiene solo un `SimHost`, legge lo stato tramite `IGameView` e invia comandi; pannelli Ricerca e Mercato, toast e grafica reagiscono agli eventi. Nessun cambio di gioco: i rifiuti mostrano gli stessi toast (rimuovere su cella vuota resta silenzioso, trascinando non compare "occupata"); il tick parte da 0 a ogni nuova partita, livello o caricamento
+- Documentazione della simulazione: `docs/ARCHITETTURA.md` descrive tick fisso, `GameState`, sistemi, comandi, `SimHost`, istantanea e checksum, con le cinque regole di determinismo e il ciclo di frame aggiornato; nuovo ADR `docs/decisioni/0002-sincronizzazione-ibrida.md` (host autoritativo che ordina i comandi, simulazione deterministica, checksum ogni 60 tick, recupero e ingresso a partita in corso via istantanea; il checksum periodico non è ancora implementato, arriva col multiplayer)
 - Rimosse le modalità di cattura `TINDUSTRY_CAPTURE` / `TINDUSTRY_CAPTURE_MODE` (ereditate da Cursor); restano `TINDUSTRY_PLAYTEST` e `TINDUSTRY_CAPTURE_DIR`
 - Rimossi `StaticMiner`/`StaticAssembler`/`StaticSmelter`, il nodo `Miner` della scena, lo shader `belt_corner.gdshader`, le cartelle `.cursor/` e `assets/` in radice (attribuzioni spostate in `godot/assets/ATTRIBUTION.md`)
 - Rinomine con i nomi veri: `SpikeWorld`→`World`, `SpikeCamera`→`WorldCamera`, `Spike.tscn`→`Main.tscn` (nodo radice `Main`), `FactorySlice`→`Factory`, `FactorySliceSaveData/Store`→`FactorySaveData/Store`, `SmelterStub`→`Crafter`, `GeneratorStub`→`Generator`, `ExtractorStub`→`Extractor`, `PowerNodeStub`→`PowerNode`, `MinerProducer`→`Miner`, `StructureDefinition.Requires`→`Prerequisites`; test su percorsi dei dati e riferimenti del progetto Godot. Nessun cambio di comportamento né di formato dei salvataggi
@@ -26,13 +29,19 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - HUD in componenti: `FactoryHud` (1.626 righe) diventa `Hud` che compone `CorePanel` (colonna in alto a sinistra), `BuildPalette` (categorie e griglia), `BlockInfoPanel` (striscia info e dettaglio `?`) e `HudStyle` (colori e widget condivisi). Aspetto e comportamento invariati
 - Dati in un solo posto: `godot/data/` esce da git (è una copia di `data/` che l'export rigenera da sé; in sviluppo il gioco legge `data/`). Nuovi test di validazione dei contenuti (id unici, prerequisiti esistenti e senza cicli, icone presenti per strutture e oggetti del mercato, obiettivi di campagna su id noti) e test di salvataggio/ricarica
 
+### Correzioni
+
+- **Energia accumulata non più persa**: caricando un salvataggio (o un'istantanea) la riserva di energia sopra il minimo del CORE tornava a 24 perché veniva limitata prima di ripristinare la capacità; ora capacità e riserva tornano identiche
+- **Caricamento più robusto**: un salvataggio di una versione futura o con contenuti illeggibili mostra "Salvataggio non leggibile." invece di testo tecnico, e un caricamento fallito lascia intatta la partita in corso
+- Livello 1 della campagna: le 8 unità di minerale di ferro iniziali sono ora parte della creazione del livello (`NewGame.Campaign`), non del solo client
+
 ### Documentazione
 
 - Nuovi `docs/ARCHITETTURA.md` (mappa delle cartelle, ciclo di un frame, dati, salvataggi, come aggiungere un blocco, test), `docs/decisioni/0001-server-csharp.md` (server multiplayer in C#) e `CLAUDE.md` (istruzioni per gli agenti); README aggiornati ai nuovi nomi e percorsi
 
 ### Cambiato
 
-- **Salvataggi**: versione 9. I salvataggi di versioni precedenti non sono più compatibili: caricandoli compare il messaggio "Salvataggio di una versione precedente: non compatibile." e la partita corrente resta com'è
+- **Salvataggi versione 10**: il file contiene i metadati dello slot più l'istantanea canonica dello stato (`FactorySaveStore.Save(slot, SimHost)` / `TryLoad(content, slot, …)`); i salvataggi v9 e precedenti non si caricano più. I salvataggi di versioni precedenti non sono più compatibili: caricandoli compare il messaggio "Salvataggio di una versione precedente: non compatibile." e la partita corrente resta com'è. Le partite nuove si costruiscono con `NewGame.Sandbox/Campaign/Demo`; spariti i nomi `Slice`/`Spike` (`CreateSandboxSlice`, `CreateSpikeDemo`, `UnlockGodotSliceDemo`, `SaveSlice`/`LoadSlice`…)
 - **Continua non più sovrascritto a vuoto**: l'autosave alla chiusura (Esci, chiusura finestra, Menu/Esc → Home) scrive su Continua solo se in questa sessione hai giocato (nuova partita, livello di campagna o caricamento riuscito). Prima, aprire il gioco e uscire subito sostituiva Continua con la sandbox di avvio, anche quando il salvataggio era solo di una versione non compatibile
 
 ### Sviluppo

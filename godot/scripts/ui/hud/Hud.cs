@@ -104,7 +104,7 @@ public partial class Hud : Control
     }
 
     /// <summary>Bind content + wallet so the info panel can show costs / barred mats.</summary>
-    public void BindEconomy(FactoryContent? content, EconomyWallet? wallet)
+    public void BindEconomy(FactoryContent? content, IWalletView? wallet)
     {
         _core.Bind(content, wallet);
         _palette.Content = content;
@@ -174,15 +174,15 @@ public partial class Hud : Control
     }
 
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(Factory? slice) => _core.SyncCoreUpgrade(slice);
+    public void SyncCoreUpgrade(IGameView? factory) => _core.SyncCoreUpgrade(factory);
 
     public void ClearObjectives() => _core.ClearObjectives();
 
     public void UpdateObjectives(
         CampaignLevelDefinition level,
-        EconomyWallet wallet,
-        EconomySession session,
-        ResearchState research,
+        IWalletView wallet,
+        ISessionView session,
+        IResearchView research,
         Func<string, string>? itemName = null) =>
         _core.UpdateObjectives(level, wallet, session, research, itemName);
 

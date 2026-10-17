@@ -11,15 +11,15 @@ public sealed class ContinueAutoSave
 
     public void MarkPlayed() => HasPlayed = true;
 
-    /// <summary>Writes <paramref name="slice"/> to Continua when allowed; returns true if it was written.</summary>
-    public bool TrySave(Factory? slice)
+    /// <summary>Writes the game of <paramref name="host"/> to Continua when allowed; returns true if it was written.</summary>
+    public bool TrySave(SimHost? host)
     {
-        if (!HasPlayed || slice is null)
+        if (!HasPlayed || host is null)
         {
             return false;
         }
 
-        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, slice.Capture());
+        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, host);
         return true;
     }
 }
