@@ -30,6 +30,18 @@ public sealed class SimHost
     /// <summary>Read-only view of the game for graphics and HUD.</summary>
     public IGameView State => factory;
 
+    /// <summary>
+    /// Commands submitted but not yet applied, in submit order (read-only). The client uses it to
+    /// derive the "effective" value of a toggle/cycle when the same input arrives twice in one tick.
+    /// </summary>
+    public IReadOnlyList<SimCommand> Pending => pending.AsReadOnly();
+
+    /// <summary>
+    /// Change in money caused by the command currently being reported by <see cref="CommandApplied"/>
+    /// (its own effect only, e.g. one sale's proceeds). Meaningful inside that event only.
+    /// </summary>
+    public int LastCommandMoneyDelta { get; private set; }
+
     /// <summary>Raised when a command has been applied (before that tick's step).</summary>
     public event Action<SimCommand>? CommandApplied;
 
@@ -76,6 +88,27 @@ public sealed class SimHost
         return ticks;
     }
 
+    /// <summary>
+    /// Runs exactly <paramref name="ticks"/> ticks now, ignoring frame time and the per-frame cap
+    /// (scripted setup, tools). Same handler-exception policy as <see cref="Advance"/>.
+    /// </summary>
+    public int AdvanceTicks(int ticks)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(ticks);
+        List<Exception>? handlerErrors = null;
+        for (var i = 0; i < ticks; i++)
+        {
+            RunTick(ref handlerErrors);
+        }
+
+        if (handlerErrors is not null)
+        {
+            throw new AggregateException("Un gestore di eventi di SimHost ha lanciato un'eccezione.", handlerErrors);
+        }
+
+        return ticks;
+    }
+
     private void RunTick(ref List<Exception>? handlerErrors)
     {
         var tick = factory.CurrentTick + 1;
@@ -94,9 +127,11 @@ public sealed class SimHost
 
         foreach (var command in due)
         {
+            var moneyBefore = factory.Wallet.Money;
             var reason = Apply(command);
             if (reason is null)
             {
+                LastCommandMoneyDelta = factory.Wallet.Money - moneyBefore;
                 Raise(CommandApplied, h => h(command), ref handlerErrors);
             }
             else

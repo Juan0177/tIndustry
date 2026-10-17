@@ -8,6 +8,8 @@ public sealed class BeltSystem(bool advance) : ISimulationSystem
 {
     public string Name => "Belt";
 
+    public float DtFor(SystemContext ctx) => advance ? ctx.Dt : 0f;
+
     public void Run(GameState state, SystemContext ctx) =>
-        state.Belts.Tick(advance ? ctx.Dt : 0f);
+        state.Belts.Tick(DtFor(ctx));
 }

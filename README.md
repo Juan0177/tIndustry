@@ -51,7 +51,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Economia** | Fondi, costi e rimborsi di piazzamento, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
 | **Campagna** | 10 livelli, da *Primi passi* a *Espansione T2*, con tutorial non bloccante |
-| **Salvataggi** | Continua (autosave), slot, Salva come; formato versione 9 |
+| **Salvataggi** | Continua (autosave), slot, Salva come; formato versione 10 |
 
 Combattimento e unità sono fuori scope per ora.
 

@@ -14,8 +14,9 @@ public partial class MercatoPanel : Control
 
     private IGameView? _view;
     private Action<SimCommand>? _submit;
-    // Sales submitted and not yet answered, in order: (money, amount, name) at click time.
-    private readonly Queue<(int Money, int Amount, string Name)> _pendingSales = new();
+    private Func<IReadOnlyList<SimCommand>>? _pendingCommands;
+    // Sales submitted and not yet answered, in order: (amount, name) at click time.
+    private readonly Queue<(int Amount, string Name)> _pendingSales = new();
     private VBoxContainer? _list;
     private Label? _walletLabel;
     private Label? _hintLabel;
@@ -37,10 +38,12 @@ public partial class MercatoPanel : Control
         BuildUi();
     }
 
-    public void Open(IGameView factory, Action<SimCommand> submit)
+    /// <param name="pendingCommands">Commands submitted but not yet applied (see <see cref="SimHost.Pending"/>).</param>
+    public void Open(IGameView factory, Action<SimCommand> submit, Func<IReadOnlyList<SimCommand>> pendingCommands)
     {
         _view = factory;
         _submit = submit;
+        _pendingCommands = pendingCommands;
         _pendingSales.Clear();
         Visible = true;
         if (_autoSellToggle is not null)
@@ -96,11 +99,15 @@ public partial class MercatoPanel : Control
             return;
         }
 
-        _submit(new SetAutoSell(0, !_view.AutoSellAtCore));
+        // Toggle from the value the host will have once earlier same-tick toggles are applied.
+        var effective = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault()?.Enabled
+            ?? _view.AutoSellAtCore;
+        _submit(new SetAutoSell(0, !effective));
     }
 
     /// <summary>Host applied a Mercato command: update status, toggle and notify the world.</summary>
-    public void OnCommandApplied(SimCommand command)
+    /// <param name="moneyDelta">Money change caused by this command alone (<see cref="SimHost.LastCommandMoneyDelta"/>).</param>
+    public void OnCommandApplied(SimCommand command, int moneyDelta)
     {
         if (_view is null)
         {
@@ -122,10 +129,10 @@ public partial class MercatoPanel : Control
                 AutoSellChanged?.Invoke();
                 break;
             case Sell when _pendingSales.Count > 0:
-                var (before, amount, name) = _pendingSales.Dequeue();
+                var (amount, name) = _pendingSales.Dequeue();
                 if (_statusLabel is not null)
                 {
-                    _statusLabel.Text = $"Venduti {amount}× {name} → +${_view.Wallet.Money - before}";
+                    _statusLabel.Text = $"Venduti {amount}× {name} → +${moneyDelta}";
                 }
 
                 SoldChanged?.Invoke();
@@ -486,7 +493,7 @@ public partial class MercatoPanel : Control
             return;
         }
 
-        _pendingSales.Enqueue((_view.Wallet.Money, amount, _view.Market.GetDisplayName(itemId)));
+        _pendingSales.Enqueue((amount, _view.Market.GetDisplayName(itemId)));
         _submit(new Sell(0, itemId, amount));
     }
 }

@@ -14,6 +14,9 @@ public interface ISimulationSystem
 {
     string Name { get; }
 
+    /// <summary>Time step this system actually uses for <paramref name="ctx"/> (the settle Belt pass uses 0).</summary>
+    float DtFor(SystemContext ctx) => ctx.Dt;
+
     void Run(GameState state, SystemContext ctx);
 }
 
@@ -36,11 +39,14 @@ public static class Simulation
     ];
 
     /// <summary>Advances the state by exactly one fixed tick.</summary>
-    public static void Step(GameState state)
+    /// <param name="state">State to advance.</param>
+    /// <param name="trace">Optional hook called before each system with its name and the dt it uses (tests).</param>
+    public static void Step(GameState state, Action<string, float>? trace = null)
     {
         var ctx = new SystemContext();
         foreach (var system in Systems)
         {
+            trace?.Invoke(system.Name, system.DtFor(ctx));
             system.Run(state, ctx);
         }
 

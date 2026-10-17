@@ -105,7 +105,7 @@ public partial class World
         _research?.Close();
         _campaignSelect?.Close();
         ClearToCursor(toast: false);
-        _mercato.Open(_view, c => SubmitCommand(c));
+        _mercato.Open(_view, c => SubmitCommand(c), () => PendingCommands);
     }
 
     private void OnCoreUpgradeRequested()
@@ -402,43 +402,76 @@ public partial class World
         {
             AttachGame(loaded);
             _continueAutoSave.MarkPlayed();
-            _itemSprites.Clear();
-            if (_itemsLayer is not null)
-            {
-                foreach (var child in _itemsLayer.GetChildren())
-                {
-                    child.QueueFree();
-                }
-            }
-
-            _visualDirty = true;
-            _buildingsDirty = true;
-            RebuildBeltVisual();
-            RebuildBuildingVisuals();
-            SyncResearchLocks();
-            RestoreActiveLevelFromGame();
-            UpdateHud();
-            SyncCameraMapBounds();
-            FocusCameraOnCore();
-            QueueRedraw();
+            RefreshAfterAttach();
             _hud?.ShowToast(toast);
             GD.Print($"Loaded game ← {FactorySaveStore.SlotPath(slotId)}");
             return true;
         }
         catch (Exception ex)
         {
-            // Put the previous game back so a failed load leaves the current game untouched.
-            if (previous is not null)
-            {
-                AttachGame(previous);
-                _visualDirty = true;
-                _buildingsDirty = true;
-            }
-
+            GD.PushError($"Load failed: {ex.Message}");
+            RollBackAttach(previous);
             _hud?.ShowToast("Caricamento fallito");
             showOnPanel?.Invoke("Caricamento fallito");
-            GD.PushError($"Load failed: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Everything the world must re-sync after a different game is attached: item layer, belt and
+    /// building graphics, research locks, active campaign level, HUD and camera.
+    /// </summary>
+    private void RefreshAfterAttach()
+    {
+        ClearItemLayer();
+        _visualDirty = true;
+        _buildingsDirty = true;
+        RebuildBeltVisual();
+        RebuildBuildingVisuals();
+        SyncResearchLocks();
+        RestoreActiveLevelFromGame();
+        UpdateHud();
+        SyncCameraMapBounds();
+        FocusCameraOnCore();
+        QueueRedraw();
+    }
+
+    private void ClearItemLayer()
+    {
+        _itemSprites.Clear();
+        if (_itemsLayer is not null)
+        {
+            foreach (var child in _itemsLayer.GetChildren())
+            {
+                child.QueueFree();
+            }
+        }
+    }
+
+    /// <summary>
+    /// A load failed after the new host was attached: bring the previous game back and re-sync it
+    /// like a fresh attach. On a first load (no previous game) return to the "no game" state.
+    /// </summary>
+    private void RollBackAttach(SimHost? previous)
+    {
+        if (previous is null)
+        {
+            DetachGame();
+            ClearItemLayer();
+            _activeLevel = null;
+            _hud?.ClearObjectives();
+            QueueRedraw();
+            return;
+        }
+
+        try
+        {
+            AttachGame(previous);
+            RefreshAfterAttach();
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"Rollback refresh failed: {ex.Message}");
         }
     }
 }
