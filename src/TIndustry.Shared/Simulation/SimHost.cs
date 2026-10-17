@@ -192,13 +192,13 @@ public sealed class SimHost
 
         return CheckBuildable(conveyorId, CommandReasons.BeltToolName(conveyorId), multiplicity: 1)
             ?? PlacedOrOccupied(
-                factory.TryPlaceBelt(command.Position, command.Direction, conveyorId),
+                factory.PlaceInstant(BuildSpec.FromCommand(command), charge: true),
                 command.Position);
     }
 
     private string? ApplyPlaceBuilding(PlaceBuilding command)
     {
-        var structureId = StructureId(command.Kind);
+        var structureId = BuildSpec.StructureIdFor(command.Kind);
         if (structureId is null)
         {
             return CommandReasons.InvalidCommand;
@@ -225,26 +225,8 @@ public sealed class SimHost
             return blocked;
         }
 
-        var origin = command.Origin;
-        var dir = command.Direction;
-        var placed = command.Kind switch
-        {
-            BuildingKind.Junction => factory.TryPlaceJunction(origin, dir),
-            BuildingKind.Splitter => factory.TryPlaceSplitter(origin, dir),
-            BuildingKind.Sorter => factory.TryPlaceSorter(origin, dir, command.FilterItemId),
-            BuildingKind.Bridge => factory.TryPlaceBridge(origin, dir),
-            BuildingKind.Miner => factory.TryPlaceMiner(origin, dir),
-            BuildingKind.MinerAdvanced => factory.TryPlaceMiner(origin, dir, definitionId: Miner.AdvancedId),
-            BuildingKind.Smelter => factory.TryPlaceSmelter(origin, dir, recipe),
-            BuildingKind.Assembler => factory.TryPlaceAssembler(origin, dir, recipe),
-            BuildingKind.Generator => factory.TryPlaceGenerator(origin, dir),
-            BuildingKind.Extractor => factory.TryPlaceExtractor(
-                origin, dir, command.FilterItemId ?? Extractor.DefaultFilterItemId),
-            BuildingKind.PowerNode => factory.TryPlacePowerNode(origin),
-            BuildingKind.PowerNodeT2 => factory.TryPlacePowerNode(origin, PowerNode.Tier2Id),
-            _ => false
-        };
-        return PlacedOrOccupied(placed, origin);
+        var placed = factory.PlaceInstant(BuildSpec.FromCommand(command), charge: true);
+        return PlacedOrOccupied(placed, command.Origin);
     }
 
     /// <summary>Same checks, same order and same texts as the client's placement today.</summary>
@@ -330,21 +312,4 @@ public sealed class SimHost
 
         return factory.TryUpgradeCore() ? null : CommandReasons.InsufficientResources;
     }
-
-    private static string? StructureId(BuildingKind kind) => kind switch
-    {
-        BuildingKind.Junction => "junction",
-        BuildingKind.Splitter => "splitter",
-        BuildingKind.Sorter => "sorter",
-        BuildingKind.Bridge => "conveyor-bridge",
-        BuildingKind.Miner => Miner.BasicId,
-        BuildingKind.MinerAdvanced => Miner.AdvancedId,
-        BuildingKind.Smelter => Crafter.SmelterBuildingId,
-        BuildingKind.Assembler => Crafter.AssemblerBuildingId,
-        BuildingKind.Generator => Generator.BuildingId,
-        BuildingKind.Extractor => Extractor.BuildingId,
-        BuildingKind.PowerNode => PowerNode.Tier1Id,
-        BuildingKind.PowerNodeT2 => PowerNode.Tier2Id,
-        _ => null
-    };
 }

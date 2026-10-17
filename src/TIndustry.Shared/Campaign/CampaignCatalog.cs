@@ -29,7 +29,8 @@ public sealed record CampaignLevelDefinition(
     int StartingMoney = 180,
     IReadOnlyList<ResourceAmount>? StartingMaterials = null,
     IReadOnlyList<CampaignObjectiveDefinition>? Objectives = null,
-    string? UnlocksNext = null);
+    string? UnlocksNext = null,
+    int RefundPercent = 100);
 
 /// <summary>Thin campaign catalog loaded from campaign.json (Godot / Shared).</summary>
 public sealed class CampaignCatalog
@@ -64,6 +65,14 @@ public sealed class CampaignCatalog
         if (catalog.Levels.Count == 0)
         {
             throw new InvalidDataException("La campagna non contiene livelli.");
+        }
+
+        foreach (var level in catalog.Levels)
+        {
+            if (level.RefundPercent is < 0 or > 100)
+            {
+                throw new InvalidDataException($"Campagna: refundPercent di '{level.Id}' fuori da 0–100.");
+            }
         }
 
         return catalog;

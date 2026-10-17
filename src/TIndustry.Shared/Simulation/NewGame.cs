@@ -1,6 +1,11 @@
 namespace TIndustry.Shared;
 
-/// <summary>Builders for the starting <see cref="Factory"/> of a new game (sandbox, campaign level, demo).</summary>
+/// <summary>
+/// Builders for the starting <see cref="Factory"/> of a new game (sandbox, campaign level, demo).
+/// Each takes optional <see cref="GameRules"/>: the refund share comes from the mode (sandbox 100,
+/// campaign = the level's), while the caller's <see cref="GameRules.InstantBuild"/> wins over the
+/// mode's default (false, demo true).
+/// </summary>
 public static class NewGame
 {
     /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
@@ -11,7 +16,8 @@ public static class NewGame
         int mapWidth = 1000,
         int mapHeight = 1000,
         int seed = 42,
-        int startingMoney = 180)
+        int startingMoney = 180,
+        GameRules? rules = null)
     {
         var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
         // Parity with Raylib CreateStartingWallet: plates/wire so first place isn't free-or-impossible.
@@ -26,10 +32,12 @@ public static class NewGame
         var research = ResearchState.CreateNew(content);
         var starter = Factory.ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
         var terrain = TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter);
-        return new Factory(content, new BeltGrid(), core, wallet, research, session)
+        var factory = new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             Terrain = terrain
         };
+        factory.State.Rules = new GameRules(RefundPercent: 100, InstantBuild: rules?.InstantBuild ?? false);
+        return factory;
     }
 
     /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
@@ -40,7 +48,8 @@ public static class NewGame
         GridPosition? coreOrigin = null,
         int coreSize = 2,
         int? mapWidth = null,
-        int? mapHeight = null)
+        int? mapHeight = null,
+        GameRules? rules = null)
     {
         var (w, h) = Factory.ResolveCampaignMapSize(level);
         if (mapWidth is int mw)
@@ -66,21 +75,26 @@ public static class NewGame
             wallet.AddMaterial("iron-ore", 8);
         }
 
-        return new Factory(content, new BeltGrid(), core, wallet, research, session)
+        var factory = new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             ActiveCampaignLevelId = level.Id,
             Terrain = terrain
         };
+        factory.State.Rules = new GameRules(
+            RefundPercent: Math.Clamp(level.RefundPercent, 0, 100),
+            InstantBuild: rules?.InstantBuild ?? false);
+        return factory;
     }
 
     /// <summary>L-belt demo without forno (ore → core), everything unlocked.</summary>
-    public static Factory Demo(FactoryContent content, string beltId = "conveyor-basic")
+    public static Factory Demo(FactoryContent content, string beltId = "conveyor-basic", GameRules? rules = null)
     {
         var beltDef = content.RequireConveyor(beltId);
         var grid = new BeltGrid();
         grid.PlacePath(DemoLayouts.LPath(), beltDef);
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var factory = new Factory(content, grid, core);
+        factory.State.Rules = new GameRules(RefundPercent: 100, InstantBuild: rules?.InstantBuild ?? true);
         factory.UnlockAllForDemo();
         factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East);
         return factory;

@@ -782,5 +782,17 @@
       "saleBonusPercent": 25
     },
     "refundPolicyNote": "Piazzamento: solo materiali (niente $). Blueprint in Ricerca: soldi + materiali. Rimozione: rimborso 100% materiali. Nodi: collegamento automatico entro raggio (priorità generatore → nodi → forni/assemblatori; mai CORE). Nodo T1: 1×1 / 4 collegamenti / raggio 6. Nodo T2: 2×2 / 8 / raggio 10. Rete attiva solo con percorso fino a un generatore con carbone. Adiacenza 4-dir: edifici a contatto di un gen (o in cluster) senza nodi. CORE fuori dalla rete potenza."
+  },
+  "buildWeights": {
+    "iron-plate": 0.7,
+    "copper-wire": 0.5,
+    "copper-ore": 0.5
+  },
+  "units": {
+    "drone": {
+      "buildSpeed": 0.5,
+      "buildRange": 27.5,
+      "speed": 22.5
+    }
   }
 }

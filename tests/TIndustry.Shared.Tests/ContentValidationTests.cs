@@ -79,6 +79,32 @@ public sealed class ContentValidationTests
             .Select(m => m.ItemId));
 
     [Fact]
+    public void BuildWeightsArePositiveKnownItems()
+    {
+        var items = Content.Market.Select(m => m.ItemId).ToHashSet();
+        Assert.NotEmpty(Content.BuildWeights);
+        foreach (var (itemId, weight) in Content.BuildWeights)
+        {
+            Assert.True(weight > 0f, $"buildWeights['{itemId}'] = {weight}");
+            Assert.True(items.Contains(itemId), $"buildWeights: item sconosciuto '{itemId}'");
+        }
+    }
+
+    [Fact]
+    public void DroneIsDefined()
+    {
+        // FactoryContent.Load throws when units.drone is missing: loading it proves it is there.
+        Assert.Equal(new UnitDefinition(BuildSpeed: 0.5f, BuildRange: 27.5f, Speed: 22.5f), Content.Drone);
+    }
+
+    [Fact]
+    public void CampaignRefundPercentsAreInRange()
+    {
+        var catalog = CampaignCatalog.Load(Path.Combine(DataDir, "campaign.json"));
+        Assert.All(catalog.Levels, level => Assert.InRange(level.RefundPercent, 0, 100));
+    }
+
+    [Fact]
     public void CampaignObjectivesReferenceKnownIds()
     {
         var catalog = CampaignCatalog.Load(Path.Combine(DataDir, "campaign.json"));

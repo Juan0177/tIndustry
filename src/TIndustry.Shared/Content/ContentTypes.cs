@@ -24,7 +24,8 @@ public sealed record ConveyorDefinition(
     int MoneyCost = 0,
     IReadOnlyList<ResourceAmount>? BuildCost = null,
     UnlockRequirement? Unlock = null,
-    LogisticsKind Kind = LogisticsKind.Belt)
+    LogisticsKind Kind = LogisticsKind.Belt,
+    float BuildCostMultiplier = 1f)
 {
     public IReadOnlyList<ResourceAmount> EffectiveBuildCost => BuildCost ?? [];
 }
@@ -39,7 +40,11 @@ public sealed record BuildingDefinition(
     string Id,
     int MoneyCost,
     IReadOnlyList<ResourceAmount> BuildCost,
-    int RefundPercent = 100);
+    int RefundPercent = 100,
+    float BuildCostMultiplier = 1f);
+
+/// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
+public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);
 
 public sealed record CoreUpgradeDefinition(
     int MoneyCost,

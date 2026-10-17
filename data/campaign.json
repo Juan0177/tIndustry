@@ -8,6 +8,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 220,
+      "refundPercent": 100,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -41,6 +42,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 180,
+      "refundPercent": 100,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -69,6 +71,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 280,
+      "refundPercent": 100,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -103,6 +106,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 520,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -143,6 +147,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 160,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -176,6 +181,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 450,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -220,6 +226,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 320,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -258,6 +265,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 560,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -298,6 +306,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 400,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
@@ -346,6 +355,7 @@
       "mapWidth": 1000,
       "mapHeight": 1000,
       "startingMoney": 1100,
+      "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
