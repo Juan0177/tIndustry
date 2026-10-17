@@ -51,7 +51,10 @@ public partial class World
             && _view.Belts.TryGetValue(hover, out var cell)
             && cell.Kind == LogisticsKind.Sorter)
         {
-            _sorterFilterId = SorterFilters.Cycle(cell.FilterItemId);
+            // Cycle from the filter the sorter will have once earlier same-tick presses are applied.
+            var current = PendingCommands.OfType<SetSorterFilter>().LastOrDefault(c => c.Tile == hover)?.ItemId
+                ?? cell.FilterItemId;
+            _sorterFilterId = SorterFilters.Cycle(current);
             SubmitCommand(new SetSorterFilter(LocalPlayer, hover, _sorterFilterId));
             _hud?.SetSorterFilterBrush(_sorterFilterId);
         }
@@ -87,26 +90,33 @@ public partial class World
         var minerPos = new GridPosition(
             Math.Max(0, coreOrigin.X - Miner.Size - 2),
             coreOrigin.Y);
-        void Seed(string what, GridPosition at) => GD.PrintErr($"SEED_CORE_LINE: {what} fail at {at}");
-
-        // Dev seed: report refusals on the console instead of toasting them.
+        // Dev seed: also log refusals on the console. The standard handler still toasts them too.
         void OnRejected(SimCommand command, string reason) =>
-            Seed(command is PlaceBuilding ? "miner" : "belt", command switch
-            {
-                PlaceBuilding b => b.Origin,
-                PlaceBelt b => b.Position,
-                _ => minerPos
-            });
-        _host.CommandRejected += OnRejected;
-        _host.Submit(new PlaceBuilding(LocalPlayer, BuildingKind.Miner, minerPos, Direction.East));
-        for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
-        {
-            _host.Submit(new PlaceBelt(LocalPlayer, new GridPosition(x, coreOrigin.Y), Direction.East, "conveyor-basic"));
-        }
+            GD.PrintErr($"SEED_CORE_LINE: {command.GetType().Name} refused ({reason})");
 
-        // One tick applies the whole line (commands keep arrival order).
-        AdvanceHost(SimulationClock.TickSeconds);
-        _host.CommandRejected -= OnRejected;
+        _host.CommandRejected += OnRejected;
+        try
+        {
+            _host.Submit(new PlaceBuilding(LocalPlayer, BuildingKind.Miner, minerPos, Direction.East));
+            for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
+            {
+                _host.Submit(new PlaceBelt(LocalPlayer, new GridPosition(x, coreOrigin.Y), Direction.East, "conveyor-basic"));
+            }
+
+            // One tick applies the whole line (commands keep arrival order).
+            _host.AdvanceTicks(1);
+        }
+        catch (AggregateException ex)
+        {
+            foreach (var inner in ex.InnerExceptions)
+            {
+                GD.PushError($"SimHost handler: {inner}");
+            }
+        }
+        finally
+        {
+            _host.CommandRejected -= OnRejected;
+        }
 
         _visualDirty = true;
         _buildingsDirty = true;
