@@ -1,6 +1,8 @@
 # Sotto-progetto 3 — Costruzione in corso (come Mindustry)
 
-Stato: approvata a voce il 2026-10-17, in attesa di revisione scritta.
+Stato: approvata il 2026-10-17. Decisione e scelte di attuazione: [ADR 0003](../../decisioni/0003-costruzione-come-mindustry.md).
+
+Sotto-progetto 3 di 5 (roadmap in [2026-10-15-riordino-progetto-design](2026-10-15-riordino-progetto-design.md#roadmap-dei-sotto-progetti)), dopo [2026-10-15-simulazione-comandi-sistemi-design](2026-10-15-simulazione-comandi-sistemi-design.md). Piano: [2026-10-17-costruzione-in-corso](../plans/2026-10-17-costruzione-in-corso.md).
 
 ## Obiettivo
 
@@ -88,7 +90,7 @@ Builder → Construct → Belt (avanzamento) → Power → Mining → Crafting �
 - **Builder** muove i droni e avvia i cantieri.
 - **Construct** fa avanzare cantieri e smontaggi, preleva, rimborsa e completa.
 
-Restano valide tutte le regole di determinismo del sotto-progetto 2: droni, cantieri e piani si iterano in ordine di id e di coda. Le posizioni `float` del drone ricadono nella regola già accettata (ADR 0002: `float` con recupero tramite istantanea).
+Restano valide tutte le regole di determinismo del sotto-progetto 2: droni, cantieri e piani si iterano in ordine di id e di coda. Le posizioni `float` del drone ricadono nella regola già accettata ([ADR 0002](../../decisioni/0002-sincronizzazione-ibrida.md): `float` con recupero tramite istantanea).
 
 ## Comandi ed eventi
 

@@ -11,7 +11,7 @@
 
 **Tech Stack:** C# / .NET 8, xUnit, Godot 4.4.1 .NET (client, shader `canvas_item`), `tools/dev/dev.sh`, `tools/dev/playtest.sh`, `tools/dev/compare_shots.py`.
 
-**Spec:** `docs/superpowers/specs/2026-10-17-costruzione-in-corso-design.md`
+**Spec:** [2026-10-17-costruzione-in-corso-design](../specs/2026-10-17-costruzione-in-corso-design.md)
 
 ## Global Constraints
 
