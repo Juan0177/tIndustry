@@ -8,7 +8,7 @@
 
 **Tech Stack:** C# / .NET 8, Godot 4.4.1 .NET, xUnit, GitHub CLI (`gh`).
 
-**Spec:** `docs/superpowers/specs/2026-10-15-riordino-progetto-design.md`
+**Spec:** [2026-10-15-riordino-progetto-design](../specs/2026-10-15-riordino-progetto-design.md)
 
 ## Global Constraints
 

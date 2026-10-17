@@ -10,8 +10,6 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class World
 {
-    private const string PlaytestEnv = "TINDUSTRY_PLAYTEST";
-
     /// <summary>Device id stamped on synthetic events; anything else is the player's real input.</summary>
     private const int PlaytestDevice = 4242;
 
@@ -27,7 +25,38 @@ public partial class World
         }
     }
 
-    private static bool PlaytestRequested => !string.IsNullOrWhiteSpace(OS.GetEnvironment(PlaytestEnv));
+    private static bool PlaytestRequested => GameDataPaths.IsPlaytest;
+
+    /// <summary>
+    /// Runs first in <see cref="_Ready"/>, before settings or progress are read: a playtest without an
+    /// absolute isolated profile quits at once, and any later write the guard refuses quits too.
+    /// </summary>
+    private bool GuardPlaytestProfile()
+    {
+        if (!PlaytestRequested)
+        {
+            return true;
+        }
+
+        GameDataPaths.WriteRefused += OnPlayerDataWriteRefused;
+        if (GameDataPaths.PlaytestProfileProblem() is not { } problem)
+        {
+            return true;
+        }
+
+        OnPlayerDataWriteRefused($"{problem} Playtest annullato.");
+        SetProcess(false);
+        SetPhysicsProcess(false);
+        return false;
+    }
+
+    public override void _ExitTree() => GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
+
+    private void OnPlayerDataWriteRefused(string message)
+    {
+        GD.PushError(message);
+        GetTree().Quit(3);
+    }
 
     private void StartPlaytestIfRequested()
     {
@@ -36,15 +65,8 @@ public partial class World
             return;
         }
 
-        if (GameDataPaths.Override is null)
-        {
-            GD.PushError($"{PlaytestEnv} richiede {GameDataPaths.DataDirEnv} (profilo isolato): playtest annullato.");
-            GetTree().Quit(2);
-            return;
-        }
-
         var timer = GetTree().CreateTimer(1.0);
-        timer.Timeout += () => _ = RunPlaytestAsync(OS.GetEnvironment(PlaytestEnv));
+        timer.Timeout += () => _ = RunPlaytestAsync(OS.GetEnvironment(GameDataPaths.PlaytestEnv));
     }
 
     private async Task RunPlaytestAsync(string name)

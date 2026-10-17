@@ -90,6 +90,11 @@ public partial class World : Node2D
 
     public override void _Ready()
     {
+        if (!GuardPlaytestProfile())
+        {
+            return;
+        }
+
         _contentPath = ResolveContentPath();
         _campaignPath = ResolveCampaignPath();
         _settings = ClientSettings.Load();

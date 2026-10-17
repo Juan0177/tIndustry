@@ -8,7 +8,9 @@
 
 **Tech Stack:** C# / .NET 8, xUnit, Godot 4.4.1 .NET (client), `tools/dev/dev.sh` e `tools/dev/playtest.sh`.
 
-**Spec:** `docs/superpowers/specs/2026-10-15-simulazione-comandi-sistemi-design.md`
+**Spec:** [2026-10-15-simulazione-comandi-sistemi-design](../specs/2026-10-15-simulazione-comandi-sistemi-design.md)
+
+**Diario:** [2026-10-16-simulazione-comandi-sistemi](../../diario/2026-10-16-simulazione-comandi-sistemi.md)
 
 ## Global Constraints
 

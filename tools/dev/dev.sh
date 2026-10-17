@@ -115,5 +115,11 @@ if [ "$EDITOR" = 1 ]; then
   "$GODOT" --path godot "${LOG_ARGS[@]}" -e
 else
   step "Avvio del gioco"
-  "$GODOT" --path godot "${LOG_ARGS[@]}"
+  # With a custom profile, user:// (shader_cache, vulkan, .recovery_mode_lock) goes there too: Godot builds it
+  # from %APPDATA% on Windows. Not for the editor, which keeps its own settings under the real %APPDATA%.
+  if [ -n "$PROFILE" ]; then
+    APPDATA="$TINDUSTRY_DATA_DIR" "$GODOT" --path godot "${LOG_ARGS[@]}"
+  else
+    "$GODOT" --path godot "${LOG_ARGS[@]}"
+  fi
 fi
