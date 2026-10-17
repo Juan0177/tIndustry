@@ -47,6 +47,7 @@ public partial class World : Node2D
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Node2D? _buildingsLayer;
+    private ConstructionLayer? _constructionLayer;
     private Hud? _hud;
     private HomePanel? _home;
     private ResearchPanel? _research;
@@ -70,8 +71,11 @@ public partial class World : Node2D
     private BuildTool _tool = BuildTool.Cursor;
     private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
     private GridPosition? _hover;
+    private Vector2 _hoverScreen;
     private bool _draggingPlace;
     private bool _draggingRemove;
+    // Cells a right-drag already covered: a block gets one Remove per drag, never a second that cancels it.
+    private readonly HashSet<GridPosition> _removedThisDrag = [];
     private bool _visualDirty = true;
     private bool _buildingsDirty = true;
     private Texture2D? _oreTex;
@@ -107,7 +111,7 @@ public partial class World : Node2D
             mapHeight: DefaultMapHeight,
             seed: 42,
             startingMoney: 180,
-            rules: new GameRules(InstantBuild: true))); // TODO(sp3-task5): costruzione vera
+            rules: ClientRules()));
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureHud();
@@ -122,6 +126,7 @@ public partial class World : Node2D
         EnsureResourceOverlay();
         UseSmoothUiFiltering();
         EnsureBuildingsLayer();
+        EnsureConstructionLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
         _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
@@ -194,10 +199,12 @@ public partial class World : Node2D
 
         if (_home?.IsOpen == true || _view is null)
         {
+            _hud?.SetSiteTooltip(null, default);
             return;
         }
 
         AdvanceHost(delta);
+        SyncConstructionVisuals((float)delta);
 
         if (_visualDirty)
         {
@@ -211,7 +218,9 @@ public partial class World : Node2D
             _buildingsDirty = false;
         }
 
+        _structureCount = StructureCount();
         SyncItemSprites();
+        SyncSiteTooltip();
         SyncBuildingVisuals((float)delta);
         UpdateHud();
         CheckCampaignComplete();

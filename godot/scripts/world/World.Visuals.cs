@@ -18,6 +18,74 @@ public partial class World
         AddChild(_buildingsLayer);
     }
 
+    private void EnsureConstructionLayer()
+    {
+        _constructionLayer = GetNodeOrNull<ConstructionLayer>("Construction");
+        if (_constructionLayer is not null)
+        {
+            return;
+        }
+
+        _constructionLayer = new ConstructionLayer { Name = "Construction", ZIndex = ConstructionZ };
+        AddChild(_constructionLayer);
+    }
+
+    /// <summary>
+    /// Plans, sites and drones. A deconstruction that starts takes its block away: only the layer of that
+    /// block is rebuilt. Finished sites rebuild their layer through the host events (see OnSimEvent).
+    /// </summary>
+    private void SyncConstructionVisuals(float delta)
+    {
+        if (_constructionLayer is not null)
+        {
+            MarkStructuresDirty(_constructionLayer.Sync(_view, delta));
+        }
+    }
+
+    // Last stalled site under the mouse and its shortfall: the tooltip text is rebuilt only when they change.
+    private (long SiteId, CostEntry Missing)? _siteTipKey;
+    private string? _siteTipText;
+
+    /// <summary>
+    /// Hover on a site stalled for resources: "Mancano: {n} {oggetto}", n being what its limiting cost line is
+    /// still short of (<see cref="ConstructSite.Missing"/>); money shows as "$n" like the other cost texts.
+    /// </summary>
+    private void SyncSiteTooltip()
+    {
+        if (_hud is null)
+        {
+            return;
+        }
+
+        if (_view is null
+            || _hover is not { } hover
+            || !_view.TryGetSiteAt(hover, out var site)
+            || site.Deconstructing
+            || site.Missing is not { } missing)
+        {
+            _siteTipKey = null;
+            _hud.SetSiteTooltip(null, default);
+            return;
+        }
+
+        if (_siteTipKey != (site.Id, missing))
+        {
+            _siteTipKey = (site.Id, missing);
+            _siteTipText = missing.ItemId is null
+                ? $"Mancano: ${missing.Amount}"
+                : $"Mancano: {missing.Amount} {_view.Content.DisplayName(missing.ItemId)}";
+        }
+
+        _hud.SetSiteTooltip(_siteTipText, _hoverScreen);
+    }
+
+    /// <summary>Asks for a rebuild of just the belt and/or building visuals named by <paramref name="layers"/>.</summary>
+    private void MarkStructuresDirty(ConstructionLayer.StructureLayers layers)
+    {
+        _visualDirty |= layers.HasFlag(ConstructionLayer.StructureLayers.Belts);
+        _buildingsDirty |= layers.HasFlag(ConstructionLayer.StructureLayers.Buildings);
+    }
+
     private void RebuildBuildingVisuals()
     {
         if (_view is null || _buildingsLayer is null)
@@ -312,6 +380,7 @@ public partial class World
             _view.PowerBuffer,
             _view.PowerCapacity);
         _hud.SetDirectionLabel(DirectionIt(_placeDir));
+        _hud.SyncBuildQueue(_view);
         if (_activeLevel is not null)
         {
             _hud.UpdateObjectives(
@@ -355,6 +424,9 @@ public partial class World
     /// <summary>Draw order: belts (0–5) &lt; items &lt; buildings (+ their own child layers).</summary>
     private const int ItemsZ = 7;
     private const int BuildingsZ = 8;
+
+    /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
+    private const int ConstructionZ = 20;
 
     /// <summary>CORE sprite + outline as a building node (z above belt items).</summary>
     private void AddCoreVisual()

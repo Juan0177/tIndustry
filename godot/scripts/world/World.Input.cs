@@ -346,18 +346,21 @@ public partial class World
                 if (mouse.Pressed)
                 {
                     _draggingRemove = true;
-                    TryRemoveAt(cell);
+                    _removedThisDrag.Clear();
+                    RemoveOnceInDrag(cell);
                     GetViewport().SetInputAsHandled();
                 }
                 else
                 {
                     _draggingRemove = false;
+                    _removedThisDrag.Clear();
                 }
             }
         }
         else if (@event is InputEventMouseMotion motion)
         {
             var cell = ScreenToCell(motion.Position);
+            _hoverScreen = motion.Position;
             if (!_hover.Equals(cell))
             {
                 _hover = cell;
@@ -371,7 +374,7 @@ public partial class World
             }
             else if (_draggingRemove)
             {
-                TryRemoveAt(cell);
+                RemoveOnceInDrag(cell);
             }
         }
     }

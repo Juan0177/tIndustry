@@ -81,6 +81,15 @@ public interface IGameView
     /// <summary>Build queue of <paramref name="playerId"/> (first = being reached or worked on).</summary>
     IReadOnlyList<BuildPlan> PlansOf(int playerId);
 
+    /// <summary>
+    /// Cells <paramref name="plan"/> covers (graphics): the planned block's (a new bridge: up to the exit
+    /// it would get now), or, when breaking, the whole block standing on the clicked cell.
+    /// </summary>
+    IReadOnlyList<GridPosition> PlanTiles(BuildPlan plan);
+
+    /// <summary>True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>.</summary>
+    bool IsPlannedTile(GridPosition tile);
+
     IWalletView Wallet { get; }
 
     IResearchView Research { get; }

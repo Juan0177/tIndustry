@@ -38,6 +38,12 @@ public partial class World
         BeginTutorialIfNeeded();
     }
 
+    /// <summary>
+    /// Rules of the games the client starts: real construction, as in Mindustry (plans, drone, sites).
+    /// The refund share is the mode's own (sandbox 100, campaign = the level's), set by <see cref="NewGame"/>.
+    /// </summary>
+    private static GameRules ClientRules() => new();
+
     private void StartNewSandbox(bool toast)
     {
         var content = FactoryContent.Load(_contentPath);
@@ -50,7 +56,7 @@ public partial class World
             mapHeight: DefaultMapHeight,
             seed: 42,
             startingMoney: 180,
-            rules: new GameRules(InstantBuild: true))); // TODO(sp3-task5): costruzione vera
+            rules: ClientRules()));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
@@ -162,7 +168,7 @@ public partial class World
 
         var content = FactoryContent.Load(_contentPath);
         var factory = NewGame.Campaign(
-            content, _campaign, level, rules: new GameRules(InstantBuild: true)); // TODO(sp3-task5): costruzione vera
+            content, _campaign, level, rules: ClientRules());
         AttachGame(factory);
 
         _continueAutoSave.MarkPlayed();
@@ -184,6 +190,18 @@ public partial class World
             _hud?.ShowToast($"Campagna · {level.Name} · {w}×{h} · seed {level.Seed}");
             // Raylib: campaign disables first-run tutorial (objectives HUD only).
         }
+    }
+
+    /// <summary>Centres the camera on <paramref name="worldRect"/> (build queue click), keeping the zoom.</summary>
+    private void FocusCameraOn(Rect2 worldRect)
+    {
+        if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam)
+        {
+            return;
+        }
+
+        cam.Position = worldRect.GetCenter();
+        cam.ClampToMap();
     }
 
     private void FocusCameraOnCore()

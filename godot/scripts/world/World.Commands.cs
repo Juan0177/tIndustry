@@ -26,12 +26,16 @@ public partial class World
         {
             _host.CommandApplied -= OnCommandApplied;
             _host.CommandRejected -= OnCommandRejected;
+            _host.EventRaised -= OnSimEvent;
         }
 
         _host = host;
         _host.CommandApplied += OnCommandApplied;
         _host.CommandRejected += OnCommandRejected;
+        _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
+        _structureCount = StructureCount();
+        ConstructFinishedCount = 0;
     }
 
     /// <summary>Commands submitted but not yet applied (empty without a game).</summary>
@@ -44,6 +48,7 @@ public partial class World
         {
             _host.CommandApplied -= OnCommandApplied;
             _host.CommandRejected -= OnCommandRejected;
+            _host.EventRaised -= OnSimEvent;
         }
 
         _host = null;
@@ -108,19 +113,19 @@ public partial class World
         TakeQuietRefusal(command);
         switch (command)
         {
-            case PlaceBelt:
             case SetSorterFilter:
                 _visualDirty = true;
                 break;
-            case PlaceBuilding { Kind: BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter or BuildingKind.Bridge }:
-                _visualDirty = true;
-                break;
-            case PlaceBuilding:
-                _buildingsDirty = true;
-                break;
-            case Remove:
-                _visualDirty = true;
-                _buildingsDirty = true;
+            case PlaceBelt or PlaceBuilding or Remove:
+                // Placing and removing only queue plans: the blocks change when a site finishes or a
+                // deconstruction starts (OnSimEvent, SyncConstructionVisuals). A game saved with instant
+                // build still changes blocks right here, which the structure count catches.
+                if (StructureCount() != _structureCount)
+                {
+                    _visualDirty = true;
+                    _buildingsDirty = true;
+                }
+
                 break;
             case UnlockStructure:
                 _research?.OnCommandApplied(command);
@@ -135,6 +140,40 @@ public partial class World
                 break;
         }
     }
+
+    /// <summary>
+    /// Construction events of the host. A finished site rebuilds only the visual layer of its block;
+    /// a dropped plan of the local player shows why.
+    /// </summary>
+    private void OnSimEvent(SimEvent simEvent)
+    {
+        switch (simEvent)
+        {
+            case ConstructFinished finished:
+                ConstructFinishedCount++;
+                MarkStructuresDirty(_constructionLayer?.LayerOfSite(finished.SiteId)
+                    ?? ConstructionLayer.StructureLayers.Both);
+                break;
+            case DeconstructFinished done when _constructionLayer?.HasSeenSite(done.SiteId) != true:
+                // Started and finished between two frames: its block's removal was never drawn.
+                MarkStructuresDirty(ConstructionLayer.StructureLayers.Both);
+                break;
+            case PlanDropped dropped when dropped.PlayerId == LocalPlayer:
+                _hud?.ShowToast(dropped.Reason);
+                break;
+        }
+    }
+
+    /// <summary>Sites finished in the running game, from 0 when it was attached (the tutorial playtest waits on it).</summary>
+    private int ConstructFinishedCount { get; set; }
+
+    // Blocks and belts standing at the end of the last frame: tells whether a command changed them directly.
+    private int _structureCount;
+
+    private int StructureCount() => _view is null
+        ? 0
+        : _view.Belts.Count + _view.Miners.Count + _view.Smelters.Count + _view.Assemblers.Count
+            + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count;
 
     private void OnCommandRejected(SimCommand command, string reason)
     {

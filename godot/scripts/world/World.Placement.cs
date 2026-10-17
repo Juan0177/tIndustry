@@ -74,12 +74,40 @@ public partial class World
     }
 
     /// <summary>
-    /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>): miner on starter iron
-    /// + east belts into Core for quick delivery checks. Goes through the same commands as the player.
+    /// Right-drag: <see cref="TryRemoveAt"/> once per block in the whole drag, like Mindustry's removal drag.
+    /// A second Remove on a block would cancel the breaking plan the first one queued, so every cell of the
+    /// block (its footprint, or the site's cells) counts as done after the first.
+    /// </summary>
+    private void RemoveOnceInDrag(GridPosition cell)
+    {
+        if (_view is null || !_removedThisDrag.Add(cell))
+        {
+            return;
+        }
+
+        if (_view.TryGetSiteAt(cell, out var site))
+        {
+            _removedThisDrag.UnionWith(site.Tiles);
+        }
+        else
+        {
+            // A breaking plan covers the whole block standing on the cell (just the cell when it is empty).
+            var probe = new BuildPlan(new BuildSpec("", null, cell, Direction.East), Breaking: true);
+            _removedThisDrag.UnionWith(_view.PlanTiles(probe));
+        }
+
+        TryRemoveAt(cell);
+    }
+
+    /// <summary>
+    /// Optional bootstrap (<c>TINDUSTRY_SEED_CORE_LINE=1</c>, ui playtest): miner on starter iron + east
+    /// belts into Core for quick delivery checks. Dev tool: the line stands at once, as with
+    /// <c>InstantBuild</c> local to the seed, so it reaches past the read-only view to
+    /// <see cref="Factory.PlaceInstant(BuildSpec, bool)"/> and pays like a placement.
     /// </summary>
     private void SeedCoreDeliveryLine()
     {
-        if (_view?.Terrain is null || _host is null)
+        if (_view?.Terrain is null || _view is not Factory factory)
         {
             return;
         }
@@ -90,32 +118,18 @@ public partial class World
         var minerPos = new GridPosition(
             Math.Max(0, coreOrigin.X - Miner.Size - 2),
             coreOrigin.Y);
-        // Dev seed: also log refusals on the console. The standard handler still toasts them too.
-        void OnRejected(SimCommand command, string reason) =>
-            GD.PrintErr($"SEED_CORE_LINE: {command.GetType().Name} refused ({reason})");
-
-        _host.CommandRejected += OnRejected;
-        try
+        void Place(BuildSpec spec)
         {
-            _host.Submit(new PlaceBuilding(LocalPlayer, BuildingKind.Miner, minerPos, Direction.East));
-            for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
+            if (!factory.PlaceInstant(spec, charge: true))
             {
-                _host.Submit(new PlaceBelt(LocalPlayer, new GridPosition(x, coreOrigin.Y), Direction.East, "conveyor-basic"));
-            }
-
-            // One tick applies the whole line (commands keep arrival order).
-            _host.AdvanceTicks(1);
-        }
-        catch (AggregateException ex)
-        {
-            foreach (var inner in ex.InnerExceptions)
-            {
-                GD.PushError($"SimHost handler: {inner}");
+                GD.PrintErr($"SEED_CORE_LINE: {spec.StructureId} su {spec.Origin} rifiutato");
             }
         }
-        finally
+
+        Place(new BuildSpec(Miner.BasicId, BuildingKind.Miner, minerPos, Direction.East));
+        for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
         {
-            _host.CommandRejected -= OnRejected;
+            Place(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(x, coreOrigin.Y), Direction.East));
         }
 
         _visualDirty = true;

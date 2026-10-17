@@ -202,6 +202,19 @@ public sealed class Factory : IGameView
         return plans;
     }
 
+    public IReadOnlyList<GridPosition> PlanTiles(BuildPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        if (!plan.Breaking)
+        {
+            return Footprint(plan.Spec);
+        }
+
+        return TryGetSpecAt(plan.Spec.Origin, out var target, out _)
+            ? Footprint(target)
+            : [plan.Spec.Origin];
+    }
+
     /// <summary>First drone of <paramref name="playerId"/> (lowest id), or null.</summary>
     public BuilderUnit? BuilderOf(int playerId)
     {

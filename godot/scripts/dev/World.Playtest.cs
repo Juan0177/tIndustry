@@ -140,21 +140,44 @@ public partial class World
 
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
+        // The click only plans the miner: the drone builds it, and the step completes once it stands.
+        var finishedBefore = ConstructFinishedCount;
         await PlaytestClick(CellToScreen(minerCell));
-        await PlaytestWait(0.3);
+        if (!await PlaytestWaitUntil(() => ConstructFinishedCount > finishedBefore && _view.Miners.Count > 0, MinerBuildTimeout))
+        {
+            return Fail($"minatore non costruito entro {MinerBuildTimeout} s");
+        }
+
+        _droneSample = null;
+        if (!await PlaytestWaitUntil(DroneSettled, DroneSettleTimeout))
+        {
+            return Fail("il drone non torna a riposo dopo il minatore");
+        }
+
         await Shot("step3-miner-placed");
-        await PlaytestWait(1.2);
-        if (!Expect(TutorialPanel.Step.BeltToCore, "click minatore"))
+        await PlaytestWaitUntil(() => _tutorial?.CurrentStep != TutorialPanel.Step.Miner, StepTimeout);
+        if (!Expect(TutorialPanel.Step.BeltToCore, "minatore costruito"))
         {
             return false;
         }
 
-        // 4) Belt: key 1 then drag from the miner output to the Core.
+        // 4) Belt: key 1 then drag from the miner output to the Core; the drone builds the belts in order.
         await PlaytestKey(Key.Key1);
-        var from = CellToScreen(new GridPosition(minerCell.X + Miner.Size, core.Y));
-        var to = CellToScreen(new GridPosition(core.X - 1, core.Y));
+        var firstBelt = minerCell.X + Miner.Size;
+        var lastBelt = core.X - 1;
+        var from = CellToScreen(new GridPosition(firstBelt, core.Y));
+        var to = CellToScreen(new GridPosition(lastBelt, core.Y));
+        finishedBefore = ConstructFinishedCount;
         await PlaytestDrag(MouseButton.Left, from, to);
         await PlaytestKey(Key.Escape);
+        var belts = lastBelt - firstBelt + 1;
+        if (!await PlaytestWaitUntil(
+                () => ConstructFinishedCount - finishedBefore >= belts && LocalQueueEmpty(),
+                BeltDragTimeout))
+        {
+            return Fail($"{belts} nastri non costruiti entro {BeltDragTimeout} s");
+        }
+
         for (var i = 0; i < 80 && _tutorial?.CurrentStep == TutorialPanel.Step.BeltToCore; i++)
         {
             await PlaytestWait(0.25);
@@ -207,7 +230,6 @@ public partial class World
         return true;
     }
 
-    /// <summary>World cell → window pixels (what a real mouse event carries, before stretch/UI scale).</summary>
     /// <summary>Screens of the main UI with a running factory: HUD, belt→CORE close-up, Mercato, Ricerca.</summary>
     private async Task<bool> PlaytestUiAsync(string dir)
     {
@@ -268,6 +290,11 @@ public partial class World
         await Shot("ricerca");
         await PlaytestKey(Key.T);
 
+        if (!await PlaytestRemoveDragOutAndBackAsync())
+        {
+            return false;
+        }
+
         AutoSaveContinue(quiet: true);
         if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
         {
@@ -277,6 +304,138 @@ public partial class World
         return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
     }
 
+    /// <summary>
+    /// Right-drag over the seed line (miner + belts) out to the Core and back, ending on other cells of the
+    /// miner: every block must end with a breaking plan, a deconstruction or nothing left (never toggled back).
+    /// No screenshot: it runs after the last one.
+    /// </summary>
+    private async Task<bool> PlaytestRemoveDragOutAndBackAsync()
+    {
+        var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
+        var lastBelt = new GridPosition(core.X - 1, core.Y);
+        if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
+        {
+            cam.Position = CellCenter(new GridPosition(core.X - 2, core.Y));
+            cam.Zoom = new Vector2(1.6f, 1.6f);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        for (var x = minerCell.X; x <= lastBelt.X; x++)
+        {
+            if (_view.CanOccupy(new GridPosition(x, core.Y)))
+            {
+                return Fail($"linea del seed incompleta prima del trascinamento: {x},{core.Y} vuota");
+            }
+        }
+
+        await PlaytestDrag(MouseButton.Right,
+        [
+            CellToScreen(minerCell),
+            CellToScreen(lastBelt),
+            CellToScreen(new GridPosition(minerCell.X + 1, core.Y)),
+            CellToScreen(new GridPosition(minerCell.X, core.Y + 1))
+        ]);
+        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
+        {
+            return Fail("comandi del trascinamento non applicati");
+        }
+
+        for (var x = minerCell.X; x <= lastBelt.X; x++)
+        {
+            var cell = new GridPosition(x, core.Y);
+            if (!RemovedOrBeingRemoved(cell))
+            {
+                return Fail($"trascinamento col destro andata e ritorno: {cell} senza smontaggio");
+            }
+        }
+
+        GD.Print($"PLAYTEST step ok: smontaggio trascinato andata e ritorno (fps {Engine.GetFramesPerSecond()})");
+        return true;
+    }
+
+    /// <summary>
+    /// True when the block on <paramref name="cell"/> is going or gone: a breaking plan queued, a deconstruction
+    /// running, or nothing left standing. Counting "gone" keeps the check independent of the frame rate (at
+    /// 60 fps the drag outlasts the miner's deconstruction); a toggled cell keeps its block with no plan.
+    /// </summary>
+    private bool RemovedOrBeingRemoved(GridPosition cell)
+    {
+        if (_view!.TryGetSiteAt(cell, out var site))
+        {
+            return site.Deconstructing;
+        }
+
+        if (_view.CanOccupy(cell))
+        {
+            return true;
+        }
+
+        foreach (var plan in _view.PlansOf(LocalPlayer))
+        {
+            if (plan.Breaking && _view.PlanTiles(plan).Contains(cell))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Seconds a single building may take to be built (it needs well under one).</summary>
+    private const double MinerBuildTimeout = 10;
+
+    /// <summary>Seconds the drone may take to build a whole belt drag.</summary>
+    private const double BeltDragTimeout = 30;
+
+    private const double DroneSettleTimeout = 5;
+    private const double StepTimeout = 5;
+
+    /// <summary>
+    /// Polls <paramref name="done"/> once per frame until it holds or <paramref name="timeoutSeconds"/> pass
+    /// (no fixed sleep: the wait ends as soon as the game gets there). True when it held.
+    /// </summary>
+    private async Task<bool> PlaytestWaitUntil(Func<bool> done, double timeoutSeconds)
+    {
+        var deadline = Time.GetTicksMsec() + (ulong)(timeoutSeconds * 1000);
+        while (!done())
+        {
+            if (Time.GetTicksMsec() > deadline)
+            {
+                return false;
+            }
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        return true;
+    }
+
+    private bool LocalQueueEmpty() => _view is not null && _view.PlansOf(LocalPlayer).Count == 0 && _view.Sites.Count == 0;
+
+    private (float X, float Y, long Tick)? _droneSample;
+
+    /// <summary>Queue empty and the drone did not move over the last simulation tick (back at rest).</summary>
+    private bool DroneSettled()
+    {
+        if (!LocalQueueEmpty() || _view!.Builders.Count == 0)
+        {
+            _droneSample = null;
+            return false;
+        }
+
+        var drone = _view.Builders[0];
+        var now = (drone.X, drone.Y, _view.CurrentTick);
+        var settled = _droneSample is { } last && last.Tick != now.CurrentTick && last.X == now.X && last.Y == now.Y;
+        if (_droneSample is not { } prev || prev.Tick != now.CurrentTick)
+        {
+            _droneSample = now;
+        }
+
+        return settled;
+    }
+
+    /// <summary>World cell → window pixels (what a real mouse event carries, before stretch/UI scale).</summary>
     private Vector2 CellToScreen(GridPosition cell) =>
         ViewportToWindow(GetViewport().GetCanvasTransform() * CellCenter(cell));
 
@@ -309,9 +468,19 @@ public partial class World
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private async Task PlaytestDrag(MouseButton button, Vector2 from, Vector2 to, int steps = 16)
+    private Task PlaytestDrag(MouseButton button, Vector2 from, Vector2 to, int steps = 16) =>
+        PlaytestDrag(button, [from, to], steps);
+
+    /// <summary>Press at the first point, move through the others (<paramref name="steps"/> moves per leg), release.</summary>
+    private async Task PlaytestDrag(MouseButton button, Vector2[] path, int steps = 16)
     {
-        var mask = button == MouseButton.Left ? MouseButtonMask.Left : MouseButtonMask.Middle;
+        var mask = button switch
+        {
+            MouseButton.Left => MouseButtonMask.Left,
+            MouseButton.Right => MouseButtonMask.Right,
+            _ => MouseButtonMask.Middle
+        };
+        var from = path[0];
         PlaytestMove(from, 0);
         Input.ParseInputEvent(new InputEventMouseButton
         {
@@ -319,12 +488,16 @@ public partial class World
             Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        for (var i = 1; i <= steps; i++)
+        for (var leg = 1; leg < path.Length; leg++)
         {
-            PlaytestMove(from.Lerp(to, i / (float)steps), mask);
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            for (var i = 1; i <= steps; i++)
+            {
+                PlaytestMove(path[leg - 1].Lerp(path[leg], i / (float)steps), mask);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
         }
 
+        var to = path[^1];
         Input.ParseInputEvent(new InputEventMouseButton
         {
             ButtonIndex = button, Pressed = false, Position = to, GlobalPosition = to, Device = PlaytestDevice
