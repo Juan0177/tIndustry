@@ -45,7 +45,7 @@ public sealed class CampaignProgress
     public void Save(string? path = null)
     {
         var resolved = path ?? ProgressPath;
-        Directory.CreateDirectory(Path.GetDirectoryName(resolved) ?? ProgressDirectory);
+        GameDataPaths.CreateDirectory(Path.GetDirectoryName(resolved) ?? ProgressDirectory);
         CompletedLevelIds = CompletedLevelIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.Ordinal)

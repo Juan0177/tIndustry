@@ -36,7 +36,7 @@ public sealed class ClientSettings
             var path = Path.Combine(
                 GameDataPaths.Override ?? OS.GetUserDataDir(),
                 "tIndustry");
-            Directory.CreateDirectory(path);
+            GameDataPaths.CreateDirectory(path);
             return path;
         }
     }
@@ -67,7 +67,7 @@ public sealed class ClientSettings
     public void Save()
     {
         Normalize();
-        Directory.CreateDirectory(SettingsDirectory);
+        GameDataPaths.EnsureWritable(SettingsPath);
         File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this, JsonOptions));
     }
 
