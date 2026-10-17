@@ -7,6 +7,8 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Documentazione
 
+- **README rinnovato**: banner, galleria di screenshot, anteprima della nuova pixel-art, tabella dei controlli, roadmap; dettagli di sviluppo in sezioni richiudibili
+- **Per Obsidian**: indice delle decisioni (`docs/decisioni.md`) e mappa del progetto (`docs/mappa-progetto.canvas`, rigenerata da `tools/dev/mappa_canvas.py`)
 - **Diario di lavoro** in `docs/diario/`: un file per piano di implementazione completato (task, PR, revisioni, decisioni autonome, rinvii, verifiche), con il diario del sotto-progetto 2; `.gitattributes` forza LF sui `.md` per non vederli modificati dopo l'apertura in Obsidian
 
 ### Sviluppo
