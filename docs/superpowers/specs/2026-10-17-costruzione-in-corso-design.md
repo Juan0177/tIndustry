@@ -45,7 +45,7 @@ ogni tick, sul cantiere in lavorazione:  Δprogress = buildSpeed(drone) / buildC
 - `buildCostMultiplier` vale 1 se non è indicato.
 - Il denaro (`moneyCost`) non entra nel tempo. Viene prelevato in proporzione come i materiali.
 - Il drone ha `buildSpeed` 0,5 (alpha). Con il tick fisso a 60/s:
-  - un `conveyor-basic` (1 `iron-plate`) richiede ≈ 41 tick, circa 0,7 s;
+  - un `conveyor-basic` (1 `iron-plate`) richiede ≈ 42 tick, circa 0,7 s;
   - un `miner` (4 `iron-plate`) ≈ 46 tick;
   - un `miner-advanced` (10 piastre + 4 fili) ≈ 58 tick.
 - Lo smontaggio procede alla stessa velocità.
