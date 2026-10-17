@@ -166,8 +166,11 @@ public sealed class Factory : IGameView
     public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
         Belts.TryGetIncomingDirection(position, out incoming);
 
-    public IReadOnlyList<BuilderUnit> Builders => State.Builders;
-    public IReadOnlyList<ConstructSite> Sites => State.Sites;
+    // Read-only wrappers: the view must not be cast back to the live lists.
+    public IReadOnlyList<BuilderUnit> Builders => buildersView ??= State.Builders.AsReadOnly();
+    public IReadOnlyList<ConstructSite> Sites => sitesView ??= State.Sites.AsReadOnly();
+    private IReadOnlyList<BuilderUnit>? buildersView;
+    private IReadOnlyList<ConstructSite>? sitesView;
 
     public bool TryGetSiteAt(GridPosition tile, out ConstructSite site)
     {
@@ -273,6 +276,30 @@ public sealed class Factory : IGameView
         ArgumentNullException.ThrowIfNull(spec);
         var half = FootprintSize(spec) / 2f;
         return (spec.Origin.X + half, spec.Origin.Y + half);
+    }
+
+    /// <summary>
+    /// Centre of the cells <paramref name="site"/> really covers (a bridge: midway between its ends). The
+    /// drone works within range of this point, whichever cell its plan was made on.
+    /// </summary>
+    public static (float X, float Y) SiteCentre(ConstructSite site)
+    {
+        ArgumentNullException.ThrowIfNull(site);
+        if (site.Tiles.Count == 0)
+        {
+            return (site.Spec.Origin.X + 0.5f, site.Spec.Origin.Y + 0.5f);
+        }
+
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var t in site.Tiles)
+        {
+            minX = Math.Min(minX, t.X);
+            minY = Math.Min(minY, t.Y);
+            maxX = Math.Max(maxX, t.X);
+            maxY = Math.Max(maxY, t.Y);
+        }
+
+        return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
     }
 
     /// <summary>Where the drone heads for <paramref name="plan"/>: the block's centre, or the clicked cell's when breaking.</summary>

@@ -4,7 +4,7 @@ namespace TIndustry.Shared;
 /// Moves the drones and starts their sites (Mindustry's builder AI and <c>beginPlace</c>). Per drone, in
 /// id order: with plans and no site it flies straight to the first plan's centre and, once within
 /// <c>buildRange − 1</c>, revalidates the plan and turns it into a site; with no plans it flies back to
-/// the rest point beside the Core.
+/// the rest point beside the Core. A drone with a site keeps within range of the site's cells.
 /// </summary>
 public sealed class BuilderSystem : ISimulationSystem
 {
@@ -22,8 +22,9 @@ public sealed class BuilderSystem : ISimulationSystem
         var workRange = unit.BuildRange - 1f;
         foreach (var builder in state.Builders)
         {
-            if (builder.CurrentSiteId is not null)
+            if (builder.CurrentSiteId is { } siteId)
             {
+                StayInRange(state, builder, siteId, workRange, unit.Speed * ctx.Dt);
                 continue;
             }
 
@@ -44,6 +45,41 @@ public sealed class BuilderSystem : ISimulationSystem
             {
                 BeginWork(state, factory, builder);
             }
+        }
+    }
+
+    /// <summary>
+    /// A drone with a site keeps within <paramref name="workRange"/> of the site's cells (the same point
+    /// <see cref="ConstructSystem"/> measures to), so a site never waits on a drone out of range. A site
+    /// that no longer exists releases the drone and its plan.
+    /// </summary>
+    private static void StayInRange(GameState state, BuilderUnit builder, long siteId, float workRange, float step)
+    {
+        ConstructSite? site = null;
+        foreach (var candidate in state.Sites)
+        {
+            if (candidate.Id == siteId)
+            {
+                site = candidate;
+                break;
+            }
+        }
+
+        if (site is null)
+        {
+            builder.CurrentSiteId = null;
+            if (builder.PlanQueue.Count > 0)
+            {
+                builder.PlanQueue.RemoveAt(0);
+            }
+
+            return;
+        }
+
+        var (x, y) = Factory.SiteCentre(site);
+        if (Distance(builder, x, y) > workRange)
+        {
+            MoveTowards(builder, x, y, step);
         }
     }
 
@@ -96,7 +132,7 @@ public sealed class BuilderSystem : ISimulationSystem
             else
             {
                 // Already gone: nothing to take apart.
-                builder.Plans.RemoveAt(0);
+                builder.PlanQueue.RemoveAt(0);
             }
 
             return;
@@ -114,7 +150,7 @@ public sealed class BuilderSystem : ISimulationSystem
 
         if (reason is not null)
         {
-            builder.Plans.RemoveAt(0);
+            builder.PlanQueue.RemoveAt(0);
             state.Events.Add(new PlanDropped(builder.OwnerPlayerId, plan, reason));
             return;
         }

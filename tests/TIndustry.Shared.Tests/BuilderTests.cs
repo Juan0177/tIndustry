@@ -470,6 +470,111 @@ public sealed class BuilderTests
         Assert.Empty(factory.State.Events);
     }
 
+    /// <summary>Core 2×2 at (60, 49): the drone starts at (61, 50), west of the bridges below.</summary>
+    private static Factory NewBridgeFactory()
+    {
+        var wallet = new EconomyWallet(
+            1_000,
+            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 200, ["copper-wire"] = 200 });
+        var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(60, 49), 2), wallet);
+        factory.State.Rules = new GameRules(InstantBuild: false);
+        foreach (var id in ResearchState.DemoStructureIds)
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        factory.AddBuilder(Player);
+        return factory;
+    }
+
+    /// <summary>Belts on the cells between the ends, so the bridge's exit lands 5 cells away.</summary>
+    private static void FillSpan(Factory factory, params int[] xs)
+    {
+        foreach (var x in xs)
+        {
+            Assert.True(factory.PlaceInstant(
+                new BuildSpec("conveyor-basic", null, new GridPosition(x, 50), Direction.East), charge: false));
+        }
+    }
+
+    [Fact]
+    public void BridgeBrokenFromItsExitEndFinishes()
+    {
+        var factory = NewBridgeFactory();
+        FillSpan(factory, 101, 102, 103, 104);
+        var entry = new GridPosition(105, 50);
+        var exit = new GridPosition(100, 50);
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec("conveyor-bridge", BuildingKind.Bridge, entry, Direction.West), charge: false));
+        Assert.True(factory.Belts.TryGet(exit, out var exitCell) && exitCell.Kind == LogisticsKind.Bridge);
+        var host = new SimHost(factory);
+        var events = new List<SimEvent>();
+        host.EventRaised += events.Add;
+
+        // Clicked on the exit end, the one nearer to the drone coming from the west.
+        host.Submit(new Remove(Player, exit));
+        RunUntil(host, () => events.Count > 0, maxTicks: 2_000);
+
+        Assert.IsType<DeconstructFinished>(Assert.Single(events));
+        Assert.False(factory.Belts.Contains(entry));
+        Assert.False(factory.Belts.Contains(exit));
+        Assert.Empty(factory.Sites);
+        Assert.Null(Drone(factory).CurrentSiteId);
+    }
+
+    [Fact]
+    public void BridgeBuiltFarFromTheDroneFinishes()
+    {
+        var factory = NewBridgeFactory();
+        FillSpan(factory, 102, 103, 104);
+        var entry = new GridPosition(100, 50);
+        var host = new SimHost(factory);
+        var events = new List<SimEvent>();
+        host.EventRaised += events.Add;
+
+        host.Submit(new PlaceBuilding(Player, BuildingKind.Bridge, entry, Direction.East));
+        RunUntil(host, () => events.Count > 0, maxTicks: 2_000);
+
+        Assert.IsType<ConstructFinished>(Assert.Single(events));
+        Assert.True(factory.Belts.TryGet(entry, out var cell) && cell.BridgePartner == new GridPosition(105, 50));
+        Assert.Empty(factory.Sites);
+    }
+
+    [Fact]
+    public void DroneWhoseSiteVanishedDropsThePlan()
+    {
+        var factory = NewFactory(ironPlates: 10);
+        var host = new SimHost(factory);
+        host.Submit(PlaceMiner(NearMiner));
+        host.Submit(Belt(new GridPosition(23, 24)));
+        host.AdvanceTicks(5);
+        Assert.NotNull(Drone(factory).CurrentSiteId);
+
+        factory.State.Sites.Clear(); // test-only: the site disappears behind the drone's back
+
+        host.AdvanceTicks(1);
+
+        var drone = Drone(factory);
+        var next = Assert.Single(drone.Plans);
+        Assert.Equal(new GridPosition(23, 24), next.Spec.Origin);
+        RunUntil(host, () => factory.Belts.Contains(new GridPosition(23, 24)));
+    }
+
+    [Fact]
+    public void ViewListsAreReadOnly()
+    {
+        var factory = NewFactory(ironPlates: 10);
+        new SimHost(factory).Submit(PlaceMiner(NearMiner));
+        IGameView view = factory;
+
+        Assert.False(view.Builders is List<BuilderUnit>);
+        Assert.False(view.Sites is List<ConstructSite>);
+        Assert.False(view.Builders[0].Plans is List<BuildPlan>);
+        Assert.True(((ICollection<BuilderUnit>)view.Builders).IsReadOnly);
+        Assert.True(((ICollection<ConstructSite>)view.Sites).IsReadOnly);
+        Assert.True(((ICollection<BuildPlan>)view.Builders[0].Plans).IsReadOnly);
+    }
+
     [Fact]
     public void SameCommandsSameChecksum()
     {
@@ -488,6 +593,15 @@ public sealed class BuilderTests
             host.Submit(new Remove(Player, NearMiner) with { Tick = 2_000 });
             host.Submit(new Sell(Player, Iron, 3) with { Tick = 3_000 });
             host.AdvanceTicks(10_000);
+
+            // Construction really happened: 12 belts − the removed one, the far miner kept, the near one
+            // taken apart; plates 20 − 12 − 2×4 + 1 + 4 (refunds) − 3 (sold) = 2.
+            Assert.Equal(11, factory.Belts.Count);
+            Assert.False(factory.Belts.Contains(new GridPosition(25, 26)));
+            Assert.Equal(new GridPosition(70, 10), Assert.Single(factory.Miners).Position);
+            Assert.Equal(2, factory.Wallet.MaterialCount(Iron));
+            Assert.Empty(factory.Sites);
+            Assert.Empty(factory.PlansOf(Player));
             return (host.Checksum(), Fingerprint(factory));
         }
 

@@ -29,7 +29,7 @@ public sealed class ConstructSystem : ISimulationSystem
             }
 
             factory ??= new Factory(state);
-            var (x, y) = factory.SpecCentre(site.Spec);
+            var (x, y) = Factory.SiteCentre(site);
             if (BuilderSystem.Distance(builder, x, y) > unit.BuildRange)
             {
                 continue;
@@ -44,7 +44,7 @@ public sealed class ConstructSystem : ISimulationSystem
             builder.CurrentSiteId = null;
             if (builder.Plans.Count > 0)
             {
-                builder.Plans.RemoveAt(0);
+                builder.PlanQueue.RemoveAt(0);
             }
 
             if (deconstructing)

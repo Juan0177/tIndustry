@@ -271,7 +271,7 @@ public sealed class SimHost
             return CommandReasons.InvalidCommand;
         }
 
-        builder.Plans.Add(new BuildPlan(spec, Breaking: false));
+        builder.PlanQueue.Add(new BuildPlan(spec, Breaking: false));
         return null;
     }
 
@@ -321,7 +321,7 @@ public sealed class SimHost
 
         if (!IsBreakingPlanned(spec))
         {
-            builder.Plans.Add(new BuildPlan(spec with { Origin = tile }, Breaking: true));
+            builder.PlanQueue.Add(new BuildPlan(spec with { Origin = tile }, Breaking: true));
         }
 
         return null;
@@ -340,7 +340,7 @@ public sealed class SimHost
                 : factory.Footprint(plan.Spec).Contains(tile);
             if (covers)
             {
-                builder.Plans.RemoveAt(i);
+                builder.PlanQueue.RemoveAt(i);
                 return true;
             }
         }

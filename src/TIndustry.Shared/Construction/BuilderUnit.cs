@@ -19,6 +19,7 @@ public sealed class BuilderUnit
         OwnerPlayerId = ownerPlayerId;
         X = x;
         Y = y;
+        Plans = PlanQueue.AsReadOnly();
     }
 
     public long Id { get; }
@@ -34,8 +35,11 @@ public sealed class BuilderUnit
     /// <summary>Direction of the last movement, in degrees (atan2 of the step, 0 = +X).</summary>
     public float Rotation { get; internal set; }
 
-    /// <summary>Build queue: the first plan is the one being reached or worked on.</summary>
-    public List<BuildPlan> Plans { get; } = [];
+    /// <summary>Build queue (read-only): the first plan is the one being reached or worked on.</summary>
+    public IReadOnlyList<BuildPlan> Plans { get; }
+
+    /// <summary>The live queue behind <see cref="Plans"/>; only commands and systems change it.</summary>
+    internal List<BuildPlan> PlanQueue { get; } = [];
 
     /// <summary>Site of the first plan once work has begun; null while flying or idle.</summary>
     public long? CurrentSiteId { get; internal set; }
