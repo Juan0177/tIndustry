@@ -38,7 +38,7 @@
   </tr>
 </table>
 
-### 🎨 Anteprima della grafica nuova
+### Anteprima della grafica nuova
 
 Pixel-art originale in stile Mindustry, generata da script, che sostituirà la grafica di oggi con l'upgrade grafico (G1).
 
@@ -58,8 +58,8 @@ Scarica l'ultima [Release](https://github.com/Juan0177/tIndustry/releases/latest
 
 | Sistema | File | Eseguibile |
 | --- | --- | --- |
-| 🪟 Windows | `tIndustry-win-x64.zip` | `tIndustry.exe` |
-| 🐧 Linux | `tIndustry-linux-x64.zip` | `tIndustry.x86_64` |
+| Windows | `tIndustry-win-x64.zip` | `tIndustry.exe` |
+| Linux | `tIndustry-linux-x64.zip` | `tIndustry.x86_64` |
 
 Gli zip `tIndustry-godot-*-x64.zip` hanno lo stesso contenuto (nomi storici).
 
@@ -85,16 +85,16 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 
 ## Cosa c'è nel gioco
 
-| | Area | Contenuto |
-| --- | --- | --- |
-| 🗺️ | **Mondo** | Mappa 1000×1000 generata da seed, CORE al centro, minerali visibili (ferro, rame, piombo, carbone, titanio…) |
-| ⛏️ | **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
-| ➡️ | **Logistica** | Nastri T1/T2/T3, incrocio, sdoppiatore, selezionatore con filtro, ponte (2–4 caselle) |
-| ⚡ | **Energia** | Generatore, nodi T1/T2 con buffer di capacità |
-| 💰 | **Economia** | Fondi, costi e rimborsi, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
-| 🔬 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
-| 🎯 | **Campagna** | 10 livelli, da *Primi passi* a *Espansione T2*, con tutorial non bloccante |
-| 💾 | **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 11 |
+| Area | Contenuto |
+| --- | --- |
+| **Mondo** | Mappa 1000×1000 generata da seed, CORE al centro, minerali visibili (ferro, rame, piombo, carbone, titanio…) |
+| **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
+| **Logistica** | Nastri T1/T2/T3, incrocio, sdoppiatore, selezionatore con filtro, ponte (2–4 caselle) |
+| **Energia** | Generatore, nodi T1/T2 con buffer di capacità |
+| **Economia** | Fondi, costi e rimborsi, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
+| **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
+| **Campagna** | 10 livelli, da *Primi passi* a *Espansione T2*, con tutorial non bloccante |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 11 |
 
 Il combattimento è fuori dal progetto per ora.
 
@@ -104,14 +104,14 @@ Il combattimento è fuori dal progetto per ora.
 
 Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [diario](docs/diario/README.md). Le scelte di fondo sono raccolte in [`docs/decisioni.md`](docs/decisioni.md). Chi usa Obsidian trova la mappa completa in [`docs/mappa-progetto.canvas`](docs/mappa-progetto.canvas).
 
-| | Sotto-progetto | Cosa porta |
+| Stato | Sotto-progetto | Cosa porta |
 | --- | --- | --- |
-| ✅ | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
-| ✅ | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
-| 🔨 | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali (simulazione in `main`, grafica in arrivo) |
-| 🗺️ | **G1–G4 · Upgrade grafico** | Pixel-art originale in stile Mindustry: blocchi, terreno, effetti e luci, interfaccia |
-| 🗺️ | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
-| 🗺️ | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
+| Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
+| Fatto | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
+| In corso | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali (simulazione in `main`, grafica in arrivo) |
+| **G1–G4 · Upgrade grafico** | Pixel-art originale in stile Mindustry: blocchi, terreno, effetti e luci, interfaccia |
+| **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
+| **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
 ---
 
