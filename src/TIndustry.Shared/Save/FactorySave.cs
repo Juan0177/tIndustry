@@ -209,6 +209,11 @@ public static class FactorySaveStore
         var list = new List<SaveSlotInfo>();
         foreach (var path in Directory.EnumerateFiles(SavesDirectory, "*.json"))
         {
+            if (!path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                continue; // never list leftover "<slot>.json.tmp" files from an interrupted write
+            }
+
             try
             {
                 var id = Path.GetFileNameWithoutExtension(path);
@@ -259,7 +264,7 @@ public static class FactorySaveStore
             Snapshot = Convert.ToBase64String(host.CreateSnapshot())
         };
         Directory.CreateDirectory(SavesDirectory);
-        File.WriteAllText(SlotPath(slotId), JsonSerializer.Serialize(file, JsonOptions));
+        AtomicFile.WriteAllText(SlotPath(slotId), JsonSerializer.Serialize(file, JsonOptions));
     }
 
     /// <summary>
@@ -346,7 +351,7 @@ public static class FactorySaveStore
         }
 
         var id = CreateSlotId();
-        File.Copy(SlotPath(sourceSlotId), SlotPath(id), overwrite: true);
+        AtomicFile.Copy(SlotPath(sourceSlotId), SlotPath(id));
         return id;
     }
 }

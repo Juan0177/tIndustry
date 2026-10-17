@@ -50,7 +50,7 @@ public sealed class CampaignProgress
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.Ordinal)
             .ToList();
-        File.WriteAllText(resolved, JsonSerializer.Serialize(this, JsonOptions));
+        AtomicFile.WriteAllText(resolved, JsonSerializer.Serialize(this, JsonOptions));
     }
 
     public bool IsCompleted(string levelId) =>
