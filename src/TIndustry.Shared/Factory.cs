@@ -408,6 +408,33 @@ public sealed class Factory : IGameView
                 Y = n.Position.Y,
                 DefinitionId = n.DefinitionId
             }).ToList(),
+            Rules = new GameRulesSaveDto
+            {
+                RefundPercent = State.Rules.RefundPercent,
+                InstantBuild = State.Rules.InstantBuild
+            },
+            Builders = State.Builders.OrderBy(b => b.Id).Select(b => new BuilderSaveDto
+            {
+                Id = b.Id,
+                Owner = b.OwnerPlayerId,
+                X = b.X,
+                Y = b.Y,
+                Rotation = b.Rotation,
+                CurrentSiteId = b.CurrentSiteId,
+                Plans = b.Plans.Select(p => new BuildPlanSaveDto { Spec = CaptureSpec(p.Spec), Breaking = p.Breaking }).ToList()
+            }).ToList(),
+            Sites = State.Sites.OrderBy(site => site.Id).Select(site => new SiteSaveDto
+            {
+                Id = site.Id,
+                Spec = CaptureSpec(site.Spec),
+                Tiles = site.Tiles.Select(t => new GridCellSaveDto { X = t.X, Y = t.Y }).ToList(),
+                Progress = site.Progress,
+                Spent = site.Spent.ToList(),
+                Refunded = site.Refunded.ToList(),
+                Deconstructing = site.Deconstructing,
+                RefundBasisPoints = site.RefundBasisPoints,
+                Owner = site.OwnerPlayerId
+            }).ToList(),
             // BeltGrid.Cells already enumerates in canonical (Y, X) order.
             Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
             {
@@ -429,6 +456,25 @@ public sealed class Factory : IGameView
             }).ToList()
         };
     }
+
+    private static BuildSpecSaveDto CaptureSpec(BuildSpec spec) => new()
+    {
+        StructureId = spec.StructureId,
+        Kind = spec.Kind?.ToString(),
+        X = spec.Origin.X,
+        Y = spec.Origin.Y,
+        Direction = spec.Direction.ToString(),
+        RecipeId = spec.RecipeId,
+        FilterItemId = spec.FilterItemId
+    };
+
+    private static BuildSpec RestoreSpec(BuildSpecSaveDto dto) => new(
+        dto.StructureId,
+        Enum.TryParse<BuildingKind>(dto.Kind, ignoreCase: true, out var kind) ? kind : null,
+        new GridPosition(dto.X, dto.Y),
+        ParseDirection(dto.Direction),
+        dto.RecipeId,
+        dto.FilterItemId);
 
     private static Dictionary<string, int> SortedByKey(IEnumerable<KeyValuePair<string, int>> source)
     {
@@ -506,8 +552,7 @@ public sealed class Factory : IGameView
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
-        // TODO(sp3-task3): saves carry no rules yet; loaded games keep building instantly until they do.
-        factory.State.Rules = new GameRules(InstantBuild: true);
+        factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
@@ -524,6 +569,8 @@ public sealed class Factory : IGameView
             .Concat(data.Generators.Select(d => d.Id))
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
+            .Concat(data.Builders.Select(d => d.Id))
+            .Concat(data.Sites.Select(d => d.Id))
             .DefaultIfEmpty(0)
             .Max();
         factory.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);
@@ -572,6 +619,41 @@ public sealed class Factory : IGameView
         foreach (var n in data.PowerNodes)
         {
             factory.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
+        }
+
+        foreach (var b in data.Builders.OrderBy(b => b.Id))
+        {
+            var builder = new BuilderUnit(b.Id, b.Owner, b.X, b.Y)
+            {
+                Rotation = b.Rotation,
+                CurrentSiteId = b.CurrentSiteId
+            };
+            builder.PlanQueue.AddRange(b.Plans.Select(p => new BuildPlan(RestoreSpec(p.Spec), p.Breaking)));
+            factory.State.Builders.Add(builder);
+        }
+
+        foreach (var d in data.Sites.OrderBy(d => d.Id))
+        {
+            var spec = RestoreSpec(d.Spec);
+            // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
+            var site = new ConstructSite(
+                d.Id,
+                spec,
+                d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList(),
+                factory.CostOf(spec),
+                d.Owner)
+            {
+                Progress = d.Progress,
+                Deconstructing = d.Deconstructing,
+                RefundBasisPoints = d.RefundBasisPoints
+            };
+            for (var i = 0; i < site.Cost.Count; i++)
+            {
+                site.Spent[i] = i < d.Spent.Count ? d.Spent[i] : 0;
+                site.Refunded[i] = i < d.Refunded.Count ? d.Refunded[i] : 0;
+            }
+
+            factory.State.Sites.Add(site);
         }
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
