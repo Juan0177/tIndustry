@@ -51,7 +51,7 @@ tIndustry/
 
 ## Simulazione
 
-La simulazione è guidata da comandi, a tick fisso, ed è deterministica (modello di sincronizzazione: `docs/decisioni/0002-sincronizzazione-ibrida.md`).
+La simulazione è guidata da comandi, a tick fisso, ed è deterministica (modello di sincronizzazione: [ADR 0002](decisioni/0002-sincronizzazione-ibrida.md)).
 
 - **Tick fisso.** `SimulationClock` (`src/TIndustry.Shared/Simulation/SimulationClock.cs`) trasforma il tempo di frame in tick da 1/60 s: `TickRate = 60`, `TickSeconds = 1f / 60f`, `MaxTicksPerFrame = 5` (oltre il tetto il tempo in eccesso è scartato, niente spirale di recupero). La simulazione non vede mai il tempo del frame.
 - **`GameState`** (`Simulation/GameState.cs`) contiene tutto lo stato mutabile: griglia e nastri, liste di edifici, portafoglio, ricerca, mercato, sessione economica, potenza, livello di campagna, auto-vendita, upgrade del CORE, contatori di id (`NextEntityId`, `NextItemId`) e `CurrentTick`. `Factory` ne è la facciata (piazzamento, economia, `Capture`/`Restore`) e implementa `IGameView`.
@@ -70,9 +70,9 @@ Il codice di `src/TIndustry.Shared/` che gira in `Step()` le rispetta; i test `D
 2. Mai dipendere dall'ordine di `Dictionary`/`HashSet`: si itera per id crescente o con ordinamento esplicito.
 3. Niente orologio di sistema e niente `Random` non seminato (un eventuale generatore vive nello stato con il seme salvato).
 4. Niente parallelismo nella simulazione; niente conversioni testo↔numero dipendenti dalla cultura (formati invarianti).
-5. Nessun riferimento a Godot o al sistema operativo in `TIndustry.Shared` (ADR 0001).
+5. Nessun riferimento a Godot o al sistema operativo in `TIndustry.Shared` ([ADR 0001](decisioni/0001-server-csharp.md)).
 
-I calcoli restano in `float`: le differenze residue tra architetture CPU si rilevano col checksum e si riparano con l'istantanea (ADR 0002).
+I calcoli restano in `float`: le differenze residue tra architetture CPU si rilevano col checksum e si riparano con l'istantanea ([ADR 0002](decisioni/0002-sincronizzazione-ibrida.md)).
 
 ## Ciclo di un frame
 

@@ -106,7 +106,7 @@ Per provare senza toccare i tuoi dati, imposta `TINDUSTRY_DATA_DIR` su una carte
 | `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json` |
 | `tests/` | Test xUnit della simulazione |
 | `tools/` | `dev/` avvio, playtest e screenshot · `ci/` export |
-| `docs/` | [Architettura](docs/ARCHITETTURA.md), [decisioni](docs/decisioni/), specifiche e piani |
+| `docs/` | [Architettura](docs/ARCHITETTURA.md), decisioni ([0001](docs/decisioni/0001-server-csharp.md), [0002](docs/decisioni/0002-sincronizzazione-ibrida.md)), specifiche e piani, [diario di lavoro](docs/diario/README.md) |
 
 La simulazione gira a tick fissi di 1/60 s, in modo deterministico. Per orientarti nel codice (ciclo di frame, dati, salvataggi, come aggiungere un blocco) parti da [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md); per lavorare con agenti, [`CLAUDE.md`](CLAUDE.md).
 

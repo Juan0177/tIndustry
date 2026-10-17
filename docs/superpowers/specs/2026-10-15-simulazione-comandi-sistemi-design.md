@@ -2,11 +2,13 @@
 
 - **Data:** 2026-10-15
 - **Stato:** proposta, da approvare
-- **Sotto-progetto:** 2 di 5 (roadmap in `2026-10-15-riordino-progetto-design.md`)
+- **Sotto-progetto:** 2 di 5 (roadmap in [2026-10-15-riordino-progetto-design](2026-10-15-riordino-progetto-design.md#roadmap-dei-sotto-progetti))
+- **Piano:** [2026-10-16-simulazione-comandi-sistemi](../plans/2026-10-16-simulazione-comandi-sistemi.md)
+- **Diario:** [2026-10-16-simulazione-comandi-sistemi](../../diario/2026-10-16-simulazione-comandi-sistemi.md)
 
 ## Perché
 
-Il multiplayer è un obiettivo: **cooperativo** (più giocatori, ognuno col suo drone, sulla stessa fabbrica e lo stesso CORE), **ospitato da un giocatore** come in Mindustry, con server dedicato headless possibile in seguito con lo stesso codice (ADR 0001: server in C# che riusa `TIndustry.Shared`).
+Il multiplayer è un obiettivo: **cooperativo** (più giocatori, ognuno col suo drone, sulla stessa fabbrica e lo stesso CORE), **ospitato da un giocatore** come in Mindustry, con server dedicato headless possibile in seguito con lo stesso codice ([ADR 0001](../../decisioni/0001-server-csharp.md): server in C# che riusa `TIndustry.Shared`).
 
 Oggi la simulazione non è pronta:
 
@@ -119,7 +121,7 @@ Scritti prima del codice:
 2. **`GameState` e sistemi** — `Factory.Tick` diviso nei sette sistemi; parità con i 22 scenari.
 3. **Comandi, `SimHost`, eventi** — il client passa a "invia comandi / legge stato"; playtest e confronto screenshot.
 4. **Istantanea canonica, checksum, salvataggi v10** — test di replay; costruttori di `GameState` e rimozione dei nomi storici.
-5. **Documentazione** — `ARCHITETTURA.md` (regole di determinismo, flusso comandi) e ADR 0002 (modello di sincronizzazione ibrido).
+5. **Documentazione** — `ARCHITETTURA.md` (regole di determinismo, flusso comandi) e [ADR 0002](../../decisioni/0002-sincronizzazione-ibrida.md) (modello di sincronizzazione ibrido).
 
 Ogni PR: build 0 errori/0 avvisi, test verdi, playtest e confronto screenshot, dati reali del giocatore intatti, CI manuale verde.
 
