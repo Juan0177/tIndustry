@@ -358,4 +358,131 @@ public sealed class SimHostTests
         Assert.Equal(SimulationClock.MaxTicksPerFrame, host.Advance(1.0));
         Assert.Equal(5, host.State.CurrentTick);
     }
+
+    [Fact]
+    public void PendingShowsQueuedCommandsInSubmitOrderUntilTheTick()
+    {
+        var host = new SimHost(NewSandbox(LoadContent()));
+        Assert.Empty(host.Pending);
+
+        var first = new SetAutoSell(1, true);
+        var second = new SetAutoSell(1, false);
+        var third = new PlaceBelt(1, new GridPosition(10, 10), Direction.East, "conveyor-basic");
+        host.Submit(first);
+        host.Submit(second);
+        host.Submit(third);
+
+        Assert.Equal(
+            [first with { Tick = 1 }, second with { Tick = 1 }, third with { Tick = 1 }],
+            host.Pending);
+
+        host.Advance(SimulationClock.TickSeconds);
+        Assert.Empty(host.Pending);
+    }
+
+    [Fact]
+    public void PendingKeepsCommandsScheduledForLaterTicks()
+    {
+        var host = new SimHost(NewSandbox(LoadContent()));
+        var later = new SetAutoSell(1, true) with { Tick = 5 };
+        host.Submit(later);
+
+        host.Advance(SimulationClock.TickSeconds);
+
+        Assert.Equal([later], host.Pending);
+    }
+
+    [Fact]
+    public void EachSaleReportsItsOwnMoneyDelta()
+    {
+        var content = LoadContent();
+        Factory Make()
+        {
+            var f = NewSandbox(content);
+            f.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 1_000);
+            return f;
+        }
+
+        var direct = Make();
+        var expected = new List<int>();
+        foreach (var amount in new[] { 7, 11 })
+        {
+            var before = direct.Wallet.Money;
+            Assert.True(direct.TrySellFromWallet("iron-plate", amount));
+            expected.Add(direct.Wallet.Money - before);
+        }
+
+        var host = new SimHost(Make());
+        var seen = new List<int>();
+        host.CommandApplied += _ => seen.Add(host.LastCommandMoneyDelta);
+        host.Submit(new Sell(1, "iron-plate", 7));
+        host.Submit(new Sell(1, "iron-plate", 11));
+        host.Advance(SimulationClock.TickSeconds);
+
+        Assert.Equal(expected, seen);
+        Assert.NotEqual(expected[0], expected[0] + expected[1]);
+    }
+
+    [Fact]
+    public void UpgradeCoreAlreadyAtMaxLevelSaysSo()
+    {
+        var content = LoadContent();
+        var factory = NewSandbox(content);
+        factory.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 100_000);
+        Assert.True(factory.TryUpgradeCore());
+
+        var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
+
+        Assert.Equal(0, applied);
+        Assert.Equal($"Core già a LV1 (+{content.CoreUpgrade.SaleBonusPercent}%).", reason);
+        Assert.Equal(before, atRejection);
+    }
+
+    [Fact]
+    public void UpgradeCoreMissingMoneyNamesTheMoney()
+    {
+        var content = LoadContent();
+        var factory = NewSandbox(content);
+        factory.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 0);
+        factory.Wallet.TrySpend(factory.Wallet.Money - 10, []);
+
+        var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
+
+        Assert.Equal(0, applied);
+        Assert.Equal($"Servono ${content.CoreUpgrade.MoneyCost - 10}", reason);
+        Assert.Equal(before, atRejection);
+    }
+
+    [Fact]
+    public void UpgradeCoreMissingMaterialsNamesTheMaterials()
+    {
+        var content = LoadContent();
+        var factory = NewSandbox(content);
+        factory.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 100_000);
+        var entry = content.CoreUpgrade.BuildCost[0];
+        Assert.True(factory.Wallet.TryRemoveMaterial(entry.ItemId, factory.Wallet.MaterialCount(entry.ItemId)));
+
+        var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
+
+        Assert.Equal(0, applied);
+        Assert.Equal($"Servono {entry.Amount}× {content.DisplayName(entry.ItemId)}", reason);
+        Assert.Equal(before, atRejection);
+    }
+
+    [Fact]
+    public void UpgradeCoreMissingMoneyAndMaterialsNamesBoth()
+    {
+        var content = LoadContent();
+        var factory = NewSandbox(content);
+        factory.EnsureDemoBuildStock(ironPlates: 0, copperWire: 0, copperOre: 0, money: 0);
+        var entry = content.CoreUpgrade.BuildCost[0];
+        factory.Wallet.TrySpend(factory.Wallet.Money, []);
+        factory.Wallet.TryRemoveMaterial(entry.ItemId, factory.Wallet.MaterialCount(entry.ItemId));
+
+        var (reason, _, _, _) = RunOne(factory, new UpgradeCore(1));
+
+        Assert.Equal(
+            $"Servono ${content.CoreUpgrade.MoneyCost} · {entry.Amount}× {content.DisplayName(entry.ItemId)}",
+            reason);
+    }
 }

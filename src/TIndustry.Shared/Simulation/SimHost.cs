@@ -30,6 +30,18 @@ public sealed class SimHost
     /// <summary>Read-only view of the game for graphics and HUD.</summary>
     public IGameView State => factory;
 
+    /// <summary>
+    /// Commands submitted but not yet applied, in submit order (read-only). The client uses it to
+    /// derive the "effective" value of a toggle/cycle when the same input arrives twice in one tick.
+    /// </summary>
+    public IReadOnlyList<SimCommand> Pending => pending;
+
+    /// <summary>
+    /// Change in money caused by the command currently being reported by <see cref="CommandApplied"/>
+    /// (its own effect only, e.g. one sale's proceeds). Meaningful inside that event only.
+    /// </summary>
+    public int LastCommandMoneyDelta { get; private set; }
+
     /// <summary>Raised when a command has been applied (before that tick's step).</summary>
     public event Action<SimCommand>? CommandApplied;
 
@@ -94,9 +106,11 @@ public sealed class SimHost
 
         foreach (var command in due)
         {
+            var moneyBefore = factory.Wallet.Money;
             var reason = Apply(command);
             if (reason is null)
             {
+                LastCommandMoneyDelta = factory.Wallet.Money - moneyBefore;
                 Raise(CommandApplied, h => h(command), ref handlerErrors);
             }
             else
