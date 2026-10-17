@@ -101,7 +101,8 @@ public partial class World : Node2D
             mapWidth: DefaultMapWidth,
             mapHeight: DefaultMapHeight,
             seed: 42,
-            startingMoney: 180));
+            startingMoney: 180,
+            rules: new GameRules(InstantBuild: true))); // TODO(sp3-task5): costruzione vera
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureHud();

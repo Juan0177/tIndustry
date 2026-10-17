@@ -69,6 +69,18 @@ public interface IGameView
 
     IReadOnlyList<PowerNode> PowerNodes { get; }
 
+    /// <summary>Construction drones, in id order (position, rotation, queue, current site).</summary>
+    IReadOnlyList<BuilderUnit> Builders { get; }
+
+    /// <summary>Construction and deconstruction sites, in id order.</summary>
+    IReadOnlyList<ConstructSite> Sites { get; }
+
+    /// <summary>The site covering <paramref name="tile"/>, if any.</summary>
+    bool TryGetSiteAt(GridPosition tile, out ConstructSite site);
+
+    /// <summary>Build queue of <paramref name="playerId"/> (first = being reached or worked on).</summary>
+    IReadOnlyList<BuildPlan> PlansOf(int playerId);
+
     IWalletView Wallet { get; }
 
     IResearchView Research { get; }

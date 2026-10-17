@@ -166,6 +166,171 @@ public sealed class Factory : IGameView
     public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
         Belts.TryGetIncomingDirection(position, out incoming);
 
+    // Read-only wrappers: the view must not be cast back to the live lists.
+    public IReadOnlyList<BuilderUnit> Builders => buildersView ??= State.Builders.AsReadOnly();
+    public IReadOnlyList<ConstructSite> Sites => sitesView ??= State.Sites.AsReadOnly();
+    private IReadOnlyList<BuilderUnit>? buildersView;
+    private IReadOnlyList<ConstructSite>? sitesView;
+
+    public bool TryGetSiteAt(GridPosition tile, out ConstructSite site)
+    {
+        foreach (var candidate in State.Sites)
+        {
+            if (candidate.Occupies(tile))
+            {
+                site = candidate;
+                return true;
+            }
+        }
+
+        site = null!;
+        return false;
+    }
+
+    /// <summary>Plans of <paramref name="playerId"/>'s drones, in drone id then queue order.</summary>
+    public IReadOnlyList<BuildPlan> PlansOf(int playerId)
+    {
+        var plans = new List<BuildPlan>();
+        foreach (var builder in State.Builders)
+        {
+            if (builder.OwnerPlayerId == playerId)
+            {
+                plans.AddRange(builder.Plans);
+            }
+        }
+
+        return plans;
+    }
+
+    /// <summary>First drone of <paramref name="playerId"/> (lowest id), or null.</summary>
+    public BuilderUnit? BuilderOf(int playerId)
+    {
+        foreach (var builder in State.Builders)
+        {
+            if (builder.OwnerPlayerId == playerId)
+            {
+                return builder;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Adds a drone for <paramref name="ownerPlayerId"/> at the centre of the Core (new games).</summary>
+    public BuilderUnit AddBuilder(int ownerPlayerId)
+    {
+        var (x, y) = CoreCentre();
+        var builder = new BuilderUnit(nextEntityId++, ownerPlayerId, x, y);
+        State.Builders.Add(builder);
+        return builder;
+    }
+
+    /// <summary>Centre of the Core's cells, in tiles (0, 0 without a Core).</summary>
+    public (float X, float Y) CoreCentre()
+    {
+        if (CoreTiles.Count == 0)
+        {
+            return (0f, 0f);
+        }
+
+        var (minX, minY, maxX, maxY) = CoreBounds();
+        return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
+    }
+
+    /// <summary>
+    /// Where an idle drone waits: the centre of the cell one tile west of the Core, in the middle of its
+    /// west side (the upper middle cell for an even-sized Core).
+    /// </summary>
+    public (float X, float Y) BuilderRestPoint()
+    {
+        if (CoreTiles.Count == 0)
+        {
+            return (0f, 0f);
+        }
+
+        var (minX, minY, _, maxY) = CoreBounds();
+        var cellY = minY + (maxY - minY) / 2;
+        return (minX - 1 + 0.5f, cellY + 0.5f);
+    }
+
+    private (int MinX, int MinY, int MaxX, int MaxY) CoreBounds()
+    {
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var t in CoreTiles)
+        {
+            minX = Math.Min(minX, t.X);
+            minY = Math.Min(minY, t.Y);
+            maxX = Math.Max(maxX, t.X);
+            maxY = Math.Max(maxY, t.Y);
+        }
+
+        return (minX, minY, maxX, maxY);
+    }
+
+    /// <summary>
+    /// Centre of <paramref name="spec"/>'s block, in tiles (a bridge: its entry cell). For a breaking plan
+    /// use the clicked cell instead (<see cref="PlanCentre"/>).
+    /// </summary>
+    public (float X, float Y) SpecCentre(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        var half = FootprintSize(spec) / 2f;
+        return (spec.Origin.X + half, spec.Origin.Y + half);
+    }
+
+    /// <summary>
+    /// Centre of the cells <paramref name="site"/> really covers (a bridge: midway between its ends). The
+    /// drone works within range of this point, whichever cell its plan was made on.
+    /// </summary>
+    public static (float X, float Y) SiteCentre(ConstructSite site)
+    {
+        ArgumentNullException.ThrowIfNull(site);
+        if (site.Tiles.Count == 0)
+        {
+            return (site.Spec.Origin.X + 0.5f, site.Spec.Origin.Y + 0.5f);
+        }
+
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var t in site.Tiles)
+        {
+            minX = Math.Min(minX, t.X);
+            minY = Math.Min(minY, t.Y);
+            maxX = Math.Max(maxX, t.X);
+            maxY = Math.Max(maxY, t.Y);
+        }
+
+        return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
+    }
+
+    /// <summary>Where the drone heads for <paramref name="plan"/>: the block's centre, or the clicked cell's when breaking.</summary>
+    public (float X, float Y) PlanCentre(BuildPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return plan.Breaking
+            ? (plan.Spec.Origin.X + 0.5f, plan.Spec.Origin.Y + 0.5f)
+            : SpecCentre(plan.Spec);
+    }
+
+    /// <summary>
+    /// True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>. Breaking
+    /// plans stand on something that exists, so they never reserve cells.
+    /// </summary>
+    public bool IsPlannedTile(GridPosition tile)
+    {
+        foreach (var builder in State.Builders)
+        {
+            foreach (var plan in builder.Plans)
+            {
+                if (!plan.Breaking && Footprint(plan.Spec).Contains(tile))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Primary / first miner (compat for HUD).</summary>
     public Miner? Miner => miners.Count > 0 ? miners[0] : null;
 
@@ -341,6 +506,8 @@ public sealed class Factory : IGameView
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
+        // TODO(sp3-task3): saves carry no rules yet; loaded games keep building instantly until they do.
+        factory.State.Rules = new GameRules(InstantBuild: true);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
@@ -1278,25 +1445,64 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Share (0–100) of the cost given back when the finished <paramref name="spec"/> is taken apart:
-    /// the game's <see cref="GameRules.RefundPercent"/> × the building's own refund percent.
+    /// Share of the cost given back when the finished <paramref name="spec"/> is taken apart, in basis
+    /// points (0–10000): the game's <see cref="GameRules.RefundPercent"/> × the building's own refund
+    /// percent. Each cost line then gives back <c>floor(amount × basisPoints / 10000)</c> (one floor).
     /// </summary>
-    public int RefundPercentFor(BuildSpec spec)
+    public int RefundBasisPointsFor(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
         var own = spec.Kind is not null && Content.FindBuilding(spec.StructureId) is { } building
             ? building.RefundPercent
             : 100;
-        return Math.Clamp(State.Rules.RefundPercent, 0, 100) * Math.Clamp(own, 0, 100) / 100;
+        return Math.Clamp(State.Rules.RefundPercent, 0, 100) * Math.Clamp(own, 0, 100);
     }
 
     /// <summary>
-    /// True when the cells of <paramref name="spec"/> are free (no Core, building, belt or site).
-    /// Does not check research or resources. <paramref name="reason"/> is the Italian refusal text.
+    /// True when <paramref name="spec"/> names something buildable: a known conveyor (belt specs), the
+    /// structure id of its kind, and for forno / assembler a recipe of that machine (or none).
+    /// </summary>
+    public bool IsValidSpec(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        if (spec.Kind is not { } kind)
+        {
+            return Content.FindConveyor(spec.StructureId) is not null;
+        }
+
+        if (!string.Equals(BuildSpec.StructureIdFor(kind), spec.StructureId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (spec.RecipeId is { } recipeId && kind is BuildingKind.Smelter or BuildingKind.Assembler)
+        {
+            return FindRecipeFor(kind, recipeId) is not null;
+        }
+
+        return true;
+    }
+
+    private RecipeDefinition? FindRecipeFor(BuildingKind kind, string recipeId)
+    {
+        var available = kind == BuildingKind.Smelter ? Content.SmelterRecipes() : Content.AssemblerRecipes();
+        return available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// True when <paramref name="spec"/> is valid (<see cref="IsValidSpec"/>) and its cells are free
+    /// (no Core, building, belt or site). Does not check research or resources.
+    /// <paramref name="reason"/> is the Italian refusal text.
     /// </summary>
     public bool CanPlace(BuildSpec spec, out string? reason)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (!IsValidSpec(spec))
+        {
+            reason = CommandReasons.InvalidCommand;
+            return false;
+        }
+
         var ok = spec.Kind switch
         {
             null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter =>
@@ -1316,7 +1522,7 @@ public sealed class Factory : IGameView
     /// <summary>
     /// Places <paramref name="spec"/> now. With <paramref name="charge"/> it pays like the matching
     /// <c>TryPlace…</c> (fails, unchanged, when the wallet is short); without it nothing is paid.
-    /// Returns false, changing nothing, when the cells are not valid. Research is not checked.
+    /// Returns false, changing nothing, when the spec is invalid or its cells are not. Research is not checked.
     /// </summary>
     public bool PlaceInstant(BuildSpec spec, bool charge) => PlaceInstant(spec, charge, bridgeExit: null);
 
@@ -1324,6 +1530,11 @@ public sealed class Factory : IGameView
     internal bool PlaceInstant(BuildSpec spec, bool charge, GridPosition? bridgeExit)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (!IsValidSpec(spec))
+        {
+            return false;
+        }
+
         var origin = spec.Origin;
         var dir = spec.Direction;
         switch (spec.Kind)
@@ -1349,18 +1560,8 @@ public sealed class Factory : IGameView
                 var buildingId = spec.Kind == BuildingKind.Smelter
                     ? Crafter.SmelterBuildingId
                     : Crafter.AssemblerBuildingId;
-                RecipeDefinition? recipe = null;
-                if (spec.RecipeId is { } recipeId)
-                {
-                    var available = spec.Kind == BuildingKind.Smelter
-                        ? Content.SmelterRecipes()
-                        : Content.AssemblerRecipes();
-                    recipe = available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
-                    if (recipe is null)
-                    {
-                        return false;
-                    }
-                }
+                // IsValidSpec guarantees a non-null RecipeId names a recipe of this machine.
+                var recipe = spec.RecipeId is { } recipeId ? FindRecipeFor(spec.Kind.Value, recipeId) : null;
 
                 return PlaceCrafter(origin, dir, recipe, buildingId, charge);
             }
@@ -1469,7 +1670,7 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// Removes the building or belt piece on <paramref name="tile"/> now. With <paramref name="refund"/>
-    /// it gives back <c>floor(cost × </c><see cref="RefundPercentFor"/><c> / 100)</c> per cost line.
+    /// it gives back <c>floor(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line.
     /// </summary>
     public bool RemoveInstant(GridPosition tile, bool refund)
     {
@@ -1489,10 +1690,10 @@ public sealed class Factory : IGameView
 
         if (refund)
         {
-            var percent = RefundPercentFor(spec);
+            var basisPoints = RefundBasisPointsFor(spec);
             foreach (var entry in CostOf(spec))
             {
-                var amount = entry.Amount * percent / 100;
+                var amount = (int)((long)entry.Amount * basisPoints / Construction.FullRefundBasisPoints);
                 if (entry.ItemId is { } itemId)
                 {
                     Wallet.AddMaterial(itemId, amount);

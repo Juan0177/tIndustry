@@ -46,8 +46,12 @@ public sealed class ConstructSite
 
     public bool Deconstructing { get; internal set; }
 
-    /// <summary>Share of <see cref="Spent"/> given back by the deconstruction in progress (0–100).</summary>
-    public int RefundPercent { get; internal set; } = 100;
+    /// <summary>
+    /// Share of <see cref="Spent"/> given back by the deconstruction in progress, in basis points
+    /// (0–10000, 10000 = 100%): game rule % × building refund % for a finished building, 10000 for a
+    /// cancelled site. Basis points keep <c>floor(cost × rule% × building%)</c> a single exact floor.
+    /// </summary>
+    public int RefundBasisPoints { get; internal set; } = Construction.FullRefundBasisPoints;
 
     public int OwnerPlayerId { get; }
 

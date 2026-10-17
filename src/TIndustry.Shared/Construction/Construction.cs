@@ -19,13 +19,22 @@ public static class Construction
     /// <summary>Mindustry's base build cost of any block.</summary>
     public const float BaseBuildCost = 20f;
 
+    /// <summary>100% expressed in basis points (refund shares).</summary>
+    public const int FullRefundBasisPoints = 10_000;
+
     /// <summary>Build cost (time units) of <paramref name="spec"/>; money does not count.</summary>
     public static float BuildCost(FactoryContent c, BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(c);
         ArgumentNullException.ThrowIfNull(spec);
+        return BuildCost(c, spec.StructureId, CostOf(c, spec));
+    }
+
+    /// <summary>Build cost from an already computed cost list (a site's <see cref="ConstructSite.Cost"/>).</summary>
+    internal static float BuildCost(FactoryContent c, string structureId, IReadOnlyList<CostEntry> cost)
+    {
         var weighted = 0f;
-        foreach (var entry in CostOf(c, spec))
+        foreach (var entry in cost)
         {
             if (entry.ItemId is { } itemId)
             {
@@ -33,7 +42,7 @@ public static class Construction
             }
         }
 
-        return (BaseBuildCost + weighted) * c.BuildCostMultiplier(spec.StructureId);
+        return (BaseBuildCost + weighted) * c.BuildCostMultiplier(structureId);
     }
 
     /// <summary>
@@ -117,14 +126,14 @@ public static class Construction
 
         var tiles = factory.Footprint(spec);
         var cost = factory.CostOf(spec);
-        var refundPercent = factory.RefundPercentFor(spec);
+        var refundBasisPoints = factory.RefundBasisPointsFor(spec);
         factory.RemoveInstant(tile, refund: false);
 
         var site = new ConstructSite(s.NextEntityId++, spec, tiles, cost, ownerPlayerId)
         {
             Progress = 1f,
             Deconstructing = true,
-            RefundPercent = refundPercent
+            RefundBasisPoints = refundBasisPoints
         };
         for (var i = 0; i < cost.Count; i++)
         {
@@ -148,7 +157,7 @@ public static class Construction
         }
 
         site.Deconstructing = true;
-        site.RefundPercent = 100;
+        site.RefundBasisPoints = FullRefundBasisPoints;
         site.Missing = null;
     }
 
@@ -163,7 +172,7 @@ public static class Construction
     {
         ArgumentNullException.ThrowIfNull(s);
         ArgumentNullException.ThrowIfNull(site);
-        var buildCost = BuildCost(s.Content, site.Spec);
+        var buildCost = BuildCost(s.Content, site.Spec.StructureId, site.Cost);
         return site.Deconstructing
             ? AdvanceDeconstruct(s, site, buildSpeed / buildCost)
             : AdvanceBuild(s, site, buildSpeed / buildCost);
@@ -240,11 +249,16 @@ public static class Construction
         site.Missing = null;
         for (var i = 0; i < site.Cost.Count; i++)
         {
-            var total = site.Spent[i] * site.RefundPercent / 100;
-            var due = site.Progress <= 0f
-                ? total
-                : (int)Math.Floor((1f - site.Progress) * (double)total);
-            var give = Math.Min(due, total) - site.Refunded[i];
+            // Total back: one floor of spent × share. What is still "standing" is the share of the
+            // remaining progress, rounded up, so refunds flow gradually from wherever the site starts
+            // (1 for a finished building, its current progress for a cancelled site).
+            var total = (int)((long)site.Spent[i] * site.RefundBasisPoints / FullRefundBasisPoints);
+            var standing = site.Progress <= 0f
+                ? 0
+                : (int)Math.Ceiling(
+                    site.Progress * (double)site.Cost[i].Amount * site.RefundBasisPoints / FullRefundBasisPoints);
+            var due = Math.Clamp(total - standing, 0, total);
+            var give = due - site.Refunded[i];
             if (give <= 0)
             {
                 continue;

@@ -19,8 +19,10 @@ public sealed class SimHostTests
         JsonSerializer.Serialize(factory.Capture(), FactorySaveStore.JsonOptions);
 
     /// <summary>Small sandbox: $180, 48 iron plates, 10 copper wire; only belts and miners unlocked.</summary>
+    // These tests pin today's instant placement; real construction is covered by BuilderTests.
     private static Factory NewSandbox(FactoryContent content) =>
-        NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120);
+        NewGame.Sandbox(
+            content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
 
     [Fact]
     public void SubmittedCommandAppliesOnNextTick()
@@ -205,6 +207,7 @@ public sealed class SimHostTests
             new BeltGrid(),
             CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), 2),
             new EconomyWallet(0));
+        factory.State.Rules = new GameRules(InstantBuild: true); // the need message exists only with instant build
         var expected = factory.FormatNeedMessage("conveyor-basic");
         Assert.StartsWith("Servono ", expected);
 

@@ -24,8 +24,10 @@ public sealed class SaveV10Tests
     public void NewGameSaveLoadKeepsChecksum()
     {
         var content = LoadContent();
+        // Saves do not carry drones and sites yet (sp3 task 3): pin instant placement.
         var host = new SimHost(NewGame.Sandbox(
-            content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7));
+            content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7,
+            rules: new GameRules(InstantBuild: true)));
         host.Submit(new PlaceBuilding(1, BuildingKind.Miner, new GridPosition(2, 7), Direction.East));
         for (var x = 4; x <= 12; x++)
         {

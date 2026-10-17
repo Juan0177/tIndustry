@@ -54,6 +54,15 @@ public sealed class GameState
     /// <summary>Construction and deconstruction sites, in ascending id order.</summary>
     public List<ConstructSite> Sites { get; } = [];
 
+    /// <summary>Construction drones, in ascending id order.</summary>
+    public List<BuilderUnit> Builders { get; } = [];
+
+    /// <summary>
+    /// Events raised by the systems during the current tick (cleared at the start of each
+    /// <see cref="Simulation.Step"/>; <see cref="SimHost"/> drains them after the tick). Not in the snapshot.
+    /// </summary>
+    public List<SimEvent> Events { get; } = [];
+
     /// <summary>Rules of this game (refund share, instant build).</summary>
     public GameRules Rules { get; set; } = new();
 
