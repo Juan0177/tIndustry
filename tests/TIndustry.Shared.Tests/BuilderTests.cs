@@ -319,6 +319,30 @@ public sealed class BuilderTests
     }
 
     [Fact]
+    public void PlanTilesCoverBlockOrBreakingTarget()
+    {
+        var factory = NewFactory(ironPlates: 0);
+        IGameView view = factory;
+        var smelterOrigin = new GridPosition(30, 20);
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec(Crafter.SmelterBuildingId, BuildingKind.Smelter, smelterOrigin, Direction.East), charge: false));
+        var minerPlan = new BuildPlan(BuildSpec.FromCommand(PlaceMiner(NearMiner)), Breaking: false);
+        var clicked = new GridPosition(smelterOrigin.X + 1, smelterOrigin.Y + 1);
+        var breakPlan = new BuildPlan(
+            new BuildSpec(Crafter.SmelterBuildingId, BuildingKind.Smelter, clicked, Direction.East), Breaking: true);
+        var emptyBreak = new BuildPlan(BuildSpec.FromCommand(Belt(new GridPosition(40, 40))), Breaking: true);
+
+        var minerTiles = view.PlanTiles(minerPlan);
+        var breakTiles = view.PlanTiles(breakPlan);
+
+        Assert.Equal(Miner.Size * Miner.Size, minerTiles.Count);
+        Assert.Contains(NearMiner, minerTiles);
+        Assert.Equal(Crafter.Size * Crafter.Size, breakTiles.Count); // the whole smelter, not the clicked cell
+        Assert.Contains(smelterOrigin, breakTiles);
+        Assert.Equal([new GridPosition(40, 40)], view.PlanTiles(emptyBreak));
+    }
+
+    [Fact]
     public void BreakingPlanDeconstructsWithRuleRefund()
     {
         var factory = NewFactory(ironPlates: 0, refundPercent: 50);

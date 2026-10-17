@@ -242,6 +242,8 @@ public partial class World
               || (_tool == BuildTool.Smelter && _view.Smelters.Count == 1)
               || (_tool == BuildTool.Assembler && _view.Assemblers.Count == 1)
               || (_tool == BuildTool.Generator && _view.Generators.Count == 1);
+        // Cells already taken by a pending plan are refused like occupied ones (sites count as buildings).
+        ok = ok && !FootprintPlanned(hover, size);
 
         var ghost = ok
             ? new Color(0.35f, 0.85f, 0.55f, 0.35f)
@@ -270,6 +272,22 @@ public partial class World
         }
     }
 
+    private bool FootprintPlanned(GridPosition origin, int size)
+    {
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                if (_view!.IsPlannedTile(new GridPosition(origin.X + x, origin.Y + y)))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private void DrawBridgeGhost(GridPosition entry)
     {
         if (_view is null)
@@ -290,8 +308,10 @@ public partial class World
                 continue;
             }
 
-            var mid = new Color(0.55f, 0.7f, 0.95f, 0.28f);
-            var tip = new Color(0.7f, 0.85f, 1f, 0.55f);
+            // Same exit as the simulation picks; a planned end makes the plan refused: show it red.
+            var planned = _view.IsPlannedTile(entry) || _view.IsPlannedTile(exit);
+            var mid = planned ? new Color(0.9f, 0.25f, 0.2f, 0.28f) : new Color(0.55f, 0.7f, 0.95f, 0.28f);
+            var tip = planned ? new Color(0.9f, 0.25f, 0.2f, 0.55f) : new Color(0.7f, 0.85f, 1f, 0.55f);
             DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
             DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
             var a = CellCenter(entry);

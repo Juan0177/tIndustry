@@ -18,6 +18,28 @@ public partial class World
         AddChild(_buildingsLayer);
     }
 
+    private void EnsureConstructionLayer()
+    {
+        _constructionLayer = GetNodeOrNull<ConstructionLayer>("Construction");
+        if (_constructionLayer is not null)
+        {
+            return;
+        }
+
+        _constructionLayer = new ConstructionLayer { Name = "Construction", ZIndex = ConstructionZ };
+        AddChild(_constructionLayer);
+    }
+
+    /// <summary>Plans, sites and drones; a site appearing or vanishing changes the blocks and belts under it.</summary>
+    private void SyncConstructionVisuals(float delta)
+    {
+        if (_constructionLayer?.Sync(_view, delta) == true)
+        {
+            _buildingsDirty = true;
+            _visualDirty = true;
+        }
+    }
+
     private void RebuildBuildingVisuals()
     {
         if (_view is null || _buildingsLayer is null)
@@ -355,6 +377,9 @@ public partial class World
     /// <summary>Draw order: belts (0–5) &lt; items &lt; buildings (+ their own child layers).</summary>
     private const int ItemsZ = 7;
     private const int BuildingsZ = 8;
+
+    /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
+    private const int ConstructionZ = 20;
 
     /// <summary>CORE sprite + outline as a building node (z above belt items).</summary>
     private void AddCoreVisual()

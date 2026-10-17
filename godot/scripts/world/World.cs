@@ -47,6 +47,7 @@ public partial class World : Node2D
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
     private Node2D? _buildingsLayer;
+    private ConstructionLayer? _constructionLayer;
     private Hud? _hud;
     private HomePanel? _home;
     private ResearchPanel? _research;
@@ -102,7 +103,7 @@ public partial class World : Node2D
             mapHeight: DefaultMapHeight,
             seed: 42,
             startingMoney: 180,
-            rules: new GameRules(InstantBuild: true))); // TODO(sp3-task5): costruzione vera
+            rules: ClientRules()));
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureHud();
@@ -117,6 +118,7 @@ public partial class World : Node2D
         EnsureResourceOverlay();
         UseSmoothUiFiltering();
         EnsureBuildingsLayer();
+        EnsureConstructionLayer();
         _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
         _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
         _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
@@ -193,6 +195,7 @@ public partial class World : Node2D
         }
 
         AdvanceHost(delta);
+        SyncConstructionVisuals((float)delta);
 
         if (_visualDirty)
         {

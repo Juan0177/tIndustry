@@ -21,8 +21,15 @@ HUD_COUNT = (30, 100, 95, 135)  # HUD first resource counter value (tick timing)
 # ticks the first frame ran (frame length varies), so it is timing noise. A change to that digit's
 # look/position in this one screenshot goes unseen.
 POWER_DIGIT = (258, 77, 272, 95)
+# Construction drone resting beside the CORE (west side), drawn since sp3 task 4: it hovers on a
+# timer (graphics only), so its pixels vary between runs. Each box is the drone's measured footprint
+# in that screenshot plus 2 px for the hover; a change to the drone or to the ground under it goes
+# unseen there. In the ui screenshots the drone already lies inside GEAR.
+DRONE_TUTORIAL_01 = (574, 331, 608, 364)
+DRONE_TUTORIAL_02 = (313, 189, 348, 223)
 FILE_MASKS = {
-    "tutorial-01-step1-camera.png": [POWER_DIGIT],
+    "tutorial-01-step1-camera.png": [POWER_DIGIT, DRONE_TUTORIAL_01],
+    "tutorial-02-step2-palette.png": [DRONE_TUTORIAL_02],
     "ui-hud.png": [GEAR],
     "ui-palette-info.png": [GEAR],
     "ui-mercato.png": [GEAR],  # only the belt strip under the modal edge varies

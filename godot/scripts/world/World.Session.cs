@@ -38,6 +38,14 @@ public partial class World
         BeginTutorialIfNeeded();
     }
 
+    /// <summary>
+    /// Rules of the games the client starts: still instant build. TINDUSTRY_REAL_BUILD=1 turns on real
+    /// construction for manual checks of the construction graphics.
+    /// </summary>
+    // TODO(sp3-task5): costruzione vera per tutti; togliere TINDUSTRY_REAL_BUILD.
+    private static GameRules ClientRules() =>
+        new(InstantBuild: OS.GetEnvironment("TINDUSTRY_REAL_BUILD") != "1");
+
     private void StartNewSandbox(bool toast)
     {
         var content = FactoryContent.Load(_contentPath);
@@ -50,7 +58,7 @@ public partial class World
             mapHeight: DefaultMapHeight,
             seed: 42,
             startingMoney: 180,
-            rules: new GameRules(InstantBuild: true))); // TODO(sp3-task5): costruzione vera
+            rules: ClientRules()));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
@@ -162,7 +170,7 @@ public partial class World
 
         var content = FactoryContent.Load(_contentPath);
         var factory = NewGame.Campaign(
-            content, _campaign, level, rules: new GameRules(InstantBuild: true)); // TODO(sp3-task5): costruzione vera
+            content, _campaign, level, rules: ClientRules());
         AttachGame(factory);
 
         _continueAutoSave.MarkPlayed();
