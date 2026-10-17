@@ -168,6 +168,9 @@ public static class FactorySaveStore
     public const string ContinueSlotId = "continua";
     public const string QuickSlotId = "slot-1";
 
+    /// <summary>Continua as it was before this session's first autosave replaced it (see <see cref="ContinueAutoSave"/>).</summary>
+    public const string ContinueBackupSlotId = "continua.prev";
+
     private const string OlderVersionMessage = "Salvataggio di una versione precedente: non compatibile.";
     private const string UnreadableMessage = "Salvataggio non leggibile.";
 
@@ -198,6 +201,21 @@ public static class FactorySaveStore
         return Path.Combine(SavesDirectory, $"{safe}.json");
     }
 
+    public static string ContinueBackupPath => SlotPath(ContinueBackupSlotId);
+
+    /// <summary>Copies the current Continua to <see cref="ContinueBackupPath"/>; false when there is none.</summary>
+    public static bool BackupContinue()
+    {
+        var path = SlotPath(ContinueSlotId);
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        AtomicFile.Copy(path, ContinueBackupPath);
+        return true;
+    }
+
     public static string CreateSlotId() =>
         $"slot-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
 
@@ -205,8 +223,12 @@ public static class FactorySaveStore
 
     public static IReadOnlyList<SaveSlotInfo> ListSlots()
     {
-        Directory.CreateDirectory(SavesDirectory);
         var list = new List<SaveSlotInfo>();
+        if (!Directory.Exists(SavesDirectory))
+        {
+            return list;
+        }
+
         foreach (var path in Directory.EnumerateFiles(SavesDirectory, "*.json"))
         {
             if (!path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
@@ -263,7 +285,7 @@ public static class FactorySaveStore
             ActiveCampaignLevelId = view.ActiveCampaignLevelId,
             Snapshot = Convert.ToBase64String(host.CreateSnapshot())
         };
-        Directory.CreateDirectory(SavesDirectory);
+        GameDataPaths.CreateDirectory(SavesDirectory);
         AtomicFile.WriteAllText(SlotPath(slotId), JsonSerializer.Serialize(file, JsonOptions));
     }
 
@@ -334,6 +356,7 @@ public static class FactorySaveStore
         var path = SlotPath(slotId);
         if (File.Exists(path))
         {
+            GameDataPaths.EnsureWritable(path);
             File.Delete(path);
         }
     }

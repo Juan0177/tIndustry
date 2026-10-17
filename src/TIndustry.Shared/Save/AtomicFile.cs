@@ -1,6 +1,9 @@
 namespace TIndustry.Shared;
 
-/// <summary>Crash-safe writes: content goes to <c>&lt;path&gt;.tmp</c> beside the target, then replaces it in one move.</summary>
+/// <summary>
+/// Crash-safe writes: content goes to <c>&lt;path&gt;.tmp</c> beside the target, then replaces it in one move.
+/// Every write is checked by <see cref="GameDataPaths.EnsureWritable"/> first.
+/// </summary>
 internal static class AtomicFile
 {
     public const string TempSuffix = ".tmp";
@@ -13,6 +16,7 @@ internal static class AtomicFile
 
     private static void Replace(string path, Action<string> writeTemp)
     {
+        GameDataPaths.EnsureWritable(path);
         var tmp = path + TempSuffix;
         try
         {

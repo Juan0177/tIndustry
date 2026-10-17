@@ -4,9 +4,13 @@ namespace TIndustry.Shared;
 /// Guards the automatic write to the Continua slot: only a session the player actually played
 /// (new game, campaign level or successful load) may overwrite it. The startup sandbox shown behind
 /// Home is not a game, so quitting from Home must never replace an existing (or incompatible) Continua.
+/// The first write of a session first copies the Continua it replaces to <c>continua.prev.json</c>; later
+/// writes leave that copy alone, so it always holds the game the player had before this session.
 /// </summary>
 public sealed class ContinueAutoSave
 {
+    private bool _backedUp;
+
     public bool HasPlayed { get; private set; }
 
     public void MarkPlayed() => HasPlayed = true;
@@ -17,6 +21,12 @@ public sealed class ContinueAutoSave
         if (!HasPlayed || host is null)
         {
             return false;
+        }
+
+        if (!_backedUp)
+        {
+            FactorySaveStore.BackupContinue();
+            _backedUp = true;
         }
 
         FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, host);

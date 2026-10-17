@@ -17,12 +17,20 @@ public sealed class ContinueAutoSaveTests
 
     private static void ClearContinue()
     {
-        var path = FactorySaveStore.SlotPath(FactorySaveStore.ContinueSlotId);
-        if (File.Exists(path))
+        foreach (var path in new[]
+                 {
+                     FactorySaveStore.SlotPath(FactorySaveStore.ContinueSlotId), FactorySaveStore.ContinueBackupPath
+                 })
         {
-            File.Delete(path);
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
         }
     }
+
+    private static string ContinueText() =>
+        File.ReadAllText(FactorySaveStore.SlotPath(FactorySaveStore.ContinueSlotId));
 
     [Fact]
     public void StartupSandboxIsNotWrittenToContinue()
@@ -72,5 +80,56 @@ public sealed class ContinueAutoSaveTests
 
         Assert.False(autoSave.TrySave(null));
         Assert.False(FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId));
+    }
+
+    [Fact]
+    public void FirstAutosaveKeepsThePreviousContinueAsBackup()
+    {
+        ClearContinue();
+        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, NewHost(999));
+        var players = ContinueText();
+
+        var autoSave = new ContinueAutoSave();
+        autoSave.MarkPlayed();
+        Assert.True(autoSave.TrySave(NewHost(111)));
+
+        Assert.Equal(players, File.ReadAllText(FactorySaveStore.ContinueBackupPath));
+        Assert.NotEqual(players, ContinueText());
+    }
+
+    [Fact]
+    public void LaterAutosavesInTheSameSessionKeepTheSessionStartBackup()
+    {
+        // New game → Home (autosave) → Continua → quit (autosave): the backup must still hold
+        // the Continua the session started with, not the game it wrote a minute earlier.
+        ClearContinue();
+        FactorySaveStore.Save(FactorySaveStore.ContinueSlotId, NewHost(999));
+        var players = ContinueText();
+
+        var autoSave = new ContinueAutoSave();
+        autoSave.MarkPlayed();
+        Assert.True(autoSave.TrySave(NewHost(111)));
+        Assert.True(autoSave.TrySave(NewHost(222)));
+
+        Assert.Equal(players, File.ReadAllText(FactorySaveStore.ContinueBackupPath));
+    }
+
+    [Fact]
+    public void NoBackupWithoutAPreviousContinue()
+    {
+        ClearContinue();
+        var autoSave = new ContinueAutoSave();
+        autoSave.MarkPlayed();
+
+        Assert.True(autoSave.TrySave(NewHost(111)));
+        Assert.False(File.Exists(FactorySaveStore.ContinueBackupPath));
+    }
+
+    [Fact]
+    public void BackupSitsBesideContinue()
+    {
+        Assert.Equal(
+            Path.Combine(FactorySaveStore.SavesDirectory, "continua.prev.json"),
+            FactorySaveStore.ContinueBackupPath);
     }
 }
