@@ -4,7 +4,7 @@
 
 ## Contesto
 
-Il multiplayer è cooperativo: più giocatori, ognuno col suo drone, sulla stessa fabbrica e lo stesso CORE. La partita è **ospitata da un giocatore**, come in Mindustry; un server dedicato headless è possibile in seguito con lo stesso codice (ADR 0001: server in C# che riusa `TIndustry.Shared`).
+Il multiplayer è cooperativo: più giocatori, ognuno col suo drone, sulla stessa fabbrica e lo stesso CORE. La partita è **ospitata da un giocatore**, come in Mindustry; un server dedicato headless è possibile in seguito con lo stesso codice ([ADR 0001](0001-server-csharp.md): server in C# che riusa `TIndustry.Shared`).
 
 La simulazione deve quindi girare identica su più macchine, anche con FPS diversi, e un giocatore deve poter entrare a partita in corso. Il trasporto di rete arriva nel sotto-progetto 5; questo ADR fissa il modello a cui la simulazione si è già adeguata (sotto-progetto 2).
 
@@ -31,7 +31,7 @@ Stato di attuazione nel codice:
 
 ## Conseguenze
 
-- Valgono le **regole di determinismo** (elencate in `docs/ARCHITETTURA.md`): niente tempo in `Step()`, niente dipendenza dall'ordine di `Dictionary`/`HashSet`, niente orologio né `Random` non seminato, niente parallelismo né formati numerici dipendenti dalla cultura, niente riferimenti a Godot o al sistema operativo in `TIndustry.Shared`. I test (`DeterminismTests`, `SystemOrderTests`, `SnapshotTests`) le fanno rispettare.
+- Valgono le **regole di determinismo** (elencate in [ARCHITETTURA](../ARCHITETTURA.md#regole-di-determinismo)): niente tempo in `Step()`, niente dipendenza dall'ordine di `Dictionary`/`HashSet`, niente orologio né `Random` non seminato, niente parallelismo né formati numerici dipendenti dalla cultura, niente riferimenti a Godot o al sistema operativo in `TIndustry.Shared`. I test (`DeterminismTests`, `SystemOrderTests`, `SnapshotTests`) le fanno rispettare.
 - I **comandi sono validati all'applicazione**, non all'invio: in co-op un altro giocatore può aver speso le risorse nel frattempo. L'esito torna come evento (`CommandApplied` / `CommandRejected` con il motivo in italiano). Che il client non muti il gioco se non con i comandi vale oggi per convenzione: `IGameView` espone ancora entità concrete (`BeltGridCell.SetFilterItem`, `Miner`, `Crafter`, `MarketCatalog`), e il confine di sola lettura a livello di tipo arriva col sotto-progetto 5.
 - I calcoli restano in **`float`**: determinismo garantito da passo costante, ordine canonico e assenza di fonti esterne. Le differenze residue tra architetture CPU diverse sono accettate; si rilevano col checksum e si riparano con l'istantanea. Niente virgola fissa.
 - Salvataggio e istantanea coincidono (versione 10: metadati più istantanea in base64): i salvataggi v9 sono rifiutati con "Salvataggio di una versione precedente: non compatibile.".

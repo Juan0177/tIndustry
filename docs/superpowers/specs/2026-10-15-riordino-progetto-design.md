@@ -3,6 +3,8 @@
 - **Data:** 2026-10-15
 - **Stato:** approvata e implementata (PR #139–#144)
 - **Sotto-progetto:** 1 di 5 (vedi [Roadmap](#roadmap-dei-sotto-progetti))
+- **Piano:** [2026-10-15-riordino-progetto](../plans/2026-10-15-riordino-progetto.md)
+- **Decisioni:** [ADR 0001 — server in C#](../../decisioni/0001-server-csharp.md)
 
 ## Perché
 
