@@ -106,11 +106,14 @@ else
   echo "Profilo dati: quello reale del giocatore (usa --profilo-temp per non toccarlo)"
 fi
 [ "$FRESH" = 1 ] && export TINDUSTRY_FRESH=1
+# With a custom profile the engine log goes there too, never into the player's real folder.
+LOG_ARGS=()
+[ -n "$PROFILE" ] && LOG_ARGS=(--log-file "$TINDUSTRY_DATA_DIR/godot.log")
 
 if [ "$EDITOR" = 1 ]; then
   step "Editor Godot"
-  "$GODOT" --path godot -e
+  "$GODOT" --path godot "${LOG_ARGS[@]}" -e
 else
   step "Avvio del gioco"
-  "$GODOT" --path godot
+  "$GODOT" --path godot "${LOG_ARGS[@]}"
 fi

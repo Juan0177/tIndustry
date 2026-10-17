@@ -25,6 +25,7 @@ python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
 ```
 
 `TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo).
+Con un profilo temporaneo/esplicito gli script passano `--log-file <profilo>/godot.log`, così i log di Godot non finiscono in `%APPDATA%\Godotpp_userdata	Industry\logs`. Resta fuori controllo solo il file vuoto `.recovery_mode_lock` (il motore ne aggiorna l'mtime all'avvio; nessuna opzione CLI lo sposta). `shader_cache` e `vulkan` non vengono toccati.
 
 Dopo `godot4 --import`, ripristina i `.import` che differiscono solo per fine riga:
 
