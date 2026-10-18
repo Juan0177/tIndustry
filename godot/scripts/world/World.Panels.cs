@@ -37,7 +37,7 @@ public partial class World
         _hud.MenuRequested += () =>
         {
             AutoSaveContinue(quiet: true);
-            _home?.Open();
+            _home?.Open(inGame: true);
         };
         _hud.SetSelectedTool(Hud.ToolKind.Cursor);
         _hud.SetDirectionLabel(_placeDir);
@@ -178,6 +178,7 @@ public partial class World
         // Keep Home above other HUD so it covers dock/info while choosing.
         hudRoot.MoveChild(_home, hudRoot.GetChildCount() - 1);
 
+        _home.ResumeChosen += () => _home?.Close();
         _home.ContinuaChosen += () => RunMapTask(OnHomeContinuaAsync, m => _home?.ShowError(m));
         _home.CampaignChosen += OnHomeCampaign;
         _home.NewGameChosen += OpenNewGamePanel;

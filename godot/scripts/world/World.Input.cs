@@ -185,7 +185,7 @@ public partial class World
                 {
                     // Raylib parity: autosave Continua then Esc → Home.
                     AutoSaveContinue(quiet: true);
-                    _home?.Open();
+                    _home?.Open(inGame: true);
                 }
                 else
                 {

@@ -137,7 +137,10 @@ public partial class World
         QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast(Testi.F("partita.nuova.toast", NewGamePanel.SizeLabel(size), (int)size, seed));
+            // A size without a name (the agents' numeric misura) shows only its edge, not "64 64×64".
+            _hud?.ShowToast(Enum.IsDefined(size)
+                ? Testi.F("partita.nuova.toast", NewGamePanel.SizeLabel(size), (int)size, seed)
+                : Testi.F("partita.nuova.toast.lato", (int)size, seed));
         }
     }
 

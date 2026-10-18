@@ -47,17 +47,52 @@ public sealed class SimEngine : IAgentEngine
     /// <summary>Folders left behind by a killed server are swept after this long.</summary>
     public static readonly TimeSpan StaleAfter = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// Lock file of a live session's folder, held open (exclusive, deleted on close) by the server that owns it: the
+    /// sweep of another server skips the folder however old its date looks (Godot's log does not touch it).
+    /// </summary>
+    public const string LockFile = ".in-uso";
+
     private readonly AgentGame game;
     private readonly bool keep;
+    private readonly FileStream folderLock;
     private readonly object gate = new();
     private bool closed;
 
-    private SimEngine(AgentGame game, string folder, bool keep)
+    private SimEngine(AgentGame game, string folder, bool keep, FileStream folderLock)
     {
         this.game = game;
         Folder = folder;
         this.keep = keep;
+        this.folderLock = folderLock;
     }
+
+    /// <summary>Takes <paramref name="folder"/>'s <see cref="LockFile"/> until the stream is disposed.</summary>
+    public static FileStream Lock(string folder) => new(
+        Path.Combine(folder, LockFile), FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
+
+    // A lock file another process still holds (a crashed server's handle is gone: the file opens, or is gone).
+    private static bool InUse(DirectoryInfo dir)
+    {
+        var path = Path.Combine(dir.FullName, LockFile);
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var probe = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>The warnings of the replay that made this session (<c>rigioca</c>'s <c>avvisi</c>).</summary>
+    public IReadOnlyList<string> ReplayWarnings => game.ReplayWarnings;
 
     public string Kind => SimulationKind;
 
@@ -87,7 +122,7 @@ public sealed class SimEngine : IAgentEngine
 
         foreach (var dir in new DirectoryInfo(TempRoot).EnumerateDirectories())
         {
-            if (nowUtc - dir.LastWriteTimeUtc < StaleAfter || File.Exists(Path.Combine(dir.FullName, KeepMarker)))
+            if (nowUtc - dir.LastWriteTimeUtc < StaleAfter || File.Exists(Path.Combine(dir.FullName, KeepMarker)) || InUse(dir))
             {
                 continue;
             }
@@ -140,6 +175,7 @@ public sealed class SimEngine : IAgentEngine
 
             closed = true;
             game.Dispose();
+            folderLock.Dispose();
             if (!keep)
             {
                 DeleteFolder(Folder);
@@ -159,6 +195,7 @@ public sealed class SimEngine : IAgentEngine
     private static SimEngine InNewFolder(bool keep, Func<string, AgentGame> create)
     {
         var folder = Directory.CreateDirectory(Path.Combine(TempRoot, Path.GetRandomFileName())).FullName;
+        var folderLock = Lock(folder);
         try
         {
             if (keep)
@@ -166,10 +203,11 @@ public sealed class SimEngine : IAgentEngine
                 File.WriteAllText(Path.Combine(folder, KeepMarker), "");
             }
 
-            return new SimEngine(create(folder), folder, keep);
+            return new SimEngine(create(folder), folder, keep, folderLock);
         }
         catch
         {
+            folderLock.Dispose();
             DeleteFolder(folder);
             throw;
         }

@@ -61,7 +61,7 @@ public partial class CorePanel : VBoxContainer
 
     public override void _Ready()
     {
-        var menuRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        var menuRow = new HBoxContainer { Name = "MenuRow", MouseFilter = MouseFilterEnum.Ignore };
         AddChild(menuRow);
         AddMenuButton(menuRow, "menu", "menu.menu", "Esc", () => MenuRequested?.Invoke());
         AddMenuButton(menuRow, "ricerca", "menu.ricerca", "T", () => ResearchRequested?.Invoke());
@@ -323,6 +323,8 @@ public partial class CorePanel : VBoxContainer
     {
         var button = new Button
         {
+            // Stable name for the agents' ui tool: Menu, Ricerca, Mercato, Campagna.
+            Name = char.ToUpperInvariant(icon[0]) + icon[1..],
             Text = label,
             Icon = UiTheme.Icon(icon, small: true),
             FocusMode = FocusModeEnum.None,
@@ -376,6 +378,7 @@ public partial class CorePanel : VBoxContainer
         vbox.AddChild(upgradeRow);
         _coreUpgradeButton = new Button
         {
+            Name = "PotenziaCore",
             Text = "core.potenzia",
             ThemeTypeVariation = UiTheme.PulsantePiatto,
             FocusMode = FocusModeEnum.None,

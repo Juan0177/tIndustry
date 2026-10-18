@@ -81,7 +81,7 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 
 | Hotkey | Azione |
 | --- | --- |
-| Esc / \` | Cursore (nessun tool) |
+| Esc / \` | Cursore (nessun tool); con il cursore Esc salva la Continua e apre la Home |
 | 1–9 | Nastro … Ponte (2 = Minatore) |
 | M | Mercato (vendi stock) |
 | G | Campagna (seleziona livello) |
@@ -89,6 +89,8 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
 | RMB | Cancella un piano, annulla un cantiere o segna un blocco da smontare; clic singolo toglie il segno, trascinare segna soltanto (non è uno slot palette) |
+
+**Home durante una partita** (Esc col cursore, o **Menu**): il primo pulsante è **Riprendi**, che torna alla partita così com'è (Continua, che ricaricherebbe l'ultimo salvataggio automatico, non c'è); anche **Esc** riprende. Gli altri pulsanti sono quelli di sempre. Nella Home iniziale, all'avvio, Esc non fa nulla: dal gioco si esce solo con **Esci**, mai con Esc.
 
 Ponte: estremi 1×1, campata larga circa il 70% della cella, distanza 2–4, celle in mezzo libere (un nastro può passarci sotto).
 

@@ -21,56 +21,34 @@ public partial class World
         SubmitCommand(PlaceCommandAt(cell, crossing), quietWhenBlocked: _draggingPlace);
     }
 
-    // Belt drag: the cell placed last, and a cell over a perpendicular belt held back until the drag shows whether the
-    // line goes on past it (with the cell before it).
-    private GridPosition? _dragPrevious;
-    private (GridPosition Cell, GridPosition? Previous)? _heldCrossing;
+    // Belt drag: which cells to place and which is a crossing (shared with the agents' piazza line).
+    private readonly BeltDrag _beltDrag = new();
 
     /// <summary>Starts a placing drag on the press cell (never a crossing).</summary>
     private void BeginPlaceDrag(GridPosition cell)
     {
-        _dragPrevious = cell;
-        _heldCrossing = null;
+        _beltDrag.Begin(cell);
         _crossingToastShown = false;
         TryPlaceAt(cell);
     }
 
     /// <summary>
-    /// One cell a belt drag moved onto. A cell over a perpendicular belt (<see cref="BeltLine.MayCross"/>) waits for the
-    /// next one: then the next cell goes first and the held one follows, as a crossing when it lies inside the line
-    /// (<see cref="BeltLine.IsInterior"/>). A held cell the drag never passes would only be refused as occupied, so on
-    /// release it is simply dropped.
+    /// One cell a drag moved onto: <see cref="BeltDrag.Next"/> says what to place (a belt over a perpendicular one waits
+    /// for the next cell, then goes as a crossing when it lies inside the line). A held cell the drag never passes would
+    /// only be refused as occupied, so on release it is simply dropped.
     /// </summary>
     private void PlaceDragged(GridPosition cell)
     {
-        var belt = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
-        var mayCross = belt && _view is not null && BeltLine.MayCross(_view, cell, _placeDir);
-        if (_heldCrossing is { } held)
+        if (_view is null)
         {
-            _heldCrossing = null;
-            if (mayCross)
-            {
-                TryPlaceAt(held.Cell); // two crossings in a row: the first one is not inside a line of belts
-            }
-            else
-            {
-                TryPlaceAt(cell);
-                TryPlaceAt(held.Cell, BeltLine.IsInterior(held.Previous, held.Cell, cell, _placeDir));
-                _dragPrevious = cell;
-                return;
-            }
+            return;
         }
 
-        if (mayCross)
+        var belts = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
+        foreach (var (place, crossing) in _beltDrag.Next(_view, cell, _placeDir, belts))
         {
-            _heldCrossing = (cell, _dragPrevious);
+            TryPlaceAt(place, crossing);
         }
-        else
-        {
-            TryPlaceAt(cell);
-        }
-
-        _dragPrevious = cell;
     }
 
     /// <summary>The command the current tool sends for <paramref name="cell"/> (not the cursor).</summary>

@@ -8,7 +8,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
 {
     private static readonly string[] ToolNames =
     [
-        "apri_simulazione", "apri_gioco", "collega_coop", "sessioni", "chiudi", "stato", "area", "trova", "eventi",
+        "apri_simulazione", "apri_gioco", "collega_coop", "sessioni", "chiudi", "stato", "area", "trova", "eventi", "catalogo",
         "piazza", "smonta", "ruota", "sblocca", "vendi", "potenzia_core", "avanza", "esegui", "pausa", "riprendi",
         "cattura", "telecamera", "input", "ui", "log", "diario", "rigioca"
     ];
@@ -18,7 +18,12 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
     {
         var tools = await server.Client.ListToolsAsync();
         var names = tools.Select(t => t.Name).ToList();
-        Assert.Equal(ToolNames.Order(StringComparer.Ordinal), names.Order(StringComparer.Ordinal));
+        // Always in the order Tools declares them, and the free parameters say what they take.
+        Assert.Equal(ToolNames, names);
+        var misura = tools.Single(t => t.Name == "apri_simulazione").JsonSchema.GetProperty("properties").GetProperty("misura");
+        Assert.Contains("integer", misura.GetProperty("type").EnumerateArray().Select(t => t.GetString()));
+        var verso = tools.Single(t => t.Name == "input").JsonSchema.GetProperty("properties").GetProperty("verso");
+        Assert.Contains("object", verso.GetProperty("type").EnumerateArray().Select(t => t.GetString()));
         Assert.All(tools, t => Assert.False(string.IsNullOrWhiteSpace(t.Description), t.Name));
 
         var opened = await server.Ok("apri_simulazione", new { misura = "Media", seme = 1 });
@@ -87,7 +92,9 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         {
             ("esegui", new { sessione = id, secondi = 1.0 }), ("riprendi", new { sessione = id }),
             ("cattura", new { sessione = id }), ("telecamera", new { sessione = id }),
-            ("input", new { sessione = id, tipo = "clic" }), ("ui", new { sessione = id }), ("log", new { sessione = id })
+            ("input", new { sessione = id, tipo = "clic" }), ("ui", new { sessione = id }), ("log", new { sessione = id }),
+            // verso as an object, as documented: the parameter check lets it through (bug 1), the engine has no window.
+            ("input", new { sessione = id, tipo = "trascina", cella = new { x = 1, y = 1 }, verso = new { x = 3, y = 1 } })
         })
         {
             Assert.Equal(AgentCodes.MotoreNonDisponibile, await server.Refused(tool, args));
@@ -116,6 +123,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
             ("area", new { sessione = id, da = new { x = 0 } }),
             ("trova", new { sessione = id, cosa = "pizza", cella = new { x = 0, y = 0 } }),
             ("eventi", new { }),
+            ("catalogo", new { sessione = 5 }),
             ("piazza", new { sessione = id }),
             ("piazza", new { sessione = id, tipo = "miner", cella = new { x = -1, y = 0 } }),
             ("smonta", new { sessione = id, cella = "qui" }),
@@ -170,10 +178,25 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         Assert.Matches("^[0-9a-f]{16}$", replay.GetProperty("impronta").GetString());
         var replayed = await server.Ok("stato", new { sessione = copy });
         Assert.Equal(original.GetRawText(), replayed.GetRawText());
+        Assert.Equal(original.GetProperty("impronta").GetString(), replay.GetProperty("impronta").GetString());
 
         await server.Ok("chiudi", new { sessione = id });
         Assert.False(File.Exists(path));
         await server.Ok("chiudi", new { sessione = copy });
+    }
+
+    [Fact]
+    public async Task CatalogoAndRefusalsSayWhatIsMissing()
+    {
+        var id = await Open(new { misura = "64", generatore = "classico" });
+        var junction = (await server.Ok("catalogo", new { sessione = id })).GetProperty("strutture").EnumerateArray()
+            .Single(s => s.GetProperty("id").GetString() == "junction");
+        Assert.False(junction.GetProperty("sbloccato").GetBoolean());
+
+        var refused = await server.Call("sblocca", new { sessione = id, struttura = "junction" });
+        Assert.Equal(nameof(RefusalCode.UnlockUnaffordable), refused.GetProperty("codice").GetString());
+        Assert.Equal(20, refused.GetProperty("mancano").GetProperty("soldi").GetInt32());
+        await server.Ok("chiudi", new { sessione = id });
     }
 
     [Fact]
@@ -259,8 +282,11 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
             var old = Directory.CreateDirectory(Path.Combine(root, "vecchia")).FullName;
             var kept = Directory.CreateDirectory(Path.Combine(root, "tenuta")).FullName;
             var fresh = Directory.CreateDirectory(Path.Combine(root, "nuova")).FullName;
+            var live = Directory.CreateDirectory(Path.Combine(root, "viva")).FullName;
             File.WriteAllText(Path.Combine(kept, ".conserva"), "");
-            foreach (var dir in new[] { old, kept })
+            // A live session of another server: its lock file is held open, however old the folder looks.
+            using var liveLock = new FileStream(Path.Combine(live, ".in-uso"), FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+            foreach (var dir in new[] { old, kept, live })
             {
                 Directory.SetLastWriteTimeUtc(dir, DateTime.UtcNow.AddDays(-2));
             }
@@ -273,6 +299,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
             Assert.False(Directory.Exists(old));
             Assert.True(Directory.Exists(kept));
             Assert.True(Directory.Exists(fresh));
+            Assert.True(Directory.Exists(live));
         }
         finally
         {

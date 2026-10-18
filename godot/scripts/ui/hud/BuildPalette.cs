@@ -279,6 +279,8 @@ public partial class BuildPalette : PanelContainer
     {
         var slot = new PanelContainer
         {
+            // Stable name for the agents' ui tool (unnamed nodes get a random one).
+            Name = $"Categoria{category}",
             CustomMinimumSize = new Vector2(CellSide, CellSide),
             MouseFilter = MouseFilterEnum.Stop,
             TooltipText = CategoryLabel(category),
@@ -310,6 +312,8 @@ public partial class BuildPalette : PanelContainer
 
         foreach (var child in _blockGrid.GetChildren())
         {
+            // Out of the tree at once: the new cells take their stable names (Blocco...) instead of an '@' one.
+            _blockGrid.RemoveChild(child);
             child.QueueFree();
         }
 
@@ -426,6 +430,7 @@ public partial class BuildPalette : PanelContainer
         var side = BlockIconSide();
         var slot = new PanelContainer
         {
+            Name = $"Blocco{entry.Tool}",
             CustomMinimumSize = new Vector2(side + 8, side + 8),
             MouseFilter = MouseFilterEnum.Stop,
             TooltipText = string.IsNullOrEmpty(entry.Hotkey) || entry.Tool == ToolKind.Cursor

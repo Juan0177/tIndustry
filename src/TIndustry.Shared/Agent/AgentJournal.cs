@@ -3,11 +3,16 @@ using System.Text.Json.Serialization;
 
 namespace TIndustry.Shared;
 
-/// <summary>One journal line: the method an agent called at <paramref name="Tick"/> (game tick before the call).</summary>
+/// <summary>
+/// One journal line: the method an agent called at <paramref name="Tick"/> (the game tick when the call arrived; a
+/// command applies in the tick after it). <paramref name="Replayable"/> false (<c>rigiocabile</c>): done in the real
+/// game only (<c>input</c>, <c>ui</c> clicks), <c>rigioca</c> skips it with a warning.
+/// </summary>
 public sealed record AgentJournalEntry(
     long Tick,
     [property: JsonPropertyName("metodo")] string Method,
-    [property: JsonPropertyName("parametri")] JsonElement Params);
+    [property: JsonPropertyName("parametri")] JsonElement Params,
+    [property: JsonPropertyName("rigiocabile")] bool? Replayable = null);
 
 /// <summary>Rules of the journaled game (<see cref="GameRules"/> with the journal's Italian keys).</summary>
 public sealed record AgentRulesSetup(
@@ -41,8 +46,19 @@ public sealed record AgentGameSetup(
     /// <summary>The terrain generators <see cref="CreateHost"/> knows (a new generator gets a new name here).</summary>
     public static readonly IReadOnlyList<string> Generators = [ClassicTerrainGenerator.Name, MapGenerator.Name];
 
+    /// <summary>The real game's journals (written by the client's channel).</summary>
+    public const string GameEngine = "gioco";
+
     public static AgentGameSetup Sandbox(int size, int seed, string generator, GameRules rules) =>
         new(SimulationEngine, size, seed, generator, AgentRulesSetup.From(rules));
+
+    /// <summary>The game of <paramref name="host"/> as it is now (a loaded save, a game seen half-way): its snapshot.</summary>
+    public static AgentGameSetup Snapshot(string engine, SimHost host)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        return new(engine, host.State.Terrain?.Width ?? 0, 0, "", AgentRulesSetup.From(host.State.Rules),
+            StartSnapshot: Convert.ToBase64String(host.CreateSnapshot()));
+    }
 
     /// <summary>A new host for this setup; <see cref="AgentException"/> (<c>ParametriNonValidi</c>) when it cannot be made.</summary>
     public SimHost CreateHost(FactoryContent content, CampaignCatalog? campaign = null, string? mapsDirectory = null)
@@ -88,7 +104,8 @@ public sealed record AgentGameSetup(
 /// <summary>
 /// The calls of a session that change the game or its time (see <see cref="AgentGame.JournaledMethods"/>), with
 /// their tick, after the <see cref="Setup"/> of the game: replaying them on the same setup reproduces what an agent found.
-/// File: <c>{versione, partita, voci}</c>.
+/// File: <c>{versione, partita, voci, fine, avvisi}</c>: <c>fine</c> is the tick when the journal was saved (the time
+/// after the last call replays too), <c>avvisi</c> what may make the replay differ from the game.
 /// </summary>
 public sealed class AgentJournal
 {
@@ -100,13 +117,20 @@ public sealed class AgentJournal
 
     public IReadOnlyList<AgentJournalEntry> Entries => entries;
 
-    public void Add(long tick, string method, JsonElement @params) =>
-        entries.Add(new AgentJournalEntry(tick, method, @params.Clone()));
+    /// <summary>The game tick when the journal was last saved or listed: <c>rigioca</c> runs up to it.</summary>
+    public long? EndTick { get; set; }
+
+    /// <summary>What may make a replay differ from the game (a command without outcome, an unreadable start…).</summary>
+    public List<string> Warnings { get; } = [];
+
+    public void Add(long tick, string method, JsonElement @params, bool replayable = true) =>
+        entries.Add(new AgentJournalEntry(tick, method, @params.Clone(), replayable ? null : false));
 
     /// <summary>Writes the journal atomically; I/O failures become <c>ParametriNonValidi</c>.</summary>
     public void Save(string path)
     {
-        var json = JsonSerializer.Serialize(new JournalFile(CurrentVersion, Setup, entries), AgentProtocol.JsonOptions);
+        var file = new JournalFile(CurrentVersion, Setup, entries, EndTick, Warnings.Count > 0 ? Warnings : null);
+        var json = JsonSerializer.Serialize(file, AgentProtocol.JsonOptions);
         Guard(path, () => AtomicFile.WriteAllText(path, json));
     }
 
@@ -120,10 +144,11 @@ public sealed class AgentJournal
             throw new AgentException(AgentCodes.ParametriNonValidi, $"Diario non valido: {path}.");
         }
 
-        var journal = new AgentJournal { Setup = file.Setup };
+        var journal = new AgentJournal { Setup = file.Setup, EndTick = file.EndTick };
+        journal.Warnings.AddRange(file.Warnings ?? []);
         foreach (var entry in file.Entries)
         {
-            journal.Add(entry.Tick, entry.Method, entry.Params);
+            journal.Add(entry.Tick, entry.Method, entry.Params, entry.Replayable != false);
         }
 
         return journal;
@@ -145,5 +170,7 @@ public sealed class AgentJournal
     private sealed record JournalFile(
         [property: JsonPropertyName("versione")] int Version,
         [property: JsonPropertyName("partita")] AgentGameSetup? Setup,
-        [property: JsonPropertyName("voci")] List<AgentJournalEntry>? Entries);
+        [property: JsonPropertyName("voci")] List<AgentJournalEntry>? Entries,
+        [property: JsonPropertyName("fine")] long? EndTick = null,
+        [property: JsonPropertyName("avvisi")] List<string>? Warnings = null);
 }

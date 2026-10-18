@@ -11,7 +11,7 @@ Piazzare, girare, potenziare e smontare i nastri con gli stessi gesti di Mindust
 
 ## Decisioni prese con l'utente
 
-Tutti gli otto gruppi proposti si fanno: (1) direzione che segue la linea, (2) R durante il trascinamento, (3) linea dritta con anteprima e invio al rilascio, (4) nastro sopra nastro (giro sul posto, cambio di tier, Ctrl per la catena), (5) ponte automatico sugli ostacoli, (6) smontaggio a rettangolo, (7) tasto centrale per prendere il blocco, (8) Ctrl per la diagonale e rotellina che ruota.
+Tutti gli otto gruppi proposti si fanno, più il nastro rinforzato (aggiunto il 2026-10-19): (1) direzione che segue la linea, (2) R durante il trascinamento, (3) linea dritta con anteprima e invio al rilascio, (4) nastro sopra nastro (giro sul posto, cambio di tier, Ctrl per la catena), (5) ponte automatico sugli ostacoli, (6) smontaggio a rettangolo, (7) tasto centrale per prendere il blocco, (8) Ctrl per la diagonale e rotellina che ruota.
 
 ## Comportamento
 
@@ -31,6 +31,27 @@ Tutti gli otto gruppi proposti si fanno: (1) direzione che segue la linea, (2) R
 - **Tier diverso**: sostituzione con un cantiere che ricorda il nastro precedente; al termine il nastro nuovo eredita gli oggetti. Si paga la differenza secondo le regole dei cantieri di ADR 0003. Se il cantiere deve salvare il blocco precedente e il formato non lo permette, i salvataggi passano alla v13 (con lettura dei v12).
 - **Ctrl da un capo all'altro di una catena**: il trascinamento segue la catena esistente invece della retta e la potenzia tutta al tier in mano.
 - Stesso nastro, stessa direzione: nessun effetto, in silenzio.
+- **Attraversare un nastro perpendicolare** (decisione dell'utente del 2026-10-19, come Mindustry): l'incrocio automatico si crea solo se la giunzione è sbloccata (e si può pagare). Senza giunzione il trascinamento non si rifiuta più (`CrossingNeedsJunction` sparisce dalla linea): il nastro nuovo sostituisce la cella attraversata con le regole qui sopra (giro sul posto o cambio di tier), così la linea attraversata diventa un'unione 2→1 o 3→1 nella linea nuova. Due linee che si incrociano senza mescolarsi esistono solo con la giunzione.
+
+### Nastro rinforzato
+
+Aggiunto su richiesta dell'utente del 2026-10-19. È l'equivalente dell'*Armored Conveyor* di Mindustry.
+
+- **Blocco nuovo**: `conveyor-armored`, nastro rinforzato.
+  - Stessa velocità del nastro veloce (`conveyor-fast`).
+  - Si sblocca nella Ricerca dopo il nastro veloce.
+  - Costo: quello del veloce più titanio. I numeri esatti li fissa il piano, in `data/content.json`.
+- **Regola come Mindustry**: accetta oggetti dagli altri nastri da qualsiasi lato, ma dagli edifici (e da tutto ciò che non è un nastro) solo da dietro. Una trivella o una macchina accanto non ci scarica di lato. Così una linea rinforzata passa lungo una fila di macchine senza raccogliere niente.
+- **Aspetto**: arte da `genera.py`, con bordo e rinforzi che lo distinguono a colpo d'occhio dal nastro veloce. Non si unisce agli edifici ai lati: niente blocco col punto né curva verso un edificio, resta dritto. Con i nastri si unisce come gli altri (curva, T, unioni).
+- **Logica**: nella simulazione (`TIndustry.Shared`), deterministica. La forma disegnata (`BeltGrid.GetShape`) segue la stessa regola dell'ingresso.
+- **Verifica**: xUnit su:
+  - edificio di lato rifiutato;
+  - edificio da dietro accettato;
+  - nastro di lato accettato;
+  - forma dritta accanto a una trivella;
+  - salvataggio e caricamento.
+
+  Playtest con cattura di una linea rinforzata lungo una fila di trivelle.
 
 ### Ponte automatico
 
