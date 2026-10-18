@@ -15,6 +15,7 @@ public partial class HomePanel : Control
     private Button? _continuaBtn;
     private Button? _resumeBtn;
     private Label? _hint;
+    private Control? _quitConfirm;
 
     // Opened from a game in progress (Esc, Menu): Riprendi goes back to it, and so does Esc.
     private bool _inGame;
@@ -50,6 +51,9 @@ public partial class HomePanel : Control
 
     /// <summary>True while the Home is over a game in progress (Riprendi shown).</summary>
     public bool InGame => _inGame;
+
+    /// <summary>True while the "Quit the game?" dialog is up.</summary>
+    public bool QuitConfirmOpen => _quitConfirm?.Visible == true;
 
     public void Close() => Visible = false;
 
@@ -96,7 +100,7 @@ public partial class HomePanel : Control
         }
     }
 
-    /// <summary>Esc resumes the game in progress; on the start Home it does nothing (leaving is the Esci button).</summary>
+    /// <summary>Esc resumes the game in progress; on the start Home it asks to quit, and with that dialog open it cancels.</summary>
     public override void _UnhandledInput(InputEvent @event)
     {
         if (!Visible)
@@ -106,13 +110,55 @@ public partial class HomePanel : Control
 
         if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
         {
-            if (_inGame)
+            if (_quitConfirm!.Visible)
+            {
+                _quitConfirm.Visible = false;
+            }
+            else if (_inGame)
             {
                 ResumeChosen?.Invoke();
+            }
+            else
+            {
+                AskQuit();
             }
 
             GetViewport().SetInputAsHandled();
         }
+    }
+
+    private void AskQuit()
+    {
+        _quitConfirm!.Visible = true;
+        ((Control)_quitConfirm.FindChild("EsciConferma", true, false)!).GrabFocus();
+    }
+
+    /// <summary>Modal "Quit the game?" over the Home: Esci (the focused button, so Enter) or Annulla (Esc).</summary>
+    private void BuildQuitConfirm()
+    {
+        _quitConfirm = new Control { Name = "ConfermaEsci", Visible = false };
+        _quitConfirm.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(_quitConfirm);
+        var dim = new ColorRect { Color = UiColors.Oscuramento, MouseFilter = MouseFilterEnum.Stop };
+        dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _quitConfirm.AddChild(dim);
+        var centered = new CenterContainer();
+        centered.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _quitConfirm.AddChild(centered);
+        var card = new PanelContainer { ThemeTypeVariation = UiTheme.Scheda, CustomMinimumSize = new Vector2(360, 0) };
+        centered.AddChild(card);
+        var col = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
+        card.AddChild(col);
+        col.AddChild(new Label { Text = "home.esci.titolo", HorizontalAlignment = HorizontalAlignment.Center });
+        var row = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
+        col.AddChild(row);
+        var cancel = MakeMenuButton("comune.annulla", () => _quitConfirm.Visible = false, "Annulla");
+        cancel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        row.AddChild(cancel);
+        var quit = MakeMenuButton("home.esci", () => QuitChosen?.Invoke(), "EsciConferma");
+        quit.ThemeTypeVariation = UiTheme.PulsantePrimario;
+        quit.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        row.AddChild(quit);
     }
 
     private void BuildUi()
@@ -178,6 +224,7 @@ public partial class HomePanel : Control
             ThemeTypeVariation = UiTheme.TestoTenue
         };
         root.AddChild(_hint);
+        BuildQuitConfirm();
     }
 
     /// <summary>A Home button; <paramref name="name"/> is its stable node name (what the agents' <c>ui</c> lists).</summary>

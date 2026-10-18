@@ -322,6 +322,22 @@ public partial class World
             return false;
         }
 
+        // Esc on the start Home asks before quitting; a second Esc cancels and the game keeps running.
+        await PlaytestKey(Key.Escape);
+        await PlaytestWait(0.2);
+        if (_home?.QuitConfirmOpen != true)
+        {
+            return Fail("Home iniziale: Esc non apre la conferma di uscita");
+        }
+
+        await Shot("home-esci");
+        await PlaytestKey(Key.Escape);
+        await PlaytestWait(0.2);
+        if (_home?.QuitConfirmOpen != false || _home.IsOpen != true || !IsInsideTree())
+        {
+            return Fail("Home iniziale: secondo Esc non annulla la conferma di uscita");
+        }
+
         _settings.TutorialCompleted = true;
         // Home → Nuova partita, with the playtest seed in the field instead of a random one.
         OpenNewGamePanel(PlaytestSeed);
