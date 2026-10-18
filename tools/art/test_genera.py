@@ -2,6 +2,7 @@
 
 Run from the repo root:  python -m unittest tools/art/test_genera.py
 """
+import io
 import json
 import os
 import sys
@@ -15,6 +16,7 @@ REPO = os.path.abspath(os.path.join(ART_DIR, "..", ".."))
 if ART_DIR not in sys.path:
     sys.path.insert(0, ART_DIR)
 
+import carattere  # noqa: E402
 import forme  # noqa: E402
 import genera  # noqa: E402
 from blocchi import SPRITE, sprite  # noqa: E402
@@ -51,6 +53,15 @@ FX = ("fx-fumo", "fx-scintilla", "fx-polvere", "fx-vapore", "fx-fiocco", "fx-gra
       "fx-lucciola")
 # Light texture of the night (G3 3/4): one square, PointLight2D scales it.
 LUCE = ("luce", 128)
+# Interface icons (G4): "ui/ui-<nome>" 32x32 and "ui/ui-<nome>-16" 16x16, for these names.
+ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "menu", "ricerca", "mercato",
+            "campagna", "lucchetto", "energia", "impostazioni", "salvataggi", "lingua")
+# Third-party icons still used by the client until G4 2/6 switches to the ui-* ones (then deleted).
+UI_TERZI = ("cat-logistics", "cat-power", "cat-production", "cat-tools", "locked", "menu", "power", "research",
+            "sell")
+# Interface font (G4): required glyphs and the exported files in godot/assets/ui/.
+INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×"
+FONT_UI = ("carattere-testo", "carattere-titoli")
 
 
 def _content():
@@ -107,6 +118,13 @@ def errore_misura(nome, im):
         return None if (w, h) == terreno[nome] else f"{nome}: {w}x{h}, atteso {terreno[nome][0]}x{terreno[nome][1]}"
     if nome.startswith("deco-") and nome[len("deco-"):].rsplit("-", 1)[0] in _biomi_terra():
         return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
+    if nome.startswith("ui/"):
+        piccola = nome.endswith("-16")
+        icona = nome[len("ui/ui-"): -len("-16") if piccola else None]
+        if not nome.startswith("ui/ui-") or icona not in ICONE_UI:
+            return f"{nome}: icona dell'interfaccia sconosciuta"
+        lato = 16 if piccola else 32
+        return None if (w, h) == (lato, lato) else f"{nome}: {w}x{h}, atteso {lato}x{lato}"
     if nome == LUCE[0]:
         return None if (w, h) == (LUCE[1], LUCE[1]) else f"{nome}: {w}x{h}, atteso {LUCE[1]}x{LUCE[1]}"
     if nome.startswith("fx-"):
@@ -195,6 +213,10 @@ class TestGenera(unittest.TestCase):
                 with open(os.path.join(out_a, nome + ".png"), "rb") as fa, \
                         open(os.path.join(out_b, nome + ".png"), "rb") as fb:
                     self.assertEqual(fa.read(), fb.read(), nome)
+            for rel in carattere.file_carattere():
+                with open(os.path.join(out_a, rel), "rb") as fa, open(os.path.join(out_b, rel), "rb") as fb:
+                    self.assertEqual(fa.read(), fb.read(), rel)
+            self.assertTrue(os.path.exists(os.path.join(a, "arte", "tavola-ui.png")))
 
     def test_misure(self):
         errori = [e for nome in sorted(SPRITE) if (e := errore_misura(nome, SPRITE[nome]()))]
@@ -223,6 +245,12 @@ class TestGenera(unittest.TestCase):
         self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(30, 12)))
         self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(T, T)))
         self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(6, 6)))
+        self.assertIsNone(errore_misura("ui/ui-menu", forme.nuova(32, 32)))
+        self.assertIsNone(errore_misura("ui/ui-menu-16", forme.nuova(16, 16)))
+        self.assertIsNotNone(errore_misura("ui/ui-menu", forme.nuova(16, 16)))
+        self.assertIsNotNone(errore_misura("ui/ui-menu-16", forme.nuova(32, 32)))
+        self.assertIsNotNone(errore_misura("ui/ui-sconosciuta", forme.nuova(32, 32)))
+        self.assertIsNotNone(errore_misura("ui/menu", forme.nuova(32, 32)))
 
     def test_copertura_tier(self):
         # The four Core tiers with their light strip and the three drones.
@@ -629,6 +657,106 @@ class TestGenera(unittest.TestCase):
         png = {f[: -len(".png")] for f in os.listdir(cartella)
                if f.endswith(".png") and os.path.isfile(os.path.join(cartella, f))}
         self.assertEqual([], sorted(png - (set(SPRITE) - set(TEST_SPRITES))))
+        # godot/assets/ui: generated icons and font pages, plus the third-party icons not yet replaced.
+        cartella = os.path.join(cartella, "ui")
+        png = {"ui/" + f[: -len(".png")] for f in os.listdir(cartella) if f.endswith(".png")}
+        ammessi = set(SPRITE) | {f"ui/{n}" for n in FONT_UI + UI_TERZI}
+        self.assertEqual([], sorted(png - ammessi))
+
+    def test_icone_ui(self):
+        # Every interface icon in both sizes: only white and the outline colour, the white never
+        # touches transparency or the edge (closed outline), at least 20% of the pixels full.
+        from palette import OUT
+        bianco, contorno = (255, 255, 255, 255), OUT + (255,)
+        for icona in ICONE_UI:
+            for nome, lato in ((f"ui/ui-{icona}", 32), (f"ui/ui-{icona}-16", 16)):
+                with self.subTest(icona=nome):
+                    self.assertIn(nome, SPRITE)
+                    im = SPRITE[nome]()
+                    self.assertEqual((lato, lato), im.size)
+                    px = im.load()
+                    pieni = [(x, y) for x in range(lato) for y in range(lato) if px[x, y][3]]
+                    self.assertEqual({bianco, contorno}, {px[p] for p in pieni})
+                    self.assertGreaterEqual(len(pieni) / (lato * lato), 0.20)
+                    for x, y in pieni:
+                        if px[x, y] != bianco:
+                            continue
+                        for vx, vy in ((x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                            self.assertTrue(0 <= vx < lato and 0 <= vy < lato, f"{nome}: bianco sul bordo")
+                            self.assertNotEqual(0, px[vx, vy][3], f"{nome}: bianco senza contorno")
+        sagome = [SPRITE[f"ui/ui-{i}-16"]().getchannel("A").tobytes() for i in ICONE_UI]
+        self.assertEqual(len(set(sagome)), len(sagome))
+
+    def test_carattere_insieme(self):
+        # Every required glyph exists (drawn or accented), fills the 11-row cell and has ink.
+        self.assertEqual(INSIEME_CARATTERE, carattere.INSIEME)
+        for ch in INSIEME_CARATTERE:
+            with self.subTest(glifo=ch):
+                righe = carattere.griglia(ch)
+                self.assertEqual(carattere.CELLA, len(righe))
+                if ch != " ":
+                    self.assertIn("#", "".join(righe))
+
+    def test_carattere_larghezze(self):
+        # Coherent widths: tight glyph boxes (ink in the first and last column), 1-5 px wide; digits
+        # share one width; an accented letter is as wide as its base letter and differs from it;
+        # only accented capitals use the two accent rows on top of the cell.
+        self.assertEqual({5}, {carattere.larghezza(c) for c in "0123456789"})
+        for ch in INSIEME_CARATTERE:
+            with self.subTest(glifo=ch):
+                self.assertTrue(1 <= carattere.larghezza(ch) <= 5)
+                righe = carattere.griglia(ch)
+                if ch != " " and not ch.isdigit():  # digits are tabular: "1" keeps its side bearings
+                    self.assertIn("#", "".join(r[0] for r in righe))
+                    self.assertIn("#", "".join(r[-1] for r in righe))
+                alto = "".join(righe[:carattere.ACCENTO_RIGHE])
+                if ch in carattere.ACCENTATE and ch.isupper():
+                    self.assertIn("#", alto)
+                else:
+                    self.assertNotIn("#", alto)
+        for ch, (base, _) in carattere.ACCENTATE.items():
+            self.assertEqual(carattere.larghezza(base), carattere.larghezza(ch), ch)
+            self.assertNotEqual(carattere.griglia(base), carattere.griglia(ch), ch)
+
+    def test_carattere_fnt(self):
+        # BMFont text files: a common line with lineHeight and base, one page that is the atlas, one
+        # `char id=` line per required glyph whose rectangle in the atlas holds exactly that glyph.
+        file = carattere.file_carattere()
+        for nome, k in (("carattere-testo", 2), ("carattere-titoli", 3)):
+            with self.subTest(font=nome):
+                testo = file[f"ui/{nome}.fnt"].decode("utf-8")
+                self.assertNotIn("\r", testo)
+                campi = []
+                for riga in testo.splitlines():
+                    tag, _, resto = riga.partition(" ")
+                    campi.append((tag, dict(c.split("=", 1) for c in resto.split(" ") if "=" in c)))
+                common = next(c for t, c in campi if t == "common")
+                self.assertEqual((carattere.CELLA + 1) * k, int(common["lineHeight"]))
+                self.assertEqual(9 * k, int(common["base"]))
+                self.assertEqual(f'"{nome}.png"', next(c for t, c in campi if t == "page")["file"])
+                atlante = Image.open(io.BytesIO(file[f"ui/{nome}.png"])).convert("RGBA")
+                self.assertEqual(atlante.size, (int(common["scaleW"]), int(common["scaleH"])))
+                char = {int(c["id"]): c for t, c in campi if t == "char"}
+                self.assertEqual(sorted(map(ord, INSIEME_CARATTERE)), sorted(char))
+                self.assertEqual(len(char), int(next(c for t, c in campi if t == "chars")["count"]))
+                for ch in INSIEME_CARATTERE:
+                    c = char[ord(ch)]
+                    x, y, w, h = (int(c[n]) for n in ("x", "y", "width", "height"))
+                    self.assertEqual((carattere.larghezza(ch) + 1) * k, int(c["xadvance"]), ch)
+                    self.assertEqual(carattere.glifo(ch, k).tobytes(), atlante.crop((x, y, x + w, y + h)).tobytes(), ch)
+
+    def test_carattere_file_aggiornati(self):
+        # The font files in godot/assets/ui are the ones carattere.py writes today (descriptors by
+        # bytes; the atlas pages by pixels, as genera.py --controlla --pixel does in CI).
+        for rel, dati in carattere.file_carattere().items():
+            path = os.path.join(REPO, "godot", "assets", rel)
+            self.assertTrue(os.path.exists(path), rel)
+            if rel.endswith(".fnt"):
+                with open(path, "rb") as f:
+                    self.assertEqual(dati, f.read(), rel)
+            else:
+                with Image.open(path) as a, Image.open(io.BytesIO(dati)) as b:
+                    self.assertEqual(b.convert("RGBA").tobytes(), a.convert("RGBA").tobytes(), rel)
 
 
 if __name__ == "__main__":

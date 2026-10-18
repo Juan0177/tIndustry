@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://b2ou2syp5kuow"
+path="res://.godot/imported/carattere-testo.fnt-f0c21e3ae446b06b0deb44bfc22b7812.fontdata"
+
+[deps]
+
+source_file="res://assets/ui/carattere-testo.fnt"
+dest_files=["res://.godot/imported/carattere-testo.fnt-f0c21e3ae446b06b0deb44bfc22b7812.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

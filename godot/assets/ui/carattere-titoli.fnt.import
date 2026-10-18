@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://ce4i5512gpe4s"
+path="res://.godot/imported/carattere-titoli.fnt-34e9d0e306d8bb1ccc544bc80274c830.fontdata"
+
+[deps]
+
+source_file="res://assets/ui/carattere-titoli.fnt"
+dest_files=["res://.godot/imported/carattere-titoli.fnt-34e9d0e306d8bb1ccc544bc80274c830.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2
