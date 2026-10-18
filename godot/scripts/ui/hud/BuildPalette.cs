@@ -44,9 +44,9 @@ public partial class BuildPalette : PanelContainer
     private static readonly PaletteEntry[] ProductionEntries =
     [
         new(ToolKind.Miner, "miner", "2",
-            "Estrae minerali · uscita su tutti i lati · 2×2"),
+            "Estrae minerali · Scava: ferro, rame, carbone, piombo · uscita su tutti i lati · 2×2"),
         new(ToolKind.MinerAdvanced, "miner-advanced", "",
-            "Minatore T2 · 2× velocità · +20% se alimentato · sblocca in Ricerca"),
+            "Minatore T2 · Scava: tutti i minerali, anche il titanio · 2× velocità · +20% se alimentato · sblocca in Ricerca"),
         new(ToolKind.Smelter, "smelter", "3",
             "Carbone o corrente · +20% craft se alimentato · 2×2"),
         new(ToolKind.Assembler, "assembler", "4",

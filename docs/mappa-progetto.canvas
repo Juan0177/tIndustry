@@ -1,7 +1,7 @@
 {
 	"nodes":[
 		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":562,"color":"1"},
-		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":776,"color":"5"},
+		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":974,"color":"5"},
 		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":192,"color":"3"},
 		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":2296,"color":"4"},
 		{"id":"titolo","type":"text","text":"# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G3.","x":0,"y":-170,"width":2100,"height":130,"color":"6"},
@@ -17,16 +17,18 @@
 		{"id":"niente","type":"text","text":"**Niente in corso**\nLa G3 è finita, in attesa dell'ok; la G4 è la prossima.","x":560,"y":50,"width":440,"height":122,"color":"3"},
 		{"id":"g4in","type":"text","text":"**G4 · Interfaccia**\nProssimo lavoro: stile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]","x":1100,"y":50,"width":440,"height":148,"color":"5"},
 		{"id":"web","type":"text","text":"**Sito web su GitHub Pages**\nPagina del progetto con presentazione, catture e download.","x":1100,"y":222,"width":440,"height":122,"color":"5"},
-		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":368,"width":440,"height":122,"color":"5"},
-		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":514,"width":440,"height":96,"color":"5"},
-		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":634,"width":440,"height":122,"color":"5"},
+		{"id":"giacimenti","type":"text","text":"**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2.","x":1100,"y":368,"width":440,"height":174,"color":"5"},
+		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":566,"width":440,"height":122,"color":"5"},
+		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":712,"width":440,"height":96,"color":"5"},
+		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":832,"width":440,"height":122,"color":"5"},
 		{"id":"a1","type":"text","text":"**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.","x":1640,"y":50,"width":440,"height":122,"color":"4"},
 		{"id":"a2","type":"text","text":"**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.","x":1640,"y":196,"width":440,"height":96,"color":"4"},
 		{"id":"a3","type":"text","text":"**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b e G3 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata e .dev/baseline-g3-candidata, da approvare.","x":1640,"y":316,"width":440,"height":226,"color":"1"}
 	],
 	"edges":[
 		{"id":"e-g4in-web","fromNode":"g4in","fromSide":"bottom","toNode":"web","toSide":"top"},
-		{"id":"e-web-tier","fromNode":"web","fromSide":"bottom","toNode":"tier","toSide":"top"},
+		{"id":"e-web-giacimenti","fromNode":"web","fromSide":"bottom","toNode":"giacimenti","toSide":"top"},
+		{"id":"e-giacimenti-tier","fromNode":"giacimenti","fromSide":"bottom","toNode":"tier","toSide":"top"},
 		{"id":"e-tier-liquidi","fromNode":"tier","fromSide":"bottom","toNode":"liquidi","toSide":"top"},
 		{"id":"e-liquidi-sp5","fromNode":"liquidi","fromSide":"bottom","toNode":"sp5","toSide":"top"},
 		{"id":"e-g2a-g2b","fromNode":"g2a","fromSide":"bottom","toNode":"g2b","toSide":"top"},

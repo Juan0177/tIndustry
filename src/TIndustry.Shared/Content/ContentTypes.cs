@@ -42,7 +42,8 @@ public sealed record BuildingDefinition(
     IReadOnlyList<ResourceAmount> BuildCost,
     int RefundPercent = 100,
     float BuildCostMultiplier = 1f,
-    float PowerUse = 0f);
+    float PowerUse = 0f,
+    int Tier = 0);
 
 /// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
 public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);
@@ -80,9 +81,21 @@ public sealed record FloorDef(string Id, FloorKind Kind, string Biome, string Co
 /// <summary>A wall of <c>terrain.walls</c> (walls always block building).</summary>
 public sealed record WallDef(string Id, WallKind Kind, string Biome, string Color);
 
-/// <summary>The <c>terrain</c> section of content.json: one row per <see cref="FloorKind"/> and per wall.</summary>
+/// <summary>
+/// An ore of <c>terrain.deposits</c>: a miner digs it only when its <see cref="BuildingDefinition.Tier"/> is at
+/// least <paramref name="Hardness"/> (Mindustry's drill tier vs item hardness).
+/// </summary>
+public sealed record DepositDef(string Id, DepositKind Kind, int Hardness);
+
+/// <summary>
+/// The <c>terrain</c> section of content.json: one row per <see cref="FloorKind"/>, per wall and per ore
+/// (<see cref="Deposits"/>).
+/// </summary>
 public sealed record TerrainTable(IReadOnlyList<FloorDef> Floors, IReadOnlyList<WallDef> Walls)
 {
+    /// <summary>One row per <see cref="DepositKind"/> but <see cref="DepositKind.None"/>; empty in code-built content.</summary>
+    public IReadOnlyList<DepositDef> Deposits { get; init; } = [];
+
     /// <summary>The four biomes, plus <c>acqua</c> for the water floors shared by all of them.</summary>
     public static readonly IReadOnlyList<string> Biomes = ["rocce", "sabbia", "neve", "prati", "acqua"];
 
@@ -91,4 +104,7 @@ public sealed record TerrainTable(IReadOnlyList<FloorDef> Floors, IReadOnlyList<
     public FloorDef? Floor(FloorKind kind) => Floors.FirstOrDefault(f => f.Kind == kind);
 
     public WallDef? Wall(WallKind kind) => Walls.FirstOrDefault(w => w.Kind == kind);
+
+    /// <summary>Hardness of <paramref name="kind"/>; 0 (any miner digs it) when the table has no row for it.</summary>
+    public int Hardness(DepositKind kind) => Deposits.FirstOrDefault(d => d.Kind == kind)?.Hardness ?? 0;
 }

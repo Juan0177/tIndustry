@@ -216,7 +216,7 @@ public partial class World
     {
         var quiet = TakeQuietRefusal(command)
             && reason is CommandReasons.Occupied or CommandReasons.OnCore
-                or CommandReasons.Wall or CommandReasons.DeepWater;
+                or CommandReasons.Wall or CommandReasons.DeepWater or CommandReasons.NeedsAdvancedMiner;
         switch (command)
         {
             case UnlockStructure:
