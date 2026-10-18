@@ -2,6 +2,7 @@
 
 Run from the repo root:  python -m unittest tools/art/test_genera.py
 """
+import csv
 import io
 import json
 import os
@@ -148,8 +149,15 @@ def _stringhe_json(valore):
 
 
 def _testi_del_gioco():
-    """{character: first file using it} over data/*.json and the C# literals of the client and Shared."""
+    """
+    {character: first file using it} over data/*.json, both columns of godot/lingue/testi.csv (Italian and
+    English) and the C# literals of the client and Shared.
+    """
     usi = {}
+    with open(os.path.join(REPO, "godot", "lingue", "testi.csv"), encoding="utf-8", newline="") as fh:
+        for riga in list(csv.reader(fh))[1:]:
+            for ch in "".join(riga[1:]):
+                usi.setdefault(ch, "godot/lingue/testi.csv")
     cartella = os.path.join(REPO, "data")
     for f in sorted(os.listdir(cartella)):
         if f.endswith(".json"):

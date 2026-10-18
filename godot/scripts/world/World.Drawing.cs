@@ -377,10 +377,11 @@ public partial class World
     };
 
     /// <summary>
-    /// Why the terrain refuses the ghost at <paramref name="hover"/> ("C'è una parete", "Acqua profonda"), or null
-    /// when no wall or deep water lies under its footprint (other refusals keep the plain red ghost).
+    /// Why the terrain refuses the ghost at <paramref name="hover"/> (<see cref="RefusalCode.Wall"/>,
+    /// <see cref="RefusalCode.DeepWater"/>), or null when no wall or deep water lies under its footprint (other refusals
+    /// keep the plain red ghost).
     /// </summary>
-    private string? GhostTerrainReason(GridPosition hover)
+    private RefusalCode? GhostTerrainReason(GridPosition hover)
     {
         if (_tool == BuildTool.Cursor || _view?.Terrain is not { } terrain)
         {
@@ -401,14 +402,14 @@ public partial class World
                 var cell = terrain[x, y];
                 if (cell.Wall != WallKind.None)
                 {
-                    return CommandReasons.Wall;
+                    return RefusalCode.Wall;
                 }
 
                 deep |= cell.Floor == FloorKind.DeepWater;
             }
         }
 
-        return deep ? CommandReasons.DeepWater : null;
+        return deep ? RefusalCode.DeepWater : null;
     }
 
     private bool FootprintPlanned(GridPosition origin, int size)

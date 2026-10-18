@@ -4,7 +4,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Impostazioni overlay: graphics (effects, shadows, glow, building animations, FPS cap, VSync, render scale) and
-/// interface (UI scale, FPS / resource overlays, replay tutorial). The options scroll inside the card; Applica saves
+/// interface (language, UI scale, FPS / resource overlays, replay tutorial). The options scroll inside the card; Applica saves
 /// and applies everything at once, without a restart. Controls carry stable node names (used by the playtest).
 /// </summary>
 public partial class SettingsPanel : Control
@@ -42,7 +42,7 @@ public partial class SettingsPanel : Control
         SyncControls();
         if (_statusLabel is not null)
         {
-            _statusLabel.Text = "Modifica e premi Applica per salvare.";
+            _statusLabel.Text = "impostazioni.stato";
         }
     }
 
@@ -85,7 +85,7 @@ public partial class SettingsPanel : Control
 
         var title = new Label
         {
-            Text = "Impostazioni",
+            Text = "home.impostazioni",
             HorizontalAlignment = HorizontalAlignment.Center,
             ThemeTypeVariation = UiTheme.Titolo
         };
@@ -93,7 +93,7 @@ public partial class SettingsPanel : Control
 
         var blurb = new Label
         {
-            Text = "Grafica e interfaccia. Applica salva su disco e vale subito.",
+            Text = "impostazioni.descrizione",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center,
             ThemeTypeVariation = UiTheme.TestoTenue
@@ -114,34 +114,43 @@ public partial class SettingsPanel : Control
         var options = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.ColonnaLarga };
         clear.AddChild(options);
 
-        AddSection(options, "Grafica");
-        AddChoices(options, "Effetti", "Effetti",
-            [("Alti", (int)EffectsQuality.Alti), ("Bassi", (int)EffectsQuality.Bassi), ("Spenti", (int)EffectsQuality.Spenti)],
+        AddSection(options, "impostazioni.grafica");
+        AddChoices(options, "Effetti", "impostazioni.effetti",
+            [
+                ("Alti", "impostazioni.effetti.alti", (int)EffectsQuality.Alti),
+                ("Bassi", "impostazioni.effetti.bassi", (int)EffectsQuality.Bassi),
+                ("Spenti", "impostazioni.effetti.spenti", (int)EffectsQuality.Spenti)
+            ],
             s => (int)s.Effetti, (s, v) => s.Effetti = (EffectsQuality)v);
-        AddCheck(options, "Ombre", "Ombre sotto gli edifici", s => s.Ombre, (s, on) => s.Ombre = on);
-        AddCheck(options, "Bagliore", "Bagliore", s => s.Bagliore, (s, on) => s.Bagliore = on);
-        AddCheck(options, "AnimazioniBlocchi", "Animazioni dei blocchi (non le particelle)", s => s.AnimazioniBlocchi, (s, on) => s.AnimazioniBlocchi = on)
-            .TooltipText = "Ferma trivelle, rotori, bocche dei forni e luce del Core. "
-                + "Fumo, scintille e polvere seguono l'impostazione Effetti.";
-        AddChoices(options, "LimiteFps", "Limite FPS",
-            ClientSettings.FpsLimitPresets.Select(v => (ClientSettings.FpsLimitLabel(v), v)).ToArray(),
+        AddCheck(options, "Ombre", "impostazioni.ombre", s => s.Ombre, (s, on) => s.Ombre = on);
+        AddCheck(options, "Bagliore", "impostazioni.bagliore", s => s.Bagliore, (s, on) => s.Bagliore = on);
+        AddCheck(options, "AnimazioniBlocchi", "impostazioni.animazioni", s => s.AnimazioniBlocchi, (s, on) => s.AnimazioniBlocchi = on)
+            .TooltipText = "impostazioni.animazioni.suggerimento";
+        AddChoices(options, "LimiteFps", "impostazioni.fps.limite",
+            ClientSettings.FpsLimitPresets
+                .Select(v => (v == 0 ? "Nessuno" : v.ToString(System.Globalization.CultureInfo.InvariantCulture), ClientSettings.FpsLimitLabel(v), v))
+                .ToArray(),
             s => s.LimiteFps, (s, v) => s.LimiteFps = v);
         AddCheck(options, "VSync", "VSync", s => s.VSync, (s, on) => s.VSync = on);
-        AddCheck(options, "SchermoIntero", "Schermo intero", s => s.SchermoInteroScelto, (s, on) => s.SchermoIntero = on);
-        AddChoices(options, "ScalaRendering", "Scala di rendering (mondo)",
-            ClientSettings.RenderScalePresets.Select(v => ($"{v}%", v)).ToArray(),
+        AddCheck(options, "SchermoIntero", "impostazioni.schermo.intero", s => s.SchermoInteroScelto, (s, on) => s.SchermoIntero = on);
+        AddChoices(options, "ScalaRendering", "impostazioni.scala.rendering",
+            ClientSettings.RenderScalePresets.Select(v => ($"{v}", $"{v}%", v)).ToArray(),
             s => s.ScalaRendering, (s, v) => s.ScalaRendering = v);
 
-        AddSection(options, "Interfaccia");
+        AddSection(options, "impostazioni.interfaccia");
+        // Each language is named in itself (lingua.<code>), whatever the current one.
+        AddChoices(options, "Lingua", "impostazioni.lingua",
+            Testi.Lingue.Select((code, i) => (code, $"lingua.{code}", i)).ToArray(),
+            s => Array.IndexOf(Testi.Lingue, s.Lingua), (s, v) => s.Lingua = Testi.Lingue[v]);
         AddUiScaleSlider(options);
-        AddCheck(options, "MostraFps", "Mostra FPS", s => s.ShowFps, (s, on) => s.ShowFps = on);
-        AddCheck(options, "MostraRisorse", "Mostra risorse sistema (CPU · GPU · RAM)",
+        AddCheck(options, "MostraFps", "impostazioni.mostra.fps", s => s.ShowFps, (s, on) => s.ShowFps = on);
+        AddCheck(options, "MostraRisorse", "impostazioni.mostra.risorse",
             s => s.ShowResourceOverlay, (s, on) => s.ShowResourceOverlay = on);
 
         var replay = new Button
         {
             Name = "RivediTutorial",
-            Text = "Rivedi tutorial",
+            Text = "impostazioni.rivedi.tutorial",
             CustomMinimumSize = new Vector2(0, 38)
         };
         replay.Pressed += OnReplayTutorial;
@@ -161,7 +170,7 @@ public partial class SettingsPanel : Control
         var cancel = new Button
         {
             Name = "Chiudi",
-            Text = "Chiudi",
+            Text = "comune.chiudi",
             CustomMinimumSize = new Vector2(0, 40),
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
@@ -171,7 +180,7 @@ public partial class SettingsPanel : Control
         var apply = new Button
         {
             Name = "Applica",
-            Text = "Applica",
+            Text = "impostazioni.applica",
             CustomMinimumSize = new Vector2(0, 40),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ThemeTypeVariation = UiTheme.PulsantePrimario
@@ -202,19 +211,19 @@ public partial class SettingsPanel : Control
         return check;
     }
 
-    /// <summary>A label and a row of buttons named "<paramref name="name"/>_&lt;value&gt;", one per choice.</summary>
-    private void AddChoices(VBoxContainer parent, string name, string text, (string Label, int Value)[] choices,
+    /// <summary>A label and a row of buttons named "<paramref name="name"/>_&lt;id&gt;", one per choice.</summary>
+    private void AddChoices(VBoxContainer parent, string name, string text, (string Id, string Label, int Value)[] choices,
         Func<ClientSettings, int> get, Action<ClientSettings, int> set)
     {
         parent.AddChild(new Label { Text = text });
 
         var row = new HBoxContainer { Name = name, ThemeTypeVariation = UiTheme.RigaLarga };
         parent.AddChild(row);
-        foreach (var (choiceLabel, value) in choices)
+        foreach (var (id, choiceLabel, value) in choices)
         {
             var button = new Button
             {
-                Name = $"{name}_{choiceLabel.TrimEnd('%')}",
+                Name = $"{name}_{id}",
                 Text = choiceLabel,
                 CustomMinimumSize = new Vector2(0, 32),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill
@@ -267,7 +276,7 @@ public partial class SettingsPanel : Control
         parent.AddChild(_uiScale);
         parent.AddChild(new Label
         {
-            Text = "Testo più nitido a 100%, 150% e 200%.",
+            Text = "impostazioni.scala.ui.nitido",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = UiTheme.TestoTenue
         });
@@ -277,7 +286,15 @@ public partial class SettingsPanel : Control
     {
         if (_uiScaleLabel is not null && _draft is not null)
         {
-            _uiScaleLabel.Text = $"Scala UI · {ClientSettings.UiScaleLabel(_draft.UiScalePercent)}";
+            _uiScaleLabel.Text = Testi.F("impostazioni.scala.ui", ClientSettings.UiScaleLabel(_draft.UiScalePercent));
+        }
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationTranslationChanged)
+        {
+            SyncUiScaleLabel();
         }
     }
 
@@ -317,8 +334,10 @@ public partial class SettingsPanel : Control
         _live.ApplyToEngine(GetTree().Root);
         if (_statusLabel is not null)
         {
-            _statusLabel.Text =
-                $"Salvato · Effetti {_live.Effetti} · UI {ClientSettings.UiScaleLabel(_live.UiScalePercent)} · VSync {(_live.VSync ? "ON" : "OFF")}";
+            _statusLabel.Text = Testi.F("impostazioni.salvato",
+                Testi.T($"impostazioni.effetti.{_live.Effetti.ToString().ToLowerInvariant()}"),
+                ClientSettings.UiScaleLabel(_live.UiScalePercent),
+                Testi.T(_live.VSync ? "comune.on" : "comune.off"));
         }
 
         Applied?.Invoke();

@@ -32,7 +32,15 @@ public partial class CampaignSelectPanel : Control
         Refresh();
     }
 
-    private const string DefaultHint = "Scegli un livello sbloccato · G apre / Esc chiude";
+    private const string DefaultHint = "campagna.suggerimento";
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationTranslationChanged && Visible)
+        {
+            Refresh();
+        }
+    }
 
     /// <summary>Shows why a level could not start in place of the hint line (until the panel is opened again).</summary>
     public void ShowError(string message) => ShowHint(message, UiTheme.TestoRosso);
@@ -94,13 +102,13 @@ public partial class CampaignSelectPanel : Control
         header.AddChild(icon);
         var title = new Label
         {
-            Text = "Campagna",
+            Text = "menu.campagna",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ThemeTypeVariation = UiTheme.Titolo
         };
         header.AddChild(title);
 
-        var closeBtn = new Button { Text = "Indietro · Esc" };
+        var closeBtn = new Button { Text = "comune.indietro.esc" };
         closeBtn.Pressed += Close;
         header.AddChild(closeBtn);
 
@@ -177,23 +185,23 @@ public partial class CampaignSelectPanel : Control
             head.AddChild(lockIcon);
         }
 
-        var status = !unlocked ? "BLOCCATO" : completed ? "COMPLETATO" : "GIOCA";
+        var status = Testi.T(!unlocked ? "campagna.stato.bloccato" : completed ? "campagna.stato.completato" : "campagna.stato.gioca");
         head.AddChild(new Label
         {
-            Text = $"{index}. {level.Name}  ·  {status}",
+            Text = $"{index}. {Testi.LivelloNome(level)}  ·  {status}",
             ThemeTypeVariation = !unlocked ? UiTheme.TestoTenue : completed ? UiTheme.TestoVerde : UiTheme.TestoAccento
         });
 
         v.AddChild(new Label
         {
-            Text = level.Description,
+            Text = Testi.LivelloDescrizione(level),
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = unlocked ? "" : UiTheme.TestoTenue
         });
 
         v.AddChild(new Label
         {
-            Text = _catalog.ObjectiveSummary(level),
+            Text = Testi.Obiettivi(level),
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = UiTheme.TestoTenue
         });

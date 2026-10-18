@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://ch6d70mdc3gye"
+
+[deps]
+
+files=["res://lingue/testi.it.translation", "res://lingue/testi.en.translation"]
+
+source_file="res://lingue/testi.csv"
+dest_files=["res://lingue/testi.it.translation", "res://lingue/testi.en.translation"]
+
+[params]
+
+compress=true
+delimiter=0

@@ -1315,32 +1315,32 @@ public sealed class Factory : IGameView
         Terrain is { } terrain && (!terrain.InBounds(tile) || terrain[tile].BlocksBuilding);
 
     /// <summary>
-    /// Italian refusal for building on <paramref name="cells"/>, in this order: Core, wall, deep water,
-    /// otherwise <see cref="CommandReasons.Occupied"/>.
+    /// Refusal for building on <paramref name="cells"/>, in this order: Core, wall, deep water,
+    /// otherwise <see cref="RefusalCode.Occupied"/>.
     /// </summary>
-    public string RefusalReason(IEnumerable<GridPosition> cells)
+    public RefusalCode RefusalReason(IEnumerable<GridPosition> cells)
     {
         ArgumentNullException.ThrowIfNull(cells);
         var list = cells as IReadOnlyCollection<GridPosition> ?? cells.ToList();
         if (list.Any(CoreTiles.Contains))
         {
-            return CommandReasons.OnCore;
+            return RefusalCode.OnCore;
         }
 
         if (Terrain is { } terrain)
         {
             if (list.Any(c => terrain.InBounds(c) && terrain[c].Wall != WallKind.None))
             {
-                return CommandReasons.Wall;
+                return RefusalCode.Wall;
             }
 
             if (list.Any(c => terrain.InBounds(c) && terrain[c].Floor == FloorKind.DeepWater))
             {
-                return CommandReasons.DeepWater;
+                return RefusalCode.DeepWater;
             }
         }
 
-        return CommandReasons.Occupied;
+        return RefusalCode.Occupied;
     }
 
     /// <summary>True when a building or a construction site covers <paramref name="tile"/>.</summary>
@@ -1482,35 +1482,19 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    public string FormatCoreUpgradeNeedMessage()
+    /// <summary>
+    /// Why the Core cannot be upgraded now: <see cref="RefusalCode.CoreAlreadyUpgraded"/>, the shortfall
+    /// (<see cref="RefusalCode.InsufficientResources"/>), or null when the upgrade is affordable.
+    /// </summary>
+    public Refusal? CoreUpgradeRefusal()
     {
-        var upgrade = Content.CoreUpgrade;
         if (CoreUpgradeLevel > 0)
         {
-            return $"Core già a LV{CoreUpgradeLevel} (+{CoreSaleBonusPercent}%).";
+            return RefusalCode.CoreAlreadyUpgraded;
         }
 
-        if (Wallet.CanAfford(upgrade.MoneyCost, upgrade.BuildCost))
-        {
-            return "";
-        }
-
-        var parts = new List<string>();
-        if (Wallet.Money < upgrade.MoneyCost)
-        {
-            parts.Add($"${upgrade.MoneyCost - Wallet.Money}");
-        }
-
-        foreach (var entry in upgrade.BuildCost)
-        {
-            var have = Wallet.MaterialCount(entry.ItemId);
-            if (have < entry.Amount)
-            {
-                parts.Add($"{entry.Amount - have}× {Content.DisplayName(entry.ItemId)}");
-            }
-        }
-
-        return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
+        var upgrade = Content.CoreUpgrade;
+        return ShortfallOf(upgrade.MoneyCost, upgrade.BuildCost, structureId: null);
     }
 
     /// <summary>Longest map edge (the "enorme" normal map); campaign and restored maps are clamped to it.</summary>
@@ -1590,8 +1574,12 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    /// <summary>Italian shortfall hint for toast / HUD (empty when affordable).</summary>
-    public string FormatNeedMessage(string structureId, int multiplicity = 1)
+    /// <summary>
+    /// What is missing to build <paramref name="structureId"/> <paramref name="multiplicity"/> times: a
+    /// <see cref="RefusalCode.InsufficientResources"/> refusal with the missing money and materials, or null when
+    /// affordable (or unknown).
+    /// </summary>
+    public Refusal? Shortfall(string structureId, int multiplicity = 1)
     {
         multiplicity = Math.Max(1, multiplicity);
         int money;
@@ -1608,31 +1596,31 @@ public sealed class Factory : IGameView
         }
         else
         {
-            return "";
+            return null;
         }
 
+        return ShortfallOf(money, mats, structureId);
+    }
+
+    /// <summary>Missing money and materials to pay <paramref name="money"/> and <paramref name="mats"/>; null when affordable.</summary>
+    private Refusal? ShortfallOf(int money, IReadOnlyList<ResourceAmount> mats, string? structureId)
+    {
         if (Wallet.CanAfford(money, mats))
         {
-            return "";
+            return null;
         }
 
-        var parts = new List<string>();
-        if (Wallet.Money < money)
-        {
-            parts.Add($"${money - Wallet.Money}");
-        }
-
+        var missing = new List<ResourceAmount>();
         foreach (var entry in mats)
         {
             var have = Wallet.MaterialCount(entry.ItemId);
             if (have < entry.Amount)
             {
-                var name = Content.DisplayName(entry.ItemId);
-                parts.Add($"{entry.Amount - have}× {name}");
+                missing.Add(new ResourceAmount(entry.ItemId, entry.Amount - have));
             }
         }
 
-        return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
+        return new Refusal(RefusalCode.InsufficientResources, structureId, Math.Max(0, money - Wallet.Money), missing);
     }
 
     private bool TryCharge(int money, IReadOnlyList<ResourceAmount> materials) =>
@@ -1917,14 +1905,14 @@ public sealed class Factory : IGameView
     /// True when <paramref name="spec"/> is valid (<see cref="IsValidSpec"/>) and its cells are free
     /// (no Core, building, belt, site, wall or deep water, inside the map; a miner needs an ore it can dig or
     /// no ore at all, see <see cref="MinerTooWeak"/>). Does not check research or resources.
-    /// <paramref name="reason"/> is the Italian refusal text.
+    /// <paramref name="reason"/> is the refusal (null when placeable).
     /// </summary>
-    public bool CanPlace(BuildSpec spec, out string? reason)
+    public bool CanPlace(BuildSpec spec, out RefusalCode? reason)
     {
         ArgumentNullException.ThrowIfNull(spec);
         if (!IsValidSpec(spec))
         {
-            reason = CommandReasons.InvalidCommand;
+            reason = RefusalCode.InvalidCommand;
             return false;
         }
 
@@ -1941,7 +1929,7 @@ public sealed class Factory : IGameView
         if (ok && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
             && MinerTooWeak(spec.Origin, spec.StructureId))
         {
-            reason = CommandReasons.NeedsAdvancedMiner;
+            reason = RefusalCode.NeedsAdvancedMiner;
             return false;
         }
 
@@ -1950,23 +1938,23 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Italian refusal for <paramref name="spec"/> (see <see cref="RefusalReason(IEnumerable{GridPosition})"/>).
+    /// Refusal for <paramref name="spec"/> (see <see cref="RefusalReason(IEnumerable{GridPosition})"/>).
     /// A bridge whose entry is free but has no exit says why: a wall or deep water on the exit cells, when that
     /// is what blocks them; otherwise "occupied".
     /// </summary>
-    public string RefusalReason(BuildSpec spec)
+    public RefusalCode RefusalReason(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
         var reason = RefusalReason(Footprint(spec));
-        if (reason == CommandReasons.Occupied
+        if (reason == RefusalCode.Occupied
             && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
             && CanOccupyFootprint(spec.Origin, Miner.Size)
             && MinerTooWeak(spec.Origin, spec.StructureId))
         {
-            return CommandReasons.NeedsAdvancedMiner;
+            return RefusalCode.NeedsAdvancedMiner;
         }
 
-        if (reason == CommandReasons.Occupied
+        if (reason == RefusalCode.Occupied
             && spec.Kind == BuildingKind.Bridge
             && !Belts.Contains(spec.Origin)
             && CanOccupy(spec.Origin)
@@ -1979,7 +1967,7 @@ public sealed class Factory : IGameView
             }
 
             var exitReason = RefusalReason(exits);
-            if (exitReason is CommandReasons.Wall or CommandReasons.DeepWater)
+            if (exitReason is RefusalCode.Wall or RefusalCode.DeepWater)
             {
                 return exitReason;
             }

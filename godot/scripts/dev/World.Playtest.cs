@@ -86,11 +86,18 @@ public partial class World
     private async Task<bool> PlaytestTutorialAsync(string dir)
     {
         var shot = 0;
+        string? layoutProblem = null;
         async Task Shot(string label)
         {
             await PlaytestTerrainReady();
             await PlaytestWait(0.25);
             SaveViewportPng(Path.Combine(dir, $"tutorial-{shot++:00}-{label}.png"));
+            // Every step's card and the HUD fit the window at the run's UI scale (text not cut, no panel on another).
+            if (MustFit(_settings.UiScalePercent) && layoutProblem is null
+                && PlaytestLayoutProblems(hudOnly: true) is { Count: > 0 } problems)
+            {
+                layoutProblem = $"{label}: {problems.Count} controlli fuori posto (il primo: {problems[0]})";
+            }
         }
 
         bool Expect(TutorialPanel.Step step, string label)
@@ -232,6 +239,12 @@ public partial class World
             return Fail("tutorial ancora aperto o non segnato completato");
         }
 
+        if (layoutProblem is not null)
+        {
+            return Fail($"tutorial a scala {_settings.UiScalePercent}% · {layoutProblem}");
+        }
+
+        GD.Print($"PLAYTEST tutorial a scala {_settings.UiScalePercent}%: rettangoli ok");
         return true;
     }
 
@@ -349,6 +362,10 @@ public partial class World
         PlaytestMove(CellToScreen(new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y))), 0);
         await Shot("fantasma-non-valido");
         await PlaytestKey(Key.Escape);
+        if (!await PlaytestRefusalToastAsync(Shot))
+        {
+            return false;
+        }
 
         await PlaytestKey(Key.M);
         await Shot("mercato");
@@ -357,6 +374,11 @@ public partial class World
         await PlaytestKey(Key.T);
         await Shot("ricerca");
         await PlaytestKey(Key.T);
+
+        if (!await PlaytestLanguageSwitchAsync(Shot))
+        {
+            return false;
+        }
 
         if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
         {

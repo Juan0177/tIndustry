@@ -132,11 +132,11 @@ public interface IGameView
 
     bool CanAffordStructure(string structureId, int multiplicity = 1);
 
-    string FormatNeedMessage(string structureId, int multiplicity = 1);
+    Refusal? Shortfall(string structureId, int multiplicity = 1);
 
     int PreviewSellPrice(string itemId);
 
-    string FormatCoreUpgradeNeedMessage();
+    Refusal? CoreUpgradeRefusal();
 
     bool IsStructureUnlocked(string structureId);
 

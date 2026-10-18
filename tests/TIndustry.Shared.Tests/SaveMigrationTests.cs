@@ -64,7 +64,7 @@ public sealed class SaveMigrationTests
             .SelectMany(y => Enumerable.Range(0, terrain.Width).Select(x => new GridPosition(x, y)))
             .First(c => terrain[c].Floor == FloorKind.ShallowWater && !state.Belts.ContainsKey(c));
         Assert.True(((Factory)state).CanPlace(
-            new BuildSpec("conveyor-basic", null, freeWater, Direction.East), out var waterReason), waterReason);
+            new BuildSpec("conveyor-basic", null, freeWater, Direction.East), out var waterReason), waterReason?.ToString());
         var site = Assert.Single(state.Sites);
         Assert.Equal(new GridPosition(66, 56), site.Spec.Origin);
         Assert.InRange(site.Progress, 0.5f, 0.6f);
@@ -369,6 +369,6 @@ public sealed class SaveMigrationTests
 
         var drop = Assert.Single(dropped);
         Assert.Equal(wall, drop.Plan.Spec.Origin);
-        Assert.Equal(CommandReasons.Wall, drop.Reason);
+        Assert.Equal(RefusalCode.Wall, drop.Reason);
     }
 }

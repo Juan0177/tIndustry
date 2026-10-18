@@ -281,9 +281,9 @@ public sealed class ConstructionTests
 
         var belt = new BuildSpec("conveyor-basic", null, new GridPosition(3, 3), Direction.East);
         Assert.False(factory.CanPlace(belt, out var reason));
-        Assert.Equal(CommandReasons.Occupied, reason);
+        Assert.Equal(RefusalCode.Occupied, reason);
         Assert.False(factory.CanPlace(MinerSpec(new GridPosition(3, 3)), out reason));
-        Assert.Equal(CommandReasons.Occupied, reason);
+        Assert.Equal(RefusalCode.Occupied, reason);
         Assert.True(factory.IsBuildingTile(new GridPosition(2, 2)));
         Assert.False(factory.TryPlaceBelt(new GridPosition(3, 2), Direction.East));
         Assert.False(factory.PlaceInstant(belt, charge: false));
@@ -497,7 +497,7 @@ public sealed class ConstructionTests
         {
             Assert.False(factory.IsValidSpec(spec), spec.ToString());
             Assert.False(factory.CanPlace(spec, out var reason), spec.ToString());
-            Assert.Equal(CommandReasons.InvalidCommand, reason);
+            Assert.Equal(RefusalCode.InvalidCommand, reason);
             Assert.Throws<InvalidOperationException>(() => Construction.BeginBuild(factory.State, spec, 0));
             Assert.False(factory.PlaceInstant(spec, charge: true), spec.ToString());
         }

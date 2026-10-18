@@ -103,11 +103,11 @@ public partial class SavesPanel : Control
         var icon = HudStyle.MakeIcon(UiTheme.Icon("salvataggi"), 32, pixel: true);
         icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         header.AddChild(icon);
-        header.AddChild(new Label { Text = "Gestione salvataggi", ThemeTypeVariation = UiTheme.Titolo });
+        header.AddChild(new Label { Text = "home.salvataggi", ThemeTypeVariation = UiTheme.Titolo });
 
         _hint = new Label
         {
-            Text = "↑↓ seleziona · Invio carica · Elimina (due click) · Duplica Continua · Salva come.",
+            Text = "salvataggi.suggerimento",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center,
             ThemeTypeVariation = UiTheme.TestoTenue
@@ -133,12 +133,21 @@ public partial class SavesPanel : Control
         var actions = new HFlowContainer();
         root.AddChild(actions);
 
-        actions.AddChild(MakeAction("Carica", OnLoadPressed));
-        _deleteButton = MakeAction("Elimina", OnDeletePressed);
+        actions.AddChild(MakeAction("salvataggi.carica", OnLoadPressed));
+        _deleteButton = MakeAction("salvataggi.elimina", OnDeletePressed);
         actions.AddChild(_deleteButton);
-        actions.AddChild(MakeAction("Duplica Continua", OnDuplicateContinua));
-        actions.AddChild(MakeAction("Salva come", OnSaveAsPressed));
-        actions.AddChild(MakeAction("Indietro", Close));
+        actions.AddChild(MakeAction("salvataggi.duplica", OnDuplicateContinua));
+        actions.AddChild(MakeAction("salvataggi.salva.come", OnSaveAsPressed));
+        actions.AddChild(MakeAction("comune.indietro", Close));
+    }
+
+    public override void _Notification(int what)
+    {
+        // New language: the rows and the status line are written again.
+        if (what == NotificationTranslationChanged && Visible)
+        {
+            Refresh();
+        }
     }
 
     private static Button MakeAction(string label, Action onClick)
@@ -196,7 +205,7 @@ public partial class SavesPanel : Control
         {
             var empty = new Label
             {
-                Text = "Nessun salvataggio. F5 in partita, Continua, o Salva come dopo la prima sessione.",
+                Text = "salvataggi.vuoto",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 ThemeTypeVariation = UiTheme.TestoTenue
@@ -241,8 +250,8 @@ public partial class SavesPanel : Control
         if (_status is not null)
         {
             _status.Text = _deleteArmedId == _selectedId
-                ? $"Conferma Elimina su «{_selectedId}»"
-                : $"Selezionato: {_selectedId} · {_slots.Count} slot";
+                ? Testi.F("salvataggi.conferma", _selectedId)
+                : Testi.F("salvataggi.selezionato", _selectedId, _slots.Count);
         }
 
         SyncDeleteButton();
@@ -256,8 +265,8 @@ public partial class SavesPanel : Control
         }
 
         _deleteButton.Text = _deleteArmedId is not null && _deleteArmedId == _selectedId
-            ? "Conferma elimina"
-            : "Elimina";
+            ? "salvataggi.elimina.conferma"
+            : "salvataggi.elimina";
     }
 
     /// <summary>Display name of a campaign map file (the level that uses it); the id itself when unset or unknown.</summary>
@@ -267,7 +276,7 @@ public partial class SavesPanel : Control
     {
         var when = slot.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
         var label = slot.Id == FactorySaveStore.ContinueSlotId
-            ? "Continua (salvataggio automatico)"
+            ? Testi.T("salvataggi.continua.automatico")
             : slot.Id;
         // Two lines, so a row fits a narrow card: name and funds, then map and date.
         return $"{label} · ${slot.Money}\n{FormatMap(slot)} · {when}";
@@ -282,20 +291,20 @@ public partial class SavesPanel : Control
         var level = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId) ? "" : $" · {slot.ActiveCampaignLevelId}";
         if (slot.Generator == FactorySaveData.CampaignGenerator && !string.IsNullOrWhiteSpace(slot.MapId))
         {
-            return $"Mappa {MapName?.Invoke(slot.MapId) ?? slot.MapId} · {slot.MapWidth}×{slot.MapHeight}";
+            return Testi.F("salvataggi.mappa.campagna", MapName?.Invoke(slot.MapId) ?? slot.MapId, slot.MapWidth, slot.MapHeight);
         }
 
         if (MapGenerator.IsName(slot.Generator))
         {
-            return $"Biomi · {slot.MapWidth} · seme {slot.Seed}";
+            return Testi.F("salvataggi.mappa.biomi", slot.MapWidth, slot.Seed);
         }
 
         if (slot.MapWidth <= 0 || slot.MapHeight <= 0)
         {
-            return $"senza terreno{level}";
+            return Testi.T("salvataggi.mappa.vuota") + level;
         }
 
-        return $"Classico · {slot.MapWidth}×{slot.MapHeight} · seme {slot.Seed}{level}";
+        return Testi.F("salvataggi.mappa.classica", slot.MapWidth, slot.MapHeight, slot.Seed) + level;
     }
 
     /// <summary>Shows a message on the status line (e.g. a failed load) without closing the panel.</summary>
@@ -313,7 +322,7 @@ public partial class SavesPanel : Control
         {
             if (_status is not null)
             {
-                _status.Text = "Seleziona uno slot da caricare.";
+                _status.Text = "salvataggi.seleziona.carica";
             }
 
             return;
@@ -328,7 +337,7 @@ public partial class SavesPanel : Control
         {
             if (_status is not null)
             {
-                _status.Text = "Seleziona uno slot da eliminare.";
+                _status.Text = "salvataggi.seleziona.elimina";
             }
 
             return;
@@ -347,7 +356,7 @@ public partial class SavesPanel : Control
         Refresh();
         if (_status is not null)
         {
-            _status.Text = "Slot eliminato.";
+            _status.Text = "salvataggi.eliminato";
         }
     }
 
@@ -358,7 +367,7 @@ public partial class SavesPanel : Control
         {
             if (_status is not null)
             {
-                _status.Text = "Nessuna Continua da duplicare.";
+                _status.Text = "salvataggi.duplica.nessuna";
             }
 
             return;
@@ -368,7 +377,7 @@ public partial class SavesPanel : Control
         Refresh();
         if (_status is not null)
         {
-            _status.Text = $"Creato {id}";
+            _status.Text = Testi.F("salvataggi.creato", id);
         }
     }
 
@@ -385,7 +394,7 @@ public partial class SavesPanel : Control
         Refresh();
         if (_status is not null)
         {
-            _status.Text = $"Salvato come {slotId}";
+            _status.Text = Testi.F("salvataggi.salvato.come", slotId);
         }
     }
 }

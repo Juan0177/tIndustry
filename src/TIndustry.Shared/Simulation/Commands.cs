@@ -72,86 +72,84 @@ public sealed record UpgradeCore(int PlayerId) : SimCommand(PlayerId);
 public sealed record SetSorterFilter(int PlayerId, GridPosition Tile, string ItemId) : SimCommand(PlayerId);
 
 /// <summary>
-/// Rejection reasons for <see cref="SimHost.CommandRejected"/>: the Italian texts the Godot client
-/// shows in its toasts / status labels today, gathered in one place.
+/// Why <see cref="SimHost"/> refused a command (<see cref="SimHost.CommandRejected"/>) or the drone dropped a plan
+/// (<see cref="PlanDropped"/>). The simulation has no language: the client turns each code into its own text.
 /// </summary>
-public static class CommandReasons
+public enum RefusalCode
 {
-    /// <summary>Fallback when <see cref="Factory.FormatNeedMessage"/> is empty (World.Placement, World.Session).</summary>
-    public const string InsufficientResources = "Risorse insufficienti";
-
-    /// <summary>Placement on a CORE tile (World.Placement).</summary>
-    public const string OnCore = "Non puoi costruire sul Core";
-
     /// <summary>
-    /// Placement on an occupied / invalid tile (World.Placement). Today's client text wins over the
-    /// spec's paraphrase "Spazio occupato.".
+    /// Malformed command (unknown id, non-positive amount, sorter filter on a non-sorter tile or with an item outside
+    /// <see cref="SorterFilters.Ids"/>): the client never sends one.
     /// </summary>
-    public const string Occupied = "Cella occupata o non valida";
+    InvalidCommand,
+
+    /// <summary>Not enough money or materials; <see cref="Refusal.MissingMoney"/> and <see cref="Refusal.MissingItems"/> say how much.</summary>
+    InsufficientResources,
+
+    /// <summary>Placement on a CORE tile.</summary>
+    OnCore,
+
+    /// <summary>Placement on an occupied cell, outside the map or on another player's plan.</summary>
+    Occupied,
 
     /// <summary>Placement on a cell with a wall (<see cref="TerrainTile.Wall"/>).</summary>
-    public const string Wall = "C'è una parete";
+    Wall,
 
     /// <summary>Placement on deep water (<see cref="FloorKind.DeepWater"/>); bridges span it.</summary>
-    public const string DeepWater = "Acqua profonda";
+    DeepWater,
 
     /// <summary>
-    /// A T1 miner on cells whose only ore is harder than its tier (titanium): Mindustry refuses a drill that
-    /// cannot dig what lies under it.
+    /// A T1 miner on cells whose only ore is harder than its tier (titanium): Mindustry refuses a drill that cannot dig
+    /// what lies under it.
     /// </summary>
-    public const string NeedsAdvancedMiner = "Serve il Minatore T2 per il titanio";
+    NeedsAdvancedMiner,
+
+    /// <summary>The structure (<see cref="Refusal.StructureId"/>) is not researched yet.</summary>
+    Locked,
 
     /// <summary><see cref="PlanDropped"/>: the structure was locked when the drone reached the plan.</summary>
-    public const string LockedByResearch = "Bloccato dalla ricerca";
+    LockedByResearch,
 
-    /// <summary>Research: already unlocked (ResearchPanel).</summary>
-    public const string AlreadyUnlocked = "Già sbloccato.";
+    /// <summary>Research: already unlocked.</summary>
+    AlreadyUnlocked,
 
-    /// <summary>Research: prerequisites missing (ResearchPanel).</summary>
-    public const string MissingPrerequisites = "Prerequisiti mancanti.";
+    /// <summary>Research: prerequisites missing.</summary>
+    MissingPrerequisites,
 
-    /// <summary>Research: cannot pay the unlock (ResearchPanel).</summary>
-    public const string UnlockUnaffordable = "Risorse insufficienti per sbloccare.";
+    /// <summary>Research: cannot pay the unlock.</summary>
+    UnlockUnaffordable,
 
-    /// <summary>Mercato: sale failed (MercatoPanel).</summary>
-    public const string SellFailed = "Vendita fallita (stock insufficiente).";
+    /// <summary>Market: sale failed (not enough stock).</summary>
+    SellFailed,
 
-    /// <summary>Remove on an empty tile (the client shows nothing today).</summary>
-    public const string NothingToRemove = "Niente da rimuovere.";
+    /// <summary>Remove on an empty tile (the client shows nothing).</summary>
+    NothingToRemove,
 
-    /// <summary>
-    /// Malformed command (unknown id, non-positive amount, sorter filter on a non-sorter tile or with
-    /// an item outside <see cref="SorterFilters.Ids"/>): the client never sends one today.
-    /// </summary>
-    public const string InvalidCommand = "Comando non valido.";
+    /// <summary>The Core is already upgraded (<see cref="IGameView.CoreUpgradeLevel"/>).</summary>
+    CoreAlreadyUpgraded
+}
 
-    /// <summary>Locked structure: "<c>{tool} bloccato: sbloccalo in Ricerca (T).</c>" (World.Placement).</summary>
-    public static string Locked(string toolName) => $"{toolName} bloccato: sbloccalo in Ricerca (T).";
+/// <summary>
+/// A refusal: its <paramref name="Code"/> and the arguments the client needs to explain it. <paramref name="StructureId"/>
+/// names the structure of <see cref="RefusalCode.Locked"/> and <see cref="RefusalCode.InsufficientResources"/>;
+/// <paramref name="MissingMoney"/> and <paramref name="MissingItems"/> are the shortfall of
+/// <see cref="RefusalCode.InsufficientResources"/> (both empty when it is unknown).
+/// </summary>
+public sealed record Refusal(
+    RefusalCode Code,
+    string? StructureId = null,
+    int MissingMoney = 0,
+    IReadOnlyList<ResourceAmount>? MissingItems = null)
+{
+    public static implicit operator Refusal(RefusalCode code) => new(code);
 
-    /// <summary>Tool name the client uses in the locked toast (World.Input <c>ToolIt</c>).</summary>
-    public static string ToolName(BuildingKind kind) => kind switch
-    {
-        BuildingKind.Junction => "Giunzione",
-        BuildingKind.Splitter => "Splitter",
-        BuildingKind.Sorter => "Selezionatore",
-        BuildingKind.Bridge => "Ponte",
-        BuildingKind.Miner => "Minatore",
-        BuildingKind.MinerAdvanced => "Minatore T2",
-        BuildingKind.Smelter => "Forno",
-        BuildingKind.Assembler => "Assemblatore",
-        BuildingKind.Generator => "Generatore",
-        BuildingKind.Extractor => "Estrattore",
-        BuildingKind.PowerNode => "Nodo potenza",
-        BuildingKind.PowerNodeT2 => "Nodo T2",
-        BuildingKind.Lamp => "Lampada",
-        _ => "?"
-    };
+    // Value equality on the missing items too (a record compares the list by reference).
+    public bool Equals(Refusal? other) =>
+        other is not null
+        && Code == other.Code
+        && StructureId == other.StructureId
+        && MissingMoney == other.MissingMoney
+        && (MissingItems ?? []).SequenceEqual(other.MissingItems ?? []);
 
-    /// <summary>Belt tool name by conveyor id (World.Input <c>ToolIt</c>).</summary>
-    public static string BeltToolName(string conveyorId) => conveyorId switch
-    {
-        "conveyor-fast" => "Nastro T2",
-        "conveyor-express" => "Nastro T3",
-        _ => "Nastro"
-    };
+    public override int GetHashCode() => HashCode.Combine(Code, StructureId, MissingMoney);
 }

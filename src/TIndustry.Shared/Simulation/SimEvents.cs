@@ -8,10 +8,10 @@ namespace TIndustry.Shared;
 public abstract record SimEvent(int PlayerId);
 
 /// <summary>
-/// The drone reached <paramref name="Plan"/> but could not start it; <paramref name="Reason"/> is the
-/// Italian text (<see cref="CommandReasons.Occupied"/>, <see cref="CommandReasons.LockedByResearch"/>).
+/// The drone reached <paramref name="Plan"/> but could not start it; <paramref name="Reason"/> says why
+/// (<see cref="RefusalCode.LockedByResearch"/> or a placement refusal such as <see cref="RefusalCode.Occupied"/>).
 /// </summary>
-public sealed record PlanDropped(int PlayerId, BuildPlan Plan, string Reason) : SimEvent(PlayerId);
+public sealed record PlanDropped(int PlayerId, BuildPlan Plan, RefusalCode Reason) : SimEvent(PlayerId);
 
 /// <summary>
 /// Site <paramref name="SiteId"/> was completed; <paramref name="EntityId"/> is the new building's id

@@ -46,11 +46,11 @@ public sealed class MinerTierTests
     private static (int, int, DepositKind)[] Patch(int x, int y, DepositKind deposit) =>
         [(x, y, deposit), (x + 1, y, deposit), (x, y + 1, deposit), (x + 1, y + 1, deposit)];
 
-    private static string? Submit(Factory factory, SimCommand command)
+    private static RefusalCode? Submit(Factory factory, SimCommand command)
     {
         var host = new SimHost(factory);
-        string? reason = null;
-        host.CommandRejected += (_, r) => reason = r;
+        RefusalCode? reason = null;
+        host.CommandRejected += (_, r) => reason = r.Code;
         host.Submit(command);
         host.AdvanceTicks(1);
         return reason;
@@ -77,19 +77,18 @@ public sealed class MinerTierTests
         var factory = Sandbox(instant: true, Patch(10, 10, DepositKind.Titanium));
 
         Assert.False(factory.CanPlace(MinerSpec(Miner.BasicId, 10, 10), out var reason));
-        Assert.Equal(CommandReasons.NeedsAdvancedMiner, reason);
-        Assert.Equal("Serve il Minatore T2 per il titanio", CommandReasons.NeedsAdvancedMiner);
+        Assert.Equal(RefusalCode.NeedsAdvancedMiner, reason);
         Assert.False(factory.TryPlaceMiner(new GridPosition(10, 10), Direction.East));
 
         // Instant build: the command is refused with the same text.
-        Assert.Equal(CommandReasons.NeedsAdvancedMiner,
+        Assert.Equal(RefusalCode.NeedsAdvancedMiner,
             Submit(factory, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(10, 10), Direction.East)));
         Assert.Empty(factory.Miners);
 
         // One titanium cell and nothing else under the footprint: still refused.
         var single = Sandbox(instant: true, (11, 11, DepositKind.Titanium));
         Assert.False(single.CanPlace(MinerSpec(Miner.BasicId, 10, 10), out reason));
-        Assert.Equal(CommandReasons.NeedsAdvancedMiner, reason);
+        Assert.Equal(RefusalCode.NeedsAdvancedMiner, reason);
     }
 
     [Fact]
@@ -97,13 +96,13 @@ public sealed class MinerTierTests
     {
         // Drone plans: the command is refused up front.
         var planned = Sandbox(instant: false, Patch(10, 10, DepositKind.Titanium));
-        Assert.Equal(CommandReasons.NeedsAdvancedMiner,
+        Assert.Equal(RefusalCode.NeedsAdvancedMiner,
             Submit(planned, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(10, 10), Direction.East)));
         Assert.Empty(planned.BuilderOf(0)!.Plans);
 
         // A plan queued before the rule (old save) is dropped with the reason when the drone gets to it.
         var host = new SimHost(planned);
-        var dropped = new List<string>();
+        var dropped = new List<RefusalCode>();
         host.EventRaised += e =>
         {
             if (e is PlanDropped d)
@@ -117,7 +116,7 @@ public sealed class MinerTierTests
             host.AdvanceTicks(1);
         }
 
-        Assert.Equal([CommandReasons.NeedsAdvancedMiner], dropped);
+        Assert.Equal([RefusalCode.NeedsAdvancedMiner], dropped);
         Assert.Empty(planned.Miners);
     }
 

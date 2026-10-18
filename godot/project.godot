@@ -48,6 +48,11 @@ pan_right={
 ]
 }
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://lingue/testi.it.translation", "res://lingue/testi.en.translation")
+locale/fallback="it"
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0

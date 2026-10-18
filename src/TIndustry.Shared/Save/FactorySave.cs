@@ -318,8 +318,11 @@ public static class FactorySaveStore
     /// <summary>Continua as it was before this session's first autosave replaced it (see <see cref="ContinueAutoSave"/>).</summary>
     public const string ContinueBackupSlotId = "continua.prev";
 
-    private const string OlderVersionMessage = "Salvataggio di una versione precedente: non compatibile.";
-    private const string UnreadableMessage = "Salvataggio non leggibile.";
+    /// <summary><see cref="TryLoad"/> error for a save of an older, unsupported version (the client shows its own text).</summary>
+    public const string OlderVersionMessage = "Salvataggio di una versione precedente: non compatibile.";
+
+    /// <summary><see cref="TryLoad"/> error for a damaged or unknown file (the client shows its own text).</summary>
+    public const string UnreadableMessage = "Salvataggio non leggibile.";
 
     /// <summary>Save JSON format (also used by tests to compare captures byte for byte).</summary>
     public static readonly JsonSerializerOptions JsonOptions = new()

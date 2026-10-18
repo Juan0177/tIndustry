@@ -11,13 +11,13 @@ public partial class World
         if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
         {
             _home?.RefreshContinua();
-            _hud?.ShowToast("Nessun salvataggio continua");
+            _hud?.ShowToast(Testi.T("salvataggi.continua.nessuno"));
             return;
         }
 
         var loaded = await WithMapOverlayAsync(
             SlotMapEdge(FactorySaveStore.ContinueSlotId),
-            () => LoadGame(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)));
+            () => LoadGame(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.continua.caricata"), showOnPanel: m => _home?.ShowError(m)));
         if (!loaded)
         {
             return; // stay on Home with the error visible
@@ -101,7 +101,7 @@ public partial class World
         QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast($"Nuova partita · {NewGamePanel.SizeLabel(size)} {(int)size}×{(int)size} · seme {seed}");
+            _hud?.ShowToast(Testi.F("partita.nuova.toast", NewGamePanel.SizeLabel(size), (int)size, seed));
         }
     }
 
@@ -115,7 +115,7 @@ public partial class World
 
     /// <summary>
     /// Starts a map load or new game from a UI signal without waiting for it. An exception it throws is never
-    /// lost: it goes to the log and, in Italian, to <paramref name="showError"/> (the panel the player is on).
+    /// lost: it goes to the log and, translated, to <paramref name="showError"/> (the panel the player is on).
     /// </summary>
     private async void RunMapTask(Func<Task> task, Action<string> showError)
     {
@@ -126,7 +126,7 @@ public partial class World
         catch (Exception ex)
         {
             GD.PushError($"Caricamento della mappa non riuscito: {ex}");
-            showError($"Caricamento della mappa non riuscito: {ex.Message}");
+            showError(Testi.F("mappa.errore.caricamento", ex.Message));
         }
     }
 
@@ -207,16 +207,10 @@ public partial class World
             return;
         }
 
-        if (_view.CoreUpgradeLevel > 0)
+        // Already upgraded or short of resources: say why without sending the command.
+        if (_view.CoreUpgradeRefusal() is { } refusal)
         {
-            _hud?.ShowToast($"Core già a LV{_view.CoreUpgradeLevel} (+{_view.CoreSaleBonusPercent}%).");
-            return;
-        }
-
-        var need = _view.FormatCoreUpgradeNeedMessage();
-        if (!string.IsNullOrEmpty(need))
-        {
-            _hud?.ShowToast(need);
+            _hud?.ShowToast(Testi.Rifiuto(refusal, _view));
             return;
         }
 
@@ -245,14 +239,14 @@ public partial class World
     }
 
     /// <summary>
-    /// Starts <paramref name="level"/> on its map file. Returns null when the level started, otherwise the Italian
+    /// Starts <paramref name="level"/> on its map file. Returns null when the level started, otherwise the translated
     /// reason (map file missing or invalid); the current game is then left as it was.
     /// </summary>
     private string? StartCampaignLevel(CampaignLevelDefinition level, bool toast)
     {
         if (_campaign is null)
         {
-            return "Campagna non disponibile.";
+            return Testi.T("campagna.non.disponibile");
         }
 
         // A level with a map needs data/maps/: never fall back to the classic generator (NewGame would, for tests).
@@ -260,7 +254,7 @@ public partial class World
         if (level.Map is not null && mapsDirectory is null)
         {
             GD.PushWarning($"Campaign map folder data/maps not found for level {level.Id}.");
-            return $"Mappa del livello «{level.Name}» non disponibile: cartella delle mappe (data/maps) non trovata.";
+            return Testi.F("mappa.errore.cartella", Testi.LivelloNome(level));
         }
 
         Factory factory;
@@ -272,7 +266,7 @@ public partial class World
         catch (Exception ex)
         {
             GD.Print($"Campaign map failed: {ex.Message}");
-            return $"Mappa del livello «{level.Name}» non disponibile: {ex.Message}";
+            return Testi.F("mappa.errore.livello", Testi.LivelloNome(level), ex.Message);
         }
 
         AttachGame(factory);
@@ -292,7 +286,7 @@ public partial class World
         QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast($"Campagna · {level.Name} · {ActiveMapWidth}×{ActiveMapHeight}");
+            _hud?.ShowToast(Testi.F("campagna.avvio.toast", Testi.LivelloNome(level), ActiveMapWidth, ActiveMapHeight));
             // Raylib: campaign disables first-run tutorial (objectives HUD only).
         }
 
@@ -419,7 +413,7 @@ public partial class World
         if (!_levelCompleteToastShown)
         {
             _levelCompleteToastShown = true;
-            _hud?.ShowToast($"Livello completato · {_activeLevel.Name}");
+            _hud?.ShowToast(Testi.F("campagna.completato.toast", Testi.LivelloNome(_activeLevel)));
             _campaignSelect?.Refresh();
         }
     }
@@ -487,7 +481,7 @@ public partial class World
         }
         catch (Exception ex)
         {
-            _hud?.ShowToast("Salvataggio fallito");
+            _hud?.ShowToast(Testi.T("salvataggi.errore.salvataggio"));
             GD.PushError($"Save failed: {ex.Message}");
         }
     }
@@ -509,7 +503,7 @@ public partial class World
         {
             GD.PushError($"Load failed: {ex.Message}");
             loaded = null;
-            error = "Salvataggio non leggibile.";
+            error = FactorySaveStore.UnreadableMessage;
         }
 
         if (loaded is null)
@@ -517,7 +511,11 @@ public partial class World
             if (!quietFail)
             {
                 // Incompatible (older) saves explain themselves; the current game is left untouched.
-                var message = error ?? $"Nessun save ({slotId})";
+                var message = error is null
+                    ? Testi.F("salvataggi.errore.nessuno", slotId)
+                    : Testi.T(error == FactorySaveStore.OlderVersionMessage
+                        ? "salvataggi.errore.versione"
+                        : "salvataggi.errore.illeggibile");
                 _hud?.ShowToast(message);
                 showOnPanel?.Invoke(message);
             }
@@ -539,8 +537,8 @@ public partial class World
         {
             GD.PushError($"Load failed: {ex.Message}");
             RollBackAttach(previous);
-            _hud?.ShowToast("Caricamento fallito");
-            showOnPanel?.Invoke("Caricamento fallito");
+            _hud?.ShowToast(Testi.T("salvataggi.errore.caricamento"));
+            showOnPanel?.Invoke(Testi.T("salvataggi.errore.caricamento"));
             return false;
         }
     }

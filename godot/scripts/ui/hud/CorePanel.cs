@@ -35,6 +35,10 @@ public partial class CorePanel : VBoxContainer
     private FactoryContent? _content;
     private IWalletView? _wallet;
     private int _money;
+    private readonly List<(Button Button, string Key, string Hotkey)> _menuButtons = [];
+    private bool _hasGrid;
+    private int _generatorsLive;
+    private int _generatorsTotal;
 
     public event Action? MenuRequested;
     public event Action? ResearchRequested;
@@ -59,10 +63,10 @@ public partial class CorePanel : VBoxContainer
     {
         var menuRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         AddChild(menuRow);
-        AddMenuButton(menuRow, "menu", "Menu", "Esc", () => MenuRequested?.Invoke());
-        AddMenuButton(menuRow, "ricerca", "Ricerca", "T", () => ResearchRequested?.Invoke());
-        AddMenuButton(menuRow, "mercato", "Mercato", "M", () => MercatoRequested?.Invoke());
-        AddMenuButton(menuRow, "campagna", "Campagna", "G", () => CampaignRequested?.Invoke());
+        AddMenuButton(menuRow, "menu", "menu.menu", "Esc", () => MenuRequested?.Invoke());
+        AddMenuButton(menuRow, "ricerca", "menu.ricerca", "T", () => ResearchRequested?.Invoke());
+        AddMenuButton(menuRow, "mercato", "menu.mercato", "M", () => MercatoRequested?.Invoke());
+        AddMenuButton(menuRow, "campagna", "menu.campagna", "G", () => CampaignRequested?.Invoke());
 
         BuildCorePanel();
         if (_belowStock is not null)
@@ -71,6 +75,28 @@ public partial class CorePanel : VBoxContainer
         }
 
         BuildObjectivesPanel();
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what != NotificationTranslationChanged)
+        {
+            return;
+        }
+
+        // New language: texts made of several parts are written again (the next sync redoes the upgrade button).
+        foreach (var (button, key, hotkey) in _menuButtons)
+        {
+            button.TooltipText = $"{Testi.T(key)} ({hotkey})";
+        }
+
+        foreach (var (id, cell) in _stockCells)
+        {
+            cell.Cell.TooltipText = Testi.Oggetto(id, _content);
+        }
+
+        _coreUpgradeKey = null;
+        SyncPowerTooltip();
     }
 
     /// <summary>
@@ -91,7 +117,7 @@ public partial class CorePanel : VBoxContainer
         {
             foreach (var (id, cell) in _stockCells)
             {
-                cell.Cell.TooltipText = content.DisplayName(id);
+                cell.Cell.TooltipText = Testi.Oggetto(id, content);
             }
         }
 
@@ -103,10 +129,10 @@ public partial class CorePanel : VBoxContainer
     public int StockCount(string itemId) => _stockCounts.TryGetValue(itemId, out var c) ? c : 0;
 
     public void UpdateStock(
-        string oreName, int ore,
-        string plateName, int plate,
-        string copperName, int copper,
-        string wireName, int wire,
+        int ore,
+        int plate,
+        int copper,
+        int wire,
         long delivered,
         int onBelt,
         int money,
@@ -148,9 +174,23 @@ public partial class CorePanel : VBoxContainer
             var low = hasGrid && powerBuffer < powerCapacity * 0.2f;
             _powerLabel.ThemeTypeVariation = !hasGrid ? UiTheme.TestoTenue : low ? UiTheme.TestoRosso : UiTheme.TestoEnergia;
             _powerIcon.Modulate = !hasGrid ? UiColors.TestoTenue : low ? UiColors.Insufficiente : UiColors.Energia;
-            var gens = generatorsTotal > 0 ? $" · generatori attivi {generatorsLive}/{generatorsTotal}" : "";
-            _powerLabel.TooltipText = hasGrid ? $"Energia accumulata / capacità{gens}" : "Nessuna rete elettrica";
+            if (hasGrid != _hasGrid || generatorsLive != _generatorsLive || generatorsTotal != _generatorsTotal)
+            {
+                (_hasGrid, _generatorsLive, _generatorsTotal) = (hasGrid, generatorsLive, generatorsTotal);
+                SyncPowerTooltip();
+            }
         }
+    }
+
+    private void SyncPowerTooltip()
+    {
+        if (_powerLabel is null)
+        {
+            return;
+        }
+
+        var gens = _generatorsTotal > 0 ? Testi.F("core.energia.generatori", _generatorsLive, _generatorsTotal) : "";
+        _powerLabel.TooltipText = _hasGrid ? Testi.T("core.energia") + gens : Testi.T("core.energia.nessuna");
     }
 
     /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
@@ -178,7 +218,7 @@ public partial class CorePanel : VBoxContainer
 
         if (factory is null)
         {
-            _coreUpgradeButton.Text = "Potenzia CORE";
+            _coreUpgradeButton.Text = Testi.T("core.potenzia");
             _coreUpgradeButton.Disabled = true;
             return;
         }
@@ -186,15 +226,15 @@ public partial class CorePanel : VBoxContainer
         var upgrade = factory.Content.CoreUpgrade;
         if (factory.CoreUpgradeLevel > 0)
         {
-            _coreUpgradeButton.Text = $"CORE LV{factory.CoreUpgradeLevel} · +{factory.CoreSaleBonusPercent}% vendite";
+            _coreUpgradeButton.Text = Testi.F("core.potenziato", factory.CoreUpgradeLevel, factory.CoreSaleBonusPercent);
             _coreUpgradeButton.Disabled = true;
             _coreUpgradeButton.TooltipText = "";
             return;
         }
 
-        _coreUpgradeButton.Text = "Potenzia CORE";
+        _coreUpgradeButton.Text = Testi.T("core.potenzia");
         _coreUpgradeButton.Disabled = !affordable;
-        _coreUpgradeButton.TooltipText = factory.FormatCoreUpgradeNeedMessage();
+        _coreUpgradeButton.TooltipText = factory.CoreUpgradeRefusal() is { } refusal ? Testi.Rifiuto(refusal, factory) : "";
         if (upgrade.MoneyCost > 0)
         {
             _coreUpgradeCost.AddChild(MakeMoneyChip(upgrade.MoneyCost, factory.Wallet.Money >= upgrade.MoneyCost));
@@ -229,8 +269,7 @@ public partial class CorePanel : VBoxContainer
         CampaignLevelDefinition level,
         IWalletView wallet,
         ISessionView session,
-        IResearchView research,
-        Func<string, string>? itemName = null)
+        IResearchView research)
     {
         if (_objectivesPanel is null || _objectivesTitle is null || _objectivesList is null)
         {
@@ -238,7 +277,7 @@ public partial class CorePanel : VBoxContainer
         }
 
         _objectivesPanel.Visible = true;
-        _objectivesTitle.Text = $"OBIETTIVO · {level.Name}";
+        _objectivesTitle.Text = Testi.F("core.obiettivo", Testi.LivelloNome(level));
 
         foreach (var child in _objectivesList.GetChildren())
         {
@@ -246,11 +285,16 @@ public partial class CorePanel : VBoxContainer
         }
 
         var objectives = level.Objectives ?? [];
-        foreach (var objective in objectives)
+        for (var i = 0; i < objectives.Count; i++)
         {
+            var objective = objectives[i];
             var current = CampaignProgress.GetObjectiveCurrent(objective, wallet, session, research);
             var done = CampaignProgress.IsObjectiveComplete(objective, wallet, session, research);
-            var text = CampaignCatalog.FormatObjectiveProgress(objective, current, itemName);
+            var label = Testi.Obiettivo(level, i, _content);
+            var target = Math.Max(1, objective.Amount);
+            var text = objective.Type == CampaignObjectiveType.UnlockResearch
+                ? (current >= 1 ? $"{label} ✓" : label)
+                : $"{label} ({Math.Min(current, target)}/{target})";
             _objectivesList.AddChild(MakeLabel(text, done ? UiTheme.TestoVerde : UiTheme.TestoTenue));
         }
     }
@@ -271,19 +315,20 @@ public partial class CorePanel : VBoxContainer
         }
     }
 
-    private static void AddMenuButton(Control parent, string icon, string label, string hotkey, Action onClick)
+    private void AddMenuButton(Control parent, string icon, string label, string hotkey, Action onClick)
     {
         var button = new Button
         {
             Text = label,
             Icon = UiTheme.Icon(icon, small: true),
             FocusMode = FocusModeEnum.None,
-            TooltipText = $"{label} ({hotkey})",
+            TooltipText = $"{Testi.T(label)} ({hotkey})",
             MouseDefaultCursorShape = CursorShape.PointingHand,
             CustomMinimumSize = new Vector2(0, 34)
         };
         button.Pressed += onClick;
         parent.AddChild(button);
+        _menuButtons.Add((button, label, hotkey));
     }
 
     private void BuildCorePanel()
@@ -301,7 +346,7 @@ public partial class CorePanel : VBoxContainer
         vbox.AddChild(head);
         head.AddChild(MakeIcon(ItemTexture("money"), 20));
         _moneyLabel = MakeLabel("$0", UiTheme.TestoDenaro);
-        _moneyLabel.TooltipText = "Fondi";
+        _moneyLabel.TooltipText = Testi.T("core.fondi");
         _moneyLabel.MouseFilter = MouseFilterEnum.Pass;
         head.AddChild(_moneyLabel);
         head.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
@@ -320,14 +365,14 @@ public partial class CorePanel : VBoxContainer
             AddStockCell(_stockGrid, id);
         }
 
-        _stockEmpty = MakeLabel("Core vuoto: porta minerali con i nastri", UiTheme.TestoTenue);
+        _stockEmpty = MakeLabel("core.vuoto", UiTheme.TestoTenue);
         vbox.AddChild(_stockEmpty);
 
         var upgradeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaLarga };
         vbox.AddChild(upgradeRow);
         _coreUpgradeButton = new Button
         {
-            Text = "Potenzia CORE",
+            Text = "core.potenzia",
             ThemeTypeVariation = UiTheme.PulsantePiatto,
             FocusMode = FocusModeEnum.None,
             MouseDefaultCursorShape = CursorShape.PointingHand
@@ -344,7 +389,7 @@ public partial class CorePanel : VBoxContainer
         {
             Visible = false,
             MouseFilter = MouseFilterEnum.Pass,
-            TooltipText = _content?.DisplayName(id) ?? id,
+            TooltipText = Testi.Oggetto(id, _content),
             CustomMinimumSize = new Vector2(46, 22),
             ThemeTypeVariation = UiTheme.RigaStretta
         };
@@ -366,7 +411,7 @@ public partial class CorePanel : VBoxContainer
         var vbox = new VBoxContainer();
         _objectivesPanel.AddChild(vbox);
 
-        _objectivesTitle = MakeLabel("OBIETTIVO", UiTheme.TestoAccento);
+        _objectivesTitle = MakeLabel("core.obiettivo.titolo", UiTheme.TestoAccento);
         vbox.AddChild(_objectivesTitle);
 
         _objectivesList = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaStretta };

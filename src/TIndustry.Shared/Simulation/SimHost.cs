@@ -48,8 +48,8 @@ public sealed class SimHost
     /// <summary>Raised when a command has been applied (before that tick's step).</summary>
     public event Action<SimCommand>? CommandApplied;
 
-    /// <summary>Raised with the Italian reason when a command is refused; the state is unchanged.</summary>
-    public event Action<SimCommand, string>? CommandRejected;
+    /// <summary>Raised with the refusal (code and arguments) when a command is refused; the state is unchanged.</summary>
+    public event Action<SimCommand, Refusal>? CommandRejected;
 
     /// <summary>
     /// Raised after each tick for every <see cref="SimEvent"/> the systems queued during it, in order
@@ -190,7 +190,7 @@ public sealed class SimHost
     }
 
     /// <summary>Validates and applies one command; returns null when applied, else the reason.</summary>
-    private string? Apply(SimCommand command) => command switch
+    private Refusal? Apply(SimCommand command) => command switch
     {
         PlaceBelt belt => ApplyPlaceBelt(belt),
         PlaceBuilding building => ApplyPlaceBuilding(building),
@@ -200,21 +200,20 @@ public sealed class SimHost
         SetAutoSell autoSell => SetAutoSellAndAccept(autoSell.Enabled),
         UpgradeCore => ApplyUpgradeCore(),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
-        _ => CommandReasons.InvalidCommand
+        _ => RefusalCode.InvalidCommand
     };
 
-    private string? ApplyPlaceBelt(PlaceBelt command)
+    private Refusal? ApplyPlaceBelt(PlaceBelt command)
     {
         var spec = BuildSpec.FromCommand(command);
         if (!factory.IsValidSpec(spec))
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
-        var toolName = CommandReasons.BeltToolName(spec.StructureId);
         if (factory.State.Rules.InstantBuild)
         {
-            return CheckBuildable(spec.StructureId, toolName, multiplicity: 1)
+            return CheckBuildable(spec.StructureId, multiplicity: 1)
                 ?? PlacedOrRefused(factory.PlaceInstant(spec, charge: true), spec);
         }
 
@@ -225,31 +224,30 @@ public sealed class SimHost
             spec = spec with { Direction = intoCore };
         }
 
-        return QueuePlan(command.PlayerId, spec, toolName);
+        return QueuePlan(command.PlayerId, spec);
     }
 
-    private string? ApplyPlaceBuilding(PlaceBuilding command)
+    private Refusal? ApplyPlaceBuilding(PlaceBuilding command)
     {
         if (BuildSpec.StructureIdFor(command.Kind) is null)
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
         // Unknown recipe for forno / assembler: invalid before the research and resource checks.
         var spec = BuildSpec.FromCommand(command);
         if (!factory.IsValidSpec(spec))
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
-        var toolName = CommandReasons.ToolName(command.Kind);
         if (!factory.State.Rules.InstantBuild)
         {
-            return QueuePlan(command.PlayerId, spec, toolName);
+            return QueuePlan(command.PlayerId, spec);
         }
 
         var multiplicity = command.Kind == BuildingKind.Bridge ? 2 : 1;
-        return CheckBuildable(spec.StructureId, toolName, multiplicity)
+        return CheckBuildable(spec.StructureId, multiplicity)
             ?? PlacedOrRefused(factory.PlaceInstant(spec, charge: true), spec);
     }
 
@@ -257,23 +255,23 @@ public sealed class SimHost
     /// Queues a build plan on the player's drone: the structure must be unlocked and its cells free of
     /// blocks, belts, sites and other players' plans. Resources are not checked (the site waits for them).
     /// </summary>
-    private string? QueuePlan(int playerId, BuildSpec spec, string toolName)
+    private Refusal? QueuePlan(int playerId, BuildSpec spec)
     {
         if (!factory.IsStructureUnlocked(spec.StructureId))
         {
-            return CommandReasons.Locked(toolName);
+            return new Refusal(RefusalCode.Locked, spec.StructureId);
         }
 
         if (!factory.CanPlace(spec, out var reason))
         {
-            return reason;
+            return reason ?? RefusalCode.Occupied;
         }
 
         foreach (var tile in factory.Footprint(spec))
         {
             if (factory.IsPlannedTile(tile))
             {
-                return CommandReasons.Occupied;
+                return RefusalCode.Occupied;
             }
         }
 
@@ -281,7 +279,7 @@ public sealed class SimHost
         var builder = factory.BuilderOf(playerId);
         if (builder is null)
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
         builder.PlanQueue.Add(new BuildPlan(spec, Breaking: false));
@@ -295,14 +293,14 @@ public sealed class SimHost
     /// spent comes back); leaves a site being taken apart alone (silent refusal); queues a breaking plan for a
     /// block or belt piece (once); refuses silently on an empty tile.
     /// </summary>
-    private string? ApplyRemove(Remove command)
+    private Refusal? ApplyRemove(Remove command)
     {
         var tile = command.Tile;
         if (factory.State.Rules.InstantBuild)
         {
             return factory.TryRemoveBuildingAt(tile) || factory.TryRemoveBelt(tile)
                 ? null
-                : CommandReasons.NothingToRemove;
+                : RefusalCode.NothingToRemove;
         }
 
         var builder = factory.BuilderOf(command.PlayerId);
@@ -316,7 +314,7 @@ public sealed class SimHost
             if (site.Deconstructing)
             {
                 // Already being taken apart: nothing changes.
-                return CommandReasons.NothingToRemove;
+                return RefusalCode.NothingToRemove;
             }
 
             Construction.Cancel(site);
@@ -325,12 +323,12 @@ public sealed class SimHost
 
         if (!factory.TryGetSpecAt(tile, out var spec, out _))
         {
-            return CommandReasons.NothingToRemove;
+            return RefusalCode.NothingToRemove;
         }
 
         if (builder is null)
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
         if (!IsBreakingPlanned(spec))
@@ -387,85 +385,79 @@ public sealed class SimHost
         return false;
     }
 
-    /// <summary>Same checks, same order and same texts as the client's placement today.</summary>
-    private string? CheckBuildable(string structureId, string toolName, int multiplicity)
+    /// <summary>Same checks, in the same order, as the client's placement.</summary>
+    private Refusal? CheckBuildable(string structureId, int multiplicity)
     {
         if (!factory.IsStructureUnlocked(structureId))
         {
-            return CommandReasons.Locked(toolName);
+            return new Refusal(RefusalCode.Locked, structureId);
         }
 
         if (!factory.CanAffordStructure(structureId, multiplicity))
         {
-            var need = factory.FormatNeedMessage(structureId, multiplicity);
-            return string.IsNullOrEmpty(need) ? CommandReasons.InsufficientResources : need;
+            return factory.Shortfall(structureId, multiplicity) ?? new Refusal(RefusalCode.InsufficientResources, structureId);
         }
 
         return null;
     }
 
-    private string? PlacedOrRefused(bool placed, BuildSpec spec) =>
-        placed ? null : factory.RefusalReason(spec);
+    private Refusal? PlacedOrRefused(bool placed, BuildSpec spec) =>
+        placed ? null : new Refusal(factory.RefusalReason(spec));
 
-    private string? ApplyUnlock(UnlockStructure command)
+    private Refusal? ApplyUnlock(UnlockStructure command)
     {
         var structure = factory.Content.FindStructure(command.StructureId);
         if (structure is null)
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
         if (factory.Research.IsUnlocked(structure.Id))
         {
-            return CommandReasons.AlreadyUnlocked;
+            return RefusalCode.AlreadyUnlocked;
         }
 
         if (!factory.Research.MeetsPrerequisites(structure))
         {
-            return CommandReasons.MissingPrerequisites;
+            return RefusalCode.MissingPrerequisites;
         }
 
-        return factory.TryUnlockStructure(structure.Id) ? null : CommandReasons.UnlockUnaffordable;
+        return factory.TryUnlockStructure(structure.Id) ? null : RefusalCode.UnlockUnaffordable;
     }
 
-    private string? ApplySell(Sell command)
+    private Refusal? ApplySell(Sell command)
     {
         if (command.Amount <= 0 || string.IsNullOrWhiteSpace(command.ItemId))
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
-        return factory.TrySellFromWallet(command.ItemId, command.Amount) ? null : CommandReasons.SellFailed;
+        return factory.TrySellFromWallet(command.ItemId, command.Amount) ? null : RefusalCode.SellFailed;
     }
 
-    private string? SetAutoSellAndAccept(bool enabled)
+    private Refusal? SetAutoSellAndAccept(bool enabled)
     {
         factory.AutoSellAtCore = enabled;
         return null;
     }
 
-    private string? ApplySetSorterFilter(SetSorterFilter command)
+    private Refusal? ApplySetSorterFilter(SetSorterFilter command)
     {
         if (!SorterFilters.IsValid(command.ItemId)
             || !factory.Belts.TryGet(command.Tile, out var cell)
             || cell.Kind != LogisticsKind.Sorter)
         {
-            return CommandReasons.InvalidCommand;
+            return RefusalCode.InvalidCommand;
         }
 
         cell.SetFilterItem(command.ItemId);
         return null;
     }
 
-    private string? ApplyUpgradeCore()
+    private Refusal? ApplyUpgradeCore()
     {
-        // Already upgraded or short of resources: today's World.Session texts.
-        var need = factory.FormatCoreUpgradeNeedMessage();
-        if (!string.IsNullOrEmpty(need))
-        {
-            return need;
-        }
-
-        return factory.TryUpgradeCore() ? null : CommandReasons.InsufficientResources;
+        // Already upgraded or short of resources.
+        return factory.CoreUpgradeRefusal()
+            ?? (factory.TryUpgradeCore() ? null : RefusalCode.InsufficientResources);
     }
 }

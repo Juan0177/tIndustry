@@ -67,6 +67,9 @@ public sealed class ClientSettings
     /// </summary>
     public bool? SchermoIntero { get; set; }
 
+    /// <summary>Language of the texts (<see cref="Testi.Lingue"/>); missing or unknown = Italian.</summary>
+    public string Lingua { get; set; } = Testi.LinguaPredefinita;
+
     /// <summary>
     /// The fullscreen choice the settings panel shows: <see cref="SchermoIntero"/>, or when never chosen what this run
     /// actually does.
@@ -156,7 +159,8 @@ public sealed class ClientSettings
         AnimazioniBlocchi = AnimazioniBlocchi,
         LimiteFps = LimiteFps,
         ScalaRendering = ScalaRendering,
-        SchermoIntero = SchermoIntero
+        SchermoIntero = SchermoIntero,
+        Lingua = Lingua
     };
 
     public void CopyFrom(ClientSettings other)
@@ -173,6 +177,7 @@ public sealed class ClientSettings
         LimiteFps = other.LimiteFps;
         ScalaRendering = other.ScalaRendering;
         SchermoIntero = other.SchermoIntero;
+        Lingua = other.Lingua;
         Normalize();
     }
 
@@ -185,13 +190,20 @@ public sealed class ClientSettings
         {
             Effetti = EffectsQuality.Alti;
         }
+
+        if (!Testi.Lingue.Contains(Lingua))
+        {
+            Lingua = Testi.LinguaPredefinita;
+        }
     }
 
     /// <summary><paramref name="value"/> if it is a preset, else the closest preset (first one on a tie).</summary>
     private static int Nearest(int[] presets, int value) =>
         presets.Contains(value) ? value : presets.OrderBy(v => Math.Abs(v - value)).First();
 
-    public static string FpsLimitLabel(int fps) => fps == 0 ? "Nessuno" : fps.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    /// <summary>Button text of a frame rate cap: a number, or the key of "none" for 0.</summary>
+    public static string FpsLimitLabel(int fps) =>
+        fps == 0 ? "impostazioni.fps.nessuno" : fps.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary><paramref name="percent"/> clamped to the UI scale range and rounded to the nearest step (half up).</summary>
     public static int NormalizeUiScale(int percent)
@@ -209,6 +221,12 @@ public sealed class ClientSettings
     /// </summary>
     public void ApplyToEngine(Window? window = null)
     {
+        // A new language reaches every open panel and the HUD at once (NotificationTranslationChanged).
+        if (TranslationServer.GetLocale() != Lingua)
+        {
+            TranslationServer.SetLocale(Lingua);
+        }
+
         Engine.MaxFps = LimiteFps;
         DisplayServer.WindowSetVsyncMode(
             VSync

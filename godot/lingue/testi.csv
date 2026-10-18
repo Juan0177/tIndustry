@@ -1,0 +1,344 @@
+keys,it,en
+struttura.conveyor-basic.nome,Nastro T1,Belt T1
+struttura.miner.nome,Minatore T1,Miner T1
+struttura.extractor.nome,Estrattore,Extractor
+struttura.smelter.nome,Forno,Smelter
+struttura.conveyor-fast.nome,Nastro T2,Belt T2
+struttura.junction.nome,Incrocio,Junction
+struttura.splitter.nome,Sdoppiatore,Splitter
+struttura.sorter.nome,Selezionatore,Sorter
+struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
+struttura.conveyor-express.nome,Nastro T3,Belt T3
+struttura.assembler.nome,Assemblatore,Assembler
+struttura.generator.nome,Generatore,Generator
+struttura.power-node.nome,Nodo T1,Node T1
+struttura.power-node-t2.nome,Nodo T2,Node T2
+struttura.lamp.nome,Lampada,Lamp
+struttura.miner-advanced.nome,Minatore T2,Miner T2
+oggetto.iron-ore.nome,Ferro grezzo,Iron ore
+oggetto.iron-plate.nome,Lastra di ferro,Iron plate
+oggetto.copper-ore.nome,Rame grezzo,Copper ore
+oggetto.copper-wire.nome,Filo di rame,Copper wire
+oggetto.coal.nome,Carbone,Coal
+oggetto.lead-ore.nome,Piombo grezzo,Lead ore
+oggetto.lead-plate.nome,Lastra di piombo,Lead plate
+oggetto.titanium-ore.nome,Titanio grezzo,Titanium ore
+oggetto.titanium-plate.nome,Lastra di titanio,Titanium plate
+oggetto.graphite.nome,Grafite,Graphite
+oggetto.silicon.nome,Silicio,Silicon
+ricetta.smelt-iron.nome,Lastra di ferro,Iron plate
+ricetta.smelt-lead.nome,Lastra di piombo,Lead plate
+ricetta.smelt-titanium.nome,Lastra di titanio,Titanium plate
+ricetta.craft-copper-wire.nome,Filo di rame,Copper wire
+ricetta.craft-graphite.nome,Grafite,Graphite
+ricetta.craft-silicon.nome,Silicio,Silicon
+giacimento.iron.nome,ferro,iron
+giacimento.copper.nome,rame,copper
+giacimento.coal.nome,carbone,coal
+giacimento.lead.nome,piombo,lead
+giacimento.titanium.nome,titanio,titanium
+campagna.level-01-primi-passi.nome,Primi passi,First steps
+campagna.level-01-primi-passi.descrizione,Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.,Connect a miner to the core and sell ore from the Market. Learn stock and selling.
+obiettivo.level-01-primi-passi.1,Vendi 3 ferro grezzo,Sell 3 iron ore
+obiettivo.level-01-primi-passi.2,Guadagna $24 dalle vendite,Earn $24 from sales
+campagna.level-02-prima-fabbrica.nome,Prima fabbrica,First factory
+campagna.level-02-prima-fabbrica.descrizione,"Accumula minerale in magazzino: il core è stock-first, non liquida da solo.","Pile up ore in storage: the core is stock-first, it does not sell on its own."
+obiettivo.level-02-prima-fabbrica.1,Magazzino 12 ferro grezzo,Store 12 iron ore
+campagna.level-03-lastre.nome,Lastre di ferro,Iron plates
+campagna.level-03-lastre.descrizione,Sblocca il forno in Ricerca e produci lastre per lo stock.,Unlock the smelter in Research and make plates for the stock.
+obiettivo.level-03-lastre.1,Sblocca il forno,Unlock the smelter
+obiettivo.level-03-lastre.2,Magazzino 12 lastre di ferro,Store 12 iron plates
+campagna.level-04-fili.nome,Fili di rame,Copper wire
+campagna.level-04-fili.descrizione,Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.,Full chain: copper + plates → assembler → wire. Sell or store.
+obiettivo.level-04-fili.1,Sblocca l'assemblatore,Unlock the assembler
+obiettivo.level-04-fili.2,Magazzino 4 fili di rame,Store 4 copper wire
+obiettivo.level-04-fili.3,Vendi 2 fili di rame,Sell 2 copper wire
+campagna.level-05-mercato.nome,Economia Foundry,Foundry economy
+campagna.level-05-mercato.descrizione,Reinvestimento: vendi lastre e costruisci un piccolo surplus.,Reinvest: sell plates and build up a small surplus.
+obiettivo.level-05-mercato.1,Guadagna $150 dalle vendite,Earn $150 from sales
+obiettivo.level-05-mercato.2,Magazzino 20 lastre,Store 20 plates
+campagna.level-06-corrente.nome,Corrente,Power
+campagna.level-06-corrente.descrizione,Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).,Power up the factory: coal generator and Node T1. The smelter runs on coal or power (+20%).
+obiettivo.level-06-corrente.1,Sblocca il generatore,Unlock the generator
+obiettivo.level-06-corrente.2,Sblocca il Nodo T1,Unlock Node T1
+obiettivo.level-06-corrente.3,Magazzino 16 carbone,Store 16 coal
+campagna.level-07-piombo.nome,Venatura di piombo,Lead vein
+campagna.level-07-piombo.descrizione,Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.,Scout west: mine lead and smelt it into plates. A new mid-game chain.
+obiettivo.level-07-piombo.1,Magazzino 10 piombo grezzo,Store 10 lead ore
+obiettivo.level-07-piombo.2,Magazzino 6 lastre di piombo,Store 6 lead plates
+campagna.level-08-logistica.nome,Logistica selettiva,Selective logistics
+campagna.level-08-logistica.descrizione,Sblocca il selezionatore e spezza i flussi: ore e lastre su corsie separate.,Unlock the sorter and split the flows: ore and plates on separate lanes.
+obiettivo.level-08-logistica.1,Sblocca l'incrocio,Unlock the junction
+obiettivo.level-08-logistica.2,Sblocca il selezionatore,Unlock the sorter
+obiettivo.level-08-logistica.3,Magazzino 28 lastre di ferro,Store 28 iron plates
+campagna.level-09-titanio.nome,Titanio raro,Rare titanium
+campagna.level-09-titanio.descrizione,"Deposito scarso, forno lento: il titanio si scava solo col Minatore T2. Sbloccalo, accumula lastre di titanio e prepara la chimica.","Scarce deposit, slow smelter: titanium can only be mined with the Miner T2. Unlock it, store titanium plates and get ready for chemistry."
+obiettivo.level-09-titanio.1,Magazzino 6 titanio grezzo,Store 6 titanium ore
+obiettivo.level-09-titanio.2,Magazzino 3 lastre di titanio,Store 3 titanium plates
+obiettivo.level-09-titanio.3,Magazzino 4 silicio,Store 4 silicon
+campagna.level-10-espansione.nome,Espansione T2,T2 expansion
+campagna.level-10-espansione.descrizione,Minatore T2 e Nastro T2: scala la foundry e chiudi con un surplus di mercato.,Miner T2 and Belt T2: scale up the foundry and finish with a market surplus.
+obiettivo.level-10-espansione.1,Sblocca il Minatore T2,Unlock the Miner T2
+obiettivo.level-10-espansione.2,Sblocca il Nastro T2,Unlock the Belt T2
+obiettivo.level-10-espansione.3,Guadagna $400 dalle vendite,Earn $400 from sales
+obiettivo.level-10-espansione.4,Magazzino 8 grafite,Store 8 graphite
+strumento.cursore,Cursore,Cursor
+strumento.cursore.suggerimento,Cursore: pan / guarda · Esc o riclicca sul tool,Cursor: pan / look · Esc or click the tool again
+struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
+struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
+struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
+struttura.junction.suggerimento,Incrocio a croce,Cross junction
+struttura.splitter.suggerimento,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
+struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
+struttura.conveyor-bridge.suggerimento,Ponte span 2–5 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–5 · I/O on 3 sides · instant teleport
+struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
+struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% se alimentato · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% when powered · unlock in Research
+struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
+struttura.assembler.suggerimento,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
+struttura.extractor.suggerimento,Estrae dal Core → nastro · F filtro · R uscita · 1×1,Takes from the Core → belt · F filter · R output · 1×1
+struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
+struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Node T1 · range 6 · links generator ↔ smelter
+struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Node T2 · 2×2 · range 10 · unlock in Research
+struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
+struttura.scava,Scava: {0},Digs: {0}
+categoria.strumenti,Strumenti,Tools
+categoria.logistica,Logistica,Logistics
+categoria.produzione,Produzione,Production
+categoria.potenza,Potenza,Power
+palette.selezionato,{0} selezionato,{0} selected
+rifiuto.Locked,{0} bloccato: sbloccalo in Ricerca (T).,{0} locked: unlock it in Research (T).
+blocco.dettaglio,Dettaglio blocco,Block details
+blocco.bloccato,{0} · bloccato,{0} · locked
+comune.chiudi,Chiudi,Close
+blocco.costo.ok,ok,ok
+blocco.costo.manca,manca,missing
+blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro = elimina · Esc = cursore,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click = remove · Esc = cursor
+blocco.io.minatore,I/O · estrae dal deposito sotto,I/O · mines the deposit below
+blocco.io.generatore,I/O · carbone → potenza,I/O · coal → power
+blocco.io.trasporto,I/O · trasporto oggetti,I/O · moves items
+menu.menu,Menu,Menu
+menu.ricerca,Ricerca,Research
+menu.mercato,Mercato,Market
+menu.campagna,Campagna,Campaign
+core.energia,Energia accumulata / capacità,Stored power / capacity
+core.energia.generatori, · generatori attivi {0}/{1}, · active generators {0}/{1}
+core.energia.nessuna,Nessuna rete elettrica,No power grid
+core.potenzia,Potenzia CORE,Upgrade CORE
+core.potenziato,CORE LV{0} · +{1}% vendite,CORE LV{0} · +{1}% sales
+core.obiettivo,OBIETTIVO · {0},OBJECTIVE · {0}
+core.obiettivo.titolo,OBIETTIVO,OBJECTIVE
+core.fondi,Fondi,Funds
+core.vuoto,Core vuoto: porta minerali con i nastri,Core empty: bring ore with belts
+rifiuto.CoreAlreadyUpgraded,Core già a LV{0} (+{1}%).,Core already at LV{0} (+{1}%).
+rifiuto.InsufficientResources,Risorse insufficienti,Not enough resources
+rifiuto.servono,Servono {0},Need {0}
+obiettivo.guadagna,Guadagna ${0},Earn ${0}
+obiettivo.magazzino,Magazzino {0} {1},Store {0} {1}
+obiettivo.sblocca,Sblocca {0},Unlock {0}
+obiettivo.vendi,Vendi {0} {1},Sell {0} {1}
+obiettivo.generico,Obiettivo,Objective
+obiettivo.nessuno,Nessun obiettivo,No objectives
+direzione.nord,Nord,North
+direzione.est,Est,East
+direzione.sud,Sud,South
+direzione.ovest,Ovest,West
+hud.direzione,R · {0} · destro = elimina,R · {0} · right click = remove
+hud.direzione.toast,Direzione: {0},Direction: {0}
+hud.camera.core,Camera sul CORE (H),Camera on the CORE (H)
+cantiere.mancano,Mancano: {0},Missing: {0}
+ricerca.sbloccato,Sblocco applicato,Unlocked
+mercato.venduto.fondi,Venduto · Fondi ${0},Sold · Funds ${0}
+mercato.auto.on,Vendita automatica ON,Auto-sell ON
+mercato.auto.off,Vendita automatica OFF,Auto-sell OFF
+salvataggi.salvata.continua,Partita salvata (continua),Game saved (continue)
+salvataggi.caricata.continua,Partita caricata (continua),Game loaded (continue)
+salvataggi.rapido.salvato,Slot-1 salvato,Slot-1 saved
+salvataggi.rapido.caricato,Slot-1 caricato,Slot-1 loaded
+coda.suggerimento,Coda di costruzione · clic = mostra il cantiere,Build queue · click = show the site
+coda.manca,Manca: {0},Missing: {0}
+coda.denaro,denaro,money
+core.potenziato.toast,Core potenziato: +{0}% vendite!,Core upgraded: +{0}% sales!
+selezionatore.filtro,Filtro: {0},Filter: {0}
+dev.linea.core,Seed linea Core · nastro {0},Core line seed · belts {0}
+salvataggi.continua.nessuno,Nessun salvataggio continua,No continue save
+salvataggi.continua.caricata,Continua caricata,Continue loaded
+partita.nuova.toast,Nuova partita · {0} {1}×{1} · seme {2},New game · {0} {1}×{1} · seed {2}
+mappa.errore.caricamento,Caricamento della mappa non riuscito: {0},Map loading failed: {0}
+campagna.non.disponibile,Campagna non disponibile.,Campaign not available.
+mappa.errore.cartella,Mappa del livello «{0}» non disponibile: cartella delle mappe (data/maps) non trovata.,Map of level «{0}» not available: map folder (data/maps) not found.
+mappa.errore.livello,Mappa del livello «{0}» non disponibile: {1},Map of level «{0}» not available: {1}
+campagna.avvio.toast,Campagna · {0} · {1}×{2},Campaign · {0} · {1}×{2}
+campagna.completato.toast,Livello completato · {0},Level complete · {0}
+salvataggi.errore.salvataggio,Salvataggio fallito,Save failed
+salvataggi.errore.nessuno,Nessun salvataggio ({0}),No save ({0})
+salvataggi.errore.versione,Salvataggio di una versione precedente: non compatibile.,Save from an older version: not compatible.
+salvataggi.errore.illeggibile,Salvataggio non leggibile.,Save file not readable.
+salvataggi.errore.caricamento,Caricamento fallito,Loading failed
+mappa.generazione,Generazione della mappa…,Generating the map…
+salvataggi.caricato,Caricato · {0},Loaded · {0}
+salvataggi.nessuna.partita,Nessuna partita attiva da salvare,No game in progress to save
+salvataggi.salvato.come,Salvato come {0},Saved as {0}
+salvataggi.continua.aggiornata,Continua aggiornata,Continue updated
+tutorial.completato,Tutorial completato,Tutorial complete
+tutorial.saltato,Tutorial saltato,Tutorial skipped
+impostazioni.applicate.toast,Impostazioni · UI {0} · VSync {1},Settings · UI {0} · VSync {1}
+comune.on,ON,ON
+comune.off,OFF,OFF
+rifiuto.InvalidCommand,Comando non valido.,Invalid command.
+rifiuto.OnCore,Non puoi costruire sul Core,You can't build on the Core
+rifiuto.Occupied,Cella occupata o non valida,Cell occupied or not valid
+rifiuto.Wall,C'è una parete,There is a wall
+rifiuto.DeepWater,Acqua profonda,Deep water
+rifiuto.NeedsAdvancedMiner,Serve il Minatore T2 per il titanio,Titanium needs the Miner T2
+rifiuto.LockedByResearch,Bloccato dalla ricerca,Locked by research
+rifiuto.AlreadyUnlocked,Già sbloccato.,Already unlocked.
+rifiuto.MissingPrerequisites,Prerequisiti mancanti.,Missing prerequisites.
+rifiuto.UnlockUnaffordable,Risorse insufficienti per sbloccare.,Not enough resources to unlock.
+rifiuto.SellFailed,Vendita fallita (stock insufficiente).,Sale failed (not enough stock).
+rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
+home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
+home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.
+home.sottotitolo,Fabbrica · Logistica · Ricerca,Factory · Logistics · Research
+home.continua,Continua,Continue
+home.nuova,Nuova partita,New game
+home.salvataggi,Gestione salvataggi,Manage saves
+home.impostazioni,Impostazioni,Settings
+home.esci,Esci,Quit
+partita.misura.media,Media,Medium
+partita.misura.grande,Grande,Large
+partita.misura.enorme,Enorme,Huge
+partita.seme.errore,Il seme deve essere un numero intero tra {0} e {1}.,The seed must be a whole number between {0} and {1}.
+partita.seme.copiato,Seme copiato.,Seed copied.
+partita.misura,Misura della mappa,Map size
+partita.seme,Seme (la stessa misura e lo stesso seme danno la stessa mappa),Seed (the same size and seed give the same map)
+partita.seme.nuovo,Nuovo seme,New seed
+partita.seme.copia,Copia,Copy
+partita.notte,Notte (mappa al buio: contano le luci dei blocchi e le Lampade),Night (dark map: block lights and Lamps matter)
+comune.indietro,Indietro,Back
+partita.inizia,Inizia,Start
+campagna.suggerimento,Scegli un livello sbloccato · G apre / Esc chiude,Choose an unlocked level · G opens / Esc closes
+comune.indietro.esc,Indietro · Esc,Back · Esc
+campagna.stato.bloccato,BLOCCATO,LOCKED
+campagna.stato.completato,COMPLETATO,COMPLETE
+campagna.stato.gioca,GIOCA,PLAY
+impostazioni.fps.nessuno,Nessuno,None
+impostazioni.stato,Modifica e premi Applica per salvare.,Change and press Apply to save.
+impostazioni.descrizione,Grafica e interfaccia. Applica salva su disco e vale subito.,Graphics and interface. Apply saves to disk and takes effect at once.
+impostazioni.grafica,Grafica,Graphics
+impostazioni.effetti,Effetti,Effects
+impostazioni.effetti.alti,Alti,High
+impostazioni.effetti.bassi,Bassi,Low
+impostazioni.effetti.spenti,Spenti,Off
+impostazioni.ombre,Ombre sotto gli edifici,Shadows under buildings
+impostazioni.bagliore,Bagliore,Glow
+impostazioni.animazioni,Animazioni dei blocchi (non le particelle),Block animations (not the particles)
+impostazioni.animazioni.suggerimento,"Ferma trivelle, rotori, bocche dei forni e luce del Core. Fumo, scintille e polvere seguono l'impostazione Effetti.","Stops drills, rotors, smelter mouths and the Core light. Smoke, sparks and dust follow the Effects setting."
+impostazioni.fps.limite,Limite FPS,FPS limit
+impostazioni.schermo.intero,Schermo intero,Fullscreen
+impostazioni.scala.rendering,Scala di rendering (mondo),Render scale (world)
+impostazioni.interfaccia,Interfaccia,Interface
+impostazioni.lingua,Lingua · Language,Language · Lingua
+lingua.it,Italiano,Italiano
+lingua.en,English,English
+impostazioni.mostra.fps,Mostra FPS,Show FPS
+impostazioni.mostra.risorse,Mostra risorse sistema (CPU · GPU · RAM),Show system resources (CPU · GPU · RAM)
+impostazioni.rivedi.tutorial,Rivedi tutorial,Replay tutorial
+impostazioni.applica,Applica,Apply
+impostazioni.scala.ui.nitido,"Testo più nitido a 100%, 150% e 200%.","Sharpest text at 100%, 150% and 200%."
+impostazioni.scala.ui,Scala UI · {0},UI scale · {0}
+impostazioni.salvato,Salvato · Effetti {0} · UI {1} · VSync {2},Saved · Effects {0} · UI {1} · VSync {2}
+salvataggi.suggerimento,↑↓ seleziona · Invio carica · Elimina (due clic) · Duplica Continua · Salva come.,↑↓ select · Enter loads · Delete (two clicks) · Duplicate Continue · Save as.
+salvataggi.carica,Carica,Load
+salvataggi.elimina,Elimina,Delete
+salvataggi.duplica,Duplica Continua,Duplicate Continue
+salvataggi.salva.come,Salva come,Save as
+salvataggi.vuoto,"Nessun salvataggio. F5 in partita, Continua, o Salva come dopo la prima sessione.","No saves. F5 in game, Continue, or Save as after the first session."
+salvataggi.conferma,Conferma Elimina su «{0}»,Confirm Delete on «{0}»
+salvataggi.selezionato,Selezionato: {0} · {1} slot,Selected: {0} · {1} slots
+salvataggi.elimina.conferma,Conferma elimina,Confirm delete
+salvataggi.continua.automatico,Continua (salvataggio automatico),Continue (autosave)
+salvataggi.mappa.campagna,Mappa {0} · {1}×{2},Map {0} · {1}×{2}
+salvataggi.mappa.biomi,Biomi · {0} · seme {1},Biomes · {0} · seed {1}
+salvataggi.mappa.vuota,senza terreno,no terrain
+salvataggi.mappa.classica,Classico · {0}×{1} · seme {2},Classic · {0}×{1} · seed {2}
+salvataggi.seleziona.carica,Seleziona uno slot da caricare.,Select a slot to load.
+salvataggi.seleziona.elimina,Seleziona uno slot da eliminare.,Select a slot to delete.
+salvataggi.eliminato,Slot eliminato.,Slot deleted.
+salvataggi.duplica.nessuna,Nessuna Continua da duplicare.,No Continue to duplicate.
+salvataggi.creato,Creato {0},Created {0}
+mercato.auto.attivata,Vendita automatica attivata.,Auto-sell on.
+mercato.auto.disattivata,Vendita automatica disattivata.,Auto-sell off.
+mercato.venduti,Venduti {0}× {1} → +${2},Sold {0}× {1} → +${2}
+mercato.auto.on.suggerimento,Tutto ciò che arriva al CORE viene venduto subito.,Everything that reaches the CORE is sold at once.
+mercato.auto.off.suggerimento,Gli oggetti restano nel CORE: vendili da qui.,Items stay in the CORE: sell them from here.
+mercato.consiglio.nessuno,Nessun prezzo mercato.,No market prices.
+mercato.consiglio.vendi,Conviene vendere: {0} (${1}).,Worth selling: {0} (${1}).
+mercato.consiglio.lastre,"Stock → costruisci, oppure vendi lastre (+${0} vs 2 ore). Prezzi reagiscono allo stock.","Stock → build, or sell plates (+${0} vs 2 ores). Prices react to stock."
+mercato.consiglio.accumula,Accumula in magazzino; vendi dal Mercato quando ti servono $.,Pile up in storage; sell from the Market when you need $.
+mercato.auto,Vendita automatica al CORE,Auto-sell at the CORE
+mercato.colonna.oggetto,Oggetto,Item
+mercato.colonna.quantita,Quantità,Amount
+mercato.colonna.prezzo,Prezzo,Price
+mercato.colonna.valore,Valore,Value
+mercato.fondi,Fondi · venduto finora ${0},Funds · sold so far ${0}
+mercato.vuoto,Niente da vendere: porta minerali o lastre al CORE con i nastri.,Nothing to sell: bring ore or plates to the CORE with belts.
+mercato.listino.calo,Listino ${0}: il prezzo scende se vendi molto dello stesso oggetto,List price ${0}: the price drops if you sell a lot of the same item
+mercato.listino,Listino ${0},List price ${0}
+mercato.vendi.uno,Vendi 1,Sell 1
+mercato.vendi.tutto,Vendi tutto,Sell all
+ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
+ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
+ricerca.legenda,Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente,Gold border = you can unlock it · lock = unlock the one before first
+ricerca.sblocca,Conferma sblocco,Confirm unlock
+ricerca.fondi,Fondi: ${0},Funds: ${0}
+ricerca.zoom,Zoom {0}×,Zoom {0}×
+ricerca.core.descrizione,Il cuore della base: qui arrivano le risorse. Ogni ricerca parte da qui.,The heart of the base: resources arrive here. All research starts here.
+ricerca.seleziona,Seleziona un blocco,Select a block
+ricerca.stato.segnaposto,Stato: sbloccato (segnaposto),State: unlocked (placeholder)
+ricerca.stato.sbloccato,Stato: sbloccato,State: unlocked
+ricerca.stato.disponibile,Stato: disponibile,State: available
+ricerca.stato.bloccato,Stato: bloccato,State: locked
+ricerca.costi,Sblocco: {0}\nCostruzione: {1},Unlock: {0}\nBuild: {1}
+ricerca.segnaposto,Segnaposto: non costruibile ancora.,Placeholder: cannot be built yet.
+ricerca.gia.sbloccato,Già sbloccato,Already unlocked
+ricerca.prerequisiti.mancanti,Prerequisiti mancanti,Missing prerequisites
+ricerca.sbloccato.segnaposto,{0} sbloccato (segnaposto — non costruibile ancora).,{0} unlocked (placeholder — cannot be built yet).
+ricerca.sbloccato.nome,{0} sbloccato!,{0} unlocked!
+ricerca.nodo.sbloccato,Sbloccato,Unlocked
+ricerca.nodo.sblocco,Sblocco: {0},Unlock: {0}
+ricerca.uso.generico,Struttura di fabbrica.,Factory structure.
+ricerca.uso,Uso: {0},Use: {0}
+ricerca.gratis,gratis,free
+ricerca.prerequisiti,Prerequisiti: {0},Prerequisites: {0}
+ricerca.prerequisiti.nessuno,nessuno,none
+ricerca.prerequisito.manca,{0} (manca),{0} (missing)
+struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · output on every side · 2×2
+struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% se alimentato · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% when powered · multi-side output
+struttura.smelter.descrizione,Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2,Smelts ore into plates (coal or power) · +20% when powered · 2×2
+struttura.assembler.descrizione,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
+struttura.extractor.descrizione,Tira 1 oggetto da CORE/edificio · F filtro · R uscita,Pulls 1 item from the CORE/a building · F filter · R output
+struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
+struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
+struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,Belt T3 · top speed · R/wheel
+struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
+struttura.splitter.descrizione,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
+struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
+struttura.conveyor-bridge.descrizione,Ponte span 2–5 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–5 · I/O on 3 sides · instant teleport
+struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
+struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Node T1 · 1×1 · range 6 · links to generators by itself
+struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Node T2 · 2×2 · range 10 · links to generators by itself
+struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
+tutorial.passo.1,"Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.","Move the view: WASD, hold the wheel, or drag with the left button (in cursor mode). Wheel = zoom · H goes back to the CORE."
+tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categorie (Logistica, Produzione, Potenza); una categoria compare quando ne sblocchi un blocco. Scegli uno strumento (o premi 1–9). Esc torna al cursore.","The palette is bottom right: the category icons on its right (Logistics, Production, Power); a category shows up once you unlock one of its blocks. Pick a tool (or press 1–9). Esc goes back to the cursor."
+tutorial.passo.3,Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. R ruota l'uscita. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.,Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. R rotates the output. Your drone builds what you plan: watch it fly and draw the block.
+tutorial.passo.4,Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.,Press 1 (Belt) and drag a line from the miner's output to the CORE: the ore goes into storage.
+tutorial.passo.5,"Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.","Press M to open the MARKET: sell ore and plates, or turn on Auto-sell."
+tutorial.passo.6,Premi T per aprire la RICERCA: con soldi e lastre sblocchi il FORNO e gli altri edifici.,Press T to open RESEARCH: with money and plates you unlock the SMELTER and the other buildings.
+tutorial.passo.7,"Piazza un FORNO (3): fonde i minerali in lastre. Serve carbone OPPURE corrente (generatore + nodi potenza, +20%).","Place a SMELTER (3): it smelts ore into plates. It needs coal OR power (generator + power nodes, +20%)."
+tutorial.passo.8,"IMPOSTAZIONI (I, o dalla Home): lingua, scala UI, VSync e Rivedi tutorial. Premi Fine per chiudere.","SETTINGS (I, or from Home): language, UI scale, VSync and Replay tutorial. Press Done to close."
+tutorial.fatto,✓ fatto,✓ done
+tutorial.salta,Salta tutorial,Skip tutorial
+tutorial.avanti,Avanti,Next
+tutorial.avanti.suggerimento,Il passo avanza da solo quando lo completi · Invio = avanti,The step moves on by itself when you complete it · Enter = next
+tutorial.passo,Tutorial {0}/{1},Tutorial {0}/{1}
+tutorial.fine,Fine,Done

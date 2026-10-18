@@ -29,9 +29,9 @@ public partial class NewGamePanel : Control
     /// <summary>Italian name of a map size.</summary>
     public static string SizeLabel(MapSize size) => size switch
     {
-        MapSize.Media => "Media",
-        MapSize.Grande => "Grande",
-        MapSize.Enorme => "Enorme",
+        MapSize.Media => Testi.T("partita.misura.media"),
+        MapSize.Grande => Testi.T("partita.misura.grande"),
+        MapSize.Enorme => Testi.T("partita.misura.enorme"),
         _ => size.ToString()
     };
 
@@ -119,10 +119,7 @@ public partial class NewGamePanel : Control
             return seed;
         }
 
-        ShowStatus(
-            $"Il seme deve essere un numero intero tra {int.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture)} "
-            + $"e {int.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture)}.",
-            error: true);
+        ShowStatus(Testi.F("partita.seme.errore", int.MinValue, int.MaxValue), error: true);
         return null;
     }
 
@@ -139,7 +136,7 @@ public partial class NewGamePanel : Control
         if (ReadSeed() is { } seed)
         {
             DisplayServer.ClipboardSet(seed.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            ShowStatus("Seme copiato.");
+            ShowStatus("partita.seme.copiato");
         }
     }
 
@@ -159,21 +156,20 @@ public partial class NewGamePanel : Control
 
         root.AddChild(new Label
         {
-            Text = "Nuova partita",
+            Text = "home.nuova",
             HorizontalAlignment = HorizontalAlignment.Center,
             ThemeTypeVariation = UiTheme.Titolo
         });
 
-        root.AddChild(MutedLabel("Misura della mappa"));
+        root.AddChild(MutedLabel("partita.misura"));
         var sizes = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(sizes);
         var group = new ButtonGroup();
         foreach (var size in Sizes)
         {
-            var edge = (int)size;
             var button = new Button
             {
-                Text = $"{SizeLabel(size)}\n{edge}×{edge}",
+                Text = SizeButtonText(size),
                 ToggleMode = true,
                 ButtonGroup = group,
                 CustomMinimumSize = new Vector2(0, 52),
@@ -184,7 +180,7 @@ public partial class NewGamePanel : Control
             sizes.AddChild(button);
         }
 
-        root.AddChild(MutedLabel("Seme (la stessa misura e lo stesso seme danno la stessa mappa)"));
+        root.AddChild(MutedLabel("partita.seme"));
         var seedRow = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(seedRow);
         _seedEdit = new LineEdit
@@ -196,17 +192,17 @@ public partial class NewGamePanel : Control
         };
         _seedEdit.TextSubmitted += _ => OnStartPressed();
         seedRow.AddChild(_seedEdit);
-        seedRow.AddChild(MakeButton("Nuovo seme", () =>
+        seedRow.AddChild(MakeButton("partita.seme.nuovo", () =>
         {
             SetSeed(NewSeed());
             ShowStatus("");
         }));
-        seedRow.AddChild(MakeButton("Copia", OnCopyPressed));
+        seedRow.AddChild(MakeButton("partita.seme.copia", OnCopyPressed));
 
         _night = new CheckButton
         {
             Name = "NightCheck",
-            Text = "Notte (mappa al buio: contano le luci dei blocchi e le Lampade)",
+            Text = "partita.notte",
             ButtonPressed = false,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
@@ -218,17 +214,31 @@ public partial class NewGamePanel : Control
 
         var actions = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(actions);
-        var back = MakeButton("Indietro", () =>
+        var back = MakeButton("comune.indietro", () =>
         {
             Close();
             Cancelled?.Invoke();
         });
         back.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         actions.AddChild(back);
-        var start = MakeButton("Inizia", OnStartPressed);
+        var start = MakeButton("partita.inizia", OnStartPressed);
         start.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         start.ThemeTypeVariation = UiTheme.PulsantePrimario;
         actions.AddChild(start);
+    }
+
+    private static string SizeButtonText(MapSize size) => $"{SizeLabel(size)}\n{(int)size}×{(int)size}";
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationTranslationChanged)
+        {
+            // New language: the size names (the other texts are keys, translated by Godot).
+            for (var i = 0; i < _sizeButtons.Count; i++)
+            {
+                _sizeButtons[i].Text = SizeButtonText(Sizes[i]);
+            }
+        }
     }
 
     private static Label MutedLabel(string text)

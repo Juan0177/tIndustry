@@ -15,56 +15,39 @@ public partial class BuildPalette : PanelContainer
     internal sealed record PaletteEntry(
         ToolKind Tool,
         string StructureId,
-        string Hotkey,
-        string HintIt);
+        string Hotkey);
 
     private static readonly PaletteEntry[] ToolsEntries =
     [
-        new(ToolKind.Cursor, "", "Esc", "Cursore: pan / guarda · Esc o riesci sul tool")
+        new(ToolKind.Cursor, "", "Esc")
     ];
 
     private static readonly PaletteEntry[] LogisticsEntries =
     [
-        new(ToolKind.Belt, "conveyor-basic", "1",
-            "Nastro T1 · flusso unidirezionale · R/rotella"),
-        new(ToolKind.BeltFast, "conveyor-fast", "",
-            "Nastro T2 · più veloce · sblocca in Ricerca"),
-        new(ToolKind.BeltExpress, "conveyor-express", "",
-            "Nastro T3 · max velocità · sblocca in Ricerca"),
-        new(ToolKind.Junction, "junction", "5",
-            "Incrocio a croce"),
-        new(ToolKind.Splitter, "splitter", "6",
-            "Nastro a T · alterna sinistra/destra"),
-        new(ToolKind.Sorter, "sorter", "8",
-            "Filtro item · icona al centro · C cicla · match avanti"),
-        new(ToolKind.Bridge, "conveyor-bridge", "9",
-            "Ponte span 2–5 · I/O 3 lati · teleporto istantaneo")
+        new(ToolKind.Belt, "conveyor-basic", "1"),
+        new(ToolKind.BeltFast, "conveyor-fast", ""),
+        new(ToolKind.BeltExpress, "conveyor-express", ""),
+        new(ToolKind.Junction, "junction", "5"),
+        new(ToolKind.Splitter, "splitter", "6"),
+        new(ToolKind.Sorter, "sorter", "8"),
+        new(ToolKind.Bridge, "conveyor-bridge", "9")
     ];
 
     private static readonly PaletteEntry[] ProductionEntries =
     [
-        new(ToolKind.Miner, "miner", "2",
-            "Estrae minerali · Scava: ferro, rame, carbone, piombo · uscita su tutti i lati · 2×2"),
-        new(ToolKind.MinerAdvanced, "miner-advanced", "",
-            "Minatore T2 · Scava: tutti i minerali, anche il titanio · 2× velocità · +20% se alimentato · sblocca in Ricerca"),
-        new(ToolKind.Smelter, "smelter", "3",
-            "Carbone o corrente · +20% craft se alimentato · 2×2"),
-        new(ToolKind.Assembler, "assembler", "4",
-            "Assembla prodotti · R ruota uscita · 2×2"),
-        new(ToolKind.Extractor, "extractor", "",
-            "Estrae dal Core → nastro · F filtro · R uscita · 1×1")
+        new(ToolKind.Miner, "miner", "2"),
+        new(ToolKind.MinerAdvanced, "miner-advanced", ""),
+        new(ToolKind.Smelter, "smelter", "3"),
+        new(ToolKind.Assembler, "assembler", "4"),
+        new(ToolKind.Extractor, "extractor", "")
     ];
 
     private static readonly PaletteEntry[] PowerEntries =
     [
-        new(ToolKind.Generator, "generator", "7",
-            "Brucia carbone per energia · 2×2"),
-        new(ToolKind.PowerNode, "power-node", "",
-            "Nodo T1 · raggio 6 · collega generatore ↔ forno"),
-        new(ToolKind.PowerNodeT2, "power-node-t2", "",
-            "Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca"),
-        new(ToolKind.Lamp, "lamp", "",
-            "Lampada · illumina di notte · consuma 1 di energia · 1×1")
+        new(ToolKind.Generator, "generator", "7"),
+        new(ToolKind.PowerNode, "power-node", ""),
+        new(ToolKind.PowerNodeT2, "power-node-t2", ""),
+        new(ToolKind.Lamp, "lamp", "")
     ];
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
@@ -121,7 +104,7 @@ public partial class BuildPalette : PanelContainer
         gridWrap.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         top.AddChild(gridWrap);
 
-        _categoryTitle = MakeLabel("Logistica", UiTheme.TestoTenue);
+        _categoryTitle = MakeLabel(CategoryLabel(_category), UiTheme.TestoTenue);
         gridWrap.AddChild(_categoryTitle);
 
         _blockGrid = new GridContainer
@@ -134,10 +117,10 @@ public partial class BuildPalette : PanelContainer
         var catRail = new VBoxContainer();
         _categoryRail = catRail;
         top.AddChild(catRail);
-        AddCategoryButton(catRail, BuildCategory.Tools, "cat-strumenti", "Strumenti");
-        AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica", "Logistica");
-        AddCategoryButton(catRail, BuildCategory.Production, "cat-produzione", "Produzione");
-        AddCategoryButton(catRail, BuildCategory.Power, "cat-potenza", "Potenza");
+        AddCategoryButton(catRail, BuildCategory.Tools, "cat-strumenti");
+        AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica");
+        AddCategoryButton(catRail, BuildCategory.Production, "cat-produzione");
+        AddCategoryButton(catRail, BuildCategory.Power, "cat-potenza");
         SyncCategoryButtons();
     }
 
@@ -232,20 +215,21 @@ public partial class BuildPalette : PanelContainer
         RefreshToolChrome();
     }
 
-    /// <summary>Block name from content, falling back to the Italian tool name.</summary>
-    internal static string DisplayName(PaletteEntry entry, FactoryContent? content)
-    {
-        if (content is not null && !string.IsNullOrEmpty(entry.StructureId))
-        {
-            var s = content.FindStructure(entry.StructureId);
-            if (s is not null)
-            {
-                return s.DisplayName;
-            }
-        }
+    /// <summary>Block name by structure id (the cursor has its own).</summary>
+    internal static string DisplayName(PaletteEntry entry, FactoryContent? content) =>
+        entry.Tool == ToolKind.Cursor ? Testi.T("strumento.cursore") : Testi.Struttura(entry.StructureId, content);
 
-        return ToolDisplayFallback(entry.Tool);
-    }
+    /// <summary>
+    /// One-line description of the block (key <c>struttura.&lt;id&gt;.suggerimento</c>); a miner's has the ores it digs,
+    /// from the data (<see cref="Testi.Scava"/>).
+    /// </summary>
+    internal static string Hint(PaletteEntry entry, FactoryContent? content) => entry.Tool switch
+    {
+        ToolKind.Cursor => Testi.T("strumento.cursore.suggerimento"),
+        ToolKind.Miner or ToolKind.MinerAdvanced =>
+            Testi.F($"struttura.{entry.StructureId}.suggerimento", Testi.Scava(content, entry.StructureId)),
+        _ => Testi.T($"struttura.{entry.StructureId}.suggerimento")
+    };
 
     internal static PaletteEntry? FindEntry(ToolKind tool)
     {
@@ -294,13 +278,13 @@ public partial class BuildPalette : PanelContainer
         slot.Modulate = locked && !selected ? new Color(0.55f, 0.55f, 0.55f, 1f) : Colors.White;
     }
 
-    private void AddCategoryButton(Control parent, BuildCategory category, string icon, string tooltip)
+    private void AddCategoryButton(Control parent, BuildCategory category, string icon)
     {
         var slot = new PanelContainer
         {
             CustomMinimumSize = new Vector2(CellSide, CellSide),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = tooltip,
+            TooltipText = CategoryLabel(category),
             ThemeTypeVariation = UiTheme.Slot
         };
         parent.AddChild(slot);
@@ -398,6 +382,17 @@ public partial class BuildPalette : PanelContainer
         {
             SyncFixedSize();
         }
+        else if (what == NotificationTranslationChanged && _categoryTitle is not null)
+        {
+            // New language: names, tooltips and the title width follow.
+            _categoryTitle.Text = CategoryLabel(_category);
+            foreach (var (category, slot) in _categorySlots)
+            {
+                slot.TooltipText = CategoryLabel(category);
+            }
+
+            RebuildGrid();
+        }
     }
 
     /// <summary>Grid columns (playtests).</summary>
@@ -436,9 +431,9 @@ public partial class BuildPalette : PanelContainer
         {
             CustomMinimumSize = new Vector2(side + 8, side + 8),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = entry.Tool == ToolKind.Cursor
-                ? "Cursore"
-                : string.IsNullOrEmpty(entry.Hotkey) ? DisplayName(entry) : $"{DisplayName(entry)} [{entry.Hotkey}]",
+            TooltipText = string.IsNullOrEmpty(entry.Hotkey) || entry.Tool == ToolKind.Cursor
+                ? DisplayName(entry)
+                : $"{DisplayName(entry)} [{entry.Hotkey}]",
             ThemeTypeVariation = UiTheme.Slot
         };
         parent.AddChild(slot);
@@ -522,23 +517,23 @@ public partial class BuildPalette : PanelContainer
     {
         if (entry.Tool == ToolKind.Cursor)
         {
-            Choose(ToolKind.Cursor, "Cursore");
+            Choose(ToolKind.Cursor, Testi.T("strumento.cursore"));
             return;
         }
 
         if (_lockedTools.Contains(entry.Tool))
         {
-            ToastRequested?.Invoke($"{DisplayName(entry)} bloccato: sbloccalo in Ricerca (T).");
+            ToastRequested?.Invoke(Testi.F("rifiuto.Locked", DisplayName(entry)));
             return;
         }
 
         if (_selected == entry.Tool)
         {
-            Choose(ToolKind.Cursor, "Cursore");
+            Choose(ToolKind.Cursor, Testi.T("strumento.cursore"));
             return;
         }
 
-        Choose(entry.Tool, $"{DisplayName(entry)} selezionato");
+        Choose(entry.Tool, Testi.F("palette.selezionato", DisplayName(entry)));
     }
 
     private void Choose(ToolKind tool, string toast)
@@ -559,10 +554,10 @@ public partial class BuildPalette : PanelContainer
 
     private static string CategoryLabel(BuildCategory category) => category switch
     {
-        BuildCategory.Tools => "Strumenti",
-        BuildCategory.Logistics => "Logistica",
-        BuildCategory.Production => "Produzione",
-        BuildCategory.Power => "Potenza",
+        BuildCategory.Tools => Testi.T("categoria.strumenti"),
+        BuildCategory.Logistics => Testi.T("categoria.logistica"),
+        BuildCategory.Production => Testi.T("categoria.produzione"),
+        BuildCategory.Power => Testi.T("categoria.potenza"),
         _ => ""
     };
 
@@ -575,27 +570,5 @@ public partial class BuildPalette : PanelContainer
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp => BuildCategory.Power,
         _ => BuildCategory.Logistics
-    };
-
-    private static string ToolDisplayFallback(ToolKind tool) => tool switch
-    {
-        ToolKind.Cursor => "Cursore",
-        ToolKind.Belt => "Nastro",
-        ToolKind.BeltFast => "Nastro T2",
-        ToolKind.BeltExpress => "Nastro T3",
-        ToolKind.Miner => "Minatore",
-        ToolKind.MinerAdvanced => "Minatore T2",
-        ToolKind.Smelter => "Forno",
-        ToolKind.Assembler => "Assemblatore",
-        ToolKind.Junction => "Giunzione",
-        ToolKind.Splitter => "Splitter",
-        ToolKind.Generator => "Generatore",
-        ToolKind.Sorter => "Selezionatore",
-        ToolKind.Bridge => "Ponte",
-        ToolKind.Extractor => "Estrattore",
-        ToolKind.PowerNode => "Nodo potenza",
-        ToolKind.PowerNodeT2 => "Nodo T2",
-        ToolKind.Lamp => "Lampada",
-        _ => tool.ToString()
     };
 }

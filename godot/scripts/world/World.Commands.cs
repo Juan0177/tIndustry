@@ -139,7 +139,7 @@ public partial class World
                 _mercato?.OnCommandApplied(command, _host?.LastCommandMoneyDelta ?? 0);
                 break;
             case UpgradeCore when _view is not null:
-                _hud?.ShowToast($"Core potenziato: +{_view.CoreSaleBonusPercent}% vendite!");
+                _hud?.ShowToast(Testi.F("core.potenziato.toast", _view.CoreSaleBonusPercent));
                 _hud?.SyncCoreUpgrade(_view);
                 UpdateHud();
                 break;
@@ -165,7 +165,7 @@ public partial class World
                 MarkStructuresDirty(ConstructionLayer.StructureLayers.Both);
                 break;
             case PlanDropped dropped when dropped.PlayerId == LocalPlayer:
-                _hud?.ShowToast(dropped.Reason);
+                _hud?.ShowToast(Testi.Rifiuto(dropped.Reason, _view));
                 break;
         }
     }
@@ -212,11 +212,11 @@ public partial class World
         : _view.Belts.Count + _view.Miners.Count + _view.Smelters.Count + _view.Assemblers.Count
             + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count + _view.Lamps.Count;
 
-    private void OnCommandRejected(SimCommand command, string reason)
+    private void OnCommandRejected(SimCommand command, Refusal reason)
     {
         var quiet = TakeQuietRefusal(command)
-            && reason is CommandReasons.Occupied or CommandReasons.OnCore
-                or CommandReasons.Wall or CommandReasons.DeepWater or CommandReasons.NeedsAdvancedMiner;
+            && reason.Code is RefusalCode.Occupied or RefusalCode.OnCore
+                or RefusalCode.Wall or RefusalCode.DeepWater or RefusalCode.NeedsAdvancedMiner;
         switch (command)
         {
             case UnlockStructure:
@@ -231,7 +231,7 @@ public partial class World
             default:
                 if (!quiet)
                 {
-                    _hud?.ShowToast(reason);
+                    _hud?.ShowToast(Testi.Rifiuto(reason, _view));
                 }
 
                 break;

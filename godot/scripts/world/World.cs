@@ -116,6 +116,7 @@ public partial class World : Node2D
         // of project.godot shows at most for the instant before fullscreen.
         _settings = ClientSettings.Load();
         ApplyPlaytestUiScale();
+        ApplyPlaytestLanguage();
         _settings.ApplyToEngine(GetTree().Root);
         // One theme for the whole client UI (G4): the window (popups, tooltips) and every panel on the HUD root.
         UiTheme.ApplyTo(GetTree().Root, UiRoot);
