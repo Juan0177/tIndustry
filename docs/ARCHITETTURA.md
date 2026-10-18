@@ -48,7 +48,8 @@ tIndustry/
    ├─ ci/                       setup-godot.sh, export-godot.sh
    ├─ MapTool/                  mappe della campagna: genera, valida, anteprima
    ├─ art/                      genera.py (sprite di edifici, nastri, Core, drone, oggetti), palette, forme, test
-   └─ dev/                      playtest.sh, compare_shots.py, mappa_canvas.py
+   ├─ dev/                      playtest.sh, compare_shots.py, mappa_canvas.py
+   └─ sito/                     costruisci.py: sito su GitHub Pages (ingresso + asset), test
 ```
 
 `godot/data/` esiste solo dopo l'export (è una copia di `data/`) ed è ignorata da git.

@@ -35,12 +35,39 @@ public partial class DroneVisual : Node2D
     private static readonly Vector2 ShadowOffset = new(6f, 6f);
     private static readonly Color ShadowColor = new(0f, 0f, 0f, 0.35f);
 
-    /// <summary>Art pixels drawn ×2 (64 world px per 32 px cell).</summary>
-    private static readonly Vector2 SpriteScale = Vector2.One * (World.TileSize / (float)Sprites.PixelsPerCell);
+    /// <summary>
+    /// The art is enlarged ×<see cref="SharpFactor"/> without filtering once, then drawn shrunk with Linear
+    /// filtering, as Mindustry draws its big unit sprites: edges stay crisp at any heading. Linear on the
+    /// plain 24 px sprite drawn ×2 looked blurred.
+    /// </summary>
+    private const int SharpFactor = 4;
 
-    private static Texture2D? _texture;
+    /// <summary>Art pixels drawn ×2 (64 world px per 32 px cell), from the ×<see cref="SharpFactor"/> texture.</summary>
+    private static readonly Vector2 SpriteScale =
+        Vector2.One * (World.TileSize / (float)Sprites.PixelsPerCell / SharpFactor);
 
-    private static Texture2D Texture => _texture ??= Sprites.For(SpriteId);
+    // Per node, freed in _ExitTree: no C#-held texture outlives the scene (clean exit without forced GC).
+    private ImageTexture? _texture;
+
+    private Texture2D Texture => _texture ??= Enlarged(Sprites.For(SpriteId));
+
+    private static ImageTexture Enlarged(Texture2D art)
+    {
+        var image = art.GetImage();
+        if (image.IsCompressed())
+        {
+            image.Decompress();
+        }
+
+        image.Resize(image.GetWidth() * SharpFactor, image.GetHeight() * SharpFactor, Image.Interpolation.Nearest);
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    public override void _ExitTree()
+    {
+        _texture?.Dispose();
+        _texture = null;
+    }
 
     private const float HoverTiles = 0.05f;
     private const float HoverRadPerSec = 2.6f;
