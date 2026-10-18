@@ -29,7 +29,7 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/img/readme/gioco.png" alt="Minatore, nastro e CORE"><br><sub><b>Fabbrica</b> · il minatore porta il minerale al CORE sul nastro</sub></td>
+    <td width="50%"><img src="docs/img/readme/gioco.png" alt="Minatore, nastro e Core"><br><sub><b>Fabbrica</b> · il minatore porta il minerale al CORE sul nastro</sub></td>
     <td width="50%"><img src="docs/img/readme/ricerca.png" alt="Albero della Ricerca"><br><sub><b>Ricerca</b> · albero a rami come in Mindustry</sub></td>
   </tr>
   <tr>
@@ -38,16 +38,17 @@
   </tr>
 </table>
 
-### Anteprima della grafica nuova
+### Grafica
 
-Pixel-art originale in stile Mindustry, generata da script, che sostituirà la grafica di oggi con l'upgrade grafico (G1).
+Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta. Catture dal gioco.
 
 <p align="center">
-  <img src="docs/img/readme/anteprima-scena.png" alt="Anteprima: minatore, nastri, forno e drone su terreno in pixel-art" width="100%">
+  <img src="docs/img/readme/blocchi.png" alt="Blocchi di produzione e potenza accesi: minatori, forno, assemblatore, generatore, nodi e Core" width="100%">
+  <br><sub>Blocchi di produzione e potenza in funzione</sub>
 </p>
 <p align="center">
-  <img src="docs/img/readme/anteprima-sprite.png" alt="Anteprima degli sprite: minatore, forno, nastro, drone, lastra di ferro, filo di rame" width="100%">
-  <br><sub>Minatore · forno · nastro · drone costruttore · lastra di ferro · filo di rame (scala ×4)</sub>
+  <img src="docs/img/readme/oggetti.png" alt="Ogni oggetto sui tre tier di nastro" width="100%">
+  <br><sub>Ogni oggetto sui tre tier di nastro</sub>
 </p>
 
 ---
@@ -108,8 +109,9 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | --- | --- | --- |
 | Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
 | Fatto | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
-| In corso | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)); simulazione in `main`, gioco e documentazione in arrivo con le PR #164 e #166 |
-| Previsto | **G1–G4 · Upgrade grafico** | Pixel-art originale in stile Mindustry: blocchi, terreno, effetti e luci, interfaccia |
+| Fatto | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)) |
+| Fatto | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
+| In corso | **G2–G4 · Upgrade grafico** | Mappe e terreno, effetti e luci, interfaccia |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 

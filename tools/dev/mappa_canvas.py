@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, notte."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G1."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -72,20 +72,20 @@ fatto = Column("g-fatto", "Fatto", X[0], "4")
 fatto.card("sp1", "**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146")
 fatto.card("sp2", "**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]")
 fatto.card("sp3", "**SP3 · Costruzione come Mindustry**\nPiani, drone e cantieri con consegna dal Core, smontaggio con rimborso graduale, coda nell'HUD, salvataggi v11.\nPR #159–#166 · [[2026-10-17-costruzione-in-corso|diario]] · [[0003-costruzione-come-mindustry|ADR 0003]]")
+fatto.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra generata da tools/art/ (32 px per cella): edifici a strati, nastri a 3 tier, oggetti, Core in 4 tier, drone alpha / beta / gamma, animazioni di base.\nPR #168–#173 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g1-arte-blocchi|piano]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
-fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0003-costruzione-come-mindustry|0003]])\n- [[docs/diario/README|diario dei lavori]]")
+fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0004-arte-generata-da-script|0004]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
-corso = Column("g-sp3", "In corso", X[1], "3")
-corso.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra generata da tools/art/ (32 px per cella): edifici, nastri, oggetti, Core in 4 tier, drone alpha / beta / gamma, animazioni di base.\n[[2026-10-18-g1-arte-blocchi-design|spec]]")
+corso = Column("g-corso", "In corso", X[1], "3")
+corso.card("g2a", "**G2a · Mappe e terreno**\nMappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, salvataggi v12.\n[[2026-10-18-g2a-mappe-terreno-design|spec]]")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
 nxt = Column("g-next", "Prossimi (in ordine)", X[2], "5")
 roadmap = [
-    "g1",
-    nxt.card("g2a", "**G2a · Mappe e terreno**\nMappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, salvataggi v12.\n[[2026-10-18-g2a-mappe-terreno-design|spec]]"),
+    "g2a",
     nxt.card("g2b", "**G2b · Arte del terreno**\nSuoli, bordi, pareti raccordate, acqua animata, giacimenti a puntini.\n[[2026-10-18-g2b-arte-terreno-design|spec]]"),
     nxt.card("g3", "**G3 · Effetti e luci**\nParticelle, ombre, bagliori, notte opzionale, impostazioni grafiche per PC deboli.\n[[2026-10-18-g3-effetti-luci-design|spec]]"),
     nxt.card("g4", "**G4 · Interfaccia**\nStile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]"),
@@ -100,10 +100,10 @@ chain(roadmap)
 aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
 aperti.card("a2", "**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.", "4")
-aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167); lavoro notturno in corso.")
+aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1 finita; base degli screenshot candidata in .dev/baseline-g1-candidata, da approvare.")
 aperti.close()
 
-link("sp3", "g1")
+link("g1", "g2a")
 
 
 def obsidian_json(items):

@@ -1,8 +1,9 @@
 # G1 — Arte dei blocchi generata da script
 
-- **Stato**: approvata il 2026-10-18
+- **Stato**: approvata il 2026-10-18; attuata (PR #168–#173)
+- **Piano**: [2026-10-18-g1-arte-blocchi](../plans/2026-10-18-g1-arte-blocchi.md)
 - **Roadmap grafica**: **G1** → [G2a mappe e terreno](2026-10-18-g2a-mappe-terreno-design.md) → [G2b arte del terreno](2026-10-18-g2b-arte-terreno-design.md) → [G3 effetti e luci](2026-10-18-g3-effetti-luci-design.md) → [G4 interfaccia](2026-10-18-g4-interfaccia-design.md). Dopo: sotto-progetto 4 (tier e drone comandato) e sotto-progetto Liquidi.
-- **Collegati**: [ADR 0003 — Costruzione come Mindustry](../../decisioni/0003-costruzione-come-mindustry.md), [diario del sotto-progetto 3](../../diario/2026-10-17-costruzione-in-corso.md)
+- **Collegati**: [ADR 0004 — Arte generata da script](../../decisioni/0004-arte-generata-da-script.md), [ADR 0003 — Costruzione come Mindustry](../../decisioni/0003-costruzione-come-mindustry.md), [diario del sotto-progetto 3](../../diario/2026-10-17-costruzione-in-corso.md)
 
 ## Obiettivo
 

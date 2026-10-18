@@ -59,7 +59,11 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | C | Cicla filtro selezionatore |
 | RMB | Cancella un piano, annulla un cantiere o segna un blocco da smontare; clic singolo toglie il segno, trascinare segna soltanto (non è uno slot palette) |
 
-Ponte: estremi full 1×1, centro ~78% thickness, span 2–4, mid tiles free (belt can cross under).
+Ponte: estremi 1×1, campata larga circa il 70% della cella, distanza 2–4, celle in mezzo libere (un nastro può passarci sotto).
+
+## Grafica
+
+Edifici, nastri, Core, drone e oggetti sono pixel-art nostra generata da `python tools/art/genera.py` (32 px per cella, mostrati ×2 senza filtro; vedi `tools/art/README.md` e l'ADR 0004). Gli edifici hanno parti animate: la trivella del minatore gira mentre estrae, il forno si accende, i bracci dell'assemblatore premono, il rotore del generatore gira finché c'è combustibile; il nucleo del Core pulsa piano. I nastri scorrono alla velocità del loro tier e gli oggetti sopra hanno il loro sprite a colori, senza tinta. Le icone dell'interfaccia in `assets/ui/` sono di terzi (`assets/ATTRIBUTION.md`).
 
 ## Prove automatiche
 

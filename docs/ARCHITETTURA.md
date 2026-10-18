@@ -29,12 +29,13 @@ tIndustry/
 │  ├─ project.godot · export_presets.cfg · TIndustry.Godot.csproj
 │  ├─ scenes/Main.tscn          scena principale (nodo radice Main, script World)
 │  ├─ shaders/                  construct (cantieri)
-│  ├─ assets/                   icone (cartella piatta; ui/ per quelle dell'interfaccia) + ATTRIBUTION.md
+│  ├─ assets/                   sprite generati da tools/art (cartella piatta); ui/ per le icone dell'interfaccia + ATTRIBUTION.md
 │  └─ scripts/
 │     ├─ world/                 World + partial (Input, Placement, Session, Drawing, Visuals, Panels), WorldCamera
+│     ├─ visuals/               Sprites (unico accesso alle texture di assets/)
 │     ├─ visuals/belts/         MindustryBeltVisual, ScrollingBeltStrip, BeltCornerTile, BridgeSpanVisual
 │     ├─ visuals/buildings/     MinerVisual, SmelterVisual, AssemblerVisual, GeneratorVisual, ExtractorVisual, BuildingPad
-│     ├─ visuals/items/         ItemPalette, ItemSilhouette
+│     ├─ visuals/items/         ItemPalette
 │     ├─ visuals/construction/  ConstructionLayer (piani, cantieri, droni), DroneVisual
 │     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, BuildQueuePanel, HudStyle
 │     ├─ ui/panels/             Home, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
@@ -43,8 +44,8 @@ tIndustry/
 ├─ tests/TIndustry.Shared.Tests/  test xUnit (scenari della sim, validazione dei contenuti, salvataggi)
 └─ tools/
    ├─ ci/                       setup-godot.sh, export-godot.sh
-   ├─ dev/                      playtest.sh, compare_shots.py
-   └─ gen_structure_blocks.py   generatore delle icone dei blocchi
+   ├─ art/                      genera.py (sprite di edifici, nastri, Core, drone, oggetti), palette, forme, test
+   └─ dev/                      playtest.sh, compare_shots.py, mappa_canvas.py
 ```
 
 `godot/data/` esiste solo dopo l'export (è una copia di `data/`) ed è ignorata da git.
@@ -121,7 +122,7 @@ Il salvataggio è `SaveFileData` / `FactorySaveStore` (`src/TIndustry.Shared/Sav
 ## Come aggiungere un blocco
 
 1. **`data/content.json`**: aggiungi la struttura (id, costi, prerequisiti per la ricerca, ricetta/parametri). Se serve un nuovo oggetto, aggiungilo anche lì (e al mercato se vendibile). Il tempo di costruzione viene dal costo: un oggetto nuovo pesa 1,0 se non lo metti in `buildWeights`, e il blocco può rallentare o accelerare con `buildCostMultiplier` nella sua voce di `buildings[]` o `conveyors[]` (1 se manca). `refundPercent` della stessa voce è la sua quota di rimborso allo smontaggio.
-2. **Icona** in `godot/assets/` (PNG, di norma 64×64; nome = id della struttura); aggiungi la riga in `godot/assets/ATTRIBUTION.md` con autore e licenza. La stessa icona è lo sprite di piani e cantieri (`ConstructionLayer.TextureFor`). Eccezioni: `conveyor-express` usa `conveyor-fast.png` e `conveyor-bridge` usa `bridge.png` (fallback in `TechTreeCanvas.ResolveIcon`, `ConstructionLayer.TextureFor` e `ContentValidationTests.IconFileFor`; le righe della palette puntano direttamente al file).
+2. **Sprite**: disegnalo nel generatore (vedi [Grafica e sprite](#grafica-e-sprite)), mai a mano. `<id>.png` è l'icona di palette, Ricerca, coda, piani e cantieri; il client la prende con `Sprites.For(id)`.
 3. **Strumento di costruzione** (se il blocco è piazzabile dalla palette), da collegare in questi punti:
    - `Hud.ToolKind` e `Hud.StructureIdFor` (`godot/scripts/ui/hud/Hud.cs`): nuova voce dell'enum e mappatura sull'id della struttura;
    - `BuildPalette.cs` (`godot/scripts/ui/hud/`): riga nella tabella della categoria (`ToolsEntries`, `LogisticsEntries`, `ProductionEntries` o `PowerEntries`), `CategoryFor` e nome mostrato (`ToolDisplayFallback`);
@@ -140,7 +141,23 @@ Il salvataggio è `SaveFileData` / `FactorySaveStore` (`src/TIndustry.Shared/Sav
    - `Factory.TryGetSpecAt` (`Factory.cs`): riconosce il blocco su una cella e ne ricostruisce lo `BuildSpec`. Serve a `Remove` (piano di smontaggio), a `Construction.BeginDeconstruct` e a `ConstructFinished`;
    - comportamento nuovo: scrivilo in `src/TIndustry.Shared/Buildings/` o `Power/` e richiamalo dal sistema giusto in `Simulation/Systems/`, rispettando le regole di determinismo;
    - se l'edificio ha stato, includilo in `Factory.Capture`/`Restore` (istantanea e salvataggio) e, cambiando il formato, alza `FactorySaveData.CurrentVersion`.
-6. **Test**: `ContentValidationTests` deve restare verde (icona presente, prerequisiti validi); aggiungi uno scenario in `tests/TIndustry.Shared.Tests/` se c'è logica nuova.
+6. **Test**: `ContentValidationTests` deve restare verde (sprite presente, prerequisiti validi) e anche `python -m unittest tools/art/test_genera.py` (copertura degli sprite); aggiungi uno scenario in `tests/TIndustry.Shared.Tests/` se c'è logica nuova.
+
+## Grafica e sprite
+
+Gli sprite di edifici, nastri, Core, drone e oggetti sono pixel-art originale generata da `python tools/art/genera.py` ([ADR 0004](decisioni/0004-arte-generata-da-script.md), istruzioni in `tools/art/README.md`). I PNG in `godot/assets/` non si ritoccano a mano. Le icone dell'interfaccia in `godot/assets/ui/` sono di terzi, con autore e licenza in `godot/assets/ATTRIBUTION.md`.
+
+- **Generatore.** `tools/art/palette.py` (tutti i colori, rampe da scuro a chiaro, luce da in alto a sinistra, contorno scuro), `forme.py` (pannelli, bulloni, tubi, griglie, ingranaggi, strisce di fotogrammi), `blocchi/` (un modulo per famiglia: ogni funzione registrata con `@sprite("<nome>")` è un PNG). Uscita deterministica; `genera.py --controlla` dice se `godot/assets/` è aggiornata. `.dev/arte/tavola.png` mette ogni sprite vecchio accanto al nuovo per la revisione.
+- **Nomi e misure.** 32 px per cella, mostrati ×2 con filtro Nearest. Nome = id di `content.json`; parti con suffisso (`miner-base`, `miner-drill`, `assembler-arm`…); animazioni come strisce `<id>-anim.png` di fotogrammi quadrati; tier `core-1…4`, `drone-1…3`; oggetti `<id>.png` 32×32 (HUD) e `<id>-belt.png` 10×10 (nastri).
+- **Client.** `Sprites` (`godot/scripts/visuals/Sprites.cs`) è l'unico accesso: `For` (con un riquadro magenta e un avviso se il PNG manca), `TryFor`, `Item`, `BeltItem`, `Frames` (taglia una striscia in quadrati). Gli edifici sono a strati (`BuildingPad.Layer`): base ferma e parti animate dai visual di `godot/scripts/visuals/buildings/`. Gli oggetti non sono tinti.
+
+### Come aggiungere lo sprite di un blocco
+
+1. Nel modulo della sua famiglia in `tools/art/blocchi/` scrivi una funzione che restituisce un'immagine RGBA (`forme.nuova(32 * lato, 32 * lato)`, colori solo da `palette.py`) e registrala con `@sprite("<id>")`. Per un blocco a strati registra anche le parti (`<id>-base`, `<id>-<parte>-anim`) e fai di `<id>` l'icona composta (base + primo fotogramma).
+2. Se il blocco è nuovo, aggiungi il suo lato alla tabella `CELLE` di `tools/art/test_genera.py` (la stessa misura di `Factory.FootprintSize`).
+3. `python tools/art/genera.py --solo <id> …`, guarda `.dev/arte/tavola.png`, poi `python -m unittest tools/art/test_genera.py`.
+4. Importa i PNG nuovi in Godot per avere i `.import` (comando in `CLAUDE.md`) e fai il commit di PNG e `.import` insieme.
+5. Nel client usa `Sprites.For("<id>")` (o `Sprites.Frames("<id>-<parte>")` per un'animazione); un blocco con parti mobili ha il suo visual in `godot/scripts/visuals/buildings/`.
 
 ## Test e playtest
 

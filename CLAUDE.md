@@ -17,6 +17,7 @@ Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--editor] [--tes
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q       # atteso: 0 errori, 0 avvisi
 dotnet test tests/TIndustry.Shared.Tests -c Release --no-build
+python -m unittest tools/art/test_genera.py                # test del generatore degli sprite
 APPDATA="$(mktemp -d)" godot4 --headless --path godot --import   # poi ripristina i .import (sotto)
 APPDATA="$(mktemp -d)" godot4 --headless --path godot --build-solutions --quit
 godot4 --path godot                                      # avvia il gioco (legge data/)
@@ -40,7 +41,7 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 - Namespace: `TIndustry.Shared`, `TIndustry.Godot`, `TIndustry.Shared.Tests` (nessun sotto-namespace per cartella).
 - `src/TIndustry.Shared` non dipende da Godot né dal sistema operativo (vedi `docs/decisioni/0001-server-csharp.md`).
 - Dati di gioco solo in `data/` (`content.json`, `campaign.json`); `godot/data/` è generata dall'export ed è ignorata da git.
-- Icone solo in `godot/assets/` (piatto), con attribuzione in `godot/assets/ATTRIBUTION.md`.
+- Sprite di edifici, nastri, Core, drone e oggetti solo da `python tools/art/genera.py`; non modificare i PNG a mano (si cambia lo script e si rigenera; `--controlla` verifica, vedi `tools/art/README.md` e `docs/decisioni/0004-arte-generata-da-script.md`). Tutto in `godot/assets/` (piatto); le icone di terzi dell'interfaccia stanno in `godot/assets/ui/` con attribuzione in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
 - Salvataggi alla versione 11 (`FactorySaveData.CurrentVersion`); cambiare il formato = alzare la versione.
 - Costruzione come Mindustry (piani, drone, cantieri: `docs/decisioni/0003-costruzione-come-mindustry.md`). I test che non provano la costruzione usano `GameRules(InstantBuild: true)` (per esempio `NewGame.Sandbox(..., rules: new GameRules(InstantBuild: true))`), così i piazzamenti tramite `SimHost` sono istantanei; i `Factory.TryPlace…` piazzano sempre subito.
