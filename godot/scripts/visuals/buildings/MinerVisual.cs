@@ -33,6 +33,7 @@ public partial class MinerVisual : Node2D
             _clock = BuildingPad.Phase(miner.Position)
         };
 
+        BuildingPad.AddShadow(root, Sprites.For(id + "-base"), Miner.Size, tileSize);
         root.AddChild(BuildingPad.Layer("Base", Sprites.For(id + "-base"), Miner.Size, tileSize, 0));
         root._frames = Sprites.Frames(id + "-drill");
         root._drill = BuildingPad.Layer("Drill", root.Frame(), Miner.Size, tileSize, 1);
@@ -41,6 +42,7 @@ public partial class MinerVisual : Node2D
         {
             root._lamp = BuildingPad.Layer("Lamp", Sprites.For("miner-advanced-lamp"), Miner.Size, tileSize, 2);
             root._lamp.Visible = false;
+            root._lamp.SelfModulate = new Color(BuildingPad.GlowBoost, BuildingPad.GlowBoost, BuildingPad.GlowBoost);
             root.AddChild(root._lamp);
         }
 

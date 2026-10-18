@@ -462,7 +462,8 @@ public partial class EffectManager : Node2D
         node.InitialVelocityMin = def.SpeedMin;
         node.InitialVelocityMax = def.SpeedMax;
         node.Gravity = new Vector2(def.GravityX, def.GravityY);
-        node.Color = new Color(def.R, def.G, def.B, def.A);
+        // Intensity > 1 is an HDR colour: it blooms with the glow and shines through the night darkness.
+        node.Color = new Color(def.R * def.Intensity, def.G * def.Intensity, def.B * def.Intensity, def.A);
     }
 
     /// <summary>Texture of a particle sprite; a strip of square variants gets a material that picks one per particle.</summary>

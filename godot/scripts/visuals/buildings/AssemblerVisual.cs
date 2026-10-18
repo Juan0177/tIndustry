@@ -30,6 +30,7 @@ public partial class AssemblerVisual : Node2D
         root._span = Crafter.Size * tileSize;
         root._artPixel = tileSize / (float)Sprites.PixelsPerCell;
 
+        BuildingPad.AddShadow(root, Sprites.For("assembler-base"), Crafter.Size, tileSize);
         root.AddChild(BuildingPad.Layer("Base", Sprites.For("assembler-base"), Crafter.Size, tileSize, 0));
         var arm = Sprites.For("assembler-arm");
         root._leftArm = BuildingPad.Layer("LeftArm", arm, Crafter.Size, tileSize, 1);

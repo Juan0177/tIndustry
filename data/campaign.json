@@ -180,6 +180,7 @@
     },
     {
       "id": "level-06-corrente",
+      "night": true,
       "map": "level-06-corrente",
       "name": "Corrente",
       "description": "Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).",
@@ -358,6 +359,7 @@
     },
     {
       "id": "level-10-espansione",
+      "night": true,
       "map": "level-10-espansione",
       "name": "Espansione T2",
       "description": "Minatore T2 e Nastro T2: scala la foundry e chiudi con un surplus di mercato.",

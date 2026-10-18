@@ -4,7 +4,8 @@ namespace TIndustry.Shared;
 /// Builders for the starting <see cref="Factory"/> of a new game (sandbox, campaign level, demo).
 /// Each takes optional <see cref="GameRules"/>: the refund share comes from the mode (sandbox 100,
 /// campaign = the level's), while the caller's <see cref="GameRules.InstantBuild"/> wins over the
-/// mode's default (false, demo true). Every new game has player 0's drone at the centre of the Core.
+/// mode's default (false, demo true), and the night is the caller's (a campaign level with <c>night</c> is always
+/// night). Every new game has player 0's drone at the centre of the Core.
 /// </summary>
 public static class NewGame
 {
@@ -48,7 +49,8 @@ public static class NewGame
         {
             Terrain = terrain
         };
-        factory.State.Rules = new GameRules(RefundPercent: 100, InstantBuild: rules?.InstantBuild ?? false);
+        factory.State.Rules = new GameRules(
+            RefundPercent: 100, InstantBuild: rules?.InstantBuild ?? false, Night: rules?.Night ?? false);
         factory.AddBuilder(0);
         return factory;
     }
@@ -127,7 +129,8 @@ public static class NewGame
         };
         factory.State.Rules = new GameRules(
             RefundPercent: Math.Clamp(level.RefundPercent, 0, 100),
-            InstantBuild: rules?.InstantBuild ?? false);
+            InstantBuild: rules?.InstantBuild ?? false,
+            Night: level.Night || (rules?.Night ?? false));
         factory.AddBuilder(0);
         return factory;
     }

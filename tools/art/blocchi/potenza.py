@@ -1,9 +1,12 @@
-"""Power sprites: generator (base + turning rotor), power node (1x1) and power node T2 (2x2).
+"""Power sprites: generator (base + turning rotor), power node (1x1), power node T2 (2x2), lamp (1x1) and
+the light texture of the night (`luce`).
 
 The generator base has rounded corners, yellow-and-black hazard bands and cooling fins, so it
 reads apart from the production blocks; the rotor strip (4 frames) turns in its round housing.
 `<id>.png` is the composed icon. Power nodes are seen from above: insulators on a plate,
-copper windings and a yellow cap.
+copper windings and a yellow cap. The lamp is a plate with a glass dome: `lamp-base` has it dark, `lamp-glow`
+is the lit dome the client shows over it while powered (`lamp` = both, the icon). `luce` is not a block: a soft
+128x128 white disc fading to transparent, the texture of every PointLight2D at night (the client tints it).
 """
 import math
 
@@ -150,4 +153,55 @@ def power_node_t2():
     for cx in pos:
         for cy in pos:
             _isolatore(im, cx, cy, 8.5)
+    return im
+
+
+# ---------------------------------------------------------------- lamp and light
+
+LAMPADA_R = 8.5  # glass dome radius, in the middle of the plate
+
+
+@sprite("lamp-base")
+def lamp_base():
+    im = forme.nuova(T, T)
+    forme.sagoma(im, forme.arrotondato(1, 1, T - 2, T - 2, 5), METALLO[:5])
+    for bx, by in ((4, 4), (T - 6, 4), (4, T - 6), (T - 6, T - 6)):
+        forme.bullone(im, bx, by, METALLO)
+    # Copper collar and the dark (unlit) glass dome.
+    forme.cerchio(im, T / 2, T / 2, LAMPADA_R + 2, RAME)
+    forme.cerchio(im, T / 2, T / 2, LAMPADA_R + 2, [OUT, OUT, OUT, OUT], pieno=False)
+    forme.cerchio(im, T / 2, T / 2, LAMPADA_R, FULIGGINE)
+    forme.pixel(im, int(T / 2) - 3, int(T / 2) - 3, FULIGGINE[4])
+    return im
+
+
+@sprite("lamp-glow")
+def lamp_glow():
+    # The lit dome only (transparent elsewhere): warm glass with a white-hot core, drawn over the base.
+    im = forme.nuova(T, T)
+    forme.cerchio(im, T / 2, T / 2, LAMPADA_R, ENERGIA)
+    forme.bagliore(im, T / 2, T / 2, LAMPADA_R - 0.5, ENERGIA)
+    forme.cerchio(im, T / 2, T / 2, 2.5, [ENERGIA[4]] * 4)
+    forme.pixel(im, int(T / 2) - 3, int(T / 2) - 3, ENERGIA[4])
+    return im
+
+
+@sprite("lamp")
+def lamp():
+    return forme.componi(lamp_base(), lamp_glow())
+
+
+LUCE = 128
+
+
+@sprite("luce")
+def luce():
+    # Radial light for PointLight2D: white, alpha (1 - t)^2 from the centre to the edge, nothing past it.
+    im = forme.nuova(LUCE, LUCE)
+    c = LUCE / 2
+    for y in range(LUCE):
+        for x in range(LUCE):
+            t = math.hypot(x + 0.5 - c, y + 0.5 - c) / c
+            if t < 1:
+                im.putpixel((x, y), (255, 255, 255, int(255 * (1 - t) ** 2 + 0.5)))
     return im

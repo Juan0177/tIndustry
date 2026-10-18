@@ -33,6 +33,7 @@ public partial class SmelterVisual : Node2D
         };
         root._phase = root._clock * 3.6f;
         root._smokeAt = new Vector2(0f, -tileSize * 0.45f);
+        BuildingPad.AddShadow(root, Sprites.For("smelter-base"), Crafter.Size, tileSize);
         root.AddChild(BuildingPad.Layer("Base", Sprites.For("smelter-base"), Crafter.Size, tileSize, 0));
         root._frames = Sprites.Frames("smelter-glow");
         root._glow = BuildingPad.Layer("Glow", root._frames[0], Crafter.Size, tileSize, 1);
@@ -69,7 +70,7 @@ public partial class SmelterVisual : Node2D
         _glow.Texture = _frames[(int)(_clock * GlowFramesPerSecond) % _frames.Length];
         _pulse += delta * 3.6f;
         var wave = 0.5f + 0.5f * Mathf.Sin(_pulse + _phase);
-        var light = 0.85f + 0.3f * wave;
+        var light = (0.85f + 0.3f * wave) * BuildingPad.GlowBoost;
         _glow.Modulate = new Color(light, light, light, 0.8f + 0.2f * wave);
     }
 }

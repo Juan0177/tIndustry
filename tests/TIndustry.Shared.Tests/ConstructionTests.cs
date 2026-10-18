@@ -320,6 +320,7 @@ public sealed class ConstructionTests
         Assert.True(viaTryPlace.TryPlaceExtractor(new GridPosition(26, 10), Direction.West, "copper-wire"));
         Assert.True(viaTryPlace.TryPlacePowerNode(new GridPosition(30, 10)));
         Assert.True(viaTryPlace.TryPlacePowerNode(new GridPosition(32, 10), PowerNode.Tier2Id));
+        Assert.True(viaTryPlace.TryPlaceLamp(new GridPosition(35, 10)));
         Assert.True(viaTryPlace.TryPlaceBelt(new GridPosition(10, 20), Direction.East));
         Assert.True(viaTryPlace.TryPlaceJunction(new GridPosition(11, 20), Direction.East));
         Assert.True(viaTryPlace.TryPlaceSplitter(new GridPosition(12, 20), Direction.East));
@@ -336,6 +337,7 @@ public sealed class ConstructionTests
             new(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(26, 10), Direction.West, FilterItemId: "copper-wire"),
             new(PowerNode.Tier1Id, BuildingKind.PowerNode, new GridPosition(30, 10), Direction.East),
             new(PowerNode.Tier2Id, BuildingKind.PowerNodeT2, new GridPosition(32, 10), Direction.East),
+            new(Lamp.BuildingId, BuildingKind.Lamp, new GridPosition(35, 10), Direction.East),
             new("conveyor-basic", null, new GridPosition(10, 20), Direction.East),
             new("junction", BuildingKind.Junction, new GridPosition(11, 20), Direction.East),
             new("splitter", BuildingKind.Splitter, new GridPosition(12, 20), Direction.East),

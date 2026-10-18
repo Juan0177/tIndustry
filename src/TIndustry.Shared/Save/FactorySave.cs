@@ -72,6 +72,8 @@ public sealed class FactorySaveData
     public List<GeneratorSaveDto> Generators { get; set; } = [];
     public List<ExtractorSaveDto> Extractors { get; set; } = [];
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
+    /// <summary>Lamps (G3, additive in v12): null when there are none, so saves without lamps keep their bytes.</summary>
+    public List<LampSaveDto>? Lamps { get; set; }
     public List<BeltSaveDto> Belts { get; set; } = [];
     public GameRulesSaveDto Rules { get; set; } = new();
     /// <summary>Construction drones, in id order.</summary>
@@ -84,6 +86,16 @@ public sealed class GameRulesSaveDto
 {
     public int RefundPercent { get; set; } = 100;
     public bool InstantBuild { get; set; }
+    /// <summary>Night (G3, additive in v12): written only when true, so day games keep their bytes and checksum.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Night { get; set; }
+}
+
+public sealed class LampSaveDto
+{
+    public long Id { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
 }
 
 public sealed class BuildSpecSaveDto

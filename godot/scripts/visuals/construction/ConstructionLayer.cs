@@ -357,6 +357,9 @@ public partial class ConstructionLayer : Node2D
         return null;
     }
 
+    /// <summary>World positions of the drones drawn (their lights at night).</summary>
+    public IEnumerable<Vector2> DronePositions => _drones.Values.Select(d => d.Position);
+
     /// <summary>Drops every site, drone and cached site rect (a new game is attached: its site ids start over).</summary>
     public void Clear()
     {

@@ -40,6 +40,16 @@ public sealed class EffectRulesTests
         Assert.Equal(128 / 255f, fumo.A, 4);
         Assert.Equal(1f, defs["neve"].A);
         Assert.Equal(EffectsQuality.Alti, defs["neve"].MinQuality);
+        Assert.Equal(1f, fumo.Intensity);
+    }
+
+    [Fact]
+    public void OptionalIntensityIsRead()
+    {
+        var defs = EffectRules.Parse(Valid.Replace("\"qualita\": \"Alti\"", "\"qualita\": \"Alti\", \"intensita\": 3"));
+
+        Assert.Equal(3f, defs["neve"].Intensity);
+        Assert.Equal(1f, defs["fumo"].Intensity);
     }
 
     [Theory]
@@ -82,6 +92,9 @@ public sealed class EffectRulesTests
     [InlineData("\"dispersione\": 30", "\"dispersione\": 270", "dispersione")]
     [InlineData("\"qualita\": \"Bassi\"", "\"qualita\": \"Spenti\"", "qualita")]
     [InlineData("\"sprite\": \"fx-fumo\"", "\"sprite\": \"\"", "sprite")]
+    [InlineData("\"qualita\": \"Bassi\"", "\"qualita\": \"Bassi\", \"intensita\": 0.5", "intensita")]
+    [InlineData("\"qualita\": \"Bassi\"", "\"qualita\": \"Bassi\", \"intensita\": 9", "intensita")]
+    [InlineData("\"qualita\": \"Bassi\"", "\"qualita\": \"Bassi\", \"intensita\": \"3\"", "intensita")]
     public void InvalidValueIsAnItalianError(string from, string to, string field)
     {
         var error = Assert.Throws<InvalidDataException>(() => EffectRules.Parse(Valid.Replace(from, to)));

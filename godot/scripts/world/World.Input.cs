@@ -66,6 +66,7 @@ public partial class World
         BuildTool.Extractor => Hud.ToolKind.Extractor,
         BuildTool.PowerNode => Hud.ToolKind.PowerNode,
         BuildTool.PowerNodeT2 => Hud.ToolKind.PowerNodeT2,
+        BuildTool.Lamp => Hud.ToolKind.Lamp,
         _ => Hud.ToolKind.Cursor
     };
 
@@ -87,6 +88,7 @@ public partial class World
         Hud.ToolKind.Extractor => BuildTool.Extractor,
         Hud.ToolKind.PowerNode => BuildTool.PowerNode,
         Hud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
+        Hud.ToolKind.Lamp => BuildTool.Lamp,
         _ => BuildTool.Cursor
     };
 
@@ -108,6 +110,7 @@ public partial class World
         BuildTool.Extractor => "Estrattore",
         BuildTool.PowerNode => "Nodo potenza",
         BuildTool.PowerNodeT2 => "Nodo T2",
+        BuildTool.Lamp => "Lampada",
         _ => "?"
     };
 

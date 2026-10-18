@@ -54,6 +54,7 @@ public sealed record BuildSpec(
         BuildingKind.Extractor => Extractor.BuildingId,
         BuildingKind.PowerNode => PowerNode.Tier1Id,
         BuildingKind.PowerNodeT2 => PowerNode.Tier2Id,
+        BuildingKind.Lamp => Lamp.BuildingId,
         _ => null
     };
 }

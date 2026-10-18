@@ -29,7 +29,8 @@ public partial class Hud : Control
         Bridge,
         Extractor,
         PowerNode,
-        PowerNodeT2
+        PowerNodeT2,
+        Lamp
     }
 
     internal enum BuildCategory
@@ -279,6 +280,7 @@ public partial class Hud : Control
         ToolKind.Extractor => "extractor",
         ToolKind.PowerNode => "power-node",
         ToolKind.PowerNodeT2 => "power-node-t2",
+        ToolKind.Lamp => "lamp",
         _ => "conveyor-basic"
     };
 

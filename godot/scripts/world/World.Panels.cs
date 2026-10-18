@@ -200,7 +200,7 @@ public partial class World
         }
 
         layer.MoveChild(_newGame, layer.GetChildCount() - 1);
-        _newGame.StartRequested += (size, seed) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed), ShowNewGameError);
+        _newGame.StartRequested += (size, seed, night) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed, night), ShowNewGameError);
         _newGame.Cancelled += () => _home?.Open();
     }
 

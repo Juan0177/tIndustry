@@ -32,6 +32,7 @@ public sealed class ResearchTreeContentTests
         { "generator", null },
         { "power-node", "generator" },
         { "power-node-t2", "power-node" },
+        { "lamp", "power-node" },
     };
 
     [Theory]

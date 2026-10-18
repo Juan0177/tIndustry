@@ -549,6 +549,29 @@
       ]
     },
     {
+      "id": "lamp",
+      "displayName": "Lampada",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 90,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 4
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 2
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "power-node"
+      ]
+    },
+    {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
       "kind": "building",
@@ -757,6 +780,23 @@
       "footprint": 2,
       "maxPowerLinks": 8,
       "powerLinkRange": 10
+    },
+    {
+      "id": "lamp",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 2
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        }
+      ],
+      "refundPercent": 100,
+      "footprint": 1,
+      "powerUse": 1
     },
     {
       "id": "extractor",

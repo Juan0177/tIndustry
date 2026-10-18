@@ -4,8 +4,9 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Nuova partita: map size (Media, Grande, Enorme) and seed (a random one already filled in, editable, with
-/// "Nuovo seme" and "Copia"), then "Inizia". Plain look until the G4 interface pass.
+/// Nuova partita: map size (Media, Grande, Enorme), seed (a random one already filled in, editable, with
+/// "Nuovo seme" and "Copia") and "Notte" (the game is played at night, G3), then "Inizia". Plain look until the G4
+/// interface pass.
 /// </summary>
 public partial class NewGamePanel : Control
 {
@@ -21,10 +22,11 @@ public partial class NewGamePanel : Control
     private readonly List<Button> _sizeButtons = [];
     private MapSize _size = MapSize.Media;
     private LineEdit? _seedEdit;
+    private CheckButton? _night;
     private Label? _status;
 
-    /// <summary>The player pressed Inizia with a valid seed.</summary>
-    public event Action<MapSize, int>? StartRequested;
+    /// <summary>The player pressed Inizia with a valid seed: size, seed and night.</summary>
+    public event Action<MapSize, int, bool>? StartRequested;
 
     /// <summary>Indietro or Esc: back to Home.</summary>
     public event Action? Cancelled;
@@ -54,6 +56,7 @@ public partial class NewGamePanel : Control
     {
         SelectSize(MapSize.Media);
         SetSeed(seed ?? NewSeed());
+        _night?.SetPressedNoSignal(false);
         ShowStatus("");
         Visible = true;
     }
@@ -134,7 +137,7 @@ public partial class NewGamePanel : Control
     {
         if (ReadSeed() is { } seed)
         {
-            StartRequested?.Invoke(_size, seed);
+            StartRequested?.Invoke(_size, seed, _night?.ButtonPressed == true);
         }
     }
 
@@ -227,6 +230,15 @@ public partial class NewGamePanel : Control
             ShowStatus("");
         }));
         seedRow.AddChild(MakeButton("Copia", OnCopyPressed));
+
+        _night = new CheckButton
+        {
+            Name = "NightCheck",
+            Text = "Notte (mappa al buio: contano le luci dei blocchi e le Lampade)",
+            ButtonPressed = false
+        };
+        _night.AddThemeFontSizeOverride("font_size", 13);
+        root.AddChild(_night);
 
         _status = MutedLabel("");
         _status.HorizontalAlignment = HorizontalAlignment.Center;

@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Ambient particles of the biomes (G3): snowflakes on snow, sand grains blown East over the desert, leaves drifting
-/// on the meadows (rocks and water have none: the water ripples are in the terrain shader). A few bursts per second
+/// on the meadows by day and fireflies over them at night (rocks and water have none: the water ripples are in the
+/// terrain shader). A few bursts per second
 /// on random land cells of the view, so the cost stays flat whatever the map size or zoom; the effects are
 /// <c>qualita: Alti</c> in <c>effetti.json</c>, so Bassi and Spenti draw none. Looks only: the randomness is the
 /// client's own and never reaches the simulation.
@@ -20,6 +21,14 @@ public sealed class AmbientEffects
         ["prati"] = "foglie"
     };
 
+    /// <summary>The same at night: fireflies instead of leaves (their HDR colour shines through the darkness).</summary>
+    private static readonly Dictionary<string, string> EffectOfBiomeAtNight = new(StringComparer.Ordinal)
+    {
+        ["neve"] = "neve",
+        ["sabbia"] = "sabbia",
+        ["prati"] = "lucciole"
+    };
+
     /// <summary>One burst per second for this many visible cells (about 1.5 at zoom 1 on 1280×720)...</summary>
     private const double CellsPerBurstPerSecond = 150;
 
@@ -31,6 +40,7 @@ public sealed class AmbientEffects
 
     private readonly Random _random = new(20261018);
     private TerrainTable? _table;
+    private bool _tableNight;
     private string?[] _effectOfFloor = [];
     private double _due;
 
@@ -38,6 +48,9 @@ public sealed class AmbientEffects
     /// Plays the bursts due this frame on <paramref name="map"/> within <paramref name="cells"/> (the view in cells).
     /// No map (or effects off) = nothing, and nothing piles up for later.
     /// </summary>
+    /// <summary>Night drawn (<see cref="NightLayer"/>): the meadows get fireflies instead of leaves.</summary>
+    public bool Night { get; set; }
+
     public void Sync(EffectManager fx, TerrainMap? map, TerrainTable? table, Rect2I cells, int tileSize, double delta)
     {
         if (map is null || table is null || fx.Quality == EffectsQuality.Spenti || cells.Size.X <= 0 || cells.Size.Y <= 0)
@@ -46,14 +59,16 @@ public sealed class AmbientEffects
             return;
         }
 
-        if (!ReferenceEquals(table, _table))
+        if (!ReferenceEquals(table, _table) || _tableNight != Night)
         {
             _table = table;
+            _tableNight = Night;
+            var effects = Night ? EffectOfBiomeAtNight : EffectOfBiome;
             var kinds = Enum.GetValues<FloorKind>();
             _effectOfFloor = new string?[kinds.Max(k => (int)k) + 1];
             foreach (var kind in kinds)
             {
-                _effectOfFloor[(int)kind] = table.Floor(kind) is { } floor && EffectOfBiome.TryGetValue(floor.Biome, out var name)
+                _effectOfFloor[(int)kind] = table.Floor(kind) is { } floor && effects.TryGetValue(floor.Biome, out var name)
                     ? name
                     : null;
             }

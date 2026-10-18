@@ -50,6 +50,7 @@ public sealed class GameState
     public List<Generator> Generators { get; } = [];
     public List<Extractor> Extractors { get; } = [];
     public List<PowerNode> PowerNodes { get; } = [];
+    public List<Lamp> Lamps { get; } = [];
 
     /// <summary>Construction and deconstruction sites, in ascending id order.</summary>
     public List<ConstructSite> Sites { get; } = [];
@@ -63,7 +64,7 @@ public sealed class GameState
     /// </summary>
     public List<SimEvent> Events { get; } = [];
 
-    /// <summary>Rules of this game (refund share, instant build).</summary>
+    /// <summary>Rules of this game (refund share, instant build, night).</summary>
     public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }

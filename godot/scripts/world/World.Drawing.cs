@@ -133,8 +133,8 @@ public partial class World
     }
 
     private readonly HashSet<GridPosition> _buildingTiles = [];
-    private readonly long[] _buildingTilesKey = new long[14];
-    private readonly long[] _structureKey = new long[14];
+    private readonly long[] _buildingTilesKey = new long[16];
+    private readonly long[] _structureKey = new long[16];
     private IGameView? _buildingTilesView;
 
     /// <summary>
@@ -182,6 +182,11 @@ public partial class World
         foreach (var node in view.PowerNodes)
         {
             _buildingTiles.UnionWith(node.OccupiedTiles());
+        }
+
+        foreach (var lamp in view.Lamps)
+        {
+            _buildingTiles.Add(lamp.Position);
         }
 
         return _buildingTiles;
@@ -245,6 +250,13 @@ public partial class World
         }
 
         Add(view.PowerNodes.Count, max);
+        max = 0;
+        foreach (var l in view.Lamps)
+        {
+            max = Math.Max(max, l.Id);
+        }
+
+        Add(view.Lamps.Count, max);
     }
 
     /// <summary>Cell size on screen from which deposits show their ore icon instead of plain colour.</summary>

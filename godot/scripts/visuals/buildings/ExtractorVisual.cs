@@ -26,6 +26,7 @@ public partial class ExtractorVisual : Node2D
             Origin = ex.Position,
             _extracted = ex.ItemsExtracted
         };
+        BuildingPad.AddShadow(root, Sprites.For("extractor"), Extractor.Size, tileSize);
         root.AddChild(BuildingPad.Layer("Block", Sprites.For("extractor"), Extractor.Size, tileSize, 0));
 
         // The sprite's dark well is 8 px across (radius 0.125 cell); the dot sits inside it.

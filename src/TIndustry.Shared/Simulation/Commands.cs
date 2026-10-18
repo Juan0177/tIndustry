@@ -24,7 +24,8 @@ public enum BuildingKind
     Generator,
     Extractor,
     PowerNode,
-    PowerNodeT2
+    PowerNodeT2,
+    Lamp
 }
 
 /// <summary>Replaces <see cref="Factory.TryPlaceBelt"/>.</summary>
@@ -136,6 +137,7 @@ public static class CommandReasons
         BuildingKind.Extractor => "Estrattore",
         BuildingKind.PowerNode => "Nodo potenza",
         BuildingKind.PowerNodeT2 => "Nodo T2",
+        BuildingKind.Lamp => "Lampada",
         _ => "?"
     };
 
