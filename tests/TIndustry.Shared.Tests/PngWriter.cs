@@ -3,10 +3,14 @@ using System.Text;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Minimal RGB PNG encoder (one IDAT, filter 0) for map previews written by tests.</summary>
+/// <summary>Minimal RGB/RGBA PNG encoder (one IDAT, filter 0) for map previews and fixtures written by tests.</summary>
 internal static class PngWriter
 {
-    public static void Write(string path, int width, int height, byte[] rgb)
+    public static void Write(string path, int width, int height, byte[] rgb) => Write(path, width, height, rgb, 3);
+
+    public static void WriteRgba(string path, int width, int height, byte[] rgba) => Write(path, width, height, rgba, 4);
+
+    private static void Write(string path, int width, int height, byte[] pixels, int channels)
     {
         using var file = File.Create(path);
         file.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
@@ -15,7 +19,7 @@ internal static class PngWriter
         BigEndian(header, 0, (uint)width);
         BigEndian(header, 4, (uint)height);
         header[8] = 8; // bit depth
-        header[9] = 2; // colour type RGB
+        header[9] = (byte)(channels == 4 ? 6 : 2); // colour type RGBA or RGB
         Chunk(file, "IHDR", header);
 
         using var raw = new MemoryStream();
@@ -24,7 +28,7 @@ internal static class PngWriter
             for (var y = 0; y < height; y++)
             {
                 z.WriteByte(0);
-                z.Write(rgb, y * width * 3, width * 3);
+                z.Write(pixels, y * width * channels, width * channels);
             }
         }
 

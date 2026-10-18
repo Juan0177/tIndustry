@@ -11,6 +11,10 @@ cd "$ROOT"
 
 mkdir -p godot/data
 cp -f data/content.json data/campaign.json godot/data/
+rm -rf godot/data/maps
+cp -r data/maps godot/data/maps
+# Raw map files read by the simulation, not Godot resources: keep the importer away.
+touch godot/data/maps/.gdignore
 
 # Ensure classic .sln exists (Godot mono export requires it).
 if [[ ! -f godot/TIndustry.Godot.sln ]]; then

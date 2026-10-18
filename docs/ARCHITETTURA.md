@@ -7,7 +7,7 @@ Gioco in Godot 4.4 .NET. La simulazione è C# puro in `src/TIndustry.Shared/` (n
 ```
 tIndustry/
 ├─ CLAUDE.md · README.md · CHANGELOG.md · tIndustry.sln
-├─ data/                        unica fonte dei contenuti: content.json, campaign.json
+├─ data/                        unica fonte dei contenuti: content.json, campaign.json, maps/ (mappe della campagna)
 ├─ docs/
 │  ├─ ARCHITETTURA.md           questo file
 │  ├─ diario/                   diario di lavoro: un file per piano completato
@@ -44,6 +44,7 @@ tIndustry/
 ├─ tests/TIndustry.Shared.Tests/  test xUnit (scenari della sim, validazione dei contenuti, salvataggi)
 └─ tools/
    ├─ ci/                       setup-godot.sh, export-godot.sh
+   ├─ MapTool/                  mappe della campagna: genera, valida, anteprima
    ├─ art/                      genera.py (sprite di edifici, nastri, Core, drone, oggetti), palette, forme, test
    └─ dev/                      playtest.sh, compare_shots.py, mappa_canvas.py
 ```
@@ -108,6 +109,8 @@ Con la Home aperta o senza partita il frame salta i passi 2–5.
 ## Dati
 
 `data/content.json` (strutture, oggetti, ricette, ricerca, mercato, pesi di costruzione `buildWeights`, drone `units.drone`) e `data/campaign.json` (livelli, obiettivi e `refundPercent` per livello) sono l'unica fonte. In sviluppo il gioco legge `data/` direttamente (`World.ResolveContentPath` prova `res://../data/` per primo). All'export `tools/ci/export-godot.sh` copia i due file in `godot/data/` perché finiscano nel pacchetto; quella copia non va committata.
+
+Le mappe della campagna sono in `data/maps/` (`CampaignMapFile`): `<id>.png` con un colore esatto per suolo e parete (tabella `terrain` di `content.json`; una parete sta sul primo suolo del suo bioma), `<id>.giacimenti.png` trasparente tranne i giacimenti (colori di `ItemVisualColors`) e `<id>.json` con Core, biomi e nota. Un livello le usa con `"map": "<id>"`; `NewGame.Campaign(..., mapsDirectory:)` carica il file (generatore `campagna:<id>`), mentre senza cartella o con misure forzate resta il generatore classico. Si creano e si controllano con `dotnet run --project tools/MapTool -- genera <id> --misura N --seme S --biomi a,b [--pareti P] [--acqua P] [--giacimenti P] [--escludi titanio]`, `valida [id…]` (colori, Core e area di partenza liberi, almeno metà dell'area entro 60 raggiungibile a terra, nessun giacimento vicino chiuso, minerali degli obiettivi entro 60 dal Core) e `anteprima [id…]` (`.dev/mappe/`). I file seguono `data/*.json` nel progetto di test, in quello Godot e nell'export (`godot/data/maps/`, con `.gdignore`).
 
 `ContentValidationTests` controlla id unici, prerequisiti esistenti e senza cicli, icone presenti per strutture e oggetti, obiettivi di campagna su id noti.
 

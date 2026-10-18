@@ -53,7 +53,13 @@ public static class NewGame
         return factory;
     }
 
-    /// <summary>Empty factory around fixed core with campaign wallet/session/research + seeded terrain.</summary>
+    /// <summary>
+    /// Empty factory around the Core with the level's wallet/session/research. The terrain is the level's map
+    /// file (<see cref="CampaignLevelDefinition.Map"/> in <paramref name="mapsDirectory"/>, Core from the file
+    /// unless <paramref name="coreOrigin"/> is given) when both are set and no size is forced; otherwise the
+    /// classic generator with the level's seed and size, or <paramref name="mapWidth"/>/<paramref name="mapHeight"/>
+    /// (tests).
+    /// </summary>
     public static Factory Campaign(
         FactoryContent content,
         CampaignCatalog catalog,
@@ -62,8 +68,15 @@ public static class NewGame
         int coreSize = 2,
         int? mapWidth = null,
         int? mapHeight = null,
-        GameRules? rules = null)
+        GameRules? rules = null,
+        string? mapsDirectory = null)
     {
+        if (level.Map is { } mapId && mapsDirectory is not null && mapWidth is null && mapHeight is null)
+        {
+            var map = CampaignMapFile.Load(mapsDirectory, mapId, content, out var fileCore);
+            return CampaignFactory(content, catalog, level, coreOrigin ?? fileCore, coreSize, map, rules);
+        }
+
         var (w, h) = Factory.ResolveCampaignMapSize(level);
         if (mapWidth is int mw)
         {
@@ -77,11 +90,24 @@ public static class NewGame
 
         var origin = coreOrigin ?? Factory.CenteredCoreOrigin(w, h, coreSize);
         var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
+        var starter = Factory.ResolveStarterDeposit(origin, coreSize, w, h);
+        var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
+        return CampaignFactory(content, catalog, level, origin, coreSize, terrain, rules);
+    }
+
+    private static Factory CampaignFactory(
+        FactoryContent content,
+        CampaignCatalog catalog,
+        CampaignLevelDefinition level,
+        GridPosition origin,
+        int coreSize,
+        TerrainMap terrain,
+        GameRules? rules)
+    {
+        var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
         var wallet = catalog.CreateWallet(level);
         var session = new EconomySession(level.StartingMoney);
         var research = ResearchState.CreateNew(content);
-        var starter = Factory.ResolveStarterDeposit(origin, coreSize, w, h);
-        var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
         // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly.
         if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
         {

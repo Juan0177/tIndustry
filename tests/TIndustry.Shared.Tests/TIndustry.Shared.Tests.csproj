@@ -20,6 +20,8 @@
   <ItemGroup>
     <None Include="../../data/content.json" Link="data/content.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../data/campaign.json" Link="data/campaign.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../data/maps/*" Link="data/maps/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures/png/*.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../godot/assets/*.png" Link="assets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
