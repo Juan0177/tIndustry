@@ -26,9 +26,9 @@ public sealed record GameOptions(
 
 /// <summary>
 /// A started game: the Godot process (and the job that dies with this server), its channel (port, secret), its
-/// temporary profile and, for a save, the copied save's snapshot (journal header).
+/// temporary profile.
 /// </summary>
-public sealed record GameProcess(Process Process, KillOnCloseJob Job, int Port, string Token, string ProfileDir, string? StartSnapshot);
+public sealed record GameProcess(Process Process, KillOnCloseJob Job, int Port, string Token, string ProfileDir);
 
 /// <summary>
 /// Starts Godot (<c>godot4 --path godot</c>, or <c>TINDUSTRY_GODOT</c>) like tools/dev/playtest.sh: a fresh temporary
@@ -144,7 +144,11 @@ public static class GameLauncher
             }
 
             WriteSettings(profile, options);
-            var snapshot = options.Salvataggio is { } save ? CopySave(save, profile) : null;
+            if (options.Salvataggio is { } save)
+            {
+                CopySave(save, profile); // read once here: a damaged save is refused before Godot starts
+            }
+
             var port = FreePort();
             var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
             var info = new ProcessStartInfo(godot)
@@ -184,7 +188,7 @@ public static class GameLauncher
                 process.ErrorDataReceived += (_, _) => { };
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
-                return new GameProcess(process, job, port, token, profile, snapshot);
+                return new GameProcess(process, job, port, token, profile);
             }
             catch
             {

@@ -12,6 +12,33 @@ public static class Arguments
     public static string? Problem(JsonElement schema, IEnumerable<KeyValuePair<string, JsonElement>>? args) =>
         Problem(schema, args?.Select(a => (a.Key, a.Value)).ToList() ?? [], prefix: "");
 
+    // Parameters taken as a free JsonElement: the SDK's schema gives them no type, so it is said here.
+    private static readonly Dictionary<string, string[]> FreeTypes = new(StringComparer.Ordinal)
+    {
+        ["misura"] = ["integer", "string", "null"],
+        ["verso"] = ["object", "string", "null"]
+    };
+
+    /// <summary><paramref name="schema"/> with a <c>type</c> on the free parameters (<c>misura</c>, <c>verso</c>) that lack one.</summary>
+    public static JsonElement WithTypes(JsonElement schema)
+    {
+        if (!Properties(schema).Any(p => FreeTypes.ContainsKey(p.Name) && !p.Value.TryGetProperty("type", out _)))
+        {
+            return schema;
+        }
+
+        var node = System.Text.Json.Nodes.JsonNode.Parse(schema.GetRawText())!.AsObject();
+        foreach (var (name, property) in node["properties"]!.AsObject())
+        {
+            if (FreeTypes.TryGetValue(name, out var types) && property is System.Text.Json.Nodes.JsonObject p && !p.ContainsKey("type"))
+            {
+                p["type"] = new System.Text.Json.Nodes.JsonArray(types.Select(t => (System.Text.Json.Nodes.JsonNode)t).ToArray());
+            }
+        }
+
+        return JsonSerializer.SerializeToElement(node);
+    }
+
     /// <summary>The tool's parameters with their types, for a call that failed in a way the check did not foresee.</summary>
     public static string Summary(string tool, JsonElement schema)
     {
@@ -44,7 +71,9 @@ public static class Arguments
                 return $"'{prefix}{name}' ha il tipo sbagliato: atteso {TypeName(property)}.";
             }
 
-            if (value.ValueKind == JsonValueKind.Object
+            // Only an object schema that names its fields (a cell) is checked inside; a free value ("verso": {x,y} or
+            // "x,y") is the engine's to read.
+            if (value.ValueKind == JsonValueKind.Object && property.TryGetProperty("properties", out _)
                 && Problem(property, value.EnumerateObject().Select(p => (p.Name, p.Value)).ToList(), $"{prefix}{name}.") is { } inner)
             {
                 return inner;
