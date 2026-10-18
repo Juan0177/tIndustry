@@ -41,7 +41,11 @@ class TestSito(unittest.TestCase):
 
     def test_pagine(self):
         self.assertEqual(["asset/index.html", "index.html"], self.scritti)
-        self.assertTrue(os.path.exists(os.path.join(self.out, ".nojekyll")))
+        for nome in ("stile.css", "sito.js", ".nojekyll"):
+            self.assertTrue(os.path.exists(os.path.join(self.out, nome)), nome)
+        self.assertIn('<link rel="stylesheet" href="../stile.css">', self.asset)
+        self.assertIn('<script src="../sito.js" defer></script>', self.asset)
+        self.assertIn('<link rel="stylesheet" href="stile.css">', self.ingresso)
         self.assertIn('href="asset/"', self.ingresso)
 
     def test_ogni_sprite_compare(self):
@@ -142,12 +146,11 @@ class TestSito(unittest.TestCase):
                 self.assertEqual(self.asset, fh.read())
 
     def test_autonome(self):
-        # Self-contained and script-free: no scripts, external stylesheets or images (the landing page
-        # captures are files of the site itself, in catture/).
+        # Self-contained: one local stylesheet, one local script, images only data: or files of the site.
         for pagina in (self.asset, self.ingresso):
-            self.assertNotIn("<script", pagina)
-            self.assertEqual([], re.findall(r'<img src="(?!data:|catture/[a-z0-9-]+\.png")', pagina))
-            self.assertNotIn("<link", pagina)
+            self.assertEqual(1, len(re.findall(r"<script\b", pagina)))
+            self.assertEqual(1, len(re.findall(r"<link\b", pagina)))
+            self.assertEqual([], re.findall(r'<img src="(?!data:|(?:\.\./)?(?:catture|terreno)/[a-z0-9-]+\.png")', pagina))
             self.assertNotIn("url(http", pagina)
 
     def test_catture(self):

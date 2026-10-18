@@ -14,9 +14,10 @@ Everything comes from the repository (sprites in godot/assets/, the registry and
 tools/art/, the block compositions in composti.py, the captures copied from the playtests into
 docs/img/readme/), so the site never needs editing by hand: change
 the art, rebuild. The landing page captures are PNG files copied into _site/catture/; every other image
-is a data: URI. CSS is inline, there are no scripts and nothing is loaded from outside the site: state
-switches are radio buttons styled with :checked, the pieces pop-up is an HTML popover (Esc, click outside
-and the close button hide it, focus goes back to the button). Published by .github/workflows/pages.yml
+is a data: URI. Every page links the site's own stile.css and sito.js (copied from tools/sito/) and
+nothing is loaded from outside the site; without the script everything still reads and works: state
+switches are radio buttons styled with :checked (rules generated per page), the pieces pop-up is an
+HTML popover (Esc, click outside and the close button hide it, focus goes back to the button). Published by .github/workflows/pages.yml
 (manual or release tags only).
 """
 import argparse
@@ -68,67 +69,8 @@ _STILE_STATI = "".join(
     "{outline:2px solid var(--testo);outline-offset:1px}"
     for k in range(1, MAX_STATI + 1))
 
-STILE = """
-:root{--bg:#14161a;--pan:#1d2026;--linea:#2c3038;--bordo:#ffd37f;--testo:#e6e6ec;--tenue:#9aa0aa}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--testo);font:15px/1.5 system-ui,sans-serif}
-a{color:var(--bordo)}
-header{background:var(--bg);border-bottom:2px solid var(--bordo);padding:12px 16px}
-header.fisso{position:sticky;top:0;z-index:1}
-section{scroll-margin-top:110px}
-@supports not selector(:popover-open){.lente{display:none}}
-h1{margin:0 0 6px;font-size:22px;color:var(--bordo)}
-h2{color:var(--bordo);margin:28px 0 10px;font-size:18px}
-h2 small{color:var(--tenue);font-weight:normal}
-nav{display:flex;flex-wrap:wrap;gap:6px 14px}
-nav a{color:var(--testo);text-decoration:none}
-nav a:hover{color:var(--bordo)}
-main{padding:8px 16px 40px;max-width:1400px;margin:auto}
-p.nota{color:var(--tenue);margin:4px 0 0}
-.griglia{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-figure{margin:0;background:var(--pan);border:2px solid var(--linea);padding:8px;min-width:0}
-.box{height:136px;display:flex;align-items:center;justify-content:center;
-  background:repeating-conic-gradient(#262a31 0 25%,#20232a 0 50%) 0 0/16px 16px}
-img{image-rendering:pixelated;max-width:100%;height:auto}
-figcaption{margin-top:6px;font-size:12px;word-break:break-all}
-figcaption span{display:block;color:var(--tenue)}
-.blocco{position:relative}
-.blocco .box{height:auto;min-height:136px;padding:4px}
-.blocco .box>img.st{display:none}
-.blocco.largo{grid-column:span 2}
-@media (max-width:360px){.blocco.largo{grid-column:auto}}
-.blocco figcaption{word-break:normal;overflow-wrap:anywhere;padding-right:40px}
-.sr{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
-.scelte{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.scelte label{font-size:12px;border:1px solid var(--linea);padding:1px 6px;cursor:pointer;background:var(--bg)}
-.scelte label:hover{border-color:var(--bordo)}
-button{font:inherit;color:var(--testo);background:var(--bg);border:2px solid var(--linea);cursor:pointer}
-button:hover,button:focus-visible{border-color:var(--bordo);outline:none}
-.lente{position:absolute;right:8px;bottom:8px;width:34px;height:34px;padding:0;display:flex;
-  align-items:center;justify-content:center}
-.lente svg{width:20px;height:20px;stroke:var(--bordo);fill:none;stroke-width:2.5}
-.modale{background:var(--pan);color:var(--testo);border:2px solid var(--bordo);padding:16px;
-  width:min(calc(100vw - 32px),760px);max-height:calc(100vh - 32px);overflow:auto}
-.modale::backdrop{background:rgba(0,0,0,.7)}
-.modale h3{margin:0 0 4px;color:var(--bordo);font-size:17px}
-.modale .chiudi{position:sticky;top:0;float:right;padding:2px 10px}
-.pezzi{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:10px;margin-top:12px}
-.pezzi .box{height:auto;min-height:200px}
-.pannello{background:var(--pan);border:2px solid var(--bordo);padding:16px;margin:16px 0}
-.carattere img{display:block;margin:8px 0}
-.ambienti{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:12px}
-.ambienti img{display:block;width:100%}
-.ambienti figcaption{font-size:13px;word-break:normal}
-.catture{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:12px}
-.catture img{display:block;width:100%}
-.catture figcaption{font-size:13px;word-break:normal}
-#catture{margin-top:16px}
-.sezioni{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.sezioni a{display:block;background:var(--pan);border:2px solid var(--linea);padding:14px;text-decoration:none;color:var(--testo)}
-.sezioni a:hover{border-color:var(--bordo)}
-.sezioni b{display:block;color:var(--bordo);font-size:16px}
-footer{color:var(--tenue);padding:16px;text-align:center;font-size:13px}
-""" + _STILE_STATI
+# Files of tools/sito/ copied as they are into the site.
+STATICI = ("stile.css", "sito.js")
 
 LENTE = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
          '<circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>')
@@ -166,12 +108,19 @@ def _gif(frames, ms=110):
     return buf.getvalue()
 
 
-def _pagina(titolo, corpo, intestazione, fisso=False):
-    classe = ' class="fisso"' if fisso else ""
+def _pagina(titolo, corpo, nav, radice="", drone=False, stile_extra=""):
+    """Whole HTML page in the site shell: fixed bar (construction stripe, name, menu from the (text, href)
+    links of nav), main, footer. radice is the way back to the site root ("" or "../")."""
+    menu = "".join(f'<a href="{html.escape(href)}">{html.escape(testo)}</a>' for testo, href in nav)
+    extra = f"<style>{stile_extra}</style>" if stile_extra else ""
+    drone_html = '<div id="drone" aria-hidden="true"></div>' if drone else ""
     return (f'<!doctype html><html lang="it"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f"<title>{html.escape(titolo)}</title><style>{STILE}</style></head><body>"
-            f"<header{classe}>{intestazione}</header><main>{corpo}</main>"
+            f'<title>{html.escape(titolo)}</title><link rel="stylesheet" href="{radice}stile.css">{extra}'
+            f'<script src="{radice}sito.js" defer></script></head><body>'
+            f'<header><div class="cantiere-striscia"></div><div class="barra">'
+            f'<a class="marchio" href="{radice or "./"}">tIndustry</a><nav aria-label="Menu">{menu}</nav></div></header>'
+            f"{drone_html}<main>{corpo}</main>"
             f'<footer>tIndustry · <a href="{REPO_URL}">codice su GitHub</a> · '
             f"pagina generata da tools/sito/costruisci.py</footer></body></html>")
 
@@ -337,13 +286,13 @@ def pagina_asset(assets_dir):
                    f'<div class="pannello carattere">{righe_html}</div></section>')
     totale = sum(len(n) for n in gruppi.values())
     animate = sum(1 for n in gruppi.values() for x in n if x.endswith("-anim"))
-    menu = "".join(f'<a href="#{f}">{html.escape(FAMIGLIE.get(f, f))}</a>' for f in gruppi)
-    intestazione = (f'<h1>tIndustry · asset</h1><nav><a href="../">Home</a>{menu}<a href="#ambienti">Ambienti</a>'
-                    f'<a href="#carattere">Carattere</a></nav>'
-                    f'<p class="nota">{totale} sprite, {animate} animazioni, {len(composti.BLOCCHI)} blocchi '
-                    "composti come in gioco (stati con i bottoni, pezzi con la lente). Pixel-art originale "
-                    f'generata da <a href="{REPO_URL}/tree/main/tools/art">tools/art</a>, ingrandita senza filtro.</p>')
-    return _pagina("tIndustry · asset", "".join(sezioni), intestazione, fisso=True)
+    nav = ([("Home", "../")] + [(FAMIGLIE.get(f, f), f"#{f}") for f in gruppi]
+           + [("Ambienti", "#ambienti"), ("Carattere", "#carattere")])
+    intro = ('<p class="etichetta">Asset</p><h1>Tutta la grafica del gioco</h1>'
+             f'<p class="nota">{totale} sprite, {animate} animazioni, {len(composti.BLOCCHI)} blocchi '
+             "composti come in gioco (stati con i bottoni, pezzi con la lente). Pixel-art originale "
+             f'generata da <a href="{REPO_URL}/tree/main/tools/art">tools/art</a>, ingrandita senza filtro.</p>')
+    return _pagina("tIndustry · asset", intro + "".join(sezioni), nav, radice="../", stile_extra=_STILE_STATI)
 
 
 # Captures of the README (docs/img/readme/, copied from the playtests), shown on the landing page.
@@ -376,11 +325,12 @@ def _sezione_catture():
                       f"<figcaption>{testo}</figcaption></figure>")
     return ('<section id="catture"><h2>Catture <small>' + str(len(figure)) + "</small></h2>"
             '<p class="nota">Dal gioco, scattate dai playtest automatici (finestra 1280×720).</p>'
-            '<div class="catture">' + "".join(figure) + "</div></section>")
+            '<div class="griglia-catture">' + "".join(figure) + "</div></section>")
 
 
 def pagina_ingresso():
     corpo = (
+        '<p class="etichetta">Gioco di logistica industriale</p><h1>tIndustry</h1>'
         '<div class="pannello"><p>Gioco di logistica industriale ispirato a Mindustry e Tiny Industry, '
         "in Godot 4 .NET: miniere, nastri, forni e assemblatori, ricerca, mercato e una campagna. "
         "Tutta la grafica è pixel-art originale generata da script; l'interfaccia è in italiano e in inglese.</p></div>"
@@ -394,7 +344,8 @@ def pagina_ingresso():
         + _sezione_catture()
         + '<p class="nota">Download e diario di sviluppo arriveranno.</p>'
     )
-    return _pagina("tIndustry", corpo, "<h1>tIndustry</h1>")
+    nav = [("Catture", "#catture"), ("Asset", "asset/"), ("GitHub", REPO_URL)]
+    return _pagina("tIndustry", corpo, nav)
 
 
 def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
@@ -409,6 +360,8 @@ def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
     os.makedirs(catture, exist_ok=True)
     for nome, _ in CATTURE:
         shutil.copyfile(os.path.join(CATTURE_DIR, nome), os.path.join(catture, nome))
+    for nome in STATICI:
+        shutil.copyfile(os.path.join(SITO_DIR, nome), os.path.join(out_dir, nome))
     # Pages serves the folder as is (no Jekyll processing).
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
     return sorted(pagine)

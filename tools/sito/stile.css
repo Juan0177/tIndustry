@@ -1,0 +1,83 @@
+/* Style of the tIndustry website, copied as is into the site by tools/sito/costruisci.py. */
+:root{
+  --bg:#0b0d10;--pan:#14171c;--linea:#262b33;--bordo:#ffd37f;--giallo:#f2c230;--testo:#e3e6ea;--tenue:#9aa3b2;
+  --corrente:#fbe36b;--costruzione:#ffd37f;--mono:ui-monospace,"Cascadia Mono",Consolas,monospace
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--testo);font:15px/1.5 system-ui,sans-serif}
+a{color:var(--bordo)}
+img{image-rendering:pixelated;max-width:100%;height:auto}
+
+/* Shell: fixed bar with the construction stripe on top, full-width main, footer. */
+header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:2px solid var(--linea)}
+.cantiere-striscia{height:10px;background:repeating-linear-gradient(135deg,var(--giallo) 0 14px,#111 14px 28px)}
+.barra{display:flex;align-items:center;gap:18px;padding:8px 16px}
+.marchio{color:var(--bordo);font-weight:bold;font-size:18px;text-decoration:none;white-space:nowrap}
+nav{display:flex;gap:4px 16px;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:thin}
+nav a{color:var(--testo);text-decoration:none;padding:2px 0}
+nav a:hover,nav a:focus-visible{color:var(--bordo)}
+main{padding:12px 16px 40px}
+footer{color:var(--tenue);padding:16px;text-align:center;font-size:13px;border-top:2px solid var(--linea)}
+
+h1{margin:0 0 6px;font-size:24px;color:var(--bordo)}
+h2{color:var(--bordo);margin:28px 0 10px;font-size:18px}
+h2 small{color:var(--tenue);font-weight:normal}
+p.nota{color:var(--tenue);margin:4px 0 0;max-width:80ch}
+.etichetta{font:12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--tenue);margin:0 0 4px}
+.etichetta::before{content:"// ";color:var(--giallo)}
+.pannello{background:var(--pan);border:2px solid var(--linea);padding:16px;margin:16px 0}
+.pannello p{max-width:80ch;margin:0}
+
+/* CRT frame for captures: scanlines and vignette over the image, a scan line passing every 6 s. */
+.crt{position:relative;overflow:hidden;background:#000;border:2px solid var(--linea)}
+.crt img{display:block;width:100%}
+.crt::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px),
+    radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.6) 100%)}
+.crt::before{content:"";position:absolute;left:0;right:0;top:0;height:12%;z-index:1;pointer-events:none;
+  background:linear-gradient(transparent,rgba(255,211,127,.10),transparent);
+  transform:translateY(-100%);animation:scansione 6s linear infinite}
+@keyframes scansione{to{transform:translateY(834%)}}
+@media (prefers-reduced-motion:reduce){.crt::before{animation:none;display:none}}
+
+/* Grids. */
+.griglia{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.griglia-catture,.ambienti{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:12px}
+.griglia-catture img,.ambienti img{display:block;width:100%}
+.griglia-catture figcaption,.ambienti figcaption{font-size:13px;word-break:normal}
+.sezioni{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px}
+.sezioni a{display:block;background:var(--pan);border:2px solid var(--linea);padding:14px;text-decoration:none;color:var(--testo)}
+.sezioni a:hover,.sezioni a:focus-visible{border-color:var(--bordo)}
+.sezioni b{display:block;color:var(--bordo);font-size:16px}
+
+/* Asset cards. */
+figure{margin:0;background:var(--pan);border:2px solid var(--linea);padding:8px;min-width:0}
+.box{height:136px;display:flex;align-items:center;justify-content:center;
+  background:repeating-conic-gradient(#20242b 0 25%,#191c22 0 50%) 0 0/16px 16px}
+figcaption{margin-top:6px;font-size:12px;word-break:break-all}
+figcaption span{display:block;color:var(--tenue)}
+.blocco{position:relative}
+.blocco .box{height:auto;min-height:136px;padding:4px}
+.blocco .box>img.st{display:none}
+.blocco.largo{grid-column:span 2}
+@media (max-width:360px){.blocco.largo{grid-column:auto}}
+.blocco figcaption{word-break:normal;overflow-wrap:anywhere;padding-right:40px}
+.sr{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+.scelte{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.scelte label{font-size:12px;border:1px solid var(--linea);padding:1px 6px;cursor:pointer;background:var(--bg)}
+.scelte label:hover{border-color:var(--bordo)}
+button{font:inherit;color:var(--testo);background:var(--bg);border:2px solid var(--linea);cursor:pointer}
+button:hover,button:focus-visible{border-color:var(--bordo);outline:none}
+@supports not selector(:popover-open){.lente{display:none}}
+.lente{position:absolute;right:8px;bottom:8px;width:34px;height:34px;padding:0;display:flex;
+  align-items:center;justify-content:center}
+.lente svg{width:20px;height:20px;stroke:var(--bordo);fill:none;stroke-width:2.5}
+.modale{background:var(--pan);color:var(--testo);border:2px solid var(--bordo);padding:16px;
+  width:min(calc(100vw - 32px),760px);max-height:calc(100vh - 32px);overflow:auto}
+.modale::backdrop{background:rgba(0,0,0,.7)}
+.modale h3{margin:0 0 4px;color:var(--bordo);font-size:17px}
+.modale .chiudi{position:sticky;top:0;float:right;padding:2px 10px}
+.pezzi{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:10px;margin-top:12px}
+.pezzi .box{height:auto;min-height:200px}
+.carattere img{display:block;margin:8px 0}
