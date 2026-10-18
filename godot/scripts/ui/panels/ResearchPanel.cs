@@ -9,15 +9,11 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class ResearchPanel : Control
 {
-    private static readonly Color ScreenBg = new(14 / 255f, 18 / 255f, 18 / 255f, 1f);
-    private static readonly Color TitleColor = new(239 / 255f, 238 / 255f, 224 / 255f, 1f);
-    private static readonly Color HintMuted = new(112 / 255f, 124 / 255f, 119 / 255f, 1f);
-    private static readonly Color HintSoft = new(164 / 255f, 173 / 255f, 168 / 255f, 1f);
-    private static readonly Color DetailFill = new(24 / 255f, 30 / 255f, 28 / 255f, 1f);
-    private static readonly Color DetailBorder = new(60 / 255f, 70 / 255f, 64 / 255f, 1f);
-    private static readonly Color StatusCoral = new(225 / 255f, 140 / 255f, 110 / 255f, 1f);
-    private static readonly Color MancaCoral = new(220 / 255f, 140 / 255f, 120 / 255f, 1f);
-    private static readonly Color Gold = new(211 / 255f, 164 / 255f, 76 / 255f, 1f);
+    /// <summary>Left edge of the title, hint and funds lines.</summary>
+    private const float Margin = 28f;
+
+    /// <summary>Top of the hint under the title row.</summary>
+    private const float HintTop = 60f;
 
     private IGameView? _view;
     private Action<SimCommand>? _submit;
@@ -32,6 +28,7 @@ public partial class ResearchPanel : Control
     private Label? _detailManca;
     private Label? _detailZoom;
     private Label? _walletLabel;
+    private Label? _hintLabel;
     private Label? _statusLabel;
     private Button? _unlockButton;
     private Button? _backButton;
@@ -127,37 +124,35 @@ public partial class ResearchPanel : Control
     {
         var bg = new ColorRect
         {
-            Color = ScreenBg,
+            Color = UiColors.FondoSchermo,
             MouseFilter = MouseFilterEnum.Stop
         };
         bg.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(bg);
 
-        var title = new Label
-        {
-            Text = "Ricerca",
-            Position = new Vector2(28, 22)
-        };
-        title.AddThemeColorOverride("font_color", TitleColor);
-        title.AddThemeFontSizeOverride("font_size", 28);
-        AddChild(title);
+        var header = new HBoxContainer { Position = new Vector2(28, 18), ThemeTypeVariation = UiTheme.RigaLarga };
+        AddChild(header);
+        var icon = HudStyle.MakeIcon(UiTheme.Icon("ricerca"), 32, pixel: true);
+        icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        header.AddChild(icon);
+        header.AddChild(new Label { Text = "Ricerca", ThemeTypeVariation = UiTheme.Titolo });
 
-        var hint = new Label
+        _hintLabel = new Label
         {
             Text = "Trascina per muoverti · rotella = zoom · click su un nodo per i dettagli · H = vista intera · T / Esc chiude",
-            Position = new Vector2(28, 58)
+            Position = new Vector2(Margin, HintTop),
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        hint.AddThemeColorOverride("font_color", HintMuted);
-        hint.AddThemeFontSizeOverride("font_size", 14);
-        AddChild(hint);
+        AddChild(_hintLabel);
 
         _walletLabel = new Label
         {
             Text = "Fondi: $0",
-            Position = new Vector2(28, 80)
+            Position = new Vector2(Margin, HintTop + 26),
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        _walletLabel.AddThemeColorOverride("font_color", HintSoft);
-        _walletLabel.AddThemeFontSizeOverride("font_size", 14);
         AddChild(_walletLabel);
 
         _canvas = new TechTreeCanvas { Name = "TechTreeCanvas" };
@@ -166,69 +161,38 @@ public partial class ResearchPanel : Control
         _canvas.ViewChanged += RefreshDetailChrome;
         AddChild(_canvas);
 
-        _detailPanel = new PanelContainer { Name = "Detail" };
-        _detailPanel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = DetailFill,
-            BorderColor = DetailBorder,
-            BorderWidthLeft = 1,
-            BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 14,
-            ContentMarginBottom = 14
-        });
+        _detailPanel = new PanelContainer { Name = "Detail", ThemeTypeVariation = UiTheme.Scheda };
         AddChild(_detailPanel);
 
         var detailRoot = new VBoxContainer();
-        detailRoot.AddThemeConstantOverride("separation", 8);
         _detailPanel.AddChild(detailRoot);
 
-        _detailTitle = new Label { Text = "—" };
-        _detailTitle.AddThemeColorOverride("font_color", TitleColor);
-        _detailTitle.AddThemeFontSizeOverride("font_size", 20);
+        _detailTitle = new Label { Text = "—", ThemeTypeVariation = UiTheme.TitoloChiaro };
         detailRoot.AddChild(_detailTitle);
 
-        _detailUsage = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _detailUsage.AddThemeColorOverride("font_color", HintSoft);
-        _detailUsage.AddThemeFontSizeOverride("font_size", 13);
-        detailRoot.AddChild(_detailUsage);
-
+        _detailUsage = DetailLine(detailRoot);
         _detailState = new Label { Text = "" };
-        _detailState.AddThemeFontSizeOverride("font_size", 14);
         detailRoot.AddChild(_detailState);
-
-        _detailCost = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _detailCost.AddThemeColorOverride("font_color", HintSoft);
-        _detailCost.AddThemeFontSizeOverride("font_size", 14);
-        detailRoot.AddChild(_detailCost);
-
-        _detailPrereq = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _detailPrereq.AddThemeColorOverride("font_color", HintSoft);
-        _detailPrereq.AddThemeFontSizeOverride("font_size", 13);
-        detailRoot.AddChild(_detailPrereq);
-
-        _detailManca = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _detailManca.AddThemeColorOverride("font_color", MancaCoral);
-        _detailManca.AddThemeFontSizeOverride("font_size", 13);
-        detailRoot.AddChild(_detailManca);
-
-        detailRoot.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
+        _detailCost = DetailLine(detailRoot);
+        _detailPrereq = DetailLine(detailRoot);
+        _detailManca = DetailLine(detailRoot);
+        _detailManca.ThemeTypeVariation = UiTheme.TestoRosso;
 
         _unlockButton = new Button
         {
             Text = "Conferma sblocco",
-            CustomMinimumSize = new Vector2(0, 48)
+            CustomMinimumSize = new Vector2(0, 48),
+            ThemeTypeVariation = UiTheme.PulsantePrimario
         };
-        StyleMenuButton(_unlockButton);
         _unlockButton.Pressed += OnUnlockPressed;
         detailRoot.AddChild(_unlockButton);
 
-        _detailZoom = new Label { Text = "Zoom 1.00× · percorso evidenziato sul grafo" };
-        _detailZoom.AddThemeColorOverride("font_color", new Color(126 / 255f, 137 / 255f, 132 / 255f));
-        _detailZoom.AddThemeFontSizeOverride("font_size", 12);
+        _detailZoom = new Label
+        {
+            Text = "Zoom 1.00× · percorso evidenziato sul grafo",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
+        };
         detailRoot.AddChild(_detailZoom);
 
         _backButton = new Button
@@ -236,48 +200,22 @@ public partial class ResearchPanel : Control
             Text = "Indietro",
             CustomMinimumSize = new Vector2(180, 40)
         };
-        StyleMenuButton(_backButton);
         _backButton.Pressed += Close;
         AddChild(_backButton);
 
-        _statusLabel = new Label { Text = "" };
-        _statusLabel.AddThemeColorOverride("font_color", StatusCoral);
-        _statusLabel.AddThemeFontSizeOverride("font_size", 16);
+        _statusLabel = new Label { Text = "", ThemeTypeVariation = UiTheme.TestoAccento };
         AddChild(_statusLabel);
 
         Resized += LayoutChrome;
         LayoutChrome();
     }
 
-    private static void StyleMenuButton(Button button)
+    /// <summary>A wrapping secondary line of the detail panel.</summary>
+    private static Label DetailLine(VBoxContainer parent)
     {
-        button.AddThemeStyleboxOverride("normal", new StyleBoxFlat
-        {
-            BgColor = new Color(45 / 255f, 52 / 255f, 50 / 255f),
-            ContentMarginLeft = 12,
-            ContentMarginRight = 12,
-            ContentMarginTop = 8,
-            ContentMarginBottom = 8
-        });
-        button.AddThemeStyleboxOverride("hover", new StyleBoxFlat
-        {
-            BgColor = Gold,
-            ContentMarginLeft = 12,
-            ContentMarginRight = 12,
-            ContentMarginTop = 8,
-            ContentMarginBottom = 8
-        });
-        button.AddThemeStyleboxOverride("disabled", new StyleBoxFlat
-        {
-            BgColor = new Color(32 / 255f, 36 / 255f, 34 / 255f),
-            ContentMarginLeft = 12,
-            ContentMarginRight = 12,
-            ContentMarginTop = 8,
-            ContentMarginBottom = 8
-        });
-        button.AddThemeColorOverride("font_color", new Color(215 / 255f, 219 / 255f, 210 / 255f));
-        button.AddThemeColorOverride("font_hover_color", new Color(25 / 255f, 28 / 255f, 26 / 255f));
-        button.AddThemeColorOverride("font_disabled_color", new Color(120 / 255f, 128 / 255f, 122 / 255f));
+        var label = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, ThemeTypeVariation = UiTheme.TestoTenue };
+        parent.AddChild(label);
+        return label;
     }
 
     private void LayoutChrome()
@@ -288,9 +226,24 @@ public partial class ResearchPanel : Control
             return;
         }
 
-        var detailW = Math.Clamp(size.X * 0.26f, 260f, 340f);
+        // Hint and funds wrap to the window width; the tree and the detail start under them.
+        var top = HintTop;
+        foreach (var line in new[] { _hintLabel, _walletLabel })
+        {
+            if (line is null)
+            {
+                continue;
+            }
+
+            line.Position = new Vector2(Margin, top);
+            line.Size = new Vector2(size.X - Margin * 2f, 0f);
+            top += line.GetLineCount() * line.GetLineHeight() + 2f;
+        }
+
+        var contentTop = top + 12f;
+        var detailW = Math.Clamp(size.X * 0.3f, 300f, 400f);
         var detailX = size.X - detailW - 28f;
-        var detailY = 118f;
+        var detailY = contentTop;
         var detailH = Math.Max(220f, size.Y - detailY - 90f);
 
         if (_detailPanel is not null)
@@ -302,7 +255,7 @@ public partial class ResearchPanel : Control
         if (_canvas is not null)
         {
             var canvasX = 24f;
-            var canvasY = 110f;
+            var canvasY = contentTop;
             var canvasW = Math.Max(280f, detailX - canvasX - 16f);
             var canvasH = Math.Max(200f, size.Y - canvasY - 90f);
             _canvas.Position = new Vector2(canvasX, canvasY);
@@ -318,7 +271,7 @@ public partial class ResearchPanel : Control
 
         if (_statusLabel is not null)
         {
-            _statusLabel.Position = new Vector2(230, size.Y - 58);
+            _statusLabel.Position = new Vector2(230, size.Y - 62);
             _statusLabel.Size = new Vector2(Math.Max(200, size.X - 260), 28);
         }
     }
@@ -355,6 +308,7 @@ public partial class ResearchPanel : Control
         {
             _walletLabel.Text =
                 $"Fondi: ${_view.Wallet.Money}   ·   bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente";
+            LayoutChrome();
         }
 
         RefreshDetail();
@@ -413,12 +367,12 @@ public partial class ResearchPanel : Control
             ResearchNodeState.Available => "Stato: disponibile",
             _ => "Stato: bloccato"
         };
-        _detailState.AddThemeColorOverride("font_color", state switch
+        _detailState.ThemeTypeVariation = state switch
         {
-            ResearchNodeState.Unlocked => new Color(112 / 255f, 218 / 255f, 145 / 255f),
-            ResearchNodeState.Available => new Color(220 / 255f, 170 / 255f, 110 / 255f),
-            _ => new Color(140 / 255f, 148 / 255f, 142 / 255f)
-        });
+            ResearchNodeState.Unlocked => UiTheme.TestoVerde,
+            ResearchNodeState.Available => UiTheme.TestoAccento,
+            _ => UiTheme.TestoTenue
+        };
 
         _detailCost.Text = "Sblocco: " + FormatUnlockRequirement(structure.Unlock)
             + "\nCostruzione: " + FormatBuildCost(structure.Id, _view.Content);
@@ -428,12 +382,10 @@ public partial class ResearchPanel : Control
         if (!string.IsNullOrEmpty(manca))
         {
             _detailManca.Text = manca;
-            _detailManca.AddThemeColorOverride("font_color", MancaCoral);
         }
         else if (structure.IsStub)
         {
             _detailManca.Text = "Segnaposto: non costruibile ancora.";
-            _detailManca.AddThemeColorOverride("font_color", new Color(180 / 255f, 120 / 255f, 100 / 255f));
         }
         else
         {

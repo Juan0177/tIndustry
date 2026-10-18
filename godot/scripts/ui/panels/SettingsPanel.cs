@@ -9,13 +9,6 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class SettingsPanel : Control
 {
-    private static readonly Color Dim = new(0.04f, 0.05f, 0.05f, 0.82f);
-    private static readonly Color CardBg = new(0.08f, 0.10f, 0.11f, 0.96f);
-    private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-    private static readonly Color Selected = new(1f, 0.95f, 0.55f, 1f);
-
     private ClientSettings? _live;
     private ClientSettings? _draft;
     private Label? _statusLabel;
@@ -75,58 +68,40 @@ public partial class SettingsPanel : Control
     {
         var dim = new ColorRect
         {
-            Color = Dim,
+            Color = UiColors.Oscuramento,
             MouseFilter = MouseFilterEnum.Stop
         };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var card = new PanelContainer { Name = "SettingsCard" };
+        var card = new PanelContainer { Name = "SettingsCard", ThemeTypeVariation = UiTheme.Scheda };
         card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -240;
-        card.OffsetTop = -260;
-        card.OffsetRight = 240;
-        card.OffsetBottom = 260;
-        card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = CardBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 22,
-            ContentMarginRight = 22,
-            ContentMarginTop = 18,
-            ContentMarginBottom = 18
-        });
+        card.OffsetLeft = -270;
+        card.OffsetTop = -280;
+        card.OffsetRight = 270;
+        card.OffsetBottom = 280;
+        card.GrowHorizontal = GrowDirection.Both;
+        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 10);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         card.AddChild(root);
 
         var title = new Label
         {
             Text = "Impostazioni",
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.Titolo
         };
-        title.AddThemeColorOverride("font_color", Accent);
-        title.AddThemeFontSizeOverride("font_size", 22);
         root.AddChild(title);
 
         var blurb = new Label
         {
             Text = "Grafica e interfaccia. Applica salva su disco e vale subito.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        blurb.AddThemeColorOverride("font_color", TextMuted);
-        blurb.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(blurb);
 
         // The options scroll; title, status and the Chiudi / Applica row stay in place.
@@ -138,8 +113,7 @@ public partial class SettingsPanel : Control
         };
         root.AddChild(scroll);
 
-        var options = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        options.AddThemeConstantOverride("separation", 8);
+        var options = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.ColonnaLarga };
         scroll.AddChild(options);
 
         AddSection(options, "Grafica");
@@ -179,14 +153,12 @@ public partial class SettingsPanel : Control
         _statusLabel = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        _statusLabel.AddThemeColorOverride("font_color", TextMuted);
-        _statusLabel.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(_statusLabel);
 
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 10);
+        var row = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(row);
 
         var cancel = new Button
@@ -204,7 +176,8 @@ public partial class SettingsPanel : Control
             Name = "Applica",
             Text = "Applica",
             CustomMinimumSize = new Vector2(0, 40),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ThemeTypeVariation = UiTheme.PulsantePrimario
         };
         apply.Pressed += Apply;
         row.AddChild(apply);
@@ -212,15 +185,7 @@ public partial class SettingsPanel : Control
 
     private static void AddSection(VBoxContainer parent, string text)
     {
-        var label = new Label { Text = text };
-        label.AddThemeColorOverride("font_color", Accent);
-        // 14, not 15, to keep the playtest captures stable; not a real fix. Labels rasterize their glyphs into the
-        // shared font atlas of their size even while hidden, and the HUD draws with LinearWithMipmaps
-        // (World.UseSmoothUiFiltering): new glyphs in the size-15 atlas changed its mipmaps and so the pixels of the
-        // toast (size 15). Any new text at a size the captured HUD uses can do the same. Deferred to G4, whose theme
-        // replaces fonts and UI filtering.
-        label.AddThemeFontSizeOverride("font_size", 14);
-        parent.AddChild(label);
+        parent.AddChild(new Label { Text = text, ThemeTypeVariation = UiTheme.TestoAccento });
     }
 
     /// <summary>A check button named <paramref name="name"/> bound to one boolean of the draft.</summary>
@@ -244,13 +209,9 @@ public partial class SettingsPanel : Control
     private void AddChoices(VBoxContainer parent, string name, string text, (string Label, int Value)[] choices,
         Func<ClientSettings, int> get, Action<ClientSettings, int> set)
     {
-        var label = new Label { Text = text };
-        label.AddThemeColorOverride("font_color", TextPrimary);
-        label.AddThemeFontSizeOverride("font_size", 13);
-        parent.AddChild(label);
+        parent.AddChild(new Label { Text = text });
 
-        var row = new HBoxContainer { Name = name };
-        row.AddThemeConstantOverride("separation", 8);
+        var row = new HBoxContainer { Name = name, ThemeTypeVariation = UiTheme.RigaLarga };
         parent.AddChild(row);
         foreach (var (choiceLabel, value) in choices)
         {
@@ -291,7 +252,7 @@ public partial class SettingsPanel : Control
 
         foreach (var (button, value, get) in _choices)
         {
-            button.Modulate = get(_draft) == value ? Selected : Colors.White;
+            button.ThemeTypeVariation = get(_draft) == value ? UiTheme.PulsanteScelto : "";
         }
     }
 

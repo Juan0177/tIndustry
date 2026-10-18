@@ -6,14 +6,6 @@ namespace TIndustry.Godot;
 /// <summary>Campagna: lista livelli IT con sblocco da progress.</summary>
 public partial class CampaignSelectPanel : Control
 {
-    private static readonly Color PanelBg = new(0.08f, 0.10f, 0.11f, 0.96f);
-    private static readonly Color Accent = new(0.92f, 0.82f, 0.42f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    private static readonly Color TextMuted = new(0.70f, 0.76f, 0.70f, 1f);
-    private static readonly Color RowPlayable = new(0.20f, 0.28f, 0.22f, 1f);
-    private static readonly Color RowDone = new(0.16f, 0.26f, 0.30f, 1f);
-    private static readonly Color RowLocked = new(0.14f, 0.14f, 0.14f, 1f);
-
     private CampaignCatalog? _catalog;
     private CampaignProgress? _progress;
     private VBoxContainer? _list;
@@ -36,21 +28,21 @@ public partial class CampaignSelectPanel : Control
         _catalog = catalog;
         _progress = progress;
         Visible = true;
-        ShowHint(DefaultHint, TextMuted);
+        ShowHint(DefaultHint, UiTheme.TestoTenue);
         Refresh();
     }
 
     private const string DefaultHint = "Scegli un livello sbloccato · G apre / Esc chiude";
 
     /// <summary>Shows why a level could not start in place of the hint line (until the panel is opened again).</summary>
-    public void ShowError(string message) => ShowHint(message, new Color(0.95f, 0.45f, 0.40f, 1f));
+    public void ShowError(string message) => ShowHint(message, UiTheme.TestoRosso);
 
-    private void ShowHint(string text, Color color)
+    private void ShowHint(string text, string look)
     {
         if (_hintLabel is not null)
         {
             _hintLabel.Text = text;
-            _hintLabel.AddThemeColorOverride("font_color", color);
+            _hintLabel.ThemeTypeVariation = look;
         }
     }
 
@@ -81,48 +73,37 @@ public partial class CampaignSelectPanel : Control
     {
         var dim = new ColorRect
         {
-            Color = new Color(0f, 0f, 0f, 0.55f),
+            Color = UiColors.Oscuramento,
             MouseFilter = MouseFilterEnum.Stop
         };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var panel = new PanelContainer { Name = "CampaignCard" };
+        var panel = new PanelContainer { Name = "CampaignCard", ThemeTypeVariation = UiTheme.Scheda };
         panel.SetAnchorsPreset(LayoutPreset.Center);
         panel.OffsetLeft = -420;
-        panel.OffsetTop = -300;
+        panel.OffsetTop = -270;
         panel.OffsetRight = 420;
-        panel.OffsetBottom = 300;
-        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = PanelBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 14,
-            ContentMarginBottom = 14
-        });
+        panel.OffsetBottom = 270;
+        panel.GrowHorizontal = GrowDirection.Both;
+        panel.GrowVertical = GrowDirection.Both;
         AddChild(panel);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 10);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         panel.AddChild(root);
 
-        var header = new HBoxContainer();
-        header.AddThemeConstantOverride("separation", 10);
+        var header = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
         root.AddChild(header);
 
-        var title = new Label { Text = "Campagna", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        title.AddThemeColorOverride("font_color", TextPrimary);
-        title.AddThemeFontSizeOverride("font_size", 22);
+        var icon = HudStyle.MakeIcon(UiTheme.Icon("campagna"), 32, pixel: true);
+        icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        header.AddChild(icon);
+        var title = new Label
+        {
+            Text = "Campagna",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ThemeTypeVariation = UiTheme.Titolo
+        };
         header.AddChild(title);
 
         var closeBtn = new Button { Text = "Indietro · Esc" };
@@ -132,22 +113,21 @@ public partial class CampaignSelectPanel : Control
         _hintLabel = new Label
         {
             Text = DefaultHint,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        _hintLabel.AddThemeColorOverride("font_color", TextMuted);
-        _hintLabel.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(_hintLabel);
 
         var scroll = new ScrollContainer
         {
-            CustomMinimumSize = new Vector2(0, 480),
+            CustomMinimumSize = new Vector2(0, 360),
             SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
         root.AddChild(scroll);
 
-        _list = new VBoxContainer();
-        _list.AddThemeConstantOverride("separation", 8);
+        _list = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         _list.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.AddChild(_list);
     }
@@ -181,62 +161,48 @@ public partial class CampaignSelectPanel : Control
             return;
         }
 
-        var bg = !unlocked ? RowLocked : completed ? RowDone : RowPlayable;
         var row = new PanelContainer
         {
             CustomMinimumSize = new Vector2(0, 72),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Stop
+            MouseFilter = MouseFilterEnum.Stop,
+            ThemeTypeVariation = !unlocked ? UiTheme.VoceBloccata : completed ? UiTheme.VoceFatta : UiTheme.Voce
         };
-        row.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = bg,
-            BorderColor = unlocked ? Accent : new Color(0.28f, 0.30f, 0.28f),
-            BorderWidthLeft = unlocked ? 2 : 1,
-            BorderWidthTop = unlocked ? 2 : 1,
-            BorderWidthRight = unlocked ? 2 : 1,
-            BorderWidthBottom = unlocked ? 2 : 1,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 12,
-            ContentMarginRight = 12,
-            ContentMarginTop = 8,
-            ContentMarginBottom = 8
-        });
         _list.AddChild(row);
 
         var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 4);
         row.AddChild(v);
 
-        var status = !unlocked ? "BLOCCATO" : completed ? "COMPLETATO" : "GIOCA";
-        var title = new Label
+        var head = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
+        v.AddChild(head);
+        if (!unlocked)
         {
-            Text = $"{index}. {level.Name}  ·  {status}"
-        };
-        title.AddThemeColorOverride("font_color", TextPrimary);
-        title.AddThemeFontSizeOverride("font_size", 15);
-        v.AddChild(title);
+            // The lock beside the word: the state never rests on the colour alone.
+            var lockIcon = HudStyle.MakeIcon(UiTheme.Icon("lucchetto", small: true), 16, pixel: true);
+            lockIcon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            head.AddChild(lockIcon);
+        }
 
-        var desc = new Label
+        var status = !unlocked ? "BLOCCATO" : completed ? "COMPLETATO" : "GIOCA";
+        head.AddChild(new Label
+        {
+            Text = $"{index}. {level.Name}  ·  {status}",
+            ThemeTypeVariation = !unlocked ? UiTheme.TestoTenue : completed ? UiTheme.TestoVerde : UiTheme.TestoAccento
+        });
+
+        v.AddChild(new Label
         {
             Text = level.Description,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
-        };
-        desc.AddThemeColorOverride("font_color", TextMuted);
-        desc.AddThemeFontSizeOverride("font_size", 12);
-        v.AddChild(desc);
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = unlocked ? "" : UiTheme.TestoTenue
+        });
 
-        var objs = new Label
+        v.AddChild(new Label
         {
             Text = _catalog.ObjectiveSummary(level),
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
-        };
-        objs.AddThemeColorOverride("font_color", TextMuted);
-        objs.AddThemeFontSizeOverride("font_size", 11);
-        v.AddChild(objs);
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
+        });
 
         if (unlocked)
         {

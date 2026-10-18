@@ -113,6 +113,8 @@ public partial class World : Node2D
         _campaignPath = ResolveCampaignPath();
         _settings = ClientSettings.Load();
         _settings.ApplyToEngine(GetTree().Root);
+        // One theme for the whole client UI (G4): the window (popups, tooltips) and every panel on the HUD layer.
+        UiTheme.ApplyTo(GetTree().Root, GetNode<CanvasLayer>("Hud"));
         var content = FactoryContent.Load(_contentPath);
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
@@ -138,7 +140,7 @@ public partial class World : Node2D
         EnsureMapOverlay();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
-        UseSmoothUiFiltering();
+        EnsurePlacementOverlay();
         EnsureBuildingsLayer();
         EnsureConstructionLayer();
         EnsureEffects();
@@ -238,20 +240,17 @@ public partial class World : Node2D
         UpdateHud();
         CheckCampaignComplete();
         QueueRedraw();
+        _placementOverlay?.QueueRedraw();
     }
 
     /// <summary>
-    /// Leaving the tree (any quit: Home "Esci", window close, end of a playtest): unhook the playtest guard and run
-    /// the pending .NET finalizers while the engine is still whole. Godot wrappers already unreachable but not yet
-    /// finalized (UI <c>StyleBoxFlat</c>s and <c>CompressedTexture2D</c>s created in C#) would otherwise be finalized
-    /// by the GC during engine teardown, which crashes it ("Leaked unsafe reference", "!rc_owner"); bigger maps mean
-    /// more GC pressure and made it likely.
+    /// Leaving the tree (any quit: Home "Esci", window close, end of a playtest): unhook the playtest guard. The UI
+    /// leaves no Godot wrapper for the GC to finalize during engine teardown (which used to crash it: "Leaked unsafe
+    /// reference"): styles, fonts and icons live in the static <see cref="UiTheme"/> and <see cref="Sprites"/> caches.
     /// </summary>
     public override void _ExitTree()
     {
         GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
     }
 
     private void EnsureEffects()
@@ -508,30 +507,5 @@ public partial class World : Node2D
         };
 
         return candidates.FirstOrDefault(Directory.Exists);
-    }
-
-    /// <summary>
-    /// The project default is Nearest (crisp pixel-art blocks on the map). UI is scaled (UI scale 125%,
-    /// 32 px icons drawn at 16–28 px), where Nearest drops pixels: grainy text and icons. Smooth filtering
-    /// for everything on the HUD layer only; children inherit it.
-    /// </summary>
-    private void UseSmoothUiFiltering()
-    {
-        var layer = GetNode<CanvasLayer>("Hud");
-        foreach (var child in layer.GetChildren())
-        {
-            if (child is CanvasItem item)
-            {
-                item.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
-            }
-        }
-
-        layer.ChildEnteredTree += node =>
-        {
-            if (node.GetParent() == layer && node is CanvasItem item)
-            {
-                item.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
-            }
-        };
     }
 }

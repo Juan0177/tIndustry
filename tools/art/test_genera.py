@@ -56,9 +56,6 @@ LUCE = ("luce", 128)
 # Interface icons (G4): "ui/ui-<nome>" 32x32 and "ui/ui-<nome>-16" 16x16, for these names.
 ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "menu", "ricerca", "mercato",
             "campagna", "lucchetto", "energia", "impostazioni", "salvataggi", "lingua")
-# Third-party icons still used by the client until G4 2/6 switches to the ui-* ones (then deleted).
-UI_TERZI = ("cat-logistics", "cat-power", "cat-production", "cat-tools", "locked", "menu", "power", "research",
-            "sell")
 # Interface font (G4): required glyphs and the exported files in godot/assets/ui/.
 INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥"
 FONT_UI = ("carattere-testo", "carattere-titoli")
@@ -759,16 +756,18 @@ class TestGenera(unittest.TestCase):
 
     def test_solo_sprite_generati(self):
         # Every PNG in the root of godot/assets comes from the registry: no hand-made or third-party
-        # sprite can sneak back in (third-party interface icons live in godot/assets/ui/).
+        # sprite can sneak back in.
         cartella = os.path.join(REPO, "godot", "assets")
         png = {f[: -len(".png")] for f in os.listdir(cartella)
                if f.endswith(".png") and os.path.isfile(os.path.join(cartella, f))}
         self.assertEqual([], sorted(png - (set(SPRITE) - set(TEST_SPRITES))))
-        # godot/assets/ui: generated icons and font pages, plus the third-party icons not yet replaced.
+        # godot/assets/ui holds only generated files: the registry icons, the font (.fnt + page) and
+        # their Godot .import files; no third-party icon is left (G4 2/6).
         cartella = os.path.join(cartella, "ui")
-        png = {"ui/" + f[: -len(".png")] for f in os.listdir(cartella) if f.endswith(".png")}
-        ammessi = set(SPRITE) | {f"ui/{n}" for n in FONT_UI + UI_TERZI}
-        self.assertEqual([], sorted(png - ammessi))
+        ammessi = {n[len("ui/"):] + ".png" for n in SPRITE if n.startswith("ui/")}
+        ammessi |= {f"{n}.{ext}" for n in FONT_UI for ext in ("png", "fnt")}
+        ammessi |= {f + ".import" for f in ammessi}
+        self.assertEqual([], sorted(set(os.listdir(cartella)) - ammessi))
 
     def test_icone_ui(self):
         # Every interface icon in both sizes: only white and the outline colour, the white never

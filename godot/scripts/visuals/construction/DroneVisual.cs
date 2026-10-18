@@ -178,7 +178,7 @@ public partial class DroneVisual : Node2D
         var pulse = GameDataPaths.IsPlaytest ? 0f : Mathf.Abs(Mathf.Sin(_clock * EnginePulseRadPerSec));
         var engine = heading * (-TailTiles * t);
         var radius = (EngineTiles + EnginePulseTiles * pulse) * t;
-        DrawCircle(engine, radius, ConstructionLayer.Accent);
+        DrawCircle(engine, radius, UiColors.Costruzione);
         DrawCircle(engine, radius * 0.5f, Colors.White);
 
         // Engine trail: oldest dot faintest and smallest.
@@ -186,7 +186,7 @@ public partial class DroneVisual : Node2D
         foreach (var dot in _trail)
         {
             var k = (i + 1) / (float)TrailDots;
-            DrawCircle(dot - Position, t * 0.07f * k + 1.5f, new Color(ConstructionLayer.Accent, 0.55f * k));
+            DrawCircle(dot - Position, t * 0.07f * k + 1.5f, new Color(UiColors.Costruzione, 0.55f * k));
             i++;
         }
 

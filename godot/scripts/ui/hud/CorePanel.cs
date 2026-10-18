@@ -52,18 +52,17 @@ public partial class CorePanel : VBoxContainer
         SetAnchorsPreset(LayoutPreset.TopLeft);
         OffsetLeft = 10;
         OffsetTop = 10;
-        AddThemeConstantOverride("separation", 6);
+        ThemeTypeVariation = UiTheme.ColonnaLarga;
     }
 
     public override void _Ready()
     {
         var menuRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        menuRow.AddThemeConstantOverride("separation", 4);
         AddChild(menuRow);
-        AddMenuButton(menuRow, UiIcon("res://assets/ui/menu.png"), "Menu", "Esc", () => MenuRequested?.Invoke());
-        AddMenuButton(menuRow, UiIcon("res://assets/ui/research.png"), "Ricerca", "T", () => ResearchRequested?.Invoke());
-        AddMenuButton(menuRow, UiIcon("res://assets/ui/sell.png"), "Mercato", "M", () => MercatoRequested?.Invoke());
-        AddMenuButton(menuRow, Sprites.For("core-1"), "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
+        AddMenuButton(menuRow, "menu", "Menu", "Esc", () => MenuRequested?.Invoke());
+        AddMenuButton(menuRow, "ricerca", "Ricerca", "T", () => ResearchRequested?.Invoke());
+        AddMenuButton(menuRow, "mercato", "Mercato", "M", () => MercatoRequested?.Invoke());
+        AddMenuButton(menuRow, "campagna", "Campagna", "G", () => CampaignRequested?.Invoke());
 
         BuildCorePanel();
         if (_belowStock is not null)
@@ -147,9 +146,8 @@ public partial class CorePanel : VBoxContainer
             var hasGrid = powerCapacity > 0f && powerBuffer >= 0f;
             _powerLabel.Text = hasGrid ? $"{powerBuffer:0}/{powerCapacity:0}" : "—";
             var low = hasGrid && powerBuffer < powerCapacity * 0.2f;
-            var tint = !hasGrid ? TextMuted : low ? Insufficient : PowerColor;
-            _powerLabel.AddThemeColorOverride("font_color", tint);
-            _powerIcon.Modulate = tint;
+            _powerLabel.ThemeTypeVariation = !hasGrid ? UiTheme.TestoTenue : low ? UiTheme.TestoRosso : UiTheme.TestoEnergia;
+            _powerIcon.Modulate = !hasGrid ? UiColors.TestoTenue : low ? UiColors.Insufficiente : UiColors.Energia;
             var gens = generatorsTotal > 0 ? $" · generatori attivi {generatorsLive}/{generatorsTotal}" : "";
             _powerLabel.TooltipText = hasGrid ? $"Energia accumulata / capacità{gens}" : "Nessuna rete elettrica";
         }
@@ -253,11 +251,7 @@ public partial class CorePanel : VBoxContainer
             var current = CampaignProgress.GetObjectiveCurrent(objective, wallet, session, research);
             var done = CampaignProgress.IsObjectiveComplete(objective, wallet, session, research);
             var text = CampaignCatalog.FormatObjectiveProgress(objective, current, itemName);
-            var label = new Label { Text = text };
-            label.AddThemeColorOverride("font_color",
-                done ? new Color(0.45f, 0.85f, 0.55f) : TextMuted);
-            label.AddThemeFontSizeOverride("font_size", 12);
-            _objectivesList.AddChild(label);
+            _objectivesList.AddChild(MakeLabel(text, done ? UiTheme.TestoVerde : UiTheme.TestoTenue));
         }
     }
 
@@ -277,37 +271,17 @@ public partial class CorePanel : VBoxContainer
         }
     }
 
-    private static Texture2D? UiIcon(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-
-    private static void AddMenuButton(Control parent, Texture2D? icon, string label, string hotkey, Action onClick, bool tintIcon = true)
+    private static void AddMenuButton(Control parent, string icon, string label, string hotkey, Action onClick)
     {
         var button = new Button
         {
             Text = label,
-            Icon = icon,
+            Icon = UiTheme.Icon(icon, small: true),
             FocusMode = FocusModeEnum.None,
             TooltipText = $"{label} ({hotkey})",
             MouseDefaultCursorShape = CursorShape.PointingHand,
             CustomMinimumSize = new Vector2(0, 34)
         };
-        button.AddThemeConstantOverride("icon_max_width", 18);
-        button.AddThemeConstantOverride("h_separation", 6);
-        button.AddThemeFontSizeOverride("font_size", 13);
-        button.AddThemeColorOverride("font_color", TextPrimary);
-        button.AddThemeColorOverride("font_hover_color", SlotSelected);
-        button.AddThemeColorOverride("font_pressed_color", SlotSelected);
-        button.AddThemeColorOverride("icon_normal_color", tintIcon ? TextPrimary : Colors.White);
-        button.AddThemeColorOverride("icon_hover_color", tintIcon ? SlotSelected : Colors.White);
-        button.AddThemeColorOverride("icon_pressed_color", tintIcon ? SlotSelected : Colors.White);
-        foreach (var state in new[] { "normal", "hover", "pressed" })
-        {
-            var style = MakeSlotStyle(state == "hover" ? SlotSelected : PanelEdge, 1);
-            style.BgColor = state == "pressed" ? new Color(0.22f, 0.22f, 0.16f, 0.95f) : PanelBg;
-            style.ContentMarginLeft = 8;
-            style.ContentMarginRight = 10;
-            button.AddThemeStyleboxOverride(state, style);
-        }
-
         button.Pressed += onClick;
         parent.AddChild(button);
     }
@@ -319,70 +293,48 @@ public partial class CorePanel : VBoxContainer
         panel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
         AddChild(panel);
 
-        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        margin.AddThemeConstantOverride("margin_left", 10);
-        margin.AddThemeConstantOverride("margin_right", 10);
-        margin.AddThemeConstantOverride("margin_top", 8);
-        margin.AddThemeConstantOverride("margin_bottom", 6);
-        panel.AddChild(margin);
-
-        var vbox = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        vbox.AddThemeConstantOverride("separation", 6);
-        margin.AddChild(vbox);
+        var vbox = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.ColonnaLarga };
+        panel.AddChild(vbox);
 
         // Fondi · energia
-        var head = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        head.AddThemeConstantOverride("separation", 6);
+        var head = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaLarga };
         vbox.AddChild(head);
         head.AddChild(MakeIcon(ItemTexture("money"), 20));
-        _moneyLabel = new Label { Text = "$0", TooltipText = "Fondi", MouseFilter = MouseFilterEnum.Pass };
-        _moneyLabel.AddThemeColorOverride("font_color", MoneyColor);
-        _moneyLabel.AddThemeFontSizeOverride("font_size", 16);
+        _moneyLabel = MakeLabel("$0", UiTheme.TestoDenaro);
+        _moneyLabel.TooltipText = "Fondi";
+        _moneyLabel.MouseFilter = MouseFilterEnum.Pass;
         head.AddChild(_moneyLabel);
         head.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
-        _powerIcon = MakeIcon(
-            ResourceLoader.Exists("res://assets/ui/power.png") ? GD.Load<Texture2D>("res://assets/ui/power.png") : null,
-            16,
-            TextMuted);
+        _powerIcon = MakeIcon(UiTheme.Icon("energia", small: true), 16, UiColors.TestoTenue, pixel: true);
         _powerIcon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(_powerIcon);
-        _powerLabel = new Label { Text = "—", MouseFilter = MouseFilterEnum.Pass, VerticalAlignment = VerticalAlignment.Center };
-        _powerLabel.AddThemeFontSizeOverride("font_size", 13);
+        _powerLabel = MakeLabel("—", UiTheme.TestoTenue);
+        _powerLabel.MouseFilter = MouseFilterEnum.Pass;
         head.AddChild(_powerLabel);
 
         // Core items: icon + count, only what you have (names on hover).
-        _stockGrid = new GridContainer { Columns = 4, MouseFilter = MouseFilterEnum.Ignore };
-        _stockGrid.AddThemeConstantOverride("h_separation", 10);
-        _stockGrid.AddThemeConstantOverride("v_separation", 4);
+        _stockGrid = new GridContainer { Columns = 4, MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.GrigliaLarga };
         vbox.AddChild(_stockGrid);
         foreach (var id in StockOrder)
         {
             AddStockCell(_stockGrid, id);
         }
 
-        _stockEmpty = new Label { Text = "Core vuoto: porta minerali con i nastri", MouseFilter = MouseFilterEnum.Ignore };
-        _stockEmpty.AddThemeColorOverride("font_color", TextMuted);
-        _stockEmpty.AddThemeFontSizeOverride("font_size", 11);
+        _stockEmpty = MakeLabel("Core vuoto: porta minerali con i nastri", UiTheme.TestoTenue);
         vbox.AddChild(_stockEmpty);
 
-        var upgradeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        upgradeRow.AddThemeConstantOverride("separation", 6);
+        var upgradeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaLarga };
         vbox.AddChild(upgradeRow);
         _coreUpgradeButton = new Button
         {
             Text = "Potenzia CORE",
-            Flat = true,
+            ThemeTypeVariation = UiTheme.PulsantePiatto,
             FocusMode = FocusModeEnum.None,
             MouseDefaultCursorShape = CursorShape.PointingHand
         };
-        _coreUpgradeButton.AddThemeColorOverride("font_color", TextPrimary);
-        _coreUpgradeButton.AddThemeColorOverride("font_hover_color", SlotSelected);
-        _coreUpgradeButton.AddThemeColorOverride("font_disabled_color", TextMuted);
-        _coreUpgradeButton.AddThemeFontSizeOverride("font_size", 12);
         _coreUpgradeButton.Pressed += () => CoreUpgradeRequested?.Invoke();
         upgradeRow.AddChild(_coreUpgradeButton);
         _coreUpgradeCost = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        _coreUpgradeCost.AddThemeConstantOverride("separation", 4);
         upgradeRow.AddChild(_coreUpgradeCost);
     }
 
@@ -393,14 +345,12 @@ public partial class CorePanel : VBoxContainer
             Visible = false,
             MouseFilter = MouseFilterEnum.Pass,
             TooltipText = _content?.DisplayName(id) ?? id,
-            CustomMinimumSize = new Vector2(46, 22)
+            CustomMinimumSize = new Vector2(46, 22),
+            ThemeTypeVariation = UiTheme.RigaStretta
         };
-        cell.AddThemeConstantOverride("separation", 3);
         parent.AddChild(cell);
         cell.AddChild(MakeIcon(ItemTexture(id), 20));
-        var count = new Label { Text = "0", MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
-        count.AddThemeColorOverride("font_color", TextPrimary);
-        count.AddThemeFontSizeOverride("font_size", 13);
+        var count = MakeLabel("0");
         cell.AddChild(count);
         _stockCells[id] = (cell, count);
     }
@@ -413,24 +363,13 @@ public partial class CorePanel : VBoxContainer
         _objectivesPanel.Visible = false;
         AddChild(_objectivesPanel);
 
-        var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left", 10);
-        margin.AddThemeConstantOverride("margin_right", 10);
-        margin.AddThemeConstantOverride("margin_top", 8);
-        margin.AddThemeConstantOverride("margin_bottom", 8);
-        _objectivesPanel.AddChild(margin);
-
         var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 4);
-        margin.AddChild(vbox);
+        _objectivesPanel.AddChild(vbox);
 
-        _objectivesTitle = new Label { Text = "OBIETTIVO" };
-        _objectivesTitle.AddThemeColorOverride("font_color", SlotSelected);
-        _objectivesTitle.AddThemeFontSizeOverride("font_size", 13);
+        _objectivesTitle = MakeLabel("OBIETTIVO", UiTheme.TestoAccento);
         vbox.AddChild(_objectivesTitle);
 
-        _objectivesList = new VBoxContainer();
-        _objectivesList.AddThemeConstantOverride("separation", 2);
+        _objectivesList = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaStretta };
         vbox.AddChild(_objectivesList);
     }
 }

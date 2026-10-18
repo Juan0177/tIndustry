@@ -4,11 +4,42 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Immediate-mode drawing over the terrain chunks (<see cref="TerrainChunks"/>): grid, map border, deposits,
-/// placement ghost, direction hints.
+/// Immediate-mode drawing over the terrain chunks (<see cref="TerrainChunks"/>): grid, map border, deposits; and on
+/// the placement overlay above the world: placement ghost, direction hints.
 /// </summary>
 public partial class World
 {
+    /// <summary>Canvas layer of the placement overlay: above the world (0), under the HUD (20).</summary>
+    private const int PlacementLayer = 1;
+
+    private Node2D? _placementOverlay;
+
+    /// <summary>
+    /// The placement ghost is drawn on its own canvas layer that follows the camera: aligned with the world cells,
+    /// but outside the world's canvas, so the night's <see cref="CanvasModulate"/> (and the reduced render scale) never
+    /// darken or blur it, and it shows over the blocks it would collide with.
+    /// </summary>
+    private void EnsurePlacementOverlay()
+    {
+        var layer = new CanvasLayer { Name = "Piazzamento", Layer = PlacementLayer, FollowViewportEnabled = true };
+        _placementOverlay = new Node2D { Name = "Fantasma" };
+        _placementOverlay.Draw += () => DrawPlacementOverlay(_placementOverlay);
+        layer.AddChild(_placementOverlay);
+        AddChild(layer);
+    }
+
+    private void DrawPlacementOverlay(CanvasItem canvas)
+    {
+        if (_view is not null
+            && _hover is { } hover
+            && hover.X >= 0 && hover.Y >= 0
+            && hover.X < ActiveMapWidth && hover.Y < ActiveMapHeight
+            && _tool != BuildTool.Cursor)
+        {
+            DrawGhost(canvas, hover);
+        }
+    }
+
     public override void _Draw()
     {
         GetVisibleTileRange(out var visMinX, out var visMinY, out var visMaxX, out var visMaxY);
@@ -121,14 +152,6 @@ public partial class World
             {
                 DrawRect(new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize), deposit);
             }
-        }
-
-        if (_hover is { } hover
-            && hover.X >= 0 && hover.Y >= 0
-            && hover.X < ActiveMapWidth && hover.Y < ActiveMapHeight
-            && _tool != BuildTool.Cursor)
-        {
-            DrawGhost(hover);
         }
     }
 
@@ -289,7 +312,7 @@ public partial class World
             fill with { A = 0.9f });
     }
 
-    private void DrawGhost(GridPosition hover)
+    private void DrawGhost(CanvasItem canvas, GridPosition hover)
     {
         if (_view is null)
         {
@@ -303,17 +326,15 @@ public partial class World
         // Cells already taken by a pending plan are refused like occupied ones (sites count as buildings).
         ok = ok && !FootprintPlanned(hover, size);
 
-        var ghost = ok
-            ? new Color(0.35f, 0.85f, 0.55f, 0.35f)
-            : new Color(0.9f, 0.25f, 0.2f, 0.35f);
+        var ghost = ok ? UiColors.PiazzamentoValido : UiColors.PiazzamentoNonValido;
 
         for (var y = 0; y < size; y++)
         {
             for (var x = 0; x < size; x++)
             {
                 var rect = new Rect2((hover.X + x) * TileSize, (hover.Y + y) * TileSize, TileSize, TileSize);
-                DrawRect(rect, ghost);
-                DrawRect(rect, new Color(0.9f, 0.95f, 0.85f, 0.9f), false, 2f);
+                canvas.DrawRect(rect, ghost);
+                canvas.DrawRect(rect, UiColors.ContornoFantasma, false, 2f);
             }
         }
 
@@ -326,12 +347,12 @@ public partial class World
                 && CoreStockSink.PreferDirectionIntoCore(hover, _view.CoreTiles) is { } intoCore
                     ? intoCore
                     : _placeDir;
-            DrawDirectionHint(hover, direction);
+            DrawDirectionHint(canvas, hover, direction);
         }
 
         if (_tool == BuildTool.Bridge)
         {
-            DrawBridgeGhost(hover);
+            DrawBridgeGhost(canvas, hover);
         }
     }
 
@@ -399,7 +420,7 @@ public partial class World
         return false;
     }
 
-    private void DrawBridgeGhost(GridPosition entry)
+    private void DrawBridgeGhost(CanvasItem canvas, GridPosition entry)
     {
         if (_view is null)
         {
@@ -421,23 +442,23 @@ public partial class World
 
             // Same exit as the simulation picks; a planned end makes the plan refused: show it red.
             var planned = _view.IsPlannedTile(entry) || _view.IsPlannedTile(exit);
-            var mid = planned ? new Color(0.9f, 0.25f, 0.2f, 0.28f) : new Color(0.55f, 0.7f, 0.95f, 0.28f);
-            var tip = planned ? new Color(0.9f, 0.25f, 0.2f, 0.55f) : new Color(0.7f, 0.85f, 1f, 0.55f);
-            DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
-            DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
+            var mid = planned ? UiColors.PonteRifiutatoCampata : UiColors.PonteCampata;
+            var tip = planned ? UiColors.PonteRifiutatoEstremi : UiColors.PonteEstremi;
+            canvas.DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
+            canvas.DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
             var a = CellCenter(entry);
             var b = CellCenter(exit);
-            DrawLine(a, b, mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
+            canvas.DrawLine(a, b, mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
             return;
         }
     }
 
-    private void DrawDirectionHint(GridPosition cell, Direction dir)
+    private void DrawDirectionHint(CanvasItem canvas, GridPosition cell, Direction dir)
     {
         var center = CellCenter(cell);
         var (dx, dy) = DirectionMath.ToOffset(dir);
         var tip = center + new Vector2(dx, dy) * (TileSize * 0.32f);
-        DrawLine(center, tip, new Color(0.95f, 0.95f, 0.7f, 0.95f), 3f);
-        DrawCircle(tip, 4f, new Color(0.95f, 0.95f, 0.7f, 0.95f));
+        canvas.DrawLine(center, tip, UiColors.DirezioneFantasma, 3f);
+        canvas.DrawCircle(tip, 4f, UiColors.DirezioneFantasma);
     }
 }

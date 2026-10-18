@@ -6,12 +6,14 @@ namespace TIndustry.Godot;
 /// <summary>Mindustry-style research tree: CORE on top, square icon nodes with names, elbow links.</summary>
 public partial class TechTreeCanvas : Control
 {
-    private static readonly Color CanvasFill = new(20 / 255f, 24 / 255f, 23 / 255f, 1f);
-    private static readonly Color CanvasBorder = new(48 / 255f, 56 / 255f, 52 / 255f, 1f);
-    private static readonly Color HintSoft = new(164 / 255f, 173 / 255f, 168 / 255f, 1f);
+    private static readonly Color CanvasFill = UiColors.Fondo;
+    private static readonly Color CanvasBorder = UiColors.Bordo;
+    private static readonly Color HintSoft = UiColors.TestoTenue;
     private static readonly Color PathEdge = new(235 / 255f, 200 / 255f, 110 / 255f, 1f);
-    private static readonly Color Gold = new(211 / 255f, 164 / 255f, 76 / 255f, 1f);
-    private static readonly Color NodeTitle = new(232 / 255f, 233 / 255f, 221 / 255f, 1f);
+    private static readonly Color NodeTitle = UiColors.Testo;
+
+    /// <summary>Node names: the text font at its native size (crisp at every zoom of the tree).</summary>
+    private const int LabelSize = UiTheme.TextSize;
 
     public TechTreeLayout.Graph? Graph { get; set; }
     public IResearchView? Research { get; set; }
@@ -55,7 +57,7 @@ public partial class TechTreeCanvas : Control
         var maxY = Graph.Nodes.Max(n => (float)n.Y) + TechTreeLayout.NodeHeight + 28f; // + name label
         const float pad = 32f;
         var fit = Math.Min((Size.X - pad * 2) / (maxX - minX), (Size.Y - pad * 2) / (maxY - minY));
-        // Readable first (names never shrink below ~0.7); a bigger tree is panned, like Mindustry.
+        // Readable first (most names fit their slot from 0.85); a bigger tree is panned, like Mindustry.
         Zoom = TechTreeLayout.ClampZoom(Math.Clamp(fit, MinReadableZoom, 1f));
         _panX = (Size.X - (maxX - minX) * Zoom) / 2f - minX * Zoom;
         _panY = (maxY - minY) * Zoom <= Size.Y - pad * 2
@@ -144,7 +146,8 @@ public partial class TechTreeCanvas : Control
     }
 
     private const float DragThreshold = 6f;
-    private const float MinReadableZoom = 0.7f;
+    // The pixel font keeps its size at every zoom: the smaller the tree, the more names are cut short.
+    private const float MinReadableZoom = 0.85f;
 
     private void ZoomAt(float direction, Vector2 mouse)
     {
@@ -202,7 +205,7 @@ public partial class TechTreeCanvas : Control
         node.IsRoot ? ResearchNodeState.Unlocked : Research!.GetNodeState(node.Structure);
 
     // Mindustry palette: neutral greys for what you have, pale gold for what you can research next.
-    private static readonly Color Accent = new(1f, 0.83f, 0.50f, 1f);
+    private static readonly Color Accent = UiColors.Accento;
     private static readonly Color NodeBg = new(0.13f, 0.14f, 0.15f, 1f);
     private static readonly Color NodeBgLocked = new(0.08f, 0.085f, 0.09f, 1f);
     private static readonly Color BorderUnlocked = new(0.62f, 0.65f, 0.66f, 1f);
@@ -210,7 +213,7 @@ public partial class TechTreeCanvas : Control
     private static readonly Color LineUnlocked = new(0.55f, 0.58f, 0.60f, 1f);
     private static readonly Color LineAvailable = new(0.78f, 0.66f, 0.42f, 1f);
     private static readonly Color LineLocked = new(0.22f, 0.24f, 0.25f, 1f);
-    private static readonly Color CoreCyan = new(0.35f, 0.78f, 0.9f, 1f);
+    private static readonly Color CoreCyan = UiColors.Core;
 
     public override void _Draw()
     {
@@ -220,8 +223,8 @@ public partial class TechTreeCanvas : Control
 
         if (Graph is null || Research is null)
         {
-            DrawString(ThemeDB.FallbackFont, new Vector2(24, 40),
-                "Nessuna struttura nell'albero.", HorizontalAlignment.Left, -1, 16, HintSoft);
+            DrawString(UiTheme.TextFont, new Vector2(24, 40),
+                "Nessuna struttura nell'albero.", HorizontalAlignment.Left, -1, LabelSize, HintSoft);
             return;
         }
 
@@ -264,8 +267,8 @@ public partial class TechTreeCanvas : Control
             }
         }
 
-        var font = ThemeDB.FallbackFont;
-        var labelSize = (int)Mathf.Clamp(13 * zoom, 11, 16);
+        var font = UiTheme.TextFont;
+        var labelSize = LabelSize;
         foreach (var node in Graph.Nodes)
         {
             var state = StateOf(node);
@@ -334,9 +337,7 @@ public partial class TechTreeCanvas : Control
             if (!_lockLoaded)
             {
                 _lockLoaded = true;
-                _lockIcon = ResourceLoader.Exists("res://assets/ui/locked.png")
-                    ? GD.Load<Texture2D>("res://assets/ui/locked.png")
-                    : null;
+                _lockIcon = UiTheme.Icon("lucchetto");
             }
 
             return _lockIcon;
@@ -377,7 +378,7 @@ public partial class TechTreeCanvas : Control
             return text;
         }
 
-        var font = ThemeDB.FallbackFont;
+        var font = UiTheme.TextFont;
         if (font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize).X <= maxWidthPx)
         {
             return text;

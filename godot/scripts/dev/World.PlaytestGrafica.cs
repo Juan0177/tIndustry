@@ -153,10 +153,10 @@ public partial class World
             return "nessun Core per la prova del cursore";
         }
 
-        // Two cells left of the Core and one right of it: the hovered cell follows the mouse exactly.
+        // Two cells right of the Core (clear of the HUD column on the left): the hovered cell follows the mouse exactly.
         var coreX = _view.CoreTiles.Min(t => t.X);
         var coreY = _view.CoreTiles.Min(t => t.Y);
-        foreach (var cell in new[] { new GridPosition(coreX - 2, coreY), new GridPosition(coreX + 3, coreY + 1) })
+        foreach (var cell in new[] { new GridPosition(coreX + 4, coreY - 1), new GridPosition(coreX + 3, coreY + 1) })
         {
             PlaytestMove(CellToScreen(cell), 0);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -166,32 +166,39 @@ public partial class World
             }
         }
 
-        return await PlaytestGhostUnderCursorProblem(target, new GridPosition(coreX + 3, coreY + 1), window);
+        return await PlaytestGhostUnderCursorProblem(new GridPosition(coreX + 3, coreY + 1));
     }
 
     /// <summary>
-    /// What the player sees: with the belt tool, the placement ghost drawn into the reduced image must sit under the
-    /// mouse. The bright pixels that change when the tool is picked (the ghost; the faint build grid stays below the
-    /// threshold) must be centred on the cursor, mapped from window to target pixels, within a quarter of a cell.
+    /// What the player sees: with the belt tool, the placement ghost must sit under the mouse over the reduced world.
+    /// The ghost is drawn at full resolution on its own layer (<see cref="EnsurePlacementOverlay"/>), so it is looked
+    /// for in the window image with the HUD hidden: the bright pixels that change near the cursor when the tool is
+    /// picked (the faint build grid stays below the threshold) must be centred on it within a quarter of a cell.
     /// </summary>
-    private async Task<string?> PlaytestGhostUnderCursorProblem(SubViewport target, GridPosition cell, Vector2 window)
+    private async Task<string?> PlaytestGhostUnderCursorProblem(GridPosition cell)
     {
         var mouse = CellToScreen(cell);
+        var root = GetTree().Root;
+        var hud = GetNode<CanvasLayer>("Hud");
+        hud.Visible = false;
         PlaytestMove(mouse, 0);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        using var before = target.GetTexture().GetImage();
+        using var before = root.GetTexture().GetImage();
         await PlaytestKey(Key.Key1);
         PlaytestMove(mouse, 0);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        using var after = target.GetTexture().GetImage();
+        using var after = root.GetTexture().GetImage();
+        hud.Visible = true;
         await PlaytestKey(Key.Escape);
 
+        var cellPixels = TileSize * GetNode<Camera2D>("Camera").Zoom.X * root.GetFinalTransform().Scale.X;
+        var reach = Mathf.CeilToInt(cellPixels * 2f);
         int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
-        for (var y = 0; y < after.GetHeight(); y++)
+        for (var y = Math.Max(0, (int)mouse.Y - reach); y < Math.Min(after.GetHeight(), (int)mouse.Y + reach); y++)
         {
-            for (var x = 0; x < after.GetWidth(); x++)
+            for (var x = Math.Max(0, (int)mouse.X - reach); x < Math.Min(after.GetWidth(), (int)mouse.X + reach); x++)
             {
                 var a = after.GetPixel(x, y);
                 var b = before.GetPixel(x, y);
@@ -209,15 +216,13 @@ public partial class World
 
         if (maxX < 0)
         {
-            return "nessuna sagoma di piazzamento nell'immagine ridotta";
+            return "nessuna sagoma di piazzamento sotto il cursore";
         }
 
-        var scale = (Vector2)target.Size / window;
-        var cellPixels = TileSize * GetNode<Camera2D>("Camera").Zoom.X * GetTree().Root.GetFinalTransform().Scale.X * scale.X;
         var centre = new Vector2(minX + maxX + 1, minY + maxY + 1) / 2f;
-        var expected = mouse * scale;
+        var expected = mouse;
         var box = new Vector2(maxX - minX + 1, maxY - minY + 1);
-        GD.Print($"SCALA {Mathf.RoundToInt(scale.X * 100)}%: sagoma {box} px al centro {centre}, cursore {expected}, cella {cellPixels:0.0} px");
+        GD.Print($"SCALA {_renderScale?.Percent}%: sagoma {box} px al centro {centre}, cursore {expected}, cella {cellPixels:0.0} px");
         if (centre.DistanceTo(expected) > cellPixels / 4f || box.X > cellPixels * 1.5f || box.Y > cellPixels * 1.5f)
         {
             return $"sagoma {box} px centrata in {centre}, cursore in {expected} (cella {cellPixels:0.0} px)";

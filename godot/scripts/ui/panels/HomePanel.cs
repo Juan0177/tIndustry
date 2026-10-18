@@ -9,12 +9,6 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class HomePanel : Control
 {
-    private static readonly Color Dim = new(0.04f, 0.05f, 0.05f, 0.82f);
-    private static readonly Color CardBg = new(0.08f, 0.10f, 0.11f, 0.96f);
-    private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-
     private Button? _continuaBtn;
     private Label? _hint;
 
@@ -51,13 +45,17 @@ public partial class HomePanel : Control
         if (_hint is not null)
         {
             _hint.Text = message;
-            _hint.AddThemeColorOverride("font_color", new Color(0.95f, 0.45f, 0.40f, 1f));
+            _hint.ThemeTypeVariation = UiTheme.TestoRosso;
         }
     }
 
     public void RefreshContinua()
     {
-        _hint?.AddThemeColorOverride("font_color", TextMuted);
+        if (_hint is not null)
+        {
+            _hint.ThemeTypeVariation = UiTheme.TestoTenue;
+        }
+
         var has = FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId);
         if (_continuaBtn is not null)
         {
@@ -91,57 +89,39 @@ public partial class HomePanel : Control
     {
         var dim = new ColorRect
         {
-            Color = Dim,
+            Color = UiColors.Oscuramento,
             MouseFilter = MouseFilterEnum.Stop
         };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var card = new PanelContainer { Name = "HomeCard" };
+        var card = new PanelContainer { Name = "HomeCard", ThemeTypeVariation = UiTheme.Scheda };
         card.SetAnchorsPreset(LayoutPreset.Center);
         card.OffsetLeft = -220;
-        card.OffsetTop = -260;
+        card.OffsetTop = -270;
         card.OffsetRight = 220;
-        card.OffsetBottom = 260;
-        card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = CardBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 24,
-            ContentMarginRight = 24,
-            ContentMarginTop = 20,
-            ContentMarginBottom = 20
-        });
+        card.OffsetBottom = 270;
+        card.GrowHorizontal = GrowDirection.Both;
+        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 12);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         card.AddChild(root);
 
         var brand = new Label
         {
             Text = "tINDUSTRY",
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.Logo
         };
-        brand.AddThemeColorOverride("font_color", Accent);
-        brand.AddThemeFontSizeOverride("font_size", 32);
         root.AddChild(brand);
 
         var sub = new Label
         {
             Text = "Fabbrica · Logistica · Ricerca",
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        sub.AddThemeColorOverride("font_color", TextMuted);
-        sub.AddThemeFontSizeOverride("font_size", 13);
         root.AddChild(sub);
 
         root.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
@@ -157,10 +137,9 @@ public partial class HomePanel : Control
         _hint = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        _hint.AddThemeColorOverride("font_color", TextMuted);
-        _hint.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(_hint);
     }
 

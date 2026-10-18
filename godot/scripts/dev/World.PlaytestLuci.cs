@@ -131,6 +131,15 @@ public partial class World
                 return Fail($"luci: un quadrato bianco dell'HUD si legge {hudDay} di giorno e {hudNight} di notte");
             }
 
+            // The placement ghost stays readable at night: its layer is not the darkened world canvas.
+            var ghostProblem = await NightGhostProblem(darkness, FootprintCenter(hot.Position, Crafter.Size));
+            await Shot("notte-fantasma");
+            await PlaytestKey(Key.Escape);
+            if (ghostProblem is not null)
+            {
+                return Fail($"luci: {ghostProblem}");
+            }
+
             // Lamps around the working generators (instant, free: playtest only); powered, they light up.
             var lamps = PlaceLampsAroundGenerators(factory, 16);
             _buildingsDirty = true; // placed on the factory directly: no command event rebuilds the visuals
@@ -378,6 +387,40 @@ public partial class World
         });
         DisplayServer.WindowSetVsyncMode(vsync);
         return (result.Average, result.Minimum);
+    }
+
+    /// <summary>
+    /// With the belt tool over the cell three left of <paramref name="near"/> (world px; clear of the HUD), the ghost's
+    /// light outline is drawn at full brightness at night: its overlay is on another canvas than
+    /// <paramref name="darkness"/>, and the top edge of the ghost reads as bright as the outline colour (the night would
+    /// bring it to about a third). Leaves the tool selected for the capture.
+    /// </summary>
+    private async Task<string?> NightGhostProblem(CanvasModulate darkness, Vector2 near)
+    {
+        if (_placementOverlay is null || _placementOverlay.GetCanvas() == darkness.GetCanvas())
+        {
+            return "il fantasma di piazzamento è sulla tela scurita dalla notte";
+        }
+
+        var cell = new GridPosition(Mathf.FloorToInt(near.X / TileSize) - 3, Mathf.FloorToInt(near.Y / TileSize));
+        await PlaytestKey(Key.Key1);
+        PlaytestMove(CellToScreen(cell), 0);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        var centre = CellToScreen(cell);
+        var half = TileSize * GetNode<Camera2D>("Camera").Zoom.X * GetTree().Root.GetFinalTransform().Scale.Y / 2f;
+        var brightest = 0f;
+        using (var image = CaptureFrame())
+        {
+            for (var dy = -2; dy <= 2; dy++)
+            {
+                var x = Math.Clamp((int)centre.X, 0, image.GetWidth() - 1);
+                var y = Math.Clamp((int)(centre.Y - half) + dy, 0, image.GetHeight() - 1);
+                brightest = Math.Max(brightest, image.GetPixel(x, y).G);
+            }
+        }
+
+        return brightest < 0.7f ? $"bordo del fantasma di notte a {brightest:0.00} (scurito)" : null;
     }
 
     /// <summary>

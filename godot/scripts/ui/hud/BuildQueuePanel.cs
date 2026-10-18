@@ -17,10 +17,6 @@ public partial class BuildQueuePanel : PanelContainer
     private const float BarWidth = 120f;
     private const float BarHeight = 8f;
 
-    private static readonly Color BarBack = new(0.14f, 0.16f, 0.15f, 1f);
-
-    /// <summary>Bar colour of a site stalled for materials (amber, like Mindustry's warning).</summary>
-    private static readonly Color Stalled = new("F5A623");
 
     private TextureRect? _icon;
     private Label? _name;
@@ -47,20 +43,10 @@ public partial class BuildQueuePanel : PanelContainer
 
     public override void _Ready()
     {
-        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        foreach (var side in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" })
-        {
-            margin.AddThemeConstantOverride(side, 6);
-        }
+        var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaLarga };
+        AddChild(row);
 
-        AddChild(margin);
-
-        var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        row.AddThemeConstantOverride("separation", 8);
-        margin.AddChild(row);
-
-        var slot = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
-        slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotSelected, 1));
+        var slot = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.SlotScelto };
         row.AddChild(slot);
         _icon = MakeIcon(null, IconSize);
         slot.AddChild(_icon);
@@ -70,42 +56,33 @@ public partial class BuildQueuePanel : PanelContainer
             MouseFilter = MouseFilterEnum.Ignore,
             SizeFlagsVertical = SizeFlags.ShrinkCenter
         };
-        column.AddThemeConstantOverride("separation", 4);
         row.AddChild(column);
 
-        _name = new Label { MouseFilter = MouseFilterEnum.Ignore };
-        _name.AddThemeColorOverride("font_color", TextPrimary);
-        _name.AddThemeFontSizeOverride("font_size", 12);
+        _name = MakeLabel();
         column.AddChild(_name);
 
         var bar = new ColorRect
         {
-            Color = BarBack,
+            Color = UiColors.FondoSlot,
             CustomMinimumSize = new Vector2(BarWidth, BarHeight),
             MouseFilter = MouseFilterEnum.Ignore
         };
         column.AddChild(bar);
         _barFill = new ColorRect
         {
-            Color = ConstructionLayer.Accent,
+            Color = UiColors.Costruzione,
             Size = new Vector2(0f, BarHeight),
             MouseFilter = MouseFilterEnum.Ignore
         };
         bar.AddChild(_barFill);
 
-        _missing = new Label { MouseFilter = MouseFilterEnum.Ignore, Visible = false };
-        _missing.AddThemeColorOverride("font_color", Insufficient);
-        _missing.AddThemeFontSizeOverride("font_size", 11);
+        _missing = MakeLabel("", UiTheme.TestoRosso);
+        _missing.Visible = false;
         column.AddChild(_missing);
 
-        _more = new Label
-        {
-            MouseFilter = MouseFilterEnum.Ignore,
-            SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            CustomMinimumSize = new Vector2(28, 0)
-        };
-        _more.AddThemeColorOverride("font_color", TextMuted);
-        _more.AddThemeFontSizeOverride("font_size", 13);
+        _more = MakeLabel("", UiTheme.TestoTenue);
+        _more.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        _more.CustomMinimumSize = new Vector2(28, 0);
         row.AddChild(_more);
     }
 
@@ -145,9 +122,9 @@ public partial class BuildQueuePanel : PanelContainer
         {
             _deconstructing = deconstructing;
             _stalled = stalled;
-            _barFill.Color = deconstructing ? ConstructionLayer.Remove
-                : stalled ? Stalled
-                : ConstructionLayer.Accent;
+            _barFill.Color = deconstructing ? UiColors.Smontaggio
+                : stalled ? UiColors.Fermo
+                : UiColors.Costruzione;
         }
 
         if (missing != _missingShown && _missing is not null)

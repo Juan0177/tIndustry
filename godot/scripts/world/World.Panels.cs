@@ -130,7 +130,7 @@ public partial class World
         var layer = GetNode<CanvasLayer>("Hud");
         var overlay = new Control { Name = "MapOverlay", MouseFilter = Control.MouseFilterEnum.Stop, Visible = false };
         overlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var dim = new ColorRect { Color = new Color(0.04f, 0.05f, 0.05f, 0.88f), MouseFilter = Control.MouseFilterEnum.Ignore };
+        var dim = new ColorRect { Color = UiColors.Oscuramento, MouseFilter = Control.MouseFilterEnum.Ignore };
         dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         overlay.AddChild(dim);
         var label = new Label
@@ -138,11 +138,10 @@ public partial class World
             Text = "Generazione della mappa…",
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            ThemeTypeVariation = UiTheme.Titolo
         };
         label.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        label.AddThemeColorOverride("font_color", new Color(0.92f, 0.78f, 0.28f, 1f));
-        label.AddThemeFontSizeOverride("font_size", 26);
         overlay.AddChild(label);
         layer.AddChild(overlay);
         _mapOverlay = overlay;
@@ -379,10 +378,9 @@ public partial class World
             _fpsLabel.OffsetLeft = -120;
             _fpsLabel.OffsetTop = 8;
             _fpsLabel.OffsetRight = -12;
-            _fpsLabel.OffsetBottom = 28;
+            _fpsLabel.OffsetBottom = 32;
             _fpsLabel.HorizontalAlignment = HorizontalAlignment.Right;
-            _fpsLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.9f, 0.75f, 0.9f));
-            _fpsLabel.AddThemeFontSizeOverride("font_size", 13);
+            _fpsLabel.ThemeTypeVariation = UiTheme.Avviso;
             layer.AddChild(_fpsLabel);
         }
 
@@ -409,10 +407,9 @@ public partial class World
             _resourceLabel.OffsetLeft = -280;
             _resourceLabel.OffsetTop = 8;
             _resourceLabel.OffsetRight = -12;
-            _resourceLabel.OffsetBottom = 120;
+            _resourceLabel.OffsetBottom = 140;
             _resourceLabel.HorizontalAlignment = HorizontalAlignment.Right;
-            _resourceLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.93f, 0.86f, 0.92f));
-            _resourceLabel.AddThemeFontSizeOverride("font_size", 13);
+            _resourceLabel.ThemeTypeVariation = UiTheme.Avviso;
             layer.AddChild(_resourceLabel);
         }
 

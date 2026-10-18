@@ -23,12 +23,6 @@ public partial class ConstructionLayer : Node2D
         Both = Buildings | Belts
     }
 
-    /// <summary>Mindustry's <c>Pal.accent</c>: plans, beam and site outline.</summary>
-    public static readonly Color Accent = new("FFD37F");
-
-    /// <summary>Mindustry's <c>Pal.remove</c>: deconstruction and breaking plans.</summary>
-    public static readonly Color Remove = new("E55454");
-
     private const int LocalPlayer = 0;
     private const float PlanAlpha = 0.35f;
     private const float BreakFillAlpha = 0.3f;
@@ -172,10 +166,10 @@ public partial class ConstructionLayer : Node2D
         {
             // Mindustry style: a translucent red fill over the whole block, plus the outline and the X.
             var box = Bounds(tiles);
-            DrawRect(box, new Color(Remove, BreakFillAlpha));
-            DrawRect(box, Remove, filled: false, width: -1f);
-            DrawLine(box.Position, box.End, Remove, -1f);
-            DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), Remove, -1f);
+            DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha));
+            DrawRect(box, UiColors.Smontaggio, filled: false, width: -1f);
+            DrawLine(box.Position, box.End, UiColors.Smontaggio, -1f);
+            DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), UiColors.Smontaggio, -1f);
             return;
         }
 
@@ -191,7 +185,7 @@ public partial class ConstructionLayer : Node2D
                 DrawSetTransform(cell.GetCenter(), DirectionAngle(spec.Direction), Vector2.One);
                 DrawTextureRect(tex, new Rect2(-cell.Size / 2f, cell.Size), false, ghost);
                 DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
-                DrawRect(cell, Accent, filled: false, width: -1f);
+                DrawRect(cell, UiColors.Costruzione, filled: false, width: -1f);
             }
 
             return;
@@ -203,7 +197,7 @@ public partial class ConstructionLayer : Node2D
             for (var i = 0; i < tiles.Count; i++)
             {
                 DrawTextureRect(tex, CellRect(tiles[i]), false, ghost);
-                DrawRect(CellRect(tiles[i]), Accent, filled: false, width: -1f);
+                DrawRect(CellRect(tiles[i]), UiColors.Costruzione, filled: false, width: -1f);
             }
 
             return;
@@ -211,7 +205,7 @@ public partial class ConstructionLayer : Node2D
 
         var rect = Bounds(tiles);
         DrawTextureRect(tex, rect, false, ghost);
-        DrawRect(rect, Accent, filled: false, width: -1f);
+        DrawRect(rect, UiColors.Costruzione, filled: false, width: -1f);
     }
 
     /// <summary>
@@ -321,7 +315,7 @@ public partial class ConstructionLayer : Node2D
             }
 
             Rect2? beam = null;
-            var beamColor = Accent;
+            var beamColor = UiColors.Costruzione;
             if (builder.CurrentSiteId is { } siteId && FindSite(view, siteId) is { } site)
             {
                 beam = Bounds(site.Tiles);
@@ -379,7 +373,7 @@ public partial class ConstructionLayer : Node2D
         QueueRedraw();
     }
 
-    private static Color ColorOf(ConstructSite site) => site.Deconstructing ? Remove : Accent;
+    private static Color ColorOf(ConstructSite site) => site.Deconstructing ? UiColors.Smontaggio : UiColors.Costruzione;
 
     private static Rect2 CellRect(GridPosition tile) =>
         new(tile.X * World.TileSize, tile.Y * World.TileSize, World.TileSize, World.TileSize);
