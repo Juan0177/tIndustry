@@ -1,0 +1,257 @@
+using TIndustry.Shared;
+using Xunit;
+
+namespace TIndustry.Shared.Tests;
+
+/// <summary>Walls and deep water block every placement; shallow water does not; bridges span anything.</summary>
+public sealed class TerrainRulesTests
+{
+    private const int Size = 40;
+
+    private static readonly FactoryContent Content =
+        FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
+
+    private static readonly TerrainTile Grass = new(FloorKind.Grass, WallKind.None, DepositKind.None);
+
+    private static readonly TerrainTile Deep = new(FloorKind.DeepWater, WallKind.None, DepositKind.None);
+
+    private static readonly TerrainTile Shallow = new(FloorKind.ShallowWater, WallKind.None, DepositKind.None);
+
+    private static TerrainTile Wall(WallKind kind = WallKind.StoneWall) => new(FloorKind.Stone, kind, DepositKind.None);
+
+    /// <summary>40×40 grass with the Core at (30,30), everything unlocked and the given cells changed.</summary>
+    private static Factory Sandbox(params (int X, int Y, TerrainTile Tile)[] cells)
+    {
+        var factory = NewGame.Sandbox(
+            Content, new GridPosition(30, 30), mapWidth: Size, mapHeight: Size,
+            rules: new GameRules(InstantBuild: true));
+        factory.UnlockAllForDemo();
+        return WithTerrain(factory, cells);
+    }
+
+    private static Factory WithTerrain(Factory factory, (int X, int Y, TerrainTile Tile)[] cells)
+    {
+        var tiles = new TerrainTile[Size, Size];
+        for (var x = 0; x < Size; x++)
+        {
+            for (var y = 0; y < Size; y++)
+            {
+                tiles[x, y] = Grass;
+            }
+        }
+
+        foreach (var (x, y, tile) in cells)
+        {
+            tiles[x, y] = tile;
+        }
+
+        factory.Terrain = TerrainMap.FromTiles(tiles);
+        return factory;
+    }
+
+    /// <summary>One spec per placeable kind (belt included) with its origin at <paramref name="origin"/>.</summary>
+    private static IEnumerable<BuildSpec> EverySpec(GridPosition origin)
+    {
+        yield return new BuildSpec(BuildSpec.DefaultConveyorId, null, origin, Direction.East);
+        foreach (var kind in Enum.GetValues<BuildingKind>())
+        {
+            var recipe = kind switch
+            {
+                BuildingKind.Smelter => Content.SmelterRecipes()[0].Id,
+                BuildingKind.Assembler => Content.AssemblerRecipes()[0].Id,
+                _ => null
+            };
+            yield return new BuildSpec(BuildSpec.StructureIdFor(kind)!, kind, origin, Direction.East, recipe);
+        }
+    }
+
+    private static string? Submit(Factory factory, SimCommand command)
+    {
+        var host = new SimHost(factory);
+        string? reason = null;
+        host.CommandRejected += (_, r) => reason = r;
+        host.Submit(command);
+        host.AdvanceTicks(1);
+        return reason;
+    }
+
+    [Fact]
+    public void WallBlocksEveryBlockKind()
+    {
+        foreach (var wall in Enum.GetValues<WallKind>().Where(k => k != WallKind.None))
+        {
+            // Wall on the origin.
+            var factory = Sandbox((10, 10, Wall(wall)));
+            foreach (var spec in EverySpec(new GridPosition(10, 10)))
+            {
+                Assert.True(factory.IsValidSpec(spec), spec.StructureId);
+                Assert.False(factory.CanPlace(spec, out var reason), $"{spec.StructureId} on {wall}");
+                Assert.Equal(CommandReasons.Wall, reason);
+            }
+
+            // Wall under the far corner of a 2×2 footprint.
+            var big = EverySpec(new GridPosition(9, 9)).Where(s => factory.Footprint(s).Count == 4).ToList();
+            Assert.NotEmpty(big);
+            foreach (var spec in big)
+            {
+                Assert.False(factory.CanPlace(spec, out var reason), $"{spec.StructureId} corner on {wall}");
+                Assert.Equal(CommandReasons.Wall, reason);
+            }
+
+            Assert.False(factory.CanOccupy(new GridPosition(10, 10)));
+            Assert.False(factory.TryPlaceBelt(new GridPosition(10, 10), Direction.East));
+        }
+
+        // Through the commands: instant build and drone plans give the same reason.
+        var instant = Sandbox((10, 10, Wall()));
+        Assert.Equal(CommandReasons.Wall,
+            Submit(instant, new PlaceBelt(0, new GridPosition(10, 10), Direction.East, "conveyor-basic")));
+        Assert.Equal(CommandReasons.Wall,
+            Submit(instant, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(9, 9), Direction.East)));
+        Assert.Equal(0, instant.Belts.Count);
+        Assert.Empty(instant.Miners);
+
+        var planned = WithTerrain(
+            NewGame.Sandbox(Content, new GridPosition(30, 30), mapWidth: Size, mapHeight: Size),
+            [(10, 10, Wall())]);
+        Assert.Equal(CommandReasons.Wall,
+            Submit(planned, new PlaceBelt(0, new GridPosition(10, 10), Direction.East, "conveyor-basic")));
+        Assert.Empty(planned.BuilderOf(0)!.Plans);
+    }
+
+    [Fact]
+    public void DeepWaterBlocksBeltsButNotBridgeSpan()
+    {
+        // A river three cells wide (x = 10..12) and a wall at (13, 6).
+        var cells = new List<(int, int, TerrainTile)>();
+        for (var y = 0; y < Size; y++)
+        {
+            for (var x = 10; x <= 12; x++)
+            {
+                cells.Add((x, y, Deep));
+            }
+        }
+
+        cells.Add((13, 6, Wall()));
+        var factory = Sandbox([.. cells]);
+
+        Assert.False(factory.CanPlace(
+            new BuildSpec("conveyor-basic", null, new GridPosition(11, 5), Direction.East), out var reason));
+        Assert.Equal(CommandReasons.DeepWater, reason);
+        Assert.Equal(CommandReasons.DeepWater,
+            Submit(factory, new PlaceBelt(0, new GridPosition(11, 5), Direction.East, "conveyor-basic")));
+
+        // The bridge jumps the river: the exit is the first buildable cell past it.
+        Assert.Null(Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, 5), Direction.East)));
+        Assert.True(factory.Belts.TryGet(new GridPosition(9, 5), out var entry));
+        Assert.Equal(new GridPosition(13, 5), entry.BridgePartner);
+
+        // An exit on a wall is skipped too.
+        Assert.Null(Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, 6), Direction.East)));
+        Assert.True(factory.Belts.TryGet(new GridPosition(9, 6), out var walled));
+        Assert.Equal(new GridPosition(14, 6), walled.BridgePartner);
+
+        // A bridge cannot start in the river.
+        Assert.False(factory.CanPlace(
+            new BuildSpec(BuildSpec.StructureIdFor(BuildingKind.Bridge)!, BuildingKind.Bridge, new GridPosition(12, 7), Direction.East), out reason));
+        Assert.Equal(CommandReasons.DeepWater, reason);
+    }
+
+    [Fact]
+    public void ShallowWaterIsBuildable()
+    {
+        var factory = Sandbox((10, 10, Shallow), (11, 10, Shallow), (10, 11, Shallow), (11, 11, Shallow));
+        foreach (var spec in EverySpec(new GridPosition(10, 10)))
+        {
+            Assert.True(factory.CanPlace(spec, out var reason), $"{spec.StructureId}: {reason}");
+        }
+
+        Assert.Null(Submit(factory, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(10, 10), Direction.East)));
+        Assert.Single(factory.Miners);
+    }
+
+    [Fact]
+    public void OutsideMapIsOccupied()
+    {
+        var factory = Sandbox();
+        foreach (var origin in new[] { new GridPosition(Size, 5), new GridPosition(5, Size), new GridPosition(-1, 5) })
+        {
+            Assert.False(factory.CanPlace(new BuildSpec("conveyor-basic", null, origin, Direction.East), out var reason));
+            Assert.Equal(CommandReasons.Occupied, reason);
+        }
+
+        // A 2×2 hanging over the right edge.
+        Assert.False(factory.CanPlace(
+            new BuildSpec("miner", BuildingKind.Miner, new GridPosition(Size - 1, 5), Direction.East), out var edge));
+        Assert.Equal(CommandReasons.Occupied, edge);
+        Assert.True(factory.CanOccupyFootprint(new GridPosition(Size - 2, 5), 2));
+
+        // A bridge whose every exit is outside the map has no exit.
+        Assert.False(factory.CanPlace(
+            new BuildSpec(BuildSpec.StructureIdFor(BuildingKind.Bridge)!, BuildingKind.Bridge, new GridPosition(Size - 2, 5), Direction.East), out _));
+
+        // Without a terrain (demo factory) nothing blocks, out of map included.
+        var demo = NewGame.Demo(Content);
+        Assert.Null(demo.Terrain);
+        Assert.True(demo.CanOccupy(new GridPosition(5000, 5000)));
+    }
+
+    [Fact]
+    public void ReasonsAreWallAndDeepWater()
+    {
+        Assert.Equal("C'è una parete", CommandReasons.Wall);
+        Assert.Equal("Acqua profonda", CommandReasons.DeepWater);
+
+        // Order: Core, wall, deep water, occupied. The Core is at (30,30)-(31,31).
+        var factory = Sandbox((29, 29, Wall()), (20, 20, Wall()), (21, 20, Deep), (25, 25, Deep));
+        Assert.False(factory.CanPlace(
+            new BuildSpec("miner", BuildingKind.Miner, new GridPosition(29, 29), Direction.East), out var reason));
+        Assert.Equal(CommandReasons.OnCore, reason);
+        Assert.False(factory.CanPlace(
+            new BuildSpec("miner", BuildingKind.Miner, new GridPosition(20, 19), Direction.East), out reason));
+        Assert.Equal(CommandReasons.Wall, reason);
+        Assert.False(factory.CanPlace(
+            new BuildSpec("miner", BuildingKind.Miner, new GridPosition(24, 24), Direction.East), out reason));
+        Assert.Equal(CommandReasons.DeepWater, reason);
+        Assert.True(factory.TryPlaceBelt(new GridPosition(5, 5), Direction.East));
+        Assert.False(factory.CanPlace(
+            new BuildSpec("miner", BuildingKind.Miner, new GridPosition(4, 4), Direction.East), out reason));
+        Assert.Equal(CommandReasons.Occupied, reason);
+    }
+
+    [Fact]
+    public void TerrainTableCoversEveryKind()
+    {
+        var table = Content.Terrain;
+        foreach (var kind in Enum.GetValues<FloorKind>())
+        {
+            var floor = table.Floor(kind);
+            Assert.NotNull(floor);
+            Assert.Equal(kind != FloorKind.DeepWater, floor.Buildable);
+            Assert.Equal(
+                kind == FloorKind.DeepWater,
+                new TerrainTile(kind, WallKind.None, DepositKind.None).BlocksBuilding);
+        }
+
+        foreach (var kind in Enum.GetValues<WallKind>().Where(k => k != WallKind.None))
+        {
+            Assert.NotNull(table.Wall(kind));
+            Assert.True(new TerrainTile(FloorKind.Grass, kind, DepositKind.None).BlocksBuilding);
+        }
+
+        Assert.Equal(Enum.GetValues<FloorKind>().Length, table.Floors.Count);
+        Assert.Equal(Enum.GetValues<WallKind>().Length - 1, table.Walls.Count);
+        Assert.Equal("deep-water", table.Floor(FloorKind.DeepWater)!.Id);
+        Assert.Equal("shrub-wall", table.Wall(WallKind.ShrubWall)!.Id);
+
+        // Every row has its own colour (campaign map files are drawn with them).
+        var colours = table.Floors.Select(f => f.Color).Concat(table.Walls.Select(w => w.Color)).ToList();
+        Assert.Equal(colours.Count, colours.Distinct().Count());
+
+        // The classic map keeps its colours.
+        Assert.Equal("#2E4E36", table.Floor(FloorKind.Grass)!.Color);
+        Assert.Equal("#6C583A", table.Floor(FloorKind.Soil)!.Color);
+        Assert.Equal("#5C6260", table.Floor(FloorKind.Stone)!.Color);
+        Assert.Equal("#2A4E62", table.Floor(FloorKind.ShallowWater)!.Color);
+    }
+}

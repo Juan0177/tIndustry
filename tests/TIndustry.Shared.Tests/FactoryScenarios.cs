@@ -1279,7 +1279,7 @@ internal static class FactoryScenarios
             var sandbox = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 99);
             Assert(sandbox.Terrain is not null && sandbox.Terrain.Seed == 99, "sandbox seed");
             var other = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 100);
-            Assert(sandbox.Terrain![0, 0].Terrain != other.Terrain![0, 0].Terrain
+            Assert(sandbox.Terrain![0, 0].Floor != other.Terrain![0, 0].Floor
                 || sandbox.Terrain[5, 5].Deposit != other.Terrain[5, 5].Deposit
                 || true, "seeds differ (layout may still overlap)");
 

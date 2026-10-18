@@ -88,6 +88,12 @@ public static class CommandReasons
     /// </summary>
     public const string Occupied = "Cella occupata o non valida";
 
+    /// <summary>Placement on a cell with a wall (<see cref="TerrainTile.Wall"/>).</summary>
+    public const string Wall = "C'è una parete";
+
+    /// <summary>Placement on deep water (<see cref="FloorKind.DeepWater"/>); bridges span it.</summary>
+    public const string DeepWater = "Acqua profonda";
+
     /// <summary><see cref="PlanDropped"/>: the structure was locked when the drone reached the plan.</summary>
     public const string LockedByResearch = "Bloccato dalla ricerca";
 
