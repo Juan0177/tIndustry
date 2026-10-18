@@ -164,24 +164,111 @@ public sealed class Factory : IGameView
     IResearchView IGameView.Research => Research;
     ISessionView IGameView.Session => Session;
 
-    public bool IsBeltCorner(GridPosition position) =>
-        BeltIncoming().TryGetValue(position, out var entry) && entry.Corner;
+    public bool IsBeltCorner(GridPosition position) => GetBeltShape(position) == BeltShape.Corner;
+
+    public BeltShape GetBeltShape(GridPosition position) =>
+        BeltIncoming().TryGetValue(position, out var entry) ? entry.Shape : BeltShape.Straight;
+
+    public bool IsJunctionSideConnected(GridPosition position, Direction side) =>
+        BeltIncoming().TryGetValue(position, out var entry) && (entry.JunctionSides & (1 << (int)side)) != 0;
+
+    /// <summary>
+    /// Mindustry's auto-junction: a dragged belt line facing <paramref name="direction"/> that crosses a plain belt
+    /// perpendicular to it puts a junction there, so both lines keep flowing. Only where the junction behaves like the
+    /// belt it replaces: the crossed belt is straight (not a corner or T), fed from behind by logistics only (no
+    /// building feeds it) and hands over to a logistics cell ahead (not the Core or a building); the dragged line has
+    /// a belt or belt plan of its own direction on both sides of the cell (the client sends the crossing only once the
+    /// line goes on past it, <see cref="BeltLine.IsInterior"/>); the cell has no plan (not marked for removal).
+    /// Splitters, sorters, bridges, junctions and parallel belts are never crossings.
+    /// </summary>
+    public BeltCrossing BeltCrossingAt(GridPosition position, Direction direction)
+    {
+        if (!Belts.TryGet(position, out var cell)
+            || cell.Kind != LogisticsKind.Belt
+            || cell.Direction == direction
+            || cell.Direction == DirectionMath.Opposite(direction)
+            || GetBeltShape(position) != BeltShape.Straight
+            || IsPlannedTile(position)
+            || !Belts.Contains(position.Step(cell.Direction))
+            || !IsLineBelt(position.Step(DirectionMath.Opposite(direction)), direction)
+            || !IsLineBelt(position.Step(direction), direction))
+        {
+            return BeltCrossing.None;
+        }
+
+        BeltIncoming(); // builds the building-feed lookup used below
+        var logistics = Belts.Feeders(position, cell.Direction, null);
+        var all = Belts.Feeders(position, cell.Direction, buildingFeeds);
+        if (!logistics.Back || all != logistics)
+        {
+            return BeltCrossing.None;
+        }
+
+        return IsStructureUnlocked(BuildSpec.StructureIdFor(BuildingKind.Junction)!)
+            ? BeltCrossing.Junction
+            : BeltCrossing.JunctionLocked;
+    }
+
+    /// <summary>A plain belt facing <paramref name="direction"/> on <paramref name="tile"/>, standing or planned.</summary>
+    private bool IsLineBelt(GridPosition tile, Direction direction)
+    {
+        if (Belts.TryGet(tile, out var cell))
+        {
+            return cell.Kind == LogisticsKind.Belt && cell.Direction == direction;
+        }
+
+        foreach (var builder in State.Builders)
+        {
+            foreach (var plan in builder.Plans)
+            {
+                if (!plan.Breaking && plan.Spec.Kind is null && plan.Spec.Origin == tile && plan.Spec.Direction == direction)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Instant auto-junction: takes the belt on <paramref name="tile"/> away and places <paramref name="junction"/>,
+    /// paid; the belt is refunded as a removal would. All or nothing: when the junction cannot stand, the belt comes
+    /// back and nothing is paid or refunded.
+    /// </summary>
+    internal bool TryReplaceBeltWithJunction(GridPosition tile, BuildSpec junction)
+    {
+        if (!TryGetSpecAt(tile, out var belt, out _) || belt.Kind is not null || !RemoveInstant(tile, refund: false))
+        {
+            return false;
+        }
+
+        if (!PlaceInstant(junction, charge: true))
+        {
+            PlaceInstant(belt with { Origin = tile }, charge: false);
+            return false;
+        }
+
+        Refund(belt);
+        return true;
+    }
 
     public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming)
     {
-        var found = BeltIncoming().TryGetValue(position, out var entry);
-        incoming = entry.Incoming;
-        return found;
+        BeltIncoming().TryGetValue(position, out var entry);
+        incoming = entry.Incoming ?? default;
+        return entry.Incoming is not null;
     }
 
-    // Corner cache: the client asks per belt item per frame, so the answers are computed once per layout change.
-    private readonly Dictionary<GridPosition, (Direction Incoming, bool Corner)> beltIncoming = new();
+    // Shape cache: the client asks per belt item per frame, so the answers are computed once per layout change.
+    // JunctionSides: bit (int)Direction set for each connected side of a junction.
+    private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> beltIncoming = new();
     private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
     private int buildingsVersion;
     private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
 
-    private Dictionary<GridPosition, (Direction Incoming, bool Corner)> BeltIncoming()
+    private Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> BeltIncoming()
     {
         var version = (Belts.Version, buildingsVersion);
         if (version == beltIncomingVersion)
@@ -214,15 +301,31 @@ public sealed class Factory : IGameView
         buildingFeeds ??= BuildingEjectsInto;
         foreach (var (position, cell) in Belts.Cells)
         {
-            if (Belts.TryGetIncomingDirection(position, out var incoming, buildingFeeds))
+            // One feeder lookup per cell gives both the incoming flow and the shape.
+            var (back, left, right) = Belts.Feeders(position, cell.Direction, buildingFeeds);
+            Direction? incoming = BeltGrid.IncomingFrom(cell.Direction, back, left, right, out var dir) ? dir : null;
+            var shape = cell.Kind == LogisticsKind.Belt ? BeltGrid.ShapeFrom(back, left, right) : BeltShape.Straight;
+            var sides = 0;
+            if (cell.Kind == LogisticsKind.Junction)
             {
-                beltIncoming[position] = (incoming, cell.Kind == LogisticsKind.Belt && incoming != cell.Direction);
+                foreach (var side in JunctionSideOrder)
+                {
+                    sides |= Belts.IsJunctionSideConnected(position, side) ? 1 << (int)side : 0;
+                }
+            }
+
+            if (incoming is not null || shape != BeltShape.Straight || sides != 0)
+            {
+                beltIncoming[position] = (incoming, shape, sides);
             }
         }
 
         beltIncomingVersion = version;
         return beltIncoming;
     }
+
+    private static readonly Direction[] JunctionSideOrder =
+        [Direction.North, Direction.East, Direction.South, Direction.West];
 
     private void AddEjector(GridPosition origin, int size, Direction? output)
     {
@@ -2250,22 +2353,28 @@ public sealed class Factory : IGameView
 
         if (refund)
         {
-            var basisPoints = RefundBasisPointsFor(spec);
-            foreach (var entry in CostOf(spec))
-            {
-                var amount = (int)((long)entry.Amount * basisPoints / Construction.FullRefundBasisPoints);
-                if (entry.ItemId is { } itemId)
-                {
-                    Wallet.AddMaterial(itemId, amount);
-                }
-                else if (amount > 0)
-                {
-                    Wallet.AddMoney(amount);
-                }
-            }
+            Refund(spec);
         }
 
         return true;
+    }
+
+    /// <summary>Gives back <c>floor(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line of <paramref name="spec"/>.</summary>
+    private void Refund(BuildSpec spec)
+    {
+        var basisPoints = RefundBasisPointsFor(spec);
+        foreach (var entry in CostOf(spec))
+        {
+            var amount = (int)((long)entry.Amount * basisPoints / Construction.FullRefundBasisPoints);
+            if (entry.ItemId is { } itemId)
+            {
+                Wallet.AddMaterial(itemId, amount);
+            }
+            else if (amount > 0)
+            {
+                Wallet.AddMoney(amount);
+            }
+        }
     }
 
     private int FootprintSize(BuildSpec spec) => spec.Kind switch

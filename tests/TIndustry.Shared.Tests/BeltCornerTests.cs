@@ -99,12 +99,69 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BuildingsOnBothSidesAndNothingBehindStayStraight()
+    public void BuildingsOnBothSidesAndNothingBehindMakeAT()
     {
         var factory = WithNorthLine();
         Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East));
         Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 21), Direction.East));
         Assert.False(factory.IsBeltCorner(P));
+        Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
+        Assert.False(factory.TryGetBeltIncomingDirection(P, out _));
+    }
+
+    [Fact]
+    public void BeltsOnBothSidesAndNothingBehindMakeAT()
+    {
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West));
+        Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
+        Assert.Equal(BeltShape.Straight, factory.GetBeltShape(new GridPosition(20, 20)));
+    }
+
+    [Fact]
+    public void LogisticsAndABuildingOnTheSidesMakeAT()
+    {
+        // A splitter on the west (its East exit feeds P) and a miner on the east.
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceSplitter(new GridPosition(19, 21), Direction.North));
+        Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 21), Direction.East));
+        Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
+    }
+
+    [Fact]
+    public void FeederBehindWinsOverBothSides()
+    {
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
+        Assert.Equal(BeltShape.Straight, factory.GetBeltShape(P));
+    }
+
+    [Fact]
+    public void OneSideOfATIsACorner()
+    {
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        Assert.Equal(BeltShape.Corner, factory.GetBeltShape(P)); // fills the cache
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West));
+        Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
+        Assert.True(factory.TryRemoveBelt(new GridPosition(19, 21)));
+        Assert.Equal(BeltShape.Corner, factory.GetBeltShape(P));
+        AssertCorner(factory, Direction.West);
+        Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East));
+        Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
+    }
+
+    [Fact]
+    public void SpecialsAreNeverT()
+    {
+        var factory = Sandbox();
+        Assert.True(factory.TryPlaceJunction(P, Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West));
+        Assert.Equal(BeltShape.Straight, factory.GetBeltShape(P));
     }
 
     [Fact]

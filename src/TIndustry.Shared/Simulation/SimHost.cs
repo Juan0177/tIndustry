@@ -211,6 +211,17 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
+        if (command.Crossing)
+        {
+            switch (factory.BeltCrossingAt(spec.Origin, spec.Direction))
+            {
+                case BeltCrossing.Junction:
+                    return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
+                case BeltCrossing.JunctionLocked:
+                    return RefusalCode.CrossingNeedsJunction;
+            }
+        }
+
         if (factory.State.Rules.InstantBuild)
         {
             return CheckBuildable(spec.StructureId, multiplicity: 1)
@@ -225,6 +236,43 @@ public sealed class SimHost
         }
 
         return QueuePlan(command.PlayerId, spec);
+    }
+
+    /// <summary>
+    /// A junction takes the place of the belt on <paramref name="tile"/>. Instant build: the belt is removed (with
+    /// today's refund) and the junction placed and paid. With plans: the drone first takes the belt apart (a
+    /// breaking plan, as a Remove would queue) and then builds the junction (a plan right after it).
+    /// </summary>
+    private Refusal? ApplyAutoJunction(int playerId, GridPosition tile, Direction direction)
+    {
+        var junction = BuildSpec.FromCommand(new PlaceBuilding(playerId, BuildingKind.Junction, tile, direction));
+        // Checked before anything changes: research and, in both modes, that the Core can pay the junction now
+        // (a plan would otherwise take the belt apart and then wait for resources).
+        if (CheckBuildable(junction.StructureId, multiplicity: 1) is { } refusal)
+        {
+            return refusal;
+        }
+
+        if (factory.State.Rules.InstantBuild)
+        {
+            return factory.TryReplaceBeltWithJunction(tile, junction) ? null : RefusalCode.Occupied;
+        }
+
+        // BeltCrossingAt already refused a planned (or marked) tile; the belt must still be there.
+        if (!factory.TryGetSpecAt(tile, out var belt, out _) || IsBreakingPlanned(belt))
+        {
+            return RefusalCode.Occupied;
+        }
+
+        var builder = factory.BuilderOf(playerId);
+        if (builder is null)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        builder.PlanQueue.Add(new BuildPlan(belt with { Origin = tile }, Breaking: true));
+        builder.PlanQueue.Add(new BuildPlan(junction, Breaking: false));
+        return null;
     }
 
     private Refusal? ApplyPlaceBuilding(PlaceBuilding command)
@@ -359,11 +407,33 @@ public sealed class SimHost
             if (factory.PlanTiles(plan).Contains(tile))
             {
                 builder.PlanQueue.RemoveAt(i);
+                CancelCrossingPartner(builder, plan, first);
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// An auto-junction is two plans on one tile (take the belt apart, then build the junction): cancelling either
+    /// cancels the other too, unless it has already started (from index <paramref name="first"/> on).
+    /// </summary>
+    private void CancelCrossingPartner(BuilderUnit builder, BuildPlan cancelled, int first)
+    {
+        var tile = cancelled.Spec.Origin;
+        for (var i = first; i < builder.Plans.Count; i++)
+        {
+            var plan = builder.Plans[i];
+            var partner = cancelled.Breaking
+                ? !plan.Breaking && plan.Spec.Kind == BuildingKind.Junction
+                : cancelled.Spec.Kind == BuildingKind.Junction && plan.Breaking && plan.Spec.Kind is null;
+            if (partner && plan.Spec.Origin == tile && factory.SiteOfPlan(plan) is null)
+            {
+                builder.PlanQueue.RemoveAt(i);
+                return;
+            }
+        }
     }
 
     /// <summary>True when a breaking plan of any player already targets the block <paramref name="spec"/> describes.</summary>

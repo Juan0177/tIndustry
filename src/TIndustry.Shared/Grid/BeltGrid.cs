@@ -419,32 +419,98 @@ public sealed class BeltGrid
         }
 
         var dir = cell.Direction;
-        if (FeedsToward(position.Step(DirectionMath.Opposite(dir)), dir, buildingFeeds, JunctionChainLimit))
+        var (back, left, right) = Feeders(position, dir, buildingFeeds);
+        return IncomingFrom(dir, back, left, right, out incoming);
+    }
+
+    internal static bool IncomingFrom(Direction dir, bool back, bool left, bool right, out Direction incoming)
+    {
+        incoming = dir;
+        if (back)
         {
-            incoming = dir;
             return true;
         }
 
-        // A feeder on the left side flows rightwards into the cell, and vice versa.
-        var left = DirectionMath.Left(dir);
-        var right = DirectionMath.Right(dir);
-        var fromLeft = FeedsToward(position.Step(left), right, buildingFeeds, JunctionChainLimit);
-        var fromRight = FeedsToward(position.Step(right), left, buildingFeeds, JunctionChainLimit);
-        if (fromLeft == fromRight)
+        if (left == right)
         {
             return false;
         }
 
-        incoming = fromLeft ? right : left;
+        // A feeder on the left side flows rightwards into the cell, and vice versa.
+        incoming = left ? DirectionMath.Right(dir) : DirectionMath.Left(dir);
         return true;
     }
 
+    /// <summary>
+    /// How a plain belt is drawn (visual only, Mindustry's conveyor blend): a feeder behind or no side feeder
+    /// = straight, exactly one side feeder = corner from that side (<paramref name="incoming"/>), feeders on
+    /// both sides and none behind = T. Specials and empty cells are straight; <paramref name="incoming"/> is
+    /// then the cell's direction (default for an empty cell).
+    /// </summary>
+    public BeltShape GetShape(
+        GridPosition position,
+        out Direction incoming,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds = null)
+    {
+        incoming = default;
+        if (!cells.TryGetValue(position, out var cell))
+        {
+            return BeltShape.Straight;
+        }
+
+        var dir = cell.Direction;
+        incoming = dir;
+        if (cell.Kind is not LogisticsKind.Belt)
+        {
+            return BeltShape.Straight;
+        }
+
+        var (back, left, right) = Feeders(position, dir, buildingFeeds);
+        IncomingFrom(dir, back, left, right, out incoming);
+        return ShapeFrom(back, left, right);
+    }
+
+    /// <summary><see cref="GetShape"/> of a plain belt from its feeders (behind, left, right).</summary>
+    internal static BeltShape ShapeFrom(bool back, bool left, bool right) =>
+        back || (!left && !right) ? BeltShape.Straight
+        : left && right ? BeltShape.T // both sides, nothing behind
+        : BeltShape.Corner;
+
     public bool IsCorner(GridPosition position, Func<GridPosition, GridPosition, bool>? buildingFeeds = null) =>
-        cells.TryGetValue(position, out var cell)
-        // Specials are not gallery corners.
-        && cell.Kind is LogisticsKind.Belt
-        && TryGetIncomingDirection(position, out var incoming, buildingFeeds)
-        && incoming != cell.Direction;
+        GetShape(position, out _, buildingFeeds) == BeltShape.Corner;
+
+    /// <summary>
+    /// Whether the junction at <paramref name="position"/> has an input or an output on <paramref name="side"/>
+    /// (visual: a side without either keeps its rail). Input: the neighbour there feeds into the junction. Output: items
+    /// cross toward that side (something feeds the opposite side) and a logistics cell there takes them. Buildings
+    /// never connect: a junction refuses their directionless inserts and only hands items to logistics cells.
+    /// </summary>
+    public bool IsJunctionSideConnected(GridPosition position, Direction side)
+    {
+        if (!cells.TryGetValue(position, out var cell) || cell.Kind != LogisticsKind.Junction)
+        {
+            return false;
+        }
+
+        bool FeedsFrom(Direction from) =>
+            FeedsToward(position.Step(from), DirectionMath.Opposite(from), null, JunctionChainLimit);
+
+        return FeedsFrom(side) || (cells.ContainsKey(position.Step(side)) && FeedsFrom(DirectionMath.Opposite(side)));
+    }
+
+    /// <summary>Whether something feeds the cell (facing <paramref name="dir"/>) from behind, from its left and from its right.</summary>
+    internal (bool Back, bool Left, bool Right) Feeders(
+        GridPosition position,
+        Direction dir,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds)
+    {
+        var left = DirectionMath.Left(dir);
+        var right = DirectionMath.Right(dir);
+        return (
+            FeedsToward(position.Step(DirectionMath.Opposite(dir)), dir, buildingFeeds, JunctionChainLimit),
+            FeedsToward(position.Step(left), right, buildingFeeds, JunctionChainLimit),
+            FeedsToward(position.Step(right), left, buildingFeeds, JunctionChainLimit));
+    }
 
     // Junctions pass items straight through: look this many junctions back for the real source.
     private const int JunctionChainLimit = 4;
@@ -600,4 +666,12 @@ public sealed class BeltGridCell
     public TransportedItem? PeekOutput() => inner.PeekOutput();
     public void RemoveOutput() => inner.RemoveOutput();
     public bool TryRemoveItem(TransportedItem item) => inner.TryRemoveItem(item);
+}
+
+/// <summary>How a plain belt cell is drawn (<see cref="BeltGrid.GetShape"/>).</summary>
+public enum BeltShape
+{
+    Straight,
+    Corner,
+    T
 }

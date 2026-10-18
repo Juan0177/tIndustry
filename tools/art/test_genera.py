@@ -5,6 +5,7 @@ Run from the repo root:  python -m unittest tools/art/test_genera.py
 import csv
 import io
 import json
+import math
 import os
 import sys
 import tempfile
@@ -460,6 +461,61 @@ class TestGenera(unittest.TestCase):
                     self.assertEqual([d.getpixel((0, y)) for y in range(T)], ovest, f"{nastro} {k + 1}: lato Ovest")
                     sud = [c.getpixel((x, T - 1)) for x in range(T)]
                     self.assertEqual([d.getpixel((T - 1, T - 1 - x)) for x in range(T)], sud, f"{nastro} {k + 1}: lato Sud")
+
+    def test_unioni_a_t_raccordate(self):
+        # T merge (in from the North and South edges, out from the East edge) composed from two
+        # corners, frame by frame: east of the back rail every pixel inside a corner's bend (row
+        # across the belt >= 6 from its pivot, i.e. its tread inside the groove) is that corner's pixel: the bottom half the corner
+        # turned to come in from the South, the top half its mirror. So the East edge joins the
+        # straight belt (bottom half: column 31 of the straight frame), the input edges join the
+        # side belts like a corner, and the West edge is a rail (no input behind).
+        tread = {c[:3] for c in NASTRO}
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                curve = fotogrammi_di(SPRITE[nastro + "-corner-anim"]())
+                unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
+                self.assertEqual(len(curve), len(unioni))
+                for k, (d, c, u) in enumerate(zip(dritti, curve, unioni)):
+                    self.assertEqual((T, T), u.size)
+                    da_sud = c.transpose(Image.Transpose.ROTATE_90)
+                    da_nord = da_sud.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                    for y in range(T):
+                        for x in range(5, T):
+                            a = T - 1 - y if y >= T // 2 else y
+                            if math.hypot(a, T - 1 - x) <= T - 6.5:
+                                atteso = (da_sud if y >= T // 2 else da_nord).getpixel((x, y))
+                                self.assertEqual(atteso, u.getpixel((x, y)), f"{nastro} {k + 1}: {x},{y}")
+                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, T)],
+                                     [u.getpixel((T - 1, y)) for y in range(T // 2, T)], f"{nastro} {k + 1}: Est")
+                    ovest = {u.getpixel((x, y))[:3] for x in range(5) for y in range(T)}
+                    self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
+
+    def test_incrocio_a_pezzi(self):
+        # The icon is the open base; the North rail piece is the straight belt's top rail (rows 0-4)
+        # over the groove, transparent below, so on a side without connection the rail stays.
+        self.assertEqual(SPRITE["junction-base"]().tobytes(), SPRITE["junction"]().tobytes())
+        bordo = SPRITE["junction-bordo"]()
+        dritto = fotogrammi_di(SPRITE["conveyor-basic-anim"]())[0]
+        self.assertEqual((T, T), bordo.size)
+        self.assertEqual(_righe(dritto, 0, 5), _righe(bordo, 0, 5))
+        self.assertIsNone(bordo.crop((0, 6, T, T)).getbbox())
+
+    def test_incrocio_senza_frecce(self):
+        # Junction: two belts crossing. The treads (rows and columns 5-26) reach every edge and hold
+        # only tread colours outside the small centre hub (no arrow glyphs); the corners are rails.
+        im = SPRITE["junction"]()
+        self.assertEqual((T, T), im.size)
+        tread = {c[:3] for c in NASTRO}
+        c = (T - 1) / 2
+        for y in range(T):
+            for x in range(T):
+                colore = im.getpixel((x, y))
+                self.assertEqual(255, colore[3], f"buco su {x},{y}")
+                if abs(x - c) + abs(y - c) <= 4:
+                    continue  # hub
+                in_tread = 5 <= x <= 26 or 5 <= y <= 26
+                self.assertEqual(in_tread, colore[:3] in tread, f"{x},{y}")
 
     def test_parti_produzione_e_potenza(self):
         # Layered blocks: base, animated part (frame count), composed icon = base + frame 1.

@@ -28,9 +28,16 @@ public enum BuildingKind
     Lamp
 }
 
-/// <summary>Replaces <see cref="Factory.TryPlaceBelt"/>.</summary>
-public sealed record PlaceBelt(int PlayerId, GridPosition Position, Direction Direction, string ConveyorId)
-    : SimCommand(PlayerId);
+/// <summary>
+/// Replaces <see cref="Factory.TryPlaceBelt"/>. <paramref name="Crossing"/>: the belt is part of a dragged line, so
+/// over a plain belt perpendicular to it a junction takes the belt's place (<see cref="Factory.BeltCrossingAt"/>).
+/// </summary>
+public sealed record PlaceBelt(
+    int PlayerId,
+    GridPosition Position,
+    Direction Direction,
+    string ConveyorId,
+    bool Crossing = false) : SimCommand(PlayerId);
 
 /// <summary>
 /// Replaces the <c>TryPlace…</c> methods for junction, splitter, sorter, bridge, miners, forno,
@@ -126,7 +133,48 @@ public enum RefusalCode
     NothingToRemove,
 
     /// <summary>The Core is already upgraded (<see cref="IGameView.CoreUpgradeLevel"/>).</summary>
-    CoreAlreadyUpgraded
+    CoreAlreadyUpgraded,
+
+    /// <summary>
+    /// A dragged belt line crosses a perpendicular belt but the junction is not researched: the cell stays as it is
+    /// (<see cref="BeltCrossing.JunctionLocked"/>).
+    /// </summary>
+    CrossingNeedsJunction
+}
+
+/// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>
+public static class BeltLine
+{
+    /// <summary>
+    /// True when <paramref name="cell"/> lies inside a straight dragged line facing <paramref name="direction"/>: the
+    /// line came from the cell behind it and goes on to the cell ahead (Mindustry plans on both sides of a crossing).
+    /// The press cell (no <paramref name="previous"/>) and the last cell of a drag (no <paramref name="next"/>) never are.
+    /// </summary>
+    public static bool IsInterior(GridPosition? previous, GridPosition cell, GridPosition? next, Direction direction) =>
+        previous == cell.Step(DirectionMath.Opposite(direction)) && next == cell.Step(direction);
+
+    /// <summary>
+    /// True when a dragged belt facing <paramref name="direction"/> on <paramref name="cell"/> would cross a plain belt
+    /// perpendicular to it: the client holds such a cell back until it knows whether the line goes on past it.
+    /// </summary>
+    public static bool MayCross(IGameView view, GridPosition cell, Direction direction) =>
+        view.Belts.TryGetValue(cell, out var belt)
+        && belt.Kind == LogisticsKind.Belt
+        && belt.Direction != direction
+        && belt.Direction != DirectionMath.Opposite(direction);
+}
+
+/// <summary>What a dragged belt does on a cell (<see cref="Factory.BeltCrossingAt"/>).</summary>
+public enum BeltCrossing
+{
+    /// <summary>No crossing: the belt is placed (or refused) as usual.</summary>
+    None,
+
+    /// <summary>A junction replaces the perpendicular belt.</summary>
+    Junction,
+
+    /// <summary>A junction would replace it, but it is not researched.</summary>
+    JunctionLocked
 }
 
 /// <summary>

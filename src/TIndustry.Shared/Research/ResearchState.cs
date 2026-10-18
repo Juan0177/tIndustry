@@ -43,6 +43,9 @@ public sealed class ResearchState : IResearchView
 
     public void ForceUnlock(string structureId) => unlocked.Add(structureId);
 
+    /// <summary>Takes a structure back (tests and dev probes that must leave the research as they found it).</summary>
+    public void ForceLock(string structureId) => unlocked.Remove(structureId);
+
     public bool MeetsPrerequisites(StructureDefinition structure) =>
         structure.Prerequisites.All(IsUnlocked);
 

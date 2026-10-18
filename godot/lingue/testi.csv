@@ -194,6 +194,7 @@ rifiuto.MissingPrerequisites,Prerequisiti mancanti.,Missing prerequisites.
 rifiuto.UnlockUnaffordable,Risorse insufficienti per sbloccare.,Not enough resources to unlock.
 rifiuto.SellFailed,Vendita fallita (stock insufficiente).,Sale failed (not enough stock).
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
+rifiuto.CrossingNeedsJunction,Sblocca l'incrocio per attraversare i nastri,Unlock the junction to cross belts
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.
 home.sottotitolo,Fabbrica · Logistica · Ricerca,Factory · Logistics · Research

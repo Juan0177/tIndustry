@@ -6,7 +6,11 @@ namespace TIndustry.Godot;
 /// <summary>Placing/removing structures on the grid and screen→cell mapping.</summary>
 public partial class World
 {
-    private void TryPlaceAt(GridPosition cell)
+    /// <summary>
+    /// Sends the current tool's command for <paramref name="cell"/>. <paramref name="crossing"/>: a belt inside a dragged
+    /// line over a perpendicular belt, which the simulation may turn into a junction (<see cref="Factory.BeltCrossingAt"/>).
+    /// </summary>
+    private void TryPlaceAt(GridPosition cell, bool crossing = false)
     {
         if (_view is null || _tool == BuildTool.Cursor)
         {
@@ -14,17 +18,69 @@ public partial class World
         }
 
         // Outcome (graphics refresh, rejection toast) arrives through the host events.
-        SubmitCommand(PlaceCommandAt(cell), quietWhenBlocked: _draggingPlace);
+        SubmitCommand(PlaceCommandAt(cell, crossing), quietWhenBlocked: _draggingPlace);
+    }
+
+    // Belt drag: the cell placed last, and a cell over a perpendicular belt held back until the drag shows whether the
+    // line goes on past it (with the cell before it).
+    private GridPosition? _dragPrevious;
+    private (GridPosition Cell, GridPosition? Previous)? _heldCrossing;
+
+    /// <summary>Starts a placing drag on the press cell (never a crossing).</summary>
+    private void BeginPlaceDrag(GridPosition cell)
+    {
+        _dragPrevious = cell;
+        _heldCrossing = null;
+        _crossingToastShown = false;
+        TryPlaceAt(cell);
+    }
+
+    /// <summary>
+    /// One cell a belt drag moved onto. A cell over a perpendicular belt (<see cref="BeltLine.MayCross"/>) waits for the
+    /// next one: then the next cell goes first and the held one follows, as a crossing when it lies inside the line
+    /// (<see cref="BeltLine.IsInterior"/>). A held cell the drag never passes would only be refused as occupied, so on
+    /// release it is simply dropped.
+    /// </summary>
+    private void PlaceDragged(GridPosition cell)
+    {
+        var belt = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
+        var mayCross = belt && _view is not null && BeltLine.MayCross(_view, cell, _placeDir);
+        if (_heldCrossing is { } held)
+        {
+            _heldCrossing = null;
+            if (mayCross)
+            {
+                TryPlaceAt(held.Cell); // two crossings in a row: the first one is not inside a line of belts
+            }
+            else
+            {
+                TryPlaceAt(cell);
+                TryPlaceAt(held.Cell, BeltLine.IsInterior(held.Previous, held.Cell, cell, _placeDir));
+                _dragPrevious = cell;
+                return;
+            }
+        }
+
+        if (mayCross)
+        {
+            _heldCrossing = (cell, _dragPrevious);
+        }
+        else
+        {
+            TryPlaceAt(cell);
+        }
+
+        _dragPrevious = cell;
     }
 
     /// <summary>The command the current tool sends for <paramref name="cell"/> (not the cursor).</summary>
-    private SimCommand PlaceCommandAt(GridPosition cell)
+    private SimCommand PlaceCommandAt(GridPosition cell, bool crossing = false)
     {
         return _tool switch
         {
-            BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic"),
-            BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast"),
-            BuildTool.BeltExpress => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-express"),
+            BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic", crossing),
+            BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast", crossing),
+            BuildTool.BeltExpress => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-express", crossing),
             BuildTool.Miner => Place(BuildingKind.Miner),
             BuildTool.MinerAdvanced => Place(BuildingKind.MinerAdvanced),
             BuildTool.Smelter => Place(BuildingKind.Smelter),

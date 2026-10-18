@@ -5,9 +5,9 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Builds the belt visuals of a placeable <see cref="BeltGrid"/>: one sprite per straight cell, one per
-/// corner, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
+/// corner or T merge, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
 /// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step:
-/// every cell of a tier draws the same <see cref="AtlasTexture"/> (one for straights, one for corners), and a
+/// every cell of a tier draws the same <see cref="AtlasTexture"/> (one per shape: straight, corner, T), and a
 /// frame change moves only that texture's region, once per tier, whatever the number of cells.
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
@@ -19,6 +19,7 @@ public partial class MindustryBeltVisual : Node2D
     {
         public readonly SharedStrip Straight = new(id);
         public readonly SharedStrip Corner = new(id + "-corner");
+        public readonly SharedStrip T = new(id + "-t");
         public readonly float Rate = rateCellsPerSecond;
         public float Scroll;
         public int Frame;
@@ -52,11 +53,11 @@ public partial class MindustryBeltVisual : Node2D
             switch (cell.Kind)
             {
                 case LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter:
-                    AddSpecial(pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
+                    AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
                     break;
                 case LogisticsKind.Bridge:
                     // Both ends get their pad; the span is drawn once, from the entry.
-                    AddSpecial(pos, LogisticsKind.Bridge, cell.Direction, tileSize);
+                    AddSpecial(view, pos, LogisticsKind.Bridge, cell.Direction, tileSize);
                     if (cell.BridgePartner is { } partner && IsBridgeEntryVisual(pos, cell.Direction, partner))
                     {
                         var span = new BridgeSpanVisual { Name = $"BridgeSpan_{pos.X}_{pos.Y}" };
@@ -96,13 +97,15 @@ public partial class MindustryBeltVisual : Node2D
             clock.Frame = frame;
             clock.Straight.Show(frame);
             clock.Corner.Show(frame);
+            clock.T.Show(frame);
         }
     }
 
     private void AddBelt(IGameView view, GridPosition pos, BeltGridCell cell, int tileSize)
     {
         var clock = ClockFor(cell.Definition);
-        if (view.IsBeltCorner(pos) && view.TryGetBeltIncomingDirection(pos, out var incoming))
+        var shape = view.GetBeltShape(pos);
+        if (shape == BeltShape.Corner && view.TryGetBeltIncomingDirection(pos, out var incoming))
         {
             var corner = new BeltCornerTile { Name = $"Corner_{pos.X}_{pos.Y}" };
             corner.Configure(pos, incoming, cell.Direction, tileSize, clock.Corner.Texture);
@@ -110,8 +113,10 @@ public partial class MindustryBeltVisual : Node2D
             return;
         }
 
-        var straight = new ScrollingBeltStrip { Name = $"Belt_{pos.X}_{pos.Y}" };
-        straight.Configure(pos, cell.Direction, tileSize, clock.Straight.Texture);
+        // A T merge (art: in from North and South, out East) turns to the output like a straight belt.
+        var t = shape == BeltShape.T;
+        var straight = new ScrollingBeltStrip { Name = $"{(t ? "BeltT" : "Belt")}_{pos.X}_{pos.Y}" };
+        straight.Configure(pos, cell.Direction, tileSize, t ? clock.T.Texture : clock.Straight.Texture);
         AddChild(straight);
     }
 
@@ -155,6 +160,7 @@ public partial class MindustryBeltVisual : Node2D
     }
 
     private void AddSpecial(
+        IGameView view,
         GridPosition pos,
         LogisticsKind kind,
         Direction direction,
@@ -163,7 +169,7 @@ public partial class MindustryBeltVisual : Node2D
     {
         var texture = Sprites.For(kind switch
         {
-            LogisticsKind.Junction => "junction",
+            LogisticsKind.Junction => "junction-base",
             LogisticsKind.Splitter => "splitter",
             LogisticsKind.Sorter => "sorter",
             LogisticsKind.Bridge => "conveyor-bridge",
@@ -189,6 +195,27 @@ public partial class MindustryBeltVisual : Node2D
         }
 
         node.AddChild(sprite);
+
+        // Junction: every side without an input or output keeps its rail (the piece is drawn for the North side).
+        if (kind == LogisticsKind.Junction)
+        {
+            var rail = Sprites.For("junction-bordo");
+            foreach (var side in new[] { Direction.North, Direction.East, Direction.South, Direction.West })
+            {
+                if (!view.IsJunctionSideConnected(pos, side))
+                {
+                    node.AddChild(new Sprite2D
+                    {
+                        Name = $"Rail{side}",
+                        Texture = rail,
+                        Centered = true,
+                        TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                        Scale = sprite.Scale,
+                        RotationDegrees = ScrollingBeltStrip.RotationFor(side) + 90f
+                    });
+                }
+            }
+        }
 
         // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame).
         if (kind == LogisticsKind.Sorter)

@@ -392,14 +392,25 @@ public partial class World
             return (_ghost.Spec, _ghost.Refusal);
         }
 
-        var spec = _view is null || _tool == BuildTool.Cursor
+        // The cell a belt drag holds back (never the press cell) shows a junction when the simulation would make one.
+        var command = _view is null || _tool == BuildTool.Cursor
             ? null
-            : PlaceCommandAt(hover) switch
-            {
-                PlaceBelt belt => BuildSpec.FromCommand(belt),
-                PlaceBuilding building => BuildSpec.FromCommand(building),
-                _ => null
-            };
+            : PlaceCommandAt(hover, _draggingPlace && _heldCrossing?.Cell == hover);
+        if (command is PlaceBelt { Crossing: true } crossing
+            && _view!.BeltCrossingAt(hover, crossing.Direction) == BeltCrossing.Junction)
+        {
+            var junction = BuildSpec.FromCommand(new PlaceBuilding(LocalPlayer, BuildingKind.Junction, hover, crossing.Direction));
+            RefusalCode? planned = _view.IsPlannedTile(hover) ? RefusalCode.Occupied : null;
+            _ghost = (frame, hover, _tool, _placeDir, _sorterFilterId, junction, planned);
+            return (junction, planned);
+        }
+
+        var spec = command switch
+        {
+            PlaceBelt belt => BuildSpec.FromCommand(belt),
+            PlaceBuilding building => BuildSpec.FromCommand(building),
+            _ => null
+        };
         RefusalCode? refusal = null;
         if (spec is not null)
         {
