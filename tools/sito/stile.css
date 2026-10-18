@@ -81,3 +81,41 @@ button:hover,button:focus-visible{border-color:var(--bordo);outline:none}
 .pezzi{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:10px;margin-top:12px}
 .pezzi .box{height:auto;min-height:200px}
 .carattere img{display:block;margin:8px 0}
+
+/* Factory: belts (tratti) carrying items, corners, pieces, blocks and power nodes, one cell = 64 px.
+   The animated belt image comes from the page (Fabbrica.stile()); items slide along with CSS, at the
+   belt speed once sito.js has measured each segment (--durata), at a default pace without scripts. */
+.linea{display:flex;align-items:flex-end;max-width:100%}
+.linea-centro{align-items:center}
+.spina{position:absolute;top:0;bottom:0;width:64px;display:flex;flex-direction:column;align-items:center}
+.spina-sx{left:0}
+.spina-dx{right:0}
+.linea>*,.spina>*{flex:none}
+.tratto{position:relative;overflow:hidden;background-size:64px 64px}
+.tratto-e,.tratto-w{height:64px;width:calc(var(--celle)*64px);background-repeat:repeat-x}
+.tratto-s,.tratto-n{width:64px;height:calc(var(--celle,4)*64px);background-repeat:repeat-y}
+/* Fluid segments (no --celle) fill what is left of their line or column. */
+.linea>.tratto.fluido{flex:1 1 64px;min-width:64px}
+.spina>.tratto.fluido{flex:1 1 64px;height:auto;min-height:64px}
+.oggetto{position:absolute;width:20px;height:20px;left:22px;top:22px;
+  animation:var(--scorri) var(--durata,8s) linear infinite;animation-delay:calc(var(--k) * var(--durata,8s) / -8)}
+.tratto-e{--scorri:scorri-e}
+.tratto-w{--scorri:scorri-w}
+.tratto-s{--scorri:scorri-s}
+.tratto-n{--scorri:scorri-n}
+@keyframes scorri-e{from{left:-20px}to{left:100%}}
+@keyframes scorri-w{from{left:100%}to{left:-20px}}
+@keyframes scorri-s{from{top:-20px}to{top:100%}}
+@keyframes scorri-n{from{top:100%}to{top:-20px}}
+.pezzo{position:relative;display:block;width:64px;height:64px}
+.pezzo>img{display:block}
+.pezzo>.filtro{position:absolute;left:22px;top:22px;width:20px;height:20px}
+.spazio{display:block;width:calc(var(--celle)*64px);height:64px}
+.spina>.spazio{width:64px;height:calc(var(--celle)*64px)}
+.curva,.ponte,.nodo,img.blocco{display:block;max-width:none}
+@media (max-width: 719px){
+  .linea{flex-direction:column;align-items:flex-start}
+  .tratto-e,.tratto-w{width:64px;height:calc(var(--celle,4)*64px);background-repeat:repeat-y;--scorri:scorri-s}
+  .linea>.tratto.fluido{flex:none}
+  .linea>.spazio{width:64px;height:calc(var(--celle)*64px)}
+}

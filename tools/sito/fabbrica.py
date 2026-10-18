@@ -5,10 +5,12 @@ like the client turns them: straight belts are drawn heading East and rotated cl
 corners follow BeltCornerTile.ResolveTransform (mirror first for counter-clockwise turns, then rotate).
 """
 import base64
+import html
 import io
 import os
 import random
 import sys
+from dataclasses import dataclass
 
 from PIL import Image
 
@@ -133,3 +135,163 @@ def sfondo_bioma(immagini, bioma, lato_celle=8):
                 out.alpha_composite(immagini(f"deco-{bioma}-{caso.randrange(3)}"), (x * t, y * t))
     scuro = composti._ingrandisci(out).convert("RGB").point(lambda v: int(v * SCURO))
     return scuro
+
+
+
+# Factory model: what a showcase line is made of. Belts move items; the rest is scenery.
+OGGETTI_PER_TRATTO = 8
+
+
+@dataclass(frozen=True)
+class Tratto:
+    """Straight belt heading `verso` carrying `oggetto`; celle None = fluid (fills the line)."""
+    verso: str
+    oggetto: str
+    tier: str = "conveyor-basic"
+    celle: int | None = None
+
+
+@dataclass(frozen=True)
+class Curva:
+    da: str
+    a: str
+    tier: str = "conveyor-basic"
+
+
+@dataclass(frozen=True)
+class Pezzo:
+    """junction or sorter (the sorter shows its filter item on top)."""
+    nome: str
+    verso: str = "E"
+
+
+@dataclass(frozen=True)
+class Ponte:
+    verso: str
+    tier: str = "conveyor-basic"
+
+
+@dataclass(frozen=True)
+class Blocco:
+    id: str
+    stato: str
+
+
+@dataclass(frozen=True)
+class Nodo:
+    """Power node; nodes with the same `rete` get joined by power lines (drawn by sito.js)."""
+    nome: str
+    rete: str
+
+
+@dataclass(frozen=True)
+class Spazio:
+    celle: int
+
+
+@dataclass(frozen=True)
+class Linea:
+    elementi: list
+    allinea: str = "fondo"
+
+
+@dataclass(frozen=True)
+class Spina:
+    """Vertical column, one cell wide, along the left or right edge of a section."""
+    elementi: list
+    lato: str = "sx"
+
+
+class Fabbrica:
+    """HTML of factory lines; collects the belt images it used, so stile() writes only those."""
+
+    def __init__(self, immagini):
+        self.immagini = immagini
+        self._nastri = {}  # (tier, verso) -> data URI, in first-use order
+        self._cache = {}
+
+    def _una_volta(self, chiave, crea):
+        if chiave not in self._cache:
+            self._cache[chiave] = crea()
+        return self._cache[chiave]
+
+    def _nastro(self, tier, verso):
+        if (tier, verso) not in self._nastri:
+            self._nastri[(tier, verso)] = gif_nastro(self.immagini, tier, verso)
+        if verso in ("E", "W"):  # on narrow screens horizontal belts turn into vertical ones (stile.css)
+            self._nastro(tier, "S")
+
+    def _tratto(self, t):
+        self._nastro(t.tier, t.verso)
+        oggetto = self._una_volta(("png", f"{t.oggetto}-belt"), lambda: png_sprite(self.immagini, f"{t.oggetto}-belt"))
+        # Fluid segments get a class, not the absence of a style: sito.js writes --durata into the style.
+        stile = f' style="--celle:{t.celle}"' if t.celle else ""
+        fluido = "" if t.celle else " fluido"
+        oggetti = "".join(f'<img class="oggetto" src="{oggetto}" alt="" style="--k:{k}">'
+                          for k in range(OGGETTI_PER_TRATTO))
+        return (f'<div class="tratto tratto-{t.verso.lower()} nastro-{t.tier}-{t.verso}{fluido}" '
+                f'data-oggetto="{html.escape(t.oggetto)}" data-tier="{t.tier}"{stile}>{oggetti}</div>')
+
+    def _curva(self, c):
+        src = self._una_volta(("curva", c.tier, c.da, c.a), lambda: gif_curva(self.immagini, c.tier, c.da, c.a))
+        return f'<img class="curva" src="{src}" width="{CELLA}" height="{CELLA}" alt="">'
+
+    def _pezzo(self, p):
+        src = self._una_volta(("pezzo", p.nome, p.verso), lambda: data_url(png(ruota(
+            composti._ingrandisci(self.immagini(p.nome)), ROTAZIONE[p.verso])), "image/png"))
+        filtro = ""
+        if p.nome == "sorter":  # composti: the filter item centred on the sorter
+            fsrc = self._una_volta(("png", "iron-ore-belt"), lambda: png_sprite(self.immagini, "iron-ore-belt"))
+            filtro = f'<img class="filtro" src="{fsrc}" alt="">'
+        return (f'<span class="pezzo" data-pezzo="{html.escape(p.nome)}">'
+                f'<img src="{src}" width="{CELLA}" height="{CELLA}" alt="{html.escape(p.nome)}">{filtro}</span>')
+
+    def _ponte(self, p):
+        def crea():
+            blocco = next(b for b in composti.BLOCCHI if b.id == "conveyor-bridge")
+            stato = next(s for s in blocco.stati if s.nome == "In funzione")
+            fotogrammi = composti.fotogrammi_stato(blocco, stato, self.immagini)
+            girati = [ruota(f, ROTAZIONE[p.verso]) for f, _ in fotogrammi]
+            return data_url(gif(girati, [d for _, d in fotogrammi]), "image/gif"), girati[0].size
+        src, (w, h) = self._una_volta(("ponte", p.verso), crea)
+        return f'<img class="ponte" src="{src}" width="{w}" height="{h}" alt="">'
+
+    def _blocco(self, b):
+        src, w, h = self._una_volta(("blocco", b.id, b.stato), lambda: gif_blocco(self.immagini, b.id, b.stato))
+        return (f'<img class="blocco" src="{src}" width="{w}" height="{h}" '
+                f'alt="{html.escape(b.id)}: {html.escape(b.stato)}" data-blocco="{html.escape(b.id)}">')
+
+    def _nodo(self, n):
+        src = self._una_volta(("png", n.nome), lambda: png_sprite(self.immagini, n.nome))
+        im = self.immagini(n.nome)
+        return (f'<img class="nodo" data-rete="{html.escape(n.rete)}" src="{src}" '
+                f'width="{im.width * composti.SCALA}" height="{im.height * composti.SCALA}" alt="">')
+
+    def _elemento(self, e):
+        for tipo, fai in ((Tratto, self._tratto), (Curva, self._curva), (Pezzo, self._pezzo), (Ponte, self._ponte),
+                          (Blocco, self._blocco), (Nodo, self._nodo)):
+            if isinstance(e, tipo):
+                return fai(e)
+        if isinstance(e, Spazio):
+            return f'<i class="spazio" style="--celle:{e.celle}"></i>'
+        raise ValueError(f"elemento sconosciuto: {e!r}")
+
+    def html_linea(self, linea):
+        return f'<div class="linea linea-{linea.allinea}">{"".join(map(self._elemento, linea.elementi))}</div>'
+
+    def html_spina(self, spina):
+        return f'<div class="spina spina-{spina.lato}">{"".join(map(self._elemento, spina.elementi))}</div>'
+
+    def stile(self):
+        """CSS of the belts used so far: speeds in px/s, one animated background per tier and direction."""
+        tier = list(dict.fromkeys(t for t, _ in self._nastri))
+        velocita = ";".join(f"--v-{t}:{composti.VELOCITA_NASTRO[t] * CELLA:g}" for t in tier)
+        regole = [f":root{{{velocita}}}"] if tier else []
+        regole += [f".nastro-{t}-{v}{{background-image:url({uri})}}" for (t, v), uri in self._nastri.items()]
+        orizzontali = list(dict.fromkeys(t for t, v in self._nastri if v in ("E", "W")))
+        if orizzontali:  # narrow screens: horizontal belts run downwards (stile.css), so they show the S image
+            regole.append("@media (max-width: 719px){" + "".join(
+                f'.tratto-e[data-tier="{t}"],.tratto-w[data-tier="{t}"]'
+                f"{{background-image:url({self._nastri[(t, 'S')]})}}"
+                for t in orizzontali) + "}")
+        return "".join(regole)

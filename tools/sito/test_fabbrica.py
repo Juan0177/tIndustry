@@ -53,6 +53,46 @@ class TestFabbrica(unittest.TestCase):
         self.assertNotEqual(fabbrica.sfondo_bioma(self.im, "neve").tobytes(),
                             fabbrica.sfondo_bioma(self.im, "prati").tobytes())
 
+    def test_html_tratto(self):
+        f = fabbrica.Fabbrica(self.im)
+        h = f.html_linea(fabbrica.Linea([fabbrica.Blocco("miner", "Al lavoro"), fabbrica.Tratto("E", "iron-ore"),
+                                         fabbrica.Curva("E", "S"), fabbrica.Tratto("S", "iron-ore", celle=3)]))
+        self.assertEqual(2, h.count('class="tratto'))
+        self.assertEqual(16, h.count('class="oggetto"'))
+        self.assertIn('data-oggetto="iron-ore" data-tier="conveyor-basic"', h)
+        self.assertIn('style="--celle:3"', h)
+        self.assertIn('data-blocco="miner"', h)
+        self.assertIn(".nastro-conveyor-basic-E{background-image:url(data:image/gif;base64,", f.stile())
+        self.assertIn(".nastro-conveyor-basic-S{", f.stile())
+        self.assertNotIn(".nastro-conveyor-basic-W{", f.stile())
+        self.assertIn("--v-conveyor-basic:32", f.stile())
+
+    def test_html_pezzi(self):
+        f = fabbrica.Fabbrica(self.im)
+        h = f.html_spina(fabbrica.Spina([fabbrica.Tratto("S", "coal", "conveyor-express", celle=2),
+                                         fabbrica.Pezzo("sorter"), fabbrica.Pezzo("junction"),
+                                         fabbrica.Ponte("S"), fabbrica.Nodo("power-node", "b"), fabbrica.Spazio(1)],
+                                        lato="dx"))
+        self.assertTrue(h.startswith('<div class="spina spina-dx">'), h[:40])
+        self.assertIn('<span class="pezzo" data-pezzo="sorter">', h)
+        self.assertEqual(1, h.count('class="filtro"'))
+        self.assertIn('data-pezzo="junction"', h)
+        self.assertRegex(h, r'<img class="ponte" src="data:image/gif;base64,[^"]+" width="64" height="256"')
+        self.assertIn('class="nodo" data-rete="b"', h)
+        self.assertIn('<i class="spazio" style="--celle:1"></i>', h)
+        self.assertIn("--v-conveyor-express:128", f.stile())
+        with self.assertRaises(ValueError):
+            f.html_linea(fabbrica.Linea(["nastro"]))
+
+    def test_css_e_js_dei_nastri(self):
+        with open(os.path.join(SITO, "stile.css"), encoding="utf-8") as fh:
+            css = fh.read()
+        for k in ("@keyframes scorri-e", "@keyframes scorri-s", "@media (max-width: 719px)", ".spina{"):
+            self.assertIn(k, css)
+        with open(os.path.join(SITO, "sito.js"), encoding="utf-8") as fh:
+            js = fh.read()
+        self.assertIn("--durata", js)
+
 
 if __name__ == "__main__":
     unittest.main()
