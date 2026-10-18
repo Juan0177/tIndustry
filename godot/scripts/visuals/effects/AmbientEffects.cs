@@ -44,12 +44,13 @@ public sealed class AmbientEffects
     private string?[] _effectOfFloor = [];
     private double _due;
 
+    /// <summary>Night drawn (<see cref="NightLayer"/>): the meadows get fireflies instead of leaves.</summary>
+    public bool Night { get; set; }
+
     /// <summary>
     /// Plays the bursts due this frame on <paramref name="map"/> within <paramref name="cells"/> (the view in cells).
     /// No map (or effects off) = nothing, and nothing piles up for later.
     /// </summary>
-    /// <summary>Night drawn (<see cref="NightLayer"/>): the meadows get fireflies instead of leaves.</summary>
-    public bool Night { get; set; }
 
     public void Sync(EffectManager fx, TerrainMap? map, TerrainTable? table, Rect2I cells, int tileSize, double delta)
     {
