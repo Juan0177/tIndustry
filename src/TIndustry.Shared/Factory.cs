@@ -886,7 +886,8 @@ public sealed class Factory : IGameView
     /// Restores one saved site, validating what a hand-edited or content-drifted save could carry: progress
     /// within [0, 1], refund share within [0, 10000] basis points, spent/refunded within [0, cost] and mapped
     /// by item id, cells recomputed when none were saved. A site whose spec is no longer buildable, or whose
-    /// cells are outside the map, on a wall or on deep water, is dropped with its plan, and what it took from
+    /// cells are outside the map, on a wall or on deep water, or a miner site on ore its tier cannot dig, is dropped
+    /// with its plan, and what it took from
     /// the Core goes back (its refund share, less what was refunded).
     /// </summary>
     private void RestoreSite(SiteSaveDto d)
@@ -900,7 +901,12 @@ public sealed class Factory : IGameView
         var tiles = !IsValidSpec(spec) ? null
             : d.Tiles.Count > 0 ? d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList()
             : Footprint(spec);
-        if (tiles is null || tiles.Any(TerrainBlocks))
+        // A T1 site on titanium only (saved before the ore-hardness rule) could never finish: dropped the same way.
+        var tooWeak = tiles is not null
+            && !d.Deconstructing
+            && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+            && MinerTooWeak(spec.Origin, spec.StructureId);
+        if (tiles is null || tiles.Any(TerrainBlocks) || tooWeak)
         {
             foreach (var (itemId, amount) in spent)
             {
@@ -1931,6 +1937,13 @@ public sealed class Factory : IGameView
                 && FindBridgeExit(spec.Origin, spec.Direction) is not null,
             _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
         };
+        if (ok && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+            && MinerTooWeak(spec.Origin, spec.StructureId))
+        {
+            reason = CommandReasons.NeedsAdvancedMiner;
+            return false;
+        }
+
         reason = ok ? null : RefusalReason(spec);
         return ok;
     }
@@ -1944,6 +1957,14 @@ public sealed class Factory : IGameView
     {
         ArgumentNullException.ThrowIfNull(spec);
         var reason = RefusalReason(Footprint(spec));
+        if (reason == CommandReasons.Occupied
+            && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+            && CanOccupyFootprint(spec.Origin, Miner.Size)
+            && MinerTooWeak(spec.Origin, spec.StructureId))
+        {
+            return CommandReasons.NeedsAdvancedMiner;
+        }
+
         if (reason == CommandReasons.Occupied
             && spec.Kind == BuildingKind.Bridge
             && !Belts.Contains(spec.Origin)
@@ -2305,7 +2326,13 @@ public sealed class Factory : IGameView
         var itemId = outputItemId;
         if (Terrain is { } terrain)
         {
-            var majority = terrain.MajorityDeposit(origin, Miner.Size);
+            if (MinerTooWeak(origin, definitionId))
+            {
+                return false;
+            }
+
+            // Ores harder than the miner's tier do not count: a T1 on iron + titanium digs the iron cells only.
+            var majority = terrain.MajorityDeposit(origin, Miner.Size, d => Content.MinerCanDig(definitionId, d));
             covered = majority == DepositKind.None
                 ? 0
                 : terrain.CountDepositTiles(origin, Miner.Size, majority);
@@ -2322,6 +2349,40 @@ public sealed class Factory : IGameView
 
         miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
         return true;
+    }
+
+    /// <summary>
+    /// True when the footprint at <paramref name="origin"/> has ore but none that <paramref name="minerId"/> can
+    /// dig (a T1 on titanium only). A footprint without ore is not refused, as before.
+    /// </summary>
+    private bool MinerTooWeak(GridPosition origin, string minerId)
+    {
+        if (Terrain is not { } terrain)
+        {
+            return false;
+        }
+
+        var anyOre = false;
+        for (var y = 0; y < Miner.Size; y++)
+        {
+            for (var x = 0; x < Miner.Size; x++)
+            {
+                var p = new GridPosition(origin.X + x, origin.Y + y);
+                if (!terrain.InBounds(p) || terrain[p].Deposit == DepositKind.None)
+                {
+                    continue;
+                }
+
+                if (Content.MinerCanDig(minerId, terrain[p].Deposit))
+                {
+                    return false;
+                }
+
+                anyOre = true;
+            }
+        }
+
+        return anyOre;
     }
 
     private bool PlaceCrafter(

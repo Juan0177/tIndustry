@@ -58,6 +58,21 @@ public sealed class FactoryContent
     public BuildingDefinition? FindBuilding(string id) =>
         Buildings.FirstOrDefault(b => b.Id == id);
 
+    /// <summary>
+    /// True when the miner <paramref name="minerId"/> digs <paramref name="deposit"/>: its tier is at least the
+    /// ore's hardness. Content built in code without tiers or hardness puts no limit.
+    /// </summary>
+    public bool MinerCanDig(string minerId, DepositKind deposit)
+    {
+        if (deposit == DepositKind.None)
+        {
+            return false;
+        }
+
+        var tier = FindBuilding(minerId)?.Tier ?? 0;
+        return tier <= 0 || tier >= Terrain.Hardness(deposit);
+    }
+
     public MarketItemDefinition? FindMarketItem(string itemId) =>
         Market.FirstOrDefault(m => m.ItemId == itemId);
 
@@ -87,6 +102,7 @@ public sealed class FactoryContent
         var conveyors = root.Conveyors.Select(MapConveyor).ToList();
         var recipes = root.Recipes.Select(MapRecipe).ToList();
         var buildings = root.Buildings.Select(MapBuilding).ToList();
+        CheckMinerTiers(root.Buildings);
         var market = root.Market.Select(MapMarket).ToList();
         var structures = root.Structures.Select(MapStructure).ToList();
         var coreUpgrade = MapCoreUpgrade(root.Economy?.CoreUpgrade);
@@ -187,7 +203,53 @@ public sealed class FactoryContent
             throw new InvalidDataException("content.json: terrain richiede un colore diverso per ogni suolo e parete.");
         }
 
-        return new TerrainTable(floors, walls);
+        var deposits = (dto.Deposits ?? []).Select(d =>
+        {
+            var kind = ParseTerrainKind<DepositKind>("deposits", d.Id);
+            if (kind == DepositKind.None)
+            {
+                throw new InvalidDataException("content.json: terrain.deposits non deve contenere 'none'.");
+            }
+
+            if (d.Hardness is not { } hardness)
+            {
+                throw new InvalidDataException($"content.json: terrain.deposits '{d.Id}': manca hardness.");
+            }
+
+            if (hardness < 1)
+            {
+                throw new InvalidDataException($"content.json: terrain.deposits '{d.Id}': hardness deve essere >= 1.");
+            }
+
+            return new DepositDef(d.Id!, kind, hardness);
+        }).ToList();
+        CheckCoverage("deposits", deposits.Select(d => d.Kind).ToList(),
+            Enum.GetValues<DepositKind>().Where(k => k != DepositKind.None).ToArray());
+
+        return new TerrainTable(floors, walls) { Deposits = deposits };
+    }
+
+    // Every miner says which ores it digs: tier >= the ore's hardness (terrain.deposits).
+    private static void CheckMinerTiers(IEnumerable<BuildingDto> buildings)
+    {
+        foreach (var id in new[] { Miner.BasicId, Miner.AdvancedId })
+        {
+            var miner = buildings.FirstOrDefault(b => b.Id == id);
+            if (miner is null)
+            {
+                continue;
+            }
+
+            if (miner.Tier is not { } tier)
+            {
+                throw new InvalidDataException($"content.json: buildings '{id}': manca tier (1 = Minatore T1, 2 = T2).");
+            }
+
+            if (tier < 1)
+            {
+                throw new InvalidDataException($"content.json: buildings '{id}': tier deve essere >= 1.");
+            }
+        }
     }
 
     // "deep-water" -> FloorKind.DeepWater: the kind comes from the kebab-case id.
@@ -298,7 +360,8 @@ public sealed class FactoryContent
             MapAmounts(b.BuildCost),
             b.RefundPercent <= 0 ? 100 : b.RefundPercent,
             MapMultiplier(b.BuildCostMultiplier),
-            Math.Max(0f, b.PowerUse));
+            Math.Max(0f, b.PowerUse),
+            b.Tier ?? 0);
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
         new(
@@ -364,6 +427,13 @@ public sealed class FactoryContent
     {
         public List<FloorDto>? Floors { get; set; }
         public List<WallDto>? Walls { get; set; }
+        public List<DepositDto>? Deposits { get; set; }
+    }
+
+    private sealed class DepositDto
+    {
+        public string? Id { get; set; }
+        public int? Hardness { get; set; }
     }
 
     private sealed class FloorDto
@@ -438,6 +508,8 @@ public sealed class FactoryContent
         public float? BuildCostMultiplier { get; set; }
         /// <summary>Power drawn per second while working (lamp); 0 = none or set in code (craft machines).</summary>
         public float PowerUse { get; set; }
+        /// <summary>Miners only: digs the ores whose hardness is at most this (terrain.deposits).</summary>
+        public int? Tier { get; set; }
     }
 
     private sealed class MarketDto

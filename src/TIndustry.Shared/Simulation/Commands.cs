@@ -95,6 +95,12 @@ public static class CommandReasons
     /// <summary>Placement on deep water (<see cref="FloorKind.DeepWater"/>); bridges span it.</summary>
     public const string DeepWater = "Acqua profonda";
 
+    /// <summary>
+    /// A T1 miner on cells whose only ore is harder than its tier (titanium): Mindustry refuses a drill that
+    /// cannot dig what lies under it.
+    /// </summary>
+    public const string NeedsAdvancedMiner = "Serve il Minatore T2 per il titanio";
+
     /// <summary><see cref="PlanDropped"/>: the structure was locked when the drone reached the plan.</summary>
     public const string LockedByResearch = "Bloccato dalla ricerca";
 
