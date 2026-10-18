@@ -15,7 +15,7 @@ public partial class World
     /// True while a playtest holds the simulation: World._Process skips AdvanceHost and the world's visuals get no
     /// time (drones stay where they are), so the captures taken meanwhile repeat run after run.
     /// </summary>
-    internal static bool PlaytestHeld { get; private set; }
+    internal static bool PlaytestHeld { get; set; }
 
     private async Task<bool> PlaytestColourVariantsAsync(Func<string, Task> shot)
     {

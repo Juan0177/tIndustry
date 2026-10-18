@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Usage: tools/dev/playtest.sh <ui|tutorial> <outdir>
+# Usage: tools/dev/playtest.sh <ui|tutorial|agenti> <outdir>
 # Runs a Godot playtest with an isolated temp data profile; screenshots + log.txt go to <outdir>.
 # Exit 0 only if the log contains "PLAYTEST OK" and no "ERROR" lines (Godot's own exit code is
 # ignored: a rare shutdown crash can happen after PLAYTEST OK).
 set -u
-NAME="${1:?usage: playtest.sh <ui|tutorial> <outdir>}"
-OUT="${2:?usage: playtest.sh <ui|tutorial> <outdir>}"
+NAME="${1:?usage: playtest.sh <ui|tutorial|agenti> <outdir>}"
+OUT="${2:?usage: playtest.sh <ui|tutorial|agenti> <outdir>}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 mkdir -p "$OUT"
 rm -f "$OUT"/*.png "$OUT/log.txt" "$OUT/godot.log"  # no stale shots from a previous run
@@ -17,6 +17,8 @@ GODOT="${GODOT:-godot4}"
 # The effects probe (TINDUSTRY_PLAYTEST_EFFETTI=1) adds a 60 s measure and its captures.
 LIMIT=150; [ "${TINDUSTRY_PLAYTEST_EFFETTI:-}" = "1" ] && LIMIT=300
 cd "$ROOT" || exit 2
+# The agenti playtest talks to the game's own control channel (AgentBridge) on a free-ish local port.
+[ "$NAME" = agenti ] && export TINDUSTRY_AGENT_PORT="$((20000 + RANDOM % 20000))"
 # Godot puts user:// (shader_cache, vulkan, .recovery_mode_lock) under %APPDATA% on Windows: point it at the
 # temp profile so the run leaves the player's real app_userdata untouched. .NET/LOCALAPPDATA paths are unaffected.
 APPDATA="$(win "$DATA")" TINDUSTRY_DATA_DIR="$(win "$DATA")" TINDUSTRY_CAPTURE_DIR="$(win "$(cd "$OUT" && pwd)")" \

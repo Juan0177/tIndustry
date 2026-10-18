@@ -76,6 +76,7 @@ public partial class World
         {
             "tutorial" => await PlaytestTutorialAsync(dir),
             "ui" => await PlaytestUiAsync(dir),
+            "agenti" => await PlaytestAgentiAsync(dir),
             _ => Fail($"playtest sconosciuto: {name}")
         };
         GD.Print(ok ? "PLAYTEST OK" : "PLAYTEST FAIL");
@@ -1362,7 +1363,7 @@ public partial class World
     }
 
     /// <summary>World cell → window pixels (what a real mouse event carries, before stretch/UI scale).</summary>
-    private Vector2 CellToScreen(GridPosition cell) =>
+    internal Vector2 CellToScreen(GridPosition cell) =>
         ViewportToWindow(GetViewport().GetCanvasTransform() * CellCenter(cell));
 
     private Vector2 ViewportToWindow(Vector2 viewportPos) => GetViewport().GetFinalTransform() * viewportPos;
@@ -1370,7 +1371,7 @@ public partial class World
     private async Task PlaytestWait(double seconds) =>
         await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
 
-    private async Task PlaytestKey(Key key)
+    internal async Task PlaytestKey(Key key)
     {
         Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = true, Device = PlaytestDevice });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -1378,23 +1379,23 @@ public partial class World
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private async Task PlaytestClick(Vector2 at)
+    internal async Task PlaytestClick(Vector2 at, MouseButton button = MouseButton.Left)
     {
         PlaytestMove(at, 0);
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            ButtonIndex = MouseButton.Left, Pressed = true, Position = at, GlobalPosition = at,
-            ButtonMask = MouseButtonMask.Left, Device = PlaytestDevice
+            ButtonIndex = button, Pressed = true, Position = at, GlobalPosition = at,
+            ButtonMask = button == MouseButton.Right ? MouseButtonMask.Right : MouseButtonMask.Left, Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            ButtonIndex = MouseButton.Left, Pressed = false, Position = at, GlobalPosition = at, Device = PlaytestDevice
+            ButtonIndex = button, Pressed = false, Position = at, GlobalPosition = at, Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private Task PlaytestDrag(MouseButton button, Vector2 from, Vector2 to, int steps = 16) =>
+    internal Task PlaytestDrag(MouseButton button, Vector2 from, Vector2 to, int steps = 16) =>
         PlaytestDrag(button, [from, to], steps);
 
     /// <summary>Press at the first point, move through the others (<paramref name="steps"/> moves per leg), release.</summary>
@@ -1431,7 +1432,7 @@ public partial class World
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private static void PlaytestMove(Vector2 at, MouseButtonMask mask) =>
+    internal static void PlaytestMove(Vector2 at, MouseButtonMask mask) =>
         Input.ParseInputEvent(new InputEventMouseMotion
         {
             Position = at, GlobalPosition = at, ButtonMask = mask, Device = PlaytestDevice
@@ -1480,7 +1481,7 @@ public partial class World
     /// texture reads back linear: converted to sRGB here, pixel by pixel from the float data (an 8-bit conversion first
     /// would band the night's dark tones).
     /// </summary>
-    private Image CaptureFrame()
+    internal Image CaptureFrame()
     {
         var image = GetViewport().GetTexture().GetImage();
         if (!GetViewport().UseHdr2D)

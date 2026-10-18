@@ -437,7 +437,7 @@ public partial class World
     }
 
 
-    private static Vector2 CellCenter(GridPosition cell) =>
+    internal static Vector2 CellCenter(GridPosition cell) =>
         new((cell.X + 0.5f) * TileSize, (cell.Y + 0.5f) * TileSize);
 
     /// <summary>Belt item sprites (10 px) at the world art scale: about 20 px on a 64 px tile.</summary>

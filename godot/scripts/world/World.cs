@@ -197,8 +197,22 @@ public partial class World : Node2D
             FocusCameraOnCore();
         }
 
+        // Agents' control channel: dev builds with TINDUSTRY_AGENT_PORT only (never in an exported game).
+        if (AgentBridge.ShouldStart(OS.IsDebugBuild(), OS.GetEnvironment(AgentBridge.PortEnv)))
+        {
+            AddChild(new AgentBridge { Name = "AgentBridge" });
+        }
+
         StartPlaytestIfRequested();
     }
+
+    /// <summary>The running game's host, for <see cref="AgentBridge"/> (it changes on new game, level or load).</summary>
+    internal SimHost? AgentHost => _host;
+
+    internal CampaignCatalog? AgentCampaign => _campaign;
+
+    /// <summary>True when <see cref="_Process"/> advances the simulation this frame (not held, not behind Home).</summary>
+    internal bool AgentSimRunning => !PlaytestHeld && _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;
 
     public override void _Process(double delta)
     {
