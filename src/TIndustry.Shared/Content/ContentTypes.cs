@@ -67,3 +67,25 @@ public sealed record StructureDefinition(
     UnlockRequirement? Unlock,
     bool IsStub,
     IReadOnlyList<string> Prerequisites);
+
+/// <summary>
+/// A floor of <c>terrain.floors</c>: <paramref name="Biome"/> is one of <see cref="TerrainTable.Biomes"/>,
+/// <paramref name="Color"/> is <c>#RRGGBB</c>, <paramref name="Buildable"/> is false only for deep water.
+/// </summary>
+public sealed record FloorDef(string Id, FloorKind Kind, string Biome, string Color, bool Buildable);
+
+/// <summary>A wall of <c>terrain.walls</c> (walls always block building).</summary>
+public sealed record WallDef(string Id, WallKind Kind, string Biome, string Color);
+
+/// <summary>The <c>terrain</c> section of content.json: one row per <see cref="FloorKind"/> and per wall.</summary>
+public sealed record TerrainTable(IReadOnlyList<FloorDef> Floors, IReadOnlyList<WallDef> Walls)
+{
+    /// <summary>The four biomes, plus <c>acqua</c> for the water floors shared by all of them.</summary>
+    public static readonly IReadOnlyList<string> Biomes = ["rocce", "sabbia", "neve", "prati", "acqua"];
+
+    public static readonly TerrainTable Empty = new([], []);
+
+    public FloorDef? Floor(FloorKind kind) => Floors.FirstOrDefault(f => f.Kind == kind);
+
+    public WallDef? Wall(WallKind kind) => Walls.FirstOrDefault(w => w.Kind == kind);
+}

@@ -13,23 +13,25 @@ public partial class World
         var mapH = ActiveMapHeight;
         var camZoom = HasNode("Camera") ? Math.Max(0.01f, GetNode<Camera2D>("Camera").Zoom.X) : 1f;
         var screenTilePx = TileSize * camZoom;
+        EnsureTerrainColors();
+        var noTerrain = new TerrainTile(FloorKind.Grass, WallKind.None, DepositKind.None);
 
         for (var y = visMinY; y <= visMaxY; y++)
         {
             for (var x = visMinX; x <= visMaxX; x++)
             {
                 var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
-                var ground = TerrainColorRaylib(TerrainKind.Grass, x, y);
-                if (_view?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y)))
+                var cell = noTerrain;
+                var inMap = _view?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y));
+                if (inMap)
                 {
-                    ground = TerrainColorRaylib(terrain[x, y].Terrain, x, y);
+                    cell = _view!.Terrain![x, y];
                 }
 
-                DrawRect(rect, ground);
-                if (screenTilePx >= 12f && _view?.Terrain is { } detailMap
-                    && detailMap.InBounds(new GridPosition(x, y)))
+                DrawRect(rect, TerrainColorRaylib(cell, x, y));
+                if (screenTilePx >= 12f && inMap)
                 {
-                    DrawTerrainSpeckle(detailMap[x, y].Terrain, x, y, rect);
+                    DrawTerrainSpeckle(cell, x, y, rect);
                 }
             }
         }
@@ -119,21 +121,45 @@ public partial class World
         }
     }
 
-    /// <summary>Raylib WorldGraphics.TerrainColor — richer base hues + micro hash variation.</summary>
-    private static Color TerrainColorRaylib(TerrainKind kind, int worldX, int worldY)
+    // Base colours of the terrain table (content.json "terrain"), indexed by kind; rebuilt when the table changes.
+    private static readonly Color MissingTerrainColor = new(0.1f, 0.12f, 0.1f);
+    private TerrainTable? _terrainColorsTable;
+    private Color[] _floorColors = [];
+    private Color[] _wallColors = [];
+
+    private void EnsureTerrainColors()
     {
-        var baseColor = kind switch
+        var table = _view?.Content.Terrain ?? TerrainTable.Empty;
+        if (ReferenceEquals(table, _terrainColorsTable))
         {
-            TerrainKind.Grass => new Color(46 / 255f, 78 / 255f, 54 / 255f),
-            TerrainKind.Soil => new Color(108 / 255f, 88 / 255f, 58 / 255f),
-            TerrainKind.Stone => new Color(92 / 255f, 98 / 255f, 96 / 255f),
-            TerrainKind.Water => new Color(42 / 255f, 78 / 255f, 98 / 255f),
-            _ => new Color(0.1f, 0.12f, 0.1f)
-        };
+            return;
+        }
+
+        _terrainColorsTable = table;
+        _floorColors = Enum.GetValues<FloorKind>()
+            .Select(k => table.Floor(k) is { } floor ? Color.FromHtml(floor.Color) : MissingTerrainColor)
+            .ToArray();
+        _wallColors = Enum.GetValues<WallKind>()
+            .Select(k => table.Wall(k) is { } wall ? Color.FromHtml(wall.Color) : MissingTerrainColor)
+            .ToArray();
+    }
+
+    private Color FloorBaseColor(FloorKind kind) =>
+        (int)kind < _floorColors.Length ? _floorColors[(int)kind] : MissingTerrainColor;
+
+    private static bool IsWater(FloorKind kind) => kind is FloorKind.ShallowWater or FloorKind.DeepWater;
+
+    /// <summary>Raylib WorldGraphics.TerrainColor — table base hue (the wall's when there is one) + micro hash variation.</summary>
+    private Color TerrainColorRaylib(TerrainTile cell, int worldX, int worldY)
+    {
+        var walled = cell.Wall != WallKind.None;
+        var baseColor = walled
+            ? (int)cell.Wall < _wallColors.Length ? _wallColors[(int)cell.Wall] : MissingTerrainColor
+            : FloorBaseColor(cell.Floor);
         var n1 = Hash01(worldX, worldY, 917);
         var n2 = Hash01(worldX * 3 + 7, worldY * 5 - 3, 421);
         var delta = ((n1 - 0.5f) * 22f + (n2 - 0.5f) * 10f) / 255f;
-        if (kind is TerrainKind.Grass or TerrainKind.Soil && ((worldX + worldY) & 1) == 0)
+        if (!walled && cell.Floor is FloorKind.Grass or FloorKind.Soil && ((worldX + worldY) & 1) == 0)
         {
             delta -= 4f / 255f;
         }
@@ -141,7 +167,7 @@ public partial class World
         return new Color(
             Math.Clamp(baseColor.R + delta, 0f, 1f),
             Math.Clamp(baseColor.G + delta, 0f, 1f),
-            Math.Clamp(baseColor.B + (kind == TerrainKind.Water ? delta * 0.5f : delta), 0f, 1f));
+            Math.Clamp(baseColor.B + (!walled && IsWater(cell.Floor) ? delta * 0.5f : delta), 0f, 1f));
     }
 
     private static float Hash01(int x, int y, int salt)
@@ -154,18 +180,19 @@ public partial class World
         }
     }
 
-    private void DrawTerrainSpeckle(TerrainKind kind, int worldX, int worldY, Rect2 rect)
+    private void DrawTerrainSpeckle(TerrainTile cell, int worldX, int worldY, Rect2 rect)
     {
-        if (kind == TerrainKind.Water)
+        if (cell.Wall != WallKind.None || IsWater(cell.Floor))
         {
             return;
         }
 
-        var speck = kind switch
+        var speck = cell.Floor switch
         {
-            TerrainKind.Grass => new Color(36 / 255f, 62 / 255f, 42 / 255f, 0.35f),
-            TerrainKind.Soil => new Color(86 / 255f, 68 / 255f, 42 / 255f, 0.35f),
-            _ => new Color(70 / 255f, 74 / 255f, 72 / 255f, 0.3f)
+            FloorKind.Grass => new Color(36 / 255f, 62 / 255f, 42 / 255f, 0.35f),
+            FloorKind.Soil => new Color(86 / 255f, 68 / 255f, 42 / 255f, 0.35f),
+            FloorKind.Stone => new Color(70 / 255f, 74 / 255f, 72 / 255f, 0.3f),
+            _ => FloorBaseColor(cell.Floor).Darkened(0.22f) with { A = 0.3f }
         };
         var hx = Hash01(worldX, worldY, 55);
         var hy = Hash01(worldX, worldY, 77);

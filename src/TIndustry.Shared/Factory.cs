@@ -1155,7 +1155,7 @@ public sealed class Factory : IGameView
             for (var x = 0; x < size; x++)
             {
                 var tile = new GridPosition(origin.X + x, origin.Y + y);
-                if (tile.X < 0 || tile.Y < 0)
+                if (tile.X < 0 || tile.Y < 0 || TerrainBlocks(tile))
                 {
                     return false;
                 }
@@ -1168,6 +1168,42 @@ public sealed class Factory : IGameView
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// True when the terrain forbids building on <paramref name="tile"/>: outside the map, a wall or deep
+    /// water. Without a terrain (demo factory) nothing blocks.
+    /// </summary>
+    private bool TerrainBlocks(GridPosition tile) =>
+        Terrain is { } terrain && (!terrain.InBounds(tile) || terrain[tile].BlocksBuilding);
+
+    /// <summary>
+    /// Italian refusal for building on <paramref name="cells"/>, in this order: Core, wall, deep water,
+    /// otherwise <see cref="CommandReasons.Occupied"/>.
+    /// </summary>
+    public string RefusalReason(IEnumerable<GridPosition> cells)
+    {
+        ArgumentNullException.ThrowIfNull(cells);
+        var list = cells as IReadOnlyCollection<GridPosition> ?? cells.ToList();
+        if (list.Any(CoreTiles.Contains))
+        {
+            return CommandReasons.OnCore;
+        }
+
+        if (Terrain is { } terrain)
+        {
+            if (list.Any(c => terrain.InBounds(c) && terrain[c].Wall != WallKind.None))
+            {
+                return CommandReasons.Wall;
+            }
+
+            if (list.Any(c => terrain.InBounds(c) && terrain[c].Floor == FloorKind.DeepWater))
+            {
+                return CommandReasons.DeepWater;
+            }
+        }
+
+        return CommandReasons.Occupied;
     }
 
     /// <summary>True when a building or a construction site covers <paramref name="tile"/>.</summary>
@@ -1730,7 +1766,7 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when <paramref name="spec"/> is valid (<see cref="IsValidSpec"/>) and its cells are free
-    /// (no Core, building, belt or site). Does not check research or resources.
+    /// (no Core, building, belt, site, wall or deep water, inside the map). Does not check research or resources.
     /// <paramref name="reason"/> is the Italian refusal text.
     /// </summary>
     public bool CanPlace(BuildSpec spec, out string? reason)
@@ -1752,9 +1788,7 @@ public sealed class Factory : IGameView
                 && FindBridgeExit(spec.Origin, spec.Direction) is not null,
             _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
         };
-        reason = ok
-            ? null
-            : Footprint(spec).Any(CoreTiles.Contains) ? CommandReasons.OnCore : CommandReasons.Occupied;
+        reason = ok ? null : RefusalReason(Footprint(spec));
         return ok;
     }
 

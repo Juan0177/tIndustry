@@ -24,6 +24,9 @@ public sealed class FactoryContent
     /// <summary>The player's builder drone (Mindustry's alpha).</summary>
     public UnitDefinition Drone { get; init; } = DefaultDrone;
 
+    /// <summary>Floors and walls of the map (<c>terrain</c> section): biome, colour, buildable.</summary>
+    public TerrainTable Terrain { get; init; } = TerrainTable.Empty;
+
     internal static readonly UnitDefinition DefaultDrone = new(0.5f, 27.5f, 22.5f);
 
     /// <summary>Build-time weight of one unit of <paramref name="itemId"/> (default 1).</summary>
@@ -89,6 +92,7 @@ public sealed class FactoryContent
         var coreUpgrade = MapCoreUpgrade(root.Economy?.CoreUpgrade);
         var buildWeights = MapBuildWeights(root.BuildWeights);
         var drone = MapUnit("drone", root.Units?.Drone);
+        var terrain = MapTerrain(root.Terrain);
 
         return new FactoryContent
         {
@@ -99,7 +103,8 @@ public sealed class FactoryContent
             Structures = structures,
             CoreUpgrade = coreUpgrade,
             BuildWeights = buildWeights,
-            Drone = drone
+            Drone = drone,
+            Terrain = terrain
         };
     }
 
@@ -117,6 +122,97 @@ public sealed class FactoryContent
         }
 
         return map;
+    }
+
+    private static TerrainTable MapTerrain(TerrainDto? dto)
+    {
+        if (dto is null)
+        {
+            throw new InvalidDataException("content.json: manca la sezione terrain.");
+        }
+
+        var floors = (dto.Floors ?? []).Select(f =>
+        {
+            var kind = ParseTerrainKind<FloorKind>("floors", f.Id);
+            CheckTerrainRow("floors", f.Id, f.Biome, f.Color);
+            var buildable = f.Buildable ?? true;
+            if (buildable != (kind != FloorKind.DeepWater))
+            {
+                throw new InvalidDataException(
+                    $"content.json: terrain.floors '{f.Id}': buildable deve essere {(kind != FloorKind.DeepWater ? "true" : "false")}.");
+            }
+
+            return new FloorDef(f.Id!, kind, f.Biome!, f.Color!.ToUpperInvariant(), buildable);
+        }).ToList();
+        var walls = (dto.Walls ?? []).Select(w =>
+        {
+            var kind = ParseTerrainKind<WallKind>("walls", w.Id);
+            if (kind == WallKind.None)
+            {
+                throw new InvalidDataException("content.json: terrain.walls non deve contenere 'none'.");
+            }
+
+            CheckTerrainRow("walls", w.Id, w.Biome, w.Color);
+            return new WallDef(w.Id!, kind, w.Biome!, w.Color!.ToUpperInvariant());
+        }).ToList();
+
+        CheckCoverage("floors", floors.Select(f => f.Kind).ToList(), Enum.GetValues<FloorKind>());
+        CheckCoverage("walls", walls.Select(w => w.Kind).ToList(),
+            Enum.GetValues<WallKind>().Where(k => k != WallKind.None).ToArray());
+        var colours = floors.Select(f => f.Color).Concat(walls.Select(w => w.Color)).ToList();
+        if (colours.Distinct(StringComparer.Ordinal).Count() != colours.Count)
+        {
+            throw new InvalidDataException("content.json: terrain richiede un colore diverso per ogni suolo e parete.");
+        }
+
+        return new TerrainTable(floors, walls);
+    }
+
+    // "deep-water" -> FloorKind.DeepWater: the kind comes from the kebab-case id.
+    private static T ParseTerrainKind<T>(string section, string? id)
+        where T : struct, Enum
+    {
+        var name = string.Concat((id ?? "").Split('-').Select(part =>
+            part.Length == 0 ? "" : char.ToUpperInvariant(part[0]) + part[1..]));
+        if (string.IsNullOrEmpty(id)
+            || id != id.ToLowerInvariant()
+            || !Enum.TryParse<T>(name, ignoreCase: false, out var kind)
+            || !Enum.IsDefined(kind)
+            || !string.Equals(kind.ToString(), name, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"content.json: terrain.{section} ha un id sconosciuto '{id}'.");
+        }
+
+        return kind;
+    }
+
+    private static void CheckTerrainRow(string section, string? id, string? biome, string? color)
+    {
+        if (biome is null || !TerrainTable.Biomes.Contains(biome, StringComparer.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"content.json: terrain.{section} '{id}': bioma '{biome}' sconosciuto ({string.Join(", ", TerrainTable.Biomes)}).");
+        }
+
+        if (color is not { Length: 7 } || color[0] != '#' || !color[1..].All(Uri.IsHexDigit))
+        {
+            throw new InvalidDataException(
+                $"content.json: terrain.{section} '{id}': colore '{color}' non nel formato #RRGGBB.");
+        }
+    }
+
+    private static void CheckCoverage<T>(string section, IReadOnlyList<T> kinds, IReadOnlyList<T> expected)
+        where T : struct, Enum
+    {
+        foreach (var kind in expected)
+        {
+            var count = kinds.Count(k => k.Equals(kind));
+            if (count != 1)
+            {
+                throw new InvalidDataException(
+                    $"content.json: terrain.{section} deve avere una riga per '{kind}' (trovate {count}).");
+            }
+        }
     }
 
     private static UnitDefinition MapUnit(string unitId, UnitDto? dto)
@@ -238,6 +334,28 @@ public sealed class FactoryContent
         public EconomyDto? Economy { get; set; }
         public Dictionary<string, float>? BuildWeights { get; set; }
         public UnitsDto? Units { get; set; }
+        public TerrainDto? Terrain { get; set; }
+    }
+
+    private sealed class TerrainDto
+    {
+        public List<FloorDto>? Floors { get; set; }
+        public List<WallDto>? Walls { get; set; }
+    }
+
+    private sealed class FloorDto
+    {
+        public string? Id { get; set; }
+        public string? Biome { get; set; }
+        public string? Color { get; set; }
+        public bool? Buildable { get; set; }
+    }
+
+    private sealed class WallDto
+    {
+        public string? Id { get; set; }
+        public string? Biome { get; set; }
+        public string? Color { get; set; }
     }
 
     private sealed class UnitsDto

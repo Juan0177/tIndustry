@@ -212,7 +212,7 @@ public sealed class SimHost
         if (factory.State.Rules.InstantBuild)
         {
             return CheckBuildable(spec.StructureId, toolName, multiplicity: 1)
-                ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
+                ?? PlacedOrRefused(factory.PlaceInstant(spec, charge: true), spec);
         }
 
         // A belt touching the Core turns to face it when built: the plan says so from the start, so the
@@ -247,7 +247,7 @@ public sealed class SimHost
 
         var multiplicity = command.Kind == BuildingKind.Bridge ? 2 : 1;
         return CheckBuildable(spec.StructureId, toolName, multiplicity)
-            ?? PlacedOrOccupied(factory.PlaceInstant(spec, charge: true), spec.Origin);
+            ?? PlacedOrRefused(factory.PlaceInstant(spec, charge: true), spec);
     }
 
     /// <summary>
@@ -401,10 +401,8 @@ public sealed class SimHost
         return null;
     }
 
-    private string? PlacedOrOccupied(bool placed, GridPosition target) =>
-        placed
-            ? null
-            : factory.CoreTiles.Contains(target) ? CommandReasons.OnCore : CommandReasons.Occupied;
+    private string? PlacedOrRefused(bool placed, BuildSpec spec) =>
+        placed ? null : factory.RefusalReason(factory.Footprint(spec));
 
     private string? ApplyUnlock(UnlockStructure command)
     {

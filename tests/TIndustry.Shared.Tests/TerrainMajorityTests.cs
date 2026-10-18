@@ -13,7 +13,7 @@ public sealed class TerrainMajorityTests
         {
             for (var y = 0; y < tiles.GetLength(1); y++)
             {
-                tiles[x, y] = new TerrainTile(TerrainKind.Stone, deposits[x, y]);
+                tiles[x, y] = new TerrainTile(FloorKind.Stone, WallKind.None, deposits[x, y]);
             }
         }
 

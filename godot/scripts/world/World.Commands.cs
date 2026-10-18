@@ -178,7 +178,8 @@ public partial class World
     private void OnCommandRejected(SimCommand command, string reason)
     {
         var quiet = TakeQuietRefusal(command)
-            && reason is CommandReasons.Occupied or CommandReasons.OnCore;
+            && reason is CommandReasons.Occupied or CommandReasons.OnCore
+                or CommandReasons.Wall or CommandReasons.DeepWater;
         switch (command)
         {
             case UnlockStructure:
