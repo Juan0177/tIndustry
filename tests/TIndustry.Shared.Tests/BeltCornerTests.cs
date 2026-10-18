@@ -85,7 +85,7 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
         Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
         Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East));
         Assert.False(factory.IsBeltCorner(P));
-        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(P));
+        Assert.Equal(BeltShape.JoinBuildingLeft, factory.GetBeltShape(P));
     }
 
     [Fact]
@@ -165,10 +165,23 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
         var factory = WithNorthLine();
         Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
         Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East)); // x 18-19, west of P
-        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(P));
-        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(new GridPosition(20, 20))); // the miner's other row
+        Assert.Equal(BeltShape.JoinBuildingLeft, factory.GetBeltShape(P));
+        Assert.Equal(BeltShape.JoinBuildingLeft, factory.GetBeltShape(new GridPosition(20, 20))); // the miner's other row
         Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 21), Direction.East)); // x 21-22, east of P
-        Assert.Equal(BeltShape.JoinBoth, factory.GetBeltShape(P));
+        Assert.Equal(BeltShape.JoinBuildingBoth, factory.GetBeltShape(P));
+    }
+
+    [Fact]
+    public void ABuildingAndABeltOnTheSidesMakeABuildingJoinOpenOnBoth()
+    {
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West)); // belt on the right
+        Assert.Equal(BeltShape.JoinRight, factory.GetBeltShape(P));
+        Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East)); // building on the left
+        Assert.Equal(BeltShape.JoinBuildingBoth, factory.GetBeltShape(P));
+        Assert.True(factory.TryRemoveBelt(new GridPosition(20, 22)));
+        Assert.Equal(BeltShape.T, factory.GetBeltShape(P)); // nothing behind: the T, building or not
     }
 
     [Fact]

@@ -224,7 +224,10 @@ def _nastro(tier):
     giro = 8 / fps
     unioni = [("join-left", "Unione a sinistra", "unione laterale: dietro e a sinistra"),
               ("join-right", "Unione a destra", "unione laterale: dietro e a destra"),
-              ("join-both", "Unione dai tre lati", "unione laterale: dietro e ai due lati")]
+              ("join-both", "Unione dai tre lati", "unione laterale: dietro e ai due lati"),
+              ("join-building-left", "Edificio a sinistra", "unione da un edificio a sinistra"),
+              ("join-building-right", "Edificio a destra", "unione da un edificio a destra"),
+              ("join-building-both", "Edifici ai due lati", "unione da edifici (o edificio e nastro) ai due lati")]
     return Blocco(
         tier, "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
         [Strato(tier + "-anim", fps=fps, quando="dritto"), Strato(tier + "-corner-anim", fps=fps, quando="curva"),

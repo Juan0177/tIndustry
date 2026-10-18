@@ -482,6 +482,9 @@ public sealed class AgentGame : IDisposable
             Shared.BeltShape.JoinLeft => "unione-sinistra",
             Shared.BeltShape.JoinRight => "unione-destra",
             Shared.BeltShape.JoinBoth => "unione-doppia",
+            Shared.BeltShape.JoinBuildingLeft => "unione-edificio-sinistra",
+            Shared.BeltShape.JoinBuildingRight => "unione-edificio-destra",
+            Shared.BeltShape.JoinBuildingBoth => "unione-edificio-doppia",
             _ => "dritto"
         };
         if (shape == Shared.BeltShape.Corner && View.TryGetBeltIncomingDirection(cell, out var incoming))

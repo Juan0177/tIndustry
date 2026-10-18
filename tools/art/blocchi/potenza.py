@@ -66,7 +66,7 @@ def _base_generatore():
     for cx, cy in ((7, 10), (L - 8, 10), (7, L - 11), (L - 8, L - 11)):
         forme.cerchio(im, cx, cy, 2.5, ENERGIA)
         forme.pixel(im, int(cx), int(cy), OUT)
-    return im
+    return forme.basamento(im, FULIGGINE)
 
 
 def rotore(angolo):

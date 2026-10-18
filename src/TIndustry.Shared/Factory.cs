@@ -304,7 +304,9 @@ public sealed class Factory : IGameView
             // One feeder lookup per cell gives both the incoming flow and the shape.
             var (back, left, right) = Belts.Feeders(position, cell.Direction, buildingFeeds);
             Direction? incoming = BeltGrid.IncomingFrom(cell.Direction, back, left, right, out var dir) ? dir : null;
-            var shape = cell.Kind == LogisticsKind.Belt ? BeltGrid.ShapeFrom(back, left, right) : BeltShape.Straight;
+            var shape = cell.Kind == LogisticsKind.Belt
+                ? BeltGrid.ShapeFrom(back, left, right, Belts.BuildingFeeders(position, cell.Direction, buildingFeeds))
+                : BeltShape.Straight;
             var sides = 0;
             if (cell.Kind == LogisticsKind.Junction)
             {

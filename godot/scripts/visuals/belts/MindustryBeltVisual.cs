@@ -23,6 +23,9 @@ public partial class MindustryBeltVisual : Node2D
         public readonly SharedStrip JoinLeft = new(id + "-join-left");
         public readonly SharedStrip JoinRight = new(id + "-join-right");
         public readonly SharedStrip JoinBoth = new(id + "-join-both");
+        public readonly SharedStrip JoinBuildingLeft = new(id + "-join-building-left");
+        public readonly SharedStrip JoinBuildingRight = new(id + "-join-building-right");
+        public readonly SharedStrip JoinBuildingBoth = new(id + "-join-building-both");
         public readonly float Rate = rateCellsPerSecond;
         public float Scroll;
         public int Frame;
@@ -104,6 +107,9 @@ public partial class MindustryBeltVisual : Node2D
             clock.JoinLeft.Show(frame);
             clock.JoinRight.Show(frame);
             clock.JoinBoth.Show(frame);
+            clock.JoinBuildingLeft.Show(frame);
+            clock.JoinBuildingRight.Show(frame);
+            clock.JoinBuildingBoth.Show(frame);
         }
     }
 
@@ -126,6 +132,9 @@ public partial class MindustryBeltVisual : Node2D
             BeltShape.JoinLeft => ("BeltJoinLeft", clock.JoinLeft),
             BeltShape.JoinRight => ("BeltJoinRight", clock.JoinRight),
             BeltShape.JoinBoth => ("BeltJoinBoth", clock.JoinBoth),
+            BeltShape.JoinBuildingLeft => ("BeltJoinBuildingLeft", clock.JoinBuildingLeft),
+            BeltShape.JoinBuildingRight => ("BeltJoinBuildingRight", clock.JoinBuildingRight),
+            BeltShape.JoinBuildingBoth => ("BeltJoinBuildingBoth", clock.JoinBuildingBoth),
             _ => ("Belt", clock.Straight)
         };
         var straight = new ScrollingBeltStrip { Name = $"{name}_{pos.X}_{pos.Y}" };
