@@ -98,18 +98,14 @@ public partial class HomePanel : Control
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
+        // As tall as its buttons (no blank band without Continua); scrolls only if the scaled window is shorter.
         var card = new PanelContainer { Name = "HomeCard", ThemeTypeVariation = UiTheme.Scheda };
-        card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -220;
-        card.OffsetTop = -270;
-        card.OffsetRight = 220;
-        card.OffsetBottom = 270;
-        card.GrowHorizontal = GrowDirection.Both;
-        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
-
-        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
-        card.AddChild(root);
+        var scroll = new ScrollContainer();
+        card.AddChild(scroll);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        scroll.AddChild(root);
+        CardLayout.CenterToContent(card, scroll, root, 400);
 
         var brand = new Label
         {
@@ -152,7 +148,7 @@ public partial class HomePanel : Control
         var btn = new Button
         {
             Text = label,
-            CustomMinimumSize = new Vector2(0, 40)
+            CustomMinimumSize = new Vector2(0, 36)
         };
         btn.Pressed += onClick;
         return btn;

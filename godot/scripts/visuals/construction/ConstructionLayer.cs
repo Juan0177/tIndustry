@@ -117,7 +117,7 @@ public partial class ConstructionLayer : Node2D
     /// </summary>
     public override void _Ready()
     {
-        var layer = new CanvasLayer { Name = "Piani", Layer = World.PlacementLayer, FollowViewportEnabled = true };
+        var layer = new CanvasLayer { Name = "Piani", Layer = World.PlansLayer, FollowViewportEnabled = true };
         _plans = new Node2D { Name = "PianiLocali" };
         _plans.Draw += () => DrawPlans(_plans);
         layer.AddChild(_plans);

@@ -116,59 +116,81 @@ public partial class TutorialPanel : Control
         }
     }
 
+    /// <summary>Widest text column of the card, UI units (it narrows to stay clear of the build palette).</summary>
+    private const float BodyMaxWidth = 720f;
+
+    /// <summary>Narrowest text column, UI units (the scaled window is very small).</summary>
+    private const float BodyMinWidth = 300f;
+
+    /// <summary>Gap between the card, the window edge and the build palette, UI units.</summary>
+    private const float Gap = 8f;
+
     private void BuildUi()
     {
-        _card = new PanelContainer { Name = "TutorialCard", MouseFilter = MouseFilterEnum.Stop, ThemeTypeVariation = UiTheme.Scheda };
-        // Bottom-left: the only corner free of HUD (stock top-right, palette bottom-right, objectives top-left).
+        // Compact card in the bottom-left corner (the HUD's free corner: menu, stock and objectives top-left, palette
+        // bottom-right): step and buttons on one row, the text on as few lines as the room beside the palette allows.
+        _card = new PanelContainer { Name = "TutorialCard", MouseFilter = MouseFilterEnum.Stop };
         _card.SetAnchorsPreset(LayoutPreset.BottomLeft);
-        _card.OffsetLeft = 16;
-        _card.OffsetBottom = -16;
+        _card.OffsetLeft = Gap;
+        _card.OffsetBottom = -Gap;
         _card.GrowVertical = GrowDirection.Begin;
         AddChild(_card);
 
-        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
+        var root = new VBoxContainer();
         _card.AddChild(root);
 
-        var header = new HBoxContainer();
+        var header = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(header);
 
-        _stepLabel = new Label { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.TestoAccento };
+        _stepLabel = new Label { VerticalAlignment = VerticalAlignment.Center, ThemeTypeVariation = UiTheme.TestoAccento };
         header.AddChild(_stepLabel);
 
-        _doneLabel = new Label { Text = "✓ fatto", Visible = false, ThemeTypeVariation = UiTheme.TestoVerde };
+        _doneLabel = new Label
+        {
+            Text = "✓ fatto",
+            Visible = false,
+            VerticalAlignment = VerticalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoVerde
+        };
         header.AddChild(_doneLabel);
 
-        _bodyLabel = new Label
-        {
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(500, 0)
-        };
-        root.AddChild(_bodyLabel);
+        header.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
 
-        var hint = new Label
-        {
-            Text = "Avanza da solo quando completi il passo · Invio = avanti",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            ThemeTypeVariation = UiTheme.TestoTenue
-        };
-        root.AddChild(hint);
-
-        var row = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga, Alignment = BoxContainer.AlignmentMode.End };
-        root.AddChild(row);
-
-        var skip = new Button { Text = "Salta tutorial", CustomMinimumSize = new Vector2(120, 30), FocusMode = FocusModeEnum.None };
+        var skip = new Button { Text = "Salta tutorial", FocusMode = FocusModeEnum.None, ThemeTypeVariation = UiTheme.PulsantePiatto };
         skip.Pressed += Skip;
-        row.AddChild(skip);
+        header.AddChild(skip);
 
         _nextBtn = new Button
         {
             Text = "Avanti",
-            CustomMinimumSize = new Vector2(96, 30),
+            CustomMinimumSize = new Vector2(80, 0),
+            TooltipText = "Il passo avanza da solo quando lo completi · Invio = avanti",
             FocusMode = FocusModeEnum.None,
             ThemeTypeVariation = UiTheme.PulsantePrimario
         };
         _nextBtn.Pressed += Advance;
-        row.AddChild(_nextBtn);
+        header.AddChild(_nextBtn);
+
+        _bodyLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        root.AddChild(_bodyLabel);
+
+        Resized += FitBody;
+        FitBody();
+    }
+
+    /// <summary>The text column takes the room left of the build palette, up to <see cref="BodyMaxWidth"/>.</summary>
+    private void FitBody()
+    {
+        if (_bodyLabel is null || _card is null)
+        {
+            return;
+        }
+
+        var frame = _card.GetThemeStylebox("panel").GetMinimumSize().X;
+        // Window less the palette stack (and its 8 px edge), the card's edge gap, the gap to the palette, the frame.
+        var room = Size.X - Hud.CornerStackWidth - 8f - 2 * Gap - frame;
+        var width = MathF.Floor(Math.Clamp(room, BodyMinWidth, BodyMaxWidth));
+        _bodyLabel.CustomMinimumSize = new Vector2(width, 0);
     }
 
     private void Refresh()

@@ -6,23 +6,26 @@ namespace TIndustry.Godot;
 /// <summary>HUD panels and overlays (Ricerca, Mercato, Campagna, Home, Salvataggi, Impostazioni, Tutorial, FPS/risorse).</summary>
 public partial class World
 {
+    /// <summary>The HUD's root Control (<see cref="UiScale.RootOf"/>): parent of every HUD control and panel.</summary>
+    private Control UiRoot => UiScale.RootOf(GetNode<CanvasLayer>("Hud"));
+
     private void EnsureHud()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
+        var hudRoot = UiRoot;
         // Demote legacy debug label if present.
-        if (layer.HasNode("Status"))
+        if (hudRoot.HasNode("Status"))
         {
-            layer.GetNode("Status").QueueFree();
+            hudRoot.GetNode("Status").QueueFree();
         }
 
-        if (layer.HasNode("FactoryHud"))
+        if (hudRoot.HasNode("FactoryHud"))
         {
-            _hud = layer.GetNode<Hud>("FactoryHud");
+            _hud = hudRoot.GetNode<Hud>("FactoryHud");
         }
         else
         {
             _hud = new Hud { Name = "FactoryHud" };
-            layer.AddChild(_hud);
+            hudRoot.AddChild(_hud);
         }
 
         _hud.ToolChosen += OnHudToolChosen;
@@ -42,15 +45,15 @@ public partial class World
 
     private void EnsureResearchPanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("ResearchPanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("ResearchPanel"))
         {
-            _research = layer.GetNode<ResearchPanel>("ResearchPanel");
+            _research = hudRoot.GetNode<ResearchPanel>("ResearchPanel");
         }
         else
         {
             _research = new ResearchPanel { Name = "ResearchPanel" };
-            layer.AddChild(_research);
+            hudRoot.AddChild(_research);
         }
 
         _research.UnlockedChanged += () =>
@@ -66,15 +69,15 @@ public partial class World
 
     private void EnsureMercatoPanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("MercatoPanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("MercatoPanel"))
         {
-            _mercato = layer.GetNode<MercatoPanel>("MercatoPanel");
+            _mercato = hudRoot.GetNode<MercatoPanel>("MercatoPanel");
         }
         else
         {
             _mercato = new MercatoPanel { Name = "MercatoPanel" };
-            layer.AddChild(_mercato);
+            hudRoot.AddChild(_mercato);
         }
 
         _mercato.SoldChanged += () =>
@@ -100,15 +103,15 @@ public partial class World
 
     private void EnsureCampaignSelectPanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("CampaignSelectPanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("CampaignSelectPanel"))
         {
-            _campaignSelect = layer.GetNode<CampaignSelectPanel>("CampaignSelectPanel");
+            _campaignSelect = hudRoot.GetNode<CampaignSelectPanel>("CampaignSelectPanel");
         }
         else
         {
             _campaignSelect = new CampaignSelectPanel { Name = "CampaignSelectPanel" };
-            layer.AddChild(_campaignSelect);
+            hudRoot.AddChild(_campaignSelect);
         }
 
         _campaignSelect.LevelChosen += OnCampaignLevelChosen;
@@ -127,7 +130,7 @@ public partial class World
     /// <summary>Full-screen "Generazione della mappa…" card above every panel (see <see cref="WithMapOverlayAsync{T}"/>).</summary>
     private void EnsureMapOverlay()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
+        var hudRoot = UiRoot;
         var overlay = new Control { Name = "MapOverlay", MouseFilter = Control.MouseFilterEnum.Stop, Visible = false };
         overlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var dim = new ColorRect { Color = UiColors.Oscuramento, MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -143,7 +146,7 @@ public partial class World
         };
         label.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         overlay.AddChild(label);
-        layer.AddChild(overlay);
+        hudRoot.AddChild(overlay);
         _mapOverlay = overlay;
     }
 
@@ -163,19 +166,19 @@ public partial class World
 
     private void EnsureHomePanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("HomePanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("HomePanel"))
         {
-            _home = layer.GetNode<HomePanel>("HomePanel");
+            _home = hudRoot.GetNode<HomePanel>("HomePanel");
         }
         else
         {
             _home = new HomePanel { Name = "HomePanel" };
-            layer.AddChild(_home);
+            hudRoot.AddChild(_home);
         }
 
         // Keep Home above other HUD so it covers dock/info while choosing.
-        layer.MoveChild(_home, layer.GetChildCount() - 1);
+        hudRoot.MoveChild(_home, hudRoot.GetChildCount() - 1);
 
         _home.ContinuaChosen += () => RunMapTask(OnHomeContinuaAsync, m => _home?.ShowError(m));
         _home.CampaignChosen += OnHomeCampaign;
@@ -187,18 +190,18 @@ public partial class World
 
     private void EnsureNewGamePanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("NewGamePanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("NewGamePanel"))
         {
-            _newGame = layer.GetNode<NewGamePanel>("NewGamePanel");
+            _newGame = hudRoot.GetNode<NewGamePanel>("NewGamePanel");
         }
         else
         {
             _newGame = new NewGamePanel { Name = "NewGamePanel" };
-            layer.AddChild(_newGame);
+            hudRoot.AddChild(_newGame);
         }
 
-        layer.MoveChild(_newGame, layer.GetChildCount() - 1);
+        hudRoot.MoveChild(_newGame, hudRoot.GetChildCount() - 1);
         _newGame.StartRequested += (size, seed, night) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed, night), ShowNewGameError);
         _newGame.Cancelled += () => _home?.Open();
     }
@@ -245,18 +248,18 @@ public partial class World
 
     private void EnsureSavesPanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("SavesPanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("SavesPanel"))
         {
-            _saves = layer.GetNode<SavesPanel>("SavesPanel");
+            _saves = hudRoot.GetNode<SavesPanel>("SavesPanel");
         }
         else
         {
             _saves = new SavesPanel { Name = "SavesPanel" };
-            layer.AddChild(_saves);
+            hudRoot.AddChild(_saves);
         }
 
-        layer.MoveChild(_saves, layer.GetChildCount() - 1);
+        hudRoot.MoveChild(_saves, hudRoot.GetChildCount() - 1);
         _saves.SlotLoadRequested += slotId => RunMapTask(() => OnSavesSlotLoadAsync(slotId), m => _saves?.ShowStatus(m));
         _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
@@ -325,18 +328,18 @@ public partial class World
 
     private void EnsureSettingsPanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("SettingsPanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("SettingsPanel"))
         {
-            _settingsPanel = layer.GetNode<SettingsPanel>("SettingsPanel");
+            _settingsPanel = hudRoot.GetNode<SettingsPanel>("SettingsPanel");
         }
         else
         {
             _settingsPanel = new SettingsPanel { Name = "SettingsPanel" };
-            layer.AddChild(_settingsPanel);
+            hudRoot.AddChild(_settingsPanel);
         }
 
-        layer.MoveChild(_settingsPanel, layer.GetChildCount() - 1);
+        hudRoot.MoveChild(_settingsPanel, hudRoot.GetChildCount() - 1);
         _settingsPanel.Closed += () => { };
         _settingsPanel.Applied += OnSettingsApplied;
         _settingsPanel.ReplayTutorialRequested += () => BeginTutorialIfNeeded(force: true);
@@ -344,28 +347,28 @@ public partial class World
 
     private void EnsureTutorialPanel()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("TutorialPanel"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("TutorialPanel"))
         {
-            _tutorial = layer.GetNode<TutorialPanel>("TutorialPanel");
+            _tutorial = hudRoot.GetNode<TutorialPanel>("TutorialPanel");
         }
         else
         {
             _tutorial = new TutorialPanel { Name = "TutorialPanel" };
-            layer.AddChild(_tutorial);
+            hudRoot.AddChild(_tutorial);
         }
 
-        layer.MoveChild(_tutorial, layer.GetChildCount() - 1);
+        hudRoot.MoveChild(_tutorial, hudRoot.GetChildCount() - 1);
         _tutorial.Completed += () => _hud?.ShowToast("Tutorial completato");
         _tutorial.Skipped += () => _hud?.ShowToast("Tutorial saltato");
     }
 
     private void EnsureFpsOverlay()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("FpsOverlay"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("FpsOverlay"))
         {
-            _fpsLabel = layer.GetNode<Label>("FpsOverlay");
+            _fpsLabel = hudRoot.GetNode<Label>("FpsOverlay");
         }
         else
         {
@@ -381,7 +384,7 @@ public partial class World
             _fpsLabel.OffsetBottom = 32;
             _fpsLabel.HorizontalAlignment = HorizontalAlignment.Right;
             _fpsLabel.ThemeTypeVariation = UiTheme.Avviso;
-            layer.AddChild(_fpsLabel);
+            hudRoot.AddChild(_fpsLabel);
         }
 
         SyncFpsOverlay();
@@ -389,10 +392,10 @@ public partial class World
 
     private void EnsureResourceOverlay()
     {
-        var layer = GetNode<CanvasLayer>("Hud");
-        if (layer.HasNode("ResourceOverlay"))
+        var hudRoot = UiRoot;
+        if (hudRoot.HasNode("ResourceOverlay"))
         {
-            _resourceLabel = layer.GetNode<Label>("ResourceOverlay");
+            _resourceLabel = hudRoot.GetNode<Label>("ResourceOverlay");
         }
         else
         {
@@ -410,7 +413,7 @@ public partial class World
             _resourceLabel.OffsetBottom = 140;
             _resourceLabel.HorizontalAlignment = HorizontalAlignment.Right;
             _resourceLabel.ThemeTypeVariation = UiTheme.Avviso;
-            layer.AddChild(_resourceLabel);
+            hudRoot.AddChild(_resourceLabel);
         }
 
         SyncResourceOverlay();
@@ -448,11 +451,19 @@ public partial class World
 
     private void OnSettingsApplied()
     {
+        ApplyUiScale();
         ApplyGraphicsSettings();
         SyncFpsOverlay();
         SyncResourceOverlay();
         _hud?.ShowToast(
             $"Impostazioni · UI {ClientSettings.UiScaleLabel(_settings.UiScalePercent)} · VSync {(_settings.VSync ? "ON" : "OFF")}");
+    }
+
+    /// <summary>The UI scale of the settings on the HUD (the palette redraws its icons for the new factor).</summary>
+    private void ApplyUiScale()
+    {
+        UiScale.Apply(_settings.UiScalePercent);
+        _hud?.OnUiScaleChanged();
     }
 
     private void BeginTutorialIfNeeded(bool force = false)

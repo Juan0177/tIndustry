@@ -112,9 +112,13 @@ public partial class World : Node2D
         _contentPath = ResolveContentPath();
         _campaignPath = ResolveCampaignPath();
         _settings = ClientSettings.Load();
+        ApplyPlaytestUiScale();
         _settings.ApplyToEngine(GetTree().Root);
-        // One theme for the whole client UI (G4): the window (popups, tooltips) and every panel on the HUD layer.
-        UiTheme.ApplyTo(GetTree().Root, GetNode<CanvasLayer>("Hud"));
+        // One theme for the whole client UI (G4): the window (popups, tooltips) and every panel on the HUD root.
+        UiTheme.ApplyTo(GetTree().Root, UiRoot);
+        // UI-only scale: the HUD layer and its popups (tooltips); the world keeps its size.
+        ApplyUiScale();
+        GetTree().NodeAdded += UiScale.ScalePopup;
         var content = FactoryContent.Load(_contentPath);
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
@@ -251,6 +255,7 @@ public partial class World : Node2D
     public override void _ExitTree()
     {
         GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
+        GetTree().NodeAdded -= UiScale.ScalePopup;
     }
 
     private void EnsureEffects()

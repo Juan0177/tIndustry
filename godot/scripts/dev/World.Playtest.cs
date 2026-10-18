@@ -134,6 +134,17 @@ public partial class World
 
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
+        // The cells the tutorial asks for (miner and the belt to the Core) must not be under the card or a HUD panel.
+        var hudRects = PlaytestHudPanelRects();
+        for (var x = minerCell.X; x < core.X; x++)
+        {
+            if (PlaytestCellUnderHud(new GridPosition(x, core.Y), 1, hudRects)
+                || PlaytestCellUnderHud(new GridPosition(x, core.Y + 1), 1, hudRects))
+            {
+                return Fail($"la cella ({x},{core.Y}) del minatore o del nastro è sotto un pannello dell'HUD (scala {_settings.UiScalePercent}%)");
+            }
+        }
+
         // The click only plans the miner: the drone builds it, and the step completes once it stands.
         var finishedBefore = ConstructFinishedCount;
         await PlaytestClick(CellToScreen(minerCell));
@@ -248,6 +259,12 @@ public partial class World
             return Fail("Home: pulsante Continua mostrato senza salvataggi");
         }
 
+        // The Home card is as tall as its buttons: no blank band where Continua would be.
+        if (await PlaytestHomeCardBlankAsync() is var blankWithout and > 2f)
+        {
+            return Fail($"Home senza Continua: {blankWithout:0} di spazio vuoto nella scheda");
+        }
+
         _settings.TutorialCompleted = true;
         // Home → Nuova partita, with the playtest seed in the field instead of a random one.
         OpenNewGamePanel(PlaytestSeed);
@@ -355,6 +372,11 @@ public partial class World
             return Fail("Home: pulsante Continua assente con un salvataggio");
         }
 
+        if (await PlaytestHomeCardBlankAsync() is var blankWith and > 2f)
+        {
+            return Fail($"Home con Continua: {blankWith:0} di spazio vuoto nella scheda");
+        }
+
         if (_view!.CoreDeliveredItems <= 0)
         {
             return Fail("nessun oggetto consegnato al CORE");
@@ -399,11 +421,22 @@ public partial class World
         }
 
         await Shot("campagna");
+        if (!PlaytestPaletteCategoryFollowsLocks())
+        {
+            return false;
+        }
+
         if (GetNodeOrNull<Camera2D>("Camera") is { } campaignCam)
         {
             // The level start with the terrain art (the shot above is at the colour level of detail).
             campaignCam.Zoom = Vector2.One;
             await Shot("terreno-campagna");
+        }
+
+        // UI scale (G4): every panel at 100/150/200%, the world unchanged, a mouse click on the right cell at 200%.
+        if (!await PlaytestUiScaleAsync(Shot))
+        {
+            return false;
         }
 
         // Graphics settings and effect manager (G3), after every other capture: it changes and restores settings.

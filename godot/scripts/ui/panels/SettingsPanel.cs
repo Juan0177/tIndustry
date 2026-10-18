@@ -16,6 +16,8 @@ public partial class SettingsPanel : Control
     // button stands for and the draft's current value: SyncControls redraws both from the draft.
     private readonly List<(CheckButton Button, Func<ClientSettings, bool> Get)> _checks = [];
     private readonly List<(Button Button, int Value, Func<ClientSettings, int> Get)> _choices = [];
+    private HSlider? _uiScale;
+    private Label? _uiScaleLabel;
 
     public event Action? Closed;
     public event Action? Applied;
@@ -75,14 +77,8 @@ public partial class SettingsPanel : Control
         AddChild(dim);
 
         var card = new PanelContainer { Name = "SettingsCard", ThemeTypeVariation = UiTheme.Scheda };
-        card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -270;
-        card.OffsetTop = -280;
-        card.OffsetRight = 270;
-        card.OffsetBottom = 280;
-        card.GrowHorizontal = GrowDirection.Both;
-        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
+        CardLayout.Center(card, new Vector2(540, 560));
 
         var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         card.AddChild(root);
@@ -136,9 +132,7 @@ public partial class SettingsPanel : Control
             s => s.ScalaRendering, (s, v) => s.ScalaRendering = v);
 
         AddSection(options, "Interfaccia");
-        AddChoices(options, "ScalaUi", "Scala UI",
-            ClientSettings.UiScalePresets.Select(v => (ClientSettings.UiScaleLabel(v), v)).ToArray(),
-            s => s.UiScalePercent, (s, v) => s.UiScalePercent = v);
+        AddUiScaleSlider(options);
         AddCheck(options, "MostraFps", "Mostra FPS", s => s.ShowFps, (s, on) => s.ShowFps = on);
         AddCheck(options, "MostraRisorse", "Mostra risorse sistema (CPU · GPU · RAM)",
             s => s.ShowResourceOverlay, (s, on) => s.ShowResourceOverlay = on);
@@ -240,12 +234,64 @@ public partial class SettingsPanel : Control
         }
     }
 
+    /// <summary>
+    /// "Scala UI" slider (node "ScalaUi", 75–200% in steps of 5) with its value; the hint names the scales where the
+    /// pixel text is sharpest. Applied with the rest on Applica.
+    /// </summary>
+    private void AddUiScaleSlider(VBoxContainer parent)
+    {
+        _uiScaleLabel = new Label { Name = "ScalaUiValore" };
+        parent.AddChild(_uiScaleLabel);
+        _uiScale = new HSlider
+        {
+            Name = "ScalaUi",
+            MinValue = ClientSettings.UiScaleMin,
+            MaxValue = ClientSettings.UiScaleMax,
+            Step = ClientSettings.UiScaleStep,
+            TickCount = (ClientSettings.UiScaleMax - ClientSettings.UiScaleMin) / 25 + 1,
+            TicksOnBorders = true,
+            CustomMinimumSize = new Vector2(0, 24),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+        _uiScale.ValueChanged += value =>
+        {
+            if (_draft is null)
+            {
+                return;
+            }
+
+            _draft.UiScalePercent = ClientSettings.NormalizeUiScale((int)Math.Round(value));
+            SyncUiScaleLabel();
+        };
+        parent.AddChild(_uiScale);
+        parent.AddChild(new Label
+        {
+            Text = "Testo più nitido a 100%, 150% e 200%.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
+        });
+    }
+
+    private void SyncUiScaleLabel()
+    {
+        if (_uiScaleLabel is not null && _draft is not null)
+        {
+            _uiScaleLabel.Text = $"Scala UI · {ClientSettings.UiScaleLabel(_draft.UiScalePercent)}";
+        }
+    }
+
+    /// <summary>Moves the UI scale slider as a player would (playtests); the draft follows.</summary>
+    internal void SetUiScaleDraft(int percent) => _uiScale?.SetValue(percent);
+
     private void SyncControls()
     {
         if (_draft is null)
         {
             return;
         }
+
+        _uiScale?.SetValueNoSignal(_draft.UiScalePercent);
+        SyncUiScaleLabel();
 
         foreach (var (button, get) in _checks)
         {
