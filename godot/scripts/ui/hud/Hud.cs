@@ -284,6 +284,16 @@ public partial class Hud : Control
     /// <summary>The info strip's name line, the "?" tooltip and the funds tooltip as shown (playtests).</summary>
     internal (string Strip, string Detail, string Funds) InfoTexts => (_info.StripName, _info.DetailTooltip, _core.FundsTooltip);
 
+    /// <summary>Hides the toast at once (playtest captures that must not show it).</summary>
+    internal void ClearToast()
+    {
+        _toastAge = ToastHold + ToastFade;
+        if (_toastLabel is not null)
+        {
+            _toastLabel.Modulate = new Color(1, 1, 1, 0);
+        }
+    }
+
     public void ShowToast(string message)
     {
         if (_toastLabel is null)

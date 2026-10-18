@@ -306,6 +306,11 @@ public partial class World
             return Fail("Home: logo mancante, o telecamera dietro la Home che accetta input o si muove nel playtest");
         }
 
+        if (!await PlaytestHomeDriftAsync())
+        {
+            return false;
+        }
+
         _settings.TutorialCompleted = true;
         // Home → Nuova partita, with the playtest seed in the field instead of a random one.
         OpenNewGamePanel(PlaytestSeed);

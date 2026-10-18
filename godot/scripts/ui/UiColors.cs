@@ -162,6 +162,16 @@ public static class UiColors
 
     public static Color PonteRifiutatoCampata { get; private set; }
 
+    /// <summary>
+    /// Dark stroke drawn under the ghost's outline, X and arrow and under removal outlines, so they read on any
+    /// ground (transparent = none; only the high-contrast variant has one).
+    /// </summary>
+    public static Color SottoSegno { get; private set; }
+
+    // FondoScelto, FondoBloccato, BordoBloccato, TestoDisattivo and Accento of the Normale variant are mirrored in
+    // tools/art/palette.py (UI_* and ACCENTO[3]) for the generated check boxes; test_genera.test_spunte_come_ui_colors
+    // keeps them equal.
+
     private static void SetNormale()
     {
         Fondo = new("14161AF2");
@@ -172,7 +182,7 @@ public static class UiColors
         FondoSopra = new("2E3138");
         Oscuramento = new("000000B8");
         Accento = new("FFD37F");
-        Bordo = new("4A4F57");
+        Bordo = new("686D75");
         BordoBloccato = new("2C2E33");
         Testo = new("EEEEEA");
         TestoTenue = new("A6AAB0");
@@ -204,6 +214,7 @@ public static class UiColors
         PonteCampata = new(0.55f, 0.7f, 0.95f, 0.28f);
         PonteRifiutatoEstremi = new(0.9f, 0.25f, 0.2f, 0.55f);
         PonteRifiutatoCampata = new(0.9f, 0.25f, 0.2f, 0.28f);
+        SottoSegno = Colors.Transparent;
     }
 
     /// <summary>
@@ -217,6 +228,8 @@ public static class UiColors
         Denaro = new("F0E442");
         Energia = new("56B4E9");
         Fermo = new("E69F00");
+        // The CORE outline neutral: sky blue is the valid ghost here.
+        Core = new("E0E0E0");
 
         Smontaggio = new("CC79A7");
         FantasmaValido = new("56B4E9");
@@ -258,11 +271,16 @@ public static class UiColors
         RicercaLineaDisponibile = new("FFD37F");
         RicercaLineaBloccata = new("767676");
 
-        Smontaggio = new("FF4D4D");
-        FantasmaNonValido = Insufficiente;
+        // World signs: pure yellow against a saturated magenta-red (3.6:1 between them) over a black under-stroke
+        // that keeps them readable on grass, snow or sand. Taking apart reuses the refused red: hatching against X.
+        FantasmaValido = new("FFFF00");
+        FantasmaNonValido = new("FF0050");
+        Costruzione = FantasmaValido;
+        Smontaggio = FantasmaNonValido;
+        SottoSegno = new("000000");
         PonteEstremi = new(0.75f, 0.9f, 1f, 0.75f);
         PonteCampata = new(0.6f, 0.78f, 1f, 0.45f);
-        PonteRifiutatoEstremi = Insufficiente with { A = 0.75f };
-        PonteRifiutatoCampata = Insufficiente with { A = 0.45f };
+        PonteRifiutatoEstremi = FantasmaNonValido with { A = 0.75f };
+        PonteRifiutatoCampata = FantasmaNonValido with { A = 0.45f };
     }
 }

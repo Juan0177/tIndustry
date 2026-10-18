@@ -42,18 +42,24 @@ public static class PlacementPreview
             }
         }
 
-        canvas.DrawRect(rect.Grow(-OutlineWidth / 2f), outline, filled: false, width: OutlineWidth);
-        if (!valid)
+        // The high-contrast variant draws every sign twice: a wider dark stroke first, then the colour.
+        var under = UiColors.SottoSegno;
+        foreach (var (color, extra) in under.A > 0f ? new[] { (under, 4f), (outline, 0f) } : new[] { (outline, 0f) })
         {
-            var cross = rect.Grow(-Mathf.Min(rect.Size.X, rect.Size.Y) * 0.22f);
-            canvas.DrawLine(cross.Position, cross.End, outline, OutlineWidth);
-            canvas.DrawLine(new Vector2(cross.End.X, cross.Position.Y), new Vector2(cross.Position.X, cross.End.Y), outline,
-                OutlineWidth);
-        }
+            var width = OutlineWidth + extra;
+            canvas.DrawRect(rect.Grow(-OutlineWidth / 2f), color, filled: false, width: width);
+            if (!valid)
+            {
+                var cross = rect.Grow(-Mathf.Min(rect.Size.X, rect.Size.Y) * 0.22f);
+                canvas.DrawLine(cross.Position, cross.End, color, width);
+                canvas.DrawLine(new Vector2(cross.End.X, cross.Position.Y), new Vector2(cross.Position.X, cross.End.Y), color,
+                    width);
+            }
 
-        if (arrow)
-        {
-            DrawArrow(canvas, rect, direction, outline);
+            if (arrow)
+            {
+                DrawArrow(canvas, rect, direction, color, extra);
+            }
         }
     }
 
@@ -91,8 +97,10 @@ public static class PlacementPreview
         }
     }
 
-    /// <summary>A small filled triangle inside the edge the block faces, pointing out of it.</summary>
-    private static void DrawArrow(CanvasItem canvas, Rect2 rect, Direction direction, Color color)
+    /// <summary>
+    /// A small filled triangle (grown by <paramref name="grow"/> px) inside the edge the block faces, pointing out of it.
+    /// </summary>
+    private static void DrawArrow(CanvasItem canvas, Rect2 rect, Direction direction, Color color, float grow = 0f)
     {
         var (dx, dy) = DirectionMath.ToOffset(direction);
         var forward = new Vector2(dx, dy);
@@ -101,6 +109,9 @@ public static class PlacementPreview
         var tip = rect.GetCenter() + forward * (half - OutlineWidth * 2f);
         var back = tip - forward * half * 0.35f;
         var wing = half * 0.25f;
-        canvas.DrawColoredPolygon([tip, back + side * wing, back - side * wing], color);
+        // grow > 0: the same triangle a little bigger (the dark under-stroke).
+        var centre = (tip + back) / 2f;
+        Vector2 Out(Vector2 p) => p + (p - centre).Normalized() * grow;
+        canvas.DrawColoredPolygon([Out(tip), Out(back + side * wing), Out(back - side * wing)], color);
     }
 }

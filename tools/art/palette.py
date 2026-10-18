@@ -28,10 +28,11 @@ CELLA = [(150, 84, 40), (214, 132, 60), (240, 166, 84), (255, 190, 100), (255, 2
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
 LUCCIOLA = [(70, 96, 20), (128, 170, 40), (188, 226, 70), (226, 250, 120), (250, 255, 200)]  # fireflies at night (G3)
 
-# Interface (G4): panel colours of the client theme (UiColors, variant Normale), for the generated check boxes.
+# Interface (G4), for the generated check boxes: the same values as UiColors (variant Normale) FondoScelto,
+# FondoBloccato, BordoBloccato and TestoDisattivo (test_spunte_come_ui_colors), plus the box edge.
 UI_FONDO_SCELTO = (59, 52, 36)  # #3B3424, selected slot
 UI_FONDO_BLOCCATO = (16, 17, 20)  # #101114, locked slot / empty field
-UI_BORDO = (140, 148, 153)  # #8C9499, edge of an unchecked box (light enough for the high-contrast variant too)
+UI_BORDO = (140, 148, 153)  # #8C9499, edge of an unchecked box: lighter than UiColors.Bordo, so it reads in every variant
 UI_BORDO_BLOCCATO = (44, 46, 51)  # #2C2E33, edge of a disabled box
 UI_DISATTIVO = (106, 110, 117)  # #6A6E75, disabled text and marks
 

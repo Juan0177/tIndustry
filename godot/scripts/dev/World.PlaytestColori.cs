@@ -34,6 +34,11 @@ public partial class World
             }
         }
 
+        if (!await PlaytestBridgeGhostOnPlanAsync())
+        {
+            return false;
+        }
+
         var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         _playtestSimHeld = true;
         try
@@ -98,6 +103,8 @@ public partial class World
         }
 
         _settingsPanel?.Close();
+        // The "settings applied" toast would cover the removal marks of the next capture.
+        _hud?.ClearToast();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         var label = UiTheme.Theme.GetColor("font_color", "Label");
         var ghost = UiColors.FantasmaNonValido;
@@ -171,6 +178,121 @@ public partial class World
 
         GD.Print($"PLAYTEST step ok: fantasma del Minatore T1 rosso sul titanio {titanium}");
         FocusCameraOnCore();
+        return true;
+    }
+
+    /// <summary>
+    /// Home background: Impostazioni opened from the Home keep it (no camera input) and closing them goes back to the
+    /// Home; with a forced drift speed the camera moves on its own, turns back at the map edges and stays inside.
+    /// </summary>
+    private async Task<bool> PlaytestHomeDriftAsync()
+    {
+        if (_home?.IsOpen != true || GetNodeOrNull<WorldCamera>("Camera") is not { } cam)
+        {
+            return Fail("sfondo della Home: Home chiusa o telecamera assente");
+        }
+
+        OpenSettings();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var inputUnderSettings = cam.InputEnabled;
+        _settingsPanel?.Close();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (inputUnderSettings || _home?.IsOpen != true)
+        {
+            return Fail($"Impostazioni dalla Home: input della telecamera {inputUnderSettings}, Home riaperta {_home?.IsOpen}");
+        }
+
+        var start = cam.Position;
+        var (zoom, last, lastStep) = (cam.Zoom, cam.Position, Vector2.Zero);
+        var (turns, travelled) = (0, 0f);
+        _playtestDriftSpeed = 6000f;
+        try
+        {
+            // Until it has turned back twice, at most 4 s (frame rate independent).
+            var deadline = Time.GetTicksMsec() + 4000;
+            while (turns < 2 && Time.GetTicksMsec() < deadline)
+            {
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                var step = cam.Position - last;
+                if (step.X * lastStep.X < 0f || step.Y * lastStep.Y < 0f)
+                {
+                    turns++;
+                }
+
+                travelled += step.Length();
+                (last, lastStep) = (cam.Position, step == Vector2.Zero ? lastStep : step);
+                if (cam.InputEnabled || cam.Position.X < 0f || cam.Position.Y < 0f
+                    || cam.Position.X > cam.MapPixelWidth || cam.Position.Y > cam.MapPixelHeight)
+                {
+                    return Fail($"sfondo della Home: telecamera {cam.Position} fuori dalla mappa o con input {cam.InputEnabled}");
+                }
+            }
+        }
+        finally
+        {
+            _playtestDriftSpeed = null;
+            cam.Position = start;
+            cam.Zoom = zoom;
+        }
+
+        if (travelled < TileSize || turns == 0)
+        {
+            return Fail($"sfondo della Home: la telecamera ha percorso {travelled:0} px con {turns} rimbalzi");
+        }
+
+        GD.Print($"PLAYTEST step ok: sfondo della Home scorre ({travelled:0} px, {turns} rimbalzi), senza input");
+        return true;
+    }
+
+    /// <summary>
+    /// A bridge whose exit falls on a pending belt plan: the ghost is refused (Occupied), as the plan queue refuses the
+    /// click, because the ghost checks plans over the whole footprint (entry and exit). The plan is taken back after.
+    /// </summary>
+    private async Task<bool> PlaytestBridgeGhostOnPlanAsync()
+    {
+        GridPosition? found = null;
+        for (var r = 3; r <= 12 && found is null; r++)
+        {
+            if (PlaytestFreeFootprint(1, new GridPosition(_view!.CoreTiles.Min(t => t.X) - r, _view.CoreTiles.Max(t => t.Y) + r))
+                    is { } cell
+                && _view.CanOccupy(cell.Step(Direction.West, BeltGridCell.MinBridgeSpan))
+                && !_view.IsPlannedTile(cell.Step(Direction.West, BeltGridCell.MinBridgeSpan)))
+            {
+                found = cell;
+            }
+        }
+
+        if (found is not { } exit)
+        {
+            return Fail("ponte sul piano: nessuna cella libera");
+        }
+
+        var entry = exit.Step(Direction.West, BeltGridCell.MinBridgeSpan);
+        SubmitCommand(new PlaceBelt(LocalPlayer, exit, Direction.East, BuildSpec.DefaultConveyorId));
+        if (!await PlaytestWaitUntil(() => _view!.IsPlannedTile(exit), StepTimeout))
+        {
+            return Fail($"ponte sul piano: piano del nastro in {exit} non creato");
+        }
+
+        var (tool, dir) = (_tool, _placeDir);
+        (_tool, _placeDir) = (BuildTool.Bridge, Direction.East);
+        var refusal = GhostRefusal(entry);
+        var span = GhostAt(entry).Spec is { } spec ? _view!.Footprint(spec) : [];
+        (_tool, _placeDir) = (tool, dir);
+        TryRemoveAt(exit, onlyMark: false);
+        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
+        {
+            return Fail("ponte sul piano: piano non tolto");
+        }
+
+        if (refusal != RefusalCode.Occupied || span is not [_, var to] || to != exit)
+        {
+            return Fail($"ponte con l'uscita su un piano: rifiuto {refusal?.ToString() ?? "nessuno"}, "
+                + $"ingombro {string.Join(" ", span)} invece di Occupied fino a {exit}");
+        }
+
+        GD.Print("PLAYTEST step ok: fantasma del ponte rifiutato con l'uscita su un piano");
         return true;
     }
 }

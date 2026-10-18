@@ -150,5 +150,8 @@ public interface IGameView
     /// </summary>
     bool CanPlace(BuildSpec spec, out RefusalCode? reason);
 
+    /// <summary>Cells <paramref name="spec"/> covers (see <see cref="Factory.Footprint"/>): a bridge's both ends.</summary>
+    IReadOnlyList<GridPosition> Footprint(BuildSpec spec);
+
     bool IsBuildingTile(GridPosition tile);
 }

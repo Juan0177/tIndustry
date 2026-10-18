@@ -19,6 +19,19 @@ public partial class World : Node2D
     /// <summary>Screen px per second the map behind the Home scrolls.</summary>
     private const float HomeDriftSpeed = 24f;
 
+    /// <summary>True while Impostazioni opened from the Home are open (closing them goes back to the Home).</summary>
+    private bool _settingsFromHome;
+
+    /// <summary>
+    /// The map is the Home's background: the Home, or a panel opened from it (Nuova partita, Gestione salvataggi, which
+    /// both go back to the Home, or Impostazioni opened there), is open.
+    /// </summary>
+    private bool HomeBackdrop => _home?.IsOpen == true || _newGame?.IsOpen == true || _saves?.IsOpen == true
+        || (_settingsFromHome && _settingsPanel?.IsOpen == true);
+
+    /// <summary>Drift speed forced by a playtest step (null: still in playtests).</summary>
+    private float? _playtestDriftSpeed;
+
     /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to default size.</summary>
     public int ActiveMapWidth => _view?.Terrain?.Width ?? DefaultMapWidth;
     public int ActiveMapHeight => _view?.Terrain?.Height ?? DefaultMapHeight;
@@ -218,12 +231,11 @@ public partial class World : Node2D
         SyncTutorial();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
-            cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true && _newGame?.IsOpen != true;
-            // Behind the Home the map scrolls slowly on its own and the player cannot move it; still in playtests
-            // (stable captures).
-            var home = _home?.IsOpen == true;
-            cam.InputEnabled = !home;
-            cam.DriftSpeed = home && !PlaytestRequested ? HomeDriftSpeed : 0f;
+            // Behind the Home and the panels opened from it the map scrolls slowly on its own and the player cannot
+            // move it; still in playtests (stable captures).
+            cam.LeftDragPans = _tool == BuildTool.Cursor && !HomeBackdrop && _newGame?.IsOpen != true;
+            cam.InputEnabled = !HomeBackdrop;
+            cam.DriftSpeed = !HomeBackdrop ? 0f : _playtestDriftSpeed ?? (PlaytestRequested ? 0f : HomeDriftSpeed);
         }
 
         if (_home?.IsOpen == true || _newGame?.IsOpen == true || _view is null)

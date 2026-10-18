@@ -105,7 +105,7 @@ public partial class ConstructionLayer : Node2D
         {
             _lastTick = view.CurrentTick;
             _variante = UiColors.Variante;
-            if (_drewPlans || HasLocalPlans(view))
+            if (_drewPlans || HasLocalPlans(view) || view.Sites.Count > 0)
             {
                 _plans?.QueueRedraw();
             }
@@ -133,6 +133,17 @@ public partial class ConstructionLayer : Node2D
         if (_view is null)
         {
             return;
+        }
+
+        // Sites being taken apart (anyone's) carry the removal hatching too, not just its colour.
+        var sites = _view.Sites;
+        for (var i = 0; i < sites.Count; i++)
+        {
+            if (sites[i].Deconstructing)
+            {
+                _drewPlans = true;
+                DrawRemovalHatch(canvas, Bounds(sites[i].Tiles));
+            }
         }
 
         var builders = _view.Builders;
@@ -184,8 +195,7 @@ public partial class ConstructionLayer : Node2D
             // refused ghost's sign): the mark reads without its colour.
             var box = Bounds(tiles);
             canvas.DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha));
-            PlacementPreview.DrawHatch(canvas, box, UiColors.Smontaggio, World.TileSize / 4f, 2f);
-            canvas.DrawRect(box.Grow(-1f), UiColors.Smontaggio, filled: false, width: 2f);
+            DrawRemovalHatch(canvas, box);
             return;
         }
 
@@ -370,6 +380,18 @@ public partial class ConstructionLayer : Node2D
         _drones.Clear();
         _lastTick = -1;
         _plans?.QueueRedraw();
+    }
+
+    /// <summary>The removal sign: diagonal hatching and an outline, over a mark or a site being taken apart.</summary>
+    private static void DrawRemovalHatch(CanvasItem canvas, Rect2 box)
+    {
+        if (UiColors.SottoSegno.A > 0f)
+        {
+            canvas.DrawRect(box.Grow(-2f), UiColors.SottoSegno, filled: false, width: 5f);
+        }
+
+        PlacementPreview.DrawHatch(canvas, box, UiColors.Smontaggio, World.TileSize / 4f, 2f);
+        canvas.DrawRect(box.Grow(-1f), UiColors.Smontaggio, filled: false, width: 2f);
     }
 
     private static Color ColorOf(ConstructSite site) => site.Deconstructing ? UiColors.Smontaggio : UiColors.Costruzione;

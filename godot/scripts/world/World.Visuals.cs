@@ -203,6 +203,11 @@ public partial class World
             _coreLight.Texture = CoreLightFrame();
         }
 
+        if (_coreEdge is not null && IsInstanceValid(_coreEdge))
+        {
+            _coreEdge.DefaultColor = UiColors.Core;
+        }
+
         SyncCoreDust();
 
         foreach (var child in _buildingsLayer.GetChildren())
@@ -457,6 +462,8 @@ public partial class World
     private float _coreLightClock;
 
     private Sprite2D? _coreLight;
+    // The Core's outline, in UiColors.Core (set every frame: a new colour variant shows at once).
+    private Line2D? _coreEdge;
 
     /// <summary>Start phase of the nucleus light from the Core's origin cell (0 in playtests).</summary>
     private float _coreLightPhase;
@@ -505,13 +512,14 @@ public partial class World
         };
         root.AddChild(_coreLight);
 
-        root.AddChild(new Line2D
+        _coreEdge = new Line2D
         {
             Points = [Vector2.Zero, new(size.X, 0), size, new(0, size.Y)],
             Closed = true,
             Width = 2f,
-            DefaultColor = new Color(0.35f, 0.78f, 0.9f, 1f)
-        });
+            DefaultColor = UiColors.Core
+        };
+        root.AddChild(_coreEdge);
         _buildingsLayer.AddChild(root);
     }
 

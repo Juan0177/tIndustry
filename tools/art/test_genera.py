@@ -819,6 +819,19 @@ class TestGenera(unittest.TestCase):
         usati = {im.getpixel((x, y)) for x in range(im.width) for y in range(im.height)} - {(0, 0, 0, 0)}
         self.assertEqual(set(), usati - ammessi)
 
+    def test_spunte_come_ui_colors(self):
+        # The check boxes use the client's colours: the UI_* values (and the accent) equal UiColors' Normale ones.
+        import re
+        from palette import ACCENTO, UI_BORDO_BLOCCATO, UI_DISATTIVO, UI_FONDO_BLOCCATO, UI_FONDO_SCELTO
+        with open(os.path.join(REPO, "godot", "scripts", "ui", "UiColors.cs"), encoding="utf-8") as fh:
+            sorgente = fh.read()
+        normale = sorgente[sorgente.index("void SetNormale()"):sorgente.index("void SetDaltonici()")]
+        valori = dict(re.findall(r'(\w+) = new\("([0-9A-Fa-f]{6})"\)', normale))
+        attesi = {"FondoScelto": UI_FONDO_SCELTO, "FondoBloccato": UI_FONDO_BLOCCATO,
+                  "BordoBloccato": UI_BORDO_BLOCCATO, "TestoDisattivo": UI_DISATTIVO, "Accento": ACCENTO[3]}
+        for nome, rgb in attesi.items():
+            self.assertEqual("%02X%02X%02X" % rgb, valori[nome].upper(), nome)
+
     def test_carattere_insieme(self):
         # Every required glyph exists (drawn or accented), fills the 11-row cell and has ink.
         self.assertEqual(INSIEME_CARATTERE, carattere.INSIEME)
