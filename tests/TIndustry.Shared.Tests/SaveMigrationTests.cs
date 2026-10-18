@@ -67,6 +67,8 @@ public sealed class SaveMigrationTests
         FactorySaveStore.Save("fixture-v12", host);
         var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("fixture-v12")));
         Assert.Equal((12, "classico", 0, (string?)null), (data.Version, data.Generator, data.MapSize, data.MapId));
+        Assert.True(FactorySaveStore.TryLoad(Content, "fixture-v12", out var resaved, out error), error);
+        Assert.Equal(host.Checksum(), resaved!.Checksum());
         host.AdvanceTicks(120);
         Assert.Empty(host.State.Sites);
         Assert.Equal(2, host.State.Miners.Count);
@@ -181,9 +183,13 @@ public sealed class SaveMigrationTests
         var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
         Assert.StartsWith($"La mappa della campagna '{data.MapId}' è cambiata", ex.Message);
 
-        data.MapId = "../maps/" + level.Map;
-        ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
-        Assert.Equal($"Nome della mappa della campagna non valido: '{data.MapId}'.", ex.Message);
+        // Only ids a map file can have (the same rule as CampaignMapFile): never a path, never upper case.
+        foreach (var id in new[] { "../maps/" + level.Map, "Foo", "c:mappa", "liv 01" })
+        {
+            data.MapId = id;
+            ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
+            Assert.Equal($"Nome della mappa della campagna non valido: '{id}'.", ex.Message);
+        }
     }
 
     [Fact]

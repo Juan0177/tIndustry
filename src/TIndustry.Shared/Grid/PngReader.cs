@@ -17,8 +17,12 @@ public static class PngReader
     /// <summary>Longest chunk accepted.</summary>
     public const int MaxChunkBytes = 64 << 20;
 
-    /// <summary>Most compressed image data (all IDAT chunks together) accepted.</summary>
-    public const int MaxImageDataBytes = 256 << 20;
+    /// <summary>
+    /// Most compressed image data (all IDAT chunks together) accepted for an image whose filtered rows take
+    /// <paramref name="rawBytes"/> bytes: even a stored (uncompressed) zlib stream or fixed Huffman codes
+    /// (at most 9 bits per byte) stay under one eighth more, plus a margin for headers and block boundaries.
+    /// </summary>
+    public static long MaxImageDataBytes(long rawBytes) => rawBytes + rawBytes / 8 + 1024;
 
     private static readonly uint[] CrcTable = BuildCrcTable();
 
@@ -40,6 +44,7 @@ public static class PngReader
         var width = 0;
         var height = 0;
         var channels = 0;
+        var maxImageData = 0L;
         var sawHeader = false;
         using var compressed = new MemoryStream();
         while (true)
@@ -78,12 +83,14 @@ public static class PngReader
                     }
 
                     (width, height, channels) = ReadHeader(data, maxEdge);
+                    maxImageData = MaxImageDataBytes((long)height * (width * channels + 1));
                     sawHeader = true;
                     break;
                 case "IDAT":
-                    if (compressed.Length + data.Length > MaxImageDataBytes)
+                    if (compressed.Length + data.Length > maxImageData)
                     {
-                        throw new InvalidDataException($"PNG: dati dell'immagine oltre {MaxImageDataBytes} byte.");
+                        throw new InvalidDataException(
+                            $"PNG: dati dell'immagine oltre {maxImageData} byte, troppi per {width}×{height}.");
                     }
 
                     compressed.Write(data);
@@ -176,6 +183,22 @@ public static class PngReader
             if (read < raw.Length)
             {
                 throw new InvalidDataException("PNG: dati dell'immagine incompleti.");
+            }
+
+            // Data past the last row means the file does not match its header: refuse it rather than guess.
+            bool surplus;
+            try
+            {
+                surplus = z.ReadByte() >= 0;
+            }
+            catch (InvalidDataException)
+            {
+                throw new InvalidDataException("PNG: dati compressi danneggiati.");
+            }
+
+            if (surplus)
+            {
+                throw new InvalidDataException("PNG: dati dell'immagine in eccesso rispetto alla misura.");
             }
         }
 

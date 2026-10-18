@@ -120,6 +120,18 @@ public partial class World
         _ => "?"
     };
 
+    /// <summary>
+    /// Runs before every panel and the world: drops all input while the map overlay is up (Esc or a click
+    /// must not close a panel or start another game mid-load) and real input during a playtest.
+    /// </summary>
+    public override void _Input(InputEvent @event)
+    {
+        if (_mapWorkBusy || IsRealInputDuringPlaytest(@event))
+        {
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (_saves?.IsOpen == true)

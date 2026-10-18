@@ -11,14 +11,14 @@ tIndustry/
 ├─ docs/
 │  ├─ ARCHITETTURA.md           questo file
 │  ├─ diario/                   diario di lavoro: un file per piano completato
-│  ├─ decisioni/                ADR (0001-server-csharp.md, 0002-sincronizzazione-ibrida.md, 0003-costruzione-come-mindustry.md)
+│  ├─ decisioni/                ADR (0001 server C#, 0002 sincronizzazione, 0003 costruzione, 0004 arte, 0005 mappe)
 │  └─ superpowers/              specifiche e piani
 ├─ src/TIndustry.Shared/        simulazione (futuro codice comune a client e server)
 │  ├─ Factory.cs                facciata: piazzamento, economia, Capture/Restore; Step() → Simulation.Step
 │  ├─ Simulation/               SimulationClock, GameState, Simulation, Systems/ (otto sistemi), Commands, SimEvents, SimHost, IGameView, Snapshot, NewGame
 │  ├─ Construction/             GameRules, BuildSpec, BuilderUnit (drone e BuildPlan), ConstructSite, Construction (formula, prelievo, rimborso)
 │  ├─ Content/                  ContentTypes, FactoryContent, ConveyorContent, MarketCatalog, ItemVisualColors
-│  ├─ Grid/                     GridTypes, BeltGrid, BeltLane, TransportedItem, TerrainMap
+│  ├─ Grid/                     GridTypes, BeltGrid, BeltLane, TransportedItem, TerrainMap, ClassicTerrainGenerator, MapGenerator, MapGenSettings, Noise, CampaignMapFile, PngReader, PngWriter
 │  ├─ Buildings/                Miner, Crafter (forno e assemblatore), Extractor, BuildingIo, CoreStockSink
 │  ├─ Power/                    Generator, PowerNode
 │  ├─ Economy/                  EconomyWallet, EconomySession
@@ -38,7 +38,7 @@ tIndustry/
 │     ├─ visuals/items/         ItemPalette
 │     ├─ visuals/construction/  ConstructionLayer (piani, cantieri, droni), DroneVisual
 │     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, BuildQueuePanel, HudStyle
-│     ├─ ui/panels/             Home, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
+│     ├─ ui/panels/             Home, NewGame, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
 │     ├─ settings/              ClientSettings
 │     └─ dev/                   World.Playtest.cs, SystemMonitor
 ├─ tests/TIndustry.Shared.Tests/  test xUnit (scenari della sim, validazione dei contenuti, salvataggi)
@@ -96,9 +96,20 @@ Come in Mindustry, piazzare un blocco non lo crea subito: diventa un piano che i
 - **Vista.** `IGameView` espone `Builders`, `Sites`, `TryGetSiteAt`, `PlansOf`, `PlanTiles` e `IsPlannedTile`.
 - **Client.** `ConstructionLayer` (`godot/scripts/visuals/construction/`) disegna in un solo nodo, sopra edifici e oggetti, tre cose. I piani del giocatore sono sagome semitrasparenti col contorno giallo (`Accent`), rosse (`Remove`) se di smontaggio. I cantieri usano lo shader `godot/shaders/construct.gdshader`: lo sprite si rivela dal basso con una linea luminosa, in rosso e al contrario nello smontaggio, con la linea più lenta se il cantiere è fermo. I droni sono `DroneVisual`, con il raggio verso il cantiere. `BuildQueuePanel` mostra la coda nella colonna in alto a sinistra dell'HUD. I piani di smontaggio hanno un riempimento rosso traslucido, come in Mindustry; i piani con un cantiere già in piedi sono mostrati dal cantiere. Un clic destro senza movimento invia, al rilascio, un `Remove` che alterna il segno (`World.TryRemoveAt`); trascinando, `World.RemoveOnceInDrag` invia `Remove` con `OnlyMark` una sola volta per blocco, a partire dalla prima cella. Fra due movimenti del mouse i trascinamenti (piazzamento e smontaggio) riempiono le celle saltate con una linea di Bresenham (`World.DragCells`). Il tooltip di un cantiere fermo dice "Mancano: N oggetto" (o "Mancano: $N"); la cella sotto il mouse si ricalcola a ogni frame dalla telecamera (`World.SyncHover`) e il tooltip si nasconde sopra l'HUD. `BuildQueuePanel` colora d'ambra la barra di un cantiere fermo e scrive "Manca: <materiale>".
 
+## Terreno e mappe
+
+Il terreno è dato, non stato: non entra nell'istantanea e si rifà da generatore e seme, o dal file della mappa. Decisione e scelte di attuazione: [ADR 0005](decisioni/0005-mappe-seme-e-file.md).
+
+- **Celle.** `TerrainMap` (`Grid/TerrainMap.cs`) tiene un `TerrainTile[]` di `Width × Height` (indice `y × Width + x`); ogni cella è `TerrainTile(Floor, Wall, Deposit)`, tre enum da un byte: `FloorKind` (13 suoli, le due acque comprese), `WallKind` (`None` e una parete per bioma), `DepositKind`. `TerrainMap.Generator` dice da dove viene (`classico`, `biomi`, `campagna:<id>`), `TerrainMap.TerrainHash` è l'impronta FNV-1a usata dai test.
+- **Tabella.** `content.json` → `terrain` (`FactoryContent.Terrain`, `TerrainTable`): per ogni suolo e parete id in kebab-case (lo stesso nome dell'enum), bioma (`rocce`, `sabbia`, `neve`, `prati`; le acque in `acqua`), colore e `buildable`. Il caricamento vuole una riga per ogni tipo e colori tutti diversi.
+- **Regole.** `Factory.TerrainBlocks`, chiamato da `CanOccupyFootprint`, è l'unico punto che legge il terreno per il piazzamento: parete o acqua profonda bloccano, fuori mappa è occupato, l'acqua bassa si costruisce. Ci passano comandi istantanei, piani del drone (`SimHost.QueuePlan`, `BuilderSystem`), cantieri e ripristino dei salvataggi; il ponte controlla solo le sue due estremità. `Factory.RefusalReason` dà il motivo, nell'ordine `OnCore`, `Wall`, `DeepWater`, `Occupied` (`CommandReasons`). I minatori non controllano il terreno.
+- **Generatori.** `ClassicTerrainGenerator` è il generatore di prima della G2a, congelato (impronte in `ClassicGeneratorTests`): lo usano i salvataggi v11 e, per default, `NewGame.Sandbox` e `NewGame.Campaign` nei test. `MapGenerator` (`"biomi"`) genera da `MapGenSettings` (lato, seme, biomi, percentuali di pareti, acqua e giacimenti; `MapGenSettings.Normal(MapSize, seme)` per le partite del client) con il rumore intero di `Noise`; `MapGenerator.Reaches` è il riempimento che verifica la partenza. `NewGame.Sandbox(..., map: settings)` sceglie il generatore a biomi.
+- **Campagna.** `CampaignMapFile` carica e valida le mappe di `data/maps/` (formato nella sezione [Dati](#dati)); `PngReader` le decodifica e `PngWriter` le scrive (per `MapTool` e i test).
+- **Client.** `TerrainChunks` (`godot/scripts/world/`) disegna il terreno a pezzi (vedi il [ciclo di un frame](#ciclo-di-un-frame)); `TerrainChunks.BuildChunkImage` è l'unico punto in cui una cella diventa un colore. Il fantasma del piazzamento è rosso su pareti e acqua profonda, con il motivo in un suggerimento in basso.
+
 ## Ciclo di un frame
 
-1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`). L'input non passa da `_Process`: arriva dai callback di Godot (`World._UnhandledInput` in `World.Input.cs`) e diventa **comandi** (`World.Placement.cs` → `World.SubmitCommand` in `World.Commands.cs` → `SimHost.Submit`).
+1. Godot chiama `World._Process` (`godot/scripts/world/World.cs`). L'input non passa da `_Process`: arriva dai callback di Godot (`World._UnhandledInput` in `World.Input.cs`; prima `World._Input` scarta tutto mentre c'è la schermata "Generazione della mappa…" e, nei playtest, gli input reali) e diventa **comandi** (`World.Placement.cs` → `World.SubmitCommand` in `World.Commands.cs` → `SimHost.Submit`).
 2. `_Process` chiama `World.AdvanceHost(delta)` (`World.Commands.cs`), che chiama `SimHost.Advance(delta)`: l'orologio restituisce quanti tick fissi eseguire (al massimo 5); a ogni tick l'host applica i comandi in coda e chiama `Factory.Step()` → `Simulation.Step`. Gli eventi `CommandApplied` / `CommandRejected` e quelli della simulazione (`EventRaised`: `PlanDropped`, `ConstructFinished`, `DeconstructFinished`) arrivano a `World` (toast, aggiornamento di visual e pannelli).
 3. `World.SyncConstructionVisuals` aggiorna il livello della costruzione (`ConstructionLayer.Sync`: piani, cantieri, droni) e segnala quali visual dei blocchi rifare. Se la griglia o gli edifici sono cambiati, `World` ricostruisce i visual dei nastri e degli edifici leggendo `IGameView`; poi sincronizza sprite degli oggetti, tooltip del cantiere fermo (`World.SyncSiteTooltip`) e animazioni (`World.Visuals.cs`, `godot/scripts/visuals/`).
 4. `World.UpdateHud` chiama `Hud.UpdateStock`, che inoltra a `CorePanel` (fondi, energia, risorse); `BuildPalette` e `BlockInfoPanel` seguono selezione e sblocchi; `Hud.SyncBuildQueue` aggiorna la coda del drone (`BuildQueuePanel`).
@@ -108,7 +119,7 @@ Con la Home aperta o senza partita il frame salta i passi 2–5.
 
 ## Dati
 
-`data/content.json` (strutture, oggetti, ricette, ricerca, mercato, pesi di costruzione `buildWeights`, drone `units.drone`) e `data/campaign.json` (livelli, obiettivi e `refundPercent` per livello) sono l'unica fonte. In sviluppo il gioco legge `data/` direttamente (`World.ResolveContentPath` prova `res://../data/` per primo). All'export `tools/ci/export-godot.sh` copia i due file in `godot/data/` perché finiscano nel pacchetto; quella copia non va committata.
+`data/content.json` (strutture, oggetti, ricette, ricerca, mercato, pesi di costruzione `buildWeights`, drone `units.drone`) e `data/campaign.json` (livelli, obiettivi e `refundPercent` per livello) sono l'unica fonte. In sviluppo il gioco legge `data/` direttamente (`World.ResolveContentPath` prova `res://../data/` per primo). All'export `tools/ci/export-godot.sh` copia i due file e `maps/` in `godot/data/` perché finiscano nel pacchetto; quella copia non va committata.
 
 Le mappe della campagna sono in `data/maps/` (`CampaignMapFile`): `<id>.png` con un colore esatto per suolo e parete (tabella `terrain` di `content.json`; una parete sta sul primo suolo del suo bioma), `<id>.giacimenti.png` trasparente tranne i giacimenti (colori di `ItemVisualColors`) e `<id>.json` con Core, biomi e nota. Un livello le usa con `"map": "<id>"`; `NewGame.Campaign(..., mapsDirectory:)` carica il file (generatore `campagna:<id>`), mentre senza cartella o con misure forzate resta il generatore classico. Si creano e si controllano con `dotnet run --project tools/MapTool -- genera <id> --misura N --seme S --biomi a,b [--pareti P] [--acqua P] [--giacimenti P] [--escludi titanio]`, `valida [id…]` (colori, Core e area di partenza liberi, almeno metà dell'area entro 60 raggiungibile a terra, nessun giacimento vicino chiuso, minerali degli obiettivi entro 60 dal Core) e `anteprima [id…]` (`.dev/mappe/`). I file seguono `data/*.json` nel progetto di test, in quello Godot e nell'export (`godot/data/maps/`, con `.gdignore`).
 
@@ -145,6 +156,24 @@ Il salvataggio è `SaveFileData` / `FactorySaveStore` (`src/TIndustry.Shared/Sav
    - comportamento nuovo: scrivilo in `src/TIndustry.Shared/Buildings/` o `Power/` e richiamalo dal sistema giusto in `Simulation/Systems/`, rispettando le regole di determinismo;
    - se l'edificio ha stato, includilo in `Factory.Capture`/`Restore` (istantanea e salvataggio) e, cambiando il formato, alza `FactorySaveData.CurrentVersion`.
 6. **Test**: `ContentValidationTests` deve restare verde (sprite presente, prerequisiti validi) e anche `python -m unittest tools/art/test_genera.py` (copertura degli sprite); aggiungi uno scenario in `tests/TIndustry.Shared.Tests/` se c'è logica nuova.
+
+## Come aggiungere un suolo, una parete o un livello
+
+**Suolo o parete.**
+
+1. Aggiungi il valore **in fondo** a `FloorKind` o `WallKind` (`Grid/TerrainMap.cs`): i byte esistenti non devono cambiare, altrimenti cambiano le impronte del generatore classico.
+2. Aggiungi la riga in `data/content.json` → `terrain` (`floors` o `walls`): id in kebab-case uguale al nome dell'enum, bioma, colore `#RRGGBB` diverso da tutti gli altri (è il colore delle mappe PNG), `buildable`.
+3. Se deve bloccare la costruzione, cambia `Factory.TerrainBlocks` (e la validazione di `buildable` in `FactoryContent`).
+4. Perché compaia nelle partite a seme, sceglilo nel `MapGenerator` (suolo per bioma o di riva, parete per bioma). L'impronta fissata in `MapGeneratorTests` cambia: aggiornala di proposito e rigenera le anteprime.
+5. `dotnet test` (la tabella deve coprire ogni tipo) e `MapTool valida`: un colore nuovo non cambia le mappe esistenti.
+
+**Livello della campagna.**
+
+1. Aggiungi il livello in `data/campaign.json` con `"map": "<id>"` (id di lettere minuscole, cifre e `-`).
+2. Genera la mappa: `dotnet run --project tools/MapTool -- genera <id> --misura N --seme S --biomi a,b [--pareti P] [--acqua P] [--giacimenti P] [--escludi titanio] [--nota "…"]`. Scrive `data/maps/<id>.png`, `<id>.giacimenti.png` e `<id>.json` con i parametri nella nota.
+3. `dotnet run --project tools/MapTool -- valida <id>` deve dire OK (controlla anche i minerali che servono agli obiettivi del livello); se no, cambia seme o impostazioni. `anteprima <id>` scrive `.dev/mappe/<id>.png` per guardarla.
+4. Un ritocco a mano si fa sul PNG con i colori esatti della tabella `terrain` (niente sfumature né trasparenze parziali), poi di nuovo `valida`.
+5. `dotnet test`: `EveryCampaignLevelHasAValidMap` carica e valida ogni livello. Cambiare la misura di una mappa già spedita rende illeggibili i salvataggi di quel livello.
 
 ## Grafica e sprite
 

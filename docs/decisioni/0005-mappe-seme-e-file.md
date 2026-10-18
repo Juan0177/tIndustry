@@ -1,0 +1,52 @@
+# 0005 — Mappe: generate da seme e prestabilite in file
+
+**Stato:** accettata, 2026-10-18
+
+## Contesto
+
+Fino alla G1 ogni partita aveva lo stesso tipo di terreno: una mappa 1000×1000 generata da seme con erba, terra, pietra e acqua, tutta costruibile, senza pareti e senza biomi. Anche la campagna usava lo stesso generatore, con misura e seme scritti in `campaign.json`. Per avvicinarsi a Mindustry servivano biomi diversi sulla stessa mappa, pareti che chiudono la strada, acqua bassa e profonda, mappe di misure diverse e livelli della campagna disegnati, che si possano guardare e ritoccare. Il tutto senza rompere il determinismo della simulazione ([ADR 0002](0002-sincronizzazione-ibrida.md)) né i salvataggi esistenti (v11).
+
+Specifica: [2026-10-18-g2a-mappe-terreno-design](../superpowers/specs/2026-10-18-g2a-mappe-terreno-design.md). Piano: [2026-10-18-g2a-mappe-terreno](../superpowers/plans/2026-10-18-g2a-mappe-terreno.md).
+
+## Opzioni
+
+1. **Partite normali da seme, campagna in file** (scelta). Il generatore a biomi crea le partite normali dal seme; i livelli della campagna sono file PNG più json in `data/maps/`, creati dallo stesso generatore e poi validati o ritoccati.
+2. **Tutto da seme.** Anche la campagna con un seme e impostazioni per livello. Nessun file da tenere, ma un ritocco del generatore cambierebbe tutti i livelli in silenzio e non si potrebbe ritoccare una mappa a mano.
+3. **Tutto in file.** Anche le partite normali scelte da un elenco di mappe. Ogni mappa da 2000² pesa megabyte e la varietà sarebbe limitata.
+
+## Decisione
+
+**Le partite normali si generano dal seme con il generatore a biomi, la campagna legge mappe prestabilite da `data/maps/`.** Il terreno non si salva mai: il salvataggio dice come rifarlo.
+
+- **Cella in 3 byte.** `TerrainTile(Floor, Wall, Deposit)` con tre enum da un byte: `FloorKind` (`Stone, Basalt, Gravel, Sand, DarkSand, Snow, Ice, Grass, Moss, Mud, Soil, ShallowWater, DeepWater`), `WallKind` (`None, StoneWall, SandWall, IceWall, ShrubWall`) e `DepositKind` (come prima). `TerrainMap` tiene un solo array `TerrainTile[]` (indice `y × Width + x`): una mappa 2000² occupa 12 MB.
+- **Tabella del terreno nei dati.** `content.json` → `terrain` dà a ogni suolo e parete id, bioma (rocce, sabbia, neve, prati; le due acque stanno nel gruppo "acqua"), colore `#RRGGBB` e `buildable`. Il caricamento controlla che ci sia una riga per ogni tipo, che i colori siano unici (servono alle mappe PNG) e che `buildable` sia coerente con le regole.
+- **Regole in un solo punto.** `Factory.TerrainBlocks`, chiamato da `CanOccupyFootprint`, decide per ogni piazzamento (comando istantaneo, piano del drone, cantiere, ripristino di un salvataggio): parete o acqua profonda bloccano blocchi, nastri ed estremità del ponte; l'acqua bassa si costruisce; il ponte scavalca tutto fra ingresso e uscita; il drone vola sopra tutto. Fuori mappa vale "occupata". Motivi nuovi in `CommandReasons`: `Wall` ("C'è una parete") e `DeepWater` ("Acqua profonda"), nell'ordine Core, parete, acqua profonda, occupata.
+- **Generatore classico congelato.** Il vecchio generatore vive in `ClassicTerrainGenerator`, identico byte per byte (impronte fissate in `ClassicGeneratorTests`, misurate prima del cambio). Lo usano i salvataggi v11 e i test: `NewGame.Sandbox(...)` e `NewGame.Campaign(...)` lo tengono per default, così i test a coordinate fisse non cambiano. Il client chiede il generatore nuovo in modo esplicito (`MapGenSettings.Normal(misura, seme)`).
+- **Generatore a biomi** (`MapGenerator`, nome `"biomi"`). Rumore a valori **solo interi** (`Noise`, virgola fissa a 16 bit, hash del seme): stesso risultato su Windows e Linux, senza float. Clima (temperatura e umidità deformate ed equalizzate) per i biomi, laghi e fiumi con acqua profonda al centro e bassa sulle rive, creste di pareti ai margini dei biomi, campi di minerale con frequenze per bioma. Misure normali: Media 1000, Grande 1500, Enorme 2000 (lato massimo `Factory.MaxMapEdge = 2000`). Tempi in Release su questa macchina: 1000² circa 0,35–0,41 s, 2000² circa 1,0–1,1 s (limiti nei test: 1,5 s e 6 s).
+- **Partenza garantita.** Attorno al Core un disco libero e costruibile di raggio 10, ferro 2×2 in `(core.X − 4, core.Y)` col corridoio `y = core.Y` libero fino al Core (i playtest lo usano), rame entro 12 celle. Un riempimento a 4 vicini verifica che ferro, rame e carbone siano raggiungibili a terra; se uno manca il generatore scava un passaggio a L (pareti tolte, acqua profonda resa bassa) o, se la mappa non ne ha, posa una macchia vicino alla partenza.
+- **Mappe della campagna in file.** Per ogni livello `data/maps/<id>.png` (un colore esatto per suolo o parete, dalla tabella `terrain`), `<id>.giacimenti.png` (trasparente tranne i giacimenti, colori di `ItemVisualColors`) e `<id>.json` (Core, biomi, nota con i parametri usati). `campaign.json` punta alla mappa con `"map"`. Le misure crescono con la campagna, da 200 (livello 1) a 1000 (livello 10). `CampaignMapFile` legge e valida; `PngReader` è un decodificatore minimo in Shared (RGB e RGBA a 8 bit, filtri 0–4, CRC controllati) indurito per file non fidati: misure lette dall'intestazione prima di allocare, lunghezze dei blocchi e dati compressi limitati, ogni errore è una `InvalidDataException` in italiano.
+- **`tools/MapTool`.** `genera` crea la mappa di un livello dal generatore (misura, seme, biomi, densità, minerali esclusi), `valida` controlla tutte le mappe (colori noti, Core e partenza liberi, almeno metà dell'area entro 60 celle raggiungibile a terra, nessun giacimento vicino chiuso, minerali degli obiettivi entro 60 dal Core), `anteprima` scrive le immagini in `.dev/mappe/`.
+- **Salvataggi v12.** L'istantanea porta `Generator` (`"classico"`, `"biomi"` o `"campagna"`), `MapSize` (lato di una mappa a biomi) e `MapId` (mappa della campagna). Al caricamento il terreno si rifà da seme e misura, o si rilegge il file della mappa, che deve avere ancora la misura salvata. Un v11 non ha questi campi e si carica col generatore classico: il terreno sotto le fabbriche non cambia. v10 e precedenti restano rifiutati. Una mappa mancante o cambiata dà un errore in italiano (`SaveMapException`), mai un altro terreno.
+- **Client a pezzi.** `TerrainChunks` disegna il terreno in pezzi di 64×64 celle, un pixel per cella ingrandito, creati solo attorno alla vista e tenuti in una cache LRU (256 pezzi, o quanti ne servono alla vista). Mappa Enorme a zoom minimo: 240 FPS di media. Nella Home, **Nuova partita** sceglie misura e seme (casuale già compilato, modificabile, copiabile); sopra Media il caricamento mostra "Generazione della mappa…".
+
+### Scelte prese durante l'attuazione
+
+- **Acqua come gruppo a parte** nella tabella: le due acque non appartengono a un bioma, il generatore le assegna in tutti.
+- **Colori delle pareti scuriti**: con i primi colori le pareti delle rocce e dei prati si confondevano col suolo.
+- **Parete sopra il primo suolo del suo bioma.** Nel PNG una cella è un solo colore: una parete si legge sopra il primo suolo del suo bioma nella tabella (pietra, sabbia, neve, erba).
+- **Controlli in più per le mappe della campagna**: metà dell'area vicina raggiungibile a terra (scartava un Core su un'isola collegata da un canale di una cella) e disco di partenza libero. Titanio escluso dalle mappe prima del livello 9. Nessuna mappa ritoccata a mano: tutte passano `valida` con il seme e le impostazioni scritti nella nota.
+- **Misure forzate = generatore classico.** `NewGame.Campaign` con larghezza e altezza esplicite (i test) ignora la mappa del livello; senza cartella delle mappe vale lo stesso.
+- **Mappe a biomi salvate con seme e lato soli.** Il client usa solo `MapGenSettings.Normal`; impostazioni personalizzate richiederebbero di estendere il salvataggio.
+- **Mappa della campagna ritoccata con la stessa misura**: il salvataggio la carica con il terreno nuovo; si ricontrollano solo i cantieri (un cantiere su una parete o sull'acqua profonda sparisce e rimborsa), gli edifici restano.
+- **Giacimenti a strisce da lontano**: sotto i 14 px per cella i giacimenti sono rettangoli per tratto di riga, non due cerchi per cella (da 70 a 240 FPS sulla mappa Enorme).
+- **Busta del salvataggio con generatore e mappa** (campi facoltativi, senza cambio di versione) per l'elenco di Gestione salvataggi.
+- **Svuotamento del GC all'uscita** in `World._ExitTree`, come soluzione provvisoria fino alla G4: risorse dell'HUD create in C# (`StyleBoxFlat`, texture caricate) restano senza `Dispose` e, finalizzate durante lo spegnimento del motore, a volte facevano cadere il gioco all'uscita. Le texture dei pezzi di terreno sono liberate subito.
+
+## Conseguenze
+
+- **Aggiungere un suolo o una parete** è un valore in fondo all'enum (i byte esistenti non cambiano: impronte e mappe restano valide) più una riga in `content.json` → `terrain`. Se deve bloccare la costruzione serve anche `Factory.TerrainBlocks`; perché compaia nelle mappe a seme va scelto nel `MapGenerator`, e ogni ritocco del generatore cambia l'impronta del seme 42 (voluto, fissata nei test).
+- **Aggiungere un livello** vuol dire generare la sua mappa con `MapTool genera`, controllarla con `valida` e `anteprima`, e mettere `"map": "<id>"` in `campaign.json` (vedi [ARCHITETTURA](../ARCHITETTURA.md#come-aggiungere-un-suolo-una-parete-o-un-livello)).
+- **Le mappe della campagna sono dati spediti col gioco**: cambiarne la misura rende illeggibili i salvataggi di quel livello (errore chiaro), cambiarne il contenuto no.
+- **La grafica del terreno arriva con la G2b**: oggi il client disegna colori semplici dalla tabella `terrain`. `TerrainChunks.BuildChunkImage` è l'unico punto in cui le celle diventano pixel.
+- **Determinismo.** Il generatore a biomi usa solo interi; l'impronta del seme 42 è la stessa in CI su Linux e su Windows.
+- **Base degli screenshot.** Il terreno nuovo cambia le catture dei playtest: la base candidata è in `.dev/baseline-g2a-candidata/`, da approvare prima di sostituire quella della G1.

@@ -111,6 +111,23 @@ public partial class World
     private bool _mapWorkBusy;
 
     /// <summary>
+    /// Starts a map load or new game from a UI signal without waiting for it. An exception it throws is never
+    /// lost: it goes to the log and, in Italian, to <paramref name="showError"/> (the panel the player is on).
+    /// </summary>
+    private async void RunMapTask(Func<Task> task, Action<string> showError)
+    {
+        try
+        {
+            await task();
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"Caricamento della mappa non riuscito: {ex}");
+            showError($"Caricamento della mappa non riuscito: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Runs <paramref name="work"/> (a map generated or loaded). Above the Media edge it first shows the
     /// "Generazione della mappa…" overlay and lets two frames go by so the player sees it before the blocking work;
     /// otherwise it runs at once. A second request while one waits is dropped (false/default).

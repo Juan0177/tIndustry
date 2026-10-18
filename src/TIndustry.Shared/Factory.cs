@@ -811,10 +811,14 @@ public sealed class Factory : IGameView
             throw new SaveMapException("Salvataggio della campagna senza il nome della mappa.");
         }
 
-        // A plain file name inside the maps folder, never a path (hand-edited saves).
-        if (data.MapId.IndexOfAny(['/', '\\', ':']) >= 0 || data.MapId.Contains("..", StringComparison.Ordinal))
+        // A plain file name inside the maps folder, never a path (hand-edited saves): the map files' own rule.
+        try
         {
-            throw new SaveMapException($"Nome della mappa della campagna non valido: '{data.MapId}'.");
+            CampaignMapFile.CheckId(data.MapId);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new SaveMapException($"Nome della mappa della campagna non valido: '{data.MapId}'.", ex);
         }
 
         if (mapsDirectory is null)

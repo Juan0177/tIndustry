@@ -1,34 +1,33 @@
 {
 	"nodes":[
-		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":484,"color":"1"},
-		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":974,"color":"5"},
-		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":244,"color":"3"},
-		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":1390,"color":"4"},
-		{"id":"titolo","type":"text","text":"# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G1.","x":0,"y":-170,"width":2100,"height":130,"color":"6"},
+		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":510,"color":"1"},
+		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":802,"color":"5"},
+		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":218,"color":"3"},
+		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":1692,"color":"4"},
+		{"id":"titolo","type":"text","text":"# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G2a.","x":0,"y":-170,"width":2100,"height":130,"color":"6"},
 		{"id":"sp1","type":"text","text":"**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146","x":20,"y":50,"width":440,"height":148,"color":"4"},
 		{"id":"sp2","type":"text","text":"**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]","x":20,"y":222,"width":440,"height":200,"color":"4"},
 		{"id":"sp3","type":"text","text":"**SP3 · Costruzione come Mindustry**\nPiani, drone e cantieri con consegna dal Core, smontaggio con rimborso graduale, coda nell'HUD, salvataggi v11.\nPR #159–#166 · [[2026-10-17-costruzione-in-corso|diario]] · [[0003-costruzione-come-mindustry|ADR 0003]]","x":20,"y":446,"width":440,"height":226,"color":"4"},
 		{"id":"g1","type":"text","text":"**G1 · Arte dei blocchi**\nPixel-art nostra generata da tools/art/ (32 px per cella): edifici a strati, nastri a 3 tier, oggetti, Core in 4 tier, drone alpha / beta / gamma, animazioni di base.\nPR #168–#173 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g1-arte-blocchi|piano]]","x":20,"y":696,"width":440,"height":226,"color":"4"},
-		{"id":"extra","type":"text","text":"**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)","x":20,"y":946,"width":440,"height":226,"color":"4"},
-		{"id":"docs","type":"text","text":"**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0004-arte-generata-da-script|0004]])\n- [[docs/diario/README|diario dei lavori]]","x":20,"y":1196,"width":440,"height":174,"color":"4"},
-		{"id":"g2a","type":"text","text":"**G2a · Mappe e terreno**\nMappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, salvataggi v12.\n[[2026-10-18-g2a-mappe-terreno-design|spec]]","x":560,"y":50,"width":440,"height":174,"color":"3"},
-		{"id":"g2b","type":"text","text":"**G2b · Arte del terreno**\nSuoli, bordi, pareti raccordate, acqua animata, giacimenti a puntini.\n[[2026-10-18-g2b-arte-terreno-design|spec]]","x":1100,"y":50,"width":440,"height":148,"color":"5"},
-		{"id":"g3","type":"text","text":"**G3 · Effetti e luci**\nParticelle, ombre, bagliori, notte opzionale, impostazioni grafiche per PC deboli.\n[[2026-10-18-g3-effetti-luci-design|spec]]","x":1100,"y":222,"width":440,"height":148,"color":"5"},
-		{"id":"g4","type":"text","text":"**G4 · Interfaccia**\nStile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]","x":1100,"y":394,"width":440,"height":148,"color":"5"},
-		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":566,"width":440,"height":122,"color":"5"},
-		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":712,"width":440,"height":96,"color":"5"},
-		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":832,"width":440,"height":122,"color":"5"},
+		{"id":"g2a","type":"text","text":"**G2a · Mappe e terreno**\nMappe a seme in 3 misure (fino a 2000²), 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file con tools/MapTool, terreno a pezzi nel client, Nuova partita, salvataggi v12.\nPR #175–#180 · [[0005-mappe-seme-e-file|ADR 0005]] · [[2026-10-18-g2a-mappe-terreno-design|spec]]","x":20,"y":946,"width":440,"height":278,"color":"4"},
+		{"id":"extra","type":"text","text":"**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)","x":20,"y":1248,"width":440,"height":226,"color":"4"},
+		{"id":"docs","type":"text","text":"**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0005-mappe-seme-e-file|0005]])\n- [[docs/diario/README|diario dei lavori]]","x":20,"y":1498,"width":440,"height":174,"color":"4"},
+		{"id":"g2b","type":"text","text":"**G2b · Arte del terreno**\nSuoli, bordi, pareti raccordate, acqua animata, giacimenti a puntini.\n[[2026-10-18-g2b-arte-terreno-design|spec]]","x":560,"y":50,"width":440,"height":148,"color":"3"},
+		{"id":"g3","type":"text","text":"**G3 · Effetti e luci**\nParticelle, ombre, bagliori, notte opzionale, impostazioni grafiche per PC deboli.\n[[2026-10-18-g3-effetti-luci-design|spec]]","x":1100,"y":50,"width":440,"height":148,"color":"5"},
+		{"id":"g4","type":"text","text":"**G4 · Interfaccia**\nStile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]","x":1100,"y":222,"width":440,"height":148,"color":"5"},
+		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":394,"width":440,"height":122,"color":"5"},
+		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":540,"width":440,"height":96,"color":"5"},
+		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":660,"width":440,"height":122,"color":"5"},
 		{"id":"a1","type":"text","text":"**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.","x":1640,"y":50,"width":440,"height":122,"color":"4"},
 		{"id":"a2","type":"text","text":"**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.","x":1640,"y":196,"width":440,"height":96,"color":"4"},
-		{"id":"a3","type":"text","text":"**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1 finita; base degli screenshot candidata in .dev/baseline-g1-candidata, da approvare.","x":1640,"y":316,"width":440,"height":148,"color":"1"}
+		{"id":"a3","type":"text","text":"**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1 e G2a finite; basi degli screenshot candidate in .dev/baseline-g1-candidata e .dev/baseline-g2a-candidata, da approvare.","x":1640,"y":316,"width":440,"height":174,"color":"1"}
 	],
 	"edges":[
-		{"id":"e-g2a-g2b","fromNode":"g2a","fromSide":"bottom","toNode":"g2b","toSide":"top"},
 		{"id":"e-g2b-g3","fromNode":"g2b","fromSide":"bottom","toNode":"g3","toSide":"top"},
 		{"id":"e-g3-g4","fromNode":"g3","fromSide":"bottom","toNode":"g4","toSide":"top"},
 		{"id":"e-g4-tier","fromNode":"g4","fromSide":"bottom","toNode":"tier","toSide":"top"},
 		{"id":"e-tier-liquidi","fromNode":"tier","fromSide":"bottom","toNode":"liquidi","toSide":"top"},
 		{"id":"e-liquidi-sp5","fromNode":"liquidi","fromSide":"bottom","toNode":"sp5","toSide":"top"},
-		{"id":"e-g1-g2a","fromNode":"g1","fromSide":"right","toNode":"g2a","toSide":"left"}
+		{"id":"e-g2a-g2b","fromNode":"g2a","fromSide":"right","toNode":"g2b","toSide":"left"}
 	]
 }

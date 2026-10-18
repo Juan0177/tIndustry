@@ -122,6 +122,45 @@ public sealed class PngReaderTests
         Assert.Contains("dopo la fine", Rejects(header, rest, [0]).Message);
     }
 
+    private static byte[] Zlib(byte[] raw)
+    {
+        using var output = new MemoryStream();
+        using (var z = new System.IO.Compression.ZLibStream(output, System.IO.Compression.CompressionLevel.NoCompression,
+                   leaveOpen: true))
+        {
+            z.Write(raw);
+        }
+
+        return output.ToArray();
+    }
+
+    [Fact]
+    public void ImageDataIsCappedFromTheHeader()
+    {
+        // 7×5 RGB needs 5 × (1 + 21) = 110 bytes once decompressed: 4 KiB of IDAT cannot be a sane encoding of it.
+        var huge = new byte[4096];
+        Assert.Contains("dati dell'immagine oltre", Rejects(Header(7, 5), Chunk("IDAT", huge), Chunk("IEND", [])).Message);
+
+        // The cap counts every IDAT chunk together.
+        var part = new byte[700];
+        Assert.Contains("dati dell'immagine oltre",
+            Rejects(Header(7, 5), Chunk("IDAT", part), Chunk("IDAT", part), Chunk("IEND", [])).Message);
+
+        // Even an uncompressed (stored) encoding of the full image stays under the cap.
+        var stored = Zlib(new byte[5 * 22]);
+        var (w, h, _) = PngReader.Read(new MemoryStream(PngReader.Signature
+            .Concat(Header(7, 5)).Concat(Chunk("IDAT", stored)).Concat(Chunk("IEND", [])).ToArray()));
+        Assert.Equal((7, 5), (w, h));
+    }
+
+    [Fact]
+    public void SurplusImageDataIsRejected()
+    {
+        // One row too many after decompression: the file does not match its header.
+        var surplus = Zlib(new byte[6 * 22]);
+        Assert.Contains("in eccesso", Rejects(Header(7, 5), Chunk("IDAT", surplus), Chunk("IEND", [])).Message);
+    }
+
     [Fact]
     public void PngReaderReadsWhatTheTestWriterWrites()
     {

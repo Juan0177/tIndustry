@@ -597,7 +597,11 @@ public static class CampaignMapFile
         }
     }
 
-    private static void CheckId(string mapId)
+    /// <summary>
+    /// The one rule for map ids (file names inside the maps folder, never a path): lower-case letters, digits
+    /// and '-'. Throws <see cref="ArgumentException"/> otherwise.
+    /// </summary>
+    internal static void CheckId(string mapId)
     {
         if (string.IsNullOrEmpty(mapId) || !mapId.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9' or '-'))
         {
