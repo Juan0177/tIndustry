@@ -18,7 +18,7 @@ if ART_DIR not in sys.path:
 import forme  # noqa: E402
 import genera  # noqa: E402
 from blocchi import SPRITE, sprite  # noqa: E402
-from palette import ACCENTO, BAGLIORE, METALLO, NASTRO, NUCLEO, RAME, RAMPE  # noqa: E402
+from palette import ACCENTO, BAGLIORE, CELLA, METALLO, NASTRO, NUCLEO, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
@@ -253,18 +253,28 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(sorted(lampade), lampade)
         self.assertEqual(len(set(lampade)), len(lampade))
 
+    def test_droni_muso_a_est(self):
+        # The half is drawn nose-up: its first row must end on the East edge, not the West one.
+        from blocchi import drone
+        im = drone.disegna(4, "O. .. .. ..").getchannel("A")
+        self.assertEqual([255, 255], [im.getpixel((3, 0)), im.getpixel((3, 3))])
+        self.assertEqual(0, max(im.getpixel((0, y)) for y in range(4)))
+        with self.assertRaises(ValueError):
+            drone.disegna(6, "O. ..")
+
     def test_droni(self):
         sagome = []
         for nome, lato in DRONI.items():
             with self.subTest(drone=nome):
                 im = SPRITE[nome]()
                 alfa = im.getchannel("A")
-                # Mirror-symmetric across the flight axis (West-East), nose on the East edge.
+                # Mirror-symmetric across the flight axis (West-East) and centred on it both ways,
+                # so the client turns it about its middle.
                 self.assertEqual(alfa.tobytes(), alfa.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes())
                 x0, y0, x1, y1 = alfa.getbbox()
-                self.assertEqual(lato, x1, f"{nome}: il muso non arriva al bordo Est")
-                naso = [y for y in range(lato) if alfa.getpixel((x1 - 1, y))]
-                self.assertTrue(naso and max(naso) - min(naso) <= 3, f"{nome}: muso non a punta")
+                self.assertLessEqual(abs(x0 + x1 - lato), 1, f"{nome}: non centrato lungo il volo")
+                # A glowing team cell sits on the axis in the middle.
+                self.assertIn(im.getpixel((lato // 2, lato // 2))[:3], CELLA[1:], f"{nome}: cella non al centro")
                 self.assertEqual((0, 0, 0, 0), im.getpixel((0, 0)))
                 sagome.append(alfa.resize((32, 32)).tobytes())
         self.assertEqual(len(set(sagome)), len(sagome))

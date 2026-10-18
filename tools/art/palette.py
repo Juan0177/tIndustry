@@ -21,6 +21,10 @@ ACCENTO = [(140, 92, 52), (196, 142, 80), (236, 186, 106), (255, 211, 127), (255
 NASTRO = [(30, 30, 34), (44, 44, 50), (58, 58, 66), (82, 82, 92)]  # belt rubber, from the samples
 ROSSO = [(72, 22, 24), (122, 34, 34), (176, 52, 46), (220, 88, 70), (246, 150, 126)]  # advanced-tier accents
 NUCLEO = [(14, 46, 62), (26, 96, 124), (54, 160, 196), (112, 214, 236), (200, 246, 255)]  # Core energy (cyan)
+# Drones (Mindustry-like units): grey armour plates and the glowing team cell.
+UNITA_SOTTO = [(46, 47, 56), (68, 70, 82), (82, 84, 96), (96, 98, 110), (116, 118, 130)]  # under-plates
+UNITA_SOPRA = [(96, 98, 110), (132, 134, 146), (164, 166, 178), (190, 192, 202), (214, 216, 226)]  # top plates
+CELLA = [(150, 84, 40), (214, 132, 60), (240, 166, 84), (255, 190, 100), (255, 240, 200)]  # team cell
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
 LUCCIOLA = [(70, 96, 20), (128, 170, 40), (188, 226, 70), (226, 250, 120), (250, 255, 200)]  # fireflies at night (G3)
 
@@ -68,5 +72,6 @@ RAMPE = {
     "METALLO": METALLO, "FULIGGINE": FULIGGINE, "BAGLIORE": BAGLIORE, "ACCENTO": ACCENTO,
     "NASTRO": NASTRO, "ENERGIA": ENERGIA, "LUCCIOLA": LUCCIOLA, "NUCLEO": NUCLEO, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
     "CARBONE": CARBONE, "GRAFITE": GRAFITE, "SILICIO": SILICIO,
+    "UNITA_SOTTO": UNITA_SOTTO, "UNITA_SOPRA": UNITA_SOPRA, "CELLA": CELLA,
     **{f"suolo {k}": v for k, v in SUOLI.items()}, **{f"parete {k}": v for k, v in PARETI.items()},
 }

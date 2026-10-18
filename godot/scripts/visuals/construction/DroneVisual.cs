@@ -5,8 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// One construction drone (Mindustry's alpha): the <c>drone-1</c> sprite turned to its heading over its own
-/// dark shadow, a 3-dot engine trail and, while it works, the build beam to its site. Position and heading are
-/// interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
+/// dark shadow, a pulsing engine glow at its tail with a 3-dot trail (as Mindustry's units) and, while it
+/// works, the build beam to its site. Position and heading are interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
 /// ±0.05 tile (graphics only). With effects on (G3) the beam is richer, as in Mindustry: a bright ray to a point
 /// that wanders over the site, throwing sparks (<c>scintille-cantiere</c>). The node itself is never rotated: it draws in world-aligned local space and turns
 /// only the sprite.
@@ -16,9 +16,17 @@ public partial class DroneVisual : Node2D
     /// <summary>Alpha, the tier of the starting Core (beta and gamma: <c>drone-2</c>, <c>drone-3</c>).</summary>
     private const string SpriteId = "drone-1";
 
-    /// <summary>Nose and engine of <c>drone-1</c> from its centre: 12 and 8 art px, drawn ×2 (64 px per tile).</summary>
-    private const float NoseTiles = 12f / Sprites.PixelsPerCell;
-    private const float TailTiles = 8f / Sprites.PixelsPerCell;
+    /// <summary>
+    /// Nose of <c>drone-1</c> and its engine glow from its centre: 10 and 12 art px, drawn ×2 (64 px per tile).
+    /// The tail stub ends at 11 px; the glow sits 1 px past it so half the disc shows behind the hull.
+    /// </summary>
+    private const float NoseTiles = 10f / Sprites.PixelsPerCell;
+    private const float TailTiles = 12f / Sprites.PixelsPerCell;
+
+    /// <summary>Engine glow radius (tiles) and its pulse: ±<see cref="EnginePulseTiles"/> at <see cref="EnginePulseRadPerSec"/>.</summary>
+    private const float EngineTiles = 0.08f;
+    private const float EnginePulseTiles = 0.02f;
+    private const float EnginePulseRadPerSec = 9f;
 
     /// <summary>
     /// Shadow: the same sprite in black at 35 %, 6 world px down-right (light from the top-left). It stays on the
@@ -70,8 +78,12 @@ public partial class DroneVisual : Node2D
 
     public long BuilderId { get; private set; }
 
+    /// <summary>
+    /// Linear filtering, as Mindustry draws its units: the hand-placed pixels turned to any heading would
+    /// otherwise break into jagged steps (blocks only turn by right angles and stay Nearest).
+    /// </summary>
     public static DroneVisual Create(BuilderUnit builder) =>
-        new() { Name = $"Drone_{builder.Id}", BuilderId = builder.Id, ZIndex = 2 };
+        new() { Name = $"Drone_{builder.Id}", BuilderId = builder.Id, ZIndex = 2, TextureFilter = TextureFilterEnum.Linear };
 
     /// <summary>
     /// Takes the drone's state for this frame. <paramref name="beamTarget"/> is the site it works on
@@ -161,6 +173,13 @@ public partial class DroneVisual : Node2D
         DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
 
         DrawBeam(heading * (NoseTiles * t));
+
+        // Engine glow under the tail: accent disc with a hot centre, pulsing (still in playtests).
+        var pulse = GameDataPaths.IsPlaytest ? 0f : Mathf.Abs(Mathf.Sin(_clock * EnginePulseRadPerSec));
+        var engine = heading * (-TailTiles * t);
+        var radius = (EngineTiles + EnginePulseTiles * pulse) * t;
+        DrawCircle(engine, radius, ConstructionLayer.Accent);
+        DrawCircle(engine, radius * 0.5f, Colors.White);
 
         // Engine trail: oldest dot faintest and smallest.
         var i = 0;
