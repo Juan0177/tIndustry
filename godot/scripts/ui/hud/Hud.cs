@@ -54,6 +54,7 @@ public partial class Hud : Control
     private string? _siteTipText;
     private Label? _toastLabel;
     private Tween? _toastTween;
+    private Label? _placementHint;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? ResearchRequested;
@@ -106,6 +107,7 @@ public partial class Hud : Control
         BuildCornerDock();
         AddChild(_info.BuildDetailOverlay());
         BuildToast();
+        BuildPlacementHint();
         BuildSiteTooltip();
         SetSelectedTool(ToolKind.Cursor);
         SetDirectionLabel("Est");
@@ -227,6 +229,24 @@ public partial class Hud : Control
         _siteTip.Visible = true;
     }
 
+    /// <summary>
+    /// Bottom hint under the toast line: why the ghost under the mouse is refused by the terrain ("C'è una parete",
+    /// "Acqua profonda"); null hides it. The text is set only when it changes.
+    /// </summary>
+    public void SetPlacementHint(string? text)
+    {
+        if (_placementHint is null)
+        {
+            return;
+        }
+
+        _placementHint.Visible = text is not null;
+        if (text is not null && !string.Equals(_placementHint.Text, text, StringComparison.Ordinal))
+        {
+            _placementHint.Text = text;
+        }
+    }
+
     public void ShowToast(string message)
     {
         if (_toastLabel is null)
@@ -322,6 +342,29 @@ public partial class Hud : Control
         _siteTipLabel.AddThemeFontSizeOverride("font_size", 13);
         margin.AddChild(_siteTipLabel);
         AddChild(_siteTip);
+    }
+
+    private void BuildPlacementHint()
+    {
+        _placementHint = new Label
+        {
+            Name = "PlacementHint",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore,
+            Visible = false
+        };
+        _placementHint.SetAnchorsPreset(LayoutPreset.CenterBottom);
+        _placementHint.GrowHorizontal = GrowDirection.Both;
+        _placementHint.OffsetLeft = -220;
+        _placementHint.OffsetRight = 220;
+        _placementHint.OffsetTop = -44;
+        _placementHint.OffsetBottom = -16;
+        _placementHint.AddThemeColorOverride("font_color", Insufficient);
+        _placementHint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
+        _placementHint.AddThemeConstantOverride("shadow_offset_x", 1);
+        _placementHint.AddThemeConstantOverride("shadow_offset_y", 1);
+        _placementHint.AddThemeFontSizeOverride("font_size", 15);
+        AddChild(_placementHint);
     }
 
     private void BuildToast()

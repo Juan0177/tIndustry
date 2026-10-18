@@ -111,13 +111,7 @@ public partial class World
             layer.AddChild(_campaignSelect);
         }
 
-        _campaignSelect.LevelChosen += level =>
-        {
-            _returnHomeAfterCampaign = false;
-            StartCampaignLevel(level, toast: true);
-            _campaignSelect.Close();
-            _home?.Close();
-        };
+        _campaignSelect.LevelChosen += OnCampaignLevelChosen;
         _campaignSelect.Closed += () =>
         {
             if (_returnHomeAfterCampaign)
@@ -126,6 +120,46 @@ public partial class World
                 _home?.Open();
             }
         };
+    }
+
+    private Control? _mapOverlay;
+
+    /// <summary>Full-screen "Generazione della mappa…" card above every panel (see <see cref="WithMapOverlayAsync{T}"/>).</summary>
+    private void EnsureMapOverlay()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        var overlay = new Control { Name = "MapOverlay", MouseFilter = Control.MouseFilterEnum.Stop, Visible = false };
+        overlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var dim = new ColorRect { Color = new Color(0.04f, 0.05f, 0.05f, 0.88f), MouseFilter = Control.MouseFilterEnum.Ignore };
+        dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        overlay.AddChild(dim);
+        var label = new Label
+        {
+            Text = "Generazione della mappa…",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+        label.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        label.AddThemeColorOverride("font_color", new Color(0.92f, 0.78f, 0.28f, 1f));
+        label.AddThemeFontSizeOverride("font_size", 26);
+        overlay.AddChild(label);
+        layer.AddChild(overlay);
+        _mapOverlay = overlay;
+    }
+
+    /// <summary>A level picked on the campaign list; one whose map cannot load keeps the list open with the reason.</summary>
+    private void OnCampaignLevelChosen(CampaignLevelDefinition level)
+    {
+        if (StartCampaignLevel(level, toast: true) is { } error)
+        {
+            _campaignSelect?.ShowError(error);
+            return;
+        }
+
+        _returnHomeAfterCampaign = false;
+        _campaignSelect?.Close();
+        _home?.Close();
     }
 
     private void EnsureHomePanel()
@@ -144,16 +178,12 @@ public partial class World
         // Keep Home above other HUD so it covers dock/info while choosing.
         layer.MoveChild(_home, layer.GetChildCount() - 1);
 
-        _home.ContinuaChosen += OnHomeContinua;
+        _home.ContinuaChosen += () => _ = OnHomeContinuaAsync();
         _home.CampaignChosen += OnHomeCampaign;
         _home.NewGameChosen += OpenNewGamePanel;
         _home.SavesChosen += OpenSavesManager;
         _home.SettingsChosen += OpenSettings;
-        _home.QuitChosen += () =>
-        {
-            AutoSaveContinue(quiet: true);
-            QuitAfterFinalizers(0);
-        };
+        _home.QuitChosen += QuitGame;
     }
 
     private void EnsureNewGamePanel()
@@ -170,7 +200,7 @@ public partial class World
         }
 
         layer.MoveChild(_newGame, layer.GetChildCount() - 1);
-        _newGame.StartRequested += StartNewGameFromHome;
+        _newGame.StartRequested += (size, seed) => _ = StartNewGameFromPanelAsync(size, seed);
         _newGame.Cancelled += () => _home?.Open();
     }
 
@@ -184,22 +214,20 @@ public partial class World
     }
 
     /// <summary>
-    /// Runs pending .NET finalizers before quitting: Godot wrappers finalized while the engine shuts down crash it
-    /// ("Leaked unsafe reference", "!rc_owner"), more likely after big allocations such as a 2000² map.
+    /// The one way out of the game, for Home "Esci" and the window's close button (Godot's automatic quit on close is
+    /// off, see <see cref="_Ready"/>): Continua is saved if a game was played (Raylib parity), then the tree quits.
     /// </summary>
-    private void QuitAfterFinalizers(int exitCode)
+    private void QuitGame()
     {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GetTree().Quit(exitCode);
+        AutoSaveContinue(quiet: true);
+        GetTree().Quit();
     }
 
     public override void _Notification(int what)
     {
-        // Raylib parity: persist Continua when the window closes mid-session.
         if (what == NotificationWMCloseRequest)
         {
-            AutoSaveContinue(quiet: true);
+            QuitGame();
         }
     }
 
@@ -217,7 +245,7 @@ public partial class World
         }
 
         layer.MoveChild(_saves, layer.GetChildCount() - 1);
-        _saves.SlotLoadRequested += OnSavesSlotLoad;
+        _saves.SlotLoadRequested += slotId => _ = OnSavesSlotLoadAsync(slotId);
         _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
         _saves.MapName = mapId => _campaign?.Levels.FirstOrDefault(l => l.Map == mapId)?.Name;
@@ -233,9 +261,11 @@ public partial class World
         _saves?.Open();
     }
 
-    private void OnSavesSlotLoad(string slotId)
+    private async Task OnSavesSlotLoadAsync(string slotId)
     {
-        if (!LoadGame(slotId, $"Caricato · {slotId}", showOnPanel: m => _saves?.ShowStatus(m)))
+        var loaded = await WithMapOverlayAsync(
+            SlotMapEdge(slotId), () => LoadGame(slotId, $"Caricato · {slotId}", showOnPanel: m => _saves?.ShowStatus(m)));
+        if (!loaded)
         {
             return; // stay on the saves panel with the error visible
         }

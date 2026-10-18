@@ -95,6 +95,8 @@ public partial class World : Node2D
             return;
         }
 
+        // Closing the window goes through QuitGame (Continua autosave), like Home "Esci".
+        GetTree().AutoAcceptQuit = false;
         _contentPath = ResolveContentPath();
         _campaignPath = ResolveCampaignPath();
         _settings = ClientSettings.Load();
@@ -117,6 +119,7 @@ public partial class World : Node2D
         EnsureSavesPanel();
         EnsureHomePanel();
         EnsureNewGamePanel();
+        EnsureMapOverlay();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
         UseSmoothUiFiltering();
@@ -188,6 +191,7 @@ public partial class World : Node2D
         if (_home?.IsOpen == true || _newGame?.IsOpen == true || _view is null)
         {
             _hud?.SetSiteTooltip(null, default);
+            _hud?.SetPlacementHint(null);
             return;
         }
 
@@ -214,6 +218,20 @@ public partial class World : Node2D
         UpdateHud();
         CheckCampaignComplete();
         QueueRedraw();
+    }
+
+    /// <summary>
+    /// Leaving the tree (any quit: Home "Esci", window close, end of a playtest): unhook the playtest guard and run
+    /// the pending .NET finalizers while the engine is still whole. Godot wrappers already unreachable but not yet
+    /// finalized (UI <c>StyleBoxFlat</c>s and <c>CompressedTexture2D</c>s created in C#) would otherwise be finalized
+    /// by the GC during engine teardown, which crashes it ("Leaked unsafe reference", "!rc_owner"); bigger maps mean
+    /// more GC pressure and made it likely.
+    /// </summary>
+    public override void _ExitTree()
+    {
+        GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
 
     private void EnsureTerrainChunks()

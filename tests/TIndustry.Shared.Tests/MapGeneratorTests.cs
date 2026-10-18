@@ -139,6 +139,19 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
         }
     }
 
+    /// <summary>The Nuova partita panel accepts any int seed: negative and extreme ones are valid and deterministic.</summary>
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-123456789)]
+    [InlineData(int.MinValue)]
+    [InlineData(int.MaxValue)]
+    public void NegativeAndExtremeSeedsWork(int seed)
+    {
+        var settings = Small(seed);
+        Assert.Equal(TerrainMap.TerrainHash(Generate(settings).Map), TerrainMap.TerrainHash(Generate(settings).Map));
+        AssertGoodStart(settings, Label(settings));
+    }
+
     private static void AssertGoodStart(MapGenSettings settings, string label)
     {
         var (map, core) = Generate(settings);

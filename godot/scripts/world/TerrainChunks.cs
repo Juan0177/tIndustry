@@ -14,7 +14,10 @@ public partial class TerrainChunks : Node2D
 {
     public const int ChunkCells = 64;
 
-    /// <summary>Most chunks kept alive; the view at minimum zoom needs well under this.</summary>
+    /// <summary>
+    /// Most chunks kept alive; the view at minimum zoom needs well under this on a 1080p screen. A bigger view keeps
+    /// at least the chunks it touches (no rebuild every frame).
+    /// </summary>
     public const int MaxCachedChunks = 256;
 
     /// <summary>Chunks built around the view on each side, so panning rarely shows a missing one.</summary>
@@ -82,6 +85,7 @@ public partial class TerrainChunks : Node2D
         var c0y = Math.Max(0, minY / ChunkCells - MarginChunks);
         var c1x = Math.Min(lastCx, maxX / ChunkCells + MarginChunks);
         var c1y = Math.Min(lastCy, maxY / ChunkCells + MarginChunks);
+        var touched = (c1x - c0x + 1) * (c1y - c0y + 1);
         for (var cy = c0y; cy <= c1y; cy++)
         {
             for (var cx = c0x; cx <= c1x; cx++)
@@ -90,12 +94,13 @@ public partial class TerrainChunks : Node2D
             }
         }
 
-        // The ones just touched are at the front: evict from the back only past the cap.
-        while (_lru.Count > MaxCachedChunks && _lru.Last is { } oldest)
+        // The ones just touched are at the front: evict from the back only past the cap, never one in view.
+        var cap = Math.Max(MaxCachedChunks, touched);
+        while (_lru.Count > cap && _lru.Last is { } oldest)
         {
             _lru.RemoveLast();
             _chunks.Remove(oldest.Value.Key);
-            oldest.Value.Sprite.QueueFree();
+            oldest.Value.Free();
         }
     }
 
@@ -114,16 +119,17 @@ public partial class TerrainChunks : Node2D
 
         // The texture keeps its own copy: free the image now instead of leaving it to the finalizer.
         using var image = BuildChunkImage(key.X, key.Y);
+        var texture = ImageTexture.CreateFromImage(image);
         var sprite = new Sprite2D
         {
-            Texture = ImageTexture.CreateFromImage(image),
+            Texture = texture,
             Centered = false,
             Position = new Vector2(key.X * ChunkCells * _tileSize, key.Y * ChunkCells * _tileSize),
             Scale = new Vector2(_tileSize, _tileSize),
             TextureFilter = TextureFilterEnum.Nearest
         };
         AddChild(sprite);
-        _chunks[key] = _lru.AddFirst(new Chunk(key, sprite));
+        _chunks[key] = _lru.AddFirst(new Chunk(key, sprite, texture));
         BuiltSinceReset++;
     }
 
@@ -131,7 +137,7 @@ public partial class TerrainChunks : Node2D
     {
         foreach (var chunk in _lru)
         {
-            chunk.Sprite.QueueFree();
+            chunk.Free();
         }
 
         _lru.Clear();
@@ -214,5 +220,20 @@ public partial class TerrainChunks : Node2D
         }
     }
 
-    private sealed record Chunk(Vector2I Key, Sprite2D Sprite);
+    public override void _ExitTree() => Clear();
+
+    /// <summary>A chunk's sprite and the texture it owns.</summary>
+    private sealed record Chunk(Vector2I Key, Sprite2D Sprite, ImageTexture Texture)
+    {
+        /// <summary>
+        /// Frees the sprite and releases the texture now: left to the .NET finalizer, the texture stays in memory
+        /// until a GC, and wrappers still pending at exit crash Godot's shutdown.
+        /// </summary>
+        public void Free()
+        {
+            Sprite.Texture = null;
+            Sprite.QueueFree();
+            Texture.Dispose();
+        }
+    }
 }

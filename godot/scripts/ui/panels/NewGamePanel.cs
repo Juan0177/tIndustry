@@ -67,6 +67,12 @@ public partial class NewGamePanel : Control
             return;
         }
 
+        // During a playtest only its synthetic events count (World._Input drops the others first; this guards too).
+        if (GameDataPaths.IsPlaytest && @event.Device != World.PlaytestDevice)
+        {
+            return;
+        }
+
         if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
         {
             Close();
@@ -114,7 +120,10 @@ public partial class NewGamePanel : Control
             return seed;
         }
 
-        ShowStatus("Il seme deve essere un numero intero.", error: true);
+        ShowStatus(
+            $"Il seme deve essere un numero intero tra {int.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture)} "
+            + $"e {int.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture)}.",
+            error: true);
         return null;
     }
 

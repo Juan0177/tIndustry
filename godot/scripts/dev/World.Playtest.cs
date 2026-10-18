@@ -11,7 +11,7 @@ namespace TIndustry.Godot;
 public partial class World
 {
     /// <summary>Device id stamped on synthetic events; anything else is the player's real input.</summary>
-    private const int PlaytestDevice = 4242;
+    internal const int PlaytestDevice = 4242;
 
     /// <summary>
     /// While a playtest runs, drop real mouse/keyboard input before UI and world see it: the window is on
@@ -50,8 +50,6 @@ public partial class World
         return false;
     }
 
-    public override void _ExitTree() => GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
-
     private void OnPlayerDataWriteRefused(string message)
     {
         GD.PushError(message);
@@ -85,7 +83,7 @@ public partial class World
             _ => Fail($"playtest sconosciuto: {name}")
         };
         GD.Print(ok ? "PLAYTEST OK" : "PLAYTEST FAIL");
-        QuitAfterFinalizers(ok ? 0 : 1);
+        GetTree().Quit(ok ? 0 : 1);
     }
 
     /// <summary>First run → Nuova partita → every tutorial step done by input, frame saved after each.</summary>
@@ -95,8 +93,7 @@ public partial class World
         async Task Shot(string label)
         {
             await PlaytestWait(0.25);
-            GetViewport().GetTexture().GetImage()
-                .SavePng(Path.Combine(dir, $"tutorial-{shot++:00}-{label}.png"));
+            SaveViewportPng(Path.Combine(dir, $"tutorial-{shot++:00}-{label}.png"));
         }
 
         bool Expect(TutorialPanel.Step step, string label)
@@ -236,7 +233,7 @@ public partial class World
         async Task Shot(string label)
         {
             await PlaytestWait(0.3);
-            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-{label}.png"));
+            SaveViewportPng(Path.Combine(dir, $"ui-{label}.png"));
         }
 
         // Leaving Home before playing (Esci / window close) must not write the startup sandbox to Continua.
@@ -334,7 +331,23 @@ public partial class World
             return Fail("campagna senza livelli");
         }
 
-        StartCampaignLevel(level, toast: true);
+        // A level whose map file is missing: the list stays open with the reason, the game is untouched.
+        var before = _view;
+        ToggleCampaign();
+        OnCampaignLevelChosen(level with { Map = "mappa-inesistente" });
+        if (_campaignSelect?.IsOpen != true || !ReferenceEquals(_view, before))
+        {
+            return Fail("livello con mappa mancante: elenco chiuso o partita cambiata");
+        }
+
+        await Shot("campagna-mappa-mancante");
+        _campaignSelect.Close();
+
+        if (StartCampaignLevel(level, toast: true) is { } campaignError)
+        {
+            return Fail($"livello {level.Id}: {campaignError}");
+        }
+
         if (_view?.Terrain?.Generator != CampaignMapFile.GeneratorPrefix + level.Map)
         {
             return Fail($"livello {level.Id}: mappa {_view?.Terrain?.Generator ?? "assente"} invece del file {level.Map}");
@@ -483,9 +496,22 @@ public partial class World
     /// </summary>
     private async Task PlaytestHugeMapPerfAsync(string dir)
     {
-        var started = Time.GetTicksUsec();
-        StartNewSandbox(MapSize.Enorme, PlaytestSeed, toast: false);
-        var startMs = (Time.GetTicksUsec() - started) / 1000.0;
+        // The overlay's look (it is up for only one blocking frame below).
+        if (_mapOverlay is not null)
+        {
+            _mapOverlay.Visible = true;
+            await PlaytestWait(0.3);
+            SaveViewportPng(Path.Combine(dir, "ui-generazione-mappa.png"));
+            _mapOverlay.Visible = false;
+        }
+
+        // Through the generation overlay, as the Nuova partita panel does; timed from the blocking work only.
+        var startMs = await WithMapOverlayAsync((int)MapSize.Enorme, () =>
+        {
+            var started = Time.GetTicksUsec();
+            StartNewSandbox(MapSize.Enorme, PlaytestSeed, toast: false);
+            return (Time.GetTicksUsec() - started) / 1000.0;
+        });
         if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam || _terrainChunks is null)
         {
             return;
@@ -495,7 +521,7 @@ public partial class World
         cam.ClampToMap();
         // Past the campaign toast (1.6 s + fade).
         await PlaytestWait(2.5);
-        GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "ui-enorme-zoom-min.png"));
+        SaveViewportPng(Path.Combine(dir, "ui-enorme-zoom-min.png"));
 
         var vsync = DisplayServer.WindowGetVsyncMode();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
@@ -670,7 +696,7 @@ public partial class World
             cam.Position = new Vector2((a.X + b.X + 1) * 0.5f * TileSize, (a.Y + b.Y + 1) * 0.5f * TileSize);
             cam.Zoom = new Vector2(zoom, zoom);
             await PlaytestWait(0.6);
-            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-blocchi-{label}.png"));
+            SaveViewportPng(Path.Combine(dir, $"ui-blocchi-{label}.png"));
         }
 
         // 1280×720 at zoom z shows 20/z × 11/z cells; keep a margin for the HUD.
@@ -942,6 +968,13 @@ public partial class World
         {
             Position = at, GlobalPosition = at, ButtonMask = mask, Device = PlaytestDevice
         });
+
+    /// <summary>Saves the current frame; the image is released at once (not left to the finalizer).</summary>
+    private void SaveViewportPng(string path)
+    {
+        using var image = GetViewport().GetTexture().GetImage();
+        image.SavePng(path);
+    }
 
     private static bool Fail(string message)
     {

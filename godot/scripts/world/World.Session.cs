@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 /// <summary>Game session flow: Home/Campagna/Nuova partita, camera, campaign completion, research locks, save/load.</summary>
 public partial class World
 {
-    private void OnHomeContinua()
+    private async Task OnHomeContinuaAsync()
     {
         if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
         {
@@ -15,7 +15,10 @@ public partial class World
             return;
         }
 
-        if (!LoadGame(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)))
+        var loaded = await WithMapOverlayAsync(
+            SlotMapEdge(FactorySaveStore.ContinueSlotId),
+            () => LoadGame(FactorySaveStore.ContinueSlotId, "Continua caricata", showOnPanel: m => _home?.ShowError(m)));
+        if (!loaded)
         {
             return; // stay on Home with the error visible
         }
@@ -39,6 +42,14 @@ public partial class World
 
     /// <summary>Seed of the scripted playtests' sandbox.</summary>
     private const int PlaytestSeed = 42;
+
+    /// <summary>Inizia on the Nuova partita panel: Grande and Enorme show the generation overlay first.</summary>
+    private async Task StartNewGameFromPanelAsync(MapSize size, int seed) =>
+        await WithMapOverlayAsync((int)size, () =>
+        {
+            StartNewGameFromHome(size, seed);
+            return true;
+        });
 
     private void StartNewGameFromHome(MapSize size, int seed)
     {
@@ -88,6 +99,46 @@ public partial class World
         if (toast)
         {
             _hud?.ShowToast($"Nuova partita · {NewGamePanel.SizeLabel(size)} {(int)size}×{(int)size} · seme {seed}");
+        }
+    }
+
+    /// <summary>Map edge of a save slot from the slot list (0 when unknown).</summary>
+    private static int SlotMapEdge(string slotId) =>
+        FactorySaveStore.ListSlots().FirstOrDefault(s => s.Id == slotId) is { } slot
+            ? Math.Max(slot.MapWidth, slot.MapHeight)
+            : 0;
+
+    private bool _mapWorkBusy;
+
+    /// <summary>
+    /// Runs <paramref name="work"/> (a map generated or loaded). Above the Media edge it first shows the
+    /// "Generazione della mappa…" overlay and lets two frames go by so the player sees it before the blocking work;
+    /// otherwise it runs at once. A second request while one waits is dropped (false/default).
+    /// </summary>
+    private async Task<T?> WithMapOverlayAsync<T>(int edge, Func<T> work)
+    {
+        if (edge <= (int)MapSize.Media || _mapOverlay is null)
+        {
+            return work();
+        }
+
+        if (_mapWorkBusy)
+        {
+            return default;
+        }
+
+        _mapWorkBusy = true;
+        _mapOverlay.Visible = true;
+        try
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            return work();
+        }
+        finally
+        {
+            _mapOverlay.Visible = false;
+            _mapWorkBusy = false;
         }
     }
 
@@ -173,11 +224,15 @@ public partial class World
         _campaignSelect.Open(_campaign, _progress);
     }
 
-    private void StartCampaignLevel(CampaignLevelDefinition level, bool toast)
+    /// <summary>
+    /// Starts <paramref name="level"/> on its map file. Returns null when the level started, otherwise the Italian
+    /// reason (map file missing or invalid); the current game is then left as it was.
+    /// </summary>
+    private string? StartCampaignLevel(CampaignLevelDefinition level, bool toast)
     {
         if (_campaign is null)
         {
-            return;
+            return "Campagna non disponibile.";
         }
 
         Factory factory;
@@ -189,9 +244,8 @@ public partial class World
         }
         catch (Exception ex)
         {
-            GD.PushError($"Campaign map failed: {ex.Message}");
-            _hud?.ShowToast($"Mappa del livello non disponibile · {level.Name}");
-            return;
+            GD.Print($"Campaign map failed: {ex.Message}");
+            return $"Mappa del livello «{level.Name}» non disponibile: {ex.Message}";
         }
 
         AttachGame(factory);
@@ -214,6 +268,8 @@ public partial class World
             _hud?.ShowToast($"Campagna · {level.Name} · {ActiveMapWidth}×{ActiveMapHeight}");
             // Raylib: campaign disables first-run tutorial (objectives HUD only).
         }
+
+        return null;
     }
 
     /// <summary>Centres the camera on <paramref name="worldRect"/> (build queue click), keeping the zoom.</summary>

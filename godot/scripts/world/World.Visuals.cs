@@ -67,7 +67,6 @@ public partial class World
     /// <summary>
     /// Hover on a site stalled for resources (not while the mouse is over the HUD): "Mancano: {n} {oggetto}", n being what its limiting cost line is
     /// still short of (<see cref="ConstructSite.Missing"/>); money shows as "$n" like the other cost texts.
-    /// With a build tool over a wall or deep water the tooltip says that instead (<see cref="GhostTerrainReason"/>).
     /// </summary>
     private void SyncSiteTooltip()
     {
@@ -76,16 +75,12 @@ public partial class World
             return;
         }
 
-        if (_view is not null
+        // The ghost is red on a wall or deep water: the bottom hint says why.
+        _hud.SetPlacementHint(_view is not null
             && GetViewport().GuiGetHoveredControl() is null
             && _hover is { } ghostAt
-            && GhostTerrainReason(ghostAt) is { } refusal)
-        {
-            // The ghost is red on a wall or deep water: say why beside the mouse.
-            _siteTipKey = null;
-            _hud.SetSiteTooltip(refusal, _hoverScreen);
-            return;
-        }
+            ? GhostTerrainReason(ghostAt)
+            : null);
 
         if (_view is null
             || GetViewport().GuiGetHoveredControl() is not null

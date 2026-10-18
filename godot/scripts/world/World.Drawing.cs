@@ -122,15 +122,27 @@ public partial class World
     }
 
     private readonly HashSet<GridPosition> _buildingTiles = [];
+    private readonly long[] _buildingTilesKey = new long[14];
+    private readonly long[] _structureKey = new long[14];
+    private IGameView? _buildingTilesView;
 
     /// <summary>
-    /// Cells under buildings and construction sites, gathered once per frame (the same cells as
-    /// <see cref="IGameView.IsBuildingTile"/>, which scans every building per call).
+    /// Cells under buildings and construction sites (the same cells as <see cref="IGameView.IsBuildingTile"/>, which
+    /// scans every building per call), rebuilt only when the structures change: count and highest id of each list
+    /// differ as soon as one is added or removed (ids are never reused within a game).
     /// </summary>
     private HashSet<GridPosition> BuildingTilesThisFrame()
     {
-        _buildingTiles.Clear();
         var view = _view!;
+        FillStructureKey(view, _structureKey);
+        if (ReferenceEquals(view, _buildingTilesView) && _structureKey.AsSpan().SequenceEqual(_buildingTilesKey))
+        {
+            return _buildingTiles;
+        }
+
+        _buildingTilesView = view;
+        _structureKey.CopyTo(_buildingTilesKey, 0);
+        _buildingTiles.Clear();
         foreach (var site in view.Sites)
         {
             _buildingTiles.UnionWith(site.Tiles);
@@ -162,6 +174,66 @@ public partial class World
         }
 
         return _buildingTiles;
+    }
+
+    private static void FillStructureKey(IGameView view, long[] key)
+    {
+        var i = 0;
+        void Add(int count, long maxId)
+        {
+            key[i++] = count;
+            key[i++] = maxId;
+        }
+
+        long max = 0;
+        foreach (var s in view.Sites)
+        {
+            max = Math.Max(max, s.Id);
+        }
+
+        Add(view.Sites.Count, max);
+        max = 0;
+        foreach (var m in view.Miners)
+        {
+            max = Math.Max(max, m.Id);
+        }
+
+        Add(view.Miners.Count, max);
+        max = 0;
+        foreach (var c in view.Smelters)
+        {
+            max = Math.Max(max, c.Id);
+        }
+
+        Add(view.Smelters.Count, max);
+        max = 0;
+        foreach (var c in view.Assemblers)
+        {
+            max = Math.Max(max, c.Id);
+        }
+
+        Add(view.Assemblers.Count, max);
+        max = 0;
+        foreach (var g in view.Generators)
+        {
+            max = Math.Max(max, g.Id);
+        }
+
+        Add(view.Generators.Count, max);
+        max = 0;
+        foreach (var e in view.Extractors)
+        {
+            max = Math.Max(max, e.Id);
+        }
+
+        Add(view.Extractors.Count, max);
+        max = 0;
+        foreach (var n in view.PowerNodes)
+        {
+            max = Math.Max(max, n.Id);
+        }
+
+        Add(view.PowerNodes.Count, max);
     }
 
     /// <summary>Cell size on screen from which deposits show their ore icon instead of plain colour.</summary>

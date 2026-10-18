@@ -36,7 +36,22 @@ public partial class CampaignSelectPanel : Control
         _catalog = catalog;
         _progress = progress;
         Visible = true;
+        ShowHint(DefaultHint, TextMuted);
         Refresh();
+    }
+
+    private const string DefaultHint = "Scegli un livello sbloccato · G apre / Esc chiude";
+
+    /// <summary>Shows why a level could not start in place of the hint line (until the panel is opened again).</summary>
+    public void ShowError(string message) => ShowHint(message, new Color(0.95f, 0.45f, 0.40f, 1f));
+
+    private void ShowHint(string text, Color color)
+    {
+        if (_hintLabel is not null)
+        {
+            _hintLabel.Text = text;
+            _hintLabel.AddThemeColorOverride("font_color", color);
+        }
     }
 
     public void Close()
@@ -116,7 +131,7 @@ public partial class CampaignSelectPanel : Control
 
         _hintLabel = new Label
         {
-            Text = "Scegli un livello sbloccato · G apre / Esc chiude",
+            Text = DefaultHint,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
         _hintLabel.AddThemeColorOverride("font_color", TextMuted);
