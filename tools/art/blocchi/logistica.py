@@ -125,35 +125,29 @@ def _colore_curva(tier, fotogramma, a, b, v=None):
 
 
 def unione_t(tier, fotogramma):
-    """T merge (Mindustry's merging conveyor): in from the North and South edges, out from the East edge.
+    """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and
+    South edges, out from the East edge.
 
-    The tread is the output's own: rows 6-25 are the straight East frame, so every chevron points at
-    the output and scrolls with it; the straight belt's North and South rails give way to plain
-    ribs, where the inputs come in. The West side, with no input, is closed by a straight rail that
-    continues the side belts' outer rails. At the two output-side corners the corner's inner rail
-    elbow (its rail and groove within 5 px of the pivot) turns each input's inner rail into the
-    output belt's side rail, as in a corner.
+    The bottom half is the corner turned to come in from the South (pivot on the South-East
+    corner), the top half its mirror coming in from the North (pivot on the North-East corner),
+    same frame: each pixel takes the corner whose pivot is nearer, so the two inner curved rails
+    meet the output belt's rails and both treads bend into the output like a corner. Where both
+    corners would draw their outer groove and rail (they would cross the other input) the tread goes on; the
+    West side, with no input, is closed by a straight rail that continues the side belts' outer
+    rails.
     """
-    dritto = nastro(tier, fotogramma)
-    im = dritto.copy()
-    for y in list(range(0, 6)) + list(range(T - 6, T)):
-        v = 6 if y < T // 2 else T - 7  # plain ribs, outside the chevron's arms
-        for x in range(T):
-            forme.pixel(im, x, y, _colore_nastro(x, v, tier, fotogramma * PASSO))
+    im = forme.nuova(T, T)
     for y in range(T):
-        for x in range(5):
-            # Back rail, mirrored on the axis so both input edges see the same joint as the side belts.
-            forme.pixel(im, x, y, _binario(min(y, T - 1 - y), x, tier))
-        forme.pixel(im, 5, y, NASTRO[0])  # groove along the rail
-        for x in range(T // 2, T):
-            # Elbows: the corner coming in from the South (pivot South-East) and its mirror (North-East).
+        for x in range(T):
+            if x < 5:
+                # Back rail, mirrored on the axis so both input edges see the corner's joint.
+                forme.pixel(im, x, y, _binario(min(y, T - 1 - y), x, tier))
+                continue
             a, b = (T - 1 - y, T - 1 - x) if y >= T // 2 else (y, T - 1 - x)
-            if _riga_curva(a, b) >= GOMITO:
-                forme.pixel(im, x, y, _colore_curva(tier, fotogramma, a, b))
+            v = _riga_curva(a, b)
+            forme.pixel(im, x, y, _colore_curva(tier, fotogramma, a, b) if v >= 6
+                        else _colore_curva(tier, fotogramma, a, b, v=6))
     return im
-
-
-GOMITO = T - 6  # rows across the belt of a corner's inner rail and its groove (within 5 px of the pivot)
 
 
 def _registra_nastro(tier):
