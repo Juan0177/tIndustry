@@ -295,6 +295,11 @@ public partial class World
             await PlaytestBeltPerfAsync();
         }
 
+        if (OS.GetEnvironment(PlaytestBlocksEnv) == "1")
+        {
+            await PlaytestBlocksShotAsync(dir);
+        }
+
         if (!await PlaytestRemoveDragOutAndBackAsync())
         {
             return false;
@@ -368,6 +373,146 @@ public partial class World
         var average = frames / ((last - start) / 1e6);
         var nodes = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
         GD.Print($"PLAYTEST perf: {placed} nastri, fps medio {average:F0}, minimo {1e6 / Math.Max(1UL, worst):F0}, nodi {nodes:F0}");
+    }
+
+    /// <summary>Set to 1 to run <see cref="PlaytestBlocksShotAsync"/> in the <c>ui</c> playtest.</summary>
+    private const string PlaytestBlocksEnv = "TINDUSTRY_PLAYTEST_BLOCCHI";
+
+    /// <summary>
+    /// Art check (only with <c>TINDUSTRY_PLAYTEST_BLOCCHI=1</c>), no pass/fail: builds every production and power
+    /// block twice, idle (off a deposit, no input, no fuel) and working (miners on a deposit, the advanced one beside a
+    /// burning generator, smelter and assembler fed), and saves <c>ui-blocchi-spenti.png</c>,
+    /// <c>ui-blocchi-accesi.png</c> and both groups at zoom 0.4 (<c>ui-blocchi-zoom04.png</c>).
+    /// </summary>
+    private async Task PlaytestBlocksShotAsync(string dir)
+    {
+        if (_view is not Factory factory || _view.Terrain is not { } terrain || GetNodeOrNull<Camera2D>("Camera") is not { } cam)
+        {
+            return;
+        }
+
+        var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        void Place(string id, BuildingKind kind, GridPosition at)
+        {
+            if (!factory.PlaceInstant(new BuildSpec(id, kind, at, Direction.East), charge: false))
+            {
+                GD.Print($"PLAYTEST blocchi: {id} su {at} rifiutato");
+            }
+        }
+
+        bool Free(GridPosition origin, int w, int h, bool deposit)
+        {
+            for (var y = origin.Y; y < origin.Y + h; y++)
+            {
+                for (var x = origin.X; x < origin.X + w; x++)
+                {
+                    var cell = new GridPosition(x, y);
+                    if (!terrain.InBounds(cell) || (terrain[cell].Deposit != DepositKind.None) != deposit
+                        || !factory.CanPlace(new BuildSpec(BuildSpec.DefaultConveyorId, null, cell, Direction.East), out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        // Nearest free w×h spot around the Core (square rings), on or off a deposit.
+        GridPosition? Find(int w, int h, bool deposit)
+        {
+            for (var r = 3; r < 60; r++)
+            {
+                for (var dy = -r; dy <= r; dy++)
+                {
+                    for (var dx = -r; dx <= r; dx++)
+                    {
+                        var at = new GridPosition(core.X + dx, core.Y + dy);
+                        if (Math.Max(Math.Abs(dx), Math.Abs(dy)) == r && Free(at, w, h, deposit))
+                        {
+                            return at;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // Idle group: one row on plain ground.
+        if (Find(17, 2, deposit: false) is not { } off)
+        {
+            GD.Print("PLAYTEST blocchi: nessuno spazio libero");
+            return;
+        }
+
+        Place(Miner.BasicId, BuildingKind.Miner, off);
+        Place(Miner.AdvancedId, BuildingKind.MinerAdvanced, new GridPosition(off.X + 3, off.Y));
+        Place(Crafter.SmelterBuildingId, BuildingKind.Smelter, new GridPosition(off.X + 6, off.Y));
+        Place(Crafter.AssemblerBuildingId, BuildingKind.Assembler, new GridPosition(off.X + 9, off.Y));
+        Place(Generator.BuildingId, BuildingKind.Generator, new GridPosition(off.X + 12, off.Y));
+        Place("extractor", BuildingKind.Extractor, new GridPosition(off.X + 15, off.Y));
+        Place("power-node", BuildingKind.PowerNode, new GridPosition(off.X + 16, off.Y + 1));
+
+        // Working group: miners on a deposit (the advanced one powered by the generator beside it).
+        var on = Find(2, 2, deposit: true) ?? off;
+        var genAt = new GridPosition(on.X + 2, on.Y);
+        Place(Miner.AdvancedId, BuildingKind.MinerAdvanced, on);
+        Place(Generator.BuildingId, BuildingKind.Generator, genAt);
+        var on2 = Find(2, 2, deposit: true) ?? on;
+        Place(Miner.BasicId, BuildingKind.Miner, on2);
+
+        var crafters = Find(11, 2, deposit: false) ?? off;
+        Place(Crafter.SmelterBuildingId, BuildingKind.Smelter, crafters);
+        Place(Crafter.AssemblerBuildingId, BuildingKind.Assembler, new GridPosition(crafters.X + 3, crafters.Y));
+        Place("power-node-t2", BuildingKind.PowerNodeT2, new GridPosition(crafters.X + 6, crafters.Y));
+        Place("extractor", BuildingKind.Extractor, new GridPosition(crafters.X + 9, crafters.Y));
+        Place("power-node", BuildingKind.PowerNode, new GridPosition(crafters.X + 10, crafters.Y + 1));
+
+        foreach (var gen in factory.Generators.Where(g => g.Position.Equals(genAt)))
+        {
+            gen.RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        }
+
+        var crafterCells = new[] { crafters, new GridPosition(crafters.X + 3, crafters.Y) };
+        foreach (var crafter in factory.Smelters.Concat(factory.Assemblers).Where(c => crafterCells.Contains(c.Position)))
+        {
+            crafter.SeedFuel();
+            foreach (var input in crafter.Recipe.Inputs)
+            {
+                for (var i = 0; i < input.Amount * 3; i++)
+                {
+                    crafter.TryAccept(input.ItemId);
+                }
+            }
+        }
+
+        _buildingsDirty = true;
+        async Task Frame(GridPosition a, GridPosition b, float zoom, string label)
+        {
+            cam.Position = new Vector2((a.X + b.X + 1) * 0.5f * TileSize, (a.Y + b.Y + 1) * 0.5f * TileSize);
+            cam.Zoom = new Vector2(zoom, zoom);
+            await PlaytestWait(0.6);
+            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-blocchi-{label}.png"));
+        }
+
+        // 1280×720 at zoom z shows 20/z × 11/z cells; keep a margin for the HUD.
+        static float Fit(GridPosition a, GridPosition b) =>
+            Math.Min(1.2f, Math.Min(16f / (b.X - a.X + 1), 8f / (b.Y - a.Y + 1)));
+
+        var offMax = new GridPosition(off.X + 16, off.Y + 1);
+        await Frame(off, offMax, Fit(off, offMax), "spenti");
+        GridPosition[] onCells = [on, new GridPosition(genAt.X + 1, genAt.Y + 1), on2, new GridPosition(on2.X + 1, on2.Y + 1),
+            crafters, new GridPosition(crafters.X + 10, crafters.Y + 1)];
+        var onMin = new GridPosition(onCells.Min(c => c.X), onCells.Min(c => c.Y));
+        var onMax = new GridPosition(onCells.Max(c => c.X), onCells.Max(c => c.Y));
+        await Frame(onMin, onMax, Fit(onMin, onMax), "accesi");
+        var all = onCells.Append(off).Append(offMax).ToArray();
+        await Frame(new GridPosition(all.Min(c => c.X), all.Min(c => c.Y)), new GridPosition(all.Max(c => c.X), all.Max(c => c.Y)), 0.4f, "zoom04");
+        GD.Print($"PLAYTEST blocchi: spenti da {off}, accesi da {on}, {on2} e {crafters}; "
+                 + $"minatori al lavoro {factory.Miners.Count(m => m.Efficiency > 0f)}, alimentati {factory.Miners.Count(m => m.IsPowered)}, "
+                 + $"forni/assemblatori attivi {factory.Smelters.Concat(factory.Assemblers).Count(c => c.IsCrafting)}, "
+                 + $"generatori accesi {factory.Generators.Count(g => g.IsGenerating)}");
     }
 
     /// <summary>

@@ -3,79 +3,28 @@ using Godot;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-footprint block sprite (opaque tile art) with optional thin edge highlight.
-/// Used for in-world buildings so map + palette share the same sprites.
+/// Building sprites in the world: <see cref="Layer"/> is one full-footprint layer of a block (base, moving
+/// part, glow), <see cref="Create"/> a still block drawn by its <c>{id}.png</c> alone (power nodes), the same
+/// sprite as the build palette and the research tree.
 /// </summary>
 public static class BuildingPad
 {
-    public static Node2D Create(
-        int footprintTiles,
-        int tileSize,
-        Color fill,
-        Color border,
-        Texture2D? icon,
-        float iconScale = 1f)
+    public static Node2D Create(string id, int footprintTiles, int tileSize)
     {
         var root = new Node2D { ZIndex = 3 };
-        var half = footprintTiles * tileSize * 0.5f - 1f;
-        Vector2[] box =
-        [
-            new(-half, -half),
-            new(half, -half),
-            new(half, half),
-            new(-half, half)
-        ];
-
-        if (icon is not null)
-        {
-            // Stretch the 64×64 block art across the footprint (nearest-neighbor via TextureFilter).
-            var span = footprintTiles * tileSize;
-            var sprite = new Sprite2D
-            {
-                Name = "Block",
-                Texture = icon,
-                Centered = true,
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                Scale = new Vector2(span / icon.GetWidth(), span / icon.GetHeight()) * iconScale,
-                Modulate = Colors.White,
-                ZIndex = 0
-            };
-            root.AddChild(sprite);
-
-            var outline = new Line2D
-            {
-                Name = "Border",
-                Width = 2f,
-                DefaultColor = border,
-                Antialiased = false,
-                Closed = true,
-                Points = box,
-                ZIndex = 1
-            };
-            root.AddChild(outline);
-            return root;
-        }
-
-        var pad = new Polygon2D
-        {
-            Name = "Pad",
-            Polygon = box,
-            Color = fill,
-            ZIndex = 0
-        };
-        root.AddChild(pad);
-
-        var fallbackOutline = new Line2D
-        {
-            Name = "Border",
-            Width = 3.5f,
-            DefaultColor = border,
-            Antialiased = false,
-            Closed = true,
-            Points = box,
-            ZIndex = 1
-        };
-        root.AddChild(fallbackOutline);
+        root.AddChild(Layer("Block", Sprites.For(id), footprintTiles, tileSize, 0));
         return root;
     }
+
+    /// <summary>Sprite layer spanning <paramref name="cells"/> cells, centred on the block (nearest filter).</summary>
+    public static Sprite2D Layer(string name, Texture2D texture, int cells, int tileSize, int zIndex) =>
+        new()
+        {
+            Name = name,
+            Texture = texture,
+            Centered = true,
+            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+            Scale = Vector2.One * Sprites.ScaleToCells(texture, cells, tileSize),
+            ZIndex = zIndex
+        };
 }

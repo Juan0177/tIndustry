@@ -156,15 +156,7 @@ public partial class World
 
         foreach (var pn in _view.PowerNodes)
         {
-            var t2 = pn.DefinitionId == PowerNode.Tier2Id;
-            var node = BuildingPad.Create(
-                pn.Size,
-                TileSize,
-                fill: new Color(0.2f, 0.18f, 0.1f, 1f),
-                border: new Color(0.95f, 0.85f, 0.35f, 1f),
-                icon: GD.Load<Texture2D>(t2
-                    ? "res://assets/power-node-t2.png"
-                    : "res://assets/power-node.png"));
+            var node = BuildingPad.Create(pn.DefinitionId, pn.Size, TileSize);
             node.Name = $"PowerNode_{pn.Position.X}_{pn.Position.Y}";
             node.Position = FootprintCenter(pn.Position, pn.Size);
             _buildingsLayer.AddChild(node);
