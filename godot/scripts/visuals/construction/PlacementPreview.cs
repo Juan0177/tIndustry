@@ -5,8 +5,9 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// How a block about to be built looks, Mindustry style: its sprite half transparent (belts turned to their
-/// direction), a footprint outline (accent when it can go there, red when refused, the sprite then tinted red too) and,
-/// for blocks with a direction, a small arrow on the side they face. Used by the placement ghost under the mouse and by
+/// direction), a footprint outline (accent when it can go there, red when refused, the sprite then tinted red too and
+/// crossed by an X, so the refusal does not rest on colour alone) and, for blocks with a direction, a small arrow on
+/// the side they face. Used by the placement ghost under the mouse and by
 /// the local player's plans (a belt drag), so both read the same.
 /// </summary>
 public static class PlacementPreview
@@ -41,10 +42,24 @@ public static class PlacementPreview
             }
         }
 
-        canvas.DrawRect(rect.Grow(-OutlineWidth / 2f), outline, filled: false, width: OutlineWidth);
-        if (arrow)
+        // The high-contrast variant draws every sign twice: a wider dark stroke first, then the colour.
+        var under = UiColors.SottoSegno;
+        foreach (var (color, extra) in under.A > 0f ? new[] { (under, 4f), (outline, 0f) } : new[] { (outline, 0f) })
         {
-            DrawArrow(canvas, rect, direction, outline);
+            var width = OutlineWidth + extra;
+            canvas.DrawRect(rect.Grow(-OutlineWidth / 2f), color, filled: false, width: width);
+            if (!valid)
+            {
+                var cross = rect.Grow(-Mathf.Min(rect.Size.X, rect.Size.Y) * 0.22f);
+                canvas.DrawLine(cross.Position, cross.End, color, width);
+                canvas.DrawLine(new Vector2(cross.End.X, cross.Position.Y), new Vector2(cross.Position.X, cross.End.Y), color,
+                    width);
+            }
+
+            if (arrow)
+            {
+                DrawArrow(canvas, rect, direction, color, extra);
+            }
         }
     }
 
@@ -63,8 +78,29 @@ public static class PlacementPreview
         return Mathf.Atan2(dy, dx);
     }
 
-    /// <summary>A small filled triangle inside the edge the block faces, pointing out of it.</summary>
-    private static void DrawArrow(CanvasItem canvas, Rect2 rect, Direction direction, Color color)
+    /// <summary>
+    /// Diagonal stripes (top-left to bottom-right, every <paramref name="spacing"/> px) clipped to
+    /// <paramref name="rect"/>: the hatching that marks a block to take apart, besides its colour.
+    /// </summary>
+    public static void DrawHatch(CanvasItem canvas, Rect2 rect, Color color, float spacing, float width)
+    {
+        var (w, h) = (rect.Size.X, rect.Size.Y);
+        // Lines y = x - c in rect-local coordinates, c from -h to w.
+        for (var c = -h + spacing / 2f; c < w; c += spacing)
+        {
+            var x0 = Mathf.Max(0f, c);
+            var x1 = Mathf.Min(w, h + c);
+            if (x1 > x0)
+            {
+                canvas.DrawLine(rect.Position + new Vector2(x0, x0 - c), rect.Position + new Vector2(x1, x1 - c), color, width);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A small filled triangle (grown by <paramref name="grow"/> px) inside the edge the block faces, pointing out of it.
+    /// </summary>
+    private static void DrawArrow(CanvasItem canvas, Rect2 rect, Direction direction, Color color, float grow = 0f)
     {
         var (dx, dy) = DirectionMath.ToOffset(direction);
         var forward = new Vector2(dx, dy);
@@ -73,6 +109,9 @@ public static class PlacementPreview
         var tip = rect.GetCenter() + forward * (half - OutlineWidth * 2f);
         var back = tip - forward * half * 0.35f;
         var wing = half * 0.25f;
-        canvas.DrawColoredPolygon([tip, back + side * wing, back - side * wing], color);
+        // grow > 0: the same triangle a little bigger (the dark under-stroke).
+        var centre = (tip + back) / 2f;
+        Vector2 Out(Vector2 p) => p + (p - centre).Normalized() * grow;
+        canvas.DrawColoredPolygon([Out(tip), Out(back + side * wing), Out(back - side * wing)], color);
     }
 }

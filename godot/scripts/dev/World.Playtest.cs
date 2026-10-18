@@ -298,6 +298,19 @@ public partial class World
             return Fail($"Home senza Continua: {blankWithout:0} di spazio vuoto nella scheda");
         }
 
+        // The Home shows the generated logo; behind it the world takes no input and, in a playtest, stays still.
+        await Shot("home");
+        if (_home?.FindChild("Logo", recursive: true, owned: false) is not TextureRect { Texture: not null }
+            || GetNodeOrNull<WorldCamera>("Camera") is not { InputEnabled: false, DriftSpeed: 0f })
+        {
+            return Fail("Home: logo mancante, o telecamera dietro la Home che accetta input o si muove nel playtest");
+        }
+
+        if (!await PlaytestHomeDriftAsync())
+        {
+            return false;
+        }
+
         _settings.TutorialCompleted = true;
         // Home → Nuova partita, with the playtest seed in the field instead of a random one.
         OpenNewGamePanel(PlaytestSeed);
@@ -397,6 +410,12 @@ public partial class World
         }
 
         if (!await PlaytestRemoveDragOutAndBackAsync())
+        {
+            return false;
+        }
+
+        // Colour variants (G4 5/6) while the seed line is still marked for removal.
+        if (!await PlaytestColourVariantsAsync(Shot))
         {
             return false;
         }

@@ -6,11 +6,11 @@ namespace TIndustry.Godot;
 /// <summary>Mindustry-style research tree: CORE on top, square icon nodes with names, elbow links.</summary>
 public partial class TechTreeCanvas : Control
 {
-    private static readonly Color CanvasFill = UiColors.Fondo;
-    private static readonly Color CanvasBorder = UiColors.Bordo;
-    private static readonly Color HintSoft = UiColors.TestoTenue;
-    private static readonly Color PathEdge = UiColors.RicercaPercorso;
-    private static readonly Color NodeTitle = UiColors.Testo;
+    private static Color CanvasFill => UiColors.Fondo;
+    private static Color CanvasBorder => UiColors.Bordo;
+    private static Color HintSoft => UiColors.TestoTenue;
+    private static Color PathEdge => UiColors.RicercaPercorso;
+    private static Color NodeTitle => UiColors.Testo;
 
     /// <summary>Node names: the text font at its native size (crisp at every zoom of the tree).</summary>
     private const int LabelSize = UiTheme.TextSize;
@@ -253,15 +253,15 @@ public partial class TechTreeCanvas : Control
         node.IsRoot ? ResearchNodeState.Unlocked : Research!.GetNodeState(node.Structure);
 
     // Mindustry palette: neutral greys for what you have, pale gold for what you can research next.
-    private static readonly Color Accent = UiColors.Accento;
-    private static readonly Color NodeBg = UiColors.RicercaNodo;
-    private static readonly Color NodeBgLocked = UiColors.RicercaNodoBloccato;
-    private static readonly Color BorderUnlocked = UiColors.RicercaSbloccato;
-    private static readonly Color BorderLocked = UiColors.RicercaBloccato;
-    private static readonly Color LineUnlocked = UiColors.RicercaLineaSbloccata;
-    private static readonly Color LineAvailable = UiColors.RicercaLineaDisponibile;
-    private static readonly Color LineLocked = UiColors.RicercaLineaBloccata;
-    private static readonly Color CoreCyan = UiColors.Core;
+    private static Color Accent => UiColors.Accento;
+    private static Color NodeBg => UiColors.RicercaNodo;
+    private static Color NodeBgLocked => UiColors.RicercaNodoBloccato;
+    private static Color BorderUnlocked => UiColors.RicercaSbloccato;
+    private static Color BorderLocked => UiColors.RicercaBloccato;
+    private static Color LineUnlocked => UiColors.RicercaLineaSbloccata;
+    private static Color LineAvailable => UiColors.RicercaLineaDisponibile;
+    private static Color LineLocked => UiColors.RicercaLineaBloccata;
+    private static Color CoreCyan => UiColors.Core;
 
     public override void _Draw()
     {

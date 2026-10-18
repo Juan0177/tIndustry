@@ -39,6 +39,7 @@ public partial class ConstructionLayer : Node2D
     private IGameView? _view;
     private long _lastTick = -1;
     private bool _drewPlans;
+    private VarianteColori _variante;
     private Node2D? _plans;
 
     private sealed class SiteVisual(Node2D root, ShaderMaterial material, BuildSpec spec, Rect2 bounds)
@@ -99,10 +100,12 @@ public partial class ConstructionLayer : Node2D
         var changed = SyncSites(view, delta);
         SyncDrones(view, delta);
 
-        if (view.CurrentTick != _lastTick)
+        // Plans redraw when the game moves on, or in new colours when the colour variant changes.
+        if (view.CurrentTick != _lastTick || UiColors.Variante != _variante)
         {
             _lastTick = view.CurrentTick;
-            if (_drewPlans || HasLocalPlans(view))
+            _variante = UiColors.Variante;
+            if (_drewPlans || HasLocalPlans(view) || view.Sites.Count > 0)
             {
                 _plans?.QueueRedraw();
             }
@@ -130,6 +133,17 @@ public partial class ConstructionLayer : Node2D
         if (_view is null)
         {
             return;
+        }
+
+        // Sites being taken apart (anyone's) carry the removal hatching too, not just its colour.
+        var sites = _view.Sites;
+        for (var i = 0; i < sites.Count; i++)
+        {
+            if (sites[i].Deconstructing)
+            {
+                _drewPlans = true;
+                DrawRemovalHatch(canvas, Bounds(sites[i].Tiles));
+            }
         }
 
         var builders = _view.Builders;
@@ -177,12 +191,11 @@ public partial class ConstructionLayer : Node2D
         var tiles = _view!.PlanTiles(plan);
         if (plan.Breaking)
         {
-            // Mindustry style: a translucent red fill over the whole block, plus the outline and the X.
+            // Mindustry style: a translucent fill over the whole block and its outline, plus a hatching (the X is the
+            // refused ghost's sign): the mark reads without its colour.
             var box = Bounds(tiles);
             canvas.DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha));
-            canvas.DrawRect(box, UiColors.Smontaggio, filled: false, width: -1f);
-            canvas.DrawLine(box.Position, box.End, UiColors.Smontaggio, -1f);
-            canvas.DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), UiColors.Smontaggio, -1f);
+            DrawRemovalHatch(canvas, box);
             return;
         }
 
@@ -367,6 +380,18 @@ public partial class ConstructionLayer : Node2D
         _drones.Clear();
         _lastTick = -1;
         _plans?.QueueRedraw();
+    }
+
+    /// <summary>The removal sign: diagonal hatching and an outline, over a mark or a site being taken apart.</summary>
+    private static void DrawRemovalHatch(CanvasItem canvas, Rect2 box)
+    {
+        if (UiColors.SottoSegno.A > 0f)
+        {
+            canvas.DrawRect(box.Grow(-2f), UiColors.SottoSegno, filled: false, width: 5f);
+        }
+
+        PlacementPreview.DrawHatch(canvas, box, UiColors.Smontaggio, World.TileSize / 4f, 2f);
+        canvas.DrawRect(box.Grow(-1f), UiColors.Smontaggio, filled: false, width: 2f);
     }
 
     private static Color ColorOf(ConstructSite site) => site.Deconstructing ? UiColors.Smontaggio : UiColors.Costruzione;

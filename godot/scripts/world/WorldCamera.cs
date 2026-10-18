@@ -17,11 +17,27 @@ public partial class WorldCamera : Camera2D
     /// <summary>Set by the world while the cursor tool is active: left-drag pans like middle-drag.</summary>
     public bool LeftDragPans { get; set; }
 
+    /// <summary>False while the Home is open: no pan, no zoom from the player.</summary>
+    public bool InputEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Home background: screen px per second the camera drifts on its own, bouncing off the map edges (0 = still).
+    /// </summary>
+    public float DriftSpeed { get; set; }
+
+    private Vector2 _driftDir = new Vector2(1f, 0.55f).Normalized();
+
     private bool _dragging;
     private Vector2 _dragLast;
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (!InputEnabled)
+        {
+            _dragging = false;
+            return;
+        }
+
         if (@event is InputEventMouseButton mouseButton)
         {
             var leftPan = mouseButton.ButtonIndex == MouseButton.Left
@@ -56,6 +72,16 @@ public partial class WorldCamera : Camera2D
 
     public override void _Process(double delta)
     {
+        if (DriftSpeed > 0f)
+        {
+            Drift((float)delta);
+        }
+
+        if (!InputEnabled)
+        {
+            return;
+        }
+
         var dir = Vector2.Zero;
         if (Input.IsActionPressed("pan_up")) dir.Y -= 1;
         if (Input.IsActionPressed("pan_down")) dir.Y += 1;
@@ -65,6 +91,23 @@ public partial class WorldCamera : Camera2D
         {
             Position += dir.Normalized() * PanSpeed * (float)delta / Zoom.X;
             ClampToMap();
+        }
+    }
+
+    /// <summary>Moves along the drift direction; an axis stopped by the map edge turns back.</summary>
+    private void Drift(float delta)
+    {
+        var want = Position + _driftDir * DriftSpeed * delta / Zoom.X;
+        Position = want;
+        ClampToMap();
+        if (!Mathf.IsEqualApprox(Position.X, want.X))
+        {
+            _driftDir.X = -_driftDir.X;
+        }
+
+        if (!Mathf.IsEqualApprox(Position.Y, want.Y))
+        {
+            _driftDir.Y = -_driftDir.Y;
         }
     }
 

@@ -61,7 +61,7 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
        return im
    ```
 
-   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone, a un blocco della tabella `CELLE` di `test_genera.py` a uno sprite del terreno, a una particella `fx-*` (quadrato o striscia di varianti quadrate da 8-16 px, usate dal gestore degli effetti con `godot/effetti/effetti.json`) o a un'icona dell'interfaccia `ui/ui-*` (tabella `ICONE_UI`), altrimenti il test delle misure fallisce.
+   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone, a un blocco della tabella `CELLE` di `test_genera.py` a uno sprite del terreno, a una particella `fx-*` (quadrato o striscia di varianti quadrate da 8-16 px, usate dal gestore degli effetti con `godot/effetti/effetti.json`) o a un'icona dell'interfaccia `ui/ui-*` (tabella `ICONE_UI`, o `ALTRI_UI` per le caselle di spunta e il logo), altrimenti il test delle misure fallisce.
 2. `python tools/art/genera.py --solo junction`, guarda `.dev/arte/tavola.png`.
 3. Importa in Godot (sopra) e lancia i test.
 

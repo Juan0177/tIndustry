@@ -259,3 +259,80 @@ def _registra(nome):
 
 for _nome in ICONE:
     _registra(_nome)
+
+
+# --- check boxes (theme of CheckButton / CheckBox) ---------------------------------------------
+
+SPUNTA_LATO = 20  # side of the check box drawn by the client theme, UI px
+
+
+def spunta(acceso, spento):
+    """Square check box: 2 px edge, dark inside; when on, an accent (or disabled grey) square in the middle."""
+    from palette import ACCENTO, UI_BORDO, UI_BORDO_BLOCCATO, UI_DISATTIVO, UI_FONDO_BLOCCATO, UI_FONDO_SCELTO
+    n = SPUNTA_LATO
+    bordo = UI_BORDO_BLOCCATO if spento else ACCENTO[3] if acceso else UI_BORDO
+    im = forme.nuova(n, n)
+    forme.rett(im, 0, 0, n - 1, n - 1, bordo)
+    forme.rett(im, 2, 2, n - 3, n - 3, UI_FONDO_SCELTO if acceso else UI_FONDO_BLOCCATO)
+    if acceso:
+        forme.rett(im, 6, 6, n - 7, n - 7, UI_DISATTIVO if spento else ACCENTO[3])
+    return im
+
+
+SPUNTE = {
+    "ui/ui-spunta-si": (True, False),
+    "ui/ui-spunta-no": (False, False),
+    "ui/ui-spunta-si-spenta": (True, True),
+    "ui/ui-spunta-no-spenta": (False, True),
+}
+for _nome, (_acceso, _spento) in SPUNTE.items():
+    sprite(_nome)(lambda a=_acceso, s=_spento: spunta(a, s))
+
+
+# --- logo (Home) -------------------------------------------------------------------------------
+
+LOGO_TESTO = "tINDUSTRY"
+
+
+@sprite("ui/ui-logo")
+def logo():
+    """The game's name in the interface font at 1x, lit like the blocks (light rows on top, a 1 px extrusion below
+    in the accent's dark tone, a dark outline), standing on a conveyor belt with accent chevrons. The client shows it
+    at a whole multiple (Nearest)."""
+    import carattere
+    from palette import ACCENTO, NASTRO, OUT
+
+    testo = carattere.scrivi(LOGO_TESTO, 1)
+    alfa = testo.getchannel("A").load()
+    righe = [y for y in range(testo.height) if any(alfa[x, y] for x in range(testo.width))]
+    alto, basso = righe[0], righe[-1]
+    pieni = {(x, y - alto) for y in range(alto, basso + 1) for x in range(testo.width) if alfa[x, y]}
+    h_testo = basso - alto + 1
+    estrusione = {(x, y + 1) for x, y in pieni} - pieni
+    nastro_y = h_testo + 2  # one row of air under the extrusion
+    w = testo.width + 2
+    nastro = {(x, nastro_y + y) for x in range(-1, w - 1) for y in range(5)}
+    m = 1  # outline margin
+    im = forme.nuova(w + 2 * m, nastro_y + 5 + 2 * m)
+
+    def metti(px, c):
+        for x, y in px:
+            forme.pixel(im, x + m + 1, y + m, c)
+
+    metti(nastro, NASTRO[1])
+    metti({(x, y) for x, y in nastro if y == nastro_y}, NASTRO[3])
+    metti({(x, y) for x, y in nastro if y == nastro_y + 4}, NASTRO[0])
+    # Chevrons ">" every 5 px on the belt, pointing east like a running conveyor.
+    metti({(x0 + dx, nastro_y + dy) for x0 in range(1, w - 3, 5) for dx, dy in ((0, 1), (1, 2), (0, 3))}, ACCENTO[2])
+    metti(estrusione, ACCENTO[0])
+    for x, y in pieni:
+        tono = ACCENTO[4] if y <= 1 else ACCENTO[3] if y < h_testo - 2 else ACCENTO[2]
+        metti({(x, y)}, tono)
+    # Dark outline around everything drawn.
+    px = im.load()
+    pieni_im = {(x, y) for y in range(im.height) for x in range(im.width) if px[x, y][3]}
+    for y in range(im.height):
+        for x in range(im.width):
+            if (x, y) not in pieni_im and any((x + dx, y + dy) in pieni_im for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                forme.pixel(im, x, y, OUT)
+    return im

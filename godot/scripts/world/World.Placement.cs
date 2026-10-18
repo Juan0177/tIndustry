@@ -13,7 +13,14 @@ public partial class World
             return;
         }
 
-        SimCommand command = _tool switch
+        // Outcome (graphics refresh, rejection toast) arrives through the host events.
+        SubmitCommand(PlaceCommandAt(cell), quietWhenBlocked: _draggingPlace);
+    }
+
+    /// <summary>The command the current tool sends for <paramref name="cell"/> (not the cursor).</summary>
+    private SimCommand PlaceCommandAt(GridPosition cell)
+    {
+        return _tool switch
         {
             BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic"),
             BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast"),
@@ -34,9 +41,6 @@ public partial class World
             BuildTool.Lamp => Place(BuildingKind.Lamp),
             _ => throw new InvalidOperationException($"Strumento non piazzabile: {_tool}")
         };
-
-        // Outcome (graphics refresh, rejection toast) arrives through the host events.
-        SubmitCommand(command, quietWhenBlocked: _draggingPlace);
 
         PlaceBuilding Place(BuildingKind kind) => new(LocalPlayer, kind, cell, _placeDir);
     }

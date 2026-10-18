@@ -173,8 +173,9 @@ public partial class CorePanel : VBoxContainer
         if (_powerLabel is not null && _powerIcon is not null)
         {
             var hasGrid = powerCapacity > 0f && powerBuffer >= 0f;
-            _powerLabel.Text = hasGrid ? $"{powerBuffer:0}/{powerCapacity:0}" : "—";
             var low = hasGrid && powerBuffer < powerCapacity * 0.2f;
+            // Low power is red and also says so with a "!" (meaning not by colour alone).
+            _powerLabel.Text = hasGrid ? $"{powerBuffer:0}/{powerCapacity:0}{(low ? " !" : "")}" : "—";
             _powerLabel.ThemeTypeVariation = !hasGrid ? UiTheme.TestoTenue : low ? UiTheme.TestoRosso : UiTheme.TestoEnergia;
             _powerIcon.Modulate = !hasGrid ? UiColors.TestoTenue : low ? UiColors.Insufficiente : UiColors.Energia;
             if (hasGrid != _hasGrid || generatorsLive != _generatorsLive || generatorsTotal != _generatorsTotal)

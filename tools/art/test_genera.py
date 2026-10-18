@@ -57,6 +57,9 @@ LUCE = ("luce", 128)
 # Interface icons (G4): "ui/ui-<nome>" 32x32 and "ui/ui-<nome>-16" 16x16, for these names.
 ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "menu", "ricerca", "mercato",
             "campagna", "lucchetto", "energia", "impostazioni", "salvataggi", "lingua")
+# Other interface sprites (G4 5/6): the theme's check boxes and the Home logo, name -> size.
+ALTRI_UI = {"ui/ui-spunta-si": (20, 20), "ui/ui-spunta-no": (20, 20), "ui/ui-spunta-si-spenta": (20, 20),
+            "ui/ui-spunta-no-spenta": (20, 20), "ui/ui-logo": (54, 16)}
 # Interface font (G4): required glyphs and the exported files in godot/assets/ui/.
 INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥"
 FONT_UI = ("carattere-testo", "carattere-titoli")
@@ -230,6 +233,8 @@ def errore_misura(nome, im):
         return None if (w, h) == terreno[nome] else f"{nome}: {w}x{h}, atteso {terreno[nome][0]}x{terreno[nome][1]}"
     if nome.startswith("deco-") and nome[len("deco-"):].rsplit("-", 1)[0] in _biomi_terra():
         return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
+    if nome in ALTRI_UI:
+        return None if (w, h) == ALTRI_UI[nome] else f"{nome}: {w}x{h}, atteso {ALTRI_UI[nome][0]}x{ALTRI_UI[nome][1]}"
     if nome.startswith("ui/"):
         piccola = nome.endswith("-16")
         icona = nome[len("ui/ui-"): -len("-16") if piccola else None]
@@ -800,6 +805,32 @@ class TestGenera(unittest.TestCase):
                             self.assertNotEqual(0, px[vx, vy][3], f"{nome}: bianco senza contorno")
         sagome = [SPRITE[f"ui/ui-{i}-16"]().getchannel("A").tobytes() for i in ICONE_UI]
         self.assertEqual(len(set(sagome)), len(sagome))
+
+    def test_spunte_e_logo(self):
+        # Check boxes: on = accent square in the middle (grey when disabled), off = dark inside; the logo uses
+        # only the outline, the accent and the belt colours.
+        from palette import ACCENTO, NASTRO, OUT, UI_DISATTIVO, UI_FONDO_BLOCCATO
+        centro = {"ui/ui-spunta-si": ACCENTO[3], "ui/ui-spunta-si-spenta": UI_DISATTIVO,
+                  "ui/ui-spunta-no": UI_FONDO_BLOCCATO, "ui/ui-spunta-no-spenta": UI_FONDO_BLOCCATO}
+        for nome, colore in centro.items():
+            self.assertEqual(colore + (255,), SPRITE[nome]().getpixel((10, 10)), nome)
+        ammessi = {c + (255,) for c in [OUT, *ACCENTO, *NASTRO]}
+        im = SPRITE["ui/ui-logo"]()
+        usati = {im.getpixel((x, y)) for x in range(im.width) for y in range(im.height)} - {(0, 0, 0, 0)}
+        self.assertEqual(set(), usati - ammessi)
+
+    def test_spunte_come_ui_colors(self):
+        # The check boxes use the client's colours: the UI_* values (and the accent) equal UiColors' Normale ones.
+        import re
+        from palette import ACCENTO, UI_BORDO_BLOCCATO, UI_DISATTIVO, UI_FONDO_BLOCCATO, UI_FONDO_SCELTO
+        with open(os.path.join(REPO, "godot", "scripts", "ui", "UiColors.cs"), encoding="utf-8") as fh:
+            sorgente = fh.read()
+        normale = sorgente[sorgente.index("void SetNormale()"):sorgente.index("void SetDaltonici()")]
+        valori = dict(re.findall(r'(\w+) = new\("([0-9A-Fa-f]{6})"\)', normale))
+        attesi = {"FondoScelto": UI_FONDO_SCELTO, "FondoBloccato": UI_FONDO_BLOCCATO,
+                  "BordoBloccato": UI_BORDO_BLOCCATO, "TestoDisattivo": UI_DISATTIVO, "Accento": ACCENTO[3]}
+        for nome, rgb in attesi.items():
+            self.assertEqual("%02X%02X%02X" % rgb, valori[nome].upper(), nome)
 
     def test_carattere_insieme(self):
         # Every required glyph exists (drawn or accented), fills the 11-row cell and has ink.

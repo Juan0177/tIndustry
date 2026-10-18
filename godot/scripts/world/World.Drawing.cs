@@ -323,11 +323,7 @@ public partial class World
         }
 
         var size = GhostSize();
-        var ok = size == 1
-            ? _view.CanOccupy(hover)
-            : _view.CanOccupyFootprint(hover, size);
-        // Cells already taken by a pending plan are refused like occupied ones (sites count as buildings).
-        ok = ok && !FootprintPlanned(hover, size);
+        var ok = GhostRefusal(hover) is null;
 
         // A belt touching the Core is planned facing it (as the simulation does): show that direction.
         var belt = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
@@ -376,40 +372,49 @@ public partial class World
         _ => 1
     };
 
+    /// <summary>The ghost of the current frame: where, for which tool and direction, its spec and refusal.</summary>
+    private (ulong Frame, GridPosition Hover, BuildTool Tool, Direction Dir, string? Filter, BuildSpec? Spec, RefusalCode? Refusal) _ghost;
+
     /// <summary>
-    /// Why the terrain refuses the ghost at <paramref name="hover"/> (<see cref="RefusalCode.Wall"/>,
-    /// <see cref="RefusalCode.DeepWater"/>), or null when no wall or deep water lies under its footprint (other refusals
-    /// keep the plain red ghost).
+    /// Why the ghost at <paramref name="hover"/> is refused, null when the block can go there: the simulation's own
+    /// <see cref="Factory.CanPlace"/> on the spec the tool would send (walls, deep water, a miner too weak for the ore,
+    /// a bridge without exit, a taken cell…), plus any cell of its <see cref="Factory.Footprint"/> (a bridge's exit
+    /// too) taken by a pending plan, which the plan queue refuses the same way. Computed once per frame.
     /// </summary>
-    private RefusalCode? GhostTerrainReason(GridPosition hover)
+    private RefusalCode? GhostRefusal(GridPosition hover) => GhostAt(hover).Refusal;
+
+    private (BuildSpec? Spec, RefusalCode? Refusal) GhostAt(GridPosition hover)
     {
-        if (_tool == BuildTool.Cursor || _view?.Terrain is not { } terrain)
+        var frame = Engine.GetProcessFrames();
+        if (_ghost.Frame == frame && _ghost.Hover == hover && _ghost.Tool == _tool && _ghost.Dir == _placeDir
+            && _ghost.Filter == _sorterFilterId)
         {
-            return null;
+            return (_ghost.Spec, _ghost.Refusal);
         }
 
-        var size = GhostSize();
-        var deep = false;
-        for (var y = hover.Y; y < hover.Y + size; y++)
-        {
-            for (var x = hover.X; x < hover.X + size; x++)
+        var spec = _view is null || _tool == BuildTool.Cursor
+            ? null
+            : PlaceCommandAt(hover) switch
             {
-                if (!terrain.InBounds(new GridPosition(x, y)))
-                {
-                    continue;
-                }
-
-                var cell = terrain[x, y];
-                if (cell.Wall != WallKind.None)
-                {
-                    return RefusalCode.Wall;
-                }
-
-                deep |= cell.Floor == FloorKind.DeepWater;
+                PlaceBelt belt => BuildSpec.FromCommand(belt),
+                PlaceBuilding building => BuildSpec.FromCommand(building),
+                _ => null
+            };
+        RefusalCode? refusal = null;
+        if (spec is not null)
+        {
+            if (!_view!.CanPlace(spec, out var reason))
+            {
+                refusal = reason ?? RefusalCode.Occupied;
+            }
+            else if (_view.Footprint(spec).Any(_view.IsPlannedTile))
+            {
+                refusal = RefusalCode.Occupied;
             }
         }
 
-        return deep ? RefusalCode.DeepWater : null;
+        _ghost = (frame, hover, _tool, _placeDir, _sorterFilterId, spec, refusal);
+        return (spec, refusal);
     }
 
     private bool FootprintPlanned(GridPosition origin, int size)
@@ -428,36 +433,22 @@ public partial class World
         return false;
     }
 
+    /// <summary>
+    /// The bridge's span to the exit the simulation would pick (<see cref="Factory.Footprint"/>), in the refused colours
+    /// when the ghost is refused (<see cref="GhostRefusal"/>); nothing when the bridge has no exit.
+    /// </summary>
     private void DrawBridgeGhost(CanvasItem canvas, GridPosition entry)
     {
-        if (_view is null)
+        if (_view is null || GhostAt(entry) is not { Spec: { } spec } ghost || _view.Footprint(spec) is not [_, var exit])
         {
             return;
         }
 
-        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
-        {
-            var exit = entry.Step(_placeDir, span);
-            if (!_view.CanOccupy(entry) || !_view.CanOccupy(exit))
-            {
-                continue;
-            }
-
-            if (_view.Belts.ContainsKey(entry) || _view.Belts.ContainsKey(exit))
-            {
-                continue;
-            }
-
-            // Same exit as the simulation picks; a planned end makes the plan refused: show it red.
-            var planned = _view.IsPlannedTile(entry) || _view.IsPlannedTile(exit);
-            var mid = planned ? UiColors.PonteRifiutatoCampata : UiColors.PonteCampata;
-            var tip = planned ? UiColors.PonteRifiutatoEstremi : UiColors.PonteEstremi;
-            canvas.DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
-            canvas.DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
-            var a = CellCenter(entry);
-            var b = CellCenter(exit);
-            canvas.DrawLine(a, b, mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
-            return;
-        }
+        var refused = ghost.Refusal is not null;
+        var mid = refused ? UiColors.PonteRifiutatoCampata : UiColors.PonteCampata;
+        var tip = refused ? UiColors.PonteRifiutatoEstremi : UiColors.PonteEstremi;
+        canvas.DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
+        canvas.DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
+        canvas.DrawLine(CellCenter(entry), CellCenter(exit), mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
     }
 }

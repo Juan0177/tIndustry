@@ -339,9 +339,22 @@ public partial class World
         }
 
         hudRoot.MoveChild(_settingsPanel, hudRoot.GetChildCount() - 1);
-        _settingsPanel.Closed += () => { };
+        // Opened from the Home: closing it goes back to the Home.
+        _settingsPanel.Closed += () =>
+        {
+            if (_settingsFromHome)
+            {
+                _settingsFromHome = false;
+                _home?.Open();
+            }
+        };
         _settingsPanel.Applied += OnSettingsApplied;
-        _settingsPanel.ReplayTutorialRequested += () => BeginTutorialIfNeeded(force: true);
+        // The tutorial plays on the game behind (as before), not under a reopened Home.
+        _settingsPanel.ReplayTutorialRequested += () =>
+        {
+            _home?.Close();
+            BeginTutorialIfNeeded(force: true);
+        };
     }
 
     private void EnsureTutorialPanel()
@@ -441,6 +454,7 @@ public partial class World
 
     private void OpenSettings()
     {
+        _settingsFromHome = _home?.IsOpen == true;
         _home?.Close();
         _research?.Close();
         _mercato?.Close();
