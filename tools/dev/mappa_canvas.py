@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, notte."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -78,17 +78,19 @@ fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-sp3", "In corso", X[1], "3")
-corso.card("nessuno", "**Nessun lavoro in corso**\nProssimo passo da decidere (G1 arte dei blocchi, Progetti di Claude Code).")
+corso.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra generata da tools/art/ (32 px per cella): edifici, nastri, oggetti, Core in 4 tier, drone alpha / beta / gamma, animazioni di base.\n[[2026-10-18-g1-arte-blocchi-design|spec]]")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
-nxt = Column("g-next", "Prossimi (ordine proposto)", X[2], "5")
+nxt = Column("g-next", "Prossimi (in ordine)", X[2], "5")
 roadmap = [
-    nxt.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra (generatore in tools/art/): edifici, nastri, oggetti, drone e Core nei 3 tier."),
-    nxt.card("tier", "**T + SP4 · Tier e drone comandato**\nCore shard / foundation / nucleus, drone alpha / beta / gamma; il drone lo muovi tu."),
-    nxt.card("g2", "**G2 · Terreno**\nPavimenti, bordi, giacimenti, rocce."),
-    nxt.card("g3", "**G3 · Effetti e luci**\nParticelle, bloom, ombre, effetti di costruzione."),
-    nxt.card("g4", "**G4 · Interfaccia**\nHUD, pannelli e menu con la nuova arte."),
+    "g1",
+    nxt.card("g2a", "**G2a · Mappe e terreno**\nMappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, salvataggi v12.\n[[2026-10-18-g2a-mappe-terreno-design|spec]]"),
+    nxt.card("g2b", "**G2b · Arte del terreno**\nSuoli, bordi, pareti raccordate, acqua animata, giacimenti a puntini.\n[[2026-10-18-g2b-arte-terreno-design|spec]]"),
+    nxt.card("g3", "**G3 · Effetti e luci**\nParticelle, ombre, bagliori, notte opzionale, impostazioni grafiche per PC deboli.\n[[2026-10-18-g3-effetti-luci-design|spec]]"),
+    nxt.card("g4", "**G4 · Interfaccia**\nStile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]"),
+    nxt.card("tier", "**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu."),
+    nxt.card("liquidi", "**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua."),
     nxt.card("sp5", "**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]])."),
 ]
 nxt.close()
@@ -97,8 +99,8 @@ chain(roadmap)
 # --- Aperti ----------------------------------------------------------------
 aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
-aperti.card("a2", "**Progetti di Claude Code**\nDa indagare.")
-aperti.card("a3", "**Grafica (G1–G4) e tier**\nIn attesa del via.")
+aperti.card("a2", "**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.", "4")
+aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167); lavoro notturno in corso.")
 aperti.close()
 
 link("sp3", "g1")
