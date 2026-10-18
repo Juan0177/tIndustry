@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Usage: tools/dev/playtest.sh <ui|tutorial> <outdir>
+# Usage: tools/dev/playtest.sh <ui|tutorial|agenti> <outdir>
 # Runs a Godot playtest with an isolated temp data profile; screenshots + log.txt go to <outdir>.
 # Exit 0 only if the log contains "PLAYTEST OK" and no "ERROR" lines (Godot's own exit code is
 # ignored: a rare shutdown crash can happen after PLAYTEST OK).
 set -u
-NAME="${1:?usage: playtest.sh <ui|tutorial> <outdir>}"
-OUT="${2:?usage: playtest.sh <ui|tutorial> <outdir>}"
+NAME="${1:?usage: playtest.sh <ui|tutorial|agenti> <outdir>}"
+OUT="${2:?usage: playtest.sh <ui|tutorial|agenti> <outdir>}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 mkdir -p "$OUT"
 rm -f "$OUT"/*.png "$OUT/log.txt" "$OUT/godot.log"  # no stale shots from a previous run
@@ -17,6 +17,13 @@ GODOT="${GODOT:-godot4}"
 # The effects probe (TINDUSTRY_PLAYTEST_EFFETTI=1) adds a 60 s measure and its captures.
 LIMIT=150; [ "${TINDUSTRY_PLAYTEST_EFFETTI:-}" = "1" ] && LIMIT=300
 cd "$ROOT" || exit 2
+# The agenti playtest talks to the game's own control channel (AgentBridge): a free port (bound at 0 by the OS)
+# and a fresh secret for its handshake.
+if [ "$NAME" = agenti ]; then
+  TINDUSTRY_AGENT_PORT="$(python -c "import socket; s = socket.socket(); s.bind(('127.0.0.1', 0)); print(s.getsockname()[1])")" || exit 2
+  TINDUSTRY_AGENT_TOKEN="$(python -c "import secrets; print(secrets.token_hex(24))")" || exit 2
+  export TINDUSTRY_AGENT_PORT TINDUSTRY_AGENT_TOKEN
+fi
 # Godot puts user:// (shader_cache, vulkan, .recovery_mode_lock) under %APPDATA% on Windows: point it at the
 # temp profile so the run leaves the player's real app_userdata untouched. .NET/LOCALAPPDATA paths are unaffected.
 APPDATA="$(win "$DATA")" TINDUSTRY_DATA_DIR="$(win "$DATA")" TINDUSTRY_CAPTURE_DIR="$(win "$(cd "$OUT" && pwd)")" \
@@ -24,4 +31,8 @@ APPDATA="$(win "$DATA")" TINDUSTRY_DATA_DIR="$(win "$DATA")" TINDUSTRY_CAPTURE_D
 [ -f "$DATA/godot.log" ] && cp "$DATA/godot.log" "$OUT/godot.log"
 if ! grep -q "PLAYTEST OK" "$LOG"; then echo "playtest $NAME: no 'PLAYTEST OK' in $LOG" >&2; exit 1; fi
 if grep -q "ERROR" "$LOG"; then echo "playtest $NAME: ERROR lines in $LOG" >&2; grep "ERROR" "$LOG" | head -5 >&2; exit 1; fi
+# A dirty engine teardown (Godot wrappers left to the GC, leaked RIDs) fails the run too.
+if grep -qE "Leaked unsafe reference|rc_owner" "$LOG" "$OUT/godot.log" 2>/dev/null; then
+  echo "playtest $NAME: chiusura non pulita (Leaked unsafe reference / rc_owner)" >&2; exit 1
+fi
 echo "playtest $NAME: OK"

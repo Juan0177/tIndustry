@@ -14,7 +14,7 @@ Senza opzioni: controlla gli strumenti, compila, importa gli asset se serve e av
   --profilo-temp    profilo dati temporaneo: impostazioni e salvataggi reali non vengono toccati
   --profilo DIR     usa DIR come profilo dati (persistente tra un avvio e l'altro)
   --test            esegue anche i test xUnit prima di avviare
-  --playtest NOME   esegue il playtest NOME (ui | tutorial) invece di avviare il gioco
+  --playtest NOME   esegue il playtest NOME (ui | tutorial | agenti) invece di avviare il gioco
   --solo-build      compila (e importa se serve) senza avviare
   --import          forza la reimportazione degli asset Godot
   -h, --help        mostra questo aiuto
@@ -31,7 +31,7 @@ while [ $# -gt 0 ]; do
     --profilo-temp) TEMP_PROFILE=1 ;;
     --profilo) PROFILE="${2:?--profilo richiede una cartella}"; shift ;;
     --test) RUN_TESTS=1 ;;
-    --playtest) PLAYTEST="${2:?--playtest richiede ui o tutorial}"; shift ;;
+    --playtest) PLAYTEST="${2:?--playtest richiede ui, tutorial o agenti}"; shift ;;
     --solo-build) BUILD_ONLY=1 ;;
     --import) FORCE_IMPORT=1 ;;
     -h|--help) usage; exit 0 ;;
@@ -39,8 +39,8 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-if [ -n "$PLAYTEST" ] && [ "$PLAYTEST" != ui ] && [ "$PLAYTEST" != tutorial ]; then
-  echo "--playtest accetta solo ui o tutorial (non '$PLAYTEST')" >&2; exit 2
+if [ -n "$PLAYTEST" ] && [ "$PLAYTEST" != ui ] && [ "$PLAYTEST" != tutorial ] && [ "$PLAYTEST" != agenti ]; then
+  echo "--playtest accetta solo ui, tutorial o agenti (non '$PLAYTEST')" >&2; exit 2
 fi
 if [ "$TEMP_PROFILE" = 1 ] && [ -n "$PROFILE" ]; then
   echo "Usa --profilo-temp oppure --profilo DIR, non entrambi" >&2; exit 2

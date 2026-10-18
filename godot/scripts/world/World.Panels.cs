@@ -7,7 +7,7 @@ namespace TIndustry.Godot;
 public partial class World
 {
     /// <summary>The HUD's root Control (<see cref="UiScale.RootOf"/>): parent of every HUD control and panel.</summary>
-    private Control UiRoot => UiScale.RootOf(GetNode<CanvasLayer>("Hud"));
+    internal Control UiRoot => UiScale.RootOf(GetNode<CanvasLayer>("Hud"));
 
     private void EnsureHud()
     {
