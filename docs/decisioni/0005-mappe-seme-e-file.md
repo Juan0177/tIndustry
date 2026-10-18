@@ -45,7 +45,7 @@ Specifica: [2026-10-18-g2a-mappe-terreno-design](../superpowers/specs/2026-10-18
 - **Mappa della campagna ritoccata con la stessa misura**: il salvataggio la carica con il terreno nuovo; si ricontrollano solo i cantieri (un cantiere su una parete o sull'acqua profonda sparisce e rimborsa), gli edifici restano.
 - **Giacimenti a strisce da lontano**: sotto i 14 px per cella i giacimenti sono rettangoli per tratto di riga, non due cerchi per cella (da 70 a 240 FPS sulla mappa Enorme).
 - **Busta del salvataggio con generatore e mappa** (campi facoltativi, senza cambio di versione) per l'elenco di Gestione salvataggi.
-- **Svuotamento del GC all'uscita** in `World._ExitTree`, come soluzione provvisoria fino alla G4: risorse dell'HUD create in C# (`StyleBoxFlat`, texture caricate) restano senza `Dispose` e, finalizzate durante lo spegnimento del motore, a volte facevano cadere il gioco all'uscita. Le texture dei pezzi di terreno sono liberate subito.
+- **Svuotamento del GC all'uscita** in `World._ExitTree`, come soluzione provvisoria fino alla G4: risorse dell'HUD create in C# (`StyleBoxFlat`, texture caricate) restano senza `Dispose` e, finalizzate durante lo spegnimento del motore, a volte facevano cadere il gioco all'uscita. Le texture dei pezzi di terreno sono liberate subito. **Tolto nella G4**: tema statico e risorse liberate da chi le crea ([ADR 0006](0006-interfaccia-lingue-carattere.md)).
 
 ## Conseguenze
 

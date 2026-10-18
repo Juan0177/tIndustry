@@ -13,8 +13,8 @@ Pages today:
 Everything comes from the repository (sprites in godot/assets/, the registry and the font in
 tools/art/, the block compositions in composti.py, the captures copied from the playtests into
 docs/img/readme/), so the site never needs editing by hand: change
-the art, rebuild. Pages are self-contained (images as data: URIs, except the landing page captures copied into
-_site/catture/; inline CSS) and script-free: state
+the art, rebuild. The landing page captures are PNG files copied into _site/catture/; every other image
+is a data: URI. CSS is inline, there are no scripts and nothing is loaded from outside the site: state
 switches are radio buttons styled with :checked, the pieces pop-up is an HTML popover (Esc, click outside
 and the close button hide it, focus goes back to the button). Published by .github/workflows/pages.yml
 (manual or release tags only).
@@ -358,6 +358,7 @@ CATTURE = [
     ("interfaccia-home.png", "Home con il logo pixel e la mappa che scorre dietro"),
     ("interfaccia-en.png", "Tutti i testi anche in inglese"),
     ("interfaccia-daltonici.png", "Colori per daltonici: anteprima rifiutata con la X, smontaggio tratteggiato"),
+    ("interfaccia-altocontrasto.png", "Alto contrasto: pannelli neri, testo bianco, segni col bordo nero"),
     ("blocchi.png", "Blocchi di produzione e potenza in funzione"),
     ("terreno-biomi.png", "Biomi: suoli, bordi, pareti in rilievo e acqua"),
     ("terreno-minerali.png", "Giacimenti a puntini"),

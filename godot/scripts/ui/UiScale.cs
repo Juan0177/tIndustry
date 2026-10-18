@@ -16,6 +16,7 @@ public static class UiScale
 
     private static Control? _root;
     private static CanvasLayer? _layer;
+    private static Viewport? _viewport;
 
     /// <summary>
     /// The root Control of <paramref name="layer"/> (named "Interfaccia"), created on first use: the parent of every
@@ -34,11 +35,24 @@ public static class UiScale
             layer.AddChild(root);
         }
 
+        Detach();
         _root = root;
         _layer = layer;
-        layer.GetViewport().SizeChanged += () => Resize();
+        _viewport = layer.GetViewport();
+        _viewport.SizeChanged += Resize;
         Resize();
         return root;
+    }
+
+    /// <summary>Stops following the window size (the HUD leaves the tree): no handler left on the viewport.</summary>
+    public static void Detach()
+    {
+        if (_viewport is not null && IsInstanceValid(_viewport))
+        {
+            _viewport.SizeChanged -= Resize;
+        }
+
+        _viewport = null;
     }
 
     /// <summary>Scales the HUD to <paramref name="percent"/> (already normalized by <see cref="ClientSettings"/>).</summary>

@@ -24,6 +24,7 @@ public partial class BuildQueuePanel : PanelContainer
     private Label? _more;
     private Label? _missing;
     private string? _structureId;
+    private ColorRect? _barBack;
     private CostEntry? _missingShown;
     private int _waiting = -1;
     private IGameView? _view;
@@ -70,20 +71,20 @@ public partial class BuildQueuePanel : PanelContainer
         _name = MakeLabel();
         column.AddChild(_name);
 
-        var bar = new ColorRect
+        _barBack = new ColorRect
         {
             Color = UiColors.FondoSlot,
             CustomMinimumSize = new Vector2(BarWidth, BarHeight),
             MouseFilter = MouseFilterEnum.Ignore
         };
-        column.AddChild(bar);
+        column.AddChild(_barBack);
         _barFill = new ColorRect
         {
             Color = UiColors.Costruzione,
             Size = new Vector2(0f, BarHeight),
             MouseFilter = MouseFilterEnum.Ignore
         };
-        bar.AddChild(_barFill);
+        _barBack.AddChild(_barFill);
 
         _missing = MakeLabel("", UiTheme.TestoRosso);
         _missing.Visible = false;
@@ -130,6 +131,7 @@ public partial class BuildQueuePanel : PanelContainer
         if (_barFill is not null)
         {
             // Every frame: a new colour variant shows at once.
+            _barBack!.Color = UiColors.FondoSlot;
             _barFill.Color = deconstructing ? UiColors.Smontaggio
                 : stalled ? UiColors.Fermo
                 : UiColors.Costruzione;

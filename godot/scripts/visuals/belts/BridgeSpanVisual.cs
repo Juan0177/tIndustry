@@ -96,7 +96,11 @@ public partial class BridgeSpanVisual : Node2D
 
     public override void _Process(double delta)
     {
-        _time += (float)delta;
+        if (!ClientSettings.PlaytestForcesEffectsOff)
+        {
+            _time += (float)delta; // the arrows hold still in playtests (repeatable captures)
+        }
+
         // Sequence: 0 lit → 1 lit → 2 lit → all off → repeat.
         var phase = (int)(_time / (CycleSeconds / 4f)) % 4;
         for (var i = 0; i < _arrows.Count; i++)

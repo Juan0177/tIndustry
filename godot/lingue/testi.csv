@@ -354,3 +354,4 @@ salvataggi.errore.CampaignMapBadName,"Nome della mappa della campagna non valido
 salvataggi.errore.MapsFolderMissing,"Mappa della campagna ""{0}"" non disponibile: cartella delle mappe (data/maps) non trovata.","Campaign map ""{0}"" not available: map folder (data/maps) not found."
 salvataggi.errore.CampaignMapMissing,"Mappa della campagna ""{0}"" mancante o non valida: il salvataggio si carica di nuovo quando la mappa torna al suo posto.","Campaign map ""{0}"" missing or invalid: the save loads again once the map is back."
 salvataggi.errore.CampaignMapChanged,"La mappa della campagna ""{0}"" ha cambiato misura dopo il salvataggio.","Campaign map ""{0}"" changed size after the save."
+formato.decimale,",",.

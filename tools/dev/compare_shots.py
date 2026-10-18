@@ -11,82 +11,62 @@ MASKS = [
     (1180, 0, 1280, 30),  # FPS counter
 ]
 
-# Extra masks per screenshot, only where animation/timing noise was observed by diffing
-# identical runs. A real change inside these rectangles would be MISSED.
-GEAR = (470, 325, 745, 455)  # miner gear + belt items beside the CORE (animated);
-#                              a sprite/layout change of those machines goes unseen
-HUD_COUNT = (30, 100, 95, 135)  # HUD first resource counter value (tick timing);
-#                                a change to that counter's look/position goes unseen
-# HUD power digit in the very first tutorial frame: it shows the power buffer after however many
-# ticks the first frame ran (frame length varies), so it is timing noise. A change to that digit's
-# look/position in this one screenshot goes unseen.
-POWER_DIGIT = (258, 77, 272, 95)
-# Construction drone resting beside the CORE (west side), drawn since sp3 task 4: it hovers on a
-# timer (graphics only), so its pixels vary between runs. Each box is the drone's measured footprint
-# in that screenshot plus 2 px for the hover; a change to the drone or to the ground under it goes
-# unseen there. In the ui screenshots the drone already lies inside GEAR.
-DRONE_TUTORIAL_01 = (574, 331, 608, 364)
-DRONE_TUTORIAL_02 = (313, 189, 348, 223)
-# HUD power buffer value ("N/24") at UI 100% (G4 layout), measured on three runs; its look goes unseen there.
-POWER_HUD = (225, 62, 296, 84)
+# Extra masks per screenshot, only where timing noise was observed by diffing identical runs. A real change
+# inside these rectangles would be MISSED. Playtests stop every visual clock (drills, belts, bridge arrows,
+# the construction shader, the drone's hover and beam) and the colour captures hold the simulation, so what is
+# left is simulation state that depends on how many ticks ran before a capture. Measured on three ui and
+# tutorial runs in Italian and three in English (G4 final wave): union of the differing pixels + 3 px.
+#
+# Items on the belt into the CORE (where the seed line's items happen to be); the belt and the CORE edge
+# under these few pixels go unseen.
+ITEMS_CORE = (567, 339, 616, 354)
+# HUD power buffer value ("N/24") at UI 100%: its digits go unseen.
+POWER_HUD = (221, 63, 255, 83)
+# End of the build queue bar's fill (site progress when the simulation was held): the bar end goes unseen.
+QUEUE_BAR = (126, 203, 135, 217)
+# Colour captures (simulation held): one item entering the CORE and the scan line of the site being
+# taken apart (its progress); the marks themselves stay checked.
+ITEM_GHOSTS = (650, 451, 659, 465)
+SCAN_GHOSTS = (447, 473, 577, 485)
+ITEM_REMOVAL = (709, 354, 720, 372)
+SCAN_REMOVAL = (384, 389, 589, 404)
 FILE_MASKS = {
-    "tutorial-01-step1-camera.png": [POWER_DIGIT, DRONE_TUTORIAL_01],
-    "tutorial-02-step2-palette.png": [DRONE_TUTORIAL_02],
-    "ui-hud.png": [GEAR],
-    "ui-palette-info.png": [GEAR],
-    "ui-mercato.png": [GEAR],  # only the belt strip under the modal edge varies
-    # the running miner and belt items show through the campaign list card; a change to the card there goes unseen
-    "ui-campagna-mappa-mancante.png": [(320, 316, 670, 539)],
-    # zoomed view: the machines fill this area; a change there goes unseen
-    "ui-belt-into-core.png": [(200, 300, 720, 540)],
-    "tutorial-03-step3-miner-placed.png": [GEAR],
-    "tutorial-04-step5-mercato.png": [GEAR],
-    "tutorial-05-mercato-open.png": [GEAR, HUD_COUNT],
-    "tutorial-06-step7-forno.png": [GEAR],
-    "tutorial-07-step8-impostazioni.png": [GEAR],
-    "tutorial-08-done.png": [GEAR],
-    # G4 captures, measured on three ui runs in Italian and three in English (union of the bboxes + 3 px).
-    # Colour variants: the marks are drawn over the running miner, belt items and the construction
-    # shader (animated on its own clock); a change of the marks there goes unseen, the panels and the
-    # rest of the world stay checked.
-    "ui-colori-altocontrasto-non-valido.png": [(449, 425, 665, 555)],
-    "ui-colori-altocontrasto-smontaggio.png": [(388, 313, 789, 515)],
-    "ui-colori-altocontrasto-valido.png": [(449, 425, 701, 555)],
-    "ui-colori-daltonici-impostazioni.png": [(502, 331, 595, 390)],
-    "ui-colori-daltonici-non-valido.png": [(447, 423, 703, 555)],
-    "ui-colori-daltonici-smontaggio.png": [(381, 305, 774, 517)],
-    "ui-colori-daltonici-valido.png": [(447, 423, 701, 555)],
-    "ui-colori-normale-impostazioni.png": [(381, 305, 787, 509)],
-    "ui-colori-normale-non-valido.png": [(447, 423, 705, 555)],
-    "ui-colori-normale-smontaggio.png": [(381, 305, 790, 517)],
-    "ui-colori-normale-valido.png": [(447, 423, 705, 555)],
-    # belt items beside the CORE (like GEAR, at the zoom of these captures)
-    "ui-fantasma-non-valido.png": [(519, 335, 616, 374)],
-    "ui-fantasma-valido.png": [(519, 335, 616, 374)],
-    "ui-impostazioni-en.png": [(519, 335, 616, 373)],
-    "ui-impostazioni-it.png": [(519, 335, 616, 373)],
-    "ui-rifiuto.png": [(519, 339, 611, 374)],
-    # a belt scrolling under the settings card edge
-    "ui-impostazioni-scala-50.png": [(317, 561, 387, 607)],
-    "ui-impostazioni.png": [(317, 561, 387, 607)],
-    # HUD power buffer value at 100% (ticks run before the capture; the number changes width)
+    "tutorial-04-step5-mercato.png": [(584, 340, 596, 353)],
+    "tutorial-06-step7-forno.png": [(581, 339, 596, 353)],
+    "tutorial-08-done.png": [(573, 339, 613, 354)],
+    "ui-hud.png": [ITEMS_CORE],
+    "ui-palette-info.png": [ITEMS_CORE],
+    "ui-fantasma-valido.png": [ITEMS_CORE],
+    "ui-fantasma-non-valido.png": [ITEMS_CORE],
+    "ui-impostazioni-en.png": [ITEMS_CORE],
+    "ui-impostazioni-it.png": [ITEMS_CORE],
+    "ui-rifiuto.png": [ITEMS_CORE],
+    # zoomed view: the two items on the belt
+    "ui-belt-into-core.png": [(550, 341, 598, 379), (661, 341, 693, 379)],
+    "ui-nuova-partita.png": [POWER_HUD],
     "ui-palette-inizio.png": [POWER_HUD],
     "ui-palette-tutto.png": [POWER_HUD],
     "ui-scala-100-hud.png": [POWER_HUD],
-    # hovering drone beside the CORE, through the New game card
-    "ui-nuova-partita.png": [(588, 334, 616, 363)],
-    # a toast fading behind the Market card
-    "ui-scala-100-mercato.png": [(472, 487, 811, 511)],
-    "ui-scala-200-mercato.png": [(303, 263, 559, 296)],
-    # a few pixel rows of the world through the campaign card
-    "ui-scala-125-campagna.png": [(453, 444, 851, 455)],
-    # save date and time of the autosave (whole "AAAA-MM-GG hh:mm", Italian and English layouts)
+    "ui-fantasma-titanio.png": [QUEUE_BAR],
+    "ui-colori-normale-impostazioni.png": [QUEUE_BAR, SCAN_REMOVAL, ITEM_REMOVAL],
+    "ui-colori-daltonici-impostazioni.png": [QUEUE_BAR, (503, 352, 561, 360)],
+    "ui-colori-altocontrasto-impostazioni.png": [QUEUE_BAR],
+    "ui-colori-normale-smontaggio.png": [QUEUE_BAR, SCAN_REMOVAL, ITEM_REMOVAL],
+    "ui-colori-daltonici-smontaggio.png": [QUEUE_BAR, SCAN_REMOVAL, ITEM_REMOVAL],
+    "ui-colori-altocontrasto-smontaggio.png": [QUEUE_BAR, SCAN_REMOVAL, ITEM_REMOVAL],
+    "ui-colori-normale-valido.png": [QUEUE_BAR, SCAN_GHOSTS, ITEM_GHOSTS],
+    "ui-colori-daltonici-valido.png": [QUEUE_BAR, SCAN_GHOSTS, ITEM_GHOSTS],
+    "ui-colori-altocontrasto-valido.png": [QUEUE_BAR, SCAN_GHOSTS, ITEM_GHOSTS],
+    "ui-colori-normale-non-valido.png": [QUEUE_BAR, SCAN_GHOSTS, ITEM_GHOSTS],
+    "ui-colori-daltonici-non-valido.png": [QUEUE_BAR, SCAN_GHOSTS, ITEM_GHOSTS],
+    "ui-colori-altocontrasto-non-valido.png": [QUEUE_BAR, SCAN_GHOSTS, ITEM_GHOSTS],
+    # save date and time of the autosave (whole "AAAA-MM-GG hh:mm", Italian and English layouts): any digit
+    # can change between runs
+    "ui-scala-75-salvataggi.png": [(565, 267, 705, 284)],
     "ui-scala-100-salvataggi.png": [(527, 237, 727, 257)],
     "ui-scala-125-salvataggi.png": [(522, 207, 745, 231)],
     "ui-scala-150-salvataggi.png": [(500, 240, 766, 267)],
     "ui-scala-200-salvataggi.png": [(595, 285, 951, 319)],
-    # hovering drone and its beam to the planned belt
-    "ui-scala-200-clic-cella.png": [(317, 321, 707, 615)],
 }
 
 

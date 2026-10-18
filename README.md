@@ -54,7 +54,7 @@ Un solo tema in stile Mindustry per HUD, pannelli e menu: pannelli quasi neri co
   </tr>
   <tr>
     <td width="50%"><img src="docs/img/readme/interfaccia-daltonici.png" alt="Colori per daltonici: anteprima rifiutata con la X e smontaggio tratteggiato"><br><sub><b>Daltonici</b> · anteprima rifiutata con la X, smontaggio tratteggiato</sub></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/img/readme/interfaccia-altocontrasto.png" alt="Alto contrasto: pannelli neri, testo bianco, segni gialli e rossi col bordo nero"><br><sub><b>Alto contrasto</b> · pannelli neri, testo bianco, segni col bordo nero</sub></td>
   </tr>
 </table>
 

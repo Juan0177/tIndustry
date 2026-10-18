@@ -1,4 +1,5 @@
 using Godot;
+using System.Linq;
 
 namespace TIndustry.Godot;
 
@@ -108,8 +109,9 @@ public static class UiTheme
     }
 
     /// <summary>
-    /// Rebuilds the theme with the current <see cref="UiColors"/> (a new colour variant): every Control using it
-    /// redraws (the theme's changed signal); the replaced styles are disposed.
+    /// Rebuilds the theme with the current <see cref="UiColors"/> (a new colour variant): the new items are built in a
+    /// scratch theme and merged into the live one in one go, so every Control gets one theme change instead of one
+    /// per item; the replaced styles are disposed.
     /// </summary>
     public static void Refresh()
     {
@@ -118,14 +120,19 @@ public static class UiTheme
             return;
         }
 
-        _theme.Clear();
-        foreach (var resource in Owned)
+        var replaced = Owned.ToArray();
+        Owned.Clear();
+        using (var scratch = new Theme())
+        {
+            Populate(scratch);
+            // Same item names every time: merging overwrites each one, no Clear (which would notify again).
+            _theme.MergeWith(scratch);
+        }
+
+        foreach (var resource in replaced)
         {
             resource.Dispose();
         }
-
-        Owned.Clear();
-        Populate(_theme);
     }
 
     private static T Own<T>(T resource) where T : Resource

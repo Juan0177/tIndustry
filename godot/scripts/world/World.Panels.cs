@@ -271,6 +271,7 @@ public partial class World
         _research?.Close();
         _mercato?.Close();
         _campaignSelect?.Close();
+        _settingsFromHome = false; // Saves goes back to the Home itself: closing Impostazioni must not reopen it under
         _settingsPanel?.Close();
         _saves?.Open();
     }

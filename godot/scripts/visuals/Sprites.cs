@@ -92,7 +92,7 @@ public static class Sprites
 
     private static Texture2D Placeholder()
     {
-        var image = Image.CreateEmpty(32, 32, false, Image.Format.Rgba8);
+        using var image = Image.CreateEmpty(32, 32, false, Image.Format.Rgba8);
         image.Fill(Colors.Magenta);
         return ImageTexture.CreateFromImage(image);
     }

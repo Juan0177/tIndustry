@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// UI scale probe of the <c>ui</c> playtest (G4): at 100%, 125%, 150% and 200% every panel is opened and its controls are
+/// UI scale probe of the <c>ui</c> playtest (G4): at 100%, 125%, 150%, 200% and 75% every panel is opened and its controls are
 /// checked (no visible text wider than its rectangle, every panel inside the window, HUD panels not on top of each
 /// other); at 200% the world must keep its size and a mouse click must land on the cell under the cursor.
 /// <c>TINDUSTRY_PLAYTEST_SCALA=&lt;percent&gt;</c> runs a whole playtest at that UI scale.
@@ -14,8 +14,11 @@ public partial class World
     /// <summary>Env var: UI scale percent for a whole playtest (the temp profile otherwise has the default).</summary>
     private const string PlaytestScaleEnv = "TINDUSTRY_PLAYTEST_SCALA";
 
-    /// <summary>The UI scales the probe goes through, in order (125: the old default many settings files keep).</summary>
-    private static readonly int[] PlaytestScales = [100, 125, 150, 200];
+    /// <summary>
+    /// The UI scales the probe goes through, in order (125: the old default many settings files keep; 75: the lower
+    /// bound, where the palette cells are largest in UI units).
+    /// </summary>
+    private static readonly int[] PlaytestScales = [100, 125, 150, 200, 75];
 
     /// <summary>Scales at which every panel must fit a 1280×720 window with no text cut.</summary>
     private static bool MustFit(int percent) => percent <= 150;
@@ -134,6 +137,9 @@ public partial class World
                 GD.Print($"PLAYTEST scala {percent}% · {name}: rettangoli ok");
             }
 
+            // A toast fading out (from an earlier step) would show behind the panel and differ run to run.
+            _hud?.ClearToast();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await shot($"scala-{percent}-{name}");
             return true;
         }
@@ -242,18 +248,34 @@ public partial class World
             return Fail($"scala UI {percent}%: cursore su {cell} ({at}), cella sotto il mouse {_hover?.ToString() ?? "nessuna"}, controllo {GetViewport().GuiGetHoveredControl()?.GetPath().ToString() ?? "nessuno"}");
         }
 
-        await PlaytestClick(at);
-        // The command lands on the next simulation tick (a frame can be shorter than a tick).
+        // The simulation is held and stepped one tick per frame from the click on: the drone has flown the same
+        // number of ticks in every run, so the capture repeats (the drone and its beam are in it).
         var view = _view!;
         bool PlacedThere() => view.IsPlannedTile(cell) || view.Sites.Any(site => site.Tiles.Contains(cell));
-        if (!await PlaytestWaitUntil(PlacedThere, StepTimeout))
+        PlaytestHeld = true;
+        try
         {
-            return Fail($"scala UI {percent}%: il clic su {cell} non ha messo il nastro lì (strumento {_tool}, "
-                + $"sotto il mouse {GetViewport().GuiGetHoveredControl()?.GetPath().ToString() ?? "il mondo"}, piani {view.PlansOf(LocalPlayer).Count})");
-        }
+            await PlaytestClick(at);
+            var frames = 0;
+            while (!PlacedThere() && frames++ < 60)
+            {
+                _host!.AdvanceTicks(1);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
 
-        GD.Print($"PLAYTEST scala {percent}%: clic sulla cella {cell} (finestra {at}), nastro pianificato lì");
-        await shot($"scala-{percent}-clic-cella");
+            if (!PlacedThere())
+            {
+                return Fail($"scala UI {percent}%: il clic su {cell} non ha messo il nastro lì (strumento {_tool}, "
+                    + $"sotto il mouse {GetViewport().GuiGetHoveredControl()?.GetPath().ToString() ?? "il mondo"}, piani {view.PlansOf(LocalPlayer).Count})");
+            }
+
+            GD.Print($"PLAYTEST scala {percent}%: clic sulla cella {cell} (finestra {at}), nastro pianificato lì");
+            await shot($"scala-{percent}-clic-cella");
+        }
+        finally
+        {
+            PlaytestHeld = false;
+        }
         await PlaytestKey(Key.Escape);
 
         // Right click on the same cell removes the plan (or marks the site): same cell under the cursor.
