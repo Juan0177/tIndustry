@@ -4,237 +4,118 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Builds Mindustry-style belt visuals from a cell path or a placeable <see cref="BeltGrid"/>:
-/// straight strips + platform corner tiles, shared scroll clock.
-/// Bridge: full 1×1 ends + thin (~0.78) mid-span (decision 14).
+/// Builds the belt visuals of a placeable <see cref="BeltGrid"/>: one sprite per straight cell, one per
+/// corner, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
+/// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step.
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
 {
     public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
-    private readonly List<ScrollingBeltStrip> _strips = [];
-    private readonly List<BeltCornerTile> _corners = [];
-    private float _scroll;
-    private float _rateTilesPerSecond = 0.5f;
+    /// <summary>Filter glyph on a sorter: as wide as the 14×14 px slot of the sorter sprite.</summary>
+    private const float SorterGlyphCells = 14f / Sprites.PixelsPerCell;
 
-    public float ScrollTiles => _scroll;
-    public float RateTilesPerSecond => _rateTilesPerSecond;
+    /// <summary>Animation state of one belt tier, kept across rebuilds so placing a belt does not reset the others.</summary>
+    private sealed class TierClock(Texture2D[] straight, Texture2D[] corner, float rateCellsPerSecond)
+    {
+        public readonly Texture2D[] Straight = straight;
+        public readonly Texture2D[] Corner = corner;
+        public readonly float Rate = rateCellsPerSecond;
+        public readonly List<Sprite2D> StraightCells = [];
+        public readonly List<Sprite2D> CornerCells = [];
+        public float Scroll;
+        public int Frame;
+    }
 
-    public void Configure(IReadOnlyList<GridPosition> path, float rateItemsPerSecond, int tileSize)
+    private readonly Dictionary<string, TierClock> _tiers = new(StringComparer.Ordinal);
+
+    public void ConfigureFromGrid(IGameView view, int tileSize)
     {
         ClearVisuals();
-        _rateTilesPerSecond = Math.Max(0.05f, rateItemsPerSecond);
-        _scroll = 0f;
-
-        if (path.Count < 1)
+        foreach (var (pos, cell) in view.Belts)
         {
-            return;
-        }
-
-        if (path.Count == 1)
-        {
-            AddStrip([path[0]], Direction.East, tileSize, 0f);
-            return;
-        }
-
-        var phase = 0f;
-        var segStart = 0;
-
-        for (var i = 1; i < path.Count; i++)
-        {
-            var into = BeltLane.DirectionBetween(path[i - 1], path[i]);
-            if (i >= path.Count - 1)
+            switch (cell.Kind)
             {
-                break;
+                case LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter:
+                    AddSpecial(pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
+                    break;
+                case LogisticsKind.Bridge:
+                    // Both ends get their pad; the span is drawn once, from the entry.
+                    AddSpecial(pos, LogisticsKind.Bridge, cell.Direction, tileSize);
+                    if (cell.BridgePartner is { } partner && IsBridgeEntryVisual(pos, cell.Direction, partner))
+                    {
+                        var span = new BridgeSpanVisual { Name = $"BridgeSpan_{pos.X}_{pos.Y}" };
+                        AddChild(span);
+                        span.Configure(pos, partner, cell.Direction, tileSize);
+                    }
+
+                    break;
+                case LogisticsKind.Belt:
+                    AddBelt(view, pos, cell, tileSize);
+                    break;
             }
-
-            var outward = BeltLane.DirectionBetween(path[i], path[i + 1]);
-            if (outward == into)
-            {
-                continue;
-            }
-
-            if (i - 1 >= segStart)
-            {
-                var straight = SubPath(path, segStart, i - 1);
-                var dir = ResolveStripDirection(path, straight, segStart);
-                AddStrip(straight, dir, tileSize, phase);
-                phase += straight.Count;
-            }
-
-            var corner = new BeltCornerTile { Name = $"Corner_{path[i].X}_{path[i].Y}" };
-            AddChild(corner);
-            corner.Configure(path[i], into, outward, tileSize, phase);
-            _corners.Add(corner);
-            phase += 1f;
-            segStart = i + 1;
-        }
-
-        if (segStart <= path.Count - 1)
-        {
-            var straight = SubPath(path, segStart, path.Count - 1);
-            var dir = ResolveStripDirection(path, straight, segStart);
-            AddStrip(straight, dir, tileSize, phase);
         }
     }
 
-    /// <summary>
-    /// Rebuild from a placeable grid: platform corners where flow turns 90°,
-    /// otherwise merged straight strips along each run.
-    /// </summary>
-    public void ConfigureFromGrid(IGameView view, float rateItemsPerSecond, int tileSize)
+    public override void _Process(double delta)
     {
-        var cells = view.Belts;
-        ClearVisuals();
-        _rateTilesPerSecond = Math.Max(0.05f, rateItemsPerSecond);
-        _scroll = 0f;
-
-        if (cells.Count == 0)
+        foreach (var clock in _tiers.Values)
         {
+            clock.Scroll += clock.Rate * (float)delta;
+            if (clock.Scroll > 1024f)
+            {
+                clock.Scroll %= 1f;
+            }
+
+            var frame = (int)(clock.Scroll * 8) % 8;
+            if (frame == clock.Frame)
+            {
+                continue;
+            }
+
+            clock.Frame = frame;
+            foreach (var sprite in clock.StraightCells)
+            {
+                sprite.Texture = clock.Straight[frame % clock.Straight.Length];
+            }
+
+            foreach (var sprite in clock.CornerCells)
+            {
+                sprite.Texture = clock.Corner[frame % clock.Corner.Length];
+            }
+        }
+    }
+
+    private void AddBelt(IGameView view, GridPosition pos, BeltGridCell cell, int tileSize)
+    {
+        var clock = ClockFor(cell.Definition);
+        if (view.IsBeltCorner(pos) && view.TryGetBeltIncomingDirection(pos, out var incoming))
+        {
+            var corner = new BeltCornerTile { Name = $"Corner_{pos.X}_{pos.Y}" };
+            corner.Configure(pos, incoming, cell.Direction, tileSize, clock.Corner[clock.Frame % clock.Corner.Length]);
+            AddChild(corner);
+            clock.CornerCells.Add(corner);
             return;
         }
 
-        var visited = new HashSet<GridPosition>();
-        var phase = 0f;
+        var straight = new ScrollingBeltStrip { Name = $"Belt_{pos.X}_{pos.Y}" };
+        straight.Configure(pos, cell.Direction, tileSize, clock.Straight[clock.Frame % clock.Straight.Length]);
+        AddChild(straight);
+        clock.StraightCells.Add(straight);
+    }
 
-        // Junction / splitter / sorter icons (not gallery corners or strips).
-        foreach (var (pos, cell) in cells)
+    private TierClock ClockFor(ConveyorDefinition definition)
+    {
+        if (!_tiers.TryGetValue(definition.Id, out var clock))
         {
-            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter))
-            {
-                continue;
-            }
-
-            AddSpecial(pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
-            visited.Add(pos);
-            phase += 1f;
+            clock = new TierClock(
+                Sprites.Frames(definition.Id),
+                Sprites.Frames(definition.Id + "-corner"),
+                Math.Max(0.05f, definition.RateItemsPerSecond));
+            _tiers[definition.Id] = clock;
         }
 
-        // Bridges: full 1×1 ends + thin mid-span (once per pair, from entry).
-        foreach (var (pos, cell) in cells)
-        {
-            if (visited.Contains(pos)
-                || cell.Kind != LogisticsKind.Bridge
-                || cell.BridgePartner is not { } partner)
-            {
-                continue;
-            }
-
-            if (!IsBridgeEntryVisual(pos, cell.Direction, partner))
-            {
-                continue;
-            }
-
-            AddBridgePair(pos, partner, cell.Direction, tileSize, phase);
-            visited.Add(pos);
-            visited.Add(partner);
-            phase += 1f;
-        }
-
-        // Corners first (platform pads) — belts only.
-        foreach (var (pos, cell) in cells)
-        {
-            if (visited.Contains(pos)
-                || !view.IsBeltCorner(pos)
-                || !view.TryGetBeltIncomingDirection(pos, out var incoming))
-            {
-                continue;
-            }
-
-            var corner = new BeltCornerTile { Name = $"Corner_{pos.X}_{pos.Y}" };
-            AddChild(corner);
-            corner.Configure(pos, incoming, cell.Direction, tileSize, phase);
-            _corners.Add(corner);
-            visited.Add(pos);
-            phase += 1f;
-        }
-
-        // Straight runs: start at cells that are not corners and not mid-run.
-        foreach (var (pos, cell) in cells.OrderBy(kv => kv.Key.Y).ThenBy(kv => kv.Key.X))
-        {
-            if (visited.Contains(pos) || view.IsBeltCorner(pos) || cell.Kind != LogisticsKind.Belt)
-            {
-                continue;
-            }
-
-            // Prefer starting at head of a straight run (no same-dir predecessor).
-            var pred = pos.Step(DirectionMath.Opposite(cell.Direction));
-            if (cells.TryGetValue(pred, out var predCell)
-                && !view.IsBeltCorner(pred)
-                && predCell.Kind == LogisticsKind.Belt
-                && predCell.Direction == cell.Direction
-                && !visited.Contains(pred))
-            {
-                continue;
-            }
-
-            var run = new List<GridPosition>();
-            var cursor = pos;
-            string? runDefId = null;
-            while (true)
-            {
-                if (!cells.TryGetValue(cursor, out var runCell)
-                    || visited.Contains(cursor)
-                    || view.IsBeltCorner(cursor)
-                    || runCell.Kind != LogisticsKind.Belt)
-                {
-                    break;
-                }
-
-                var defId = runCell.Definition.Id;
-                if (runDefId is null)
-                {
-                    runDefId = defId;
-                }
-                else if (defId != runDefId)
-                {
-                    // Don't merge T1 and T2 into one strip (T2 needs accent rails).
-                    break;
-                }
-
-                if (run.Count > 0)
-                {
-                    var prev = run[^1];
-                    if (!cells.TryGetValue(prev, out var prevCell) || prevCell.Direction != runCell.Direction)
-                    {
-                        break;
-                    }
-
-                    if (!cursor.Equals(prev.Step(prevCell.Direction)))
-                    {
-                        break;
-                    }
-                }
-
-                run.Add(cursor);
-                visited.Add(cursor);
-                cursor = cursor.Step(runCell.Direction);
-            }
-
-            if (run.Count == 0)
-            {
-                continue;
-            }
-
-            var dir = cells[run[0]].Direction;
-            var accent = runDefId is "conveyor-fast" or "conveyor-express";
-            AddStrip(run, dir, tileSize, phase, accentRails: accent);
-            phase += run.Count;
-        }
-
-        // Orphan belt cells (e.g. isolated after edits).
-        foreach (var (pos, cell) in cells)
-        {
-            if (visited.Contains(pos) || cell.Kind != LogisticsKind.Belt)
-            {
-                continue;
-            }
-
-            var accent = cell.Definition.Id is "conveyor-fast" or "conveyor-express";
-            AddStrip([pos], cell.Direction, tileSize, phase, accentRails: accent);
-            phase += 1f;
-            visited.Add(pos);
-        }
+        return clock;
     }
 
     private void ClearVisuals()
@@ -244,86 +125,11 @@ public partial class MindustryBeltVisual : Node2D
             child.QueueFree();
         }
 
-        _strips.Clear();
-        _corners.Clear();
-    }
-
-    private static Direction ResolveStripDirection(
-        IReadOnlyList<GridPosition> path,
-        List<GridPosition> straight,
-        int segStart)
-    {
-        if (straight.Count >= 2)
+        foreach (var clock in _tiers.Values)
         {
-            return BeltLane.DirectionBetween(straight[^2], straight[^1]);
+            clock.StraightCells.Clear();
+            clock.CornerCells.Clear();
         }
-
-        if (segStart > 0)
-        {
-            return BeltLane.DirectionBetween(path[segStart - 1], path[segStart]);
-        }
-
-        return BeltLane.DirectionBetween(path[0], path[1]);
-    }
-
-    public override void _Process(double delta)
-    {
-        _scroll += _rateTilesPerSecond * (float)delta;
-        if (_scroll > 1024f)
-        {
-            _scroll %= 1f;
-        }
-
-        foreach (var strip in _strips)
-        {
-            strip.SetScroll(_scroll);
-        }
-
-        foreach (var corner in _corners)
-        {
-            corner.SetScroll(_scroll);
-        }
-    }
-
-    private void AddStrip(
-        List<GridPosition> cells,
-        Direction direction,
-        int tileSize,
-        float phase,
-        float thicknessScale = 1f,
-        bool accentRails = false)
-    {
-        if (cells.Count == 0)
-        {
-            return;
-        }
-
-        var strip = new ScrollingBeltStrip { Name = $"Strip_{cells[0].X}_{cells[0].Y}" };
-        AddChild(strip);
-        strip.Configure(cells, direction, tileSize, phase, thicknessScale, accentRails);
-        if (thicknessScale < 0.99f)
-        {
-            // Bridge thin-span sits above underpass belts, below end pads.
-            strip.ZIndex = 2;
-        }
-
-        _strips.Add(strip);
-    }
-
-    private void AddBridgePair(
-        GridPosition entry,
-        GridPosition exit,
-        Direction direction,
-        int tileSize,
-        float phase)
-    {
-        AddSpecial(entry, LogisticsKind.Bridge, direction, tileSize);
-        AddSpecial(exit, LogisticsKind.Bridge, direction, tileSize);
-
-        var span = new BridgeSpanVisual { Name = $"BridgeSpan_{entry.X}_{entry.Y}" };
-        AddChild(span);
-        span.Configure(entry, exit, direction, tileSize);
-        _ = phase; // scroll phase unused — span uses its own light sequence
     }
 
     private static bool IsBridgeEntryVisual(GridPosition entry, Direction direction, GridPosition partner)
@@ -353,14 +159,14 @@ public partial class MindustryBeltVisual : Node2D
         int tileSize,
         string? sorterFilterId = null)
     {
-        var texPath = kind switch
+        var texture = Sprites.For(kind switch
         {
-            LogisticsKind.Junction => "res://assets/junction.png",
-            LogisticsKind.Splitter => "res://assets/splitter.png",
-            LogisticsKind.Sorter => "res://assets/sorter.png",
-            LogisticsKind.Bridge => "res://assets/bridge.png",
-            _ => "res://assets/conveyor-basic.png"
-        };
+            LogisticsKind.Junction => "junction",
+            LogisticsKind.Splitter => "splitter",
+            LogisticsKind.Sorter => "sorter",
+            LogisticsKind.Bridge => "conveyor-bridge",
+            _ => BuildSpec.DefaultConveyorId
+        });
         var node = new Node2D
         {
             Name = $"{kind}_{pos.X}_{pos.Y}",
@@ -369,62 +175,40 @@ public partial class MindustryBeltVisual : Node2D
         };
         var sprite = new Sprite2D
         {
-            Texture = GD.Load<Texture2D>(texPath),
+            Texture = texture,
             Centered = true,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            Scale = Vector2.One * (tileSize / 64f)
+            Scale = Vector2.One * Sprites.ScaleToCells(texture, 1, tileSize)
         };
         // Splitter / sorter / bridge rotate with facing; junction is axis-symmetric.
         if (kind is LogisticsKind.Splitter or LogisticsKind.Sorter or LogisticsKind.Bridge)
         {
-            sprite.RotationDegrees = direction switch
-            {
-                Direction.East => 0f,
-                Direction.South => 90f,
-                Direction.West => 180f,
-                Direction.North => -90f,
-                _ => 0f
-            };
+            sprite.RotationDegrees = ScrollingBeltStrip.RotationFor(direction);
         }
 
         node.AddChild(sprite);
 
-        // Sorter: filtered item icon ~70% of tile (counter-rotated so glyph stays upright).
+        // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame).
         if (kind == LogisticsKind.Sorter)
         {
             var filterId = string.IsNullOrWhiteSpace(sorterFilterId)
                 ? BeltGridCell.DefaultSorterFilter
                 : sorterFilterId;
-            var filterPath = $"res://assets/{filterId}.png";
-            if (ResourceLoader.Exists(filterPath))
+            if (Sprites.TryFor(filterId) is { } glyphTexture)
             {
-                var glyph = new Sprite2D
+                node.AddChild(new Sprite2D
                 {
                     Name = "FilterIcon",
-                    Texture = GD.Load<Texture2D>(filterPath),
+                    Texture = glyphTexture,
                     Centered = true,
                     TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                    Scale = Vector2.One * (tileSize * 0.70f / 64f),
-                    // Cancel parent/frame rotation so the item stays axis-aligned.
-                    RotationDegrees = -sprite.RotationDegrees,
+                    Scale = Vector2.One * (tileSize * SorterGlyphCells / glyphTexture.GetWidth()),
                     ZIndex = 1,
                     Modulate = ItemPalette.ColorFor(filterId)
-                };
-                node.AddChild(glyph);
+                });
             }
         }
 
         AddChild(node);
-    }
-
-    private static List<GridPosition> SubPath(IReadOnlyList<GridPosition> path, int fromInclusive, int toInclusive)
-    {
-        var list = new List<GridPosition>(toInclusive - fromInclusive + 1);
-        for (var i = fromInclusive; i <= toInclusive; i++)
-        {
-            list.Add(path[i]);
-        }
-
-        return list;
     }
 }

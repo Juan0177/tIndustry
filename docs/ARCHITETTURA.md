@@ -28,7 +28,7 @@ tIndustry/
 ├─ godot/
 │  ├─ project.godot · export_presets.cfg · TIndustry.Godot.csproj
 │  ├─ scenes/Main.tscn          scena principale (nodo radice Main, script World)
-│  ├─ shaders/                  belt_scroll, belt_corner_v2, construct (cantieri)
+│  ├─ shaders/                  construct (cantieri)
 │  ├─ assets/                   icone (cartella piatta; ui/ per quelle dell'interfaccia) + ATTRIBUTION.md
 │  └─ scripts/
 │     ├─ world/                 World + partial (Input, Placement, Session, Drawing, Visuals, Panels), WorldCamera
@@ -153,4 +153,4 @@ tools/dev/playtest.sh ui /tmp/shots-ui          # anche: tutorial
 python tools/dev/compare_shots.py <baseline> <nuovi>
 ```
 
-`tools/dev/playtest.sh` lancia Godot con `TINDUSTRY_PLAYTEST` e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`), salva gli screenshot e `log.txt` nella cartella indicata ed esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. Il codice dei playtest è `godot/scripts/dev/World.Playtest.cs`; durante la prova gli input reali sono ignorati. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona del contatore FPS.
+`tools/dev/playtest.sh` lancia Godot con `TINDUSTRY_PLAYTEST` e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`), salva gli screenshot e `log.txt` nella cartella indicata ed esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. Il codice dei playtest è `godot/scripts/dev/World.Playtest.cs`; durante la prova gli input reali sono ignorati. Con `TINDUSTRY_PLAYTEST_PERF=1` il playtest `ui` posa anche 200 nastri e stampa FPS medio e minimo (`PLAYTEST perf: …`), senza esito. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona del contatore FPS.

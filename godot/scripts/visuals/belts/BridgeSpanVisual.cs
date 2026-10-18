@@ -4,12 +4,16 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Thin bridge mid-span (~70% width): belt-like body with 3 chevrons that light
-/// in sequence along flow; off chevrons are invisible.
+/// Thin bridge mid-span (~70% width): the repeated <c>conveyor-bridge-span</c> deck with 3 procedural
+/// chevrons that light in sequence along flow; off chevrons are invisible.
 /// </summary>
 public partial class BridgeSpanVisual : Node2D
 {
-    public const float ThicknessScale = 0.70f;
+    /// <summary>Height of <c>conveyor-bridge-span.png</c> in art pixels (tools/art/blocchi/logistica.py).</summary>
+    public const int DeckPixels = 22;
+
+    /// <summary>Span thickness in cells (~0.70): the deck at the art's integer pixel scale, 44 px on a 64 px cell.</summary>
+    public const float ThicknessScale = DeckPixels / (float)Sprites.PixelsPerCell;
     private const float CycleSeconds = 0.9f;
 
     private readonly List<Polygon2D> _arrows = [];
@@ -59,50 +63,22 @@ public partial class BridgeSpanVisual : Node2D
         };
         ZIndex = 2;
 
-        // Belt-like body (local +X = flow).
-        var halfL = lengthPx * 0.5f;
+        // Deck sprite (local +X = flow): the 16 px span texture repeated along the whole length,
+        // at the art's pixel scale (2 on a 64 px cell) both along the flow and across it.
+        var deck = Sprites.For("conveyor-bridge-span");
+        var pixelScale = tileSize / (float)Sprites.PixelsPerCell;
+        AddChild(new Sprite2D
+        {
+            Name = "Deck",
+            Texture = deck,
+            Centered = true,
+            RegionEnabled = true,
+            RegionRect = new Rect2(0, 0, lengthPx / pixelScale, deck.GetHeight()),
+            TextureRepeat = TextureRepeatEnum.Enabled,
+            TextureFilter = TextureFilterEnum.Nearest,
+            Scale = new Vector2(pixelScale, thicknessPx / deck.GetHeight())
+        });
         var halfT = thicknessPx * 0.5f;
-        var body = new Polygon2D
-        {
-            Name = "Body",
-            Color = new Color(0.20f, 0.24f, 0.28f, 1f),
-            Polygon =
-            [
-                new(-halfL, -halfT),
-                new(halfL, -halfT),
-                new(halfL, halfT),
-                new(-halfL, halfT)
-            ]
-        };
-        AddChild(body);
-
-        // Thin Blu4 rails top/bottom.
-        var rail = thicknessPx * 0.12f;
-        var railCol = new Color(0.10f, 0.12f, 0.14f, 1f);
-        AddChild(new Polygon2D
-        {
-            Name = "RailN",
-            Color = railCol,
-            Polygon =
-            [
-                new(-halfL, -halfT),
-                new(halfL, -halfT),
-                new(halfL, -halfT + rail),
-                new(-halfL, -halfT + rail)
-            ]
-        });
-        AddChild(new Polygon2D
-        {
-            Name = "RailS",
-            Color = railCol,
-            Polygon =
-            [
-                new(-halfL, halfT - rail),
-                new(halfL, halfT - rail),
-                new(halfL, halfT),
-                new(-halfL, halfT)
-            ]
-        });
 
         // 3 chevrons centered along span (tip +local X).
         var spanInner = lengthPx * 0.55f;

@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 
+from PIL import ImageChops
+
 ART_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(ART_DIR, "..", ".."))
 if ART_DIR not in sys.path:
@@ -20,6 +22,7 @@ from palette import ACCENTO, BAGLIORE, METALLO, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
+NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express")  # belt tiers with scrolling strips
 
 # Block footprints in cells (Factory.FootprintSize; the bridge is two 1x1 ends).
 CELLE = {
@@ -38,6 +41,17 @@ def _content():
 
 def _item_ids():
     return {m["itemId"] for m in _content()["market"]} | {"money"}
+
+
+def fotogrammi_di(striscia):
+    """Square frames of an "-anim" strip (side = strip height)."""
+    h = striscia.height
+    return [striscia.crop((i * h, 0, (i + 1) * h, h)) for i in range(striscia.width // h)]
+
+
+def _righe(im, y0, y1):
+    """Pixels of rows y0..y1 (inclusive)."""
+    return im.crop((0, y0, im.width, y1 + 1)).tobytes()
 
 
 def errore_misura(nome, im):
@@ -59,6 +73,10 @@ def errore_misura(nome, im):
     if block is None:
         return None
     side = T * CELLE[block]
+    if base.endswith("-span"):
+        # Repeatable span texture (bridge): tiles a cell evenly, never taller than the block.
+        ok = w > 0 and side % w == 0 and 0 < h <= side
+        return None if ok else f"{nome}: {w}x{h}, attesa larghezza divisore di {side} e altezza <= {side}"
     frame_w = FOTOGRAMMA.get(nome, h) if anim else w
     if h != side or frame_w != side:
         return f"{nome}: fotogramma {frame_w}x{h}, atteso {side}x{side}"
@@ -137,6 +155,37 @@ class TestGenera(unittest.TestCase):
             self.assertTrue(4 <= len(rampa) <= 6, nome)
             luma = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in rampa]
             self.assertEqual(sorted(luma), luma, f"{nome}: non va da scuro a chiaro")
+
+    def test_strisce_cicliche(self):
+        # Straight belt strips: 8 frames, the tread (rows 5-26) of each one is the previous one
+        # moved 4 px along the flow (East), so frame 8 moved by 4 px is frame 1 again and the
+        # loop has no seam; the rails (rows 0-4 and 27-31) stay still.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                self.assertIn(nastro + "-anim", SPRITE)
+                fotogrammi = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                self.assertEqual(8, len(fotogrammi))
+                for i, f in enumerate(fotogrammi):
+                    dopo = fotogrammi[(i + 1) % len(fotogrammi)]
+                    self.assertEqual(_righe(ImageChops.offset(f, 4, 0), 5, 26), _righe(dopo, 5, 26),
+                                     f"{nastro}: fotogramma {i + 1} scorso di 4 px != fotogramma {(i + 1) % 8 + 1}")
+                    for y0, y1 in ((0, 4), (27, 31)):
+                        self.assertEqual(_righe(f, y0, y1), _righe(fotogrammi[0], y0, y1), f"{nastro}: binari mossi")
+
+    def test_curve_raccordate(self):
+        # Corner (in from the West edge, out from the South edge): its West column is column 0
+        # of the straight frame and its South row is column 31 of it (row across the belt =
+        # 31 - x there), frame by frame, so corner and straights join without a seam.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                curve = fotogrammi_di(SPRITE[nastro + "-corner-anim"]())
+                self.assertEqual(len(dritti), len(curve))
+                for k, (d, c) in enumerate(zip(dritti, curve)):
+                    ovest = [c.getpixel((0, y)) for y in range(T)]
+                    self.assertEqual([d.getpixel((0, y)) for y in range(T)], ovest, f"{nastro} {k + 1}: lato Ovest")
+                    sud = [c.getpixel((x, T - 1)) for x in range(T)]
+                    self.assertEqual([d.getpixel((T - 1, T - 1 - x)) for x in range(T)], sud, f"{nastro} {k + 1}: lato Sud")
 
     @unittest.skipUnless(os.environ.get("TINDUSTRY_ARTE_COMPLETA") == "1",
                          "gli sprite arrivano famiglia per famiglia (task 2-5 della G1)")

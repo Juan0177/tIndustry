@@ -290,6 +290,11 @@ public partial class World
         await Shot("ricerca");
         await PlaytestKey(Key.T);
 
+        if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
+        {
+            await PlaytestBeltPerfAsync();
+        }
+
         if (!await PlaytestRemoveDragOutAndBackAsync())
         {
             return false;
@@ -302,6 +307,67 @@ public partial class World
         }
 
         return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
+    }
+
+    /// <summary>Set to 1 to run <see cref="PlaytestBeltPerfAsync"/> in the <c>ui</c> playtest.</summary>
+    private const string PlaytestPerfEnv = "TINDUSTRY_PLAYTEST_PERF";
+
+    /// <summary>
+    /// Performance probe (only with <c>TINDUSTRY_PLAYTEST_PERF=1</c>), no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
+    /// tiers, so with corners) below the Core, frames them at 1280×720 and prints average and minimum FPS
+    /// over 3 s without VSync, with the node count.
+    /// </summary>
+    private async Task PlaytestBeltPerfAsync()
+    {
+        if (_view is not Factory factory || GetNodeOrNull<Camera2D>("Camera") is not { } cam)
+        {
+            return;
+        }
+
+        const int cols = 20, rows = 10;
+        string[] tiers = ["conveyor-basic", "conveyor-fast", "conveyor-express"];
+        var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        var origin = new GridPosition(core.X - cols / 2, core.Y + 5);
+        var placed = 0;
+        for (var r = 0; r < rows; r++)
+        {
+            var east = r % 2 == 0;
+            for (var c = 0; c < cols; c++)
+            {
+                var cell = new GridPosition(origin.X + (east ? c : cols - 1 - c), origin.Y + r);
+                var dir = c == cols - 1 ? Direction.South : east ? Direction.East : Direction.West;
+                if (factory.PlaceInstant(new BuildSpec(tiers[r % tiers.Length], null, cell, dir), charge: false))
+                {
+                    placed++;
+                }
+            }
+        }
+
+        _visualDirty = true;
+        cam.Position = new Vector2((origin.X + cols * 0.5f) * TileSize, (origin.Y + rows * 0.5f) * TileSize);
+        cam.Zoom = new Vector2(0.9f, 0.9f);
+        // Uncapped: VSync would pin every run to the monitor's refresh rate.
+        var vsync = DisplayServer.WindowGetVsyncMode();
+        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+        await PlaytestWait(1.0);
+
+        var frames = 0;
+        var worst = 0UL;
+        var start = Time.GetTicksUsec();
+        var last = start;
+        while (Time.GetTicksUsec() - start < 3_000_000UL)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var now = Time.GetTicksUsec();
+            worst = Math.Max(worst, now - last);
+            last = now;
+            frames++;
+        }
+
+        DisplayServer.WindowSetVsyncMode(vsync);
+        var average = frames / ((last - start) / 1e6);
+        var nodes = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
+        GD.Print($"PLAYTEST perf: {placed} nastri, fps medio {average:F0}, minimo {1e6 / Math.Max(1UL, worst):F0}, nodi {nodes:F0}");
     }
 
     /// <summary>
