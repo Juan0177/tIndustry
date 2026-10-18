@@ -17,10 +17,14 @@ public partial class World
         var camZoom = HasNode("Camera") ? Math.Max(0.01f, GetNode<Camera2D>("Camera").Zoom.X) : 1f;
         var screenTilePx = TileSize * camZoom;
 
-        // Grid only in view (full 1000² grid lines would dominate frame time).
-        if (screenTilePx >= 10f)
+        // Grid only in view (full 1000² grid lines would dominate frame time). Over the terrain art it is hidden,
+        // and drawn very faint only while a build tool is selected (placing by cells).
+        var artLod = screenTilePx >= TerrainChunks.ArtMinCellPx;
+        Color? gridColor = artLod
+            ? (_tool != BuildTool.Cursor ? new Color(0f, 0f, 0f, 0.14f) : null)
+            : (screenTilePx >= 10f ? new Color(0.22f, 0.28f, 0.24f, 0.55f) : null);
+        if (gridColor is { } grid)
         {
-            var grid = new Color(0.22f, 0.28f, 0.24f, 0.55f);
             var gridTop = visMinY * TileSize;
             var gridBottom = (visMaxY + 1) * TileSize;
             var gridLeft = visMinX * TileSize;
@@ -48,7 +52,9 @@ public partial class World
             return;
         }
 
-        // Seeded deposits: the ore icon per cell up close, ore-coloured runs zoomed out (culled).
+        // Seeded deposits at the colour level of detail: the ore icon per cell from DepositIconMinPx, ore-coloured
+        // runs below (culled). From TerrainChunks.ArtMinCellPx the terrain art draws them as pebbles; a cell whose
+        // art chunk is still being composed keeps its icon meanwhile.
         if (_view.Terrain is { } map)
         {
             var buildingTiles = BuildingTilesThisFrame();
@@ -61,6 +67,11 @@ public partial class World
                 for (var x = visMinX; x <= visMaxX + 1; x++)
                 {
                     var deposit = x <= visMaxX ? map[x, y].Deposit : DepositKind.None;
+                    if (deposit != DepositKind.None && artLod && _terrainChunks?.HasArtAt(x, y) == true)
+                    {
+                        deposit = DepositKind.None;
+                    }
+
                     if (deposit != DepositKind.None)
                     {
                         var tile = new GridPosition(x, y);
@@ -246,8 +257,8 @@ public partial class World
         var itemId = TerrainMap.ItemIdForDeposit(deposit);
         if (Sprites.TryFor(itemId) is { } tex)
         {
-            // The ore item sprite in its own colours, at the world art scale (32 px icon = one tile).
-            // Placeholder until the real terrain art (G2b).
+            // The ore item sprite in its own colours, at the world art scale (32 px icon = one tile), just below
+            // the zoom where the terrain art takes over.
             DrawTextureRect(tex, rect, false);
         }
         else

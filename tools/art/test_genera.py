@@ -522,6 +522,38 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(sorted(tipi), sorted(mappa))
         self.assertEqual(sorted(mappa.values()), tr.MINERALI)
 
+    def test_fixture_terreno_aggiornata(self):
+        # The C# test TerrainLookTests compares the client's composition plan with this fixture:
+        # it must be what pezzi_mappa gives today (python tools/art/fixture_terreno.py rewrites it).
+        import fixture_terreno
+        with open(fixture_terreno.FIXTURE, encoding="utf-8") as f:
+            self.assertEqual(fixture_terreno.contenuto(), f.read())
+
+    def test_densita_deco_come_in_csharp(self):
+        # TerrainLook.DecorationDensity (C#) is a copy of DENSITA_DECO: same biomes, same values.
+        import re
+        from blocchi import terreno as tr
+        with open(os.path.join(REPO, "src", "TIndustry.Shared", "Grid", "TerrainLook.cs"), encoding="utf-8") as f:
+            sorgente = f.read()
+        corpo = re.search(r"DecorationDensity\s*=.*?\{(.*?)\};", sorgente, re.S).group(1)
+        self.assertEqual(tr.DENSITA_DECO, {b: int(v) for b, v in re.findall(r'\["(\w+)"\]\s*=\s*(\d+)', corpo)})
+
+    def test_carbone_si_legge(self):
+        # Coal pebbles are lumps, not holes: on basalt (dark) and gravel (light) every pebble has a
+        # lit pixel clearly lighter than both floors, and a body darker than gravel.
+        from blocchi import terreno as tr
+        lum = lambda c: (c[0] * 299 + c[1] * 587 + c[2] * 114) // 1000  # noqa: E731
+        pavimenti = [SPRITE[f"terreno-{s}-0"]().convert("RGB") for s in ("basalt", "gravel")]
+        chiaro_suolo = max(lum(c) for p in pavimenti for _, c in p.getcolors(T * T))
+        for v in range(tr.GIACIMENTI):
+            with self.subTest(variante=v):
+                im = SPRITE[f"giacimento-coal-{v}"]()
+                opachi = [(x, y) for y in range(T) for x in range(T) if im.getpixel((x, y))[3] == 255]
+                luci = [p for p in opachi if lum(im.getpixel(p)) >= 130]
+                self.assertGreaterEqual(len(luci), 5)  # one glint per pebble (5-7 pebbles)
+                self.assertGreater(max(lum(im.getpixel(p)) for p in luci), chiaro_suolo - 40)
+                self.assertLess(sum(lum(im.getpixel(p)) for p in opachi) / len(opachi), 100)  # still coal-dark
+
     def test_bordi(self):
         # Edge strip: 8 pieces N, E, S, O, NE, SE, SO, NO; sides and corners are quarter turns
         # of each other; a side piece touches its side only, a corner piece its corner only.
