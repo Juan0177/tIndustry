@@ -3,7 +3,9 @@ using Godot;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Impostazioni overlay: VSync, scala UI, overlay FPS, rivedi tutorial (Raylib thin port).
+/// Impostazioni overlay: graphics (effects, shadows, glow, building animations, FPS cap, VSync, render scale) and
+/// interface (UI scale, FPS / resource overlays, replay tutorial). The options scroll inside the card; Applica saves
+/// and applies everything at once, without a restart. Controls carry stable node names (used by the playtest).
 /// </summary>
 public partial class SettingsPanel : Control
 {
@@ -12,15 +14,15 @@ public partial class SettingsPanel : Control
     private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
     private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
     private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
+    private static readonly Color Selected = new(1f, 0.95f, 0.55f, 1f);
 
     private ClientSettings? _live;
     private ClientSettings? _draft;
-    private CheckButton? _vsyncToggle;
-    private CheckButton? _fpsToggle;
-    private CheckButton? _resourceToggle;
-    private Label? _scaleLabel;
     private Label? _statusLabel;
-    private HBoxContainer? _scaleRow;
+    // Every check button with how it reads/writes the draft, and every row of choice buttons with the value each
+    // button stands for and the draft's current value: SyncControls redraws both from the draft.
+    private readonly List<(CheckButton Button, Func<ClientSettings, bool> Get)> _checks = [];
+    private readonly List<(Button Button, int Value, Func<ClientSettings, int> Get)> _choices = [];
 
     public event Action? Closed;
     public event Action? Applied;
@@ -105,7 +107,7 @@ public partial class SettingsPanel : Control
         AddChild(card);
 
         var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 12);
+        root.AddThemeConstantOverride("separation", 10);
         card.AddChild(root);
 
         var title = new Label
@@ -119,7 +121,7 @@ public partial class SettingsPanel : Control
 
         var blurb = new Label
         {
-            Text = "Scala UI, VSync e overlay. Applica salva su disco.",
+            Text = "Grafica e interfaccia. Applica salva su disco e vale subito.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -127,64 +129,50 @@ public partial class SettingsPanel : Control
         blurb.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(blurb);
 
-        _vsyncToggle = new CheckButton { Text = "VSync" };
-        _vsyncToggle.Toggled += on =>
+        // The options scroll; title, status and the Chiudi / Applica row stay in place.
+        var scroll = new ScrollContainer
         {
-            if (_draft is not null)
-            {
-                _draft.VSync = on;
-            }
+            Name = "Opzioni",
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
-        root.AddChild(_vsyncToggle);
+        root.AddChild(scroll);
 
-        _fpsToggle = new CheckButton { Text = "Mostra FPS" };
-        _fpsToggle.Toggled += on =>
-        {
-            if (_draft is not null)
-            {
-                _draft.ShowFps = on;
-            }
-        };
-        root.AddChild(_fpsToggle);
+        var options = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        options.AddThemeConstantOverride("separation", 8);
+        scroll.AddChild(options);
 
-        _resourceToggle = new CheckButton { Text = "Mostra risorse sistema (CPU · GPU · RAM)" };
-        _resourceToggle.Toggled += on =>
-        {
-            if (_draft is not null)
-            {
-                _draft.ShowResourceOverlay = on;
-            }
-        };
-        root.AddChild(_resourceToggle);
+        AddSection(options, "Grafica");
+        AddChoices(options, "Effetti", "Effetti",
+            [("Alti", (int)EffectsQuality.Alti), ("Bassi", (int)EffectsQuality.Bassi), ("Spenti", (int)EffectsQuality.Spenti)],
+            s => (int)s.Effetti, (s, v) => s.Effetti = (EffectsQuality)v);
+        AddCheck(options, "Ombre", "Ombre sotto gli edifici", s => s.Ombre, (s, on) => s.Ombre = on);
+        AddCheck(options, "Bagliore", "Bagliore", s => s.Bagliore, (s, on) => s.Bagliore = on);
+        AddCheck(options, "AnimazioniBlocchi", "Animazioni dei blocchi", s => s.AnimazioniBlocchi, (s, on) => s.AnimazioniBlocchi = on);
+        AddChoices(options, "LimiteFps", "Limite FPS",
+            ClientSettings.FpsLimitPresets.Select(v => (ClientSettings.FpsLimitLabel(v), v)).ToArray(),
+            s => s.LimiteFps, (s, v) => s.LimiteFps = v);
+        AddCheck(options, "VSync", "VSync", s => s.VSync, (s, on) => s.VSync = on);
+        AddChoices(options, "ScalaRendering", "Scala di rendering (mondo)",
+            ClientSettings.RenderScalePresets.Select(v => ($"{v}%", v)).ToArray(),
+            s => s.ScalaRendering, (s, v) => s.ScalaRendering = v);
 
-        _scaleLabel = new Label { Text = "Scala UI" };
-        _scaleLabel.AddThemeColorOverride("font_color", TextPrimary);
-        _scaleLabel.AddThemeFontSizeOverride("font_size", 13);
-        root.AddChild(_scaleLabel);
-
-        _scaleRow = new HBoxContainer();
-        _scaleRow.AddThemeConstantOverride("separation", 8);
-        root.AddChild(_scaleRow);
-        foreach (var percent in ClientSettings.UiScalePresets)
-        {
-            var p = percent;
-            var btn = new Button
-            {
-                Text = ClientSettings.UiScaleLabel(p),
-                CustomMinimumSize = new Vector2(0, 34),
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
-            };
-            btn.Pressed += () => SetScale(p);
-            _scaleRow.AddChild(btn);
-        }
+        AddSection(options, "Interfaccia");
+        AddChoices(options, "ScalaUi", "Scala UI",
+            ClientSettings.UiScalePresets.Select(v => (ClientSettings.UiScaleLabel(v), v)).ToArray(),
+            s => s.UiScalePercent, (s, v) => s.UiScalePercent = v);
+        AddCheck(options, "MostraFps", "Mostra FPS", s => s.ShowFps, (s, on) => s.ShowFps = on);
+        AddCheck(options, "MostraRisorse", "Mostra risorse sistema (CPU · GPU · RAM)",
+            s => s.ShowResourceOverlay, (s, on) => s.ShowResourceOverlay = on);
 
         var replay = new Button
         {
+            Name = "RivediTutorial",
             Text = "Rivedi tutorial",
             CustomMinimumSize = new Vector2(0, 38)
         };
         replay.Pressed += OnReplayTutorial;
-        root.AddChild(replay);
+        options.AddChild(replay);
 
         _statusLabel = new Label
         {
@@ -201,6 +189,7 @@ public partial class SettingsPanel : Control
 
         var cancel = new Button
         {
+            Name = "Chiudi",
             Text = "Chiudi",
             CustomMinimumSize = new Vector2(0, 40),
             SizeFlagsHorizontal = SizeFlags.ExpandFill
@@ -210,12 +199,76 @@ public partial class SettingsPanel : Control
 
         var apply = new Button
         {
+            Name = "Applica",
             Text = "Applica",
             CustomMinimumSize = new Vector2(0, 40),
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
         apply.Pressed += Apply;
         row.AddChild(apply);
+    }
+
+    private static void AddSection(VBoxContainer parent, string text)
+    {
+        var label = new Label { Text = text };
+        label.AddThemeColorOverride("font_color", Accent);
+        // 14, not 15: hidden labels still rasterize their glyphs into the font cache, and new glyphs in the size-15
+        // atlas (HUD toast, mipmapped) shifted the toast's pixels in the playtest captures.
+        label.AddThemeFontSizeOverride("font_size", 14);
+        parent.AddChild(label);
+    }
+
+    /// <summary>A check button named <paramref name="name"/> bound to one boolean of the draft.</summary>
+    private void AddCheck(VBoxContainer parent, string name, string text,
+        Func<ClientSettings, bool> get, Action<ClientSettings, bool> set)
+    {
+        var check = new CheckButton { Name = name, Text = text };
+        check.Toggled += on =>
+        {
+            if (_draft is not null)
+            {
+                set(_draft, on);
+            }
+        };
+        parent.AddChild(check);
+        _checks.Add((check, get));
+    }
+
+    /// <summary>A label and a row of buttons named "<paramref name="name"/>_&lt;value&gt;", one per choice.</summary>
+    private void AddChoices(VBoxContainer parent, string name, string text, (string Label, int Value)[] choices,
+        Func<ClientSettings, int> get, Action<ClientSettings, int> set)
+    {
+        var label = new Label { Text = text };
+        label.AddThemeColorOverride("font_color", TextPrimary);
+        label.AddThemeFontSizeOverride("font_size", 13);
+        parent.AddChild(label);
+
+        var row = new HBoxContainer { Name = name };
+        row.AddThemeConstantOverride("separation", 8);
+        parent.AddChild(row);
+        foreach (var (choiceLabel, value) in choices)
+        {
+            var button = new Button
+            {
+                Name = $"{name}_{choiceLabel.TrimEnd('%')}",
+                Text = choiceLabel,
+                CustomMinimumSize = new Vector2(0, 32),
+                SizeFlagsHorizontal = SizeFlags.ExpandFill
+            };
+            button.Pressed += () =>
+            {
+                if (_draft is null)
+                {
+                    return;
+                }
+
+                set(_draft, value);
+                _draft.Normalize();
+                SyncControls();
+            };
+            row.AddChild(button);
+            _choices.Add((button, value, get));
+        }
     }
 
     private void SyncControls()
@@ -225,62 +278,14 @@ public partial class SettingsPanel : Control
             return;
         }
 
-        if (_vsyncToggle is not null)
+        foreach (var (button, get) in _checks)
         {
-            _vsyncToggle.SetPressedNoSignal(_draft.VSync);
+            button.SetPressedNoSignal(get(_draft));
         }
 
-        if (_fpsToggle is not null)
+        foreach (var (button, value, get) in _choices)
         {
-            _fpsToggle.SetPressedNoSignal(_draft.ShowFps);
-        }
-
-        if (_resourceToggle is not null)
-        {
-            _resourceToggle.SetPressedNoSignal(_draft.ShowResourceOverlay);
-        }
-
-        if (_scaleLabel is not null)
-        {
-            _scaleLabel.Text = $"Scala UI · attuale {ClientSettings.UiScaleLabel(_draft.UiScalePercent)}";
-        }
-
-        HighlightScaleButtons();
-    }
-
-    private void SetScale(int percent)
-    {
-        if (_draft is null)
-        {
-            return;
-        }
-
-        _draft.UiScalePercent = percent;
-        _draft.Normalize();
-        if (_scaleLabel is not null)
-        {
-            _scaleLabel.Text = $"Scala UI · attuale {ClientSettings.UiScaleLabel(_draft.UiScalePercent)}";
-        }
-
-        HighlightScaleButtons();
-    }
-
-    private void HighlightScaleButtons()
-    {
-        if (_scaleRow is null || _draft is null)
-        {
-            return;
-        }
-
-        foreach (var child in _scaleRow.GetChildren())
-        {
-            if (child is Button btn)
-            {
-                var selected = btn.Text == ClientSettings.UiScaleLabel(_draft.UiScalePercent);
-                btn.Modulate = selected
-                    ? new Color(1f, 0.95f, 0.55f, 1f)
-                    : Colors.White;
-            }
+            button.Modulate = get(_draft) == value ? Selected : Colors.White;
         }
     }
 
@@ -297,7 +302,7 @@ public partial class SettingsPanel : Control
         if (_statusLabel is not null)
         {
             _statusLabel.Text =
-                $"Salvato · UI {ClientSettings.UiScaleLabel(_live.UiScalePercent)} · VSync {(_live.VSync ? "ON" : "OFF")}";
+                $"Salvato · Effetti {_live.Effetti} · UI {ClientSettings.UiScaleLabel(_live.UiScalePercent)} · VSync {(_live.VSync ? "ON" : "OFF")}";
         }
 
         Applied?.Invoke();

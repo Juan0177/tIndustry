@@ -16,6 +16,12 @@
     <ProjectReference Include="../../src/TIndustry.Shared/TIndustry.Shared.csproj" />
   </ItemGroup>
 
+  <!-- Client-only pure code (no Godot types), tested here as linked files: effects must not live in Shared. -->
+  <ItemGroup>
+    <Compile Include="../../godot/scripts/visuals/effects/EffectDef.cs" Link="Linked/EffectDef.cs" />
+    <Compile Include="../../godot/scripts/visuals/effects/EffectRules.cs" Link="Linked/EffectRules.cs" />
+  </ItemGroup>
+
   <!-- Same seed the Godot client ships. -->
   <ItemGroup>
     <None Include="../../data/content.json" Link="data/content.json" CopyToOutputDirectory="PreserveNewest" />

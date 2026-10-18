@@ -102,6 +102,9 @@ public partial class TerrainChunks : Node2D
     public bool HasArtAt(int x, int y) =>
         _artLayer.Visible && _art.Contains(new Vector2I(x / ArtChunkCells, y / ArtChunkCells));
 
+    /// <summary>Water ripples move (false with Effetti Spenti: still water, the shader time stays where it is).</summary>
+    public bool AnimateWater { get; set; } = true;
+
     public override void _Ready()
     {
         // World draws deposits, grid and ghost in its own _Draw: the terrain goes under them.
@@ -116,8 +119,8 @@ public partial class TerrainChunks : Node2D
 
     public override void _Process(double delta)
     {
-        // Playtests keep the ripples still, like the other clocks, so captures are stable.
-        if (_artLayer.Visible && !GameDataPaths.IsPlaytest)
+        // Playtests keep the ripples still, like the other clocks, so captures are stable; Effetti Spenti too.
+        if (_artLayer.Visible && AnimateWater && !GameDataPaths.IsPlaytest)
         {
             _waterTime = (_waterTime + delta) % WaterPeriod;
             _water.SetShaderParameter("time", (float)_waterTime);

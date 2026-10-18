@@ -177,6 +177,13 @@ public partial class World
             return;
         }
 
+        // "Animazioni dei blocchi" off: the looping animations (drills, rotors, furnace mouths, Core light) get no
+        // time and hold their frame; state changes (assembler press) still show.
+        if (!_blockAnimations)
+        {
+            delta = 0f;
+        }
+
         if (!PlaytestRequested)
         {
             _coreLightClock = (_coreLightClock + delta) % 3600f;

@@ -451,6 +451,7 @@ public partial class World
 
     private void OnSettingsApplied()
     {
+        ApplyGraphicsSettings();
         SyncFpsOverlay();
         SyncResourceOverlay();
         _hud?.ShowToast(
