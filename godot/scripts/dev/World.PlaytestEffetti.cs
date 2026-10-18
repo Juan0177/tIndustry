@@ -14,6 +14,10 @@ public partial class World
     /// <summary>Most a count may move between 10 s and 60 s of the probe (5 %).</summary>
     private const double EffectsDriftLimit = 0.05;
 
+    /// <summary>Most the emitter pool may grow between 10 s and 60 s of the probe, once warmed up (3 %: the ambient bursts peak at
+    /// random, measured +1 to +3 on 147; a leak of one emitter every few seconds goes well past it).</summary>
+    private const double PoolGrowthLimit = 0.03;
+
     private async Task<bool> PlaytestEffectsAsync(string dir)
     {
         if (_effects is not { Quality: EffectsQuality.Alti } fx || _view is not Factory factory
@@ -242,7 +246,8 @@ public partial class World
     /// <summary>
     /// 60 s on the perf layout with every block kept working: node count and particles at 10 s and at 60 s (particles
     /// as the average of 2-10 s and 50-60 s: the ambient bursts come and go at random) must stay within <see cref="EffectsDriftLimit"/>; prints them with the
-    /// average and minimum FPS (VSync off). Returns the problem, or null.
+    /// average and minimum FPS (VSync off); the emitter pool must not grow past <see cref="PoolGrowthLimit"/> after the
+    /// first 10 s. Returns the problem, or null.
     /// </summary>
     private async Task<string?> PlaytestEffectsStableAsync(Factory factory, EffectManager fx)
     {
@@ -296,6 +301,11 @@ public partial class World
         if (particles10 <= 0 || Drifts(particles10, particles60))
         {
             return string.Create(inv, $"effetti: particelle non stabili ({particles10:F0} → {particles60:F0})");
+        }
+
+        if (pool60 > pool10 * (1 + PoolGrowthLimit))
+        {
+            return $"effetti: il pool di emettitori cresce dopo il riscaldamento ({pool10} → {pool60}, oltre il 3 %)";
         }
 
         return pool60 > EffectManager.MaxEmitters ? $"effetti: {pool60} emettitori oltre il limite" : null;

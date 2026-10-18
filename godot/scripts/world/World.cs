@@ -309,7 +309,8 @@ public partial class World : Node2D
     /// <summary>
     /// "Bagliore" on or off: HDR 2D on the viewport that draws the world (the root, or the reduced one of
     /// <see cref="RenderScale"/>, which gets a World3D of its own so the glow is applied once). Off = no environment
-    /// and no HDR at all, the world drawn exactly as before the G3.
+    /// and no HDR at all, the world drawn exactly as before the G3: the reduced viewport's World3D is only created when
+    /// the glow is on (an existing one just loses its environment).
     /// </summary>
     private void ApplyGlow(bool on)
     {
@@ -325,8 +326,15 @@ public partial class World : Node2D
         if (target is not null)
         {
             target.UseHdr2D = on;
-            target.World3D ??= new World3D();
-            target.World3D.Environment = on ? _glowEnv : null;
+            if (on)
+            {
+                target.World3D ??= new World3D();
+                target.World3D.Environment = _glowEnv;
+            }
+            else if (target.World3D is { } world)
+            {
+                world.Environment = null;
+            }
         }
     }
 

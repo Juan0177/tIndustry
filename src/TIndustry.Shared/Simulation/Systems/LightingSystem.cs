@@ -13,11 +13,15 @@ public sealed class LightingSystem : ISimulationSystem
         }
 
         var liveGens = ctx.LiveGenerators;
-        var draw = (state.Content.FindBuilding(Lamp.BuildingId)?.PowerUse ?? 0f) * ctx.Dt;
+        // FactoryContent.Load rejects a lamp without a positive power use; a hand-built content without one stays dark
+        // instead of lighting for free.
+        var powerUse = state.Content.FindBuilding(Lamp.BuildingId)?.PowerUse ?? 0f;
+        var draw = powerUse * ctx.Dt;
         foreach (var lamp in state.Lamps)
         {
-            var connected = liveGens.Any(g => g.IsAdjacentTo(lamp.Position, Lamp.Size))
-                || state.IsPoweredViaNode(lamp.Position, Lamp.Size, liveGens);
+            var connected = powerUse > 0f
+                && (liveGens.Any(g => g.IsAdjacentTo(lamp.Position, Lamp.Size))
+                    || state.IsPoweredViaNode(lamp.Position, Lamp.Size, liveGens));
             lamp.Tick(connected, state.TrySpendPower, draw);
         }
     }

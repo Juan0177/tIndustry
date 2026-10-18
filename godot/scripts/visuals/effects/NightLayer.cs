@@ -31,6 +31,8 @@ public partial class NightLayer : Node2D
     private int _used;
     private Rect2 _view;
     private int _tileSize;
+    private IReadOnlySet<GridPosition>? _coreTiles;
+    private Vector2 _coreCenterCells;
 
     /// <summary>True while the night is drawn.</summary>
     public bool Night { get; private set; }
@@ -88,9 +90,7 @@ public partial class NightLayer : Node2D
 
         if (view.CoreTiles.Count > 0)
         {
-            var min = new Vector2(view.CoreTiles.Min(t => t.X), view.CoreTiles.Min(t => t.Y));
-            var max = new Vector2(view.CoreTiles.Max(t => t.X) + 1, view.CoreTiles.Max(t => t.Y) + 1);
-            Add((min + max) * 0.5f * tileSize, CoreLight);
+            Add(CoreCenterCells(view.CoreTiles) * tileSize, CoreLight);
         }
 
         foreach (var lamp in view.Lamps)
@@ -123,6 +123,20 @@ public partial class NightLayer : Node2D
         }
 
         HideFrom(_used);
+    }
+
+    /// <summary>Centre of the Core in cells, computed once per game: a new game or a loaded save brings a new set.</summary>
+    private Vector2 CoreCenterCells(IReadOnlySet<GridPosition> tiles)
+    {
+        if (!ReferenceEquals(tiles, _coreTiles))
+        {
+            var min = new Vector2(tiles.Min(t => t.X), tiles.Min(t => t.Y));
+            var max = new Vector2(tiles.Max(t => t.X) + 1, tiles.Max(t => t.Y) + 1);
+            _coreCenterCells = (min + max) * 0.5f;
+            _coreTiles = tiles;
+        }
+
+        return _coreCenterCells;
     }
 
     private Vector2 Center(GridPosition origin, int size) =>

@@ -234,6 +234,92 @@ public partial class World
         }
     }
 
+    /// <summary>
+    /// Night part of <see cref="PlaytestHugeMapPerfAsync"/> (VSync already off; only when the playtest draws effects):
+    /// burning generators with a lamp beside them every 80 cells over the whole Enorme map, plus every 12 cells in the
+    /// view (more sources than <see cref="NightLayer.MaxLights"/>), 3 s by day and 5 s at night at minimum zoom; returns the
+    /// report line with average and minimum FPS and the lights drawn. Back to day afterwards.
+    /// </summary>
+    private async Task<string> PlaytestHugeMapNightAsync(WorldCamera cam)
+    {
+        if (ClientSettings.PlaytestForcesEffectsOff || _night is null || _view is not Factory factory)
+        {
+            return "PLAYTEST perf notte enorme: saltata (effetti spenti nel playtest)";
+        }
+
+        cam.Zoom = new Vector2(cam.MinZoom, cam.MinZoom);
+        cam.ClampToMap();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetVisibleTileRange(out var minX, out var minY, out var maxX, out var maxY);
+        var pairs = 0;
+        void Pair(int x, int y)
+        {
+            var gen = new GridPosition(x, y);
+            var lamp = new GridPosition(x + Generator.Size, y);
+            if (factory.CanOccupyFootprint(gen, Generator.Size) && factory.CanOccupy(lamp)
+                && factory.PlaceInstant(new BuildSpec(Generator.BuildingId, BuildingKind.Generator, gen, Direction.East), charge: false)
+                && factory.PlaceInstant(new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, lamp, Direction.East), charge: false))
+            {
+                pairs++;
+            }
+        }
+
+        for (var y = 4; y < ActiveMapHeight - 4; y += 80)
+        {
+            for (var x = 4; x < ActiveMapWidth - 4; x += 80)
+            {
+                Pair(x, y);
+            }
+        }
+
+        for (var y = minY + 2; y < maxY - 2; y += 12)
+        {
+            for (var x = minX + 2; x < maxX - 4; x += 12)
+            {
+                Pair(x, y);
+            }
+        }
+
+        var next = 0UL;
+        KeepPerfLayoutWorking(factory);
+        await PlaytestWait(0.5);
+        var day = await MeasureFramesAsync(3.0, () =>
+        {
+            if (Time.GetTicksMsec() >= next)
+            {
+                next = Time.GetTicksMsec() + 500;
+                KeepPerfLayoutWorking(factory);
+            }
+        });
+        var rules = factory.State.Rules;
+        factory.State.Rules = rules with { Night = true };
+        await PlaytestWait(0.5);
+        var lightSum = 0L;
+        var frames = 0;
+        var fewest = int.MaxValue;
+        var fps = await MeasureFramesAsync(5.0, () =>
+        {
+            if (Time.GetTicksMsec() >= next)
+            {
+                next = Time.GetTicksMsec() + 500;
+                KeepPerfLayoutWorking(factory);
+            }
+
+            lightSum += _night.ActiveLights;
+            fewest = Math.Min(fewest, _night.ActiveLights);
+            frames++;
+        });
+        var lit = factory.Lamps.Count(l => l.IsLit);
+        var sources = factory.Lamps.Count + factory.Generators.Count + factory.Smelters.Count;
+        factory.State.Rules = rules;
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"PLAYTEST perf notte enorme: zoom {cam.Zoom.X:F2}, {pairs} generatori con lampada ({lit} lampade accese, "
+            + $"{sources} sorgenti in tutto); di giorno fps medio {day.Average:F0}, minimo {day.Minimum:F0}; "
+            + $"di notte fps medio {fps.Average:F0}, minimo {fps.Minimum:F0} (vincolo medio ≥ 144); "
+            + $"luci attive in media {(double)lightSum / Math.Max(1, frames):F0}, minimo {(fewest == int.MaxValue ? 0 : fewest)}, "
+            + $"limite {NightLayer.MaxLights}");
+    }
+
     /// <summary>Up to <paramref name="max"/> lamps on free cells next to the burning generators; returns how many.</summary>
     private static int PlaceLampsAroundGenerators(Factory factory, int max)
     {

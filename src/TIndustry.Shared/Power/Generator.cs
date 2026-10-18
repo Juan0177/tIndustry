@@ -151,6 +151,12 @@ public sealed class Generator
         return false;
     }
 
+    /// <summary>
+    /// <see cref="FootprintsAdjacent"/> with a bounding-box test first: same answer, but cheap for the many far-away
+    /// pairs (every lamp and craft machine checks every live generator each tick).
+    /// </summary>
     public bool IsAdjacentTo(GridPosition origin, int size) =>
-        FootprintsAdjacent(Position, Size, origin, size);
+        origin.X <= Position.X + Size && origin.X + size >= Position.X
+        && origin.Y <= Position.Y + Size && origin.Y + size >= Position.Y
+        && FootprintsAdjacent(Position, Size, origin, size);
 }

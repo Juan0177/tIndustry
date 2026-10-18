@@ -109,6 +109,7 @@ public sealed class FactoryContent
         var buildWeights = MapBuildWeights(root.BuildWeights);
         var drone = MapUnit("drone", root.Units?.Drone);
         var terrain = MapTerrain(root.Terrain);
+        ValidateLamp(buildings, structures);
 
         return new FactoryContent
         {
@@ -122,6 +123,18 @@ public sealed class FactoryContent
             Drone = drone,
             Terrain = terrain
         };
+    }
+
+    // A lamp without a positive power use would light for free (TrySpendPower(0) always succeeds).
+    private static void ValidateLamp(List<BuildingDefinition> buildings, List<StructureDefinition> structures)
+    {
+        var lamp = buildings.FirstOrDefault(b => b.Id == Lamp.BuildingId);
+        var declared = lamp is not null || structures.Any(s => s.Id == Lamp.BuildingId);
+        if (declared && !(lamp?.PowerUse > 0f))
+        {
+            throw new InvalidDataException(
+                "content.json: la Lampada deve avere un consumo di corrente (powerUse) maggiore di zero.");
+        }
     }
 
     private static IReadOnlyDictionary<string, float> MapBuildWeights(Dictionary<string, float>? weights)
