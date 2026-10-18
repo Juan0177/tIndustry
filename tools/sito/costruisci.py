@@ -21,10 +21,8 @@ HTML popover (Esc, click outside and the close button hide it, focus goes back t
 (manual or release tags only).
 """
 import argparse
-import base64
 import collections
 import html
-import io
 import os
 import shutil
 import sys
@@ -40,6 +38,7 @@ from PIL import Image  # noqa: E402
 
 import carattere  # noqa: E402
 import composti  # noqa: E402
+import fabbrica  # noqa: E402
 from documenti import REPO_URL  # noqa: E402
 import tavola  # noqa: E402
 from blocchi import SPRITE  # noqa: E402
@@ -75,36 +74,9 @@ LENTE = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
          '<circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>')
 
 
-def _data_url(data, mime):
-    return f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
-
-
-def _png(im):
-    buf = io.BytesIO()
-    im.save(buf, "PNG")
-    return buf.getvalue()
-
-
-def _gif(frames, ms=110):
-    """Animated GIF of RGBA frames; alpha below 128 becomes the transparent index (GIF has 1-bit alpha).
-    ms: one duration for every frame or a list, one per frame; equal consecutive frames are merged."""
-    durate = list(ms) if isinstance(ms, (list, tuple)) else [ms] * len(frames)
-    uniti = []
-    for f, d in zip(frames, durate):
-        if uniti and uniti[-1][0].tobytes() == f.tobytes():
-            uniti[-1][1] += d
-        else:
-            uniti.append([f, d])
-    conv = []
-    for f, _ in uniti:
-        trasparente = f.getchannel("A").point(lambda v: 255 if v < 128 else 0)
-        p = f.convert("RGB").convert("P", palette=Image.Palette.ADAPTIVE, colors=255)
-        p.paste(255, mask=trasparente)
-        conv.append(p)
-    buf = io.BytesIO()
-    conv[0].save(buf, "GIF", save_all=True, append_images=conv[1:], duration=[d for _, d in uniti], loop=0,
-                 disposal=2, transparency=255)
-    return buf.getvalue()
+# Image helpers live in fabbrica.py (the showcase uses them too); old names kept for this module.
+_data_url, _png, _gif = fabbrica.data_url, fabbrica.png, fabbrica.gif
+immagine_stato = fabbrica.immagine_stato
 
 
 def _pagina(titolo, corpo, nav, radice="", drone=False, stile_extra=""):
@@ -180,14 +152,6 @@ def _cella(assets_dir, nome):
     nome_breve = html.escape(nome.rsplit("/", 1)[-1])
     return (f'<figure data-sprite="{html.escape(nome)}"><div class="box">{img}</div>'
             f"<figcaption><b>{nome_breve}</b><span>{info}</span></figcaption></figure>")
-
-
-def immagine_stato(blocco, stato, immagini):
-    """(bytes, mime) of one state: an animated GIF when it moves, a PNG when it is still."""
-    fotogrammi = composti.fotogrammi_stato(blocco, stato, immagini)
-    if len(fotogrammi) == 1:
-        return _png(fotogrammi[0][0]), "image/png"
-    return _gif([f for f, _ in fotogrammi], [d for _, d in fotogrammi]), "image/gif"
 
 
 def _scheda_blocco(assets_dir, blocco, immagini):
