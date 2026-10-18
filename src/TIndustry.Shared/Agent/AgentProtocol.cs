@@ -18,11 +18,14 @@ public sealed record AgentResponse(
     bool Ok,
     [property: JsonPropertyName("risultato")] JsonElement? Result,
     [property: JsonPropertyName("codice")] string? Code,
-    [property: JsonPropertyName("messaggio")] string? Message)
+    [property: JsonPropertyName("messaggio")] string? Message,
+    [property: JsonPropertyName("mancano")] JsonElement? Missing = null)
 {
     public static AgentResponse Success(long id, JsonElement result) => new(id, true, result, null, null);
 
-    public static AgentResponse Failure(long id, AgentException error) => new(id, false, null, error.Code, error.Message);
+    public static AgentResponse Failure(long id, AgentException error) => new(
+        id, false, null, error.Code, error.Message,
+        error.Missing is null ? null : JsonSerializer.SerializeToElement(error.Missing));
 }
 
 /// <summary>Error codes of the channel itself (the game's refusals use their <see cref="RefusalCode"/> name).</summary>
@@ -32,7 +35,11 @@ public static class AgentCodes
     public const string MotoreNonDisponibile = nameof(MotoreNonDisponibile);
     public const string Timeout = nameof(Timeout);
     public const string ParametriNonValidi = nameof(ParametriNonValidi);
+    /// <summary>The game process exited or its channel closed: the session closes itself.</summary>
     public const string GiocoTerminato = nameof(GiocoTerminato);
+
+    /// <summary>The game changed (new game, level, a loaded save) before a command's outcome: the session goes on.</summary>
+    public const string PartitaCambiata = nameof(PartitaCambiata);
 
     /// <summary>An unexpected exception inside the engine: the message says which; the session stays usable.</summary>
     public const string ErroreInterno = nameof(ErroreInterno);
@@ -43,6 +50,9 @@ public sealed class AgentException(string code, string message) : Exception(mess
 {
     public string Code { get; } = code;
 
+    /// <summary>What a refused command lacked (<c>mancano</c>: money, items, prerequisites), when known.</summary>
+    public System.Text.Json.Nodes.JsonObject? Missing { get; init; }
+
     /// <summary>For <see cref="AgentCodes.ErroreInterno"/>: the full exception text (type, message, stack) for logs, never sent to the agent.</summary>
     public string? Detail { get; init; }
 }
@@ -50,6 +60,12 @@ public sealed class AgentException(string code, string message) : Exception(mess
 /// <summary>JSON lines of the channel (same format for the game and, later, co-op).</summary>
 public static class AgentProtocol
 {
+    /// <summary>Longest request line the game's channel reads (the bridge closes the connection beyond it).</summary>
+    public const int MaxLineChars = 64 * 1024;
+
+    /// <summary>Longest <c>esegui</c> of the real game, in real seconds.</summary>
+    public const double MaxRunSeconds = 120;
+
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
