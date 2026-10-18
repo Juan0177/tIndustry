@@ -127,6 +127,7 @@ public partial class SettingsPanel : Control
             ClientSettings.FpsLimitPresets.Select(v => (ClientSettings.FpsLimitLabel(v), v)).ToArray(),
             s => s.LimiteFps, (s, v) => s.LimiteFps = v);
         AddCheck(options, "VSync", "VSync", s => s.VSync, (s, on) => s.VSync = on);
+        AddCheck(options, "SchermoIntero", "Schermo intero", s => s.SchermoInteroScelto, (s, on) => s.SchermoIntero = on);
         AddChoices(options, "ScalaRendering", "Scala di rendering (mondo)",
             ClientSettings.RenderScalePresets.Select(v => ($"{v}%", v)).ToArray(),
             s => s.ScalaRendering, (s, v) => s.ScalaRendering = v);

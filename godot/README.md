@@ -107,8 +107,11 @@ Il pannello **Impostazioni** ha una sezione **Grafica**; **Applica** salva su di
 | **Limite FPS** | Nessuno, 30, 60, 120, 144 |
 | **Scala rendering** | 100%, 75%, 50%: il mondo si disegna a risoluzione ridotta e si ingrandisce, l'interfaccia resta nitida (per i PC deboli) |
 | **VSync** | Sincronizzazione verticale |
+| **Schermo intero** | Schermo intero alla risoluzione dello schermo (sì) o finestra 1280×720 centrata (no) |
 
 Un file di impostazioni di una versione precedente resta valido: le voci mancanti valgono il predefinito (Effetti Alti, Ombre e Bagliore accesi, nessun limite, scala 100%).
+
+**Avvio.** Il gioco esportato parte a schermo intero alla risoluzione dello schermo; il mondo resta in scala 1:1, quindi uno schermo più grande mostra più mappa. Al primo avvio (nessun file di impostazioni) la Scala UI segue l'altezza dello schermo: 100% sotto i 1400 pixel, 150% sotto i 2000, 200% oltre. In sviluppo e nei test (editor, `dev.sh`, build di debug) parte in una finestra 1280×720 con l'interfaccia al 100%; una scelta salvata vale comunque. I playtest sono sempre in finestra 1280×720 al 100%, qualunque cosa dicano le impostazioni, così le catture restano confrontabili.
 
 Nella sezione **Interfaccia** la **Scala UI** (cursore da 75% a 200%, a passi di 5; predefinita 100%) ingrandisce solo HUD, pannelli e suggerimenti: il mondo e la visuale restano come sono, e il clic cade sempre sulla cella sotto il mouse. Il testo pixel è più nitido a 100%, 150% e 200% (ogni pixel del carattere è un numero intero di pixel dello schermo); alle altre scale qualche riga di pixel è un po' più larga. Su una finestra 1280×720 tutto sta nella finestra fino al 150%; sopra, alcuni pannelli scorrono o escono un poco dai bordi. I vecchi valori (100, 125, 150, 200) restano validi.
 

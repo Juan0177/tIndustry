@@ -20,14 +20,21 @@ public partial class World
     /// <summary>Scales at which every panel must fit a 1280×720 window with no text cut.</summary>
     private static bool MustFit(int percent) => percent <= 150;
 
-    /// <summary>In a playtest, the UI scale of <see cref="PlaytestScaleEnv"/> (before the HUD is built).</summary>
+    /// <summary>
+    /// In a playtest, the UI scale of <see cref="PlaytestScaleEnv"/>, else 100% whatever the settings say (before the
+    /// HUD is built), so captures stay comparable.
+    /// </summary>
     private void ApplyPlaytestUiScale()
     {
-        if (PlaytestRequested && int.TryParse(OS.GetEnvironment(PlaytestScaleEnv), out var percent))
+        if (!PlaytestRequested)
         {
-            _settings.UiScalePercent = ClientSettings.NormalizeUiScale(percent);
-            GD.Print($"PLAYTEST scala UI {_settings.UiScalePercent}%");
+            return;
         }
+
+        _settings.UiScalePercent = int.TryParse(OS.GetEnvironment(PlaytestScaleEnv), out var percent)
+            ? ClientSettings.NormalizeUiScale(percent)
+            : ClientSettings.UiScaleDefault;
+        GD.Print($"PLAYTEST scala UI {_settings.UiScalePercent}%");
     }
 
     private async Task<bool> PlaytestUiScaleAsync(Func<string, Task> shot)
@@ -232,7 +239,7 @@ public partial class World
         await PlaytestWait(0.5);
         if (_hover != cell)
         {
-            return Fail($"scala UI {percent}%: cursore su {cell}, cella sotto il mouse {_hover?.ToString() ?? "nessuna"}");
+            return Fail($"scala UI {percent}%: cursore su {cell} ({at}), cella sotto il mouse {_hover?.ToString() ?? "nessuna"}, controllo {GetViewport().GuiGetHoveredControl()?.GetPath().ToString() ?? "nessuno"}");
         }
 
         await PlaytestClick(at);
@@ -317,6 +324,66 @@ public partial class World
         return true;
     }
 
+    /// <summary>
+    /// The build palette is a fixed grid (Mindustry): the same size early in a level, in every shown category and with
+    /// every block unlocked. Captures both: <c>ui-palette-inizio</c> and <c>ui-palette-tutto</c>.
+    /// </summary>
+    private async Task<bool> PlaytestPaletteFitsAsync(Func<string, Task> shot)
+    {
+        if (_hud is null)
+        {
+            return Fail("palette: HUD mancante");
+        }
+
+        async Task<Vector2> SizeIn(Hud.BuildCategory category)
+        {
+            _hud.ShowPaletteCategory(category);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            return _hud.PaletteSize;
+        }
+
+        async Task<string?> SameInShownCategories(Vector2 expected)
+        {
+            foreach (var category in Enum.GetValues<Hud.BuildCategory>().Where(_hud.PaletteCategoryShown))
+            {
+                if (await SizeIn(category) is var size && !size.IsEqualApprox(expected))
+                {
+                    return $"{size} in {category} invece di {expected}";
+                }
+            }
+
+            return null;
+        }
+
+        var start = _hud.PaletteCategory;
+        var early = await SizeIn(start);
+        await shot("palette-inizio");
+        var earlyError = await SameInShownCategories(early);
+        if (_hud.PaletteColumns != 4 || earlyError is not null)
+        {
+            return Fail($"palette a inizio livello: {_hud.PaletteColumns} colonne, {earlyError ?? "misura uguale"}");
+        }
+
+        foreach (var tool in Enum.GetValues<Hud.ToolKind>())
+        {
+            _hud.SetToolLocked(tool, false);
+        }
+
+        var full = await SizeIn(Hud.BuildCategory.Logistics);
+        await shot("palette-tutto");
+        var fullError = await SameInShownCategories(early);
+        SyncResearchLocks();
+        var back = await SizeIn(start);
+        if (fullError is not null || !back.IsEqualApprox(early))
+        {
+            return Fail($"palette: {early} a inizio livello, con tutto sbloccato {fullError ?? full.ToString()}, {back} dopo");
+        }
+
+        GD.Print($"PLAYTEST palette a griglia fissa: {early} a inizio livello e con tutto sbloccato");
+        return true;
+    }
+
     private async Task PlaytestRightClick(Vector2 at)
     {
         PlaytestMove(at, 0);
@@ -352,7 +419,8 @@ public partial class World
                     continue;
                 }
 
-                if (control is PanelContainer && control.Size.X > 0 && control.Size.Y > 0)
+                // Panels and loose buttons (the top bar): both take the mouse.
+                if (control is PanelContainer or BaseButton && control.Size.X > 0 && control.Size.Y > 0)
                 {
                     rects.Add((control.Name, control.GetGlobalRect()));
                     continue;

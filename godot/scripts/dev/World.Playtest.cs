@@ -245,6 +245,26 @@ public partial class World
             SaveViewportPng(Path.Combine(dir, $"ui-{label}.png"));
         }
 
+        // Dev and test runs are a 1280×720 window, never fullscreen (StartupDisplay).
+        if (DisplayServer.WindowGetMode() != DisplayServer.WindowMode.Windowed)
+        {
+            return Fail($"finestra {DisplayServer.WindowGetMode()} invece che in finestra");
+        }
+
+        var windowSize = DisplayServer.WindowGetSize();
+        var devSize = new Vector2I(StartupDisplay.DevWidth, StartupDisplay.DevHeight);
+        if (DisplayServer.GetName() != "headless" && windowSize != devSize)
+        {
+            // A screen too small for 1280×720 plus title bar and borders: the OS shrinks the window, not a bug.
+            var usable = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen()).Size;
+            if (usable.X >= devSize.X + 16 && usable.Y >= devSize.Y + 64)
+            {
+                return Fail($"finestra {windowSize} invece di {devSize} (schermo utile {usable})");
+            }
+
+            GD.Print($"PLAYTEST finestra {windowSize}: lo schermo utile {usable} non contiene 1280×720");
+        }
+
         // Leaving Home before playing (Esci / window close) must not write the startup sandbox to Continua.
         AutoSaveContinue(quiet: true);
         if (FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
@@ -422,6 +442,11 @@ public partial class World
 
         await Shot("campagna");
         if (!PlaytestPaletteCategoryFollowsLocks())
+        {
+            return false;
+        }
+
+        if (!await PlaytestPaletteFitsAsync(Shot))
         {
             return false;
         }

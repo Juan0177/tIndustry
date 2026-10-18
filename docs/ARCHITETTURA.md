@@ -227,6 +227,9 @@ Stanno in `ClientSettings` (`settings.json`; un file vecchio resta valido, i cam
 | `Ombre`, `Bagliore`, `AnimazioniBlocchi` | sì / no | sì |
 | `LimiteFps` | 0 (nessuno), 30, 60, 120, 144 | 0 |
 | `ScalaRendering` | 100, 75, 50 (%) | 100 |
+| `SchermoIntero` | sì / no | sì nel gioco esportato, no in sviluppo (build di debug); sempre no nei playtest |
+
+All'avvio (in `World._Ready`, subito dopo il controllo del profilo dei playtest: è il primo punto in cui si leggono le impostazioni, prima del primo frame) `StartupDisplay` (puro, provato in `StartupDisplayTests`) sceglie la finestra e, senza `settings.json`, la Scala UI dall'altezza dello schermo (sotto 1400 px 100%, sotto 2000 150%, poi 200%; 100% in sviluppo e nei test). Lo stretch di `project.godot` è disattivato: il mondo è sempre 1:1 con i pixel della finestra e la palette di costruzione è una griglia fissa di 4 colonne per le righe che servono alla categoria più grande con tutto sbloccato (icone da 32 px in caselle da 40), sempre della stessa misura.
 
 La scala di rendering disegna il mondo in un `SubViewport` più piccolo (`RenderScale`) e lo ingrandisce; l'HUD resta a piena risoluzione.
 

@@ -208,6 +208,17 @@ public partial class Hud : Control
     /// <summary>The category the build palette shows (playtests).</summary>
     internal BuildCategory PaletteCategory => _palette.ShownCategory;
 
+    /// <summary>The build palette box size (playtests).</summary>
+    internal Vector2 PaletteSize => _palette.Size;
+
+    /// <summary>Palette grid columns, and whether a category has its button (playtests).</summary>
+    internal int PaletteColumns => _palette.GridColumns;
+
+    internal bool PaletteCategoryShown(BuildCategory category) => _palette.HasUnlocked(category);
+
+    /// <summary>Shows a palette category as its button would (playtests).</summary>
+    internal void ShowPaletteCategory(BuildCategory category) => _palette.ShowCategory(category);
+
     /// <summary>Build queue box (top-left column, under the core resources): current block, its bar and the plans left.</summary>
     public void SyncBuildQueue(IGameView? view) => _queue.Sync(view);
 
