@@ -11,8 +11,11 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class World
 {
-    /// <summary>True while a playtest holds the simulation (World._Process skips AdvanceHost).</summary>
-    private bool _playtestSimHeld;
+    /// <summary>
+    /// True while a playtest holds the simulation: World._Process skips AdvanceHost and the world's visuals get no
+    /// time (drones stay where they are), so the captures taken meanwhile repeat run after run.
+    /// </summary>
+    internal static bool PlaytestHeld { get; private set; }
 
     private async Task<bool> PlaytestColourVariantsAsync(Func<string, Task> shot)
     {
@@ -40,7 +43,7 @@ public partial class World
         }
 
         var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
-        _playtestSimHeld = true;
+        PlaytestHeld = true;
         try
         {
             foreach (var variante in new[] { VarianteColori.Normale, VarianteColori.Daltonici, VarianteColori.AltoContrasto })
@@ -80,7 +83,7 @@ public partial class World
         }
         finally
         {
-            _playtestSimHeld = false;
+            PlaytestHeld = false;
         }
     }
 
@@ -202,6 +205,33 @@ public partial class World
         {
             return Fail($"Impostazioni dalla Home: input della telecamera {inputUnderSettings}, Home riaperta {_home?.IsOpen}");
         }
+
+        // Gestione salvataggi over Impostazioni opened on the Home: the Home stays closed under it (closing Impostazioni
+        // does not reopen it), the map keeps drifting with no input, and closing Saves brings the Home back.
+        OpenSettings();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        OpenSavesManager();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var underSaves = cam.Position;
+        _playtestDriftSpeed = 6000f;
+        await PlaytestWait(0.2);
+        _playtestDriftSpeed = null;
+        var savesDrift = cam.Position.DistanceTo(underSaves);
+        var savesProblem = _saves?.IsOpen != true ? "Gestione salvataggi non aperta"
+            : _home?.IsOpen == true ? "Home riaperta sotto Gestione salvataggi"
+            : cam.InputEnabled ? "input della telecamera attivo sotto Gestione salvataggi"
+            : savesDrift < 1f ? "la mappa non scorre sotto Gestione salvataggi"
+            : null;
+        cam.Position = underSaves;
+        _saves?.Close();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (savesProblem is not null || _home?.IsOpen != true)
+        {
+            return Fail($"sfondo della Home: {savesProblem ?? "chiudendo Gestione salvataggi la Home non torna"}");
+        }
+
+        GD.Print($"PLAYTEST step ok: Gestione salvataggi dalla Home, mappa che scorre ({savesDrift:0} px) senza input");
 
         var start = cam.Position;
         var (zoom, last, lastStep) = (cam.Zoom, cam.Position, Vector2.Zero);

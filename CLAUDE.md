@@ -27,7 +27,7 @@ python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
 dotnet run --project tools/MapTool -- valida             # mappe della campagna; anche: genera <id> …, anteprima
 ```
 
-`TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo).
+`TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo). I playtest sono sempre in finestra 1280×720 con la Scala UI al 100%; `TINDUSTRY_PLAYTEST_LINGUA=en` li gioca in inglese.
 Con un profilo temporaneo/esplicito gli script passano `--log-file <profilo>/godot.log` e, per playtest e partite (non per l'editor), puntano `APPDATA` al profilo: su Windows Godot costruisce `user://` da `%APPDATA%`, quindi log, `shader_cache`, `vulkan` e `.recovery_mode_lock` restano nel profilo e `%APPDATA%\Godot\app_userdata\tIndustry` non viene toccato. Godot 4.4 non ha un'opzione CLI per `user://`; `use_custom_user_dir` cambia solo il nome sotto `%APPDATA%`. L'editor (`--editor`) usa ancora il `%APPDATA%` reale; per `--import` e `--build-solutions` da riga di comando metti `APPDATA` su una cartella temporanea (come sopra; `dev.sh` lo fa da solo per l'importazione).
 
 Dopo `godot4 --import`, ripristina i `.import` che differiscono solo per fine riga:
@@ -45,6 +45,8 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 - Dati di gioco solo in `data/` (`content.json`, `campaign.json`, `maps/`); `godot/data/` è generata dall'export ed è ignorata da git. Le mappe della campagna (`data/maps/<id>.png`, `<id>.giacimenti.png`, `<id>.json`) si creano e si controllano con `tools/MapTool` (`genera`, `valida`, `anteprima`), mai a occhio: dopo ogni ritocco `valida` deve dire OK. Terreno, generatori e regole: `docs/decisioni/0005-mappe-seme-e-file.md`.
 - Sprite di edifici, nastri, Core, drone e oggetti solo da `python tools/art/genera.py`; non modificare i PNG a mano (si cambia lo script e si rigenera; `--controlla` verifica, vedi `tools/art/README.md` e `docs/decisioni/0004-arte-generata-da-script.md`). Tutto in `godot/assets/` (piatto); icone e carattere dell'interfaccia, generati anch'essi, in `godot/assets/ui/`. Un asset libero di terzi va citato in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
+- **Testi visibili solo tramite chiavi di `godot/lingue/testi.csv`** (colonne `keys,it,en`, italiano e inglese sempre entrambi): nel client nessuna frase scritta nel codice; la simulazione dà codici (`RefusalCode`, `SaveLoadError`) che il client traduce. `TestiTests` lo controlla; come aggiungere un testo o una lingua in `docs/ARCHITETTURA.md`, decisione in `docs/decisioni/0006-interfaccia-lingue-carattere.md`.
+- **Stili solo dal tema** (`UiTheme`, colori da `UiColors`): niente `StyleBoxFlat` né `AddTheme*Override` nei pannelli; un aspetto nuovo è una variante (`ThemeTypeVariation`) in `UiTheme`, con i colori nelle tre varianti (Normale, Daltonici, AltoContrasto).
 - Salvataggi alla versione 12 (`FactorySaveData.CurrentVersion`; i v11 si leggono ancora, col generatore classico); cambiare il formato = alzare la versione.
 - Costruzione come Mindustry (piani, drone, cantieri: `docs/decisioni/0003-costruzione-come-mindustry.md`). I test che non provano la costruzione usano `GameRules(InstantBuild: true)` (per esempio `NewGame.Sandbox(..., rules: new GameRules(InstantBuild: true))`), così i piazzamenti tramite `SimHost` sono istantanei; i `Factory.TryPlace…` piazzano sempre subito.
 - Terreno nei test: `NewGame.Sandbox(...)` e `NewGame.Campaign(...)` usano per default il generatore **classico** (congelato, coordinate fisse); il generatore a biomi si chiede con `map: MapGenSettings.Normal(misura, seme)`, la mappa di un livello con `mapsDirectory:`. Un generatore pubblicato (`classico`, `biomi-1`) non si modifica mai: una generazione diversa è un generatore nuovo con un nome nuovo (i salvataggi rigenerano il terreno per nome e ne controllano l'impronta).
@@ -53,7 +55,7 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 
 ## Dove guardare
 
-- `docs/ARCHITETTURA.md` — mappa delle cartelle, ciclo di frame, dati, salvataggi, come aggiungere un blocco.
+- `docs/ARCHITETTURA.md` — mappa delle cartelle, ciclo di frame, dati, salvataggi, interfaccia, come aggiungere un blocco, un testo o una lingua.
 - `docs/decisioni/` — decisioni architetturali (ADR).
 - `docs/superpowers/` — specifiche e piani di lavoro.
 - `docs/diario/` — diario di lavoro per piano completato (task, PR, decisioni, rinvii).

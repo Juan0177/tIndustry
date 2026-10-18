@@ -439,7 +439,11 @@ public partial class TerrainChunks : Node2D
         }
     }
 
-    public override void _ExitTree() => Clear();
+    public override void _ExitTree()
+    {
+        Clear();
+        _water.Dispose(); // made here in _Ready: no wrapper left for the finalizer
+    }
 
     /// <summary>Chunks by key with an LRU order (most recently used first; eviction takes from the end).</summary>
     private sealed class ChunkCache

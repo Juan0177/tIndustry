@@ -38,7 +38,7 @@ public partial class ConstructionLayer : Node2D
     private readonly List<long> _gone = [];
     private IGameView? _view;
     private long _lastTick = -1;
-    private bool _drewPlans;
+    private int? _plansSignature;
     private VarianteColori _variante;
     private Node2D? _plans;
 
@@ -100,15 +100,19 @@ public partial class ConstructionLayer : Node2D
         var changed = SyncSites(view, delta);
         SyncDrones(view, delta);
 
-        // Plans redraw when the game moves on, or in new colours when the colour variant changes.
+        // Plans redraw when what they show changed (local plans, which sites stand, which are taken apart), or in new
+        // colours when the colour variant changes; checked once per tick, not redrawn every tick.
         if (view.CurrentTick != _lastTick || UiColors.Variante != _variante)
         {
             _lastTick = view.CurrentTick;
-            _variante = UiColors.Variante;
-            if (_drewPlans || HasLocalPlans(view) || view.Sites.Count > 0)
+            var signature = PlansSignature(view);
+            if (signature != _plansSignature || UiColors.Variante != _variante)
             {
+                _plansSignature = signature;
                 _plans?.QueueRedraw();
             }
+
+            _variante = UiColors.Variante;
         }
 
         return changed;
@@ -127,9 +131,11 @@ public partial class ConstructionLayer : Node2D
         AddChild(layer);
     }
 
+    /// <summary>Sites being taken apart that the last plans redraw hatched (checked by the playtest).</summary>
+    public int HatchedSites { get; private set; }
+
     private void DrawPlans(CanvasItem canvas)
     {
-        _drewPlans = false;
         if (_view is null)
         {
             return;
@@ -137,12 +143,13 @@ public partial class ConstructionLayer : Node2D
 
         // Sites being taken apart (anyone's) carry the removal hatching too, not just its colour.
         var sites = _view.Sites;
+        HatchedSites = 0;
         for (var i = 0; i < sites.Count; i++)
         {
             if (sites[i].Deconstructing)
             {
-                _drewPlans = true;
                 DrawRemovalHatch(canvas, Bounds(sites[i].Tiles));
+                HatchedSites++;
             }
         }
 
@@ -156,10 +163,9 @@ public partial class ConstructionLayer : Node2D
             }
 
             // A plan whose site stands (the current one, or one sent to the back while stalled) is shown by
-            // the site. Plans still count as drawn so the layer keeps redrawing while any exist.
+            // the site.
             for (var i = 0; i < builder.Plans.Count; i++)
             {
-                _drewPlans = true;
                 var plan = builder.Plans[i];
                 if ((i == 0 && builder.CurrentSiteId is not null) || _view.SiteOfPlan(plan) is not null)
                 {
@@ -171,19 +177,35 @@ public partial class ConstructionLayer : Node2D
         }
     }
 
-    private static bool HasLocalPlans(IGameView view)
+    /// <summary>What the plans layer draws, as a hash: the local player's plans in order and every site with its kind.</summary>
+    private static int PlansSignature(IGameView view)
     {
+        var hash = new HashCode();
         var builders = view.Builders;
-        for (var i = 0; i < builders.Count; i++)
+        for (var b = 0; b < builders.Count; b++)
         {
-            var builder = builders[i];
-            if (builder.OwnerPlayerId == LocalPlayer && builder.Plans.Count > 0)
+            if (builders[b].OwnerPlayerId != LocalPlayer)
             {
-                return true;
+                continue;
+            }
+
+            var plans = builders[b].Plans;
+            hash.Add(plans.Count);
+            for (var i = 0; i < plans.Count; i++)
+            {
+                hash.Add(plans[i]);
             }
         }
 
-        return false;
+        var sites = view.Sites;
+        hash.Add(sites.Count);
+        for (var i = 0; i < sites.Count; i++)
+        {
+            hash.Add(sites[i].Id);
+            hash.Add(sites[i].Deconstructing);
+        }
+
+        return hash.ToHashCode();
     }
 
     private void DrawPlan(CanvasItem canvas, BuildPlan plan)
@@ -241,8 +263,11 @@ public partial class ConstructionLayer : Node2D
                 }
             }
 
-            // A site stalled for resources pulses at half frequency.
-            visual.Time += site.Missing is null ? delta : delta * 0.5f;
+            // A site stalled for resources pulses at half frequency; still in playtests (repeatable captures).
+            if (!ClientSettings.PlaytestForcesEffectsOff)
+            {
+                visual.Time += site.Missing is null ? delta : delta * 0.5f;
+            }
             visual.Material.SetShaderParameter(ProgressParam, site.Progress);
             visual.Material.SetShaderParameter(ColorParam, ColorOf(site));
             visual.Material.SetShaderParameter(TimeParam, visual.Time);
@@ -253,7 +278,7 @@ public partial class ConstructionLayer : Node2D
             CollectGone(_sites);
             foreach (var id in _gone)
             {
-                _sites[id].Root.QueueFree();
+                Free(_sites[id]);
                 _sites.Remove(id);
             }
         }
@@ -363,12 +388,30 @@ public partial class ConstructionLayer : Node2D
     /// <summary>World positions of the drones drawn (their lights at night).</summary>
     public IEnumerable<Vector2> DronePositions => _drones.Values.Select(d => d.Position);
 
+    public override void _ExitTree()
+    {
+        // Engine teardown frees the nodes; the C# material wrappers go now, not to the finalizer.
+        foreach (var visual in _sites.Values)
+        {
+            visual.Material.Dispose();
+        }
+
+        _sites.Clear();
+    }
+
+    /// <summary>Frees a site's nodes and its own material (no wrapper left for the finalizer).</summary>
+    private static void Free(SiteVisual visual)
+    {
+        visual.Root.QueueFree();
+        visual.Material.Dispose();
+    }
+
     /// <summary>Drops every site, drone and cached site rect (a new game is attached: its site ids start over).</summary>
     public void Clear()
     {
         foreach (var visual in _sites.Values)
         {
-            visual.Root.QueueFree();
+            Free(visual);
         }
 
         foreach (var drone in _drones.Values)
@@ -379,6 +422,7 @@ public partial class ConstructionLayer : Node2D
         _sites.Clear();
         _drones.Clear();
         _lastTick = -1;
+        _plansSignature = null;
         _plans?.QueueRedraw();
     }
 

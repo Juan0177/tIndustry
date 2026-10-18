@@ -271,12 +271,9 @@ public partial class BuildPalette : PanelContainer
         }
     }
 
-    /// <summary>Selected, locked or idle slot look; a locked block is also dimmed.</summary>
-    private static void ApplySlotChrome(PanelContainer slot, bool selected, bool locked)
-    {
+    /// <summary>Selected, locked or idle slot look (locked blocks are hidden; the look stays for one being locked).</summary>
+    private static void ApplySlotChrome(PanelContainer slot, bool selected, bool locked) =>
         slot.ThemeTypeVariation = selected ? UiTheme.SlotScelto : locked ? UiTheme.SlotBloccato : UiTheme.Slot;
-        slot.Modulate = locked && !selected ? new Color(0.55f, 0.55f, 0.55f, 1f) : Colors.White;
-    }
 
     private void AddCategoryButton(Control parent, BuildCategory category, string icon)
     {

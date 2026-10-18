@@ -53,7 +53,7 @@ public partial class DroneVisual : Node2D
 
     private static ImageTexture Enlarged(Texture2D art)
     {
-        var image = art.GetImage();
+        using var image = art.GetImage(); // the texture keeps its own copy
         if (image.IsCompressed())
         {
             image.Decompress();
@@ -230,7 +230,7 @@ public partial class DroneVisual : Node2D
             return;
         }
 
-        var flicker = 0.85f + 0.15f * Mathf.Sin(_clock * 23f);
+        var flicker = GameDataPaths.IsPlaytest ? 1f : 0.85f + 0.15f * Mathf.Sin(_clock * 23f);
         var r = new Rect2(rect.Position - Position, rect.Size);
         _corners[0] = r.Position;
         _corners[1] = new Vector2(r.End.X, r.Position.Y);

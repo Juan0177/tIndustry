@@ -1,3 +1,4 @@
+using System.Globalization;
 using Godot;
 using TIndustry.Shared;
 
@@ -9,12 +10,12 @@ public static class HudStyle
     /// <summary>Item icon in its own colours (32 px; never tinted).</summary>
     public static Texture2D ItemTexture(string itemId) => Sprites.Item(itemId);
 
-    /// <summary>Mindustry-style compact counts: 950 · 1.2k · 340k.</summary>
+    /// <summary>Mindustry-style compact counts: 950 · 1.2k (1,2k in Italian) · 340k.</summary>
     public static string FormatCount(int n) => n switch
     {
-        >= 100_000 => $"{n / 1000}k",
-        >= 1_000 => $"{n / 1000f:0.#}k",
-        _ => n.ToString()
+        >= 100_000 => (n / 1000).ToString(CultureInfo.InvariantCulture) + "k",
+        >= 1_000 => Testi.Decimale((n / 1000f).ToString("0.#", CultureInfo.InvariantCulture)) + "k",
+        _ => n.ToString(CultureInfo.InvariantCulture)
     };
 
     /// <summary>

@@ -23,7 +23,7 @@ Un'interfaccia coerente con l'arte dei blocchi, nello stile di Mindustry, con un
 - **Carattere**: `tools/art/` disegna i glifi (ASCII più lettere accentate italiane e i segni usati), esportati come font bitmap per Godot; 2 misure (testo e titoli).
 - **Lingue**: tutti i testi del client e i nomi in `data/` passano da chiavi di traduzione (file CSV o PO di Godot in `godot/lingue/`); italiano predefinito, inglese completo; scelta nelle impostazioni. I testi della simulazione (motivi di rifiuto) diventano codici tradotti dal client, così `TIndustry.Shared` resta senza lingua e il server futuro non dipende dal testo.
 - **Scala**: impostazione 75%–200% applicata al tema e ai pannelli (non al mondo); i pannelli si adattano senza sovrapporsi (verificato nei playtest a 1280×720 e a scala 150%).
-- **Accessibilità**: tema a contrasto alto; tavolozza per daltonici per i colori che portano significato (energia, rifiuti, segni di smontaggio, oggetti); il significato non dipende mai solo dal colore (icona o testo accanto).
+- **Accessibilità**: tema a contrasto alto; tavolozza per daltonici per i colori che portano significato (energia, rifiuti, segni di smontaggio; gli oggetti no, deciso con l'utente il 2026-10-18: le sagome bastano); il significato non dipende mai solo dal colore (icona o testo accanto).
 - **Menu principale**: sfondo con una mappa generata che scorre lentamente con la nuova arte, logo pixel di tIndustry, pulsanti nel nuovo stile.
 
 ## Verifica

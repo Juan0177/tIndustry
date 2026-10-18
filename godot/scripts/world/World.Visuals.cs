@@ -188,8 +188,9 @@ public partial class World
 
         // "Animazioni dei blocchi" off: the looping animations (drills, rotors, furnace mouths, Core light) get no
         // time and hold their frame; state changes (assembler press) still show.
-        if (!_blockAnimations)
+        if (!_blockAnimations || ClientSettings.PlaytestForcesEffectsOff)
         {
+            // Playtests too (like their other clocks): drills and rotors hold their first frame in the captures.
             delta = 0f;
         }
 

@@ -74,6 +74,11 @@ public partial class MindustryBeltVisual : Node2D
 
     public override void _Process(double delta)
     {
+        if (ClientSettings.PlaytestForcesEffectsOff)
+        {
+            return; // belts hold their first frame in playtests (repeatable captures)
+        }
+
         foreach (var clock in _tiers.Values)
         {
             clock.Scroll += clock.Rate * (float)delta;

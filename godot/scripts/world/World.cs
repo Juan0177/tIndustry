@@ -245,12 +245,13 @@ public partial class World : Node2D
             return;
         }
 
-        if (!_playtestSimHeld)
+        if (!PlaytestHeld)
         {
             AdvanceHost(delta);
         }
 
-        SyncConstructionVisuals((float)delta);
+        var visualDelta = PlaytestHeld ? 0f : (float)delta;
+        SyncConstructionVisuals(visualDelta);
 
         if (_visualDirty)
         {
@@ -268,7 +269,7 @@ public partial class World : Node2D
         SyncItemSprites();
         SyncHover();
         SyncSiteTooltip();
-        SyncBuildingVisuals((float)delta);
+        SyncBuildingVisuals(visualDelta);
         UpdateHud();
         CheckCampaignComplete();
         QueueRedraw();
@@ -284,6 +285,7 @@ public partial class World : Node2D
     {
         GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
         GetTree().NodeAdded -= UiScale.ScalePopup;
+        UiScale.Detach();
     }
 
     private void EnsureEffects()

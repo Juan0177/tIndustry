@@ -449,6 +449,15 @@ public partial class World
             return Fail("campagna senza livelli");
         }
 
+        // The seed line being taken apart: its sites carry the removal hatching, not just the colour.
+        if (!await PlaytestWaitUntil(() => _constructionLayer?.HatchedSites > 0 || LocalQueueEmpty(), StepTimeout)
+            || _constructionLayer?.HatchedSites is not > 0)
+        {
+            return Fail($"smontaggio: nessun cantiere in smontaggio tratteggiato (cantieri {_view.Sites.Count})");
+        }
+
+        GD.Print($"PLAYTEST step ok: {_constructionLayer.HatchedSites} cantieri in smontaggio tratteggiati");
+
         // Let the drone finish the deconstruction first: a bar still moving in the queue panel would make the
         // next capture depend on timing.
         if (!await PlaytestWaitUntil(LocalQueueEmpty, StepTimeout))

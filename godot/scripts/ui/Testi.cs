@@ -124,11 +124,10 @@ public static class Testi
     }
 
     /// <summary>"2.5 s" in English, "2,5 s" in Italian: the decimal mark of the chosen language, not of the system.</summary>
-    public static string Secondi(double seconds)
-    {
-        var text = seconds.ToString("0.#", CultureInfo.InvariantCulture);
-        return (TranslationServer.GetLocale().StartsWith("it", StringComparison.Ordinal) ? text.Replace('.', ',') : text) + " s";
-    }
+    public static string Secondi(double seconds) => Decimale(seconds.ToString("0.#", CultureInfo.InvariantCulture)) + " s";
+
+    /// <summary>A number written with the invariant "." given the decimal mark of the language (key <c>formato.decimale</c>).</summary>
+    public static string Decimale(string invariant) => invariant.Replace(".", T("formato.decimale"), StringComparison.Ordinal);
 
     /// <summary>
     /// Why a save did not load: key <c>salvataggi.errore.&lt;Code&gt;</c> with the map, level or generator it is about.

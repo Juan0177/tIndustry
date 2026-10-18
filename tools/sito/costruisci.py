@@ -4,14 +4,17 @@
     python tools/sito/costruisci.py --out DIR  # somewhere else
 
 Pages today:
-- index.html        landing page (name, short presentation, links);
+- index.html        landing page (name, short presentation, links, the README captures of
+                    docs/img/readme/ with Italian captions);
 - asset/index.html  every sprite registered in tools/art: blocks composed as the game draws them (states
                     as switches, their pieces in a pop-up), the other sprites enlarged (strips as
                     animated GIFs), one composed window of terrain per biome and the interface font.
 
 Everything comes from the repository (sprites in godot/assets/, the registry and the font in
-tools/art/, the block compositions in composti.py), so the site never needs editing by hand: change
-the art, rebuild. Pages are self-contained (images as data: URIs, inline CSS) and script-free: state
+tools/art/, the block compositions in composti.py, the captures copied from the playtests into
+docs/img/readme/), so the site never needs editing by hand: change
+the art, rebuild. The landing page captures are PNG files copied into _site/catture/; every other image
+is a data: URI. CSS is inline, there are no scripts and nothing is loaded from outside the site: state
 switches are radio buttons styled with :checked, the pieces pop-up is an HTML popover (Esc, click outside
 and the close button hide it, focus goes back to the button). Published by .github/workflows/pages.yml
 (manual or release tags only).
@@ -22,6 +25,7 @@ import collections
 import html
 import io
 import os
+import shutil
 import sys
 
 SITO_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -115,6 +119,10 @@ button:hover,button:focus-visible{border-color:var(--bordo);outline:none}
 .ambienti{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:12px}
 .ambienti img{display:block;width:100%}
 .ambienti figcaption{font-size:13px;word-break:normal}
+.catture{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:12px}
+.catture img{display:block;width:100%}
+.catture figcaption{font-size:13px;word-break:normal}
+#catture{margin-top:16px}
 .sezioni{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .sezioni a{display:block;background:var(--pan);border:2px solid var(--linea);padding:14px;text-decoration:none;color:var(--testo)}
 .sezioni a:hover{border-color:var(--bordo)}
@@ -338,17 +346,53 @@ def pagina_asset(assets_dir):
     return _pagina("tIndustry · asset", "".join(sezioni), intestazione, fisso=True)
 
 
+# Captures of the README (docs/img/readme/, copied from the playtests), shown on the landing page.
+CATTURE_DIR = os.path.join(REPO, "docs", "img", "readme")
+CATTURE = [
+    ("gioco.png", "Fabbrica: il minatore porta il minerale al CORE sul nastro"),
+    ("interfaccia-hud.png", "HUD: fondi, energia, risorse del CORE e palette con il pannello del blocco"),
+    ("interfaccia-palette.png", "Palette a griglia fissa come Mindustry, solo i blocchi sbloccati"),
+    ("ricerca.png", "Ricerca: albero a rami dal CORE"),
+    ("mercato.png", "Mercato: prezzi dinamici e vendita automatica"),
+    ("tutorial.png", "Campagna con il tutorial non bloccante"),
+    ("interfaccia-home.png", "Home con il logo pixel e la mappa che scorre dietro"),
+    ("interfaccia-en.png", "Tutti i testi anche in inglese"),
+    ("interfaccia-daltonici.png", "Colori per daltonici: anteprima rifiutata con la X, smontaggio tratteggiato"),
+    ("interfaccia-altocontrasto.png", "Alto contrasto: pannelli neri, testo bianco, segni col bordo nero"),
+    ("blocchi.png", "Blocchi di produzione e potenza in funzione"),
+    ("terreno-biomi.png", "Biomi: suoli, bordi, pareti in rilievo e acqua"),
+    ("terreno-minerali.png", "Giacimenti a puntini"),
+]
+
+
+def _sezione_catture():
+    # Files next to the page (catture/), not data: URIs: a dozen 1280x720 captures would make the
+    # landing page several MB to parse before anything shows, and lazy loading would not apply.
+    figure = []
+    for nome, didascalia in CATTURE:
+        testo = html.escape(didascalia)
+        figure.append(f'<figure data-cattura="{html.escape(nome)}"><img src="catture/{html.escape(nome)}" '
+                      f'alt="{testo}" width="1280" height="720" loading="lazy">'
+                      f"<figcaption>{testo}</figcaption></figure>")
+    return ('<section id="catture"><h2>Catture <small>' + str(len(figure)) + "</small></h2>"
+            '<p class="nota">Dal gioco, scattate dai playtest automatici (finestra 1280×720).</p>'
+            '<div class="catture">' + "".join(figure) + "</div></section>")
+
+
 def pagina_ingresso():
     corpo = (
         '<div class="pannello"><p>Gioco di logistica industriale ispirato a Mindustry e Tiny Industry, '
         "in Godot 4 .NET: miniere, nastri, forni e assemblatori, ricerca, mercato e una campagna. "
-        "Tutta la grafica è pixel-art originale generata da script.</p></div>"
+        "Tutta la grafica è pixel-art originale generata da script; l'interfaccia è in italiano e in inglese.</p></div>"
         '<div class="sezioni">'
+        '<a href="#catture"><b>Catture</b>Il gioco com\'è oggi: fabbrica, HUD, palette, Ricerca, Mercato, '
+        "campagna, Home, inglese e colori per daltonici.</a>"
         '<a href="asset/"><b>Asset</b>I blocchi come in gioco, con stati e pezzi, tutti gli sprite con le '
         "animazioni, gli ambienti e il carattere dell'interfaccia.</a>"
         f'<a href="{REPO_URL}"><b>Codice</b>Repository su GitHub: sorgenti, documenti, roadmap.</a>'
         "</div>"
-        '<p class="nota">Il sito è all\'inizio: catture, download e diario di sviluppo arriveranno.</p>'
+        + _sezione_catture()
+        + '<p class="nota">Download e diario di sviluppo arriveranno.</p>'
     )
     return _pagina("tIndustry", corpo, "<h1>tIndustry</h1>")
 
@@ -361,6 +405,10 @@ def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(testo)
+    catture = os.path.join(out_dir, "catture")
+    os.makedirs(catture, exist_ok=True)
+    for nome, _ in CATTURE:
+        shutil.copyfile(os.path.join(CATTURE_DIR, nome), os.path.join(catture, nome))
     # Pages serves the folder as is (no Jekyll processing).
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
     return sorted(pagine)

@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G3."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G4."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -76,14 +76,14 @@ fatto.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra generata da tools
 fatto.card("g2a", "**G2a · Mappe e terreno**\nMappe a seme in 3 misure (fino a 2000²), 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file con tools/MapTool, terreno a pezzi nel client, Nuova partita, salvataggi v12.\nPR #175–#180 · [[0005-mappe-seme-e-file|ADR 0005]] · [[2026-10-18-g2a-mappe-terreno-design|spec]]")
 fatto.card("g2b", "**G2b · Arte del terreno**\nSuoli con varianti e bordi, pareti in rilievo a doppia griglia, acqua con increspature, giacimenti a puntini, decorazioni, due livelli di dettaglio (Enorme a 240 FPS).\nPR #182–#184 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g2b-arte-terreno-design|spec]]")
 fatto.card("g3", "**G3 · Effetti e luci**\nParticelle di lavoro, costruzione e ambiente (pool di CPUParticles2D, una riga di dati per effetto), ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli (effetti, limite FPS, scala di rendering).\nPR #186–#189 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g3-effetti-luci-design|spec]]")
+fatto.card("g4", "**G4 · Interfaccia**\nTema unico in stile Mindustry, carattere pixel e icone generati, Scala UI solo dell'interfaccia, schermo intero all'avvio, italiano e inglese con i rifiuti come codici, colori per daltonici e alto contrasto, logo e mappa che scorre nella Home.\nPR #194–#201 · [[0006-interfaccia-lingue-carattere|ADR 0006]] · [[2026-10-18-g4-interfaccia-design|spec]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
-fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0005-mappe-seme-e-file|0005]])\n- [[docs/diario/README|diario dei lavori]]")
+fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0006-interfaccia-lingue-carattere|0006]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-corso", "In corso", X[1], "3")
-corso.card("g4in", "**G4 · Interfaccia**\nStile Mindustry, pixel font nostro, lingue, scala e accessibilità. Fatti: carattere e icone (#194).\n[[2026-10-18-g4-interfaccia-design|spec]] · [[2026-10-18-g4-interfaccia|piano]]")
-corso.card("web", "**Sito web su GitHub Pages**\nAvviato: ingresso e sezione asset da `tools/sito/costruisci.py`, workflow Pages a mano. Poi presentazione, catture e download.")
+corso.card("web", "**Sito web su GitHub Pages**\nIngresso con le catture del gioco e sezione asset da `tools/sito/costruisci.py`, workflow Pages a mano. Poi presentazione e download.")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
@@ -101,11 +101,11 @@ chain(roadmap)
 aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
 aperti.card("a2", "**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.", "4")
-aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b e G3 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata e .dev/baseline-g3-candidata, da approvare.")
+aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b, G3 e G4 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata, .dev/baseline-g3-candidata e .dev/baseline-g4-candidata (it e en), da approvare.")
 aperti.close()
 
-chain(["g2a", "g2b", "g3"])
-link("g3", "g4in")
+chain(["g2a", "g2b", "g3", "g4"])
+link("g4", "web")
 
 
 def obsidian_json(items):

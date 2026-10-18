@@ -467,6 +467,17 @@ public partial class EffectManager : Node2D
     }
 
     /// <summary>Texture of a particle sprite; a strip of square variants gets a material that picks one per particle.</summary>
+    public override void _ExitTree()
+    {
+        // The cached particle materials were made here: free their wrappers now, not in the finalizer.
+        foreach (var (_, material) in _looks.Values)
+        {
+            material?.Dispose();
+        }
+
+        _looks.Clear();
+    }
+
     private (Texture2D Texture, Material? Material) Look(string sprite)
     {
         if (_looks.TryGetValue(sprite, out var look))
