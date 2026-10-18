@@ -40,7 +40,7 @@ public partial class World
         {
             foreach (var variante in new[] { VarianteColori.Normale, VarianteColori.Daltonici, VarianteColori.AltoContrasto })
             {
-                if (!await PlaytestApplyColoursAsync(variante))
+                if (!await PlaytestApplyColoursAsync(variante, shot))
                 {
                     return false;
                 }
@@ -79,14 +79,22 @@ public partial class World
         }
     }
 
-    /// <summary>Impostazioni → Colori_&lt;variant&gt; → Applica: colours, theme and saved setting follow at once.</summary>
-    private async Task<bool> PlaytestApplyColoursAsync(VarianteColori variante)
+    /// <summary>
+    /// Impostazioni → Colori_&lt;variant&gt; → Applica: colours, theme and saved setting follow at once (the open panel
+    /// is captured in the new colours when <paramref name="shot"/> is given).
+    /// </summary>
+    private async Task<bool> PlaytestApplyColoursAsync(VarianteColori variante, Func<string, Task>? shot = null)
     {
         OpenSettingsAtInterface();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         if (!PressSetting($"Colori_{variante}") || !PressSetting("Applica"))
         {
             return Fail($"impostazioni: colori {variante} non trovati");
+        }
+
+        if (shot is not null)
+        {
+            await shot($"colori-{variante.ToString().ToLowerInvariant()}-impostazioni");
         }
 
         _settingsPanel?.Close();
