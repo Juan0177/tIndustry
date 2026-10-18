@@ -23,9 +23,12 @@ public sealed class SimHost
     /// <summary>FNV-1a 64 of the canonical snapshot.</summary>
     public ulong Checksum() => Snapshot.Checksum(CreateSnapshot());
 
-    /// <summary>Host resuming from a snapshot (empty command queue, fresh clock).</summary>
-    public static SimHost FromSnapshot(FactoryContent content, byte[] snapshot) =>
-        new(new Factory(Snapshot.Read(content, snapshot)));
+    /// <summary>
+    /// Host resuming from a snapshot (empty command queue, fresh clock); <paramref name="mapsDirectory"/> is the
+    /// folder of the campaign map files.
+    /// </summary>
+    public static SimHost FromSnapshot(FactoryContent content, byte[] snapshot, string? mapsDirectory = null) =>
+        new(new Factory(Snapshot.Read(content, snapshot, mapsDirectory)));
 
     /// <summary>Read-only view of the game for graphics and HUD.</summary>
     public IGameView State => factory;

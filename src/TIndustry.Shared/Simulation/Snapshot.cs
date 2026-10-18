@@ -30,18 +30,23 @@ public static class Snapshot
         return JsonSerializer.SerializeToUtf8Bytes(new Factory(state).Capture(), Options);
     }
 
-    public static GameState Read(FactoryContent content, byte[] data)
+    /// <summary>
+    /// State of a snapshot of version <see cref="FactorySaveData.MinReadableVersion"/> to
+    /// <see cref="FactorySaveData.CurrentVersion"/>; <paramref name="mapsDirectory"/> is needed by campaign maps.
+    /// </summary>
+    /// <exception cref="SaveMapException">The terrain cannot be rebuilt (Italian text for the player).</exception>
+    public static GameState Read(FactoryContent content, byte[] data, string? mapsDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(data);
         var dto = JsonSerializer.Deserialize<FactorySaveData>(data, Options)
             ?? throw new InvalidDataException("Istantanea vuota o non valida.");
-        if (dto.Version != FactorySaveData.CurrentVersion)
+        if (dto.Version < FactorySaveData.MinReadableVersion || dto.Version > FactorySaveData.CurrentVersion)
         {
             throw new InvalidDataException($"Versione istantanea non supportata: {dto.Version}");
         }
 
-        return Factory.Restore(content, dto).State;
+        return Factory.Restore(content, dto, mapsDirectory).State;
     }
 
     /// <summary>FNV-1a 64 bit over the snapshot bytes.</summary>

@@ -33,7 +33,7 @@ public sealed class SaveRoundTripTests
         var content = FactoryContent.Load(ContentPath);
         var factory = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
         FactorySaveStore.Save("vecchio", new SimHost(factory));
-        RewriteVersion("vecchio", FactorySaveData.CurrentVersion - 1);
+        RewriteVersion("vecchio", FactorySaveData.MinReadableVersion - 1);
 
         Assert.False(FactorySaveStore.TryLoad(content, "vecchio", out _, out var error));
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
@@ -58,7 +58,7 @@ public sealed class SaveRoundTripTests
         var content = FactoryContent.Load(ContentPath);
         var factory = NewGame.Sandbox(content, new GridPosition(9, 14), seed: 7);
         FactorySaveStore.Save("vecchio2", new SimHost(factory));
-        RewriteVersion("vecchio2", FactorySaveData.CurrentVersion - 1);
+        RewriteVersion("vecchio2", FactorySaveData.MinReadableVersion - 1);
 
         Assert.False(FactorySaveStore.TryLoad(content, "vecchio2", out var host, out var error));
         Assert.Null(host);
