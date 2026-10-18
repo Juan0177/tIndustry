@@ -3,7 +3,10 @@ using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
-/// <summary>Immediate-mode drawing: terrain, deposits, placement ghost, direction hints.</summary>
+/// <summary>
+/// Immediate-mode drawing over the terrain chunks (<see cref="TerrainChunks"/>): grid, map border, deposits,
+/// placement ghost, direction hints.
+/// </summary>
 public partial class World
 {
     public override void _Draw()
@@ -13,28 +16,6 @@ public partial class World
         var mapH = ActiveMapHeight;
         var camZoom = HasNode("Camera") ? Math.Max(0.01f, GetNode<Camera2D>("Camera").Zoom.X) : 1f;
         var screenTilePx = TileSize * camZoom;
-        EnsureTerrainColors();
-        var noTerrain = new TerrainTile(FloorKind.Grass, WallKind.None, DepositKind.None);
-
-        for (var y = visMinY; y <= visMaxY; y++)
-        {
-            for (var x = visMinX; x <= visMaxX; x++)
-            {
-                var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
-                var cell = noTerrain;
-                var inMap = _view?.Terrain is { } terrain && terrain.InBounds(new GridPosition(x, y));
-                if (inMap)
-                {
-                    cell = _view!.Terrain![x, y];
-                }
-
-                DrawRect(rect, TerrainColorRaylib(cell, x, y));
-                if (screenTilePx >= 12f && inMap)
-                {
-                    DrawTerrainSpeckle(cell, x, y, rect);
-                }
-            }
-        }
 
         // Grid only in view (full 1000² grid lines would dominate frame time).
         if (screenTilePx >= 10f)
@@ -67,34 +48,53 @@ public partial class World
             return;
         }
 
-        // Seeded deposits — Raylib-style icons / bold patches (culled).
+        // Seeded deposits: the ore icon per cell up close, ore-coloured runs zoomed out (culled).
         if (_view.Terrain is { } map)
         {
+            var buildingTiles = BuildingTilesThisFrame();
+            var icons = screenTilePx >= DepositIconMinPx;
             for (var y = visMinY; y <= visMaxY; y++)
             {
-                for (var x = visMinX; x <= visMaxX; x++)
+                // Zoomed out: consecutive cells of one ore on a row are one rect (thousands of cells at minimum zoom).
+                var runStart = -1;
+                var runKind = DepositKind.None;
+                for (var x = visMinX; x <= visMaxX + 1; x++)
                 {
-                    if (x < 0 || y < 0 || x >= mapW || y >= mapH)
+                    var deposit = x <= visMaxX ? map[x, y].Deposit : DepositKind.None;
+                    if (deposit != DepositKind.None)
+                    {
+                        var tile = new GridPosition(x, y);
+                        // Belts/buildings own the tile — don't paint deposit icons as fake cargo.
+                        if (_view.Belts.ContainsKey(tile)
+                            || _view.CoreTiles.Contains(tile)
+                            || buildingTiles.Contains(tile))
+                        {
+                            deposit = DepositKind.None;
+                        }
+                    }
+
+                    if (icons)
+                    {
+                        if (deposit != DepositKind.None)
+                        {
+                            DrawDepositIcon(deposit, x, y);
+                        }
+
+                        continue;
+                    }
+
+                    if (deposit == runKind)
                     {
                         continue;
                     }
 
-                    var deposit = map[x, y].Deposit;
-                    if (deposit == DepositKind.None)
+                    if (runKind != DepositKind.None)
                     {
-                        continue;
+                        DrawDepositRun(runKind, runStart, x - 1, y);
                     }
 
-                    var tile = new GridPosition(x, y);
-                    // Belts/buildings own the tile — don't paint deposit icons as fake cargo.
-                    if (_view.Belts.ContainsKey(tile)
-                        || _view.CoreTiles.Contains(tile)
-                        || _view.IsBuildingTile(tile))
-                    {
-                        continue;
-                    }
-
-                    DrawDepositMarker(deposit, x, y, screenTilePx);
+                    runKind = deposit;
+                    runStart = x;
                 }
             }
         }
@@ -121,110 +121,149 @@ public partial class World
         }
     }
 
-    // Base colours of the terrain table (content.json "terrain"), indexed by kind; rebuilt when the table changes.
-    private static readonly Color MissingTerrainColor = new(0.1f, 0.12f, 0.1f);
-    private TerrainTable? _terrainColorsTable;
-    private Color[] _floorColors = [];
-    private Color[] _wallColors = [];
+    private readonly HashSet<GridPosition> _buildingTiles = [];
+    private readonly long[] _buildingTilesKey = new long[14];
+    private readonly long[] _structureKey = new long[14];
+    private IGameView? _buildingTilesView;
 
-    private void EnsureTerrainColors()
+    /// <summary>
+    /// Cells under buildings and construction sites (the same cells as <see cref="IGameView.IsBuildingTile"/>, which
+    /// scans every building per call), rebuilt only when the structures change: count and highest id of each list
+    /// differ as soon as one is added or removed (ids are never reused within a game).
+    /// </summary>
+    private HashSet<GridPosition> BuildingTilesThisFrame()
     {
-        var table = _view?.Content.Terrain ?? TerrainTable.Empty;
-        if (ReferenceEquals(table, _terrainColorsTable))
+        var view = _view!;
+        FillStructureKey(view, _structureKey);
+        if (ReferenceEquals(view, _buildingTilesView) && _structureKey.AsSpan().SequenceEqual(_buildingTilesKey))
         {
-            return;
+            return _buildingTiles;
         }
 
-        _terrainColorsTable = table;
-        _floorColors = Enum.GetValues<FloorKind>()
-            .Select(k => table.Floor(k) is { } floor ? Color.FromHtml(floor.Color) : MissingTerrainColor)
-            .ToArray();
-        _wallColors = Enum.GetValues<WallKind>()
-            .Select(k => table.Wall(k) is { } wall ? Color.FromHtml(wall.Color) : MissingTerrainColor)
-            .ToArray();
-    }
-
-    private Color FloorBaseColor(FloorKind kind) =>
-        (int)kind < _floorColors.Length ? _floorColors[(int)kind] : MissingTerrainColor;
-
-    private static bool IsWater(FloorKind kind) => kind is FloorKind.ShallowWater or FloorKind.DeepWater;
-
-    /// <summary>Raylib WorldGraphics.TerrainColor — table base hue (the wall's when there is one) + micro hash variation.</summary>
-    private Color TerrainColorRaylib(TerrainTile cell, int worldX, int worldY)
-    {
-        var walled = cell.Wall != WallKind.None;
-        var baseColor = walled
-            ? (int)cell.Wall < _wallColors.Length ? _wallColors[(int)cell.Wall] : MissingTerrainColor
-            : FloorBaseColor(cell.Floor);
-        var n1 = Hash01(worldX, worldY, 917);
-        var n2 = Hash01(worldX * 3 + 7, worldY * 5 - 3, 421);
-        var delta = ((n1 - 0.5f) * 22f + (n2 - 0.5f) * 10f) / 255f;
-        if (!walled && cell.Floor is FloorKind.Grass or FloorKind.Soil && ((worldX + worldY) & 1) == 0)
+        _buildingTilesView = view;
+        _structureKey.CopyTo(_buildingTilesKey, 0);
+        _buildingTiles.Clear();
+        foreach (var site in view.Sites)
         {
-            delta -= 4f / 255f;
+            _buildingTiles.UnionWith(site.Tiles);
         }
 
-        return new Color(
-            Math.Clamp(baseColor.R + delta, 0f, 1f),
-            Math.Clamp(baseColor.G + delta, 0f, 1f),
-            Math.Clamp(baseColor.B + (!walled && IsWater(cell.Floor) ? delta * 0.5f : delta), 0f, 1f));
-    }
-
-    private static float Hash01(int x, int y, int salt)
-    {
-        unchecked
+        foreach (var miner in view.Miners)
         {
-            var v = (uint)(x * 374761393 + y * 668265263 + salt * 1442695041);
-            v = (v ^ (v >> 13)) * 1274126177u;
-            return (v ^ (v >> 16)) / (float)uint.MaxValue;
-        }
-    }
-
-    private void DrawTerrainSpeckle(TerrainTile cell, int worldX, int worldY, Rect2 rect)
-    {
-        if (cell.Wall != WallKind.None || IsWater(cell.Floor))
-        {
-            return;
+            _buildingTiles.UnionWith(miner.OccupiedTiles());
         }
 
-        var speck = cell.Floor switch
+        foreach (var crafter in view.Smelters.Concat(view.Assemblers))
         {
-            FloorKind.Grass => new Color(36 / 255f, 62 / 255f, 42 / 255f, 0.35f),
-            FloorKind.Soil => new Color(86 / 255f, 68 / 255f, 42 / 255f, 0.35f),
-            FloorKind.Stone => new Color(70 / 255f, 74 / 255f, 72 / 255f, 0.3f),
-            _ => FloorBaseColor(cell.Floor).Darkened(0.22f) with { A = 0.3f }
-        };
-        var hx = Hash01(worldX, worldY, 55);
-        var hy = Hash01(worldX, worldY, 77);
-        var sx = rect.Position.X + 4f + hx * (TileSize - 10f);
-        var sy = rect.Position.Y + 4f + hy * (TileSize - 10f);
-        DrawRect(new Rect2(sx, sy, Math.Max(2f, TileSize / 14f), Math.Max(2f, TileSize / 14f)), speck);
+            _buildingTiles.UnionWith(crafter.OccupiedTiles());
+        }
+
+        foreach (var generator in view.Generators)
+        {
+            _buildingTiles.UnionWith(generator.OccupiedTiles());
+        }
+
+        foreach (var extractor in view.Extractors)
+        {
+            _buildingTiles.UnionWith(extractor.OccupiedTiles());
+        }
+
+        foreach (var node in view.PowerNodes)
+        {
+            _buildingTiles.UnionWith(node.OccupiedTiles());
+        }
+
+        return _buildingTiles;
     }
 
-    private void DrawDepositMarker(DepositKind deposit, int x, int y, float screenTilePx)
+    private static void FillStructureKey(IGameView view, long[] key)
+    {
+        var i = 0;
+        void Add(int count, long maxId)
+        {
+            key[i++] = count;
+            key[i++] = maxId;
+        }
+
+        long max = 0;
+        foreach (var s in view.Sites)
+        {
+            max = Math.Max(max, s.Id);
+        }
+
+        Add(view.Sites.Count, max);
+        max = 0;
+        foreach (var m in view.Miners)
+        {
+            max = Math.Max(max, m.Id);
+        }
+
+        Add(view.Miners.Count, max);
+        max = 0;
+        foreach (var c in view.Smelters)
+        {
+            max = Math.Max(max, c.Id);
+        }
+
+        Add(view.Smelters.Count, max);
+        max = 0;
+        foreach (var c in view.Assemblers)
+        {
+            max = Math.Max(max, c.Id);
+        }
+
+        Add(view.Assemblers.Count, max);
+        max = 0;
+        foreach (var g in view.Generators)
+        {
+            max = Math.Max(max, g.Id);
+        }
+
+        Add(view.Generators.Count, max);
+        max = 0;
+        foreach (var e in view.Extractors)
+        {
+            max = Math.Max(max, e.Id);
+        }
+
+        Add(view.Extractors.Count, max);
+        max = 0;
+        foreach (var n in view.PowerNodes)
+        {
+            max = Math.Max(max, n.Id);
+        }
+
+        Add(view.PowerNodes.Count, max);
+    }
+
+    /// <summary>Cell size on screen from which deposits show their ore icon instead of plain colour.</summary>
+    private const float DepositIconMinPx = 14f;
+
+    private void DrawDepositIcon(DepositKind deposit, int x, int y)
     {
         var rect = new Rect2(x * TileSize, y * TileSize, TileSize, TileSize);
-        var pad = new Color(0.2f, 0.18f, 0.14f, 0.55f);
-        DrawRect(rect, pad);
-
+        DrawRect(rect, new Color(0.2f, 0.18f, 0.14f, 0.55f));
         var itemId = TerrainMap.ItemIdForDeposit(deposit);
-        var fill = ItemPalette.ColorFor(itemId);
-        var tex = deposit == DepositKind.None ? null : Sprites.TryFor(itemId);
-
-        if (screenTilePx >= 14f && tex is not null)
+        if (Sprites.TryFor(itemId) is { } tex)
         {
             // The ore item sprite in its own colours, at the world art scale (32 px icon = one tile).
-            // Placeholder until the real terrain art (G2).
+            // Placeholder until the real terrain art (G2b).
             DrawTextureRect(tex, rect, false);
         }
         else
         {
-            // Raylib fallback circles when zoomed out.
-            var cx = (x + 0.5f) * TileSize;
-            var cy = (y + 0.5f) * TileSize;
-            DrawCircle(new Vector2(cx - TileSize * 0.15f, cy - TileSize * 0.1f), TileSize * 0.18f, fill);
-            DrawCircle(new Vector2(cx + TileSize * 0.12f, cy + TileSize * 0.1f), TileSize * 0.22f, fill);
+            DrawDepositRun(deposit, x, x, y);
         }
+    }
+
+    /// <summary>Cells <paramref name="x0"/>..<paramref name="x1"/> of row <paramref name="y"/> in the ore colour.</summary>
+    private void DrawDepositRun(DepositKind deposit, int x0, int x1, int y)
+    {
+        var fill = ItemPalette.ColorFor(TerrainMap.ItemIdForDeposit(deposit));
+        var inset = TileSize * 0.12f;
+        DrawRect(
+            new Rect2(x0 * TileSize, y * TileSize + inset, (x1 - x0 + 1) * TileSize, TileSize - 2 * inset),
+            fill with { A = 0.9f });
     }
 
     private void DrawGhost(GridPosition hover)
@@ -234,18 +273,7 @@ public partial class World
             return;
         }
 
-        var size = _tool switch
-        {
-            BuildTool.Miner or BuildTool.MinerAdvanced => Miner.Size,
-            BuildTool.Smelter => Crafter.Size,
-            BuildTool.Assembler => Crafter.Size,
-            BuildTool.Generator => Generator.Size,
-            BuildTool.PowerNode => 1,
-            BuildTool.PowerNodeT2 => 2,
-            BuildTool.Extractor => Extractor.Size,
-            _ => 1
-        };
-
+        var size = GhostSize();
         var ok = size == 1
             ? _view.CanOccupy(hover)
             : _view.CanOccupyFootprint(hover, size);
@@ -282,6 +310,54 @@ public partial class World
         {
             DrawBridgeGhost(hover);
         }
+    }
+
+    /// <summary>Footprint edge of the block the current tool places.</summary>
+    private int GhostSize() => _tool switch
+    {
+        BuildTool.Miner or BuildTool.MinerAdvanced => Miner.Size,
+        BuildTool.Smelter => Crafter.Size,
+        BuildTool.Assembler => Crafter.Size,
+        BuildTool.Generator => Generator.Size,
+        BuildTool.PowerNode => 1,
+        BuildTool.PowerNodeT2 => 2,
+        BuildTool.Extractor => Extractor.Size,
+        _ => 1
+    };
+
+    /// <summary>
+    /// Why the terrain refuses the ghost at <paramref name="hover"/> ("C'è una parete", "Acqua profonda"), or null
+    /// when no wall or deep water lies under its footprint (other refusals keep the plain red ghost).
+    /// </summary>
+    private string? GhostTerrainReason(GridPosition hover)
+    {
+        if (_tool == BuildTool.Cursor || _view?.Terrain is not { } terrain)
+        {
+            return null;
+        }
+
+        var size = GhostSize();
+        var deep = false;
+        for (var y = hover.Y; y < hover.Y + size; y++)
+        {
+            for (var x = hover.X; x < hover.X + size; x++)
+            {
+                if (!terrain.InBounds(new GridPosition(x, y)))
+                {
+                    continue;
+                }
+
+                var cell = terrain[x, y];
+                if (cell.Wall != WallKind.None)
+                {
+                    return CommandReasons.Wall;
+                }
+
+                deep |= cell.Floor == FloorKind.DeepWater;
+            }
+        }
+
+        return deep ? CommandReasons.DeepWater : null;
     }
 
     private bool FootprintPlanned(GridPosition origin, int size)

@@ -75,6 +75,13 @@ public partial class World
             return;
         }
 
+        // The ghost is red on a wall or deep water: the bottom hint says why.
+        _hud.SetPlacementHint(_view is not null
+            && GetViewport().GuiGetHoveredControl() is null
+            && _hover is { } ghostAt
+            ? GhostTerrainReason(ghostAt)
+            : null);
+
         if (_view is null
             || GetViewport().GuiGetHoveredControl() is not null
             || _hover is not { } hover

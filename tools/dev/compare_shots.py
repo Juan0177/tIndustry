@@ -33,6 +33,8 @@ FILE_MASKS = {
     "ui-hud.png": [GEAR],
     "ui-palette-info.png": [GEAR],
     "ui-mercato.png": [GEAR],  # only the belt strip under the modal edge varies
+    # the running miner and belt items show through the campaign list card; a change to the card there goes unseen
+    "ui-campagna-mappa-mancante.png": [(320, 316, 670, 539)],
     # zoomed view: the machines fill this area; a change there goes unseen
     "ui-belt-into-core.png": [(200, 300, 720, 540)],
     "tutorial-03-step3-miner-placed.png": [GEAR],

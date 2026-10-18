@@ -10,8 +10,8 @@ namespace TIndustry.Godot;
 public partial class World : Node2D
 {
     public const int TileSize = 64;
-    public const int DefaultMapWidth = 1000;
-    public const int DefaultMapHeight = 1000;
+    public const int DefaultMapWidth = (int)MapSize.Media;
+    public const int DefaultMapHeight = (int)MapSize.Media;
 
     /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to default size.</summary>
     public int ActiveMapWidth => _view?.Terrain?.Width ?? DefaultMapWidth;
@@ -46,10 +46,12 @@ public partial class World : Node2D
     private MindustryBeltVisual? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
     private Node2D? _itemsLayer;
+    private TerrainChunks? _terrainChunks;
     private Node2D? _buildingsLayer;
     private ConstructionLayer? _constructionLayer;
     private Hud? _hud;
     private HomePanel? _home;
+    private NewGamePanel? _newGame;
     private ResearchPanel? _research;
     private MercatoPanel? _mercato;
     private CampaignSelectPanel? _campaignSelect;
@@ -93,6 +95,8 @@ public partial class World : Node2D
             return;
         }
 
+        // Closing the window goes through QuitGame (Continua autosave), like Home "Esci".
+        GetTree().AutoAcceptQuit = false;
         _contentPath = ResolveContentPath();
         _campaignPath = ResolveCampaignPath();
         _settings = ClientSettings.Load();
@@ -101,17 +105,11 @@ public partial class World : Node2D
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
         _progress = CampaignProgress.Load(_progressPath);
-        AttachGame(NewGame.Sandbox(
-            content,
-            Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight),
-            coreSize: 2,
-            mapWidth: DefaultMapWidth,
-            mapHeight: DefaultMapHeight,
-            seed: 42,
-            startingMoney: 180,
-            rules: ClientRules()));
+        // Startup sandbox behind Home (not a played game): the same map as the playtests' Nuova partita.
+        AttachGame(NewSandboxFactory(content, MapSize.Media, PlaytestSeed));
 
         _itemsLayer = GetNode<Node2D>("Items");
+        EnsureTerrainChunks();
         EnsureHud();
         EnsureResearchPanel();
         EnsureMercatoPanel();
@@ -120,6 +118,8 @@ public partial class World : Node2D
         EnsureTutorialPanel();
         EnsureSavesPanel();
         EnsureHomePanel();
+        EnsureNewGamePanel();
+        EnsureMapOverlay();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
         UseSmoothUiFiltering();
@@ -181,15 +181,17 @@ public partial class World : Node2D
             }
         }
 
+        SyncTerrainChunks();
         SyncTutorial();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
-            cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true;
+            cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true && _newGame?.IsOpen != true;
         }
 
-        if (_home?.IsOpen == true || _view is null)
+        if (_home?.IsOpen == true || _newGame?.IsOpen == true || _view is null)
         {
             _hud?.SetSiteTooltip(null, default);
+            _hud?.SetPlacementHint(null);
             return;
         }
 
@@ -216,6 +218,43 @@ public partial class World : Node2D
         UpdateHud();
         CheckCampaignComplete();
         QueueRedraw();
+    }
+
+    /// <summary>
+    /// Leaving the tree (any quit: Home "Esci", window close, end of a playtest): unhook the playtest guard and run
+    /// the pending .NET finalizers while the engine is still whole. Godot wrappers already unreachable but not yet
+    /// finalized (UI <c>StyleBoxFlat</c>s and <c>CompressedTexture2D</c>s created in C#) would otherwise be finalized
+    /// by the GC during engine teardown, which crashes it ("Leaked unsafe reference", "!rc_owner"); bigger maps mean
+    /// more GC pressure and made it likely.
+    /// </summary>
+    public override void _ExitTree()
+    {
+        GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
+    private void EnsureTerrainChunks()
+    {
+        _terrainChunks = new TerrainChunks { Name = "Terrain" };
+        AddChild(_terrainChunks);
+        MoveChild(_terrainChunks, 0);
+    }
+
+    /// <summary>
+    /// Every frame, also behind Home: follows the attached game's terrain (a new map drops the old chunks) and
+    /// builds the chunks in view.
+    /// </summary>
+    private void SyncTerrainChunks()
+    {
+        if (_terrainChunks is null)
+        {
+            return;
+        }
+
+        _terrainChunks.SetMap(_view?.Terrain, _view?.Content.Terrain ?? TerrainTable.Empty, TileSize);
+        GetVisibleTileRange(out var minX, out var minY, out var maxX, out var maxY);
+        _terrainChunks.Sync(minX, minY, maxX, maxY);
     }
 
     private static string ResolveContentPath()
@@ -266,8 +305,8 @@ public partial class World : Node2D
 
     /// <summary>
     /// Folder of the campaign map files (<c>data/maps/</c>, see <see cref="CampaignMapFile"/>), searched like
-    /// content.json; null when missing. Used to load saves on a campaign map; campaign levels still start on the
-    /// classic generator.
+    /// content.json; null when missing. Campaign levels start from their map file here, and saves on a campaign map
+    /// reload it.
     /// </summary>
     internal static string? ResolveMapsPath()
     {

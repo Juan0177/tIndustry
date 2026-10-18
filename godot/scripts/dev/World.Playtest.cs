@@ -11,7 +11,7 @@ namespace TIndustry.Godot;
 public partial class World
 {
     /// <summary>Device id stamped on synthetic events; anything else is the player's real input.</summary>
-    private const int PlaytestDevice = 4242;
+    internal const int PlaytestDevice = 4242;
 
     /// <summary>
     /// While a playtest runs, drop real mouse/keyboard input before UI and world see it: the window is on
@@ -49,8 +49,6 @@ public partial class World
         SetPhysicsProcess(false);
         return false;
     }
-
-    public override void _ExitTree() => GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
 
     private void OnPlayerDataWriteRefused(string message)
     {
@@ -95,8 +93,7 @@ public partial class World
         async Task Shot(string label)
         {
             await PlaytestWait(0.25);
-            GetViewport().GetTexture().GetImage()
-                .SavePng(Path.Combine(dir, $"tutorial-{shot++:00}-{label}.png"));
+            SaveViewportPng(Path.Combine(dir, $"tutorial-{shot++:00}-{label}.png"));
         }
 
         bool Expect(TutorialPanel.Step step, string label)
@@ -236,7 +233,7 @@ public partial class World
         async Task Shot(string label)
         {
             await PlaytestWait(0.3);
-            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-{label}.png"));
+            SaveViewportPng(Path.Combine(dir, $"ui-{label}.png"));
         }
 
         // Leaving Home before playing (Esci / window close) must not write the startup sandbox to Continua.
@@ -247,8 +244,20 @@ public partial class World
         }
 
         _settings.TutorialCompleted = true;
+        // Home → Nuova partita, with the playtest seed in the field instead of a random one.
+        OpenNewGamePanel(PlaytestSeed);
+        await Shot("nuova-partita");
+        if (_newGame?.IsOpen != true || _home?.IsOpen == true)
+        {
+            return Fail("Nuova partita: pannello non aperto sopra Home");
+        }
+
         OnHomeNewGame();
         _tutorial?.Close();
+        if (_newGame?.IsOpen == true || _view?.Terrain is not { Generator: MapGenerator.Name, Width: (int)MapSize.Media })
+        {
+            return Fail("Nuova partita: attesa mappa a biomi Media");
+        }
 
         // Isolation check: an event from a real device (the player's mouse/keyboard on this window)
         // must not reach the game while a playtest drives it.
@@ -311,7 +320,47 @@ public partial class World
             return Fail("autosave su Continua mancante dopo una partita giocata");
         }
 
-        return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
+        if (_view!.CoreDeliveredItems <= 0)
+        {
+            return Fail("nessun oggetto consegnato al CORE");
+        }
+
+        // A campaign level starts on its map file (data/maps), not on a generated map.
+        if (_campaign?.FirstLevel is not { } level)
+        {
+            return Fail("campagna senza livelli");
+        }
+
+        // A level whose map file is missing: the list stays open with the reason, the game is untouched.
+        var before = _view;
+        ToggleCampaign();
+        OnCampaignLevelChosen(level with { Map = "mappa-inesistente" });
+        if (_campaignSelect?.IsOpen != true || !ReferenceEquals(_view, before))
+        {
+            return Fail("livello con mappa mancante: elenco chiuso o partita cambiata");
+        }
+
+        await Shot("campagna-mappa-mancante");
+        _campaignSelect.Close();
+
+        if (StartCampaignLevel(level, toast: true) is { } campaignError)
+        {
+            return Fail($"livello {level.Id}: {campaignError}");
+        }
+
+        if (_view?.Terrain?.Generator != CampaignMapFile.GeneratorPrefix + level.Map)
+        {
+            return Fail($"livello {level.Id}: mappa {_view?.Terrain?.Generator ?? "assente"} invece del file {level.Map}");
+        }
+
+        await Shot("campagna");
+
+        if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
+        {
+            await PlaytestHugeMapPerfAsync(dir);
+        }
+
+        return true;
     }
 
     /// <summary>Set to 1 to run <see cref="PlaytestBeltPerfAsync"/> in the <c>ui</c> playtest.</summary>
@@ -439,6 +488,95 @@ public partial class World
             + $"fps medio {average:F0}, minimo {1e6 / Math.Max(1UL, worst):F0}, nodi {nodes:F0}");
     }
 
+    /// <summary>
+    /// Second performance probe (with <c>TINDUSTRY_PLAYTEST_PERF=1</c>, at the end of the <c>ui</c> playtest), no
+    /// pass/fail: a new Enorme map (2000², seed 42) at minimum zoom, saved as <c>ui-enorme-zoom-min.png</c>; average
+    /// and minimum FPS over 3 s standing still and 3 s sweeping the camera across the map (chunks built and freed
+    /// on the way), without VSync, with chunk counts and memory (Godot static, .NET heap, video, process).
+    /// </summary>
+    private async Task PlaytestHugeMapPerfAsync(string dir)
+    {
+        // The overlay's look (it is up for only one blocking frame below).
+        if (_mapOverlay is not null)
+        {
+            _mapOverlay.Visible = true;
+            await PlaytestWait(0.3);
+            SaveViewportPng(Path.Combine(dir, "ui-generazione-mappa.png"));
+            _mapOverlay.Visible = false;
+        }
+
+        // Through the generation overlay, as the Nuova partita panel does; timed from the blocking work only.
+        var startMs = await WithMapOverlayAsync((int)MapSize.Enorme, () =>
+        {
+            var started = Time.GetTicksUsec();
+            StartNewSandbox(MapSize.Enorme, PlaytestSeed, toast: false);
+            return (Time.GetTicksUsec() - started) / 1000.0;
+        });
+        if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam || _terrainChunks is null)
+        {
+            return;
+        }
+
+        cam.Zoom = new Vector2(cam.MinZoom, cam.MinZoom);
+        cam.ClampToMap();
+        // Past the campaign toast (1.6 s + fade).
+        await PlaytestWait(2.5);
+        SaveViewportPng(Path.Combine(dir, "ui-enorme-zoom-min.png"));
+
+        var vsync = DisplayServer.WindowGetVsyncMode();
+        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+        var still = await MeasureFramesAsync(3.0, null);
+        // Sweep diagonally, 4 cells east and 3 south per frame, bouncing off the map edges: new chunks on the way
+        // and, past the cap, the oldest ones freed.
+        var velocity = new Vector2(4f, 3f) * TileSize;
+        var sweep = await MeasureFramesAsync(3.0, () =>
+        {
+            var before = cam.Position;
+            cam.Position += velocity;
+            cam.ClampToMap();
+            if (Math.Abs(cam.Position.X - before.X) < 1f)
+            {
+                velocity.X = -velocity.X;
+            }
+
+            if (Math.Abs(cam.Position.Y - before.Y) < 1f)
+            {
+                velocity.Y = -velocity.Y;
+            }
+        });
+        DisplayServer.WindowSetVsyncMode(vsync);
+
+        const double mib = 1024.0 * 1024.0;
+        var video = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed);
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        GD.Print($"PLAYTEST perf enorme: {ActiveMapWidth}×{ActiveMapHeight}, partenza {startMs:F0} ms, zoom {cam.Zoom.X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}; "
+            + $"fermo fps medio {still.Average:F0}, minimo {still.Minimum:F0}; "
+            + $"panoramica fps medio {sweep.Average:F0}, minimo {sweep.Minimum:F0}; "
+            + $"pezzi vivi {_terrainChunks.ChunkCount}, creati {_terrainChunks.BuiltSinceReset}; "
+            + $"memoria statica {OS.GetStaticMemoryUsage() / mib:F0} MiB, .NET {GC.GetTotalMemory(false) / mib:F0} MiB, "
+            + $"video {video / mib:F0} MiB, processo {process.WorkingSet64 / mib:F0} MiB");
+    }
+
+    /// <summary>Frames for <paramref name="seconds"/>, running <paramref name="perFrame"/> before each: average and worst-frame FPS.</summary>
+    private async Task<(double Average, double Minimum)> MeasureFramesAsync(double seconds, Action? perFrame)
+    {
+        var frames = 0;
+        var worst = 0UL;
+        var start = Time.GetTicksUsec();
+        var last = start;
+        while (Time.GetTicksUsec() - start < (ulong)(seconds * 1e6))
+        {
+            perFrame?.Invoke();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var now = Time.GetTicksUsec();
+            worst = Math.Max(worst, now - last);
+            last = now;
+            frames++;
+        }
+
+        return (frames / ((last - start) / 1e6), 1e6 / Math.Max(1UL, worst));
+    }
+
     /// <summary>Set to 1 to run <see cref="PlaytestBlocksShotAsync"/> in the <c>ui</c> playtest.</summary>
     private const string PlaytestBlocksEnv = "TINDUSTRY_PLAYTEST_BLOCCHI";
 
@@ -558,7 +696,7 @@ public partial class World
             cam.Position = new Vector2((a.X + b.X + 1) * 0.5f * TileSize, (a.Y + b.Y + 1) * 0.5f * TileSize);
             cam.Zoom = new Vector2(zoom, zoom);
             await PlaytestWait(0.6);
-            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, $"ui-blocchi-{label}.png"));
+            SaveViewportPng(Path.Combine(dir, $"ui-blocchi-{label}.png"));
         }
 
         // 1280×720 at zoom z shows 20/z × 11/z cells; keep a margin for the HUD.
@@ -830,6 +968,13 @@ public partial class World
         {
             Position = at, GlobalPosition = at, ButtonMask = mask, Device = PlaytestDevice
         });
+
+    /// <summary>Saves the current frame; the image is released at once (not left to the finalizer).</summary>
+    private void SaveViewportPng(string path)
+    {
+        using var image = GetViewport().GetTexture().GetImage();
+        image.SavePng(path);
+    }
 
     private static bool Fail(string message)
     {

@@ -291,20 +291,41 @@ public partial class SavesPanel : Control
             : "Elimina";
     }
 
-    private static string FormatRow(SaveSlotInfo slot)
+    /// <summary>Display name of a campaign map file (the level that uses it); the id itself when unset or unknown.</summary>
+    public Func<string, string?>? MapName { get; set; }
+
+    private string FormatRow(SaveSlotInfo slot)
     {
-        var when = slot.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        var campaign = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId)
-            ? "sandbox"
-            : slot.ActiveCampaignLevelId;
+        var when = slot.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
         var label = slot.Id == FactorySaveStore.ContinueSlotId
             ? "Continua (salvataggio automatico)"
             : slot.Id;
-        var map = slot.MapWidth > 0 && slot.MapHeight > 0
-            ? $"  ·  {slot.MapWidth}×{slot.MapHeight}"
-            : "";
-        var seed = slot.Seed != 0 ? $"  ·  seed {slot.Seed}" : "";
-        return $"{label}  ·  ${slot.Money}{seed}{map}  ·  {campaign}  ·  {when}";
+        return $"{label}  ·  ${slot.Money}  ·  {FormatMap(slot)}  ·  {when}";
+    }
+
+    /// <summary>
+    /// "Biomi · 1500 · seme N" for a normal game, the map's name for a campaign map file, "Classico · W×H · seme N"
+    /// for the classic generator (also files that do not name one: v11 saves load on it).
+    /// </summary>
+    private string FormatMap(SaveSlotInfo slot)
+    {
+        var level = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId) ? "" : $"  ·  {slot.ActiveCampaignLevelId}";
+        if (slot.Generator == FactorySaveData.CampaignGenerator && !string.IsNullOrWhiteSpace(slot.MapId))
+        {
+            return $"Mappa {MapName?.Invoke(slot.MapId) ?? slot.MapId}  ·  {slot.MapWidth}×{slot.MapHeight}";
+        }
+
+        if (slot.Generator == MapGenerator.Name)
+        {
+            return $"Biomi  ·  {slot.MapWidth}  ·  seme {slot.Seed}";
+        }
+
+        if (slot.MapWidth <= 0 || slot.MapHeight <= 0)
+        {
+            return $"senza terreno{level}";
+        }
+
+        return $"Classico  ·  {slot.MapWidth}×{slot.MapHeight}  ·  seme {slot.Seed}{level}";
     }
 
     /// <summary>Shows a message on the status line (e.g. a failed load) without closing the panel.</summary>
