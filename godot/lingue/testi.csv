@@ -163,6 +163,7 @@ dev.linea.core,Seed linea CORE · nastro {0},CORE line seed · belts {0}
 salvataggi.continua.nessuno,Nessun salvataggio continua,No continue save
 salvataggi.continua.caricata,Continua caricata,Continue loaded
 partita.nuova.toast,Nuova partita · {0} {1}×{1} · seme {2},New game · {0} {1}×{1} · seed {2}
+partita.nuova.toast.lato,Nuova partita · {0}×{0} · seme {1},New game · {0}×{0} · seed {1}
 mappa.errore.caricamento,Caricamento della mappa non riuscito (dettagli nel log).,Map loading failed (details in the log).
 campagna.non.disponibile,Campagna non disponibile.,Campaign not available.
 mappa.errore.cartella,Mappa del livello «{0}» non disponibile: cartella delle mappe (data/maps) non trovata.,"Map of level ""{0}"" not available: map folder (data/maps) not found."
@@ -197,8 +198,10 @@ rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 rifiuto.CrossingNeedsJunction,Sblocca l'incrocio per attraversare i nastri,Unlock the junction to cross belts
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.
+home.suggerimento.riprendi,Partita in corso: Riprendi (o Esc) per tornare a giocare.,Game in progress: Resume (or Esc) to go back to playing.
 home.sottotitolo,Fabbrica · Logistica · Ricerca,Factory · Logistics · Research
 home.continua,Continua,Continue
+home.riprendi,Riprendi,Resume
 home.nuova,Nuova partita,New game
 home.salvataggi,Gestione salvataggi,Manage saves
 home.impostazioni,Impostazioni,Settings

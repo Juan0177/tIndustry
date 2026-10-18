@@ -188,7 +188,7 @@ public partial class World : Node2D
         }
         else
         {
-            _home?.Open();
+            _home?.Open(inGame: false);
         }
 
         if (HasNode("Camera"))
@@ -212,6 +212,12 @@ public partial class World : Node2D
     internal SimHost? AgentHost => _host;
 
     internal CampaignCatalog? AgentCampaign => _campaign;
+
+    /// <summary>The player's placement direction (HUD, R), which the agents' <c>stato</c>, <c>ruota</c> and <c>piazza</c> use.</summary>
+    internal Direction AgentDirection => _placeDir;
+
+    /// <summary>The agents' <c>ruota</c>: the player's R (direction label and toast included).</summary>
+    internal void AgentRotate() => OnHudRotate();
 
     /// <summary>A game is being played: not behind Home or Nuova partita. <see cref="_Process"/> runs the world only then.</summary>
     internal bool GameInPlay => _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;

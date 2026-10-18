@@ -416,6 +416,7 @@ public partial class Hud : Control
     {
         _toastLabel = new Label
         {
+            Name = "Toast",
             Text = "",
             HorizontalAlignment = HorizontalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore,

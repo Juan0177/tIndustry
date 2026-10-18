@@ -21,7 +21,7 @@ public partial class AgentBridge
     public const string QuitWithoutClientEnv = "TINDUSTRY_AGENT_ESCI_SENZA_CLIENT";
 
     /// <summary>Longest request line; the real ones are a few hundred bytes.</summary>
-    public const int MaxLineChars = 64 * 1024;
+    public const int MaxLineChars = TIndustry.Shared.AgentProtocol.MaxLineChars;
 
     // A browser's cross-protocol request: "POST /x HTTP/1.1" or a "Host: ..." header line.
     private static readonly Regex HttpLine = new(

@@ -13,8 +13,13 @@ public partial class HomePanel : Control
     private const int LogoScale = 5;
 
     private Button? _continuaBtn;
+    private Button? _resumeBtn;
     private Label? _hint;
 
+    // Opened from a game in progress (Esc, Menu): Riprendi goes back to it, and so does Esc.
+    private bool _inGame;
+
+    public event Action? ResumeChosen;
     public event Action? ContinuaChosen;
     public event Action? CampaignChosen;
     public event Action? NewGameChosen;
@@ -32,11 +37,19 @@ public partial class HomePanel : Control
         RefreshContinua();
     }
 
-    public void Open()
+    /// <summary>
+    /// Shows the Home. <paramref name="inGame"/> true: over a game in progress (Riprendi first, Esc resumes); false: the
+    /// start Home; null (back from one of its panels): as it was.
+    /// </summary>
+    public void Open(bool? inGame = null)
     {
+        _inGame = inGame ?? _inGame;
         Visible = true;
         RefreshContinua();
     }
+
+    /// <summary>True while the Home is over a game in progress (Riprendi shown).</summary>
+    public bool InGame => _inGame;
 
     public void Close() => Visible = false;
 
@@ -63,20 +76,27 @@ public partial class HomePanel : Control
         }
 
         var has = FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId);
+        if (_resumeBtn is not null)
+        {
+            _resumeBtn.Visible = _inGame;
+        }
+
         if (_continuaBtn is not null)
         {
-            // No save to continue: no button at all (not a disabled one).
-            _continuaBtn.Visible = has;
+            // No save to continue: no button at all (not a disabled one). In a game Riprendi takes its place: Continua
+            // would reload the autosave, a few ticks back.
+            _continuaBtn.Visible = has && !_inGame;
         }
 
         if (_hint is not null)
         {
-            _hint.Text = has
-                ? "home.suggerimento.continua"
+            _hint.Text = _inGame ? "home.suggerimento.riprendi"
+                : has ? "home.suggerimento.continua"
                 : "home.suggerimento.nuova";
         }
     }
 
+    /// <summary>Esc resumes the game in progress; on the start Home it does nothing (leaving is the Esci button).</summary>
     public override void _UnhandledInput(InputEvent @event)
     {
         if (!Visible)
@@ -86,7 +106,11 @@ public partial class HomePanel : Control
 
         if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
         {
-            QuitChosen?.Invoke();
+            if (_inGame)
+            {
+                ResumeChosen?.Invoke();
+            }
+
             GetViewport().SetInputAsHandled();
         }
     }
@@ -134,14 +158,18 @@ public partial class HomePanel : Control
 
         root.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
 
+        _resumeBtn = MakeMenuButton("home.riprendi", () => ResumeChosen?.Invoke());
+        _resumeBtn.Name = "Riprendi";
+        _resumeBtn.Visible = false;
+        root.AddChild(_resumeBtn);
         _continuaBtn = MakeMenuButton("home.continua", () => ContinuaChosen?.Invoke());
         _continuaBtn.Name = "Continua";
         root.AddChild(_continuaBtn);
-        root.AddChild(MakeMenuButton("menu.campagna", () => CampaignChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("home.nuova", () => NewGameChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("home.salvataggi", () => SavesChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("home.impostazioni", () => SettingsChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("home.esci", () => QuitChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("menu.campagna", () => CampaignChosen?.Invoke(), "Campagna"));
+        root.AddChild(MakeMenuButton("home.nuova", () => NewGameChosen?.Invoke(), "NuovaPartita"));
+        root.AddChild(MakeMenuButton("home.salvataggi", () => SavesChosen?.Invoke(), "Salvataggi"));
+        root.AddChild(MakeMenuButton("home.impostazioni", () => SettingsChosen?.Invoke(), "Impostazioni"));
+        root.AddChild(MakeMenuButton("home.esci", () => QuitChosen?.Invoke(), "Esci"));
 
         _hint = new Label
         {
@@ -152,13 +180,19 @@ public partial class HomePanel : Control
         root.AddChild(_hint);
     }
 
-    private static Button MakeMenuButton(string label, Action onClick)
+    /// <summary>A Home button; <paramref name="name"/> is its stable node name (what the agents' <c>ui</c> lists).</summary>
+    private static Button MakeMenuButton(string label, Action onClick, string? name = null)
     {
         var btn = new Button
         {
             Text = label,
             CustomMinimumSize = new Vector2(0, 36)
         };
+        if (name is not null)
+        {
+            btn.Name = name;
+        }
+
         btn.Pressed += onClick;
         return btn;
     }

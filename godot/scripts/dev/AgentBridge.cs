@@ -29,7 +29,7 @@ public partial class AgentBridge : Node
     private const int MaxRequestsPerFrame = 64;
     private const int MaxQueuedRequests = 1024;
     private const ulong CommandTimeoutMsec = 10_000;
-    private const double MaxRunSeconds = 120;
+    private const double MaxRunSeconds = AgentProtocol.MaxRunSeconds;
     private const int DefaultLogLines = 50;
     private const int MaxLogLines = 500;
     private const int KeptLogLines = 20_000;
@@ -53,6 +53,10 @@ public partial class AgentBridge : Node
 
     private World _world = null!;
     private AgentGame? _game;
+    // The header nuova_partita gives the game it starts (null: a loaded slot, whose snapshot is taken).
+    private AgentGameSetup? _launcherSetup;
+    private bool _realInputNoted;
+    private bool _realInputWarned;
     // The command call waiting for its tick, and a running `esegui` (other requests go on meanwhile).
     private (int Connection, long Id, ulong Deadline)? _pending;
     private (int Connection, long Id, ulong Deadline, long TickBefore, bool HeldAfter, double Seconds)? _run;
@@ -279,6 +283,7 @@ public partial class AgentBridge : Node
             });
         }
 
+        SyncGame();
         if (_busy || (_pending is not null && !FinishPending()))
         {
             return;
@@ -368,36 +373,151 @@ public partial class AgentBridge : Node
             : null;
         var sandbox = AgentGameSetup.Sandbox(
             OptInt(p, "misura") ?? (int)MapSize.Media, OptInt(p, "seme") ?? 1, OptStr(p, "generatore") ?? MapGenerator.Name,
-            new GameRules());
-        if (_world.AgentStartGame(sandbox, level, OptStr(p, "slot")) is { } error)
+            new GameRules()) with { Engine = AgentGameSetup.GameEngine };
+        var slot = OptStr(p, "slot");
+        // The journal's header: how the game is made (a loaded slot: its snapshot once loaded).
+        _launcherSetup = slot is not null ? null : level is not null ? sandbox with { Level = level.Id } : sandbox;
+        if (_world.AgentStartGame(sandbox, level, slot) is { } error)
         {
+            _launcherSetup = null;
             throw Bad(error);
         }
 
+        SyncGame();
         return new JsonObject { ["tick"] = CurrentTick() };
     }
 
     // --- Shared methods (AgentGame) -------------------------------------------------------------------------------
 
-    /// <summary>The AgentGame of the running game, made again when the world attached another host.</summary>
+    /// <summary>The AgentGame of the running game (<see cref="SyncGame"/>).</summary>
     private AgentGame Game()
     {
-        var host = _world.AgentHost ?? throw new AgentException(AgentCodes.GiocoTerminato, "Nessuna partita in corso.");
-        if (_game?.Host != host)
+        SyncGame();
+        return _game ?? throw new AgentException(AgentCodes.MotoreNonDisponibile, "Nessuna partita in corso.");
+    }
+
+    /// <summary>
+    /// Every frame and before each call: when the world attached another host (new game, level, a loaded save, also
+    /// from a person at the window) the journal starts again with that game's header, the launcher's setup for its own
+    /// <c>nuova_partita</c>, else the snapshot of the game as it is now; <c>eventi</c> gets <c>partitaCaricata</c>
+    /// and a command still waiting is answered <see cref="AgentCodes.PartitaCambiata"/>.
+    /// </summary>
+    private void SyncGame()
+    {
+        if (_world.AgentHost is not { } host || _game?.Host == host)
         {
-            _game?.Dispose();
-            var diaries = Path.Combine(Profile(), "diari");
-            Directory.CreateDirectory(diaries);
-            _game = new AgentGame(
-                host, host.State.Content, campaign: _world.AgentCampaign, journalDirectory: diaries, tickPerComando: false);
+            return;
         }
 
-        return _game;
+        if (_pending is { } pending)
+        {
+            _pending = null;
+            Send(pending.Connection, AgentResponse.Failure(pending.Id, new AgentException(
+                AgentCodes.PartitaCambiata, "La partita è cambiata prima dell'esito del comando: il comando è perso.")));
+        }
+
+        var previous = _game;
+        StartJournal(host, _launcherSetup, warning: null);
+        _launcherSetup = null;
+        if (previous is not null)
+        {
+            var before = previous.Host.State.CurrentTick;
+            var now = host.State.CurrentTick;
+            _game!.Note(new JsonObject
+            {
+                ["tick"] = now, ["tipo"] = "partitaCaricata", ["tickPrima"] = before, ["indietro"] = now < before
+            });
+        }
+    }
+
+    /// <summary>A new AgentGame (and journal) on <paramref name="host"/>, keeping the unread events of the old one.</summary>
+    private void StartJournal(SimHost host, AgentGameSetup? setup, string? warning)
+    {
+        string? failure = null;
+        if (setup is null)
+        {
+            try
+            {
+                setup = AgentGameSetup.Snapshot(AgentGameSetup.GameEngine, host);
+            }
+            catch (Exception ex)
+            {
+                // No header: diario says the journal cannot be replayed, rigioca refuses it.
+                GD.PushError($"AgentBridge: istantanea della partita non riuscita: {ex}");
+                failure = $"Istantanea della partita non riuscita ({ex.GetType().Name}): diario non rigiocabile.";
+            }
+        }
+
+        var diaries = Path.Combine(Profile(), "diari");
+        Directory.CreateDirectory(diaries);
+        var game = new AgentGame(
+            host, host.State.Content, setup, _world.AgentCampaign, diaries, tickPerComando: false)
+        {
+            ReadBrush = () => _world.AgentDirection,
+            RotateBrush = _world.AgentRotate
+        };
+        foreach (var text in new[] { failure, warning })
+        {
+            if (text is not null)
+            {
+                game.Journal.Warnings.Add(text);
+            }
+        }
+
+        if (_game is { } previous)
+        {
+            game.CarryEventsFrom(previous);
+            previous.Dispose();
+        }
+
+        _game = game;
+        _realInputWarned = false;
+    }
+
+    /// <summary>
+    /// A person at the window (input that is not the bridge's or a playtest's): <c>eventi</c> says so once until the
+    /// next <c>eventi</c>, and the journal warns once that the replay may differ.
+    /// </summary>
+    public override void _Input(InputEvent @event)
+    {
+        if (@event is not (InputEventKey { Pressed: true } or InputEventMouseButton { Pressed: true })
+            || World.IsSyntheticInput(@event) || _game is not { } game)
+        {
+            return;
+        }
+
+        var tick = game.Host.State.CurrentTick;
+        if (!_realInputNoted)
+        {
+            _realInputNoted = true;
+            game.Note(new JsonObject
+            {
+                ["tick"] = tick, ["tipo"] = "inputReale", ["input"] = @event is InputEventKey ? "tasto" : "mouse"
+            });
+        }
+
+        if (!_realInputWarned)
+        {
+            _realInputWarned = true;
+            game.Journal.Warnings.Add($"Tick {tick}: una persona ha usato la finestra del gioco; i suoi comandi non sono nel diario.");
+        }
+    }
+
+    /// <summary><c>input</c> and <c>ui</c> clicks act on the game outside AgentGame: journaled, but not replayable.</summary>
+    private void JournalOnly(string method, JsonElement p)
+    {
+        SyncGame();
+        _game?.Journal.Add(CurrentTick(), method, p, replayable: false);
     }
 
     private void CallGame(int connection, AgentRequest request)
     {
         var game = Game();
+        if (request.Method == "eventi")
+        {
+            _realInputNoted = false;
+        }
+
         var response = game.Handle(request);
         if (!response.Ok && response.Code == AgentCodes.ErroreInterno)
         {
@@ -429,14 +549,13 @@ public partial class AgentBridge : Node
     /// </summary>
     private bool FinishPending()
     {
-        var (connection, id, deadline) = _pending!.Value;
-        if (_game is null || _game.Host != _world.AgentHost)
+        SyncGame(); // a changed game answers the pending command PartitaCambiata
+        if (_pending is not { } waiting || _game is null)
         {
-            _pending = null;
-            Send(connection, AgentResponse.Failure(
-                id, new AgentException(AgentCodes.GiocoTerminato, "La partita è cambiata prima dell'esito del comando.")));
             return true;
         }
+
+        var (connection, id, deadline) = waiting;
 
         try
         {
@@ -450,8 +569,10 @@ public partial class AgentBridge : Node
                     }
 
                     _pending = null;
-                    _game.Dispose();
-                    _game = null; // drops the stuck call, so the next command is accepted
+                    // Drops the stuck call, so the next command is accepted; the journal starts again from here.
+                    var tick = _game.Host.State.CurrentTick;
+                    StartJournal(_game.Host, null,
+                        $"Tick {tick}: un comando non ha avuto esito entro 10 secondi (se si applica dopo, la riproduzione può differire); il diario riparte dall'istantanea di questo tick.");
                     Send(connection, AgentResponse.Failure(
                         id, new AgentException(AgentCodes.Timeout, "Il comando non ha avuto esito entro 10 secondi.")));
                     return true;
@@ -707,6 +828,7 @@ public partial class AgentBridge : Node
                 throw Bad("'tipo' è clic, trascina, tasto o rotella.");
         }
 
+        JournalOnly("input", p);
         Play(connection, id, action, result);
     }
 
@@ -862,53 +984,61 @@ public partial class AgentBridge : Node
     private static JsonObject ScreenJson(Vector2 at) => new() { ["x"] = Mathf.RoundToInt(at.X), ["y"] = Mathf.RoundToInt(at.Y) };
 
     /// <summary>
-    /// <c>ui {}</c>: the visible controls of the HUD, the open panels and the open popup windows, with a stable name
-    /// (their path, unnamed nodes as type + index), type, shown text and rectangle in window pixels, and why a click
-    /// would miss (<c>nascosto</c>); <c>ui {clic: nome}</c> clicks its centre, or refuses with <see cref="NonCliccabile"/>.
+    /// <c>ui {}</c>: the controls of the HUD, the open panels and the open popup windows a click can reach, with a
+    /// stable name (their path, unnamed nodes as type + index), type, shown text, tooltip and rectangle in window pixels.
+    /// Left out: transparent controls (a faded toast), controls under another one that takes the mouse (the Home's
+    /// shade over the HUD) and copies of one already listed (same type, text and rectangle). A control clipped by its
+    /// container says why a click would miss (<c>nascosto</c>). <c>ui {clic}</c> takes the name, the last part of it,
+    /// the shown text or the tooltip, and clicks its centre; more than one match is refused as ambiguous.
     /// </summary>
     private void Ui(int connection, long id, JsonElement p)
     {
-        var controls = new List<(string Name, Control Control)>();
-        Collect(_world.UiRoot, "", controls);
+        var controls = new List<UiControl>();
+        var all = new List<Control>();
+        Collect(_world.UiRoot, "", 1f, controls, all);
         foreach (var node in GetTree().Root.FindChildren("*", nameof(Window), recursive: true, owned: false))
         {
             if (node is Window { Visible: true } window)
             {
-                Collect(window, window.Name.ToString(), controls);
+                Collect(window, window.Name.ToString(), 1f, controls, all);
             }
         }
 
+        controls = Reachable(controls, all);
         if (OptStr(p, "clic") is { } name)
         {
             var target = FindControl(controls, name);
-            var at = WindowRect(target).GetCenter();
-            if (ClickProblem(target, at) is { } problem)
+            var at = WindowRect(target.Control).GetCenter();
+            if (ClickProblem(target.Control, at) is { } problem)
             {
                 throw new AgentException(NonCliccabile, $"'{name}': {problem}.");
             }
 
-            Play(connection, id, _world.PlaytestClick(at), new JsonObject { ["clic"] = name, ["schermo"] = ScreenJson(at) });
+            JournalOnly("ui", p);
+            Play(connection, id, _world.PlaytestClick(at),
+                new JsonObject { ["clic"] = target.Name, ["schermo"] = ScreenJson(at) });
             return;
         }
 
         var list = new JsonArray();
-        foreach (var (path, control) in controls.Take(AgentGame.MaxListItems))
+        foreach (var item in controls.Take(AgentGame.MaxListItems))
         {
-            var rect = WindowRect(control);
+            var control = item.Control;
+            var rect = item.Rect;
             var entry = new JsonObject
             {
-                ["nome"] = path,
+                ["nome"] = item.Name,
                 ["tipo"] = control.GetClass(),
-                ["testo"] = ShownText(control),
+                ["testo"] = item.Text,
                 ["rett"] = new JsonObject
                 {
                     ["x"] = Mathf.RoundToInt(rect.Position.X), ["y"] = Mathf.RoundToInt(rect.Position.Y),
                     ["larghezza"] = Mathf.RoundToInt(rect.Size.X), ["altezza"] = Mathf.RoundToInt(rect.Size.Y)
                 }
             };
-            if (!string.IsNullOrEmpty(control.TooltipText))
+            if (item.Tooltip.Length > 0)
             {
-                entry["suggerimento"] = Testi.T(control.TooltipText);
+                entry["suggerimento"] = item.Tooltip;
             }
 
             if (control is BaseButton { Disabled: true })
@@ -933,27 +1063,76 @@ public partial class AgentBridge : Node
         Reply(connection, id, result);
     }
 
-    private static void Collect(Node parent, string prefix, List<(string Name, Control Control)> into)
+    /// <summary>A listed control: its stable name, rectangle in window pixels, shown text and translated tooltip.</summary>
+    private sealed record UiControl(string Name, Control Control, Rect2 Rect, string Text, string Tooltip);
+
+    /// <summary>Below this opacity (own and inherited modulate) a control counts as not shown.</summary>
+    private const float MinShownAlpha = 0.05f;
+
+    /// <summary>
+    /// Every visible control under <paramref name="parent"/> in drawing order (<paramref name="all"/>), and the ones worth
+    /// listing (<paramref name="into"/>): buttons, texts, inputs, named panels and the clickable slots with a tooltip
+    /// (the build palette), when not transparent.
+    /// </summary>
+    private void Collect(Node parent, string prefix, float alpha, List<UiControl> into, List<Control> all)
     {
         foreach (var child in parent.GetChildren())
         {
-            if (child is not Control control || !control.IsVisibleInTree())
+            // A node queued for deletion is still in the tree until the frame ends (a rebuilt panel's old row).
+            if (child is not Control control || !control.IsVisibleInTree() || control.IsQueuedForDeletion())
             {
                 continue;
             }
 
+            all.Add(control);
+            var inherited = alpha * control.Modulate.A;
             var name = control.Name.ToString();
             // Nodes added without a name get "@Button@123", which changes run to run.
             var segment = name.StartsWith('@') ? $"{control.GetClass()}{control.GetIndex()}" : name;
             var path = prefix.Length == 0 ? segment : $"{prefix}/{segment}";
-            if (control is BaseButton or Label or RichTextLabel or LineEdit or TextEdit or global::Godot.Range
-                || (control is PanelContainer or Panel && !name.StartsWith('@')))
+            var clickableSlot = control.MouseFilter == Control.MouseFilterEnum.Stop && control.TooltipText.Length > 0;
+            if ((control is BaseButton or Label or RichTextLabel or LineEdit or TextEdit or global::Godot.Range
+                    || (control is PanelContainer or Panel && !name.StartsWith('@')) || clickableSlot)
+                && inherited * control.SelfModulate.A >= MinShownAlpha)
             {
-                into.Add((path, control));
+                var tooltip = control.TooltipText.Length > 0 ? Testi.T(control.TooltipText) : "";
+                into.Add(new UiControl(path, control, WindowRect(control), ShownText(control), tooltip));
             }
 
-            Collect(control, path, into);
+            Collect(control, path, inherited, into, all);
         }
+    }
+
+    /// <summary>
+    /// Drops the copies (same type, text and rectangle) and the controls whose centre lies under a later control
+    /// (drawn above) that takes the mouse and is not inside them, as Godot's own picking does.
+    /// </summary>
+    private List<UiControl> Reachable(List<UiControl> controls, List<Control> all)
+    {
+        var order = new Dictionary<Control, int>();
+        for (var i = 0; i < all.Count; i++)
+        {
+            order[all[i]] = i;
+        }
+
+        var blockers = all.Where(c => c.MouseFilter != Control.MouseFilterEnum.Ignore)
+            .Select(c => (Control: c, Rect: WindowRect(c), Order: order[c])).ToList();
+        var seen = new HashSet<(string, string, Rect2I)>();
+        var kept = new List<UiControl>();
+        foreach (var item in controls)
+        {
+            var centre = item.Rect.GetCenter();
+            var mine = order[item.Control];
+            var covered = blockers.Any(b => b.Order > mine && b.Rect.HasPoint(centre)
+                && !item.Control.IsAncestorOf(b.Control) && b.Control.GetViewport() == item.Control.GetViewport());
+            var rounded = new Rect2I((Vector2I)item.Rect.Position.Round(), (Vector2I)item.Rect.Size.Round());
+            if (!covered && seen.Add((item.Control.GetClass(), item.Text, rounded)))
+            {
+                kept.Add(item);
+            }
+        }
+
+        return kept;
     }
 
     /// <summary>Why a click at <paramref name="at"/> would not reach <paramref name="control"/>, or null.</summary>
@@ -975,20 +1154,30 @@ public partial class AgentBridge : Node
         return null;
     }
 
-    /// <summary>By full name, or by its last segment when only one visible control has it.</summary>
-    private static Control FindControl(List<(string Name, Control Control)> controls, string name)
+    /// <summary>
+    /// By full name; else by its last segment, its shown text or its tooltip (without the "[1]" or "(T)" hotkey),
+    /// ignoring case, preferring the clickable ones (buttons and slots); more than one match is ambiguous.
+    /// </summary>
+    private static UiControl FindControl(List<UiControl> controls, string name)
     {
-        if (controls.FirstOrDefault(c => c.Name == name).Control is { } exact)
+        if (controls.FirstOrDefault(c => c.Name == name) is { } exact)
         {
             return exact;
         }
 
-        var bySegment = controls.Where(c => c.Name.EndsWith("/" + name, StringComparison.Ordinal)).ToList();
-        return bySegment.Count switch
+        static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+        static string WithoutHotkey(string tooltip) =>
+            tooltip.LastIndexOfAny(['[', '(']) is var cut and > 0 ? tooltip[..cut] : tooltip;
+        var matches = controls.Where(c => c.Name.EndsWith("/" + name, StringComparison.Ordinal)
+            || Same(c.Text, name) || (c.Tooltip.Length > 0 && (Same(c.Tooltip, name) || Same(WithoutHotkey(c.Tooltip), name))))
+            .ToList();
+        var clickable = matches.Where(c => c.Control is BaseButton || c.Control.MouseFilter == Control.MouseFilterEnum.Stop).ToList();
+        var found = clickable.Count > 0 ? clickable : matches;
+        return found.Count switch
         {
-            1 => bySegment[0].Control,
-            0 => throw Bad($"Nessun controllo visibile chiamato '{name}' (vedi 'ui')."),
-            _ => throw Bad($"'{name}' indica {bySegment.Count} controlli: usa il nome intero.")
+            1 => found[0],
+            0 => throw Bad($"Nessun controllo visibile chiamato '{name}' (nome, testo o suggerimento: vedi 'ui')."),
+            _ => throw Bad($"'{name}' è ambiguo: indica {found.Count} controlli ({string.Join(", ", found.Take(5).Select(c => c.Name))}); usa il nome intero.")
         };
     }
 
