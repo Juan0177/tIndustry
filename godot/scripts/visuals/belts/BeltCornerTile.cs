@@ -4,38 +4,24 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Full-cell corner (recipe Blu1–4). Base art: enter-west → exit-south
-/// (incoming East → outgoing South, CW). Other turns = rotate / flipX.
+/// One belt corner: a frame of the <c>{id}-corner-anim</c> strip. Base art enters from the West edge
+/// and leaves from the South edge (incoming East → outgoing South, clockwise); other turns rotate
+/// it, counter-clockwise turns mirror it first.
 /// </summary>
-public partial class BeltCornerTile : Node2D
+public partial class BeltCornerTile : Sprite2D
 {
-    private ShaderMaterial? _material;
-    private Sprite2D? _sprite;
-
-    public void Configure(
-        GridPosition cell,
-        Direction from,
-        Direction to,
-        int tileSize,
-        float scrollPhaseTiles)
+    public void Configure(GridPosition cell, Direction from, Direction to, int tileSize, Texture2D frame)
     {
-        EnsureVisual();
-        _sprite!.Texture = CreateUnitTexture();
-        _sprite.Centered = true;
-        _sprite.Position = new Vector2((cell.X + 0.5f) * tileSize, (cell.Y + 0.5f) * tileSize);
-
-        // Base art: East→South (CW), Blu4 on W+S, knuckle SW.
-        // CCW: flipX first → West→South, then rotate. Z bottom S→E = flipX + −90°
-        // so Blu4 opens on N+E (not the old flipY mapping that left it on S+W).
+        Texture = frame;
+        Centered = true;
+        TextureFilter = TextureFilterEnum.Nearest;
+        Position = new Vector2((cell.X + 0.5f) * tileSize, (cell.Y + 0.5f) * tileSize);
+        Scale = Vector2.One * Sprites.ScaleToCells(frame, 1, tileSize);
         var (rotation, flipX) = ResolveTransform(from, to);
-        _sprite.RotationDegrees = rotation;
-        var span = (float)tileSize;
-        _sprite.Scale = new Vector2(flipX ? -span : span, span);
-
-        _ = scrollPhaseTiles;
+        RotationDegrees = rotation;
+        FlipH = flipX;
+        ZIndex = 2;
     }
-
-    public void SetScroll(float scrollTiles) => _ = scrollTiles;
 
     /// <summary>
     /// Godot 2D: positive rotation is clockwise. FlipX mirrors the CW base into CCW.
@@ -63,30 +49,5 @@ public partial class BeltCornerTile : Node2D
             Direction.North => (90f, true),
             _ => (0f, true)
         };
-    }
-
-    private void EnsureVisual()
-    {
-        if (_sprite is not null)
-        {
-            return;
-        }
-
-        var shader = GD.Load<Shader>("res://shaders/belt_corner_v2.gdshader");
-        _material = new ShaderMaterial { Shader = shader };
-        _sprite = new Sprite2D
-        {
-            Material = _material,
-            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            ZIndex = 2
-        };
-        AddChild(_sprite);
-    }
-
-    private static ImageTexture CreateUnitTexture()
-    {
-        var img = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
-        img.SetPixel(0, 0, Colors.White);
-        return ImageTexture.CreateFromImage(img);
     }
 }

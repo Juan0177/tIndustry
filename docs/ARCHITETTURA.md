@@ -28,7 +28,7 @@ tIndustry/
 ├─ godot/
 │  ├─ project.godot · export_presets.cfg · TIndustry.Godot.csproj
 │  ├─ scenes/Main.tscn          scena principale (nodo radice Main, script World)
-│  ├─ shaders/                  belt_scroll, belt_corner_v2, construct (cantieri)
+│  ├─ shaders/                  construct (cantieri)
 │  ├─ assets/                   icone (cartella piatta; ui/ per quelle dell'interfaccia) + ATTRIBUTION.md
 │  └─ scripts/
 │     ├─ world/                 World + partial (Input, Placement, Session, Drawing, Visuals, Panels), WorldCamera

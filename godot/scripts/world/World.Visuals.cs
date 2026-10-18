@@ -263,10 +263,7 @@ public partial class World
             return;
         }
 
-        _beltVisual.ConfigureFromGrid(
-            _view,
-            _view.BeltDefinition.RateItemsPerSecond,
-            TileSize);
+        _beltVisual.ConfigureFromGrid(_view, TileSize);
     }
 
     private void SyncItemSprites()

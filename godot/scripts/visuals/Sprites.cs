@@ -9,6 +9,9 @@ namespace TIndustry.Godot;
 /// </summary>
 public static class Sprites
 {
+    /// <summary>Art pixels per world cell: block sprites are drawn 32 px per cell.</summary>
+    public const int PixelsPerCell = 32;
+
     private static readonly Dictionary<string, Texture2D?> Cache = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, Texture2D[]> FrameCache = new(StringComparer.Ordinal);
     private static readonly HashSet<string> Warned = new(StringComparer.Ordinal);
