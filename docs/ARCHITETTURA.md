@@ -191,6 +191,16 @@ Gli sprite di edifici, nastri, Core, drone e oggetti sono pixel-art originale ge
 4. Importa i PNG nuovi in Godot per avere i `.import` (comando in `CLAUDE.md`) e fai il commit di PNG e `.import` insieme.
 5. Nel client usa `Sprites.For("<id>")` (o `Sprites.Frames("<id>-<parte>")` per un'animazione); un blocco con parti mobili ha il suo visual in `godot/scripts/visuals/buildings/`.
 
+### Come aggiungere lo sprite di un suolo
+
+Dopo i passi di "Come aggiungere un suolo, una parete o un livello":
+
+1. In `data/content.json` → `terrain` dai al suolo `edgePriority` (più alto = disegna il bordo sui vicini; l'acqua è la più bassa).
+2. In `tools/art/blocchi/terreno.py` aggiungi la riga in `STILI` (suolo) o `STILI_PARETI` (parete): il test `test_stili_terreno` pretende una riga per ogni id della tabella, e la registrazione produce da sola `terreno-<id>-0…3`, `terreno-<id>-bordo` o `parete-<id>`. Per un bioma nuovo servono anche le `deco-<bioma>-<n>` e la sua densità (`DENSITA_DECO` in Python, `DecorationDensity` in `TerrainLook`).
+3. `python tools/art/genera.py`, guarda `.dev/arte/tavola.png`, poi rigenera la fixture con `python tools/art/fixture_terreno.py` (`--controlla` dice se serve).
+4. `python -m unittest tools/art/test_genera.py` e `dotnet test` (`TerrainLookTests.MatchesPythonReference` confronta Python e C# sulla fixture).
+5. Importa i PNG in Godot per avere i `.import` e fai il commit di sprite, `.import` e fixture insieme. Il client non va toccato: `TerrainSprites` legge i nomi dalla tabella.
+
 ## Test e playtest
 
 `tools/dev/dev.sh` (Windows: `dev.cmd`) fa tutto in un comando: controllo strumenti, build, test (`--test`), import asset se manca la cache, avvio del gioco o del playtest (`--playtest ui|tutorial`). Opzioni in `--help`.

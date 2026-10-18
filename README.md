@@ -40,7 +40,7 @@
 
 ### Grafica
 
-Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta. Catture dal gioco.
+Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta e il terreno dei quattro biomi con bordi, pareti in rilievo, acqua e giacimenti a puntini. Catture dal gioco.
 
 <p align="center">
   <img src="docs/img/readme/blocchi.png" alt="Blocchi di produzione e potenza accesi: minatori, forno, assemblatore, generatore, nodi e Core" width="100%">
@@ -50,6 +50,16 @@ Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py
   <img src="docs/img/readme/oggetti.png" alt="Ogni oggetto sui tre tier di nastro" width="100%">
   <br><sub>Ogni oggetto sui tre tier di nastro</sub>
 </p>
+<p align="center">
+  <img src="docs/img/readme/terreno-partenza.png" alt="Partenza di una partita: Core, minatori e nastri sul terreno" width="100%">
+  <br><sub>Partenza di una partita sul terreno nuovo</sub>
+</p>
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/readme/terreno-biomi.png" alt="Biomi a zoom medio: rocce, sabbia, neve, prati, pareti e acqua"><br><sub><b>Biomi</b> · suoli, bordi, pareti in rilievo e acqua</sub></td>
+    <td width="50%"><img src="docs/img/readme/terreno-minerali.png" alt="Giacimenti di ferro, rame, piombo, carbone e titanio a puntini"><br><sub><b>Giacimenti</b> · puntini che si leggono sul suolo</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -112,8 +122,9 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)) |
 | Fatto, in attesa dell'ok sulla grafica | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
 | Fatto, in attesa dell'ok | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
-| In corso | **G2b · Arte del terreno** | Suoli, bordi, pareti raccordate, acqua animata, giacimenti a puntini |
-| Previsto | **G3–G4 · Upgrade grafico** | Effetti e luci, interfaccia |
+| Fatto, in attesa dell'ok | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
+| Prossimo | **G3 · Effetti e luci** | Particelle, ombre, bagliori, impostazioni grafiche ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
+| Previsto | **G4 · Interfaccia** | Stile Mindustry, pixel font, lingue, scala e accessibilità |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
