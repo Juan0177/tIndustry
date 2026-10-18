@@ -99,38 +99,54 @@ def curva(tier, fotogramma):
     im = forme.nuova(T, T)
     for y in range(T):
         for x in range(T):
-            a, b = x, T - 1 - y
-            r = math.hypot(a, b)
-            if r > T - 0.5:
-                forme.pixel(im, x, y, METALLO[1])  # outer corner plate beyond the bend
-                continue
-            u = round(math.atan2(a, b) * ARCO, 6)  # exact 0 and 31 on the edges
-            v = T - 1 - int(round(r))
-            # Edge pixels sit next to a straight cell: same 1 px span as there.
-            passo_u = 1.0 if a == 0 or b == 0 else max(1.0, ARCO / r)
-            forme.pixel(im, x, y, _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u))
+            forme.pixel(im, x, y, _colore_curva(tier, fotogramma, x, T - 1 - y))
     forme.bullone(im, 27, 2, METALLO)
     return im
 
 
-def unione_t(tier, fotogramma):
-    """T merge (Mindustry's merging conveyor): in from the North and South edges, out from the East edge.
+def _riga_curva(a, b):
+    """Row across the belt (v) of the corner pixel at (a, b) from the bend's pivot; -1 beyond the bend."""
+    r = math.hypot(a, b)
+    return -1 if r > T - 0.5 else T - 1 - int(round(r))
 
-    The two side inputs flow into one shared tread that runs East: every chevron in the cell is the
-    straight East belt's own (rows 6-25 are the straight frame), so they all point at the output and
-    scroll with it. The straight belt's North and South rails give way to tread (the inputs come in
-    there, open), and the West side, where nothing feeds it, is closed by a rail along its edge.
+
+def _colore_curva(tier, fotogramma, a, b, v=None):
+    """Corner colour at (a, b) from the pivot (a along the input edge, b along the output edge);
+    `v` forces the row across the belt (the T uses it to extend the tread)."""
+    r = math.hypot(a, b)
+    if v is None:
+        if r > T - 0.5:
+            return METALLO[1]  # outer corner plate beyond the bend
+        v = _riga_curva(a, b)
+    u = round(math.atan2(a, b) * ARCO, 6)  # exact 0 and 31 on the edges
+    # Edge pixels sit next to a straight cell: same 1 px span as there.
+    passo_u = 1.0 if a == 0 or b == 0 else max(1.0, ARCO / r)
+    return _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u)
+
+
+def unione_t(tier, fotogramma):
+    """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and
+    South edges, out from the East edge.
+
+    The bottom half is the corner turned to come in from the South (pivot on the South-East
+    corner), the top half its mirror coming in from the North (pivot on the North-East corner),
+    same frame: each pixel takes the corner whose pivot is nearer, so the two inner curved rails
+    meet the output belt's rails and both treads bend into the output like a corner. Where both
+    corners would draw their outer groove and rail (they would cross the other input) the tread goes on; the
+    West side, with no input, is closed by a straight rail that continues the side belts' outer
+    rails.
     """
-    dritto = nastro(tier, fotogramma)
-    im = dritto.copy()
-    for y in list(range(0, 6)) + list(range(T - 6, T)):
-        v = 6 if y < T // 2 else T - 7  # plain ribs, outside the chevron's arms
-        for x in range(T):
-            forme.pixel(im, x, y, _colore_nastro(x, v, tier, fotogramma * PASSO))
+    im = forme.nuova(T, T)
     for y in range(T):
-        for x in range(5):
-            forme.pixel(im, x, y, _binario(y, x, tier))  # still rail, joints every 8 px down the edge
-        forme.pixel(im, 5, y, NASTRO[0])  # groove along the rail
+        for x in range(T):
+            if x < 5:
+                # Back rail, mirrored on the axis so both input edges see the corner's joint.
+                forme.pixel(im, x, y, _binario(min(y, T - 1 - y), x, tier))
+                continue
+            a, b = (T - 1 - y, T - 1 - x) if y >= T // 2 else (y, T - 1 - x)
+            v = _riga_curva(a, b)
+            forme.pixel(im, x, y, _colore_curva(tier, fotogramma, a, b) if v >= 6
+                        else _colore_curva(tier, fotogramma, a, b, v=6))
     return im
 
 
@@ -178,13 +194,13 @@ def _battistrada(u, v):
     return {7: NASTRO[0], 0: NASTRO[2]}.get(u % 8, NASTRO[1])
 
 
-@sprite("junction")
-def junction():
+def _incrocio():
     """Two belts crossing, as in Mindustry: the vertical piece lies over the horizontal one. Each
     keeps the straight belt's rails (rows / columns 0-4 and 27-31; in a corner the two rails meet
     on a dark mitre) and its ribbed tread, without chevrons: a junction has no direction. The
     vertical tread runs through the middle, the horizontal one shows where it comes in at the West
-    and East edges; a small lighter diamond hub (8 px with its outline) marks the centre."""
+    and East edges; a small lighter diamond hub (8 px with its outline) marks the centre. All four
+    sides are open: the client closes each side without an input or output with `junction-bordo`."""
     im = forme.nuova(T, T)
     c = (T - 1) / 2
     for y in range(T):
@@ -208,6 +224,23 @@ def junction():
                 forme.pixel(im, x, y, OUT if d > 3 else METALLO[4 if x + y < T - 1 else 3])
     forme.pixel(im, 15, 15, METALLO[5])
     forme.pixel(im, 16, 16, METALLO[5])
+    return im
+
+
+# The icon is the fully open crossing (every side connected): the base itself.
+sprite("junction-base")(_incrocio)
+sprite("junction")(_incrocio)
+
+
+@sprite("junction-bordo")
+def junction_bordo():
+    """Rail closing the North side of a junction (no input or output there): the straight belt's
+    rail along the edge with the groove under it, transparent below. The client rotates it."""
+    im = forme.nuova(T, T)
+    for x in range(T):
+        for y in range(5):
+            forme.pixel(im, x, y, _binario(x, y, "conveyor-basic"))
+        forme.pixel(im, x, 5, NASTRO[0])
     return im
 
 

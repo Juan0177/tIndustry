@@ -169,6 +169,9 @@ public sealed class Factory : IGameView
     public BeltShape GetBeltShape(GridPosition position) =>
         BeltIncoming().TryGetValue(position, out var entry) ? entry.Shape : BeltShape.Straight;
 
+    public bool IsJunctionSideConnected(GridPosition position, Direction side) =>
+        BeltIncoming().TryGetValue(position, out var entry) && (entry.JunctionSides & (1 << (int)side)) != 0;
+
     /// <summary>
     /// Mindustry's auto-junction: a dragged belt line facing <paramref name="direction"/> that crosses a plain belt
     /// perpendicular to it puts a junction there, so both lines keep flowing. Splitters, sorters, bridges,
@@ -198,13 +201,14 @@ public sealed class Factory : IGameView
     }
 
     // Shape cache: the client asks per belt item per frame, so the answers are computed once per layout change.
-    private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape)> beltIncoming = new();
+    // JunctionSides: bit (int)Direction set for each connected side of a junction.
+    private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> beltIncoming = new();
     private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
     private int buildingsVersion;
     private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
 
-    private Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape)> BeltIncoming()
+    private Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> BeltIncoming()
     {
         var version = (Belts.Version, buildingsVersion);
         if (version == beltIncomingVersion)
@@ -235,19 +239,31 @@ public sealed class Factory : IGameView
 
         beltIncoming.Clear();
         buildingFeeds ??= BuildingEjectsInto;
-        foreach (var position in Belts.Cells.Keys)
+        foreach (var (position, cell) in Belts.Cells)
         {
             Direction? incoming = Belts.TryGetIncomingDirection(position, out var dir, buildingFeeds) ? dir : null;
             var shape = Belts.GetShape(position, out _, buildingFeeds);
-            if (incoming is not null || shape != BeltShape.Straight)
+            var sides = 0;
+            if (cell.Kind == LogisticsKind.Junction)
             {
-                beltIncoming[position] = (incoming, shape);
+                foreach (var side in JunctionSideOrder)
+                {
+                    sides |= Belts.IsJunctionSideConnected(position, side) ? 1 << (int)side : 0;
+                }
+            }
+
+            if (incoming is not null || shape != BeltShape.Straight || sides != 0)
+            {
+                beltIncoming[position] = (incoming, shape, sides);
             }
         }
 
         beltIncomingVersion = version;
         return beltIncoming;
     }
+
+    private static readonly Direction[] JunctionSideOrder =
+        [Direction.North, Direction.East, Direction.South, Direction.West];
 
     private void AddEjector(GridPosition origin, int size, Direction? output)
     {

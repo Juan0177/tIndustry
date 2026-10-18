@@ -473,6 +473,25 @@ public sealed class BeltGrid
     public bool IsCorner(GridPosition position, Func<GridPosition, GridPosition, bool>? buildingFeeds = null) =>
         GetShape(position, out _, buildingFeeds) == BeltShape.Corner;
 
+    /// <summary>
+    /// Whether the junction at <paramref name="position"/> has an input or an output on <paramref name="side"/>
+    /// (visual: a side without either keeps its rail). Input: the neighbour there feeds into the junction. Output: items
+    /// cross toward that side (something feeds the opposite side) and a logistics cell there takes them. Buildings
+    /// never connect: a junction refuses their directionless inserts and only hands items to logistics cells.
+    /// </summary>
+    public bool IsJunctionSideConnected(GridPosition position, Direction side)
+    {
+        if (!cells.TryGetValue(position, out var cell) || cell.Kind != LogisticsKind.Junction)
+        {
+            return false;
+        }
+
+        bool FeedsFrom(Direction from) =>
+            FeedsToward(position.Step(from), DirectionMath.Opposite(from), null, JunctionChainLimit);
+
+        return FeedsFrom(side) || (cells.ContainsKey(position.Step(side)) && FeedsFrom(DirectionMath.Opposite(side)));
+    }
+
     /// <summary>Whether something feeds the cell (facing <paramref name="dir"/>) from behind, from its left and from its right.</summary>
     private (bool Back, bool Left, bool Right) Feeders(
         GridPosition position,

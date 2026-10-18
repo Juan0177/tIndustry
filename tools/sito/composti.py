@@ -48,6 +48,7 @@ class Strato:
     fps: float = 0  # strip ("-anim") frames per second while the state moves; 0 = frame 0
     quando: str | None = None  # flag the state must have for the layer to show
     flip: bool = False  # mirrored left-right (Sprite2D.FlipH)
+    ruota: int = 0  # clockwise quarter turns in degrees (Sprite2D.RotationDegrees)
     cella: tuple = (0, 0)  # top-left cell of the layer inside the block
     centrato: bool = False  # native-size sprite centred on its cell (not stretched over the footprint)
     ripeti: int = 0  # >0: the sprite tiled along x over this many art px, centred across its row
@@ -289,6 +290,16 @@ BLOCCHI = [
            [("lamp", "icona"), ("lamp-base", "base, cupola spenta"), ("lamp-glow", "cupola accesa")],
            icona="lamp", stato_icona="Accesa", nota="Di notte fa anche luce attorno."),
     *[_nastro(t) for t in ("conveyor-basic", "conveyor-fast", "conveyor-express")],
+    # godot/scripts/visuals/belts/MindustryBeltVisual.cs (AddSpecial): the open crossing and, on every side
+    # without an input or output (IGameView.IsJunctionSideConnected), the North rail piece turned to that side.
+    Blocco("junction", "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
+           [Strato("junction-base"), Strato("junction-bordo", quando="chiuso-ns"),
+            Strato("junction-bordo", quando="chiuso-ns", ruota=180)],
+           [_stato("Incrocio a 4 vie"), _stato("Solo orizzontale", "chiuso-ns")],
+           [("junction", "icona: incrocio aperto su quattro lati"), ("junction-base", "base aperta"),
+            ("junction-bordo", "binario di un lato senza collegamento (disegnato a Nord, ruotato)")],
+           icona="junction", stato_icona="Incrocio a 4 vie",
+           nota="Un lato senza ingresso né uscita tiene il binario."),
     # godot/scripts/visuals/belts/MindustryBeltVisual.cs (AddSpecial): sorter sprite and, upright on top, the
     # 10 px belt sprite of the filtered item (BeltGrid.DefaultSorterFilter = iron-ore).
     Blocco("sorter", "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
@@ -352,6 +363,8 @@ def componi(blocco, stato, t, immagini, grezzo=False):
             im = immagini(s.sprite)
         if s.flip:
             im = im.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        if s.ruota:
+            im = im.rotate(-s.ruota)
         if s.ripeti:
             fila = Image.new("RGBA", (s.ripeti, im.height), (0, 0, 0, 0))
             for x in range(0, s.ripeti, im.width):

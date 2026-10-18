@@ -53,11 +53,11 @@ public partial class MindustryBeltVisual : Node2D
             switch (cell.Kind)
             {
                 case LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter:
-                    AddSpecial(pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
+                    AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
                     break;
                 case LogisticsKind.Bridge:
                     // Both ends get their pad; the span is drawn once, from the entry.
-                    AddSpecial(pos, LogisticsKind.Bridge, cell.Direction, tileSize);
+                    AddSpecial(view, pos, LogisticsKind.Bridge, cell.Direction, tileSize);
                     if (cell.BridgePartner is { } partner && IsBridgeEntryVisual(pos, cell.Direction, partner))
                     {
                         var span = new BridgeSpanVisual { Name = $"BridgeSpan_{pos.X}_{pos.Y}" };
@@ -160,6 +160,7 @@ public partial class MindustryBeltVisual : Node2D
     }
 
     private void AddSpecial(
+        IGameView view,
         GridPosition pos,
         LogisticsKind kind,
         Direction direction,
@@ -168,7 +169,7 @@ public partial class MindustryBeltVisual : Node2D
     {
         var texture = Sprites.For(kind switch
         {
-            LogisticsKind.Junction => "junction",
+            LogisticsKind.Junction => "junction-base",
             LogisticsKind.Splitter => "splitter",
             LogisticsKind.Sorter => "sorter",
             LogisticsKind.Bridge => "conveyor-bridge",
@@ -194,6 +195,27 @@ public partial class MindustryBeltVisual : Node2D
         }
 
         node.AddChild(sprite);
+
+        // Junction: every side without an input or output keeps its rail (the piece is drawn for the North side).
+        if (kind == LogisticsKind.Junction)
+        {
+            var rail = Sprites.For("junction-bordo");
+            foreach (var side in new[] { Direction.North, Direction.East, Direction.South, Direction.West })
+            {
+                if (!view.IsJunctionSideConnected(pos, side))
+                {
+                    node.AddChild(new Sprite2D
+                    {
+                        Name = $"Rail{side}",
+                        Texture = rail,
+                        Centered = true,
+                        TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                        Scale = sprite.Scale,
+                        RotationDegrees = ScrollingBeltStrip.RotationFor(side) + 90f
+                    });
+                }
+            }
+        }
 
         // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame).
         if (kind == LogisticsKind.Sorter)
