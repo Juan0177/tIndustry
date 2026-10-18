@@ -19,6 +19,11 @@ public sealed record CampaignObjectiveDefinition(
     string? StructureId = null,
     string? Label = null);
 
+/// <summary>
+/// A campaign level. With <paramref name="Map"/> (id of a map in <c>data/maps/</c>, see <see cref="CampaignMapFile"/>)
+/// the size, terrain and Core come from that file and <paramref name="MapWidth"/>, <paramref name="MapHeight"/> and
+/// <paramref name="Seed"/> only serve the classic generator (tests with explicit sizes, older clients).
+/// </summary>
 public sealed record CampaignLevelDefinition(
     string Id,
     string Name,
@@ -30,7 +35,8 @@ public sealed record CampaignLevelDefinition(
     IReadOnlyList<ResourceAmount>? StartingMaterials = null,
     IReadOnlyList<CampaignObjectiveDefinition>? Objectives = null,
     string? UnlocksNext = null,
-    int RefundPercent = 100);
+    int RefundPercent = 100,
+    string? Map = null);
 
 /// <summary>Thin campaign catalog loaded from campaign.json (Godot / Shared).</summary>
 public sealed class CampaignCatalog

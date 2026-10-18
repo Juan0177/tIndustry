@@ -265,6 +265,24 @@ public partial class World : Node2D
     }
 
     /// <summary>
+    /// Folder of the campaign map files (<c>data/maps/</c>, see <see cref="CampaignMapFile"/>), searched like
+    /// content.json; null when missing. Not used yet: campaign levels still start on the classic generator.
+    /// </summary>
+    internal static string? ResolveMapsPath()
+    {
+        var candidates = new[]
+        {
+            ProjectSettings.GlobalizePath("res://../data/maps"),
+            ProjectSettings.GlobalizePath("res://data/maps"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "data", "maps")),
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "data", "maps")),
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "data", "maps")),
+        };
+
+        return candidates.FirstOrDefault(Directory.Exists);
+    }
+
+    /// <summary>
     /// The project default is Nearest (crisp pixel-art blocks on the map). UI is scaled (UI scale 125%,
     /// 32 px icons drawn at 16–28 px), where Nearest drops pixels: grainy text and icons. Smooth filtering
     /// for everything on the HUD layer only; children inherit it.

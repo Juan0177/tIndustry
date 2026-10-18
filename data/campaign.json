@@ -2,6 +2,7 @@
   "levels": [
     {
       "id": "level-01-primi-passi",
+      "map": "level-01-primi-passi",
       "name": "Primi passi",
       "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
       "seed": 7429,
@@ -36,6 +37,7 @@
     },
     {
       "id": "level-02-prima-fabbrica",
+      "map": "level-02-prima-fabbrica",
       "name": "Prima fabbrica",
       "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
       "seed": 1337,
@@ -65,6 +67,7 @@
     },
     {
       "id": "level-03-lastre",
+      "map": "level-03-lastre",
       "name": "Lastre di ferro",
       "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
       "seed": 7429,
@@ -100,6 +103,7 @@
     },
     {
       "id": "level-04-fili",
+      "map": "level-04-fili",
       "name": "Fili di rame",
       "description": "Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.",
       "seed": 9001,
@@ -141,6 +145,7 @@
     },
     {
       "id": "level-05-mercato",
+      "map": "level-05-mercato",
       "name": "Economia Foundry",
       "description": "Reinvestimento: vendi lastre e costruisci un piccolo surplus.",
       "seed": 7429,
@@ -175,6 +180,7 @@
     },
     {
       "id": "level-06-corrente",
+      "map": "level-06-corrente",
       "name": "Corrente",
       "description": "Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).",
       "seed": 5501,
@@ -220,6 +226,7 @@
     },
     {
       "id": "level-07-piombo",
+      "map": "level-07-piombo",
       "name": "Venatura di piombo",
       "description": "Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.",
       "seed": 6103,
@@ -259,6 +266,7 @@
     },
     {
       "id": "level-08-logistica",
+      "map": "level-08-logistica",
       "name": "Logistica selettiva",
       "description": "Sblocca il selezionatore e spezza i flussi: ore e lastre su corsie separate.",
       "seed": 8802,
@@ -300,6 +308,7 @@
     },
     {
       "id": "level-09-titanio",
+      "map": "level-09-titanio",
       "name": "Titanio raro",
       "description": "Deposito scarso, forno lento: accumula lastre di titanio e prepara la chimica.",
       "seed": 4242,
@@ -349,6 +358,7 @@
     },
     {
       "id": "level-10-espansione",
+      "map": "level-10-espansione",
       "name": "Espansione T2",
       "description": "Minatore T2 e Nastro T2: scala la foundry e chiudi con un surplus di mercato.",
       "seed": 10101,

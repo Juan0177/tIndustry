@@ -13,5 +13,6 @@
   <ItemGroup>
     <None Include="../data/content.json" Link="data/content.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../data/campaign.json" Link="data/campaign.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../data/maps/*" Link="data/maps/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

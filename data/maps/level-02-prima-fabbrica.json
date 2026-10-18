@@ -1,0 +1,11 @@
+{
+  "core": {
+    "x": 124,
+    "y": 124
+  },
+  "biomes": [
+    "rocce",
+    "prati"
+  ],
+  "note": "Generata con MapTool: misura 250, seme 1337, biomi rocce,prati, pareti 70%, acqua 100%, giacimenti 100%, senza titanio."
+}
