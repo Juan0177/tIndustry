@@ -72,6 +72,13 @@ public sealed class ContentValidationTests
             .Select(m => m.ItemId));
 
     [Fact]
+    public void BeltItemTexturesExistForEveryMarketItem() =>
+        Assert.Empty(Content.Market.Select(m => m.ItemId)
+            .Append("money")
+            .SelectMany(id => new[] { id, $"{id}-belt" })
+            .Where(name => !File.Exists(IconPath(name))));
+
+    [Fact]
     public void BuildWeightsArePositiveKnownItems()
     {
         var items = Content.Market.Select(m => m.ItemId).ToHashSet();

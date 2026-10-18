@@ -243,7 +243,6 @@ public partial class BuildPalette : PanelContainer
     private void ApplySorterFilterTexture(TextureRect target)
     {
         target.Texture = ItemTexture(_sorterFilterId);
-        ItemPalette.Tint(target, _sorterFilterId);
     }
 
     private void RefreshToolChrome()

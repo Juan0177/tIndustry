@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b03ox7udpto0s"
-path="res://.godot/imported/bridge.png-45e92e7939eaa570175431fd1d63ef16.ctex"
+uid="uid://cwr24dg7cvk3b"
+path="res://.godot/imported/silicon-belt.png-b953d03ab0c016a27e05f5fe9d95aeaf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bridge.png"
-dest_files=["res://.godot/imported/bridge.png-45e92e7939eaa570175431fd1d63ef16.ctex"]
+source_file="res://assets/silicon-belt.png"
+dest_files=["res://.godot/imported/silicon-belt.png-b953d03ab0c016a27e05f5fe9d95aeaf.ctex"]
 
 [params]
 

@@ -229,7 +229,7 @@ public partial class MercatoPanel : Control
         title.AddThemeColorOverride("font_color", Accent);
         title.AddThemeFontSizeOverride("font_size", 22);
         header.AddChild(title);
-        header.AddChild(Icon(HudStyle.ItemTexture("money"), 22, MoneyColor));
+        header.AddChild(Icon(HudStyle.ItemTexture("money"), 22));
         _walletLabel = new Label { Text = "$0", VerticalAlignment = VerticalAlignment.Center };
         _walletLabel.AddThemeColorOverride("font_color", MoneyColor);
         _walletLabel.AddThemeFontSizeOverride("font_size", 18);
@@ -315,24 +315,15 @@ public partial class MercatoPanel : Control
     private static readonly Color MoneyColor = new(0.98f, 0.82f, 0.38f, 1f);
     private static readonly Color PriceDown = new(0.90f, 0.55f, 0.40f, 1f);
 
-    private static TextureRect Icon(Texture2D? tex, float size, Color? tint = null)
+    private static TextureRect Icon(Texture2D? tex, float size) => new()
     {
-        var icon = new TextureRect
-        {
-            Texture = tex,
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            CustomMinimumSize = new Vector2(size, size),
-            SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        if (tint is { } t)
-        {
-            icon.Modulate = t;
-        }
-
-        return icon;
-    }
+        Texture = tex,
+        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        CustomMinimumSize = new Vector2(size, size),
+        SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        MouseFilter = MouseFilterEnum.Ignore
+    };
 
     private static void AddColumnHeader(HBoxContainer row, string text, float width, bool expand = false)
     {
@@ -451,9 +442,7 @@ public partial class MercatoPanel : Control
         var nameBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         nameBox.AddThemeConstantOverride("separation", 8);
         h.AddChild(nameBox);
-        var icon = Icon(HudStyle.ItemTexture(item.ItemId), 26);
-        ItemPalette.Tint(icon, item.ItemId);
-        nameBox.AddChild(icon);
+        nameBox.AddChild(Icon(HudStyle.ItemTexture(item.ItemId), 26));
         var name = new Label { Text = item.DisplayName, VerticalAlignment = VerticalAlignment.Center };
         name.AddThemeColorOverride("font_color", TextPrimary);
         name.AddThemeFontSizeOverride("font_size", 14);

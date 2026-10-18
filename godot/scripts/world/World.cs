@@ -84,13 +84,6 @@ public partial class World : Node2D
     private bool _removeMoved;
     private bool _visualDirty = true;
     private bool _buildingsDirty = true;
-    private Texture2D? _oreTex;
-    private Texture2D? _plateTex;
-    private Texture2D? _copperOreTex;
-    private Texture2D? _copperWireTex;
-    private Texture2D? _coalTex;
-    private Texture2D? _leadOreTex;
-    private Texture2D? _titaniumOreTex;
     private bool _returnHomeAfterCampaign;
 
     public override void _Ready()
@@ -132,13 +125,6 @@ public partial class World : Node2D
         UseSmoothUiFiltering();
         EnsureBuildingsLayer();
         EnsureConstructionLayer();
-        _oreTex = GD.Load<Texture2D>("res://assets/iron-ore.png");
-        _plateTex = GD.Load<Texture2D>("res://assets/iron-plate.png");
-        _copperOreTex = GD.Load<Texture2D>("res://assets/copper-ore.png");
-        _copperWireTex = GD.Load<Texture2D>("res://assets/copper-wire.png");
-        _coalTex = GD.Load<Texture2D>("res://assets/coal.png");
-        _leadOreTex = GD.Load<Texture2D>("res://assets/lead-ore.png");
-        _titaniumOreTex = GD.Load<Texture2D>("res://assets/titanium-ore.png");
 
         EnsureBeltVisual();
         RebuildBeltVisual();
@@ -280,7 +266,7 @@ public partial class World : Node2D
 
     /// <summary>
     /// The project default is Nearest (crisp pixel-art blocks on the map). UI is scaled (UI scale 125%,
-    /// 64px icons drawn at 16–26px), where Nearest drops pixels: grainy text and icons. Smooth filtering
+    /// 32 px icons drawn at 16–28 px), where Nearest drops pixels: grainy text and icons. Smooth filtering
     /// for everything on the HUD layer only; children inherit it.
     /// </summary>
     private void UseSmoothUiFiltering()

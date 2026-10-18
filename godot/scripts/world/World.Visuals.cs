@@ -284,88 +284,33 @@ public partial class World
                 if (!_itemSprites.TryGetValue(item.Id, out var sprite))
                 {
                     // Above every belt piece (≤5), below buildings (BuildingsZ + 3): items ride on top of
-                    // the chevrons and slide under the Core / machines at the hand-off.
-                    var holder = new Node2D
-                    {
-                        Name = $"Item_{item.Id}",
-                        ZIndex = ItemsZ
-                    };
-                    // Solid silhouette behind the icon: an outline ring plus an opaque fill, so the
-                    // belt chevrons never show through the icon's see-through facets.
-                    var solid = ItemSilhouette.Solid(ResolveItemTexture(item.ItemId));
-                    var dark = ItemPalette.OutlineFor(item.ItemId).Darkened(0.35f);
-                    holder.AddChild(new Sprite2D
-                    {
-                        Name = "Outline",
-                        Texture = solid,
-                        Centered = true,
-                        Scale = new Vector2(ItemScale * 1.2f, ItemScale * 1.2f),
-                        Modulate = dark
-                    });
-                    holder.AddChild(new Sprite2D
-                    {
-                        Name = "Fill",
-                        Texture = solid,
-                        Centered = true,
-                        Scale = new Vector2(ItemScale, ItemScale),
-                        Modulate = dark
-                    });
-                    var tex = ResolveItemTexture(item.ItemId);
+                    // the chevrons and slide under the Core / machines at the hand-off. The belt sprite is
+                    // drawn in its own colours with its own dark outline, at the world art scale.
                     sprite = new Sprite2D
                     {
-                        Name = "Sprite",
-                        Texture = tex,
+                        Name = $"Item_{item.Id}",
+                        Texture = Sprites.BeltItem(item.ItemId),
                         Centered = true,
-                        Scale = new Vector2(ItemScale, ItemScale),
-                        Modulate = ItemPalette.ColorFor(item.ItemId)
+                        Scale = Vector2.One * BeltItemScale,
+                        ZIndex = ItemsZ
                     };
-                    holder.AddChild(sprite);
-                    _itemsLayer.AddChild(holder);
+                    _itemsLayer.AddChild(sprite);
                     _itemSprites[item.Id] = sprite;
-                }
-                else
-                {
-                    var tex = ResolveItemTexture(item.ItemId);
-                    if (tex is not null)
-                    {
-                        sprite.Texture = tex;
-                        var solidTex = ItemSilhouette.Solid(tex);
-                        foreach (var name in new[] { "Outline", "Fill" })
-                        {
-                            if (sprite.GetParent()?.GetNodeOrNull<Sprite2D>(name) is { } layer)
-                            {
-                                layer.Texture = solidTex;
-                            }
-                        }
-                    }
-
-                    sprite.Modulate = ItemPalette.ColorFor(item.ItemId);
                 }
 
                 var from = CellCenter(cell.Position);
                 var to = CellCenter(cell.Position.Step(cell.Direction));
                 var pos = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
-                var holderNode = sprite.GetParent() as Node2D ?? sprite;
-                holderNode.Position = pos;
+                sprite.Position = pos;
                 // Corner = galleria: items disappear while inside the turn.
-                holderNode.Visible = !_view.IsBeltCorner(cell.Position);
+                sprite.Visible = !_view.IsBeltCorner(cell.Position);
             }
         }
 
         var dead = _itemSprites.Keys.Where(id => !live.Contains(id)).ToList();
         foreach (var id in dead)
         {
-            var sprite = _itemSprites[id];
-            var parent = sprite.GetParent();
-            if (parent is not null && parent != _itemsLayer)
-            {
-                parent.QueueFree();
-            }
-            else
-            {
-                sprite.QueueFree();
-            }
-
+            _itemSprites[id].QueueFree();
             _itemSprites.Remove(id);
         }
     }
@@ -422,22 +367,11 @@ public partial class World
             .Replace("grezzo", "grezzo", StringComparison.Ordinal);
     }
 
-    private Texture2D? ResolveItemTexture(string itemId) => itemId switch
-    {
-        "iron-plate" => _plateTex,
-        "copper-ore" => _copperOreTex,
-        "copper-wire" => _copperWireTex,
-        "coal" => _coalTex,
-        "lead-ore" => _leadOreTex,
-        "titanium-ore" => _titaniumOreTex,
-        _ => _oreTex
-    };
-
     private static Vector2 CellCenter(GridPosition cell) =>
         new((cell.X + 0.5f) * TileSize, (cell.Y + 0.5f) * TileSize);
 
-    /// <summary>Belt items at ~half a tile, like Mindustry (texture is 64px = 1 tile).</summary>
-    private const float ItemScale = 0.55f;
+    /// <summary>Belt item sprites (10 px) at the world art scale: about 20 px on a 64 px tile.</summary>
+    private const float BeltItemScale = (float)TileSize / Sprites.PixelsPerCell;
 
     /// <summary>Draw order: belts (0–5) &lt; items &lt; buildings (+ their own child layers).</summary>
     private const int ItemsZ = 7;

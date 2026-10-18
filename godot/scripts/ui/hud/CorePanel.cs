@@ -332,7 +332,7 @@ public partial class CorePanel : VBoxContainer
         var head = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         head.AddThemeConstantOverride("separation", 6);
         vbox.AddChild(head);
-        head.AddChild(MakeIcon(ItemTexture("money"), 20, MoneyColor));
+        head.AddChild(MakeIcon(ItemTexture("money"), 20));
         _moneyLabel = new Label { Text = "$0", TooltipText = "Fondi", MouseFilter = MouseFilterEnum.Pass };
         _moneyLabel.AddThemeColorOverride("font_color", MoneyColor);
         _moneyLabel.AddThemeFontSizeOverride("font_size", 16);
@@ -395,9 +395,7 @@ public partial class CorePanel : VBoxContainer
         };
         cell.AddThemeConstantOverride("separation", 3);
         parent.AddChild(cell);
-        var icon = MakeIcon(ItemTexture(id), 20);
-        ItemPalette.Tint(icon, id);
-        cell.AddChild(icon);
+        cell.AddChild(MakeIcon(ItemTexture(id), 20));
         var count = new Label { Text = "0", MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
         count.AddThemeColorOverride("font_color", TextPrimary);
         count.AddThemeFontSizeOverride("font_size", 13);

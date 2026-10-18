@@ -2,7 +2,7 @@
 
 ## Icons
 
-Nastri, incrocio, divisore, smistatore e ponte (`conveyor-*`, `junction`, `splitter`, `sorter`), minatori, forno, assemblatore, estrattore, generatore e nodi di potenza (`miner*`, `smelter*`, `assembler*`, `extractor`, `generator*`, `power-node*`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
+Edifici, logistica, Core, droni e oggetti (`conveyor-*`, `junction`, `splitter`, `sorter`, `miner*`, `smelter*`, `assembler*`, `extractor`, `generator*`, `power-node*`, `core*`, `drone-*`, le 12 icone degli oggetti `<id>.png` e i loro sprite per i nastri `<id>-belt.png`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
 
 ### game-icons.net (CC BY 3.0)
 
@@ -13,20 +13,7 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 
 | Asset (in `godot/assets/`) | Author | Original icon |
 | --- | --- | --- |
-| `iron-ore.png` | Lorc | rock |
-| `copper-ore.png` | Lorc | rock (orange tint) |
-| `coal.png` | Lorc | rock (charcoal tint) |
-| `lead-ore.png` | Lorc | rock (slate-blue tint) |
-| `titanium-ore.png` | Lorc | rock (cyan tint) |
-| `iron-plate.png` | Delapouite | metal-plate |
-| `lead-plate.png` | Delapouite | metal-plate (lead tint) |
-| `titanium-plate.png` | Delapouite | metal-plate (titanium tint) |
-| `graphite.png` | Lorc | rock (graphite tint) |
-| `silicon.png` | Delapouite | metal-plate (silicon tint) |
-| `copper-wire.png` | Delapouite | wire-coil |
-| `money.png` | Delapouite | coins |
 | `ui/sell.png` | Delapouite | receive-money |
-| `bridge.png` | Delapouite | cable-stayed-bridge |
 | `ui/cat-production.png` | Delapouite | factory |
 | `ui/cat-logistics.png` | Delapouite | plain-arrow |
 | `ui/cat-tools.png` | Lorc | cog |
