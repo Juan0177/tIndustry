@@ -1,6 +1,6 @@
 # G2b — Arte del terreno
 
-- **Stato**: bozza, 2026-10-18 (da approvare)
+- **Stato**: approvata il 2026-10-18
 - **Roadmap grafica**: [G1](2026-10-18-g1-arte-blocchi-design.md) → [G2a](2026-10-18-g2a-mappe-terreno-design.md) → **G2b** → [G3](2026-10-18-g3-effetti-luci-design.md) → [G4](2026-10-18-g4-interfaccia-design.md)
 
 ## Obiettivo
