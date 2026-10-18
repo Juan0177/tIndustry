@@ -5,9 +5,9 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Builds the belt visuals of a placeable <see cref="BeltGrid"/>: one sprite per straight cell, one per
-/// corner or T merge, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
+/// corner, T merge or side join, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
 /// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step:
-/// every cell of a tier draws the same <see cref="AtlasTexture"/> (one per shape: straight, corner, T), and a
+/// every cell of a tier draws the same <see cref="AtlasTexture"/> (one per shape: straight, corner, T, side joins), and a
 /// frame change moves only that texture's region, once per tier, whatever the number of cells.
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
@@ -20,6 +20,9 @@ public partial class MindustryBeltVisual : Node2D
         public readonly SharedStrip Straight = new(id);
         public readonly SharedStrip Corner = new(id + "-corner");
         public readonly SharedStrip T = new(id + "-t");
+        public readonly SharedStrip JoinLeft = new(id + "-join-left");
+        public readonly SharedStrip JoinRight = new(id + "-join-right");
+        public readonly SharedStrip JoinBoth = new(id + "-join-both");
         public readonly float Rate = rateCellsPerSecond;
         public float Scroll;
         public int Frame;
@@ -98,6 +101,9 @@ public partial class MindustryBeltVisual : Node2D
             clock.Straight.Show(frame);
             clock.Corner.Show(frame);
             clock.T.Show(frame);
+            clock.JoinLeft.Show(frame);
+            clock.JoinRight.Show(frame);
+            clock.JoinBoth.Show(frame);
         }
     }
 
@@ -113,10 +119,17 @@ public partial class MindustryBeltVisual : Node2D
             return;
         }
 
-        // A T merge (art: in from North and South, out East) turns to the output like a straight belt.
-        var t = shape == BeltShape.T;
-        var straight = new ScrollingBeltStrip { Name = $"{(t ? "BeltT" : "Belt")}_{pos.X}_{pos.Y}" };
-        straight.Configure(pos, cell.Direction, tileSize, t ? clock.T.Texture : clock.Straight.Texture);
+        // T merge and side joins (art: out East, left of the flow North) turn to the output like a straight belt.
+        var (name, strip) = shape switch
+        {
+            BeltShape.T => ("BeltT", clock.T),
+            BeltShape.JoinLeft => ("BeltJoinLeft", clock.JoinLeft),
+            BeltShape.JoinRight => ("BeltJoinRight", clock.JoinRight),
+            BeltShape.JoinBoth => ("BeltJoinBoth", clock.JoinBoth),
+            _ => ("Belt", clock.Straight)
+        };
+        var straight = new ScrollingBeltStrip { Name = $"{name}_{pos.X}_{pos.Y}" };
+        straight.Configure(pos, cell.Direction, tileSize, strip.Texture);
         AddChild(straight);
     }
 

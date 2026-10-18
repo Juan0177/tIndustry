@@ -217,22 +217,30 @@ def _minatore(bid):
 
 
 def _nastro(tier):
-    # godot/scripts/visuals/belts/MindustryBeltVisual.cs (shared tier clock), ScrollingBeltStrip.cs (straight
-    # and T merge, East), BeltCornerTile.cs (corner art: in from West, out South). The belt always scrolls; with
+    # godot/scripts/visuals/belts/MindustryBeltVisual.cs (shared tier clock), ScrollingBeltStrip.cs (straight,
+    # T merge and side joins, East), BeltCornerTile.cs (corner art: in from West, out South). The belt always scrolls; with
     # the setting "Animazioni dei blocchi" off it holds its frame.
     fps = VELOCITA_NASTRO[tier] * 8
     giro = 8 / fps
+    unioni = [("join-left", "Unione a sinistra", "unione laterale: dietro e a sinistra"),
+              ("join-right", "Unione a destra", "unione laterale: dietro e a destra"),
+              ("join-both", "Unione dai tre lati", "unione laterale: dietro e ai due lati")]
     return Blocco(
         tier, "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
         [Strato(tier + "-anim", fps=fps, quando="dritto"), Strato(tier + "-corner-anim", fps=fps, quando="curva"),
-         Strato(tier + "-t-anim", fps=fps, quando="t")],
+         Strato(tier + "-t-anim", fps=fps, quando="t")]
+        + [Strato(f"{tier}-{u}-anim", fps=fps, quando=u) for u, _, _ in unioni],
         [_stato("Dritto", "dritto", durata=giro, passo=1 / fps), _stato("Curva", "curva", durata=giro, passo=1 / fps),
-         _stato("T", "t", durata=giro, passo=1 / fps), _stato("Animazioni spente", "dritto")],
+         _stato("T", "t", durata=giro, passo=1 / fps)]
+        + [_stato(nome, u, durata=giro, passo=1 / fps) for u, nome, _ in unioni]
+        + [_stato("Animazioni spente", "dritto")],
         [(tier, "icona"), (tier + "-anim", "tratto dritto"), (tier + "-corner-anim", "curva"),
-         (tier + "-t-anim", "unione a T: due ingressi ai lati")],
+         (tier + "-t-anim", "unione a T: due ingressi ai lati")]
+        + [(f"{tier}-{u}-anim", parte) for u, _, parte in unioni],
         icona=tier, stato_icona="Dritto",
         nota=f"{VELOCITA_NASTRO[tier]:g} oggetti/s: {fps:g} fotogrammi al secondo.",
-        fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps, tier + "-t-anim": fps})
+        fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps, tier + "-t-anim": fps}
+        | {f"{tier}-{u}-anim": fps for u, _, _ in unioni})
 
 
 def _core(n):

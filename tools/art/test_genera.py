@@ -491,6 +491,25 @@ class TestGenera(unittest.TestCase):
                     ovest = {u.getpixel((x, y))[:3] for x in range(5) for y in range(T)}
                     self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
 
+    def test_unioni_laterali(self):
+        # Side joins (fed from behind and from the sides with an input) are the T opened behind: its
+        # West columns 0-4 are the straight frame's (the belt behind runs in), each half with an input
+        # is the T's half, each half without one is the straight frame's (that side stays closed exactly
+        # as a straight). Left of the flow is North in the East-facing art.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
+                for nome, nord, sud in (("left", True, False), ("right", False, True), ("both", True, True)):
+                    lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
+                    self.assertEqual(len(dritti), len(lati))
+                    for k, (d, u, j) in enumerate(zip(dritti, unioni, lati)):
+                        for y in range(T):
+                            aperto = nord if y < T // 2 else sud
+                            for x in range(T):
+                                atteso = (u if aperto and x >= 5 else d).getpixel((x, y))
+                                self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} {nome} {k + 1}: {x},{y}")
+
     def test_incrocio_a_pezzi(self):
         # The icon is the open base; the North rail piece is the straight belt's top rail (rows 0-4)
         # over the groove, transparent below, so on a side without connection the rail stays.

@@ -85,6 +85,7 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
         Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
         Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East));
         Assert.False(factory.IsBeltCorner(P));
+        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(P));
     }
 
     [Fact]
@@ -136,7 +137,38 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
         Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
         Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West));
         Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
+        Assert.Equal(BeltShape.JoinBoth, factory.GetBeltShape(P));
+        Assert.True(factory.TryGetBeltIncomingDirection(P, out var incoming));
+        Assert.Equal(Direction.North, incoming);
+    }
+
+    [Fact]
+    public void FeederBehindAndABeltOnTheSideMakeASideJoin()
+    {
+        // P heads North: West is its left, East its right.
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
+        Assert.Equal(BeltShape.Straight, factory.GetBeltShape(P)); // nothing on the sides
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(P));
+        Assert.True(factory.TryRemoveBelt(new GridPosition(19, 21)));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.West));
+        Assert.Equal(BeltShape.JoinRight, factory.GetBeltShape(P));
+        Assert.True(factory.TryRemoveBelt(new GridPosition(21, 21)));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.East)); // flows away from P
         Assert.Equal(BeltShape.Straight, factory.GetBeltShape(P));
+    }
+
+    [Fact]
+    public void FeederBehindAndABuildingOnTheSideMakeASideJoin()
+    {
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North));
+        Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East)); // x 18-19, west of P
+        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(P));
+        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(new GridPosition(20, 20))); // the miner's other row
+        Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 21), Direction.East)); // x 21-22, east of P
+        Assert.Equal(BeltShape.JoinBoth, factory.GetBeltShape(P));
     }
 
     [Fact]

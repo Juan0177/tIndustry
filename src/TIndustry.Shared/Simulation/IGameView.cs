@@ -51,7 +51,7 @@ public interface IGameView
     /// <summary>Belt cell turning a corner (visual only; <see cref="BeltGrid.IsCorner"/>).</summary>
     bool IsBeltCorner(GridPosition position);
 
-    /// <summary>How the belt cell is drawn: straight, corner or T merge (visual only; <see cref="BeltGrid.GetShape"/>).</summary>
+    /// <summary>How the belt cell is drawn: straight, corner, T merge or side join (visual only; <see cref="BeltGrid.GetShape"/>).</summary>
     BeltShape GetBeltShape(GridPosition position);
 
     /// <summary>Junction side with an input or an output (visual only; <see cref="BeltGrid.IsJunctionSideConnected"/>).</summary>

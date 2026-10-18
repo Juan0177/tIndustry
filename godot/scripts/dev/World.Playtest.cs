@@ -657,6 +657,33 @@ public partial class World
         _visualDirty = true;
         _buildingsDirty = true;
         await PlaytestWait(0.1);
+
+        // A belt running past a miner: both cells beside it are side joins open towards the miner.
+        BuildSpec[] past =
+        [
+            new(Miner.BasicId, BuildingKind.Miner, new GridPosition(at.X + 1, at.Y), Direction.East),
+            .. Enumerable.Range(0, 5).Select(dx =>
+                new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(at.X + dx, at.Y - 1), Direction.East))
+        ];
+        foreach (var spec in past)
+        {
+            factory.PlaceInstant(spec, charge: false);
+        }
+
+        GD.Print($"PLAYTEST nastro accanto al minatore: {factory.GetBeltShape(past[2].Origin)}, {factory.GetBeltShape(past[3].Origin)}");
+        _visualDirty = true;
+        _buildingsDirty = true;
+        await PlaytestWait(0.3);
+        await shot("nastro-accanto-minatore");
+
+        foreach (var spec in past)
+        {
+            factory.RemoveInstant(spec.Origin, refund: false);
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        await PlaytestWait(0.1);
         await PlaytestTMergeShotAsync(cam, shot, factory, at);
     }
 

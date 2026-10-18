@@ -442,10 +442,10 @@ public sealed class BeltGrid
     }
 
     /// <summary>
-    /// How a plain belt is drawn (visual only, Mindustry's conveyor blend): a feeder behind or no side feeder
-    /// = straight, exactly one side feeder = corner from that side (<paramref name="incoming"/>), feeders on
-    /// both sides and none behind = T. Specials and empty cells are straight; <paramref name="incoming"/> is
-    /// then the cell's direction (default for an empty cell).
+    /// How a plain belt is drawn (visual only, Mindustry's conveyor blend): no side feeder = straight, exactly
+    /// one side feeder = corner from that side (<paramref name="incoming"/>), feeders on both sides and none
+    /// behind = T; a feeder behind plus side feeders = a side join open on those sides only. Specials and empty
+    /// cells are straight; <paramref name="incoming"/> is then the cell's direction (default for an empty cell).
     /// </summary>
     public BeltShape GetShape(
         GridPosition position,
@@ -472,7 +472,8 @@ public sealed class BeltGrid
 
     /// <summary><see cref="GetShape"/> of a plain belt from its feeders (behind, left, right).</summary>
     internal static BeltShape ShapeFrom(bool back, bool left, bool right) =>
-        back || (!left && !right) ? BeltShape.Straight
+        !left && !right ? BeltShape.Straight
+        : back ? (left && right ? BeltShape.JoinBoth : left ? BeltShape.JoinLeft : BeltShape.JoinRight)
         : left && right ? BeltShape.T // both sides, nothing behind
         : BeltShape.Corner;
 
@@ -673,5 +674,14 @@ public enum BeltShape
 {
     Straight,
     Corner,
-    T
+    T,
+
+    /// <summary>Fed from behind and from the left of its flow: a straight open on the left.</summary>
+    JoinLeft,
+
+    /// <summary>Fed from behind and from the right of its flow: a straight open on the right.</summary>
+    JoinRight,
+
+    /// <summary>Fed from behind and from both sides: a T open behind too.</summary>
+    JoinBoth
 }

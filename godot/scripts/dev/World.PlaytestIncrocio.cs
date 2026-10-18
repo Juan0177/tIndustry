@@ -4,7 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Belt blending probes of the <c>ui</c> playtest: a T merge (two side feeders, nothing behind) and the auto-junction
+/// Belt blending probes of the <c>ui</c> playtest: a T merge (two side feeders, nothing behind), side joins (fed from
+/// behind and from the sides) and the auto-junction
 /// of a belt drag (Mindustry): a real left-drag across a perpendicular belt, first with the junction locked (the
 /// belt stays, one toast says why), then unlocked (the drone takes the belt apart and builds a junction). Everything
 /// the probe built, the money and plates it spent and the research it unlocked are put back afterwards, so the later
@@ -36,6 +37,35 @@ public partial class World
         await shot("nastro-a-t");
 
         foreach (var spec in layout)
+        {
+            factory.RemoveInstant(spec.Origin, refund: false);
+        }
+
+        // Side joins on the middle row: fed from behind and both sides (the T opened behind), then from behind and West.
+        BuildSpec[] joins =
+        [
+            Belt(3, 1, Direction.North), Belt(3, 0, Direction.North), Belt(3, -1, Direction.North),
+            Belt(1, 0, Direction.East), Belt(2, 0, Direction.East), Belt(4, 0, Direction.West), Belt(5, 0, Direction.West)
+        ];
+        foreach (var spec in joins)
+        {
+            factory.PlaceInstant(spec, charge: false);
+        }
+
+        var join = new GridPosition(at.X + 3, at.Y);
+        GD.Print($"PLAYTEST unione dai tre lati: {factory.GetBeltShape(join)} in {join}");
+        _visualDirty = true;
+        await PlaytestWait(0.3);
+        await shot("nastro-tre-lati");
+
+        factory.RemoveInstant(joins[5].Origin, refund: false);
+        factory.RemoveInstant(joins[6].Origin, refund: false);
+        GD.Print($"PLAYTEST unione laterale: {factory.GetBeltShape(join)} in {join}");
+        _visualDirty = true;
+        await PlaytestWait(0.3);
+        await shot("nastro-unione-laterale");
+
+        foreach (var spec in joins[..5])
         {
             factory.RemoveInstant(spec.Origin, refund: false);
         }
