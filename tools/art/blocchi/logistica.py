@@ -2,8 +2,9 @@
 splitter, sorter, bridge end and bridge span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. Belt strips
-have 4 frames that move the tread 8 px along the flow each, so 4 frames cover one cell and
-the loop has no seam; everything else on the belt repeats every 8 px and looks still.
+have 8 frames that move the tread 4 px along the flow each, so 8 frames cover one cell and
+the loop has no seam. The rails stay still; on the tread the chevron repeats every 32 px and
+the ribs every 16 px, so each step shows a different phase and the direction reads.
 """
 import math
 
@@ -12,13 +13,16 @@ from blocchi import sprite
 from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, TITANIO
 
 T = 32
-PASSO = 8  # px the tread moves per frame
+PASSO = 4  # px the tread moves per frame
 FOTOGRAMMI = T // PASSO
 
 # Rows across a straight belt (0 = left of the flow, North for an East belt).
 BINARIO_SU = range(0, 5)  # top rail, outline on rows 0 and 4
 BINARIO_GIU = range(27, 32)  # bottom rail, outline on rows 27 and 31
+NASTRO_RIGHE = range(5, 27)  # the moving tread between the rails
 ASSE = 16  # belt axis, between rows 15 and 16
+FRECCIA = 18  # chevron back column on the axis in frame 0 (18..20 colour, 21 outline)
+ARCO = (T - 1) / (math.pi / 2)  # corner: flow position per radian (0..31 over the quarter turn)
 
 # Tier look: rail ramp, chevron ramp, inner rail edge (None = plain rail).
 TIER = {
@@ -28,70 +32,81 @@ TIER = {
 }
 
 
-def _colore_nastro(u, v, tier, tacche=True):
-    """Colour at (u along the flow, v across) of the straight tread, before scrolling.
-
-    Period 32 along u (one chevron per cell); rails, rollers and ribs repeat every 8 px.
-    """
-    binario, freccia, bordo = TIER[tier]
+def _binario(u, v, tier):
+    """Rail colour at column u (still: roller joints every 8 px) and rail row v."""
+    binario, _, bordo = TIER[tier]
     if v in (0, 4, 27, 31):
         return OUT
+    su = v in BINARIO_SU
+    riga = v - 1 if su else v - 28  # 0..2 inside the rail
+    if bordo is not None and riga == (2 if su else 0):
+        return bordo  # accent edge on the belt side of each rail
+    k = (3, 2, 1)[riga] - (0 if su else 1)  # top rail catches the light
+    if u % 8 == 7:
+        k = max(0, k - 2)  # roller joint
+    elif u % 8 == 0 and riga == 1:
+        k = min(len(binario) - 1, k + 2)  # roller highlight
+    return binario[k]
+
+
+def _colore_nastro(u, v, tier, spostamento, passo_u=1.0):
+    """Colour at flow position u (float) and row v; the tread is moved `spostamento` px.
+
+    A pixel covers [u, u + passo_u) along the flow: 1 on a straight belt, more on the inner
+    radii of a corner, where the chevron still gets every pixel it touches (never thinner
+    than its 4 px on the straight).
+    """
     if v in BINARIO_SU or v in BINARIO_GIU:
-        su = v in BINARIO_SU
-        riga = v - 1 if su else v - 28  # 0..2 inside the rail
-        if bordo is not None and riga == (2 if su else 0):
-            return bordo  # accent edge on the belt side of each rail
-        k = (3, 2, 1)[riga] - (0 if su else 1)  # top rail catches the light
-        if tacche and u % PASSO == PASSO - 1:
-            k = max(0, k - 2)  # roller joint
-        elif tacche and u % PASSO == 0 and riga == 1:
-            k = min(len(binario) - 1, k + 2)  # roller highlight
-        return binario[k]
+        return _binario(math.floor(u), v, tier)
     if v in (5, 26):
         return NASTRO[0]  # groove along the rails
+    freccia = TIER[tier][1]
+    m = u - spostamento
     # Chevron pointing +u: the arms trail back one px per row away from the axis.
     dv = int(abs(v + 0.5 - ASSE))
     if dv <= 7:
-        x = (u + dv) % T
-        if 18 <= x <= 21:
-            return (freccia[2], freccia[3], freccia[4], OUT)[x - 18]
-    nervatura = u % PASSO
-    if nervatura == 3:
+        d = (m + dv - FRECCIA) % T  # 0..3 inside the chevron, 3 = its outlined front
+        if d < 4 or d > T - passo_u:  # the pixel's span reaches the chevron
+            return (freccia[2], freccia[3], freccia[4], OUT)[0 if d >= 4 else int(d)]
+    nervatura = math.floor(m) % 16
+    if nervatura == 7:
         return NASTRO[0]
-    if nervatura == 4:
+    if nervatura == 8:
         return NASTRO[2]
     return NASTRO[1]
 
 
 def nastro(tier, fotogramma):
-    """Straight East belt; frame k is frame 0 moved k * 8 px East."""
+    """Straight East belt; frame k has the tread of frame 0 moved k * 4 px East."""
     im = forme.nuova(T, T)
-    spostamento = fotogramma * PASSO
     for y in range(T):
         for x in range(T):
-            forme.pixel(im, x, y, _colore_nastro(x - spostamento, y, tier))
+            forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO))
     return im
 
 
 def curva(tier, fotogramma):
     """Corner entering from the West edge and leaving from the South edge (clockwise turn).
 
-    The straight tread is bent around the South-West corner: distance from that corner is
-    the row across the belt, the angle is the position along the flow (0..32 over the
-    quarter turn), so the corner joins the straight strips of the same frame seamlessly.
+    The straight belt is bent around the bottom-left pixel: the distance from it (rounded)
+    gives the row across the belt and the angle the flow position 0..31. The West column is
+    then exactly column 0 of the straight frame and the South row is its column 31, so the
+    corner joins the straight cells of the same frame; only the chevron is widened on the
+    inner radii.
     """
     im = forme.nuova(T, T)
-    spostamento = fotogramma * PASSO
     for y in range(T):
         for x in range(T):
-            dx, dy = x + 0.5, T - (y + 0.5)
-            r = math.hypot(dx, dy)
-            if r > T:
+            a, b = x, T - 1 - y
+            r = math.hypot(a, b)
+            if r > T - 0.5:
                 forme.pixel(im, x, y, METALLO[1])  # outer corner plate beyond the bend
                 continue
-            u = int(math.atan2(dx, dy) / (math.pi / 2) * T)
-            v = min(T - 1, int(T - r))
-            forme.pixel(im, x, y, _colore_nastro(u - spostamento, v, tier, tacche=False))
+            u = round(math.atan2(a, b) * ARCO, 6)  # exact 0 and 31 on the edges
+            v = T - 1 - int(round(r))
+            # Edge pixels sit next to a straight cell: same 1 px span as there.
+            passo_u = 1.0 if a == 0 or b == 0 else max(1.0, ARCO / r)
+            forme.pixel(im, x, y, _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u))
     forme.bullone(im, 27, 2, METALLO)
     return im
 
@@ -191,7 +206,8 @@ def conveyor_bridge():
 
 @sprite("conveyor-bridge-span")
 def conveyor_bridge_span():
-    """16 px of the bridge deck (East), tiled along the span; 22 px thick (~0.70 cell)."""
+    """16 px of the bridge deck (East), tiled along the span; 22 px thick (~0.70 cell,
+    BridgeSpanVisual.DeckPixels in the client)."""
     w, h = 16, 22
     im = forme.nuova(w, h)
     for x in range(w):

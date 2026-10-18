@@ -290,7 +290,10 @@ public partial class World
         await Shot("ricerca");
         await PlaytestKey(Key.T);
 
-        await PlaytestBeltPerfAsync();
+        if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
+        {
+            await PlaytestBeltPerfAsync();
+        }
 
         if (!await PlaytestRemoveDragOutAndBackAsync())
         {
@@ -306,8 +309,11 @@ public partial class World
         return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
     }
 
+    /// <summary>Set to 1 to run <see cref="PlaytestBeltPerfAsync"/> in the <c>ui</c> playtest.</summary>
+    private const string PlaytestPerfEnv = "TINDUSTRY_PLAYTEST_PERF";
+
     /// <summary>
-    /// Performance probe, no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
+    /// Performance probe (only with <c>TINDUSTRY_PLAYTEST_PERF=1</c>), no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
     /// tiers, so with corners) below the Core, frames them at 1280×720 and prints average and minimum FPS
     /// over 3 s without VSync, with the node count.
     /// </summary>

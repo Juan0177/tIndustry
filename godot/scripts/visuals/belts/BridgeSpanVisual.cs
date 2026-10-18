@@ -9,7 +9,11 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class BridgeSpanVisual : Node2D
 {
-    public const float ThicknessScale = 0.70f;
+    /// <summary>Height of <c>conveyor-bridge-span.png</c> in art pixels (tools/art/blocchi/logistica.py).</summary>
+    public const int DeckPixels = 22;
+
+    /// <summary>Span thickness in cells (~0.70): the deck at the art's integer pixel scale, 44 px on a 64 px cell.</summary>
+    public const float ThicknessScale = DeckPixels / (float)Sprites.PixelsPerCell;
     private const float CycleSeconds = 0.9f;
 
     private readonly List<Polygon2D> _arrows = [];
@@ -60,7 +64,7 @@ public partial class BridgeSpanVisual : Node2D
         ZIndex = 2;
 
         // Deck sprite (local +X = flow): the 16 px span texture repeated along the whole length,
-        // at the art's pixel scale along the flow and stretched to the span thickness across it.
+        // at the art's pixel scale (2 on a 64 px cell) both along the flow and across it.
         var deck = Sprites.For("conveyor-bridge-span");
         var pixelScale = tileSize / (float)Sprites.PixelsPerCell;
         AddChild(new Sprite2D

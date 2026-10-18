@@ -2,6 +2,8 @@
 
 ## Icons
 
+Nastri, incrocio, divisore, smistatore e ponte (`conveyor-*`, `junction`, `splitter`, `sorter`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
+
 ### game-icons.net (CC BY 3.0)
 
 Industrial / resource / building glyphs under
@@ -28,13 +30,7 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `smelter.png` | Delapouite | furnace |
 | `assembler.png` | Lorc | gears |
 | `generator.png` | Lorc | lightning-helix |
-| `conveyor-basic.png` | Delapouite | plain-arrow |
-| `conveyor-fast.png` | Lorc | fast-arrow |
-| `conveyor-express.png` | Lorc | fast-arrow (copia di `conveyor-fast.png`) |
-| `splitter.png` | Delapouite | split-arrows |
-| `sorter.png` | (procedural) | funnel filter glyph |
 | `bridge.png` | Delapouite | cable-stayed-bridge |
-| `conveyor-bridge.png` | Delapouite | cable-stayed-bridge (copia di `bridge.png`) |
 | `ui/cat-production.png` | Delapouite | factory |
 | `ui/cat-logistics.png` | Delapouite | plain-arrow |
 | `ui/cat-tools.png` | Lorc | cog |
@@ -43,7 +39,7 @@ Authors: [Delapouite](https://delapouite.com) · [Lorc](https://lorcblog.blogspo
 
 ### Kenney (CC0 1.0)
 
-UI chrome and a few logistics glyphs from
+UI chrome from
 [Kenney.nl](https://kenney.nl) packs — **Board Game Icons** and **Game Icons**.
 
 License: [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
@@ -51,7 +47,6 @@ License: [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/ze
 
 | Asset | Pack | Original |
 | --- | --- | --- |
-| `junction.png` | Board Game Icons | arrow_cross |
 | `ui/research.png` | Board Game Icons | book_open |
 | `ui/settings.png`, `ui/menu.png`, `ui/locked.png`, `ui/power.png`, `ui/cat-power.png` | Game Icons | gear / menuGrid / locked / power |
 

@@ -67,7 +67,7 @@ public partial class MindustryBeltVisual : Node2D
                 clock.Scroll %= 1f;
             }
 
-            var frame = (int)(clock.Scroll * 4) % 4;
+            var frame = (int)(clock.Scroll * 8) % 8;
             if (frame == clock.Frame)
             {
                 continue;
