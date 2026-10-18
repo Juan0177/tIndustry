@@ -50,7 +50,7 @@ public sealed class CampaignMapTests : IDisposable
     }
 
     private void SaveSample(string id, TerrainMap map, GridPosition core) =>
-        CampaignMapFile.Save(dir, id, map, core, ["prati", "sabbia"], "prova", Content, PngWriter.WriteRgba);
+        CampaignMapFile.Save(dir, id, map, core, ["prati", "sabbia"], "prova", Content);
 
     [Fact]
     public void CampaignMapLoadsAndMatchesSize()
@@ -169,6 +169,61 @@ public sealed class CampaignMapTests : IDisposable
             Assert.Contains(core, factory.CoreTiles);
             Assert.Equal(TerrainMap.TerrainHash(map), TerrainMap.TerrainHash(factory.Terrain));
         }
+    }
+
+    [Fact]
+    public void UnreadableFileIsAProblemNotACrash()
+    {
+        SaveSample("bloccata", Sample(), new GridPosition(19, 14));
+        using (File.Open(CampaignMapFile.TerrainPath(dir, "bloccata"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                // Only Windows enforces the share lock: elsewhere the file stays readable.
+                Assert.Contains(CampaignMapFile.Validate(dir, "bloccata", Content),
+                    p => p.StartsWith("bloccata.png: impossibile leggere il file", StringComparison.Ordinal));
+                var error = Assert.Throws<InvalidDataException>(() => CampaignMapFile.Load(dir, "bloccata", Content, out _));
+                Assert.Contains("bloccata.png", error.Message);
+            }
+        }
+    }
+
+    [Fact]
+    public void CoreOriginOnAWallIsRefused()
+    {
+        var catalog = CampaignCatalog.Load(Path.Combine(DataDir, "campaign.json"));
+        var level = catalog.Levels[0];
+        var map = CampaignMapFile.Load(MapsDir, level.Map!, Content, out _);
+        var wall = Enumerable.Range(0, map.Width * map.Height)
+            .Select(i => new GridPosition(i % map.Width, i / map.Width))
+            .First(p => map[p].Wall != WallKind.None);
+
+        var error = Assert.Throws<InvalidDataException>(() =>
+            NewGame.Campaign(Content, catalog, level, coreOrigin: wall, mapsDirectory: MapsDir));
+
+        Assert.Contains("una parete", error.Message);
+    }
+
+    [Fact]
+    public void MapColoursAreDistinct()
+    {
+        Assert.Null(CampaignMapFile.ColourClash(Content));
+
+        var floors = Content.Terrain.Floors;
+        var clashing = new FactoryContent
+        {
+            Conveyors = Content.Conveyors,
+            Recipes = Content.Recipes,
+            Terrain = new TerrainTable(
+                floors,
+                Content.Terrain.Walls.Select(w => w.Kind == WallKind.StoneWall ? w with { Color = floors[0].Color } : w).ToList())
+        };
+        var clash = CampaignMapFile.ColourClash(clashing);
+
+        Assert.Contains("Colori duplicati", clash);
+        Assert.Contains("'stone' e 'stone-wall'", clash);
+        SaveSample("doppio", Sample(), new GridPosition(19, 14));
+        Assert.Equal([clash!], CampaignMapFile.Validate(dir, "doppio", clashing));
     }
 
     [Fact]

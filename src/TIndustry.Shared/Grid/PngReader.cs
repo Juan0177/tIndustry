@@ -4,22 +4,33 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Minimal PNG decoder for the campaign maps: 8-bit RGB or RGBA, not interlaced, filters 0–4, any number of
-/// IDAT chunks. Ancillary chunks are skipped; every chunk CRC is checked.
+/// IDAT chunks. Ancillary chunks are skipped; every chunk CRC is checked. Meant for untrusted files: sizes are
+/// checked before anything is allocated, and every failure is an <see cref="InvalidDataException"/> in Italian.
 /// </summary>
 public static class PngReader
 {
-    private static readonly byte[] Signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    internal static readonly byte[] Signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
-    /// <summary>Longest edge accepted, so a corrupt header cannot ask for gigabytes.</summary>
-    public const int MaxEdge = 16384;
+    /// <summary>Default longest edge accepted: the map limit (<see cref="Factory.MaxMapEdge"/>).</summary>
+    public const int DefaultMaxEdge = Factory.MaxMapEdge;
+
+    /// <summary>Longest chunk accepted.</summary>
+    public const int MaxChunkBytes = 64 << 20;
+
+    /// <summary>Most compressed image data (all IDAT chunks together) accepted.</summary>
+    public const int MaxImageDataBytes = 256 << 20;
 
     private static readonly uint[] CrcTable = BuildCrcTable();
 
-    /// <summary>Decodes <paramref name="s"/>; pixels are RGBA, row by row (alpha 255 for RGB images).</summary>
+    /// <summary>
+    /// Decodes <paramref name="s"/>; pixels are RGBA, row by row (alpha 255 for RGB images). Images with an edge
+    /// over <paramref name="maxEdge"/> are refused from the header, before any pixel memory is allocated.
+    /// </summary>
     /// <exception cref="InvalidDataException">The stream is not a PNG this reader supports.</exception>
-    public static (int Width, int Height, byte[] Rgba) Read(Stream s)
+    public static (int Width, int Height, byte[] Rgba) Read(Stream s, int maxEdge = DefaultMaxEdge)
     {
         ArgumentNullException.ThrowIfNull(s);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxEdge, 1);
         var signature = ReadExactly(s, 8, "firma");
         if (!signature.AsSpan().SequenceEqual(Signature))
         {
@@ -34,9 +45,14 @@ public static class PngReader
         while (true)
         {
             var length = ReadUInt32(ReadExactly(s, 4, "lunghezza del blocco"), 0);
-            if (length > int.MaxValue)
+            if (length > MaxChunkBytes)
             {
-                throw new InvalidDataException("PNG: blocco troppo lungo.");
+                throw new InvalidDataException($"PNG: blocco di {length} byte, oltre il massimo di {MaxChunkBytes}.");
+            }
+
+            if (s.CanSeek && length + 8L > s.Length - s.Position)
+            {
+                throw new InvalidDataException("PNG troncato (blocco più lungo del file).");
             }
 
             var typeAndData = ReadExactly(s, 4 + (int)length, "blocco");
@@ -56,13 +72,28 @@ public static class PngReader
             switch (type)
             {
                 case "IHDR":
-                    (width, height, channels) = ReadHeader(data);
+                    if (sawHeader)
+                    {
+                        throw new InvalidDataException("PNG: intestazione IHDR ripetuta.");
+                    }
+
+                    (width, height, channels) = ReadHeader(data, maxEdge);
                     sawHeader = true;
                     break;
                 case "IDAT":
+                    if (compressed.Length + data.Length > MaxImageDataBytes)
+                    {
+                        throw new InvalidDataException($"PNG: dati dell'immagine oltre {MaxImageDataBytes} byte.");
+                    }
+
                     compressed.Write(data);
                     break;
                 case "IEND":
+                    if (s.ReadByte() >= 0)
+                    {
+                        throw new InvalidDataException("PNG: dati dopo la fine dell'immagine (IEND).");
+                    }
+
                     return (width, height, Decode(compressed.ToArray(), width, height, channels));
                 case "PLTE":
                     // Optional suggested palette of a truecolour image: not needed.
@@ -78,7 +109,7 @@ public static class PngReader
         }
     }
 
-    private static (int Width, int Height, int Channels) ReadHeader(ReadOnlySpan<byte> h)
+    private static (int Width, int Height, int Channels) ReadHeader(ReadOnlySpan<byte> h, int maxEdge)
     {
         if (h.Length != 13)
         {
@@ -87,9 +118,9 @@ public static class PngReader
 
         var width = ReadUInt32(h, 0);
         var height = ReadUInt32(h, 4);
-        if (width == 0 || height == 0 || width > MaxEdge || height > MaxEdge)
+        if (width == 0 || height == 0 || width > maxEdge || height > maxEdge)
         {
-            throw new InvalidDataException($"PNG: misura {width}×{height} non valida (lato da 1 a {MaxEdge}).");
+            throw new InvalidDataException($"PNG: misura {width}×{height} non valida (lato da 1 a {maxEdge}).");
         }
 
         if (h[8] != 8)
@@ -222,7 +253,8 @@ public static class PngReader
     private static uint ReadUInt32(ReadOnlySpan<byte> b, int offset) =>
         (uint)(b[offset] << 24 | b[offset + 1] << 16 | b[offset + 2] << 8 | b[offset + 3]);
 
-    private static uint Crc(byte[] bytes)
+    /// <summary>CRC-32 of a chunk's type and data, as PNG stores it.</summary>
+    internal static uint Crc(byte[] bytes)
     {
         var crc = 0xFFFFFFFFu;
         foreach (var b in bytes)

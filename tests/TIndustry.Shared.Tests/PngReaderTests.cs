@@ -73,6 +73,55 @@ public sealed class PngReaderTests
         Assert.Contains("CRC", corrupt.Message);
     }
 
+    /// <summary>A chunk with its length and CRC; <paramref name="length"/> overrides the stored length.</summary>
+    private static byte[] Chunk(string type, byte[] data, uint? length = null)
+    {
+        var body = System.Text.Encoding.ASCII.GetBytes(type).Concat(data).ToArray();
+        return BigEndian(length ?? (uint)data.Length).Concat(body).Concat(BigEndian(PngReader.Crc(body))).ToArray();
+    }
+
+    private static byte[] BigEndian(uint v) => [(byte)(v >> 24), (byte)(v >> 16), (byte)(v >> 8), (byte)v];
+
+    private static byte[] Header(uint width, uint height) =>
+        Chunk("IHDR", [.. BigEndian(width), .. BigEndian(height), 8, 2, 0, 0, 0]);
+
+    private static InvalidDataException Rejects(params byte[][] parts) =>
+        Assert.Throws<InvalidDataException>(() =>
+            PngReader.Read(new MemoryStream(PngReader.Signature.Concat(parts.SelectMany(p => p)).ToArray())));
+
+    [Fact]
+    public void HostileChunkLengthIsRejected()
+    {
+        // Lengths near int.MaxValue must not overflow or allocate: refused from the length alone.
+        Assert.Contains("oltre il massimo", Rejects(Header(7, 5), Chunk("IDAT", [], 0x7FFFFFFF)).Message);
+        Assert.Contains("oltre il massimo", Rejects(Header(7, 5), Chunk("IDAT", [], 0x7FFFFFF0)).Message);
+        // Under the cap but longer than the file.
+        Assert.Contains("troncato", Rejects(Header(7, 5), Chunk("IDAT", [], 1 << 20)).Message);
+    }
+
+    [Fact]
+    public void OversizeHeaderIsRejectedBeforeDecoding()
+    {
+        Assert.Contains("16384×16384", Rejects(Header(16384, 16384), Chunk("IDAT", []), Chunk("IEND", [])).Message);
+        Assert.Contains("2001×8", Rejects(Header(2001, 8), Chunk("IEND", [])).Message);
+
+        using var stream = File.OpenRead(Path.Combine(FixtureDir, "rgb-filtro0.png"));
+        var error = Assert.Throws<InvalidDataException>(() => PngReader.Read(stream, maxEdge: 6));
+        Assert.Contains("lato da 1 a 6", error.Message);
+    }
+
+    [Fact]
+    public void DuplicateHeaderAndDataAfterEndAreRejected()
+    {
+        var png = File.ReadAllBytes(Path.Combine(FixtureDir, "rgb-filtro0.png"));
+        var header = png[8..33];
+        var rest = png[33..];
+
+        Assert.Contains("IHDR ripetuta", Rejects(header, header, rest).Message);
+        Assert.Contains("dopo la fine", Rejects(header, rest, Chunk("IDAT", [1, 2, 3])).Message);
+        Assert.Contains("dopo la fine", Rejects(header, rest, [0]).Message);
+    }
+
     [Fact]
     public void PngReaderReadsWhatTheTestWriterWrites()
     {

@@ -1,19 +1,30 @@
 using System.IO.Compression;
 using System.Text;
 
-namespace TIndustry.Shared.Tests;
+namespace TIndustry.Shared;
 
-/// <summary>Minimal RGB/RGBA PNG encoder (one IDAT, filter 0) for map previews and fixtures written by tests.</summary>
-internal static class PngWriter
+/// <summary>
+/// Minimal PNG encoder (8-bit RGB or RGBA, one IDAT, filter 0) for the campaign map files and previews;
+/// <see cref="PngReader"/> reads what it writes.
+/// </summary>
+public static class PngWriter
 {
+    /// <summary>Writes <paramref name="rgb"/> (3 bytes per pixel, row by row) as an RGB PNG.</summary>
     public static void Write(string path, int width, int height, byte[] rgb) => Write(path, width, height, rgb, 3);
 
+    /// <summary>Writes <paramref name="rgba"/> (4 bytes per pixel, row by row) as an RGBA PNG.</summary>
     public static void WriteRgba(string path, int width, int height, byte[] rgba) => Write(path, width, height, rgba, 4);
 
     private static void Write(string path, int width, int height, byte[] pixels, int channels)
     {
+        ArgumentNullException.ThrowIfNull(pixels);
+        if (width <= 0 || height <= 0 || pixels.Length != width * height * channels)
+        {
+            throw new ArgumentException($"PNG {width}×{height}: servono {width * height * channels} byte di pixel.");
+        }
+
         using var file = File.Create(path);
-        file.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        file.Write(PngReader.Signature);
 
         var header = new byte[13];
         BigEndian(header, 0, (uint)width);
@@ -23,7 +34,7 @@ internal static class PngWriter
         Chunk(file, "IHDR", header);
 
         using var raw = new MemoryStream();
-        using (var z = new ZLibStream(raw, CompressionLevel.Fastest, leaveOpen: true))
+        using (var z = new ZLibStream(raw, CompressionLevel.SmallestSize, leaveOpen: true))
         {
             for (var y = 0; y < height; y++)
             {
@@ -41,26 +52,12 @@ internal static class PngWriter
         var buffer = new byte[4];
         BigEndian(buffer, 0, (uint)data.Length);
         s.Write(buffer);
-        var typeBytes = Encoding.ASCII.GetBytes(type);
-        s.Write(typeBytes);
-        s.Write(data);
-        BigEndian(buffer, 0, Crc(typeBytes, data));
+        var body = new byte[4 + data.Length];
+        Encoding.ASCII.GetBytes(type, 0, 4, body, 0);
+        data.CopyTo(body, 4);
+        s.Write(body);
+        BigEndian(buffer, 0, PngReader.Crc(body));
         s.Write(buffer);
-    }
-
-    private static uint Crc(byte[] type, byte[] data)
-    {
-        var crc = 0xFFFFFFFFu;
-        foreach (var b in type.Concat(data))
-        {
-            crc ^= b;
-            for (var k = 0; k < 8; k++)
-            {
-                crc = (crc & 1) != 0 ? 0xEDB88320u ^ (crc >> 1) : crc >> 1;
-            }
-        }
-
-        return crc ^ 0xFFFFFFFFu;
     }
 
     private static void BigEndian(byte[] buffer, int offset, uint value)

@@ -240,11 +240,10 @@ public static class CampaignMapFile
     /// <summary>Writes <paramref name="map"/> as the three files of <paramref name="mapId"/> (tools and tests).</summary>
     public static void Save(
         string dir, string mapId, TerrainMap map, GridPosition coreOrigin, IReadOnlyList<string> biomes,
-        string? note, FactoryContent content, Action<string, int, int, byte[]> writeRgba)
+        string? note, FactoryContent content)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(content);
-        ArgumentNullException.ThrowIfNull(writeRgba);
         CheckId(mapId);
         Directory.CreateDirectory(dir);
         var terrain = new byte[map.Width * map.Height * 4];
@@ -268,8 +267,8 @@ public static class CampaignMapFile
             }
         }
 
-        writeRgba(TerrainPath(dir, mapId), map.Width, map.Height, terrain);
-        writeRgba(DepositPath(dir, mapId), map.Width, map.Height, deposits);
+        PngWriter.WriteRgba(TerrainPath(dir, mapId), map.Width, map.Height, terrain);
+        PngWriter.WriteRgba(DepositPath(dir, mapId), map.Width, map.Height, deposits);
         var info = new InfoDto
         {
             Core = new CoreDto { X = coreOrigin.X, Y = coreOrigin.Y },
@@ -290,6 +289,12 @@ public static class CampaignMapFile
         catch (ArgumentException e)
         {
             problems.Add(e.Message);
+            return null;
+        }
+
+        if (ColourClash(content) is { } clash)
+        {
+            problems.Add(clash);
             return null;
         }
 
@@ -319,20 +324,20 @@ public static class CampaignMapFile
         var floors = new Dictionary<int, FloorKind>();
         foreach (var f in content.Terrain.Floors)
         {
-            floors[Key(Hex(f.Color))] = f.Kind;
+            floors.TryAdd(Key(Hex(f.Color)), f.Kind);
         }
 
         var walls = new Dictionary<int, (WallKind Wall, FloorKind Floor)>();
         foreach (var wall in content.Terrain.Walls)
         {
             var under = content.Terrain.Floors.FirstOrDefault(f => f.Biome == wall.Biome)?.Kind ?? FloorKind.Stone;
-            walls[Key(Hex(wall.Color))] = (wall.Kind, under);
+            walls.TryAdd(Key(Hex(wall.Color)), (wall.Kind, under));
         }
 
         var ores = new Dictionary<int, DepositKind>();
         foreach (var ore in Ores)
         {
-            ores[Key(ItemVisualColors.Rgb(TerrainMap.ItemIdForDeposit(ore)))] = ore;
+            ores.TryAdd(Key(ItemVisualColors.Rgb(TerrainMap.ItemIdForDeposit(ore))), ore);
         }
 
         var map = new TerrainMap(w, h, 0, GeneratorPrefix + mapId);
@@ -408,27 +413,40 @@ public static class CampaignMapFile
         return (map, core);
     }
 
+    /// <summary>
+    /// Map files tell cells apart by colour alone: every floor and wall of <c>terrain</c> needs its own colour in
+    /// <c>&lt;id&gt;.png</c>, every ore its own in <c>&lt;id&gt;.giacimenti.png</c>. Null when they do.
+    /// </summary>
+    public static string? ColourClash(FactoryContent content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var ground = content.Terrain.Floors.Select(f => (f.Id, f.Color))
+            .Concat(content.Terrain.Walls.Select(w => (w.Id, w.Color)))
+            .Select(e => (e.Id, Key: Key(Hex(e.Color))));
+        var ores = Ores.Select(o => (Id: TerrainMap.ItemIdForDeposit(o), Key: Key(ItemVisualColors.Rgb(TerrainMap.ItemIdForDeposit(o)))));
+        foreach (var (entries, file) in new[] { (ground, "<id>.png"), (ores, "<id>.giacimenti.png") })
+        {
+            var seen = new Dictionary<int, string>();
+            foreach (var (id, key) in entries)
+            {
+                if (!seen.TryAdd(key, id))
+                {
+                    return $"Colori duplicati per le mappe ({file}): '{seen[key]}' e '{id}' hanno lo stesso colore " +
+                        $"#{key:X6}.";
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>The Core must be inside the map, off walls and deep water, with a free start disc around it.</summary>
     private static void CheckStart(TerrainMap map, GridPosition core, List<string> problems)
     {
-        if (core.X < 0 || core.Y < 0 || core.X + CoreSize > map.Width || core.Y + CoreSize > map.Height)
+        if (CoreProblem(map, core, CoreSize) is { } problem)
         {
-            problems.Add($"Il Core in ({core.X}, {core.Y}) è fuori dalla mappa {map.Width}×{map.Height}.");
+            problems.Add(problem);
             return;
-        }
-
-        for (var y = core.Y; y < core.Y + CoreSize; y++)
-        {
-            for (var x = core.X; x < core.X + CoreSize; x++)
-            {
-                if (map[x, y].BlocksBuilding)
-                {
-                    problems.Add(
-                        $"Il Core in ({core.X}, {core.Y}) è su {(map[x, y].Wall != WallKind.None ? "una parete" : "acqua profonda")} " +
-                        $"in ({x}, {y}).");
-                    return;
-                }
-            }
         }
 
         var blocked = new Issues();
@@ -447,6 +465,30 @@ public static class CampaignMapFile
         }
 
         blocked.Report(problems, $"Area di partenza (raggio {r} attorno al Core) con pareti o acqua profonda");
+    }
+
+    /// <summary>Why a Core of <paramref name="size"/> cannot stand at <paramref name="core"/> (outside the map, on a wall or deep water), or null.</summary>
+    public static string? CoreProblem(TerrainMap map, GridPosition core, int size)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        if (core.X < 0 || core.Y < 0 || core.X + size > map.Width || core.Y + size > map.Height)
+        {
+            return $"Il Core in ({core.X}, {core.Y}) è fuori dalla mappa {map.Width}×{map.Height}.";
+        }
+
+        for (var y = core.Y; y < core.Y + size; y++)
+        {
+            for (var x = core.X; x < core.X + size; x++)
+            {
+                if (map[x, y].BlocksBuilding)
+                {
+                    return $"Il Core in ({core.X}, {core.Y}) è su " +
+                        $"{(map[x, y].Wall != WallKind.None ? "una parete" : "acqua profonda")} in ({x}, {y}).";
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Cells reachable from the Core over buildable cells (4 neighbours).</summary>
@@ -523,6 +565,11 @@ public static class CampaignMapFile
             problems.Add($"{Path.GetFileName(path)}: JSON non valido ({e.Message}).");
             return null;
         }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            problems.Add($"{Path.GetFileName(path)}: impossibile leggere il file ({e.Message}).");
+            return null;
+        }
     }
 
     private static (int Width, int Height, byte[] Rgba)? ReadPng(string path, List<string> problems)
@@ -541,6 +588,11 @@ public static class CampaignMapFile
         catch (InvalidDataException e)
         {
             problems.Add($"{Path.GetFileName(path)}: {e.Message}");
+            return null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            problems.Add($"{Path.GetFileName(path)}: impossibile leggere il file ({e.Message}).");
             return null;
         }
     }

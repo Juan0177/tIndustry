@@ -38,4 +38,17 @@ public sealed class GodotProjectReferencesTests
             Assert.True(File.Exists(path), $"script missing: {path}");
         }
     }
+
+    /// <summary>The exported game reads data/ from next to its assemblies: the Godot project must copy the maps.</summary>
+    [Fact]
+    public void GodotProjectCopiesTheDataFiles()
+    {
+        var project = File.ReadAllText(Path.Combine(RepoRoot(), "godot", "TIndustry.Godot.csproj"));
+
+        foreach (var include in new[] { "../data/content.json", "../data/campaign.json", "../data/maps/*" })
+        {
+            Assert.Matches(
+                $@"<None Include=""{Regex.Escape(include)}""[^>]*CopyToOutputDirectory=""PreserveNewest""", project);
+        }
+    }
 }

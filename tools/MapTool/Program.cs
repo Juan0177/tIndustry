@@ -1,5 +1,4 @@
 using System.Globalization;
-using TIndustry.MapTool;
 using TIndustry.Shared;
 
 // Campaign map files (data/maps/): generate from the biome generator, validate, preview.
@@ -79,7 +78,7 @@ static int Generate(string[] args, string maps, FactoryContent content)
         ?? $"Generata con MapTool: misura {size}, seme {seed}, biomi {string.Join(",", biomes)}, pareti " +
         $"{settings.WallDensityPercent}%, acqua {settings.WaterPercent}%, giacimenti {settings.DepositPercent}%" +
         (excluded.Length > 0 ? $", senza {excluded}." : ".");
-    CampaignMapFile.Save(maps, id, map, core, biomes, note, content, PngWriter.WriteRgba);
+    CampaignMapFile.Save(maps, id, map, core, biomes, note, content);
     Console.WriteLine($"Scritta {id}: {size}×{size}, Core in ({core.X}, {core.Y}).");
     return 0;
 }

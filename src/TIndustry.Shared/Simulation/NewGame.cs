@@ -74,7 +74,13 @@ public static class NewGame
         if (level.Map is { } mapId && mapsDirectory is not null && mapWidth is null && mapHeight is null)
         {
             var map = CampaignMapFile.Load(mapsDirectory, mapId, content, out var fileCore);
-            return CampaignFactory(content, catalog, level, coreOrigin ?? fileCore, coreSize, map, rules);
+            var fileOrigin = coreOrigin ?? fileCore;
+            if (CampaignMapFile.CoreProblem(map, fileOrigin, Math.Max(1, coreSize)) is { } problem)
+            {
+                throw new InvalidDataException($"Mappa '{mapId}': {problem}");
+            }
+
+            return CampaignFactory(content, catalog, level, fileOrigin, coreSize, map, rules);
         }
 
         var (w, h) = Factory.ResolveCampaignMapSize(level);

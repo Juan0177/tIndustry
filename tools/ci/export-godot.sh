@@ -11,9 +11,12 @@ cd "$ROOT"
 
 mkdir -p godot/data
 cp -f data/content.json data/campaign.json godot/data/
+# The game reads data/ with System.IO, so these files reach players through the .NET build, not the .pck:
+# godot/TIndustry.Godot.csproj copies data/content.json, campaign.json and maps/* next to the assemblies
+# (data_tIndustry_*/data/, found via AppContext.BaseDirectory). The godot/data/ copy mirrors the json files
+# for res://data/ lookups; the maps get a .gdignore so Godot does not import their PNGs as textures.
 rm -rf godot/data/maps
 cp -r data/maps godot/data/maps
-# Raw map files read by the simulation, not Godot resources: keep the importer away.
 touch godot/data/maps/.gdignore
 
 # Ensure classic .sln exists (Godot mono export requires it).
