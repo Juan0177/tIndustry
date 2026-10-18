@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TIndustry.AgentPlay</RootNamespace>
+    <AssemblyName>AgentPlay</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+  </ItemGroup>
+  <!-- Same seed the Godot client ships. -->
+  <ItemGroup>
+    <None Include="../../data/content.json" Link="data/content.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../data/campaign.json" Link="data/campaign.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../data/maps/*" Link="data/maps/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/TIndustry.Shared/TIndustry.Shared.csproj" />
+  </ItemGroup>
+</Project>
