@@ -169,6 +169,16 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void RestoredFactoryKeepsTheCorner()
+    {
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East));
+        var restored = Factory.Restore(Content, factory.Capture());
+        Assert.Single(restored.Miners);
+        AssertCorner(restored, Direction.East);
+    }
+
+    [Fact]
     public void CornerQueriesStayCheapOnABigFactory()
     {
         // 300 miners, each feeding a belt that turns away, plus long straight rows: 2000 belts in all.

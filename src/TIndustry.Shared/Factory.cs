@@ -846,6 +846,7 @@ public sealed class Factory : IGameView
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
+        factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
     }
 

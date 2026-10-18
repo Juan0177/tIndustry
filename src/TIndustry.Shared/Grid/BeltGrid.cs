@@ -526,13 +526,13 @@ public sealed class BeltGridCell
     }
 
     public GridPosition Position => inner.Position;
-    public Direction Direction { get; set; }
+    public Direction Direction { get; internal set; } // only BeltGrid writes it, bumping Version
     public ConveyorDefinition Definition => inner.Definition;
     public LogisticsKind Kind => inner.Kind;
     public IReadOnlyList<TransportedItem> Items => inner.Items;
     public GridPosition OutputPosition => Position.Step(Direction);
     public int SplitterToggle => splitterToggle;
-    public GridPosition? BridgePartner { get; set; }
+    public GridPosition? BridgePartner { get; private set; }
     public string? FilterItemId => filterItemId;
 
     public Direction PreferredSplitterExit =>
