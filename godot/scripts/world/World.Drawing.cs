@@ -5,12 +5,12 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Immediate-mode drawing over the terrain chunks (<see cref="TerrainChunks"/>): grid, map border, deposits; and on
-/// the placement overlay above the world: placement ghost, direction hints.
+/// the placement overlay above the world: the placement ghost (<see cref="PlacementPreview"/>) and the bridge span.
 /// </summary>
 public partial class World
 {
     /// <summary>Canvas layer of the placement overlay: above the world (0), under the HUD (20).</summary>
-    private const int PlacementLayer = 1;
+    internal const int PlacementLayer = 1;
 
     private Node2D? _placementOverlay;
 
@@ -326,35 +326,39 @@ public partial class World
         // Cells already taken by a pending plan are refused like occupied ones (sites count as buildings).
         ok = ok && !FootprintPlanned(hover, size);
 
-        var ghost = ok ? UiColors.PiazzamentoValido : UiColors.PiazzamentoNonValido;
-
-        for (var y = 0; y < size; y++)
-        {
-            for (var x = 0; x < size; x++)
-            {
-                var rect = new Rect2((hover.X + x) * TileSize, (hover.Y + y) * TileSize, TileSize, TileSize);
-                canvas.DrawRect(rect, ghost);
-                canvas.DrawRect(rect, UiColors.ContornoFantasma, false, 2f);
-            }
-        }
-
-        if (_tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
-            or BuildTool.Junction or BuildTool.Splitter
-            or BuildTool.Sorter or BuildTool.Bridge or BuildTool.Extractor)
-        {
-            // A belt touching the Core is planned facing it (as the simulation does): show that direction.
-            var direction = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
-                && CoreStockSink.PreferDirectionIntoCore(hover, _view.CoreTiles) is { } intoCore
-                    ? intoCore
-                    : _placeDir;
-            DrawDirectionHint(canvas, hover, direction);
-        }
+        // A belt touching the Core is planned facing it (as the simulation does): show that direction.
+        var belt = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
+        var direction = belt && CoreStockSink.PreferDirectionIntoCore(hover, _view.CoreTiles) is { } intoCore
+            ? intoCore
+            : _placeDir;
+        var rect = new Rect2(hover.X * TileSize, hover.Y * TileSize, size * TileSize, size * TileSize);
+        PlacementPreview.Draw(canvas, Hud.StructureIdFor(ToHudTool(_tool)), rect, direction, turnSprite: belt,
+            arrow: PlacementPreview.HasDirection(KindOf(_tool)), valid: ok);
 
         if (_tool == BuildTool.Bridge)
         {
             DrawBridgeGhost(canvas, hover);
         }
     }
+
+    /// <summary>Building kind the tool places (null for belts and the cursor).</summary>
+    private static BuildingKind? KindOf(BuildTool tool) => tool switch
+    {
+        BuildTool.Miner => BuildingKind.Miner,
+        BuildTool.MinerAdvanced => BuildingKind.MinerAdvanced,
+        BuildTool.Smelter => BuildingKind.Smelter,
+        BuildTool.Assembler => BuildingKind.Assembler,
+        BuildTool.Junction => BuildingKind.Junction,
+        BuildTool.Splitter => BuildingKind.Splitter,
+        BuildTool.Generator => BuildingKind.Generator,
+        BuildTool.Sorter => BuildingKind.Sorter,
+        BuildTool.Bridge => BuildingKind.Bridge,
+        BuildTool.Extractor => BuildingKind.Extractor,
+        BuildTool.PowerNode => BuildingKind.PowerNode,
+        BuildTool.PowerNodeT2 => BuildingKind.PowerNodeT2,
+        BuildTool.Lamp => BuildingKind.Lamp,
+        _ => null
+    };
 
     /// <summary>Footprint edge of the block the current tool places.</summary>
     private int GhostSize() => _tool switch
@@ -451,14 +455,5 @@ public partial class World
             canvas.DrawLine(a, b, mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
             return;
         }
-    }
-
-    private void DrawDirectionHint(CanvasItem canvas, GridPosition cell, Direction dir)
-    {
-        var center = CellCenter(cell);
-        var (dx, dy) = DirectionMath.ToOffset(dir);
-        var tip = center + new Vector2(dx, dy) * (TileSize * 0.32f);
-        canvas.DrawLine(center, tip, UiColors.DirezioneFantasma, 3f);
-        canvas.DrawCircle(tip, 4f, UiColors.DirezioneFantasma);
     }
 }

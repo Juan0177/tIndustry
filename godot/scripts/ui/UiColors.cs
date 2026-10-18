@@ -71,6 +71,22 @@ public static class UiColors
     /// <summary>The CORE (research tree root).</summary>
     public static readonly Color Core = new("59C7E6");
 
+    // Research tree (Mindustry: neutral greys for what you have, the accent for what you can research next).
+
+    /// <summary>Path from the selected node to the CORE.</summary>
+    public static readonly Color RicercaPercorso = new("EBC86E");
+
+    public static readonly Color RicercaNodo = new("212426");
+    public static readonly Color RicercaNodoBloccato = new("141617");
+
+    /// <summary>Edge of an unlocked node (an available one uses the accent, the CORE its own colour).</summary>
+    public static readonly Color RicercaSbloccato = new("9EA6A8");
+
+    public static readonly Color RicercaBloccato = new("3D4245");
+    public static readonly Color RicercaLineaSbloccata = new("8C9499");
+    public static readonly Color RicercaLineaDisponibile = new("C7A86B");
+    public static readonly Color RicercaLineaBloccata = new("383D40");
+
     // World overlays.
 
     /// <summary>Building: plans, sites, the drone's beam and engine.</summary>
@@ -79,17 +95,11 @@ public static class UiColors
     /// <summary>Taking apart: marks, sites, the drone's beam.</summary>
     public static readonly Color Smontaggio = new("E55454");
 
-    /// <summary>Ghost fill where the block can be placed.</summary>
-    public static readonly Color PiazzamentoValido = new(0.35f, 0.85f, 0.55f, 0.35f);
+    /// <summary>Outline (and arrow) of a block preview that can be placed: ghost and plans.</summary>
+    public static readonly Color FantasmaValido = Accento;
 
-    /// <summary>Ghost fill where the block is refused.</summary>
-    public static readonly Color PiazzamentoNonValido = new(0.9f, 0.25f, 0.2f, 0.35f);
-
-    /// <summary>Outline of every ghost cell.</summary>
-    public static readonly Color ContornoFantasma = new(0.9f, 0.95f, 0.85f, 0.9f);
-
-    /// <summary>Arrow of the direction a ghost will face.</summary>
-    public static readonly Color DirezioneFantasma = new(0.95f, 0.95f, 0.7f, 0.95f);
+    /// <summary>Outline, arrow and sprite tint of a block preview that is refused.</summary>
+    public static readonly Color FantasmaNonValido = Insufficiente;
 
     /// <summary>Bridge ghost: ends and span where the bridge fits.</summary>
     public static readonly Color PonteEstremi = new(0.7f, 0.85f, 1f, 0.55f);

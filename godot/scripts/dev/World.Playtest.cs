@@ -241,6 +241,13 @@ public partial class World
             return Fail("autosave su Continua senza una partita giocata");
         }
 
+        // Empty temp profile: Home has no Continua button at all.
+        _home?.RefreshContinua();
+        if (_home?.ContinuaShown != false)
+        {
+            return Fail("Home: pulsante Continua mostrato senza salvataggi");
+        }
+
         _settings.TutorialCompleted = true;
         // Home → Nuova partita, with the playtest seed in the field instead of a random one.
         OpenNewGamePanel(PlaytestSeed);
@@ -291,6 +298,19 @@ public partial class World
 
         await PlaytestKey(Key.Key2);
         await Shot("palette-info");
+        // The placement preview (Minatore, 2×2): on free ground (accent outline) and on the Core (red).
+        if (PlaytestFreeFootprint(Miner.Size) is { } free)
+        {
+            PlaytestMove(CellToScreen(free), 0);
+            await Shot("fantasma-valido");
+        }
+        else
+        {
+            return Fail("nessuna cella libera vicino al Core per il fantasma");
+        }
+
+        PlaytestMove(CellToScreen(new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y))), 0);
+        await Shot("fantasma-non-valido");
         await PlaytestKey(Key.Escape);
 
         await PlaytestKey(Key.M);
@@ -326,6 +346,13 @@ public partial class World
         if (!FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId))
         {
             return Fail("autosave su Continua mancante dopo una partita giocata");
+        }
+
+        // With the save, Home shows Continua again.
+        _home?.RefreshContinua();
+        if (_home?.ContinuaShown != true)
+        {
+            return Fail("Home: pulsante Continua assente con un salvataggio");
         }
 
         if (_view!.CoreDeliveredItems <= 0)
@@ -1185,6 +1212,37 @@ public partial class World
         });
 
     /// <summary>Saves the current frame; the image is released at once (not left to the finalizer).</summary>
+    /// <summary>
+    /// The free footprint of <paramref name="size"/> nearest to <paramref name="around"/> (default: the Core's corner),
+    /// searched on square rings from distance 3 to 10 in a fixed order, or null: for previews of a placeable block.
+    /// </summary>
+    private GridPosition? PlaytestFreeFootprint(int size, GridPosition? around = null)
+    {
+        if (_view is null || (around is null && _view.CoreTiles.Count == 0))
+        {
+            return null;
+        }
+
+        var centre = around ?? new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        for (var r = 3; r <= 10; r++)
+        {
+            for (var dy = -r; dy <= r; dy++)
+            {
+                for (var dx = -r; dx <= r; dx++)
+                {
+                    var cell = new GridPosition(centre.X + dx, centre.Y + dy);
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dy)) == r && _view.CanOccupyFootprint(cell, size)
+                        && !FootprintPlanned(cell, size))
+                    {
+                        return cell;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     private void SaveViewportPng(string path)
     {
         using var image = CaptureFrame();

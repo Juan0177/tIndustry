@@ -166,7 +166,77 @@ public partial class World
             }
         }
 
-        return await PlaytestGhostUnderCursorProblem(new GridPosition(coreX + 3, coreY + 1));
+        var probeCell = new GridPosition(coreX + 3, coreY + 1);
+        return await PlaytestReducedWorldUnderCursorProblem(target, probeCell, window)
+            ?? await PlaytestGhostUnderCursorProblem(probeCell);
+    }
+
+    /// <summary>
+    /// The reduced world is drawn under the cursor: a magenta square put on the world canvas over the hovered cell for
+    /// one frame must appear in the reduced image centred on the cursor (window pixels mapped to target pixels) within
+    /// a quarter of a cell, about one cell wide. Checks <see cref="RenderScale"/>'s transform, which the full-resolution
+    /// ghost no longer goes through.
+    /// </summary>
+    private async Task<string?> PlaytestReducedWorldUnderCursorProblem(SubViewport target, GridPosition cell, Vector2 window)
+    {
+        var mouse = CellToScreen(cell);
+        PlaytestMove(mouse, 0);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!_hover.Equals(cell))
+        {
+            return $"cella sotto il cursore {_hover}, attesa {cell}";
+        }
+
+        var probe = new ColorRect
+        {
+            Name = "ProvaMondoRidotto",
+            Color = Colors.Magenta,
+            Position = new Vector2(cell.X * TileSize, cell.Y * TileSize),
+            Size = new Vector2(TileSize, TileSize),
+            ZIndex = 100,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+        AddChild(probe);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        using var image = target.GetTexture().GetImage();
+        probe.QueueFree();
+
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+        for (var y = 0; y < image.GetHeight(); y++)
+        {
+            for (var x = 0; x < image.GetWidth(); x++)
+            {
+                var c = image.GetPixel(x, y);
+                if (c.R < 0.8f || c.G > 0.25f || c.B < 0.8f)
+                {
+                    continue;
+                }
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        if (maxX < 0)
+        {
+            return "nessuna cella di prova nell'immagine ridotta";
+        }
+
+        var scale = (Vector2)target.Size / window;
+        var cellPixels = TileSize * GetNode<Camera2D>("Camera").Zoom.X * GetTree().Root.GetFinalTransform().Scale.X * scale.X;
+        var centre = new Vector2(minX + maxX + 1, minY + maxY + 1) / 2f;
+        var expected = mouse * scale;
+        var box = new Vector2(maxX - minX + 1, maxY - minY + 1);
+        GD.Print($"SCALA {Mathf.RoundToInt(scale.X * 100)}%: cella di prova {box} px al centro {centre}, cursore {expected}, cella {cellPixels:0.0} px");
+        if (centre.DistanceTo(expected) > cellPixels / 4f || box.X > cellPixels * 1.5f || box.Y > cellPixels * 1.5f)
+        {
+            return $"mondo ridotto: cella di prova {box} px centrata in {centre}, cursore in {expected} (cella {cellPixels:0.0} px)";
+        }
+
+        return null;
     }
 
     /// <summary>

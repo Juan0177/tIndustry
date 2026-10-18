@@ -866,12 +866,17 @@ class TestGenera(unittest.TestCase):
 
     def test_carattere_copre_i_testi(self):
         # Every character the game can show (data/*.json and the C# string literals of the client and
-        # of Shared, comments excluded) has a glyph in carattere-testo.fnt; otherwise it would be a box.
-        with open(os.path.join(REPO, "godot", "assets", "ui", "carattere-testo.fnt"), encoding="utf-8") as f:
-            ids = {int(r.split("id=")[1].split(" ")[0]) for r in f if r.startswith("char id=")}
-        mancanti = sorted(f"{ascii(ch)} U+{ord(ch):04X} ({dove})" for ch, dove in _testi_del_gioco().items()
-                          if ch not in CONTROLLO and ord(ch) not in ids)
-        self.assertEqual([], mancanti)
+        # of Shared, comments excluded) has a glyph in both fonts (text and titles: level names and
+        # other texts can use either); otherwise it would be a box. Known scanner limits: \x and \U
+        # escapes are not decoded and literals nested inside interpolation holes are read as code.
+        testi = _testi_del_gioco()
+        for nome in FONT_UI:
+            with self.subTest(font=nome):
+                with open(os.path.join(REPO, "godot", "assets", "ui", f"{nome}.fnt"), encoding="utf-8") as f:
+                    ids = {int(r.split("id=")[1].split(" ")[0]) for r in f if r.startswith("char id=")}
+                mancanti = sorted(f"{ascii(ch)} U+{ord(ch):04X} ({dove})" for ch, dove in testi.items()
+                                  if ch not in CONTROLLO and ord(ch) not in ids)
+                self.assertEqual([], mancanti)
 
     def test_letterali_cs(self):
         # The C# literal scanner: comments skipped, escapes decoded, verbatim and char literals read.

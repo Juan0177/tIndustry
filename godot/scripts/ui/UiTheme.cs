@@ -65,7 +65,11 @@ public static class UiTheme
     public const string ColonnaLarga = "ColonnaLarga";
     public const string GrigliaLarga = "GrigliaLarga";
 
+    // MarginContainer variation: the content of a ScrollContainer, kept clear of its vertical bar.
+    public const string MargineBarra = "MargineBarra";
+
     private static Theme? _theme;
+    private static ulong _hookedLayer;
     private static FontFile? _textFont;
     private static FontFile? _titleFont;
 
@@ -86,6 +90,13 @@ public static class UiTheme
     public static void ApplyTo(Window window, CanvasLayer layer)
     {
         window.Theme = Theme;
+        // Idempotent: the layer's hook is added once, however often this is called.
+        if (_hookedLayer == layer.GetInstanceId())
+        {
+            return;
+        }
+
+        _hookedLayer = layer.GetInstanceId();
         foreach (var child in layer.GetChildren())
         {
             if (child is Control control)
@@ -358,6 +369,9 @@ public static class UiTheme
         t.SetTypeVariation(GrigliaLarga, "GridContainer");
         t.SetConstant("h_separation", GrigliaLarga, 12);
         t.SetConstant("v_separation", GrigliaLarga, 4);
+
+        t.SetTypeVariation(MargineBarra, "MarginContainer");
+        t.SetConstant("margin_right", MargineBarra, 14);
     }
 
     private static void BuildScrollAndTooltip(Theme t)

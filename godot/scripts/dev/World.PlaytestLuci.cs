@@ -132,8 +132,14 @@ public partial class World
             }
 
             // The placement ghost stays readable at night: its layer is not the darkened world canvas.
-            var ghostProblem = await NightGhostProblem(darkness, FootprintCenter(hot.Position, Crafter.Size));
-            await Shot("notte-fantasma");
+            var free = PlaytestFreeFootprint(1, hot.Position);
+            var ghostProblem = free is { } freeCell
+                ? await NightGhostProblem(darkness, freeCell)
+                : "nessuna cella libera per il fantasma di notte";
+            await Shot("notte-fantasma-valido");
+            PlaytestMove(CellToScreen(hot.Position), 0);
+            await Frames(2);
+            await Shot("notte-fantasma-non-valido");
             await PlaytestKey(Key.Escape);
             if (ghostProblem is not null)
             {
@@ -390,23 +396,27 @@ public partial class World
     }
 
     /// <summary>
-    /// With the belt tool over the cell three left of <paramref name="near"/> (world px; clear of the HUD), the ghost's
-    /// light outline is drawn at full brightness at night: its overlay is on another canvas than
-    /// <paramref name="darkness"/>, and the top edge of the ghost reads as bright as the outline colour (the night would
-    /// bring it to about a third). Leaves the tool selected for the capture.
+    /// With the belt tool over the free <paramref name="cell"/>, the preview's accent outline is drawn at full
+    /// brightness at night: its overlay is on another canvas than <paramref name="darkness"/>, and the top edge of the
+    /// ghost reads as bright as the outline colour (the night would bring it to about a third). Leaves the tool
+    /// selected for the capture.
     /// </summary>
-    private async Task<string?> NightGhostProblem(CanvasModulate darkness, Vector2 near)
+    private async Task<string?> NightGhostProblem(CanvasModulate darkness, GridPosition cell)
     {
         if (_placementOverlay is null || _placementOverlay.GetCanvas() == darkness.GetCanvas())
         {
             return "il fantasma di piazzamento è sulla tela scurita dalla notte";
         }
 
-        var cell = new GridPosition(Mathf.FloorToInt(near.X / TileSize) - 3, Mathf.FloorToInt(near.Y / TileSize));
         await PlaytestKey(Key.Key1);
         PlaytestMove(CellToScreen(cell), 0);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        if (!_hover.Equals(cell))
+        {
+            return $"cella sotto il cursore {_hover}, attesa {cell} (sotto l'HUD?)";
+        }
+
         var centre = CellToScreen(cell);
         var half = TileSize * GetNode<Camera2D>("Camera").Zoom.X * GetTree().Root.GetFinalTransform().Scale.Y / 2f;
         var brightest = 0f;

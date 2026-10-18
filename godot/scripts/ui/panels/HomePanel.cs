@@ -39,6 +39,9 @@ public partial class HomePanel : Control
 
     public bool IsOpen => Visible;
 
+    /// <summary>True while the Continua button is shown (there is a save to continue).</summary>
+    public bool ContinuaShown => _continuaBtn?.Visible == true;
+
     /// <summary>Shows a load error in place of the hint line (until the next refresh).</summary>
     public void ShowError(string message)
     {
@@ -59,8 +62,8 @@ public partial class HomePanel : Control
         var has = FactorySaveStore.Exists(FactorySaveStore.ContinueSlotId);
         if (_continuaBtn is not null)
         {
-            _continuaBtn.Disabled = !has;
-            _continuaBtn.Text = has ? "Continua" : "Continua (nessun salvataggio)";
+            // No save to continue: no button at all (not a disabled one).
+            _continuaBtn.Visible = has;
         }
 
         if (_hint is not null)
@@ -127,6 +130,7 @@ public partial class HomePanel : Control
         root.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
 
         _continuaBtn = MakeMenuButton("Continua", () => ContinuaChosen?.Invoke());
+        _continuaBtn.Name = "Continua";
         root.AddChild(_continuaBtn);
         root.AddChild(MakeMenuButton("Campagna", () => CampaignChosen?.Invoke()));
         root.AddChild(MakeMenuButton("Nuova partita", () => NewGameChosen?.Invoke()));

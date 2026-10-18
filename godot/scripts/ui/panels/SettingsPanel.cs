@@ -113,8 +113,10 @@ public partial class SettingsPanel : Control
         };
         root.AddChild(scroll);
 
+        var clear = new MarginContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.MargineBarra };
+        scroll.AddChild(clear);
         var options = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.ColonnaLarga };
-        scroll.AddChild(options);
+        clear.AddChild(options);
 
         AddSection(options, "Grafica");
         AddChoices(options, "Effetti", "Effetti",

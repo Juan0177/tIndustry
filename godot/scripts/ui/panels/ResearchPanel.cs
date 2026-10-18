@@ -13,7 +13,10 @@ public partial class ResearchPanel : Control
     private const float Margin = 28f;
 
     /// <summary>Top of the hint under the title row.</summary>
-    private const float HintTop = 60f;
+    private const float HintTop = 58f;
+
+    /// <summary>Height of the bottom row (Indietro and the status line) under the tree.</summary>
+    private const float BottomRow = 56f;
 
     private IGameView? _view;
     private Action<SimCommand>? _submit;
@@ -29,6 +32,8 @@ public partial class ResearchPanel : Control
     private Label? _detailZoom;
     private Label? _walletLabel;
     private Label? _hintLabel;
+    private Label? _legendLabel;
+    private HBoxContainer? _header;
     private Label? _statusLabel;
     private Button? _unlockButton;
     private Button? _backButton;
@@ -61,9 +66,9 @@ public partial class ResearchPanel : Control
         if (_canvas is not null)
         {
             _canvas.Graph = _graph;
-            _canvas.ResetView();
             _canvas.SelectedId = _selectedId;
             _canvas.Research = factory.Research;
+            _canvas.ResetView();
         }
 
         Visible = true;
@@ -130,30 +135,31 @@ public partial class ResearchPanel : Control
         bg.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(bg);
 
-        var header = new HBoxContainer { Position = new Vector2(28, 18), ThemeTypeVariation = UiTheme.RigaLarga };
-        AddChild(header);
+        // Title row: icon, "Ricerca", the funds on the right.
+        _header = new HBoxContainer { Position = new Vector2(Margin, 18), ThemeTypeVariation = UiTheme.RigaLarga };
+        AddChild(_header);
         var icon = HudStyle.MakeIcon(UiTheme.Icon("ricerca"), 32, pixel: true);
         icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        header.AddChild(icon);
-        header.AddChild(new Label { Text = "Ricerca", ThemeTypeVariation = UiTheme.Titolo });
+        _header.AddChild(icon);
+        _header.AddChild(new Label { Text = "Ricerca", ThemeTypeVariation = UiTheme.Titolo, SizeFlagsHorizontal = SizeFlags.ExpandFill });
+        _walletLabel = new Label { Text = "Fondi: $0", ThemeTypeVariation = UiTheme.TestoDenaro, VerticalAlignment = VerticalAlignment.Center };
+        _header.AddChild(_walletLabel);
 
         _hintLabel = new Label
         {
-            Text = "Trascina per muoverti · rotella = zoom · click su un nodo per i dettagli · H = vista intera · T / Esc chiude",
-            Position = new Vector2(Margin, HintTop),
+            Text = "Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = UiTheme.TestoTenue
         };
         AddChild(_hintLabel);
 
-        _walletLabel = new Label
+        _legendLabel = new Label
         {
-            Text = "Fondi: $0",
-            Position = new Vector2(Margin, HintTop + 26),
+            Text = "Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = UiTheme.TestoTenue
         };
-        AddChild(_walletLabel);
+        AddChild(_legendLabel);
 
         _canvas = new TechTreeCanvas { Name = "TechTreeCanvas" };
         _canvas.NodeSelected += SelectId;
@@ -164,18 +170,30 @@ public partial class ResearchPanel : Control
         _detailPanel = new PanelContainer { Name = "Detail", ThemeTypeVariation = UiTheme.Scheda };
         AddChild(_detailPanel);
 
-        var detailRoot = new VBoxContainer();
+        // The text scrolls inside the card; the unlock button and the zoom line stay at its bottom.
+        var detailRoot = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         _detailPanel.AddChild(detailRoot);
+        var detailScroll = new ScrollContainer
+        {
+            Name = "DetailScroll",
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
+        };
+        detailRoot.AddChild(detailScroll);
+        var clear = new MarginContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.MargineBarra };
+        detailScroll.AddChild(clear);
+        var lines = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        clear.AddChild(lines);
 
-        _detailTitle = new Label { Text = "—", ThemeTypeVariation = UiTheme.TitoloChiaro };
-        detailRoot.AddChild(_detailTitle);
+        _detailTitle = new Label { Text = "—", ThemeTypeVariation = UiTheme.TitoloChiaro, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        lines.AddChild(_detailTitle);
 
-        _detailUsage = DetailLine(detailRoot);
+        _detailUsage = DetailLine(lines);
         _detailState = new Label { Text = "" };
-        detailRoot.AddChild(_detailState);
-        _detailCost = DetailLine(detailRoot);
-        _detailPrereq = DetailLine(detailRoot);
-        _detailManca = DetailLine(detailRoot);
+        lines.AddChild(_detailState);
+        _detailCost = DetailLine(lines);
+        _detailPrereq = DetailLine(lines);
+        _detailManca = DetailLine(lines);
         _detailManca.ThemeTypeVariation = UiTheme.TestoRosso;
 
         _unlockButton = new Button
@@ -189,8 +207,9 @@ public partial class ResearchPanel : Control
 
         _detailZoom = new Label
         {
-            Text = "Zoom 1.00× · percorso evidenziato sul grafo",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            Text = "Zoom 1.00×",
+            ClipText = true,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             ThemeTypeVariation = UiTheme.TestoTenue
         };
         detailRoot.AddChild(_detailZoom);
@@ -226,9 +245,14 @@ public partial class ResearchPanel : Control
             return;
         }
 
-        // Hint and funds wrap to the window width; the tree and the detail start under them.
+        if (_header is not null)
+        {
+            _header.Size = new Vector2(size.X - Margin * 2f, 0f);
+        }
+
+        // Hint and legend wrap to the window width; the tree and the detail start under them.
         var top = HintTop;
-        foreach (var line in new[] { _hintLabel, _walletLabel })
+        foreach (var line in new[] { _hintLabel, _legendLabel })
         {
             if (line is null)
             {
@@ -240,11 +264,13 @@ public partial class ResearchPanel : Control
             top += line.GetLineCount() * line.GetLineHeight() + 2f;
         }
 
-        var contentTop = top + 12f;
+        var contentTop = top + 8f;
+        // The tree, the detail card and the bottom row (Indietro, status) share the height left.
+        var contentBottom = size.Y - BottomRow;
         var detailW = Math.Clamp(size.X * 0.3f, 300f, 400f);
         var detailX = size.X - detailW - 28f;
         var detailY = contentTop;
-        var detailH = Math.Max(220f, size.Y - detailY - 90f);
+        var detailH = Math.Max(200f, contentBottom - detailY);
 
         if (_detailPanel is not null)
         {
@@ -257,7 +283,7 @@ public partial class ResearchPanel : Control
             var canvasX = 24f;
             var canvasY = contentTop;
             var canvasW = Math.Max(280f, detailX - canvasX - 16f);
-            var canvasH = Math.Max(200f, size.Y - canvasY - 90f);
+            var canvasH = Math.Max(200f, contentBottom - canvasY);
             _canvas.Position = new Vector2(canvasX, canvasY);
             _canvas.Size = new Vector2(canvasW, canvasH);
             _canvas.QueueRedraw();
@@ -265,13 +291,13 @@ public partial class ResearchPanel : Control
 
         if (_backButton is not null)
         {
-            _backButton.Position = new Vector2(28, size.Y - 70);
+            _backButton.Position = new Vector2(Margin, size.Y - BottomRow + 8f);
             _backButton.Size = new Vector2(180, 40);
         }
 
         if (_statusLabel is not null)
         {
-            _statusLabel.Position = new Vector2(230, size.Y - 62);
+            _statusLabel.Position = new Vector2(230, size.Y - BottomRow + 14f);
             _statusLabel.Size = new Vector2(Math.Max(200, size.X - 260), 28);
         }
     }
@@ -306,9 +332,7 @@ public partial class ResearchPanel : Control
 
         if (_walletLabel is not null)
         {
-            _walletLabel.Text =
-                $"Fondi: ${_view.Wallet.Money}   ·   bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente";
-            LayoutChrome();
+            _walletLabel.Text = $"Fondi: ${_view.Wallet.Money}";
         }
 
         RefreshDetail();
@@ -322,7 +346,7 @@ public partial class ResearchPanel : Control
     {
         if (_detailZoom is not null && _canvas is not null)
         {
-            _detailZoom.Text = $"Zoom {_canvas.Zoom:0.00}× · percorso evidenziato sul grafo";
+            _detailZoom.Text = $"Zoom {_canvas.Zoom:0.00}×";
         }
     }
 

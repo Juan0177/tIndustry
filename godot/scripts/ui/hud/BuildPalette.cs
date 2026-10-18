@@ -126,6 +126,7 @@ public partial class BuildPalette : PanelContainer
         AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica", "Logistica");
         AddCategoryButton(catRail, BuildCategory.Production, "cat-produzione", "Produzione");
         AddCategoryButton(catRail, BuildCategory.Power, "cat-potenza", "Potenza");
+        SyncCategoryButtons();
     }
 
     /// <summary>Select a tool (no event); switches to its category unless it is the cursor.</summary>
@@ -141,8 +142,13 @@ public partial class BuildPalette : PanelContainer
         RefreshToolChrome();
     }
 
+    /// <summary>
+    /// Locked blocks (not yet researched) are left out of the palette, and a category with none unlocked loses its
+    /// button; an unlock shows the block at once. The grid is rebuilt only when the locked set changes.
+    /// </summary>
     public void SetLocked(IEnumerable<(ToolKind Tool, bool Locked)> states)
     {
+        var changed = false;
         foreach (var (tool, locked) in states)
         {
             if (tool == ToolKind.Cursor)
@@ -150,17 +156,25 @@ public partial class BuildPalette : PanelContainer
                 continue;
             }
 
-            if (locked)
-            {
-                _lockedTools.Add(tool);
-            }
-            else
-            {
-                _lockedTools.Remove(tool);
-            }
+            changed |= locked ? _lockedTools.Add(tool) : _lockedTools.Remove(tool);
+        }
+
+        if (changed)
+        {
+            SyncCategoryButtons();
+            RebuildGrid();
         }
 
         RefreshToolChrome();
+    }
+
+    /// <summary>A category button shows only while one of its blocks is unlocked (Strumenti always: the cursor).</summary>
+    private void SyncCategoryButtons()
+    {
+        foreach (var (category, slot) in _categorySlots)
+        {
+            slot.Visible = EntriesFor(category).Any(e => !_lockedTools.Contains(e.Tool));
+        }
     }
 
     public bool IsLocked(ToolKind tool) => _lockedTools.Contains(tool);
@@ -300,7 +314,16 @@ public partial class BuildPalette : PanelContainer
 
         foreach (var entry in EntriesFor(_category))
         {
-            AddPaletteCell(_blockGrid, entry);
+            if (!_lockedTools.Contains(entry.Tool))
+            {
+                AddPaletteCell(_blockGrid, entry);
+            }
+        }
+
+        if (_hovered is { } hovered && !_toolSlots.ContainsKey(hovered))
+        {
+            _hovered = null;
+            Hovered?.Invoke(null);
         }
     }
 
