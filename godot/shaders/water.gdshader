@@ -19,9 +19,11 @@ void vertex() {
 	world = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 }
 
-// Integer hash of a lattice point, in [0, 1]: no sin(), so far-away cells keep their precision.
+// Integer hash of a lattice point, in [0, 1]: no sin(), so far-away cells keep their precision. The lattice
+// repeats every 256 points, so with drift speeds in hundredths the ripples repeat exactly every 25600 s
+// (TerrainChunks.WaterPeriod) and the caller's clock wraps there without a jump.
 float lattice(vec2 p) {
-	uvec2 q = uvec2(ivec2(p));
+	uvec2 q = uvec2(ivec2(p)) & uvec2(255u);
 	uint v = (q.x * 1597334677u) ^ (q.y * 3812015801u);
 	v = (v ^ (v >> 16u)) * 73244475u;
 	v ^= v >> 16u;

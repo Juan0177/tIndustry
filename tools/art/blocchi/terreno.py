@@ -33,7 +33,7 @@ import zlib
 import forme
 from blocchi import sprite
 from blocchi.oggetti import OGGETTI
-from palette import (ERBA, GHIACCIO, MUSCHIO, NEVE, OUT, PARETE_ARBUSTI, PARETE_GHIACCIO,
+from palette import (CARBONE, ERBA, FULIGGINE, GHIACCIO, MUSCHIO, NEVE, OUT, PARETE_ARBUSTI, PARETE_GHIACCIO,
                      PARETE_PIETRA, PARETE_SABBIA, PARETI, SABBIA, SABBIA_SCURA, SUOLI)
 
 T = 32
@@ -469,10 +469,16 @@ def _ellisse(cx, cy, rx, ry):
             if ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1}
 
 
+# Ore pebbles drawn with a ramp of their own: near-black coal would read as holes on dark floors
+# (basalt) and light ones (gravel), so its lumps get coal-dark bodies with a light lit edge and a
+# glint (shadow, mid, light, highlight = CARBONE[1], CARBONE[2], FULIGGINE[3], FULIGGINE[4]).
+RAMPE_GIACIMENTO = {"coal": [CARBONE[0], CARBONE[1], CARBONE[2], FULIGGINE[3], FULIGGINE[4]]}
+
+
 @functools.lru_cache(maxsize=None)
 def _giacimento(minerale, variante):
     """5-7 ore pebbles scattered over the cell, never touching: the floor stays visible."""
-    _, rampa, _ = OGGETTI[minerale]
+    rampa = RAMPE_GIACIMENTO.get(minerale) or OGGETTI[minerale][1]
     dadi = _Dadi(_seme("giacimento", minerale, variante))
     im = forme.nuova(T, T)
     presi = []
@@ -486,6 +492,8 @@ def _giacimento(minerale, variante):
             continue
         presi.append((x, y))
         _sasso(im, forme.smussato(x, y, x + lato - 1, y + lato - 1, 1), rampa)
+        if minerale in RAMPE_GIACIMENTO:
+            forme.pixel(im, x + 1, y + 1, rampa[-1])  # glint on the lit corner
     return forme.componi(forme.ombra(im, 60), im)
 
 

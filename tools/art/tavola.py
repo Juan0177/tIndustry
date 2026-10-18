@@ -112,7 +112,8 @@ def pezzi_mappa(celle, ox=0, oy=0):
             if minerale:
                 variante = tr.hash_cella(mx, my, tr.SALE_GIACIMENTO) % tr.GIACIMENTI
                 pezzi.append((f"giacimento-{minerale}-{variante}", 0, px, py))
-            elif parete is None and suolo not in tr.ACQUA and bioma in tr.DENSITA_DECO                     and tr.hash_cella(mx, my, tr.SALE_DECO) % 100 < tr.DENSITA_DECO[bioma]:
+            elif (parete is None and suolo not in tr.ACQUA and bioma in tr.DENSITA_DECO
+                  and tr.hash_cella(mx, my, tr.SALE_DECO) % 100 < tr.DENSITA_DECO[bioma]):
                 k = tr.hash_cella(mx, my, tr.SALE_DECO_TIPO) % tr.DECORAZIONI
                 pezzi.append((f"deco-{bioma}-{k}", 0, px, py))
     pareti = sorted({c[1] for riga in celle for c in riga if c[1]})

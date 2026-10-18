@@ -82,6 +82,16 @@ public partial class TerrainChunks : Node2D
     /// <summary>True when the last <see cref="Sync"/> drew the art level of detail.</summary>
     public bool ArtShown => _artLayer.Visible;
 
+    /// <summary>
+    /// Period (s) of the water ripples: <c>water.gdshader</c> repeats exactly after it (lattice of 256 cells, drift
+    /// speeds in hundredths), so the clock wraps without a jump.
+    /// </summary>
+    public const double WaterPeriod = 25600.0;
+
+    /// <summary>True when cell (<paramref name="x"/>, <paramref name="y"/>) is drawn with its art now.</summary>
+    public bool HasArtAt(int x, int y) =>
+        _artLayer.Visible && _art.Contains(new Vector2I(x / ArtChunkCells, y / ArtChunkCells));
+
     public override void _Ready()
     {
         // World draws deposits, grid and ghost in its own _Draw: the terrain goes under them.
@@ -99,7 +109,7 @@ public partial class TerrainChunks : Node2D
         // Playtests keep the ripples still, like the other clocks, so captures are stable.
         if (_artLayer.Visible && !GameDataPaths.IsPlaytest)
         {
-            _waterTime = (_waterTime + delta) % 3600.0;
+            _waterTime = (_waterTime + delta) % WaterPeriod;
             _water.SetShaderParameter("time", (float)_waterTime);
         }
     }
@@ -383,6 +393,8 @@ public partial class TerrainChunks : Node2D
         private readonly LinkedList<Chunk> _lru = new();
 
         public int Count => _chunks.Count;
+
+        public bool Contains(Vector2I key) => _chunks.ContainsKey(key);
 
         /// <summary>Moves chunk <paramref name="key"/> to the front; false when it is not built.</summary>
         public bool Touch(Vector2I key)

@@ -648,6 +648,8 @@ public partial class World
     /// <summary>Waits (at most 10 s) until the terrain art of the view is composed, so captures never catch colours.</summary>
     private async Task PlaytestTerrainReady()
     {
+        // One frame first: the counters must come from a Sync after the latest camera move or zoom.
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         for (var i = 0; i < 600 && _terrainChunks is { ArtShown: true, ArtPending: > 0 }; i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

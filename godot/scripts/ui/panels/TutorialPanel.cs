@@ -33,7 +33,7 @@ public partial class TutorialPanel : Control
     [
         "Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.",
         "La palette è in basso a destra: Lo = Logistica, Pr = Produzione, Po = Potenza. Scegli uno strumento (o premi 1–9). Esc torna al cursore.",
-        "Premi 2 (Minatore) e piazzalo su un giacimento di ferro (rocce grigie) vicino al CORE. R ruota l'uscita. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.",
+        "Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. R ruota l'uscita. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.",
         "Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.",
         "Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.",
         "Premi T per aprire la RICERCA: con soldi e lastre sblocchi il FORNO e gli altri edifici.",
