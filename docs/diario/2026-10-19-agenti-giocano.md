@@ -87,7 +87,7 @@ Il passo di verifica del piano stesso: un agente (opus, in un worktree) ha gioca
 
 ## Problemi rinviati
 
-- **Esc nella Home iniziale non fa nulla** (minore, `godot/scripts/ui/panels/HomePanel.cs`): il brief diceva «Fuori partita resta tutto com'è» e insieme «Esc non esce mai senza un pulsante»; due regole in contrasto. Decide l'utente; tornare indietro è una riga.
+- **Esc nella Home iniziale non fa nulla** (minore, `godot/scripts/ui/panels/HomePanel.cs`): il brief aveva due regole in contrasto. L'utente ha deciso il 2026-10-19 che Esc nella Home iniziale chiede conferma prima di uscire (ramo `fix/home-esc-conferma`).
 - **`SyncGame` tiene un `_game` staccato** (`godot/scripts/dev/AgentBridge.cs`, circa riga 416): con `_world.AgentHost` nullo dopo un primo caricamento fallito (`DetachGame`) i comandi andrebbero all'host staccato. Correzione indicata: `Dispose` e `_game = null`.
 - **`Reachable` ignora le `Window` popup** (`AgentBridge.cs`, circa riga 1137): con un dialogo aperto i controlli dell'HUD sotto restano elencati come raggiungibili; copre solo i modali `Window`, non i `ColorRect`.
 - **Messaggio «'secondi' tra 0 e 120»** (`GameEngine.cs`, `AgentBridge.cs`): lo 0 è rifiutato; la descrizione dello strumento dice giustamente «più di 0».
@@ -112,7 +112,7 @@ Dai rapporti dell'ondata finale e della sua rilettura:
 
 ## Da fare
 
-- **L'utente decide** Esc nella Home iniziale e giudica l'arte dell'unione laterale (#216), poi riconciliazione di `BeltShape` con la #217.
+- **L'utente giudica** l'arte dell'unione laterale (#216), poi riconciliazione di `BeltShape` con la #217.
 - Piano **nastri-mindustry**: trascinamento in linea per tutti i blocchi, ponte automatico, rotazione sul posto, incrocio senza giunzione, nastro rinforzato.
 - Correzione dei minori del ponte (N2, N3, N4) e del test di `IsInside`, quando passa un giro su `AgentBridge`.
 - Dopo questo piano resta in roadmap il generatore `biomi-2`.
