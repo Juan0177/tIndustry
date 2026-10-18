@@ -382,7 +382,8 @@ public partial class World
     /// Art check (only with <c>TINDUSTRY_PLAYTEST_BLOCCHI=1</c>), no pass/fail: builds every production and power
     /// block twice, idle (off a deposit, no input, no fuel) and working (miners on a deposit, the advanced one beside a
     /// burning generator, smelter and assembler fed), and saves <c>ui-blocchi-spenti.png</c>,
-    /// <c>ui-blocchi-accesi.png</c> and both groups at zoom 0.4 (<c>ui-blocchi-zoom04.png</c>).
+    /// <c>ui-blocchi-accesi.png</c>, both groups at zoom 0.4 (<c>ui-blocchi-zoom04.png</c>) and the Core with its drone
+    /// up close (<c>ui-blocchi-core.png</c>).
     /// </summary>
     private async Task PlaytestBlocksShotAsync(string dir)
     {
@@ -509,6 +510,8 @@ public partial class World
         await Frame(onMin, onMax, Fit(onMin, onMax), "accesi");
         var all = onCells.Append(off).Append(offMax).ToArray();
         await Frame(new GridPosition(all.Min(c => c.X), all.Min(c => c.Y)), new GridPosition(all.Max(c => c.X), all.Max(c => c.Y)), 0.4f, "zoom04");
+        // Close-up of the Core (core-1 with its nucleus light) and the drone resting beside it.
+        await Frame(new GridPosition(core.X - 2, core.Y - 1), new GridPosition(core.X + 3, core.Y + 2), 2f, "core");
         GD.Print($"PLAYTEST blocchi: spenti da {off}, accesi da {on}, {on2} e {crafters}; "
                  + $"minatori al lavoro {factory.Miners.Count(m => m.Efficiency > 0f)}, alimentati {factory.Miners.Count(m => m.IsPowered)}, "
                  + $"forni/assemblatori attivi {factory.Smelters.Concat(factory.Assemblers).Count(c => c.IsCrafting)}, "

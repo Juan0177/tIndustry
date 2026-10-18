@@ -91,7 +91,6 @@ public partial class World : Node2D
     private Texture2D? _coalTex;
     private Texture2D? _leadOreTex;
     private Texture2D? _titaniumOreTex;
-    private Texture2D? _coreTex;
     private bool _returnHomeAfterCampaign;
 
     public override void _Ready()
@@ -140,7 +139,6 @@ public partial class World : Node2D
         _coalTex = GD.Load<Texture2D>("res://assets/coal.png");
         _leadOreTex = GD.Load<Texture2D>("res://assets/lead-ore.png");
         _titaniumOreTex = GD.Load<Texture2D>("res://assets/titanium-ore.png");
-        _coreTex = GD.Load<Texture2D>("res://assets/core.png");
 
         EnsureBeltVisual();
         RebuildBeltVisual();

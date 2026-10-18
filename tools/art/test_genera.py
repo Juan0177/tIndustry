@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from PIL import ImageChops
+from PIL import Image, ImageChops
 
 ART_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(ART_DIR, "..", ".."))
@@ -18,7 +18,7 @@ if ART_DIR not in sys.path:
 import forme  # noqa: E402
 import genera  # noqa: E402
 from blocchi import FOTOGRAMMA, SPRITE, sprite  # noqa: E402
-from palette import ACCENTO, BAGLIORE, METALLO, RAME, RAMPE  # noqa: E402
+from palette import ACCENTO, BAGLIORE, METALLO, NUCLEO, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
@@ -30,8 +30,12 @@ CELLE = {
     "power-node-t2": 2,
     "extractor": 1, "power-node": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
-    "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
+    "core": 2, "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
 }
+CORE_TIER = 4
+CORE_LUCE_FOTOGRAMMI = 4
+# Drone tiers seen from above, nose to the East: square sprites of this side (alpha, beta, gamma).
+DRONI = {"drone-1": 24, "drone-2": 28, "drone-3": 32}
 
 
 def _content():
@@ -67,6 +71,9 @@ def errore_misura(nome, im):
         return None if (w, h) == (BELT_ITEM, BELT_ITEM) else f"{nome}: {w}x{h}, atteso {BELT_ITEM}x{BELT_ITEM}"
     if base in _item_ids():
         return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
+    if base in DRONI:
+        lato = DRONI[base]
+        return None if (w, h) == (lato, lato) else f"{nome}: {w}x{h}, atteso {lato}x{lato}"
     # Block or block part: "<id>" or "<id>-<parte>" with a known footprint.
     block = next((b for b in sorted(CELLE, key=len, reverse=True)
                   if base == b or base.startswith(b + "-")), None)
@@ -149,6 +156,57 @@ class TestGenera(unittest.TestCase):
         self.assertIsNotNone(errore_misura("iron-ore-belt", forme.nuova(T, T)))
         self.assertIsNotNone(errore_misura("smelter-anim", forme.nuova(5 * T, 2 * T + 1)))
         self.assertIsNone(errore_misura("smelter-anim", forme.nuova(6 * T, 2 * T)))
+        self.assertIsNotNone(errore_misura("core-3", forme.nuova(3 * T, 3 * T)))
+        self.assertIsNotNone(errore_misura("core-4-light-anim", forme.nuova(4 * 4 * T, 4 * T)))
+        self.assertIsNone(errore_misura("core-4-light-anim", forme.nuova(4 * 5 * T, 5 * T)))
+        self.assertIsNotNone(errore_misura("drone-2", forme.nuova(24, 24)))
+        self.assertIsNone(errore_misura("drone-2", forme.nuova(28, 28)))
+
+    def test_copertura_tier(self):
+        # The four Core tiers with their light strip, the HUD/research icon and the three drones.
+        attesi = {"core"} | {f"core-{n}" for n in range(1, CORE_TIER + 1)}
+        attesi |= {f"core-{n}-light-anim" for n in range(1, CORE_TIER + 1)} | set(DRONI)
+        self.assertEqual([], sorted(attesi - set(SPRITE)))
+
+    def test_core(self):
+        self.assertEqual(SPRITE["core-1"]().tobytes(), SPRITE["core"]().tobytes())
+        lampade = []
+        for n in range(1, CORE_TIER + 1):
+            with self.subTest(tier=n):
+                core = SPRITE[f"core-{n}"]()
+                fotogrammi = fotogrammi_di(SPRITE[f"core-{n}-light-anim"]())
+                self.assertEqual(CORE_LUCE_FOTOGRAMMI, len(fotogrammi))
+                # The core body is opaque all over its footprint except the cut corners.
+                self.assertEqual(255, core.getpixel((core.width // 2, 2))[3])
+                for f in fotogrammi:
+                    # Light frames are opaque discs over the nucleus: stacked on the icon they replace
+                    # it, they never add to it (no double glow).
+                    self.assertEqual({0, 255}, set(f.getchannel("A").tobytes()))
+                    sopra = forme.componi(core, f)
+                    self.assertEqual(sopra.getbbox(), core.getbbox())
+                self.assertEqual(core.tobytes(), forme.componi(core, fotogrammi[0]).tobytes())
+                self.assertNotEqual(fotogrammi[0].tobytes(), fotogrammi[2].tobytes(), "la luce non cambia")
+                px = core.tobytes()
+                lampade.append(sum(1 for i in range(0, len(px), 4) if tuple(px[i:i + 3]) == NUCLEO[-1]))
+        # Each tier is grander: more lit cyan highlights than the one below.
+        self.assertEqual(sorted(lampade), lampade)
+        self.assertEqual(len(set(lampade)), len(lampade))
+
+    def test_droni(self):
+        sagome = []
+        for nome, lato in DRONI.items():
+            with self.subTest(drone=nome):
+                im = SPRITE[nome]()
+                alfa = im.getchannel("A")
+                # Mirror-symmetric across the flight axis (West-East), nose on the East edge.
+                self.assertEqual(alfa.tobytes(), alfa.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes())
+                x0, y0, x1, y1 = alfa.getbbox()
+                self.assertEqual(lato, x1, f"{nome}: il muso non arriva al bordo Est")
+                naso = [y for y in range(lato) if alfa.getpixel((x1 - 1, y))]
+                self.assertTrue(naso and max(naso) - min(naso) <= 3, f"{nome}: muso non a punta")
+                self.assertEqual((0, 0, 0, 0), im.getpixel((0, 0)))
+                sagome.append(alfa.resize((32, 32)).tobytes())
+        self.assertEqual(len(set(sagome)), len(sagome))
 
     def test_tavolozza(self):
         for nome, rampa in RAMPE.items():

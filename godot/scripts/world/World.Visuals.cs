@@ -170,6 +170,16 @@ public partial class World
             return;
         }
 
+        if (!PlaytestRequested)
+        {
+            _coreLightClock = (_coreLightClock + delta) % 3600f;
+        }
+
+        if (_coreLight is not null && IsInstanceValid(_coreLight))
+        {
+            _coreLight.Texture = CoreLightFrame();
+        }
+
         foreach (var child in _buildingsLayer.GetChildren())
         {
             switch (child)
@@ -436,7 +446,24 @@ public partial class World
     /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
     private const int ConstructionZ = 20;
 
-    /// <summary>CORE sprite + outline as a building node (z above belt items).</summary>
+    /// <summary>The Core in game is tier 1 (2×2); tiers 2–4 exist only as sprites until the tier sub-project.</summary>
+    private const string CoreSpriteId = "core-1";
+
+    /// <summary>Slow pulse of the nucleus light: 4 frames, looped.</summary>
+    private const float CoreLightFramesPerSecond = 2.5f;
+
+    /// <summary>
+    /// World clock of the nucleus light: it outlives <see cref="RebuildBuildingVisuals"/>, so the pulse does not
+    /// restart on every build. It stays at 0 in playtests, so screenshots always show the same frame.
+    /// </summary>
+    private float _coreLightClock;
+
+    private Sprite2D? _coreLight;
+
+    /// <summary>
+    /// CORE as a building node (z above belt items): the <c>core-1</c> body, its nucleus light looping slowly on top
+    /// (each frame is an opaque disc that replaces the nucleus) and the cyan outline.
+    /// </summary>
     private void AddCoreVisual()
     {
         if (_view is null || _buildingsLayer is null || _view.CoreTiles.Count == 0)
@@ -455,23 +482,24 @@ public partial class World
             ZIndex = 3,
             Position = new Vector2(minX * TileSize, minY * TileSize)
         };
-        if (_coreTex is not null)
+        var body = Sprites.For(CoreSpriteId);
+        root.AddChild(new Sprite2D
         {
-            root.AddChild(new Sprite2D
-            {
-                Texture = _coreTex,
-                Centered = false,
-                Scale = size / _coreTex.GetSize()
-            });
-        }
-        else
+            Name = "Body",
+            Texture = body,
+            Centered = false,
+            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+            Scale = size / body.GetSize()
+        });
+        _coreLight = new Sprite2D
         {
-            root.AddChild(new Polygon2D
-            {
-                Color = new Color(0.18f, 0.32f, 0.48f, 1f),
-                Polygon = [Vector2.Zero, new(size.X, 0), size, new(0, size.Y)]
-            });
-        }
+            Name = "Light",
+            Texture = CoreLightFrame(),
+            Centered = false,
+            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+            Scale = size / body.GetSize()
+        };
+        root.AddChild(_coreLight);
 
         root.AddChild(new Line2D
         {
@@ -481,5 +509,12 @@ public partial class World
             DefaultColor = new Color(0.35f, 0.78f, 0.9f, 1f)
         });
         _buildingsLayer.AddChild(root);
+    }
+
+    /// <summary>Frame of the nucleus light for the world clock (held on frame 1 in playtests: stable captures).</summary>
+    private Texture2D CoreLightFrame()
+    {
+        var frames = Sprites.Frames(CoreSpriteId + "-light");
+        return frames[(int)(_coreLightClock * CoreLightFramesPerSecond) % frames.Length];
     }
 }
