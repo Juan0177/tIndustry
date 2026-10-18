@@ -29,7 +29,7 @@ Un branch per task (`feat/g4-<n>-...`), ciascuno fuso in `main` a revisione puli
 
 CI `build-publish.yml` lanciata a mano e verde su ogni task: T1 39122419867, T2 39125238680 (correzioni 39127363127), T3 39130469319, T4 39137087323 (correzioni 39138580073), T5 verde (correzioni 39143528759), T6 39145016178, ondata finale 39147425329. Ripubblicazione del sito dopo la fusione: `pages.yml` 39147776982.
 
-Test superati (rapporti dei task): T2 361 (2 ignorati); T4 385, dopo le correzioni 386; T5 386. Test Python di `tools/art`: 32 al T1, 34 al T2, 35 al T5, 34 al T6; 12 test del sito al T6. Dal T2: `StyleBoxFlat` nel codice da 15 a 0, override locali da 272 a 0.
+Test superati (rapporti dei task): T2 361 (2 ignorati); T3 361; T4 385, dopo le correzioni 386; T5 386; T6 e ondata finale 386 (2 ignorati). Test Python di `tools/art`: 32 al T1, 34 al T2, 35 al T5, 34 al T6; 12 test del sito al T6. Dal T2: `StyleBoxFlat` nel codice da 15 a 0, override locali da 272 a 0.
 
 ## Giri di revisione
 
