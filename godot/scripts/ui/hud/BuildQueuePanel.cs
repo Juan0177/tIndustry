@@ -46,6 +46,7 @@ public partial class BuildQueuePanel : PanelContainer
             // New language: the tooltip now, the missing line at the next sync.
             TooltipText = Testi.T("coda.suggerimento");
             _missingShown = null;
+            _structureId = null; // the site name too
         }
     }
 
@@ -120,7 +121,7 @@ public partial class BuildQueuePanel : PanelContainer
 
             if (_name is not null)
             {
-                _name.Text = view.Content.FindStructure(spec.StructureId)?.DisplayName ?? spec.StructureId;
+                _name.Text = Testi.Struttura(spec.StructureId, view.Content);
             }
         }
 
