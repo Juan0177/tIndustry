@@ -38,12 +38,12 @@ public sealed class Tools(Sessions sessions, GameData data)
     [McpServerTool(Name = "apri_simulazione")]
     [Description("Apre una partita nella sola simulazione (senza grafica, ferma finché non avanzi): la scelta veloce per provare regole e comandi.")]
     public string ApriSimulazione(
-        [Description("Misura della mappa: Media, Grande, Enorme o un numero di celle per lato (12-2000).")] string misura = "Media",
+        [Description("Misura della mappa: il nome Media (1000), Grande (1500) o Enorme (2000), oppure un numero di celle per lato tra 12 e 2000 (64 o \"64\").")] JsonElement? misura = null,
         [Description("Seme del terreno.")] int seme = 1,
         [Description("Generatore del terreno: biomi-1 o classico.")] string generatore = MapGenerator.Name,
         [Description("Id di un livello della campagna (ignora misura e generatore).")] string? livello = null,
-        [Description("Percorso di un file di salvataggio da caricare.")] string? salvataggio = null,
-        [Description("Costruzione istantanea, senza drone e cantieri.")] bool costruzioneIstantanea = false,
+        [Description("Percorso di un file di salvataggio da caricare (copialo prima in una cartella temporanea: i salvataggi veri del giocatore sono rifiutati).")] string? salvataggio = null,
+        [Description("Costruzione istantanea, senza drone e cantieri (non con salvataggio: valgono le regole salvate).")] bool costruzioneIstantanea = false,
         [Description("Tiene la cartella della sessione (diari) dopo chiudi.")] bool conserva = false) =>
         Run(() =>
         {
@@ -64,7 +64,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     [McpServerTool(Name = "apri_gioco")]
     [Description("Apre il gioco vero (Godot, con finestra) per catture e prove dell'interfaccia: più lento della simulazione.")]
     public string ApriGioco(
-        [Description("Misura della mappa: Media, Grande, Enorme o un numero di celle per lato.")] string misura = "Media",
+        [Description("Misura della mappa: il nome Media (1000), Grande (1500) o Enorme (2000), oppure un numero di celle per lato tra 12 e 2000 (64 o \"64\").")] JsonElement? misura = null,
         [Description("Seme del terreno.")] int seme = 1,
         [Description("Id di un livello della campagna.")] string? livello = null,
         [Description("Lingua dei testi (per esempio it, en).")] string? lingua = null,
@@ -192,10 +192,9 @@ public sealed class Tools(Sessions sessions, GameData data)
     [Description("Sposta la telecamera su una cella e cambia lo zoom, o dice dove si trova (solo gioco vero).")]
     public string Telecamera(
         [Description(Sessione)] string sessione,
-        [Description("Colonna (cella) da centrare.")] int? x = null,
-        [Description("Riga (cella) da centrare.")] int? y = null,
+        [Description("Cella da centrare.")] Cella? cella = null,
         [Description("Zoom.")] double? zoom = null) =>
-        Game(sessione, "telecamera", new { x, y, zoom });
+        Game(sessione, "telecamera", new { cella, zoom });
 
     [McpServerTool(Name = "input")]
     [Description("Simula un clic, un trascinamento, un tasto o la rotellina su un punto dello schermo o su una cella (solo gioco vero).")]
@@ -241,9 +240,8 @@ public sealed class Tools(Sessions sessions, GameData data)
             return result;
         });
 
-    /// <summary>A tool error the SDK caught (arguments that do not bind): the same <c>ParametriNonValidi</c> as the engine's.</summary>
-    public static string BadArguments(string? detail) =>
-        Fail(new AgentException(AgentCodes.ParametriNonValidi, $"Parametri non validi: {detail}"));
+    /// <summary>Arguments that do not fit the tool (see <see cref="Arguments"/>): the same <c>ParametriNonValidi</c> as the engine's.</summary>
+    public static string BadArguments(string message) => Fail(new AgentException(AgentCodes.ParametriNonValidi, message));
 
     private string Game(string sessione, string method, object? args = null) =>
         Run(() => sessions.Get(sessione).Call(method, JsonSerializer.SerializeToElement(args ?? new { }, Json)));
@@ -256,11 +254,17 @@ public sealed class Tools(Sessions sessions, GameData data)
     };
 
     private static AgentGameSetup Setup(
-        string misura, int seme, string generatore, string? livello, string? salvataggio, bool instant)
+        JsonElement? misura, int seme, string generatore, string? livello, string? salvataggio, bool instant)
     {
         if (livello is not null && salvataggio is not null)
         {
             throw new AgentException(AgentCodes.ParametriNonValidi, "Dai livello oppure salvataggio, non tutti e due.");
+        }
+
+        if (instant && salvataggio is not null)
+        {
+            throw new AgentException(
+                AgentCodes.ParametriNonValidi, "costruzioneIstantanea non vale con salvataggio: la partita tiene le regole salvate.");
         }
 
         var rules = new AgentRulesSetup(InstantBuild: instant);
@@ -270,38 +274,52 @@ public sealed class Tools(Sessions sessions, GameData data)
             : sandbox;
     }
 
-    private static int Size(string misura) =>
-        int.TryParse(misura, NumberStyles.None, CultureInfo.InvariantCulture, out var cells) ? cells
-        : Enum.TryParse<MapSize>(misura, ignoreCase: true, out var size) && Enum.IsDefined(size) ? (int)size
-        : throw new AgentException(AgentCodes.ParametriNonValidi, "'misura' è Media, Grande, Enorme o un numero di celle.");
+    private static int Size(JsonElement? misura) => misura switch
+    {
+        null or { ValueKind: JsonValueKind.Null } => (int)MapSize.Media,
+        { ValueKind: JsonValueKind.Number } m when m.TryGetInt32(out var cells) => cells,
+        { ValueKind: JsonValueKind.String } m when int.TryParse(
+            m.GetString(), NumberStyles.None, CultureInfo.InvariantCulture, out var cells) => cells,
+        { ValueKind: JsonValueKind.String } m when Enum.TryParse<MapSize>(m.GetString(), ignoreCase: true, out var size)
+            && Enum.IsDefined(size) => (int)size,
+        _ => throw new AgentException(
+            AgentCodes.ParametriNonValidi, "'misura' è Media, Grande, Enorme o un numero di celle per lato (12-2000).")
+    };
 
-    /// <summary>The snapshot of a save file anywhere on disk (never the player's slots by id).</summary>
+    /// <summary>
+    /// The snapshot of a save file given by path, read with the game's own reader (<see cref="FactorySaveStore.TryReadSaveFile"/>);
+    /// never one under the player's real data folders.
+    /// </summary>
     private static string SaveSnapshot(string path)
     {
-        if (!File.Exists(path))
+        var full = Path.GetFullPath(path);
+        if (RealDataRoots().Any(root => full.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new AgentException(AgentCodes.ParametriNonValidi, $"Salvataggio non trovato: {path}.");
+            throw new AgentException(
+                AgentCodes.ParametriNonValidi,
+                "Questo è un salvataggio vero del giocatore: copialo prima in una cartella temporanea e dai quel percorso.");
         }
 
-        SaveFileData? file;
-        try
+        if (!FactorySaveStore.TryReadSaveFile(full, out var file, out var failure))
         {
-            file = JsonSerializer.Deserialize<SaveFileData>(File.ReadAllText(path), FactorySaveStore.JsonOptions);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            throw new AgentException(nameof(SaveLoadError.Unreadable), $"Salvataggio illeggibile: {ex.Message}");
+            throw failure is null
+                ? new AgentException(AgentCodes.ParametriNonValidi, $"Salvataggio non trovato: {full}.")
+                : new AgentException(failure.Code.ToString(), failure.Detail);
         }
 
-        if (file is { Version: >= 1 } && file.Version < FactorySaveData.MinReadableVersion)
-        {
-            throw new AgentException(nameof(SaveLoadError.OlderVersion), "Salvataggio di una versione troppo vecchia.");
-        }
-
-        return file is { Version: >= 1, Snapshot.Length: > 0 } && file.Version <= FactorySaveData.CurrentVersion
+        // A damaged snapshot is the game's "unreadable", not a bad parameter.
+        return Convert.TryFromBase64String(file!.Snapshot!, new byte[file.Snapshot!.Length], out _)
             ? file.Snapshot
-            : throw new AgentException(nameof(SaveLoadError.Unreadable), "Salvataggio illeggibile.");
+            : throw new AgentException(nameof(SaveLoadError.Unreadable), FactorySaveStore.UnreadableMessage);
     }
+
+    /// <summary>The player's real data folders (never the TINDUSTRY_DATA_DIR override), each ending with a separator.</summary>
+    internal static IEnumerable<string> RealDataRoots() =>
+        new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "tIndustry"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Godot", "app_userdata", "tIndustry")
+        }.Select(root => Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar);
 
     /// <summary><paramref name="call"/>'s object (a JsonElement or JsonObject) after <c>ok:true</c>, or its error.</summary>
     private static string Run(Func<object> call)

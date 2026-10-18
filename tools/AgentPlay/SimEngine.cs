@@ -41,9 +41,16 @@ public sealed class SimEngine : IAgentEngine
         "esegui", "riprendi", "cattura", "telecamera", "input", "ui", "log"
     };
 
+    /// <summary>Marker file of a folder kept with <c>conserva</c>: the startup sweep leaves it alone.</summary>
+    public const string KeepMarker = ".conserva";
+
+    /// <summary>Folders left behind by a killed server are swept after this long.</summary>
+    public static readonly TimeSpan StaleAfter = TimeSpan.FromHours(24);
+
     private readonly AgentGame game;
     private readonly bool keep;
     private readonly object gate = new();
+    private bool closed;
 
     private SimEngine(AgentGame game, string folder, bool keep)
     {
@@ -60,23 +67,39 @@ public sealed class SimEngine : IAgentEngine
     public static SimEngine Open(AgentGameSetup setup, GameData data, bool keep)
     {
         var host = setup.CreateHost(data.Content, data.Campaign, data.MapsDirectory);
-        var folder = NewFolder();
-        return new SimEngine(
-            new AgentGame(host, data.Content, setup, data.Campaign, folder, tickPerComando: true), folder, keep);
+        return InNewFolder(keep, folder => new AgentGame(host, data.Content, setup, data.Campaign, folder, tickPerComando: true));
     }
 
     /// <summary>Makes <paramref name="journal"/>'s game again and replays it: a new session with the same state.</summary>
-    public static SimEngine Replay(AgentJournal journal, GameData data, bool keep)
+    public static SimEngine Replay(AgentJournal journal, GameData data, bool keep) =>
+        InNewFolder(keep, folder => AgentGame.Replay(journal, data.Content, data.Campaign, data.MapsDirectory, folder));
+
+    /// <summary>
+    /// Deletes session folders older than <see cref="StaleAfter"/> without <see cref="KeepMarker"/> (a server killed
+    /// before it could close its sessions); folders still in use or locked are skipped.
+    /// </summary>
+    public static void SweepStale(DateTime nowUtc)
     {
-        var folder = NewFolder();
-        try
+        if (!Directory.Exists(TempRoot))
         {
-            return new SimEngine(AgentGame.Replay(journal, data.Content, data.Campaign, data.MapsDirectory, folder), folder, keep);
+            return;
         }
-        catch
+
+        foreach (var dir in new DirectoryInfo(TempRoot).EnumerateDirectories())
         {
-            Directory.Delete(folder, recursive: true);
-            throw;
+            if (nowUtc - dir.LastWriteTimeUtc < StaleAfter || File.Exists(Path.Combine(dir.FullName, KeepMarker)))
+            {
+                continue;
+            }
+
+            try
+            {
+                dir.Delete(recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine($"Cartella vecchia non cancellata: {dir.FullName}: {ex.Message}");
+            }
         }
     }
 
@@ -84,20 +107,22 @@ public sealed class SimEngine : IAgentEngine
     {
         lock (gate)
         {
+            ThrowIfClosed();
             return game.Host.Checksum();
         }
     }
 
     public JsonElement Call(string method, JsonElement p)
     {
-        if (GameOnly.Contains(method))
-        {
-            throw new AgentException(AgentCodes.MotoreNonDisponibile, $"'{method}' funziona solo nel gioco vero (apri_gioco).");
-        }
-
         // MCP calls can arrive in parallel; one game runs one call at a time.
         lock (gate)
         {
+            ThrowIfClosed();
+            if (GameOnly.Contains(method))
+            {
+                throw new AgentException(AgentCodes.MotoreNonDisponibile, $"'{method}' funziona solo nel gioco vero (apri_gioco).");
+            }
+
             return method == "pausa"
                 ? JsonSerializer.SerializeToElement(new { tick = game.Host.State.CurrentTick, inPausa = true })
                 : game.Call(method, p);
@@ -108,22 +133,57 @@ public sealed class SimEngine : IAgentEngine
     {
         lock (gate)
         {
-            game.Dispose();
-            if (keep)
+            if (closed)
             {
                 return;
             }
 
-            try
+            closed = true;
+            game.Dispose();
+            if (!keep)
             {
-                Directory.Delete(Folder, recursive: true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Console.Error.WriteLine($"Cartella della sessione non cancellata: {Folder}: {ex.Message}");
+                DeleteFolder(Folder);
             }
         }
     }
 
-    private static string NewFolder() => Directory.CreateDirectory(Path.Combine(TempRoot, Path.GetRandomFileName())).FullName;
+    // A call that got the engine just before chiudi must not run on the closed game.
+    private void ThrowIfClosed()
+    {
+        if (closed)
+        {
+            throw new AgentException(AgentCodes.SessioneSconosciuta, "La sessione è stata chiusa.");
+        }
+    }
+
+    private static SimEngine InNewFolder(bool keep, Func<string, AgentGame> create)
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(TempRoot, Path.GetRandomFileName())).FullName;
+        try
+        {
+            if (keep)
+            {
+                File.WriteAllText(Path.Combine(folder, KeepMarker), "");
+            }
+
+            return new SimEngine(create(folder), folder, keep);
+        }
+        catch
+        {
+            DeleteFolder(folder);
+            throw;
+        }
+    }
+
+    private static void DeleteFolder(string folder)
+    {
+        try
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"Cartella della sessione non cancellata: {folder}: {ex.Message}");
+        }
+    }
 }

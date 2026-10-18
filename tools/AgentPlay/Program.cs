@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 using TIndustry.AgentPlay;
 
 // MCP server over stdio: stdout is the protocol channel, so every log line goes to stderr.
@@ -18,7 +19,21 @@ builder.Services
     .WithTools<Tools>()
     .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, cancellationToken) =>
     {
-        // Arguments that do not bind (wrong type, missing) come back as an SDK error: answer like the engine does.
+        // Unknown tools stay protocol errors (no matched tool); the others get their arguments checked first.
+        if (request.MatchedPrimitive is not McpServerTool tool)
+        {
+            return await next(request, cancellationToken);
+        }
+
+        var name = tool.ProtocolTool.Name;
+        var schema = tool.ProtocolTool.InputSchema;
+        if (Arguments.Problem(schema, request.Params?.Arguments) is { } problem)
+        {
+            return BadArguments(problem);
+        }
+
+        // A binding failure the check did not foresee (for example a number out of range): the SDK text goes to
+        // stderr only, the agent gets the tool's parameters.
         CallToolResult result;
         try
         {
@@ -26,12 +41,21 @@ builder.Services
         }
         catch (Exception ex) when (ex is ArgumentException or System.Text.Json.JsonException)
         {
-            return BadArguments(ex.Message);
+            Console.Error.WriteLine($"{name}: {ex}");
+            return BadArguments(Arguments.Summary(name, schema));
         }
 
-        return result.IsError == true ? BadArguments(result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text) : result;
+        if (result.IsError == true)
+        {
+            Console.Error.WriteLine($"{name}: {string.Join(" ", result.Content.OfType<TextContentBlock>().Select(t => t.Text))}");
+            return BadArguments(Arguments.Summary(name, schema));
+        }
+
+        return result;
     }));
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+SimEngine.SweepStale(DateTime.UtcNow);
+await app.RunAsync();
 
-static CallToolResult BadArguments(string? detail) => new() { Content = [new TextContentBlock { Text = Tools.BadArguments(detail) }] };
+static CallToolResult BadArguments(string message) => new() { Content = [new TextContentBlock { Text = Tools.BadArguments(message) }] };

@@ -168,6 +168,150 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         var folder = opened.GetProperty("cartella").GetString()!;
         await server.Ok("chiudi", new { sessione = opened.GetProperty("sessione").GetString() });
         Assert.True(Directory.Exists(folder));
+        Assert.True(File.Exists(Path.Combine(folder, ".conserva")));
+    }
+
+    [Fact]
+    public async Task ParameterErrorsNameTheParameter()
+    {
+        var id = await Open(new { misura = 64, generatore = "classico" });
+        Assert.Matches("^s[0-9a-f]{4}-[0-9]+$", id);
+
+        async Task<string> Message(string tool, object args)
+        {
+            var answer = await server.Call(tool, args);
+            Assert.Equal(AgentCodes.ParametriNonValidi, answer.GetProperty("codice").GetString());
+            return answer.GetProperty("messaggio").GetString()!;
+        }
+
+        Assert.Equal("'tick' ha il tipo sbagliato: atteso numero intero.", await Message("avanza", new { sessione = id, tick = "120" }));
+        Assert.Equal("'tick' ha il tipo sbagliato: atteso numero intero.", await Message("avanza", new { sessione = id, tick = 1e12 }));
+        Assert.Equal("manca 'sessione' (testo).", await Message("chiudi", new { }));
+        Assert.Equal("manca 'da.y' (numero intero).", await Message("area", new { sessione = id, da = new { x = 0 }, a = new { x = 1, y = 1 } }));
+        var typo = await Message("piazza", new { sessione = id, tipo = "miner", cella = new { x = 1, y = 1 }, direzzione = "est" });
+        Assert.StartsWith("'direzzione' non è un parametro: quelli validi sono ", typo);
+        Assert.Contains("direzione", typo);
+        Assert.Contains("questo strumento non ne ha", await Message("sessioni", new { tutte = true }));
+        Assert.Contains("Misura", await Message("apri_simulazione", new { misura = 5000 }));
+        Assert.DoesNotContain("JSON", await Message("vendi", new { sessione = id, oggetto = 1, quantita = 1 }));
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
+    [Fact]
+    public async Task ParallelCallsOnOneSessionRunOneAtATime()
+    {
+        var id = await Open(new { misura = "64", generatore = "classico" });
+        var start = (await server.Ok("stato", new { sessione = id })).GetProperty("tick").GetInt64();
+        var calls = Enumerable.Range(0, 30).Select(i => i % 3 == 0
+            ? server.Ok("stato", new { sessione = id })
+            : server.Ok("avanza", new { sessione = id, tick = 1 }));
+        await Task.WhenAll(calls);
+        Assert.Equal(start + 20, (await server.Ok("stato", new { sessione = id })).GetProperty("tick").GetInt64());
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
+    [Fact]
+    public async Task SaveFilesOpenButNeverThePlayersOwn()
+    {
+        var content = FactoryContent.Load(Path.Combine(ServerFixture.RepoRoot, "data", "content.json"));
+        var host = AgentGameSetup.Sandbox(64, 3, "classico", new GameRules()).CreateHost(content);
+        var save = Path.Combine(server.TempDirectory, "partita.json");
+        File.WriteAllText(save, JsonSerializer.Serialize(
+            new SaveFileData { Snapshot = Convert.ToBase64String(host.CreateSnapshot()) }, FactorySaveStore.JsonOptions));
+
+        var id = await Open(new { salvataggio = save });
+        Assert.Equal(64, (await server.Ok("stato", new { sessione = id })).GetProperty("mappa").GetProperty("larghezza").GetInt32());
+        await server.Ok("chiudi", new { sessione = id });
+
+        Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("apri_simulazione", new { salvataggio = save, costruzioneIstantanea = true }));
+        var real = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "tIndustry", "godot-saves", "slot-1.json");
+        Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("apri_simulazione", new { salvataggio = real }));
+
+        var broken = Path.Combine(server.TempDirectory, "rotto.json");
+        File.WriteAllText(broken, "{\"version\": 12, \"snapshot\": \"non base64!\"}");
+        Assert.Equal(nameof(SaveLoadError.Unreadable), await server.Refused("apri_simulazione", new { salvataggio = broken }));
+        File.WriteAllText(broken, "{\"version\": 1, \"snapshot\": \"AAAA\"}");
+        Assert.Equal(nameof(SaveLoadError.OlderVersion), await server.Refused("apri_simulazione", new { salvataggio = broken }));
+    }
+
+    [Fact]
+    public async Task StartupSweepsOldFoldersButNotKeptOnes()
+    {
+        var temp = Directory.CreateTempSubdirectory("tindustry-agentplay-sweep-").FullName;
+        try
+        {
+            var root = Path.Combine(temp, "tindustry-agentplay");
+            var old = Directory.CreateDirectory(Path.Combine(root, "vecchia")).FullName;
+            var kept = Directory.CreateDirectory(Path.Combine(root, "tenuta")).FullName;
+            var fresh = Directory.CreateDirectory(Path.Combine(root, "nuova")).FullName;
+            File.WriteAllText(Path.Combine(kept, ".conserva"), "");
+            foreach (var dir in new[] { old, kept })
+            {
+                Directory.SetLastWriteTimeUtc(dir, DateTime.UtcNow.AddDays(-2));
+            }
+
+            await using (var client = await ServerFixture.Start(temp))
+            {
+                await client.ListToolsAsync();
+            }
+
+            Assert.False(Directory.Exists(old));
+            Assert.True(Directory.Exists(kept));
+            Assert.True(Directory.Exists(fresh));
+        }
+        finally
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+    }
+
+    /// <summary>Raw stdio, without the SDK client (which skips stray lines): every stdout line is a JSON-RPC message.</summary>
+    [Fact]
+    public async Task StdoutCarriesOnlyJsonRpc()
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("dotnet", [ServerFixture.ServerDll()])
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        foreach (var (key, value) in ServerFixture.TempEnvironment(server.TempDirectory))
+        {
+            start.Environment[key] = value;
+        }
+
+        using var process = System.Diagnostics.Process.Start(start)!;
+        var stderr = process.StandardError.ReadToEndAsync();
+        var requests = new object[]
+        {
+            new { jsonrpc = "2.0", id = 1, method = "initialize", @params = new { protocolVersion = "2025-06-18", capabilities = new { }, clientInfo = new { name = "prova", version = "1" } } },
+            new { jsonrpc = "2.0", method = "notifications/initialized" },
+            new { jsonrpc = "2.0", id = 2, method = "tools/list" },
+            new { jsonrpc = "2.0", id = 3, method = "tools/call", @params = new { name = "apri_simulazione", arguments = new { misura = "64", generatore = "classico" } } },
+            new { jsonrpc = "2.0", id = 4, method = "tools/call", @params = new { name = "avanza", arguments = new { sessione = "nessuna", tick = "x" } } },
+            new { jsonrpc = "2.0", id = 5, method = "tools/call", @params = new { name = "non_esiste", arguments = new { } } }
+        };
+        foreach (var request in requests)
+        {
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request));
+        }
+
+        await process.StandardInput.FlushAsync();
+        var lines = new List<string>();
+        while (lines.Count(l => l.Contains("\"id\"")) < 5 && await process.StandardOutput.ReadLineAsync() is { } line)
+        {
+            lines.Add(line);
+        }
+
+        process.StandardInput.Close();
+        lines.AddRange((await process.StandardOutput.ReadToEndAsync()).Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.True(process.WaitForExit(30_000));
+        await stderr;
+
+        Assert.NotEmpty(lines);
+        Assert.All(lines, l => Assert.Equal("2.0", JsonDocument.Parse(l).RootElement.GetProperty("jsonrpc").GetString()));
+        Assert.Equal(0, process.ExitCode);
     }
 
     private async Task<string> Open(object args) =>

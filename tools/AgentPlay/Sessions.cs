@@ -1,18 +1,23 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using TIndustry.Shared;
 
 namespace TIndustry.AgentPlay;
 
-/// <summary>The open games of this server by id (<c>s1</c>, <c>s2</c>…); closes them all when the server stops.</summary>
+/// <summary>
+/// The open games of this server by id (<c>s3f9a-1</c>, <c>s3f9a-2</c>…: a prefix per server process, so an id kept
+/// from a previous server is unknown instead of naming another game); closes them all when the server stops.
+/// </summary>
 public sealed class Sessions : IDisposable
 {
     private readonly ConcurrentDictionary<string, IAgentEngine> open = new(StringComparer.Ordinal);
+    private readonly string prefix = "s" + Convert.ToHexString(RandomNumberGenerator.GetBytes(2)).ToLowerInvariant() + "-";
     private int lastId;
 
     public string Open(IAgentEngine engine)
     {
         ArgumentNullException.ThrowIfNull(engine);
-        var id = "s" + Interlocked.Increment(ref lastId);
+        var id = prefix + Interlocked.Increment(ref lastId);
         open[id] = engine;
         return id;
     }
@@ -35,7 +40,7 @@ public sealed class Sessions : IDisposable
 
     /// <summary>Open sessions, oldest first.</summary>
     public IReadOnlyList<(string Id, IAgentEngine Engine)> List() =>
-        open.Select(kv => (kv.Key, kv.Value)).OrderBy(s => int.Parse(s.Key[1..])).ToList();
+        open.Select(kv => (kv.Key, kv.Value)).OrderBy(s => int.Parse(s.Key[prefix.Length..])).ToList();
 
     public void Dispose()
     {

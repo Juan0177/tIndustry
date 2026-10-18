@@ -12,17 +12,20 @@ public sealed class ServerFixture : IAsyncLifetime
 
     public McpClient Client { get; private set; } = null!;
 
-    public async Task InitializeAsync()
-    {
-        Client = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
+    public async Task InitializeAsync() => Client = await Start(TempDirectory);
+
+    /// <summary>A new server process whose temp folder (session folders included) is <paramref name="tempDirectory"/>.</summary>
+    public static Task<McpClient> Start(string tempDirectory) =>
+        McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "tindustry",
             Command = "dotnet",
             Arguments = [ServerDll()],
-            // The server's session folders land under this test's own temp folder.
-            EnvironmentVariables = new Dictionary<string, string?> { ["TMP"] = TempDirectory, ["TEMP"] = TempDirectory, ["TMPDIR"] = TempDirectory }
+            EnvironmentVariables = TempEnvironment(tempDirectory)
         }));
-    }
+
+    public static Dictionary<string, string?> TempEnvironment(string tempDirectory) =>
+        new() { ["TMP"] = tempDirectory, ["TEMP"] = tempDirectory, ["TMPDIR"] = tempDirectory };
 
     public async Task DisposeAsync()
     {
@@ -57,13 +60,15 @@ public sealed class ServerFixture : IAsyncLifetime
         return answer.GetProperty("codice").GetString()!;
     }
 
-    // tests/TIndustry.AgentPlay.Tests/bin/<config>/net8.0/ -> tools/AgentPlay/bin/<config>/net8.0/AgentPlay.dll
-    private static string ServerDll()
+    private static DirectoryInfo Output => new(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
+
+    // tests/TIndustry.AgentPlay.Tests/bin/<config>/net8.0/
+    public static string RepoRoot => Output.Parent!.Parent!.Parent!.Parent!.Parent!.FullName;
+
+    // -> tools/AgentPlay/bin/<config>/net8.0/AgentPlay.dll
+    public static string ServerDll()
     {
-        var output = new DirectoryInfo(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
-        var configuration = output.Parent!.Name;
-        var root = output.Parent.Parent!.Parent!.Parent!.Parent!.FullName;
-        var dll = Path.Combine(root, "tools", "AgentPlay", "bin", configuration, output.Name, "AgentPlay.dll");
+        var dll = Path.Combine(RepoRoot, "tools", "AgentPlay", "bin", Output.Parent!.Name, Output.Name, "AgentPlay.dll");
         return File.Exists(dll) ? dll : throw new FileNotFoundException("Server AgentPlay non compilato.", dll);
     }
 }
