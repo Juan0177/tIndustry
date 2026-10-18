@@ -409,11 +409,13 @@ public partial class AgentBridge : Node
     /// Every frame and before each call: when the world attached another host (new game, level, a loaded save, also
     /// from a person at the window) the journal starts again with that game's header, the launcher's setup for its own
     /// <c>nuova_partita</c>, else the snapshot of the game as it is now; <c>eventi</c> gets <c>partitaCaricata</c>
-    /// and a command still waiting is answered <see cref="AgentCodes.PartitaCambiata"/>.
+    /// and a command still waiting is answered <see cref="AgentCodes.PartitaCambiata"/>. When the world drops its game
+    /// the AgentGame goes too.
     /// </summary>
     private void SyncGame()
     {
-        if (_world.AgentHost is not { } host || _game?.Host == host)
+        var host = _world.AgentHost;
+        if (_game?.Host == host)
         {
             return;
         }
@@ -423,6 +425,14 @@ public partial class AgentBridge : Node
             _pending = null;
             Send(pending.Connection, AgentResponse.Failure(pending.Id, new AgentException(
                 AgentCodes.PartitaCambiata, "La partita è cambiata prima dell'esito del comando: il comando è perso.")));
+        }
+
+        if (host is null)
+        {
+            // The world dropped its game (a failed first load): commands answer "no game" instead of reaching it.
+            _game?.Dispose();
+            _game = null;
+            return;
         }
 
         var previous = _game;
@@ -654,7 +664,7 @@ public partial class AgentBridge : Node
         var seconds = Number(p, "secondi");
         if (!(seconds > 0 && seconds <= MaxRunSeconds))
         {
-            throw Bad($"'secondi' tra 0 e {MaxRunSeconds}.");
+            throw Bad($"'secondi' più di 0 e al massimo {MaxRunSeconds:0}.");
         }
 
         if (!_world.GameInPlay)
@@ -997,24 +1007,32 @@ public partial class AgentBridge : Node
     /// <c>ui {}</c>: the controls of the HUD, the open panels and the open popup windows a click can reach, with a
     /// stable name (their path, unnamed nodes as type + index), type, shown text, tooltip and rectangle in window pixels.
     /// Left out: transparent controls (a faded toast), controls under another one that takes the mouse (the Home's
-    /// shade over the HUD) and copies of one already listed (same type, text and rectangle). A control clipped by its
-    /// container says why a click would miss (<c>nascosto</c>). <c>ui {clic}</c> takes the name, the last part of it,
-    /// the shown text or the tooltip, and clicks its centre; more than one match is refused as ambiguous.
+    /// shade over the HUD) or under an open popup window, and copies of one already listed (same type, text and
+    /// rectangle). A control clipped by its container says why a click would miss (<c>nascosto</c>). <c>ui {clic}</c>
+    /// takes the name, the last part of it, the shown text or the tooltip, and clicks its centre; more than one match is
+    /// refused as ambiguous.
     /// </summary>
     private void Ui(int connection, long id, JsonElement p)
     {
         var controls = new List<UiControl>();
         var all = new List<Control>();
+        var windows = new List<(Window Window, int Start)>();
         Collect(_world.UiRoot, "", 1f, controls, all);
         foreach (var node in GetTree().Root.FindChildren("*", nameof(Window), recursive: true, owned: false))
         {
             if (node is Window { Visible: true } window)
             {
+                // A tooltip lets the mouse through: it hides nothing.
+                if (!window.GetFlag(Window.Flags.MousePassthrough))
+                {
+                    windows.Add((window, all.Count));
+                }
+
                 Collect(window, window.Name.ToString(), 1f, controls, all);
             }
         }
 
-        controls = Reachable(controls, all);
+        controls = Reachable(controls, all, windows);
         if (OptStr(p, "clic") is { } name)
         {
             var target = FindControl(controls, name);
@@ -1115,9 +1133,11 @@ public partial class AgentBridge : Node
 
     /// <summary>
     /// Drops the copies (same type, text and rectangle) and the controls whose centre lies under a later control
-    /// (drawn above) that takes the mouse and is not inside them, as Godot's own picking does.
+    /// (drawn above) that takes the mouse and is not inside them, as Godot's own picking does, and the ones under a popup
+    /// window opened after them (<paramref name="windows"/>: each window and where its controls start in
+    /// <paramref name="all"/>) that does not hold them.
     /// </summary>
-    private List<UiControl> Reachable(List<UiControl> controls, List<Control> all)
+    private List<UiControl> Reachable(List<UiControl> controls, List<Control> all, List<(Window Window, int Start)> windows)
     {
         var order = new Dictionary<Control, int>();
         for (var i = 0; i < all.Count; i++)
@@ -1127,6 +1147,7 @@ public partial class AgentBridge : Node
 
         var blockers = all.Where(c => c.MouseFilter != Control.MouseFilterEnum.Ignore)
             .Select(c => (Control: c, Rect: WindowRect(c), Order: order[c])).ToList();
+        var popups = windows.Select(w => (w.Window, Rect: WindowRect(w.Window), w.Start)).ToList();
         var seen = new HashSet<(string, string, Rect2I)>();
         var kept = new List<UiControl>();
         foreach (var item in controls)
@@ -1134,7 +1155,8 @@ public partial class AgentBridge : Node
             var centre = item.Rect.GetCenter();
             var mine = order[item.Control];
             var covered = blockers.Any(b => b.Order > mine && b.Rect.HasPoint(centre)
-                && !item.Control.IsAncestorOf(b.Control) && b.Control.GetViewport() == item.Control.GetViewport());
+                && !item.Control.IsAncestorOf(b.Control) && b.Control.GetViewport() == item.Control.GetViewport())
+                || popups.Any(w => mine < w.Start && w.Rect.HasPoint(centre) && !w.Window.IsAncestorOf(item.Control));
             var rounded = new Rect2I((Vector2I)item.Rect.Position.Round(), (Vector2I)item.Rect.Size.Round());
             if (!covered && seen.Add((item.Control.GetClass(), item.Text, rounded)))
             {
@@ -1216,12 +1238,24 @@ public partial class AgentBridge : Node
         return new Rect2(a, b - a).Abs();
     }
 
-    private Vector2 ToWindow(Control control, Vector2 local)
+    /// <summary>An embedded window's rectangle in window pixels.</summary>
+    private Rect2 WindowRect(Window window)
     {
-        var at = control.GetGlobalTransformWithCanvas() * local;
+        var holder = window.GetParent()?.GetViewport();
+        var a = ToRoot(holder, window.Position);
+        var b = ToRoot(holder, window.Position + window.Size);
+        return new Rect2(a, b - a).Abs();
+    }
+
+    private Vector2 ToWindow(Control control, Vector2 local) =>
+        ToRoot(control.GetViewport(), control.GetGlobalTransformWithCanvas() * local);
+
+    /// <summary>A point of <paramref name="viewport"/>'s canvas in window pixels.</summary>
+    private Vector2 ToRoot(Viewport? viewport, Vector2 at)
+    {
         var root = GetTree().Root;
         // An embedded popup draws at its position inside the viewport that holds it.
-        for (var viewport = control.GetViewport(); viewport is Window window && window != root; viewport = window.GetParent()?.GetViewport())
+        for (; viewport is Window window && window != root; viewport = window.GetParent()?.GetViewport())
         {
             at = window.GetFinalTransform() * at + (Vector2)window.Position;
         }
