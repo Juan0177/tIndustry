@@ -360,6 +360,9 @@ public sealed class AgentGameTests
         Assert.Equal(3, response.Id);
         Assert.Equal(AgentCodes.ErroreInterno, response.Code);
         Assert.Contains("gestore rotto", response.Message);
+        Assert.DoesNotContain(" at ", response.Message);
+        Assert.Contains("gestore rotto", game.LastInternalError);
+        Assert.Contains(" at ", game.LastInternalError);
         // The command was applied and took its tick, so it is journaled.
         Assert.Single(game.Journal.Entries);
         Assert.True(game.Handle(AgentProtocol.ReadLine("""{"id":4,"metodo":"stato"}""")).Ok);
@@ -376,7 +379,7 @@ public sealed class AgentGameTests
             Assert.Equal(AgentCodes.ParametriNonValidi, Refused(noFolder, "diario", """{"nome":"a"}""").Code);
 
             using var game = new AgentGame(NewHost(), Content, journalDirectory: dir);
-            foreach (var name in new[] { "../fuori", "..", "a/b", "a\\b", "C:\\x", "/x", ".nascosto", "" })
+            foreach (var name in new[] { "../fuori", "..", "a/b", "a\\b", "C:\\x", "/x", ".nascosto", "", "partita\n", "CON", "nul.json", "Com1", "lpt9.json", "aux" })
             {
                 Assert.Equal(AgentCodes.ParametriNonValidi,
                     Refused(game, "diario", JsonSerializer.Serialize(new { nome = name })).Code);
@@ -496,8 +499,34 @@ public sealed class AgentGameTests
         Assert.Equal(1, done.GetProperty("celle").GetArrayLength());
 
         Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}""");
+        // A second command while the first waits is refused, not swapped in.
+        Assert.Equal(AgentCodes.ParametriNonValidi,
+            Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":51,"y":50}}""").Code);
         host.AdvanceTicks(1);
         Assert.Equal("Occupied", Assert.Throws<AgentException>(() => game.TryFinishPending(out _)).Code);
+        Assert.False(host.State.Belts.ContainsKey(new GridPosition(51, 50)));
+    }
+
+    [Fact]
+    public void ReplayKeepsTheRecordedTickPerCommand()
+    {
+        var setup = AgentGameSetup.Sandbox(120, 42, ClassicTerrainGenerator.Name, new GameRules(InstantBuild: true));
+        var host = setup.CreateHost(Content);
+        using var game = new AgentGame(host, Content, setup, tickPerComando: false);
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":40,"y":50},"a":{"x":44,"y":50}}""");
+        Call(game, "avanza", """{"tick":10}""");
+        Assert.True(game.TryFinishPending(out _));
+        Call(game, "ruota");
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":45,"y":50},"a":{"x":45,"y":53}}""");
+        Call(game, "avanza", """{"tick":5}""");
+        Assert.False(game.Journal.Setup!.TickPerCommand);
+
+        using var replay = AgentGame.Replay(game.Journal, Content);
+
+        Assert.Equal(15, replay.Host.State.CurrentTick);
+        Assert.Equal(host.State.CurrentTick, replay.Host.State.CurrentTick);
+        Assert.Equal(host.Checksum(), replay.Host.Checksum());
+        Assert.Equal(Direction.South, replay.Host.State.Belts[new GridPosition(45, 53)].Direction);
     }
 
     [Fact]

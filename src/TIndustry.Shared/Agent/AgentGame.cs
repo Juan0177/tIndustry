@@ -34,7 +34,11 @@ public sealed class AgentGame : IDisposable
     // Kinds the client places along a drag (World.Input), the plain belts aside.
     private static readonly BuildingKind[] DraggableKinds = [BuildingKind.Junction, BuildingKind.Splitter, BuildingKind.Sorter];
 
-    private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?$", RegexOptions.CultureInvariant);
+    private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?\\z", RegexOptions.CultureInvariant);
+
+    // Windows device names: a file named so (any extension) opens the device instead.
+    private static readonly Regex ReservedName = new(
+        "^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\.|\\z)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     internal static readonly (char Symbol, string Meaning)[] Legend =
     [
@@ -81,7 +85,7 @@ public sealed class AgentGame : IDisposable
         this.campaign = campaign;
         this.journalDirectory = journalDirectory;
         tickPerCommand = tickPerComando;
-        Journal = new AgentJournal { Setup = setup };
+        Journal = new AgentJournal { Setup = setup is null ? null : setup with { TickPerCommand = tickPerComando } };
         onApplied = c => Resolve(c, null, host.LastCommandMoneyDelta);
         host.CommandApplied += onApplied;
         host.CommandRejected += OnRejected;
@@ -122,7 +126,8 @@ public sealed class AgentGame : IDisposable
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(host);
-        var game = new AgentGame(host, host.State.Content, journal.Setup, campaign);
+        var game = new AgentGame(
+            host, host.State.Content, journal.Setup, campaign, tickPerComando: journal.Setup?.TickPerCommand ?? true);
         foreach (var entry in journal.Entries)
         {
             var gap = entry.Tick - host.State.CurrentTick;
@@ -132,17 +137,24 @@ public sealed class AgentGame : IDisposable
             }
 
             host.AdvanceTicks((int)gap);
-            try
-            {
-                game.Call(entry.Method, entry.Params);
-            }
-            catch (AgentException)
-            {
-                // A refused call was refused the first time too: it still took its tick.
-            }
+            Tolerated(() => game.TryFinishPending(out _));
+            Tolerated(() => game.Call(entry.Method, entry.Params));
         }
 
+        Tolerated(() => game.TryFinishPending(out _));
         return game;
+    }
+
+    /// <summary>A refused call was refused the first time too (it still took its tick); an internal error is not.</summary>
+    private static void Tolerated(Action call)
+    {
+        try
+        {
+            call();
+        }
+        catch (AgentException ex) when (ex.Code != AgentCodes.ErroreInterno)
+        {
+        }
     }
 
     /// <summary>One request as a response line: never throws.</summary>
@@ -155,9 +167,17 @@ public sealed class AgentGame : IDisposable
         }
         catch (AgentException ex)
         {
+            if (ex.Detail is not null)
+            {
+                LastInternalError = ex.Detail;
+            }
+
             return AgentResponse.Failure(request.Id, ex);
         }
     }
+
+    /// <summary>Full text (stack included) of the last <c>ErroreInterno</c> answered by <see cref="Handle"/>, for the transport's log.</summary>
+    public string? LastInternalError { get; private set; }
 
     public JsonElement Call(string method, JsonElement @params)
     {
@@ -196,7 +216,7 @@ public sealed class AgentGame : IDisposable
                 Journal.Add(tick, method, p);
             }
 
-            throw new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}");
+            throw Internal(ex);
         }
     }
 
@@ -224,9 +244,13 @@ public sealed class AgentGame : IDisposable
         }
         catch (Exception ex)
         {
-            throw new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}");
+            throw Internal(ex);
         }
     }
+
+    /// <summary>Short text for the agent; the full exception (stack included) in <see cref="AgentException.Detail"/> for logs.</summary>
+    private static AgentException Internal(Exception ex) =>
+        new(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}") { Detail = ex.ToString() };
 
     private JsonObject Dispatch(string method, JsonElement p) => method switch
     {
@@ -772,7 +796,7 @@ public sealed class AgentGame : IDisposable
                 throw Bad("Questa sessione non ha una cartella per i diari.");
             }
 
-            if (!JournalName.IsMatch(name))
+            if (!JournalName.IsMatch(name) || ReservedName.IsMatch(name))
             {
                 throw Bad("'nome' è un nome di file semplice (lettere, cifre, - e _), senza cartelle.");
             }
@@ -814,6 +838,11 @@ public sealed class AgentGame : IDisposable
     /// </summary>
     private JsonObject Command(IReadOnlyList<SimCommand> commands, Func<List<Outcome>, JsonObject> build)
     {
+        if (pending is not null)
+        {
+            throw Bad("Comando in corso: aspetta il suo esito prima di mandarne un altro.");
+        }
+
         var tick = View.CurrentTick + 1;
         var stamped = commands.Select(c => c with { Tick = tick }).ToList();
         awaiting.AddRange(stamped);

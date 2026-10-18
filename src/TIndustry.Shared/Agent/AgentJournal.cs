@@ -33,7 +33,8 @@ public sealed record AgentGameSetup(
     [property: JsonPropertyName("generatore")] string Generator,
     [property: JsonPropertyName("regole")] AgentRulesSetup Rules,
     [property: JsonPropertyName("livello")] string? Level = null,
-    [property: JsonPropertyName("partenza")] string? StartSnapshot = null)
+    [property: JsonPropertyName("partenza")] string? StartSnapshot = null,
+    [property: JsonPropertyName("tickPerComando")] bool TickPerCommand = true)
 {
     public const string SimulationEngine = "simulazione";
 

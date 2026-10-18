@@ -42,6 +42,9 @@ public static class AgentCodes
 public sealed class AgentException(string code, string message) : Exception(message)
 {
     public string Code { get; } = code;
+
+    /// <summary>For <see cref="AgentCodes.ErroreInterno"/>: the full exception text (type, message, stack) for logs, never sent to the agent.</summary>
+    public string? Detail { get; init; }
 }
 
 /// <summary>JSON lines of the channel (same format for the game and, later, co-op).</summary>
