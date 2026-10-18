@@ -123,6 +123,26 @@ public sealed class LampAndNightTests
     }
 
     [Fact]
+    public void GeneratorAdjacencyFastPathMatchesTheFootprintRule()
+    {
+        // The bounding-box test in Generator.IsAdjacentTo must never change the answer of FootprintsAdjacent.
+        var gen = new Generator(new GridPosition(10, 10));
+        foreach (var size in new[] { 1, 2, 3 })
+        {
+            for (var y = 4; y <= 16; y++)
+            {
+                for (var x = 4; x <= 16; x++)
+                {
+                    var origin = new GridPosition(x, y);
+                    Assert.Equal(
+                        Generator.FootprintsAdjacent(gen.Position, Generator.Size, origin, size),
+                        gen.IsAdjacentTo(origin, size));
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void LampIsLitThroughAPowerNode()
     {
         var factory = Sandbox();

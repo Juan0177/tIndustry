@@ -524,7 +524,8 @@ public partial class World
     /// and minimum FPS over 3 s standing still and 3 s sweeping the camera across the map (chunks built and freed
     /// on the way), without VSync, with chunk counts and memory (Godot static, .NET heap, video, process). Then the
     /// terrain art (G2b): zoom 0.08 → 2 → 0.08 in 4 s each way and 4 s panning at zoom 1, with average and minimum
-    /// FPS, slowest frame, slowest art chunk, most art chunks alive and the highest process memory seen.
+    /// FPS, slowest frame, slowest art chunk, most art chunks alive and the highest process memory seen. Last, with
+    /// effects on, the night with hundreds of lit lamps (<see cref="PlaytestHugeMapNightAsync"/>).
     /// </summary>
     private async Task PlaytestHugeMapPerfAsync(string dir)
     {
@@ -587,6 +588,7 @@ public partial class World
             + $"memoria statica {OS.GetStaticMemoryUsage() / mib:F0} MiB, .NET {GC.GetTotalMemory(false) / mib:F0} MiB, "
             + $"video {video / mib:F0} MiB, processo {process.WorkingSet64 / mib:F0} MiB");
         GD.Print(await PlaytestTerrainArtPerfAsync(cam));
+        GD.Print(await PlaytestHugeMapNightAsync(cam));
         DisplayServer.WindowSetVsyncMode(vsync);
     }
 
