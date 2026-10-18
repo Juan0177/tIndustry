@@ -59,7 +59,7 @@ La simulazione è guidata da comandi, a tick fisso, ed è deterministica (modell
 
 - **Tick fisso.** `SimulationClock` (`src/TIndustry.Shared/Simulation/SimulationClock.cs`) trasforma il tempo di frame in tick da 1/60 s: `TickRate = 60`, `TickSeconds = 1f / 60f`, `MaxTicksPerFrame = 5` (oltre il tetto il tempo in eccesso è scartato, niente spirale di recupero). La simulazione non vede mai il tempo del frame.
 - **`GameState`** (`Simulation/GameState.cs`) contiene tutto lo stato mutabile: griglia e nastri, liste di edifici, portafoglio, ricerca, mercato, sessione economica, potenza, livello di campagna, auto-vendita, upgrade del CORE, contatori di id (`NextEntityId`, `NextItemId`) e `CurrentTick`. `Factory` ne è la facciata (piazzamento, economia, `Capture`/`Restore`) e implementa `IGameView`.
-- **Sistemi.** `Simulation.Step(state)` (`Simulation/Simulation.cs`) avanza esattamente un tick eseguendo `Simulation.Systems` (cartella `Simulation/Systems/`) in quest'ordine: `BuilderSystem` → `ConstructSystem` → `BeltSystem` (avanzamento) → `PowerSystem` → `MiningSystem` → `CraftingSystem` (forni e assemblatori) → `ExtractionSystem` → `BeltSystem` (secondo passaggio, passo zero) → `CoreDeliverySystem`; poi incrementa `CurrentTick`. `SystemOrderTests` blocca l'ordine.
+- **Sistemi.** `Simulation.Step(state)` (`Simulation/Simulation.cs`) avanza esattamente un tick eseguendo `Simulation.Systems` (cartella `Simulation/Systems/`) in quest'ordine: `BuilderSystem` → `ConstructSystem` → `BeltSystem` (avanzamento) → `PowerSystem` → `MiningSystem` → `CraftingSystem` (forni e assemblatori) → `LightingSystem` (Lampade) → `ExtractionSystem` → `BeltSystem` (secondo passaggio, passo zero) → `CoreDeliverySystem`; poi incrementa `CurrentTick`. `SystemOrderTests` blocca l'ordine.
 - **Comandi.** Ogni modifica al gioco è un record `SimCommand` (`Simulation/Commands.cs`) con `PlayerId` e `Tick`: `PlaceBelt`, `PlaceBuilding` (con `BuildingKind`), `Remove`, `UnlockStructure`, `Sell`, `SetAutoSell`, `UpgradeCore`, `SetSorterFilter`. Sono **validati all'applicazione**, non all'invio. Con la costruzione vera `PlaceBelt` e `PlaceBuilding` accodano un piano e `Remove` cancella o smonta (sezione [Costruzione](#costruzione)).
 - **`SimHost`** (`Simulation/SimHost.cs`) è il "server locale": `Submit(cmd)` mette in coda il comando (con `Tick == 0` vale "il prossimo tick"); `Advance(frameSeconds)` esegue i tick dovuti e, all'inizio di ciascuno, applica i comandi di quel tick in ordine di arrivo, poi chiama `Factory.Step()`. L'esito è un evento: `CommandApplied` oppure `CommandRejected` con il motivo in italiano (`CommandReasons`), a stato invariato. Gli eventi che nascono durante il tick (`SimEvent`, in `Simulation/SimEvents.cs`) arrivano dopo `Step()` con `EventRaised`. Un gestore che lancia non interrompe la simulazione (eccezioni raccolte in un `AggregateException` a fine `Advance`). `Pending` espone in sola lettura i comandi in coda (il client la usa per calcolare il valore "effettivo" di un interruttore premuto due volte nello stesso tick), `LastCommandMoneyDelta` il guadagno del solo comando che `CommandApplied` sta riportando (ogni vendita mostra il proprio) e `AdvanceTicks(n)` esegue esattamente `n` tick, senza orologio.
 - **`IGameView`** (`Simulation/IGameView.cs`) è la vista in sola lettura che il client usa per disegnare e per l'HUD (`SimHost.State`): il client non può mutare il gioco, può solo inviare comandi. Oggi questo vale per convenzione: `IGameView` espone ancora entità concrete (`BeltGridCell.SetFilterItem`, `Miner`, `Crafter`, `MarketCatalog`); il confine di sola lettura a livello di tipo arriva col sotto-progetto 5.
@@ -201,6 +201,36 @@ Dopo i passi di "Come aggiungere un suolo, una parete o un livello":
 4. `python tools/art/genera.py`, guarda `.dev/arte/tavola-terreno.png` (finestre composte per bioma), poi rigenera la fixture con `python tools/art/fixture_terreno.py` (`--controlla` dice se serve).
 5. `python -m unittest tools/art/test_genera.py` e `dotnet test` (`TerrainLookTests.MatchesPythonReference` confronta Python e C# sulla fixture).
 6. Importa i PNG in Godot per avere i `.import` e fai il commit di sprite, `.import` e fixture insieme. Il client non va toccato: `TerrainSprites` legge i nomi dalla tabella.
+
+## Effetti, ombre e luci (G3)
+
+Particelle, ombre, bagliore e notte sono solo aspetto: vivono nel client (`godot/scripts/visuals/effects/` e `BuildingPad`), non leggono né scrivono la simulazione e non entrano nel checksum. Le uniche aggiunte a `TIndustry.Shared` sono la **Lampada** (`Lamp`, `LightingSystem`, `powerUse` in `content.json`) e la regola di partita `GameRules.Night` (salvata solo se vera, resta la versione 12).
+
+- **`EffectManager`** (Node2D figlio di `World`) usa `CPUParticles2D` da un pool (massimo 256 nodi, mai ristretto), con un tetto di particelle attive per schermata (`EffectRules.ParticleCap`: Alti 4000, Bassi 1200, Spenti 0). Gli effetti partono solo dentro la vista più 4 celle; quelli legati a un nodo (fumo del forno, vapore del generatore) lo seguono e si staccano da soli.
+- **`AmbientEffects`** sceglie l'effetto d'ambiente (neve, sabbia, foglie; di notte sui prati le lucciole) dal bioma sotto la vista, solo con Effetti Alti.
+- **Ombre.** Ogni blocco ha un nodo `Ombra` (lo sprite di base in nero, alfa 0,3, spostato di 6 px) sotto gli oggetti e sopra i nastri.
+- **Bagliore.** Un `WorldEnvironment` con glow additivo e soglia HDR 1, attivo con `Root.UseHdr2D` solo se il Bagliore è acceso; bocca del forno, nucleo del Core, Lampada e scintille hanno un colore sopra 1 e brillano. L'HUD sta su un altro livello e non ne è toccato. Con la scala di rendering sotto 100% il `SubViewport` ha il suo ambiente.
+- **Notte** (`NightLayer`): un `CanvasModulate` scuro e fino a 128 `PointLight2D` (texture `luce`) su Core, Lampade accese, forni al lavoro, generatori accesi e droni, solo nella vista allargata. La notte viene da `IGameView.Rules.Night` (Nuova partita, livelli 06 e 10 della campagna, salvataggi).
+- **Playtest.** Con `TINDUSTRY_PLAYTEST` effetti, ombre, bagliore e notte sono spenti e gli orologi fermi, così le catture di base restano stabili; `TINDUSTRY_PLAYTEST_EFFETTI=1` li accende e lancia il probe che misura FPS, nodi e particelle (con `TINDUSTRY_PLAYTEST_PERF=1` anche i 200 nastri più 100 edifici e la mappa Enorme).
+
+### Impostazioni grafiche
+
+Stanno in `ClientSettings` (`settings.json`; un file vecchio resta valido, i campi mancanti valgono il predefinito) e si cambiano dal pannello Impostazioni (con `ScrollContainer`, Applica vale subito):
+
+| Impostazione | Valori | Predefinito |
+| --- | --- | --- |
+| `Effetti` | Alti, Bassi, Spenti | Alti |
+| `Ombre`, `Bagliore`, `AnimazioniBlocchi` | sì / no | sì |
+| `LimiteFps` | 0 (nessuno), 30, 60, 120, 144 | 0 |
+| `ScalaRendering` | 100, 75, 50 (%) | 100 |
+
+La scala di rendering disegna il mondo in un `SubViewport` più piccolo (`RenderScale`) e lo ingrandisce; l'HUD resta a piena risoluzione.
+
+### Come aggiungere un effetto
+
+1. In `godot/effetti/effetti.json` aggiungi una riga: `sprite` (un `fx-*` di `tools/art/blocchi/effetti.py`), `numero`, `durata`, `velocita` `[min, max]`, `colore` (`#rrggbb[aa]`), `dispersione` (gradi, 0-180), `gravita` `[x, y]`, `qualita` (livello minimo: `Bassi` o `Alti`) e, se deve brillare con il Bagliore, `intensita` (1-8). `EffectRules` valida il file all'avvio e `EffectRulesTests` in `dotnet test`: un errore dà un messaggio in italiano e nessun effetto, mai un crash.
+2. Se serve uno sprite nuovo, aggiungilo in `tools/art/blocchi/effetti.py` (strisce o singoli di 8-16 px, ADR 0004) e importa il PNG in Godot.
+3. Per farlo partire, chiama `EffectManager.Play("<nome>", posizione)` (raffica) o `Attach("<nome>", nodo)` (emettitore legato) dove nasce l'evento.
 
 ## Test e playtest
 

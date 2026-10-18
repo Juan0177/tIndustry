@@ -40,7 +40,7 @@
 
 ### Grafica
 
-Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta e il terreno dei quattro biomi con bordi, pareti in rilievo, acqua e giacimenti a puntini. Catture dal gioco.
+Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta e il terreno dei quattro biomi con bordi, pareti in rilievo, acqua e giacimenti a puntini. Sopra c'è uno strato di effetti: fumo, scintille e vapore dei blocchi al lavoro, neve, sabbia e foglie d'ambiente, ombre sotto gli edifici, bagliore e, a scelta, la notte con la Lampada. Effetti, ombre, limite di FPS e scala di rendering si regolano dalle Impostazioni, per i PC meno potenti. Catture dal gioco.
 
 <p align="center">
   <img src="docs/img/readme/blocchi.png" alt="Blocchi di produzione e potenza accesi: minatori, forno, assemblatore, generatore, nodi e Core" width="100%">
@@ -101,7 +101,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Mondo** | Mappe generate dal seme in tre misure (Media 1000², Grande 1500², Enorme 2000²) con quattro biomi (rocce, sabbia, neve, prati), pareti, laghi e fiumi; acqua bassa costruibile, acqua profonda solo col ponte; CORE al centro con ferro, rame e carbone raggiungibili; minerali visibili (ferro, rame, piombo, carbone, titanio) |
 | **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
 | **Logistica** | Nastri T1/T2/T3, incrocio, sdoppiatore, selezionatore con filtro, ponte (2–4 caselle) |
-| **Energia** | Generatore, nodi T1/T2 con buffer di capacità |
+| **Energia** | Generatore, nodi T1/T2 con buffer di capacità, Lampada |
 | **Economia** | Fondi, costi e rimborsi, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
@@ -123,8 +123,9 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto, in attesa dell'ok sulla grafica | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
 | Fatto, in attesa dell'ok | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
 | Fatto, in attesa dell'ok | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
-| Prossimo | **G3 · Effetti e luci** | Particelle, ombre, bagliori, impostazioni grafiche ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
+| Fatto, in attesa dell'ok | **G3 · Effetti e luci** | Particelle di lavoro, costruzione e ambiente, ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
 | Previsto | **G4 · Interfaccia** | Stile Mindustry, pixel font, lingue, scala e accessibilità |
+| Previsto | **Sito web su GitHub Pages** | Pagina del progetto con presentazione, catture e download |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
