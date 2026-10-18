@@ -47,6 +47,9 @@ public partial class AgentBridge : Node
     private const int HandshakeTimeoutMs = 5000;
 
     private string _token = "";
+    // Started by tools/AgentPlay: the game lives as long as the launcher's authenticated connection.
+    private bool _quitWithoutClient;
+    private volatile bool _clientLost;
 
     private World _world = null!;
     private AgentGame? _game;
@@ -65,6 +68,7 @@ public partial class AgentBridge : Node
     {
         _world = GetParent<World>();
         _token = OS.GetEnvironment(TokenEnv);
+        _quitWithoutClient = OS.GetEnvironment(QuitWithoutClientEnv) == "1";
         TryParsePort(OS.GetEnvironment(PortEnv), out var port);
         try
         {
@@ -157,7 +161,15 @@ public partial class AgentBridge : Node
                 {
                     client.ReceiveTimeout = 0; // authenticated: an agent may stay quiet as long as it likes
                     Send(connection, AgentResponse.Success(0, JsonSerializer.SerializeToElement(new JsonObject { ["canale"] = "tindustry" })));
-                    Serve(connection, reader, line);
+                    try
+                    {
+                        Serve(connection, reader, line);
+                    }
+                    finally
+                    {
+                        // The launcher (or the server behind it) is gone, however it died: so is the game.
+                        _clientLost = _quitWithoutClient;
+                    }
                 }
             }
             catch (Exception)
@@ -248,6 +260,14 @@ public partial class AgentBridge : Node
 
     public override void _Process(double delta)
     {
+        if (_clientLost && !_closing)
+        {
+            GD.Print("AgentBridge: il lanciatore si è scollegato, il gioco esce.");
+            _closing = true;
+            GetTree().Quit();
+            return;
+        }
+
         if (_run is { } run && Time.GetTicksMsec() >= run.Deadline)
         {
             _run = null;
@@ -316,6 +336,9 @@ public partial class AgentBridge : Node
                 case "log":
                     Reply(connection, request.Id, Log(p));
                     break;
+                case "nuova_partita":
+                    Reply(connection, request.Id, NewGame(p));
+                    break;
                 default:
                     CallGame(connection, request);
                     break;
@@ -331,6 +354,27 @@ public partial class AgentBridge : Node
             Send(connection, AgentResponse.Failure(
                 request.Id, new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}")));
         }
+    }
+
+    /// <summary>
+    /// The launcher's first request (tools/AgentPlay): leaves Home for a sandbox of <c>misura</c>, <c>seme</c> and
+    /// <c>generatore</c> (made like <see cref="AgentGameSetup.CreateHost"/>, so a journal replays on the same game), for
+    /// the campaign level <c>livello</c>, or for the save <c>slot</c> the launcher copied into the profile.
+    /// </summary>
+    private JsonObject NewGame(JsonElement p)
+    {
+        var level = OptStr(p, "livello") is { } id
+            ? _world.AgentCampaign?.Find(id) ?? throw Bad($"livello sconosciuto: {id}.")
+            : null;
+        var sandbox = AgentGameSetup.Sandbox(
+            OptInt(p, "misura") ?? (int)MapSize.Media, OptInt(p, "seme") ?? 1, OptStr(p, "generatore") ?? MapGenerator.Name,
+            new GameRules());
+        if (_world.AgentStartGame(sandbox, level, OptStr(p, "slot")) is { } error)
+        {
+            throw Bad(error);
+        }
+
+        return new JsonObject { ["tick"] = CurrentTick() };
     }
 
     // --- Shared methods (AgentGame) -------------------------------------------------------------------------------

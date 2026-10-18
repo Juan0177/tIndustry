@@ -15,14 +15,22 @@ public sealed class ServerFixture : IAsyncLifetime
     public async Task InitializeAsync() => Client = await Start(TempDirectory);
 
     /// <summary>A new server process whose temp folder (session folders included) is <paramref name="tempDirectory"/>.</summary>
-    public static Task<McpClient> Start(string tempDirectory) =>
-        McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
+    public static Task<McpClient> Start(string tempDirectory, Dictionary<string, string?>? environment = null)
+    {
+        var variables = TempEnvironment(tempDirectory);
+        foreach (var (key, value) in environment ?? [])
+        {
+            variables[key] = value;
+        }
+
+        return McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "tindustry",
             Command = "dotnet",
             Arguments = [ServerDll()],
-            EnvironmentVariables = TempEnvironment(tempDirectory)
+            EnvironmentVariables = variables
         }));
+    }
 
     public static Dictionary<string, string?> TempEnvironment(string tempDirectory) =>
         new() { ["TMP"] = tempDirectory, ["TEMP"] = tempDirectory, ["TMPDIR"] = tempDirectory };
