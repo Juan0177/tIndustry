@@ -34,6 +34,7 @@ public partial class World
         _host.CommandRejected += OnCommandRejected;
         _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
+        _effects?.Clear();
         _structureCount = StructureCount();
         ConstructFinishedCount = 0;
     }
@@ -53,6 +54,7 @@ public partial class World
 
         _host = null;
         _quietRefusals.Clear();
+        _effects?.Clear();
     }
 
     private void SubmitCommand(SimCommand command, bool quietWhenBlocked = false)

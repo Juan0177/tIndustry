@@ -28,7 +28,7 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
 |---|---|
 | `palette.py` | Tutti i colori: contorno `OUT` e rampe da scuro a chiaro (4–6 toni) per metalli, materiali, bagliore, accento, energia. |
 | `forme.py` | Mattoncini comuni: pannello in rilievo, bullone, tubo, griglia, ingranaggio, cerchio, bagliore, ombra, striscia di fotogrammi, composizione a strati. Luce sempre da in alto a sinistra. |
-| `blocchi/` | Un modulo per famiglia (`produzione`, `logistica`, `potenza`, `core`, `drone`, `oggetti`, `terreno`); ogni modulo del pacchetto è importato da solo. `terreno` legge suoli, pareti e biomi da `data/content.json` (vedi la sua docstring per nomi e misure). |
+| `blocchi/` | Un modulo per famiglia (`produzione`, `logistica`, `potenza`, `core`, `drone`, `oggetti`, `terreno`, `effetti`); ogni modulo del pacchetto è importato da solo. `terreno` legge suoli, pareti e biomi da `data/content.json` (vedi la sua docstring per nomi e misure). |
 | `genera.py` | Comando principale. |
 | `tavola.py` | Tavola di confronto vecchio/nuovo e tavola del terreno; `pezzi_mappa` è la composizione di riferimento del terreno. |
 | `fixture_terreno.py` | Scrive la fixture dei test C# (`tests/TIndustry.Shared.Tests/Fixtures/terrain-look-24.json`): mappa fissa 24×24 e pezzi di `pezzi_mappa`; `--controlla` dice se va rigenerata. |
@@ -58,7 +58,7 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
        return im
    ```
 
-   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone, a un blocco della tabella `CELLE` di `test_genera.py` o a uno sprite del terreno, altrimenti il test delle misure fallisce.
+   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone, a un blocco della tabella `CELLE` di `test_genera.py` a uno sprite del terreno o a una particella `fx-*` (quadrato o striscia di varianti quadrate da 8-16 px, usate dal gestore degli effetti con `godot/effetti/effetti.json`), altrimenti il test delle misure fallisce.
 2. `python tools/art/genera.py --solo junction`, guarda `.dev/arte/tavola.png`.
 3. Importa in Godot (sopra) e lancia i test.
 

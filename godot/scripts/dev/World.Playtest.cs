@@ -369,6 +369,12 @@ public partial class World
             await Shot("terreno-campagna");
         }
 
+        // Graphics settings and effect manager (G3), after every other capture: it changes and restores settings.
+        if (!await PlaytestGraphicsSettingsAsync(dir, Shot))
+        {
+            return false;
+        }
+
         if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
         {
             await PlaytestHugeMapPerfAsync(dir);

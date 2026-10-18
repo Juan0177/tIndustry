@@ -1,0 +1,16 @@
+{
+  "effetti": {
+    "prova": { "sprite": "fx-scintilla", "numero": 24, "durata": 0.6, "velocita": [60, 140], "colore": "#ffffff", "dispersione": 180, "gravita": [0, 0], "qualita": "Bassi" },
+    "fumo-forno": { "sprite": "fx-fumo", "numero": 6, "durata": 1.6, "velocita": [6, 14], "colore": "#ffffffc0", "dispersione": 180, "gravita": [4, -22], "qualita": "Bassi" },
+    "scintille-trivella": { "sprite": "fx-scintilla", "numero": 4, "durata": 0.35, "velocita": [40, 90], "colore": "#ffffff", "dispersione": 180, "gravita": [0, 160], "qualita": "Bassi" },
+    "vapore-generatore": { "sprite": "fx-vapore", "numero": 5, "durata": 1.4, "velocita": [6, 14], "colore": "#ffffffa0", "dispersione": 180, "gravita": [0, -24], "qualita": "Bassi" },
+    "polvere-core": { "sprite": "fx-polvere", "numero": 6, "durata": 0.5, "velocita": [20, 50], "colore": "#ffffff", "dispersione": 180, "gravita": [0, 40], "qualita": "Bassi" },
+    "scintille-cantiere": { "sprite": "fx-scintilla", "numero": 3, "durata": 0.3, "velocita": [30, 70], "colore": "#ffffff", "dispersione": 180, "gravita": [0, 120], "qualita": "Bassi" },
+    "lampo-costruzione": { "sprite": "fx-lampo", "numero": 1, "durata": 0.25, "velocita": [0, 0], "colore": "#ffffff", "dispersione": 0, "gravita": [0, 0], "qualita": "Bassi" },
+    "polvere-costruzione": { "sprite": "fx-polvere", "numero": 10, "durata": 0.6, "velocita": [30, 70], "colore": "#ffffff", "dispersione": 180, "gravita": [0, 60], "qualita": "Bassi" },
+    "sbriciolamento": { "sprite": "fx-polvere", "numero": 14, "durata": 0.7, "velocita": [30, 80], "colore": "#ffffff", "dispersione": 180, "gravita": [0, 90], "qualita": "Bassi" },
+    "neve": { "sprite": "fx-fiocco", "numero": 3, "durata": 5, "velocita": [4, 10], "colore": "#ffffffd0", "dispersione": 180, "gravita": [6, 14], "qualita": "Alti" },
+    "sabbia": { "sprite": "fx-granello", "numero": 4, "durata": 2.5, "velocita": [30, 50], "colore": "#ffffffc0", "dispersione": 20, "gravita": [10, 2], "qualita": "Alti" },
+    "foglie": { "sprite": "fx-foglia", "numero": 2, "durata": 4, "velocita": [8, 16], "colore": "#ffffff", "dispersione": 180, "gravita": [8, 10], "qualita": "Alti" }
+  }
+}

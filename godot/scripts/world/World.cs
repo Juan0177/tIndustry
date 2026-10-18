@@ -52,6 +52,10 @@ public partial class World : Node2D
     private TerrainChunks? _terrainChunks;
     private Node2D? _buildingsLayer;
     private ConstructionLayer? _constructionLayer;
+    private EffectManager? _effects;
+    private RenderScale? _renderScale;
+    // Graphics setting "Animazioni dei blocchi": false = building visuals get no time (still frames).
+    private bool _blockAnimations = true;
     private Hud? _hud;
     private HomePanel? _home;
     private NewGamePanel? _newGame;
@@ -132,6 +136,8 @@ public partial class World : Node2D
         UseSmoothUiFiltering();
         EnsureBuildingsLayer();
         EnsureConstructionLayer();
+        EnsureEffects();
+        ApplyGraphicsSettings();
 
         EnsureBeltVisual();
         RebuildBeltVisual();
@@ -239,6 +245,37 @@ public partial class World : Node2D
         GameDataPaths.WriteRefused -= OnPlayerDataWriteRefused;
         GC.Collect();
         GC.WaitForPendingFinalizers();
+    }
+
+    private void EnsureEffects()
+    {
+        _effects = new EffectManager { Name = "Effetti", TileSize = TileSize };
+        AddChild(_effects);
+        _renderScale = new RenderScale { Name = "ScalaRendering" };
+        AddChild(_renderScale);
+        _renderScale.Setup(this);
+    }
+
+    /// <summary>
+    /// Graphics settings that act on world nodes (the engine ones are in <see cref="ClientSettings.ApplyToEngine"/>):
+    /// effects quality (Spenti in playtests unless TINDUSTRY_PLAYTEST_EFFETTI=1), still water with Effetti Spenti,
+    /// render scale, building animations. Called at start and on every Applica, so changes act at once.
+    /// </summary>
+    private void ApplyGraphicsSettings()
+    {
+        var quality = _settings.EffectiveEffects;
+        if (_effects is not null)
+        {
+            _effects.Quality = quality;
+        }
+
+        if (_terrainChunks is not null)
+        {
+            _terrainChunks.AnimateWater = quality != EffectsQuality.Spenti;
+        }
+
+        _renderScale?.Apply(_settings.ScalaRendering);
+        _blockAnimations = _settings.AnimazioniBlocchi;
     }
 
     private void EnsureTerrainChunks()

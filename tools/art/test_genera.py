@@ -44,6 +44,10 @@ GIACIMENTI = 3
 NO, NE, SE, SO = 1, 2, 4, 8
 BORDI = ("N", "E", "S", "O", "NE", "SE", "SO", "NO")
 SOGLIA_CUCITURA = 8.0
+# Particle sprites (G3): side range in px, most variants in a strip, and the names the client expects.
+FX_LATO = (8, 16)
+FX_VARIANTI = 8
+FX = ("fx-fumo", "fx-scintilla", "fx-polvere", "fx-vapore", "fx-fiocco", "fx-granello", "fx-foglia", "fx-lampo")
 
 
 def _content():
@@ -100,6 +104,10 @@ def errore_misura(nome, im):
         return None if (w, h) == terreno[nome] else f"{nome}: {w}x{h}, atteso {terreno[nome][0]}x{terreno[nome][1]}"
     if nome.startswith("deco-") and nome[len("deco-"):].rsplit("-", 1)[0] in _biomi_terra():
         return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
+    if nome.startswith("fx-"):
+        # Particle (G3): one square or a strip of square variants, side 8-16 px.
+        ok = FX_LATO[0] <= h <= FX_LATO[1] and w % h == 0 and 1 <= w // h <= FX_VARIANTI
+        return None if ok else f"{nome}: {w}x{h}, atteso un quadrato o una striscia di quadrati da 8-16 px"
     anim = nome.endswith("-anim")
     base = nome[: -len("-anim")] if anim else nome
     if anim and (h <= 0 or w % h != 0):
@@ -205,6 +213,11 @@ class TestGenera(unittest.TestCase):
         self.assertIsNotNone(errore_misura("terreno-sand-bordo", forme.nuova(4 * T, T)))
         self.assertIsNotNone(errore_misura("terreno-lava-0", forme.nuova(T, T)))
         self.assertIsNotNone(errore_misura("deco-vulcano-0", forme.nuova(T, T)))
+        self.assertIsNone(errore_misura("fx-fumo", forme.nuova(36, 12)))
+        self.assertIsNone(errore_misura("fx-lampo", forme.nuova(16, 16)))
+        self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(30, 12)))
+        self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(T, T)))
+        self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(6, 6)))
 
     def test_copertura_tier(self):
         # The four Core tiers with their light strip and the three drones.
@@ -358,6 +371,14 @@ class TestGenera(unittest.TestCase):
         attesi |= {f"core-{n}" for n in range(1, CORE_TIER + 1)} | set(DRONI)
         reali = set(SPRITE) - set(TEST_SPRITES)
         self.assertEqual([], sorted(attesi - reali))
+
+    def test_effetti(self):
+        # Every particle sprite the client expects exists and none of its variants is empty.
+        self.assertEqual([], sorted(set(FX) - set(SPRITE)))
+        for nome in FX:
+            im = SPRITE[nome]()
+            for f in fotogrammi_di(im):
+                self.assertIsNotNone(f.getbbox(), f"{nome}: variante vuota")
 
     def test_terreno_copertura(self):
         # Every floor has its variants and its edge strip, every wall its 16 dual-grid pieces,
