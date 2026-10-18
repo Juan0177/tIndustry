@@ -444,8 +444,10 @@ public sealed class BeltGrid
     /// <summary>
     /// How a plain belt is drawn (visual only, Mindustry's conveyor blend): no side feeder = straight, exactly
     /// one side feeder = corner from that side (<paramref name="incoming"/>), feeders on both sides and none
-    /// behind = T; a feeder behind plus side feeders = a side join open on those sides only (its building variant
-    /// when a building feeds one of them). Specials and empty cells are straight; <paramref name="incoming"/> is then the cell's direction (default for an empty cell).
+    /// behind = T; a feeder behind plus side feeders = a side join (<see cref="ShapeFrom"/>). Specials and empty
+    /// cells are straight; <paramref name="incoming"/> is then the cell's direction (default for an empty cell).
+    /// <paramref name="buildingFeeds"/> decides which buildings count (the client view passes "exchanges items
+    /// with belts", Mindustry's blend by capability).
     /// </summary>
     public BeltShape GetShape(
         GridPosition position,
@@ -472,16 +474,15 @@ public sealed class BeltGrid
 
     /// <summary>
     /// <see cref="GetShape"/> of a plain belt from its feeders (behind, left, right) and which sides are fed by a
-    /// building. Behind plus a building side = the building join, open on every fed side: a building on one side
-    /// and a belt on the other is <see cref="BeltShape.JoinBuildingBoth"/>.
+    /// building. Behind plus one side (belt or building) = the dot block open on that side; behind plus belts on both
+    /// sides = the T open behind; behind plus both sides with a building on at least one = the dot block open on both.
     /// </summary>
     internal static BeltShape ShapeFrom(bool back, bool left, bool right, (bool Left, bool Right) building = default) =>
         !left && !right ? BeltShape.Straight
-        : back && (building.Left || building.Right)
-            ? (left && right ? BeltShape.JoinBuildingBoth : left ? BeltShape.JoinBuildingLeft : BeltShape.JoinBuildingRight)
-        : back ? (left && right ? BeltShape.JoinBoth : left ? BeltShape.JoinLeft : BeltShape.JoinRight)
-        : left && right ? BeltShape.T // both sides, nothing behind
-        : BeltShape.Corner;
+        : !back ? (left && right ? BeltShape.T : BeltShape.Corner)
+        : !(left && right) ? (left ? BeltShape.JoinLeft : BeltShape.JoinRight)
+        : building.Left || building.Right ? BeltShape.JoinBuildingBoth
+        : BeltShape.JoinBoth;
 
     /// <summary>Which sides of the belt at <paramref name="position"/> facing <paramref name="dir"/> a building feeds.</summary>
     internal (bool Left, bool Right) BuildingFeeders(
@@ -692,21 +693,15 @@ public enum BeltShape
     Corner,
     T,
 
-    /// <summary>Fed from behind and from the left of its flow: a straight open on the left.</summary>
+    /// <summary>Fed from behind and from the left of its flow (belt or building): the dot block open on the left.</summary>
     JoinLeft,
 
-    /// <summary>Fed from behind and from the right of its flow: a straight open on the right.</summary>
+    /// <summary>Fed from behind and from the right of its flow (belt or building): the dot block open on the right.</summary>
     JoinRight,
 
-    /// <summary>Fed from behind and from both sides: a T open behind too.</summary>
+    /// <summary>Fed from behind and by belts on both sides: a T open behind too.</summary>
     JoinBoth,
 
-    /// <summary>Fed from behind and by a building on the left: the building join, open on the left.</summary>
-    JoinBuildingLeft,
-
-    /// <summary>Fed from behind and by a building on the right: the building join, open on the right.</summary>
-    JoinBuildingRight,
-
-    /// <summary>Fed from behind and on both sides, a building on at least one: the building join, open on both.</summary>
+    /// <summary>Fed from behind and on both sides, a building on at least one: the dot block open on both.</summary>
     JoinBuildingBoth
 }

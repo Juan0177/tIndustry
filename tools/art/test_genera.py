@@ -492,34 +492,30 @@ class TestGenera(unittest.TestCase):
                     self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
 
     def test_unioni_laterali(self):
-        # Side joins (fed from behind and from the sides with an input) are the T opened behind: its
-        # West columns 0-4 are the straight frame's (the belt behind runs in), each half with an input
-        # is the T's half, each half without one is the straight frame's (that side stays closed exactly
-        # as a straight). Left of the flow is North in the East-facing art.
+        # Fed from behind and by belts on both sides (BeltShape.JoinBoth): the T opened behind. Its West
+        # columns 0-4 are the straight frame's (the belt behind runs in), the rest is the T's.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
                 unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
-                for nome, nord, sud in (("left", True, False), ("right", False, True), ("both", True, True)):
-                    lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
-                    self.assertEqual(len(dritti), len(lati))
-                    for k, (d, u, j) in enumerate(zip(dritti, unioni, lati)):
-                        for y in range(T):
-                            aperto = nord if y < T // 2 else sud
-                            for x in range(T):
-                                atteso = (u if aperto and x >= 5 else d).getpixel((x, y))
-                                self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} {nome} {k + 1}: {x},{y}")
+                lati = fotogrammi_di(SPRITE[f"{nastro}-join-both-anim"]())
+                self.assertEqual(len(dritti), len(lati))
+                for k, (d, u, j) in enumerate(zip(dritti, unioni, lati)):
+                    for y in range(T):
+                        for x in range(T):
+                            atteso = (u if x >= 5 else d).getpixel((x, y))
+                            self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} both {k + 1}: {x},{y}")
 
     def test_unioni_da_edificio(self):
-        # Building-fed side joins are the junction composition ("dot block") in the tier's colours, but a
-        # belt: the West and East edge columns (0-4, 27-31) of the East-West tread are the straight frame's
+        # Side joins with one fed side (belt or building) or with a building on either side are the junction
+        # composition ("dot block") in the tier's colours, but a belt: the West and East edge columns (0-4, 27-31) of the East-West tread are the straight frame's
         # (ribs, no chevron: rows 6 / 25), so they scroll with it; a side without a building is the straight
         # frame's rail and groove, corners included.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
-                for nome, nord, sud in (("left", True, False), ("right", False, True), ("both", True, True)):
-                    lati = fotogrammi_di(SPRITE[f"{nastro}-join-building-{nome}-anim"]())
+                for nome, nord, sud in (("left", True, False), ("right", False, True), ("building-both", True, True)):
+                    lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
                     self.assertEqual(len(dritti), len(lati))
                     for k, (d, j) in enumerate(zip(dritti, lati)):
                         for y in range(T):

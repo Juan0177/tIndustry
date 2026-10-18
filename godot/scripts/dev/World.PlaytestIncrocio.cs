@@ -74,6 +74,91 @@ public partial class World
         await PlaytestWait(0.1);
     }
 
+    /// <summary>
+    /// Belts blend with every building that exchanges items with them (Mindustry's blend by capability): a belt line
+    /// running East under an assembler, a generator, an extractor, a smelter and a miner shows the dot block beside
+    /// each, and a belt heading North beside the miner with nothing behind is a curve from it. Taken away afterwards.
+    /// </summary>
+    private async Task PlaytestBuildingsBesideBeltAsync(
+        Camera2D cam, Func<string, Task> shot, Factory factory, TerrainMap terrain, GridPosition core)
+    {
+        // Cells x -1..10, y 0..2 from the anchor: buildings on rows 0-1, the belt line on row 2.
+        bool Free(GridPosition a)
+        {
+            for (var y = a.Y; y <= a.Y + 2; y++)
+            {
+                for (var x = a.X - 1; x <= a.X + 10; x++)
+                {
+                    var cell = new GridPosition(x, y);
+                    if (!terrain.InBounds(cell) || terrain[cell].Deposit != DepositKind.None || factory.IsPlannedTile(cell)
+                        || !factory.CanPlace(new BuildSpec(BuildSpec.DefaultConveyorId, null, cell, Direction.East), out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        GridPosition? anchor = null;
+        for (var dy = 4; dy < 40 && anchor is null; dy++)
+        {
+            foreach (var y in new[] { core.Y + dy, core.Y - dy })
+            {
+                if (Free(new GridPosition(core.X - 5, y)))
+                {
+                    anchor = new GridPosition(core.X - 5, y);
+                    break;
+                }
+            }
+        }
+
+        if (anchor is not { } at)
+        {
+            GD.Print("PLAYTEST nastro accanto agli edifici: nessuno spazio libero");
+            return;
+        }
+
+        GridPosition At(int dx, int dy) => new(at.X + dx, at.Y + dy);
+        var layout = new List<BuildSpec>
+        {
+            new(Crafter.AssemblerBuildingId, BuildingKind.Assembler, At(0, 0), Direction.East),
+            new(Generator.BuildingId, BuildingKind.Generator, At(2, 0), Direction.East),
+            new(Extractor.BuildingId, BuildingKind.Extractor, At(4, 1), Direction.North),
+            new(Crafter.SmelterBuildingId, BuildingKind.Smelter, At(5, 0), Direction.East),
+            new(Miner.BasicId, BuildingKind.Miner, At(7, 0), Direction.East),
+            new(BuildSpec.DefaultConveyorId, null, At(9, 1), Direction.North)
+        };
+        for (var dx = -1; dx <= 9; dx++)
+        {
+            layout.Add(new BuildSpec(BuildSpec.DefaultConveyorId, null, At(dx, 2), Direction.East));
+        }
+
+        foreach (var spec in layout)
+        {
+            factory.PlaceInstant(spec, charge: false);
+        }
+
+        GD.Print($"PLAYTEST nastro accanto agli edifici: {string.Join(", ", Enumerable.Range(0, 9).Select(dx => factory.GetBeltShape(At(dx, 2))))}; "
+            + $"accanto al minatore {factory.GetBeltShape(At(9, 1))}");
+        _visualDirty = true;
+        _buildingsDirty = true;
+        cam.Position = new Vector2((at.X + 4.5f) * TileSize, (at.Y + 1.5f) * TileSize);
+        cam.Zoom = new Vector2(1.6f, 1.6f);
+        await PlaytestWait(0.3);
+        await shot("nastro-accanto-edifici");
+
+        foreach (var spec in layout)
+        {
+            factory.RemoveInstant(spec.Origin, refund: false);
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        await PlaytestWait(0.1);
+    }
+
     private async Task<bool> PlaytestAutoJunctionAsync(Func<string, Task> shot)
     {
         if (_view is not Factory factory || _view.Terrain is not { } terrain || GetNodeOrNull<Camera2D>("Camera") is not { } cam)

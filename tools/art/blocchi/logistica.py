@@ -123,7 +123,7 @@ def _colore_curva(tier, fotogramma, a, b, v=None):
     return _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u)
 
 
-def unione_t(tier, fotogramma, nord=True, sud=True, dietro=False):
+def unione_t(tier, fotogramma, dietro=False):
     """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and
     South edges, out from the East edge.
 
@@ -133,20 +133,12 @@ def unione_t(tier, fotogramma, nord=True, sud=True, dietro=False):
     meet the output belt's rails and both treads bend into the output like a corner. Where both
     corners would draw their outer groove and rail (they would cross the other input) the tread goes on; the
     West side, with no input, is closed by a straight rail that continues the side belts' outer
-    rails.
-
-    Side joins (a belt fed from behind and from a side) reuse it: `dietro` opens the West side
-    (the straight frame's columns 0-4, so the belt behind runs in), and a half without an input
-    (`nord` / `sud` False) is the straight frame, so that side stays closed exactly as a straight.
+    rails. With `dietro` (fed from behind too: BeltShape.JoinBoth) the West side is open instead: the
+    straight frame's columns 0-4, so the belt behind runs in.
     """
-    # T = both sides, nothing behind; JoinLeft / JoinRight / JoinBoth = behind plus the open sides.
-    assert (nord or sud) and (dietro or (nord and sud)), "no BeltShape for these inputs"
     im = forme.nuova(T, T)
     for y in range(T):
         for x in range(T):
-            if not (nord if y < T // 2 else sud):
-                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO))
-                continue
             if x < 5:
                 # Back rail, mirrored on the axis so both input edges see the corner's joint.
                 forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO) if dietro
@@ -159,19 +151,17 @@ def unione_t(tier, fotogramma, nord=True, sud=True, dietro=False):
     return im
 
 
-# Side joins (fed from behind and from the sides with an input), East-facing art: left of the flow is North.
-UNIONI = {"join-left": (True, False), "join-right": (False, True), "join-both": (True, True)}
-
-
 def _registra_nastro(tier):
     sprite(tier)(lambda: nastro(tier, 0))
     sprite(tier + "-anim")(lambda: forme.striscia([nastro(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-corner-anim")(lambda: forme.striscia([curva(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-t-anim")(lambda: forme.striscia([unione_t(tier, k) for k in range(FOTOGRAMMI)]))
-    for nome, (nord, sud) in UNIONI.items():
+    # Side joins (BeltShape.JoinLeft / JoinRight / JoinBuildingBoth: the dot block; JoinBoth: the T open behind),
+    # East-facing art: left of the flow is North.
+    sprite(tier + "-join-both-anim")(lambda: forme.striscia([unione_t(tier, k, dietro=True) for k in range(FOTOGRAMMI)]))
+    for nome, (nord, sud) in (("join-left", (True, False)), ("join-right", (False, True)),
+                              ("join-building-both", (True, True))):
         sprite(f"{tier}-{nome}-anim")(lambda nord=nord, sud=sud: forme.striscia(
-            [unione_t(tier, k, nord, sud, dietro=True) for k in range(FOTOGRAMMI)]))
-        sprite(f"{tier}-join-building-{nome[5:]}-anim")(lambda nord=nord, sud=sud: forme.striscia(
             [unione_edificio(tier, k, nord, sud) for k in range(FOTOGRAMMI)]))
 
 
@@ -251,8 +241,9 @@ sprite("junction")(_incrocio)
 
 
 def unione_edificio(tier, fotogramma, nord, sud):
-    """Side join fed by a building (the user's pick: the junction's "dot block"): a straight East belt
-    fed from behind and by a building on the North (`nord`, left of the flow) and/or South (`sud`) edge.
+    """Side join with the junction's "dot block" (the user's pick): a straight East belt fed from behind and
+    from the North (`nord`, left of the flow) and/or South (`sud`) edge, by a belt (a secondary line joining
+    the main one) or by a building that exchanges items with belts.
 
     It is the junction composition in the tier's colours (the belt from the building side runs through
     the middle, the hub marks where the items merge), but a belt: the East-West tread at the West and
@@ -260,7 +251,7 @@ def unione_edificio(tier, fotogramma, nord, sud):
     frame by frame; a side without a building is closed by the straight frame's rail and groove (rows 0-5 or
     26-31, corners included), pixel for pixel.
     """
-    assert nord or sud, "a building side join has at least one building side (no side = straight)"
+    assert nord or sud, "a side join has at least one open side (no side = straight)"
     base = _incrocio(tier)
     im = forme.nuova(T, T)
     for y in range(T):

@@ -621,6 +621,7 @@ public partial class World
         try
         {
             await PlaytestOutputCornersAsync(cam, shot, factory, at, Layout(at));
+            await PlaytestBuildingsBesideBeltAsync(cam, shot, factory, terrain, core);
         }
         finally
         {
