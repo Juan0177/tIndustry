@@ -2,6 +2,8 @@ name: Pages
 
 # Website on GitHub Pages (tools/sito/costruisci.py → _site/). Manual (Actions → Pages → Run workflow)
 # or on release tags, like the other workflows: never on push or pull requests.
+# Run it from main (`gh workflow run pages.yml --ref main`): the github-pages environment only deploys from
+# the default branch and from v* tags (environment rule). One-time setup: Settings → Pages → Source "GitHub Actions".
 on:
   workflow_dispatch:
   push:
@@ -10,8 +12,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -45,6 +45,9 @@ jobs:
     name: Pubblica
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

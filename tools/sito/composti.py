@@ -7,7 +7,8 @@ bridge chevrons), the motion is reproduced here frame by frame at the same speed
 
 Images are composed at the in-game scale: SCALA = 2 screen pixels per art pixel (World.TileSize 64,
 Sprites.PixelsPerCell 32, Nearest filter). Shadows (graphics setting "Ombre") and the G3 particle
-effects are left out: they belong to the ground and the effect manager, not to the block.
+effects are left out: they belong to the ground and the effect manager, not to the block. Glows use
+the plain intensity (BuildingPad.GlowBoost = 1, i.e. the "Bagliore" setting off).
 """
 import json
 import math

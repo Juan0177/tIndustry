@@ -71,6 +71,8 @@ body{margin:0;background:var(--bg);color:var(--testo);font:15px/1.5 system-ui,sa
 a{color:var(--bordo)}
 header{background:var(--bg);border-bottom:2px solid var(--bordo);padding:12px 16px}
 header.fisso{position:sticky;top:0;z-index:1}
+section{scroll-margin-top:110px}
+@supports not selector(:popover-open){.lente{display:none}}
 h1{margin:0 0 6px;font-size:22px;color:var(--bordo)}
 h2{color:var(--bordo);margin:28px 0 10px;font-size:18px}
 h2 small{color:var(--tenue);font-weight:normal}
