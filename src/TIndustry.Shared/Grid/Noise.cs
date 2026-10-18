@@ -36,14 +36,15 @@ public static class Noise
             return Hash(x, y, seed);
         }
 
+        // In long: any int coordinate and cell size stay exact.
         var cx = FloorDiv(x, cellSize);
         var cy = FloorDiv(y, cellSize);
-        var sx = Smooth((x - cx * cellSize) * 65536 / cellSize);
-        var sy = Smooth((y - cy * cellSize) * 65536 / cellSize);
-        var a = Hash(cx, cy, seed);
-        var b = Hash(cx + 1, cy, seed);
-        var c = Hash(cx, cy + 1, seed);
-        var d = Hash(cx + 1, cy + 1, seed);
+        var sx = Smooth((int)((x - cx * cellSize) * 65536 / cellSize));
+        var sy = Smooth((int)((y - cy * cellSize) * 65536 / cellSize));
+        var a = Hash((int)cx, (int)cy, seed);
+        var b = Hash(unchecked((int)cx + 1), (int)cy, seed);
+        var c = Hash((int)cx, unchecked((int)cy + 1), seed);
+        var d = Hash(unchecked((int)cx + 1), unchecked((int)cy + 1), seed);
         var top = a + (int)(((long)(b - a) * sx) >> 16);
         var bottom = c + (int)(((long)(d - c) * sx) >> 16);
         return top + (int)(((long)(bottom - top) * sy) >> 16);
@@ -78,5 +79,5 @@ public static class Noise
     // t in 0..65536 (16 fractional bits) -> 3t² - 2t³, same scale.
     private static int Smooth(int t) => (int)(((long)t * t * (3L * 65536 - 2L * t)) >> 32);
 
-    private static int FloorDiv(int a, int b) => a >= 0 ? a / b : -((-a + b - 1) / b);
+    private static long FloorDiv(long a, long b) => a >= 0 ? a / b : -((-a + b - 1) / b);
 }

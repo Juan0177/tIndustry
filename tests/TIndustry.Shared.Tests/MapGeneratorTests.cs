@@ -5,13 +5,18 @@ using Xunit.Abstractions;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>A test that only runs in Release (timings in Debug mean nothing).</summary>
+/// <summary>A timing test: runs only in Release and off CI (shared runners make timings noisy).</summary>
 public sealed class ReleaseFactAttribute : FactAttribute
 {
     public ReleaseFactAttribute()
     {
 #if DEBUG
         Skip = "misura di prestazioni: solo in Release";
+#else
+        if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            Skip = "misura di prestazioni: saltata in CI";
+        }
 #endif
     }
 }
@@ -45,6 +50,10 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
     private static MapGenSettings Small(int seed, int edge = 256) =>
         new(edge, edge, seed, MapGenSettings.AllBiomes);
 
+    private static string Label(MapGenSettings s) =>
+        $"{s.Width}x{s.Height} seme {s.Seed} biomi {string.Join(",", s.Biomes)} " +
+        $"pareti {s.WallDensityPercent}% acqua {s.WaterPercent}% giacimenti {s.DepositPercent}%";
+
     [Fact]
     public void SameSeedSameMap()
     {
@@ -64,7 +73,7 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
     [Fact]
     public void HashIsStableAcrossRuns() =>
         // Changing the generator changes every biome map: update this only on purpose.
-        Assert.Equal(176401935058557516UL, TerrainMap.TerrainHash(Generate(Small(42)).Map));
+        Assert.Equal(10891508615017362469UL, TerrainMap.TerrainHash(Generate(Small(42)).Map));
 
     [Fact]
     public void ClassicStaysTheDefault()
@@ -113,7 +122,8 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
     {
         for (var seed = 0; seed < 50; seed++)
         {
-            AssertGoodStart(Small(seed * 7919 + 3), $"seme {seed * 7919 + 3}");
+            var settings = Small(seed * 7919 + 3);
+            AssertGoodStart(settings, Label(settings));
         }
 
         // Harsh settings: walls everywhere, one biome without coal bonus, a tiny map.
@@ -125,7 +135,7 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
             new MapGenSettings(40, 40, 14, MapGenSettings.AllBiomes, WallDensityPercent: 300)
         })
         {
-            AssertGoodStart(settings, settings.ToString());
+            AssertGoodStart(settings, Label(settings));
         }
     }
 
@@ -169,8 +179,89 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
         var reached = LandReachableDeposits(map, core);
         foreach (var ore in new[] { DepositKind.Iron, DepositKind.Copper, DepositKind.Coal })
         {
-            Assert.Contains(ore, reached);
+            Assert.True(reached.Contains(ore), $"{label}: {ore} non raggiungibile");
         }
+
+        AssertShallowShore(map, label);
+    }
+
+    /// <summary>Deep water always has a shallow ring: no land or wall cell touches it.</summary>
+    private static void AssertShallowShore(TerrainMap map, string label)
+    {
+        for (var y = 0; y < map.Height; y++)
+        {
+            for (var x = 0; x < map.Width; x++)
+            {
+                if (map[x, y].Floor != FloorKind.DeepWater)
+                {
+                    continue;
+                }
+
+                foreach (var (nx, ny) in new[] { (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1) })
+                {
+                    if (map.InBounds(new GridPosition(nx, ny)))
+                    {
+                        Assert.True(map[nx, ny].Floor is FloorKind.ShallowWater or FloorKind.DeepWater,
+                            $"{label}: terra ({nx}, {ny}) accanto all'acqua profonda ({x}, {y})");
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void FallbackCoalNeverHidesTheStarterPatches()
+    {
+        // Core near the top edge: copper flips below the iron; no coal anywhere on the map.
+        var settings = new MapGenSettings(64, 64, 21, ["sabbia"], DepositPercent: 0);
+        var coreOrigin = new GridPosition(30, 61);
+        var map = NewGame.Sandbox(Content, coreOrigin, map: settings).Terrain!;
+        var iron = new GridPosition(26, 61);
+        Assert.Equal(4, map.CountDepositTiles(iron, 2, DepositKind.Iron));
+        Assert.Equal(4, map.CountDepositTiles(new GridPosition(26, 58), 2, DepositKind.Copper));
+        var reached = LandReachableDeposits(map, coreOrigin);
+        Assert.Contains(DepositKind.Coal, reached);
+        Assert.Contains(DepositKind.Copper, reached);
+    }
+
+    [Fact]
+    public void GuaranteeDigsToAnEnclosedOre()
+    {
+        // Grass 40×40, the Core at (20,20) walled in by a square ring of walls; coal only outside it.
+        const int size = 40;
+        var tiles = new TerrainTile[size, size];
+        for (var x = 0; x < size; x++)
+        {
+            for (var y = 0; y < size; y++)
+            {
+                var ring = Math.Max(Math.Abs(x - 20), Math.Abs(y - 20)) == 12;
+                tiles[x, y] = new TerrainTile(FloorKind.Grass, ring ? WallKind.StoneWall : WallKind.None, DepositKind.None);
+            }
+        }
+
+        tiles[16, 20] = tiles[17, 20] = new TerrainTile(FloorKind.Stone, WallKind.None, DepositKind.Iron);
+        tiles[16, 23] = new TerrainTile(FloorKind.Stone, WallKind.None, DepositKind.Copper);
+        tiles[2, 30] = tiles[3, 30] = new TerrainTile(FloorKind.Stone, WallKind.None, DepositKind.Coal);
+        // A deep river across the way, too.
+        for (var y = 0; y < size; y++)
+        {
+            tiles[5, y] = new TerrainTile(FloorKind.DeepWater, WallKind.None, DepositKind.None);
+        }
+
+        var map = TerrainMap.FromTiles(tiles, generator: MapGenerator.Name);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(20, 20), 2);
+        Assert.DoesNotContain(DepositKind.Coal, LandReachableDeposits(map, new GridPosition(20, 20)));
+
+        MapGenerator.EnsureLandPaths(map, core, new GridPosition(16, 20));
+
+        var reached = LandReachableDeposits(map, new GridPosition(20, 20));
+        Assert.Contains(DepositKind.Coal, reached);
+        Assert.Contains(DepositKind.Iron, reached);
+        Assert.Contains(DepositKind.Copper, reached);
+        // L-shaped: along y = 20 to x = 3 (wall at (8,20) gone, river at (5,20) shallow), then up x = 3.
+        Assert.Equal(WallKind.None, map[8, 20].Wall);
+        Assert.Equal(FloorKind.ShallowWater, map[5, 20].Floor);
+        Assert.Equal(WallKind.StoneWall, map[8, 21].Wall);
     }
 
     [Fact]
@@ -322,7 +413,7 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
                 {
                     DepositKind.Iron => "#C46A4A",
                     DepositKind.Copper => "#E09A3A",
-                    DepositKind.Coal => "#151515",
+                    DepositKind.Coal => "#B0FF40", // preview only: stone walls are near-black
                     DepositKind.Lead => "#8A6AB8",
                     DepositKind.Titanium => "#7AE0F0",
                     _ => tile.Wall != WallKind.None

@@ -812,10 +812,10 @@
       { "id": "deep-water", "biome": "acqua", "color": "#1C3448", "buildable": false }
     ],
     "walls": [
-      { "id": "stone-wall", "biome": "rocce", "color": "#34383A" },
-      { "id": "sand-wall", "biome": "sabbia", "color": "#7A6440" },
-      { "id": "ice-wall", "biome": "neve", "color": "#6E8EA6" },
-      { "id": "shrub-wall", "biome": "prati", "color": "#24402A" }
+      { "id": "stone-wall", "biome": "rocce", "color": "#16181A" },
+      { "id": "sand-wall", "biome": "sabbia", "color": "#5C3A1E" },
+      { "id": "ice-wall", "biome": "neve", "color": "#3E5C78" },
+      { "id": "shrub-wall", "biome": "prati", "color": "#0E2414" }
     ]
   }
 }

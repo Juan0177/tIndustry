@@ -156,8 +156,9 @@ public static class MapGenerator
             }
         }
 
-        SetWaterDepth(map, seeds.Ring);
+        // Clear the start first, so the shallow ring also lines the water the disc cuts.
         ClearStart(map, biomes, core, starter);
+        SetWaterDepth(map, seeds.Ring);
         EnsureLandPaths(map, core, starter);
         return map;
     }
@@ -449,9 +450,11 @@ public static class MapGenerator
 
     /// <summary>
     /// Flood-fills the land reachable from the Core; for each of iron, copper and coal not reached, digs an
-    /// L-shaped passage to the nearest deposit of that ore (or lays a patch near the start if the map has none).
+    /// L-shaped passage to the nearest deposit of that ore (or lays a patch near the start, on cells holding
+    /// no other deposit, if the map has none). Repeats until all three are reached, so a patch can never
+    /// hide an earlier one.
     /// </summary>
-    private static void EnsureLandPaths(TerrainMap map, IReadOnlySet<GridPosition> core, GridPosition starter)
+    internal static void EnsureLandPaths(TerrainMap map, IReadOnlySet<GridPosition> core, GridPosition starter)
     {
         if (core.Count == 0)
         {
@@ -460,23 +463,64 @@ public static class MapGenerator
 
         var (minX, minY, _, _) = Bounds(core);
         var origin = new GridPosition(Math.Clamp(minX, 0, map.Width - 1), Math.Clamp(minY, 0, map.Height - 1));
-        foreach (var ore in RequiredOres)
+        for (var pass = 0; pass < RequiredOres.Length + 1; pass++)
         {
-            if (Reaches(map, origin, ore))
+            var changed = false;
+            foreach (var ore in RequiredOres)
             {
-                continue;
+                if (Reaches(map, origin, ore))
+                {
+                    continue;
+                }
+
+                changed = true;
+                if (Nearest(map, origin, ore) is { } target)
+                {
+                    Dig(map, origin, target);
+                }
+                else if (FreePatchSpot(map, core, starter) is { } spot)
+                {
+                    Patch(map, spot, ore);
+                }
             }
 
-            if (Nearest(map, origin, ore) is { } target)
+            if (!changed)
             {
-                Dig(map, origin, target);
-            }
-            else
-            {
-                var y = Math.Clamp(starter.Y - Miner.Size - 1, 0, map.Height - Miner.Size);
-                Patch(map, new GridPosition(starter.X, y), ore);
+                return;
             }
         }
+    }
+
+    /// <summary>First spot near the starter whose 2×2 is in the map, off the Core and free of deposits.</summary>
+    private static GridPosition? FreePatchSpot(TerrainMap map, IReadOnlySet<GridPosition> core, GridPosition starter)
+    {
+        const int gap = Miner.Size + 1;
+        GridPosition[] candidates =
+        [
+            new(starter.X, starter.Y - gap), new(starter.X, starter.Y + gap),
+            new(starter.X - gap, starter.Y), new(starter.X - gap, starter.Y - gap),
+            new(starter.X - gap, starter.Y + gap), new(starter.X, starter.Y - 2 * gap),
+            new(starter.X, starter.Y + 2 * gap), new(starter.X - 2 * gap, starter.Y)
+        ];
+        foreach (var spot in candidates)
+        {
+            var free = true;
+            for (var y = spot.Y; y < spot.Y + Miner.Size; y++)
+            {
+                for (var x = spot.X; x < spot.X + Miner.Size; x++)
+                {
+                    var p = new GridPosition(x, y);
+                    free &= map.InBounds(p) && !core.Contains(p) && map[p].Deposit == DepositKind.None;
+                }
+            }
+
+            if (free)
+            {
+                return spot;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Is a cell of <paramref name="ore"/> reachable from <paramref name="origin"/> over buildable cells (4 neighbours)?</summary>
