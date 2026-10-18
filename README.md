@@ -157,6 +157,8 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 
 Requisiti: [.NET 8 SDK](https://dotnet.microsoft.com/download) e [Godot 4.4 .NET (mono)](https://godotengine.org/download) come comando `godot4`.
 
+Gli agenti AI giocano e cercano bug con il server MCP `tindustry` (`.mcp.json`, Claude Code lo avvia da solo): vedi [`tools/AgentPlay/README.md`](tools/AgentPlay/README.md).
+
 ### Avvio rapido
 
 ```bash

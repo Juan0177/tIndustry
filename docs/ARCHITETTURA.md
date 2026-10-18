@@ -7,11 +7,13 @@ Gioco in Godot 4.4 .NET. La simulazione è C# puro in `src/TIndustry.Shared/` (n
 ```
 tIndustry/
 ├─ CLAUDE.md · README.md · CHANGELOG.md · tIndustry.sln
+├─ .mcp.json                    server MCP tindustry per Claude Code (python tools/AgentPlay/avvia.py)
+├─ .claude/skills/gioca-e-testa/ skill di progetto: cercare bug e fare catture con gli strumenti degli agenti
 ├─ data/                        unica fonte dei contenuti: content.json, campaign.json, maps/ (mappe della campagna)
 ├─ docs/
 │  ├─ ARCHITETTURA.md           questo file
 │  ├─ diario/                   diario di lavoro: un file per piano completato
-│  ├─ decisioni/                ADR (0001 server C#, 0002 sincronizzazione, 0003 costruzione, 0004 arte, 0005 mappe, 0006 interfaccia)
+│  ├─ decisioni/                ADR (0001 server C#, 0002 sincronizzazione, 0003 costruzione, 0004 arte, 0005 mappe, 0006 interfaccia, 0008 agenti)
 │  └─ superpowers/              specifiche e piani
 ├─ src/TIndustry.Shared/        simulazione (futuro codice comune a client e server)
 │  ├─ Factory.cs                facciata: piazzamento, economia, Capture/Restore; Step() → Simulation.Step
@@ -24,6 +26,7 @@ tIndustry/
 │  ├─ Economy/                  EconomyWallet, EconomySession
 │  ├─ Research/                 ResearchState, TechTreeLayout
 │  ├─ Campaign/                 CampaignCatalog, CampaignProgress
+│  ├─ Agent/                    AgentGame (stato, area, trova, comandi per gli agenti), AgentJournal (diario), AgentProtocol (righe JSON e codici)
 │  └─ Save/                     FactorySave (FactorySaveData, FactorySaveStore), GameDataPaths
 ├─ godot/
 │  ├─ project.godot · export_presets.cfg · TIndustry.Godot.csproj
@@ -44,9 +47,11 @@ tIndustry/
 │     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, BuildQueuePanel, HudStyle
 │     ├─ ui/panels/             Home, NewGame, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
 │     ├─ settings/              ClientSettings, StartupDisplay (finestra e Scala UI al primo avvio)
-│     └─ dev/                   World.Playtest*.cs (ui, tutorial, scala, lingue, colori), SystemMonitor
+│     └─ dev/                   World.Playtest*.cs (ui, tutorial, scala, lingue, colori, agenti), AgentBridge (canale degli agenti), SystemMonitor
 ├─ tests/TIndustry.Shared.Tests/  test xUnit (scenari della sim, validazione dei contenuti, salvataggi)
+├─ tests/TIndustry.AgentPlay.Tests/ test del server MCP via stdio (simulazione e gioco vero)
 └─ tools/
+   ├─ AgentPlay/                server MCP degli agenti: avvia.py (lanciatore), Tools (strumenti), SimEngine, GameEngine, GameLauncher
    ├─ ci/                       setup-godot.sh, export-godot.sh
    ├─ MapTool/                  mappe della campagna: genera, valida, anteprima
    ├─ art/                      genera.py (sprite di edifici, nastri, Core, drone, oggetti, terreno, effetti, interfaccia), carattere.py (carattere pixel), palette, forme, test
@@ -270,6 +275,17 @@ Un solo tema, testi per chiave e una Scala UI che non tocca il mondo. Decisione 
 1. Aggiungi una colonna a `testi.csv` col codice della lingua (`de`, …) e riempila per ogni chiave, più `lingua.<codice>` col nome della lingua in sé stessa.
 2. Aggiungi il codice a `Testi.Lingue` (il pulsante delle Impostazioni nasce da lì) e `res://lingue/testi.<codice>.translation` a `locale/translations` in `project.godot`.
 3. Controlla `Testi.Secondi` (oggi la virgola decimale vale solo per l'italiano) e allarga `TestiTests` e il controllo dei rettangoli dei playtest (`TINDUSTRY_PLAYTEST_LINGUA=<codice>`) alla nuova colonna.
+
+## Agenti che giocano
+
+Gli agenti AI (Claude Code e i suoi sotto-agenti) giocano con gli strumenti MCP del server `tindustry`. Decisione: [ADR 0008](decisioni/0008-agenti-che-giocano.md); guida d'uso: [tools/AgentPlay/README.md](../tools/AgentPlay/README.md); ricette: skill `.claude/skills/gioca-e-testa`.
+
+- **Server.** `tools/AgentPlay` è un server MCP via stdio (SDK `ModelContextProtocol`), registrato in `.mcp.json`. `avvia.py` lo compila in `%TEMP%/tindustry-agentplay-bin/<impronta>` e lo avvia; stdout è il canale MCP. `Tools` definisce gli strumenti (nomi in italiano), `Sessions` le sessioni aperte, ognuna con un motore (`IAgentEngine`) e una cartella temporanea sotto `%TEMP%/tindustry-agentplay/`.
+- **Motori.** `SimEngine` (`apri_simulazione`): `AgentGame` su una `SimHost` nello stesso processo, un tick per comando. `GameEngine` (`apri_gioco`): `GameLauncher` avvia Godot con un profilo temporaneo e un segreto, il motore parla col ponte del client. `collega_coop` è un segnaposto (`MotoreNonDisponibile`). Il codice comune ai due lati sta in `src/TIndustry.Shared/Agent/` (`AgentGame`, `AgentJournal`, `AgentProtocol`, `AgentGameSetup.CreateHost` per costruire la stessa partita nel gioco e in `rigioca`).
+- **Canale.** `godot/scripts/dev/AgentBridge.cs` (regole pure in `AgentBridge.Start.cs`, provate in `TIndustry.Shared.Tests`): TCP su `127.0.0.1`, JSON a righe `{id, metodo, parametri}` → `{id, ok, risultato | codice, messaggio}`, prima riga `{"token": ...}`. Un thread di rete mette le richieste in coda; `_Process` le esegue sul thread principale. I comandi passano da `SimHost.Submit`, gli input simulati da `Input.ParseInputEvent` (segnati, così `World.IsSyntheticInput` li distingue), `cattura` scrive sotto `<profilo>/catture`.
+- **Sicurezza.** Il ponte parte solo con build di debug, porta, segreto e `TINDUSTRY_DATA_DIR` fuori dai dati veri (`AgentBridge.ShouldStart`); righe HTTP, segreto sbagliato o righe oltre 64 KiB chiudono la connessione. Il server controlla il profilo prima di crearlo, mette `APPDATA` e `--log-file` nel profilo, tiene Godot in un job object e gli fa chiudere il gioco quando la connessione cade (`TINDUSTRY_AGENT_ESCI_SENZA_CLIENT`).
+- **Diario.** `AgentJournal` registra i comandi con il tick e un'intestazione (`AgentGameSetup`); `rigioca` lo riesegue su una simulazione e restituisce l'impronta. Gli input simulati non sono nel diario.
+- **Prove.** `tests/TIndustry.AgentPlay.Tests` avvia il server via stdio (i test del gioco vero si saltano senza Godot o senza progetto importato); `tools/dev/playtest.sh agenti` prova il ponte del gioco senza il server.
 
 ## Test e playtest
 

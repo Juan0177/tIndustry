@@ -2,6 +2,8 @@
 
 Server MCP (stdio) che fa giocare gli agenti AI a tIndustry: vedere lo stato, dare i comandi del giocatore, far scorrere il tempo e rendere riproducibile ogni bug trovato. Specifica: [docs/superpowers/specs/2026-10-18-agenti-giocano-design.md](../../docs/superpowers/specs/2026-10-18-agenti-giocano-design.md).
 
+Decisione: [ADR 0008](../../docs/decisioni/0008-agenti-che-giocano.md). Ricette pronte (cercare bug, fare catture): skill [`gioca-e-testa`](../../.claude/skills/gioca-e-testa/SKILL.md).
+
 Libreria: SDK MCP ufficiale per .NET, pacchetto NuGet `ModelContextProtocol` 2.2.0 (versione fissata nel `.csproj`).
 
 ## Avvio
@@ -41,7 +43,7 @@ Gli strumenti solo del gioco vero (`esegui`, `riprendi`, `cattura`, `telecamera`
 - il canale degli agenti su una porta libera con un segreto nuovo a ogni sessione; poi la partita: un sandbox `misura`/`seme`/`generatore` (`biomi-1` o `classico`; predefiniti Media, 1 e biomi-1, fatto come lo rifà `rigioca`), il livello `livello`, oppure il salvataggio `salvataggio`;
 - `salvataggio` è il percorso di un file: il server lo **copia** in `<profilo>/godot-saves/agente.json` e il gioco carica la copia; il file dato si legge solo per copiarlo. I file sotto i dati veri del giocatore sono rifiutati.
 
-Risponde `{sessione, motore: "gioco", cartella, diari, processo}`: `cartella` è il profilo, `diari` la cartella dei diari, `processo` il pid avviato. Servono `godot4` nel PATH del server (altrimenti imposta `TINDUSTRY_GODOT`, per esempio nell'`env` di `.mcp.json`) e il progetto importato e compilato (`godot4 --import`, `--build-solutions`, vedi CLAUDE.md). Se `godot4` è uno script `.cmd`/`.bat`, i percorsi del progetto e del profilo non possono contenere `& | ^ % ! < > "` (cmd.exe spezzerebbe la riga): in quel caso imposta `TINDUSTRY_GODOT` sull'eseguibile `.exe`. Nel gioco vero:
+Risponde `{sessione, motore: "gioco", cartella, diari, processo}`: `cartella` è il profilo, `diari` la cartella dei diari, `processo` il pid avviato. Servono `godot4` nel PATH del server e il progetto importato e compilato (`godot4 --import`, `--build-solutions`, vedi CLAUDE.md; senza, `apri_gioco` risponde subito `MotoreNonDisponibile` con i comandi da eseguire). Claude Code avvia il server con il PATH di Windows, che non ha le cartelle aggiunte solo da Git Bash (per esempio `~/bin`): in quel caso imposta la variabile d'ambiente utente `TINDUSTRY_GODOT` sull'eseguibile di Godot 4.4 mono e riavvia Claude Code. `.mcp.json` la passa al server con `"TINDUSTRY_GODOT": "${TINDUSTRY_GODOT:-}"`, quindi nel repository non c'è il percorso di nessuna macchina; se la scrivi direttamente in `.mcp.json`, non farne il commit. Se `godot4` è uno script `.cmd`/`.bat`, i percorsi del progetto e del profilo non possono contenere `& | ^ % ! < > "` (cmd.exe spezzerebbe la riga): in quel caso imposta `TINDUSTRY_GODOT` sull'eseguibile `.exe`. Nel gioco vero:
 
 - il tempo scorre in tempo reale; `pausa` e `riprendi` lo fermano e lo fanno ripartire (anche durante un `esegui`: vale l'ultima scelta), `avanza` esegue tick esatti e lascia il gioco fermo, `esegui {secondi}` lo lascia scorrere;
 - le richieste a una sessione possono andare in parallelo; un comando risponde dopo il tick del gioco che lo applica;

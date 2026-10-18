@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-18, dopo la G4."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-19, dopo gli agenti che giocano."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -77,8 +77,9 @@ fatto.card("g2a", "**G2a · Mappe e terreno**\nMappe a seme in 3 misure (fino a 
 fatto.card("g2b", "**G2b · Arte del terreno**\nSuoli con varianti e bordi, pareti in rilievo a doppia griglia, acqua con increspature, giacimenti a puntini, decorazioni, due livelli di dettaglio (Enorme a 240 FPS).\nPR #182–#184 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g2b-arte-terreno-design|spec]]")
 fatto.card("g3", "**G3 · Effetti e luci**\nParticelle di lavoro, costruzione e ambiente (pool di CPUParticles2D, una riga di dati per effetto), ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli (effetti, limite FPS, scala di rendering).\nPR #186–#189 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g3-effetti-luci-design|spec]]")
 fatto.card("g4", "**G4 · Interfaccia**\nTema unico in stile Mindustry, carattere pixel e icone generati, Scala UI solo dell'interfaccia, schermo intero all'avvio, italiano e inglese con i rifiuti come codici, colori per daltonici e alto contrasto, logo e mappa che scorre nella Home.\nPR #194–#201 · [[0006-interfaccia-lingue-carattere|ADR 0006]] · [[2026-10-18-g4-interfaccia-design|spec]]")
+fatto.card("agenti", "**Agenti che giocano**\nServer MCP tindustry (tools/AgentPlay): simulazione, gioco vero comandato da AgentBridge (solo sviluppo, profilo temporaneo, segreto), co-op segnaposto; catture, input, diario e rigioca; skill gioca-e-testa.\nPR #210–#214 · [[0008-agenti-che-giocano|ADR 0008]] · [[2026-10-18-agenti-giocano-design|spec]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
-fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0006-interfaccia-lingue-carattere|0006]])\n- [[docs/diario/README|diario dei lavori]]")
+fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0008-agenti-che-giocano|0008]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
@@ -89,6 +90,7 @@ corso.close()
 # --- Prossimi --------------------------------------------------------------
 nxt = Column("g-next", "Prossimi (in ordine)", X[2], "5")
 roadmap = [
+    nxt.card("nastri", "**Nastri alla Mindustry**\nRotazione sul posto, trascinamento con la logica di Shared, toast dei materiali mancanti una volta sola; dopo unione a T e incrocio automatico (#209)."),
     nxt.card("giacimenti", "**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2."),
     nxt.card("tier", "**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu."),
     nxt.card("liquidi", "**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua."),
@@ -106,6 +108,7 @@ aperti.close()
 
 chain(["g2a", "g2b", "g3", "g4"])
 link("g4", "web")
+link("agenti", "nastri")
 
 
 def obsidian_json(items):

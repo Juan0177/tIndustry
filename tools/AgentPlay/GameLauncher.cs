@@ -41,6 +41,13 @@ public static class GameLauncher
     public const string GodotEnv = "TINDUSTRY_GODOT";
     public const string LogFile = "godot.log";
 
+    /// <summary>What apri_gioco answers without Godot: exactly what to put in .mcp.json (no machine path in the repo).</summary>
+    public const string GodotMissingMessage =
+        "godot4 non trovato nel PATH del server: il gioco vero non si può aprire. Imposta la variabile d'ambiente "
+        + GodotEnv + " sull'eseguibile di Godot 4.4 mono (.exe, per esempio C:\\Godot\\godot4.exe): .mcp.json la passa già al server "
+        + "con \"" + GodotEnv + "\": \"${" + GodotEnv + ":-}\". In alternativa scrivi il percorso nell'env del server tindustry "
+        + "in .mcp.json: \"" + GodotEnv + "\": \"C:\\\\Godot\\\\godot4.exe\" (senza farne il commit). Poi riavvia Claude Code.";
+
     /// <summary>Slot of the save copied into the profile (<c>godot-saves/agente.json</c>).</summary>
     public const string SaveSlot = "agente";
 
@@ -56,7 +63,8 @@ public static class GameLauncher
     /// <summary>The Godot executable: <c>TINDUSTRY_GODOT</c>, else <c>godot4</c> on the PATH; null when there is none.</summary>
     public static string? FindGodot()
     {
-        if (Environment.GetEnvironmentVariable(GodotEnv) is { Length: > 0 } custom)
+        // A client that does not expand .mcp.json's "${TINDUSTRY_GODOT:-}" passes it literally: treat it as unset.
+        if (Environment.GetEnvironmentVariable(GodotEnv) is { Length: > 0 } custom && !custom.StartsWith("${", StringComparison.Ordinal))
         {
             return custom;
         }
@@ -80,6 +88,27 @@ public static class GameLauncher
         AgentCodes.MotoreNonDisponibile,
         "Progetto Godot non trovato (godot/project.godot): avvia il server dalla radice del repository.");
 
+    /// <summary>
+    /// A fresh checkout has no imported texts and no built client: Godot would open a grey window that never answers
+    /// (World._Ready fails loading the font), so say what to run instead of waiting for the start timeout.
+    /// </summary>
+    public static void RequireImported(string project)
+    {
+        var missing = new[]
+        {
+            Path.Combine(project, "lingue", "testi.it.translation"),
+            Path.Combine(project, ".godot", "mono", "temp", "bin", "Debug", "TIndustry.Godot.dll")
+        }.FirstOrDefault(file => !File.Exists(file));
+        if (missing is not null)
+        {
+            throw new AgentException(
+                AgentCodes.MotoreNonDisponibile,
+                $"Il progetto Godot non è importato o compilato (manca {missing}). Dalla radice del repository esegui "
+                + "APPDATA=\"$(mktemp -d)\" godot4 --headless --path godot --import, poi "
+                + "APPDATA=\"$(mktemp -d)\" godot4 --headless --path godot --build-solutions --quit, e riapri il gioco (vedi CLAUDE.md).");
+        }
+    }
+
     /// <summary>The languages of the texts (header of godot/lingue/testi.csv: <c>keys,it,en</c>).</summary>
     public static IReadOnlyList<string> Languages(string project) =>
         File.ReadLines(Path.Combine(project, "lingue", "testi.csv")).First().Split(',').Skip(1).Select(l => l.Trim()).ToList();
@@ -87,8 +116,9 @@ public static class GameLauncher
     public static GameProcess Start(GameOptions options)
     {
         var godot = FindGodot() ?? throw new AgentException(
-            AgentCodes.MotoreNonDisponibile, $"godot4 non trovato nel PATH (o imposta {GodotEnv}): il gioco vero non si può aprire.");
+            AgentCodes.MotoreNonDisponibile, GodotMissingMessage);
         var project = RequireProject();
+        RequireImported(project);
         var profile = Path.Combine(SimEngine.TempRoot, "gioco-" + Path.GetRandomFileName());
         // Checked before any folder exists, so nothing is ever created inside the player's data.
         if (IsUnderRealData(profile))
@@ -143,25 +173,31 @@ public static class GameLauncher
             }
 
             var job = new KillOnCloseJob();
-            Process process;
+            Process? process = null;
             try
             {
                 process = Process.Start(info) ?? throw new AgentException(AgentCodes.MotoreNonDisponibile, $"{godot} non è partito.");
+                job.Add(process);
+                process.StandardInput.Close();
+                // The engine log is in the profile (--log-file); the console copy is drained so Godot never blocks on it.
+                process.OutputDataReceived += (_, _) => { };
+                process.ErrorDataReceived += (_, _) => { };
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                return new GameProcess(process, job, port, token, profile, snapshot);
             }
             catch
             {
+                // A setup step after the start failed: nothing may outlive it.
                 job.Dispose();
+                if (process is not null)
+                {
+                    GameEngine.Kill(process);
+                    process.Dispose();
+                }
+
                 throw;
             }
-
-            job.Add(process);
-            process.StandardInput.Close();
-            // The engine log is in the profile (--log-file); the console copy is drained so Godot never blocks on it.
-            process.OutputDataReceived += (_, _) => { };
-            process.ErrorDataReceived += (_, _) => { };
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            return new GameProcess(process, job, port, token, profile, snapshot);
         }
         catch
         {

@@ -22,12 +22,13 @@ python tools/sito/costruisci.py                            # sito (GitHub Pages)
 APPDATA="$(mktemp -d)" godot4 --headless --path godot --import   # poi ripristina i .import (sotto)
 APPDATA="$(mktemp -d)" godot4 --headless --path godot --build-solutions --quit
 godot4 --path godot                                      # avvia il gioco (legge data/)
-tools/dev/playtest.sh ui /tmp/shots-ui                   # idem: tutorial; PLAYTEST OK, 0 ERROR
+tools/dev/playtest.sh ui /tmp/shots-ui                   # idem: tutorial, agenti; PLAYTEST OK, 0 ERROR
 python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
 dotnet run --project tools/MapTool -- valida             # mappe della campagna; anche: genera <id> …, anteprima
+dotnet test tests/TIndustry.AgentPlay.Tests -c Release --no-build   # server MCP degli agenti
 ```
 
-`TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo). I playtest sono sempre in finestra 1280×720 con la Scala UI al 100%; `TINDUSTRY_PLAYTEST_LINGUA=en` li gioca in inglese.
+`TINDUSTRY_PLAYTEST=ui|tutorial|agenti` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo). I playtest sono sempre in finestra 1280×720 con la Scala UI al 100%; `TINDUSTRY_PLAYTEST_LINGUA=en` li gioca in inglese.
 Con un profilo temporaneo/esplicito gli script passano `--log-file <profilo>/godot.log` e, per playtest e partite (non per l'editor), puntano `APPDATA` al profilo: su Windows Godot costruisce `user://` da `%APPDATA%`, quindi log, `shader_cache`, `vulkan` e `.recovery_mode_lock` restano nel profilo e `%APPDATA%\Godot\app_userdata\tIndustry` non viene toccato. Godot 4.4 non ha un'opzione CLI per `user://`; `use_custom_user_dir` cambia solo il nome sotto `%APPDATA%`. L'editor (`--editor`) usa ancora il `%APPDATA%` reale; per `--import` e `--build-solutions` da riga di comando metti `APPDATA` su una cartella temporanea (come sopra; `dev.sh` lo fa da solo per l'importazione).
 
 Dopo `godot4 --import`, ripristina i `.import` che differiscono solo per fine riga:
@@ -37,6 +38,13 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 ```
 
 `.gitattributes` mantiene gli `*.sh` in LF: non convertirli.
+
+## Agenti che giocano
+
+Il server MCP `tindustry` (`.mcp.json`, codice in `tools/AgentPlay`) fa giocare gli agenti: simulazione senza grafica (`apri_simulazione`) o gioco vero in una finestra (`apri_gioco`), comandi, input, catture, `diario` e `rigioca`. Guida: `tools/AgentPlay/README.md`; ricette per cercare bug e fare catture: skill `gioca-e-testa` (`.claude/skills/gioca-e-testa/SKILL.md`); decisione: `docs/decisioni/0008-agenti-che-giocano.md`.
+
+- Il gioco vero gira sempre in un profilo temporaneo creato dal server: **non aggirarlo mai** (niente `TINDUSTRY_AGENT_PORT` a mano su un profilo vero, niente salvataggi presi da `%LOCALAPPDATA%\tIndustry`: copiali prima in una cartella temporanea).
+- Serve il progetto importato e compilato (`--import`, `--build-solutions`, sopra). Se Claude Code non trova `godot4` nel PATH di Windows, imposta la variabile d'ambiente utente `TINDUSTRY_GODOT` sull'eseguibile di Godot: `.mcp.json` la passa al server. Non scrivere percorsi della tua macchina in `.mcp.json`.
 
 ## Convenzioni
 
