@@ -27,6 +27,8 @@ POWER_DIGIT = (258, 77, 272, 95)
 # unseen there. In the ui screenshots the drone already lies inside GEAR.
 DRONE_TUTORIAL_01 = (574, 331, 608, 364)
 DRONE_TUTORIAL_02 = (313, 189, 348, 223)
+# HUD power buffer value ("N/24") at UI 100% (G4 layout), measured on three runs; its look goes unseen there.
+POWER_HUD = (225, 62, 296, 84)
 FILE_MASKS = {
     "tutorial-01-step1-camera.png": [POWER_DIGIT, DRONE_TUTORIAL_01],
     "tutorial-02-step2-palette.png": [DRONE_TUTORIAL_02],
@@ -43,6 +45,48 @@ FILE_MASKS = {
     "tutorial-06-step7-forno.png": [GEAR],
     "tutorial-07-step8-impostazioni.png": [GEAR],
     "tutorial-08-done.png": [GEAR],
+    # G4 captures, measured on three ui runs in Italian and three in English (union of the bboxes + 3 px).
+    # Colour variants: the marks are drawn over the running miner, belt items and the construction
+    # shader (animated on its own clock); a change of the marks there goes unseen, the panels and the
+    # rest of the world stay checked.
+    "ui-colori-altocontrasto-non-valido.png": [(449, 425, 665, 555)],
+    "ui-colori-altocontrasto-smontaggio.png": [(388, 313, 789, 515)],
+    "ui-colori-altocontrasto-valido.png": [(449, 425, 701, 555)],
+    "ui-colori-daltonici-impostazioni.png": [(502, 331, 595, 390)],
+    "ui-colori-daltonici-non-valido.png": [(447, 423, 703, 555)],
+    "ui-colori-daltonici-smontaggio.png": [(381, 305, 774, 517)],
+    "ui-colori-daltonici-valido.png": [(447, 423, 701, 555)],
+    "ui-colori-normale-impostazioni.png": [(381, 305, 787, 509)],
+    "ui-colori-normale-non-valido.png": [(447, 423, 705, 555)],
+    "ui-colori-normale-smontaggio.png": [(381, 305, 790, 517)],
+    "ui-colori-normale-valido.png": [(447, 423, 705, 555)],
+    # belt items beside the CORE (like GEAR, at the zoom of these captures)
+    "ui-fantasma-non-valido.png": [(519, 335, 616, 374)],
+    "ui-fantasma-valido.png": [(519, 335, 616, 374)],
+    "ui-impostazioni-en.png": [(519, 335, 616, 373)],
+    "ui-impostazioni-it.png": [(519, 335, 616, 373)],
+    "ui-rifiuto.png": [(519, 339, 611, 374)],
+    # a belt scrolling under the settings card edge
+    "ui-impostazioni-scala-50.png": [(317, 561, 387, 607)],
+    "ui-impostazioni.png": [(317, 561, 387, 607)],
+    # HUD power buffer value at 100% (ticks run before the capture; the number changes width)
+    "ui-palette-inizio.png": [POWER_HUD],
+    "ui-palette-tutto.png": [POWER_HUD],
+    "ui-scala-100-hud.png": [POWER_HUD],
+    # hovering drone beside the CORE, through the New game card
+    "ui-nuova-partita.png": [(588, 334, 616, 363)],
+    # a toast fading behind the Market card
+    "ui-scala-100-mercato.png": [(472, 487, 811, 511)],
+    "ui-scala-200-mercato.png": [(303, 263, 559, 296)],
+    # a few pixel rows of the world through the campaign card
+    "ui-scala-125-campagna.png": [(453, 444, 851, 455)],
+    # save date and time of the autosave (whole "AAAA-MM-GG hh:mm", Italian and English layouts)
+    "ui-scala-100-salvataggi.png": [(527, 237, 727, 257)],
+    "ui-scala-125-salvataggi.png": [(522, 207, 745, 231)],
+    "ui-scala-150-salvataggi.png": [(500, 240, 766, 267)],
+    "ui-scala-200-salvataggi.png": [(595, 285, 951, 319)],
+    # hovering drone and its beam to the planned belt
+    "ui-scala-200-clic-cella.png": [(317, 321, 707, 615)],
 }
 
 

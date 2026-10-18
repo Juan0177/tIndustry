@@ -39,6 +39,25 @@
   </tr>
 </table>
 
+### Interfaccia
+
+Un solo tema in stile Mindustry per HUD, pannelli e menu: pannelli quasi neri col bordo giallo-arancio, carattere pixel nostro con le lettere accentate, icone pixel bianche, logo e caselle di spunta generati da `tools/art`. Testi in **italiano e inglese**, **Scala UI** dal 75% al 200% che ingrandisce solo l'interfaccia (il mondo resta 1:1), colori **per daltonici** e ad **alto contrasto**, e segni che non dipendono dal colore (X sull'anteprima rifiutata, tratteggio sullo smontaggio). Catture dai playtest.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/readme/interfaccia-hud.png" alt="HUD con fondi, energia, risorse, palette e pannello del blocco"><br><sub><b>HUD</b> · fondi, energia, risorse del CORE e palette con il pannello del blocco</sub></td>
+    <td width="50%"><img src="docs/img/readme/interfaccia-palette.png" alt="Palette a griglia fissa con le categorie a icone"><br><sub><b>Palette</b> · griglia fissa come Mindustry, solo i blocchi sbloccati</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/img/readme/interfaccia-home.png" alt="Home con il logo pixel e la mappa dietro"><br><sub><b>Home</b> · logo pixel e la mappa che scorre dietro</sub></td>
+    <td width="50%"><img src="docs/img/readme/interfaccia-en.png" alt="Albero della Ricerca in inglese"><br><sub><b>English</b> · tutti i testi anche in inglese</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/img/readme/interfaccia-daltonici.png" alt="Colori per daltonici: anteprima rifiutata con la X e smontaggio tratteggiato"><br><sub><b>Daltonici</b> · anteprima rifiutata con la X, smontaggio tratteggiato</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
 ### Grafica
 
 Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta e il terreno dei quattro biomi con bordi, pareti in rilievo, acqua e giacimenti a puntini. Sopra c'è uno strato di effetti: fumo, scintille e vapore dei blocchi al lavoro, neve, sabbia e foglie d'ambiente, ombre sotto gli edifici, bagliore e, a scelta, la notte con la Lampada. Effetti, ombre, limite di FPS e scala di rendering si regolano dalle Impostazioni, per i PC meno potenti. Catture dal gioco.
@@ -106,6 +125,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Economia** | Fondi, costi e rimborsi, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
+| **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
 | **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 12 (i v11 si caricano ancora) |
 
 Il combattimento è fuori dal progetto per ora.
@@ -125,8 +145,8 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
 | Fatto | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
 | Fatto, in attesa dell'ok | **G3 · Effetti e luci** | Particelle di lavoro, costruzione e ambiente, ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
-| In corso | **G4 · Interfaccia** | Stile Mindustry, pixel font, lingue, scala e accessibilità |
-| Avviato | **Sito web su GitHub Pages** | Online la prima sezione, [tutti gli asset](https://juan0177.github.io/tIndustry/asset/) generati da `tools/sito/costruisci.py`; poi presentazione, catture e download |
+| Fatto | **G4 · Interfaccia** | Tema unico in stile Mindustry, carattere pixel e icone generati, italiano e inglese, Scala UI solo dell'interfaccia, schermo intero, colori per daltonici e alto contrasto ([ADR 0006](docs/decisioni/0006-interfaccia-lingue-carattere.md)) |
+| In corso | **Sito web su GitHub Pages** | Ingresso con le catture del gioco e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py`; poi presentazione e download |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
@@ -167,7 +187,7 @@ TINDUSTRY_FRESH=1 godot4 --path godot                           # ignora il salv
 ```
 
 - **Test** (`tests/TIndustry.Shared.Tests`, xUnit): nastri, craft, energia, costruzione, salvataggi, Ricerca, Mercato, Campagna, determinismo della simulazione e validazione di `data/`. Usano sempre una cartella temporanea.
-- **Playtest** (`tools/dev/playtest.sh ui|tutorial <cartella>`): giocano UI e tutorial con input simulati in un profilo dati isolato, cartella utente di Godot compresa. Producono un PNG per passo e l'esito `PLAYTEST OK`.
+- **Playtest** (`tools/dev/playtest.sh ui|tutorial <cartella>`): giocano UI e tutorial con input simulati in un profilo dati isolato, cartella utente di Godot compresa, sempre in una finestra 1280×720 al 100%; `TINDUSTRY_PLAYTEST_LINGUA=en` li gioca in inglese. Producono un PNG per passo e l'esito `PLAYTEST OK`.
 - **Confronto screenshot**: `python tools/dev/compare_shots.py <baseline> <nuovi>`.
 
 Per provare senza toccare i tuoi dati, imposta `TINDUSTRY_DATA_DIR` su una cartella temporanea; gli script lo fanno da soli.
@@ -179,11 +199,11 @@ Per provare senza toccare i tuoi dati, imposta `TINDUSTRY_DATA_DIR` su una carte
 
 | Percorso | Ruolo |
 | --- | --- |
-| `godot/` | Client di gioco: mondo, HUD, pannelli, grafica |
+| `godot/` | Client di gioco: mondo, HUD, pannelli, grafica, testi in `lingue/testi.csv` |
 | `src/TIndustry.Shared/` | Simulazione indipendente da Godot: griglia, nastri, edifici, costruzione, energia, economia, ricerca, campagna, salvataggi |
 | `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json`, `maps/` (mappe della campagna) |
 | `tests/` | Test xUnit della simulazione |
-| `tools/` | `dev/`: avvio, playtest, screenshot e mappa Obsidian · `MapTool/`: mappe della campagna · `art/`: sprite · `ci/`: export |
+| `tools/` | `dev/`: avvio, playtest, screenshot e mappa Obsidian · `MapTool/`: mappe della campagna · `art/`: sprite, icone e carattere · `sito/`: sito su GitHub Pages · `ci/`: export |
 | `docs/` | [Architettura](docs/ARCHITETTURA.md), [decisioni](docs/decisioni.md), specifiche e piani, [diario di lavoro](docs/diario/README.md) |
 
 La simulazione gira a tick fissi di 1/60 s, in modo deterministico. Per orientarti nel codice (ciclo di frame, dati, salvataggi, come aggiungere un blocco) parti da [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md); per lavorare con agenti, [`CLAUDE.md`](CLAUDE.md).
@@ -208,7 +228,7 @@ Il vecchio client Raylib è stato rimosso dopo la 0.3.4: il codice resta nel tag
 
 ## Crediti
 
-Icone da [game-icons.net](https://game-icons.net) (CC BY 3.0) e [Kenney](https://kenney.nl) (CC0): dettagli in [`godot/assets/ATTRIBUTION.md`](godot/assets/ATTRIBUTION.md). La nuova pixel-art in arrivo è originale e generata da script.
+Tutta la grafica, le icone e il carattere dell'interfaccia sono originali e generati da script (`tools/art`); nessun asset di terzi ([`godot/assets/ATTRIBUTION.md`](godot/assets/ATTRIBUTION.md)).
 
 Storia delle versioni: [CHANGELOG.md](CHANGELOG.md).
 

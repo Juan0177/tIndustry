@@ -142,12 +142,29 @@ class TestSito(unittest.TestCase):
                 self.assertEqual(self.asset, fh.read())
 
     def test_autonome(self):
-        # Self-contained and script-free: no scripts, external stylesheets or images.
+        # Self-contained and script-free: no scripts, external stylesheets or images (the landing page
+        # captures are files of the site itself, in catture/).
         for pagina in (self.asset, self.ingresso):
             self.assertNotIn("<script", pagina)
-            self.assertEqual([], re.findall(r'<img src="(?!data:)', pagina))
+            self.assertEqual([], re.findall(r'<img src="(?!data:|catture/[a-z0-9-]+\.png")', pagina))
             self.assertNotIn("<link", pagina)
             self.assertNotIn("url(http", pagina)
+
+    def test_catture(self):
+        # Every README capture listed is on the landing page, embedded, with its caption, under the section.
+        inizio = self.ingresso.index('<section id="catture">')
+        sezione = self.ingresso[inizio:self.ingresso.index("</section>", inizio)]
+        self.assertIn('href="#catture"', self.ingresso)
+        self.assertGreaterEqual(len(costruisci.CATTURE), 6)
+        for nome, didascalia in costruisci.CATTURE:
+            self.assertTrue(os.path.exists(os.path.join(costruisci.CATTURE_DIR, nome)), nome)
+            self.assertIn(f'data-cattura="{nome}"><img src="catture/{nome}"', sezione)
+            with open(os.path.join(self.out, "catture", nome), "rb") as copia:
+                with open(os.path.join(costruisci.CATTURE_DIR, nome), "rb") as originale:
+                    self.assertEqual(originale.read(), copia.read(), nome)
+            self.assertIn(f"<figcaption>{didascalia}</figcaption>", sezione)
+        self.assertEqual(len(costruisci.CATTURE), sezione.count("<figure"))
+        self.assertLess(len(self.ingresso.encode("utf-8")), 200_000)
 
     def test_dimensione(self):
         self.assertLess(len(self.asset.encode("utf-8")), 3_000_000)
