@@ -67,7 +67,7 @@ public partial class NewGamePanel : Control
         }
 
         // During a playtest only its synthetic events count (World._Input drops the others first; this guards too).
-        if (GameDataPaths.IsPlaytest && @event.Device != World.PlaytestDevice)
+        if (GameDataPaths.IsPlaytest && !World.IsSyntheticInput(@event))
         {
             return;
         }

@@ -24,11 +24,22 @@ public partial class World
             return Fail($"canale degli agenti assente: serve {AgentBridge.PortEnv} in una build di sviluppo");
         }
 
-        _settings.TutorialCompleted = true;
-        OnHomeNewGame();
-        _tutorial?.Close();
-        FocusCameraOnCore();
-        await PlaytestTerrainReady();
+        var token = OS.GetEnvironment(AgentBridge.TokenEnv);
+        var handshake = JsonSerializer.Serialize(new { token });
+
+        // Without the secret, or with a browser's request (before or after it), the bridge just hangs up.
+        foreach (var (lines, what) in new[]
+                 {
+                     (new[] { JsonSerializer.Serialize(new { token = token + "x" }) }, "token sbagliato"),
+                     (new[] { "POST / HTTP/1.1", "Host: 127.0.0.1" }, "richiesta HTTP al posto del token"),
+                     (new[] { handshake, "POST / HTTP/1.1", "{\"id\":1,\"metodo\":\"vendi\",\"parametri\":{}}" }, "richiesta HTTP dopo il token")
+                 })
+        {
+            if (!await PlaytestAgentHangsUp(port, lines))
+            {
+                return Fail($"agenti: il canale resta aperto con {what}");
+            }
+        }
 
         using var client = new TcpClient();
         var connect = client.ConnectAsync("127.0.0.1", port);
@@ -91,6 +102,56 @@ public partial class World
 
             return reply.GetProperty("risultato");
         }
+
+        writer.Write(handshake + "\n");
+        if (await Receive() is not { } welcome || !welcome.GetProperty("ok").GetBoolean())
+        {
+            return Fail("agenti: nessuna risposta al token giusto");
+        }
+
+        // Behind the Home no game is in play: esegui says so at once.
+        if (await Call("esegui", new { secondi = 5 }) is not { } idle || idle.GetProperty("eseguito").GetBoolean())
+        {
+            return Fail("agenti esegui dietro la Home: atteso eseguito:false");
+        }
+
+        // Typing into a real LineEdit (the seed of Nuova partita): click it, Ctrl+A selects all, "7" replaces it.
+        _settings.TutorialCompleted = true;
+        OpenNewGamePanel(PlaytestSeed);
+        await PlaytestWait(0.3);
+        if (await Call("ui") is not { } form)
+        {
+            return false;
+        }
+
+        var field = form.GetProperty("controlli").EnumerateArray()
+            .FirstOrDefault(c => c.GetProperty("tipo").GetString() == "LineEdit");
+        if (field.ValueKind != JsonValueKind.Object)
+        {
+            return Fail("agenti ui: nessun campo di testo in Nuova partita");
+        }
+
+        var fieldName = field.GetProperty("nome").GetString();
+        if (await Call("ui", new { clic = fieldName }) is null
+            || await Call("input", new { tipo = "tasto", tasto = "Ctrl+A" }) is null
+            || await Call("input", new { tipo = "tasto", tasto = "7" }) is null)
+        {
+            return false;
+        }
+
+        await PlaytestWait(0.1);
+        var typed = await Call("ui");
+        var after = typed?.GetProperty("controlli").EnumerateArray()
+            .FirstOrDefault(c => c.GetProperty("nome").GetString() == fieldName);
+        if (after is not { ValueKind: JsonValueKind.Object } edited || edited.GetProperty("testo").GetString() != "7")
+        {
+            return Fail($"agenti input tasto: Ctrl+A e 7 non scrivono '7' nel campo del seme ({after})");
+        }
+
+        OnHomeNewGame();
+        _tutorial?.Close();
+        FocusCameraOnCore();
+        await PlaytestTerrainReady();
 
         // A malformed line is answered and the channel stays open.
         writer.Write("questa riga non è JSON\n");
@@ -231,9 +292,12 @@ public partial class World
         }
 
         File.Copy(shotPath, Path.Combine(dir, "agenti-cattura.png"), overwrite: true);
-        if (await Call("cattura", new { percorso = ProjectSettings.GlobalizePath("res://fuori.png") }, AgentCodes.ParametriNonValidi) is null)
+        foreach (var outside in new[] { "..\\..\\x.png", Path.Combine(Path.GetTempPath(), "fuori.png"), ProjectSettings.GlobalizePath("res://fuori.png") })
         {
-            return false;
+            if (await Call("cattura", new { percorso = outside }, AgentCodes.ParametriNonValidi) is null)
+            {
+                return false;
+            }
         }
 
         if (await Call("log", new { righe = 5 }) is not { } log || log.GetProperty("righe").ValueKind != JsonValueKind.Array)
@@ -250,40 +314,81 @@ public partial class World
 
         var started = Time.GetTicksMsec();
         long lastTick = -1;
-        for (var i = 0; i < 51; i++)
+        for (var i = 0; i < 50; i++)
         {
-            if (await Receive() is not { } reply || !reply.GetProperty("ok").GetBoolean())
+            if (await Receive() is not { } reply || !reply.GetProperty("ok").GetBoolean()
+                || reply.GetProperty("id").GetInt64() == runId
+                || reply.GetProperty("risultato").GetProperty("tick").GetInt64() < lastTick)
             {
-                return Fail($"agenti raffica: risposta {i} mancante o con errore");
+                return Fail($"agenti raffica: risposta {i} mancante, con errore o fuori ordine");
             }
 
-            var id = reply.GetProperty("id").GetInt64();
-            var result = reply.GetProperty("risultato");
-            if (i < 50)
-            {
-                var tick = result.GetProperty("tick").GetInt64();
-                if (id == runId || tick < lastTick)
-                {
-                    return Fail($"agenti raffica: risposta {i} fuori ordine ({reply})");
-                }
-
-                lastTick = tick;
-            }
-            else if (id != runId || result.GetProperty("tick").GetInt64() <= result.GetProperty("tickPrima").GetInt64()
-                     || Time.GetTicksMsec() - started < 1500)
-            {
-                return Fail($"agenti esegui 2: {reply}");
-            }
+            lastTick = reply.GetProperty("risultato").GetProperty("tick").GetInt64();
         }
 
-        if (await Call("pausa") is not { } paused || !paused.GetProperty("inPausa").GetBoolean() || !PlaytestHeld
-            || await Call("riprendi") is null || PlaytestHeld)
+        // pausa during esegui acts at once and still holds when esegui ends (the last explicit choice wins).
+        await PlaytestWait(0.5);
+        if (await Call("pausa") is not { } paused || !paused.GetProperty("inPausa").GetBoolean() || !PlaytestHeld)
         {
-            return Fail("agenti pausa/riprendi");
+            return Fail("agenti pausa durante esegui");
+        }
+
+        if (await Receive() is not { } run || run.GetProperty("id").GetInt64() != runId || !run.GetProperty("ok").GetBoolean()
+            || run.GetProperty("risultato") is var ran && (!ran.GetProperty("eseguito").GetBoolean()
+                || ran.GetProperty("tick").GetInt64() <= ran.GetProperty("tickPrima").GetInt64()
+                || !ran.GetProperty("inPausa").GetBoolean())
+            || Time.GetTicksMsec() - started < 1500 || !PlaytestHeld)
+        {
+            return Fail("agenti esegui 2: risposta mancante, troppo presto o pausa persa");
+        }
+
+        if (await Call("riprendi") is null || PlaytestHeld)
+        {
+            return Fail("agenti riprendi");
         }
 
         GD.Print("PLAYTEST agenti: canale ok");
         return true;
+    }
+
+    /// <summary>
+    /// A throwaway client sends <paramref name="lines"/>: true when the bridge closes the connection, after at most its
+    /// welcome to a right token and without answering anything else.
+    /// </summary>
+    private async Task<bool> PlaytestAgentHangsUp(int port, string[] lines)
+    {
+        using var client = new TcpClient();
+        if (!await PlaytestTaskDone(client.ConnectAsync("127.0.0.1", port)))
+        {
+            return false;
+        }
+
+        var stream = client.GetStream();
+        using var reader = new StreamReader(stream, new UTF8Encoding(false));
+        using var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
+        writer.Write(string.Join("\n", lines) + "\n");
+        for (var answers = 0; answers < 3; answers++)
+        {
+            var read = reader.ReadLineAsync();
+            await PlaytestTaskDone(read);
+            if (!read.IsCompleted)
+            {
+                return false; // still open after the timeout
+            }
+
+            if (read.IsFaulted || read.Result is null)
+            {
+                return true; // closed (or reset) by the bridge
+            }
+
+            // Only the welcome to a right token may come before the hang-up.
+            if (!read.Result.Contains("\"canale\"", StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Waits frames until <paramref name="task"/> ends (false after the timeout): never blocks the main thread.</summary>

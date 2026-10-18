@@ -19,7 +19,17 @@ public partial class World
     /// (Home opened mid-test).
     /// </summary>
     private static bool IsRealInputDuringPlaytest(InputEvent @event) =>
-        PlaytestRequested && @event.Device != PlaytestDevice;
+        PlaytestRequested && !IsSyntheticInput(@event);
+
+    /// <summary>An event made by a playtest or the agents' bridge (mouse: <see cref="PlaytestDevice"/>; keys: marked).</summary>
+    internal static bool IsSyntheticInput(InputEvent @event) =>
+        @event.Device == PlaytestDevice || @event.HasMeta(SyntheticKeyMeta);
+
+    /// <summary>
+    /// Marks synthetic key events: they keep device 0, because the built-in UI actions (ui_text_select_all and the
+    /// other text shortcuts) only match keyboard events of device 0.
+    /// </summary>
+    private const string SyntheticKeyMeta = "tindustry_synthetic";
 
     private static bool PlaytestRequested => GameDataPaths.IsPlaytest;
 
@@ -1371,12 +1381,24 @@ public partial class World
     private async Task PlaytestWait(double seconds) =>
         await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
 
-    internal async Task PlaytestKey(Key key)
+    /// <summary>Press and release <paramref name="key"/> with <paramref name="modifiers"/> held; <paramref name="unicode"/> types a character.</summary>
+    internal async Task PlaytestKey(Key key, KeyModifierMask modifiers = 0, long unicode = 0)
     {
-        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = true, Device = PlaytestDevice });
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = false, Device = PlaytestDevice });
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        foreach (var pressed in new[] { true, false })
+        {
+            var @event = new InputEventKey
+            {
+                Keycode = key, PhysicalKeycode = key, Pressed = pressed,
+                Unicode = pressed ? unicode : 0,
+                CtrlPressed = modifiers.HasFlag(KeyModifierMask.MaskCtrl),
+                ShiftPressed = modifiers.HasFlag(KeyModifierMask.MaskShift),
+                AltPressed = modifiers.HasFlag(KeyModifierMask.MaskAlt),
+                MetaPressed = modifiers.HasFlag(KeyModifierMask.MaskMeta)
+            };
+            @event.SetMeta(SyntheticKeyMeta, true);
+            Input.ParseInputEvent(@event);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
     }
 
     internal async Task PlaytestClick(Vector2 at, MouseButton button = MouseButton.Left)

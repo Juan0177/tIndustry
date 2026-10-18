@@ -197,8 +197,10 @@ public partial class World : Node2D
             FocusCameraOnCore();
         }
 
-        // Agents' control channel: dev builds with TINDUSTRY_AGENT_PORT only (never in an exported game).
-        if (AgentBridge.ShouldStart(OS.IsDebugBuild(), OS.GetEnvironment(AgentBridge.PortEnv)))
+        // Agents' control channel: dev builds with port, secret and an isolated profile only (never in an exported game,
+        // never on the player's real data).
+        if (AgentBridge.ShouldStart(OS.IsDebugBuild(), OS.GetEnvironment(AgentBridge.PortEnv),
+                OS.GetEnvironment(AgentBridge.TokenEnv), OS.GetEnvironment(GameDataPaths.DataDirEnv), AgentBridge.RealDataDirs()))
         {
             AddChild(new AgentBridge { Name = "AgentBridge" });
         }
@@ -211,8 +213,11 @@ public partial class World : Node2D
 
     internal CampaignCatalog? AgentCampaign => _campaign;
 
-    /// <summary>True when <see cref="_Process"/> advances the simulation this frame (not held, not behind Home).</summary>
-    internal bool AgentSimRunning => !PlaytestHeld && _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;
+    /// <summary>A game is being played: not behind Home or Nuova partita. <see cref="_Process"/> runs the world only then.</summary>
+    internal bool GameInPlay => _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;
+
+    /// <summary>The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge).</summary>
+    internal bool SimAdvances => GameInPlay && !PlaytestHeld;
 
     public override void _Process(double delta)
     {
@@ -252,14 +257,14 @@ public partial class World : Node2D
             cam.DriftSpeed = !HomeBackdrop ? 0f : _playtestDriftSpeed ?? (PlaytestRequested ? 0f : HomeDriftSpeed);
         }
 
-        if (_home?.IsOpen == true || _newGame?.IsOpen == true || _view is null)
+        if (!GameInPlay)
         {
             _hud?.SetSiteTooltip(null, default);
             _hud?.SetPlacementHint(null);
             return;
         }
 
-        if (!PlaytestHeld)
+        if (SimAdvances)
         {
             AdvanceHost(delta);
         }

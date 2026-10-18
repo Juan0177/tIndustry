@@ -11,40 +11,58 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Control channel for AI agents (dev builds only, see <see cref="ShouldStart"/>): JSON lines on TCP 127.0.0.1. A
-/// background thread reads the requests; they run here on the main thread in <see cref="_Process"/>, one at a time.
-/// The shared methods go to <see cref="AgentGame"/> on the world's <see cref="SimHost"/> (a command is answered once the
-/// frame loop's next tick resolves it); the game-only ones (cattura, telecamera, input, ui, log, esegui, pausa,
-/// riprendi) act on the client, simulated input going through <see cref="Input.ParseInputEvent"/> like a playtest.
+/// client first sends <c>{"token":"..."}</c> with the <see cref="TokenEnv"/> secret; a wrong token or an HTTP-looking
+/// line closes the connection. A background thread reads the requests; they run here on the main thread in
+/// <see cref="_Process"/>, one at a time. The shared methods go to <see cref="AgentGame"/> on the world's
+/// <see cref="SimHost"/> (a command is answered once the frame loop's next tick resolves it); the game-only ones
+/// (cattura, telecamera, input, ui, log, esegui, pausa, riprendi) act on the client, simulated input going through
+/// <see cref="Input.ParseInputEvent"/> like a playtest.
 /// </summary>
 public partial class AgentBridge : Node
 {
+    /// <summary>Too many queued requests: the client is answered with this code and disconnected.</summary>
+    public const string Occupato = nameof(Occupato);
+
+    /// <summary><c>ui {clic}</c> on a control outside the window or clipped by its container.</summary>
+    public const string NonCliccabile = nameof(NonCliccabile);
+
     private const int MaxRequestsPerFrame = 64;
+    private const int MaxQueuedRequests = 1024;
     private const ulong CommandTimeoutMsec = 10_000;
     private const double MaxRunSeconds = 120;
     private const int DefaultLogLines = 50;
     private const int MaxLogLines = 500;
+    private const int KeptLogLines = 20_000;
 
     private readonly ConcurrentQueue<(int Connection, AgentRequest? Request, AgentException? Error)> _inbox = new();
     private readonly object _writeLock = new();
     private TcpListener? _listener;
     private TcpClient? _client;
     private StreamWriter? _writer;
-    private int _connection;
+    private int _connections;
+    // The connected client's number, 0 when none: requests of any other number are dropped.
+    private volatile int _connection;
     private Thread? _thread;
     private volatile bool _closing;
+    private string _token = "";
 
     private World _world = null!;
     private AgentGame? _game;
     // The command call waiting for its tick, and a running `esegui` (other requests go on meanwhile).
     private (int Connection, long Id, ulong Deadline)? _pending;
-    private (int Connection, long Id, ulong Deadline, long TickBefore, bool WasHeld, double Seconds)? _run;
+    private (int Connection, long Id, ulong Deadline, long TickBefore, bool HeldAfter, double Seconds)? _run;
     // A multi-frame input (click, drag, key, wheel) is being played.
     private bool _busy;
     private int _shots;
+    // This run's log, read incrementally: only the bytes written since the last `log`.
+    private StreamReader? _logReader;
+    private string _logPartial = "";
+    private readonly List<string> _logLines = [];
 
     public override void _Ready()
     {
         _world = GetParent<World>();
+        _token = OS.GetEnvironment(TokenEnv);
         TryParsePort(OS.GetEnvironment(PortEnv), out var port);
         try
         {
@@ -64,7 +82,7 @@ public partial class AgentBridge : Node
         GD.Print($"AgentBridge: in ascolto su 127.0.0.1:{port}");
     }
 
-    /// <summary>Closes the socket and the reading thread, so nothing is left for the engine teardown.</summary>
+    /// <summary>Closes the socket, the reading thread and the log reader, so nothing is left for the engine teardown.</summary>
     public override void _ExitTree()
     {
         _closing = true;
@@ -75,17 +93,21 @@ public partial class AgentBridge : Node
             _client?.Close();
             _client = null;
             _writer = null;
+            _connection = 0;
         }
 
         _thread?.Join(2000);
         _thread = null;
         _game?.Dispose();
         _game = null;
+        _logReader?.Dispose();
+        _logReader = null;
     }
 
-    /// <summary>Network thread: one client at a time; each line becomes a parsed request in the inbox.</summary>
+    /// <summary>Network thread: one client at a time; after the token, each line becomes a parsed request in the inbox.</summary>
     private void ReadLoop()
     {
+        var line = new StringBuilder();
         while (!_closing)
         {
             TcpClient client;
@@ -112,29 +134,25 @@ public partial class AgentBridge : Node
             int connection;
             lock (_writeLock)
             {
+                if (_closing)
+                {
+                    client.Close();
+                    return;
+                }
+
                 _client = client;
                 _writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
-                connection = ++_connection;
+                connection = ++_connections;
+                _connection = connection;
             }
 
             try
             {
                 using var reader = new StreamReader(stream, new UTF8Encoding(false));
-                while (!_closing && reader.ReadLine() is { } line)
+                if (ReadBoundedLine(reader, line, out _) is { } first && !LooksLikeHttp(first) && TokenMatches(first, _token))
                 {
-                    if (line.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        _inbox.Enqueue((connection, AgentProtocol.ReadLine(line), null));
-                    }
-                    catch (AgentException ex)
-                    {
-                        _inbox.Enqueue((connection, null, ex));
-                    }
+                    Send(connection, AgentResponse.Success(0, JsonSerializer.SerializeToElement(new JsonObject { ["canale"] = "tindustry" })));
+                    Serve(connection, reader, line);
                 }
             }
             catch (Exception)
@@ -149,8 +167,77 @@ public partial class AgentBridge : Node
                     _client?.Close();
                     _client = null;
                     _writer = null;
+                    _connection = 0; // its queued requests are dropped
                 }
             }
+        }
+    }
+
+    private void Serve(int connection, StreamReader reader, StringBuilder buffer)
+    {
+        while (!_closing)
+        {
+            var line = ReadBoundedLine(reader, buffer, out var tooLong);
+            if (tooLong)
+            {
+                Send(connection, AgentResponse.Failure(
+                    0, new AgentException(AgentCodes.ParametriNonValidi, $"Riga oltre {MaxLineChars / 1024} KiB: connessione chiusa.")));
+                return;
+            }
+
+            if (line is null || LooksLikeHttp(line))
+            {
+                return; // end of stream, or a browser's cross-protocol request
+            }
+
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            if (_inbox.Count >= MaxQueuedRequests)
+            {
+                Send(connection, AgentResponse.Failure(
+                    0, new AgentException(Occupato, $"Più di {MaxQueuedRequests} richieste in coda: connessione chiusa.")));
+                return;
+            }
+
+            try
+            {
+                _inbox.Enqueue((connection, AgentProtocol.ReadLine(line), null));
+            }
+            catch (AgentException ex)
+            {
+                _inbox.Enqueue((connection, null, ex));
+            }
+        }
+    }
+
+    /// <summary>One line without its end (null at end of stream), at most <see cref="MaxLineChars"/> characters.</summary>
+    private static string? ReadBoundedLine(StreamReader reader, StringBuilder buffer, out bool tooLong)
+    {
+        buffer.Clear();
+        tooLong = false;
+        while (true)
+        {
+            var c = reader.Read();
+            if (c < 0)
+            {
+                return buffer.Length > 0 ? buffer.ToString() : null;
+            }
+
+            if (c == '\n')
+            {
+                return buffer.ToString().TrimEnd('\r');
+            }
+
+            if (buffer.Length >= MaxLineChars)
+            {
+                tooLong = true;
+                return null;
+            }
+
+            buffer.Append((char)c);
         }
     }
 
@@ -159,10 +246,11 @@ public partial class AgentBridge : Node
         if (_run is { } run && Time.GetTicksMsec() >= run.Deadline)
         {
             _run = null;
-            World.PlaytestHeld = run.WasHeld;
+            World.PlaytestHeld = run.HeldAfter;
             Reply(run.Connection, run.Id, new JsonObject
             {
-                ["tickPrima"] = run.TickBefore, ["tick"] = CurrentTick(), ["secondi"] = run.Seconds
+                ["eseguito"] = true, ["tickPrima"] = run.TickBefore, ["tick"] = CurrentTick(), ["secondi"] = run.Seconds,
+                ["inPausa"] = run.HeldAfter
             });
         }
 
@@ -202,7 +290,7 @@ public partial class AgentBridge : Node
             {
                 case "pausa":
                 case "riprendi":
-                    World.PlaytestHeld = request.Method == "pausa";
+                    SetHeld(request.Method == "pausa");
                     Reply(connection, request.Id, new JsonObject { ["tick"] = CurrentTick(), ["inPausa"] = World.PlaytestHeld });
                     break;
                 case "esegui":
@@ -249,12 +337,8 @@ public partial class AgentBridge : Node
         if (_game?.Host != host)
         {
             _game?.Dispose();
-            var diaries = GameDataPaths.Override is { } profile ? Path.Combine(profile, "diari") : null;
-            if (diaries is not null)
-            {
-                Directory.CreateDirectory(diaries);
-            }
-
+            var diaries = Path.Combine(Profile(), "diari");
+            Directory.CreateDirectory(diaries);
             _game = new AgentGame(
                 host, host.State.Content, campaign: _world.AgentCampaign, journalDirectory: diaries, tickPerComando: false);
         }
@@ -281,7 +365,7 @@ public partial class AgentBridge : Node
         if (response.Ok && request.Method == "avanza")
         {
             // Exact ticks freeze real time, like pausa: the state stays put for the captures.
-            World.PlaytestHeld = true;
+            SetHeld(true);
             var node = JsonNode.Parse(response.Result!.Value.GetRawText())!.AsObject();
             node["inPausa"] = true;
             response = response with { Result = JsonSerializer.SerializeToElement(node) };
@@ -309,7 +393,7 @@ public partial class AgentBridge : Node
         {
             if (!_game.TryFinishPending(out var result))
             {
-                if (_world.AgentSimRunning)
+                if (_world.SimAdvances)
                 {
                     if (Time.GetTicksMsec() < deadline)
                     {
@@ -360,9 +444,26 @@ public partial class AgentBridge : Node
 
     private long CurrentTick() => _world.AgentHost?.State.CurrentTick ?? 0;
 
+    /// <summary>The session profile (always set: <see cref="ShouldStart"/> requires it).</summary>
+    private static string Profile() =>
+        GameDataPaths.Override ?? throw new AgentException(AgentCodes.MotoreNonDisponibile, "Nessun profilo di sessione.");
+
     // --- Time ----------------------------------------------------------------------------------------------------
 
-    /// <summary><c>esegui {secondi}</c>: real time runs (pause lifted), the answer comes when the time has passed.</summary>
+    /// <summary>pausa, riprendi and avanza: at once, and the last explicit choice also holds after a running esegui.</summary>
+    private void SetHeld(bool held)
+    {
+        World.PlaytestHeld = held;
+        if (_run is { } run)
+        {
+            _run = run with { HeldAfter = held };
+        }
+    }
+
+    /// <summary>
+    /// <c>esegui {secondi}</c>: real time runs (pause lifted), the answer comes when the time has passed; with no game in
+    /// play (Home, Nuova partita) it answers at once with <c>eseguito:false</c>.
+    /// </summary>
     private void StartRun(int connection, long id, JsonElement p)
     {
         if (_run is not null)
@@ -376,31 +477,28 @@ public partial class AgentBridge : Node
             throw Bad($"'secondi' tra 0 e {MaxRunSeconds}.");
         }
 
+        if (!_world.GameInPlay)
+        {
+            Reply(connection, id, new JsonObject
+            {
+                ["eseguito"] = false, ["motivo"] = "Nessuna partita in gioco: è aperta la Home o Nuova partita.",
+                ["tick"] = CurrentTick()
+            });
+            return;
+        }
+
         _run = (connection, id, Time.GetTicksMsec() + (ulong)(seconds * 1000), CurrentTick(), World.PlaytestHeld, seconds);
         World.PlaytestHeld = false;
     }
 
     // --- Capture, camera, log ------------------------------------------------------------------------------------
 
-    /// <summary><c>cattura {percorso?}</c>: PNG of the window inside the session profile (or the temp folder).</summary>
+    /// <summary><c>cattura {percorso?}</c>: PNG of the window, only under <c>&lt;profile&gt;/catture</c>.</summary>
     private JsonObject Capture(JsonElement p)
     {
-        var profile = GameDataPaths.Override;
-        var temp = Path.GetFullPath(Path.GetTempPath());
-        var folder = Path.Combine(profile ?? Path.Combine(temp, "tindustry-catture"), "catture");
-        var path = OptStr(p, "percorso") is { } wanted
-            ? Path.GetFullPath(Path.Combine(folder, wanted))
-            : Path.Combine(folder, $"cattura-{++_shots:000}.png");
-        if (!path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-        {
-            throw Bad("'percorso' deve finire con .png.");
-        }
-
-        if (!Inside(path, profile) && !Inside(path, temp))
-        {
-            throw Bad("'percorso' deve stare nel profilo della sessione o nella cartella temporanea.");
-        }
-
+        var path = CapturePath(Profile(), OptStr(p, "percorso"), _shots + 1)
+            ?? throw Bad("'percorso' è un nome relativo .png dentro la cartella catture del profilo, senza '..'.");
+        _shots++;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         using var image = _world.CaptureFrame();
         if (image.SavePng(path) is var error and not Error.Ok)
@@ -410,11 +508,6 @@ public partial class AgentBridge : Node
 
         return new JsonObject { ["percorso"] = path, ["larghezza"] = image.GetWidth(), ["altezza"] = image.GetHeight() };
     }
-
-    private static bool Inside(string path, string? folder) =>
-        folder is not null && path.StartsWith(
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase);
 
     /// <summary><c>telecamera {cella?, zoom?}</c>: moves the camera there, answers where it is.</summary>
     private JsonObject Camera(JsonElement p)
@@ -450,8 +543,11 @@ public partial class AgentBridge : Node
         };
     }
 
-    /// <summary><c>log {righe?, tutte?}</c>: the last lines of this run's Godot log, warnings and errors only by default.</summary>
-    private static JsonObject Log(JsonElement p)
+    /// <summary>
+    /// <c>log {righe?, tutte?}</c>: the last lines of <c>&lt;profile&gt;/godot.log</c> (where the scripts point
+    /// <c>--log-file</c>), warnings and errors only by default. The file stays open and only new bytes are read.
+    /// </summary>
+    private JsonObject Log(JsonElement p)
     {
         var count = OptInt(p, "righe") ?? DefaultLogLines;
         if (count is < 1 or > MaxLogLines)
@@ -459,23 +555,39 @@ public partial class AgentBridge : Node
             throw Bad($"'righe' tra 1 e {MaxLogLines}.");
         }
 
-        var path = LogPath()
-            ?? throw new AgentException(AgentCodes.MotoreNonDisponibile, "Questa partita non scrive un file di log.");
-        string text;
+        var path = Path.Combine(Profile(), "godot.log");
         try
         {
-            using var stream = new FileStream(path, FileMode.Open, System.IO.FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream);
-            text = reader.ReadToEnd();
+            if (_logReader is null)
+            {
+                if (!File.Exists(path))
+                {
+                    throw new AgentException(AgentCodes.MotoreNonDisponibile, $"Nessun log in {path} (serve --log-file).");
+                }
+
+                _logReader = new StreamReader(
+                    new FileStream(path, FileMode.Open, System.IO.FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+            }
+
+            var parts = (_logPartial + _logReader.ReadToEnd()).Split('\n');
+            _logPartial = parts[^1];
+            foreach (var part in parts[..^1])
+            {
+                _logLines.Add(part.TrimEnd('\r'));
+            }
         }
         catch (IOException ex)
         {
             throw new AgentException(AgentCodes.MotoreNonDisponibile, $"Log non leggibile: {ex.Message}");
         }
 
+        if (_logLines.Count > KeptLogLines)
+        {
+            _logLines.RemoveRange(0, _logLines.Count - KeptLogLines);
+        }
+
         var all = p.TryGetProperty("tutte", out var t) && t.ValueKind == JsonValueKind.True;
-        var lines = text.Split('\n').Select(l => l.TrimEnd('\r'))
-            .Where(l => all ? l.Length > 0 : l.Contains("ERROR") || l.Contains("WARNING")).ToList();
+        var lines = _logLines.Where(l => all ? l.Length > 0 : l.Contains("ERROR") || l.Contains("WARNING")).ToList();
         var lastLines = new JsonArray();
         foreach (var line in lines.Skip(Math.Max(0, lines.Count - count)))
         {
@@ -489,22 +601,6 @@ public partial class AgentBridge : Node
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// This run's log: <c>&lt;profile&gt;/godot.log</c>, where the scripts point <c>--log-file</c> (Godot keeps its own
-    /// arguments out of <see cref="OS.GetCmdlineArgs"/>), else Godot's own file log when enabled.
-    /// </summary>
-    private static string? LogPath()
-    {
-        if (GameDataPaths.Override is { } profile && File.Exists(Path.Combine(profile, "godot.log")))
-        {
-            return Path.Combine(profile, "godot.log");
-        }
-
-        return ProjectSettings.GetSetting("debug/file_logging/enable_file_logging").AsBool()
-            ? ProjectSettings.GlobalizePath(ProjectSettings.GetSetting("debug/file_logging/log_path").AsString())
-            : null;
     }
 
     // --- Simulated input and UI ----------------------------------------------------------------------------------
@@ -539,15 +635,9 @@ public partial class AgentBridge : Node
             }
             case "tasto":
             {
-                var name = Str(p, "tasto");
-                var key = OS.FindKeycodeFromString(name);
-                if (key == Key.None)
-                {
-                    throw Bad($"Tasto sconosciuto: '{name}'.");
-                }
-
-                result["tasto"] = OS.GetKeycodeString(key);
-                action = _world.PlaytestKey(key);
+                var (key, modifiers, unicode) = ParseKey(Str(p, "tasto"));
+                result["tasto"] = OS.GetKeycodeString(key | (Key)(long)modifiers);
+                action = _world.PlaytestKey(key, modifiers, unicode);
                 break;
             }
             case "rotella":
@@ -569,6 +659,37 @@ public partial class AgentBridge : Node
         }
 
         Play(connection, id, action, result);
+    }
+
+    /// <summary>
+    /// "Ctrl+Shift+S", "Escape", "a": the key, its modifiers as flags, and the character it types (printable keys
+    /// without Ctrl, Alt or Meta; letters lower case unless Shift).
+    /// </summary>
+    private static (Key Key, KeyModifierMask Modifiers, long Unicode) ParseKey(string name)
+    {
+        var full = (long)OS.FindKeycodeFromString(name);
+        var key = (Key)(full & (long)KeyModifierMask.CodeMask);
+        var modifiers = (KeyModifierMask)(full & (long)KeyModifierMask.ModifierMask);
+        if (modifiers.HasFlag(KeyModifierMask.MaskCmdOrCtrl) && !OS.HasFeature("macos"))
+        {
+            modifiers = (modifiers & ~KeyModifierMask.MaskCmdOrCtrl) | KeyModifierMask.MaskCtrl;
+        }
+
+        if (key == Key.None)
+        {
+            throw Bad($"Tasto sconosciuto: '{name}'.");
+        }
+
+        long unicode = 0;
+        var code = (long)key;
+        if (code is >= 0x20 and <= 0x7E
+            && (modifiers & (KeyModifierMask.MaskCtrl | KeyModifierMask.MaskAlt | KeyModifierMask.MaskMeta)) == 0)
+        {
+            var c = (char)code;
+            unicode = char.IsLetter(c) && !modifiers.HasFlag(KeyModifierMask.MaskShift) ? char.ToLowerInvariant(c) : c;
+        }
+
+        return (key, modifiers, unicode);
     }
 
     private void Play(int connection, long id, Task action, JsonObject result)
@@ -632,14 +753,19 @@ public partial class AgentBridge : Node
             result["cella"] = new JsonObject { ["x"] = cell.X, ["y"] = cell.Y };
         }
 
-        var size = DisplayServer.WindowGetSize();
-        if (at.X < 0 || at.Y < 0 || at.X >= size.X || at.Y >= size.Y)
+        if (!InWindow(at))
         {
-            throw Bad($"Il punto ({at.X:0},{at.Y:0}) è fuori dalla finestra {size.X}×{size.Y}.");
+            throw Bad($"Il punto ({at.X:0},{at.Y:0}) è fuori dalla finestra {DisplayServer.WindowGetSize()}.");
         }
 
         result["schermo"] = ScreenJson(at);
         return at;
+    }
+
+    private static bool InWindow(Vector2 at)
+    {
+        var size = DisplayServer.WindowGetSize();
+        return at.X >= 0 && at.Y >= 0 && at.X < size.X && at.Y < size.Y;
     }
 
     /// <summary>End of a drag: <c>verso</c> as <c>{x,y}</c> or "x,y", in the same space as the start (screen or cell).</summary>
@@ -687,18 +813,31 @@ public partial class AgentBridge : Node
     private static JsonObject ScreenJson(Vector2 at) => new() { ["x"] = Mathf.RoundToInt(at.X), ["y"] = Mathf.RoundToInt(at.Y) };
 
     /// <summary>
-    /// <c>ui {}</c>: the visible controls of the HUD and the open panels with a stable name (their path, unnamed nodes
-    /// as type + index), type, shown text and rectangle in window pixels; <c>ui {clic: nome}</c> clicks its centre.
+    /// <c>ui {}</c>: the visible controls of the HUD, the open panels and the open popup windows, with a stable name
+    /// (their path, unnamed nodes as type + index), type, shown text and rectangle in window pixels, and why a click
+    /// would miss (<c>nascosto</c>); <c>ui {clic: nome}</c> clicks its centre, or refuses with <see cref="NonCliccabile"/>.
     /// </summary>
     private void Ui(int connection, long id, JsonElement p)
     {
         var controls = new List<(string Name, Control Control)>();
         Collect(_world.UiRoot, "", controls);
+        foreach (var node in GetTree().Root.FindChildren("*", nameof(Window), recursive: true, owned: false))
+        {
+            if (node is Window { Visible: true } window)
+            {
+                Collect(window, window.Name.ToString(), controls);
+            }
+        }
+
         if (OptStr(p, "clic") is { } name)
         {
             var target = FindControl(controls, name);
-            var rect = WindowRect(target);
-            var at = rect.GetCenter();
+            var at = WindowRect(target).GetCenter();
+            if (ClickProblem(target, at) is { } problem)
+            {
+                throw new AgentException(NonCliccabile, $"'{name}': {problem}.");
+            }
+
             Play(connection, id, _world.PlaytestClick(at), new JsonObject { ["clic"] = name, ["schermo"] = ScreenJson(at) });
             return;
         }
@@ -726,6 +865,11 @@ public partial class AgentBridge : Node
             if (control is BaseButton { Disabled: true })
             {
                 entry["disattivo"] = true;
+            }
+
+            if (ClickProblem(control, rect.GetCenter()) is { } problem)
+            {
+                entry["nascosto"] = problem;
             }
 
             list.Add(entry);
@@ -763,6 +907,25 @@ public partial class AgentBridge : Node
         }
     }
 
+    /// <summary>Why a click at <paramref name="at"/> would not reach <paramref name="control"/>, or null.</summary>
+    private string? ClickProblem(Control control, Vector2 at)
+    {
+        if (!InWindow(at))
+        {
+            return "il centro è fuori dalla finestra";
+        }
+
+        for (var node = control.GetParent(); node is not null and not Window; node = node.GetParent())
+        {
+            if (node is Control { ClipContents: true } clip && !WindowRect(clip).HasPoint(at))
+            {
+                return $"il centro è tagliato da {clip.GetClass()} '{clip.Name}' (scorri prima)";
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>By full name, or by its last segment when only one visible control has it.</summary>
     private static Control FindControl(List<(string Name, Control Control)> controls, string name)
     {
@@ -797,13 +960,25 @@ public partial class AgentBridge : Node
         return text.Length == 0 ? text : Testi.T(text);
     }
 
-    /// <summary>The control's rectangle in window pixels (what a real mouse event carries).</summary>
+    /// <summary>The control's rectangle in window pixels (what a real mouse event carries), also inside a popup window.</summary>
     private Rect2 WindowRect(Control control)
     {
-        var xf = GetViewport().GetFinalTransform() * control.GetGlobalTransformWithCanvas();
-        var a = xf * Vector2.Zero;
-        var b = xf * control.Size;
+        var a = ToWindow(control, Vector2.Zero);
+        var b = ToWindow(control, control.Size);
         return new Rect2(a, b - a).Abs();
+    }
+
+    private Vector2 ToWindow(Control control, Vector2 local)
+    {
+        var at = control.GetGlobalTransformWithCanvas() * local;
+        var root = GetTree().Root;
+        // An embedded popup draws at its position inside the viewport that holds it.
+        for (var viewport = control.GetViewport(); viewport is Window window && window != root; viewport = window.GetParent()?.GetViewport())
+        {
+            at = window.GetFinalTransform() * at + (Vector2)window.Position;
+        }
+
+        return root.GetFinalTransform() * at;
     }
 
     // --- Replies and parameters ----------------------------------------------------------------------------------
@@ -811,6 +986,7 @@ public partial class AgentBridge : Node
     private void Reply(int connection, long id, JsonObject result) =>
         Send(connection, AgentResponse.Success(id, JsonSerializer.SerializeToElement(result)));
 
+    /// <summary>Writes one answer line to <paramref name="connection"/> if it is still the connected client (any thread).</summary>
     private void Send(int connection, AgentResponse response)
     {
         var line = AgentProtocol.WriteLine(response) + "\n";
