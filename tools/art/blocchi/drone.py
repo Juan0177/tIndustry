@@ -30,8 +30,14 @@ def _pieni(lato, poli):
     out = {(x, y) for y in range(lato) for x in range(lato) if _dentro(x + 0.5, y + 0.5, poli)}
     out |= {(x, lato - 1 - y) for x, y in out}
     # Drop pixel slivers (fewer than two side neighbours): they would be lone outline dots.
-    return {(x, y) for x, y in out
-            if sum((x + ax, y + ay) in out for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1))) >= 2}
+    out = {(x, y) for x, y in out
+           if sum((x + ax, y + ay) in out for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1))) >= 2}
+    # Nose: a 2 px tip on the flight axis that reaches the East edge.
+    for y in (lato // 2 - 1, lato // 2):
+        x = max((px for px, py in out if py == y), default=None)
+        if x is not None and x >= lato - 3:
+            out |= {(px, y) for px in range(x, lato)}
+    return out
 
 
 def _speculare(poli, lato):
@@ -59,7 +65,7 @@ def alpha():
     s = 24
     im = forme.nuova(s, s)
     forme.sagoma(im, _pieni(s, [(23.5, 12), (2, 2), (5, 2), (9, 12)]), ACCENTO)
-    _fusoliera(im, 6, 20, 10, 13)
+    _fusoliera(im, 6, 21, 10, 13)
     _motore(im, 4, 11, 12)
     return im
 
@@ -76,7 +82,7 @@ def beta():
         forme.rett(im, 12, y0 + 1, 14, y0 + 3, ACCENTO[3])
         _motore(im, 2, y0 + 1, y0 + 3)
     forme.sagoma(im, _pieni(s, [(27.5, 14), (19, 9.5), (6, 10.5), (6, 14)]), ACCENTO)
-    _fusoliera(im, 7, 23, 12, 15)
+    _fusoliera(im, 7, 25, 12, 15)
     return im
 
 
@@ -91,7 +97,7 @@ def gamma():
     for y in (3, s - 4):
         forme.rett(im, 11, y, 12, y, NUCLEO[3])
     forme.sagoma(im, _pieni(s, [(31.5, 16), (23, 11.5), (5, 11.5), (3, 16)]), ACCENTO)
-    _fusoliera(im, 8, 27, 14, 17)
+    _fusoliera(im, 8, 29, 14, 17)
     # Twin engines either side of the spine.
     for y0 in (11, s - 14):
         forme.rett(im, 3, y0, 8, y0 + 2, OUT)

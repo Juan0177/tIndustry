@@ -15,13 +15,23 @@ public partial class DroneVisual : Node2D
     /// <summary>Alpha, the tier of the starting Core (beta and gamma: <c>drone-2</c>, <c>drone-3</c>).</summary>
     private const string SpriteId = "drone-1";
 
-    /// <summary>Nose and engine of <c>drone-1</c> from its centre: 10 and 8 art px, drawn ×2 (64 px per tile).</summary>
-    private const float NoseTiles = 10f / Sprites.PixelsPerCell;
+    /// <summary>Nose and engine of <c>drone-1</c> from its centre: 12 and 8 art px, drawn ×2 (64 px per tile).</summary>
+    private const float NoseTiles = 12f / Sprites.PixelsPerCell;
     private const float TailTiles = 8f / Sprites.PixelsPerCell;
 
-    /// <summary>Shadow: the same sprite in black at 35 %, 6 world px down-right (light from the top-left).</summary>
+    /// <summary>
+    /// Shadow: the same sprite in black at 35 %, 6 world px down-right (light from the top-left). It stays on the
+    /// ground: the hover moves only the body.
+    /// </summary>
     private static readonly Vector2 ShadowOffset = new(6f, 6f);
     private static readonly Color ShadowColor = new(0f, 0f, 0f, 0.35f);
+
+    /// <summary>Art pixels drawn ×2 (64 world px per 32 px cell).</summary>
+    private static readonly Vector2 SpriteScale = Vector2.One * (World.TileSize / (float)Sprites.PixelsPerCell);
+
+    private static Texture2D? _texture;
+
+    private static Texture2D Texture => _texture ??= Sprites.For(SpriteId);
 
     private const float HoverTiles = 0.05f;
     private const float HoverRadPerSec = 2.6f;
@@ -41,6 +51,7 @@ public partial class DroneVisual : Node2D
     private float _sinceTick;
     private long _lastTick = -1;
     private float _hover;
+    private Vector2 _hoverOffset;
     private float _clock;
     private float _trailTimer;
     private readonly Queue<Vector2> _trail = new();
@@ -84,7 +95,8 @@ public partial class DroneVisual : Node2D
         var moving = _from.DistanceSquaredTo(_to) > 0.01f;
         _hover = Mathf.MoveToward(_hover, moving ? 0f : 1f, delta * 3f);
 
-        var pos = InterpolatedPosition() + new Vector2(0f, Mathf.Sin(_clock * HoverRadPerSec) * HoverTiles * World.TileSize * _hover);
+        _hoverOffset = new Vector2(0f, Mathf.Sin(_clock * HoverRadPerSec) * HoverTiles * World.TileSize * _hover);
+        var pos = InterpolatedPosition() + _hoverOffset;
         Position = pos;
 
         _trailTimer += delta;
@@ -107,11 +119,10 @@ public partial class DroneVisual : Node2D
     {
         var t = World.TileSize;
         var heading = Heading();
-        var tex = Sprites.For(SpriteId);
-        var scale = Vector2.One * (t / (float)Sprites.PixelsPerCell);
+        var tex = Texture;
         var corner = -tex.GetSize() * 0.5f;
 
-        DrawSetTransform(ShadowOffset, heading.Angle(), scale);
+        DrawSetTransform(ShadowOffset - _hoverOffset, heading.Angle(), SpriteScale);
         DrawTexture(tex, corner, ShadowColor);
         DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
 
@@ -126,7 +137,7 @@ public partial class DroneVisual : Node2D
             i++;
         }
 
-        DrawSetTransform(Vector2.Zero, heading.Angle(), scale);
+        DrawSetTransform(Vector2.Zero, heading.Angle(), SpriteScale);
         DrawTexture(tex, corner);
         DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
     }

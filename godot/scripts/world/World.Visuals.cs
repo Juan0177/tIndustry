@@ -170,6 +170,16 @@ public partial class World
             return;
         }
 
+        if (!PlaytestRequested)
+        {
+            _coreLightClock = (_coreLightClock + delta) % 3600f;
+        }
+
+        if (_coreLight is not null && IsInstanceValid(_coreLight))
+        {
+            _coreLight.Texture = CoreLightFrame();
+        }
+
         foreach (var child in _buildingsLayer.GetChildren())
         {
             switch (child)
@@ -436,6 +446,20 @@ public partial class World
     /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
     private const int ConstructionZ = 20;
 
+    /// <summary>The Core in game is tier 1 (2×2); tiers 2–4 exist only as sprites until the tier sub-project.</summary>
+    private const string CoreSpriteId = "core-1";
+
+    /// <summary>Slow pulse of the nucleus light: 4 frames, looped.</summary>
+    private const float CoreLightFramesPerSecond = 2.5f;
+
+    /// <summary>
+    /// World clock of the nucleus light: it outlives <see cref="RebuildBuildingVisuals"/>, so the pulse does not
+    /// restart on every build. It stays at 0 in playtests, so screenshots always show the same frame.
+    /// </summary>
+    private float _coreLightClock;
+
+    private Sprite2D? _coreLight;
+
     /// <summary>
     /// CORE as a building node (z above belt items): the <c>core-1</c> body, its nucleus light looping slowly on top
     /// (each frame is an opaque disc that replaces the nucleus) and the cyan outline.
@@ -467,15 +491,15 @@ public partial class World
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = size / body.GetSize()
         });
-        root.AddChild(new AnimatedSprite2D
+        _coreLight = new Sprite2D
         {
             Name = "Light",
-            SpriteFrames = CoreLightFrames(),
-            Autoplay = "default",
+            Texture = CoreLightFrame(),
             Centered = false,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = size / body.GetSize()
-        });
+        };
+        root.AddChild(_coreLight);
 
         root.AddChild(new Line2D
         {
@@ -487,30 +511,10 @@ public partial class World
         _buildingsLayer.AddChild(root);
     }
 
-    /// <summary>The Core in game is tier 1 (2×2); tiers 2–4 exist only as sprites until the tier sub-project.</summary>
-    private const string CoreSpriteId = "core-1";
-
-    /// <summary>Slow pulse of the nucleus light: 4 frames, looped.</summary>
-    private const float CoreLightFramesPerSecond = 2.5f;
-
-    private SpriteFrames? _coreLightFrames;
-
-    /// <summary>The <c>core-1-light-anim</c> frames as one looping animation, built once per world.</summary>
-    private SpriteFrames CoreLightFrames()
+    /// <summary>Frame of the nucleus light for the world clock (held on frame 1 in playtests: stable captures).</summary>
+    private Texture2D CoreLightFrame()
     {
-        if (_coreLightFrames is not null)
-        {
-            return _coreLightFrames;
-        }
-
-        _coreLightFrames = new SpriteFrames();
-        _coreLightFrames.SetAnimationSpeed("default", CoreLightFramesPerSecond);
-        _coreLightFrames.SetAnimationLoop("default", true);
-        foreach (var frame in Sprites.Frames(CoreSpriteId + "-light"))
-        {
-            _coreLightFrames.AddFrame("default", frame);
-        }
-
-        return _coreLightFrames;
+        var frames = Sprites.Frames(CoreSpriteId + "-light");
+        return frames[(int)(_coreLightClock * CoreLightFramesPerSecond) % frames.Length];
     }
 }

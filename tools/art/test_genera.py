@@ -201,7 +201,7 @@ class TestGenera(unittest.TestCase):
                 # Mirror-symmetric across the flight axis (West-East), nose on the East edge.
                 self.assertEqual(alfa.tobytes(), alfa.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes())
                 x0, y0, x1, y1 = alfa.getbbox()
-                self.assertGreaterEqual(x1, lato - 2, f"{nome}: il muso non arriva al bordo Est")
+                self.assertEqual(lato, x1, f"{nome}: il muso non arriva al bordo Est")
                 naso = [y for y in range(lato) if alfa.getpixel((x1 - 1, y))]
                 self.assertTrue(naso and max(naso) - min(naso) <= 3, f"{nome}: muso non a punta")
                 self.assertEqual((0, 0, 0, 0), im.getpixel((0, 0)))
