@@ -187,6 +187,30 @@ class TestGenera(unittest.TestCase):
                     sud = [c.getpixel((x, T - 1)) for x in range(T)]
                     self.assertEqual([d.getpixel((T - 1, T - 1 - x)) for x in range(T)], sud, f"{nastro} {k + 1}: lato Sud")
 
+    def test_parti_produzione_e_potenza(self):
+        # Layered blocks: base, animated part (frame count), composed icon = base + frame 1.
+        strati = {
+            "miner": ("miner-drill-anim", 8), "miner-advanced": ("miner-advanced-drill-anim", 8),
+            "smelter": ("smelter-glow-anim", 4), "generator": ("generator-rotor-anim", 4),
+        }
+        for blocco, (anim, n) in strati.items():
+            with self.subTest(blocco=blocco):
+                fotogrammi = fotogrammi_di(SPRITE[anim]())
+                self.assertEqual(n, len(fotogrammi))
+                icona = forme.componi(SPRITE[blocco + "-base"](), fotogrammi[0])
+                self.assertEqual(icona.tobytes(), SPRITE[blocco]().tobytes())
+        for nome in ("miner-advanced-lamp", "assembler-base", "assembler-arm", "assembler",
+                     "extractor", "power-node", "power-node-t2"):
+            self.assertIn(nome, SPRITE)
+        # The drill bit is clearly smaller than its frame (not a fan filling the block).
+        for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
+            x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
+            self.assertLessEqual(max(x1 - x0, y1 - y0), 2 * T // 2, anim)
+        # Extractor: empty dark well (8 px across) in the centre for the filter dot.
+        ex = SPRITE["extractor"]()
+        pozzo = {ex.getpixel((x, y)) for y in range(13, 19) for x in range(13, 19)}
+        self.assertEqual(1, len(pozzo))
+
     @unittest.skipUnless(os.environ.get("TINDUSTRY_ARTE_COMPLETA") == "1",
                          "gli sprite arrivano famiglia per famiglia (task 2-5 della G1)")
     def test_copertura(self):
