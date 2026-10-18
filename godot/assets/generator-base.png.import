@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ct0bb3204ksgb"
-path="res://.godot/imported/gear-rust.png-3cac8da09d1cc4048eeda50999c5be4b.ctex"
+uid="uid://bm6yt8ulxmxdc"
+path="res://.godot/imported/generator-base.png-c31f50d54e90e7fdada82b184a4c4748.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/gear-rust.png"
-dest_files=["res://.godot/imported/gear-rust.png-3cac8da09d1cc4048eeda50999c5be4b.ctex"]
+source_file="res://assets/generator-base.png"
+dest_files=["res://.godot/imported/generator-base.png-c31f50d54e90e7fdada82b184a4c4748.ctex"]
 
 [params]
 

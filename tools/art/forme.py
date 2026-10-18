@@ -72,6 +72,42 @@ def pannello(im, x0, y0, x1, y1, rampa, contorno=True):
     pixel(im, x0, y1, medio)
 
 
+def sagoma(im, pieni, rampa):
+    """Raised shape from a set of (x, y) pixels: outline on its border, lit top/left inner
+    edge, shaded bottom/right inner edge (any outline, not only rectangles)."""
+    ombra_, medio, chiaro, luce = _toni(rampa)
+    bordo = {(x, y) for x, y in pieni
+             if any((x + ax, y + ay) not in pieni for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1)))}
+    for x, y in sorted(pieni):
+        if (x, y) in bordo:
+            c = OUT
+        elif (x - 1, y) in bordo or (x, y - 1) in bordo:
+            c = luce if (x - 1, y - 1) in bordo and (x - 1, y) in bordo and (x, y - 1) in bordo else chiaro
+        elif (x + 1, y) in bordo or (x, y + 1) in bordo:
+            c = ombra_
+        else:
+            c = medio
+        pixel(im, x, y, c)
+
+
+def smussato(x0, y0, x1, y1, smusso):
+    """Pixels of a rectangle with its four corners cut at 45 degrees by `smusso` px."""
+    return {(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)
+            if min(x - x0, x1 - x) + min(y - y0, y1 - y) >= smusso}
+
+
+def arrotondato(x0, y0, x1, y1, r):
+    """Pixels of a rectangle with rounded corners of radius r."""
+    out = set()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            cx = min(max(x + 0.5, x0 + r), x1 + 1 - r)
+            cy = min(max(y + 0.5, y0 + r), y1 + 1 - r)
+            if (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r:
+                out.add((x, y))
+    return out
+
+
 def bullone(im, x, y, rampa):
     """2x2 bolt: highlight top-left, outline bottom-right."""
     _, _, chiaro, _ = _toni(rampa)

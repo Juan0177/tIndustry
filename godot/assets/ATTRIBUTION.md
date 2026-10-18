@@ -2,7 +2,7 @@
 
 ## Icons
 
-Nastri, incrocio, divisore, smistatore e ponte (`conveyor-*`, `junction`, `splitter`, `sorter`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
+Nastri, incrocio, divisore, smistatore e ponte (`conveyor-*`, `junction`, `splitter`, `sorter`), minatori, forno, assemblatore, estrattore, generatore e nodi di potenza (`miner*`, `smelter*`, `assembler*`, `extractor`, `generator*`, `power-node*`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
 
 ### game-icons.net (CC BY 3.0)
 
@@ -26,10 +26,6 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `copper-wire.png` | Delapouite | wire-coil |
 | `money.png` | Delapouite | coins |
 | `ui/sell.png` | Delapouite | receive-money |
-| `miner.png` | Lorc | drill (trivella / auger industriale) |
-| `smelter.png` | Delapouite | furnace |
-| `assembler.png` | Lorc | gears |
-| `generator.png` | Lorc | lightning-helix |
 | `bridge.png` | Delapouite | cable-stayed-bridge |
 | `ui/cat-production.png` | Delapouite | factory |
 | `ui/cat-logistics.png` | Delapouite | plain-arrow |
