@@ -40,7 +40,7 @@ Specifica: [2026-10-18-g1-arte-blocchi-design](../superpowers/specs/2026-10-18-g
 - **`core.png` eliminato**: era una copia di `core-1` non usata dal client.
 - **Piombo verso il blu-violetto**: a 10 px minerale di ferro e di piombo sui nastri erano troppo simili. `ItemVisualColors` (piombo e lastra, con i contorni) segue la rampa nuova.
 - **Contrasto sui nastri.** Carbone (sul nastro base scuro) e titanio (sulle frecce ciano dell'express) hanno nello sprite da 10 px il contorno scuro più un bordo chiaro di 1 px subito dentro (`BORDO_CHIARO`).
-- **Icone dei blocchi nella palette** a scala intera con filtro Nearest: 64 pixel di schermo (sprite da 32 px ×2, da 64 px ×1), con la casella adattata alla scala dell'interfaccia letta quando la griglia si ricostruisce.
+- **Icone dei blocchi nella palette** a scala intera con filtro Nearest: 64 pixel di schermo (sprite da 32 px ×2, da 64 px ×1), con la casella adattata alla scala dell'interfaccia letta quando la griglia si ricostruisce; da 200% di scala UI il doppio (128 pixel, sempre multipli interi).
 - **Vecchio generatore eliminato** (`tools/gen_structure_blocks.py`) con i PNG che scriveva.
 
 ## Terreno (G2b)

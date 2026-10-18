@@ -202,6 +202,12 @@ public partial class Hud : Control
         Func<string, string>? itemName = null) =>
         _core.UpdateObjectives(level, wallet, session, research, itemName);
 
+    /// <summary>The UI scale changed (<see cref="UiScale"/>): the palette rebuilds its block icons.</summary>
+    public void OnUiScaleChanged() => _palette.OnUiScaleChanged();
+
+    /// <summary>The category the build palette shows (playtests).</summary>
+    internal BuildCategory PaletteCategory => _palette.ShownCategory;
+
     /// <summary>Build queue box (top-left column, under the core resources): current block, its bar and the plans left.</summary>
     public void SyncBuildQueue(IGameView? view) => _queue.Sync(view);
 
@@ -229,7 +235,8 @@ public partial class Hud : Control
             _siteTip.ResetSize();
         }
 
-        _siteTip.Position = mouse + new Vector2(16, 18);
+        // The mouse comes in viewport pixels; the HUD is laid out in UI units (scaled layer).
+        _siteTip.Position = UiScale.ToUi(mouse) + new Vector2(16, 18);
         _siteTip.Visible = true;
     }
 

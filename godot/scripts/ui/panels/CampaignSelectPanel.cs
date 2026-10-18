@@ -80,14 +80,8 @@ public partial class CampaignSelectPanel : Control
         AddChild(dim);
 
         var panel = new PanelContainer { Name = "CampaignCard", ThemeTypeVariation = UiTheme.Scheda };
-        panel.SetAnchorsPreset(LayoutPreset.Center);
-        panel.OffsetLeft = -420;
-        panel.OffsetTop = -270;
-        panel.OffsetRight = 420;
-        panel.OffsetBottom = 270;
-        panel.GrowHorizontal = GrowDirection.Both;
-        panel.GrowVertical = GrowDirection.Both;
         AddChild(panel);
+        CardLayout.Center(panel, new Vector2(840, 540));
 
         var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         panel.AddChild(root);
@@ -120,7 +114,7 @@ public partial class CampaignSelectPanel : Control
 
         var scroll = new ScrollContainer
         {
-            CustomMinimumSize = new Vector2(0, 360),
+            CustomMinimumSize = new Vector2(0, 120),
             SizeFlagsVertical = SizeFlags.ExpandFill,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled

@@ -92,14 +92,8 @@ public partial class SavesPanel : Control
         AddChild(dim);
 
         var card = new PanelContainer { Name = "SavesCard", ThemeTypeVariation = UiTheme.Scheda };
-        card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -440;
-        card.OffsetTop = -270;
-        card.OffsetRight = 440;
-        card.OffsetBottom = 270;
-        card.GrowHorizontal = GrowDirection.Both;
-        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
+        CardLayout.Center(card, new Vector2(760, 540));
 
         var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         card.AddChild(root);
@@ -122,7 +116,7 @@ public partial class SavesPanel : Control
 
         var scroll = new ScrollContainer
         {
-            CustomMinimumSize = new Vector2(0, 260),
+            CustomMinimumSize = new Vector2(0, 120),
             SizeFlagsVertical = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
@@ -135,7 +129,8 @@ public partial class SavesPanel : Control
         _status = new Label { HorizontalAlignment = HorizontalAlignment.Center, ThemeTypeVariation = UiTheme.TestoTenue };
         root.AddChild(_status);
 
-        var actions = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
+        // The actions wrap to a second row when the scaled window is narrow.
+        var actions = new HFlowContainer();
         root.AddChild(actions);
 
         actions.AddChild(MakeAction("Carica", OnLoadPressed));
@@ -228,7 +223,7 @@ public partial class SavesPanel : Control
             var row = new Button
             {
                 Text = FormatRow(slot),
-                CustomMinimumSize = new Vector2(0, 42),
+                CustomMinimumSize = new Vector2(0, 0),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Alignment = HorizontalAlignment.Left,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
@@ -274,7 +269,8 @@ public partial class SavesPanel : Control
         var label = slot.Id == FactorySaveStore.ContinueSlotId
             ? "Continua (salvataggio automatico)"
             : slot.Id;
-        return $"{label}  ·  ${slot.Money}  ·  {FormatMap(slot)}  ·  {when}";
+        // Two lines, so a row fits a narrow card: name and funds, then map and date.
+        return $"{label} · ${slot.Money}\n{FormatMap(slot)} · {when}";
     }
 
     /// <summary>
@@ -283,15 +279,15 @@ public partial class SavesPanel : Control
     /// </summary>
     private string FormatMap(SaveSlotInfo slot)
     {
-        var level = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId) ? "" : $"  ·  {slot.ActiveCampaignLevelId}";
+        var level = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId) ? "" : $" · {slot.ActiveCampaignLevelId}";
         if (slot.Generator == FactorySaveData.CampaignGenerator && !string.IsNullOrWhiteSpace(slot.MapId))
         {
-            return $"Mappa {MapName?.Invoke(slot.MapId) ?? slot.MapId}  ·  {slot.MapWidth}×{slot.MapHeight}";
+            return $"Mappa {MapName?.Invoke(slot.MapId) ?? slot.MapId} · {slot.MapWidth}×{slot.MapHeight}";
         }
 
         if (MapGenerator.IsName(slot.Generator))
         {
-            return $"Biomi  ·  {slot.MapWidth}  ·  seme {slot.Seed}";
+            return $"Biomi · {slot.MapWidth} · seme {slot.Seed}";
         }
 
         if (slot.MapWidth <= 0 || slot.MapHeight <= 0)
@@ -299,7 +295,7 @@ public partial class SavesPanel : Control
             return $"senza terreno{level}";
         }
 
-        return $"Classico  ·  {slot.MapWidth}×{slot.MapHeight}  ·  seme {slot.Seed}{level}";
+        return $"Classico · {slot.MapWidth}×{slot.MapHeight} · seme {slot.Seed}{level}";
     }
 
     /// <summary>Shows a message on the status line (e.g. a failed load) without closing the panel.</summary>

@@ -19,7 +19,12 @@ public sealed class ClientSettings
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public static readonly int[] UiScalePresets = [100, 125, 150, 200];
+    /// <summary>UI scale range and step, percent (G4: HUD and panels only, never the world).</summary>
+    public const int UiScaleMin = 75;
+    public const int UiScaleMax = 200;
+    public const int UiScaleStep = 5;
+    /// <summary>Default UI scale: the pixel text at its native size (font pixels whole squares).</summary>
+    public const int UiScaleDefault = 100;
     /// <summary>Frame rate caps (0 = none).</summary>
     public static readonly int[] FpsLimitPresets = [0, 30, 60, 120, 144];
     /// <summary>World render resolution, percent of the window (see <see cref="RenderScale"/>).</summary>
@@ -32,8 +37,11 @@ public sealed class ClientSettings
     public const string PlaytestEffectsEnv = "TINDUSTRY_PLAYTEST_EFFETTI";
 
     public bool VSync { get; set; } = true;
-    /// <summary>HUD/content scale percent (100/125/150/200).</summary>
-    public int UiScalePercent { get; set; } = 125;
+    /// <summary>
+    /// HUD and panels scale percent, <see cref="UiScaleMin"/>–<see cref="UiScaleMax"/> in steps of
+    /// <see cref="UiScaleStep"/> (older files with 100/125/150/200 stay valid as they are).
+    /// </summary>
+    public int UiScalePercent { get; set; } = UiScaleDefault;
     public bool ShowFps { get; set; }
     /// <summary>Session overlay: FPS · CPU · RAM · GPU (Raylib ShowResourceOverlay).</summary>
     public bool ShowResourceOverlay { get; set; }
@@ -149,7 +157,7 @@ public sealed class ClientSettings
 
     public void Normalize()
     {
-        UiScalePercent = Nearest(UiScalePresets, UiScalePercent);
+        UiScalePercent = NormalizeUiScale(UiScalePercent);
         LimiteFps = Nearest(FpsLimitPresets, LimiteFps);
         ScalaRendering = Nearest(RenderScalePresets, ScalaRendering);
         if (!Enum.IsDefined(Effetti))
@@ -164,13 +172,19 @@ public sealed class ClientSettings
 
     public static string FpsLimitLabel(int fps) => fps == 0 ? "Nessuno" : fps.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-    public float UiScaleFactor => UiScalePercent / 100f;
+    /// <summary><paramref name="percent"/> clamped to the UI scale range and rounded to the nearest step (half up).</summary>
+    public static int NormalizeUiScale(int percent)
+    {
+        var clamped = Math.Clamp(percent, UiScaleMin, UiScaleMax);
+        return (clamped + UiScaleStep / 2) / UiScaleStep * UiScaleStep;
+    }
 
     public static string UiScaleLabel(int percent) => $"{percent}%";
 
     /// <summary>
-    /// Apply VSync, frame rate cap and content scale to the active window / root. The rest of the graphics
-    /// settings act on nodes of the world (World.ApplyGraphicsSettings: effects, render scale, glow, shadows, animations).
+    /// Apply VSync and frame rate cap to the engine, and keep the window's content scale at 1: the UI scale acts only
+    /// on the HUD (<see cref="UiScale"/>, World.ApplyUiScale), never on the world. The rest of the graphics settings act
+    /// on nodes of the world (World.ApplyGraphicsSettings: effects, render scale, glow, shadows, animations).
     /// </summary>
     public void ApplyToEngine(Window? window = null)
     {
@@ -183,7 +197,7 @@ public sealed class ClientSettings
         window ??= (Engine.GetMainLoop() as SceneTree)?.Root;
         if (window is not null)
         {
-            window.ContentScaleFactor = Math.Clamp(UiScaleFactor, 0.75f, 2.5f);
+            window.ContentScaleFactor = 1f;
         }
     }
 }

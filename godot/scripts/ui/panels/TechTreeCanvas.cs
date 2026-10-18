@@ -37,9 +37,14 @@ public partial class TechTreeCanvas : Control
         ClipContents = true;
     }
 
-    /// <summary>Fit the whole tree in view, centered (H / Home, and on open).</summary>
-    public void ResetView()
+    /// <summary>
+    /// Fit the tree in view, centered. On open the zoom stays readable (names fit their slot from zoom 1) and a bigger
+    /// tree is panned to the selected node; with <paramref name="wholeTree"/> (H / Home) the zoom goes below that to
+    /// show every node, and the names are left out until the player zooms back in (hover still names a node).
+    /// </summary>
+    public void ResetView(bool wholeTree = false)
     {
+        _wholeTree = wholeTree;
         _panning = false;
         _pressPending = false;
         if (Graph is null || Graph.Nodes.Count == 0 || Size.X < 1f || Size.Y < 1f)
@@ -58,7 +63,7 @@ public partial class TechTreeCanvas : Control
         const float pad = 32f;
         var fit = Math.Min((Size.X - pad * 2) / (maxX - minX), (Size.Y - pad * 2) / (maxY - minY));
         // Readable first (names fit their slot from zoom 1); a bigger tree is panned, like Mindustry.
-        Zoom = TechTreeLayout.ClampZoom(Math.Clamp(fit, MinReadableZoom, 1f));
+        Zoom = TechTreeLayout.ClampZoom(wholeTree ? Math.Min(fit, 1f) : Math.Clamp(fit, MinReadableZoom, 1f));
         _panX = (Size.X - (maxX - minX) * Zoom) / 2f - minX * Zoom;
         _panY = (maxY - minY) * Zoom <= Size.Y - pad * 2
             ? (Size.Y - (maxY - minY) * Zoom) / 2f - minY * Zoom
@@ -66,6 +71,20 @@ public partial class TechTreeCanvas : Control
         BringSelectedIntoView(pad);
         QueueRedraw();
         ViewChanged?.Invoke();
+    }
+
+    /// <summary>True when every node square is inside the view (playtests: H shows the whole tree).</summary>
+    internal bool WholeTreeInView()
+    {
+        if (Graph is null || Graph.Nodes.Count == 0)
+        {
+            return true;
+        }
+
+        var zoom = TechTreeLayout.ClampZoom(Zoom);
+        var view = new Rect2(Vector2.Zero, Size).Grow(0.5f);
+        return Graph.Nodes.All(n => view.Encloses(new Rect2(
+            n.X * zoom + _panX, n.Y * zoom + _panY, TechTreeLayout.NodeSize * zoom, TechTreeLayout.NodeSize * zoom)));
     }
 
     /// <summary>Space under a node square for its name (two lines of the text font).</summary>
@@ -94,11 +113,13 @@ public partial class TechTreeCanvas : Control
         _panY -= top < 0 ? top : bottom > Size.Y ? bottom - Size.Y : 0f;
     }
 
+    private bool _wholeTree;
+
     private void FitWhenSized()
     {
         if (Graph is not null && Size.X >= 1f && Size.Y >= 1f)
         {
-            ResetView();
+            ResetView(_wholeTree);
         }
     }
 
@@ -294,7 +315,12 @@ public partial class TechTreeCanvas : Control
             }
         }
 
-        DrawLabels(zoom, nodeSize, Screen);
+        // The pixel names keep their size: below the readable zoom (whole-tree view) they would cover each other.
+        if (zoom >= MinReadableZoom - 0.001f)
+        {
+            DrawLabels(zoom, nodeSize, Screen);
+        }
+
         foreach (var node in Graph.Nodes)
         {
             var state = StateOf(node);

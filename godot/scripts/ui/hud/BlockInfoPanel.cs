@@ -147,13 +147,7 @@ public partial class BlockInfoPanel : Control
         var overlay = MakePanel("BlockDetail");
         overlay.ThemeTypeVariation = UiTheme.Scheda;
         _detailOverlay = overlay;
-        overlay.SetAnchorsPreset(LayoutPreset.Center);
-        overlay.GrowHorizontal = GrowDirection.Both;
-        overlay.GrowVertical = GrowDirection.Both;
-        overlay.OffsetLeft = -260;
-        overlay.OffsetRight = 260;
-        overlay.OffsetTop = -180;
-        overlay.OffsetBottom = 180;
+        CardLayout.Center(overlay, new Vector2(520, 360));
         overlay.Visible = false;
         overlay.MouseFilter = MouseFilterEnum.Stop;
 

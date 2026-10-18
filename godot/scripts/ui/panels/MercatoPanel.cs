@@ -168,21 +168,15 @@ public partial class MercatoPanel : Control
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        // Card sized to its content (Mindustry dialogs): no fixed height, no empty slab.
-        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
-        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        AddChild(center);
-
-        var panel = new PanelContainer
-        {
-            Name = "MercatoCard",
-            CustomMinimumSize = new Vector2(800, 0),
-            ThemeTypeVariation = UiTheme.Scheda
-        };
-        center.AddChild(panel);
-
-        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
-        panel.AddChild(root);
+        // Card sized to its content (Mindustry dialogs): no fixed height, no empty slab; it scrolls when the scaled
+        // window is shorter.
+        var panel = new PanelContainer { Name = "MercatoCard", ThemeTypeVariation = UiTheme.Scheda };
+        AddChild(panel);
+        var outer = new ScrollContainer();
+        panel.AddChild(outer);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        outer.AddChild(root);
+        CardLayout.CenterToContent(panel, outer, root, 800);
 
         // Title · Fondi
         var header = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };

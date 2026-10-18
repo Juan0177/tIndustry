@@ -84,6 +84,9 @@ public partial class ResearchPanel : Control
 
     public bool IsOpen => Visible;
 
+    /// <summary>True when the tree view shows every node (playtests).</summary>
+    internal bool WholeTreeInView => _canvas?.WholeTreeInView() ?? false;
+
     /// <summary>Select a node by id (capture / tests).</summary>
     public void SelectStructure(string id) => SelectId(id);
 
@@ -105,7 +108,7 @@ public partial class ResearchPanel : Control
 
             if (key.Keycode is Key.H or Key.Home)
             {
-                _canvas?.ResetView();
+                _canvas?.ResetView(wholeTree: true);
                 RefreshDetailChrome();
                 GetViewport().SetInputAsHandled();
                 return;

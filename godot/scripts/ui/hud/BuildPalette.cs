@@ -168,14 +168,33 @@ public partial class BuildPalette : PanelContainer
         RefreshToolChrome();
     }
 
-    /// <summary>A category button shows only while one of its blocks is unlocked (Strumenti always: the cursor).</summary>
+    /// <summary>
+    /// A category button shows only while one of its blocks is unlocked (Strumenti always: the cursor). When the shown
+    /// category loses its button (a new or loaded game with fewer unlocks), the palette switches to the first category
+    /// still shown, so the grid never stays on a category that cannot be reached.
+    /// </summary>
     private void SyncCategoryButtons()
     {
         foreach (var (category, slot) in _categorySlots)
         {
-            slot.Visible = EntriesFor(category).Any(e => !_lockedTools.Contains(e.Tool));
+            slot.Visible = HasUnlocked(category);
+        }
+
+        if (!HasUnlocked(_category))
+        {
+            _category = new[] { BuildCategory.Logistics, BuildCategory.Production, BuildCategory.Power }
+                .FirstOrDefault(HasUnlocked, BuildCategory.Tools);
+            if (_categoryTitle is not null)
+            {
+                _categoryTitle.Text = CategoryLabel(_category);
+            }
         }
     }
+
+    private bool HasUnlocked(BuildCategory category) => EntriesFor(category).Any(e => !_lockedTools.Contains(e.Tool));
+
+    /// <summary>The category whose blocks the grid shows (playtests).</summary>
+    internal BuildCategory ShownCategory => _category;
 
     public bool IsLocked(ToolKind tool) => _lockedTools.Contains(tool);
 
@@ -329,13 +348,19 @@ public partial class BuildPalette : PanelContainer
 
     /// <summary>
     /// Block icons are drawn this many screen pixels wide with the Nearest filter: 32 px sprites (1×1 blocks) ×2,
-    /// 64 px sprites (2×2 blocks) ×1, so every art pixel covers whole screen pixels at any UI scale.
+    /// 64 px sprites (2×2 blocks) ×1, so every art pixel covers whole screen pixels at any UI scale. From 200% UI
+    /// scale on they are drawn twice that (still whole multiples).
     /// </summary>
     private const float BlockIconScreenPx = 64f;
 
     /// <summary>Side of a block icon in UI units for the current UI scale (read when the grid is rebuilt).</summary>
-    private float BlockIconSide() =>
-        BlockIconScreenPx / Math.Max(0.5f, IsInsideTree() ? GetTree().Root.ContentScaleFactor : 1f);
+    internal static float BlockIconSide(float uiScale) =>
+        BlockIconScreenPx * Math.Max(1f, MathF.Floor(uiScale)) / uiScale;
+
+    private static float BlockIconSide() => BlockIconSide(UiScale.Factor);
+
+    /// <summary>The UI scale changed: block icons are rebuilt at their new size in UI units.</summary>
+    public void OnUiScaleChanged() => RebuildGrid();
 
     private TextureRect BlockIcon(string structureId, float side) => new()
     {

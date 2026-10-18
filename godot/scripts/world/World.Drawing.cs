@@ -9,8 +9,11 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class World
 {
-    /// <summary>Canvas layer of the placement overlay: above the world (0), under the HUD (20).</summary>
-    internal const int PlacementLayer = 1;
+    /// <summary>Canvas layer of the local plans (<see cref="ConstructionLayer"/>): above the world (0).</summary>
+    internal const int PlansLayer = 1;
+
+    /// <summary>Canvas layer of the placement overlay: above the plans, under the HUD (20).</summary>
+    internal const int PlacementLayer = 2;
 
     private Node2D? _placementOverlay;
 

@@ -150,17 +150,12 @@ public partial class NewGamePanel : Control
         AddChild(dim);
 
         var card = new PanelContainer { Name = "NewGameCard", ThemeTypeVariation = UiTheme.Scheda };
-        card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -290;
-        card.OffsetTop = -220;
-        card.OffsetRight = 290;
-        card.OffsetBottom = 220;
-        card.GrowHorizontal = GrowDirection.Both;
-        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
-
-        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
-        card.AddChild(root);
+        var scroll = new ScrollContainer();
+        card.AddChild(scroll);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        scroll.AddChild(root);
+        CardLayout.CenterToContent(card, scroll, root, 580);
 
         root.AddChild(new Label
         {

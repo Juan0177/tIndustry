@@ -9,8 +9,9 @@ namespace TIndustry.Godot;
 /// look with <see cref="Control.ThemeTypeVariation"/> (the constants below) instead of local styles or overrides.
 ///
 /// <para>Text uses only the native sizes of the two bitmap fonts (16 for text, 24 and 48 for titles), drawn without
-/// smoothing, so the glyphs stay whole pixels: at 100% and 200% UI scale every font pixel is a square of screen
-/// pixels; at other scales the canvas stretch repeats some rows and columns (Nearest), still sharp.</para>
+/// smoothing, so the glyphs stay whole pixels: at 100%, 150% and 200% UI scale (the HUD layer's scale, see
+/// <see cref="UiScale"/>) every font pixel is a whole number of screen pixels; at other scales Nearest sampling
+/// repeats some rows and columns, still sharp but slightly uneven.</para>
 ///
 /// <para>Every resource here (styles, fonts, icons) is created once and stays referenced by the static theme for the
 /// whole run, so no UI wrapper is left for the garbage collector to finalize while the engine shuts down.</para>
@@ -69,7 +70,6 @@ public static class UiTheme
     public const string MargineBarra = "MargineBarra";
 
     private static Theme? _theme;
-    private static ulong _hookedLayer;
     private static FontFile? _textFont;
     private static FontFile? _titleFont;
 
@@ -83,35 +83,14 @@ public static class UiTheme
     public static Font TitleFont => _titleFont ??= LoadFont("res://assets/ui/carattere-titoli.fnt");
 
     /// <summary>
-    /// Sets the theme on <paramref name="window"/> (its popups and tooltips) and on every Control placed directly on
-    /// <paramref name="layer"/>, now and later: a theme reaches a Control only through Control and Window parents, so
-    /// the HUD's CanvasLayer would otherwise cut the panels off from the window's theme.
+    /// Sets the theme on <paramref name="window"/> (its popups and tooltips) and on the HUD's root Control
+    /// (<see cref="UiScale.RootOf"/>): a theme reaches a Control only through Control and Window parents, so the HUD's
+    /// CanvasLayer would otherwise cut the panels off from the window's theme.
     /// </summary>
-    public static void ApplyTo(Window window, CanvasLayer layer)
+    public static void ApplyTo(Window window, Control hudRoot)
     {
         window.Theme = Theme;
-        // Idempotent: the layer's hook is added once, however often this is called.
-        if (_hookedLayer == layer.GetInstanceId())
-        {
-            return;
-        }
-
-        _hookedLayer = layer.GetInstanceId();
-        foreach (var child in layer.GetChildren())
-        {
-            if (child is Control control)
-            {
-                control.Theme = Theme;
-            }
-        }
-
-        layer.ChildEnteredTree += node =>
-        {
-            if (node is Control control && node.GetParent() == layer)
-            {
-                control.Theme = Theme;
-            }
-        };
+        hudRoot.Theme = Theme;
     }
 
     /// <summary>
@@ -137,6 +116,7 @@ public static class UiTheme
         BuildButtons(t);
         BuildToggles(t);
         BuildFields(t);
+        BuildSliders(t);
         BuildContainers(t);
         BuildScrollAndTooltip(t);
         return t;
@@ -334,6 +314,36 @@ public static class UiTheme
         }
     }
 
+    /// <summary>Slider grabber: an accent bar with a dark edge, made once like the check boxes.</summary>
+    private static ImageTexture GrabberIcon(Color fill)
+    {
+        using var image = Image.CreateEmpty(10, 20, false, Image.Format.Rgba8);
+        image.Fill(UiColors.Fondo);
+        image.FillRect(new Rect2I(2, 2, 6, 16), fill);
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    private static void BuildSliders(Theme t)
+    {
+        var track = Box(UiColors.FondoBloccato, UiColors.Bordo, 2, 0, 4);
+        var filled = Box(UiColors.FondoScelto, UiColors.Accento, 2, 0, 4);
+        t.SetStylebox("slider", "HSlider", track);
+        t.SetStylebox("grabber_area", "HSlider", filled);
+        t.SetStylebox("grabber_area_highlight", "HSlider", filled);
+        t.SetIcon("grabber", "HSlider", GrabberIcon(UiColors.Accento));
+        t.SetIcon("grabber_highlight", "HSlider", GrabberIcon(UiColors.Testo));
+        t.SetIcon("grabber_disabled", "HSlider", GrabberIcon(UiColors.TestoDisattivo));
+        t.SetIcon("tick", "HSlider", GrabberTick());
+        t.SetStylebox("focus", "HSlider", new StyleBoxEmpty());
+    }
+
+    private static ImageTexture GrabberTick()
+    {
+        using var image = Image.CreateEmpty(2, 6, false, Image.Format.Rgba8);
+        image.Fill(UiColors.Bordo);
+        return ImageTexture.CreateFromImage(image);
+    }
+
     private static void BuildFields(Theme t)
     {
         t.SetStylebox("normal", "LineEdit", Box(UiColors.FondoBloccato, UiColors.Bordo, 2, 8, 4));
@@ -366,6 +376,8 @@ public static class UiTheme
         t.SetConstant("separation", "VBoxContainer", 4);
         t.SetConstant("h_separation", "GridContainer", 4);
         t.SetConstant("v_separation", "GridContainer", 4);
+        t.SetConstant("h_separation", "HFlowContainer", 8);
+        t.SetConstant("v_separation", "HFlowContainer", 8);
         t.SetTypeVariation(GrigliaLarga, "GridContainer");
         t.SetConstant("h_separation", GrigliaLarga, 12);
         t.SetConstant("v_separation", GrigliaLarga, 4);
