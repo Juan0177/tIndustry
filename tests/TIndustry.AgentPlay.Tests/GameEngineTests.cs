@@ -107,6 +107,78 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         Assert.False(Directory.Exists(journals), $"diari rimasti: {journals}");
     }
 
+    /// <summary>
+    /// The first real use's bugs, in one game: verso as an object, piazza's crossing, the player's direction, ui by text,
+    /// over-long parameters, the journal's time tail, Esc on the Home and a game changed from the window.
+    /// </summary>
+    [GodotFact]
+    public async Task FirstUseBugsStayFixed()
+    {
+        var open = await server.Ok("apri_gioco", new { misura = 64, seme = 1 });
+        var id = open.GetProperty("sessione").GetString()!;
+        await server.Ok("pausa", new { sessione = id });
+        var core = (await server.Ok("stato", new { sessione = id })).GetProperty("core").GetProperty("cella");
+        var (cx, cy) = (core.GetProperty("x").GetInt32(), core.GetProperty("y").GetInt32());
+
+        // Bug 2: a line across a built perpendicular belt is a crossing (here refused: the junction is not researched).
+        await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = cx + 6, y = cy - 5 }, a = new { x = cx + 6, y = cy + 5 }, direzione = "nord" });
+        await server.Ok("avanza", new { sessione = id, tick = 6000 });
+        var line = await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = cx + 3, y = cy }, a = new { x = cx + 9, y = cy }, direzione = "est" });
+        Assert.Contains(line.GetProperty("rifiuti").EnumerateArray(), r => r.GetProperty("x").GetInt32() == cx + 6
+            && r.GetProperty("codice").GetString() == nameof(RefusalCode.CrossingNeedsJunction));
+
+        // Bug 5: stato and ruota use the player's own direction.
+        await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "R" });
+        Assert.Equal("sud", (await server.Ok("stato", new { sessione = id })).GetProperty("direzione").GetString());
+        Assert.Equal("ovest", (await server.Ok("ruota", new { sessione = id })).GetProperty("direzione").GetString());
+
+        // Bug 1: verso as an object, as documented.
+        await server.Ok("input", new { sessione = id, tipo = "trascina", cella = new { x = cx - 3, y = cy - 3 }, verso = new { x = cx - 1, y = cy - 3 } });
+
+        // Bug 6: the palette is listed, ui clicks by shown text.
+        var controls = (await server.Ok("ui", new { sessione = id })).GetProperty("controlli").EnumerateArray().ToList();
+        Assert.Contains(controls, c => c.TryGetProperty("suggerimento", out var s) && s.GetString()!.StartsWith("Nastro T1", StringComparison.Ordinal));
+        await server.Ok("ui", new { sessione = id, clic = "Ricerca" });
+        await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+
+        // Review M2 and M5: over-long or out-of-range parameters are refused, the game goes on.
+        Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("ui", new { sessione = id, clic = new string('x', 70_000) }));
+        Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("esegui", new { sessione = id, secondi = 500 }));
+
+        // Review I1: the time after the last command replays too.
+        await server.Ok("esegui", new { sessione = id, secondi = 2 });
+        var played = await server.Ok("stato", new { sessione = id });
+        var tail = (await server.Ok("diario", new { sessione = id, nome = "coda" })).GetProperty("percorso").GetString()!;
+        var replay = await server.Ok("rigioca", new { percorso = tail.Replace('\\', '/') });
+        Assert.Equal(played.GetProperty("impronta").GetString(), replay.GetProperty("impronta").GetString());
+        Assert.Contains(replay.GetProperty("avvisi").EnumerateArray(), a => a.GetString()!.Contains("'input'", StringComparison.Ordinal));
+        await server.Ok("chiudi", new { sessione = replay.GetProperty("sessione").GetString() });
+
+        // Bug 3: Esc opens the Home over the game and Esc again goes back to it; Riprendi is there, the HUD under it is not.
+        await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+        var home = (await server.Ok("ui", new { sessione = id })).GetProperty("controlli").EnumerateArray()
+            .Select(c => c.GetProperty("nome").GetString()!).ToList();
+        Assert.Contains(home, n => n.EndsWith("/Riprendi", StringComparison.Ordinal));
+        Assert.DoesNotContain(home, n => n.EndsWith("/Ricerca", StringComparison.Ordinal));
+        await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+        Assert.True((await server.Ok("esegui", new { sessione = id, secondi = 0.5 })).GetProperty("eseguito").GetBoolean());
+
+        // Bug 4 and review I2: a new game started from the window restarts the journal from its snapshot.
+        await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+        await server.Ok("ui", new { sessione = id, clic = "NuovaPartita" });
+        await server.Ok("ui", new { sessione = id, clic = "Inizia" });
+        await server.Ok("pausa", new { sessione = id });
+        Assert.Contains((await server.Ok("eventi", new { sessione = id })).GetProperty("eventi").EnumerateArray(),
+            e => e.GetProperty("tipo").GetString() == "partitaCaricata");
+        var fresh = await server.Ok("stato", new { sessione = id });
+        var after = (await server.Ok("diario", new { sessione = id, nome = "dopo" })).GetProperty("percorso").GetString()!;
+        Assert.True(JsonDocument.Parse(await File.ReadAllTextAsync(after)).RootElement.GetProperty("partita").TryGetProperty("partenza", out _));
+        var again = await server.Ok("rigioca", new { percorso = after });
+        Assert.Equal(fresh.GetProperty("impronta").GetString(), again.GetProperty("impronta").GetString());
+        await server.Ok("chiudi", new { sessione = again.GetProperty("sessione").GetString() });
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
     [GodotFact]
     public async Task KilledGameIsReported()
     {

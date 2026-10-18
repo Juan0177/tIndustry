@@ -58,12 +58,12 @@ public sealed class ConstructSystem : ISimulationSystem
 
             if (deconstructing)
             {
-                state.Events.Add(new DeconstructFinished(builder.OwnerPlayerId, site.Id));
+                state.Events.Add(new DeconstructFinished(builder.OwnerPlayerId, site.Id, site.Spec));
             }
             else
             {
                 factory.TryGetSpecAt(site.Spec.Origin, out _, out var entityId);
-                state.Events.Add(new ConstructFinished(builder.OwnerPlayerId, site.Id, entityId));
+                state.Events.Add(new ConstructFinished(builder.OwnerPlayerId, site.Id, entityId, site.Spec));
             }
         }
     }

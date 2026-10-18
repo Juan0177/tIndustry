@@ -33,6 +33,8 @@ public sealed class GameEngine : IAgentEngine
     private readonly string journals;
     private readonly ConcurrentDictionary<long, TaskCompletionSource<AgentResponse>> waiting = new();
     private readonly object writeLock = new();
+    // The profile's and the journals' lock files (SimEngine.LockFile): another server's sweep leaves them alone.
+    private readonly List<FileStream> folderLocks = [];
     private TcpClient? client;
     private StreamReader? reader;
     private StreamWriter? writer;
@@ -68,7 +70,9 @@ public sealed class GameEngine : IAgentEngine
         var engine = new GameEngine(GameLauncher.Start(options), options, journals);
         try
         {
+            engine.folderLocks.Add(SimEngine.Lock(engine.Folder));
             Directory.CreateDirectory(journals);
+            engine.folderLocks.Add(SimEngine.Lock(journals));
             if (options.Conserva)
             {
                 File.WriteAllText(Path.Combine(journals, SimEngine.KeepMarker), "");
@@ -95,9 +99,19 @@ public sealed class GameEngine : IAgentEngine
 
     public JsonElement Call(string method, JsonElement p)
     {
-        var timeout = method == "esegui" && p.TryGetProperty("secondi", out var s) && s.TryGetDouble(out var seconds)
-            ? RequestTimeout + TimeSpan.FromSeconds(Math.Clamp(seconds, 0, 3600))
-            : RequestTimeout;
+        var timeout = RequestTimeout;
+        if (method == "esegui")
+        {
+            // The bridge refuses longer runs too: checked here so the wait never outlives the run.
+            if (!(p.TryGetProperty("secondi", out var s) && s.TryGetDouble(out var seconds)
+                    && seconds > 0 && seconds <= AgentProtocol.MaxRunSeconds))
+            {
+                throw new AgentException(AgentCodes.ParametriNonValidi, $"'secondi' tra 0 e {AgentProtocol.MaxRunSeconds:0}.");
+            }
+
+            timeout += TimeSpan.FromSeconds(seconds);
+        }
+
         var result = Request(method, p, timeout);
         return method == "diario" && result.TryGetProperty("percorso", out var path) ? MoveJournal(result, path.GetString()!) : result;
     }
@@ -128,6 +142,11 @@ public sealed class GameEngine : IAgentEngine
         }
 
         process.Dispose();
+        foreach (var folderLock in folderLocks)
+        {
+            folderLock.Dispose();
+        }
+
         if (!options.Conserva)
         {
             GameLauncher.DeleteFolder(game.ProfileDir);
@@ -232,11 +251,19 @@ public sealed class GameEngine : IAgentEngine
         }
 
         var id = Interlocked.Increment(ref nextId);
+        var line = AgentProtocol.WriteLine(new AgentRequest(id, method, p));
+        // The bridge hangs up on a longer line, and the game quits without its launcher: a bad parameter must not.
+        if (line.Length > AgentProtocol.MaxLineChars)
+        {
+            throw new AgentException(
+                AgentCodes.ParametriNonValidi, $"Parametri troppo lunghi: la richiesta supera {AgentProtocol.MaxLineChars / 1024} KiB.");
+        }
+
         var answer = new TaskCompletionSource<AgentResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         waiting[id] = answer;
         try
         {
-            Write(AgentProtocol.WriteLine(new AgentRequest(id, method, p)));
+            Write(line);
         }
         catch (AgentException)
         {
@@ -259,7 +286,10 @@ public sealed class GameEngine : IAgentEngine
         var response = answer.Task.GetAwaiter().GetResult();
         return response.Ok
             ? response.Result ?? Empty
-            : throw new AgentException(response.Code ?? AgentCodes.ErroreInterno, response.Message ?? "");
+            : throw new AgentException(response.Code ?? AgentCodes.ErroreInterno, response.Message ?? "")
+            {
+                Missing = response.Missing is { ValueKind: JsonValueKind.Object } missing ? JsonNode.Parse(missing.GetRawText())!.AsObject() : null
+            };
     }
 
     private void Write(string line)
@@ -282,27 +312,37 @@ public sealed class GameEngine : IAgentEngine
         }
     }
 
-    // A game journal as written by the bridge has no header: add how this game was made, save it in the server's
-    // journal folder (not the profile) and answer with that path.
+    // The bridge writes the journal with its header (the game it was made for: the launcher's setup, or the snapshot
+    // of a game loaded later); move it to the server's journal folder (not the profile) and answer with that path. The
+    // path comes from the socket: only a file inside this game's profile is read and deleted.
     private JsonElement MoveJournal(JsonElement result, string bridgePath)
     {
-        var bare = AgentJournal.Load(bridgePath);
-        var journal = new AgentJournal
+        if (!IsInside(game.ProfileDir, bridgePath))
         {
-            Setup = new AgentGameSetup(
-                GameKind, options.Misura, options.Seme, options.Generatore, new AgentRulesSetup(), options.Livello, game.StartSnapshot)
-        };
-        foreach (var entry in bare.Entries)
-        {
-            journal.Add(entry.Tick, entry.Method, entry.Params);
+            throw new AgentException(AgentCodes.ErroreInterno, $"Il gioco ha indicato un diario fuori dal suo profilo: {bridgePath}.");
         }
 
+        var journal = AgentJournal.Load(bridgePath);
         var path = Path.Combine(journals, Path.GetFileName(bridgePath));
         journal.Save(path);
         File.Delete(bridgePath);
         var moved = JsonNode.Parse(result.GetRawText())!.AsObject();
         moved["percorso"] = path;
         return JsonSerializer.SerializeToElement(moved);
+    }
+
+    /// <summary><paramref name="path"/> is a file inside <paramref name="folder"/> (not the folder itself, no "..").</summary>
+    internal static bool IsInside(string folder, string path)
+    {
+        try
+        {
+            var prefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar;
+            return Path.IsPathFullyQualified(path) && Path.GetFullPath(path).StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
     }
 
     private static AgentResponse? Parse(string line)

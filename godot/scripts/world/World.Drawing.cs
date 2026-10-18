@@ -395,7 +395,7 @@ public partial class World
         // The cell a belt drag holds back (never the press cell) shows a junction when the simulation would make one.
         var command = _view is null || _tool == BuildTool.Cursor
             ? null
-            : PlaceCommandAt(hover, _draggingPlace && _heldCrossing?.Cell == hover);
+            : PlaceCommandAt(hover, _draggingPlace && _beltDrag.HeldCell == hover);
         if (command is PlaceBelt { Crossing: true } crossing
             && _view!.BeltCrossingAt(hover, crossing.Direction) == BeltCrossing.Junction)
         {

@@ -440,7 +440,8 @@ public sealed class AgentGameTests
         var events = result.GetProperty("eventi").EnumerateArray().ToArray();
         Assert.Equal(AgentGame.MaxListItems, events.Length);
         Assert.Equal(400, result.GetProperty("troncato").GetInt32());
-        Assert.Equal(600, events[^1].GetProperty("tick").GetInt64());
+        // The journal's convention: the tick when the command was sent (it applied in tick 600).
+        Assert.Equal(599, events[^1].GetProperty("tick").GetInt64());
         Assert.Equal("vendi", events[0].GetProperty("comando").GetString());
         Assert.False(Call(game, "eventi").TryGetProperty("troncato", out _));
     }
@@ -484,11 +485,31 @@ public sealed class AgentGameTests
         var area = Call(game, "area", """{"da":{"x":494,"y":496},"a":{"x":497,"y":498}}""");
         var shapes = area.GetProperty("forme").EnumerateArray()
             .ToDictionary(s => (s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32()));
-        Assert.Equal(6, shapes.Count);
-        Assert.Equal("curva", shapes[(497, 496)].GetProperty("forma").GetString());
-        Assert.Equal("est", shapes[(497, 496)].GetProperty("ingresso").GetString());
-        Assert.Equal("dritto", shapes[(495, 496)].GetProperty("forma").GetString());
+        // Straight belts are the default and are left out: only the corner is listed.
+        var corner = Assert.Single(shapes).Value;
+        Assert.Equal((497, 496), (corner.GetProperty("x").GetInt32(), corner.GetProperty("y").GetInt32()));
+        Assert.Equal("curva", corner.GetProperty("forma").GetString());
+        Assert.Equal("est", corner.GetProperty("ingresso").GetString());
         Assert.Equal(">>>v", area.GetProperty("righe")[0].GetString());
+        Assert.False(area.TryGetProperty("oggetti", out _));
+    }
+
+    [Fact]
+    public void AreaCountsTheItemsOnBelts()
+    {
+        var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
+        for (var x = 40; x <= 42; x++)
+        {
+            Assert.True(factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(x, 50), Direction.East), charge: false));
+        }
+
+        Assert.True(factory.Belts.TryInsert(new GridPosition(41, 50), new TransportedItem(1, "iron-ore")));
+        using var game = new AgentGame(new SimHost(factory), Content);
+
+        var area = Call(game, "area", """{"da":{"x":40,"y":50},"a":{"x":42,"y":50},"oggetti":true}""");
+
+        var item = Assert.Single(area.GetProperty("oggetti").EnumerateArray());
+        Assert.Equal((41, 1, "iron-ore"), (item.GetProperty("x").GetInt32(), item.GetProperty("n").GetInt32(), item.GetProperty("tipi")[0].GetString()));
     }
 
     [Fact]
@@ -549,6 +570,105 @@ public sealed class AgentGameTests
         Assert.Equal(host.Checksum(), replay.Host.Checksum());
         Assert.Equal(Direction.South, replay.Host.State.Belts[new GridPosition(45, 53)].Direction);
     }
+
+    /// <summary>
+    /// The real game's time goes on after the last command (esegui, real time): the journal keeps the tick it was saved
+    /// at, and rigioca runs up to it, so tick and fingerprint match.
+    /// </summary>
+    [Fact]
+    public void ReplayRunsUpToTheJournalsEnd()
+    {
+        var setup = AgentGameSetup.Sandbox(120, 42, ClassicTerrainGenerator.Name, new GameRules(InstantBuild: true));
+        var host = setup.CreateHost(Content);
+        using var game = new AgentGame(host, Content, setup, tickPerComando: false, journalDirectory: TempFolder());
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":40,"y":50},"a":{"x":44,"y":50}}""");
+        host.AdvanceTicks(1);
+        Assert.True(game.TryFinishPending(out _));
+        host.AdvanceTicks(600); // esegui 10: not a journal entry
+        var path = Call(game, "diario", """{"nome":"coda"}""").GetProperty("percorso").GetString()!;
+
+        using var replay = AgentGame.Replay(AgentJournal.Load(path), Content);
+
+        Assert.Equal(601, replay.Host.State.CurrentTick);
+        Assert.Equal(host.Checksum(), replay.Host.Checksum());
+        Assert.Equal(Call(game, "stato").GetProperty("impronta").GetString(), Call(replay, "stato").GetProperty("impronta").GetString());
+        Assert.Empty(replay.ReplayWarnings);
+    }
+
+    [Fact]
+    public void ReplaySkipsWhatOnlyTheRealGameDidAndSaysSo()
+    {
+        var setup = AgentGameSetup.Sandbox(120, 42, ClassicTerrainGenerator.Name, new GameRules(InstantBuild: true));
+        using var game = new AgentGame(setup.CreateHost(Content), Content, setup);
+        game.Journal.Add(0, "input", JsonDocument.Parse("""{"tipo":"tasto","tasto":"R"}""").RootElement, replayable: false);
+        game.Journal.Warnings.Add("prova");
+        Call(game, "avanza", """{"tick":3}""");
+        var listed = Call(game, "diario");
+        Assert.True(listed.GetProperty("rigiocabile").GetBoolean());
+        Assert.Equal(3, listed.GetProperty("fine").GetInt64());
+
+        using var replay = AgentGame.Replay(game.Journal, Content);
+
+        Assert.Equal(3, replay.Host.State.CurrentTick);
+        Assert.Equal(2, replay.ReplayWarnings.Count);
+        Assert.Contains(replay.ReplayWarnings, w => w.Contains("'input'", StringComparison.Ordinal));
+    }
+
+    /// <summary>The real game's brush is the player's: stato shows it, ruota turns it, a line journals the direction it used.</summary>
+    [Fact]
+    public void TheClientsBrushIsReadAndTurned()
+    {
+        var direction = Direction.North;
+        using var game = new AgentGame(NewHost(), Content)
+        {
+            ReadBrush = () => direction,
+            RotateBrush = () => direction = DirectionMath.Right(direction)
+        };
+
+        Assert.Equal("nord", Call(game, "stato").GetProperty("direzione").GetString());
+        Assert.Equal("est", Call(game, "ruota").GetProperty("direzione").GetString());
+        Assert.Equal(Direction.East, direction);
+        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}""");
+
+        Assert.Equal("est", game.Journal.Entries[^1].Params.GetProperty("direzione").GetString());
+    }
+
+    [Fact]
+    public void CatalogoListsStructuresAndRefusalsSayWhatIsMissing()
+    {
+        using var game = new AgentGame(NewHost(), Content);
+
+        var junction = Call(game, "catalogo").GetProperty("strutture").EnumerateArray()
+            .Single(s => s.GetProperty("id").GetString() == "junction");
+        Assert.False(junction.GetProperty("sbloccato").GetBoolean());
+        Assert.Equal(200, junction.GetProperty("sblocco").GetProperty("soldi").GetInt32());
+        Assert.Equal("conveyor-basic", junction.GetProperty("prerequisiti")[0].GetString());
+
+        // 180 money of the 200 the junction's unlock costs.
+        var unaffordable = Refused(game, "sblocca", """{"struttura":"junction"}""");
+        Assert.Equal(nameof(RefusalCode.UnlockUnaffordable), unaffordable.Code);
+        Assert.Equal(20, (int)unaffordable.Missing!["soldi"]!);
+        var locked = Refused(game, "piazza", """{"tipo":"junction","cella":{"x":50,"y":50}}""");
+        Assert.Equal(nameof(RefusalCode.Locked), locked.Code);
+        Assert.Equal(20, (int)locked.Missing!["soldi"]!);
+        Assert.Contains("\"mancano\":{\"soldi\":20", AgentProtocol.WriteLine(AgentResponse.Failure(1, locked)));
+    }
+
+    [Fact]
+    public void EventiSaysWhatWasBuilt()
+    {
+        var host = new SimHost(NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120));
+        using var game = new AgentGame(host, Content);
+        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":58,"y":61}}""");
+        Call(game, "avanza", """{"tick":3000}""");
+
+        var built = Call(game, "eventi").GetProperty("eventi").EnumerateArray().First(e => e.GetProperty("tipo").GetString() == "costruito");
+
+        Assert.Equal("conveyor-basic", built.GetProperty("struttura").GetString());
+        Assert.Equal(58, built.GetProperty("cella").GetProperty("x").GetInt32());
+    }
+
+    private static string TempFolder() => Directory.CreateTempSubdirectory("tindustry-agentgame-").FullName;
 
     [Fact]
     public void DisposeStopsListening()

@@ -15,9 +15,9 @@ public sealed record PlanDropped(int PlayerId, BuildPlan Plan, RefusalCode Reaso
 
 /// <summary>
 /// Site <paramref name="SiteId"/> was completed; <paramref name="EntityId"/> is the new building's id
-/// (0 for belt pieces, which have no entity id).
+/// (0 for belt pieces, which have no entity id); <paramref name="Spec"/> is what the site built (null when unknown).
 /// </summary>
-public sealed record ConstructFinished(int PlayerId, long SiteId, long EntityId) : SimEvent(PlayerId);
+public sealed record ConstructFinished(int PlayerId, long SiteId, long EntityId, BuildSpec? Spec = null) : SimEvent(PlayerId);
 
-/// <summary>Site <paramref name="SiteId"/> was fully taken apart (deconstruction or cancelled build).</summary>
-public sealed record DeconstructFinished(int PlayerId, long SiteId) : SimEvent(PlayerId);
+/// <summary>Site <paramref name="SiteId"/> was fully taken apart (deconstruction or cancelled build); <paramref name="Spec"/> is its block.</summary>
+public sealed record DeconstructFinished(int PlayerId, long SiteId, BuildSpec? Spec = null) : SimEvent(PlayerId);

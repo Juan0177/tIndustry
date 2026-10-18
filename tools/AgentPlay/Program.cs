@@ -17,7 +17,18 @@ builder.Services
     .AddMcpServer(o => o.ServerInfo = new Implementation { Name = "tindustry", Version = "1.0" })
     .WithStdioServerTransport()
     .WithTools<Tools>()
-    .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, cancellationToken) =>
+    .WithRequestFilters(filters => filters.AddListToolsFilter(next => async (request, cancellationToken) =>
+    {
+        // Tools in the order Tools declares them (the collection's own order changes run to run), free parameters typed.
+        var result = await next(request, cancellationToken);
+        foreach (var tool in result.Tools)
+        {
+            tool.InputSchema = Arguments.WithTypes(tool.InputSchema);
+        }
+
+        result.Tools = result.Tools.OrderBy(t => Tools.Order.IndexOf(t.Name)).ToList();
+        return result;
+    }).AddCallToolFilter(next => async (request, cancellationToken) =>
     {
         // Unknown tools stay protocol errors (no matched tool); the others get their arguments checked first.
         if (request.MatchedPrimitive is not McpServerTool tool)
@@ -26,7 +37,7 @@ builder.Services
         }
 
         var name = tool.ProtocolTool.Name;
-        var schema = tool.ProtocolTool.InputSchema;
+        var schema = Arguments.WithTypes(tool.ProtocolTool.InputSchema);
         if (Arguments.Problem(schema, request.Params?.Arguments) is { } problem)
         {
             return BadArguments(problem);

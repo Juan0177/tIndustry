@@ -27,6 +27,14 @@ public sealed class Tools(Sessions sessions, GameData data)
 {
     private const string Sessione = "Id della sessione (da apri_simulazione o apri_gioco).";
 
+    /// <summary>The tools' names in the order this class declares them (the order of <c>tools/list</c>).</summary>
+    public static readonly List<string> Order = typeof(Tools).GetMethods()
+        .Select(m => (m.MetadataToken, Tool: m.GetCustomAttributes(typeof(McpServerToolAttribute), false).OfType<McpServerToolAttribute>().FirstOrDefault()))
+        .Where(m => m.Tool?.Name is not null)
+        .OrderBy(m => m.MetadataToken)
+        .Select(m => m.Tool!.Name!)
+        .ToList();
+
     // The channel's options, but accents and quotes stay readable: the answers go to an agent, never into HTML.
     private static readonly JsonSerializerOptions Json = new(AgentProtocol.JsonOptions)
     {
@@ -104,16 +112,17 @@ public sealed class Tools(Sessions sessions, GameData data)
     // ---- Look
 
     [McpServerTool(Name = "stato")]
-    [Description("Riassunto della partita: tick, soldi, risorse, energia, ricerca, obiettivi, edifici, costruzione, Core, ultimi rifiuti.")]
+    [Description("Riassunto della partita: tick, soldi, risorse, energia, ricerca (le strutture già sbloccate), edifici, costruzione, Core, direzione dei piazzamenti (nel gioco vero quella del giocatore), ultimi rifiuti (tick = quello del diario: il tick in cui è arrivato il comando) e impronta (da confrontare con quella di rigioca). obiettivi e livelloCompletato ci sono solo nei livelli della campagna.")]
     public string Stato([Description(Sessione)] string sessione) => Game(sessione, "stato");
 
     [McpServerTool(Name = "area")]
-    [Description("Le celle di un rettangolo (al massimo 64×64) in righe di simboli, con legenda e forme dei nastri.")]
+    [Description("Le celle di un rettangolo (al massimo 64×64) in righe di simboli, con legenda e forme dei nastri: solo curve e T (il nastro dritto è il caso normale e non è elencato; gli incroci hanno il loro simbolo); ingresso è il verso di marcia dell'oggetto che entra. Con oggetti: quanti oggetti ci sono su ogni nastro e di che tipo.")]
     public string Area(
         [Description(Sessione)] string sessione,
         [Description("Un angolo del rettangolo.")] Cella da,
-        [Description("L'angolo opposto (compreso).")] Cella a) =>
-        Game(sessione, "area", new { da, a });
+        [Description("L'angolo opposto (compreso).")] Cella a,
+        [Description("Elenca anche gli oggetti sui nastri (cella, n, tipi).")] bool? oggetti = null) =>
+        Game(sessione, "area", new { da, a, oggetti });
 
     [McpServerTool(Name = "trova")]
     [Description("Trova i giacimenti (Iron, iron-ore…) o le strutture (per id) più vicini a una cella.")]
@@ -125,13 +134,17 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "trova", new { cosa, cella, max });
 
     [McpServerTool(Name = "eventi")]
-    [Description("Cosa è successo dall'ultima chiamata: rifiuti, piani scartati, costruzioni e smontaggi finiti.")]
+    [Description("Cosa è successo dall'ultima chiamata: rifiuti (con mancano, se si sa), piani scartati, costruzioni e smontaggi finiti (cella e struttura); nel gioco vero anche partitaCaricata (nuova partita, livello o salvataggio caricato, con tickPrima e indietro se il tick è tornato indietro: il diario riparte da lì) e inputReale (una persona ha usato la finestra).")]
     public string Eventi([Description(Sessione)] string sessione) => Game(sessione, "eventi");
+
+    [McpServerTool(Name = "catalogo")]
+    [Description("Le strutture del gioco: id, nome, tipo, costo di costruzione, costo di sblocco, prerequisiti e se è già sbloccata.")]
+    public string Catalogo([Description(Sessione)] string sessione) => Game(sessione, "catalogo");
 
     // ---- Act (the player's commands through SimHost)
 
     [McpServerTool(Name = "piazza")]
-    [Description("Piazza un blocco in una cella, o una linea di nastri da 'da' ad 'a' come il trascinamento del giocatore.")]
+    [Description("Piazza un blocco in una cella, o una linea da 'da' ad 'a' come il trascinamento del giocatore, incrocio automatico compreso (incrocio: true sulla cella diventata un incrocio). Risponde le celle piazzate e i rifiuti (codice, mancano).")]
     public string Piazza(
         [Description(Sessione)] string sessione,
         [Description("Id della struttura (per esempio miner, conveyor-basic).")] string? tipo = null,
@@ -150,7 +163,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "smonta", new { cella });
 
     [McpServerTool(Name = "ruota")]
-    [Description("Gira in senso orario la direzione dei prossimi piazzamenti, come il tasto R.")]
+    [Description("Gira in senso orario la direzione dei prossimi piazzamenti, come il tasto R (nel gioco vero è proprio la direzione del giocatore).")]
     public string Ruota([Description(Sessione)] string sessione) => Game(sessione, "ruota");
 
     [McpServerTool(Name = "sblocca")]
@@ -178,8 +191,8 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "avanza", new { tick });
 
     [McpServerTool(Name = "esegui")]
-    [Description("Lascia scorrere il gioco vero per alcuni secondi reali (solo gioco vero).")]
-    public string Esegui([Description(Sessione)] string sessione, [Description("Secondi reali.")] double secondi) =>
+    [Description("Lascia scorrere il gioco vero per alcuni secondi reali, al massimo 120 (solo gioco vero).")]
+    public string Esegui([Description(Sessione)] string sessione, [Description("Secondi reali, più di 0 e al massimo 120.")] double secondi) =>
         Game(sessione, "esegui", new { secondi });
 
     [McpServerTool(Name = "pausa")]
@@ -218,8 +231,10 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "input", new { tipo, schermo, cella, verso, tasto, pulsante });
 
     [McpServerTool(Name = "ui")]
-    [Description("Elenca i controlli visibili dell'interfaccia (nome, tipo, testo, rettangolo) o clicca quello col nome dato (solo gioco vero).")]
-    public string Ui([Description(Sessione)] string sessione, [Description("Nome del controllo da cliccare.")] string? clic = null) =>
+    [Description("Elenca i controlli dell'interfaccia che un clic raggiunge (nome, tipo, testo, suggerimento, rettangolo; non quelli trasparenti, coperti da un pannello o doppi) o clicca quello dato (solo gioco vero).")]
+    public string Ui(
+        [Description(Sessione)] string sessione,
+        [Description("Controllo da cliccare: il nome (anche solo l'ultima parte), il testo visibile o il suggerimento, per esempio Ricerca o Nastro T1; se ne indica più di uno la risposta dice che è ambiguo.")] string? clic = null) =>
         Game(sessione, "ui", new { clic });
 
     [McpServerTool(Name = "log")]
@@ -233,22 +248,27 @@ public sealed class Tools(Sessions sessions, GameData data)
     // ---- Replay
 
     [McpServerTool(Name = "diario")]
-    [Description("Le azioni della sessione con il loro tick; con nome le salva in un file e ne dà il percorso, per rigioca.")]
+    [Description("Le azioni della sessione con il loro tick (il tick in cui è arrivata la chiamata; un comando si applica nel tick dopo), fine (il tick di adesso, fin dove arriva rigioca), rigiocabile e avvisi; con nome le salva in un file e ne dà il percorso, per rigioca. Nel gioco vero il diario riparte quando la partita cambia (vedi eventi partitaCaricata).")]
     public string Diario(
         [Description(Sessione)] string sessione,
         [Description("Nome semplice del file (lettere, cifre, - e _).")] string? nome = null) =>
         Game(sessione, "diario", new { nome });
 
     [McpServerTool(Name = "rigioca")]
-    [Description("Riesegue un diario salvato (anche del gioco vero: solo i comandi, non gli input) su una sessione nuova di simulazione, per riprodurre un bug.")]
+    [Description("Riesegue un diario salvato (anche del gioco vero: i comandi, non input e clic dell'interfaccia) su una sessione nuova di simulazione fino al tick fine del diario, per riprodurre un bug. Risponde l'impronta (confrontala con quella di stato) e gli avvisi: cosa non si è potuto rigiocare uguale.")]
     public string Rigioca(
-        [Description("Percorso del file del diario (da diario con nome).")] string percorso,
+        [Description("Percorso del file del diario (da diario con nome); vanno bene anche le barre / al posto di \\.")] string percorso,
         [Description("Tiene la cartella della nuova sessione dopo chiudi.")] bool conserva = false) =>
         Run(() =>
         {
             var engine = SimEngine.Replay(AgentJournal.Load(percorso), data, conserva);
             var result = Opened(sessions.Open(engine), engine.Kind, engine.Folder);
             result["impronta"] = engine.Checksum().ToString("x16", CultureInfo.InvariantCulture);
+            if (engine.ReplayWarnings.Count > 0)
+            {
+                result["avvisi"] = new JsonArray(engine.ReplayWarnings.Select(w => (JsonNode)w).ToArray());
+            }
+
             return result;
         });
 
@@ -450,6 +470,14 @@ public sealed class Tools(Sessions sessions, GameData data)
         }
     }
 
-    private static string Fail(AgentException ex) =>
-        new JsonObject { ["ok"] = false, ["codice"] = ex.Code, ["messaggio"] = ex.Message }.ToJsonString(Json);
+    private static string Fail(AgentException ex)
+    {
+        var answer = new JsonObject { ["ok"] = false, ["codice"] = ex.Code, ["messaggio"] = ex.Message };
+        if (ex.Missing is not null)
+        {
+            answer["mancano"] = ex.Missing.DeepClone();
+        }
+
+        return answer.ToJsonString(Json);
+    }
 }
