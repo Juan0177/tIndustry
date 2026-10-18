@@ -13,6 +13,12 @@ public static class EffectRules
     /// <summary>Effects start only inside the view grown by this many cells on each side.</summary>
     public const int ViewMarginCells = 4;
 
+    // Upper bounds of the numeric fields: anything past them is a typo, and they keep every value far from overflow.
+    public const int MaxAmount = 4000;
+    public const double MaxLifetime = 60;
+    public const double MaxSpeed = 10000;
+    public const double MaxGravity = 10000;
+
     private static readonly string[] Fields =
         ["sprite", "numero", "durata", "velocita", "colore", "dispersione", "gravita", "qualita"];
 
@@ -71,6 +77,11 @@ public static class EffectRules
             var defs = new Dictionary<string, EffectDef>(StringComparer.Ordinal);
             foreach (var entry in table.EnumerateObject())
             {
+                if (defs.ContainsKey(entry.Name))
+                {
+                    throw new InvalidDataException($"effetti.json: l'effetto «{entry.Name}» è definito due volte.");
+                }
+
                 defs[entry.Name] = ParseEffect(entry.Name, entry.Value);
             }
 
@@ -102,21 +113,21 @@ public static class EffectRules
         }
 
         var amount = Number(e, "numero", Where);
-        if (amount < 1 || amount != Math.Floor(amount))
+        if (amount < 1 || amount > MaxAmount || amount != Math.Floor(amount))
         {
-            throw new InvalidDataException($"{Where("numero")}: serve un intero da 1 in su.");
+            throw new InvalidDataException($"{Where("numero")}: serve un intero da 1 a {MaxAmount}.");
         }
 
         var lifetime = Number(e, "durata", Where);
-        if (lifetime <= 0)
+        if (lifetime <= 0 || lifetime > MaxLifetime)
         {
-            throw new InvalidDataException($"{Where("durata")}: servono secondi maggiori di 0.");
+            throw new InvalidDataException($"{Where("durata")}: servono secondi maggiori di 0 e al massimo {MaxLifetime}.");
         }
 
         var (speedMin, speedMax) = Pair(e, "velocita", Where);
-        if (speedMin < 0 || speedMax < speedMin)
+        if (speedMin < 0 || speedMax < speedMin || speedMax > MaxSpeed)
         {
-            throw new InvalidDataException($"{Where("velocita")}: serve [minima, massima] con 0 <= minima <= massima.");
+            throw new InvalidDataException($"{Where("velocita")}: serve [minima, massima] con 0 <= minima <= massima <= {MaxSpeed}.");
         }
 
         var spread = Number(e, "dispersione", Where);
@@ -126,6 +137,10 @@ public static class EffectRules
         }
 
         var (gravityX, gravityY) = Pair(e, "gravita", Where);
+        if (Math.Abs(gravityX) > MaxGravity || Math.Abs(gravityY) > MaxGravity)
+        {
+            throw new InvalidDataException($"{Where("gravita")}: ogni componente deve stare tra -{MaxGravity} e {MaxGravity}.");
+        }
         var (r, g, b, a) = Colour(e.GetProperty("colore"), Where("colore"));
 
         var qualityText = e.GetProperty("qualita").ValueKind == JsonValueKind.String ? e.GetProperty("qualita").GetString() : null;

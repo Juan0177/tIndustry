@@ -23,12 +23,16 @@ public partial class RenderScale : Node
     private uint _rootMask;
     private SubViewport? _target;
     private CanvasLayer? _layer;
+    private TextureRect? _view;
 
     /// <summary>Render resolution percent of the window (100 = off, the root draws the world itself).</summary>
     public int Percent { get; private set; } = 100;
 
     /// <summary>The reduced-resolution viewport, or null at 100%.</summary>
     public SubViewport? Target => _target;
+
+    /// <summary>Filter of the final stretch to the window (null at 100%).</summary>
+    public CanvasItem.TextureFilterEnum? StretchFilter => _view?.TextureFilter;
 
     /// <summary><paramref name="world"/> is the canvas item at the root of the world (World itself).</summary>
     public void Setup(CanvasItem world) => _world = world;
@@ -58,6 +62,7 @@ public partial class RenderScale : Node
                 _layer?.QueueFree();
                 _target.QueueFree();
                 _layer = null;
+                _view = null;
                 _target = null;
             }
 
@@ -75,28 +80,37 @@ public partial class RenderScale : Node
                 World2D = root.World2D,
                 RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
                 GuiDisableInput = true,
-                CanvasCullMask = uint.MaxValue
+                CanvasCullMask = uint.MaxValue,
+                // A new SubViewport defaults to Linear filtering: copy the root's 2D settings (the project's Nearest)
+                // so the world is drawn as at 100%, only smaller.
+                CanvasItemDefaultTextureFilter = root.CanvasItemDefaultTextureFilter,
+                CanvasItemDefaultTextureRepeat = root.CanvasItemDefaultTextureRepeat,
+                Snap2DTransformsToPixel = root.Snap2DTransformsToPixel,
+                Snap2DVerticesToPixel = root.Snap2DVerticesToPixel,
+                Msaa2D = root.Msaa2D
             };
             AddChild(_target);
             // Below the default canvas (layer 0, culled on the root) and the HUD.
             _layer = new CanvasLayer { Name = "MondoRidottoStrato", Layer = -10 };
-            var view = new TextureRect
+            _view = new TextureRect
             {
                 Name = "Immagine",
                 Texture = _target.GetTexture(),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.Scale,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
-                TextureFilter = CanvasItem.TextureFilterEnum.Linear
+                MouseFilter = Control.MouseFilterEnum.Ignore
             };
-            view.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-            _layer.AddChild(view);
+            _view.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+            _layer.AddChild(_view);
             AddChild(_layer);
             _world.VisibilityLayer = WorldLayer;
             root.CanvasCullMask = _rootMask & ~WorldLayer;
         }
 
         Percent = percent;
+        // Exactly 2x (50%): every target pixel becomes a 2x2 block, crisp pixel art. Other factors (75%) would
+        // repeat rows and columns unevenly with Nearest, so they are smoothed.
+        _view!.TextureFilter = percent == 50 ? CanvasItem.TextureFilterEnum.Nearest : CanvasItem.TextureFilterEnum.Linear;
         SyncTarget();
     }
 

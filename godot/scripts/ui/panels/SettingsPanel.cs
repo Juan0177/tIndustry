@@ -212,8 +212,11 @@ public partial class SettingsPanel : Control
     {
         var label = new Label { Text = text };
         label.AddThemeColorOverride("font_color", Accent);
-        // 14, not 15: hidden labels still rasterize their glyphs into the font cache, and new glyphs in the size-15
-        // atlas (HUD toast, mipmapped) shifted the toast's pixels in the playtest captures.
+        // 14, not 15, to keep the playtest captures stable; not a real fix. Labels rasterize their glyphs into the
+        // shared font atlas of their size even while hidden, and the HUD draws with LinearWithMipmaps
+        // (World.UseSmoothUiFiltering): new glyphs in the size-15 atlas changed its mipmaps and so the pixels of the
+        // toast (size 15). Any new text at a size the captured HUD uses can do the same. Deferred to G4, whose theme
+        // replaces fonts and UI filtering.
         label.AddThemeFontSizeOverride("font_size", 14);
         parent.AddChild(label);
     }

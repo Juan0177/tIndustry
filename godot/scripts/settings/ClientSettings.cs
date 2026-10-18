@@ -16,8 +16,7 @@ public sealed class ClientSettings
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter() }
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
     public static readonly int[] UiScalePresets = [100, 125, 150, 200];
@@ -42,6 +41,7 @@ public sealed class ClientSettings
     public bool TutorialCompleted { get; set; }
 
     /// <summary>Particle effects: Alti (all), Bassi (fewer, no ambient), Spenti (none, still water).</summary>
+    [JsonConverter(typeof(TolerantEnumConverter<EffectsQuality>))]
     public EffectsQuality Effetti { get; set; } = EffectsQuality.Alti;
     /// <summary>Soft shadows under buildings.</summary>
     public bool Ombre { get; set; } = true;

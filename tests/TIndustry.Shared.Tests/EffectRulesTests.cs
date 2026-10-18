@@ -68,6 +68,14 @@ public sealed class EffectRulesTests
 
     [Theory]
     [InlineData("\"numero\": 9", "\"numero\": 0", "numero")]
+    [InlineData("\"numero\": 9", "\"numero\": 9.5", "numero")]
+    [InlineData("\"numero\": 9", "\"numero\": 4001", "numero")]
+    [InlineData("\"numero\": 9", "\"numero\": 1e12", "numero")]
+    [InlineData("\"numero\": 9", "\"numero\": \"9\"", "numero")]
+    [InlineData("\"durata\": 1.5", "\"durata\": 61", "durata")]
+    [InlineData("\"velocita\": [10, 20]", "\"velocita\": [10, 1e9]", "velocita")]
+    [InlineData("\"velocita\": [10, 20]", "\"velocita\": [10]", "velocita")]
+    [InlineData("\"gravita\": [0, -20]", "\"gravita\": [0, -1e300]", "gravita")]
     [InlineData("\"durata\": 1.5", "\"durata\": -1", "durata")]
     [InlineData("\"velocita\": [10, 20]", "\"velocita\": [20, 10]", "velocita")]
     [InlineData("\"colore\": \"#80808080\"", "\"colore\": \"grigio\"", "colore")]
@@ -79,6 +87,16 @@ public sealed class EffectRulesTests
         var error = Assert.Throws<InvalidDataException>(() => EffectRules.Parse(Valid.Replace(from, to)));
         Assert.Contains("«fumo»", error.Message);
         Assert.Contains($"«{field}»", error.Message);
+    }
+
+    [Fact]
+    public void DuplicateEffectNameIsAnItalianError()
+    {
+        var json = Valid.Replace("\"neve\":", "\"fumo\":");
+
+        var error = Assert.Throws<InvalidDataException>(() => EffectRules.Parse(json));
+        Assert.Contains("«fumo»", error.Message);
+        Assert.Contains("due volte", error.Message);
     }
 
     [Fact]

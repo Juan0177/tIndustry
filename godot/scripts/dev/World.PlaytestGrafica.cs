@@ -31,6 +31,13 @@ public partial class World
             return Fail("impostazioni: valori fuori elenco non riportati al più vicino");
         }
 
+        // An unknown effects name (a future version, a typo) resets that field only, not the whole file.
+        if (ClientSettings.FromJson("{ \"effetti\": \"Medi\", \"tutorialCompleted\": true, \"ombre\": false }") is not
+            { Effetti: EffectsQuality.Alti, TutorialCompleted: true, Ombre: false })
+        {
+            return Fail("impostazioni: un nome di Effetti sconosciuto ha cancellato le altre impostazioni");
+        }
+
         var forcedOff = ClientSettings.PlaytestForcesEffectsOff;
         var expectedQuality = forcedOff ? EffectsQuality.Spenti : _settings.Effetti;
         if (_effects.Quality != expectedQuality || _terrainChunks.AnimateWater != (expectedQuality != EffectsQuality.Spenti))
@@ -118,7 +125,7 @@ public partial class World
             return "nessuna destinazione ridotta";
         }
 
-        var window = root.GetVisibleRect().Size * root.GetFinalTransform().Scale;
+        var window = (Vector2)DisplayServer.WindowGetSize();
         var expected = (window * percent / 100f).Round();
         if (Math.Abs(target.Size.X - expected.X) > 1 || Math.Abs(target.Size.Y - expected.Y) > 1)
         {
@@ -128,6 +135,17 @@ public partial class World
         if ((root.CanvasCullMask & VisibilityLayer) != 0)
         {
             return "la finestra disegna ancora il mondo a piena risoluzione";
+        }
+
+        if (target.CanvasItemDefaultTextureFilter != root.CanvasItemDefaultTextureFilter)
+        {
+            return $"filtro del mondo ridotto {target.CanvasItemDefaultTextureFilter}, atteso {root.CanvasItemDefaultTextureFilter}";
+        }
+
+        var stretch = percent == 50 ? CanvasItem.TextureFilterEnum.Nearest : CanvasItem.TextureFilterEnum.Linear;
+        if (_renderScale.StretchFilter != stretch)
+        {
+            return $"ingrandimento {_renderScale.StretchFilter}, atteso {stretch}";
         }
 
         if (_view is null || _view.CoreTiles.Count == 0)
@@ -146,6 +164,63 @@ public partial class World
             {
                 return $"cella sotto il cursore {_hover}, attesa {cell}";
             }
+        }
+
+        return await PlaytestGhostUnderCursorProblem(target, new GridPosition(coreX + 3, coreY + 1), window);
+    }
+
+    /// <summary>
+    /// What the player sees: with the belt tool, the placement ghost drawn into the reduced image must sit under the
+    /// mouse. The bright pixels that change when the tool is picked (the ghost; the faint build grid stays below the
+    /// threshold) must be centred on the cursor, mapped from window to target pixels, within a quarter of a cell.
+    /// </summary>
+    private async Task<string?> PlaytestGhostUnderCursorProblem(SubViewport target, GridPosition cell, Vector2 window)
+    {
+        var mouse = CellToScreen(cell);
+        PlaytestMove(mouse, 0);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        using var before = target.GetTexture().GetImage();
+        await PlaytestKey(Key.Key1);
+        PlaytestMove(mouse, 0);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        using var after = target.GetTexture().GetImage();
+        await PlaytestKey(Key.Escape);
+
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+        for (var y = 0; y < after.GetHeight(); y++)
+        {
+            for (var x = 0; x < after.GetWidth(); x++)
+            {
+                var a = after.GetPixel(x, y);
+                var b = before.GetPixel(x, y);
+                if (Math.Max(Math.Abs(a.R - b.R), Math.Max(Math.Abs(a.G - b.G), Math.Abs(a.B - b.B))) < 0.12f)
+                {
+                    continue;
+                }
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        if (maxX < 0)
+        {
+            return "nessuna sagoma di piazzamento nell'immagine ridotta";
+        }
+
+        var scale = (Vector2)target.Size / window;
+        var cellPixels = TileSize * GetNode<Camera2D>("Camera").Zoom.X * GetTree().Root.GetFinalTransform().Scale.X * scale.X;
+        var centre = new Vector2(minX + maxX + 1, minY + maxY + 1) / 2f;
+        var expected = mouse * scale;
+        var box = new Vector2(maxX - minX + 1, maxY - minY + 1);
+        GD.Print($"SCALA {Mathf.RoundToInt(scale.X * 100)}%: sagoma {box} px al centro {centre}, cursore {expected}, cella {cellPixels:0.0} px");
+        if (centre.DistanceTo(expected) > cellPixels / 4f || box.X > cellPixels * 1.5f || box.Y > cellPixels * 1.5f)
+        {
+            return $"sagoma {box} px centrata in {centre}, cursore in {expected} (cella {cellPixels:0.0} px)";
         }
 
         return null;
