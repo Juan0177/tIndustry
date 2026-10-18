@@ -1,4 +1,5 @@
 using Godot;
+using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
@@ -33,6 +34,8 @@ public partial class EffectManager : Node2D
     private readonly Stack<CpuParticles2D> _free = new();
     private readonly List<Burst> _bursts = [];
     private readonly Dictionary<int, Attachment> _attached = [];
+    // Keyed attachments (block origin + effect) → id: a rebuilt visual takes over the running emitter of the old one.
+    private readonly Dictionary<(string Name, GridPosition At), int> _byKey = [];
     private int _nextId = 1;
     private int _nodes;
     private double _clock;
@@ -55,6 +58,27 @@ public partial class EffectManager : Node2D
 
     /// <summary>Continuous emitters attached (with or without particles right now).</summary>
     public int Attachments => _attached.Count;
+
+    /// <summary>Seconds since the manager started (real time): visuals rate-limit their bursts on it.</summary>
+    public double Clock => _clock;
+
+    /// <summary>Emitters that could not start because every one of the <see cref="MaxEmitters"/> nodes was in use.</summary>
+    public int RentFailures { get; private set; }
+
+    /// <summary>Continuous emitters attached to <paramref name="owner"/> (0 once it is gone: no orphans).</summary>
+    public int AttachmentsOf(Node2D owner)
+    {
+        var n = 0;
+        foreach (var a in _attached.Values)
+        {
+            if (ReferenceEquals(a.Owner, owner))
+            {
+                n++;
+            }
+        }
+
+        return n;
+    }
 
     /// <summary>
     /// Quality drawn (the setting, or Spenti in a playtest). Lowering it stops what it no longer allows at once;
@@ -85,12 +109,33 @@ public partial class EffectManager : Node2D
             {
                 StopAttached(a, fade: false);
             }
+
+            if (value == EffectsQuality.Spenti)
+            {
+                FreePool();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Effetti Spenti: every node is back in the pool (bursts and attached emitters were just released), so the
+    /// pool is freed and the manager has no child left, as when the game starts with Spenti. Raising the quality
+    /// again builds new nodes on demand.
+    /// </summary>
+    private void FreePool()
+    {
+        while (_free.TryPop(out var node))
+        {
+            RemoveChild(node);
+            node.QueueFree();
+            _nodes--;
         }
     }
 
     public override void _Ready()
     {
-        ZIndex = 12;
+        // Above buildings and their child layers (≤ BuildingsZ + 6 = 14), below construction (20).
+        ZIndex = 15;
         _defs = LoadDefinitions();
     }
 
@@ -115,8 +160,12 @@ public partial class EffectManager : Node2D
         }
     }
 
-    /// <summary>One burst of <paramref name="name"/> at <paramref name="worldPos"/>, emitted East turned by <paramref name="rotation"/>.</summary>
-    public void Play(string name, Vector2 worldPos, float rotation = 0)
+    /// <summary>
+    /// One burst of <paramref name="name"/> at <paramref name="worldPos"/>, emitted East turned by
+    /// <paramref name="rotation"/>; with <paramref name="halfArea"/> (world pixels) the particles start anywhere in
+    /// that rectangle around the point (a whole block crumbling, snow over a few cells) instead of at the point.
+    /// </summary>
+    public void Play(string name, Vector2 worldPos, float rotation = 0, Vector2 halfArea = default)
     {
         if (Lookup(name) is not { } def)
         {
@@ -135,7 +184,7 @@ public partial class EffectManager : Node2D
             return;
         }
 
-        Configure(node, def, count, oneShot: true);
+        Configure(node, def, count, oneShot: true, halfArea);
         node.GlobalPosition = worldPos;
         node.Rotation = rotation;
         node.Restart();
@@ -148,11 +197,63 @@ public partial class EffectManager : Node2D
     /// pixels). It emits only while the quality allows it and the point is in view, and goes away by itself when the
     /// owner leaves the tree. Returns the id for <see cref="Detach"/> (an unknown name gives an id that never emits).
     /// </summary>
-    public int Attach(string name, Node2D owner, Vector2 offset)
+    public int Attach(string name, Node2D owner, Vector2 offset) => Attach(name, owner, offset, null);
+
+    /// <summary>
+    /// <see cref="Attach(string, Node2D, Vector2)"/> keyed by the block's origin cell: if another owner (the visual
+    /// being replaced by a rebuild) has the same effect on the same block, its running emitter moves to the new owner
+    /// instead of fading next to a fresh one, so rebuilds never take extra nodes.
+    /// </summary>
+    private int Attach(string name, Node2D owner, Vector2 offset, GridPosition? at)
     {
         var id = _nextId++;
-        _attached[id] = new Attachment(Lookup(name), owner, offset);
+        var attachment = new Attachment(Lookup(name), owner, offset, at is { } cell ? (name, cell) : null);
+        if (attachment.Key is { } key)
+        {
+            if (_byKey.TryGetValue(key, out var oldId) && _attached.TryGetValue(oldId, out var old)
+                && !ReferenceEquals(old.Owner, owner))
+            {
+                attachment.Node = old.Node;
+                attachment.Particles = old.Particles;
+                old.Node = null;
+                old.Particles = 0;
+                _attached.Remove(oldId);
+            }
+
+            _byKey[key] = id;
+        }
+
+        _attached[id] = attachment;
         return id;
+    }
+
+    /// <summary>
+    /// A block's working emitter: attached (if <paramref name="id"/> is not live) while <paramref name="on"/>,
+    /// detached as soon as it is not. Returns the id to keep (0 = none); called every frame with the block's state.
+    /// </summary>
+    public int Keep(int id, bool on, string name, Node2D owner, Vector2 offset, GridPosition block)
+    {
+        if (on)
+        {
+            return id != 0 && _attached.ContainsKey(id) ? id : Attach(name, owner, offset, block);
+        }
+
+        Detach(id);
+        return 0;
+    }
+
+    /// <summary>
+    /// Detaches <paramref name="id"/> from <paramref name="fx"/> if the manager is still alive (a visual leaving the
+    /// tree: removed block or rebuilt visuals) and clears it.
+    /// </summary>
+    public static void DetachFrom(EffectManager? fx, ref int id)
+    {
+        if (id != 0 && fx is not null && IsInstanceValid(fx) && fx.IsInsideTree())
+        {
+            fx.Detach(id);
+        }
+
+        id = 0;
     }
 
     /// <summary>Stops the emitter <paramref name="id"/>: its particles fade, then the node goes back to the pool.</summary>
@@ -160,6 +261,11 @@ public partial class EffectManager : Node2D
     {
         if (_attached.Remove(id, out var a))
         {
+            if (a.Key is { } key && _byKey.TryGetValue(key, out var current) && current == id)
+            {
+                _byKey.Remove(key);
+            }
+
             StopAttached(a, fade: true);
         }
     }
@@ -179,6 +285,7 @@ public partial class EffectManager : Node2D
         }
 
         _attached.Clear();
+        _byKey.Clear();
     }
 
     public override void _Process(double delta)
@@ -224,7 +331,7 @@ public partial class EffectManager : Node2D
                     continue;
                 }
 
-                Configure(node, a.Def!, count, oneShot: false);
+                Configure(node, a.Def!, count, oneShot: false, default);
                 node.GlobalPosition = at;
                 node.Rotation = 0;
                 node.Restart();
@@ -303,6 +410,7 @@ public partial class EffectManager : Node2D
 
         if (_nodes >= MaxEmitters)
         {
+            RentFailures++;
             return null;
         }
 
@@ -331,8 +439,18 @@ public partial class EffectManager : Node2D
         ActiveParticles -= particles;
     }
 
-    private void Configure(CpuParticles2D node, EffectDef def, int count, bool oneShot)
+    private void Configure(CpuParticles2D node, EffectDef def, int count, bool oneShot, Vector2 halfArea)
     {
+        if (halfArea == Vector2.Zero)
+        {
+            node.EmissionShape = CpuParticles2D.EmissionShapeEnum.Point;
+        }
+        else
+        {
+            node.EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle;
+            node.EmissionRectExtents = halfArea;
+        }
+
         var look = Look(def.Sprite);
         node.Texture = look.Texture;
         node.Material = look.Material;
@@ -373,9 +491,10 @@ public partial class EffectManager : Node2D
 
     private sealed record Burst(CpuParticles2D Node, int Particles, double EndsAt);
 
-    private sealed class Attachment(EffectDef? def, Node2D owner, Vector2 offset)
+    private sealed class Attachment(EffectDef? def, Node2D owner, Vector2 offset, (string Name, GridPosition At)? key)
     {
         public EffectDef? Def { get; } = def;
+        public (string Name, GridPosition At)? Key { get; } = key;
         public Node2D Owner { get; } = owner;
         public Vector2 Offset { get; } = offset;
         public CpuParticles2D? Node { get; set; }

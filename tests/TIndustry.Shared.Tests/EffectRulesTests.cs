@@ -172,6 +172,71 @@ public sealed class EffectRulesTests
         }
     }
 
+    /// <summary>
+    /// Every effect the client asks for by name from the effect manager (<c>_effects.Play("…")</c>,
+    /// <c>fx.Keep(…, "…", …)</c>, a call spread over several lines too) and the biome table of AmbientEffects is in
+    /// effetti.json: an unknown name would only warn at run time and draw nothing. Other <c>Play</c> calls
+    /// (AnimationPlayer, AudioStreamPlayer) are not effect names and are left out.
+    /// </summary>
+    [Fact]
+    public void EffectsNamedByTheClientAreDefined()
+    {
+        var root = RepoRoot();
+        var defs = EffectRules.Parse(File.ReadAllText(Path.Combine(root, "godot", "effetti", "effetti.json")));
+        var named = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "godot", "scripts"), "*.cs", SearchOption.AllDirectories))
+        {
+            named.UnionWith(EffectNamesIn(File.ReadAllText(file), Path.GetFileName(file) == "AmbientEffects.cs"));
+        }
+
+        Assert.Contains("fumo-forno", named);
+        Assert.Contains("neve", named);
+        foreach (var name in named)
+        {
+            Assert.True(defs.ContainsKey(name), $"effetto usato dal client ma non definito: {name}");
+        }
+    }
+
+    [Fact]
+    public void EffectNameScanReadsManagerCallsOnly()
+    {
+        const string source = """
+            _effects.Play(
+                "su-due-righe", center);
+            fx?.Keep(_id, on, "tenuto", this, Vector2.Zero, Origin);
+            _player.Play("idle");
+            GetNode<AudioStreamPlayer>("Suono").Play();
+            ["neve"] = "neve-bioma",
+            """;
+
+        Assert.Equal(["su-due-righe", "tenuto"], EffectNamesIn(source, ambient: false).Order(StringComparer.Ordinal));
+        Assert.Contains("neve-bioma", EffectNamesIn(source, ambient: true));
+    }
+
+    /// <summary>
+    /// Effect names in C# <paramref name="source"/>: string literals among the arguments of <c>Play</c>/<c>Keep</c>
+    /// called on the effect manager (<c>_effects</c>, <c>fx</c>, <c>Effects</c>), and with <paramref name="ambient"/>
+    /// the values of the biome table (<c>["bioma"] = "effetto"</c>).
+    /// </summary>
+    private static IEnumerable<string> EffectNamesIn(string source, bool ambient)
+    {
+        foreach (Match call in Regex.Matches(source, @"\b(?:_effects|fx|Effects)\??\.(?:Play|Keep)\(([^;]*)"))
+        {
+            foreach (Match literal in Regex.Matches(call.Groups[1].Value, @"""([a-z]+(?:-[a-z]+)*)"""))
+            {
+                yield return literal.Groups[1].Value;
+            }
+        }
+
+        if (ambient)
+        {
+            foreach (Match entry in Regex.Matches(source, @"\[""[a-z]+""\] = ""([a-z-]+)""", RegexOptions.Multiline))
+            {
+                yield return entry.Groups[1].Value;
+            }
+        }
+    }
+
     /// <summary>effetti.json is not a Godot resource: the export presets must include it explicitly.</summary>
     [Fact]
     public void ExportPresetsShipTheEffectsFile()

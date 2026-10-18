@@ -53,6 +53,7 @@ public partial class World : Node2D
     private Node2D? _buildingsLayer;
     private ConstructionLayer? _constructionLayer;
     private EffectManager? _effects;
+    private AmbientEffects? _ambient;
     private RenderScale? _renderScale;
     // Graphics setting "Animazioni dei blocchi": false = building visuals get no time (still frames).
     private bool _blockAnimations = true;
@@ -195,6 +196,7 @@ public partial class World : Node2D
         }
 
         SyncTerrainChunks();
+        SyncAmbientEffects(delta);
         SyncTutorial();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
@@ -251,6 +253,13 @@ public partial class World : Node2D
     {
         _effects = new EffectManager { Name = "Effetti", TileSize = TileSize };
         AddChild(_effects);
+        // Either may be made first: each one hands the effects to the construction layer.
+        if (_constructionLayer is not null)
+        {
+            _constructionLayer.Effects = _effects;
+        }
+
+        _ambient = new AmbientEffects();
         _renderScale = new RenderScale { Name = "ScalaRendering" };
         AddChild(_renderScale);
         _renderScale.Setup(this);
@@ -300,6 +309,18 @@ public partial class World : Node2D
         GetVisibleTileRange(out var minX, out var minY, out var maxX, out var maxY);
         var zoom = GetNodeOrNull<Camera2D>("Camera") is { } cam ? cam.Zoom.X : 1f;
         _terrainChunks.Sync(minX, minY, maxX, maxY, TileSize * zoom);
+    }
+
+    /// <summary>Ambient particles of the biomes in view (also behind Home, over its background map).</summary>
+    private void SyncAmbientEffects(double delta)
+    {
+        if (_ambient is null || _effects is null)
+        {
+            return;
+        }
+
+        GetVisibleTileRange(out var minX, out var minY, out var maxX, out var maxY);
+        _ambient.Sync(_effects, _view?.Terrain, _view?.Content.Terrain, new Rect2I(minX, minY, maxX - minX + 1, maxY - minY + 1), TileSize, delta);
     }
 
     private static string ResolveContentPath()

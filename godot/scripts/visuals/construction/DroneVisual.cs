@@ -7,7 +7,8 @@ namespace TIndustry.Godot;
 /// One construction drone (Mindustry's alpha): the <c>drone-1</c> sprite turned to its heading over its own
 /// dark shadow, a 3-dot engine trail and, while it works, the build beam to its site. Position and heading are
 /// interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
-/// ±0.05 tile (graphics only). The node itself is never rotated: it draws in world-aligned local space and turns
+/// ±0.05 tile (graphics only). With effects on (G3) the beam is richer, as in Mindustry: a bright ray to a point
+/// that wanders over the site, throwing sparks (<c>scintille-cantiere</c>). The node itself is never rotated: it draws in world-aligned local space and turns
 /// only the sprite.
 /// </summary>
 public partial class DroneVisual : Node2D
@@ -40,6 +41,12 @@ public partial class DroneVisual : Node2D
     private const float BeamFillAlpha = 0.15f;
     private const float SnapTiles = 4f;
 
+    /// <summary>Seconds between two spark bursts of the rich beam.</summary>
+    private const float SparkSeconds = 0.1f;
+
+    /// <summary>The wandering beam point stays within this fraction of the site's half size from its centre.</summary>
+    private const float WanderReach = 0.7f;
+
     private readonly Vector2[] _corners = new Vector2[4];
     private readonly Vector2[] _hullScratch = new Vector2[5];
     private readonly Vector2[][] _hulls = [new Vector2[3], new Vector2[4], new Vector2[5]];
@@ -57,6 +64,9 @@ public partial class DroneVisual : Node2D
     private readonly Queue<Vector2> _trail = new();
     private Rect2? _beamTarget;
     private Color _beamColor;
+    // Rich beam (effects on): where the ray hits the site now (world), and the time to the next sparks.
+    private Vector2? _beamPoint;
+    private float _sparkTimer;
 
     public long BuilderId { get; private set; }
 
@@ -65,9 +75,10 @@ public partial class DroneVisual : Node2D
 
     /// <summary>
     /// Takes the drone's state for this frame. <paramref name="beamTarget"/> is the site it works on
-    /// (world rect), drawn with <paramref name="beamColor"/>; null when flying or idle.
+    /// (world rect), drawn with <paramref name="beamColor"/>; null when flying or idle. With <paramref name="fx"/>
+    /// at a quality that draws particles, the beam is the rich one.
     /// </summary>
-    public void Sync(BuilderUnit builder, long tick, float delta, Rect2? beamTarget, Color beamColor)
+    public void Sync(BuilderUnit builder, long tick, float delta, Rect2? beamTarget, Color beamColor, EffectManager? fx)
     {
         var target = new Vector2(builder.X, builder.Y) * World.TileSize;
         var rot = Mathf.DegToRad(builder.Rotation);
@@ -114,7 +125,28 @@ public partial class DroneVisual : Node2D
 
         _beamTarget = beamTarget;
         _beamColor = beamColor;
+        SyncRichBeam(beamTarget, fx, delta, pos);
         QueueRedraw();
+    }
+
+    /// <summary>The rich beam's wandering point (a slow Lissajous over the site) and its sparks, flying off away from the drone.</summary>
+    private void SyncRichBeam(Rect2? beamTarget, EffectManager? fx, float delta, Vector2 pos)
+    {
+        if (beamTarget is not { } rect || fx is null || fx.Quality == EffectsQuality.Spenti)
+        {
+            _beamPoint = null;
+            return;
+        }
+
+        var wander = new Vector2(Mathf.Sin(_clock * 1.7f), Mathf.Sin(_clock * 2.3f + 1.3f));
+        var point = rect.GetCenter() + wander * rect.Size * 0.5f * WanderReach;
+        _beamPoint = point;
+        _sparkTimer -= delta;
+        if (_sparkTimer <= 0f)
+        {
+            _sparkTimer = SparkSeconds;
+            fx.Play("scintille-cantiere", point, (point - pos).Angle());
+        }
     }
 
     public override void _Draw()
@@ -167,6 +199,15 @@ public partial class DroneVisual : Node2D
         foreach (var corner in _corners)
         {
             DrawLine(nose, corner, line, -1f);
+        }
+
+        if (_beamPoint is { } hit)
+        {
+            // Rich beam: a 2 px ray to the wandering point and a bright spot where it hits.
+            var at = hit - Position;
+            DrawLine(nose, at, new Color(_beamColor, 0.9f * flicker), 2f);
+            DrawRect(new Rect2(at - new Vector2(3f, 3f), new Vector2(6f, 6f)), new Color(_beamColor, flicker));
+            DrawRect(new Rect2(at - new Vector2(1.5f, 1.5f), new Vector2(3f, 3f)), new Color(1f, 1f, 1f, flicker));
         }
     }
 
