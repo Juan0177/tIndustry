@@ -311,20 +311,20 @@
       "id": "level-09-titanio",
       "map": "level-09-titanio",
       "name": "Titanio raro",
-      "description": "Deposito scarso, forno lento: accumula lastre di titanio e prepara la chimica.",
+      "description": "Deposito scarso, forno lento: il titanio si scava solo col Minatore T2. Sbloccalo, accumula lastre di titanio e prepara la chimica.",
       "seed": 4242,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 400,
+      "startingMoney": 950,
       "refundPercent": 50,
       "startingMaterials": [
         {
           "itemId": "iron-plate",
-          "amount": 45
+          "amount": 95
         },
         {
           "itemId": "copper-wire",
-          "amount": 18
+          "amount": 30
         },
         {
           "itemId": "coal",

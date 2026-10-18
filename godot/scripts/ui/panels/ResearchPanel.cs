@@ -530,8 +530,8 @@ public partial class ResearchPanel : Control
     {
         var hint = structureId switch
         {
-            "miner" => "Estrae minerali dal deposito sotto · uscita su tutti i lati · 2×2",
-            "miner-advanced" => "T2: 2× velocità · +25% efficienza · +20% se alimentato · uscita multi-lato",
+            "miner" => "Estrae minerali dal deposito sotto · Scava: ferro, rame, carbone, piombo · uscita su tutti i lati · 2×2",
+            "miner-advanced" => "T2 · Scava: tutti i minerali, anche il titanio · 2× velocità · +25% efficienza · +20% se alimentato · uscita multi-lato",
             "smelter" => "Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2",
             "assembler" => "Assembla prodotti · R ruota uscita · 2×2",
             "extractor" => "Tira 1 item da CORE/edificio · F filtro · R uscita",

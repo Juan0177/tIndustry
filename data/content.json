@@ -688,6 +688,7 @@
   "buildings": [
     {
       "id": "miner",
+      "tier": 1,
       "moneyCost": 0,
       "buildCost": [
         {
@@ -699,6 +700,7 @@
     },
     {
       "id": "miner-advanced",
+      "tier": 2,
       "moneyCost": 0,
       "buildCost": [
         {
@@ -856,6 +858,13 @@
       { "id": "sand-wall", "biome": "sabbia", "color": "#5C3A1E" },
       { "id": "ice-wall", "biome": "neve", "color": "#3E5C78" },
       { "id": "shrub-wall", "biome": "prati", "color": "#0E2414" }
+    ],
+    "deposits": [
+      { "id": "iron", "hardness": 1 },
+      { "id": "copper", "hardness": 1 },
+      { "id": "coal", "hardness": 1 },
+      { "id": "lead", "hardness": 1 },
+      { "id": "titanium", "hardness": 2 }
     ]
   }
 }

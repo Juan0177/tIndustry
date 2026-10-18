@@ -158,7 +158,11 @@ public sealed class TerrainMap
         return count;
     }
 
-    public DepositKind MajorityDeposit(GridPosition origin, int size)
+    /// <summary>
+    /// The deposit covering most cells of the footprint, among those <paramref name="canDig"/> accepts (all when
+    /// null); <see cref="DepositKind.None"/> when there is none.
+    /// </summary>
+    public DepositKind MajorityDeposit(GridPosition origin, int size, Func<DepositKind, bool>? canDig = null)
     {
         var counts = new Dictionary<DepositKind, int>();
         for (var y = 0; y < size; y++)
@@ -172,7 +176,7 @@ public sealed class TerrainMap
                 }
 
                 var d = this[p].Deposit;
-                if (d == DepositKind.None)
+                if (d == DepositKind.None || (canDig is not null && !canDig(d)))
                 {
                     continue;
                 }

@@ -46,6 +46,8 @@ La mappa ha quattro biomi (rocce e basalto, sabbia e deserto, neve e ghiaccio, p
 
 Sopra una parete o l'acqua profonda il fantasma del blocco diventa rosso e un suggerimento in basso dice il motivo ("C'è una parete", "Acqua profonda").
 
+Giacimenti: ferro, rame, carbone, piombo e titanio. Il **titanio** si scava solo col **Minatore T2** (da sbloccare in Ricerca): come in Mindustry serve una trivella di tier più alto. Un Minatore T1 dove sotto c'è solo titanio viene rifiutato ("Serve il Minatore T2 per il titanio"); su celle miste scava gli altri minerali e ignora il titanio. Il Minatore T2 scava tutto.
+
 I livelli della **Campagna** hanno mappe prestabilite, più piccole all'inizio (200×200 nel primo livello) e più grandi verso la fine (1000×1000 nel decimo).
 
 ### Notte e Lampada
