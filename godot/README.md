@@ -25,6 +25,29 @@ Richiede Godot **4.4+** .NET e restore C# (`dotnet build godot/TIndustry.Godot.c
 ./tools/ci/export-godot.sh  # → dist/tIndustry-*-x64.zip
 ```
 
+## Nuova partita e mappe
+
+Dalla Home, **Nuova partita** apre una schermata con la **misura** della mappa e il **seme**:
+
+| Misura | Lato |
+| --- | --- |
+| Media | 1000×1000 |
+| Grande | 1500×1500 |
+| Enorme | 2000×2000 |
+
+Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Per Grande ed Enorme compare "Generazione della mappa…" mentre la mappa si prepara (qualche secondo); in quel momento tasti e clic sono ignorati.
+
+La mappa ha quattro biomi (rocce e basalto, sabbia e deserto, neve e ghiaccio, prati e paludi), laghi e fiumi. Il CORE parte al centro, in un'area libera con ferro e rame vicini e una strada a terra verso ferro, rame e carbone.
+
+- **Pareti** (colori scuri con un bordo più chiaro verso le celle libere): non ci si costruisce sopra, né blocchi né nastri.
+- **Acqua bassa** (vicino alle rive): si costruisce normalmente.
+- **Acqua profonda** (blu scuro, al centro di laghi e fiumi): non ci si costruisce e i nastri non la attraversano; il **ponte** la scavalca, purché le due estremità stiano su celle costruibili.
+- Il drone vola sopra tutto.
+
+Sopra una parete o l'acqua profonda il fantasma del blocco diventa rosso e un suggerimento in basso dice il motivo ("C'è una parete", "Acqua profonda").
+
+I livelli della **Campagna** hanno mappe prestabilite, più piccole all'inizio (200×200 nel primo livello) e più grandi verso la fine (1000×1000 nel decimo).
+
 ## Controlli build
 
 **Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click pianifica · **destro** cancella o smonta · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
@@ -85,7 +108,7 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 11 (metadati + istantanea): i salvataggi più vecchi non sono compatibili.  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 12 (metadati + istantanea, con il generatore della mappa): i salvataggi v11 si caricano ancora, sul terreno di prima; i più vecchi non sono compatibili. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
 Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
 ## Projects

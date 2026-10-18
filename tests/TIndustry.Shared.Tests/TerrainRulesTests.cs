@@ -159,6 +159,49 @@ public sealed class TerrainRulesTests
     }
 
     [Fact]
+    public void BridgeWithoutExitSaysWhy()
+    {
+        // From (9, y) going East the exit candidates are x = 11..14 (spans 2..5).
+        var cells = new List<(int, int, TerrainTile)>();
+        for (var x = 10; x <= 15; x++)
+        {
+            cells.Add((x, 5, Deep));
+            cells.Add((x, 8, Wall()));
+        }
+
+        // Row 11: two candidates are deep water, the others belts — the water is still why there is no exit.
+        cells.Add((11, 11, Deep));
+        cells.Add((12, 11, Deep));
+        var factory = Sandbox([.. cells]);
+        foreach (var x in new[] { 13, 14 })
+        {
+            Assert.Null(Submit(factory, new PlaceBelt(0, new GridPosition(x, 11), Direction.East, "conveyor-basic")));
+        }
+
+        var bridgeId = BuildSpec.StructureIdFor(BuildingKind.Bridge)!;
+        foreach (var (y, expected) in new[]
+                 {
+                     (5, CommandReasons.DeepWater), (8, CommandReasons.Wall), (11, CommandReasons.DeepWater)
+                 })
+        {
+            var spec = new BuildSpec(bridgeId, BuildingKind.Bridge, new GridPosition(9, y), Direction.East);
+            Assert.False(factory.CanPlace(spec, out var reason));
+            Assert.Equal(expected, reason);
+            Assert.Equal(expected,
+                Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, y), Direction.East)));
+        }
+
+        // Only belts in the way: still "occupied".
+        foreach (var x in new[] { 11, 12, 13, 14 })
+        {
+            Assert.Null(Submit(factory, new PlaceBelt(0, new GridPosition(x, 20), Direction.East, "conveyor-basic")));
+        }
+
+        Assert.Equal(CommandReasons.Occupied,
+            Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, 20), Direction.East)));
+    }
+
+    [Fact]
     public void ShallowWaterIsBuildable()
     {
         var factory = Sandbox((10, 10, Shallow), (11, 10, Shallow), (10, 11, Shallow), (11, 11, Shallow));

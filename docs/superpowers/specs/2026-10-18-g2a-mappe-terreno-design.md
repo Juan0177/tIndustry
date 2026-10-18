@@ -1,6 +1,7 @@
 # G2a — Mappe e terreno: biomi, pareti, acqua, mappe a seme e della campagna
 
-- **Stato**: approvata il 2026-10-18
+- **Stato**: approvata il 2026-10-18; attuata (PR #175–#180, [ADR 0005](../../decisioni/0005-mappe-seme-e-file.md))
+- **Piano**: [2026-10-18-g2a-mappe-terreno](../plans/2026-10-18-g2a-mappe-terreno.md)
 - **Roadmap grafica**: [G1](2026-10-18-g1-arte-blocchi-design.md) → **G2a** → [G2b](2026-10-18-g2b-arte-terreno-design.md) → [G3](2026-10-18-g3-effetti-luci-design.md) → [G4](2026-10-18-g4-interfaccia-design.md). Dopo la grafica: sotto-progetto 4 (tier e drone comandato), poi un sotto-progetto **Liquidi**.
 
 ## Obiettivo

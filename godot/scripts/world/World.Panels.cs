@@ -178,7 +178,7 @@ public partial class World
         // Keep Home above other HUD so it covers dock/info while choosing.
         layer.MoveChild(_home, layer.GetChildCount() - 1);
 
-        _home.ContinuaChosen += () => _ = OnHomeContinuaAsync();
+        _home.ContinuaChosen += () => RunMapTask(OnHomeContinuaAsync, m => _home?.ShowError(m));
         _home.CampaignChosen += OnHomeCampaign;
         _home.NewGameChosen += OpenNewGamePanel;
         _home.SavesChosen += OpenSavesManager;
@@ -200,8 +200,21 @@ public partial class World
         }
 
         layer.MoveChild(_newGame, layer.GetChildCount() - 1);
-        _newGame.StartRequested += (size, seed) => _ = StartNewGameFromPanelAsync(size, seed);
+        _newGame.StartRequested += (size, seed) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed), ShowNewGameError);
         _newGame.Cancelled += () => _home?.Open();
+    }
+
+    /// <summary>A failed new game: on the Nuova partita panel while it is open (a toast would sit under it).</summary>
+    private void ShowNewGameError(string message)
+    {
+        if (_newGame?.IsOpen == true)
+        {
+            _newGame.ShowError(message);
+        }
+        else
+        {
+            _hud?.ShowToast(message);
+        }
     }
 
     /// <summary>Home → Nuova partita: pick size and seed (<see cref="NewGamePanel"/>), or <paramref name="seed"/> (playtests).</summary>
@@ -245,7 +258,7 @@ public partial class World
         }
 
         layer.MoveChild(_saves, layer.GetChildCount() - 1);
-        _saves.SlotLoadRequested += slotId => _ = OnSavesSlotLoadAsync(slotId);
+        _saves.SlotLoadRequested += slotId => RunMapTask(() => OnSavesSlotLoadAsync(slotId), m => _saves?.ShowStatus(m));
         _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
         _saves.MapName = mapId => _campaign?.Levels.FirstOrDefault(l => l.Map == mapId)?.Name;

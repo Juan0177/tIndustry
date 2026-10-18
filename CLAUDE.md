@@ -23,6 +23,7 @@ APPDATA="$(mktemp -d)" godot4 --headless --path godot --build-solutions --quit
 godot4 --path godot                                      # avvia il gioco (legge data/)
 tools/dev/playtest.sh ui /tmp/shots-ui                   # idem: tutorial; PLAYTEST OK, 0 ERROR
 python tools/dev/compare_shots.py <baseline> <nuovi>     # confronto screenshot
+dotnet run --project tools/MapTool -- valida             # mappe della campagna; anche: genera <id> …, anteprima
 ```
 
 `TINDUSTRY_PLAYTEST=ui|tutorial` richiede `TINDUSTRY_DATA_DIR` (lo script lo imposta da solo).
@@ -40,11 +41,12 @@ for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet
 
 - Namespace: `TIndustry.Shared`, `TIndustry.Godot`, `TIndustry.Shared.Tests` (nessun sotto-namespace per cartella).
 - `src/TIndustry.Shared` non dipende da Godot né dal sistema operativo (vedi `docs/decisioni/0001-server-csharp.md`).
-- Dati di gioco solo in `data/` (`content.json`, `campaign.json`); `godot/data/` è generata dall'export ed è ignorata da git.
+- Dati di gioco solo in `data/` (`content.json`, `campaign.json`, `maps/`); `godot/data/` è generata dall'export ed è ignorata da git. Le mappe della campagna (`data/maps/<id>.png`, `<id>.giacimenti.png`, `<id>.json`) si creano e si controllano con `tools/MapTool` (`genera`, `valida`, `anteprima`), mai a occhio: dopo ogni ritocco `valida` deve dire OK. Terreno, generatori e regole: `docs/decisioni/0005-mappe-seme-e-file.md`.
 - Sprite di edifici, nastri, Core, drone e oggetti solo da `python tools/art/genera.py`; non modificare i PNG a mano (si cambia lo script e si rigenera; `--controlla` verifica, vedi `tools/art/README.md` e `docs/decisioni/0004-arte-generata-da-script.md`). Tutto in `godot/assets/` (piatto); le icone di terzi dell'interfaccia stanno in `godot/assets/ui/` con attribuzione in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
 - Salvataggi alla versione 12 (`FactorySaveData.CurrentVersion`; i v11 si leggono ancora, col generatore classico); cambiare il formato = alzare la versione.
 - Costruzione come Mindustry (piani, drone, cantieri: `docs/decisioni/0003-costruzione-come-mindustry.md`). I test che non provano la costruzione usano `GameRules(InstantBuild: true)` (per esempio `NewGame.Sandbox(..., rules: new GameRules(InstantBuild: true))`), così i piazzamenti tramite `SimHost` sono istantanei; i `Factory.TryPlace…` piazzano sempre subito.
+- Terreno nei test: `NewGame.Sandbox(...)` e `NewGame.Campaign(...)` usano per default il generatore **classico** (congelato, coordinate fisse); il generatore a biomi si chiede con `map: MapGenSettings.Normal(misura, seme)`, la mappa di un livello con `mapsDirectory:`. Un generatore pubblicato (`classico`, `biomi-1`) non si modifica mai: una generazione diversa è un generatore nuovo con un nome nuovo (i salvataggi rigenerano il terreno per nome e ne controllano l'impronta).
 - **Diario di lavoro**: a fine di ogni piano di implementazione copia il registro (`.superpowers/sdd/<piano>/progress.md`) in `docs/diario/AAAA-MM-GG-<nome>.md` (formato in `docs/diario/README.md`) *prima* di cancellare `.superpowers/sdd/`.
 - La simulazione è a tick fisso (60 Hz), guidata da comandi (`SimHost`) e deterministica: in `Step()` niente tempo, niente ordine di `Dictionary`/`HashSet`, niente orologio né `Random` non seminato, niente parallelismo né formati dipendenti dalla cultura. Regole in `docs/ARCHITETTURA.md`, modello di sincronizzazione in `docs/decisioni/0002-sincronizzazione-ibrida.md`.
 

@@ -88,14 +88,14 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 
 | Area | Contenuto |
 | --- | --- |
-| **Mondo** | Mappa 1000×1000 generata da seed, CORE al centro, minerali visibili (ferro, rame, piombo, carbone, titanio…) |
+| **Mondo** | Mappe generate dal seme in tre misure (Media 1000², Grande 1500², Enorme 2000²) con quattro biomi (rocce, sabbia, neve, prati), pareti, laghi e fiumi; acqua bassa costruibile, acqua profonda solo col ponte; CORE al centro con ferro, rame e carbone raggiungibili; minerali visibili (ferro, rame, piombo, carbone, titanio) |
 | **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
 | **Logistica** | Nastri T1/T2/T3, incrocio, sdoppiatore, selezionatore con filtro, ponte (2–4 caselle) |
 | **Energia** | Generatore, nodi T1/T2 con buffer di capacità |
 | **Economia** | Fondi, costi e rimborsi, Mercato a prezzo dinamico, vendita automatica, potenziamento del CORE |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
-| **Campagna** | 10 livelli, da *Primi passi* a *Espansione T2*, con tutorial non bloccante |
-| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 11 |
+| **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 12 (i v11 si caricano ancora) |
 
 Il combattimento è fuori dal progetto per ora.
 
@@ -111,8 +111,9 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
 | Fatto | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)) |
 | Fatto, in attesa dell'ok sulla grafica | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
-| In corso | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, biomi, pareti, acqua, mappe della campagna in file |
-| Previsto | **G2b–G4 · Upgrade grafico** | Arte del terreno, effetti e luci, interfaccia |
+| Fatto, in attesa dell'ok | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
+| In corso | **G2b · Arte del terreno** | Suoli, bordi, pareti raccordate, acqua animata, giacimenti a puntini |
+| Previsto | **G3–G4 · Upgrade grafico** | Effetti e luci, interfaccia |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
@@ -166,9 +167,9 @@ Per provare senza toccare i tuoi dati, imposta `TINDUSTRY_DATA_DIR` su una carte
 | --- | --- |
 | `godot/` | Client di gioco: mondo, HUD, pannelli, grafica |
 | `src/TIndustry.Shared/` | Simulazione indipendente da Godot: griglia, nastri, edifici, costruzione, energia, economia, ricerca, campagna, salvataggi |
-| `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json` |
+| `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json`, `maps/` (mappe della campagna) |
 | `tests/` | Test xUnit della simulazione |
-| `tools/` | `dev/`: avvio, playtest, screenshot e mappa Obsidian · `ci/`: export |
+| `tools/` | `dev/`: avvio, playtest, screenshot e mappa Obsidian · `MapTool/`: mappe della campagna · `art/`: sprite · `ci/`: export |
 | `docs/` | [Architettura](docs/ARCHITETTURA.md), [decisioni](docs/decisioni.md), specifiche e piani, [diario di lavoro](docs/diario/README.md) |
 
 La simulazione gira a tick fissi di 1/60 s, in modo deterministico. Per orientarti nel codice (ciclo di frame, dati, salvataggi, come aggiungere un blocco) parti da [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md); per lavorare con agenti, [`CLAUDE.md`](CLAUDE.md).

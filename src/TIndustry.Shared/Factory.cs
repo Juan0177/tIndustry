@@ -407,6 +407,7 @@ public sealed class Factory : IGameView
             MapHeight = Terrain?.Height ?? 0,
             Generator = SavedGenerator(Terrain),
             MapSize = Terrain is { Generator: MapGenerator.Name } biomes ? biomes.Width : 0,
+            TerrainHash = Terrain?.Hash,
             MapId = CampaignMapId(Terrain),
             // Canonical order (ids, then belt cells by Y, X) so captures compare byte for byte.
             Miners = miners.OrderBy(m => m.Id).Select(m => new MinerSaveDto
@@ -652,6 +653,7 @@ public sealed class Factory : IGameView
 
         // Before the sites: restoring a site checks the terrain under it.
         factory.Terrain = RestoreTerrain(content, data, factory.CoreTiles, mapsDirectory);
+        CheckRegeneratedTerrain(data, factory.Terrain);
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
@@ -781,6 +783,7 @@ public sealed class Factory : IGameView
             }
 
             case MapGenerator.Name:
+            case MapGenerator.UnversionedName:
             {
                 var edge = data.MapSize;
                 if (edge < 8 || edge > MaxMapEdge || data.MapWidth != edge || data.MapHeight != edge)
@@ -803,6 +806,24 @@ public sealed class Factory : IGameView
         }
     }
 
+    /// <summary>
+    /// A terrain regenerated from a generator (classic or biomes) must be the saved one: a generator changed
+    /// after the save would otherwise put the factory on other walls, water and deposits. Campaign maps are
+    /// files and keep their own rule (same size; an edited map loads). Saves without a hash are not checked.
+    /// </summary>
+    private static void CheckRegeneratedTerrain(FactorySaveData data, TerrainMap? terrain)
+    {
+        if (data.TerrainHash is not { } saved || terrain is null
+            || data.Generator == FactorySaveData.CampaignGenerator || terrain.Hash == saved)
+        {
+            return;
+        }
+
+        throw new SaveMapException(
+            $"Il terreno rigenerato non corrisponde al salvataggio (generatore '{data.Generator}', seme {data.Seed}): "
+            + "la partita è di una versione con un generatore di mappe diverso.");
+    }
+
     /// <summary>The campaign map file of a save; it must still have the saved size.</summary>
     private static TerrainMap LoadCampaignTerrain(FactoryContent content, FactorySaveData data, string? mapsDirectory)
     {
@@ -811,10 +832,14 @@ public sealed class Factory : IGameView
             throw new SaveMapException("Salvataggio della campagna senza il nome della mappa.");
         }
 
-        // A plain file name inside the maps folder, never a path (hand-edited saves).
-        if (data.MapId.IndexOfAny(['/', '\\', ':']) >= 0 || data.MapId.Contains("..", StringComparison.Ordinal))
+        // A plain file name inside the maps folder, never a path (hand-edited saves): the map files' own rule.
+        try
         {
-            throw new SaveMapException($"Nome della mappa della campagna non valido: '{data.MapId}'.");
+            CampaignMapFile.CheckId(data.MapId);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new SaveMapException($"Nome della mappa della campagna non valido: '{data.MapId}'.", ex);
         }
 
         if (mapsDirectory is null)
@@ -1880,8 +1905,39 @@ public sealed class Factory : IGameView
                 && FindBridgeExit(spec.Origin, spec.Direction) is not null,
             _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
         };
-        reason = ok ? null : RefusalReason(Footprint(spec));
+        reason = ok ? null : RefusalReason(spec);
         return ok;
+    }
+
+    /// <summary>
+    /// Italian refusal for <paramref name="spec"/> (see <see cref="RefusalReason(IEnumerable{GridPosition})"/>).
+    /// A bridge whose entry is free but has no exit says why: a wall or deep water on the exit cells, when that
+    /// is what blocks them; otherwise "occupied".
+    /// </summary>
+    public string RefusalReason(BuildSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        var reason = RefusalReason(Footprint(spec));
+        if (reason == CommandReasons.Occupied
+            && spec.Kind == BuildingKind.Bridge
+            && !Belts.Contains(spec.Origin)
+            && CanOccupy(spec.Origin)
+            && FindBridgeExit(spec.Origin, spec.Direction) is null)
+        {
+            var exits = new List<GridPosition>();
+            for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+            {
+                exits.Add(spec.Origin.Step(spec.Direction, span));
+            }
+
+            var exitReason = RefusalReason(exits);
+            if (exitReason is CommandReasons.Wall or CommandReasons.DeepWater)
+            {
+                return exitReason;
+            }
+        }
+
+        return reason;
     }
 
     /// <summary>

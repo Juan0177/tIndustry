@@ -14,16 +14,12 @@ public partial class World
     internal const int PlaytestDevice = 4242;
 
     /// <summary>
-    /// While a playtest runs, drop real mouse/keyboard input before UI and world see it: the window is on
-    /// the player's screen and a stray click or Esc made runs flaky (Home opened mid-test).
+    /// While a playtest runs, real mouse/keyboard input is dropped before UI and world see it (see
+    /// <see cref="_Input"/>): the window is on the player's screen and a stray click or Esc made runs flaky
+    /// (Home opened mid-test).
     /// </summary>
-    public override void _Input(InputEvent @event)
-    {
-        if (PlaytestRequested && @event.Device != PlaytestDevice)
-        {
-            GetViewport().SetInputAsHandled();
-        }
-    }
+    private static bool IsRealInputDuringPlaytest(InputEvent @event) =>
+        PlaytestRequested && @event.Device != PlaytestDevice;
 
     private static bool PlaytestRequested => GameDataPaths.IsPlaytest;
 
@@ -329,6 +325,13 @@ public partial class World
         if (_campaign?.FirstLevel is not { } level)
         {
             return Fail("campagna senza livelli");
+        }
+
+        // Let the drone finish the deconstruction first: a bar still moving in the queue panel would make the
+        // next capture depend on timing.
+        if (!await PlaytestWaitUntil(LocalQueueEmpty, StepTimeout))
+        {
+            return Fail("smontaggio non finito prima della campagna");
         }
 
         // A level whose map file is missing: the list stays open with the reason, the game is untouched.

@@ -58,6 +58,13 @@ public sealed class SaveMigrationTests
         var onWater = new GridPosition(11, 18);
         Assert.True(state.Belts.ContainsKey(onWater));
         Assert.Equal(FloorKind.ShallowWater, terrain[onWater].Floor);
+
+        // Classic water stays buildable after the migration: the first free water cell of the lake under the belts.
+        var freeWater = Enumerable.Range(0, terrain.Height)
+            .SelectMany(y => Enumerable.Range(0, terrain.Width).Select(x => new GridPosition(x, y)))
+            .First(c => terrain[c].Floor == FloorKind.ShallowWater && !state.Belts.ContainsKey(c));
+        Assert.True(((Factory)state).CanPlace(
+            new BuildSpec("conveyor-basic", null, freeWater, Direction.East), out var waterReason), waterReason);
         var site = Assert.Single(state.Sites);
         Assert.Equal(new GridPosition(66, 56), site.Spec.Origin);
         Assert.InRange(site.Progress, 0.5f, 0.6f);
@@ -67,6 +74,8 @@ public sealed class SaveMigrationTests
         FactorySaveStore.Save("fixture-v12", host);
         var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("fixture-v12")));
         Assert.Equal((12, "classico", 0, (string?)null), (data.Version, data.Generator, data.MapSize, data.MapId));
+        Assert.True(FactorySaveStore.TryLoad(Content, "fixture-v12", out var resaved, out error), error);
+        Assert.Equal(host.Checksum(), resaved!.Checksum());
         host.AdvanceTicks(120);
         Assert.Empty(host.State.Sites);
         Assert.Equal(2, host.State.Miners.Count);
@@ -98,13 +107,53 @@ public sealed class SaveMigrationTests
 
         FactorySaveStore.Save("v12-biomi", host);
         var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("v12-biomi")));
-        Assert.Equal(("biomi", 200, (string?)null), (data.Generator, data.MapSize, data.MapId));
+        Assert.Equal(("biomi-1", 200, (string?)null), (data.Generator, data.MapSize, data.MapId));
+        Assert.Equal(TerrainMap.TerrainHash(factory.Terrain!), data.TerrainHash);
 
         Assert.True(FactorySaveStore.TryLoad(Content, "v12-biomi", out var loaded, out var error), error);
         Assert.Equal(MapGenerator.Name, loaded!.State.Terrain!.Generator);
         Assert.Equal(TerrainMap.TerrainHash(factory.Terrain!), TerrainMap.TerrainHash(loaded.State.Terrain));
         Assert.Equal(host.Checksum(), loaded.Checksum());
         Assert.True(loaded.State.Belts.ContainsKey(new GridPosition(98, 100)));
+    }
+
+    private static FactorySaveData BiomeSave() =>
+        NewGame.Sandbox(Content, new GridPosition(100, 100), map: MapGenSettings.Normal((MapSize)200, 31)).Capture();
+
+    [Fact]
+    public void OldBiomeNameLoadsAsTheFirstBiomeGenerator()
+    {
+        // v12 saves written before the generator was versioned say "biomi": the same frozen generator.
+        var data = BiomeSave();
+        var hash = data.TerrainHash;
+        data.Generator = "biomi";
+        data.TerrainHash = null;
+
+        var restored = Factory.Restore(Content, data);
+
+        Assert.Equal(MapGenerator.Name, restored.Terrain!.Generator);
+        Assert.Equal(hash, TerrainMap.TerrainHash(restored.Terrain));
+    }
+
+    [Fact]
+    public void TerrainHashMustMatchTheRegeneratedTerrain()
+    {
+        var data = BiomeSave();
+        Assert.NotNull(data.TerrainHash);
+        Assert.NotNull(Factory.Restore(Content, data).Terrain);
+
+        // A generator that no longer makes the saved terrain: refused, never loaded onto another map.
+        data.TerrainHash += 1;
+        var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data));
+        Assert.StartsWith("Il terreno rigenerato non corrisponde al salvataggio", ex.Message);
+
+        var classic = NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 6).Capture();
+        classic.TerrainHash ^= 0xFF;
+        Assert.Throws<SaveMapException>(() => Factory.Restore(Content, classic));
+
+        // Without a hash (v12 saves written before it) the terrain loads as before.
+        data.TerrainHash = null;
+        Assert.NotNull(Factory.Restore(Content, data).Terrain);
     }
 
     [Fact]
@@ -138,11 +187,16 @@ public sealed class SaveMigrationTests
         var slots = FactorySaveStore.ListSlots();
 
         var b = Assert.Single(slots, s => s.Id == "elenco-biomi");
-        Assert.Equal(("biomi", (string?)null, 31, 200), (b.Generator, b.MapId, b.Seed, b.MapWidth));
+        Assert.Equal(("biomi-1", (string?)null, 31, 200), (b.Generator, b.MapId, b.Seed, b.MapWidth));
         var c = Assert.Single(slots, s => s.Id == "elenco-classico");
         Assert.Equal(("classico", (string?)null), (c.Generator, c.MapId));
         var m = Assert.Single(slots, s => s.Id == "elenco-campagna");
         Assert.Equal(("campagna", level.Map), (m.Generator, m.MapId));
+
+        // One slot without listing them all: the same row.
+        var one = FactorySaveStore.ReadSlotInfo("elenco-biomi");
+        Assert.Equal((b.Generator, b.Seed, b.MapWidth, b.MapHeight), (one!.Generator, one.Seed, one.MapWidth, one.MapHeight));
+        Assert.Null(FactorySaveStore.ReadSlotInfo("elenco-inesistente"));
 
         // A v11 file has neither field: the list leaves them empty (the game loads it on the classic generator).
         Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
@@ -181,9 +235,13 @@ public sealed class SaveMigrationTests
         var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
         Assert.StartsWith($"La mappa della campagna '{data.MapId}' è cambiata", ex.Message);
 
-        data.MapId = "../maps/" + level.Map;
-        ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
-        Assert.Equal($"Nome della mappa della campagna non valido: '{data.MapId}'.", ex.Message);
+        // Only ids a map file can have (the same rule as CampaignMapFile): never a path, never upper case.
+        foreach (var id in new[] { "../maps/" + level.Map, "Foo", "c:mappa", "liv 01" })
+        {
+            data.MapId = id;
+            ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
+            Assert.Equal($"Nome della mappa della campagna non valido: '{id}'.", ex.Message);
+        }
     }
 
     [Fact]
