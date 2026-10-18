@@ -31,6 +31,7 @@ Tutti gli otto gruppi proposti si fanno: (1) direzione che segue la linea, (2) R
 - **Tier diverso**: sostituzione con un cantiere che ricorda il nastro precedente; al termine il nastro nuovo eredita gli oggetti. Si paga la differenza secondo le regole dei cantieri di ADR 0003. Se il cantiere deve salvare il blocco precedente e il formato non lo permette, i salvataggi passano alla v13 (con lettura dei v12).
 - **Ctrl da un capo all'altro di una catena**: il trascinamento segue la catena esistente invece della retta e la potenzia tutta al tier in mano.
 - Stesso nastro, stessa direzione: nessun effetto, in silenzio.
+- **Attraversare un nastro perpendicolare** (decisione dell'utente del 2026-10-19, come Mindustry): l'incrocio automatico si crea solo se la giunzione è sbloccata (e si può pagare). Senza giunzione il trascinamento non si rifiuta più (`CrossingNeedsJunction` sparisce dalla linea): il nastro nuovo sostituisce la cella attraversata con le regole qui sopra (giro sul posto o cambio di tier), così la linea attraversata diventa un'unione 2→1 o 3→1 nella linea nuova. Due linee che si incrociano senza mescolarsi esistono solo con la giunzione.
 
 ### Ponte automatico
 
