@@ -5,7 +5,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Everything about construction, in one node above buildings and items (the HUD is a CanvasLayer, so
-/// it stays on top): the local player's plans (drawn here), the sites (a sprite each with the
+/// it stays on top): the local player's plans (drawn on their own layer, see <see cref="_Ready"/>), the sites (a sprite each with the
 /// <c>construct</c> shader) and the drones with their build beam (<see cref="DroneVisual"/>).
 /// Reads <see cref="IGameView"/> only; plans are redrawn only when the simulation ticked. The per-frame
 /// sync walks the view's lists by index (no boxed enumerators) and reuses its buffers: nothing is allocated
@@ -23,14 +23,7 @@ public partial class ConstructionLayer : Node2D
         Both = Buildings | Belts
     }
 
-    /// <summary>Mindustry's <c>Pal.accent</c>: plans, beam and site outline.</summary>
-    public static readonly Color Accent = new("FFD37F");
-
-    /// <summary>Mindustry's <c>Pal.remove</c>: deconstruction and breaking plans.</summary>
-    public static readonly Color Remove = new("E55454");
-
     private const int LocalPlayer = 0;
-    private const float PlanAlpha = 0.35f;
     private const float BreakFillAlpha = 0.3f;
     private const int SitesZ = 1;
 
@@ -46,6 +39,7 @@ public partial class ConstructionLayer : Node2D
     private IGameView? _view;
     private long _lastTick = -1;
     private bool _drewPlans;
+    private Node2D? _plans;
 
     private sealed class SiteVisual(Node2D root, ShaderMaterial material, BuildSpec spec, Rect2 bounds)
     {
@@ -110,14 +104,27 @@ public partial class ConstructionLayer : Node2D
             _lastTick = view.CurrentTick;
             if (_drewPlans || HasLocalPlans(view))
             {
-                QueueRedraw();
+                _plans?.QueueRedraw();
             }
         }
 
         return changed;
     }
 
-    public override void _Draw()
+    /// <summary>
+    /// The plans are drawn on a canvas layer of their own that follows the camera (like the placement ghost): aligned
+    /// with the world, above it, and never darkened by the night.
+    /// </summary>
+    public override void _Ready()
+    {
+        var layer = new CanvasLayer { Name = "Piani", Layer = World.PlacementLayer, FollowViewportEnabled = true };
+        _plans = new Node2D { Name = "PianiLocali" };
+        _plans.Draw += () => DrawPlans(_plans);
+        layer.AddChild(_plans);
+        AddChild(layer);
+    }
+
+    private void DrawPlans(CanvasItem canvas)
     {
         _drewPlans = false;
         if (_view is null)
@@ -145,7 +152,7 @@ public partial class ConstructionLayer : Node2D
                     continue;
                 }
 
-                DrawPlan(plan);
+                DrawPlan(canvas, plan);
             }
         }
     }
@@ -165,53 +172,36 @@ public partial class ConstructionLayer : Node2D
         return false;
     }
 
-    private void DrawPlan(BuildPlan plan)
+    private void DrawPlan(CanvasItem canvas, BuildPlan plan)
     {
         var tiles = _view!.PlanTiles(plan);
         if (plan.Breaking)
         {
             // Mindustry style: a translucent red fill over the whole block, plus the outline and the X.
             var box = Bounds(tiles);
-            DrawRect(box, new Color(Remove, BreakFillAlpha));
-            DrawRect(box, Remove, filled: false, width: -1f);
-            DrawLine(box.Position, box.End, Remove, -1f);
-            DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), Remove, -1f);
+            canvas.DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha));
+            canvas.DrawRect(box, UiColors.Smontaggio, filled: false, width: -1f);
+            canvas.DrawLine(box.Position, box.End, UiColors.Smontaggio, -1f);
+            canvas.DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), UiColors.Smontaggio, -1f);
             return;
         }
 
+        // The same preview as the placement ghost (a belt drag shows every planned cell like the ghost).
         var spec = plan.Spec;
-        var tex = Sprites.For(spec.StructureId);
-        var ghost = new Color(1f, 1f, 1f, PlanAlpha);
-        if (spec.Kind is null)
+        var arrow = PlacementPreview.HasDirection(spec.Kind);
+        if (spec.Kind is null or BuildingKind.Bridge)
         {
-            // Belt: its arrow sprite turned to the belt's direction.
+            // Belts: one turned sprite per cell; a bridge: both ends (the exit is where a bridge placed now would end).
             for (var i = 0; i < tiles.Count; i++)
             {
-                var cell = CellRect(tiles[i]);
-                DrawSetTransform(cell.GetCenter(), DirectionAngle(spec.Direction), Vector2.One);
-                DrawTextureRect(tex, new Rect2(-cell.Size / 2f, cell.Size), false, ghost);
-                DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
-                DrawRect(cell, Accent, filled: false, width: -1f);
+                PlacementPreview.Draw(canvas, spec.StructureId, CellRect(tiles[i]), spec.Direction,
+                    turnSprite: spec.Kind is null, arrow, valid: true);
             }
 
             return;
         }
 
-        if (spec.Kind == BuildingKind.Bridge)
-        {
-            // Both ends; the exit is where a bridge placed now would end.
-            for (var i = 0; i < tiles.Count; i++)
-            {
-                DrawTextureRect(tex, CellRect(tiles[i]), false, ghost);
-                DrawRect(CellRect(tiles[i]), Accent, filled: false, width: -1f);
-            }
-
-            return;
-        }
-
-        var rect = Bounds(tiles);
-        DrawTextureRect(tex, rect, false, ghost);
-        DrawRect(rect, Accent, filled: false, width: -1f);
+        PlacementPreview.Draw(canvas, spec.StructureId, Bounds(tiles), spec.Direction, turnSprite: false, arrow, valid: true);
     }
 
     /// <summary>
@@ -280,7 +270,7 @@ public partial class ConstructionLayer : Node2D
         if (spec.Kind is null || spec.Kind == BuildingKind.Bridge)
         {
             // One cell per piece (bridge: both ends); belts turn to their direction.
-            var angle = spec.Kind is null ? DirectionAngle(spec.Direction) : 0f;
+            var angle = spec.Kind is null ? PlacementPreview.Angle(spec.Direction) : 0f;
             foreach (var tile in site.Tiles)
             {
                 root.AddChild(SiteSprite(tex, material, CellRect(tile), angle));
@@ -321,7 +311,7 @@ public partial class ConstructionLayer : Node2D
             }
 
             Rect2? beam = null;
-            var beamColor = Accent;
+            var beamColor = UiColors.Costruzione;
             if (builder.CurrentSiteId is { } siteId && FindSite(view, siteId) is { } site)
             {
                 beam = Bounds(site.Tiles);
@@ -376,10 +366,10 @@ public partial class ConstructionLayer : Node2D
         _sites.Clear();
         _drones.Clear();
         _lastTick = -1;
-        QueueRedraw();
+        _plans?.QueueRedraw();
     }
 
-    private static Color ColorOf(ConstructSite site) => site.Deconstructing ? Remove : Accent;
+    private static Color ColorOf(ConstructSite site) => site.Deconstructing ? UiColors.Smontaggio : UiColors.Costruzione;
 
     private static Rect2 CellRect(GridPosition tile) =>
         new(tile.X * World.TileSize, tile.Y * World.TileSize, World.TileSize, World.TileSize);
@@ -394,11 +384,5 @@ public partial class ConstructionLayer : Node2D
         }
 
         return rect;
-    }
-
-    private static float DirectionAngle(Direction direction)
-    {
-        var (dx, dy) = DirectionMath.ToOffset(direction);
-        return Mathf.Atan2(dy, dx);
     }
 }

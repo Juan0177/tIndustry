@@ -103,29 +103,14 @@ public partial class BuildPalette : PanelContainer
 
     public override void _Ready()
     {
-        var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left", 8);
-        margin.AddThemeConstantOverride("margin_right", 8);
-        margin.AddThemeConstantOverride("margin_top", 8);
-        margin.AddThemeConstantOverride("margin_bottom", 8);
-        AddChild(margin);
-
-        var col = new VBoxContainer();
-        col.AddThemeConstantOverride("separation", 6);
-        margin.AddChild(col);
-
-        var top = new HBoxContainer();
-        top.AddThemeConstantOverride("separation", 6);
-        col.AddChild(top);
+        var top = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
+        AddChild(top);
 
         var gridWrap = new VBoxContainer();
         gridWrap.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        gridWrap.AddThemeConstantOverride("separation", 4);
         top.AddChild(gridWrap);
 
-        _categoryTitle = new Label { Text = "Logistica", MouseFilter = MouseFilterEnum.Ignore };
-        _categoryTitle.AddThemeColorOverride("font_color", TextMuted);
-        _categoryTitle.AddThemeFontSizeOverride("font_size", 11);
+        _categoryTitle = MakeLabel("Logistica", UiTheme.TestoTenue);
         gridWrap.AddChild(_categoryTitle);
 
         _blockGrid = new GridContainer
@@ -133,17 +118,15 @@ public partial class BuildPalette : PanelContainer
             Columns = 4,
             MouseFilter = MouseFilterEnum.Ignore
         };
-        _blockGrid.AddThemeConstantOverride("h_separation", 4);
-        _blockGrid.AddThemeConstantOverride("v_separation", 4);
         gridWrap.AddChild(_blockGrid);
 
         var catRail = new VBoxContainer();
-        catRail.AddThemeConstantOverride("separation", 4);
         top.AddChild(catRail);
-        AddCategoryButton(catRail, BuildCategory.Tools, "res://assets/ui/cat-tools.png", CatTools, "Strumenti");
-        AddCategoryButton(catRail, BuildCategory.Logistics, "res://assets/ui/cat-logistics.png", CatLogistics, "Logistica");
-        AddCategoryButton(catRail, BuildCategory.Production, "res://assets/ui/cat-production.png", CatProduction, "Produzione");
-        AddCategoryButton(catRail, BuildCategory.Power, "res://assets/ui/cat-power.png", CatPower, "Potenza");
+        AddCategoryButton(catRail, BuildCategory.Tools, "cat-strumenti", "Strumenti");
+        AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica", "Logistica");
+        AddCategoryButton(catRail, BuildCategory.Production, "cat-produzione", "Produzione");
+        AddCategoryButton(catRail, BuildCategory.Power, "cat-potenza", "Potenza");
+        SyncCategoryButtons();
     }
 
     /// <summary>Select a tool (no event); switches to its category unless it is the cursor.</summary>
@@ -159,8 +142,13 @@ public partial class BuildPalette : PanelContainer
         RefreshToolChrome();
     }
 
+    /// <summary>
+    /// Locked blocks (not yet researched) are left out of the palette, and a category with none unlocked loses its
+    /// button; an unlock shows the block at once. The grid is rebuilt only when the locked set changes.
+    /// </summary>
     public void SetLocked(IEnumerable<(ToolKind Tool, bool Locked)> states)
     {
+        var changed = false;
         foreach (var (tool, locked) in states)
         {
             if (tool == ToolKind.Cursor)
@@ -168,17 +156,25 @@ public partial class BuildPalette : PanelContainer
                 continue;
             }
 
-            if (locked)
-            {
-                _lockedTools.Add(tool);
-            }
-            else
-            {
-                _lockedTools.Remove(tool);
-            }
+            changed |= locked ? _lockedTools.Add(tool) : _lockedTools.Remove(tool);
+        }
+
+        if (changed)
+        {
+            SyncCategoryButtons();
+            RebuildGrid();
         }
 
         RefreshToolChrome();
+    }
+
+    /// <summary>A category button shows only while one of its blocks is unlocked (Strumenti always: the cursor).</summary>
+    private void SyncCategoryButtons()
+    {
+        foreach (var (category, slot) in _categorySlots)
+        {
+            slot.Visible = EntriesFor(category).Any(e => !_lockedTools.Contains(e.Tool));
+        }
     }
 
     public bool IsLocked(ToolKind tool) => _lockedTools.Contains(tool);
@@ -256,58 +252,32 @@ public partial class BuildPalette : PanelContainer
 
         foreach (var (cat, slot) in _categorySlots)
         {
-            ApplySlotChrome(slot, cat == _category, locked: false, selectedBorder: SlotSelected);
+            ApplySlotChrome(slot, cat == _category, locked: false);
         }
     }
 
-    private static void ApplySlotChrome(
-        PanelContainer slot,
-        bool selected,
-        bool locked,
-        Color? selectedBorder = null)
+    /// <summary>Selected, locked or idle slot look; a locked block is also dimmed.</summary>
+    private static void ApplySlotChrome(PanelContainer slot, bool selected, bool locked)
     {
-        var accent = selectedBorder ?? SlotSelected;
-        var style = (StyleBoxFlat)slot.GetThemeStylebox("panel").Duplicate();
-        style.BorderColor = selected
-            ? accent
-            : locked
-                ? new Color(0.35f, 0.28f, 0.28f, 1f)
-                : SlotIdle;
-        var bw = selected ? 3 : 1;
-        style.BorderWidthLeft = bw;
-        style.BorderWidthTop = bw;
-        style.BorderWidthRight = bw;
-        style.BorderWidthBottom = bw;
-        style.BgColor = selected
-            ? new Color(0.22f, 0.22f, 0.16f, 1f)
-            : locked
-                ? new Color(0.10f, 0.10f, 0.10f, 1f)
-                : SlotBg;
-        slot.AddThemeStyleboxOverride("panel", style);
-        slot.Modulate = locked ? new Color(0.55f, 0.55f, 0.55f, 1f) : Colors.White;
+        slot.ThemeTypeVariation = selected ? UiTheme.SlotScelto : locked ? UiTheme.SlotBloccato : UiTheme.Slot;
+        slot.Modulate = locked && !selected ? new Color(0.55f, 0.55f, 0.55f, 1f) : Colors.White;
     }
 
-    private void AddCategoryButton(
-        Control parent,
-        BuildCategory category,
-        string iconPath,
-        Color tint,
-        string tooltip)
+    private void AddCategoryButton(Control parent, BuildCategory category, string icon, string tooltip)
     {
         var slot = new PanelContainer
         {
             CustomMinimumSize = new Vector2(40, 40),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = tooltip
+            TooltipText = tooltip,
+            ThemeTypeVariation = UiTheme.Slot
         };
-        slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         parent.AddChild(slot);
         _categorySlots[category] = slot;
 
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         slot.AddChild(center);
-        center.AddChild(MakeIcon(
-            ResourceLoader.Exists(iconPath) ? GD.Load<Texture2D>(iconPath) : null, 24, tint));
+        center.AddChild(MakeIcon(UiTheme.Icon(icon), 32, pixel: true));
 
         slot.GuiInput += e =>
         {
@@ -344,7 +314,16 @@ public partial class BuildPalette : PanelContainer
 
         foreach (var entry in EntriesFor(_category))
         {
-            AddPaletteCell(_blockGrid, entry);
+            if (!_lockedTools.Contains(entry.Tool))
+            {
+                AddPaletteCell(_blockGrid, entry);
+            }
+        }
+
+        if (_hovered is { } hovered && !_toolSlots.ContainsKey(hovered))
+        {
+            _hovered = null;
+            Hovered?.Invoke(null);
         }
     }
 
@@ -377,9 +356,9 @@ public partial class BuildPalette : PanelContainer
             MouseFilter = MouseFilterEnum.Stop,
             TooltipText = entry.Tool == ToolKind.Cursor
                 ? "Cursore"
-                : string.IsNullOrEmpty(entry.Hotkey) ? DisplayName(entry) : $"{DisplayName(entry)} [{entry.Hotkey}]"
+                : string.IsNullOrEmpty(entry.Hotkey) ? DisplayName(entry) : $"{DisplayName(entry)} [{entry.Hotkey}]",
+            ThemeTypeVariation = UiTheme.Slot
         };
-        slot.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         parent.AddChild(slot);
         _toolSlots[entry.Tool] = slot;
 
@@ -388,14 +367,8 @@ public partial class BuildPalette : PanelContainer
 
         if (entry.Tool == ToolKind.Cursor)
         {
-            var glyph = new Label
-            {
-                Text = "↖",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            glyph.AddThemeColorOverride("font_color", TextPrimary);
-            glyph.AddThemeFontSizeOverride("font_size", 26);
+            var glyph = MakeLabel("↖", UiTheme.TitoloChiaro);
+            glyph.HorizontalAlignment = HorizontalAlignment.Center;
             center.AddChild(glyph);
         }
         else if (entry.Tool == ToolKind.Sorter)
@@ -410,7 +383,8 @@ public partial class BuildPalette : PanelContainer
             frame.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             stack.AddChild(frame);
 
-            // Item filter in the empty middle of the sorter (14/32 of the sprite), item icons keep the HUD filter.
+            // Item filter in the empty middle of the sorter (14/32 of the sprite): the 32 px item art drawn smaller,
+            // smoothly.
             var half = side * 7f / 32f;
             var filter = new TextureRect
             {
@@ -418,7 +392,8 @@ public partial class BuildPalette : PanelContainer
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 CustomMinimumSize = new Vector2(2 * half, 2 * half),
-                MouseFilter = MouseFilterEnum.Ignore
+                MouseFilter = MouseFilterEnum.Ignore,
+                TextureFilter = TextureFilterEnum.Linear
             };
             filter.SetAnchorsPreset(LayoutPreset.Center);
             filter.OffsetLeft = -half;

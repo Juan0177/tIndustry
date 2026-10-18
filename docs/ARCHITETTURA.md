@@ -181,7 +181,7 @@ Il salvataggio è `SaveFileData` / `FactorySaveStore` (`src/TIndustry.Shared/Sav
 
 ## Grafica e sprite
 
-Gli sprite di edifici, nastri, Core, drone e oggetti sono pixel-art originale generata da `python tools/art/genera.py` ([ADR 0004](decisioni/0004-arte-generata-da-script.md), istruzioni in `tools/art/README.md`). I PNG in `godot/assets/` non si ritoccano a mano. Le icone dell'interfaccia in `godot/assets/ui/` sono di terzi, con autore e licenza in `godot/assets/ATTRIBUTION.md`.
+Gli sprite di edifici, nastri, Core, drone e oggetti sono pixel-art originale generata da `python tools/art/genera.py` ([ADR 0004](decisioni/0004-arte-generata-da-script.md), istruzioni in `tools/art/README.md`). I PNG in `godot/assets/` non si ritoccano a mano. Anche le icone e il carattere pixel dell'interfaccia in `godot/assets/ui/` sono generati da `tools/art` (G4); l'interfaccia li usa attraverso il tema unico `UiTheme` (`godot/scripts/ui/`).
 
 - **Generatore.** `tools/art/palette.py` (tutti i colori, rampe da scuro a chiaro, luce da in alto a sinistra, contorno scuro), `forme.py` (pannelli, bulloni, tubi, griglie, ingranaggi, strisce di fotogrammi), `blocchi/` (un modulo per famiglia: ogni funzione registrata con `@sprite("<nome>")` è un PNG). Uscita deterministica; `genera.py --controlla` dice se `godot/assets/` è aggiornata. `.dev/arte/tavola.png` mette ogni sprite vecchio accanto al nuovo per la revisione.
 - **Nomi e misure.** 32 px per cella, mostrati ×2 con filtro Nearest. Nome = id di `content.json`; parti con suffisso (`miner-base`, `miner-drill`, `assembler-arm`…); animazioni come strisce `<id>-anim.png` di fotogrammi quadrati; tier `core-1…4`, `drone-1…3`; oggetti `<id>.png` 32×32 (HUD) e `<id>-belt.png` 10×10 (nastri).

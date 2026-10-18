@@ -3,24 +3,9 @@ using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
-/// <summary>Shared HUD palette and widget factories (panels, slots, icons, cost chips).</summary>
+/// <summary>HUD widget factories (panels, icons, cost chips) on the looks of <see cref="UiTheme"/>.</summary>
 public static class HudStyle
 {
-    public static readonly Color PanelBg = new(0.08f, 0.09f, 0.10f, 0.92f);
-    public static readonly Color PanelEdge = new(0.28f, 0.32f, 0.30f, 1f);
-    public static readonly Color SlotBg = new(0.14f, 0.16f, 0.15f, 1f);
-    public static readonly Color SlotIdle = new(0.38f, 0.42f, 0.40f, 1f);
-    public static readonly Color SlotSelected = new(0.92f, 0.78f, 0.28f, 1f);
-    public static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    public static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-    public static readonly Color Insufficient = new(0.90f, 0.38f, 0.32f, 1f);
-    public static readonly Color MoneyColor = new(0.98f, 0.82f, 0.38f, 1f);
-    public static readonly Color PowerColor = new(0.98f, 0.90f, 0.42f, 1f);
-    public static readonly Color CatTools = new(0.78f, 0.52f, 0.48f, 1f);
-    public static readonly Color CatLogistics = new(0.48f, 0.68f, 0.84f, 1f);
-    public static readonly Color CatProduction = new(0.84f, 0.60f, 0.30f, 1f);
-    public static readonly Color CatPower = new(0.92f, 0.80f, 0.30f, 1f);
-
     /// <summary>Item icon in its own colours (32 px; never tinted).</summary>
     public static Texture2D ItemTexture(string itemId) => Sprites.Item(itemId);
 
@@ -32,7 +17,12 @@ public static class HudStyle
         _ => n.ToString()
     };
 
-    public static TextureRect MakeIcon(Texture2D? tex, float size, Color? tint = null)
+    /// <summary>
+    /// Icon of <paramref name="size"/> UI px. Item and block art (32 px) drawn smaller is filtered smoothly so no
+    /// art pixel is dropped; at 32 px or more, and for the white interface icons (<paramref name="pixel"/>), the
+    /// crisp Nearest filter.
+    /// </summary>
+    public static TextureRect MakeIcon(Texture2D? tex, float size, Color? tint = null, bool pixel = false)
     {
         var icon = new TextureRect
         {
@@ -40,7 +30,10 @@ public static class HudStyle
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(size, size),
-            MouseFilter = Control.MouseFilterEnum.Ignore
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            TextureFilter = pixel || size >= Sprites.PixelsPerCell
+                ? CanvasItem.TextureFilterEnum.Nearest
+                : CanvasItem.TextureFilterEnum.Linear
         };
         if (tint is { } t)
         {
@@ -57,60 +50,32 @@ public static class HudStyle
         return panel;
     }
 
-    /// <summary>Applies the dark HUD panel look to an existing container (used by panel subclasses).</summary>
+    /// <summary>Names an existing HUD panel and makes it take the mouse (its look is the theme's PanelContainer).</summary>
     public static void StylePanel(PanelContainer panel, string name)
     {
         panel.Name = name;
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
-        var style = new StyleBoxFlat
-        {
-            BgColor = PanelBg,
-            BorderColor = PanelEdge,
-            BorderWidthLeft = 1,
-            BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 0,
-            ContentMarginRight = 0,
-            ContentMarginTop = 0,
-            ContentMarginBottom = 0
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
     }
 
-    public static StyleBoxFlat MakeSlotStyle(Color border, int width) => new()
+    /// <summary>A label with the theme look <paramref name="variation"/> (empty = plain text).</summary>
+    public static Label MakeLabel(string text = "", string variation = "")
     {
-        BgColor = SlotBg,
-        BorderColor = border,
-        BorderWidthLeft = width,
-        BorderWidthTop = width,
-        BorderWidthRight = width,
-        BorderWidthBottom = width,
-        CornerRadiusTopLeft = 3,
-        CornerRadiusTopRight = 3,
-        CornerRadiusBottomLeft = 3,
-        CornerRadiusBottomRight = 3,
-        ContentMarginLeft = 2,
-        ContentMarginRight = 2,
-        ContentMarginTop = 2,
-        ContentMarginBottom = 2
-    };
+        return new Label
+        {
+            Text = text,
+            ThemeTypeVariation = variation,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+    }
 
     public static Control MakeMoneyChip(int amount, bool ok)
     {
-        var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-        row.AddThemeConstantOverride("separation", 2);
+        var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaStretta };
         var icon = MakeIcon(ItemTexture("money"), 16);
         icon.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         row.AddChild(icon);
-        var label = new Label { Text = $"{amount}", MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
-        label.AddThemeColorOverride("font_color", ok ? TextPrimary : Insufficient);
-        label.AddThemeFontSizeOverride("font_size", 11);
-        row.AddChild(label);
+        row.AddChild(MakeLabel($"{amount}", ok ? "" : UiTheme.TestoRosso));
         return row;
     }
 
@@ -121,30 +86,23 @@ public static class HudStyle
         {
             CustomMinimumSize = new Vector2(44, 28),
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            TooltipText = content?.DisplayName(itemId) ?? itemId
+            TooltipText = content?.DisplayName(itemId) ?? itemId,
+            ThemeTypeVariation = ok ? UiTheme.Slot : UiTheme.SlotMancante
         };
-        wrap.AddThemeStyleboxOverride("panel", MakeSlotStyle(ok ? SlotIdle : Insufficient, 1));
 
-        var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-        row.AddThemeConstantOverride("separation", 2);
+        var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaStretta };
         wrap.AddChild(row);
 
         var iconHost = new Control
         {
             CustomMinimumSize = new Vector2(22, 22),
-            MouseFilter = Control.MouseFilterEnum.Ignore
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
         };
         row.AddChild(iconHost);
 
-        var icon = new TextureRect
-        {
-            Texture = ItemTexture(itemId),
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            CustomMinimumSize = new Vector2(20, 20),
-            Position = new Vector2(1, 1),
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
+        var icon = MakeIcon(ItemTexture(itemId), 20);
+        icon.Position = new Vector2(1, 1);
         iconHost.AddChild(icon);
 
         if (!ok)
@@ -152,7 +110,7 @@ public static class HudStyle
             // Mindustry-style red slash over missing material.
             var slash = new ColorRect
             {
-                Color = Insufficient,
+                Color = UiColors.Insufficiente,
                 MouseFilter = Control.MouseFilterEnum.Ignore,
                 Rotation = Mathf.DegToRad(-38f),
                 PivotOffset = new Vector2(11, 1)
@@ -163,7 +121,7 @@ public static class HudStyle
 
             var slash2 = new ColorRect
             {
-                Color = new Color(0.15f, 0.05f, 0.05f, 0.85f),
+                Color = UiColors.Ombra,
                 MouseFilter = Control.MouseFilterEnum.Ignore,
                 Rotation = Mathf.DegToRad(-38f),
                 PivotOffset = new Vector2(11, 1)
@@ -173,16 +131,7 @@ public static class HudStyle
             iconHost.AddChild(slash2);
         }
 
-        var qty = new Label
-        {
-            Text = $"×{amount}",
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
-        qty.AddThemeColorOverride("font_color", ok ? TextPrimary : Insufficient);
-        qty.AddThemeFontSizeOverride("font_size", 11);
-        row.AddChild(qty);
-
+        row.AddChild(MakeLabel($"×{amount}", ok ? "" : UiTheme.TestoRosso));
         return wrap;
     }
 }

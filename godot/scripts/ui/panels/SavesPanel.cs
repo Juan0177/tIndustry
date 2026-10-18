@@ -9,11 +9,6 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class SavesPanel : Control
 {
-    private static readonly Color Dim = new(0.04f, 0.05f, 0.05f, 0.82f);
-    private static readonly Color CardBg = new(0.08f, 0.10f, 0.11f, 0.96f);
-    private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-
     private VBoxContainer? _list;
     private Label? _hint;
     private Label? _status;
@@ -92,77 +87,55 @@ public partial class SavesPanel : Control
 
     private void BuildUi()
     {
-        var dim = new ColorRect { Color = Dim, MouseFilter = MouseFilterEnum.Stop };
+        var dim = new ColorRect { Color = UiColors.Oscuramento, MouseFilter = MouseFilterEnum.Stop };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var card = new PanelContainer { Name = "SavesCard" };
+        var card = new PanelContainer { Name = "SavesCard", ThemeTypeVariation = UiTheme.Scheda };
         card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -380;
-        card.OffsetTop = -300;
-        card.OffsetRight = 380;
-        card.OffsetBottom = 300;
-        card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = CardBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 18,
-            ContentMarginRight = 18,
-            ContentMarginTop = 16,
-            ContentMarginBottom = 16
-        });
+        card.OffsetLeft = -440;
+        card.OffsetTop = -270;
+        card.OffsetRight = 440;
+        card.OffsetBottom = 270;
+        card.GrowHorizontal = GrowDirection.Both;
+        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 10);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         card.AddChild(root);
 
-        var title = new Label
-        {
-            Text = "Gestione salvataggi",
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        title.AddThemeColorOverride("font_color", Accent);
-        title.AddThemeFontSizeOverride("font_size", 22);
-        root.AddChild(title);
+        var header = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia, Alignment = BoxContainer.AlignmentMode.Center };
+        root.AddChild(header);
+        var icon = HudStyle.MakeIcon(UiTheme.Icon("salvataggi"), 32, pixel: true);
+        icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        header.AddChild(icon);
+        header.AddChild(new Label { Text = "Gestione salvataggi", ThemeTypeVariation = UiTheme.Titolo });
 
         _hint = new Label
         {
             Text = "↑↓ seleziona · Invio carica · Elimina (due click) · Duplica Continua · Salva come.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        _hint.AddThemeColorOverride("font_color", TextMuted);
-        _hint.AddThemeFontSizeOverride("font_size", 12);
         root.AddChild(_hint);
 
         var scroll = new ScrollContainer
         {
-            CustomMinimumSize = new Vector2(0, 300),
-            SizeFlagsVertical = SizeFlags.ExpandFill
+            CustomMinimumSize = new Vector2(0, 260),
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
         root.AddChild(scroll);
 
         _list = new VBoxContainer();
-        _list.AddThemeConstantOverride("separation", 6);
         _list.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.AddChild(_list);
 
-        _status = new Label { HorizontalAlignment = HorizontalAlignment.Center };
-        _status.AddThemeColorOverride("font_color", TextMuted);
-        _status.AddThemeFontSizeOverride("font_size", 12);
+        _status = new Label { HorizontalAlignment = HorizontalAlignment.Center, ThemeTypeVariation = UiTheme.TestoTenue };
         root.AddChild(_status);
 
-        var actions = new HBoxContainer();
-        actions.AddThemeConstantOverride("separation", 8);
+        var actions = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(actions);
 
         actions.AddChild(MakeAction("Carica", OnLoadPressed));
@@ -230,9 +203,9 @@ public partial class SavesPanel : Control
             {
                 Text = "Nessun salvataggio. F5 in partita, Continua, o Salva come dopo la prima sessione.",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ThemeTypeVariation = UiTheme.TestoTenue
             };
-            empty.AddThemeColorOverride("font_color", TextMuted);
             _list.AddChild(empty);
             if (_status is not null)
             {
@@ -257,9 +230,10 @@ public partial class SavesPanel : Control
                 Text = FormatRow(slot),
                 CustomMinimumSize = new Vector2(0, 42),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Alignment = HorizontalAlignment.Left
+                Alignment = HorizontalAlignment.Left,
+                TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                ThemeTypeVariation = id == _selectedId ? UiTheme.PulsanteRigaScelta : UiTheme.PulsanteRiga
             };
-            row.Modulate = id == _selectedId ? new Color(1f, 0.95f, 0.7f) : Colors.White;
             row.Pressed += () =>
             {
                 _selectedId = id;

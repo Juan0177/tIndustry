@@ -12,7 +12,7 @@ namespace TIndustry.Godot;
 public partial class BlockInfoPanel : Control
 {
     /// <summary>Reserved height above the palette for the hover/select strip (empty = invisible).</summary>
-    private const float InfoSlotHeight = 78f;
+    private const float InfoSlotHeight = 88f;
 
     private PanelContainer? _infoPanel;
     private Label? _infoName;
@@ -45,55 +45,31 @@ public partial class BlockInfoPanel : Control
         _infoPanel.MouseFilter = MouseFilterEnum.Ignore;
         AddChild(_infoPanel);
 
-        var infoMargin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        infoMargin.AddThemeConstantOverride("margin_left", 8);
-        infoMargin.AddThemeConstantOverride("margin_right", 8);
-        infoMargin.AddThemeConstantOverride("margin_top", 6);
-        infoMargin.AddThemeConstantOverride("margin_bottom", 6);
-        _infoPanel.AddChild(infoMargin);
-
         var infoRoot = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        infoRoot.AddThemeConstantOverride("separation", 4);
-        infoMargin.AddChild(infoRoot);
+        _infoPanel.AddChild(infoRoot);
 
-        var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        header.AddThemeConstantOverride("separation", 6);
+        var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaLarga };
         infoRoot.AddChild(header);
 
-        _infoName = new Label
-        {
-            Text = "",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        _infoName.AddThemeColorOverride("font_color", TextPrimary);
-        _infoName.AddThemeFontSizeOverride("font_size", 14);
+        _infoName = MakeLabel();
+        _infoName.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(_infoName);
 
-        _infoHotkey = new Label { MouseFilter = MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
-        _infoHotkey.AddThemeColorOverride("font_color", TextMuted);
-        _infoHotkey.AddThemeFontSizeOverride("font_size", 12);
+        _infoHotkey = MakeLabel("", UiTheme.TestoTenue);
         header.AddChild(_infoHotkey);
 
         var infoBtn = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(26, 26),
+            CustomMinimumSize = new Vector2(28, 28),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = "Dettaglio blocco"
+            TooltipText = "Dettaglio blocco",
+            ThemeTypeVariation = UiTheme.Slot
         };
-        infoBtn.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         header.AddChild(infoBtn);
         var infoCenter = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         infoBtn.AddChild(infoCenter);
-        var q = new Label
-        {
-            Text = "?",
-            MouseFilter = MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        q.AddThemeColorOverride("font_color", SlotSelected);
-        q.AddThemeFontSizeOverride("font_size", 13);
+        var q = MakeLabel("?", UiTheme.TestoAccento);
+        q.HorizontalAlignment = HorizontalAlignment.Center;
         infoCenter.AddChild(q);
         infoBtn.GuiInput += e =>
         {
@@ -105,7 +81,6 @@ public partial class BlockInfoPanel : Control
         };
 
         _infoCostRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        _infoCostRow.AddThemeConstantOverride("separation", 4);
         infoRoot.AddChild(_infoCostRow);
     }
 
@@ -147,14 +122,7 @@ public partial class BlockInfoPanel : Control
         ResolveCost(entry.StructureId, out var money, out var materials);
         if (money <= 0 && materials.Count == 0)
         {
-            var free = new Label
-            {
-                Text = "—",
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            free.AddThemeColorOverride("font_color", TextMuted);
-            free.AddThemeFontSizeOverride("font_size", 12);
-            _infoCostRow.AddChild(free);
+            _infoCostRow.AddChild(MakeLabel("—", UiTheme.TestoTenue));
             return;
         }
 
@@ -177,54 +145,40 @@ public partial class BlockInfoPanel : Control
     public PanelContainer BuildDetailOverlay()
     {
         var overlay = MakePanel("BlockDetail");
+        overlay.ThemeTypeVariation = UiTheme.Scheda;
         _detailOverlay = overlay;
         overlay.SetAnchorsPreset(LayoutPreset.Center);
         overlay.GrowHorizontal = GrowDirection.Both;
         overlay.GrowVertical = GrowDirection.Both;
-        overlay.OffsetLeft = -220;
-        overlay.OffsetRight = 220;
-        overlay.OffsetTop = -140;
-        overlay.OffsetBottom = 140;
+        overlay.OffsetLeft = -260;
+        overlay.OffsetRight = 260;
+        overlay.OffsetTop = -180;
+        overlay.OffsetBottom = 180;
         overlay.Visible = false;
         overlay.MouseFilter = MouseFilterEnum.Stop;
 
-        var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left", 14);
-        margin.AddThemeConstantOverride("margin_right", 14);
-        margin.AddThemeConstantOverride("margin_top", 12);
-        margin.AddThemeConstantOverride("margin_bottom", 12);
-        overlay.AddChild(margin);
+        var vbox = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
+        overlay.AddChild(vbox);
 
-        var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 8);
-        margin.AddChild(vbox);
-
-        var title = new Label { Text = "Dettaglio blocco" };
-        title.AddThemeColorOverride("font_color", SlotSelected);
-        title.AddThemeFontSizeOverride("font_size", 16);
-        vbox.AddChild(title);
+        vbox.AddChild(MakeLabel("Dettaglio blocco", UiTheme.Titolo));
 
         _detailBody = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsVertical = SizeFlags.ExpandFill
         };
-        _detailBody.AddThemeColorOverride("font_color", TextPrimary);
-        _detailBody.AddThemeFontSizeOverride("font_size", 13);
         vbox.AddChild(_detailBody);
 
         var close = new PanelContainer
         {
             CustomMinimumSize = new Vector2(100, 32),
-            MouseFilter = MouseFilterEnum.Stop
+            MouseFilter = MouseFilterEnum.Stop,
+            ThemeTypeVariation = UiTheme.Slot
         };
-        close.AddThemeStyleboxOverride("panel", MakeSlotStyle(SlotIdle, 1));
         vbox.AddChild(close);
         var cc = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         close.AddChild(cc);
-        var cl = new Label { Text = "Chiudi", MouseFilter = MouseFilterEnum.Ignore };
-        cl.AddThemeColorOverride("font_color", TextPrimary);
-        cc.AddChild(cl);
+        cc.AddChild(MakeLabel("Chiudi"));
         close.GuiInput += e =>
         {
             if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })

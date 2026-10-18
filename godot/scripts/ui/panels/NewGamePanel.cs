@@ -5,17 +5,10 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Nuova partita: map size (Media, Grande, Enorme), seed (a random one already filled in, editable, with
-/// "Nuovo seme" and "Copia") and "Notte" (the game is played at night, G3), then "Inizia". Plain look until the G4
-/// interface pass.
+/// "Nuovo seme" and "Copia") and "Notte" (the game is played at night, G3), then "Inizia".
 /// </summary>
 public partial class NewGamePanel : Control
 {
-    private static readonly Color Dim = new(0.04f, 0.05f, 0.05f, 0.82f);
-    private static readonly Color CardBg = new(0.08f, 0.10f, 0.11f, 0.96f);
-    private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-    private static readonly Color ErrorColor = new(0.95f, 0.45f, 0.40f, 1f);
-
     private static readonly MapSize[] Sizes = [MapSize.Media, MapSize.Grande, MapSize.Enorme];
 
     private readonly Random _seeds = new();
@@ -114,7 +107,7 @@ public partial class NewGamePanel : Control
         }
 
         _status.Text = text;
-        _status.AddThemeColorOverride("font_color", error ? ErrorColor : TextMuted);
+        _status.ThemeTypeVariation = error ? UiTheme.TestoRosso : UiTheme.TestoTenue;
     }
 
     /// <summary>The seed in the field, or null (with the reason shown) when it is not a whole number.</summary>
@@ -152,47 +145,32 @@ public partial class NewGamePanel : Control
 
     private void BuildUi()
     {
-        var dim = new ColorRect { Color = Dim, MouseFilter = MouseFilterEnum.Stop };
+        var dim = new ColorRect { Color = UiColors.Oscuramento, MouseFilter = MouseFilterEnum.Stop };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var card = new PanelContainer { Name = "NewGameCard" };
+        var card = new PanelContainer { Name = "NewGameCard", ThemeTypeVariation = UiTheme.Scheda };
         card.SetAnchorsPreset(LayoutPreset.Center);
-        card.OffsetLeft = -250;
-        card.OffsetTop = -190;
-        card.OffsetRight = 250;
-        card.OffsetBottom = 190;
-        card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = CardBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 24,
-            ContentMarginRight = 24,
-            ContentMarginTop = 20,
-            ContentMarginBottom = 20
-        });
+        card.OffsetLeft = -290;
+        card.OffsetTop = -220;
+        card.OffsetRight = 290;
+        card.OffsetBottom = 220;
+        card.GrowHorizontal = GrowDirection.Both;
+        card.GrowVertical = GrowDirection.Both;
         AddChild(card);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 12);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         card.AddChild(root);
 
-        var title = new Label { Text = "Nuova partita", HorizontalAlignment = HorizontalAlignment.Center };
-        title.AddThemeColorOverride("font_color", Accent);
-        title.AddThemeFontSizeOverride("font_size", 24);
-        root.AddChild(title);
+        root.AddChild(new Label
+        {
+            Text = "Nuova partita",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = UiTheme.Titolo
+        });
 
         root.AddChild(MutedLabel("Misura della mappa"));
-        var sizes = new HBoxContainer();
-        sizes.AddThemeConstantOverride("separation", 8);
+        var sizes = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(sizes);
         var group = new ButtonGroup();
         foreach (var size in Sizes)
@@ -212,8 +190,7 @@ public partial class NewGamePanel : Control
         }
 
         root.AddChild(MutedLabel("Seme (la stessa misura e lo stesso seme danno la stessa mappa)"));
-        var seedRow = new HBoxContainer();
-        seedRow.AddThemeConstantOverride("separation", 8);
+        var seedRow = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(seedRow);
         _seedEdit = new LineEdit
         {
@@ -235,17 +212,16 @@ public partial class NewGamePanel : Control
         {
             Name = "NightCheck",
             Text = "Notte (mappa al buio: contano le luci dei blocchi e le Lampade)",
-            ButtonPressed = false
+            ButtonPressed = false,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        _night.AddThemeFontSizeOverride("font_size", 13);
         root.AddChild(_night);
 
         _status = MutedLabel("");
         _status.HorizontalAlignment = HorizontalAlignment.Center;
         root.AddChild(_status);
 
-        var actions = new HBoxContainer();
-        actions.AddThemeConstantOverride("separation", 8);
+        var actions = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(actions);
         var back = MakeButton("Indietro", () =>
         {
@@ -256,15 +232,13 @@ public partial class NewGamePanel : Control
         actions.AddChild(back);
         var start = MakeButton("Inizia", OnStartPressed);
         start.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        start.ThemeTypeVariation = UiTheme.PulsantePrimario;
         actions.AddChild(start);
     }
 
     private static Label MutedLabel(string text)
     {
-        var label = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        label.AddThemeColorOverride("font_color", TextMuted);
-        label.AddThemeFontSizeOverride("font_size", 12);
-        return label;
+        return new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart, ThemeTypeVariation = UiTheme.TestoTenue };
     }
 
     private static Button MakeButton(string text, Action onClick)

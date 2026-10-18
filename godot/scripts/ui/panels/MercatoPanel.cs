@@ -6,12 +6,6 @@ namespace TIndustry.Godot;
 /// <summary>Mercato overlay: stocked rows, dynamic price, vendi 1 / tutti.</summary>
 public partial class MercatoPanel : Control
 {
-    private static readonly Color PanelBg = new(0.08f, 0.10f, 0.11f, 0.96f);
-    private static readonly Color Accent = new(0.92f, 0.82f, 0.42f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    private static readonly Color TextMuted = new(0.70f, 0.76f, 0.70f, 1f);
-    private static readonly Color RowBg = new(0.16f, 0.18f, 0.17f, 1f);
-
     private IGameView? _view;
     private Action<SimCommand>? _submit;
     private Func<IReadOnlyList<SimCommand>>? _pendingCommands;
@@ -71,25 +65,7 @@ public partial class MercatoPanel : Control
 
         var on = _view.AutoSellAtCore;
         _autoSellToggle.Text = on ? "ON" : "OFF";
-        foreach (var state in new[] { "normal", "hover", "pressed" })
-        {
-            _autoSellToggle.AddThemeStyleboxOverride(state, new StyleBoxFlat
-            {
-                BgColor = on ? new Color(0.30f, 0.26f, 0.10f, 1f) : new Color(0.16f, 0.18f, 0.17f, 1f),
-                BorderColor = on ? Accent : new Color(0.40f, 0.44f, 0.42f, 1f),
-                BorderWidthLeft = 2,
-                BorderWidthTop = 2,
-                BorderWidthRight = 2,
-                BorderWidthBottom = 2,
-                CornerRadiusTopLeft = 4,
-                CornerRadiusTopRight = 4,
-                CornerRadiusBottomLeft = 4,
-                CornerRadiusBottomRight = 4
-            });
-        }
-
-        _autoSellToggle.AddThemeColorOverride("font_color", on ? Accent : TextMuted);
-        _autoSellToggle.AddThemeColorOverride("font_hover_color", on ? Accent : TextPrimary);
+        _autoSellToggle.ThemeTypeVariation = on ? UiTheme.PulsanteScelto : "";
     }
 
     private void OnAutoSellTogglePressed()
@@ -186,7 +162,7 @@ public partial class MercatoPanel : Control
     {
         var dim = new ColorRect
         {
-            Color = new Color(0f, 0f, 0f, 0.55f),
+            Color = UiColors.Oscuramento,
             MouseFilter = MouseFilterEnum.Stop
         };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -197,52 +173,36 @@ public partial class MercatoPanel : Control
         center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
 
-        var panel = new PanelContainer { Name = "MercatoCard", CustomMinimumSize = new Vector2(660, 0) };
-        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        var panel = new PanelContainer
         {
-            BgColor = PanelBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 12
-        });
+            Name = "MercatoCard",
+            CustomMinimumSize = new Vector2(800, 0),
+            ThemeTypeVariation = UiTheme.Scheda
+        };
         center.AddChild(panel);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 10);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         panel.AddChild(root);
 
         // Title · Fondi
-        var header = new HBoxContainer();
-        header.AddThemeConstantOverride("separation", 8);
+        var header = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
         root.AddChild(header);
-        var title = new Label { Text = "Mercato", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        title.AddThemeColorOverride("font_color", Accent);
-        title.AddThemeFontSizeOverride("font_size", 22);
-        header.AddChild(title);
-        header.AddChild(Icon(HudStyle.ItemTexture("money"), 22));
-        _walletLabel = new Label { Text = "$0", VerticalAlignment = VerticalAlignment.Center };
-        _walletLabel.AddThemeColorOverride("font_color", MoneyColor);
-        _walletLabel.AddThemeFontSizeOverride("font_size", 18);
+        header.AddChild(Icon(UiTheme.Icon("mercato"), 32, pixel: true));
+        header.AddChild(new Label { Text = "Mercato", SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.Titolo });
+        header.AddChild(Icon(HudStyle.ItemTexture("money"), 32));
+        _walletLabel = new Label
+        {
+            Text = "$0",
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Pass,
+            ThemeTypeVariation = UiTheme.TestoDenaro
+        };
         header.AddChild(_walletLabel);
 
         // Vendita automatica (toggle + one-line explanation)
-        var autoRow = new HBoxContainer();
-        autoRow.AddThemeConstantOverride("separation", 10);
+        var autoRow = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
         root.AddChild(autoRow);
-        var autoLabel = new Label { Text = "Vendita automatica al CORE", VerticalAlignment = VerticalAlignment.Center };
-        autoLabel.AddThemeColorOverride("font_color", TextPrimary);
-        autoLabel.AddThemeFontSizeOverride("font_size", 14);
-        autoRow.AddChild(autoLabel);
+        autoRow.AddChild(new Label { Text = "Vendita automatica al CORE", VerticalAlignment = VerticalAlignment.Center });
         _autoSellToggle = new Button
         {
             Text = "OFF",
@@ -250,24 +210,21 @@ public partial class MercatoPanel : Control
             FocusMode = FocusModeEnum.None,
             MouseDefaultCursorShape = CursorShape.PointingHand
         };
-        _autoSellToggle.AddThemeFontSizeOverride("font_size", 13);
         _autoSellToggle.Pressed += OnAutoSellTogglePressed;
         autoRow.AddChild(_autoSellToggle);
         _autoSellHint = new Label
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             VerticalAlignment = VerticalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        _autoSellHint.AddThemeColorOverride("font_color", TextMuted);
-        _autoSellHint.AddThemeFontSizeOverride("font_size", 12);
         autoRow.AddChild(_autoSellHint);
 
         root.AddChild(new HSeparator());
 
         // Table header
-        var columns = new HBoxContainer();
-        columns.AddThemeConstantOverride("separation", 10);
+        var columns = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
         root.AddChild(columns);
         AddColumnHeader(columns, "Oggetto", 0, expand: true);
         AddColumnHeader(columns, "Quantità", ColStock);
@@ -284,74 +241,62 @@ public partial class MercatoPanel : Control
         _scroll = scroll;
 
         _list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _list.AddThemeConstantOverride("separation", 4);
         scroll.AddChild(_list);
 
-        _hintLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _hintLabel.AddThemeColorOverride("font_color", TextMuted);
-        _hintLabel.AddThemeFontSizeOverride("font_size", 12);
+        _hintLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, ThemeTypeVariation = UiTheme.TestoTenue };
         root.AddChild(_hintLabel);
 
         // Footer: status · Indietro (Mindustry puts "back" at the bottom)
-        var footer = new HBoxContainer();
-        footer.AddThemeConstantOverride("separation", 10);
+        var footer = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
         root.AddChild(footer);
-        _statusLabel = new Label { Text = "", SizeFlagsHorizontal = SizeFlags.ExpandFill, VerticalAlignment = VerticalAlignment.Center };
-        _statusLabel.AddThemeColorOverride("font_color", Accent);
-        _statusLabel.AddThemeFontSizeOverride("font_size", 13);
+        _statusLabel = new Label
+        {
+            Text = "",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoAccento
+        };
         footer.AddChild(_statusLabel);
         var closeBtn = new Button { Text = "Indietro", CustomMinimumSize = new Vector2(140, 36), FocusMode = FocusModeEnum.None };
         closeBtn.Pressed += Close;
         footer.AddChild(closeBtn);
     }
 
-    private const float ColStock = 80f;
-    private const float ColPrice = 96f;
-    private const float ColValue = 80f;
-    private const float ColActions = 176f;
+    private const float ColStock = 90f;
+    private const float ColPrice = 90f;
+    private const float ColValue = 90f;
+    private const float ColActions = 268f;
     private const float RowHeight = 40f;
-    private const int MaxVisibleRows = 8;
+    private const int MaxVisibleRows = 6;
 
-    private static readonly Color MoneyColor = new(0.98f, 0.82f, 0.38f, 1f);
-    private static readonly Color PriceDown = new(0.90f, 0.55f, 0.40f, 1f);
-
-    private static TextureRect Icon(Texture2D? tex, float size) => new()
+    private static TextureRect Icon(Texture2D? tex, float size, bool pixel = false)
     {
-        Texture = tex,
-        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-        CustomMinimumSize = new Vector2(size, size),
-        SizeFlagsVertical = SizeFlags.ShrinkCenter,
-        MouseFilter = MouseFilterEnum.Ignore
-    };
+        var icon = HudStyle.MakeIcon(tex, size, pixel: pixel);
+        icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        return icon;
+    }
 
     private static void AddColumnHeader(HBoxContainer row, string text, float width, bool expand = false)
     {
-        var label = new Label
+        row.AddChild(new Label
         {
             Text = text,
             CustomMinimumSize = new Vector2(width, 0),
             SizeFlagsHorizontal = expand ? SizeFlags.ExpandFill : SizeFlags.ShrinkBegin,
-            HorizontalAlignment = expand ? HorizontalAlignment.Left : HorizontalAlignment.Right
-        };
-        label.AddThemeColorOverride("font_color", TextMuted);
-        label.AddThemeFontSizeOverride("font_size", 12);
-        row.AddChild(label);
+            HorizontalAlignment = expand ? HorizontalAlignment.Left : HorizontalAlignment.Right,
+            ThemeTypeVariation = UiTheme.TestoTenue
+        });
     }
 
-    private static Label Cell(string text, float width, Color color, int size = 14)
+    /// <summary>A right-aligned table cell with the theme look <paramref name="look"/> (empty = plain text).</summary>
+    private static Label Cell(string text, float width, string look = "") => new()
     {
-        var label = new Label
-        {
-            Text = text,
-            CustomMinimumSize = new Vector2(width, 0),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        label.AddThemeColorOverride("font_color", color);
-        label.AddThemeFontSizeOverride("font_size", size);
-        return label;
-    }
+        Text = text,
+        CustomMinimumSize = new Vector2(width, 0),
+        HorizontalAlignment = HorizontalAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Center,
+        ThemeTypeVariation = look
+    };
 
     public void Refresh()
     {
@@ -398,10 +343,10 @@ public partial class MercatoPanel : Control
             {
                 Text = "Niente da vendere: porta minerali o lastre al CORE con i nastri.",
                 HorizontalAlignment = HorizontalAlignment.Center,
-                CustomMinimumSize = new Vector2(0, RowHeight)
+                VerticalAlignment = VerticalAlignment.Center,
+                CustomMinimumSize = new Vector2(0, RowHeight),
+                ThemeTypeVariation = UiTheme.TestoTenue
             };
-            empty.AddThemeColorOverride("font_color", TextMuted);
-            empty.AddThemeFontSizeOverride("font_size", 14);
             _list.AddChild(empty);
             rows = 1;
         }
@@ -423,48 +368,35 @@ public partial class MercatoPanel : Control
         var row = new PanelContainer
         {
             CustomMinimumSize = new Vector2(0, RowHeight),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ThemeTypeVariation = UiTheme.Riga
         };
-        row.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = RowBg,
-            ContentMarginLeft = 8,
-            ContentMarginRight = 6,
-            ContentMarginTop = 2,
-            ContentMarginBottom = 2
-        });
         _list.AddChild(row);
 
-        var h = new HBoxContainer();
-        h.AddThemeConstantOverride("separation", 10);
+        var h = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
         row.AddChild(h);
 
-        var nameBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        nameBox.AddThemeConstantOverride("separation", 8);
+        var nameBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.RigaLarga };
         h.AddChild(nameBox);
-        nameBox.AddChild(Icon(HudStyle.ItemTexture(item.ItemId), 26));
-        var name = new Label { Text = item.DisplayName, VerticalAlignment = VerticalAlignment.Center };
-        name.AddThemeColorOverride("font_color", TextPrimary);
-        name.AddThemeFontSizeOverride("font_size", 14);
-        nameBox.AddChild(name);
+        nameBox.AddChild(Icon(HudStyle.ItemTexture(item.ItemId), 32));
+        nameBox.AddChild(new Label { Text = item.DisplayName, VerticalAlignment = VerticalAlignment.Center });
 
-        h.AddChild(Cell($"{stock}", ColStock, TextPrimary));
-        var priceCell = Cell($"${price}", ColPrice, price < item.SellPrice ? PriceDown : TextPrimary);
+        h.AddChild(Cell($"{stock}", ColStock));
+        var priceCell = Cell($"${price}", ColPrice, price < item.SellPrice ? UiTheme.TestoRosso : "");
         priceCell.TooltipText = price < item.SellPrice
             ? $"Listino ${item.SellPrice}: il prezzo scende se vendi molto dello stesso oggetto"
             : $"Listino ${item.SellPrice}";
         priceCell.MouseFilter = MouseFilterEnum.Pass;
         h.AddChild(priceCell);
-        h.AddChild(Cell($"${price * stock}", ColValue, MoneyColor));
+        h.AddChild(Cell($"${price * stock}", ColValue, UiTheme.TestoDenaro));
 
-        var actions = new HBoxContainer { CustomMinimumSize = new Vector2(ColActions, 0) };
-        actions.AddThemeConstantOverride("separation", 4);
+        var actions = new HBoxContainer { CustomMinimumSize = new Vector2(ColActions, 0), Alignment = BoxContainer.AlignmentMode.End };
         h.AddChild(actions);
         var id = item.ItemId;
-        var btn1 = new Button { Text = "Vendi 1", CustomMinimumSize = new Vector2(80, 32), FocusMode = FocusModeEnum.None };
+        var btn1 = new Button { Text = "Vendi 1", CustomMinimumSize = new Vector2(0, 32), FocusMode = FocusModeEnum.None };
         btn1.Pressed += () => RequestSale(id, 1);
         actions.AddChild(btn1);
-        var btnAll = new Button { Text = "Vendi tutto", CustomMinimumSize = new Vector2(92, 32), FocusMode = FocusModeEnum.None };
+        var btnAll = new Button { Text = "Vendi tutto", CustomMinimumSize = new Vector2(0, 32), FocusMode = FocusModeEnum.None };
         btnAll.Pressed += () =>
         {
             if (_view is not null)

@@ -9,12 +9,6 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class TutorialPanel : Control
 {
-    private static readonly Color CardBg = new(0.08f, 0.10f, 0.11f, 0.94f);
-    private static readonly Color Accent = new(0.92f, 0.78f, 0.28f, 1f);
-    private static readonly Color TextPrimary = new(0.93f, 0.95f, 0.90f, 1f);
-    private static readonly Color TextMuted = new(0.68f, 0.74f, 0.68f, 1f);
-    private static readonly Color Done = new(0.55f, 0.85f, 0.50f, 1f);
-
     /// <summary>Step ids the world checks against (see World.SyncTutorial).</summary>
     public enum Step
     {
@@ -124,76 +118,55 @@ public partial class TutorialPanel : Control
 
     private void BuildUi()
     {
-        _card = new PanelContainer { Name = "TutorialCard", MouseFilter = MouseFilterEnum.Stop };
+        _card = new PanelContainer { Name = "TutorialCard", MouseFilter = MouseFilterEnum.Stop, ThemeTypeVariation = UiTheme.Scheda };
         // Bottom-left: the only corner free of HUD (stock top-right, palette bottom-right, objectives top-left).
         _card.SetAnchorsPreset(LayoutPreset.BottomLeft);
         _card.OffsetLeft = 16;
         _card.OffsetBottom = -16;
         _card.GrowVertical = GrowDirection.Begin;
-        _card.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = CardBg,
-            BorderColor = Accent,
-            BorderWidthLeft = 2,
-            BorderWidthTop = 2,
-            BorderWidthRight = 2,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 10,
-            ContentMarginBottom = 10
-        });
         AddChild(_card);
 
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 6);
+        var root = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         _card.AddChild(root);
 
         var header = new HBoxContainer();
         root.AddChild(header);
 
-        _stepLabel = new Label { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _stepLabel.AddThemeColorOverride("font_color", Accent);
-        _stepLabel.AddThemeFontSizeOverride("font_size", 13);
+        _stepLabel = new Label { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.TestoAccento };
         header.AddChild(_stepLabel);
 
-        _doneLabel = new Label { Text = "✓ fatto", Visible = false };
-        _doneLabel.AddThemeColorOverride("font_color", Done);
-        _doneLabel.AddThemeFontSizeOverride("font_size", 13);
+        _doneLabel = new Label { Text = "✓ fatto", Visible = false, ThemeTypeVariation = UiTheme.TestoVerde };
         header.AddChild(_doneLabel);
 
         _bodyLabel = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(440, 0)
+            CustomMinimumSize = new Vector2(500, 0)
         };
-        _bodyLabel.AddThemeColorOverride("font_color", TextPrimary);
-        _bodyLabel.AddThemeFontSizeOverride("font_size", 15);
         root.AddChild(_bodyLabel);
-
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 8);
-        root.AddChild(row);
 
         var hint = new Label
         {
             Text = "Avanza da solo quando completi il passo · Invio = avanti",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            VerticalAlignment = VerticalAlignment.Center
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoTenue
         };
-        hint.AddThemeColorOverride("font_color", TextMuted);
-        hint.AddThemeFontSizeOverride("font_size", 11);
-        row.AddChild(hint);
+        root.AddChild(hint);
+
+        var row = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga, Alignment = BoxContainer.AlignmentMode.End };
+        root.AddChild(row);
 
         var skip = new Button { Text = "Salta tutorial", CustomMinimumSize = new Vector2(120, 30), FocusMode = FocusModeEnum.None };
         skip.Pressed += Skip;
         row.AddChild(skip);
 
-        _nextBtn = new Button { Text = "Avanti", CustomMinimumSize = new Vector2(96, 30), FocusMode = FocusModeEnum.None };
+        _nextBtn = new Button
+        {
+            Text = "Avanti",
+            CustomMinimumSize = new Vector2(96, 30),
+            FocusMode = FocusModeEnum.None,
+            ThemeTypeVariation = UiTheme.PulsantePrimario
+        };
         _nextBtn.Pressed += Advance;
         row.AddChild(_nextBtn);
     }

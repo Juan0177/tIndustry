@@ -54,7 +54,10 @@ public partial class Hud : Control
     private Label? _siteTipLabel;
     private string? _siteTipText;
     private Label? _toastLabel;
-    private Tween? _toastTween;
+    // Seconds since the toast was shown; it holds, then fades (no Tween: nothing left for the GC at exit).
+    private double _toastAge = ToastHold + ToastFade;
+    private const double ToastHold = 1.6;
+    private const double ToastFade = 0.45;
     private Label? _placementHint;
 
     public event Action<ToolKind>? ToolChosen;
@@ -257,10 +260,19 @@ public partial class Hud : Control
 
         _toastLabel.Text = message;
         _toastLabel.Modulate = Colors.White;
-        _toastTween?.Kill();
-        _toastTween = CreateTween();
-        _toastTween.TweenInterval(1.6);
-        _toastTween.TweenProperty(_toastLabel, "modulate:a", 0f, 0.45);
+        _toastAge = 0;
+    }
+
+    public override void _Process(double delta)
+    {
+        if (_toastLabel is null || _toastAge >= ToastHold + ToastFade)
+        {
+            return;
+        }
+
+        _toastAge += delta;
+        var alpha = _toastAge <= ToastHold ? 1.0 : Math.Max(0.0, 1.0 - (_toastAge - ToastHold) / ToastFade);
+        _toastLabel.Modulate = new Color(1, 1, 1, (float)alpha);
     }
 
     public static string StructureIdFor(ToolKind tool) => tool switch
@@ -320,7 +332,7 @@ public partial class Hud : Control
         cornerStack.OffsetRight = -8;
         cornerStack.OffsetBottom = -8;
         cornerStack.OffsetTop = -8; // grows upward via min sizes
-        cornerStack.AddThemeConstantOverride("separation", 8);
+        cornerStack.ThemeTypeVariation = UiTheme.ColonnaLarga;
         AddChild(cornerStack);
 
         cornerStack.AddChild(_info);
@@ -333,16 +345,8 @@ public partial class Hud : Control
         _siteTip = MakePanel("SiteTooltip");
         _siteTip.MouseFilter = MouseFilterEnum.Ignore;
         _siteTip.Visible = false;
-        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        margin.AddThemeConstantOverride("margin_left", 8);
-        margin.AddThemeConstantOverride("margin_right", 8);
-        margin.AddThemeConstantOverride("margin_top", 4);
-        margin.AddThemeConstantOverride("margin_bottom", 4);
-        _siteTip.AddChild(margin);
-        _siteTipLabel = new Label { MouseFilter = MouseFilterEnum.Ignore };
-        _siteTipLabel.AddThemeColorOverride("font_color", Insufficient);
-        _siteTipLabel.AddThemeFontSizeOverride("font_size", 13);
-        margin.AddChild(_siteTipLabel);
+        _siteTipLabel = MakeLabel("", UiTheme.TestoRosso);
+        _siteTip.AddChild(_siteTipLabel);
         AddChild(_siteTip);
     }
 
@@ -353,6 +357,7 @@ public partial class Hud : Control
             Name = "PlacementHint",
             HorizontalAlignment = HorizontalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore,
+            ThemeTypeVariation = UiTheme.AvvisoRosso,
             Visible = false
         };
         _placementHint.SetAnchorsPreset(LayoutPreset.CenterBottom);
@@ -361,11 +366,6 @@ public partial class Hud : Control
         _placementHint.OffsetRight = 220;
         _placementHint.OffsetTop = -44;
         _placementHint.OffsetBottom = -16;
-        _placementHint.AddThemeColorOverride("font_color", Insufficient);
-        _placementHint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
-        _placementHint.AddThemeConstantOverride("shadow_offset_x", 1);
-        _placementHint.AddThemeConstantOverride("shadow_offset_y", 1);
-        _placementHint.AddThemeFontSizeOverride("font_size", 15);
         AddChild(_placementHint);
     }
 
@@ -375,7 +375,8 @@ public partial class Hud : Control
         {
             Text = "",
             HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
+            MouseFilter = MouseFilterEnum.Ignore,
+            ThemeTypeVariation = UiTheme.Avviso
         };
         _toastLabel.SetAnchorsPreset(LayoutPreset.CenterBottom);
         _toastLabel.GrowHorizontal = GrowDirection.Both;
@@ -383,11 +384,6 @@ public partial class Hud : Control
         _toastLabel.OffsetRight = 220;
         _toastLabel.OffsetTop = -236;
         _toastLabel.OffsetBottom = -208;
-        _toastLabel.AddThemeColorOverride("font_color", TextPrimary);
-        _toastLabel.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
-        _toastLabel.AddThemeConstantOverride("shadow_offset_x", 1);
-        _toastLabel.AddThemeConstantOverride("shadow_offset_y", 1);
-        _toastLabel.AddThemeFontSizeOverride("font_size", 15);
         _toastLabel.Modulate = new Color(1, 1, 1, 0);
         AddChild(_toastLabel);
     }

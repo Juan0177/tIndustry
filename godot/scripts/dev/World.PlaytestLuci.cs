@@ -131,6 +131,21 @@ public partial class World
                 return Fail($"luci: un quadrato bianco dell'HUD si legge {hudDay} di giorno e {hudNight} di notte");
             }
 
+            // The placement ghost stays readable at night: its layer is not the darkened world canvas.
+            var free = PlaytestFreeFootprint(1, hot.Position);
+            var ghostProblem = free is { } freeCell
+                ? await NightGhostProblem(darkness, freeCell)
+                : "nessuna cella libera per il fantasma di notte";
+            await Shot("notte-fantasma-valido");
+            PlaytestMove(CellToScreen(hot.Position), 0);
+            await Frames(2);
+            await Shot("notte-fantasma-non-valido");
+            await PlaytestKey(Key.Escape);
+            if (ghostProblem is not null)
+            {
+                return Fail($"luci: {ghostProblem}");
+            }
+
             // Lamps around the working generators (instant, free: playtest only); powered, they light up.
             var lamps = PlaceLampsAroundGenerators(factory, 16);
             _buildingsDirty = true; // placed on the factory directly: no command event rebuilds the visuals
@@ -378,6 +393,44 @@ public partial class World
         });
         DisplayServer.WindowSetVsyncMode(vsync);
         return (result.Average, result.Minimum);
+    }
+
+    /// <summary>
+    /// With the belt tool over the free <paramref name="cell"/>, the preview's accent outline is drawn at full
+    /// brightness at night: its overlay is on another canvas than <paramref name="darkness"/>, and the top edge of the
+    /// ghost reads as bright as the outline colour (the night would bring it to about a third). Leaves the tool
+    /// selected for the capture.
+    /// </summary>
+    private async Task<string?> NightGhostProblem(CanvasModulate darkness, GridPosition cell)
+    {
+        if (_placementOverlay is null || _placementOverlay.GetCanvas() == darkness.GetCanvas())
+        {
+            return "il fantasma di piazzamento è sulla tela scurita dalla notte";
+        }
+
+        await PlaytestKey(Key.Key1);
+        PlaytestMove(CellToScreen(cell), 0);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        if (!_hover.Equals(cell))
+        {
+            return $"cella sotto il cursore {_hover}, attesa {cell} (sotto l'HUD?)";
+        }
+
+        var centre = CellToScreen(cell);
+        var half = TileSize * GetNode<Camera2D>("Camera").Zoom.X * GetTree().Root.GetFinalTransform().Scale.Y / 2f;
+        var brightest = 0f;
+        using (var image = CaptureFrame())
+        {
+            for (var dy = -2; dy <= 2; dy++)
+            {
+                var x = Math.Clamp((int)centre.X, 0, image.GetWidth() - 1);
+                var y = Math.Clamp((int)(centre.Y - half) + dy, 0, image.GetHeight() - 1);
+                brightest = Math.Max(brightest, image.GetPixel(x, y).G);
+            }
+        }
+
+        return brightest < 0.7f ? $"bordo del fantasma di notte a {brightest:0.00} (scurito)" : null;
     }
 
     /// <summary>
