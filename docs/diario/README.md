@@ -20,3 +20,4 @@ I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in O
 - [2026-10-17 — Costruzione come Mindustry (sotto-progetto 3)](2026-10-17-costruzione-in-corso.md)
 - [2026-10-18 — Arte dei blocchi (sotto-progetto G1)](2026-10-18-g1-arte-blocchi.md)
 - [2026-10-18 — Mappe e terreno (sotto-progetto G2a)](2026-10-18-g2a-mappe-terreno.md)
+- [2026-10-18 — Arte del terreno (sotto-progetto G2b)](2026-10-18-g2b-arte-terreno.md)
