@@ -63,7 +63,7 @@ public partial class CorePanel : VBoxContainer
         AddMenuButton(menuRow, "res://assets/ui/menu.png", "Menu", "Esc", () => MenuRequested?.Invoke());
         AddMenuButton(menuRow, "res://assets/ui/research.png", "Ricerca", "T", () => ResearchRequested?.Invoke());
         AddMenuButton(menuRow, "res://assets/ui/sell.png", "Mercato", "M", () => MercatoRequested?.Invoke());
-        AddMenuButton(menuRow, "res://assets/core.png", "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
+        AddMenuButton(menuRow, "res://assets/core-1.png", "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
 
         BuildCorePanel();
         if (_belowStock is not null)

@@ -299,7 +299,7 @@ public partial class TechTreeCanvas : Control
                     DrawTextureRect(lockTex, inner.Grow(-inner.Size.X * 0.18f), false, BorderLocked.Lightened(0.25f));
                 }
             }
-            else if (Sprites.TryFor(id) is { } tex)
+            else if (Sprites.TryFor(node.IsRoot ? "core-1" : id) is { } tex)
             {
                 DrawTextureRect(tex, inner, false,
                     state == ResearchNodeState.Available ? new Color(1f, 1f, 1f, 0.82f) : Colors.White);

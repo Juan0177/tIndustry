@@ -436,7 +436,10 @@ public partial class World
     /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
     private const int ConstructionZ = 20;
 
-    /// <summary>CORE sprite + outline as a building node (z above belt items).</summary>
+    /// <summary>
+    /// CORE as a building node (z above belt items): the <c>core-1</c> body, its nucleus light looping slowly on top
+    /// (each frame is an opaque disc that replaces the nucleus) and the cyan outline.
+    /// </summary>
     private void AddCoreVisual()
     {
         if (_view is null || _buildingsLayer is null || _view.CoreTiles.Count == 0)
@@ -455,23 +458,24 @@ public partial class World
             ZIndex = 3,
             Position = new Vector2(minX * TileSize, minY * TileSize)
         };
-        if (_coreTex is not null)
+        var body = Sprites.For(CoreSpriteId);
+        root.AddChild(new Sprite2D
         {
-            root.AddChild(new Sprite2D
-            {
-                Texture = _coreTex,
-                Centered = false,
-                Scale = size / _coreTex.GetSize()
-            });
-        }
-        else
+            Name = "Body",
+            Texture = body,
+            Centered = false,
+            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+            Scale = size / body.GetSize()
+        });
+        root.AddChild(new AnimatedSprite2D
         {
-            root.AddChild(new Polygon2D
-            {
-                Color = new Color(0.18f, 0.32f, 0.48f, 1f),
-                Polygon = [Vector2.Zero, new(size.X, 0), size, new(0, size.Y)]
-            });
-        }
+            Name = "Light",
+            SpriteFrames = CoreLightFrames(),
+            Autoplay = "default",
+            Centered = false,
+            TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+            Scale = size / body.GetSize()
+        });
 
         root.AddChild(new Line2D
         {
@@ -481,5 +485,32 @@ public partial class World
             DefaultColor = new Color(0.35f, 0.78f, 0.9f, 1f)
         });
         _buildingsLayer.AddChild(root);
+    }
+
+    /// <summary>The Core in game is tier 1 (2×2); tiers 2–4 exist only as sprites until the tier sub-project.</summary>
+    private const string CoreSpriteId = "core-1";
+
+    /// <summary>Slow pulse of the nucleus light: 4 frames, looped.</summary>
+    private const float CoreLightFramesPerSecond = 2.5f;
+
+    private SpriteFrames? _coreLightFrames;
+
+    /// <summary>The <c>core-1-light-anim</c> frames as one looping animation, built once per world.</summary>
+    private SpriteFrames CoreLightFrames()
+    {
+        if (_coreLightFrames is not null)
+        {
+            return _coreLightFrames;
+        }
+
+        _coreLightFrames = new SpriteFrames();
+        _coreLightFrames.SetAnimationSpeed("default", CoreLightFramesPerSecond);
+        _coreLightFrames.SetAnimationLoop("default", true);
+        foreach (var frame in Sprites.Frames(CoreSpriteId + "-light"))
+        {
+            _coreLightFrames.AddFrame("default", frame);
+        }
+
+        return _coreLightFrames;
     }
 }
