@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace TIndustry.Shared;
 
@@ -7,16 +8,21 @@ namespace TIndustry.Shared;
 /// The game methods agents call on a <see cref="SimHost"/> (simulation engine, and the client's channel): look
 /// (<c>stato</c>, <c>area</c>, <c>trova</c>, <c>eventi</c>), act with the player's commands (<c>piazza</c>,
 /// <c>smonta</c>, <c>ruota</c>, <c>sblocca</c>, <c>vendi</c>, <c>potenzia_core</c>), move time (<c>avanza</c>)
-/// and read the journal (<c>diario</c>). A command call submits through <see cref="SimHost.Submit"/> and runs the
-/// one tick that applies it, so its answer carries the outcome. Every <c>ok:false</c> is an
-/// <see cref="AgentException"/>: a <see cref="RefusalCode"/> name or one of <see cref="AgentCodes"/>.
+/// and save the journal (<c>diario</c>). Commands go through <see cref="SimHost.Submit"/>. With
+/// <c>tickPerComando</c> (simulation engine) a command call also runs the tick that applies it, so its answer
+/// carries the outcome; without it (game engine, where the frames run the ticks) the call answers
+/// <c>inAttesa</c> and <see cref="TryFinishPending"/> gives the outcome after the next tick.
+/// Every <c>ok:false</c> is an <see cref="AgentException"/>: a <see cref="RefusalCode"/> name or one of
+/// <see cref="AgentCodes"/>; no other exception leaves <see cref="Call"/>.
 /// </summary>
-public sealed class AgentGame
+public sealed class AgentGame : IDisposable
 {
     public const int MaxAreaEdge = 64;
     public const int MaxListItems = 200;
+    public const int MaxBufferedEvents = 500;
     public const int MaxAdvanceTicks = 60 * SimulationClock.TickRate * 10;
     private const int RecentRefusals = 10;
+    private const int ListedQueueItems = 20;
     private const int PlayerId = 0;
 
     /// <summary>Methods that change the game, its time or the brush: the journal keeps only these.</summary>
@@ -28,13 +34,16 @@ public sealed class AgentGame
     // Kinds the client places along a drag (World.Input), the plain belts aside.
     private static readonly BuildingKind[] DraggableKinds = [BuildingKind.Junction, BuildingKind.Splitter, BuildingKind.Sorter];
 
-    private static readonly (char Symbol, string Meaning)[] Legend =
+    private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?$", RegexOptions.CultureInvariant);
+
+    internal static readonly (char Symbol, string Meaning)[] Legend =
     [
         ('C', "Core"), ('?', "cantiere"), ('*', "piano di costruzione"),
         ('^', "nastro verso nord"), ('>', "nastro verso est"), ('v', "nastro verso sud"), ('<', "nastro verso ovest"),
         ('+', "incrocio"), ('Y', "divisore"), ('F', "selezionatore"), ('=', "ponte"),
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
+        ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
         ('p', "giacimento di piombo"), ('t', "giacimento di titanio"), ('.', "suolo libero")
@@ -42,39 +51,87 @@ public sealed class AgentGame
 
     private readonly SimHost host;
     private readonly FactoryContent content;
-    private readonly List<(SimCommand Command, Refusal? Refusal, int MoneyDelta)> outcomes = [];
-    private readonly List<JsonObject> unreadEvents = [];
-    private readonly List<(long Tick, Refusal Refusal)> refusals = [];
+    private readonly CampaignCatalog? campaign;
+    private readonly string? journalDirectory;
+    private readonly bool tickPerCommand;
+    private readonly List<SimCommand> awaiting = [];
+    private readonly List<Outcome> resolved = [];
+    private readonly Queue<JsonObject> unreadEvents = new();
+    private readonly Queue<JsonObject> refusals = new();
+    private readonly Action<SimCommand> onApplied;
+    private int droppedEvents;
     private Direction brush = Direction.East;
+    private (List<SimCommand> Commands, Func<List<Outcome>, JsonObject> Build)? pending;
+    private bool disposed;
 
-    public AgentGame(SimHost host, FactoryContent content)
+    /// <param name="setup">How the game was made (journal header, for <c>rigioca</c>).</param>
+    /// <param name="campaign">Catalog of the campaign levels, for the objectives in <c>stato</c>.</param>
+    /// <param name="journalDirectory">The only folder <c>diario {nome}</c> writes into (the session's temporary profile).</param>
+    /// <param name="tickPerComando">True for the simulation engine: each command call runs its tick.</param>
+    public AgentGame(
+        SimHost host,
+        FactoryContent content,
+        AgentGameSetup? setup = null,
+        CampaignCatalog? campaign = null,
+        string? journalDirectory = null,
+        bool tickPerComando = true)
     {
         this.host = host ?? throw new ArgumentNullException(nameof(host));
         this.content = content ?? throw new ArgumentNullException(nameof(content));
-        host.CommandApplied += c => outcomes.Add((c, null, host.LastCommandMoneyDelta));
+        this.campaign = campaign;
+        this.journalDirectory = journalDirectory;
+        tickPerCommand = tickPerComando;
+        Journal = new AgentJournal { Setup = setup };
+        onApplied = c => Resolve(c, null, host.LastCommandMoneyDelta);
+        host.CommandApplied += onApplied;
         host.CommandRejected += OnRejected;
         host.EventRaised += OnEvent;
     }
 
-    public AgentJournal Journal { get; } = new();
+    public AgentJournal Journal { get; }
+
+    public SimHost Host => host;
 
     private IGameView View => host.State;
 
+    public void Dispose()
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
+        host.CommandApplied -= onApplied;
+        host.CommandRejected -= OnRejected;
+        host.EventRaised -= OnEvent;
+    }
+
+    /// <summary>Makes the game of <paramref name="journal"/>'s header again and replays the journal on it.</summary>
+    public static AgentGame Replay(
+        AgentJournal journal, FactoryContent content, CampaignCatalog? campaign = null, string? mapsDirectory = null)
+    {
+        ArgumentNullException.ThrowIfNull(journal);
+        var setup = journal.Setup
+            ?? throw new AgentException(AgentCodes.ParametriNonValidi, "Il diario non dice come era fatta la partita.");
+        return Replay(journal, setup.CreateHost(content, campaign, mapsDirectory), campaign);
+    }
+
     /// <summary>Runs <paramref name="journal"/> again on <paramref name="host"/> (a new game), at the same ticks.</summary>
-    public static AgentGame Replay(AgentJournal journal, SimHost host)
+    public static AgentGame Replay(AgentJournal journal, SimHost host, CampaignCatalog? campaign = null)
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(host);
-        var game = new AgentGame(host, host.State.Content);
+        var game = new AgentGame(host, host.State.Content, journal.Setup, campaign);
         foreach (var entry in journal.Entries)
         {
             var gap = entry.Tick - host.State.CurrentTick;
-            if (gap < 0)
+            if (gap is < 0 or > int.MaxValue)
             {
                 throw new AgentException(AgentCodes.ParametriNonValidi, $"Diario fuori ordine al tick {entry.Tick}.");
             }
 
-            host.AdvanceTicks(checked((int)gap));
+            host.AdvanceTicks((int)gap);
             try
             {
                 game.Call(entry.Method, entry.Params);
@@ -88,37 +145,111 @@ public sealed class AgentGame
         return game;
     }
 
+    /// <summary>One request as a response line: never throws.</summary>
+    public AgentResponse Handle(AgentRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            return AgentResponse.Success(request.Id, Call(request.Method, request.Params));
+        }
+        catch (AgentException ex)
+        {
+            return AgentResponse.Failure(request.Id, ex);
+        }
+    }
+
     public JsonElement Call(string method, JsonElement @params)
     {
-        var p = @params.ValueKind == JsonValueKind.Undefined ? JsonDocument.Parse("{}").RootElement : @params;
-        if (p.ValueKind != JsonValueKind.Object)
+        var p = @params.ValueKind == JsonValueKind.Undefined ? AgentProtocol.EmptyObject : @params;
+        var tick = View.CurrentTick;
+        var journal = JournaledMethods.Contains(method);
+        try
         {
-            throw Bad("I parametri devono essere un oggetto.");
-        }
+            if (p.ValueKind != JsonValueKind.Object)
+            {
+                throw Bad("I parametri devono essere un oggetto.");
+            }
 
-        if (JournaledMethods.Contains(method))
-        {
-            Journal.Add(View.CurrentTick, method, p);
-        }
+            var result = JsonSerializer.SerializeToElement(Dispatch(method, p));
+            if (journal)
+            {
+                Journal.Add(tick, method, p);
+            }
 
-        JsonObject result = method switch
+            return result;
+        }
+        catch (AgentException ex)
         {
-            "stato" => Stato(),
-            "area" => Area(p),
-            "trova" => Trova(p),
-            "eventi" => Eventi(),
-            "piazza" => Piazza(p),
-            "smonta" => RunOne(new Remove(PlayerId, Cell(p, "cella"))),
-            "ruota" => Ruota(),
-            "sblocca" => RunOne(new UnlockStructure(PlayerId, Str(p, "struttura"))),
-            "vendi" => Vendi(p),
-            "potenzia_core" => RunOne(new UpgradeCore(PlayerId), r => r["livello"] = View.CoreUpgradeLevel),
-            "avanza" => Avanza(p),
-            "diario" => Diario(p),
-            _ => throw Bad($"Metodo sconosciuto: {method}.")
-        };
-        return JsonSerializer.SerializeToElement(result);
+            // Bad parameters change nothing; a refused command still took its tick.
+            if (journal && ex.Code != AgentCodes.ParametriNonValidi)
+            {
+                Journal.Add(tick, method, p);
+            }
+
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (journal && View.CurrentTick != tick)
+            {
+                Journal.Add(tick, method, p);
+            }
+
+            throw new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}");
+        }
     }
+
+    /// <summary>
+    /// Without <c>tickPerComando</c>: the outcome of the last command call once its tick has run (true), or false while
+    /// it has not. Throws like <see cref="Call"/> (the refusal code) when the command was refused.
+    /// </summary>
+    public bool TryFinishPending(out JsonElement result)
+    {
+        result = default;
+        if (pending is not { } call || !call.Commands.All(c => resolved.Any(o => o.Command.Equals(c))))
+        {
+            return false;
+        }
+
+        pending = null;
+        try
+        {
+            result = JsonSerializer.SerializeToElement(Finish(call.Commands, call.Build));
+            return true;
+        }
+        catch (AgentException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private JsonObject Dispatch(string method, JsonElement p) => method switch
+    {
+        "stato" => Stato(),
+        "area" => Area(p),
+        "trova" => Trova(p),
+        "eventi" => Eventi(),
+        "piazza" => Piazza(p),
+        "smonta" => Single(new Remove(PlayerId, MapCell(p, "cella"))),
+        "ruota" => Ruota(),
+        "sblocca" => Single(new UnlockStructure(PlayerId, Str(p, "struttura"))),
+        "vendi" => Command(
+            [new Sell(PlayerId, Str(p, "oggetto"), Int(p, "quantita"))],
+            o => Accepted(o[0], r =>
+            {
+                r["incasso"] = o[0].MoneyDelta;
+                r["soldi"] = View.Wallet.Money;
+            })),
+        "potenzia_core" => Single(new UpgradeCore(PlayerId), r => r["livello"] = View.CoreUpgradeLevel),
+        "avanza" => Avanza(p),
+        "diario" => Diario(p),
+        _ => throw Bad($"Metodo sconosciuto: {method}.")
+    };
 
     private JsonObject Stato()
     {
@@ -134,13 +265,9 @@ public sealed class AgentGame
             research.Add(id);
         }
 
-        var recent = new JsonArray();
-        foreach (var (tick, refusal) in refusals)
-        {
-            recent.Add(new JsonObject { ["tick"] = tick, ["codice"] = refusal.Code.ToString() });
-        }
-
-        return new JsonObject
+        var logistics = View.Belts.Values.GroupBy(b => b.Kind).ToDictionary(g => g.Key, g => g.Count());
+        var plans = View.PlansOf(PlayerId);
+        var result = new JsonObject
         {
             ["tick"] = View.CurrentTick,
             ["soldi"] = View.Wallet.Money,
@@ -161,12 +288,32 @@ public sealed class AgentGame
                 ["estrattori"] = View.Extractors.Count,
                 ["nodi"] = View.PowerNodes.Count,
                 ["lampade"] = View.Lamps.Count,
-                ["nastri"] = View.Belts.Count
+                ["nastri"] = logistics.GetValueOrDefault(LogisticsKind.Belt),
+                ["incroci"] = logistics.GetValueOrDefault(LogisticsKind.Junction),
+                ["divisori"] = logistics.GetValueOrDefault(LogisticsKind.Splitter),
+                ["selezionatori"] = logistics.GetValueOrDefault(LogisticsKind.Sorter),
+                // Each bridge has two end cells.
+                ["ponti"] = logistics.GetValueOrDefault(LogisticsKind.Bridge) / 2
             },
             ["costruzione"] = new JsonObject
             {
-                ["piani"] = View.PlansOf(PlayerId).Count,
-                ["cantieri"] = View.Sites.Count
+                ["piani"] = plans.Count,
+                ["cantieri"] = View.Sites.Count,
+                ["primiPiani"] = Array(plans.Take(ListedQueueItems).Select(plan =>
+                {
+                    var item = CellJson(plan.Spec.Origin);
+                    item["struttura"] = plan.Spec.StructureId;
+                    item["rimozione"] = plan.Breaking;
+                    return item;
+                })),
+                ["primiCantieri"] = Array(View.Sites.Take(ListedQueueItems).Select(site =>
+                {
+                    var item = CellJson(site.Spec.Origin);
+                    item["struttura"] = site.Spec.StructureId;
+                    item["progresso"] = site.Progress;
+                    item["smontaggio"] = site.Deconstructing;
+                    return item;
+                }))
             },
             ["core"] = new JsonObject
             {
@@ -174,20 +321,57 @@ public sealed class AgentGame
                 ["consegnati"] = View.CoreDeliveredItems,
                 ["venditaAutomatica"] = View.AutoSellAtCore
             },
-            ["livello"] = View.ActiveCampaignLevelId,
-            ["direzione"] = brush.ToString(),
-            ["rifiuti"] = recent
+            ["livelloCampagna"] = View.ActiveCampaignLevelId,
+            ["direzione"] = DirectionName(brush),
+            ["rifiuti"] = Array(refusals)
         };
+
+        if (View.ActiveCampaignLevelId is { } levelId && campaign?.Find(levelId) is { } level)
+        {
+            result["obiettivi"] = Array((level.Objectives ?? []).Select(o =>
+            {
+                var current = CampaignProgress.GetObjectiveCurrent(o, View.Wallet, View.Session, View.Research);
+                var target = CampaignProgress.GetObjectiveTarget(o);
+                var item = new JsonObject { ["tipo"] = ObjectiveName(o.Type) };
+                if (o.ItemId is not null)
+                {
+                    item["oggetto"] = o.ItemId;
+                }
+
+                if (o.StructureId is not null)
+                {
+                    item["struttura"] = o.StructureId;
+                }
+
+                item["attuale"] = current;
+                item["richiesto"] = target;
+                item["fatto"] = current >= target;
+                return item;
+            }));
+            result["livelloCompletato"] =
+                CampaignProgress.AreAllObjectivesComplete(level, View.Wallet, View.Session, View.Research);
+        }
+
+        return result;
     }
+
+    private static string ObjectiveName(CampaignObjectiveType type) => type switch
+    {
+        CampaignObjectiveType.EarnMoney => "guadagna",
+        CampaignObjectiveType.StockItem => "accumula",
+        CampaignObjectiveType.UnlockResearch => "ricerca",
+        CampaignObjectiveType.SellItem => "vendi",
+        _ => type.ToString()
+    };
 
     private JsonObject Area(JsonElement p)
     {
-        var terrain = View.Terrain ?? throw Bad("La partita non ha una mappa.");
+        var terrain = Terrain();
         var from = Cell(p, "da");
         var to = Cell(p, "a");
         var (x0, x1) = (Math.Min(from.X, to.X), Math.Max(from.X, to.X));
         var (y0, y1) = (Math.Min(from.Y, to.Y), Math.Max(from.Y, to.Y));
-        if (x1 - x0 + 1 > MaxAreaEdge || y1 - y0 + 1 > MaxAreaEdge)
+        if ((long)x1 - x0 + 1 > MaxAreaEdge || (long)y1 - y0 + 1 > MaxAreaEdge)
         {
             throw Bad($"Area al massimo {MaxAreaEdge}×{MaxAreaEdge} celle.");
         }
@@ -197,15 +381,33 @@ public sealed class AgentGame
             throw Bad($"Area fuori dalla mappa ({terrain.Width}×{terrain.Height}).");
         }
 
+        // One pass over the buildings and sites instead of a lookup per cell.
+        var buildings = new Dictionary<GridPosition, char>();
+        foreach (var (id, kind, origin, direction) in Buildings())
+        {
+            foreach (var tile in View.Footprint(new BuildSpec(id, kind, origin, direction)))
+            {
+                buildings[tile] = KindSymbol(kind);
+            }
+        }
+
+        var sites = View.Sites.SelectMany(s => s.Tiles).ToHashSet();
         var used = new HashSet<char>();
         var rows = new JsonArray();
+        var shapes = new List<JsonObject>();
         var row = new char[x1 - x0 + 1];
         for (var y = y0; y <= y1; y++)
         {
             for (var x = x0; x <= x1; x++)
             {
-                row[x - x0] = Symbol(terrain, new GridPosition(x, y));
-                used.Add(row[x - x0]);
+                var cell = new GridPosition(x, y);
+                var symbol = Symbol(terrain, cell, buildings, sites);
+                row[x - x0] = symbol;
+                used.Add(symbol);
+                if (View.Belts.TryGetValue(cell, out var belt) && belt.Kind == LogisticsKind.Belt && symbol != 'C')
+                {
+                    shapes.Add(BeltShape(cell));
+                }
             }
 
             rows.Add(new string(row));
@@ -217,52 +419,69 @@ public sealed class AgentGame
             legend[symbol.ToString()] = meaning;
         }
 
-        return new JsonObject
+        var result = new JsonObject
         {
             ["da"] = CellJson(new GridPosition(x0, y0)),
             ["a"] = CellJson(new GridPosition(x1, y1)),
             ["righe"] = rows,
             ["legenda"] = legend
         };
+        PutNewest(result, "forme", shapes, newest: false, truncatedKey: "formeTroncate");
+        return result;
     }
 
-    private char Symbol(TerrainMap terrain, GridPosition cell)
+    // shortcut: straight or corner only (IsBeltCorner); switch to IGameView.GetBeltShape (T joins) when PR #209 lands.
+    private JsonObject BeltShape(GridPosition cell)
+    {
+        var item = CellJson(cell);
+        if (View.IsBeltCorner(cell) && View.TryGetBeltIncomingDirection(cell, out var incoming))
+        {
+            item["forma"] = "curva";
+            item["ingresso"] = DirectionName(incoming);
+        }
+        else
+        {
+            item["forma"] = "dritto";
+        }
+
+        return item;
+    }
+
+    private char Symbol(TerrainMap terrain, GridPosition cell, Dictionary<GridPosition, char> buildings, HashSet<GridPosition> sites)
     {
         if (View.CoreTiles.Contains(cell))
         {
             return 'C';
         }
 
-        if (View.TryGetSiteAt(cell, out _))
+        if (sites.Contains(cell))
         {
             return '?';
         }
 
-        if (View.TryGetSpecAt(cell, out var spec, out _))
+        if (View.Belts.TryGetValue(cell, out var belt))
         {
-            return spec.Kind switch
+            return belt.Kind switch
             {
-                null => spec.Direction switch
+                LogisticsKind.Belt => belt.Direction switch
                 {
                     Direction.North => '^',
                     Direction.East => '>',
                     Direction.South => 'v',
-                    _ => '<'
+                    Direction.West => '<',
+                    _ => '!'
                 },
-                BuildingKind.Junction => '+',
-                BuildingKind.Splitter => 'Y',
-                BuildingKind.Sorter => 'F',
-                BuildingKind.Bridge => '=',
-                BuildingKind.Miner => 'M',
-                BuildingKind.MinerAdvanced => 'N',
-                BuildingKind.Smelter => 'S',
-                BuildingKind.Assembler => 'A',
-                BuildingKind.Generator => 'G',
-                BuildingKind.Extractor => 'E',
-                BuildingKind.PowerNode => 'P',
-                BuildingKind.PowerNodeT2 => 'Q',
-                _ => 'L'
+                LogisticsKind.Junction => KindSymbol(BuildingKind.Junction),
+                LogisticsKind.Splitter => KindSymbol(BuildingKind.Splitter),
+                LogisticsKind.Sorter => KindSymbol(BuildingKind.Sorter),
+                LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
+                _ => '!'
             };
+        }
+
+        if (buildings.TryGetValue(cell, out var symbol))
+        {
+            return symbol;
         }
 
         if (View.IsPlannedTile(cell))
@@ -292,10 +511,28 @@ public sealed class AgentGame
         };
     }
 
+    internal static char KindSymbol(BuildingKind kind) => kind switch
+    {
+        BuildingKind.Junction => '+',
+        BuildingKind.Splitter => 'Y',
+        BuildingKind.Sorter => 'F',
+        BuildingKind.Bridge => '=',
+        BuildingKind.Miner => 'M',
+        BuildingKind.MinerAdvanced => 'N',
+        BuildingKind.Smelter => 'S',
+        BuildingKind.Assembler => 'A',
+        BuildingKind.Generator => 'G',
+        BuildingKind.Extractor => 'E',
+        BuildingKind.PowerNode => 'P',
+        BuildingKind.PowerNodeT2 => 'Q',
+        BuildingKind.Lamp => 'L',
+        _ => '!'
+    };
+
     private JsonObject Trova(JsonElement p)
     {
         var what = Str(p, "cosa");
-        var from = Cell(p, "cella");
+        var from = MapCell(p, "cella");
         var max = OptInt(p, "max") ?? 10;
         if (max is < 1 or > MaxListItems)
         {
@@ -305,7 +542,7 @@ public sealed class AgentGame
         var found = new List<GridPosition>();
         if (DepositFor(what) is { } deposit)
         {
-            var terrain = View.Terrain ?? throw Bad("La partita non ha una mappa.");
+            var terrain = Terrain();
             for (var y = 0; y < terrain.Height; y++)
             {
                 for (var x = 0; x < terrain.Width; x++)
@@ -337,6 +574,7 @@ public sealed class AgentGame
         return new JsonObject { ["cosa"] = what, ["trovati"] = found.Count, ["risultati"] = results };
     }
 
+    // Both cells are on the map (at most 2000 a side), so the sum fits an int.
     private static int Distance(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
 
     /// <summary>A deposit by its kind name (<c>Iron</c>) or its ore id (<c>iron-ore</c>); null otherwise.</summary>
@@ -355,65 +593,66 @@ public sealed class AgentGame
         return null;
     }
 
-    private IEnumerable<(string Id, GridPosition Origin)> StructureOrigins()
+    /// <summary>Every building (not belt pieces) with what its footprint needs.</summary>
+    private IEnumerable<(string Id, BuildingKind Kind, GridPosition Origin, Direction Direction)> Buildings()
     {
         foreach (var m in View.Miners)
         {
-            yield return (m.DefinitionId, m.Position);
+            yield return (m.DefinitionId, m.DefinitionId == Miner.AdvancedId ? BuildingKind.MinerAdvanced : BuildingKind.Miner,
+                m.Position, m.Direction);
         }
 
         foreach (var c in View.Smelters.Concat(View.Assemblers))
         {
-            yield return (c.DefinitionId, c.Position);
+            yield return (c.DefinitionId, c.IsAssembler ? BuildingKind.Assembler : BuildingKind.Smelter, c.Position, c.Direction);
         }
 
         foreach (var g in View.Generators)
         {
-            yield return (Generator.BuildingId, g.Position);
+            yield return (Generator.BuildingId, BuildingKind.Generator, g.Position, g.Direction);
         }
 
         foreach (var e in View.Extractors)
         {
-            yield return (Extractor.BuildingId, e.Position);
+            yield return (Extractor.BuildingId, BuildingKind.Extractor, e.Position, e.Direction);
         }
 
         foreach (var n in View.PowerNodes)
         {
-            yield return (n.DefinitionId, n.Position);
+            yield return (n.DefinitionId, n.DefinitionId == PowerNode.Tier2Id ? BuildingKind.PowerNodeT2 : BuildingKind.PowerNode,
+                n.Position, Direction.East);
         }
 
         foreach (var l in View.Lamps)
         {
-            yield return (Lamp.BuildingId, l.Position);
+            yield return (Lamp.BuildingId, BuildingKind.Lamp, l.Position, Direction.East);
+        }
+    }
+
+    private IEnumerable<(string Id, GridPosition Origin)> StructureOrigins()
+    {
+        foreach (var b in Buildings())
+        {
+            yield return (b.Id, b.Origin);
         }
 
-        foreach (var cell in View.Belts.Keys)
+        foreach (var (cell, belt) in View.Belts)
         {
-            // A bridge counts once, at its entry.
-            if (View.TryGetSpecAt(cell, out var spec, out _) && spec.Origin == cell)
+            // A bridge counts once, at its entry (the only piece whose spec lookup matters).
+            if (belt.Kind != LogisticsKind.Bridge
+                || (View.TryGetSpecAt(cell, out var spec, out _) && spec.Origin == cell))
             {
-                yield return (spec.StructureId, cell);
+                yield return (belt.Definition.Id, cell);
             }
         }
     }
 
     private JsonObject Eventi()
     {
-        // shortcut: events pile up until the agent reads them; cap the buffer if sessions ever run unread for hours.
-        var skipped = Math.Max(0, unreadEvents.Count - MaxListItems);
-        var events = new JsonArray();
-        foreach (var e in unreadEvents.Skip(skipped))
-        {
-            events.Add(e);
-        }
-
+        var result = new JsonObject();
+        PutNewest(result, "eventi", unreadEvents.ToList(), newest: true, extraTruncated: droppedEvents);
         unreadEvents.Clear();
-        var result = new JsonObject { ["eventi"] = events };
-        if (skipped > 0)
-        {
-            result["troncato"] = skipped;
-        }
-
+        droppedEvents = 0;
         return result;
     }
 
@@ -430,7 +669,7 @@ public sealed class AgentGame
         List<GridPosition> cells;
         if (Has(p, "cella"))
         {
-            cells = [Cell(p, "cella")];
+            cells = [MapCell(p, "cella")];
         }
         else
         {
@@ -439,12 +678,15 @@ public sealed class AgentGame
                 throw Bad($"'{structureId}' non si piazza in linea.");
             }
 
-            var from = Cell(p, "da");
-            cells = [from, .. DragLine.Cells(from, Cell(p, "a"))];
-            if (cells.Count > MaxListItems)
+            var from = MapCell(p, "da");
+            var to = MapCell(p, "a");
+            // Length checked before the list is built: a far end must not allocate a huge line.
+            if (Math.Abs((long)to.X - from.X) + Math.Abs((long)to.Y - from.Y) + 1 > MaxListItems)
             {
                 throw Bad($"Linea al massimo di {MaxListItems} celle.");
             }
+
+            cells = [from, .. DragLine.Cells(from, to)];
         }
 
         var recipe = OptStr(p, "ricetta");
@@ -453,31 +695,34 @@ public sealed class AgentGame
             ? (SimCommand)new PlaceBuilding(PlayerId, buildingKind, cell, direction, recipe, filter)
             : new PlaceBelt(PlayerId, cell, direction, structureId)).ToList();
 
-        var placed = new JsonArray();
-        var refused = new JsonArray();
-        Refusal? firstRefusal = null;
-        foreach (var (command, refusal, _) in Run(commands))
+        return Command(commands, outcomes =>
         {
-            var cell = CellJson(CellOf(command)!.Value);
-            if (refusal is null)
+            var placed = new JsonArray();
+            var refused = new JsonArray();
+            Refusal? firstRefusal = null;
+            foreach (var (command, refusal, _) in outcomes)
             {
-                cell["direzione"] = direction.ToString();
-                placed.Add(cell);
+                var cell = CellJson(CellOf(command)!.Value);
+                if (refusal is null)
+                {
+                    cell["direzione"] = DirectionName(direction);
+                    placed.Add(cell);
+                }
+                else
+                {
+                    firstRefusal ??= refusal;
+                    cell["codice"] = refusal.Code.ToString();
+                    refused.Add(cell);
+                }
             }
-            else
+
+            if (placed.Count == 0 && firstRefusal is not null)
             {
-                firstRefusal ??= refusal;
-                cell["codice"] = refusal.Code.ToString();
-                refused.Add(cell);
+                throw Refused(firstRefusal);
             }
-        }
 
-        if (placed.Count == 0 && firstRefusal is not null)
-        {
-            throw Refused(firstRefusal);
-        }
-
-        return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = placed, ["rifiuti"] = refused };
+            return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = placed, ["rifiuti"] = refused };
+        });
     }
 
     private string ConveyorOfTier(int tier) =>
@@ -501,19 +746,7 @@ public sealed class AgentGame
     {
         // Like the player's R: turns the brush clockwise; later placements without `direzione` use it.
         brush = DirectionMath.Right(brush);
-        return new JsonObject { ["direzione"] = brush.ToString() };
-    }
-
-    private JsonObject Vendi(JsonElement p)
-    {
-        var command = new Sell(PlayerId, Str(p, "oggetto"), Int(p, "quantita"));
-        var (_, refusal, moneyDelta) = Run([command])[0];
-        if (refusal is not null)
-        {
-            throw Refused(refusal);
-        }
-
-        return new JsonObject { ["tick"] = View.CurrentTick, ["incasso"] = moneyDelta, ["soldi"] = View.Wallet.Money };
+        return new JsonObject { ["direzione"] = DirectionName(brush) };
     }
 
     private JsonObject Avanza(JsonElement p)
@@ -532,41 +765,42 @@ public sealed class AgentGame
     private JsonObject Diario(JsonElement p)
     {
         var result = new JsonObject();
-        if (OptStr(p, "percorso") is { } path)
+        if (OptStr(p, "nome") is { } name)
         {
+            if (journalDirectory is null)
+            {
+                throw Bad("Questa sessione non ha una cartella per i diari.");
+            }
+
+            if (!JournalName.IsMatch(name))
+            {
+                throw Bad("'nome' è un nome di file semplice (lettere, cifre, - e _), senza cartelle.");
+            }
+
+            var path = Path.Combine(journalDirectory, name.EndsWith(".json", StringComparison.Ordinal) ? name : name + ".json");
             Journal.Save(path);
             result["percorso"] = path;
         }
 
-        var entries = Journal.Entries;
-        var skipped = Math.Max(0, entries.Count - MaxListItems);
-        var items = new JsonArray();
-        foreach (var e in entries.Skip(skipped))
+        var items = Journal.Entries.Select(e => new JsonObject
         {
-            items.Add(new JsonObject
-            {
-                ["tick"] = e.Tick,
-                ["metodo"] = e.Method,
-                ["parametri"] = JsonNode.Parse(e.Params.GetRawText())
-            });
-        }
-
-        result["voci"] = items;
-        if (skipped > 0)
-        {
-            result["troncato"] = skipped;
-        }
-
+            ["tick"] = e.Tick,
+            ["metodo"] = e.Method,
+            ["parametri"] = JsonNode.Parse(e.Params.GetRawText())
+        }).ToList();
+        PutNewest(result, "voci", items, newest: true);
         return result;
     }
 
     /// <summary>One command: <c>{tick}</c> (plus <paramref name="fill"/>) when applied, else its refusal.</summary>
-    private JsonObject RunOne(SimCommand command, Action<JsonObject>? fill = null)
+    private JsonObject Single(SimCommand command, Action<JsonObject>? fill = null) =>
+        Command([command], o => Accepted(o[0], fill));
+
+    private JsonObject Accepted(Outcome outcome, Action<JsonObject>? fill)
     {
-        var refusal = Run([command])[0].Refusal;
-        if (refusal is not null)
+        if (outcome.Refusal is not null)
         {
-            throw Refused(refusal);
+            throw Refused(outcome.Refusal);
         }
 
         var result = new JsonObject { ["tick"] = View.CurrentTick };
@@ -574,49 +808,67 @@ public sealed class AgentGame
         return result;
     }
 
-    /// <summary>Submits <paramref name="commands"/> for the next tick, runs it and returns each one's outcome, in order.</summary>
-    private List<(SimCommand Command, Refusal? Refusal, int MoneyDelta)> Run(IReadOnlyList<SimCommand> commands)
+    /// <summary>
+    /// Submits <paramref name="commands"/> for the next tick. With a tick per command it runs that tick and returns
+    /// <paramref name="build"/> of the outcomes (in submit order); otherwise it answers <c>inAttesa</c>.
+    /// </summary>
+    private JsonObject Command(IReadOnlyList<SimCommand> commands, Func<List<Outcome>, JsonObject> build)
     {
         var tick = View.CurrentTick + 1;
         var stamped = commands.Select(c => c with { Tick = tick }).ToList();
+        awaiting.AddRange(stamped);
         foreach (var command in stamped)
         {
             host.Submit(command);
         }
 
-        outcomes.Clear();
+        if (!tickPerCommand)
+        {
+            pending = (stamped, build);
+            return new JsonObject { ["tick"] = tick, ["inAttesa"] = true };
+        }
+
         host.AdvanceTicks(1);
-        var results = new List<(SimCommand, Refusal?, int)>();
+        return Finish(stamped, build);
+    }
+
+    private JsonObject Finish(List<SimCommand> stamped, Func<List<Outcome>, JsonObject> build)
+    {
+        var outcomes = new List<Outcome>();
         foreach (var command in stamped)
         {
-            // Value equality: another source (the player in the game) may have sent other commands this tick.
-            var i = outcomes.FindIndex(o => o.Command.Equals(command));
+            var i = resolved.FindIndex(o => o.Command.Equals(command));
             if (i < 0)
             {
                 throw new InvalidOperationException($"Esito mancante per {command}.");
             }
 
-            results.Add(outcomes[i]);
-            outcomes.RemoveAt(i);
+            outcomes.Add(resolved[i]);
+            resolved.RemoveAt(i);
         }
 
-        return results;
+        return build(outcomes);
+    }
+
+    /// <summary>Keeps the outcome only of commands this instance submitted (the player's own go elsewhere).</summary>
+    private void Resolve(SimCommand command, Refusal? refusal, int moneyDelta)
+    {
+        var i = awaiting.IndexOf(command);
+        if (i >= 0)
+        {
+            awaiting.RemoveAt(i);
+            resolved.Add(new Outcome(command, refusal, moneyDelta));
+        }
     }
 
     private void OnRejected(SimCommand command, Refusal refusal)
     {
-        outcomes.Add((command, refusal, 0));
-        refusals.Add((command.Tick, refusal));
-        if (refusals.Count > RecentRefusals)
-        {
-            refusals.RemoveAt(0);
-        }
-
+        Resolve(command, refusal, 0);
         var e = new JsonObject
         {
             ["tick"] = command.Tick,
             ["tipo"] = "rifiuto",
-            ["comando"] = command.GetType().Name,
+            ["comando"] = ToolName(command),
             ["codice"] = refusal.Code.ToString()
         };
         if (CellOf(command) is { } cell)
@@ -624,7 +876,13 @@ public sealed class AgentGame
             e["cella"] = CellJson(cell);
         }
 
-        unreadEvents.Add(e);
+        refusals.Enqueue(e);
+        if (refusals.Count > RecentRefusals)
+        {
+            refusals.Dequeue();
+        }
+
+        Buffer(e);
     }
 
     private void OnEvent(SimEvent simEvent)
@@ -647,12 +905,36 @@ public sealed class AgentGame
                 e["cantiere"] = taken.SiteId;
                 break;
             default:
-                e["tipo"] = simEvent.GetType().Name;
+                e["tipo"] = "altro";
+                e["nome"] = simEvent.GetType().Name;
                 break;
         }
 
-        unreadEvents.Add(e);
+        Buffer(e);
     }
+
+    private void Buffer(JsonObject e)
+    {
+        unreadEvents.Enqueue(e);
+        if (unreadEvents.Count > MaxBufferedEvents)
+        {
+            unreadEvents.Dequeue();
+            droppedEvents++;
+        }
+    }
+
+    /// <summary>The agents' tool that sends <paramref name="command"/> (the client sends the others).</summary>
+    private static string ToolName(SimCommand command) => command switch
+    {
+        PlaceBelt or PlaceBuilding => "piazza",
+        Remove => "smonta",
+        UnlockStructure => "sblocca",
+        Sell => "vendi",
+        UpgradeCore => "potenzia_core",
+        SetAutoSell => "venditaAutomatica",
+        SetSorterFilter => "filtroSelezionatore",
+        _ => "altro"
+    };
 
     private static GridPosition? CellOf(SimCommand command) => command switch
     {
@@ -661,6 +943,25 @@ public sealed class AgentGame
         Remove remove => remove.Tile,
         _ => null
     };
+
+    /// <summary>
+    /// Puts at most <see cref="MaxListItems"/> of <paramref name="items"/> (the newest, or the first) under
+    /// <paramref name="key"/>, and how many were left out (plus <paramref name="extraTruncated"/>) under the truncation key.
+    /// </summary>
+    private static void PutNewest(
+        JsonObject target, string key, IReadOnlyList<JsonObject> items, bool newest, int extraTruncated = 0,
+        string truncatedKey = "troncato")
+    {
+        var skipped = Math.Max(0, items.Count - MaxListItems);
+        target[key] = Array(newest ? items.Skip(skipped) : items.Take(MaxListItems));
+        if (skipped + extraTruncated > 0)
+        {
+            target[truncatedKey] = skipped + extraTruncated;
+        }
+    }
+
+    // A node has one parent: buffered nodes are copied into each answer.
+    private static JsonArray Array(IEnumerable<JsonNode> items) => new(items.Select(i => i.DeepClone()).ToArray());
 
     private static AgentException Refused(Refusal refusal)
     {
@@ -685,7 +986,17 @@ public sealed class AgentGame
 
     private static AgentException Bad(string message) => new(AgentCodes.ParametriNonValidi, message);
 
+    private TerrainMap Terrain() => View.Terrain ?? throw Bad("La partita non ha una mappa.");
+
     private static JsonObject CellJson(GridPosition cell) => new() { ["x"] = cell.X, ["y"] = cell.Y };
+
+    internal static string DirectionName(Direction direction) => direction switch
+    {
+        Direction.North => "nord",
+        Direction.East => "est",
+        Direction.South => "sud",
+        _ => "ovest"
+    };
 
     private static Direction ParseDirection(string text) => text.ToLowerInvariant() switch
     {
@@ -728,4 +1039,14 @@ public sealed class AgentGame
 
         return new GridPosition(Int(value, "x"), Int(value, "y"));
     }
+
+    /// <summary>A cell that must lie on the map.</summary>
+    private GridPosition MapCell(JsonElement p, string name)
+    {
+        var cell = Cell(p, name);
+        var terrain = Terrain();
+        return terrain.InBounds(cell) ? cell : throw Bad($"'{name}' fuori dalla mappa ({terrain.Width}×{terrain.Height}).");
+    }
+
+    private readonly record struct Outcome(SimCommand Command, Refusal? Refusal, int MoneyDelta);
 }

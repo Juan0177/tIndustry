@@ -115,9 +115,9 @@ public sealed class AgentGameTests
         Assert.Equal(expected.Skip(1), DragLine.Cells(expected[0], expected[^1]));
 
         // `ruota` turns the brush like the player's R; `direzione` overrides it for one call.
-        Assert.Equal("South", Call(game, "ruota").GetProperty("direzione").GetString());
+        Assert.Equal("sud", Call(game, "ruota").GetProperty("direzione").GetString());
         Call(game, "piazza", """{"tier":1,"da":{"x":40,"y":53},"a":{"x":40,"y":55}}""");
-        Call(game, "piazza", """{"tier":1,"da":{"x":44,"y":53},"a":{"x":46,"y":53},"direzione":"West"}""");
+        Call(game, "piazza", """{"tier":1,"da":{"x":44,"y":53},"a":{"x":46,"y":53},"direzione":"ovest"}""");
         Assert.Equal("conveyor-basic", host.State.Belts[new GridPosition(40, 55)].Definition.Id);
         Assert.Equal(Direction.South, host.State.Belts[new GridPosition(40, 54)].Direction);
         Assert.Equal(Direction.West, host.State.Belts[new GridPosition(46, 53)].Direction);
@@ -225,8 +225,11 @@ public sealed class AgentGameTests
     [Fact]
     public void ReplayGivesSameChecksum()
     {
-        var host = NewHost();
-        var game = new AgentGame(host, Content);
+        var setup = AgentGameSetup.Sandbox(120, 42, ClassicTerrainGenerator.Name, new GameRules(InstantBuild: true));
+        var host = setup.CreateHost(Content);
+        var dir = Path.Combine(Path.GetTempPath(), "tindustry-agenti-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        using var game = new AgentGame(host, Content, setup, journalDirectory: dir);
         var actions = new List<(string Method, string Json)>
         {
             ("piazza", """{"tipo":"miner","cella":{"x":52,"y":60}}"""),
@@ -245,7 +248,7 @@ public sealed class AgentGameTests
             ("smonta", """{"cella":{"x":45,"y":45}}"""),
             ("smonta", """{"cella":{"x":45,"y":45}}"""),
             ("avanza", """{"tick":60}"""),
-            ("piazza", """{"tipo":"conveyor-basic","cella":{"x":-5,"y":3}}"""),
+            ("piazza", """{"tipo":"conveyor-basic","cella":{"x":59,"y":59}}"""),
             ("piazza", """{"tier":3,"da":{"x":30,"y":50},"a":{"x":33,"y":53}}"""),
             ("vendi", """{"oggetto":"copper-wire","quantita":1}"""),
             ("avanza", """{"tick":240}""")
@@ -262,26 +265,252 @@ public sealed class AgentGameTests
             }
         }
 
+        // Bad parameters change nothing and stay out of the journal.
+        Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":-5,"y":3}}""");
         Assert.Equal(20, game.Journal.Entries.Count);
-        Assert.NotEqual(NewHost().Checksum(), host.Checksum());
+        Assert.NotEqual(setup.CreateHost(Content).Checksum(), host.Checksum());
         Assert.Contains(Call(game, "diario").GetProperty("voci").EnumerateArray(), v => v.GetProperty("metodo").GetString() == "smonta");
-        var dir = Path.Combine(Path.GetTempPath(), "tindustry-agenti-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
         try
         {
-            var path = Path.Combine(dir, "diario.json");
-            Call(game, "diario", JsonSerializer.Serialize(new { percorso = path }));
+            var path = Call(game, "diario", """{"nome":"partita-1"}""").GetProperty("percorso").GetString()!;
+            Assert.Equal(Path.Combine(dir, "partita-1.json"), path);
 
-            var replayHost = NewHost();
-            AgentGame.Replay(AgentJournal.Load(path), replayHost);
+            using var replay = AgentGame.Replay(AgentJournal.Load(path), Content);
 
-            Assert.Equal(host.State.CurrentTick, replayHost.State.CurrentTick);
-            Assert.Equal(host.Checksum(), replayHost.Checksum());
+            Assert.Equal(setup, replay.Journal.Setup);
+            Assert.Equal(host.State.CurrentTick, replay.Host.State.CurrentTick);
+            Assert.Equal(host.Checksum(), replay.Host.Checksum());
         }
         finally
         {
             Directory.Delete(dir, recursive: true);
         }
+    }
+
+    [Fact]
+    public void StatoReportsCampaignObjectives()
+    {
+        var catalog = CampaignCatalog.Load(Path.Combine(AppContext.BaseDirectory, "data", "campaign.json"));
+        var level = catalog.FirstLevel!;
+        var host = new SimHost(NewGame.Campaign(
+            Content, catalog, level, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true)));
+        using var game = new AgentGame(host, Content, campaign: catalog);
+
+        var before = Call(game, "stato");
+        Assert.Equal(level.Id, before.GetProperty("livelloCampagna").GetString());
+        var sell = before.GetProperty("obiettivi").EnumerateArray().First(o => o.GetProperty("tipo").GetString() == "vendi");
+        Assert.Equal(0, sell.GetProperty("attuale").GetInt32());
+        Assert.False(sell.GetProperty("fatto").GetBoolean());
+        Assert.False(before.GetProperty("livelloCompletato").GetBoolean());
+
+        Call(game, "vendi", $$"""{"oggetto":"{{sell.GetProperty("oggetto").GetString()}}","quantita":1}""");
+
+        var after = Call(game, "stato").GetProperty("obiettivi").EnumerateArray()
+            .First(o => o.GetProperty("tipo").GetString() == "vendi");
+        Assert.Equal(1, after.GetProperty("attuale").GetInt32());
+        Assert.Equal(sell.GetProperty("richiesto").GetInt32(), after.GetProperty("richiesto").GetInt32());
+        using var sandbox = new AgentGame(NewHost(), Content, campaign: catalog);
+        Assert.False(Call(sandbox, "stato").TryGetProperty("obiettivi", out _));
+    }
+
+    [Fact]
+    public void PiazzaLineReportsPartialRefusals()
+    {
+        using var game = new AgentGame(NewHost(), Content);
+
+        // The Core stands on x 60..61: those two cells are refused, the rest is built.
+        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":56,"y":60},"a":{"x":63,"y":60}}""");
+
+        Assert.Equal(6, result.GetProperty("celle").GetArrayLength());
+        var refused = result.GetProperty("rifiuti").EnumerateArray().ToArray();
+        Assert.Equal([60, 61], refused.Select(r => r.GetProperty("x").GetInt32()));
+        Assert.All(refused, r => Assert.Equal("OnCore", r.GetProperty("codice").GetString()));
+        Assert.Equal("est", result.GetProperty("celle")[0].GetProperty("direzione").GetString());
+    }
+
+    [Fact]
+    public void FarOrHugeCoordinatesAreBadParameters()
+    {
+        using var game = new AgentGame(NewHost(), Content);
+
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza",
+            """{"tipo":"conveyor-basic","da":{"x":0,"y":0},"a":{"x":2000000000,"y":0}}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza",
+            """{"tipo":"conveyor-basic","da":{"x":0,"y":0},"a":{"x":-2147483648,"y":0}}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza",
+            """{"tipo":"conveyor-basic","da":{"x":0,"y":0},"a":{"x":119,"y":119}}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "trova",
+            """{"cosa":"iron-ore","cella":{"x":-2147483648,"y":0}}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "smonta", """{"cella":{"x":500,"y":5}}""").Code);
+        Assert.Equal(0, game.Host.State.CurrentTick);
+        Assert.Empty(game.Journal.Entries);
+    }
+
+    [Fact]
+    public void UnexpectedExceptionsBecomeErroreInterno()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content);
+        host.CommandApplied += _ => throw new InvalidOperationException("gestore rotto");
+
+        var response = game.Handle(AgentProtocol.ReadLine(
+            """{"id":3,"metodo":"piazza","parametri":{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}}"""));
+
+        Assert.False(response.Ok);
+        Assert.Equal(3, response.Id);
+        Assert.Equal(AgentCodes.ErroreInterno, response.Code);
+        Assert.Contains("gestore rotto", response.Message);
+        // The command was applied and took its tick, so it is journaled.
+        Assert.Single(game.Journal.Entries);
+        Assert.True(game.Handle(AgentProtocol.ReadLine("""{"id":4,"metodo":"stato"}""")).Ok);
+    }
+
+    [Fact]
+    public void DiarioWritesOnlyInsideItsFolder()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "tindustry-agenti-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            using var noFolder = new AgentGame(NewHost(), Content);
+            Assert.Equal(AgentCodes.ParametriNonValidi, Refused(noFolder, "diario", """{"nome":"a"}""").Code);
+
+            using var game = new AgentGame(NewHost(), Content, journalDirectory: dir);
+            foreach (var name in new[] { "../fuori", "..", "a/b", "a\\b", "C:\\x", "/x", ".nascosto", "" })
+            {
+                Assert.Equal(AgentCodes.ParametriNonValidi,
+                    Refused(game, "diario", JsonSerializer.Serialize(new { nome = name })).Code);
+            }
+
+            Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(dir)!, "fuori*"));
+            Assert.Empty(Directory.GetFiles(dir));
+
+            var broken = Path.Combine(dir, "rotto.json");
+            File.WriteAllText(broken, "{non json");
+            Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
+            File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
+            Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
+            Assert.Equal(AgentCodes.ParametriNonValidi,
+                Assert.Throws<AgentException>(() => AgentJournal.Load(Path.Combine(dir, "manca.json"))).Code);
+            // A journal without its game cannot be replayed from the header.
+            Assert.Equal(AgentCodes.ParametriNonValidi,
+                Assert.Throws<AgentException>(() => AgentGame.Replay(new AgentJournal(), Content)).Code);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EventiKeepsTheNewestAndCountsTheRest()
+    {
+        using var game = new AgentGame(NewHost(), Content);
+        for (var i = 0; i < 600; i++)
+        {
+            Refused(game, "vendi", """{"oggetto":"iron-ore","quantita":1000}""");
+        }
+
+        var result = Call(game, "eventi");
+
+        var events = result.GetProperty("eventi").EnumerateArray().ToArray();
+        Assert.Equal(AgentGame.MaxListItems, events.Length);
+        Assert.Equal(400, result.GetProperty("troncato").GetInt32());
+        Assert.Equal(600, events[^1].GetProperty("tick").GetInt64());
+        Assert.Equal("vendi", events[0].GetProperty("comando").GetString());
+        Assert.False(Call(game, "eventi").TryGetProperty("troncato", out _));
+    }
+
+    [Fact]
+    public void AreaShowsTerrainAndBeltShapes()
+    {
+        var host = new SimHost(NewGame.Sandbox(
+            Content, new GridPosition(500, 500), rules: new GameRules(InstantBuild: true),
+            map: MapGenSettings.Normal(MapSize.Media, 1)));
+        using var game = new AgentGame(host, Content);
+        var t = host.State.Terrain!;
+        char At(GridPosition c) =>
+            Call(game, "area", $$$"""{"da":{"x":{{{c.X}}},"y":{{{c.Y}}}},"a":{"x":{{{c.X}}},"y":{{{c.Y}}}}}""")
+                .GetProperty("righe")[0].GetString()![0];
+        GridPosition First(Func<TerrainTile, bool> match)
+        {
+            for (var y = 0; y < t.Height; y++)
+            {
+                for (var x = 0; x < t.Width; x++)
+                {
+                    if (match(t[x, y]))
+                    {
+                        return new GridPosition(x, y);
+                    }
+                }
+            }
+
+            throw new InvalidOperationException("Cella non trovata.");
+        }
+
+        Assert.Equal('#', At(First(c => c.Wall != WallKind.None)));
+        Assert.Equal('~', At(First(c => c.Wall == WallKind.None && c.Floor == FloorKind.DeepWater)));
+        Assert.Equal('i', At(First(c => c.Wall == WallKind.None && c.Floor != FloorKind.DeepWater && c.Deposit == DepositKind.Iron)));
+        var byKind = Call(game, "trova", """{"cosa":"Iron","cella":{"x":500,"y":500},"max":1}""").GetProperty("risultati")[0];
+        Assert.Equal(DepositKind.Iron, t[byKind.GetProperty("x").GetInt32(), byKind.GetProperty("y").GetInt32()].Deposit);
+
+        // An L of belts on the cleared starting ground by the Core: east along y 496, then south.
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":494,"y":496},"a":{"x":496,"y":496}}""");
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":497,"y":496},"a":{"x":497,"y":498},"direzione":"sud"}""");
+        var area = Call(game, "area", """{"da":{"x":494,"y":496},"a":{"x":497,"y":498}}""");
+        var shapes = area.GetProperty("forme").EnumerateArray()
+            .ToDictionary(s => (s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32()));
+        Assert.Equal(6, shapes.Count);
+        Assert.Equal("curva", shapes[(497, 496)].GetProperty("forma").GetString());
+        Assert.Equal("est", shapes[(497, 496)].GetProperty("ingresso").GetString());
+        Assert.Equal("dritto", shapes[(495, 496)].GetProperty("forma").GetString());
+        Assert.Equal(">>>v", area.GetProperty("righe")[0].GetString());
+    }
+
+    [Fact]
+    public void EveryBuildingKindHasALegendSymbol()
+    {
+        var symbols = AgentGame.Legend.Select(l => l.Symbol).ToHashSet();
+        foreach (var kind in Enum.GetValues<BuildingKind>())
+        {
+            var symbol = AgentGame.KindSymbol(kind);
+            Assert.NotEqual('!', symbol);
+            Assert.Contains(symbol, symbols);
+        }
+    }
+
+    [Fact]
+    public void WithoutTickPerCommandTheOutcomeComesAfterTheNextTick()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content, tickPerComando: false);
+
+        var waiting = Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}""");
+
+        Assert.True(waiting.GetProperty("inAttesa").GetBoolean());
+        Assert.Equal(1, waiting.GetProperty("tick").GetInt64());
+        Assert.Equal(0, host.State.CurrentTick);
+        Assert.False(game.TryFinishPending(out _));
+        host.AdvanceTicks(1);
+        Assert.True(game.TryFinishPending(out var done));
+        Assert.Equal(1, done.GetProperty("celle").GetArrayLength());
+
+        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}""");
+        host.AdvanceTicks(1);
+        Assert.Equal("Occupied", Assert.Throws<AgentException>(() => game.TryFinishPending(out _)).Code);
+    }
+
+    [Fact]
+    public void DisposeStopsListening()
+    {
+        var host = NewHost();
+        var game = new AgentGame(host, Content);
+        game.Dispose();
+
+        host.Submit(new Sell(0, "iron-ore", 1000));
+        host.AdvanceTicks(1);
+
+        Assert.Empty(Call(game, "eventi").GetProperty("eventi").EnumerateArray());
     }
 
     [Fact]

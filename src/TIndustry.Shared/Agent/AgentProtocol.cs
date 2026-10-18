@@ -33,6 +33,9 @@ public static class AgentCodes
     public const string Timeout = nameof(Timeout);
     public const string ParametriNonValidi = nameof(ParametriNonValidi);
     public const string GiocoTerminato = nameof(GiocoTerminato);
+
+    /// <summary>An unexpected exception inside the engine: the message says which; the session stays usable.</summary>
+    public const string ErroreInterno = nameof(ErroreInterno);
 }
 
 /// <summary>A request that ends with <c>ok:false</c>: <see cref="Code"/> is what agents read, the message is for people.</summary>
@@ -50,7 +53,7 @@ public static class AgentProtocol
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private static readonly JsonElement EmptyObject = JsonDocument.Parse("{}").RootElement.Clone();
+    internal static readonly JsonElement EmptyObject = JsonDocument.Parse("{}").RootElement.Clone();
 
     /// <summary>Parses one request line; a missing <c>parametri</c> becomes <c>{}</c>.</summary>
     public static AgentRequest ReadLine(string line)
