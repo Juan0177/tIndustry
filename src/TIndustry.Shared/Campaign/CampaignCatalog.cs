@@ -23,6 +23,7 @@ public sealed record CampaignObjectiveDefinition(
 /// A campaign level. With <paramref name="Map"/> (id of a map in <c>data/maps/</c>, see <see cref="CampaignMapFile"/>)
 /// the size, terrain and Core come from that file and <paramref name="MapWidth"/>, <paramref name="MapHeight"/> and
 /// <paramref name="Seed"/> only serve the classic generator (tests with explicit sizes, older clients).
+/// <paramref name="Night"/> plays the level at night (client looks only, see <see cref="GameRules.Night"/>).
 /// </summary>
 public sealed record CampaignLevelDefinition(
     string Id,
@@ -36,7 +37,8 @@ public sealed record CampaignLevelDefinition(
     IReadOnlyList<CampaignObjectiveDefinition>? Objectives = null,
     string? UnlocksNext = null,
     int RefundPercent = 100,
-    string? Map = null);
+    string? Map = null,
+    bool Night = false);
 
 /// <summary>Thin campaign catalog loaded from campaign.json (Godot / Shared).</summary>
 public sealed class CampaignCatalog

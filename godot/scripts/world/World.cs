@@ -37,7 +37,8 @@ public partial class World : Node2D
         Bridge,
         Extractor,
         PowerNode,
-        PowerNodeT2
+        PowerNodeT2,
+        Lamp
     }
 
     // The simulation lives behind the host: the client reads IGameView and submits commands.
@@ -55,6 +56,9 @@ public partial class World : Node2D
     private EffectManager? _effects;
     private AmbientEffects? _ambient;
     private RenderScale? _renderScale;
+    private NightLayer? _night;
+    private WorldEnvironment? _glowNode;
+    private global::Godot.Environment? _glowEnv;
     // Graphics setting "Animazioni dei blocchi": false = building visuals get no time (still frames).
     private bool _blockAnimations = true;
     private Hud? _hud;
@@ -196,6 +200,7 @@ public partial class World : Node2D
         }
 
         SyncTerrainChunks();
+        SyncNight();
         SyncAmbientEffects(delta);
         SyncTutorial();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
@@ -263,12 +268,109 @@ public partial class World : Node2D
         _renderScale = new RenderScale { Name = "ScalaRendering" };
         AddChild(_renderScale);
         _renderScale.Setup(this);
+        _night = new NightLayer { Name = "Notte" };
+        AddChild(_night);
+        _glowEnv = MakeGlowEnvironment();
+        _glowNode = new WorldEnvironment { Name = "Bagliore" };
+        AddChild(_glowNode);
+    }
+
+    /// <summary>
+    /// Glow of the world (G3 "Bagliore"): canvas background, so the canvas layers up to 0 (the world, and the reduced
+    /// world image of <see cref="RenderScale"/> at -10) get the glow and the HUD (layer 20) never does. With HDR 2D only
+    /// colours above 1 bloom (glowing parts boosted by <see cref="BuildingPad.GlowBoost"/>, lights at night, HDR
+    /// particles), so light ground such as snow is not washed out.
+    /// </summary>
+    private static global::Godot.Environment MakeGlowEnvironment()
+    {
+        var env = new global::Godot.Environment
+        {
+            BackgroundMode = global::Godot.Environment.BGMode.Canvas,
+            BackgroundCanvasMaxLayer = 0,
+            TonemapMode = global::Godot.Environment.ToneMapper.Linear,
+            GlowEnabled = true,
+            GlowNormalized = false,
+            GlowIntensity = 0.9f,
+            GlowStrength = 1f,
+            GlowBloom = 0f,
+            GlowHdrThreshold = 1f,
+            GlowHdrScale = 2f,
+            GlowBlendMode = global::Godot.Environment.GlowBlendModeEnum.Additive
+        };
+        // Wide, soft levels: a 64 px block's glow spreads about half a block around it.
+        for (var level = 0; level < 7; level++)
+        {
+            env.SetGlowLevel(level, level is 2 or 3 or 4 ? 1f : 0f);
+        }
+
+        return env;
+    }
+
+    /// <summary>
+    /// "Bagliore" on or off: HDR 2D on the viewport that draws the world (the root, or the reduced one of
+    /// <see cref="RenderScale"/>, which gets a World3D of its own so the glow is applied once). Off = no environment
+    /// and no HDR at all, the world drawn exactly as before the G3.
+    /// </summary>
+    private void ApplyGlow(bool on)
+    {
+        if (_glowNode is null || _glowEnv is null)
+        {
+            return;
+        }
+
+        var root = GetTree().Root;
+        var target = _renderScale?.Target;
+        root.UseHdr2D = on;
+        _glowNode.Environment = on && target is null ? _glowEnv : null;
+        if (target is not null)
+        {
+            target.UseHdr2D = on;
+            target.World3D ??= new World3D();
+            target.World3D.Environment = on ? _glowEnv : null;
+        }
+    }
+
+    /// <summary>True when the glow is drawn (playtest checks).</summary>
+    private bool GlowActive => _glowEnv is not null
+        && (_renderScale?.Target is { } target ? target.World3D?.Environment == _glowEnv : _glowNode?.Environment == _glowEnv);
+
+    /// <summary>
+    /// Every frame: the night of the running game (not behind Home, never in a playtest without effects) with the lights
+    /// of the sources in view; the ambient effects follow it (fireflies at night).
+    /// </summary>
+    private void SyncNight()
+    {
+        if (_night is null)
+        {
+            return;
+        }
+
+        var night = _view?.Rules.Night == true && _home?.IsOpen != true && !ClientSettings.PlaytestForcesEffectsOff;
+        if (night != _night.Night)
+        {
+            _night.SetNight(night);
+        }
+
+        if (_ambient is not null)
+        {
+            _ambient.Night = night;
+        }
+
+        if (!night)
+        {
+            return;
+        }
+
+        GetVisibleTileRange(out var minX, out var minY, out var maxX, out var maxY);
+        var view = new Rect2(minX * TileSize, minY * TileSize, (maxX - minX + 1) * TileSize, (maxY - minY + 1) * TileSize);
+        _night.Sync(_view, view, _constructionLayer?.DronePositions ?? [], TileSize);
     }
 
     /// <summary>
     /// Graphics settings that act on world nodes (the engine ones are in <see cref="ClientSettings.ApplyToEngine"/>):
     /// effects quality (Spenti in playtests unless TINDUSTRY_PLAYTEST_EFFETTI=1), still water with Effetti Spenti,
-    /// render scale, building animations. Called at start and on every Applica, so changes act at once.
+    /// render scale, glow, shadows (a change rebuilds the building visuals), building animations. Called at start and on
+    /// every Applica, so changes act at once.
     /// </summary>
     private void ApplyGraphicsSettings()
     {
@@ -285,7 +387,19 @@ public partial class World : Node2D
 
         _renderScale?.Apply(_settings.ScalaRendering);
         _blockAnimations = _settings.AnimazioniBlocchi;
+        var glow = _settings.EffectiveGlow;
+        ApplyGlow(glow);
+        var boost = glow ? GlowBoostOn : 1f;
+        if (BuildingPad.Shadows != _settings.EffectiveShadows || !Mathf.IsEqualApprox(BuildingPad.GlowBoost, boost))
+        {
+            BuildingPad.Shadows = _settings.EffectiveShadows;
+            BuildingPad.GlowBoost = boost;
+            _buildingsDirty = true;
+        }
     }
+
+    /// <summary>Brightness of the glowing block parts with "Bagliore" on (above 1: they bloom).</summary>
+    private const float GlowBoostOn = 1.5f;
 
     private void EnsureTerrainChunks()
     {

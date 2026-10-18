@@ -31,6 +31,7 @@ public partial class World
             BuildTool.Extractor => Place(BuildingKind.Extractor),
             BuildTool.PowerNode => Place(BuildingKind.PowerNode),
             BuildTool.PowerNodeT2 => Place(BuildingKind.PowerNodeT2),
+            BuildTool.Lamp => Place(BuildingKind.Lamp),
             _ => throw new InvalidOperationException($"Strumento non piazzabile: {_tool}")
         };
 

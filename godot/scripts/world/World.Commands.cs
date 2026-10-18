@@ -210,7 +210,7 @@ public partial class World
     private int StructureCount() => _view is null
         ? 0
         : _view.Belts.Count + _view.Miners.Count + _view.Smelters.Count + _view.Assemblers.Count
-            + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count;
+            + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count + _view.Lamps.Count;
 
     private void OnCommandRejected(SimCommand command, string reason)
     {

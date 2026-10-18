@@ -26,8 +26,8 @@ public sealed class ClientSettings
     public static readonly int[] RenderScalePresets = [100, 75, 50];
 
     /// <summary>
-    /// Set to 1 to keep the graphics settings in a playtest. Without it a playtest shows no particles, no glow and
-    /// no night whatever the settings say, so its captures stay stable.
+    /// Set to 1 to keep the graphics settings in a playtest. Without it a playtest shows no particles, no shadows, no
+    /// glow and no night whatever the settings say, so its captures stay stable.
     /// </summary>
     public const string PlaytestEffectsEnv = "TINDUSTRY_PLAYTEST_EFFETTI";
 
@@ -54,7 +54,7 @@ public sealed class ClientSettings
     /// <summary>World render resolution percent (<see cref="RenderScalePresets"/>).</summary>
     public int ScalaRendering { get; set; } = 100;
 
-    /// <summary>True while a playtest forces effects, glow and night off (no <see cref="PlaytestEffectsEnv"/>=1).</summary>
+    /// <summary>True while a playtest forces effects, shadows, glow and night off (no <see cref="PlaytestEffectsEnv"/>=1).</summary>
     public static bool PlaytestForcesEffectsOff =>
         GameDataPaths.IsPlaytest && OS.GetEnvironment(PlaytestEffectsEnv) != "1";
 
@@ -65,6 +65,10 @@ public sealed class ClientSettings
     /// <summary>The glow actually drawn: <see cref="Bagliore"/>, or off in a playtest.</summary>
     [JsonIgnore]
     public bool EffectiveGlow => Bagliore && !PlaytestForcesEffectsOff;
+
+    /// <summary>The shadows actually drawn: <see cref="Ombre"/>, or off in a playtest.</summary>
+    [JsonIgnore]
+    public bool EffectiveShadows => Ombre && !PlaytestForcesEffectsOff;
 
     public static string SettingsDirectory
     {
@@ -166,7 +170,7 @@ public sealed class ClientSettings
 
     /// <summary>
     /// Apply VSync, frame rate cap and content scale to the active window / root. The rest of the graphics
-    /// settings act on nodes of the world (World.ApplyGraphicsSettings: effects, render scale, animations).
+    /// settings act on nodes of the world (World.ApplyGraphicsSettings: effects, render scale, glow, shadows, animations).
     /// </summary>
     public void ApplyToEngine(Window? window = null)
     {

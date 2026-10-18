@@ -31,6 +31,7 @@ public partial class GeneratorVisual : Node2D
             _clock = BuildingPad.Phase(gen.Position),
             _steamAt = new Vector2(0f, -tileSize * 0.4f)
         };
+        BuildingPad.AddShadow(root, Sprites.For("generator-base"), Generator.Size, tileSize);
         root.AddChild(BuildingPad.Layer("Base", Sprites.For("generator-base"), Generator.Size, tileSize, 0));
         root._frames = Sprites.Frames("generator-rotor");
         root._rotor = BuildingPad.Layer("Rotor", root.Frame(), Generator.Size, tileSize, 1);

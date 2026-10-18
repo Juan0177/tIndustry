@@ -32,6 +32,7 @@ public partial class World
         // after the site captures (it would fill the free cells near the Core).
         var perfLaid = OS.GetEnvironment(PlaytestPerfEnv) == "1";
         var framing = (cam.Position, cam.Zoom);
+
         if (!await PlaytestSiteEffectsAsync(factory, cam, Shot))
         {
             return false;
@@ -54,7 +55,8 @@ public partial class World
 
         return await PlaytestEmittersFollowBlocksAsync(factory, fx)
             && await PlaytestRebuildBurstAsync(factory, fx)
-            && await PlaytestEffectsOffFreesPoolAsync(factory, fx);
+            && await PlaytestEffectsOffFreesPoolAsync(factory, fx)
+            && await PlaytestLightsAsync(dir, factory, cam);
     }
 
     /// <summary>Working blocks of the perf layout (and the rest of the game): one continuous emitter each.</summary>
@@ -221,37 +223,9 @@ public partial class World
     /// <summary>For each biome with ambient particles, the first place of the map mostly of that biome, at zoom 1 (<c>fx-ambiente-&lt;bioma&gt;</c>).</summary>
     private async Task PlaytestAmbientShotsAsync(Factory factory, WorldCamera cam, Func<string, Task> shot)
     {
-        if (factory.Terrain is not { } map)
-        {
-            return;
-        }
-
-        var table = factory.Content.Terrain;
-        string? BiomeAt(int x, int y) => map[x, y].Wall == WallKind.None ? table.Floor(map[x, y].Floor)?.Biome : null;
         foreach (var biome in new[] { "neve", "sabbia", "prati" })
         {
-            Vector2? best = null;
-            for (var y0 = 0; y0 + 12 <= map.Height && best is null; y0 += 6)
-            {
-                for (var x0 = 0; x0 + 20 <= map.Width && best is null; x0 += 6)
-                {
-                    var hits = 0;
-                    for (var y = y0; y < y0 + 12; y += 2)
-                    {
-                        for (var x = x0; x < x0 + 20; x += 2)
-                        {
-                            hits += BiomeAt(x, y) == biome ? 1 : 0;
-                        }
-                    }
-
-                    if (hits >= 50) // of 60 samples
-                    {
-                        best = new Vector2(x0 + 10, y0 + 6) * TileSize;
-                    }
-                }
-            }
-
-            if (best is not { } at)
+            if (BiomeSpot(factory, biome) is not { } at)
             {
                 GD.Print($"PLAYTEST effetti: nessuna zona di {biome} per la cattura dell'ambiente");
                 continue;

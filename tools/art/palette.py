@@ -22,6 +22,7 @@ NASTRO = [(30, 30, 34), (44, 44, 50), (58, 58, 66), (82, 82, 92)]  # belt rubber
 ROSSO = [(72, 22, 24), (122, 34, 34), (176, 52, 46), (220, 88, 70), (246, 150, 126)]  # advanced-tier accents
 NUCLEO = [(14, 46, 62), (26, 96, 124), (54, 160, 196), (112, 214, 236), (200, 246, 255)]  # Core energy (cyan)
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
+LUCCIOLA = [(70, 96, 20), (128, 170, 40), (188, 226, 70), (226, 250, 120), (250, 255, 200)]  # fireflies at night (G3)
 
 # Materials (items and material-coloured parts).
 RAME = [(96, 48, 34), (146, 78, 46), (200, 116, 66), (232, 156, 98), (250, 204, 152)]
@@ -65,7 +66,7 @@ PARETI = {
 
 RAMPE = {
     "METALLO": METALLO, "FULIGGINE": FULIGGINE, "BAGLIORE": BAGLIORE, "ACCENTO": ACCENTO,
-    "NASTRO": NASTRO, "ENERGIA": ENERGIA, "NUCLEO": NUCLEO, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
+    "NASTRO": NASTRO, "ENERGIA": ENERGIA, "LUCCIOLA": LUCCIOLA, "NUCLEO": NUCLEO, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
     "CARBONE": CARBONE, "GRAFITE": GRAFITE, "SILICIO": SILICIO,
     **{f"suolo {k}": v for k, v in SUOLI.items()}, **{f"parete {k}": v for k, v in PARETI.items()},
 }

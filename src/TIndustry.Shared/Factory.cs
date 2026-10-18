@@ -37,6 +37,7 @@ public sealed class Factory : IGameView
     private List<Generator> generators => State.Generators;
     private List<Extractor> extractors => State.Extractors;
     private List<PowerNode> powerNodes => State.PowerNodes;
+    private List<Lamp> lamps => State.Lamps;
 
     public Factory(
         FactoryContent content,
@@ -146,6 +147,8 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Generator> Generators => generators;
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
+    public IReadOnlyList<Lamp> Lamps => lamps;
+    public GameRules Rules => State.Rules;
     public long NextItemId => nextItemId;
     public long NextEntityId => nextEntityId;
 
@@ -449,10 +452,14 @@ public sealed class Factory : IGameView
                 Y = n.Position.Y,
                 DefinitionId = n.DefinitionId
             }).ToList(),
+            Lamps = lamps.Count == 0
+                ? null
+                : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
             Rules = new GameRulesSaveDto
             {
                 RefundPercent = State.Rules.RefundPercent,
-                InstantBuild = State.Rules.InstantBuild
+                InstantBuild = State.Rules.InstantBuild,
+                Night = State.Rules.Night
             },
             Builders = State.Builders.OrderBy(b => b.Id).Select(b => new BuilderSaveDto
             {
@@ -641,7 +648,7 @@ public sealed class Factory : IGameView
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
             CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
         };
-        factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild);
+        factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
@@ -662,6 +669,7 @@ public sealed class Factory : IGameView
             .Concat(data.Generators.Select(d => d.Id))
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
+            .Concat((data.Lamps ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
             .DefaultIfEmpty(0)
@@ -714,6 +722,11 @@ public sealed class Factory : IGameView
             factory.powerNodes.Add(new PowerNode(new GridPosition(n.X, n.Y), n.DefinitionId, RestoredId(n.Id)));
         }
 
+        foreach (var l in data.Lamps ?? [])
+        {
+            factory.lamps.Add(new Lamp(new GridPosition(l.X, l.Y), RestoredId(l.Id)));
+        }
+
         foreach (var b in data.Builders.OrderBy(b => b.Id))
         {
             var builder = new BuilderUnit(b.Id, b.Owner, b.X, b.Y)
@@ -745,6 +758,7 @@ public sealed class Factory : IGameView
         SortById(factory.generators, g => g.Id);
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
+        SortById(factory.lamps, l => l.Id);
         return factory;
     }
 
@@ -1377,6 +1391,14 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var lamp in lamps)
+        {
+            if (lamp.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -1535,6 +1557,7 @@ public sealed class Factory : IGameView
         "extractor" => "extractor",
         "power-node" => "power-node",
         "power-node-t2" => "power-node-t2",
+        "lamp" => Lamp.BuildingId,
         _ => null
     };
 
@@ -1781,6 +1804,9 @@ public sealed class Factory : IGameView
         return RequireUnlocked(id) && PlacePowerNode(origin, id, charge: true);
     }
 
+    public bool TryPlaceLamp(GridPosition origin) =>
+        RequireUnlocked(Lamp.BuildingId) && PlaceLamp(origin, charge: true);
+
     public bool TryRemoveBuildingAt(GridPosition tile)
     {
         if (!TryRemoveBuildingEntity(tile, out var buildingId))
@@ -1994,6 +2020,8 @@ public sealed class Factory : IGameView
                 return PlacePowerNode(origin, PowerNode.Tier1Id, charge);
             case BuildingKind.PowerNodeT2:
                 return PlacePowerNode(origin, PowerNode.Tier2Id, charge);
+            case BuildingKind.Lamp:
+                return PlaceLamp(origin, charge);
             default:
                 return false;
         }
@@ -2055,6 +2083,16 @@ public sealed class Factory : IGameView
                 var kind = n.DefinitionId == PowerNode.Tier2Id ? BuildingKind.PowerNodeT2 : BuildingKind.PowerNode;
                 spec = new BuildSpec(n.DefinitionId, kind, n.Position, Direction.East);
                 entityId = n.Id;
+                return true;
+            }
+        }
+
+        foreach (var l in lamps)
+        {
+            if (l.Occupies(tile))
+            {
+                spec = new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, l.Position, Direction.East);
+                entityId = l.Id;
                 return true;
             }
         }
@@ -2344,6 +2382,17 @@ public sealed class Factory : IGameView
         return true;
     }
 
+    private bool PlaceLamp(GridPosition origin, bool charge)
+    {
+        if (!CanOccupyFootprint(origin, Lamp.Size) || (charge && !TryChargeBuilding(Lamp.BuildingId)))
+        {
+            return false;
+        }
+
+        lamps.Add(new Lamp(origin, nextEntityId++));
+        return true;
+    }
+
     /// <summary>Removes the building on <paramref name="tile"/> without refund; returns its definition id.</summary>
     private bool TryRemoveBuildingEntity(GridPosition tile, out string buildingId)
     {
@@ -2403,6 +2452,16 @@ public sealed class Factory : IGameView
             {
                 buildingId = powerNodes[i].DefinitionId;
                 powerNodes.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = lamps.Count - 1; i >= 0; i--)
+        {
+            if (lamps[i].Occupies(tile))
+            {
+                buildingId = Lamp.BuildingId;
+                lamps.RemoveAt(i);
                 return true;
             }
         }

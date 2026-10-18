@@ -168,6 +168,13 @@ public partial class World
             node.Position = FootprintCenter(pn.Position, pn.Size);
             _buildingsLayer.AddChild(node);
         }
+
+        foreach (var lamp in _view.Lamps)
+        {
+            var node = LampVisual.Create(lamp, TileSize);
+            node.Position = FootprintCenter(lamp.Position, Lamp.Size);
+            _buildingsLayer.AddChild(node);
+        }
     }
 
     private void SyncBuildingVisuals(float delta)
@@ -245,6 +252,17 @@ public partial class World
                         if (asm.Position.Equals(asmVis.Origin))
                         {
                             asmVis.Sync(asm, delta, _effects);
+                            break;
+                        }
+                    }
+
+                    break;
+                case LampVisual lampVis:
+                    foreach (var lamp in _view.Lamps)
+                    {
+                        if (lamp.Position.Equals(lampVis.Origin))
+                        {
+                            lampVis.Sync(lamp);
                             break;
                         }
                     }
@@ -477,6 +495,7 @@ public partial class World
             Position = new Vector2(minX * TileSize, minY * TileSize)
         };
         var body = Sprites.For(CoreSpriteId);
+        BuildingPad.AddShadow(root, body, size / body.GetSize());
         root.AddChild(new Sprite2D
         {
             Name = "Body",
@@ -491,7 +510,8 @@ public partial class World
             Texture = CoreLightFrame(),
             Centered = false,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            Scale = size / body.GetSize()
+            Scale = size / body.GetSize(),
+            SelfModulate = new Color(BuildingPad.GlowBoost, BuildingPad.GlowBoost, BuildingPad.GlowBoost)
         };
         root.AddChild(_coreLight);
 

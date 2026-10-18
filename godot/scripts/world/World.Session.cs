@@ -38,22 +38,22 @@ public partial class World
     /// Nuova partita without the panel (scripted playtests): Media map, seed 42, biome generator. The generator's
     /// start guarantee keeps the tutorial's iron patch and belt corridor west of the Core.
     /// </summary>
-    private void OnHomeNewGame() => StartNewGameFromHome(MapSize.Media, PlaytestSeed);
+    private void OnHomeNewGame() => StartNewGameFromHome(MapSize.Media, PlaytestSeed, night: false);
 
     /// <summary>Seed of the scripted playtests' sandbox.</summary>
     private const int PlaytestSeed = 42;
 
     /// <summary>Inizia on the Nuova partita panel: Grande and Enorme show the generation overlay first.</summary>
-    private async Task StartNewGameFromPanelAsync(MapSize size, int seed) =>
+    private async Task StartNewGameFromPanelAsync(MapSize size, int seed, bool night) =>
         await WithMapOverlayAsync((int)size, () =>
         {
-            StartNewGameFromHome(size, seed);
+            StartNewGameFromHome(size, seed, night);
             return true;
         });
 
-    private void StartNewGameFromHome(MapSize size, int seed)
+    private void StartNewGameFromHome(MapSize size, int seed, bool night)
     {
-        StartNewSandbox(size, seed, toast: true);
+        StartNewSandbox(size, seed, toast: true, night);
         _newGame?.Close();
         _home?.Close();
         BeginTutorialIfNeeded();
@@ -63,10 +63,13 @@ public partial class World
     /// Rules of the games the client starts: real construction, as in Mindustry (plans, drone, sites).
     /// The refund share is the mode's own (sandbox 100, campaign = the level's), set by <see cref="NewGame"/>.
     /// </summary>
-    private static GameRules ClientRules() => new();
+    private static GameRules ClientRules(bool night = false) => new(Night: night);
 
-    /// <summary>A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre.</summary>
-    private static Factory NewSandboxFactory(FactoryContent content, MapSize size, int seed)
+    /// <summary>
+    /// A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre, at night with
+    /// <paramref name="night"/>.
+    /// </summary>
+    private static Factory NewSandboxFactory(FactoryContent content, MapSize size, int seed, bool night = false)
     {
         var edge = (int)size;
         return NewGame.Sandbox(
@@ -74,14 +77,14 @@ public partial class World
             Factory.CenteredCoreOrigin(edge, edge),
             coreSize: 2,
             startingMoney: 180,
-            rules: ClientRules(),
+            rules: ClientRules(night),
             map: MapGenSettings.Normal(size, seed));
     }
 
-    private void StartNewSandbox(MapSize size, int seed, bool toast)
+    private void StartNewSandbox(MapSize size, int seed, bool toast, bool night = false)
     {
         var content = FactoryContent.Load(_contentPath);
-        AttachGame(NewSandboxFactory(content, size, seed));
+        AttachGame(NewSandboxFactory(content, size, seed, night));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
@@ -457,7 +460,8 @@ public partial class World
             Hud.ToolKind.Bridge,
             Hud.ToolKind.Extractor,
             Hud.ToolKind.PowerNode,
-            Hud.ToolKind.PowerNodeT2
+            Hud.ToolKind.PowerNodeT2,
+            Hud.ToolKind.Lamp
         };
         _hud.SetToolsLocked(tools.Select(t =>
             (t, !_view.IsStructureUnlocked(Hud.StructureIdFor(t)))));

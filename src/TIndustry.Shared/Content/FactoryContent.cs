@@ -297,7 +297,8 @@ public sealed class FactoryContent
             b.MoneyCost,
             MapAmounts(b.BuildCost),
             b.RefundPercent <= 0 ? 100 : b.RefundPercent,
-            MapMultiplier(b.BuildCostMultiplier));
+            MapMultiplier(b.BuildCostMultiplier),
+            Math.Max(0f, b.PowerUse));
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
         new(
@@ -435,6 +436,8 @@ public sealed class FactoryContent
         public List<AmountDto>? BuildCost { get; set; }
         public int RefundPercent { get; set; } = 100;
         public float? BuildCostMultiplier { get; set; }
+        /// <summary>Power drawn per second while working (lamp); 0 = none or set in code (craft machines).</summary>
+        public float PowerUse { get; set; }
     }
 
     private sealed class MarketDto

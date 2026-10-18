@@ -18,6 +18,8 @@ public static class EffectRules
     public const double MaxLifetime = 60;
     public const double MaxSpeed = 10000;
     public const double MaxGravity = 10000;
+    /// <summary>Highest <c>intensita</c> (optional HDR colour multiplier, 1 = plain colour).</summary>
+    public const double MaxIntensity = 8;
 
     private static readonly string[] Fields =
         ["sprite", "numero", "durata", "velocita", "colore", "dispersione", "gravita", "qualita"];
@@ -151,8 +153,18 @@ public static class EffectRules
             _ => throw new InvalidDataException($"{Where("qualita")}: serve \"Bassi\" o \"Alti\" (livello minimo che lo mostra).")
         };
 
+        var intensity = 1.0;
+        if (e.TryGetProperty("intensita", out _))
+        {
+            intensity = Number(e, "intensita", Where);
+            if (intensity < 1 || intensity > MaxIntensity)
+            {
+                throw new InvalidDataException($"{Where("intensita")}: serve un numero da 1 a {MaxIntensity} (1 = colore normale).");
+            }
+        }
+
         return new EffectDef(name, sprite, (int)amount, (float)lifetime, (float)speedMin, (float)speedMax,
-            r, g, b, a, (float)spread, (float)gravityX, (float)gravityY, quality);
+            r, g, b, a, (float)spread, (float)gravityX, (float)gravityY, quality, (float)intensity);
     }
 
     private static double Number(JsonElement e, string field, Func<string, string> where)

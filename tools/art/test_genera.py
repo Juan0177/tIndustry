@@ -29,7 +29,7 @@ NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express")  # belt tiers w
 CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
-    "extractor": 1, "power-node": 1, "conveyor-basic": 1, "conveyor-fast": 1,
+    "extractor": 1, "power-node": 1, "lamp": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
 }
@@ -47,7 +47,10 @@ SOGLIA_CUCITURA = 8.0
 # Particle sprites (G3): side range in px, most variants in a strip, and the names the client expects.
 FX_LATO = (8, 16)
 FX_VARIANTI = 8
-FX = ("fx-fumo", "fx-scintilla", "fx-polvere", "fx-vapore", "fx-fiocco", "fx-granello", "fx-foglia", "fx-lampo")
+FX = ("fx-fumo", "fx-scintilla", "fx-polvere", "fx-vapore", "fx-fiocco", "fx-granello", "fx-foglia", "fx-lampo",
+      "fx-lucciola")
+# Light texture of the night (G3 3/4): one square, PointLight2D scales it.
+LUCE = ("luce", 128)
 
 
 def _content():
@@ -104,6 +107,8 @@ def errore_misura(nome, im):
         return None if (w, h) == terreno[nome] else f"{nome}: {w}x{h}, atteso {terreno[nome][0]}x{terreno[nome][1]}"
     if nome.startswith("deco-") and nome[len("deco-"):].rsplit("-", 1)[0] in _biomi_terra():
         return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
+    if nome == LUCE[0]:
+        return None if (w, h) == (LUCE[1], LUCE[1]) else f"{nome}: {w}x{h}, atteso {LUCE[1]}x{LUCE[1]}"
     if nome.startswith("fx-"):
         # Particle (G3): one square or a strip of square variants, side 8-16 px.
         ok = FX_LATO[0] <= h <= FX_LATO[1] and w % h == 0 and 1 <= w // h <= FX_VARIANTI
@@ -314,8 +319,12 @@ class TestGenera(unittest.TestCase):
                 icona = forme.componi(SPRITE[blocco + "-base"](), fotogrammi[0])
                 self.assertEqual(icona.tobytes(), SPRITE[blocco]().tobytes())
         for nome in ("miner-advanced-lamp", "assembler-base", "assembler-arm", "assembler",
-                     "extractor", "power-node", "power-node-t2"):
+                     "extractor", "power-node", "power-node-t2", "lamp-base", "lamp-glow"):
             self.assertIn(nome, SPRITE)
+        # Lamp icon = base + lit dome; the dome alone is transparent outside the glass.
+        lampada = forme.componi(SPRITE["lamp-base"](), SPRITE["lamp-glow"]())
+        self.assertEqual(lampada.tobytes(), SPRITE["lamp"]().tobytes())
+        self.assertEqual(0, SPRITE["lamp-glow"]().getpixel((0, 0))[3])
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
         for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
@@ -379,6 +388,18 @@ class TestGenera(unittest.TestCase):
             im = SPRITE[nome]()
             for f in fotogrammi_di(im):
                 self.assertIsNotNone(f.getbbox(), f"{nome}: variante vuota")
+
+    def test_luce(self):
+        # Night light: white, opaque-ish in the centre, fading to fully transparent at the edge and corners.
+        im = SPRITE[LUCE[0]]()
+        c = LUCE[1] // 2
+        self.assertEqual((LUCE[1], LUCE[1]), im.size)
+        self.assertEqual({(255, 255, 255)}, {im.getpixel((x, c))[:3] for x in range(LUCE[1]) if im.getpixel((x, c))[3]})
+        self.assertGreater(im.getpixel((c, c))[3], 240)
+        for x, y in ((0, 0), (0, c), (c, 0), (LUCE[1] - 1, LUCE[1] - 1)):
+            self.assertEqual(0, im.getpixel((x, y))[3])
+        alfa = [im.getpixel((x, c))[3] for x in range(c, LUCE[1])]
+        self.assertEqual(sorted(alfa, reverse=True), alfa)
 
     def test_terreno_copertura(self):
         # Every floor has its variants and its edge strip, every wall its 16 dual-grid pieces,

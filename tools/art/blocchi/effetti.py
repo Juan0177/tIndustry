@@ -7,7 +7,7 @@ Colours are the natural ones of each particle; godot/effetti/effetti.json only t
 """
 import forme
 from blocchi import sprite
-from palette import ACCENTO, BAGLIORE, ENERGIA, FULIGGINE, NEVE, PARETE_SABBIA, RAME, TERRA
+from palette import ACCENTO, BAGLIORE, ENERGIA, FULIGGINE, LUCCIOLA, NEVE, PARETE_SABBIA, RAME, TERRA
 
 
 def _sbuffo(lato, dischi, rampa):
@@ -129,3 +129,17 @@ def lampo():
     forme.rett(im, 7, 4, 8, 11, ENERGIA[4])
     forme.rett(im, 4, 7, 11, 8, ENERGIA[4])
     return im
+
+
+def _lucciola(r):
+    """8 px firefly: a soft yellow-green halo with a bright core (glows over the night)."""
+    im = forme.nuova(8, 8)
+    forme.bagliore(im, 4, 4, r, LUCCIOLA)
+    forme.rett(im, 3, 3, 4, 4, LUCCIOLA[4])
+    return im
+
+
+@sprite("fx-lucciola")
+def lucciola():
+    # Fireflies over the meadows at night (G3 3/4).
+    return forme.striscia([_lucciola(3.8), _lucciola(3.0)])

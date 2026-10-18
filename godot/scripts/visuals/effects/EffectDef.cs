@@ -17,7 +17,9 @@ public enum EffectsQuality
 /// One particle effect of <c>godot/effetti/effetti.json</c>: a burst (<c>EffectManager.Play</c>) of
 /// <see cref="Amount"/> particles, or a continuous emitter (<c>EffectManager.Attach</c>) keeping about
 /// that many alive. Speeds and gravity in world pixels per second, spread in degrees around the emission direction
-/// (East, turned by the rotation passed to the manager), colour in 0..1 with alpha.
+/// (East, turned by the rotation passed to the manager), colour in 0..1 with alpha. <see cref="Intensity"/> (optional
+/// <c>intensita</c>, default 1) multiplies the colour past 1: with the glow on such particles bloom, and at night they
+/// still shine through the darkness (fireflies).
 /// </summary>
 public sealed record EffectDef(
     string Name,
@@ -33,4 +35,5 @@ public sealed record EffectDef(
     float Spread,
     float GravityX,
     float GravityY,
-    EffectsQuality MinQuality);
+    EffectsQuality MinQuality,
+    float Intensity = 1f);

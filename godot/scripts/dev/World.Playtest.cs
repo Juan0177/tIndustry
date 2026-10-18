@@ -275,6 +275,10 @@ public partial class World
         }
 
         await Shot("hud");
+        if (ClientSettings.PlaytestForcesEffectsOff && PlaytestLooksOff() is { } looks)
+        {
+            return Fail(looks);
+        }
 
         if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
         {
@@ -1181,8 +1185,36 @@ public partial class World
     /// <summary>Saves the current frame; the image is released at once (not left to the finalizer).</summary>
     private void SaveViewportPng(string path)
     {
-        using var image = GetViewport().GetTexture().GetImage();
+        using var image = CaptureFrame();
         image.SavePng(path);
+    }
+
+    /// <summary>
+    /// The frame just drawn as the window shows it. With HDR 2D ("Bagliore") the viewport draws in linear light and its
+    /// texture reads back linear: converted to sRGB here, pixel by pixel from the float data (an 8-bit conversion first
+    /// would band the night's dark tones).
+    /// </summary>
+    private Image CaptureFrame()
+    {
+        var image = GetViewport().GetTexture().GetImage();
+        if (!GetViewport().UseHdr2D)
+        {
+            return image;
+        }
+
+        var width = image.GetWidth();
+        var height = image.GetHeight();
+        var srgb = Image.CreateEmpty(width, height, false, Image.Format.Rgba8);
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                srgb.SetPixel(x, y, image.GetPixel(x, y).LinearToSrgb());
+            }
+        }
+
+        image.Dispose();
+        return srgb;
     }
 
     private static bool Fail(string message)

@@ -41,7 +41,8 @@ public sealed record BuildingDefinition(
     int MoneyCost,
     IReadOnlyList<ResourceAmount> BuildCost,
     int RefundPercent = 100,
-    float BuildCostMultiplier = 1f);
+    float BuildCostMultiplier = 1f,
+    float PowerUse = 0f);
 
 /// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
 public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);

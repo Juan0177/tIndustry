@@ -62,7 +62,9 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.PowerNode, "power-node", "",
             "Nodo T1 · raggio 6 · collega generatore ↔ forno"),
         new(ToolKind.PowerNodeT2, "power-node-t2", "",
-            "Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca")
+            "Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca"),
+        new(ToolKind.Lamp, "lamp", "",
+            "Lampada · illumina di notte · consuma 1 di energia · 1×1")
     ];
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
@@ -514,7 +516,7 @@ public partial class BuildPalette : PanelContainer
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             => BuildCategory.Production,
-        ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 => BuildCategory.Power,
+        ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp => BuildCategory.Power,
         _ => BuildCategory.Logistics
     };
 
@@ -536,6 +538,7 @@ public partial class BuildPalette : PanelContainer
         ToolKind.Extractor => "Estrattore",
         ToolKind.PowerNode => "Nodo potenza",
         ToolKind.PowerNodeT2 => "Nodo T2",
+        ToolKind.Lamp => "Lampada",
         _ => tool.ToString()
     };
 }

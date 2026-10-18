@@ -545,6 +545,7 @@ public partial class ResearchPanel : Control
             "generator" => "Brucia carbone per energia · 2×2",
             "power-node" => "Nodo T1 · 1×1 · raggio 6 · auto-link gen",
             "power-node-t2" => "Nodo T2 · 2×2 · raggio 10 · auto-link gen",
+            "lamp" => "Lampada · illumina di notte se alimentata · consumo 1 · 1×1",
             _ => "Struttura di fabbrica."
         };
 
