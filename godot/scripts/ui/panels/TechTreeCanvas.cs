@@ -13,8 +13,6 @@ public partial class TechTreeCanvas : Control
     private static readonly Color Gold = new(211 / 255f, 164 / 255f, 76 / 255f, 1f);
     private static readonly Color NodeTitle = new(232 / 255f, 233 / 255f, 221 / 255f, 1f);
 
-    private readonly Dictionary<string, Texture2D?> _iconCache = new(StringComparer.Ordinal);
-
     public TechTreeLayout.Graph? Graph { get; set; }
     public IResearchView? Research { get; set; }
     public string? SelectedId { get; set; }
@@ -301,7 +299,7 @@ public partial class TechTreeCanvas : Control
                     DrawTextureRect(lockTex, inner.Grow(-inner.Size.X * 0.18f), false, BorderLocked.Lightened(0.25f));
                 }
             }
-            else if (ResolveIcon(id) is { } tex)
+            else if (Sprites.TryFor(id) is { } tex)
             {
                 DrawTextureRect(tex, inner, false,
                     state == ResearchNodeState.Available ? new Color(1f, 1f, 1f, 0.82f) : Colors.White);
@@ -354,43 +352,6 @@ public partial class TechTreeCanvas : Control
             MouseDefaultCursorShape = id is null ? CursorShape.Arrow : CursorShape.PointingHand;
             QueueRedraw();
         }
-    }
-
-    private Texture2D? ResolveIcon(string structureId)
-    {
-        if (_iconCache.TryGetValue(structureId, out var cached))
-        {
-            return cached;
-        }
-
-        var path = structureId switch
-        {
-            "conveyor-basic" => "res://assets/conveyor-basic.png",
-            "conveyor-fast" or "conveyor-express" => "res://assets/conveyor-fast.png",
-            "conveyor-bridge" => "res://assets/bridge.png",
-            "miner" => "res://assets/miner.png",
-            "miner-advanced" => "res://assets/miner-advanced.png",
-            "smelter" => "res://assets/smelter.png",
-            "assembler" => "res://assets/assembler.png",
-            "junction" => "res://assets/junction.png",
-            "splitter" => "res://assets/splitter.png",
-            "sorter" => "res://assets/sorter.png",
-            "generator" => "res://assets/generator.png",
-            "power-node" => "res://assets/power-node.png",
-            "power-node-t2" => "res://assets/power-node-t2.png",
-            "extractor" => "res://assets/extractor.png",
-            "core" => "res://assets/core.png",
-            _ => $"res://assets/{structureId}.png"
-        };
-
-        Texture2D? tex = null;
-        if (ResourceLoader.Exists(path))
-        {
-            tex = GD.Load<Texture2D>(path);
-        }
-
-        _iconCache[structureId] = tex;
-        return tex;
     }
 
     private static string Initials(string displayName)

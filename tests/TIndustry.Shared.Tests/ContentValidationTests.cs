@@ -11,14 +11,7 @@ public sealed class ContentValidationTests
     private static readonly FactoryContent Content =
         FactoryContent.Load(Path.Combine(DataDir, "content.json"));
 
-    // Same fallbacks as TechTreeCanvas.ResolveIcon.
-    private static string IconFileFor(string structureId) => structureId switch
-    {
-        "conveyor-express" => "conveyor-fast",
-        "conveyor-bridge" => "bridge",
-        _ => structureId
-    };
-
+    // Same lookup as Sprites.For in the client: assets/{id}.png, no fallbacks.
     private static string IconPath(string name) =>
         Path.Combine(AppContext.BaseDirectory, "assets", $"{name}.png");
 
@@ -69,7 +62,7 @@ public sealed class ContentValidationTests
     [Fact]
     public void EveryStructureHasAnIcon() =>
         Assert.Empty(Content.Structures
-            .Where(s => !File.Exists(IconPath(IconFileFor(s.Id))))
+            .Where(s => !File.Exists(IconPath(s.Id)))
             .Select(s => s.Id));
 
     [Fact]

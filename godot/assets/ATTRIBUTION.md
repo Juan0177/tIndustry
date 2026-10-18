@@ -30,9 +30,11 @@ Sources: [game-icons.net](https://game-icons.net) · [GitHub mirror](https://git
 | `generator.png` | Lorc | lightning-helix |
 | `conveyor-basic.png` | Delapouite | plain-arrow |
 | `conveyor-fast.png` | Lorc | fast-arrow |
+| `conveyor-express.png` | Lorc | fast-arrow (copia di `conveyor-fast.png`) |
 | `splitter.png` | Delapouite | split-arrows |
 | `sorter.png` | (procedural) | funnel filter glyph |
 | `bridge.png` | Delapouite | cable-stayed-bridge |
+| `conveyor-bridge.png` | Delapouite | cable-stayed-bridge (copia di `bridge.png`) |
 | `ui/cat-production.png` | Delapouite | factory |
 | `ui/cat-logistics.png` | Delapouite | plain-arrow |
 | `ui/cat-tools.png` | Lorc | cog |

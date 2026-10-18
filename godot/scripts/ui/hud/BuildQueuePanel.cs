@@ -130,7 +130,7 @@ public partial class BuildQueuePanel : PanelContainer
             _structureId = spec.StructureId;
             if (_icon is not null)
             {
-                _icon.Texture = ConstructionLayer.TextureFor(spec.StructureId);
+                _icon.Texture = Sprites.For(spec.StructureId);
             }
 
             if (_name is not null)
