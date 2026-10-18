@@ -300,6 +300,22 @@ public sealed class TerrainRulesTests
     }
 
     [Fact]
+    public void EveryFloorHasEdgePriority()
+    {
+        // Edge order (G2b): the floor with the higher priority draws its jagged edge over the
+        // lower neighbour; every floor has its own value and water is below every land floor.
+        var floors = Content.Terrain.Floors;
+        Assert.Equal(floors.Count, floors.Select(f => f.EdgePriority).Distinct().Count());
+        Assert.All(floors, f => Assert.True(f.EdgePriority >= 0, f.Id));
+        var water = new[] { FloorKind.ShallowWater, FloorKind.DeepWater };
+        var land = floors.Where(f => !water.Contains(f.Kind)).Min(f => f.EdgePriority);
+        Assert.All(floors.Where(f => water.Contains(f.Kind)), f => Assert.True(f.EdgePriority < land, f.Id));
+        Assert.Equal(
+            floors.Min(f => f.EdgePriority),
+            Content.Terrain.Floor(FloorKind.DeepWater)!.EdgePriority);
+    }
+
+    [Fact]
     public void DeepWaterWinsOverOccupiedInAMixedFootprint()
     {
         // A 2×2 miner over an existing belt (9, 9) and deep water (10, 10).
@@ -326,6 +342,10 @@ public sealed class TerrainRulesTests
     [InlineData("duplicate-row", "deve avere una riga per 'Stone' (trovate 2)")]
     [InlineData("missing-row", "deve avere una riga per 'IceWall' (trovate 0)")]
     [InlineData("unknown-biome", "bioma 'vulcano' sconosciuto")]
+    [InlineData("missing-edge-priority", "'sand': manca edgePriority")]
+    [InlineData("negative-edge-priority", "'sand': edgePriority deve essere >= 0")]
+    [InlineData("duplicate-edge-priority", "edgePriority diversa per ogni suolo")]
+    [InlineData("water-above-land", "l'acqua deve avere edgePriority più bassa")]
     public void TerrainSectionIsValidated(string change, string message)
     {
         var root = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "content.json")))!;
@@ -344,9 +364,13 @@ public sealed class TerrainRulesTests
             case "bad-colour": Floor("sand")["color"] = "#12345G"; break;
             case "short-colour": Floor("sand")["color"] = "#123"; break;
             case "duplicate-colour": Floor("sand")["color"] = (string?)Floor("snow")["color"]; break;
-            case "duplicate-row": floors.Add(JsonNode.Parse("""{ "id": "stone", "biome": "rocce", "color": "#010203" }""")); break;
+            case "duplicate-row": floors.Add(JsonNode.Parse("""{ "id": "stone", "biome": "rocce", "color": "#010203", "edgePriority": 50 }""")); break;
             case "missing-row": walls.RemoveAt(walls.ToList().FindIndex(w => (string?)w!["id"] == "ice-wall")); break;
             case "unknown-biome": Floor("gravel")["biome"] = "vulcano"; break;
+            case "missing-edge-priority": Floor("sand").AsObject().Remove("edgePriority"); break;
+            case "negative-edge-priority": Floor("sand")["edgePriority"] = -1; break;
+            case "duplicate-edge-priority": Floor("sand")["edgePriority"] = (int)Floor("snow")["edgePriority"]!; break;
+            case "water-above-land": Floor("shallow-water")["edgePriority"] = 99; break;
         }
 
         var dir = Directory.CreateTempSubdirectory("tindustry-content-");

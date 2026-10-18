@@ -71,8 +71,10 @@ public sealed record StructureDefinition(
 /// <summary>
 /// A floor of <c>terrain.floors</c>: <paramref name="Biome"/> is one of <see cref="TerrainTable.Biomes"/>,
 /// <paramref name="Color"/> is <c>#RRGGBB</c>, <paramref name="Buildable"/> is false only for deep water.
+/// <paramref name="EdgePriority"/> orders the terrain art: the floor with the higher value draws its jagged
+/// edge over the lower neighbour; one value per floor, water below every land floor.
 /// </summary>
-public sealed record FloorDef(string Id, FloorKind Kind, string Biome, string Color, bool Buildable);
+public sealed record FloorDef(string Id, FloorKind Kind, string Biome, string Color, bool Buildable, int EdgePriority);
 
 /// <summary>A wall of <c>terrain.walls</c> (walls always block building).</summary>
 public sealed record WallDef(string Id, WallKind Kind, string Biome, string Color);

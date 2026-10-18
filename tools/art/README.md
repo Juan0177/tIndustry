@@ -20,7 +20,7 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
 
 **Versione di Pillow.** I byte dei PNG dipendono dal codificatore di Pillow (zlib): gli sprite del repo sono stati scritti con **Pillow 12.3**. `--controlla` confronta i byte, quindi con un'altra versione di Pillow può segnalare differenze anche se i pixel sono uguali; in quel caso rigenera con `genera.py` e controlla nella tavola che non sia cambiato nulla a occhio prima di fare il commit.
 
-`genera.py` scrive solo gli sprite registrati: gli altri PNG di `godot/assets/` restano come sono. La tavola `.dev/arte/tavola.png` (e una copia datata) mette ogni sprite vecchio accanto al nuovo, a 1× e 2×, su fondo chiaro e scuro: serve per la revisione a occhio.
+`genera.py` scrive solo gli sprite registrati: gli altri PNG di `godot/assets/` restano come sono. La tavola `.dev/arte/tavola.png` (e una copia datata) mette ogni sprite vecchio accanto al nuovo, a 1× e 2×, su fondo chiaro e scuro: serve per la revisione a occhio. Quando scrive sprite del terreno, `genera.py` compone anche `.dev/arte/tavola-terreno.png`: una finestra di 12×12 celle per bioma con varianti, bordi, pareti, acqua, giacimenti e decorazioni, disegnate come le disegnerà il client.
 
 ## File
 
@@ -28,9 +28,9 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
 |---|---|
 | `palette.py` | Tutti i colori: contorno `OUT` e rampe da scuro a chiaro (4–6 toni) per metalli, materiali, bagliore, accento, energia. |
 | `forme.py` | Mattoncini comuni: pannello in rilievo, bullone, tubo, griglia, ingranaggio, cerchio, bagliore, ombra, striscia di fotogrammi, composizione a strati. Luce sempre da in alto a sinistra. |
-| `blocchi/` | Un modulo per famiglia (`produzione`, `logistica`, `potenza`, `core`, `drone`, `oggetti`); ogni modulo del pacchetto è importato da solo. |
+| `blocchi/` | Un modulo per famiglia (`produzione`, `logistica`, `potenza`, `core`, `drone`, `oggetti`, `terreno`); ogni modulo del pacchetto è importato da solo. `terreno` legge suoli, pareti e biomi da `data/content.json` (vedi la sua docstring per nomi e misure). |
 | `genera.py` | Comando principale. |
-| `tavola.py` | Tavola di confronto vecchio/nuovo. |
+| `tavola.py` | Tavola di confronto vecchio/nuovo e tavola del terreno. |
 | `test_genera.py` | Test con `unittest`. |
 
 ## Regole

@@ -37,6 +37,13 @@ CORE_TIER = 4
 CORE_LUCE_FOTOGRAMMI = 4
 # Drone tiers seen from above, nose to the East: square sprites of this side (alpha, beta, gamma).
 DRONI = {"drone-1": 24, "drone-2": 28, "drone-3": 32}
+# Terrain (G2b): floor variants, deposit variants, dual-grid wall pieces (corner bits NO=1, NE=2,
+# SE=4, SO=8), edge pieces in strip order, and the colour step allowed across a variant seam.
+VARIANTI = 4
+GIACIMENTI = 3
+NO, NE, SE, SO = 1, 2, 4, 8
+BORDI = ("N", "E", "S", "O", "NE", "SE", "SO", "NO")
+SOGLIA_CUCITURA = 8.0
 
 
 def _content():
@@ -59,12 +66,40 @@ def _righe(im, y0, y1):
     return im.crop((0, y0, im.width, y1 + 1)).tobytes()
 
 
+def _minerali():
+    """Ore item ids (one deposit kind each), from the item sprite table."""
+    from blocchi.oggetti import OGGETTI
+    return sorted(i for i, (tipo, _, _) in OGGETTI.items() if tipo == "minerale")
+
+
+def _biomi_terra():
+    """Land biomes: those with a wall (water floors are shared by every biome)."""
+    return sorted({w["biome"] for w in _content()["terrain"]["walls"]})
+
+
+def _misure_terreno():
+    """Terrain sprite name -> expected size (G2b global constraints)."""
+    terrain = _content()["terrain"]
+    attese = {"acqua-bassa-anim": (4 * T, T), "acqua-profonda-anim": (4 * T, T)}
+    for f in terrain["floors"]:
+        attese |= {f"terreno-{f['id']}-{n}": (T, T) for n in range(VARIANTI)}
+        attese[f"terreno-{f['id']}-bordo"] = (8 * T, T)
+    attese |= {f"parete-{w['id']}": (16 * T, T) for w in terrain["walls"]}
+    attese |= {f"giacimento-{m}-{n}": (T, T) for m in _minerali() for n in range(GIACIMENTI)}
+    return attese
+
+
 def errore_misura(nome, im):
     """Size problem of one generated sprite, or None when it is fine.
 
-    Every name must be an item, a drone tier or a block (or block part) of CELLE: an unknown
-    name is an error, never a silent pass."""
+    Every name must be an item, a drone tier, a block (or block part) of CELLE or a terrain
+    sprite: an unknown name is an error, never a silent pass."""
     w, h = im.size
+    terreno = _misure_terreno()
+    if nome in terreno:
+        return None if (w, h) == terreno[nome] else f"{nome}: {w}x{h}, atteso {terreno[nome][0]}x{terreno[nome][1]}"
+    if nome.startswith("deco-") and nome[len("deco-"):].rsplit("-", 1)[0] in _biomi_terra():
+        return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
     anim = nome.endswith("-anim")
     base = nome[: -len("-anim")] if anim else nome
     if anim and (h <= 0 or w % h != 0):
@@ -165,6 +200,11 @@ class TestGenera(unittest.TestCase):
         self.assertIsNotNone(errore_misura("drone-2-anim", forme.nuova(3 * 28 + 1, 28)))
         self.assertIsNotNone(errore_misura("core-9", forme.nuova(T, T)))
         self.assertIsNotNone(errore_misura("sconosciuto", forme.nuova(T, T)))
+        self.assertIsNotNone(errore_misura("parete-stone-wall", forme.nuova(T, T)))
+        self.assertIsNone(errore_misura("parete-stone-wall", forme.nuova(16 * T, T)))
+        self.assertIsNotNone(errore_misura("terreno-sand-bordo", forme.nuova(4 * T, T)))
+        self.assertIsNotNone(errore_misura("terreno-lava-0", forme.nuova(T, T)))
+        self.assertIsNotNone(errore_misura("deco-vulcano-0", forme.nuova(T, T)))
 
     def test_copertura_tier(self):
         # The four Core tiers with their light strip and the three drones.
@@ -318,6 +358,100 @@ class TestGenera(unittest.TestCase):
         attesi |= {f"core-{n}" for n in range(1, CORE_TIER + 1)} | set(DRONI)
         reali = set(SPRITE) - set(TEST_SPRITES)
         self.assertEqual([], sorted(attesi - reali))
+
+    def test_terreno_copertura(self):
+        # Every floor has its variants and its edge strip, every wall its 16 dual-grid pieces,
+        # every ore its deposit variants, every land biome at least 2 decorations, both waters
+        # their animation; every floor and wall has its own ramp in palette.py.
+        from palette import PARETI, SUOLI
+        terrain = _content()["terrain"]
+        attesi = set(_misure_terreno())
+        self.assertEqual([], sorted(attesi - set(SPRITE)))
+        for bioma in _biomi_terra():
+            with self.subTest(bioma=bioma):
+                self.assertGreaterEqual(sum(1 for n in SPRITE if n.startswith(f"deco-{bioma}-")), 2)
+        self.assertEqual(sorted(f["id"] for f in terrain["floors"]), sorted(SUOLI))
+        self.assertEqual(sorted(w["id"] for w in terrain["walls"]), sorted(PARETI))
+        # Deposits and decorations are drawn over the floor: transparent around, the floor shows.
+        for nome in sorted(n for n in SPRITE if n.startswith(("giacimento-", "deco-"))):
+            with self.subTest(sprite=nome):
+                alfa = SPRITE[nome]().getchannel("A").tobytes()
+                pieni = sum(1 for a in alfa if a)
+                self.assertGreater(pieni, 0)
+                self.assertLessEqual(pieni, len(alfa) // 4, f"{nome}: copre troppo il suolo")
+
+    def test_varianti_ripetibili(self):
+        # A variant tiles with itself and with every other variant of its floor: across each seam
+        # (right edge next to left edge, bottom next to top) the mean colour stays within a step.
+        def media(im, box):
+            px = list(im.convert("RGB").crop(box).getdata())
+            return [sum(p[i] for p in px) / len(px) for i in range(3)]
+
+        destra, sinistra, sotto, sopra = (T - 1, 0, T, T), (0, 0, 1, T), (0, T - 1, T, T), (0, 0, T, 1)
+        for f in _content()["terrain"]["floors"]:
+            varianti = [SPRITE[f"terreno-{f['id']}-{n}"]() for n in range(VARIANTI)]
+            for a in varianti:
+                self.assertEqual({255}, set(a.getchannel("A").tobytes()), f"{f['id']}: suolo non opaco")
+            self.assertEqual(VARIANTI, len({v.tobytes() for v in varianti}), f"{f['id']}: varianti uguali")
+            for i, a in enumerate(varianti):
+                for j, b in enumerate(varianti):
+                    for lato_a, lato_b in ((destra, sinistra), (sotto, sopra)):
+                        scarto = max(abs(x - y) for x, y in zip(media(a, lato_a), media(b, lato_b)))
+                        self.assertLessEqual(scarto, SOGLIA_CUCITURA, f"{f['id']} {i}|{j}: cucitura visibile ({scarto:.1f})")
+        # Water frames tile the same way and loop (frame 4 is followed by frame 1).
+        for nome in ("acqua-bassa-anim", "acqua-profonda-anim"):
+            fotogrammi = fotogrammi_di(SPRITE[nome]())
+            self.assertEqual(4, len(fotogrammi))
+            self.assertEqual(4, len({fr.tobytes() for fr in fotogrammi}), f"{nome}: fotogrammi uguali")
+            for fr in fotogrammi:
+                for lato_a, lato_b in ((destra, sinistra), (sotto, sopra)):
+                    scarto = max(abs(x - y) for x, y in zip(media(fr, lato_a), media(fr, lato_b)))
+                    self.assertLessEqual(scarto, SOGLIA_CUCITURA, f"{nome}: cucitura visibile")
+
+    def test_parete_doppia_griglia(self):
+        # 16 pieces indexed by the wall corners (NO=1, NE=2, SE=4, SO=8): 15 is full, 0 is empty,
+        # a piece rotated a quarter turn clockwise is the piece of the rotated corners (opaque
+        # pixels: the light stays top-left), and an edge only depends on its two corners, so
+        # neighbouring pieces always join.
+        def ruota(i):  # corners after a clockwise quarter turn: NO->NE->SE->SO->NO
+            return ((i << 1) | (i >> 3)) & 15
+
+        def opachi(im):
+            return Image.eval(im.getchannel("A"), lambda a: 255 if a == 255 else 0).tobytes()
+
+        lati = {  # edge -> (box, its two corners)
+            "N": ((0, 0, T, 1), NO | NE), "E": ((T - 1, 0, T, T), NE | SE),
+            "S": ((0, T - 1, T, T), SO | SE), "O": ((0, 0, 1, T), NO | SO),
+        }
+        for w in _content()["terrain"]["walls"]:
+            with self.subTest(parete=w["id"]):
+                pezzi = fotogrammi_di(SPRITE[f"parete-{w['id']}"]())
+                self.assertEqual(16, len(pezzi))
+                self.assertEqual({255}, set(pezzi[15].getchannel("A").tobytes()))
+                self.assertEqual({0}, set(pezzi[0].getchannel("A").tobytes()))
+                for i in range(1, 15):
+                    girato = pezzi[i].transpose(Image.Transpose.ROTATE_270)
+                    self.assertEqual(opachi(girato), opachi(pezzi[ruota(i)]), f"pezzo {i} ruotato != pezzo {ruota(i)}")
+                for lato, (box, angoli) in lati.items():
+                    for k in (0, angoli & -angoli, angoli & (angoli - 1), angoli):
+                        viste = {opachi(pezzi[i].crop(box)) for i in range(16) if i & angoli == k}
+                        self.assertEqual(1, len(viste), f"lato {lato}: dipende da angoli lontani")
+
+    def test_bordi(self):
+        # Edge strip: 8 pieces N, E, S, O, NE, SE, SO, NO; sides and corners are quarter turns
+        # of each other; a side piece touches its side only, a corner piece its corner only.
+        for f in _content()["terrain"]["floors"]:
+            with self.subTest(suolo=f["id"]):
+                pezzi = dict(zip(BORDI, fotogrammi_di(SPRITE[f"terreno-{f['id']}-bordo"]())))
+                alfa = {k: p.getchannel("A") for k, p in pezzi.items()}
+                for a, b in (("N", "E"), ("E", "S"), ("S", "O"), ("O", "N"),
+                             ("NE", "SE"), ("SE", "SO"), ("SO", "NO"), ("NO", "NE")):
+                    self.assertEqual(alfa[a].transpose(Image.Transpose.ROTATE_270).tobytes(), alfa[b].tobytes(), f"{a}->{b}")
+                self.assertEqual((0, 0, T, alfa["N"].getbbox()[3]), alfa["N"].getbbox())
+                self.assertLessEqual(alfa["N"].getbbox()[3], T // 3)
+                x0, y0, x1, y1 = alfa["NE"].getbbox()
+                self.assertEqual((T, 0), (x1, y0))
+                self.assertLessEqual(max(x1 - x0, y1 - y0), T // 3)
 
     def test_solo_sprite_generati(self):
         # Every PNG in the root of godot/assets comes from the registry: no hand-made or third-party

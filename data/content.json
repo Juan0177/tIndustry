@@ -797,19 +797,19 @@
   },
   "terrain": {
     "floors": [
-      { "id": "stone", "biome": "rocce", "color": "#5C6260", "buildable": true },
-      { "id": "basalt", "biome": "rocce", "color": "#3C3E42", "buildable": true },
-      { "id": "gravel", "biome": "rocce", "color": "#76726A", "buildable": true },
-      { "id": "sand", "biome": "sabbia", "color": "#B49A64", "buildable": true },
-      { "id": "dark-sand", "biome": "sabbia", "color": "#7E6A48", "buildable": true },
-      { "id": "snow", "biome": "neve", "color": "#D2D8DE", "buildable": true },
-      { "id": "ice", "biome": "neve", "color": "#9CC0D4", "buildable": true },
-      { "id": "grass", "biome": "prati", "color": "#2E4E36", "buildable": true },
-      { "id": "moss", "biome": "prati", "color": "#3E5E32", "buildable": true },
-      { "id": "mud", "biome": "prati", "color": "#4E4232", "buildable": true },
-      { "id": "soil", "biome": "prati", "color": "#6C583A", "buildable": true },
-      { "id": "shallow-water", "biome": "acqua", "color": "#2A4E62", "buildable": true },
-      { "id": "deep-water", "biome": "acqua", "color": "#1C3448", "buildable": false }
+      { "id": "stone", "biome": "rocce", "color": "#5C6260", "buildable": true, "edgePriority": 6 },
+      { "id": "basalt", "biome": "rocce", "color": "#3C3E42", "buildable": true, "edgePriority": 5 },
+      { "id": "gravel", "biome": "rocce", "color": "#76726A", "buildable": true, "edgePriority": 7 },
+      { "id": "sand", "biome": "sabbia", "color": "#B49A64", "buildable": true, "edgePriority": 4 },
+      { "id": "dark-sand", "biome": "sabbia", "color": "#7E6A48", "buildable": true, "edgePriority": 3 },
+      { "id": "snow", "biome": "neve", "color": "#D2D8DE", "buildable": true, "edgePriority": 12 },
+      { "id": "ice", "biome": "neve", "color": "#9CC0D4", "buildable": true, "edgePriority": 11 },
+      { "id": "grass", "biome": "prati", "color": "#2E4E36", "buildable": true, "edgePriority": 9 },
+      { "id": "moss", "biome": "prati", "color": "#3E5E32", "buildable": true, "edgePriority": 10 },
+      { "id": "mud", "biome": "prati", "color": "#4E4232", "buildable": true, "edgePriority": 2 },
+      { "id": "soil", "biome": "prati", "color": "#6C583A", "buildable": true, "edgePriority": 8 },
+      { "id": "shallow-water", "biome": "acqua", "color": "#2A4E62", "buildable": true, "edgePriority": 1 },
+      { "id": "deep-water", "biome": "acqua", "color": "#1C3448", "buildable": false, "edgePriority": 0 }
     ],
     "walls": [
       { "id": "stone-wall", "biome": "rocce", "color": "#16181A" },
