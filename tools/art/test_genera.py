@@ -463,12 +463,11 @@ class TestGenera(unittest.TestCase):
                     self.assertEqual([d.getpixel((T - 1, T - 1 - x)) for x in range(T)], sud, f"{nastro} {k + 1}: lato Sud")
 
     def test_unioni_a_t_raccordate(self):
-        # T merge (in from the North and South edges, out from the East edge) composed from two
-        # corners, frame by frame: east of the back rail every pixel inside a corner's bend (row
-        # across the belt >= 6 from its pivot, i.e. its tread inside the groove) is that corner's pixel: the bottom half the corner
-        # turned to come in from the South, the top half its mirror. So the East edge joins the
-        # straight belt (bottom half: column 31 of the straight frame), the input edges join the
-        # side belts like a corner, and the West edge is a rail (no input behind).
+        # T merge (in from the North and South edges, out from the East edge), frame by frame: rows
+        # 6-25 east of the back rail are the straight East frame (every chevron the output's own);
+        # at the two output-side corners the pixels within 5 px of the pivot are the corner's inner
+        # rail elbow (the corner turned to come in from the South, and its mirror); the North and
+        # South edges are open tread between the back rail and the elbows; the West edge is a rail.
         tread = {c[:3] for c in NASTRO}
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
@@ -480,14 +479,22 @@ class TestGenera(unittest.TestCase):
                     self.assertEqual((T, T), u.size)
                     da_sud = c.transpose(Image.Transpose.ROTATE_90)
                     da_nord = da_sud.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                    gomito = 0
                     for y in range(T):
-                        for x in range(5, T):
+                        for x in range(6, T):
                             a = T - 1 - y if y >= T // 2 else y
-                            if math.hypot(a, T - 1 - x) <= T - 6.5:
+                            if math.hypot(a, T - 1 - x) <= 5.5:
+                                gomito += 1
                                 atteso = (da_sud if y >= T // 2 else da_nord).getpixel((x, y))
-                                self.assertEqual(atteso, u.getpixel((x, y)), f"{nastro} {k + 1}: {x},{y}")
-                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, T)],
-                                     [u.getpixel((T - 1, y)) for y in range(T // 2, T)], f"{nastro} {k + 1}: Est")
+                            elif 6 <= y <= T - 7:
+                                atteso = d.getpixel((x, y))
+                            else:
+                                continue
+                            self.assertEqual(atteso, u.getpixel((x, y)), f"{nastro} {k + 1}: {x},{y}")
+                    self.assertGreater(gomito, 0)
+                    for y in (0, T - 1):
+                        self.assertLessEqual({u.getpixel((x, y))[:3] for x in range(6, T - 6)}, tread,
+                                             f"{nastro} {k + 1}: riga {y} non aperta")
                     ovest = {u.getpixel((x, y))[:3] for x in range(5) for y in range(T)}
                     self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
 
