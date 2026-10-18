@@ -18,3 +18,4 @@ I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in O
 
 - [2026-10-16 — Simulazione a comandi e sistemi (sotto-progetto 2)](2026-10-16-simulazione-comandi-sistemi.md)
 - [2026-10-17 — Costruzione come Mindustry (sotto-progetto 3)](2026-10-17-costruzione-in-corso.md)
+- [2026-10-18 — Arte dei blocchi (sotto-progetto G1)](2026-10-18-g1-arte-blocchi.md)
