@@ -85,16 +85,54 @@ FINESTRA = (
     "WWWWwwAAiiDD",
     "WWWWWwwAADDD",
 )
-def componi(celle, sprite, ox=0, oy=0):
-    """Compose a grid of cells like the client (rule in tools/art/README.md). celle[y][x] =
-    (floor id, wall id or None, ore item id or None); (ox, oy) is the map position of
-    celle[0][0], used by hash_cella. A neighbour outside the grid counts as the cell itself."""
+def pezzi_mappa(celle, ox=0, oy=0):
+    """Sprite pieces of a grid of cells in drawing order (rule in tools/art/README.md), as
+    [(sprite name, piece index in its strip, px, py)]; (px, py) is the top-left pixel of the piece
+    with celle[0][0] at (0, 0) (wall pieces start half a cell up and left of their cell).
+    celle[y][x] = (floor id, wall id or None, ore item id or None); (ox, oy) is the map position
+    of celle[0][0], used by hash_cella. A neighbour outside the grid counts as the cell itself.
+    The client (TerrainLook.Plan in C#) must give the same list: see fixture_terreno.py."""
     from blocchi import terreno as tr
 
     T = tr.T
     h, w = len(celle), len(celle[0])
+    pezzi = []
+    for y in range(h):
+        for x in range(w):
+            suolo, parete, minerale = celle[y][x]
+            bioma = tr.BIOMA[suolo]
+            mx, my = ox + x, oy + y
+            px, py = x * T, y * T
+            # Water too: its still variant is the bed; the client animates ripples over it.
+            pezzi.append((f"terreno-{suolo}-{tr.hash_cella(mx, my, tr.SALE_VARIANTE) % tr.VARIANTI}", 0, px, py))
+            vicini = {lato: celle[y + dy][x + dx][0] if 0 <= x + dx < w and 0 <= y + dy < h else suolo
+                      for lato, (dx, dy) in tr.VICINI.items()}
+            for altro, i in tr.pezzi_bordo(suolo, vicini):
+                pezzi.append((f"terreno-{altro}-bordo", i, px, py))
+            if minerale:
+                variante = tr.hash_cella(mx, my, tr.SALE_GIACIMENTO) % tr.GIACIMENTI
+                pezzi.append((f"giacimento-{minerale}-{variante}", 0, px, py))
+            elif parete is None and suolo not in tr.ACQUA and bioma in tr.DENSITA_DECO                     and tr.hash_cella(mx, my, tr.SALE_DECO) % 100 < tr.DENSITA_DECO[bioma]:
+                k = tr.hash_cella(mx, my, tr.SALE_DECO_TIPO) % tr.DECORAZIONI
+                pezzi.append((f"deco-{bioma}-{k}", 0, px, py))
+    pareti = sorted({c[1] for riga in celle for c in riga if c[1]})
+    for parete in pareti:
+        for y in range(h + 1):
+            for x in range(w + 1):
+                angoli = sum(bit for bit, (cx, cy) in ((tr.NO, (x - 1, y - 1)), (tr.NE, (x, y - 1)),
+                                                         (tr.SE, (x, y)), (tr.SO, (x - 1, y)))
+                             if 0 <= cx < w and 0 <= cy < h and celle[cy][cx][1] == parete)
+                if angoli:
+                    pezzi.append((f"parete-{parete}", angoli, x * T - T // 2, y * T - T // 2))
+    return pezzi
 
 
+def componi(celle, sprite, ox=0, oy=0):
+    """Compose a grid of cells like the client: the pieces of pezzi_mappa, blitted in order."""
+    from blocchi import terreno as tr
+
+    T = tr.T
+    h, w = len(celle), len(celle[0])
     strisce = {}
 
     def pezzo(nome, i):
@@ -104,37 +142,8 @@ def componi(celle, sprite, ox=0, oy=0):
 
     m = T // 2  # margin: wall pieces start half a cell before the first cell
     im = Image.new("RGBA", ((w + 1) * T, (h + 1) * T), (0, 0, 0, 255))
-    for y in range(h):
-        for x in range(w):
-            suolo, parete, minerale = celle[y][x]
-            bioma = tr.BIOMA[suolo]
-            mx, my = ox + x, oy + y
-            px, py = m + x * T, m + y * T
-            if suolo in tr.ACQUA:
-                base = pezzo(tr.ACQUA[suolo], 0)
-            else:
-                base = sprite(f"terreno-{suolo}-{tr.hash_cella(mx, my, tr.SALE_VARIANTE) % tr.VARIANTI}")
-            im.alpha_composite(base, (px, py))
-            vicini = {lato: celle[y + dy][x + dx][0] if 0 <= x + dx < w and 0 <= y + dy < h else suolo
-                      for lato, (dx, dy) in tr.VICINI.items()}
-            for altro, i in tr.pezzi_bordo(suolo, vicini):
-                im.alpha_composite(pezzo(f"terreno-{altro}-bordo", i), (px, py))
-            if minerale:
-                variante = tr.hash_cella(mx, my, tr.SALE_GIACIMENTO) % tr.GIACIMENTI
-                im.alpha_composite(sprite(f"giacimento-{minerale}-{variante}"), (px, py))
-            elif parete is None and suolo not in tr.ACQUA and bioma in tr.DENSITA_DECO \
-                    and tr.hash_cella(mx, my, tr.SALE_DECO) % 100 < tr.DENSITA_DECO[bioma]:
-                k = tr.hash_cella(mx, my, tr.SALE_DECO_TIPO) % tr.DECORAZIONI
-                im.alpha_composite(sprite(f"deco-{bioma}-{k}"), (px, py))
-    pareti = sorted({c[1] for riga in celle for c in riga if c[1]})
-    for parete in pareti:
-        for y in range(h + 1):
-            for x in range(w + 1):
-                angoli = sum(bit for bit, (cx, cy) in ((tr.NO, (x - 1, y - 1)), (tr.NE, (x, y - 1)),
-                                                         (tr.SE, (x, y)), (tr.SO, (x - 1, y)))
-                             if 0 <= cx < w and 0 <= cy < h and celle[cy][cx][1] == parete)
-                if angoli:
-                    im.alpha_composite(pezzo(f"parete-{parete}", angoli), (x * T, y * T))
+    for nome, i, px, py in pezzi_mappa(celle, ox, oy):
+        im.alpha_composite(pezzo(nome, i), (m + px, m + py))
     return im.crop((m, m, m + w * T, m + h * T))
 
 

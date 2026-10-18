@@ -522,6 +522,13 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(sorted(tipi), sorted(mappa))
         self.assertEqual(sorted(mappa.values()), tr.MINERALI)
 
+    def test_fixture_terreno_aggiornata(self):
+        # The C# test TerrainLookTests compares the client's composition plan with this fixture:
+        # it must be what pezzi_mappa gives today (python tools/art/fixture_terreno.py rewrites it).
+        import fixture_terreno
+        with open(fixture_terreno.FIXTURE, encoding="utf-8") as f:
+            self.assertEqual(fixture_terreno.contenuto(), f.read())
+
     def test_bordi(self):
         # Edge strip: 8 pieces N, E, S, O, NE, SE, SO, NO; sides and corners are quarter turns
         # of each other; a side piece touches its side only, a corner piece its corner only.

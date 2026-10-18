@@ -48,8 +48,9 @@ public partial class World
             return;
         }
 
-        // Seeded deposits: the ore icon per cell up close, ore-coloured runs zoomed out (culled).
-        if (_view.Terrain is { } map)
+        // Seeded deposits at the colour level of detail: the ore icon per cell from DepositIconMinPx, ore-coloured
+        // runs below (culled). From TerrainChunks.ArtMinCellPx the terrain art draws them as pebbles.
+        if (_view.Terrain is { } map && screenTilePx < TerrainChunks.ArtMinCellPx)
         {
             var buildingTiles = BuildingTilesThisFrame();
             var icons = screenTilePx >= DepositIconMinPx;
@@ -246,8 +247,8 @@ public partial class World
         var itemId = TerrainMap.ItemIdForDeposit(deposit);
         if (Sprites.TryFor(itemId) is { } tex)
         {
-            // The ore item sprite in its own colours, at the world art scale (32 px icon = one tile).
-            // Placeholder until the real terrain art (G2b).
+            // The ore item sprite in its own colours, at the world art scale (32 px icon = one tile), just below
+            // the zoom where the terrain art takes over.
             DrawTextureRect(tex, rect, false);
         }
         else

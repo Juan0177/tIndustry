@@ -88,6 +88,7 @@ public partial class World
         var shot = 0;
         async Task Shot(string label)
         {
+            await PlaytestTerrainReady();
             await PlaytestWait(0.25);
             SaveViewportPng(Path.Combine(dir, $"tutorial-{shot++:00}-{label}.png"));
         }
@@ -228,6 +229,7 @@ public partial class World
     {
         async Task Shot(string label)
         {
+            await PlaytestTerrainReady();
             await PlaytestWait(0.3);
             SaveViewportPng(Path.Combine(dir, $"ui-{label}.png"));
         }
@@ -334,6 +336,9 @@ public partial class World
             return Fail("smontaggio non finito prima della campagna");
         }
 
+        // Terrain art captures here, with the game at rest: nothing moves while the camera looks around.
+        await PlaytestTerrainShotsAsync(Shot);
+
         // A level whose map file is missing: the list stays open with the reason, the game is untouched.
         var before = _view;
         ToggleCampaign();
@@ -357,6 +362,12 @@ public partial class World
         }
 
         await Shot("campagna");
+        if (GetNodeOrNull<Camera2D>("Camera") is { } campaignCam)
+        {
+            // The level start with the terrain art (the shot above is at the colour level of detail).
+            campaignCam.Zoom = Vector2.One;
+            await Shot("terreno-campagna");
+        }
 
         if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
         {
@@ -495,7 +506,9 @@ public partial class World
     /// Second performance probe (with <c>TINDUSTRY_PLAYTEST_PERF=1</c>, at the end of the <c>ui</c> playtest), no
     /// pass/fail: a new Enorme map (2000², seed 42) at minimum zoom, saved as <c>ui-enorme-zoom-min.png</c>; average
     /// and minimum FPS over 3 s standing still and 3 s sweeping the camera across the map (chunks built and freed
-    /// on the way), without VSync, with chunk counts and memory (Godot static, .NET heap, video, process).
+    /// on the way), without VSync, with chunk counts and memory (Godot static, .NET heap, video, process). Then the
+    /// terrain art (G2b): zoom 0.08 → 2 → 0.08 in 4 s each way and 4 s panning at zoom 1, with average and minimum
+    /// FPS, slowest frame, slowest art chunk, most art chunks alive and the highest process memory seen.
     /// </summary>
     private async Task PlaytestHugeMapPerfAsync(string dir)
     {
@@ -547,8 +560,7 @@ public partial class World
                 velocity.Y = -velocity.Y;
             }
         });
-        DisplayServer.WindowSetVsyncMode(vsync);
-
+        // The colour level of detail first (same report as before the terrain art), then the art one.
         const double mib = 1024.0 * 1024.0;
         var video = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed);
         using var process = System.Diagnostics.Process.GetCurrentProcess();
@@ -558,6 +570,172 @@ public partial class World
             + $"pezzi vivi {_terrainChunks.ChunkCount}, creati {_terrainChunks.BuiltSinceReset}; "
             + $"memoria statica {OS.GetStaticMemoryUsage() / mib:F0} MiB, .NET {GC.GetTotalMemory(false) / mib:F0} MiB, "
             + $"video {video / mib:F0} MiB, processo {process.WorkingSet64 / mib:F0} MiB");
+        GD.Print(await PlaytestTerrainArtPerfAsync(cam));
+        DisplayServer.WindowSetVsyncMode(vsync);
+    }
+
+    /// <summary>
+    /// The art part of <see cref="PlaytestHugeMapPerfAsync"/> (VSync already off): zoom sweep around the current
+    /// position, then a diagonal pan at zoom 1 (40 cells/s, bouncing off the map edges); returns the report line.
+    /// </summary>
+    private async Task<string> PlaytestTerrainArtPerfAsync(WorldCamera cam)
+    {
+        var chunks = _terrainChunks!;
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        var peakMemory = 0L;
+        var frame = 0;
+        void SampleMemory()
+        {
+            // Every 15 frames: refreshing the process info is not free.
+            if (frame++ % 15 == 0)
+            {
+                process.Refresh();
+                peakMemory = Math.Max(peakMemory, process.WorkingSet64);
+            }
+        }
+
+        const double seconds = 4.0;
+        var low = Math.Log(cam.MinZoom);
+        var high = Math.Log(2.0);
+        chunks.ResetProbe();
+        var zoomStart = Time.GetTicksUsec();
+        var zoom = await MeasureFramesAsync(2 * seconds, () =>
+        {
+            SampleMemory();
+            var t = (Time.GetTicksUsec() - zoomStart) / 1e6 / seconds; // 0..2
+            var k = t <= 1 ? t : Math.Max(0, 2 - t);
+            var z = (float)Math.Exp(low + (high - low) * k);
+            cam.Zoom = new Vector2(z, z);
+            cam.ClampToMap();
+        });
+        var zoomPeak = chunks.ArtPeak;
+        var zoomSlowest = chunks.SlowestArtMs;
+
+        cam.Zoom = Vector2.One;
+        cam.ClampToMap();
+        chunks.ResetProbe();
+        var velocity = new Vector2(40f, 28f) * TileSize; // per second
+        var last = Time.GetTicksUsec();
+        var pan = await MeasureFramesAsync(seconds, () =>
+        {
+            SampleMemory();
+            var now = Time.GetTicksUsec();
+            var before = cam.Position;
+            cam.Position += velocity * (float)((now - last) / 1e6);
+            last = now;
+            cam.ClampToMap();
+            if (Math.Abs(cam.Position.X - before.X) < 0.01f)
+            {
+                velocity.X = -velocity.X;
+            }
+
+            if (Math.Abs(cam.Position.Y - before.Y) < 0.01f)
+            {
+                velocity.Y = -velocity.Y;
+            }
+        });
+        process.Refresh();
+        peakMemory = Math.Max(peakMemory, process.WorkingSet64);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        return string.Create(inv,
+            $"PLAYTEST perf arte: zoom 0.08-2-0.08 fps medio {zoom.Average:F0}, minimo {zoom.Minimum:F0}, "
+            + $"frame più lento {1000 / zoom.Minimum:F1} ms, pezzi d'arte max {zoomPeak}, pezzo più lento {zoomSlowest:F1} ms; "
+            + $"scorrimento a zoom 1 fps medio {pan.Average:F0}, minimo {pan.Minimum:F0}, "
+            + $"frame più lento {1000 / pan.Minimum:F1} ms, pezzi d'arte max {chunks.ArtPeak}, pezzo più lento {chunks.SlowestArtMs:F1} ms; "
+            + $"pezzi d'arte creati {chunks.ArtBuiltSinceReset}; memoria massima del processo {peakMemory / (1024.0 * 1024.0):F0} MiB");
+    }
+
+    /// <summary>Waits (at most 10 s) until the terrain art of the view is composed, so captures never catch colours.</summary>
+    private async Task PlaytestTerrainReady()
+    {
+        for (var i = 0; i < 600 && _terrainChunks is { ArtShown: true, ArtPending: > 0 }; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
+    /// <summary>
+    /// Terrain art captures on the playtest map (G2b): the start at zoom 1 (<c>ui-terreno-partenza</c>), the window with
+    /// the most biomes (water counts as one) at zoom 0.5 (<c>ui-terreno-biomi</c>) and the one with the most ore kinds
+    /// at zoom 1 (<c>ui-terreno-minerali</c>); the camera goes back to the Core.
+    /// </summary>
+    private async Task PlaytestTerrainShotsAsync(Func<string, Task> shot)
+    {
+        if (_view?.Terrain is not { } map || GetNodeOrNull<WorldCamera>("Camera") is not { } cam)
+        {
+            return;
+        }
+
+        FocusCameraOnCore();
+        cam.Zoom = Vector2.One;
+        cam.ClampToMap();
+        await shot("terreno-partenza");
+
+        var table = _view.Content.Terrain;
+        var biomes = TerrainTable.Biomes.ToList();
+        var biomeOf = Enum.GetValues<FloorKind>()
+            .Select(k => table.Floor(k) is { } f ? biomes.IndexOf(f.Biome) : -1)
+            .ToArray();
+        var cells = GetViewportRect().Size / TileSize;
+        var biomesAt = BestWindow(map, (int)(cells.X * 2), (int)(cells.Y * 2), 8, biomes.Count, (x, y, seen) =>
+        {
+            var b = biomeOf[(int)map[x, y].Floor];
+            if (b >= 0)
+            {
+                seen[b] = true;
+            }
+        });
+        cam.Position = biomesAt * TileSize;
+        cam.Zoom = new Vector2(0.5f, 0.5f);
+        cam.ClampToMap();
+        await shot("terreno-biomi");
+
+        var oresAt = BestWindow(map, (int)cells.X, (int)cells.Y, 4, Enum.GetValues<DepositKind>().Length, (x, y, seen) =>
+        {
+            var d = (int)map[x, y].Deposit;
+            if (d > 0)
+            {
+                seen[d] = true;
+            }
+        });
+        cam.Position = oresAt * TileSize;
+        cam.Zoom = Vector2.One;
+        cam.ClampToMap();
+        await shot("terreno-minerali");
+        FocusCameraOnCore();
+    }
+
+    /// <summary>
+    /// Centre (in cells) of the <paramref name="w"/>×<paramref name="h"/> window, on a grid of <paramref name="step"/>
+    /// cells, where <paramref name="mark"/> sees the most of <paramref name="kinds"/> distinct kinds (every other cell
+    /// sampled); the first in row order wins a tie, so the choice is the same on every run.
+    /// </summary>
+    private static Vector2 BestWindow(TerrainMap map, int w, int h, int step, int kinds, Action<int, int, bool[]> mark)
+    {
+        var best = (Score: -1, X: 0, Y: 0);
+        var seen = new bool[kinds];
+        for (var y0 = 0; y0 + h <= map.Height; y0 += step)
+        {
+            for (var x0 = 0; x0 + w <= map.Width; x0 += step)
+            {
+                Array.Clear(seen);
+                for (var y = y0; y < y0 + h; y += 2)
+                {
+                    for (var x = x0; x < x0 + w; x += 2)
+                    {
+                        mark(x, y, seen);
+                    }
+                }
+
+                var score = seen.Count(v => v);
+                if (score > best.Score)
+                {
+                    best = (score, x0, y0);
+                }
+            }
+        }
+
+        return new Vector2(best.X + w / 2f, best.Y + h / 2f);
     }
 
     /// <summary>Frames for <paramref name="seconds"/>, running <paramref name="perFrame"/> before each: average and worst-frame FPS.</summary>

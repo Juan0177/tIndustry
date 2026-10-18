@@ -250,7 +250,7 @@ public partial class World : Node2D
 
     /// <summary>
     /// Every frame, also behind Home: follows the attached game's terrain (a new map drops the old chunks) and
-    /// builds the chunks in view.
+    /// builds the chunks in view, with their art when the cells are big enough on screen.
     /// </summary>
     private void SyncTerrainChunks()
     {
@@ -261,7 +261,8 @@ public partial class World : Node2D
 
         _terrainChunks.SetMap(_view?.Terrain, _view?.Content.Terrain ?? TerrainTable.Empty, TileSize);
         GetVisibleTileRange(out var minX, out var minY, out var maxX, out var maxY);
-        _terrainChunks.Sync(minX, minY, maxX, maxY);
+        var zoom = GetNodeOrNull<Camera2D>("Camera") is { } cam ? cam.Zoom.X : 1f;
+        _terrainChunks.Sync(minX, minY, maxX, maxY, TileSize * zoom);
     }
 
     private static string ResolveContentPath()
