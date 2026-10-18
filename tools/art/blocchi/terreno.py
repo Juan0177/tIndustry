@@ -34,7 +34,7 @@ import forme
 from blocchi import sprite
 from blocchi.oggetti import OGGETTI
 from palette import (CARBONE, ERBA, FULIGGINE, GHIACCIO, MUSCHIO, NEVE, OUT, PARETE_ARBUSTI, PARETE_GHIACCIO,
-                     PARETE_PIETRA, PARETE_SABBIA, PARETI, SABBIA, SABBIA_SCURA, SUOLI)
+                     PARETE_PIETRA, PARETI, SABBIA, SABBIA_SCURA, SUOLI)
 
 T = 32
 VARIANTI = 4
@@ -511,6 +511,7 @@ def _cristallo(im, cx, base, altezza, larghezza, rampa):
 
 
 # Angular boulder (faceted outline, taller on the left) for the capped decorations.
+_LASTRA = [(8, 22), (10, 16), (18, 14), (25, 17), (24, 23), (15, 25)]  # pale flat slab
 _MASSO = [(9, 24), (9, 18), (12, 12), (15, 10), (18, 13), (21, 13), (24, 17), (24, 22), (21, 25), (12, 25)]
 
 
@@ -537,14 +538,16 @@ def _deco(bioma, n):
             for cx, cy in ((10, 14), (17, 20), (22, 12)):
                 _sasso(im, _ellisse(cx, cy, 3, 2.5), roccia)
     elif bioma == "sabbia":
-        secco = [SABBIA_SCURA[0], SABBIA_SCURA[2], SABBIA[3], SABBIA[4]]
+        secco = [SABBIA_SCURA[0], SABBIA_SCURA[1], SABBIA_SCURA[2], SABBIA_SCURA[4]]
+        # Dry tufts and pale angular slabs in the sand's own tones: nothing round and orange that
+        # could pass for copper ore pebbles on the same floor.
         if n == 0:
             _ciuffo(im, 16, 22, ((-0.6, 7), (-0.3, 9), (0.0, 10), (0.25, 9), (0.55, 7), (0.9, 5)), secco)
         elif n == 1:
-            _sasso(im, _ellisse(16, 18, 6, 4), PARETE_SABBIA[1:])
+            _ciuffo(im, 11, 21, ((-0.5, 5), (-0.2, 7), (0.1, 6), (0.45, 4)), secco)
+            _ciuffo(im, 21, 24, ((-0.4, 4), (0.0, 6), (0.35, 5)), secco)
         else:
-            _sasso(im, _ellisse(12, 17, 4, 3), PARETE_SABBIA[1:])
-            _sasso(im, _ellisse(20, 21, 3, 2.5), PARETE_SABBIA[1:])
+            _sasso(im, forme.poligono(_LASTRA), [SABBIA_SCURA[2], SABBIA[4], NEVE[1], NEVE[3]])
     elif bioma == "neve":
         if n == 0:
             _cristallo(im, 16, 23, 13, 4, PARETE_GHIACCIO[1:])

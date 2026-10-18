@@ -118,6 +118,23 @@ public sealed class TerrainLook
             .Concat(_walls.Select(w => w.Sprite))
             .Distinct(StringComparer.Ordinal);
 
+    /// <summary>Sprite of variant <paramref name="variant"/> of floor <paramref name="floor"/>.</summary>
+    public string FloorSprite(FloorKind floor, int variant) => _floorSprites[(int)floor][variant];
+
+    /// <summary>Dual-grid strip of <paramref name="wall"/>, or null for none or a wall missing from the table.</summary>
+    public string? WallSprite(WallKind wall)
+    {
+        foreach (var (kind, sprite) in _walls)
+        {
+            if (kind == wall)
+            {
+                return sprite;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>32-bit hash of a cell (<c>hash_cella</c> in terreno.py, bit for bit).</summary>
     public static uint CellHash(int x, int y, int salt)
     {
