@@ -61,7 +61,19 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
     public async Task CoopIsAPlaceholder()
     {
         Assert.Equal(AgentCodes.MotoreNonDisponibile, await server.Refused("collega_coop"));
-        Assert.Equal(AgentCodes.MotoreNonDisponibile, await server.Refused("apri_gioco"));
+    }
+
+    [Fact]
+    public async Task GameOptionsAreCheckedBeforeGodotStarts()
+    {
+        foreach (var args in new object[]
+                 {
+                     new { lingua = "xx" }, new { scala = 0.5 }, new { scala = 1.03 }, new { colori = "Viola" },
+                     new { livello = "nessuno" }, new { misura = 5 }
+                 })
+        {
+            Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("apri_gioco", args));
+        }
     }
 
     [Fact]

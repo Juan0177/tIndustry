@@ -51,6 +51,29 @@ public partial class World
             return true;
         });
 
+    /// <summary>
+    /// The agents' launcher (<see cref="AgentBridge"/> <c>nuova_partita</c>): a sandbox as from Nuova partita, or a
+    /// campaign level as from the list. Returns null when the game started, otherwise the reason.
+    /// </summary>
+    internal string? AgentStartGame(int size, int seed, CampaignLevelDefinition? level)
+    {
+        if (level is null)
+        {
+            StartNewGameFromHome((MapSize)size, seed, night: false);
+            return null;
+        }
+
+        if (StartCampaignLevel(level, toast: true) is { } error)
+        {
+            return error;
+        }
+
+        _returnHomeAfterCampaign = false;
+        _campaignSelect?.Close();
+        _home?.Close();
+        return null;
+    }
+
     private void StartNewGameFromHome(MapSize size, int seed, bool night)
     {
         StartNewSandbox(size, seed, toast: true, night);

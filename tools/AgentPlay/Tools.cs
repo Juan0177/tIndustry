@@ -58,21 +58,27 @@ public sealed class Tools(Sessions sessions, GameData data)
                 throw new AgentException(ex.Code.ToString(), ex.Message);
             }
 
-            return Opened(sessions.Open(engine), engine);
+            return Opened(sessions.Open(engine), engine.Kind, engine.Folder);
         });
 
     [McpServerTool(Name = "apri_gioco")]
-    [Description("Apre il gioco vero (Godot, con finestra) per catture e prove dell'interfaccia: più lento della simulazione.")]
+    [Description("Apre il gioco vero (Godot, finestra 1280×720, profilo temporaneo) per catture e prove dell'interfaccia: più lento della simulazione, il tempo scorre da solo (pausa per fermarlo).")]
     public string ApriGioco(
         [Description("Misura della mappa: il nome Media (1000), Grande (1500) o Enorme (2000), oppure un numero di celle per lato tra 12 e 2000 (64 o \"64\").")] JsonElement? misura = null,
-        [Description("Seme del terreno.")] int seme = 1,
-        [Description("Id di un livello della campagna.")] string? livello = null,
-        [Description("Lingua dei testi (per esempio it, en).")] string? lingua = null,
-        [Description("Scala dell'interfaccia (per esempio 1.0).")] double? scala = null,
-        [Description("Tema dei colori.")] string? colori = null,
-        [Description("Tiene il profilo temporaneo dopo chiudi.")] bool conserva = false) =>
-        Run(() => throw new AgentException(
-            AgentCodes.MotoreNonDisponibile, "Il motore gioco vero non è ancora disponibile in questo server: usa apri_simulazione."));
+        [Description("Seme del terreno (generatore biomi-1).")] int seme = 1,
+        [Description("Id di un livello della campagna (ignora misura e seme).")] string? livello = null,
+        [Description("Lingua dei testi: it (predefinita) o en.")] string? lingua = null,
+        [Description("Scala dell'interfaccia da 0.75 a 2.0 a passi di 0.05 (predefinita 1.0).")] double? scala = null,
+        [Description("Colori: Normale (predefinito), Daltonici o AltoContrasto.")] string? colori = null,
+        [Description("Tiene il profilo temporaneo (log, catture, diari) dopo chiudi.")] bool conserva = false) =>
+        Run(() =>
+        {
+            var options = Options(misura, seme, livello, lingua, scala, colori, conserva);
+            var engine = GameEngine.Open(options);
+            var result = Opened(sessions.Open(engine), engine.Kind, engine.Folder);
+            result["processo"] = engine.ProcessId;
+            return result;
+        });
 
     [McpServerTool(Name = "collega_coop")]
     [Description("Si collega a una partita co-op: non ancora disponibile (arriva con il co-op).")]
@@ -203,7 +209,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("clic, trascina, tasto o rotella.")] string tipo,
         [Description("Punto dello schermo in pixel.")] PuntoSchermo? schermo = null,
         [Description("Cella del mondo.")] Cella? cella = null,
-        [Description("Verso della rotellina (su, giu) o fine del trascinamento.")] string? verso = null,
+        [Description("Con rotella: su o giu. Con trascina: il punto finale, nello stesso spazio dell'inizio (schermo o cella), come {\"x\":10,\"y\":5} o \"10,5\".")] JsonElement? verso = null,
         [Description("Tasto (per esempio R, Escape).")] string? tasto = null,
         [Description("Pulsante del mouse: sinistro o destro.")] string? pulsante = null) =>
         Game(sessione, "input", new { tipo, schermo, cella, verso, tasto, pulsante });
@@ -215,8 +221,11 @@ public sealed class Tools(Sessions sessions, GameData data)
 
     [McpServerTool(Name = "log")]
     [Description("Le ultime righe di avviso ed errore del log di Godot (solo gioco vero).")]
-    public string Log([Description(Sessione)] string sessione, [Description("Quante righe.")] int? righe = null) =>
-        Game(sessione, "log", new { righe });
+    public string Log(
+        [Description(Sessione)] string sessione,
+        [Description("Quante righe (1-500, predefinite 50).")] int? righe = null,
+        [Description("Tutte le righe, non solo avvisi ed errori.")] bool? tutte = null) =>
+        Game(sessione, "log", new { righe, tutte });
 
     // ---- Replay
 
@@ -228,14 +237,14 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "diario", new { nome });
 
     [McpServerTool(Name = "rigioca")]
-    [Description("Riesegue un diario salvato su una sessione nuova di simulazione, per riprodurre un bug.")]
+    [Description("Riesegue un diario salvato (anche del gioco vero: solo i comandi, non gli input) su una sessione nuova di simulazione, per riprodurre un bug.")]
     public string Rigioca(
         [Description("Percorso del file del diario (da diario con nome).")] string percorso,
         [Description("Tiene la cartella della nuova sessione dopo chiudi.")] bool conserva = false) =>
         Run(() =>
         {
             var engine = SimEngine.Replay(AgentJournal.Load(percorso), data, conserva);
-            var result = Opened(sessions.Open(engine), engine);
+            var result = Opened(sessions.Open(engine), engine.Kind, engine.Folder);
             result["impronta"] = engine.Checksum().ToString("x16", CultureInfo.InvariantCulture);
             return result;
         });
@@ -246,12 +255,49 @@ public sealed class Tools(Sessions sessions, GameData data)
     private string Game(string sessione, string method, object? args = null) =>
         Run(() => sessions.Get(sessione).Call(method, JsonSerializer.SerializeToElement(args ?? new { }, Json)));
 
-    private static JsonObject Opened(string id, SimEngine engine) => new()
+    private static JsonObject Opened(string id, string kind, string folder) => new()
     {
         ["sessione"] = id,
-        ["motore"] = engine.Kind,
-        ["cartella"] = engine.Folder
+        ["motore"] = kind,
+        ["cartella"] = folder
     };
+
+    // apri_gioco's options, checked before Godot is started.
+    private GameOptions Options(
+        JsonElement? misura, int seme, string? livello, string? lingua, double? scala, string? colori, bool conserva)
+    {
+        var size = Size(misura);
+        if (size is < 12 or > Factory.MaxMapEdge)
+        {
+            throw new AgentException(AgentCodes.ParametriNonValidi, $"'misura' tra 12 e {Factory.MaxMapEdge}.");
+        }
+
+        if (livello is not null && data.Campaign.Find(livello) is null)
+        {
+            throw new AgentException(AgentCodes.ParametriNonValidi, $"Livello di campagna sconosciuto: {livello}.");
+        }
+
+        var languages = GameLauncher.FindProject() is { } project ? GameLauncher.Languages(project) : ["it"];
+        lingua ??= "it";
+        if (!languages.Contains(lingua))
+        {
+            throw new AgentException(AgentCodes.ParametriNonValidi, $"'lingua' è una di: {string.Join(", ", languages)}.");
+        }
+
+        var percent = (int)Math.Round((scala ?? 1.0) * 100);
+        if (percent is < 75 or > 200 || percent % 5 != 0)
+        {
+            throw new AgentException(AgentCodes.ParametriNonValidi, "'scala' da 0.75 a 2.0 a passi di 0.05.");
+        }
+
+        colori ??= GameLauncher.Colours[0];
+        if (!GameLauncher.Colours.Contains(colori))
+        {
+            throw new AgentException(AgentCodes.ParametriNonValidi, $"'colori' è uno di: {string.Join(", ", GameLauncher.Colours)}.");
+        }
+
+        return new GameOptions(lingua, percent, colori, livello, seme, size, conserva);
+    }
 
     private static AgentGameSetup Setup(
         JsonElement? misura, int seme, string generatore, string? livello, string? salvataggio, bool instant)

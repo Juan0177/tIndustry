@@ -316,6 +316,14 @@ public partial class AgentBridge : Node
                 case "log":
                     Reply(connection, request.Id, Log(p));
                     break;
+                case "nuova_partita":
+                    Reply(connection, request.Id, NewGame(p));
+                    break;
+                case "esci":
+                    // The launcher's chiudi: answer first, the tree quits at the end of this frame.
+                    Reply(connection, request.Id, new JsonObject { ["esce"] = true });
+                    GetTree().Quit();
+                    break;
                 default:
                     CallGame(connection, request);
                     break;
@@ -331,6 +339,29 @@ public partial class AgentBridge : Node
             Send(connection, AgentResponse.Failure(
                 request.Id, new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}")));
         }
+    }
+
+    /// <summary>
+    /// The launcher's first request (tools/AgentPlay): leaves Home for a sandbox of <c>misura</c> and <c>seme</c>
+    /// (biome generator) or for the campaign level <c>livello</c>.
+    /// </summary>
+    private JsonObject NewGame(JsonElement p)
+    {
+        var size = OptInt(p, "misura") ?? (int)MapSize.Media;
+        if (size is < 12 or > Factory.MaxMapEdge)
+        {
+            throw Bad($"misura tra 12 e {Factory.MaxMapEdge}.");
+        }
+
+        var level = OptStr(p, "livello") is { } id
+            ? _world.AgentCampaign?.Find(id) ?? throw Bad($"livello sconosciuto: {id}.")
+            : null;
+        if (_world.AgentStartGame(size, OptInt(p, "seme") ?? 1, level) is { } error)
+        {
+            throw Bad(error);
+        }
+
+        return new JsonObject { ["tick"] = CurrentTick() };
     }
 
     // --- Shared methods (AgentGame) -------------------------------------------------------------------------------

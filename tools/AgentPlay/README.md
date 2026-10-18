@@ -27,10 +27,31 @@ python tools/AgentPlay/avvia.py --prepara
 | Motore | Strumento | Quando |
 |---|---|---|
 | Simulazione | `apri_simulazione` | Regole, comandi, economia, costruzione, riproduzione dei bug. Veloce, senza grafica, deterministico. |
-| Gioco vero | `apri_gioco` | Catture, interfaccia, input. Non ancora disponibile: risponde `MotoreNonDisponibile`. |
+| Gioco vero | `apri_gioco` | Catture, interfaccia, input. Apre Godot con finestra (vedi sotto): più lento, il tempo scorre da solo. |
 | Co-op | `collega_coop` | Segnaposto fino al co-op: risponde `MotoreNonDisponibile`. |
 
 Gli strumenti solo del gioco vero (`esegui`, `riprendi`, `cattura`, `telecamera`, `input`, `ui`, `log`) su una sessione di simulazione rispondono `MotoreNonDisponibile`. Nella simulazione `pausa` non fa nulla: il tempo si muove solo con `avanza` e con il tick di ogni comando.
+
+## Gioco vero
+
+`apri_gioco {misura?, seme?, livello?, lingua?, scala?, colori?, conserva?}` avvia `godot4 --path godot` (oppure l'eseguibile in `TINDUSTRY_GODOT`) come i playtest, ma senza modalità playtest:
+
+- profilo temporaneo nuovo sotto `%TEMP%/tindustry-agentplay/gioco-*`, mai nei dati veri: `TINDUSTRY_DATA_DIR` e `APPDATA` puntano al profilo, `--log-file <profilo>/godot.log`, finestra `--resolution 1280x720`;
+- `lingua` (`it` o `en`), `scala` (0.75-2.0 a passi di 0.05) e `colori` (`Normale`, `Daltonici`, `AltoContrasto`) vanno nel `settings.json` del profilo, con il tutorial già fatto;
+- il canale degli agenti su una porta libera con un segreto nuovo a ogni sessione; poi la partita: un sandbox `misura`/`seme` (generatore biomi-1, predefiniti Media e 1) oppure il livello `livello`.
+
+Risponde `{sessione, motore: "gioco", cartella, processo}` (`cartella` è il profilo, `processo` il pid avviato). Servono `godot4` nel PATH del server e il progetto importato e compilato (`godot4 --import`, `--build-solutions`, vedi CLAUDE.md). Nel gioco vero:
+
+- il tempo scorre in tempo reale; `pausa` e `riprendi` lo fermano e lo fanno ripartire, `avanza` esegue tick esatti e lascia il gioco fermo, `esegui {secondi}` lo lascia scorrere;
+- un comando risponde dopo il tick del gioco che lo applica;
+- `cattura {percorso?}` scrive solo sotto `<profilo>/catture` (`percorso` è un nome relativo `.png`) e restituisce il percorso assoluto;
+- `input {tipo, schermo | cella, verso?, tasto?, pulsante?}`: con `trascina` il punto finale è `verso`, come `{x, y}` o `"x,y"`, nello stesso spazio dell'inizio; con `rotella` `verso` è `su` o `giu`;
+- `ui {clic?}` può rispondere `NonCliccabile` (controllo fuori dalla finestra o nascosto dal contenitore); il canale risponde `Occupato` se riceve troppe richieste in coda;
+- `log {righe?, tutte?}` legge `<profilo>/godot.log`: avvisi ed errori, o tutte le righe con `tutte: true`;
+- tempi limite: 60 s per l'avvio (fino al canale pronto e alla partita iniziata), 30 s per richiesta (`esegui`: 30 s più i suoi secondi). Se il gioco esce, va in crash o chiude il canale, ogni chiamata risponde `GiocoTerminato` con le ultime 30 righe del log;
+- `chiudi` chiede al gioco di uscire, aspetta 5 s, poi lo termina (con i processi figli) e cancella il profilo, salvo `conserva: true`.
+
+`diario {nome}` sul gioco vero salva i comandi (`piazza`, `smonta`, `ruota`, `sblocca`, `vendi`, `potenzia_core`, `avanza`) con il tick del gioco e un'intestazione `partita` con `motore: "gioco"` e le scelte di apertura. `rigioca` lo riesegue su una sessione di simulazione. Limiti: gli input simulati (`input`, `ui {clic}`) e quello che fa una persona alla finestra non sono nel diario, quindi non si rigiocano; il tempo tra due comandi si rigioca a tick esatti, ma `esegui` e `riprendi` non sono voci del diario (contano solo i tick trascorsi).
 
 ## Ciclo tipico
 
@@ -67,3 +88,5 @@ I parametri sbagliati non fermano mai il server, che risponde `ParametriNonValid
 dotnet build tIndustry.sln -c Release -nologo -v q
 dotnet test tests/TIndustry.AgentPlay.Tests -c Release --no-build   # avvia il server via stdio
 ```
+
+I test del gioco vero (`GameEngineTests`) aprono Godot con finestra: girano solo se `godot4` è nel PATH (o c'è `TINDUSTRY_GODOT`), altrimenti si saltano con il motivo, come nella CI.
