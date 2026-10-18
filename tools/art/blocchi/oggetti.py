@@ -58,27 +58,6 @@ def _toni(rampa):
             "3": rampa[min(n - 1, m + 1)], "4": rampa[n - 1]}
 
 
-def _dentro(px, py, poli):
-    """Even-odd test of a point against a polygon."""
-    dentro = False
-    j = len(poli) - 1
-    for i in range(len(poli)):
-        xi, yi = poli[i]
-        xj, yj = poli[j]
-        if (yi > py) != (yj > py) and px < (xj - xi) * (py - yi) / (yj - yi) + xi:
-            dentro = not dentro
-        j = i
-    return dentro
-
-
-def _poligono(poli):
-    """Pixels whose centre is inside the polygon."""
-    xs = [p[0] for p in poli]
-    ys = [p[1] for p in poli]
-    return {(x, y) for y in range(int(min(ys)), int(max(ys)) + 1)
-            for x in range(int(min(xs)), int(max(xs)) + 1) if _dentro(x + 0.5, y + 0.5, poli)}
-
-
 def _bordo(pieni):
     return {(x, y) for x, y in pieni
             if any((x + ax, y + ay) not in pieni for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1)))}
@@ -116,7 +95,7 @@ def _griglia(righe, rampa, contorno, bordo=None):
 def _pietra(im, poli, rampa, contorno, scintille=(), crepe=()):
     """Faceted stone: lit top-left facet, shaded bottom-right, glints and cracks."""
     toni = _toni(rampa)
-    pieni = _poligono(poli)
+    pieni = forme.poligono(poli)
     cx = sum(p[0] for p in poli) / len(poli)
     cy = sum(p[1] for p in poli) / len(poli)
     r = max(max(p[0] for p in poli) - min(p[0] for p in poli),
@@ -156,7 +135,7 @@ def _lastra(im, x0, y0, l, p, s, rampa, contorno, dettaglio):
     cima = [(x0, y0), (x0 + p, y0 - p), (x0 + p + l, y0 - p), (x0 + l, y0)]
     fronte = [(x0, y0), (x0 + l, y0), (x0 + l, y0 + s), (x0, y0 + s)]
     lato = [(x0 + l, y0), (x0 + l + p, y0 - p), (x0 + l + p, y0 - p + s), (x0 + l, y0 + s)]
-    pc, pf, pl = _poligono(cima), _poligono(fronte), _poligono(lato)
+    pc, pf, pl = forme.poligono(cima), forme.poligono(fronte), forme.poligono(lato)
     pieni = pc | pf | pl
 
     def tono(x, y):
@@ -206,7 +185,7 @@ def filo(rampa, contorno):
     toni = _toni(rampa)
     im = forme.nuova(T, T)
     cx, cy, r_out, r_in = 15, 15, 13.2, 5.2
-    coda = _poligono([(22, 24), (29, 28), (30, 30), (27, 30), (21, 26)])
+    coda = forme.poligono([(22, 24), (29, 28), (30, 30), (27, 30), (21, 26)])
     anello = {(x, y) for y in range(T) for x in range(T)
               if r_in <= math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r_out}
 
@@ -235,9 +214,9 @@ def filo(rampa, contorno):
 def _barra(im, x0, y0, l, h, p, rampa, contorno):
     """Bar lying along x: front face l x h, top face and end face p px deep (up-right)."""
     toni = _toni(rampa)
-    fronte = _poligono([(x0, y0), (x0 + l, y0), (x0 + l, y0 + h), (x0, y0 + h)])
-    cima = _poligono([(x0, y0), (x0 + p, y0 - p), (x0 + l + p, y0 - p), (x0 + l, y0)])
-    testa = _poligono([(x0 + l, y0), (x0 + l + p, y0 - p), (x0 + l + p, y0 - p + h), (x0 + l, y0 + h)])
+    fronte = forme.poligono([(x0, y0), (x0 + l, y0), (x0 + l, y0 + h), (x0, y0 + h)])
+    cima = forme.poligono([(x0, y0), (x0 + p, y0 - p), (x0 + l + p, y0 - p), (x0 + l, y0)])
+    testa = forme.poligono([(x0 + l, y0), (x0 + l + p, y0 - p), (x0 + l + p, y0 - p + h), (x0 + l, y0 + h)])
 
     def tono(x, y):
         if (x, y) in fronte:
@@ -260,7 +239,7 @@ def barre(rampa, contorno):
 def _cristallo(im, cx, cima, base, w, rampa, contorno):
     """Pointed prism: lit left face, shaded right face, bright ridge."""
     toni = _toni(rampa)
-    pieni = _poligono([(cx - w, base), (cx - w, cima + w), (cx, cima), (cx + w, cima + w), (cx + w, base)])
+    pieni = forme.poligono([(cx - w, base), (cx - w, cima + w), (cx, cima), (cx + w, cima + w), (cx + w, base)])
 
     def tono(x, y):
         if x == int(cx) - 1 or x == int(cx):

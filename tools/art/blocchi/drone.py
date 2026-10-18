@@ -11,23 +11,10 @@ from blocchi import sprite
 from palette import ACCENTO, BAGLIORE, METALLO, NUCLEO, OUT
 
 
-def _dentro(px, py, poli):
-    """Even-odd test of a point against a polygon."""
-    dentro = False
-    j = len(poli) - 1
-    for i in range(len(poli)):
-        xi, yi = poli[i]
-        xj, yj = poli[j]
-        if (yi > py) != (yj > py) and px < (xj - xi) * (py - yi) / (yj - yi) + xi:
-            dentro = not dentro
-        j = i
-    return dentro
-
-
 def _pieni(lato, poli):
     """Pixels whose centre is inside the polygon, mirrored across the flight axis so the
     shape is exactly symmetric whatever the edge rounding."""
-    out = {(x, y) for y in range(lato) for x in range(lato) if _dentro(x + 0.5, y + 0.5, poli)}
+    out = {(x, y) for y in range(lato) for x in range(lato) if forme.dentro_poligono(x + 0.5, y + 0.5, poli)}
     out |= {(x, lato - 1 - y) for x, y in out}
     # Drop pixel slivers (fewer than two side neighbours): they would be lone outline dots.
     out = {(x, y) for x, y in out

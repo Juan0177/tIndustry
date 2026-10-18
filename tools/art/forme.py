@@ -36,6 +36,27 @@ def _luce(dx, dy):
     return 0.0 if d == 0 else (-dx - dy) / (d * math.sqrt(2))
 
 
+def dentro_poligono(px, py, poli):
+    """Even-odd test of a point against a polygon [(x, y), ...]."""
+    dentro = False
+    j = len(poli) - 1
+    for i in range(len(poli)):
+        xi, yi = poli[i]
+        xj, yj = poli[j]
+        if (yi > py) != (yj > py) and px < (xj - xi) * (py - yi) / (yj - yi) + xi:
+            dentro = not dentro
+        j = i
+    return dentro
+
+
+def poligono(poli):
+    """Pixels whose centre is inside the polygon [(x, y), ...]."""
+    xs = [p[0] for p in poli]
+    ys = [p[1] for p in poli]
+    return {(x, y) for y in range(int(min(ys)), int(max(ys)) + 1)
+            for x in range(int(min(xs)), int(max(xs)) + 1) if dentro_poligono(x + 0.5, y + 0.5, poli)}
+
+
 def nuova(w, h):
     """Transparent RGBA canvas."""
     return Image.new("RGBA", (w, h), TRASPARENTE)

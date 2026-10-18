@@ -142,7 +142,17 @@ public sealed class FactoryContent
                     $"content.json: terrain.floors '{f.Id}': buildable deve essere {(kind != FloorKind.DeepWater ? "true" : "false")}.");
             }
 
-            return new FloorDef(f.Id!, kind, f.Biome!, f.Color!.ToUpperInvariant(), buildable);
+            if (f.EdgePriority is not { } edgePriority)
+            {
+                throw new InvalidDataException($"content.json: terrain.floors '{f.Id}': manca edgePriority.");
+            }
+
+            if (edgePriority < 0)
+            {
+                throw new InvalidDataException($"content.json: terrain.floors '{f.Id}': edgePriority deve essere >= 0.");
+            }
+
+            return new FloorDef(f.Id!, kind, f.Biome!, f.Color!.ToUpperInvariant(), buildable, edgePriority);
         }).ToList();
         var walls = (dto.Walls ?? []).Select(w =>
         {
@@ -159,6 +169,18 @@ public sealed class FactoryContent
         CheckCoverage("floors", floors.Select(f => f.Kind).ToList(), Enum.GetValues<FloorKind>());
         CheckCoverage("walls", walls.Select(w => w.Kind).ToList(),
             Enum.GetValues<WallKind>().Where(k => k != WallKind.None).ToArray());
+        if (floors.Select(f => f.EdgePriority).Distinct().Count() != floors.Count)
+        {
+            throw new InvalidDataException("content.json: terrain richiede una edgePriority diversa per ogni suolo.");
+        }
+
+        var water = floors.Where(f => f.Kind is FloorKind.ShallowWater or FloorKind.DeepWater).ToList();
+        var land = floors.Except(water).ToList();
+        if (water.Count > 0 && land.Count > 0 && water.Max(f => f.EdgePriority) >= land.Min(f => f.EdgePriority))
+        {
+            throw new InvalidDataException("content.json: terrain: l'acqua deve avere edgePriority più bassa di ogni altro suolo.");
+        }
+
         var colours = floors.Select(f => f.Color).Concat(walls.Select(w => w.Color)).ToList();
         if (colours.Distinct(StringComparer.Ordinal).Count() != colours.Count)
         {
@@ -349,6 +371,8 @@ public sealed class FactoryContent
         public string? Biome { get; set; }
         public string? Color { get; set; }
         public bool? Buildable { get; set; }
+
+        public int? EdgePriority { get; set; }
     }
 
     private sealed class WallDto

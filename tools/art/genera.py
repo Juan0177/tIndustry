@@ -1,9 +1,11 @@
 """Generate the game sprites into godot/assets/ and the review sheet into .dev/arte/.
 
-    python tools/art/genera.py                 # every registered sprite + review sheet
+    python tools/art/genera.py                 # every registered sprite + review sheets
     python tools/art/genera.py --solo miner    # only some sprites
     python tools/art/genera.py --controlla     # write nothing; exit 1 if godot/assets differs
 
+The review sheets are .dev/arte/tavola.png (old next to new) and, when terrain sprites are
+written, .dev/arte/tavola-terreno.png (one composed window per biome).
 Only the sprites registered in blocchi/ are written; every other PNG in
 godot/assets/ is left alone. Output is deterministic: same code, same bytes.
 """
@@ -22,7 +24,8 @@ if ART_DIR not in sys.path:
 from PIL import Image  # noqa: E402
 
 from blocchi import SPRITE  # noqa: E402
-from tavola import tavola  # noqa: E402
+from blocchi.terreno import NOMI as TERRENO  # noqa: E402
+from tavola import tavola, tavola_terreno  # noqa: E402
 
 
 def _assoluto(path):
@@ -66,6 +69,8 @@ def main(out_dir="godot/assets", tavola_dir=".dev/arte", solo=None):
             oggi = datetime.date.today().isoformat()
             salva(sheet, os.path.join(tavola_dir, f"tavola-{oggi}.png"))
             salva(sheet, os.path.join(tavola_dir, "tavola.png"))
+        if set(nomi) & set(TERRENO):
+            salva(tavola_terreno(lambda nome: SPRITE[nome]()), os.path.join(tavola_dir, "tavola-terreno.png"))
     return nomi
 
 
@@ -114,7 +119,7 @@ def _cli(argv):
         return 1 if diversi else 0
     nomi = main(solo=args.solo)
     print(f"{len(nomi)} sprite scritti in godot/assets"
-          + (", tavola in .dev/arte/tavola.png" if nomi else ""))
+          + (", tavole in .dev/arte/" if nomi else ""))
     return 0
 
 
