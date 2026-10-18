@@ -246,19 +246,20 @@ public sealed class SimHost
     private Refusal? ApplyAutoJunction(int playerId, GridPosition tile, Direction direction)
     {
         var junction = BuildSpec.FromCommand(new PlaceBuilding(playerId, BuildingKind.Junction, tile, direction));
-        if (factory.State.Rules.InstantBuild)
+        // Checked before anything changes: research and, in both modes, that the Core can pay the junction now
+        // (a plan would otherwise take the belt apart and then wait for resources).
+        if (CheckBuildable(junction.StructureId, multiplicity: 1) is { } refusal)
         {
-            if (CheckBuildable(junction.StructureId, multiplicity: 1) is { } refusal)
-            {
-                return refusal;
-            }
-
-            factory.TryRemoveBelt(tile);
-            return PlacedOrRefused(factory.PlaceInstant(junction, charge: true), junction);
+            return refusal;
         }
 
-        // The belt is checked like any queued plan: free of other plans, the player's drone exists.
-        if (factory.IsPlannedTile(tile) || !factory.TryGetSpecAt(tile, out var belt, out _))
+        if (factory.State.Rules.InstantBuild)
+        {
+            return factory.TryReplaceBeltWithJunction(tile, junction) ? null : RefusalCode.Occupied;
+        }
+
+        // BeltCrossingAt already refused a planned (or marked) tile; the belt must still be there.
+        if (!factory.TryGetSpecAt(tile, out var belt, out _) || IsBreakingPlanned(belt))
         {
             return RefusalCode.Occupied;
         }
@@ -406,11 +407,33 @@ public sealed class SimHost
             if (factory.PlanTiles(plan).Contains(tile))
             {
                 builder.PlanQueue.RemoveAt(i);
+                CancelCrossingPartner(builder, plan, first);
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// An auto-junction is two plans on one tile (take the belt apart, then build the junction): cancelling either
+    /// cancels the other too, unless it has already started (from index <paramref name="first"/> on).
+    /// </summary>
+    private void CancelCrossingPartner(BuilderUnit builder, BuildPlan cancelled, int first)
+    {
+        var tile = cancelled.Spec.Origin;
+        for (var i = first; i < builder.Plans.Count; i++)
+        {
+            var plan = builder.Plans[i];
+            var partner = cancelled.Breaking
+                ? !plan.Breaking && plan.Spec.Kind == BuildingKind.Junction
+                : cancelled.Spec.Kind == BuildingKind.Junction && plan.Breaking && plan.Spec.Kind is null;
+            if (partner && plan.Spec.Origin == tile && factory.SiteOfPlan(plan) is null)
+            {
+                builder.PlanQueue.RemoveAt(i);
+                return;
+            }
+        }
     }
 
     /// <summary>True when a breaking plan of any player already targets the block <paramref name="spec"/> describes.</summary>

@@ -47,7 +47,7 @@
     {
       "id": "junction",
       "tier": 1,
-      "rateItemsPerSecond": 0.75,
+      "rateItemsPerSecond": 4.0,
       "capacity": 2,
       "itemSpacing": 1.0,
       "moneyCost": 0,

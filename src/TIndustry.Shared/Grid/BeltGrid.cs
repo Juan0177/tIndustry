@@ -420,9 +420,14 @@ public sealed class BeltGrid
 
         var dir = cell.Direction;
         var (back, left, right) = Feeders(position, dir, buildingFeeds);
+        return IncomingFrom(dir, back, left, right, out incoming);
+    }
+
+    internal static bool IncomingFrom(Direction dir, bool back, bool left, bool right, out Direction incoming)
+    {
+        incoming = dir;
         if (back)
         {
-            incoming = dir;
             return true;
         }
 
@@ -461,14 +466,15 @@ public sealed class BeltGrid
         }
 
         var (back, left, right) = Feeders(position, dir, buildingFeeds);
-        if (back || left == right)
-        {
-            return !back && left ? BeltShape.T : BeltShape.Straight; // both sides, nothing behind: T
-        }
-
-        incoming = left ? DirectionMath.Right(dir) : DirectionMath.Left(dir);
-        return BeltShape.Corner;
+        IncomingFrom(dir, back, left, right, out incoming);
+        return ShapeFrom(back, left, right);
     }
+
+    /// <summary><see cref="GetShape"/> of a plain belt from its feeders (behind, left, right).</summary>
+    internal static BeltShape ShapeFrom(bool back, bool left, bool right) =>
+        back || (!left && !right) ? BeltShape.Straight
+        : left && right ? BeltShape.T // both sides, nothing behind
+        : BeltShape.Corner;
 
     public bool IsCorner(GridPosition position, Func<GridPosition, GridPosition, bool>? buildingFeeds = null) =>
         GetShape(position, out _, buildingFeeds) == BeltShape.Corner;
@@ -493,7 +499,7 @@ public sealed class BeltGrid
     }
 
     /// <summary>Whether something feeds the cell (facing <paramref name="dir"/>) from behind, from its left and from its right.</summary>
-    private (bool Back, bool Left, bool Right) Feeders(
+    internal (bool Back, bool Left, bool Right) Feeders(
         GridPosition position,
         Direction dir,
         Func<GridPosition, GridPosition, bool>? buildingFeeds)

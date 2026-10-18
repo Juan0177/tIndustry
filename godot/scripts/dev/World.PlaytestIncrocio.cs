@@ -6,7 +6,9 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Belt blending probes of the <c>ui</c> playtest: a T merge (two side feeders, nothing behind) and the auto-junction
 /// of a belt drag (Mindustry): a real left-drag across a perpendicular belt, first with the junction locked (the
-/// belt stays, one toast says why), then unlocked (the drone takes the belt apart and builds a junction).
+/// belt stays, one toast says why), then unlocked (the drone takes the belt apart and builds a junction). Everything
+/// the probe built, the money and plates it spent and the research it unlocked are put back afterwards, so the later
+/// captures see the same game.
 /// </summary>
 public partial class World
 {
@@ -49,10 +51,11 @@ public partial class World
             return Fail("incrocio automatico: partita o camera assente");
         }
 
-        // A free 7×3 patch near the Core: a South line in its middle column, drags along its top and bottom rows.
+        // A free 7×5 patch near the Core: a South line in its middle column, drags along its second and fourth rows
+        // (the crossed belt is fed from behind and hands over ahead, as the auto-junction requires).
         bool Free(GridPosition a)
         {
-            for (var y = a.Y - 1; y <= a.Y + 1; y++)
+            for (var y = a.Y - 2; y <= a.Y + 2; y++)
             {
                 for (var x = a.X; x <= a.X + 6; x++)
                 {
@@ -87,8 +90,11 @@ public partial class World
             return Fail("incrocio automatico: nessuno spazio libero");
         }
 
+        var money = factory.Wallet.Money;
+        var materials = factory.Wallet.MaterialsSnapshot();
+        var wasUnlocked = factory.IsStructureUnlocked("junction");
         var column = at.X + 3;
-        for (var y = at.Y - 1; y <= at.Y + 1; y++)
+        for (var y = at.Y - 2; y <= at.Y + 2; y++)
         {
             factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(column, y), Direction.South), charge: false);
         }
@@ -143,6 +149,37 @@ public partial class World
         await PlaytestWaitUntil(DroneSettled, DroneSettleTimeout);
         await shot("incrocio-automatico");
         GD.Print("PLAYTEST step ok: trascinamento sopra un nastro perpendicolare = incrocio");
+
+        for (var y = at.Y - 2; y <= at.Y + 2; y++)
+        {
+            for (var x = at.X; x <= at.X + 6; x++)
+            {
+                factory.RemoveInstant(new GridPosition(x, y), refund: false);
+            }
+        }
+
+        factory.Wallet.AddMoney(money - factory.Wallet.Money);
+        foreach (var id in materials.Keys.Union(factory.Wallet.MaterialsSnapshot().Keys).Order(StringComparer.Ordinal).ToList())
+        {
+            var delta = materials.GetValueOrDefault(id) - factory.Wallet.MaterialCount(id);
+            if (delta > 0)
+            {
+                factory.Wallet.AddMaterial(id, delta);
+            }
+            else if (delta < 0)
+            {
+                factory.Wallet.TryRemoveMaterial(id, -delta);
+            }
+        }
+
+        if (!wasUnlocked)
+        {
+            factory.Research.ForceLock("junction");
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        await PlaytestWait(0.1);
         return true;
     }
 }

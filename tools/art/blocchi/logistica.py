@@ -8,8 +8,6 @@ the ribs every 16 px, so each step shows a different phase and the direction rea
 """
 import math
 
-from PIL import Image
-
 import forme
 from blocchi import sprite
 from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, TITANIO
