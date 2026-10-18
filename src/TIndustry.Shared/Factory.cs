@@ -1915,7 +1915,8 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when <paramref name="spec"/> is valid (<see cref="IsValidSpec"/>) and its cells are free
-    /// (no Core, building, belt, site, wall or deep water, inside the map). Does not check research or resources.
+    /// (no Core, building, belt, site, wall or deep water, inside the map; a miner needs an ore it can dig or
+    /// no ore at all, see <see cref="MinerTooWeak"/>). Does not check research or resources.
     /// <paramref name="reason"/> is the Italian refusal text.
     /// </summary>
     public bool CanPlace(BuildSpec spec, out string? reason)

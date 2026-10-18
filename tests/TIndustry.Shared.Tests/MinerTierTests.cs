@@ -246,8 +246,8 @@ public sealed class MinerTierTests
     [Fact]
     public void TitaniumLevelStartPaysTheAdvancedMiner()
     {
-        // Level 09 asks for titanium: what it starts with pays the T2 unlock and one T2, on top of what the
-        // level needed before the rule (the rest still comes from the market, as before).
+        // Level 09 asks for titanium: what it starts with covers at least the T2 unlock and one T2 (the rest of
+        // the level, smelter and assembler, still comes from the market, as before the rule).
         var catalog = CampaignCatalog.Load(Path.Combine(AppContext.BaseDirectory, "data", "campaign.json"));
         var level = catalog.Find("level-09-titanio")!;
         var wallet = catalog.CreateWallet(level);
