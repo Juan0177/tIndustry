@@ -38,6 +38,9 @@ public sealed record AgentGameSetup(
 {
     public const string SimulationEngine = "simulazione";
 
+    /// <summary>The terrain generators <see cref="CreateHost"/> knows (a new generator gets a new name here).</summary>
+    public static readonly IReadOnlyList<string> Generators = [ClassicTerrainGenerator.Name, MapGenerator.Name];
+
     public static AgentGameSetup Sandbox(int size, int seed, string generator, GameRules rules) =>
         new(SimulationEngine, size, seed, generator, AgentRulesSetup.From(rules));
 

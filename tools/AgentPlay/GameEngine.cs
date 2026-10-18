@@ -1,17 +1,21 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using TIndustry.Shared;
 
 namespace TIndustry.AgentPlay;
 
 /// <summary>
 /// The real game: Godot started by <see cref="GameLauncher"/>, driven through its agents' channel (AgentBridge, JSON
-/// lines on 127.0.0.1). One request at a time; a game that exits or drops the socket is <c>GiocoTerminato</c> with the
-/// last lines of its log. Journals saved with <c>diario {nome}</c> get a header (motore gioco), so <c>rigioca</c> can
-/// replay their commands on the simulation.
+/// lines on 127.0.0.1). Requests run in parallel like the bridge allows (a <c>pausa</c> during <c>esegui</c>); one
+/// reader thread hands each answer to its request by id. A game that exits or drops the socket ends the session
+/// (<see cref="Ended"/>: <c>GiocoTerminato</c> with the last lines of its log). Journals saved with <c>diario {nome}</c>
+/// get a header (motore gioco) and go to <see cref="JournalFolder"/>, so <c>rigioca</c> replays their commands on the
+/// simulation.
 /// </summary>
 public sealed class GameEngine : IAgentEngine
 {
@@ -21,42 +25,73 @@ public sealed class GameEngine : IAgentEngine
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan QuitWait = TimeSpan.FromSeconds(5);
     private const int LogLinesOnExit = 30;
+    private const string PortRefused = "AgentBridge: porta";
     private static readonly JsonElement Empty = JsonDocument.Parse("{}").RootElement.Clone();
 
     private readonly GameProcess game;
     private readonly GameOptions options;
-    private readonly object gate = new();
+    private readonly string journals;
+    private readonly ConcurrentDictionary<long, TaskCompletionSource<AgentResponse>> waiting = new();
+    private readonly object writeLock = new();
     private TcpClient? client;
     private StreamReader? reader;
     private StreamWriter? writer;
     private long nextId;
-    private bool closed;
-    private string? ended;
+    private int closed;
+    private volatile string? ended;
 
-    private GameEngine(GameProcess game, GameOptions options)
+    private GameEngine(GameProcess game, GameOptions options, string journals)
     {
         this.game = game;
         this.options = options;
+        this.journals = journals;
     }
 
     public string Kind => GameKind;
 
-    /// <summary>The game's temporary profile (log, captures, journals, settings).</summary>
+    /// <summary>The game's temporary profile (log, captures, settings, the copied save).</summary>
     public string Folder => game.ProfileDir;
 
+    /// <summary>Where <c>diario {nome}</c> saves (deleted by <c>chiudi</c> unless kept, like a simulation session's folder).</summary>
+    public string JournalFolder => journals;
+
     public int ProcessId => game.Process.Id;
+
+    /// <summary>The game is gone (exited, crashed, channel closed): the session should be closed.</summary>
+    public bool Ended => ended is not null;
 
     /// <summary>Starts the game, waits for its channel (<see cref="StartTimeout"/>) and starts the chosen game.</summary>
     public static GameEngine Open(GameOptions options)
     {
-        var engine = new GameEngine(GameLauncher.Start(options), options);
+        var journals = Directory.CreateDirectory(Path.Combine(SimEngine.TempRoot, Path.GetRandomFileName())).FullName;
+        if (options.Conserva)
+        {
+            File.WriteAllText(Path.Combine(journals, SimEngine.KeepMarker), "");
+        }
+
+        GameEngine engine;
+        try
+        {
+            engine = new GameEngine(GameLauncher.Start(options), options, journals);
+        }
+        catch
+        {
+            GameLauncher.DeleteFolder(journals);
+            throw;
+        }
+
         try
         {
             var deadline = DateTime.UtcNow + StartTimeout;
             engine.Connect(deadline);
-            engine.Request("nuova_partita", JsonSerializer.SerializeToElement(
-                new { misura = options.Misura, seme = options.Seme, livello = options.Livello }, AgentProtocol.JsonOptions),
-                Remaining(deadline));
+            engine.Request("nuova_partita", JsonSerializer.SerializeToElement(new
+            {
+                misura = options.Misura,
+                seme = options.Seme,
+                generatore = options.Generatore,
+                livello = options.Livello,
+                slot = options.Salvataggio is null ? null : GameLauncher.SaveSlot
+            }, AgentProtocol.JsonOptions), Remaining(deadline));
             return engine;
         }
         catch
@@ -68,72 +103,49 @@ public sealed class GameEngine : IAgentEngine
 
     public JsonElement Call(string method, JsonElement p)
     {
-        lock (gate)
-        {
-            if (closed)
-            {
-                throw new AgentException(AgentCodes.SessioneSconosciuta, "La sessione è stata chiusa.");
-            }
-
-            var timeout = method == "esegui" && p.TryGetProperty("secondi", out var s) && s.TryGetDouble(out var seconds)
-                ? RequestTimeout + TimeSpan.FromSeconds(Math.Clamp(seconds, 0, 3600))
-                : RequestTimeout;
-            var result = Request(method, p, timeout);
-            if (method == "diario" && result.TryGetProperty("percorso", out var path))
-            {
-                AddHeader(path.GetString()!);
-            }
-
-            return result;
-        }
+        var timeout = method == "esegui" && p.TryGetProperty("secondi", out var s) && s.TryGetDouble(out var seconds)
+            ? RequestTimeout + TimeSpan.FromSeconds(Math.Clamp(seconds, 0, 3600))
+            : RequestTimeout;
+        var result = Request(method, p, timeout);
+        return method == "diario" && result.TryGetProperty("percorso", out var path) ? MoveJournal(result, path.GetString()!) : result;
     }
 
-    /// <summary>Asks the game to quit (<c>esci</c>), waits <see cref="QuitWait"/>, then kills it; deletes the profile unless kept.</summary>
+    /// <summary>
+    /// Drops the channel first (a request still waiting fails at once, and the bridge quits the game when its
+    /// launcher goes), waits <see cref="QuitWait"/> for the exit, then closes the job (kills what is left) and deletes
+    /// the profile and the journals unless kept.
+    /// </summary>
     public void Close()
     {
-        lock (gate)
+        if (Interlocked.Exchange(ref closed, 1) == 1)
         {
-            if (closed)
-            {
-                return;
-            }
+            return;
+        }
 
-            closed = true;
-            var process = game.Process;
-            if (ended is null && writer is not null && !process.HasExited)
-            {
-                try
-                {
-                    Request("esci", Empty, QuitWait);
-                }
-                catch (AgentException)
-                {
-                    // Not answering is fine: it is killed below.
-                }
-            }
+        client?.Dispose();
+        var process = game.Process;
+        process.WaitForExit(QuitWait);
+        game.Job.Dispose();
+        if (!process.HasExited)
+        {
+            Kill(process); // no job object (not Windows) or a child outside it
+        }
 
-            client?.Dispose();
-            if (!process.WaitForExit(QuitWait))
-            {
-                Kill(process);
-            }
-
-            // Wrappers (godot4.cmd, the console exe) and the game itself: nothing may outlive the session.
-            Kill(process);
-            process.Dispose();
-            if (!options.Conserva)
-            {
-                GameLauncher.DeleteProfile(game.ProfileDir);
-            }
+        process.Dispose();
+        if (!options.Conserva)
+        {
+            GameLauncher.DeleteFolder(game.ProfileDir);
+            GameLauncher.DeleteFolder(journals);
         }
     }
 
-    // Connects (retrying while Godot starts), sends the secret and waits for the welcome.
+    // Connects (retrying while Godot starts), sends the secret and waits for the welcome; fails early when the game
+    // exits or logs that the port is taken.
     private void Connect(DateTime deadline)
     {
         while (true)
         {
-            ThrowIfExited();
+            ThrowIfStartFailed();
             var attempt = new TcpClient();
             try
             {
@@ -159,21 +171,96 @@ public sealed class GameEngine : IAgentEngine
 
         var stream = client.GetStream();
         reader = new StreamReader(stream, new UTF8Encoding(false));
-        writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
+        writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
         Write(JsonSerializer.Serialize(new { token = game.Token }));
-        var welcome = ReadResponse(0, Remaining(deadline));
-        if (!welcome.Ok)
+        var welcome = reader.ReadLineAsync();
+        while (!welcome.Wait(TimeSpan.FromMilliseconds(250)))
         {
-            throw new AgentException(welcome.Code ?? AgentCodes.ErroreInterno, welcome.Message ?? "Canale rifiutato.");
+            ThrowIfStartFailed();
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw Timeout("Il canale non ha risposto al segreto.");
+            }
+        }
+
+        if (welcome.IsFaulted || welcome.Result is not { } line
+            || Parse(line) is not { Ok: true, Result: { } result }
+            || !result.TryGetProperty("canale", out var canale) || canale.GetString() != "tindustry")
+        {
+            // Another program on the port, or the game hung up.
+            ThrowIfStartFailed();
+            throw new AgentException(AgentCodes.MotoreNonDisponibile, "Sulla porta del gioco risponde qualcos'altro: canale rifiutato.");
+        }
+
+        new Thread(ReadLoop) { IsBackground = true, Name = "GameEngine " + game.Port }.Start();
+    }
+
+    // One reader for all requests: an answer goes to the request with its id; lines that do not parse, or whose
+    // request already gave up (Timeout), are skipped. The end of the stream fails every request still waiting.
+    private void ReadLoop()
+    {
+        try
+        {
+            while (reader!.ReadLine() is { } line)
+            {
+                if (Parse(line) is { } response && waiting.TryRemove(response.Id, out var request))
+                {
+                    request.TrySetResult(response);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or SocketException)
+        {
+        }
+
+        if (closed == 0)
+        {
+            game.Process.WaitForExit(TimeSpan.FromSeconds(2)); // for the exit code
+            MarkEnded("il canale si è chiuso");
+        }
+
+        foreach (var id in waiting.Keys)
+        {
+            if (waiting.TryRemove(id, out var request))
+            {
+                request.TrySetException(Gone());
+            }
         }
     }
 
     private JsonElement Request(string method, JsonElement p, TimeSpan timeout)
     {
-        ThrowIfExited();
-        var id = ++nextId;
-        Write(AgentProtocol.WriteLine(new AgentRequest(id, method, p)));
-        var response = ReadResponse(id, timeout);
+        if (closed == 1 || ended is not null)
+        {
+            throw Gone();
+        }
+
+        var id = Interlocked.Increment(ref nextId);
+        var answer = new TaskCompletionSource<AgentResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        waiting[id] = answer;
+        try
+        {
+            Write(AgentProtocol.WriteLine(new AgentRequest(id, method, p)));
+        }
+        catch (AgentException)
+        {
+            waiting.TryRemove(id, out _);
+            throw;
+        }
+
+        if (Task.WaitAny([answer.Task], timeout) < 0)
+        {
+            waiting.TryRemove(id, out _);
+            if (game.Process.HasExited)
+            {
+                MarkEnded("il processo è uscito");
+                throw Gone();
+            }
+
+            throw Timeout($"Il gioco non ha risposto entro {timeout.TotalSeconds:0} s.");
+        }
+
+        var response = answer.Task.GetAwaiter().GetResult();
         return response.Ok
             ? response.Result ?? Empty
             : throw new AgentException(response.Code ?? AgentCodes.ErroreInterno, response.Message ?? "");
@@ -183,84 +270,82 @@ public sealed class GameEngine : IAgentEngine
     {
         try
         {
-            writer!.Write(line + "\n");
+            lock (writeLock)
+            {
+                writer!.Write(line + "\n");
+            }
         }
-        catch (Exception ex) when (ex is IOException or ObjectDisposedException or SocketException)
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or SocketException or NullReferenceException)
         {
-            throw Ended("il canale si è chiuso");
+            if (closed == 0)
+            {
+                MarkEnded("il canale si è chiuso");
+            }
+
+            throw Gone();
         }
     }
 
-    // The answer with this id (answers of earlier, timed-out requests are skipped).
-    private AgentResponse ReadResponse(long id, TimeSpan timeout)
+    // A game journal as written by the bridge has no header: add how this game was made, save it in the server's
+    // journal folder (not the profile) and answer with that path.
+    private JsonElement MoveJournal(JsonElement result, string bridgePath)
     {
-        var deadline = DateTime.UtcNow + timeout;
-        while (true)
-        {
-            string? line;
-            using (var cancel = new CancellationTokenSource(Remaining(deadline)))
-            {
-                try
-                {
-                    line = reader!.ReadLineAsync(cancel.Token).AsTask().GetAwaiter().GetResult();
-                }
-                catch (OperationCanceledException)
-                {
-                    ThrowIfExited();
-                    throw Timeout($"Il gioco non ha risposto entro {timeout.TotalSeconds:0} s.");
-                }
-                catch (Exception ex) when (ex is IOException or ObjectDisposedException or SocketException)
-                {
-                    line = null;
-                }
-            }
-
-            if (line is null)
-            {
-                // The socket closed: the game is gone or going; give it a moment to exit for its exit code.
-                game.Process.WaitForExit(TimeSpan.FromSeconds(2));
-                throw Ended("il canale si è chiuso");
-            }
-
-            var response = JsonSerializer.Deserialize<AgentResponse>(line, AgentProtocol.JsonOptions);
-            if (response is not null && response.Id == id)
-            {
-                return response;
-            }
-        }
-    }
-
-    // A game journal as written by the bridge has no header: add how this game was made (sandbox or level).
-    private void AddHeader(string path)
-    {
-        var bare = AgentJournal.Load(path);
+        var bare = AgentJournal.Load(bridgePath);
         var journal = new AgentJournal
         {
-            Setup = new AgentGameSetup(GameKind, options.Misura, options.Seme, MapGenerator.Name, new AgentRulesSetup(), options.Livello)
+            Setup = new AgentGameSetup(
+                GameKind, options.Misura, options.Seme, options.Generatore, new AgentRulesSetup(), options.Livello, game.StartSnapshot)
         };
         foreach (var entry in bare.Entries)
         {
             journal.Add(entry.Tick, entry.Method, entry.Params);
         }
 
+        var path = Path.Combine(journals, Path.GetFileName(bridgePath));
         journal.Save(path);
+        File.Delete(bridgePath);
+        var moved = JsonNode.Parse(result.GetRawText())!.AsObject();
+        moved["percorso"] = path;
+        return JsonSerializer.SerializeToElement(moved);
     }
 
-    private void ThrowIfExited()
+    private static AgentResponse? Parse(string line)
     {
-        if (ended is not null || game.Process.HasExited)
+        try
         {
-            throw Ended("il processo è uscito");
+            return JsonSerializer.Deserialize<AgentResponse>(line, AgentProtocol.JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 
-    private AgentException Ended(string why)
+    private void ThrowIfStartFailed()
     {
-        ended ??= game.Process.HasExited ? $"{why} (codice di uscita {game.Process.ExitCode})" : why;
-        return new AgentException(
-            AgentCodes.GiocoTerminato,
-            $"Il gioco è terminato: {ended}. Chiudi la sessione. Ultime righe del log:\n{GameLauncher.LogTail(game.ProfileDir, LogLinesOnExit)}");
+        if (game.Process.HasExited)
+        {
+            MarkEnded("il processo è uscito");
+            throw Gone();
+        }
+
+        if (GameLauncher.LogLines(game.ProfileDir).Any(l => l.Contains(PortRefused, StringComparison.Ordinal)))
+        {
+            throw new AgentException(
+                AgentCodes.MotoreNonDisponibile,
+                $"Il gioco non ha potuto aprire il canale. Ultime righe del log:\n{GameLauncher.LogTail(game.ProfileDir, LogLinesOnExit)}");
+        }
     }
+
+    private void MarkEnded(string why) =>
+        ended ??= game.Process.HasExited ? $"{why} (codice di uscita {game.Process.ExitCode})" : why;
+
+    // Closed by chiudi: the session is gone; ended on its own: the game's last log lines.
+    private AgentException Gone() => ended is null
+        ? new AgentException(AgentCodes.SessioneSconosciuta, "La sessione è stata chiusa.")
+        : new AgentException(
+            AgentCodes.GiocoTerminato,
+            $"Il gioco è terminato: {ended}. La sessione è chiusa. Ultime righe del log:\n{GameLauncher.LogTail(game.ProfileDir, LogLinesOnExit)}");
 
     private AgentException Timeout(string message) =>
         new(AgentCodes.Timeout, $"{message} Ultime righe del log:\n{GameLauncher.LogTail(game.ProfileDir, LogLinesOnExit)}");

@@ -52,23 +52,37 @@ public partial class World
         });
 
     /// <summary>
-    /// The agents' launcher (<see cref="AgentBridge"/> <c>nuova_partita</c>): a sandbox as from Nuova partita, or a
-    /// campaign level as from the list. Returns null when the game started, otherwise the reason.
+    /// The agents' launcher (<see cref="AgentBridge"/> <c>nuova_partita</c>): a save slot as from the saves panel, a
+    /// campaign level as from the list, or else the <paramref name="sandbox"/> as from Nuova partita (its host made by
+    /// <see cref="AgentGameSetup.CreateHost"/>, like the replay of its journal). Returns null when the game started,
+    /// otherwise the reason.
     /// </summary>
-    internal string? AgentStartGame(int size, int seed, CampaignLevelDefinition? level)
+    internal string? AgentStartGame(AgentGameSetup sandbox, CampaignLevelDefinition? level, string? slot)
     {
-        if (level is null)
+        if (slot is not null)
         {
-            StartNewGameFromHome((MapSize)size, seed, night: false);
-            return null;
+            string? failure = null;
+            if (!LoadGame(slot, Testi.F("salvataggi.caricato", slot), showOnPanel: m => failure = m))
+            {
+                return failure ?? slot;
+            }
+        }
+        else if (level is not null)
+        {
+            if (StartCampaignLevel(level, toast: true) is { } error)
+            {
+                return error;
+            }
+
+            _returnHomeAfterCampaign = false;
+        }
+        else
+        {
+            var host = sandbox.CreateHost(FactoryContent.Load(_contentPath));
+            StartNewSandbox((MapSize)sandbox.Size, sandbox.Seed, toast: true, host: host);
         }
 
-        if (StartCampaignLevel(level, toast: true) is { } error)
-        {
-            return error;
-        }
-
-        _returnHomeAfterCampaign = false;
+        _newGame?.Close();
         _campaignSelect?.Close();
         _home?.Close();
         return null;
@@ -104,10 +118,9 @@ public partial class World
             map: MapGenSettings.Normal(size, seed));
     }
 
-    private void StartNewSandbox(MapSize size, int seed, bool toast, bool night = false)
+    private void StartNewSandbox(MapSize size, int seed, bool toast, bool night = false, SimHost? host = null)
     {
-        var content = FactoryContent.Load(_contentPath);
-        AttachGame(NewSandboxFactory(content, size, seed, night));
+        AttachGame(host ?? new SimHost(NewSandboxFactory(FactoryContent.Load(_contentPath), size, seed, night)));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;

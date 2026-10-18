@@ -16,6 +16,22 @@ public sealed class AgentGameTests
         new(NewGame.Sandbox(
             Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true)));
 
+    /// <summary>
+    /// A journal's sandbox (and the agents' real game, made the same way) is the client's Nuova partita: the
+    /// arguments below are World.NewSandboxFactory's (Core 2x2 at the centre, 180 money, biome map, day).
+    /// </summary>
+    [Fact]
+    public void SandboxSetupIsTheClientsNewGame()
+    {
+        var setup = AgentGameSetup.Sandbox(64, 7, MapGenerator.Name, new GameRules()).CreateHost(Content);
+        var client = new SimHost(NewGame.Sandbox(
+            Content, Factory.CenteredCoreOrigin(64, 64), coreSize: 2, startingMoney: 180,
+            rules: new GameRules(Night: false), map: MapGenSettings.Normal((MapSize)64, 7)));
+
+        Assert.Equal(180, setup.State.Wallet.Money);
+        Assert.Equal(client.Checksum(), setup.Checksum());
+    }
+
     private static JsonElement Call(AgentGame game, string method, string json = "{}") =>
         game.Call(method, JsonDocument.Parse(json).RootElement);
 

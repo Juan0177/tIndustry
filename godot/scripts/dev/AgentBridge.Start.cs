@@ -17,6 +17,9 @@ public partial class AgentBridge
     public const string PortEnv = "TINDUSTRY_AGENT_PORT";
     public const string TokenEnv = "TINDUSTRY_AGENT_TOKEN";
 
+    /// <summary>Set to 1 by tools/AgentPlay only: the game quits when the launcher's authenticated connection drops.</summary>
+    public const string QuitWithoutClientEnv = "TINDUSTRY_AGENT_ESCI_SENZA_CLIENT";
+
     /// <summary>Longest request line; the real ones are a few hundred bytes.</summary>
     public const int MaxLineChars = 64 * 1024;
 

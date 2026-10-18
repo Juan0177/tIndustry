@@ -34,24 +34,27 @@ Gli strumenti solo del gioco vero (`esegui`, `riprendi`, `cattura`, `telecamera`
 
 ## Gioco vero
 
-`apri_gioco {misura?, seme?, livello?, lingua?, scala?, colori?, conserva?}` avvia `godot4 --path godot` (oppure l'eseguibile in `TINDUSTRY_GODOT`) come i playtest, ma senza modalità playtest:
+`apri_gioco {misura?, seme?, generatore?, livello?, salvataggio?, lingua?, scala?, colori?, conserva?}` avvia `godot4 --path godot` (oppure l'eseguibile in `TINDUSTRY_GODOT`) come i playtest, ma senza modalità playtest:
 
-- profilo temporaneo nuovo sotto `%TEMP%/tindustry-agentplay/gioco-*`, mai nei dati veri: `TINDUSTRY_DATA_DIR` e `APPDATA` puntano al profilo, `--log-file <profilo>/godot.log`, finestra `--resolution 1280x720`;
-- `lingua` (`it` o `en`), `scala` (0.75-2.0 a passi di 0.05) e `colori` (`Normale`, `Daltonici`, `AltoContrasto`) vanno nel `settings.json` del profilo, con il tutorial già fatto;
-- il canale degli agenti su una porta libera con un segreto nuovo a ogni sessione; poi la partita: un sandbox `misura`/`seme` (generatore biomi-1, predefiniti Media e 1) oppure il livello `livello`.
+- profilo temporaneo nuovo sotto `%TEMP%/tindustry-agentplay/gioco-*`, mai nei dati veri (controllato prima di creare qualsiasi cartella): `TINDUSTRY_DATA_DIR` e `APPDATA` puntano al profilo, `--log-file <profilo>/godot.log`, finestra `--resolution 1280x720`;
+- `lingua` (`it` o `en`), `scala` (0.75-2 a passi di 0.05) e `colori` (`Normale`, `Daltonici`, `AltoContrasto`) vanno nel `settings.json` del profilo, con il tutorial già fatto; un test tiene questi elenchi allineati al codice del client;
+- il canale degli agenti su una porta libera con un segreto nuovo a ogni sessione; poi la partita: un sandbox `misura`/`seme`/`generatore` (`biomi-1` o `classico`; predefiniti Media, 1 e biomi-1, fatto come lo rifà `rigioca`), il livello `livello`, oppure il salvataggio `salvataggio`;
+- `salvataggio` è il percorso di un file: il server lo **copia** in `<profilo>/godot-saves/agente.json` e il gioco carica la copia; il file dato si legge solo per copiarlo. I file sotto i dati veri del giocatore sono rifiutati.
 
-Risponde `{sessione, motore: "gioco", cartella, processo}` (`cartella` è il profilo, `processo` il pid avviato). Servono `godot4` nel PATH del server e il progetto importato e compilato (`godot4 --import`, `--build-solutions`, vedi CLAUDE.md). Nel gioco vero:
+Risponde `{sessione, motore: "gioco", cartella, diari, processo}`: `cartella` è il profilo, `diari` la cartella dei diari, `processo` il pid avviato. Servono `godot4` nel PATH del server (altrimenti imposta `TINDUSTRY_GODOT`, per esempio nell'`env` di `.mcp.json`) e il progetto importato e compilato (`godot4 --import`, `--build-solutions`, vedi CLAUDE.md). Se `godot4` è uno script `.cmd`/`.bat`, i percorsi del progetto e del profilo non possono contenere `& | ^ % ! < > "` (cmd.exe spezzerebbe la riga): in quel caso imposta `TINDUSTRY_GODOT` sull'eseguibile `.exe`. Nel gioco vero:
 
-- il tempo scorre in tempo reale; `pausa` e `riprendi` lo fermano e lo fanno ripartire, `avanza` esegue tick esatti e lascia il gioco fermo, `esegui {secondi}` lo lascia scorrere;
-- un comando risponde dopo il tick del gioco che lo applica;
+- il tempo scorre in tempo reale; `pausa` e `riprendi` lo fermano e lo fanno ripartire (anche durante un `esegui`: vale l'ultima scelta), `avanza` esegue tick esatti e lascia il gioco fermo, `esegui {secondi}` lo lascia scorrere;
+- le richieste a una sessione possono andare in parallelo; un comando risponde dopo il tick del gioco che lo applica;
 - `cattura {percorso?}` scrive solo sotto `<profilo>/catture` (`percorso` è un nome relativo `.png`) e restituisce il percorso assoluto;
 - `input {tipo, schermo | cella, verso?, tasto?, pulsante?}`: con `trascina` il punto finale è `verso`, come `{x, y}` o `"x,y"`, nello stesso spazio dell'inizio; con `rotella` `verso` è `su` o `giu`;
 - `ui {clic?}` può rispondere `NonCliccabile` (controllo fuori dalla finestra o nascosto dal contenitore); il canale risponde `Occupato` se riceve troppe richieste in coda;
 - `log {righe?, tutte?}` legge `<profilo>/godot.log`: avvisi ed errori, o tutte le righe con `tutte: true`;
-- tempi limite: 60 s per l'avvio (fino al canale pronto e alla partita iniziata), 30 s per richiesta (`esegui`: 30 s più i suoi secondi). Se il gioco esce, va in crash o chiude il canale, ogni chiamata risponde `GiocoTerminato` con le ultime 30 righe del log;
-- `chiudi` chiede al gioco di uscire, aspetta 5 s, poi lo termina (con i processi figli) e cancella il profilo, salvo `conserva: true`.
+- tempi limite: 60 s per l'avvio (fino al canale pronto e alla partita iniziata; se il gioco esce o scrive che la porta è occupata, la risposta arriva subito), 30 s per richiesta (`esegui`: 30 s più i suoi secondi);
+- se il gioco esce, va in crash o chiude il canale, la chiamata risponde `GiocoTerminato` con le ultime 30 righe del log e la sessione si chiude da sola (profilo cancellato salvo `conserva`): le chiamate seguenti rispondono `SessioneSconosciuta`;
+- `chiudi` chiude subito il canale (una richiesta in attesa finisce con `SessioneSconosciuta`), il gioco esce da solo quando il suo lanciatore se ne va; dopo 5 s ciò che resta viene terminato. Poi cancella il profilo e i diari, salvo `conserva: true`;
+- il gioco non sopravvive al server: esce quando la connessione del lanciatore cade (`TINDUSTRY_AGENT_ESCI_SENZA_CLIENT=1`, messa solo dal lanciatore) e, su Windows, è in un job object che il sistema chiude quando il server muore.
 
-`diario {nome}` sul gioco vero salva i comandi (`piazza`, `smonta`, `ruota`, `sblocca`, `vendi`, `potenzia_core`, `avanza`) con il tick del gioco e un'intestazione `partita` con `motore: "gioco"` e le scelte di apertura. `rigioca` lo riesegue su una sessione di simulazione. Limiti: gli input simulati (`input`, `ui {clic}`) e quello che fa una persona alla finestra non sono nel diario, quindi non si rigiocano; il tempo tra due comandi si rigioca a tick esatti, ma `esegui` e `riprendi` non sono voci del diario (contano solo i tick trascorsi).
+`diario {nome}` sul gioco vero salva i comandi (`piazza`, `smonta`, `ruota`, `sblocca`, `vendi`, `potenzia_core`, `avanza`) con il tick del gioco e un'intestazione `partita` con `motore: "gioco"` e le scelte di apertura (per un salvataggio, la sua istantanea), nella cartella `diari` della sessione, che `chiudi` cancella salvo `conserva`: rigioca o copia il diario prima di chiudere. `rigioca` lo riesegue su una sessione di simulazione. Limiti: gli input simulati (`input`, `ui {clic}`) e quello che fa una persona alla finestra non sono nel diario, quindi non si rigiocano; il tempo tra due comandi si rigioca a tick esatti, ma `esegui` e `riprendi` non sono voci del diario (contano solo i tick trascorsi).
 
 ## Ciclo tipico
 

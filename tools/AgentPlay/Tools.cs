@@ -65,17 +65,20 @@ public sealed class Tools(Sessions sessions, GameData data)
     [Description("Apre il gioco vero (Godot, finestra 1280×720, profilo temporaneo) per catture e prove dell'interfaccia: più lento della simulazione, il tempo scorre da solo (pausa per fermarlo).")]
     public string ApriGioco(
         [Description("Misura della mappa: il nome Media (1000), Grande (1500) o Enorme (2000), oppure un numero di celle per lato tra 12 e 2000 (64 o \"64\").")] JsonElement? misura = null,
-        [Description("Seme del terreno (generatore biomi-1).")] int seme = 1,
-        [Description("Id di un livello della campagna (ignora misura e seme).")] string? livello = null,
+        [Description("Seme del terreno.")] int seme = 1,
+        [Description("Generatore del terreno: biomi-1 o classico.")] string generatore = MapGenerator.Name,
+        [Description("Id di un livello della campagna (ignora misura, seme e generatore).")] string? livello = null,
+        [Description("Percorso di un file di salvataggio: il gioco ne carica una copia nel profilo (i salvataggi veri del giocatore sono rifiutati).")] string? salvataggio = null,
         [Description("Lingua dei testi: it (predefinita) o en.")] string? lingua = null,
-        [Description("Scala dell'interfaccia da 0.75 a 2.0 a passi di 0.05 (predefinita 1.0).")] double? scala = null,
+        [Description("Scala dell'interfaccia da 0.75 a 2 a passi di 0.05 (predefinita 1).")] double? scala = null,
         [Description("Colori: Normale (predefinito), Daltonici o AltoContrasto.")] string? colori = null,
-        [Description("Tiene il profilo temporaneo (log, catture, diari) dopo chiudi.")] bool conserva = false) =>
+        [Description("Tiene il profilo temporaneo (log, catture) e i diari dopo chiudi.")] bool conserva = false) =>
         Run(() =>
         {
-            var options = Options(misura, seme, livello, lingua, scala, colori, conserva);
+            var options = Options(misura, seme, generatore, livello, salvataggio, lingua, scala, colori, conserva);
             var engine = GameEngine.Open(options);
             var result = Opened(sessions.Open(engine), engine.Kind, engine.Folder);
+            result["diari"] = engine.JournalFolder;
             result["processo"] = engine.ProcessId;
             return result;
         });
@@ -253,7 +256,28 @@ public sealed class Tools(Sessions sessions, GameData data)
     public static string BadArguments(string message) => Fail(new AgentException(AgentCodes.ParametriNonValidi, message));
 
     private string Game(string sessione, string method, object? args = null) =>
-        Run(() => sessions.Get(sessione).Call(method, JsonSerializer.SerializeToElement(args ?? new { }, Json)));
+        Run(() =>
+        {
+            var engine = sessions.Get(sessione);
+            try
+            {
+                return engine.Call(method, JsonSerializer.SerializeToElement(args ?? new { }, Json));
+            }
+            catch (AgentException) when (engine is GameEngine { Ended: true })
+            {
+                // The game crashed or exited: this answer (GiocoTerminato) is the last; then the session is unknown.
+                try
+                {
+                    sessions.Close(sessione);
+                }
+                catch (AgentException)
+                {
+                    // A parallel call closed it first.
+                }
+
+                throw;
+            }
+        });
 
     private static JsonObject Opened(string id, string kind, string folder) => new()
     {
@@ -264,12 +288,25 @@ public sealed class Tools(Sessions sessions, GameData data)
 
     // apri_gioco's options, checked before Godot is started.
     private GameOptions Options(
-        JsonElement? misura, int seme, string? livello, string? lingua, double? scala, string? colori, bool conserva)
+        JsonElement? misura, int seme, string generatore, string? livello, string? salvataggio, string? lingua, double? scala,
+        string? colori, bool conserva)
     {
+        var project = GameLauncher.RequireProject();
         var size = Size(misura);
         if (size is < 12 or > Factory.MaxMapEdge)
         {
             throw new AgentException(AgentCodes.ParametriNonValidi, $"'misura' tra 12 e {Factory.MaxMapEdge}.");
+        }
+
+        if (!AgentGameSetup.Generators.Contains(generatore))
+        {
+            throw new AgentException(
+                AgentCodes.ParametriNonValidi, $"'generatore' è uno di: {string.Join(", ", AgentGameSetup.Generators)}.");
+        }
+
+        if (livello is not null && salvataggio is not null)
+        {
+            throw new AgentException(AgentCodes.ParametriNonValidi, "Dai livello oppure salvataggio, non tutti e due.");
         }
 
         if (livello is not null && data.Campaign.Find(livello) is null)
@@ -277,7 +314,17 @@ public sealed class Tools(Sessions sessions, GameData data)
             throw new AgentException(AgentCodes.ParametriNonValidi, $"Livello di campagna sconosciuto: {livello}.");
         }
 
-        var languages = GameLauncher.FindProject() is { } project ? GameLauncher.Languages(project) : ["it"];
+        if (salvataggio is not null)
+        {
+            salvataggio = Path.GetFullPath(salvataggio);
+            RefuseRealSave(salvataggio);
+            if (!File.Exists(salvataggio))
+            {
+                throw new AgentException(AgentCodes.ParametriNonValidi, $"Salvataggio non trovato: {salvataggio}.");
+            }
+        }
+
+        var languages = GameLauncher.Languages(project);
         lingua ??= "it";
         if (!languages.Contains(lingua))
         {
@@ -285,9 +332,12 @@ public sealed class Tools(Sessions sessions, GameData data)
         }
 
         var percent = (int)Math.Round((scala ?? 1.0) * 100);
-        if (percent is < 75 or > 200 || percent % 5 != 0)
+        if (percent < GameLauncher.ScaleMin || percent > GameLauncher.ScaleMax || percent % GameLauncher.ScaleStep != 0)
         {
-            throw new AgentException(AgentCodes.ParametriNonValidi, "'scala' da 0.75 a 2.0 a passi di 0.05.");
+            static string Ratio(int percent) => (percent / 100.0).ToString(CultureInfo.InvariantCulture);
+            throw new AgentException(
+                AgentCodes.ParametriNonValidi,
+                $"'scala' da {Ratio(GameLauncher.ScaleMin)} a {Ratio(GameLauncher.ScaleMax)} a passi di {Ratio(GameLauncher.ScaleStep)}.");
         }
 
         colori ??= GameLauncher.Colours[0];
@@ -296,7 +346,7 @@ public sealed class Tools(Sessions sessions, GameData data)
             throw new AgentException(AgentCodes.ParametriNonValidi, $"'colori' è uno di: {string.Join(", ", GameLauncher.Colours)}.");
         }
 
-        return new GameOptions(lingua, percent, colori, livello, seme, size, conserva);
+        return new GameOptions(lingua, percent, colori, livello, seme, size, generatore, salvataggio, conserva);
     }
 
     private static AgentGameSetup Setup(
@@ -336,16 +386,20 @@ public sealed class Tools(Sessions sessions, GameData data)
     /// The snapshot of a save file given by path, read with the game's own reader (<see cref="FactorySaveStore.TryReadSaveFile"/>);
     /// never one under the player's real data folders.
     /// </summary>
-    private static string SaveSnapshot(string path)
+    private static void RefuseRealSave(string full)
     {
-        var full = Path.GetFullPath(path);
         if (RealDataRoots().Any(root => full.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
         {
             throw new AgentException(
                 AgentCodes.ParametriNonValidi,
                 "Questo è un salvataggio vero del giocatore: copialo prima in una cartella temporanea e dai quel percorso.");
         }
+    }
 
+    internal static string SaveSnapshot(string path)
+    {
+        var full = Path.GetFullPath(path);
+        RefuseRealSave(full);
         if (!FactorySaveStore.TryReadSaveFile(full, out var file, out var failure))
         {
             throw failure is null

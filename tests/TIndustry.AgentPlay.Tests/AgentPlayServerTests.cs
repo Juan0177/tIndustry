@@ -69,7 +69,10 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         foreach (var args in new object[]
                  {
                      new { lingua = "xx" }, new { scala = 0.5 }, new { scala = 1.03 }, new { colori = "Viola" },
-                     new { livello = "nessuno" }, new { misura = 5 }
+                     new { livello = "nessuno" }, new { misura = 5 }, new { generatore = "biomi-9" },
+                     new { salvataggio = Path.Combine(server.TempDirectory, "non-esiste.json") },
+                     new { salvataggio = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "tIndustry", "godot-saves", "slot-1.json") },
+                     new { livello = "level-01-primi-passi", salvataggio = Path.Combine(server.TempDirectory, "x.json") }
                  })
         {
             Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("apri_gioco", args));
