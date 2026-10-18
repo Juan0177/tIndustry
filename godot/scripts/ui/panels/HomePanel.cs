@@ -69,8 +69,8 @@ public partial class HomePanel : Control
         if (_hint is not null)
         {
             _hint.Text = has
-                ? "Riprendi l'ultima partita salvata."
-                : "Nessuna continua — scegli Campagna o Nuova partita.";
+                ? "home.suggerimento.continua"
+                : "home.suggerimento.nuova";
         }
     }
 
@@ -117,7 +117,7 @@ public partial class HomePanel : Control
 
         var sub = new Label
         {
-            Text = "Fabbrica · Logistica · Ricerca",
+            Text = "home.sottotitolo",
             HorizontalAlignment = HorizontalAlignment.Center,
             ThemeTypeVariation = UiTheme.TestoTenue
         };
@@ -125,14 +125,14 @@ public partial class HomePanel : Control
 
         root.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
 
-        _continuaBtn = MakeMenuButton("Continua", () => ContinuaChosen?.Invoke());
+        _continuaBtn = MakeMenuButton("home.continua", () => ContinuaChosen?.Invoke());
         _continuaBtn.Name = "Continua";
         root.AddChild(_continuaBtn);
-        root.AddChild(MakeMenuButton("Campagna", () => CampaignChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("Nuova partita", () => NewGameChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("Gestione salvataggi", () => SavesChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("Impostazioni", () => SettingsChosen?.Invoke()));
-        root.AddChild(MakeMenuButton("Esci", () => QuitChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("menu.campagna", () => CampaignChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("home.nuova", () => NewGameChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("home.salvataggi", () => SavesChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("home.impostazioni", () => SettingsChosen?.Invoke()));
+        root.AddChild(MakeMenuButton("home.esci", () => QuitChosen?.Invoke()));
 
         _hint = new Label
         {

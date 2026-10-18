@@ -286,11 +286,57 @@ public sealed class SaveFileData
     public string? Snapshot { get; set; }
 }
 
+/// <summary>Why a save did not load (<see cref="FactorySaveStore.TryLoadSlot"/>); the client turns it into text.</summary>
+public enum SaveLoadError
+{
+    /// <summary>Damaged file, unknown version or bad snapshot.</summary>
+    Unreadable,
+
+    /// <summary>Saved by an older, unsupported version.</summary>
+    OlderVersion,
+
+    /// <summary>The saved map size does not fit its generator; <see cref="SaveLoadFailure.Argument"/> = "W×H".</summary>
+    MapInvalidSize,
+
+    /// <summary>The save names a generator this version does not have; argument = its name.</summary>
+    UnknownGenerator,
+
+    /// <summary>The regenerated terrain differs from the saved one; argument = the generator name.</summary>
+    TerrainChanged,
+
+    /// <summary>A campaign save without the name of its map.</summary>
+    CampaignMapUnnamed,
+
+    /// <summary>The campaign map name is not a plain file name; argument = the name.</summary>
+    CampaignMapBadName,
+
+    /// <summary>The folder of the campaign maps (data/maps) was not found; argument = the map id.</summary>
+    MapsFolderMissing,
+
+    /// <summary>The campaign map file is missing or invalid; argument = the map id.</summary>
+    CampaignMapMissing,
+
+    /// <summary>The campaign map file changed size since the save; argument = the map id.</summary>
+    CampaignMapChanged
+}
+
 /// <summary>
-/// The terrain of a save cannot be rebuilt (campaign map file missing or changed, unknown generator). The
-/// message is Italian and meant for the player.
+/// A failed load: its <paramref name="Code"/>, the id or name it is about (<paramref name="Argument"/>) and an Italian
+/// <paramref name="Detail"/> for the log and the tests.
 /// </summary>
-public sealed class SaveMapException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed record SaveLoadFailure(SaveLoadError Code, string? Argument, string Detail);
+
+/// <summary>
+/// The terrain of a save cannot be rebuilt (campaign map file missing or changed, unknown generator):
+/// <see cref="Code"/> and <see cref="Argument"/> say why; the message is Italian detail for the log.
+/// </summary>
+public sealed class SaveMapException(SaveLoadError code, string? argument, string message, Exception? inner = null)
+    : Exception(message, inner)
+{
+    public SaveLoadError Code { get; } = code;
+
+    public string? Argument { get; } = argument;
+}
 
 /// <summary>One save slot row for Gestione salvataggi.</summary>
 public sealed class SaveSlotInfo
@@ -318,8 +364,11 @@ public static class FactorySaveStore
     /// <summary>Continua as it was before this session's first autosave replaced it (see <see cref="ContinueAutoSave"/>).</summary>
     public const string ContinueBackupSlotId = "continua.prev";
 
-    private const string OlderVersionMessage = "Salvataggio di una versione precedente: non compatibile.";
-    private const string UnreadableMessage = "Salvataggio non leggibile.";
+    /// <summary><see cref="TryLoad"/> error for a save of an older, unsupported version (the client shows its own text).</summary>
+    public const string OlderVersionMessage = "Salvataggio di una versione precedente: non compatibile.";
+
+    /// <summary><see cref="TryLoad"/> error for a damaged or unknown file (the client shows its own text).</summary>
+    public const string UnreadableMessage = "Salvataggio non leggibile.";
 
     /// <summary>Save JSON format (also used by tests to compare captures byte for byte).</summary>
     public static readonly JsonSerializerOptions JsonOptions = new()
@@ -451,38 +500,52 @@ public static class FactorySaveStore
     }
 
     /// <summary>
-    /// Loads a slot into a new host (empty command queue, fresh clock); never throws.
-    /// <paramref name="error"/> carries the player-facing reason, or null for a missing slot.
-    /// <paramref name="mapsDirectory"/> is the folder of the campaign map files (needed by campaign saves).
+    /// <see cref="TryLoadSlot"/> with the reason as its Italian detail (<see cref="SaveLoadFailure.Detail"/>), or null
+    /// for a missing slot.
     /// </summary>
     public static bool TryLoad(
         FactoryContent content, string slotId, out SimHost? host, out string? error, string? mapsDirectory = null)
+    {
+        var ok = TryLoadSlot(content, slotId, out host, out var failure, mapsDirectory);
+        error = failure?.Detail;
+        return ok;
+    }
+
+    /// <summary>
+    /// Loads a slot into a new host (empty command queue, fresh clock); never throws.
+    /// <paramref name="failure"/> says why it did not load, or is null for a missing slot.
+    /// <paramref name="mapsDirectory"/> is the folder of the campaign map files (needed by campaign saves).
+    /// </summary>
+    public static bool TryLoadSlot(
+        FactoryContent content, string slotId, out SimHost? host, out SaveLoadFailure? failure, string? mapsDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         try
         {
             var file = ReadFile(slotId);
             host = SimHost.FromSnapshot(content, Convert.FromBase64String(file.Snapshot!), mapsDirectory);
-            error = null;
+            failure = null;
             return true;
         }
         catch (SaveMapException ex)
         {
-            error = ex.Message;
+            failure = new SaveLoadFailure(ex.Code, ex.Argument, ex.Message);
         }
         catch (InvalidDataException ex)
         {
-            // Only the "older version" text is meant for the player; technical detail
-            // (future version, bad snapshot) collapses into the generic unreadable message.
-            error = ex.Message == OlderVersionMessage ? OlderVersionMessage : UnreadableMessage;
+            // Only "older version" has its own reason; technical detail (future version, bad snapshot)
+            // collapses into "unreadable".
+            failure = ex.Message == OlderVersionMessage
+                ? new SaveLoadFailure(SaveLoadError.OlderVersion, null, OlderVersionMessage)
+                : new SaveLoadFailure(SaveLoadError.Unreadable, null, UnreadableMessage);
         }
         catch (FileNotFoundException)
         {
-            error = null; // missing slot: callers show their own "no save" text
+            failure = null; // missing slot: callers show their own "no save" text
         }
         catch (Exception)
         {
-            error = UnreadableMessage;
+            failure = new SaveLoadFailure(SaveLoadError.Unreadable, null, UnreadableMessage);
         }
 
         host = null;

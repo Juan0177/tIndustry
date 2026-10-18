@@ -79,7 +79,8 @@ public partial class World
         _hud.SetPlacementHint(_view is not null
             && GetViewport().GuiGetHoveredControl() is null
             && _hover is { } ghostAt
-            ? GhostTerrainReason(ghostAt)
+            && GhostTerrainReason(ghostAt) is { } why
+            ? Testi.Rifiuto(why)
             : null);
 
         if (_view is null
@@ -97,9 +98,9 @@ public partial class World
         if (_siteTipKey != (site.Id, missing))
         {
             _siteTipKey = (site.Id, missing);
-            _siteTipText = missing.ItemId is null
-                ? $"Mancano: ${missing.Amount}"
-                : $"Mancano: {missing.Amount} {_view.Content.DisplayName(missing.ItemId)}";
+            _siteTipText = Testi.F("cantiere.mancano", missing.ItemId is null
+                ? $"${missing.Amount}"
+                : $"{missing.Amount}× {Testi.Oggetto(missing.ItemId, _view.Content)}");
         }
 
         _hud.SetSiteTooltip(_siteTipText, _hoverScreen);
@@ -401,13 +402,9 @@ public partial class World
         _hud.BindEconomy(_view.Content, _view.Wallet);
         _hud.SyncCoreUpgrade(_view);
         _hud.UpdateStock(
-            ShortName(_view.Content.DisplayName("iron-ore")),
             _view.Wallet.MaterialCount("iron-ore"),
-            ShortName(_view.Content.DisplayName("iron-plate")),
             _view.Wallet.MaterialCount("iron-plate"),
-            ShortName(_view.Content.DisplayName("copper-ore")),
             _view.Wallet.MaterialCount("copper-ore"),
-            ShortName(_view.Content.DisplayName("copper-wire")),
             _view.Wallet.MaterialCount("copper-wire"),
             _view.CoreDeliveredItems,
             onBelt,
@@ -416,7 +413,7 @@ public partial class World
             _view.Generators.Count,
             _view.PowerBuffer,
             _view.PowerCapacity);
-        _hud.SetDirectionLabel(DirectionIt(_placeDir));
+        _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);
         if (_activeLevel is not null)
         {
@@ -424,8 +421,7 @@ public partial class World
                 _activeLevel,
                 _view.Wallet,
                 _view.Session,
-                _view.Research,
-                id => ShortName(_view.Content.DisplayName(id)));
+                _view.Research);
         }
         else
         {
@@ -433,13 +429,6 @@ public partial class World
         }
     }
 
-    private static string ShortName(string display)
-    {
-        // Compact stock labels: "Lastra di ferro" → "Lastra ferro"
-        return display
-            .Replace(" di ", " ", StringComparison.Ordinal)
-            .Replace("grezzo", "grezzo", StringComparison.Ordinal);
-    }
 
     private static Vector2 CellCenter(GridPosition cell) =>
         new((cell.X + 0.5f) * TileSize, (cell.Y + 0.5f) * TileSize);

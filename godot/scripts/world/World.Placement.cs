@@ -60,8 +60,7 @@ public partial class World
             _hud?.SetSorterFilterBrush(_sorterFilterId);
         }
 
-        var label = _view?.Content.DisplayName(_sorterFilterId) ?? _sorterFilterId;
-        _hud?.ShowToast($"Filtro: {label}");
+        _hud?.ShowToast(Testi.F("selezionatore.filtro", Testi.Oggetto(_sorterFilterId, _view?.Content)));
     }
 
     /// <summary>
@@ -175,7 +174,7 @@ public partial class World
         RebuildBuildingVisuals();
         UpdateHud();
         GD.Print($"SEED_CORE_LINE: belts={_view.Belts.Count} miners={_view.Miners.Count}");
-        _hud?.ShowToast($"Seed linea Core · nastro {_view.Belts.Count}");
+        _hud?.ShowToast(Testi.F("dev.linea.core", _view.Belts.Count));
     }
 
     private GridPosition ScreenToCell(Vector2 screenPos)

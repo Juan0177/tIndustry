@@ -272,7 +272,7 @@ public partial class TechTreeCanvas : Control
         if (Graph is null || Research is null)
         {
             DrawString(UiTheme.TextFont, new Vector2(24, 40),
-                "Nessuna struttura nell'albero.", HorizontalAlignment.Left, -1, LabelSize, HintSoft);
+                Testi.T("ricerca.albero.vuoto"), HorizontalAlignment.Left, -1, LabelSize, HintSoft);
             return;
         }
 
@@ -375,7 +375,7 @@ public partial class TechTreeCanvas : Control
         foreach (var node in Graph!.Nodes)
         {
             var state = StateOf(node);
-            var label = node.IsRoot ? "CORE" : node.Structure.DisplayName;
+            var label = node.IsRoot ? "CORE" : Testi.Struttura(node.Structure.Id, null);
             var color = node.IsRoot
                 ? CoreCyan
                 : state switch

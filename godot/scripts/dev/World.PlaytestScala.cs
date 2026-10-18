@@ -207,7 +207,7 @@ public partial class World
     {
         // HUD side: the Mercato button, clicked where it is drawn (its UI rect × the factor, in window pixels).
         if (_hud!.FindChildren("*", nameof(Button), recursive: true, owned: false)
-                .OfType<Button>().FirstOrDefault(b => b.Text == "Mercato" && b.IsVisibleInTree()) is not { } mercato)
+                .OfType<Button>().FirstOrDefault(b => b.Text == "menu.mercato" && b.IsVisibleInTree()) is not { } mercato)
         {
             return Fail($"scala UI {percent}%: pulsante Mercato non trovato");
         }
@@ -541,17 +541,21 @@ public partial class World
         return problems;
     }
 
-    /// <summary>Why the text of <paramref name="control"/> does not fit its rectangle, or null.</summary>
+    /// <summary>
+    /// Why the text of <paramref name="control"/> does not fit its rectangle, or null. A text that is a key is measured
+    /// as shown, translated.
+    /// </summary>
     private static string? TextOverflow(Control control)
     {
         switch (control)
         {
             case Label label when !string.IsNullOrEmpty(label.Text):
             {
+                var shown = Testi.T(label.Text);
                 if (label.AutowrapMode != TextServer.AutowrapMode.Off)
                 {
                     return label.MaxLinesVisible < 0 && label.GetVisibleLineCount() < label.GetLineCount()
-                        ? $"testo a capo tagliato: {label.GetVisibleLineCount()} righe su {label.GetLineCount()} («{Short(label.Text)}»)"
+                        ? $"testo a capo tagliato: {label.GetVisibleLineCount()} righe su {label.GetLineCount()} («{Short(shown)}»)"
                         : null;
                 }
 
@@ -559,15 +563,16 @@ public partial class World
                 var size = label.GetThemeFontSize("font_size");
                 var style = label.GetThemeStylebox("normal");
                 var room = label.Size.X - style.GetMinimumSize().X;
-                var widest = label.Text.Split('\n').Max(line => font.GetStringSize(line, HorizontalAlignment.Left, -1, size).X);
-                return widest > room + 0.5f ? $"testo largo {widest:0} in {room:0} («{Short(label.Text)}»)" : null;
+                var widest = shown.Split('\n').Max(line => font.GetStringSize(line, HorizontalAlignment.Left, -1, size).X);
+                return widest > room + 0.5f ? $"testo largo {widest:0} in {room:0} («{Short(shown)}»)" : null;
             }
             case Button button when !string.IsNullOrEmpty(button.Text) && button.AutowrapMode == TextServer.AutowrapMode.Off:
             {
                 var font = button.GetThemeFont("font");
                 var size = button.GetThemeFontSize("font_size");
                 var style = button.GetThemeStylebox("normal");
-                var text = button.Text.Split('\n').Max(line => font.GetStringSize(line, HorizontalAlignment.Left, -1, size).X);
+                var shown = Testi.T(button.Text);
+                var text = shown.Split('\n').Max(line => font.GetStringSize(line, HorizontalAlignment.Left, -1, size).X);
                 var icon = 0f;
                 var iconTexture = button is CheckButton or CheckBox ? button.GetThemeIcon("unchecked") : button.Icon;
                 if (iconTexture is not null)
@@ -578,7 +583,7 @@ public partial class World
                 }
 
                 var needed = text + icon + style.GetMinimumSize().X;
-                return needed > button.Size.X + 0.5f ? $"pulsante: serve {needed:0} in {button.Size.X:0} («{Short(button.Text)}»)" : null;
+                return needed > button.Size.X + 0.5f ? $"pulsante: serve {needed:0} in {button.Size.X:0} («{Short(shown)}»)" : null;
             }
             default:
                 return null;

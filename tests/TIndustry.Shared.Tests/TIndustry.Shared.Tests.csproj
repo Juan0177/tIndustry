@@ -32,5 +32,8 @@
     <None Include="Fixtures/png/*.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../godot/assets/*.png" Link="assets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Texts of the client and its sources: every text has its keys, no text is left in the code (TestiTests). -->
+    <None Include="../../godot/lingue/testi.csv" Link="lingue/testi.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../godot/scripts/**/*.cs" Link="client/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

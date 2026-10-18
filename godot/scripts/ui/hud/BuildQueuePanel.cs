@@ -37,8 +37,18 @@ public partial class BuildQueuePanel : PanelContainer
     {
         StylePanel(this, "BuildQueuePanel");
         Visible = false;
-        TooltipText = "Coda di costruzione · clic = mostra il cantiere";
+        TooltipText = Testi.T("coda.suggerimento");
         MouseDefaultCursorShape = CursorShape.PointingHand;
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationTranslationChanged)
+        {
+            // New language: the tooltip now, the missing line at the next sync.
+            TooltipText = Testi.T("coda.suggerimento");
+            _missingShown = null;
+        }
     }
 
     public override void _Ready()
@@ -134,9 +144,9 @@ public partial class BuildQueuePanel : PanelContainer
             if (missing is { } line)
             {
                 // Same wording as the site tooltip; money is named, materials by their display name.
-                _missing.Text = line.ItemId is null
-                    ? "Manca: denaro"
-                    : $"Manca: {view.Content.DisplayName(line.ItemId)}";
+                _missing.Text = Testi.F("coda.manca", line.ItemId is null
+                    ? Testi.T("coda.denaro")
+                    : Testi.Oggetto(line.ItemId, view.Content));
             }
         }
 

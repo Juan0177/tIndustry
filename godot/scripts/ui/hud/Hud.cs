@@ -50,6 +50,7 @@ public partial class Hud : Control
     private readonly BuildQueuePanel _queue = new();
 
     private Label? _dirLabel;
+    private Direction _direction = Direction.East;
     private PanelContainer? _siteTip;
     private Label? _siteTipLabel;
     private string? _siteTipText;
@@ -114,7 +115,7 @@ public partial class Hud : Control
         BuildPlacementHint();
         BuildSiteTooltip();
         SetSelectedTool(ToolKind.Cursor);
-        SetDirectionLabel("Est");
+        SetDirectionLabel(Direction.East);
         ClearObjectives();
         _palette.ShowCategory(BuildCategory.Logistics);
     }
@@ -159,23 +160,32 @@ public partial class Hud : Control
         ToolChosen?.Invoke(ToolKind.Cursor);
         if (toast)
         {
-            ShowToast("Cursore");
+            ShowToast(Testi.T("strumento.cursore"));
         }
     }
 
-    public void SetDirectionLabel(string directionIt)
+    public void SetDirectionLabel(Direction direction)
     {
+        _direction = direction;
         if (_dirLabel is not null)
         {
-            _dirLabel.Text = $"R · {directionIt} · destro = elimina";
+            _dirLabel.Text = Testi.F("hud.direzione", Testi.Direzione(direction));
+        }
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationTranslationChanged)
+        {
+            SetDirectionLabel(_direction);
         }
     }
 
     public void UpdateStock(
-        string oreName, int ore,
-        string plateName, int plate,
-        string copperName, int copper,
-        string wireName, int wire,
+        int ore,
+        int plate,
+        int copper,
+        int wire,
         long delivered,
         int onBelt,
         int money = 0,
@@ -184,7 +194,7 @@ public partial class Hud : Control
         float powerBuffer = -1f,
         float powerCapacity = -1f)
     {
-        _core.UpdateStock(oreName, ore, plateName, plate, copperName, copper, wireName, wire,
+        _core.UpdateStock(ore, plate, copper, wire,
             delivered, onBelt, money, generatorsLive, generatorsTotal, powerBuffer, powerCapacity);
         RefreshBlockInfo();
     }
@@ -198,9 +208,8 @@ public partial class Hud : Control
         CampaignLevelDefinition level,
         IWalletView wallet,
         ISessionView session,
-        IResearchView research,
-        Func<string, string>? itemName = null) =>
-        _core.UpdateObjectives(level, wallet, session, research, itemName);
+        IResearchView research) =>
+        _core.UpdateObjectives(level, wallet, session, research);
 
     /// <summary>The UI scale changed (<see cref="UiScale"/>): the palette rebuilds its block icons.</summary>
     public void OnUiScaleChanged() => _palette.OnUiScaleChanged();
@@ -268,6 +277,12 @@ public partial class Hud : Control
             _placementHint.Text = text;
         }
     }
+
+    /// <summary>The last toast text (playtests).</summary>
+    internal string? ToastText => _toastLabel?.Text;
+
+    /// <summary>The info strip's name line, the "?" tooltip and the funds tooltip as shown (playtests).</summary>
+    internal (string Strip, string Detail, string Funds) InfoTexts => (_info.StripName, _info.DetailTooltip, _core.FundsTooltip);
 
     public void ShowToast(string message)
     {

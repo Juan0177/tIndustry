@@ -66,11 +66,11 @@ public sealed class TerrainRulesTests
         }
     }
 
-    private static string? Submit(Factory factory, SimCommand command)
+    private static RefusalCode? Submit(Factory factory, SimCommand command)
     {
         var host = new SimHost(factory);
-        string? reason = null;
-        host.CommandRejected += (_, r) => reason = r;
+        RefusalCode? reason = null;
+        host.CommandRejected += (_, r) => reason = r.Code;
         host.Submit(command);
         host.AdvanceTicks(1);
         return reason;
@@ -87,7 +87,7 @@ public sealed class TerrainRulesTests
             {
                 Assert.True(factory.IsValidSpec(spec), spec.StructureId);
                 Assert.False(factory.CanPlace(spec, out var reason), $"{spec.StructureId} on {wall}");
-                Assert.Equal(CommandReasons.Wall, reason);
+                Assert.Equal(RefusalCode.Wall, reason);
             }
 
             // Wall under the far corner of a 2×2 footprint.
@@ -96,7 +96,7 @@ public sealed class TerrainRulesTests
             foreach (var spec in big)
             {
                 Assert.False(factory.CanPlace(spec, out var reason), $"{spec.StructureId} corner on {wall}");
-                Assert.Equal(CommandReasons.Wall, reason);
+                Assert.Equal(RefusalCode.Wall, reason);
             }
 
             Assert.False(factory.CanOccupy(new GridPosition(10, 10)));
@@ -105,9 +105,9 @@ public sealed class TerrainRulesTests
 
         // Through the commands: instant build and drone plans give the same reason.
         var instant = Sandbox((10, 10, Wall()));
-        Assert.Equal(CommandReasons.Wall,
+        Assert.Equal(RefusalCode.Wall,
             Submit(instant, new PlaceBelt(0, new GridPosition(10, 10), Direction.East, "conveyor-basic")));
-        Assert.Equal(CommandReasons.Wall,
+        Assert.Equal(RefusalCode.Wall,
             Submit(instant, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(9, 9), Direction.East)));
         Assert.Equal(0, instant.Belts.Count);
         Assert.Empty(instant.Miners);
@@ -115,7 +115,7 @@ public sealed class TerrainRulesTests
         var planned = WithTerrain(
             NewGame.Sandbox(Content, new GridPosition(30, 30), mapWidth: Size, mapHeight: Size),
             [(10, 10, Wall())]);
-        Assert.Equal(CommandReasons.Wall,
+        Assert.Equal(RefusalCode.Wall,
             Submit(planned, new PlaceBelt(0, new GridPosition(10, 10), Direction.East, "conveyor-basic")));
         Assert.Empty(planned.BuilderOf(0)!.Plans);
     }
@@ -138,8 +138,8 @@ public sealed class TerrainRulesTests
 
         Assert.False(factory.CanPlace(
             new BuildSpec("conveyor-basic", null, new GridPosition(11, 5), Direction.East), out var reason));
-        Assert.Equal(CommandReasons.DeepWater, reason);
-        Assert.Equal(CommandReasons.DeepWater,
+        Assert.Equal(RefusalCode.DeepWater, reason);
+        Assert.Equal(RefusalCode.DeepWater,
             Submit(factory, new PlaceBelt(0, new GridPosition(11, 5), Direction.East, "conveyor-basic")));
 
         // The bridge jumps the river: the exit is the first buildable cell past it.
@@ -155,7 +155,7 @@ public sealed class TerrainRulesTests
         // A bridge cannot start in the river.
         Assert.False(factory.CanPlace(
             new BuildSpec(BuildSpec.StructureIdFor(BuildingKind.Bridge)!, BuildingKind.Bridge, new GridPosition(12, 7), Direction.East), out reason));
-        Assert.Equal(CommandReasons.DeepWater, reason);
+        Assert.Equal(RefusalCode.DeepWater, reason);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class TerrainRulesTests
         var bridgeId = BuildSpec.StructureIdFor(BuildingKind.Bridge)!;
         foreach (var (y, expected) in new[]
                  {
-                     (5, CommandReasons.DeepWater), (8, CommandReasons.Wall), (11, CommandReasons.DeepWater)
+                     (5, RefusalCode.DeepWater), (8, RefusalCode.Wall), (11, RefusalCode.DeepWater)
                  })
         {
             var spec = new BuildSpec(bridgeId, BuildingKind.Bridge, new GridPosition(9, y), Direction.East);
@@ -197,7 +197,7 @@ public sealed class TerrainRulesTests
             Assert.Null(Submit(factory, new PlaceBelt(0, new GridPosition(x, 20), Direction.East, "conveyor-basic")));
         }
 
-        Assert.Equal(CommandReasons.Occupied,
+        Assert.Equal(RefusalCode.Occupied,
             Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, 20), Direction.East)));
     }
 
@@ -221,13 +221,13 @@ public sealed class TerrainRulesTests
         foreach (var origin in new[] { new GridPosition(Size, 5), new GridPosition(5, Size), new GridPosition(-1, 5) })
         {
             Assert.False(factory.CanPlace(new BuildSpec("conveyor-basic", null, origin, Direction.East), out var reason));
-            Assert.Equal(CommandReasons.Occupied, reason);
+            Assert.Equal(RefusalCode.Occupied, reason);
         }
 
         // A 2×2 hanging over the right edge.
         Assert.False(factory.CanPlace(
             new BuildSpec("miner", BuildingKind.Miner, new GridPosition(Size - 1, 5), Direction.East), out var edge));
-        Assert.Equal(CommandReasons.Occupied, edge);
+        Assert.Equal(RefusalCode.Occupied, edge);
         Assert.True(factory.CanOccupyFootprint(new GridPosition(Size - 2, 5), 2));
 
         // A bridge whose every exit is outside the map has no exit.
@@ -243,24 +243,22 @@ public sealed class TerrainRulesTests
     [Fact]
     public void ReasonsAreWallAndDeepWater()
     {
-        Assert.Equal("C'è una parete", CommandReasons.Wall);
-        Assert.Equal("Acqua profonda", CommandReasons.DeepWater);
 
         // Order: Core, wall, deep water, occupied. The Core is at (30,30)-(31,31).
         var factory = Sandbox((29, 29, Wall()), (20, 20, Wall()), (21, 20, Deep), (25, 25, Deep));
         Assert.False(factory.CanPlace(
             new BuildSpec("miner", BuildingKind.Miner, new GridPosition(29, 29), Direction.East), out var reason));
-        Assert.Equal(CommandReasons.OnCore, reason);
+        Assert.Equal(RefusalCode.OnCore, reason);
         Assert.False(factory.CanPlace(
             new BuildSpec("miner", BuildingKind.Miner, new GridPosition(20, 19), Direction.East), out reason));
-        Assert.Equal(CommandReasons.Wall, reason);
+        Assert.Equal(RefusalCode.Wall, reason);
         Assert.False(factory.CanPlace(
             new BuildSpec("miner", BuildingKind.Miner, new GridPosition(24, 24), Direction.East), out reason));
-        Assert.Equal(CommandReasons.DeepWater, reason);
+        Assert.Equal(RefusalCode.DeepWater, reason);
         Assert.True(factory.TryPlaceBelt(new GridPosition(5, 5), Direction.East));
         Assert.False(factory.CanPlace(
             new BuildSpec("miner", BuildingKind.Miner, new GridPosition(4, 4), Direction.East), out reason));
-        Assert.Equal(CommandReasons.Occupied, reason);
+        Assert.Equal(RefusalCode.Occupied, reason);
     }
 
     [Fact]
@@ -323,8 +321,8 @@ public sealed class TerrainRulesTests
         Assert.True(factory.TryPlaceBelt(new GridPosition(9, 9), Direction.East));
         Assert.False(factory.CanPlace(
             new BuildSpec("miner", BuildingKind.Miner, new GridPosition(9, 9), Direction.East), out var reason));
-        Assert.Equal(CommandReasons.DeepWater, reason);
-        Assert.Equal(CommandReasons.DeepWater,
+        Assert.Equal(RefusalCode.DeepWater, reason);
+        Assert.Equal(RefusalCode.DeepWater,
             Submit(factory, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(9, 9), Direction.East)));
         Assert.Empty(factory.Miners);
     }

@@ -86,7 +86,7 @@ public static class HudStyle
         {
             CustomMinimumSize = new Vector2(44, 28),
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            TooltipText = content?.DisplayName(itemId) ?? itemId,
+            TooltipText = Testi.Oggetto(itemId, content),
             ThemeTypeVariation = ok ? UiTheme.Slot : UiTheme.SlotMancante
         };
 

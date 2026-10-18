@@ -16,15 +16,23 @@ public partial class BlockInfoPanel : Control
 
     private PanelContainer? _infoPanel;
     private Label? _infoName;
+    private Control? _detailButton;
     private Label? _infoHotkey;
     private HBoxContainer? _infoCostRow;
     private PanelContainer? _detailOverlay;
     private Label? _detailBody;
     private FactoryContent? _content;
     private IWalletView? _wallet;
+    private ToolKind? _detailFocus;
+    private (ToolKind? Focus, bool Locked) _shown;
 
     /// <summary>The "?" button was clicked; the HUD answers with <see cref="OpenDetail"/>.</summary>
     public event Action? DetailRequested;
+
+    /// <summary>The strip's name line and the "?" tooltip as shown (playtests).</summary>
+    internal string StripName => _infoName?.Text ?? "";
+
+    internal string DetailTooltip => Testi.T(_detailButton?.TooltipText ?? "");
 
     /// <summary>Last shown stock and funds, used for costs when no wallet is bound.</summary>
     public CorePanel? Stock { get; set; }
@@ -62,10 +70,11 @@ public partial class BlockInfoPanel : Control
         {
             CustomMinimumSize = new Vector2(28, 28),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = "Dettaglio blocco",
+            TooltipText = "blocco.dettaglio",
             ThemeTypeVariation = UiTheme.Slot
         };
         header.AddChild(infoBtn);
+        _detailButton = infoBtn;
         var infoCenter = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         infoBtn.AddChild(infoCenter);
         var q = MakeLabel("?", UiTheme.TestoAccento);
@@ -94,6 +103,7 @@ public partial class BlockInfoPanel : Control
     /// <summary>Fill the strip for <paramref name="focus"/>, or empty it when null / not a palette block.</summary>
     public void Show(ToolKind? focus, bool locked)
     {
+        _shown = (focus, locked);
         if (_infoPanel is null || _infoName is null || _infoCostRow is null)
         {
             return;
@@ -108,7 +118,7 @@ public partial class BlockInfoPanel : Control
 
         SetInfoSlotFilled(true);
         var name = BuildPalette.DisplayName(entry, _content);
-        _infoName.Text = locked ? $"{name} · bloccato" : name;
+        _infoName.Text = locked ? Testi.F("blocco.bloccato", name) : name;
         if (_infoHotkey is not null)
         {
             _infoHotkey.Text = string.IsNullOrEmpty(entry.Hotkey) ? "" : $"[{entry.Hotkey}]";
@@ -154,7 +164,7 @@ public partial class BlockInfoPanel : Control
         var vbox = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaLarga };
         overlay.AddChild(vbox);
 
-        vbox.AddChild(MakeLabel("Dettaglio blocco", UiTheme.Titolo));
+        vbox.AddChild(MakeLabel("blocco.dettaglio", UiTheme.Titolo));
 
         _detailBody = new Label
         {
@@ -172,7 +182,7 @@ public partial class BlockInfoPanel : Control
         vbox.AddChild(close);
         var cc = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         close.AddChild(cc);
-        cc.AddChild(MakeLabel("Chiudi"));
+        cc.AddChild(MakeLabel("comune.chiudi"));
         close.GuiInput += e =>
         {
             if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
@@ -199,6 +209,7 @@ public partial class BlockInfoPanel : Control
             return;
         }
 
+        _detailFocus = focus;
         var name = BuildPalette.DisplayName(entry, _content);
         ResolveCost(entry.StructureId, out var money, out var materials);
         var costParts = materials
@@ -206,8 +217,8 @@ public partial class BlockInfoPanel : Control
             .Select(m =>
             {
                 var have = _wallet?.MaterialCount(m.ItemId) ?? 0;
-                var mark = have >= m.Amount ? "ok" : "manca";
-                return $"{m.Amount}× {_content?.DisplayName(m.ItemId) ?? m.ItemId} ({mark})";
+                var mark = Testi.T(have >= m.Amount ? "blocco.costo.ok" : "blocco.costo.manca");
+                return $"{m.Amount}× {Testi.Oggetto(m.ItemId, _content)} ({mark})";
             });
         var costLine = string.Join(", ", costParts);
         if (money > 0)
@@ -220,11 +231,24 @@ public partial class BlockInfoPanel : Control
             costLine = "—";
         }
 
-        _detailBody.Text =
-            $"{name}\n\n{entry.HintIt}\n\n{ResolveIoLine(entry.StructureId)}\n\nCosto: {costLine}\n\n"
-            + "Hotkey: " + entry.Hotkey
-            + "\nR = ruota · destro = elimina · Esc = cursore";
+        _detailBody.Text = Testi.F("blocco.dettaglio.testo",
+            name, BuildPalette.Hint(entry, _content), ResolveIoLine(entry.StructureId), costLine, entry.Hotkey);
         _detailOverlay.Visible = true;
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what != NotificationTranslationChanged)
+        {
+            return;
+        }
+
+        // New language: the strip and the open detail are written again.
+        Show(_shown.Focus, _shown.Locked);
+        if (_detailOverlay is { Visible: true } && _detailFocus is { } focus)
+        {
+            OpenDetail(focus);
+        }
     }
 
     private void SetInfoSlotFilled(bool filled)
@@ -281,10 +305,10 @@ public partial class BlockInfoPanel : Control
         {
             return structureId switch
             {
-                "miner" => "I/O · estrae dal deposito sotto",
-                "generator" => "I/O · carbone → potenza",
+                "miner" => Testi.T("blocco.io.minatore"),
+                "generator" => Testi.T("blocco.io.generatore"),
                 "conveyor-basic" or "junction" or "splitter" or "sorter" or "conveyor-bridge"
-                    => "I/O · trasporto item",
+                    => Testi.T("blocco.io.trasporto"),
                 _ => ""
             };
         }
@@ -297,8 +321,8 @@ public partial class BlockInfoPanel : Control
 
         string Fmt(IReadOnlyList<ResourceAmount> list) =>
             string.Join("+", list.Select(a =>
-                $"{a.Amount}×{_content.DisplayName(a.ItemId)}"));
+                $"{a.Amount}×{Testi.Oggetto(a.ItemId, _content)}"));
 
-        return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({recipe.DurationSeconds:0.#}s)";
+        return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
     }
 }

@@ -52,9 +52,9 @@ public sealed class SimHostTests
         var factory = NewSandbox(LoadContent());
         var host = new SimHost(factory);
         var applied = new List<SimCommand>();
-        var rejected = new List<(SimCommand, string)>();
+        var rejected = new List<(SimCommand, RefusalCode)>();
         host.CommandApplied += applied.Add;
-        host.CommandRejected += (c, r) => rejected.Add((c, r));
+        host.CommandRejected += (c, r) => rejected.Add((c, r.Code));
         var submitted = new List<SimCommand>();
         for (var x = 0; x < 30; x++)
         {
@@ -81,7 +81,7 @@ public sealed class SimHostTests
         var host = new SimHost(factory);
         var before = Serialize(factory);
         string? atRejection = null;
-        string? reason = null;
+        Refusal? reason = null;
         host.CommandRejected += (_, r) =>
         {
             reason = r;
@@ -95,8 +95,7 @@ public sealed class SimHostTests
         host.Advance(SimulationClock.TickSeconds);
 
         Assert.Equal(0, applied);
-        Assert.False(string.IsNullOrWhiteSpace(reason));
-        Assert.Equal("Forno bloccato: sbloccalo in Ricerca (T).", reason);
+        Assert.Equal(new Refusal(RefusalCode.Locked, "smelter"), reason);
         Assert.Equal(before, atRejection);
         Assert.Empty(host.State.Smelters);
     }
@@ -116,9 +115,9 @@ public sealed class SimHostTests
             wallet);
         var host = new SimHost(factory);
         var applied = new List<SimCommand>();
-        var rejected = new List<(SimCommand Cmd, string Reason)>();
+        var rejected = new List<(SimCommand Cmd, RefusalCode Reason)>();
         host.CommandApplied += applied.Add;
-        host.CommandRejected += (c, r) => rejected.Add((c, r));
+        host.CommandRejected += (c, r) => rejected.Add((c, r.Code));
 
         host.Submit(new UnlockStructure(1, "junction"));
         host.Submit(new UnlockStructure(2, "generator"));
@@ -128,7 +127,7 @@ public sealed class SimHostTests
         Assert.Equal("junction", ((UnlockStructure)ok).StructureId);
         var ko = Assert.Single(rejected);
         Assert.Equal("generator", ((UnlockStructure)ko.Cmd).StructureId);
-        Assert.Equal("Risorse insufficienti per sbloccare.", ko.Reason);
+        Assert.Equal(RefusalCode.UnlockUnaffordable, ko.Reason);
         Assert.True(host.State.Research.IsUnlocked("junction"));
         Assert.False(host.State.Research.IsUnlocked("generator"));
         Assert.Equal(100, host.State.Wallet.Money);
@@ -153,8 +152,8 @@ public sealed class SimHostTests
         var direct = Make();
         var commanded = Make();
         var host = new SimHost(commanded);
-        var rejected = new List<string>();
-        host.CommandRejected += (_, r) => rejected.Add(r);
+        var rejected = new List<RefusalCode>();
+        host.CommandRejected += (_, r) => rejected.Add(r.Code);
 
         // Today's direct calls (applied before the tick), then one tick.
         Assert.True(direct.TrySellFromWallet("iron-plate", 7));
@@ -175,16 +174,16 @@ public sealed class SimHostTests
         // Selling beyond the stock is rejected with today's Mercato text; state unchanged.
         host.Submit(new Sell(1, "iron-plate", 1_000_000));
         host.Advance(SimulationClock.TickSeconds);
-        Assert.Equal(["Vendita fallita (stock insufficiente)."], rejected);
+        Assert.Equal([RefusalCode.SellFailed], rejected);
     }
 
     /// <summary>Applies one command through the host and returns (reason, capture before, capture at rejection).</summary>
-    private static (string? Reason, string Before, string? AtRejection, int Applied) RunOne(
+    private static (Refusal? Reason, string Before, string? AtRejection, int Applied) RunOne(
         Factory factory, SimCommand command)
     {
         var host = new SimHost(factory);
         var before = Serialize(factory);
-        string? reason = null;
+        Refusal? reason = null;
         string? atRejection = null;
         var applied = 0;
         host.CommandRejected += (_, r) =>
@@ -208,8 +207,11 @@ public sealed class SimHostTests
             CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), 2),
             new EconomyWallet(0));
         factory.State.Rules = new GameRules(InstantBuild: true); // the need message exists only with instant build
-        var expected = factory.FormatNeedMessage("conveyor-basic");
-        Assert.StartsWith("Servono ", expected);
+        var expected = factory.Shortfall("conveyor-basic");
+        Assert.NotNull(expected);
+        Assert.Equal(RefusalCode.InsufficientResources, expected.Code);
+        Assert.Equal("conveyor-basic", expected.StructureId);
+        Assert.NotEmpty(expected.MissingItems!);
 
         var (reason, before, atRejection, applied) = RunOne(
             factory, new PlaceBelt(1, new GridPosition(2, 2), Direction.East, "conveyor-basic"));
@@ -229,7 +231,7 @@ public sealed class SimHostTests
             factory, new PlaceBelt(1, new GridPosition(10, 10), Direction.North, "conveyor-basic"));
 
         Assert.Equal(0, applied);
-        Assert.Equal("Cella occupata o non valida", reason);
+        Assert.Equal(RefusalCode.Occupied, reason?.Code);
         Assert.Equal(before, atRejection);
     }
 
@@ -242,7 +244,7 @@ public sealed class SimHostTests
             factory, new PlaceBuilding(1, BuildingKind.Miner, new GridPosition(60, 60), Direction.East));
 
         Assert.Equal(0, applied);
-        Assert.Equal("Non puoi costruire sul Core", reason);
+        Assert.Equal(RefusalCode.OnCore, reason?.Code);
         Assert.Equal(before, atRejection);
     }
 
@@ -284,7 +286,7 @@ public sealed class SimHostTests
 
         var (reason, before, atRejection, appliedEmpty) = RunOne(factory, new Remove(1, ore.Value));
         Assert.Equal(0, appliedEmpty);
-        Assert.Equal("Niente da rimuovere.", reason);
+        Assert.Equal(RefusalCode.NothingToRemove, reason?.Code);
         Assert.Equal(before, atRejection);
     }
 
@@ -312,7 +314,7 @@ public sealed class SimHostTests
         {
             var (reason, before, atRejection, applied) = RunOne(factory, bad);
             Assert.Equal(0, applied);
-            Assert.Equal("Comando non valido.", reason);
+            Assert.Equal(RefusalCode.InvalidCommand, reason?.Code);
             Assert.Equal(before, atRejection);
         }
 
@@ -437,7 +439,7 @@ public sealed class SimHostTests
         var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
 
         Assert.Equal(0, applied);
-        Assert.Equal($"Core già a LV1 (+{content.CoreUpgrade.SaleBonusPercent}%).", reason);
+        Assert.Equal(new Refusal(RefusalCode.CoreAlreadyUpgraded), reason);
         Assert.Equal(before, atRejection);
     }
 
@@ -452,7 +454,7 @@ public sealed class SimHostTests
         var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
 
         Assert.Equal(0, applied);
-        Assert.Equal($"Servono ${content.CoreUpgrade.MoneyCost - 10}", reason);
+        Assert.Equal(new Refusal(RefusalCode.InsufficientResources, MissingMoney: content.CoreUpgrade.MoneyCost - 10, MissingItems: []), reason);
         Assert.Equal(before, atRejection);
     }
 
@@ -468,7 +470,7 @@ public sealed class SimHostTests
         var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
 
         Assert.Equal(0, applied);
-        Assert.Equal($"Servono {entry.Amount}× {content.DisplayName(entry.ItemId)}", reason);
+        Assert.Equal(new Refusal(RefusalCode.InsufficientResources, MissingItems: [entry]), reason);
         Assert.Equal(before, atRejection);
     }
 
@@ -485,7 +487,7 @@ public sealed class SimHostTests
         var (reason, _, _, _) = RunOne(factory, new UpgradeCore(1));
 
         Assert.Equal(
-            $"Servono ${content.CoreUpgrade.MoneyCost} · {entry.Amount}× {content.DisplayName(entry.ItemId)}",
+            new Refusal(RefusalCode.InsufficientResources, MissingMoney: content.CoreUpgrade.MoneyCost, MissingItems: [entry]),
             reason);
     }
 

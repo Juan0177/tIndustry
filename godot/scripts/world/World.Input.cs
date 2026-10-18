@@ -23,8 +23,8 @@ public partial class World
     private void OnHudRotate()
     {
         _placeDir = DirectionMath.Right(_placeDir);
-        _hud?.SetDirectionLabel(DirectionIt(_placeDir));
-        _hud?.ShowToast($"Direzione: {DirectionIt(_placeDir)}");
+        _hud?.SetDirectionLabel(_placeDir);
+        _hud?.ShowToast(Testi.F("hud.direzione.toast", Testi.Direzione(_placeDir)));
         QueueRedraw();
     }
 
@@ -34,7 +34,7 @@ public partial class World
             && _view is not null
             && !_view.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
         {
-            _hud?.ShowToast($"{ToolIt(tool)} bloccato: sbloccalo in Ricerca (T).");
+            _hud?.ShowToast(Testi.F("rifiuto.Locked", ToolName(tool)));
             return;
         }
 
@@ -42,7 +42,7 @@ public partial class World
         _hud?.SetSelectedTool(ToHudTool(tool));
         if (toast)
         {
-            _hud?.ShowToast(tool == BuildTool.Cursor ? "Cursore" : $"{ToolIt(tool)} selezionato");
+            _hud?.ShowToast(tool == BuildTool.Cursor ? ToolName(tool) : Testi.F("palette.selezionato", ToolName(tool)));
         }
 
         QueueRedraw();
@@ -92,36 +92,10 @@ public partial class World
         _ => BuildTool.Cursor
     };
 
-    private static string ToolIt(BuildTool tool) => tool switch
-    {
-        BuildTool.Cursor => "Cursore",
-        BuildTool.Belt => "Nastro",
-        BuildTool.BeltFast => "Nastro T2",
-        BuildTool.BeltExpress => "Nastro T3",
-        BuildTool.Miner => "Minatore",
-        BuildTool.MinerAdvanced => "Minatore T2",
-        BuildTool.Smelter => "Forno",
-        BuildTool.Assembler => "Assemblatore",
-        BuildTool.Junction => "Giunzione",
-        BuildTool.Splitter => "Splitter",
-        BuildTool.Generator => "Generatore",
-        BuildTool.Sorter => "Selezionatore",
-        BuildTool.Bridge => "Ponte",
-        BuildTool.Extractor => "Estrattore",
-        BuildTool.PowerNode => "Nodo potenza",
-        BuildTool.PowerNodeT2 => "Nodo T2",
-        BuildTool.Lamp => "Lampada",
-        _ => "?"
-    };
-
-    private static string DirectionIt(Direction dir) => dir switch
-    {
-        Direction.North => "Nord",
-        Direction.East => "Est",
-        Direction.South => "Sud",
-        Direction.West => "Ovest",
-        _ => "?"
-    };
+    /// <summary>Name of the tool: the cursor's own, else its structure's.</summary>
+    private string ToolName(BuildTool tool) => tool == BuildTool.Cursor
+        ? Testi.T("strumento.cursore")
+        : Testi.Struttura(Hud.StructureIdFor(ToHudTool(tool)), _view?.Content);
 
     /// <summary>
     /// Runs before every panel and the world: drops all input while the map overlay is up (Esc or a click
@@ -196,7 +170,7 @@ public partial class World
             {
                 // Raylib parity: H / Home → jump camera to CORE.
                 FocusCameraOnCore();
-                _hud?.ShowToast("Camera sul CORE (H)");
+                _hud?.ShowToast(Testi.T("hud.camera.core"));
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -294,28 +268,28 @@ public partial class World
 
             if (key.Keycode == Key.F5)
             {
-                SaveGame(FactorySaveStore.ContinueSlotId, "Partita salvata (continua)");
+                SaveGame(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.salvata.continua"));
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F9)
             {
-                LoadGame(FactorySaveStore.ContinueSlotId, "Partita caricata (continua)");
+                LoadGame(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.caricata.continua"));
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F6)
             {
-                SaveGame(FactorySaveStore.QuickSlotId, "Slot-1 salvato");
+                SaveGame(FactorySaveStore.QuickSlotId, Testi.T("salvataggi.rapido.salvato"));
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.F7)
             {
-                LoadGame(FactorySaveStore.QuickSlotId, "Slot-1 caricato");
+                LoadGame(FactorySaveStore.QuickSlotId, Testi.T("salvataggi.rapido.caricato"));
                 GetViewport().SetInputAsHandled();
                 return;
             }

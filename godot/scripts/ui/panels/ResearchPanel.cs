@@ -38,7 +38,8 @@ public partial class ResearchPanel : Control
     private Button? _unlockButton;
     private Button? _backButton;
     private string? _selectedId;
-    private string? _statusMessage;
+    // The status line is kept as a function so a new language writes it again.
+    private Func<string>? _statusMessage;
 
     public event Action? Closed;
     public event Action? UnlockedChanged;
@@ -144,13 +145,13 @@ public partial class ResearchPanel : Control
         var icon = HudStyle.MakeIcon(UiTheme.Icon("ricerca"), 32, pixel: true);
         icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         _header.AddChild(icon);
-        _header.AddChild(new Label { Text = "Ricerca", ThemeTypeVariation = UiTheme.Titolo, SizeFlagsHorizontal = SizeFlags.ExpandFill });
-        _walletLabel = new Label { Text = "Fondi: $0", ThemeTypeVariation = UiTheme.TestoDenaro, VerticalAlignment = VerticalAlignment.Center };
+        _header.AddChild(new Label { Text = "menu.ricerca", ThemeTypeVariation = UiTheme.Titolo, SizeFlagsHorizontal = SizeFlags.ExpandFill });
+        _walletLabel = new Label { Text = "", ThemeTypeVariation = UiTheme.TestoDenaro, VerticalAlignment = VerticalAlignment.Center };
         _header.AddChild(_walletLabel);
 
         _hintLabel = new Label
         {
-            Text = "Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude",
+            Text = "ricerca.suggerimento",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = UiTheme.TestoTenue
         };
@@ -158,7 +159,7 @@ public partial class ResearchPanel : Control
 
         _legendLabel = new Label
         {
-            Text = "Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente",
+            Text = "ricerca.legenda",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             ThemeTypeVariation = UiTheme.TestoTenue
         };
@@ -201,7 +202,7 @@ public partial class ResearchPanel : Control
 
         _unlockButton = new Button
         {
-            Text = "Conferma sblocco",
+            Text = "ricerca.sblocca",
             CustomMinimumSize = new Vector2(0, 48),
             ThemeTypeVariation = UiTheme.PulsantePrimario
         };
@@ -210,7 +211,7 @@ public partial class ResearchPanel : Control
 
         _detailZoom = new Label
         {
-            Text = "Zoom 1.00×",
+            Text = "",
             ClipText = true,
             TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             ThemeTypeVariation = UiTheme.TestoTenue
@@ -219,7 +220,7 @@ public partial class ResearchPanel : Control
 
         _backButton = new Button
         {
-            Text = "Indietro",
+            Text = "comune.indietro",
             CustomMinimumSize = new Vector2(180, 40)
         };
         _backButton.Pressed += Close;
@@ -230,6 +231,16 @@ public partial class ResearchPanel : Control
 
         Resized += LayoutChrome;
         LayoutChrome();
+    }
+
+    public override void _Notification(int what)
+    {
+        // New language: the detail, the status and the tree labels (drawn, not translated by Godot) follow.
+        if (what == NotificationTranslationChanged && Visible)
+        {
+            Refresh();
+            CallDeferred(MethodName.LayoutChrome);
+        }
     }
 
     /// <summary>A wrapping secondary line of the detail panel.</summary>
@@ -335,13 +346,13 @@ public partial class ResearchPanel : Control
 
         if (_walletLabel is not null)
         {
-            _walletLabel.Text = $"Fondi: ${_view.Wallet.Money}";
+            _walletLabel.Text = Testi.F("ricerca.fondi", _view.Wallet.Money);
         }
 
         RefreshDetail();
         if (_statusLabel is not null)
         {
-            _statusLabel.Text = _statusMessage ?? "";
+            _statusLabel.Text = _statusMessage?.Invoke() ?? "";
         }
     }
 
@@ -349,7 +360,7 @@ public partial class ResearchPanel : Control
     {
         if (_detailZoom is not null && _canvas is not null)
         {
-            _detailZoom.Text = $"Zoom {_canvas.Zoom:0.00}×";
+            _detailZoom.Text = Testi.F("ricerca.zoom", _canvas.Zoom.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 
@@ -367,13 +378,13 @@ public partial class ResearchPanel : Control
         if (_selectedId == TechTreeLayout.RootId)
         {
             _detailTitle.Text = "CORE";
-            _detailUsage.Text = "Il cuore della base: qui arrivano le risorse. Ogni ricerca parte da qui.";
+            _detailUsage.Text = Testi.T("ricerca.core.descrizione");
             _detailState.Text = "";
             _detailCost.Text = "";
             _detailPrereq.Text = "";
             _detailManca.Text = "";
             _unlockButton.Disabled = true;
-            _unlockButton.Text = "Seleziona un blocco";
+            _unlockButton.Text = Testi.T("ricerca.seleziona");
             return;
         }
 
@@ -384,15 +395,13 @@ public partial class ResearchPanel : Control
         }
 
         var state = _view.Research.GetNodeState(structure);
-        _detailTitle.Text = structure.DisplayName;
+        _detailTitle.Text = Testi.Struttura(structure.Id, _view.Content);
         _detailUsage.Text = FormatStructureUsage(structure.Id, _view.Content);
         _detailState.Text = state switch
         {
-            ResearchNodeState.Unlocked => structure.IsStub
-                ? "Stato: sbloccato (segnaposto)"
-                : "Stato: sbloccato",
-            ResearchNodeState.Available => "Stato: disponibile",
-            _ => "Stato: bloccato"
+            ResearchNodeState.Unlocked => Testi.T(structure.IsStub ? "ricerca.stato.segnaposto" : "ricerca.stato.sbloccato"),
+            ResearchNodeState.Available => Testi.T("ricerca.stato.disponibile"),
+            _ => Testi.T("ricerca.stato.bloccato")
         };
         _detailState.ThemeTypeVariation = state switch
         {
@@ -401,8 +410,8 @@ public partial class ResearchPanel : Control
             _ => UiTheme.TestoTenue
         };
 
-        _detailCost.Text = "Sblocco: " + FormatUnlockRequirement(structure.Unlock)
-            + "\nCostruzione: " + FormatBuildCost(structure.Id, _view.Content);
+        _detailCost.Text = Testi.F("ricerca.costi",
+            FormatUnlockRequirement(structure.Unlock, _view.Content), FormatBuildCost(structure.Id, _view.Content));
         _detailPrereq.Text = FormatPrereqs(structure, _view);
 
         var manca = FormatMissingUnlockResources(structure, _view);
@@ -412,7 +421,7 @@ public partial class ResearchPanel : Control
         }
         else if (structure.IsStub)
         {
-            _detailManca.Text = "Segnaposto: non costruibile ancora.";
+            _detailManca.Text = Testi.T("ricerca.segnaposto");
         }
         else
         {
@@ -421,11 +430,11 @@ public partial class ResearchPanel : Control
 
         var canUnlock = _view.Research.CanUnlock(structure, _view.Wallet);
         _unlockButton.Disabled = !canUnlock;
-        _unlockButton.Text = _view.Research.IsUnlocked(structure.Id)
-            ? "Già sbloccato"
+        _unlockButton.Text = Testi.T(_view.Research.IsUnlocked(structure.Id)
+            ? "ricerca.gia.sbloccato"
             : !_view.Research.MeetsPrerequisites(structure)
-                ? "Prerequisiti mancanti"
-                : canUnlock ? "Conferma sblocco" : "Risorse insufficienti";
+                ? "ricerca.prerequisiti.mancanti"
+                : canUnlock ? "ricerca.sblocca" : "rifiuto.InsufficientResources");
     }
 
     private void OnUnlockPressed()
@@ -440,7 +449,7 @@ public partial class ResearchPanel : Control
             return;
         }
 
-        // Outcome (and the Italian reason on refusal) comes back through the host events.
+        // Outcome (and the refusal code) comes back through the host events.
         _submit(new UnlockStructure(0, _selectedId));
     }
 
@@ -455,9 +464,9 @@ public partial class ResearchPanel : Control
         var structure = _view.Content.FindStructure(unlock.StructureId);
         if (structure is not null)
         {
-            _statusMessage = structure.IsStub
-                ? $"{structure.DisplayName} sbloccato (segnaposto — non costruibile ancora)."
-                : $"{structure.DisplayName} sbloccato!";
+            var content = _view.Content;
+            _statusMessage = () => Testi.F(structure.IsStub ? "ricerca.sbloccato.segnaposto" : "ricerca.sbloccato.nome",
+                Testi.Struttura(structure.Id, content));
         }
 
         UnlockedChanged?.Invoke();
@@ -465,14 +474,15 @@ public partial class ResearchPanel : Control
     }
 
     /// <summary>Host refused a command: show its reason in the status line.</summary>
-    public void OnCommandRejected(SimCommand command, string reason)
+    public void OnCommandRejected(SimCommand command, Refusal reason)
     {
         if (command is not UnlockStructure)
         {
             return;
         }
 
-        _statusMessage = reason;
+        var view = _view;
+        _statusMessage = () => Testi.Rifiuto(reason, view);
         Refresh();
     }
 
@@ -497,36 +507,22 @@ public partial class ResearchPanel : Control
 
         return _view.Research.GetNodeState(structure) switch
         {
-            ResearchNodeState.Unlocked => $"{structure.DisplayName}\nSbloccato",
+            ResearchNodeState.Unlocked => $"{Testi.Struttura(structure.Id, _view.Content)}\n{Testi.T("ricerca.nodo.sbloccato")}",
             ResearchNodeState.Available =>
-                $"{structure.DisplayName}\nSblocco: {FormatUnlockRequirement(structure.Unlock)}"
+                $"{Testi.Struttura(structure.Id, _view.Content)}\n"
+                + Testi.F("ricerca.nodo.sblocco", FormatUnlockRequirement(structure.Unlock, _view.Content))
                 + (FormatMissingUnlockResources(structure, _view) is { Length: > 0 } manca ? $"\n{manca}" : ""),
-            _ => $"{structure.DisplayName}\n{FormatPrereqs(structure, _view)}"
+            _ => $"{Testi.Struttura(structure.Id, _view.Content)}\n{FormatPrereqs(structure, _view)}"
         };
     }
 
     private static string FormatStructureUsage(string structureId, FactoryContent content)
     {
-        var hint = structureId switch
-        {
-            "miner" => "Estrae minerali dal deposito sotto · Scava: ferro, rame, carbone, piombo · uscita su tutti i lati · 2×2",
-            "miner-advanced" => "T2 · Scava: tutti i minerali, anche il titanio · 2× velocità · +25% efficienza · +20% se alimentato · uscita multi-lato",
-            "smelter" => "Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2",
-            "assembler" => "Assembla prodotti · R ruota uscita · 2×2",
-            "extractor" => "Tira 1 item da CORE/edificio · F filtro · R uscita",
-            "conveyor-basic" => "Nastro T1 · flusso unidirezionale · R/rotella",
-            "conveyor-fast" => "Nastro T2 · più veloce · R/rotella",
-            "conveyor-express" => "Nastro T3 · max velocità · R/rotella",
-            "junction" => "Incrocio a croce per nastri",
-            "splitter" => "Nastro a T · alterna sinistra/destra",
-            "sorter" => "Filtro item · icona al centro · C cicla · match avanti",
-            "conveyor-bridge" => "Ponte span 2–5 · I/O 3 lati · teleporto istantaneo",
-            "generator" => "Brucia carbone per energia · 2×2",
-            "power-node" => "Nodo T1 · 1×1 · raggio 6 · auto-link gen",
-            "power-node-t2" => "Nodo T2 · 2×2 · raggio 10 · auto-link gen",
-            "lamp" => "Lampada · illumina di notte se alimentata · consumo 1 · 1×1",
-            _ => "Struttura di fabbrica."
-        };
+        // Miners name the ores they dig, from the data (terrain.deposits and the miner tiers).
+        var key = $"struttura.{structureId}.descrizione";
+        var hint = Testi.T(key) == key
+            ? Testi.T("ricerca.uso.generico")
+            : Testi.F(key, Testi.Scava(content, structureId));
 
         var recipeId = structureId switch
         {
@@ -534,21 +530,17 @@ public partial class ResearchPanel : Control
             "assembler" => "craft-copper-wire",
             _ => null
         };
-        if (recipeId is null)
-        {
-            return "Uso: " + hint;
-        }
-
-        var recipe = content.FindRecipe(recipeId);
+        var recipe = recipeId is null ? null : content.FindRecipe(recipeId);
         if (recipe is null)
         {
-            return "Uso: " + hint;
+            return Testi.F("ricerca.uso", hint);
         }
 
         string Fmt(IReadOnlyList<ResourceAmount> list) =>
-            string.Join(" + ", list.Select(a => $"{a.Amount}× {content.DisplayName(a.ItemId)}"));
+            string.Join(" + ", list.Select(a => $"{a.Amount}× {Testi.Oggetto(a.ItemId, content)}"));
 
-        return $"Uso: {hint}\nI/O: {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({recipe.DurationSeconds:0.#}s)";
+        return Testi.F("ricerca.uso", hint)
+            + $"\nI/O: {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
     }
 
     private static string FormatBuildCost(string structureId, FactoryContent content)
@@ -575,7 +567,7 @@ public partial class ResearchPanel : Control
     {
         var mats = string.Join(" + ",
             materials.Where(m => m.Amount > 0)
-                .Select(m => $"{m.Amount}× {content.DisplayName(m.ItemId)}"));
+                .Select(m => $"{m.Amount}× {Testi.Oggetto(m.ItemId, content)}"));
         if (money <= 0 && string.IsNullOrEmpty(mats))
         {
             return "—";
@@ -589,15 +581,15 @@ public partial class ResearchPanel : Control
         return string.IsNullOrEmpty(mats) ? $"${money}" : $"${money} + {mats}";
     }
 
-    private static string FormatUnlockRequirement(UnlockRequirement? unlock)
+    private static string FormatUnlockRequirement(UnlockRequirement? unlock, FactoryContent content)
     {
         if (unlock is null)
         {
-            return "gratis";
+            return Testi.T("ricerca.gratis");
         }
 
         var materials = string.Join(" + ",
-            unlock.Materials.Select(entry => $"{entry.Amount} {ItemShortLabel(entry.ItemId)}"));
+            unlock.Materials.Select(entry => $"{entry.Amount}× {Testi.Oggetto(entry.ItemId, content)}"));
         return materials.Length == 0
             ? $"${unlock.Money}"
             : $"${unlock.Money} + {materials}";
@@ -626,38 +618,25 @@ public partial class ResearchPanel : Control
             var have = factory.Wallet.MaterialCount(entry.ItemId);
             if (have < entry.Amount)
             {
-                missing.Add($"{entry.Amount - have} {ItemShortLabel(entry.ItemId)}");
+                missing.Add($"{entry.Amount - have}× {Testi.Oggetto(entry.ItemId, factory.Content)}");
             }
         }
 
-        return missing.Count == 0 ? string.Empty : "Manca: " + string.Join(" + ", missing);
+        return missing.Count == 0 ? string.Empty : Testi.F("coda.manca", string.Join(" + ", missing));
     }
 
     private static string FormatPrereqs(StructureDefinition structure, IGameView factory)
     {
         if (structure.Prerequisites.Count == 0)
         {
-            return "Prerequisiti: nessuno";
+            return Testi.F("ricerca.prerequisiti", Testi.T("ricerca.prerequisiti.nessuno"));
         }
 
         var bits = structure.Prerequisites.Select(id =>
         {
-            var name = factory.Content.FindStructure(id)?.DisplayName ?? id;
-            return factory.Research.IsUnlocked(id) ? name : $"{name} (manca)";
+            var name = Testi.Struttura(id, factory.Content);
+            return factory.Research.IsUnlocked(id) ? name : Testi.F("ricerca.prerequisito.manca", name);
         });
-        return "Prerequisiti: " + string.Join(", ", bits);
+        return Testi.F("ricerca.prerequisiti", string.Join(", ", bits));
     }
-
-    private static string ItemShortLabel(string itemId) => itemId switch
-    {
-        "iron-ore" => "Ferro",
-        "copper-ore" => "Rame",
-        "coal" => "Carb.",
-        "iron-plate" => "Lastre",
-        "copper-wire" => "Fili",
-        "lead-ore" => "Piombo",
-        "lead-plate" => "Lastre Pb",
-        "silicon" => "Silicio",
-        _ => itemId
-    };
 }

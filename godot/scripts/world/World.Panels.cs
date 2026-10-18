@@ -40,7 +40,7 @@ public partial class World
             _home?.Open();
         };
         _hud.SetSelectedTool(Hud.ToolKind.Cursor);
-        _hud.SetDirectionLabel(DirectionIt(_placeDir));
+        _hud.SetDirectionLabel(_placeDir);
     }
 
     private void EnsureResearchPanel()
@@ -62,7 +62,7 @@ public partial class World
             CheckCampaignComplete();
             if (_view is not null)
             {
-                _hud?.ShowToast("Sblocco applicato");
+                _hud?.ShowToast(Testi.T("ricerca.sbloccato"));
             }
         };
     }
@@ -86,7 +86,7 @@ public partial class World
             CheckCampaignComplete();
             if (_view is not null)
             {
-                _hud?.ShowToast($"Venduto · Fondi ${_view.Wallet.Money}");
+                _hud?.ShowToast(Testi.F("mercato.venduto.fondi", _view.Wallet.Money));
             }
         };
         _mercato.AutoSellChanged += () =>
@@ -94,9 +94,7 @@ public partial class World
             UpdateHud();
             if (_view is not null)
             {
-                _hud?.ShowToast(_view.AutoSellAtCore
-                    ? "Vendita automatica ON"
-                    : "Vendita automatica OFF");
+                _hud?.ShowToast(Testi.T(_view.AutoSellAtCore ? "mercato.auto.on" : "mercato.auto.off"));
             }
         };
     }
@@ -138,7 +136,7 @@ public partial class World
         overlay.AddChild(dim);
         var label = new Label
         {
-            Text = "Generazione della mappa…",
+            Text = "mappa.generazione",
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -263,7 +261,8 @@ public partial class World
         _saves.SlotLoadRequested += slotId => RunMapTask(() => OnSavesSlotLoadAsync(slotId), m => _saves?.ShowStatus(m));
         _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
-        _saves.MapName = mapId => _campaign?.Levels.FirstOrDefault(l => l.Map == mapId)?.Name;
+        _saves.MapName = CampaignMapName;
+        _saves.LevelName = CampaignLevelName;
     }
 
     private void OpenSavesManager()
@@ -279,7 +278,7 @@ public partial class World
     private async Task OnSavesSlotLoadAsync(string slotId)
     {
         var loaded = await WithMapOverlayAsync(
-            SlotMapEdge(slotId), () => LoadGame(slotId, $"Caricato · {slotId}", showOnPanel: m => _saves?.ShowStatus(m)));
+            SlotMapEdge(slotId), () => LoadGame(slotId, Testi.F("salvataggi.caricato", slotId), showOnPanel: m => _saves?.ShowStatus(m)));
         if (!loaded)
         {
             return; // stay on the saves panel with the error visible
@@ -294,12 +293,12 @@ public partial class World
     {
         if (_view is null)
         {
-            _hud?.ShowToast("Nessuna partita attiva da salvare");
+            _hud?.ShowToast(Testi.T("salvataggi.nessuna.partita"));
             return;
         }
 
         var id = FactorySaveStore.CreateSlotId();
-        SaveGame(id, $"Salvato come {id}");
+        SaveGame(id, Testi.F("salvataggi.salvato.come", id));
         _saves?.NotifySavedAs(id);
     }
 
@@ -315,7 +314,7 @@ public partial class World
 
             if (!quiet)
             {
-                _hud?.ShowToast("Continua aggiornata");
+                _hud?.ShowToast(Testi.T("salvataggi.continua.aggiornata"));
             }
 
             GD.Print($"Autosave Continua → {FactorySaveStore.SlotPath(FactorySaveStore.ContinueSlotId)}");
@@ -359,8 +358,8 @@ public partial class World
         }
 
         hudRoot.MoveChild(_tutorial, hudRoot.GetChildCount() - 1);
-        _tutorial.Completed += () => _hud?.ShowToast("Tutorial completato");
-        _tutorial.Skipped += () => _hud?.ShowToast("Tutorial saltato");
+        _tutorial.Completed += () => _hud?.ShowToast(Testi.T("tutorial.completato"));
+        _tutorial.Skipped += () => _hud?.ShowToast(Testi.T("tutorial.saltato"));
     }
 
     private void EnsureFpsOverlay()
@@ -455,8 +454,8 @@ public partial class World
         ApplyGraphicsSettings();
         SyncFpsOverlay();
         SyncResourceOverlay();
-        _hud?.ShowToast(
-            $"Impostazioni · UI {ClientSettings.UiScaleLabel(_settings.UiScalePercent)} · VSync {(_settings.VSync ? "ON" : "OFF")}");
+        _hud?.ShowToast(Testi.F("impostazioni.applicate.toast",
+            ClientSettings.UiScaleLabel(_settings.UiScalePercent), Testi.T(_settings.VSync ? "comune.on" : "comune.off")));
     }
 
     /// <summary>The UI scale of the settings on the HUD (the palette redraws its icons for the new factor).</summary>

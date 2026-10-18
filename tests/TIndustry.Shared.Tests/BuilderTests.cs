@@ -168,8 +168,8 @@ public sealed class BuilderTests
     {
         var factory = NewFactory(ironPlates: 0);
         var host = new SimHost(factory);
-        var rejected = new List<string>();
-        host.CommandRejected += (_, reason) => rejected.Add(reason);
+        var rejected = new List<RefusalCode>();
+        host.CommandRejected += (_, reason) => rejected.Add(reason.Code);
         var finished = new List<long>();
         host.EventRaised += e =>
         {
@@ -380,7 +380,7 @@ public sealed class BuilderTests
         var spec = new BuildSpec(Miner.BasicId, BuildingKind.Miner, new GridPosition(19, 19), Direction.East);
 
         Assert.False(factory.CanPlace(spec, out var reason));
-        Assert.Equal(CommandReasons.OnCore, reason);
+        Assert.Equal(RefusalCode.OnCore, reason);
     }
 
     [Fact]
@@ -388,8 +388,8 @@ public sealed class BuilderTests
     {
         var factory = NewFactory(ironPlates: 10);
         var host = new SimHost(factory);
-        var rejected = new List<(SimCommand Command, string Reason)>();
-        host.CommandRejected += (c, r) => rejected.Add((c, r));
+        var rejected = new List<(SimCommand Command, RefusalCode Reason)>();
+        host.CommandRejected += (c, r) => rejected.Add((c, r.Code));
         var far = new GridPosition(90, 21);
 
         host.Submit(Belt(far));
@@ -398,7 +398,7 @@ public sealed class BuilderTests
         host.AdvanceTicks(1);
 
         Assert.Equal(2, rejected.Count);
-        Assert.All(rejected, r => Assert.Equal(CommandReasons.Occupied, r.Reason));
+        Assert.All(rejected, r => Assert.Equal(RefusalCode.Occupied, r.Reason));
         Assert.Single(factory.PlansOf(Player));
         Assert.Empty(factory.Sites);
     }
@@ -430,7 +430,7 @@ public sealed class BuilderTests
         var drop = Assert.Single(dropped);
         Assert.Equal(Player, drop.PlayerId);
         Assert.Equal(farMiner, drop.Plan.Spec.Origin);
-        Assert.Equal(CommandReasons.Occupied, drop.Reason);
+        Assert.Equal(RefusalCode.Occupied, drop.Reason);
         var remaining = Assert.Single(factory.PlansOf(Player));
         Assert.Equal(next, remaining.Spec.Origin);
 
@@ -632,13 +632,13 @@ public sealed class BuilderTests
     {
         var factory = NewFactory(ironPlates: 10, unlockAll: false);
         var host = new SimHost(factory);
-        var rejected = new List<string>();
+        var rejected = new List<Refusal>();
         host.CommandRejected += (_, r) => rejected.Add(r);
 
         host.Submit(new PlaceBuilding(Player, BuildingKind.Generator, NearMiner, Direction.East));
         host.AdvanceTicks(1);
 
-        Assert.Equal([CommandReasons.Locked("Generatore")], rejected);
+        Assert.Equal([new Refusal(RefusalCode.Locked, "generator")], rejected);
         Assert.Empty(factory.PlansOf(Player));
     }
 
@@ -647,8 +647,8 @@ public sealed class BuilderTests
     {
         var factory = NewFactory(ironPlates: 6, instantBuild: true);
         var host = new SimHost(factory);
-        var rejected = new List<string>();
-        host.CommandRejected += (_, r) => rejected.Add(r);
+        var rejected = new List<RefusalCode>();
+        host.CommandRejected += (_, r) => rejected.Add(r.Code);
 
         host.Submit(PlaceMiner(NearMiner));
         host.AdvanceTicks(1);
@@ -658,12 +658,11 @@ public sealed class BuilderTests
         Assert.Empty(factory.PlansOf(Player));
         Assert.Equal(2, factory.Wallet.MaterialCount(Iron));
 
-        var need = factory.FormatNeedMessage(Miner.BasicId);
+        Assert.NotNull(factory.Shortfall(Miner.BasicId));
         host.Submit(PlaceMiner(new GridPosition(30, 20)));
         host.AdvanceTicks(1);
 
-        var expected = string.IsNullOrEmpty(need) ? CommandReasons.InsufficientResources : need;
-        Assert.Equal([expected], rejected);
+        Assert.Equal([RefusalCode.InsufficientResources], rejected);
         Assert.Single(factory.Miners);
         Assert.Equal(2, factory.Wallet.MaterialCount(Iron));
 

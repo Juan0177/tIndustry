@@ -148,20 +148,20 @@ public sealed class BuilderSystem : ISimulationSystem
             return;
         }
 
-        string? reason = null;
+        RefusalCode? reason = null;
         if (!factory.IsStructureUnlocked(plan.Spec.StructureId))
         {
-            reason = CommandReasons.LockedByResearch;
+            reason = RefusalCode.LockedByResearch;
         }
         else if (!factory.CanPlace(plan.Spec, out var refusal))
         {
-            reason = refusal ?? CommandReasons.Occupied;
+            reason = refusal ?? RefusalCode.Occupied;
         }
 
         if (reason is not null)
         {
             builder.PlanQueue.RemoveAt(0);
-            state.Events.Add(new PlanDropped(builder.OwnerPlayerId, plan, reason));
+            state.Events.Add(new PlanDropped(builder.OwnerPlayerId, plan, reason.Value));
             return;
         }
 

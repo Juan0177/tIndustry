@@ -64,7 +64,7 @@ public sealed class SaveMigrationTests
             .SelectMany(y => Enumerable.Range(0, terrain.Width).Select(x => new GridPosition(x, y)))
             .First(c => terrain[c].Floor == FloorKind.ShallowWater && !state.Belts.ContainsKey(c));
         Assert.True(((Factory)state).CanPlace(
-            new BuildSpec("conveyor-basic", null, freeWater, Direction.East), out var waterReason), waterReason);
+            new BuildSpec("conveyor-basic", null, freeWater, Direction.East), out var waterReason), waterReason?.ToString());
         var site = Assert.Single(state.Sites);
         Assert.Equal(new GridPosition(66, 56), site.Spec.Origin);
         Assert.InRange(site.Progress, 0.5f, 0.6f);
@@ -146,6 +146,7 @@ public sealed class SaveMigrationTests
         data.TerrainHash += 1;
         var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data));
         Assert.StartsWith("Il terreno rigenerato non corrisponde al salvataggio", ex.Message);
+        Assert.Equal((SaveLoadError.TerrainChanged, MapGenerator.Name), (ex.Code, ex.Argument));
 
         var classic = NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 6).Capture();
         classic.TerrainHash ^= 0xFF;
@@ -215,6 +216,9 @@ public sealed class SaveMigrationTests
         Assert.False(FactorySaveStore.TryLoad(Content, "v12-senza-mappa", out var noDir, out var error));
         Assert.Null(noDir);
         Assert.Equal($"Mappa della campagna '{level.Map}' non disponibile: cartella delle mappe non trovata.", error);
+        // The client gets the reason as a code with the map id (it shows its own text).
+        Assert.False(FactorySaveStore.TryLoadSlot(Content, "v12-senza-mappa", out _, out var failure));
+        Assert.Equal((SaveLoadError.MapsFolderMissing, level.Map), (failure!.Code, failure.Argument));
 
         var empty = Path.Combine(Path.GetTempPath(), $"tindustry-mappe-vuote-{Guid.NewGuid():N}");
         Directory.CreateDirectory(empty);
@@ -223,6 +227,8 @@ public sealed class SaveMigrationTests
             Assert.False(FactorySaveStore.TryLoad(Content, "v12-senza-mappa", out var missing, out error, empty));
             Assert.Null(missing);
             Assert.StartsWith($"Mappa della campagna '{level.Map}' mancante o non valida.", error);
+            Assert.False(FactorySaveStore.TryLoadSlot(Content, "v12-senza-mappa", out _, out var missingFailure, empty));
+            Assert.Equal((SaveLoadError.CampaignMapMissing, level.Map), (missingFailure!.Code, missingFailure.Argument));
         }
         finally
         {
@@ -241,6 +247,7 @@ public sealed class SaveMigrationTests
             data.MapId = id;
             ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data, MapsDir));
             Assert.Equal($"Nome della mappa della campagna non valido: '{id}'.", ex.Message);
+            Assert.Equal((SaveLoadError.CampaignMapBadName, id), (ex.Code, ex.Argument));
         }
     }
 
@@ -252,6 +259,7 @@ public sealed class SaveMigrationTests
 
         var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data));
         Assert.Equal("Generatore di mappa sconosciuto nel salvataggio: 'vulcani'.", ex.Message);
+        Assert.Equal((SaveLoadError.UnknownGenerator, "vulcani"), (ex.Code, ex.Argument));
     }
 
     [Fact]
@@ -369,6 +377,6 @@ public sealed class SaveMigrationTests
 
         var drop = Assert.Single(dropped);
         Assert.Equal(wall, drop.Plan.Spec.Origin);
-        Assert.Equal(CommandReasons.Wall, drop.Reason);
+        Assert.Equal(RefusalCode.Wall, drop.Reason);
     }
 }

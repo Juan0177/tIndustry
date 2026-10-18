@@ -71,22 +71,4 @@ public sealed class MarketCatalog
         var price = item.SellPrice + (min - item.SellPrice) * pressure;
         return Math.Clamp((int)MathF.Round(price), min, max);
     }
-
-    public string BestValueHint()
-    {
-        if (!items.TryGetValue("iron-ore", out var ore)
-            || !items.TryGetValue("iron-plate", out var plate))
-        {
-            var best = Items.FirstOrDefault();
-            return best is null
-                ? "Nessun prezzo mercato."
-                : $"Conviene vendere: {best.DisplayName} (${best.SellPrice}).";
-        }
-
-        var orePairValue = ore.SellPrice * 2;
-        var margin = plate.SellPrice - orePairValue;
-        return margin > 0
-            ? $"Stock → costruisci, oppure vendi lastre (+${margin} vs 2 ore). Prezzi reagiscono allo stock."
-            : "Accumula in magazzino; vendi dal Mercato quando ti servono $.";
-    }
 }

@@ -22,18 +22,8 @@ public partial class TutorialPanel : Control
         Impostazioni
     }
 
-    /// <summary>Text per <see cref="Step"/>; the last line of each is the goal that auto-advances it.</summary>
-    public static readonly string[] Steps =
-    [
-        "Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.",
-        "La palette è in basso a destra: Lo = Logistica, Pr = Produzione, Po = Potenza. Scegli uno strumento (o premi 1–9). Esc torna al cursore.",
-        "Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. R ruota l'uscita. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.",
-        "Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.",
-        "Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.",
-        "Premi T per aprire la RICERCA: con soldi e lastre sblocchi il FORNO e gli altri edifici.",
-        "Piazza un FORNO (3): fonde i minerali in lastre. Serve carbone OPPURE corrente (generatore + nodi potenza, +20%).",
-        "IMPOSTAZIONI (I, o dalla Home): scala UI, VSync e Rivedi tutorial. Premi Fine per chiudere."
-    ];
+    /// <summary>Text key per <see cref="Step"/> (<c>tutorial.passo.1</c>…); the last line of each is the goal that auto-advances it.</summary>
+    public static readonly string[] Steps = Enum.GetValues<Step>().Select(s => $"tutorial.passo.{(int)s + 1}").ToArray();
 
     private PanelContainer? _card;
     private Label? _stepLabel;
@@ -147,7 +137,7 @@ public partial class TutorialPanel : Control
 
         _doneLabel = new Label
         {
-            Text = "✓ fatto",
+            Text = "tutorial.fatto",
             Visible = false,
             VerticalAlignment = VerticalAlignment.Center,
             ThemeTypeVariation = UiTheme.TestoVerde
@@ -156,15 +146,15 @@ public partial class TutorialPanel : Control
 
         header.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
 
-        var skip = new Button { Text = "Salta tutorial", FocusMode = FocusModeEnum.None, ThemeTypeVariation = UiTheme.PulsantePiatto };
+        var skip = new Button { Text = "tutorial.salta", FocusMode = FocusModeEnum.None, ThemeTypeVariation = UiTheme.PulsantePiatto };
         skip.Pressed += Skip;
         header.AddChild(skip);
 
         _nextBtn = new Button
         {
-            Text = "Avanti",
+            Text = "tutorial.avanti",
             CustomMinimumSize = new Vector2(80, 0),
-            TooltipText = "Il passo avanza da solo quando lo completi · Invio = avanti",
+            TooltipText = "tutorial.avanti.suggerimento",
             FocusMode = FocusModeEnum.None,
             ThemeTypeVariation = UiTheme.PulsantePrimario
         };
@@ -193,11 +183,19 @@ public partial class TutorialPanel : Control
         _bodyLabel.CustomMinimumSize = new Vector2(width, 0);
     }
 
+    public override void _Notification(int what)
+    {
+        if (what == NotificationTranslationChanged && Visible)
+        {
+            Refresh();
+        }
+    }
+
     private void Refresh()
     {
         if (_stepLabel is not null)
         {
-            _stepLabel.Text = $"Tutorial {_step + 1}/{Steps.Length}";
+            _stepLabel.Text = Testi.F("tutorial.passo", _step + 1, Steps.Length);
         }
 
         if (_bodyLabel is not null)
@@ -207,7 +205,7 @@ public partial class TutorialPanel : Control
 
         if (_nextBtn is not null)
         {
-            _nextBtn.Text = _step >= Steps.Length - 1 ? "Fine" : "Avanti";
+            _nextBtn.Text = _step >= Steps.Length - 1 ? "tutorial.fine" : "tutorial.avanti";
         }
     }
 

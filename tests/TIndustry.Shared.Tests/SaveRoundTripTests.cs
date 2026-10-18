@@ -37,6 +37,8 @@ public sealed class SaveRoundTripTests
 
         Assert.False(FactorySaveStore.TryLoad(content, "vecchio", out _, out var error));
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "vecchio", out _, out var failure));
+        Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
     }
 
     [Fact]
