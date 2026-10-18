@@ -44,6 +44,8 @@ public partial class AgentBridge : Node
     private volatile int _connection;
     private Thread? _thread;
     private volatile bool _closing;
+    private const int HandshakeTimeoutMs = 5000;
+
     private string _token = "";
 
     private World _world = null!;
@@ -130,6 +132,8 @@ public partial class AgentBridge : Node
             client.NoDelay = true;
             // A client that stops reading must not stall the game's frame for long.
             client.SendTimeout = 2000;
+            // A silent connection (port scan, browser preconnect) must not hold the only slot: the token comes fast.
+            client.ReceiveTimeout = HandshakeTimeoutMs;
             var stream = client.GetStream();
             int connection;
             lock (_writeLock)
@@ -151,6 +155,7 @@ public partial class AgentBridge : Node
                 using var reader = new StreamReader(stream, new UTF8Encoding(false));
                 if (ReadBoundedLine(reader, line, out _) is { } first && !LooksLikeHttp(first) && TokenMatches(first, _token))
                 {
+                    client.ReceiveTimeout = 0; // authenticated: an agent may stay quiet as long as it likes
                     Send(connection, AgentResponse.Success(0, JsonSerializer.SerializeToElement(new JsonObject { ["canale"] = "tindustry" })));
                     Serve(connection, reader, line);
                 }
