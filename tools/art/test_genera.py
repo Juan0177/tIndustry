@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 
+from PIL import ImageChops
+
 ART_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(ART_DIR, "..", ".."))
 if ART_DIR not in sys.path:
@@ -20,6 +22,7 @@ from palette import ACCENTO, BAGLIORE, METALLO, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
+NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express")  # belt tiers with scrolling strips
 
 # Block footprints in cells (Factory.FootprintSize; the bridge is two 1x1 ends).
 CELLE = {
@@ -38,6 +41,12 @@ def _content():
 
 def _item_ids():
     return {m["itemId"] for m in _content()["market"]} | {"money"}
+
+
+def fotogrammi_di(striscia):
+    """Square frames of an "-anim" strip (side = strip height)."""
+    h = striscia.height
+    return [striscia.crop((i * h, 0, (i + 1) * h, h)) for i in range(striscia.width // h)]
 
 
 def errore_misura(nome, im):
@@ -59,6 +68,10 @@ def errore_misura(nome, im):
     if block is None:
         return None
     side = T * CELLE[block]
+    if base.endswith("-span"):
+        # Repeatable span texture (bridge): tiles a cell evenly, never taller than the block.
+        ok = w > 0 and side % w == 0 and 0 < h <= side
+        return None if ok else f"{nome}: {w}x{h}, attesa larghezza divisore di {side} e altezza <= {side}"
     frame_w = FOTOGRAMMA.get(nome, h) if anim else w
     if h != side or frame_w != side:
         return f"{nome}: fotogramma {frame_w}x{h}, atteso {side}x{side}"
@@ -137,6 +150,21 @@ class TestGenera(unittest.TestCase):
             self.assertTrue(4 <= len(rampa) <= 6, nome)
             luma = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in rampa]
             self.assertEqual(sorted(luma), luma, f"{nome}: non va da scuro a chiaro")
+
+    def test_strisce_cicliche(self):
+        # Straight belt strips: each frame is the previous one moved 8 px along the flow (East),
+        # so frame 4 moved by 8 px is frame 1 again and the loop has no seam.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                self.assertIn(nastro + "-anim", SPRITE)
+                fotogrammi = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                self.assertEqual(4, len(fotogrammi))
+                for i, f in enumerate(fotogrammi):
+                    dopo = fotogrammi[(i + 1) % len(fotogrammi)]
+                    self.assertEqual(list(ImageChops.offset(f, 8, 0).getdata()), list(dopo.getdata()),
+                                     f"{nastro}: fotogramma {i + 1} scorso di 8 px != fotogramma {(i + 1) % 4 + 1}")
+                curva = fotogrammi_di(SPRITE[nastro + "-corner-anim"]())
+                self.assertEqual(4, len(curva))
 
     @unittest.skipUnless(os.environ.get("TINDUSTRY_ARTE_COMPLETA") == "1",
                          "gli sprite arrivano famiglia per famiglia (task 2-5 della G1)")
