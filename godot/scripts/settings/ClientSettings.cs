@@ -61,6 +61,15 @@ public sealed class ClientSettings
     public int LimiteFps { get; set; }
     /// <summary>World render resolution percent (<see cref="RenderScalePresets"/>).</summary>
     public int ScalaRendering { get; set; } = 100;
+    /// <summary>
+    /// Fullscreen at the screen's resolution (null = never chosen: fullscreen in release builds, window in dev/test).
+    /// A playtest is always windowed 1280×720 (<see cref="StartupDisplay"/>).
+    /// </summary>
+    public bool? SchermoIntero { get; set; }
+
+    /// <summary>The fullscreen choice the settings panel shows: <see cref="SchermoIntero"/> or this build's default.</summary>
+    [JsonIgnore]
+    public bool SchermoInteroScelto => SchermoIntero ?? !OS.IsDebugBuild();
 
     /// <summary>True while a playtest forces effects, shadows, glow and night off (no <see cref="PlaytestEffectsEnv"/>=1).</summary>
     public static bool PlaytestForcesEffectsOff =>
@@ -98,7 +107,13 @@ public sealed class ClientSettings
         {
             if (!File.Exists(SettingsPath))
             {
-                return new ClientSettings();
+                // First run: the UI scale follows the screen (release builds only; dev and test stay at 100%).
+                var screen = DisplayServer.ScreenGetSize(DisplayServer.WindowGetCurrentScreen());
+                return new ClientSettings
+                {
+                    UiScalePercent = NormalizeUiScale(
+                        StartupDisplay.FirstRunUiScale(screen.Y, OS.IsDebugBuild(), GameDataPaths.IsPlaytest))
+                };
             }
 
             return FromJson(File.ReadAllText(SettingsPath));
@@ -136,7 +151,8 @@ public sealed class ClientSettings
         Bagliore = Bagliore,
         AnimazioniBlocchi = AnimazioniBlocchi,
         LimiteFps = LimiteFps,
-        ScalaRendering = ScalaRendering
+        ScalaRendering = ScalaRendering,
+        SchermoIntero = SchermoIntero
     };
 
     public void CopyFrom(ClientSettings other)
@@ -152,6 +168,7 @@ public sealed class ClientSettings
         AnimazioniBlocchi = other.AnimazioniBlocchi;
         LimiteFps = other.LimiteFps;
         ScalaRendering = other.ScalaRendering;
+        SchermoIntero = other.SchermoIntero;
         Normalize();
     }
 
@@ -182,7 +199,7 @@ public sealed class ClientSettings
     public static string UiScaleLabel(int percent) => $"{percent}%";
 
     /// <summary>
-    /// Apply VSync and frame rate cap to the engine, and keep the window's content scale at 1: the UI scale acts only
+    /// Apply window mode (<see cref="StartupDisplay.Fullscreen"/>), VSync and frame rate cap to the engine, and keep the window's content scale at 1: the UI scale acts only
     /// on the HUD (<see cref="UiScale"/>, World.ApplyUiScale), never on the world. The rest of the graphics settings act
     /// on nodes of the world (World.ApplyGraphicsSettings: effects, render scale, glow, shadows, animations).
     /// </summary>
@@ -194,10 +211,34 @@ public sealed class ClientSettings
                 ? DisplayServer.VSyncMode.Enabled
                 : DisplayServer.VSyncMode.Disabled);
 
+        ApplyWindowMode();
         window ??= (Engine.GetMainLoop() as SceneTree)?.Root;
         if (window is not null)
         {
             window.ContentScaleFactor = 1f;
+        }
+    }
+
+    /// <summary>
+    /// Fullscreen (borderless, the screen's own resolution: alt-tab stays instant) or a centered 1280×720 window.
+    /// The world is drawn 1:1 (stretch mode disabled), so a bigger screen shows more map.
+    /// </summary>
+    private void ApplyWindowMode()
+    {
+        var fullscreen = StartupDisplay.Fullscreen(SchermoIntero, OS.IsDebugBuild(), GameDataPaths.IsPlaytest);
+        var isFullscreen = DisplayServer.WindowGetMode()
+            is DisplayServer.WindowMode.Fullscreen or DisplayServer.WindowMode.ExclusiveFullscreen;
+        if (fullscreen && !isFullscreen)
+        {
+            DisplayServer.WindowSetMode(DisplayServer.WindowMode.Fullscreen);
+        }
+        else if (!fullscreen && isFullscreen)
+        {
+            DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
+            var size = new Vector2I(StartupDisplay.DevWidth, StartupDisplay.DevHeight);
+            var screen = DisplayServer.WindowGetCurrentScreen();
+            DisplayServer.WindowSetSize(size);
+            DisplayServer.WindowSetPosition(DisplayServer.ScreenGetPosition(screen) + (DisplayServer.ScreenGetSize(screen) - size) / 2);
         }
     }
 }

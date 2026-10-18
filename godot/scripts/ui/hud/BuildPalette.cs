@@ -97,8 +97,8 @@ public partial class BuildPalette : PanelContainer
     public BuildPalette()
     {
         StylePanel(this, "BuildDock");
-        CustomMinimumSize = new Vector2(Hud.CornerStackWidth, 0);
-        SizeFlagsHorizontal = SizeFlags.Fill;
+        // Sized to its content (RebuildGrid), right-aligned under the info slot.
+        SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
     }
 
     public override void _Ready()
@@ -321,22 +321,45 @@ public partial class BuildPalette : PanelContainer
         }
 
         _sorterFilterIcon = null;
-        // Drop stale tool slot refs for place tools; cursor stays if present.
-        var keep = new HashSet<ToolKind> { ToolKind.Cursor };
-        foreach (var kind in _toolSlots.Keys.ToList())
-        {
-            if (!keep.Contains(kind))
-            {
-                _toolSlots.Remove(kind);
-            }
-        }
+        // Every old cell is freed, the cursor one too (Strumenti): a kept ref would be a disposed object.
+        _toolSlots.Clear();
 
+        var shown = 0;
         foreach (var entry in EntriesFor(_category))
         {
             if (!_lockedTools.Contains(entry.Tool))
             {
                 AddPaletteCell(_blockGrid, entry);
+                shown++;
             }
+        }
+
+        // The box fits the shown category with the most unlocked blocks (at most 4 columns), the same for every
+        // category: shorter categories are padded with invisible cells and the title gets the widest label's width.
+        var visible = _categorySlots.Keys.Where(HasUnlocked).DefaultIfEmpty(_category).ToList();
+        var most = visible.Max(c => EntriesFor(c).Count(e => !_lockedTools.Contains(e.Tool)));
+        _blockGrid.Columns = Math.Clamp(most, 1, 4);
+        var cells = (most + _blockGrid.Columns - 1) / _blockGrid.Columns * _blockGrid.Columns;
+        var side = BlockIconSide();
+        for (; shown < cells; shown++)
+        {
+            _blockGrid.AddChild(new PanelContainer
+            {
+                CustomMinimumSize = new Vector2(side + 8, side + 8),
+                MouseFilter = MouseFilterEnum.Ignore,
+                ThemeTypeVariation = UiTheme.Slot,
+                Modulate = Colors.Transparent
+            });
+        }
+
+        if (_categoryTitle is not null)
+        {
+            var font = _categoryTitle.GetThemeFont("font");
+            var fontSize = _categoryTitle.GetThemeFontSize("font_size");
+            _categoryTitle.CustomMinimumSize = new Vector2(
+                visible.Max(c => font.GetStringSize(CategoryLabel(c), HorizontalAlignment.Left, -1, fontSize).X)
+                + _categoryTitle.GetThemeStylebox("normal").GetMinimumSize().X,
+                0);
         }
 
         if (_hovered is { } hovered && !_toolSlots.ContainsKey(hovered))

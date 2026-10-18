@@ -20,14 +20,21 @@ public partial class World
     /// <summary>Scales at which every panel must fit a 1280×720 window with no text cut.</summary>
     private static bool MustFit(int percent) => percent <= 150;
 
-    /// <summary>In a playtest, the UI scale of <see cref="PlaytestScaleEnv"/> (before the HUD is built).</summary>
+    /// <summary>
+    /// In a playtest, the UI scale of <see cref="PlaytestScaleEnv"/>, else 100% whatever the settings say (before the
+    /// HUD is built), so captures stay comparable.
+    /// </summary>
     private void ApplyPlaytestUiScale()
     {
-        if (PlaytestRequested && int.TryParse(OS.GetEnvironment(PlaytestScaleEnv), out var percent))
+        if (!PlaytestRequested)
         {
-            _settings.UiScalePercent = ClientSettings.NormalizeUiScale(percent);
-            GD.Print($"PLAYTEST scala UI {_settings.UiScalePercent}%");
+            return;
         }
+
+        _settings.UiScalePercent = int.TryParse(OS.GetEnvironment(PlaytestScaleEnv), out var percent)
+            ? ClientSettings.NormalizeUiScale(percent)
+            : ClientSettings.UiScaleDefault;
+        GD.Print($"PLAYTEST scala UI {_settings.UiScalePercent}%");
     }
 
     private async Task<bool> PlaytestUiScaleAsync(Func<string, Task> shot)
@@ -314,6 +321,54 @@ public partial class World
         }
 
         GD.Print($"PLAYTEST palette: Potenza bloccata di nuovo, la palette passa a {after}");
+        return true;
+    }
+
+    /// <summary>
+    /// Early in a level the build palette is sized to its content: narrower than with every block unlocked, and the
+    /// same size in every category.
+    /// </summary>
+    private async Task<bool> PlaytestPaletteFitsAsync(Func<string, Task> shot)
+    {
+        if (_hud is null)
+        {
+            return Fail("palette: HUD mancante");
+        }
+
+        async Task<Vector2> SizeIn(Hud.BuildCategory category)
+        {
+            _hud.ShowPaletteCategory(category);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            return _hud.PaletteSize;
+        }
+
+        var start = _hud.PaletteCategory;
+        var early = await SizeIn(start);
+        await shot("palette-su-misura");
+        foreach (var category in Enum.GetValues<Hud.BuildCategory>())
+        {
+            // A hidden category falls back to a shown one: its size must match too.
+            if (await SizeIn(category) is var size && !size.IsEqualApprox(early))
+            {
+                return Fail($"palette: {size} in {category}, {early} in {start}");
+            }
+        }
+
+        foreach (var tool in Enum.GetValues<Hud.ToolKind>())
+        {
+            _hud.SetToolLocked(tool, false);
+        }
+
+        var full = await SizeIn(start);
+        SyncResearchLocks();
+        var back = await SizeIn(start);
+        if (early.X >= full.X || !back.IsEqualApprox(early))
+        {
+            return Fail($"palette: {early} a inizio livello, {full} con tutto sbloccato, {back} dopo");
+        }
+
+        GD.Print($"PLAYTEST palette su misura: {early} a inizio livello, {full} con tutto sbloccato");
         return true;
     }
 
