@@ -55,6 +55,7 @@ public partial class AgentBridge : Node
     private AgentGame? _game;
     // The header nuova_partita gives the game it starts (null: a loaded slot, whose snapshot is taken).
     private AgentGameSetup? _launcherSetup;
+    private bool _launcherStart;
     private bool _realInputNoted;
     private bool _realInputWarned;
     // The command call waiting for its tick, and a running `esegui` (other requests go on meanwhile).
@@ -377,13 +378,21 @@ public partial class AgentBridge : Node
         var slot = OptStr(p, "slot");
         // The journal's header: how the game is made (a loaded slot: its snapshot once loaded).
         _launcherSetup = slot is not null ? null : level is not null ? sandbox with { Level = level.Id } : sandbox;
-        if (_world.AgentStartGame(sandbox, level, slot) is { } error)
+        _launcherStart = true;
+        try
+        {
+            if (_world.AgentStartGame(sandbox, level, slot) is { } error)
+            {
+                throw Bad(error);
+            }
+
+            SyncGame();
+        }
+        finally
         {
             _launcherSetup = null;
-            throw Bad(error);
+            _launcherStart = false;
         }
-
-        SyncGame();
         return new JsonObject { ["tick"] = CurrentTick() };
     }
 
@@ -419,7 +428,8 @@ public partial class AgentBridge : Node
         var previous = _game;
         StartJournal(host, _launcherSetup, warning: null);
         _launcherSetup = null;
-        if (previous is not null)
+        // The launcher's own first game is no news; any later change is (the agent's journal started again).
+        if (previous is not null && !_launcherStart)
         {
             var before = previous.Host.State.CurrentTick;
             var now = host.State.CurrentTick;
