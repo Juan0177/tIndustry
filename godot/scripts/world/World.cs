@@ -253,7 +253,8 @@ public partial class World : Node2D
         var visualDelta = PlaytestHeld ? 0f : (float)delta;
         SyncConstructionVisuals(visualDelta);
 
-        if (_visualDirty)
+        // Buildings next to a belt decide its corners (Mindustry blending), so they redraw the belts too.
+        if (_visualDirty || _buildingsDirty)
         {
             RebuildBeltVisual();
             _visualDirty = false;

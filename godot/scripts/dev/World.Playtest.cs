@@ -356,6 +356,7 @@ public partial class World
             cam.Position = CellCenter(new GridPosition(core.X - 1, core.Y));
             cam.Zoom = new Vector2(1.6f, 1.6f);
             await Shot("belt-into-core");
+            await PlaytestOutputCornersShotAsync(cam, Shot);
             FocusCameraOnCore();
         }
 
@@ -530,6 +531,116 @@ public partial class World
 
     /// <summary>Set to 1 to run <see cref="PlaytestBeltPerfAsync"/> in the <c>ui</c> playtest.</summary>
     private const string PlaytestPerfEnv = "TINDUSTRY_PLAYTEST_PERF";
+
+    /// <summary>
+    /// A miner and a smelter each feeding a belt on its side that turns away: both cells next to the buildings
+    /// must be curves (Mindustry blending), like the belt-to-belt turn above them. Everything is taken away
+    /// again without refund, so later captures see the same game.
+    /// </summary>
+    private async Task PlaytestOutputCornersShotAsync(Camera2D cam, Func<string, Task> shot)
+    {
+        if (_view is not Factory factory || _view.Terrain is not { } terrain)
+        {
+            return;
+        }
+
+        var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        // Miner at the anchor, smelter 5 cells east; each feeds a belt on its east side that heads North,
+        // then turns East (a belt-to-belt turn for comparison).
+        BuildSpec[] Layout(GridPosition a)
+        {
+            BuildSpec Belt(int dx, int dy, Direction dir) =>
+                new(BuildSpec.DefaultConveyorId, null, new GridPosition(a.X + dx, a.Y + dy), dir);
+            return
+            [
+                new BuildSpec(Miner.BasicId, BuildingKind.Miner, a, Direction.East),
+                new BuildSpec(Crafter.SmelterBuildingId, BuildingKind.Smelter, new GridPosition(a.X + 5, a.Y), Direction.East),
+                Belt(2, 1, Direction.North), Belt(2, 0, Direction.North), Belt(2, -1, Direction.East), Belt(3, -1, Direction.East),
+                Belt(7, 1, Direction.North), Belt(7, 0, Direction.North), Belt(7, -1, Direction.East), Belt(8, -1, Direction.East)
+            ];
+        }
+
+        // Plain ground only: an idle miner keeps the capture still.
+        bool Free(GridPosition a)
+        {
+            for (var y = a.Y - 1; y <= a.Y + 1; y++)
+            {
+                for (var x = a.X; x <= a.X + 8; x++)
+                {
+                    var cell = new GridPosition(x, y);
+                    if (!terrain.InBounds(cell) || terrain[cell].Deposit != DepositKind.None
+                        || !factory.CanPlace(new BuildSpec(BuildSpec.DefaultConveyorId, null, cell, Direction.East), out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        GridPosition? anchor = null;
+        for (var dy = 4; dy < 40 && anchor is null; dy++)
+        {
+            foreach (var y in new[] { core.Y + dy, core.Y - dy })
+            {
+                var a = new GridPosition(core.X - 4, y);
+                if (Free(a))
+                {
+                    anchor = a;
+                    break;
+                }
+            }
+        }
+
+        if (anchor is not { } at)
+        {
+            GD.Print("PLAYTEST curve: nessuno spazio libero");
+            return;
+        }
+
+        // Hold the sim so the extra frames do not shift the timing of the later captures.
+        PlaytestHeld = true;
+        try
+        {
+            await PlaytestOutputCornersAsync(cam, shot, factory, at, Layout(at));
+        }
+        finally
+        {
+            PlaytestHeld = false;
+        }
+    }
+
+    private async Task PlaytestOutputCornersAsync(
+        Camera2D cam, Func<string, Task> shot, Factory factory, GridPosition at, BuildSpec[] layout)
+    {
+        foreach (var spec in layout)
+        {
+            if (!factory.PlaceInstant(spec, charge: false))
+            {
+                GD.Print($"PLAYTEST curve: {spec.StructureId} su {spec.Origin} rifiutato");
+            }
+        }
+
+        var curves = new[] { new GridPosition(at.X + 2, at.Y + 1), new GridPosition(at.X + 7, at.Y + 1) }
+            .Count(factory.IsBeltCorner);
+        GD.Print($"PLAYTEST curve: {curves}/2 curve all'uscita degli edifici da {at}");
+        _visualDirty = true;
+        _buildingsDirty = true;
+        cam.Position = new Vector2((at.X + 4.5f) * TileSize, (at.Y + 0.5f) * TileSize);
+        cam.Zoom = new Vector2(1.6f, 1.6f);
+        await PlaytestWait(0.3);
+        await shot("curva-uscita");
+
+        foreach (var spec in layout)
+        {
+            factory.RemoveInstant(spec.Origin, refund: false);
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        await PlaytestWait(0.1);
+    }
 
     /// <summary>
     /// Performance probe (only with <c>TINDUSTRY_PLAYTEST_PERF=1</c>), no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
