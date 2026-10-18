@@ -386,53 +386,84 @@ public sealed class BeltGrid
     }
 
     /// <summary>
-    /// Incoming flow direction into <paramref name="position"/> from a neighbor that points here, if any.
+    /// Flow entering the belt at <paramref name="position"/>, Mindustry-style: a feeder behind wins (straight,
+    /// incoming = the belt's own direction); otherwise exactly one feeder on a side gives a corner from that side.
+    /// Feeders on both sides and none behind (a T merge) or no feeder at all: false.
+    /// <paramref name="buildingFeeds"/>(source, target) says whether a building on tile source ejects into the
+    /// logistics cell at target; without it only logistics cells count.
     /// </summary>
-    public bool TryGetIncomingDirection(GridPosition position, out Direction incoming)
+    public bool TryGetIncomingDirection(
+        GridPosition position,
+        out Direction incoming,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds = null)
     {
-        foreach (var dir in DirectionMath.All)
-        {
-            var neighbor = position.Step(DirectionMath.Opposite(dir));
-            if (cells.TryGetValue(neighbor, out var cell) && cell.Direction == dir)
-            {
-                incoming = dir;
-                return true;
-            }
-        }
-
         incoming = default;
-        return false;
-    }
-
-    public bool IsCorner(GridPosition position)
-    {
         if (!cells.TryGetValue(position, out var cell))
         {
             return false;
         }
 
+        var dir = cell.Direction;
+        if (FeedsToward(position.Step(DirectionMath.Opposite(dir)), dir, buildingFeeds, JunctionChainLimit))
+        {
+            incoming = dir;
+            return true;
+        }
+
+        // A feeder on the left side flows rightwards into the cell, and vice versa.
+        var left = DirectionMath.Left(dir);
+        var right = DirectionMath.Right(dir);
+        var fromLeft = FeedsToward(position.Step(left), right, buildingFeeds, JunctionChainLimit);
+        var fromRight = FeedsToward(position.Step(right), left, buildingFeeds, JunctionChainLimit);
+        if (fromLeft == fromRight)
+        {
+            return false;
+        }
+
+        incoming = fromLeft ? right : left;
+        return true;
+    }
+
+    public bool IsCorner(GridPosition position, Func<GridPosition, GridPosition, bool>? buildingFeeds = null) =>
+        cells.TryGetValue(position, out var cell)
         // Specials are not gallery corners.
-        if (cell.Kind is not LogisticsKind.Belt)
+        && cell.Kind is LogisticsKind.Belt
+        && TryGetIncomingDirection(position, out var incoming, buildingFeeds)
+        && incoming != cell.Direction;
+
+    // Junctions pass items straight through: look this many junctions back for the real source.
+    private const int JunctionChainLimit = 4;
+
+    /// <summary>True when whatever sits on <paramref name="source"/> can eject items toward <paramref name="flow"/>.</summary>
+    private bool FeedsToward(
+        GridPosition source,
+        Direction flow,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds,
+        int junctionsLeft)
+    {
+        if (!cells.TryGetValue(source, out var cell))
         {
-            return false;
+            return buildingFeeds?.Invoke(source, source.Step(flow)) == true;
         }
 
-        if (!TryGetIncomingDirection(position, out var incoming))
+        // Mirrors TryHandoff: which exits each kind can use.
+        var back = DirectionMath.Opposite(cell.Direction);
+        return cell.Kind switch
         {
-            return false;
-        }
-
-        return incoming != cell.Direction
-            && IsPerpendicular(incoming, cell.Direction);
+            LogisticsKind.Belt => cell.Direction == flow,
+            LogisticsKind.Splitter => flow != cell.Direction && flow != back,
+            LogisticsKind.Sorter => flow != back,
+            LogisticsKind.Bridge when cell.BridgePartner is { } partner =>
+                !IsBridgeEntry(cell, partner) && flow != back,
+            LogisticsKind.Bridge => cell.Direction == flow,
+            LogisticsKind.Junction => junctionsLeft > 0
+                && FeedsToward(source.Step(DirectionMath.Opposite(flow)), flow, buildingFeeds, junctionsLeft - 1),
+            _ => false
+        };
     }
 
     public bool IsSpecial(GridPosition position) =>
         cells.TryGetValue(position, out var cell) && cell.Kind is not LogisticsKind.Belt;
-
-    private static bool IsPerpendicular(Direction a, Direction b) =>
-        DirectionMath.ToOffset(a).Dx * DirectionMath.ToOffset(b).Dx
-            + DirectionMath.ToOffset(a).Dy * DirectionMath.ToOffset(b).Dy
-        == 0;
 
     /// <summary>Row-major order: Y first, then X.</summary>
     public sealed class CanonicalOrder : IComparer<GridPosition>

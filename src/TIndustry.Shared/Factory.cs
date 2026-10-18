@@ -164,10 +164,61 @@ public sealed class Factory : IGameView
     IResearchView IGameView.Research => Research;
     ISessionView IGameView.Session => Session;
 
-    public bool IsBeltCorner(GridPosition position) => Belts.IsCorner(position);
+    public bool IsBeltCorner(GridPosition position) =>
+        Belts.IsCorner(position, buildingFeeds ??= BuildingEjectsInto);
 
     public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
-        Belts.TryGetIncomingDirection(position, out incoming);
+        Belts.TryGetIncomingDirection(position, out incoming, buildingFeeds ??= BuildingEjectsInto);
+
+    private Func<GridPosition, GridPosition, bool>? buildingFeeds;
+
+    /// <summary>
+    /// True when the building on <paramref name="source"/> would eject items into the logistics cell at
+    /// <paramref name="target"/> (an adjacent tile), with the same outward rule the buildings use when ticking.
+    /// Core, generators, power nodes and lamps never output items.
+    /// </summary>
+    private bool BuildingEjectsInto(GridPosition source, GridPosition target)
+    {
+        if (!Belts.TryGet(target, out var cell))
+        {
+            return false;
+        }
+
+        var next = target.Step(cell.Direction);
+        foreach (var miner in miners)
+        {
+            if (BuildingIo.Occupies(miner.Position, Miner.Size, source))
+            {
+                return !BuildingIo.Occupies(miner.Position, Miner.Size, next);
+            }
+        }
+
+        foreach (var crafter in smelters)
+        {
+            if (crafter.Occupies(source))
+            {
+                return !crafter.Occupies(next);
+            }
+        }
+
+        foreach (var crafter in assemblers)
+        {
+            if (crafter.Occupies(source))
+            {
+                return !crafter.Occupies(next);
+            }
+        }
+
+        foreach (var extractor in extractors)
+        {
+            if (extractor.Occupies(source))
+            {
+                return target.Equals(source.Step(extractor.Direction)) && !next.Equals(source);
+            }
+        }
+
+        return false;
+    }
 
     // Read-only wrappers: the view must not be cast back to the live lists.
     public IReadOnlyList<BuilderUnit> Builders => buildersView ??= State.Builders.AsReadOnly();
