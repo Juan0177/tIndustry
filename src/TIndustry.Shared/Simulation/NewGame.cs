@@ -8,7 +8,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public static class NewGame
 {
-    /// <summary>Empty sandbox with optional seed-driven terrain (default seed 42, 1000×1000).</summary>
+    /// <summary>
+    /// Empty sandbox on seeded terrain: the classic generator (default seed 42, 1000×1000), or the biome
+    /// generator when <paramref name="map"/> is given (its size and seed then replace the other arguments).
+    /// </summary>
     public static Factory Sandbox(
         FactoryContent content,
         GridPosition coreOrigin,
@@ -17,8 +20,15 @@ public static class NewGame
         int mapHeight = 1000,
         int seed = 42,
         int startingMoney = 180,
-        GameRules? rules = null)
+        GameRules? rules = null,
+        MapGenSettings? map = null)
     {
+        if (map is not null)
+        {
+            mapWidth = map.Width;
+            mapHeight = map.Height;
+        }
+
         var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
         // Parity with Raylib CreateStartingWallet: plates/wire so first place isn't free-or-impossible.
         var wallet = new EconomyWallet(
@@ -31,7 +41,9 @@ public static class NewGame
         var session = new EconomySession(startingMoney);
         var research = ResearchState.CreateNew(content);
         var starter = Factory.ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
-        var terrain = TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter);
+        var terrain = map is null
+            ? TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter)
+            : MapGenerator.Generate(map, core, starter);
         var factory = new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             Terrain = terrain
@@ -55,12 +67,12 @@ public static class NewGame
         var (w, h) = Factory.ResolveCampaignMapSize(level);
         if (mapWidth is int mw)
         {
-            w = Math.Clamp(Math.Max(12, mw), 12, Factory.MaxGodotCampaignMapEdge);
+            w = Math.Clamp(Math.Max(12, mw), 12, Factory.MaxMapEdge);
         }
 
         if (mapHeight is int mh)
         {
-            h = Math.Clamp(Math.Max(8, mh), 8, Factory.MaxGodotCampaignMapEdge);
+            h = Math.Clamp(Math.Max(8, mh), 8, Factory.MaxMapEdge);
         }
 
         var origin = coreOrigin ?? Factory.CenteredCoreOrigin(w, h, coreSize);

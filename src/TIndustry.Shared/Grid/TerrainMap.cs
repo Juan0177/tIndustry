@@ -47,7 +47,8 @@ public readonly record struct TerrainTile(FloorKind Floor, WallKind Wall, Deposi
 
 /// <summary>
 /// Seeded terrain + deposits, 3 bytes per cell. <see cref="Generate"/> is the classic generator
-/// (<see cref="ClassicTerrainGenerator"/>); <see cref="Generator"/> names the one that made the map.
+/// (<see cref="ClassicTerrainGenerator"/>), <see cref="MapGenerator"/> the biome one; <see cref="Generator"/>
+/// names the one that made the map.
 /// </summary>
 public sealed class TerrainMap
 {
@@ -114,6 +115,21 @@ public sealed class TerrainMap
         IReadOnlySet<GridPosition> coreTiles,
         GridPosition starterDepositOrigin) =>
         ClassicTerrainGenerator.Generate(width, height, seed, coreTiles, starterDepositOrigin);
+
+    /// <summary>FNV-1a 64 over the cells (floor, wall, deposit) in row order: the map's fingerprint.</summary>
+    public static ulong TerrainHash(TerrainMap m)
+    {
+        ArgumentNullException.ThrowIfNull(m);
+        var hash = 14695981039346656037UL;
+        foreach (var tile in m.tiles)
+        {
+            hash = (hash ^ (byte)tile.Floor) * 1099511628211UL;
+            hash = (hash ^ (byte)tile.Wall) * 1099511628211UL;
+            hash = (hash ^ (byte)tile.Deposit) * 1099511628211UL;
+        }
+
+        return hash;
+    }
 
     public int CountDepositTiles(GridPosition origin, int size, DepositKind deposit)
     {

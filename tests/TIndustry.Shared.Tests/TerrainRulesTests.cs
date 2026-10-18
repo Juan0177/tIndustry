@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using TIndustry.Shared;
 using Xunit;
 
@@ -253,5 +254,69 @@ public sealed class TerrainRulesTests
         Assert.Equal("#6C583A", table.Floor(FloorKind.Soil)!.Color);
         Assert.Equal("#5C6260", table.Floor(FloorKind.Stone)!.Color);
         Assert.Equal("#2A4E62", table.Floor(FloorKind.ShallowWater)!.Color);
+    }
+
+    [Fact]
+    public void DeepWaterWinsOverOccupiedInAMixedFootprint()
+    {
+        // A 2×2 miner over an existing belt (9, 9) and deep water (10, 10).
+        var factory = Sandbox((10, 10, Deep));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(9, 9), Direction.East));
+        Assert.False(factory.CanPlace(
+            new BuildSpec("miner", BuildingKind.Miner, new GridPosition(9, 9), Direction.East), out var reason));
+        Assert.Equal(CommandReasons.DeepWater, reason);
+        Assert.Equal(CommandReasons.DeepWater,
+            Submit(factory, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(9, 9), Direction.East)));
+        Assert.Empty(factory.Miners);
+    }
+
+    [Theory]
+    [InlineData("missing", "manca la sezione terrain")]
+    [InlineData("unknown-floor", "id sconosciuto 'lava'")]
+    [InlineData("unknown-wall", "id sconosciuto 'lava-wall'")]
+    [InlineData("none-wall", "non deve contenere 'none'")]
+    [InlineData("deep-buildable", "buildable deve essere false")]
+    [InlineData("shallow-not-buildable", "buildable deve essere true")]
+    [InlineData("bad-colour", "non nel formato #RRGGBB")]
+    [InlineData("short-colour", "non nel formato #RRGGBB")]
+    [InlineData("duplicate-colour", "colore diverso")]
+    [InlineData("duplicate-row", "deve avere una riga per 'Stone' (trovate 2)")]
+    [InlineData("missing-row", "deve avere una riga per 'IceWall' (trovate 0)")]
+    [InlineData("unknown-biome", "bioma 'vulcano' sconosciuto")]
+    public void TerrainSectionIsValidated(string change, string message)
+    {
+        var root = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "content.json")))!;
+        var terrain = root["terrain"]!;
+        var floors = terrain["floors"]!.AsArray();
+        var walls = terrain["walls"]!.AsArray();
+        JsonNode Floor(string id) => floors.First(f => (string?)f!["id"] == id)!;
+        switch (change)
+        {
+            case "missing": root.AsObject().Remove("terrain"); break;
+            case "unknown-floor": Floor("mud")["id"] = "lava"; break;
+            case "unknown-wall": walls[0]!["id"] = "lava-wall"; break;
+            case "none-wall": walls[0]!["id"] = "none"; break;
+            case "deep-buildable": Floor("deep-water")["buildable"] = true; break;
+            case "shallow-not-buildable": Floor("shallow-water")["buildable"] = false; break;
+            case "bad-colour": Floor("sand")["color"] = "#12345G"; break;
+            case "short-colour": Floor("sand")["color"] = "#123"; break;
+            case "duplicate-colour": Floor("sand")["color"] = (string?)Floor("snow")["color"]; break;
+            case "duplicate-row": floors.Add(JsonNode.Parse("""{ "id": "stone", "biome": "rocce", "color": "#010203" }""")); break;
+            case "missing-row": walls.RemoveAt(walls.ToList().FindIndex(w => (string?)w!["id"] == "ice-wall")); break;
+            case "unknown-biome": Floor("gravel")["biome"] = "vulcano"; break;
+        }
+
+        var dir = Directory.CreateTempSubdirectory("tindustry-content-");
+        try
+        {
+            var path = Path.Combine(dir.FullName, "content.json");
+            File.WriteAllText(path, root.ToJsonString());
+            var error = Assert.Throws<InvalidDataException>(() => FactoryContent.Load(path));
+            Assert.Contains(message, error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
     }
 }

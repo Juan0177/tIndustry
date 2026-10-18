@@ -728,8 +728,8 @@ public sealed class Factory : IGameView
 
         if (data.MapWidth >= 12 && data.MapHeight >= 8)
         {
-            var w = Math.Min(Math.Max(12, data.MapWidth), MaxGodotCampaignMapEdge);
-            var h = Math.Min(Math.Max(8, data.MapHeight), MaxGodotCampaignMapEdge);
+            var w = Math.Min(Math.Max(12, data.MapWidth), MaxMapEdge);
+            var h = Math.Min(Math.Max(8, data.MapHeight), MaxMapEdge);
             var starter = ResolveStarterDeposit(
                 new GridPosition(data.CoreX, data.CoreY),
                 Math.Max(1, data.CoreSize),
@@ -1368,8 +1368,8 @@ public sealed class Factory : IGameView
         return parts.Count == 0 ? "Risorse insufficienti" : "Servono " + string.Join(" · ", parts);
     }
 
-    /// <summary>Raylib maps go to 1000²; Godot clamps campaign/sandbox edges for safety.</summary>
-    public const int MaxGodotCampaignMapEdge = 1000;
+    /// <summary>Longest map edge (the "enorme" normal map); campaign and restored maps are clamped to it.</summary>
+    public const int MaxMapEdge = 2000;
 
     public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 2) =>
         new(
@@ -1380,8 +1380,8 @@ public sealed class Factory : IGameView
     {
         var w = Math.Max(12, level.MapWidth);
         var h = Math.Max(8, level.MapHeight);
-        w = Math.Min(w, MaxGodotCampaignMapEdge);
-        h = Math.Min(h, MaxGodotCampaignMapEdge);
+        w = Math.Min(w, MaxMapEdge);
+        h = Math.Min(h, MaxMapEdge);
         return (w, h);
     }
 
