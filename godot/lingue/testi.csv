@@ -11,8 +11,8 @@ struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
 struttura.assembler.nome,Assemblatore,Assembler
 struttura.generator.nome,Generatore,Generator
-struttura.power-node.nome,Nodo T1,Node T1
-struttura.power-node-t2.nome,Nodo T2,Node T2
+struttura.power-node.nome,Nodo T1,Power node T1
+struttura.power-node-t2.nome,Nodo T2,Power node T2
 struttura.lamp.nome,Lampada,Lamp
 struttura.miner-advanced.nome,Minatore T2,Miner T2
 oggetto.iron-ore.nome,Ferro grezzo,Iron ore
@@ -58,9 +58,9 @@ campagna.level-05-mercato.descrizione,Reinvestimento: vendi lastre e costruisci 
 obiettivo.level-05-mercato.1,Guadagna $150 dalle vendite,Earn $150 from sales
 obiettivo.level-05-mercato.2,Magazzino 20 lastre,Store 20 plates
 campagna.level-06-corrente.nome,Corrente,Power
-campagna.level-06-corrente.descrizione,Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).,Power up the factory: coal generator and Node T1. The smelter runs on coal or power (+20%).
+campagna.level-06-corrente.descrizione,Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).,Power up the factory: coal generator and Power node T1. The smelter runs on coal or power (+20%).
 obiettivo.level-06-corrente.1,Sblocca il generatore,Unlock the generator
-obiettivo.level-06-corrente.2,Sblocca il Nodo T1,Unlock Node T1
+obiettivo.level-06-corrente.2,Sblocca il Nodo T1,Unlock Power node T1
 obiettivo.level-06-corrente.3,Magazzino 16 carbone,Store 16 coal
 campagna.level-07-piombo.nome,Venatura di piombo,Lead vein
 campagna.level-07-piombo.descrizione,Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.,Scout west: mine lead and smelt it into plates. A new mid-game chain.
@@ -95,10 +95,10 @@ struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati ·
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% se alimentato · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% when powered · unlock in Research
 struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
 struttura.assembler.suggerimento,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
-struttura.extractor.suggerimento,Estrae dal Core → nastro · F filtro · R uscita · 1×1,Takes from the Core → belt · F filter · R output · 1×1
+struttura.extractor.suggerimento,Estrae dal CORE → nastro · F filtro · R uscita · 1×1,Takes from the CORE → belt · F filter · R output · 1×1
 struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
-struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Node T1 · range 6 · links generator ↔ smelter
-struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Node T2 · 2×2 · range 10 · unlock in Research
+struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Power node T1 · range 6 · links generator ↔ smelter
+struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · unlock in Research
 struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
 struttura.scava,Scava: {0},Digs: {0}
 categoria.strumenti,Strumenti,Tools
@@ -128,8 +128,8 @@ core.potenziato,CORE LV{0} · +{1}% vendite,CORE LV{0} · +{1}% sales
 core.obiettivo,OBIETTIVO · {0},OBJECTIVE · {0}
 core.obiettivo.titolo,OBIETTIVO,OBJECTIVE
 core.fondi,Fondi,Funds
-core.vuoto,Core vuoto: porta minerali con i nastri,Core empty: bring ore with belts
-rifiuto.CoreAlreadyUpgraded,Core già a LV{0} (+{1}%).,Core already at LV{0} (+{1}%).
+core.vuoto,CORE vuoto: porta minerali con i nastri,CORE empty: bring ore with belts
+rifiuto.CoreAlreadyUpgraded,CORE già a LV{0} (+{1}%).,CORE already at LV{0} (+{1}%).
 rifiuto.InsufficientResources,Risorse insufficienti,Not enough resources
 rifiuto.servono,Servono {0},Need {0}
 obiettivo.guadagna,Guadagna ${0},Earn ${0}
@@ -157,22 +157,20 @@ salvataggi.rapido.caricato,Slot-1 caricato,Slot-1 loaded
 coda.suggerimento,Coda di costruzione · clic = mostra il cantiere,Build queue · click = show the site
 coda.manca,Manca: {0},Missing: {0}
 coda.denaro,denaro,money
-core.potenziato.toast,Core potenziato: +{0}% vendite!,Core upgraded: +{0}% sales!
+core.potenziato.toast,CORE potenziato: +{0}% vendite!,CORE upgraded: +{0}% sales!
 selezionatore.filtro,Filtro: {0},Filter: {0}
-dev.linea.core,Seed linea Core · nastro {0},Core line seed · belts {0}
+dev.linea.core,Seed linea CORE · nastro {0},CORE line seed · belts {0}
 salvataggi.continua.nessuno,Nessun salvataggio continua,No continue save
 salvataggi.continua.caricata,Continua caricata,Continue loaded
 partita.nuova.toast,Nuova partita · {0} {1}×{1} · seme {2},New game · {0} {1}×{1} · seed {2}
-mappa.errore.caricamento,Caricamento della mappa non riuscito: {0},Map loading failed: {0}
+mappa.errore.caricamento,Caricamento della mappa non riuscito (dettagli nel log).,Map loading failed (details in the log).
 campagna.non.disponibile,Campagna non disponibile.,Campaign not available.
-mappa.errore.cartella,Mappa del livello «{0}» non disponibile: cartella delle mappe (data/maps) non trovata.,Map of level «{0}» not available: map folder (data/maps) not found.
-mappa.errore.livello,Mappa del livello «{0}» non disponibile: {1},Map of level «{0}» not available: {1}
+mappa.errore.cartella,Mappa del livello «{0}» non disponibile: cartella delle mappe (data/maps) non trovata.,"Map of level ""{0}"" not available: map folder (data/maps) not found."
+mappa.errore.livello,Mappa del livello «{0}» non disponibile o non valida (dettagli nel log).,"Map of level ""{0}"" not available or invalid (details in the log)."
 campagna.avvio.toast,Campagna · {0} · {1}×{2},Campaign · {0} · {1}×{2}
 campagna.completato.toast,Livello completato · {0},Level complete · {0}
 salvataggi.errore.salvataggio,Salvataggio fallito,Save failed
 salvataggi.errore.nessuno,Nessun salvataggio ({0}),No save ({0})
-salvataggi.errore.versione,Salvataggio di una versione precedente: non compatibile.,Save from an older version: not compatible.
-salvataggi.errore.illeggibile,Salvataggio non leggibile.,Save file not readable.
 salvataggi.errore.caricamento,Caricamento fallito,Loading failed
 mappa.generazione,Generazione della mappa…,Generating the map…
 salvataggi.caricato,Caricato · {0},Loaded · {0}
@@ -185,8 +183,8 @@ impostazioni.applicate.toast,Impostazioni · UI {0} · VSync {1},Settings · UI 
 comune.on,ON,ON
 comune.off,OFF,OFF
 rifiuto.InvalidCommand,Comando non valido.,Invalid command.
-rifiuto.OnCore,Non puoi costruire sul Core,You can't build on the Core
-rifiuto.Occupied,Cella occupata o non valida,Cell occupied or not valid
+rifiuto.OnCore,Non puoi costruire sul CORE,You can't build on the CORE
+rifiuto.Occupied,Cella occupata o non valida,Cell occupied or invalid
 rifiuto.Wall,C'è una parete,There is a wall
 rifiuto.DeepWater,Acqua profonda,Deep water
 rifiuto.NeedsAdvancedMiner,Serve il Minatore T2 per il titanio,Titanium needs the Miner T2
@@ -232,7 +230,7 @@ impostazioni.effetti.spenti,Spenti,Off
 impostazioni.ombre,Ombre sotto gli edifici,Shadows under buildings
 impostazioni.bagliore,Bagliore,Glow
 impostazioni.animazioni,Animazioni dei blocchi (non le particelle),Block animations (not the particles)
-impostazioni.animazioni.suggerimento,"Ferma trivelle, rotori, bocche dei forni e luce del Core. Fumo, scintille e polvere seguono l'impostazione Effetti.","Stops drills, rotors, smelter mouths and the Core light. Smoke, sparks and dust follow the Effects setting."
+impostazioni.animazioni.suggerimento,"Ferma trivelle, rotori, bocche dei forni e luce del CORE. Fumo, scintille e polvere seguono l'impostazione Effetti.","Stops drills, rotors, smelter mouths and the CORE light. Smoke, sparks and dust follow the Effects setting."
 impostazioni.fps.limite,Limite FPS,FPS limit
 impostazioni.schermo.intero,Schermo intero,Fullscreen
 impostazioni.scala.rendering,Scala di rendering (mondo),Render scale (world)
@@ -253,7 +251,7 @@ salvataggi.elimina,Elimina,Delete
 salvataggi.duplica,Duplica Continua,Duplicate Continue
 salvataggi.salva.come,Salva come,Save as
 salvataggi.vuoto,"Nessun salvataggio. F5 in partita, Continua, o Salva come dopo la prima sessione.","No saves. F5 in game, Continue, or Save as after the first session."
-salvataggi.conferma,Conferma Elimina su «{0}»,Confirm Delete on «{0}»
+salvataggi.conferma,Conferma Elimina su «{0}»,"Confirm Delete on ""{0}"""
 salvataggi.selezionato,Selezionato: {0} · {1} slot,Selected: {0} · {1} slots
 salvataggi.elimina.conferma,Conferma elimina,Confirm delete
 salvataggi.continua.automatico,Continua (salvataggio automatico),Continue (autosave)
@@ -325,8 +323,8 @@ struttura.splitter.descrizione,Nastro a T · alterna sinistra/destra,T belt · a
 struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
 struttura.conveyor-bridge.descrizione,Ponte span 2–5 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–5 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
-struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Node T1 · 1×1 · range 6 · links to generators by itself
-struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Node T2 · 2×2 · range 10 · links to generators by itself
+struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Power node T1 · 1×1 · range 6 · links to generators by itself
+struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Power node T2 · 2×2 · range 10 · links to generators by itself
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
 tutorial.passo.1,"Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.","Move the view: WASD, hold the wheel, or drag with the left button (in cursor mode). Wheel = zoom · H goes back to the CORE."
 tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categorie (Logistica, Produzione, Potenza); una categoria compare quando ne sblocchi un blocco. Scegli uno strumento (o premi 1–9). Esc torna al cursore.","The palette is bottom right: the category icons on its right (Logistics, Production, Power); a category shows up once you unlock one of its blocks. Pick a tool (or press 1–9). Esc goes back to the cursor."
@@ -342,3 +340,13 @@ tutorial.avanti,Avanti,Next
 tutorial.avanti.suggerimento,Il passo avanza da solo quando lo completi · Invio = avanti,The step moves on by itself when you complete it · Enter = next
 tutorial.passo,Tutorial {0}/{1},Tutorial {0}/{1}
 tutorial.fine,Fine,Done
+salvataggi.errore.Unreadable,Salvataggio non leggibile.,Save file not readable.
+salvataggi.errore.OlderVersion,Salvataggio di una versione precedente: non compatibile.,Save from an older version: not compatible.
+salvataggi.errore.MapInvalidSize,Mappa del salvataggio non valida (misura {0}).,Invalid save map (size {0}).
+salvataggi.errore.UnknownGenerator,"Generatore di mappa sconosciuto nel salvataggio: ""{0}"". Il salvataggio è di un'altra versione.","Unknown map generator in the save: ""{0}"". The save is from another version."
+salvataggi.errore.TerrainChanged,"Il terreno rigenerato con ""{0}"" non corrisponde al salvataggio: la partita è di una versione con un generatore di mappe diverso.","The terrain made by ""{0}"" does not match the save: the game is from a version with a different map generator."
+salvataggi.errore.CampaignMapUnnamed,Salvataggio della campagna senza il nome della mappa.,Campaign save without the name of its map.
+salvataggi.errore.CampaignMapBadName,"Nome della mappa della campagna non valido: ""{0}"".","Invalid campaign map name: ""{0}""."
+salvataggi.errore.MapsFolderMissing,"Mappa della campagna ""{0}"" non disponibile: cartella delle mappe (data/maps) non trovata.","Campaign map ""{0}"" not available: map folder (data/maps) not found."
+salvataggi.errore.CampaignMapMissing,"Mappa della campagna ""{0}"" mancante o non valida: il salvataggio si carica di nuovo quando la mappa torna al suo posto.","Campaign map ""{0}"" missing or invalid: the save loads again once the map is back."
+salvataggi.errore.CampaignMapChanged,"La mappa della campagna ""{0}"" ha cambiato misura dopo il salvataggio.","Campaign map ""{0}"" changed size after the save."

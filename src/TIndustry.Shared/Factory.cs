@@ -601,7 +601,7 @@ public sealed class Factory : IGameView
     /// Rebuilds a factory from a save; the terrain is regenerated with the saved generator, or read from the
     /// campaign map file in <paramref name="mapsDirectory"/>.
     /// </summary>
-    /// <exception cref="SaveMapException">The terrain cannot be rebuilt (Italian text for the player).</exception>
+    /// <exception cref="SaveMapException">The terrain cannot be rebuilt (code, argument and Italian detail).</exception>
     public static Factory Restore(FactoryContent content, FactorySaveData data, string? mapsDirectory = null)
     {
         var belts = new BeltGrid();
@@ -802,7 +802,7 @@ public sealed class Factory : IGameView
                 var edge = data.MapSize;
                 if (edge < 8 || edge > MaxMapEdge || data.MapWidth != edge || data.MapHeight != edge)
                 {
-                    throw new SaveMapException(
+                    throw new SaveMapException(SaveLoadError.MapInvalidSize, $"{data.MapWidth}×{data.MapHeight}",
                         $"Mappa del salvataggio non valida: misura {data.MapSize} per {data.MapWidth}×{data.MapHeight}.");
                 }
 
@@ -816,7 +816,8 @@ public sealed class Factory : IGameView
                 return LoadCampaignTerrain(content, data, mapsDirectory);
 
             default:
-                throw new SaveMapException($"Generatore di mappa sconosciuto nel salvataggio: '{data.Generator}'.");
+                throw new SaveMapException(SaveLoadError.UnknownGenerator, data.Generator,
+                    $"Generatore di mappa sconosciuto nel salvataggio: '{data.Generator}'.");
         }
     }
 
@@ -833,7 +834,7 @@ public sealed class Factory : IGameView
             return;
         }
 
-        throw new SaveMapException(
+        throw new SaveMapException(SaveLoadError.TerrainChanged, data.Generator,
             $"Il terreno rigenerato non corrisponde al salvataggio (generatore '{data.Generator}', seme {data.Seed}): "
             + "la partita è di una versione con un generatore di mappe diverso.");
     }
@@ -843,7 +844,7 @@ public sealed class Factory : IGameView
     {
         if (string.IsNullOrWhiteSpace(data.MapId))
         {
-            throw new SaveMapException("Salvataggio della campagna senza il nome della mappa.");
+            throw new SaveMapException(SaveLoadError.CampaignMapUnnamed, null, "Salvataggio della campagna senza il nome della mappa.");
         }
 
         // A plain file name inside the maps folder, never a path (hand-edited saves): the map files' own rule.
@@ -853,12 +854,13 @@ public sealed class Factory : IGameView
         }
         catch (ArgumentException ex)
         {
-            throw new SaveMapException($"Nome della mappa della campagna non valido: '{data.MapId}'.", ex);
+            throw new SaveMapException(SaveLoadError.CampaignMapBadName, data.MapId,
+                $"Nome della mappa della campagna non valido: '{data.MapId}'.", ex);
         }
 
         if (mapsDirectory is null)
         {
-            throw new SaveMapException(
+            throw new SaveMapException(SaveLoadError.MapsFolderMissing, data.MapId,
                 $"Mappa della campagna '{data.MapId}' non disponibile: cartella delle mappe non trovata.");
         }
 
@@ -869,12 +871,13 @@ public sealed class Factory : IGameView
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
-            throw new SaveMapException($"Mappa della campagna '{data.MapId}' mancante o non valida. {ex.Message}", ex);
+            throw new SaveMapException(SaveLoadError.CampaignMapMissing, data.MapId,
+                $"Mappa della campagna '{data.MapId}' mancante o non valida. {ex.Message}", ex);
         }
 
         if (map.Width != data.MapWidth || map.Height != data.MapHeight)
         {
-            throw new SaveMapException(
+            throw new SaveMapException(SaveLoadError.CampaignMapChanged, data.MapId,
                 $"La mappa della campagna '{data.MapId}' è cambiata: {map.Width}×{map.Height} invece di "
                 + $"{data.MapWidth}×{data.MapHeight}.");
         }

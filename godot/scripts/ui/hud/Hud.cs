@@ -281,6 +281,9 @@ public partial class Hud : Control
     /// <summary>The last toast text (playtests).</summary>
     internal string? ToastText => _toastLabel?.Text;
 
+    /// <summary>The info strip's name line, the "?" tooltip and the funds tooltip as shown (playtests).</summary>
+    internal (string Strip, string Detail, string Funds) InfoTexts => (_info.StripName, _info.DetailTooltip, _core.FundsTooltip);
+
     public void ShowToast(string message)
     {
         if (_toastLabel is null)

@@ -100,7 +100,7 @@ public partial class World
             _siteTipKey = (site.Id, missing);
             _siteTipText = Testi.F("cantiere.mancano", missing.ItemId is null
                 ? $"${missing.Amount}"
-                : $"{missing.Amount} {Testi.Oggetto(missing.ItemId, _view.Content)}");
+                : $"{missing.Amount}× {Testi.Oggetto(missing.ItemId, _view.Content)}");
         }
 
         _hud.SetSiteTooltip(_siteTipText, _hoverScreen);

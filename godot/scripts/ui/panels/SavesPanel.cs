@@ -272,6 +272,9 @@ public partial class SavesPanel : Control
     /// <summary>Display name of a campaign map file (the level that uses it); the id itself when unset or unknown.</summary>
     public Func<string, string?>? MapName { get; set; }
 
+    /// <summary>Display name of a campaign level by id; the id itself when unset or unknown.</summary>
+    public Func<string, string?>? LevelName { get; set; }
+
     private string FormatRow(SaveSlotInfo slot)
     {
         var when = slot.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
@@ -288,7 +291,9 @@ public partial class SavesPanel : Control
     /// </summary>
     private string FormatMap(SaveSlotInfo slot)
     {
-        var level = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId) ? "" : $" · {slot.ActiveCampaignLevelId}";
+        var level = string.IsNullOrWhiteSpace(slot.ActiveCampaignLevelId)
+            ? ""
+            : $" · {LevelName?.Invoke(slot.ActiveCampaignLevelId) ?? slot.ActiveCampaignLevelId}";
         if (slot.Generator == FactorySaveData.CampaignGenerator && !string.IsNullOrWhiteSpace(slot.MapId))
         {
             return Testi.F("salvataggi.mappa.campagna", MapName?.Invoke(slot.MapId) ?? slot.MapId, slot.MapWidth, slot.MapHeight);

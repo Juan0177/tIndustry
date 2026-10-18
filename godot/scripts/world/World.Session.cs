@@ -105,6 +105,14 @@ public partial class World
         }
     }
 
+    /// <summary>Translated name of the campaign level that uses map <paramref name="mapId"/>, or null.</summary>
+    private string? CampaignMapName(string mapId) =>
+        _campaign?.Levels.FirstOrDefault(l => l.Map == mapId) is { } level ? Testi.LivelloNome(level) : null;
+
+    /// <summary>Translated name of campaign level <paramref name="levelId"/>, or null.</summary>
+    private string? CampaignLevelName(string levelId) =>
+        _campaign?.Levels.FirstOrDefault(l => l.Id == levelId) is { } level ? Testi.LivelloNome(level) : null;
+
     /// <summary>Map edge of a save slot, reading only that slot's file (0 when unknown).</summary>
     private static int SlotMapEdge(string slotId) =>
         FactorySaveStore.ReadSlotInfo(slotId) is { } slot
@@ -125,8 +133,9 @@ public partial class World
         }
         catch (Exception ex)
         {
+            // The detail goes to the log only: the player gets the translated line.
             GD.PushError($"Caricamento della mappa non riuscito: {ex}");
-            showError(Testi.F("mappa.errore.caricamento", ex.Message));
+            showError(Testi.T("mappa.errore.caricamento"));
         }
     }
 
@@ -265,8 +274,8 @@ public partial class World
         }
         catch (Exception ex)
         {
-            GD.Print($"Campaign map failed: {ex.Message}");
-            return Testi.F("mappa.errore.livello", Testi.LivelloNome(level), ex.Message);
+            GD.PushWarning($"Campaign map failed: {ex.Message}");
+            return Testi.F("mappa.errore.livello", Testi.LivelloNome(level));
         }
 
         AttachGame(factory);
@@ -490,11 +499,11 @@ public partial class World
     private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
     {
         SimHost? loaded = null;
-        string? error = null;
+        SaveLoadFailure? failure = null;
         try
         {
             var content = FactoryContent.Load(_contentPath);
-            if (!FactorySaveStore.TryLoad(content, slotId, out loaded, out error, ResolveMapsPath()))
+            if (!FactorySaveStore.TryLoadSlot(content, slotId, out loaded, out failure, ResolveMapsPath()))
             {
                 loaded = null;
             }
@@ -503,19 +512,22 @@ public partial class World
         {
             GD.PushError($"Load failed: {ex.Message}");
             loaded = null;
-            error = FactorySaveStore.UnreadableMessage;
+            failure = new SaveLoadFailure(SaveLoadError.Unreadable, null, ex.Message);
         }
 
         if (loaded is null)
         {
             if (!quietFail)
             {
-                // Incompatible (older) saves explain themselves; the current game is left untouched.
-                var message = error is null
+                // Every failure says why (older version, campaign map missing or changed…); the detail goes to the log.
+                if (failure is not null)
+                {
+                    GD.Print($"Load of {slotId} refused: {failure.Code} · {failure.Detail}");
+                }
+
+                var message = failure is null
                     ? Testi.F("salvataggi.errore.nessuno", slotId)
-                    : Testi.T(error == FactorySaveStore.OlderVersionMessage
-                        ? "salvataggi.errore.versione"
-                        : "salvataggi.errore.illeggibile");
+                    : Testi.Salvataggio(failure, CampaignMapName);
                 _hud?.ShowToast(message);
                 showOnPanel?.Invoke(message);
             }

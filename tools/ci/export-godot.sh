@@ -34,6 +34,10 @@ mkdir -p dist/godot-win dist/godot-linux
 
 # Import once so .godot cache is warm (ignore exit if already imported).
 "${GODOT_BIN}" --headless --path godot --import || true
+# The import makes the translations of godot/lingue/testi.csv: without them the game would show keys.
+for f in godot/lingue/testi.it.translation godot/lingue/testi.en.translation; do
+  test -f "$f" || { echo "export-godot: $f missing after --import" >&2; exit 1; }
+done
 
 "${GODOT_BIN}" --headless --path godot \
   --export-release "Windows Desktop" "${ROOT}/dist/godot-win/tIndustry.exe"

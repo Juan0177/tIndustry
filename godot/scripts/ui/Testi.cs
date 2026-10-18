@@ -123,6 +123,29 @@ public static class Testi
         return string.Join(" · ", parts);
     }
 
+    /// <summary>"2.5 s" in English, "2,5 s" in Italian: the decimal mark of the chosen language, not of the system.</summary>
+    public static string Secondi(double seconds)
+    {
+        var text = seconds.ToString("0.#", CultureInfo.InvariantCulture);
+        return (TranslationServer.GetLocale().StartsWith("it", StringComparison.Ordinal) ? text.Replace('.', ',') : text) + " s";
+    }
+
+    /// <summary>
+    /// Why a save did not load: key <c>salvataggi.errore.&lt;Code&gt;</c> with the map, level or generator it is about.
+    /// <paramref name="mapName"/> gives the name of the level that uses a campaign map (the map id when there is none).
+    /// </summary>
+    public static string Salvataggio(SaveLoadFailure failure, Func<string, string?>? mapName = null)
+    {
+        var argument = failure.Argument ?? "";
+        if (failure.Code is SaveLoadError.MapsFolderMissing or SaveLoadError.CampaignMapMissing
+            or SaveLoadError.CampaignMapChanged or SaveLoadError.CampaignMapBadName)
+        {
+            argument = mapName?.Invoke(argument) ?? argument;
+        }
+
+        return F($"salvataggi.errore.{failure.Code}", argument);
+    }
+
     /// <summary>Text of a refusal: key <c>rifiuto.&lt;Code&gt;</c>, filled with its arguments.</summary>
     public static string Rifiuto(Refusal refusal, IGameView? view = null)
     {

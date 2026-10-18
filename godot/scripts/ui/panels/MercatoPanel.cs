@@ -9,8 +9,11 @@ public partial class MercatoPanel : Control
     private IGameView? _view;
     private Action<SimCommand>? _submit;
     private Func<IReadOnlyList<SimCommand>>? _pendingCommands;
-    // Sales submitted and not yet answered, in order: (amount, name) at click time.
-    private readonly Queue<(int Amount, string Name)> _pendingSales = new();
+    // Sales submitted and not yet answered, in order: (amount, item id) at click time.
+    private readonly Queue<(int Amount, string ItemId)> _pendingSales = new();
+
+    // The status line is kept as a function so a new language writes it again.
+    private Func<string>? _status;
     private VBoxContainer? _list;
     private Label? _walletLabel;
     private Label? _hintLabel;
@@ -93,23 +96,17 @@ public partial class MercatoPanel : Control
         switch (command)
         {
             case SetAutoSell:
-                if (_statusLabel is not null)
-                {
-                    _statusLabel.Text = _view.AutoSellAtCore
-                        ? "mercato.auto.attivata"
-                        : "mercato.auto.disattivata";
-                }
+                var on = _view.AutoSellAtCore;
+                SetStatus(() => Testi.T(on ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
 
                 SyncAutoSellToggle();
                 RefreshAutoSellHint();
                 AutoSellChanged?.Invoke();
                 break;
             case Sell when _pendingSales.Count > 0:
-                var (amount, name) = _pendingSales.Dequeue();
-                if (_statusLabel is not null)
-                {
-                    _statusLabel.Text = Testi.F("mercato.venduti", amount, name, moneyDelta);
-                }
+                var (amount, itemId) = _pendingSales.Dequeue();
+                var content = _view.Content;
+                SetStatus(() => Testi.F("mercato.venduti", amount, Testi.Oggetto(itemId, content), moneyDelta));
 
                 SoldChanged?.Invoke();
                 Refresh();
@@ -125,11 +122,24 @@ public partial class MercatoPanel : Control
             _pendingSales.Dequeue();
         }
 
-        if (command is Sell or SetAutoSell && _statusLabel is not null)
+        if (command is Sell or SetAutoSell)
         {
-            _statusLabel.Text = Testi.Rifiuto(reason, _view);
+            var view = _view;
+            SetStatus(() => Testi.Rifiuto(reason, view));
         }
     }
+
+    private void SetStatus(Func<string>? status)
+    {
+        _status = status;
+        if (_statusLabel is not null)
+        {
+            _statusLabel.Text = status?.Invoke() ?? "";
+        }
+    }
+
+    /// <summary>The status line as shown (playtests).</summary>
+    internal string StatusText => _statusLabel?.Text ?? "";
 
     private void RefreshAutoSellHint()
     {
@@ -145,8 +155,14 @@ public partial class MercatoPanel : Control
 
     public override void _Notification(int what)
     {
-        // New language: rows, hints and tooltips are written again.
-        if (what == NotificationTranslationChanged && Visible)
+        // New language: the status line (also while closed), rows, hints and tooltips are written again.
+        if (what != NotificationTranslationChanged)
+        {
+            return;
+        }
+
+        SetStatus(_status);
+        if (Visible)
         {
             Refresh();
         }
@@ -434,7 +450,7 @@ public partial class MercatoPanel : Control
             return;
         }
 
-        _pendingSales.Enqueue((amount, Testi.Oggetto(itemId, _view.Content)));
+        _pendingSales.Enqueue((amount, itemId));
         _submit(new Sell(0, itemId, amount));
     }
 }

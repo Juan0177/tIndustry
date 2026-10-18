@@ -261,9 +261,8 @@ public partial class World
         _saves.SlotLoadRequested += slotId => RunMapTask(() => OnSavesSlotLoadAsync(slotId), m => _saves?.ShowStatus(m));
         _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
-        _saves.MapName = mapId => _campaign?.Levels.FirstOrDefault(l => l.Map == mapId) is { } level
-            ? Testi.LivelloNome(level)
-            : null;
+        _saves.MapName = CampaignMapName;
+        _saves.LevelName = CampaignLevelName;
     }
 
     private void OpenSavesManager()

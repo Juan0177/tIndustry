@@ -125,6 +125,9 @@ public partial class CorePanel : VBoxContainer
         _wallet = wallet;
     }
 
+    /// <summary>The funds tooltip as shown (playtests).</summary>
+    internal string FundsTooltip => Testi.T(_moneyLabel?.TooltipText ?? "");
+
     /// <summary>Count from the last <see cref="UpdateStock"/> (fallback when no wallet is bound).</summary>
     public int StockCount(string itemId) => _stockCounts.TryGetValue(itemId, out var c) ? c : 0;
 
@@ -346,7 +349,7 @@ public partial class CorePanel : VBoxContainer
         vbox.AddChild(head);
         head.AddChild(MakeIcon(ItemTexture("money"), 20));
         _moneyLabel = MakeLabel("$0", UiTheme.TestoDenaro);
-        _moneyLabel.TooltipText = Testi.T("core.fondi");
+        _moneyLabel.TooltipText = "core.fondi";
         _moneyLabel.MouseFilter = MouseFilterEnum.Pass;
         head.AddChild(_moneyLabel);
         head.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });

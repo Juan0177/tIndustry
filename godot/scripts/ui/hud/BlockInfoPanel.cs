@@ -16,6 +16,7 @@ public partial class BlockInfoPanel : Control
 
     private PanelContainer? _infoPanel;
     private Label? _infoName;
+    private Control? _detailButton;
     private Label? _infoHotkey;
     private HBoxContainer? _infoCostRow;
     private PanelContainer? _detailOverlay;
@@ -23,9 +24,15 @@ public partial class BlockInfoPanel : Control
     private FactoryContent? _content;
     private IWalletView? _wallet;
     private ToolKind? _detailFocus;
+    private (ToolKind? Focus, bool Locked) _shown;
 
     /// <summary>The "?" button was clicked; the HUD answers with <see cref="OpenDetail"/>.</summary>
     public event Action? DetailRequested;
+
+    /// <summary>The strip's name line and the "?" tooltip as shown (playtests).</summary>
+    internal string StripName => _infoName?.Text ?? "";
+
+    internal string DetailTooltip => Testi.T(_detailButton?.TooltipText ?? "");
 
     /// <summary>Last shown stock and funds, used for costs when no wallet is bound.</summary>
     public CorePanel? Stock { get; set; }
@@ -63,10 +70,11 @@ public partial class BlockInfoPanel : Control
         {
             CustomMinimumSize = new Vector2(28, 28),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = Testi.T("blocco.dettaglio"),
+            TooltipText = "blocco.dettaglio",
             ThemeTypeVariation = UiTheme.Slot
         };
         header.AddChild(infoBtn);
+        _detailButton = infoBtn;
         var infoCenter = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         infoBtn.AddChild(infoCenter);
         var q = MakeLabel("?", UiTheme.TestoAccento);
@@ -95,6 +103,7 @@ public partial class BlockInfoPanel : Control
     /// <summary>Fill the strip for <paramref name="focus"/>, or empty it when null / not a palette block.</summary>
     public void Show(ToolKind? focus, bool locked)
     {
+        _shown = (focus, locked);
         if (_infoPanel is null || _infoName is null || _infoCostRow is null)
         {
             return;
@@ -229,8 +238,14 @@ public partial class BlockInfoPanel : Control
 
     public override void _Notification(int what)
     {
-        // New language: the open detail is written again.
-        if (what == NotificationTranslationChanged && _detailOverlay is { Visible: true } && _detailFocus is { } focus)
+        if (what != NotificationTranslationChanged)
+        {
+            return;
+        }
+
+        // New language: the strip and the open detail are written again.
+        Show(_shown.Focus, _shown.Locked);
+        if (_detailOverlay is { Visible: true } && _detailFocus is { } focus)
         {
             OpenDetail(focus);
         }
@@ -308,6 +323,6 @@ public partial class BlockInfoPanel : Control
             string.Join("+", list.Select(a =>
                 $"{a.Amount}×{Testi.Oggetto(a.ItemId, _content)}"));
 
-        return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({recipe.DurationSeconds:0.#}s)";
+        return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
     }
 }

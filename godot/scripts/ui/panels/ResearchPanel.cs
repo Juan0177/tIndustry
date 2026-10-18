@@ -540,7 +540,7 @@ public partial class ResearchPanel : Control
             string.Join(" + ", list.Select(a => $"{a.Amount}× {Testi.Oggetto(a.ItemId, content)}"));
 
         return Testi.F("ricerca.uso", hint)
-            + $"\nI/O: {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({recipe.DurationSeconds.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}s)";
+            + $"\nI/O: {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
     }
 
     private static string FormatBuildCost(string structureId, FactoryContent content)
@@ -589,7 +589,7 @@ public partial class ResearchPanel : Control
         }
 
         var materials = string.Join(" + ",
-            unlock.Materials.Select(entry => $"{entry.Amount} {Testi.Oggetto(entry.ItemId, content)}"));
+            unlock.Materials.Select(entry => $"{entry.Amount}× {Testi.Oggetto(entry.ItemId, content)}"));
         return materials.Length == 0
             ? $"${unlock.Money}"
             : $"${unlock.Money} + {materials}";
@@ -618,7 +618,7 @@ public partial class ResearchPanel : Control
             var have = factory.Wallet.MaterialCount(entry.ItemId);
             if (have < entry.Amount)
             {
-                missing.Add($"{entry.Amount - have} {Testi.Oggetto(entry.ItemId, factory.Content)}");
+                missing.Add($"{entry.Amount - have}× {Testi.Oggetto(entry.ItemId, factory.Content)}");
             }
         }
 

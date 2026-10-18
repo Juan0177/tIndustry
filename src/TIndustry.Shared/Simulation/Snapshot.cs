@@ -34,7 +34,7 @@ public static class Snapshot
     /// State of a snapshot of version <see cref="FactorySaveData.MinReadableVersion"/> to
     /// <see cref="FactorySaveData.CurrentVersion"/>; <paramref name="mapsDirectory"/> is needed by campaign maps.
     /// </summary>
-    /// <exception cref="SaveMapException">The terrain cannot be rebuilt (Italian text for the player).</exception>
+    /// <exception cref="SaveMapException">The terrain cannot be rebuilt (code, argument and Italian detail).</exception>
     public static GameState Read(FactoryContent content, byte[] data, string? mapsDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(content);

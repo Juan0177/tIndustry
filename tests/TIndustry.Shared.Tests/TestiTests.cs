@@ -93,6 +93,11 @@ public class TestiTests
             Need($"rifiuto.{code}");
         }
 
+        foreach (var code in Enum.GetValues<SaveLoadError>())
+        {
+            Need($"salvataggi.errore.{code}");
+        }
+
         Assert.Empty(missing);
     }
 
@@ -109,6 +114,39 @@ public class TestiTests
         foreach (var item in content.Market)
         {
             Assert.Equal(item.DisplayName, Csv.Value[$"oggetto.{item.ItemId}.nome"].It);
+        }
+
+        // Campaign texts too: objectives are keyed by their place in the level (campaign.json gives them no id), so
+        // reordering or rewording them in the data without the CSV fails here.
+        var campaign = CampaignCatalog.Load(Path.Combine(Root, "data", "campaign.json"));
+        foreach (var level in campaign.Levels)
+        {
+            Assert.Equal(level.Name, Csv.Value[$"campagna.{level.Id}.nome"].It);
+            Assert.Equal(level.Description, Csv.Value[$"campagna.{level.Id}.descrizione"].It);
+            var objectives = level.Objectives ?? [];
+            for (var i = 0; i < objectives.Count; i++)
+            {
+                Assert.Equal(objectives[i].Label, Csv.Value[$"obiettivo.{level.Id}.{i + 1}"].It);
+            }
+
+            Assert.False(Csv.Value.ContainsKey($"obiettivo.{level.Id}.{objectives.Count + 1}"),
+                $"{level.Id}: il CSV ha più obiettivi del livello");
+        }
+    }
+
+    [Fact]
+    public void EveryTextSurvivesStringFormatWithItsArguments()
+    {
+        foreach (var (key, (it, en)) in Csv.Value)
+        {
+            foreach (var text in new[] { it, en })
+            {
+                var count = Placeholders(text).Select(p => int.Parse(p[1..^1], System.Globalization.CultureInfo.InvariantCulture) + 1)
+                    .DefaultIfEmpty(0).Max();
+                var args = Enumerable.Repeat<object?>("x", count).ToArray();
+                var ex = Record.Exception(() => string.Format(System.Globalization.CultureInfo.InvariantCulture, text, args));
+                Assert.True(ex is null, $"{key}: «{text}» non regge string.Format ({ex?.Message})");
+            }
         }
     }
 
