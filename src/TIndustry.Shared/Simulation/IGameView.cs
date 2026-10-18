@@ -154,4 +154,7 @@ public interface IGameView
     IReadOnlyList<GridPosition> Footprint(BuildSpec spec);
 
     bool IsBuildingTile(GridPosition tile);
+
+    /// <summary>The spec and entity id of what stands on <paramref name="tile"/> (see <see cref="Factory.TryGetSpecAt"/>).</summary>
+    bool TryGetSpecAt(GridPosition tile, out BuildSpec spec, out long entityId);
 }
