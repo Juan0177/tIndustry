@@ -15,6 +15,7 @@ public partial class SmelterVisual : Node2D
     private Texture2D[] _frames = [];
     private float _clock;
     private float _pulse;
+    private float _phase; // pulse offset from the origin cell, so neighbouring smelters do not flicker together
     public GridPosition Origin { get; private set; }
 
     public static SmelterVisual Create(Crafter sm, int tileSize)
@@ -23,8 +24,10 @@ public partial class SmelterVisual : Node2D
         {
             Name = $"Smelter_{sm.Position.X}_{sm.Position.Y}",
             ZIndex = 3,
-            Origin = sm.Position
+            Origin = sm.Position,
+            _clock = BuildingPad.Phase(sm.Position)
         };
+        root._phase = root._clock * 3.6f;
         root.AddChild(BuildingPad.Layer("Base", Sprites.For("smelter-base"), Crafter.Size, tileSize, 0));
         root._frames = Sprites.Frames("smelter-glow");
         root._glow = BuildingPad.Layer("Glow", root._frames[0], Crafter.Size, tileSize, 1);
@@ -52,7 +55,7 @@ public partial class SmelterVisual : Node2D
         _clock += delta;
         _glow.Texture = _frames[(int)(_clock * GlowFramesPerSecond) % _frames.Length];
         _pulse += delta * 3.6f;
-        var wave = 0.5f + 0.5f * Mathf.Sin(_pulse);
+        var wave = 0.5f + 0.5f * Mathf.Sin(_pulse + _phase);
         var light = 0.85f + 0.3f * wave;
         _glow.Modulate = new Color(light, light, light, 0.8f + 0.2f * wave);
     }

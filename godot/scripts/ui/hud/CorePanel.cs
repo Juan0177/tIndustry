@@ -60,10 +60,10 @@ public partial class CorePanel : VBoxContainer
         var menuRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         menuRow.AddThemeConstantOverride("separation", 4);
         AddChild(menuRow);
-        AddMenuButton(menuRow, "res://assets/ui/menu.png", "Menu", "Esc", () => MenuRequested?.Invoke());
-        AddMenuButton(menuRow, "res://assets/ui/research.png", "Ricerca", "T", () => ResearchRequested?.Invoke());
-        AddMenuButton(menuRow, "res://assets/ui/sell.png", "Mercato", "M", () => MercatoRequested?.Invoke());
-        AddMenuButton(menuRow, "res://assets/core-1.png", "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
+        AddMenuButton(menuRow, UiIcon("res://assets/ui/menu.png"), "Menu", "Esc", () => MenuRequested?.Invoke());
+        AddMenuButton(menuRow, UiIcon("res://assets/ui/research.png"), "Ricerca", "T", () => ResearchRequested?.Invoke());
+        AddMenuButton(menuRow, UiIcon("res://assets/ui/sell.png"), "Mercato", "M", () => MercatoRequested?.Invoke());
+        AddMenuButton(menuRow, Sprites.For("core-1"), "Campagna", "G", () => CampaignRequested?.Invoke(), tintIcon: false);
 
         BuildCorePanel();
         if (_belowStock is not null)
@@ -277,12 +277,14 @@ public partial class CorePanel : VBoxContainer
         }
     }
 
-    private static void AddMenuButton(Control parent, string texPath, string label, string hotkey, Action onClick, bool tintIcon = true)
+    private static Texture2D? UiIcon(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+
+    private static void AddMenuButton(Control parent, Texture2D? icon, string label, string hotkey, Action onClick, bool tintIcon = true)
     {
         var button = new Button
         {
             Text = label,
-            Icon = ResourceLoader.Exists(texPath) ? GD.Load<Texture2D>(texPath) : null,
+            Icon = icon,
             FocusMode = FocusModeEnum.None,
             TooltipText = $"{label} ({hotkey})",
             MouseDefaultCursorShape = CursorShape.PointingHand,

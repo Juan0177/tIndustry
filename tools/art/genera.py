@@ -19,6 +19,8 @@ REPO = os.path.abspath(os.path.join(ART_DIR, "..", ".."))
 if ART_DIR not in sys.path:
     sys.path.insert(0, ART_DIR)
 
+from PIL import Image  # noqa: E402
+
 from blocchi import SPRITE  # noqa: E402
 from tavola import tavola  # noqa: E402
 
@@ -67,8 +69,14 @@ def main(out_dir="godot/assets", tavola_dir=".dev/arte", solo=None):
     return nomi
 
 
-def controlla(out_dir="godot/assets", solo=None):
-    """Names whose PNG in out_dir is missing or differs from a fresh generation."""
+def _pixel(path):
+    with Image.open(path) as im:
+        return im.size, im.convert("RGBA").tobytes()
+
+
+def controlla(out_dir="godot/assets", solo=None, pixel=False):
+    """Names whose PNG in out_dir is missing or differs from a fresh generation: same bytes, or with
+    `pixel` the same size and RGBA pixels (the PNG encoder may differ between platforms or Pillow builds)."""
     out_dir = _assoluto(out_dir)
     nomi = _nomi(solo)
     diversi = []
@@ -79,7 +87,12 @@ def controlla(out_dir="godot/assets", solo=None):
             if not os.path.exists(attuale):
                 diversi.append(nome)
                 continue
-            with open(attuale, "rb") as a, open(os.path.join(nuovi, nome + ".png"), "rb") as b:
+            nuovo = os.path.join(nuovi, nome + ".png")
+            if pixel:
+                if _pixel(attuale) != _pixel(nuovo):
+                    diversi.append(nome)
+                continue
+            with open(attuale, "rb") as a, open(nuovo, "rb") as b:
                 if a.read() != b.read():
                     diversi.append(nome)
     return diversi
@@ -90,9 +103,11 @@ def _cli(argv):
     parser.add_argument("--solo", nargs="+", metavar="NOME", help="genera solo questi sprite")
     parser.add_argument("--controlla", action="store_true",
                         help="non scrive niente; esce con 1 se godot/assets non è aggiornata")
+    parser.add_argument("--pixel", action="store_true",
+                        help="con --controlla confronta misura e pixel invece dei byte (CI, altri sistemi)")
     args = parser.parse_args(argv)
     if args.controlla:
-        diversi = controlla(solo=args.solo)
+        diversi = controlla(solo=args.solo, pixel=args.pixel)
         for nome in diversi:
             print(f"diverso o mancante: {nome}.png")
         print(f"{len(_nomi(args.solo)) - len(diversi)} sprite aggiornati, {len(diversi)} da rigenerare")

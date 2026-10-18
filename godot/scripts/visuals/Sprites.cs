@@ -49,8 +49,22 @@ public static class Sprites
     /// <summary>Large item icon (HUD, panels).</summary>
     public static Texture2D Item(string itemId) => For(itemId);
 
-    /// <summary>Small item sprite drawn on belts; falls back to the large icon.</summary>
-    public static Texture2D BeltItem(string itemId) => TryFor(itemId + "-belt") ?? Item(itemId);
+    /// <summary>Small item sprite drawn on belts; falls back to the large icon (and a warning).</summary>
+    public static Texture2D BeltItem(string itemId)
+    {
+        var id = itemId + "-belt";
+        if (TryFor(id) is { } tex)
+        {
+            return tex;
+        }
+
+        if (Warned.Add(id))
+        {
+            GD.PushWarning($"Sprites: manca res://assets/{id}.png, uso l'icona grande");
+        }
+
+        return Item(itemId);
+    }
 
     /// <summary>Frames of the <c>{id}-anim.png</c> strip: square frames, side = strip height.</summary>
     public static Texture2D[] Frames(string id)

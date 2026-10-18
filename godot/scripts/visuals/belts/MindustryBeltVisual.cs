@@ -6,22 +6,40 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Builds the belt visuals of a placeable <see cref="BeltGrid"/>: one sprite per straight cell, one per
 /// corner, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
-/// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step.
+/// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step:
+/// every cell of a tier draws the same <see cref="AtlasTexture"/> (one for straights, one for corners), and a
+/// frame change moves only that texture's region, once per tier, whatever the number of cells.
 /// </summary>
 public partial class MindustryBeltVisual : Node2D
 {
     public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
     /// <summary>Animation state of one belt tier, kept across rebuilds so placing a belt does not reset the others.</summary>
-    private sealed class TierClock(Texture2D[] straight, Texture2D[] corner, float rateCellsPerSecond)
+    private sealed class TierClock(string id, float rateCellsPerSecond)
     {
-        public readonly Texture2D[] Straight = straight;
-        public readonly Texture2D[] Corner = corner;
+        public readonly SharedStrip Straight = new(id);
+        public readonly SharedStrip Corner = new(id + "-corner");
         public readonly float Rate = rateCellsPerSecond;
-        public readonly List<Sprite2D> StraightCells = [];
-        public readonly List<Sprite2D> CornerCells = [];
         public float Scroll;
         public int Frame;
+    }
+
+    /// <summary>One window on a <c>{id}-anim</c> strip (square frames), shared by every cell that shows it.</summary>
+    private sealed class SharedStrip
+    {
+        private readonly int _side;
+        private readonly int _count;
+        public readonly AtlasTexture Texture;
+
+        public SharedStrip(string id)
+        {
+            var strip = Sprites.For(id + "-anim");
+            _side = strip.GetHeight();
+            _count = Math.Max(1, strip.GetWidth() / _side);
+            Texture = new AtlasTexture { Atlas = strip, Region = new Rect2(0, 0, _side, _side) };
+        }
+
+        public void Show(int frame) => Texture.Region = new Rect2(frame % _count * _side, 0, _side, _side);
     }
 
     private readonly Dictionary<string, TierClock> _tiers = new(StringComparer.Ordinal);
@@ -71,15 +89,8 @@ public partial class MindustryBeltVisual : Node2D
             }
 
             clock.Frame = frame;
-            foreach (var sprite in clock.StraightCells)
-            {
-                sprite.Texture = clock.Straight[frame % clock.Straight.Length];
-            }
-
-            foreach (var sprite in clock.CornerCells)
-            {
-                sprite.Texture = clock.Corner[frame % clock.Corner.Length];
-            }
+            clock.Straight.Show(frame);
+            clock.Corner.Show(frame);
         }
     }
 
@@ -89,26 +100,21 @@ public partial class MindustryBeltVisual : Node2D
         if (view.IsBeltCorner(pos) && view.TryGetBeltIncomingDirection(pos, out var incoming))
         {
             var corner = new BeltCornerTile { Name = $"Corner_{pos.X}_{pos.Y}" };
-            corner.Configure(pos, incoming, cell.Direction, tileSize, clock.Corner[clock.Frame % clock.Corner.Length]);
+            corner.Configure(pos, incoming, cell.Direction, tileSize, clock.Corner.Texture);
             AddChild(corner);
-            clock.CornerCells.Add(corner);
             return;
         }
 
         var straight = new ScrollingBeltStrip { Name = $"Belt_{pos.X}_{pos.Y}" };
-        straight.Configure(pos, cell.Direction, tileSize, clock.Straight[clock.Frame % clock.Straight.Length]);
+        straight.Configure(pos, cell.Direction, tileSize, clock.Straight.Texture);
         AddChild(straight);
-        clock.StraightCells.Add(straight);
     }
 
     private TierClock ClockFor(ConveyorDefinition definition)
     {
         if (!_tiers.TryGetValue(definition.Id, out var clock))
         {
-            clock = new TierClock(
-                Sprites.Frames(definition.Id),
-                Sprites.Frames(definition.Id + "-corner"),
-                Math.Max(0.05f, definition.RateItemsPerSecond));
+            clock = new TierClock(definition.Id, Math.Max(0.05f, definition.RateItemsPerSecond));
             _tiers[definition.Id] = clock;
         }
 
@@ -120,12 +126,6 @@ public partial class MindustryBeltVisual : Node2D
         foreach (var child in GetChildren())
         {
             child.QueueFree();
-        }
-
-        foreach (var clock in _tiers.Values)
-        {
-            clock.StraightCells.Clear();
-            clock.CornerCells.Clear();
         }
     }
 

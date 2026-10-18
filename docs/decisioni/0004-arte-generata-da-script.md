@@ -1,0 +1,54 @@
+# 0004 — Arte generata da script
+
+**Stato:** accettata, 2026-10-18
+
+## Contesto
+
+Fino al sotto-progetto 3 edifici e oggetti usavano icone di terze parti (game-icons.net, Kenney) e qualche sprite disegnato da un vecchio script (`tools/gen_structure_blocks.py`), a 64 px, tinti a runtime e senza uno stile comune. La scelta di prodotto è una **pixel-art originale in stile Mindustry**, senza file di Mindustry e senza cambiare licenza ([decisioni](../decisioni.md)). Serviva decidere come produrla in modo ripetibile, con quali regole, e come il client la trova.
+
+Specifica: [2026-10-18-g1-arte-blocchi-design](../superpowers/specs/2026-10-18-g1-arte-blocchi-design.md). Piano: [2026-10-18-g1-arte-blocchi](../superpowers/plans/2026-10-18-g1-arte-blocchi.md).
+
+## Opzioni
+
+1. **Generatore Python del progetto** (approccio A della specifica). Tavolozza e forme comuni in codice, uno sprite = una funzione. Ripetibile, rivedibile come codice, ogni cambio di tavolozza si propaga a tutto.
+2. **Pixel-art disegnata a mano** in un editor (Aseprite o simili). Più libertà, ma ogni ritocco è un file binario senza storia leggibile e la coerenza dipende da chi disegna.
+3. **Asset di terzi** (pacchi CC0 o lo stile di Mindustry ricalcato). Veloce, ma non è arte nostra e non ha lo stile voluto; i file di Mindustry sono esclusi.
+
+## Decisione
+
+**Tutti gli sprite di edifici, logistica, Core, drone e oggetti escono da `python tools/art/genera.py`** (Python e Pillow, nessun asset di terzi, nessun file di Mindustry). I PNG in `godot/assets/` non si modificano a mano: si cambia lo script e si rigenera. Le icone dell'interfaccia (`godot/assets/ui/`) restano di terzi fino alla G4.
+
+- **Misure.** 32 px per cella del blocco, mostrati ×2 nel mondo (cella da 64 px) con filtro Nearest. Oggetti: `<id>.png` 32×32 per HUD e pannelli, `<id>-belt.png` 10×10 per i nastri (disegnato ×2, circa 20 px).
+- **Tavolozza e luce.** Ogni colore sta in `tools/art/palette.py`, in rampe da scuro a chiaro di 4–6 toni (test). La luce viene sempre da in alto a sinistra: bordi illuminati con la parte alta della rampa, bordi in ombra con quella bassa. Ogni forma ha un contorno scuro (`OUT`). I colori piatti degli oggetti in `ItemVisualColors` (punto del filtro dell'estrattore, giacimenti, terreno sotto i minatori) seguono le rampe degli oggetti, così marcatori e sprite coincidono.
+- **Nomi.** Il nome del file è l'id di `data/content.json`. Le parti hanno un suffisso (`miner-base`, `miner-drill`, `smelter-glow`, `assembler-arm`, `generator-rotor`, `miner-advanced-lamp`…); le animazioni sono strisce orizzontali `<id>-anim.png` di fotogrammi **quadrati** (lato = altezza), perché il client le taglia a quadrati. Tier: `core-1…4`, `drone-1…3`.
+- **Un solo punto d'accesso nel client.** `Sprites` (`godot/scripts/visuals/Sprites.cs`): `For`, `TryFor`, `Item`, `BeltItem`, `Frames`. Uno sprite mancante diventa un riquadro magenta con un avviso, mai un crash; un `-belt.png` mancante ripiega sull'icona grande con un avviso.
+- **Edifici a strati.** Base ferma più parti mosse dal client: trivella che gira (8 fotogrammi), bocca del forno accesa (4), rotore del generatore (4), bracci dell'assemblatore che scorrono sui binari (uno sprite, il destro specchiato; chiusi, le facce della pressa si toccano), lampada del minatore avanzato. L'icona composta `<id>.png` = base + primo fotogramma, ed è quella di palette, coda e cantieri.
+- **Nastri.** 8 fotogrammi che avanzano di 4 px ciascuno (ciclo senza cucitura, curve raccordate ai dritti, test); ogni tier scorre alla sua velocità, legata agli oggetti al secondo del nastro, come in Mindustry. Tutte le celle di un tier disegnano la stessa `AtlasTexture` (una per i dritti, una per le curve): a ogni cambio di fotogramma si sposta solo la sua regione, una volta per tier, qualunque sia il numero di celle. La campata del ponte è una texture ripetuta alta 22 px (44 px nel mondo, circa 0,70 della cella).
+- **Fase delle animazioni.** Trivelle, bocche dei forni, rotori e luce del Core partono da una fase ricavata dalla cella d'origine del blocco (`BuildingPad.Phase`), così blocchi vicini non girano all'unisono e una ricostruzione dei visual non li rimette in passo. Nei playtest la fase è 0 e gli screenshot restano deterministici.
+- **Core in 4 tier**, da 2×2 a 5×5, una sola famiglia sempre più grande, con una striscia di luce lenta sul nucleo (`core-<n>-light-anim`, 4 fotogrammi opachi sopra il nucleo: lo sostituiscono, non lo raddoppiano). In partita c'è solo `core-1` fino al sotto-progetto 4; `core-1` è anche l'icona della Ricerca.
+- **Drone in 3 tier**: alpha, beta, gamma (`drone-1…3`, 24, 28 e 32 px), visti dall'alto col muso verso Est, sagome diverse. Oggi si usa alpha.
+- **Oggetti senza tinta.** Ogni oggetto ha il suo sprite a colori, opaco e con contorno chiuso; il client non applica più `Modulate` né sagome calcolate.
+- **Deterministico.** Niente `random` senza seme, niente date o metadati nei PNG: due esecuzioni danno gli stessi byte. `genera.py --controlla` confronta i byte di `godot/assets/` con una generazione fresca.
+
+### Scelte prese durante l'attuazione
+
+- **Nastri a 8 fotogrammi da 4 px** invece dei 4 da 8 px del piano: a velocità T1 i 4 fotogrammi scattavano a vista.
+- **Velocità di scorrimento per tier** (dal ritmo del nastro), non una sola per tutti.
+- **Fotogrammi sempre quadrati.** Il registro non accetta più una larghezza di fotogramma diversa dall'altezza; il test delle misure lo controlla e rifiuta ogni nome che non sia un oggetto, un drone o un blocco noto (tabella `CELLE` tenuta a mano accanto a `Factory.FootprintSize`).
+- **Luce del Core ferma nei playtest.** La luce segue un orologio del mondo che sopravvive alle ricostruzioni della grafica; con `TINDUSTRY_PLAYTEST` resta sul primo fotogramma, così gli screenshot sono stabili senza maschere.
+- **Rotore del generatore** che si ferma dove si trova quando finisce il combustibile, senza tornare a zero.
+- **`core.png` eliminato**: era una copia di `core-1` non usata dal client.
+- **Piombo verso il blu-violetto**: a 10 px minerale di ferro e di piombo sui nastri erano troppo simili. `ItemVisualColors` (piombo e lastra, con i contorni) segue la rampa nuova.
+- **Contrasto sui nastri.** Carbone (sul nastro base scuro) e titanio (sulle frecce ciano dell'express) hanno nello sprite da 10 px il contorno scuro più un bordo chiaro di 1 px subito dentro (`BORDO_CHIARO`).
+- **Icone dei blocchi nella palette** a scala intera con filtro Nearest: 64 pixel di schermo (sprite da 32 px ×2, da 64 px ×1), con la casella adattata alla scala dell'interfaccia letta quando la griglia si ricostruisce.
+- **Vecchio generatore eliminato** (`tools/gen_structure_blocks.py`) con i PNG che scriveva.
+
+## Conseguenze
+
+- **Versione di Pillow.** I byte dei PNG dipendono dal codificatore di Pillow (zlib). Gli sprite del repo sono scritti con **Pillow 12.3**; con un'altra versione `--controlla` può segnalare differenze a pixel uguali. In quel caso si rigenera e si controlla la tavola `.dev/arte/tavola.png` prima del commit.
+- **Ogni PNG nuovo vuole il suo `.import`**, generato con l'importazione di Godot a riga di comando (vedi `CLAUDE.md`).
+- **Aggiungere uno sprite** è una funzione registrata in `tools/art/blocchi/` (vedi `tools/art/README.md` e [ARCHITETTURA](../ARCHITETTURA.md#come-aggiungere-un-blocco)); nel client basta `Sprites.For(id)`.
+- **`ATTRIBUTION.md`** elenca solo le icone dell'interfaccia di terzi; gli sprite generati non hanno attribuzione.
+- **Controllo in CI.** I workflow manuali e di release installano Pillow 12.3.0 e lanciano `python -m unittest tools/art/test_genera.py` e `genera.py --controlla --pixel` (sul runner Linux Pillow 12.3.0 scrive byte diversi da Windows a pixel uguali, quindi lì si confrontano misura e pixel); un test verifica che ogni PNG nella radice di `godot/assets/` esca dal generatore, così non rientrano sprite fatti a mano o di terzi.
+- **Prestazioni** (playtest `ui` con `TINDUSTRY_PLAYTEST_PERF=1`, 1280×720, senza VSync, 2026-10-18): 200 nastri dei tre tier più 100 edifici a strati al lavoro (25 forni, 25 assemblatori, 25 generatori, 25 minatori), FPS medio 235 e minimo 166, 844 nodi. Con i soli 200 nastri la misura precedente era 240 di media (tetto della macchina) con 526 nodi.
+- **Base degli screenshot.** La grafica nuova cambia tutte le catture dei playtest: la base va rifatta e approvata dall'utente prima di sostituire quella vecchia.

@@ -2,7 +2,7 @@
 
 ## Icons
 
-Edifici, logistica, Core, droni e oggetti (`conveyor-*`, `junction`, `splitter`, `sorter`, `miner*`, `smelter*`, `assembler*`, `extractor`, `generator*`, `power-node*`, `core*`, `drone-*`, le 12 icone degli oggetti `<id>.png` e i loro sprite per i nastri `<id>-belt.png`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
+Edifici, logistica, Core, droni e oggetti (`conveyor-*`, `junction`, `splitter`, `sorter`, `miner*`, `smelter*`, `assembler*`, `extractor`, `generator*`, `power-node*`, `core-*`, `drone-*`, le 12 icone degli oggetti `<id>.png` e i loro sprite per i nastri `<id>-belt.png`) sono pixel-art originale generata da `tools/art/genera.py`: nessuna attribuzione.
 
 ### game-icons.net (CC BY 3.0)
 
@@ -31,7 +31,7 @@ License: [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/ze
 | Asset | Pack | Original |
 | --- | --- | --- |
 | `ui/research.png` | Board Game Icons | book_open |
-| `ui/settings.png`, `ui/menu.png`, `ui/locked.png`, `ui/power.png`, `ui/cat-power.png` | Game Icons | gear / menuGrid / locked / power |
+| `ui/menu.png`, `ui/locked.png`, `ui/power.png`, `ui/cat-power.png` | Game Icons | menuGrid / locked / power |
 
 Packs: https://kenney.nl/assets/board-game-icons · https://kenney.nl/assets/game-icons
 

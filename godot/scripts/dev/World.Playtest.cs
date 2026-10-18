@@ -319,8 +319,10 @@ public partial class World
 
     /// <summary>
     /// Performance probe (only with <c>TINDUSTRY_PLAYTEST_PERF=1</c>), no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
-    /// tiers, so with corners) below the Core, frames them at 1280×720 and prints average and minimum FPS
-    /// over 3 s without VSync, with the node count.
+    /// tiers, so with corners) below the Core and, below them, 100 layered 2×2 buildings, all working: 25 smelters,
+    /// 25 assemblers (fed), 25 generators (fuelled) in a packed grid and 25 basic miners on the first free deposits.
+    /// Frames belts and grid at 1280×720 and prints average and minimum FPS over 3 s without VSync, with the node
+    /// count and how many buildings were working during the measure.
     /// </summary>
     private async Task PlaytestBeltPerfAsync()
     {
@@ -348,14 +350,73 @@ public partial class World
             }
         }
 
+        // 100 layered buildings: a 15×5 grid of 2×2 crafters and generators, then 25 miners on deposits.
+        const int gridCols = 15, gridRows = 5;
+        var gridAt = new GridPosition(origin.X - 5, origin.Y + rows + 1);
+        var buildings = 0;
+        for (var i = 0; i < gridCols * gridRows; i++)
+        {
+            var at = new GridPosition(gridAt.X + i % gridCols * 2, gridAt.Y + i / gridCols * 2);
+            var (id, kind) = (i % 3) switch
+            {
+                0 => (Crafter.SmelterBuildingId, BuildingKind.Smelter),
+                1 => (Crafter.AssemblerBuildingId, BuildingKind.Assembler),
+                _ => (Generator.BuildingId, BuildingKind.Generator)
+            };
+            if (factory.PlaceInstant(new BuildSpec(id, kind, at, Direction.East), charge: false))
+            {
+                buildings++;
+            }
+        }
+
+        if (_view.Terrain is { } terrain)
+        {
+            var miners = 0;
+            for (var y = 0; y + 1 < terrain.Height && miners < 25; y++)
+            {
+                for (var x = 0; x + 1 < terrain.Width && miners < 25; x++)
+                {
+                    var at = new GridPosition(x, y);
+                    var onDeposit = new[] { at, new GridPosition(x + 1, y), new GridPosition(x, y + 1), new GridPosition(x + 1, y + 1) }
+                        .All(c => terrain[c].Deposit != DepositKind.None);
+                    if (onDeposit && factory.PlaceInstant(new BuildSpec(Miner.BasicId, BuildingKind.Miner, at, Direction.East), charge: false))
+                    {
+                        miners++;
+                    }
+                }
+            }
+
+            buildings += miners;
+        }
+
+        foreach (var gen in factory.Generators)
+        {
+            gen.RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        }
+
+        foreach (var crafter in factory.Smelters.Concat(factory.Assemblers))
+        {
+            crafter.SeedFuel();
+            foreach (var input in crafter.Recipe.Inputs)
+            {
+                for (var i = 0; i < input.Amount * 20; i++)
+                {
+                    crafter.TryAccept(input.ItemId);
+                }
+            }
+        }
+
         _visualDirty = true;
-        cam.Position = new Vector2((origin.X + cols * 0.5f) * TileSize, (origin.Y + rows * 0.5f) * TileSize);
-        cam.Zoom = new Vector2(0.9f, 0.9f);
+        _buildingsDirty = true;
+        var bottom = gridAt.Y + gridRows * 2;
+        cam.Position = new Vector2((origin.X + cols * 0.5f) * TileSize, (origin.Y + bottom) * 0.5f * TileSize);
+        cam.Zoom = new Vector2(0.4f, 0.4f);
         // Uncapped: VSync would pin every run to the monitor's refresh rate.
         var vsync = DisplayServer.WindowGetVsyncMode();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         await PlaytestWait(1.0);
 
+        var working = 0;
         var frames = 0;
         var worst = 0UL;
         var start = Time.GetTicksUsec();
@@ -367,12 +428,15 @@ public partial class World
             worst = Math.Max(worst, now - last);
             last = now;
             frames++;
+            working = Math.Max(working, factory.Smelters.Concat(factory.Assemblers).Count(c => c.IsCrafting)
+                + factory.Generators.Count(g => g.IsGenerating) + factory.Miners.Count(m => m.Efficiency > 0f));
         }
 
         DisplayServer.WindowSetVsyncMode(vsync);
         var average = frames / ((last - start) / 1e6);
         var nodes = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
-        GD.Print($"PLAYTEST perf: {placed} nastri, fps medio {average:F0}, minimo {1e6 / Math.Max(1UL, worst):F0}, nodi {nodes:F0}");
+        GD.Print($"PLAYTEST perf: {placed} nastri, {buildings} edifici a strati ({working} al lavoro), "
+            + $"fps medio {average:F0}, minimo {1e6 / Math.Max(1UL, worst):F0}, nodi {nodes:F0}");
     }
 
     /// <summary>Set to 1 to run <see cref="PlaytestBlocksShotAsync"/> in the <c>ui</c> playtest.</summary>
@@ -525,7 +589,11 @@ public partial class World
                 {
                     var cell = new GridPosition(beltsAt.X + c, beltsAt.Y + r);
                     factory.PlaceInstant(new BuildSpec(tiers[r], null, cell, Direction.East), charge: false);
-                    factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemIds[(c + r) % itemIds.Length], 0.5f));
+                    var itemId = itemIds[(c + r) % itemIds.Length];
+                    if (!factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemId, 0.5f)))
+                    {
+                        GD.Print($"PLAYTEST blocchi: {itemId} non inserito sul nastro {tiers[r]} in {cell}");
+                    }
                 }
             }
 
