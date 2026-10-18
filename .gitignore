@@ -57,3 +57,6 @@ godot/data/
 
 # Website build output (tools/sito/costruisci.py)
 _site/
+
+# Visual companion e registri dei piani (superpowers)
+.superpowers/
