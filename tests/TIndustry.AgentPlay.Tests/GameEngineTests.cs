@@ -19,11 +19,16 @@ public sealed class GodotFactAttribute : FactAttribute
         {
             Skip = "godot4 non è nel PATH (né TINDUSTRY_GODOT): i test del gioco vero si saltano.";
         }
-        else if (!File.Exists(Path.Combine(ServerFixture.RepoRoot, "godot", ".godot", "mono", "temp", "bin", "Debug", "TIndustry.Godot.dll")))
+        else if (!ProjectImported())
         {
             Skip = "progetto Godot mai importato e compilato (godot4 --import e --build-solutions, vedi CLAUDE.md): i test del gioco vero si saltano.";
         }
     }
+
+    /// <summary>The same files GameLauncher.RequireImported wants: the imported texts and the built client.</summary>
+    public static bool ProjectImported() =>
+        File.Exists(Path.Combine(ServerFixture.RepoRoot, "godot", "lingue", "testi.it.translation"))
+        && File.Exists(Path.Combine(ServerFixture.RepoRoot, "godot", ".godot", "mono", "temp", "bin", "Debug", "TIndustry.Godot.dll"));
 
     // The same lookup as GameLauncher.FindGodot (the tests do not reference the server's assembly).
     private static bool GodotAvailable()
@@ -275,7 +280,48 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
             {
                 var result = await client.CallToolAsync("apri_gioco", new Dictionary<string, object?> { ["misura"] = 64 });
                 var text = Assert.IsType<ModelContextProtocol.Protocol.TextContentBlock>(Assert.Single(result.Content)).Text;
-                Assert.Equal(AgentCodes.GiocoTerminato, JsonDocument.Parse(text).RootElement.GetProperty("codice").GetString());
+                var answer = JsonDocument.Parse(text).RootElement;
+                if (GodotFactAttribute.ProjectImported())
+                {
+                    Assert.Equal(AgentCodes.GiocoTerminato, answer.GetProperty("codice").GetString());
+                }
+                else
+                {
+                    // CI tests before importing the project: the launcher refuses before starting anything.
+                    Assert.Equal(AgentCodes.MotoreNonDisponibile, answer.GetProperty("codice").GetString());
+                    Assert.Contains("--import", answer.GetProperty("messaggio").GetString());
+                }
+            }
+
+            var root = Path.Combine(temp, "tindustry-agentplay");
+            Assert.False(Directory.Exists(root) && Directory.EnumerateDirectories(root).Any(), "profilo o diari rimasti");
+        }
+        finally
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+    }
+
+    /// <summary>Without Godot the answer says exactly what to put in .mcp.json, and nothing is left behind.</summary>
+    [Fact]
+    public async Task MissingGodotSaysWhatToSet()
+    {
+        var temp = Directory.CreateTempSubdirectory("tindustry-agentplay-senza-godot-").FullName;
+        try
+        {
+            // Only dotnet's folder on the PATH: the server still starts, godot4 is not found.
+            var dotnet = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
+                .First(dir => File.Exists(Path.Combine(dir.Trim('"'), OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet")));
+            // An unexpanded .mcp.json placeholder counts as unset.
+            await using (var client = await ServerFixture.Start(temp, new() { ["TINDUSTRY_GODOT"] = "${TINDUSTRY_GODOT:-}", ["PATH"] = dotnet }))
+            {
+                var result = await client.CallToolAsync("apri_gioco", new Dictionary<string, object?> { ["misura"] = 64 });
+                var text = Assert.IsType<ModelContextProtocol.Protocol.TextContentBlock>(Assert.Single(result.Content)).Text;
+                var answer = JsonDocument.Parse(text).RootElement;
+                Assert.Equal(AgentCodes.MotoreNonDisponibile, answer.GetProperty("codice").GetString());
+                var message = answer.GetProperty("messaggio").GetString()!;
+                Assert.Contains(".mcp.json", message);
+                Assert.Contains("\"TINDUSTRY_GODOT\": \"${TINDUSTRY_GODOT:-}\"", message);
             }
 
             var root = Path.Combine(temp, "tindustry-agentplay");

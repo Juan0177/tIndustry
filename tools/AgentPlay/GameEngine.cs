@@ -63,25 +63,17 @@ public sealed class GameEngine : IAgentEngine
     /// <summary>Starts the game, waits for its channel (<see cref="StartTimeout"/>) and starts the chosen game.</summary>
     public static GameEngine Open(GameOptions options)
     {
-        var journals = Directory.CreateDirectory(Path.Combine(SimEngine.TempRoot, Path.GetRandomFileName())).FullName;
-        if (options.Conserva)
-        {
-            File.WriteAllText(Path.Combine(journals, SimEngine.KeepMarker), "");
-        }
-
-        GameEngine engine;
+        // The journals folder is created only after Start has refused a profile inside the player's real data.
+        var journals = Path.GetFullPath(Path.Combine(SimEngine.TempRoot, Path.GetRandomFileName()));
+        var engine = new GameEngine(GameLauncher.Start(options), options, journals);
         try
         {
-            engine = new GameEngine(GameLauncher.Start(options), options, journals);
-        }
-        catch
-        {
-            GameLauncher.DeleteFolder(journals);
-            throw;
-        }
+            Directory.CreateDirectory(journals);
+            if (options.Conserva)
+            {
+                File.WriteAllText(Path.Combine(journals, SimEngine.KeepMarker), "");
+            }
 
-        try
-        {
             var deadline = DateTime.UtcNow + StartTimeout;
             engine.Connect(deadline);
             engine.Request("nuova_partita", JsonSerializer.SerializeToElement(new
@@ -124,7 +116,11 @@ public sealed class GameEngine : IAgentEngine
 
         client?.Dispose();
         var process = game.Process;
-        process.WaitForExit(QuitWait);
+        if (client is not null)
+        {
+            process.WaitForExit(QuitWait); // the bridge quits when its launcher's connection drops; unconnected, no one told it
+        }
+
         game.Job.Dispose();
         if (!process.HasExited)
         {
@@ -356,7 +352,7 @@ public sealed class GameEngine : IAgentEngine
         return left > TimeSpan.FromMilliseconds(1) ? left : TimeSpan.FromMilliseconds(1);
     }
 
-    private static void Kill(Process process)
+    internal static void Kill(Process process)
     {
         try
         {

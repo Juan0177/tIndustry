@@ -1,1 +1,1 @@
-{"mcpServers": {"tindustry": {"command": "python", "args": ["tools/AgentPlay/avvia.py"], "env": {"DOTNET_NOLOGO": "1", "DOTNET_CLI_TELEMETRY_OPTOUT": "1"}}}}
+{"mcpServers": {"tindustry": {"command": "python", "args": ["tools/AgentPlay/avvia.py"], "env": {"DOTNET_NOLOGO": "1", "DOTNET_CLI_TELEMETRY_OPTOUT": "1", "TINDUSTRY_GODOT": "${TINDUSTRY_GODOT:-}"}}}}
