@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using TIndustry.Shared;
 using Xunit;
 
@@ -41,6 +42,38 @@ public sealed class LampAndNightTests
         Assert.Equal(1f, building.PowerUse);
         Assert.Equal(BuildingKind.Lamp, Enum.Parse<BuildingKind>("Lamp"));
         Assert.Equal(Lamp.BuildingId, BuildSpec.StructureIdFor(BuildingKind.Lamp));
+    }
+
+    [Theory]
+    [InlineData("zero")]
+    [InlineData("negative")]
+    [InlineData("missing")]
+    [InlineData("no-building")]
+    public void LampWithoutPowerUseIsRejected(string change)
+    {
+        var root = JsonNode.Parse(File.ReadAllText(Path.Combine(DataDir, "content.json")))!;
+        var buildings = root["buildings"]!.AsArray();
+        var lamp = buildings.First(b => (string?)b!["id"] == Lamp.BuildingId)!;
+        switch (change)
+        {
+            case "zero": lamp["powerUse"] = 0; break;
+            case "negative": lamp["powerUse"] = -1; break;
+            case "missing": lamp.AsObject().Remove("powerUse"); break;
+            case "no-building": buildings.Remove(lamp); break;
+        }
+
+        var dir = Directory.CreateTempSubdirectory("tindustry-content-");
+        try
+        {
+            var path = Path.Combine(dir.FullName, "content.json");
+            File.WriteAllText(path, root.ToJsonString());
+            var error = Assert.Throws<InvalidDataException>(() => FactoryContent.Load(path));
+            Assert.Contains("la Lampada deve avere un consumo di corrente", error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
     }
 
     [Fact]
@@ -137,6 +170,8 @@ public sealed class LampAndNightTests
         // Additive field: a save written before it has no "night" and loads as day.
         var json = JsonSerializer.Serialize(Sandbox().Capture(), FactorySaveStore.JsonOptions);
         Assert.DoesNotContain("\"night\"", json, StringComparison.OrdinalIgnoreCase);
+        // No lamps: no "lamps" key either, so day saves without lamps keep their v12 bytes.
+        Assert.DoesNotContain("\"lamps\"", json, StringComparison.OrdinalIgnoreCase);
         var old = JsonSerializer.Deserialize<FactorySaveData>(json, FactorySaveStore.JsonOptions)!;
         Assert.False(Factory.Restore(Content, old).State.Rules.Night);
     }
