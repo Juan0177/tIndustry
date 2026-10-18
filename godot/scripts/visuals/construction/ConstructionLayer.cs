@@ -37,8 +37,6 @@ public partial class ConstructionLayer : Node2D
     private static readonly StringName ProgressParam = "progress";
     private static readonly StringName ColorParam = "color";
     private static readonly StringName TimeParam = "time";
-    private static readonly Dictionary<string, Texture2D?> Textures = new(StringComparer.Ordinal);
-    private static Texture2D? _blank;
 
     private readonly Shader _shader = GD.Load<Shader>("res://shaders/construct.gdshader");
     private readonly Dictionary<long, SiteVisual> _sites = [];
@@ -169,7 +167,7 @@ public partial class ConstructionLayer : Node2D
         }
 
         var spec = plan.Spec;
-        var tex = TextureFor(spec.StructureId);
+        var tex = Sprites.For(spec.StructureId);
         var ghost = new Color(1f, 1f, 1f, PlanAlpha);
         if (spec.Kind is null)
         {
@@ -265,7 +263,7 @@ public partial class ConstructionLayer : Node2D
         var material = new ShaderMaterial { Shader = _shader };
         var root = new Node2D { Name = $"Site_{site.Id}", ZIndex = SitesZ };
         var spec = site.Spec;
-        var tex = TextureFor(spec.StructureId);
+        var tex = Sprites.For(spec.StructureId);
         if (spec.Kind is null || spec.Kind == BuildingKind.Bridge)
         {
             // One cell per piece (bridge: both ends); belts turn to their direction.
@@ -385,31 +383,5 @@ public partial class ConstructionLayer : Node2D
     {
         var (dx, dy) = DirectionMath.ToOffset(direction);
         return Mathf.Atan2(dy, dx);
-    }
-
-    /// <summary>Block sprite of a structure id (flat <c>assets/</c>); a white square when there is none.</summary>
-    public static Texture2D TextureFor(string structureId)
-    {
-        if (!Textures.TryGetValue(structureId, out var tex))
-        {
-            var name = structureId switch
-            {
-                "conveyor-express" => "conveyor-fast",
-                "conveyor-bridge" => "bridge",
-                _ => structureId
-            };
-            var path = $"res://assets/{name}.png";
-            tex = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-            Textures[structureId] = tex;
-        }
-
-        return tex ?? (_blank ??= BlankTexture());
-    }
-
-    private static Texture2D BlankTexture()
-    {
-        var image = Image.CreateEmpty(8, 8, false, Image.Format.Rgba8);
-        image.Fill(Colors.White);
-        return ImageTexture.CreateFromImage(image);
     }
 }

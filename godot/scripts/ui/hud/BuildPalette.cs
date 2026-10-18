@@ -15,54 +15,53 @@ public partial class BuildPalette : PanelContainer
     internal sealed record PaletteEntry(
         ToolKind Tool,
         string StructureId,
-        string TexPath,
         string Hotkey,
         string HintIt);
 
     private static readonly PaletteEntry[] ToolsEntries =
     [
-        new(ToolKind.Cursor, "", "", "Esc", "Cursore: pan / guarda · Esc o riesci sul tool")
+        new(ToolKind.Cursor, "", "Esc", "Cursore: pan / guarda · Esc o riesci sul tool")
     ];
 
     private static readonly PaletteEntry[] LogisticsEntries =
     [
-        new(ToolKind.Belt, "conveyor-basic", "res://assets/conveyor-basic.png", "1",
+        new(ToolKind.Belt, "conveyor-basic", "1",
             "Nastro T1 · flusso unidirezionale · R/rotella"),
-        new(ToolKind.BeltFast, "conveyor-fast", "res://assets/conveyor-fast.png", "",
+        new(ToolKind.BeltFast, "conveyor-fast", "",
             "Nastro T2 · più veloce · sblocca in Ricerca"),
-        new(ToolKind.BeltExpress, "conveyor-express", "res://assets/conveyor-fast.png", "",
+        new(ToolKind.BeltExpress, "conveyor-express", "",
             "Nastro T3 · max velocità · sblocca in Ricerca"),
-        new(ToolKind.Junction, "junction", "res://assets/junction.png", "5",
+        new(ToolKind.Junction, "junction", "5",
             "Incrocio a croce"),
-        new(ToolKind.Splitter, "splitter", "res://assets/splitter.png", "6",
+        new(ToolKind.Splitter, "splitter", "6",
             "Nastro a T · alterna sinistra/destra"),
-        new(ToolKind.Sorter, "sorter", "res://assets/sorter.png", "8",
+        new(ToolKind.Sorter, "sorter", "8",
             "Filtro item · icona al centro · C cicla · match avanti"),
-        new(ToolKind.Bridge, "conveyor-bridge", "res://assets/bridge.png", "9",
+        new(ToolKind.Bridge, "conveyor-bridge", "9",
             "Ponte span 2–5 · I/O 3 lati · teleporto istantaneo")
     ];
 
     private static readonly PaletteEntry[] ProductionEntries =
     [
-        new(ToolKind.Miner, "miner", "res://assets/miner.png", "2",
+        new(ToolKind.Miner, "miner", "2",
             "Estrae minerali · uscita su tutti i lati · 2×2"),
-        new(ToolKind.MinerAdvanced, "miner-advanced", "res://assets/miner-advanced.png", "",
+        new(ToolKind.MinerAdvanced, "miner-advanced", "",
             "Minatore T2 · 2× velocità · +20% se alimentato · sblocca in Ricerca"),
-        new(ToolKind.Smelter, "smelter", "res://assets/smelter.png", "3",
+        new(ToolKind.Smelter, "smelter", "3",
             "Carbone o corrente · +20% craft se alimentato · 2×2"),
-        new(ToolKind.Assembler, "assembler", "res://assets/assembler.png", "4",
+        new(ToolKind.Assembler, "assembler", "4",
             "Assembla prodotti · R ruota uscita · 2×2"),
-        new(ToolKind.Extractor, "extractor", "res://assets/extractor.png", "",
+        new(ToolKind.Extractor, "extractor", "",
             "Estrae dal Core → nastro · F filtro · R uscita · 1×1")
     ];
 
     private static readonly PaletteEntry[] PowerEntries =
     [
-        new(ToolKind.Generator, "generator", "res://assets/generator.png", "7",
+        new(ToolKind.Generator, "generator", "7",
             "Brucia carbone per energia · 2×2"),
-        new(ToolKind.PowerNode, "power-node", "res://assets/power-node.png", "",
+        new(ToolKind.PowerNode, "power-node", "",
             "Nodo T1 · raggio 6 · collega generatore ↔ forno"),
-        new(ToolKind.PowerNodeT2, "power-node-t2", "res://assets/power-node-t2.png", "",
+        new(ToolKind.PowerNodeT2, "power-node-t2", "",
             "Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca")
     ];
 
@@ -243,8 +242,7 @@ public partial class BuildPalette : PanelContainer
 
     private void ApplySorterFilterTexture(TextureRect target)
     {
-        var path = $"res://assets/{_sorterFilterId}.png";
-        target.Texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+        target.Texture = ItemTexture(_sorterFilterId);
         ItemPalette.Tint(target, _sorterFilterId);
     }
 
@@ -393,11 +391,7 @@ public partial class BuildPalette : PanelContainer
                 CustomMinimumSize = new Vector2(40, 40),
                 MouseFilter = MouseFilterEnum.Ignore
             };
-            if (ResourceLoader.Exists(entry.TexPath))
-            {
-                frame.Texture = GD.Load<Texture2D>(entry.TexPath);
-            }
-
+            frame.Texture = Sprites.TryFor(entry.StructureId);
             frame.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             stack.AddChild(frame);
 
@@ -428,11 +422,7 @@ public partial class BuildPalette : PanelContainer
                 CustomMinimumSize = new Vector2(40, 40),
                 MouseFilter = MouseFilterEnum.Ignore
             };
-            if (ResourceLoader.Exists(entry.TexPath))
-            {
-                icon.Texture = GD.Load<Texture2D>(entry.TexPath);
-            }
-
+            icon.Texture = Sprites.TryFor(entry.StructureId);
             center.AddChild(icon);
         }
 

@@ -22,11 +22,7 @@ public static class HudStyle
     public static readonly Color CatPower = new(0.92f, 0.80f, 0.30f, 1f);
 
     /// <summary>Item icon (white silhouette; tint with <see cref="ItemPalette.Tint"/>).</summary>
-    public static Texture2D? ItemTexture(string itemId)
-    {
-        var path = $"res://assets/{itemId}.png";
-        return ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-    }
+    public static Texture2D? ItemTexture(string itemId) => Sprites.TryFor(itemId);
 
     /// <summary>Mindustry-style compact counts: 950 · 1.2k · 340k.</summary>
     public static string FormatCount(int n) => n switch
