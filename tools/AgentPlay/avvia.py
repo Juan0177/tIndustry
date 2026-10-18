@@ -83,11 +83,17 @@ def sweep(keep):
     """Builds of older sources, untouched for a week (a running server's folder is locked and stays)."""
     limit = time.time() - OLD_BUILDS_DAYS * 86400
     for folder in OUT_ROOT.iterdir():
-        if folder.name != keep and folder.is_dir() and folder.stat().st_mtime < limit:
-            shutil.rmtree(folder, ignore_errors=True)
+        try:
+            if folder.name != keep and folder.is_dir() and folder.stat().st_mtime < limit:
+                shutil.rmtree(folder, ignore_errors=True)
+        except OSError:
+            pass  # another launcher renamed or removed it meanwhile
 
 
 def main():
+    if shutil.which("dotnet") is None:
+        print("AgentPlay: comando 'dotnet' non trovato nel PATH (serve .NET 8 SDK).", file=sys.stderr)
+        return 1
     env = dict(os.environ, DOTNET_NOLOGO="1", DOTNET_CLI_TELEMETRY_OPTOUT="1", DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1")
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
     key = source_hash()
