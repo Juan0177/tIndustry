@@ -214,7 +214,8 @@ def _pannello(w, h):
 def tavola_ui(sprite):
     """Interface review sheet: the pixel font at x2 and x3 (Italian and English sample sentences, the
     whole glyph set), a reference line in Pillow's bundled OFL font (Aileron) at the same height, and
-    every `ui-*` icon at 16 px, 32 px and 32 px shown x2, all on a panel of the interface theme."""
+    every `ui-*` icon at 16 px, 32 px and 32 px shown x2, the check boxes and the Home logo (x4), all on a panel of
+    the interface theme."""
     import carattere
     from blocchi.interfaccia import ICONE
 
@@ -241,6 +242,18 @@ def tavola_ui(sprite):
         cella.alpha_composite(doppia, (16 + 32 + 2 * MARGINE, 0))
         cella.alpha_composite(etichetta, (0, 64 + MARGINE))
         icone.append(cella)
+    # Check boxes (1x and x2) and the Home logo (x4, as the client shows it).
+    from blocchi.interfaccia import SPUNTE
+    for nome in SPUNTE:
+        im = sprite(nome)
+        etichetta = carattere.scrivi(nome[len("ui/ui-"):], 2)
+        cella = Image.new("RGBA", (max(20 + 40 + MARGINE, etichetta.width), 64 + MARGINE + etichetta.height), (0, 0, 0, 0))
+        cella.alpha_composite(im, (0, 64 - 20))
+        cella.alpha_composite(im.resize((40, 40), Image.NEAREST), (20 + MARGINE, 64 - 40))
+        cella.alpha_composite(etichetta, (0, 64 + MARGINE))
+        icone.append(cella)
+    marchio = sprite("ui/ui-logo")
+    righe.append(marchio.resize((marchio.width * 4, marchio.height * 4), Image.NEAREST))
     per_riga = 5
     file_icone = [icone[i:i + per_riga] for i in range(0, len(icone), per_riga)]
 

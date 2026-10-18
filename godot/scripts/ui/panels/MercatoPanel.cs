@@ -418,7 +418,9 @@ public partial class MercatoPanel : Control
         nameBox.AddChild(new Label { Text = Testi.Oggetto(item.ItemId, _view.Content), VerticalAlignment = VerticalAlignment.Center });
 
         h.AddChild(Cell($"{stock}", ColStock));
-        var priceCell = Cell($"${price}", ColPrice, price < item.SellPrice ? UiTheme.TestoRosso : "");
+        // A price below list is red and has a down arrow (meaning not by colour alone).
+        var priceCell = Cell(price < item.SellPrice ? $"${price} ↓" : $"${price}", ColPrice,
+            price < item.SellPrice ? UiTheme.TestoRosso : "");
         priceCell.TooltipText = price < item.SellPrice
             ? Testi.F("mercato.listino.calo", item.SellPrice)
             : Testi.F("mercato.listino", item.SellPrice);

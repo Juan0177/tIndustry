@@ -5,8 +5,9 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// How a block about to be built looks, Mindustry style: its sprite half transparent (belts turned to their
-/// direction), a footprint outline (accent when it can go there, red when refused, the sprite then tinted red too) and,
-/// for blocks with a direction, a small arrow on the side they face. Used by the placement ghost under the mouse and by
+/// direction), a footprint outline (accent when it can go there, red when refused, the sprite then tinted red too and
+/// crossed by an X, so the refusal does not rest on colour alone) and, for blocks with a direction, a small arrow on
+/// the side they face. Used by the placement ghost under the mouse and by
 /// the local player's plans (a belt drag), so both read the same.
 /// </summary>
 public static class PlacementPreview
@@ -42,6 +43,14 @@ public static class PlacementPreview
         }
 
         canvas.DrawRect(rect.Grow(-OutlineWidth / 2f), outline, filled: false, width: OutlineWidth);
+        if (!valid)
+        {
+            var cross = rect.Grow(-Mathf.Min(rect.Size.X, rect.Size.Y) * 0.22f);
+            canvas.DrawLine(cross.Position, cross.End, outline, OutlineWidth);
+            canvas.DrawLine(new Vector2(cross.End.X, cross.Position.Y), new Vector2(cross.Position.X, cross.End.Y), outline,
+                OutlineWidth);
+        }
+
         if (arrow)
         {
             DrawArrow(canvas, rect, direction, outline);
@@ -61,6 +70,25 @@ public static class PlacementPreview
     {
         var (dx, dy) = DirectionMath.ToOffset(direction);
         return Mathf.Atan2(dy, dx);
+    }
+
+    /// <summary>
+    /// Diagonal stripes (top-left to bottom-right, every <paramref name="spacing"/> px) clipped to
+    /// <paramref name="rect"/>: the hatching that marks a block to take apart, besides its colour.
+    /// </summary>
+    public static void DrawHatch(CanvasItem canvas, Rect2 rect, Color color, float spacing, float width)
+    {
+        var (w, h) = (rect.Size.X, rect.Size.Y);
+        // Lines y = x - c in rect-local coordinates, c from -h to w.
+        for (var c = -h + spacing / 2f; c < w; c += spacing)
+        {
+            var x0 = Mathf.Max(0f, c);
+            var x1 = Mathf.Min(w, h + c);
+            if (x1 > x0)
+            {
+                canvas.DrawLine(rect.Position + new Vector2(x0, x0 - c), rect.Position + new Vector2(x1, x1 - c), color, width);
+            }
+        }
     }
 
     /// <summary>A small filled triangle inside the edge the block faces, pointing out of it.</summary>

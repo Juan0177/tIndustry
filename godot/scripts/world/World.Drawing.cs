@@ -323,11 +323,7 @@ public partial class World
         }
 
         var size = GhostSize();
-        var ok = size == 1
-            ? _view.CanOccupy(hover)
-            : _view.CanOccupyFootprint(hover, size);
-        // Cells already taken by a pending plan are refused like occupied ones (sites count as buildings).
-        ok = ok && !FootprintPlanned(hover, size);
+        var ok = GhostRefusal(hover) is null;
 
         // A belt touching the Core is planned facing it (as the simulation does): show that direction.
         var belt = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
@@ -377,39 +373,34 @@ public partial class World
     };
 
     /// <summary>
-    /// Why the terrain refuses the ghost at <paramref name="hover"/> (<see cref="RefusalCode.Wall"/>,
-    /// <see cref="RefusalCode.DeepWater"/>), or null when no wall or deep water lies under its footprint (other refusals
-    /// keep the plain red ghost).
+    /// Why the ghost at <paramref name="hover"/> is refused, null when the block can go there: the simulation's own
+    /// <see cref="Factory.CanPlace"/> on the spec the tool would send (walls, deep water, a miner too weak for the ore,
+    /// a taken cell…), plus a cell taken by a pending plan, which the plan queue refuses the same way.
     /// </summary>
-    private RefusalCode? GhostTerrainReason(GridPosition hover)
+    private RefusalCode? GhostRefusal(GridPosition hover)
     {
-        if (_tool == BuildTool.Cursor || _view?.Terrain is not { } terrain)
+        if (_view is null || _tool == BuildTool.Cursor)
         {
             return null;
         }
 
-        var size = GhostSize();
-        var deep = false;
-        for (var y = hover.Y; y < hover.Y + size; y++)
+        var spec = PlaceCommandAt(hover) switch
         {
-            for (var x = hover.X; x < hover.X + size; x++)
-            {
-                if (!terrain.InBounds(new GridPosition(x, y)))
-                {
-                    continue;
-                }
-
-                var cell = terrain[x, y];
-                if (cell.Wall != WallKind.None)
-                {
-                    return RefusalCode.Wall;
-                }
-
-                deep |= cell.Floor == FloorKind.DeepWater;
-            }
+            PlaceBelt belt => BuildSpec.FromCommand(belt),
+            PlaceBuilding building => BuildSpec.FromCommand(building),
+            _ => null
+        };
+        if (spec is null)
+        {
+            return null;
         }
 
-        return deep ? RefusalCode.DeepWater : null;
+        if (!_view.CanPlace(spec, out var reason))
+        {
+            return reason ?? RefusalCode.Occupied;
+        }
+
+        return FootprintPlanned(hover, GhostSize()) ? RefusalCode.Occupied : null;
     }
 
     private bool FootprintPlanned(GridPosition origin, int size)

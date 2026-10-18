@@ -16,6 +16,9 @@ public partial class World : Node2D
     /// <summary>Edge of the biome map behind Home at startup (seed 42).</summary>
     private const int StartupBackgroundEdge = 256;
 
+    /// <summary>Screen px per second the map behind the Home scrolls.</summary>
+    private const float HomeDriftSpeed = 24f;
+
     /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to default size.</summary>
     public int ActiveMapWidth => _view?.Terrain?.Width ?? DefaultMapWidth;
     public int ActiveMapHeight => _view?.Terrain?.Height ?? DefaultMapHeight;
@@ -216,6 +219,11 @@ public partial class World : Node2D
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
             cam.LeftDragPans = _tool == BuildTool.Cursor && _home?.IsOpen != true && _newGame?.IsOpen != true;
+            // Behind the Home the map scrolls slowly on its own and the player cannot move it; still in playtests
+            // (stable captures).
+            var home = _home?.IsOpen == true;
+            cam.InputEnabled = !home;
+            cam.DriftSpeed = home && !PlaytestRequested ? HomeDriftSpeed : 0f;
         }
 
         if (_home?.IsOpen == true || _newGame?.IsOpen == true || _view is null)
@@ -225,7 +233,11 @@ public partial class World : Node2D
             return;
         }
 
-        AdvanceHost(delta);
+        if (!_playtestSimHeld)
+        {
+            AdvanceHost(delta);
+        }
+
         SyncConstructionVisuals((float)delta);
 
         if (_visualDirty)

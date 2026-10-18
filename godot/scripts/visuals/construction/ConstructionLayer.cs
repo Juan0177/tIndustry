@@ -39,6 +39,7 @@ public partial class ConstructionLayer : Node2D
     private IGameView? _view;
     private long _lastTick = -1;
     private bool _drewPlans;
+    private VarianteColori _variante;
     private Node2D? _plans;
 
     private sealed class SiteVisual(Node2D root, ShaderMaterial material, BuildSpec spec, Rect2 bounds)
@@ -99,9 +100,11 @@ public partial class ConstructionLayer : Node2D
         var changed = SyncSites(view, delta);
         SyncDrones(view, delta);
 
-        if (view.CurrentTick != _lastTick)
+        // Plans redraw when the game moves on, or in new colours when the colour variant changes.
+        if (view.CurrentTick != _lastTick || UiColors.Variante != _variante)
         {
             _lastTick = view.CurrentTick;
+            _variante = UiColors.Variante;
             if (_drewPlans || HasLocalPlans(view))
             {
                 _plans?.QueueRedraw();
@@ -177,12 +180,12 @@ public partial class ConstructionLayer : Node2D
         var tiles = _view!.PlanTiles(plan);
         if (plan.Breaking)
         {
-            // Mindustry style: a translucent red fill over the whole block, plus the outline and the X.
+            // Mindustry style: a translucent fill over the whole block and its outline, plus a hatching (the X is the
+            // refused ghost's sign): the mark reads without its colour.
             var box = Bounds(tiles);
             canvas.DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha));
-            canvas.DrawRect(box, UiColors.Smontaggio, filled: false, width: -1f);
-            canvas.DrawLine(box.Position, box.End, UiColors.Smontaggio, -1f);
-            canvas.DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), UiColors.Smontaggio, -1f);
+            PlacementPreview.DrawHatch(canvas, box, UiColors.Smontaggio, World.TileSize / 4f, 2f);
+            canvas.DrawRect(box.Grow(-1f), UiColors.Smontaggio, filled: false, width: 2f);
             return;
         }
 

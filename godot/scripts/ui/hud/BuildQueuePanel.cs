@@ -24,8 +24,6 @@ public partial class BuildQueuePanel : PanelContainer
     private Label? _more;
     private Label? _missing;
     private string? _structureId;
-    private bool _deconstructing;
-    private bool _stalled;
     private CostEntry? _missingShown;
     private int _waiting = -1;
     private IGameView? _view;
@@ -128,10 +126,9 @@ public partial class BuildQueuePanel : PanelContainer
 
         var missing = site is { Deconstructing: false } ? site.Missing : null;
         var stalled = missing is not null;
-        if ((deconstructing != _deconstructing || stalled != _stalled) && _barFill is not null)
+        if (_barFill is not null)
         {
-            _deconstructing = deconstructing;
-            _stalled = stalled;
+            // Every frame: a new colour variant shows at once.
             _barFill.Color = deconstructing ? UiColors.Smontaggio
                 : stalled ? UiColors.Fermo
                 : UiColors.Costruzione;

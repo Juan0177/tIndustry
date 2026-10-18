@@ -4,7 +4,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Impostazioni overlay: graphics (effects, shadows, glow, building animations, FPS cap, VSync, render scale) and
-/// interface (language, UI scale, FPS / resource overlays, replay tutorial). The options scroll inside the card; Applica saves
+/// interface (language, colours (normal, colour-blind, high contrast), UI scale, FPS / resource overlays, replay tutorial). The options scroll inside the card; Applica saves
 /// and applies everything at once, without a restart. Controls carry stable node names (used by the playtest).
 /// </summary>
 public partial class SettingsPanel : Control
@@ -142,6 +142,13 @@ public partial class SettingsPanel : Control
         AddChoices(options, "Lingua", "impostazioni.lingua",
             Testi.Lingue.Select((code, i) => (code, $"lingua.{code}", i)).ToArray(),
             s => Array.IndexOf(Testi.Lingue, s.Lingua), (s, v) => s.Lingua = Testi.Lingue[v]);
+        AddChoices(options, "Colori", "impostazioni.colori",
+            [
+                ("Normale", "impostazioni.colori.normale", (int)VarianteColori.Normale),
+                ("Daltonici", "impostazioni.colori.daltonici", (int)VarianteColori.Daltonici),
+                ("AltoContrasto", "impostazioni.colori.altocontrasto", (int)VarianteColori.AltoContrasto)
+            ],
+            s => (int)s.Colori, (s, v) => s.Colori = (VarianteColori)v);
         AddUiScaleSlider(options);
         AddCheck(options, "MostraFps", "impostazioni.mostra.fps", s => s.ShowFps, (s, on) => s.ShowFps = on);
         AddCheck(options, "MostraRisorse", "impostazioni.mostra.risorse",

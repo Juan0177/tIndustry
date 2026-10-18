@@ -70,6 +70,10 @@ public sealed class ClientSettings
     /// <summary>Language of the texts (<see cref="Testi.Lingue"/>); missing or unknown = Italian.</summary>
     public string Lingua { get; set; } = Testi.LinguaPredefinita;
 
+    /// <summary>Colour variant of the interface and of the world's meaningful colours (<see cref="UiColors"/>).</summary>
+    [JsonConverter(typeof(TolerantEnumConverter<VarianteColori>))]
+    public VarianteColori Colori { get; set; } = VarianteColori.Normale;
+
     /// <summary>
     /// The fullscreen choice the settings panel shows: <see cref="SchermoIntero"/>, or when never chosen what this run
     /// actually does.
@@ -160,7 +164,8 @@ public sealed class ClientSettings
         LimiteFps = LimiteFps,
         ScalaRendering = ScalaRendering,
         SchermoIntero = SchermoIntero,
-        Lingua = Lingua
+        Lingua = Lingua,
+        Colori = Colori
     };
 
     public void CopyFrom(ClientSettings other)
@@ -178,6 +183,7 @@ public sealed class ClientSettings
         ScalaRendering = other.ScalaRendering;
         SchermoIntero = other.SchermoIntero;
         Lingua = other.Lingua;
+        Colori = other.Colori;
         Normalize();
     }
 
@@ -189,6 +195,11 @@ public sealed class ClientSettings
         if (!Enum.IsDefined(Effetti))
         {
             Effetti = EffectsQuality.Alti;
+        }
+
+        if (!Enum.IsDefined(Colori))
+        {
+            Colori = VarianteColori.Normale;
         }
 
         if (!Testi.Lingue.Contains(Lingua))
@@ -225,6 +236,12 @@ public sealed class ClientSettings
         if (TranslationServer.GetLocale() != Lingua)
         {
             TranslationServer.SetLocale(Lingua);
+        }
+
+        // A new colour variant rebuilds the theme in place: open panels and the HUD redraw at once.
+        if (UiColors.Apply(Colori))
+        {
+            UiTheme.Refresh();
         }
 
         Engine.MaxFps = LimiteFps;

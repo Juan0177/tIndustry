@@ -236,6 +236,10 @@ impostazioni.schermo.intero,Schermo intero,Fullscreen
 impostazioni.scala.rendering,Scala di rendering (mondo),Render scale (world)
 impostazioni.interfaccia,Interfaccia,Interface
 impostazioni.lingua,Lingua · Language,Language · Lingua
+impostazioni.colori,Colori,Colours
+impostazioni.colori.normale,Normali,Normal
+impostazioni.colori.daltonici,Daltonici,Colour-blind
+impostazioni.colori.altocontrasto,Alto contrasto,High contrast
 lingua.it,Italiano,Italiano
 lingua.en,English,English
 impostazioni.mostra.fps,Mostra FPS,Show FPS

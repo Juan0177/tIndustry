@@ -144,5 +144,11 @@ public interface IGameView
 
     bool CanOccupyFootprint(GridPosition origin, int size);
 
+    /// <summary>
+    /// True when <paramref name="spec"/> can be placed on its cells (see <see cref="Factory.CanPlace"/>);
+    /// <paramref name="reason"/> is the refusal otherwise. The client's placement ghost asks this, never a copy of it.
+    /// </summary>
+    bool CanPlace(BuildSpec spec, out RefusalCode? reason);
+
     bool IsBuildingTile(GridPosition tile);
 }

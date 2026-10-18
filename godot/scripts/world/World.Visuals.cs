@@ -75,11 +75,12 @@ public partial class World
             return;
         }
 
-        // The ghost is red on a wall or deep water: the bottom hint says why.
+        // The ghost is red on a wall, on deep water or on an ore its miner cannot dig: the bottom hint says why.
         _hud.SetPlacementHint(_view is not null
             && GetViewport().GuiGetHoveredControl() is null
             && _hover is { } ghostAt
-            && GhostTerrainReason(ghostAt) is { } why
+            && GhostRefusal(ghostAt) is { } why
+            && why is RefusalCode.Wall or RefusalCode.DeepWater or RefusalCode.NeedsAdvancedMiner
             ? Testi.Rifiuto(why)
             : null);
 

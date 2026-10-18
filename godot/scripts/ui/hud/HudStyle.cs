@@ -72,11 +72,42 @@ public static class HudStyle
     public static Control MakeMoneyChip(int amount, bool ok)
     {
         var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaStretta };
-        var icon = MakeIcon(ItemTexture("money"), 16);
-        icon.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        row.AddChild(icon);
+        var iconHost = new Control
+        {
+            CustomMinimumSize = new Vector2(16, 16),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
+        };
+        row.AddChild(iconHost);
+        iconHost.AddChild(MakeIcon(ItemTexture("money"), 16));
+        if (!ok)
+        {
+            AddMissingSlash(iconHost, 16);
+        }
+
         row.AddChild(MakeLabel($"{amount}", ok ? "" : UiTheme.TestoRosso));
         return row;
+    }
+
+    /// <summary>
+    /// Mindustry-style slash (with its shadow) across an icon of side <paramref name="side"/>: the cost is missing,
+    /// shown by more than the red text.
+    /// </summary>
+    private static void AddMissingSlash(Control iconHost, float side)
+    {
+        var k = side / 22f;
+        foreach (var (color, y, thickness) in new[] { (UiColors.Insufficiente, 10f, 3f), (UiColors.Ombra, 12f, 2f) })
+        {
+            iconHost.AddChild(new ColorRect
+            {
+                Color = color,
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                Rotation = Mathf.DegToRad(-38f),
+                PivotOffset = new Vector2(11, 1) * k,
+                Position = new Vector2(0, y) * k,
+                Size = new Vector2(24 * k, thickness)
+            });
+        }
     }
 
     /// <summary>Material cost chip; a red slash marks a missing material. Tooltip = item name.</summary>
@@ -107,28 +138,7 @@ public static class HudStyle
 
         if (!ok)
         {
-            // Mindustry-style red slash over missing material.
-            var slash = new ColorRect
-            {
-                Color = UiColors.Insufficiente,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
-                Rotation = Mathf.DegToRad(-38f),
-                PivotOffset = new Vector2(11, 1)
-            };
-            slash.Position = new Vector2(0, 10);
-            slash.Size = new Vector2(24, 3);
-            iconHost.AddChild(slash);
-
-            var slash2 = new ColorRect
-            {
-                Color = UiColors.Ombra,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
-                Rotation = Mathf.DegToRad(-38f),
-                PivotOffset = new Vector2(11, 1)
-            };
-            slash2.Position = new Vector2(0, 12);
-            slash2.Size = new Vector2(24, 2);
-            iconHost.AddChild(slash2);
+            AddMissingSlash(iconHost, 22);
         }
 
         row.AddChild(MakeLabel($"×{amount}", ok ? "" : UiTheme.TestoRosso));

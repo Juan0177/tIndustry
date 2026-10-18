@@ -13,8 +13,9 @@ namespace TIndustry.Godot;
 /// <see cref="UiScale"/>) every font pixel is a whole number of screen pixels; at other scales Nearest sampling
 /// repeats some rows and columns, still sharp but slightly uneven.</para>
 ///
-/// <para>Every resource here (styles, fonts, icons) is created once and stays referenced by the static theme for the
-/// whole run, so no UI wrapper is left for the garbage collector to finalize while the engine shuts down.</para>
+/// <para>Every resource here (styles, fonts, icons) stays referenced by the static theme for the whole run, so no UI
+/// wrapper is left for the garbage collector to finalize while the engine shuts down. A new colour variant
+/// (<see cref="Refresh"/>) rebuilds the same theme in place and disposes the styles it replaced.</para>
 /// </summary>
 public static class UiTheme
 {
@@ -23,9 +24,6 @@ public static class UiTheme
 
     /// <summary>Native size of the title font (glyphs ×3).</summary>
     public const int TitleSize = 24;
-
-    /// <summary>The logo size: the title font ×2.</summary>
-    public const int LogoSize = 48;
 
     // Label variations.
     public const string TestoTenue = "TestoTenue";
@@ -36,7 +34,6 @@ public static class UiTheme
     public const string TestoEnergia = "TestoEnergia";
     public const string Titolo = "Titolo";
     public const string TitoloChiaro = "TitoloChiaro";
-    public const string Logo = "Logo";
     public const string Avviso = "Avviso";
     public const string AvvisoRosso = "AvvisoRosso";
 
@@ -70,6 +67,8 @@ public static class UiTheme
     public const string MargineBarra = "MargineBarra";
 
     private static Theme? _theme;
+    // Styles and textures made by Build, disposed when Refresh replaces them.
+    private static readonly List<Resource> Owned = [];
     private static FontFile? _textFont;
     private static FontFile? _titleFont;
 
@@ -79,7 +78,7 @@ public static class UiTheme
     /// <summary>The text font (size <see cref="TextSize"/>), for controls that draw text themselves.</summary>
     public static Font TextFont => _textFont ??= LoadFont("res://assets/ui/carattere-testo.fnt");
 
-    /// <summary>The title font (size <see cref="TitleSize"/> or <see cref="LogoSize"/>).</summary>
+    /// <summary>The title font (size <see cref="TitleSize"/>).</summary>
     public static Font TitleFont => _titleFont ??= LoadFont("res://assets/ui/carattere-titoli.fnt");
 
     /// <summary>
@@ -108,9 +107,42 @@ public static class UiTheme
         return font;
     }
 
+    /// <summary>
+    /// Rebuilds the theme with the current <see cref="UiColors"/> (a new colour variant): every Control using it
+    /// redraws (the theme's changed signal); the replaced styles are disposed.
+    /// </summary>
+    public static void Refresh()
+    {
+        if (_theme is null)
+        {
+            return;
+        }
+
+        _theme.Clear();
+        foreach (var resource in Owned)
+        {
+            resource.Dispose();
+        }
+
+        Owned.Clear();
+        Populate(_theme);
+    }
+
+    private static T Own<T>(T resource) where T : Resource
+    {
+        Owned.Add(resource);
+        return resource;
+    }
+
     private static Theme Build()
     {
         var t = new Theme { DefaultFont = TextFont, DefaultFontSize = TextSize };
+        Populate(t);
+        return t;
+    }
+
+    private static void Populate(Theme t)
+    {
         BuildLabels(t);
         BuildPanels(t);
         BuildButtons(t);
@@ -119,12 +151,11 @@ public static class UiTheme
         BuildSliders(t);
         BuildContainers(t);
         BuildScrollAndTooltip(t);
-        return t;
     }
 
     private static StyleBoxFlat Box(Color bg, Color border, int borderWidth, float marginX, float marginY)
     {
-        var box = new StyleBoxFlat { BgColor = bg, BorderColor = border };
+        var box = Own(new StyleBoxFlat { BgColor = bg, BorderColor = border });
         box.SetBorderWidthAll(borderWidth);
         box.SetCornerRadiusAll(0);
         box.ContentMarginLeft = marginX;
@@ -161,7 +192,6 @@ public static class UiTheme
         LabelLook(t, TestoEnergia, UiColors.Energia);
         LabelLook(t, Titolo, UiColors.Accento, TitleFont, TitleSize);
         LabelLook(t, TitoloChiaro, UiColors.Testo, TitleFont, TitleSize);
-        LabelLook(t, Logo, UiColors.Accento, TitleFont, LogoSize);
         foreach (var (type, color) in new[] { (Avviso, UiColors.Testo), (AvvisoRosso, UiColors.Insufficiente) })
         {
             LabelLook(t, type, color);
@@ -207,7 +237,7 @@ public static class UiTheme
         t.SetStylebox("pressed", type, pressed);
         t.SetStylebox("hover_pressed", type, pressed);
         t.SetStylebox("disabled", type, disabled);
-        t.SetStylebox("focus", type, new StyleBoxEmpty());
+        t.SetStylebox("focus", type, Own(new StyleBoxEmpty()));
         t.SetColor("font_color", type, text);
         t.SetColor("font_focus_color", type, text);
         t.SetColor("font_hover_color", type, hoverText);
@@ -258,33 +288,13 @@ public static class UiTheme
             UiColors.Accento, UiColors.Accento, UiColors.Accento);
     }
 
-    /// <summary>Side of the square check box drawn by check buttons, in UI px.</summary>
-    private const int CheckSide = 20;
-
-    /// <summary>
-    /// Square check box in the panel style (2 px edge; when on, an accent square inside). Made once from a small image
-    /// in code (a plain shape, like the style boxes); the image is released at once, the texture lives in the theme.
-    /// </summary>
-    private static ImageTexture CheckIcon(bool on, bool disabled)
-    {
-        using var image = Image.CreateEmpty(CheckSide, CheckSide, false, Image.Format.Rgba8);
-        var edge = disabled ? UiColors.BordoBloccato : on ? UiColors.Accento : UiColors.Bordo;
-        image.Fill(edge);
-        image.FillRect(new Rect2I(2, 2, CheckSide - 4, CheckSide - 4), on ? UiColors.FondoScelto : UiColors.FondoBloccato);
-        if (on)
-        {
-            image.FillRect(new Rect2I(6, 6, CheckSide - 12, CheckSide - 12), disabled ? UiColors.TestoDisattivo : UiColors.Accento);
-        }
-
-        return ImageTexture.CreateFromImage(image);
-    }
-
     private static void BuildToggles(Theme t)
     {
-        var on = CheckIcon(on: true, disabled: false);
-        var off = CheckIcon(on: false, disabled: false);
-        var onDisabled = CheckIcon(on: true, disabled: true);
-        var offDisabled = CheckIcon(on: false, disabled: true);
+        // Square check boxes generated by tools/art (20 px, cached by Sprites): 2 px edge, an accent square when on.
+        var on = Sprites.For("ui/ui-spunta-si");
+        var off = Sprites.For("ui/ui-spunta-no");
+        var onDisabled = Sprites.For("ui/ui-spunta-si-spenta");
+        var offDisabled = Sprites.For("ui/ui-spunta-no-spenta");
         // Check buttons are plain text with the box: no button box around them.
         foreach (var type in new[] { "CheckButton", "CheckBox" })
         {
@@ -298,7 +308,7 @@ public static class UiTheme
 
             t.SetConstant("icon_max_width", type, 0);
             t.SetConstant("h_separation", type, 12);
-            var empty = new StyleBoxEmpty { ContentMarginLeft = 0, ContentMarginRight = 0, ContentMarginTop = 4, ContentMarginBottom = 4 };
+            var empty = Own(new StyleBoxEmpty { ContentMarginLeft = 0, ContentMarginRight = 0, ContentMarginTop = 4, ContentMarginBottom = 4 });
             foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled", "focus" })
             {
                 t.SetStylebox(state, type, empty);
@@ -314,13 +324,13 @@ public static class UiTheme
         }
     }
 
-    /// <summary>Slider grabber: an accent bar with a dark edge, made once like the check boxes.</summary>
+    /// <summary>Slider grabber: an accent bar with a dark edge, made from a small image in code (a plain shape).</summary>
     private static ImageTexture GrabberIcon(Color fill)
     {
         using var image = Image.CreateEmpty(10, 20, false, Image.Format.Rgba8);
         image.Fill(UiColors.Fondo);
         image.FillRect(new Rect2I(2, 2, 6, 16), fill);
-        return ImageTexture.CreateFromImage(image);
+        return Own(ImageTexture.CreateFromImage(image));
     }
 
     private static void BuildSliders(Theme t)
@@ -334,14 +344,14 @@ public static class UiTheme
         t.SetIcon("grabber_highlight", "HSlider", GrabberIcon(UiColors.Testo));
         t.SetIcon("grabber_disabled", "HSlider", GrabberIcon(UiColors.TestoDisattivo));
         t.SetIcon("tick", "HSlider", GrabberTick());
-        t.SetStylebox("focus", "HSlider", new StyleBoxEmpty());
+        t.SetStylebox("focus", "HSlider", Own(new StyleBoxEmpty()));
     }
 
     private static ImageTexture GrabberTick()
     {
         using var image = Image.CreateEmpty(2, 6, false, Image.Format.Rgba8);
         image.Fill(UiColors.Bordo);
-        return ImageTexture.CreateFromImage(image);
+        return Own(ImageTexture.CreateFromImage(image));
     }
 
     private static void BuildFields(Theme t)
@@ -355,7 +365,7 @@ public static class UiTheme
         t.SetColor("selection_color", "LineEdit", UiColors.Accento with { A = 0.35f });
         t.SetFontSize("font_size", "LineEdit", TextSize);
 
-        var line = new StyleBoxLine { Color = UiColors.Bordo, Thickness = 2 };
+        var line = Own(new StyleBoxLine { Color = UiColors.Bordo, Thickness = 2 });
         t.SetStylebox("separator", "HSeparator", line);
         t.SetConstant("separation", "HSeparator", 8);
     }
@@ -388,7 +398,7 @@ public static class UiTheme
 
     private static void BuildScrollAndTooltip(Theme t)
     {
-        t.SetStylebox("panel", "ScrollContainer", new StyleBoxEmpty());
+        t.SetStylebox("panel", "ScrollContainer", Own(new StyleBoxEmpty()));
         foreach (var type in new[] { "VScrollBar", "HScrollBar" })
         {
             t.SetStylebox("scroll", type, Box(UiColors.FondoBloccato, UiColors.FondoBloccato, 0, 3, 3));
