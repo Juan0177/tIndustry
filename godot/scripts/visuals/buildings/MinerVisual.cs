@@ -54,7 +54,7 @@ public partial class MinerVisual : Node2D
         if (fx is not null)
         {
             _fx = fx;
-            _sparks = fx.Keep(_sparks, miner.Efficiency > 0f, "scintille-trivella", this, Vector2.Zero);
+            _sparks = fx.Keep(_sparks, miner.Efficiency > 0f, "scintille-trivella", this, Vector2.Zero, MinerOrigin);
         }
 
         if (miner.Efficiency > 0f && _drill is not null && _frames.Length > 0)

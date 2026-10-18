@@ -52,7 +52,83 @@ public partial class World
             return Fail(drift);
         }
 
-        return await PlaytestEmittersFollowBlocksAsync(factory, fx);
+        return await PlaytestEmittersFollowBlocksAsync(factory, fx)
+            && await PlaytestRebuildBurstAsync(factory, fx)
+            && await PlaytestEffectsOffFreesPoolAsync(factory, fx);
+    }
+
+    /// <summary>Working blocks of the perf layout (and the rest of the game): one continuous emitter each.</summary>
+    private static int WorkingBlocks(Factory factory) => factory.Miners.Count(m => m.Efficiency > 0f)
+        + factory.Smelters.Count(s => s.IsCrafting) + factory.Assemblers.Count(a => a.IsCrafting)
+        + factory.Generators.Count(g => g.IsGenerating);
+
+    /// <summary>
+    /// Five rebuilds of the building visuals within a second (a drone finishing a row of blocks): the running
+    /// emitters move to the new visuals, so the nodes in use and the pool stay where they were, no emitter is refused
+    /// and every working block keeps exactly one emitter, frame after frame.
+    /// </summary>
+    private async Task<bool> PlaytestRebuildBurstAsync(Factory factory, EffectManager fx)
+    {
+        var baseline = 0;
+        var end = Time.GetTicksMsec() + 1000;
+        while (Time.GetTicksMsec() < end)
+        {
+            KeepPerfLayoutWorking(factory);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            baseline = Math.Max(baseline, fx.Emitters);
+        }
+
+        var pool = fx.PooledNodes;
+        var failures = fx.RentFailures;
+        var peak = 0;
+        for (var rebuild = 0; rebuild < 5; rebuild++)
+        {
+            _buildingsDirty = true;
+            end = Time.GetTicksMsec() + 200;
+            while (Time.GetTicksMsec() < end)
+            {
+                KeepPerfLayoutWorking(factory);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                peak = Math.Max(peak, fx.Emitters);
+                if (fx.Attachments != WorkingBlocks(factory))
+                {
+                    return Fail($"effetti: ricostruzione {rebuild + 1}: {fx.Attachments} emettitori legati per {WorkingBlocks(factory)} blocchi al lavoro");
+                }
+            }
+        }
+
+        // Margin: ambient, Core dust and extractor bursts come and go while the blocks' emitters stay.
+        const int margin = 16;
+        GD.Print($"PLAYTEST effetti: 5 ricostruzioni in 1 s, emettitori in uso {baseline} → massimo {peak}, pool {pool} → {fx.PooledNodes}, "
+            + $"rifiutati {fx.RentFailures - failures}");
+        if (fx.RentFailures != failures || peak > baseline + margin || fx.PooledNodes > pool + margin)
+        {
+            return Fail($"effetti: le ricostruzioni consumano il pool (in uso {baseline} → {peak}, pool {pool} → {fx.PooledNodes}, rifiutati {fx.RentFailures - failures})");
+        }
+
+        return true;
+    }
+
+    /// <summary>Effetti Spenti while playing frees every particle node at once; back to Alti, the working blocks emit again.</summary>
+    private async Task<bool> PlaytestEffectsOffFreesPoolAsync(Factory factory, EffectManager fx)
+    {
+        fx.Quality = EffectsQuality.Spenti;
+        if (fx.GetChildCount() != 0 || fx.PooledNodes != 0 || fx.ActiveParticles != 0)
+        {
+            return Fail($"effetti: con Spenti restano {fx.GetChildCount()} nodi ({fx.PooledNodes} nel pool, {fx.ActiveParticles} particelle)");
+        }
+
+        fx.Quality = EffectsQuality.Alti;
+        KeepPerfLayoutWorking(factory);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (fx.Emitters == 0 || fx.Attachments != WorkingBlocks(factory))
+        {
+            return Fail($"effetti: di nuovo Alti, {fx.Emitters} emettitori e {fx.Attachments} legati per {WorkingBlocks(factory)} blocchi al lavoro");
+        }
+
+        GD.Print($"PLAYTEST effetti: Spenti → 0 nodi; di nuovo Alti → {fx.Emitters} emettitori");
+        return true;
     }
 
     /// <summary>A basic miner (unlocked from the start) built by the drone near the Core: the rich beam at work, the flash when it is done, the crumble when it is taken down.</summary>
@@ -191,7 +267,7 @@ public partial class World
 
     /// <summary>
     /// 60 s on the perf layout with every block kept working: node count and particles at 10 s and at 60 s (particles
-    /// as the average of the 5 s before each) must stay within <see cref="EffectsDriftLimit"/>; prints them with the
+    /// as the average of 2-10 s and 50-60 s: the ambient bursts come and go at random) must stay within <see cref="EffectsDriftLimit"/>; prints them with the
     /// average and minimum FPS (VSync off). Returns the problem, or null.
     /// </summary>
     private async Task<string?> PlaytestEffectsStableAsync(Factory factory, EffectManager fx)
@@ -212,7 +288,7 @@ public partial class World
                 KeepPerfLayoutWorking(factory);
             }
 
-            var window = t is >= 5 and < 10 ? 0 : t >= 55 ? 1 : -1;
+            var window = t is >= 2 and < 10 ? 0 : t >= 50 ? 1 : -1;
             if (window >= 0)
             {
                 particleSum[window] += fx.ActiveParticles;
@@ -284,9 +360,7 @@ public partial class World
     /// </summary>
     private async Task<bool> PlaytestEmittersFollowBlocksAsync(Factory factory, EffectManager fx)
     {
-        int Working() => factory.Miners.Count(m => m.Efficiency > 0f)
-            + factory.Smelters.Count(s => s.IsCrafting) + factory.Assemblers.Count(a => a.IsCrafting)
-            + factory.Generators.Count(g => g.IsGenerating);
+        int Working() => WorkingBlocks(factory);
 
         KeepPerfLayoutWorking(factory);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

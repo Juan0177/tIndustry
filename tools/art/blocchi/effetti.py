@@ -7,7 +7,7 @@ Colours are the natural ones of each particle; godot/effetti/effetti.json only t
 """
 import forme
 from blocchi import sprite
-from palette import ACCENTO, BAGLIORE, ENERGIA, ERBA, FULIGGINE, MUSCHIO, NEVE, SABBIA, TERRA
+from palette import ACCENTO, BAGLIORE, ENERGIA, FULIGGINE, NEVE, PARETE_SABBIA, RAME, TERRA
 
 
 def _sbuffo(lato, dischi, rampa):
@@ -73,11 +73,11 @@ def polvere():
 
 @sprite("fx-granello")
 def granello():
-    # Sand grains blown over the desert.
+    # Sand grains blown over the desert: darker and warmer than the sand floor, so they read on it.
     return forme.striscia([
-        _grumi(8, [(3, 3, 2)], SABBIA),
-        _grumi(8, [(2, 4, 2), (5, 2, 1)], SABBIA),
-        _grumi(8, [(4, 4, 1), (2, 2, 1)], SABBIA),
+        _grumi(8, [(3, 3, 2)], PARETE_SABBIA),
+        _grumi(8, [(2, 4, 2), (5, 2, 1)], PARETE_SABBIA),
+        _grumi(8, [(4, 4, 1), (2, 2, 1)], PARETE_SABBIA),
     ])
 
 
@@ -115,7 +115,8 @@ def _foglia(rampa, specchio):
 
 @sprite("fx-foglia")
 def foglia():
-    return forme.striscia([_foglia(ERBA, False), _foglia(MUSCHIO, True)])
+    # Autumn leaves (gold and copper): green ones vanished on the meadows they drift over.
+    return forme.striscia([_foglia(ACCENTO, False), _foglia(RAME, True)])
 
 
 @sprite("fx-lampo")

@@ -357,7 +357,8 @@ public partial class ConstructionLayer : Node2D
         return null;
     }
 
-    private void Clear()
+    /// <summary>Drops every site, drone and cached site rect (a new game is attached: its site ids start over).</summary>
+    public void Clear()
     {
         foreach (var visual in _sites.Values)
         {

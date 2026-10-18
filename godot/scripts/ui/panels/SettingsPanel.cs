@@ -148,7 +148,9 @@ public partial class SettingsPanel : Control
             s => (int)s.Effetti, (s, v) => s.Effetti = (EffectsQuality)v);
         AddCheck(options, "Ombre", "Ombre sotto gli edifici", s => s.Ombre, (s, on) => s.Ombre = on);
         AddCheck(options, "Bagliore", "Bagliore", s => s.Bagliore, (s, on) => s.Bagliore = on);
-        AddCheck(options, "AnimazioniBlocchi", "Animazioni dei blocchi", s => s.AnimazioniBlocchi, (s, on) => s.AnimazioniBlocchi = on);
+        AddCheck(options, "AnimazioniBlocchi", "Animazioni dei blocchi (non le particelle)", s => s.AnimazioniBlocchi, (s, on) => s.AnimazioniBlocchi = on)
+            .TooltipText = "Ferma trivelle, rotori, bocche dei forni e luce del Core. "
+                + "Fumo, scintille e polvere seguono l'impostazione Effetti.";
         AddChoices(options, "LimiteFps", "Limite FPS",
             ClientSettings.FpsLimitPresets.Select(v => (ClientSettings.FpsLimitLabel(v), v)).ToArray(),
             s => s.LimiteFps, (s, v) => s.LimiteFps = v);
@@ -222,7 +224,7 @@ public partial class SettingsPanel : Control
     }
 
     /// <summary>A check button named <paramref name="name"/> bound to one boolean of the draft.</summary>
-    private void AddCheck(VBoxContainer parent, string name, string text,
+    private CheckButton AddCheck(VBoxContainer parent, string name, string text,
         Func<ClientSettings, bool> get, Action<ClientSettings, bool> set)
     {
         var check = new CheckButton { Name = name, Text = text };
@@ -235,6 +237,7 @@ public partial class SettingsPanel : Control
         };
         parent.AddChild(check);
         _checks.Add((check, get));
+        return check;
     }
 
     /// <summary>A label and a row of buttons named "<paramref name="name"/>_&lt;value&gt;", one per choice.</summary>

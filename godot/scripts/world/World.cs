@@ -253,6 +253,7 @@ public partial class World : Node2D
     {
         _effects = new EffectManager { Name = "Effetti", TileSize = TileSize };
         AddChild(_effects);
+        // Either may be made first: each one hands the effects to the construction layer.
         if (_constructionLayer is not null)
         {
             _constructionLayer.Effects = _effects;

@@ -35,6 +35,8 @@ public partial class World
         _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
         _effects?.Clear();
+        // Site ids start over in the new game: a site-done event must not find an old game's rect.
+        _constructionLayer?.Clear();
         _coreDeliveredSeen = -1;
         _structureCount = StructureCount();
         ConstructFinishedCount = 0;

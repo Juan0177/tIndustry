@@ -50,7 +50,7 @@ public partial class AssemblerVisual : Node2D
         if (fx is not null)
         {
             _fx = fx;
-            _sparks = fx.Keep(_sparks, asm.IsCrafting, "scintille-pressa", this, Vector2.Zero);
+            _sparks = fx.Keep(_sparks, asm.IsCrafting, "scintille-pressa", this, Vector2.Zero, Origin);
         }
 
         var target = asm.IsCrafting ? 1f : 0f;

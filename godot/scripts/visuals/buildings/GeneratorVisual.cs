@@ -46,7 +46,7 @@ public partial class GeneratorVisual : Node2D
         if (fx is not null)
         {
             _fx = fx;
-            _steam = fx.Keep(_steam, gen.IsGenerating, "vapore-generatore", this, _steamAt);
+            _steam = fx.Keep(_steam, gen.IsGenerating, "vapore-generatore", this, _steamAt, Origin);
         }
 
         if (!gen.IsGenerating || _rotor is null)

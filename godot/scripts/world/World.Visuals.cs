@@ -26,7 +26,7 @@ public partial class World
             return;
         }
 
-        _constructionLayer = new ConstructionLayer { Name = "Construction", ZIndex = ConstructionZ };
+        _constructionLayer = new ConstructionLayer { Name = "Construction", ZIndex = ConstructionZ, Effects = _effects };
         AddChild(_constructionLayer);
     }
 
@@ -198,6 +198,12 @@ public partial class World
 
         foreach (var child in _buildingsLayer.GetChildren())
         {
+            // A rebuild frees the old visuals at the end of the frame: they must not keep their emitters alive.
+            if (child.IsQueuedForDeletion())
+            {
+                continue;
+            }
+
             switch (child)
             {
                 case MinerVisual minerVis:
