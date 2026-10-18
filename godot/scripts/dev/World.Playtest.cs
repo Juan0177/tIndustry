@@ -533,13 +533,6 @@ public partial class World
     private const string PlaytestPerfEnv = "TINDUSTRY_PLAYTEST_PERF";
 
     /// <summary>
-    /// Performance probe (only with <c>TINDUSTRY_PLAYTEST_PERF=1</c>), no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
-    /// tiers, so with corners) below the Core and, below them, 100 layered 2×2 buildings, all working: 25 smelters,
-    /// 25 assemblers (fed), 25 generators (fuelled) in a packed grid and 25 basic miners on the first free deposits.
-    /// Frames belts and grid at 1280×720 and prints average and minimum FPS over 3 s without VSync, with the node
-    /// count and how many buildings were working during the measure.
-    /// </summary>
-    /// <summary>
     /// A miner and a smelter each feeding a belt on its side that turns away: both cells next to the buildings
     /// must be curves (Mindustry blending), like the belt-to-belt turn above them. Everything is taken away
     /// again without refund, so later captures see the same game.
@@ -649,6 +642,13 @@ public partial class World
         await PlaytestWait(0.1);
     }
 
+    /// <summary>
+    /// Performance probe (only with <c>TINDUSTRY_PLAYTEST_PERF=1</c>), no screenshot and no pass/fail: lays 200 belts (a 20×10 serpentine of the three
+    /// tiers, so with corners) below the Core and, below them, 100 layered 2×2 buildings, all working: 25 smelters,
+    /// 25 assemblers (fed), 25 generators (fuelled) in a packed grid and 25 basic miners on the first free deposits.
+    /// Frames belts and grid at 1280×720 and prints average and minimum FPS over 3 s without VSync, with the node
+    /// count and how many buildings were working during the measure.
+    /// </summary>
     private async Task PlaytestBeltPerfAsync()
     {
         if (_view is not Factory factory || GetNodeOrNull<Camera2D>("Camera") is not { } cam)

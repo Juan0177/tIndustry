@@ -471,8 +471,9 @@ public sealed class BeltGrid
             LogisticsKind.Bridge when cell.BridgePartner is { } partner =>
                 !IsBridgeEntry(cell, partner) && flow != back,
             LogisticsKind.Bridge => cell.Direction == flow,
+            // Buildings insert without a direction, which a junction refuses: only logistics feed through it.
             LogisticsKind.Junction => junctionsLeft > 0
-                && FeedsToward(source.Step(DirectionMath.Opposite(flow)), flow, buildingFeeds, junctionsLeft - 1),
+                && FeedsToward(source.Step(DirectionMath.Opposite(flow)), flow, null, junctionsLeft - 1),
             _ => false
         };
     }

@@ -154,6 +154,16 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void BuildingBehindAJunctionDoesNotFeedThroughIt()
+    {
+        // A miner cannot insert into a junction (no direction), so nothing reaches P through it.
+        var factory = WithNorthLine();
+        Assert.True(factory.TryPlaceJunction(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceMiner(new GridPosition(17, 20), Direction.East));
+        Assert.False(factory.IsBeltCorner(P));
+    }
+
+    [Fact]
     public void CachedAnswerFollowsEveryLayoutChange()
     {
         var factory = WithNorthLine();
