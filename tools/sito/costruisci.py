@@ -40,11 +40,10 @@ from PIL import Image  # noqa: E402
 
 import carattere  # noqa: E402
 import composti  # noqa: E402
+from documenti import REPO_URL  # noqa: E402
 import tavola  # noqa: E402
 from blocchi import SPRITE  # noqa: E402
 from blocchi import terreno as tr  # noqa: E402
-
-REPO_URL = "https://github.com/Juan0177/tIndustry"
 
 # Families of the sprite registry (module names in tools/art/blocchi), in page order.
 FAMIGLIE = {
