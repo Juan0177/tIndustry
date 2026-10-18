@@ -12,9 +12,6 @@ public partial class MindustryBeltVisual : Node2D
 {
     public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
-    /// <summary>Filter glyph on a sorter: as wide as the 14×14 px slot of the sorter sprite.</summary>
-    private const float SorterGlyphCells = 14f / Sprites.PixelsPerCell;
-
     /// <summary>Animation state of one belt tier, kept across rebuilds so placing a belt does not reset the others.</summary>
     private sealed class TierClock(Texture2D[] straight, Texture2D[] corner, float rateCellsPerSecond)
     {
@@ -194,19 +191,16 @@ public partial class MindustryBeltVisual : Node2D
             var filterId = string.IsNullOrWhiteSpace(sorterFilterId)
                 ? BeltGridCell.DefaultSorterFilter
                 : sorterFilterId;
-            if (Sprites.TryFor(filterId) is { } glyphTexture)
+            // The 10 px belt sprite of the item at the world art scale, inside the 14 px slot.
+            node.AddChild(new Sprite2D
             {
-                node.AddChild(new Sprite2D
-                {
-                    Name = "FilterIcon",
-                    Texture = glyphTexture,
-                    Centered = true,
-                    TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                    Scale = Vector2.One * (tileSize * SorterGlyphCells / glyphTexture.GetWidth()),
-                    ZIndex = 1,
-                    Modulate = ItemPalette.ColorFor(filterId)
-                });
-            }
+                Name = "FilterIcon",
+                Texture = Sprites.BeltItem(filterId),
+                Centered = true,
+                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                Scale = Vector2.One * ((float)tileSize / Sprites.PixelsPerCell),
+                ZIndex = 1
+            });
         }
 
         AddChild(node);

@@ -21,8 +21,8 @@ public static class HudStyle
     public static readonly Color CatProduction = new(0.84f, 0.60f, 0.30f, 1f);
     public static readonly Color CatPower = new(0.92f, 0.80f, 0.30f, 1f);
 
-    /// <summary>Item icon (white silhouette; tint with <see cref="ItemPalette.Tint"/>).</summary>
-    public static Texture2D? ItemTexture(string itemId) => Sprites.TryFor(itemId);
+    /// <summary>Item icon in its own colours (32 px; never tinted).</summary>
+    public static Texture2D ItemTexture(string itemId) => Sprites.Item(itemId);
 
     /// <summary>Mindustry-style compact counts: 950 · 1.2k · 340k.</summary>
     public static string FormatCount(int n) => n switch
@@ -104,7 +104,7 @@ public static class HudStyle
     {
         var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddThemeConstantOverride("separation", 2);
-        var icon = MakeIcon(ItemTexture("money"), 16, ok ? MoneyColor : Insufficient);
+        var icon = MakeIcon(ItemTexture("money"), 16);
         icon.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         row.AddChild(icon);
         var label = new Label { Text = $"{amount}", MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
@@ -136,21 +136,15 @@ public static class HudStyle
         };
         row.AddChild(iconHost);
 
-        var texPath = $"res://assets/{itemId}.png";
         var icon = new TextureRect
         {
+            Texture = ItemTexture(itemId),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(20, 20),
             Position = new Vector2(1, 1),
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
-        if (ResourceLoader.Exists(texPath))
-        {
-            icon.Texture = GD.Load<Texture2D>(texPath);
-            ItemPalette.Tint(icon, itemId);
-        }
-
         iconHost.AddChild(icon);
 
         if (!ok)

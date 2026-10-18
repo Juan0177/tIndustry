@@ -182,29 +182,13 @@ public partial class World
 
         var itemId = TerrainMap.ItemIdForDeposit(deposit);
         var fill = ItemPalette.ColorFor(itemId);
-        var tex = deposit switch
-        {
-            DepositKind.Iron => _oreTex,
-            DepositKind.Copper => _copperOreTex,
-            DepositKind.Coal => _coalTex,
-            DepositKind.Lead => _leadOreTex,
-            DepositKind.Titanium => _titaniumOreTex,
-            _ => null
-        };
+        var tex = deposit == DepositKind.None ? null : Sprites.TryFor(itemId);
 
         if (screenTilePx >= 14f && tex is not null)
         {
-            var inset = TileSize * 0.18f;
-            // White silhouette PNGs — tint like Raylib GameIcons.TryDraw + UiTheme.ItemColor.
-            DrawTextureRect(
-                tex,
-                new Rect2(
-                    x * TileSize + inset,
-                    y * TileSize + inset,
-                    TileSize - inset * 2f,
-                    TileSize - inset * 2f),
-                false,
-                fill);
+            // The ore item sprite in its own colours, at the world art scale (32 px icon = one tile).
+            // Placeholder until the real terrain art (G2).
+            DrawTextureRect(tex, rect, false);
         }
         else
         {

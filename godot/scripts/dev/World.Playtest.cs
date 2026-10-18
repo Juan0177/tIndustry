@@ -383,7 +383,7 @@ public partial class World
     /// block twice, idle (off a deposit, no input, no fuel) and working (miners on a deposit, the advanced one beside a
     /// burning generator, smelter and assembler fed), and saves <c>ui-blocchi-spenti.png</c>,
     /// <c>ui-blocchi-accesi.png</c>, both groups at zoom 0.4 (<c>ui-blocchi-zoom04.png</c>) and the Core with its drone
-    /// up close (<c>ui-blocchi-core.png</c>).
+    /// up close (<c>ui-blocchi-core.png</c>), and every item on each belt tier (<c>ui-blocchi-oggetti.png</c>).
     /// </summary>
     private async Task PlaytestBlocksShotAsync(string dir)
     {
@@ -512,6 +512,27 @@ public partial class World
         await Frame(new GridPosition(all.Min(c => c.X), all.Min(c => c.Y)), new GridPosition(all.Max(c => c.X), all.Max(c => c.Y)), 0.4f, "zoom04");
         // Close-up of the Core (core-1 with its nucleus light) and the drone resting beside it.
         await Frame(new GridPosition(core.X - 2, core.Y - 1), new GridPosition(core.X + 3, core.Y + 2), 2f, "core");
+
+        // Every item on each belt tier: three rows of 12 belts heading East, one item per cell.
+        string[] itemIds = [.. _view.Content.Market.Select(m => m.ItemId), "money"];
+        string[] tiers = ["conveyor-basic", "conveyor-fast", "conveyor-express"];
+        if (Find(itemIds.Length, tiers.Length, deposit: false) is { } beltsAt)
+        {
+            var nextId = 900_000L;
+            for (var r = 0; r < tiers.Length; r++)
+            {
+                for (var c = 0; c < itemIds.Length; c++)
+                {
+                    var cell = new GridPosition(beltsAt.X + c, beltsAt.Y + r);
+                    factory.PlaceInstant(new BuildSpec(tiers[r], null, cell, Direction.East), charge: false);
+                    factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemIds[(c + r) % itemIds.Length], 0.5f));
+                }
+            }
+
+            _visualDirty = true;
+            await Frame(beltsAt, new GridPosition(beltsAt.X + itemIds.Length - 1, beltsAt.Y + tiers.Length - 1), 1.2f, "oggetti");
+        }
+
         GD.Print($"PLAYTEST blocchi: spenti da {off}, accesi da {on}, {on2} e {crafters}; "
                  + $"minatori al lavoro {factory.Miners.Count(m => m.Efficiency > 0f)}, alimentati {factory.Miners.Count(m => m.IsPowered)}, "
                  + $"forni/assemblatori attivi {factory.Smelters.Concat(factory.Assemblers).Count(c => c.IsCrafting)}, "
