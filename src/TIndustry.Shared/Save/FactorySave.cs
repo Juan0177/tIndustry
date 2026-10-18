@@ -256,6 +256,13 @@ public sealed class SaveFileData
     public int MapWidth { get; set; }
     public int MapHeight { get; set; }
     public string? ActiveCampaignLevelId { get; set; }
+    /// <summary>
+    /// Terrain generator for the slot list (<see cref="FactorySaveData.Generator"/>); absent in files written before
+    /// it was listed (v11 and early v12), which the list shows as classic or by size only.
+    /// </summary>
+    public string? Generator { get; set; }
+    /// <summary>Campaign map file of a <c>"campagna"</c> save (<see cref="FactorySaveData.MapId"/>).</summary>
+    public string? MapId { get; set; }
     /// <summary>Canonical snapshot bytes, base64.</summary>
     public string? Snapshot { get; set; }
 }
@@ -277,6 +284,10 @@ public sealed class SaveSlotInfo
     public int MapWidth { get; init; }
     public int MapHeight { get; init; }
     public string? ActiveCampaignLevelId { get; init; }
+    /// <summary>Terrain generator (<c>"classico"</c>, <c>"biomi"</c>, <c>"campagna"</c>), null when the file does not say.</summary>
+    public string? Generator { get; init; }
+    /// <summary>Campaign map file of a campaign save.</summary>
+    public string? MapId { get; init; }
 }
 
 /// <summary>JSON slots under LocalAppData/tIndustry/godot-saves/.</summary>
@@ -372,7 +383,9 @@ public static class FactorySaveStore
                     Seed = data.Seed,
                     MapWidth = data.MapWidth,
                     MapHeight = data.MapHeight,
-                    ActiveCampaignLevelId = data.ActiveCampaignLevelId
+                    ActiveCampaignLevelId = data.ActiveCampaignLevelId,
+                    Generator = data.Generator,
+                    MapId = data.MapId
                 });
             }
             catch
@@ -400,6 +413,8 @@ public static class FactorySaveStore
             MapWidth = view.Terrain?.Width ?? 0,
             MapHeight = view.Terrain?.Height ?? 0,
             ActiveCampaignLevelId = view.ActiveCampaignLevelId,
+            Generator = view.Terrain is null ? null : Factory.SavedGenerator(view.Terrain),
+            MapId = Factory.CampaignMapId(view.Terrain),
             Snapshot = Convert.ToBase64String(host.CreateSnapshot())
         };
         GameDataPaths.CreateDirectory(SavesDirectory);

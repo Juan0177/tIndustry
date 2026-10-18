@@ -132,7 +132,7 @@ public partial class World
             return;
         }
 
-        if (_home?.IsOpen == true)
+        if (_home?.IsOpen == true || _newGame?.IsOpen == true)
         {
             return;
         }

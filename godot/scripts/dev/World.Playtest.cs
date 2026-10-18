@@ -85,7 +85,7 @@ public partial class World
             _ => Fail($"playtest sconosciuto: {name}")
         };
         GD.Print(ok ? "PLAYTEST OK" : "PLAYTEST FAIL");
-        GetTree().Quit(ok ? 0 : 1);
+        QuitAfterFinalizers(ok ? 0 : 1);
     }
 
     /// <summary>First run → Nuova partita → every tutorial step done by input, frame saved after each.</summary>
@@ -247,8 +247,20 @@ public partial class World
         }
 
         _settings.TutorialCompleted = true;
+        // Home → Nuova partita, with the playtest seed in the field instead of a random one.
+        OpenNewGamePanel(PlaytestSeed);
+        await Shot("nuova-partita");
+        if (_newGame?.IsOpen != true || _home?.IsOpen == true)
+        {
+            return Fail("Nuova partita: pannello non aperto sopra Home");
+        }
+
         OnHomeNewGame();
         _tutorial?.Close();
+        if (_newGame?.IsOpen == true || _view?.Terrain is not { Generator: MapGenerator.Name, Width: (int)MapSize.Media })
+        {
+            return Fail("Nuova partita: attesa mappa a biomi Media");
+        }
 
         // Isolation check: an event from a real device (the player's mouse/keyboard on this window)
         // must not reach the game while a playtest drives it.
@@ -311,7 +323,31 @@ public partial class World
             return Fail("autosave su Continua mancante dopo una partita giocata");
         }
 
-        return _view!.CoreDeliveredItems > 0 || Fail("nessun oggetto consegnato al CORE");
+        if (_view!.CoreDeliveredItems <= 0)
+        {
+            return Fail("nessun oggetto consegnato al CORE");
+        }
+
+        // A campaign level starts on its map file (data/maps), not on a generated map.
+        if (_campaign?.FirstLevel is not { } level)
+        {
+            return Fail("campagna senza livelli");
+        }
+
+        StartCampaignLevel(level, toast: true);
+        if (_view?.Terrain?.Generator != CampaignMapFile.GeneratorPrefix + level.Map)
+        {
+            return Fail($"livello {level.Id}: mappa {_view?.Terrain?.Generator ?? "assente"} invece del file {level.Map}");
+        }
+
+        await Shot("campagna");
+
+        if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
+        {
+            await PlaytestHugeMapPerfAsync(dir);
+        }
+
+        return true;
     }
 
     /// <summary>Set to 1 to run <see cref="PlaytestBeltPerfAsync"/> in the <c>ui</c> playtest.</summary>
@@ -437,6 +473,82 @@ public partial class World
         var nodes = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
         GD.Print($"PLAYTEST perf: {placed} nastri, {buildings} edifici a strati ({working} al lavoro), "
             + $"fps medio {average:F0}, minimo {1e6 / Math.Max(1UL, worst):F0}, nodi {nodes:F0}");
+    }
+
+    /// <summary>
+    /// Second performance probe (with <c>TINDUSTRY_PLAYTEST_PERF=1</c>, at the end of the <c>ui</c> playtest), no
+    /// pass/fail: a new Enorme map (2000², seed 42) at minimum zoom, saved as <c>ui-enorme-zoom-min.png</c>; average
+    /// and minimum FPS over 3 s standing still and 3 s sweeping the camera across the map (chunks built and freed
+    /// on the way), without VSync, with chunk counts and memory (Godot static, .NET heap, video, process).
+    /// </summary>
+    private async Task PlaytestHugeMapPerfAsync(string dir)
+    {
+        var started = Time.GetTicksUsec();
+        StartNewSandbox(MapSize.Enorme, PlaytestSeed, toast: false);
+        var startMs = (Time.GetTicksUsec() - started) / 1000.0;
+        if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam || _terrainChunks is null)
+        {
+            return;
+        }
+
+        cam.Zoom = new Vector2(cam.MinZoom, cam.MinZoom);
+        cam.ClampToMap();
+        // Past the campaign toast (1.6 s + fade).
+        await PlaytestWait(2.5);
+        GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "ui-enorme-zoom-min.png"));
+
+        var vsync = DisplayServer.WindowGetVsyncMode();
+        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+        var still = await MeasureFramesAsync(3.0, null);
+        // Sweep diagonally, 4 cells east and 3 south per frame, bouncing off the map edges: new chunks on the way
+        // and, past the cap, the oldest ones freed.
+        var velocity = new Vector2(4f, 3f) * TileSize;
+        var sweep = await MeasureFramesAsync(3.0, () =>
+        {
+            var before = cam.Position;
+            cam.Position += velocity;
+            cam.ClampToMap();
+            if (Math.Abs(cam.Position.X - before.X) < 1f)
+            {
+                velocity.X = -velocity.X;
+            }
+
+            if (Math.Abs(cam.Position.Y - before.Y) < 1f)
+            {
+                velocity.Y = -velocity.Y;
+            }
+        });
+        DisplayServer.WindowSetVsyncMode(vsync);
+
+        const double mib = 1024.0 * 1024.0;
+        var video = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed);
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        GD.Print($"PLAYTEST perf enorme: {ActiveMapWidth}×{ActiveMapHeight}, partenza {startMs:F0} ms, zoom {cam.Zoom.X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}; "
+            + $"fermo fps medio {still.Average:F0}, minimo {still.Minimum:F0}; "
+            + $"panoramica fps medio {sweep.Average:F0}, minimo {sweep.Minimum:F0}; "
+            + $"pezzi vivi {_terrainChunks.ChunkCount}, creati {_terrainChunks.BuiltSinceReset}; "
+            + $"memoria statica {OS.GetStaticMemoryUsage() / mib:F0} MiB, .NET {GC.GetTotalMemory(false) / mib:F0} MiB, "
+            + $"video {video / mib:F0} MiB, processo {process.WorkingSet64 / mib:F0} MiB");
+    }
+
+    /// <summary>Frames for <paramref name="seconds"/>, running <paramref name="perFrame"/> before each: average and worst-frame FPS.</summary>
+    private async Task<(double Average, double Minimum)> MeasureFramesAsync(double seconds, Action? perFrame)
+    {
+        var frames = 0;
+        var worst = 0UL;
+        var start = Time.GetTicksUsec();
+        var last = start;
+        while (Time.GetTicksUsec() - start < (ulong)(seconds * 1e6))
+        {
+            perFrame?.Invoke();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var now = Time.GetTicksUsec();
+            worst = Math.Max(worst, now - last);
+            last = now;
+            frames++;
+        }
+
+        return (frames / ((last - start) / 1e6), 1e6 / Math.Max(1UL, worst));
     }
 
     /// <summary>Set to 1 to run <see cref="PlaytestBlocksShotAsync"/> in the <c>ui</c> playtest.</summary>

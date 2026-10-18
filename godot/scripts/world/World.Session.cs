@@ -31,9 +31,19 @@ public partial class World
         ToggleCampaign();
     }
 
-    private void OnHomeNewGame()
+    /// <summary>
+    /// Nuova partita without the panel (scripted playtests): Media map, seed 42, biome generator. The generator's
+    /// start guarantee keeps the tutorial's iron patch and belt corridor west of the Core.
+    /// </summary>
+    private void OnHomeNewGame() => StartNewGameFromHome(MapSize.Media, PlaytestSeed);
+
+    /// <summary>Seed of the scripted playtests' sandbox.</summary>
+    private const int PlaytestSeed = 42;
+
+    private void StartNewGameFromHome(MapSize size, int seed)
     {
-        StartNewSandbox(toast: true);
+        StartNewSandbox(size, seed, toast: true);
+        _newGame?.Close();
         _home?.Close();
         BeginTutorialIfNeeded();
     }
@@ -44,19 +54,23 @@ public partial class World
     /// </summary>
     private static GameRules ClientRules() => new();
 
-    private void StartNewSandbox(bool toast)
+    /// <summary>A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre.</summary>
+    private static Factory NewSandboxFactory(FactoryContent content, MapSize size, int seed)
+    {
+        var edge = (int)size;
+        return NewGame.Sandbox(
+            content,
+            Factory.CenteredCoreOrigin(edge, edge),
+            coreSize: 2,
+            startingMoney: 180,
+            rules: ClientRules(),
+            map: MapGenSettings.Normal(size, seed));
+    }
+
+    private void StartNewSandbox(MapSize size, int seed, bool toast)
     {
         var content = FactoryContent.Load(_contentPath);
-        var core = Factory.CenteredCoreOrigin(DefaultMapWidth, DefaultMapHeight);
-        AttachGame(NewGame.Sandbox(
-            content,
-            core,
-            coreSize: 2,
-            mapWidth: DefaultMapWidth,
-            mapHeight: DefaultMapHeight,
-            seed: 42,
-            startingMoney: 180,
-            rules: ClientRules()));
+        AttachGame(NewSandboxFactory(content, size, seed));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
@@ -73,7 +87,7 @@ public partial class World
         QueueRedraw();
         if (toast)
         {
-            _hud?.ShowToast($"Nuova partita · sandbox · seed {_view?.Terrain?.Seed ?? 42}");
+            _hud?.ShowToast($"Nuova partita · {NewGamePanel.SizeLabel(size)} {(int)size}×{(int)size} · seme {seed}");
         }
     }
 
@@ -166,9 +180,20 @@ public partial class World
             return;
         }
 
-        var content = FactoryContent.Load(_contentPath);
-        var factory = NewGame.Campaign(
-            content, _campaign, level, rules: ClientRules());
+        Factory factory;
+        try
+        {
+            var content = FactoryContent.Load(_contentPath);
+            // The level's map file from data/maps/; without the folder NewGame falls back to the classic generator.
+            factory = NewGame.Campaign(content, _campaign, level, rules: ClientRules(), mapsDirectory: ResolveMapsPath());
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"Campaign map failed: {ex.Message}");
+            _hud?.ShowToast($"Mappa del livello non disponibile · {level.Name}");
+            return;
+        }
+
         AttachGame(factory);
 
         _continueAutoSave.MarkPlayed();
@@ -186,8 +211,7 @@ public partial class World
         QueueRedraw();
         if (toast)
         {
-            var (w, h) = Factory.ResolveCampaignMapSize(level);
-            _hud?.ShowToast($"Campagna · {level.Name} · {w}×{h} · seed {level.Seed}");
+            _hud?.ShowToast($"Campagna · {level.Name} · {ActiveMapWidth}×{ActiveMapHeight}");
             // Raylib: campaign disables first-run tutorial (objectives HUD only).
         }
     }

@@ -146,14 +146,52 @@ public partial class World
 
         _home.ContinuaChosen += OnHomeContinua;
         _home.CampaignChosen += OnHomeCampaign;
-        _home.NewGameChosen += OnHomeNewGame;
+        _home.NewGameChosen += OpenNewGamePanel;
         _home.SavesChosen += OpenSavesManager;
         _home.SettingsChosen += OpenSettings;
         _home.QuitChosen += () =>
         {
             AutoSaveContinue(quiet: true);
-            GetTree().Quit();
+            QuitAfterFinalizers(0);
         };
+    }
+
+    private void EnsureNewGamePanel()
+    {
+        var layer = GetNode<CanvasLayer>("Hud");
+        if (layer.HasNode("NewGamePanel"))
+        {
+            _newGame = layer.GetNode<NewGamePanel>("NewGamePanel");
+        }
+        else
+        {
+            _newGame = new NewGamePanel { Name = "NewGamePanel" };
+            layer.AddChild(_newGame);
+        }
+
+        layer.MoveChild(_newGame, layer.GetChildCount() - 1);
+        _newGame.StartRequested += StartNewGameFromHome;
+        _newGame.Cancelled += () => _home?.Open();
+    }
+
+    /// <summary>Home → Nuova partita: pick size and seed (<see cref="NewGamePanel"/>), or <paramref name="seed"/> (playtests).</summary>
+    private void OpenNewGamePanel() => OpenNewGamePanel(null);
+
+    private void OpenNewGamePanel(int? seed)
+    {
+        _home?.Close();
+        _newGame?.Open(seed);
+    }
+
+    /// <summary>
+    /// Runs pending .NET finalizers before quitting: Godot wrappers finalized while the engine shuts down crash it
+    /// ("Leaked unsafe reference", "!rc_owner"), more likely after big allocations such as a 2000² map.
+    /// </summary>
+    private void QuitAfterFinalizers(int exitCode)
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GetTree().Quit(exitCode);
     }
 
     public override void _Notification(int what)
@@ -182,6 +220,7 @@ public partial class World
         _saves.SlotLoadRequested += OnSavesSlotLoad;
         _saves.SaveAsRequested += OnSavesSaveAs;
         _saves.Closed += () => _home?.Open();
+        _saves.MapName = mapId => _campaign?.Levels.FirstOrDefault(l => l.Map == mapId)?.Name;
     }
 
     private void OpenSavesManager()
@@ -405,7 +444,7 @@ public partial class World
             return;
         }
 
-        var modalOpen = _home?.IsOpen == true || _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
+        var modalOpen = _home?.IsOpen == true || _newGame?.IsOpen == true || _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
             || _research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true;
         _tutorial.SetSuppressed(modalOpen);
 

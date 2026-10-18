@@ -125,6 +125,33 @@ public sealed class SaveMigrationTests
     }
 
     [Fact]
+    public void SlotListNamesTheGeneratorAndMap()
+    {
+        var biomes = new SimHost(NewGame.Sandbox(Content, new GridPosition(100, 100), map: MapGenSettings.Normal((MapSize)200, 31)));
+        var classic = new SimHost(NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 6));
+        var level = Catalog.Levels[0];
+        var campaign = new SimHost(NewGame.Campaign(Content, Catalog, level, mapsDirectory: MapsDir));
+        FactorySaveStore.Save("elenco-biomi", biomes);
+        FactorySaveStore.Save("elenco-classico", classic);
+        FactorySaveStore.Save("elenco-campagna", campaign);
+
+        var slots = FactorySaveStore.ListSlots();
+
+        var b = Assert.Single(slots, s => s.Id == "elenco-biomi");
+        Assert.Equal(("biomi", (string?)null, 31, 200), (b.Generator, b.MapId, b.Seed, b.MapWidth));
+        var c = Assert.Single(slots, s => s.Id == "elenco-classico");
+        Assert.Equal(("classico", (string?)null), (c.Generator, c.MapId));
+        var m = Assert.Single(slots, s => s.Id == "elenco-campagna");
+        Assert.Equal(("campagna", level.Map), (m.Generator, m.MapId));
+
+        // A v11 file has neither field: the list leaves them empty (the game loads it on the classic generator).
+        Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
+        File.Copy(V11Fixture, FactorySaveStore.SlotPath("elenco-v11"), overwrite: true);
+        var old = Assert.Single(FactorySaveStore.ListSlots(), s => s.Id == "elenco-v11");
+        Assert.Equal(((string?)null, (string?)null), (old.Generator, old.MapId));
+    }
+
+    [Fact]
     public void CampaignSaveWithoutItsMapFailsWithClearMessage()
     {
         var level = Catalog.Levels[0];

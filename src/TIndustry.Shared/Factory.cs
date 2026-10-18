@@ -747,12 +747,12 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>Generator name stored in a save for <paramref name="terrain"/> (see <see cref="FactorySaveData.Generator"/>).</summary>
-    private static string SavedGenerator(TerrainMap? terrain) =>
+    internal static string SavedGenerator(TerrainMap? terrain) =>
         terrain is null ? ClassicTerrainGenerator.Name
         : CampaignMapId(terrain) is not null ? FactorySaveData.CampaignGenerator
         : terrain.Generator;
 
-    private static string? CampaignMapId(TerrainMap? terrain) =>
+    internal static string? CampaignMapId(TerrainMap? terrain) =>
         terrain is not null && terrain.Generator.StartsWith(CampaignMapFile.GeneratorPrefix, StringComparison.Ordinal)
             ? terrain.Generator[CampaignMapFile.GeneratorPrefix.Length..]
             : null;
