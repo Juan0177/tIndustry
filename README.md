@@ -15,7 +15,8 @@
   <a href="#cosa-cè-nel-gioco">Contenuti</a> ·
   <a href="#stato-e-roadmap">Roadmap</a> ·
   <a href="#sviluppo">Sviluppo</a> ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="https://juan0177.github.io/tIndustry/">Sito</a>
 </p>
 
 **tIndustry** è un gioco di logistica industriale ispirato a **Mindustry** e **Tiny Industry**: estrai minerali, portali al CORE su nastri, fondili in lastre e fili, vendili al Mercato e reinvesti in Ricerca per sbloccare nuovi blocchi.
@@ -120,12 +121,12 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
 | Fatto | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
 | Fatto | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)) |
-| Fatto, in attesa dell'ok sulla grafica | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
-| Fatto, in attesa dell'ok | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
-| Fatto, in attesa dell'ok | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
+| Fatto | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
+| Fatto | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
+| Fatto | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
 | Fatto, in attesa dell'ok | **G3 · Effetti e luci** | Particelle di lavoro, costruzione e ambiente, ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
-| Previsto | **G4 · Interfaccia** | Stile Mindustry, pixel font, lingue, scala e accessibilità |
-| Previsto | **Sito web su GitHub Pages** | Pagina del progetto con presentazione, catture e download |
+| In corso | **G4 · Interfaccia** | Stile Mindustry, pixel font, lingue, scala e accessibilità |
+| Avviato | **Sito web su GitHub Pages** | Online la prima sezione, [tutti gli asset](https://juan0177.github.io/tIndustry/asset/) generati da `tools/sito/costruisci.py`; poi presentazione, catture e download |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |

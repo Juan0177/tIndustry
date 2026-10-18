@@ -54,3 +54,6 @@ godot/data/
 
 # Output di tools/dev/dev.sh (playtest)
 .dev/
+
+# Website build output (tools/sito/costruisci.py)
+_site/

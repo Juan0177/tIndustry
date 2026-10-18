@@ -36,6 +36,7 @@ jobs:
           python -m pip install --quiet Pillow==12.3.0
           python -m unittest tools/art/test_genera.py
           python tools/art/genera.py --controlla --pixel
+          python -m unittest tools/sito/test_costruisci.py
 
       - name: Ensure Godot solution
         run: |
