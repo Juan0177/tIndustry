@@ -21,7 +21,7 @@ public sealed record AgentRulesSetup(
 }
 
 /// <summary>
-/// How the journaled game was made, so <see cref="AgentGame.Replay(AgentJournal, FactoryContent, CampaignCatalog?, string?)"/>
+/// How the journaled game was made, so <see cref="AgentGame.Replay(AgentJournal, FactoryContent, CampaignCatalog?, string?, string?)"/>
 /// can make it again: a sandbox (<paramref name="Size"/>, <paramref name="Seed"/>, <paramref name="Generator"/>
 /// <c>classico</c> or <c>biomi-1</c>, Core at the centre), a campaign <paramref name="Level"/>, or a starting snapshot
 /// (<paramref name="StartSnapshot"/>, base64 of <see cref="SimHost.CreateSnapshot"/>, e.g. a loaded save).

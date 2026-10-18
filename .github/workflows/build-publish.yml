@@ -24,6 +24,9 @@ jobs:
       - name: Test Shared
         run: dotnet test tests/TIndustry.Shared.Tests/TIndustry.Shared.Tests.csproj -c Release
 
+      - name: Test AgentPlay (MCP server over stdio)
+        run: dotnet test tests/TIndustry.AgentPlay.Tests/TIndustry.AgentPlay.Tests.csproj -c Release
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

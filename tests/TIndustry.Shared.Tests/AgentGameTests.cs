@@ -56,6 +56,11 @@ public sealed class AgentGameTests
         Assert.Equal(host.State.PowerCapacity, energia.GetProperty("capacita").GetSingle());
         Assert.True(energia.TryGetProperty("generazionePerSecondo", out _));
         Assert.Equal(0, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
+        var corner = host.State.CoreTiles.OrderBy(t => t.Y).ThenBy(t => t.X).First();
+        Assert.Equal(corner.X, stato.GetProperty("core").GetProperty("cella").GetProperty("x").GetInt32());
+        Assert.Equal(corner.Y, stato.GetProperty("core").GetProperty("cella").GetProperty("y").GetInt32());
+        Assert.Equal(host.State.Terrain!.Width, stato.GetProperty("mappa").GetProperty("larghezza").GetInt32());
+        Assert.Equal(host.State.Terrain.Height, stato.GetProperty("mappa").GetProperty("altezza").GetInt32());
 
         Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":62}}""");
         stato = Call(game, "stato");

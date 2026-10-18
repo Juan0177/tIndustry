@@ -113,21 +113,26 @@ public sealed class AgentGame : IDisposable
 
     /// <summary>Makes the game of <paramref name="journal"/>'s header again and replays the journal on it.</summary>
     public static AgentGame Replay(
-        AgentJournal journal, FactoryContent content, CampaignCatalog? campaign = null, string? mapsDirectory = null)
+        AgentJournal journal,
+        FactoryContent content,
+        CampaignCatalog? campaign = null,
+        string? mapsDirectory = null,
+        string? journalDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(journal);
         var setup = journal.Setup
             ?? throw new AgentException(AgentCodes.ParametriNonValidi, "Il diario non dice come era fatta la partita.");
-        return Replay(journal, setup.CreateHost(content, campaign, mapsDirectory), campaign);
+        return Replay(journal, setup.CreateHost(content, campaign, mapsDirectory), campaign, journalDirectory);
     }
 
     /// <summary>Runs <paramref name="journal"/> again on <paramref name="host"/> (a new game), at the same ticks.</summary>
-    public static AgentGame Replay(AgentJournal journal, SimHost host, CampaignCatalog? campaign = null)
+    public static AgentGame Replay(
+        AgentJournal journal, SimHost host, CampaignCatalog? campaign = null, string? journalDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(host);
         var game = new AgentGame(
-            host, host.State.Content, journal.Setup, campaign, tickPerComando: journal.Setup?.TickPerCommand ?? true);
+            host, host.State.Content, journal.Setup, campaign, journalDirectory, journal.Setup?.TickPerCommand ?? true);
         foreach (var entry in journal.Entries)
         {
             var gap = entry.Tick - host.State.CurrentTick;
@@ -349,6 +354,18 @@ public sealed class AgentGame : IDisposable
             ["direzione"] = DirectionName(brush),
             ["rifiuti"] = Array(refusals)
         };
+
+        // Where to start: the Core's lowest corner (smallest y, then x) and the map's edges.
+        if (View.CoreTiles.Count > 0)
+        {
+            var corner = View.CoreTiles.OrderBy(t => t.Y).ThenBy(t => t.X).First();
+            result["core"]!["cella"] = CellJson(corner);
+        }
+
+        if (View.Terrain is { } terrain)
+        {
+            result["mappa"] = new JsonObject { ["larghezza"] = terrain.Width, ["altezza"] = terrain.Height };
+        }
 
         if (View.ActiveCampaignLevelId is { } levelId && campaign?.Find(levelId) is { } level)
         {

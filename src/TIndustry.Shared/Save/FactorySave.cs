@@ -527,35 +527,51 @@ public static class FactorySaveStore
             failure = null;
             return true;
         }
-        catch (SaveMapException ex)
+        catch (Exception ex)
         {
-            failure = new SaveLoadFailure(ex.Code, ex.Argument, ex.Message);
-        }
-        catch (InvalidDataException ex)
-        {
-            // Only "older version" has its own reason; technical detail (future version, bad snapshot)
-            // collapses into "unreadable".
-            failure = ex.Message == OlderVersionMessage
-                ? new SaveLoadFailure(SaveLoadError.OlderVersion, null, OlderVersionMessage)
-                : new SaveLoadFailure(SaveLoadError.Unreadable, null, UnreadableMessage);
-        }
-        catch (FileNotFoundException)
-        {
-            failure = null; // missing slot: callers show their own "no save" text
-        }
-        catch (Exception)
-        {
-            failure = new SaveLoadFailure(SaveLoadError.Unreadable, null, UnreadableMessage);
+            failure = FailureOf(ex);
         }
 
         host = null;
         return false;
     }
 
-    /// <summary>Reads and validates the file envelope (version, snapshot present).</summary>
-    private static SaveFileData ReadFile(string slotId)
+    /// <summary>
+    /// Reads and validates a save file anywhere on disk (envelope only: version, snapshot present); never throws.
+    /// <paramref name="failure"/> says why it is not usable, or is null for a missing file.
+    /// </summary>
+    public static bool TryReadSaveFile(string path, out SaveFileData? data, out SaveLoadFailure? failure)
     {
-        var path = SlotPath(slotId);
+        try
+        {
+            data = ReadSaveFile(path);
+            failure = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            data = null;
+            failure = FailureOf(ex);
+            return false;
+        }
+    }
+
+    private static SaveLoadFailure? FailureOf(Exception ex) => ex switch
+    {
+        SaveMapException map => new SaveLoadFailure(map.Code, map.Argument, map.Message),
+        // Only "older version" has its own reason; technical detail (future version, bad snapshot)
+        // collapses into "unreadable".
+        InvalidDataException { Message: OlderVersionMessage } =>
+            new SaveLoadFailure(SaveLoadError.OlderVersion, null, OlderVersionMessage),
+        FileNotFoundException => null, // missing file: callers show their own "no save" text
+        _ => new SaveLoadFailure(SaveLoadError.Unreadable, null, UnreadableMessage)
+    };
+
+    private static SaveFileData ReadFile(string slotId) => ReadSaveFile(SlotPath(slotId));
+
+    /// <summary>Reads and validates the file envelope (version, snapshot present).</summary>
+    private static SaveFileData ReadSaveFile(string path)
+    {
         if (!File.Exists(path))
         {
             throw new FileNotFoundException($"Save non trovato: {path}");
