@@ -9,15 +9,15 @@ item table of blocchi/oggetti.py, colours from palette.SUOLI and palette.PARETI.
   kept away from the cell edges. Low contrast: belts, items and buildings are drawn on top.
 - `terreno-<floor>-bordo`: strip of 8 pieces N, E, S, O, NE, SE, SO, NO, drawn on a cell whose
   floor has a lower edgePriority: N when the northern neighbour is this floor, NE when the
-  north-eastern one is, and so on. A jagged fringe of this floor's texture (variant 0, at the same
-  pixel positions, so it continues the neighbour) with a darker 1 px lip. Sides and corners are
+  north-eastern one is, and so on (composition rule in tools/art/README.md). A jagged fringe of
+  this floor's texture (variant 0, at the same pixel positions, so it continues the neighbour),
+  without an outline: overlapping pieces of one floor merge without marks. Sides and corners are
   quarter turns of N and NE; the corner radii match the ends of the side fringes.
 - `parete-<wall>`: dual grid. A piece is drawn on a cell corner (half a cell off the grid) and
   its four quadrants belong to the four cells around that corner; bit NO=1, NE=2, SE=4, SO=8 is
-  set when that cell is this wall. The shape is a metaball field of the wall cells' centres (the
-  piece's corners) in integer arithmetic: a lone wall is a round boulder, neighbours merge into
-  ridges and masses. Outline and lit edge top-left, shaded edge bottom-right, drop shadow.
-- `acqua-bassa-anim`, `acqua-profonda-anim`: 4 frames of slow ripples, each frame tileable; the
+  set when that cell is this wall. Raised angular rock: light faceted top with cracks, dark
+  cliff on the bottom side, darker right side, drop shadow; neighbours merge into ridges.
+- `acqua-bassa-anim`, `acqua-profonda-anim` (the buildable and the deep floor of biome "acqua"): 4 frames of slow ripples, each frame tileable; the
   water floors' variants are still water (calm noise, a few glints).
 - `giacimento-<item>-<n>` (n = 0..2): transparent, a few ore pebbles in the item colours.
 - `deco-<biome>-<n>`: transparent, a small rock, shrub, ice shard or dry grass tuft.
@@ -32,7 +32,7 @@ import zlib
 
 import forme
 from blocchi import sprite
-from blocchi.oggetti import OGGETTI, _poligono
+from blocchi.oggetti import OGGETTI
 from palette import (ERBA, GHIACCIO, MUSCHIO, NEVE, OUT, PARETE_ARBUSTI, PARETE_GHIACCIO,
                      PARETE_PIETRA, PARETE_SABBIA, PARETI, SABBIA, SABBIA_SCURA, SUOLI)
 
@@ -41,7 +41,6 @@ VARIANTI = 4
 GIACIMENTI = 3
 BORDI = ("N", "E", "S", "O", "NE", "SE", "SO", "NO")
 NO, NE, SE, SO = 1, 2, 4, 8
-ACQUA = {"shallow-water": "acqua-bassa-anim", "deep-water": "acqua-profonda-anim"}
 FOTOGRAMMI_ACQUA = 4
 
 # Salts of hash_cella for the per-cell choices, and decoration density per biome (% of cells).
@@ -54,7 +53,11 @@ with open(_CONTENT, encoding="utf-8") as _f:
 SUOLO_IDS = [f["id"] for f in TERRENO["floors"]]
 PARETE_IDS = [w["id"] for w in TERRENO["walls"]]
 PRIORITA = {f["id"]: f["edgePriority"] for f in TERRENO["floors"]}
+BIOMA = {f["id"]: f["biome"] for f in TERRENO["floors"]}
 BIOMI = sorted({w["biome"] for w in TERRENO["walls"]})  # land biomes: water is shared by all
+# Water floor id -> animation: the buildable one is shallow, the other deep.
+ACQUA = {f["id"]: "acqua-bassa-anim" if f["buildable"] else "acqua-profonda-anim"
+         for f in TERRENO["floors"] if f["biome"] == "acqua"}
 MINERALI = sorted(i for i, (tipo, _, _) in OGGETTI.items() if tipo == "minerale")
 
 _M = 0xFFFFFFFF
@@ -122,8 +125,9 @@ def _quote(valori, seme, quote):
 
 # --- floors -----------------------------------------------------------------------------------
 
-# Floor look: weight of the coarse noise (0..10, the rest is per-pixel), share of the dark (1) and light (3) tones, and the features on top. A floor missing here
-# gets the default look.
+# Floor look: weight of the coarse noise (0..10, the rest is per-pixel), share of the dark (1)
+# and light (3) tones, and the features on top. Every floor of content.json
+# needs its entry (test_stili_terreno).
 STILI = {
     "stone": dict(grosso=5, scuro=20, chiaro=20, sassi=3, crepe=1),
     "basalt": dict(grosso=4, scuro=18, chiaro=16, crepe=3, sassi=1),
@@ -140,7 +144,6 @@ STILI = {
     "shallow-water": dict(grosso=6, scuro=14, chiaro=12, riflessi=2),
     "deep-water": dict(grosso=6, scuro=16, chiaro=8, riflessi=1),
 }
-_STILE_BASE = dict(grosso=5, scuro=20, chiaro=20, sassi=2)
 MARGINE = 2  # features stay this far from the cell edges (variants must tile)
 
 
@@ -184,7 +187,7 @@ def _segni(toni, dadi, n, motivo):
 
 
 def _valori_suolo(suolo, variante):
-    stile = STILI.get(suolo, _STILE_BASE)
+    stile = STILI[suolo]
     seme = _seme("suolo", suolo, variante)
     grosso = _rumore(seme, 8, bordo_medio=True)
     g = stile["grosso"]
@@ -194,7 +197,7 @@ def _valori_suolo(suolo, variante):
 def _toni_suolo(suolo, variante):
     """Noise tones by fixed cut values (those that give variant 0 its tone shares), so the
     shared edges of every variant get the same tones."""
-    stile = STILI.get(suolo, _STILE_BASE)
+    stile = STILI[suolo]
     seme = _seme("suolo", suolo, variante)
     riferimento = sorted(v for riga in _valori_suolo(suolo, 0) for v in riga)
     basso = riferimento[T * T * stile["scuro"] // 100]
@@ -232,7 +235,7 @@ def _acqua(suolo, fotogramma):
     """Ripples: contour lines of two noise layers, one scrolling 8 px per frame East, the other
     North (4 frames make a loop), with a few troughs a tone darker. Deep water: fewer, dimmer
     ripples."""
-    profonda = suolo == "deep-water"
+    profonda = ACQUA[suolo] == "acqua-profonda-anim"
     a, b = _rumore(_seme("acqua", suolo, "a"), 16), _rumore(_seme("acqua", suolo, "b"), 8)
     s = fotogramma * T // FOTOGRAMMI_ACQUA
     v = [[a[y][(x + s) % T] + b[(y - s) % T][x] for x in range(T)] for y in range(T)]
@@ -260,6 +263,29 @@ def _profilo(seme):
     return out
 
 
+# Neighbour offsets in BORDI order (N, E, S, O, NE, SE, SO, NO); y grows southwards.
+VICINI = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "O": (-1, 0),
+          "NE": (1, -1), "SE": (1, 1), "SO": (-1, 1), "NO": (-1, -1)}
+
+
+def pezzi_bordo(suolo, vicini):
+    """Edge pieces drawn on a cell of floor `suolo`, as [(floor, piece index in the bordo strip)]
+    in drawing order. `vicini` maps each BORDI side to the neighbour's floor. A side piece for
+    every side neighbour with a higher edgePriority; a corner piece for a diagonal neighbour with
+    a higher edgePriority only when neither of the two sides next to that corner is the same
+    floor (otherwise the side fringes already cover the corner). Lowest priority first, then
+    BORDI order, so the highest floor ends on top."""
+    pezzi = []
+    for i, lato in enumerate(BORDI):
+        altro = vicini[lato]
+        if PRIORITA[altro] <= PRIORITA[suolo]:
+            continue
+        if len(lato) == 2 and altro in (vicini[lato[0]], vicini[lato[1:]]):
+            continue
+        pezzi.append((PRIORITA[altro], i, altro))
+    return [(altro, i) for _, i, altro in sorted(pezzi)]
+
+
 def _ruota(maschera):
     """Pixel set turned a quarter clockwise: (x, y) -> (31 - y, x)."""
     return {(T - 1 - y, x) for x, y in maschera}
@@ -269,90 +295,155 @@ def _ruota(maschera):
 def _bordo(suolo):
     prof = _profilo(_seme("bordo", suolo))
     nord = {(x, y) for x in range(T) for y in range(prof[x])}
-    labbro_n = {(x, y) for x, y in nord if y == prof[x] - 1}
     rx, ry = prof[T - 1], prof[0]  # corner radii: ends of the side fringes it joins
     ne = {(x, y) for x in range(T) for y in range(T)
           if (2 * (T - x) - 1) ** 2 * ry * ry + (2 * y + 1) ** 2 * rx * rx <= 4 * rx * rx * ry * ry}
-    labbro_ne = {(x, y) for x, y in ne
-                 if any((x + ax, y + ay) not in ne for ax, ay in ((-1, 0), (0, 1)))}
-    lati, angoli = [(nord, labbro_n)], [(ne, labbro_ne)]
+    lati, angoli = [nord], [ne]
     for _ in range(3):
-        lati.append(tuple(_ruota(m) for m in lati[-1]))
-        angoli.append(tuple(_ruota(m) for m in angoli[-1]))
+        lati.append(_ruota(lati[-1]))
+        angoli.append(_ruota(angoli[-1]))
     trama = _suolo(suolo, 0)
-    labbro = tuple(SUOLI[suolo][0]) + (255,)
     pezzi = []
-    for maschera, bordo in lati + angoli:
+    for maschera in lati + angoli:
         im = forme.nuova(T, T)
         for x, y in maschera:
-            im.putpixel((x, y), labbro if (x, y) in bordo else trama.getpixel((x, y)))
+            im.putpixel((x, y), trama.getpixel((x, y)))
         pezzi.append(im)
     return forme.striscia(pezzi)
 
 
 # --- walls ------------------------------------------------------------------------------------
 
-# Metaball field in half pixels: kernel (R2 - d2)^2 inside its support, a lone wall cell is a
-# disc of RAGGIO px. The support stays under 31 px, so a pixel up to 2 px outside the piece only
-# feels the piece's own four corners: edges join the neighbouring pieces exactly.
-_R2 = (2 * 30) ** 2
-RAGGIO = 13
-_SOGLIA = (_R2 - (2 * RAGGIO) ** 2) ** 2
-_ANGOLI = ((NO, 0, 0), (NE, 2 * T, 0), (SE, 2 * T, 2 * T), (SO, 0, 2 * T))
+# Raised rock seen from above and a little from the front. A wall cell fills its cell, inset by
+# INSETTO (+ a jag of 0..FRASTAGLIO) on each side that faces a cell without this wall, with a
+# SMUSSO cut on outer corners and a small notch on inner ones: angular blocks that merge into
+# ridges. Inside the footprint: outline, a light top face (facets, cracks, lit top-left rim), a
+# dark cliff ALTEZZA px tall on the bottom side and a LATO px side face on the right, then a soft
+# drop shadow on the floor. The look only depends on the footprint within MARGINE_PARETE px, and
+# a pixel that close to the piece belongs to one of its four cells and never feels a cell beyond
+# them (test_parete_margine_esatto): neighbouring pieces join exactly at their shared corners.
+INSETTO = 2
+FRASTAGLIO = 2
+SMUSSO = 6
+ALTEZZA = 5
+LATO = 3
+MARGINE_PARETE = ALTEZZA + 1
 OMBRA_PARETE = 80  # alpha of the drop shadow on the floor
+_BIT = {(0, 0): NO, (1, 0): NE, (1, 1): SE, (0, 1): SO}
+
+# Wall look: tones of the top-face facets, facet border tone, texture extra.
+STILI_PARETI = {
+    "stone-wall": dict(facce=(2, 3, 3, 2, 3), solchi=1, crepe=3),
+    "sand-wall": dict(facce=(3, 2, 3, 3, 2), solchi=2, strati=True),
+    "ice-wall": dict(facce=(3, 4, 3, 4, 3), solchi=2, riflessi=True),
+    "shrub-wall": dict(facce=(2, 3, 2, 3, 3), solchi=1, foglie=True),
+}
 
 
-def _pieno(angoli, x, y):
-    cx, cy = 2 * x + 1, 2 * y + 1
-    s = 0
-    for bit, ax, ay in _ANGOLI:
-        if angoli & bit:
-            d2 = (cx - ax) ** 2 + (cy - ay) ** 2
-            if d2 < _R2:
-                s += (_R2 - d2) ** 2
-    return s >= _SOGLIA
+def _frastaglio(t):
+    """Inset jag (0..FRASTAGLIO) along a cell side at position t: periodic on 32 px and symmetric
+    (t and 31 - t match), so it survives the quarter turns and continues across pieces."""
+    u = min(t % T, T - 1 - t % T)
+    return hash_cella(u // 3, 7, 0x51DE) % (FRASTAGLIO + 1)
 
 
+def _pieno(angoli, x, y, esterni=False):
+    """Is pixel (x, y) of a piece (-16 <= x, y < 48) inside the wall footprint? `esterni` is
+    the wall state assumed for the cells beyond the four corners (it never changes the result
+    within MARGINE_PARETE px of the piece)."""
+    i, j = (x + 16) // T, (y + 16) // T
+
+    def muro(a, b):
+        return bool(angoli & _BIT[(a, b)]) if (a, b) in _BIT else esterni
+
+    if not muro(i, j):
+        return False
+    dx, dy = 2 * x + 1 - 2 * T * i, 2 * y + 1 - 2 * T * j  # from the cell centre, half pixels
+    sx, sy = (1 if dx > 0 else -1), (1 if dy > 0 else -1)
+    gx, gy = T - abs(dx), T - abs(dy)  # to the nearer vertical / horizontal side, half pixels
+    ix, iy = 2 * (INSETTO + _frastaglio(y)), 2 * (INSETTO + _frastaglio(x))
+    vx, vy = muro(i + sx, j), muro(i, j + sy)
+    if (not vx and gx < ix) or (not vy and gy < iy):
+        return False
+    if not vx and not vy:
+        return (gx - ix) + (gy - iy) >= 2 * SMUSSO
+    if vx and vy and not muro(i + sx, j + sy):
+        return gx >= 2 * INSETTO or gy >= 2 * INSETTO
+    return True
+
+
+def _facce(seme, n=5):
+    """Facet index per pixel: nearest of n seed points on the 32 px torus (periodic)."""
+    punti = [(hash_cella(k, 1, seme) % T, hash_cella(k, 2, seme) % T) for k in range(n)]
+    out = [[0] * T for _ in range(T)]
+    for y in range(T):
+        for x in range(T):
+            out[y][x] = min(range(n), key=lambda k: (min(abs(x - punti[k][0]), T - abs(x - punti[k][0])) ** 2
+                                                     + min(abs(y - punti[k][1]), T - abs(y - punti[k][1])) ** 2, k))
+    return out
+
+
+@functools.lru_cache(maxsize=None)
 def _trama_parete(parete):
-    """Tone grid of the wall top (periodic on the piece, so pieces join)."""
+    """Tone grid of the wall top face, periodic on the piece so pieces join."""
+    stile = STILI_PARETI[parete]
     seme = _seme("parete", parete)
-    if parete == "shrub-wall":  # leafy clumps with bright leaf tips
-        v = _rumore(seme, 4)
-        fine = [[v[y][x] * 6 + (hash_cella(x, y, seme) & 255) * 4 for x in range(T)] for y in range(T)]
-        return _quote(fine, seme, [(26, 1), (40, 2), (30, 3), (4, 4)])
-    v = _rumore(seme, 8)
-    toni = _quote([[v[y][x] * 7 + (hash_cella(x, y, seme) & 255) * 3 for x in range(T)] for y in range(T)],
-                  seme, [(18, 1), (64, 2), (18, 3)])
-    if parete == "sand-wall":  # sandstone: broken, wavy strata every 16 rows
+    facce = _facce(seme)
+    toni = [[stile["facce"][facce[y][x]] for x in range(T)] for y in range(T)]
+    for y in range(T):
+        for x in range(T):
+            if facce[y][x] != facce[(y + 1) % T][x] or facce[y][x] != facce[y][(x + 1) % T]:
+                toni[y][x] = stile["solchi"]  # facet border
+    if stile.get("foglie"):  # leafy: fine light and dark speckles over the facets
+        for y in range(T):
+            for x in range(T):
+                h = hash_cella(x, y, seme) % 10
+                toni[y][x] = 1 if h < 2 else 4 if h == 9 else toni[y][x]
+    if stile.get("strati"):  # sandstone: broken, wavy strata every 16 rows
         onda = _rumore(seme + 1, 16)
         for y in range(T):
             for x in range(T):
                 if (y + onda[y][x] // 64) % 16 == 0 and hash_cella(x // 3, y, seme) % 4:
                     toni[y][x] = 1
-                    toni[(y + 1) % T][x] = 3
-    if parete == "ice-wall":  # diagonal shine streaks
+    if stile.get("riflessi"):  # ice: diagonal shine streaks
         for y in range(T):
             for x in range(T):
                 if (x - y) % 16 == 0 and hash_cella((x + y) // 6, 0, seme) % 3 == 0:
                     toni[y][x] = 4
+    dadi = _Dadi(seme + 3)
+    for _ in range(stile.get("crepe", 0)):  # a few thin diagonal cracks, inside the piece
+        x, y = 4 + dadi.tira(T - 12), 4 + dadi.tira(T - 12)
+        verso = 1 if dadi.tira(2) else -1
+        for _ in range(7):
+            if 2 <= x < T - 2 and y < T - 2:
+                toni[y][x] = 0
+            x += verso if dadi.tira(4) else 0
+            y += 1
     return toni
 
 
 def _pezzo_parete(parete, angoli):
     rampa = PARETI[parete]
-    pieni = {(x, y) for y in range(-2, T + 2) for x in range(-2, T + 2) if _pieno(angoli, x, y)}
+    m = MARGINE_PARETE
+    pieni = {(x, y) for y in range(-m, T + m) for x in range(-m, T + m) if _pieno(angoli, x, y)}
     trama = _trama_parete(parete)
     im = forme.nuova(T, T)
     for y in range(T):
         for x in range(T):
+            def fuori(ax, ay):
+                return (x + ax, y + ay) not in pieni
+
             if (x, y) in pieni:
-                fuori = lambda ax, ay: (x + ax, y + ay) not in pieni  # noqa: E731
                 if fuori(1, 0) or fuori(-1, 0) or fuori(0, 1) or fuori(0, -1):
-                    c = rampa[0]
+                    c = rampa[0]  # outline
+                elif any(fuori(0, k) for k in range(2, ALTEZZA + 1)):
+                    c = rampa[0] if (x + hash_cella(x, 3, 0xC1FF)) % 5 == 0 else rampa[1]  # cliff, streaked
+                elif fuori(0, ALTEZZA + 1):
+                    c = rampa[3]  # rim where the top face meets the cliff
+                elif any(fuori(k, 0) for k in range(2, LATO + 1)):
+                    c = rampa[1]  # right side face
                 elif fuori(-1, -1) or fuori(-2, 0) or fuori(0, -2):
-                    c = rampa[4] if fuori(-2, 0) and fuori(0, -2) else rampa[3]
-                elif fuori(1, 1) or fuori(2, 0) or fuori(0, 2):
-                    c = rampa[1]
+                    c = rampa[4]  # lit top-left rim
                 else:
                     c = rampa[trama[y][x]]
                 im.putpixel((x, y), tuple(c) + (255,))
@@ -407,14 +498,20 @@ def _ciuffo(im, base_x, base_y, steli, rampa):
 
 
 def _cristallo(im, cx, base, altezza, larghezza, rampa):
-    _sasso(im, _poligono([(cx - larghezza, base), (cx - larghezza / 2, base - altezza * 0.7), (cx, base - altezza),
+    _sasso(im, forme.poligono([(cx - larghezza, base), (cx - larghezza / 2, base - altezza * 0.7), (cx, base - altezza),
                           (cx + larghezza / 2, base - altezza * 0.6), (cx + larghezza, base)]), rampa)
 
 
-def _cappello(im, x0, y0, x1, y1, colori):
-    """Recolour the top of a stone (inside the outline, rows y0..y1) with snow or moss."""
-    for y in range(y0, y1 + 1):
-        for x in range(x0, x1 + 1):
+# Angular boulder (faceted outline, taller on the left) for the capped decorations.
+_MASSO = [(9, 24), (9, 18), (12, 12), (15, 10), (18, 13), (21, 13), (24, 17), (24, 22), (21, 25), (12, 25)]
+
+
+def _cappello(im, colori, fino, discesa):
+    """Snow or moss over the top of a stone: rows above `fino`, plus columns that run up to
+    `discesa` px further down (a ragged edge), inside the outline only."""
+    for x in range(T):
+        limite = fino + hash_cella(x // 2, 5, fino) % (discesa + 1)
+        for y in range(limite):
             if im.getpixel((x, y))[3] and im.getpixel((x, y))[:3] != OUT:
                 forme.pixel(im, x, y, colori[(x * 3 + y) % len(colori)])
 
@@ -443,9 +540,9 @@ def _deco(bioma, n):
     elif bioma == "neve":
         if n == 0:
             _cristallo(im, 16, 23, 13, 4, PARETE_GHIACCIO[1:])
-        elif n == 1:
-            _sasso(im, _ellisse(16, 18, 6, 4.5), roccia)
-            _cappello(im, 10, 14, 22, 16, (NEVE[3], NEVE[4], NEVE[3]))
+        elif n == 1:  # angular rock under a snow cap with a ragged lower edge
+            _sasso(im, forme.poligono(_MASSO), roccia)
+            _cappello(im, (NEVE[3], NEVE[4], NEVE[2]), 14, 3)
         else:
             _cristallo(im, 12, 22, 9, 3, PARETE_GHIACCIO[1:])
             _cristallo(im, 19, 21, 7, 2.5, GHIACCIO)
@@ -457,9 +554,9 @@ def _deco(bioma, n):
                 forme.pixel(im, x, y, PARETE_ARBUSTI[4])
         elif n == 1:
             _ciuffo(im, 16, 22, ((-0.6, 6), (-0.3, 8), (0.0, 9), (0.3, 8), (0.6, 6)), [ERBA[0], ERBA[2], MUSCHIO[3], MUSCHIO[4]])
-        else:
-            _sasso(im, _ellisse(16, 18, 5.5, 4), roccia)
-            _cappello(im, 11, 14, 21, 16, (MUSCHIO[2], MUSCHIO[3], MUSCHIO[2], MUSCHIO[4]))
+        else:  # angular rock with moss growing down its top
+            _sasso(im, forme.poligono(_MASSO), roccia)
+            _cappello(im, (MUSCHIO[2], MUSCHIO[3], MUSCHIO[2], MUSCHIO[4]), 13, 5)
     return forme.componi(forme.ombra(im, 60), im)
 
 

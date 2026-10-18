@@ -49,7 +49,7 @@ ACQUA_PROFONDA = [(18, 32, 46), (24, 45, 63), (28, 52, 72), (36, 62, 84), (78, 1
 # Walls (terrain.walls). Tone 0 is the outline, close to the table colour.
 PARETE_PIETRA = [(22, 24, 26), (48, 51, 54), (72, 76, 80), (98, 103, 108), (132, 138, 142)]
 PARETE_SABBIA = [(70, 44, 22), (110, 74, 42), (146, 102, 62), (178, 132, 84), (212, 170, 118)]
-PARETE_GHIACCIO = [(40, 62, 84), (70, 104, 136), (104, 144, 178), (146, 184, 212), (198, 226, 242)]
+PARETE_GHIACCIO = [(22, 46, 84), (40, 88, 148), (122, 172, 212), (180, 216, 238), (228, 244, 252)]  # pale top, deep blue cliff
 PARETE_ARBUSTI = [(14, 36, 20), (28, 64, 34), (44, 92, 46), (68, 122, 60), (110, 158, 82)]
 
 # content.json terrain id -> ramp: a new floor or wall needs its ramp here (test_terreno_copertura).

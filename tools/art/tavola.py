@@ -85,34 +85,15 @@ FINESTRA = (
     "WWWWwwAAiiDD",
     "WWWWWwwAADDD",
 )
-VICINI = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "O": (-1, 0),
-          "NE": (1, -1), "SE": (1, 1), "SO": (-1, 1), "NO": (-1, -1)}
-
-
-def _finestra(b, bioma, sprite):
-    """One biome window composed like the client will: floor variant, edges of higher-priority
-    neighbours (lowest first), deposit, decoration, then the dual-grid walls half a cell off."""
+def componi(celle, sprite, ox=0, oy=0):
+    """Compose a grid of cells like the client (rule in tools/art/README.md). celle[y][x] =
+    (floor id, wall id or None, ore item id or None); (ox, oy) is the map position of
+    celle[0][0], used by hash_cella. A neighbour outside the grid counts as the cell itself."""
     from blocchi import terreno as tr
 
     T = tr.T
-    suoli = [f["id"] for f in tr.TERRENO["floors"] if f["biome"] == bioma]
-    parete = next(w["id"] for w in tr.TERRENO["walls"] if w["biome"] == bioma)
-    acque = list(tr.ACQUA)  # shallow, deep
-    minerali = [tr.MINERALI[(2 * b + k) % len(tr.MINERALI)] for k in range(2)]
-    n = len(FINESTRA)
-    ox = 100 * b  # each window samples its own map cells
+    h, w = len(celle), len(celle[0])
 
-    def cella(x, y):
-        x, y = min(max(x, 0), n - 1), min(max(y, 0), n - 1)
-        c = FINESTRA[y][x]
-        if c in "ABCD":
-            return suoli["ABCD".index(c) % len(suoli)], False, None
-        if c in "wW":
-            return acque["wW".index(c)], False, None
-        if c == "#":
-            vicino = FINESTRA[y][:x].rstrip("#")[-1:] or FINESTRA[y][x:].lstrip("#")[:1]
-            return cella(FINESTRA[y].index(vicino), y)[0], True, None
-        return suoli[0], False, minerali["oi".index(c)]
 
     strisce = {}
 
@@ -121,36 +102,64 @@ def _finestra(b, bioma, sprite):
             strisce[nome] = sprite(nome)
         return strisce[nome].crop((i * T, 0, (i + 1) * T, T))
 
-    im = Image.new("RGBA", ((n + 1) * T, (n + 1) * T), (0, 0, 0, 255))
     m = T // 2  # margin: wall pieces start half a cell before the first cell
-    for y in range(n):
-        for x in range(n):
-            suolo, muro, minerale = cella(x, y)
+    im = Image.new("RGBA", ((w + 1) * T, (h + 1) * T), (0, 0, 0, 255))
+    for y in range(h):
+        for x in range(w):
+            suolo, parete, minerale = celle[y][x]
+            bioma = tr.BIOMA[suolo]
+            mx, my = ox + x, oy + y
             px, py = m + x * T, m + y * T
             if suolo in tr.ACQUA:
                 base = pezzo(tr.ACQUA[suolo], 0)
             else:
-                base = sprite(f"terreno-{suolo}-{tr.hash_cella(x + ox, y, tr.SALE_VARIANTE) % tr.VARIANTI}")
+                base = sprite(f"terreno-{suolo}-{tr.hash_cella(mx, my, tr.SALE_VARIANTE) % tr.VARIANTI}")
             im.alpha_composite(base, (px, py))
-            sopra = sorted((tr.PRIORITA[v], i, v) for i, (dx, dy) in enumerate(VICINI.values())
-                           if tr.PRIORITA[v := cella(x + dx, y + dy)[0]] > tr.PRIORITA[suolo])
-            for _, i, v in sopra:
-                im.alpha_composite(pezzo(f"terreno-{v}-bordo", i), (px, py))
+            vicini = {lato: celle[y + dy][x + dx][0] if 0 <= x + dx < w and 0 <= y + dy < h else suolo
+                      for lato, (dx, dy) in tr.VICINI.items()}
+            for altro, i in tr.pezzi_bordo(suolo, vicini):
+                im.alpha_composite(pezzo(f"terreno-{altro}-bordo", i), (px, py))
             if minerale:
-                variante = tr.hash_cella(x + ox, y, tr.SALE_GIACIMENTO) % tr.GIACIMENTI
+                variante = tr.hash_cella(mx, my, tr.SALE_GIACIMENTO) % tr.GIACIMENTI
                 im.alpha_composite(sprite(f"giacimento-{minerale}-{variante}"), (px, py))
-            elif not muro and suolo not in tr.ACQUA and \
-                    tr.hash_cella(x + ox, y, tr.SALE_DECO) % 100 < tr.DENSITA_DECO.get(bioma, 10):
-                k = tr.hash_cella(x + ox, y, tr.SALE_DECO_TIPO) % tr.DECORAZIONI
+            elif parete is None and suolo not in tr.ACQUA and bioma in tr.DENSITA_DECO \
+                    and tr.hash_cella(mx, my, tr.SALE_DECO) % 100 < tr.DENSITA_DECO[bioma]:
+                k = tr.hash_cella(mx, my, tr.SALE_DECO_TIPO) % tr.DECORAZIONI
                 im.alpha_composite(sprite(f"deco-{bioma}-{k}"), (px, py))
-    for y in range(n + 1):
-        for x in range(n + 1):
-            angoli = sum(bit for bit, (cx, cy) in ((tr.NO, (x - 1, y - 1)), (tr.NE, (x, y - 1)),
-                                                     (tr.SE, (x, y)), (tr.SO, (x - 1, y)))
-                         if 0 <= cx < n and 0 <= cy < n and FINESTRA[cy][cx] == "#")
-            if angoli:
-                im.alpha_composite(pezzo(f"parete-{parete}", angoli), (x * T, y * T))
-    return im.crop((m, m, m + n * T, m + n * T))
+    pareti = sorted({c[1] for riga in celle for c in riga if c[1]})
+    for parete in pareti:
+        for y in range(h + 1):
+            for x in range(w + 1):
+                angoli = sum(bit for bit, (cx, cy) in ((tr.NO, (x - 1, y - 1)), (tr.NE, (x, y - 1)),
+                                                         (tr.SE, (x, y)), (tr.SO, (x - 1, y)))
+                             if 0 <= cx < w and 0 <= cy < h and celle[cy][cx][1] == parete)
+                if angoli:
+                    im.alpha_composite(pezzo(f"parete-{parete}", angoli), (x * T, y * T))
+    return im.crop((m, m, m + w * T, m + h * T))
+
+
+def _finestra(b, bioma, sprite):
+    """One biome window of FINESTRA, composed like the client."""
+    from blocchi import terreno as tr
+
+    suoli = [f["id"] for f in tr.TERRENO["floors"] if f["biome"] == bioma]
+    parete = next(w["id"] for w in tr.TERRENO["walls"] if w["biome"] == bioma)
+    acque = sorted(tr.ACQUA, key=lambda s: tr.ACQUA[s])  # shallow (bassa), deep (profonda)
+    minerali = [tr.MINERALI[(2 * b + k) % len(tr.MINERALI)] for k in range(2)]
+
+    def cella(x, y):
+        c = FINESTRA[y][x]
+        if c in "ABCD":
+            return suoli["ABCD".index(c) % len(suoli)], None, None
+        if c in "wW":
+            return acque["wW".index(c)], None, None
+        if c == "#":  # on the floor of the nearest cell to its left (or right)
+            vicino = FINESTRA[y][:x].rstrip("#")[-1:] or FINESTRA[y][x:].lstrip("#")[:1]
+            return cella(FINESTRA[y].index(vicino), y)[0], parete, None
+        return suoli[0], None, minerali["oi".index(c)]
+
+    celle = [[cella(x, y) for x in range(len(FINESTRA[0]))] for y in range(len(FINESTRA))]
+    return componi(celle, sprite, ox=100 * b)
 
 
 def tavola_terreno(sprite, scala=2):

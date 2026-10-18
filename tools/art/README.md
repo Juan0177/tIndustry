@@ -57,8 +57,21 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
        return im
    ```
 
-   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone o a un blocco della tabella `CELLE` di `test_genera.py`, altrimenti il test delle misure fallisce.
+   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone, a un blocco della tabella `CELLE` di `test_genera.py` o a uno sprite del terreno, altrimenti il test delle misure fallisce.
 2. `python tools/art/genera.py --solo junction`, guarda `.dev/arte/tavola.png`.
 3. Importa in Godot (sopra) e lancia i test.
 
 Nel client la texture si prende sempre da `Sprites` (`godot/scripts/visuals/Sprites.cs`): `Sprites.For(id)`, `Sprites.TryFor(id)`, `Sprites.Item(id)`, `Sprites.BeltItem(id)`, `Sprites.Frames(id)`. Un id nuovo non richiede di toccare altri file del client.
+
+## Terreno: come si compone una mappa
+
+Gli sprite del terreno (`blocchi/terreno.py`) sono pezzi da comporre. La regola qui sotto è quella di `tavola.componi` (riferimento per il client, task 2 della G2b); le coordinate sono quelle delle celle della mappa, con `y` che cresce verso Sud. Tutte le scelte "a caso" usano `hash_cella(x, y, sale)` (hash intero a 32 bit di `terreno.py`, da riportare identico in C# con aritmetica `uint` senza controllo di overflow).
+
+Per ogni cella, in quest'ordine:
+
+1. **Suolo.** Terra: `terreno-<suolo>-<n>` con `n = hash_cella(x, y, 1) % 4` (`SALE_VARIANTE`). Acqua: il fotogramma corrente di `acqua-bassa-anim` (suolo d'acqua costruibile) o `acqua-profonda-anim` (l'altro); le varianti `terreno-<acqua>-<n>` sono acqua ferma, per quando le animazioni sono spente.
+2. **Bordi** (`pezzi_bordo`). Per gli 8 vicini nell'ordine N, E, S, O, NE, SE, SO, NO (pezzi 0..7 della striscia `terreno-<vicino>-bordo`): un lato si disegna se il suolo del vicino ha `edgePriority` più alta di quello della cella; un angolo si disegna se il vicino diagonale ha priorità più alta **e nessuno dei due lati accanto** (N ed E per NE, e così via) ha lo stesso suolo, perché lì le frange dei lati coprono già l'angolo. I pezzi si disegnano dalla priorità più bassa alla più alta e, a pari suolo, nell'ordine della striscia. Le frange non hanno contorno: due pezzi dello stesso suolo che si sovrappongono non lasciano segni. Ai bordi della mappa il vicino mancante vale come la cella stessa (nessun bordo).
+3. **Giacimento.** Se la cella ha un giacimento: `giacimento-<oggetto>-<n>` con `n = hash_cella(x, y, 4) % 3` (`SALE_GIACIMENTO`); l'oggetto è `TerrainMap.ItemIdForDeposit`.
+4. **Decorazione.** Solo su terra, senza parete né giacimento: se `hash_cella(x, y, 2) % 100 < DENSITA_DECO[bioma]` (`SALE_DECO`, bioma del suolo), `deco-<bioma>-<k>` con `k = hash_cella(x, y, 3) % 3` (`SALE_DECO_TIPO`). Gli edifici la coprono da soli.
+
+Poi le **pareti**, a doppia griglia: un pezzo per ogni angolo di cella (anche sui bordi della mappa), centrato sull'angolo, cioè spostato di mezza cella in alto a sinistra rispetto alla cella `(x, y)` di cui l'angolo è lo spigolo in alto a sinistra. L'indice del pezzo nella striscia `parete-<parete>` è la somma dei bit delle quattro celle attorno all'angolo che hanno quella parete: NO = cella `(x-1, y-1)` → 1, NE = `(x, y-1)` → 2, SE = `(x, y)` → 4, SO = `(x-1, y)` → 8; il pezzo 0 non si disegna. Fuori dalla mappa non ci sono pareti. Pareti diverse (biomi diversi) si disegnano una dopo l'altra con lo stesso calcolo. I pezzi combaciano da soli: ogni lato di un pezzo dipende solo dai due angoli che ha in comune col vicino (test).
