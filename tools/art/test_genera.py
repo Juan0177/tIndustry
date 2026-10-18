@@ -60,8 +60,115 @@ ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "
 UI_TERZI = ("cat-logistics", "cat-power", "cat-production", "cat-tools", "locked", "menu", "power", "research",
             "sell")
 # Interface font (G4): required glyphs and the exported files in godot/assets/ui/.
-INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×"
+INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥"
 FONT_UI = ("carattere-testo", "carattere-titoli")
+BS = chr(92)  # backslash, for the C# sources built in the tests
+CONTROLLO = (chr(9), chr(10), chr(13))  # tab and line breaks: layout, not glyphs
+
+
+def _letterali_cs(sorgente):
+    """Characters inside the string and char literals of a C# source, comments skipped.
+
+    Handles regular ("..." with backslash escapes, unicode escapes decoded), verbatim (@"..." with ""),
+    interpolated ($"...", $@"...", the holes are kept: they are code, ASCII in practice) and raw
+    (triple-quoted) literals, and char literals ('x').
+    """
+    out = []
+    i, n = 0, len(sorgente)
+    while i < n:
+        c = sorgente[i]
+        if sorgente.startswith("//", i):
+            i = sorgente.find(chr(10), i)
+            i = n if i < 0 else i
+        elif sorgente.startswith("/*", i):
+            j = sorgente.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        elif c in "$@" or c == '"':
+            j = i
+            while j < n and sorgente[j] in "$@":
+                j += 1
+            if j >= n or sorgente[j] != '"':
+                i = j + 1 if j == i else j
+                continue
+            prefisso = sorgente[i:j]
+            if sorgente.startswith('"""', j):
+                k = j
+                while k < n and sorgente[k] == '"':
+                    k += 1
+                chiusura = sorgente[j:k]
+                fine = sorgente.find(chiusura, k)
+                fine = n if fine < 0 else fine
+                out.append(sorgente[k:fine])
+                i = fine + len(chiusura)
+            elif "@" in prefisso:
+                k = j + 1
+                while k < n:
+                    if sorgente[k] == '"':
+                        if sorgente.startswith('""', k):
+                            out.append('"')
+                            k += 2
+                            continue
+                        break
+                    out.append(sorgente[k])
+                    k += 1
+                i = k + 1
+            else:
+                k = j + 1
+                while k < n and sorgente[k] != '"' and sorgente[k] != chr(10):
+                    if sorgente[k] == "\\":
+                        if sorgente[k + 1] == "u":
+                            out.append(chr(int(sorgente[k + 2:k + 6], 16)))
+                            k += 6
+                            continue
+                        k += 2
+                        continue
+                    out.append(sorgente[k])
+                    k += 1
+                i = k + 1
+        elif c == "'":
+            k = i + 1
+            if k < n and sorgente[k] == "\\":
+                k += 2
+            else:
+                out.append(sorgente[k] if k < n else "")
+                k += 1
+            j = sorgente.find("'", k)
+            i = n if j < 0 else j + 1
+        else:
+            i += 1
+    return "".join(out)
+
+
+def _stringhe_json(valore):
+    """Every string value (not the keys) of a parsed JSON document, joined."""
+    if isinstance(valore, str):
+        return valore
+    if isinstance(valore, dict):
+        return "".join(_stringhe_json(v) for v in valore.values())
+    if isinstance(valore, list):
+        return "".join(_stringhe_json(v) for v in valore)
+    return ""
+
+
+def _testi_del_gioco():
+    """{character: first file using it} over data/*.json and the C# literals of the client and Shared."""
+    usi = {}
+    cartella = os.path.join(REPO, "data")
+    for f in sorted(os.listdir(cartella)):
+        if f.endswith(".json"):
+            with open(os.path.join(cartella, f), encoding="utf-8") as fh:
+                for ch in _stringhe_json(json.load(fh)):
+                    usi.setdefault(ch, f"data/{f}")
+    for radice in (os.path.join(REPO, "godot", "scripts"), os.path.join(REPO, "src", "TIndustry.Shared")):
+        for cart, sotto, file in os.walk(radice):
+            sotto[:] = sorted(d for d in sotto if d not in ("bin", "obj"))
+            for f in sorted(file):
+                if f.endswith(".cs"):
+                    path = os.path.join(cart, f)
+                    with open(path, encoding="utf-8-sig") as fh:
+                        for ch in _letterali_cs(fh.read()):
+                            usi.setdefault(ch, os.path.relpath(path, REPO).replace(os.sep, "/"))
+    return usi
 
 
 def _content():
@@ -757,6 +864,20 @@ class TestGenera(unittest.TestCase):
             else:
                 with Image.open(path) as a, Image.open(io.BytesIO(dati)) as b:
                     self.assertEqual(b.convert("RGBA").tobytes(), a.convert("RGBA").tobytes(), rel)
+
+    def test_carattere_copre_i_testi(self):
+        # Every character the game can show (data/*.json and the C# string literals of the client and
+        # of Shared, comments excluded) has a glyph in carattere-testo.fnt; otherwise it would be a box.
+        with open(os.path.join(REPO, "godot", "assets", "ui", "carattere-testo.fnt"), encoding="utf-8") as f:
+            ids = {int(r.split("id=")[1].split(" ")[0]) for r in f if r.startswith("char id=")}
+        mancanti = sorted(f"{ascii(ch)} U+{ord(ch):04X} ({dove})" for ch, dove in _testi_del_gioco().items()
+                          if ch not in CONTROLLO and ord(ch) not in ids)
+        self.assertEqual([], mancanti)
+
+    def test_letterali_cs(self):
+        # The C# literal scanner: comments skipped, escapes decoded, verbatim and char literals read.
+        sorgente = 'var a = "x' + BS + 'u2192y"; // "no"' + chr(10) + '/* "no" */ var b = @"v""w"; var c = ' + "'z'; var d = $\"{n} k\";"
+        self.assertEqual('x→yv"wz{n} k', _letterali_cs(sorgente))
 
 
 if __name__ == "__main__":

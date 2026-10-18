@@ -28,8 +28,9 @@ NOME = "tIndustry"
 ATLANTE_LARGHEZZA = 256  # atlas page width in px at every scale
 MARGINE_ATLANTE = 2  # px between glyphs in the atlas
 
-# Required set (G4 global constraints): printable ASCII plus the Italian accents and signs used.
-EXTRA = "àèéìíòóùúÀÈÉÌÒÙ«»…·€×"
+# Required set (G4 global constraints): printable ASCII plus the Italian accents and the signs the game
+# texts use (arrows, dashes, check mark, degree, at-least); test_genera checks every text is covered.
+EXTRA = "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥"
 INSIEME = "".join(chr(c) for c in range(32, 127)) + EXTRA
 
 # Base glyphs; rows beyond the given ones are empty (a 7-row glyph has no descender).
@@ -137,6 +138,19 @@ GLIFI = {
 }
 # The multiplication sign must not look like a lowercase x: smaller, centred on the middle row.
 GLIFI["×"] = ["...", "...", "#.#", ".#.", "#.#"]
+
+# Arrows (centred on row 3, like the dashes), dashes, check mark, degree and at-least sign.
+GLIFI["→"] = [".....", "..#..", "...#.", "#####", "...#.", "..#..", "....."]
+GLIFI["←"] = [".....", "..#..", ".#...", "#####", ".#...", "..#..", "....."]
+GLIFI["↑"] = ["..#..", ".###.", "#.#.#", "..#..", "..#..", "..#..", "..#.."]
+GLIFI["↓"] = ["..#..", "..#..", "..#..", "..#..", "#.#.#", ".###.", "..#.."]
+GLIFI["↔"] = [".....", ".#.#.", "#...#", "#####", "#...#", ".#.#.", "....."]
+GLIFI["↖"] = ["####.", "##...", "#.#..", "#..#.", "....#"]
+GLIFI["—"] = [".....", ".....", ".....", "#####"]
+GLIFI["–"] = ["...", "...", "...", "###"]
+GLIFI["✓"] = [".....", ".....", "....#", "...#.", "#.#..", ".#..."]
+GLIFI["°"] = [".#.", "#.#", ".#."]
+GLIFI["≥"] = ["#...", ".##.", "...#", ".##.", "#...", "....", "####"]
 
 GRAVE = ["#.", ".#"]
 ACUTO = [".#", "#."]
