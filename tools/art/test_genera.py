@@ -269,6 +269,28 @@ class TestGenera(unittest.TestCase):
         pozzo = {ex.getpixel((x, y)) for y in range(13, 19) for x in range(13, 19)}
         self.assertEqual(1, len(pozzo))
 
+    def test_oggetti(self):
+        # Every market item and money: HUD icon and belt sprite, opaque pixels only (no tint at
+        # runtime, so no half-transparent wash), a closed outline and a look of its own.
+        from blocchi.oggetti import OGGETTI
+        self.assertEqual(_item_ids(), set(OGGETTI))
+        for misura in ("", "-belt"):
+            viste = []
+            for item_id, (_, _, contorno) in OGGETTI.items():
+                with self.subTest(sprite=item_id + misura):
+                    im = SPRITE[item_id + misura]()
+                    self.assertEqual({0, 255}, set(im.getchannel("A").tobytes()))
+                    for y in range(im.height):
+                        for x in range(im.width):
+                            px = im.getpixel((x, y))
+                            vicini = [im.getpixel((x + ax, y + ay))[3]
+                                      if 0 <= x + ax < im.width and 0 <= y + ay < im.height else 0
+                                      for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+                            if px[3] and 0 in vicini:
+                                self.assertEqual(contorno, px[:3], f"{item_id}{misura}: ({x},{y}) fuori dal contorno")
+                    viste.append(im.tobytes())
+            self.assertEqual(len(set(viste)), len(viste))
+
     @unittest.skipUnless(os.environ.get("TINDUSTRY_ARTE_COMPLETA") == "1",
                          "gli sprite arrivano famiglia per famiglia (task 2-5 della G1)")
     def test_copertura(self):
