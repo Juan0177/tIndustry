@@ -16,6 +16,7 @@ BAGLIORE = [(110, 34, 20), (196, 70, 26), (244, 128, 40), (255, 186, 80), (255, 
 ACCENTO = [(140, 92, 52), (196, 142, 80), (236, 186, 106), (255, 211, 127), (255, 236, 190)]
 NASTRO = [(30, 30, 34), (44, 44, 50), (58, 58, 66), (82, 82, 92)]  # belt rubber, from the samples
 ROSSO = [(72, 22, 24), (122, 34, 34), (176, 52, 46), (220, 88, 70), (246, 150, 126)]  # advanced-tier accents
+NUCLEO = [(14, 46, 62), (26, 96, 124), (54, 160, 196), (112, 214, 236), (200, 246, 255)]  # Core energy (cyan)
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
 
 # Materials (items and material-coloured parts).
@@ -29,6 +30,6 @@ SILICIO = [(60, 56, 20), (128, 118, 60), (170, 160, 90), (210, 200, 120), (240, 
 
 RAMPE = {
     "METALLO": METALLO, "FULIGGINE": FULIGGINE, "BAGLIORE": BAGLIORE, "ACCENTO": ACCENTO,
-    "NASTRO": NASTRO, "ENERGIA": ENERGIA, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
+    "NASTRO": NASTRO, "ENERGIA": ENERGIA, "NUCLEO": NUCLEO, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
     "CARBONE": CARBONE, "GRAFITE": GRAFITE, "SILICIO": SILICIO,
 }
