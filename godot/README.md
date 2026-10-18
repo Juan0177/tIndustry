@@ -48,6 +48,10 @@ Sopra una parete o l'acqua profonda il fantasma del blocco diventa rosso e un su
 
 I livelli della **Campagna** hanno mappe prestabilite, più piccole all'inizio (200×200 nel primo livello) e più grandi verso la fine (1000×1000 nel decimo).
 
+### Notte e Lampada
+
+Nella schermata Nuova partita la casella **Notte** fa una mappa al buio: contano le luci dei blocchi (Core, forni al lavoro, generatori accesi, droni) e le **Lampade**. Anche i livelli 6 (*Corrente*) e 10 (*Espansione T2*) della Campagna sono di notte. La **Lampada** (1×1, categoria Potenza, si sblocca nella Ricerca dopo il Nodo T1; costa 2 lastre di ferro e 1 filo di rame) si accende solo se è collegata come forni e assemblatori (generatore vivo adiacente o nodo in raggio) e consuma 1 unità di corrente al secondo; spenta non fa luce. Di notte sui prati compaiono anche le lucciole (solo con Effetti Alti).
+
 ## Controlli build
 
 **Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click pianifica · **destro** cancella o smonta · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella zoom · **H** torna al CORE
@@ -88,6 +92,22 @@ Ponte: estremi 1×1, campata larga circa il 70% della cella, distanza 2–4, cel
 
 Edifici, nastri, Core, drone e oggetti sono pixel-art nostra generata da `python tools/art/genera.py` (32 px per cella, mostrati ×2 senza filtro; vedi `tools/art/README.md` e l'ADR 0004). Gli edifici hanno parti animate: la trivella del minatore gira mentre estrae, il forno si accende, i bracci dell'assemblatore premono, il rotore del generatore gira finché c'è combustibile; il nucleo del Core pulsa piano. I nastri scorrono alla velocità del loro tier e gli oggetti sopra hanno il loro sprite a colori, senza tinta. Le icone dell'interfaccia in `assets/ui/` sono di terzi (`assets/ATTRIBUTION.md`).
 
+### Impostazioni grafiche
+
+Il pannello **Impostazioni** ha una sezione **Grafica**; **Applica** salva su disco e vale subito:
+
+| Voce | Effetto |
+| --- | --- |
+| **Effetti** (Alti / Bassi / Spenti) | Particelle: Alti = tutte, anche neve, sabbia e foglie d'ambiente; Bassi = la metà e niente ambiente; Spenti = nessuna e acqua ferma |
+| **Ombre** | Ombra sotto ogni blocco |
+| **Bagliore** | Alone luminoso su forni, Core, Lampade e scintille |
+| **Animazioni dei blocchi** | Trivelle, rotori, bocche dei forni e luce del Core; spente restano ferme (le particelle non dipendono da questa voce) |
+| **Limite FPS** | Nessuno, 30, 60, 120, 144 |
+| **Scala rendering** | 100%, 75%, 50%: il mondo si disegna a risoluzione ridotta e si ingrandisce, l'interfaccia resta nitida (per i PC deboli) |
+| **VSync** | Sincronizzazione verticale |
+
+Un file di impostazioni di una versione precedente resta valido: le voci mancanti valgono il predefinito (Effetti Alti, Ombre e Bagliore accesi, nessun limite, scala 100%).
+
 ## Prove automatiche
 
 ```bash
@@ -95,7 +115,7 @@ tools/dev/playtest.sh ui /tmp/shots-ui          # oppure: tutorial
 python tools/dev/compare_shots.py <baseline> <nuovi>
 ```
 
-`tools/dev/playtest.sh` lancia il gioco con `TINDUSTRY_PLAYTEST=ui|tutorial`, input simulati e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`): non tocca impostazioni e salvataggi reali. Salva un PNG per passo e `log.txt` nella cartella indicata; esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. Con `TINDUSTRY_PLAYTEST_PERF=1` il playtest `ui` posa anche 200 nastri e 100 edifici a strati al lavoro (forni, assemblatori, generatori, minatori) e stampa FPS medio e minimo e numero di nodi (`PLAYTEST perf: …`), senza esito. Con `TINDUSTRY_PLAYTEST_BLOCCHI=1` costruisce ogni blocco di produzione e potenza spento e acceso e salva `ui-blocchi-spenti.png`, `ui-blocchi-accesi.png`, `ui-blocchi-zoom04.png`, `ui-blocchi-core.png` (Core e drone da vicino) e `ui-blocchi-oggetti.png` (ogni oggetto sui tre nastri), senza esito. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona FPS.
+`tools/dev/playtest.sh` lancia il gioco con `TINDUSTRY_PLAYTEST=ui|tutorial`, input simulati e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`): non tocca impostazioni e salvataggi reali. Salva un PNG per passo e `log.txt` nella cartella indicata; esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. Con `TINDUSTRY_PLAYTEST_PERF=1` il playtest `ui` posa anche 200 nastri e 100 edifici a strati al lavoro (forni, assemblatori, generatori, minatori) e stampa FPS medio e minimo e numero di nodi (`PLAYTEST perf: …`), senza esito. Con `TINDUSTRY_PLAYTEST_BLOCCHI=1` costruisce ogni blocco di produzione e potenza spento e acceso e salva `ui-blocchi-spenti.png`, `ui-blocchi-accesi.png`, `ui-blocchi-zoom04.png`, `ui-blocchi-core.png` (Core e drone da vicino) e `ui-blocchi-oggetti.png` (ogni oggetto sui tre nastri), senza esito. Nei playtest gli effetti, le ombre, il bagliore e la notte sono spenti e gli orologi fermi, così le catture sono stabili; con `TINDUSTRY_PLAYTEST_EFFETTI=1` il playtest `ui` li accende e aggiunge il probe di G3 (60 secondi con effetti Alti, FPS, nodi e particelle, ombre, bagliore, notte con Lampade, scala di rendering) con le sue catture `fx-*` e `luci-*`, senza esito sulle immagini. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona FPS.
 
 Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TINDUSTRY_CAPTURE_DIR` cambia dove vanno gli screenshot (default `godot/artifacts/`).
 
