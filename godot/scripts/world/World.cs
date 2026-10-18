@@ -266,7 +266,8 @@ public partial class World : Node2D
 
     /// <summary>
     /// Folder of the campaign map files (<c>data/maps/</c>, see <see cref="CampaignMapFile"/>), searched like
-    /// content.json; null when missing. Not used yet: campaign levels still start on the classic generator.
+    /// content.json; null when missing. Used to load saves on a campaign map; campaign levels still start on the
+    /// classic generator.
     /// </summary>
     internal static string? ResolveMapsPath()
     {

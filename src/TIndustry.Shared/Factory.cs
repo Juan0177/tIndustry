@@ -405,6 +405,9 @@ public sealed class Factory : IGameView
             Seed = Terrain?.Seed ?? 0,
             MapWidth = Terrain?.Width ?? 0,
             MapHeight = Terrain?.Height ?? 0,
+            Generator = SavedGenerator(Terrain),
+            MapSize = Terrain is { Generator: MapGenerator.Name } biomes ? biomes.Width : 0,
+            MapId = CampaignMapId(Terrain),
             // Canonical order (ids, then belt cells by Y, X) so captures compare byte for byte.
             Miners = miners.OrderBy(m => m.Id).Select(m => new MinerSaveDto
             {
@@ -586,7 +589,12 @@ public sealed class Factory : IGameView
         BurnRemaining = craft.BurnRemaining
     };
 
-    public static Factory Restore(FactoryContent content, FactorySaveData data)
+    /// <summary>
+    /// Rebuilds a factory from a save; the terrain is regenerated with the saved generator, or read from the
+    /// campaign map file in <paramref name="mapsDirectory"/>.
+    /// </summary>
+    /// <exception cref="SaveMapException">The terrain cannot be rebuilt (Italian text for the player).</exception>
+    public static Factory Restore(FactoryContent content, FactorySaveData data, string? mapsDirectory = null)
     {
         var belts = new BeltGrid();
         foreach (var cell in data.Belts)
@@ -641,6 +649,9 @@ public sealed class Factory : IGameView
         }
 
         factory.PowerBuffer = Math.Clamp(data.PowerBuffer, 0f, factory.PowerCapacity);
+
+        // Before the sites: restoring a site checks the terrain under it.
+        factory.Terrain = RestoreTerrain(content, data, factory.CoreTiles, mapsDirectory);
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
@@ -726,23 +737,6 @@ public sealed class Factory : IGameView
             }
         }
 
-        if (data.MapWidth >= 12 && data.MapHeight >= 8)
-        {
-            var w = Math.Min(Math.Max(12, data.MapWidth), MaxMapEdge);
-            var h = Math.Min(Math.Max(8, data.MapHeight), MaxMapEdge);
-            var starter = ResolveStarterDeposit(
-                new GridPosition(data.CoreX, data.CoreY),
-                Math.Max(1, data.CoreSize),
-                w,
-                h);
-            factory.Terrain = TerrainMap.Generate(
-                w,
-                h,
-                data.Seed,
-                factory.CoreTiles,
-                starter);
-        }
-
         SortById(factory.miners, m => m.Id);
         SortById(factory.smelters, s => s.Id);
         SortById(factory.assemblers, a => a.Id);
@@ -752,11 +746,109 @@ public sealed class Factory : IGameView
         return factory;
     }
 
+    /// <summary>Generator name stored in a save for <paramref name="terrain"/> (see <see cref="FactorySaveData.Generator"/>).</summary>
+    private static string SavedGenerator(TerrainMap? terrain) =>
+        terrain is null ? ClassicTerrainGenerator.Name
+        : CampaignMapId(terrain) is not null ? FactorySaveData.CampaignGenerator
+        : terrain.Generator;
+
+    private static string? CampaignMapId(TerrainMap? terrain) =>
+        terrain is not null && terrain.Generator.StartsWith(CampaignMapFile.GeneratorPrefix, StringComparison.Ordinal)
+            ? terrain.Generator[CampaignMapFile.GeneratorPrefix.Length..]
+            : null;
+
+    /// <summary>
+    /// Terrain of a save (null when it has none): the classic or biome generator from seed and size, or the
+    /// campaign map file, which must still have the saved size.
+    /// </summary>
+    private static TerrainMap? RestoreTerrain(
+        FactoryContent content, FactorySaveData data, IReadOnlySet<GridPosition> coreTiles, string? mapsDirectory)
+    {
+        var core = new GridPosition(data.CoreX, data.CoreY);
+        var coreSize = Math.Max(1, data.CoreSize);
+        switch (data.Generator)
+        {
+            case ClassicTerrainGenerator.Name:
+            {
+                if (data.MapWidth < 12 || data.MapHeight < 8)
+                {
+                    return null;
+                }
+
+                var w = Math.Min(data.MapWidth, MaxMapEdge);
+                var h = Math.Min(data.MapHeight, MaxMapEdge);
+                return TerrainMap.Generate(w, h, data.Seed, coreTiles, ResolveStarterDeposit(core, coreSize, w, h));
+            }
+
+            case MapGenerator.Name:
+            {
+                var edge = data.MapSize;
+                if (edge < 8 || edge > MaxMapEdge || data.MapWidth != edge || data.MapHeight != edge)
+                {
+                    throw new SaveMapException(
+                        $"Mappa del salvataggio non valida: misura {data.MapSize} per {data.MapWidth}×{data.MapHeight}.");
+                }
+
+                return MapGenerator.Generate(
+                    MapGenSettings.Normal((MapSize)edge, data.Seed),
+                    coreTiles,
+                    ResolveStarterDeposit(core, coreSize, edge, edge));
+            }
+
+            case FactorySaveData.CampaignGenerator:
+                return LoadCampaignTerrain(content, data, mapsDirectory);
+
+            default:
+                throw new SaveMapException($"Generatore di mappa sconosciuto nel salvataggio: '{data.Generator}'.");
+        }
+    }
+
+    /// <summary>The campaign map file of a save; it must still have the saved size.</summary>
+    private static TerrainMap LoadCampaignTerrain(FactoryContent content, FactorySaveData data, string? mapsDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(data.MapId))
+        {
+            throw new SaveMapException("Salvataggio della campagna senza il nome della mappa.");
+        }
+
+        // A plain file name inside the maps folder, never a path (hand-edited saves).
+        if (data.MapId.IndexOfAny(['/', '\\', ':']) >= 0 || data.MapId.Contains("..", StringComparison.Ordinal))
+        {
+            throw new SaveMapException($"Nome della mappa della campagna non valido: '{data.MapId}'.");
+        }
+
+        if (mapsDirectory is null)
+        {
+            throw new SaveMapException(
+                $"Mappa della campagna '{data.MapId}' non disponibile: cartella delle mappe non trovata.");
+        }
+
+        TerrainMap map;
+        try
+        {
+            map = CampaignMapFile.Load(mapsDirectory, data.MapId, content, out _);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            throw new SaveMapException($"Mappa della campagna '{data.MapId}' mancante o non valida. {ex.Message}", ex);
+        }
+
+        if (map.Width != data.MapWidth || map.Height != data.MapHeight)
+        {
+            throw new SaveMapException(
+                $"La mappa della campagna '{data.MapId}' è cambiata: {map.Width}×{map.Height} invece di "
+                + $"{data.MapWidth}×{data.MapHeight}.");
+        }
+
+        return map;
+    }
+
     /// <summary>
     /// Restores one saved site, validating what a hand-edited or content-drifted save could carry: progress
     /// within [0, 1], refund share within [0, 10000] basis points, spent/refunded within [0, cost] and mapped
-    /// by item id, cells recomputed when none were saved. A site whose spec is no longer buildable is dropped
-    /// with its plan, and what it took from the Core goes back (its refund share, less what was refunded).
+    /// by item id, cells recomputed when none were saved. A site whose spec is no longer buildable, or whose
+    /// cells are outside the map, on a wall or on deep water, is dropped with its plan, and what it took from
+    /// the Core goes back (its refund share, less what was refunded).
     /// </summary>
     private void RestoreSite(SiteSaveDto d)
     {
@@ -765,7 +857,11 @@ public sealed class Factory : IGameView
         var savedCost = CostOf(spec);
         var spent = SavedCostLines(d.SpentByItem, d.Spent, savedCost);
         var refunded = SavedCostLines(d.RefundedByItem, d.Refunded, savedCost);
-        if (!IsValidSpec(spec))
+        // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
+        var tiles = !IsValidSpec(spec) ? null
+            : d.Tiles.Count > 0 ? d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList()
+            : Footprint(spec);
+        if (tiles is null || tiles.Any(TerrainBlocks))
         {
             foreach (var (itemId, amount) in spent)
             {
@@ -790,10 +886,6 @@ public sealed class Factory : IGameView
             return;
         }
 
-        // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
-        var tiles = d.Tiles.Count > 0
-            ? d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList()
-            : Footprint(spec);
         var site = new ConstructSite(d.Id, spec, tiles, savedCost, d.Owner)
         {
             Progress = float.IsNaN(d.Progress) ? 0f : Math.Clamp(d.Progress, 0f, 1f),

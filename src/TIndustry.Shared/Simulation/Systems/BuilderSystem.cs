@@ -153,9 +153,9 @@ public sealed class BuilderSystem : ISimulationSystem
         {
             reason = CommandReasons.LockedByResearch;
         }
-        else if (!factory.CanPlace(plan.Spec, out _))
+        else if (!factory.CanPlace(plan.Spec, out var refusal))
         {
-            reason = CommandReasons.Occupied;
+            reason = refusal ?? CommandReasons.Occupied;
         }
 
         if (reason is not null)

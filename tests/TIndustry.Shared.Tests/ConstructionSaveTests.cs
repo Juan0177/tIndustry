@@ -294,7 +294,7 @@ public sealed class ConstructionSaveTests
         var host = new SimHost(NewFactory(new GameRules()));
         FactorySaveStore.Save("v10-cantiere", host);
         var path = FactorySaveStore.SlotPath("v10-cantiere");
-        File.WriteAllText(path, File.ReadAllText(path).Replace("\"version\": 11", "\"version\": 10"));
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"version\": 12", "\"version\": 10"));
 
         Assert.False(FactorySaveStore.TryLoad(Content, "v10-cantiere", out var loaded, out var error));
         Assert.Null(loaded);

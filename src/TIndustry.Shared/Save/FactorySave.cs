@@ -6,11 +6,18 @@ namespace TIndustry.Shared;
 /// <summary>
 /// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 10 was the
 /// first format where a save file is metadata plus this snapshot; version 11 adds the rules, drones,
-/// plan queues and construction sites. Older files are not compatible.
+/// plan queues and construction sites; version 12 names the terrain generator (<see cref="Generator"/>,
+/// <see cref="MapSize"/>, <see cref="MapId"/>). Version 11 is still read (classic terrain); older files are not.
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
+
+    /// <summary>Oldest version still read: v11 saves load on the classic generator.</summary>
+    public const int MinReadableVersion = 11;
+
+    /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
+    public const string CampaignGenerator = "campagna";
 
     public int Version { get; set; } = CurrentVersion;
     public long NextItemId { get; set; } = 1;
@@ -38,6 +45,20 @@ public sealed class FactorySaveData
     public int Seed { get; set; }
     public int MapWidth { get; set; }
     public int MapHeight { get; set; }
+
+    /// <summary>
+    /// Terrain generator: <c>"classico"</c> (default, also for v11 saves that lack it), <c>"biomi"</c>
+    /// (regenerated with <see cref="MapGenSettings.Normal"/> of <see cref="MapSize"/> and <see cref="Seed"/>) or
+    /// <c>"campagna"</c> (the map file <see cref="MapId"/>).
+    /// </summary>
+    public string Generator { get; set; } = ClassicTerrainGenerator.Name;
+
+    /// <summary>Edge of a <c>"biomi"</c> map; 0 for the other generators.</summary>
+    public int MapSize { get; set; }
+
+    /// <summary>Campaign map id (<c>data/maps/&lt;id&gt;.png</c>) of a <c>"campagna"</c> map; null otherwise.</summary>
+    public string? MapId { get; set; }
+
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];
@@ -222,7 +243,7 @@ public sealed class ItemSaveDto
 }
 
 /// <summary>
-/// Save file v10 (one JSON file per slot): the fields the slot list needs, plus the canonical snapshot
+/// Save file (v10 onwards, one JSON file per slot): the fields the slot list needs, plus the canonical snapshot
 /// (<see cref="Snapshot"/>, base64) holding the whole game state. The pending command queue and the
 /// simulation clock are not saved: a save is the applied state at a tick boundary.
 /// </summary>
@@ -238,6 +259,12 @@ public sealed class SaveFileData
     /// <summary>Canonical snapshot bytes, base64.</summary>
     public string? Snapshot { get; set; }
 }
+
+/// <summary>
+/// The terrain of a save cannot be rebuilt (campaign map file missing or changed, unknown generator). The
+/// message is Italian and meant for the player.
+/// </summary>
+public sealed class SaveMapException(string message, Exception? inner = null) : Exception(message, inner);
 
 /// <summary>One save slot row for Gestione salvataggi.</summary>
 public sealed class SaveSlotInfo
@@ -382,16 +409,22 @@ public static class FactorySaveStore
     /// <summary>
     /// Loads a slot into a new host (empty command queue, fresh clock); never throws.
     /// <paramref name="error"/> carries the player-facing reason, or null for a missing slot.
+    /// <paramref name="mapsDirectory"/> is the folder of the campaign map files (needed by campaign saves).
     /// </summary>
-    public static bool TryLoad(FactoryContent content, string slotId, out SimHost? host, out string? error)
+    public static bool TryLoad(
+        FactoryContent content, string slotId, out SimHost? host, out string? error, string? mapsDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         try
         {
             var file = ReadFile(slotId);
-            host = SimHost.FromSnapshot(content, Convert.FromBase64String(file.Snapshot!));
+            host = SimHost.FromSnapshot(content, Convert.FromBase64String(file.Snapshot!), mapsDirectory);
             error = null;
             return true;
+        }
+        catch (SaveMapException ex)
+        {
+            error = ex.Message;
         }
         catch (InvalidDataException ex)
         {
@@ -423,7 +456,7 @@ public static class FactorySaveStore
 
         var data = JsonSerializer.Deserialize<SaveFileData>(File.ReadAllText(path), JsonOptions)
             ?? throw new InvalidDataException(UnreadableMessage);
-        if (data.Version >= 1 && data.Version < FactorySaveData.CurrentVersion)
+        if (data.Version >= 1 && data.Version < FactorySaveData.MinReadableVersion)
         {
             throw new InvalidDataException(OlderVersionMessage);
         }

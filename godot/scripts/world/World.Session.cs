@@ -392,7 +392,7 @@ public partial class World
         try
         {
             var content = FactoryContent.Load(_contentPath);
-            if (!FactorySaveStore.TryLoad(content, slotId, out loaded, out error))
+            if (!FactorySaveStore.TryLoad(content, slotId, out loaded, out error, ResolveMapsPath()))
             {
                 loaded = null;
             }
