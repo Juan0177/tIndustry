@@ -28,11 +28,20 @@ public partial class TerrainChunks : Node2D
     /// <summary>Cells a side of an art chunk: 512×512 px, 1 MiB of texture.</summary>
     public const int ArtChunkCells = 16;
 
-    /// <summary>Most art chunks kept alive (or the ones the view touches, if more).</summary>
+    /// <summary>
+    /// Most art chunks kept alive, or the ones the view and its margin touch if more (about 190 on a 4K screen at
+    /// zoom 0.25), so a big screen never evicts a chunk it is showing.
+    /// </summary>
     public const int MaxArtChunks = 96;
 
     /// <summary>Art chunks composed per frame at most, so a zoom-in or a fast pan never stalls a frame.</summary>
     public const int ArtChunksPerFrame = 4;
+
+    /// <summary>
+    /// Composition time per frame (ms) past which no further art chunk starts in that frame (at least one always
+    /// does): on a slower machine fewer than <see cref="ArtChunksPerFrame"/> per frame, never a longer frame.
+    /// </summary>
+    public const double ArtFrameBudgetMs = 3.0;
 
     /// <summary>Cell size on screen (px) from which the terrain is drawn with its art (zoom 0.25 with 64-unit cells).</summary>
     public const float ArtMinCellPx = 16f;
@@ -46,6 +55,7 @@ public partial class TerrainChunks : Node2D
     private readonly ChunkCache _art = new();
     private readonly List<(Vector2I Key, long Order)> _missingArt = [];
     private readonly Stopwatch _composeClock = new();
+    private readonly Stopwatch _frameClock = new();
     private Node2D _colourLayer = null!;
     private Node2D _artLayer = null!;
     private ShaderMaterial _water = null!;
@@ -130,21 +140,60 @@ public partial class TerrainChunks : Node2D
         {
             _look = table.Floors.Count > 0 ? new TerrainLook(table) : null;
             _sprites = _look is null ? null : new TerrainSprites(_look.SpriteNames);
+            // Colour chunks take the average colour of each floor's and wall's art, so the terrain keeps its tone
+            // across the two levels of detail; without art, the table colour (which itself never changes: it keys
+            // the campaign map PNGs).
+            _floorColors = Enum.GetValues<FloorKind>()
+                .Select(k => _look is not null && _sprites is not null
+                    ? AverageColor(Enumerable.Range(0, TerrainLook.Variants).Select(v => (_look.FloorSprite(k, v), 0)))
+                    : table.Floor(k) is { } floor ? Color.FromHtml(floor.Color) : MissingColor)
+                .ToArray();
+            _wallColors = Enum.GetValues<WallKind>()
+                .Select(k => _look?.WallSprite(k) is { } wallSprite && _sprites is not null
+                    ? AverageColor([(wallSprite, 15)])
+                    : table.Wall(k) is { } wall ? Color.FromHtml(wall.Color) : MissingColor)
+                .ToArray();
         }
 
         _map = map;
         _table = table;
         _tileSize = tileSize;
         _water.SetShaderParameter("art_pixel", tileSize / (float)TerrainLook.CellPixels);
-        _floorColors = Enum.GetValues<FloorKind>()
-            .Select(k => table.Floor(k) is { } floor ? Color.FromHtml(floor.Color) : MissingColor)
-            .ToArray();
-        _wallColors = Enum.GetValues<WallKind>()
-            .Select(k => table.Wall(k) is { } wall ? Color.FromHtml(wall.Color) : MissingColor)
-            .ToArray();
         BuiltSinceReset = 0;
         ArtBuiltSinceReset = 0;
         ResetProbe();
+    }
+
+    /// <summary>Average colour of the opaque pixels of the given pieces (sprite, piece index) of the terrain strips.</summary>
+    private Color AverageColor(IEnumerable<(string Sprite, int Index)> pieces)
+    {
+        long r = 0, g = 0, b = 0, n = 0;
+        foreach (var (name, index) in pieces)
+        {
+            var strip = _sprites!.Get(name);
+            var x0 = index * TerrainLook.CellPixels;
+            if (x0 + TerrainLook.CellPixels > strip.Width)
+            {
+                continue;
+            }
+
+            for (var y = 0; y < Math.Min(TerrainLook.CellPixels, strip.Height); y++)
+            {
+                for (var x = x0; x < x0 + TerrainLook.CellPixels; x++)
+                {
+                    var i = (y * strip.Width + x) * 4;
+                    if (strip.Rgba[i + 3] == 255)
+                    {
+                        r += strip.Rgba[i];
+                        g += strip.Rgba[i + 1];
+                        b += strip.Rgba[i + 2];
+                        n++;
+                    }
+                }
+            }
+        }
+
+        return n == 0 ? MissingColor : Color.Color8((byte)(r / n), (byte)(g / n), (byte)(b / n));
     }
 
     /// <summary>Restarts <see cref="ArtPeak"/> and <see cref="SlowestArtMs"/> (performance probe).</summary>
@@ -183,10 +232,12 @@ public partial class TerrainChunks : Node2D
         // Chunks in view first, then the margin; nearest the view centre first within each.
         _missingArt.Sort((a, b) => a.Order.CompareTo(b.Order));
         var cap = Math.Max(MaxArtChunks, artTouched);
-        var composed = Math.Min(ArtChunksPerFrame, _missingArt.Count);
-        for (var i = 0; i < composed; i++)
+        var composed = 0;
+        _frameClock.Restart();
+        while (composed < Math.Min(ArtChunksPerFrame, _missingArt.Count)
+               && (composed == 0 || _frameClock.Elapsed.TotalMilliseconds < ArtFrameBudgetMs))
         {
-            AddArtChunk(map, _missingArt[i].Key, cap);
+            AddArtChunk(map, _missingArt[composed++].Key, cap);
         }
 
         ArtPending = _missingArt.Count - composed;
@@ -310,8 +361,9 @@ public partial class TerrainChunks : Node2D
 
     /// <summary>
     /// Image of chunk (<paramref name="cx"/>, <paramref name="cy"/>), one pixel per cell; edge chunks are cut to the
-    /// map. Floors and walls take the terrain table colour with a small variation hashed from the cell (the same on
-    /// every build); walls are darkened with a lighter rim where they meet open ground.
+    /// map. Floors and walls take the average colour of their art (the table colour without art) with a small
+    /// variation hashed from the cell (the same on every build); walls are darkened with a lighter rim where they
+    /// meet open ground.
     /// </summary>
     private Image BuildChunkImage(int cx, int cy)
     {
