@@ -10,10 +10,12 @@ Dalla radice del repo:
 python tools/art/genera.py                  # scrive gli sprite registrati in godot/assets/ e la tavola in .dev/arte/
 python tools/art/genera.py --solo miner     # solo alcuni sprite (più nomi separati da spazio)
 python tools/art/genera.py --controlla      # non scrive: esce con 1 se un PNG in godot/assets/ non è aggiornato
-python -m unittest tools/art/test_genera.py # determinismo, misure, tavolozza (copertura con TINDUSTRY_ARTE_COMPLETA=1)
+python -m unittest tools/art/test_genera.py # determinismo, misure, tavolozza, copertura di content.json
 ```
 
 Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path godot --import`, poi ripristina i `.import` che cambiano solo per fine riga (vedi `CLAUDE.md`).
+
+**Versione di Pillow.** I byte dei PNG dipendono dal codificatore di Pillow (zlib): gli sprite del repo sono stati scritti con **Pillow 12.3**. `--controlla` confronta i byte, quindi con un'altra versione di Pillow può segnalare differenze anche se i pixel sono uguali; in quel caso rigenera con `genera.py` e controlla nella tavola che non sia cambiato nulla a occhio prima di fare il commit.
 
 `genera.py` scrive solo gli sprite registrati: gli altri PNG di `godot/assets/` restano come sono. La tavola `.dev/arte/tavola.png` (e una copia datata) mette ogni sprite vecchio accanto al nuovo, a 1× e 2×, su fondo chiaro e scuro: serve per la revisione a occhio.
 
@@ -31,8 +33,9 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
 ## Regole
 
 - **32 px per cella** del blocco (in gioco ×2, filtro Nearest). Oggetti: `<id>.png` 32×32 (HUD) e `<id>-belt.png` 10×10 (nastri).
-- **Nomi = id** di `data/content.json`. Parti con suffisso (`miner-base`, `miner-drill`, `smelter-glow`…); animazioni come strisce orizzontali `<id>-anim.png` di fotogrammi quadrati (lato = altezza), o della larghezza dichiarata nel decoratore. Tier: `core-1…4`, `drone-1…3`.
+- **Nomi = id** di `data/content.json`. Parti con suffisso (`miner-base`, `miner-drill`, `smelter-glow`…); animazioni come strisce orizzontali `<id>-anim.png` di fotogrammi sempre quadrati (lato = altezza: `Sprites.Frames` taglia quadrati). Tier: `core-1…4`, `drone-1…3`.
 - **Deterministico**: niente `random` senza seme fisso, niente date o metadati nei PNG. Due esecuzioni danno gli stessi byte.
+- **Mai a mano**: i PNG generati non si ritoccano con un editor; si cambia lo script e si rigenera. Le scelte (perché da script, tavolozza, luce, tier) sono in `docs/decisioni/0004-arte-generata-da-script.md`.
 - Si usano solo i colori di `palette.py`.
 
 ## Aggiungere uno sprite
@@ -51,7 +54,7 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
        return im
    ```
 
-   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`; se i fotogrammi non sono quadrati, `@sprite("nome-anim", fotogramma=<larghezza>)`.
+   Per una striscia di fotogrammi: `@sprite("miner-drill-anim")` e `return forme.striscia(fotogrammi)`, con fotogrammi quadrati. Un nome nuovo deve corrispondere a un oggetto, a un drone o a un blocco della tabella `CELLE` di `test_genera.py`, altrimenti il test delle misure fallisce.
 2. `python tools/art/genera.py --solo junction`, guarda `.dev/arte/tavola.png`.
 3. Importa in Godot (sopra) e lancia i test.
 

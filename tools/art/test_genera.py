@@ -17,20 +17,21 @@ if ART_DIR not in sys.path:
 
 import forme  # noqa: E402
 import genera  # noqa: E402
-from blocchi import FOTOGRAMMA, SPRITE, sprite  # noqa: E402
-from palette import ACCENTO, BAGLIORE, METALLO, NUCLEO, RAME, RAMPE  # noqa: E402
+from blocchi import SPRITE, sprite  # noqa: E402
+from palette import ACCENTO, BAGLIORE, METALLO, NASTRO, NUCLEO, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
 NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express")  # belt tiers with scrolling strips
 
-# Block footprints in cells (Factory.FootprintSize; the bridge is two 1x1 ends).
+# Block footprints in cells, kept by hand: update it together with Factory.FootprintSize
+# (src/TIndustry.Shared/Factory.cs) when a block changes size. The bridge is two 1x1 ends.
 CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
     "extractor": 1, "power-node": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
-    "core": 2, "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
+    "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
 }
 CORE_TIER = 4
 CORE_LUCE_FOTOGRAMMI = 4
@@ -59,14 +60,16 @@ def _righe(im, y0, y1):
 
 
 def errore_misura(nome, im):
-    """Size problem of one generated sprite, or None when it is fine."""
+    """Size problem of one generated sprite, or None when it is fine.
+
+    Every name must be an item, a drone tier or a block (or block part) of CELLE: an unknown
+    name is an error, never a silent pass."""
     w, h = im.size
     anim = nome.endswith("-anim")
     base = nome[: -len("-anim")] if anim else nome
-    if anim:
-        frame = FOTOGRAMMA.get(nome, h)
-        if frame <= 0 or w % frame != 0:
-            return f"{nome}: larghezza {w} non multipla del fotogramma {frame}"
+    if anim and (h <= 0 or w % h != 0):
+        # Sprites.Frames cuts strips into squares: frame side = strip height.
+        return f"{nome}: larghezza {w} non multipla dell'altezza {h} (fotogrammi quadrati)"
     if base.endswith("-belt") and base[: -len("-belt")] in _item_ids():
         return None if (w, h) == (BELT_ITEM, BELT_ITEM) else f"{nome}: {w}x{h}, atteso {BELT_ITEM}x{BELT_ITEM}"
     if base in _item_ids():
@@ -78,13 +81,13 @@ def errore_misura(nome, im):
     block = next((b for b in sorted(CELLE, key=len, reverse=True)
                   if base == b or base.startswith(b + "-")), None)
     if block is None:
-        return None
+        return f"{nome}: nome sconosciuto (né oggetto, né drone, né blocco di CELLE)"
     side = T * CELLE[block]
     if base.endswith("-span"):
         # Repeatable span texture (bridge): tiles a cell evenly, never taller than the block.
         ok = w > 0 and side % w == 0 and 0 < h <= side
         return None if ok else f"{nome}: {w}x{h}, attesa larghezza divisore di {side} e altezza <= {side}"
-    frame_w = FOTOGRAMMA.get(nome, h) if anim else w
+    frame_w = h if anim else w
     if h != side or frame_w != side:
         return f"{nome}: fotogramma {frame_w}x{h}, atteso {side}x{side}"
     return None
@@ -120,15 +123,13 @@ TEST_SPRITES = {"miner-prova": _prova, "conveyor-basic-prova-anim": _prova_anim}
 
 class TestGenera(unittest.TestCase):
     def setUp(self):
-        self._saved = (dict(SPRITE), dict(FOTOGRAMMA))
+        self._saved = dict(SPRITE)
         for nome, fn in TEST_SPRITES.items():
             sprite(nome)(fn)
 
     def tearDown(self):
         SPRITE.clear()
-        SPRITE.update(self._saved[0])
-        FOTOGRAMMA.clear()
-        FOTOGRAMMA.update(self._saved[1])
+        SPRITE.update(self._saved)
 
     def _genera(self, cartella):
         out = os.path.join(cartella, "assets")
@@ -161,15 +162,17 @@ class TestGenera(unittest.TestCase):
         self.assertIsNone(errore_misura("core-4-light-anim", forme.nuova(4 * 5 * T, 5 * T)))
         self.assertIsNotNone(errore_misura("drone-2", forme.nuova(24, 24)))
         self.assertIsNone(errore_misura("drone-2", forme.nuova(28, 28)))
+        self.assertIsNotNone(errore_misura("drone-2-anim", forme.nuova(3 * 28 + 1, 28)))
+        self.assertIsNotNone(errore_misura("core-9", forme.nuova(T, T)))
+        self.assertIsNotNone(errore_misura("sconosciuto", forme.nuova(T, T)))
 
     def test_copertura_tier(self):
-        # The four Core tiers with their light strip, the HUD/research icon and the three drones.
-        attesi = {"core"} | {f"core-{n}" for n in range(1, CORE_TIER + 1)}
+        # The four Core tiers with their light strip and the three drones.
+        attesi = {f"core-{n}" for n in range(1, CORE_TIER + 1)}
         attesi |= {f"core-{n}-light-anim" for n in range(1, CORE_TIER + 1)} | set(DRONI)
         self.assertEqual([], sorted(attesi - set(SPRITE)))
 
     def test_core(self):
-        self.assertEqual(SPRITE["core-1"]().tobytes(), SPRITE["core"]().tobytes())
         lampade = []
         for n in range(1, CORE_TIER + 1):
             with self.subTest(tier=n):
@@ -263,11 +266,16 @@ class TestGenera(unittest.TestCase):
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
         for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
-            self.assertLessEqual(max(x1 - x0, y1 - y0), 2 * T // 2, anim)
-        # Extractor: empty dark well (8 px across) in the centre for the filter dot.
+            self.assertLessEqual(max(x1 - x0, y1 - y0), T, anim)
+        # Extractor: empty dark well, 8 px across, in the centre for the filter dot: one colour
+        # over the whole disc and exactly 8 px of it across the middle row and column.
         ex = SPRITE["extractor"]()
-        pozzo = {ex.getpixel((x, y)) for y in range(13, 19) for x in range(13, 19)}
-        self.assertEqual(1, len(pozzo))
+        pozzo = NASTRO[0] + (255,)
+        disco = {ex.getpixel((x, y)) for y in range(T) for x in range(T)
+                 if (x + 0.5 - T / 2) ** 2 + (y + 0.5 - T / 2) ** 2 <= 16}
+        self.assertEqual({pozzo}, disco)
+        self.assertEqual(8, sum(1 for x in range(T) if ex.getpixel((x, T // 2)) == pozzo))
+        self.assertEqual(8, sum(1 for y in range(T) if ex.getpixel((T // 2, y)) == pozzo))
 
     def test_oggetti(self):
         # Every market item and money: HUD icon and belt sprite, opaque pixels only (no tint at
@@ -291,12 +299,11 @@ class TestGenera(unittest.TestCase):
                     viste.append(im.tobytes())
             self.assertEqual(len(set(viste)), len(viste))
 
-    @unittest.skipUnless(os.environ.get("TINDUSTRY_ARTE_COMPLETA") == "1",
-                         "gli sprite arrivano famiglia per famiglia (task 2-5 della G1)")
     def test_copertura(self):
+        # Every structure and item of content.json, every Core tier and every drone has a sprite.
         c = _content()
         attesi = {s["id"] for s in c["structures"]} | _item_ids()
-        attesi |= {f"core-{n}" for n in range(1, 5)} | {f"drone-{n}" for n in range(1, 4)}
+        attesi |= {f"core-{n}" for n in range(1, CORE_TIER + 1)} | set(DRONI)
         reali = set(SPRITE) - set(TEST_SPRITES)
         self.assertEqual([], sorted(attesi - reali))
 

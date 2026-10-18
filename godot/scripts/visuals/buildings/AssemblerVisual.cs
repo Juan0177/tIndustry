@@ -52,9 +52,10 @@ public partial class AssemblerVisual : Node2D
 
     private void ApplyPress(float t)
     {
-        // Open rest ≈28% of span from center; closed almost meet. Snapped to whole art pixels.
+        // Open rest ≈28% of span from center; closed = the two press faces just touch (7 art px
+        // in from the open sprite's centre position). Snapped to whole art pixels.
         var open = 0.28f;
-        var closed = 0.06f;
+        var closed = 0.11f;
         var x = Mathf.Round(Mathf.Lerp(open, closed, t) * _span / _artPixel) * _artPixel;
         if (_leftArm is not null)
         {

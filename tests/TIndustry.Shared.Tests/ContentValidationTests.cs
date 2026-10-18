@@ -73,9 +73,9 @@ public sealed class ContentValidationTests
 
     [Fact]
     public void BeltItemTexturesExistForEveryMarketItem() =>
-        Assert.Empty(Content.Market.Select(m => m.ItemId)
-            .Append("money")
-            .SelectMany(id => new[] { id, $"{id}-belt" })
+        // Market items' <id>.png is covered by EveryMarketItemHasAnIcon; money has no market entry.
+        Assert.Empty(Content.Market.Select(m => $"{m.ItemId}-belt")
+            .Concat(["money", "money-belt"])
             .Where(name => !File.Exists(IconPath(name))));
 
     [Fact]

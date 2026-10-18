@@ -7,8 +7,8 @@ conduits and a ring of lights round the nucleus.
 
 `core-<n>-light-anim` (4 frames) is the slow light of the nucleus: every frame is an opaque
 disc over the pit, so the client stacks it on `core-<n>.png` and it replaces the nucleus
-(never adds a second glow). `core-<n>.png` is the body with frame 1; `core.png` is a copy of
-`core-1` (HUD and research icon).
+(never adds a second glow). `core-<n>.png` is the body with frame 1; `core-1` is also the HUD
+and research icon.
 """
 import math
 
@@ -208,5 +208,3 @@ def _registra(n):
 
 for _n in range(1, TIER + 1):
     _registra(_n)
-
-sprite("core")(lambda: forme.componi(_corpo(1), luce(1, LIVELLI[0])))

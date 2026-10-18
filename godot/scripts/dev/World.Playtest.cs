@@ -525,7 +525,11 @@ public partial class World
                 {
                     var cell = new GridPosition(beltsAt.X + c, beltsAt.Y + r);
                     factory.PlaceInstant(new BuildSpec(tiers[r], null, cell, Direction.East), charge: false);
-                    factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemIds[(c + r) % itemIds.Length], 0.5f));
+                    var itemId = itemIds[(c + r) % itemIds.Length];
+                    if (!factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemId, 0.5f)))
+                    {
+                        GD.Print($"PLAYTEST blocchi: {itemId} non inserito sul nastro {tiers[r]} in {cell}");
+                    }
                 }
             }
 
