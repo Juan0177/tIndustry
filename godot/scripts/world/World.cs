@@ -111,6 +111,9 @@ public partial class World : Node2D
         GetTree().AutoAcceptQuit = false;
         _contentPath = ResolveContentPath();
         _campaignPath = ResolveCampaignPath();
+        // Earliest point the settings can be read (after the playtest profile guard; World is the main scene and
+        // there is no autoload): the window mode is applied before the first frame is drawn, so the 1280×720 window
+        // of project.godot shows at most for the instant before fullscreen.
         _settings = ClientSettings.Load();
         ApplyPlaytestUiScale();
         _settings.ApplyToEngine(GetTree().Root);

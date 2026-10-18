@@ -239,7 +239,7 @@ public partial class World
         await PlaytestWait(0.5);
         if (_hover != cell)
         {
-            return Fail($"scala UI {percent}%: cursore su {cell}, cella sotto il mouse {_hover?.ToString() ?? "nessuna"}");
+            return Fail($"scala UI {percent}%: cursore su {cell} ({at}), cella sotto il mouse {_hover?.ToString() ?? "nessuna"}, controllo {GetViewport().GuiGetHoveredControl()?.GetPath().ToString() ?? "nessuno"}");
         }
 
         await PlaytestClick(at);
@@ -325,8 +325,8 @@ public partial class World
     }
 
     /// <summary>
-    /// Early in a level the build palette is sized to its content: narrower than with every block unlocked, and the
-    /// same size in every category.
+    /// The build palette is a fixed grid (Mindustry): the same size early in a level, in every shown category and with
+    /// every block unlocked. Captures both: <c>ui-palette-inizio</c> and <c>ui-palette-tutto</c>.
     /// </summary>
     private async Task<bool> PlaytestPaletteFitsAsync(Func<string, Task> shot)
     {
@@ -343,16 +343,26 @@ public partial class World
             return _hud.PaletteSize;
         }
 
+        async Task<string?> SameInShownCategories(Vector2 expected)
+        {
+            foreach (var category in Enum.GetValues<Hud.BuildCategory>().Where(_hud.PaletteCategoryShown))
+            {
+                if (await SizeIn(category) is var size && !size.IsEqualApprox(expected))
+                {
+                    return $"{size} in {category} invece di {expected}";
+                }
+            }
+
+            return null;
+        }
+
         var start = _hud.PaletteCategory;
         var early = await SizeIn(start);
-        await shot("palette-su-misura");
-        foreach (var category in Enum.GetValues<Hud.BuildCategory>())
+        await shot("palette-inizio");
+        var earlyError = await SameInShownCategories(early);
+        if (_hud.PaletteColumns != 4 || earlyError is not null)
         {
-            // A hidden category falls back to a shown one: its size must match too.
-            if (await SizeIn(category) is var size && !size.IsEqualApprox(early))
-            {
-                return Fail($"palette: {size} in {category}, {early} in {start}");
-            }
+            return Fail($"palette a inizio livello: {_hud.PaletteColumns} colonne, {earlyError ?? "misura uguale"}");
         }
 
         foreach (var tool in Enum.GetValues<Hud.ToolKind>())
@@ -360,15 +370,17 @@ public partial class World
             _hud.SetToolLocked(tool, false);
         }
 
-        var full = await SizeIn(start);
+        var full = await SizeIn(Hud.BuildCategory.Logistics);
+        await shot("palette-tutto");
+        var fullError = await SameInShownCategories(early);
         SyncResearchLocks();
         var back = await SizeIn(start);
-        if (early.X >= full.X || !back.IsEqualApprox(early))
+        if (fullError is not null || !back.IsEqualApprox(early))
         {
-            return Fail($"palette: {early} a inizio livello, {full} con tutto sbloccato, {back} dopo");
+            return Fail($"palette: {early} a inizio livello, con tutto sbloccato {fullError ?? full.ToString()}, {back} dopo");
         }
 
-        GD.Print($"PLAYTEST palette su misura: {early} a inizio livello, {full} con tutto sbloccato");
+        GD.Print($"PLAYTEST palette a griglia fissa: {early} a inizio livello e con tutto sbloccato");
         return true;
     }
 
@@ -407,7 +419,8 @@ public partial class World
                     continue;
                 }
 
-                if (control is PanelContainer && control.Size.X > 0 && control.Size.Y > 0)
+                // Panels and loose buttons (the top bar): both take the mouse.
+                if (control is PanelContainer or BaseButton && control.Size.X > 0 && control.Size.Y > 0)
                 {
                     rects.Add((control.Name, control.GetGlobalRect()));
                     continue;

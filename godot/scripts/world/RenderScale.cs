@@ -7,9 +7,8 @@ namespace TIndustry.Godot;
 /// every node under it that is not on a CanvasLayer) at a fraction of the window resolution and stretches it to the
 /// window; the HUD stays at full resolution.
 ///
-/// <para>Why not <c>Window.ContentScaleMode = Viewport</c>: in that mode the root renders at its logical size
-/// (base size / UI scale), so the resolution follows the UI scale and the window, not a percentage, and changing it
-/// would change the HUD layout. Here a <see cref="SubViewport"/> shares the root's <see cref="World2D"/> and draws
+/// <para>Why not <c>Window.ContentScaleMode = Viewport</c>: in that mode the root renders at a fixed base size, so
+/// the resolution follows the window, not a percentage, and changing it would change the HUD layout. Here a <see cref="SubViewport"/> shares the root's <see cref="World2D"/> and draws
 /// the same canvas, the root culls the world through a visibility layer, and a <see cref="TextureRect"/> on a
 /// CanvasLayer under everything shows the result. Input, camera and picking stay on the root, untouched.</para>
 /// </summary>
@@ -132,7 +131,7 @@ public partial class RenderScale : Node
             return;
         }
 
-        // Window pixels per logical unit (canvas_items stretch: window size / (base size / UI scale)).
+        // Window pixels per logical unit: 1 with stretch disabled (project.godot), kept should a stretch mode return.
         var stretch = root.GetFinalTransform().Scale;
         var size = new Vector2I(
             Math.Max(1, Mathf.RoundToInt(logical.X * stretch.X * Percent / 100f)),

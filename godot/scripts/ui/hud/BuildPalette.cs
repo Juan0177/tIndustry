@@ -72,6 +72,17 @@ public partial class BuildPalette : PanelContainer
     private readonly HashSet<ToolKind> _lockedTools = [];
 
     private GridContainer? _blockGrid;
+    private VBoxContainer? _categoryRail;
+
+    /// <summary>The grid is always this many columns (Mindustry), with as many rows as the largest category needs.</summary>
+    private const int GridColumnCount = 4;
+
+    private static readonly int GridRowCount =
+        new[] { ToolsEntries, LogisticsEntries, ProductionEntries, PowerEntries }
+            .Max(e => (e.Length + GridColumnCount - 1) / GridColumnCount);
+
+    /// <summary>Side of a palette cell and of a category button, in UI units at 100%: the 32 px icon plus border.</summary>
+    private const float CellSide = 40f;
     private Label? _categoryTitle;
     private ToolKind _selected = ToolKind.Cursor;
     private BuildCategory _category = BuildCategory.Logistics;
@@ -97,7 +108,7 @@ public partial class BuildPalette : PanelContainer
     public BuildPalette()
     {
         StylePanel(this, "BuildDock");
-        // Sized to its content (RebuildGrid), right-aligned under the info slot.
+        // Fixed size (GridColumns × GridRows cells, the whole category rail), right-aligned under the info slot.
         SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
     }
 
@@ -115,12 +126,13 @@ public partial class BuildPalette : PanelContainer
 
         _blockGrid = new GridContainer
         {
-            Columns = 4,
+            Columns = GridColumnCount,
             MouseFilter = MouseFilterEnum.Ignore
         };
         gridWrap.AddChild(_blockGrid);
 
         var catRail = new VBoxContainer();
+        _categoryRail = catRail;
         top.AddChild(catRail);
         AddCategoryButton(catRail, BuildCategory.Tools, "cat-strumenti", "Strumenti");
         AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica", "Logistica");
@@ -191,7 +203,7 @@ public partial class BuildPalette : PanelContainer
         }
     }
 
-    private bool HasUnlocked(BuildCategory category) => EntriesFor(category).Any(e => !_lockedTools.Contains(e.Tool));
+    internal bool HasUnlocked(BuildCategory category) => EntriesFor(category).Any(e => !_lockedTools.Contains(e.Tool));
 
     /// <summary>The category whose blocks the grid shows (playtests).</summary>
     internal BuildCategory ShownCategory => _category;
@@ -286,7 +298,7 @@ public partial class BuildPalette : PanelContainer
     {
         var slot = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(40, 40),
+            CustomMinimumSize = new Vector2(CellSide, CellSide),
             MouseFilter = MouseFilterEnum.Stop,
             TooltipText = tooltip,
             ThemeTypeVariation = UiTheme.Slot
@@ -296,7 +308,7 @@ public partial class BuildPalette : PanelContainer
 
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         slot.AddChild(center);
-        center.AddChild(MakeIcon(UiTheme.Icon(icon), 32, pixel: true));
+        center.AddChild(MakeIcon(UiTheme.Icon(icon), CellSide - 8, pixel: true));
 
         slot.GuiInput += e =>
         {
@@ -334,33 +346,18 @@ public partial class BuildPalette : PanelContainer
             }
         }
 
-        // The box fits the shown category with the most unlocked blocks (at most 4 columns), the same for every
-        // category: shorter categories are padded with invisible cells and the title gets the widest label's width.
-        var visible = _categorySlots.Keys.Where(HasUnlocked).DefaultIfEmpty(_category).ToList();
-        var most = visible.Max(c => EntriesFor(c).Count(e => !_lockedTools.Contains(e.Tool)));
-        _blockGrid.Columns = Math.Clamp(most, 1, 4);
-        var cells = (most + _blockGrid.Columns - 1) / _blockGrid.Columns * _blockGrid.Columns;
+        // Fixed grid whatever the category and the unlocks: the free cells are empty space (locked blocks are hidden).
         var side = BlockIconSide();
-        for (; shown < cells; shown++)
+        for (; shown < GridColumnCount * GridRowCount; shown++)
         {
-            _blockGrid.AddChild(new PanelContainer
+            _blockGrid.AddChild(new Control
             {
                 CustomMinimumSize = new Vector2(side + 8, side + 8),
-                MouseFilter = MouseFilterEnum.Ignore,
-                ThemeTypeVariation = UiTheme.Slot,
-                Modulate = Colors.Transparent
+                MouseFilter = MouseFilterEnum.Ignore
             });
         }
 
-        if (_categoryTitle is not null)
-        {
-            var font = _categoryTitle.GetThemeFont("font");
-            var fontSize = _categoryTitle.GetThemeFontSize("font_size");
-            _categoryTitle.CustomMinimumSize = new Vector2(
-                visible.Max(c => font.GetStringSize(CategoryLabel(c), HorizontalAlignment.Left, -1, fontSize).X)
-                + _categoryTitle.GetThemeStylebox("normal").GetMinimumSize().X,
-                0);
-        }
+        SyncFixedSize();
 
         if (_hovered is { } hovered && !_toolSlots.ContainsKey(hovered))
         {
@@ -370,11 +367,48 @@ public partial class BuildPalette : PanelContainer
     }
 
     /// <summary>
-    /// Block icons are drawn this many screen pixels wide with the Nearest filter: 32 px sprites (1×1 blocks) ×2,
-    /// 64 px sprites (2×2 blocks) ×1, so every art pixel covers whole screen pixels at any UI scale. From 200% UI
-    /// scale on they are drawn twice that (still whole multiples).
+    /// The parts whose size could follow the unlocks are pinned: the title is as wide as the widest category name and
+    /// the rail as tall as all four buttons (a hidden category leaves empty space below).
     /// </summary>
-    private const float BlockIconScreenPx = 64f;
+    private void SyncFixedSize()
+    {
+        if (_categoryTitle is null || !_categoryTitle.IsInsideTree())
+        {
+            return;
+        }
+
+        var font = _categoryTitle.GetThemeFont("font");
+        var fontSize = _categoryTitle.GetThemeFontSize("font_size");
+        _categoryTitle.CustomMinimumSize = new Vector2(
+            Enum.GetValues<BuildCategory>().Max(c => font.GetStringSize(CategoryLabel(c), HorizontalAlignment.Left, -1, fontSize).X)
+            + _categoryTitle.GetThemeStylebox("normal").GetMinimumSize().X,
+            0);
+        if (_categoryRail is not null)
+        {
+            var buttons = _categorySlots.Count;
+            _categoryRail.CustomMinimumSize = new Vector2(
+                0, buttons * CellSide + (buttons - 1) * _categoryRail.GetThemeConstant("separation"));
+        }
+    }
+
+    public override void _Notification(int what)
+    {
+        // Also sent on entering the tree: the width is measured with the real theme font.
+        if (what == NotificationThemeChanged)
+        {
+            SyncFixedSize();
+        }
+    }
+
+    /// <summary>Grid columns (playtests).</summary>
+    internal int GridColumns => _blockGrid?.Columns ?? 0;
+
+    /// <summary>
+    /// Block icons are drawn this many screen pixels wide with the Nearest filter: 32 px sprites (1×1 blocks) at their
+    /// native size, 64 px sprites (2×2 blocks) halved, so every screen pixel is a whole art pixel. From 200% UI scale on
+    /// they are drawn twice that (still whole multiples).
+    /// </summary>
+    private const float BlockIconScreenPx = 32f;
 
     /// <summary>Side of a block icon in UI units for the current UI scale (read when the grid is rebuilt).</summary>
     internal static float BlockIconSide(float uiScale) =>

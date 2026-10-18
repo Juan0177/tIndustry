@@ -67,9 +67,13 @@ public sealed class ClientSettings
     /// </summary>
     public bool? SchermoIntero { get; set; }
 
-    /// <summary>The fullscreen choice the settings panel shows: <see cref="SchermoIntero"/> or this build's default.</summary>
+    /// <summary>
+    /// The fullscreen choice the settings panel shows: <see cref="SchermoIntero"/>, or when never chosen what this run
+    /// actually does.
+    /// </summary>
     [JsonIgnore]
-    public bool SchermoInteroScelto => SchermoIntero ?? !OS.IsDebugBuild();
+    public bool SchermoInteroScelto =>
+        SchermoIntero ?? StartupDisplay.Fullscreen(null, OS.IsDebugBuild(), GameDataPaths.IsPlaytest);
 
     /// <summary>True while a playtest forces effects, shadows, glow and night off (no <see cref="PlaytestEffectsEnv"/>=1).</summary>
     public static bool PlaytestForcesEffectsOff =>
@@ -235,10 +239,21 @@ public sealed class ClientSettings
         else if (!fullscreen && isFullscreen)
         {
             DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
-            var size = new Vector2I(StartupDisplay.DevWidth, StartupDisplay.DevHeight);
-            var screen = DisplayServer.WindowGetCurrentScreen();
-            DisplayServer.WindowSetSize(size);
-            DisplayServer.WindowSetPosition(DisplayServer.ScreenGetPosition(screen) + (DisplayServer.ScreenGetSize(screen) - size) / 2);
+            // Windows applies the mode change asynchronously: size and place the window once it has.
+            Callable.From(PlaceDevWindow).CallDeferred();
         }
+    }
+
+    /// <summary>The 1280×720 window (smaller if the usable screen is), centered in the usable screen area.</summary>
+    private static void PlaceDevWindow()
+    {
+        var usable = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
+        var size = new Vector2I(
+            Math.Min(StartupDisplay.DevWidth, usable.Size.X),
+            Math.Min(StartupDisplay.DevHeight, usable.Size.Y));
+        DisplayServer.WindowSetSize(size);
+        DisplayServer.WindowSetPosition(usable.Position + new Vector2I(
+            Math.Max(0, (usable.Size.X - size.X) / 2),
+            Math.Max(0, (usable.Size.Y - size.Y) / 2)));
     }
 }
