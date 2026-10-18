@@ -22,3 +22,4 @@ I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in O
 - [2026-10-18 — Mappe e terreno (sotto-progetto G2a)](2026-10-18-g2a-mappe-terreno.md)
 - [2026-10-18 — Arte del terreno (sotto-progetto G2b)](2026-10-18-g2b-arte-terreno.md)
 - [2026-10-18 — Effetti, ombre e luci (sotto-progetto G3)](2026-10-18-g3-effetti-luci.md)
+- [2026-10-18 — Interfaccia in stile Mindustry (sotto-progetto G4)](2026-10-18-g4-interfaccia.md)
