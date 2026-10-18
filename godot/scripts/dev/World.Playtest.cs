@@ -307,6 +307,12 @@ public partial class World
             await PlaytestBlocksShotAsync(dir);
         }
 
+        // Effects probe (G3): only with effects forced on, so the usual captures never see a particle.
+        if (OS.GetEnvironment(ClientSettings.PlaytestEffectsEnv) == "1" && !await PlaytestEffectsAsync(dir))
+        {
+            return false;
+        }
+
         if (!await PlaytestRemoveDragOutAndBackAsync())
         {
             return false;

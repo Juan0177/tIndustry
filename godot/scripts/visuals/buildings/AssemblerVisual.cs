@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// 2×2 assembler in layers: still base (<c>assembler-base</c>) and two arms (<c>assembler-arm</c>, the right
-/// one mirrored) sliding on the rails. Idle = open; crafting = press toward the centre.
+/// one mirrored) sliding on the rails. Idle = open; crafting = press toward the centre, with sparks between the
+/// press faces (G3 effect <c>scintille-pressa</c>).
 /// </summary>
 public partial class AssemblerVisual : Node2D
 {
@@ -14,6 +15,8 @@ public partial class AssemblerVisual : Node2D
     private float _press; // 0 open → 1 closed
     private float _span;
     private float _artPixel;
+    private EffectManager? _fx;
+    private int _sparks;
     public GridPosition Origin { get; private set; }
 
     public static AssemblerVisual Create(Crafter asm, int tileSize)
@@ -36,12 +39,20 @@ public partial class AssemblerVisual : Node2D
         root.AddChild(root._rightArm);
 
         root.ApplyPress(0f);
-        root.Sync(asm, 0f);
+        root.Sync(asm, 0f, null);
         return root;
     }
 
-    public void Sync(Crafter asm, float delta)
+    public override void _ExitTree() => EffectManager.DetachFrom(_fx, ref _sparks);
+
+    public void Sync(Crafter asm, float delta, EffectManager? fx)
     {
+        if (fx is not null)
+        {
+            _fx = fx;
+            _sparks = fx.Keep(_sparks, asm.IsCrafting, "scintille-pressa", this, Vector2.Zero);
+        }
+
         var target = asm.IsCrafting ? 1f : 0f;
         var speed = asm.IsCrafting ? 2.8f : 3.5f;
         // Floor delta so press settles under uncapped headless frame rates.

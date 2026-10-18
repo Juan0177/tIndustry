@@ -56,6 +56,24 @@ public partial class EffectManager : Node2D
     /// <summary>Continuous emitters attached (with or without particles right now).</summary>
     public int Attachments => _attached.Count;
 
+    /// <summary>Seconds since the manager started (real time): visuals rate-limit their bursts on it.</summary>
+    public double Clock => _clock;
+
+    /// <summary>Continuous emitters attached to <paramref name="owner"/> (0 once it is gone: no orphans).</summary>
+    public int AttachmentsOf(Node2D owner)
+    {
+        var n = 0;
+        foreach (var a in _attached.Values)
+        {
+            if (ReferenceEquals(a.Owner, owner))
+            {
+                n++;
+            }
+        }
+
+        return n;
+    }
+
     /// <summary>
     /// Quality drawn (the setting, or Spenti in a playtest). Lowering it stops what it no longer allows at once;
     /// attached emitters restart with the new particle count.
@@ -90,7 +108,8 @@ public partial class EffectManager : Node2D
 
     public override void _Ready()
     {
-        ZIndex = 12;
+        // Above buildings and their child layers (≤ BuildingsZ + 6 = 14), below construction (20).
+        ZIndex = 15;
         _defs = LoadDefinitions();
     }
 
@@ -115,8 +134,12 @@ public partial class EffectManager : Node2D
         }
     }
 
-    /// <summary>One burst of <paramref name="name"/> at <paramref name="worldPos"/>, emitted East turned by <paramref name="rotation"/>.</summary>
-    public void Play(string name, Vector2 worldPos, float rotation = 0)
+    /// <summary>
+    /// One burst of <paramref name="name"/> at <paramref name="worldPos"/>, emitted East turned by
+    /// <paramref name="rotation"/>; with <paramref name="halfArea"/> (world pixels) the particles start anywhere in
+    /// that rectangle around the point (a whole block crumbling, snow over a few cells) instead of at the point.
+    /// </summary>
+    public void Play(string name, Vector2 worldPos, float rotation = 0, Vector2 halfArea = default)
     {
         if (Lookup(name) is not { } def)
         {
@@ -135,7 +158,7 @@ public partial class EffectManager : Node2D
             return;
         }
 
-        Configure(node, def, count, oneShot: true);
+        Configure(node, def, count, oneShot: true, halfArea);
         node.GlobalPosition = worldPos;
         node.Rotation = rotation;
         node.Restart();
@@ -153,6 +176,35 @@ public partial class EffectManager : Node2D
         var id = _nextId++;
         _attached[id] = new Attachment(Lookup(name), owner, offset);
         return id;
+    }
+
+    /// <summary>
+    /// A block's working emitter: attached (if <paramref name="id"/> is not live) while <paramref name="on"/>,
+    /// detached as soon as it is not. Returns the id to keep (0 = none); called every frame with the block's state.
+    /// </summary>
+    public int Keep(int id, bool on, string name, Node2D owner, Vector2 offset)
+    {
+        if (on)
+        {
+            return id != 0 && _attached.ContainsKey(id) ? id : Attach(name, owner, offset);
+        }
+
+        Detach(id);
+        return 0;
+    }
+
+    /// <summary>
+    /// Detaches <paramref name="id"/> from <paramref name="fx"/> if the manager is still alive (a visual leaving the
+    /// tree: removed block or rebuilt visuals) and clears it.
+    /// </summary>
+    public static void DetachFrom(EffectManager? fx, ref int id)
+    {
+        if (id != 0 && fx is not null && IsInstanceValid(fx) && fx.IsInsideTree())
+        {
+            fx.Detach(id);
+        }
+
+        id = 0;
     }
 
     /// <summary>Stops the emitter <paramref name="id"/>: its particles fade, then the node goes back to the pool.</summary>
@@ -224,7 +276,7 @@ public partial class EffectManager : Node2D
                     continue;
                 }
 
-                Configure(node, a.Def!, count, oneShot: false);
+                Configure(node, a.Def!, count, oneShot: false, default);
                 node.GlobalPosition = at;
                 node.Rotation = 0;
                 node.Restart();
@@ -331,8 +383,18 @@ public partial class EffectManager : Node2D
         ActiveParticles -= particles;
     }
 
-    private void Configure(CpuParticles2D node, EffectDef def, int count, bool oneShot)
+    private void Configure(CpuParticles2D node, EffectDef def, int count, bool oneShot, Vector2 halfArea)
     {
+        if (halfArea == Vector2.Zero)
+        {
+            node.EmissionShape = CpuParticles2D.EmissionShapeEnum.Point;
+        }
+        else
+        {
+            node.EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle;
+            node.EmissionRectExtents = halfArea;
+        }
+
         var look = Look(def.Sprite);
         node.Texture = look.Texture;
         node.Material = look.Material;

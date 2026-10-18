@@ -172,6 +172,44 @@ public sealed class EffectRulesTests
         }
     }
 
+    /// <summary>
+    /// Every effect the client asks for by name (<c>.Play("…")</c>, <c>.Keep(…, "…", …)</c>, the biome table of
+    /// AmbientEffects) is in effetti.json: an unknown name would only warn at run time and draw nothing.
+    /// </summary>
+    [Fact]
+    public void EffectsNamedByTheClientAreDefined()
+    {
+        var root = RepoRoot();
+        var defs = EffectRules.Parse(File.ReadAllText(Path.Combine(root, "godot", "effetti", "effetti.json")));
+        var named = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "godot", "scripts"), "*.cs", SearchOption.AllDirectories))
+        {
+            foreach (var line in File.ReadLines(file))
+            {
+                var call = Regex.Match(line, @"\.(?:Play|Keep)\((.*)$");
+                var biome = Regex.Match(line, @"^\s*\[""[a-z]+""\] = ""([a-z-]+)""");
+                if (call.Success)
+                {
+                    foreach (Match literal in Regex.Matches(call.Groups[1].Value, @"""([a-z]+(?:-[a-z]+)*)"""))
+                    {
+                        named.Add(literal.Groups[1].Value);
+                    }
+                }
+                else if (biome.Success && file.EndsWith("AmbientEffects.cs", StringComparison.Ordinal))
+                {
+                    named.Add(biome.Groups[1].Value);
+                }
+            }
+        }
+
+        Assert.Contains("fumo-forno", named);
+        Assert.Contains("neve", named);
+        foreach (var name in named)
+        {
+            Assert.True(defs.ContainsKey(name), $"effetto usato dal client ma non definito: {name}");
+        }
+    }
+
     /// <summary>effetti.json is not a Godot resource: the export presets must include it explicitly.</summary>
     [Fact]
     public void ExportPresetsShipTheEffectsFile()

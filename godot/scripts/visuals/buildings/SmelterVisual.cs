@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// 2×2 smelter in layers: still base (<c>smelter-base</c>) and, while crafting, the glowing mouth
-/// (<c>smelter-glow-anim</c>) flickering through its frames with a pulsing brightness.
+/// (<c>smelter-glow-anim</c>) flickering through its frames with a pulsing brightness, and smoke rising from the
+/// top while it crafts (G3 effect <c>fumo-forno</c>).
 /// </summary>
 public partial class SmelterVisual : Node2D
 {
@@ -16,6 +17,9 @@ public partial class SmelterVisual : Node2D
     private float _clock;
     private float _pulse;
     private float _phase; // pulse offset from the origin cell, so neighbouring smelters do not flicker together
+    private Vector2 _smokeAt;
+    private EffectManager? _fx;
+    private int _smoke;
     public GridPosition Origin { get; private set; }
 
     public static SmelterVisual Create(Crafter sm, int tileSize)
@@ -28,17 +32,26 @@ public partial class SmelterVisual : Node2D
             _clock = BuildingPad.Phase(sm.Position)
         };
         root._phase = root._clock * 3.6f;
+        root._smokeAt = new Vector2(0f, -tileSize * 0.45f);
         root.AddChild(BuildingPad.Layer("Base", Sprites.For("smelter-base"), Crafter.Size, tileSize, 0));
         root._frames = Sprites.Frames("smelter-glow");
         root._glow = BuildingPad.Layer("Glow", root._frames[0], Crafter.Size, tileSize, 1);
         root._glow.Visible = false;
         root.AddChild(root._glow);
-        root.Sync(sm, 0f);
+        root.Sync(sm, 0f, null);
         return root;
     }
 
-    public void Sync(Crafter sm, float delta)
+    public override void _ExitTree() => EffectManager.DetachFrom(_fx, ref _smoke);
+
+    public void Sync(Crafter sm, float delta, EffectManager? fx)
     {
+        if (fx is not null)
+        {
+            _fx = fx;
+            _smoke = fx.Keep(_smoke, sm.IsCrafting, "fumo-forno", this, _smokeAt);
+        }
+
         if (_glow is null)
         {
             return;

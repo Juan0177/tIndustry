@@ -194,6 +194,8 @@ public partial class World
             _coreLight.Texture = CoreLightFrame();
         }
 
+        SyncCoreDust();
+
         foreach (var child in _buildingsLayer.GetChildren())
         {
             switch (child)
@@ -203,7 +205,7 @@ public partial class World
                     {
                         if (miner.Position.Equals(minerVis.MinerOrigin))
                         {
-                            minerVis.Sync(miner, delta);
+                            minerVis.Sync(miner, delta, _effects);
                             break;
                         }
                     }
@@ -214,7 +216,7 @@ public partial class World
                     {
                         if (ex.Position.Equals(exVis.Origin))
                         {
-                            exVis.Sync(ex);
+                            exVis.Sync(ex, _effects);
                             break;
                         }
                     }
@@ -225,7 +227,7 @@ public partial class World
                     {
                         if (sm.Position.Equals(smVis.Origin))
                         {
-                            smVis.Sync(sm, delta);
+                            smVis.Sync(sm, delta, _effects);
                             break;
                         }
                     }
@@ -236,7 +238,7 @@ public partial class World
                     {
                         if (asm.Position.Equals(asmVis.Origin))
                         {
-                            asmVis.Sync(asm, delta);
+                            asmVis.Sync(asm, delta, _effects);
                             break;
                         }
                     }
@@ -247,7 +249,7 @@ public partial class World
                     {
                         if (gen.Position.Equals(genVis.Origin))
                         {
-                            genVis.Sync(gen, delta);
+                            genVis.Sync(gen, delta, _effects);
                             break;
                         }
                     }
@@ -255,6 +257,40 @@ public partial class World
                     break;
             }
         }
+    }
+
+    /// <summary>Shortest time between two dust puffs of the Core, however many items it takes in.</summary>
+    private const double CoreDustSeconds = 0.35;
+
+    // Items the Core had taken in at the last frame (-1 = not read yet in this game) and when it may puff again.
+    private long _coreDeliveredSeen = -1;
+    private double _nextCoreDust;
+
+    /// <summary>
+    /// Dust over the Core when items enter it (G3 effect <c>polvere-core</c>): the simulation raises no event for a
+    /// delivery, so the client watches the <see cref="IGameView.CoreDeliveredItems"/> counter and puffs, rate-limited,
+    /// when it grows.
+    /// </summary>
+    private void SyncCoreDust()
+    {
+        if (_view is null || _effects is null || _view.CoreTiles.Count == 0)
+        {
+            return;
+        }
+
+        var delivered = _view.CoreDeliveredItems;
+        var grew = _coreDeliveredSeen >= 0 && delivered > _coreDeliveredSeen;
+        _coreDeliveredSeen = delivered;
+        if (!grew || _effects.Clock < _nextCoreDust)
+        {
+            return;
+        }
+
+        _nextCoreDust = _effects.Clock + CoreDustSeconds;
+        var tiles = _view.CoreTiles;
+        var min = new Vector2(tiles.Min(t => t.X), tiles.Min(t => t.Y)) * TileSize;
+        var max = new Vector2(tiles.Max(t => t.X) + 1, tiles.Max(t => t.Y) + 1) * TileSize;
+        _effects.Play("polvere-core", (min + max) * 0.5f, 0f, (max - min) * 0.45f);
     }
 
     private static Vector2 FootprintCenter(GridPosition origin, int size) =>

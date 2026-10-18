@@ -47,11 +47,12 @@ public partial class ConstructionLayer : Node2D
     private long _lastTick = -1;
     private bool _drewPlans;
 
-    private sealed class SiteVisual(Node2D root, ShaderMaterial material, BuildSpec spec)
+    private sealed class SiteVisual(Node2D root, ShaderMaterial material, BuildSpec spec, Rect2 bounds)
     {
         public Node2D Root { get; } = root;
         public ShaderMaterial Material { get; } = material;
         public BuildSpec Spec { get; } = spec;
+        public Rect2 Bounds { get; } = bounds;
         public float Time { get; set; }
     }
 
@@ -67,6 +68,18 @@ public partial class ConstructionLayer : Node2D
     /// </summary>
     public StructureLayers LayerOfSite(long siteId) =>
         _sites.TryGetValue(siteId, out var visual) ? LayerOf(visual.Spec) : StructureLayers.Both;
+
+    /// <summary>
+    /// Particle effects (G3) of the drones' build beam; null = none. The site rects are kept for the effects of a
+    /// finished site, whose event carries no position (see <see cref="SiteBounds"/>).
+    /// </summary>
+    public EffectManager? Effects { get; set; }
+
+    /// <summary>
+    /// World rect of a site drawn by the last <see cref="Sync"/>, or null if it was never seen. A finished site's
+    /// event arrives before the next Sync, so its rect is still here.
+    /// </summary>
+    public Rect2? SiteBounds(long siteId) => _sites.TryGetValue(siteId, out var visual) ? visual.Bounds : null;
 
     /// <summary>True once the site has been drawn: for a deconstruction, its block's removal was seen.</summary>
     public bool HasSeenSite(long siteId) => _sites.ContainsKey(siteId);
@@ -278,7 +291,7 @@ public partial class ConstructionLayer : Node2D
             root.AddChild(SiteSprite(tex, material, Bounds(site.Tiles), 0f));
         }
 
-        return new SiteVisual(root, material, spec);
+        return new SiteVisual(root, material, spec, Bounds(site.Tiles));
     }
 
     private static Sprite2D SiteSprite(Texture2D tex, ShaderMaterial material, Rect2 rect, float angle) => new()
@@ -315,7 +328,7 @@ public partial class ConstructionLayer : Node2D
                 beamColor = ColorOf(site);
             }
 
-            drone.Sync(builder, view.CurrentTick, delta, beam, beamColor);
+            drone.Sync(builder, view.CurrentTick, delta, beam, beamColor, Effects);
         }
 
         if (_drones.Count != _live.Count)

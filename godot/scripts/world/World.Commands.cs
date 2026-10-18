@@ -35,6 +35,7 @@ public partial class World
         _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
         _effects?.Clear();
+        _coreDeliveredSeen = -1;
         _structureCount = StructureCount();
         ConstructFinishedCount = 0;
     }
@@ -144,11 +145,12 @@ public partial class World
     }
 
     /// <summary>
-    /// Construction events of the host. A finished site rebuilds only the visual layer of its block;
-    /// a dropped plan of the local player shows why.
+    /// Construction events of the host. A finished site rebuilds only the visual layer of its block, with a flash
+    /// and dust where it stood; a finished deconstruction crumbles; a dropped plan of the local player shows why.
     /// </summary>
     private void OnSimEvent(SimEvent simEvent)
     {
+        PlaySiteDoneEffects(simEvent);
         switch (simEvent)
         {
             case ConstructFinished finished:
@@ -163,6 +165,37 @@ public partial class World
             case PlanDropped dropped when dropped.PlayerId == LocalPlayer:
                 _hud?.ShowToast(dropped.Reason);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// G3 effects of a finished site: <c>lampo-costruzione</c> and <c>polvere-costruzione</c> for a construction,
+    /// <c>sbriciolamento</c> for a deconstruction, over the site's rect. The events carry no position: the rect comes
+    /// from the site as the construction layer last drew it (a site that came and went between two frames has none).
+    /// </summary>
+    private void PlaySiteDoneEffects(SimEvent simEvent)
+    {
+        long? siteId = simEvent switch
+        {
+            ConstructFinished f => f.SiteId,
+            DeconstructFinished d => d.SiteId,
+            _ => null
+        };
+        if (siteId is null || _effects is null || _constructionLayer?.SiteBounds(siteId.Value) is not { } rect)
+        {
+            return;
+        }
+
+        var center = rect.GetCenter();
+        var half = rect.Size * 0.4f;
+        if (simEvent is ConstructFinished)
+        {
+            _effects.Play("lampo-costruzione", center);
+            _effects.Play("polvere-costruzione", center, 0f, half);
+        }
+        else
+        {
+            _effects.Play("sbriciolamento", center, 0f, half);
         }
     }
 
