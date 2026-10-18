@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using TIndustry.Shared;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace TIndustry.Shared.Tests;
 
@@ -7,7 +9,7 @@ namespace TIndustry.Shared.Tests;
 /// Belt corners as in Mindustry: a belt with nothing feeding it from behind and exactly one feeder on a
 /// side (a belt or a building that ejects into it) is drawn as a curve from that side.
 /// </summary>
-public sealed class BeltCornerTests
+public sealed class BeltCornerTests(ITestOutputHelper output)
 {
     private static readonly FactoryContent Content =
         FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
@@ -149,6 +151,69 @@ public sealed class BeltCornerTests
         Assert.False(factory.IsBeltCorner(P));
         Assert.True(factory.TryPlaceBelt(new GridPosition(18, 21), Direction.East));
         AssertCorner(factory, Direction.East);
+    }
+
+    [Fact]
+    public void CachedAnswerFollowsEveryLayoutChange()
+    {
+        var factory = WithNorthLine();
+        Assert.False(factory.IsBeltCorner(P)); // fills the cache
+        Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East));
+        AssertCorner(factory, Direction.East);
+        Assert.True(factory.TryPlaceBelt(new GridPosition(20, 22), Direction.North)); // feeder behind
+        Assert.False(factory.IsBeltCorner(P));
+        Assert.True(factory.Belts.TryOrient(new GridPosition(20, 22), Direction.East)); // no longer feeds P
+        AssertCorner(factory, Direction.East);
+        Assert.True(factory.RemoveInstant(new GridPosition(18, 20), refund: false));
+        Assert.False(factory.IsBeltCorner(P));
+    }
+
+    [Fact]
+    public void CornerQueriesStayCheapOnABigFactory()
+    {
+        // 300 miners, each feeding a belt that turns away, plus long straight rows: 2000 belts in all.
+        var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(-10, -10), 2));
+        factory.UnlockAllForDemo();
+        void Place(string id, BuildingKind? kind, int x, int y, Direction dir) =>
+            Assert.True(factory.PlaceInstant(new BuildSpec(id, kind, new GridPosition(x, y), dir), charge: false));
+        for (var r = 0; r < 20; r++)
+        {
+            for (var c = 0; c < 15; c++)
+            {
+                Place(Miner.BasicId, BuildingKind.Miner, c * 5, r * 4, Direction.East);
+                Place(BuildSpec.DefaultConveyorId, null, c * 5 + 2, r * 4 + 1, Direction.North);
+                Place(BuildSpec.DefaultConveyorId, null, c * 5 + 2, r * 4, Direction.North);
+            }
+
+            for (var x = 0; x < 70; x++)
+            {
+                Place(BuildSpec.DefaultConveyorId, null, x, r * 4 + 3, Direction.East);
+            }
+        }
+
+        Assert.Equal(2000, factory.Belts.Count);
+        Assert.Equal(300, factory.Miners.Count);
+        var cells = factory.Belts.Cells.Keys.ToArray();
+
+        var rebuild = Stopwatch.StartNew();
+        var corners = cells.Count(factory.IsBeltCorner);
+        rebuild.Stop();
+        // One per miner, plus the first cell of each straight row with a miner of the next row under it.
+        Assert.Equal(300 + 19, corners);
+
+        var queries = Stopwatch.StartNew();
+        var hits = 0;
+        for (var i = 0; i < 10_000; i++)
+        {
+            hits += factory.IsBeltCorner(cells[i % cells.Length]) ? 1 : 0;
+        }
+
+        queries.Stop();
+        output.WriteLine($"rebuild + 2000 queries {rebuild.Elapsed.TotalMilliseconds:0.00} ms, "
+                         + $"10000 queries {queries.Elapsed.TotalMilliseconds:0.00} ms ({hits} corners)");
+        // Generous bounds for slow CI machines; typical numbers are far below.
+        Assert.True(rebuild.Elapsed.TotalMilliseconds < 200, $"rebuild {rebuild.Elapsed.TotalMilliseconds} ms");
+        Assert.True(queries.Elapsed.TotalMilliseconds < 20, $"queries {queries.Elapsed.TotalMilliseconds} ms");
     }
 
     [Fact]

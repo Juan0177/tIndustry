@@ -16,6 +16,9 @@ public sealed class BeltGrid
 
     public int Count => cells.Count;
 
+    /// <summary>Bumped on every change of the layout (cells, kinds, directions, partners); items do not count.</summary>
+    public int Version { get; private set; }
+
     public bool Contains(GridPosition position) => cells.ContainsKey(position);
 
     public bool TryGet(GridPosition position, out BeltGridCell cell) =>
@@ -51,10 +54,12 @@ public sealed class BeltGrid
                 }
 
                 cells[position] = rebuilt;
+                Version++;
                 return true;
             }
 
             existing.Direction = direction;
+            Version++;
             return true;
         }
 
@@ -65,6 +70,7 @@ public sealed class BeltGrid
         }
 
         cells[position] = cell;
+        Version++;
         return true;
     }
 
@@ -109,6 +115,7 @@ public sealed class BeltGrid
 
         cells[entry] = new BeltGridCell(entry, direction, definition, bridgePartner: exit);
         cells[exit.Value] = new BeltGridCell(exit.Value, direction, definition, bridgePartner: entry);
+        Version++;
         return true;
     }
 
@@ -123,13 +130,19 @@ public sealed class BeltGrid
         {
             cells.Remove(position);
             cells.Remove(partner);
+            Version++;
             return true;
         }
 
+        Version++;
         return cells.Remove(position);
     }
 
-    public void Clear() => cells.Clear();
+    public void Clear()
+    {
+        cells.Clear();
+        Version++;
+    }
 
     /// <summary>Place or replace a cell and restore items/toggle/partner/filter (save/load).</summary>
     public bool TryRestore(
@@ -149,6 +162,7 @@ public sealed class BeltGrid
         var cell = new BeltGridCell(position, direction, definition, bridgePartner, splitterToggle, filterItemId);
         cell.RestoreState(splitterToggle, items, bridgePartner, filterItemId);
         cells[position] = cell;
+        Version++;
         return true;
     }
 
@@ -160,6 +174,7 @@ public sealed class BeltGrid
         }
 
         cell.Direction = direction;
+        Version++;
         return true;
     }
 

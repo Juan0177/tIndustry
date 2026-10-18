@@ -165,59 +165,95 @@ public sealed class Factory : IGameView
     ISessionView IGameView.Session => Session;
 
     public bool IsBeltCorner(GridPosition position) =>
-        Belts.IsCorner(position, buildingFeeds ??= BuildingEjectsInto);
+        BeltIncoming().TryGetValue(position, out var entry) && entry.Corner;
 
-    public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming) =>
-        Belts.TryGetIncomingDirection(position, out incoming, buildingFeeds ??= BuildingEjectsInto);
+    public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming)
+    {
+        var found = BeltIncoming().TryGetValue(position, out var entry);
+        incoming = entry.Incoming;
+        return found;
+    }
 
+    // Corner cache: the client asks per belt item per frame, so the answers are computed once per layout change.
+    private readonly Dictionary<GridPosition, (Direction Incoming, bool Corner)> beltIncoming = new();
+    private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
+    private int buildingsVersion;
+    private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
+
+    private Dictionary<GridPosition, (Direction Incoming, bool Corner)> BeltIncoming()
+    {
+        var version = (Belts.Version, buildingsVersion);
+        if (version == beltIncomingVersion)
+        {
+            return beltIncoming;
+        }
+
+        ejectorTiles.Clear();
+        foreach (var miner in miners)
+        {
+            AddEjector(miner.Position, Miner.Size, null);
+        }
+
+        foreach (var crafter in smelters)
+        {
+            AddEjector(crafter.Position, Crafter.Size, null);
+        }
+
+        foreach (var crafter in assemblers)
+        {
+            AddEjector(crafter.Position, Crafter.Size, null);
+        }
+
+        foreach (var extractor in extractors)
+        {
+            AddEjector(extractor.Position, Extractor.Size, extractor.Direction);
+        }
+
+        beltIncoming.Clear();
+        buildingFeeds ??= BuildingEjectsInto;
+        foreach (var (position, cell) in Belts.Cells)
+        {
+            if (Belts.TryGetIncomingDirection(position, out var incoming, buildingFeeds))
+            {
+                beltIncoming[position] = (incoming, cell.Kind == LogisticsKind.Belt && incoming != cell.Direction);
+            }
+        }
+
+        beltIncomingVersion = version;
+        return beltIncoming;
+    }
+
+    private void AddEjector(GridPosition origin, int size, Direction? output)
+    {
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                ejectorTiles[new GridPosition(origin.X + x, origin.Y + y)] = (origin, size, output);
+            }
+        }
+    }
 
     /// <summary>
     /// True when the building on <paramref name="source"/> would eject items into the logistics cell at
     /// <paramref name="target"/> (an adjacent tile), with the same outward rule the buildings use when ticking.
-    /// Core, generators, power nodes and lamps never output items.
+    /// Only miners, crafters and extractors output items (not the Core, generators, power nodes or lamps).
     /// </summary>
     private bool BuildingEjectsInto(GridPosition source, GridPosition target)
     {
-        if (!Belts.TryGet(target, out var cell))
+        if (!ejectorTiles.TryGetValue(source, out var building) || !Belts.TryGet(target, out var cell))
         {
             return false;
         }
 
         var next = target.Step(cell.Direction);
-        foreach (var miner in miners)
+        if (building.Out is { } output && !target.Equals(source.Step(output)))
         {
-            if (BuildingIo.Occupies(miner.Position, Miner.Size, source))
-            {
-                return !BuildingIo.Occupies(miner.Position, Miner.Size, next);
-            }
+            return false;
         }
 
-        foreach (var crafter in smelters)
-        {
-            if (crafter.Occupies(source))
-            {
-                return !crafter.Occupies(next);
-            }
-        }
-
-        foreach (var crafter in assemblers)
-        {
-            if (crafter.Occupies(source))
-            {
-                return !crafter.Occupies(next);
-            }
-        }
-
-        foreach (var extractor in extractors)
-        {
-            if (extractor.Occupies(source))
-            {
-                return target.Equals(source.Step(extractor.Direction)) && !next.Equals(source);
-            }
-        }
-
-        return false;
+        return !BuildingIo.Occupies(building.Origin, building.Size, next);
     }
 
     // Read-only wrappers: the view must not be cast back to the live lists.
@@ -2390,6 +2426,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        buildingsVersion++;
         miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
         return true;
     }
@@ -2447,6 +2484,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        buildingsVersion++;
         (isAssembler ? assemblers : smelters).Add(new Crafter(
             origin, direction, recipe, buildingId, recipes, nextEntityId++));
         return true;
@@ -2470,6 +2508,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        buildingsVersion++;
         extractors.Add(new Extractor(origin, direction, filterItemId, nextEntityId++));
         return true;
     }
@@ -2500,6 +2539,7 @@ public sealed class Factory : IGameView
     /// <summary>Removes the building on <paramref name="tile"/> without refund; returns its definition id.</summary>
     private bool TryRemoveBuildingEntity(GridPosition tile, out string buildingId)
     {
+        buildingsVersion++; // over-invalidating on a miss is harmless
         for (var i = miners.Count - 1; i >= 0; i--)
         {
             if (miners[i].OccupiedTiles().Contains(tile))
