@@ -67,7 +67,7 @@ public sealed class TerrainMap
     public int Height { get; }
     public int Seed { get; }
 
-    /// <summary>Generator that made the map: <c>"classico"</c> or <c>"biomi"</c>.</summary>
+    /// <summary>Generator that made the map: <c>"classico"</c>, <c>"biomi-1"</c> or <c>"campagna:&lt;id&gt;"</c>.</summary>
     public string Generator { get; }
 
     public TerrainTile this[GridPosition position] => this[position.X, position.Y];
@@ -88,7 +88,16 @@ public sealed class TerrainMap
     public bool InBounds(GridPosition position) =>
         position.X >= 0 && position.Y >= 0 && position.X < Width && position.Y < Height;
 
-    internal void Set(int x, int y, TerrainTile tile) => tiles[y * Width + x] = tile;
+    internal void Set(int x, int y, TerrainTile tile)
+    {
+        tiles[y * Width + x] = tile;
+        hash = null;
+    }
+
+    private ulong? hash;
+
+    /// <summary><see cref="TerrainHash"/> of this map, computed once (the map does not change during a game).</summary>
+    public ulong Hash => hash ??= TerrainHash(this);
 
     /// <summary>Builds a map from explicit tiles (<c>tiles[x, y]</c>); used by tests and tools.</summary>
     public static TerrainMap FromTiles(

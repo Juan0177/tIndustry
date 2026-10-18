@@ -327,6 +327,13 @@ public partial class World
             return Fail("campagna senza livelli");
         }
 
+        // Let the drone finish the deconstruction first: a bar still moving in the queue panel would make the
+        // next capture depend on timing.
+        if (!await PlaytestWaitUntil(LocalQueueEmpty, StepTimeout))
+        {
+            return Fail("smontaggio non finito prima della campagna");
+        }
+
         // A level whose map file is missing: the list stays open with the reason, the game is untouched.
         var before = _view;
         ToggleCampaign();

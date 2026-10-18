@@ -19,10 +19,11 @@ public static class PngReader
 
     /// <summary>
     /// Most compressed image data (all IDAT chunks together) accepted for an image whose filtered rows take
-    /// <paramref name="rawBytes"/> bytes: even a stored (uncompressed) zlib stream or fixed Huffman codes
-    /// (at most 9 bits per byte) stay under one eighth more, plus a margin for headers and block boundaries.
+    /// <paramref name="rawBytes"/> bytes. Generous on purpose, so no real encoder fails: a stored (uncompressed)
+    /// zlib stream or fixed Huffman codes (at most 9 bits per byte) stay under one eighth more; a quarter more
+    /// plus 64 KiB also covers dynamic block headers. Still bounded: about 20 MB for a 2000² RGBA image.
     /// </summary>
-    public static long MaxImageDataBytes(long rawBytes) => rawBytes + rawBytes / 8 + 1024;
+    public static long MaxImageDataBytes(long rawBytes) => rawBytes + rawBytes / 4 + (64 << 10);
 
     private static readonly uint[] CrcTable = BuildCrcTable();
 

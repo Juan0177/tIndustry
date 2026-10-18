@@ -59,7 +59,7 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
     {
         var a = Generate(Small(7)).Map;
         var b = Generate(Small(7)).Map;
-        Assert.Equal("biomi", a.Generator);
+        Assert.Equal("biomi-1", a.Generator);
         Assert.Equal(TerrainMap.TerrainHash(a), TerrainMap.TerrainHash(b));
     }
 
@@ -72,7 +72,8 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
 
     [Fact]
     public void HashIsStableAcrossRuns() =>
-        // Changing the generator changes every biome map: update this only on purpose.
+        // "biomi-1" is published and frozen: saves regenerate their terrain with it. Never change it to fit a
+        // new generator; add a new generator name ("biomi-2") and keep this one (ADR 0005).
         Assert.Equal(10891508615017362469UL, TerrainMap.TerrainHash(Generate(Small(42)).Map));
 
     [Fact]

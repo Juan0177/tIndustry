@@ -405,7 +405,7 @@ public sealed class SimHost
     }
 
     private string? PlacedOrRefused(bool placed, BuildSpec spec) =>
-        placed ? null : factory.RefusalReason(factory.Footprint(spec));
+        placed ? null : factory.RefusalReason(spec);
 
     private string? ApplyUnlock(UnlockStructure command)
     {

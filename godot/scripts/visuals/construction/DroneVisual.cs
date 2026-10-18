@@ -95,7 +95,9 @@ public partial class DroneVisual : Node2D
         var moving = _from.DistanceSquaredTo(_to) > 0.01f;
         _hover = Mathf.MoveToward(_hover, moving ? 0f : 1f, delta * 3f);
 
-        _hoverOffset = new Vector2(0f, Mathf.Sin(_clock * HoverRadPerSec) * HoverTiles * World.TileSize * _hover);
+        // The idle bob runs on the real clock: still in playtests so their screenshots repeat (like the Core light).
+        var bob = GameDataPaths.IsPlaytest ? 0f : Mathf.Sin(_clock * HoverRadPerSec);
+        _hoverOffset = new Vector2(0f, bob * HoverTiles * World.TileSize * _hover);
         var pos = InterpolatedPosition() + _hoverOffset;
         Position = pos;
 

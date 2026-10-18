@@ -60,6 +60,9 @@ public partial class NewGamePanel : Control
 
     public void Close() => Visible = false;
 
+    /// <summary>A new game that could not start: the reason in red on the panel, which stays open.</summary>
+    public void ShowError(string message) => ShowStatus(message, error: true);
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (!Visible)

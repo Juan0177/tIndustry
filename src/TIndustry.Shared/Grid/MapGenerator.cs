@@ -23,8 +23,18 @@ namespace TIndustry.Shared;
 /// </remarks>
 public static class MapGenerator
 {
-    /// <summary>Value of <see cref="TerrainMap.Generator"/> for maps made here.</summary>
-    public const string Name = "biomi";
+    /// <summary>
+    /// Value of <see cref="TerrainMap.Generator"/> for maps made here. Published and frozen: saves regenerate
+    /// their terrain from it, so a change to the generation must go under a new name ("biomi-2") while this
+    /// one stays as it is for the saves that use it (ADR 0005).
+    /// </summary>
+    public const string Name = "biomi-1";
+
+    /// <summary>Name saved before the generator had a version: the same generator as <see cref="Name"/>.</summary>
+    public const string UnversionedName = "biomi";
+
+    /// <summary>True when a save's <paramref name="generator"/> means this generator.</summary>
+    public static bool IsName(string? generator) => generator is Name or UnversionedName;
 
     /// <summary>Free buildable radius around the Core footprint.</summary>
     public const int StartRadius = 10;

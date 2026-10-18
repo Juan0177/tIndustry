@@ -200,8 +200,21 @@ public partial class World
         }
 
         layer.MoveChild(_newGame, layer.GetChildCount() - 1);
-        _newGame.StartRequested += (size, seed) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed), m => _hud?.ShowToast(m));
+        _newGame.StartRequested += (size, seed) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed), ShowNewGameError);
         _newGame.Cancelled += () => _home?.Open();
+    }
+
+    /// <summary>A failed new game: on the Nuova partita panel while it is open (a toast would sit under it).</summary>
+    private void ShowNewGameError(string message)
+    {
+        if (_newGame?.IsOpen == true)
+        {
+            _newGame.ShowError(message);
+        }
+        else
+        {
+            _hud?.ShowToast(message);
+        }
     }
 
     /// <summary>Home → Nuova partita: pick size and seed (<see cref="NewGamePanel"/>), or <paramref name="seed"/> (playtests).</summary>

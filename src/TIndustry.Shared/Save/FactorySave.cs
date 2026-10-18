@@ -47,14 +47,21 @@ public sealed class FactorySaveData
     public int MapHeight { get; set; }
 
     /// <summary>
-    /// Terrain generator: <c>"classico"</c> (default, also for v11 saves that lack it), <c>"biomi"</c>
+    /// Terrain generator: <c>"classico"</c> (default, also for v11 saves that lack it), <c>"biomi-1"</c>
+    /// (<c>"biomi"</c> in older v12 files)
     /// (regenerated with <see cref="MapGenSettings.Normal"/> of <see cref="MapSize"/> and <see cref="Seed"/>) or
     /// <c>"campagna"</c> (the map file <see cref="MapId"/>).
     /// </summary>
     public string Generator { get; set; } = ClassicTerrainGenerator.Name;
 
-    /// <summary>Edge of a <c>"biomi"</c> map; 0 for the other generators.</summary>
+    /// <summary>Edge of a <c>"biomi-1"</c> map; 0 for the other generators.</summary>
     public int MapSize { get; set; }
+
+    /// <summary>
+    /// <see cref="TerrainMap.TerrainHash"/> of the terrain when saved. A terrain regenerated from a generator
+    /// must match it, or the load fails; null in v12 files written before it (no check).
+    /// </summary>
+    public ulong? TerrainHash { get; set; }
 
     /// <summary>Campaign map id (<c>data/maps/&lt;id&gt;.png</c>) of a <c>"campagna"</c> map; null otherwise.</summary>
     public string? MapId { get; set; }
@@ -364,33 +371,9 @@ public static class FactorySaveStore
                 continue; // never list leftover "<slot>.json.tmp" files from an interrupted write
             }
 
-            try
+            if (ReadSlotInfoAt(path) is { } info)
             {
-                var id = Path.GetFileNameWithoutExtension(path);
-                var json = File.ReadAllText(path);
-                var data = JsonSerializer.Deserialize<SaveFileData>(json, JsonOptions);
-                if (data is null)
-                {
-                    continue;
-                }
-
-                list.Add(new SaveSlotInfo
-                {
-                    Id = id,
-                    Path = path,
-                    ModifiedUtc = File.GetLastWriteTimeUtc(path),
-                    Money = data.Money,
-                    Seed = data.Seed,
-                    MapWidth = data.MapWidth,
-                    MapHeight = data.MapHeight,
-                    ActiveCampaignLevelId = data.ActiveCampaignLevelId,
-                    Generator = data.Generator,
-                    MapId = data.MapId
-                });
-            }
-            catch
-            {
-                // Skip corrupt / unsupported files (Raylib parity).
+                list.Add(info);
             }
         }
 
@@ -398,6 +381,40 @@ public static class FactorySaveStore
             .OrderBy(s => s.Id == ContinueSlotId ? 0 : 1)
             .ThenByDescending(s => s.ModifiedUtc)
             .ToList();
+    }
+
+    /// <summary>The list row of one slot, reading only its file; null when it is missing or unreadable.</summary>
+    public static SaveSlotInfo? ReadSlotInfo(string slotId) =>
+        Exists(slotId) ? ReadSlotInfoAt(SlotPath(slotId)) : null;
+
+    private static SaveSlotInfo? ReadSlotInfoAt(string path)
+    {
+        try
+        {
+            var data = JsonSerializer.Deserialize<SaveFileData>(File.ReadAllText(path), JsonOptions);
+            if (data is null)
+            {
+                return null;
+            }
+
+            return new SaveSlotInfo
+            {
+                Id = Path.GetFileNameWithoutExtension(path),
+                Path = path,
+                ModifiedUtc = File.GetLastWriteTimeUtc(path),
+                Money = data.Money,
+                Seed = data.Seed,
+                MapWidth = data.MapWidth,
+                MapHeight = data.MapHeight,
+                ActiveCampaignLevelId = data.ActiveCampaignLevelId,
+                Generator = data.Generator,
+                MapId = data.MapId
+            };
+        }
+        catch
+        {
+            return null; // corrupt / unsupported files are skipped (Raylib parity)
+        }
     }
 
     /// <summary>Writes the applied state of <paramref name="host"/> (not its queued commands) to the slot.</summary>

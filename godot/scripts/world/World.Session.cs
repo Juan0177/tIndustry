@@ -102,9 +102,9 @@ public partial class World
         }
     }
 
-    /// <summary>Map edge of a save slot from the slot list (0 when unknown).</summary>
+    /// <summary>Map edge of a save slot, reading only that slot's file (0 when unknown).</summary>
     private static int SlotMapEdge(string slotId) =>
-        FactorySaveStore.ListSlots().FirstOrDefault(s => s.Id == slotId) is { } slot
+        FactorySaveStore.ReadSlotInfo(slotId) is { } slot
             ? Math.Max(slot.MapWidth, slot.MapHeight)
             : 0;
 
@@ -252,12 +252,19 @@ public partial class World
             return "Campagna non disponibile.";
         }
 
+        // A level with a map needs data/maps/: never fall back to the classic generator (NewGame would, for tests).
+        var mapsDirectory = ResolveMapsPath();
+        if (level.Map is not null && mapsDirectory is null)
+        {
+            GD.PushWarning($"Campaign map folder data/maps not found for level {level.Id}.");
+            return $"Mappa del livello «{level.Name}» non disponibile: cartella delle mappe (data/maps) non trovata.";
+        }
+
         Factory factory;
         try
         {
             var content = FactoryContent.Load(_contentPath);
-            // The level's map file from data/maps/; without the folder NewGame falls back to the classic generator.
-            factory = NewGame.Campaign(content, _campaign, level, rules: ClientRules(), mapsDirectory: ResolveMapsPath());
+            factory = NewGame.Campaign(content, _campaign, level, rules: ClientRules(), mapsDirectory: mapsDirectory);
         }
         catch (Exception ex)
         {

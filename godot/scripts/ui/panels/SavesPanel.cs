@@ -315,7 +315,7 @@ public partial class SavesPanel : Control
             return $"Mappa {MapName?.Invoke(slot.MapId) ?? slot.MapId}  ·  {slot.MapWidth}×{slot.MapHeight}";
         }
 
-        if (slot.Generator == MapGenerator.Name)
+        if (MapGenerator.IsName(slot.Generator))
         {
             return $"Biomi  ·  {slot.MapWidth}  ·  seme {slot.Seed}";
         }

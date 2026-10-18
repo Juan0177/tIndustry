@@ -137,12 +137,13 @@ public sealed class PngReaderTests
     [Fact]
     public void ImageDataIsCappedFromTheHeader()
     {
-        // 7×5 RGB needs 5 × (1 + 21) = 110 bytes once decompressed: 4 KiB of IDAT cannot be a sane encoding of it.
-        var huge = new byte[4096];
+        // 7×5 RGB needs 5 × (1 + 21) = 110 bytes once decompressed: 80 KiB of IDAT cannot be an encoding of it.
+        Assert.Equal(110 + 27 + 65536, PngReader.MaxImageDataBytes(110));
+        var huge = new byte[80 << 10];
         Assert.Contains("dati dell'immagine oltre", Rejects(Header(7, 5), Chunk("IDAT", huge), Chunk("IEND", [])).Message);
 
         // The cap counts every IDAT chunk together.
-        var part = new byte[700];
+        var part = new byte[40 << 10];
         Assert.Contains("dati dell'immagine oltre",
             Rejects(Header(7, 5), Chunk("IDAT", part), Chunk("IDAT", part), Chunk("IEND", [])).Message);
 

@@ -13,6 +13,9 @@ public partial class World : Node2D
     public const int DefaultMapWidth = (int)MapSize.Media;
     public const int DefaultMapHeight = (int)MapSize.Media;
 
+    /// <summary>Edge of the biome map behind Home at startup (seed 42).</summary>
+    private const int StartupBackgroundEdge = 256;
+
     /// <summary>Active playfield size from terrain (campaign/sandbox); falls back to default size.</summary>
     public int ActiveMapWidth => _view?.Terrain?.Width ?? DefaultMapWidth;
     public int ActiveMapHeight => _view?.Terrain?.Height ?? DefaultMapHeight;
@@ -105,8 +108,12 @@ public partial class World : Node2D
         _campaign = CampaignCatalog.Load(_campaignPath);
         _progressPath = CampaignProgress.ProgressPath;
         _progress = CampaignProgress.Load(_progressPath);
-        // Startup sandbox behind Home (not a played game): the same map as the playtests' Nuova partita.
-        AttachGame(NewSandboxFactory(content, MapSize.Media, PlaytestSeed));
+        // Startup sandbox behind Home (not a played game): a small biome map, quick to make and usually thrown
+        // away by Continua or Nuova partita. TINDUSTRY_FRESH skips Home and plays it, so there it is Media.
+        var startupSize = OS.GetEnvironment("TINDUSTRY_FRESH") == "1" && !PlaytestRequested
+            ? MapSize.Media
+            : (MapSize)StartupBackgroundEdge;
+        AttachGame(NewSandboxFactory(content, startupSize, PlaytestSeed));
 
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureTerrainChunks();
