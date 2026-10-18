@@ -489,6 +489,11 @@ public sealed class AgentGameTests
         Assert.Equal("est", shapes[(497, 496)].GetProperty("ingresso").GetString());
         Assert.Equal("dritto", shapes[(495, 496)].GetProperty("forma").GetString());
         Assert.Equal(">>>v", area.GetProperty("righe")[0].GetString());
+
+        // A belt joining the south line from the west: fed from behind and from its right.
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":496,"y":497},"a":{"x":496,"y":497},"direzione":"est"}""");
+        var join = Call(game, "area", """{"da":{"x":497,"y":497},"a":{"x":497,"y":497}}""").GetProperty("forme")[0];
+        Assert.Equal("unione-destra", join.GetProperty("forma").GetString());
     }
 
     [Fact]

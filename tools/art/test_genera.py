@@ -492,23 +492,34 @@ class TestGenera(unittest.TestCase):
                     self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
 
     def test_unioni_laterali(self):
-        # Side joins (fed from behind and from the sides with an input) are the T opened behind: its
-        # West columns 0-4 are the straight frame's (the belt behind runs in), each half with an input
-        # is the T's half, each half without one is the straight frame's (that side stays closed exactly
-        # as a straight). Left of the flow is North in the East-facing art.
+        # Side joins (Mindustry's conveyor-2 / -3; left of the flow is North in the East-facing art).
+        # A closed half is the straight frame's, pixel for pixel. An open half is the straight frame down
+        # to 7 rows from the axis; below, the tread runs to the edge (no rail across the cell, only a
+        # rounded stub in the 3 columns at each end) and scrolls with the straight belt: frame k moved
+        # 4 px East is frame k + 1. The open edge row is the tread row next to it, except for the glyph's
+        # hooked tail (4 px on each of the two rows) and the stubs.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
-                unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
                 for nome, nord, sud in (("left", True, False), ("right", False, True), ("both", True, True)):
                     lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
                     self.assertEqual(len(dritti), len(lati))
-                    for k, (d, u, j) in enumerate(zip(dritti, unioni, lati)):
+                    for k, (d, j) in enumerate(zip(dritti, lati)):
+                        dopo = lati[(k + 1) % len(lati)]
                         for y in range(T):
                             aperto = nord if y < T // 2 else sud
+                            w = y if y >= T // 2 else T - 1 - y
                             for x in range(T):
-                                atteso = (u if aperto and x >= 5 else d).getpixel((x, y))
-                                self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} {nome} {k + 1}: {x},{y}")
+                                if not aperto or w < 24:
+                                    self.assertEqual(d.getpixel((x, y)), j.getpixel((x, y)), f"{nastro} {nome} {k + 1}: {x},{y}")
+                                elif 7 <= x < T - 3:  # both pixels clear of the stubs
+                                    self.assertEqual(j.getpixel(((x - 4) % T, y)), dopo.getpixel((x, y)),
+                                                     f"{nastro} {nome} {k + 1}: scorrimento {x},{y}")
+                        for lato, aperto in ((0, nord), (T - 1, sud)):
+                            if aperto:
+                                vicino = 25 if lato else T - 1 - 25
+                                uguali = sum(j.getpixel((x, lato)) == j.getpixel((x, vicino)) for x in range(3, T - 3))
+                                self.assertGreaterEqual(uguali, T - 6 - 8, f"{nastro} {nome} {k + 1}: bordo {lato} chiuso")
 
     def test_incrocio_a_pezzi(self):
         # The icon is the open base; the North rail piece is the straight belt's top rail (rows 0-4)

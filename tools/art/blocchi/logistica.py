@@ -123,7 +123,7 @@ def _colore_curva(tier, fotogramma, a, b, v=None):
     return _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u)
 
 
-def unione_t(tier, fotogramma, nord=True, sud=True, dietro=False):
+def unione_t(tier, fotogramma):
     """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and
     South edges, out from the East edge.
 
@@ -134,21 +134,13 @@ def unione_t(tier, fotogramma, nord=True, sud=True, dietro=False):
     corners would draw their outer groove and rail (they would cross the other input) the tread goes on; the
     West side, with no input, is closed by a straight rail that continues the side belts' outer
     rails.
-
-    Side joins (a belt fed from behind and from a side) reuse it: `dietro` opens the West side
-    (the straight frame's columns 0-4, so the belt behind runs in), and a half without an input
-    (`nord` / `sud` False) is the straight frame, so that side stays closed exactly as a straight.
     """
     im = forme.nuova(T, T)
     for y in range(T):
         for x in range(T):
-            if not (nord if y < T // 2 else sud):
-                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO))
-                continue
             if x < 5:
                 # Back rail, mirrored on the axis so both input edges see the corner's joint.
-                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO) if dietro
-                            else _binario(min(y, T - 1 - y), x, tier))
+                forme.pixel(im, x, y, _binario(min(y, T - 1 - y), x, tier))
                 continue
             a, b = (T - 1 - y, T - 1 - x) if y >= T // 2 else (y, T - 1 - x)
             v = _riga_curva(a, b)
@@ -160,6 +152,48 @@ def unione_t(tier, fotogramma, nord=True, sud=True, dietro=False):
 # Side joins (fed from behind and from the sides with an input), East-facing art: left of the flow is North.
 UNIONI = {"join-left": (True, False), "join-right": (False, True), "join-both": (True, True)}
 
+# Hooked tail of the side join's chevron: for each row w = 24..31 of an open half (w = rows away from the
+# axis, 31 on the open edge) how far the stroke trails behind the chevron tip, like the arm's dv above it:
+# it keeps trailing back, then curls forward to the open edge (Mindustry's conveyor-2 glyph).
+CODA = (8, 9, 9, 10, 10, 9, 8, 7)
+# Rounded rail stub at each end of an open edge, (column from the cell edge, w): outline, then rail.
+MONCONE_OUT = ((0, 29), (1, 30), (2, 31))
+MONCONE = ((0, 30), (0, 31), (1, 31))
+
+
+def unione_laterale(tier, fotogramma, nord, sud):
+    """Side join (Mindustry's conveyor-2 / conveyor-3): a straight East belt fed from behind and from
+    the North (`nord`, left of the flow) and/or South (`sud`) edge.
+
+    On an open side the rail and its groove are gone across the whole cell: the tread runs to the
+    edge, with only a small rounded rail stub at each end, so neighbouring joins (two cells over a
+    2x2 drill) make one open edge with a round stub where they meet. The chevron is the straight one
+    plus a hooked tail curling in from each open side, drawn on the same moving tread, so it scrolls
+    with the straight belt frame by frame. A closed side is the straight frame's half, pixel for pixel.
+    """
+    assert nord or sud, "a side join has at least one open side (no side = straight)"
+    spostamento = fotogramma * PASSO
+    freccia = TIER[tier][1]
+    binario = TIER[tier][0]
+    im = forme.nuova(T, T)
+    for y in range(T):
+        for x in range(T):
+            aperto = sud if y >= T // 2 else nord
+            w = y if y >= T // 2 else T - 1 - y  # rows away from the axis, 31 on the edge
+            if not aperto or w < 24:
+                forme.pixel(im, x, y, _colore_nastro(x, y, tier, spostamento))
+                continue
+            bordo = min(x, T - 1 - x)
+            if (bordo, w) in MONCONE_OUT:
+                colore = OUT
+            elif (bordo, w) in MONCONE:
+                colore = binario[2]
+            else:
+                d = (x - spostamento + CODA[w - 24] - FRECCIA) % T
+                colore = (freccia[2], freccia[3], freccia[4], OUT)[d] if d < 4 else _colore_nastro(x, 24, tier, spostamento)
+            forme.pixel(im, x, y, colore)
+    return im
+
 
 def _registra_nastro(tier):
     sprite(tier)(lambda: nastro(tier, 0))
@@ -168,7 +202,7 @@ def _registra_nastro(tier):
     sprite(tier + "-t-anim")(lambda: forme.striscia([unione_t(tier, k) for k in range(FOTOGRAMMI)]))
     for nome, (nord, sud) in UNIONI.items():
         sprite(f"{tier}-{nome}-anim")(lambda nord=nord, sud=sud: forme.striscia(
-            [unione_t(tier, k, nord, sud, dietro=True) for k in range(FOTOGRAMMI)]))
+            [unione_laterale(tier, k, nord, sud) for k in range(FOTOGRAMMI)]))
 
 
 for _tier in TIER:

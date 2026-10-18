@@ -175,8 +175,8 @@ public sealed class Factory : IGameView
     /// <summary>
     /// Mindustry's auto-junction: a dragged belt line facing <paramref name="direction"/> that crosses a plain belt
     /// perpendicular to it puts a junction there, so both lines keep flowing. Only where the junction behaves like the
-    /// belt it replaces: the crossed belt is straight (not a corner or T; the dragged line joining its side is fine), fed from behind by logistics only (no
-    /// building feeds it) and hands over to a logistics cell ahead (not the Core or a building); the dragged line has
+    /// belt it replaces: the crossed belt is straight (not a corner or T; the dragged line joining its side is
+    /// fine), fed from behind by logistics only (no building feeds it) and hands over to a logistics cell ahead (not the Core or a building); the dragged line has
     /// a belt or belt plan of its own direction on both sides of the cell (the client sends the crossing only once the
     /// line goes on past it, <see cref="BeltLine.IsInterior"/>); the cell has no plan (not marked for removal).
     /// Splitters, sorters, bridges, junctions and parallel belts are never crossings.

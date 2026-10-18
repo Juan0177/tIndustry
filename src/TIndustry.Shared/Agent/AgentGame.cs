@@ -471,18 +471,22 @@ public sealed class AgentGame : IDisposable
         return result;
     }
 
-    // shortcut: straight or corner only (IsBeltCorner); switch to IGameView.GetBeltShape (T joins) when PR #209 lands.
     private JsonObject BeltShape(GridPosition cell)
     {
         var item = CellJson(cell);
-        if (View.IsBeltCorner(cell) && View.TryGetBeltIncomingDirection(cell, out var incoming))
+        var shape = View.GetBeltShape(cell);
+        item["forma"] = shape switch
         {
-            item["forma"] = "curva";
+            Shared.BeltShape.Corner => "curva",
+            Shared.BeltShape.T => "t",
+            Shared.BeltShape.JoinLeft => "unione-sinistra",
+            Shared.BeltShape.JoinRight => "unione-destra",
+            Shared.BeltShape.JoinBoth => "unione-doppia",
+            _ => "dritto"
+        };
+        if (shape == Shared.BeltShape.Corner && View.TryGetBeltIncomingDirection(cell, out var incoming))
+        {
             item["ingresso"] = DirectionName(incoming);
-        }
-        else
-        {
-            item["forma"] = "dritto";
         }
 
         return item;
