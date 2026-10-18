@@ -190,3 +190,74 @@ def tavola_terreno(sprite, scala=2):
         disegno.text((x, y), bioma, fill=TESTO, font=font)
         out.alpha_composite(im.resize((lato, lato), Image.NEAREST), (x, y + titolo))
     return out
+
+
+# --- interface sheet (G4) ---------------------------------------------------------------------
+
+PANNELLO = (20, 22, 26, 255)  # #14161A, the panel colour of the interface theme
+BORDO = (255, 211, 127, 255)  # #FFD37F, the accent of the project (palette.ACCENTO[3])
+FRASI = (
+    "Il nastro porta 12 lingotti di rame al Core: è già più veloce!",
+    "Perché la città è così lontana? Più energia, più fumo, più caffè…",
+    "ÈCCO À PIÙ ÉPOCHE: «Ricerca» · Mercato · Campagna · 3×4 = 12 €",
+    "The quick brown fox jumps over the lazy dog: 0123456789 (100%)",
+)
+
+
+def _pannello(w, h):
+    """Interface panel: near-black fill, square corners, 2 px accent border."""
+    im = Image.new("RGBA", (w, h), BORDO)
+    im.paste(PANNELLO, (2, 2, w - 2, h - 2))
+    return im
+
+
+def tavola_ui(sprite):
+    """Interface review sheet: the pixel font at x2 and x3 (Italian and English sample sentences, the
+    whole glyph set), a reference line in Pillow's bundled OFL font (Aileron) at the same height, and
+    every `ui-*` icon at 16 px, 32 px and 32 px shown x2, all on a panel of the interface theme."""
+    import carattere
+    from blocchi.interfaccia import ICONE
+
+    insieme = carattere.INSIEME
+    meta = len(insieme) // 2
+    righe = [carattere.scrivi("Carattere pixel e icone dell'interfaccia (G4)", 3, BORDO)]
+    righe += [carattere.scrivi(f, 2) for f in FRASI]
+    righe += [carattere.scrivi(insieme[:meta], 2), carattere.scrivi(insieme[meta:], 2)]
+    righe += [carattere.scrivi(f, 3) for f in FRASI[:2] + FRASI[3:]]
+    riferimento = Image.new("RGBA", (1400, 40), (0, 0, 0, 0))
+    ImageDraw.Draw(riferimento).text((0, 0), "Aileron (OFL, riferimento): " + FRASI[0],
+                                     fill=(170, 170, 170, 255), font=ImageFont.load_default(size=18))
+    righe.append(riferimento.crop(riferimento.getbbox()))
+
+    icone = []
+    for nome in ICONE:
+        piccola, grande = sprite(f"ui/ui-{nome}-16"), sprite(f"ui/ui-{nome}")
+        doppia = grande.resize((64, 64), Image.NEAREST)
+        etichetta = carattere.scrivi(nome, 2)
+        w = max(16 + 32 + 64 + 2 * MARGINE, etichetta.width)
+        cella = Image.new("RGBA", (w, 64 + MARGINE + etichetta.height), (0, 0, 0, 0))
+        cella.alpha_composite(piccola, (0, 64 - 16))
+        cella.alpha_composite(grande, (16 + MARGINE, 64 - 32))
+        cella.alpha_composite(doppia, (16 + 32 + 2 * MARGINE, 0))
+        cella.alpha_composite(etichetta, (0, 64 + MARGINE))
+        icone.append(cella)
+    per_riga = 5
+    file_icone = [icone[i:i + per_riga] for i in range(0, len(icone), per_riga)]
+
+    bordo = 4 * MARGINE
+    larghezza = max([r.width for r in righe] + [sum(c.width + bordo for c in f) for f in file_icone]) + 2 * bordo
+    altezza = (sum(r.height + 2 * MARGINE for r in righe)
+               + sum(max(c.height for c in f) + bordo for f in file_icone) + 3 * bordo)
+    out = _pannello(larghezza, altezza)
+    y = bordo
+    for r in righe:
+        out.alpha_composite(r, (bordo, y))
+        y += r.height + 2 * MARGINE
+    y += bordo
+    for f in file_icone:
+        x = bordo
+        for c in f:
+            out.alpha_composite(c, (x, y))
+            x += c.width + bordo
+        y += max(c.height for c in f) + bordo
+    return out
