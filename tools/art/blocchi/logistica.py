@@ -114,19 +114,23 @@ def curva(tier, fotogramma):
 
 
 def unione_t(tier, fotogramma):
-    """T merge (Mindustry's conveyor blend): in from the North and South edges, out from the East edge.
+    """T merge (Mindustry's merging conveyor): in from the North and South edges, out from the East edge.
 
-    The two inputs run straight into the cell, each over its half: the top half is the straight belt
-    turned to flow South, the bottom half the one flowing North, so their chevrons meet on the axis.
-    The West side keeps the rails (nothing comes from behind); on the East side the rails open on
-    the output tread (columns 27-31 of the straight East frame) between two rail-end blocks.
+    The two side inputs flow into one shared tread that runs East: every chevron in the cell is the
+    straight East belt's own (rows 6-25 are the straight frame), so they all point at the output and
+    scroll with it. The straight belt's North and South rails give way to tread (the inputs come in
+    there, open), and the West side, where nothing feeds it, is closed by a rail along its edge.
     """
     dritto = nastro(tier, fotogramma)
-    im = dritto.transpose(Image.Transpose.ROTATE_90)  # flowing North: the bottom half
-    im.paste(dritto.transpose(Image.Transpose.ROTATE_270).crop((0, 0, T, T // 2)), (0, 0))
-    im.paste(dritto.crop((T - 5, 5, T, T - 5)), (T - 5, 5))
-    for y0 in (0, T - 5):
-        forme.pannello(im, T - 5, y0, T - 1, y0 + 4, METALLO)
+    im = dritto.copy()
+    for y in list(range(0, 6)) + list(range(T - 6, T)):
+        v = 6 if y < T // 2 else T - 7  # plain ribs, outside the chevron's arms
+        for x in range(T):
+            forme.pixel(im, x, y, _colore_nastro(x, v, tier, fotogramma * PASSO))
+    for y in range(T):
+        for x in range(5):
+            forme.pixel(im, x, y, _binario(y, x, tier))  # still rail, joints every 8 px down the edge
+        forme.pixel(im, 5, y, NASTRO[0])  # groove along the rail
     return im
 
 
@@ -170,42 +174,40 @@ def _freccia(im, cx, cy, verso, rampa, lato=3):
 
 
 def _battistrada(u, v):
-    """Still tread without chevrons at flow position u and row v (5..26) across the belt: the
-    grooves along the rails and a rib every 8 px."""
-    if v in (5, 26):
-        return NASTRO[0]
+    """Still tread without chevrons at flow position u and row v across the belt: a rib every 8 px."""
     return {7: NASTRO[0], 0: NASTRO[2]}.get(u % 8, NASTRO[1])
 
 
 @sprite("junction")
 def junction():
-    """Two belts crossing, as in Mindustry: the tread runs through on both axes (rows and columns
-    5..26, as the straight belt), the rails stop at four corner blocks and a small diamond hub sits
-    in the centre. No arrows: each item keeps its own way. In the middle each tread owns the two
-    triangles towards its own edges, with a dark seam on the diagonals."""
+    """Two belts crossing, as in Mindustry: the vertical piece lies over the horizontal one. Each
+    keeps the straight belt's rails (rows / columns 0-4 and 27-31; in a corner the two rails meet
+    on a dark mitre) and its ribbed tread, without chevrons: a junction has no direction. The
+    vertical tread runs through the middle, the horizontal one shows where it comes in at the West
+    and East edges; a small lighter diamond hub (8 px with its outline) marks the centre."""
     im = forme.nuova(T, T)
     c = (T - 1) / 2
     for y in range(T):
         for x in range(T):
-            dx, dy = abs(x - c), abs(y - c)
-            if not 5 <= x <= 26 and not 5 <= y <= 26:
-                continue  # corner blocks, below
-            if 5 <= x <= 26 and 5 <= y <= 26 and dx == dy:
-                colore = NASTRO[0]
-            elif 5 <= y <= 26 and (dx > dy or not 5 <= x <= 26):
-                colore = _battistrada(x, y)  # East-West tread
+            treno_x, treno_y = 5 <= y <= 26, 5 <= x <= 26  # inside the E-W tread rows / N-S tread columns
+            if not treno_x and not treno_y:
+                # Corner: the E-W rail nearer the North / South edge, the N-S rail nearer the West /
+                # East edge, a dark mitre on the diagonal.
+                dx, dy = abs(x - c), abs(y - c)
+                colore = _binario(x, y, "conveyor-basic") if dy > dx else _binario(y, x, "conveyor-basic") if dx > dy else OUT
+            elif treno_y:
+                # The N-S piece lies over the E-W one: its tread runs through the middle.
+                colore = NASTRO[0] if x in (5, 26) else _battistrada(y, x)
             else:
-                colore = _battistrada(y, x)  # North-South tread
+                colore = NASTRO[0] if y in (5, 26) else _battistrada(x, y)
             forme.pixel(im, x, y, colore)
-    for x0, y0 in ((0, 0), (T - 5, 0), (0, T - 5), (T - 5, T - 5)):
-        forme.pannello(im, x0, y0, x0 + 4, y0 + 4, METALLO)
     for y in range(T):
         for x in range(T):
             d = abs(x - c) + abs(y - c)
-            if d <= 5:
-                lit = x + y < T - 1
-                forme.pixel(im, x, y, OUT if d > 4 else METALLO[4 if lit else 2])
-    forme.pixel(im, 14, 14, METALLO[5])
+            if d <= 4:
+                forme.pixel(im, x, y, OUT if d > 3 else METALLO[4 if x + y < T - 1 else 3])
+    forme.pixel(im, 15, 15, METALLO[5])
+    forme.pixel(im, 16, 16, METALLO[5])
     return im
 
 
