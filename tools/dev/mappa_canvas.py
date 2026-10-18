@@ -82,13 +82,13 @@ fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-corso", "In corso", X[1], "3")
-corso.card("g4in", "**G4 · Interfaccia**\nProssimo lavoro: stile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]")
+corso.card("niente", "**Niente in corso**\nLa G3 è finita, in attesa dell'ok; la G4 è la prossima.")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
 nxt = Column("g-next", "Prossimi (in ordine)", X[2], "5")
 roadmap = [
-    "g4in",
+    nxt.card("g4in", "**G4 · Interfaccia**\nProssimo lavoro: stile Mindustry, pixel font nostro, lingue, scala e accessibilità.\n[[2026-10-18-g4-interfaccia-design|spec]]"),
     nxt.card("web", "**Sito web su GitHub Pages**\nPagina del progetto con presentazione, catture e download."),
     nxt.card("tier", "**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu."),
     nxt.card("liquidi", "**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua."),

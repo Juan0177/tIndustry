@@ -30,6 +30,7 @@ tIndustry/
 │  ├─ scenes/Main.tscn          scena principale (nodo radice Main, script World)
 │  ├─ shaders/                  construct (cantieri), water (increspature dell'acqua sui pezzi d'arte del terreno)
 │  ├─ assets/                   sprite generati da tools/art (cartella piatta); ui/ per le icone dell'interfaccia + ATTRIBUTION.md
+│  ├─ effetti/                  effetti.json: una riga di dati per effetto di particelle (validata da EffectRules)
 │  └─ scripts/
 │     ├─ world/                 World + partial (Input, Placement, Session, Drawing, Visuals, Panels), TerrainChunks, TerrainComposer, WorldCamera
 │     ├─ visuals/               Sprites (unico accesso alle texture di assets/)
@@ -37,6 +38,7 @@ tIndustry/
 │     ├─ visuals/buildings/     MinerVisual, SmelterVisual, AssemblerVisual, GeneratorVisual, ExtractorVisual, BuildingPad
 │     ├─ visuals/items/         ItemPalette
 │     ├─ visuals/construction/  ConstructionLayer (piani, cantieri, droni), DroneVisual
+│     ├─ visuals/effects/       EffectManager (pool di emettitori), EffectRules, EffectDef, AmbientEffects (effetti dei biomi), NightLayer (buio e luci)
 │     ├─ ui/hud/                Hud, CorePanel, BuildPalette, BlockInfoPanel, BuildQueuePanel, HudStyle
 │     ├─ ui/panels/             Home, NewGame, Saves, Settings, Tutorial, Mercato, Research, TechTreeCanvas, CampaignSelect
 │     ├─ settings/              ClientSettings

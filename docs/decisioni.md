@@ -19,5 +19,6 @@ Indice delle decisioni del progetto. Le decisioni architetturali (ADR) stanno in
 - **Grafica**: pixel-art originale nostra, generata da script, in stile Mindustry ([ADR 0004](decisioni/0004-arte-generata-da-script.md)). Nessun file di Mindustry e nessun cambio di licenza.
 - **Tier**: il Core ha quattro livelli (da 2×2 a 5×5) e il drone tre tier (alpha, beta, gamma), con effetti sul gameplay come in Mindustry. Gli sprite ci sono dalla G1; il gameplay sarà pianificato con il sotto-progetto 4.
 - **Mappe**: partite normali da seme in tre misure (Media 1000, Grande 1500, Enorme 2000) con tutti i biomi; campagna con mappe prestabilite di misure diverse per livello; pareti e acqua profonda bloccano la costruzione, l'acqua bassa no ([ADR 0005](decisioni/0005-mappe-seme-e-file.md)). Pompe e liquidi: sotto-progetto a parte.
+- **Notte e grafica leggera**: la notte è facoltativa, una proprietà della partita (casella *Notte* in Nuova partita; in campagna solo i livelli 06 e 10) e solo d'aspetto. Per i PC deboli le impostazioni grafiche abbassano o spengono effetti, ombre, bagliore, animazioni dei blocchi e scala di rendering, con limite di FPS e VSync ([ADR 0004](decisioni/0004-arte-generata-da-script.md)).
 - **CI**: GitHub Actions solo manuali o su tag di release.
 - **Dati del giocatore**: mai toccati da sviluppo e playtest, che usano sempre un profilo temporaneo.
