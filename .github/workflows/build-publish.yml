@@ -30,12 +30,12 @@ jobs:
           python-version: "3.12"
 
       # Sprites come only from tools/art/genera.py (ADR 0004): generator tests, and the PNGs in godot/assets
-      # must be byte-identical to a fresh generation (Pillow pinned: the bytes depend on its encoder).
+      # must match a fresh generation pixel for pixel (--pixel: the Linux PNG encoder writes other bytes).
       - name: Test sprite generator
         run: |
           python -m pip install --quiet Pillow==12.3.0
           python -m unittest tools/art/test_genera.py
-          python tools/art/genera.py --controlla
+          python tools/art/genera.py --controlla --pixel
 
       - name: Ensure Godot solution
         run: |

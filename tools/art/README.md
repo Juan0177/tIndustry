@@ -9,13 +9,14 @@ Dalla radice del repo:
 ```bash
 python tools/art/genera.py                  # scrive gli sprite registrati in godot/assets/ e la tavola in .dev/arte/
 python tools/art/genera.py --solo miner     # solo alcuni sprite (più nomi separati da spazio)
-python tools/art/genera.py --controlla      # non scrive: esce con 1 se un PNG in godot/assets/ non è aggiornato
+python tools/art/genera.py --controlla      # non scrive: esce con 1 se un PNG in godot/assets/ non è aggiornato (byte)
+python tools/art/genera.py --controlla --pixel  # idem confrontando misura e pixel (CI, altri sistemi)
 python -m unittest tools/art/test_genera.py # determinismo, misure, tavolozza, copertura di content.json
 ```
 
 Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path godot --import`, poi ripristina i `.import` che cambiano solo per fine riga (vedi `CLAUDE.md`).
 
-**In CI** i workflow manuali e di release lanciano i test e `--controlla` con Pillow 12.3.0; un test controlla che ogni PNG nella radice di `godot/assets/` sia uno sprite registrato.
+**In CI** i workflow manuali e di release lanciano i test e `--controlla --pixel` con Pillow 12.3.0 (su Linux il codificatore PNG scrive byte diversi, quindi lì si confrontano misura e pixel); un test controlla che ogni PNG nella radice di `godot/assets/` sia uno sprite registrato.
 
 **Versione di Pillow.** I byte dei PNG dipendono dal codificatore di Pillow (zlib): gli sprite del repo sono stati scritti con **Pillow 12.3**. `--controlla` confronta i byte, quindi con un'altra versione di Pillow può segnalare differenze anche se i pixel sono uguali; in quel caso rigenera con `genera.py` e controlla nella tavola che non sia cambiato nulla a occhio prima di fare il commit.
 
