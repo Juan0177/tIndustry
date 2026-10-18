@@ -466,6 +466,12 @@ public partial class World
             return Fail("smontaggio non finito prima della campagna");
         }
 
+        // Auto-junction of a belt drag (real mouse drag, drone builds it), then back at rest.
+        if (!await PlaytestAutoJunctionAsync(Shot))
+        {
+            return false;
+        }
+
         // Terrain art captures here, with the game at rest: nothing moves while the camera looks around.
         await PlaytestTerrainShotsAsync(Shot);
 
@@ -640,6 +646,7 @@ public partial class World
         _visualDirty = true;
         _buildingsDirty = true;
         await PlaytestWait(0.1);
+        await PlaytestTMergeShotAsync(cam, shot, factory, at);
     }
 
     /// <summary>

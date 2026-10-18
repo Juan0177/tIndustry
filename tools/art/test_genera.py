@@ -461,6 +461,39 @@ class TestGenera(unittest.TestCase):
                     sud = [c.getpixel((x, T - 1)) for x in range(T)]
                     self.assertEqual([d.getpixel((T - 1, T - 1 - x)) for x in range(T)], sud, f"{nastro} {k + 1}: lato Sud")
 
+    def test_unioni_a_t_raccordate(self):
+        # T merge (in from the North and South edges, out from the East edge): 8 frames like the
+        # straights. Its South row is column 0 of the straight frame (a belt flowing North joins it),
+        # its North row the same column read the other way (a belt flowing South), the East tread
+        # (rows 5-26) is column 31 of the straight frame, and the West edge is a rail (no input behind).
+        # Columns 27-31 of the North and South rows are the rail-end blocks where the East rails open.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
+                self.assertEqual(len(dritti), len(unioni))
+                for k, (d, u) in enumerate(zip(dritti, unioni)):
+                    self.assertEqual((T, T), u.size)
+                    self.assertEqual([d.getpixel((0, x)) for x in range(T - 5)],
+                                     [u.getpixel((x, T - 1)) for x in range(T - 5)], f"{nastro} {k + 1}: lato Sud")
+                    self.assertEqual([d.getpixel((0, T - 1 - x)) for x in range(T - 5)],
+                                     [u.getpixel((x, 0)) for x in range(T - 5)], f"{nastro} {k + 1}: lato Nord")
+                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(5, T - 5)],
+                                     [u.getpixel((T - 1, y)) for y in range(5, T - 5)], f"{nastro} {k + 1}: lato Est")
+                    ovest = {u.getpixel((x, y))[:3] for x in range(5) for y in range(T)}
+                    self.assertFalse(ovest & {c[:3] for c in NASTRO}, f"{nastro}: Ovest aperto")
+
+    def test_incrocio_senza_frecce(self):
+        # Junction: the two treads cross (rows and columns 5-26 reach every edge), the four corner
+        # blocks are opaque, the picture is the same turned a quarter (no arrow, no direction).
+        im = SPRITE["junction"]()
+        self.assertEqual((T, T), im.size)
+        self.assertEqual(im.tobytes(), im.transpose(Image.Transpose.TRANSPOSE).tobytes())
+        for x, y in ((16, 0), (16, T - 1), (0, 16), (T - 1, 16)):
+            self.assertIn(im.getpixel((x, y))[:3], [c[:3] for c in NASTRO], f"battistrada assente su {x},{y}")
+        for x, y in ((0, 0), (T - 1, 0), (0, T - 1), (T - 1, T - 1)):
+            self.assertEqual(255, im.getpixel((x, y))[3])
+
     def test_parti_produzione_e_potenza(self):
         # Layered blocks: base, animated part (frame count), composed icon = base + frame 1.
         strati = {

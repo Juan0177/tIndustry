@@ -1,5 +1,5 @@
-"""Logistics sprites: belts in three tiers (icon, straight strip, corner strip), junction,
-splitter, sorter, bridge end and bridge span.
+"""Logistics sprites: belts in three tiers (icon, straight strip, corner strip, T merge strip),
+junction, splitter, sorter, bridge end and bridge span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. Belt strips
 have 8 frames that move the tread 4 px along the flow each, so 8 frames cover one cell and
@@ -7,6 +7,8 @@ the loop has no seam. The rails stay still; on the tread the chevron repeats eve
 the ribs every 16 px, so each step shows a different phase and the direction reads.
 """
 import math
+
+from PIL import Image
 
 import forme
 from blocchi import sprite
@@ -111,10 +113,28 @@ def curva(tier, fotogramma):
     return im
 
 
+def unione_t(tier, fotogramma):
+    """T merge (Mindustry's conveyor blend): in from the North and South edges, out from the East edge.
+
+    The two inputs run straight into the cell, each over its half: the top half is the straight belt
+    turned to flow South, the bottom half the one flowing North, so their chevrons meet on the axis.
+    The West side keeps the rails (nothing comes from behind); on the East side the rails open on
+    the output tread (columns 27-31 of the straight East frame) between two rail-end blocks.
+    """
+    dritto = nastro(tier, fotogramma)
+    im = dritto.transpose(Image.Transpose.ROTATE_90)  # flowing North: the bottom half
+    im.paste(dritto.transpose(Image.Transpose.ROTATE_270).crop((0, 0, T, T // 2)), (0, 0))
+    im.paste(dritto.crop((T - 5, 5, T, T - 5)), (T - 5, 5))
+    for y0 in (0, T - 5):
+        forme.pannello(im, T - 5, y0, T - 1, y0 + 4, METALLO)
+    return im
+
+
 def _registra_nastro(tier):
     sprite(tier)(lambda: nastro(tier, 0))
     sprite(tier + "-anim")(lambda: forme.striscia([nastro(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-corner-anim")(lambda: forme.striscia([curva(tier, k) for k in range(FOTOGRAMMI)]))
+    sprite(tier + "-t-anim")(lambda: forme.striscia([unione_t(tier, k) for k in range(FOTOGRAMMI)]))
 
 
 for _tier in TIER:
@@ -149,16 +169,43 @@ def _freccia(im, cx, cy, verso, rampa, lato=3):
             forme.pixel(im, cx + bx, cy + by, rampa[2] if t == lato else rampa[3])
 
 
+def _battistrada(u, v):
+    """Still tread without chevrons at flow position u and row v (5..26) across the belt: the
+    grooves along the rails and a rib every 8 px."""
+    if v in (5, 26):
+        return NASTRO[0]
+    return {7: NASTRO[0], 0: NASTRO[2]}.get(u % 8, NASTRO[1])
+
+
 @sprite("junction")
 def junction():
-    im = _piastra()
-    # Two crossing channels, one per axis, reaching every edge.
-    _canale(im, 10, -1, 21, T)
-    _canale(im, -1, 10, T, 21)
-    forme.rett(im, 11, 11, 20, 20, NASTRO[1])
-    forme.pannello(im, 13, 13, 18, 18, METALLO)
-    for cx, cy, v in ((15, 4, "N"), (15, 27, "S"), (4, 15, "W"), (27, 15, "E")):
-        _freccia(im, cx + (1 if v in "NS" else 0), cy + (1 if v in "EW" else 0), v, METALLO, 2)
+    """Two belts crossing, as in Mindustry: the tread runs through on both axes (rows and columns
+    5..26, as the straight belt), the rails stop at four corner blocks and a small diamond hub sits
+    in the centre. No arrows: each item keeps its own way. In the middle each tread owns the two
+    triangles towards its own edges, with a dark seam on the diagonals."""
+    im = forme.nuova(T, T)
+    c = (T - 1) / 2
+    for y in range(T):
+        for x in range(T):
+            dx, dy = abs(x - c), abs(y - c)
+            if not 5 <= x <= 26 and not 5 <= y <= 26:
+                continue  # corner blocks, below
+            if 5 <= x <= 26 and 5 <= y <= 26 and dx == dy:
+                colore = NASTRO[0]
+            elif 5 <= y <= 26 and (dx > dy or not 5 <= x <= 26):
+                colore = _battistrada(x, y)  # East-West tread
+            else:
+                colore = _battistrada(y, x)  # North-South tread
+            forme.pixel(im, x, y, colore)
+    for x0, y0 in ((0, 0), (T - 5, 0), (0, T - 5), (T - 5, T - 5)):
+        forme.pannello(im, x0, y0, x0 + 4, y0 + 4, METALLO)
+    for y in range(T):
+        for x in range(T):
+            d = abs(x - c) + abs(y - c)
+            if d <= 5:
+                lit = x + y < T - 1
+                forme.pixel(im, x, y, OUT if d > 4 else METALLO[4 if lit else 2])
+    forme.pixel(im, 14, 14, METALLO[5])
     return im
 
 

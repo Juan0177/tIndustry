@@ -28,9 +28,16 @@ public enum BuildingKind
     Lamp
 }
 
-/// <summary>Replaces <see cref="Factory.TryPlaceBelt"/>.</summary>
-public sealed record PlaceBelt(int PlayerId, GridPosition Position, Direction Direction, string ConveyorId)
-    : SimCommand(PlayerId);
+/// <summary>
+/// Replaces <see cref="Factory.TryPlaceBelt"/>. <paramref name="Crossing"/>: the belt is part of a dragged line, so
+/// over a plain belt perpendicular to it a junction takes the belt's place (<see cref="Factory.BeltCrossingAt"/>).
+/// </summary>
+public sealed record PlaceBelt(
+    int PlayerId,
+    GridPosition Position,
+    Direction Direction,
+    string ConveyorId,
+    bool Crossing = false) : SimCommand(PlayerId);
 
 /// <summary>
 /// Replaces the <c>TryPlace…</c> methods for junction, splitter, sorter, bridge, miners, forno,
@@ -126,7 +133,26 @@ public enum RefusalCode
     NothingToRemove,
 
     /// <summary>The Core is already upgraded (<see cref="IGameView.CoreUpgradeLevel"/>).</summary>
-    CoreAlreadyUpgraded
+    CoreAlreadyUpgraded,
+
+    /// <summary>
+    /// A dragged belt line crosses a perpendicular belt but the junction is not researched: the cell stays as it is
+    /// (<see cref="BeltCrossing.JunctionLocked"/>).
+    /// </summary>
+    CrossingNeedsJunction
+}
+
+/// <summary>What a dragged belt does on a cell (<see cref="Factory.BeltCrossingAt"/>).</summary>
+public enum BeltCrossing
+{
+    /// <summary>No crossing: the belt is placed (or refused) as usual.</summary>
+    None,
+
+    /// <summary>A junction replaces the perpendicular belt.</summary>
+    Junction,
+
+    /// <summary>A junction would replace it, but it is not researched.</summary>
+    JunctionLocked
 }
 
 /// <summary>

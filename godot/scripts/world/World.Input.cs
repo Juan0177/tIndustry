@@ -323,6 +323,7 @@ public partial class World
                     _draggingPlace = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
                         or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter;
                     _dragCell = cell;
+                    _crossingToastShown = false;
                     TryPlaceAt(cell);
                     GetViewport().SetInputAsHandled();
                 }
@@ -371,7 +372,7 @@ public partial class World
                 // A fast drag skips cells between two motion events: fill them in order.
                 foreach (var step in DragCells(_dragCell, cell))
                 {
-                    TryPlaceAt(step);
+                    TryPlaceAt(step, dragged: true);
                 }
 
                 _dragCell = cell;

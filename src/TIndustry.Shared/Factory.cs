@@ -164,24 +164,47 @@ public sealed class Factory : IGameView
     IResearchView IGameView.Research => Research;
     ISessionView IGameView.Session => Session;
 
-    public bool IsBeltCorner(GridPosition position) =>
-        BeltIncoming().TryGetValue(position, out var entry) && entry.Corner;
+    public bool IsBeltCorner(GridPosition position) => GetBeltShape(position) == BeltShape.Corner;
+
+    public BeltShape GetBeltShape(GridPosition position) =>
+        BeltIncoming().TryGetValue(position, out var entry) ? entry.Shape : BeltShape.Straight;
+
+    /// <summary>
+    /// Mindustry's auto-junction: a dragged belt line facing <paramref name="direction"/> that crosses a plain belt
+    /// perpendicular to it puts a junction there, so both lines keep flowing. Splitters, sorters, bridges,
+    /// junctions and parallel belts (same or opposite way) are not crossings. A corner or T is still a plain belt
+    /// with its own direction.
+    /// </summary>
+    public BeltCrossing BeltCrossingAt(GridPosition position, Direction direction)
+    {
+        if (!Belts.TryGet(position, out var cell)
+            || cell.Kind != LogisticsKind.Belt
+            || cell.Direction == direction
+            || cell.Direction == DirectionMath.Opposite(direction))
+        {
+            return BeltCrossing.None;
+        }
+
+        return IsStructureUnlocked(BuildSpec.StructureIdFor(BuildingKind.Junction)!)
+            ? BeltCrossing.Junction
+            : BeltCrossing.JunctionLocked;
+    }
 
     public bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming)
     {
-        var found = BeltIncoming().TryGetValue(position, out var entry);
-        incoming = entry.Incoming;
-        return found;
+        BeltIncoming().TryGetValue(position, out var entry);
+        incoming = entry.Incoming ?? default;
+        return entry.Incoming is not null;
     }
 
-    // Corner cache: the client asks per belt item per frame, so the answers are computed once per layout change.
-    private readonly Dictionary<GridPosition, (Direction Incoming, bool Corner)> beltIncoming = new();
+    // Shape cache: the client asks per belt item per frame, so the answers are computed once per layout change.
+    private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape)> beltIncoming = new();
     private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
     private int buildingsVersion;
     private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
 
-    private Dictionary<GridPosition, (Direction Incoming, bool Corner)> BeltIncoming()
+    private Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape)> BeltIncoming()
     {
         var version = (Belts.Version, buildingsVersion);
         if (version == beltIncomingVersion)
@@ -212,11 +235,13 @@ public sealed class Factory : IGameView
 
         beltIncoming.Clear();
         buildingFeeds ??= BuildingEjectsInto;
-        foreach (var (position, cell) in Belts.Cells)
+        foreach (var position in Belts.Cells.Keys)
         {
-            if (Belts.TryGetIncomingDirection(position, out var incoming, buildingFeeds))
+            Direction? incoming = Belts.TryGetIncomingDirection(position, out var dir, buildingFeeds) ? dir : null;
+            var shape = Belts.GetShape(position, out _, buildingFeeds);
+            if (incoming is not null || shape != BeltShape.Straight)
             {
-                beltIncoming[position] = (incoming, cell.Kind == LogisticsKind.Belt && incoming != cell.Direction);
+                beltIncoming[position] = (incoming, shape);
             }
         }
 

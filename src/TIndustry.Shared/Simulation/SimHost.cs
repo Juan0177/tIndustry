@@ -211,6 +211,17 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
+        if (command.Crossing)
+        {
+            switch (factory.BeltCrossingAt(spec.Origin, spec.Direction))
+            {
+                case BeltCrossing.Junction:
+                    return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
+                case BeltCrossing.JunctionLocked:
+                    return RefusalCode.CrossingNeedsJunction;
+            }
+        }
+
         if (factory.State.Rules.InstantBuild)
         {
             return CheckBuildable(spec.StructureId, multiplicity: 1)
@@ -225,6 +236,42 @@ public sealed class SimHost
         }
 
         return QueuePlan(command.PlayerId, spec);
+    }
+
+    /// <summary>
+    /// A junction takes the place of the belt on <paramref name="tile"/>. Instant build: the belt is removed (with
+    /// today's refund) and the junction placed and paid. With plans: the drone first takes the belt apart (a
+    /// breaking plan, as a Remove would queue) and then builds the junction (a plan right after it).
+    /// </summary>
+    private Refusal? ApplyAutoJunction(int playerId, GridPosition tile, Direction direction)
+    {
+        var junction = BuildSpec.FromCommand(new PlaceBuilding(playerId, BuildingKind.Junction, tile, direction));
+        if (factory.State.Rules.InstantBuild)
+        {
+            if (CheckBuildable(junction.StructureId, multiplicity: 1) is { } refusal)
+            {
+                return refusal;
+            }
+
+            factory.TryRemoveBelt(tile);
+            return PlacedOrRefused(factory.PlaceInstant(junction, charge: true), junction);
+        }
+
+        // The belt is checked like any queued plan: free of other plans, the player's drone exists.
+        if (factory.IsPlannedTile(tile) || !factory.TryGetSpecAt(tile, out var belt, out _))
+        {
+            return RefusalCode.Occupied;
+        }
+
+        var builder = factory.BuilderOf(playerId);
+        if (builder is null)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        builder.PlanQueue.Add(new BuildPlan(belt with { Origin = tile }, Breaking: true));
+        builder.PlanQueue.Add(new BuildPlan(junction, Breaking: false));
+        return null;
     }
 
     private Refusal? ApplyPlaceBuilding(PlaceBuilding command)

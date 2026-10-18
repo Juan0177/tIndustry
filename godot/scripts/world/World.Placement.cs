@@ -6,7 +6,11 @@ namespace TIndustry.Godot;
 /// <summary>Placing/removing structures on the grid and screen→cell mapping.</summary>
 public partial class World
 {
-    private void TryPlaceAt(GridPosition cell)
+    /// <summary>
+    /// Sends the current tool's command for <paramref name="cell"/>. <paramref name="dragged"/>: a cell the drag moved
+    /// onto (not the press), where a belt crossing a perpendicular belt becomes a junction (<see cref="Factory.BeltCrossingAt"/>).
+    /// </summary>
+    private void TryPlaceAt(GridPosition cell, bool dragged = false)
     {
         if (_view is null || _tool == BuildTool.Cursor)
         {
@@ -14,17 +18,17 @@ public partial class World
         }
 
         // Outcome (graphics refresh, rejection toast) arrives through the host events.
-        SubmitCommand(PlaceCommandAt(cell), quietWhenBlocked: _draggingPlace);
+        SubmitCommand(PlaceCommandAt(cell, dragged), quietWhenBlocked: _draggingPlace);
     }
 
     /// <summary>The command the current tool sends for <paramref name="cell"/> (not the cursor).</summary>
-    private SimCommand PlaceCommandAt(GridPosition cell)
+    private SimCommand PlaceCommandAt(GridPosition cell, bool dragged = false)
     {
         return _tool switch
         {
-            BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic"),
-            BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast"),
-            BuildTool.BeltExpress => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-express"),
+            BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic", dragged),
+            BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast", dragged),
+            BuildTool.BeltExpress => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-express", dragged),
             BuildTool.Miner => Place(BuildingKind.Miner),
             BuildTool.MinerAdvanced => Place(BuildingKind.MinerAdvanced),
             BuildTool.Smelter => Place(BuildingKind.Smelter),

@@ -419,32 +419,73 @@ public sealed class BeltGrid
         }
 
         var dir = cell.Direction;
-        if (FeedsToward(position.Step(DirectionMath.Opposite(dir)), dir, buildingFeeds, JunctionChainLimit))
+        var (back, left, right) = Feeders(position, dir, buildingFeeds);
+        if (back)
         {
             incoming = dir;
             return true;
         }
 
-        // A feeder on the left side flows rightwards into the cell, and vice versa.
-        var left = DirectionMath.Left(dir);
-        var right = DirectionMath.Right(dir);
-        var fromLeft = FeedsToward(position.Step(left), right, buildingFeeds, JunctionChainLimit);
-        var fromRight = FeedsToward(position.Step(right), left, buildingFeeds, JunctionChainLimit);
-        if (fromLeft == fromRight)
+        if (left == right)
         {
             return false;
         }
 
-        incoming = fromLeft ? right : left;
+        // A feeder on the left side flows rightwards into the cell, and vice versa.
+        incoming = left ? DirectionMath.Right(dir) : DirectionMath.Left(dir);
         return true;
     }
 
+    /// <summary>
+    /// How a plain belt is drawn (visual only, Mindustry's conveyor blend): a feeder behind or no side feeder
+    /// = straight, exactly one side feeder = corner from that side (<paramref name="incoming"/>), feeders on
+    /// both sides and none behind = T. Specials and empty cells are straight; <paramref name="incoming"/> is
+    /// then the cell's direction (default for an empty cell).
+    /// </summary>
+    public BeltShape GetShape(
+        GridPosition position,
+        out Direction incoming,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds = null)
+    {
+        incoming = default;
+        if (!cells.TryGetValue(position, out var cell))
+        {
+            return BeltShape.Straight;
+        }
+
+        var dir = cell.Direction;
+        incoming = dir;
+        if (cell.Kind is not LogisticsKind.Belt)
+        {
+            return BeltShape.Straight;
+        }
+
+        var (back, left, right) = Feeders(position, dir, buildingFeeds);
+        if (back || left == right)
+        {
+            return !back && left ? BeltShape.T : BeltShape.Straight; // both sides, nothing behind: T
+        }
+
+        incoming = left ? DirectionMath.Right(dir) : DirectionMath.Left(dir);
+        return BeltShape.Corner;
+    }
+
     public bool IsCorner(GridPosition position, Func<GridPosition, GridPosition, bool>? buildingFeeds = null) =>
-        cells.TryGetValue(position, out var cell)
-        // Specials are not gallery corners.
-        && cell.Kind is LogisticsKind.Belt
-        && TryGetIncomingDirection(position, out var incoming, buildingFeeds)
-        && incoming != cell.Direction;
+        GetShape(position, out _, buildingFeeds) == BeltShape.Corner;
+
+    /// <summary>Whether something feeds the cell (facing <paramref name="dir"/>) from behind, from its left and from its right.</summary>
+    private (bool Back, bool Left, bool Right) Feeders(
+        GridPosition position,
+        Direction dir,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds)
+    {
+        var left = DirectionMath.Left(dir);
+        var right = DirectionMath.Right(dir);
+        return (
+            FeedsToward(position.Step(DirectionMath.Opposite(dir)), dir, buildingFeeds, JunctionChainLimit),
+            FeedsToward(position.Step(left), right, buildingFeeds, JunctionChainLimit),
+            FeedsToward(position.Step(right), left, buildingFeeds, JunctionChainLimit));
+    }
 
     // Junctions pass items straight through: look this many junctions back for the real source.
     private const int JunctionChainLimit = 4;
@@ -600,4 +641,12 @@ public sealed class BeltGridCell
     public TransportedItem? PeekOutput() => inner.PeekOutput();
     public void RemoveOutput() => inner.RemoveOutput();
     public bool TryRemoveItem(TransportedItem item) => inner.TryRemoveItem(item);
+}
+
+/// <summary>How a plain belt cell is drawn (<see cref="BeltGrid.GetShape"/>).</summary>
+public enum BeltShape
+{
+    Straight,
+    Corner,
+    T
 }

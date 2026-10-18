@@ -216,20 +216,22 @@ def _minatore(bid):
 
 
 def _nastro(tier):
-    # godot/scripts/visuals/belts/MindustryBeltVisual.cs (shared tier clock), ScrollingBeltStrip.cs (straight,
-    # East), BeltCornerTile.cs (corner art: in from West, out South). The belt always scrolls; with the
-    # setting "Animazioni dei blocchi" off it holds its frame.
+    # godot/scripts/visuals/belts/MindustryBeltVisual.cs (shared tier clock), ScrollingBeltStrip.cs (straight
+    # and T merge, East), BeltCornerTile.cs (corner art: in from West, out South). The belt always scrolls; with
+    # the setting "Animazioni dei blocchi" off it holds its frame.
     fps = VELOCITA_NASTRO[tier] * 8
     giro = 8 / fps
     return Blocco(
         tier, "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
-        [Strato(tier + "-anim", fps=fps, quando="dritto"), Strato(tier + "-corner-anim", fps=fps, quando="curva")],
+        [Strato(tier + "-anim", fps=fps, quando="dritto"), Strato(tier + "-corner-anim", fps=fps, quando="curva"),
+         Strato(tier + "-t-anim", fps=fps, quando="t")],
         [_stato("Dritto", "dritto", durata=giro, passo=1 / fps), _stato("Curva", "curva", durata=giro, passo=1 / fps),
-         _stato("Animazioni spente", "dritto")],
-        [(tier, "icona"), (tier + "-anim", "tratto dritto"), (tier + "-corner-anim", "curva")],
+         _stato("T", "t", durata=giro, passo=1 / fps), _stato("Animazioni spente", "dritto")],
+        [(tier, "icona"), (tier + "-anim", "tratto dritto"), (tier + "-corner-anim", "curva"),
+         (tier + "-t-anim", "unione a T: due ingressi ai lati")],
         icona=tier, stato_icona="Dritto",
         nota=f"{VELOCITA_NASTRO[tier]:g} oggetti/s: {fps:g} fotogrammi al secondo.",
-        fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps})
+        fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps, tier + "-t-anim": fps})
 
 
 def _core(n):
