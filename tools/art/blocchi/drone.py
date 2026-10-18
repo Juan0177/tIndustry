@@ -2,7 +2,7 @@
 
 Three tiers of the builder drone in the style of Mindustry's units (own drawing, nothing copied):
 layered grey armour plates with 45-degree chamfers, darker under-plates, a glowing team cell in
-the middle; compact and as wide as long.
+the middle; compact (alpha and beta about as wide as long, gamma wider than long).
 - `drone-1` alpha (24 px): wide hull with two side plates and a tail stub;
 - `drone-2` beta (28 px): bigger hull, four lobed plates, forward fins;
 - `drone-3` gamma (32 px): X-shaped hull with swept arms and twin forward claws.

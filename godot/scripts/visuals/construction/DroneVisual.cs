@@ -5,8 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// One construction drone (Mindustry's alpha): the <c>drone-1</c> sprite turned to its heading over its own
-/// dark shadow, a pulsing engine glow at its tail with a 3-dot trail (as Mindustry's units) and, while it works, the build beam to its site. Position and heading are
-/// interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
+/// dark shadow, a pulsing engine glow at its tail with a 3-dot trail (as Mindustry's units) and, while it
+/// works, the build beam to its site. Position and heading are interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
 /// ±0.05 tile (graphics only). With effects on (G3) the beam is richer, as in Mindustry: a bright ray to a point
 /// that wanders over the site, throwing sparks (<c>scintille-cantiere</c>). The node itself is never rotated: it draws in world-aligned local space and turns
 /// only the sprite.
@@ -16,7 +16,10 @@ public partial class DroneVisual : Node2D
     /// <summary>Alpha, the tier of the starting Core (beta and gamma: <c>drone-2</c>, <c>drone-3</c>).</summary>
     private const string SpriteId = "drone-1";
 
-    /// <summary>Nose and engine of <c>drone-1</c> from its centre: 10 and 12 art px, drawn ×2 (64 px per tile).</summary>
+    /// <summary>
+    /// Nose of <c>drone-1</c> and its engine glow from its centre: 10 and 12 art px, drawn ×2 (64 px per tile).
+    /// The tail stub ends at 11 px; the glow sits 1 px past it so half the disc shows behind the hull.
+    /// </summary>
     private const float NoseTiles = 10f / Sprites.PixelsPerCell;
     private const float TailTiles = 12f / Sprites.PixelsPerCell;
 

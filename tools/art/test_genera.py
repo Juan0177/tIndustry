@@ -253,6 +253,19 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(sorted(lampade), lampade)
         self.assertEqual(len(set(lampade)), len(lampade))
 
+    def test_droni_muso_a_est(self):
+        # The half is drawn nose-up: its first row must end on the East edge, not the West one.
+        from blocchi import drone
+        im = drone.disegna(4, "O.
+..
+..
+..").getchannel("A")
+        self.assertEqual([255, 255], [im.getpixel((3, 0)), im.getpixel((3, 3))])
+        self.assertEqual(0, max(im.getpixel((0, y)) for y in range(4)))
+        with self.assertRaises(ValueError):
+            drone.disegna(6, "O.
+..")
+
     def test_droni(self):
         sagome = []
         for nome, lato in DRONI.items():
