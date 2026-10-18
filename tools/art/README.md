@@ -15,6 +15,8 @@ python -m unittest tools/art/test_genera.py # determinismo, misure, tavolozza, c
 
 Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path godot --import`, poi ripristina i `.import` che cambiano solo per fine riga (vedi `CLAUDE.md`).
 
+**In CI** i workflow manuali e di release lanciano i test e `--controlla` con Pillow 12.3.0; un test controlla che ogni PNG nella radice di `godot/assets/` sia uno sprite registrato.
+
 **Versione di Pillow.** I byte dei PNG dipendono dal codificatore di Pillow (zlib): gli sprite del repo sono stati scritti con **Pillow 12.3**. `--controlla` confronta i byte, quindi con un'altra versione di Pillow può segnalare differenze anche se i pixel sono uguali; in quel caso rigenera con `genera.py` e controlla nella tavola che non sia cambiato nulla a occhio prima di fare il commit.
 
 `genera.py` scrive solo gli sprite registrati: gli altri PNG di `godot/assets/` restano come sono. La tavola `.dev/arte/tavola.png` (e una copia datata) mette ogni sprite vecchio accanto al nuovo, a 1× e 2×, su fondo chiaro e scuro: serve per la revisione a occhio.

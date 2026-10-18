@@ -72,11 +72,15 @@ public sealed class ContentValidationTests
             .Select(m => m.ItemId));
 
     [Fact]
-    public void BeltItemTexturesExistForEveryMarketItem() =>
+    public void BeltItemTexturesExistForEveryMarketItem()
+    {
         // Market items' <id>.png is covered by EveryMarketItemHasAnIcon; money has no market entry.
-        Assert.Empty(Content.Market.Select(m => $"{m.ItemId}-belt")
+        var missing = Content.Market.Select(m => $"{m.ItemId}-belt")
             .Concat(["money", "money-belt"])
-            .Where(name => !File.Exists(IconPath(name))));
+            .Where(name => !File.Exists(IconPath(name)))
+            .ToList();
+        Assert.Empty(missing);
+    }
 
     [Fact]
     public void BuildWeightsArePositiveKnownItems()

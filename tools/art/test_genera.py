@@ -280,11 +280,14 @@ class TestGenera(unittest.TestCase):
     def test_oggetti(self):
         # Every market item and money: HUD icon and belt sprite, opaque pixels only (no tint at
         # runtime, so no half-transparent wash), a closed outline and a look of its own.
-        from blocchi.oggetti import OGGETTI
+        from blocchi.oggetti import BORDO_CHIARO, OGGETTI
+        from palette import OUT
         self.assertEqual(_item_ids(), set(OGGETTI))
         for misura in ("", "-belt"):
             viste = []
             for item_id, (_, _, contorno) in OGGETTI.items():
+                if misura and item_id in BORDO_CHIARO:
+                    contorno = OUT  # dark outline, light rim inside (checked below)
                 with self.subTest(sprite=item_id + misura):
                     im = SPRITE[item_id + misura]()
                     self.assertEqual({0, 255}, set(im.getchannel("A").tobytes()))
@@ -298,6 +301,15 @@ class TestGenera(unittest.TestCase):
                                 self.assertEqual(contorno, px[:3], f"{item_id}{misura}: ({x},{y}) fuori dal contorno")
                     viste.append(im.tobytes())
             self.assertEqual(len(set(viste)), len(viste))
+        # Contrast on belts: a light rim right inside the dark outline.
+        for item_id, colore in BORDO_CHIARO.items():
+            with self.subTest(bordo=item_id):
+                im = SPRITE[item_id + "-belt"]()
+                bordo = [im.getpixel((x, y))[:3] for y in range(1, im.height - 1) for x in range(1, im.width - 1)
+                         if im.getpixel((x, y))[3] and im.getpixel((x, y))[:3] != OUT
+                         and OUT in [im.getpixel((x + ax, y + ay))[:3] for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1))]]
+                self.assertTrue(bordo)
+                self.assertEqual({colore}, set(bordo))
 
     def test_copertura(self):
         # Every structure and item of content.json, every Core tier and every drone has a sprite.
@@ -306,6 +318,14 @@ class TestGenera(unittest.TestCase):
         attesi |= {f"core-{n}" for n in range(1, CORE_TIER + 1)} | set(DRONI)
         reali = set(SPRITE) - set(TEST_SPRITES)
         self.assertEqual([], sorted(attesi - reali))
+
+    def test_solo_sprite_generati(self):
+        # Every PNG in the root of godot/assets comes from the registry: no hand-made or third-party
+        # sprite can sneak back in (third-party interface icons live in godot/assets/ui/).
+        cartella = os.path.join(REPO, "godot", "assets")
+        png = {f[: -len(".png")] for f in os.listdir(cartella)
+               if f.endswith(".png") and os.path.isfile(os.path.join(cartella, f))}
+        self.assertEqual([], sorted(png - (set(SPRITE) - set(TEST_SPRITES))))
 
 
 if __name__ == "__main__":

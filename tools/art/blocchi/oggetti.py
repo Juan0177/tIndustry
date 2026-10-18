@@ -9,9 +9,10 @@ One shape per kind, the same at both sizes:
 - graphite: three stacked bars;
 - silicon: a cluster of pointed crystals;
 - money: two stacks of coins.
-Outlines are dark (OUT); coal is near-black, so its outline is a light rim that reads on
-dark belts. The 10x10 sprites are drawn by hand (pixel grids): scaling the 32 px ones down
-would blur them.
+Outlines are dark (OUT); coal is near-black, so its HUD outline is a light rim. On belts
+(BORDO_CHIARO) coal and titanium get the dark outline plus a light rim just inside it, so they
+stand out on the dark rubber and on the cyan express chevrons. The 10x10 sprites are drawn by
+hand (pixel grids): scaling the 32 px ones down would blur them.
 """
 import math
 
@@ -27,6 +28,10 @@ B = 10  # belt sprite side
 CARBONE_BORDO = FULIGGINE[3]
 # Copper wire: copper shadows, warm brass highlights (more yellow than the ore).
 FILO = [RAME[1], RAME[2], ACCENTO[1], ACCENTO[2], ACCENTO[3]]
+
+# Belt sprites that must stand out on their belts (coal on the dark rubber, titanium on the cyan
+# express chevrons): dark outline plus a 1 px light rim just inside it, in this colour.
+BORDO_CHIARO = {"coal": CARBONE_BORDO, "titanium-ore": TITANIO[4], "titanium-plate": TITANIO[4]}
 
 # id -> (kind, ramp, outline)
 OGGETTI = {
@@ -86,17 +91,23 @@ def _riempi(im, pieni, tono, contorno):
         forme.pixel(im, x, y, contorno if (x, y) in bordo else tono(x, y))
 
 
-def _griglia(righe, rampa, contorno):
-    """10x10 sprite from a pixel grid: '.' empty, 'o' outline, '0'-'4' ramp tones."""
+def _griglia(righe, rampa, contorno, bordo=None):
+    """10x10 sprite from a pixel grid: '.' empty, 'o' outline, '0'-'4' ramp tones; with `bordo`,
+    every body pixel touching the outline (4-neighbour) takes that light rim colour."""
     assert len(righe) == B and all(len(r) == B for r in righe), righe
     toni = _toni(rampa)
     im = forme.nuova(B, B)
+
+    def contorno_in(x, y):
+        return 0 <= x < B and 0 <= y < B and righe[y][x] == "o"
+
     for y, riga in enumerate(righe):
         for x, c in enumerate(riga):
             if c == "o":
                 forme.pixel(im, x, y, contorno)
             elif c != ".":
-                forme.pixel(im, x, y, toni[c])
+                vicino = any(contorno_in(x + ax, y + ay) for ax, ay in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+                forme.pixel(im, x, y, bordo if bordo and vicino else toni[c])
     return im
 
 
@@ -389,7 +400,10 @@ def _grande(item_id):
 def _registra(item_id):
     tipo, rampa, contorno = OGGETTI[item_id]
     sprite(item_id)(lambda: _grande(item_id))
-    sprite(item_id + "-belt")(lambda: _griglia(GRIGLIE[tipo], rampa, contorno))
+    if item_id in BORDO_CHIARO:
+        sprite(item_id + "-belt")(lambda: _griglia(GRIGLIE[tipo], rampa, OUT, BORDO_CHIARO[item_id]))
+    else:
+        sprite(item_id + "-belt")(lambda: _griglia(GRIGLIE[tipo], rampa, contorno))
 
 
 for _id in OGGETTI:

@@ -1,8 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Canonical item icon tints (Raylib UiTheme.ItemColor / Godot ItemPalette).
-/// Ore PNGs share one white silhouette — distinguishability comes from these RGB values.
+/// Canonical flat item colours (Godot ItemPalette: extractor filter dot, deposit markers, miner ground tint).
+/// They follow the item ramps of tools/art/palette.py, so flat markers and the generated sprites agree.
 /// </summary>
 public static class ItemVisualColors
 {
@@ -14,8 +14,8 @@ public static class ItemVisualColors
         "copper-ore" => (232, 128, 48),
         "copper-wire" => (240, 152, 40),
         "coal" => (58, 54, 50),
-        "lead-ore" => (120, 140, 168),
-        "lead-plate" => (148, 164, 188),
+        "lead-ore" => (146, 146, 204),
+        "lead-plate" => (170, 170, 220),
         "titanium-ore" => (120, 200, 210),
         "titanium-plate" => (170, 230, 236),
         "graphite" => (88, 92, 98),
@@ -30,8 +30,8 @@ public static class ItemVisualColors
         "copper-ore" => (96, 40, 8),
         "copper-wire" => (96, 48, 8),
         "coal" => (8, 8, 10),
-        "lead-ore" => (28, 36, 52),
-        "lead-plate" => (32, 40, 56),
+        "lead-ore" => (46, 46, 82),
+        "lead-plate" => (52, 52, 90),
         "titanium-ore" => (20, 48, 56),
         "titanium-plate" => (24, 56, 64),
         "graphite" => (20, 22, 26),

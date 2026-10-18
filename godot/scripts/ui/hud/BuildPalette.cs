@@ -346,11 +346,32 @@ public partial class BuildPalette : PanelContainer
         }
     }
 
+    /// <summary>
+    /// Block icons are drawn this many screen pixels wide with the Nearest filter: 32 px sprites (1×1 blocks) ×2,
+    /// 64 px sprites (2×2 blocks) ×1, so every art pixel covers whole screen pixels at any UI scale.
+    /// </summary>
+    private const float BlockIconScreenPx = 64f;
+
+    /// <summary>Side of a block icon in UI units for the current UI scale (read when the grid is rebuilt).</summary>
+    private float BlockIconSide() =>
+        BlockIconScreenPx / Math.Max(0.5f, IsInsideTree() ? GetTree().Root.ContentScaleFactor : 1f);
+
+    private TextureRect BlockIcon(string structureId, float side) => new()
+    {
+        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        CustomMinimumSize = new Vector2(side, side),
+        TextureFilter = TextureFilterEnum.Nearest,
+        MouseFilter = MouseFilterEnum.Ignore,
+        Texture = Sprites.TryFor(structureId)
+    };
+
     private void AddPaletteCell(Control parent, PaletteEntry entry)
     {
+        var side = BlockIconSide();
         var slot = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(52, 52),
+            CustomMinimumSize = new Vector2(side + 8, side + 8),
             MouseFilter = MouseFilterEnum.Stop,
             TooltipText = entry.Tool == ToolKind.Cursor
                 ? "Cursore"
@@ -380,33 +401,28 @@ public partial class BuildPalette : PanelContainer
             // Frame + dynamic filter glyph (~70% of slot).
             var stack = new Control
             {
-                CustomMinimumSize = new Vector2(40, 40),
+                CustomMinimumSize = new Vector2(side, side),
                 MouseFilter = MouseFilterEnum.Ignore
             };
-            var frame = new TextureRect
-            {
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                CustomMinimumSize = new Vector2(40, 40),
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            frame.Texture = Sprites.TryFor(entry.StructureId);
+            var frame = BlockIcon(entry.StructureId, side);
             frame.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             stack.AddChild(frame);
 
+            // Item filter in the empty middle of the sorter (14/32 of the sprite), item icons keep the HUD filter.
+            var half = side * 7f / 32f;
             var filter = new TextureRect
             {
                 Name = "SorterFilter",
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                CustomMinimumSize = new Vector2(28, 28),
+                CustomMinimumSize = new Vector2(2 * half, 2 * half),
                 MouseFilter = MouseFilterEnum.Ignore
             };
             filter.SetAnchorsPreset(LayoutPreset.Center);
-            filter.OffsetLeft = -14;
-            filter.OffsetTop = -14;
-            filter.OffsetRight = 14;
-            filter.OffsetBottom = 14;
+            filter.OffsetLeft = -half;
+            filter.OffsetTop = -half;
+            filter.OffsetRight = half;
+            filter.OffsetBottom = half;
             ApplySorterFilterTexture(filter);
             stack.AddChild(filter);
             _sorterFilterIcon = filter;
@@ -414,15 +430,7 @@ public partial class BuildPalette : PanelContainer
         }
         else
         {
-            var icon = new TextureRect
-            {
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                CustomMinimumSize = new Vector2(40, 40),
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            icon.Texture = Sprites.TryFor(entry.StructureId);
-            center.AddChild(icon);
+            center.AddChild(BlockIcon(entry.StructureId, side));
         }
 
         slot.MouseEntered += () =>

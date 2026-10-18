@@ -23,11 +23,12 @@ public partial class GeneratorVisual : Node2D
         {
             Name = $"Generator_{gen.Position.X}_{gen.Position.Y}",
             ZIndex = 3,
-            Origin = gen.Position
+            Origin = gen.Position,
+            _clock = BuildingPad.Phase(gen.Position)
         };
         root.AddChild(BuildingPad.Layer("Base", Sprites.For("generator-base"), Generator.Size, tileSize, 0));
         root._frames = Sprites.Frames("generator-rotor");
-        root._rotor = BuildingPad.Layer("Rotor", root._frames[0], Generator.Size, tileSize, 1);
+        root._rotor = BuildingPad.Layer("Rotor", root.Frame(), Generator.Size, tileSize, 1);
         root.AddChild(root._rotor);
         root.Sync(gen, 0f);
         return root;
@@ -41,6 +42,8 @@ public partial class GeneratorVisual : Node2D
         }
 
         _clock += delta;
-        _rotor.Texture = _frames[(int)(_clock * RotorFramesPerSecond) % _frames.Length];
+        _rotor.Texture = Frame();
     }
+
+    private Texture2D Frame() => _frames[(int)(_clock * RotorFramesPerSecond) % _frames.Length];
 }

@@ -394,6 +394,9 @@ public partial class World
 
     private Sprite2D? _coreLight;
 
+    /// <summary>Start phase of the nucleus light from the Core's origin cell (0 in playtests).</summary>
+    private float _coreLightPhase;
+
     /// <summary>
     /// CORE as a building node (z above belt items): the <c>core-1</c> body, its nucleus light looping slowly on top
     /// (each frame is an opaque disc that replaces the nucleus) and the cyan outline.
@@ -407,6 +410,7 @@ public partial class World
 
         var minX = _view.CoreTiles.Min(t => t.X);
         var minY = _view.CoreTiles.Min(t => t.Y);
+        _coreLightPhase = BuildingPad.Phase(new GridPosition(minX, minY));
         var size = new Vector2(
             (_view.CoreTiles.Max(t => t.X) - minX + 1) * TileSize,
             (_view.CoreTiles.Max(t => t.Y) - minY + 1) * TileSize);
@@ -445,10 +449,13 @@ public partial class World
         _buildingsLayer.AddChild(root);
     }
 
-    /// <summary>Frame of the nucleus light for the world clock (held on frame 1 in playtests: stable captures).</summary>
+    /// <summary>
+    /// Frame of the nucleus light for the world clock plus the Core's phase (held on frame index 0 in playtests:
+    /// clock and phase stay 0, so captures are stable).
+    /// </summary>
     private Texture2D CoreLightFrame()
     {
         var frames = Sprites.Frames(CoreSpriteId + "-light");
-        return frames[(int)(_coreLightClock * CoreLightFramesPerSecond) % frames.Length];
+        return frames[(int)((_coreLightClock + _coreLightPhase) * CoreLightFramesPerSecond) % frames.Length];
     }
 }

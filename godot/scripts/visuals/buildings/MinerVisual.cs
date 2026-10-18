@@ -26,12 +26,13 @@ public partial class MinerVisual : Node2D
         {
             Name = $"Miner_{miner.Position.X}_{miner.Position.Y}",
             ZIndex = 3,
-            MinerOrigin = miner.Position
+            MinerOrigin = miner.Position,
+            _clock = BuildingPad.Phase(miner.Position)
         };
 
         root.AddChild(BuildingPad.Layer("Base", Sprites.For(id + "-base"), Miner.Size, tileSize, 0));
         root._frames = Sprites.Frames(id + "-drill");
-        root._drill = BuildingPad.Layer("Drill", root._frames[0], Miner.Size, tileSize, 1);
+        root._drill = BuildingPad.Layer("Drill", root.Frame(), Miner.Size, tileSize, 1);
         root.AddChild(root._drill);
         if (id == Miner.AdvancedId)
         {
@@ -50,7 +51,7 @@ public partial class MinerVisual : Node2D
         if (miner.Efficiency > 0f && _drill is not null && _frames.Length > 0)
         {
             _clock += delta;
-            _drill.Texture = _frames[(int)(_clock * DrillFramesPerSecond) % _frames.Length];
+            _drill.Texture = Frame();
         }
 
         if (_lamp is not null)
@@ -58,4 +59,6 @@ public partial class MinerVisual : Node2D
             _lamp.Visible = miner.IsPowered;
         }
     }
+
+    private Texture2D Frame() => _frames[(int)(_clock * DrillFramesPerSecond) % _frames.Length];
 }
