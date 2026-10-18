@@ -18,6 +18,7 @@ Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--editor] [--tes
 dotnet build tIndustry.sln -c Release -nologo -v q       # atteso: 0 errori, 0 avvisi
 dotnet test tests/TIndustry.Shared.Tests -c Release --no-build
 python -m unittest tools/art/test_genera.py                # test del generatore degli sprite
+python tools/sito/costruisci.py                            # sito (GitHub Pages) in _site/; si pubblica col workflow Pages, a mano
 APPDATA="$(mktemp -d)" godot4 --headless --path godot --import   # poi ripristina i .import (sotto)
 APPDATA="$(mktemp -d)" godot4 --headless --path godot --build-solutions --quit
 godot4 --path godot                                      # avvia il gioco (legge data/)
