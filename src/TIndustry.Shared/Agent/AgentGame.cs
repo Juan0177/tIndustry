@@ -909,6 +909,7 @@ public sealed class AgentGame : IDisposable
         // The player's line (PlacementLine), cell by cell: the cells it already refuses are not sent.
         var line = PlacementLine.Plan(View, new LineRequest(
             PlayerId, structureId, anchor, cursor, brush, FixedDirection: fixedDirection is not null,
+            Shape: OptBool(p, "diagonale") == true ? LineShape.Diagonal : LineShape.Straight,
             RecipeId: OptStr(p, "ricetta"), FilterItemId: OptStr(p, "filtro")));
         var commands = PlacementLine.Commands(line);
         if (commands.Count == 0)
@@ -951,6 +952,12 @@ public sealed class AgentGame : IDisposable
                     if (outcome.Command is PlaceBelt { Crossing: true } crossing && JunctionAt(crossing.Position))
                     {
                         cell["incrocio"] = true;
+                    }
+
+                    // The line's automatic bridge (its spanned cells are not listed).
+                    if (outcome.Command is PlaceBuilding { Kind: BuildingKind.Bridge } && BuildSpec.KindFor(structureId) is null)
+                    {
+                        cell["ponte"] = true;
                     }
 
                     placed.Add(cell);
@@ -1309,6 +1316,15 @@ public sealed class AgentGame : IDisposable
             : throw Bad($"'{name}' deve essere un numero intero.");
 
     private static int? OptInt(JsonElement p, string name) => Has(p, name) ? Int(p, name) : null;
+
+    private static bool? OptBool(JsonElement p, string name) =>
+        !Has(p, name) ? null
+        : Required(p, name).ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => throw Bad($"'{name}' deve essere true o false.")
+        };
 
     private static string Str(JsonElement p, string name) =>
         Required(p, name) is { ValueKind: JsonValueKind.String } value && value.GetString() is { Length: > 0 } text

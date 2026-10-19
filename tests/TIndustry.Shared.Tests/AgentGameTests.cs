@@ -162,6 +162,41 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void PiazzaDiagonaleUsesTheSamePath()
+    {
+        var host = NewHost();
+        var game = new AgentGame(host, Content);
+        var expected = PlacementLine.Plan(host.State, new LineRequest(
+            0, BuildSpec.DefaultConveyorId, new GridPosition(40, 40), new GridPosition(44, 43), Direction.East,
+            Shape: LineShape.Diagonal));
+
+        // `diagonale` is Ctrl: the A* path, each cell facing the next (not the straight line on y 40).
+        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":40,"y":40},"a":{"x":44,"y":43},"diagonale":true}""");
+
+        Assert.Equal(expected.Select(c => c.Cell), Cells(result));
+        Assert.Equal(new GridPosition(44, 43), Cells(result)[^1]);
+        Assert.All(expected, c => Assert.Equal(c.Direction, host.State.Belts[c.Cell].Direction));
+    }
+
+    [Fact]
+    public void PiazzaBridgesOverABuilding()
+    {
+        var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
+        factory.Research.ForceUnlock(BuildSpec.StructureIdFor(BuildingKind.Bridge)!);
+        Assert.True(factory.PlaceInstant(new BuildSpec("miner", BuildingKind.Miner, new GridPosition(42, 50), Direction.East), charge: false));
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+
+        var result = Call(game, "piazza", """{"tier":1,"da":{"x":39,"y":50},"a":{"x":46,"y":50}}""");
+
+        // The bridge on (41,50) is a placed cell marked `ponte`; the miner's cells and the exit are not listed.
+        Assert.Equal([39, 40, 41, 45, 46], Cells(result).Select(c => c.X));
+        var bridge = result.GetProperty("celle").EnumerateArray().Single(c => c.TryGetProperty("ponte", out _));
+        Assert.Equal(41, bridge.GetProperty("x").GetInt32());
+        Assert.Equal(new GridPosition(44, 50), host.State.Belts[new GridPosition(41, 50)].BridgePartner);
+    }
+
+    [Fact]
     public void PiazzaReportsLineRefusals()
     {
         // The classic generator has no walls: the biome one does.
