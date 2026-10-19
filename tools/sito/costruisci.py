@@ -544,7 +544,7 @@ def _contenuto(a, sid, radice, versione):
         nome = mercato["iron-plate"]["displayName"]
         bottone = f"Scarica {html.escape(versione)}" if versione else "Scarica l'ultima release"
         sistemi = " e ".join(html.escape(s) for s, _, _ in documenti.requisiti())
-        return (_titolo(a, "07", "Scarica", 192, 22)
+        return (_titolo(a, "07", "Scarica", 192, 150)
                 + f'<div class="scarica-box" style="{_at(384, 448, 384)}">'
                   f'<a class="btn primario grande striscia" href="{RELEASE_URL}" data-costruisci>{bottone}</a>'
                   f'<a class="btn" href="{REPO_URL}" data-costruisci>Codice su GitHub</a>'
