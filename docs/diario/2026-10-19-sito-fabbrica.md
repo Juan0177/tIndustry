@@ -3,7 +3,7 @@
 - **Specifica**: [2026-10-19-sito-fabbrica-design](../superpowers/specs/2026-10-19-sito-fabbrica-design.md)
 - **Piano**: [2026-10-19-sito-fabbrica](../superpowers/plans/2026-10-19-sito-fabbrica.md)
 - **Periodo**: 2026-10-19
-- **Esito**: in `main` con la PR [#233](https://github.com/Juan0177/tIndustry/pull/233), pubblicato su [juan0177.github.io/tIndustry](https://juan0177.github.io/tIndustry/) col workflow Pages lanciato a mano.
+- **Esito**: in `main` con le PR [#233](https://github.com/Juan0177/tIndustry/pull/233) (sito), [#235](https://github.com/Juan0177/tIndustry/pull/235) (unione a T sopra il CORE) e [#236](https://github.com/Juan0177/tIndustry/pull/236) (correzioni della verifica finale), pubblicato su [juan0177.github.io/tIndustry](https://juan0177.github.io/tIndustry/) col workflow Pages lanciato a mano.
 
 > Scritto a fine lavoro dalla sessione che ha fatto tutto (brainstorming, specifica, piano, implementazione, revisione), dai risultati dei due workflow di agenti (moduli in parallelo e revisione a più lenti) e dalla storia git. Dove le fonti non dicono qualcosa qui non è inventato.
 
@@ -32,7 +32,9 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 3 | `sito.js`, `drone.css`, `test_sito.mjs` (agente), adattamento dello zoom | `1de20f9` |
 | 4 | Guscio, `stile.css`, vetrina, sviluppo, asset, `test_costruisci.py`, `pages.yml` | `1de20f9`, `941992e` |
 | 5 | Revisione a più lenti e correzioni | `9c928fe` (e `543e295` per un test) |
-| 6 | Documenti e diario | `695a8ab`, `1433daf`, il commit di chiusura del diario |
+| 6 | Documenti e diario | `695a8ab`, `1433daf`, `8546c50` |
+| 7 | Unione a T sopra il CORE (PR #235) | `3bde5d8` |
+| 8 | Verifica finale sul sito pubblicato e correzioni (PR #236) | VERIFICA_FINALE |
 
 ## Giri di revisione
 
@@ -47,12 +49,14 @@ Segnalazioni di peso, tutte applicate:
 - **Testi**: «Sotto attacco» prometteva unità «in arrivo» contro il README («fuori dal progetto per ora»: ora «previste per una versione futura»), CORE e Core mescolati, `30 $` contro il `$30` del gioco, requisiti coi nomi dei file zip, didascalie troppo lunghe, lessico da sviluppatore nel piè di pagina, meta description povera.
 - **Peso e pubblicazione**: immagini delle scene scritte a 2× (ora a 1×, scalate dalla pagina), PNG e catture non ottimizzati, `og:url` uguale per le tre pagine, niente canonical, `node --test` assente dal workflow, mappa Obsidian ritoccata a mano invece che col suo generatore.
 
-Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): pezzo a T mai mostrato, rete elettrica più lunga di quanto il gioco ammetta, Core T3 che in partita non c'è ancora, lettori del README senza test di robustezza, nome di un assistente AI nella pagina sviluppo (viene dal diario «Agenti che giocano»), pagina asset in un solo HTML da 2 MB (com'era).
+Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): rete elettrica più lunga di quanto il gioco ammetta, Core T3 che in partita non c'è ancora, lettori del README senza test di robustezza, nome di un assistente AI nella pagina sviluppo (viene dal diario «Agenti che giocano»), pagina asset in un solo HTML da 2 MB (com'era). Il pezzo a T, scartato in un primo momento, è stato aggiunto subito dopo (PR #235): le due catene lunghe si uniscono a T sopra il CORE.
+
+**Verifica finale sul sito pubblicato** (tre agenti: interazioni con Playwright, occhio fresco su 140 catture, coerenza del repository), alla domanda dell'utente «sei sicuro che sia tutto ok?»: il drone, i clic con modificatori, «Ferma il drone», le ancore, l'aggancio di hero e striscia, la tastiera, i popover della pagina asset e la console erano a posto; trovati e corretti (PR #236): la classe `.cantiere` forzava `position:relative` e spostava il rimando della striscia mentre il drone lo costruiva; su telefono le cornici CRT erano scatole nere alte 750 px (l'attributo `height` restava in vigore); la striscia dei blocchi non arrivava mai a Ponte e CORE (larghezza a restringimento invece di `max-content`); le finestre di «Ambienti» sforavano la sezione (ora 9 righe); senza script restava una fascia vuota di 320 px sotto la hero (l'altezza dell'aggancio ora la dà solo la classe `js`); le catture si aprono intere al clic; diario, piano, CLAUDE.md e mappa aggiornati.
 
 ## Decisioni prese in autonomia
 
 - **Rendering CSS invece del canvas** — il modello della fabbrica è a griglia come previsto (approccio 1), ma la bozza ha mostrato che i nastri si disegnano bene con lo sfondo di un fotogramma fatto scorrere in CSS (un fotogramma per pixel: scorrere di una cella in 1/velocità secondi *è* la striscia) e gli oggetti con animazioni CSS; funziona anche senza script — costo se sbagliata: con molti più pezzi animati il CSS pesa; si può tornare al canvas tenendo il modello.
-- **Immagini delle scene come file (`fabbrica/`)** invece di data URI — le pagine restano piccole (vetrina 55 KB) e il browser le mette in cache — costo: più richieste HTTP, tutte dello stesso dominio.
+- **Immagini delle scene come file (`fabbrica/`)** invece di data URI — le pagine restano piccole (vetrina 64 KB) e il browser le mette in cache — costo: più richieste HTTP, tutte dello stesso dominio.
 - **Pavimento di 1152 px ridotto in scala** (`zoom`) sotto i 1184 px e contenuti in colonna sotto gli 864 px — è la soluzione più robusta per un pavimento disegnato in pixel — costo: fra 864 e 1184 px il testo si riduce fino al 75 %.
 - **Hero e sfondo**: cattura `gioco.png` ritagliata senza HUD, al posto del banner del README che portava scritte sotto il logo.
 - **Schede dei contenuti accorciate** (fino al primo «;» e alla virgola che ci sta in 110 caratteri) invece del testo intero del README, che non stava nelle schede.
@@ -71,5 +75,5 @@ Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): pezzo a
 - `python -m unittest discover -s tools/sito -p "test_*.py"`: 51 test OK (fabbrica: connettività, curve come il client, ricette, durezza, determinismo; documenti: fonti vere; costruisci: pagine, autonomia, riferimenti, contrasto WCAG, Open Graph, schede).
 - `node --test tools/sito/test_sito.mjs`: 10 OK. `python -m unittest tools/art/test_genera.py`: OK.
 - Catture con Chromium (Playwright) a 1920, 1280, 1024, 768 e 390 px, con script spenti e con `prefers-reduced-motion`: nessuno scorrimento orizzontale, nessun errore di console, hero e striscia agganciate, contenuti leggibili dal primo fotogramma.
-- Sito costruito: 4,8 MB in tutto (catture 1,8 MB, immagini delle scene 1,1 MB), vetrina 60 KB.
-- Pubblicazione: PR [#233](https://github.com/Juan0177/tIndustry/pull/233) unita in `main`, workflow Pages lanciato a mano, sito controllato online.
+- Sito costruito: 4,65 MB in tutto (catture 1,8 MB, immagini delle scene 0,8 MB), vetrina 64 KB (byte dei file).
+- Pubblicazione: PR #233, #235 e #236 unite in `main`, workflow Pages lanciato a mano dopo ciascuna, sito controllato online (pagine identiche byte per byte a quelle costruite da `main`, 82 riferimenti locali e 39 link esterni che rispondono).

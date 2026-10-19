@@ -100,6 +100,7 @@
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
   var doc = document;
+  doc.documentElement.classList.add("js");   // stile.css: layouts that only make sense with the script
   function tutti(selettore, radice) { return Array.prototype.slice.call((radice || doc).querySelectorAll(selettore)); }
 
   // ------------------------------------------------------------------ 1. adatta: zoom of the scenes

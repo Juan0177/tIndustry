@@ -619,15 +619,15 @@ VETRINA = [
         Linea(((17.5, 0), (17.5, 6))),
     ], classe="scena-attacco"),
     # 05 ambienti: titanium -> smelter beside the second line, which takes the plate from the building.
-    Scena("ambienti", 8, "neve", [
-        Tratto(0, 0, 8, "S", T1, ("copper-wire",)),
+    Scena("ambienti", 9, "neve", [
+        Tratto(0, 0, 9, "S", T1, ("copper-wire",)),
         Tratto(13, 0, 4, "S", T2, ("silicon",)), Pezzo(13, 4, "unione_edificio", T2, verso="S"),
-        Tratto(13, 5, 3, "S", T2, ("silicon", "titanium-plate")),
+        Tratto(13, 5, 4, "S", T2, ("silicon", "titanium-plate")),
         Giacimento(15, 0, 2, 3, "titanium-ore", 13), Blocco(15, 0, "miner-advanced", "Al lavoro, con corrente"),
         Pezzo(14, 0, "curva", T1, da="W", a="S"), Pezzo(14, 1, "unione", T1, verso="S", lato="left"),
         Tratto(14, 2, 2, "S", T1, ("titanium-ore",)),
         Blocco(14, 4, "smelter", "Al lavoro"),
-        *_margine(3, 8), Linea(((17.5, 3.5), (15, 5))), Linea(((17.5, 3.5), (16, 1))),
+        *_margine(3, 9), Linea(((17.5, 3.5), (15, 5))), Linea(((17.5, 3.5), (16, 1))),
     ], seme=4),
     # 06 interfaccia: the second line bridges over the palette capture; lamps lit from the margin node.
     Scena("interfaccia", 8, "prati", [

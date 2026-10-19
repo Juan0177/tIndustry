@@ -388,8 +388,9 @@ def _titolo(a, numero, testo, x, y):
 
 def _crt(radice, nome, x, y, w, h, extra="", classe=""):
     didascalia = html.escape(DIDASCALIE[nome])
-    return (f'<figure class="crt {classe}" data-rivela style="{_at(x, y, w, h)}{extra}"><img src="{radice}catture/{nome}" '
-            f'alt="" width="1280" height="720" loading="lazy"><figcaption>{didascalia}</figcaption></figure>')
+    return (f'<figure class="crt {classe}" data-rivela style="{_at(x, y, w, h)}{extra}">'
+            f'<a href="{radice}catture/{nome}" title="Apri la cattura intera"><img src="{radice}catture/{nome}" '
+            f'alt="" width="1280" height="720" loading="lazy"></a><figcaption>{didascalia}</figcaption></figure>')
 
 
 def _grafico_mercato(a, prezzo, nome_oggetto):

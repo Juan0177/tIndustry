@@ -23,7 +23,8 @@
 /* The button under construction (class set by sito.js for 0.5 s): dashed site fence around it and
    hazard stripes filling from the left in eight steps, painted over the background but under the
    label (isolation + negative z-index). .btn.primario.cantiere wins over .btn.primario. */
-.cantiere,.btn.cantiere,.btn.primario.cantiere,.contenuto .cantiere{position:relative;isolation:isolate;overflow:hidden;background:var(--pan);color:var(--testo);
+.btn.cantiere{position:relative}
+.cantiere,.btn.cantiere,.btn.primario.cantiere,.contenuto .cantiere{isolation:isolate;overflow:hidden;background:var(--pan);color:var(--testo);
  border-color:var(--ambra);outline:2px dashed var(--ambra);outline-offset:3px;text-shadow:0 1px 2px var(--bg),0 0 6px var(--bg)}
 .cantiere::after{content:"";position:absolute;left:0;top:0;bottom:0;width:0;z-index:-1;pointer-events:none;
  background:repeating-linear-gradient(135deg,var(--giallo) 0 12px,var(--bg) 12px 24px) left/auto 100%;
