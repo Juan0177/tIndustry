@@ -93,7 +93,10 @@ public sealed class BeltReplaceTests
         var cell = factory.Belts.Cells[Cell];
         var expected = old.Take(cell.Definition.Capacity).ToList();
         Assert.Equal(expected.Select(i => (i.Id, i.ItemId)), cell.Items.Select(i => (i.Id, i.ItemId)));
-        Assert.Equal(expected[0].Progress, cell.Items[0].Progress, 3);
+        for (var i = 0; i < expected.Count; i++)
+        {
+            Assert.Equal(expected[i].Progress, cell.Items[i].Progress, 3);
+        }
     }
 
     [Fact]
@@ -178,31 +181,36 @@ public sealed class BeltReplaceTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void DowngradeRefundsTheExcessAtTheRuleShare(bool instantBuild)
+    [InlineData(true, Express, Basic)]
+    [InlineData(false, Express, Basic)]
+    // Excess of 1 per item at 50%: the floor gives nothing back.
+    [InlineData(true, Express, Fast)]
+    [InlineData(false, Express, Fast)]
+    public void DowngradeRefundsTheExcessAtTheRuleShare(bool instantBuild, string oldId, string newId)
     {
         var (factory, host, refusals) = NewHost(instantBuild, refundPercent: 50);
-        var old = OldBelt(factory, Express);
+        var old = OldBelt(factory, oldId);
         var before = Stock(factory);
 
-        Place(host, Basic);
+        Place(host, newId);
         RunUntil(host, () => Idle(factory));
 
         Assert.Empty(refusals);
-        Assert.Equal(Basic, factory.Belts.Cells[Cell].Definition.Id);
+        Assert.Equal(newId, factory.Belts.Cells[Cell].Definition.Id);
         AssertKeeps(factory, old);
         var after = Stock(factory);
-        var iron = Split(factory, Express, Basic, Iron);
-        var wire = Split(factory, Express, Basic, Wire);
+        var iron = Split(factory, oldId, newId, Iron);
+        var wire = Split(factory, oldId, newId, Wire);
         Assert.Equal(0, iron.Due + wire.Due);
         Assert.True(iron.Excess + wire.Excess > 0);
         Assert.Equal(before.Iron + iron.Excess * 50 / 100, after.Iron);
         Assert.Equal(before.Wire + wire.Excess * 50 / 100, after.Wire);
     }
 
-    [Fact]
-    public void CancellingAReplacementGivesBackTheOldBeltAndOnlyWhatWasPaid()
+    [Theory]
+    [InlineData(0.5f)]
+    [InlineData(0.9f)]
+    public void CancellingAReplacementGivesBackTheOldBeltAndOnlyWhatWasPaid(float cancelAt)
     {
         var (factory, host, refusals) = NewHost(instantBuild: false);
         var old = OldBelt(factory);
@@ -210,7 +218,8 @@ public sealed class BeltReplaceTests
         var before = Stock(factory);
 
         Place(host, Fast);
-        RunUntil(host, () => factory.Sites.Count == 1 && factory.Sites[0].Progress >= 0.5f);
+        RunUntil(host, () => factory.Sites.Count == 1 && factory.Sites[0].Progress >= cancelAt);
+        Assert.True(factory.Sites[0].Progress < 1f);
         Assert.True(Stock(factory).Wire < before.Wire, "the site has paid part of the difference");
         host.Submit(new Remove(Player, Cell));
         RunUntil(host, () => Idle(factory));
@@ -221,6 +230,24 @@ public sealed class BeltReplaceTests
         Assert.Equal(Direction.East, cell.Direction);
         Assert.Equal(old.Select(i => i.Id), cell.Items.Select(i => i.Id));
         Assert.Equal(itemsBefore, factory.Belts.Cells.Values.Sum(c => c.Items.Count));
+        Assert.Equal(before, Stock(factory));
+    }
+
+    [Fact]
+    public void CancellingAReplacementAtProgressZeroPutsTheOldBeltBackAtOnce()
+    {
+        var (factory, _, _) = NewHost(instantBuild: false);
+        var old = OldBelt(factory);
+        var before = Stock(factory);
+        var site = Construction.BeginReplace(factory.State, new BuildSpec(Fast, null, Cell, Direction.East), Player);
+        Assert.Equal(0f, site.Progress);
+
+        Construction.Cancel(factory.State, site);
+
+        Assert.Equal(ConstructStep.Finished, Construction.Advance(factory.State, site, buildSpeed: 1f));
+        Assert.Empty(factory.Sites);
+        Assert.Equal(Basic, factory.Belts.Cells[Cell].Definition.Id);
+        Assert.Equal(old.Select(i => (i.Id, i.Progress)), factory.Belts.Cells[Cell].Items.Select(i => (i.Id, i.Progress)));
         Assert.Equal(before, Stock(factory));
     }
 

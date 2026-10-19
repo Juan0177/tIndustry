@@ -335,6 +335,65 @@ public sealed class ConstructionSaveTests
     }
 
     [Fact]
+    public void CancelledReplacementSiteSurvivesSaveAndLoadWithoutRefundingTheCreditTwice()
+    {
+        var factory = NewFactory(new GameRules());
+        factory.Wallet.AddMaterial("copper-wire", 100);
+        var cell = new GridPosition(24, 21);
+        Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
+        factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, Iron, 1f)]);
+        var before = (factory.Wallet.MaterialCount(Iron), factory.Wallet.MaterialCount("copper-wire"));
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
+        for (var t = 0; t < 600 && (factory.Sites.Count == 0 || factory.Sites[0].Progress < 0.6f); t++)
+        {
+            host.AdvanceTicks(1);
+        }
+
+        host.Submit(new Remove(Player, cell));
+        host.AdvanceTicks(3);
+        var site = Assert.Single(factory.Sites);
+        Assert.True(site.Deconstructing);
+        Assert.InRange(site.Progress, 0.1f, 0.9f);
+
+        var loaded = RoundTrip(host, "v13-sostituzione-annullata");
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+        loaded.AdvanceTicks(600);
+
+        Assert.Empty(loaded.State.Sites);
+        Assert.Equal("conveyor-basic", loaded.State.Belts[cell].Definition.Id);
+        Assert.Equal(77, Assert.Single(loaded.State.Belts[cell].Items).Id);
+        var reread = Snapshot.Read(Content, loaded.CreateSnapshot());
+        Assert.Equal(before, (reread.Wallet.MaterialCount(Iron), reread.Wallet.MaterialCount("copper-wire")));
+    }
+
+    [Fact]
+    public void ReplacementSiteWhoseOldBeltIsNoLongerABeltIsDroppedWithItsItemsToTheCore()
+    {
+        var factory = NewFactory(new GameRules());
+        factory.Wallet.AddMaterial("copper-wire", 100);
+        var cell = new GridPosition(24, 21);
+        Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
+        factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, "coal", 1f)]);
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
+        for (var t = 0; t < 600 && factory.Sites.Count == 0; t++)
+        {
+            host.AdvanceTicks(1);
+        }
+
+        var data = factory.Capture();
+        data.Sites[0].Replaced!.Spec.StructureId = "junction";
+        var coal = factory.Wallet.MaterialCount("coal");
+
+        var restored = Factory.Restore(Content, data);
+
+        Assert.Empty(restored.Sites);
+        Assert.Empty(restored.PlansOf(Player));
+        Assert.Equal(coal + 1, restored.Wallet.MaterialCount("coal"));
+    }
+
+    [Fact]
     public void Version12SaveStillLoads()
     {
         var host = new SimHost(NewFactory(new GameRules()));

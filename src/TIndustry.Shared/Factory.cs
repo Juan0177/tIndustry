@@ -290,12 +290,33 @@ public sealed class Factory : IGameView
         }
     }
 
-    /// <summary>Puts the belt of a cancelled replacement back, free, with all its items.</summary>
+    /// <summary>
+    /// Puts the belt of a cancelled replacement back, free, with all its items. The site kept the cell and a loaded
+    /// <see cref="ReplacedBelt.Spec"/> is checked (<see cref="IsReplaceableBelt"/>), so this always succeeds; should it
+    /// not, the items go to the Core rather than vanish.
+    /// </summary>
     internal void RestoreReplacedBelt(ReplacedBelt old)
     {
         if (PlaceInstant(old.Spec, charge: false))
         {
             Belts.Cells[old.Spec.Origin].RestoreState(0, old.Items);
+        }
+        else
+        {
+            ItemsToCore(old.Items);
+        }
+    }
+
+    /// <summary>A replaced belt's spec a site on <paramref name="origin"/> can put back: a known plain belt on that cell.</summary>
+    private bool IsReplaceableBelt(BuildSpec old, GridPosition origin) =>
+        old.Kind is null && old.Origin == origin && Content.FindConveyor(old.StructureId)?.Kind == LogisticsKind.Belt;
+
+    /// <summary>Adds each item to the Core's stock (no sale, not counted as delivered).</summary>
+    private void ItemsToCore(IEnumerable<TransportedItem> items)
+    {
+        foreach (var item in items)
+        {
+            Wallet.AddMaterial(item.ItemId, 1);
         }
     }
 
@@ -331,24 +352,31 @@ public sealed class Factory : IGameView
             }
         }
 
+        // Paid first: a failed charge changes nothing, so an upgrade is never free.
         if (ShortfallOf(money, materials, spec.StructureId) is { } shortfall)
         {
             return shortfall;
         }
 
+        if (!TryCharge(money, materials))
+        {
+            return new Refusal(RefusalCode.InsufficientResources, spec.StructureId);
+        }
+
         if (!TryTakeBeltForReplacement(spec.Origin, out var old))
         {
+            Refund(money, materials);
             return RefusalCode.Occupied;
         }
 
         if (!PlaceInstant(spec, charge: false))
         {
-            // Cannot happen: the cell was just freed. Put the old belt back unchanged.
+            // Cannot happen: the cell was just freed. Put the old belt back and the payment too.
             RestoreReplacedBelt(old);
+            Refund(money, materials);
             return RefusalCode.Occupied;
         }
 
-        TryCharge(money, materials);
         SettleReplacement(spec, old);
         return null;
     }
@@ -1276,8 +1304,19 @@ public sealed class Factory : IGameView
             && !d.Deconstructing
             && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
             && MinerTooWeak(spec.Origin, spec.StructureId);
-        if (tiles is null || tiles.Any(TerrainBlocks) || tooWeak)
+        // A replacement site must be able to put its belt back (content may have dropped or changed that conveyor).
+        var replaced = d.Replaced is { } r
+            ? new ReplacedBelt(RestoreSpec(r.Spec), r.Items.Select(RestoreItem).ToList())
+            : null;
+        var badReplaced = replaced is not null && !IsReplaceableBelt(replaced.Spec, spec.Origin);
+        if (tiles is null || tiles.Any(TerrainBlocks) || tooWeak || badReplaced)
         {
+            // The belt a dropped replacement site held is gone: its items go to the Core.
+            if (replaced is not null)
+            {
+                ItemsToCore(replaced.Items);
+            }
+
             foreach (var (itemId, amount) in spent)
             {
                 var back = (int)((long)Math.Max(0, amount) * refundBasisPoints / Construction.FullRefundBasisPoints)
@@ -1307,9 +1346,7 @@ public sealed class Factory : IGameView
             Deconstructing = d.Deconstructing,
             RefundBasisPoints = refundBasisPoints,
             StalledTicks = Math.Clamp(d.StalledTicks, 0, Construction.StuckTicks),
-            Replaced = d.Replaced is { } old
-                ? new ReplacedBelt(RestoreSpec(old.Spec), old.Items.Select(RestoreItem).ToList())
-                : null
+            Replaced = replaced
         };
         for (var i = 0; i < site.Cost.Count; i++)
         {
