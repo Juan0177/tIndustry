@@ -89,6 +89,17 @@ Script (`sito.js`): `adatta()` (zoom delle scene: `min(1, larghezza/1152)`), `sc
 
 `godot/assets/` (sprite), `tools/art` (registro, carattere, tavola dei biomi), `tools/sito/composti.py`, `data/content.json` (ricette, velocità dei nastri), `README.md`, `docs/diario/`, `docs/decisioni/`, `docs/img/readme/` (catture), i tag git.
 
+## Scostamenti decisi durante il lavoro
+
+- **Rendering CSS, non canvas**: il modello a celle è quello previsto, ma le scene sono HTML: i nastri sono le strisce vere del gioco come GIF (binari fermi, battistrada che scorre), gli oggetti sprite animati in CSS, i ponti la GIF composta da `composti` (frecce in sequenza). Funziona anche senza script; il canvas resta una strada se i pezzi animati diventeranno molti di più.
+- **Sdoppiatore** come nel gioco: scarica solo ai lati, mai dritto; la catena del carbone di «Come funziona» entra dall'alto e si divide fra forno e generatore con le curve.
+- **Pezzo a T non mostrato**: nessuna catena della vetrina ha due ingressi laterali; restano le unioni laterali («blocco col punto») accanto ai minatori e l'unione con l'edificio in «Ambienti».
+- **Titanio col Minatore T2** (durezza 2), con la sua linea elettrica; il forno di «Catture» è alimentato dal nodo del margine.
+- **Immagini delle scene a 1×** scalate dalla pagina con `image-rendering: pixelated`; catture ricompresse senza perdita.
+- **Striscia dei blocchi** agganciata dentro la sua sezione (sticky), con i numeri del gioco sopra; la hero è agganciata con un `.pin` alto `100vh + 320px`.
+- **Telefono**: la hero mostra il pavimento ridotto e il testo in colonna; niente drone sotto gli 864 px; avvisi di «Sotto attacco» statici, due soli.
+- Le linee di corrente sono decorazione: nodi più lontani di quanto il gioco ammetta e un Core T3 che in partita non c'è ancora (gli sprite sì).
+
 ## Verifica
 
 - Test di cui sopra, tutti in `python -m unittest discover -s tools/sito -p "test_*.py"` (il workflow Pages li esegue).

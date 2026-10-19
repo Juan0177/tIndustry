@@ -3,7 +3,7 @@
 - **Specifica**: [2026-10-19-sito-fabbrica-design](../superpowers/specs/2026-10-19-sito-fabbrica-design.md)
 - **Piano**: [2026-10-19-sito-fabbrica](../superpowers/plans/2026-10-19-sito-fabbrica.md)
 - **Periodo**: 2026-10-19
-- **Esito**: in `main` con la PR [#PR](https://github.com/Juan0177/tIndustry/pull/PR), pubblicato su [juan0177.github.io/tIndustry](https://juan0177.github.io/tIndustry/) col workflow Pages lanciato a mano.
+- **Esito**: in `main` con la PR [#233](https://github.com/Juan0177/tIndustry/pull/233), pubblicato su [juan0177.github.io/tIndustry](https://juan0177.github.io/tIndustry/) col workflow Pages lanciato a mano.
 
 > Scritto a fine lavoro dalla sessione che ha fatto tutto (brainstorming, specifica, piano, implementazione, revisione), dai risultati dei due workflow di agenti (moduli in parallelo e revisione a più lenti) e dalla storia git. Dove le fonti non dicono qualcosa qui non è inventato.
 
@@ -31,12 +31,23 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 2 | `documenti.py` e `test_documenti.py` (agente) | `1de20f9` |
 | 3 | `sito.js`, `drone.css`, `test_sito.mjs` (agente), adattamento dello zoom | `1de20f9` |
 | 4 | Guscio, `stile.css`, vetrina, sviluppo, asset, `test_costruisci.py`, `pages.yml` | `1de20f9`, `941992e` |
-| 5 | Revisione a più lenti e correzioni | REVISIONE |
-| 6 | Documenti e diario | `695a8ab`, DIARIO |
+| 5 | Revisione a più lenti e correzioni | `9c928fe` (e `543e295` per un test) |
+| 6 | Documenti e diario | `695a8ab`, `1433daf`, il commit di chiusura del diario |
 
 ## Giri di revisione
 
-REVISIONE_DETTAGLIO
+Workflow `sito-fabbrica-revisione`: otto revisori in parallelo (visiva desktop, visiva telefono/senza script/movimento ridotto, fedeltà al gioco, codice Python e test, codice JS/CSS, testi per il pubblico, completezza rispetto alla specifica, peso e pubblicazione), **112 segnalazioni**. La verifica avversaria prevista (due giudici per segnalazione) è stata fermata dopo le prime 15 (tutte confermate) per contenere il consumo: la cernita e le correzioni le ha fatte la sessione a mano, in un commit solo (`9c928fe`).
+
+Segnalazioni di peso, tutte applicate:
+
+- **Fedeltà**: sdoppiatore con un'uscita dritta che il gioco non ha (ridisegnata la catena del carbone: minatore sopra, uscite ai lati con le curve), selezionatore e sdoppiatore non ruotati, Minatore T1 sul titanio (durezza 2: serve il T2, con la linea), forno di «Catture» senza carbone né corrente, nastri accanto ai minatori senza il «blocco col punto», binari dei nastri che scorrevano col battistrada (ora le strisce vere a 32 fotogrammi), ponti senza le frecce, oggetti che sparivano su incrocio e selezionatore, giacimenti interamente coperti dai minatori, curva dopo l'assemblatore specchiata (trovata dal controllo di connettività già in bozza).
+- **Scorrimento**: hero e striscia dei blocchi non si agganciavano mai (`overflow:hidden` della sezione faceva da scrollport allo sticky; il `.pin` non aveva corsa), hero non a tutto schermo fra 864 e 1151 px (lo zoom riduceva anche il `100vh`), ancore sotto la barra.
+- **Telefono e accessibilità**: tabella della roadmap illeggibile, hero senza pavimento, avvisi di «Sotto attacco» tutti nascosti (`nth-of-type` contava anche gli altri div), drone sopra i testi, cornici tagliate, scatto di layout prima dello script, bottone grande senza anello di fuoco, oggetti ammucchiati con movimento ridotto.
+- **Pagina asset**: la sezione «Droni» aveva l'id `drone` del drone della vetrina e volava per lo schermo; GIF dell'express con ritardi di 10 ms.
+- **Testi**: «Sotto attacco» prometteva unità «in arrivo» contro il README («fuori dal progetto per ora»: ora «previste per una versione futura»), CORE e Core mescolati, `30 $` contro il `$30` del gioco, requisiti coi nomi dei file zip, didascalie troppo lunghe, lessico da sviluppatore nel piè di pagina, meta description povera.
+- **Peso e pubblicazione**: immagini delle scene scritte a 2× (ora a 1×, scalate dalla pagina), PNG e catture non ottimizzati, `og:url` uguale per le tre pagine, niente canonical, `node --test` assente dal workflow, mappa Obsidian ritoccata a mano invece che col suo generatore.
+
+Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): pezzo a T mai mostrato, rete elettrica più lunga di quanto il gioco ammetta, Core T3 che in partita non c'è ancora, lettori del README senza test di robustezza, nome di un assistente AI nella pagina sviluppo (viene dal diario «Agenti che giocano»), pagina asset in un solo HTML da 2 MB (com'era).
 
 ## Decisioni prese in autonomia
 
@@ -57,4 +68,8 @@ REVISIONE_DETTAGLIO
 
 ## Verifiche finali
 
-VERIFICHE
+- `python -m unittest discover -s tools/sito -p "test_*.py"`: 51 test OK (fabbrica: connettività, curve come il client, ricette, durezza, determinismo; documenti: fonti vere; costruisci: pagine, autonomia, riferimenti, contrasto WCAG, Open Graph, schede).
+- `node --test tools/sito/test_sito.mjs`: 10 OK. `python -m unittest tools/art/test_genera.py`: OK.
+- Catture con Chromium (Playwright) a 1920, 1280, 1024, 768 e 390 px, con script spenti e con `prefers-reduced-motion`: nessuno scorrimento orizzontale, nessun errore di console, hero e striscia agganciate, contenuti leggibili dal primo fotogramma.
+- Sito costruito: 4,8 MB in tutto (catture 1,8 MB, immagini delle scene 1,1 MB), vetrina 60 KB.
+- Pubblicazione: PR [#233](https://github.com/Juan0177/tIndustry/pull/233) unita in `main`, workflow Pages lanciato a mano, sito controllato online.
