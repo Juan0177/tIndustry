@@ -367,6 +367,7 @@ public partial class World
             }
 
             PlaytestRestoreWallet(factory, money, materials);
+            SyncResearchLocks();
             (_tool, _placeDir) = (tool, dir);
             _hud?.SetDirectionLabel(_placeDir);
             ClearToCursor(toast: false);
@@ -614,6 +615,179 @@ public partial class World
 
         await shot("nastri-ponte");
         GD.Print("PLAYTEST step ok: nastri-ponte, la linea scavalca il forno col ponte");
+        ClearLinePatch(factory);
+        return await PlaytestPickAndWheelAsync(shot, factory);
+    }
+
+    /// <summary>
+    /// <c>nastri-prendi</c>: a middle click on a fast belt facing North takes it in hand (tool, brush), a locked one only
+    /// toasts, a middle drag pans and keeps the tool. <c>rotellina-ruota</c>: the wheel turns every orientable tool like R
+    /// (up clockwise, down back) without zooming, also during a drag; with Ctrl, the cursor or a block without a way it zooms.
+    /// </summary>
+    private async Task<bool> PlaytestPickAndWheelAsync(Func<string, Task> shot, Factory factory)
+    {
+        if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam)
+        {
+            return Fail("nastri-prendi: camera assente");
+        }
+
+        var view = _view!;
+
+        // smontaggio-interrotto (review focus 1): Esc, a panel, focus lost or a release outside the window drop the removal
+        // rectangle like the left line: nothing is sent and no rectangle stays drawn.
+        var outside = new Vector2(-40, -40);
+        (string Name, Func<Task> During, Vector2 Release, Func<Task> After)[] interruptions =
+        [
+            ("Esc", () => PlaytestKey(Key.Escape), LineScreen(6, 4), () => Task.CompletedTask),
+            ("T", () => PlaytestKey(Key.T), LineScreen(6, 4), () => PlaytestKey(Key.T)),
+            ("fuoco perso", () =>
+            {
+                GetTree().Notification((int)MainLoop.NotificationApplicationFocusOut);
+                return Task.CompletedTask;
+            }, LineScreen(6, 4), () => Task.CompletedTask),
+            ("rilascio fuori dalla finestra", () =>
+            {
+                PlaytestMove(outside, MouseButtonMask.Right);
+                return Task.CompletedTask;
+            }, outside, () => Task.CompletedTask)
+        ];
+        foreach (var (name, during, release, after) in interruptions)
+        {
+            for (var x = 1; x <= 6; x++)
+            {
+                factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, LineCell(x, 4), Direction.East), charge: false);
+            }
+
+            _visualDirty = true;
+            _tool = BuildTool.Belt; // a panel puts the cursor back in hand
+            await PlaytestWait(0.1);
+            await PlaytestPress(LineScreen(1, 4), MouseButton.Right);
+            await PlaytestMoveHeld(LineScreen(1, 4), LineScreen(6, 4), mask: MouseButtonMask.Right);
+            var drawn = _draggingRemove && _removeMoved;
+            await during();
+            var dropped = !_draggingRemove || release == outside;
+            await PlaytestRelease(release, MouseButton.Right);
+            await after();
+            await SettleLine();
+            if (!drawn || !dropped || _draggingRemove || _removeMoved
+                || Enumerable.Range(1, 6).Any(x => !view.Belts.ContainsKey(LineCell(x, 4))))
+            {
+                return Fail($"smontaggio-interrotto ({name}): rettangolo {(drawn ? "disegnato" : "mai disegnato")}, "
+                    + $"{(dropped ? "annullato" : "ancora attivo")}, nastri {Enumerable.Range(1, 6).Count(x => view.Belts.ContainsKey(LineCell(x, 4)))}/6");
+            }
+        }
+
+        if (_research?.IsOpen == true)
+        {
+            return Fail("smontaggio-interrotto: la Ricerca è rimasta aperta");
+        }
+
+        ClearLinePatch(factory);
+        GD.Print("PLAYTEST step ok: smontaggio-interrotto, Esc, T, fuoco perso e rilascio fuori dalla finestra non smontano nulla");
+
+        if (!factory.PlaceInstant(new BuildSpec("conveyor-fast", null, LineCell(2, 2), Direction.North), charge: false))
+        {
+            return Fail($"nastri-prendi: nastro veloce non piazzato in {LineCell(2, 2)}");
+        }
+
+        _visualDirty = true;
+        SyncResearchLocks(); // the palette learns the probe's unlocks (ForceUnlock tells no one)
+        (_tool, _placeDir) = (BuildTool.Belt, Direction.East);
+        await PlaytestWait(0.1);
+        await PlaytestPress(LineScreen(2, 2), MouseButton.Middle);
+        await PlaytestRelease(LineScreen(2, 2), MouseButton.Middle);
+        if (_tool != BuildTool.BeltFast || _placeDir != Direction.North)
+        {
+            return Fail($"nastri-prendi: strumento {_tool}, pennello {_placeDir} invece di Nastro T2 verso Nord");
+        }
+
+        await shot("nastri-prendi");
+
+        // Locked: a toast and the tool stays.
+        factory.Research.ForceLock("conveyor-fast");
+        SyncResearchLocks();
+        _tool = BuildTool.Belt;
+        var toasts = _hud?.ToastsShown ?? 0;
+        await PlaytestPress(LineScreen(2, 2), MouseButton.Middle);
+        await PlaytestRelease(LineScreen(2, 2), MouseButton.Middle);
+        factory.Research.ForceUnlock("conveyor-fast");
+        SyncResearchLocks();
+        if (_tool != BuildTool.Belt || _hud?.ToastsShown != toasts + 1)
+        {
+            return Fail($"nastri-prendi bloccato: strumento {_tool}, {(_hud?.ToastsShown ?? 0) - toasts} toast");
+        }
+
+        // A middle drag pans the view and picks nothing.
+        var position = cam.Position;
+        await PlaytestDrag(MouseButton.Middle, LineScreen(2, 2), LineScreen(7, 6));
+        if (_tool != BuildTool.Belt || cam.Position.IsEqualApprox(position))
+        {
+            return Fail($"nastri-prendi trascinato: strumento {_tool}, vista {(cam.Position.IsEqualApprox(position) ? "ferma" : "spostata")}");
+        }
+
+        cam.Position = position;
+        await PlaytestWait(0.1);
+        GD.Print("PLAYTEST step ok: nastri-prendi, il centrale prende il nastro (tipo e direzione), trascinato sposta la vista");
+
+        var at = LineScreen(4, 4);
+        var zoom = cam.Zoom;
+        foreach (var tool in new[] { BuildTool.Belt, BuildTool.Splitter, BuildTool.Sorter, BuildTool.Bridge, BuildTool.Extractor, BuildTool.Assembler })
+        {
+            (_tool, _placeDir) = (tool, Direction.East);
+            await PlaytestWheel(at, MouseButton.WheelUp);
+            var up = _placeDir;
+            await PlaytestWheel(at, MouseButton.WheelDown);
+            if (up != Direction.South || _placeDir != Direction.East || cam.Zoom != zoom)
+            {
+                return Fail($"rotellina-ruota {tool}: su {up}, giù {_placeDir}, zoom {zoom.X} -> {cam.Zoom.X}");
+            }
+        }
+
+        // A touchpad's fractions of a notch: four quarter steps turn the block once, not four times.
+        (_tool, _placeDir) = (BuildTool.Belt, Direction.East);
+        var turns = new List<Direction>();
+        for (var i = 0; i < 4; i++)
+        {
+            await PlaytestWheel(at, MouseButton.WheelUp, factor: 0.25f);
+            turns.Add(_placeDir);
+        }
+
+        if (!turns.SequenceEqual([Direction.East, Direction.East, Direction.East, Direction.South]) || cam.Zoom != zoom)
+        {
+            return Fail($"rotellina-ruota touchpad: quarti di scatto [{string.Join(" ", turns)}], zoom {cam.Zoom.X}");
+        }
+
+        (string Name, BuildTool Tool, bool Ctrl)[] zooms =
+            [("Minatore", BuildTool.Miner, false), ("Lampada", BuildTool.Lamp, false), ("Ctrl", BuildTool.Belt, true), ("cursore", BuildTool.Cursor, false)];
+        foreach (var (name, tool, ctrl) in zooms)
+        {
+            (_tool, _placeDir) = (tool, Direction.East);
+            await PlaytestWheel(at, MouseButton.WheelUp, ctrl);
+            if (_placeDir != Direction.East || cam.Zoom == zoom)
+            {
+                return Fail($"rotellina-ruota {name}: pennello {_placeDir}, zoom {zoom.X} -> {cam.Zoom.X} (deve zoomare)");
+            }
+
+            cam.Zoom = zoom;
+        }
+
+        // During a drag the wheel fixes the way, like R.
+        (_tool, _placeDir) = (BuildTool.Belt, Direction.East);
+        await PlaytestWait(0.1);
+        _lineSent.Clear();
+        await PlaytestPress(LineScreen(1, 4));
+        await PlaytestMoveHeld(LineScreen(1, 4), LineScreen(6, 4));
+        await PlaytestWheel(LineScreen(6, 4), MouseButton.WheelUp);
+        await PlaytestWait(0.2);
+        await shot("rotellina-ruota");
+        await PlaytestRelease(LineScreen(6, 4));
+        await SettleLine();
+        if (Enumerable.Range(1, 6).Any(x => !LineBeltAt(x, 4, Direction.South)) || cam.Zoom != zoom)
+        {
+            return Fail($"rotellina-ruota nel trascinamento: nastri non tutti verso Sud ({_lineSent.Count} comandi), zoom {cam.Zoom.X}");
+        }
+
+        GD.Print("PLAYTEST step ok: rotellina-ruota, gira ogni blocco orientabile; Ctrl, cursore, minatore e lampada zoomano");
         return true;
     }
 }

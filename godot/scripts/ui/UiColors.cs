@@ -146,6 +146,9 @@ public static class UiColors
     /// <summary>Taking apart: marks (hatched), sites, the drone's beam.</summary>
     public static Color Smontaggio { get; private set; }
 
+    /// <summary>Fill of the right drag's removal rectangle (its outline is <see cref="Smontaggio"/>).</summary>
+    public static Color SmontaggioArea { get; private set; }
+
     /// <summary>Outline (and arrow) of a block preview that can be placed: ghost and plans.</summary>
     public static Color FantasmaValido { get; private set; }
 
@@ -208,6 +211,7 @@ public static class UiColors
 
         Costruzione = Accento;
         Smontaggio = new("E55454");
+        SmontaggioArea = Smontaggio with { A = 0.14f };
         FantasmaValido = Accento;
         FantasmaNonValido = Insufficiente;
         PonteEstremi = new(0.7f, 0.85f, 1f, 0.55f);
@@ -232,6 +236,7 @@ public static class UiColors
         Core = new("E0E0E0");
 
         Smontaggio = new("CC79A7");
+        SmontaggioArea = Smontaggio with { A = 0.16f };
         FantasmaValido = new("56B4E9");
         FantasmaNonValido = Insufficiente;
         PonteEstremi = FantasmaValido with { A = 0.55f };
@@ -277,6 +282,7 @@ public static class UiColors
         FantasmaNonValido = new("FF0050");
         Costruzione = FantasmaValido;
         Smontaggio = FantasmaNonValido;
+        SmontaggioArea = Smontaggio with { A = 0.22f };
         SottoSegno = new("000000");
         PonteEstremi = new(0.75f, 0.9f, 1f, 0.75f);
         PonteCampata = new(0.6f, 0.78f, 1f, 0.45f);

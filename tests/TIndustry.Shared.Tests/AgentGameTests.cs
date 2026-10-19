@@ -273,6 +273,45 @@ public sealed class AgentGameTests
         Assert.Equal(client.Checksum(), agent.Checksum());
     }
 
+    /// <summary><c>smonta {da, a}</c> sends exactly the right drag's <see cref="RemovalArea.Commands"/>.</summary>
+    [Fact]
+    public void SmontaAreaMarksLikeTheRectangle()
+    {
+        SimHost WithBelts()
+        {
+            var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: false));
+            for (var x = 40; x <= 44; x++)
+            {
+                Assert.True(factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(x, 40), Direction.East), charge: false));
+            }
+
+            return new SimHost(factory);
+        }
+
+        var agent = WithBelts();
+        var client = WithBelts();
+        var sent = new List<SimCommand>();
+        agent.CommandApplied += c => sent.Add(c with { Tick = 0 });
+        agent.CommandRejected += (c, _) => sent.Add(c with { Tick = 0 });
+
+        using var game = new AgentGame(agent, Content);
+        var answer = Call(game, "smonta", """{"da":{"x":42,"y":41},"a":{"x":39,"y":38}}""");
+
+        var area = RemovalArea.Commands(client.State, 0, new GridPosition(42, 41), new GridPosition(39, 38));
+        foreach (var command in area)
+        {
+            client.Submit(command);
+        }
+
+        client.AdvanceTicks(1);
+        Assert.Equal(area, sent);
+        Assert.Equal(3, answer.GetProperty("celle").GetArrayLength());
+        Assert.Equal(3, agent.State.PlansOf(0).Count(p => p.Breaking));
+        Assert.Equal(client.Checksum(), agent.Checksum());
+        Assert.Equal(AgentCodes.ParametriNonValidi,
+            Refused(game, "smonta", """{"da":{"x":0,"y":0},"a":{"x":64,"y":10}}""").Code);
+    }
+
     [Fact]
     public void AreaIsCompactAndBounded()
     {

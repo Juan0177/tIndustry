@@ -17,7 +17,7 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class AgentGame : IDisposable
 {
-    public const int MaxAreaEdge = 64;
+    public const int MaxAreaEdge = RemovalArea.MaxEdge;
     public const int MaxListItems = 200;
     public const int MaxBufferedEvents = 500;
     public const int MaxAdvanceTicks = 60 * SimulationClock.TickRate * 10;
@@ -325,7 +325,7 @@ public sealed class AgentGame : IDisposable
         "eventi" => Eventi(),
         "catalogo" => Catalogo(),
         "piazza" => Piazza(p),
-        "smonta" => Single(new Remove(PlayerId, MapCell(p, "cella"))),
+        "smonta" => Has(p, "cella") ? Single(new Remove(PlayerId, MapCell(p, "cella"))) : SmontaArea(p),
         "ruota" => Ruota(),
         "sblocca" => Single(new UnlockStructure(PlayerId, Str(p, "struttura"))),
         "vendi" => Command(
@@ -981,6 +981,53 @@ public sealed class AgentGame : IDisposable
             }
 
             return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = placed, ["rifiuti"] = refused };
+        });
+    }
+
+    /// <summary>
+    /// <c>smonta {da, a}</c>: the player's removal rectangle (<see cref="RemovalArea"/>), one marking remove per block,
+    /// site or plan in it. Answers the cells sent and accepted, and the refused ones with their code.
+    /// </summary>
+    private JsonObject SmontaArea(JsonElement p)
+    {
+        var from = MapCell(p, "da");
+        var to = MapCell(p, "a");
+        // The player's rectangle stops at MaxEdge: an agent is told rather than given a smaller one.
+        if (Math.Abs((long)to.X - from.X) + 1 > RemovalArea.MaxEdge || Math.Abs((long)to.Y - from.Y) + 1 > RemovalArea.MaxEdge)
+        {
+            throw Bad($"Rettangolo al massimo {RemovalArea.MaxEdge}×{RemovalArea.MaxEdge} celle.");
+        }
+
+        var commands = RemovalArea.Commands(View, PlayerId, from, to);
+        if (commands.Count == 0)
+        {
+            return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = new JsonArray() };
+        }
+
+        return Command(commands, outcomes =>
+        {
+            var removed = new JsonArray();
+            var refused = new JsonArray();
+            foreach (var outcome in outcomes)
+            {
+                var cell = CellJson(((Remove)outcome.Command).Tile);
+                if (outcome.Refusal is { } refusal)
+                {
+                    cell["codice"] = refusal.Code.ToString();
+                    refused.Add(cell);
+                }
+                else
+                {
+                    removed.Add(cell);
+                }
+            }
+
+            if (removed.Count == 0)
+            {
+                throw Refused(outcomes[0].Refusal!, outcomes[0].Command);
+            }
+
+            return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = removed, ["rifiuti"] = refused };
         });
     }
 

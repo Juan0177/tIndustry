@@ -2,7 +2,7 @@ using Godot;
 
 namespace TIndustry.Godot;
 
-/// <summary>WASD / middle-drag (or left-drag in cursor mode) pan + wheel zoom; clamps to map AABB (Raylib ClampToMap).</summary>
+/// <summary>WASD / middle-drag (or left-drag in cursor mode) pan + wheel zoom (with Ctrl, or no block in hand to turn); middle click picks a block; clamps to map AABB (Raylib ClampToMap).</summary>
 public partial class WorldCamera : Camera2D
 {
     [Export] public float PanSpeed { get; set; } = 420f;
@@ -27,8 +27,20 @@ public partial class WorldCamera : Camera2D
 
     private Vector2 _driftDir = new Vector2(1f, 0.55f).Normalized();
 
+    /// <summary>
+    /// Asked on every wheel step without Ctrl: false lets the step through to the world (it turns the block in hand).
+    /// With Ctrl the wheel always zooms.
+    /// </summary>
+    public Func<bool> WheelZooms { get; set; } = () => true;
+
+    /// <summary>The middle button went up less than <see cref="ClickSlop"/> px from where it went down (screen position).</summary>
+    public event Action<Vector2>? MiddleClicked;
+
+    private const float ClickSlop = 4f;
+
     private bool _dragging;
     private Vector2 _dragLast;
+    private Vector2? _middleDown;
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -46,7 +58,23 @@ public partial class WorldCamera : Camera2D
             {
                 _dragging = mouseButton.Pressed;
                 _dragLast = mouseButton.Position;
+                if (mouseButton.ButtonIndex == MouseButton.Middle)
+                {
+                    // A middle click picks the block under the cursor; a middle drag only pans.
+                    if (!mouseButton.Pressed && _middleDown is { } down && down.DistanceTo(mouseButton.Position) < ClickSlop)
+                    {
+                        MiddleClicked?.Invoke(mouseButton.Position);
+                    }
+
+                    _middleDown = mouseButton.Pressed ? mouseButton.Position : null;
+                }
+
                 GetViewport().SetInputAsHandled();
+            }
+            else if (mouseButton.ButtonIndex is (MouseButton.WheelUp or MouseButton.WheelDown)
+                && !mouseButton.CtrlPressed && !WheelZooms())
+            {
+                // Left unhandled: the world turns the block in hand.
             }
             else if (mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.WheelUp)
             {

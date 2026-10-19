@@ -305,8 +305,7 @@ public static class PlacementLine
     }
 
     /// <summary>
-    /// Cells from <paramref name="anchor"/> towards <paramref name="cursor"/> along the dominant axis (ties go to x, as
-    /// in <see cref="DragLine"/>), on the anchor's row or column, at most <see cref="MaxCells"/> of them.
+    /// Cells from <paramref name="anchor"/> towards <paramref name="cursor"/> along the dominant axis (ties go to x), on the anchor's row or column, at most <see cref="MaxCells"/> of them.
     /// </summary>
     public static IReadOnlyList<GridPosition> Straight(GridPosition anchor, GridPosition cursor)
     {

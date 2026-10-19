@@ -41,6 +41,25 @@ public partial class World
         {
             DrawGhost(canvas, hover);
         }
+
+        if (_view is not null && _draggingRemove && _removeMoved && _hover is { } cursor)
+        {
+            DrawRemovalRectangle(canvas, cursor);
+        }
+    }
+
+    /// <summary>The right drag's removal rectangle (<see cref="RemovalArea.Rect"/>): a faint fill and a red outline.</summary>
+    private void DrawRemovalRectangle(CanvasItem canvas, GridPosition cursor)
+    {
+        var (min, max) = RemovalArea.Rect(_removeStart, cursor);
+        var rect = new Rect2(min.X * TileSize, min.Y * TileSize, (max.X - min.X + 1) * TileSize, (max.Y - min.Y + 1) * TileSize);
+        canvas.DrawRect(rect, UiColors.SmontaggioArea);
+        if (UiColors.SottoSegno.A > 0f)
+        {
+            canvas.DrawRect(rect, UiColors.SottoSegno, filled: false, width: 6f);
+        }
+
+        canvas.DrawRect(rect, UiColors.Smontaggio, filled: false, width: 3f);
     }
 
     public override void _Draw()

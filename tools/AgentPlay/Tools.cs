@@ -169,9 +169,13 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "piazza", new { tipo, tier, cella, da, a, direzione, diagonale, ricetta, filtro }, dettaglio);
 
     [McpServerTool(Name = "smonta")]
-    [Description("Smonta la struttura in una cella (rimborso secondo le regole).")]
-    public string Smonta([Description(Sessione)] string sessione, [Description("Cella da smontare.")] Cella cella) =>
-        Game(sessione, "smonta", new { cella });
+    [Description("Smonta come il tasto destro (rimborso secondo le regole). 'cella' è il clic: segna, o toglie il segno a un blocco già segnato, cancella un piano o annulla un cantiere. 'da' e 'a' sono il rettangolo del destro trascinato (RemovalArea, al massimo 64×64 celle): segna ogni blocco, cancella ogni piano e annulla ogni cantiere che lo tocca, senza mai togliere un segno; risponde le celle mandate (la prima di ogni blocco) e i rifiuti (codice).")]
+    public string Smonta(
+        [Description(Sessione)] string sessione,
+        [Description("Cella da smontare (un clic).")] Cella? cella = null,
+        [Description("Angolo del rettangolo dove si preme il destro.")] Cella? da = null,
+        [Description("Angolo opposto, dove si rilascia.")] Cella? a = null) =>
+        Game(sessione, "smonta", new { cella, da, a });
 
     [McpServerTool(Name = "ruota")]
     [Description("Gira in senso orario la direzione dei prossimi piazzamenti, come il tasto R (nel gioco vero è proprio la direzione del giocatore).")]

@@ -245,7 +245,7 @@ public partial class World
         }
         else if (what == NotificationApplicationFocusOut)
         {
-            CancelLine(); // the release would never arrive: the drag sends nothing
+            CancelDrags(); // the release would never arrive: the drags send nothing
         }
     }
 
