@@ -183,6 +183,9 @@ class TestSito(unittest.TestCase):
         self.assertIn("html.statico .striscia-blocchi{position:static;transform:none;display:flex}", stile)
         self.assertIn("html.statico .barra .animazioni .icona{", stile)   # the play icon
         self.assertIn(".barra .animazioni[hidden]{display:none}", stile)   # no button without the script
+        # The capture inside its link fills the frame: without height:100% the height="720" attribute wins
+        # and the frame shows a full-size corner of the capture.
+        self.assertIn(".crt>img,.crt>a>img{flex:1;min-height:0;width:100%;height:100%;", stile)
 
     def test_schede_brevi(self):
         # README cells become one clause each: plain text, no entity cut in half, whole words at the end.

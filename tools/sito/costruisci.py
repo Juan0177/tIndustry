@@ -490,7 +490,7 @@ def _contenuto(a, sid, radice, versione):
                 + _crt(radice, "gioco.png", 29, 205, 397, 230, ";z-index:2", classe="sotto-ponte")
                 + _crt(radice, "ricerca.png", 448, 64, 320, 218)
                 + _crt(radice, "tutorial.png", 64, 461, 352, 166)
-                + _crt(radice, "interfaccia-en.png", 448, 307, 230, 166))
+                + _crt(radice, "interfaccia-en.png", 448, 307, 280, 186))
     if sid == "blocchi":
         blocchi = (("miner", "Al lavoro", "Minatore T1"), ("miner-advanced", "Al lavoro, con corrente", "Minatore T2"),
                    ("smelter", "Al lavoro", "Forno"), ("assembler", "Ciclo di lavoro", "Assemblatore"),
