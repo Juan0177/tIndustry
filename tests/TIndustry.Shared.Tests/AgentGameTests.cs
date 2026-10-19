@@ -221,36 +221,55 @@ public sealed class AgentGameTests
         Assert.False(host.State.Belts.ContainsKey(wall));
     }
 
-    [Fact]
-    public void ClientAndAgentSendTheSameCommands()
+    /// <summary>
+    /// The agent's <c>piazza {da, a}</c> asks PlacementLine for the line the client's drag asks for (the client's own
+    /// request, <c>World.LineTo</c>: brush, no fixed direction, straight). The client side with real mouse events is the
+    /// <c>ui</c> playtest's <c>nastri-due-incroci</c>, which compares the commands both send on one game.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ClientAndAgentSendTheSameCommands(bool junction)
     {
-        // A South column on x 40 the line crosses (the junction is not researched: the column merges into the line).
-        SimHost WithColumn()
+        // South columns on x 40 and 41 the line crosses: two crossings in a row with the junction, merges without.
+        SimHost WithColumns()
         {
             var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
+            if (junction)
+            {
+                factory.Research.ForceUnlock("junction");
+            }
+
             for (var y = 30; y <= 36; y++)
             {
-                Assert.True(factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(40, y), Direction.South), charge: false));
+                foreach (var x in new[] { 40, 41 })
+                {
+                    Assert.True(factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(x, y), Direction.South), charge: false));
+                }
             }
 
             return new SimHost(factory);
         }
 
-        var agent = WithColumn();
-        var client = WithColumn();
+        var agent = WithColumns();
+        var client = WithColumns();
+        var sent = new List<SimCommand>();
+        agent.CommandApplied += c => sent.Add(c with { Tick = 0 });
+        agent.CommandRejected += (c, _) => sent.Add(c with { Tick = 0 });
 
         using var game = new AgentGame(agent, Content);
         Call(game, "piazza", """{"tier":1,"da":{"x":37,"y":33},"a":{"x":43,"y":33}}""");
 
-        // The client: the same line, its commands sent by hand.
-        var line = PlacementLine.Plan(client.State, new LineRequest(
-            0, BuildSpec.DefaultConveyorId, new GridPosition(37, 33), new GridPosition(43, 33), Direction.East));
-        foreach (var command in PlacementLine.Commands(line))
+        var line = PlacementLine.Commands(PlacementLine.Plan(client.State, new LineRequest(
+            0, BuildSpec.DefaultConveyorId, new GridPosition(37, 33), new GridPosition(43, 33), Direction.East)));
+        foreach (var command in line)
         {
             client.Submit(command);
         }
 
         client.AdvanceTicks(1);
+        Assert.Equal(line, sent);
+        Assert.Equal(2, line.Count(c => c is PlaceBelt { Crossing: true }));
         Assert.Equal(client.Checksum(), agent.Checksum());
     }
 

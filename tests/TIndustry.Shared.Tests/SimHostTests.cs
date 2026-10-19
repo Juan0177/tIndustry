@@ -237,6 +237,38 @@ public sealed class SimHostTests
         Assert.Equal(before, atRejection);
     }
 
+    /// <summary>The Core rule belongs to the line (its last cell): the simulation builds the direction it is sent.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ABeltBesideTheCoreKeepsItsDirection(bool instantBuild)
+    {
+        var factory = NewGame.Sandbox(
+            LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120,
+            rules: new GameRules(InstantBuild: instantBuild));
+        if (!instantBuild)
+        {
+            factory.AddBuilder(1);
+        }
+
+        var host = new SimHost(factory);
+        var beside = new GridPosition(factory.CoreTiles.Min(t => t.X) - 1, factory.CoreTiles.Min(t => t.Y));
+
+        host.Submit(new PlaceBelt(1, beside, Direction.North, "conveyor-basic"));
+        host.AdvanceTicks(1);
+        if (!instantBuild)
+        {
+            Assert.Equal(Direction.North, Assert.Single(factory.PlansOf(1)).Spec.Direction);
+        }
+
+        for (var tick = 0; tick < 20_000 && !factory.Belts.Cells.ContainsKey(beside); tick++)
+        {
+            host.AdvanceTicks(1);
+        }
+
+        Assert.Equal(Direction.North, factory.Belts.Cells[beside].Direction);
+    }
+
     [Fact]
     public void PlacementOnCoreIsRejected()
     {

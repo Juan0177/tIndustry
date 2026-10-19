@@ -308,7 +308,7 @@ public partial class World
         var (tool, dir) = (_tool, _placeDir);
         (_tool, _placeDir) = (BuildTool.Bridge, Direction.East);
         var refusal = GhostRefusal(entry);
-        var span = GhostAt(entry).Spec is { } spec ? _view!.Footprint(spec) : [];
+        var span = _view!.Footprint(GhostSpec(PlanLine(entry)[0].Command!));
         (_tool, _placeDir) = (tool, dir);
         TryRemoveAt(exit, onlyMark: false);
         if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))

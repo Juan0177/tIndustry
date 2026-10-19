@@ -356,23 +356,6 @@ public sealed class BuilderTests
     }
 
     [Fact]
-    public void BeltPlannedBesideTheCoreFacesIt()
-    {
-        var factory = NewFactory(ironPlates: 1);
-        var host = new SimHost(factory);
-        var beside = new GridPosition(CoreOrigin.X - 1, CoreOrigin.Y); // west of the Core
-
-        host.Submit(new PlaceBelt(Player, beside, Direction.North, "conveyor-basic"));
-        host.AdvanceTicks(1);
-
-        var plan = Assert.Single(factory.PlansOf(Player));
-        Assert.Equal(Direction.East, plan.Spec.Direction);
-        RunUntil(host, () => factory.Belts.Contains(beside));
-        Assert.True(factory.Belts.TryGet(beside, out var cell));
-        Assert.Equal(Direction.East, cell.Direction);
-    }
-
-    [Fact]
     public void BlockOverlappingTheCoreIsRefusedAsOnCore()
     {
         var factory = NewFactory(ironPlates: 10);

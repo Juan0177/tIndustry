@@ -26,18 +26,26 @@ public partial class World
         GD.Print($"PLAYTEST lingua {_settings.Lingua}");
     }
 
-    /// <summary>A click with the miner on the Core is refused: the toast says why, in the current language.</summary>
+    /// <summary>
+    /// A locked block's key is refused: the toast says why, in the current language. (A click on the Core no longer
+    /// toasts: the line foresees the refusal, shows the ghost red and sends nothing.)
+    /// </summary>
     private async Task<bool> PlaytestRefusalToastAsync(Func<string, Task> shot)
     {
-        var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
-        await PlaytestKey(Key.Key2);
-        await PlaytestClick(CellToScreen(core));
+        BuildTool[] tools = [BuildTool.Bridge, BuildTool.Sorter, BuildTool.Generator, BuildTool.Splitter, BuildTool.Junction, BuildTool.Assembler];
+        Key[] keys = [Key.Key9, Key.Key8, Key.Key7, Key.Key6, Key.Key5, Key.Key4];
+        var index = Array.FindIndex(tools, t => !_view!.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(t))));
+        if (index < 0)
+        {
+            return Fail("rifiuto: nessun blocco ancora bloccato da provare");
+        }
+
+        await PlaytestKey(keys[index]);
         await PlaytestWait(0.2);
-        var expected = Testi.Rifiuto(RefusalCode.OnCore);
+        var expected = Testi.F("rifiuto.Locked", ToolName(tools[index]));
         var toast = _hud?.ToastText;
         await shot("rifiuto");
-        await PlaytestKey(Key.Escape);
-        return toast == expected || Fail($"rifiuto sul Core: toast «{toast}» invece di «{expected}»");
+        return toast == expected || Fail($"rifiuto di un blocco bloccato: toast «{toast}» invece di «{expected}»");
     }
 
     /// <summary>

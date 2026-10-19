@@ -6,77 +6,79 @@ namespace TIndustry.Godot;
 /// <summary>Placing/removing structures on the grid and screen→cell mapping.</summary>
 public partial class World
 {
+    /// <summary>A left drag is under way: its line is only previewed until the button goes up.</summary>
+    internal bool LineDragActive => _lineAnchor is not null;
+
+    /// <summary>The tools that lay belts: the client's one list of them.</summary>
+    private static bool IsBelt(BuildTool tool) => tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
+
+    /// <summary>Tools whose block faces a way (R, the drag).</summary>
+    private static bool IsOrientable(BuildTool tool) =>
+        IsBelt(tool) || KindOf(tool) is { } kind && PlacementPreview.HasDirection(kind);
+
     /// <summary>
-    /// Sends the current tool's command for <paramref name="cell"/>. <paramref name="crossing"/>: a belt inside a dragged
-    /// line over a perpendicular belt, which the simulation may turn into a junction (<see cref="Factory.BeltCrossingAt"/>)
-    /// or, without the junction, turn in place (<see cref="Factory.BeltOverBeltAt"/>).
+    /// The current tool's line from the drag's anchor (<paramref name="cursor"/> itself without a drag) to
+    /// <paramref name="cursor"/>, as <see cref="PlacementLine"/> takes it: the same function as the agents' <c>piazza</c>.
     /// </summary>
-    private void TryPlaceAt(GridPosition cell, bool crossing = false)
+    private LineRequest LineTo(GridPosition cursor) => new(
+        LocalPlayer, Hud.StructureIdFor(ToHudTool(_tool)), _lineAnchor ?? cursor, cursor, _placeDir, _lineFixed,
+        _lineCtrl ? LineShape.Diagonal : LineShape.Straight,
+        FilterItemId: _tool == BuildTool.Sorter ? _sorterFilterId : null);
+
+    // The line planned this frame: the ghost and the refusal hint ask for it more than once.
+    private (ulong Frame, LineRequest Request, IReadOnlyList<LinePlacement> Plan)? _linePlan;
+
+    /// <summary>The preview of the line to <paramref name="cursor"/> (needs a game and a tool), once per frame.</summary>
+    private IReadOnlyList<LinePlacement> PlanLine(GridPosition cursor)
     {
-        if (_view is null || _tool == BuildTool.Cursor)
+        var request = LineTo(cursor);
+        var frame = Engine.GetProcessFrames();
+        if (_linePlan is { } cached && cached.Frame == frame && cached.Request == request)
         {
+            return cached.Plan;
+        }
+
+        var plan = PlacementLine.Plan(_view!, request);
+        _linePlan = (frame, request, plan);
+        return plan;
+    }
+
+    /// <summary>Left press with a tool: the anchor of the line, nothing sent yet.</summary>
+    private void BeginLine(GridPosition cell, bool ctrl)
+    {
+        _lineAnchor = cell;
+        _lineFixed = false;
+        _lineCtrl = ctrl;
+        QueueRedraw();
+    }
+
+    /// <summary>
+    /// Left release: the line planned again on the game as it is now, and all its commands sent in order from the
+    /// anchor. Position refusals stay quiet; any other refusal toasts once for the whole line (<see cref="OnCommandRejected"/>).
+    /// </summary>
+    private void SendLine(GridPosition cursor)
+    {
+        if (_view is null || _lineAnchor is null || _tool == BuildTool.Cursor)
+        {
+            CancelLine();
             return;
         }
 
-        // Outcome (graphics refresh, rejection toast) arrives through the host events.
-        SubmitCommand(PlaceCommandAt(cell, crossing), quietWhenBlocked: _draggingPlace);
-    }
-
-    // Belt drag: which cells to place and which is a crossing (shared with the agents' piazza line).
-    private readonly BeltDrag _beltDrag = new();
-
-    /// <summary>Starts a placing drag on the press cell (never a crossing).</summary>
-    private void BeginPlaceDrag(GridPosition cell)
-    {
-        _beltDrag.Begin(cell);
-        TryPlaceAt(cell);
-    }
-
-    /// <summary>
-    /// One cell a drag moved onto: <see cref="BeltDrag.Next"/> says what to place (a belt over a perpendicular one waits
-    /// for the next cell, then goes as a crossing when it lies inside the line). A held cell the drag never passes is
-    /// dropped on release (<see cref="BeltDrag"/>).
-    /// </summary>
-    private void PlaceDragged(GridPosition cell)
-    {
-        if (_view is null)
+        var commands = PlacementLine.Commands(PlacementLine.Plan(_view, LineTo(cursor)));
+        CancelLine();
+        _lineToasts.Clear();
+        foreach (var command in commands)
         {
-            return;
-        }
-
-        var belts = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
-        foreach (var (place, crossing) in _beltDrag.Next(_view, cell, _placeDir, belts))
-        {
-            TryPlaceAt(place, crossing);
+            SubmitCommand(command, quietWhenBlocked: true);
         }
     }
 
-    /// <summary>The command the current tool sends for <paramref name="cell"/> (not the cursor).</summary>
-    private SimCommand PlaceCommandAt(GridPosition cell, bool crossing = false)
+    /// <summary>Drops the drag (Esc, right button, a panel, focus lost): nothing is sent and the tool stays.</summary>
+    private void CancelLine()
     {
-        return _tool switch
-        {
-            BuildTool.Belt => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-basic", crossing),
-            BuildTool.BeltFast => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-fast", crossing),
-            BuildTool.BeltExpress => new PlaceBelt(LocalPlayer, cell, _placeDir, "conveyor-express", crossing),
-            BuildTool.Miner => Place(BuildingKind.Miner),
-            BuildTool.MinerAdvanced => Place(BuildingKind.MinerAdvanced),
-            BuildTool.Smelter => Place(BuildingKind.Smelter),
-            BuildTool.Assembler => Place(BuildingKind.Assembler),
-            BuildTool.Junction => Place(BuildingKind.Junction),
-            BuildTool.Splitter => Place(BuildingKind.Splitter),
-            BuildTool.Generator => Place(BuildingKind.Generator),
-            BuildTool.Sorter => new PlaceBuilding(
-                LocalPlayer, BuildingKind.Sorter, cell, _placeDir, FilterItemId: _sorterFilterId),
-            BuildTool.Bridge => Place(BuildingKind.Bridge),
-            BuildTool.Extractor => Place(BuildingKind.Extractor),
-            BuildTool.PowerNode => Place(BuildingKind.PowerNode),
-            BuildTool.PowerNodeT2 => Place(BuildingKind.PowerNodeT2),
-            BuildTool.Lamp => Place(BuildingKind.Lamp),
-            _ => throw new InvalidOperationException($"Strumento non piazzabile: {_tool}")
-        };
-
-        PlaceBuilding Place(BuildingKind kind) => new(LocalPlayer, kind, cell, _placeDir);
+        _lineAnchor = null;
+        _lineFixed = false;
+        QueueRedraw();
     }
 
     private void CycleSorterFilter()
@@ -142,7 +144,7 @@ public partial class World
 
     /// <summary>
     /// Cells from <paramref name="from"/> (excluded) to <paramref name="to"/> (included) along a Bresenham line,
-    /// in order: what a drag crossed between two motion events.
+    /// in order: what a right drag crossed between two motion events.
     /// </summary>
     private static List<GridPosition> DragCells(GridPosition from, GridPosition to)
     {

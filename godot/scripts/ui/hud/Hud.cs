@@ -294,6 +294,9 @@ public partial class Hud : Control
         }
     }
 
+    /// <summary>Toasts shown since the HUD started (read by the playtests).</summary>
+    internal int ToastsShown { get; private set; }
+
     public void ShowToast(string message)
     {
         if (_toastLabel is null)
@@ -304,6 +307,7 @@ public partial class Hud : Control
         _toastLabel.Text = message;
         _toastLabel.Modulate = Colors.White;
         _toastAge = 0;
+        ToastsShown++;
     }
 
     public override void _Process(double delta)

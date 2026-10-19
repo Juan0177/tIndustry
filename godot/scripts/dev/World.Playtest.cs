@@ -511,6 +511,12 @@ public partial class World
             return false;
         }
 
+        // The left drag as Mindustry: preview, commands on release, cancels, R, Ctrl, the automatic bridge.
+        if (!await PlaytestLineDragAsync(Shot))
+        {
+            return false;
+        }
+
         // Terrain art captures here, with the game at rest: nothing moves while the camera looks around.
         await PlaytestTerrainShotsAsync(Shot);
 
@@ -1510,11 +1516,43 @@ public partial class World
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    internal static void PlaytestMove(Vector2 at, MouseButtonMask mask) =>
+    internal static void PlaytestMove(Vector2 at, MouseButtonMask mask, bool ctrl = false) =>
         Input.ParseInputEvent(new InputEventMouseMotion
         {
-            Position = at, GlobalPosition = at, ButtonMask = mask, Device = PlaytestDevice
+            Position = at, GlobalPosition = at, ButtonMask = mask, CtrlPressed = ctrl, Device = PlaytestDevice
         });
+
+    /// <summary>Presses <paramref name="button"/> at <paramref name="at"/> (Ctrl held with <paramref name="ctrl"/>) and waits a frame.</summary>
+    private async Task PlaytestPress(Vector2 at, MouseButton button = MouseButton.Left, bool ctrl = false)
+    {
+        PlaytestMove(at, 0, ctrl);
+        Input.ParseInputEvent(new InputEventMouseButton
+        {
+            ButtonIndex = button, Pressed = true, Position = at, GlobalPosition = at, CtrlPressed = ctrl,
+            ButtonMask = button == MouseButton.Right ? MouseButtonMask.Right : MouseButtonMask.Left, Device = PlaytestDevice
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
+    /// <summary>Moves with the left button held from <paramref name="from"/> to <paramref name="to"/> in <paramref name="steps"/> frames.</summary>
+    private async Task PlaytestMoveHeld(Vector2 from, Vector2 to, bool ctrl = false, int steps = 12)
+    {
+        for (var i = 1; i <= steps; i++)
+        {
+            PlaytestMove(from.Lerp(to, i / (float)steps), MouseButtonMask.Left, ctrl);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
+    /// <summary>Lets <paramref name="button"/> go at <paramref name="at"/> and waits a frame.</summary>
+    private async Task PlaytestRelease(Vector2 at, MouseButton button = MouseButton.Left, bool ctrl = false)
+    {
+        Input.ParseInputEvent(new InputEventMouseButton
+        {
+            ButtonIndex = button, Pressed = false, Position = at, GlobalPosition = at, CtrlPressed = ctrl, Device = PlaytestDevice
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
 
     /// <summary>Saves the current frame; the image is released at once (not left to the finalizer).</summary>
     /// <summary>

@@ -60,7 +60,7 @@ public sealed class AutoJunctionTests
     /// <summary>
     /// What the client does while dragging (World.Input): every cell is a PlaceBelt; a cell that may cross a belt
     /// (<see cref="BeltLine.MayCross"/>) is held back and sent after the next cell, with Crossing when the line goes on
-    /// past it (<see cref="BeltLine.IsInterior"/>); the last held cell is dropped on release (<see cref="BeltDrag"/>).
+    /// past it (<see cref="BeltLine.IsInterior"/>); the line is <see cref="PlacementLine"/>.
     /// </summary>
     private static void Drag(SimHost host, IReadOnlyList<GridPosition> cells, Direction dir)
     {

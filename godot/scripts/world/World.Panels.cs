@@ -243,6 +243,10 @@ public partial class World
         {
             QuitGame();
         }
+        else if (what == NotificationApplicationFocusOut)
+        {
+            CancelLine(); // the release would never arrive: the drag sends nothing
+        }
     }
 
     private void EnsureSavesPanel()
@@ -511,9 +515,7 @@ public partial class World
             return;
         }
 
-        var modalOpen = _home?.IsOpen == true || _newGame?.IsOpen == true || _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
-            || _research?.IsOpen == true || _mercato?.IsOpen == true || _campaignSelect?.IsOpen == true;
-        _tutorial.SetSuppressed(modalOpen);
+        _tutorial.SetSuppressed(PanelOpen);
 
         if (_view is null)
         {
