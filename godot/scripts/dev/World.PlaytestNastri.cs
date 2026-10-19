@@ -5,13 +5,15 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Belt probes of the <c>ui</c> playtest. <c>oggetti-fluidi</c>: an item on a straight basic belt line, drawn at up to
-/// 144 frames per second, must move on screen every frame, never back, at an even speed (items are drawn between the
-/// last two ticks), stand exactly still while the simulation is held, and the belt strip must change frame 32 times
-/// per cell travelled. The line is taken away afterwards and the belts go back to their first frame.
+/// 144 frames per second between the last two ticks, must move on screen every frame, never back, at an even speed,
+/// across at least two cell handoffs (where the simulation holds it one tick); it must stand exactly still while the
+/// simulation is held, and the belt strip must change frame 32 times per cell travelled. The line is taken away
+/// afterwards and the belts go back to their first frame.
 /// </summary>
 public partial class World
 {
-    private const int SmoothItemsFrames = 240;
+    // At 144 fps on a basic belt (0.5 cells/s) about 1.4 cells: from 0.85 of the first cell (0.7 plus the settling wait) it crosses two handoffs.
+    private const int SmoothItemsFrames = 400;
     private const int SmoothItemsHeldFrames = 30;
     private const int SmoothItemsLineLength = 8;
 
@@ -65,10 +67,13 @@ public partial class World
         }
 
         const long itemId = 910_000L;
-        if (!factory.Belts.TryInsert(start, new TransportedItem(itemId, "iron-ore")))
+        var probe = new TransportedItem(itemId, "iron-ore");
+        if (!factory.Belts.TryInsert(start, probe))
         {
             return Fail($"oggetti-fluidi: oggetto non inserito in {start}");
         }
+
+        probe.Progress = 0.7f; // an insert starts at 0: begin near the cell edge so the run crosses two handoffs
 
         _visualDirty = true;
         cam.Position = CellCenter(new GridPosition(start.X + SmoothItemsLineLength / 2, start.Y));
@@ -79,7 +84,8 @@ public partial class World
         MindustryBeltVisual.PlaytestScrolls = true;
         try
         {
-            return await MeasureSmoothItemsAsync(itemId, beltId, cells[^1], shot);
+            var tickPixels = _view.Content.RequireConveyor(beltId).RateItemsPerSecond * TileSize / SimulationClock.TickRate;
+            return await MeasureSmoothItemsAsync(itemId, beltId, cells[^1], tickPixels, shot);
         }
         finally
         {
@@ -99,7 +105,8 @@ public partial class World
         }
     }
 
-    private async Task<bool> MeasureSmoothItemsAsync(long itemId, string beltId, GridPosition last, Func<string, Task> shot)
+    private async Task<bool> MeasureSmoothItemsAsync(
+        long itemId, string beltId, GridPosition last, float tickPixels, Func<string, Task> shot)
     {
         // process_frame comes before the nodes' _Process: a sample shows the previous frame, whose delta we kept.
         async Task<(Vector2? Position, double Delta, int Strip)> Sample()
@@ -127,6 +134,19 @@ public partial class World
         var speeds = new List<double>();
         var travelled = 0f;
         var stripChanges = 0;
+        var handoffs = 0;
+        var handoffFrames = 0;
+        // Item drawn at Lerp(center(cell), center(next), progress): its cell is floor(x / tile - 0.5) on this East line,
+        // and it is handed to the next cell at that cell's center.
+        static int CellOf(float x) => Mathf.FloorToInt(x / TileSize - 0.5f);
+        // The simulation holds an item one tick at each handoff (progress 1 on one cell, then 0 on the next: BeltLane
+        // drops the overflow), drawn faithfully as one tick standing still. Frames within that tick after a handoff center
+        // may stand still and are left out of the speed ratio; everywhere else the item must move every frame.
+        bool NearHandoff(float from, float to)
+        {
+            var center = (CellOf(to) + 0.5f) * TileSize;
+            return from <= center + tickPixels + 0.01f && to >= center - 0.01f;
+        }
         for (var i = 0; i < SmoothItemsFrames; i++)
         {
             var now = await Sample();
@@ -141,13 +161,28 @@ public partial class World
             }
 
             var step = at.X - before.X;
-            if (step <= 0f || Math.Abs(at.Y - before.Y) > 0.001f)
+            var nearHandoff = NearHandoff(before.X, at.X);
+            // 0.01 px across: float rounding of world coordinates near 32768 px.
+            if (step < 0f || (step == 0f && !nearHandoff) || Math.Abs(at.Y - before.Y) > 0.01f)
             {
                 return Fail($"oggetti-fluidi: frame {i}: spostamento {at - before} (da {before} a {at})");
             }
 
             travelled += step;
-            speeds.Add(step / previous.Delta);
+            if (CellOf(at.X) != CellOf(before.X))
+            {
+                handoffs++;
+            }
+
+            if (nearHandoff)
+            {
+                handoffFrames++;
+            }
+            else
+            {
+                speeds.Add(step / previous.Delta);
+            }
+
             previous = now;
         }
 
@@ -155,10 +190,10 @@ public partial class World
         var cellsTravelled = travelled / TileSize;
         var ratio = speeds.Max() / speeds.Min();
         GD.Print($"PLAYTEST oggetti fluidi: {speeds.Count} frame, {cellsTravelled:0.00} celle, velocità {speeds.Min():0.0}–{speeds.Max():0.0} px/s "
-                 + $"(rapporto {ratio:0.00}), striscia cambiata {stripChanges} volte, {Engine.GetFramesPerSecond():0} fps");
-        if (speeds.Count < 120 || ratio >= 1.5)
+                 + $"(rapporto {ratio:0.00}), {handoffs} passaggi di cella ({handoffFrames} frame attorno), striscia cambiata {stripChanges} volte, {Engine.GetFramesPerSecond():0} fps");
+        if (speeds.Count < 120 || ratio >= 1.5 || handoffs < 2)
         {
-            return Fail($"oggetti-fluidi: {speeds.Count} frame misurati, rapporto fra spostamenti {ratio:0.00}");
+            return Fail($"oggetti-fluidi: {speeds.Count} frame misurati, rapporto fra spostamenti {ratio:0.00}, {handoffs} passaggi di cella");
         }
 
         if (Math.Abs(stripChanges - 32 * cellsTravelled) > 2)

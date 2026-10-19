@@ -71,6 +71,10 @@ public partial class World : Node2D
 
     /// <summary>Tick the item sprites were last synced at; -1 = none yet (new game, load).</summary>
     private long _itemsTick = -1;
+
+    /// <summary>Host the item motions belong to: a different one (load, new game) starts every item over.</summary>
+    private SimHost? _itemsHost;
+
     private Node2D? _itemsLayer;
     private TerrainChunks? _terrainChunks;
     private Node2D? _buildingsLayer;

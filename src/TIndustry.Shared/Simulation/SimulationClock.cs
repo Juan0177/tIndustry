@@ -16,6 +16,9 @@ public sealed class SimulationClock
 
     private double accumulator;
 
+    /// <summary>True when the last <see cref="Accumulate"/> dropped whole ticks over <see cref="MaxTicksPerFrame"/> (a hitch).</summary>
+    public bool DroppedTicks { get; private set; }
+
     /// <summary>
     /// Fraction of the next tick already elapsed, in [0, 1): the client draws items between the last two ticks with it.
     /// Drawing only — it never enters <see cref="Factory.Step"/>, the snapshot or the checksum.
@@ -40,7 +43,8 @@ public sealed class SimulationClock
             ticks++;
         }
 
-        if (accumulator >= TickDuration)
+        DroppedTicks = accumulator >= TickDuration;
+        if (DroppedTicks)
         {
             // Over the cap: drop whole ticks, keep only the sub-tick remainder.
             accumulator %= TickDuration;

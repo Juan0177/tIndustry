@@ -26,6 +26,18 @@ public sealed class SimulationClockTests
     }
 
     [Fact]
+    public void DroppedTicksOnlyAfterAHitchOverTheCap()
+    {
+        var clock = new SimulationClock();
+        Assert.Equal(SimulationClock.MaxTicksPerFrame, clock.Accumulate(SimulationClock.MaxTicksPerFrame / 60.0));
+        Assert.False(clock.DroppedTicks); // a legitimate 5-tick frame drops nothing
+        Assert.Equal(SimulationClock.MaxTicksPerFrame, clock.Accumulate(0.5));
+        Assert.True(clock.DroppedTicks);
+        clock.Accumulate(1.0 / 60);
+        Assert.False(clock.DroppedTicks);
+    }
+
+    [Fact]
     public void AlphaNeverTouchesTheChecksum()
     {
         var content = FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));

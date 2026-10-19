@@ -350,9 +350,6 @@ public partial class World
         _beltVisual.ConfigureFromGrid(_view, TileSize);
     }
 
-    /// <summary>An item sprite's position at the tick before and at the latest tick, and the cell it was on then.</summary>
-    private readonly record struct ItemMotion(Vector2 Before, Vector2 After, GridPosition Cell, Direction Direction);
-
     /// <summary>
     /// Item sprites drawn between the last two ticks at the clock's sub-tick fraction (<see cref="SimHost.TickAlpha"/>),
     /// so they move every frame whatever the frame rate: at most one tick behind the simulation, drawing only.
@@ -367,9 +364,10 @@ public partial class World
         var tick = _view.CurrentTick;
         var ticksRun = tick - _itemsTick;
         _itemsTick = tick;
-        // A load, a scripted jump or a hitch cut at the cap: draw the new tick, never slide from the old positions.
-        var restart = ticksRun < 0 || ticksRun >= SimulationClock.MaxTicksPerFrame;
-        var alpha = (float)(_host?.TickAlpha ?? 0);
+        // Another game (load), or a hitch whose ticks the clock dropped: draw the new tick, never slide from the old positions.
+        var restart = !ReferenceEquals(_itemsHost, _host) || (ticksRun > 0 && _host?.TicksDropped == true);
+        _itemsHost = _host;
+        var alpha = _host?.TickAlpha ?? 0;
         var live = new HashSet<long>();
         foreach (var cell in _view.Belts.Values)
         {
@@ -396,22 +394,12 @@ public partial class World
                 var from = CellCenter(cell.Position);
                 var to = CellCenter(cell.Position.Step(cell.Direction));
                 var now = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
-                if (restart
-                    || !_itemMotion.TryGetValue(item.Id, out var motion)
-                    || (motion.Cell != cell.Position && motion.Cell.Step(motion.Direction) != cell.Position))
-                {
-                    // Just born or moved without continuity (not along its belt): start from where it is.
-                    motion = new ItemMotion(now, now, cell.Position, cell.Direction);
-                }
-                else if (ticksRun > 0)
-                {
-                    // Several ticks in one frame: "before" is one tick behind the newest, on the path between the two.
-                    motion = new ItemMotion(
-                        motion.After.Lerp(now, (ticksRun - 1f) / ticksRun), now, cell.Position, cell.Direction);
-                }
-
+                var motion = ItemMotion.Next(
+                    _itemMotion.TryGetValue(item.Id, out var old) ? old : null,
+                    new System.Numerics.Vector2(now.X, now.Y), cell.Position, cell.Direction, ticksRun, restart);
                 _itemMotion[item.Id] = motion;
-                sprite.Position = motion.Before.Lerp(motion.After, alpha);
+                var drawn = motion.At(alpha);
+                sprite.Position = new Vector2(drawn.X, drawn.Y);
                 // Corner and T = galleria: items disappear while inside the turn or the merge (side joins show them).
                 sprite.Visible = _view.GetBeltShape(cell.Position) is not (BeltShape.Corner or BeltShape.T);
             }
