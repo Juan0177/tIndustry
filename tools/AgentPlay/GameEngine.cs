@@ -26,6 +26,10 @@ public sealed class GameEngine : IAgentEngine
     private static readonly TimeSpan QuitWait = TimeSpan.FromSeconds(5);
     private const int LogLinesOnExit = 30;
     private const string PortRefused = "AgentBridge: porta";
+    private const string Listening = "AgentBridge: in ascolto";
+    private static readonly TimeSpan StartPoll = TimeSpan.FromMilliseconds(20);
+    // Without the log line (a log not flushed yet) the connect is tried anyway after this long.
+    private static readonly TimeSpan BlindConnectAfter = TimeSpan.FromSeconds(5);
     private static readonly JsonElement Empty = JsonDocument.Parse("{}").RootElement.Clone();
 
     private readonly GameProcess game;
@@ -142,6 +146,7 @@ public sealed class GameEngine : IAgentEngine
         }
 
         process.Dispose();
+        GameLauncher.KeepShaderCache(game.ProfileDir);
         foreach (var folderLock in folderLocks)
         {
             folderLock.Dispose();
@@ -158,30 +163,38 @@ public sealed class GameEngine : IAgentEngine
     // exits or logs that the port is taken.
     private void Connect(DateTime deadline)
     {
+        var blindAfter = DateTime.UtcNow + BlindConnectAfter;
         while (true)
         {
-            ThrowIfStartFailed();
-            var attempt = new TcpClient();
-            try
+            // The bridge logs when it listens: a connect before that is refused, and on Windows a refused loopback
+            // connect takes about a second. So the log is watched and the connect comes right after the line.
+            var log = GameLauncher.LogLines(game.ProfileDir);
+            ThrowIfStartFailed(log);
+            if (log.Any(l => l.Contains(Listening, StringComparison.Ordinal)) || DateTime.UtcNow >= blindAfter)
             {
-                if (attempt.ConnectAsync(IPAddress.Loopback, game.Port).Wait(TimeSpan.FromSeconds(1)) && attempt.Connected)
+                var attempt = new TcpClient();
+                try
                 {
-                    client = attempt;
-                    break;
+                    if (attempt.ConnectAsync(IPAddress.Loopback, game.Port).Wait(TimeSpan.FromSeconds(1)) && attempt.Connected)
+                    {
+                        client = attempt;
+                        break;
+                    }
                 }
-            }
-            catch (AggregateException)
-            {
-                // Not listening yet.
+                catch (AggregateException)
+                {
+                    // Not listening yet.
+                }
+
+                attempt.Dispose();
             }
 
-            attempt.Dispose();
             if (DateTime.UtcNow >= deadline)
             {
                 throw Timeout($"Il gioco non ha aperto il canale entro {StartTimeout.TotalSeconds:0} s.");
             }
 
-            Thread.Sleep(250);
+            Thread.Sleep(StartPoll);
         }
 
         var stream = client.GetStream();
@@ -357,7 +370,7 @@ public sealed class GameEngine : IAgentEngine
         }
     }
 
-    private void ThrowIfStartFailed()
+    private void ThrowIfStartFailed(IReadOnlyList<string>? log = null)
     {
         if (game.Process.HasExited)
         {
@@ -365,7 +378,7 @@ public sealed class GameEngine : IAgentEngine
             throw Gone();
         }
 
-        if (GameLauncher.LogLines(game.ProfileDir).Any(l => l.Contains(PortRefused, StringComparison.Ordinal)))
+        if ((log ?? GameLauncher.LogLines(game.ProfileDir)).Any(l => l.Contains(PortRefused, StringComparison.Ordinal)))
         {
             throw new AgentException(
                 AgentCodes.MotoreNonDisponibile,

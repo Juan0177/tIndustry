@@ -51,8 +51,9 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
 
         // The drone has started (or finished) the miner: it is a site or a building, no longer only a plan.
         var after = await server.Ok("stato", new { sessione = id });
-        var built = after.GetProperty("edifici").GetProperty("minatori").GetInt32()
-            + after.GetProperty("costruzione").GetProperty("cantieri").GetInt32();
+        // Compact stato: a building count of 0 is left out.
+        var built = ServerFixture.Count(after.GetProperty("edifici"), "minatori")
+            + ServerFixture.Count(after.GetProperty("costruzione"), "cantieri");
         Assert.Equal(1, built);
         Assert.True(after.GetProperty("tick").GetInt64() > before.GetProperty("tick").GetInt64());
 
@@ -60,6 +61,46 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         Assert.False(Directory.Exists(folder));
         Assert.Equal(AgentCodes.SessioneSconosciuta, await server.Refused("stato", new { sessione = id }));
         Assert.Equal(AgentCodes.SessioneSconosciuta, await server.Refused("chiudi", new { sessione = id }));
+    }
+
+    [Fact]
+    public async Task AnswersAreCompactUnlessDettaglio()
+    {
+        var id = await Open(new { misura = 64, seme = 1 });
+        var stato = await server.Ok("stato", new { sessione = id });
+        var full = await server.Ok("stato", new { sessione = id, dettaglio = true });
+        Assert.Equal(0, full.GetProperty("edifici").GetProperty("forni").GetInt32());
+        Assert.False(stato.TryGetProperty("edifici", out var buildings) && buildings.TryGetProperty("forni", out _));
+        Assert.Equal(full.GetProperty("impronta").GetString(), stato.GetProperty("impronta").GetString());
+        Assert.True(stato.GetRawText().Length < full.GetRawText().Length);
+
+        // A line says its direction once, and its cells built one by one come back as one event.
+        var core = stato.GetProperty("core").GetProperty("cella");
+        var (x, y) = (core.GetProperty("x").GetInt32() + 4, core.GetProperty("y").GetInt32() - 6);
+        var line = await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x, y }, a = new { x, y = y + 3 }, direzione = "sud" });
+        Assert.True(line.TryGetProperty("direzione", out var lineDirection), line.ToString());
+        Assert.Equal("sud", lineDirection.GetString());
+        Assert.All(line.GetProperty("celle").EnumerateArray(), c => Assert.False(c.TryGetProperty("direzione", out _)));
+        await server.Ok("avanza", new { sessione = id, tick = 600 });
+        var built = Assert.Single((await server.Ok("eventi", new { sessione = id })).GetProperty("eventi").EnumerateArray(),
+            e => e.GetProperty("tipo").GetString() == "costruito");
+        Assert.Equal(4, built.GetProperty("celle").GetArrayLength());
+        Assert.True(built.GetProperty("fino").GetInt64() > built.GetProperty("tick").GetInt64());
+        Assert.False(built.TryGetProperty("cantiere", out _));
+
+        // dettaglio: the full form, one event per cell, as before.
+        await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = x + 2, y }, a = new { x = x + 2, y = y + 1 }, direzione = "sud" });
+        await server.Ok("avanza", new { sessione = id, tick = 600 });
+        var each = (await server.Ok("eventi", new { sessione = id, dettaglio = true })).GetProperty("eventi").EnumerateArray()
+            .Where(e => e.GetProperty("tipo").GetString() == "costruito").ToList();
+        Assert.Equal(2, each.Count);
+        Assert.All(each, e => Assert.True(e.TryGetProperty("cantiere", out _) && e.TryGetProperty("cella", out _)));
+
+        var saved = await server.Ok("diario", new { sessione = id, nome = "compatto" });
+        Assert.Equal(4, saved.GetProperty("numeroVoci").GetInt32());
+        Assert.False(saved.TryGetProperty("voci", out _));
+        Assert.Equal(4, (await server.Ok("diario", new { sessione = id, dettaglio = true })).GetProperty("voci").GetArrayLength());
+        await server.Ok("chiudi", new { sessione = id });
     }
 
     [Fact]

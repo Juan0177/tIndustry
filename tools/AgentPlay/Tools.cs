@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using TIndustry.Shared;
 
@@ -12,6 +13,13 @@ namespace TIndustry.AgentPlay;
 public sealed record Cella(
     [property: JsonRequired, Description("Colonna (cella).")] int X,
     [property: JsonRequired, Description("Riga (cella).")] int Y);
+
+/// <summary>A rectangle of a capture, in pixels.</summary>
+public sealed record RegioneSchermo(
+    [property: JsonRequired, Description("Pixel da sinistra.")] int X,
+    [property: JsonRequired, Description("Pixel dall'alto.")] int Y,
+    [property: JsonRequired, Description("Larghezza in pixel.")] int Larghezza,
+    [property: JsonRequired, Description("Altezza in pixel.")] int Altezza);
 
 /// <summary>A screen point in pixels.</summary>
 public sealed record PuntoSchermo(
@@ -26,6 +34,7 @@ public sealed record PuntoSchermo(
 public sealed class Tools(Sessions sessions, GameData data)
 {
     private const string Sessione = "Id della sessione (da apri_simulazione o apri_gioco).";
+    private const string Dettaglio = "Risposta completa: senza, la risposta è compatta (niente valori vuoti o predefiniti, vedi README).";
 
     /// <summary>The tools' names in the order this class declares them (the order of <c>tools/list</c>).</summary>
     public static readonly List<string> Order = typeof(Tools).GetMethods()
@@ -113,7 +122,7 @@ public sealed class Tools(Sessions sessions, GameData data)
 
     [McpServerTool(Name = "stato")]
     [Description("Riassunto della partita: tick, soldi, risorse, energia, ricerca (le strutture già sbloccate), edifici, costruzione, Core, direzione dei piazzamenti (nel gioco vero quella del giocatore), ultimi rifiuti (tick = quello del diario: il tick in cui è arrivato il comando) e impronta (da confrontare con quella di rigioca). obiettivi e livelloCompletato ci sono solo nei livelli della campagna.")]
-    public string Stato([Description(Sessione)] string sessione) => Game(sessione, "stato");
+    public string Stato([Description(Sessione)] string sessione, [Description(Dettaglio)] bool dettaglio = false) => Game(sessione, "stato", dettaglio: dettaglio);
 
     [McpServerTool(Name = "area")]
     [Description("Le celle di un rettangolo (al massimo 64×64) in righe di simboli, con legenda e forme dei nastri: solo curve e T (il nastro dritto è il caso normale e non è elencato; gli incroci hanno il loro simbolo); ingresso è il verso di marcia dell'oggetto che entra. Con oggetti: quanti oggetti ci sono su ogni nastro e di che tipo.")]
@@ -135,7 +144,7 @@ public sealed class Tools(Sessions sessions, GameData data)
 
     [McpServerTool(Name = "eventi")]
     [Description("Cosa è successo dall'ultima chiamata: rifiuti (con mancano, se si sa), piani scartati, costruzioni e smontaggi finiti (cella e struttura); nel gioco vero anche partitaCaricata (nuova partita, livello o salvataggio caricato, con tickPrima e indietro se il tick è tornato indietro: il diario riparte da lì) e inputReale (una persona ha usato la finestra).")]
-    public string Eventi([Description(Sessione)] string sessione) => Game(sessione, "eventi");
+    public string Eventi([Description(Sessione)] string sessione, [Description(Dettaglio)] bool dettaglio = false) => Game(sessione, "eventi", dettaglio: dettaglio);
 
     [McpServerTool(Name = "catalogo")]
     [Description("Le strutture del gioco: id, nome, tipo, costo di costruzione, costo di sblocco, prerequisiti e se è già sbloccata.")]
@@ -154,8 +163,9 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("Fine della linea.")] Cella? a = null,
         [Description("nord, est, sud, ovest (predefinita: quella di ruota).")] string? direzione = null,
         [Description("Ricetta di forno o assemblatore.")] string? ricetta = null,
-        [Description("Oggetto del filtro del selezionatore.")] string? filtro = null) =>
-        Game(sessione, "piazza", new { tipo, tier, cella, da, a, direzione, ricetta, filtro });
+        [Description("Oggetto del filtro del selezionatore.")] string? filtro = null,
+        [Description(Dettaglio)] bool dettaglio = false) =>
+        Game(sessione, "piazza", new { tipo, tier, cella, da, a, direzione, ricetta, filtro }, dettaglio);
 
     [McpServerTool(Name = "smonta")]
     [Description("Smonta la struttura in una cella (rimborso secondo le regole).")]
@@ -206,9 +216,40 @@ public sealed class Tools(Sessions sessions, GameData data)
     // ---- Real game only
 
     [McpServerTool(Name = "cattura")]
-    [Description("Salva una cattura PNG della finestra e restituisce il percorso del file (solo gioco vero).")]
-    public string Cattura([Description(Sessione)] string sessione, [Description("Percorso del PNG (facoltativo).")] string? percorso = null) =>
-        Game(sessione, "cattura", new { percorso });
+    [Description("Cattura del gioco vero. Senza percorso l'immagine arriva nella risposta: PNG ridotto entro 640×360 (pochi token), o un vero rendering 1920×1080 con alta. Con percorso salva il PNG intero sotto <profilo>/catture e ne dà il percorso (immagine: true per averlo anche nella risposta). regione (pixel della cattura) o da e a (celle) la ritagliano.")]
+    public CallToolResult Cattura(
+        [Description(Sessione)] string sessione,
+        [Description("Nome relativo .png sotto <profilo>/catture: salva il file.")] string? percorso = null,
+        [Description("Immagine nella risposta (predefinito: sì senza percorso, no con percorso).")] bool? immagine = null,
+        [Description("Vero rendering 1920×1080, come su uno schermo 1080p con l'interfaccia al 100% (più mappa, HUD disposto per quello schermo), senza riduzione.")] bool? alta = null,
+        [Description("Rettangolo da ritagliare, in pixel della cattura (1280×720, o 1920×1080 con alta).")] RegioneSchermo? regione = null,
+        [Description("Un angolo dell'area di celle da ritagliare (con a).")] Cella? da = null,
+        [Description("L'angolo opposto dell'area di celle (compreso).")] Cella? a = null)
+    {
+        var text = Game(sessione, "cattura", new { percorso, immagine = immagine ?? percorso is null, alta, regione, da, a });
+        var answer = JsonNode.Parse(text)!.AsObject();
+        if (answer["png"]?.GetValue<string>() is not { } png)
+        {
+            return Text(text);
+        }
+
+        // The image is data from the game: only a well-formed PNG reaches the agent, as image content.
+        answer.Remove("png");
+        var buffer = new byte[png.Length];
+        if (!Convert.TryFromBase64String(png, buffer, out var length) || !buffer.AsSpan(0, length).StartsWith(PngSignature))
+        {
+            return Text(Fail(new AgentException(AgentCodes.ErroreInterno, "Il gioco non ha dato un PNG valido.")));
+        }
+
+        return new CallToolResult
+        {
+            Content = [new TextContentBlock { Text = answer.ToJsonString(Json) }, ImageContentBlock.FromBytes(buffer.AsMemory(0, length), "image/png")]
+        };
+    }
+
+    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    private static CallToolResult Text(string text) => new() { Content = [new TextContentBlock { Text = text }] };
 
     [McpServerTool(Name = "telecamera")]
     [Description("Sposta la telecamera su una cella e cambia lo zoom, o dice dove si trova (solo gioco vero).")]
@@ -234,8 +275,9 @@ public sealed class Tools(Sessions sessions, GameData data)
     [Description("Elenca i controlli dell'interfaccia che un clic raggiunge (nome, tipo, testo, suggerimento, rettangolo; non quelli trasparenti, coperti da un pannello o doppi) o clicca quello dato (solo gioco vero).")]
     public string Ui(
         [Description(Sessione)] string sessione,
-        [Description("Controllo da cliccare: il nome (anche solo l'ultima parte), il testo visibile o il suggerimento, per esempio Ricerca o Nastro T1; se ne indica più di uno la risposta dice che è ambiguo.")] string? clic = null) =>
-        Game(sessione, "ui", new { clic });
+        [Description("Controllo da cliccare: il nome (anche solo la sua parte finale, come lo dà ui), il testo visibile o il suggerimento, per esempio Ricerca o Nastro T1; se ne indica più di uno la risposta dice che è ambiguo.")] string? clic = null,
+        [Description(Dettaglio)] bool dettaglio = false) =>
+        Game(sessione, "ui", new { clic }, dettaglio);
 
     [McpServerTool(Name = "log")]
     [Description("Le ultime righe di avviso ed errore del log di Godot (solo gioco vero).")]
@@ -251,8 +293,9 @@ public sealed class Tools(Sessions sessions, GameData data)
     [Description("Le azioni della sessione con il loro tick (il tick in cui è arrivata la chiamata; un comando si applica nel tick dopo), fine (il tick di adesso, fin dove arriva rigioca), rigiocabile e avvisi; con nome le salva in un file e ne dà il percorso, per rigioca. Nel gioco vero il diario riparte quando la partita cambia (vedi eventi partitaCaricata).")]
     public string Diario(
         [Description(Sessione)] string sessione,
-        [Description("Nome semplice del file (lettere, cifre, - e _).")] string? nome = null) =>
-        Game(sessione, "diario", new { nome });
+        [Description("Nome semplice del file (lettere, cifre, - e _).")] string? nome = null,
+        [Description(Dettaglio)] bool dettaglio = false) =>
+        Game(sessione, "diario", new { nome }, dettaglio);
 
     [McpServerTool(Name = "rigioca")]
     [Description("Riesegue un diario salvato (anche del gioco vero: i comandi, non input e clic dell'interfaccia) su una sessione nuova di simulazione fino al tick fine del diario, per riprodurre un bug. Risponde l'impronta (confrontala con quella di stato) e gli avvisi: cosa non si è potuto rigiocare uguale.")]
@@ -275,7 +318,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     /// <summary>Arguments that do not fit the tool (see <see cref="Arguments"/>): the same <c>ParametriNonValidi</c> as the engine's.</summary>
     public static string BadArguments(string message) => Fail(new AgentException(AgentCodes.ParametriNonValidi, message));
 
-    private string Game(string sessione, string method, object? args = null) =>
+    private string Game(string sessione, string method, object? args = null, bool dettaglio = false) =>
         Run(() =>
         {
             var engine = sessions.Get(sessione);
@@ -297,7 +340,7 @@ public sealed class Tools(Sessions sessions, GameData data)
 
                 throw;
             }
-        });
+        }, dettaglio ? null : method);
 
     private static JsonObject Opened(string id, string kind, string folder) => new()
     {
@@ -441,8 +484,11 @@ public sealed class Tools(Sessions sessions, GameData data)
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Godot", "app_userdata", "tIndustry")
         }.Select(root => Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar);
 
-    /// <summary><paramref name="call"/>'s object (a JsonElement or JsonObject) after <c>ok:true</c>, or its error.</summary>
-    private static string Run(Func<object> call)
+    /// <summary>
+    /// <paramref name="call"/>'s object (a JsonElement or JsonObject) after <c>ok:true</c>, made <see cref="Compact"/>
+    /// for the game tool <paramref name="compact"/> names (null: as it is), or its error.
+    /// </summary>
+    private static string Run(Func<object> call, string? compact = null)
     {
         try
         {
@@ -450,6 +496,11 @@ public sealed class Tools(Sessions sessions, GameData data)
             foreach (var (key, value) in JsonSerializer.SerializeToNode(call(), Json)!.AsObject().ToList())
             {
                 result[key] = value?.DeepClone();
+            }
+
+            if (compact is not null)
+            {
+                Compact.Apply(compact, result);
             }
 
             return result.ToJsonString(Json);

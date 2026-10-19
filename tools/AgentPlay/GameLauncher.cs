@@ -144,6 +144,7 @@ public static class GameLauncher
             }
 
             WriteSettings(profile, options);
+            RestoreShaderCache(profile);
             if (options.Salvataggio is { } save)
             {
                 CopySave(save, profile); // read once here: a damaged save is refused before Godot starts
@@ -207,6 +208,97 @@ public static class GameLauncher
         {
             DeleteFolder(profile);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Godot's shader and pipeline caches, shared by the agents' games under the system temp folder (never the player's
+    /// data): a new profile starts with them, so Godot does not compile every shader again at each start. Godot checks
+    /// the files itself (version, driver) and recompiles what does not fit.
+    /// </summary>
+    public static readonly string ShaderCacheRoot = Path.Combine(Path.GetTempPath(), "tindustry-agentplay-cache", "godot-user");
+
+    private static readonly string[] CacheFolders = ["shader_cache", "vulkan"];
+
+    // user:// of a game whose APPDATA is the profile (Godot/app_userdata/<config/name>).
+    private static string UserDir(string profile) => Path.Combine(profile, "Godot", "app_userdata", "tIndustry");
+
+    /// <summary>Copies the shared caches into a new profile; a missing or half-written cache only costs the compile.</summary>
+    public static void RestoreShaderCache(string profile)
+    {
+        foreach (var name in CacheFolders)
+        {
+            TryCopy(Path.Combine(ShaderCacheRoot, name), Path.Combine(UserDir(profile), name));
+        }
+    }
+
+    /// <summary>After the game exited: its caches become the shared ones (built aside, then swapped in one rename).</summary>
+    public static void KeepShaderCache(string profile)
+    {
+        // Nothing new compiled (same files, same sizes): the shared cache stays, chiudi stays fast.
+        if (!Directory.Exists(Path.Combine(UserDir(profile), CacheFolders[0]))
+            || CacheFolders.All(name => Footprint(Path.Combine(UserDir(profile), name)) == Footprint(Path.Combine(ShaderCacheRoot, name))))
+        {
+            return;
+        }
+
+        var work = ShaderCacheRoot + "." + Environment.ProcessId + ".tmp";
+        DeleteFolder(work);
+        foreach (var name in CacheFolders)
+        {
+            TryCopy(Path.Combine(UserDir(profile), name), Path.Combine(work, name));
+        }
+
+        try
+        {
+            // No retries here (DeleteFolder waits for locks): a cache another server is copying stays as it is.
+            if (Directory.Exists(ShaderCacheRoot))
+            {
+                Directory.Delete(ShaderCacheRoot, recursive: true);
+            }
+
+            Directory.Move(work, ShaderCacheRoot);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Another server swapped its cache in meanwhile: either one is fine.
+        }
+
+        DeleteFolder(work);
+    }
+
+    private static (int Files, long Bytes) Footprint(string folder)
+    {
+        try
+        {
+            var files = Directory.Exists(folder) ? new DirectoryInfo(folder).GetFiles("*", SearchOption.AllDirectories) : [];
+            return (files.Length, files.Sum(f => f.Length));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (-1, -1);
+        }
+    }
+
+    private static void TryCopy(string from, string to)
+    {
+        try
+        {
+            if (!Directory.Exists(from))
+            {
+                return;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
+            {
+                var target = Path.Combine(to, Path.GetRelativePath(from, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(file, target, overwrite: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"Cache degli shader non copiata ({from}): {ex.Message}");
         }
     }
 
