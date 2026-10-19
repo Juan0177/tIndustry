@@ -1,9 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// The automatic crossing of a placement drag, one cell at a time: the client feeds it the cells of a mouse drag,
-/// the agents' <c>piazza</c> a whole line, so both send the same <see cref="PlaceBelt"/> cells with the same
-/// <see cref="PlaceBelt.Crossing"/> flag. A belt cell over a perpendicular belt (<see cref="BeltLine.MayCross"/>) is held
+/// The automatic crossing of the client's mouse drag, one cell at a time (the agents' <c>piazza</c> uses
+/// <see cref="PlacementLine"/>, which the client's drag moves to next). A belt cell over a perpendicular belt (<see cref="BeltLine.MayCross"/>) is held
 /// back until the next cell: then the next cell goes first and the held one follows, as a crossing when it lies inside
 /// the line (<see cref="BeltLine.IsInterior"/>); the simulation turns it into a junction, or without the junction
 /// turns the crossed belt in place so its line merges into the new one (<see cref="BeltOverBelt.Rotate"/>).

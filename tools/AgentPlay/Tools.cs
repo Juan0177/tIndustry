@@ -153,15 +153,15 @@ public sealed class Tools(Sessions sessions, GameData data)
     // ---- Act (the player's commands through SimHost)
 
     [McpServerTool(Name = "piazza")]
-    [Description("Piazza un blocco in una cella, o una linea da 'da' ad 'a' come il trascinamento del giocatore, incrocio automatico compreso (incrocio: true sulla cella diventata un incrocio). Risponde le celle piazzate e i rifiuti (codice, mancano).")]
+    [Description("Piazza un blocco in una cella, o trascina da 'da' ad 'a' come il giocatore (la stessa linea, PlacementLine): nastri, incroci, sdoppiatori e selezionatori in retta sull'asse più lungo (al massimo 200 celle), ogni altro blocco uno solo in 'da'. Senza 'direzione' segue il trascinamento (ogni cella guarda la seguente, un blocco solo guarda verso 'a'); incrocio automatico compreso (incrocio: true sulla cella diventata un incrocio). Risponde le celle piazzate e i rifiuti (codice, mancano), anche quelli che la linea prevede e non manda.")]
     public string Piazza(
         [Description(Sessione)] string sessione,
         [Description("Id della struttura (per esempio miner, conveyor-basic).")] string? tipo = null,
         [Description("Livello del nastro (al posto di tipo).")] int? tier = null,
-        [Description("Cella del blocco.")] Cella? cella = null,
-        [Description("Inizio della linea.")] Cella? da = null,
-        [Description("Fine della linea.")] Cella? a = null,
-        [Description("nord, est, sud, ovest (predefinita: quella di ruota).")] string? direzione = null,
+        [Description("Cella del blocco (un clic).")] Cella? cella = null,
+        [Description("Inizio del trascinamento.")] Cella? da = null,
+        [Description("Fine del trascinamento.")] Cella? a = null,
+        [Description("nord, est, sud, ovest: fissa la direzione di ogni cella, come R durante il trascinamento (senza: con 'cella' quella di ruota, con 'da'/'a' quella del trascinamento).")] string? direzione = null,
         [Description("Ricetta di forno o assemblatore.")] string? ricetta = null,
         [Description("Oggetto del filtro del selezionatore.")] string? filtro = null,
         [Description(Dettaglio)] bool dettaglio = false) =>

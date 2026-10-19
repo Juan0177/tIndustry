@@ -96,10 +96,15 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         Assert.Equal(2, each.Count);
         Assert.All(each, e => Assert.True(e.TryGetProperty("cantiere", out _) && e.TryGetProperty("cella", out _)));
 
+        // Without direzione the line follows the drag (PlacementLine): up from y + 3 to y, every cell faces north.
+        var up = await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = x + 4, y = y + 3 }, a = new { x = x + 4, y } });
+        Assert.Equal("nord", up.GetProperty("direzione").GetString());
+        Assert.Equal(4, up.GetProperty("celle").GetArrayLength());
+
         var saved = await server.Ok("diario", new { sessione = id, nome = "compatto" });
-        Assert.Equal(4, saved.GetProperty("numeroVoci").GetInt32());
+        Assert.Equal(5, saved.GetProperty("numeroVoci").GetInt32());
         Assert.False(saved.TryGetProperty("voci", out _));
-        Assert.Equal(4, (await server.Ok("diario", new { sessione = id, dettaglio = true })).GetProperty("voci").GetArrayLength());
+        Assert.Equal(5, (await server.Ok("diario", new { sessione = id, dettaglio = true })).GetProperty("voci").GetArrayLength());
         await server.Ok("chiudi", new { sessione = id });
     }
 

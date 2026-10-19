@@ -220,6 +220,17 @@ public sealed class AutoJunctionTests
         Assert.Equal(Direction.South, factory.Belts.Cells[Crossing].Direction);
     }
 
+    [Fact]
+    public void WhereTheLineCrossesIsTheLinesCall()
+    {
+        // No belt of the line on either side: whether the cell lies inside the line is PlacementLine's to say, so two
+        // crossings in a row both become junctions.
+        var (factory, _, _) = NewGame();
+        SouthLine(factory);
+
+        Assert.Equal(BeltCrossing.Junction, factory.BeltCrossingAt(Crossing, Direction.East));
+    }
+
     [Theory]
     [InlineData(BuildingKind.Splitter)]
     [InlineData(BuildingKind.Sorter)]

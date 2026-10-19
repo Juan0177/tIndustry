@@ -31,9 +31,6 @@ public sealed class AgentGame : IDisposable
         "piazza", "smonta", "ruota", "sblocca", "vendi", "potenzia_core", "avanza"
     };
 
-    // Kinds the client places along a drag (World.Input), the plain belts aside.
-    private static readonly BuildingKind[] DraggableKinds = [BuildingKind.Junction, BuildingKind.Splitter, BuildingKind.Sorter];
-
     private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?\\z", RegexOptions.CultureInvariant);
 
     // Windows device names: a file named so (any extension) opens the device instead.
@@ -199,7 +196,10 @@ public sealed class AgentGame : IDisposable
         host.AdvanceTicks((int)gap);
     }
 
-    /// <summary>A refused call was refused the first time too (it still took its tick); an internal error is not.</summary>
+    /// <summary>
+    /// A refused call was refused the first time too (a command SimHost refused took its tick; a line PlacementLine
+    /// refused whole sent nothing and takes none, then as now); an internal error is not.
+    /// </summary>
     private static void Tolerated(Action call)
     {
         try
@@ -245,12 +245,13 @@ public sealed class AgentGame : IDisposable
                 throw Bad("I parametri devono essere un oggetto.");
             }
 
-            // The brush is not journaled in the real game (the player's R): a line keeps the direction it used.
-            if (method == "piazza" && !Has(p, "direzione"))
+            // The brush is not journaled in the real game (the player's R): the entry keeps the one the line used
+            // (`pennello`, not `direzione`, which would fix the direction of every cell).
+            if (method == "piazza" && !Has(p, "direzione") && !Has(p, "pennello"))
             {
-                var withDirection = JsonNode.Parse(p.GetRawText())!.AsObject();
-                withDirection["direzione"] = DirectionName(Brush);
-                p = JsonSerializer.SerializeToElement(withDirection);
+                var withBrush = JsonNode.Parse(p.GetRawText())!.AsObject();
+                withBrush["pennello"] = DirectionName(Brush);
+                p = JsonSerializer.SerializeToElement(withBrush);
             }
 
             var result = JsonSerializer.SerializeToElement(Dispatch(method, p));
@@ -263,7 +264,9 @@ public sealed class AgentGame : IDisposable
         }
         catch (AgentException ex)
         {
-            // Bad parameters change nothing; a refused command still took its tick.
+            // Bad parameters change nothing and stay out. A refusal is journaled: a command SimHost refused took its
+            // tick; a line PlacementLine refused whole sent nothing, but stays as the agent's attempt (its replay
+            // refuses it the same way and changes nothing either).
             if (journal && ex.Code != AgentCodes.ParametriNonValidi)
             {
                 Journal.Add(tick, method, p);
@@ -879,55 +882,72 @@ public sealed class AgentGame : IDisposable
     private JsonObject Piazza(JsonElement p)
     {
         var structureId = OptStr(p, "tipo") ?? ConveyorOfTier(OptInt(p, "tier") ?? throw Bad("Serve 'tipo' o 'tier'."));
-        var kind = KindOf(structureId);
-        if (kind is null && content.FindConveyor(structureId) is null)
+        if (BuildSpec.KindFor(structureId) is null && content.FindConveyor(structureId) is null)
         {
             throw Bad($"Struttura sconosciuta: {structureId}.");
         }
 
-        var direction = OptStr(p, "direzione") is { } d ? ParseDirection(d) : Brush;
-        List<(GridPosition Cell, bool Crossing)> cells;
-        GridPosition? dropped = null;
+        // `direzione` is R pressed during the drag (every cell faces it); without it the line follows the drag.
+        var fixedDirection = OptStr(p, "direzione") is { } d ? ParseDirection(d) : (Direction?)null;
+        var brush = fixedDirection ?? (OptStr(p, "pennello") is { } b ? ParseDirection(b) : Brush);
+        GridPosition anchor, cursor;
         if (Has(p, "cella"))
         {
-            cells = [(MapCell(p, "cella"), false)];
+            anchor = cursor = MapCell(p, "cella");
         }
         else
         {
-            if (kind is { } k && !DraggableKinds.Contains(k))
+            anchor = MapCell(p, "da");
+            cursor = MapCell(p, "a");
+            // The player's line stops at MaxCells: an agent is told rather than given a shorter line.
+            if (Math.Max(Math.Abs((long)cursor.X - anchor.X), Math.Abs((long)cursor.Y - anchor.Y)) + 1 > PlacementLine.MaxCells)
             {
-                throw Bad($"'{structureId}' non si piazza in linea.");
+                throw Bad($"Linea al massimo di {PlacementLine.MaxCells} celle.");
             }
-
-            var from = MapCell(p, "da");
-            var to = MapCell(p, "a");
-            // Length checked before the list is built: a far end must not allocate a huge line.
-            if (Math.Abs((long)to.X - from.X) + Math.Abs((long)to.Y - from.Y) + 1 > MaxListItems)
-            {
-                throw Bad($"Linea al massimo di {MaxListItems} celle.");
-            }
-
-            // The client's drag: a belt over a perpendicular one becomes a crossing (BeltDrag, same as World.Placement).
-            (cells, dropped) = BeltDrag.Line(View, from, to, direction, belts: kind is null);
         }
 
-        var recipe = OptStr(p, "ricetta");
-        var filter = OptStr(p, "filtro");
-        var commands = cells.Select(c => kind is { } buildingKind
-            ? (SimCommand)new PlaceBuilding(PlayerId, buildingKind, c.Cell, direction, recipe, filter)
-            : new PlaceBelt(PlayerId, c.Cell, direction, structureId, c.Crossing)).ToList();
+        // The player's line (PlacementLine), cell by cell: the cells it already refuses are not sent.
+        var line = PlacementLine.Plan(View, new LineRequest(
+            PlayerId, structureId, anchor, cursor, brush, FixedDirection: fixedDirection is not null,
+            RecipeId: OptStr(p, "ricetta"), FilterItemId: OptStr(p, "filtro")));
+        var commands = PlacementLine.Commands(line);
+        if (commands.Count == 0)
+        {
+            if (line.FirstOrDefault(c => c.Refusal is not null) is { } first)
+            {
+                throw Refused(first.Refusal!.Value, first.Command!);
+            }
+
+            // Nothing to send and nothing refused (only spanned cells): nothing happens.
+            return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = new JsonArray(), ["rifiuti"] = new JsonArray() };
+        }
 
         return Command(commands, outcomes =>
         {
             var placed = new JsonArray();
             var refused = new JsonArray();
-            Outcome? firstRefusal = null;
-            foreach (var outcome in outcomes)
+            (Refusal Refusal, SimCommand Command)? firstRefusal = null;
+            var next = 0;
+            foreach (var placement in line)
             {
-                var cell = CellJson(CellOf(outcome.Command)!.Value);
+                var cell = CellJson(placement.Cell);
+                if (placement.Refusal is { } foreseen)
+                {
+                    firstRefusal ??= (foreseen, placement.Command!);
+                    cell["codice"] = foreseen.ToString();
+                    refused.Add(cell);
+                    continue;
+                }
+
+                if (placement.Spanned || placement.Command is null)
+                {
+                    continue;
+                }
+
+                var outcome = outcomes[next++];
                 if (outcome.Refusal is not { } refusal)
                 {
-                    cell["direzione"] = DirectionName(direction);
+                    cell["direzione"] = DirectionName(placement.Direction);
                     if (outcome.Command is PlaceBelt { Crossing: true } crossing && JunctionAt(crossing.Position))
                     {
                         cell["incrocio"] = true;
@@ -937,7 +957,7 @@ public sealed class AgentGame : IDisposable
                 }
                 else
                 {
-                    firstRefusal ??= outcome;
+                    firstRefusal ??= (refusal, outcome.Command);
                     cell["codice"] = refusal.Code.ToString();
                     if (Missing(refusal, outcome.Command) is { } missing)
                     {
@@ -948,17 +968,9 @@ public sealed class AgentGame : IDisposable
                 }
             }
 
-            // The drag's last cell over a perpendicular belt: the client drops it, so it is reported as not placed.
-            if (dropped is { } last)
-            {
-                var cell = CellJson(last);
-                cell["codice"] = nameof(RefusalCode.Occupied);
-                refused.Add(cell);
-            }
-
             if (placed.Count == 0 && firstRefusal is { } first)
             {
-                throw Refused(first.Refusal!, first.Command);
+                throw Refused(first.Refusal, first.Command);
             }
 
             return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = placed, ["rifiuti"] = refused };
@@ -975,21 +987,8 @@ public sealed class AgentGame : IDisposable
     }
 
     private string ConveyorOfTier(int tier) =>
-        content.Conveyors.FirstOrDefault(c => c.Tier == tier && KindOf(c.Id) is null)?.Id
+        content.Conveyors.FirstOrDefault(c => c.Tier == tier && BuildSpec.KindFor(c.Id) is null)?.Id
         ?? throw Bad($"Nessun nastro di livello {tier}.");
-
-    private static BuildingKind? KindOf(string structureId)
-    {
-        foreach (var kind in Enum.GetValues<BuildingKind>())
-        {
-            if (BuildSpec.StructureIdFor(kind) == structureId)
-            {
-                return kind;
-            }
-        }
-
-        return null;
-    }
 
     private JsonObject Ruota()
     {

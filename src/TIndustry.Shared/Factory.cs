@@ -176,9 +176,9 @@ public sealed class Factory : IGameView
     /// Mindustry's auto-junction: a dragged belt line facing <paramref name="direction"/> that crosses a plain belt
     /// perpendicular to it puts a junction there, so both lines keep flowing. Only where the junction behaves like the
     /// belt it replaces: the crossed belt is straight (not a corner or T; the dragged line joining its side is
-    /// fine), fed from behind by logistics only (no building feeds it) and hands over to a logistics cell ahead (not the Core or a building); the dragged line has
-    /// a belt or belt plan of its own direction on both sides of the cell (the client sends the crossing only once the
-    /// line goes on past it, <see cref="BeltLine.IsInterior"/>); the cell has no plan (not marked for removal).
+    /// fine), fed from behind by logistics only (no building feeds it) and hands over to a logistics cell ahead (not the Core or a building);
+    /// the cell has no plan (not marked for removal). Whether the cell lies inside the dragged line is the line's call
+    /// (<see cref="PlacementLine"/>, <see cref="BeltLine.IsInterior"/>): two crossings in a row both become junctions.
     /// Splitters, sorters, bridges, junctions and parallel belts are never crossings.
     /// </summary>
     public BeltCrossing BeltCrossingAt(GridPosition position, Direction direction)
@@ -189,9 +189,7 @@ public sealed class Factory : IGameView
             || cell.Direction == DirectionMath.Opposite(direction)
             || GetBeltShape(position) is BeltShape.Corner or BeltShape.T
             || IsPlannedTile(position)
-            || !Belts.Contains(position.Step(cell.Direction))
-            || !IsLineBelt(position.Step(DirectionMath.Opposite(direction)), direction)
-            || !IsLineBelt(position.Step(direction), direction))
+            || !Belts.Contains(position.Step(cell.Direction)))
         {
             return BeltCrossing.None;
         }
@@ -383,28 +381,6 @@ public sealed class Factory : IGameView
 
     /// <summary>Turns the belt on <paramref name="cell"/> in place, keeping its items (the shape cache follows the grid's version).</summary>
     internal bool TryRotateBelt(GridPosition cell, Direction direction) => Belts.TryOrient(cell, direction);
-
-    /// <summary>A plain belt facing <paramref name="direction"/> on <paramref name="tile"/>, standing or planned.</summary>
-    private bool IsLineBelt(GridPosition tile, Direction direction)
-    {
-        if (Belts.TryGet(tile, out var cell))
-        {
-            return cell.Kind == LogisticsKind.Belt && cell.Direction == direction;
-        }
-
-        foreach (var builder in State.Builders)
-        {
-            foreach (var plan in builder.Plans)
-            {
-                if (!plan.Breaking && plan.Spec.Kind is null && plan.Spec.Origin == tile && plan.Spec.Direction == direction)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
 
     /// <summary>
     /// Instant auto-junction: takes the belt on <paramref name="tile"/> away and places <paramref name="junction"/>,
