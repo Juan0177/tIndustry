@@ -126,7 +126,6 @@ class TestSito(unittest.TestCase):
         self.assertIn('href="https://github.com/Juan0177/tIndustry/releases/latest"', pagina)
         self.assertGreaterEqual(pagina.count("data-costruisci"), 4)
         self.assertIn('<div id="drone-cantiere"', pagina)
-        self.assertIn('id="ferma-drone"', pagina)
         self.assertIn('<div id="avanza"', pagina)
         self.assertIn('class="pin"', pagina)  # the pinned hero
         self.assertIn('class="finestra-striscia"', pagina)
@@ -158,6 +157,35 @@ class TestSito(unittest.TestCase):
         for rel in ("sviluppo/index.html", "asset/index.html"):
             self.assertNotIn('<div id="drone-cantiere"', self.pagine[rel])
             self.assertNotIn("data-costruisci", self.pagine[rel])
+
+    def test_animazioni(self):
+        # The landing and sviluppo pages have the pause/play button in the bar, hidden until the script shows
+        # it; the asset page has only GIFs, which nothing can stop, so no button.
+        for rel, pagina in self.pagine.items():
+            self.assertEqual(0 if rel.startswith("asset") else 1, pagina.count('id="animazioni"'), rel)
+            self.assertNotIn("ferma-drone", pagina, rel)
+        self.assertIn('class="animazioni" data-ferma="Ferma le animazioni" data-avvia="Avvia le animazioni" '
+                      'aria-label="Ferma le animazioni" title="Ferma le animazioni" hidden>', self.ingresso)
+        # The policy in the stylesheet: the belts and the scroll effects never stop for the system's
+        # prefers-reduced-motion alone (only the flashes, the shake and the glass go); html.statico, set by
+        # the button, stops everything and releases the pinned hero and the strip.
+        with open(os.path.join(self.out, "stile.css"), encoding="utf-8") as fh:
+            stile = fh.read()
+        inizio = stile.index("@media (prefers-reduced-motion:reduce){\n html:not(.animato)")
+        ridotto = stile[inizio:stile.index("\n}\n", inizio)]
+        for vietato in ("animation-play-state", ".fermo", ".striscia-blocchi", ".pin", "--p:", ".nastro"):
+            self.assertNotIn(vietato, ridotto)
+        for atteso in (".lampo{display:none}", ".crepa,", ".sez-attacco .pavimento{animation:none}", ".avviso{opacity:1;animation:none}"):
+            self.assertIn(atteso, ridotto)
+        self.assertIn("html.statico *,html.statico *::before,html.statico *::after{animation-play-state:paused!important", stile)
+        self.assertIn("html.statico .nastro .fermo{display:block}", stile)
+        self.assertIn("html.statico .pin{height:auto!important}", stile)   # beats .js .pin
+        self.assertIn("html.statico .striscia-blocchi{position:static;transform:none;display:flex}", stile)
+        self.assertIn("html.statico .barra .animazioni .icona{", stile)   # the play icon
+        self.assertIn(".barra .animazioni[hidden]{display:none}", stile)   # no button without the script
+        # The capture inside its link fills the frame: without height:100% the height="720" attribute wins
+        # and the frame shows a full-size corner of the capture.
+        self.assertIn(".crt>img,.crt>a>img{flex:1;min-height:0;width:100%;height:100%;", stile)
 
     def test_schede_brevi(self):
         # README cells become one clause each: plain text, no entity cut in half, whole words at the end.

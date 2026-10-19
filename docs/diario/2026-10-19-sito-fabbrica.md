@@ -35,6 +35,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 6 | Documenti e diario | `695a8ab`, `1433daf`, `8546c50` |
 | 7 | Unione a T sopra il CORE (PR #235) | `3bde5d8` |
 | 8 | Verifica finale sul sito pubblicato e correzioni (PR #236) | `141d678` |
+| 9 | Animazioni sempre accese, pulsante «Animazioni» nella barra (PR ANIMAZIONI_PR) | ANIMAZIONI_HASH |
 
 ## Giri di revisione
 
@@ -52,6 +53,10 @@ Segnalazioni di peso, tutte applicate:
 Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): rete elettrica più lunga di quanto il gioco ammetta, Core T3 che in partita non c'è ancora, lettori del README senza test di robustezza, nome di un assistente AI nella pagina sviluppo (viene dal diario «Agenti che giocano»), pagina asset in un solo HTML da 2 MB (com'era). Il pezzo a T, scartato in un primo momento, è stato aggiunto subito dopo (PR #235): le due catene lunghe si uniscono a T sopra il CORE.
 
 **Verifica finale sul sito pubblicato** (tre agenti: interazioni con Playwright, occhio fresco su 140 catture, coerenza del repository), alla domanda dell'utente «sei sicuro che sia tutto ok?»: il drone, i clic con modificatori, «Ferma il drone», le ancore, l'aggancio di hero e striscia, la tastiera, i popover della pagina asset e la console erano a posto; trovati e corretti (PR #236): la classe `.cantiere` forzava `position:relative` e spostava il rimando della striscia mentre il drone lo costruiva; su telefono le cornici CRT erano scatole nere alte 750 px (l'attributo `height` restava in vigore); la striscia dei blocchi non arrivava mai a Ponte e CORE (larghezza a restringimento invece di `max-content`); le finestre di «Ambienti» sforavano la sezione (ora 9 righe); senza script restava una fascia vuota di 320 px sotto la hero (l'altezza dell'aggancio ora la dà solo la classe `js`); le catture si aprono intere al clic; diario, piano, CLAUDE.md e mappa aggiornati.
+
+**Animazioni sempre accese** (20 ottobre, dopo le catture dell'utente: «ma è tutto statico»): su Windows con «Effetti di animazione» spento Chrome riferisce `prefers-reduced-motion` e il CSS fermava tutto, nastri compresi, con la striscia dei blocchi a barra di scorrimento e un vuoto di 320 px sotto la hero (`height:auto` perdeva contro `.js .pin`). Decisione: la fabbrica in movimento è il contenuto, quindi le animazioni girano per tutti; un pulsante «Animazioni» nella barra (vetrina e sviluppo; non nella pagina asset, dove i nastri sono solo GIF) le ferma e le riavvia (classi `statico`/`animato` su `<html>`, scelta in `localStorage`); la preferenza di sistema da sola spegne solo lampi, scossa, sfarfallio e vetro rotto di «Sotto attacco» e tiene il drone a terra. Funzione pura `politica()` con test in `test_sito.mjs`; `test_animazioni` controlla il pulsante e il foglio di stile. Verificato con Chromium emulando `prefers-reduced-motion` nei tre stati.
+
+**Catture tagliate** (stesso giro, al «check dello stato del sito» chiesto dall'utente): dalla PR #236 la cattura dentro il link della cornice CRT restava alta 720 px (l'attributo `height` vinceva perché il link non dava un'altezza all'immagine), così ogni cornice mostrava un angolo della cattura a grandezza piena: scritte tagliate come «gna» o «ttagli · H = vista intera». Corretto con `height:100%` sull'immagine (e un controllo in `test_animazioni`); la cornice «Tutti i testi anche in inglese» passa da 230×166 a 280×186 perché la didascalia ci stava stretta. La verifica della PR #236 misurava le altezze delle cornici e non il contenuto: ora le catture si confrontano anche a occhio.
 
 ## Decisioni prese in autonomia
 

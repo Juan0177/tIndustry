@@ -8,7 +8,8 @@ Pages:
                        (fabbrica.py: belts with the real pieces and items, blocks, deposits, power, terrain)
                        with the text, the CRT frames and the buttons laid over it; two long chains run down
                        the sides into the Core, where the download button is; a disturbed-signal section
-                       teases the attack and defence units; a drone builds the buttons on click (sito.js);
+                       teases the attack and defence units; a drone builds the buttons on click (sito.js; the bar's
+                       Animazioni button pauses everything);
 - sviluppo/index.html  how the game is made (ADRs), roadmap, work diary and decisions, read from README.md,
                        docs/diario/ and docs/decisioni/ (documenti.py);
 - asset/index.html     every sprite registered in tools/art: blocks composed as the game draws them (states
@@ -60,6 +61,12 @@ AMBRA = (255, 211, 127)  # UiColors.Accento, the title colour
 ROSSO = (255, 42, 74)
 MAGENTA = (255, 79, 216)
 STATICI = ("sito.js",)  # copied as they are; stile.css is assembled from stile.css + drone.css
+# The bar's pause/play toggle for every animation (sito.js shows it and remembers the choice); hidden
+# without the script, when nothing could stop the belts anyway. Not on the asset page: its belts are
+# plain GIFs, which no style can stop.
+BOTTONE_ANIMAZIONI = ('<button type="button" id="animazioni" class="animazioni" data-ferma="Ferma le animazioni" '
+                      'data-avvia="Avvia le animazioni" aria-label="Ferma le animazioni" title="Ferma le animazioni" hidden>'
+                      '<span class="icona" aria-hidden="true"></span><span class="testo">Animazioni</span></button>')
 
 # Families of the sprite registry (module names in tools/art/blocchi), in page order.
 FAMIGLIE = {
@@ -146,9 +153,10 @@ def _nav(voci):
 
 
 def _pagina(titolo, corpo, nav, radice="", classe="", descrizione="", stile_extra="", drone=False, avanza=False,
-            percorso=""):
+            percorso="", animazioni=True):
     """The shell: head, sticky bar with the stripes, main, footer, the script. `percorso` is the page's path
-    under the site root ("" for the landing page, "sviluppo/" …) for its canonical and Open Graph URLs."""
+    under the site root ("" for the landing page, "sviluppo/" …) for its canonical and Open Graph URLs;
+    `animazioni` puts the pause/play button in the bar (not on a page whose only motion is GIFs)."""
     extra = f"<style>{stile_extra}</style>" if stile_extra else ""
     url = SITO_URL + percorso
     meta = f'<link rel="canonical" href="{url}">'
@@ -161,8 +169,6 @@ def _pagina(titolo, corpo, nav, radice="", classe="", descrizione="", stile_extr
     meta += f'<link rel="icon" href="{radice}favicon.png" type="image/png">'
     pie = (f'<footer><a href="{radice}">Vetrina</a><a href="{radice}sviluppo/">Sviluppo</a><a href="{radice}asset/">Asset</a>'
            f'<a href="{REPO_URL}">GitHub</a>'
-           + ('<button type="button" id="ferma-drone" data-testo-ferma="Ferma il drone" '
-              'data-testo-riaccendi="Riaccendi il drone" hidden>Ferma il drone</button>' if drone else "")
            + f'<span>sito <a href="{REPO_URL}/tree/main/tools/sito">generato dal repository</a>, come il gioco</span></footer>')
     testa = ('<div id="avanza" aria-hidden="true"></div>' if avanza else "")
     coda = (f'<div id="drone-cantiere" aria-hidden="true" hidden><img class="px" src="{radice}fabbrica/drone-1.png" alt="" width="48" height="48">'
@@ -173,7 +179,7 @@ def _pagina(titolo, corpo, nav, radice="", classe="", descrizione="", stile_extr
             f"<title>{html.escape(titolo)}</title>{meta}"
             f'<link rel="stylesheet" href="{radice}stile.css">{extra}</head>'
             f'<body class="{classe}">{testa}<header class="barra"><a class="marca" href="{radice}">tINDUSTRY</a>'
-            f"<nav>{nav}</nav></header><main>{corpo}</main>{pie}{coda}"
+            f"<nav>{nav}</nav>{BOTTONE_ANIMAZIONI if animazioni else ''}</header><main>{corpo}</main>{pie}{coda}"
             f'<script src="{radice}sito.js" defer></script></body></html>')
 
 
@@ -351,7 +357,7 @@ def pagina_asset(assets_dir):
              f'generata da <a href="{REPO_URL}/tree/main/tools/art">tools/art</a>, ingrandita senza filtro.</p></div>')
     nav = _nav((("../", "Vetrina"), ("../sviluppo/", "Sviluppo"), ("#produzione", "Blocchi"), ("#ambienti", "Ambienti"),
                 ("#carattere", "Carattere")))
-    return _pagina("tIndustry · asset", intro + "".join(sezioni), nav, radice="../", classe="asset",
+    return _pagina("tIndustry · asset", intro + "".join(sezioni), nav, radice="../", classe="asset", animazioni=False,
                    descrizione="Tutti gli sprite di tIndustry: blocchi come in gioco, nastri, oggetti, terreno, carattere.",
                    stile_extra=_STILE_STATI, percorso="asset/")
 
@@ -484,7 +490,7 @@ def _contenuto(a, sid, radice, versione):
                 + _crt(radice, "gioco.png", 29, 205, 397, 230, ";z-index:2", classe="sotto-ponte")
                 + _crt(radice, "ricerca.png", 448, 64, 320, 218)
                 + _crt(radice, "tutorial.png", 64, 461, 352, 166)
-                + _crt(radice, "interfaccia-en.png", 448, 307, 230, 166))
+                + _crt(radice, "interfaccia-en.png", 448, 307, 280, 186))
     if sid == "blocchi":
         blocchi = (("miner", "Al lavoro", "Minatore T1"), ("miner-advanced", "Al lavoro, con corrente", "Minatore T2"),
                    ("smelter", "Al lavoro", "Forno"), ("assembler", "Ciclo di lavoro", "Assemblatore"),
