@@ -637,12 +637,14 @@ VETRINA = [
         Blocco(12, 1, "lamp", "Accesa"), Blocco(11, 6, "lamp", "Accesa"),
         *_margine(4, 8), Linea(((17.5, 4.5), (12.5, 1.5))), Linea(((17.5, 4.5), (11.5, 6.5))),
     ], seme=5),
-    # 07 scarica: both lines turn into the Core T3; the market screen (content) hangs from the margin node.
+    # 07 scarica: both lines turn along the top row and meet in a T merge right above the Core T3, which takes
+    # everything from the belt above it; the market screen (content) hangs from the margin node.
     Scena("scarica", 11, "prati", [
-        Tratto(0, 0, 4, "S", T1, ("copper-wire",)), Pezzo(0, 4, "curva", T1, da="S", a="E"),
-        Tratto(1, 4, 6, "E", T1, ("copper-wire",)),
-        Tratto(13, 0, 4, "S", T2, ("silicon", "titanium-plate")), Pezzo(13, 4, "curva", T2, da="S", a="W"),
-        Tratto(12, 4, 2, "W", T2, ("silicon", "titanium-plate")),
+        Tratto(0, 0, 1, "S", T1, ("copper-wire",)), Pezzo(0, 1, "curva", T1, da="S", a="E"),
+        Tratto(1, 1, 7, "E", T1, ("copper-wire",)),
+        Tratto(13, 0, 1, "S", T2, ("silicon", "titanium-plate")), Pezzo(13, 1, "curva", T2, da="S", a="W"),
+        Tratto(12, 1, 4, "W", T2, ("silicon", "titanium-plate")),
+        Pezzo(8, 1, "t", T2, verso="S", flussi=(("S", "copper-wire", T2),)),
         Blocco(7, 2, "core-3", "Luce del nucleo"),
         *_margine(1, 11, verso_sotto=False), Linea(((17.5, 1.5), (15, 7.8))),
     ], seme=6),

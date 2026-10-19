@@ -111,7 +111,12 @@ class TestFabbrica(unittest.TestCase):
     def test_pezzi_della_vetrina(self):
         # The landing page shows every logistics piece of the game at least once.
         tipi = {e.tipo for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Pezzo)}
-        self.assertLessEqual({"curva", "incrocio", "selezionatore", "sdoppiatore", "ponte", "unione_edificio", "unione"}, tipi)
+        self.assertLessEqual({"curva", "t", "incrocio", "selezionatore", "sdoppiatore", "ponte", "unione_edificio", "unione"}, tipi)
+        # The T merge above the Core takes both long chains: two chains end in the Core through the same cell.
+        scarica = next(sc for sc in fabbrica.VETRINA if sc.id == "scarica")
+        nel_core = [c for c in fabbrica.catene(scarica) if c["fine"] == ("blocco", "core-3")]
+        self.assertEqual(2, len(nel_core))
+        self.assertTrue(all((8, 1) in c["celle"] for c in nel_core))
         tier = {e.tier for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Tratto)}
         self.assertEqual({"conveyor-basic", "conveyor-fast"}, tier)
 

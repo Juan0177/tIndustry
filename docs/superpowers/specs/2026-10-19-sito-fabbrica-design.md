@@ -93,7 +93,7 @@ Script (`sito.js`): `adatta()` (zoom delle scene: `min(1, larghezza/1152)`), `sc
 
 - **Rendering CSS, non canvas**: il modello a celle è quello previsto, ma le scene sono HTML: i nastri sono le strisce vere del gioco come GIF (binari fermi, battistrada che scorre), gli oggetti sprite animati in CSS, i ponti la GIF composta da `composti` (frecce in sequenza). Funziona anche senza script; il canvas resta una strada se i pezzi animati diventeranno molti di più.
 - **Sdoppiatore** come nel gioco: scarica solo ai lati, mai dritto; la catena del carbone di «Come funziona» entra dall'alto e si divide fra forno e generatore con le curve.
-- **Pezzo a T non mostrato**: nessuna catena della vetrina ha due ingressi laterali; restano le unioni laterali («blocco col punto») accanto ai minatori e l'unione con l'edificio in «Ambienti».
+- **Pezzo a T** sopra il CORE in «Scarica»: le due catene lunghe arrivano lungo la prima riga da sinistra e da destra e si uniscono in un nastro a T che scende nel CORE. Le unioni laterali («blocco col punto») stanno accanto ai minatori, l'unione con l'edificio in «Ambienti».
 - **Titanio col Minatore T2** (durezza 2), con la sua linea elettrica; il forno di «Catture» è alimentato dal nodo del margine.
 - **Immagini delle scene a 1×** scalate dalla pagina con `image-rendering: pixelated`; catture ricompresse senza perdita.
 - **Striscia dei blocchi** agganciata dentro la sua sezione (sticky), con i numeri del gioco sopra; la hero è agganciata con un `.pin` alto `100vh + 320px`.
