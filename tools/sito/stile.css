@@ -28,6 +28,13 @@ img{max-width:100%}
 .barra nav{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none;min-width:0;padding-right:24px;
  mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
 .barra nav::-webkit-scrollbar{display:none}
+.barra .animazioni{display:inline-flex;align-items:center;gap:7px;flex:none;font:inherit;letter-spacing:inherit;color:var(--testo);
+ background:none;border:1px solid var(--linea);padding:3px 9px;cursor:pointer;white-space:nowrap}
+.barra .animazioni:hover{border-color:var(--ambra);color:var(--ambra)}
+.barra .animazioni[hidden]{display:none}   /* without the script (the author display beats the hidden attribute) */
+.barra .animazioni .icona{width:3px;height:10px;margin-right:6px;background:currentColor;box-shadow:6px 0 0 currentColor}  /* pause: two bars */
+html.statico .barra .animazioni .icona{width:0;height:0;margin-right:0;background:none;box-shadow:none;
+ border:5px solid transparent;border-left:9px solid currentColor;border-right:0}  /* play: a triangle */
 #avanza{position:fixed;left:0;top:0;height:6px;width:0;z-index:30;
  background:repeating-linear-gradient(135deg,var(--giallo) 0 10px,#111 10px 20px);box-shadow:0 1px 0 #000}
 .etichetta{font:12px var(--mono);letter-spacing:.14em;color:var(--tenue);text-transform:uppercase}
@@ -309,24 +316,33 @@ footer button:hover{border-color:var(--ambra)}
  .crepa,.lampo{display:none}
  .numeri{grid-template-columns:repeat(3,1fr)}
  .scelte label{padding:5px 9px;font-size:13px}
- #ferma-drone{display:none}
  .elenco-adr{columns:1}
 }
-@media (max-width:480px){.schede{grid-template-columns:1fr}.barra{gap:14px;padding-left:14px;padding-right:14px}}
+@media (max-width:480px){.schede{grid-template-columns:1fr}.barra{gap:14px;padding-left:14px;padding-right:14px}
+ .barra .animazioni .testo{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}}
 
-/* ---- motion off */
+/* ---- motion. Everything runs by default: the moving factory is the content. The Animazioni button
+   in the bar (sito.js, remembered in localStorage) stops it all with html.statico; the system request
+   prefers-reduced-motion only removes the flashes, the shake, the flicker and the shattered glass of
+   «Sotto attacco», unless the visitor asked for everything with the button (html.animato). */
 @media (prefers-reduced-motion:reduce){
- *,*::before,*::after{animation-play-state:paused!important;transition:none!important}
- .nastro .fermo{display:block}
- .finestra-striscia{position:relative;top:auto;margin-left:192px}
- .sez,.crt,.scheda,.bioma,.titolo,.finestra-striscia,.numeri li{--p:1!important;--e:1!important}
- .pin,.pin>.sez,.hero{--p:0!important}
- .pin{height:auto}
- .pin>.sez{position:relative;top:auto}
- .finestra-striscia{overflow-x:auto}
- .striscia-blocchi{position:static;transform:none;display:flex}
- .sez-attacco .pavimento{animation:none}
- .avviso{opacity:1;animation:none}
- .avviso-2,.avviso-3,.avviso-4,.avviso-5{display:none}
- .crepa,.lampo{display:none}
+ html:not(.animato) .sez-attacco::after,html:not(.animato) .rumore,html:not(.animato) .segnale,html:not(.animato) .sagoma,
+ html:not(.animato) .sez-attacco .pavimento{animation:none}
+ html:not(.animato) .avviso{opacity:1;animation:none}
+ html:not(.animato) .avviso-2,html:not(.animato) .avviso-3,html:not(.animato) .avviso-4,html:not(.animato) .avviso-5{display:none}
+ html:not(.animato) .crepa,html:not(.animato) .lampo{display:none}
 }
+html.statico{scroll-behavior:auto}
+html.statico *,html.statico *::before,html.statico *::after{animation-play-state:paused!important;transition:none!important}
+html.statico .nastro .fermo{display:block}
+html.statico .finestra-striscia{position:relative;top:auto;margin-left:192px;overflow-x:auto}
+html.statico .sez,html.statico .crt,html.statico .scheda,html.statico .bioma,html.statico .titolo,html.statico .finestra-striscia,
+html.statico .numeri li{--p:1!important;--e:1!important}
+html.statico .pin,html.statico .pin>.sez,html.statico .hero{--p:0!important}
+html.statico .pin{height:auto!important}
+html.statico .pin>.sez{position:relative;top:auto}
+html.statico .striscia-blocchi{position:static;transform:none;display:flex}
+html.statico .sez-attacco .pavimento{animation:none}
+html.statico .avviso{opacity:1;animation:none}
+html.statico .avviso-2,html.statico .avviso-3,html.statico .avviso-4,html.statico .avviso-5{display:none}
+html.statico .crepa,html.statico .lampo{display:none}

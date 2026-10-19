@@ -9,10 +9,14 @@
  *                  the sections, the revealed elements and the block strip, and fills #avanza;
  *   3. drone     - the construction drone: it wanders over the factory and, on a plain click on a
  *                  link with data-costruisci, flies to the button, builds it with its beam for half
- *                  a second and then opens it. #ferma-drone switches it off (kept in localStorage).
- * Vanilla, no dependencies, nothing loaded from the network, nothing runs with
- * prefers-reduced-motion. The pure functions (intercetta, avanzamento, bersaglio) are exported for
- * `node --test`: the file can be required without a DOM.
+ *                  a second and then opens it.
+ * Motion policy (politica): everything runs by default, because the moving factory is the content;
+ * the #animazioni button of the bar pauses it all (html.statico, remembered in localStorage) and
+ * starts it again (html.animato); prefers-reduced-motion alone keeps the belts running but keeps
+ * the drone on the ground and lets stile.css drop the flashes and the shake of «Sotto attacco».
+ * Vanilla, no dependencies, nothing loaded from the network. The pure functions (intercetta,
+ * avanzamento, bersaglio, politica) are exported for `node --test`: the file can be required
+ * without a DOM.
  */
 "use strict";
 
@@ -23,7 +27,7 @@
   var DURATA_CANTIERE = 500;       // ms the button spends under construction
   var MISURA_DRONE = 48;           // sprite drone-1 (24 px) shown at 2x
   var PAUSA_VAGA = [3000, 6000];   // ms between two wandering targets
-  var CHIAVE_DRONE = "tindustry-drone";
+  var CHIAVE_ANIMAZIONI = "tindustry-animazioni";   // "no": everything still; "si": everything on, whatever the system says
   var RIDUCI = "(prefers-reduced-motion: reduce)";
   var NS_SVG = "http://www.w3.org/2000/svg";
 
@@ -55,6 +59,15 @@
       : null);
     if (media && media(RIDUCI).matches) return false;
     return true;
+  }
+
+  /* The motion policy from the stored choice and the system request: "statico" (everything still)
+     when the visitor paused the animations, "pieno" when they started them again or nothing asks to
+     reduce motion, "ridotto" (belts on, no drone, no flashes) when only the system asks for less. */
+  function politica(preferenza, riduceSistema) {
+    if (preferenza === "no") return "statico";
+    if (preferenza === "si") return "pieno";
+    return riduceSistema ? "ridotto" : "pieno";
   }
 
   /* Scroll progress of the page in percent: 0 at the top, 100 when the bottom of the document is
@@ -95,13 +108,35 @@
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { intercetta: intercetta, avanzamento: avanzamento, bersaglio: bersaglio, limita: limita };
+    module.exports = { intercetta: intercetta, avanzamento: avanzamento, bersaglio: bersaglio, limita: limita, politica: politica };
   }
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
   var doc = document;
   doc.documentElement.classList.add("js");   // stile.css: layouts that only make sense with the script
   function tutti(selettore, radice) { return Array.prototype.slice.call((radice || doc).querySelectorAll(selettore)); }
+
+  // ------------------------------------------------------------------ 0. the motion policy
+
+  var media = typeof window.matchMedia === "function" ? window.matchMedia(RIDUCI) : null;
+  function preferenza() {
+    try { return window.localStorage.getItem(CHIAVE_ANIMAZIONI); } catch (e) { return null; }
+  }
+  function ricorda(valore) {
+    try { window.localStorage.setItem(CHIAVE_ANIMAZIONI, valore); } catch (e) { /* no storage: the choice lasts for this page */ }
+  }
+  function politicaAttuale() { return politica(preferenza(), !!(media && media.matches)); }
+  function statico() { return doc.documentElement.classList.contains("statico"); }
+  function applicaPolitica() {   // stile.css reads the two classes; applied before the first layout
+    var stato = politicaAttuale();
+    doc.documentElement.classList.toggle("statico", stato === "statico");
+    doc.documentElement.classList.toggle("animato", stato === "pieno");
+    tutti(".animazioni").forEach(function (bottone) {
+      var testo = bottone.getAttribute(stato === "statico" ? "data-avvia" : "data-ferma");
+      if (testo) { bottone.setAttribute("aria-label", testo); bottone.setAttribute("title", testo); }
+    });
+  }
+  applicaPolitica();
 
   // ------------------------------------------------------------------ 1. adatta: zoom of the scenes
 
@@ -195,16 +230,7 @@
   // ------------------------------------------------------------------ 3. the drone
 
   var drone = doc.getElementById("drone-cantiere");
-  var ferma = doc.getElementById("ferma-drone");
-  var media = typeof window.matchMedia === "function" ? window.matchMedia(RIDUCI) : null;
-  function riduci() { return !!(media && media.matches); }
-
-  function leggiPreferenza() {
-    try { return window.localStorage.getItem(CHIAVE_DRONE); } catch (e) { return null; }
-  }
-  function scriviPreferenza(valore) {
-    try { window.localStorage.setItem(CHIAVE_DRONE, valore); } catch (e) { /* no storage: the choice lasts for this page */ }
-  }
+  function riduci() { return politicaAttuale() !== "pieno"; }   // the drone flies only with the full policy
 
   // Seeded random source (mulberry32): the drone wanders the same way at every visit.
   var seme = 0x74494e44;
@@ -221,7 +247,6 @@
   var rot = 0;                    // heading in degrees, accumulated so the drone turns the short way
   var timerVaga = null, timerCantiere = null;
   var cantiere = null;            // { link } while a button is under construction
-  var aggiornaBottone = function () {};
 
   function centroAttuale() {
     var r = drone.getBoundingClientRect();   // mid-flight this is the interpolated position
@@ -349,7 +374,6 @@
     drone.removeAttribute("hidden");
     posa({ x: window.innerWidth - MISURA_DRONE, y: altezzaBarra() + MISURA_DRONE });
     pianificaVaga(400);
-    aggiornaBottone();
   }
 
   function spegni() {
@@ -357,27 +381,16 @@
     annullaCantiere();
     fermaVaga();
     drone.setAttribute("hidden", "");
-    aggiornaBottone();
   }
 
+  var secondoPreferenza = function () {};   // drone on or off after the policy or the layout changed
+
   function avviaDrone() {
-    if (!drone) { if (ferma) ferma.setAttribute("hidden", ""); return; }
-    if (ferma) {
-      var testoFerma = ferma.getAttribute("data-testo-ferma") || ferma.textContent.trim() || "Ferma il drone";
-      var testoRiaccendi = ferma.getAttribute("data-testo-riaccendi") || "Riaccendi il drone";
-      aggiornaBottone = function () { ferma.textContent = attivo ? testoFerma : testoRiaccendi; };
-      ferma.addEventListener("click", function () {
-        if (attivo) { spegni(); scriviPreferenza("no"); }
-        else { accendi(); scriviPreferenza("si"); }
-      });
-    }
-    function secondoPreferenza() {
-      if (riduci() || impilato()) { spegni(); if (ferma) ferma.setAttribute("hidden", ""); return; }
-      if (ferma) ferma.removeAttribute("hidden");
-      if (leggiPreferenza() !== "no") accendi(); else aggiornaBottone();
-    }
+    if (!drone) return;
+    secondoPreferenza = function () {
+      if (riduci() || impilato()) spegni(); else accendi();
+    };
     secondoPreferenza();
-    if (media && typeof media.addEventListener === "function") media.addEventListener("change", secondoPreferenza);
     window.addEventListener("resize", function () {
       if (impilato() !== !attivo && !cantiere) secondoPreferenza();   // layout changed: drone on or off
       if (attivo && (pos.x > window.innerWidth || pos.y > window.innerHeight)) {
@@ -394,7 +407,7 @@
     doc.addEventListener("click", function (ev) {
       var t = ev.target;
       var link = t && typeof t.closest === "function" ? t.closest("a[data-costruisci]") : null;
-      if (!link || !attivo || !intercetta(ev, link)) return;
+      if (!link || !attivo || !intercetta(ev, link, function () { return { matches: riduci() }; })) return;
       ev.preventDefault();
       if (cantiere && cantiere.link === link) { vai(link); return; }   // second click: go now
       costruisci(link);
@@ -402,6 +415,23 @@
   }
 
   // ------------------------------------------------------------------ start
+
+  // The Animazioni button of the bar: pause everything, or start everything (even when the system
+  // asks for reduced motion: the visitor asked). The choice is kept for the next visits.
+  function avviaBottoni() {
+    tutti(".animazioni").forEach(function (bottone) {
+      bottone.removeAttribute("hidden");
+      bottone.addEventListener("click", function () {
+        ricorda(statico() ? "si" : "no");
+        applicaPolitica();
+        secondoPreferenza();
+        pianifica(true);   // the pinned hero and the strip change layout
+      });
+    });
+    if (media && typeof media.addEventListener === "function") {
+      media.addEventListener("change", function () { applicaPolitica(); secondoPreferenza(); pianifica(true); });
+    }
+  }
 
   function avvia() {
     raccogli();
@@ -411,9 +441,10 @@
     window.addEventListener("resize", function () { pianifica(true); });
     window.addEventListener("load", function () { raccogli(); pianifica(true); });
     avviaDrone();
+    avviaBottoni();
   }
 
-  window.tIndustrySito = { intercetta: intercetta, adatta: adatta, scorri: scorri, avanzamento: avanzamento };
+  window.tIndustrySito = { intercetta: intercetta, adatta: adatta, scorri: scorri, avanzamento: avanzamento, politica: politica };
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", avvia);
   else avvia();
 })();

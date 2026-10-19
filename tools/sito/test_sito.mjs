@@ -1,11 +1,11 @@
 // Tests of the pure functions of sito.js: `node --test tools/sito/test_sito.mjs` (Node 22).
-// sito.js is required without a DOM: it exports intercetta, avanzamento and bersaglio and stops.
+// sito.js is required without a DOM: it exports intercetta, avanzamento, bersaglio and politica and stops.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { intercetta, avanzamento, bersaglio } = require("./sito.js");
+const { intercetta, avanzamento, bersaglio, politica } = require("./sito.js");
 
 const link = (attributi = ["data-costruisci"]) => ({
   hasAttribute: (nome) => attributi.includes(nome),
@@ -40,6 +40,17 @@ test("intercetta: link senza data-costruisci", () => {
 
 test("intercetta: prefers-reduced-motion", () => {
   assert.equal(intercetta(clic(), link(), media(true)), false);
+});
+
+test("politica: il bottone vince sul sistema, il sistema da solo riduce", () => {
+  assert.equal(politica("no", false), "statico");
+  assert.equal(politica("no", true), "statico");
+  assert.equal(politica("si", true), "pieno");
+  assert.equal(politica("si", false), "pieno");
+  assert.equal(politica(null, false), "pieno");
+  assert.equal(politica(null, true), "ridotto");
+  assert.equal(politica(undefined, true), "ridotto");
+  assert.equal(politica("boh", true), "ridotto");
 });
 
 test("intercetta: evento gia' gestito (defaultPrevented)", () => {
