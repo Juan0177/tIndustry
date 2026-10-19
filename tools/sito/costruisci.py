@@ -362,17 +362,14 @@ def _at(x, y, w=None, h=None):
 
 
 def _breve(testo_html, massimo=110):
-    """A README cell cut down for a card: up to the first semicolon, without parentheses, at most `massimo`
-    characters (counted on the text, tags kept)."""
-    testo = testo_html.split(";")[0]
+    """A README cell cut down for a card: plain text up to the first semicolon, without parentheses, at most
+    `massimo` characters cut at the last comma that fits; escaped again for the page."""
+    testo = html.unescape(re.sub(r"<[^>]+>", "", testo_html)).split(";")[0]
     testo = re.sub(r"\s*\([^)]*\)", "", testo).strip().rstrip(",")
-    visibile = html.unescape(re.sub(r"<[^>]+>", "", testo))
-    if len(visibile) > massimo:
-        # Keep whole clauses: cut at the last comma that fits, on the plain text, then escape it again.
-        taglio = visibile[:massimo]
-        taglio = taglio.rsplit(",", 1)[0] if "," in taglio else taglio.rsplit(" ", 1)[0]
-        testo = html.escape(taglio.strip())
-    return testo
+    if len(testo) > massimo:
+        taglio = testo[:massimo]
+        testo = (taglio.rsplit(",", 1)[0] if "," in taglio else taglio.rsplit(" ", 1)[0]).strip()
+    return html.escape(testo)
 
 
 def _titolo(a, numero, testo, x, y):
