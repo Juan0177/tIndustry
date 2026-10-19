@@ -7,7 +7,8 @@ namespace TIndustry.Godot;
 /// Belt blending probes of the <c>ui</c> playtest: a T merge (two side feeders, nothing behind), side joins (fed from
 /// behind and from the sides) and the auto-junction
 /// of a belt drag (Mindustry): a real left-drag across a perpendicular belt, first with the junction locked (the
-/// belt stays, one toast says why), then unlocked (the drone takes the belt apart and builds a junction). Everything
+/// crossed belt turns in place and its line merges into the new one, no toast), then unlocked (the drone takes the
+/// belt apart and builds a junction). Everything
 /// the probe built, the money and plates it spent and the research it unlocked are put back afterwards, so the later
 /// captures see the same game.
 /// </summary>
@@ -229,20 +230,25 @@ public partial class World
             var lockedCell = new GridPosition(column, at.Y - 1);
             if (!factory.IsStructureUnlocked("junction"))
             {
+                var toast = _hud?.ToastText;
                 await Drag(lockedCell.Y);
-                if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
+                if (!await PlaytestWaitUntil(
+                        () => PendingCommands.Count == 0 && LocalQueueEmpty()
+                            && factory.GetBeltShape(lockedCell) == BeltShape.JoinLeft
+                            && factory.Belts.TryGet(lockedCell, out var turned) && turned.Direction == Direction.East,
+                        BeltDragTimeout))
                 {
-                    return Fail("incrocio bloccato: comandi del trascinamento non applicati");
+                    return Fail($"incrocio bloccato: il nastro in {lockedCell} non è diventato un'unione verso Est");
                 }
 
-                var expected = Testi.Rifiuto(RefusalCode.CrossingNeedsJunction);
-                if (_hud?.ToastText != expected
-                    || !factory.Belts.TryGet(lockedCell, out var kept) || kept.Kind != LogisticsKind.Belt || kept.Direction != Direction.South)
+                if (_hud?.ToastText != toast)
                 {
-                    return Fail($"incrocio bloccato: toast «{_hud?.ToastText}» invece di «{expected}» o nastro cambiato in {lockedCell}");
+                    return Fail($"incrocio bloccato: toast inatteso «{_hud?.ToastText}»");
                 }
 
-                GD.Print("PLAYTEST step ok: incrocio bloccato, il nastro resta e il toast lo dice");
+                await PlaytestWaitUntil(DroneSettled, DroneSettleTimeout);
+                await shot("unione-senza-incrocio");
+                GD.Print("PLAYTEST step ok: incrocio bloccato, il nastro attraversato gira e diventa un'unione");
                 factory.Research.ForceUnlock("junction");
             }
 

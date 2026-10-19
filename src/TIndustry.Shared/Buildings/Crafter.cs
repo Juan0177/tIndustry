@@ -56,6 +56,8 @@ public sealed class Crafter
     public bool UsesCoalOrPower => !IsAssembler;
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
+    /// <summary>True only on ticks where the craft actually progressed (derived, never saved). <see cref="IsCrafting"/> stays true while stalled.</summary>
+    public bool IsWorking { get; private set; }
     public bool IsPowered { get; private set; }
     public int FuelBuffer { get; private set; }
     public float BurnRemaining { get; private set; }
@@ -253,6 +255,7 @@ public sealed class Crafter
         }
 
         IsPowered = false;
+        IsWorking = false;
         if (IsCrafting)
         {
             var canAdvance = false;
@@ -296,6 +299,7 @@ public sealed class Crafter
 
             if (canAdvance)
             {
+                IsWorking = true;
                 AdvanceCraft(deltaSeconds * speed);
             }
         }

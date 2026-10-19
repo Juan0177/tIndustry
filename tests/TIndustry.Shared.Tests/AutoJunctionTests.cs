@@ -60,7 +60,7 @@ public sealed class AutoJunctionTests
     /// <summary>
     /// What the client does while dragging (World.Input): every cell is a PlaceBelt; a cell that may cross a belt
     /// (<see cref="BeltLine.MayCross"/>) is held back and sent after the next cell, with Crossing when the line goes on
-    /// past it (<see cref="BeltLine.IsInterior"/>); the last held cell goes as a plain PlaceBelt on release.
+    /// past it (<see cref="BeltLine.IsInterior"/>); the last held cell is dropped on release (<see cref="BeltDrag"/>).
     /// </summary>
     private static void Drag(SimHost host, IReadOnlyList<GridPosition> cells, Direction dir)
     {
@@ -85,11 +85,6 @@ public sealed class AutoJunctionTests
             }
 
             host.Submit(Cmd(cell));
-        }
-
-        if (held is { } last)
-        {
-            host.Submit(Cmd(last));
         }
 
         host.AdvanceTicks(1);
@@ -186,7 +181,7 @@ public sealed class AutoJunctionTests
     [Theory]
     [InlineData(Direction.South)]
     [InlineData(Direction.North)]
-    public void DragAlongAParallelBeltKeepsTodaysBehaviour(Direction existing)
+    public void DragAlongAParallelBeltTurnsItWithoutJunctions(Direction existing)
     {
         var (factory, host, refusals) = NewGame();
         for (var y = 30; y <= 36; y++)
@@ -196,8 +191,8 @@ public sealed class AutoJunctionTests
 
         Drag(host, Enumerable.Range(28, 11).Select(y => new GridPosition(40, y)).ToArray(), Direction.South);
 
-        Assert.All(refusals, r => Assert.Equal(RefusalCode.Occupied, r.Code));
-        Assert.All(Enumerable.Range(30, 7), y => Assert.Equal(existing, factory.Belts.Cells[new GridPosition(40, y)].Direction));
+        Assert.Empty(refusals);
+        Assert.All(Enumerable.Range(30, 7), y => Assert.Equal(Direction.South, factory.Belts.Cells[new GridPosition(40, y)].Direction));
         Assert.DoesNotContain(factory.Belts.Cells.Values, c => c.Kind == LogisticsKind.Junction);
     }
 
@@ -220,8 +215,9 @@ public sealed class AutoJunctionTests
         SouthLine(factory);
         Drag(host, Row(33, 37, 40), Direction.East);
 
-        Assert.Equal(RefusalCode.Occupied, Assert.Single(refusals).Code);
+        Assert.Empty(refusals);
         Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[Crossing].Kind);
+        Assert.Equal(Direction.South, factory.Belts.Cells[Crossing].Direction);
     }
 
     [Theory]
@@ -245,27 +241,29 @@ public sealed class AutoJunctionTests
     }
 
     [Fact]
-    public void ASingleClickOnABeltKeepsTodaysBehaviour()
+    public void ASingleClickOnAPerpendicularBeltTurnsIt()
     {
         var (factory, host, refusals) = NewGame();
         SouthLine(factory);
         host.Submit(new PlaceBelt(Player, Crossing, Direction.East, BuildSpec.DefaultConveyorId));
         host.AdvanceTicks(1);
 
-        Assert.Equal(RefusalCode.Occupied, Assert.Single(refusals).Code);
-        Assert.Equal(Direction.South, factory.Belts.Cells[Crossing].Direction);
+        Assert.Empty(refusals);
+        Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[Crossing].Kind);
+        Assert.Equal(Direction.East, factory.Belts.Cells[Crossing].Direction);
     }
 
     [Fact]
-    public void LockedJunctionLeavesTheBeltAndSaysWhy()
+    public void LockedJunctionTurnsTheCrossedBeltIntoAMerge()
     {
         var (factory, host, refusals) = NewGame(junctionUnlocked: false);
         SouthLine(factory);
         Drag(host, Row(33, 37, 43), Direction.East);
 
-        Assert.Equal(RefusalCode.CrossingNeedsJunction, Assert.Single(refusals).Code);
+        Assert.Empty(refusals);
         Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[Crossing].Kind);
-        Assert.Equal(Direction.South, factory.Belts.Cells[Crossing].Direction);
+        Assert.Equal(Direction.East, factory.Belts.Cells[Crossing].Direction);
+        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(Crossing));
         Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[new GridPosition(41, 33)].Kind);
     }
 
@@ -295,7 +293,7 @@ public sealed class AutoJunctionTests
     }
 
     [Fact]
-    public void ABeltIntoTheCoreIsNeverConverted()
+    public void ABeltIntoTheCoreIsNeverConvertedOnlyTurned()
     {
         // The Core covers (20..21, 20..21): the crossed belt (22, 21) heads West into it, the drag goes North along x = 22.
         var (factory, host, refusals) = NewGame();
@@ -304,7 +302,8 @@ public sealed class AutoJunctionTests
         Drag(host, Enumerable.Range(19, 5).Select(y => new GridPosition(22, y)).Reverse().ToArray(), Direction.North);
 
         Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[new GridPosition(22, 21)].Kind);
-        Assert.Contains(refusals, r => r.Code == RefusalCode.Occupied);
+        Assert.Equal(Direction.North, factory.Belts.Cells[new GridPosition(22, 21)].Direction);
+        Assert.Empty(refusals);
     }
 
     [Fact]

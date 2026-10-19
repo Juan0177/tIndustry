@@ -225,7 +225,9 @@ public sealed class SimHostTests
     public void PlacementOnOccupiedTileIsRejected()
     {
         var factory = NewSandbox(LoadContent());
-        Assert.True(factory.TryPlaceBelt(new GridPosition(10, 10), Direction.East));
+        // A junction: a belt over a plain belt would turn it in place (BeltOverBeltTests).
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec("junction", BuildingKind.Junction, new GridPosition(10, 10), Direction.East), charge: false));
 
         var (reason, before, atRejection, applied) = RunOne(
             factory, new PlaceBelt(1, new GridPosition(10, 10), Direction.North, "conveyor-basic"));
