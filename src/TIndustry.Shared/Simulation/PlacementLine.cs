@@ -42,8 +42,8 @@ public sealed record LinePlacement(
 /// </summary>
 public static class PlacementLine
 {
-    /// <summary>Longest line, in cells from the anchor (= <see cref="AgentGame.MaxListItems"/>).</summary>
-    public const int MaxCells = 200;
+    /// <summary>Longest line, in cells from the anchor: as many as an agent's reply lists.</summary>
+    public const int MaxCells = AgentGame.MaxListItems;
 
     /// <summary>
     /// The cells of <paramref name="request"/> in order from the anchor. Plain belts, junctions, splitters and sorters
@@ -88,6 +88,17 @@ public static class PlacementLine
                 ? new PlaceBelt(request.PlayerId, cell, direction, request.StructureId, crossing)
                 : new PlaceBuilding(request.PlayerId, kind!.Value, cell, direction, request.RecipeId, request.FilterItemId);
             placements.Add(new LinePlacement(cell, direction, command, Foreseen(view, command, crossing)));
+        }
+
+        // A crossing needs the line on both sides: beside a refused cell it is a plain belt over the belt instead.
+        for (var i = 1; i < placements.Count - 1; i++)
+        {
+            if (placements[i].Command is PlaceBelt { Crossing: true } crossing
+                && (placements[i - 1].Refusal is not null || placements[i + 1].Refusal is not null))
+            {
+                var plain = crossing with { Crossing = false };
+                placements[i] = placements[i] with { Command = plain, Refusal = Foreseen(view, plain, crossing: false) };
+            }
         }
 
         return placements;

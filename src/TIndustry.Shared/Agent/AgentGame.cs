@@ -196,7 +196,10 @@ public sealed class AgentGame : IDisposable
         host.AdvanceTicks((int)gap);
     }
 
-    /// <summary>A refused call was refused the first time too (it still took its tick); an internal error is not.</summary>
+    /// <summary>
+    /// A refused call was refused the first time too (a command SimHost refused took its tick; a line PlacementLine
+    /// refused whole sent nothing and takes none, then as now); an internal error is not.
+    /// </summary>
     private static void Tolerated(Action call)
     {
         try
@@ -261,7 +264,9 @@ public sealed class AgentGame : IDisposable
         }
         catch (AgentException ex)
         {
-            // Bad parameters change nothing; a refused command still took its tick.
+            // Bad parameters change nothing and stay out. A refusal is journaled: a command SimHost refused took its
+            // tick; a line PlacementLine refused whole sent nothing, but stays as the agent's attempt (its replay
+            // refuses it the same way and changes nothing either).
             if (journal && ex.Code != AgentCodes.ParametriNonValidi)
             {
                 Journal.Add(tick, method, p);
@@ -908,8 +913,13 @@ public sealed class AgentGame : IDisposable
         var commands = PlacementLine.Commands(line);
         if (commands.Count == 0)
         {
-            var first = line.First(c => c.Refusal is not null);
-            throw Refused(first.Refusal!.Value, first.Command!);
+            if (line.FirstOrDefault(c => c.Refusal is not null) is { } first)
+            {
+                throw Refused(first.Refusal!.Value, first.Command!);
+            }
+
+            // Nothing to send and nothing refused (only spanned cells): nothing happens.
+            return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = new JsonArray(), ["rifiuti"] = new JsonArray() };
         }
 
         return Command(commands, outcomes =>

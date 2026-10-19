@@ -203,6 +203,28 @@ public sealed class PlacementLineTests
     }
 
     [Fact]
+    public void NoCrossingBesideARefusedCell()
+    {
+        // A splitter on (41,33) right after the column: that cell is refused, so (40,33) would leave a junction in a
+        // broken line. It is a plain belt over the column instead (it turns it, a merge).
+        var factory = NewFactory();
+        factory.Research.ForceUnlock("junction");
+        for (var y = 30; y <= 36; y++)
+        {
+            PlaceBelt(factory, 40, y, Direction.South);
+        }
+
+        Assert.True(factory.PlaceInstant(new BuildSpec("splitter", BuildingKind.Splitter, new GridPosition(41, 33), Direction.East), charge: false));
+
+        var line = Plan(factory, (37, 33), (44, 33), Direction.East);
+
+        Assert.Equal(RefusalCode.Occupied, line[4].Refusal);
+        Assert.False(((PlaceBelt)line[3].Command!).Crossing);
+        Assert.Null(line[3].Refusal);
+        Assert.Equal(BeltOverBelt.Rotate, factory.BeltOverBeltAt(new GridPosition(40, 33), Direction.East, Belt));
+    }
+
+    [Fact]
     public void RefusedCellsAreShownAndNotSent()
     {
         // The classic generator has no walls: the biome one does.
