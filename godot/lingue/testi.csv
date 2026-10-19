@@ -9,6 +9,7 @@ struttura.splitter.nome,Sdoppiatore,Splitter
 struttura.sorter.nome,Selezionatore,Sorter
 struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
+struttura.conveyor-armored.nome,Nastro rinforzato,Armored belt
 struttura.assembler.nome,Assemblatore,Assembler
 struttura.generator.nome,Generatore,Generator
 struttura.power-node.nome,Nodo T1,Power node T1
@@ -87,6 +88,7 @@ strumento.cursore.suggerimento,Cursore: pan / guarda · Esc o riclicca sul tool,
 struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
+struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.splitter.suggerimento,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
 struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
@@ -327,6 +329,7 @@ struttura.extractor.descrizione,Tira 1 oggetto da CORE/edificio · F filtro · R
 struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
 struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,Belt T3 · top speed · R/wheel
+struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non raccoglie di lato · R/rotella","Armored belt · like T2, never picks up from the side · R/wheel"
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.splitter.descrizione,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
 struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight

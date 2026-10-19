@@ -27,6 +27,7 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.Belt, "conveyor-basic", "1"),
         new(ToolKind.BeltFast, "conveyor-fast", ""),
         new(ToolKind.BeltExpress, "conveyor-express", ""),
+        new(ToolKind.BeltArmored, "conveyor-armored", ""),
         new(ToolKind.Junction, "junction", "5"),
         new(ToolKind.Splitter, "splitter", "6"),
         new(ToolKind.Sorter, "sorter", "8"),
@@ -566,7 +567,8 @@ public partial class BuildPalette : PanelContainer
     private static BuildCategory CategoryFor(ToolKind tool) => tool switch
     {
         ToolKind.Cursor => BuildCategory.Tools,
-        ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.Junction or ToolKind.Splitter or ToolKind.Sorter or ToolKind.Bridge
+        ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.Junction or ToolKind.Splitter
+            or ToolKind.Sorter or ToolKind.Bridge
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             => BuildCategory.Production,

@@ -361,7 +361,8 @@ public sealed class FactoryContent
             MapAmounts(c.BuildCost),
             MapUnlock(c.Unlock),
             ParseKind(c.Kind),
-            MapMultiplier(c.BuildCostMultiplier));
+            MapMultiplier(c.BuildCostMultiplier),
+            c.Armored);
 
     private static RecipeDefinition MapRecipe(RecipeDto r) =>
         new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs));
@@ -502,6 +503,7 @@ public sealed class FactoryContent
         public UnlockDto? Unlock { get; set; }
         public string? Kind { get; set; }
         public float? BuildCostMultiplier { get; set; }
+        public bool Armored { get; set; }
     }
 
     private sealed class RecipeDto

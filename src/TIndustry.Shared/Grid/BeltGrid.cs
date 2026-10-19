@@ -178,9 +178,19 @@ public sealed class BeltGrid
         return true;
     }
 
-    public bool TryInsert(GridPosition position, TransportedItem item, Direction? fromDirection = null)
+    /// <summary>
+    /// Puts <paramref name="item"/> on the cell at <paramref name="position"/>. <paramref name="source"/> is the tile
+    /// the item comes from (a building's footprint tile beside the cell); without it, a handoff between cells comes
+    /// from <c>position.Step(Opposite(fromDirection))</c>. An armored belt refuses what <see cref="ArmoredAccepts"/> refuses.
+    /// </summary>
+    public bool TryInsert(
+        GridPosition position,
+        TransportedItem item,
+        Direction? fromDirection = null,
+        GridPosition? source = null)
     {
-        if (!cells.TryGetValue(position, out var cell))
+        if (!cells.TryGetValue(position, out var cell)
+            || !ArmoredAccepts(cell, source ?? (fromDirection is { } from ? position.Step(DirectionMath.Opposite(from)) : null)))
         {
             return false;
         }
@@ -264,7 +274,9 @@ public sealed class BeltGrid
 
                 var exit = ready.Travel ?? cell.Direction;
                 var target = cell.Position.Step(exit);
-                if (!cells.TryGetValue(target, out var next) || !next.TryInsert(ready, exit))
+                if (!cells.TryGetValue(target, out var next)
+                    || !ArmoredAccepts(next, cell.Position)
+                    || !next.TryInsert(ready, exit))
                 {
                     i++;
                     continue;
@@ -336,6 +348,16 @@ public sealed class BeltGrid
         // Belt / bridge exit: facing neighbor.
         TryHandoffTo(cell, cell.Direction, item);
     }
+
+    /// <summary>
+    /// Mindustry's armored conveyor: an armored belt takes items from the cell behind it or from a plain belt on any
+    /// side, never from a building or a special on its side; an item of unknown origin is refused. Other cells take all.
+    /// </summary>
+    private bool ArmoredAccepts(BeltGridCell cell, GridPosition? source) =>
+        !cell.Definition.IsArmoredBelt
+        || (source is { } from
+            && (from == cell.Position.Step(DirectionMath.Opposite(cell.Direction))
+                || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
 
     private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
     {
@@ -490,6 +512,11 @@ public sealed class BeltGrid
         Direction dir,
         Func<GridPosition, GridPosition, bool>? buildingFeeds)
     {
+        if (cells.TryGetValue(position, out var cell) && cell.Definition.IsArmoredBelt)
+        {
+            return (false, false); // an armored belt never blends with a building on its side
+        }
+
         bool Feeds(GridPosition side) => !cells.ContainsKey(side) && buildingFeeds?.Invoke(side, position) == true;
         return (Feeds(position.Step(DirectionMath.Left(dir))), Feeds(position.Step(DirectionMath.Right(dir))));
     }
@@ -524,10 +551,16 @@ public sealed class BeltGrid
     {
         var left = DirectionMath.Left(dir);
         var right = DirectionMath.Right(dir);
+        // Mirrors ArmoredAccepts: on an armored belt only a plain belt counts on a side.
+        var armored = cells.TryGetValue(position, out var cell) && cell.Definition.IsArmoredBelt;
+        bool Side(GridPosition side, Direction flow) =>
+            armored
+                ? cells.TryGetValue(side, out var feeder) && feeder.Kind == LogisticsKind.Belt && feeder.Direction == flow
+                : FeedsToward(side, flow, buildingFeeds, JunctionChainLimit);
         return (
             FeedsToward(position.Step(DirectionMath.Opposite(dir)), dir, buildingFeeds, JunctionChainLimit),
-            FeedsToward(position.Step(left), right, buildingFeeds, JunctionChainLimit),
-            FeedsToward(position.Step(right), left, buildingFeeds, JunctionChainLimit));
+            Side(position.Step(left), right),
+            Side(position.Step(right), left));
     }
 
     // Junctions pass items straight through: look this many junctions back for the real source.

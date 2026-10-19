@@ -179,6 +179,55 @@
         ]
       },
       "kind": "belt"
+    },
+    {
+      "id": "conveyor-armored",
+      "tier": 2,
+      "rateItemsPerSecond": 1.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 1
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        },
+        {
+          "itemId": "titanium-plate",
+          "amount": 2
+        },
+        {
+          "itemId": "graphite",
+          "amount": 1
+        }
+      ],
+      "unlock": {
+        "money": 600,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 8
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 8
+          },
+          {
+            "itemId": "titanium-plate",
+            "amount": 10
+          },
+          {
+            "itemId": "graphite",
+            "amount": 8
+          }
+        ]
+      },
+      "kind": "belt",
+      "armored": true
     }
   ],
   "recipes": [
@@ -454,6 +503,37 @@
           {
             "itemId": "copper-wire",
             "amount": 20
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-fast"
+      ]
+    },
+    {
+      "id": "conveyor-armored",
+      "displayName": "Nastro rinforzato",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 600,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 8
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 8
+          },
+          {
+            "itemId": "titanium-plate",
+            "amount": 10
+          },
+          {
+            "itemId": "graphite",
+            "amount": 8
           }
         ]
       },
