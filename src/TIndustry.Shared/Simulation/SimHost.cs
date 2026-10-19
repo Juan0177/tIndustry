@@ -69,6 +69,12 @@ public sealed class SimHost
         pending.Add(command);
     }
 
+    /// <summary>Sub-tick fraction of the clock (<see cref="SimulationClock.Alpha"/>): visual interpolation only.</summary>
+    public double TickAlpha => clock.Alpha;
+
+    /// <summary>True when the last <see cref="Advance"/> dropped ticks over the per-frame cap (a hitch).</summary>
+    public bool TicksDropped => clock.DroppedTicks;
+
     /// <summary>
     /// Accumulates frame time and runs the ticks due (at most <see cref="SimulationClock.MaxTicksPerFrame"/>).
     /// Returns the number of ticks run.

@@ -350,6 +350,10 @@ public partial class World
         _beltVisual.ConfigureFromGrid(_view, TileSize);
     }
 
+    /// <summary>
+    /// Item sprites drawn between the last two ticks at the clock's sub-tick fraction (<see cref="SimHost.TickAlpha"/>),
+    /// so they move every frame whatever the frame rate: at most one tick behind the simulation, drawing only.
+    /// </summary>
     private void SyncItemSprites()
     {
         if (_view is null || _itemsLayer is null)
@@ -357,6 +361,13 @@ public partial class World
             return;
         }
 
+        var tick = _view.CurrentTick;
+        var ticksRun = tick - _itemsTick;
+        _itemsTick = tick;
+        // Another game (load), or a hitch whose ticks the clock dropped: draw the new tick, never slide from the old positions.
+        var restart = !ReferenceEquals(_itemsHost, _host) || (ticksRun > 0 && _host?.TicksDropped == true);
+        _itemsHost = _host;
+        var alpha = _host?.TickAlpha ?? 0;
         var live = new HashSet<long>();
         foreach (var cell in _view.Belts.Values)
         {
@@ -382,8 +393,13 @@ public partial class World
 
                 var from = CellCenter(cell.Position);
                 var to = CellCenter(cell.Position.Step(cell.Direction));
-                var pos = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
-                sprite.Position = pos;
+                var now = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
+                var motion = ItemMotion.Next(
+                    _itemMotion.TryGetValue(item.Id, out var old) ? old : null,
+                    new System.Numerics.Vector2(now.X, now.Y), cell.Position, cell.Direction, ticksRun, restart);
+                _itemMotion[item.Id] = motion;
+                var drawn = motion.At(alpha);
+                sprite.Position = new Vector2(drawn.X, drawn.Y);
                 // Corner and T = galleria: items disappear while inside the turn or the merge (side joins show them).
                 sprite.Visible = _view.GetBeltShape(cell.Position) is not (BeltShape.Corner or BeltShape.T);
             }
@@ -394,6 +410,7 @@ public partial class World
         {
             _itemSprites[id].QueueFree();
             _itemSprites.Remove(id);
+            _itemMotion.Remove(id);
         }
     }
 

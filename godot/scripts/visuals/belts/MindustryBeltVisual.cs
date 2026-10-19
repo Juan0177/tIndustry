@@ -33,21 +33,44 @@ public partial class MindustryBeltVisual : Node2D
     private sealed class SharedStrip
     {
         private readonly int _side;
-        private readonly int _count;
+        public readonly int Count;
         public readonly AtlasTexture Texture;
 
         public SharedStrip(string id)
         {
             var strip = Sprites.For(id + "-anim");
             _side = strip.GetHeight();
-            _count = Math.Max(1, strip.GetWidth() / _side);
+            Count = Math.Max(1, strip.GetWidth() / _side);
             Texture = new AtlasTexture { Atlas = strip, Region = new Rect2(0, 0, _side, _side) };
         }
 
-        public void Show(int frame) => Texture.Region = new Rect2(frame % _count * _side, 0, _side, _side);
+        public void Show(int frame) => Texture.Region = new Rect2(frame % Count * _side, 0, _side, _side);
     }
 
     private readonly Dictionary<string, TierClock> _tiers = new(StringComparer.Ordinal);
+
+    /// <summary>Set by the <c>oggetti-fluidi</c> playtest probe: belts scroll although playtests force effects off.</summary>
+    internal static bool PlaytestScrolls { get; set; }
+
+    /// <summary>Strip frame a belt tier shows now (playtest probe), or -1 if no cell of that tier is drawn.</summary>
+    internal int FrameOf(string conveyorId) => _tiers.TryGetValue(conveyorId, out var clock) ? clock.Frame : -1;
+
+    /// <summary>Frames per cell of a belt tier's straight strip (playtest probe), or 0 if no cell of that tier is drawn.</summary>
+    internal int FramesPerCell(string conveyorId) => _tiers.TryGetValue(conveyorId, out var clock) ? clock.Straight.Count : 0;
+
+    /// <summary>Back to the first frame on every tier (after the playtest probe, so later captures match).</summary>
+    internal void PlaytestRewind()
+    {
+        foreach (var clock in _tiers.Values)
+        {
+            clock.Scroll = 0f;
+            clock.Frame = 0;
+            foreach (var strip in new[] { clock.Straight, clock.Corner, clock.T, clock.JoinLeft, clock.JoinRight, clock.JoinBoth, clock.JoinBuildingBoth })
+            {
+                strip.Show(0);
+            }
+        }
+    }
 
     public void ConfigureFromGrid(IGameView view, int tileSize)
     {
@@ -79,7 +102,7 @@ public partial class MindustryBeltVisual : Node2D
 
     public override void _Process(double delta)
     {
-        if (ClientSettings.PlaytestForcesEffectsOff)
+        if (ClientSettings.PlaytestForcesEffectsOff && !PlaytestScrolls)
         {
             return; // belts hold their first frame in playtests (repeatable captures)
         }
@@ -92,7 +115,9 @@ public partial class MindustryBeltVisual : Node2D
                 clock.Scroll %= 1f;
             }
 
-            var frame = (int)(clock.Scroll * 8) % 8;
+            // One frame per pixel of tread (the strip's frame count), so the belt moves as smoothly as its items.
+            var count = clock.Straight.Count;
+            var frame = (int)(clock.Scroll * count) % count;
             if (frame == clock.Frame)
             {
                 continue;
