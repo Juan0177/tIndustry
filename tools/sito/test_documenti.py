@@ -63,7 +63,10 @@ class TestReadme(unittest.TestCase):
 
     def test_roadmap(self):
         righe = documenti.roadmap()
-        self.assertTrue({"Fatto", "In corso", "Previsto"} <= {_senza_tag(s) for s, _, _ in righe}, righe)
+        stati = {_senza_tag(s) for s, _, _ in righe}
+        self.assertTrue({"Fatto", "Previsto"} <= stati, righe)  # "In corso" comes and goes with the work
+        for stato in stati:  # every status maps to a known label class
+            self.assertIn(documenti.classe_stato(stato), ("stato-fatto", "stato-in-corso", "stato-previsto", "stato-altro"))
         for riga in righe:
             self.assertEqual(3, len(riga))
             for cella in riga:
