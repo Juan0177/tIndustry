@@ -103,7 +103,7 @@ public partial class NightLayer : Node2D
 
         foreach (var smelter in view.Smelters)
         {
-            if (smelter.IsCrafting)
+            if (smelter.IsWorking)
             {
                 Add(Center(smelter.Position, Crafter.Size), SmelterLight);
             }
