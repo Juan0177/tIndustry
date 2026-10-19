@@ -90,7 +90,7 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | C | Cicla filtro selezionatore |
 | RMB | Cancella un piano, annulla un cantiere o segna un blocco da smontare; clic singolo toglie il segno, trascinare segna soltanto (non è uno slot palette) |
 
-**Home durante una partita** (Esc col cursore, o **Menu**): il primo pulsante è **Riprendi**, che torna alla partita così com'è (Continua, che ricaricherebbe l'ultimo salvataggio automatico, non c'è); anche **Esc** riprende. Gli altri pulsanti sono quelli di sempre. Nella Home iniziale, all'avvio, Esc non fa nulla: dal gioco si esce solo con **Esci**, mai con Esc.
+**Home durante una partita** (Esc col cursore, o **Menu**): il primo pulsante è **Riprendi**, che torna alla partita così com'è (Continua, che ricaricherebbe l'ultimo salvataggio automatico, non c'è); anche **Esc** riprende. Gli altri pulsanti sono quelli di sempre. Nella Home iniziale, all'avvio, Esc (come **Esci**) chiede conferma con «Uscire dal gioco?»: **Invio** o **Esci** esce, **Esc** o **Annulla** torna alla Home.
 
 Ponte: estremi 1×1, campata larga circa il 70% della cella, distanza 2–4, celle in mezzo libere (un nastro può passarci sotto).
 

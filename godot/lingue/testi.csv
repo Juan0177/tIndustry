@@ -110,6 +110,7 @@ rifiuto.Locked,{0} bloccato: sbloccalo in Ricerca (T).,{0} locked: unlock it in 
 blocco.dettaglio,Dettaglio blocco,Block details
 blocco.bloccato,{0} · bloccato,{0} · locked
 comune.chiudi,Chiudi,Close
+comune.annulla,Annulla,Cancel
 blocco.costo.ok,ok,ok
 blocco.costo.manca,manca,missing
 blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro = elimina · Esc = cursore,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click = remove · Esc = cursor
@@ -206,6 +207,7 @@ home.nuova,Nuova partita,New game
 home.salvataggi,Gestione salvataggi,Manage saves
 home.impostazioni,Impostazioni,Settings
 home.esci,Esci,Quit
+home.esci.titolo,Uscire dal gioco?,Quit the game?
 partita.misura.media,Media,Medium
 partita.misura.grande,Grande,Large
 partita.misura.enorme,Enorme,Huge
