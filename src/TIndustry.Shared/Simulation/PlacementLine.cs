@@ -14,7 +14,7 @@ public enum LineShape
 /// A placement drag of <paramref name="StructureId"/> (a conveyor id or a building's structure id) pressed on
 /// <paramref name="Anchor"/> and now on <paramref name="Cursor"/> (the same cell for a click). <paramref name="Brush"/>
 /// is the player's direction (R); <paramref name="FixedDirection"/> (R pressed during the drag, the agents'
-/// <c>direzione</c>) makes every cell face it.
+/// <c>direzione</c>) makes every cell face it, except on a Ctrl path or chain (<see cref="LineShape.Diagonal"/>).
 /// </summary>
 public sealed record LineRequest(
     int PlayerId,
@@ -79,6 +79,8 @@ public static class PlacementLine
         IReadOnlyList<GridPosition> cells = !inLine ? [request.Anchor]
             : chain ?? path ?? Straight(request.Anchor, request.Cursor);
         var lineWay = dragged ? Dominant(request.Anchor, request.Cursor) : request.Brush;
+        // A Ctrl path or chain lays a working line (Mindustry): R fixes the direction only of a straight line.
+        var fixedWay = request.FixedDirection && chain is null && path is null;
 
         var placements = new List<LinePlacement>(cells.Count);
         for (var i = 0; i < cells.Count; i++)
@@ -91,11 +93,11 @@ public static class PlacementLine
             // A drag of a line has at least two cells: its last one over a plain belt takes that belt's way. A chain
             // keeps every cell's own way.
             var direction = chain is not null ? under!.Direction
-                : request.FixedDirection || !dragged ? request.Brush
+                : fixedWay || !dragged ? request.Brush
                 : inLine && last && overBelt ? under!.Direction
                 : inLine ? next is { } ahead ? BeltLane.DirectionBetween(cell, ahead) : BeltLane.DirectionBetween(previous!.Value, cell)
                 : lineWay;
-            if (belt && last && !request.FixedDirection && !overBelt
+            if (belt && last && !fixedWay && !overBelt
                 && CoreStockSink.PreferDirectionIntoCore(cell, view.CoreTiles) is { } intoCore)
             {
                 direction = intoCore;
@@ -165,6 +167,9 @@ public static class PlacementLine
                 && exit == placements[after].Cell)
             {
                 placements[start - 1] = new LinePlacement(entry.Cell, way, bridge, null);
+                // The exit's own refusal (none, or a plan's) is cleared too: FindBridgeExit, behind Footprint and
+                // CanPlace, proved the exit free and Foreseen checked the plans on both ends, so this holds only while
+                // Footprint and CanPlace keep using the same exit rule.
                 for (var k = start; k <= after; k++)
                 {
                     placements[k] = placements[k] with { Command = null, Refusal = null, Spanned = true };

@@ -162,7 +162,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("Inizio del trascinamento.")] Cella? da = null,
         [Description("Fine del trascinamento.")] Cella? a = null,
         [Description("nord, est, sud, ovest: fissa la direzione di ogni cella, come R durante il trascinamento (senza: con 'cella' quella di ruota, con 'da'/'a' quella del trascinamento).")] string? direzione = null,
-        [Description("true = Ctrl, solo nastri: segue la catena di nastri fra 'da' e 'a' (cambio di tier) o un percorso A* sui quattro lati che gira attorno agli ostacoli (mai ponti); senza percorso, la retta.")] bool? diagonale = null,
+        [Description("true = Ctrl, solo nastri: segue la catena di nastri fra 'da' e 'a' (cambio di tier) o un percorso A* sui quattro lati che gira attorno agli ostacoli (mai ponti), con le sue direzioni anche con 'direzione'; senza percorso, la retta (lì 'direzione' vale).")] bool? diagonale = null,
         [Description("Ricetta di forno o assemblatore.")] string? ricetta = null,
         [Description("Oggetto del filtro del selezionatore.")] string? filtro = null,
         [Description(Dettaglio)] bool dettaglio = false) =>

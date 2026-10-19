@@ -201,4 +201,45 @@ public sealed class AutoBridgeTests
         Assert.True(((PlaceBelt)At(line, 8).Command!).Crossing);
         Assert.DoesNotContain(line, c => c.Spanned || c.Command is PlaceBuilding);
     }
+
+    [Theory]
+    [InlineData(6, true)]
+    [InlineData(7, false)]
+    public void CrossingBesideTheBridge(int columnX, bool bridged)
+    {
+        // A South column on x 6 crosses the line just before the bridge's entry (7,10): the entry is accepted, so the
+        // crossing stays. On x 7 the column takes the entry's cell: no bridge, the wall stays refused, and the cell
+        // beside it is a plain belt over the column (Task 6), not a crossing.
+        var factory = NewFactory(walls: [(8, 10)]);
+        factory.Research.ForceUnlock("junction");
+        for (var y = 7; y <= 13; y++)
+        {
+            Assert.True(factory.PlaceInstant(new BuildSpec(Belt, null, new GridPosition(columnX, y), Direction.South), charge: false));
+        }
+
+        var line = EastLine(factory, 3, 12);
+
+        Assert.Equal(bridged, ((PlaceBelt)At(line, columnX).Command!).Crossing);
+        if (bridged)
+        {
+            AssertBridged(line, 7, 9, 12);
+        }
+        else
+        {
+            Assert.Equal(RefusalCode.Wall, At(line, 8).Refusal);
+            Assert.DoesNotContain(line, c => c.Spanned || c.Command is PlaceBuilding);
+        }
+
+        var host = new SimHost(factory);
+        var refused = new List<Refusal>();
+        host.CommandRejected += (_, r) => refused.Add(r);
+        foreach (var command in PlacementLine.Commands(line))
+        {
+            host.Submit(command);
+        }
+
+        host.AdvanceTicks(1);
+        Assert.Empty(refused);
+        Assert.Equal(bridged ? LogisticsKind.Junction : LogisticsKind.Belt, factory.Belts.Cells[new GridPosition(columnX, 10)].Kind);
+    }
 }

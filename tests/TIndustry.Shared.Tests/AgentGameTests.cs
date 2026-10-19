@@ -176,6 +176,11 @@ public sealed class AgentGameTests
         Assert.Equal(expected.Select(c => c.Cell), Cells(result));
         Assert.Equal(new GridPosition(44, 43), Cells(result)[^1]);
         Assert.All(expected, c => Assert.Equal(c.Direction, host.State.Belts[c.Cell].Direction));
+
+        // With `direzione` too the path keeps its turns: R fixes only a straight line.
+        var fixedToo = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":40,"y":50},"a":{"x":44,"y":53},"diagonale":true,"direzione":"ovest"}""");
+        Assert.Equal(expected.Select(c => c.Cell with { Y = c.Cell.Y + 10 }), Cells(fixedToo));
+        Assert.All(expected, c => Assert.Equal(c.Direction, host.State.Belts[c.Cell with { Y = c.Cell.Y + 10 }].Direction));
     }
 
     [Fact]
