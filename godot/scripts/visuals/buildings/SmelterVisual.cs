@@ -50,7 +50,7 @@ public partial class SmelterVisual : Node2D
         if (fx is not null)
         {
             _fx = fx;
-            _smoke = fx.Keep(_smoke, sm.IsCrafting, "fumo-forno", this, _smokeAt, Origin);
+            _smoke = fx.Keep(_smoke, sm.IsWorking, "fumo-forno", this, _smokeAt, Origin);
         }
 
         if (_glow is null)
@@ -58,7 +58,7 @@ public partial class SmelterVisual : Node2D
             return;
         }
 
-        if (!sm.IsCrafting)
+        if (!sm.IsWorking)
         {
             _glow.Visible = false;
             _pulse = 0f;

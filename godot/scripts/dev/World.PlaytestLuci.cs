@@ -94,7 +94,7 @@ public partial class World
             {
                 KeepPerfLayoutWorking(factory);
                 await Frames(1);
-                hot = factory.Smelters.FirstOrDefault(s => s.IsCrafting);
+                hot = factory.Smelters.FirstOrDefault(s => s.IsWorking);
             }
 
             if (hot is null || !factory.Generators.Any(g => g.IsGenerating))
