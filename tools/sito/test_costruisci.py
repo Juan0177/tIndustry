@@ -126,6 +126,25 @@ class TestSito(unittest.TestCase):
         self.assertEqual(-14, max(ciclo))
         self.assertEqual(-36, ciclo[-1])
 
+    def test_nastri_un_fotogramma_per_pixel(self):
+        # MindustryBeltVisual: the tier clock advances `rate` cells per second and shows frame
+        # (int)(scroll * count) % count, count being the strip's frame count (one per pixel of tread). So the strip
+        # plays at rate * count frames per second, read from the sprite, and one loop (one cell) lasts 1 / rate s.
+        nastri = [b for b in composti.BLOCCHI if b.id in composti.VELOCITA_NASTRO and b.fps_parti]
+        tier = [c for c in composti.VELOCITA_NASTRO if os.path.exists(os.path.join(ASSETS, c + "-anim.png"))]
+        self.assertEqual(sorted(tier), sorted(b.id for b in nastri))
+        for b in nastri:
+            rate = composti.VELOCITA_NASTRO[b.id]
+            for s in b.strati:
+                n = len(self.immagini.fotogrammi(s.sprite))
+                self.assertGreater(n, 8, s.sprite)
+                self.assertEqual(rate * n, s.fps, s.sprite)
+                self.assertEqual(rate * n, b.fps_parti[s.sprite], s.sprite)
+            self.assertIn(f"{rate * n:g} fotogrammi al secondo", b.nota, b.id)
+            for st in b.stati:
+                if st.durata:
+                    self.assertAlmostEqual(1 / rate, st.durata, msg=f"{b.id}: {st.nome}")
+
     def test_ambienti(self):
         # One composed window per land biome of content.json.
         with open(os.path.join(costruisci.REPO, "data", "content.json"), encoding="utf-8") as fh:
