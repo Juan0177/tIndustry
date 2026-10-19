@@ -34,7 +34,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 5 | Revisione a più lenti e correzioni | `9c928fe` (e `543e295` per un test) |
 | 6 | Documenti e diario | `695a8ab`, `1433daf`, `8546c50` |
 | 7 | Unione a T sopra il CORE (PR #235) | `3bde5d8` |
-| 8 | Verifica finale sul sito pubblicato e correzioni (PR #236) | VERIFICA_FINALE |
+| 8 | Verifica finale sul sito pubblicato e correzioni (PR #236) | `141d678` |
 
 ## Giri di revisione
 
