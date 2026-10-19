@@ -7,13 +7,14 @@ namespace TIndustry.Shared;
 /// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 10 was the
 /// first format where a save file is metadata plus this snapshot; version 11 adds the rules, drones,
 /// plan queues and construction sites; version 12 names the terrain generator (<see cref="Generator"/>,
-/// <see cref="MapSize"/>, <see cref="MapId"/>). Version 11 is still read (classic terrain); older files are not.
+/// <see cref="MapSize"/>, <see cref="MapId"/>); version 13 lets a site remember the belt it replaces
+/// (<see cref="SiteSaveDto.Replaced"/>). Versions 11 (classic terrain) and 12 are still read; older files are not.
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 12;
+    public const int CurrentVersion = 13;
 
-    /// <summary>Oldest version still read: v11 saves load on the classic generator.</summary>
+    /// <summary>Oldest version still read: v11 saves load on the classic generator, v11 and v12 have no replacement sites.</summary>
     public const int MinReadableVersion = 11;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
@@ -161,6 +162,16 @@ public sealed class SiteSaveDto
     /// <summary>Refund share in basis points (0–10000).</summary>
     public int RefundBasisPoints { get; set; }
     public int Owner { get; set; }
+
+    /// <summary>The belt a replacement site took away (v13; written only for replacement sites).</summary>
+    public ReplacedSaveDto? Replaced { get; set; }
+}
+
+/// <summary>A belt taken away by a replacement site: its spec and items (front first).</summary>
+public sealed class ReplacedSaveDto
+{
+    public BuildSpecSaveDto Spec { get; set; } = new();
+    public List<ItemSaveDto> Items { get; set; } = [];
 }
 
 /// <summary>One cost line of a site: <see cref="ItemId"/> null means money.</summary>

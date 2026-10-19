@@ -126,7 +126,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
 | **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
-| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 12 (i v11 si caricano ancora) |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 13 (i v11 e i v12 si caricano ancora) |
 
 Il combattimento è fuori dal progetto per ora.
 

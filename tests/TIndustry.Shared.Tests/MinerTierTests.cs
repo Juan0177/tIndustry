@@ -211,7 +211,7 @@ public sealed class MinerTierTests
         Assert.False(factory.CanPlace(MinerSpec(Miner.BasicId, origin.X, origin.Y), out _));
 
         var data = factory.Capture();
-        Assert.Equal(12, data.Version);
+        data.Version = 12;
         data.Miners.Add(new MinerSaveDto
         {
             Id = data.NextEntityId + 100,

@@ -76,6 +76,13 @@ public sealed class ConstructSite
     /// </summary>
     public int StalledTicks { get; internal set; }
 
+    /// <summary>
+    /// The belt this site replaces (another tier on the same cell), null for an ordinary site. Its cost covers the
+    /// new one's common part (<see cref="Construction.ReplacementCredit"/>, counted in <see cref="Spent"/> while
+    /// building and taken out when cancelled: a deconstructing site with <see cref="Replaced"/> has it out already).
+    /// </summary>
+    public ReplacedBelt? Replaced { get; internal set; }
+
     public bool Occupies(GridPosition tile)
     {
         foreach (var t in Tiles)
@@ -89,3 +96,6 @@ public sealed class ConstructSite
         return false;
     }
 }
+
+/// <summary>A belt taken away by a replacement site: its spec and its items, front first, with their positions.</summary>
+public sealed record ReplacedBelt(BuildSpec Spec, IReadOnlyList<TransportedItem> Items);

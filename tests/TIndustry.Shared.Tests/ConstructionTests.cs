@@ -240,7 +240,7 @@ public sealed class ConstructionTests
         Assert.Equal(2, site.Spent[iron]);
         Assert.Equal(8, factory.Wallet.MaterialCount(Iron));
 
-        Construction.Cancel(site);
+        Construction.Cancel(factory.State, site);
         Assert.True(site.Deconstructing);
         Assert.Equal(Construction.FullRefundBasisPoints, site.RefundBasisPoints);
 
@@ -413,7 +413,7 @@ public sealed class ConstructionTests
 
         var spent = site.Spent[iron];
         Assert.InRange(spent, 2, 3);
-        Construction.Cancel(site);
+        Construction.Cancel(factory.State, site);
 
         var before = factory.Wallet.MaterialCount(Iron);
         Assert.Equal(ConstructStep.Progressed, Construction.Advance(factory.State, site, BuildSpeed));

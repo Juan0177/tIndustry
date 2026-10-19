@@ -233,6 +233,10 @@ public sealed class SimHost
                 return null;
             case BeltOverBelt.Rotate:
                 return factory.TryRotateBelt(spec.Origin, spec.Direction) ? null : RefusalCode.Occupied;
+            case BeltOverBelt.Replace when factory.State.Rules.InstantBuild:
+                return factory.IsStructureUnlocked(spec.StructureId)
+                    ? factory.TryReplaceBeltInstant(spec)
+                    : new Refusal(RefusalCode.Locked, spec.StructureId);
         }
 
         if (factory.State.Rules.InstantBuild)
@@ -323,7 +327,10 @@ public sealed class SimHost
             return new Refusal(RefusalCode.Locked, spec.StructureId);
         }
 
-        if (!factory.CanPlace(spec, out var reason))
+        // A belt of another tier over a free plain belt: the drone will replace it (BuilderSystem.BeginWork).
+        var replaces = spec.Kind is null
+            && factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) == BeltOverBelt.Replace;
+        if (!replaces && !factory.CanPlace(spec, out var reason))
         {
             return reason ?? RefusalCode.Occupied;
         }
@@ -378,7 +385,7 @@ public sealed class SimHost
                 return RefusalCode.NothingToRemove;
             }
 
-            Construction.Cancel(site);
+            Construction.Cancel(factory.State, site);
             return null;
         }
 
