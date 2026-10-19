@@ -328,7 +328,7 @@ public partial class AgentBridge : Node
                     StartRun(connection, request.Id, p);
                     break;
                 case "cattura":
-                    Reply(connection, request.Id, Capture(p));
+                    StartCapture(connection, request.Id, p);
                     break;
                 case "telecamera":
                     Reply(connection, request.Id, Camera(p));
@@ -683,20 +683,181 @@ public partial class AgentBridge : Node
 
     // --- Capture, camera, log ------------------------------------------------------------------------------------
 
-    /// <summary><c>cattura {percorso?}</c>: PNG of the window, only under <c>&lt;profile&gt;/catture</c>.</summary>
-    private JsonObject Capture(JsonElement p)
+    private const int CompactWidth = 640, CompactHeight = 360, HighWidth = 1920, HighHeight = 1080;
+
+    /// <summary>
+    /// <c>cattura {percorso?, immagine?, alta?, regione?, da?, a?}</c>: the frame (the window's 1280×720, or a real
+    /// 1920×1080 render with <c>alta</c>), cut to <c>regione</c> (frame pixels) or to the cells <c>da</c>..<c>a</c>.
+    /// Saved as PNG, only under <c>&lt;profile&gt;/catture</c>, when <c>percorso</c> is given or <c>immagine</c> is not
+    /// true; with <c>immagine</c> the answer carries the PNG in base64 (<c>png</c>), fitted inside
+    /// <see cref="CompactWidth"/>×<see cref="CompactHeight"/> unless <c>alta</c>.
+    /// </summary>
+    private void StartCapture(int connection, long id, JsonElement p)
     {
-        var path = CapturePath(Profile(), OptStr(p, "percorso"), _shots + 1)
-            ?? throw Bad("'percorso' è un nome relativo .png dentro la cartella catture del profilo, senza '..'.");
-        _shots++;
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        using var image = _world.CaptureFrame();
-        if (image.SavePng(path) is var error and not Error.Ok)
+        var inline = p.TryGetProperty("immagine", out var i) && i.ValueKind == JsonValueKind.True;
+        var wanted = OptStr(p, "percorso");
+        string? path = null;
+        if (wanted is not null || !inline)
         {
-            throw new AgentException(AgentCodes.ErroreInterno, $"Cattura non salvata ({error}).");
+            path = CapturePath(Profile(), wanted, _shots + 1)
+                ?? throw Bad("'percorso' è un nome relativo .png dentro la cartella catture del profilo, senza '..'.");
         }
 
-        return new JsonObject { ["percorso"] = path, ["larghezza"] = image.GetWidth(), ["altezza"] = image.GetHeight() };
+        if (p.TryGetProperty("regione", out _) && (p.TryGetProperty("da", out _) || p.TryGetProperty("a", out _)))
+        {
+            throw Bad("Dai 'regione' (pixel) oppure 'da' e 'a' (celle), non tutti e due.");
+        }
+
+        if (p.TryGetProperty("da", out _) != p.TryGetProperty("a", out _))
+        {
+            throw Bad("Un'area di celle vuole sia 'da' sia 'a'.");
+        }
+
+        if (!(p.TryGetProperty("alta", out var high) && high.ValueKind == JsonValueKind.True))
+        {
+            using var frame = _world.CaptureFrame();
+            Reply(connection, id, FinishCapture(frame, p, path, inline, compact: true));
+            return;
+        }
+
+        _busy = true;
+        _ = CaptureHighAsync(connection, id, p, path, inline);
+    }
+
+    /// <summary>
+    /// A real 1920×1080 frame: for a few frames the root window renders at that size (content scale mode Viewport: the
+    /// window keeps its size and shows the frame scaled down), as on a 1080p screen with the UI at 100%, so more map
+    /// and the HUD laid out for that screen. Then the window's own mode comes back.
+    /// </summary>
+    private async Task CaptureHighAsync(int connection, long id, JsonElement p, string? path, bool inline)
+    {
+        var root = GetTree().Root;
+        var (mode, size, aspect) = (root.ContentScaleMode, root.ContentScaleSize, root.ContentScaleAspect);
+        try
+        {
+            Image frame;
+            try
+            {
+                root.ContentScaleSize = new Vector2I(HighWidth, HighHeight);
+                root.ContentScaleAspect = Window.ContentScaleAspectEnum.Ignore;
+                root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;
+                // The layout and the camera follow the new size on the next frame: wait until frames have been drawn
+                // at that size, then read the last one.
+                // No drawn frames (window minimized, render loop off) must not hold the bridge: _busy blocks every
+                // other request, so after HighCaptureTimeoutMs the capture gives up (the finally restores the window).
+                var deadline = Task.Delay(HighCaptureTimeoutMs);
+                for (var f = 0; f < 3; f++)
+                {
+                    var drawn = NextFrameDrawn();
+                    if (await Task.WhenAny(drawn, deadline) != drawn)
+                    {
+                        throw new AgentException(AgentCodes.Timeout,
+                            $"Nessun frame disegnato in {HighCaptureTimeoutMs / 1000} s (finestra ridotta a icona o nascosta?): cattura alta annullata.");
+                    }
+                }
+
+                frame = _world.CaptureFrame();
+            }
+            finally
+            {
+                root.ContentScaleMode = mode;
+                root.ContentScaleSize = size;
+                root.ContentScaleAspect = aspect;
+            }
+
+            using (frame)
+            {
+                if (frame.GetWidth() != HighWidth || frame.GetHeight() != HighHeight)
+                {
+                    throw new AgentException(
+                        AgentCodes.ErroreInterno, $"Il rendering ad alta risoluzione ha dato {frame.GetWidth()}×{frame.GetHeight()}.");
+                }
+
+                Reply(connection, id, FinishCapture(frame, p, path, inline, compact: false));
+            }
+        }
+        catch (AgentException ex)
+        {
+            Send(connection, AgentResponse.Failure(id, ex));
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"AgentBridge cattura: {ex}");
+            Send(connection, AgentResponse.Failure(id, new AgentException(AgentCodes.ErroreInterno, $"{ex.GetType().Name}: {ex.Message}")));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>How long <c>cattura {alta}</c> waits for its frames (the agenti playtest sets 0 to prove the timeout).</summary>
+    internal static int HighCaptureTimeoutMs = 3000;
+
+    private async Task NextFrameDrawn() => await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+
+    private JsonObject FinishCapture(Image frame, JsonElement p, string? path, bool inline, bool compact)
+    {
+        var full = new Rect2I(0, 0, frame.GetWidth(), frame.GetHeight());
+        var cut = full;
+        if (p.TryGetProperty("regione", out var r))
+        {
+            cut = new Rect2I(OptInt(r, "x") ?? 0, OptInt(r, "y") ?? 0,
+                OptInt(r, "larghezza") ?? throw Bad("manca 'regione.larghezza'."),
+                OptInt(r, "altezza") ?? throw Bad("manca 'regione.altezza'."));
+        }
+        else if (p.TryGetProperty("da", out _))
+        {
+            var (from, to) = (Cell(p, "da"), Cell(p, "a"));
+            // Cell corners on the frame just drawn (its canvas transform, not the window's: with alta it is larger).
+            var canvas = _world.GetViewport().GetCanvasTransform();
+            var c0 = canvas * new Vector2(Math.Min(from.X, to.X) * World.TileSize, Math.Min(from.Y, to.Y) * World.TileSize);
+            var c1 = canvas * new Vector2((Math.Max(from.X, to.X) + 1) * World.TileSize, (Math.Max(from.Y, to.Y) + 1) * World.TileSize);
+            var box = new Rect2(c0, c1 - c0).Abs();
+            cut = new Rect2I(Mathf.FloorToInt(box.Position.X), Mathf.FloorToInt(box.Position.Y),
+                Mathf.CeilToInt(box.Size.X), Mathf.CeilToInt(box.Size.Y));
+        }
+
+        cut = cut.Intersection(full);
+        if (cut.Size.X <= 0 || cut.Size.Y <= 0)
+        {
+            throw Bad($"La regione è fuori dall'immagine {full.Size.X}×{full.Size.Y} (con 'da' e 'a': celle non inquadrate, vedi telecamera).");
+        }
+
+        using var image = cut == full ? (Image)frame.Duplicate() : frame.GetRegion(cut);
+        var result = new JsonObject { ["larghezza"] = image.GetWidth(), ["altezza"] = image.GetHeight() };
+        if (cut != full)
+        {
+            result["regione"] = new JsonArray(cut.Position.X, cut.Position.Y, cut.Size.X, cut.Size.Y);
+        }
+
+        if (path is not null)
+        {
+            _shots++;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (image.SavePng(path) is var error and not Error.Ok)
+            {
+                throw new AgentException(AgentCodes.ErroreInterno, $"Cattura non salvata ({error}).");
+            }
+
+            result["percorso"] = path;
+        }
+
+        if (inline)
+        {
+            // Compact by default (fewer tokens to look at): fitted inside 640×360, never enlarged.
+            var fit = compact ? Math.Min(1f, Math.Min((float)CompactWidth / image.GetWidth(), (float)CompactHeight / image.GetHeight())) : 1f;
+            if (fit < 1f)
+            {
+                image.Resize(Math.Max(1, Mathf.RoundToInt(image.GetWidth() * fit)), Math.Max(1, Mathf.RoundToInt(image.GetHeight() * fit)),
+                    Image.Interpolation.Lanczos);
+            }
+
+            result["immagine"] = new JsonArray(image.GetWidth(), image.GetHeight());
+            result["png"] = Convert.ToBase64String(image.SavePngToBuffer());
+        }
+
+        return result;
     }
 
     /// <summary><c>telecamera {cella?, zoom?}</c>: moves the camera there, answers where it is.</summary>
@@ -1187,7 +1348,7 @@ public partial class AgentBridge : Node
     }
 
     /// <summary>
-    /// By full name; else by its last segment, its shown text or its tooltip (without the "[1]" or "(T)" hotkey),
+    /// By full name; else by an end of it (whole segments), its shown text or its tooltip (without the "[1]" or "(T)" hotkey),
     /// ignoring case, preferring the clickable ones (buttons and slots); more than one match is ambiguous.
     /// </summary>
     private static UiControl FindControl(List<UiControl> controls, string name)
@@ -1197,12 +1358,8 @@ public partial class AgentBridge : Node
             return exact;
         }
 
-        static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
-        static string WithoutHotkey(string tooltip) =>
-            tooltip.LastIndexOfAny(['[', '(']) is var cut and > 0 ? tooltip[..cut] : tooltip;
-        var matches = controls.Where(c => c.Name.EndsWith("/" + name, StringComparison.Ordinal)
-            || Same(c.Text, name) || (c.Tooltip.Length > 0 && (Same(c.Tooltip, name) || Same(WithoutHotkey(c.Tooltip), name))))
-            .ToList();
+        // The same rule the server's compact names are made with (AgentUi.ShortName).
+        var matches = controls.Where(c => AgentUi.Matches(c.Name, c.Text, c.Tooltip, name)).ToList();
         var clickable = matches.Where(c => c.Control is BaseButton || c.Control.MouseFilter == Control.MouseFilterEnum.Stop).ToList();
         var found = clickable.Count > 0 ? clickable : matches;
         return found.Count switch

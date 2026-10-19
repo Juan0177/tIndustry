@@ -292,6 +292,63 @@ public partial class World
         }
 
         File.Copy(shotPath, Path.Combine(dir, "agenti-cattura.png"), overwrite: true);
+
+        // The fast sRGB table gives the same bytes as the per-pixel conversion, over every 16-bit pattern.
+        var halves = new byte[256 * 256 * 6];
+        for (var h = 0; h < 65536; h++)
+        {
+            for (var c = 0; c < 3; c++)
+            {
+                halves[h * 6 + c * 2] = (byte)(h + c * 7);
+                halves[h * 6 + c * 2 + 1] = (byte)((h + c * 7) >> 8);
+            }
+        }
+
+        using (var linear = Image.CreateFromData(256, 256, false, Image.Format.Rgbh, halves))
+        using (var fast = LinearToSrgb(linear))
+        using (var slow = LinearToSrgbPerPixel(linear))
+        {
+            if (!fast.GetData().AsSpan().SequenceEqual(slow.GetData()))
+            {
+                return Fail("agenti cattura: la conversione sRGB a tabella non dà gli stessi byte di quella pixel per pixel");
+            }
+        }
+
+        // cattura {immagine}: the PNG in the answer, fitted inside 640×360; with alta a real 1920×1080 frame.
+        if (await Call("cattura", new { immagine = true }) is not { } inline || !inline.TryGetProperty("png", out var png)
+            || inline.TryGetProperty("percorso", out _))
+        {
+            return Fail("agenti cattura immagine: nessun png nella risposta, o un file salvato");
+        }
+
+        using (var small = new Image())
+        {
+            if (small.LoadPngFromBuffer(Convert.FromBase64String(png.GetString()!)) != Error.Ok
+                || small.GetWidth() > 640 || small.GetHeight() > 360 || Math.Max(small.GetWidth() / 640f, small.GetHeight() / 360f) < 0.99f)
+            {
+                return Fail($"agenti cattura immagine: {small.GetWidth()}×{small.GetHeight()}, atteso entro 640×360");
+            }
+        }
+
+        if (await Call("cattura", new { alta = true, percorso = "alta.png" }) is not { } high
+            || high.GetProperty("larghezza").GetInt32() != 1920 || high.GetProperty("altezza").GetInt32() != 1080
+            || GetTree().Root.ContentScaleMode != Window.ContentScaleModeEnum.Disabled)
+        {
+            return Fail("agenti cattura alta: non 1920×1080, o la finestra non è tornata come prima");
+        }
+
+        // Frames that never come (a minimized window) cannot be made on demand: a wait of 0 ms takes the same path.
+        // alta gives up with Timeout, puts the window back and frees the bridge.
+        AgentBridge.HighCaptureTimeoutMs = 0;
+        var stalled = await Call("cattura", new { alta = true, immagine = true }, AgentCodes.Timeout);
+        AgentBridge.HighCaptureTimeoutMs = 3000;
+        if (stalled is null || GetTree().Root.ContentScaleMode != Window.ContentScaleModeEnum.Disabled
+            || await Call("pausa") is null)
+        {
+            return Fail("agenti cattura alta senza frame: niente Timeout, finestra non ripristinata o ponte bloccato");
+        }
+
+        GD.Print("PLAYTEST agenti cattura immagine e alta ok");
         foreach (var outside in new[] { "..\\..\\x.png", Path.Combine(Path.GetTempPath(), "fuori.png"), ProjectSettings.GlobalizePath("res://fuori.png") })
         {
             if (await Call("cattura", new { percorso = outside }, AgentCodes.ParametriNonValidi) is null)

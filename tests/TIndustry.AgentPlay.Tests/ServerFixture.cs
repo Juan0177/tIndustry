@@ -41,13 +41,22 @@ public sealed class ServerFixture : IAsyncLifetime
         Directory.Delete(TempDirectory, recursive: true);
     }
 
-    /// <summary>Calls a tool and parses its JSON text answer.</summary>
-    public async Task<JsonElement> Call(string tool, object? args = null)
+    /// <summary>Calls a tool and gives its whole result (text and image contents).</summary>
+    public async Task<CallToolResult> CallResult(string tool, object? args = null)
     {
         var arguments = args is null
             ? null
             : JsonSerializer.SerializeToElement(args).EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
-        var result = await Client.CallToolAsync(tool, arguments);
+        return await Client.CallToolAsync(tool, arguments);
+    }
+
+    /// <summary>A count of a compact answer, where 0 is left out.</summary>
+    public static int Count(JsonElement answer, string name) => answer.TryGetProperty(name, out var n) ? n.GetInt32() : 0;
+
+    /// <summary>Calls a tool and parses its JSON text answer.</summary>
+    public async Task<JsonElement> Call(string tool, object? args = null)
+    {
+        var result = await CallResult(tool, args);
         var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
         Assert.True(text.StartsWith('{'), $"{tool}: {text}");
         return JsonDocument.Parse(text).RootElement.Clone();
