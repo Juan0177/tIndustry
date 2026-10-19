@@ -35,7 +35,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 6 | Documenti e diario | `695a8ab`, `1433daf`, `8546c50` |
 | 7 | Unione a T sopra il CORE (PR #235) | `3bde5d8` |
 | 8 | Verifica finale sul sito pubblicato e correzioni (PR #236) | `141d678` |
-| 9 | Animazioni sempre accese, pulsante «Animazioni» nella barra (PR ANIMAZIONI_PR) | ANIMAZIONI_HASH |
+| 9 | Animazioni sempre accese, pulsante «Animazioni» nella barra e catture intere (PR #238) | `c0a4d7d`, `0c113fa` |
 
 ## Giri di revisione
 
