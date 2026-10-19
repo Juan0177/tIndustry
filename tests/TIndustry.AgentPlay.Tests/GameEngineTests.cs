@@ -94,13 +94,15 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         var replay = await server.Ok("rigioca", new { percorso = journalPath });
         Assert.Equal("simulazione", replay.GetProperty("motore").GetString());
         var replayed = await server.Ok("stato", new { sessione = replay.GetProperty("sessione").GetString() });
-        Assert.Equal(1, replayed.GetProperty("edifici").GetProperty("minatori").GetInt32()
-            + replayed.GetProperty("costruzione").GetProperty("cantieri").GetInt32());
+        Assert.Equal(1, ServerFixture.Count(replayed.GetProperty("edifici"), "minatori")
+            + ServerFixture.Count(replayed.GetProperty("costruzione"), "cantieri"));
         await server.Ok("chiudi", new { sessione = replay.GetProperty("sessione").GetString() });
 
-        var shot = (await server.Ok("cattura", new { sessione = id })).GetProperty("percorso").GetString()!;
-        var png = await File.ReadAllBytesAsync(shot);
-        Assert.Equal((1280, 720), (BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16)), BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20))));
+        // With a path the capture is a file of the whole window (1280×720, narrower on a screen that cannot fit it).
+        var file = await server.Ok("cattura", new { sessione = id, percorso = "prova.png" });
+        var png = await File.ReadAllBytesAsync(file.GetProperty("percorso").GetString()!);
+        Assert.Equal((file.GetProperty("larghezza").GetInt32(), file.GetProperty("altezza").GetInt32()), PngSize(png));
+        Assert.True(PngSize(png) is (<= 1280, 720), $"{PngSize(png)}");
 
         await server.Ok("chiudi", new { sessione = id });
         Assert.False(Directory.Exists(folder), $"profilo rimasto: {folder}");
@@ -125,7 +127,8 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         await server.Ok("avanza", new { sessione = id, tick = 6000 });
         var line = await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = cx + 3, y = cy }, a = new { x = cx + 9, y = cy }, direzione = "est" });
         Assert.Contains(line.GetProperty("celle").EnumerateArray(), c => c.GetProperty("x").GetInt32() == cx + 6);
-        Assert.DoesNotContain(line.GetProperty("rifiuti").EnumerateArray(), r => r.GetProperty("x").GetInt32() == cx + 6);
+        // Compact piazza: no rifiuti at all means none (an empty list is left out).
+        Assert.False(line.TryGetProperty("rifiuti", out var lineRefusals) && lineRefusals.EnumerateArray().Any(r => r.GetProperty("x").GetInt32() == cx + 6));
 
         // Bug 5: stato and ruota use the player's own direction.
         await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "R" });
@@ -140,6 +143,25 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         Assert.Contains(controls, c => c.TryGetProperty("suggerimento", out var s) && s.GetString()!.StartsWith("Nastro T1", StringComparison.Ordinal));
         await server.Ok("ui", new { sessione = id, clic = "Ricerca" });
         await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+
+        // Compact ui: each name is the shortest end that clic still finds alone, rett is [x, y, w, h]; dettaglio gives
+        // the whole paths and rectangles.
+        var compact = (await server.Ok("ui", new { sessione = id })).GetProperty("controlli").EnumerateArray().ToList();
+        var full = (await server.Ok("ui", new { sessione = id, dettaglio = true })).GetProperty("controlli").EnumerateArray().ToList();
+        Assert.Equal(full.Count, compact.Count);
+        Assert.All(compact.Zip(full), pair =>
+        {
+            var (shortName, longName) = (pair.First.GetProperty("nome").GetString()!, pair.Second.GetProperty("nome").GetString()!);
+            Assert.True(longName == shortName || longName.EndsWith("/" + shortName, StringComparison.Ordinal), $"{shortName} / {longName}");
+            Assert.Equal(4, pair.First.GetProperty("rett").GetArrayLength());
+            Assert.Equal(pair.Second.GetProperty("rett").GetProperty("larghezza").GetInt32(), pair.First.GetProperty("rett")[2].GetInt32());
+        });
+        Assert.Contains(full, c => c.GetProperty("nome").GetString()!.StartsWith("FactoryHudRoot/", StringComparison.Ordinal));
+        var shortName = compact.Select(c => c.GetProperty("nome").GetString()!)
+            .First(n => n.Contains('/') && full.Any(f => f.GetProperty("nome").GetString()!.EndsWith("/" + n) && f.GetProperty("tipo").GetString() == "Label"));
+        var clicked = (await server.Ok("ui", new { sessione = id, clic = shortName })).GetProperty("clic").GetString()!;
+        Assert.EndsWith("/" + shortName, "/" + clicked);
+        await server.Ok("avanza", new { sessione = id, tick = 2 });
 
         // Review M2 and M5: over-long or out-of-range parameters are refused, the game goes on.
         Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("ui", new { sessione = id, clic = new string('x', 70_000) }));
@@ -158,8 +180,8 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
         var home = (await server.Ok("ui", new { sessione = id })).GetProperty("controlli").EnumerateArray()
             .Select(c => c.GetProperty("nome").GetString()!).ToList();
-        Assert.Contains(home, n => n.EndsWith("/Riprendi", StringComparison.Ordinal));
-        Assert.DoesNotContain(home, n => n.EndsWith("/Ricerca", StringComparison.Ordinal));
+        Assert.Contains(home, n => n == "Riprendi" || n.EndsWith("/Riprendi", StringComparison.Ordinal));
+        Assert.DoesNotContain(home, n => n == "Ricerca" || n.EndsWith("/Ricerca", StringComparison.Ordinal));
         await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
         Assert.True((await server.Ok("esegui", new { sessione = id, secondi = 0.5 })).GetProperty("eseguito").GetBoolean());
 
@@ -177,6 +199,115 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         Assert.Equal(fresh.GetProperty("impronta").GetString(), again.GetProperty("impronta").GetString());
         await server.Ok("chiudi", new { sessione = again.GetProperty("sessione").GetString() });
         await server.Ok("chiudi", new { sessione = id });
+    }
+
+    /// <summary>
+    /// Every compact ui name of real screens (HUD, an open panel, the Home) names its own control alone under the
+    /// bridge's rule, and the bridge's clic lands on that control (all the labels are clicked: harmless).
+    /// </summary>
+    [GodotFact]
+    public async Task EveryCompactUiNameFindsItsControl()
+    {
+        var id = (await server.Ok("apri_gioco", new { misura = 64, seme = 1 })).GetProperty("sessione").GetString()!;
+        await server.Ok("pausa", new { sessione = id });
+        foreach (var scene in new[] { "hud", "ricerca", "home" })
+        {
+            if (scene == "ricerca")
+            {
+                await server.Ok("ui", new { sessione = id, clic = "Ricerca" });
+                await server.Ok("avanza", new { sessione = id, tick = 2 });
+            }
+            else if (scene == "home")
+            {
+                await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+                await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+                await server.Ok("avanza", new { sessione = id, tick = 2 });
+            }
+
+            var compact = await server.Ok("ui", new { sessione = id });
+            var full = await server.Ok("ui", new { sessione = id, dettaglio = true });
+            Assert.False(compact.TryGetProperty("troncato", out _), scene);
+            var entries = full.GetProperty("controlli").EnumerateArray().Select(c => (
+                Name: c.GetProperty("nome").GetString()!,
+                Text: c.TryGetProperty("testo", out var t) ? t.GetString()! : "",
+                Tooltip: c.TryGetProperty("suggerimento", out var s) ? s.GetString()! : "",
+                Type: c.GetProperty("tipo").GetString()!)).ToList();
+            var names = compact.GetProperty("controlli").EnumerateArray().Select(c => c.GetProperty("nome").GetString()!).ToList();
+            Assert.Equal(entries.Count, names.Count);
+            for (var i = 0; i < names.Count; i++)
+            {
+                var own = i;
+                var hits = entries.Select((e, at) => (e, at)).Where(x => x.e.Name == names[own]
+                    || AgentUi.Matches(x.e.Name, x.e.Text, x.e.Tooltip, names[own])).Select(x => x.at).ToList();
+                Assert.True(hits.SequenceEqual([own]), $"{scene}: '{names[own]}' indica {hits.Count} controlli");
+            }
+
+            if (scene == "hud")
+            {
+                for (var i = 0; i < names.Count; i++)
+                {
+                    if (entries[i].Type == "Label")
+                    {
+                        var clicked = (await server.Ok("ui", new { sessione = id, clic = names[i] })).GetProperty("clic").GetString();
+                        Assert.Equal(entries[i].Name, clicked);
+                    }
+                }
+            }
+        }
+
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
+    /// <summary>cattura answers with the image itself: compact by default, a real 1080p render with alta, cut to cells.</summary>
+    [GodotFact]
+    public async Task ShotComesInTheAnswer()
+    {
+        var id = (await server.Ok("apri_gioco", new { misura = 64, seme = 1 })).GetProperty("sessione").GetString()!;
+        await server.Ok("pausa", new { sessione = id });
+
+        // Default: the text and a PNG fitted inside 640×360, and no file.
+        var (text, png) = await Shot(new { sessione = id });
+        var size = PngSize(png);
+        Assert.True(size is (<= 640, <= 360) && (size.Width == 640 || size.Height == 360), $"{size}");
+        Assert.Equal(size, (text.GetProperty("immagine")[0].GetInt32(), text.GetProperty("immagine")[1].GetInt32()));
+        Assert.False(text.TryGetProperty("percorso", out _));
+
+        // alta: a real 1920×1080 frame, not an enlarged window.
+        var (high, highPng) = await Shot(new { sessione = id, alta = true });
+        Assert.Equal((1920, 1080), PngSize(highPng));
+        Assert.Equal(1920, high.GetProperty("larghezza").GetInt32());
+
+        // Cells around the Core at zoom 1: 4×4 cells of 64 pixels, cut from the frame.
+        var core = (await server.Ok("stato", new { sessione = id })).GetProperty("core").GetProperty("cella");
+        var (cx, cy) = (core.GetProperty("x").GetInt32(), core.GetProperty("y").GetInt32());
+        await server.Ok("telecamera", new { sessione = id, cella = core, zoom = 1 });
+        await server.Ok("avanza", new { sessione = id, tick = 2 });
+        var (cut, cutPng) = await Shot(new { sessione = id, da = new { x = cx - 1, y = cy - 1 }, a = new { x = cx + 2, y = cy + 2 } });
+        Assert.True(PngSize(cutPng) is (>= 255 and <= 257, >= 255 and <= 257), $"{PngSize(cutPng)}");
+        Assert.Equal(4, cut.GetProperty("regione").GetArrayLength());
+
+        // A file stays an option, only inside the profile's catture.
+        var file = await server.Ok("cattura", new { sessione = id, percorso = "scena.png", regione = new { x = 0, y = 0, larghezza = 100, altezza = 50 } });
+        Assert.Equal((100, 50), PngSize(await File.ReadAllBytesAsync(file.GetProperty("percorso").GetString()!)));
+        Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("cattura", new { sessione = id, percorso = "../fuori.png" }));
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
+    private async Task<(JsonElement Text, byte[] Png)> Shot(object args)
+    {
+        var result = await server.CallResult("cattura", args);
+        Assert.Equal(2, result.Content.Count);
+        var text = JsonDocument.Parse(Assert.IsType<ModelContextProtocol.Protocol.TextContentBlock>(result.Content[0]).Text).RootElement.Clone();
+        Assert.True(text.GetProperty("ok").GetBoolean(), text.ToString());
+        var image = Assert.IsType<ModelContextProtocol.Protocol.ImageContentBlock>(result.Content[1]);
+        Assert.Equal("image/png", image.MimeType);
+        return (text, image.DecodedData.ToArray());
+    }
+
+    private static (int Width, int Height) PngSize(byte[] png)
+    {
+        Assert.True(png.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }), "non è un PNG");
+        return (BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16)), BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20)));
     }
 
     [GodotFact]

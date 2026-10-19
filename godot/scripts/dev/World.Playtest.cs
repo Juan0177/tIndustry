@@ -82,6 +82,13 @@ public partial class World
             return;
         }
 
+        // Playtests are always 1280×720, also on a screen the OS would clamp the window to (e.g. a portrait monitor).
+        if (DisplayServer.GetName() != "headless")
+        {
+            DisplayServer.WindowSetSize(new Vector2I(StartupDisplay.DevWidth, StartupDisplay.DevHeight));
+            await PlaytestWait(0.3);
+        }
+
         var ok = name switch
         {
             "tutorial" => await PlaytestTutorialAsync(dir),
@@ -1549,7 +1556,7 @@ public partial class World
 
     /// <summary>
     /// The frame just drawn as the window shows it. With HDR 2D ("Bagliore") the viewport draws in linear light and its
-    /// texture reads back linear: converted to sRGB here, pixel by pixel from the float data (an 8-bit conversion first
+    /// texture reads back linear: converted to sRGB here from the float data (an 8-bit conversion first
     /// would band the night's dark tones).
     /// </summary>
     internal Image CaptureFrame()
@@ -1560,20 +1567,81 @@ public partial class World
             return image;
         }
 
-        var width = image.GetWidth();
-        var height = image.GetHeight();
-        var srgb = Image.CreateEmpty(width, height, false, Image.Format.Rgba8);
-        for (var y = 0; y < height; y++)
+        var srgb = LinearToSrgb(image);
+        image.Dispose();
+        return srgb;
+    }
+
+    /// <summary>
+    /// A linear image as sRGB bytes: half floats (what the HDR viewport gives) through a table, the same bytes as
+    /// <see cref="LinearToSrgbPerPixel"/> many times faster (the agenti playtest compares them); other formats pixel by pixel.
+    /// </summary>
+    internal static Image LinearToSrgb(Image image)
+    {
+        if (image.GetFormat() is not (Image.Format.Rgbh or Image.Format.Rgbah))
         {
-            for (var x = 0; x < width; x++)
+            return LinearToSrgbPerPixel(image);
+        }
+
+        var alpha = image.GetFormat() == Image.Format.Rgbah;
+        var stride = alpha ? 8 : 6;
+        var half = image.GetData();
+        var bytes = new byte[image.GetWidth() * image.GetHeight() * 4];
+        var table = HalfToSrgb8.Value;
+        for (int i = 0, o = 0; o < bytes.Length; i += stride, o += 4)
+        {
+            bytes[o] = table[0][half[i] | (half[i + 1] << 8)];
+            bytes[o + 1] = table[0][half[i + 2] | (half[i + 3] << 8)];
+            bytes[o + 2] = table[0][half[i + 4] | (half[i + 5] << 8)];
+            bytes[o + 3] = alpha ? table[1][half[i + 6] | (half[i + 7] << 8)] : (byte)255;
+        }
+
+        return Image.CreateFromData(image.GetWidth(), image.GetHeight(), false, Image.Format.Rgba8, bytes);
+    }
+
+    internal static Image LinearToSrgbPerPixel(Image image)
+    {
+        var srgb = Image.CreateEmpty(image.GetWidth(), image.GetHeight(), false, Image.Format.Rgba8);
+        for (var y = 0; y < image.GetHeight(); y++)
+        {
+            for (var x = 0; x < image.GetWidth(); x++)
             {
                 srgb.SetPixel(x, y, image.GetPixel(x, y).LinearToSrgb());
             }
         }
 
-        image.Dispose();
         return srgb;
     }
+
+    /// <summary>
+    /// Byte of every half-float value after <see cref="LinearToSrgbPerPixel"/>: [0] a colour channel, [1] alpha. Made by
+    /// running that very loop once on an image holding each of the 65536 values, so the bytes cannot drift from it.
+    /// </summary>
+    private static readonly Lazy<byte[][]> HalfToSrgb8 = new(() =>
+    {
+        var data = new byte[65536 * 8];
+        for (var h = 0; h < 65536; h++)
+        {
+            for (var c = 0; c < 4; c++)
+            {
+                data[h * 8 + c * 2] = (byte)h;
+                data[h * 8 + c * 2 + 1] = (byte)(h >> 8);
+            }
+        }
+
+        using var all = Image.CreateFromData(256, 256, false, Image.Format.Rgbah, data);
+        using var srgb = LinearToSrgbPerPixel(all);
+        var bytes = srgb.GetData();
+        var colour = new byte[65536];
+        var alpha = new byte[65536];
+        for (var h = 0; h < 65536; h++)
+        {
+            colour[h] = bytes[h * 4];
+            alpha[h] = bytes[h * 4 + 3];
+        }
+
+        return [colour, alpha];
+    });
 
     private static bool Fail(string message)
     {
