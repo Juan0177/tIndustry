@@ -616,6 +616,8 @@ public partial class World
     private void ClearItemLayer()
     {
         _itemSprites.Clear();
+        _itemMotion.Clear();
+        _itemsTick = -1;
         if (_itemsLayer is not null)
         {
             foreach (var child in _itemsLayer.GetChildren())

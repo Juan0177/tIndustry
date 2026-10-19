@@ -377,6 +377,11 @@ public partial class World
             return Fail(looks);
         }
 
+        if (!await PlaytestSmoothItemsAsync(Shot))
+        {
+            return false;
+        }
+
         if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
         {
             var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));

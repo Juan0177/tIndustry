@@ -14,7 +14,7 @@ from blocchi import sprite
 from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, TITANIO
 
 T = 32
-PASSO = 4  # px the tread moves per frame
+PASSO = 1  # px the tread moves per frame: 32 frames per cell, smooth next to items moving every tick
 FOTOGRAMMI = T // PASSO
 
 # Rows across a straight belt (0 = left of the flow, North for an East belt).

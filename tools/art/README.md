@@ -41,6 +41,7 @@ Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path go
 
 - **32 px per cella** del blocco (in gioco ×2, filtro Nearest). Oggetti: `<id>.png` 32×32 (HUD) e `<id>-belt.png` 10×10 (nastri).
 - **Nomi = id** di `data/content.json`. Parti con suffisso (`miner-base`, `miner-drill`, `smelter-glow`…); animazioni come strisce orizzontali `<id>-anim.png` di fotogrammi sempre quadrati (lato = altezza: `Sprites.Frames` taglia quadrati). Tier: `core-1…4`, `drone-1…3`.
+- **Nastri a un pixel per fotogramma**: le strisce `conveyor-*-anim` (dritto, curva, T, unioni laterali) hanno 32 fotogrammi per cella (`PASSO = 1` in `blocchi/logistica.py`); il battistrada di ogni fotogramma è il precedente spostato di 1 px nel verso del flusso, così il nastro scorre liscio accanto agli oggetti che si muovono a ogni tick. Il client sceglie il fotogramma dal numero di fotogrammi della striscia.
 - **Deterministico**: niente `random` senza seme fisso, niente date o metadati nei PNG. Due esecuzioni danno gli stessi byte.
 - **Mai a mano**: i PNG generati non si ritoccano con un editor; si cambia lo script e si rigenera. Le scelte (perché da script, tavolozza, luce, tier) sono in `docs/decisioni/0004-arte-generata-da-script.md`.
 - Si usano solo i colori di `palette.py`.

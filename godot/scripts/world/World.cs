@@ -65,6 +65,12 @@ public partial class World : Node2D
     private readonly ContinueAutoSave _continueAutoSave = new();
     private MindustryBeltVisual? _beltVisual;
     private readonly Dictionary<long, Sprite2D> _itemSprites = [];
+
+    /// <summary>Where each item sprite was at the tick before the last one and at the last one (drawn in between).</summary>
+    private readonly Dictionary<long, ItemMotion> _itemMotion = [];
+
+    /// <summary>Tick the item sprites were last synced at; -1 = none yet (new game, load).</summary>
+    private long _itemsTick = -1;
     private Node2D? _itemsLayer;
     private TerrainChunks? _terrainChunks;
     private Node2D? _buildingsLayer;
