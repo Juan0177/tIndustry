@@ -743,9 +743,17 @@ public partial class AgentBridge : Node
                 root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;
                 // The layout and the camera follow the new size on the next frame: wait until frames have been drawn
                 // at that size, then read the last one.
+                // No drawn frames (window minimized, render loop off) must not hold the bridge: _busy blocks every
+                // other request, so after HighCaptureTimeoutMs the capture gives up (the finally restores the window).
+                var deadline = Task.Delay(HighCaptureTimeoutMs);
                 for (var f = 0; f < 3; f++)
                 {
-                    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                    var drawn = NextFrameDrawn();
+                    if (await Task.WhenAny(drawn, deadline) != drawn)
+                    {
+                        throw new AgentException(AgentCodes.Timeout,
+                            $"Nessun frame disegnato in {HighCaptureTimeoutMs / 1000} s (finestra ridotta a icona o nascosta?): cattura alta annullata.");
+                    }
                 }
 
                 frame = _world.CaptureFrame();
@@ -782,6 +790,11 @@ public partial class AgentBridge : Node
             _busy = false;
         }
     }
+
+    /// <summary>How long <c>cattura {alta}</c> waits for its frames (the agenti playtest sets 0 to prove the timeout).</summary>
+    internal static int HighCaptureTimeoutMs = 3000;
+
+    private async Task NextFrameDrawn() => await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
 
     private JsonObject FinishCapture(Image frame, JsonElement p, string? path, bool inline, bool compact)
     {
@@ -1335,7 +1348,7 @@ public partial class AgentBridge : Node
     }
 
     /// <summary>
-    /// By full name; else by its last segment, its shown text or its tooltip (without the "[1]" or "(T)" hotkey),
+    /// By full name; else by an end of it (whole segments), its shown text or its tooltip (without the "[1]" or "(T)" hotkey),
     /// ignoring case, preferring the clickable ones (buttons and slots); more than one match is ambiguous.
     /// </summary>
     private static UiControl FindControl(List<UiControl> controls, string name)
@@ -1345,12 +1358,8 @@ public partial class AgentBridge : Node
             return exact;
         }
 
-        static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
-        static string WithoutHotkey(string tooltip) =>
-            tooltip.LastIndexOfAny(['[', '(']) is var cut and > 0 ? tooltip[..cut] : tooltip;
-        var matches = controls.Where(c => c.Name.EndsWith("/" + name, StringComparison.Ordinal)
-            || Same(c.Text, name) || (c.Tooltip.Length > 0 && (Same(c.Tooltip, name) || Same(WithoutHotkey(c.Tooltip), name))))
-            .ToList();
+        // The same rule the server's compact names are made with (AgentUi.ShortName).
+        var matches = controls.Where(c => AgentUi.Matches(c.Name, c.Text, c.Tooltip, name)).ToList();
         var clickable = matches.Where(c => c.Control is BaseButton || c.Control.MouseFilter == Control.MouseFilterEnum.Stop).ToList();
         var found = clickable.Count > 0 ? clickable : matches;
         return found.Count switch

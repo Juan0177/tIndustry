@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using TIndustry.Shared;
 
 namespace TIndustry.AgentPlay;
 
@@ -14,7 +15,8 @@ namespace TIndustry.AgentPlay;
 /// tick in <c>fino</c> (refusals stay one by one, with their own tick);</item>
 /// <item><c>piazza</c>: the direction once (<c>direzione</c>) when every placed cell has the same;</item>
 /// <item><c>diario</c> saved to a file: <c>numeroVoci</c> instead of the entries (they are in the file);</item>
-/// <item><c>ui</c>: the shortest end of the name that <c>ui {clic}</c> still finds alone, <c>rett</c> as
+/// <item><c>ui</c>: the shortest end of the name that <c>ui {clic}</c> still finds alone (<see cref="AgentUi.ShortName"/>,
+/// the bridge's own rule; whole names when the list is <c>troncato</c>), <c>rett</c> as
 /// <c>[x, y, larghezza, altezza]</c>, no empty <c>testo</c>.</item>
 /// </list>
 /// </summary>
@@ -48,7 +50,8 @@ public static class Compact
             case "ui":
                 if (answer["controlli"] is JsonArray controls)
                 {
-                    Ui(controls);
+                    // A truncated list leaves controls out that could share a short name: whole names then.
+                    Ui(controls, shorten: !answer.ContainsKey("troncato"));
                 }
 
                 break;
@@ -188,7 +191,7 @@ public static class Compact
         answer["direzione"] = direction;
     }
 
-    private static void Ui(JsonArray controls)
+    private static void Ui(JsonArray controls, bool shorten)
     {
         var all = controls.OfType<JsonObject>().Select(c => (
             Name: c["nome"]?.GetValue<string>() ?? "",
@@ -197,7 +200,10 @@ public static class Compact
         foreach (var control in controls.OfType<JsonObject>())
         {
             var name = control["nome"]?.GetValue<string>() ?? "";
-            control["nome"] = ShortName(name, all);
+            if (shorten)
+            {
+                control["nome"] = AgentUi.ShortName(name, all);
+            }
             if (control["rett"] is JsonObject r)
             {
                 control["rett"] = new JsonArray(r["x"]?.DeepClone(), r["y"]?.DeepClone(), r["larghezza"]?.DeepClone(), r["altezza"]?.DeepClone());
@@ -208,36 +214,6 @@ public static class Compact
                 control.Remove("testo");
             }
         }
-    }
-
-    /// <summary>
-    /// The shortest end of <paramref name="name"/> (whole path segments) that the bridge's <c>ui {clic}</c> resolves to
-    /// this control alone: no other listed control has it as name, as name end, as text or as tooltip (with or without
-    /// its key hint). The whole name always works (an exact name wins there).
-    /// </summary>
-    public static string ShortName(string name, IReadOnlyList<(string Name, string Text, string Tooltip)> all)
-    {
-        var parts = name.Split('/');
-        for (var take = 1; take < parts.Length; take++)
-        {
-            var end = string.Join('/', parts[^take..]);
-            if (all.Count(c => Matches(c, end)) == 1)
-            {
-                return end;
-            }
-        }
-
-        return name;
-    }
-
-    // Mirrors AgentBridge.FindControl (godot/scripts/dev/AgentBridge.cs).
-    private static bool Matches((string Name, string Text, string Tooltip) c, string name)
-    {
-        static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
-        static string WithoutHotkey(string tooltip) =>
-            tooltip.LastIndexOfAny(['[', '(']) is var cut and > 0 ? tooltip[..cut] : tooltip;
-        return c.Name == name || c.Name.EndsWith("/" + name, StringComparison.Ordinal) || Same(c.Text, name)
-            || (c.Tooltip.Length > 0 && (Same(c.Tooltip, name) || Same(WithoutHotkey(c.Tooltip), name)));
     }
 
     private static void DropFalse(JsonNode? list, string flag)

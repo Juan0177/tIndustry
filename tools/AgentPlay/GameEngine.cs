@@ -134,10 +134,10 @@ public sealed class GameEngine : IAgentEngine
 
         client?.Dispose();
         var process = game.Process;
-        if (client is not null)
-        {
-            process.WaitForExit(QuitWait); // the bridge quits when its launcher's connection drops; unconnected, no one told it
-        }
+        // The bridge quits when its launcher's connection drops; unconnected, no one told it.
+        var quit = client is not null && process.WaitForExit(QuitWait);
+        // Only a game that quit by itself, in a session that never saw it die, leaves caches worth sharing.
+        var cleanExit = quit && ended is null && process.ExitCode == 0;
 
         game.Job.Dispose();
         if (!process.HasExited)
@@ -146,7 +146,7 @@ public sealed class GameEngine : IAgentEngine
         }
 
         process.Dispose();
-        GameLauncher.KeepShaderCache(game.ProfileDir);
+        GameLauncher.KeepShaderCache(game.ProfileDir, cleanExit);
         foreach (var folderLock in folderLocks)
         {
             folderLock.Dispose();

@@ -214,13 +214,15 @@ public static class GameLauncher
     /// <summary>
     /// Godot's shader and pipeline caches, shared by the agents' games under the system temp folder (never the player's
     /// data): a new profile starts with them, so Godot does not compile every shader again at each start. Godot checks
-    /// the files itself (version, driver) and recompiles what does not fit.
+    /// the files itself (version, driver) and recompiles what does not fit. %TEMP% is per user on Windows, so only this
+    /// user's servers share the cache; a TEMP shared between users would share it too (compiled shaders, no data).
     /// </summary>
     public static readonly string ShaderCacheRoot = Path.Combine(Path.GetTempPath(), "tindustry-agentplay-cache", "godot-user");
 
     private static readonly string[] CacheFolders = ["shader_cache", "vulkan"];
 
-    // user:// of a game whose APPDATA is the profile (Godot/app_userdata/<config/name>).
+    // user:// of a game whose APPDATA is the profile (Godot/app_userdata/<config/name>). Windows only: there Godot builds
+    // user:// from %APPDATA%; elsewhere user:// does not follow the profile, this folder stays missing, nothing is shared.
     private static string UserDir(string profile) => Path.Combine(profile, "Godot", "app_userdata", "tIndustry");
 
     /// <summary>Copies the shared caches into a new profile; a missing or half-written cache only costs the compile.</summary>
@@ -228,43 +230,58 @@ public static class GameLauncher
     {
         foreach (var name in CacheFolders)
         {
-            TryCopy(Path.Combine(ShaderCacheRoot, name), Path.Combine(UserDir(profile), name));
+            _ = TryCopy(Path.Combine(ShaderCacheRoot, name), Path.Combine(UserDir(profile), name));
         }
     }
 
-    /// <summary>After the game exited: its caches become the shared ones (built aside, then swapped in one rename).</summary>
-    public static void KeepShaderCache(string profile)
+    /// <summary>
+    /// After a game that quit on its own with code 0 (never a killed or crashed one, whose files may be half written):
+    /// its caches become the shared ones. Built aside, then swapped by renames: the old cache goes to a temporary name,
+    /// the new one takes its place, the old one is deleted (and put back if the new one could not move in).
+    /// </summary>
+    public static void KeepShaderCache(string profile, bool cleanExit)
     {
         // Nothing new compiled (same files, same sizes): the shared cache stays, chiudi stays fast.
-        if (!Directory.Exists(Path.Combine(UserDir(profile), CacheFolders[0]))
+        if (!cleanExit || !Directory.Exists(Path.Combine(UserDir(profile), CacheFolders[0]))
             || CacheFolders.All(name => Footprint(Path.Combine(UserDir(profile), name)) == Footprint(Path.Combine(ShaderCacheRoot, name))))
         {
             return;
         }
 
         var work = ShaderCacheRoot + "." + Environment.ProcessId + ".tmp";
+        var old = ShaderCacheRoot + "." + Environment.ProcessId + ".old";
         DeleteFolder(work);
-        foreach (var name in CacheFolders)
+        DeleteFolder(old);
+        if (CacheFolders.All(name => TryCopy(Path.Combine(UserDir(profile), name), Path.Combine(work, name))))
         {
-            TryCopy(Path.Combine(UserDir(profile), name), Path.Combine(work, name));
-        }
-
-        try
-        {
-            // No retries here (DeleteFolder waits for locks): a cache another server is copying stays as it is.
-            if (Directory.Exists(ShaderCacheRoot))
+            try
             {
-                Directory.Delete(ShaderCacheRoot, recursive: true);
-            }
+                if (Directory.Exists(ShaderCacheRoot))
+                {
+                    Directory.Move(ShaderCacheRoot, old);
+                }
 
-            Directory.Move(work, ShaderCacheRoot);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Another server swapped its cache in meanwhile: either one is fine.
+                try
+                {
+                    Directory.Move(work, ShaderCacheRoot);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Another server put its cache there meanwhile, or the move failed: keep a cache in place.
+                    if (!Directory.Exists(ShaderCacheRoot) && Directory.Exists(old))
+                    {
+                        Directory.Move(old, ShaderCacheRoot);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The shared cache is in use (another server copying it): it stays as it is.
+            }
         }
 
         DeleteFolder(work);
+        DeleteFolder(old);
     }
 
     private static (int Files, long Bytes) Footprint(string folder)
@@ -280,13 +297,14 @@ public static class GameLauncher
         }
     }
 
-    private static void TryCopy(string from, string to)
+    /// <summary>Copies a folder's files; false when one could not be copied (a missing folder copies nothing: true).</summary>
+    private static bool TryCopy(string from, string to)
     {
         try
         {
             if (!Directory.Exists(from))
             {
-                return;
+                return true;
             }
 
             foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
@@ -295,10 +313,13 @@ public static class GameLauncher
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(file, target, overwrite: true);
             }
+
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Console.Error.WriteLine($"Cache degli shader non copiata ({from}): {ex.Message}");
+            return false;
         }
     }
 

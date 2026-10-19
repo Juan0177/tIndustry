@@ -337,6 +337,17 @@ public partial class World
             return Fail("agenti cattura alta: non 1920×1080, o la finestra non è tornata come prima");
         }
 
+        // Frames that never come (a minimized window) cannot be made on demand: a wait of 0 ms takes the same path.
+        // alta gives up with Timeout, puts the window back and frees the bridge.
+        AgentBridge.HighCaptureTimeoutMs = 0;
+        var stalled = await Call("cattura", new { alta = true, immagine = true }, AgentCodes.Timeout);
+        AgentBridge.HighCaptureTimeoutMs = 3000;
+        if (stalled is null || GetTree().Root.ContentScaleMode != Window.ContentScaleModeEnum.Disabled
+            || await Call("pausa") is null)
+        {
+            return Fail("agenti cattura alta senza frame: niente Timeout, finestra non ripristinata o ponte bloccato");
+        }
+
         GD.Print("PLAYTEST agenti cattura immagine e alta ok");
         foreach (var outside in new[] { "..\\..\\x.png", Path.Combine(Path.GetTempPath(), "fuori.png"), ProjectSettings.GlobalizePath("res://fuori.png") })
         {

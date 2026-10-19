@@ -200,6 +200,63 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         await server.Ok("chiudi", new { sessione = id });
     }
 
+    /// <summary>
+    /// Every compact ui name of real screens (HUD, an open panel, the Home) names its own control alone under the
+    /// bridge's rule, and the bridge's clic lands on that control (all the labels are clicked: harmless).
+    /// </summary>
+    [GodotFact]
+    public async Task EveryCompactUiNameFindsItsControl()
+    {
+        var id = (await server.Ok("apri_gioco", new { misura = 64, seme = 1 })).GetProperty("sessione").GetString()!;
+        await server.Ok("pausa", new { sessione = id });
+        foreach (var scene in new[] { "hud", "ricerca", "home" })
+        {
+            if (scene == "ricerca")
+            {
+                await server.Ok("ui", new { sessione = id, clic = "Ricerca" });
+                await server.Ok("avanza", new { sessione = id, tick = 2 });
+            }
+            else if (scene == "home")
+            {
+                await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+                await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "Escape" });
+                await server.Ok("avanza", new { sessione = id, tick = 2 });
+            }
+
+            var compact = await server.Ok("ui", new { sessione = id });
+            var full = await server.Ok("ui", new { sessione = id, dettaglio = true });
+            Assert.False(compact.TryGetProperty("troncato", out _), scene);
+            var entries = full.GetProperty("controlli").EnumerateArray().Select(c => (
+                Name: c.GetProperty("nome").GetString()!,
+                Text: c.TryGetProperty("testo", out var t) ? t.GetString()! : "",
+                Tooltip: c.TryGetProperty("suggerimento", out var s) ? s.GetString()! : "",
+                Type: c.GetProperty("tipo").GetString()!)).ToList();
+            var names = compact.GetProperty("controlli").EnumerateArray().Select(c => c.GetProperty("nome").GetString()!).ToList();
+            Assert.Equal(entries.Count, names.Count);
+            for (var i = 0; i < names.Count; i++)
+            {
+                var own = i;
+                var hits = entries.Select((e, at) => (e, at)).Where(x => x.e.Name == names[own]
+                    || AgentUi.Matches(x.e.Name, x.e.Text, x.e.Tooltip, names[own])).Select(x => x.at).ToList();
+                Assert.True(hits.SequenceEqual([own]), $"{scene}: '{names[own]}' indica {hits.Count} controlli");
+            }
+
+            if (scene == "hud")
+            {
+                for (var i = 0; i < names.Count; i++)
+                {
+                    if (entries[i].Type == "Label")
+                    {
+                        var clicked = (await server.Ok("ui", new { sessione = id, clic = names[i] })).GetProperty("clic").GetString();
+                        Assert.Equal(entries[i].Name, clicked);
+                    }
+                }
+            }
+        }
+
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
     /// <summary>cattura answers with the image itself: compact by default, a real 1080p render with alta, cut to cells.</summary>
     [GodotFact]
     public async Task ShotComesInTheAnswer()

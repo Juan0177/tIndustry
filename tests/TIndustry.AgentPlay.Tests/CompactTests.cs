@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using TIndustry.Shared;
 using Xunit;
 
 namespace TIndustry.AgentPlay.Tests;
@@ -76,13 +77,18 @@ public sealed class CompactTests
             ("Hud/Panel/Label1", "Ricerca", "")
         };
         // "Ricerca" is also another control's text: one more segment is needed.
-        Assert.Equal("Menu/Ricerca", Compact.ShortName("Hud/Menu/Ricerca", all));
-        Assert.Equal("Box0/Label1", Compact.ShortName("Hud/Core/Box0/Label1", all));
-        Assert.Equal("Panel/Label1", Compact.ShortName("Hud/Panel/Label1", all));
+        Assert.Equal("Menu/Ricerca", AgentUi.ShortName("Hud/Menu/Ricerca", all));
+        Assert.Equal("Box0/Label1", AgentUi.ShortName("Hud/Core/Box0/Label1", all));
+        Assert.Equal("Panel/Label1", AgentUi.ShortName("Hud/Panel/Label1", all));
 
         var ui = JsonNode.Parse("""{"controlli":[{"nome":"Hud/Menu/Ricerca","tipo":"Button","testo":"","rett":{"x":1,"y":2,"larghezza":3,"altezza":4}}]}""")!.AsObject();
         Compact.Apply("ui", ui);
         Assert.Equal("""{"controlli":[{"nome":"Ricerca","tipo":"Button","rett":[1,2,3,4]}]}""", ui.ToJsonString());
+
+        // A truncated list may hide a control sharing the short name: the names stay whole.
+        var cut = JsonNode.Parse("""{"controlli":[{"nome":"Hud/Menu/Ricerca","tipo":"Button"}],"troncato":3}""")!.AsObject();
+        Compact.Apply("ui", cut);
+        Assert.Equal("Hud/Menu/Ricerca", cut["controlli"]![0]!["nome"]!.GetValue<string>());
     }
 
     [Fact]
