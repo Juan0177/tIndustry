@@ -209,6 +209,35 @@ public sealed class Factory : IGameView
             : BeltCrossing.JunctionLocked;
     }
 
+    /// <summary>
+    /// Mindustry's belt over belt: <see cref="BeltOverBelt.None"/> unless <paramref name="cell"/> holds a plain belt
+    /// that no plan, mark for removal or site touches and <paramref name="conveyorId"/> is a plain belt; then
+    /// <see cref="BeltOverBelt.Same"/> (same id and direction) or <see cref="BeltOverBelt.Rotate"/> (same id).
+    /// </summary>
+    public BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId)
+    {
+        if (!Belts.TryGet(cell, out var belt)
+            || belt.Kind != LogisticsKind.Belt
+            || Content.FindConveyor(conveyorId)?.Kind != LogisticsKind.Belt
+            || IsPlannedTile(cell)
+            || TryGetSiteAt(cell, out _)
+            || State.Builders.Any(b => b.Plans.Any(p => p.Breaking && p.Spec.Origin == cell)))
+        {
+            return BeltOverBelt.None;
+        }
+
+        // shortcut: another tier is None until belt replacement exists (then Replace).
+        if (!string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal))
+        {
+            return BeltOverBelt.None;
+        }
+
+        return belt.Direction == direction ? BeltOverBelt.Same : BeltOverBelt.Rotate;
+    }
+
+    /// <summary>Turns the belt on <paramref name="cell"/> in place, keeping its items (the shape cache follows the grid's version).</summary>
+    internal bool TryRotateBelt(GridPosition cell, Direction direction) => Belts.TryOrient(cell, direction);
+
     /// <summary>A plain belt facing <paramref name="direction"/> on <paramref name="tile"/>, standing or planned.</summary>
     private bool IsLineBelt(GridPosition tile, Direction direction)
     {

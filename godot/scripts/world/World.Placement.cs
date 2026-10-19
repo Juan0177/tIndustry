@@ -8,7 +8,8 @@ public partial class World
 {
     /// <summary>
     /// Sends the current tool's command for <paramref name="cell"/>. <paramref name="crossing"/>: a belt inside a dragged
-    /// line over a perpendicular belt, which the simulation may turn into a junction (<see cref="Factory.BeltCrossingAt"/>).
+    /// line over a perpendicular belt, which the simulation may turn into a junction (<see cref="Factory.BeltCrossingAt"/>)
+    /// or, without the junction, turn in place (<see cref="Factory.BeltOverBeltAt"/>).
     /// </summary>
     private void TryPlaceAt(GridPosition cell, bool crossing = false)
     {
@@ -28,14 +29,13 @@ public partial class World
     private void BeginPlaceDrag(GridPosition cell)
     {
         _beltDrag.Begin(cell);
-        _crossingToastShown = false;
         TryPlaceAt(cell);
     }
 
     /// <summary>
     /// One cell a drag moved onto: <see cref="BeltDrag.Next"/> says what to place (a belt over a perpendicular one waits
-    /// for the next cell, then goes as a crossing when it lies inside the line). A held cell the drag never passes would
-    /// only be refused as occupied, so on release it is simply dropped.
+    /// for the next cell, then goes as a crossing when it lies inside the line). A held cell the drag never passes is
+    /// dropped on release (<see cref="BeltDrag"/>).
     /// </summary>
     private void PlaceDragged(GridPosition cell)
     {

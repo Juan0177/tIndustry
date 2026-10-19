@@ -60,6 +60,9 @@ public interface IGameView
     /// <summary>Auto-junction rule for a dragged belt facing <paramref name="direction"/> on <paramref name="position"/>.</summary>
     BeltCrossing BeltCrossingAt(GridPosition position, Direction direction);
 
+    /// <summary>What the plain belt <paramref name="conveyorId"/> facing <paramref name="direction"/> does over the belt on <paramref name="cell"/>.</summary>
+    BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId);
+
     /// <summary>Direction of the belt feeding the position (visual only).</summary>
     bool TryGetBeltIncomingDirection(GridPosition position, out Direction incoming);
 

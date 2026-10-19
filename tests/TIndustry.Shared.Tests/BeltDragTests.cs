@@ -56,8 +56,28 @@ public sealed class BeltDragTests
         Assert.True(crossing.GetProperty("incrocio").GetBoolean());
         Assert.Equal(LogisticsKind.Junction, agent.State.Belts[Crossing].Kind);
 
-        // The client: a mouse drag over the same cells, fed cell by cell to the same BeltDrag.
-        var client = NewHost(junctionUnlocked: true);
+        Assert.Equal(ClientDrag(junctionUnlocked: true).Checksum(), agent.Checksum());
+    }
+
+    [Fact]
+    public void ALockedJunctionMergesLikeTheClientsDrag()
+    {
+        var agent = NewHost(junctionUnlocked: false);
+        using var game = new AgentGame(agent, Content);
+
+        var result = Piazza(game, EastLine);
+
+        Assert.Empty(result.GetProperty("rifiuti").EnumerateArray());
+        Assert.Equal(7, result.GetProperty("celle").GetArrayLength());
+        Assert.Equal(LogisticsKind.Belt, agent.State.Belts[Crossing].Kind);
+        Assert.Equal(Direction.East, agent.State.Belts[Crossing].Direction);
+        Assert.Equal(ClientDrag(junctionUnlocked: false).Checksum(), agent.Checksum());
+    }
+
+    /// <summary>The client: a mouse drag over the cells of <see cref="EastLine"/>, fed cell by cell to the same BeltDrag.</summary>
+    private static SimHost ClientDrag(bool junctionUnlocked)
+    {
+        var client = NewHost(junctionUnlocked);
         var drag = new BeltDrag();
         var from = new GridPosition(37, 33);
         drag.Begin(from);
@@ -71,23 +91,7 @@ public sealed class BeltDragTests
         }
 
         client.AdvanceTicks(1);
-        Assert.Equal(client.Checksum(), agent.Checksum());
-    }
-
-    [Fact]
-    public void ALockedJunctionIsRefusedAsBefore()
-    {
-        var host = NewHost(junctionUnlocked: false);
-        using var game = new AgentGame(host, Content);
-
-        var result = Piazza(game, EastLine);
-
-        var refused = Assert.Single(result.GetProperty("rifiuti").EnumerateArray());
-        Assert.Equal(Crossing.X, refused.GetProperty("x").GetInt32());
-        Assert.Equal(nameof(RefusalCode.CrossingNeedsJunction), refused.GetProperty("codice").GetString());
-        Assert.Equal(6, result.GetProperty("celle").GetArrayLength());
-        Assert.Equal(LogisticsKind.Belt, host.State.Belts[Crossing].Kind);
-        Assert.Equal(Direction.South, host.State.Belts[Crossing].Direction);
+        return client;
     }
 
     [Fact]
