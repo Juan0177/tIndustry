@@ -82,6 +82,13 @@ public partial class World
             return;
         }
 
+        // Playtests are always 1280×720, also on a screen the OS would clamp the window to (e.g. a portrait monitor).
+        if (DisplayServer.GetName() != "headless")
+        {
+            DisplayServer.WindowSetSize(new Vector2I(StartupDisplay.DevWidth, StartupDisplay.DevHeight));
+            await PlaytestWait(0.3);
+        }
+
         var ok = name switch
         {
             "tutorial" => await PlaytestTutorialAsync(dir),
