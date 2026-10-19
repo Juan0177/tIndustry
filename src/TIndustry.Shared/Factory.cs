@@ -214,25 +214,143 @@ public sealed class Factory : IGameView
     /// that no plan, mark for removal or site touches and <paramref name="conveyorId"/> is a plain belt; then
     /// <see cref="BeltOverBelt.Same"/> (same id and direction) or <see cref="BeltOverBelt.Rotate"/> (same id).
     /// </summary>
-    public BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId)
+    public BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId) =>
+        BeltOverBeltAt(cell, direction, conveyorId, ignoring: null);
+
+    /// <summary>True while the build plan's cell still answers <see cref="BeltOverBelt.Replace"/>, the plan itself aside.</summary>
+    internal bool IsReplacePlan(BuildPlan plan) =>
+        !plan.Breaking
+        && plan.Spec.Kind is null
+        && BeltOverBeltAt(plan.Spec.Origin, plan.Spec.Direction, plan.Spec.StructureId, plan) == BeltOverBelt.Replace;
+
+    private BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId, BuildPlan? ignoring)
     {
         if (!Belts.TryGet(cell, out var belt)
             || belt.Kind != LogisticsKind.Belt
             || Content.FindConveyor(conveyorId)?.Kind != LogisticsKind.Belt
-            || IsPlannedTile(cell)
+            || State.Builders.Any(b => b.Plans.Any(p =>
+                !ReferenceEquals(p, ignoring) && !p.Breaking && Footprint(p.Spec).Contains(cell)))
             || TryGetSiteAt(cell, out _)
             || State.Builders.Any(b => b.Plans.Any(p => p.Breaking && p.Spec.Origin == cell)))
         {
             return BeltOverBelt.None;
         }
 
-        // shortcut: another tier is None until belt replacement exists (then Replace).
-        if (!string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal))
+        return !string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal) ? BeltOverBelt.Replace
+            : belt.Direction == direction ? BeltOverBelt.Same
+            : BeltOverBelt.Rotate;
+    }
+
+    /// <summary>
+    /// Takes the plain belt on <paramref name="cell"/> away without refund for a replacement, returning its spec and
+    /// items (front first, positions kept). False, changing nothing, when no plain belt is there.
+    /// </summary>
+    internal bool TryTakeBeltForReplacement(GridPosition cell, out ReplacedBelt old)
+    {
+        old = null!;
+        if (!Belts.TryGet(cell, out var belt) || belt.Kind != LogisticsKind.Belt)
         {
-            return BeltOverBelt.None;
+            return false;
         }
 
-        return belt.Direction == direction ? BeltOverBelt.Same : BeltOverBelt.Rotate;
+        old = new ReplacedBelt(
+            new BuildSpec(belt.Definition.Id, null, cell, belt.Direction),
+            belt.Items.Select(i => new TransportedItem(i.Id, i.ItemId, i.Progress, i.Travel)).ToList());
+        return RemoveInstant(cell, refund: false);
+    }
+
+    /// <summary>
+    /// Ends a replacement on the new belt of <paramref name="spec"/>: it takes the first <c>Capacity</c> items of
+    /// <paramref name="old"/> with their positions, and the old cost beyond the credit comes back at the old belt's
+    /// refund share (<see cref="RefundBasisPointsFor"/>, one floor per line).
+    /// </summary>
+    internal void SettleReplacement(BuildSpec spec, ReplacedBelt old)
+    {
+        var cell = Belts.Cells[spec.Origin];
+        cell.RestoreState(cell.SplitterToggle, old.Items.Take(cell.Definition.Capacity));
+        var oldCost = CostOf(old.Spec);
+        var credit = Construction.Credit(oldCost, CostOf(spec));
+        var basisPoints = RefundBasisPointsFor(old.Spec);
+        for (var i = 0; i < oldCost.Count; i++)
+        {
+            var back = (int)((long)(oldCost[i].Amount - credit[i]) * basisPoints / Construction.FullRefundBasisPoints);
+            if (back <= 0)
+            {
+                continue;
+            }
+
+            if (oldCost[i].ItemId is { } itemId)
+            {
+                Wallet.AddMaterial(itemId, back);
+            }
+            else
+            {
+                Wallet.AddMoney(back);
+            }
+        }
+    }
+
+    /// <summary>Puts the belt of a cancelled replacement back, free, with all its items.</summary>
+    internal void RestoreReplacedBelt(ReplacedBelt old)
+    {
+        if (PlaceInstant(old.Spec, charge: false))
+        {
+            Belts.Cells[old.Spec.Origin].RestoreState(0, old.Items);
+        }
+    }
+
+    /// <summary>
+    /// Instant replacement of the plain belt under <paramref name="spec"/>, all or nothing: pays the new cost less the
+    /// credit (else <see cref="RefusalCode.InsufficientResources"/> with only that difference missing, nothing changed),
+    /// gives the rest of the old cost back as <see cref="SettleReplacement"/> does, and keeps the items.
+    /// </summary>
+    internal Refusal? TryReplaceBeltInstant(BuildSpec spec)
+    {
+        if (!TryGetSpecAt(spec.Origin, out var oldSpec, out _) || oldSpec.Kind is not null)
+        {
+            return RefusalCode.Occupied;
+        }
+
+        var cost = CostOf(spec);
+        var credit = Construction.Credit(cost, CostOf(oldSpec));
+        var money = 0;
+        var materials = new List<ResourceAmount>();
+        for (var i = 0; i < cost.Count; i++)
+        {
+            var due = cost[i].Amount - credit[i];
+            if (cost[i].ItemId is { } itemId)
+            {
+                if (due > 0)
+                {
+                    materials.Add(new ResourceAmount(itemId, due));
+                }
+            }
+            else
+            {
+                money = due;
+            }
+        }
+
+        if (ShortfallOf(money, materials, spec.StructureId) is { } shortfall)
+        {
+            return shortfall;
+        }
+
+        if (!TryTakeBeltForReplacement(spec.Origin, out var old))
+        {
+            return RefusalCode.Occupied;
+        }
+
+        if (!PlaceInstant(spec, charge: false))
+        {
+            // Cannot happen: the cell was just freed. Put the old belt back unchanged.
+            RestoreReplacedBelt(old);
+            return RefusalCode.Occupied;
+        }
+
+        TryCharge(money, materials);
+        SettleReplacement(spec, old);
+        return null;
     }
 
     /// <summary>Turns the belt on <paramref name="cell"/> in place, keeping its items (the shape cache follows the grid's version).</summary>
@@ -723,7 +841,10 @@ public sealed class Factory : IGameView
                 StalledTicks = site.StalledTicks,
                 Deconstructing = site.Deconstructing,
                 RefundBasisPoints = site.RefundBasisPoints,
-                Owner = site.OwnerPlayerId
+                Owner = site.OwnerPlayerId,
+                Replaced = site.Replaced is { } old
+                    ? new ReplacedSaveDto { Spec = CaptureSpec(old.Spec), Items = old.Items.Select(CaptureItem).ToList() }
+                    : null
             }).ToList(),
             // BeltGrid.Cells already enumerates in canonical (Y, X) order.
             Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
@@ -736,16 +857,24 @@ public sealed class Factory : IGameView
                 BridgePartnerX = c.BridgePartner?.X,
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
-                Items = c.Items.Select(it => new ItemSaveDto
-                {
-                    Id = it.Id,
-                    ItemId = it.ItemId,
-                    Progress = it.Progress,
-                    Travel = it.Travel?.ToString()
-                }).ToList()
+                Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
     }
+
+    private static ItemSaveDto CaptureItem(TransportedItem it) => new()
+    {
+        Id = it.Id,
+        ItemId = it.ItemId,
+        Progress = it.Progress,
+        Travel = it.Travel?.ToString()
+    };
+
+    private static TransportedItem RestoreItem(ItemSaveDto it) => new(
+        it.Id,
+        it.ItemId,
+        it.Progress,
+        string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel));
 
     private static BuildSpecSaveDto CaptureSpec(BuildSpec spec) => new()
     {
@@ -851,11 +980,7 @@ public sealed class Factory : IGameView
             var def = content.FindConveyor(cell.DefinitionId)
                 ?? content.RequireConveyor("conveyor-basic");
             var dir = ParseDirection(cell.Direction);
-            var items = cell.Items.Select(it => new TransportedItem(
-                it.Id,
-                it.ItemId,
-                it.Progress,
-                string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel))).ToList();
+            var items = cell.Items.Select(RestoreItem).ToList();
             GridPosition? partner = null;
             if (cell.BridgePartnerX is { } bx && cell.BridgePartnerY is { } by)
             {
@@ -1181,7 +1306,10 @@ public sealed class Factory : IGameView
             Progress = float.IsNaN(d.Progress) ? 0f : Math.Clamp(d.Progress, 0f, 1f),
             Deconstructing = d.Deconstructing,
             RefundBasisPoints = refundBasisPoints,
-            StalledTicks = Math.Clamp(d.StalledTicks, 0, Construction.StuckTicks)
+            StalledTicks = Math.Clamp(d.StalledTicks, 0, Construction.StuckTicks),
+            Replaced = d.Replaced is { } old
+                ? new ReplacedBelt(RestoreSpec(old.Spec), old.Items.Select(RestoreItem).ToList())
+                : null
         };
         for (var i = 0; i < site.Cost.Count; i++)
         {

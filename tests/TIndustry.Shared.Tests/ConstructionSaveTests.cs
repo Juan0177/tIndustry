@@ -294,10 +294,61 @@ public sealed class ConstructionSaveTests
         var host = new SimHost(NewFactory(new GameRules()));
         FactorySaveStore.Save("v10-cantiere", host);
         var path = FactorySaveStore.SlotPath("v10-cantiere");
-        File.WriteAllText(path, File.ReadAllText(path).Replace("\"version\": 12", "\"version\": 10"));
+        File.WriteAllText(path, File.ReadAllText(path).Replace($"\"version\": {FactorySaveData.CurrentVersion}", "\"version\": 10"));
 
         Assert.False(FactorySaveStore.TryLoad(Content, "v10-cantiere", out var loaded, out var error));
         Assert.Null(loaded);
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
+    }
+    [Fact]
+    public void ReplacementSiteSurvivesSaveAndLoad()
+    {
+        var factory = NewFactory(new GameRules());
+        factory.Wallet.AddMaterial("copper-wire", 100);
+        var cell = new GridPosition(24, 21);
+        Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
+        factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, Iron, 1f)]);
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
+        for (var t = 0; t < 600 && (factory.Sites.Count == 0 || factory.Sites[0].Progress < 0.3f); t++)
+        {
+            host.AdvanceTicks(1);
+        }
+
+        var site = Assert.Single(factory.Sites);
+        Assert.InRange(site.Progress, 0.3f, 0.9f);
+        Assert.NotNull(site.Replaced);
+
+        var loaded = RoundTrip(host, "v13-sostituzione");
+        Assert.Contains("\"version\": 13", File.ReadAllText(FactorySaveStore.SlotPath("v13-sostituzione")));
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+        var restored = Assert.Single(loaded.State.Sites);
+        Assert.Equal("conveyor-basic", restored.Replaced!.Spec.StructureId);
+        Assert.Equal(77, Assert.Single(restored.Replaced.Items).Id);
+
+        host.AdvanceTicks(600);
+        loaded.AdvanceTicks(600);
+        Assert.Empty(loaded.State.Sites);
+        Assert.Equal("conveyor-fast", loaded.State.Belts[cell].Definition.Id);
+        Assert.Equal(77, Assert.Single(loaded.State.Belts[cell].Items).Id);
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+    }
+
+    [Fact]
+    public void Version12SaveStillLoads()
+    {
+        var host = new SimHost(NewFactory(new GameRules()));
+        host.Submit(new PlaceBuilding(Player, BuildingKind.Miner, new GridPosition(24, 20), Direction.East));
+        host.AdvanceTicks(20);
+        Assert.Single(host.State.Sites);
+        var json = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
+        Assert.DoesNotContain("replaced", json);
+        var v12 = json.Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":12");
+        Assert.Contains("\"version\":12", v12);
+
+        var state = Snapshot.Read(Content, System.Text.Encoding.UTF8.GetBytes(v12));
+
+        Assert.Equal(host.Checksum(), Snapshot.Checksum(Snapshot.Write(state)));
+        Assert.Null(Assert.Single(state.Sites).Replaced);
     }
 }

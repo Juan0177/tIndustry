@@ -37,9 +37,9 @@ public sealed class BeltOverBeltTests
     private static void Belt(Factory factory, GridPosition at, Direction dir) =>
         Assert.True(factory.PlaceInstant(new BuildSpec(Basic, null, at, dir), charge: false));
 
-    private static void Place(SimHost host, Direction dir)
+    private static void Place(SimHost host, Direction dir, string conveyorId = Basic)
     {
-        host.Submit(new PlaceBelt(Player, Cell, dir, Basic));
+        host.Submit(new PlaceBelt(Player, Cell, dir, conveyorId));
         host.AdvanceTicks(1);
     }
 
@@ -97,22 +97,24 @@ public sealed class BeltOverBeltTests
         Assert.Equal(BeltShape.Straight, factory.GetBeltShape(Cell));
     }
 
+    public static TheoryData<bool, string, string> BusyCells()
+    {
+        var data = new TheoryData<bool, string, string>();
+        foreach (var busy in new[] { "marked", "site", "otherPlayersPlan", "junction", "splitter", "sorter", "bridge" })
+        {
+            foreach (var conveyorId in new[] { Basic, "conveyor-fast" })
+            {
+                data.Add(true, busy, conveyorId);
+                data.Add(false, busy, conveyorId);
+            }
+        }
+
+        return data;
+    }
+
     [Theory]
-    [InlineData(true, "marked")]
-    [InlineData(false, "marked")]
-    [InlineData(true, "site")]
-    [InlineData(false, "site")]
-    [InlineData(true, "otherPlayersPlan")]
-    [InlineData(false, "otherPlayersPlan")]
-    [InlineData(true, "junction")]
-    [InlineData(false, "junction")]
-    [InlineData(true, "splitter")]
-    [InlineData(false, "splitter")]
-    [InlineData(true, "sorter")]
-    [InlineData(false, "sorter")]
-    [InlineData(true, "bridge")]
-    [InlineData(false, "bridge")]
-    public void BusyCellsAreNeverTurnedOrReplaced(bool instantBuild, string busy)
+    [MemberData(nameof(BusyCells))]
+    public void BusyCellsAreNeverTurnedOrReplaced(bool instantBuild, string busy, string conveyorId)
     {
         var (factory, host, refusals) = NewHost(instantBuild);
         var belt = new BuildSpec(Basic, null, Cell, Direction.East);
@@ -123,7 +125,9 @@ public sealed class BeltOverBeltTests
                 factory.BuilderOf(Player)!.PlanQueue.Add(new BuildPlan(belt, Breaking: true));
                 break;
             case "site":
-                Construction.BeginBuild(factory.State, belt, Player);
+                // A standing belt under a site: only the site guard of BeltOverBeltAt refuses it.
+                Belt(factory, Cell, Direction.East);
+                factory.State.Sites.Add(new ConstructSite(factory.State.NextEntityId++, belt, [Cell], factory.CostOf(belt), Player));
                 break;
             case "otherPlayersPlan":
                 Belt(factory, Cell, Direction.East);
@@ -145,13 +149,14 @@ public sealed class BeltOverBeltTests
         }
 
         factory.Belts.Cells.TryGetValue(Cell, out var before);
-        Assert.Equal(BeltOverBelt.None, factory.BeltOverBeltAt(Cell, Direction.North, Basic));
+        Assert.Equal(BeltOverBelt.None, factory.BeltOverBeltAt(Cell, Direction.North, conveyorId));
 
-        Place(host, Direction.North);
+        Place(host, Direction.North, conveyorId);
 
         Assert.Equal(RefusalCode.Occupied, Assert.Single(refusals).Code);
         factory.Belts.Cells.TryGetValue(Cell, out var after);
         Assert.Equal(before?.Kind, after?.Kind);
         Assert.Equal(before?.Direction, after?.Direction);
+        Assert.Equal(before?.Definition.Id, after?.Definition.Id);
     }
 }

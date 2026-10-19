@@ -153,6 +153,11 @@ public sealed class BuilderSystem : ISimulationSystem
         {
             reason = RefusalCode.LockedByResearch;
         }
+        else if (factory.IsReplacePlan(plan))
+        {
+            builder.CurrentSiteId = Construction.BeginReplace(state, plan.Spec, builder.OwnerPlayerId).Id;
+            return;
+        }
         else if (!factory.CanPlace(plan.Spec, out var refusal))
         {
             reason = refusal ?? RefusalCode.Occupied;

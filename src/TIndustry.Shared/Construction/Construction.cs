@@ -117,6 +117,57 @@ public static class Construction
     }
 
     /// <summary>
+    /// Starts replacing the plain belt under <paramref name="spec"/> with another tier: the old belt goes away without
+    /// refund, the site remembers its spec and items (<see cref="ConstructSite.Replaced"/>) and counts the common part of
+    /// the two costs as already spent (<see cref="ReplacementCredit"/>). The build time is the new belt's whole time.
+    /// Throws when there is no plain belt to replace.
+    /// </summary>
+    public static ConstructSite BeginReplace(GameState s, BuildSpec spec, int ownerPlayerId)
+    {
+        ArgumentNullException.ThrowIfNull(s);
+        ArgumentNullException.ThrowIfNull(spec);
+        if (!new Factory(s).TryTakeBeltForReplacement(spec.Origin, out var old))
+        {
+            throw new InvalidOperationException($"Nessun nastro da sostituire su {spec.Origin}.");
+        }
+
+        var site = BeginBuild(s, spec, ownerPlayerId);
+        site.Replaced = old;
+        var credit = ReplacementCredit(s.Content, site);
+        for (var i = 0; i < credit.Length; i++)
+        {
+            site.SpentLines[i] = credit[i];
+        }
+
+        return site;
+    }
+
+    /// <summary>
+    /// Credit of a replacement site per <see cref="ConstructSite.Cost"/> line: <c>min(new, old)</c> for the same item
+    /// (money is a line of its own); all 0 for an ordinary site. Recomputed from the content, never saved.
+    /// </summary>
+    internal static int[] ReplacementCredit(FactoryContent c, ConstructSite site) =>
+        site.Replaced is { } old ? Credit(site.Cost, CostOf(c, old.Spec)) : new int[site.Cost.Count];
+
+    /// <summary><c>min(new, old)</c> per line of <paramref name="newCost"/>, matched by item id (null = money).</summary>
+    internal static int[] Credit(IReadOnlyList<CostEntry> newCost, IReadOnlyList<CostEntry> oldCost)
+    {
+        var credit = new int[newCost.Count];
+        for (var i = 0; i < newCost.Count; i++)
+        {
+            foreach (var entry in oldCost)
+            {
+                if (string.Equals(entry.ItemId, newCost[i].ItemId, StringComparison.Ordinal))
+                {
+                    credit[i] = Math.Min(newCost[i].Amount, entry.Amount);
+                }
+            }
+        }
+
+        return credit;
+    }
+
+    /// <summary>
     /// Turns the building or belt on <paramref name="tile"/> into a deconstruction site: the entity is
     /// removed without refund (its items are lost, as in Mindustry) and the site starts complete
     /// (progress 1, whole cost spent). Throws when nothing is there.
@@ -152,14 +203,22 @@ public static class Construction
 
     /// <summary>
     /// Cancels a site under construction: it is taken apart from where it is and gives back all it
-    /// has spent. No-op on a site that is already deconstructing.
+    /// has spent. A replacement site first takes its credit out of what it spent (it was never paid) and, at 0,
+    /// puts the old belt back with its items. No-op on a site that is already deconstructing.
     /// </summary>
-    public static void Cancel(ConstructSite site)
+    public static void Cancel(GameState s, ConstructSite site)
     {
+        ArgumentNullException.ThrowIfNull(s);
         ArgumentNullException.ThrowIfNull(site);
         if (site.Deconstructing)
         {
             return;
+        }
+
+        var credit = ReplacementCredit(s.Content, site);
+        for (var i = 0; i < credit.Length; i++)
+        {
+            site.SpentLines[i] = Math.Max(0, site.SpentLines[i] - credit[i]);
         }
 
         site.Deconstructing = true;
@@ -246,6 +305,11 @@ public static class Construction
             throw new InvalidOperationException($"Cantiere {site.Id} completato su celle non valide.");
         }
 
+        if (site.Replaced is { } old)
+        {
+            factory.SettleReplacement(site.Spec, old);
+        }
+
         return ConstructStep.Finished;
     }
 
@@ -288,6 +352,11 @@ public static class Construction
         }
 
         s.Sites.Remove(site);
+        if (site.Replaced is { } old)
+        {
+            new Factory(s).RestoreReplacedBelt(old);
+        }
+
         return ConstructStep.Finished;
     }
 

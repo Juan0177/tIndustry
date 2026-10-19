@@ -70,10 +70,10 @@ public sealed class SaveMigrationTests
         Assert.InRange(site.Progress, 0.5f, 0.6f);
         Assert.Equal(new GridPosition(66, 56), Assert.Single(state.PlansOf(0)).Spec.Origin);
 
-        // Saved again it is a v12 save on the classic generator, and the site still gets built.
+        // Saved again it is a current-version save on the classic generator, and the site still gets built.
         FactorySaveStore.Save("fixture-v12", host);
         var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("fixture-v12")));
-        Assert.Equal((12, "classico", 0, (string?)null), (data.Version, data.Generator, data.MapSize, data.MapId));
+        Assert.Equal((FactorySaveData.CurrentVersion, "classico", 0, (string?)null), (data.Version, data.Generator, data.MapSize, data.MapId));
         Assert.True(FactorySaveStore.TryLoad(Content, "fixture-v12", out var resaved, out error), error);
         Assert.Equal(host.Checksum(), resaved!.Checksum());
         host.AdvanceTicks(120);
@@ -87,7 +87,7 @@ public sealed class SaveMigrationTests
         var host = new SimHost(NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 6));
         var json = Encoding.UTF8.GetString(host.CreateSnapshot());
         Assert.Contains("\"generator\":\"classico\"", json);
-        var v11 = json.Replace("\"version\":12", "\"version\":11").Replace("\"generator\":\"classico\",", "");
+        var v11 = json.Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":11").Replace("\"generator\":\"classico\",", "");
 
         var state = Snapshot.Read(Content, Encoding.UTF8.GetBytes(v11));
 
@@ -273,21 +273,21 @@ public sealed class SaveMigrationTests
         Assert.Null(loaded);
         Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
 
-        var snapshot = Encoding.UTF8.GetString(host().CreateSnapshot()).Replace("\"version\":12", "\"version\":10");
+        var snapshot = Encoding.UTF8.GetString(host().CreateSnapshot()).Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":10");
         Assert.Throws<InvalidDataException>(() => Snapshot.Read(Content, Encoding.UTF8.GetBytes(snapshot)));
 
         static SimHost host() => new(NewGame.Demo(Content));
     }
 
     [Fact]
-    public void SaveWritesVersion12()
+    public void SaveWritesVersion13()
     {
         var host = new SimHost(NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v12-versione", host);
+        FactorySaveStore.Save("v13-versione", host);
 
-        Assert.Contains("\"version\": 12", File.ReadAllText(FactorySaveStore.SlotPath("v12-versione")));
-        var snapshot = SnapshotJson("v12-versione");
-        Assert.Contains("\"version\":12", snapshot);
+        Assert.Contains("\"version\": 13", File.ReadAllText(FactorySaveStore.SlotPath("v13-versione")));
+        var snapshot = SnapshotJson("v13-versione");
+        Assert.Contains("\"version\":13", snapshot);
         Assert.Contains("\"generator\":\"classico\",\"mapSize\":0", snapshot);
         Assert.DoesNotContain("mapId", snapshot);
     }

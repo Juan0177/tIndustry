@@ -5,6 +5,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Aggiunto
+
+- **Cambio di tier dei nastri** (nastri come Mindustry 5/11): un nastro di un altro tipo piazzato sopra un nastro semplice lo sostituisce, come in Mindustry. Si paga solo la differenza fra i due costi (la parte comune è un credito), il nastro nuovo tiene gli oggetti e la parte del costo vecchio che avanza torna al Core con la regola di rimborso (passare da veloce a base rende la differenza). Coi piani il drone apre un cantiere di sostituzione che ricorda il nastro vecchio, col tempo intero del nastro nuovo; annullarlo rimette il nastro vecchio coi suoi oggetti e rende solo quanto pagato. Con `InstantBuild` è tutto o niente: senza la differenza nel Core non cambia nulla. Vale anche per la linea attraversata quando l'incrocio non è sbloccato. **Salvataggi alla versione 13** (il cantiere salva il nastro tolto); i v11 e i v12 si leggono ancora
+
 ### Corretto
 
 - **Oggetti fluidi sui nastri** (nastri come Mindustry 4/11): gli oggetti non sembrano più fermi a tratti né saltano di due passi. Il client li disegna fra gli ultimi due tick con la frazione di tick dell'orologio (`SimulationClock.Alpha`, `SimHost.TickAlpha`), quindi si muovono a ogni frame anche a 144 Hz, al più un tick indietro; in pausa stanno fermi, e dopo un caricamento o un intoppo ripartono da dove sono. Solo grafica: la simulazione, l'istantanea e l'impronta non cambiano. Le strisce dei nastri hanno 32 fotogrammi per cella invece di 8 (il battistrada avanza di 1 px invece che di 4), alla stessa velocità degli oggetti. Il playtest `ui` misura il moto con la sonda `oggetti-fluidi` (cattura `ui-oggetti-fluidi`)
