@@ -128,61 +128,70 @@ public partial class World
     }
 
     /// <summary>
-    /// Right-drag: a marking <see cref="TryRemoveAt"/> once per block in the whole drag, like Mindustry's
-    /// removal drag. Every cell of the block (its footprint, or the site's cells) counts as done after the first.
+    /// Right release after a drag: the rectangle from the anchor to <paramref name="cursor"/> marks every block and
+    /// cancels every plan in it (<see cref="RemovalArea"/>, the agents' <c>smonta {da, a}</c> too). Never unmarks.
     /// </summary>
-    private void RemoveOnceInDrag(GridPosition cell)
+    private void RemoveRectangle(GridPosition cursor)
     {
-        if (_view is null || !_removedThisDrag.Add(cell))
+        if (_view is null)
         {
             return;
         }
 
-        if (_view.TryGetSiteAt(cell, out var site))
+        foreach (var command in RemovalArea.Commands(_view, LocalPlayer, _removeStart, cursor))
         {
-            _removedThisDrag.UnionWith(site.Tiles);
+            SubmitCommand(command);
         }
-        else
-        {
-            // A breaking plan covers the whole block standing on the cell (just the cell when it is empty).
-            var probe = new BuildPlan(new BuildSpec("", null, cell, Direction.East), Breaking: true);
-            _removedThisDrag.UnionWith(_view.PlanTiles(probe));
-        }
-
-        TryRemoveAt(cell, onlyMark: true);
     }
 
     /// <summary>
-    /// Cells from <paramref name="from"/> (excluded) to <paramref name="to"/> (included) along a Bresenham line,
-    /// in order: what a right drag crossed between two motion events.
+    /// Middle click: the block standing (or the site) on <paramref name="cell"/> becomes the tool in hand, with its
+    /// direction and the sorter's filter. A locked block toasts and keeps the tool; an empty cell does nothing.
     /// </summary>
-    private static List<GridPosition> DragCells(GridPosition from, GridPosition to)
+    private void PickAt(GridPosition cell)
     {
-        var cells = new List<GridPosition>();
-        // 4-connected line (one axis per step, as Mindustry does for belts): every cell shares an edge
-        // with the previous one, so a fast diagonal drag never leaves corner-only gaps.
-        int x = from.X, y = from.Y;
-        int dx = Math.Abs(to.X - x), dy = Math.Abs(to.Y - y);
-        int sx = x < to.X ? 1 : -1, sy = y < to.Y ? 1 : -1;
-        int ix = 0, iy = 0;
-        while (ix < dx || iy < dy)
+        if (_view is null || PanelOpen)
         {
-            // Step along the axis that lags behind the ideal line; ties go to x.
-            if ((1 + 2 * ix) * dy <= (1 + 2 * iy) * dx && ix < dx)
-            {
-                x += sx;
-                ix++;
-            }
-            else
-            {
-                y += sy;
-                iy++;
-            }
-
-            cells.Add(new GridPosition(x, y));
+            return;
         }
 
-        return cells;
+        BuildSpec spec;
+        if (_view.TryGetSiteAt(cell, out var site))
+        {
+            spec = site.Spec;
+        }
+        else if (!_view.TryGetSpecAt(cell, out spec, out _))
+        {
+            return;
+        }
+
+        var tool = Enum.GetValues<BuildTool>()
+            .FirstOrDefault(t => t != BuildTool.Cursor && Hud.StructureIdFor(ToHudTool(t)) == spec.StructureId);
+        if (tool == BuildTool.Cursor)
+        {
+            return;
+        }
+
+        CancelLine();
+        SelectTool(tool);
+        if (_tool != tool)
+        {
+            return; // locked: SelectTool said so
+        }
+
+        if (IsOrientable(tool))
+        {
+            _placeDir = spec.Direction;
+            _hud?.SetDirectionLabel(_placeDir);
+        }
+
+        if (tool == BuildTool.Sorter && spec.FilterItemId is { } filter)
+        {
+            _sorterFilterId = filter;
+            _hud?.SetSorterFilterBrush(filter);
+        }
+
+        QueueRedraw();
     }
 
     /// <summary>

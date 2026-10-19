@@ -449,7 +449,7 @@ public partial class World
             return false;
         }
 
-        if (!await PlaytestRemoveDragOutAndBackAsync())
+        if (!await PlaytestRemoveRectangleAsync(Shot))
         {
             return false;
         }
@@ -1287,12 +1287,11 @@ public partial class World
     }
 
     /// <summary>
-    /// Right-drag over the seed line (miner + belts) out to the Core and back, ending on other cells of the
-    /// miner, then a second drag over cells already marked: every block must end with a breaking plan, a
-    /// deconstruction or nothing left (never toggled back).
-    /// No screenshot: it runs after the last one.
+    /// Right-drag rectangle over the seed line (miner + belts to the Core): nothing is sent while the button is down
+    /// (capture <c>smontaggio-rettangolo</c>), the release marks every block; a second, overlapping rectangle takes no
+    /// mark off; a single right click still toggles one (taken off, then put back for the colour captures).
     /// </summary>
-    private async Task<bool> PlaytestRemoveDragOutAndBackAsync()
+    private async Task<bool> PlaytestRemoveRectangleAsync(Func<string, Task> shot)
     {
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
@@ -1304,52 +1303,57 @@ public partial class World
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
 
-        for (var x = minerCell.X; x <= lastBelt.X; x++)
+        var line = Enumerable.Range(minerCell.X, lastBelt.X - minerCell.X + 1).Select(x => new GridPosition(x, core.Y)).ToList();
+        if (line.Where(_view.CanOccupy).ToList() is [var hole, ..])
         {
-            if (_view.CanOccupy(new GridPosition(x, core.Y)))
+            return Fail($"linea del seed incompleta prima del rettangolo: {hole} vuota");
+        }
+
+        bool AllMarked() => line.All(RemovedOrBeingRemoved);
+        bool AnyBreaking(GridPosition cell) =>
+            _view.PlansOf(LocalPlayer).Any(p => p.Breaking && _view.PlanTiles(p).Contains(cell));
+
+        // From the miner's lower cell up to the last belt: the anchor's row and the cursor's.
+        var from = CellToScreen(new GridPosition(minerCell.X, core.Y + 1));
+        var to = CellToScreen(lastBelt);
+        await PlaytestPress(from, MouseButton.Right);
+        await PlaytestMoveHeld(from, to, mask: MouseButtonMask.Right);
+        if (PendingCommands.Count > 0 || line.Any(AnyBreaking))
+        {
+            return Fail("smontaggio-rettangolo: comandi inviati prima del rilascio");
+        }
+
+        await shot("smontaggio-rettangolo");
+        await PlaytestRelease(to, MouseButton.Right);
+        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout) || !AllMarked())
+        {
+            return Fail($"smontaggio-rettangolo: senza smontaggio {string.Join(" ", line.Where(c => !RemovedOrBeingRemoved(c)))}");
+        }
+
+        // A second rectangle over cells already marked (anchored on one) only marks: nothing is toggled back.
+        await PlaytestDrag(MouseButton.Right, to, CellToScreen(new GridPosition(minerCell.X + 1, core.Y)));
+        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout) || !AllMarked())
+        {
+            return Fail($"secondo rettangolo: smarcati {string.Join(" ", line.Where(c => !RemovedOrBeingRemoved(c)))}");
+        }
+
+        // A single right click on the last mark in the queue (the drone is still far from it) takes it off, a second puts it back.
+        if (_view.PlansOf(LocalPlayer).LastOrDefault(p => p.Breaking)?.Spec.Origin is not { } marked)
+        {
+            return Fail("clic destro: nessun segno di smontaggio in coda");
+        }
+
+        foreach (var expectMarked in new[] { false, true })
+        {
+            await PlaytestPress(CellToScreen(marked), MouseButton.Right);
+            await PlaytestRelease(CellToScreen(marked), MouseButton.Right);
+            if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout) || AnyBreaking(marked) != expectMarked)
             {
-                return Fail($"linea del seed incompleta prima del trascinamento: {x},{core.Y} vuota");
+                return Fail($"clic destro su {marked}: segno {(expectMarked ? "non rimesso" : "non tolto")}");
             }
         }
 
-        await PlaytestDrag(MouseButton.Right,
-        [
-            CellToScreen(minerCell),
-            CellToScreen(lastBelt),
-            CellToScreen(new GridPosition(minerCell.X + 1, core.Y)),
-            CellToScreen(new GridPosition(minerCell.X, core.Y + 1))
-        ]);
-        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
-        {
-            return Fail("comandi del trascinamento non applicati");
-        }
-
-        for (var x = minerCell.X; x <= lastBelt.X; x++)
-        {
-            var cell = new GridPosition(x, core.Y);
-            if (!RemovedOrBeingRemoved(cell))
-            {
-                return Fail($"trascinamento col destro andata e ritorno: {cell} senza smontaggio");
-            }
-        }
-
-        // A second drag over cells already marked (starting on one) only marks: nothing is toggled back.
-        await PlaytestDrag(MouseButton.Right, CellToScreen(lastBelt), CellToScreen(new GridPosition(minerCell.X + 1, core.Y)));
-        if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
-        {
-            return Fail("comandi del secondo trascinamento non applicati");
-        }
-
-        for (var x = minerCell.X; x <= lastBelt.X; x++)
-        {
-            var cell = new GridPosition(x, core.Y);
-            if (!RemovedOrBeingRemoved(cell))
-            {
-                return Fail($"secondo trascinamento col destro: {cell} smarcato");
-            }
-        }
-
-        GD.Print($"PLAYTEST step ok: smontaggio trascinato andata e ritorno (fps {Engine.GetFramesPerSecond()})");
+        GD.Print($"PLAYTEST step ok: smontaggio a rettangolo, secondo rettangolo e clic destro (fps {Engine.GetFramesPerSecond()})");
         return true;
     }
 
@@ -1529,17 +1533,42 @@ public partial class World
         Input.ParseInputEvent(new InputEventMouseButton
         {
             ButtonIndex = button, Pressed = true, Position = at, GlobalPosition = at, CtrlPressed = ctrl,
-            ButtonMask = button == MouseButton.Right ? MouseButtonMask.Right : MouseButtonMask.Left, Device = PlaytestDevice
+            ButtonMask = button switch
+            {
+                MouseButton.Right => MouseButtonMask.Right,
+                MouseButton.Middle => MouseButtonMask.Middle,
+                _ => MouseButtonMask.Left
+            },
+            Device = PlaytestDevice
         });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    /// <summary>Moves with the left button held from <paramref name="from"/> to <paramref name="to"/> in <paramref name="steps"/> frames.</summary>
-    private async Task PlaytestMoveHeld(Vector2 from, Vector2 to, bool ctrl = false, int steps = 12)
+    /// <summary>
+    /// Moves with <paramref name="mask"/> (the left button) held from <paramref name="from"/> to <paramref name="to"/>
+    /// in <paramref name="steps"/> frames.
+    /// </summary>
+    private async Task PlaytestMoveHeld(
+        Vector2 from, Vector2 to, bool ctrl = false, int steps = 12, MouseButtonMask mask = MouseButtonMask.Left)
     {
         for (var i = 1; i <= steps; i++)
         {
-            PlaytestMove(from.Lerp(to, i / (float)steps), MouseButtonMask.Left, ctrl);
+            PlaytestMove(from.Lerp(to, i / (float)steps), mask, ctrl);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
+    /// <summary>One wheel step (<paramref name="wheel"/>, Ctrl held with <paramref name="ctrl"/>) at <paramref name="at"/>: press and release, a frame each.</summary>
+    internal async Task PlaytestWheel(Vector2 at, MouseButton wheel, bool ctrl = false)
+    {
+        PlaytestMove(at, 0, ctrl);
+        foreach (var pressed in new[] { true, false })
+        {
+            Input.ParseInputEvent(new InputEventMouseButton
+            {
+                ButtonIndex = wheel, Pressed = pressed, Factor = 1f, Position = at, GlobalPosition = at, CtrlPressed = ctrl,
+                Device = PlaytestDevice
+            });
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
     }

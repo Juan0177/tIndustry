@@ -20,9 +20,12 @@ public partial class World
         QueueRedraw();
     }
 
-    private void OnHudRotate()
+    private void OnHudRotate() => Rotate(clockwise: true);
+
+    /// <summary>R (clockwise) and the wheel (up clockwise, down counterclockwise): the brush turns a quarter.</summary>
+    private void Rotate(bool clockwise)
     {
-        _placeDir = DirectionMath.Right(_placeDir);
+        _placeDir = clockwise ? DirectionMath.Right(_placeDir) : DirectionMath.Left(_placeDir);
         // R during a drag fixes the new way for the whole line, until the release.
         _lineFixed |= LineDragActive && IsOrientable(_tool);
         _hud?.SetDirectionLabel(_placeDir);
@@ -368,24 +371,33 @@ public partial class World
                 }
                 else if (mouse.Pressed)
                 {
-                    // Nothing is sent yet: a click toggles on release, a drag marks once it moves.
+                    // Nothing is sent yet: a click toggles on release, a drag draws the rectangle marked on release.
                     _draggingRemove = true;
                     _removeMoved = false;
                     _removeStart = cell;
-                    _dragCell = cell;
-                    _removedThisDrag.Clear();
                     GetViewport().SetInputAsHandled();
                 }
-                else
+                else if (_draggingRemove)
                 {
-                    if (_draggingRemove && !_removeMoved)
+                    if (_removeMoved)
+                    {
+                        RemoveRectangle(cell);
+                    }
+                    else
                     {
                         TryRemoveAt(_removeStart, onlyMark: false);
                     }
 
                     _draggingRemove = false;
-                    _removedThisDrag.Clear();
+                    QueueRedraw();
                 }
+            }
+            else if (mouse.Pressed && mouse.ButtonIndex is (MouseButton.WheelUp or MouseButton.WheelDown)
+                && !mouse.CtrlPressed && IsOrientable(_tool))
+            {
+                // WorldCamera let the step through (WheelZooms): it turns the block like R, up clockwise.
+                Rotate(clockwise: mouse.ButtonIndex == MouseButton.WheelUp);
+                GetViewport().SetInputAsHandled();
             }
         }
         else if (@event is InputEventMouseMotion motion)
@@ -398,20 +410,10 @@ public partial class World
                 QueueRedraw();
             }
 
-            if (_draggingRemove && !cell.Equals(_dragCell))
+            if (_draggingRemove && !_removeMoved && !cell.Equals(_removeStart))
             {
-                if (!_removeMoved)
-                {
-                    _removeMoved = true;
-                    RemoveOnceInDrag(_removeStart);
-                }
-
-                foreach (var step in DragCells(_dragCell, cell))
-                {
-                    RemoveOnceInDrag(step);
-                }
-
-                _dragCell = cell;
+                _removeMoved = true;
+                QueueRedraw();
             }
         }
     }

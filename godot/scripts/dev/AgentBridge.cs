@@ -1002,7 +1002,7 @@ public partial class AgentBridge : Node
                 var at = p.TryGetProperty("schermo", out _) || p.TryGetProperty("cella", out _)
                     ? Point(p, result)
                     : WindowCentre(result);
-                action = Wheel(at, wheel);
+                action = _world.PlaytestWheel(at, wheel);
                 break;
             }
             default:
@@ -1066,20 +1066,6 @@ public partial class AgentBridge : Node
         finally
         {
             _busy = false;
-        }
-    }
-
-    private async Task Wheel(Vector2 at, MouseButton wheel)
-    {
-        World.PlaytestMove(at, 0);
-        foreach (var pressed in new[] { true, false })
-        {
-            Input.ParseInputEvent(new InputEventMouseButton
-            {
-                ButtonIndex = wheel, Pressed = pressed, Factor = 1f, Position = at, GlobalPosition = at,
-                Device = World.PlaytestDevice
-            });
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
     }
 
