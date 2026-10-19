@@ -57,3 +57,6 @@ godot/data/
 
 # Website build output (tools/sito/costruisci.py)
 _site/
+
+# Python caches (tools/art, tools/sito)
+__pycache__/
