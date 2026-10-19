@@ -11,8 +11,22 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import composti  # noqa: E402
 import costruisci  # noqa: E402
+import fabbrica  # noqa: E402
 
 ASSETS = os.path.join(costruisci.REPO, "godot", "assets")
+
+
+def _luminanza(colore):
+    def canale(v):
+        v /= 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(colore[i:i + 2], 16) for i in (1, 3, 5))
+    return 0.2126 * canale(r) + 0.7152 * canale(g) + 0.0722 * canale(b)
+
+
+def contrasto(a, b):
+    la, lb = sorted((_luminanza(a), _luminanza(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
 
 
 class TestSito(unittest.TestCase):
@@ -21,10 +35,13 @@ class TestSito(unittest.TestCase):
         cls._tmp = tempfile.TemporaryDirectory()
         cls.out = cls._tmp.name
         cls.scritti = costruisci.costruisci(cls.out)
-        with open(os.path.join(cls.out, "asset", "index.html"), encoding="utf-8") as fh:
-            cls.asset = fh.read()
-        with open(os.path.join(cls.out, "index.html"), encoding="utf-8") as fh:
-            cls.ingresso = fh.read()
+        cls.pagine = {}
+        for rel in ("index.html", "sviluppo/index.html", "asset/index.html"):
+            with open(os.path.join(cls.out, rel), encoding="utf-8") as fh:
+                cls.pagine[rel] = fh.read()
+        cls.ingresso = cls.pagine["index.html"]
+        cls.sviluppo = cls.pagine["sviluppo/index.html"]
+        cls.asset = cls.pagine["asset/index.html"]
         cls.immagini = composti.Immagini(ASSETS)
 
     @classmethod
@@ -39,10 +56,107 @@ class TestSito(unittest.TestCase):
         inizio = self.asset.index(f'id="blocco-{bid}"')
         return self.asset[inizio:self.asset.index('class="lente"', inizio)]
 
+    # ---- the three pages and their files
+
     def test_pagine(self):
-        self.assertEqual(["asset/index.html", "index.html"], self.scritti)
-        self.assertTrue(os.path.exists(os.path.join(self.out, ".nojekyll")))
-        self.assertIn('href="asset/"', self.ingresso)
+        self.assertEqual(["asset/index.html", "index.html", "sviluppo/index.html"], self.scritti)
+        for nome in (".nojekyll", "stile.css", "sito.js", "favicon.png", "fabbrica", "catture"):
+            self.assertTrue(os.path.exists(os.path.join(self.out, nome)), nome)
+        for rel, radice in (("index.html", ""), ("sviluppo/index.html", "../"), ("asset/index.html", "../")):
+            pagina = self.pagine[rel]
+            self.assertIn(f'<link rel="stylesheet" href="{radice}stile.css">', pagina)
+            self.assertIn(f'<script src="{radice}sito.js" defer></script>', pagina)
+            self.assertIn(f'<link rel="icon" href="{radice}favicon.png"', pagina)
+            self.assertIn('<html lang="it">', pagina)
+            self.assertIn(f'href="{radice}sviluppo/"', pagina)
+            self.assertIn(f'href="{radice}asset/"', pagina)
+        with open(os.path.join(self.out, "stile.css"), encoding="utf-8") as fh:
+            stile = fh.read()
+        self.assertIn("#drone", stile)  # drone.css is part of the stylesheet
+        self.assertIn(".scena", stile)
+
+    def test_autonome(self):
+        # Self-contained: one local script, local stylesheet and icon, images only data: or files of the site.
+        for rel, pagina in self.pagine.items():
+            radice = "" if rel == "index.html" else "../"
+            self.assertEqual([f'<script src="{radice}sito.js" defer></script>'], re.findall(r"<script[^>]*></script>", pagina), rel)
+            self.assertEqual(2, len(re.findall(r"<link\b", pagina)), rel)
+            esterne = re.findall(rf'<img[^>]*src="(?!data:|{re.escape(radice)}(?:catture|fabbrica)/[a-z0-9./-]+")([^"]*)"', pagina)
+            self.assertEqual([], esterne, rel)
+            self.assertNotIn("url(http", pagina)
+            self.assertNotIn("<iframe", pagina)
+
+    def test_immagini_riferite_esistono(self):
+        # Every fabbrica/ and catture/ file the pages use is on disk, and no file is a data: URI twin.
+        for rel, pagina in self.pagine.items():
+            radice = "" if rel == "index.html" else "../"
+            for percorso in set(re.findall(rf'(?:src|url\()\(?["\']?{re.escape(radice)}((?:catture|fabbrica)/[a-z0-9./-]+)', pagina)):
+                self.assertTrue(os.path.exists(os.path.join(self.out, percorso)), f"{rel}: {percorso}")
+
+    def test_deterministico(self):
+        with tempfile.TemporaryDirectory() as altro:
+            costruisci.costruisci(altro)
+            for rel, pagina in self.pagine.items():
+                with open(os.path.join(altro, rel), encoding="utf-8") as fh:
+                    self.assertEqual(pagina, fh.read(), rel)
+
+    def test_dimensione(self):
+        self.assertLess(len(self.ingresso.encode("utf-8")), 300_000)
+        self.assertLess(len(self.sviluppo.encode("utf-8")), 300_000)
+        self.assertLess(len(self.asset.encode("utf-8")), 3_000_000)
+
+    def test_contrasto(self):
+        # The palette of stile.css keeps text readable on the background (WCAG AA, 4.5:1).
+        with open(os.path.join(self.out, "stile.css"), encoding="utf-8") as fh:
+            radice = re.search(r":root\{([^}]*)\}", fh.read()).group(1)
+        colori = dict(re.findall(r"--([a-z]+):(#[0-9a-f]{6})", radice))
+        for nome in ("testo", "tenue", "ambra", "giallo"):
+            self.assertGreaterEqual(contrasto(colori[nome], colori["bg"]), 4.5, nome)
+            self.assertGreaterEqual(contrasto(colori[nome], colori["pan"]), 4.5, nome)
+
+    # ---- the landing page
+
+    def test_vetrina(self):
+        pagina = self.ingresso
+        ordine = [s.id for s in fabbrica.VETRINA]
+        posizioni = [pagina.index(f'<section id="{sid}"') for sid in ordine]
+        self.assertEqual(sorted(posizioni), posizioni)
+        for sid in ordine:
+            self.assertIn(f'<section id="{sid}"', pagina)
+        self.assertIn('href="https://github.com/Juan0177/tIndustry/releases/latest"', pagina)
+        self.assertGreaterEqual(pagina.count("data-costruisci"), 4)
+        self.assertIn('<div id="drone"', pagina)
+        self.assertIn('id="ferma-drone"', pagina)
+        self.assertIn('<div id="avanza"', pagina)
+        self.assertIn('class="pin"', pagina)  # the pinned hero
+        self.assertIn('class="finestra-striscia"', pagina)
+        self.assertIn('property="og:image"', pagina)
+        self.assertIn('name="description"', pagina)
+        # Sotto attacco: five neon warnings, four impacts, the red-border section class.
+        self.assertEqual(len(costruisci.AVVISI), pagina.count('<div class="avviso'))
+        self.assertEqual(4, pagina.count('<div class="crepa"'))
+        self.assertIn('class="sez sez-attacco"', pagina)
+        # The numbers of the game come from data/.
+        with open(os.path.join(costruisci.REPO, "data", "content.json"), encoding="utf-8") as fh:
+            content = json.load(fh)
+        self.assertIn(f"<b>{len(content['recipes'])}</b><span>ricette</span>", pagina)
+        # Every capture listed is framed on the landing page with its caption, and copied.
+        for nome, didascalia in costruisci.CATTURE:
+            self.assertIn(f'<img src="catture/{nome}" alt="{didascalia}"', pagina.replace("&#x27;", "'"))
+            self.assertTrue(os.path.exists(os.path.join(self.out, "catture", nome)), nome)
+        # Only the landing page has the drone and the construction links.
+        for rel in ("sviluppo/index.html", "asset/index.html"):
+            self.assertNotIn('<div id="drone"', self.pagine[rel])
+            self.assertNotIn("data-costruisci", self.pagine[rel])
+
+    def test_sviluppo(self):
+        for sid in ("come-e-fatto", "roadmap", "diario", "decisioni", "changelog"):
+            self.assertIn(f'<section id="{sid}"', self.sviluppo)
+        self.assertIn('<div class="tabella-scorri"><table class="tabella">', self.sviluppo)
+        self.assertIn('class="nastro-testa"', self.sviluppo)
+        self.assertNotIn("**", re.sub(r"<[^>]+>", "", self.sviluppo))
+
+    # ---- the asset page (unchanged content)
 
     def test_ogni_sprite_compare(self):
         # Every registered sprite with a PNG is on the page: as a card, or as a piece of a block.
@@ -146,47 +260,14 @@ class TestSito(unittest.TestCase):
                     self.assertAlmostEqual(1 / rate, st.durata, msg=f"{b.id}: {st.nome}")
 
     def test_ambienti(self):
-        # One composed window per land biome of content.json.
+        # One composed window per land biome of content.json, on the asset page and on the landing page.
         with open(os.path.join(costruisci.REPO, "data", "content.json"), encoding="utf-8") as fh:
             biomi = {w["biome"] for w in json.load(fh)["terrain"]["walls"]}
         self.assertEqual(biomi, set(costruisci.biomi()))
         for bioma in biomi:
             self.assertRegex(self.asset, rf'data-bioma="{bioma}"><img src="data:image/png;base64,')
+            self.assertIn(f'src="fabbrica/bioma-{bioma}.png"', self.ingresso)
         self.assertIn('href="#ambienti"', self.asset)
-
-    def test_deterministico(self):
-        with tempfile.TemporaryDirectory() as altro:
-            costruisci.costruisci(altro)
-            with open(os.path.join(altro, "asset", "index.html"), encoding="utf-8") as fh:
-                self.assertEqual(self.asset, fh.read())
-
-    def test_autonome(self):
-        # Self-contained and script-free: no scripts, external stylesheets or images (the landing page
-        # captures are files of the site itself, in catture/).
-        for pagina in (self.asset, self.ingresso):
-            self.assertNotIn("<script", pagina)
-            self.assertEqual([], re.findall(r'<img src="(?!data:|catture/[a-z0-9-]+\.png")', pagina))
-            self.assertNotIn("<link", pagina)
-            self.assertNotIn("url(http", pagina)
-
-    def test_catture(self):
-        # Every README capture listed is on the landing page, embedded, with its caption, under the section.
-        inizio = self.ingresso.index('<section id="catture">')
-        sezione = self.ingresso[inizio:self.ingresso.index("</section>", inizio)]
-        self.assertIn('href="#catture"', self.ingresso)
-        self.assertGreaterEqual(len(costruisci.CATTURE), 6)
-        for nome, didascalia in costruisci.CATTURE:
-            self.assertTrue(os.path.exists(os.path.join(costruisci.CATTURE_DIR, nome)), nome)
-            self.assertIn(f'data-cattura="{nome}"><img src="catture/{nome}"', sezione)
-            with open(os.path.join(self.out, "catture", nome), "rb") as copia:
-                with open(os.path.join(costruisci.CATTURE_DIR, nome), "rb") as originale:
-                    self.assertEqual(originale.read(), copia.read(), nome)
-            self.assertIn(f"<figcaption>{didascalia}</figcaption>", sezione)
-        self.assertEqual(len(costruisci.CATTURE), sezione.count("<figure"))
-        self.assertLess(len(self.ingresso.encode("utf-8")), 200_000)
-
-    def test_dimensione(self):
-        self.assertLess(len(self.asset.encode("utf-8")), 3_000_000)
 
 
 if __name__ == "__main__":

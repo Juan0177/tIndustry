@@ -1,0 +1,108 @@
+"""Tests of the factory floor of the landing page: python -m unittest tools/sito/test_fabbrica.py"""
+import os
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import composti  # noqa: E402
+import fabbrica  # noqa: E402
+
+ASSETS = os.path.join(fabbrica.REPO, "godot", "assets")
+
+
+class TestFabbrica(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.out = cls._tmp.name
+        cls.archivio = fabbrica.Archivio(composti.Immagini(ASSETS), cls.out, radice="")
+        cls.html = {s.id: fabbrica.html_scena(s, cls.archivio) for s in fabbrica.VETRINA}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def test_curve_come_il_client(self):
+        # BeltCornerTile.ResolveTransform: the base art enters from West and exits South (a clockwise turn seen
+        # from the East heading). Clockwise turns rotate from the heading; counter-clockwise ones mirror first.
+        self.assertEqual((False, 0), fabbrica.trasformazione_curva("E", "S"))
+        self.assertEqual((False, 90), fabbrica.trasformazione_curva("S", "W"))
+        self.assertEqual((False, 180), fabbrica.trasformazione_curva("W", "N"))
+        self.assertEqual((False, -90), fabbrica.trasformazione_curva("N", "E"))
+        self.assertEqual((True, 0), fabbrica.trasformazione_curva("W", "S"))
+        self.assertEqual((True, -90), fabbrica.trasformazione_curva("S", "E"))
+        self.assertEqual((True, 180), fabbrica.trasformazione_curva("E", "N"))
+        self.assertEqual((True, 90), fabbrica.trasformazione_curva("N", "W"))
+        with self.assertRaises(ValueError):
+            fabbrica.trasformazione_curva("E", "W")
+
+    def test_scene_senza_sovrapposizioni_e_catene_complete(self):
+        # Every chain starts at a block that produces (or at the top edge, coming from the scene above) and ends
+        # in a block that consumes, in the Core, or at the bottom edge; no cell holds two solid elements.
+        for scena in fabbrica.VETRINA:
+            problemi = fabbrica.controlla(scena)
+            self.assertEqual([], problemi, scena.id)
+            for catena in fabbrica.catene(scena):
+                self.assertIn(catena["fine"][0], ("blocco", "sotto"), f"{scena.id}: {catena}")
+
+    def test_catene_continuano_fra_le_scene(self):
+        # What leaves a scene from the bottom edge enters the next one from the top edge, same column, heading S.
+        uscite = None
+        for scena in fabbrica.VETRINA:
+            entrate = fabbrica.entrate_dall_alto(scena)
+            if uscite is not None:
+                self.assertEqual(uscite, entrate, scena.id)
+            uscite = fabbrica.uscite_dal_basso(scena)
+        self.assertEqual(set(), uscite)  # the last scene (Scarica) keeps everything in the Core
+
+    def test_ogni_oggetto_e_un_oggetto_del_gioco(self):
+        # Items on the belts are real items with their belt sprite; every belt run carries something.
+        for scena in fabbrica.VETRINA:
+            for e in scena.elementi:
+                if isinstance(e, fabbrica.Tratto):
+                    self.assertTrue(e.oggetti, f"{scena.id}: tratto {e.x},{e.y}")
+                    for o in e.oggetti:
+                        self.assertTrue(os.path.exists(os.path.join(ASSETS, o + "-belt.png")), o)
+
+    def test_pezzi_della_vetrina(self):
+        # The landing page shows every logistics piece of the game at least once.
+        tipi = {e.tipo for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Pezzo)}
+        self.assertLessEqual({"curva", "incrocio", "selezionatore", "sdoppiatore", "ponte", "unione_edificio"}, tipi)
+        tier = {e.tier for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Tratto)}
+        self.assertEqual({"conveyor-basic", "conveyor-fast"}, tier)
+
+    def test_corrente_e_fedelta(self):
+        # A powered miner (lamp on) has a power line reaching it; every scene with a node is wired to the margin.
+        for scena in fabbrica.VETRINA:
+            alimentati = [e for e in scena.elementi if isinstance(e, fabbrica.Blocco) and "con corrente" in e.stato]
+            punti = {p for e in scena.elementi if isinstance(e, fabbrica.Linea) for p in e.punti}
+            for b in alimentati:
+                vicino = any(b.x - 1 <= px <= b.x + 3 and b.y - 1 <= py <= b.y + 3 for px, py in punti)
+                self.assertTrue(vicino, f"{scena.id}: {b.id} in {b.x},{b.y} senza linea")
+
+    def test_immagini_scritte_e_deterministiche(self):
+        # Scene images are files of the site (fabbrica/…), each written once, same bytes on a second build.
+        nomi = sorted(os.listdir(os.path.join(self.out, "fabbrica")))
+        self.assertGreater(len(nomi), 40)
+        for s in fabbrica.VETRINA:
+            self.assertIn('class="scena', self.html[s.id])
+            self.assertNotIn("data:image", self.html[s.id])
+        with tempfile.TemporaryDirectory() as altro:
+            archivio = fabbrica.Archivio(composti.Immagini(ASSETS), altro, radice="")
+            for s in fabbrica.VETRINA:
+                self.assertEqual(self.html[s.id], fabbrica.html_scena(s, archivio))
+            for nome in nomi:
+                with open(os.path.join(self.out, "fabbrica", nome), "rb") as a, \
+                        open(os.path.join(altro, "fabbrica", nome), "rb") as b:
+                    self.assertEqual(a.read(), b.read(), nome)
+
+    def test_velocita_dei_nastri(self):
+        # One loop of the tread is one cell: 1 / rate seconds (basic 2 s), and items cross n cells in n / rate s.
+        html = self.html["come-funziona"]
+        self.assertIn("--giro:2s", html)
+        self.assertIn("--dur:6.000s", html)  # the three-cell run of iron ore on the dorsale
+
+
+if __name__ == "__main__":
+    unittest.main()
