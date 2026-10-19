@@ -162,8 +162,10 @@ public partial class World
 
             var step = at.X - before.X;
             var nearHandoff = NearHandoff(before.X, at.X);
-            // 0.01 px across: float rounding of world coordinates near 32768 px.
-            if (step < 0f || (step == 0f && !nearHandoff) || Math.Abs(at.Y - before.Y) > 0.01f)
+            // 0.01 px: float rounding of world coordinates near 32768 px (a cell's end and the next cell's start differ by
+            // an ulp), so a step within it counts as standing still, never as going back.
+            const float rounding = 0.01f;
+            if (step < -rounding || (step <= rounding && !nearHandoff) || Math.Abs(at.Y - before.Y) > rounding)
             {
                 return Fail($"oggetti-fluidi: frame {i}: spostamento {at - before} (da {before} a {at})");
             }
