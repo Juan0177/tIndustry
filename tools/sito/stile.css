@@ -78,7 +78,8 @@ img{max-width:100%}
 .crt{background:#07080a;border:3px solid #1f242c;box-shadow:0 0 0 1px #000,inset 0 0 40px #000;display:flex;
  flex-direction:column;overflow:hidden;z-index:2;--p:1;--e:min(1,calc(var(--p) * 2.5));
  transform:scaleY(calc(.04 + .96 * var(--e)));filter:brightness(calc(.4 + 2.2 * var(--e) - 1.6 * var(--e) * var(--e)))}
-.crt>img{flex:1;min-height:0;width:100%;object-fit:cover;object-position:top;display:block}
+.crt>a{flex:1;min-height:0;display:flex}
+.crt>img,.crt>a>img{flex:1;min-height:0;width:100%;object-fit:cover;object-position:top;display:block}
 .crt::after{content:"";position:absolute;inset:0;pointer-events:none;
  background:repeating-linear-gradient(to bottom,transparent 0 2px,#0006 2px 3px),radial-gradient(ellipse at center,transparent 60%,#000a)}
 .crt.sotto-ponte figcaption{padding-left:var(--rientro,52px)}
@@ -97,7 +98,7 @@ img{max-width:100%}
 .bioma{--p:1;--e:min(1,calc(var(--p) * 2.5));transform:translateY(calc((1 - var(--e)) * 30px)) scale(calc(.9 + .1 * var(--e)));
  opacity:calc(.1 + .9 * var(--e))}
 .finestra-striscia{position:sticky;top:300px;margin:320px 0 0 192px;width:600px;height:260px;overflow:hidden;z-index:6;--p:0}
-.striscia-blocchi{position:absolute;left:0;top:0;white-space:nowrap;transform:translateX(calc(var(--p) * (600px - 100%)))}
+.striscia-blocchi{position:absolute;left:0;top:0;width:max-content;white-space:nowrap;transform:translateX(calc(var(--p) * (600px - 100%)))}
 .striscia-blocchi figure{display:inline-flex;vertical-align:bottom;margin-right:28px}
 .striscia-blocchi img{display:block}
 .rimando{font:13px var(--mono);color:var(--ambra);z-index:6}
@@ -124,7 +125,8 @@ img{max-width:100%}
 .sez,.crt,.scheda,.bioma,.titolo,.terra{transition:transform .08s linear,opacity .08s linear,filter .08s linear}
 
 /* ---- hero (pinned, as tall as the screen) */
-.pin{position:relative;--p:0;height:calc(100vh + 320px)}
+.pin{position:relative;--p:0}
+.js .pin{height:calc(100vh + 320px)}  /* the pinned hero needs the script that drives it */
 .pin>.sez{position:sticky;top:var(--barra);--p:0}
 .hero .scena{height:calc((100vh - var(--barra)) / var(--zoom,1))!important;min-height:512px}
 .hero .hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;image-rendering:pixelated;z-index:0;will-change:transform;
@@ -296,7 +298,8 @@ footer button:hover{border-color:var(--ambra)}
  .striscia-blocchi{position:static;transform:none;display:flex;gap:16px}
  .finestra-striscia .rimando{position:static;display:block;margin-top:10px}
  .crt{transform:none;filter:none;height:auto!important}
- .crt>img{flex:none;aspect-ratio:16/9;object-fit:contain;background:#000}
+ .crt>img,.crt>a>img{flex:none;height:auto;aspect-ratio:16/9;object-fit:contain;background:#000}
+ .crt>a{flex:none}
  .crt.sotto-ponte figcaption{padding-left:10px}
  .titolo,.scheda,.bioma{transform:none;opacity:1}
  .segnale{padding:0}
