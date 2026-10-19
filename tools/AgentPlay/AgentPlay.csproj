@@ -19,6 +19,9 @@
     <None Include="../../data/maps/*" Link="data/maps/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="TIndustry.AgentPlay.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/TIndustry.Shared/TIndustry.Shared.csproj" />
   </ItemGroup>
 </Project>

@@ -30,7 +30,7 @@ public sealed class GodotFactAttribute : FactAttribute
         File.Exists(Path.Combine(ServerFixture.RepoRoot, "godot", "lingue", "testi.it.translation"))
         && File.Exists(Path.Combine(ServerFixture.RepoRoot, "godot", ".godot", "mono", "temp", "bin", "Debug", "TIndustry.Godot.dll"));
 
-    // The same lookup as GameLauncher.FindGodot (the tests do not reference the server's assembly).
+    // The same lookup as GameLauncher.FindGodot.
     private static bool GodotAvailable()
     {
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TINDUSTRY_GODOT")))

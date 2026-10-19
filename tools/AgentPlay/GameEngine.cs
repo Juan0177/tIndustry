@@ -106,7 +106,7 @@ public sealed class GameEngine : IAgentEngine
             if (!(p.TryGetProperty("secondi", out var s) && s.TryGetDouble(out var seconds)
                     && seconds > 0 && seconds <= AgentProtocol.MaxRunSeconds))
             {
-                throw new AgentException(AgentCodes.ParametriNonValidi, $"'secondi' tra 0 e {AgentProtocol.MaxRunSeconds:0}.");
+                throw new AgentException(AgentCodes.ParametriNonValidi, $"'secondi' più di 0 e al massimo {AgentProtocol.MaxRunSeconds:0}.");
             }
 
             timeout += TimeSpan.FromSeconds(seconds);

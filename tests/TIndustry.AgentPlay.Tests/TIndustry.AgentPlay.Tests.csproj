@@ -13,9 +13,9 @@
     <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
   </ItemGroup>
 
-  <!-- Built first; the tests start its own output (bin/<config>/net8.0/AgentPlay.dll) as a process over stdio. -->
+  <!-- The tests start its own output (bin/<config>/net8.0/AgentPlay.dll) as a process over stdio; a few call its internals. -->
   <ItemGroup>
-    <ProjectReference Include="../../tools/AgentPlay/AgentPlay.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../tools/AgentPlay/AgentPlay.csproj" />
     <ProjectReference Include="../../src/TIndustry.Shared/TIndustry.Shared.csproj" />
   </ItemGroup>
 </Project>
