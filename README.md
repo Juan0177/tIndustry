@@ -92,8 +92,6 @@ Scarica l'ultima [Release](https://github.com/Juan0177/tIndustry/releases/latest
 | Windows | `tIndustry-win-x64.zip` | `tIndustry.exe` |
 | Linux | `tIndustry-linux-x64.zip` | `tIndustry.x86_64` |
 
-Gli zip `tIndustry-godot-*-x64.zip` hanno lo stesso contenuto (nomi storici).
-
 ### Prima partita
 
 1. Dalla Home scegli **Continua**, **Campagna** o **Nuova partita**.

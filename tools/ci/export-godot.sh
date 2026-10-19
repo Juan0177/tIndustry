@@ -53,9 +53,5 @@ mkdir -p dist
 (cd dist/godot-win && zip -qr ../tIndustry-win-x64.zip .)
 (cd dist/godot-linux && zip -qr ../tIndustry-linux-x64.zip .)
 
-# Also publish clearly named godot aliases (same content).
-cp -f dist/tIndustry-win-x64.zip dist/tIndustry-godot-win-x64.zip
-cp -f dist/tIndustry-linux-x64.zip dist/tIndustry-godot-linux-x64.zip
-
 echo "Godot export OK (${VER}):"
 ls -lh dist/tIndustry-*-x64.zip
