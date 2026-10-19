@@ -333,15 +333,16 @@ public static class PlacementLine
     }
 
     /// <summary>
-    /// The refusal the simulation would give that the line can already tell: none for a crossing or a belt over a belt
-    /// (it turns, merges or changes tier), else <see cref="IGameView.CanPlace"/>'s reason, or Occupied over a plan.
+    /// The refusal the simulation would give that the line can already tell: none for a belt over a belt (it turns,
+    /// merges or changes tier) or a crossing (Occupied when the crossed cell is planned), else <see cref="IGameView.CanPlace"/>'s reason, or Occupied over a plan.
     /// </summary>
     private static RefusalCode? Foreseen(IGameView view, SimCommand command, bool crossing)
     {
         var spec = command is PlaceBelt placeBelt ? BuildSpec.FromCommand(placeBelt) : BuildSpec.FromCommand((PlaceBuilding)command);
         if (spec.Kind is null && (crossing || view.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) != BeltOverBelt.None))
         {
-            return null;
+            // A crossing skips CanPlace (the belt is there) but not the plan queue, which refuses a planned cell.
+            return crossing && view.IsPlannedTile(spec.Origin) ? RefusalCode.Occupied : null;
         }
 
         if (!view.CanPlace(spec, out var reason))

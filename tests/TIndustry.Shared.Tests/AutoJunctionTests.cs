@@ -58,36 +58,22 @@ public sealed class AutoJunctionTests
     }
 
     /// <summary>
-    /// What the client does while dragging (World.Input): every cell is a PlaceBelt; a cell that may cross a belt
-    /// (<see cref="BeltLine.MayCross"/>) is held back and sent after the next cell, with Crossing when the line goes on
-    /// past it (<see cref="BeltLine.IsInterior"/>); the line is <see cref="PlacementLine"/>.
+    /// What the client sends on releasing a drag (World.SendLine): <see cref="PlacementLine.Commands"/> of the line from
+    /// the first to the last of <paramref name="cells"/>, all in one tick; <paramref name="dir"/> is fixed on every cell
+    /// (R during the drag) only when it is not the line's own way. Returns the line.
     /// </summary>
-    private static void Drag(SimHost host, IReadOnlyList<GridPosition> cells, Direction dir)
+    private static IReadOnlyList<LinePlacement> Drag(SimHost host, IReadOnlyList<GridPosition> cells, Direction dir)
     {
-        PlaceBelt Cmd(GridPosition cell, bool crossing = false) =>
-            new(Player, cell, dir, BuildSpec.DefaultConveyorId, crossing);
-        GridPosition? held = null;
-        for (var i = 0; i < cells.Count; i++)
+        var way = BeltLane.DirectionBetween(cells[0], cells[1]);
+        var line = PlacementLine.Plan(host.State, new LineRequest(
+            Player, BuildSpec.DefaultConveyorId, cells[0], cells[^1], dir, FixedDirection: dir != way));
+        foreach (var command in PlacementLine.Commands(line))
         {
-            var cell = cells[i];
-            if (held is { } h)
-            {
-                host.Submit(Cmd(cell));
-                host.Submit(Cmd(h, BeltLine.IsInterior(cells[i - 2], h, cell, dir)));
-                held = null;
-                continue;
-            }
-
-            if (i > 0 && BeltLine.MayCross(host.State, cell, dir))
-            {
-                held = cell;
-                continue;
-            }
-
-            host.Submit(Cmd(cell));
+            host.Submit(command);
         }
 
         host.AdvanceTicks(1);
+        return line;
     }
 
     private static GridPosition[] Row(int y, int x0, int x1) =>
@@ -244,9 +230,11 @@ public sealed class AutoJunctionTests
         Assert.Empty(refusals);
         var before = factory.Belts.Cells[Crossing].Kind;
 
-        Drag(host, Row(33, 37, 43), Direction.East);
+        var line = Drag(host, Row(33, 37, 43), Direction.East);
 
-        Assert.Contains(refusals, r => r.Code == RefusalCode.Occupied);
+        // The line foresees the refusal: the cell is shown red and not sent.
+        Assert.Contains(line, c => c.Cell == Crossing && c.Refusal == RefusalCode.Occupied);
+        Assert.Empty(refusals);
         Assert.Equal(before, factory.Belts.Cells[Crossing].Kind);
         Assert.Equal(BeltCrossing.None, factory.BeltCrossingAt(Crossing, Direction.East));
     }

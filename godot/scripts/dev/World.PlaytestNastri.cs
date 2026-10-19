@@ -462,7 +462,8 @@ public partial class World
             }, LineScreen(6, 4), () => Task.CompletedTask),
             ("fuoco perso", () =>
             {
-                Notification((int)NotificationApplicationFocusOut);
+                // As the OS focus loss arrives: on the SceneTree, which propagates it from the root to every node.
+                GetTree().Notification((int)MainLoop.NotificationApplicationFocusOut);
                 return Task.CompletedTask;
             }, LineScreen(6, 4), () => Task.CompletedTask),
             ("rilascio fuori dalla finestra", () =>
@@ -496,6 +497,28 @@ public partial class World
             return Fail("nastri-interrotto: la Ricerca è rimasta aperta");
         }
 
+        // A release over a HUD panel still ends the drag (sent or dropped): never a preview left stuck to the mouse.
+        var hudPanels = PlaytestHudPanelRects();
+        if (hudPanels.Count == 0)
+        {
+            return Fail("nastri-interrotto: nessun pannello dell'HUD su cui rilasciare");
+        }
+
+        var (panelName, panel) = hudPanels.MaxBy(r => r.Rect.End.Y);
+
+        _tool = BuildTool.Belt;
+        await PlaytestWait(0.1);
+        await PlaytestPress(LineScreen(1, 4));
+        await PlaytestMoveHeld(LineScreen(1, 4), panel.GetCenter());
+        await PlaytestRelease(panel.GetCenter());
+        await SettleLine();
+        if (LineDragActive)
+        {
+            return Fail($"nastri-interrotto: rilasciato sopra {panelName}, il trascinamento resta attivo");
+        }
+
+        GD.Print($"PLAYTEST rilascio sopra {panelName}: trascinamento finito, {_lineSent.Count} comandi");
+        ClearLinePatch(factory);
         await shot("nastri-interrotto");
         GD.Print("PLAYTEST step ok: nastri-interrotto, T, destro, fuoco perso e rilascio fuori dalla finestra non inviano nulla");
 

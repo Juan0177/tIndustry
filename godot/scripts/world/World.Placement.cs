@@ -54,7 +54,9 @@ public partial class World
 
     /// <summary>
     /// Left release: the line planned again on the game as it is now, and all its commands sent in order from the
-    /// anchor. Position refusals stay quiet; any other refusal toasts once for the whole line (<see cref="OnCommandRejected"/>).
+    /// anchor. Refusals the line foresees stay quiet while something is sent; when nothing is (a refused click), the first
+    /// one toasts. Of the simulation's refusals, position codes stay quiet and any other toasts once for the whole line
+    /// (<see cref="OnCommandRejected"/>).
     /// </summary>
     private void SendLine(GridPosition cursor)
     {
@@ -64,9 +66,17 @@ public partial class World
             return;
         }
 
-        var commands = PlacementLine.Commands(PlacementLine.Plan(_view, LineTo(cursor)));
+        var line = PlacementLine.Plan(_view, LineTo(cursor));
+        var commands = PlacementLine.Commands(line);
         CancelLine();
         _lineToasts.Clear();
+        if (commands.Count == 0 && line.FirstOrDefault(p => p.Refusal is not null)?.Refusal is { } refused)
+        {
+            // Nothing goes out (a refused click, a line refused everywhere): say why once, as a refused click always did.
+            _hud?.ShowToast(Testi.Rifiuto(new Refusal(refused), _view));
+            return;
+        }
+
         foreach (var command in commands)
         {
             SubmitCommand(command, quietWhenBlocked: true);

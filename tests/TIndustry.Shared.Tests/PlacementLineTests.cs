@@ -255,6 +255,29 @@ public sealed class PlacementLineTests
         Assert.Equal([12], line.Where(c => c.Refusal == RefusalCode.Occupied).Select(c => c.Cell.X));
     }
 
+    /// <summary>A crossing over a belt with a plan on it (here a tier change) is refused like any planned cell.</summary>
+    [Fact]
+    public void APlannedCrossingIsOccupied()
+    {
+        var factory = NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120);
+        factory.Research.ForceUnlock("conveyor-fast");
+        for (var y = 9; y <= 11; y++)
+        {
+            PlaceBelt(factory, 12, y, Direction.South);
+        }
+
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBelt(0, new GridPosition(12, 10), Direction.South, "conveyor-fast"));
+        host.AdvanceTicks(1);
+        Assert.True(factory.IsPlannedTile(new GridPosition(12, 10)));
+
+        var line = Plan(factory, (10, 10), (14, 10), Direction.East);
+
+        var crossing = Assert.Single(line, c => c.Cell == new GridPosition(12, 10));
+        Assert.Equal(RefusalCode.Occupied, crossing.Refusal);
+        Assert.DoesNotContain(PlacementLine.Commands(line), c => ((PlaceBelt)c).Position == crossing.Cell);
+    }
+
     private static GridPosition FirstWall(IGameView view)
     {
         var t = view.Terrain!;
