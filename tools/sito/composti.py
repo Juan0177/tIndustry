@@ -40,6 +40,11 @@ def _fotogrammi(nome):
         return max(1, im.width // im.height)
 
 
+def _num(v):
+    """Number as the Italian interface writes it (decimal comma)."""
+    return f"{v:g}".replace(".", ",")
+
+
 def _colore(r, g, b):
     """Godot Color (0-1 floats) to 8-bit RGB."""
     return tuple(int(math.floor(v * 255 + 0.5)) for v in (r, g, b))
@@ -251,7 +256,8 @@ def _nastro(tier):
          (tier + "-t-anim", "unione a T: due ingressi ai lati")]
         + [(f"{tier}-{u}-anim", parte) for u, _, parte in unioni],
         icona=tier, stato_icona="Dritto",
-        nota=f"{VELOCITA_NASTRO[tier]:g} oggetti/s: {fps:g} fotogrammi al secondo.",
+        nota=f"{_num(VELOCITA_NASTRO[tier])} {'oggetto' if VELOCITA_NASTRO[tier] == 1 else 'oggetti'} al secondo: "
+             f"{fps:g} fotogrammi al secondo.",
         fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps, tier + "-t-anim": fps}
         | {f"{tier}-{u}-anim": fps for u, _, _ in unioni})
 

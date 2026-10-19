@@ -65,10 +65,53 @@ class TestFabbrica(unittest.TestCase):
                     for o in e.oggetti:
                         self.assertTrue(os.path.exists(os.path.join(ASSETS, o + "-belt.png")), o)
 
+    def test_oggetti_secondo_le_ricette(self):
+        # What leaves a block is what the game makes there: the ore of the deposit under a miner, a plate out of
+        # a smelter (smelt-* recipes), a craft-* output out of an assembler (data/content.json).
+        ricette = composti._CONTENT["recipes"]
+        fusi = {o["itemId"] for r in ricette if r["id"].startswith("smelt-") for o in r["outputs"]}
+        assemblati = {o["itemId"] for r in ricette if r["id"].startswith("craft-") for o in r["outputs"]}
+        controllate = 0
+        for scena in fabbrica.VETRINA:
+            occupato = fabbrica._occupazione(scena)
+            for catena in fabbrica.catene(scena):
+                if catena["sorgente"][0] != "blocco":
+                    continue
+                tratti = [occupato[c][0] for c in catena["celle"] if isinstance(occupato[c][0], fabbrica.Tratto)]
+                if not tratti:
+                    continue
+                oggetti, bid = set(tratti[0].oggetti), catena["sorgente"][1]
+                if bid.startswith("miner"):
+                    primo = catena["celle"][0]
+                    h = fabbrica._ingresso(occupato[primo][0], primo)
+                    dietro = (primo[0] - fabbrica.VERSI[h][0], primo[1] - fabbrica.VERSI[h][1])
+                    minatore = occupato[dietro][0]
+                    giacimenti = {g.minerale for g in scena.elementi if isinstance(g, fabbrica.Giacimento)
+                                  and g.x <= minatore.x and minatore.x + 1 < g.x + g.w
+                                  and g.y <= minatore.y and minatore.y + 1 < g.y + g.h}
+                    self.assertEqual(giacimenti, oggetti, f"{scena.id}: minatore in {minatore.x},{minatore.y}")
+                elif bid == "smelter":
+                    self.assertLessEqual(oggetti, fusi, f"{scena.id}: forno")
+                elif bid == "assembler":
+                    self.assertLessEqual(oggetti, assemblati, f"{scena.id}: assemblatore")
+                controllate += 1
+        self.assertGreaterEqual(controllate, 8)
+
+    def test_titanio_solo_col_minatore_t2(self):
+        # DepositDef hardness: titanium (2) needs a tier-2 miner; every miner sits on ore it can dig.
+        durezza = {d["id"]: d.get("hardness", 0) for d in composti._CONTENT["terrain"]["deposits"]}
+        tier = {b["id"]: b.get("tier", 0) for b in composti._CONTENT["buildings"]}
+        for scena in fabbrica.VETRINA:
+            for b in scena.elementi:
+                if isinstance(b, fabbrica.Blocco) and b.id.startswith("miner"):
+                    for g in scena.elementi:
+                        if isinstance(g, fabbrica.Giacimento) and g.x <= b.x < g.x + g.w and g.y <= b.y < g.y + g.h:
+                            self.assertGreaterEqual(tier[b.id], durezza[g.minerale.replace("-ore", "")], f"{scena.id}: {b.id} su {g.minerale}")
+
     def test_pezzi_della_vetrina(self):
         # The landing page shows every logistics piece of the game at least once.
         tipi = {e.tipo for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Pezzo)}
-        self.assertLessEqual({"curva", "incrocio", "selezionatore", "sdoppiatore", "ponte", "unione_edificio"}, tipi)
+        self.assertLessEqual({"curva", "incrocio", "selezionatore", "sdoppiatore", "ponte", "unione_edificio", "unione"}, tipi)
         tier = {e.tier for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Tratto)}
         self.assertEqual({"conveyor-basic", "conveyor-fast"}, tier)
 
@@ -102,6 +145,8 @@ class TestFabbrica(unittest.TestCase):
         html = self.html["come-funziona"]
         self.assertIn("--giro:2s", html)
         self.assertIn("--dur:6.000s", html)  # the three-cell run of iron ore on the dorsale
+        self.assertIn("nastro-conveyor-basic-s.gif", html)  # the real strip: rails still, tread moving
+        self.assertIn("nastro-conveyor-basic-s-fermo.png", html)  # the still frame for reduced motion
 
 
 if __name__ == "__main__":

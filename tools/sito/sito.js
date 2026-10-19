@@ -152,16 +152,18 @@
   function scorri() {
     var vh = window.innerHeight || doc.documentElement.clientHeight || 1;
     var hb = altezzaBarra();
+    // All the reads first, then all the writes: one layout per frame instead of one per element.
+    var letture = [];
     pins.forEach(function (pin) {
       var r = pin.getBoundingClientRect();
       var primo = pin.firstElementChild;
       var corsa = r.height - (primo ? primo.getBoundingClientRect().height : 0);
       var v = corsa > 0 ? limita((hb - r.top) / corsa) : (r.top <= hb ? 1 : 0);
-      scriviP(pin, v);
-      if (primo) scriviP(primo, v);   // the pinned section follows its wrapper
+      letture.push([pin, v]);
+      if (primo) letture.push([primo, v]);   // the pinned section follows its wrapper
     });
     rivela.forEach(function (el) {
-      scriviP(el, limita((vh - el.getBoundingClientRect().top) / (vh * 0.55)));
+      letture.push([el, limita((vh - el.getBoundingClientRect().top) / (vh * 0.55))]);
     });
     strisce.forEach(function (el) {
       var cornice = el.parentElement || el;
@@ -169,8 +171,9 @@
       var corsa = parseFloat(el.getAttribute("data-corsa"));
       if (isNaN(inizio)) inizio = hb;
       if (!(corsa > 0)) corsa = 1;
-      scriviP(el, limita((inizio - cornice.getBoundingClientRect().top) / corsa));
+      letture.push([el, limita((inizio - cornice.getBoundingClientRect().top) / corsa)]);
     });
+    letture.forEach(function (l) { scriviP(l[0], l[1]); });
     if (avanza) {
       var y = window.pageYOffset || doc.documentElement.scrollTop || 0;
       avanza.style.width = avanzamento(y, doc.documentElement.scrollHeight, vh).toFixed(2) + "%";
@@ -190,7 +193,7 @@
 
   // ------------------------------------------------------------------ 3. the drone
 
-  var drone = doc.getElementById("drone");
+  var drone = doc.getElementById("drone-cantiere");
   var ferma = doc.getElementById("ferma-drone");
   var media = typeof window.matchMedia === "function" ? window.matchMedia(RIDUCI) : null;
   function riduci() { return !!(media && media.matches); }
@@ -337,8 +340,10 @@
     pianificaVaga(1500);   // same-page anchors keep the page: back to wandering
   }
 
+  function impilato() { return typeof window.matchMedia === "function" && window.matchMedia(IMPILATO).matches; }
+
   function accendi() {
-    if (attivo || riduci()) return;
+    if (attivo || riduci() || impilato()) return;
     attivo = true;
     drone.removeAttribute("hidden");
     posa({ x: window.innerWidth - MISURA_DRONE, y: altezzaBarra() + MISURA_DRONE });
@@ -366,12 +371,18 @@
       });
     }
     function secondoPreferenza() {
-      if (riduci()) { spegni(); if (ferma) ferma.setAttribute("hidden", ""); return; }
+      if (riduci() || impilato()) { spegni(); if (ferma) ferma.setAttribute("hidden", ""); return; }
       if (ferma) ferma.removeAttribute("hidden");
       if (leggiPreferenza() !== "no") accendi(); else aggiornaBottone();
     }
     secondoPreferenza();
     if (media && typeof media.addEventListener === "function") media.addEventListener("change", secondoPreferenza);
+    window.addEventListener("resize", function () {
+      if (impilato() !== !attivo && !cantiere) secondoPreferenza();   // layout changed: drone on or off
+      if (attivo && (pos.x > window.innerWidth || pos.y > window.innerHeight)) {
+        posa({ x: window.innerWidth - MISURA_DRONE, y: altezzaBarra() + MISURA_DRONE });
+      }
+    });
     doc.addEventListener("visibilitychange", function () {
       if (doc.hidden) fermaVaga();
       else if (attivo && !cantiere) pianificaVaga(600);

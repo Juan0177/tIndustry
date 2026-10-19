@@ -80,7 +80,7 @@ class TestSito(unittest.TestCase):
         for rel, pagina in self.pagine.items():
             radice = "" if rel == "index.html" else "../"
             self.assertEqual([f'<script src="{radice}sito.js" defer></script>'], re.findall(r"<script[^>]*></script>", pagina), rel)
-            self.assertEqual(2, len(re.findall(r"<link\b", pagina)), rel)
+            self.assertEqual(3, len(re.findall(r"<link\b", pagina)), rel)  # stylesheet, canonical, icon
             esterne = re.findall(rf'<img[^>]*src="(?!data:|{re.escape(radice)}(?:catture|fabbrica)/[a-z0-9./-]+")([^"]*)"', pagina)
             self.assertEqual([], esterne, rel)
             self.assertNotIn("url(http", pagina)
@@ -125,7 +125,7 @@ class TestSito(unittest.TestCase):
             self.assertIn(f'<section id="{sid}"', pagina)
         self.assertIn('href="https://github.com/Juan0177/tIndustry/releases/latest"', pagina)
         self.assertGreaterEqual(pagina.count("data-costruisci"), 4)
-        self.assertIn('<div id="drone"', pagina)
+        self.assertIn('<div id="drone-cantiere"', pagina)
         self.assertIn('id="ferma-drone"', pagina)
         self.assertIn('<div id="avanza"', pagina)
         self.assertIn('class="pin"', pagina)  # the pinned hero
@@ -142,17 +142,41 @@ class TestSito(unittest.TestCase):
         self.assertIn(f"<b>{len(content['recipes'])}</b><span>ricette</span>", pagina)
         # Every capture listed is framed on the landing page with its caption, and copied.
         for nome, didascalia in costruisci.CATTURE:
-            self.assertIn(f'<img src="catture/{nome}" alt="{didascalia}"', pagina.replace("&#x27;", "'"))
+            self.assertIn(f'<img src="catture/{nome}" alt=""', pagina)
+            self.assertIn(f"<figcaption>{didascalia}</figcaption>", pagina.replace("&#x27;", "'"))
             self.assertTrue(os.path.exists(os.path.join(self.out, "catture", nome)), nome)
+            with Image.open(os.path.join(self.out, "catture", nome)) as copia, \
+                    Image.open(os.path.join(costruisci.CATTURE_DIR, nome)) as originale:
+                self.assertEqual(originale.convert("RGBA").tobytes(), copia.convert("RGBA").tobytes(), nome)
+        self.assertIn(f'<meta property="og:url" content="{costruisci.SITO_URL}">', pagina)
+        self.assertIn(f'<meta property="og:url" content="{costruisci.SITO_URL}sviluppo/">', self.sviluppo)
+        self.assertIn(f'<link rel="canonical" href="{costruisci.SITO_URL}asset/">', self.asset)
+        # The download button carries the latest tag when the checkout has one.
+        versione = costruisci.documenti.versione_release()
+        self.assertIn(f"Scarica {versione}" if versione else "Scarica l'ultima release", pagina.replace("&#x27;", "'"))
         # Only the landing page has the drone and the construction links.
         for rel in ("sviluppo/index.html", "asset/index.html"):
-            self.assertNotIn('<div id="drone"', self.pagine[rel])
+            self.assertNotIn('<div id="drone-cantiere"', self.pagine[rel])
             self.assertNotIn("data-costruisci", self.pagine[rel])
+
+    def test_schede_brevi(self):
+        # README cells become one clause each: plain text, no entity cut in half, whole words at the end.
+        self.assertEqual("Mappe generate dal seme con quattro biomi", costruisci._breve("Mappe generate dal seme (tre misure) con quattro biomi; pareti"))
+        self.assertEqual("Scala UI solo dell&#x27;interfaccia",
+                         costruisci._breve("Scala UI solo dell&#x27;interfaccia, colori per daltonici e alto contrasto", massimo=40))
+        self.assertEqual("Tema unico, carattere pixel", costruisci._breve("<b>Tema</b> unico, carattere pixel, italiano e inglese", massimo=30))
+        for _, testo in costruisci.documenti.contenuti():
+            breve = costruisci._breve(testo)
+            self.assertLessEqual(len(breve), 120, breve)
+            self.assertNotIn("&#x27", breve.replace("&#x27;", ""))
+            self.assertNotIn("<", breve)
 
     def test_sviluppo(self):
         for sid in ("come-e-fatto", "roadmap", "diario", "decisioni", "changelog"):
             self.assertIn(f'<section id="{sid}"', self.sviluppo)
         self.assertIn('<div class="tabella-scorri"><table class="tabella">', self.sviluppo)
+        self.assertEqual(1, self.sviluppo.count("<h1"))
+        self.assertIn('href="#changelog"', self.sviluppo)
         self.assertIn('class="nastro-testa"', self.sviluppo)
         self.assertNotIn("**", re.sub(r"<[^>]+>", "", self.sviluppo))
 
@@ -255,6 +279,7 @@ class TestSito(unittest.TestCase):
                 self.assertEqual(rate * n, s.fps, s.sprite)
                 self.assertEqual(rate * n, b.fps_parti[s.sprite], s.sprite)
             self.assertIn(f"{rate * n:g} fotogrammi al secondo", b.nota, b.id)
+            self.assertNotIn(".", b.nota.split(":")[0], b.nota)  # decimal comma, as the interface
             for st in b.stati:
                 if st.durata:
                     self.assertAlmostEqual(1 / rate, st.durata, msg=f"{b.id}: {st.nome}")

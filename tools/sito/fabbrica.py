@@ -12,6 +12,7 @@ Belt treads scroll with a CSS animation of the background position (frame k of a
 k px along the flow, so sliding frame 0 by one cell per 1 / rate seconds is the strip itself); items are
 sprites that cross each run in n / rate seconds (MindustryBeltVisual, tools/art/blocchi/logistica.py).
 """
+import io
 import math
 import os
 import random
@@ -78,8 +79,9 @@ class Tratto:
 
 @dataclass
 class Pezzo:
-    """One logistics piece: curva (tier, da, a), t / unione_edificio (tier, verso), incrocio, selezionatore
-    (oggetto), sdoppiatore, ponte (n, verso)."""
+    """One logistics piece: curva (tier, da, a), t / unione_edificio / unione (tier, verso, lato for unione),
+    incrocio, selezionatore (oggetto, verso), sdoppiatore (verso = the flow entering it: it splits left and
+    right, never straight), ponte (n, verso). `flussi` draws items crossing the piece: (verso, item, tier)."""
     x: int
     y: int
     tipo: str
@@ -89,6 +91,8 @@ class Pezzo:
     verso: str = "S"
     n: int = 2
     oggetto: str = "iron-ore"
+    lato: str = "left"
+    flussi: tuple = ()
     basso: bool = False
 
     @property
@@ -177,9 +181,11 @@ def _ingresso(e, cella):
         return e.verso
     if e.tipo == "curva":
         return e.da
-    if e.tipo in ("t", "unione_edificio", "ponte"):
+    if e.tipo in ("t", "unione_edificio", "unione", "ponte"):
         return e.verso
-    return None  # incrocio, selezionatore, sdoppiatore: straight through
+    if e.tipo in ("sdoppiatore", "selezionatore"):
+        return e.verso  # they face the flow
+    return None  # incrocio: straight through on both axes
 
 
 def _uscite(e, cella, entrata):
@@ -188,7 +194,7 @@ def _uscite(e, cella, entrata):
         v = e.verso
     elif e.tipo == "curva":
         v = e.a
-    elif e.tipo in ("t", "unione_edificio"):
+    elif e.tipo in ("t", "unione_edificio", "unione"):
         v = e.verso
     elif e.tipo == "ponte":
         if cella != e.celle[0]:
@@ -197,8 +203,10 @@ def _uscite(e, cella, entrata):
         ex, ey = e.celle[-1]
         return [((ex + dx, ey + dy), e.verso)]
     elif e.tipo == "sdoppiatore":
-        return [((cella[0] + VERSI[h][0], cella[1] + VERSI[h][1]), h)
-                for h in (entrata, _sinistra(entrata), _destra(entrata))]
+        # BeltGrid: a splitter hands items to the left and right of its facing, alternately, never straight.
+        return [((cella[0] + VERSI[h][0], cella[1] + VERSI[h][1]), h) for h in (_sinistra(e.verso), _destra(e.verso))]
+    elif e.tipo == "selezionatore":
+        v = e.verso
     else:
         v = entrata
     dx, dy = VERSI[v]
@@ -226,6 +234,8 @@ def _segui(scena, occupato, cella, entrata, visti):
             return percorso, ("blocco", e.id)
         if isinstance(e, Nodo):
             return percorso, ("nodo", cella)
+        if isinstance(e, Tratto) and VERSI[entrata] == (-VERSI[e.verso][0], -VERSI[e.verso][1]):
+            return percorso, ("contromano", cella)  # a belt is never entered from its head
         if (cella, entrata) in visti:
             return percorso, ("ciclo", cella)
         visti.add((cella, entrata))
@@ -233,8 +243,8 @@ def _segui(scena, occupato, cella, entrata, visti):
         uscite = [(c, h) for c, h in _uscite(e, cella, entrata)
                   if _dentro(scena, c) and occupato.get(c) or not _dentro(scena, c)]
         if isinstance(e, Pezzo) and e.tipo == "sdoppiatore":
-            # The straight output is the chain; side branches are chains of their own (see catene()).
-            uscite = [u for u in uscite if u[1] == entrata] or uscite[:1]
+            # The first side output is this chain; the other side is a chain of its own (see catene()).
+            uscite = uscite[:1]
         if not uscite:
             c, h = _uscite(e, cella, entrata)[0]
             return percorso, ("vuoto", c)
@@ -263,16 +273,14 @@ def catene(scena):
                     and (occupato[dietro][0].id in PRODUTTORI):
                 partenze.append((cella, h, ("blocco", occupato[dietro][0].id)))
             elif dietro in occupato and isinstance(occupato[dietro][0], Pezzo) \
-                    and occupato[dietro][0].tipo == "sdoppiatore":
-                sd = occupato[dietro][0]
-                ingressi = [v for v in VERSI if (dietro[0] - VERSI[v][0], dietro[1] - VERSI[v][1]) in occupato
-                            and _ingresso(occupato[(dietro[0] - VERSI[v][0], dietro[1] - VERSI[v][1])][0], dietro) == v]
-                if ingressi and h != ingressi[0]:
-                    partenze.append((cella, h, ("sdoppiatore", dietro)))
+                    and occupato[dietro][0].tipo == "sdoppiatore" and h == _destra(occupato[dietro][0].verso):
+                partenze.append((cella, h, ("sdoppiatore", dietro)))  # the second side output
     out = []
     for cella, h, sorgente in partenze:
         celle, fine = _segui(scena, occupato, cella, h, set())
-        out.append({"sorgente": sorgente, "celle": celle, "fine": fine})
+        if fine[0] == "contromano" and not celle:
+            continue  # a producer beside the head of a belt that flows towards it: no chain starts there
+        out.append({"sorgente": sorgente, "celle": celle, "fine": fine, "primo": occupato[cella][0]})
     return out
 
 
@@ -330,21 +338,28 @@ class Archivio:
         return self._url[nome]
 
     def png(self, nome, im):
-        import costruisci
-        return self._scrivi(nome + ".png", costruisci._png(im))
+        buf = io.BytesIO()
+        im.save(buf, "PNG", optimize=True)
+        return self._scrivi(nome + ".png", buf.getvalue())
 
     def gif(self, nome, fotogrammi):
+        """Animated GIF of composed frames (at SCALA), written at 1x: the page scales it back with pixelated
+        rendering, so the bytes halve and nothing changes on screen."""
         import costruisci
-        return self._scrivi(nome + ".gif", costruisci._gif([f for f, _ in fotogrammi], [d for _, d in fotogrammi]))
+        return self._scrivi(nome + ".gif", costruisci._gif([_meta(f) for f, _ in fotogrammi], [d for _, d in fotogrammi]))
 
-    # --- sprites of the scenes
+    # --- sprites of the scenes, all at art size (1x); the HTML gives their size on screen
     def x2(self, nome, im):
-        return self.png(nome, im.resize((im.width * composti.SCALA, im.height * composti.SCALA), Image.NEAREST))
+        return self.png(nome, im)
 
     def nastro(self, tier, verso):
+        """(animated strip, still frame 0) of a belt heading `verso`: the real 32-frame strip of the game, so the
+        rails stand still while the tread moves (the still frame serves prefers-reduced-motion)."""
+        n = len(self.immagini.fotogrammi(tier + "-anim"))
+        gif = self.striscia(f"nastro-{tier}-{verso.lower()}", tier + "-anim", RATE[tier] * n, ruota=ROT[verso])
         im = self.immagini.fotogrammi(tier + "-anim")[0]
         im = {"E": im, "S": im.rotate(-90), "W": im.rotate(180), "N": im.rotate(90)}[verso]
-        return self.x2(f"nastro-{tier}-{verso.lower()}", im)
+        return gif, self.png(f"nastro-{tier}-{verso.lower()}-fermo", im)
 
     def striscia(self, nome, sprite, fps, flip=False, ruota=0):
         """Animated GIF of a strip, mirrored / turned, sampled like composti (every whole frame that keeps the
@@ -363,6 +378,15 @@ class Archivio:
         n = len(self.immagini.fotogrammi(f"{tier}-{suffisso}-anim"))
         return self.striscia(f"{nome}-{tier}-{verso.lower()}", f"{tier}-{suffisso}-anim", RATE[tier] * n, ruota=ROT[verso])
 
+    def ponte(self, verso):
+        """The whole 4-cell bridge of composti (deck, the three chevrons lighting up in turn, both ends), turned
+        to `verso`."""
+        b = _blocco("conveyor-bridge")
+        st = next(x for x in b.stati if x.nome == "In funzione")
+        fotogrammi = [(f.rotate(-ROT[verso], expand=True) if ROT[verso] else f, d)
+                      for f, d in composti.fotogrammi_stato(b, st, self.immagini)]
+        return self.gif(f"ponte-{verso.lower()}", fotogrammi)
+
     def blocco(self, bid, stato):
         import costruisci
         b = _blocco(bid)
@@ -370,7 +394,7 @@ class Archivio:
         fotogrammi = composti.fotogrammi_stato(b, s, self.immagini)
         nome = f"blocco-{bid}-{_slug(stato)}"
         if len(fotogrammi) == 1:
-            return self.png(nome, fotogrammi[0][0])
+            return self.png(nome, _meta(fotogrammi[0][0]))
         return self.gif(nome, fotogrammi)
 
     def sprite(self, nome):
@@ -393,6 +417,11 @@ class Archivio:
         return self.png(f"terreno-{bioma}-{righe}-{seme}", im)
 
 
+def _meta(im):
+    """A frame composed at SCALA back to art size (every pixel of the art is a SCALA x SCALA block)."""
+    return im.resize((im.width // composti.SCALA, im.height // composti.SCALA), Image.NEAREST)
+
+
 def _slug(testo):
     """File-name-safe ASCII slug (accents stripped, anything else a dash)."""
     piatto = unicodedata.normalize("NFKD", testo.lower()).encode("ascii", "ignore").decode()
@@ -407,9 +436,24 @@ def _pos(x, y, w=1, h=1, righe=None, basso=False):
     return f"left:{x*C:.0f}px;top:{y*C:.0f}px;width:{w*C:.0f}px;height:{h*C:.0f}px"
 
 
-def _img(url, x, y, w=1, h=1, z=3, rot=0, righe=None, basso=False, classe="px"):
+def _img(url, x, y, w=1, h=1, z=3, rot=0, righe=None, basso=False, classe="px", lazy=True):
     r = f"transform:rotate({rot}deg);" if rot else ""
-    return f'<img class="{classe}" src="{url}" alt="" style="{_pos(x, y, w, h, righe, basso)};{r}z-index:{z}">'
+    carica = ' loading="lazy"' if lazy else ""
+    return (f'<img class="{classe}" src="{url}" alt="" width="{w*C:.0f}" height="{h*C:.0f}"{carica} '
+            f'style="{_pos(x, y, w, h, righe, basso)};{r}z-index:{z}">')
+
+
+def _oggetti(a, verso, oggetti, n, tier):
+    """Items crossing n cells heading `verso` at the tier's speed, one per cell, staggered so that every run of
+    the page shares the same phase (position in cells = t * rate + i: continuous across runs and pieces)."""
+    lungo = n * C
+    durata = n / RATE[tier]
+    out = ""
+    for i in range(n):
+        o = oggetti[i % len(oggetti)]
+        out += (f'<img class="ogg" src="{a.sprite(o + "-belt")}" alt="" width="20" height="20" style="--L:{lungo}px;'
+                f'--dur:{durata:.3f}s;--rit:{-i * durata / n:.3f}s;animation-name:va-{verso.lower()}">')
+    return out
 
 
 def _html_tratto(t, a, scena):
@@ -418,32 +462,41 @@ def _html_tratto(t, a, scena):
     x0 = t.x - t.n + 1 if t.verso == "W" else t.x
     y0 = t.y - t.n + 1 if t.verso == "N" else t.y
     giro = 1 / RATE[t.tier]
-    lungo = t.n * C
-    durata = t.n / RATE[t.tier]
-    oggetti = ""
-    for i, o in enumerate(t.oggetti[k % len(t.oggetti)] for k in range(t.n)):
-        oggetti += (f'<img class="ogg" src="{a.sprite(o + "-belt")}" alt="" style="--L:{lungo}px;--dur:{durata:.3f}s;'
-                    f'--rit:{-i * durata / t.n:.3f}s;animation-name:va-{t.verso.lower()}">')
+    striscia, fermo = a.nastro(t.tier, t.verso)
     return (f'<div class="nastro v-{t.verso.lower()}" style="{_pos(x0, y0, w, h, scena.righe, t.basso)};'
-            f'background-image:url({a.nastro(t.tier, t.verso)});--giro:{giro:g}s">{oggetti}</div>')
+            f'background-image:url({striscia});--giro:{giro:g}s">'
+            f'<div class="fermo" style="background-image:url({fermo})"></div>'
+            + _oggetti(a, t.verso, t.oggetti, t.n, t.tier) + "</div>")
 
 
 def _html_pezzo(p, a, scena):
     r = scena.righe
+    flussi = ""
+    if p.flussi:
+        flussi = (f'<div class="flusso" style="{_pos(p.x, p.y, 1, 1, r, p.basso)}">'
+                  + "".join(_oggetti(a, v, (o,), 1, tier) for v, o, tier in p.flussi) + "</div>")
     if p.tipo == "curva":
-        return _img(a.curva(p.tier, p.da, p.a), p.x, p.y, righe=r, basso=p.basso)
+        return _img(a.curva(p.tier, p.da, p.a), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "t":
-        return _img(a.pezzo_girato("t", p.tier, "t", p.verso), p.x, p.y, righe=r, basso=p.basso)
+        return _img(a.pezzo_girato("t", p.tier, "t", p.verso), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "unione_edificio":
-        return _img(a.pezzo_girato("unione-edificio", p.tier, "join-building-both", p.verso), p.x, p.y, righe=r, basso=p.basso)
+        return _img(a.pezzo_girato("unione-edificio", p.tier, "join-building-both", p.verso), p.x, p.y, righe=r, basso=p.basso) + flussi
+    if p.tipo == "unione":
+        # ScrollingBeltStrip side join: the belt with a building (the "block with the dot") on its left or right.
+        return _img(a.pezzo_girato(f"unione-{p.lato}", p.tier, f"join-{p.lato}", p.verso), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "incrocio":
-        return _img(a.sprite("junction"), p.x, p.y, righe=r, basso=p.basso)
+        return _img(a.sprite("junction"), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "sdoppiatore":
-        return _img(a.sprite("splitter"), p.x, p.y, righe=r, basso=p.basso)
+        # MindustryBeltVisual.AddSpecial: splitter and sorter turn with their facing (ScrollingBeltStrip.RotationFor).
+        return _img(a.sprite("splitter"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso) + flussi
     if p.tipo == "selezionatore":
-        # MindustryBeltVisual.AddSpecial: the sorter and, upright on top, the belt sprite of its filter item.
-        return (_img(a.sprite("sorter"), p.x, p.y, righe=r, basso=p.basso)
-                + _img(a.sprite(p.oggetto + "-belt"), p.x + 11 / 32, p.y + 11 / 32, 20 / 64, 20 / 64, z=4, righe=r, basso=p.basso))
+        # The sorter turned to its facing and, upright on top, the belt sprite of its filter item.
+        return (_img(a.sprite("sorter"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso)
+                + _img(a.sprite(p.oggetto + "-belt"), p.x + 11 / 32, p.y + 11 / 32, 20 / 64, 20 / 64, z=4, righe=r, basso=p.basso)
+                + flussi)
+    if p.tipo == "ponte" and p.n == composti.PONTE_CELLE:
+        w, h = (1, p.n) if p.verso in "SN" else (p.n, 1)
+        return _img(a.ponte(p.verso), p.x, p.y, w, h, z=5, righe=r)
     if p.tipo == "ponte":
         # BridgeSpanVisual: both ends on top of the deck, the deck (16x22 px) tiled over the span.
         dx, dy = VERSI[p.verso]
@@ -475,8 +528,6 @@ def html_scena(scena, archivio):
     parti = []
     if scena.bioma:
         parti.append(f'<div class="terra" style="background-image:url({a.terreno(scena.bioma, scena.righe, scena.seme)})"></div>')
-    if scena.sfondo:
-        parti.append(f'<div class="hero-bg" style="background-image:url({a.sfondo(*scena.sfondo)})"></div>')
     for e in scena.elementi:
         if isinstance(e, Tratto):
             parti.append(_html_tratto(e, a, scena))
@@ -517,33 +568,36 @@ VETRINA = [
     # 01 hero: a miner on iron starts the dorsale; the whole bottom-left corner is anchored to the bottom edge,
     # because the hero is as tall as the screen.
     Scena("hero", 8, None, [
-        Giacimento(1, 6, 2, 2, "iron-ore", 3, basso=True),
+        Giacimento(1, 5, 2, 3, "iron-ore", 3, basso=True),
         Blocco(1, 6, "miner", "Al lavoro", basso=True),
         Pezzo(0, 6, "curva", T1, da="W", a="S", basso=True),
         Tratto(0, 7, 1, "S", T1, ("iron-ore",), basso=True),
     ], sfondo=("gioco.png", (0, 170, 1030, 720))),
-    # 02 come funziona: the dorsale feeds the smelter; coal from a miner is split between smelter and generator.
+    # 02 come funziona: the dorsale feeds the smelter; coal from a miner above goes through a splitter facing
+    # South, which hands it left (West, into the smelter after a corner) and right (East, then down to the generator).
     Scena("come-funziona", 9, "rocce", [
         Tratto(0, 0, 3, "S", T1, ("iron-ore",)), Blocco(0, 3, "smelter", "Al lavoro"),
         Tratto(0, 5, 4, "S", T1, ("iron-plate",)),
-        Giacimento(5, 3, 2, 2, "coal", 5), Blocco(5, 3, "miner", "Al lavoro"),
-        Tratto(4, 3, 1, "W", T1, ("coal",)), Pezzo(3, 3, "sdoppiatore"), Tratto(2, 3, 1, "W", T1, ("coal",)),
-        Tratto(3, 4, 2, "S", T1, ("coal",)), Blocco(3, 6, "generator", "In funzione"),
+        Giacimento(2, 0, 3, 2, "coal", 5), Blocco(2, 0, "miner", "Al lavoro"),
+        Pezzo(2, 2, "sdoppiatore", verso="S"),
+        Pezzo(1, 2, "curva", T1, da="W", a="S"), Pezzo(3, 2, "curva", T1, da="E", a="S"),
+        Tratto(3, 3, 3, "S", T1, ("coal",)), Blocco(3, 6, "generator", "In funzione"),
         Nodo(6, 7), Blocco(7, 7, "lamp", "Accesa"),
-        Linea(((5, 7), (6.5, 7.5))), Linea(((6.5, 7.5), (7.5, 7.5))), Linea(((6.5, 7.5), (17.5, 8.5))),
+        Linea(((4, 7), (6.5, 7.5))), Linea(((6.5, 7.5), (7.5, 7.5))), Linea(((6.5, 7.5), (17.5, 8.5))),
         *_margine(8, 9, da_sopra=False),
     ], seme=1),
     # 03 catture: the dorsale bridges over the big capture; lead -> smelter -> assembler (+coal) -> silicon.
     Scena("catture", 10, "sabbia", [
         Tratto(0, 0, 3, "S", T1, ("iron-plate",)), Pezzo(0, 3, "ponte", n=4, verso="S"),
         Tratto(0, 7, 3, "S", T1, ("iron-plate",)),
-        Giacimento(13, 1, 2, 2, "lead-ore", 7), Blocco(13, 1, "miner-advanced", "Al lavoro, con corrente"),
-        Pezzo(15, 1, "curva", T2, da="E", a="S"), Tratto(15, 2, 2, "S", T2, ("lead-ore",)),
+        Giacimento(13, 0, 2, 3, "lead-ore", 7), Blocco(13, 1, "miner-advanced", "Al lavoro, con corrente"),
+        Pezzo(15, 1, "curva", T2, da="E", a="S"), Pezzo(15, 2, "unione", T2, verso="S", lato="right"),
+        Tratto(15, 3, 1, "S", T2, ("lead-ore",)),
         Blocco(15, 4, "smelter", "Al lavoro"), Tratto(15, 6, 2, "S", T2, ("lead-plate",)),
         Blocco(15, 8, "assembler", "Ciclo di lavoro"),
-        Giacimento(11, 8, 2, 2, "coal", 9), Blocco(11, 8, "miner", "Al lavoro"), Tratto(13, 8, 2, "E", T2, ("coal",)),
-        Pezzo(17, 8, "curva", T2, da="E", a="S"), Tratto(17, 9, 1, "S", T2, ("silicon",)),
-        *_margine(5, 10), Linea(((17.5, 5.5), (14, 2))),
+        Giacimento(10, 8, 3, 2, "coal", 9), Blocco(11, 8, "miner", "Al lavoro"), Tratto(13, 8, 2, "E", T2, ("coal",)),
+        Pezzo(17, 8, "curva", T2, da="E", a="S"), Pezzo(17, 9, "unione", T2, verso="S", lato="right"),
+        *_margine(5, 10), Linea(((17.5, 5.5), (14, 2))), Linea(((17.5, 5.5), (16, 5))),
     ], seme=2),
     # 04 blocchi: the dorsale's assembler; the second line moves inwards, the copper crosses it at the junction
     # and enters the assembler through the sorter. Tall: the strip of blocks is pinned inside it.
@@ -552,10 +606,11 @@ VETRINA = [
         Tratto(0, 4, 10, "S", T1, ("copper-wire",)),
         Pezzo(17, 0, "curva", T2, da="S", a="W"), Tratto(16, 0, 3, "W", T2, ("silicon",)),
         Pezzo(13, 0, "curva", T2, da="W", a="S"), Tratto(13, 1, 1, "S", T2, ("silicon",)),
-        Pezzo(13, 2, "incrocio"), Tratto(13, 3, 11, "S", T2, ("silicon",)),
-        Giacimento(15, 2, 2, 2, "copper-ore", 11), Blocco(15, 2, "miner", "Al lavoro"),
+        Pezzo(13, 2, "incrocio", flussi=(("S", "silicon", T2), ("W", "copper-ore", T1))),
+        Tratto(13, 3, 11, "S", T2, ("silicon",)),
+        Giacimento(15, 2, 2, 3, "copper-ore", 11), Blocco(15, 2, "miner", "Al lavoro"),
         Tratto(14, 2, 1, "W", T1, ("copper-ore",)), Tratto(12, 2, 10, "W", T1, ("copper-ore",)),
-        Pezzo(2, 2, "selezionatore", oggetto="copper-ore"),
+        Pezzo(2, 2, "selezionatore", oggetto="copper-ore", verso="W", flussi=(("W", "copper-ore", T1),)),
         *_margine(6, 14),
     ], seme=3),
     # ?? sotto attacco: the two long lines and the power line cross the disturbed signal.
@@ -568,10 +623,11 @@ VETRINA = [
         Tratto(0, 0, 8, "S", T1, ("copper-wire",)),
         Tratto(13, 0, 4, "S", T2, ("silicon",)), Pezzo(13, 4, "unione_edificio", T2, verso="S"),
         Tratto(13, 5, 3, "S", T2, ("silicon", "titanium-plate")),
-        Giacimento(15, 0, 2, 2, "titanium-ore", 13), Blocco(15, 0, "miner", "Al lavoro"),
-        Pezzo(14, 0, "curva", T1, da="W", a="S"), Tratto(14, 1, 3, "S", T1, ("titanium-ore",)),
+        Giacimento(15, 0, 2, 3, "titanium-ore", 13), Blocco(15, 0, "miner-advanced", "Al lavoro, con corrente"),
+        Pezzo(14, 0, "curva", T1, da="W", a="S"), Pezzo(14, 1, "unione", T1, verso="S", lato="left"),
+        Tratto(14, 2, 2, "S", T1, ("titanium-ore",)),
         Blocco(14, 4, "smelter", "Al lavoro"),
-        *_margine(3, 8), Linea(((17.5, 3.5), (16, 5))),
+        *_margine(3, 8), Linea(((17.5, 3.5), (15, 5))), Linea(((17.5, 3.5), (16, 1))),
     ], seme=4),
     # 06 interfaccia: the second line bridges over the palette capture; lamps lit from the margin node.
     Scena("interfaccia", 8, "prati", [
@@ -588,6 +644,6 @@ VETRINA = [
         Tratto(13, 0, 4, "S", T2, ("silicon", "titanium-plate")), Pezzo(13, 4, "curva", T2, da="S", a="W"),
         Tratto(12, 4, 2, "W", T2, ("silicon", "titanium-plate")),
         Blocco(7, 2, "core-3", "Luce del nucleo"),
-        *_margine(1, 11, verso_sotto=False), Linea(((17.5, 1.5), (15, 6.1))),
+        *_margine(1, 11, verso_sotto=False), Linea(((17.5, 1.5), (15, 7.8))),
     ], seme=6),
 ]

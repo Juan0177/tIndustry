@@ -92,11 +92,11 @@ CATTURE_DIR = os.path.join(REPO, "docs", "img", "readme")
 CATTURE = [
     ("gioco.png", "Fabbrica: il minatore porta il minerale al CORE"),
     ("ricerca.png", "Ricerca: albero a rami dal CORE"),
-    ("tutorial.png", "Campagna: dieci livelli, tutorial che non blocca"),
+    ("tutorial.png", "Campagna: 10 livelli, tutorial che non blocca"),
     ("interfaccia-en.png", "Tutti i testi anche in inglese"),
     ("interfaccia-hud.png", "HUD: fondi, energia, risorse del CORE"),
     ("interfaccia-daltonici.png", "Colori per daltonici: la X sull'anteprima rifiutata"),
-    ("interfaccia-palette.png", "Palette a griglia fissa, come Mindustry"),
+    ("interfaccia-palette.png", "Palette come in Mindustry"),
     ("interfaccia-altocontrasto.png", "Alto contrasto: pannelli neri, testo bianco"),
     ("mercato.png", "Mercato: prezzi dinamici, vendita automatica"),
 ]
@@ -145,23 +145,27 @@ def _nav(voci):
     return "".join(f'<a href="{html.escape(h)}">{html.escape(t)}</a>' for h, t in voci)
 
 
-def _pagina(titolo, corpo, nav, radice="", classe="", descrizione="", stile_extra="", drone=False, avanza=False):
-    """The shell: head, sticky bar with the stripes, main, footer, the script."""
+def _pagina(titolo, corpo, nav, radice="", classe="", descrizione="", stile_extra="", drone=False, avanza=False,
+            percorso=""):
+    """The shell: head, sticky bar with the stripes, main, footer, the script. `percorso` is the page's path
+    under the site root ("" for the landing page, "sviluppo/" …) for its canonical and Open Graph URLs."""
     extra = f"<style>{stile_extra}</style>" if stile_extra else ""
-    meta = ""
+    url = SITO_URL + percorso
+    meta = f'<link rel="canonical" href="{url}">'
     if descrizione:
-        meta = (f'<meta name="description" content="{html.escape(descrizione)}">'
-                f'<meta property="og:title" content="{html.escape(titolo)}"><meta property="og:type" content="website">'
-                f'<meta property="og:description" content="{html.escape(descrizione)}">'
-                f'<meta property="og:image" content="{SITO_URL}catture/gioco.png"><meta property="og:url" content="{SITO_URL}">'
-                '<meta name="twitter:card" content="summary_large_image">')
+        meta += (f'<meta name="description" content="{html.escape(descrizione)}">'
+                 f'<meta property="og:title" content="{html.escape(titolo)}"><meta property="og:type" content="website">'
+                 f'<meta property="og:description" content="{html.escape(descrizione)}">'
+                 f'<meta property="og:image" content="{SITO_URL}catture/gioco.png"><meta property="og:url" content="{url}">'
+                 '<meta name="twitter:card" content="summary_large_image">')
     meta += f'<link rel="icon" href="{radice}favicon.png" type="image/png">'
     pie = (f'<footer><a href="{radice}">Vetrina</a><a href="{radice}sviluppo/">Sviluppo</a><a href="{radice}asset/">Asset</a>'
            f'<a href="{REPO_URL}">GitHub</a>'
-           + ('<button type="button" id="ferma-drone" hidden>Ferma il drone</button>' if drone else "")
-           + f'<span>generato da <a href="{REPO_URL}/tree/main/tools/sito">tools/sito</a></span></footer>')
+           + ('<button type="button" id="ferma-drone" data-testo-ferma="Ferma il drone" '
+              'data-testo-riaccendi="Riaccendi il drone" hidden>Ferma il drone</button>' if drone else "")
+           + f'<span>sito <a href="{REPO_URL}/tree/main/tools/sito">generato dal repository</a>, come il gioco</span></footer>')
     testa = ('<div id="avanza" aria-hidden="true"></div>' if avanza else "")
-    coda = (f'<div id="drone" aria-hidden="true" hidden><img class="px" src="{radice}fabbrica/drone-1.png" alt="" width="48" height="48">'
+    coda = (f'<div id="drone-cantiere" aria-hidden="true" hidden><img class="px" src="{radice}fabbrica/drone-1.png" alt="" width="48" height="48">'
             '<svg class="raggio" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/><circle cx="0" cy="0" r="5"/></svg></div>'
             if drone else "")
     return (f'<!doctype html><html lang="it"><head><meta charset="utf-8">'
@@ -211,8 +215,11 @@ def _immagine_sprite(assets_dir, nome, fps=None, massimo=128):
         lato, n = im.height, im.width // im.height
         frames = [im.crop((i * lato, 0, (i + 1) * lato, lato)) for i in range(n)]
         if fps:
-            durate = [int(composti._arrotonda((k + 1) * 100 / fps) - composti._arrotonda(k * 100 / fps)) * 10
-                      for k in range(n)]
+            # Every `salto`-th frame, so no GIF delay falls under PASSO_MINIMO (browsers stretch shorter ones).
+            salto = math.ceil(composti.PASSO_MINIMO * fps)
+            frames = frames[::salto]
+            durate = [int(composti._arrotonda((k + 1) * salto * 100 / fps) - composti._arrotonda(k * salto * 100 / fps)) * 10
+                      for k in range(len(frames))]
         else:
             durate = 110
         url = _data_url(_gif(frames, durate), "image/gif")
@@ -280,7 +287,7 @@ def _scheda_blocco(assets_dir, blocco, immagini):
     return (f'<figure class="blocco{largo}" id="blocco-{bid}">{"".join(radio)}'
             f'<div class="box">{"".join(immagini_html)}</div>{scelte}'
             f'<figcaption><b>{bid}</b><span>{blocco.celle[0]}×{blocco.celle[1]} celle, '
-            f'{len(blocco.parti)} pezzi</span>{nota}</figcaption>'
+            f'{len(blocco.parti)} {"pezzo" if len(blocco.parti) == 1 else "pezzi"}</span>{nota}</figcaption>'
             f'<button type="button" class="lente" popovertarget="{pid}" aria-label="Pezzi di {bid}" '
             f'title="Pezzi di {bid}">{LENTE}</button>{modale}</figure>')
 
@@ -346,7 +353,7 @@ def pagina_asset(assets_dir):
                 ("#carattere", "Carattere")))
     return _pagina("tIndustry · asset", intro + "".join(sezioni), nav, radice="../", classe="asset",
                    descrizione="Tutti gli sprite di tIndustry: blocchi come in gioco, nastri, oggetti, terreno, carattere.",
-                   stile_extra=_STILE_STATI)
+                   stile_extra=_STILE_STATI, percorso="asset/")
 
 
 # ---------------------------------------------------------------- landing page content
@@ -382,7 +389,7 @@ def _titolo(a, numero, testo, x, y):
 def _crt(radice, nome, x, y, w, h, extra="", classe=""):
     didascalia = html.escape(DIDASCALIE[nome])
     return (f'<figure class="crt {classe}" data-rivela style="{_at(x, y, w, h)}{extra}"><img src="{radice}catture/{nome}" '
-            f'alt="{didascalia}" width="1280" height="720" loading="lazy"><figcaption>{didascalia}</figcaption></figure>')
+            f'alt="" width="1280" height="720" loading="lazy"><figcaption>{didascalia}</figcaption></figure>')
 
 
 def _grafico_mercato(a, prezzo, nome_oggetto):
@@ -398,10 +405,10 @@ def _grafico_mercato(a, prezzo, nome_oggetto):
     griglia = "".join(f'<line x1="0" y1="{y}" x2="470" y2="{y}"/>' for y in (30, 60, 90))
     return (f'<figure class="crt schermo" data-rivela style="{_at(806, 384, 314, 230)}"><div class="schermo-testa">'
             f'<img class="px" src="{a.sprite("ui/ui-mercato")}" alt="" width="32" height="32"><b>Mercato</b>'
-            f'<span>{html.escape(nome_oggetto)} {prezzo} $</span><i class="live"></i></div>'
+            f'<span>{html.escape(nome_oggetto)} ${prezzo}</span><i class="live"></i></div>'
             f'<svg viewBox="0 0 470 120" preserveAspectRatio="none" aria-hidden="true"><g class="griglia">{griglia}</g>'
             f'<g class="scorre"><path class="area" d="{area}"/><polyline points="{linea}"/></g></svg>'
-            '<figcaption>Prezzi dinamici, vendita automatica</figcaption></figure>')
+            '<figcaption>Il prezzo cala mentre vendi e risale piano</figcaption></figure>')
 
 
 def _crepa(seme, lato=220):
@@ -441,13 +448,13 @@ def _numeri():
     tier = sum(1 for s in c["structures"] if s["id"].startswith("conveyor-") and s["id"] != "conveyor-bridge")
     voci = ((len(c["structures"]), "blocchi"), (tier, "tier di nastri"), (len(c["recipes"]), "ricette"),
             (len(tr.MINERALI), "minerali"), (len(tr.BIOMI), "biomi"), (livelli, "livelli di campagna"))
-    return (f'<ul class="numeri" style="{_at(192, 640, 640)}">'
+    return (f'<ul class="numeri" style="{_at(192, 204, 600)}">'
             + "".join(f'<li data-rivela><b>{n}</b><span>{t}</span></li>' for n, t in voci) + "</ul>")
 
 
 AVVISI = (("ATTENZIONE", "", 700, 36, -0.0), ("PERICOLO", "magenta", 860, 150, -1.8),
-          ("UNITÀ OSTILI IN AVVICINAMENTO", "", 560, 236, -3.6), ("DIFESE NON DISPONIBILI", "magenta", 240, 320, -5.4),
-          ("INTRUSIONE RILEVATA", "", 930, 300, -7.2))
+          ("UNITÀ OSTILI IN AVVICINAMENTO", "", 540, 236, -3.6), ("DIFESE NON DISPONIBILI", "magenta", 240, 320, -5.4),
+          ("INTRUSIONE RILEVATA", "", 820, 300, -7.2))
 
 
 def _contenuto(a, sid, radice, versione):
@@ -458,17 +465,17 @@ def _contenuto(a, sid, radice, versione):
         return (f'<div class="hero-testo"><h1><img class="px logo" src="{url}" alt="tIndustry" width="{logo.width * 8}" '
                 f'height="{logo.height * 8}"></h1>'
                 "<p>Estrai i minerali, portali al CORE sui nastri, fondili in lastre e fili, vendi al Mercato "
-                "e reinvesti in Ricerca.</p>"
-                '<p class="nota">Logistica industriale ispirata a Mindustry e Tiny Industry. Gratuito e open source, '
-                "in italiano e in inglese.</p>"
+                "e reinvesti in Ricerca per sbloccare nuovi blocchi.</p>"
+                '<p class="nota">Logistica industriale ispirata a Mindustry e Tiny Industry. Gioco gratuito e open source '
+                "per Windows e Linux, in italiano e in inglese.</p>"
                 f'<p class="bottoni"><a class="btn primario" href="{RELEASE_URL}" data-costruisci>Scarica</a>'
                 f'<a class="btn" href="{REPO_URL}" data-costruisci>Codice su GitHub</a></p></div>'
                 '<p class="scorri etichetta">scorri ▼</p>')
     if sid == "come-funziona":
         schede = "".join(f'<div class="scheda" data-rivela><b>{area}</b><span>{_breve(testo)}</span></div>'
                          for area, testo in documenti.contenuti())
-        return (_titolo(a, "02", "Come funziona", 192, 22)
-                + f'<p class="nota" style="{_at(192, 100, 300)}">Il minerale arriva dall\'alto, il forno lo fonde col carbone '
+        return (_titolo(a, "02", "Come funziona", 336, 22)
+                + f'<p class="nota" style="{_at(336, 100, 170)}">Il minerale arriva dall\'alto, il forno lo fonde col carbone '
                   "e la lastra continua lungo il bordo. In partita è la stessa catena: minatore, nastro, forno, assemblatore, CORE.</p>"
                 + f'<div class="schede" style="{_at(512, 128, 576)}">{schede}</div>')
     if sid == "catture":
@@ -482,64 +489,66 @@ def _contenuto(a, sid, radice, versione):
                    ("smelter", "Al lavoro", "Forno"), ("assembler", "Ciclo di lavoro", "Assemblatore"),
                    ("extractor", "Filtro: rame", "Estrattore"), ("generator", "In funzione", "Generatore"),
                    ("lamp", "Accesa", "Lampada"), ("junction", "Incrocio a 4 vie", "Incrocio"),
-                   ("conveyor-bridge", "In funzione", "Ponte"), ("core-1", "Luce del nucleo", "Core T1"),
-                   ("core-2", "Luce del nucleo", "Core T2"))
+                   ("conveyor-bridge", "In funzione", "Ponte"), ("core-1", "Luce del nucleo", "CORE T1"),
+                   ("core-2", "Luce del nucleo", "CORE T2"))
         figure = "".join(
             f'<figure><img class="px" src="{a.blocco(b, s)}" alt="{html.escape(n)}" width="{fabbrica._blocco(b).celle[0] * fabbrica.C}" '
             f'height="{fabbrica._blocco(b).celle[1] * fabbrica.C}"><figcaption>{html.escape(n)}</figcaption></figure>'
             for b, s, n in blocchi)
         return (_titolo(a, "04", "Blocchi come in gioco", 192, 22)
                 + f'<p class="nota" style="{_at(192, 96, 620)}">Gli stessi sprite e le stesse animazioni che vedi in partita: '
-                  "pixel-art nostra, generata da script.</p>"
+                  "pixel-art originale del gioco.</p>"
                 + _numeri()
-                + f'<div class="finestra-striscia" data-inizio="44" data-corsa="400"><div class="striscia-blocchi">{figure}</div>'
+                + f'<div class="finestra-striscia" data-inizio="-20" data-corsa="316"><div class="striscia-blocchi">{figure}</div>'
                   f'<a class="rimando" href="{radice}asset/" data-costruisci>Tutti i blocchi e gli sprite → Asset</a></div>')
     if sid == "sotto-attacco":
         tit = carattere.scrivi("Sotto attacco", k=4, colore=AMBRA)
         sagome = "".join(
-            f'<img class="px sagoma s{i}" src="{a.png(f"sagoma-{i}", a.immagini(n).resize((a.immagini(n).width * 4, a.immagini(n).height * 4), Image.NEAREST))}" '
-            f'alt="" width="{a.immagini(n).width * 4}" height="{a.immagini(n).height * 4}">'
+            f'<img class="px sagoma s{i}" src="{a.sprite(n)}" alt="" width="{a.immagini(n).width * 4}" height="{a.immagini(n).height * 4}">'
             for i, n in enumerate(("drone-2", "drone-3", "drone-2", "drone-3")))
         avvisi = ""
-        for testo, classe, x, y, rit in AVVISI:
+        for k, (testo, classe, x, y, rit) in enumerate(AVVISI, 1):
             im = carattere.scrivi(testo, k=2, colore=MAGENTA if classe else ROSSO)
             url = a.png("avviso-" + fabbrica._slug(testo), im)
-            avvisi += (f'<div class="avviso {classe}" style="{_at(x, y)};--rit:{rit}s" aria-hidden="true">'
+            avvisi += (f'<div class="avviso avviso-{k} {classe}" style="{_at(x, y)};--rit:{rit}s" aria-hidden="true">'
                        f'<img class="px" src="{url}" alt="" width="{im.width}" height="{im.height}"></div>')
         crepe = "".join(f'<div class="crepa" style="{_at(x, y, 220)};--rit:{rit}s" aria-hidden="true">{_crepa(seme)}</div>'
-                        for seme, x, y, rit in ((1, 120, 40, 0), (2, 760, 170, -7), (3, 420, -40, -14), (4, 960, -30, -21)))
+                        for seme, x, y, rit in ((1, 120, 40, 0), (2, 760, 170, -7), (3, 420, -40, -14), (4, 900, -30, -21)))
         return ('<div class="lampo" aria-hidden="true"></div><div class="rumore" aria-hidden="true"></div>'
                 + f'<div class="segnale" style="{_at(192, 48, 640)}"><span class="etichetta">// ?? · Segnale disturbato</span>'
                   f'<h2><img class="px tit" src="{a.png("titolo-sotto-attacco", tit)}" alt="Sotto attacco" width="{tit.width}" height="{tit.height}"></h2>'
-                  "<p>Unità di attacco e difesa: in arrivo. Il segnale va e viene, per ora si vedono solo le sagome.</p>"
+                  "<p>Unità di attacco e difesa, previste per una versione futura. Il segnale va e viene: per ora si vedono solo le sagome.</p>"
                   f'<div class="sagome">{sagome}</div></div>' + avvisi + crepe)
     if sid == "ambienti":
-        finestre = "".join(
-            f'<figure class="bioma" data-rivela><img class="px" src="{a.png("bioma-" + bioma, tavola._finestra(b, bioma, a.immagini))}" '
-            f'alt="Ambiente {bioma}" width="150" height="150"><figcaption>{bioma.capitalize()}</figcaption></figure>'
-            for b, bioma in enumerate(biomi()))
+        finestre = ""
+        for b, bioma in enumerate(biomi()):
+            im = tavola._finestra(b, bioma, a.immagini)
+            im = im.resize((im.width // 2, im.height // 2), Image.NEAREST)  # 12 cells at 16 px: exact half
+            finestre += (f'<figure class="bioma" data-rivela><img class="px" src="{a.png("bioma-" + bioma, im)}" '
+                         f'alt="Ambiente {bioma}" width="{im.width}" height="{im.height}"><figcaption>{bioma.capitalize()}</figcaption></figure>')
         return (_titolo(a, "05", "Ambienti", 192, 22)
-                + f'<p class="nota" style="{_at(192, 100, 420)}">Quattro biomi generati dal seme, con pareti, laghi e fiumi: '
-                  "ogni partita ha la sua mappa.</p>"
-                + f'<div class="finestre" style="{_at(128, 160, 640)}">{finestre}</div>')
+                + f'<div class="finestre" style="{_at(128, 96, 400)}">{finestre}</div>'
+                + f'<p class="nota" style="{_at(560, 110, 250)}">Quattro biomi generati dal seme, con pareti, laghi e fiumi: '
+                  "ogni partita ha la sua mappa. Suoli con varianti e bordi, pareti in rilievo, acqua bassa su cui costruire "
+                  "e profonda da scavalcare col ponte, giacimenti a puntini.</p>")
     if sid == "interfaccia":
-        return (_titolo(a, "06", "Interfaccia e accessibilità", 192, 22)
-                + _crt(radice, "interfaccia-palette.png", 723, 154, 358, 205, ";z-index:2")
-                + _crt(radice, "interfaccia-hud.png", 77, 108, 346, 205)
-                + _crt(radice, "interfaccia-daltonici.png", 448, 108, 256, 205)
-                + _crt(radice, "interfaccia-altocontrasto.png", 77, 334, 294, 192)
-                + _crt(radice, "mercato.png", 397, 334, 307, 192))
+        return (_titolo(a, "06", "Interfaccia e accessibilità", 160, 22)
+                + _crt(radice, "interfaccia-hud.png", 77, 96, 346, 196)
+                + _crt(radice, "interfaccia-daltonici.png", 448, 96, 256, 196)
+                + _crt(radice, "interfaccia-altocontrasto.png", 77, 318, 294, 180)
+                + _crt(radice, "mercato.png", 397, 318, 307, 180)
+                + _crt(radice, "interfaccia-palette.png", 800, 130, 281, 186, ";z-index:2;--rientro:84px", classe="sotto-ponte"))
     if sid == "scarica":
         mercato = {m["itemId"]: m for m in composti._CONTENT["market"]}
         prezzo = mercato["iron-plate"]["sellPrice"]
         nome = mercato["iron-plate"]["displayName"]
         bottone = f"Scarica {html.escape(versione)}" if versione else "Scarica l'ultima release"
-        requisiti = " · ".join(f"{html.escape(s)}: {html.escape(f)}" for s, f, _ in documenti.requisiti())
+        sistemi = " e ".join(html.escape(s) for s, _, _ in documenti.requisiti())
         return (_titolo(a, "07", "Scarica", 192, 22)
                 + f'<div class="scarica-box" style="{_at(384, 448, 384)}">'
                   f'<a class="btn primario grande striscia" href="{RELEASE_URL}" data-costruisci>{bottone}</a>'
-                  f'<a class="btn" href="{REPO_URL}" data-costruisci>Sorgenti e release su GitHub</a>'
-                  f'<p class="requisiti">{requisiti} · .NET già incluso · gratuito, open source</p></div>'
+                  f'<a class="btn" href="{REPO_URL}" data-costruisci>Codice su GitHub</a>'
+                  f'<p class="requisiti">{sistemi} · zip pronto, .NET già incluso · gratuito e open source</p></div>'
                 + _grafico_mercato(a, prezzo, nome))
     raise KeyError(sid)
 
@@ -550,29 +559,38 @@ def pagina_vetrina(archivio, versione):
         scena_html = fabbrica.html_scena(scena, archivio)
         contenuto = _contenuto(archivio, scena.id, archivio.radice, versione)
         classe = "sez " + scena.classe.replace("scena-attacco", "sez-attacco") if scena.classe else "sez"
+        sfondo = ""
         if scena.id == "hero":
             classe += " hero"
-        sezione = (f'<section id="{scena.id}" class="{classe}" data-bioma="{scena.bioma or ""}">'
+        if scena.sfondo:  # the capture spreads over the whole section, beyond the floor, on wide screens
+            sfondo = f'<div class="hero-bg" style="background-image:url({archivio.sfondo(*scena.sfondo)})"></div>'
+        sezione = (f'<section id="{scena.id}" class="{classe}" data-bioma="{scena.bioma or ""}">{sfondo}'
                    f'<div class="pavimento">{scena_html}<div class="contenuto">{contenuto}</div></div></section>')
         if scena.id == "hero":
             sezione = f'<div class="pin">{sezione}</div>'
         sezioni.append(sezione)
     nav = _nav(NAV_VETRINA + (("sviluppo/", "Sviluppo"), ("asset/", "Asset")))
-    return _pagina("tIndustry", "".join(sezioni), nav, radice="", classe="vetrina",
-                   descrizione="tIndustry: gioco di logistica industriale ispirato a Mindustry e Tiny Industry. "
-                               "Gratuito, open source, in italiano e in inglese.",
+    noscript = ('<noscript><style>@media (max-width:1183px){.sez{overflow-x:auto}.scena{width:1152px}}'
+                '.finestra-striscia{position:relative;top:auto;overflow-x:auto}.striscia-blocchi{position:static;transform:none;display:flex}</style></noscript>')
+    return _pagina("tIndustry · logistica industriale, gratuito e open source", noscript + "".join(sezioni), nav,
+                   radice="", classe="vetrina",
+                   descrizione="tIndustry è un gioco gratuito e open source di logistica industriale ispirato a Mindustry "
+                               "e Tiny Industry: minatori, nastri, forni, Mercato e Ricerca. Per Windows e Linux, in italiano e in inglese.",
                    drone=True, avanza=True)
 
 
 def pagina_sviluppo(archivio):
+    striscia, fermo = archivio.nastro(fabbrica.T1, "E")
     nastro = (f'<div class="nastro-testa" aria-hidden="true"><div class="nastro v-e" '
-              f'style="background-image:url({archivio.nastro(fabbrica.T1, "E")});--giro:2s"></div></div>')
+              f'style="background-image:url({striscia});--giro:2s"><div class="fermo" style="background-image:url({fermo})"></div></div></div>')
     nav = _nav((("../", "Vetrina"), ("#come-e-fatto", "Com'è fatto"), ("#roadmap", "Roadmap"), ("#diario", "Diario"),
-                ("#decisioni", "Decisioni"), ("../asset/", "Asset")))
+                ("#decisioni", "Decisioni"), ("#changelog", "Changelog"), ("../asset/", "Asset")))
+    testa = ('<div class="contenuto-doc intro-doc"><h1>Com\'è fatto tIndustry</h1>'
+             "<p>Le scelte dietro al gioco, la strada fatta e quella che resta, raccontate dai documenti del repository.</p></div>")
     corpo = documenti.sezioni_sviluppo("../").replace('<table class="tabella">', '<div class="tabella-scorri"><table class="tabella">')
     corpo = corpo.replace("</table>", "</table></div>")
-    return _pagina("tIndustry · sviluppo", nastro + corpo, nav, radice="../", classe="sviluppo",
-                   descrizione="Com'è fatto tIndustry: decisioni architetturali, roadmap e diario di lavoro.")
+    return _pagina("tIndustry · sviluppo", nastro + testa + corpo, nav, radice="../", classe="sviluppo",
+                   descrizione="Com'è fatto tIndustry: decisioni architetturali, roadmap e diario di lavoro.", percorso="sviluppo/")
 
 
 # ---------------------------------------------------------------- build
@@ -611,8 +629,9 @@ def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
         shutil.copyfile(os.path.join(SITO_DIR, nome), os.path.join(out_dir, nome))
     catture = os.path.join(out_dir, "catture")
     os.makedirs(catture, exist_ok=True)
-    for nome, _ in CATTURE:
-        shutil.copyfile(os.path.join(CATTURE_DIR, nome), os.path.join(catture, nome))
+    for nome, _ in CATTURE:  # same pixels, best lossless compression
+        with Image.open(os.path.join(CATTURE_DIR, nome)) as im:
+            im.save(os.path.join(catture, nome), "PNG", optimize=True)
     # Pages serves the folder as is (no Jekyll processing).
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
     return sorted(pagine)
