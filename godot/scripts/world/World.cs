@@ -122,6 +122,8 @@ public partial class World : Node2D
     // click without moving toggles the mark there on release, a rectangle only marks.
     private GridPosition _removeStart;
     private bool _removeMoved;
+    // Wheel notches not yet turned into a rotation (a touchpad sends fractions).
+    private float _wheelTurn;
     private bool _visualDirty = true;
     private bool _buildingsDirty = true;
     private bool _returnHomeAfterCampaign;
@@ -276,9 +278,9 @@ public partial class World : Node2D
         SyncNight();
         SyncAmbientEffects(delta);
         SyncTutorial();
-        if (LineDragActive && PanelOpen)
+        if ((LineDragActive || _draggingRemove) && PanelOpen)
         {
-            CancelLine(); // a panel opened during the drag (from the HUD, a level's end…): nothing is sent
+            CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent
         }
 
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)

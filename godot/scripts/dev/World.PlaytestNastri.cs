@@ -632,6 +632,59 @@ public partial class World
         }
 
         var view = _view!;
+
+        // smontaggio-interrotto (review focus 1): Esc, a panel, focus lost or a release outside the window drop the removal
+        // rectangle like the left line: nothing is sent and no rectangle stays drawn.
+        var outside = new Vector2(-40, -40);
+        (string Name, Func<Task> During, Vector2 Release, Func<Task> After)[] interruptions =
+        [
+            ("Esc", () => PlaytestKey(Key.Escape), LineScreen(6, 4), () => Task.CompletedTask),
+            ("T", () => PlaytestKey(Key.T), LineScreen(6, 4), () => PlaytestKey(Key.T)),
+            ("fuoco perso", () =>
+            {
+                GetTree().Notification((int)MainLoop.NotificationApplicationFocusOut);
+                return Task.CompletedTask;
+            }, LineScreen(6, 4), () => Task.CompletedTask),
+            ("rilascio fuori dalla finestra", () =>
+            {
+                PlaytestMove(outside, MouseButtonMask.Right);
+                return Task.CompletedTask;
+            }, outside, () => Task.CompletedTask)
+        ];
+        foreach (var (name, during, release, after) in interruptions)
+        {
+            for (var x = 1; x <= 6; x++)
+            {
+                factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, LineCell(x, 4), Direction.East), charge: false);
+            }
+
+            _visualDirty = true;
+            _tool = BuildTool.Belt; // a panel puts the cursor back in hand
+            await PlaytestWait(0.1);
+            await PlaytestPress(LineScreen(1, 4), MouseButton.Right);
+            await PlaytestMoveHeld(LineScreen(1, 4), LineScreen(6, 4), mask: MouseButtonMask.Right);
+            var drawn = _draggingRemove && _removeMoved;
+            await during();
+            var dropped = !_draggingRemove || release == outside;
+            await PlaytestRelease(release, MouseButton.Right);
+            await after();
+            await SettleLine();
+            if (!drawn || !dropped || _draggingRemove || _removeMoved
+                || Enumerable.Range(1, 6).Any(x => !view.Belts.ContainsKey(LineCell(x, 4))))
+            {
+                return Fail($"smontaggio-interrotto ({name}): rettangolo {(drawn ? "disegnato" : "mai disegnato")}, "
+                    + $"{(dropped ? "annullato" : "ancora attivo")}, nastri {Enumerable.Range(1, 6).Count(x => view.Belts.ContainsKey(LineCell(x, 4)))}/6");
+            }
+        }
+
+        if (_research?.IsOpen == true)
+        {
+            return Fail("smontaggio-interrotto: la Ricerca è rimasta aperta");
+        }
+
+        ClearLinePatch(factory);
+        GD.Print("PLAYTEST step ok: smontaggio-interrotto, Esc, T, fuoco perso e rilascio fuori dalla finestra non smontano nulla");
+
         if (!factory.PlaceInstant(new BuildSpec("conveyor-fast", null, LineCell(2, 2), Direction.North), charge: false))
         {
             return Fail($"nastri-prendi: nastro veloce non piazzato in {LineCell(2, 2)}");
@@ -688,6 +741,20 @@ public partial class World
             {
                 return Fail($"rotellina-ruota {tool}: su {up}, giù {_placeDir}, zoom {zoom.X} -> {cam.Zoom.X}");
             }
+        }
+
+        // A touchpad's fractions of a notch: four quarter steps turn the block once, not four times.
+        (_tool, _placeDir) = (BuildTool.Belt, Direction.East);
+        var turns = new List<Direction>();
+        for (var i = 0; i < 4; i++)
+        {
+            await PlaytestWheel(at, MouseButton.WheelUp, factor: 0.25f);
+            turns.Add(_placeDir);
+        }
+
+        if (!turns.SequenceEqual([Direction.East, Direction.East, Direction.East, Direction.South]) || cam.Zoom != zoom)
+        {
+            return Fail($"rotellina-ruota touchpad: quarti di scatto [{string.Join(" ", turns)}], zoom {cam.Zoom.X}");
         }
 
         (string Name, BuildTool Tool, bool Ctrl)[] zooms =

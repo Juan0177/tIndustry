@@ -88,6 +88,45 @@ public sealed class RemovalAreaTests
         Assert.Equal((new GridPosition(37, 90), new GridPosition(100, 100)), RemovalArea.Rect(new GridPosition(100, 100), new GridPosition(0, 90)));
     }
 
+    /// <summary>A plan over a standing block (here a tier change) is two things: the plan is cancelled, then the block marked.</summary>
+    [Fact]
+    public void APlanOverABlockGetsTwoRemovesOnItsCell()
+    {
+        var (factory, host) = NewScene();
+        factory.Research.ForceUnlock("conveyor-fast");
+        var belt = Belts[1];
+        host.Submit(new PlaceBelt(Player, belt, Direction.East, "conveyor-fast"));
+        host.AdvanceTicks(1);
+        Assert.Contains(factory.PlansOf(Player), p => !p.Breaking && p.Spec.Origin == belt);
+
+        var commands = RemovalArea.Commands(factory, Player, belt, belt);
+        Assert.Equal([belt, belt], commands.Select(c => c.Tile).ToArray());
+
+        Send(host, commands);
+        Assert.DoesNotContain(factory.PlansOf(Player), p => !p.Breaking && p.Spec.Origin == belt);
+        Assert.Contains(factory.PlansOf(Player), p => p.Breaking && p.Spec.Origin == belt);
+    }
+
+    /// <summary>A site under construction gets one Remove (not one more for its plan); once taken apart it gets none.</summary>
+    [Fact]
+    public void ASiteIsCancelledOnceAndSkippedWhileTakenApart()
+    {
+        var (factory, host) = NewScene();
+        // Halfway built, so the cancelled site is still there being taken apart a tick later.
+        for (var tick = 0; tick < 20_000 && !(factory.TryGetSiteAt(Planned, out var s) && s.Progress > 0.5f); tick++)
+        {
+            host.AdvanceTicks(1);
+        }
+
+        Assert.True(factory.TryGetSiteAt(Planned, out var site) && !site.Deconstructing);
+        var commands = RemovalArea.Commands(factory, Player, Planned, Planned);
+        Assert.Equal(Planned, Assert.Single(commands).Tile);
+
+        Send(host, commands);
+        Assert.True(factory.TryGetSiteAt(Planned, out var cancelled) && cancelled.Deconstructing);
+        Assert.Empty(RemovalArea.Commands(factory, Player, Planned, Planned));
+    }
+
     [Fact]
     public void ARectangleNeverUnmarks()
     {

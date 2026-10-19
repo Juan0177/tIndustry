@@ -144,6 +144,21 @@ public partial class World
         }
     }
 
+    /// <summary>Drops the right drag (release, Esc, a panel, focus lost, release outside the window): no rectangle left drawn.</summary>
+    private void CancelRemoveDrag()
+    {
+        _draggingRemove = false;
+        _removeMoved = false;
+        QueueRedraw();
+    }
+
+    /// <summary>Drops both drags, left line and removal rectangle: nothing is sent.</summary>
+    private void CancelDrags()
+    {
+        CancelLine();
+        CancelRemoveDrag();
+    }
+
     /// <summary>
     /// Middle click: the block standing (or the site) on <paramref name="cell"/> becomes the tool in hand, with its
     /// direction and the sorter's filter. A locked block toasts and keeps the tool; an empty cell does nothing.

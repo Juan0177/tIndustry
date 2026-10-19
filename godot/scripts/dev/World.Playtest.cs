@@ -1559,14 +1559,14 @@ public partial class World
     }
 
     /// <summary>One wheel step (<paramref name="wheel"/>, Ctrl held with <paramref name="ctrl"/>) at <paramref name="at"/>: press and release, a frame each.</summary>
-    internal async Task PlaytestWheel(Vector2 at, MouseButton wheel, bool ctrl = false)
+    internal async Task PlaytestWheel(Vector2 at, MouseButton wheel, bool ctrl = false, float factor = 1f)
     {
         PlaytestMove(at, 0, ctrl);
         foreach (var pressed in new[] { true, false })
         {
             Input.ParseInputEvent(new InputEventMouseButton
             {
-                ButtonIndex = wheel, Pressed = pressed, Factor = 1f, Position = at, GlobalPosition = at, CtrlPressed = ctrl,
+                ButtonIndex = wheel, Pressed = pressed, Factor = factor, Position = at, GlobalPosition = at, CtrlPressed = ctrl,
                 Device = PlaytestDevice
             });
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

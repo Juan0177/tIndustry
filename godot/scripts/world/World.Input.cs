@@ -147,11 +147,11 @@ public partial class World
         {
             if (key.Keycode is Key.I or Key.T or Key.M or Key.G)
             {
-                CancelLine(); // a panel opens: the drag is dropped
+                CancelDrags(); // a panel opens: the drag is dropped
             }
-            else if (LineDragActive && key.Keycode == Key.Escape)
+            else if ((LineDragActive || _draggingRemove) && key.Keycode == Key.Escape)
             {
-                CancelLine();
+                CancelDrags();
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -377,6 +377,10 @@ public partial class World
                     _removeStart = cell;
                     GetViewport().SetInputAsHandled();
                 }
+                else if (_draggingRemove && !GetViewport().GetVisibleRect().HasPoint(mouse.Position))
+                {
+                    CancelRemoveDrag(); // let go outside the window: dropped, like Esc
+                }
                 else if (_draggingRemove)
                 {
                     if (_removeMoved)
@@ -388,15 +392,22 @@ public partial class World
                         TryRemoveAt(_removeStart, onlyMark: false);
                     }
 
-                    _draggingRemove = false;
-                    QueueRedraw();
+                    CancelRemoveDrag();
                 }
             }
             else if (mouse.Pressed && mouse.ButtonIndex is (MouseButton.WheelUp or MouseButton.WheelDown)
                 && !mouse.CtrlPressed && IsOrientable(_tool))
             {
-                // WorldCamera let the step through (WheelZooms): it turns the block like R, up clockwise.
-                Rotate(clockwise: mouse.ButtonIndex == MouseButton.WheelUp);
+                // WorldCamera let the step through (WheelZooms): it turns the block like R, up clockwise. A touchpad sends
+                // fractions of a notch (Factor; 0 = unknown, a whole notch): one turn each time they add up to one.
+                var notch = mouse.Factor > 0f ? mouse.Factor : 1f;
+                _wheelTurn += mouse.ButtonIndex == MouseButton.WheelUp ? notch : -notch;
+                if (Math.Abs(_wheelTurn) >= 1f)
+                {
+                    Rotate(clockwise: _wheelTurn > 0f);
+                    _wheelTurn = 0f;
+                }
+
                 GetViewport().SetInputAsHandled();
             }
         }
