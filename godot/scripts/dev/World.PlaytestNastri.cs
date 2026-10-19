@@ -137,8 +137,9 @@ public partial class World
         var handoffs = 0;
         var handoffFrames = 0;
         // Item drawn at Lerp(center(cell), center(next), progress): its cell is floor(x / tile - 0.5) on this East line,
-        // and it is handed to the next cell at that cell's center.
-        static int CellOf(float x) => Mathf.FloorToInt(x / TileSize - 0.5f);
+        // and it is handed to the next cell at that cell's center. The 0.01 px (rounding, below) puts a position an ulp
+        // short of a center on the next cell, so a -0.002 px step at a handoff counts as standing still there.
+        static int CellOf(float x) => Mathf.FloorToInt((x + 0.01f) / TileSize - 0.5f);
         // The simulation holds an item one tick at each handoff (progress 1 on one cell, then 0 on the next: BeltLane
         // drops the overflow), drawn faithfully as one tick standing still. Frames within that tick after a handoff center
         // may stand still and are left out of the speed ratio; everywhere else the item must move every frame.

@@ -39,6 +39,20 @@ public sealed record BuildSpec(
         return new BuildSpec(conveyorId, null, command.Position, command.Direction);
     }
 
+    /// <summary>Building kind placed as <paramref name="structureId"/> (null for a plain belt or an unknown id).</summary>
+    public static BuildingKind? KindFor(string structureId)
+    {
+        foreach (var kind in Enum.GetValues<BuildingKind>())
+        {
+            if (StructureIdFor(kind) == structureId)
+            {
+                return kind;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Content id of a building kind (null for an unknown kind).</summary>
     public static string? StructureIdFor(BuildingKind kind) => kind switch
     {

@@ -107,41 +107,111 @@ public sealed class AgentGameTests
         var error = Refused(game, "piazza", $$$"""{"tipo":"miner","cella":{"x":{{{wall.X}}},"y":{{{wall.Y}}}}}""");
 
         Assert.Equal("Wall", error.Code);
-        var command = Assert.IsType<PlaceBuilding>(Assert.Single(rejected));
-        Assert.Equal(new PlaceBuilding(0, BuildingKind.Miner, wall, Direction.East) { Tick = 1 }, command);
+        // The line already foresees the wall, as the player's red ghost: nothing is sent.
+        Assert.Empty(rejected);
         Assert.Empty(applied);
         Assert.Empty(host.State.Miners);
+
+        // A refusal only the game knows (the junction is not researched) comes back from SimHost.
+        Assert.Equal("Locked", Refused(game, "piazza", """{"tipo":"junction","cella":{"x":494,"y":496}}""").Code);
+        var command = Assert.IsType<PlaceBuilding>(Assert.Single(rejected));
+        Assert.Equal(new PlaceBuilding(0, BuildingKind.Junction, new GridPosition(494, 496), Direction.East) { Tick = 1 }, command);
     }
+
+    private static GridPosition[] Cells(JsonElement result, string key = "celle") =>
+        result.GetProperty(key).EnumerateArray()
+            .Select(c => new GridPosition(c.GetProperty("x").GetInt32(), c.GetProperty("y").GetInt32()))
+            .ToArray();
 
     [Fact]
     public void PiazzaLineDragsLikeThePlayer()
     {
         var host = NewHost();
         var game = new AgentGame(host, Content);
-        // Client drag (40,50) -> (43,51): the pressed cell, then World.DragCells' 4-connected steps.
-        GridPosition[] expected = [new(40, 50), new(41, 50), new(42, 50), new(42, 51), new(43, 51)];
 
-        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":40,"y":50},"a":{"x":43,"y":51}}""");
+        // Brush East, drag (10,10) -> (10,6) without `direzione`: the line faces the drag (PlacementLine).
+        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":10,"y":10},"a":{"x":10,"y":6}}""");
 
-        var placed = result.GetProperty("celle").EnumerateArray()
-            .Select(c => new GridPosition(c.GetProperty("x").GetInt32(), c.GetProperty("y").GetInt32()))
-            .ToArray();
-        Assert.Equal(expected, placed);
-        foreach (var cell in expected)
+        Assert.Equal(Enumerable.Range(6, 5).Reverse().Select(y => new GridPosition(10, y)), Cells(result));
+        Assert.All(result.GetProperty("celle").EnumerateArray(), c => Assert.Equal("nord", c.GetProperty("direzione").GetString()));
+        Assert.All(Cells(result), c => Assert.Equal(Direction.North, host.State.Belts[c].Direction));
+        Assert.Empty(result.GetProperty("rifiuti").EnumerateArray());
+
+        // A diagonal drag keeps the dominant axis, on the anchor's row; a lone block faces the drag too.
+        Assert.Equal(Enumerable.Range(40, 4).Select(x => new GridPosition(x, 50)),
+            Cells(Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":40,"y":50},"a":{"x":43,"y":51}}""")));
+        Call(game, "piazza", """{"tipo":"miner","da":{"x":20,"y":20},"a":{"x":20,"y":30}}""");
+        Assert.Equal(Direction.South, host.State.Miners.Single().Direction);
+    }
+
+    [Fact]
+    public void PiazzaDirezioneIsFixed()
+    {
+        var host = NewHost();
+        var game = new AgentGame(host, Content);
+
+        // `direzione` is R during the drag: every cell faces it; `ruota` only turns the brush of single clicks.
+        Call(game, "piazza", """{"tier":1,"da":{"x":44,"y":53},"a":{"x":46,"y":53},"direzione":"ovest"}""");
+        Assert.All(Enumerable.Range(44, 3), x => Assert.Equal(Direction.West, host.State.Belts[new GridPosition(x, 53)].Direction));
+
+        Assert.Equal("sud", Call(game, "ruota").GetProperty("direzione").GetString());
+        Call(game, "piazza", """{"tier":1,"cella":{"x":40,"y":40}}""");
+        Call(game, "piazza", """{"tier":1,"da":{"x":30,"y":40},"a":{"x":33,"y":40}}""");
+        Assert.Equal(Direction.South, host.State.Belts[new GridPosition(40, 40)].Direction);
+        Assert.Equal(Direction.East, host.State.Belts[new GridPosition(33, 40)].Direction);
+    }
+
+    [Fact]
+    public void PiazzaReportsLineRefusals()
+    {
+        // The classic generator has no walls: the biome one does.
+        var host = new SimHost(NewGame.Sandbox(
+            Content, new GridPosition(500, 500), rules: new GameRules(InstantBuild: true), map: MapGenSettings.Normal(MapSize.Media, 1)));
+        var game = new AgentGame(host, Content);
+        var wall = WallBlock(host.State);
+        var free = Enumerable.Range(1, 30).Select(k => new GridPosition(wall.X - k, wall.Y))
+            .First(c => host.State.CanPlace(new BuildSpec(BuildSpec.DefaultConveyorId, null, c, Direction.East), out _));
+
+        var result = Call(game, "piazza", $$$"""{"tipo":"conveyor-basic","da":{"x":{{{free.X}}},"y":{{{free.Y}}}},"a":{"x":{{{wall.X}}},"y":{{{wall.Y}}}}}""");
+
+        var refused = result.GetProperty("rifiuti").EnumerateArray().ToArray();
+        Assert.Equal("Wall", refused[^1].GetProperty("codice").GetString());
+        Assert.Equal(wall, Cells(result, "rifiuti")[^1]);
+        Assert.Equal(free, Cells(result)[0]);
+        Assert.False(host.State.Belts.ContainsKey(wall));
+    }
+
+    [Fact]
+    public void ClientAndAgentSendTheSameCommands()
+    {
+        // A South column on x 40 the line crosses (the junction is not researched: the column merges into the line).
+        SimHost WithColumn()
         {
-            // Every cell takes the brush direction, as the client does today.
-            Assert.Equal(Direction.East, host.State.Belts[cell].Direction);
+            var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
+            for (var y = 30; y <= 36; y++)
+            {
+                Assert.True(factory.PlaceInstant(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(40, y), Direction.South), charge: false));
+            }
+
+            return new SimHost(factory);
         }
 
-        Assert.Equal(expected.Skip(1), DragLine.Cells(expected[0], expected[^1]));
+        var agent = WithColumn();
+        var client = WithColumn();
 
-        // `ruota` turns the brush like the player's R; `direzione` overrides it for one call.
-        Assert.Equal("sud", Call(game, "ruota").GetProperty("direzione").GetString());
-        Call(game, "piazza", """{"tier":1,"da":{"x":40,"y":53},"a":{"x":40,"y":55}}""");
-        Call(game, "piazza", """{"tier":1,"da":{"x":44,"y":53},"a":{"x":46,"y":53},"direzione":"ovest"}""");
-        Assert.Equal("conveyor-basic", host.State.Belts[new GridPosition(40, 55)].Definition.Id);
-        Assert.Equal(Direction.South, host.State.Belts[new GridPosition(40, 54)].Direction);
-        Assert.Equal(Direction.West, host.State.Belts[new GridPosition(46, 53)].Direction);
+        using var game = new AgentGame(agent, Content);
+        Call(game, "piazza", """{"tier":1,"da":{"x":37,"y":33},"a":{"x":43,"y":33}}""");
+
+        // The client: the same line, its commands sent by hand.
+        var line = PlacementLine.Plan(client.State, new LineRequest(
+            0, BuildSpec.DefaultConveyorId, new GridPosition(37, 33), new GridPosition(43, 33), Direction.East));
+        foreach (var command in PlacementLine.Commands(line))
+        {
+            client.Submit(command);
+        }
+
+        client.AdvanceTicks(1);
+        Assert.Equal(client.Checksum(), agent.Checksum());
     }
 
     [Fact]
@@ -358,8 +428,6 @@ public sealed class AgentGameTests
             """{"tipo":"conveyor-basic","da":{"x":0,"y":0},"a":{"x":2000000000,"y":0}}""").Code);
         Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza",
             """{"tipo":"conveyor-basic","da":{"x":0,"y":0},"a":{"x":-2147483648,"y":0}}""").Code);
-        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza",
-            """{"tipo":"conveyor-basic","da":{"x":0,"y":0},"a":{"x":119,"y":119}}""").Code);
         Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "trova",
             """{"cosa":"iron-ore","cella":{"x":-2147483648,"y":0}}""").Code);
         Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "smonta", """{"cella":{"x":500,"y":5}}""").Code);
@@ -545,12 +613,14 @@ public sealed class AgentGameTests
         Assert.True(game.TryFinishPending(out var done));
         Assert.Equal(1, done.GetProperty("celle").GetArrayLength());
 
-        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":60,"y":60}}""");
+        // A refusal the line foresees (the Core) comes back at once: nothing was sent.
+        Assert.Equal("OnCore", Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":60,"y":60}}""").Code);
+        Call(game, "piazza", """{"tipo":"junction","cella":{"x":52,"y":52}}""");
         // A second command while the first waits is refused, not swapped in.
         Assert.Equal(AgentCodes.ParametriNonValidi,
             Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":51,"y":50}}""").Code);
         host.AdvanceTicks(1);
-        Assert.Equal("OnCore", Assert.Throws<AgentException>(() => game.TryFinishPending(out _)).Code);
+        Assert.Equal("Locked", Assert.Throws<AgentException>(() => game.TryFinishPending(out _)).Code);
         Assert.False(host.State.Belts.ContainsKey(new GridPosition(51, 50)));
     }
 
@@ -635,7 +705,9 @@ public sealed class AgentGameTests
         Assert.Equal(Direction.East, direction);
         Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}""");
 
-        Assert.Equal("est", game.Journal.Entries[^1].Params.GetProperty("direzione").GetString());
+        // Journaled as the brush, not as `direzione` (which would fix every cell of a line).
+        Assert.Equal("est", game.Journal.Entries[^1].Params.GetProperty("pennello").GetString());
+        Assert.False(game.Journal.Entries[^1].Params.TryGetProperty("direzione", out _));
     }
 
     [Fact]
