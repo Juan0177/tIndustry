@@ -26,7 +26,10 @@ public partial class World
         GD.Print($"PLAYTEST lingua {_settings.Lingua}");
     }
 
-    /// <summary>A click with the miner on the Core is refused: the toast says why, in the current language.</summary>
+    /// <summary>
+    /// A click with the miner on the Core is refused: the toast says why, in the current language (the line foresees
+    /// the refusal and sends nothing, so the toast comes from <see cref="SendLine"/>).
+    /// </summary>
     private async Task<bool> PlaytestRefusalToastAsync(Func<string, Task> shot)
     {
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));

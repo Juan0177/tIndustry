@@ -245,13 +245,6 @@ public sealed class SimHost
                 ?? PlacedOrRefused(factory.PlaceInstant(spec, charge: true), spec);
         }
 
-        // A belt touching the Core turns to face it when built: the plan says so from the start, so the
-        // plan, its site and the finished belt all point the same way.
-        if (CoreStockSink.PreferDirectionIntoCore(spec.Origin, factory.CoreTiles) is { } intoCore)
-        {
-            spec = spec with { Direction = intoCore };
-        }
-
         return QueuePlan(command.PlayerId, spec);
     }
 

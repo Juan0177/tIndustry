@@ -279,6 +279,22 @@ public partial class World
             }
         }
 
+        PlaytestRestoreWallet(factory, money, materials);
+
+        if (!wasUnlocked)
+        {
+            factory.Research.ForceLock("junction");
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        await PlaytestWait(0.1);
+        return true;
+    }
+
+    /// <summary>Puts the money and the materials a probe spent or received back to <paramref name="money"/> and <paramref name="materials"/>.</summary>
+    private static void PlaytestRestoreWallet(Factory factory, int money, IReadOnlyDictionary<string, int> materials)
+    {
         factory.Wallet.AddMoney(money - factory.Wallet.Money);
         foreach (var id in materials.Keys.Union(factory.Wallet.MaterialsSnapshot().Keys).Order(StringComparer.Ordinal).ToList())
         {
@@ -292,15 +308,5 @@ public partial class World
                 factory.Wallet.TryRemoveMaterial(id, -delta);
             }
         }
-
-        if (!wasUnlocked)
-        {
-            factory.Research.ForceLock("junction");
-        }
-
-        _visualDirty = true;
-        _buildingsDirty = true;
-        await PlaytestWait(0.1);
-        return true;
     }
 }

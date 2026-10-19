@@ -315,6 +315,10 @@ public partial class World
             fill with { A = 0.9f });
     }
 
+    /// <summary>
+    /// The ghost of the line from the drag's anchor (or of the block under the cursor without a drag): one
+    /// <see cref="PlacementPreview"/> per cell, red where the line foresees a refusal, the bridge's span for a bridge.
+    /// </summary>
     private void DrawGhost(CanvasItem canvas, GridPosition hover)
     {
         if (_view is null)
@@ -322,23 +326,34 @@ public partial class World
             return;
         }
 
-        var size = GhostSize();
-        var ok = GhostRefusal(hover) is null;
-
-        // A belt touching the Core is planned facing it (as the simulation does): show that direction.
-        var belt = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
-        var direction = belt && CoreStockSink.PreferDirectionIntoCore(hover, _view.CoreTiles) is { } intoCore
-            ? intoCore
-            : _placeDir;
-        var rect = new Rect2(hover.X * TileSize, hover.Y * TileSize, size * TileSize, size * TileSize);
-        PlacementPreview.Draw(canvas, Hud.StructureIdFor(ToHudTool(_tool)), rect, direction, turnSprite: belt,
-            arrow: PlacementPreview.HasDirection(KindOf(_tool)), valid: ok);
-
-        if (_tool == BuildTool.Bridge)
+        var size = IsBelt(_tool) ? 1 : GhostSize();
+        foreach (var placement in PlanLine(hover))
         {
-            DrawBridgeGhost(canvas, hover);
+            if (placement.Command is not { } command)
+            {
+                continue; // spanned by a bridge
+            }
+
+            var spec = GhostSpec(command);
+            var valid = placement.Refusal is null;
+            var rect = new Rect2(placement.Cell.X * TileSize, placement.Cell.Y * TileSize, size * TileSize, size * TileSize);
+            PlacementPreview.Draw(canvas, spec.StructureId, rect, placement.Direction, turnSprite: spec.Kind is null,
+                arrow: PlacementPreview.HasDirection(spec.Kind), valid);
+            if (spec.Kind == BuildingKind.Bridge)
+            {
+                DrawBridgeGhost(canvas, spec, refused: !valid);
+            }
         }
     }
+
+    /// <summary>What a line command builds: a crossing shows the junction when the simulation would make one.</summary>
+    private BuildSpec GhostSpec(SimCommand command) => command switch
+    {
+        PlaceBelt { Crossing: true } crossing when _view!.BeltCrossingAt(crossing.Position, crossing.Direction) == BeltCrossing.Junction
+            => BuildSpec.FromCommand(new PlaceBuilding(LocalPlayer, BuildingKind.Junction, crossing.Position, crossing.Direction)),
+        PlaceBelt belt => BuildSpec.FromCommand(belt),
+        _ => BuildSpec.FromCommand((PlaceBuilding)command)
+    };
 
     /// <summary>Building kind the tool places (null for belts and the cursor).</summary>
     private static BuildingKind? KindOf(BuildTool tool) => tool switch
@@ -372,64 +387,13 @@ public partial class World
         _ => 1
     };
 
-    /// <summary>The ghost of the current frame: where, for which tool and direction, its spec and refusal.</summary>
-    private (ulong Frame, GridPosition Hover, BuildTool Tool, Direction Dir, string? Filter, BuildSpec? Spec, RefusalCode? Refusal) _ghost;
-
     /// <summary>
-    /// Why the ghost at <paramref name="hover"/> is refused, null when the block can go there: the simulation's own
-    /// <see cref="Factory.CanPlace"/> on the spec the tool would send (walls, deep water, a miner too weak for the ore,
-    /// a bridge without exit, a taken cell…), plus any cell of its <see cref="Factory.Footprint"/> (a bridge's exit
-    /// too) taken by a pending plan, which the plan queue refuses the same way. Computed once per frame.
+    /// Why the ghost at <paramref name="hover"/> is refused, null when the block can go there: the refusal
+    /// <see cref="PlacementLine"/> foresees for the line's last cell (the block itself for a block that is not laid in
+    /// a line), from the simulation's own <see cref="Factory.CanPlace"/> and the pending plans.
     /// </summary>
-    private RefusalCode? GhostRefusal(GridPosition hover) => GhostAt(hover).Refusal;
-
-    private (BuildSpec? Spec, RefusalCode? Refusal) GhostAt(GridPosition hover)
-    {
-        var frame = Engine.GetProcessFrames();
-        if (_ghost.Frame == frame && _ghost.Hover == hover && _ghost.Tool == _tool && _ghost.Dir == _placeDir
-            && _ghost.Filter == _sorterFilterId)
-        {
-            return (_ghost.Spec, _ghost.Refusal);
-        }
-
-        // The cell a belt drag holds back (never the press cell) shows a junction when the simulation would make one.
-        var command = _view is null || _tool == BuildTool.Cursor
-            ? null
-            : PlaceCommandAt(hover, _draggingPlace && _beltDrag.HeldCell == hover);
-        if (command is PlaceBelt { Crossing: true } crossing
-            && _view!.BeltCrossingAt(hover, crossing.Direction) == BeltCrossing.Junction)
-        {
-            var junction = BuildSpec.FromCommand(new PlaceBuilding(LocalPlayer, BuildingKind.Junction, hover, crossing.Direction));
-            RefusalCode? planned = _view.IsPlannedTile(hover) ? RefusalCode.Occupied : null;
-            _ghost = (frame, hover, _tool, _placeDir, _sorterFilterId, junction, planned);
-            return (junction, planned);
-        }
-
-        var spec = command switch
-        {
-            PlaceBelt belt => BuildSpec.FromCommand(belt),
-            PlaceBuilding building => BuildSpec.FromCommand(building),
-            _ => null
-        };
-        RefusalCode? refusal = null;
-        // A belt over a free belt of its tier turns it in place (or does nothing): never refused.
-        var overBelt = command is PlaceBelt over
-            && _view!.BeltOverBeltAt(hover, over.Direction, spec!.StructureId) != BeltOverBelt.None;
-        if (spec is not null && !overBelt)
-        {
-            if (!_view!.CanPlace(spec, out var reason))
-            {
-                refusal = reason ?? RefusalCode.Occupied;
-            }
-            else if (_view.Footprint(spec).Any(_view.IsPlannedTile))
-            {
-                refusal = RefusalCode.Occupied;
-            }
-        }
-
-        _ghost = (frame, hover, _tool, _placeDir, _sorterFilterId, spec, refusal);
-        return (spec, refusal);
-    }
+    private RefusalCode? GhostRefusal(GridPosition hover) =>
+        _view is null || _tool == BuildTool.Cursor ? null : PlanLine(hover)[^1].Refusal;
 
     private bool FootprintPlanned(GridPosition origin, int size)
     {
@@ -449,16 +413,15 @@ public partial class World
 
     /// <summary>
     /// The bridge's span to the exit the simulation would pick (<see cref="Factory.Footprint"/>), in the refused colours
-    /// when the ghost is refused (<see cref="GhostRefusal"/>); nothing when the bridge has no exit.
+    /// when <paramref name="refused"/>; nothing when the bridge has no exit.
     /// </summary>
-    private void DrawBridgeGhost(CanvasItem canvas, GridPosition entry)
+    private void DrawBridgeGhost(CanvasItem canvas, BuildSpec spec, bool refused)
     {
-        if (_view is null || GhostAt(entry) is not { Spec: { } spec } ghost || _view.Footprint(spec) is not [_, var exit])
+        if (_view is null || _view.Footprint(spec) is not [var entry, var exit])
         {
             return;
         }
 
-        var refused = ghost.Refusal is not null;
         var mid = refused ? UiColors.PonteRifiutatoCampata : UiColors.PonteCampata;
         var tip = refused ? UiColors.PonteRifiutatoEstremi : UiColors.PonteEstremi;
         canvas.DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);

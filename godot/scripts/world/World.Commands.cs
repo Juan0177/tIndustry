@@ -12,9 +12,12 @@ public partial class World
     /// <summary>The only player until co-op: id used on every command.</summary>
     private const int LocalPlayer = 0;
 
-    // Commands submitted while drag-placing whose "occupied / on the Core" refusal must stay silent
-    // (the cursor sweeps over cells that are expected to be blocked). Counted per equal command.
+    // Commands of a released line whose position refusal ("occupied", "on the Core"…) stays silent (the line sweeps
+    // over cells that are expected to be blocked). Counted per equal command.
     private readonly Dictionary<SimCommand, int> _quietRefusals = [];
+
+    // Refusal codes a released line already toasted: one toast per code for the whole line (cleared at each release).
+    private readonly HashSet<RefusalCode> _lineToasts = [];
 
     /// <summary>Starts a game on <paramref name="factory"/>: fresh host, so the tick clock restarts at 0.</summary>
     private void AttachGame(Factory factory) => AttachGame(new SimHost(factory));
@@ -34,6 +37,7 @@ public partial class World
         _host.CommandRejected += OnCommandRejected;
         _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
+        CancelLine();
         _effects?.Clear();
         // Site ids start over in the new game: a site-done event must not find an old game's rect.
         _constructionLayer?.Clear();
@@ -214,9 +218,11 @@ public partial class World
 
     private void OnCommandRejected(SimCommand command, Refusal reason)
     {
-        var quiet = TakeQuietRefusal(command)
-            && reason.Code is RefusalCode.Occupied or RefusalCode.OnCore
-                or RefusalCode.Wall or RefusalCode.DeepWater or RefusalCode.NeedsAdvancedMiner;
+        var fromLine = TakeQuietRefusal(command);
+        var quiet = fromLine
+            && (reason.Code is RefusalCode.Occupied or RefusalCode.OnCore
+                    or RefusalCode.Wall or RefusalCode.DeepWater or RefusalCode.NeedsAdvancedMiner
+                || !_lineToasts.Add(reason.Code));
         switch (command)
         {
             case UnlockStructure:

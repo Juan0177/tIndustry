@@ -15,7 +15,7 @@ public partial class World
     private void ClearToCursor(bool toast = true)
     {
         _tool = BuildTool.Cursor;
-        _draggingPlace = false;
+        CancelLine();
         _hud?.ClearToolSelection(toast);
         QueueRedraw();
     }
@@ -23,6 +23,8 @@ public partial class World
     private void OnHudRotate()
     {
         _placeDir = DirectionMath.Right(_placeDir);
+        // R during a drag fixes the new way for the whole line, until the release.
+        _lineFixed |= LineDragActive && IsOrientable(_tool);
         _hud?.SetDirectionLabel(_placeDir);
         _hud?.ShowToast(Testi.F("hud.direzione.toast", Testi.Direzione(_placeDir)));
         QueueRedraw();
@@ -131,8 +133,26 @@ public partial class World
             return;
         }
 
+        if (LineDragActive && @event is InputEventWithModifiers modifiers && modifiers.CtrlPressed != _lineCtrl)
+        {
+            // Ctrl pressed or let go during the drag: the preview switches between the straight line and the path.
+            _lineCtrl = modifiers.CtrlPressed;
+            QueueRedraw();
+        }
+
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (key.Keycode is Key.I or Key.T or Key.M or Key.G)
+            {
+                CancelLine(); // a panel opens: the drag is dropped
+            }
+            else if (LineDragActive && key.Keycode == Key.Escape)
+            {
+                CancelLine();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode == Key.I)
             {
                 OpenSettings();
@@ -320,20 +340,33 @@ public partial class World
                         return;
                     }
 
-                    _draggingPlace = _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
-                        or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter;
-                    _dragCell = cell;
-                    BeginPlaceDrag(cell);
+                    BeginLine(cell, mouse.CtrlPressed);
                     GetViewport().SetInputAsHandled();
                 }
-                else
+                else if (LineDragActive)
                 {
-                    _draggingPlace = false;
+                    // Let go outside the window: dropped, like Esc.
+                    if (GetViewport().GetVisibleRect().HasPoint(mouse.Position))
+                    {
+                        SendLine(cell);
+                    }
+                    else
+                    {
+                        CancelLine();
+                    }
+
+                    GetViewport().SetInputAsHandled();
                 }
             }
             else if (mouse.ButtonIndex == MouseButton.Right)
             {
-                if (mouse.Pressed)
+                if (mouse.Pressed && LineDragActive)
+                {
+                    // The right button during a left drag only drops the line.
+                    CancelLine();
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (mouse.Pressed)
                 {
                     // Nothing is sent yet: a click toggles on release, a drag marks once it moves.
                     _draggingRemove = true;
@@ -365,18 +398,7 @@ public partial class World
                 QueueRedraw();
             }
 
-            if (_draggingPlace && _tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress
-                or BuildTool.Junction or BuildTool.Splitter or BuildTool.Sorter)
-            {
-                // A fast drag skips cells between two motion events: fill them in order.
-                foreach (var step in DragCells(_dragCell, cell))
-                {
-                    PlaceDragged(step);
-                }
-
-                _dragCell = cell;
-            }
-            else if (_draggingRemove && !cell.Equals(_dragCell))
+            if (_draggingRemove && !cell.Equals(_dragCell))
             {
                 if (!_removeMoved)
                 {

@@ -2614,12 +2614,6 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        // Belts that touch the Core must face into it so Drain can absorb.
-        if (CoreStockSink.PreferDirectionIntoCore(position, CoreTiles) is { } intoCore)
-        {
-            direction = intoCore;
-        }
-
         if (charge && !TryChargeConveyor(def))
         {
             return false;

@@ -112,11 +112,15 @@ public partial class World : Node2D
     private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
     private GridPosition? _hover;
     private Vector2 _hoverScreen;
-    private bool _draggingPlace;
+    // Left drag (Mindustry): the cell the button went down on, null with no drag; R pressed during it fixes the
+    // brush for the whole line; Ctrl as the last input event said.
+    private GridPosition? _lineAnchor;
+    private bool _lineFixed;
+    private bool _lineCtrl;
     private bool _draggingRemove;
     // Cells a right-drag already covered: a block gets one Remove per drag.
     private readonly HashSet<GridPosition> _removedThisDrag = [];
-    // Last cell a left or right drag reached: the next one fills the cells in between.
+    // Last cell a right drag reached: the next one fills the cells in between.
     private GridPosition _dragCell;
     // Where the right button went down, and whether the drag has left that cell: a click without moving
     // toggles the mark there on release, a real drag only marks.
@@ -229,6 +233,11 @@ public partial class World : Node2D
     /// <summary>The agents' <c>ruota</c>: the player's R (direction label and toast included).</summary>
     internal void AgentRotate() => OnHudRotate();
 
+    /// <summary>A panel over the world is open (Home, Nuova partita, saves, settings, Ricerca, Mercato, campaign).</summary>
+    private bool PanelOpen => _home?.IsOpen == true || _newGame?.IsOpen == true || _saves?.IsOpen == true
+        || _settingsPanel?.IsOpen == true || _research?.IsOpen == true || _mercato?.IsOpen == true
+        || _campaignSelect?.IsOpen == true;
+
     /// <summary>A game is being played: not behind Home or Nuova partita. <see cref="_Process"/> runs the world only then.</summary>
     internal bool GameInPlay => _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;
 
@@ -264,6 +273,11 @@ public partial class World : Node2D
         SyncNight();
         SyncAmbientEffects(delta);
         SyncTutorial();
+        if (LineDragActive && PanelOpen)
+        {
+            CancelLine(); // a panel opened during the drag (from the HUD, a level's end…): nothing is sent
+        }
+
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
             // Behind the Home and the panels opened from it the map scrolls slowly on its own and the player cannot
