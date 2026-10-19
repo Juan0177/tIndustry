@@ -22,7 +22,7 @@ import carattere  # noqa: E402
 import forme  # noqa: E402
 import genera  # noqa: E402
 from blocchi import SPRITE, sprite  # noqa: E402
-from palette import ACCENTO, BAGLIORE, CELLA, METALLO, NASTRO, NUCLEO, RAME, RAMPE  # noqa: E402
+from palette import ACCENTO, BAGLIORE, CELLA, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
@@ -383,7 +383,7 @@ class TestGenera(unittest.TestCase):
                 core = SPRITE[f"core-{n}"]()
                 fotogrammi = fotogrammi_di(SPRITE[f"core-{n}-light-anim"]())
                 self.assertEqual(CORE_LUCE_FOTOGRAMMI, len(fotogrammi))
-                # The core body is opaque all over its footprint except the cut corners.
+                # The core body is opaque all over its footprint (it stands on its plate).
                 self.assertEqual(255, core.getpixel((core.width // 2, 2))[3])
                 for f in fotogrammi:
                     # Light frames are opaque discs over the nucleus: stacked on the icon they replace
@@ -490,6 +490,57 @@ class TestGenera(unittest.TestCase):
                                      [u.getpixel((T - 1, y)) for y in range(T // 2, T)], f"{nastro} {k + 1}: Est")
                     ovest = {u.getpixel((x, y))[:3] for x in range(5) for y in range(T)}
                     self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
+
+    def test_unioni_laterali(self):
+        # Fed from behind and by belts on both sides (BeltShape.JoinBoth): the T opened behind. Its West
+        # columns 0-4 are the straight frame's (the belt behind runs in), the rest is the T's.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
+                lati = fotogrammi_di(SPRITE[f"{nastro}-join-both-anim"]())
+                self.assertEqual(len(dritti), len(lati))
+                for k, (d, u, j) in enumerate(zip(dritti, unioni, lati)):
+                    for y in range(T):
+                        for x in range(T):
+                            atteso = (u if x >= 5 else d).getpixel((x, y))
+                            self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} both {k + 1}: {x},{y}")
+
+    def test_unioni_da_edificio(self):
+        # Side joins with one fed side (belt or building) or with a building on either side are the junction
+        # composition ("dot block") in the tier's colours, but a belt: the West and East edge columns (0-4, 27-31) of the East-West tread are the straight frame's
+        # (ribs, no chevron: rows 6 / 25), so they scroll with it; a side without a building is the straight
+        # frame's rail and groove, corners included.
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
+                for nome, nord, sud in (("left", True, False), ("right", False, True), ("building-both", True, True)):
+                    lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
+                    self.assertEqual(len(dritti), len(lati))
+                    for k, (d, j) in enumerate(zip(dritti, lati)):
+                        for y in range(T):
+                            chiuso = (y <= 5 and not nord) or (y >= T - 6 and not sud)
+                            for x in range(T):
+                                if chiuso:
+                                    atteso = d.getpixel((x, y))
+                                elif (x < 5 or x > T - 6) and 5 <= y <= T - 6:
+                                    atteso = d.getpixel((x, y if y in (5, T - 6) else 6 if y < T // 2 else T - 7))
+                                else:
+                                    continue
+                                self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} edificio {nome} {k + 1}: {x},{y}")
+                        # The hub of the junction marks the merge.
+                        self.assertEqual(SPRITE["junction-base"]().getpixel((15, 15)), j.getpixel((15, 15)))
+
+    def test_basamento_sotto_i_blocchi(self):
+        # Blocks that feed or take from belts stand on a rectangular plate: their footprint is opaque
+        # everywhere (no ground in the cut corners), with the dark outline on the edge.
+        for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "assembler",
+                     "assembler-base", "smelter", "extractor", "generator", "generator-base",
+                     *(f"core-{n}" for n in range(1, CORE_TIER + 1))):
+            with self.subTest(sprite=nome):
+                im = SPRITE[nome]()
+                self.assertEqual({255}, set(im.getchannel("A").tobytes()))
+                self.assertEqual(OUT, im.getpixel((0, 0))[:3])
 
     def test_incrocio_a_pezzi(self):
         # The icon is the open base; the North rail piece is the straight belt's top rail (rows 0-4)

@@ -175,8 +175,8 @@ public sealed class Factory : IGameView
     /// <summary>
     /// Mindustry's auto-junction: a dragged belt line facing <paramref name="direction"/> that crosses a plain belt
     /// perpendicular to it puts a junction there, so both lines keep flowing. Only where the junction behaves like the
-    /// belt it replaces: the crossed belt is straight (not a corner or T), fed from behind by logistics only (no
-    /// building feeds it) and hands over to a logistics cell ahead (not the Core or a building); the dragged line has
+    /// belt it replaces: the crossed belt is straight (not a corner or T; the dragged line joining its side is
+    /// fine), fed from behind by logistics only (no building feeds it) and hands over to a logistics cell ahead (not the Core or a building); the dragged line has
     /// a belt or belt plan of its own direction on both sides of the cell (the client sends the crossing only once the
     /// line goes on past it, <see cref="BeltLine.IsInterior"/>); the cell has no plan (not marked for removal).
     /// Splitters, sorters, bridges, junctions and parallel belts are never crossings.
@@ -187,7 +187,7 @@ public sealed class Factory : IGameView
             || cell.Kind != LogisticsKind.Belt
             || cell.Direction == direction
             || cell.Direction == DirectionMath.Opposite(direction)
-            || GetBeltShape(position) != BeltShape.Straight
+            || GetBeltShape(position) is BeltShape.Corner or BeltShape.T
             || IsPlannedTile(position)
             || !Belts.Contains(position.Step(cell.Direction))
             || !IsLineBelt(position.Step(DirectionMath.Opposite(direction)), direction)
@@ -265,6 +265,10 @@ public sealed class Factory : IGameView
     private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> beltIncoming = new();
     private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
+    // Tiles of buildings that exchange items with belts (miners, crafters, extractors, generators, the Core): belts
+    // blend with them (visual only). Lamps and power nodes have no item I/O.
+    private readonly HashSet<GridPosition> blendTiles = new();
+    private Func<GridPosition, GridPosition, bool>? buildingBlends;
     private int buildingsVersion;
     private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
 
@@ -297,14 +301,32 @@ public sealed class Factory : IGameView
             AddEjector(extractor.Position, Extractor.Size, extractor.Direction);
         }
 
+        blendTiles.Clear();
+        blendTiles.UnionWith(ejectorTiles.Keys);
+        blendTiles.UnionWith(CoreTiles);
+        foreach (var generator in generators)
+        {
+            for (var y = 0; y < Generator.Size; y++)
+            {
+                for (var x = 0; x < Generator.Size; x++)
+                {
+                    blendTiles.Add(new GridPosition(generator.Position.X + x, generator.Position.Y + y));
+                }
+            }
+        }
+
         beltIncoming.Clear();
         buildingFeeds ??= BuildingEjectsInto;
+        buildingBlends ??= (source, _) => blendTiles.Contains(source);
         foreach (var (position, cell) in Belts.Cells)
         {
-            // One feeder lookup per cell gives both the incoming flow and the shape.
-            var (back, left, right) = Belts.Feeders(position, cell.Direction, buildingFeeds);
+            // One feeder lookup per cell gives both the incoming flow and the shape (visual: buildings blend by
+            // capability, as in Mindustry, not by whether they eject into this belt right now).
+            var (back, left, right) = Belts.Feeders(position, cell.Direction, buildingBlends);
             Direction? incoming = BeltGrid.IncomingFrom(cell.Direction, back, left, right, out var dir) ? dir : null;
-            var shape = cell.Kind == LogisticsKind.Belt ? BeltGrid.ShapeFrom(back, left, right) : BeltShape.Straight;
+            var shape = cell.Kind == LogisticsKind.Belt
+                ? BeltGrid.ShapeFrom(back, left, right, Belts.BuildingFeeders(position, cell.Direction, buildingBlends))
+                : BeltShape.Straight;
             var sides = 0;
             if (cell.Kind == LogisticsKind.Junction)
             {
@@ -2607,6 +2629,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        buildingsVersion++; // belts blend with generators
         generators.Add(new Generator(origin, direction, nextEntityId++));
         return true;
     }

@@ -261,6 +261,18 @@ def striscia(fotogrammi):
     return out
 
 
+def basamento(im, rampa):
+    """`im` on a rectangular plate filling its whole footprint: outlined, in the shadow tone of the
+    block's own ramp (darker than its body), so a chamfered or rounded block shows no ground in its
+    cut corners next to the belts it feeds, and its silhouette still reads."""
+    w, h = im.size
+    out = nuova(w, h)
+    rett(out, 0, 0, w - 1, h - 1, OUT)
+    rett(out, 1, 1, w - 2, h - 2, _toni(rampa)[0])
+    out.alpha_composite(im)
+    return out
+
+
 def componi(*strati):
     """Alpha-composite same-size layers, first at the bottom."""
     out = nuova(*strati[0].size)

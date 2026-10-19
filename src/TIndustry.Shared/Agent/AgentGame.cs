@@ -552,8 +552,9 @@ public sealed class AgentGame : IDisposable
     }
 
     /// <summary>
-    /// The belt's drawn shape when it is not straight (straight is the default and is left out): curva, T, or the
-    /// name of a newer <see cref="TIndustry.Shared.BeltShape"/>; <c>ingresso</c> is the heading of the item coming in.
+    /// The belt's drawn shape when it is not straight (straight is the default and is left out): curva, t, or a side
+    /// join (unione-sinistra / unione-destra: the dot block; unione-doppia: belts on both sides; unione-edificio-doppia:
+    /// both sides with a building); <c>ingresso</c> is the heading of the item coming in.
     /// </summary>
     private JsonObject? BeltShape(GridPosition cell)
     {
@@ -567,7 +568,11 @@ public sealed class AgentGame : IDisposable
         item["forma"] = shape switch
         {
             TIndustry.Shared.BeltShape.Corner => "curva",
-            TIndustry.Shared.BeltShape.T => "T",
+            TIndustry.Shared.BeltShape.T => "t",
+            TIndustry.Shared.BeltShape.JoinLeft => "unione-sinistra",
+            TIndustry.Shared.BeltShape.JoinRight => "unione-destra",
+            TIndustry.Shared.BeltShape.JoinBoth => "unione-doppia",
+            TIndustry.Shared.BeltShape.JoinBuildingBoth => "unione-edificio-doppia",
             _ => shape.ToString()
         };
         if (View.TryGetBeltIncomingDirection(cell, out var incoming))

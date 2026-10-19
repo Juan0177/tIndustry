@@ -384,8 +384,8 @@ public partial class World
                 var to = CellCenter(cell.Position.Step(cell.Direction));
                 var pos = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
                 sprite.Position = pos;
-                // Corner and T = galleria: items disappear while inside the turn or the merge.
-                sprite.Visible = _view.GetBeltShape(cell.Position) == BeltShape.Straight;
+                // Corner and T = galleria: items disappear while inside the turn or the merge (side joins show them).
+                sprite.Visible = _view.GetBeltShape(cell.Position) is not (BeltShape.Corner or BeltShape.T);
             }
         }
 

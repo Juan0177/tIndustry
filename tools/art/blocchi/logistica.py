@@ -1,4 +1,5 @@
-"""Logistics sprites: belts in three tiers (icon, straight strip, corner strip, T merge strip),
+"""Logistics sprites: belts in three tiers (icon, straight strip, corner strip, T merge strip,
+side join strips),
 junction, splitter, sorter, bridge end and bridge span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. Belt strips
@@ -122,7 +123,7 @@ def _colore_curva(tier, fotogramma, a, b, v=None):
     return _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u)
 
 
-def unione_t(tier, fotogramma):
+def unione_t(tier, fotogramma, dietro=False):
     """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and
     South edges, out from the East edge.
 
@@ -132,14 +133,16 @@ def unione_t(tier, fotogramma):
     meet the output belt's rails and both treads bend into the output like a corner. Where both
     corners would draw their outer groove and rail (they would cross the other input) the tread goes on; the
     West side, with no input, is closed by a straight rail that continues the side belts' outer
-    rails.
+    rails. With `dietro` (fed from behind too: BeltShape.JoinBoth) the West side is open instead: the
+    straight frame's columns 0-4, so the belt behind runs in.
     """
     im = forme.nuova(T, T)
     for y in range(T):
         for x in range(T):
             if x < 5:
                 # Back rail, mirrored on the axis so both input edges see the corner's joint.
-                forme.pixel(im, x, y, _binario(min(y, T - 1 - y), x, tier))
+                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO) if dietro
+                            else _binario(min(y, T - 1 - y), x, tier))
                 continue
             a, b = (T - 1 - y, T - 1 - x) if y >= T // 2 else (y, T - 1 - x)
             v = _riga_curva(a, b)
@@ -153,6 +156,13 @@ def _registra_nastro(tier):
     sprite(tier + "-anim")(lambda: forme.striscia([nastro(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-corner-anim")(lambda: forme.striscia([curva(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-t-anim")(lambda: forme.striscia([unione_t(tier, k) for k in range(FOTOGRAMMI)]))
+    # Side joins (BeltShape.JoinLeft / JoinRight / JoinBuildingBoth: the dot block; JoinBoth: the T open behind),
+    # East-facing art: left of the flow is North.
+    sprite(tier + "-join-both-anim")(lambda: forme.striscia([unione_t(tier, k, dietro=True) for k in range(FOTOGRAMMI)]))
+    for nome, (nord, sud) in (("join-left", (True, False)), ("join-right", (False, True)),
+                              ("join-building-both", (True, True))):
+        sprite(f"{tier}-{nome}-anim")(lambda nord=nord, sud=sud: forme.striscia(
+            [unione_edificio(tier, k, nord, sud) for k in range(FOTOGRAMMI)]))
 
 
 for _tier in TIER:
@@ -192,7 +202,7 @@ def _battistrada(u, v):
     return {7: NASTRO[0], 0: NASTRO[2]}.get(u % 8, NASTRO[1])
 
 
-def _incrocio():
+def _incrocio(tier="conveyor-basic"):
     """Two belts crossing, as in Mindustry: the vertical piece lies over the horizontal one. Each
     keeps the straight belt's rails (rows / columns 0-4 and 27-31; in a corner the two rails meet
     on a dark mitre) and its ribbed tread, without chevrons: a junction has no direction. The
@@ -208,7 +218,7 @@ def _incrocio():
                 # Corner: the E-W rail nearer the North / South edge, the N-S rail nearer the West /
                 # East edge, a dark mitre on the diagonal.
                 dx, dy = abs(x - c), abs(y - c)
-                colore = _binario(x, y, "conveyor-basic") if dy > dx else _binario(y, x, "conveyor-basic") if dx > dy else OUT
+                colore = _binario(x, y, tier) if dy > dx else _binario(y, x, tier) if dx > dy else OUT
             elif treno_y:
                 # The N-S piece lies over the E-W one: its tread runs through the middle.
                 colore = NASTRO[0] if x in (5, 26) else _battistrada(y, x)
@@ -228,6 +238,35 @@ def _incrocio():
 # The icon is the fully open crossing (every side connected): the base itself.
 sprite("junction-base")(_incrocio)
 sprite("junction")(_incrocio)
+
+
+def unione_edificio(tier, fotogramma, nord, sud):
+    """Side join with the junction's "dot block" (the user's pick): a straight East belt fed from behind and
+    from the North (`nord`, left of the flow) and/or South (`sud`) edge, by a belt (a secondary line joining
+    the main one) or by a building that exchanges items with belts.
+
+    It is the junction composition in the tier's colours (the belt from the building side runs through
+    the middle, the hub marks where the items merge), but a belt: the East-West tread at the West and
+    East edges is the straight frame's ribbed tread (no chevron), so it scrolls with the straight belt
+    frame by frame; a side without a building is closed by the straight frame's rail and groove (rows 0-5 or
+    26-31, corners included), pixel for pixel.
+    """
+    assert nord or sud, "a side join has at least one open side (no side = straight)"
+    base = _incrocio(tier)
+    im = forme.nuova(T, T)
+    for y in range(T):
+        for x in range(T):
+            chiuso = (y <= 5 and not nord) or (y >= T - 6 and not sud)
+            bordo = (x < 5 or x > T - 6) and 5 <= y <= T - 6
+            if chiuso:
+                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO))
+            elif bordo:
+                # Ribs only (rows 6 / 25 are outside the chevron): chevrons end at the edge, as at a junction.
+                riga = y if y in (5, T - 6) else 6 if y < T // 2 else T - 7
+                forme.pixel(im, x, y, _colore_nastro(x, riga, tier, fotogramma * PASSO))
+            else:
+                forme.pixel(im, x, y, base.getpixel((x, y)))
+    return im
 
 
 @sprite("junction-bordo")

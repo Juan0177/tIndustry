@@ -138,7 +138,7 @@ def _base_minatore(rampa_corpo, accento, avanzato):
         # Rust hazard marks on the chamfers.
         for bx, by in ((5, 5), (L - 7, 5), (5, L - 7), (L - 7, L - 7)):
             forme.rett(im, bx, by, bx + 1, by + 1, RAME[2])
-    return im
+    return forme.basamento(im, rampa_corpo)
 
 
 def _lampada():
@@ -288,7 +288,7 @@ def _base_assemblatore():
     for bx, by in ((2, 2), (L - 5, 2), (2, L - 5), (L - 5, L - 5)):
         forme.pannello(im, bx - 1, by - 1, bx + 2, by + 2, FERRO)
         forme.bullone(im, bx, by, METALLO)
-    return im
+    return forme.basamento(im, FERRO)
 
 
 def _braccio():
@@ -344,4 +344,4 @@ def extractor():
         for x in range(T):
             if math.hypot(x + 0.5 - T / 2, y + 0.5 - T / 2) <= 4:
                 forme.pixel(im, x, y, NASTRO[0])
-    return im
+    return forme.basamento(im, PIOMBO)

@@ -159,7 +159,7 @@ def _corpo(n):
         for b in range(8):
             a = b * math.pi / 4 + math.pi / 8
             _lampada(im, C + (esterno_r + 5) * math.cos(a), C + (esterno_r + 5) * math.sin(a), 2)
-    return im
+    return forme.basamento(im, METALLO[:5])
 
 
 def luce(n, livello):
