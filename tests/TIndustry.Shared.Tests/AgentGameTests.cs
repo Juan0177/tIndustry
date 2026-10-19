@@ -545,12 +545,12 @@ public sealed class AgentGameTests
         Assert.True(game.TryFinishPending(out var done));
         Assert.Equal(1, done.GetProperty("celle").GetArrayLength());
 
-        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":50}}""");
+        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":60,"y":60}}""");
         // A second command while the first waits is refused, not swapped in.
         Assert.Equal(AgentCodes.ParametriNonValidi,
             Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":51,"y":50}}""").Code);
         host.AdvanceTicks(1);
-        Assert.Equal("Occupied", Assert.Throws<AgentException>(() => game.TryFinishPending(out _)).Code);
+        Assert.Equal("OnCore", Assert.Throws<AgentException>(() => game.TryFinishPending(out _)).Code);
         Assert.False(host.State.Belts.ContainsKey(new GridPosition(51, 50)));
     }
 

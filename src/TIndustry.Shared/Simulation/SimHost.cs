@@ -217,9 +217,16 @@ public sealed class SimHost
             {
                 case BeltCrossing.Junction:
                     return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
-                case BeltCrossing.JunctionLocked:
-                    return RefusalCode.CrossingNeedsJunction;
             }
+        }
+
+        // Belt over belt (a locked crossing too: the crossed line then merges into the new one), in both build modes.
+        switch (factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId))
+        {
+            case BeltOverBelt.Same:
+                return null;
+            case BeltOverBelt.Rotate:
+                return factory.TryRotateBelt(spec.Origin, spec.Direction) ? null : RefusalCode.Occupied;
         }
 
         if (factory.State.Rules.InstantBuild)

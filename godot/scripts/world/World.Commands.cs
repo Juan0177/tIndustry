@@ -212,20 +212,11 @@ public partial class World
         : _view.Belts.Count + _view.Miners.Count + _view.Smelters.Count + _view.Assemblers.Count
             + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count + _view.Lamps.Count;
 
-    // "Unlock the junction to cross belts" already shown in this drag (reset on each press).
-    private bool _crossingToastShown;
-
     private void OnCommandRejected(SimCommand command, Refusal reason)
     {
         var quiet = TakeQuietRefusal(command)
             && reason.Code is RefusalCode.Occupied or RefusalCode.OnCore
                 or RefusalCode.Wall or RefusalCode.DeepWater or RefusalCode.NeedsAdvancedMiner;
-        if (reason.Code == RefusalCode.CrossingNeedsJunction)
-        {
-            quiet = _crossingToastShown;
-            _crossingToastShown = true;
-        }
-
         switch (command)
         {
             case UnlockStructure:

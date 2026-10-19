@@ -133,13 +133,7 @@ public enum RefusalCode
     NothingToRemove,
 
     /// <summary>The Core is already upgraded (<see cref="IGameView.CoreUpgradeLevel"/>).</summary>
-    CoreAlreadyUpgraded,
-
-    /// <summary>
-    /// A dragged belt line crosses a perpendicular belt but the junction is not researched: the cell stays as it is
-    /// (<see cref="BeltCrossing.JunctionLocked"/>).
-    /// </summary>
-    CrossingNeedsJunction
+    CoreAlreadyUpgraded
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>
@@ -173,8 +167,24 @@ public enum BeltCrossing
     /// <summary>A junction replaces the perpendicular belt.</summary>
     Junction,
 
-    /// <summary>A junction would replace it, but it is not researched.</summary>
+    /// <summary>A junction would replace it, but it is not researched: the belt goes on as a belt over a belt.</summary>
     JunctionLocked
+}
+
+/// <summary>What a plain belt placed over a plain belt does (<see cref="IGameView.BeltOverBeltAt"/>); tier = conveyor id.</summary>
+public enum BeltOverBelt
+{
+    /// <summary>Not a belt over a free plain belt: placed (or refused) as usual.</summary>
+    None,
+
+    /// <summary>Same belt, same direction: nothing to do, silently.</summary>
+    Same,
+
+    /// <summary>Same belt, another direction: it turns in place, at once and free, keeping its items.</summary>
+    Rotate,
+
+    /// <summary>Another tier: the belt is replaced (not produced yet).</summary>
+    Replace
 }
 
 /// <summary>

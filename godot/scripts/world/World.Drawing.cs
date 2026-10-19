@@ -412,7 +412,10 @@ public partial class World
             _ => null
         };
         RefusalCode? refusal = null;
-        if (spec is not null)
+        // A belt over a free belt of its tier turns it in place (or does nothing): never refused.
+        var overBelt = command is PlaceBelt over
+            && _view!.BeltOverBeltAt(hover, over.Direction, spec!.StructureId) != BeltOverBelt.None;
+        if (spec is not null && !overBelt)
         {
             if (!_view!.CanPlace(spec, out var reason))
             {

@@ -948,7 +948,7 @@ public sealed class AgentGame : IDisposable
                 }
             }
 
-            // The drag's last cell over a perpendicular belt: the client drops it (it would only be refused as occupied).
+            // The drag's last cell over a perpendicular belt: the client drops it, so it is reported as not placed.
             if (dropped is { } last)
             {
                 var cell = CellJson(last);

@@ -120,12 +120,12 @@ public sealed class GameEngineTests(ServerFixture server) : IClassFixture<Server
         var core = (await server.Ok("stato", new { sessione = id })).GetProperty("core").GetProperty("cella");
         var (cx, cy) = (core.GetProperty("x").GetInt32(), core.GetProperty("y").GetInt32());
 
-        // Bug 2: a line across a built perpendicular belt is a crossing (here refused: the junction is not researched).
+        // Bug 2: a line across a built perpendicular belt is a crossing (here a merge: the junction is not researched).
         await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = cx + 6, y = cy - 5 }, a = new { x = cx + 6, y = cy + 5 }, direzione = "nord" });
         await server.Ok("avanza", new { sessione = id, tick = 6000 });
         var line = await server.Ok("piazza", new { sessione = id, tier = 1, da = new { x = cx + 3, y = cy }, a = new { x = cx + 9, y = cy }, direzione = "est" });
-        Assert.Contains(line.GetProperty("rifiuti").EnumerateArray(), r => r.GetProperty("x").GetInt32() == cx + 6
-            && r.GetProperty("codice").GetString() == nameof(RefusalCode.CrossingNeedsJunction));
+        Assert.Contains(line.GetProperty("celle").EnumerateArray(), c => c.GetProperty("x").GetInt32() == cx + 6);
+        Assert.DoesNotContain(line.GetProperty("rifiuti").EnumerateArray(), r => r.GetProperty("x").GetInt32() == cx + 6);
 
         // Bug 5: stato and ruota use the player's own direction.
         await server.Ok("input", new { sessione = id, tipo = "tasto", tasto = "R" });
