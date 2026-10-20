@@ -311,6 +311,7 @@ public partial class World : Node2D
         // Buildings next to a belt decide its corners (Mindustry blending), so they redraw the belts too.
         if (_visualDirty || _buildingsDirty)
         {
+            _lineInputsVersion++;
             RebuildBeltVisual();
             _visualDirty = false;
         }

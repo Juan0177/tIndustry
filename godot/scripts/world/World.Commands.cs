@@ -37,6 +37,7 @@ public partial class World
         _host.CommandRejected += OnCommandRejected;
         _host.EventRaised += OnSimEvent;
         _quietRefusals.Clear();
+        _linePlan = null;
         CancelLine();
         _effects?.Clear();
         // Site ids start over in the new game: a site-done event must not find an old game's rect.
@@ -119,6 +120,7 @@ public partial class World
 
     private void OnCommandApplied(SimCommand command)
     {
+        _lineInputsVersion++;
         TakeQuietRefusal(command);
         switch (command)
         {
@@ -156,6 +158,7 @@ public partial class World
     /// </summary>
     private void OnSimEvent(SimEvent simEvent)
     {
+        _lineInputsVersion++;
         PlaySiteDoneEffects(simEvent);
         switch (simEvent)
         {

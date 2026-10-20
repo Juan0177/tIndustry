@@ -391,7 +391,7 @@ public partial class World
                     }
                     else
                     {
-                        TryRemoveAt(_removeStart, onlyMark: false);
+                        TryRemoveAt(_removeStart);
                     }
 
                     CancelRemoveDrag();
