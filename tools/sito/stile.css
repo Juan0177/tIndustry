@@ -367,8 +367,11 @@ footer button:hover{border-color:var(--ambra)}
 .racconto-scena::after{content:"";position:absolute;inset:0;pointer-events:none;
  background:radial-gradient(ellipse at center,transparent 55%,#0b0d10b0 100%)}
 .racconto-capitoli{position:relative;z-index:2;margin-top:calc(var(--barra) - 100vh);pointer-events:none}
-.capitolo{min-height:100vh;display:flex;align-items:center;padding:0 max(24px,6vw);box-sizing:border-box}
-.capitolo[data-lato=destra]{justify-content:flex-end}
+/* Each chapter is 160vh of scroll: its panel's screen sticks for the first 60vh (the text stays put while the
+   scene plays on), then scrolls away; a slower story than one screen per chapter. */
+.capitolo{min-height:160vh}
+.capitolo-vista{position:sticky;top:var(--barra);min-height:100vh;display:flex;align-items:center;padding:0 max(24px,6vw);box-sizing:border-box}
+.capitolo[data-lato=destra] .capitolo-vista{justify-content:flex-end}
 .pannello{pointer-events:auto;max-width:440px;background:#0b0d10e0;border:1px solid var(--linea);border-top:3px solid var(--giallo);
  padding:20px 24px;box-shadow:0 10px 40px #000a;
  --p:1;--e:min(1,calc(var(--p) * 2));opacity:calc(.05 + .95 * var(--e));transform:translateY(calc((1 - var(--e)) * 40px))}
@@ -377,7 +380,7 @@ footer button:hover{border-color:var(--ambra)}
 .pannello p{margin:0 0 10px}.pannello .forte{font-size:19px;color:var(--testo)}
 .pannello .bottoni{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
 @media (max-width:863px){
- .capitolo,.capitolo[data-lato=destra]{align-items:flex-end;justify-content:center;padding:0 16px 12vh}
+ .capitolo-vista,.capitolo[data-lato=destra] .capitolo-vista{align-items:flex-end;justify-content:center;padding:0 16px 12vh}
  .pannello{max-width:none;width:100%}
  .pannello h2{font-size:22px}
 }
