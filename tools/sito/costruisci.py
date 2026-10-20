@@ -60,7 +60,7 @@ RELEASE_URL = REPO_URL + "/releases/latest"
 AMBRA = (255, 211, 127)  # UiColors.Accento, the title colour
 ROSSO = (255, 42, 74)
 MAGENTA = (255, 79, 216)
-STATICI = ("sito.js",)  # copied as they are; stile.css is assembled from stile.css + drone.css
+STATICI = ("sito.js", "racconto.js")  # copied as they are; stile.css is assembled from stile.css + drone.css
 # The bar's pause/play toggle for every animation (sito.js shows it and remembers the choice); hidden
 # without the script, when nothing could stop the belts anyway. Not on the asset page: its belts are
 # plain GIFs, which no style can stop.
@@ -623,6 +623,53 @@ def stile():
     return "\n".join(parti)
 
 
+def pagina_racconto(archivio, versione, dati):
+    """The scroll-driven story, prototype of chapter 1: a sticky canvas (racconto.js) behind five panels, one
+    screen each. Without the script the still poster stands behind the same panels."""
+    import racconto
+    logo = archivio.immagini("ui/ui-logo")
+    url_logo = archivio.png("logo-x8", logo.resize((logo.width * 8, logo.height * 8), Image.NEAREST))
+    scarica = f"Scarica {versione}" if versione else "Scarica l'ultima release"
+    pannelli = (
+        ("sinistra", f'<h1><img class="px logo" src="{url_logo}" alt="tIndustry" width="{logo.width * 8}" '
+                     f'height="{logo.height * 8}"></h1>'
+                     "<p class=\"forte\">Ogni fabbrica comincia da un giacimento.</p>"
+                     "<p>tIndustry è un gioco gratuito e open source di logistica industriale. Scorri: costruiamo "
+                     "insieme la prima catena.</p>"
+                     f'<p class="bottoni"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
+                     '<a class="btn" href="../">Torna alla vetrina</a></p>'),
+        ("destra", '<span class="etichetta">// 01 · il drone</span><h2>Il drone costruisce</h2>'
+                   "<p>Scegli un blocco e il drone vola sul posto: prima compare il piano, poi il cantiere sale dal "
+                   "basso, come in Mindustry.</p>"),
+        ("sinistra", '<span class="etichetta">// 02 · il minatore</span><h2>Il minatore estrae</h2>'
+                     "<p>Su un giacimento di ferro il minatore lavora da solo. Il minerale esce dal lato e la prima "
+                     "curva lo porta giù, sul nastro.</p>"),
+        ("destra", '<span class="etichetta">// 03 · i nastri</span><h2>Nastro dopo nastro</h2>'
+                   "<p>Ogni cella è un cantiere. Il minerale corre solo dove il nastro è finito: mezza cella al "
+                   "secondo sui nastri T1.</p>"),
+        ("sinistra", '<span class="etichetta">// capitolo 2 · prossimamente</span><h2>Il forno aspetta</h2>'
+                     "<p>Il piano del forno è già lì. Nel racconto completo il drone lo costruisce, arriva il carbone "
+                     "e la corrente accende le lampade.</p>"
+                     '<p class="nota">Questo è un prototipo: il primo dei sette capitoli.</p>'
+                     '<p class="bottoni"><a class="btn" href="../">Torna alla vetrina</a></p>'),
+    )
+    capitoli = "".join(f'<section class="capitolo" data-lato="{lato}"><div class="pannello" data-rivela>{testo}</div></section>'
+                       for lato, testo in pannelli)
+    corpo = (f'<div class="racconto" data-cartella="../racconto/" style="--capitoli:{len(pannelli)}">'
+             f'<div class="racconto-scena"><img class="racconto-poster px" src="../racconto/{dati["poster"]}" alt="" '
+             'width="1600" height="768"><canvas id="racconto-tela" aria-hidden="true"></canvas></div>'
+             f'<div class="racconto-capitoli">{capitoli}</div></div>'
+             f'<script type="application/json" id="racconto-dati">{racconto.json_della_pagina(dati)}</script>')
+    nav = _nav((("../", "Vetrina"), ("../sviluppo/", "Sviluppo"), ("../asset/", "Asset")))
+    pagina = _pagina("tIndustry · racconto (prototipo)", corpo, nav, radice="../", classe="racconto-pagina",
+                     descrizione="Prototipo del racconto di tIndustry: scorrendo, il drone costruisce la prima catena "
+                                 "della fabbrica, dal giacimento al nastro.",
+                     avanza=True, percorso="racconto/")
+    pagina = pagina.replace('<meta charset="utf-8">', '<meta charset="utf-8"><meta name="robots" content="noindex">', 1)
+    return pagina.replace('<script src="../sito.js" defer></script>',
+                          '<script src="../sito.js" defer></script><script src="../racconto.js" defer></script>', 1)
+
+
 def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
     """Write the whole site into out_dir; returns the written pages (relative paths, sorted)."""
     immagini = composti.Immagini(assets_dir)
@@ -635,6 +682,8 @@ def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
     sotto = fabbrica.Archivio(immagini, out_dir, radice="../")  # same files, URLs from a sub-folder
     pagine["sviluppo/index.html"] = pagina_sviluppo(sotto)
     pagine["asset/index.html"] = pagina_asset(assets_dir)
+    import racconto
+    pagine["racconto/index.html"] = pagina_racconto(sotto, versione, racconto.esporta(out_dir, immagini))
     for rel, testo in pagine.items():
         path = os.path.join(out_dir, rel)
         os.makedirs(os.path.dirname(path), exist_ok=True)

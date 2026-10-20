@@ -345,6 +345,32 @@ footer button:hover{border-color:var(--ambra)}
 @media (max-width:480px){.schede{grid-template-columns:1fr}.barra{gap:14px;padding-left:14px;padding-right:14px}
  .barra .animazioni .testo{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}}
 
+/* ---- racconto: the scroll-driven story (racconto.js). A sticky stage as tall as the screen under the bar, the
+   chapter panels scrolling over it, one screen each; the still poster shows until the canvas is ready. */
+.racconto{position:relative}
+.racconto-scena{position:sticky;top:var(--barra);height:calc(100vh - var(--barra));overflow:hidden;background:#0b0d10;z-index:0}
+.racconto-scena canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.racconto-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none}
+.racconto.pronto .racconto-poster{display:none}
+.racconto-scena::after{content:"";position:absolute;inset:0;pointer-events:none;
+ background:radial-gradient(ellipse at center,transparent 55%,#0b0d10b0 100%)}
+.racconto-capitoli{position:relative;z-index:2;margin-top:calc(var(--barra) - 100vh);pointer-events:none}
+.capitolo{min-height:100vh;display:flex;align-items:center;padding:0 max(24px,6vw);box-sizing:border-box}
+.capitolo[data-lato=destra]{justify-content:flex-end}
+.pannello{pointer-events:auto;max-width:440px;background:#0b0d10e0;border:1px solid var(--linea);border-top:3px solid var(--giallo);
+ padding:20px 24px;box-shadow:0 10px 40px #000a;
+ --p:1;--e:min(1,calc(var(--p) * 2));opacity:calc(.05 + .95 * var(--e));transform:translateY(calc((1 - var(--e)) * 40px))}
+.pannello h1{margin:0 0 10px}.pannello .logo{width:min(100%,360px);height:auto;display:block}
+.pannello h2{font:700 26px var(--mono);color:var(--ambra);margin:6px 0 10px;letter-spacing:.02em}
+.pannello p{margin:0 0 10px}.pannello .forte{font-size:19px;color:var(--testo)}
+.pannello .bottoni{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+@media (max-width:863px){
+ .capitolo,.capitolo[data-lato=destra]{align-items:flex-end;justify-content:center;padding:0 16px 12vh}
+ .pannello{max-width:none;width:100%}
+ .pannello h2{font-size:22px}
+}
+html.statico .pannello{--p:1!important;--e:1!important}
+
 /* ---- motion. Everything runs by default: the moving factory is the content. The Animazioni button
    in the bar (sito.js, remembered in localStorage) stops it all with html.statico; the system request
    prefers-reduced-motion only removes the flashes, the shake, the flicker and the shattered glass of
