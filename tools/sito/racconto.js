@@ -5,7 +5,8 @@
  * (0..1) is the timeline: it places the camera (key frames, smoothstep between them) and decides how far every
  * construction has risen, so scrolling back takes the factory apart again (scrub). Wall-clock time only drives
  * what moves by itself: belt treads, items, working blocks, the drone's hover and its beam. The story runs
- * through chapters 1-4 (deposit, belts, smelter, plates, power, night) and ends on a teaser of chapter 5 (attack).
+ * through the seven chapters: deposit and belts, smelter and plates, power, night and the attack (enemies only at
+ * night: the survivors flee at dawn, the drone wears its helmet meanwhile), the world, the Core.
  *
  * The data (map, camera, constructions in chain order, item path, sprite list) comes from racconto.py as JSON in
  * <script id="racconto-dati">. Drawing follows the game: art scaled with nearest-neighbour, plans as the construct
@@ -80,11 +81,15 @@
   }
 
   /* Where the drone hovers at t (cells) and which construction it works on (-1: flying or idle). It waits at
-     `partenza` until `ingresso`, flies to each site before its t0 (eased), stays over it until t1. */
+     `partenza` until `ingresso`, flies to each site in the last VOLO before its t0 (eased), stays over it until t1
+     and waits there until it is time to leave for the next one. */
+  var VOLO = 0.04;   // at most this much progress to fly to the next site: long pauses are spent waiting on guard
   function posizioneDrone(costruzioni, partenza, ingresso, t) {
     var tappe = [{ t: ingresso, x: partenza[0], y: partenza[1], lavora: -1 }];
     costruzioni.forEach(function (c, i) {
       var sopra = { x: c.x + c.w / 2 - 0.35, y: c.y + c.h / 2 - 0.9 };
+      var prima = tappe[tappe.length - 1];
+      if (c.t0 - VOLO > prima.t) tappe.push({ t: c.t0 - VOLO, x: prima.x, y: prima.y, lavora: -1 });
       tappe.push({ t: c.t0, x: sopra.x, y: sopra.y, lavora: -1 });
       tappe.push({ t: c.t1, x: sopra.x, y: sopra.y, lavora: i });
     });
@@ -291,10 +296,16 @@
     });
   }
 
+  /* How dark it is at t: night falls (t0..t1) and lifts again at dawn (alba0..alba1). */
+  function notte(t) {
+    var N = dati.notte;
+    return avanzamento(t, N.t0, N.t1) * (1 - avanzamento(t, N.alba0 || 2, N.alba1 || 2));
+  }
+
   /* Night as the client's NightLayer: the world multiplied by a dark blue, then warm light around the lamps and
      the smelter, added on top once they are on. */
   function disegnaNotte(t) {
-    var n = avanzamento(t, dati.notte.t0, dati.notte.t1);
+    var n = notte(t);
     if (n <= 0) return;
     var W = dati.larghezza * CELLA, H = dati.righe * CELLA, col = dati.notte.colore;
     ctx.save();
@@ -317,21 +328,31 @@
     ctx.restore();
   }
 
-  /* Chapter 5 teaser: black silhouettes of enemy units drift in at the edge of the map, rimmed in red. */
+  /* The attack (roadmap «Attacco e difesa»: enemies come only at night). Black silhouettes rimmed in red cross the
+     river from the east, stop outside the light of the lamps and, when the day returns, the survivors run back east. */
+  function xNemico(chiavi, t) {
+    if (t <= chiavi[0][0]) return null;
+    if (t >= chiavi[chiavi.length - 1][0]) return null;
+    for (var i = 0; i < chiavi.length - 1; i++) {
+      var a = chiavi[i], b = chiavi[i + 1];
+      if (t < b[0]) return a[1] + (b[1] - a[1]) * liscia((t - a[0]) / (b[0] - a[0]));
+    }
+    return null;
+  }
   function disegnaNemici(t, tempo) {
-    var e = avanzamento(t, dati.allarme, 1);
-    if (e <= 0) return;
     ctx.save();
     ctx.shadowColor = "rgba(255,42,74,0.95)";
     ctx.shadowBlur = 16 * dpr;
     dati.nemici.forEach(function (n, i) {
+      var x = xNemico(n.chiavi, t);
+      if (x === null) return;
       var s = dati.sprite[n.sprite];
-      ctx.globalAlpha = e;
-      var x = (n.x - e * 1.6) * CELLA + Math.sin(tempo * 1.3 + i * 2) * 3;
-      var y = n.y * CELLA + Math.cos(tempo * 1.1 + i) * 3;
+      var primo = n.chiavi[0][0], ultimo = n.chiavi[n.chiavi.length - 1][0];
+      ctx.globalAlpha = Math.min(1, (t - primo) / 0.015, (ultimo - t) / 0.015);
+      var fuga = t > n.chiavi[n.chiavi.length - 2][0];   // running away: turned east
       ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(Math.PI);   // facing the factory, westwards
+      ctx.translate(x * CELLA + Math.sin(tempo * 1.3 + i * 2) * 3, n.y * CELLA + Math.cos(tempo * 1.1 + i) * 3);
+      ctx.rotate(fuga ? 0 : Math.PI);   // facing the factory (west) while they come
       fotogramma(n.sprite, 0, 0, 0, 0, 0, -s.w, -s.h, s.w * 2, s.h * 2);   // units loom larger than the drone
       ctx.restore();
     });
@@ -340,7 +361,8 @@
 
   /* ...and a slow red glow at the edges of the screen (no flashing: one breath every 2.5 s). */
   function disegnaAllarme(t, tempo) {
-    var e = avanzamento(t, dati.allarme, 1);
+    var A = dati.allarme;
+    var e = Math.min(avanzamento(t, A.t0, A.t0 + 0.02), 1 - avanzamento(t, A.t1 - 0.02, A.t1));
     if (e <= 0) return;
     var W = tela.width, H = tela.height;
     var g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
@@ -398,6 +420,27 @@
       fotogramma("drone", k, 0, 0, 0, 0, -lato / 2, -lato / 2, lato, lato);
       ctx.restore();
     }
+    // the helmet: it drops onto the hull when the attack starts (a small bounce) and lifts off at dawn
+    var E = dati.elmetto, he = dati.sprite.elmetto;
+    if (E && he && t >= E.cade && t < E.via) {
+      var su = 0;
+      if (t < E.posato) {
+        var u = (t - E.cade) / (E.posato - E.cade);
+        su = u < 0.7 ? (1 - u / 0.7) * 26 : Math.sin((u - 0.7) / 0.3 * Math.PI) * 3;
+      } else if (t > E.toglie) {
+        su = (t - E.toglie) / (E.via - E.toglie) * 30;
+      }
+      ctx.globalAlpha = t > E.toglie ? 1 - (t - E.toglie) / (E.via - E.toglie) : 1;
+      for (var q = 0; q < he.fotogrammi; q++) {
+        var z = n + q;
+        ctx.save();
+        ctx.translate(cx + lx * z, cy - z - su + ly * z);
+        ctx.rotate(drone.ang);
+        fotogramma("elmetto", q, 0, 0, 0, 0, -lato / 2, -lato / 2, lato, lato);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
     ctx.imageSmoothingEnabled = false;
     if (dove.lavora >= 0) {   // the build beam from the nose to a point wandering over the site
       var b = dati.costruzioni[dove.lavora];
@@ -427,7 +470,13 @@
     var tempo = tempoFermo;
     misura();
     var t = progresso();
-    var cam = interpola(dati.camera, t);
+    if (!dati.cameraVerticale) {   // portrait screens may aim elsewhere (xv, yv, vv): the panels cover their bottom
+      dati.cameraVerticale = dati.camera.map(function (k) {
+        return { t: k.t, x: k.xv !== undefined ? k.xv : k.x, y: k.yv !== undefined ? k.yv : k.y,
+                 vista: k.vv !== undefined ? k.vv : k.vista };
+      });
+    }
+    var cam = interpola(altezza > larghezza ? dati.cameraVerticale : dati.camera, t);
     var z = zoomPer(larghezza, altezza, cam.vista, CELLA) * dpr;
     // never smaller than the map: a tall phone screen zooms in rather than showing bands past its edges
     z = Math.max(z, tela.width / (dati.larghezza * CELLA), tela.height / (dati.righe * CELLA));
@@ -441,6 +490,9 @@
     ctx.setTransform(z, 0, 0, z, tx, ty);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img.terreno, 0, 0);
+    (dati.fissi || []).forEach(function (f) {   // there from the start: the Core
+      fotogramma(f.sprite, fotogrammaAnimato(f.sprite, tempo), 0, 0, 0, 0, f.x * CELLA, f.y * CELLA, f.w * CELLA, f.h * CELLA);
+    });
     dati.costruzioni.forEach(function (c) { disegnaCostruzione(c, t, tempo); });
     disegnaOggetti(t, tempo);
     disegnaLinee(t);

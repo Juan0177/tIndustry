@@ -41,6 +41,7 @@ CORE_TIER = 4
 CORE_LUCE_FOTOGRAMMI = 4
 # Drone tiers seen from above, nose to the East: square sprites of this side (alpha, beta, gamma).
 DRONI = {"drone-1": 24, "drone-2": 28, "drone-3": 32}
+PARTI_DRONE = ("elmetto",)  # drawn on top of a drone, same square: "<drone>-<part>"
 # Terrain (G2b): floor variants, deposit variants, dual-grid wall pieces (corner bits NO=1, NE=2,
 # SE=4, SO=8), edge pieces in strip order, and the colour step allowed across a variant seam.
 VARIANTI = 4
@@ -258,8 +259,9 @@ def errore_misura(nome, im):
         return None if (w, h) == (BELT_ITEM, BELT_ITEM) else f"{nome}: {w}x{h}, atteso {BELT_ITEM}x{BELT_ITEM}"
     if base in _item_ids():
         return None if (w, h) == (T, T) else f"{nome}: {w}x{h}, atteso {T}x{T}"
-    if base in DRONI:
-        lato = DRONI[base]
+    drone = next((d for d in DRONI if base == d or base in (f"{d}-{p}" for p in PARTI_DRONE)), None)
+    if drone:
+        lato = DRONI[drone]
         return None if (w, h) == (lato, lato) else f"{nome}: {w}x{h}, atteso {lato}x{lato}"
     # Block or block part: "<id>" or "<id>-<parte>" with a known footprint.
     block = next((b for b in sorted(CELLE, key=len, reverse=True)
@@ -424,6 +426,22 @@ class TestGenera(unittest.TestCase):
                 self.assertEqual((0, 0, 0, 0), im.getpixel((0, 0)))
                 sagome.append(alfa.resize((32, 32)).tobytes())
         self.assertEqual(len(set(sagome)), len(sagome))
+
+    def test_elmetto(self):
+        # The helmet of drone-1: same square, symmetric across the flight axis, army green with an outline,
+        # sitting on the hull (its middle is opaque, its corners empty).
+        from palette import MUSCHIO
+        im = SPRITE["drone-1-elmetto"]()
+        self.assertEqual((24, 24), im.size)
+        alfa = im.getchannel("A")
+        self.assertEqual(alfa.tobytes(), alfa.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes())
+        colori = {px[:3] for px in im.getdata() if px[3]}
+        self.assertLessEqual(colori, set(MUSCHIO) | {OUT})
+        self.assertGreaterEqual(len(colori & set(MUSCHIO)), 4)
+        self.assertEqual(255, im.getpixel((12, 12))[3])
+        self.assertEqual(0, im.getpixel((0, 0))[3])
+        self.assertIsNotNone(errore_misura("drone-2-elmetto", forme.nuova(24, 24)))
+        self.assertIsNotNone(errore_misura("drone-1-cappello", forme.nuova(24, 24)))
 
     def test_tavolozza(self):
         for nome, rampa in RAMPE.items():

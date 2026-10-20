@@ -6,6 +6,9 @@ the middle; compact (alpha and beta about as wide as long, gamma wider than long
 - `drone-1` alpha (24 px): wide hull with two side plates and a tail stub;
 - `drone-2` beta (28 px): bigger hull, four lobed plates, forward fins;
 - `drone-3` gamma (32 px): X-shaped hull with swept arms and twin forward claws.
+Parts drawn on top of a drone, same square and orientation (the client or the site layers them):
+- `drone-1-elmetto`: the army helmet the alpha puts on when enemies attack (only at night), a domed
+  shell with a darker brim, shaded towards its edge and lit towards the nose.
 
 The art is hand-placed pixel by pixel: each drone is the left half drawn nose-up (one character
 per pixel, see `TONI`), mirrored, centred on a square canvas and turned nose-East. The shadow and
@@ -15,7 +18,7 @@ from PIL import Image
 
 import forme
 from blocchi import sprite
-from palette import CELLA, OUT, UNITA_SOPRA, UNITA_SOTTO
+from palette import CELLA, MUSCHIO, OUT, UNITA_SOPRA, UNITA_SOTTO
 
 # One character per pixel: outline, under-plate (dark, light), top plate (shadow, mid, light),
 # team cell (rim, glow, hot centre). '.' is transparent.
@@ -24,6 +27,8 @@ TONI = {
     "1": UNITA_SOTTO[1], "2": UNITA_SOTTO[3],
     "3": UNITA_SOPRA[1], "4": UNITA_SOPRA[2], "5": UNITA_SOPRA[4],
     "c": CELLA[1], "C": CELLA[3], "W": CELLA[4],
+    # helmet (drone-1-elmetto): brim, dome from its shaded edge to the highlight towards the nose
+    "e": MUSCHIO[0], "f": MUSCHIO[1], "g": MUSCHIO[2], "h": MUSCHIO[3], "i": MUSCHIO[4],
 }
 
 
@@ -130,4 +135,34 @@ def gamma():
         ....O543O....O21
         .....OOO......OO
         ................
+    """)
+
+
+@sprite("drone-1-elmetto")
+def elmetto_alpha():
+    return disegna(24, """
+        ............
+        ............
+        ............
+        .........OOO
+        .......OOeee
+        ......Oeeeee
+        .....OeeOOOO
+        ....OeeOghhi
+        ....OeOghhii
+        ...OeeOghiii
+        ...OeOfghhii
+        ...OeOfgghhh
+        ...OeOffgghh
+        ...OeOffgggg
+        ...OeeOfgggg
+        ....OeOffggg
+        ....OeeOffgg
+        .....OeeOOOO
+        ......Oeeeee
+        .......OOeee
+        .........OOO
+        ............
+        ............
+        ............
     """)

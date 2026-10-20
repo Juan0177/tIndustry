@@ -1,6 +1,6 @@
 # Sito: racconto guidato dallo scroll — piano e requisiti
 
-Stato: **prototipo dei capitoli 1-4 pubblicato** in `racconto/` (giacimento, nastri, forno, lastre, corrente, sera), con l'anticipo del capitolo 5; mancano attacco, mondo e CORE. Data: 20 ottobre 2026.
+Stato: **racconto completo pubblicato** in `racconto/` (sette capitoli su undici pannelli), ancora fuori dalla barra e con `noindex` finché l'utente non lo approva. Data: 20 ottobre 2026.
 
 ## Cosa chiede l'utente
 
@@ -25,7 +25,7 @@ Una **sola fabbrica a tutto schermo**, fissa dietro alla pagina, disegnata con g
 | 2. I nastri | Il drone posa i nastri cella per cella, curva compresa; gli oggetti partono quando il tratto è chiuso. | Come funziona la logistica. |
 | 3. Il forno | La camera scivola al forno: carbone da un lato, ferro dall'altro, lastre in uscita. | Ricette, forno multi-ricetta. |
 | 4. La corrente | Generatore, nodi e lampade: le linee si disegnano una dopo l'altra (tratteggio che si riempie) e gli edifici si illuminano. | Energia. |
-| 5. Sotto attacco | La camera si allarga di colpo, bordo rosso, sagome nemiche ai margini (il teaser di oggi, integrato); al drone cade in testa un elmetto. | Unità in arrivo. |
+| 5. Sotto attacco | Di notte: la camera si allarga di colpo, bordo rosso, sagome nemiche ai margini; al drone cade in testa un elmetto. All'alba i superstiti scappano (regola di gioco: i nemici ci sono solo di notte, vedi la roadmap del README). | Unità in arrivo. |
 | 6. Il mondo | Zoom fuori su tutta la mappa: si vedono i biomi, i fiumi, le altre catene. | Mappe generate dal seme, campagna. |
 | 7. Il CORE | La camera torna sul CORE, le due catene convergono nell'unione a T, il grafico del Mercato sale. | Scarica, requisiti. |
 
@@ -136,3 +136,13 @@ Da decidere dopo la prova: ritmo dei capitoli (quanto scroll per capitolo), dime
 - **Sera** come il `NightLayer` del client: il mondo moltiplicato per il suo blu scuro, poi luce calda sommata attorno alle lampade (6,5 celle) e alla bocca del forno (3 celle).
 - **Anticipo dell'attacco**: tre sagome nere di unità nemiche, bordate di rosso, entrano dal margine destro e un bagliore rosso lento (un respiro ogni 2,5 s, niente lampi) chiude il racconto.
 - **Camera**: dodici fotogrammi chiave; la vista resta sempre dentro la mappa (`limitaCamera`) e non scende mai sotto la mappa intera, così il telefono non mostra fasce nere.
+
+## Capitoli 5-7 (20 ottobre, «riesci a procedere ancora?»)
+
+- **Regola decisa dall'utente**: i nemici ci sono solo di notte; quando torna il giorno i superstiti scappano. È nella roadmap del README (passo «Attacco e difesa», previsto) e nella mappa del progetto; il racconto la segue.
+- **Mappa del mondo** 64×40: la fabbrica al centro, rocce a nord-ovest, neve a nord-est, sabbia a sud-est e un fiume (acqua bassa e profonda) fra la fabbrica e l'est, da dove arrivano i nemici; confini dei biomi irregolari (`_scarto`). Il CORE T2 c'è dall'inizio, come in ogni partita: il nastro delle lastre ora scende fino a lui ed entra dall'unione a T sopra di lui, da cui nell'ultimo capitolo arriva anche una catena di rame (minatore, due curve, nove nastri).
+- **Attacco (capitolo 7, di notte)**: quattro sagome nemiche bordate di rosso attraversano il fiume e si fermano fuori dalla luce delle lampade; bagliore rosso lento ai bordi; al drone cade in testa l'elmetto (`drone-1-elmetto`, nuovo sprite di `tools/art`, a strati come il drone) e il drone resta di guardia vicino alle lampade invece di volare piano verso il lavoro successivo (`VOLO`: parte solo nell'ultimo tratto prima della costruzione).
+- **Alba (capitolo 8)**: la notte si ritira, i superstiti tornano a est oltre il bordo della mappa, l'elmetto si solleva e sparisce.
+- **Il mondo (capitolo 9)**: la camera si allarga su tutta la mappa; intanto il drone costruisce la catena del rame.
+- **Il CORE (capitolo 10)**: la camera scende sul CORE con lastre e rame che entrano dall'unione a T; Scarica e ritorno alla vetrina. In verticale l'ultima inquadratura ha centro e zoom suoi (`xv`, `yv`, `vv`), perché il pannello copre il fondo dello schermo.
+- **Elmetto**: disegnato a caratteri in `tools/art/blocchi/drone.py` come i droni (tavolozza `MUSCHIO`), validato come «parte del drone» (`PARTI_DRONE` in `test_genera.py`, stessa misura del drone); nel sito diventa 4 strati (tesa, poi la cupola che si stringe).
