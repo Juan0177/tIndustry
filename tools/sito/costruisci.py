@@ -645,8 +645,8 @@ def pagina_racconto(archivio, versione, dati):
                      "<p>Su un giacimento di ferro il minatore lavora da solo. Il minerale esce dal lato e la prima "
                      "curva lo porta giù, sul nastro.</p>"),
         ("destra", '<span class="etichetta">// 03 · i nastri</span><h2>Nastro dopo nastro</h2>'
-                   "<p>Ogni cella è un cantiere. Il minerale corre solo dove il nastro è finito: mezza cella al "
-                   "secondo sui nastri T1.</p>"),
+                   "<p>Ogni cella è un cantiere. Il minerale corre solo dove il nastro è finito: "
+                   f"{composti._num(fabbrica.RATE[fabbrica.T1])} celle al secondo sui nastri T1.</p>"),
         ("sinistra", '<span class="etichetta">// capitolo 2 · prossimamente</span><h2>Il forno aspetta</h2>'
                      "<p>Il piano del forno è già lì. Nel racconto completo il drone lo costruisce, arriva il carbone "
                      "e la corrente accende le lampade.</p>"

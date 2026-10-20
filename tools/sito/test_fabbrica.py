@@ -157,10 +157,12 @@ class TestFabbrica(unittest.TestCase):
                     self.assertEqual(a.read(), b.read(), nome)
 
     def test_velocita_dei_nastri(self):
-        # One loop of the tread is one cell: 1 / rate seconds (basic 2 s), and items cross n cells in n / rate s.
+        # One loop of the tread is one cell: 1 / rate seconds, and items cross n cells in n / rate s (the rates come
+        # from data/content.json, so the test follows them).
         html = self.html["come-funziona"]
-        self.assertIn("--giro:2s", html)
-        self.assertIn("--dur:6.000s", html)  # the three-cell run of iron ore on the dorsale
+        rate = fabbrica.RATE[fabbrica.T1]
+        self.assertIn(f"--giro:{1 / rate:g}s", html)
+        self.assertIn(f"--dur:{3 / rate:.3f}s", html)  # the three-cell run of iron ore on the dorsale
         self.assertIn("nastro-conveyor-basic-s.gif", html)  # the real strip: rails still, tread moving
         self.assertIn("nastro-conveyor-basic-s-fermo.png", html)  # the still frame for reduced motion
 
