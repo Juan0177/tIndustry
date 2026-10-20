@@ -4,7 +4,8 @@
  * The page has a sticky full-screen <canvas> behind the chapter panels. The scroll progress through the story
  * (0..1) is the timeline: it places the camera (key frames, smoothstep between them) and decides how far every
  * construction has risen, so scrolling back takes the factory apart again (scrub). Wall-clock time only drives
- * what moves by itself: belt treads, items, the working miner, the drone's hover and its beam.
+ * what moves by itself: belt treads, items, working blocks, the drone's hover and its beam. The story runs
+ * through chapters 1-4 (deposit, belts, smelter, plates, power, night) and ends on a teaser of chapter 5 (attack).
  *
  * The data (map, camera, constructions in chain order, item path, sprite list) comes from racconto.py as JSON in
  * <script id="racconto-dati">. Drawing follows the game: art scaled with nearest-neighbour, plans as the construct
@@ -62,6 +63,17 @@
      panels cover the bottom. */
   function fuoco(vw, vh) { return vh > vw ? 0.36 : 0.5; }
 
+  /* Camera centre (cells) kept so the view never shows past the map: the visible span is vw / (z * cella) cells
+     across and vh / (z * cella) down, with the centre at `fy` of the height; a map smaller than the view stays
+     centred on that axis. */
+  function limitaCamera(cx, cy, vw, vh, z, cella, larghezza, righe, fy) {
+    var lw = vw / (z * cella), lh = vh / (z * cella);
+    var x = lw >= larghezza ? larghezza / 2 : limita(cx, lw / 2, larghezza - lw / 2);
+    var sopra = lh * fy, sotto = lh * (1 - fy);
+    var y = lh >= righe ? righe / 2 - lh / 2 + sopra : limita(cy, sopra, righe - sotto);
+    return { x: x, y: y };
+  }
+
   /* Exponential approach of `attuale` to `meta` after dt seconds (frame-rate independent easing). */
   function smorza(attuale, meta, dt, k) {
     return meta + (attuale - meta) * Math.exp(-k * dt);
@@ -114,7 +126,8 @@
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = { interpola: interpola, avanzamento: avanzamento, zoomPer: zoomPer, smorza: smorza,
-      posizioneDrone: posizioneDrone, puntoSulPercorso: puntoSulPercorso, angoloVerso: angoloVerso, fuoco: fuoco };
+      posizioneDrone: posizioneDrone, puntoSulPercorso: puntoSulPercorso, angoloVerso: angoloVerso, fuoco: fuoco,
+      limitaCamera: limitaCamera };
   }
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
@@ -214,12 +227,13 @@
   var AMBRA = "#FFD37F";
 
   function disegnaCostruzione(c, t, tempo) {
+    if (t < c.piano) return;   // the plan shows up when the drone starts the piece before
     var x = c.x * CELLA, y = c.y * CELLA, w = c.w * CELLA, h = c.h * CELLA;
-    if (t < c.piano) return;
     var p = avanzamento(t, c.t0, c.t1);
-    var pieno = c.sprite === "minatore" ? (p >= 1 ? "minatore" : "minatore-fermo") : c.sprite;
-    var k = p >= 1 ? fotogrammaAnimato(pieno, tempo) : 0;
-    if (p < 1) girato(c.sprite === "minatore" ? "minatore-piano" : c.sprite + "-piano", 0, x, y, w, h, c.rot, c.specchio);
+    var acceso = p >= 1 && (c.nastro || (c.attivo !== undefined && t >= c.attivo));
+    var pieno = acceso ? c.lavoro : c.fermo;
+    var k = acceso ? fotogrammaAnimato(pieno, tempo) : 0;
+    if (p < 1) girato(c.piano_sprite, 0, x, y, w, h, c.rot, c.specchio);
     if (p <= 0) return;
     ctx.save();
     if (p < 1) { ctx.beginPath(); ctx.rect(x, y + h * (1 - p), w, h * p); ctx.clip(); }
@@ -233,22 +247,107 @@
     }
   }
 
+  /* Items of every chain, one per cell at the belt's speed, once the chain's source works and only along the cells
+     built so far (in flow order): a finished chain carries them into its block, or out of the map. */
   function disegnaOggetti(t, tempo) {
-    var minatore = dati.costruzioni[0];
-    if (avanzamento(t, minatore.t0, minatore.t1) < 1) return;
-    var finiti = 0;   // belt cells built, in chain order: items run only where the belt is finished
-    for (var i = 1; i < dati.costruzioni.length; i++) {
-      if (avanzamento(t, dati.costruzioni[i].t0, dati.costruzioni[i].t1) >= 1) finiti++; else break;
-    }
-    if (!finiti) return;
-    var s = dati.sprite.oggetto, fase = (tempo * dati.velocita) % 1;
-    var limite = finiti === dati.costruzioni.length - 1 ? finiti + 0.5 : finiti;   // the last half cell enters the plan
-    for (var k = 0; k < limite + 1; k++) {
-      var d = k + fase;
-      if (d > limite) break;
-      var q = puntoSulPercorso(dati.percorso, d);
-      fotogramma("oggetto", 0, 0, 0, 0, 0, q.x * CELLA - s.w / 2, q.y * CELLA - s.h / 2);
-    }
+    var fase = (tempo * dati.velocita) % 1;
+    dati.flussi.forEach(function (f) {
+      if (t < f.avvio) return;
+      var finiti = 0;
+      while (finiti < f.celle.length) {
+        var c = dati.costruzioni[f.celle[finiti]];
+        if (avanzamento(t, c.t0, c.t1) < 1) break;
+        finiti++;
+      }
+      if (!finiti) return;
+      var limite = finiti;
+      if (finiti === f.celle.length) {   // the whole path, to the block's edge or past the map's border
+        limite = 0;
+        for (var i = 0; i < f.percorso.length - 1; i++) {
+          limite += Math.abs(f.percorso[i + 1][0] - f.percorso[i][0]) + Math.abs(f.percorso[i + 1][1] - f.percorso[i][1]);
+        }
+      }
+      var s = dati.sprite[f.oggetto];
+      for (var d = fase; d <= limite; d += 1) {
+        var q = puntoSulPercorso(f.percorso, d);
+        fotogramma(f.oggetto, 0, 0, 0, 0, 0, q.x * CELLA - s.w / 2, q.y * CELLA - s.h / 2);
+      }
+    });
+  }
+
+  var ENERGIA = "#FBE36B";   // UiColors.Energia, the colour of the power lines in the client
+  function disegnaLinee(t) {
+    dati.linee.forEach(function (l) {
+      var u = avanzamento(t, l.t0, l.t1);
+      if (u <= 0) return;
+      var x0 = l.da[0] * CELLA, y0 = l.da[1] * CELLA;
+      var x1 = x0 + (l.a[0] - l.da[0]) * CELLA * u, y1 = y0 + (l.a[1] - l.da[1]) * CELLA * u;
+      ctx.strokeStyle = "rgba(251,227,107,0.35)"; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.strokeStyle = ENERGIA; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.fillStyle = ENERGIA;
+      ctx.beginPath(); ctx.arc(x1, y1, 1.6, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  /* Night as the client's NightLayer: the world multiplied by a dark blue, then warm light around the lamps and
+     the smelter, added on top once they are on. */
+  function disegnaNotte(t) {
+    var n = avanzamento(t, dati.notte.t0, dati.notte.t1);
+    if (n <= 0) return;
+    var W = dati.larghezza * CELLA, H = dati.righe * CELLA, col = dati.notte.colore;
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = "rgb(" + col.map(function (v) { return Math.round(255 * (1 - n * (1 - v))); }).join(",") + ")";
+    ctx.fillRect(-W, -H, W * 3, H * 3);
+    ctx.globalCompositeOperation = "lighter";
+    dati.luci.forEach(function (l) {
+      if (t < l.da) return;
+      var forza = Math.min(1, (t - l.da) / 0.015) * n * l.energia * 0.3;
+      var r = l.raggio * CELLA, x = l.x * CELLA, y = l.y * CELLA;
+      var rgb = l.colore.map(function (v) { return Math.round(v * 255); }).join(",");
+      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, "rgba(" + rgb + "," + forza.toFixed(3) + ")");
+      g.addColorStop(0.45, "rgba(" + rgb + "," + (forza * 0.45).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + rgb + ",0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    });
+    ctx.restore();
+  }
+
+  /* Chapter 5 teaser: black silhouettes of enemy units drift in at the edge of the map, rimmed in red. */
+  function disegnaNemici(t, tempo) {
+    var e = avanzamento(t, dati.allarme, 1);
+    if (e <= 0) return;
+    ctx.save();
+    ctx.shadowColor = "rgba(255,42,74,0.95)";
+    ctx.shadowBlur = 16 * dpr;
+    dati.nemici.forEach(function (n, i) {
+      var s = dati.sprite[n.sprite];
+      ctx.globalAlpha = e;
+      var x = (n.x - e * 1.6) * CELLA + Math.sin(tempo * 1.3 + i * 2) * 3;
+      var y = n.y * CELLA + Math.cos(tempo * 1.1 + i) * 3;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.PI);   // facing the factory, westwards
+      fotogramma(n.sprite, 0, 0, 0, 0, 0, -s.w, -s.h, s.w * 2, s.h * 2);   // units loom larger than the drone
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+
+  /* ...and a slow red glow at the edges of the screen (no flashing: one breath every 2.5 s). */
+  function disegnaAllarme(t, tempo) {
+    var e = avanzamento(t, dati.allarme, 1);
+    if (e <= 0) return;
+    var W = tela.width, H = tela.height;
+    var g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, "rgba(255,42,74,0)");
+    g.addColorStop(1, "rgba(255,42,74," + (e * (0.32 + 0.14 * Math.sin(tempo * 2.5))).toFixed(3) + ")");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
   }
 
   var drone = { ang: Math.PI * 0.75, inclina: 0, ux: 0, uy: 0 };
@@ -330,23 +429,26 @@
     var t = progresso();
     var cam = interpola(dati.camera, t);
     var z = zoomPer(larghezza, altezza, cam.vista, CELLA) * dpr;
-    var tx = Math.round(tela.width / 2 - cam.x * CELLA * z);
-    var ty = Math.round(tela.height * fuoco(larghezza, altezza) - cam.y * CELLA * z);
+    // never smaller than the map: a tall phone screen zooms in rather than showing bands past its edges
+    z = Math.max(z, tela.width / (dati.larghezza * CELLA), tela.height / (dati.righe * CELLA));
+    var fy = fuoco(larghezza, altezza);
+    var dentro = limitaCamera(cam.x, cam.y, tela.width, tela.height, z, CELLA, dati.larghezza, dati.righe, fy);
+    var tx = Math.round(tela.width / 2 - dentro.x * CELLA * z);
+    var ty = Math.round(tela.height * fy - dentro.y * CELLA * z);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#0b0d10";
     ctx.fillRect(0, 0, tela.width, tela.height);
     ctx.setTransform(z, 0, 0, z, tx, ty);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img.terreno, 0, 0);
-    var piano = dati.piano;
-    if (t >= piano.t) {
-      ctx.globalAlpha = Math.min(1, (t - piano.t) / 0.04) * (0.75 + 0.25 * Math.sin(tempo * 3));
-      fotogramma("forno-piano", 0, 0, 0, 0, 0, piano.x * CELLA, piano.y * CELLA, piano.w * CELLA, piano.h * CELLA);
-      ctx.globalAlpha = 1;
-    }
     dati.costruzioni.forEach(function (c) { disegnaCostruzione(c, t, tempo); });
     disegnaOggetti(t, tempo);
+    disegnaLinee(t);
     disegnaDrone(t, tempo, dt);
+    disegnaNotte(t);
+    disegnaNemici(t, tempo);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    disegnaAllarme(t, tempo);
   }
 
   window.tIndustryRacconto = { drone: function () { return drone.schermo || null; }, progresso: progresso };

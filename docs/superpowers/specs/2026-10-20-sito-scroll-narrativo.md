@@ -1,6 +1,6 @@
 # Sito: racconto guidato dallo scroll — piano e requisiti
 
-Stato: **prototipo del capitolo 1 pubblicato** in `racconto/` (fase 1 delle Fasi), da provare con l'utente prima di proseguire. Data: 20 ottobre 2026.
+Stato: **prototipo dei capitoli 1-4 pubblicato** in `racconto/` (giacimento, nastri, forno, lastre, corrente, sera), con l'anticipo del capitolo 5; mancano attacco, mondo e CORE. Data: 20 ottobre 2026.
 
 ## Cosa chiede l'utente
 
@@ -127,3 +127,12 @@ Pagina `racconto/` del sito, fuori dalla barra della vetrina e con `noindex`: ci
 - **Verifica**: `test_racconto.py` (mappa, linea del tempo, piani, esportazione deterministica), `test_racconto.mjs` (funzioni pure del motore), `test_costruisci.test_racconto` (pagina); Chromium a 1576×900 e 390×844 su nove posizioni di scroll, rotellina, tastiera, pausa, riduzione del movimento, senza script; nessun errore di console.
 
 Da decidere dopo la prova: ritmo dei capitoli (quanto scroll per capitolo), dimensione del drone (oggi quella del gioco), quanto si vede il piano del forno.
+
+## Capitoli 2-4 (20 ottobre, «fai anche la seconda e terza sezione fino all'attacco»)
+
+- **Mappa** (`racconto.SCENA`, 40×24, controllata da `fabbrica.controlla`): al minatore del ferro si aggiungono un giacimento di carbone con il suo minatore, che dal lato est porta il carbone al forno (curva, tre nastri, curva) e dal lato nord al generatore (curva, quattro nastri); le lastre escono dal forno verso est e scendono fuori dalla mappa, verso i capitoli che verranno; tre nodi e quattro lampade.
+- **Linea del tempo** a fasi (`FASI`), otto pannelli: minatore del ferro, nastri del ferro, forno, minatore del carbone, nastri del carbone, nastri delle lastre, generatore, nastri del generatore, nodi, lampade. Ogni blocco ha un istante in cui si accende: i minatori appena costruiti, il forno quando gli arrivano ferro e carbone, il generatore quando gli arriva il carbone, le lampade quando la loro linea è tesa. Gli oggetti corrono su quattro catene, ciascuna solo dove è costruita e solo da quando la sua sorgente lavora.
+- **Corrente**: sette linee del colore `UiColors.Energia` che si stendono da un estremo all'altro dopo che entrambi sono in piedi.
+- **Sera** come il `NightLayer` del client: il mondo moltiplicato per il suo blu scuro, poi luce calda sommata attorno alle lampade (6,5 celle) e alla bocca del forno (3 celle).
+- **Anticipo dell'attacco**: tre sagome nere di unità nemiche, bordate di rosso, entrano dal margine destro e un bagliore rosso lento (un respiro ogni 2,5 s, niente lampi) chiude il racconto.
+- **Camera**: dodici fotogrammi chiave; la vista resta sempre dentro la mappa (`limitaCamera`) e non scende mai sotto la mappa intera, così il telefono non mostra fasce nere.
