@@ -125,7 +125,7 @@ Giunzione 18 oggetti/s (capacità 2), splitter e sorter 8, ponte 5,25 (capacità
   - N2: il doppione di smontaggio si cerca solo nella coda del giocatore che manda il comando; senza danni.
   - N3: l'anteprima può restare ferma su un piano di smontaggio scartato in silenzio finché il mouse non si muove.
 - **Minori dei task parcheggiati**: credito su cantieri scartati da un salvataggio non valido; partenza asimmetrica dell'oggetto nuovo; disegno a metà velocità a fine linea; percorso `Feed`; test v12 rietichettato; quantità scritte a mano nei test di Builder e Construction; scansioni lineari di `RemovalArea` su fabbriche grandi.
-- **Nastri stretti: scelta in attesa dell'utente.** Il T11 ha prodotto una tavola (`tools/art/proposte_nastri_stretti.py`, fuori dal registro di `genera.py`, scrive in `.dev/arte/`) con tre varianti: A «binari sottili» (battistrada di 10 px, binari di 2 px), B «canale» (10 px, bordi scuri) e C «Mindustry» (12 px, piastre laterali di 4 px). Immagine nel ramo `pr-media` (`pr-media/pr-nastri-11/nastri-stretti.png`). Nessuna è applicata: tocca all'utente scegliere, poi si cambia lo script dell'arte e si rigenerano gli sprite.
+- **Nastri stretti: scelta in attesa dell'utente.** Il T11 ha prodotto una tavola (`tools/art/proposte_nastri_stretti.py`, fuori dal registro di `genera.py`, scrive in `.dev/arte/`) con tre varianti: A «binari sottili» (battistrada di 10 px, binari di 2 px), B «canale» (10 px, bordi scuri) e C «Mindustry» (12 px, piastre laterali di 4 px). Immagine nel ramo `pr-media` (`pr-media/pr-nastri-11/nastri-stretti.png`). Nessuna è applicata: tocca all'utente scegliere, poi si cambia lo script dell'arte e si rigenerano gli sprite. Il 2026-10-20 l'utente ha scelto la **C «Mindustry»** ([#252](https://github.com/Juan0177/tIndustry/issues/252)) e ha chiesto anche incrocio, selezionatore e router come in Mindustry ([#253](https://github.com/Juan0177/tIndustry/issues/253), [#254](https://github.com/Juan0177/tIndustry/issues/254), [#255](https://github.com/Juan0177/tIndustry/issues/255)).
 - **Base delle catture da promuovere.** La base ufficiale dei playtest (`%TEMP%/baseline-g4`) è vecchia: contro di essa 85 catture `ui` su 94 e 9 su 9 del `tutorial` differiscono per ragioni estranee al T3 (costi, interfaccia). Servono il giudizio e l'OK dell'utente per promuovere una base nuova; fino ad allora il confronto si fa contro `main` prima del task.
 - **Da pulire a mano**: il worktree `agent-ac721e0d6c6f6169b` (task 10) ha permessi rotti per un indice rimasto indietro; lo ripulisce l'utente.
 
@@ -142,7 +142,7 @@ Dalla rilettura delle correzioni finali (`952235f..f677de8`) e dal rapporto di #
 
 ## Da fare
 
-- **L'utente sceglie** la variante dei nastri stretti (A, B o C) e dà l'OK per promuovere la nuova base delle catture.
+- **L'utente dà l'OK** per promuovere la nuova base delle catture. (La variante dei nastri stretti è scelta: la C, il 2026-10-20, #252.)
 - Ponti automatici in catena, se li si vuole.
 - Test a due giocatori per il ramo di `BuilderSystem` (N1) e restringimento della sua condizione.
 - Dopo questo piano resta in roadmap il generatore `biomi-2`.
