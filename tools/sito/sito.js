@@ -79,6 +79,15 @@
     return ((i + passo) % n + n) % n;
   }
 
+  /* Market screen: which point of the price walk (n points) is at the right edge of the scrolling line when its
+     loop is at fraction u (0..1): the walk repeats every 480 units and the window is 470 wide, so the right edge
+     sits on point 47 + 48 u. */
+  function indicePrezzo(u, n) {
+    if (!(n > 0)) return 0;
+    var i = Math.floor(n - 1 + (u - Math.floor(u)) * n + 1e-9);
+    return ((i % n) + n) % n;
+  }
+
   /* Scroll progress of the page in percent: 0 at the top, 100 when the bottom of the document is
      reached, 0 when the page does not scroll at all. */
   function avanzamento(scrollY, altezzaDocumento, vh) {
@@ -117,7 +126,7 @@
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { intercetta: intercetta, avanzamento: avanzamento, bersaglio: bersaglio, limita: limita, politica: politica, vicino: vicino };
+    module.exports = { intercetta: intercetta, avanzamento: avanzamento, bersaglio: bersaglio, limita: limita, politica: politica, vicino: vicino, indicePrezzo: indicePrezzo };
   }
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
@@ -455,6 +464,30 @@
     visore.addEventListener("close", function () { img.removeAttribute("src"); });
   }
 
+  // ------------------------------------------------------------------ 5. the market price on digit wheels
+
+  function avviaMercato() {
+    var prezzo = doc.querySelector(".prezzo[data-prezzi]");
+    var linea = doc.querySelector(".schermo .scorre");
+    if (!prezzo || !linea) return;
+    var prezzi = prezzo.getAttribute("data-prezzi").split(",").map(Number);
+    var colonne = tutti(".cifre", prezzo), ultimo = prezzi[prezzi.length - 1];
+    var durata = (parseFloat(window.getComputedStyle(linea).animationDuration) || 28) * 1000;
+    function passo() {
+      if (statico() || doc.hidden) return;   // a paused page keeps its price, like its line
+      var animazione = typeof linea.getAnimations === "function" ? linea.getAnimations()[0] : null;
+      var ms = animazione && animazione.currentTime !== null ? Number(animazione.currentTime) : Date.now();
+      var valore = prezzi[indicePrezzo((ms % durata) / durata, prezzi.length)];
+      if (valore === ultimo) return;
+      prezzo.classList.toggle("sale", valore > ultimo);
+      prezzo.classList.toggle("scende", valore < ultimo);
+      ultimo = valore;
+      var testo = (valore < 10 ? "0" : "") + valore;
+      colonne.forEach(function (c, k) { c.style.setProperty("--c", testo.charAt(k)); });
+    }
+    setInterval(passo, 100);
+  }
+
   // ------------------------------------------------------------------ start
 
   // The Animazioni button of the bar: pause everything, or start everything (even when the system
@@ -484,6 +517,7 @@
     avviaDrone();
     avviaBottoni();
     avviaVisore();
+    avviaMercato();
   }
 
   window.tIndustrySito = { intercetta: intercetta, adatta: adatta, scorri: scorri, avanzamento: avanzamento, politica: politica };

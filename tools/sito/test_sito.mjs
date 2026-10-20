@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { intercetta, avanzamento, bersaglio, politica, vicino } = require("./sito.js");
+const { intercetta, avanzamento, bersaglio, politica, vicino, indicePrezzo } = require("./sito.js");
 
 const link = (attributi = ["data-costruisci"]) => ({
   hasAttribute: (nome) => attributi.includes(nome),
@@ -97,4 +97,13 @@ test("vicino: le catture si sfogliano in tondo", () => {
   assert.equal(vicino(0, -1, 9), 8);
   assert.equal(vicino(3, 0, 9), 3);
   assert.equal(vicino(0, 1, 0), 0);
+});
+
+test("indicePrezzo: il punto sul bordo destro della linea che scorre", () => {
+  assert.equal(indicePrezzo(0, 48), 47);
+  assert.equal(indicePrezzo(1 / 48, 48), 0);
+  assert.equal(indicePrezzo(0.5, 48), 23);
+  assert.equal(indicePrezzo(1, 48), 47);
+  assert.equal(indicePrezzo(0.999, 48), 46);
+  assert.equal(indicePrezzo(0.3, 0), 0);
 });
