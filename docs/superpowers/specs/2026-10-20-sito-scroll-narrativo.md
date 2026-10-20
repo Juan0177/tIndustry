@@ -92,8 +92,15 @@ Il sito ha già la base: `sito.js` scrive una variabile di avanzamento `--p` per
 4. Telefono, stato fermo, senza script.
 5. Rifinitura, misure di prestazioni, catture di riferimento, documenti e diario.
 
-## Decisioni da prendere con l'utente
+## Decisioni
 
-- Una mappa scritta a mano per il racconto (consigliato: controllo totale delle inquadrature) o una mappa vera della campagna.
-- Se il racconto sostituisce le sezioni di oggi in alto o si aggiunge sopra di esse.
-- Se provare Lenis (scorrimento morbido) o restare con lo scroll del browser (consigliato).
+Prese con l'utente il 20 ottobre (il lavoro non è ancora partito):
+
+- **Mappa dedicata al racconto**, scritta a mano per le inquadrature, non una mappa della campagna. Va comunque controllata dai test di connettività, ricette e durezze come le scene di oggi.
+- **Scroll morbido**: si usa Lenis (licenza MIT) su desktop. Su touch resta lo scroll del telefono, che è già morbido di suo. La tastiera (frecce, Pagina giù, Spazio) e le ancore della barra devono continuare a funzionare; con «Animazioni» in pausa lo scroll morbido si spegne.
+
+Ancora aperta:
+
+- **Cosa succede alla pagina di oggi.** Oggi la vetrina ha otto sezioni: hero, Come funziona, Catture, Blocchi, Sotto attacco, Ambienti, Interfaccia, Scarica. Due strade:
+  - *A, sostituire (consigliata)*: hero, Come funziona, Sotto attacco e Scarica diventano capitoli del racconto; sotto restano come pagina normale Catture, Blocchi, Ambienti e Interfaccia. La pagina non ripete le stesse cose due volte.
+  - *B, aggiungere*: il racconto va in cima e tutte le otto sezioni di oggi restano sotto, invariate. Più lavoro conservato, ma pagina più lunga e alcuni contenuti doppi (il CORE e il download, per esempio).
