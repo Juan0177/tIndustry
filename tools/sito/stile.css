@@ -150,10 +150,22 @@ html:has(.visore[open]){overflow:hidden}
 @keyframes lampeggia{to{opacity:.2}}
 .schermo svg{flex:1;width:100%;min-height:0;overflow:hidden}
 .schermo .griglia line{stroke:#1f2a33;stroke-width:1}
-.scorre{animation:scorre 14s linear infinite}
+.scorre{animation:scorre 28s linear infinite}  /* a new price every 0.58 s: the wheels settle in between */
 .scorre polyline{fill:none;stroke:var(--verde);stroke-width:2;vector-effect:non-scaling-stroke}
 .scorre .area{fill:#58d68d22}
-@keyframes scorre{to{transform:translateX(-470px)}}
+@keyframes scorre{to{transform:translateX(-480px)}}  /* one walk of 48 points: a seamless loop */
+/* the price on digit wheels (sito.js turns them): each digit is a column 0-9 that rolls to its place with a snap */
+.prezzo{display:inline-flex;align-items:center;font-variant-numeric:tabular-nums;color:var(--testo);transition:color .3s}
+.prezzo.sale{color:var(--verde)}
+.prezzo.scende{color:var(--rosso)}
+.prezzo::after{content:"";margin-left:4px;font-size:9px;width:9px}
+.prezzo.sale::after{content:"\25B2"}
+.prezzo.scende::after{content:"\25BC"}
+.rullo{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;
+ mask-image:linear-gradient(transparent,#000 22%,#000 78%,transparent);-webkit-mask-image:linear-gradient(transparent,#000 22%,#000 78%,transparent)}
+.rullo .cifre{display:flex;flex-direction:column;transform:translateY(calc(var(--c) * -1.25em));
+ transition:transform .42s cubic-bezier(.3,1.45,.55,1)}
+.rullo .cifre span{height:1.25em;text-align:center}
 .sez,.crt,.scheda,.bioma,.titolo,.terra{transition:transform .08s linear,opacity .08s linear,filter .08s linear}
 
 /* ---- hero (pinned, as tall as the screen) */

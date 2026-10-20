@@ -180,6 +180,18 @@ class TestSito(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(self.out, src)), src)
         self.assertTrue(os.path.isfile(os.path.join(self.out, "racconto.js")))
 
+    def test_prezzo_del_mercato(self):
+        # The market price follows the line: 48 two-digit values, two digit wheels starting on the last one.
+        m = re.search(r'class="prezzo" data-prezzi="([0-9,]+)"', self.ingresso)
+        prezzi = [int(v) for v in m.group(1).split(",")]
+        self.assertEqual(48, len(prezzi))
+        self.assertTrue(all(1 <= v <= 99 for v in prezzi))
+        self.assertGreater(len(set(prezzi)), 10)   # it really rises and falls
+        cifre = re.findall(r'<span class="cifre" style="--c:(\d)">', self.ingresso)
+        self.assertEqual(f"{prezzi[-1]:02d}", "".join(cifre))
+        with open(os.path.join(self.out, "stile.css"), encoding="utf-8") as fh:
+            self.assertIn("@keyframes scorre{to{transform:translateX(-480px)}}", fh.read())
+
     def test_animazioni(self):
         # The landing and sviluppo pages have the pause/play button in the bar, hidden until the script shows
         # it; the asset page has only GIFs, which nothing can stop, so no button.

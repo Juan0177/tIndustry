@@ -406,13 +406,20 @@ def _grafico_mercato(a, prezzo, nome_oggetto):
     for _ in range(48):
         v = min(105, max(15, v + rnd.uniform(-9, 9)))
         punti.append(v)
+    # The price follows the line: point i of the walk is worth prezzo * value / 60 (two digits). sito.js reads where
+    # the scrolling line has got to and turns the digit wheels to the point at its right edge.
+    prezzi = [max(1, min(99, round(prezzo * p / 60))) for p in punti]
+    rulli = "".join(f'<span class="rullo"><span class="cifre" style="--c:{c}">'
+                    + "".join(f"<span>{k}</span>" for k in range(10)) + "</span></span>"
+                    for c in f"{prezzi[-1]:02d}")
     punti += punti
     linea = " ".join(f"{i * 10},{120 - p:.1f}" for i, p in enumerate(punti))
     area = f"M0,120 L{linea.replace(' ', ' L')} L{(len(punti) - 1) * 10},120 Z"
     griglia = "".join(f'<line x1="0" y1="{y}" x2="470" y2="{y}"/>' for y in (30, 60, 90))
     return (f'<figure class="crt schermo" data-rivela style="{_at(806, 384, 314, 230)}"><div class="schermo-testa">'
             f'<img class="px" src="{a.sprite("ui/ui-mercato")}" alt="" width="32" height="32"><b>Mercato</b>'
-            f'<span>{html.escape(nome_oggetto)} ${prezzo}</span><i class="live"></i></div>'
+            f'<span>{html.escape(nome_oggetto)} <span class="prezzo" data-prezzi="{",".join(map(str, prezzi))}" '
+            f'aria-hidden="true">${rulli}</span><span class="sr">${prezzo}</span></span><i class="live"></i></div>'
             f'<svg viewBox="0 0 470 120" preserveAspectRatio="none" aria-hidden="true"><g class="griglia">{griglia}</g>'
             f'<g class="scorre"><path class="area" d="{area}"/><polyline points="{linea}"/></g></svg>'
             '<figcaption>Il prezzo cala mentre vendi e risale piano</figcaption></figure>')

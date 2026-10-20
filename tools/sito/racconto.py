@@ -27,7 +27,7 @@ from fabbrica import T1, Blocco, Giacimento, Pezzo, Scena, Tratto
 CELLA = composti.T  # art px per cell (32); the canvas scales the art, like the game draws it x2
 LARGHEZZA, RIGHE = 40, 24
 AMBRA = (0xFF, 0xD3, 0x7F)  # UiColors.Costruzione = Accento (Mindustry Pal.accent)
-FETTE = 7  # slices of the drone stack: 6 extruded walls and the sprite on top
+FETTE = 6  # slices of the drone stack, one art px apart (modello_drone gives each part its own heights)
 INGRANDIMENTO = 4  # DroneVisual.SharpFactor: enlarged without filtering, drawn smaller with filtering
 
 # The miner sits on an iron deposit; its ore leaves from the east side through a corner (never straight out of a
@@ -153,24 +153,99 @@ def striscia(fotogrammi):
     return out
 
 
-def fette_drone(drone):
-    """The drone in 2.5D: FETTE layers of the same footprint, the lower ones the sprite darkened step by step (its
-    walls), the top one the sprite itself, enlarged x INGRANDIMENTO without filtering."""
+# The parts of drone-1, told apart by colour (tools/art draws it with these exact shades).
+_SCAFO = {(0xA4, 0xA6, 0xB2), (0xD6, 0xD8, 0xE2), (0x84, 0x86, 0x92)}   # the light hull and its arms
+_GONDOLA = {(0x60, 0x62, 0x6E), (0x44, 0x46, 0x52)}                     # rotor ducts (and the tail stub)
+_SENSORE = {(0xD6, 0x84, 0x3C), (0xFF, 0xBE, 0x64), (0xFF, 0xF0, 0xC8)}  # the orange eye
+_CONTORNO = (0x2B, 0x2B, 0x2B)
+
+
+def modello_drone(drone):
+    """{(x, y): (part, bottom, top)} of drone-1 as a small voxel model (heights in art px, 0 = belly).
+
+    Sprite stacking only looks solid when the layers differ: here the hull is a dome (taller towards its
+    middle), the eye a sensor raised above it, the two ducts float higher than the belly as stepped rings, the tail
+    stub stays low. Outline pixels join the part most of their neighbours belong to."""
     drone = drone.convert("RGBA")
+    px = drone.load()
+    w, h = drone.size
+    parte = {}
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            c = (r, g, b)
+            if c in _SENSORE:
+                parte[(x, y)] = "sensore"
+            elif c in _SCAFO:
+                parte[(x, y)] = "scafo"
+            elif c in _GONDOLA:
+                parte[(x, y)] = "coda" if x <= 3 else "gondola"
+            else:
+                parte[(x, y)] = None   # outline: decided below
+    for _ in range(3):   # outlines take the part of their neighbours (the eye's ring belongs to the hull)
+        for (x, y), v in list(parte.items()):
+            if v is None:
+                vicini = [parte.get(q) for q in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))]
+                vicini = ["scafo" if n == "sensore" else n for n in vicini if n]
+                if vicini:
+                    parte[(x, y)] = max(sorted(set(vicini)), key=vicini.count)
+    for k, v in parte.items():
+        if v is None:
+            parte[k] = "scafo"
+    # Depth of every hull pixel from the hull's edge: the dome rises towards the middle.
+    profondita = {}
+    bordo = [q for q, v in parte.items() if v in ("scafo", "sensore")
+             and any(parte.get(n) not in ("scafo", "sensore") for n in ((q[0] + 1, q[1]), (q[0] - 1, q[1]),
+                                                                        (q[0], q[1] + 1), (q[0], q[1] - 1)))]
+    for q in bordo:
+        profondita[q] = 1
+    fronte = bordo
+    while fronte:
+        nuovo = []
+        for x, y in fronte:
+            for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if parte.get(n) in ("scafo", "sensore") and n not in profondita:
+                    profondita[n] = profondita[(x, y)] + 1
+                    nuovo.append(n)
+        fronte = nuovo
+    modello = {}
+    for q, v in parte.items():
+        if v == "gondola":   # a stepped duct: outer rim high, inner band lower, the hub at the bottom
+            c = px[q][:3]
+            esterno = any(not (0 <= n[0] < w and 0 <= n[1] < h) or not px[n][3]
+                          for n in ((q[0] + 1, q[1]), (q[0] - 1, q[1]), (q[0], q[1] + 1), (q[0], q[1] - 1)))
+            alto = 3 if c == (0x60, 0x62, 0x6E) or (c == _CONTORNO and esterno) else 2 if c == (0x44, 0x46, 0x52) else 1
+            modello[q] = (v, 1, alto)
+        elif v == "coda":
+            modello[q] = (v, 0, 2)
+        elif v == "sensore":
+            modello[q] = (v, 0, 5)
+        else:
+            modello[q] = (v, 0, 1 + min(profondita.get(q, 1), 3))
+    return modello
+
+
+def fette_drone(drone):
+    """The drone in 2.5D: FETTE layers of modello_drone, bottom first. A pixel shows its own colour on the layer of
+    its top (the face seen from above) and a darker shade on the layers below (its walls, which the offset of the
+    stack lets peek out); enlarged x INGRANDIMENTO without filtering."""
+    drone = drone.convert("RGBA")
+    px = drone.load()
+    modello = modello_drone(drone)
     livelli = []
     for k in range(FETTE):
-        if k == FETTE - 1:
-            livello = drone.copy()
-        else:
-            f = 0.32 + 0.38 * k / (FETTE - 2)
-            px = drone.load()
-            livello = Image.new("RGBA", drone.size)
-            dst = livello.load()
-            for y in range(drone.height):
-                for x in range(drone.width):
-                    r, g, b, a = px[x, y]
-                    if a:
-                        dst[x, y] = (int(r * f), int(g * f), int(b * f), a)
+        livello = Image.new("RGBA", drone.size)
+        dst = livello.load()
+        for (x, y), (parte, basso, alto) in modello.items():
+            if not basso <= k <= alto:
+                continue
+            r, g, b, a = px[x, y]
+            if k < alto:
+                f = 0.42 + 0.3 * k / max(1, alto)
+                r, g, b = int(r * f), int(g * f), int(b * f)
+            dst[x, y] = (r, g, b, a)
         livelli.append(livello.resize((drone.width * INGRANDIMENTO, drone.height * INGRANDIMENTO), Image.NEAREST))
     return striscia(livelli)
 

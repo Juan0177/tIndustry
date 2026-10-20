@@ -54,6 +54,17 @@ class TestRacconto(unittest.TestCase):
         r, g, b, a = piano.getpixel((piano.width // 2, piano.height // 2))
         self.assertLess(a, 70)   # see-through dark inside
 
+    def test_drone_a_strati_diversi(self):
+        # Real 2.5D, not a thicker coin: the hull is a dome, the eye stands above it, the ducts are stepped rings.
+        modello = racconto.modello_drone(composti.Immagini(ASSETS)("drone-1"))
+        alti = lambda parte: {q: a for q, (p, _, a) in modello.items() if p == parte}
+        scafo, sensore, gondola = alti("scafo"), alti("sensore"), alti("gondola")
+        self.assertGreater(max(scafo.values()), min(scafo.values()))      # taller towards the middle
+        self.assertGreater(min(sensore.values()), max(scafo.values()))    # the sensor above the hull
+        self.assertEqual({1, 2, 3}, set(gondola.values()))                # rim, inner band, hub
+        self.assertTrue(all(b >= 1 for q, (p, b, _) in modello.items() if p == "gondola"))   # off the belly
+        self.assertEqual(racconto.FETTE, max(a for _, _, a in modello.values()) + 1)
+
     def test_esportazione_deterministica(self):
         immagini = composti.Immagini(ASSETS)
         letti = []

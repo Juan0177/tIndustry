@@ -9,8 +9,9 @@
  * The data (map, camera, constructions in chain order, item path, sprite list) comes from racconto.py as JSON in
  * <script id="racconto-dati">. Drawing follows the game: art scaled with nearest-neighbour, plans as the construct
  * shader at progress 0 (dark silhouette, amber outline), sites rising from the bottom with an amber scan line,
- * the drone (drone-1) in 2.5D as stacked slices over its 35 % shadow, enlarged x4 and drawn smaller with
- * filtering like DroneVisual, with the build beam to its site.
+ * the drone (drone-1) in 2.5D: the stacked layers of racconto.modello_drone (domed hull, raised sensor, stepped
+ * rotor ducts) over its 35 % shadow, enlarged x4 and drawn smaller with filtering like DroneVisual, a forward
+ * lean in flight and the build beam to its site.
  *
  * Smooth scrolling (the decision of 20 October): wheel input is eased towards its target with an exponential
  * approach, only when the motion policy of sito.js is full (html.animato); keyboard, scrollbar, touch and anchors
@@ -250,48 +251,60 @@
     }
   }
 
-  var drone = { x: dati.drone.partenza[0], y: dati.drone.partenza[1], ang: Math.PI * 0.75 };
+  var drone = { ang: Math.PI * 0.75, inclina: 0, ux: 0, uy: 0 };
   function disegnaDrone(t, tempo, dt) {
-    var dove = posizioneDrone(dati.costruzioni, dati.drone.partenza, dati.drone.ingresso, t);
-    var vx = dove.x - drone.x, vy = dove.y - drone.y;
+    var D = dati.drone;
+    var dove = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t);
+    // Flight direction from the timeline itself (a little before and after t), not from frame deltas: the same
+    // pose at the same scroll position, however fast the visitor scrolls.
+    var prima = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t - 0.003);
+    var dopo = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t + 0.003);
+    var mx = dopo.x - prima.x, my = dopo.y - prima.y, passo = Math.sqrt(mx * mx + my * my);
+    var vola = dove.lavora < 0 && passo > 0.002;
     var meta = drone.ang;
     if (dove.lavora >= 0) {
       var c = dati.costruzioni[dove.lavora];
       meta = Math.atan2(c.y + c.h / 2 - dove.y, c.x + c.w / 2 - dove.x);
-    } else if (Math.abs(vx) + Math.abs(vy) > 0.004) {
-      meta = Math.atan2(vy, vx);
+    } else if (vola) {
+      meta = Math.atan2(my, mx);
     }
-    drone.ang = angoloVerso(drone.ang, meta, 1 - Math.exp(-dt * 8));
-    drone.x = dove.x; drone.y = dove.y;
-    var s = dati.sprite.drone, lato = s.lato;
-    var bob = Math.sin(tempo * 2.6) * 1.6;   // DroneVisual: ±0.05 tile
+    var f = 1 - Math.exp(-dt * 8);
+    drone.ang = angoloVerso(drone.ang, meta, f);
+    // Leaning into the flight: each layer moves a little along the heading, so the drone tilts forwards.
+    if (vola) { drone.ux = mx / passo; drone.uy = my / passo; }
+    drone.inclina += ((vola ? 0.5 : 0) - drone.inclina) * f;
+    var lx = drone.ux * drone.inclina, ly = drone.uy * drone.inclina;
+    var s = dati.sprite.drone, lato = s.lato, n = s.fotogrammi;
+    var bob = Math.sin(tempo * 2.6) * 1.6;   // DroneVisual: ±0.05 tile, only the body moves
     var cx = dove.x * CELLA, cy = dove.y * CELLA - bob;
+    var co = Math.cos(drone.ang), si = Math.sin(drone.ang);
+    var m = ctx.getTransform();   // where the drone is on screen (CSS px), for window.tIndustryRacconto
+    drone.schermo = { x: (m.a * cx + m.e) / dpr, y: (m.d * cy + m.f) / dpr };
     ctx.imageSmoothingEnabled = true;   // enlarged x4 art drawn smaller with filtering: crisp at any heading
-    ctx.save();
+    ctx.save();   // the shadow stays on the ground, down-right (light from the top-left)
     ctx.translate(dove.x * CELLA + 4, dove.y * CELLA + 6);
     ctx.rotate(drone.ang);
     fotogramma("drone-ombra", 0, 0, 0, 0, 0, -lato / 2, -lato / 2, lato, lato);
     ctx.restore();
-    for (var k = 0; k < s.fotogrammi; k++) {
+    // engine glow at the tail, low, before the hull so half of it hides behind (DroneVisual)
+    var r = 2.4 + 0.6 * Math.sin(tempo * 9);
+    ctx.fillStyle = "rgba(255,179,71,0.9)";
+    ctx.beginPath();
+    ctx.arc(cx - co * 12 + lx, cy - si * 12 - 1 + ly, r, 0, Math.PI * 2);
+    ctx.fill();
+    for (var k = 0; k < n; k++) {
       ctx.save();
-      ctx.translate(cx, cy - k);
+      ctx.translate(cx + lx * k, cy - k + ly * k);
       ctx.rotate(drone.ang);
       fotogramma("drone", k, 0, 0, 0, 0, -lato / 2, -lato / 2, lato, lato);
       ctx.restore();
     }
     ctx.imageSmoothingEnabled = false;
-    var top = cy - (s.fotogrammi - 1);
-    // engine glow at the tail, pulsing
-    var coda = 12, r = 2.6 + 0.6 * Math.sin(tempo * 9);
-    ctx.fillStyle = "rgba(255,179,71,0.85)";
-    ctx.beginPath();
-    ctx.arc(cx - Math.cos(drone.ang) * coda, top - Math.sin(drone.ang) * coda, r, 0, Math.PI * 2);
-    ctx.fill();
-    if (dove.lavora >= 0) {   // the build beam to a point wandering over the site
+    if (dove.lavora >= 0) {   // the build beam from the nose to a point wandering over the site
       var b = dati.costruzioni[dove.lavora];
       var px = (b.x + b.w / 2) * CELLA + Math.sin(tempo * 3.1) * b.w * CELLA * 0.3;
       var py = (b.y + b.h / 2) * CELLA + Math.cos(tempo * 2.3) * b.h * CELLA * 0.3;
-      var nx = cx + Math.cos(drone.ang) * 10, ny = top + Math.sin(drone.ang) * 10;
+      var nx = cx + co * 10 + lx * (n - 1), ny = cy - (n - 1) + si * 10 + ly * (n - 1);
       ctx.strokeStyle = "rgba(255,211,127,0.25)"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(px, py); ctx.stroke();
       ctx.strokeStyle = AMBRA; ctx.lineWidth = 1;
@@ -335,6 +348,8 @@
     disegnaOggetti(t, tempo);
     disegnaDrone(t, tempo, dt);
   }
+
+  window.tIndustryRacconto = { drone: function () { return drone.schermo || null; }, progresso: progresso };
 
   var richiesta = null;
   function ciclo(ora) {
