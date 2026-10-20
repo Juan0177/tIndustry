@@ -168,7 +168,9 @@ public sealed class Miner
                 continue;
             }
 
-            if (!grid.TryInsert(outputPosition, new TransportedItem(nextItemId, OutputItemId)))
+            // Source: the footprint tile beside the output tile (an armored belt checks it).
+            var source = outputPosition.Step(DirectionMath.Opposite(DirectionMath.All[slot / Size]));
+            if (!grid.TryInsert(outputPosition, new TransportedItem(nextItemId, OutputItemId), source: source))
             {
                 continue;
             }

@@ -102,7 +102,7 @@ public sealed class Extractor
             return false;
         }
 
-        if (!belts.TryInsert(outPos, new TransportedItem(nextItemId, FilterItemId)))
+        if (!belts.TryInsert(outPos, new TransportedItem(nextItemId, FilterItemId), source: Position))
         {
             wallet.AddMaterial(FilterItemId, 1);
             return false;

@@ -26,7 +26,7 @@ from palette import ACCENTO, BAGLIORE, CELLA, METALLO, NASTRO, NUCLEO, OUT, RAME
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
-NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express")  # belt tiers with scrolling strips
+NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armored")  # belt tiers with scrolling strips
 
 # Block footprints in cells, kept by hand: update it together with Factory.FootprintSize
 # (src/TIndustry.Shared/Factory.cs) when a block changes size. The bridge is two 1x1 ends.
@@ -34,7 +34,7 @@ CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
     "extractor": 1, "power-node": 1, "lamp": 1, "conveyor-basic": 1, "conveyor-fast": 1,
-    "conveyor-express": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
+    "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
 }
 CORE_TIER = 4
@@ -446,6 +446,15 @@ class TestGenera(unittest.TestCase):
                                      f"{nastro}: fotogramma {i + 1} scorso di 1 px != fotogramma {(i + 1) % 32 + 1}")
                     for y0, y1 in ((0, 4), (27, 31)):
                         self.assertEqual(_righe(f, y0, y1), _righe(fotogrammi[0], y0, y1), f"{nastro}: binari mossi")
+
+    def test_rinforzato_diverso_dal_veloce(self):
+        # The armored belt reads apart from the fast one at a glance: inside the outline its rails (rows 1-3,
+        # 28-30) share no pixel with the fast belt's, and they carry rivets (more tones).
+        rinforzato, veloce = SPRITE["conveyor-armored"](), SPRITE["conveyor-fast"]()
+        binari = [(x, y) for x in range(T) for y in (1, 2, 3, 28, 29, 30)]
+        self.assertEqual(0, sum(rinforzato.getpixel(p) == veloce.getpixel(p) for p in binari))
+        colori = {rinforzato.getpixel(p) for p in binari}
+        self.assertGreater(len(colori), len({veloce.getpixel(p) for p in binari}))
 
     def test_curve_raccordate(self):
         # Corner (in from the West edge, out from the South edge): its West column is column 0

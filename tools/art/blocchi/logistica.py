@@ -1,5 +1,5 @@
-"""Logistics sprites: belts in three tiers (icon, straight strip, corner strip, T merge strip,
-side join strips),
+"""Logistics sprites: belts in four tiers (basic, fast, express, armored; icon, straight strip, corner
+strip, T merge strip, side join strips),
 junction, splitter, sorter, bridge end and bridge span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. Belt strips
@@ -11,7 +11,7 @@ import math
 
 import forme
 from blocchi import sprite
-from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, TITANIO
+from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, ROSSO, TITANIO
 
 T = 32
 PASSO = 1  # px the tread moves per frame: 32 frames per cell, smooth next to items moving every tick
@@ -30,7 +30,10 @@ TIER = {
     "conveyor-basic": (METALLO, METALLO, None),
     "conveyor-fast": (RAME, RAME, None),
     "conveyor-express": (TITANIO[:4], TITANIO, ACCENTO[2]),
+    # Armored (Mindustry's armored conveyor): riveted steel plates, red armour edge and chevrons.
+    "conveyor-armored": (FERRO, ROSSO, ROSSO[2]),
 }
+RINFORZATI = {"conveyor-armored"}  # tiers whose rails carry riveted armour plates
 
 
 def _binario(u, v, tier):
@@ -42,6 +45,8 @@ def _binario(u, v, tier):
     riga = v - 1 if su else v - 28  # 0..2 inside the rail
     if bordo is not None and riga == (2 if su else 0):
         return bordo  # accent edge on the belt side of each rail
+    if tier in RINFORZATI and riga == 1 and u % 8 in (3, 4):
+        return FERRO[4] if u % 8 == 3 else FERRO[0]  # rivet on the armour plate, lit from the left
     k = (3, 2, 1)[riga] - (0 if su else 1)  # top rail catches the light
     if u % 8 == 7:
         k = max(0, k - 2)  # roller joint

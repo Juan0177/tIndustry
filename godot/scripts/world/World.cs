@@ -42,6 +42,7 @@ public partial class World : Node2D
         Belt,
         BeltFast,
         BeltExpress,
+        BeltArmored,
         Miner,
         MinerAdvanced,
         Smelter,

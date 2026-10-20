@@ -18,6 +18,7 @@ public sealed class ResearchTreeContentTests
         { "conveyor-basic", null },
         { "conveyor-fast", "conveyor-basic" },
         { "conveyor-express", "conveyor-fast" },
+        { "conveyor-armored", "conveyor-fast" },
         { "junction", "conveyor-basic" },
         { "splitter", "junction" },
         { "sorter", "junction" },

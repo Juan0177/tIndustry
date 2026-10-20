@@ -10,7 +10,8 @@ public partial class World
     internal bool LineDragActive => _lineAnchor is not null;
 
     /// <summary>The tools that lay belts: the client's one list of them.</summary>
-    private static bool IsBelt(BuildTool tool) => tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress;
+    private static bool IsBelt(BuildTool tool) =>
+        tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress or BuildTool.BeltArmored;
 
     /// <summary>Tools whose block faces a way (R, the drag).</summary>
     private static bool IsOrientable(BuildTool tool) =>

@@ -491,6 +491,7 @@ public partial class World
             Hud.ToolKind.Belt,
             Hud.ToolKind.BeltFast,
             Hud.ToolKind.BeltExpress,
+            Hud.ToolKind.BeltArmored,
             Hud.ToolKind.Miner,
             Hud.ToolKind.MinerAdvanced,
             Hud.ToolKind.Smelter,

@@ -517,6 +517,12 @@ public partial class World
             return false;
         }
 
+        // The armored belt runs past drills and a smelter without picking anything up, beside a fast line that does.
+        if (!await PlaytestArmoredBeltAsync(Shot))
+        {
+            return false;
+        }
+
         // Terrain art captures here, with the game at rest: nothing moves while the camera looks around.
         await PlaytestTerrainShotsAsync(Shot);
 
@@ -737,7 +743,7 @@ public partial class World
         }
 
         const int cols = 20, rows = 10;
-        string[] tiers = ["conveyor-basic", "conveyor-fast", "conveyor-express"];
+        string[] tiers = ["conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armored"];
         var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         var origin = new GridPosition(core.X - cols / 2, core.Y + 5);
         var placed = 0;
@@ -1256,9 +1262,9 @@ public partial class World
         // Close-up of the Core (core-1 with its nucleus light) and the drone resting beside it.
         await Frame(new GridPosition(core.X - 2, core.Y - 1), new GridPosition(core.X + 3, core.Y + 2), 2f, "core");
 
-        // Every item on each belt tier: three rows of 12 belts heading East, one item per cell.
+        // Every item on each belt tier: one row of belts heading East per tier, one item per cell.
         string[] itemIds = [.. _view.Content.Market.Select(m => m.ItemId), "money"];
-        string[] tiers = ["conveyor-basic", "conveyor-fast", "conveyor-express"];
+        string[] tiers = ["conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armored"];
         if (Find(itemIds.Length, tiers.Length, deposit: false) is { } beltsAt)
         {
             var nextId = 900_000L;
@@ -1269,7 +1275,8 @@ public partial class World
                     var cell = new GridPosition(beltsAt.X + c, beltsAt.Y + r);
                     factory.PlaceInstant(new BuildSpec(tiers[r], null, cell, Direction.East), charge: false);
                     var itemId = itemIds[(c + r) % itemIds.Length];
-                    if (!factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemId, 0.5f)))
+                    // From the West, behind the East belt: the armored row takes it too.
+                    if (!factory.Belts.TryInsert(cell, new TransportedItem(nextId++, itemId, 0.5f), Direction.East))
                     {
                         GD.Print($"PLAYTEST blocchi: {itemId} non inserito sul nastro {tiers[r]} in {cell}");
                     }

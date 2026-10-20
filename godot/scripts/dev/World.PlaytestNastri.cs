@@ -790,4 +790,106 @@ public partial class World
         GD.Print("PLAYTEST step ok: rotellina-ruota, gira ogni blocco orientabile; Ctrl, cursore, minatore e lampada zoomano");
         return true;
     }
+
+    private const int ArmoredProbeWidth = 10;
+
+    /// <summary>
+    /// <c>nastro-rinforzato</c>: three miners on a deposit and a smelter in a row, a fast line along their North side and
+    /// an armored line along their South side, both heading East. The fast line blends with the buildings and fills; the
+    /// armored line stays straight and gets nothing (it takes from buildings only from behind). Everything is taken
+    /// away afterwards.
+    /// </summary>
+    private async Task<bool> PlaytestArmoredBeltAsync(Func<string, Task> shot)
+    {
+        if (_view is not Factory factory || _view.Terrain is not { } terrain || GetNodeOrNull<Camera2D>("Camera") is not { } cam)
+        {
+            return Fail("nastro-rinforzato: partita assente");
+        }
+
+        // Rows from the origin: 0 fast line, 1-2 miners (x 1, 3, 5) and the smelter (x 7), 3 armored line.
+        BuildSpec[] Layout(GridPosition a) =>
+        [
+            .. Enumerable.Range(0, ArmoredProbeWidth).Select(x =>
+                new BuildSpec("conveyor-fast", null, new GridPosition(a.X + x, a.Y), Direction.East)),
+            .. Enumerable.Range(0, ArmoredProbeWidth).Select(x =>
+                new BuildSpec("conveyor-armored", null, new GridPosition(a.X + x, a.Y + 3), Direction.East)),
+            .. new[] { 1, 3, 5 }.Select(x =>
+                new BuildSpec(Miner.BasicId, BuildingKind.Miner, new GridPosition(a.X + x, a.Y + 1), Direction.East)),
+            new BuildSpec(Crafter.SmelterBuildingId, BuildingKind.Smelter, new GridPosition(a.X + 7, a.Y + 1), Direction.East),
+        ];
+
+        // Miners digging as fast as the deposit allows: the spot with the most ore under them.
+        var core = new GridPosition(_view.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
+        (GridPosition At, int Ore)? best = null;
+        for (var dy = -30; dy <= 30; dy++)
+        {
+            for (var dx = -30; dx <= 30; dx++)
+            {
+                // Away from the Core: a miner touching it would deliver there instead of onto the belts.
+                var at = new GridPosition(core.X + dx, core.Y + dy);
+                var layout = Layout(at);
+                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) < 8 || !layout.All(spec => factory.CanPlace(spec, out _)))
+                {
+                    continue;
+                }
+
+                var ores = layout.Where(spec => spec.Kind == BuildingKind.Miner)
+                    .Select(spec => factory.Footprint(spec).Count(t => terrain[t].Deposit != DepositKind.None)).ToArray();
+                var ore = ores.Sum();
+                if (ores.Min() > 0 && (best is null || ore > best.Value.Ore))
+                {
+                    best = (at, ore);
+                }
+            }
+        }
+
+        if (best is not { } found)
+        {
+            return Fail("nastro-rinforzato: nessuno spazio per tre minatori su un giacimento");
+        }
+
+        var specs = Layout(found.At);
+        foreach (var spec in specs)
+        {
+            if (!factory.PlaceInstant(spec, charge: false))
+            {
+                return Fail($"nastro-rinforzato: {spec.StructureId} su {spec.Origin} rifiutato");
+            }
+        }
+
+        _visualDirty = true;
+        _buildingsDirty = true;
+        int Items(int row) => Enumerable.Range(0, ArmoredProbeWidth)
+            .Sum(x => factory.Belts.Cells[new GridPosition(found.At.X + x, found.At.Y + row)].Items.Count);
+        try
+        {
+            // The four rows whole, clear of the HUD corners.
+            cam.Position = CellCenter(new GridPosition(found.At.X + ArmoredProbeWidth / 2, found.At.Y + 1))
+                + new Vector2(-TileSize / 2f, TileSize / 2f);
+            cam.Zoom = new Vector2(1.2f, 1.2f);
+            await PlaytestWait(10);
+            var shapes = Enumerable.Range(0, ArmoredProbeWidth)
+                .Select(x => factory.GetBeltShape(new GridPosition(found.At.X + x, found.At.Y + 3))).ToArray();
+            await shot("nastro-rinforzato");
+            GD.Print($"PLAYTEST nastro rinforzato: veloce {Items(0)} oggetti, rinforzato {Items(3)}, forme {string.Join(", ", shapes.Distinct())}");
+            if (Items(0) == 0 || Items(3) != 0 || shapes.Any(shape => shape != BeltShape.Straight))
+            {
+                return Fail("nastro-rinforzato: il veloce deve riempirsi, il rinforzato restare vuoto e dritto");
+            }
+
+            GD.Print("PLAYTEST step ok: nastro-rinforzato, passa accanto a minatori e forno senza raccogliere niente");
+            return true;
+        }
+        finally
+        {
+            foreach (var spec in specs)
+            {
+                factory.RemoveInstant(spec.Origin, refund: false);
+            }
+
+            _visualDirty = true;
+            _buildingsDirty = true;
+            FocusCameraOnCore();
+        }
+    }
 }

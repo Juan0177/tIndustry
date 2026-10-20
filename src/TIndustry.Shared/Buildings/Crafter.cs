@@ -440,7 +440,9 @@ public sealed class Crafter
                 continue;
             }
 
-            if (!belts.TryInsert(outputPosition, new TransportedItem(nextItemId, itemId)))
+            // Source: the footprint tile beside the output tile (an armored belt checks it).
+            var source = outputPosition.Step(DirectionMath.Opposite(DirectionMath.All[slot / Size]));
+            if (!belts.TryInsert(outputPosition, new TransportedItem(nextItemId, itemId), source: source))
             {
                 continue;
             }

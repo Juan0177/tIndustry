@@ -25,8 +25,12 @@ public sealed record ConveyorDefinition(
     IReadOnlyList<ResourceAmount>? BuildCost = null,
     UnlockRequirement? Unlock = null,
     LogisticsKind Kind = LogisticsKind.Belt,
-    float BuildCostMultiplier = 1f)
+    float BuildCostMultiplier = 1f,
+    bool Armored = false)
 {
+    /// <summary>Armored belt (Mindustry's): takes items from non-belts only from behind, never blends with buildings.</summary>
+    public bool IsArmoredBelt => Armored && Kind == LogisticsKind.Belt;
+
     public IReadOnlyList<ResourceAmount> EffectiveBuildCost => BuildCost ?? [];
 }
 

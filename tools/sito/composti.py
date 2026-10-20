@@ -257,7 +257,9 @@ def _nastro(tier):
         + [(f"{tier}-{u}-anim", parte) for u, _, parte in unioni],
         icona=tier, stato_icona="Dritto",
         nota=f"{_num(VELOCITA_NASTRO[tier])} {'oggetto' if VELOCITA_NASTRO[tier] == 1 else 'oggetti'} al secondo: "
-             f"{fps:g} fotogrammi al secondo.",
+             f"{fps:g} fotogrammi al secondo."
+        + (" Rinforzato: non si unisce agli edifici ai lati e prende da loro solo da dietro."
+           if tier == "conveyor-armored" else ""),
         fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps, tier + "-t-anim": fps}
         | {f"{tier}-{u}-anim": fps for u, _, _ in unioni})
 
@@ -316,7 +318,7 @@ BLOCCHI = [
            [_stato("Accesa", "accesa"), _stato("Spenta")],
            [("lamp", "icona"), ("lamp-base", "base, cupola spenta"), ("lamp-glow", "cupola accesa")],
            icona="lamp", stato_icona="Accesa", nota="Di notte fa anche luce attorno."),
-    *[_nastro(t) for t in ("conveyor-basic", "conveyor-fast", "conveyor-express")],
+    *[_nastro(t) for t in ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armored")],
     # godot/scripts/visuals/belts/MindustryBeltVisual.cs (AddSpecial): the open crossing and, on every side
     # without an input or output (IGameView.IsJunctionSideConnected), the North rail piece turned to that side.
     Blocco("junction", "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
