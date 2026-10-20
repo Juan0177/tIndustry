@@ -6,7 +6,10 @@
  * construction has risen, so scrolling back takes the factory apart again (scrub). Wall-clock time only drives
  * what moves by itself: belt treads, items, working blocks, the drone's hover and its beam. The story runs
  * through the seven chapters: deposit and belts, smelter and plates, power, night and the attack (enemies only at
- * night: the survivors flee at dawn, the drone wears its helmet meanwhile), the world, the Core.
+ * night: the survivors flee at dawn, the drone wears its helmet meanwhile), the world, the Core and the market
+ * (price soaring, a briefcase of 9999 plates thrown into the screen, the crash as a falling rocket-bomb that
+ * goes off as a mushroom cloud at the usual price, «stonks»,
+ * and a money bonus to make up for it).
  *
  * The data (map, camera, constructions in chain order, item path, sprite list) comes from racconto.py as JSON in
  * <script id="racconto-dati">. Drawing follows the game: art scaled with nearest-neighbour, plans as the construct
@@ -75,6 +78,32 @@
     return { x: x, y: y };
   }
 
+  /* Market price at t: the base, soaring (sale) to the top on a log scale, then crashing (crollo) to the bottom. */
+  function prezzoMercato(m, t) {
+    var P = m.prezzo, su = liscia(avanzamento(t, m.sale[0], m.sale[1])), giu = liscia(avanzamento(t, m.crollo[0], m.crollo[1]));
+    var alto = P.base * Math.pow(P.alto / P.base, su);
+    return alto * Math.pow(P.basso / P.alto, giu);
+  }
+
+  /* The rocket-bomb at fraction u of the crash: it leaves (x0, y0) and hits (x1, y1), falling faster and faster
+     (y grows with u squared); `ang` points its nose along the fall. Screen art px. */
+  function percorsoCaduta(x0, y0, x1, y1, u) {
+    return { x: x0 + (x1 - x0) * u, y: y0 + (y1 - y0) * u * u, ang: Math.atan2((y1 - y0) * (2 * u + 0.15), x1 - x0) };
+  }
+
+  /* Height of a price on the market screen's log scale (racconto.py y_prezzo does the same). */
+  function yPrezzo(M, v) {
+    var lmin = Math.log(M.prezzo.basso * 0.5), lmax = Math.log(M.prezzo.alto * 1.3), ih = M.interno[3];
+    return ih - 8 - (Math.log(v) - lmin) / (lmax - lmin) * (ih - 34);
+  }
+
+  /* A price as the Italian interface writes it: 2.500, 37, 4,20, 0,01. */
+  function testoPrezzo(v) {
+    if (v >= 100) return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    if (v >= 10) return String(Math.round(v));
+    return v.toFixed(2).replace(".", ",");
+  }
+
   /* Exponential approach of `attuale` to `meta` after dt seconds (frame-rate independent easing). */
   function smorza(attuale, meta, dt, k) {
     return meta + (attuale - meta) * Math.exp(-k * dt);
@@ -84,14 +113,18 @@
      `partenza` until `ingresso`, flies to each site in the last VOLO before its t0 (eased), stays over it until t1
      and waits there until it is time to leave for the next one. */
   var VOLO = 0.04;   // at most this much progress to fly to the next site: long pauses are spent waiting on guard
-  function posizioneDrone(costruzioni, partenza, ingresso, t) {
+  function posizioneDrone(costruzioni, partenza, ingresso, t, extra) {
     var tappe = [{ t: ingresso, x: partenza[0], y: partenza[1], lavora: -1 }];
     costruzioni.forEach(function (c, i) {
+      if (c.fisso) return;   // already there before the story: never visited
       var sopra = { x: c.x + c.w / 2 - 0.35, y: c.y + c.h / 2 - 0.9 };
       var prima = tappe[tappe.length - 1];
       if (c.t0 - VOLO > prima.t) tappe.push({ t: c.t0 - VOLO, x: prima.x, y: prima.y, lavora: -1 });
       tappe.push({ t: c.t0, x: sopra.x, y: sopra.y, lavora: -1 });
       tappe.push({ t: c.t1, x: sopra.x, y: sopra.y, lavora: i });
+    });
+    (extra || []).forEach(function (e) {   // stops after the last build (the market chapter)
+      tappe.push({ t: e.t, x: e.x, y: e.y, lavora: -1, guarda: e.guarda || null });
     });
     if (t <= tappe[0].t) return { x: tappe[0].x, y: tappe[0].y, lavora: -1 };
     for (var k = 0; k < tappe.length - 1; k++) {
@@ -100,11 +133,15 @@
         var u = b.t > a.t ? (t - a.t) / (b.t - a.t) : 1;
         if (b.lavora >= 0) return { x: b.x, y: b.y, lavora: b.lavora };   // over its site, building
         u = liscia(u);
-        return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, lavora: -1 };
+        var p = { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, lavora: -1 };
+        if (a.guarda && b.guarda) p.guarda = b.guarda;   // standing still, facing something
+        return p;
       }
     }
     var z = tappe[tappe.length - 1];
-    return { x: z.x, y: z.y, lavora: -1 };
+    var fine = { x: z.x, y: z.y, lavora: -1 };
+    if (z.guarda) fine.guarda = z.guarda;
+    return fine;
   }
 
   /* Point at distance s (cells) along a polyline of [x, y] points (cells). */
@@ -132,7 +169,8 @@
   if (typeof module !== "undefined" && module.exports) {
     module.exports = { interpola: interpola, avanzamento: avanzamento, zoomPer: zoomPer, smorza: smorza,
       posizioneDrone: posizioneDrone, puntoSulPercorso: puntoSulPercorso, angoloVerso: angoloVerso, fuoco: fuoco,
-      limitaCamera: limitaCamera };
+      limitaCamera: limitaCamera, prezzoMercato: prezzoMercato, testoPrezzo: testoPrezzo, percorsoCaduta: percorsoCaduta,
+      yPrezzo: yPrezzo };
   }
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
@@ -150,6 +188,7 @@
   var cartella = racconto.getAttribute("data-cartella") || "";
 
   function statico() { return radice.classList.contains("statico"); }
+  function riduceSistema() { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
   function animato() { return radice.classList.contains("animato"); }
 
   // --- images
@@ -375,17 +414,19 @@
   var drone = { ang: Math.PI * 0.75, inclina: 0, ux: 0, uy: 0 };
   function disegnaDrone(t, tempo, dt) {
     var D = dati.drone;
-    var dove = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t);
+    var dove = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t, D.tappe);
     // Flight direction from the timeline itself (a little before and after t), not from frame deltas: the same
     // pose at the same scroll position, however fast the visitor scrolls.
-    var prima = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t - 0.003);
-    var dopo = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t + 0.003);
+    var prima = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t - 0.003, D.tappe);
+    var dopo = posizioneDrone(dati.costruzioni, D.partenza, D.ingresso, t + 0.003, D.tappe);
     var mx = dopo.x - prima.x, my = dopo.y - prima.y, passo = Math.sqrt(mx * mx + my * my);
     var vola = dove.lavora < 0 && passo > 0.002;
     var meta = drone.ang;
     if (dove.lavora >= 0) {
       var c = dati.costruzioni[dove.lavora];
       meta = Math.atan2(c.y + c.h / 2 - dove.y, c.x + c.w / 2 - dove.x);
+    } else if (dove.guarda) {
+      meta = Math.atan2(dove.guarda[1] - dove.y, dove.guarda[0] - dove.x);
     } else if (vola) {
       meta = Math.atan2(my, mx);
     }
@@ -442,6 +483,9 @@
       ctx.globalAlpha = 1;
     }
     ctx.imageSmoothingEnabled = false;
+    disegnaValigetta(t, tempo, cx + lx * (n - 1), cy - (n - 1) + ly * (n - 1));
+    disegnaPorte(t);
+    disegnaBonus(t, tempo);
     if (dove.lavora >= 0) {   // the build beam from the nose to a point wandering over the site
       var b = dati.costruzioni[dove.lavora];
       var px = (b.x + b.w / 2) * CELLA + Math.sin(tempo * 3.1) * b.w * CELLA * 0.3;
@@ -453,6 +497,197 @@
       ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(px, py); ctx.stroke();
       ctx.fillStyle = AMBRA; ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
     }
+  }
+
+  // --- the market (the last chapter)
+  var CIFRE = {   // 3x5 pixel digits for the screen and the briefcase display
+    "0": "111101101101111", "1": "010110010010111", "2": "111001111100111", "3": "111001111001111",
+    "4": "101101111001001", "5": "111100111001111", "6": "111100111101111", "7": "111001001010010",
+    "8": "111101111101111", "9": "111101111001111", "$": "011110010011110", ",": "000000000010100",
+    ".": "000000000000010", "-": "000000111000000", "%": "101001010100101", "+": "000010111010000",
+    " ": "000000000000000"
+  };
+  function cifre(c2d, testo, x, y, k, colore) {
+    c2d.fillStyle = colore;
+    for (var i = 0; i < testo.length; i++) {
+      var g = CIFRE[testo.charAt(i)] || CIFRE[" "];
+      for (var j = 0; j < 15; j++) if (g.charAt(j) === "1") c2d.fillRect(x + (i * 4 + j % 3) * k, y + Math.floor(j / 3) * k, k, k);
+    }
+  }
+  var lo = null;   // the screen's own low-resolution canvas: one pixel per art pixel, drawn scaled (pixel look)
+  function disegnaMercato(t, tempo) {
+    var M = dati.mercato;
+    if (!M || t < M.sale[0] - 0.06) return;
+    var ix = M.interno[0], iy = M.interno[1], iw = M.interno[2], ih = M.interno[3];
+    if (!lo) { lo = doc.createElement("canvas"); lo.width = iw; lo.height = ih; }
+    var g = lo.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = "#05070a"; g.fillRect(0, 0, iw, ih);
+    g.fillStyle = "#132029";
+    for (var gy = 24; gy < ih; gy += 22) g.fillRect(0, gy, iw, 1);
+    var tit = dati.sprite["mercato-titolo"];
+    g.drawImage(img["mercato-titolo"], 0, 0, tit.w, tit.h, 4, 4, tit.w, tit.h);
+    // the price line: the recent history of the price on a log scale. From the crash on, its head is a
+    // rocket-bomb falling faster and faster, the line its trail, down to the bottom (the usual selling price).
+    var crollato = t >= M.crollo[0];
+    var tStoria = Math.min(t, M.crollo[0]);
+    var x0 = M.caduta[0], x1 = M.caduta[1];
+    var y0 = yPrezzo(M, M.prezzo.alto), y1 = yPrezzo(M, M.prezzo.basso);
+    g.strokeStyle = crollato ? "#ff4a5a" : "#58d68d"; g.lineWidth = 1;
+    g.beginPath();
+    var nPunti = crollato ? 34 : 56;
+    for (var i = 0; i <= nPunti; i++) {
+      var tt = tStoria - (nPunti - i) * 0.0016;
+      var v = prezzoMercato(M, tt) * (1 + 0.06 * Math.sin(i * 1.7 + tempo * 3) * Math.sin(i * 0.37) * (crollato && i > nPunti - 3 ? 0 : 1));
+      var x = crollato ? 4 + i * ((x0 - 4) / nPunti) : 4 + i * ((iw - 8) / 56);
+      if (i) g.lineTo(x, yPrezzo(M, v)); else g.moveTo(x, yPrezzo(M, v));
+    }
+    var caduta = avanzamento(t, M.crollo[0], M.crollo[1]);
+    if (crollato) {   // the trail of the fall
+      for (var s2 = 1; s2 <= 24; s2++) {
+        var c = percorsoCaduta(x0, y0, x1, y1, caduta * s2 / 24);
+        g.lineTo(c.x, c.y);
+      }
+    }
+    g.stroke();
+    if (crollato && t < M.boom[0]) {   // the rocket-bomb at the head of the line, nose first, flame behind
+      var b = percorsoCaduta(x0, y0, x1, y1, caduta);
+      g.save();
+      g.translate(b.x, b.y);
+      g.rotate(b.ang);
+      var fiamma = 4 + (Math.floor(tempo * 24) % 3) * 2;
+      g.fillStyle = "#ff8a1c"; g.fillRect(-11 - fiamma, -2, fiamma, 4);
+      g.fillStyle = "#ffe58a"; g.fillRect(-11 - fiamma / 2, -1, fiamma / 2, 2);
+      g.fillStyle = "#6a6e79"; g.fillRect(-11, -5, 4, 10);                  // tail fins
+      g.fillStyle = "#3a3d46"; g.fillRect(-9, -3, 13, 6);                   // body
+      g.fillStyle = "#8a8f9c"; g.fillRect(-8, -3, 11, 1);                   // glint
+      g.fillStyle = "#ff4a5a"; g.fillRect(-3, -3, 2, 6);                    // red band
+      g.fillStyle = "#2b2b2b"; g.fillRect(4, -2, 3, 4); g.fillRect(7, -1, 2, 2);   // nose
+      g.restore();
+    }
+    var prezzo = prezzoMercato(M, t);
+    var testo = "$" + testoPrezzo(prezzo);
+    cifre(g, testo, iw - 6 - testo.length * 12, 18, 3, crollato ? "#ff4a5a" : "#58d68d");
+    var quota = crollato ? (prezzo / M.prezzo.alto - 1) * 100 : (prezzo / M.prezzo.base - 1) * 100;
+    if (t > M.sale[0]) {   // the change since the soaring started (green), or since the top (red)
+      var q = crollato ? quota.toFixed(1).replace(".", ",") : "+" + Math.round(quota);
+      cifre(g, q + "%", iw - 6 - (q.length + 1) * 8, 40, 2, crollato ? "#ff4a5a" : "#58d68d");
+    }
+    // the mushroom cloud, inside the screen
+    var u = avanzamento(t, M.boom[0], M.boom[1]);
+    if (u > 0 && u < 1) {
+      var cx = M.caduta[1], suolo = Math.min(ih - 4, yPrezzo(M, M.prezzo.basso) + 4);   // where the bomb hit the bottom
+      var su = Math.min(1, u / 0.45), cap = Math.min(1, Math.max(0, (u - 0.15) / 0.5)), fumo = Math.max(0, (u - 0.5) / 0.5);
+      var fuoco = function (a) { return "rgba(" + Math.round(255 - 120 * fumo) + "," + Math.round(170 - 90 * fumo) + "," + Math.round(60 + 40 * fumo) + "," + a + ")"; };
+      g.fillStyle = "rgba(90,70,60," + (0.6 * (1 - fumo * 0.5)) + ")";   // dust on the ground
+      g.beginPath(); g.ellipse(cx, suolo, 20 + 70 * su, 6 + 6 * su, 0, 0, Math.PI * 2); g.fill();
+      var cima = suolo - 18 - 70 * su;
+      g.fillStyle = fuoco(0.95);   // the stem
+      g.fillRect(cx - 5 - 3 * su, cima, 10 + 6 * su, suolo - cima);
+      g.strokeStyle = fuoco(0.8); g.lineWidth = 2;   // the ring around the stem
+      g.beginPath(); g.ellipse(cx, cima + (suolo - cima) * 0.5, 14 + 16 * cap, 4 + 3 * cap, 0, 0, Math.PI * 2); g.stroke();
+      [[1, 0.95], [0.75, 1], [0.45, 1]].forEach(function (s, k) {   // the cap: dark rim, fire, hot core
+        var r = (18 + 38 * cap) * s[0];
+        g.fillStyle = k === 0 ? "rgba(" + Math.round(120 - 40 * fumo) + ",60,50," + s[1] + ")" : k === 1 ? fuoco(1) : "rgba(255,240,180," + (1 - fumo) + ")";
+        g.beginPath(); g.ellipse(cx, cima - 4, r * 1.25, r * 0.7, 0, 0, Math.PI * 2); g.fill();
+      });
+      var lampo = Math.max(0, 1 - u / 0.12) * (riduceSistema() ? 0.35 : 1);   // one flash, softer if motion is reduced
+      if (lampo > 0) { g.fillStyle = "rgba(255,245,215," + lampo + ")"; g.fillRect(0, 0, iw, ih); }
+    }
+    // the ending: the stonks parody fades in
+    var mm = avanzamento(t, M.meme[0], M.meme[1]);
+    if (mm > 0) {
+      g.globalAlpha = mm;
+      g.drawImage(img.stonks, 0, 0);
+      g.globalAlpha = 1;
+    }
+    var scossa = u > 0 && u < 0.5 ? (1 - u * 2) * 3 : 0;   // the screen shakes with the blast
+    var sx = Math.round(Math.sin(t * 9000) * scossa), sy = Math.round(Math.cos(t * 7000) * scossa);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(lo, M.x * CELLA + ix + sx, M.y * CELLA + iy + sy);
+  }
+
+  /* After stonks: the money bonus pops out over the screen with a bounce, coins bursting out of it. */
+  function disegnaBonus(t, tempo) {
+    var M = dati.mercato, s = dati.sprite.bonus;
+    if (!M || !M.bonus || !s || t < M.bonus[0]) return;
+    var u = avanzamento(t, M.bonus[0], M.bonus[1]);
+    // over the top of the screen, so the drone in a suit and «stonks» below stay in sight
+    var cx = M.x * CELLA + M.interno[0] + M.interno[2] / 2 + 20, cy = M.y * CELLA + M.interno[1] + 30;
+    var k = 1.70158, v = u - 1, pop = 1 + (k + 1) * v * v * v + k * v * v;   // ease out with a small overshoot
+    for (var i = 0; i < 14; i++) {   // the coins: out in every direction, then falling
+      var a = i / 14 * Math.PI * 2 + 0.3, vel = 60 + (i * 37) % 40, q = Math.min(1, u * 1.4);
+      var x = cx + Math.cos(a) * vel * q, y = cy + Math.sin(a) * vel * q - 30 * q + 90 * q * q;
+      ctx.globalAlpha = 1 - Math.max(0, (u - 0.7) / 0.3) * 0.6;
+      ctx.fillStyle = "#2b2b2b"; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = (i + Math.floor(tempo * 8)) % 2 ? "#facc15" : "#ffe58a";
+      ctx.beginPath(); ctx.ellipse(x, y, 2.6 * Math.abs(Math.cos(tempo * 6 + i)) + 0.6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pop, pop);
+    ctx.shadowColor = "rgba(250,204,21," + (0.5 + 0.3 * Math.sin(tempo * 4)) + ")";
+    ctx.shadowBlur = 18 * dpr;
+    fotogramma("bonus", 0, 0, 0, 0, 0, -s.w / 2, -s.h / 2);
+    ctx.restore();
+  }
+
+  /* The hatches on top of the screen: they swing open for the briefcase and close after it. */
+  function disegnaPorte(t) {
+    var M = dati.mercato;
+    if (!M) return;
+    var apri = Math.min(avanzamento(t, M.porte[0], M.porte[0] + 0.006), 1 - avanzamento(t, M.porte[1] - 0.006, M.porte[1]));
+    var bx = M.x * CELLA + M.bocca[0], by = M.y * CELLA + M.bocca[1], bw = M.bocca[2];
+    [[bx, 1], [bx + bw, -1]].forEach(function (h) {
+      ctx.save();
+      ctx.translate(h[0], by + 1);
+      ctx.rotate(-h[1] * apri * Math.PI * 0.6);
+      ctx.fillStyle = "#6a6e79"; ctx.fillRect(h[1] > 0 ? 0 : -bw / 2, -1.5, bw / 2, 3);
+      ctx.fillStyle = "#2b2b2b"; ctx.fillRect(h[1] > 0 ? 0 : -bw / 2, 1, bw / 2, 0.8);
+      ctx.restore();
+    });
+  }
+
+  /* The briefcase: under the drone while the count climbs (items fly in from the Core), then thrown in an arc
+     into the slot of the screen, where it is sucked in. */
+  function disegnaValigetta(t, tempo, cx, cy) {
+    var V = dati.valigetta, M = dati.mercato, s = dati.sprite.valigetta;
+    if (!V || t < V.appare || t >= V.dentro) return;
+    var appesa = { x: cx, y: cy + 14 + Math.sin(tempo * 3) * 1.2 };
+    var bocca = { x: M.x * CELLA + M.bocca[0] + M.bocca[2] / 2, y: M.y * CELLA + M.bocca[1] };
+    var p = appesa, giro = 0, scala = Math.min(1, (t - V.appare) / 0.008);
+    var u = avanzamento(t, V.lancio[0], V.lancio[1]);
+    if (t >= V.lancio[0] && !dati.lancioDa) dati.lancioDa = appesa;   // where the throw starts
+    if (t < V.lancio[0]) dati.lancioDa = null;
+    if (u > 0) {
+      var a = dati.lancioDa || appesa;
+      p = { x: a.x + (bocca.x - a.x) * u, y: a.y + (bocca.y - 4 - a.y) * u - 70 * 4 * u * (1 - u) };
+      giro = u * Math.PI * 3;
+      if (u >= 1) {   // sucked in: spinning, shrinking, down into the slot
+        var r = avanzamento(t, V.lancio[1], V.dentro);
+        p = { x: bocca.x, y: bocca.y - 4 + 6 * r };
+        giro = Math.PI * 3 + r * Math.PI * 6;
+        scala = 1 - r;
+      }
+    } else if (t < V.conta[1]) {   // items flying from the Core into the open case
+      var core = dati.fissi[0], o = dati.sprite["oggetto-iron-plate"];
+      for (var k = 0; k < 5; k++) {
+        var f = (tempo * 1.4 + k / 5) % 1, q0x = (core.x + 1.5) * CELLA, q0y = (core.y + 1.5) * CELLA;
+        var qx = q0x + (appesa.x - q0x) * f, qy = q0y + (appesa.y - q0y) * f - 40 * 4 * f * (1 - f);
+        if (t > V.conta[0]) fotogramma("oggetto-iron-plate", 0, 0, 0, 0, 0, qx - o.w / 2, qy - o.h / 2);
+      }
+    }
+    if (scala <= 0) return;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(giro);
+    ctx.scale(scala, scala);
+    fotogramma("valigetta", 0, 0, 0, 0, 0, -s.w / 2, -s.h / 2);
+    var n = Math.round(V.quanti * liscia(avanzamento(t, V.conta[0], V.conta[1])));
+    var testo = ("    " + n).slice(-4);
+    cifre(ctx, testo, -s.w / 2 + s.lcd[0], -s.h / 2 + s.lcd[1], 1, "#7cfc8a");
+    ctx.restore();
   }
 
   // --- the frame
@@ -490,9 +725,10 @@
     ctx.setTransform(z, 0, 0, z, tx, ty);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img.terreno, 0, 0);
-    (dati.fissi || []).forEach(function (f) {   // there from the start: the Core
+    (dati.fissi || []).forEach(function (f) {   // there from the start: the Core, the market screen
       fotogramma(f.sprite, fotogrammaAnimato(f.sprite, tempo), 0, 0, 0, 0, f.x * CELLA, f.y * CELLA, f.w * CELLA, f.h * CELLA);
     });
+    disegnaMercato(t, tempo);
     dati.costruzioni.forEach(function (c) { disegnaCostruzione(c, t, tempo); });
     disegnaOggetti(t, tempo);
     disegnaLinee(t);

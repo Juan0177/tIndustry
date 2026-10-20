@@ -631,7 +631,7 @@ def stile():
 
 
 def pagina_racconto(archivio, versione, dati):
-    """The scroll-driven story, all seven chapters: a sticky canvas (racconto.js) behind eleven panels, one
+    """The scroll-driven story, all its chapters: a sticky canvas (racconto.js) behind thirteen panels, one
     screen each. Without the script the still poster stands behind the same panels."""
     import racconto
     logo = archivio.immagini("ui/ui-logo")
@@ -675,8 +675,15 @@ def pagina_racconto(archivio, versione, dati):
                    "<p>Ogni partita ha la sua mappa, generata dal seme: rocce, prati, neve e sabbia, fiumi da "
                    "scavalcare col ponte, giacimenti sparsi. Dieci livelli di campagna, da 200×200 a 1000×1000 celle.</p>"),
         ("sinistra", '<span class="etichetta">// 10 · il CORE</span><h2>Tutto finisce nel CORE</h2>'
-                     "<p>Le lastre e il rame entrano nel CORE dall'unione a T. Vendi al Mercato, reinvesti in Ricerca "
-                     "e la fabbrica cresce.</p>"
+                     "<p>Lastre e rame si uniscono nell'unione a T e scendono nel CORE; da ovest arriva anche il "
+                     "piombo, da linee che erano lì da prima. Il CORE tiene tutto per la Ricerca e per il Mercato.</p>"),
+        ("sinistra", '<span class="etichetta">// 11 · il mercato</span><h2>Il prezzo vola</h2>'
+                   "<p>Le lastre di ferro non sono mai valse tanto. Il drone riempie una valigetta: 9.999 lastre da "
+                   "vendere tutte insieme, subito.</p>"),
+        ("sinistra", '<span class="etichetta">// 12 · vendi tutto</span><h2>Stonks</h2>'
+                     "<p>Al Mercato il prezzo scende mentre vendi e risale piano. Vendere tutto in un colpo lo fa "
+                     "crollare. Meglio poco alla volta.</p>"
+                     f'<p class="nota">Per consolarti, stavolta: bonus dei soldi +{racconto.BONUS}%.</p>'
                      f'<p class="bottoni"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
                      '<a class="btn" href="../">Torna alla vetrina</a></p>'),
     )

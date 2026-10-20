@@ -1,6 +1,6 @@
 # Sito: racconto guidato dallo scroll — piano e requisiti
 
-Stato: **racconto completo pubblicato** in `racconto/` (sette capitoli su undici pannelli), ancora fuori dalla barra e con `noindex` finché l'utente non lo approva. Data: 20 ottobre 2026.
+Stato: **racconto completo pubblicato** in `racconto/` (otto capitoli su tredici pannelli, Mercato compreso), ancora fuori dalla barra e con `noindex` finché l'utente non lo approva. Data: 20 ottobre 2026.
 
 ## Cosa chiede l'utente
 
@@ -146,3 +146,10 @@ Da decidere dopo la prova: ritmo dei capitoli (quanto scroll per capitolo), dime
 - **Il mondo (capitolo 9)**: la camera si allarga su tutta la mappa; intanto il drone costruisce la catena del rame.
 - **Il CORE (capitolo 10)**: la camera scende sul CORE con lastre e rame che entrano dall'unione a T; Scarica e ritorno alla vetrina. In verticale l'ultima inquadratura ha centro e zoom suoi (`xv`, `yv`, `vv`), perché il pannello copre il fondo dello schermo.
 - **Elmetto**: disegnato a caratteri in `tools/art/blocchi/drone.py` come i droni (tavolozza `MUSCHIO`), validato come «parte del drone» (`PARTI_DRONE` in `test_genera.py`, stessa misura del drone); nel sito diventa 4 strati (tesa, poi la cupola che si stringe).
+
+## Più fabbrica e il Mercato (20 ottobre, «potresti complicarlo un po'?»)
+
+- **Linee già piazzate**, di cui si vede solo un pezzo, per far capire che in giro c'è altro: piombo da un giacimento sulle rocce a ovest, che entra nel CORE da sinistra; un nastro che scende dal bordo nord in un forno suo; titanio che attraversa tutta la mappa oltre il fiume (entra dall'alto, esce dal basso). Funzionano dal primo fotogramma e il drone non ci passa (`GIA_FATTE`, costruzioni `fisso`).
+- **CORE staccato dall'unione a T**: il CORE scende di quattro celle e dalla T parte un nastro di quattro celle fino a lui.
+- **Il Mercato** (capitoli 11 e 12, ultimi due pannelli; i capitoli precedenti stanno nei primi dieci dodicesimi dello scroll, `SCALA_STORIA`): un grande schermo vicino al CORE. Il prezzo delle lastre vola da 30 a 2.500 $; il drone si mette sopra il CORE e riempie una valigetta (il display conta fino a 9999, le lastre volano dal CORE); poi la lancia ad arco nello schermo, dove due portelli in alto si aprono e la risucchiano. Il prezzo crolla: la testa della linea diventa un razzo-bomba che cade sempre più veloce, la linea è la sua scia, la camera lo segue da vicino, e quando tocca il minimo, cioè il prezzo di vendita normale, esplode in un fungo atomico dentro lo schermo (un solo lampo, attenuato con la riduzione del movimento). Poi la parodia di «stonks», disegnata qui e non presa dal meme: tabellone blu, freccia che precipita, il drone come testa di un signore in giacca e cravatta blu a braccia incrociate. Infine il riquadro dorato «BONUS DEI SOLDI +777%» con una pioggia di monete.
+- **Idea per il gioco**: lo «stonks» come evento raro mentre vendi è in [`docs/idee.md`](../../idee.md), il nuovo file delle idee non ancora pianificate.

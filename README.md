@@ -132,7 +132,7 @@ Il combattimento è fuori dal progetto per ora.
 
 ## Stato e roadmap
 
-Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [diario](docs/diario/README.md). Le scelte di fondo sono raccolte in [`docs/decisioni.md`](docs/decisioni.md). Chi usa Obsidian trova la mappa completa in [`docs/mappa-progetto.canvas`](docs/mappa-progetto.canvas).
+Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [diario](docs/diario/README.md). Le scelte di fondo sono raccolte in [`docs/decisioni.md`](docs/decisioni.md); le idee non ancora pianificate in [`docs/idee.md`](docs/idee.md). Chi usa Obsidian trova la mappa completa in [`docs/mappa-progetto.canvas`](docs/mappa-progetto.canvas).
 
 | Stato | Sotto-progetto | Cosa porta |
 | --- | --- | --- |

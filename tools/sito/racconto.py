@@ -55,7 +55,8 @@ SCENA = Scena("racconto", RIGHE, "prati", [
     Pezzo(33, 29, "curva", T1, da="S", a="W"),
     Tratto(32, 29, 2, "W", T1, ("iron-plate",)),
     Pezzo(30, 29, "t", T1, verso="S"),
-    Blocco(29, 30, "core-2", "Luce del nucleo"),
+    Tratto(30, 30, 4, "S", T1, ("iron-plate",)),
+    Blocco(29, 34, "core-2", "Luce del nucleo"),
     Pezzo(26, 8, "curva", T1, da="N", a="E"),
     Tratto(27, 8, 4, "E", T1, ("coal",)),
     Blocco(31, 7, "generator", "In funzione"),
@@ -67,7 +68,19 @@ SCENA = Scena("racconto", RIGHE, "prati", [
     Pezzo(20, 28, "curva", T1, da="E", a="S"),
     Pezzo(20, 29, "curva", T1, da="S", a="E"),
     Tratto(21, 29, 9, "E", T1, ("copper-ore",)),
+    # Lines already there before the story starts, only partly seen: there is more factory around.
+    Giacimento(1, 30, 4, 4, "lead-ore", 13),                     # lead from the rocks, into the Core from the west
+    Blocco(2, 31, "miner", "Al lavoro"),
+    Pezzo(4, 32, "curva", T1, da="E", a="S"),
+    Tratto(4, 33, 2, "S", T1, ("lead-ore",)),
+    Pezzo(4, 35, "curva", T1, da="S", a="E"),
+    Tratto(5, 35, 24, "E", T1, ("lead-ore",)),
+    Tratto(16, 0, 5, "S", T1, ("iron-ore",)),                    # ore from the north into a smelter of its own
+    Blocco(15, 5, "smelter", "Al lavoro"),
+    Tratto(58, 0, RIGHE, "S", T1, ("titanium-ore",)),             # titanium crossing the east, beyond the river
 ], seme=7, larghezza=LARGHEZZA)
+# The pieces of the lines above: built before the story, the drone never visits them.
+GIA_FATTE = {(2, 31), (15, 5)}   # their blocks (top-left cells); their belts are found by their chains
 
 # Biomes of the world around the factory (chapter «il mondo»): rocks to the north-west, snow to the north-east, sand
 # to the south-east, a river between the factory and the east, where the enemies come from.
@@ -141,8 +154,89 @@ CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: 
     {"t": 0.82, "x": 40.0, "y": 18.0, "vista": 36},
     {"t": 0.88, "x": 32.0, "y": 20.0, "vista": 64},
     {"t": 0.93, "x": 32.0, "y": 20.0, "vista": 64},
-    {"t": 1.00, "x": 27.0, "y": 28.6, "vista": 20, "xv": 30.5, "yv": 31.0, "vv": 12},  # xv, yv, vv: portrait screens
+    {"t": 1.00, "x": 28.0, "y": 32.0, "vista": 20, "xv": 30.5, "yv": 34.5, "vv": 12},  # xv, yv, vv: portrait screens
 ]
+
+
+# The chapters above run on their own scale (0..1); the market chapter takes the last two of thirteen panels, so
+# they are squeezed into 0..10/12 and the market fills 10/12..1 (times below already on the final scale).
+SCALA_STORIA = 10 / 12
+# The market: a big screen next to the Core. The price of iron plates soars, the drone fills a briefcase (its
+# counter climbs to 9999), throws it in an arc into the screen through two hatches on top, the price crashes and
+# its falling line becomes a rocket-bomb that goes off as a mushroom cloud when it hits the bottom (the usual
+# selling price), and the screen ends on a parody of the «stonks»
+# meme with the drone in a suit, then a money bonus.
+MERCATO = {"x": 34, "y": 26, "w": 8, "h": 6,
+           "interno": [14, 22, 228, 132],     # the screen inside the frame, art px
+           "bocca": [108, 8, 40],             # slot on top of the frame (x, y, width): the hatches hinge on its sides
+           "prezzo": {"base": 30, "alto": 2500, "basso": 30},   # the bottom of the crash: the usual selling price
+           "sale": [0.845, 0.885], "porte": [0.912, 0.948],
+           # the crash: the head of the falling price line is a rocket-bomb, the line its trail; the camera follows it
+           # down and, when it hits the bottom (the usual selling price), it goes off as the mushroom cloud
+           "crollo": [0.943, 0.958], "boom": [0.958, 0.972],
+           "caduta": [96, 156],                  # x where the fall starts and where it hits, screen art px
+           "meme": [0.972, 0.983], "bonus": [0.986, 0.996]}
+BONUS = 777   # after stonks: «bonus dei soldi», a made-up percentage (the user's joke)
+VALIGETTA = {"appare": 0.865, "conta": [0.87, 0.905], "quanti": 9999, "lancio": [0.918, 0.936], "dentro": 0.942}
+TAPPE_MERCATO = [  # the drone after the last build: above the Core, then where it throws from, facing the screen
+    {"t": 0.85, "x": 30.15, "y": 32.4}, {"t": 0.905, "x": 30.15, "y": 32.4},
+    {"t": 0.915, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}, {"t": 1.0, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}]
+def y_prezzo(v):
+    """Height of a price on the market screen's log scale, screen art px (racconto.js yPrezzo does the same)."""
+    P, ih = MERCATO["prezzo"], MERCATO["interno"][3]
+    lmin, lmax = math.log(P["basso"] * 0.5), math.log(P["alto"] * 1.3)
+    return ih - 8 - (math.log(v) - lmin) / (lmax - lmin) * (ih - 34)
+
+
+def _bomba_nel_mondo(u):
+    """Where the falling rocket-bomb is at fraction u of the crash, in cells (for the camera that follows it)."""
+    x0, x1 = MERCATO["caduta"]
+    y0, y1 = y_prezzo(MERCATO["prezzo"]["alto"]), y_prezzo(MERCATO["prezzo"]["basso"])
+    x, y = x0 + (x1 - x0) * u, y0 + (y1 - y0) * u * u
+    ix, iy = MERCATO["interno"][:2]
+    return (MERCATO["x"] * CELLA + ix + x) / CELLA, (MERCATO["y"] * CELLA + iy + y) / CELLA
+
+
+def _camera_mercato():
+    """The chapter's panels stand on the left, so the screen is kept in the right part of the view; during the
+    crash the camera closes in and follows the rocket-bomb down to the bottom, then pulls back for the blast."""
+    c0, c1 = MERCATO["crollo"]
+    seguito = []
+    for u in (0.0, 0.5, 0.8, 1.0):
+        x, y = _bomba_nel_mondo(u)
+        seguito.append({"t": round(c0 + (c1 - c0) * u, 4), "x": round(x, 2), "y": round(y, 2), "vista": 6,
+                        "xv": round(x, 2), "yv": round(y - 3.0, 2), "vv": 7})   # portrait: low, under the panel going up
+    return ([{"t": 0.86, "x": 33.5, "y": 31.0, "vista": 22, "xv": 31.5, "yv": 31.0, "vv": 12},
+             {"t": 0.905, "x": 35.0, "y": 30.2, "vista": 20, "xv": 33.0, "yv": 30.6, "vv": 11},
+             {"t": 0.935, "x": 35.6, "y": 29.4, "vista": 17, "xv": 38.0, "yv": 28.8, "vv": 14}]
+            + seguito
+            + [{"t": 0.966, "x": 37.2, "y": 29.2, "vista": 10, "xv": 38.0, "yv": 28.8, "vv": 14},
+               {"t": 0.975, "x": 36.2, "y": 28.9, "vista": 12.5, "xv": 38.0, "yv": 28.8, "vv": 14},
+               {"t": 1.0, "x": 36.2, "y": 28.9, "vista": 12, "xv": 38.0, "yv": 28.8, "vv": 13.6}])
+
+
+
+
+def _scala(dati, k):
+    """The chapters' times multiplied by k (see SCALA_STORIA); nothing else changes."""
+    r = lambda v: round(v * k, 4) if v >= 0 else v
+    for c in dati["costruzioni"]:
+        for chiave in ("t0", "t1", "piano", "attivo"):
+            if chiave in c:
+                c[chiave] = r(c[chiave])
+    for f in dati["flussi"]:
+        f["avvio"] = r(f["avvio"])
+    for l in dati["linee"]:
+        l["t0"], l["t1"] = r(l["t0"]), r(l["t1"])
+    for l in dati["luci"]:
+        l["da"] = r(l["da"])
+    dati["notte"] = {c: (r(v) if c != "colore" else v) for c, v in dati["notte"].items()}
+    dati["allarme"] = {c: r(v) for c, v in dati["allarme"].items()}
+    dati["elmetto"] = {c: r(v) for c, v in dati["elmetto"].items()}
+    dati["nemici"] = [dict(n, chiavi=[[r(t), x] for t, x in n["chiavi"]]) for n in dati["nemici"]]
+    dati["camera"] = [dict(c, t=r(c["t"])) for c in dati["camera"]]
+    dati["drone"]["ingresso"] = r(dati["drone"]["ingresso"])
+    return dati
 
 
 def _blocchi(bid):
@@ -183,7 +277,8 @@ def linea_del_tempo():
     """The data racconto.js plays: map size, camera key frames, constructions in building order (each with its plan,
     site and working times), the Core, item chains, power lines, lights, night and dawn, the attack."""
     ferro, carbone, rame = (next(b for b in _blocchi("miner") if b.y == y) for y in (10, 9, 27))
-    forno, generatore, core = _blocchi("smelter")[0], _blocchi("generator")[0], _blocchi("core-2")[0]
+    forno = next(b for b in _blocchi("smelter") if (b.x, b.y) not in GIA_FATTE)
+    generatore, core = _blocchi("generator")[0], _blocchi("core-2")[0]
     nodi = [e for e in SCENA.elementi if isinstance(e, Nodo)]
     nodo = {(n.x, n.y): n for n in nodi}
     lampade = {(b.x, b.y): b for b in _blocchi("lamp")}
@@ -233,6 +328,38 @@ def linea_del_tempo():
             costruzioni.append(c)
             precedente = inizio
 
+    # The lines that were there before the story: built and working from the first frame, never visited.
+    gia_flussi = []
+    occupato = fabbrica._occupazione(SCENA)
+    for cat in fabbrica.catene(SCENA):
+        primo = cat["celle"][0]
+        v = fabbrica._ingresso(occupato[primo][0], primo)
+        dietro = occupato.get((primo[0] - fabbrica.VERSI[v][0], primo[1] - fabbrica.VERSI[v][1]))
+        da_blocco = dietro and isinstance(dietro[0], Blocco) and (dietro[0].x, dietro[0].y) in GIA_FATTE
+        if not (cat["sorgente"][0] == "sopra" or da_blocco):
+            continue
+        celle = [(cella, occupato[cella][0]) for cella in cat["celle"]]
+        for (x, y), e in celle:
+            c = {"id": f"gia-{x}-{y}", "t0": -1, "t1": -0.5, "piano": -1, "rot": fabbrica.ROT[_verso_della_cella(e)],
+                 "specchio": False, "fisso": True, "x": x, "y": y, "w": 1, "h": 1, "nastro": True}
+            nome = "nastro"
+            if isinstance(e, Pezzo):
+                c["specchio"], c["rot"] = fabbrica.trasformazione_curva(e.da, e.a)
+                nome = "curva"
+            c.update(lavoro=nome, fermo=nome, piano_sprite=nome + "-piano")
+            indice[(x, y)] = len(costruzioni)
+            costruzioni.append(c)
+        oggetto = next(e.oggetti[0] for _, e in celle if isinstance(e, Tratto))
+        gia_flussi.append({"oggetto": "oggetto-" + oggetto, "percorso": _percorso(celle, cat["fine"]),
+                           "celle": [indice[cella] for cella, _ in celle], "avvio": -1})
+    for b in SCENA.elementi:
+        if isinstance(b, Blocco) and (b.x, b.y) in GIA_FATTE:
+            lavoro, fermo, piano = STATI[b.id]
+            w, h = fabbrica._blocco(b.id).celle
+            costruzioni.append({"id": f"gia-{b.id}-{b.x}-{b.y}", "t0": -1, "t1": -0.5, "piano": -1, "rot": 0,
+                                "specchio": False, "fisso": True, "x": b.x, "y": b.y, "w": w, "h": h, "nastro": False,
+                                "lavoro": lavoro, "fermo": fermo, "piano_sprite": piano, "attivo": -1})
+
     def fatto(celle):   # the scroll progress at which a whole chain is built
         return max(costruzioni[indice[cella]]["t1"] for cella, _ in celle)
 
@@ -269,15 +396,16 @@ def linea_del_tempo():
                 "generatore": blocco(carbone), "rame": blocco(rame)}
     flussi = [{"oggetto": "oggetto-" + oggetti[n], "percorso": _percorso(*catene[n]),
                "celle": [indice[cella] for cella, _ in catene[n][0]], "avvio": sorgenti[n]["attivo"]}
-              for n in ("ferro", "carbone", "lastre", "generatore", "rame")]
+              for n in ("ferro", "carbone", "lastre", "generatore", "rame")] + gia_flussi
     luci = [dict(LUCE_LAMPADA, x=b.x + 0.5, y=b.y + 0.5, da=blocco(b)["attivo"]) for b in lampade.values()]
     luci.append(dict(LUCE_FORNO, x=forno.x + 1, y=forno.y + 1, da=blocco(forno)["attivo"]))
     luci.append(dict(LUCE_CORE, x=core.x + 1.5, y=core.y + 1.5, da=0))
-    return {
+    dati = {
         "cella": CELLA, "larghezza": LARGHEZZA, "righe": RIGHE,
         "camera": CAMERA,
         "costruzioni": costruzioni,
-        "fissi": [{"sprite": "nucleo", "x": core.x, "y": core.y, "w": 3, "h": 3}],
+        "fissi": [{"sprite": "nucleo", "x": core.x, "y": core.y, "w": 3, "h": 3},
+                  {"sprite": "schermo", "x": MERCATO["x"], "y": MERCATO["y"], "w": MERCATO["w"], "h": MERCATO["h"]}],
         "flussi": flussi,
         "linee": linee,
         "luci": luci,
@@ -289,6 +417,12 @@ def linea_del_tempo():
         "drone": {"ingresso": INGRESSO_DRONE, "partenza": [26.0, 2.0], "fette": FETTE,
                   "ingrandimento": INGRANDIMENTO},
     }
+    _scala(dati, SCALA_STORIA)
+    dati["camera"] += _camera_mercato()
+    dati["mercato"] = MERCATO
+    dati["valigetta"] = VALIGETTA
+    dati["drone"]["tappe"] = TAPPE_MERCATO
+    return dati
 
 
 # ---------------------------------------------------------------- images
@@ -523,6 +657,128 @@ def _nero(im):
     return out
 
 
+# ---------------------------------------------------------------- the market's pictures (drawn here: props of the
+# site's story, not game sprites; colours from the game's palette)
+
+def schermo_mercato():
+    """The market screen, 8x6 cells: a metal frame on two legs, the dark screen inside (MERCATO["interno"], drawn
+    by racconto.js) and the slot on top where the hatches open."""
+    from PIL import ImageDraw
+    from palette import ACCENTO, METALLO, NASTRO, OUT
+    w, h = MERCATO["w"] * CELLA, MERCATO["h"] * CELLA
+    im = Image.new("RGBA", (w, h))
+    d = ImageDraw.Draw(im)
+    for x0 in (44, w - 56):   # legs and feet
+        d.rectangle((x0, 160, x0 + 11, h - 5), fill=METALLO[1], outline=OUT)
+        d.rectangle((x0 - 8, h - 6, x0 + 19, h - 1), fill=METALLO[2], outline=OUT)
+    d.rectangle((0, 8, w - 1, 167), fill=METALLO[2], outline=OUT)
+    d.line((1, 9, w - 2, 9), fill=METALLO[4]); d.line((1, 9, 1, 166), fill=METALLO[4])
+    d.line((1, 166, w - 2, 166), fill=METALLO[0]); d.line((w - 2, 9, w - 2, 166), fill=METALLO[0])
+    for x, y in ((5, 13), (w - 7, 13), (5, 161), (w - 7, 161)):   # rivets
+        d.rectangle((x, y, x + 1, y + 1), fill=METALLO[5])
+    ix, iy, iw, ih = MERCATO["interno"]
+    d.rectangle((ix - 2, iy - 2, ix + iw + 1, iy + ih + 1), fill=NASTRO[1], outline=OUT)
+    d.rectangle((ix, iy, ix + iw - 1, iy + ih - 1), fill=(5, 7, 10))
+    bx, by, bw = MERCATO["bocca"]   # the slot on top, with its two hinge pins
+    d.rectangle((bx, by - 1, bx + bw - 1, by + 6), fill=(0, 0, 0), outline=OUT)
+    for x in (bx - 2, bx + bw):
+        d.rectangle((x, by, x + 1, by + 2), fill=ACCENTO[3])
+    for k in range(0, w - 40, 12):   # hazard stripes on the bottom band
+        d.polygon([(20 + k, 157), (26 + k, 157), (22 + k, 163), (16 + k, 163)], fill=(250, 204, 21))
+    return im
+
+
+def valigetta():
+    """The briefcase (24x18): leather, handle, two clasps and a small display (LCD_VALIGETTA) racconto.js writes
+    the count on."""
+    from PIL import ImageDraw
+    from palette import METALLO, OUT, TERRA
+    im = Image.new("RGBA", (24, 18))
+    d = ImageDraw.Draw(im)
+    d.rectangle((8, 0, 15, 4), outline=OUT); d.rectangle((9, 1, 14, 3), outline=TERRA[1])
+    d.rectangle((0, 4, 23, 17), fill=TERRA[2], outline=OUT)
+    d.line((1, 5, 22, 5), fill=TERRA[4]); d.line((1, 16, 22, 16), fill=TERRA[0])
+    for x in (3, 18):
+        d.rectangle((x, 5, x + 2, 7), fill=METALLO[4], outline=OUT)
+    lx, ly, lw, lh = LCD_VALIGETTA
+    d.rectangle((lx - 1, ly - 1, lx + lw, ly + lh), fill=(10, 24, 14), outline=OUT)
+    return im
+
+
+LCD_VALIGETTA = [4, 9, 16, 5]   # display of the briefcase, art px (four 3x5 digits with 1 px gaps)
+
+
+def titolo_mercato():
+    import carattere
+    return carattere.scrivi("MERCATO · LASTRE DI FERRO", k=1, colore=(0xFF, 0xD3, 0x7F))
+
+
+def stonks(drone):
+    """The ending on the market screen: a parody of the «stonks» meme drawn here (nothing taken from the original
+    picture): a blue stock board full of numbers, the drone in suit and tie with crossed arms where the man stands,
+    and the glowing arrow that plunges instead of rising."""
+    from PIL import ImageDraw
+    import carattere
+    from palette import METALLO, OUT
+    iw, ih = MERCATO["interno"][2:]
+    im = Image.new("RGBA", (iw, ih))
+    d = ImageDraw.Draw(im)
+    for y in range(ih):   # the board: deep blue, lighter at the top
+        u = y / ih
+        d.line((0, y, iw, y), fill=(int(22 - 10 * u), int(70 - 34 * u), int(190 - 80 * u), 255))
+    numeri = ["0.168", "1.4563", "2.286", "0.12%", "1.0287", "0.9%", "0.1204", "N/A", "1.286", "0.234", "0.1902",
+              "560", "2.404", "0.156", "1.902", "0.12"]
+    for k, n in enumerate(numeri):   # cells of the board, each with a number and an up or down mark
+        cx, cy = 4 + (k % 4) * 57, 4 + (k // 4) * 33
+        d.rectangle((cx, cy, cx + 53, cy + 29), outline=(70, 120, 235))
+        t = carattere.scrivi(n, k=1, colore=(200, 220, 255))
+        im.alpha_composite(t, (cx + 4, cy + 4))
+        su = (k * 7) % 3 != 0
+        x0, y0 = cx + 42, cy + 18
+        d.polygon([(x0, y0 + 6), (x0 + 6, y0 + 6), (x0 + 3, y0)] if su else [(x0, y0), (x0 + 6, y0), (x0 + 3, y0 + 6)],
+                  fill=(225, 235, 255))
+    # the arrow, plunging: a glow, an orange body, a hot core, and the head at the bottom right
+    for largo, colore in ((9, (255, 120, 20, 90)), (5, (255, 120, 20, 255)), (2, (255, 220, 120, 255))):
+        d.line([(92, 18), (128, 46), (146, 40), (196, 100)], fill=colore, width=largo, joint="curve")
+    d.polygon([(206, 112), (184, 104), (200, 88)], fill=(255, 150, 40, 255), outline=(255, 230, 150, 255))
+    # the drone in a suit: shoulders, lapels, white shirt, blue tie, crossed arms; its head is drone-1, nose up
+    d.polygon([(8, ih), (18, 96), (40, 88), (64, 88), (86, 96), (96, ih)], fill=(26, 27, 33), outline=OUT)
+    d.polygon([(40, 88), (52, 112), (64, 88)], fill=(236, 238, 242))
+    d.polygon([(40, 88), (34, 104), (50, 110)], fill=(44, 46, 56)); d.polygon([(64, 88), (70, 104), (54, 110)], fill=(44, 46, 56))
+    d.polygon([(49, 90), (55, 90), (54, 95), (50, 95)], fill=(40, 96, 214))
+    d.polygon([(50, 95), (54, 95), (57, 114), (52, 120), (47, 114)], fill=(48, 110, 230), outline=(24, 64, 160))
+    d.rectangle((14, 112, 90, 124), fill=(34, 35, 42), outline=OUT)   # crossed arms
+    d.line((20, 112, 60, 124), fill=OUT); d.line((84, 112, 44, 124), fill=OUT)
+    for x in (24, 74):
+        d.rectangle((x, 114, x + 6, 120), fill=METALLO[3], outline=OUT)
+    testa = drone.convert("RGBA").rotate(90, expand=True).resize((drone.width * 2, drone.height * 2), Image.NEAREST)
+    im.alpha_composite(testa, (52 - testa.width // 2, 86 - testa.height + 6))
+    scritta = carattere.scrivi("stonks", k=3, colore=(255, 255, 255))
+    ombra = carattere.scrivi("stonks", k=3, colore=(10, 20, 60))
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (2, 2)):
+        im.alpha_composite(ombra, (120 + dx, 96 + dy))
+    im.alpha_composite(scritta, (120, 96))
+    return im
+
+
+def bonus_soldi():
+    """The bonus after stonks: a gold-framed box with a coin, «BONUS DEI SOLDI» and +BONUS%, like a game reward."""
+    from PIL import ImageDraw
+    import carattere
+    from palette import ACCENTO, OUT
+    im = Image.new("RGBA", (176, 56))
+    d = ImageDraw.Draw(im)
+    d.rectangle((0, 0, 175, 55), fill=ACCENTO[3], outline=OUT)
+    d.rectangle((3, 3, 172, 52), fill=(20, 22, 28), outline=ACCENTO[1])
+    d.ellipse((10, 12, 41, 43), fill=(250, 204, 21), outline=OUT)   # the coin, with its $
+    d.ellipse((14, 16, 37, 39), outline=(196, 142, 30))
+    moneta = carattere.scrivi("$", k=2, colore=(120, 80, 10))
+    im.alpha_composite(moneta, (26 - moneta.width // 2, 28 - moneta.height // 2))
+    im.alpha_composite(carattere.scrivi("BONUS DEI SOLDI", k=1, colore=(0xFF, 0xD3, 0x7F)), (50, 9))
+    im.alpha_composite(carattere.scrivi(f"+{BONUS}%", k=3, colore=(88, 214, 141)), (50, 22))
+    return im
+
+
 def sprite_del_racconto(immagini):
     """{name: (image, meta)}: every picture racconto.js draws, at art size (the drone x INGRANDIMENTO)."""
     nastro = immagini.fotogrammi(T1 + "-anim")
@@ -545,9 +801,14 @@ def sprite_del_racconto(immagini):
         "nemico-2": (_nero(immagini("drone-2")), {"fotogrammi": 1}),
         "nemico-3": (_nero(immagini("drone-3")), {"fotogrammi": 1}),
     }
+    out["schermo"] = (schermo_mercato(), {"fotogrammi": 1})
+    out["valigetta"] = (valigetta(), {"fotogrammi": 1, "lcd": LCD_VALIGETTA})
+    out["mercato-titolo"] = (titolo_mercato(), {"fotogrammi": 1})
+    out["stonks"] = (stonks(drone), {"fotogrammi": 1})
+    out["bonus"] = (bonus_soldi(), {"fotogrammi": 1})
     nucleo = _stato("core-2", "Luce del nucleo", immagini)
     out["nucleo"] = (striscia([f for f, _ in nucleo]), {"fotogrammi": len(nucleo), "durate": [d for _, d in nucleo]})
-    for oggetto in ("iron-ore", "coal", "iron-plate", "copper-ore"):
+    for oggetto in ("iron-ore", "coal", "iron-plate", "copper-ore", "lead-ore", "titanium-ore"):
         out["oggetto-" + oggetto] = (immagini(oggetto + "-belt"), {"fotogrammi": 1})
     for bid, (nome, lavoro, fermo) in (("miner", ("minatore", "Al lavoro", "Fermo")),
                                        ("smelter", ("forno", "Al lavoro", "Fermo")),
