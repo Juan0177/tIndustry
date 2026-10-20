@@ -137,7 +137,8 @@ ELMETTO = {"cade": 0.672, "posato": 0.69, "toglie": 0.84, "via": 0.86}
 # The close-up of the attack: cinema bars come in, the drone flies to the river bank (GUARDIA) and faces the
 # silhouettes coming from the east; it sees them (a «!»), trembles and sweats, the helmet drops on it. Then the
 # ice breaks (the panel says they leave by themselves at dawn): it calms down, the bars go and the camera pulls back.
-ATTACCO = {"barre": [0.63, 0.65, 0.715, 0.735], "vede": 0.66, "trema": [0.66, 0.715]}
+# The ice breaks in the middle of the time panel 7 stands still (costruisci shows its reassuring line then).
+ATTACCO = {"barre": [0.63, 0.65, 0.70, 0.72], "vede": 0.66, "trema": [0.66, 0.70]}
 GUARDIA = [{"t": 0.642, "x": 38.15, "y": 21.6},
            {"t": 0.66, "x": 40.3, "y": 21.4, "guarda": [47.0, 21.8]}, {"t": 0.80, "x": 40.3, "y": 21.4, "guarda": [47.0, 21.8]}]
 NEMICI = [{"sprite": "nemico-2", "y": 18.8, "chiavi": [[0.64, 50.5], [0.72, 45.4], [0.80, 46.4], [0.87, 70.0]]},
@@ -160,7 +161,7 @@ CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: 
     {"t": 0.625, "x": 34.0, "y": 18.0, "vista": 24},
     # the close-up of the attack: the drone left of the middle (the panel stands on the left), the enemies right
     {"t": 0.66, "x": 41.2, "y": 21.6, "vista": 14, "xv": 43.6, "yv": 24.5, "vv": 16},
-    {"t": 0.715, "x": 41.3, "y": 21.6, "vista": 13.5, "xv": 43.6, "yv": 24.5, "vv": 15.5},
+    {"t": 0.70, "x": 41.3, "y": 21.6, "vista": 13.5, "xv": 43.6, "yv": 24.5, "vv": 15.5},
     {"t": 0.76, "x": 40.0, "y": 19.0, "vista": 30},
     {"t": 0.82, "x": 40.0, "y": 18.0, "vista": 36},
     {"t": 0.88, "x": 32.0, "y": 20.0, "vista": 64},
@@ -182,21 +183,21 @@ MERCATO = {"x": 34, "y": 26, "w": 8, "h": 6,
            "interno": [14, 22, 228, 132],     # the screen inside the frame, art px
            "bocca": [108, 8, 40],             # slot on top of the frame (x, y, width): the hatches hinge on its sides
            "prezzo": {"base": 30, "alto": 2500, "basso": 30},   # the bottom of the crash: the usual selling price
-           "sale": [0.785, 0.835], "porte": [0.868, 0.91],
+           "sale": [0.785, 0.835], "porte": [0.866, 0.9],
            # the crash: the head of the falling price line is a rocket-bomb, the line its trail; the camera follows it
            # down and, when it hits the bottom (the usual selling price), it goes off as the mushroom cloud
-           "crollo": [0.904, 0.926], "boom": [0.926, 0.944],
+           "crollo": [0.898, 0.914], "boom": [0.914, 0.932],
            "caduta": [96, 156],                  # x where the fall starts and where it hits, screen art px
-           "meme": [0.944, 0.954], "bonus": [0.954, 0.964],
+           "meme": [0.932, 0.944], "bonus": [0.946, 0.956],
            # the remote: a click (tasto), then the old channel folds into a line, static, the new one rolls in
-           "canale": {"tasto": 0.968, "cambio": [0.97, 0.982], "sensore": [6, 149]}}
+           "canale": {"tasto": 0.96, "cambio": [0.962, 0.974], "sensore": [6, 149]}}
 BONUS = 777   # after stonks: «bonus dei soldi», a made-up percentage (the user's joke)
-VALIGETTA = {"appare": 0.80, "conta": [0.806, 0.858], "quanti": 9999, "lancio": [0.875, 0.895], "dentro": 0.902}
+VALIGETTA = {"appare": 0.80, "conta": [0.806, 0.858], "quanti": 9999, "lancio": [0.872, 0.89], "dentro": 0.896}
 TAPPE_MERCATO = [  # the drone after the last build: above the Core, then where it throws from, facing the screen;
     # last, above the screen's top left corner with the remote
     {"t": 0.775, "x": 30.15, "y": 32.4}, {"t": 0.86, "x": 30.15, "y": 32.4},
-    {"t": 0.872, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}, {"t": 0.956, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]},
-    {"t": 0.966, "x": 34.6, "y": 26.0, "guarda": [37.0, 28.6]}, {"t": 1.0, "x": 34.6, "y": 26.0, "guarda": [37.0, 28.6]}]
+    {"t": 0.868, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}, {"t": 0.947, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]},
+    {"t": 0.957, "x": 34.6, "y": 26.0, "guarda": [37.0, 28.6]}, {"t": 1.0, "x": 34.6, "y": 26.0, "guarda": [37.0, 28.6]}]
 def y_prezzo(v):
     """Height of a price on the market screen's log scale, screen art px (racconto.js yPrezzo does the same)."""
     P, ih = MERCATO["prezzo"], MERCATO["interno"][3]
@@ -223,22 +224,26 @@ def _camera_mercato():
         seguito.append({"t": round(c0 + (c1 - c0) * u, 4), "x": round(x, 2), "y": round(y, 2), "vista": 6,
                         "xv": round(x, 2), "yv": round(y + 0.3, 2), "vv": 7})   # portrait: high, the next panel rises
     # Desktop: the drone a little right of the panel's edge (about 40 % of the width), the screen on the right.
-    # Portrait: the panels cross the whole screen from the bottom up, so the action goes where they are not: low
-    # while the panel of the soaring price leaves at the top, high from the crash on (the next ones rise from
-    # below) until the blast, in the middle while that panel leaves at the top and the last one rises (stonks and
-    # the bonus), and at the end the whole screen in the top two fifths, above the last, long panel.
+    # Portrait: each panel rests at the bottom (about its lower half) for a while, then crosses the screen upwards,
+    # so the action goes where they are not: high while one rests (the throw, the crash, the blast, the end with
+    # the whole screen above the last, long panel), low and then in the middle while the panel of the crash
+    # leaves at the top (stonks, the bonus).
     alto = {"xv": 38.0, "yv": 31.2, "vv": 13.4}   # the screen's 8 cells across a phone, at its top
-    mezzo = {"xv": 38.0, "yv": 27.0, "vv": 13.4}  # ...and in its middle
+    # the end: a little closer (the frame's sides cropped), so the map's bottom edge lets the screen sit higher
+    # and its buttons stay above the last panel
+    fine = {"xv": 38.0, "yv": 31.2, "vv": 12}
+    mezzo = {"xv": 38.0, "yv": 27.0, "vv": 13.4}  # ...in its middle
+    basso = {"xv": 38.0, "yv": 22.4, "vv": 13.4}  # ...and in its lower half
     return ([{"t": 0.79, "x": 32.3, "y": 31.0, "vista": 22, "xv": 31.5, "yv": 31.0, "vv": 12},
              {"t": 0.86, "x": 32.5, "y": 30.8, "vista": 21, "xv": 31.8, "yv": 30.8, "vv": 12},
-             {"t": 0.872, "x": 34.2, "y": 29.6, "vista": 18, "xv": 35.5, "yv": 24.5, "vv": 15},
-             {"t": 0.898, "x": 35.6, "y": 29.4, "vista": 17, "xv": 38.0, "yv": 24.5, "vv": 14}]
+             {"t": 0.868, "x": 34.2, "y": 29.6, "vista": 18, "xv": 35.5, "yv": 29.9, "vv": 15},
+             {"t": 0.892, "x": 35.6, "y": 29.4, "vista": 17, "xv": 38.0, "yv": 29.9, "vv": 14}]
             + seguito
-            + [dict({"t": 0.94, "x": 37.2, "y": 29.2, "vista": 10}, **alto),
-               dict({"t": 0.952, "x": 36.4, "y": 28.9, "vista": 12.5}, **mezzo),
-               dict({"t": 0.966, "x": 36.1, "y": 28.6, "vista": 14.5}, **mezzo),
-               dict({"t": 0.982, "x": 36.1, "y": 28.6, "vista": 14.5}, **alto),
-               dict({"t": 1.0, "x": 36.1, "y": 28.6, "vista": 14.5}, **alto)])
+            + [dict({"t": 0.93, "x": 37.2, "y": 29.2, "vista": 10}, **alto),
+               dict({"t": 0.942, "x": 36.4, "y": 28.9, "vista": 12.5}, **basso),
+               dict({"t": 0.95, "x": 36.2, "y": 28.7, "vista": 13.5}, **mezzo),
+               dict({"t": 0.958, "x": 36.1, "y": 28.6, "vista": 14.5}, **fine),
+               dict({"t": 1.0, "x": 36.1, "y": 28.6, "vista": 14.5}, **fine)])
 
 
 

@@ -890,7 +890,13 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     disegnaAllarme(t, tempo);
     disegnaBarre(t);
+    dopo.forEach(function (el) {   // panel lines waiting for a moment of the story (the ice breaking)
+      var visto = t >= el.__dopo;
+      if (visto !== el.__visto) { el.classList.toggle("visto", visto); el.__visto = visto; }
+    });
   }
+  var dopo = Array.prototype.slice.call(racconto.querySelectorAll("[data-dopo]"));
+  dopo.forEach(function (el) { el.__dopo = parseFloat(el.getAttribute("data-dopo")); });
 
   window.tIndustryRacconto = { drone: function () { return drone.schermo || null; }, progresso: progresso };
 
