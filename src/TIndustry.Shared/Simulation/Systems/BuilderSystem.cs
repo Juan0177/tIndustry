@@ -134,7 +134,16 @@ public sealed class BuilderSystem : ISimulationSystem
 
         if (plan.Breaking)
         {
-            if (factory.TryGetSpecAt(plan.Spec.Origin, out _, out _))
+            if (factory.TryGetSiteAt(plan.Spec.Origin, out _))
+            {
+                // A cancelled tier change still giving the old belt back: its own plan goes first.
+                if (builder.PlanQueue.Count > 1)
+                {
+                    builder.PlanQueue.RemoveAt(0);
+                    builder.PlanQueue.Add(plan);
+                }
+            }
+            else if (factory.TryGetSpecAt(plan.Spec.Origin, out _, out _))
             {
                 var site = Construction.BeginDeconstruct(state, plan.Spec.Origin, builder.OwnerPlayerId);
                 builder.CurrentSiteId = site.Id;

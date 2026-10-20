@@ -172,6 +172,46 @@ public sealed class BeltReplaceTests
         Assert.Equal(controlHost.Checksum(), host.Checksum());
     }
 
+    /// <summary>
+    /// The removal rectangle over a tier change ends the same way whether it is a pending plan or a started site: the
+    /// upgrade is cancelled and the old belt marked, then taken apart.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RectangleOverATierChangeMarksTheOldBelt(bool started)
+    {
+        var (factory, host, refusals) = NewHost(instantBuild: false);
+        OldBelt(factory);
+        if (!started)
+        {
+            // Far away, so the plan waits.
+            factory.State.Builders[0].X = 80;
+            factory.State.Builders[0].Y = 80;
+        }
+
+        Place(host, Express);
+        if (started)
+        {
+            RunUntil(host, () => factory.Sites.Count == 1 && factory.Sites[0].Progress > 0f);
+        }
+
+        Assert.Equal(started ? 1 : 0, factory.Sites.Count);
+        var commands = RemovalArea.Commands(factory, Player, Cell, Cell);
+        Assert.Equal([Cell, Cell], commands.Select(c => c.Tile).ToArray());
+        foreach (var command in commands)
+        {
+            host.Submit(command);
+        }
+
+        host.AdvanceTicks(1);
+        Assert.Contains(factory.PlansOf(Player), p => p.Breaking && p.Spec.Origin == Cell && p.Spec.StructureId == Basic);
+        Assert.DoesNotContain(factory.PlansOf(Player), p => !p.Breaking && factory.SiteOfPlan(p) is null);
+        RunUntil(host, () => Idle(factory), maxTicks: 10_000);
+        Assert.Empty(refusals);
+        Assert.False(factory.Belts.Cells.ContainsKey(Cell));
+    }
+
     [Fact]
     public void UpgradeWithPlansBuildsAReplacementSite()
     {
@@ -299,7 +339,7 @@ public sealed class BeltReplaceTests
             Assert.True(factory.PlaceInstant(new BuildSpec(Fast, null, new GridPosition(x, Cell.Y), Direction.East), charge: false));
         }
 
-        Assert.Equal(BeltCrossing.JunctionLocked, factory.BeltCrossingAt(Cell, Direction.East));
+        Assert.Equal(BeltCrossing.None, factory.BeltCrossingAt(Cell, Direction.East));
 
         Place(host, Fast, crossing: true);
         RunUntil(host, () => Idle(factory));

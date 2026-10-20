@@ -157,7 +157,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     public string Piazza(
         [Description(Sessione)] string sessione,
         [Description("Id della struttura (per esempio miner, conveyor-basic).")] string? tipo = null,
-        [Description("Livello del nastro (al posto di tipo).")] int? tier = null,
+        [Description("Livello del nastro (al posto di tipo): 1 base, 2 veloce. Il nastro rinforzato si chiede con tipo 'conveyor-armored'.")] int? tier = null,
         [Description("Cella del blocco (un clic).")] Cella? cella = null,
         [Description("Inizio del trascinamento.")] Cella? da = null,
         [Description("Fine del trascinamento.")] Cella? a = null,

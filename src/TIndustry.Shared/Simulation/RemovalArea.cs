@@ -71,6 +71,12 @@ public static class RemovalArea
                     {
                         Once(1, cell, site.Tiles);
                     }
+
+                    // A tier change also marks the old belt its cancelled site gives back, as a pending one does.
+                    if (site.Replaced is not null)
+                    {
+                        Once(2, cell, site.Tiles);
+                    }
                 }
                 else if (view.TryGetSpecAt(cell, out var spec, out _))
                 {

@@ -79,8 +79,9 @@ public static class PlacementLine
         IReadOnlyList<GridPosition> cells = !inLine ? [request.Anchor]
             : chain ?? path ?? Straight(request.Anchor, request.Cursor);
         var lineWay = dragged ? Dominant(request.Anchor, request.Cursor) : request.Brush;
-        // A Ctrl path or chain lays a working line (Mindustry): R fixes the direction only of a straight line.
-        var fixedWay = request.FixedDirection && chain is null && path is null;
+        // A Ctrl path or chain lays a working line (Mindustry): R fixes the direction only of a straight drag; a lone
+        // cell faces the brush anyway and keeps the Core rule, like the player's click.
+        var fixedWay = request.FixedDirection && dragged && chain is null && path is null;
 
         var placements = new List<LinePlacement>(cells.Count);
         for (var i = 0; i < cells.Count; i++)
