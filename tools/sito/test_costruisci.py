@@ -128,7 +128,12 @@ class TestSito(unittest.TestCase):
         self.assertIn('<div id="drone-cantiere"', pagina)
         self.assertIn('<div id="avanza"', pagina)
         self.assertIn('class="pin"', pagina)  # the pinned hero
-        self.assertIn('class="finestra-striscia"', pagina)
+        self.assertIn('class="vetrina-blocchi"', pagina)
+        self.assertNotIn("finestra-striscia", pagina)   # no sideways strip pinned to the scroll any more
+        # The captures open over the page (#visore) and close again; the terrain spans the whole width of every biome section.
+        self.assertEqual(1, pagina.count('<dialog id="visore"'))
+        self.assertIn('<button type="button" class="visore-chiudi" autofocus>Chiudi</button>', pagina)
+        self.assertEqual(sum(1 for s in costruisci.fabbrica.VETRINA if s.bioma), pagina.count('class="terra-larga"'))
         self.assertIn('property="og:image"', pagina)
         self.assertIn('name="description"', pagina)
         # Sotto attacco: five neon warnings, four impacts, the red-border section class.
@@ -173,14 +178,13 @@ class TestSito(unittest.TestCase):
             stile = fh.read()
         inizio = stile.index("@media (prefers-reduced-motion:reduce){\n html:not(.animato)")
         ridotto = stile[inizio:stile.index("\n}\n", inizio)]
-        for vietato in ("animation-play-state", ".fermo", ".striscia-blocchi", ".pin", "--p:", ".nastro"):
+        for vietato in ("animation-play-state", ".fermo", ".pin", "--p:", ".nastro"):
             self.assertNotIn(vietato, ridotto)
         for atteso in (".lampo{display:none}", ".crepa,", ".sez-attacco .pavimento{animation:none}", ".avviso{opacity:1;animation:none}"):
             self.assertIn(atteso, ridotto)
         self.assertIn("html.statico *,html.statico *::before,html.statico *::after{animation-play-state:paused!important", stile)
         self.assertIn("html.statico .nastro .fermo{display:block}", stile)
         self.assertIn("html.statico .pin{height:auto!important}", stile)   # beats .js .pin
-        self.assertIn("html.statico .striscia-blocchi{position:static;transform:none;display:flex}", stile)
         self.assertIn("html.statico .barra .animazioni .icona{", stile)   # the play icon
         self.assertIn(".barra .animazioni[hidden]{display:none}", stile)   # no button without the script
         # The capture inside its link fills the frame: without height:100% the height="720" attribute wins

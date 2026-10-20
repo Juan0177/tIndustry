@@ -492,21 +492,23 @@ def _contenuto(a, sid, radice, versione):
                 + _crt(radice, "tutorial.png", 64, 461, 352, 166)
                 + _crt(radice, "interfaccia-en.png", 448, 307, 280, 186))
     if sid == "blocchi":
-        blocchi = (("miner", "Al lavoro", "Minatore T1"), ("miner-advanced", "Al lavoro, con corrente", "Minatore T2"),
-                   ("smelter", "Al lavoro", "Forno"), ("assembler", "Ciclo di lavoro", "Assemblatore"),
-                   ("extractor", "Filtro: rame", "Estrattore"), ("generator", "In funzione", "Generatore"),
-                   ("lamp", "Accesa", "Lampada"), ("junction", "Incrocio a 4 vie", "Incrocio"),
-                   ("conveyor-bridge", "In funzione", "Ponte"), ("core-1", "Luce del nucleo", "CORE T1"),
-                   ("core-2", "Luce del nucleo", "CORE T2"))
+        # Three rows at the scale of the game (one cell = 64 px), each row entering left to right as it scrolls in.
+        righe = ((("miner", "Al lavoro", "Minatore T1"), ("miner-advanced", "Al lavoro, con corrente", "Minatore T2"),
+                  ("smelter", "Al lavoro", "Forno"), ("assembler", "Ciclo di lavoro", "Assemblatore")),
+                 (("extractor", "Filtro: rame", "Estrattore"), ("generator", "In funzione", "Generatore"),
+                  ("lamp", "Accesa", "Lampada"), ("junction", "Incrocio a 4 vie", "Incrocio"),
+                  ("core-1", "Luce del nucleo", "CORE T1")),
+                 (("conveyor-bridge", "In funzione", "Ponte"), ("core-2", "Luce del nucleo", "CORE T2")))
         figure = "".join(
-            f'<figure><img class="px" src="{a.blocco(b, s)}" alt="{html.escape(n)}" width="{fabbrica._blocco(b).celle[0] * fabbrica.C}" '
-            f'height="{fabbrica._blocco(b).celle[1] * fabbrica.C}"><figcaption>{html.escape(n)}</figcaption></figure>'
-            for b, s, n in blocchi)
+            f'<figure data-rivela style="--i:{i}"><img class="px" src="{a.blocco(b, s)}" alt="{html.escape(n)}" '
+            f'width="{fabbrica._blocco(b).celle[0] * fabbrica.C}" height="{fabbrica._blocco(b).celle[1] * fabbrica.C}">'
+            f'<figcaption>{html.escape(n)}</figcaption></figure>'
+            for riga in righe for i, (b, s, n) in enumerate(riga))
         return (_titolo(a, "04", "Blocchi come in gioco", 192, 22)
                 + f'<p class="nota" style="{_at(192, 96, 620)}">Gli stessi sprite e le stesse animazioni che vedi in partita: '
                   "pixel-art originale del gioco.</p>"
                 + _numeri()
-                + f'<div class="finestra-striscia" data-inizio="-20" data-corsa="316"><div class="striscia-blocchi">{figure}</div>'
+                + f'<div class="vetrina-blocchi" style="{_at(192, 300, 608)}">{figure}'
                   f'<a class="rimando" href="{radice}asset/" data-costruisci>Tutti i blocchi e gli sprite → Asset</a></div>')
     if sid == "sotto-attacco":
         tit = carattere.scrivi("Sotto attacco", k=4, colore=AMBRA)
@@ -571,15 +573,23 @@ def pagina_vetrina(archivio, versione):
             classe += " hero"
         if scena.sfondo:  # the capture spreads over the whole section, beyond the floor, on wide screens
             sfondo = f'<div class="hero-bg" style="background-image:url({archivio.sfondo(*scena.sfondo)})"></div>'
+        if scena.bioma:  # the terrain across the whole width (the floor keeps its own copy for phones)
+            sfondo += (f'<div class="terra-larga" aria-hidden="true" style="background-image:'
+                       f'url({archivio.terreno(scena.bioma, scena.righe, scena.seme)})"></div>')
         sezione = (f'<section id="{scena.id}" class="{classe}" data-bioma="{scena.bioma or ""}">{sfondo}'
                    f'<div class="pavimento">{scena_html}<div class="contenuto">{contenuto}</div></div></section>')
         if scena.id == "hero":
             sezione = f'<div class="pin">{sezione}</div>'
         sezioni.append(sezione)
     nav = _nav(NAV_VETRINA + (("sviluppo/", "Sviluppo"), ("asset/", "Asset")))
-    noscript = ('<noscript><style>@media (max-width:1183px){.sez{overflow-x:auto}.scena{width:1152px}}'
-                '.finestra-striscia{position:relative;top:auto;overflow-x:auto}.striscia-blocchi{position:static;transform:none;display:flex}</style></noscript>')
-    return _pagina("tIndustry · logistica industriale, gratuito e open source", noscript + "".join(sezioni), nav,
+    noscript = '<noscript><style>@media (max-width:1183px){.sez{overflow-x:auto}.scena{width:1152px}}</style></noscript>'
+    # The captures open over the page (sito.js); without the script their links open the PNGs.
+    visore = ('<dialog id="visore" class="visore" aria-label="Cattura del gioco"><img alt="">'
+             '<div class="visore-barra"><span class="visore-didascalia"></span><span class="visore-conta"></span>'
+             '<button type="button" class="visore-prec" aria-label="Cattura precedente">&lt;</button>'
+             '<button type="button" class="visore-succ" aria-label="Cattura successiva">&gt;</button>'
+             '<button type="button" class="visore-chiudi" autofocus>Chiudi</button></div></dialog>')
+    return _pagina("tIndustry · logistica industriale, gratuito e open source", noscript + "".join(sezioni) + visore, nav,
                    radice="", classe="vetrina",
                    descrizione="tIndustry è un gioco gratuito e open source di logistica industriale ispirato a Mindustry "
                                "e Tiny Industry: minatori, nastri, forni, Mercato e Ricerca. Per Windows e Linux, in italiano e in inglese.",

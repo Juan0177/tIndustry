@@ -81,7 +81,9 @@ class Tratto:
 class Pezzo:
     """One logistics piece: curva (tier, da, a), t / unione_edificio / unione (tier, verso, lato for unione),
     incrocio, selezionatore (oggetto, verso), sdoppiatore (verso = the flow entering it: it splits left and
-    right, never straight), ponte (n, verso). `flussi` draws items crossing the piece: (verso, item, tier)."""
+    right, never straight), ponte (n, verso). `flussi` draws items crossing the piece: (verso, item, tier),
+    where verso is a direction (straight across) or two letters for a turn ("WS": in from the west, out to the
+    south, as through a T merge); several flows on one piece are spread evenly over a crossing."""
     x: int
     y: int
     tipo: str
@@ -443,16 +445,17 @@ def _img(url, x, y, w=1, h=1, z=3, rot=0, righe=None, basso=False, classe="px", 
             f'style="{_pos(x, y, w, h, righe, basso)};{r}z-index:{z}">')
 
 
-def _oggetti(a, verso, oggetti, n, tier):
+def _oggetti(a, verso, oggetti, n, tier, fase=0.0):
     """Items crossing n cells heading `verso` at the tier's speed, one per cell, staggered so that every run of
-    the page shares the same phase (position in cells = t * rate + i: continuous across runs and pieces)."""
+    the page shares the same phase (position in cells = t * rate + i: continuous across runs and pieces).
+    `fase` (0..1 of a cell) shifts the items, so that several flows on one piece take turns."""
     lungo = n * C
     durata = n / RATE[tier]
     out = ""
     for i in range(n):
         o = oggetti[i % len(oggetti)]
         out += (f'<img class="ogg" src="{a.sprite(o + "-belt")}" alt="" width="20" height="20" style="--L:{lungo}px;'
-                f'--dur:{durata:.3f}s;--rit:{-i * durata / n:.3f}s;animation-name:va-{verso.lower()}">')
+                f'--dur:{durata:.3f}s;--rit:{-(i + fase) * durata / n:.3f}s;animation-name:va-{verso.lower()}">')
     return out
 
 
@@ -474,7 +477,8 @@ def _html_pezzo(p, a, scena):
     flussi = ""
     if p.flussi:
         flussi = (f'<div class="flusso" style="{_pos(p.x, p.y, 1, 1, r, p.basso)}">'
-                  + "".join(_oggetti(a, v, (o,), 1, tier) for v, o, tier in p.flussi) + "</div>")
+                  + "".join(_oggetti(a, v, (o,), 1, tier, fase=k / len(p.flussi))
+                            for k, (v, o, tier) in enumerate(p.flussi)) + "</div>")
     if p.tipo == "curva":
         return _img(a.curva(p.tier, p.da, p.a), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "t":
@@ -644,7 +648,7 @@ VETRINA = [
         Tratto(1, 1, 7, "E", T1, ("copper-wire",)),
         Tratto(13, 0, 1, "S", T2, ("silicon", "titanium-plate")), Pezzo(13, 1, "curva", T2, da="S", a="W"),
         Tratto(12, 1, 4, "W", T2, ("silicon", "titanium-plate")),
-        Pezzo(8, 1, "t", T2, verso="S", flussi=(("S", "copper-wire", T2),)),
+        Pezzo(8, 1, "t", T2, verso="S", flussi=(("WS", "copper-wire", T2), ("ES", "silicon", T2))),
         Blocco(7, 2, "core-3", "Luce del nucleo"),
         *_margine(1, 11, verso_sotto=False), Linea(((17.5, 1.5), (15, 7.8))),
     ], seme=6),

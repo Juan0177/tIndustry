@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { intercetta, avanzamento, bersaglio, politica } = require("./sito.js");
+const { intercetta, avanzamento, bersaglio, politica, vicino } = require("./sito.js");
 
 const link = (attributi = ["data-costruisci"]) => ({
   hasAttribute: (nome) => attributi.includes(nome),
@@ -89,4 +89,12 @@ test("bersaglio: preferisce i pezzi fuori dalla fascia centrale e resta nel view
   assert.ok(vuoto.y >= 76 && vuoto.y <= 696);
   const fuoriVista = bersaglio([r(600, -500), r(100, 900)], 1280, 720, caso, 76);
   assert.ok(fuoriVista.x <= 1280 * 0.15 + 24 || fuoriVista.x >= 1280 * 0.85 - 24, "pezzi fuori vista ignorati");
+});
+
+test("vicino: le catture si sfogliano in tondo", () => {
+  assert.equal(vicino(0, 1, 9), 1);
+  assert.equal(vicino(8, 1, 9), 0);
+  assert.equal(vicino(0, -1, 9), 8);
+  assert.equal(vicino(3, 0, 9), 3);
+  assert.equal(vicino(0, 1, 0), 0);
 });
