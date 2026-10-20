@@ -1,6 +1,6 @@
 # Sito «fabbrica»: piano di implementazione
 
-**Stato:** completato e pubblicato il 2026-10-19 (PR #233 e #235), vedi il [diario](../../diario/2026-10-19-sito-fabbrica.md).
+**Stato:** completato e pubblicato il 2026-10-19 (PR #233 e #235); **superato** dal [racconto guidato dallo scroll](../specs/2026-10-20-sito-scroll-narrativo.md), che fa da riferimento per il sito, vedi il [diario](../../diario/2026-10-19-sito-fabbrica.md).
 
 **Goal:** riscrivere il sito di GitHub Pages come una fabbrica di tIndustry secondo la [specifica](../specs/2026-10-19-sito-fabbrica-design.md) e pubblicarlo.
 

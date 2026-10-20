@@ -1,5 +1,7 @@
 # Sito "fabbrica": piano di implementazione
 
+**Stato:** **obsoleto**, mai eseguito oltre il Task 4 (ramo locale `sito/fabbrica`, mai pubblicato); solo storico. Il sito di riferimento è il [racconto guidato dallo scroll](../specs/2026-10-20-sito-scroll-narrativo.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** riscrivere il sito di GitHub Pages come una fabbrica di tIndustry: vetrina a pagina lunga con nastri, oggetti, blocchi, drone e Core col download; pagina sviluppo (com'è fatto, roadmap, diario, ADR); pagina asset nel guscio nuovo.

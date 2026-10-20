@@ -1,6 +1,6 @@
 # Sito "fabbrica" — vetrina, sviluppo e asset su GitHub Pages
 
-- **Stato**: approvata il 2026-10-18 (design discusso con l'utente nel companion visivo, tre direzioni grafiche e due hero a confronto)
+- **Stato**: **obsoleta**, solo storico: sostituita dalla [specifica del 19](2026-10-19-sito-fabbrica-design.md), a sua volta superata dal [racconto guidato dallo scroll](2026-10-20-sito-scroll-narrativo.md). Approvata il 2026-10-18 (design discusso con l'utente nel companion visivo, tre direzioni grafiche e due hero a confronto)
 - **Sostituisce**: il sito di oggi (`tools/sito/costruisci.py`: ingresso con le catture del README e pagina asset)
 - **Pubblicazione**: invariata, `.github/workflows/pages.yml` a mano da `main` o sui tag di release
 

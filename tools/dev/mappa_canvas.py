@@ -104,7 +104,7 @@ aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
 aperti.card("a2", "**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.", "4")
 aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b, G3 e G4 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata, .dev/baseline-g3-candidata e .dev/baseline-g4-candidata (it e en), da approvare.")
-aperti.card("nastri-stretti", "**Nastri stretti: scelta la C «Mindustry»**\nScelta dall'utente il 2026-10-20 fra le tre proposte della PR #246; da portare negli sprite con un piano a parte (#252). Insieme: incrocio come la Junction (#253), selezionatore come il Sorter (#254), sdoppiatore che diventa il Router di Mindustry (#255).")
+aperti.card("nastri-stretti", "**Nastri stretti: scelta la C «Mindustry»**\nScelta dall'utente il 2026-10-20 fra le tre proposte della PR #246; da portare negli sprite con un piano a parte (#252). Insieme: incrocio come la Junction (#253), selezionatore come il Sorter (#254), sdoppiatore che diventa il Router di Mindustry con id router (#255).")
 aperti.close()
 
 chain(["g2a", "g2b", "g3", "g4"])
