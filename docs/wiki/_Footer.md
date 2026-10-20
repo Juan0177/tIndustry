@@ -1,0 +1,1 @@
+[tIndustry](https://github.com/Juan0177/tIndustry) · [Scarica](https://github.com/Juan0177/tIndustry/releases/latest) · [Sito](https://juan0177.github.io/tIndustry/) · [Segnala un problema](https://github.com/Juan0177/tIndustry/issues) · Le pagine del Wiki nascono da `docs/wiki/` nel repository.

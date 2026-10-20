@@ -1,6 +1,6 @@
 {
 	"nodes":[
-		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":838,"color":"1"},
+		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":864,"color":"1"},
 		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":656,"color":"5"},
 		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":46,"color":"3"},
 		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":3660,"color":"4"},
@@ -25,7 +25,7 @@
 		{"id":"a1","type":"text","text":"**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.","x":1640,"y":50,"width":440,"height":122,"color":"4"},
 		{"id":"a2","type":"text","text":"**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.","x":1640,"y":196,"width":440,"height":96,"color":"4"},
 		{"id":"a3","type":"text","text":"**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b, G3 e G4 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata, .dev/baseline-g3-candidata e .dev/baseline-g4-candidata (it e en), da approvare.","x":1640,"y":316,"width":440,"height":252,"color":"1"},
-		{"id":"nastri-stretti","type":"text","text":"**Nastri stretti: da scegliere**\nTre proposte di nastri larghi quanto gli oggetti (A binari sottili, B canale, C Mindustry) nella tavola .dev/arte/nastri-stretti.png (python tools/art/proposte_nastri_stretti.py) e nella PR #246; la variante scelta diventa un piano a parte.","x":1640,"y":592,"width":440,"height":226,"color":"1"}
+		{"id":"nastri-stretti","type":"text","text":"**Nastri stretti: scelta la C «Mindustry»**\nScelta dall'utente il 2026-10-20 fra le tre proposte della PR #246; da portare negli sprite con un piano a parte (#252). Insieme: incrocio come la Junction (#253), selezionatore come il Sorter (#254), sdoppiatore che diventa il Router di Mindustry con id router (#255).","x":1640,"y":592,"width":440,"height":252,"color":"1"}
 	],
 	"edges":[
 		{"id":"e-giacimenti-tier","fromNode":"giacimenti","fromSide":"bottom","toNode":"tier","toSide":"top"},

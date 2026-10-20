@@ -16,7 +16,7 @@ python tools/art/proposte_nastri_stretti.py # tavola delle proposte di nastri st
 python -m unittest tools/art/test_proposte_nastri_stretti.py
 ```
 
-**Proposte di nastri stretti** (`proposte_nastri_stretti.py`): solo una tavola per scegliere, non entra nel registro di `genera.py` e non scrive in `godot/assets/`. Tre varianti col battistrada largo quanto lo sprite `*-belt` più grande (A binari sottili di 2 px, B canale incassato fra bordi scuri, C proporzioni di Mindustry con frecce piccole), per i quattro tier: dritto pieno di oggetti a 0,4 di cella, curva, T e unione laterale, a 1× e 2× (la scala del gioco) su fondo chiaro e scuro, accanto al nastro di oggi coi suoi sprite. Usa `TIER` e la piegatura della curva di `blocchi/logistica.py`. La variante scelta diventa un piano a parte, che la porta negli sprite del gioco.
+**Proposte di nastri stretti** (`proposte_nastri_stretti.py`): solo una tavola per scegliere, non entra nel registro di `genera.py` e non scrive in `godot/assets/`. Tre varianti col battistrada largo quanto lo sprite `*-belt` più grande (A binari sottili di 2 px, B canale incassato fra bordi scuri, C proporzioni di Mindustry con frecce piccole), per i quattro tier: dritto pieno di oggetti a 0,4 di cella, curva, T e unione laterale, a 1× e 2× (la scala del gioco) su fondo chiaro e scuro, accanto al nastro di oggi coi suoi sprite. Usa `TIER` e la piegatura della curva di `blocchi/logistica.py`. Il 2026-10-20 l'utente ha scelto la **C «Mindustry»**: un piano a parte la porta negli sprite del gioco (issue #252).
 
 Dopo aver scritto PNG nuovi: `APPDATA="$(mktemp -d)" godot4 --headless --path godot --import`, poi ripristina i `.import` che cambiano solo per fine riga (vedi `CLAUDE.md`).
 

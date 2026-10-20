@@ -5,6 +5,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+## [0.4.0-anteprima] — 2026-10-20
+
+Versione di anteprima, temporanea: raccoglie tutto il lavoro dalla 0.3.4 (Godot come client unico, simulazione a comandi deterministica, costruzione come Mindustry con drone e cantieri, terreno a biomi e campagna, grafica generata da script, interfaccia nuova in italiano e inglese, agenti che giocano, nastri come Mindustry, sito e Wiki). Zip per Windows e Linux nella [release](https://github.com/Juan0177/tIndustry/releases/tag/v0.4.0-anteprima).
+
 ### Aggiunto
 
 - **Nastri come Mindustry** (piano in 11 task, PR #224, #227–#232, #240, #242, #245, #246; voci per PR qui sotto): i nastri si piazzano, girano, potenziano e smontano con i gesti di Mindustry. Trascinamento con anteprima dall'ancora al cursore e invio al rilascio, direzione dal trascinamento, R e rotellina che ruotano, Ctrl per seguire la catena o aggirare gli ostacoli, ponte automatico sopra pareti, acqua ed edifici, nastro sopra nastro (giro sul posto e cambio di tier pagando la differenza), rettangolo di smontaggio col destro, tasto centrale che prende il blocco; la linea e il rettangolo sono funzioni di Shared (`PlacementLine`, `RemovalArea`) che usano anche gli agenti. Oggetti fluidi (interpolati fra i tick, strisce a 32 fotogrammi), portata e spaziatura di Mindustry (3 oggetti per cella), costi della logistica in minerale grezzo, nastro rinforzato. Salvataggi alla versione 13 (v11 e v12 si leggono ancora). In chiusura una tavola di proposte di nastri stretti, larghi quanto gli oggetti come in Mindustry (`python tools/art/proposte_nastri_stretti.py` → `.dev/arte/nastri-stretti.png`; varianti A binari sottili, B canale, C Mindustry, per i quattro tier, accanto al nastro di oggi): solo tavola, il gioco non cambia finché l'utente non sceglie
@@ -585,6 +589,7 @@ dotnet run --project TIndustry.Logistics.csproj -- --self-test
 dotnet run --project TIndustry.Logistics.csproj
 ```
 
+[0.4.0-anteprima]: https://github.com/Juan0177/tIndustry/releases/tag/v0.4.0-anteprima
 [0.3.4]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Juan0177/tIndustry/releases/tag/v0.3.2
