@@ -164,8 +164,10 @@ def _registra_nastro(tier):
     # Side joins (BeltShape.JoinLeft / JoinRight / JoinBuildingBoth: the dot block; JoinBoth: the T open behind),
     # East-facing art: left of the flow is North.
     sprite(tier + "-join-both-anim")(lambda: forme.striscia([unione_t(tier, k, dietro=True) for k in range(FOTOGRAMMI)]))
-    for nome, (nord, sud) in (("join-left", (True, False)), ("join-right", (False, True)),
-                              ("join-building-both", (True, True))):
+    unioni = [("join-left", (True, False)), ("join-right", (False, True))]
+    if tier not in RINFORZATI:  # an armored belt never blends with a building (BeltGrid.BuildingFeeders)
+        unioni.append(("join-building-both", (True, True)))
+    for nome, (nord, sud) in unioni:
         sprite(f"{tier}-{nome}-anim")(lambda nord=nord, sud=sud: forme.striscia(
             [unione_edificio(tier, k, nord, sud) for k in range(FOTOGRAMMI)]))
 

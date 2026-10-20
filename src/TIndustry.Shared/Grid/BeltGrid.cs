@@ -189,8 +189,8 @@ public sealed class BeltGrid
         Direction? fromDirection = null,
         GridPosition? source = null)
     {
-        if (!cells.TryGetValue(position, out var cell)
-            || !ArmoredAccepts(cell, source ?? (fromDirection is { } from ? position.Step(DirectionMath.Opposite(from)) : null)))
+        var origin = source ?? (fromDirection is { } from ? position.Step(DirectionMath.Opposite(from)) : null);
+        if (!cells.TryGetValue(position, out var cell) || !ArmoredAccepts(cell, origin) || HeadOn(cell, origin))
         {
             return false;
         }
@@ -246,15 +246,22 @@ public sealed class BeltGrid
             cell.Advance(deltaSeconds);
         }
 
-        var positions = cells.Keys.ToList();
-        foreach (var pos in positions)
+        // Two passes, both in canonical order: a cell whose handoff fails in the first (the next cell was still full)
+        // retries once, so a cell downstream that emptied later in the first pass takes its item in the same tick
+        // whatever the line's direction.
+        var refused = new List<BeltGridCell>();
+        foreach (var cell in cells.Values.ToList())
         {
-            if (!cells.TryGetValue(pos, out var from))
+            TryHandoff(cell);
+            if (cell.Items.Any(item => item.Progress >= 1f))
             {
-                continue;
+                refused.Add(cell);
             }
+        }
 
-            TryHandoff(from);
+        foreach (var cell in refused)
+        {
+            TryHandoff(cell);
         }
     }
 
@@ -358,6 +365,11 @@ public sealed class BeltGrid
         || (source is { } from
             && (from == cell.Position.Step(DirectionMath.Opposite(cell.Direction))
                 || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
+
+    /// <summary>Mindustry's conveyor: a belt never takes from the belt it faces (two belts head-on would bounce items).</summary>
+    private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
+        cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
+        && cells.TryGetValue(cell.OutputPosition, out var feeder) && feeder.Kind == LogisticsKind.Belt;
 
     private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
     {

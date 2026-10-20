@@ -3,9 +3,9 @@
     {
       "id": "conveyor-basic",
       "tier": 1,
-      "rateItemsPerSecond": 0.5,
-      "capacity": 1,
-      "itemSpacing": 1.0,
+      "rateItemsPerSecond": 2.1,
+      "capacity": 3,
+      "itemSpacing": 0.4,
       "moneyCost": 0,
       "buildCost": [
         {
@@ -19,9 +19,9 @@
     {
       "id": "conveyor-fast",
       "tier": 2,
-      "rateItemsPerSecond": 1.0,
-      "capacity": 1,
-      "itemSpacing": 1.0,
+      "rateItemsPerSecond": 4.8,
+      "capacity": 3,
+      "itemSpacing": 0.4,
       "moneyCost": 0,
       "buildCost": [
         {
@@ -59,7 +59,7 @@
     {
       "id": "junction",
       "tier": 1,
-      "rateItemsPerSecond": 4.0,
+      "rateItemsPerSecond": 18.0,
       "capacity": 2,
       "itemSpacing": 1.0,
       "moneyCost": 0,
@@ -83,7 +83,7 @@
     {
       "id": "splitter",
       "tier": 1,
-      "rateItemsPerSecond": 0.75,
+      "rateItemsPerSecond": 8.0,
       "capacity": 1,
       "itemSpacing": 1.0,
       "moneyCost": 0,
@@ -107,7 +107,7 @@
     {
       "id": "sorter",
       "tier": 1,
-      "rateItemsPerSecond": 0.75,
+      "rateItemsPerSecond": 8.0,
       "capacity": 1,
       "itemSpacing": 1.0,
       "moneyCost": 0,
@@ -139,7 +139,7 @@
     {
       "id": "conveyor-bridge",
       "tier": 1,
-      "rateItemsPerSecond": 0.5,
+      "rateItemsPerSecond": 5.25,
       "capacity": 1,
       "itemSpacing": 1.0,
       "moneyCost": 0,
@@ -171,9 +171,9 @@
     {
       "id": "conveyor-express",
       "tier": 3,
-      "rateItemsPerSecond": 2.0,
-      "capacity": 1,
-      "itemSpacing": 1.0,
+      "rateItemsPerSecond": 7.2,
+      "capacity": 3,
+      "itemSpacing": 0.4,
       "moneyCost": 0,
       "buildCost": [
         {
@@ -211,9 +211,9 @@
     {
       "id": "conveyor-armored",
       "tier": 2,
-      "rateItemsPerSecond": 1.0,
-      "capacity": 1,
-      "itemSpacing": 1.0,
+      "rateItemsPerSecond": 4.8,
+      "capacity": 3,
+      "itemSpacing": 0.4,
       "moneyCost": 0,
       "buildCost": [
         {

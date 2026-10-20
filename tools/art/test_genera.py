@@ -524,7 +524,12 @@ class TestGenera(unittest.TestCase):
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
-                for nome, nord, sud in (("left", True, False), ("right", False, True), ("building-both", True, True)):
+                unioni = [("left", True, False), ("right", False, True)]
+                if nastro != "conveyor-armored":  # never blends with a building: no building-both strip
+                    unioni.append(("building-both", True, True))
+                else:
+                    self.assertNotIn(f"{nastro}-join-building-both-anim", SPRITE)
+                for nome, nord, sud in unioni:
                     lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
                     self.assertEqual(len(dritti), len(lati))
                     for k, (d, j) in enumerate(zip(dritti, lati)):

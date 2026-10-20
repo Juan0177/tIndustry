@@ -29,7 +29,8 @@ with open(os.path.join(REPO, "data", "content.json"), encoding="utf-8") as _fh:
 # Belt tiers scroll at their item rate: MindustryBeltVisual advances `rate` cells per second and shows
 # frame (int)(scroll * count) % count, count being the strip's frame count (one per pixel of tread), so the
 # strip plays at rate * count frames per second and one loop is one cell, 1 / rate s.
-VELOCITA_NASTRO = {c["id"]: c["rateItemsPerSecond"] for c in _CONTENT["conveyors"]}
+VELOCITA_NASTRO = {c["id"]: c["rateItemsPerSecond"] for c in _CONTENT["conveyors"]}  # cells per second
+SPAZIATURA_NASTRO = {c["id"]: c["itemSpacing"] for c in _CONTENT["conveyors"]}  # a full line: speed / spacing items/s
 ASSETS = os.path.join(REPO, "godot", "assets")
 PASSO_MINIMO = 0.02  # s: GIF delays below 2/100 s are not honoured by browsers
 
@@ -237,12 +238,14 @@ def _nastro(tier):
     n = _fotogrammi(tier + "-anim")
     fps = VELOCITA_NASTRO[tier] * n
     giro = n / fps
-    # Whole strip frames per rendered frame, as many as keep the GIF delay at PASSO_MINIMO or more.
-    passo = math.ceil(PASSO_MINIMO * fps) / fps
+    # Whole strip frames per rendered frame, as few as keep the GIF delay at PASSO_MINIMO or more, and a divisor of
+    # the strip so that one loop is a whole number of GIF frames (its length stays 1 / speed).
+    passo = min(d for d in range(1, n + 1) if n % d == 0 and d / fps >= PASSO_MINIMO) / fps
     unioni = [("join-left", "Unione a sinistra", "unione laterale (blocco col punto): dietro e a sinistra"),
               ("join-right", "Unione a destra", "unione laterale (blocco col punto): dietro e a destra"),
-              ("join-both", "Unione dai tre lati", "unione da nastri: dietro e ai due lati"),
-              ("join-building-both", "Edifici ai due lati", "unione con un edificio ai lati: dietro e ai due lati")]
+              ("join-both", "Unione dai tre lati", "unione da nastri: dietro e ai due lati")]
+    if tier != "conveyor-armored":  # the armored belt never blends with a building: no such strip
+        unioni.append(("join-building-both", "Edifici ai due lati", "unione con un edificio ai lati: dietro e ai due lati"))
     return Blocco(
         tier, "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
         [Strato(tier + "-anim", fps=fps, quando="dritto"), Strato(tier + "-corner-anim", fps=fps, quando="curva"),
@@ -256,7 +259,8 @@ def _nastro(tier):
          (tier + "-t-anim", "unione a T: due ingressi ai lati")]
         + [(f"{tier}-{u}-anim", parte) for u, _, parte in unioni],
         icona=tier, stato_icona="Dritto",
-        nota=f"{_num(VELOCITA_NASTRO[tier])} {'oggetto' if VELOCITA_NASTRO[tier] == 1 else 'oggetti'} al secondo: "
+        nota=f"{_num(VELOCITA_NASTRO[tier])} celle al secondo, fino a "
+             f"{_num(round(VELOCITA_NASTRO[tier] / SPAZIATURA_NASTRO[tier], 2))} oggetti al secondo: "
              f"{fps:g} fotogrammi al secondo."
         + (" Rinforzato: non si unisce agli edifici ai lati e prende da loro solo da dietro."
            if tier == "conveyor-armored" else ""),
