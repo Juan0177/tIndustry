@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { interpola, avanzamento, zoomPer, fuoco, smorza, posizioneDrone, puntoSulPercorso, angoloVerso, limitaCamera } = require("./racconto.js");
+const { interpola, avanzamento, zoomPer, fuoco, smorza, posizioneDrone, puntoSulPercorso, angoloVerso, limitaCamera, prezzoMercato, testoPrezzo, percorsoCaduta, yPrezzo } = require("./racconto.js");
 
 test("interpola: estremi, meta' con smoothstep, fuori corsa", () => {
   const k = [{ t: 0, x: 0, y: 0, vista: 10 }, { t: 1, x: 10, y: 20, vista: 20 }];
@@ -68,4 +68,34 @@ test("limitaCamera: la vista resta dentro la mappa", () => {
   assert.deepEqual(limitaCamera(20, 23, 640, 480, 1, 32, 40, 24, 0.36), { x: 20, y: 14.4 }); // portrait focus: 36 % above
   const grande = limitaCamera(5, 5, 640, 960, 0.5, 32, 40, 24, 0.5);                       // taller than the map: centred
   assert.equal(grande.y, 12);
+});
+
+test("posizioneDrone: salta i pezzi gia' fatti, tappe dopo l'ultimo lavoro, sguardo", () => {
+  const c = [{ x: 50, y: 50, w: 1, h: 1, t0: -1, t1: -0.5, fisso: true }, { x: 10, y: 10, w: 2, h: 2, t0: 0.4, t1: 0.6 }];
+  assert.equal(posizioneDrone(c, [0, 0], 0.2, 0.5).lavora, 1);   // never index 0, the piece already there
+  const extra = [{ t: 0.8, x: 20, y: 20 }, { t: 0.9, x: 20, y: 20, guarda: [30, 20] }, { t: 1, x: 20, y: 20, guarda: [30, 20] }];
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 0.85, extra), { x: 20, y: 20, lavora: -1 });
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 0.95, extra), { x: 20, y: 20, lavora: -1, guarda: [30, 20] });
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 1.2, extra), { x: 20, y: 20, lavora: -1, guarda: [30, 20] });
+});
+
+test("prezzoMercato e testoPrezzo: vola, crolla, scritto all'italiana", () => {
+  const M = { prezzo: { base: 30, alto: 2500, basso: 0.01 }, sale: [0.1, 0.2], crollo: [0.6, 0.7] };
+  assert.equal(testoPrezzo(prezzoMercato(M, 0)), "30");
+  assert.equal(testoPrezzo(prezzoMercato(M, 0.4)), "2.500");
+  assert.equal(testoPrezzo(prezzoMercato(M, 0.9)), "0,01");
+  assert.ok(prezzoMercato(M, 0.15) > 30 && prezzoMercato(M, 0.15) < 2500);
+  assert.equal(testoPrezzo(4.2), "4,20");
+  assert.equal(testoPrezzo(12345), "12.345");
+});
+
+test("percorsoCaduta e yPrezzo: il razzo-bomba cade sempre piu' veloce fino al minimo", () => {
+  const a = percorsoCaduta(10, 20, 70, 120, 0), m = percorsoCaduta(10, 20, 70, 120, 0.5), z = percorsoCaduta(10, 20, 70, 120, 1);
+  assert.deepEqual([a.x, a.y], [10, 20]);
+  assert.deepEqual([z.x, z.y], [70, 120]);
+  assert.equal(m.y, 45);   // a quarter of the drop at half the time: it accelerates
+  assert.ok(z.ang > m.ang && m.ang > 0);   // steeper and steeper, nose down
+  const M = { prezzo: { alto: 2500, basso: 30 }, interno: [0, 0, 228, 132] };
+  assert.ok(yPrezzo(M, 2500) < yPrezzo(M, 300) && yPrezzo(M, 300) < yPrezzo(M, 30));
+  assert.ok(yPrezzo(M, 30) < 132 && yPrezzo(M, 2500) > 0);
 });

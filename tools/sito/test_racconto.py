@@ -25,19 +25,64 @@ class TestRacconto(unittest.TestCase):
         # leaves from the bottom edge towards the chapters to come.
         self.assertEqual([], fabbrica.controlla(racconto.SCENA))
         fini = sorted(str(c["fine"]) for c in fabbrica.catene(racconto.SCENA))
-        self.assertEqual(sorted(["('blocco', 'smelter')", "('blocco', 'smelter')", "('blocco', 'generator')",
-                                 "('blocco', 'core-2')", "('blocco', 'core-2')"]), fini)
-        # Plates and copper meet in the T merge right above the Core.
+        self.assertEqual(sorted(["('blocco', 'smelter')", "('blocco', 'smelter')", "('blocco', 'smelter')",
+                                 "('blocco', 'generator')", "('blocco', 'core-2')", "('blocco', 'core-2')",
+                                 "('blocco', 'core-2')", "('sotto', 58)"]), fini)
+        # Plates and copper meet in the T merge and run down to the Core: the Core is not right under the T.
         nel_core = [c for c in fabbrica.catene(racconto.SCENA) if c["fine"] == ("blocco", "core-2")]
-        self.assertTrue(all(c["celle"][-1] == (30, 29) for c in nel_core))
+        dalla_t = [c for c in nel_core if (30, 29) in c["celle"]]
+        self.assertEqual(2, len(dalla_t))
+        self.assertTrue(all(c["celle"].index((30, 29)) <= len(c["celle"]) - 4 for c in dalla_t))
         # Ore leaves a miner through a corner, never straight out of it.
         occupato = fabbrica._occupazione(racconto.SCENA)
         for c in fabbrica.catene(racconto.SCENA):
             if c["sorgente"] == ("blocco", "miner"):
                 self.assertEqual("curva", occupato[c["celle"][0]][0].tipo)
 
+    def test_linee_gia_piazzate(self):
+        # More factory around: lines already there before the story, working from the first frame, never visited
+        # by the drone; at least one only crosses the map (in from the top, out from the bottom).
+        gia = [c for c in self.dati["costruzioni"] if c.get("fisso")]
+        self.assertGreaterEqual(len(gia), 30)
+        self.assertTrue(all(c["t1"] < 0 and c["piano"] < 0 for c in gia))
+        flussi = [f for f in self.dati["flussi"] if f["avvio"] < 0]
+        self.assertEqual(3, len(flussi))
+        self.assertEqual({"oggetto-lead-ore", "oggetto-iron-ore", "oggetto-titanium-ore"}, {f["oggetto"] for f in flussi})
+        self.assertTrue(any(f["percorso"][-1][1] > racconto.RIGHE for f in flussi))   # leaves past the bottom
+        self.assertTrue(all(i < len(self.dati["costruzioni"]) and self.dati["costruzioni"][i].get("fisso")
+                            for f in flussi for i in f["celle"]))
+
+    def test_mercato(self):
+        M, V = self.dati["mercato"], self.dati["valigetta"]
+        ultimo = max(c["t1"] for c in self.dati["costruzioni"])
+        # The story's chapters fit in their part of the scroll, the market takes the rest, in order:
+        # soaring, the briefcase filling up, the throw through the open hatches, the blast, the crash, stonks.
+        self.assertLess(ultimo, M["sale"][0])
+        self.assertTrue(M["sale"][0] < V["conta"][0] < V["conta"][1] < V["lancio"][0])   # it fills while the price soars
+        self.assertLess(M["sale"][1], V["lancio"][0])
+        self.assertTrue(M["porte"][0] <= V["lancio"][0] < V["lancio"][1] < V["dentro"] <= M["porte"][1])
+        # The blast comes from the crash: the price falls as a rocket-bomb and goes off when it hits the bottom,
+        # which is the usual selling price; the camera follows it down.
+        self.assertTrue(V["dentro"] <= M["crollo"][0] < M["crollo"][1] <= M["boom"][0] < M["boom"][1] <= M["meme"][0])
+        self.assertEqual(M["prezzo"]["base"], M["prezzo"]["basso"])
+        x0, x1 = M["caduta"]
+        self.assertTrue(0 < x0 < x1 < M["interno"][2])
+        self.assertTrue(0 < racconto.y_prezzo(M["prezzo"]["alto"]) < racconto.y_prezzo(M["prezzo"]["basso"]) < M["interno"][3])
+        seguito = [c for c in self.dati["camera"] if M["crollo"][0] <= c["t"] <= M["crollo"][1]]
+        self.assertGreaterEqual(len(seguito), 3)
+        self.assertTrue(all(c["vista"] <= 8 for c in seguito))
+        self.assertEqual(sorted(c["y"] for c in seguito), [c["y"] for c in seguito])   # going down with it
+        self.assertTrue(M["meme"][0] < M["meme"][1] <= M["bonus"][0] < M["bonus"][1] <= 1)   # the bonus after stonks
+        self.assertIn("bonus", self.nomi)
+        self.assertGreater(M["prezzo"]["alto"], 50 * M["prezzo"]["base"])
+        tappe = self.dati["drone"]["tappe"]
+        self.assertEqual(sorted(t["t"] for t in tappe), [t["t"] for t in tappe])
+        self.assertGreater(tappe[0]["t"], ultimo)
+        for nome in ("schermo", "valigetta", "stonks", "mercato-titolo"):
+            self.assertIn(nome, self.nomi)
+
     def test_linea_del_tempo(self):
-        costruzioni = self.dati["costruzioni"]
+        costruzioni = [c for c in self.dati["costruzioni"] if not c.get("fisso")]
         self.assertEqual("minatore-ferro-0", costruzioni[0]["id"])
         for prima, dopo in zip(costruzioni, costruzioni[1:]):
             self.assertLess(prima["t0"], dopo["t0"])   # built one after the other, in the drone's order
@@ -78,6 +123,7 @@ class TestRacconto(unittest.TestCase):
             self.assertGreaterEqual(n["chiavi"][-1][1], racconto.LARGHEZZA)   # ...then they leave the map
             x_vicino = min(k[1] for k in n["chiavi"])
             self.assertGreater(x_vicino, max(c["x"] for c in costruzioni))   # never inside the factory
+            self.assertGreater(x_vicino, self.dati["mercato"]["x"] + self.dati["mercato"]["w"])
         self.assertEqual("nucleo", self.dati["fissi"][0]["sprite"])   # the Core is there from the start
         # Item paths: axis-aligned steps of half a cell, one cell or (past the border) a cell and a half.
         for f in self.dati["flussi"]:
