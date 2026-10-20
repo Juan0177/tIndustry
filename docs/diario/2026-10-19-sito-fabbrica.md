@@ -38,7 +38,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 9 | Animazioni sempre accese, pulsante «Animazioni» nella barra e catture intere (PR #238) | `c0a4d7d`, `0c113fa` |
 | 10 | Finestra delle catture, griglia dei blocchi, unione a T con due flussi, terreno a tutta larghezza; piano del racconto guidato dallo scroll (PR #241) | `94d9133` |
 | 11 | Prototipo del racconto guidato dallo scroll, capitolo 1, con il drone 2.5D (PR #249) | `c347488` |
-| 12 | Drone 2.5D a volumi veri; prezzo del Mercato su rulli; test dei nastri con la velocità nuova (PR #250, PR PR_12) | `0acf756`, HASH_12 |
+| 12 | Drone 2.5D a volumi veri; prezzo del Mercato su rulli; test dei nastri con la velocità nuova (PR #250, PR #251) | `0acf756`, `c36a2c3` |
 
 ## Giri di revisione
 
