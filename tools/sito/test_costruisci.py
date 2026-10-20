@@ -171,7 +171,13 @@ class TestSito(unittest.TestCase):
         self.assertIn('<meta name="robots" content="noindex">', pagina)
         self.assertEqual(['<script src="../sito.js" defer></script>', '<script src="../racconto.js" defer></script>'],
                          re.findall(r"<script src[^>]*></script>", pagina))
-        self.assertEqual(13, pagina.count('<section class="capitolo"'))
+        self.assertEqual(14, pagina.count('<section class="capitolo"'))
+        # The download links: on the market screen's new channel (racconto.js), and in the last panel without it.
+        tv = re.search(r'<p class="racconto-tv">(.*?)</p>', pagina).group(1)
+        fuori = re.search(r'<p class="bottoni senza-tv">(.*?)</p>', pagina).group(1)
+        for bottoni in (tv, fuori):
+            self.assertIn(f'href="{costruisci.RELEASE_URL}"', bottoni)
+            self.assertIn(f'href="{costruisci.REPO_URL}"', bottoni)
         self.assertIn('id="animazioni"', pagina)
         dati = json.loads(re.search(r'<script type="application/json" id="racconto-dati">(.*?)</script>', pagina, re.S).group(1))
         for nome in [dati["terreno"], dati["poster"]] + [s["file"] for s in dati["sprite"].values()]:

@@ -79,6 +79,17 @@ test("posizioneDrone: salta i pezzi gia' fatti, tappe dopo l'ultimo lavoro, sgua
   assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 1.2, extra), { x: 20, y: 20, lavora: -1, guarda: [30, 20] });
 });
 
+test("posizioneDrone: una sosta di guardia fra due lavori, poi riparte dalla sosta", () => {
+  const c = [{ x: 10, y: 10, w: 2, h: 2, t0: 0.2, t1: 0.3 }, { x: 0, y: 0, w: 2, h: 2, t0: 0.9, t1: 0.95 }];
+  const guardia = [{ t: 0.4, x: 10.65, y: 10.1 }, { t: 0.45, x: 20, y: 10, guarda: [30, 10] }, { t: 0.7, x: 20, y: 10, guarda: [30, 10] }];
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.1, 0.35, guardia), { x: 10.65, y: 10.1, lavora: -1 });   // still over the site
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.1, 0.6, guardia), { x: 20, y: 10, lavora: -1, guarda: [30, 10] });
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.1, 0.8, guardia), { x: 20, y: 10, lavora: -1 });   // waits at the post...
+  const via = posizioneDrone(c, [0, 0], 0.1, 0.88, guardia);   // ...and flies to the next site from there
+  assert.ok(via.x < 20 && via.x > 0.65);
+  assert.equal(posizioneDrone(c, [0, 0], 0.1, 0.92, guardia).lavora, 1);
+});
+
 test("prezzoMercato e testoPrezzo: vola, crolla, scritto all'italiana", () => {
   const M = { prezzo: { base: 30, alto: 2500, basso: 0.01 }, sale: [0.1, 0.2], crollo: [0.6, 0.7] };
   assert.equal(testoPrezzo(prezzoMercato(M, 0)), "30");

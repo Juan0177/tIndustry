@@ -5,11 +5,12 @@
  * (0..1) is the timeline: it places the camera (key frames, smoothstep between them) and decides how far every
  * construction has risen, so scrolling back takes the factory apart again (scrub). Wall-clock time only drives
  * what moves by itself: belt treads, items, working blocks, the drone's hover and its beam. The story runs
- * through the seven chapters: deposit and belts, smelter and plates, power, night and the attack (enemies only at
- * night: the survivors flee at dawn, the drone wears its helmet meanwhile), the world, the Core and the market
- * (price soaring, a briefcase of 9999 plates thrown into the screen, the crash as a falling rocket-bomb that
- * goes off as a mushroom cloud at the usual price, «stonks»,
- * and a money bonus to make up for it).
+ * through the eight chapters: deposit and belts, smelter and plates, power, night and the attack (a close-up between
+ * cinema bars: the silhouettes come over the river, the drone sees them, trembles and puts its helmet on; enemies
+ * come only at night and the survivors flee at dawn), the world, the Core and the market (price soaring, a
+ * briefcase of 9999 plates thrown into the screen, the crash as a falling rocket-bomb that goes off as a mushroom
+ * cloud at the usual price, «stonks», a money bonus to make up for it, and the drone changing channel with a remote:
+ * the game's channel, where the real download and GitHub links stand over the screen).
  *
  * The data (map, camera, constructions in chain order, item path, sprite list) comes from racconto.py as JSON in
  * <script id="racconto-dati">. Drawing follows the game: art scaled with nearest-neighbour, plans as the construct
@@ -111,21 +112,28 @@
 
   /* Where the drone hovers at t (cells) and which construction it works on (-1: flying or idle). It waits at
      `partenza` until `ingresso`, flies to each site in the last VOLO before its t0 (eased), stays over it until t1
-     and waits there until it is time to leave for the next one. */
+     and waits there until it is time to leave for the next one. `extra` stops ({t, x, y, guarda}, sorted by t) go
+     in between the builds by their time: the guard post of the attack, the market after the last build. */
   var VOLO = 0.04;   // at most this much progress to fly to the next site: long pauses are spent waiting on guard
   function posizioneDrone(costruzioni, partenza, ingresso, t, extra) {
     var tappe = [{ t: ingresso, x: partenza[0], y: partenza[1], lavora: -1 }];
+    var soste = extra || [], s = 0;
+    function sosta(prima) {   // the extra stops due before `prima`
+      for (; s < soste.length && soste[s].t < prima; s++) {
+        var e = soste[s];
+        tappe.push({ t: e.t, x: e.x, y: e.y, lavora: -1, guarda: e.guarda || null });
+      }
+    }
     costruzioni.forEach(function (c, i) {
       if (c.fisso) return;   // already there before the story: never visited
+      sosta(c.t0 - VOLO);
       var sopra = { x: c.x + c.w / 2 - 0.35, y: c.y + c.h / 2 - 0.9 };
       var prima = tappe[tappe.length - 1];
       if (c.t0 - VOLO > prima.t) tappe.push({ t: c.t0 - VOLO, x: prima.x, y: prima.y, lavora: -1 });
       tappe.push({ t: c.t0, x: sopra.x, y: sopra.y, lavora: -1 });
       tappe.push({ t: c.t1, x: sopra.x, y: sopra.y, lavora: i });
     });
-    (extra || []).forEach(function (e) {   // stops after the last build (the market chapter)
-      tappe.push({ t: e.t, x: e.x, y: e.y, lavora: -1, guarda: e.guarda || null });
-    });
+    sosta(Infinity);
     if (t <= tappe[0].t) return { x: tappe[0].x, y: tappe[0].y, lavora: -1 };
     for (var k = 0; k < tappe.length - 1; k++) {
       var a = tappe[k], b = tappe[k + 1];
@@ -438,7 +446,14 @@
     var lx = drone.ux * drone.inclina, ly = drone.uy * drone.inclina;
     var s = dati.sprite.drone, lato = s.lato, n = s.fotogrammi;
     var bob = Math.sin(tempo * 2.6) * 1.6;   // DroneVisual: ±0.05 tile, only the body moves
-    var cx = dove.x * CELLA, cy = dove.y * CELLA - bob;
+    var A = dati.attacco, paura = A ? Math.min(avanzamento(t, A.trema[0], A.trema[0] + 0.006), 1 - avanzamento(t, A.trema[1], A.trema[1] + 0.006)) : 0;
+    var tremaX = 0, tremaY = 0;
+    if (paura > 0) {   // trembling with fear, quick and small (smaller when the system asks for less motion)
+      var ampiezza = paura * (riduceSistema() ? 0.35 : 1.2);
+      tremaX = (Math.sin(tempo * 61) + Math.sin(tempo * 97)) * 0.5 * ampiezza;
+      tremaY = (Math.sin(tempo * 73 + 1) + Math.sin(tempo * 43)) * 0.4 * ampiezza;
+    }
+    var cx = dove.x * CELLA + tremaX, cy = dove.y * CELLA - bob + tremaY;
     var co = Math.cos(drone.ang), si = Math.sin(drone.ang);
     var m = ctx.getTransform();   // where the drone is on screen (CSS px), for window.tIndustryRacconto
     drone.schermo = { x: (m.a * cx + m.e) / dpr, y: (m.d * cy + m.f) / dpr };
@@ -483,6 +498,8 @@
       ctx.globalAlpha = 1;
     }
     ctx.imageSmoothingEnabled = false;
+    if (paura > 0) disegnaPaura(t, tempo, cx, cy - n, paura);
+    disegnaTelecomando(t, tempo, cx + co * 9 + lx * (n - 1), cy - (n - 1) + si * 9 + ly * (n - 1));
     disegnaValigetta(t, tempo, cx + lx * (n - 1), cy - (n - 1) + ly * (n - 1));
     disegnaPorte(t);
     disegnaBonus(t, tempo);
@@ -497,6 +514,85 @@
       ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(px, py); ctx.stroke();
       ctx.fillStyle = AMBRA; ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
     }
+  }
+
+  /* The fright of the attack: a «!» popping over the drone when it sees the silhouettes, then drops of sweat
+     sliding off its hull while it trembles. */
+  function disegnaPaura(t, tempo, x, y, paura) {
+    var A = dati.attacco;
+    var u = avanzamento(t, A.vede, A.vede + 0.012);
+    if (u > 0 && u < 1) {
+      var k = 1.70158, v = Math.min(1, u * 4) - 1, pop = 1 + (k + 1) * v * v * v + k * v * v;   // pops with an overshoot
+      ctx.save();
+      ctx.globalAlpha = 1 - Math.max(0, (u - 0.75) / 0.25);
+      ctx.translate(x + 8, y - 26);
+      ctx.scale(pop * 1.5, pop * 1.5);
+      ctx.fillStyle = "#2b2b2b"; ctx.fillRect(-5, -9, 10, 18);
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(-4, -8, 8, 16);
+      ctx.fillStyle = "#ff2a4a"; ctx.fillRect(-1.5, -6, 3, 8); ctx.fillRect(-1.5, 4, 3, 3);
+      ctx.restore();
+    }
+    for (var g = 0; g < 2; g++) {   // sweat: each drop slides off the hull and fades, one after the other
+      var f = (tempo * 0.9 + g * 0.5) % 1;
+      var gx = x + (g ? -9 : 8), gy = y - 6 + f * 12;
+      ctx.globalAlpha = paura * (1 - f);
+      ctx.fillStyle = "#8fd3ff";
+      ctx.beginPath(); ctx.moveTo(gx, gy - 3); ctx.lineTo(gx + 1.6, gy + 0.5); ctx.arc(gx, gy + 0.6, 1.6, 0, Math.PI); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* The remote: the drone takes it out after the bonus, a click (red light at its tip) sends the infrared dots to
+     the sensor on the screen's frame. */
+  function disegnaTelecomando(t, tempo, x, y) {
+    var M = dati.mercato, C = M && M.canale;
+    if (!C || t < M.bonus[0]) return;
+    var su = avanzamento(t, M.bonus[0], M.bonus[0] + 0.006);
+    ctx.save();
+    ctx.globalAlpha = su;
+    ctx.translate(x, y + 3);
+    ctx.rotate(-0.5);
+    ctx.scale(1.5, 1.5);
+    ctx.fillStyle = "#2b2b2b"; ctx.fillRect(-4, -2.5, 11, 5);
+    ctx.fillStyle = "#3a3d46"; ctx.fillRect(-3, -1.5, 9, 3);
+    ctx.fillStyle = "#8a8f9c"; ctx.fillRect(-1, -1, 1, 1); ctx.fillRect(1, -1, 1, 1); ctx.fillRect(-1, 0.5, 1, 1);
+    var clic = avanzamento(t, C.tasto, C.cambio[0] + 0.004);
+    ctx.fillStyle = clic > 0 && clic < 1 ? "#ff2a4a" : "#6a1a24"; ctx.fillRect(6, -1, 2, 2);
+    ctx.restore();
+    var punta = { x: x + Math.cos(-0.5) * 11, y: y + 3 + Math.sin(-0.5) * 11 };
+    ctx.globalAlpha = 1;
+    if (clic > 0 && clic < 1) {   // the infrared dots, from the tip to the sensor
+      var sx = M.x * CELLA + C.sensore[0], sy = M.y * CELLA + C.sensore[1];
+      ctx.globalAlpha = 1 - Math.max(0, clic - 0.7) / 0.3;
+      ctx.strokeStyle = "#ff4a5a"; ctx.lineWidth = 1;   // the click: a ring opening at the tip
+      ctx.beginPath(); ctx.arc(punta.x, punta.y, 2 + 8 * Math.min(1, clic * 3), 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#ff4a5a";
+      for (var k = 0; k < 5; k++) {
+        var f = Math.min(1, clic * 1.6 - k * 0.12);
+        if (f <= 0) continue;
+        ctx.fillRect(punta.x + (sx - punta.x) * f - 1.5, punta.y + (sy - punta.y) * f - 1.5, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* The cinema bars of the attack's close-up (screen space), in when the shot starts, out when the ice breaks,
+     with a dark vignette that closes in on the middle of the shot. */
+  function disegnaBarre(t) {
+    var A = dati.attacco;
+    if (!A) return;
+    var b = A.barre, e = Math.min(liscia(avanzamento(t, b[0], b[1])), 1 - liscia(avanzamento(t, b[2], b[3])));
+    if (e <= 0) return;
+    var W = tela.width, H = tela.height;
+    var v = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.3, W / 2, H * 0.45, Math.max(W, H) * 0.62);
+    v.addColorStop(0, "rgba(0,0,0,0)");
+    v.addColorStop(1, "rgba(0,0,0," + (0.6 * e).toFixed(3) + ")");
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+    var h = Math.round(tela.height * (altezza > larghezza ? 0.06 : 0.1) * e);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, tela.width, h);
+    ctx.fillRect(0, tela.height - h, tela.width, h);
   }
 
   // --- the market (the last chapter)
@@ -517,7 +613,7 @@
   var lo = null;   // the screen's own low-resolution canvas: one pixel per art pixel, drawn scaled (pixel look)
   function disegnaMercato(t, tempo) {
     var M = dati.mercato;
-    if (!M || t < M.sale[0] - 0.06) return;
+    if (!M || t < M.sale[0] - 0.06) { posaTv(t, M); return; }
     var ix = M.interno[0], iy = M.interno[1], iw = M.interno[2], ih = M.interno[3];
     if (!lo) { lo = doc.createElement("canvas"); lo.width = iw; lo.height = ih; }
     var g = lo.getContext("2d");
@@ -601,10 +697,63 @@
       g.drawImage(img.stonks, 0, 0);
       g.globalAlpha = 1;
     }
+    // the remote changes channel: the old picture folds into a line, static, then the game's channel rolls in
+    var C = M.canale, ch = C ? avanzamento(t, C.cambio[0], C.cambio[1]) : 0, piega = 1;
+    if (ch > 0) {
+      if (ch < 0.3) {
+        piega = Math.max(0.02, 1 - ch / 0.3);
+      } else if (ch < 0.62) {
+        if (riduceSistema()) { g.fillStyle = "#1c2230"; g.fillRect(0, 0, iw, ih); }
+        else {   // static: grey pixels changing every frame
+          var seme = Math.floor(tempo * 30) * 7919;
+          for (var py = 0; py < ih; py += 2) {
+            for (var px = 0; px < iw; px += 2) {
+              seme = (seme * 1103515245 + 12345) & 0x7fffffff;
+              var gr = 40 + (seme >> 16) % 180;
+              g.fillStyle = "rgb(" + gr + "," + gr + "," + gr + ")";
+              g.fillRect(px, py, 2, 2);
+            }
+          }
+        }
+      } else {
+        var rullo = Math.round((1 - liscia(Math.min(1, (ch - 0.62) / 0.3))) * ih);   // the picture rolls into place
+        g.drawImage(img.canale, 0, rullo);
+        g.drawImage(img.canale, 0, rullo - ih);
+        if (t < C.cambio[1] + 0.01) {   // the channel number, top left, for a moment
+          var osd = dati.sprite["canale-osd"];
+          g.drawImage(img["canale-osd"], 0, 0, osd.w, osd.h, 6, 4, osd.w, osd.h);
+        }
+      }
+    }
     var scossa = u > 0 && u < 0.5 ? (1 - u * 2) * 3 : 0;   // the screen shakes with the blast
     var sx = Math.round(Math.sin(t * 9000) * scossa), sy = Math.round(Math.cos(t * 7000) * scossa);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(lo, M.x * CELLA + ix + sx, M.y * CELLA + iy + sy);
+    var alto = Math.max(1, Math.round(ih * piega));
+    ctx.drawImage(lo, 0, 0, iw, ih, M.x * CELLA + ix + sx, M.y * CELLA + iy + sy + Math.round((ih - alto) / 2), iw, alto);
+    if (piega < 1) {   // the old tube's bright line
+      ctx.fillStyle = "rgba(235,245,255," + (1 - piega) * 0.8 + ")";
+      ctx.fillRect(M.x * CELLA + ix, M.y * CELLA + iy + Math.round(ih / 2) - 1, iw, 2);
+    }
+    posaTv(t, M);
+  }
+
+  /* The real links (download, GitHub) over the lower part of the game's channel: HTML laid on the canvas, shown
+     once the channel is on. */
+  var tv = racconto.querySelector(".racconto-tv"), tvAcceso = null;
+  function posaTv(t, M) {
+    if (!tv) return;
+    var acceso = !!(M && M.canale && t >= M.canale.cambio[1] - 0.002);
+    if (acceso !== tvAcceso) { tv.classList.toggle("acceso", acceso); tvAcceso = acceso; }
+    if (!acceso) return;
+    var b = dati.sprite.canale.bottoni, m = ctx.getTransform();
+    var x0 = M.x * CELLA + M.interno[0] + b[0], y0 = M.y * CELLA + M.interno[1] + b[1];
+    var x1 = M.x * CELLA + M.interno[0] + b[2], y1 = M.y * CELLA + M.interno[1] + b[3];
+    var s = tv.style;
+    s.left = ((m.a * x0 + m.e) / dpr).toFixed(1) + "px";
+    s.top = ((m.d * y0 + m.f) / dpr).toFixed(1) + "px";
+    s.width = (m.a * (x1 - x0) / dpr).toFixed(1) + "px";
+    s.height = (m.d * (y1 - y0) / dpr).toFixed(1) + "px";
+    s.setProperty("--tv", limita(Math.round(m.a * (x1 - x0) / dpr / 30), 12, 20) + "px");   // buttons grow with the screen
   }
 
   /* After stonks: the money bonus pops out over the screen with a bounce, coins bursting out of it. */
@@ -614,16 +763,18 @@
     var u = avanzamento(t, M.bonus[0], M.bonus[1]);
     // over the top of the screen, so the drone in a suit and «stonks» below stay in sight
     var cx = M.x * CELLA + M.interno[0] + M.interno[2] / 2 + 20, cy = M.y * CELLA + M.interno[1] + 30;
-    var k = 1.70158, v = u - 1, pop = 1 + (k + 1) * v * v * v + k * v * v;   // ease out with a small overshoot
+    var C = M.canale, via = C ? avanzamento(t, C.tasto, C.cambio[0] + 0.004) : 0;   // gone with the old channel
+    if (via >= 1) return;
+    var k = 1.70158, v = u - 1, pop = (1 + (k + 1) * v * v * v + k * v * v) * (1 - 0.6 * via);   // ease out, small overshoot
     for (var i = 0; i < 14; i++) {   // the coins: out in every direction, then falling
       var a = i / 14 * Math.PI * 2 + 0.3, vel = 60 + (i * 37) % 40, q = Math.min(1, u * 1.4);
       var x = cx + Math.cos(a) * vel * q, y = cy + Math.sin(a) * vel * q - 30 * q + 90 * q * q;
-      ctx.globalAlpha = 1 - Math.max(0, (u - 0.7) / 0.3) * 0.6;
+      ctx.globalAlpha = (1 - Math.max(0, (u - 0.7) / 0.3) * 0.6) * (1 - via);
       ctx.fillStyle = "#2b2b2b"; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = (i + Math.floor(tempo * 8)) % 2 ? "#facc15" : "#ffe58a";
       ctx.beginPath(); ctx.ellipse(x, y, 2.6 * Math.abs(Math.cos(tempo * 6 + i)) + 0.6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1 - via;
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(pop, pop);
@@ -631,6 +782,7 @@
     ctx.shadowBlur = 18 * dpr;
     fotogramma("bonus", 0, 0, 0, 0, 0, -s.w / 2, -s.h / 2);
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   /* The hatches on top of the screen: they swing open for the briefcase and close after it. */
@@ -737,6 +889,7 @@
     disegnaNemici(t, tempo);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     disegnaAllarme(t, tempo);
+    disegnaBarre(t);
   }
 
   window.tIndustryRacconto = { drone: function () { return drone.schermo || null; }, progresso: progresso };

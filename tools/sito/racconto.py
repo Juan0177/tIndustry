@@ -1,4 +1,4 @@
-"""The scroll-driven story of the site: «dal giacimento al CORE», seven chapters on eleven panels.
+"""The scroll-driven story of the site: «dal giacimento al CORE», eight chapters on fourteen panels.
 
 One factory on a map of its own, drawn on a fixed full-screen canvas by racconto.js: scrolling moves the camera
 and plays the construction forwards and backwards (scrub). This module holds the data and writes the assets:
@@ -133,11 +133,19 @@ LUCE_CORE = {"raggio": 5.0, "colore": [0.55, 0.88, 1.0], "energia": 1.3}    # Ni
 # The attack (roadmap «Attacco e difesa»: enemies come only at night, at daybreak the survivors flee). They come over
 # the river from the east, stop outside the light of the lamps, and run back east when the day returns.
 ALLARME = {"t0": 0.63, "t1": 0.80}   # red glow at the screen's edges while they are there
-ELMETTO = {"cade": 0.64, "posato": 0.665, "toglie": 0.84, "via": 0.86}
-NEMICI = [{"sprite": "nemico-2", "y": 9.0, "chiavi": [[0.63, 63.0], [0.75, 44.0], [0.80, 45.5], [0.87, 70.0]]},
-          {"sprite": "nemico-3", "y": 15.0, "chiavi": [[0.645, 64.0], [0.76, 42.5], [0.80, 43.5], [0.86, 71.0]]},
-          {"sprite": "nemico-2", "y": 21.5, "chiavi": [[0.655, 63.0], [0.77, 43.0], [0.80, 44.0], [0.87, 70.0]]},
-          {"sprite": "nemico-3", "y": 27.0, "chiavi": [[0.665, 64.0], [0.775, 45.0], [0.80, 46.0], [0.88, 71.0]]}]
+ELMETTO = {"cade": 0.672, "posato": 0.69, "toglie": 0.84, "via": 0.86}
+# The close-up of the attack: cinema bars come in, the drone flies to the river bank (GUARDIA) and faces the
+# silhouettes coming from the east; it sees them (a «!»), trembles and sweats, the helmet drops on it. Then the
+# ice breaks (the panel says they leave by themselves at dawn): it calms down, the bars go and the camera pulls back.
+ATTACCO = {"barre": [0.63, 0.65, 0.715, 0.735], "vede": 0.66, "trema": [0.66, 0.715]}
+GUARDIA = [{"t": 0.642, "x": 38.15, "y": 21.6},
+           {"t": 0.66, "x": 40.3, "y": 21.4, "guarda": [47.0, 21.8]}, {"t": 0.80, "x": 40.3, "y": 21.4, "guarda": [47.0, 21.8]}]
+NEMICI = [{"sprite": "nemico-2", "y": 18.8, "chiavi": [[0.64, 50.5], [0.72, 45.4], [0.80, 46.4], [0.87, 70.0]]},
+          {"sprite": "nemico-3", "y": 21.2, "chiavi": [[0.645, 51.5], [0.725, 44.6], [0.80, 45.6], [0.86, 71.0]]},
+          {"sprite": "nemico-2", "y": 23.5, "chiavi": [[0.65, 51.0], [0.73, 45.2], [0.80, 46.2], [0.87, 70.0]]},
+          {"sprite": "nemico-3", "y": 25.8, "chiavi": [[0.655, 52.0], [0.735, 46.0], [0.80, 47.0], [0.88, 71.0]]},
+          {"sprite": "nemico-2", "y": 13.5, "chiavi": [[0.66, 56.0], [0.75, 47.0], [0.80, 48.0], [0.87, 70.0]]},
+          {"sprite": "nemico-3", "y": 30.5, "chiavi": [[0.665, 57.0], [0.755, 46.5], [0.80, 47.5], [0.88, 71.0]]}]
 CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: centre and vista on portrait screens
     {"t": 0.00, "x": 10.6, "y": 10.6, "vista": 9},
     {"t": 0.07, "x": 11.0, "y": 10.8, "vista": 10},
@@ -149,8 +157,11 @@ CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: 
     {"t": 0.46, "x": 31.0, "y": 22.0, "vista": 18},
     {"t": 0.50, "x": 30.0, "y": 10.0, "vista": 15},
     {"t": 0.58, "x": 27.0, "y": 15.0, "vista": 26},
-    {"t": 0.64, "x": 32.0, "y": 17.0, "vista": 30},
-    {"t": 0.72, "x": 38.0, "y": 18.0, "vista": 34},
+    {"t": 0.625, "x": 34.0, "y": 18.0, "vista": 24},
+    # the close-up of the attack: the drone left of the middle (the panel stands on the left), the enemies right
+    {"t": 0.66, "x": 41.2, "y": 21.6, "vista": 14, "xv": 43.6, "yv": 24.5, "vv": 16},
+    {"t": 0.715, "x": 41.3, "y": 21.6, "vista": 13.5, "xv": 43.6, "yv": 24.5, "vv": 15.5},
+    {"t": 0.76, "x": 40.0, "y": 19.0, "vista": 30},
     {"t": 0.82, "x": 40.0, "y": 18.0, "vista": 36},
     {"t": 0.88, "x": 32.0, "y": 20.0, "vista": 64},
     {"t": 0.93, "x": 32.0, "y": 20.0, "vista": 64},
@@ -158,29 +169,34 @@ CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: 
 ]
 
 
-# The chapters above run on their own scale (0..1); the market chapter takes the last two of thirteen panels, so
-# they are squeezed into 0..10/12 and the market fills 10/12..1 (times below already on the final scale).
-SCALA_STORIA = 10 / 12
+# The chapters above run on their own scale (0..1); the market chapter takes the last three of fourteen panels, so
+# they are squeezed into 0..10/13 and the market fills 10/13..1 (times below already on the final scale).
+SCALA_STORIA = 10 / 13
 # The market: a big screen next to the Core. The price of iron plates soars, the drone fills a briefcase (its
 # counter climbs to 9999), throws it in an arc into the screen through two hatches on top, the price crashes and
 # its falling line becomes a rocket-bomb that goes off as a mushroom cloud when it hits the bottom (the usual
-# selling price), and the screen ends on a parody of the «stonks»
-# meme with the drone in a suit, then a money bonus.
+# selling price), the screen shows a parody of the «stonks» meme with the drone in a suit, then a money bonus;
+# last, the drone changes channel with a remote and the screen shows the game's channel, with the real download and
+# GitHub buttons (HTML laid over the canvas by racconto.js).
 MERCATO = {"x": 34, "y": 26, "w": 8, "h": 6,
            "interno": [14, 22, 228, 132],     # the screen inside the frame, art px
            "bocca": [108, 8, 40],             # slot on top of the frame (x, y, width): the hatches hinge on its sides
            "prezzo": {"base": 30, "alto": 2500, "basso": 30},   # the bottom of the crash: the usual selling price
-           "sale": [0.845, 0.885], "porte": [0.912, 0.948],
+           "sale": [0.785, 0.835], "porte": [0.868, 0.91],
            # the crash: the head of the falling price line is a rocket-bomb, the line its trail; the camera follows it
            # down and, when it hits the bottom (the usual selling price), it goes off as the mushroom cloud
-           "crollo": [0.943, 0.958], "boom": [0.958, 0.972],
+           "crollo": [0.904, 0.926], "boom": [0.926, 0.944],
            "caduta": [96, 156],                  # x where the fall starts and where it hits, screen art px
-           "meme": [0.972, 0.983], "bonus": [0.986, 0.996]}
+           "meme": [0.944, 0.954], "bonus": [0.954, 0.964],
+           # the remote: a click (tasto), then the old channel folds into a line, static, the new one rolls in
+           "canale": {"tasto": 0.968, "cambio": [0.97, 0.982], "sensore": [6, 149]}}
 BONUS = 777   # after stonks: «bonus dei soldi», a made-up percentage (the user's joke)
-VALIGETTA = {"appare": 0.865, "conta": [0.87, 0.905], "quanti": 9999, "lancio": [0.918, 0.936], "dentro": 0.942}
-TAPPE_MERCATO = [  # the drone after the last build: above the Core, then where it throws from, facing the screen
-    {"t": 0.85, "x": 30.15, "y": 32.4}, {"t": 0.905, "x": 30.15, "y": 32.4},
-    {"t": 0.915, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}, {"t": 1.0, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}]
+VALIGETTA = {"appare": 0.80, "conta": [0.806, 0.858], "quanti": 9999, "lancio": [0.875, 0.895], "dentro": 0.902}
+TAPPE_MERCATO = [  # the drone after the last build: above the Core, then where it throws from, facing the screen;
+    # last, above the screen's top left corner with the remote
+    {"t": 0.775, "x": 30.15, "y": 32.4}, {"t": 0.86, "x": 30.15, "y": 32.4},
+    {"t": 0.872, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]}, {"t": 0.956, "x": 32.4, "y": 30.4, "guarda": [38.0, 26.3]},
+    {"t": 0.966, "x": 34.6, "y": 26.0, "guarda": [37.0, 28.6]}, {"t": 1.0, "x": 34.6, "y": 26.0, "guarda": [37.0, 28.6]}]
 def y_prezzo(v):
     """Height of a price on the market screen's log scale, screen art px (racconto.js yPrezzo does the same)."""
     P, ih = MERCATO["prezzo"], MERCATO["interno"][3]
@@ -205,14 +221,24 @@ def _camera_mercato():
     for u in (0.0, 0.5, 0.8, 1.0):
         x, y = _bomba_nel_mondo(u)
         seguito.append({"t": round(c0 + (c1 - c0) * u, 4), "x": round(x, 2), "y": round(y, 2), "vista": 6,
-                        "xv": round(x, 2), "yv": round(y - 3.0, 2), "vv": 7})   # portrait: low, under the panel going up
-    return ([{"t": 0.86, "x": 33.5, "y": 31.0, "vista": 22, "xv": 31.5, "yv": 31.0, "vv": 12},
-             {"t": 0.905, "x": 35.0, "y": 30.2, "vista": 20, "xv": 33.0, "yv": 30.6, "vv": 11},
-             {"t": 0.935, "x": 35.6, "y": 29.4, "vista": 17, "xv": 38.0, "yv": 28.8, "vv": 14}]
+                        "xv": round(x, 2), "yv": round(y + 0.3, 2), "vv": 7})   # portrait: high, the next panel rises
+    # Desktop: the drone a little right of the panel's edge (about 40 % of the width), the screen on the right.
+    # Portrait: the panels cross the whole screen from the bottom up, so the action goes where they are not: low
+    # while the panel of the soaring price leaves at the top, high from the crash on (the next ones rise from
+    # below) until the blast, low again while that panel climbs past stonks and the bonus, and at the end the
+    # whole screen in the top two fifths, above the last, long panel.
+    alto = {"xv": 38.0, "yv": 31.2, "vv": 13.4}   # the screen's 8 cells across a phone, at its top
+    basso = {"xv": 38.0, "yv": 22.4, "vv": 13.4}  # ...and in its lower half
+    return ([{"t": 0.79, "x": 32.3, "y": 31.0, "vista": 22, "xv": 31.5, "yv": 31.0, "vv": 12},
+             {"t": 0.86, "x": 32.5, "y": 30.8, "vista": 21, "xv": 31.8, "yv": 30.8, "vv": 12},
+             {"t": 0.872, "x": 34.2, "y": 29.6, "vista": 18, "xv": 35.5, "yv": 24.5, "vv": 15},
+             {"t": 0.898, "x": 35.6, "y": 29.4, "vista": 17, "xv": 38.0, "yv": 24.5, "vv": 14}]
             + seguito
-            + [{"t": 0.966, "x": 37.2, "y": 29.2, "vista": 10, "xv": 38.0, "yv": 28.8, "vv": 14},
-               {"t": 0.975, "x": 36.2, "y": 28.9, "vista": 12.5, "xv": 38.0, "yv": 28.8, "vv": 14},
-               {"t": 1.0, "x": 36.2, "y": 28.9, "vista": 12, "xv": 38.0, "yv": 28.8, "vv": 13.6}])
+            + [dict({"t": 0.94, "x": 37.2, "y": 29.2, "vista": 10}, **alto),
+               dict({"t": 0.952, "x": 36.4, "y": 28.9, "vista": 12.5}, **basso),
+               dict({"t": 0.966, "x": 36.1, "y": 28.6, "vista": 14.5}, **basso),
+               dict({"t": 0.982, "x": 36.1, "y": 28.6, "vista": 14.5}, **alto),
+               dict({"t": 1.0, "x": 36.1, "y": 28.6, "vista": 14.5}, **alto)])
 
 
 
@@ -233,6 +259,8 @@ def _scala(dati, k):
     dati["notte"] = {c: (r(v) if c != "colore" else v) for c, v in dati["notte"].items()}
     dati["allarme"] = {c: r(v) for c, v in dati["allarme"].items()}
     dati["elmetto"] = {c: r(v) for c, v in dati["elmetto"].items()}
+    dati["attacco"] = {c: ([r(x) for x in v] if isinstance(v, list) else r(v)) for c, v in dati["attacco"].items()}
+    dati["drone"]["tappe"] = [dict(p, t=r(p["t"])) for p in dati["drone"]["tappe"]]
     dati["nemici"] = [dict(n, chiavi=[[r(t), x] for t, x in n["chiavi"]]) for n in dati["nemici"]]
     dati["camera"] = [dict(c, t=r(c["t"])) for c in dati["camera"]]
     dati["drone"]["ingresso"] = r(dati["drone"]["ingresso"])
@@ -412,16 +440,17 @@ def linea_del_tempo():
         "notte": NOTTE,
         "allarme": ALLARME,
         "elmetto": ELMETTO,
+        "attacco": ATTACCO,
         "nemici": NEMICI,
         "velocita": fabbrica.RATE[T1],  # cells per second on a T1 belt
         "drone": {"ingresso": INGRESSO_DRONE, "partenza": [26.0, 2.0], "fette": FETTE,
-                  "ingrandimento": INGRANDIMENTO},
+                  "ingrandimento": INGRANDIMENTO, "tappe": GUARDIA},
     }
     _scala(dati, SCALA_STORIA)
     dati["camera"] += _camera_mercato()
     dati["mercato"] = MERCATO
     dati["valigetta"] = VALIGETTA
-    dati["drone"]["tappe"] = TAPPE_MERCATO
+    dati["drone"]["tappe"] += TAPPE_MERCATO
     return dati
 
 
@@ -683,6 +712,9 @@ def schermo_mercato():
     d.rectangle((bx, by - 1, bx + bw - 1, by + 6), fill=(0, 0, 0), outline=OUT)
     for x in (bx - 2, bx + bw):
         d.rectangle((x, by, x + 1, by + 2), fill=ACCENTO[3])
+    sx, sy = MERCATO["canale"]["sensore"]   # the remote's sensor, a small red window on the frame
+    d.rectangle((sx - 2, sy - 2, sx + 2, sy + 2), fill=(60, 8, 14), outline=OUT)
+    d.rectangle((sx - 1, sy - 1, sx, sy), fill=(255, 74, 90))
     for k in range(0, w - 40, 12):   # hazard stripes on the bottom band
         d.polygon([(20 + k, 157), (26 + k, 157), (22 + k, 163), (16 + k, 163)], fill=(250, 204, 21))
     return im
@@ -779,6 +811,32 @@ def bonus_soldi():
     return im
 
 
+def canale_del_gioco(logo):
+    """The channel the drone switches to: the game's own, its logo and below it room for the real buttons
+    (racconto.js lays the HTML links over the lower part, BOTTONI_TV)."""
+    from PIL import ImageDraw
+    iw, ih = MERCATO["interno"][2:]
+    im = Image.new("RGBA", (iw, ih))
+    d = ImageDraw.Draw(im)
+    for y in range(ih):   # night blue, darker towards the bottom, with faint scan lines
+        u = y / ih
+        c = (int(16 - 8 * u), int(24 - 12 * u), int(44 - 22 * u))
+        d.line((0, y, iw, y), fill=(c[0] + 6, c[1] + 6, c[2] + 8, 255) if y % 3 == 0 else c + (255,))
+    grande = logo.convert("RGBA").resize((logo.width * 3, logo.height * 3), Image.NEAREST)
+    im.alpha_composite(grande, ((iw - grande.width) // 2, 26))   # under the channel number (osd_canale, top left)
+    x0, y0, x1, y1 = BOTTONI_TV
+    d.rectangle((x0, y0, x1, y1), outline=(38, 52, 84))
+    return im
+
+
+BOTTONI_TV = [16, 86, 211, 123]   # where the HTML buttons stand on the new channel, screen art px
+
+
+def osd_canale():
+    import carattere
+    return carattere.scrivi("CANALE 2", k=2, colore=(124, 252, 138))
+
+
 def sprite_del_racconto(immagini):
     """{name: (image, meta)}: every picture racconto.js draws, at art size (the drone x INGRANDIMENTO)."""
     nastro = immagini.fotogrammi(T1 + "-anim")
@@ -806,6 +864,8 @@ def sprite_del_racconto(immagini):
     out["mercato-titolo"] = (titolo_mercato(), {"fotogrammi": 1})
     out["stonks"] = (stonks(drone), {"fotogrammi": 1})
     out["bonus"] = (bonus_soldi(), {"fotogrammi": 1})
+    out["canale"] = (canale_del_gioco(immagini("ui/ui-logo")), {"fotogrammi": 1, "bottoni": BOTTONI_TV})
+    out["canale-osd"] = (osd_canale(), {"fotogrammi": 1})
     nucleo = _stato("core-2", "Luce del nucleo", immagini)
     out["nucleo"] = (striscia([f for f, _ in nucleo]), {"fotogrammi": len(nucleo), "durate": [d for _, d in nucleo]})
     for oggetto in ("iron-ore", "coal", "iron-plate", "copper-ore", "lead-ore", "titanium-ore"):
