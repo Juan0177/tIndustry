@@ -113,23 +113,86 @@ public sealed class BeltThroughputTests
     [Fact]
     public void SideInputsNeverLoseOrDuplicateItems()
     {
+        // Main line East on y 30 into the Core, x 18..29: a side line into (19,30), a junction at 21 crossed by a line
+        // heading North, a bridge 23 → 25 (24 stays empty) and a sorter at 27 that sends lead to dead ends on its sides.
         var factory = Sandbox();
-        var main = LineIntoCore(Direction.East); // y 30, x 18..29
+        factory.UnlockAllForDemo();
+        foreach (var material in new[] { "iron-ore", "lead-ore", "titanium-ore", "graphite", "silicon" })
+        {
+            factory.Wallet.AddMaterial(material, 1_000);
+        }
+
+        Assert.True(factory.TryPlaceBridge(new GridPosition(23, 30), Direction.East));
+        Assert.Equal(new GridPosition(25, 30), factory.Belts.Cells[new GridPosition(23, 30)].BridgePartner);
+        Assert.True(factory.TryPlaceJunction(new GridPosition(21, 30), Direction.East));
+        Assert.True(factory.TryPlaceSorter(new GridPosition(27, 30), Direction.East, "iron-ore"));
+        var main = new[] { 18, 19, 20, 22, 26, 28, 29 }.Select(x => new GridPosition(x, 30)).ToArray();
         Place(factory, main, Direction.East);
-        // A side line heading North into the main line's sixth cell (24, 30).
-        var side = Enumerable.Range(31, 6).Reverse().Select(y => new GridPosition(24, y)).ToArray();
+        var side = Enumerable.Range(31, 6).Reverse().Select(y => new GridPosition(19, y)).ToArray();
         Place(factory, side, Direction.North);
+        var cross = new[] { 33, 32, 31, 29, 28 }.Select(y => new GridPosition(21, y)).ToArray();
+        Place(factory, cross, Direction.North);
+        Place(factory, [new GridPosition(27, 29), new GridPosition(27, 28)], Direction.North);
+        Place(factory, [new GridPosition(27, 31), new GridPosition(27, 32)], Direction.South);
+        Assert.All(main.Concat(side), cell => Assert.Equal(3, factory.Belts.Cells[cell].Definition.Capacity));
 
         long fed = 0;
-        for (var i = 0; i < 1200; i++)
+        for (var i = 0; i < 1800; i++)
         {
-            fed += Feed(factory, main[0], Direction.East) ? 1 : 0;
+            var item = i % 4 == 0 ? "lead-ore" : "iron-ore";
+            fed += factory.Belts.TryInsert(main[0], new TransportedItem(Interlocked.Increment(ref nextId), item), Direction.East) ? 1 : 0;
             fed += Feed(factory, side[0], Direction.North) ? 1 : 0;
+            fed += Feed(factory, cross[0], Direction.North) ? 1 : 0;
             factory.Step();
         }
 
         Assert.True(factory.CoreDeliveredItems > 0);
+        Assert.NotEmpty(factory.Belts.Cells[new GridPosition(21, 28)].Items); // the crossing line went through
+        Assert.NotEmpty(factory.Belts.Cells[new GridPosition(27, 28)].Items); // lead went aside
         Assert.Equal(fed, factory.CoreDeliveredItems + ItemsOnGrid(factory));
+    }
+
+    [Theory]
+    [InlineData("conveyor-express")]
+    [InlineData("junction")]
+    public void AHandoffKeepsMovingAtTheReceivingSpeed(string fromId)
+    {
+        // An item 0.95 along a fast cell crosses into a basic belt within the tick: it goes on for the rest of the tick
+        // at the basic belt's speed, never jumping ahead by the faster cell's leftover.
+        var from = Content.RequireConveyor(fromId);
+        var basic = Content.RequireConveyor(Basic);
+        var grid = new BeltGrid();
+        grid.TryPlaceFree(new GridPosition(0, 0), Direction.East, from);
+        grid.TryPlaceFree(new GridPosition(1, 0), Direction.East, basic);
+        var item = new TransportedItem(1, "iron-ore");
+        Assert.True(grid.TryInsert(new GridPosition(0, 0), item, Direction.East));
+        item.Progress = 0.95f;
+
+        grid.Tick(SimulationClock.TickSeconds);
+
+        var fromStep = from.RateItemsPerSecond * SimulationClock.TickSeconds;
+        var basicStep = basic.RateItemsPerSecond * SimulationClock.TickSeconds;
+        Assert.Same(item, Assert.Single(grid.Cells[new GridPosition(1, 0)].Items));
+        Assert.Equal((0.95f + fromStep - 1f) / fromStep * basicStep, item.Progress, 4);
+        Assert.True(item.Progress < basicStep);
+    }
+
+    [Fact]
+    public void ABeltHeadOnIsRefused()
+    {
+        // Two plain belts facing each other: an item never bounces between them.
+        var factory = Sandbox();
+        Place(factory, [new GridPosition(10, 10)], Direction.East);
+        Place(factory, [new GridPosition(11, 10)], Direction.West);
+        var item = new TransportedItem(9_000, "iron-ore");
+        Assert.True(factory.Belts.TryInsert(new GridPosition(10, 10), item, Direction.East));
+        for (var tick = 0; tick < 300; tick++)
+        {
+            factory.Step();
+            Assert.Empty(factory.Belts.Cells[new GridPosition(11, 10)].Items);
+        }
+
+        Assert.Same(item, Assert.Single(factory.Belts.Cells[new GridPosition(10, 10)].Items));
     }
 
     [Theory]

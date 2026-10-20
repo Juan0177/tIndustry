@@ -189,8 +189,8 @@ public sealed class BeltGrid
         Direction? fromDirection = null,
         GridPosition? source = null)
     {
-        if (!cells.TryGetValue(position, out var cell)
-            || !ArmoredAccepts(cell, source ?? (fromDirection is { } from ? position.Step(DirectionMath.Opposite(from)) : null)))
+        var origin = source ?? (fromDirection is { } from ? position.Step(DirectionMath.Opposite(from)) : null);
+        if (!cells.TryGetValue(position, out var cell) || !ArmoredAccepts(cell, origin) || HeadOn(cell, origin))
         {
             return false;
         }
@@ -358,15 +358,18 @@ public sealed class BeltGrid
 
     /// <summary>
     /// Mindustry's armored conveyor: an armored belt takes items from the cell behind it or from a plain belt on any
-    /// side (never head-on, from the cell it faces), never from a building or a special on its side; an item of unknown
-    /// origin is refused. Other cells take all.
+    /// side, never from a building or a special on its side; an item of unknown origin is refused. Other cells take all.
     /// </summary>
     private bool ArmoredAccepts(BeltGridCell cell, GridPosition? source) =>
         !cell.Definition.IsArmoredBelt
         || (source is { } from
             && (from == cell.Position.Step(DirectionMath.Opposite(cell.Direction))
-                || (from != cell.OutputPosition
-                    && cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
+                || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
+
+    /// <summary>Mindustry's conveyor: a belt never takes from the belt it faces (two belts head-on would bounce items).</summary>
+    private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
+        cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
+        && cells.TryGetValue(cell.OutputPosition, out var feeder) && feeder.Kind == LogisticsKind.Belt;
 
     private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
     {

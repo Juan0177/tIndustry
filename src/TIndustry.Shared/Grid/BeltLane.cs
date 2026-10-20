@@ -212,7 +212,7 @@ public sealed class BeltCell
                 return false;
             }
 
-            item.Progress = Math.Min(item.Carry ?? 0f, 1f);
+            item.Progress = Math.Min((item.Carry ?? 0f) * tickMovement, 1f);
             item.Carry = null;
             item.Travel = incoming;
             items.Add(item);
@@ -225,9 +225,9 @@ public sealed class BeltCell
             return false;
         }
 
-        // Where the item would be had it entered as soon as there was room: a handoff keeps what is left of its tick's
-        // movement; a new item behind another (its source was waiting) starts right behind it, at most a tick in.
-        var start = item.Carry ?? (rear is null ? 0f : tickMovement);
+        // Where the item would be had it entered as soon as there was room: a handoff moves for what is left of its tick,
+        // at this cell's speed; a new item behind another (its source was waiting) starts right behind it, at most a tick in.
+        var start = item.Carry is { } left ? left * tickMovement : rear is null ? 0f : tickMovement;
         item.Progress = rear is null ? Math.Min(start, 1f) : Math.Min(start, rear.Progress - Definition.ItemSpacing);
         item.Carry = null;
         item.Travel = null;
@@ -280,21 +280,21 @@ public sealed class BeltCell
                 }
 
                 var moved = Math.Min(item.Progress + movement, Math.Max(item.Progress, limit));
-                item.Carry = item.Progress + movement - moved;
+                item.Carry = (item.Progress + movement - moved) / movement;
                 item.Progress = moved;
             }
 
             return;
         }
 
-        Move(movement);
+        Move(1f);
     }
 
     /// <summary>
-    /// Moves every item by <paramref name="movement"/> (null: by its <see cref="TransportedItem.Carry"/>), never past the
-    /// cell end nor closer than the spacing to the item ahead; what an item cannot use stays in its carry.
+    /// Moves every item for <paramref name="ticks"/> of a tick (null: for its <see cref="TransportedItem.Carry"/>), never
+    /// past the cell end nor closer than the spacing to the item ahead; the part of the tick it cannot use stays its carry.
     /// </summary>
-    private void Move(float? movement)
+    private void Move(float? ticks)
     {
         for (var index = 0; index < items.Count; index++)
         {
@@ -302,9 +302,9 @@ public sealed class BeltCell
                 ? 1f
                 : items[index - 1].Progress - Definition.ItemSpacing;
             var item = items[index];
-            var budget = movement ?? item.Carry ?? 0f;
+            var budget = (ticks ?? item.Carry ?? 0f) * tickMovement;
             var moved = Math.Min(item.Progress + budget, limit);
-            item.Carry = Math.Clamp(item.Progress + budget - moved, 0f, budget);
+            item.Carry = budget > 0f ? Math.Clamp(item.Progress + budget - moved, 0f, budget) / tickMovement : 0f;
             item.Progress = moved;
         }
     }

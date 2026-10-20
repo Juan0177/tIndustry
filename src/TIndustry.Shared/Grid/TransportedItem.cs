@@ -18,9 +18,10 @@ public sealed class TransportedItem
     public Direction? Travel { get; set; }
 
     /// <summary>
-    /// Movement past the end of its cell in the current tick (set by <see cref="BeltCell.Advance"/>, spent by the next
-    /// cell's <see cref="BeltCell.TryInsert"/>), so a handoff never stalls the item; null for an item that has not
-    /// moved on a belt since it was last put on one. Lives within one tick: not saved.
+    /// The part of the current tick (0–1) the item could not move for, for example past the end of its cell (set by
+    /// <see cref="BeltCell.Advance"/>, spent by the next cell's <see cref="BeltCell.TryInsert"/> at that cell's speed),
+    /// so a handoff never stalls the item nor makes it jump; null for an item that has not moved on a belt since it was
+    /// last put on one. Lives within one tick: not saved.
     /// </summary>
     internal float? Carry { get; set; }
 }
