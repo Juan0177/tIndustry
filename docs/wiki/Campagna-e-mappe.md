@@ -66,3 +66,11 @@ Il CORE parte al centro, in un'area libera con ferro e rame vicini e una strada 
 - [Primi passi](Primi-passi)
 - [Economia e Ricerca](Economia-e-Ricerca)
 - [Salvataggi](Salvataggi)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Economia e Ricerca](Economia-e-Ricerca) · [Torna alla Home](Home) · [Pagina successiva: Impostazioni e accessibilità →](Impostazioni-e-accessibilita)
+
+<!-- /navigazione -->

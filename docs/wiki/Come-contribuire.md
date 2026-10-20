@@ -57,3 +57,11 @@ Bug, richieste e lavori rinviati si tracciano nelle [issue di GitHub](https://gi
 - [docs/diario/README.md](https://github.com/Juan0177/tIndustry/blob/main/docs/diario/README.md) · [docs/superpowers/](https://github.com/Juan0177/tIndustry/tree/main/docs/superpowers)
 - [CLAUDE.md](https://github.com/Juan0177/tIndustry/blob/main/CLAUDE.md): le stesse regole, scritte per gli agenti AI
 - [Panoramica](Sviluppo-Panoramica) · [Compilare e avviare](Compilare-e-avviare) · [Test e playtest](Test-e-playtest)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Sito web](Sito-web) · [Torna alla Home](Home)
+
+<!-- /navigazione -->

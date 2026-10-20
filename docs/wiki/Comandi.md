@@ -86,3 +86,11 @@ Non c'è un tasto di pausa: la partita si ferma solo mentre la Home è aperta. R
 - [Costruzione](Costruzione)
 - [Logistica](Logistica)
 - [Primi passi](Primi-passi)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Primi passi](Primi-passi) · [Torna alla Home](Home) · [Pagina successiva: Risorse e oggetti →](Risorse-e-oggetti)
+
+<!-- /navigazione -->

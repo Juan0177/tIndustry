@@ -79,3 +79,11 @@ Il nodo tocca il forno e ha il generatore nel raggio: il forno va a corrente. Un
 - [Produzione](Produzione)
 - [Economia e Ricerca](Economia-e-Ricerca)
 - [Domande frequenti](Domande-frequenti)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Logistica](Logistica) · [Torna alla Home](Home) · [Pagina successiva: Costruzione →](Costruzione)
+
+<!-- /navigazione -->

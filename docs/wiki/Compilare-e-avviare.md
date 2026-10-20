@@ -93,3 +93,11 @@ In locale: `tools/ci/setup-godot.sh` una volta, poi `tools/ci/export-godot.sh`, 
 - [README.md, sezione Sviluppo](https://github.com/Juan0177/tIndustry/blob/main/README.md#sviluppo)
 - [CLAUDE.md](https://github.com/Juan0177/tIndustry/blob/main/CLAUDE.md), sezione Comandi
 - [Test e playtest](Test-e-playtest) · [Panoramica](Sviluppo-Panoramica) · [Come contribuire](Come-contribuire)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Panoramica](Sviluppo-Panoramica) · [Torna alla Home](Home) · [Pagina successiva: Architettura →](Architettura)
+
+<!-- /navigazione -->

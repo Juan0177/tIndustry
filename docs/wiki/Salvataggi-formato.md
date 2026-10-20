@@ -50,3 +50,11 @@ Ogni caricamento fallito dà un `SaveLoadFailure` con un codice `SaveLoadError` 
 - [src/TIndustry.Shared/Save/FactorySave.cs](https://github.com/Juan0177/tIndustry/blob/main/src/TIndustry.Shared/Save/FactorySave.cs)
 - [ADR 0002](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md) (istantanea) e [ADR 0005](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0005-mappe-seme-e-file.md) (terreno per nome)
 - [Architettura](Architettura) · [Mappe e terreno](Mappe-e-terreno) · [Test e playtest](Test-e-playtest)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Contenuti e dati](Contenuti-e-dati) · [Torna alla Home](Home) · [Pagina successiva: Arte generata →](Arte-generata)
+
+<!-- /navigazione -->

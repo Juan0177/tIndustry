@@ -85,3 +85,11 @@ Sono pianificati nastri stretti come in Mindustry, incrocio e selezionatore che 
 - [Comandi](Comandi)
 - [Costruzione](Costruzione)
 - [Domande frequenti](Domande-frequenti)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Produzione](Produzione) · [Torna alla Home](Home) · [Pagina successiva: Energia →](Energia)
+
+<!-- /navigazione -->

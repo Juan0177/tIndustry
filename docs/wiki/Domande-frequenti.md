@@ -62,3 +62,11 @@ Non c'è un tasto di pausa. Con il cursore premi `Esc`: si apre la Home, la part
 - [Logistica](Logistica)
 - [Produzione](Produzione)
 - [Costruzione](Costruzione)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Salvataggi](Salvataggi) · [Torna alla Home](Home)
+
+<!-- /navigazione -->
