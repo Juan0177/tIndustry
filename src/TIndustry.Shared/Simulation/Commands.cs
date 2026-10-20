@@ -149,7 +149,8 @@ public static class BeltLine
 
     /// <summary>
     /// True when a dragged belt facing <paramref name="direction"/> on <paramref name="cell"/> would cross a plain belt
-    /// perpendicular to it: the client holds such a cell back until it knows whether the line goes on past it.
+    /// perpendicular to it. <see cref="PlacementLine"/> makes it a crossing only when the line also goes on past it
+    /// (<see cref="IsInterior"/>).
     /// </summary>
     public static bool MayCross(IGameView view, GridPosition cell, Direction direction) =>
         view.Belts.TryGetValue(cell, out var belt)
@@ -161,14 +162,11 @@ public static class BeltLine
 /// <summary>What a dragged belt does on a cell (<see cref="Factory.BeltCrossingAt"/>).</summary>
 public enum BeltCrossing
 {
-    /// <summary>No crossing: the belt is placed (or refused) as usual.</summary>
+    /// <summary>No crossing (or the junction is not researched): the belt is placed (or refused) as usual.</summary>
     None,
 
     /// <summary>A junction replaces the perpendicular belt.</summary>
-    Junction,
-
-    /// <summary>A junction would replace it, but it is not researched: the belt goes on as a belt over a belt.</summary>
-    JunctionLocked
+    Junction
 }
 
 /// <summary>What a plain belt placed over a plain belt does (<see cref="IGameView.BeltOverBeltAt"/>); tier = conveyor id.</summary>

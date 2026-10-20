@@ -310,7 +310,7 @@ public partial class World
         var refusal = GhostRefusal(entry);
         var span = _view!.Footprint(GhostSpec(PlanLine(entry)[0].Command!));
         (_tool, _placeDir) = (tool, dir);
-        TryRemoveAt(exit, onlyMark: false);
+        TryRemoveAt(exit);
         if (!await PlaytestWaitUntil(() => PendingCommands.Count == 0, StepTimeout))
         {
             return Fail("ponte sul piano: piano non tolto");

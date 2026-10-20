@@ -204,7 +204,7 @@ public sealed class Factory : IGameView
 
         return IsStructureUnlocked(BuildSpec.StructureIdFor(BuildingKind.Junction)!)
             ? BeltCrossing.Junction
-            : BeltCrossing.JunctionLocked;
+            : BeltCrossing.None;
     }
 
     /// <summary>

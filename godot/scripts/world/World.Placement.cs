@@ -26,21 +26,27 @@ public partial class World
         _lineCtrl ? LineShape.Diagonal : LineShape.Straight,
         FilterItemId: _tool == BuildTool.Sorter ? _sorterFilterId : null);
 
-    // The line planned this frame: the ghost and the refusal hint ask for it more than once.
-    private (ulong Frame, LineRequest Request, IReadOnlyList<LinePlacement> Plan)? _linePlan;
+    // Bumped by whatever can change a line's preview: an applied command, a construction event, a redrawn layout.
+    private ulong _lineInputsVersion;
 
-    /// <summary>The preview of the line to <paramref name="cursor"/> (needs a game and a tool), once per frame.</summary>
+    // The last line planned: kept while its request (anchor, cursor, tool, brush, R, Ctrl), the game and the sites stay.
+    private (LineRequest Request, ulong Version, int Sites, IReadOnlyList<LinePlacement> Plan)? _linePlan;
+
+    /// <summary>
+    /// The preview of the line to <paramref name="cursor"/> (needs a game and a tool), planned again only when one of
+    /// its inputs changes: a Ctrl path's A* does not run every frame with the mouse still.
+    /// </summary>
     private IReadOnlyList<LinePlacement> PlanLine(GridPosition cursor)
     {
         var request = LineTo(cursor);
-        var frame = Engine.GetProcessFrames();
-        if (_linePlan is { } cached && cached.Frame == frame && cached.Request == request)
+        var sites = _view!.Sites.Count;
+        if (_linePlan is { } cached && cached.Request == request && cached.Version == _lineInputsVersion && cached.Sites == sites)
         {
             return cached.Plan;
         }
 
-        var plan = PlacementLine.Plan(_view!, request);
-        _linePlan = (frame, request, plan);
+        var plan = PlacementLine.Plan(_view, request);
+        _linePlan = (request, _lineInputsVersion, sites, plan);
         return plan;
     }
 
@@ -114,18 +120,15 @@ public partial class World
         _hud?.ShowToast(Testi.F("selezionatore.filtro", Testi.Oggetto(_sorterFilterId, _view?.Content)));
     }
 
-    /// <summary>
-    /// Remove on <paramref name="cell"/>. A single right-click toggles (it takes a dismantling mark off);
-    /// with <paramref name="onlyMark"/> (right-drags) it only marks, so overlapping drags keep their marks.
-    /// </summary>
-    private void TryRemoveAt(GridPosition cell, bool onlyMark)
+    /// <summary>Remove on <paramref name="cell"/>: a single right-click toggles (it takes a dismantling mark off).</summary>
+    private void TryRemoveAt(GridPosition cell)
     {
         if (_view is null)
         {
             return;
         }
 
-        SubmitCommand(new Remove(LocalPlayer, cell, onlyMark));
+        SubmitCommand(new Remove(LocalPlayer, cell));
     }
 
     /// <summary>

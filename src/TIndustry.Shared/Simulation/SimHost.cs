@@ -217,13 +217,9 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
-        if (command.Crossing)
+        if (command.Crossing && factory.BeltCrossingAt(spec.Origin, spec.Direction) == BeltCrossing.Junction)
         {
-            switch (factory.BeltCrossingAt(spec.Origin, spec.Direction))
-            {
-                case BeltCrossing.Junction:
-                    return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
-            }
+            return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
         }
 
         // Belt over belt (a locked crossing too: the crossed line then merges into the new one), in both build modes.
@@ -374,7 +370,17 @@ public sealed class SimHost
         {
             if (site.Deconstructing)
             {
-                // Already being taken apart: nothing changes.
+                // The rectangle marks the old belt a cancelled tier change gives back; otherwise nothing changes.
+                if (command.OnlyMark && site.Replaced is { } old && builder is not null)
+                {
+                    if (!builder.Plans.Any(p => p.Breaking && p.Spec.Origin == tile))
+                    {
+                        builder.PlanQueue.Add(new BuildPlan(old.Spec, Breaking: true));
+                    }
+
+                    return null;
+                }
+
                 return RefusalCode.NothingToRemove;
             }
 

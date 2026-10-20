@@ -276,6 +276,31 @@ public sealed class AgentGameTests
         Assert.Equal(client.Checksum(), agent.Checksum());
     }
 
+    /// <summary>
+    /// <c>piazza {cella, direzione}</c> beside the Core is the player's click with that brush: the belt turns into the
+    /// Core (R fixes the direction only of a drag).
+    /// </summary>
+    [Fact]
+    public void LoneBeltWithDirectionBesideTheCoreIsThePlayersClick()
+    {
+        var beside = new GridPosition(62, 60); // East of the Core on x 60..61
+        var agent = NewHost();
+        var client = NewHost();
+
+        using var game = new AgentGame(agent, Content);
+        Call(game, "piazza", """{"tier":1,"cella":{"x":62,"y":60},"direzione":"nord"}""");
+
+        foreach (var command in PlacementLine.Commands(PlacementLine.Plan(client.State, new LineRequest(
+            0, BuildSpec.DefaultConveyorId, beside, beside, Direction.North))))
+        {
+            client.Submit(command);
+        }
+
+        client.AdvanceTicks(1);
+        Assert.Equal(Direction.West, agent.State.Belts[beside].Direction);
+        Assert.Equal(client.Checksum(), agent.Checksum());
+    }
+
     /// <summary><c>smonta {da, a}</c> sends exactly the right drag's <see cref="RemovalArea.Commands"/>.</summary>
     [Fact]
     public void SmontaAreaMarksLikeTheRectangle()

@@ -1040,8 +1040,9 @@ public sealed class AgentGame : IDisposable
             || View.PlansOf(PlayerId).Any(plan => plan.Spec.Origin == cell && plan.Spec.StructureId == junction);
     }
 
+    // The armored belt shares tier 2 with conveyor-fast: `tier` names the plain belt, the armored one is asked by `tipo`.
     private string ConveyorOfTier(int tier) =>
-        content.Conveyors.FirstOrDefault(c => c.Tier == tier && BuildSpec.KindFor(c.Id) is null)?.Id
+        content.Conveyors.FirstOrDefault(c => c.Tier == tier && !c.IsArmoredBelt && BuildSpec.KindFor(c.Id) is null)?.Id
         ?? throw Bad($"Nessun nastro di livello {tier}.");
 
     private JsonObject Ruota()
