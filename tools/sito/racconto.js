@@ -300,10 +300,12 @@
   }
 
   /* Items of every chain, one per cell at the belt's speed, once the chain's source works and only along the cells
-     built so far (in flow order): a finished chain carries them into its block, or out of the map. */
+     built so far (in flow order): a finished chain carries them into its block, or out of the map. A flow through
+     the T merge (`unione`: from distance s on, k times faster) spreads its items k cells apart there; `sfasa`
+     shifts a flow by part of a cell, so the two flows on the merged belt take turns. */
   function disegnaOggetti(t, tempo) {
-    var fase = (tempo * dati.velocita) % 1;
     dati.flussi.forEach(function (f) {
+      var fase = (tempo * dati.velocita + (f.sfasa || 0)) % 1, U = f.unione;
       if (t < f.avvio) return;
       var finiti = 0;
       while (finiti < f.celle.length) {
@@ -320,8 +322,10 @@
         }
       }
       var s = dati.sprite[f.oggetto];
-      for (var d = fase; d <= limite; d += 1) {
-        var q = puntoSulPercorso(f.percorso, d);
+      for (var d = fase; ; d += 1) {
+        var lungo = U && d > U.s ? U.s + (d - U.s) * U.k : d;
+        if (lungo > limite) break;
+        var q = puntoSulPercorso(f.percorso, lungo);
         fotogramma(f.oggetto, 0, 0, 0, 0, 0, q.x * CELLA - s.w / 2, q.y * CELLA - s.h / 2);
       }
     });

@@ -95,6 +95,30 @@ class TestRacconto(unittest.TestCase):
         for nome in ("schermo", "valigetta", "stonks", "mercato-titolo"):
             self.assertIn(nome, self.nomi)
 
+    def test_unione_a_t_su_nastro_veloce(self):
+        # Plates and copper meet in the T and share the belt down to the Core: that part is T2 (two full T1 lines
+        # carry more than a T1 holds), the items speed up there and the copper is half a spacing behind the plates,
+        # so on the merged belt they alternate instead of covering each other.
+        veloci = [c for c in self.dati["costruzioni"] if c["lavoro"] in ("nastro-veloce", "t-veloce")]
+        self.assertEqual({"t-veloce"}, {c["lavoro"] for c in veloci if (c["x"], c["y"]) == (30, 29)})
+        self.assertEqual(5, len(veloci))
+        uniti = [f for f in self.dati["flussi"] if "unione" in f]
+        self.assertEqual(["oggetto-iron-plate", "oggetto-copper-ore"], [f["oggetto"] for f in uniti])
+        k = fabbrica.RATE[fabbrica.T2] / fabbrica.RATE[fabbrica.T1]
+        for f in uniti:
+            self.assertAlmostEqual(k, f["unione"]["k"], places=3)
+            s, punto = 0.0, None
+            for a, b in zip(f["percorso"], f["percorso"][1:]):   # the merge starts at the T's centre
+                if s == f["unione"]["s"]:
+                    punto = a
+                s += abs(b[0] - a[0]) + abs(b[1] - a[1])
+            self.assertEqual([30.5, 29.5], punto)
+        # where each flow's items cross the T's centre, as a fraction of a spacing: half apart
+        passaggio = [(f["unione"]["s"] - f["sfasa"]) % 1 for f in uniti]
+        self.assertAlmostEqual(0.5, abs(passaggio[0] - passaggio[1]), places=3)
+        for nome in ("nastro-veloce", "t-veloce", "nastro-veloce-piano", "t-veloce-piano"):
+            self.assertIn(nome, self.nomi)
+
     def test_primo_piano_dell_attacco(self):
         # The close-up: cinema bars, the drone at its guard post on the river bank facing east, it sees the
         # silhouettes, trembles, the helmet drops; the ice breaks (it calms down, the bars go) before dawn.

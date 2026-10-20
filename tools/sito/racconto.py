@@ -23,7 +23,7 @@ from PIL import Image
 
 import composti
 import fabbrica
-from fabbrica import T1, Blocco, Giacimento, Nodo, Pezzo, Scena, Tratto
+from fabbrica import T1, T2, Blocco, Giacimento, Nodo, Pezzo, Scena, Tratto
 
 CELLA = composti.T  # art px per cell (32); the canvas scales the art, like the game draws it x2
 LARGHEZZA, RIGHE = 64, 40  # the whole world of the story: the factory in the middle, biomes around
@@ -35,7 +35,8 @@ INGRANDIMENTO = 4  # DroneVisual.SharpFactor: enlarged without filtering, drawn 
 # straight out of a miner), down and east into the smelter. Coal: a second miner on the deposit next to it feeds
 # the smelter from the east and, from its top side, the generator. The plates leave the smelter eastwards, run
 # down to the Core (there from the start, as in every game) and enter it through the T merge above it; in the last
-# chapter a copper line joins the same T from the west. Power: generator, three nodes, four lamps.
+# chapter a copper line joins the same T from the west. The T and the belt from it to the Core are fast (T2): two
+# full T1 lines carry more than one T1 holds. Power: generator, three nodes, four lamps.
 SCENA = Scena("racconto", RIGHE, "prati", [
     Giacimento(9, 9, 3, 4, "iron-ore", 11),
     Blocco(10, 10, "miner", "Al lavoro"),
@@ -54,8 +55,8 @@ SCENA = Scena("racconto", RIGHE, "prati", [
     Tratto(33, 16, 13, "S", T1, ("iron-plate",)),
     Pezzo(33, 29, "curva", T1, da="S", a="W"),
     Tratto(32, 29, 2, "W", T1, ("iron-plate",)),
-    Pezzo(30, 29, "t", T1, verso="S"),
-    Tratto(30, 30, 4, "S", T1, ("iron-plate",)),
+    Pezzo(30, 29, "t", T2, verso="S"),
+    Tratto(30, 30, 4, "S", T2, ("iron-plate", "copper-ore")),
     Blocco(29, 34, "core-2", "Luce del nucleo"),
     Pezzo(26, 8, "curva", T1, da="N", a="E"),
     Tratto(27, 8, 4, "E", T1, ("coal",)),
@@ -306,6 +307,18 @@ def _percorso(celle, fine):
     return out
 
 
+def _distanza_fino(percorso, punto):
+    """Distance in cells along an item path (axis-aligned steps) from its start to one of its points."""
+    s = 0.0
+    for a, b in zip(percorso, percorso[1:]):
+        if a == punto:
+            return s
+        s += abs(b[0] - a[0]) + abs(b[1] - a[1])
+    if percorso[-1] == punto:
+        return s
+    raise ValueError(punto)
+
+
 def linea_del_tempo():
     """The data racconto.js plays: map size, camera key frames, constructions in building order (each with its plan,
     site and working times), the Core, item chains, power lines, lights, night and dawn, the attack."""
@@ -350,6 +363,8 @@ def linea_del_tempo():
                 else:
                     c["rot"] = fabbrica.ROT[e.verso]
                     nome = "nastro"
+                if e.tier == T2:
+                    nome += "-veloce"
                 c.update(x=x, y=y, w=1, h=1, nastro=True, lavoro=nome, fermo=nome, piano_sprite=nome + "-piano")
                 indice[(x, y)] = len(costruzioni)
             else:
@@ -430,6 +445,16 @@ def linea_del_tempo():
     flussi = [{"oggetto": "oggetto-" + oggetti[n], "percorso": _percorso(*catene[n]),
                "celle": [indice[cella] for cella, _ in catene[n][0]], "avvio": sorgenti[n]["attivo"]}
               for n in ("ferro", "carbone", "lastre", "generatore", "rame")] + gia_flussi
+    # Through the T merge plates and copper share the fast belt: from the T's centre on, each item speeds up to T2
+    # (a flow's spacing grows by RATE[T2] / RATE[T1]) and the copper is half a spacing behind the plates, so the
+    # two alternate on it instead of overlapping.
+    t_unione = next(e for e in SCENA.elementi if isinstance(e, Pezzo) and e.tipo == "t")
+    centro_t = [t_unione.x + 0.5, t_unione.y + 0.5]
+    lastre, rame_f = flussi[2], flussi[4]
+    for f in (lastre, rame_f):
+        f["unione"] = {"s": _distanza_fino(f["percorso"], centro_t), "k": round(fabbrica.RATE[T2] / fabbrica.RATE[T1], 4)}
+    lastre["sfasa"] = 0.0
+    rame_f["sfasa"] = round((0.5 + lastre["unione"]["s"] - rame_f["unione"]["s"]) % 1, 4)
     luci = [dict(LUCE_LAMPADA, x=b.x + 0.5, y=b.y + 0.5, da=blocco(b)["attivo"]) for b in lampade.values()]
     luci.append(dict(LUCE_FORNO, x=forno.x + 1, y=forno.y + 1, da=blocco(forno)["attivo"]))
     luci.append(dict(LUCE_CORE, x=core.x + 1.5, y=core.y + 1.5, da=0))
@@ -849,12 +874,19 @@ def sprite_del_racconto(immagini):
     t = immagini.fotogrammi(T1 + "-t-anim")
     drone = immagini("drone-1")
     fps = fabbrica.RATE[T1] * len(nastro)  # one cell of tread per 1 / rate seconds, as in the game
+    veloce = immagini.fotogrammi(T2 + "-anim")
+    t_veloce = immagini.fotogrammi(T2 + "-t-anim")
+    fps_veloce = fabbrica.RATE[T2] * len(veloce)
     out = {
         "nastro": (striscia(nastro), {"fotogrammi": len(nastro), "fps": fps}),
         "curva": (striscia(curva), {"fotogrammi": len(curva), "fps": fps}),
         "nastro-piano": (fantasma(nastro[0]), {"fotogrammi": 1}),
         "t": (striscia(t), {"fotogrammi": len(t), "fps": fps}),
         "t-piano": (fantasma(t[0]), {"fotogrammi": 1}),
+        "nastro-veloce": (striscia(veloce), {"fotogrammi": len(veloce), "fps": fps_veloce}),
+        "nastro-veloce-piano": (fantasma(veloce[0]), {"fotogrammi": 1}),
+        "t-veloce": (striscia(t_veloce), {"fotogrammi": len(t_veloce), "fps": fps_veloce}),
+        "t-veloce-piano": (fantasma(t_veloce[0]), {"fotogrammi": 1}),
         "curva-piano": (fantasma(curva[0]), {"fotogrammi": 1}),
         "nodo": (immagini("power-node"), {"fotogrammi": 1}),
         "nodo-piano": (fantasma(immagini("power-node")), {"fotogrammi": 1}),
