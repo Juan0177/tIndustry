@@ -631,7 +631,7 @@ def stile():
 
 
 def pagina_racconto(archivio, versione, dati):
-    """The scroll-driven story, prototype of chapter 1: a sticky canvas (racconto.js) behind five panels, one
+    """The scroll-driven story, prototype of chapters 1-4: a sticky canvas (racconto.js) behind eight panels, one
     screen each. Without the script the still poster stands behind the same panels."""
     import racconto
     logo = archivio.immagini("ui/ui-logo")
@@ -647,18 +647,28 @@ def pagina_racconto(archivio, versione, dati):
                      '<a class="btn" href="../">Torna alla vetrina</a></p>'),
         ("destra", '<span class="etichetta">// 01 · il drone</span><h2>Il drone costruisce</h2>'
                    "<p>Scegli un blocco e il drone vola sul posto: prima compare il piano, poi il cantiere sale dal "
-                   "basso, come in Mindustry.</p>"),
-        ("sinistra", '<span class="etichetta">// 02 · il minatore</span><h2>Il minatore estrae</h2>'
-                     "<p>Su un giacimento di ferro il minatore lavora da solo. Il minerale esce dal lato e la prima "
-                     "curva lo porta giù, sul nastro.</p>"),
-        ("destra", '<span class="etichetta">// 03 · i nastri</span><h2>Nastro dopo nastro</h2>'
-                   "<p>Ogni cella è un cantiere. Il minerale corre solo dove il nastro è finito: "
-                   f"{composti._num(fabbrica.RATE[fabbrica.T1])} celle al secondo sui nastri T1.</p>"),
-        ("sinistra", '<span class="etichetta">// capitolo 2 · prossimamente</span><h2>Il forno aspetta</h2>'
-                     "<p>Il piano del forno è già lì. Nel racconto completo il drone lo costruisce, arriva il carbone "
-                     "e la corrente accende le lampade.</p>"
-                     '<p class="nota">Questo è un prototipo: il primo dei sette capitoli.</p>'
-                     '<p class="bottoni"><a class="btn" href="../">Torna alla vetrina</a></p>'),
+                   "basso, come in Mindustry. Il minatore si posa sul giacimento di ferro e comincia a scavare.</p>"),
+        ("sinistra", '<span class="etichetta">// 02 · i nastri</span><h2>Nastro dopo nastro</h2>'
+                     "<p>Il minerale esce dal lato del minatore e la prima curva lo porta giù. Ogni cella di nastro è "
+                     "un cantiere: il minerale corre solo dove il nastro è finito, "
+                     f"{composti._num(fabbrica.RATE[fabbrica.T1])} celle al secondo sui nastri T1.</p>"),
+        ("destra", '<span class="etichetta">// 03 · il forno</span><h2>Ferro e carbone</h2>'
+                   "<p>Il forno fonde il ferro col carbone. Un secondo minatore lo scava dal giacimento accanto e un "
+                   "nastro lo porta al forno dall'altro lato.</p>"),
+        ("sinistra", '<span class="etichetta">// 04 · le lastre</span><h2>Le prime lastre</h2>'
+                     "<p>Quando arrivano tutti e due il forno si accende e le lastre di ferro escono sul nastro, verso "
+                     "il resto della fabbrica.</p>"),
+        ("destra", '<span class="etichetta">// 05 · la corrente</span><h2>La corrente</h2>'
+                   "<p>Dall'altro lato del minatore il carbone va al generatore. I nodi portano la corrente lontano: "
+                   "le linee si stendono da un nodo all'altro fino alle lampade.</p>"),
+        ("sinistra", '<span class="etichetta">// 06 · la sera</span><h2>Si fa buio</h2>'
+                     "<p>Il giorno finisce e la fabbrica resta accesa: le lampade e la bocca del forno illuminano i "
+                     "nastri che continuano a girare.</p>"),
+        ("destra", '<span class="etichetta">// capitolo 5 · prossimamente</span><h2>Sotto attacco</h2>'
+                   "<p>Nel buio qualcosa si muove ai margini della mappa. Nel racconto completo arrivano le unità "
+                   "nemiche e il drone si mette l'elmetto.</p>"
+                   '<p class="nota">Questo è un prototipo: quattro dei sette capitoli.</p>'
+                   '<p class="bottoni"><a class="btn" href="../">Torna alla vetrina</a></p>'),
     )
     capitoli = "".join(f'<section class="capitolo" data-lato="{lato}"><div class="pannello" data-rivela>{testo}</div></section>'
                        for lato, testo in pannelli)
@@ -669,8 +679,8 @@ def pagina_racconto(archivio, versione, dati):
              f'<script type="application/json" id="racconto-dati">{racconto.json_della_pagina(dati)}</script>')
     nav = _nav((("../", "Vetrina"), ("../sviluppo/", "Sviluppo"), ("../asset/", "Asset")))
     pagina = _pagina("tIndustry · racconto (prototipo)", corpo, nav, radice="../", classe="racconto-pagina",
-                     descrizione="Prototipo del racconto di tIndustry: scorrendo, il drone costruisce la prima catena "
-                                 "della fabbrica, dal giacimento al nastro.",
+                     descrizione="Prototipo del racconto di tIndustry: scorrendo, il drone costruisce la fabbrica, dal "
+                                 "giacimento di ferro al forno, alle lastre e alla corrente, fino a sera.",
                      avanza=True, percorso="racconto/")
     pagina = pagina.replace('<meta charset="utf-8">', '<meta charset="utf-8"><meta name="robots" content="noindex">', 1)
     return pagina.replace('<script src="../sito.js" defer></script>',

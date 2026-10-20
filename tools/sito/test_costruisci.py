@@ -171,7 +171,7 @@ class TestSito(unittest.TestCase):
         self.assertIn('<meta name="robots" content="noindex">', pagina)
         self.assertEqual(['<script src="../sito.js" defer></script>', '<script src="../racconto.js" defer></script>'],
                          re.findall(r"<script src[^>]*></script>", pagina))
-        self.assertEqual(5, pagina.count('<section class="capitolo"'))
+        self.assertEqual(8, pagina.count('<section class="capitolo"'))
         self.assertIn('id="animazioni"', pagina)
         dati = json.loads(re.search(r'<script type="application/json" id="racconto-dati">(.*?)</script>', pagina, re.S).group(1))
         for nome in [dati["terreno"], dati["poster"]] + [s["file"] for s in dati["sprite"].values()]:

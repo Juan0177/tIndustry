@@ -39,6 +39,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 10 | Finestra delle catture, griglia dei blocchi, unione a T con due flussi, terreno a tutta larghezza; piano del racconto guidato dallo scroll (PR #241) | `94d9133` |
 | 11 | Prototipo del racconto guidato dallo scroll, capitolo 1, con il drone 2.5D (PR #249) | `c347488` |
 | 12 | Drone 2.5D a volumi veri; prezzo del Mercato su rulli; test dei nastri con la velocità nuova (PR #250, PR #251) | `0acf756`, `c36a2c3` |
+| 13 | Racconto: capitoli 2-4 (forno, lastre, corrente, sera) e anticipo dell'attacco (PR PR_13) | HASH_13 |
 
 ## Giri di revisione
 
@@ -66,6 +67,8 @@ Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): rete el
 **Prototipo del racconto** (20 ottobre, «ok prova»): pagina `racconto/` con il capitolo 1 di «dal giacimento al CORE»: canvas fisso, scroll come linea del tempo, il drone 2.5D a fette che costruisce minatore e nastri col raggio, oggetti solo sulle celle finite, piano del forno come anticipo. Dati in `racconto.py` (mappa controllata da `fabbrica.controlla`, che ora accetta una `larghezza`), motore in `racconto.js` senza dipendenze, scroll morbido scritto in casa invece di Lenis. Due correzioni durante la prova: in verticale la camera era così stretta che alla fine la catena usciva dallo schermo (ora 60 % delle celle e punto d'interesse più in alto); lo scroll morbido arrancava perché `html{scroll-behavior:smooth}` ripartiva a ogni passo (ora ogni passo è istantaneo). Dettagli e scostamenti nel piano `2026-10-20-sito-scroll-narrativo.md`.
 
 **Drone e Mercato** (20 ottobre). L'utente: il drone «così è solo più spesso». Le fette erano la stessa sagoma estrusa; ora `modello_drone` dà a ogni parte dello sprite la sua quota (scafo a cupola, sensore rialzato, prese d'aria a gradini, coda bassa) e in volo il drone si inclina in avanti; le eliche provate sopra le prese sono state tolte su richiesta. Poi il Mercato: il prezzo nell'intestazione dello schermo ora segue la linea (48 valori, `prezzo × punto / 60`) e ogni cifra gira su un rullo con un piccolo rimbalzo, come la ruota della sveglia, verde con ▲ quando sale e rossa con ▼ quando scende; `sito.js` legge a che punto è l'animazione della linea (`getAnimations`), così numero e grafico restano allineati, e in pausa si fermano insieme. Trovato e corretto nel farlo: la linea scorreva di 470 unità su una serie che si ripete ogni 480, con uno scatto a ogni giro; giro portato a 28 s perché i rulli abbiano il tempo di assestarsi.
+
+**Capitoli 2-4 del racconto** (20 ottobre): carbone, forno, lastre, generatore, nodi, lampade e la sera come il `NightLayer` del gioco, fino all'anticipo dell'attacco (sagome nemiche bordate di rosso, bagliore rosso lento). `racconto.py` ora costruisce la linea del tempo a fasi e calcola quando ogni blocco si accende (il forno solo con ferro e carbone, le lampade solo con la linea tesa); `racconto.js` disegna catene di oggetti, linee di corrente, notte e luci. Nella prova sul telefono la camera mostrava il vuoto oltre il bordo della mappa: ora la vista resta dentro la mappa e non è mai più piccola di lei.
 
 ## Decisioni prese in autonomia
 
