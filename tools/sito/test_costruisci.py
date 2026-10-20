@@ -59,7 +59,7 @@ class TestSito(unittest.TestCase):
     # ---- the three pages and their files
 
     def test_pagine(self):
-        self.assertEqual(["asset/index.html", "index.html", "sviluppo/index.html"], self.scritti)
+        self.assertEqual(["asset/index.html", "index.html", "racconto/index.html", "sviluppo/index.html"], self.scritti)
         for nome in (".nojekyll", "stile.css", "sito.js", "favicon.png", "fabbrica", "catture"):
             self.assertTrue(os.path.exists(os.path.join(self.out, nome)), nome)
         for rel, radice in (("index.html", ""), ("sviluppo/index.html", "../"), ("asset/index.html", "../")):
@@ -162,6 +162,23 @@ class TestSito(unittest.TestCase):
         for rel in ("sviluppo/index.html", "asset/index.html"):
             self.assertNotIn('<div id="drone-cantiere"', self.pagine[rel])
             self.assertNotIn("data-costruisci", self.pagine[rel])
+
+    def test_racconto(self):
+        # The story prototype: canvas, data, the poster for pages without the script, both scripts, noindex.
+        with open(os.path.join(self.out, "racconto", "index.html"), encoding="utf-8") as fh:
+            pagina = fh.read()
+        self.assertIn('<canvas id="racconto-tela" aria-hidden="true"></canvas>', pagina)
+        self.assertIn('<meta name="robots" content="noindex">', pagina)
+        self.assertEqual(['<script src="../sito.js" defer></script>', '<script src="../racconto.js" defer></script>'],
+                         re.findall(r"<script src[^>]*></script>", pagina))
+        self.assertEqual(5, pagina.count('<section class="capitolo"'))
+        self.assertIn('id="animazioni"', pagina)
+        dati = json.loads(re.search(r'<script type="application/json" id="racconto-dati">(.*?)</script>', pagina, re.S).group(1))
+        for nome in [dati["terreno"], dati["poster"]] + [s["file"] for s in dati["sprite"].values()]:
+            self.assertTrue(os.path.isfile(os.path.join(self.out, "racconto", nome)), nome)
+        for src in re.findall(r'src="\.\./([^"]+)"', pagina):
+            self.assertTrue(os.path.isfile(os.path.join(self.out, src)), src)
+        self.assertTrue(os.path.isfile(os.path.join(self.out, "racconto.js")))
 
     def test_animazioni(self):
         # The landing and sviluppo pages have the pause/play button in the bar, hidden until the script shows

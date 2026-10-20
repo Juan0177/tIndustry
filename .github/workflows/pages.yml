@@ -36,7 +36,7 @@ jobs:
         run: |
           python -m pip install --quiet Pillow==12.3.0
           python -m unittest discover -s tools/sito -p "test_*.py"
-          node --test tools/sito/test_sito.mjs
+          node --test tools/sito/test_sito.mjs tools/sito/test_racconto.mjs
           python tools/sito/costruisci.py --out _site
 
       - name: Upload

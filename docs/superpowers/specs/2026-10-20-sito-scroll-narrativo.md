@@ -1,6 +1,6 @@
 # Sito: racconto guidato dallo scroll — piano e requisiti
 
-Stato: **proposta**, da approvare prima di scrivere codice. Data: 20 ottobre 2026.
+Stato: **prototipo del capitolo 1 pubblicato** in `racconto/` (fase 1 delle Fasi), da provare con l'utente prima di proseguire. Data: 20 ottobre 2026.
 
 ## Cosa chiede l'utente
 
@@ -111,3 +111,19 @@ Prese con l'utente il 20 ottobre (il lavoro non è ancora partito):
 - Con «Animazioni» in pausa il drone è un'immagine ferma (una vista di tre quarti, con l'elmetto nel capitolo dell'attacco).
 - Il drone del gioco resta com'è: il 2.5D riguarda solo il sito, salvo decisione diversa.
 Nessuna domanda aperta: si parte quando l'utente lo dice, dal prototipo di un capitolo (giacimento, minatore, primo nastro, con il drone 2.5D).
+
+## Prototipo del capitolo 1 (20 ottobre)
+
+Pagina `racconto/` del sito, fuori dalla barra della vetrina e con `noindex`: cinque pannelli alti uno schermo sopra un canvas fisso.
+
+- **Dati**: `tools/sito/racconto.py`. Mappa di 40×24 celle (prati): giacimento di ferro, minatore, curva in uscita, 3 nastri giù, curva, 12 nastri verso il piano del forno del capitolo 2; la controlla `fabbrica.controlla` come la vetrina (`Scena` ha ora una `larghezza`). Linea del tempo: piano del minatore a 0,08, cantiere da 0,20 a 0,34, nastri uno dopo l'altro da 0,42 a 0,86, piano del forno da 0,80; sei fotogrammi chiave della camera.
+- **Immagini** in `racconto/`: terreno con i giacimenti, strisce dei nastri e delle curve (32 fotogrammi), minatore al lavoro, piani come lo shader `construct` del gioco (sagoma scura, contorno ambra), oggetto, drone a fette con l'ombra, poster per chi non ha lo script. Tutto derivato dagli sprite del gioco e deterministico.
+- **Motore**: `tools/sito/racconto.js`, canvas 2D senza dipendenze. Lo scroll è la linea del tempo (scrub: tornando su la fabbrica si smonta); il tempo muove solo battistrada, oggetti, minatore, volo del drone e raggio. Cantiere che sale dal basso con la linea di scansione ambra, oggetti solo sulle celle finite, drone che vola alla prossima costruzione e la costruisce col raggio.
+- **Drone 2.5D**: 7 fette (6 pareti scurite e lo sprite in cima) ingrandite ×4 e disegnate più piccole con il filtro, come `DroneVisual`; ombra al 35 %, galleggiamento di ±0,05 celle, bagliore del motore in coda.
+- **Scroll morbido**: scritto nel motore (approccio esponenziale alla meta della rotellina, la stessa tecnica di Lenis) invece di includere Lenis: niente file di terzi da tenere. Solo con la politica di movimento piena (`html.animato`); tastiera, barra di scorrimento, touch e ancore restano del browser.
+- **Telefono**: in verticale la camera mostra il 60 % delle celle e mette il punto d'interesse al 36 % dell'altezza, sopra i pannelli.
+- **Pausa** («Animazioni»): il tempo si ferma (canvas immobile), lo scroll muove ancora il racconto ma senza scorrimento morbido. Con `prefers-reduced-motion` resta tutto acceso tranne lo scroll morbido.
+- **Scostamento**: le fette del drone sono derivate da `drone-1` al momento di costruire il sito (`racconto.fette_drone`), come le composizioni di `composti.py`, invece di stare in `tools/art/genera.py`. L'elmetto del capitolo 5, che è disegno nuovo, andrà in `genera.py`.
+- **Verifica**: `test_racconto.py` (mappa, linea del tempo, piani, esportazione deterministica), `test_racconto.mjs` (funzioni pure del motore), `test_costruisci.test_racconto` (pagina); Chromium a 1576×900 e 390×844 su nove posizioni di scroll, rotellina, tastiera, pausa, riduzione del movimento, senza script; nessun errore di console.
+
+Da decidere dopo la prova: ritmo dei capitoli (quanto scroll per capitolo), dimensione del drone (oggi quella del gioco), quanto si vede il piano del forno.

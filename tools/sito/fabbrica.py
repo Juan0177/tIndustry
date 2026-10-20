@@ -155,6 +155,7 @@ class Scena:
     seme: int = 1
     classe: str = ""
     sfondo: tuple | None = None  # (capture of docs/img/readme/, crop box) drawn under everything (the hero)
+    larghezza: int = LARGHEZZA  # cells per row: the landing page floor, wider for the story map (racconto.py)
 
 
 def _blocco(bid):
@@ -216,7 +217,7 @@ def _uscite(e, cella, entrata):
 
 
 def _dentro(scena, cella):
-    return 0 <= cella[0] < LARGHEZZA and 0 <= cella[1] < scena.righe
+    return 0 <= cella[0] < scena.larghezza and 0 <= cella[1] < scena.righe
 
 
 def _segui(scena, occupato, cella, entrata, visti):
