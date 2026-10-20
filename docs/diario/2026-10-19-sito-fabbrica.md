@@ -42,7 +42,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 13 | Racconto: capitoli 2-4 (forno, lastre, corrente, sera) e anticipo dell'attacco (PR #261) | `77dc59e` |
 | 14 | Racconto completo: attacco notturno con l'elmetto, alba, mondo, CORE; regola dei nemici notturni nella roadmap (PR #262) | `646f5ca` |
 | 15 | Racconto: linee già piazzate, CORE staccato dalla T, capitolo del Mercato (valigetta, razzo-bomba, fungo, stonks, bonus); `docs/idee.md` (PR #263) | `fd86679` |
-| 16 | Racconto: primo piano dell'attacco (paura, elmetto, Game Over del CORE), Mercato su tre pannelli, cambio di canale coi pulsanti nello schermo, il jackpot (PR PR_16) | HASH_16 |
+| 16 | Racconto: primo piano dell'attacco (paura, elmetto, Game Over del CORE), Mercato su tre pannelli, cambio di canale coi pulsanti nello schermo, il jackpot (PR #264) | `6cb0e2a` |
 
 ## Giri di revisione
 
