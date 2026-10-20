@@ -44,7 +44,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 15 | Racconto: linee già piazzate, CORE staccato dalla T, capitolo del Mercato (valigetta, razzo-bomba, fungo, stonks, bonus); `docs/idee.md` (PR #263) | `fd86679` |
 | 16 | Racconto: primo piano dell'attacco (paura, elmetto, Game Over del CORE), Mercato su tre pannelli, cambio di canale coi pulsanti nello schermo, il jackpot (PR #264) | `6cb0e2a` |
 | 17 | Racconto più lento: capitoli da 160vh col pannello che resta fermo (PR #265) | `c4c2bdd` |
-| 18 | Racconto ancora più lento (240vh per capitolo), frase di conforto leggibile, tempi del Mercato sulle soste dei pannelli (PR PR_18) | HASH_18 |
+| 18 | Racconto ancora più lento (240vh per capitolo), frase di conforto leggibile, tempi del Mercato sulle soste dei pannelli (PR #266) | `03b755d` |
 
 ## Giri di revisione
 
