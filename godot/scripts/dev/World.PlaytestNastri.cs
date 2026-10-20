@@ -7,14 +7,14 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Belt probes of the <c>ui</c> playtest. <c>oggetti-fluidi</c>: an item on a straight basic belt line, drawn at up to
 /// 144 frames per second between the last two ticks, must move on screen every frame, never back, at an even speed,
-/// across at least two cell handoffs (where the simulation holds it one tick); it must stand exactly still while the
+/// across at least two cell handoffs (where it keeps its movement: it never stands still); it must stand exactly still while the
 /// simulation is held, and the belt strip must change frame 32 times per cell travelled. The line is taken away
 /// afterwards and the belts go back to their first frame. The left-drag probes (<see cref="PlaytestLineDragAsync"/>)
 /// drive the Mindustry line with real mouse events.
 /// </summary>
 public partial class World
 {
-    // At 144 fps on a basic belt (0.5 cells/s) about 1.4 cells: from 0.85 of the first cell (0.7 plus the settling wait) it crosses two handoffs.
+    // At 144 fps on a basic belt (2.1 cells/s) about 5.8 cells: from the first cell it crosses at least four handoffs before the last cell.
     private const int SmoothItemsFrames = 400;
     private const int SmoothItemsHeldFrames = 30;
     private const int SmoothItemsLineLength = 8;
@@ -75,8 +75,6 @@ public partial class World
             return Fail($"oggetti-fluidi: oggetto non inserito in {start}");
         }
 
-        probe.Progress = 0.7f; // an insert starts at 0: begin near the cell edge so the run crosses two handoffs
-
         _visualDirty = true;
         cam.Position = CellCenter(new GridPosition(start.X + SmoothItemsLineLength / 2, start.Y));
         cam.Zoom = new Vector2(1.6f, 1.6f);
@@ -86,8 +84,7 @@ public partial class World
         MindustryBeltVisual.PlaytestScrolls = true;
         try
         {
-            var tickPixels = _view.Content.RequireConveyor(beltId).RateItemsPerSecond * TileSize / SimulationClock.TickRate;
-            return await MeasureSmoothItemsAsync(itemId, beltId, cells[^1], tickPixels, shot);
+            return await MeasureSmoothItemsAsync(itemId, beltId, cells[^1], shot);
         }
         finally
         {
@@ -108,7 +105,7 @@ public partial class World
     }
 
     private async Task<bool> MeasureSmoothItemsAsync(
-        long itemId, string beltId, GridPosition last, float tickPixels, Func<string, Task> shot)
+        long itemId, string beltId, GridPosition last, Func<string, Task> shot)
     {
         // process_frame comes before the nodes' _Process: a sample shows the previous frame, whose delta we kept.
         async Task<(Vector2? Position, double Delta, int Strip)> Sample()
@@ -137,19 +134,10 @@ public partial class World
         var travelled = 0f;
         var stripChanges = 0;
         var handoffs = 0;
-        var handoffFrames = 0;
         // Item drawn at Lerp(center(cell), center(next), progress): its cell is floor(x / tile - 0.5) on this East line,
-        // and it is handed to the next cell at that cell's center. The 0.01 px (rounding, below) puts a position an ulp
-        // short of a center on the next cell, so a -0.002 px step at a handoff counts as standing still there.
+        // and it is handed to the next cell at that cell's center, keeping the rest of its tick's movement (BeltCell's
+        // carry), so it moves every frame there too. The 0.01 px puts a position an ulp short of a center on the next cell.
         static int CellOf(float x) => Mathf.FloorToInt((x + 0.01f) / TileSize - 0.5f);
-        // The simulation holds an item one tick at each handoff (progress 1 on one cell, then 0 on the next: BeltLane
-        // drops the overflow), drawn faithfully as one tick standing still. Frames within that tick after a handoff center
-        // may stand still and are left out of the speed ratio; everywhere else the item must move every frame.
-        bool NearHandoff(float from, float to)
-        {
-            var center = (CellOf(to) + 0.5f) * TileSize;
-            return from <= center + tickPixels + 0.01f && to >= center - 0.01f;
-        }
         for (var i = 0; i < SmoothItemsFrames; i++)
         {
             var now = await Sample();
@@ -164,11 +152,10 @@ public partial class World
             }
 
             var step = at.X - before.X;
-            var nearHandoff = NearHandoff(before.X, at.X);
             // 0.01 px: float rounding of world coordinates near 32768 px (a cell's end and the next cell's start differ by
-            // an ulp), so a step within it counts as standing still, never as going back.
+            // an ulp): a step within it counts as standing still, which fails like going back.
             const float rounding = 0.01f;
-            if (step < -rounding || (step <= rounding && !nearHandoff) || Math.Abs(at.Y - before.Y) > rounding)
+            if (step <= rounding || Math.Abs(at.Y - before.Y) > rounding)
             {
                 return Fail($"oggetti-fluidi: frame {i}: spostamento {at - before} (da {before} a {at})");
             }
@@ -179,14 +166,7 @@ public partial class World
                 handoffs++;
             }
 
-            if (nearHandoff)
-            {
-                handoffFrames++;
-            }
-            else
-            {
-                speeds.Add(step / previous.Delta);
-            }
+            speeds.Add(step / previous.Delta);
 
             previous = now;
         }
@@ -195,7 +175,7 @@ public partial class World
         var cellsTravelled = travelled / TileSize;
         var ratio = speeds.Max() / speeds.Min();
         GD.Print($"PLAYTEST oggetti fluidi: {speeds.Count} frame, {cellsTravelled:0.00} celle, velocità {speeds.Min():0.0}–{speeds.Max():0.0} px/s "
-                 + $"(rapporto {ratio:0.00}), {handoffs} passaggi di cella ({handoffFrames} frame attorno), striscia cambiata {stripChanges} volte, {Engine.GetFramesPerSecond():0} fps");
+                 + $"(rapporto {ratio:0.00}), {handoffs} passaggi di cella, striscia cambiata {stripChanges} volte, {Engine.GetFramesPerSecond():0} fps");
         if (speeds.Count < 120 || ratio >= 1.5 || handoffs < 2)
         {
             return Fail($"oggetti-fluidi: {speeds.Count} frame misurati, rapporto fra spostamenti {ratio:0.00}, {handoffs} passaggi di cella");

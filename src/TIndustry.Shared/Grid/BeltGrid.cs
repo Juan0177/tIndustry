@@ -246,15 +246,22 @@ public sealed class BeltGrid
             cell.Advance(deltaSeconds);
         }
 
-        var positions = cells.Keys.ToList();
-        foreach (var pos in positions)
+        // Two passes, both in canonical order: a cell whose handoff fails in the first (the next cell was still full)
+        // retries once, so a cell downstream that emptied later in the first pass takes its item in the same tick
+        // whatever the line's direction.
+        var refused = new List<BeltGridCell>();
+        foreach (var cell in cells.Values.ToList())
         {
-            if (!cells.TryGetValue(pos, out var from))
+            TryHandoff(cell);
+            if (cell.Items.Any(item => item.Progress >= 1f))
             {
-                continue;
+                refused.Add(cell);
             }
+        }
 
-            TryHandoff(from);
+        foreach (var cell in refused)
+        {
+            TryHandoff(cell);
         }
     }
 
@@ -351,13 +358,15 @@ public sealed class BeltGrid
 
     /// <summary>
     /// Mindustry's armored conveyor: an armored belt takes items from the cell behind it or from a plain belt on any
-    /// side, never from a building or a special on its side; an item of unknown origin is refused. Other cells take all.
+    /// side (never head-on, from the cell it faces), never from a building or a special on its side; an item of unknown
+    /// origin is refused. Other cells take all.
     /// </summary>
     private bool ArmoredAccepts(BeltGridCell cell, GridPosition? source) =>
         !cell.Definition.IsArmoredBelt
         || (source is { } from
             && (from == cell.Position.Step(DirectionMath.Opposite(cell.Direction))
-                || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
+                || (from != cell.OutputPosition
+                    && cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
 
     private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
     {

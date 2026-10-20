@@ -371,6 +371,14 @@ public partial class World
         var live = new HashSet<long>();
         foreach (var cell in _view.Belts.Values)
         {
+            // Items are drawn from this cell's center (progress 0) to the next one's (1). A line that leads into nothing
+            // (no belt, Core or building next) draws its last cell over half that, so the head stops at the cell edge
+            // instead of on the empty cell past it, and the items behind it keep their order.
+            var next = cell.Position.Step(cell.Direction);
+            var reach = cell.Items.Count > 0
+                        && !_view.Belts.ContainsKey(next) && !_view.CoreTiles.Contains(next) && !_view.IsBuildingTile(next)
+                ? 0.5f
+                : 1f;
             foreach (var item in cell.Items)
             {
                 live.Add(item.Id);
@@ -392,8 +400,8 @@ public partial class World
                 }
 
                 var from = CellCenter(cell.Position);
-                var to = CellCenter(cell.Position.Step(cell.Direction));
-                var now = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f));
+                var to = CellCenter(next);
+                var now = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f) * reach);
                 var motion = ItemMotion.Next(
                     _itemMotion.TryGetValue(item.Id, out var old) ? old : null,
                     new System.Numerics.Vector2(now.X, now.Y), cell.Position, cell.Direction, ticksRun, restart);

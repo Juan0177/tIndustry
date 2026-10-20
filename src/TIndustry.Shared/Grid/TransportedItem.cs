@@ -16,4 +16,11 @@ public sealed class TransportedItem
     public float Progress { get; set; }
     /// <summary>Exit direction through a junction (incoming axis). Null on normal belts.</summary>
     public Direction? Travel { get; set; }
+
+    /// <summary>
+    /// Movement past the end of its cell in the current tick (set by <see cref="BeltCell.Advance"/>, spent by the next
+    /// cell's <see cref="BeltCell.TryInsert"/>), so a handoff never stalls the item; null for an item that has not
+    /// moved on a belt since it was last put on one. Lives within one tick: not saved.
+    /// </summary>
+    internal float? Carry { get; set; }
 }

@@ -15,6 +15,11 @@ public enum LogisticsKind
     Sorter
 }
 
+/// <summary>
+/// A belt or a logistics block. <see cref="RateItemsPerSecond"/> is the speed in cells per second (the name is older
+/// than the spacing); a full line carries speed / <see cref="ItemSpacing"/> items per second, at most
+/// <see cref="Capacity"/> items per cell.
+/// </summary>
 public sealed record ConveyorDefinition(
     string Id,
     int Tier,

@@ -51,7 +51,7 @@ public sealed class BeltReplaceTests
         Assert.True(factory.PlaceInstant(new BuildSpec(id, null, Cell, Direction.East), charge: false));
         var items = new List<TransportedItem>
         {
-            new(101, Iron, 1f), new(102, Lead, 0.5f), new(103, Iron, 0.1f)
+            new(101, Iron, 1f), new(102, Lead, 0.6f), new(103, Iron, 0.2f) // a full cell, held by its head at the dead end
         };
         factory.Belts.Cells[Cell].RestoreState(0, items);
         return items.Select(i => new TransportedItem(i.Id, i.ItemId, i.Progress)).ToList();

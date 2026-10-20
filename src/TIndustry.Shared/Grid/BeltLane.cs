@@ -179,6 +179,7 @@ public sealed class BeltLane
 public sealed class BeltCell
 {
     private readonly List<TransportedItem> items;
+    private float tickMovement; // how far an item moves in one tick here (last Advance)
 
     public BeltCell(GridPosition position, ConveyorDefinition definition)
     {
@@ -211,7 +212,8 @@ public sealed class BeltCell
                 return false;
             }
 
-            item.Progress = 0f;
+            item.Progress = Math.Min(item.Carry ?? 0f, 1f);
+            item.Carry = null;
             item.Travel = incoming;
             items.Add(item);
             return true;
@@ -223,7 +225,11 @@ public sealed class BeltCell
             return false;
         }
 
-        item.Progress = 0f;
+        // Where the item would be had it entered as soon as there was room: a handoff keeps what is left of its tick's
+        // movement; a new item behind another (its source was waiting) starts right behind it, at most a tick in.
+        var start = item.Carry ?? (rear is null ? 0f : tickMovement);
+        item.Progress = rear is null ? Math.Min(start, 1f) : Math.Min(start, rear.Progress - Definition.ItemSpacing);
+        item.Carry = null;
         item.Travel = null;
         items.Add(item);
         return true;
@@ -242,6 +248,13 @@ public sealed class BeltCell
     public void Advance(float deltaSeconds)
     {
         var movement = Definition.RateItemsPerSecond * deltaSeconds;
+        if (movement <= 0f)
+        {
+            return; // the settle pass (Dt 0) keeps this tick's carries
+        }
+
+        tickMovement = movement;
+
         if (Kind == LogisticsKind.Junction)
         {
             for (var index = 0; index < items.Count; index++)
@@ -266,25 +279,51 @@ public sealed class BeltCell
                     limit = Math.Min(limit, ahead.Progress - Definition.ItemSpacing);
                 }
 
-                item.Progress = Math.Min(item.Progress + movement, Math.Max(item.Progress, limit));
+                var moved = Math.Min(item.Progress + movement, Math.Max(item.Progress, limit));
+                item.Carry = item.Progress + movement - moved;
+                item.Progress = moved;
             }
 
             return;
         }
 
+        Move(movement);
+    }
+
+    /// <summary>
+    /// Moves every item by <paramref name="movement"/> (null: by its <see cref="TransportedItem.Carry"/>), never past the
+    /// cell end nor closer than the spacing to the item ahead; what an item cannot use stays in its carry.
+    /// </summary>
+    private void Move(float? movement)
+    {
         for (var index = 0; index < items.Count; index++)
         {
             var limit = index == 0
                 ? 1f
                 : items[index - 1].Progress - Definition.ItemSpacing;
-            items[index].Progress = Math.Min(items[index].Progress + movement, limit);
+            var item = items[index];
+            var budget = movement ?? item.Carry ?? 0f;
+            var moved = Math.Min(item.Progress + budget, limit);
+            item.Carry = Math.Clamp(item.Progress + budget - moved, 0f, budget);
+            item.Progress = moved;
         }
     }
 
     public TransportedItem? PeekOutput() =>
         items.Count > 0 && items[0].Progress >= 1f ? items[0] : null;
 
-    public void RemoveOutput() => items.RemoveAt(0);
+    /// <summary>
+    /// Takes the head away. The items behind it then spend the movement it held back this tick, as if it had left as
+    /// soon as it reached the end (Mindustry passes an item on within its move), so a saturated line keeps its spacing.
+    /// </summary>
+    public void RemoveOutput()
+    {
+        items.RemoveAt(0);
+        if (Kind != LogisticsKind.Junction)
+        {
+            Move(null);
+        }
+    }
 
     public bool TryRemoveItem(TransportedItem item)
     {

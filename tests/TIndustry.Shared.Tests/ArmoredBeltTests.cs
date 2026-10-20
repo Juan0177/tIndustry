@@ -138,6 +138,23 @@ public sealed class ArmoredBeltTests
     }
 
     [Fact]
+    public void APlainBeltHeadOnIsRefused()
+    {
+        // (20,17) heads South into the front of the line's last cell (20,18), which heads North.
+        var factory = WithLine();
+        var front = new GridPosition(20, 17);
+        Assert.True(factory.TryPlaceBelt(front, Direction.South, "conveyor-basic"));
+        Assert.True(factory.Belts.TryInsert(front, new TransportedItem(9_000, "iron-ore"), Direction.South));
+        for (var tick = 0; tick < 300; tick++)
+        {
+            factory.Step();
+            Assert.Equal(0, ItemsOnLine(factory));
+        }
+
+        Assert.Single(factory.Belts.Cells[front].Items);
+    }
+
+    [Fact]
     public void ShapeStaysStraightBesideADrill()
     {
         var factory = WithLine();

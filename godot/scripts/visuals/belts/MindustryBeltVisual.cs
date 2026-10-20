@@ -15,7 +15,7 @@ public partial class MindustryBeltVisual : Node2D
     public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
     /// <summary>Animation state of one belt tier, kept across rebuilds so placing a belt does not reset the others.</summary>
-    private sealed class TierClock(string id, float rateCellsPerSecond)
+    private sealed class TierClock(string id, float rateCellsPerSecond, bool armored)
     {
         public readonly SharedStrip Straight = new(id);
         public readonly SharedStrip Corner = new(id + "-corner");
@@ -23,7 +23,8 @@ public partial class MindustryBeltVisual : Node2D
         public readonly SharedStrip JoinLeft = new(id + "-join-left");
         public readonly SharedStrip JoinRight = new(id + "-join-right");
         public readonly SharedStrip JoinBoth = new(id + "-join-both");
-        public readonly SharedStrip JoinBuildingBoth = new(id + "-join-building-both");
+        // An armored belt never blends with a building (BeltGrid.BuildingFeeders): it has no such strip.
+        public readonly SharedStrip? JoinBuildingBoth = armored ? null : new(id + "-join-building-both");
         public readonly float Rate = rateCellsPerSecond;
         public float Scroll;
         public int Frame;
@@ -65,7 +66,7 @@ public partial class MindustryBeltVisual : Node2D
         {
             clock.Scroll = 0f;
             clock.Frame = 0;
-            foreach (var strip in new[] { clock.Straight, clock.Corner, clock.T, clock.JoinLeft, clock.JoinRight, clock.JoinBoth, clock.JoinBuildingBoth })
+            foreach (var strip in new[] { clock.Straight, clock.Corner, clock.T, clock.JoinLeft, clock.JoinRight, clock.JoinBoth, clock.JoinBuildingBoth ?? clock.JoinBoth })
             {
                 strip.Show(0);
             }
@@ -130,7 +131,7 @@ public partial class MindustryBeltVisual : Node2D
             clock.JoinLeft.Show(frame);
             clock.JoinRight.Show(frame);
             clock.JoinBoth.Show(frame);
-            clock.JoinBuildingBoth.Show(frame);
+            clock.JoinBuildingBoth?.Show(frame);
         }
     }
 
@@ -153,7 +154,7 @@ public partial class MindustryBeltVisual : Node2D
             BeltShape.JoinLeft => ("BeltJoinLeft", clock.JoinLeft),
             BeltShape.JoinRight => ("BeltJoinRight", clock.JoinRight),
             BeltShape.JoinBoth => ("BeltJoinBoth", clock.JoinBoth),
-            BeltShape.JoinBuildingBoth => ("BeltJoinBuildingBoth", clock.JoinBuildingBoth),
+            BeltShape.JoinBuildingBoth => ("BeltJoinBuildingBoth", clock.JoinBuildingBoth ?? clock.JoinBoth),
             _ => ("Belt", clock.Straight)
         };
         var straight = new ScrollingBeltStrip { Name = $"{name}_{pos.X}_{pos.Y}" };
@@ -165,7 +166,7 @@ public partial class MindustryBeltVisual : Node2D
     {
         if (!_tiers.TryGetValue(definition.Id, out var clock))
         {
-            clock = new TierClock(definition.Id, Math.Max(0.05f, definition.RateItemsPerSecond));
+            clock = new TierClock(definition.Id, Math.Max(0.05f, definition.RateItemsPerSecond), definition.IsArmoredBelt);
             _tiers[definition.Id] = clock;
         }
 

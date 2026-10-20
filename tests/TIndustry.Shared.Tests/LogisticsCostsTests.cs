@@ -58,6 +58,25 @@ public sealed class LogisticsCostsTests
         }
     }
 
+    /// <summary>Speed in cells per second (Mindustry's speed × 60), items per second = speed / spacing (Task 3).</summary>
+    [Theory]
+    [InlineData("conveyor-basic", 2.1f, 3, 0.4f, 5.25f)]
+    [InlineData("conveyor-fast", 4.8f, 3, 0.4f, 12f)]
+    [InlineData("conveyor-armored", 4.8f, 3, 0.4f, 12f)]
+    [InlineData("conveyor-express", 7.2f, 3, 0.4f, 18f)]
+    [InlineData("junction", 18f, 2, 1f, 18f)]
+    [InlineData("splitter", 8f, 1, 1f, 8f)]
+    [InlineData("sorter", 8f, 1, 1f, 8f)]
+    [InlineData("conveyor-bridge", 5.25f, 1, 1f, 5.25f)]
+    public void RatesMatchTheTable(string id, float speed, int capacity, float spacing, float itemsPerSecond)
+    {
+        var conveyor = Content.RequireConveyor(id);
+        Assert.Equal(speed, conveyor.RateItemsPerSecond);
+        Assert.Equal(capacity, conveyor.Capacity);
+        Assert.Equal(spacing, conveyor.ItemSpacing);
+        Assert.Equal(itemsPerSecond, conveyor.RateItemsPerSecond / conveyor.ItemSpacing, 3);
+    }
+
     [Fact]
     public void BasicBeltStaysUnlocked() =>
         Assert.Null(Content.RequireStructure("conveyor-basic").Unlock);
