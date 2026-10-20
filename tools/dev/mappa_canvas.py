@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-19, dopo il sito «fabbrica»."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-20, dopo i nastri come Mindustry."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -79,13 +79,13 @@ fatto.card("g3", "**G3 · Effetti e luci**\nParticelle di lavoro, costruzione e 
 fatto.card("g4", "**G4 · Interfaccia**\nTema unico in stile Mindustry, carattere pixel e icone generati, Scala UI solo dell'interfaccia, schermo intero all'avvio, italiano e inglese con i rifiuti come codici, colori per daltonici e alto contrasto, logo e mappa che scorre nella Home.\nPR #194–#201 · [[0006-interfaccia-lingue-carattere|ADR 0006]] · [[2026-10-18-g4-interfaccia-design|spec]]")
 fatto.card("agenti", "**Agenti che giocano**\nServer MCP tindustry (tools/AgentPlay): simulazione, gioco vero comandato da AgentBridge (solo sviluppo, profilo temporaneo, segreto), co-op segnaposto; catture, input, diario e rigioca; skill gioca-e-testa.\nPR #210–#214, #217 · [[2026-10-19-agenti-giocano|diario]] · [[0008-agenti-che-giocano|ADR 0008]] · [[2026-10-18-agenti-giocano-design|spec]]")
 fatto.card("web", "**Sito «fabbrica» su GitHub Pages**\nVetrina che è una fabbrica del gioco (catene vere sui nastri, due lunghe nel Core col download, teaser delle unità, drone che costruisce i bottoni), pagina sviluppo (ADR, roadmap, diario) e asset, tutto da tools/sito/costruisci.py; workflow Pages a mano.\nPR #233, #235 · [[2026-10-19-sito-fabbrica|diario]] · [[2026-10-19-sito-fabbrica-design|spec]]")
+fatto.card("nastri-mindustry", "**Nastri come Mindustry**\nGiro sul posto e cambio di tier, costi in minerale grezzo, portata e spaziatura di Mindustry (3 oggetti per cella), oggetti fluidi, linea di piazzamento in Shared con ponte automatico e Ctrl, trascinamento con anteprima, rettangolo di smontaggio, tasto centrale e rotellina, nastro rinforzato; salvataggi v13.\nPR #224, #227–#232, #240, #242, #245, #246 · [[docs/diario/2026-10-19-nastri-mindustry|diario]] · [[docs/superpowers/plans/2026-10-19-nastri-mindustry|piano]] · [[2026-10-18-nastri-mindustry-design|spec]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
 fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0008-agenti-che-giocano|0008]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-corso", "In corso", X[1], "3")
-corso.card("nastri-mindustry", "**Nastri come Mindustry**\nPiano in 11 task: cambio di tier, oggetti fluidi, linea di piazzamento di Shared, ponte automatico e Ctrl, trascinamento, rettangolo di smontaggio, tasto centrale e rotellina fatti; restano gli ultimi task (nastro rinforzato).\n[[2026-10-19-nastri-mindustry|piano]]")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
@@ -104,6 +104,7 @@ aperti = Column("g-aperti", "Aperti", X[3], "1")
 aperti.card("a1", "**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.", "4")
 aperti.card("a2", "**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.", "4")
 aperti.card("a3", "**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b, G3 e G4 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata, .dev/baseline-g3-candidata e .dev/baseline-g4-candidata (it e en), da approvare.")
+aperti.card("nastri-stretti", "**Nastri stretti: da scegliere**\nTre proposte di nastri larghi quanto gli oggetti (A binari sottili, B canale, C Mindustry) nella tavola .dev/arte/nastri-stretti.png (python tools/art/proposte_nastri_stretti.py) e nella PR #246; la variante scelta diventa un piano a parte.")
 aperti.close()
 
 chain(["g2a", "g2b", "g3", "g4"])
