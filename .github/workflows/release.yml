@@ -66,8 +66,6 @@ jobs:
           path: |
             dist/tIndustry-win-x64.zip
             dist/tIndustry-linux-x64.zip
-            dist/tIndustry-godot-win-x64.zip
-            dist/tIndustry-godot-linux-x64.zip
           if-no-files-found: error
 
   github-release:
@@ -94,8 +92,6 @@ jobs:
           files: |
             dist/tIndustry-win-x64.zip
             dist/tIndustry-linux-x64.zip
-            dist/tIndustry-godot-win-x64.zip
-            dist/tIndustry-godot-linux-x64.zip
           generate_release_notes: true
           draft: false
           fail_on_unmatched_files: true

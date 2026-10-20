@@ -92,8 +92,6 @@ Scarica l'ultima [Release](https://github.com/Juan0177/tIndustry/releases/latest
 | Windows | `tIndustry-win-x64.zip` | `tIndustry.exe` |
 | Linux | `tIndustry-linux-x64.zip` | `tIndustry.x86_64` |
 
-Gli zip `tIndustry-godot-*-x64.zip` hanno lo stesso contenuto (nomi storici).
-
 ### Prima partita
 
 1. Dalla Home scegli **Continua**, **Campagna** o **Nuova partita**.
@@ -146,7 +144,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
 | Fatto, in attesa dell'ok | **G3 · Effetti e luci** | Particelle di lavoro, costruzione e ambiente, ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
 | Fatto | **G4 · Interfaccia** | Tema unico in stile Mindustry, carattere pixel e icone generati, italiano e inglese, Scala UI solo dell'interfaccia, schermo intero, colori per daltonici e alto contrasto ([ADR 0006](docs/decisioni/0006-interfaccia-lingue-carattere.md)) |
-| In corso | **Sito web su GitHub Pages** | Ingresso con le catture del gioco e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py`; poi presentazione e download |
+| Fatto | **Sito web su GitHub Pages** | [Vetrina «fabbrica»](https://juan0177.github.io/tIndustry/) con le catene di produzione vere sui nastri del gioco, download, [sviluppo](https://juan0177.github.io/tIndustry/sviluppo/) (ADR, roadmap, diario) e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py` ([spec](docs/superpowers/specs/2026-10-19-sito-fabbrica-design.md)) |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |

@@ -1,10 +1,10 @@
 {
 	"nodes":[
 		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":588,"color":"1"},
-		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":854,"color":"5"},
-		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":244,"color":"3"},
-		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":2926,"color":"4"},
-		{"id":"titolo","type":"text","text":"# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-19, dopo gli agenti che giocano.","x":0,"y":-170,"width":2100,"height":130,"color":"6"},
+		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":656,"color":"5"},
+		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":322,"color":"3"},
+		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":3228,"color":"4"},
+		{"id":"titolo","type":"text","text":"# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-19, dopo il sito «fabbrica».","x":0,"y":-170,"width":2100,"height":130,"color":"6"},
 		{"id":"sp1","type":"text","text":"**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146","x":20,"y":50,"width":440,"height":148,"color":"4"},
 		{"id":"sp2","type":"text","text":"**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]","x":20,"y":222,"width":440,"height":200,"color":"4"},
 		{"id":"sp3","type":"text","text":"**SP3 · Costruzione come Mindustry**\nPiani, drone e cantieri con consegna dal Core, smontaggio con rimborso graduale, coda nell'HUD, salvataggi v11.\nPR #159–#166 · [[2026-10-17-costruzione-in-corso|diario]] · [[0003-costruzione-come-mindustry|ADR 0003]]","x":20,"y":446,"width":440,"height":226,"color":"4"},
@@ -14,20 +14,19 @@
 		{"id":"g3","type":"text","text":"**G3 · Effetti e luci**\nParticelle di lavoro, costruzione e ambiente (pool di CPUParticles2D, una riga di dati per effetto), ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli (effetti, limite FPS, scala di rendering).\nPR #186–#189 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g3-effetti-luci-design|spec]]","x":20,"y":1524,"width":440,"height":304,"color":"4"},
 		{"id":"g4","type":"text","text":"**G4 · Interfaccia**\nTema unico in stile Mindustry, carattere pixel e icone generati, Scala UI solo dell'interfaccia, schermo intero all'avvio, italiano e inglese con i rifiuti come codici, colori per daltonici e alto contrasto, logo e mappa che scorre nella Home.\nPR #194–#201 · [[0006-interfaccia-lingue-carattere|ADR 0006]] · [[2026-10-18-g4-interfaccia-design|spec]]","x":20,"y":1852,"width":440,"height":304,"color":"4"},
 		{"id":"agenti","type":"text","text":"**Agenti che giocano**\nServer MCP tindustry (tools/AgentPlay): simulazione, gioco vero comandato da AgentBridge (solo sviluppo, profilo temporaneo, segreto), co-op segnaposto; catture, input, diario e rigioca; skill gioca-e-testa.\nPR #210–#214, #217 · [[2026-10-19-agenti-giocano|diario]] · [[0008-agenti-che-giocano|ADR 0008]] · [[2026-10-18-agenti-giocano-design|spec]]","x":20,"y":2180,"width":440,"height":278,"color":"4"},
-		{"id":"extra","type":"text","text":"**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)","x":20,"y":2482,"width":440,"height":226,"color":"4"},
-		{"id":"docs","type":"text","text":"**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0008-agenti-che-giocano|0008]])\n- [[docs/diario/README|diario dei lavori]]","x":20,"y":2732,"width":440,"height":174,"color":"4"},
-		{"id":"web","type":"text","text":"**Sito web su GitHub Pages**\nIngresso con le catture del gioco e sezione asset da `tools/sito/costruisci.py`, workflow Pages a mano. Poi presentazione e download.","x":560,"y":50,"width":440,"height":174,"color":"3"},
-		{"id":"nastri","type":"text","text":"**Nastri alla Mindustry**\nRotazione sul posto, trascinamento con la logica di Shared, toast dei materiali mancanti una volta sola; dopo unione a T e incrocio automatico (#209).","x":1100,"y":50,"width":440,"height":174,"color":"5"},
-		{"id":"giacimenti","type":"text","text":"**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2.","x":1100,"y":248,"width":440,"height":174,"color":"5"},
-		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":446,"width":440,"height":122,"color":"5"},
-		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":592,"width":440,"height":96,"color":"5"},
-		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":712,"width":440,"height":122,"color":"5"},
+		{"id":"web","type":"text","text":"**Sito «fabbrica» su GitHub Pages**\nVetrina che è una fabbrica del gioco (catene vere sui nastri, due lunghe nel Core col download, teaser delle unità, drone che costruisce i bottoni), pagina sviluppo (ADR, roadmap, diario) e asset, tutto da tools/sito/costruisci.py; workflow Pages a mano.\nPR #233, #235 · [[2026-10-19-sito-fabbrica|diario]] · [[2026-10-19-sito-fabbrica-design|spec]]","x":20,"y":2482,"width":440,"height":278,"color":"4"},
+		{"id":"extra","type":"text","text":"**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)","x":20,"y":2784,"width":440,"height":226,"color":"4"},
+		{"id":"docs","type":"text","text":"**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0008-agenti-che-giocano|0008]])\n- [[docs/diario/README|diario dei lavori]]","x":20,"y":3034,"width":440,"height":174,"color":"4"},
+		{"id":"nastri-mindustry","type":"text","text":"**Nastri come Mindustry**\nPiano in 11 task: cambio di tier, oggetti fluidi, linea di piazzamento di Shared, ponte automatico e Ctrl, trascinamento, rettangolo di smontaggio, tasto centrale e rotellina fatti; restano gli ultimi task (nastro rinforzato).\n[[2026-10-19-nastri-mindustry|piano]]","x":560,"y":50,"width":440,"height":252,"color":"3"},
+		{"id":"giacimenti","type":"text","text":"**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2.","x":1100,"y":50,"width":440,"height":174,"color":"5"},
+		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":248,"width":440,"height":122,"color":"5"},
+		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":394,"width":440,"height":96,"color":"5"},
+		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":514,"width":440,"height":122,"color":"5"},
 		{"id":"a1","type":"text","text":"**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.","x":1640,"y":50,"width":440,"height":122,"color":"4"},
 		{"id":"a2","type":"text","text":"**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.","x":1640,"y":196,"width":440,"height":96,"color":"4"},
 		{"id":"a3","type":"text","text":"**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b, G3 e G4 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata, .dev/baseline-g3-candidata e .dev/baseline-g4-candidata (it e en), da approvare.","x":1640,"y":316,"width":440,"height":252,"color":"1"}
 	],
 	"edges":[
-		{"id":"e-nastri-giacimenti","fromNode":"nastri","fromSide":"bottom","toNode":"giacimenti","toSide":"top"},
 		{"id":"e-giacimenti-tier","fromNode":"giacimenti","fromSide":"bottom","toNode":"tier","toSide":"top"},
 		{"id":"e-tier-liquidi","fromNode":"tier","fromSide":"bottom","toNode":"liquidi","toSide":"top"},
 		{"id":"e-liquidi-sp5","fromNode":"liquidi","fromSide":"bottom","toNode":"sp5","toSide":"top"},
@@ -35,6 +34,6 @@
 		{"id":"e-g2b-g3","fromNode":"g2b","fromSide":"bottom","toNode":"g3","toSide":"top"},
 		{"id":"e-g3-g4","fromNode":"g3","fromSide":"bottom","toNode":"g4","toSide":"top"},
 		{"id":"e-g4-web","fromNode":"g4","fromSide":"right","toNode":"web","toSide":"left"},
-		{"id":"e-agenti-nastri","fromNode":"agenti","fromSide":"right","toNode":"nastri","toSide":"left"}
+		{"id":"e-agenti-nastri-mindustry","fromNode":"agenti","fromSide":"right","toNode":"nastri-mindustry","toSide":"left"}
 	]
 }

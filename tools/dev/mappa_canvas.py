@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-19, dopo gli agenti che giocano."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-19, dopo il sito «fabbrica»."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -78,19 +78,19 @@ fatto.card("g2b", "**G2b · Arte del terreno**\nSuoli con varianti e bordi, pare
 fatto.card("g3", "**G3 · Effetti e luci**\nParticelle di lavoro, costruzione e ambiente (pool di CPUParticles2D, una riga di dati per effetto), ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli (effetti, limite FPS, scala di rendering).\nPR #186–#189 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g3-effetti-luci-design|spec]]")
 fatto.card("g4", "**G4 · Interfaccia**\nTema unico in stile Mindustry, carattere pixel e icone generati, Scala UI solo dell'interfaccia, schermo intero all'avvio, italiano e inglese con i rifiuti come codici, colori per daltonici e alto contrasto, logo e mappa che scorre nella Home.\nPR #194–#201 · [[0006-interfaccia-lingue-carattere|ADR 0006]] · [[2026-10-18-g4-interfaccia-design|spec]]")
 fatto.card("agenti", "**Agenti che giocano**\nServer MCP tindustry (tools/AgentPlay): simulazione, gioco vero comandato da AgentBridge (solo sviluppo, profilo temporaneo, segreto), co-op segnaposto; catture, input, diario e rigioca; skill gioca-e-testa.\nPR #210–#214, #217 · [[2026-10-19-agenti-giocano|diario]] · [[0008-agenti-che-giocano|ADR 0008]] · [[2026-10-18-agenti-giocano-design|spec]]")
+fatto.card("web", "**Sito «fabbrica» su GitHub Pages**\nVetrina che è una fabbrica del gioco (catene vere sui nastri, due lunghe nel Core col download, teaser delle unità, drone che costruisce i bottoni), pagina sviluppo (ADR, roadmap, diario) e asset, tutto da tools/sito/costruisci.py; workflow Pages a mano.\nPR #233, #235 · [[2026-10-19-sito-fabbrica|diario]] · [[2026-10-19-sito-fabbrica-design|spec]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
 fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0008-agenti-che-giocano|0008]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-corso", "In corso", X[1], "3")
-corso.card("web", "**Sito web su GitHub Pages**\nIngresso con le catture del gioco e sezione asset da `tools/sito/costruisci.py`, workflow Pages a mano. Poi presentazione e download.")
+corso.card("nastri-mindustry", "**Nastri come Mindustry**\nPiano in 11 task: cambio di tier, oggetti fluidi, linea di piazzamento di Shared, ponte automatico e Ctrl, trascinamento, rettangolo di smontaggio, tasto centrale e rotellina fatti; restano gli ultimi task (nastro rinforzato).\n[[2026-10-19-nastri-mindustry|piano]]")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
 nxt = Column("g-next", "Prossimi (in ordine)", X[2], "5")
 roadmap = [
-    nxt.card("nastri", "**Nastri alla Mindustry**\nRotazione sul posto, trascinamento con la logica di Shared, toast dei materiali mancanti una volta sola; dopo unione a T e incrocio automatico (#209)."),
     nxt.card("giacimenti", "**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2."),
     nxt.card("tier", "**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu."),
     nxt.card("liquidi", "**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua."),
@@ -108,7 +108,7 @@ aperti.close()
 
 chain(["g2a", "g2b", "g3", "g4"])
 link("g4", "web")
-link("agenti", "nastri")
+link("agenti", "nastri-mindustry")
 
 
 def obsidian_json(items):

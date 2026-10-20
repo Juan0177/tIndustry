@@ -27,8 +27,22 @@ TICK = 1 / 60  # simulation and frame rate the client is tuned for
 with open(os.path.join(REPO, "data", "content.json"), encoding="utf-8") as _fh:
     _CONTENT = json.load(_fh)
 # Belt tiers scroll at their item rate: MindustryBeltVisual advances `rate` cells per second and shows
-# frame (int)(scroll * 8) % 8, so the strip plays at rate * 8 frames per second.
+# frame (int)(scroll * count) % count, count being the strip's frame count (one per pixel of tread), so the
+# strip plays at rate * count frames per second and one loop is one cell, 1 / rate s.
 VELOCITA_NASTRO = {c["id"]: c["rateItemsPerSecond"] for c in _CONTENT["conveyors"]}
+ASSETS = os.path.join(REPO, "godot", "assets")
+PASSO_MINIMO = 0.02  # s: GIF delays below 2/100 s are not honoured by browsers
+
+
+def _fotogrammi(nome):
+    """Frame count of a strip of godot/assets/: square frames side by side along the width."""
+    with Image.open(os.path.join(ASSETS, nome + ".png")) as im:
+        return max(1, im.width // im.height)
+
+
+def _num(v):
+    """Number as the Italian interface writes it (decimal comma)."""
+    return f"{v:g}".replace(".", ",")
 
 
 def _colore(r, g, b):
@@ -220,8 +234,11 @@ def _nastro(tier):
     # godot/scripts/visuals/belts/MindustryBeltVisual.cs (shared tier clock), ScrollingBeltStrip.cs (straight,
     # T merge and side joins, East), BeltCornerTile.cs (corner art: in from West, out South). The belt always scrolls; with
     # the setting "Animazioni dei blocchi" off it holds its frame.
-    fps = VELOCITA_NASTRO[tier] * 8
-    giro = 8 / fps
+    n = _fotogrammi(tier + "-anim")
+    fps = VELOCITA_NASTRO[tier] * n
+    giro = n / fps
+    # Whole strip frames per rendered frame, as many as keep the GIF delay at PASSO_MINIMO or more.
+    passo = math.ceil(PASSO_MINIMO * fps) / fps
     unioni = [("join-left", "Unione a sinistra", "unione laterale (blocco col punto): dietro e a sinistra"),
               ("join-right", "Unione a destra", "unione laterale (blocco col punto): dietro e a destra"),
               ("join-both", "Unione dai tre lati", "unione da nastri: dietro e ai due lati"),
@@ -231,15 +248,16 @@ def _nastro(tier):
         [Strato(tier + "-anim", fps=fps, quando="dritto"), Strato(tier + "-corner-anim", fps=fps, quando="curva"),
          Strato(tier + "-t-anim", fps=fps, quando="t")]
         + [Strato(f"{tier}-{u}-anim", fps=fps, quando=u) for u, _, _ in unioni],
-        [_stato("Dritto", "dritto", durata=giro, passo=1 / fps), _stato("Curva", "curva", durata=giro, passo=1 / fps),
-         _stato("T", "t", durata=giro, passo=1 / fps)]
-        + [_stato(nome, u, durata=giro, passo=1 / fps) for u, nome, _ in unioni]
+        [_stato("Dritto", "dritto", durata=giro, passo=passo), _stato("Curva", "curva", durata=giro, passo=passo),
+         _stato("T", "t", durata=giro, passo=passo)]
+        + [_stato(nome, u, durata=giro, passo=passo) for u, nome, _ in unioni]
         + [_stato("Animazioni spente", "dritto")],
         [(tier, "icona"), (tier + "-anim", "tratto dritto"), (tier + "-corner-anim", "curva"),
          (tier + "-t-anim", "unione a T: due ingressi ai lati")]
         + [(f"{tier}-{u}-anim", parte) for u, _, parte in unioni],
         icona=tier, stato_icona="Dritto",
-        nota=f"{VELOCITA_NASTRO[tier]:g} oggetti/s: {fps:g} fotogrammi al secondo."
+        nota=f"{_num(VELOCITA_NASTRO[tier])} {'oggetto' if VELOCITA_NASTRO[tier] == 1 else 'oggetti'} al secondo: "
+             f"{fps:g} fotogrammi al secondo."
         + (" Rinforzato: non si unisce agli edifici ai lati e prende da loro solo da dietro."
            if tier == "conveyor-armored" else ""),
         fps_parti={tier + "-anim": fps, tier + "-corner-anim": fps, tier + "-t-anim": fps}

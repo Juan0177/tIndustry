@@ -1,0 +1,40 @@
+/* ---- Drone (vetrina only). Fragment pasted into stile.css by costruisci.py; colours only from the
+   :root variables (--ambra, --giallo, --bg, --pan, --linea, --testo, --tenue, --corrente).
+   The markup starts hidden; sito.js shows #drone-cantiere, moves it with transform (linear flight at
+   384 px/s) and sets --rot (heading, nose East in the sprite). The hover of the game
+   (DroneVisual: 0.05 cells at 2.6 rad/s = 3 px, period 2.417 s) is the CSS animation of the <img>:
+   `translate` bobs in screen space, `rotate` turns the sprite, the two compose without fighting. */
+#drone-cantiere{position:fixed;left:0;top:0;width:48px;height:48px;z-index:25;pointer-events:none;will-change:transform;transition:transform 0s linear}
+#drone-cantiere[hidden]{display:none}
+#drone-cantiere img{display:block;width:48px;height:48px;image-rendering:pixelated;rotate:var(--rot,0deg);transition:rotate .35s ease;
+ filter:drop-shadow(0 10px 4px color-mix(in srgb,var(--bg) 60%,transparent));animation:drone-plana 1.208s ease-in-out infinite alternate}
+@keyframes drone-plana{from{translate:0 -3px}to{translate:0 3px}}
+
+/* The construction beam: an SVG anchored to the centre of the drone, drawn in drone-local px
+   (overflow visible), from the nose to the centre of the button. Shown while #drone-cantiere.costruisce. */
+#drone-cantiere .raggio{position:absolute;left:50%;top:50%;width:1px;height:1px;overflow:visible;display:none;
+ filter:drop-shadow(0 0 4px var(--ambra))}
+#drone-cantiere.costruisce .raggio{display:block}
+#drone-cantiere .raggio line{stroke:var(--ambra);stroke-width:2;stroke-linecap:round;stroke-dasharray:6 4;animation:drone-raggio .4s linear infinite}
+#drone-cantiere .raggio circle{fill:var(--ambra);transform-box:fill-box;transform-origin:center;animation:drone-punto .25s ease-in-out infinite alternate}
+@keyframes drone-raggio{to{stroke-dashoffset:-10}}
+@keyframes drone-punto{from{transform:scale(.8);opacity:.7}to{transform:scale(1.6);opacity:1}}
+
+/* The button under construction (class set by sito.js for 0.5 s): dashed site fence around it and
+   hazard stripes filling from the left in eight steps, painted over the background but under the
+   label (isolation + negative z-index). .btn.primario.cantiere wins over .btn.primario. */
+.btn.cantiere{position:relative}
+.cantiere,.btn.cantiere,.btn.primario.cantiere,.contenuto .cantiere{isolation:isolate;overflow:hidden;background:var(--pan);color:var(--testo);
+ border-color:var(--ambra);outline:2px dashed var(--ambra);outline-offset:3px;text-shadow:0 1px 2px var(--bg),0 0 6px var(--bg)}
+.cantiere::after{content:"";position:absolute;left:0;top:0;bottom:0;width:0;z-index:-1;pointer-events:none;
+ background:repeating-linear-gradient(135deg,var(--giallo) 0 12px,var(--bg) 12px 24px) left/auto 100%;
+ animation:drone-cantiere .5s steps(8,end) forwards}
+@keyframes drone-cantiere{from{width:0}to{width:100%}}
+
+/* No motion asked for: no drone, no beam, no bobbing; a button marked .cantiere shows as finished. */
+@media (prefers-reduced-motion:reduce){
+ #drone-cantiere,#ferma-drone{display:none}
+ #drone-cantiere img,#drone-cantiere .raggio line,#drone-cantiere .raggio circle,.cantiere::after{animation:none}
+ #drone-cantiere img{transition:none}
+ .cantiere::after{width:100%}
+}

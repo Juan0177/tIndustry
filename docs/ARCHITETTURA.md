@@ -56,7 +56,8 @@ tIndustry/
    ├─ MapTool/                  mappe della campagna: genera, valida, anteprima
    ├─ art/                      genera.py (sprite di edifici, nastri, Core, drone, oggetti, terreno, effetti, interfaccia), carattere.py (carattere pixel), palette, forme, test
    ├─ dev/                      playtest.sh, compare_shots.py, mappa_canvas.py
-   └─ sito/                     costruisci.py: sito su GitHub Pages (ingresso con le catture del README, asset), composti.py, test
+   └─ sito/                     sito su GitHub Pages: costruisci.py (vetrina «fabbrica», sviluppo, asset), fabbrica.py (scene a celle con gli sprite veri),
+                               documenti.py (README, diario, ADR), composti.py (blocchi come in gioco), stile.css, drone.css, sito.js, test
 ```
 
 `godot/data/` esiste solo dopo l'export (è una copia di `data/`) ed è ignorata da git.
