@@ -36,7 +36,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 7 | Unione a T sopra il CORE (PR #235) | `3bde5d8` |
 | 8 | Verifica finale sul sito pubblicato e correzioni (PR #236) | `141d678` |
 | 9 | Animazioni sempre accese, pulsante «Animazioni» nella barra e catture intere (PR #238) | `c0a4d7d`, `0c113fa` |
-| 10 | Finestra delle catture, griglia dei blocchi, unione a T con due flussi, terreno a tutta larghezza; piano del racconto guidato dallo scroll (PR PR_10) | HASH_10 |
+| 10 | Finestra delle catture, griglia dei blocchi, unione a T con due flussi, terreno a tutta larghezza; piano del racconto guidato dallo scroll (PR #241) | `94d9133` |
 
 ## Giri di revisione
 
