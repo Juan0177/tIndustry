@@ -60,3 +60,11 @@ La mappa completa, file per file, è in cima a [ARCHITETTURA.md](https://github.
 - [docs/ARCHITETTURA.md](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md)
 - [README.md, sezione Sviluppo](https://github.com/Juan0177/tIndustry/blob/main/README.md#sviluppo)
 - [Compilare e avviare](Compilare-e-avviare) · [Architettura](Architettura) · [Come contribuire](Come-contribuire)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[Torna alla Home](Home) · [Pagina successiva: Compilare e avviare →](Compilare-e-avviare)
+
+<!-- /navigazione -->

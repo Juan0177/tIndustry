@@ -79,3 +79,11 @@ Confronta i PNG con lo stesso nome ed esce con 1 se differiscono, indicando il r
 - [godot/README.md, Prove automatiche](https://github.com/Juan0177/tIndustry/blob/main/godot/README.md#prove-automatiche)
 - [tools/dev/playtest.sh](https://github.com/Juan0177/tIndustry/blob/main/tools/dev/playtest.sh) · [tools/dev/compare_shots.py](https://github.com/Juan0177/tIndustry/blob/main/tools/dev/compare_shots.py)
 - [Compilare e avviare](Compilare-e-avviare) · [Agenti che giocano](Agenti-che-giocano) · [Architettura](Architettura)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Interfaccia e lingue](Interfaccia-e-lingue) · [Torna alla Home](Home) · [Pagina successiva: Agenti che giocano →](Agenti-che-giocano)
+
+<!-- /navigazione -->

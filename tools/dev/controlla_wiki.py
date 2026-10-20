@@ -5,11 +5,14 @@
 Every page link [text](Page-Name) must point to a page of docs/wiki/, every page except the
 special ones (_Sidebar, _Footer) must be reachable from Home or the sidebar, and links to files
 of the repository must be absolute (relative paths do not resolve inside the Wiki).
+The navigation bar of every page must be up to date (tools/dev/wiki_navigazione.py).
 Exits with 1 and lists the problems otherwise.
 """
 import os
 import re
 import sys
+
+import wiki_navigazione
 
 WIKI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "docs", "wiki")
 LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)\s]+)\)")
@@ -35,6 +38,8 @@ def controlla(cartella=WIKI):
     for nome in pagine:
         if nome not in SPECIALI and nome != "Home" and nome not in raggiunte:
             problemi.append(f"{nome}: non raggiungibile da Home né dalla barra laterale")
+    for pagina in wiki_navigazione.da_aggiornare(cartella):
+        problemi.append(f"{pagina}: barra di navigazione mancante o vecchia (python tools/dev/wiki_navigazione.py)")
     if "Home" not in pagine:
         problemi.append("manca Home.md")
     return problemi

@@ -64,3 +64,11 @@ Le lucciole sui prati di notte compaiono solo con Effetti Alti.
 - [Comandi](Comandi)
 - [Primi passi](Primi-passi)
 - [Salvataggi](Salvataggi)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Campagna e mappe](Campagna-e-mappe) · [Torna alla Home](Home) · [Pagina successiva: Salvataggi →](Salvataggi)
+
+<!-- /navigazione -->

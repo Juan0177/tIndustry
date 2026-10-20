@@ -94,3 +94,11 @@ Il rimborso si calcola per ogni materiale e si arrotonda per difetto: al 50% un 
 - [Comandi](Comandi)
 - [Logistica](Logistica)
 - [Economia e Ricerca](Economia-e-Ricerca)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Energia](Energia) · [Torna alla Home](Home) · [Pagina successiva: Economia e Ricerca →](Economia-e-Ricerca)
+
+<!-- /navigazione -->

@@ -62,3 +62,11 @@ Un asset libero di terzi, se mai servisse, va citato in `godot/assets/ATTRIBUTIO
 - [ADR 0004 — Arte generata da script](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0004-arte-generata-da-script.md)
 - [docs/ARCHITETTURA.md, Grafica e sprite](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#grafica-e-sprite)
 - [Contenuti e dati](Contenuti-e-dati) · [Interfaccia e lingue](Interfaccia-e-lingue) · [Mappe e terreno](Mappe-e-terreno)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Formato dei salvataggi](Salvataggi-formato) · [Torna alla Home](Home) · [Pagina successiva: Mappe e terreno →](Mappe-e-terreno)
+
+<!-- /navigazione -->

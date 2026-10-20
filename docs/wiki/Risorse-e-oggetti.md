@@ -69,3 +69,11 @@ titanio ──▶ (Minatore T2) ──▶ Forno ──▶ Lastra di titanio
 - [Produzione](Produzione)
 - [Economia e Ricerca](Economia-e-Ricerca)
 - [Campagna e mappe](Campagna-e-mappe)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Comandi](Comandi) · [Torna alla Home](Home) · [Pagina successiva: Produzione →](Produzione)
+
+<!-- /navigazione -->

@@ -56,3 +56,11 @@ Il workflow esegue tutti i test del sito, costruisce `_site/` e lo pubblica. La 
 - [tools/sito/costruisci.py](https://github.com/Juan0177/tIndustry/blob/main/tools/sito/costruisci.py) (docstring) · [.github/workflows/pages.yml](https://github.com/Juan0177/tIndustry/blob/main/.github/workflows/pages.yml)
 - [Diario del sito «fabbrica»](https://github.com/Juan0177/tIndustry/blob/main/docs/diario/2026-10-19-sito-fabbrica.md)
 - [Arte generata](Arte-generata) · [Come contribuire](Come-contribuire) · [Test e playtest](Test-e-playtest)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Agenti che giocano](Agenti-che-giocano) · [Torna alla Home](Home) · [Pagina successiva: Come contribuire →](Come-contribuire)
+
+<!-- /navigazione -->

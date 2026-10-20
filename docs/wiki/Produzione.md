@@ -59,3 +59,11 @@ Un blocco 1×1 da mettere **a contatto con il CORE** con un nastro davanti (la d
 - [Risorse e oggetti](Risorse-e-oggetti)
 - [Energia](Energia)
 - [Logistica](Logistica)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Risorse e oggetti](Risorse-e-oggetti) · [Torna alla Home](Home) · [Pagina successiva: Logistica →](Logistica)
+
+<!-- /navigazione -->

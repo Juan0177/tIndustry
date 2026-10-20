@@ -61,3 +61,11 @@ Con la Home aperta o senza partita il frame salta i passi dal 2 al 5.
 - [docs/ARCHITETTURA.md](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md): sezioni Simulazione, Regole di determinismo, Costruzione, Ciclo di un frame
 - [ADR 0001](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0001-server-csharp.md), [ADR 0002](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md), [ADR 0003](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0003-costruzione-come-mindustry.md)
 - [Contenuti e dati](Contenuti-e-dati) · [Formato dei salvataggi](Salvataggi-formato) · [Test e playtest](Test-e-playtest)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Compilare e avviare](Compilare-e-avviare) · [Torna alla Home](Home) · [Pagina successiva: Contenuti e dati →](Contenuti-e-dati)
+
+<!-- /navigazione -->

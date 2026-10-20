@@ -70,3 +70,11 @@ All'inizio di una partita libera hai $180, 48 Ferro grezzo, 48 Lastre di ferro e
 - [Comandi](Comandi)
 - [Costruzione](Costruzione)
 - [Campagna e mappe](Campagna-e-mappe)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[Torna alla Home](Home) · [Pagina successiva: Comandi →](Comandi)
+
+<!-- /navigazione -->

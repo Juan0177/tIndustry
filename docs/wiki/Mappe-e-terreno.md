@@ -57,3 +57,11 @@ Le ricette passo per passo sono in [ARCHITETTURA.md](https://github.com/Juan0177
 - [docs/ARCHITETTURA.md, Terreno e mappe](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#terreno-e-mappe)
 - [tools/MapTool/Program.cs](https://github.com/Juan0177/tIndustry/blob/main/tools/MapTool/Program.cs)
 - [Contenuti e dati](Contenuti-e-dati) · [Formato dei salvataggi](Salvataggi-formato) · [Arte generata](Arte-generata)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Arte generata](Arte-generata) · [Torna alla Home](Home) · [Pagina successiva: Interfaccia e lingue →](Interfaccia-e-lingue)
+
+<!-- /navigazione -->

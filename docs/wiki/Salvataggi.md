@@ -71,3 +71,11 @@ Se il terreno rigenerato non corrisponde a quello del salvataggio, o la mappa di
 - [Primi passi](Primi-passi)
 - [Campagna e mappe](Campagna-e-mappe)
 - [Domande frequenti](Domande-frequenti)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Impostazioni e accessibilità](Impostazioni-e-accessibilita) · [Torna alla Home](Home) · [Pagina successiva: Domande frequenti →](Domande-frequenti)
+
+<!-- /navigazione -->

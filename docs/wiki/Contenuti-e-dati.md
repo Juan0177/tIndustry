@@ -44,3 +44,11 @@ Nello stesso documento ci sono anche le ricette per aggiungere [un suolo, una pa
 - [docs/ARCHITETTURA.md, Dati](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#dati)
 - [data/content.json](https://github.com/Juan0177/tIndustry/blob/main/data/content.json) · [data/campaign.json](https://github.com/Juan0177/tIndustry/blob/main/data/campaign.json)
 - [Arte generata](Arte-generata) · [Mappe e terreno](Mappe-e-terreno) · [Interfaccia e lingue](Interfaccia-e-lingue)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Architettura](Architettura) · [Torna alla Home](Home) · [Pagina successiva: Formato dei salvataggi →](Salvataggi-formato)
+
+<!-- /navigazione -->

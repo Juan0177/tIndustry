@@ -64,3 +64,11 @@ I test del gioco vero (`GameEngineTests`) aprono Godot e si saltano, con il moti
 - [ADR 0008 — Agenti che giocano](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0008-agenti-che-giocano.md)
 - [docs/ARCHITETTURA.md, Agenti che giocano](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#agenti-che-giocano)
 - [Test e playtest](Test-e-playtest) · [Architettura](Architettura) · [Compilare e avviare](Compilare-e-avviare)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Test e playtest](Test-e-playtest) · [Torna alla Home](Home) · [Pagina successiva: Sito web →](Sito-web)
+
+<!-- /navigazione -->

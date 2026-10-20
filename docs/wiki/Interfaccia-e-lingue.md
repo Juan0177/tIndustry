@@ -47,3 +47,11 @@ Il client ha **un solo tema**, costruito nel codice da `UiTheme` (`godot/scripts
 - [docs/ARCHITETTURA.md, Interfaccia (G4)](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#interfaccia-g4) e [Come aggiungere un testo o una lingua](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#come-aggiungere-un-testo-o-una-lingua)
 - [godot/lingue/testi.csv](https://github.com/Juan0177/tIndustry/blob/main/godot/lingue/testi.csv)
 - [Arte generata](Arte-generata) · [Test e playtest](Test-e-playtest) · [Architettura](Architettura)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Mappe e terreno](Mappe-e-terreno) · [Torna alla Home](Home) · [Pagina successiva: Test e playtest →](Test-e-playtest)
+
+<!-- /navigazione -->

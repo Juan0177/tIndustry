@@ -81,3 +81,11 @@ Gli sblocchi valgono per la partita in corso e si salvano con lei. Ogni livello 
 - [Risorse e oggetti](Risorse-e-oggetti)
 - [Campagna e mappe](Campagna-e-mappe)
 - [Costruzione](Costruzione)
+
+<!-- navigazione: generata da tools/dev/wiki_navigazione.py -->
+
+---
+
+[← Pagina precedente: Costruzione](Costruzione) · [Torna alla Home](Home) · [Pagina successiva: Campagna e mappe →](Campagna-e-mappe)
+
+<!-- /navigazione -->
