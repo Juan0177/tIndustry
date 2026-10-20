@@ -225,18 +225,18 @@ def _camera_mercato():
     # Desktop: the drone a little right of the panel's edge (about 40 % of the width), the screen on the right.
     # Portrait: the panels cross the whole screen from the bottom up, so the action goes where they are not: low
     # while the panel of the soaring price leaves at the top, high from the crash on (the next ones rise from
-    # below) until the blast, low again while that panel climbs past stonks and the bonus, and at the end the
-    # whole screen in the top two fifths, above the last, long panel.
+    # below) until the blast, in the middle while that panel leaves at the top and the last one rises (stonks and
+    # the bonus), and at the end the whole screen in the top two fifths, above the last, long panel.
     alto = {"xv": 38.0, "yv": 31.2, "vv": 13.4}   # the screen's 8 cells across a phone, at its top
-    basso = {"xv": 38.0, "yv": 22.4, "vv": 13.4}  # ...and in its lower half
+    mezzo = {"xv": 38.0, "yv": 27.0, "vv": 13.4}  # ...and in its middle
     return ([{"t": 0.79, "x": 32.3, "y": 31.0, "vista": 22, "xv": 31.5, "yv": 31.0, "vv": 12},
              {"t": 0.86, "x": 32.5, "y": 30.8, "vista": 21, "xv": 31.8, "yv": 30.8, "vv": 12},
              {"t": 0.872, "x": 34.2, "y": 29.6, "vista": 18, "xv": 35.5, "yv": 24.5, "vv": 15},
              {"t": 0.898, "x": 35.6, "y": 29.4, "vista": 17, "xv": 38.0, "yv": 24.5, "vv": 14}]
             + seguito
             + [dict({"t": 0.94, "x": 37.2, "y": 29.2, "vista": 10}, **alto),
-               dict({"t": 0.952, "x": 36.4, "y": 28.9, "vista": 12.5}, **basso),
-               dict({"t": 0.966, "x": 36.1, "y": 28.6, "vista": 14.5}, **basso),
+               dict({"t": 0.952, "x": 36.4, "y": 28.9, "vista": 12.5}, **mezzo),
+               dict({"t": 0.966, "x": 36.1, "y": 28.6, "vista": 14.5}, **mezzo),
                dict({"t": 0.982, "x": 36.1, "y": 28.6, "vista": 14.5}, **alto),
                dict({"t": 1.0, "x": 36.1, "y": 28.6, "vista": 14.5}, **alto)])
 

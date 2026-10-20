@@ -697,7 +697,8 @@ def pagina_racconto(archivio, versione, dati):
                      f'<p class="bottoni senza-tv"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
                      f'<a class="btn" href="{REPO_URL}">GitHub</a></p>'),
     )
-    capitoli = "".join(f'<section class="capitolo" data-lato="{lato}"><div class="pannello" data-rivela>{testo}</div></section>'
+    capitoli = "".join(f'<section class="capitolo" data-lato="{lato}"><div class="capitolo-vista">'
+                       f'<div class="pannello" data-rivela>{testo}</div></div></section>'
                        for lato, testo in pannelli)
     corpo = (f'<div class="racconto" data-cartella="../racconto/" style="--capitoli:{len(pannelli)}">'
              f'<div class="racconto-scena"><img class="racconto-poster px" src="../racconto/{dati["poster"]}" alt="" '
