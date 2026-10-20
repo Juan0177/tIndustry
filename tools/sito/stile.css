@@ -367,9 +367,9 @@ footer button:hover{border-color:var(--ambra)}
 .racconto-scena::after{content:"";position:absolute;inset:0;pointer-events:none;
  background:radial-gradient(ellipse at center,transparent 55%,#0b0d10b0 100%)}
 .racconto-capitoli{position:relative;z-index:2;margin-top:calc(var(--barra) - 100vh);pointer-events:none}
-/* Each chapter is 160vh of scroll: its panel's screen sticks for the first 60vh (the text stays put while the
+/* Each chapter is 240vh of scroll: its panel's screen sticks for the first 140vh (the text stays put while the
    scene plays on), then scrolls away; a slower story than one screen per chapter. */
-.capitolo{min-height:160vh}
+.capitolo{min-height:240vh}
 .capitolo-vista{position:sticky;top:var(--barra);min-height:100vh;display:flex;align-items:center;padding:0 max(24px,6vw);box-sizing:border-box}
 .capitolo[data-lato=destra] .capitolo-vista{justify-content:flex-end}
 .pannello{pointer-events:auto;max-width:440px;background:#0b0d10e0;border:1px solid var(--linea);border-top:3px solid var(--giallo);
@@ -384,9 +384,10 @@ footer button:hover{border-color:var(--ambra)}
  .pannello{max-width:none;width:100%}
  .pannello h2{font-size:22px}
 }
-/* a reassuring line that comes in after the rest of its panel (its own --p, from data-rivela) */
-.pannello .sollievo{--e:max(0,min(1,calc((var(--p) - .7) * 3.4)));opacity:var(--e);transform:translateY(calc((1 - var(--e)) * 12px));
- border-left:3px solid var(--verde);padding-left:10px;color:var(--testo)}
+/* a reassuring line; with data-dopo it comes in once the story reaches that progress (racconto.js adds .visto) */
+.pannello .sollievo{border-left:3px solid var(--verde);padding-left:10px;color:var(--testo);margin:12px 0}
+.racconto.pronto .sollievo[data-dopo]{transition:opacity .5s,transform .5s}
+.racconto.pronto .sollievo[data-dopo]:not(.visto){opacity:0;transform:translateY(8px)}
 /* the download links on the market screen's new channel, placed by racconto.js; without it they stay in the panel */
 .racconto-tv{display:none}
 .racconto.pronto .racconto-tv{position:absolute;margin:0;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;
@@ -394,7 +395,7 @@ footer button:hover{border-color:var(--ambra)}
 .racconto.pronto .racconto-tv.acceso{visibility:visible;opacity:1;transition:opacity .3s}
 .racconto-tv .btn{font-size:var(--tv,14px);padding:.65em 1.2em}
 .racconto.pronto .senza-tv{display:none}
-html.statico .pannello,html.statico .pannello .sollievo{--p:1!important;--e:1!important}
+html.statico .pannello{--p:1!important;--e:1!important}
 
 /* ---- motion. Everything runs by default: the moving factory is the content. The Animazioni button
    in the bar (sito.js, remembered in localStorage) stops it all with html.statico; the system request

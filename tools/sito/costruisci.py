@@ -668,7 +668,8 @@ def pagina_racconto(archivio, versione, dati):
         ("sinistra", '<span class="etichetta">// 07 · sotto attacco</span><h2>Di notte arrivano</h2>'
                      "<p>Sagome nere attraversano il fiume, dritte verso la fabbrica, e si fermano appena fuori dalla "
                      "luce delle lampade. Il drone le vede, trema e si mette l'elmetto.</p>"
-                     '<p class="sollievo" data-rivela>Respira: se non riesci ad abbatterli e il CORE sopravvive, al '
+                     f'<p class="sollievo" data-dopo="{racconto.ATTACCO["trema"][1] * racconto.SCALA_STORIA:.4f}">'
+                     "Respira: se non riesci ad abbatterli e il CORE sopravvive, al "
                      "mattino se ne vanno da soli. Se invece distruggono il CORE è Game Over.</p>"
                      '<p class="nota">Unità e difese sono in arrivo: sono nella roadmap.</p>'),
         ("sinistra", '<span class="etichetta">// 08 · l\'alba</span><h2>Il giorno le scaccia</h2>'
