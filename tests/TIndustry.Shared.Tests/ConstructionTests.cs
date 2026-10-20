@@ -12,7 +12,7 @@ namespace TIndustry.Shared.Tests;
 public sealed class ConstructionTests
 {
     private const float BuildSpeed = 0.5f;
-    private const string Iron = "iron-plate";
+    private const string Iron = "iron-ore";
 
     private static readonly string DataDir = Path.Combine(AppContext.BaseDirectory, "data");
     private static readonly FactoryContent Content = FactoryContent.Load(Path.Combine(DataDir, "content.json"));
@@ -437,6 +437,7 @@ public sealed class ConstructionTests
     public void FinishedRefundIsGradualAndExactPerLine(int ruleRefundPercent, int ironBack, int wireBack)
     {
         const string Wire = "copper-wire";
+        const string Plate = "iron-plate"; // the Miner T2 is paid in plates and wire
         var factory = NewFactory(ironPlates: 0);
         factory.State.Rules = new GameRules(RefundPercent: ruleRefundPercent, InstantBuild: false);
         var spec = new BuildSpec(Miner.AdvancedId, BuildingKind.MinerAdvanced, MinerOrigin, Direction.East);
@@ -444,14 +445,14 @@ public sealed class ConstructionTests
 
         var site = Construction.BeginDeconstruct(factory.State, MinerOrigin, ownerPlayerId: 0);
         Assert.Equal(ConstructStep.Progressed, Construction.Advance(factory.State, site, BuildSpeed));
-        Assert.InRange(factory.Wallet.MaterialCount(Iron), 0, 1);
+        Assert.InRange(factory.Wallet.MaterialCount(Plate), 0, 1);
         Assert.InRange(factory.Wallet.MaterialCount(Wire), 0, 1);
 
         RunUntilFinished(factory, site);
 
-        Assert.Equal(ironBack, factory.Wallet.MaterialCount(Iron));
+        Assert.Equal(ironBack, factory.Wallet.MaterialCount(Plate));
         Assert.Equal(wireBack, factory.Wallet.MaterialCount(Wire));
-        Assert.Equal(ironBack, site.Refunded[IndexOf(site, Iron)]);
+        Assert.Equal(ironBack, site.Refunded[IndexOf(site, Plate)]);
         Assert.Equal(wireBack, site.Refunded[IndexOf(site, Wire)]);
     }
 

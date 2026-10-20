@@ -44,33 +44,33 @@ internal static class FactoryScenarios
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var wallet = new EconomyWallet(
             0,
-            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 10 });
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-ore"] = 10 });
         var factory = new Factory(content, new BeltGrid(), core, wallet);
         var minerCost = content.FindBuilding("miner")!.BuildCost.Sum(e => e.Amount);
         var beltCost = content.FindConveyor("conveyor-basic")!.EffectiveBuildCost.Sum(e => e.Amount);
 
         Assert(factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "cost place miner");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == 10 - minerCost, "miner spent plates");
+        Assert(factory.Wallet.MaterialCount("iron-ore") == 10 - minerCost, "miner spent raw iron");
         Assert(factory.TryPlaceBelt(new GridPosition(4, 8), Direction.East), "cost place belt");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == 10 - minerCost - beltCost, "belt spent plates");
+        Assert(factory.Wallet.MaterialCount("iron-ore") == 10 - minerCost - beltCost, "belt spent raw iron");
         Assert(!factory.CanAffordStructure("smelter"), "cannot afford smelter yet");
         Assert(!factory.TryPlaceSmelter(new GridPosition(6, 7), Direction.East), "refuse smelter");
 
         Assert(factory.TryRemoveBelt(new GridPosition(4, 8)), "refund belt");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == 10 - minerCost, "belt refunded");
+        Assert(factory.Wallet.MaterialCount("iron-ore") == 10 - minerCost, "belt refunded");
         Assert(factory.TryRemoveBuildingAt(new GridPosition(2, 7)), "refund miner");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == 10, "miner refunded full");
+        Assert(factory.Wallet.MaterialCount("iron-ore") == 10, "miner refunded full");
 
         // Bridge charges ×2 heads.
         factory.EnsureDemoBuildStock(ironPlates: 20, copperWire: 10, copperOre: 4);
         factory.Research.ForceUnlock("conveyor-bridge");
-        var beforeBridge = factory.Wallet.MaterialCount("iron-plate");
-        var bridgePlates = content.FindConveyor("conveyor-bridge")!.EffectiveBuildCost
-            .Where(e => e.ItemId == "iron-plate").Sum(e => e.Amount) * 2;
+        var beforeBridge = factory.Wallet.MaterialCount("iron-ore");
+        var bridgeIron = content.FindConveyor("conveyor-bridge")!.EffectiveBuildCost
+            .Where(e => e.ItemId == "iron-ore").Sum(e => e.Amount) * 2;
         Assert(factory.TryPlaceBridge(new GridPosition(2, 3), Direction.East), "bridge place");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == beforeBridge - bridgePlates, "bridge ×2 cost");
+        Assert(factory.Wallet.MaterialCount("iron-ore") == beforeBridge - bridgeIron, "bridge ×2 cost");
         Assert(factory.TryRemoveBelt(new GridPosition(2, 3)), "bridge remove");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == beforeBridge, "bridge refund ×2");
+        Assert(factory.Wallet.MaterialCount("iron-ore") == beforeBridge, "bridge refund ×2");
     }
 
     public static void SelfTestPlaceable(string contentJsonPath)
@@ -1048,6 +1048,7 @@ internal static class FactoryScenarios
         Assert(factory.Research.IsUnlocked("smelter"), "smelter unlocked");
         Assert(factory.Wallet.Money == 250, "spent 250");
         Assert(factory.Wallet.MaterialCount("iron-plate") == 25, "spent 15 plates");
+        factory.Wallet.AddMaterial("iron-ore", 10);
         Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place forno after unlock");
 
         var assembler = content.RequireStructure("assembler");
@@ -1061,6 +1062,8 @@ internal static class FactoryScenarios
         Assert(!factory.Research.IsUnlocked("splitter"), "splitter still locked");
         factory.Wallet.AddMoney(2000);
         factory.Wallet.AddMaterial("iron-plate", 100);
+        factory.Wallet.AddMaterial("iron-ore", 100);
+        factory.Wallet.AddMaterial("lead-ore", 100);
         Assert(factory.TryUnlockStructure("junction"), "unlock junction");
         Assert(factory.TryUnlockStructure("splitter"), "unlock splitter after junction");
         Assert(factory.TryUnlockStructure("sorter"), "unlock sorter");

@@ -1297,23 +1297,21 @@ public sealed class Factory : IGameView
             {
                 var back = (int)((long)Math.Max(0, amount) * refundBasisPoints / Construction.FullRefundBasisPoints)
                     - Math.Max(0, SavedAmount(refunded, itemId));
-                if (back <= 0)
-                {
-                    continue;
-                }
-
-                if (itemId is null)
-                {
-                    Wallet.AddMoney(back);
-                }
-                else
-                {
-                    Wallet.AddMaterial(itemId, back);
-                }
+                Credit(itemId, back);
             }
 
             DropPlansOfSite(d.Id, spec);
             return;
+        }
+
+        // Spent lines the recomputed cost no longer has (plates of a site saved before raw-ore costs) are not
+        // lost: what was spent and not yet refunded goes back to the Core.
+        foreach (var (itemId, amount) in spent)
+        {
+            if (!savedCost.Any(c => string.Equals(c.ItemId, itemId, StringComparison.Ordinal)))
+            {
+                Credit(itemId, Math.Max(0, amount) - Math.Max(0, SavedAmount(refunded, itemId)));
+            }
         }
 
         var site = new ConstructSite(d.Id, spec, tiles, savedCost, d.Owner)
@@ -1332,6 +1330,23 @@ public sealed class Factory : IGameView
         }
 
         State.Sites.Add(site);
+
+        void Credit(string? itemId, int amount)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            if (itemId is null)
+            {
+                Wallet.AddMoney(amount);
+            }
+            else
+            {
+                Wallet.AddMaterial(itemId, amount);
+            }
+        }
     }
 
     /// <summary>Removes the plan of a dropped site: the current plan of the drone working on it, else a waiting build plan for it.</summary>
@@ -2085,7 +2100,8 @@ public sealed class Factory : IGameView
         int ironPlates = 200,
         int copperWire = 80,
         int copperOre = 40,
-        int money = 0)
+        int money = 0,
+        int logistics = 200)
     {
         void TopUp(string itemId, int target)
         {
@@ -2099,6 +2115,12 @@ public sealed class Factory : IGameView
         TopUp("iron-plate", ironPlates);
         TopUp("copper-wire", copperWire);
         TopUp("copper-ore", copperOre);
+        // Logistics, miners and smelters are paid in raw ore (Mindustry's copper/lead/titanium), the top belts also
+        // in graphite and silicon.
+        foreach (var itemId in new[] { "iron-ore", "lead-ore", "titanium-ore", "graphite", "silicon" })
+        {
+            TopUp(itemId, logistics);
+        }
 
         if (money > Wallet.Money)
         {

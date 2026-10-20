@@ -11,7 +11,7 @@ namespace TIndustry.Shared.Tests;
 public sealed class AutoJunctionTests
 {
     private const int Player = 0;
-    private const string Iron = "iron-plate";
+    private const string Iron = "iron-ore";
 
     private static readonly FactoryContent Content =
         FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
@@ -25,7 +25,7 @@ public sealed class AutoJunctionTests
         bool instantBuild = true, bool junctionUnlocked = true, int iron = 1000)
     {
         var wallet = new EconomyWallet(
-            0, new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = iron, ["copper-wire"] = 100 });
+            0, new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = iron, ["lead-ore"] = 100 });
         var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(CoreOrigin, 2), wallet);
         factory.State.Rules = new GameRules(InstantBuild: instantBuild);
         foreach (var id in ResearchState.DemoStructureIds)
@@ -82,6 +82,9 @@ public sealed class AutoJunctionTests
     private static GridPosition? WhereIs(Factory factory, long itemId) =>
         factory.Belts.Cells.Values.FirstOrDefault(c => c.Items.Any(i => i.Id == itemId))?.Position;
 
+    private static int IronCost(Factory factory, string id) =>
+        factory.CostOf(new BuildSpec(id, null, Crossing, Direction.South)).Where(e => e.ItemId == Iron).Sum(e => e.Amount);
+
     private static int RefundOfBelt(Factory factory) =>
         Content.Conveyors.First(c => c.Id == BuildSpec.DefaultConveyorId).EffectiveBuildCost.Single().Amount
         * factory.RefundBasisPointsFor(new BuildSpec(BuildSpec.DefaultConveyorId, null, Crossing, Direction.South))
@@ -97,8 +100,8 @@ public sealed class AutoJunctionTests
 
         Assert.Empty(refusals);
         Assert.Equal(LogisticsKind.Junction, factory.Belts.Cells[Crossing].Kind);
-        // Six new belts (1 plate each), the junction (2), the replaced belt refunded.
-        Assert.Equal(6 + 2 - RefundOfBelt(factory), before - factory.Wallet.MaterialCount(Iron));
+        // Six new belts, the junction, the replaced belt refunded.
+        Assert.Equal(6 * IronCost(factory, BuildSpec.DefaultConveyorId) + IronCost(factory, "junction") - RefundOfBelt(factory), before - factory.Wallet.MaterialCount(Iron));
 
         Assert.True(factory.Belts.TryInsert(new GridPosition(37, 33), new TransportedItem(1, "iron-ore")));
         Assert.True(factory.Belts.TryInsert(new GridPosition(40, 30), new TransportedItem(2, "copper-ore")));
@@ -130,7 +133,7 @@ public sealed class AutoJunctionTests
         Assert.Empty(factory.State.Builders[0].Plans);
         Assert.Empty(factory.Sites);
         Assert.Equal(LogisticsKind.Junction, factory.Belts.Cells[Crossing].Kind);
-        Assert.Equal(6 + 2 - RefundOfBelt(factory), before - factory.Wallet.MaterialCount(Iron));
+        Assert.Equal(6 * IronCost(factory, BuildSpec.DefaultConveyorId) + IronCost(factory, "junction") - RefundOfBelt(factory), before - factory.Wallet.MaterialCount(Iron));
     }
 
     [Theory]

@@ -23,6 +23,7 @@ public sealed class AutoBridgeTests
     {
         var factory = NewGame.Sandbox(Content, new GridPosition(30, 30), mapWidth: Size, mapHeight: Size,
             startingMoney: 1000, rules: new GameRules(InstantBuild: true));
+        factory.EnsureDemoBuildStock();
         var tiles = new TerrainTile[Size, Size];
         for (var x = 0; x < Size; x++)
         {

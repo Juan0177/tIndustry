@@ -8,7 +8,8 @@ namespace TIndustry.Shared.Tests;
 [Collection(SaveStoreCollection.Name)]
 public sealed class ConstructionSaveTests
 {
-    private const string Iron = "iron-plate";
+    private const string Iron = "iron-ore";
+    private const string Plate = "iron-plate";
     private const int Player = 0;
 
     private static readonly FactoryContent Content =
@@ -18,7 +19,7 @@ public sealed class ConstructionSaveTests
     {
         var wallet = new EconomyWallet(
             0,
-            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 1000 });
+            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 1000, [Plate] = 1000, ["lead-ore"] = 1000 });
         var factory = new Factory(
             Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(20, 20), 2), wallet);
         factory.State.Rules = rules;
@@ -246,13 +247,13 @@ public sealed class ConstructionSaveTests
     {
         var (factory, _) = WithSite(BuildingKind.MinerAdvanced, 30);
         var site = factory.Sites[0];
-        Assert.Equal([new CostEntry("copper-wire", 4), new CostEntry(Iron, 10)], site.Cost);
+        Assert.Equal([new CostEntry("copper-wire", 4), new CostEntry(Plate, 10)], site.Cost);
         var data = factory.Capture();
         var dto = data.Sites[0];
 
         // Written per item, in ordinal order; the old index lists are no longer written.
         Assert.Equal(
-            [("copper-wire", site.Spent[0]), (Iron, site.Spent[1])],
+            [("copper-wire", site.Spent[0]), (Plate, site.Spent[1])],
             dto.SpentByItem!.Select(l => (l.ItemId, l.Amount)).ToList());
         Assert.Null(dto.Spent);
         Assert.Null(dto.Refunded);
@@ -260,11 +261,31 @@ public sealed class ConstructionSaveTests
         // Lines in another order, plus one the block no longer costs: mapped by item id, the extra dropped.
         dto.SpentByItem =
         [
-            new CostLineSaveDto { ItemId = Iron, Amount = 3 },
+            new CostLineSaveDto { ItemId = Plate, Amount = 3 },
             new CostLineSaveDto { ItemId = "gold", Amount = 7 },
             new CostLineSaveDto { ItemId = "copper-wire", Amount = 1 }
         ];
         Assert.Equal([1, 3], Assert.Single(Factory.Restore(Content, data).Sites).Spent);
+    }
+
+    [Fact]
+    public void PlatesSpentBeforeRawOreCostsGoBackToTheCore()
+    {
+        // A v12 miner site from before the raw-ore costs: 3 plates spent, 1 already refunded.
+        var (factory, _) = WithSite(BuildingKind.Miner, 5);
+        var data = factory.Capture();
+        data.Version = 12;
+        var dto = data.Sites[0];
+        dto.SpentByItem = [new CostLineSaveDto { ItemId = Plate, Amount = 3 }];
+        dto.RefundedByItem = [new CostLineSaveDto { ItemId = Plate, Amount = 1 }];
+        var platesBefore = data.Materials[Plate];
+
+        var restored = Factory.Restore(Content, data);
+
+        var site = Assert.Single(restored.Sites);
+        Assert.Equal(Iron, Assert.Single(site.Cost).ItemId);
+        Assert.Equal([0], site.Spent);
+        Assert.Equal(platesBefore + 2, restored.Wallet.MaterialCount(Plate));
     }
 
     [Fact]
@@ -304,7 +325,7 @@ public sealed class ConstructionSaveTests
     public void ReplacementSiteSurvivesSaveAndLoad()
     {
         var factory = NewFactory(new GameRules());
-        factory.Wallet.AddMaterial("copper-wire", 100);
+        factory.Wallet.AddMaterial("titanium-ore", 100);
         var cell = new GridPosition(24, 21);
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
         factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, Iron, 1f)]);
@@ -338,11 +359,11 @@ public sealed class ConstructionSaveTests
     public void CancelledReplacementSiteSurvivesSaveAndLoadWithoutRefundingTheCreditTwice()
     {
         var factory = NewFactory(new GameRules());
-        factory.Wallet.AddMaterial("copper-wire", 100);
+        factory.Wallet.AddMaterial("titanium-ore", 100);
         var cell = new GridPosition(24, 21);
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
         factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, Iron, 1f)]);
-        var before = (factory.Wallet.MaterialCount(Iron), factory.Wallet.MaterialCount("copper-wire"));
+        var before = (factory.Wallet.MaterialCount(Iron), factory.Wallet.MaterialCount("titanium-ore"));
         var host = new SimHost(factory);
         host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
         for (var t = 0; t < 600 && (factory.Sites.Count == 0 || factory.Sites[0].Progress < 0.6f); t++)
@@ -364,14 +385,14 @@ public sealed class ConstructionSaveTests
         Assert.Equal("conveyor-basic", loaded.State.Belts[cell].Definition.Id);
         Assert.Equal(77, Assert.Single(loaded.State.Belts[cell].Items).Id);
         var reread = Snapshot.Read(Content, loaded.CreateSnapshot());
-        Assert.Equal(before, (reread.Wallet.MaterialCount(Iron), reread.Wallet.MaterialCount("copper-wire")));
+        Assert.Equal(before, (reread.Wallet.MaterialCount(Iron), reread.Wallet.MaterialCount("titanium-ore")));
     }
 
     [Fact]
     public void ReplacementSiteWhoseOldBeltIsNoLongerABeltIsDroppedWithItsItemsToTheCore()
     {
         var factory = NewFactory(new GameRules());
-        factory.Wallet.AddMaterial("copper-wire", 100);
+        factory.Wallet.AddMaterial("titanium-ore", 100);
         var cell = new GridPosition(24, 21);
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
         factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, "coal", 1f)]);

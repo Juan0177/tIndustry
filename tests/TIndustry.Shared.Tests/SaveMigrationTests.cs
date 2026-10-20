@@ -76,6 +76,12 @@ public sealed class SaveMigrationTests
         Assert.Equal((FactorySaveData.CurrentVersion, "classico", 0, (string?)null), (data.Version, data.Generator, data.MapSize, data.MapId));
         Assert.True(FactorySaveStore.TryLoad(Content, "fixture-v12", out var resaved, out error), error);
         Assert.Equal(host.Checksum(), resaved!.Checksum());
+        // The fixture's wallet predates raw-iron costs: hand the site what it now asks for.
+        foreach (var line in site.Cost)
+        {
+            ((Factory)host.State).Wallet.AddMaterial(line.ItemId!, line.Amount);
+        }
+
         host.AdvanceTicks(120);
         Assert.Empty(host.State.Sites);
         Assert.Equal(2, host.State.Miners.Count);

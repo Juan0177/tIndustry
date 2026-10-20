@@ -47,6 +47,10 @@
       "refundPercent": 100,
       "startingMaterials": [
         {
+          "itemId": "iron-ore",
+          "amount": 10
+        },
+        {
           "itemId": "iron-plate",
           "amount": 48
         },
@@ -76,6 +80,10 @@
       "startingMoney": 280,
       "refundPercent": 100,
       "startingMaterials": [
+        {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
         {
           "itemId": "iron-plate",
           "amount": 25
@@ -112,6 +120,10 @@
       "startingMoney": 520,
       "refundPercent": 50,
       "startingMaterials": [
+        {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
         {
           "itemId": "iron-plate",
           "amount": 55
@@ -155,6 +167,10 @@
       "refundPercent": 50,
       "startingMaterials": [
         {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
+        {
           "itemId": "iron-plate",
           "amount": 12
         },
@@ -190,6 +206,10 @@
       "startingMoney": 450,
       "refundPercent": 50,
       "startingMaterials": [
+        {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
         {
           "itemId": "iron-plate",
           "amount": 40
@@ -237,6 +257,10 @@
       "refundPercent": 50,
       "startingMaterials": [
         {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
+        {
           "itemId": "iron-plate",
           "amount": 35
         },
@@ -276,6 +300,10 @@
       "startingMoney": 560,
       "refundPercent": 50,
       "startingMaterials": [
+        {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
         {
           "itemId": "iron-plate",
           "amount": 50
@@ -318,6 +346,10 @@
       "startingMoney": 950,
       "refundPercent": 50,
       "startingMaterials": [
+        {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
         {
           "itemId": "iron-plate",
           "amount": 95
@@ -369,6 +401,10 @@
       "startingMoney": 1100,
       "refundPercent": 50,
       "startingMaterials": [
+        {
+          "itemId": "iron-ore",
+          "amount": 20
+        },
         {
           "itemId": "iron-plate",
           "amount": 70

@@ -31,11 +31,12 @@ public static class NewGame
         }
 
         var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
-        // Parity with Raylib CreateStartingWallet: plates/wire so first place isn't free-or-impossible.
+        // Raw iron pays for the first miner and belts (nothing is mined before them); plates/wire for the rest.
         var wallet = new EconomyWallet(
             startingMoney,
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
+                ["iron-ore"] = 48,
                 ["iron-plate"] = 48,
                 ["copper-wire"] = 10
             });
