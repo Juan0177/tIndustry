@@ -1,6 +1,6 @@
 # Interazione con i nastri come in Mindustry
 
-- **Stato**: da approvare (punti scelti dall'utente il 2026-10-18)
+- **Stato**: attuata (punti scelti dall'utente il 2026-10-18; PR #224, #227–#232, #240, #242, #245, #246) col [piano di implementazione](../plans/2026-10-19-nastri-mindustry.md), che aggiunge le richieste dell'utente del 2026-10-19: costi della logistica come Mindustry (tabella approvata il 2026-10-20, minerale grezzo), portata e spaziatura degli oggetti come Mindustry (3 oggetti per cella a 0,4), movimento fluido degli oggetti, rotazione e direzione dal trascinamento per ogni blocco orientabile, proposta di nastri stretti (solo tavola, `tools/art/proposte_nastri_stretti.py`: la variante scelta sarà un piano a parte)
 - **Ricerca**: [come Mindustry piazza e modifica i nastri, e cosa manca](2026-10-18-nastri-mindustry-ricerca.md)
 - **Decisioni collegate**: [ADR 0003 — Costruzione come Mindustry](../../decisioni/0003-costruzione-come-mindustry.md)
 - **Dopo**: la PR dell'unione a T e dell'incrocio automatico (`feat/nastri-t-incroci`), che tocca gli stessi file
