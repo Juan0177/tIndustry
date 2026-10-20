@@ -1,6 +1,6 @@
 # Sito «fabbrica» — vetrina, sviluppo e asset su GitHub Pages
 
-- **Stato**: approvata il 2026-10-19 (brainstorming con l'utente su una bozza visiva pubblicata come artifact, tre giri di correzioni; l'utente ha dato carta bianca sui miglioramenti).
+- **Stato**: **superata** (2026-10-20): il lavoro sul sito è andato avanti col [racconto guidato dallo scroll](2026-10-20-sito-scroll-narrativo.md) (PR #249–#251), che fa da riferimento; questa specifica resta come storico. Approvata il 2026-10-19 (brainstorming con l'utente su una bozza visiva pubblicata come artifact, tre giri di correzioni; l'utente ha dato carta bianca sui miglioramenti).
 - **Sostituisce**: il sito di oggi (`tools/sito/costruisci.py`: ingresso con le catture del README e pagina asset) e la specifica del 18 ottobre (rimasta sul ramo `claude/ripresa-task-notturni-5ht4tf`, mai unita: le sue decisioni sono state riconfermate una per una e riportate qui).
 - **Pubblicazione**: invariata, `.github/workflows/pages.yml` a mano da `main` o sui tag `v*`.
 
