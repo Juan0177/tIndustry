@@ -343,7 +343,7 @@ tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categ
 tutorial.passo.3,Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. R ruota l'uscita. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.,Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. R rotates the output. Your drone builds what you plan: watch it fly and draw the block.
 tutorial.passo.4,Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.,Press 1 (Belt) and drag a line from the miner's output to the CORE: the ore goes into storage.
 tutorial.passo.5,"Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.","Press M to open the MARKET: sell ore and plates, or turn on Auto-sell."
-tutorial.passo.6,Premi T per aprire la RICERCA: con soldi e lastre sblocchi il FORNO e gli altri edifici.,Press T to open RESEARCH: with money and plates you unlock the SMELTER and the other buildings.
+tutorial.passo.6,Premi T per aprire la RICERCA: con soldi e materiali sblocchi il FORNO e gli altri edifici.,Press T to open RESEARCH: with money and materials you unlock the SMELTER and the other buildings.
 tutorial.passo.7,"Piazza un FORNO (3): fonde i minerali in lastre. Serve carbone OPPURE corrente (generatore + nodi potenza, +20%).","Place a SMELTER (3): it smelts ore into plates. It needs coal OR power (generator + power nodes, +20%)."
 tutorial.passo.8,"IMPOSTAZIONI (I, o dalla Home): lingua, scala UI, VSync e Rivedi tutorial. Premi Fine per chiudere.","SETTINGS (I, or from Home): language, UI scale, VSync and Replay tutorial. Press Done to close."
 tutorial.fatto,✓ fatto,✓ done

@@ -523,16 +523,16 @@ public partial class World
         await shot("nastri-interrotto");
         GD.Print("PLAYTEST step ok: nastri-interrotto, T, destro, fuoco perso e rilascio fuori dalla finestra non inviano nulla");
 
-        // nastri-un-toast: no plates, a line across three perpendicular belts: one toast for the whole line.
+        // nastri-un-toast: no raw iron, a line across three perpendicular belts: one toast for the whole line.
         LineColumn(factory, 3);
         LineColumn(factory, 4);
         LineColumn(factory, 5);
-        var plates = factory.Wallet.MaterialCount("iron-plate");
-        factory.Wallet.TryRemoveMaterial("iron-plate", plates);
+        var ore = factory.Wallet.MaterialCount("iron-ore");
+        factory.Wallet.TryRemoveMaterial("iron-ore", ore);
         var toasts = _hud?.ToastsShown ?? 0;
         await LineDrag((1, 3), (8, 3));
         await PlaytestWait(0.2);
-        factory.Wallet.AddMaterial("iron-plate", plates);
+        factory.Wallet.AddMaterial("iron-ore", ore);
         var crossings = _lineSent.Count(c => c is PlaceBelt { Crossing: true });
         if (crossings != 3 || _hud?.ToastsShown != toasts + 1)
         {

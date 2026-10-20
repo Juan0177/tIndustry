@@ -2085,7 +2085,8 @@ public sealed class Factory : IGameView
         int ironPlates = 200,
         int copperWire = 80,
         int copperOre = 40,
-        int money = 0)
+        int money = 0,
+        int logistics = 200)
     {
         void TopUp(string itemId, int target)
         {
@@ -2099,6 +2100,12 @@ public sealed class Factory : IGameView
         TopUp("iron-plate", ironPlates);
         TopUp("copper-wire", copperWire);
         TopUp("copper-ore", copperOre);
+        // Logistics, miners and smelters are paid in raw ore (Mindustry's copper/lead/titanium), the top belts also
+        // in graphite and silicon.
+        foreach (var itemId in new[] { "iron-ore", "lead-ore", "titanium-ore", "graphite", "silicon" })
+        {
+            TopUp(itemId, logistics);
+        }
 
         if (money > Wallet.Money)
         {

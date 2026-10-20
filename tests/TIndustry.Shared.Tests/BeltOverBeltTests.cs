@@ -28,6 +28,7 @@ public sealed class BeltOverBeltTests
             factory.Research.ForceUnlock(id);
         }
 
+        factory.EnsureDemoBuildStock();
         var host = new SimHost(factory);
         var refusals = new List<Refusal>();
         host.CommandRejected += (_, refusal) => refusals.Add(refusal);
@@ -52,7 +53,7 @@ public sealed class BeltOverBeltTests
         Belt(factory, Cell, Direction.East);
         Assert.True(factory.Belts.TryInsert(Cell, new TransportedItem(7, "iron-ore")));
         var money = factory.Wallet.Money;
-        var plates = factory.Wallet.MaterialCount("iron-plate");
+        var ore = factory.Wallet.MaterialCount("iron-ore");
 
         Place(host, Direction.North);
 
@@ -60,7 +61,7 @@ public sealed class BeltOverBeltTests
         Assert.Equal(Direction.North, factory.Belts.Cells[Cell].Direction);
         Assert.Contains(factory.Belts.Cells[Cell].Items, i => i.Id == 7);
         Assert.Equal(money, factory.Wallet.Money);
-        Assert.Equal(plates, factory.Wallet.MaterialCount("iron-plate"));
+        Assert.Equal(ore, factory.Wallet.MaterialCount("iron-ore"));
         Assert.Empty(factory.PlansOf(Player));
     }
 

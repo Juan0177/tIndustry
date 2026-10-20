@@ -104,10 +104,10 @@ public sealed class SimHostTests
     public void SecondCommandRejectedWhenFirstSpentTheMoney()
     {
         var content = LoadContent();
-        // Junction costs $200 + 10 plates, generator $280 + 12 plates: enough for one only.
+        // Junction ($200, raw iron) and generator ($280, plates): materials for both, money for one only.
         var wallet = new EconomyWallet(
             300,
-            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 30 });
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-ore"] = 30, ["iron-plate"] = 30 });
         var factory = new Factory(
             content,
             new BeltGrid(),

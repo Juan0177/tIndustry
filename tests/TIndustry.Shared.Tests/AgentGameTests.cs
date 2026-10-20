@@ -67,6 +67,7 @@ public sealed class AgentGameTests
         Assert.Equal(0, stato.GetProperty("tick").GetInt64());
         Assert.Equal(180, stato.GetProperty("soldi").GetInt32());
         Assert.Equal(48, stato.GetProperty("risorse").GetProperty("iron-plate").GetInt32());
+        Assert.Equal(48, stato.GetProperty("risorse").GetProperty("iron-ore").GetInt32());
         Assert.Equal(10, stato.GetProperty("risorse").GetProperty("copper-wire").GetInt32());
         var energia = stato.GetProperty("energia");
         Assert.Equal(host.State.PowerCapacity, energia.GetProperty("capacita").GetSingle());
@@ -82,7 +83,8 @@ public sealed class AgentGameTests
         stato = Call(game, "stato");
         Assert.Equal(1, stato.GetProperty("tick").GetInt64());
         Assert.Equal(host.State.Wallet.Money, stato.GetProperty("soldi").GetInt32());
-        Assert.Equal(47, stato.GetProperty("risorse").GetProperty("iron-plate").GetInt32());
+        var belt = Assert.Single(Content.RequireConveyor().EffectiveBuildCost);
+        Assert.Equal(48 - belt.Amount, stato.GetProperty("risorse").GetProperty(belt.ItemId).GetInt32());
         Assert.Equal(1, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
         Assert.Equal(0, stato.GetProperty("edifici").GetProperty("minatori").GetInt32());
         Assert.Contains("miner", stato.GetProperty("ricerca").EnumerateArray().Select(e => e.GetString()));
@@ -187,6 +189,7 @@ public sealed class AgentGameTests
     public void PiazzaBridgesOverABuilding()
     {
         var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
+        factory.EnsureDemoBuildStock();
         factory.Research.ForceUnlock(BuildSpec.StructureIdFor(BuildingKind.Bridge)!);
         Assert.True(factory.PlaceInstant(new BuildSpec("miner", BuildingKind.Miner, new GridPosition(42, 50), Direction.East), charge: false));
         var host = new SimHost(factory);

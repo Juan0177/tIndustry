@@ -9,7 +9,7 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
+          "itemId": "iron-ore",
           "amount": 1
         }
       ],
@@ -25,11 +25,15 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
-          "amount": 2
+          "itemId": "iron-ore",
+          "amount": 1
         },
         {
-          "itemId": "copper-wire",
+          "itemId": "lead-ore",
+          "amount": 1
+        },
+        {
+          "itemId": "titanium-ore",
           "amount": 1
         }
       ],
@@ -37,8 +41,16 @@
         "money": 450,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 50
+            "itemId": "iron-ore",
+            "amount": 8
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 8
+          },
+          {
+            "itemId": "titanium-ore",
+            "amount": 8
           }
         ]
       },
@@ -53,16 +65,16 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
-          "amount": 2
+          "itemId": "iron-ore",
+          "amount": 3
         }
       ],
       "unlock": {
         "money": 200,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 10
+            "itemId": "iron-ore",
+            "amount": 13
           }
         ]
       },
@@ -77,7 +89,7 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
+          "itemId": "iron-ore",
           "amount": 3
         }
       ],
@@ -85,8 +97,8 @@
         "money": 280,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 15
+            "itemId": "iron-ore",
+            "amount": 13
           }
         ]
       },
@@ -101,20 +113,24 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
-          "amount": 3
+          "itemId": "iron-ore",
+          "amount": 2
         },
         {
-          "itemId": "copper-wire",
-          "amount": 1
+          "itemId": "lead-ore",
+          "amount": 2
         }
       ],
       "unlock": {
         "money": 320,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 18
+            "itemId": "iron-ore",
+            "amount": 10
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 10
           }
         ]
       },
@@ -129,20 +145,24 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
-          "amount": 3
+          "itemId": "iron-ore",
+          "amount": 6
         },
         {
-          "itemId": "copper-wire",
-          "amount": 1
+          "itemId": "lead-ore",
+          "amount": 6
         }
       ],
       "unlock": {
         "money": 340,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 20
+            "itemId": "iron-ore",
+            "amount": 21
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 21
           }
         ]
       },
@@ -157,24 +177,32 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
-          "amount": 3
+          "itemId": "titanium-ore",
+          "amount": 1
         },
         {
-          "itemId": "copper-wire",
-          "amount": 2
+          "itemId": "silicon",
+          "amount": 1
+        },
+        {
+          "itemId": "graphite",
+          "amount": 1
         }
       ],
       "unlock": {
         "money": 850,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 80
+            "itemId": "titanium-ore",
+            "amount": 8
           },
           {
-            "itemId": "copper-wire",
-            "amount": 20
+            "itemId": "silicon",
+            "amount": 8
+          },
+          {
+            "itemId": "graphite",
+            "amount": 8
           }
         ]
       },
@@ -189,15 +217,15 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
+          "itemId": "iron-ore",
           "amount": 1
         },
         {
-          "itemId": "lead-plate",
+          "itemId": "lead-ore",
           "amount": 1
         },
         {
-          "itemId": "titanium-plate",
+          "itemId": "titanium-ore",
           "amount": 2
         },
         {
@@ -209,15 +237,15 @@
         "money": 600,
         "materials": [
           {
-            "itemId": "iron-plate",
+            "itemId": "iron-ore",
             "amount": 8
           },
           {
-            "itemId": "lead-plate",
+            "itemId": "lead-ore",
             "amount": 8
           },
           {
-            "itemId": "titanium-plate",
+            "itemId": "titanium-ore",
             "amount": 10
           },
           {
@@ -402,8 +430,16 @@
         "money": 450,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 50
+            "itemId": "iron-ore",
+            "amount": 8
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 8
+          },
+          {
+            "itemId": "titanium-ore",
+            "amount": 8
           }
         ]
       },
@@ -421,8 +457,8 @@
         "money": 200,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 10
+            "itemId": "iron-ore",
+            "amount": 13
           }
         ]
       },
@@ -440,8 +476,8 @@
         "money": 280,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 15
+            "itemId": "iron-ore",
+            "amount": 13
           }
         ]
       },
@@ -459,8 +495,12 @@
         "money": 320,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 18
+            "itemId": "iron-ore",
+            "amount": 10
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 10
           }
         ]
       },
@@ -478,8 +518,12 @@
         "money": 340,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 20
+            "itemId": "iron-ore",
+            "amount": 21
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 21
           }
         ]
       },
@@ -497,12 +541,16 @@
         "money": 850,
         "materials": [
           {
-            "itemId": "iron-plate",
-            "amount": 80
+            "itemId": "titanium-ore",
+            "amount": 8
           },
           {
-            "itemId": "copper-wire",
-            "amount": 20
+            "itemId": "silicon",
+            "amount": 8
+          },
+          {
+            "itemId": "graphite",
+            "amount": 8
           }
         ]
       },
@@ -520,15 +568,15 @@
         "money": 600,
         "materials": [
           {
-            "itemId": "iron-plate",
+            "itemId": "iron-ore",
             "amount": 8
           },
           {
-            "itemId": "lead-plate",
+            "itemId": "lead-ore",
             "amount": 8
           },
           {
-            "itemId": "titanium-plate",
+            "itemId": "titanium-ore",
             "amount": 10
           },
           {
@@ -772,7 +820,7 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
+          "itemId": "iron-ore",
           "amount": 4
         }
       ],
@@ -799,7 +847,7 @@
       "moneyCost": 0,
       "buildCost": [
         {
-          "itemId": "iron-plate",
+          "itemId": "iron-ore",
           "amount": 6
         }
       ],
@@ -908,7 +956,12 @@
   "buildWeights": {
     "iron-plate": 0.7,
     "copper-wire": 0.5,
-    "copper-ore": 0.5
+    "copper-ore": 0.5,
+    "iron-ore": 0.5,
+    "lead-ore": 0.7,
+    "titanium-ore": 1.0,
+    "graphite": 1.0,
+    "silicon": 0.8
   },
   "units": {
     "drone": {

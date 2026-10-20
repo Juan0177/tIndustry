@@ -18,7 +18,7 @@ public sealed class RemovalAreaTests
     /// <summary>A 2x2 miner and three belts standing, plus one belt plan (not started: the drone is far away).</summary>
     private static (Factory Factory, SimHost Host) NewScene()
     {
-        var wallet = new EconomyWallet(0, new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 500 });
+        var wallet = new EconomyWallet(0, new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-ore"] = 500 });
         var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(2, 2), 2), wallet);
         factory.State.Rules = new GameRules(InstantBuild: false);
         factory.AddBuilder(Player);

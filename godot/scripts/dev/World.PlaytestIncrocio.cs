@@ -9,7 +9,7 @@ namespace TIndustry.Godot;
 /// of a belt drag (Mindustry): a real left-drag across a perpendicular belt, first with the junction locked (the
 /// crossed belt turns in place and its line merges into the new one, no toast), then unlocked (the drone takes the
 /// belt apart and builds a junction). Everything
-/// the probe built, the money and plates it spent and the research it unlocked are put back afterwards, so the later
+/// the probe built, the money and materials it spent and the research it unlocked are put back afterwards, so the later
 /// captures see the same game.
 /// </summary>
 public partial class World

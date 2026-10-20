@@ -14,8 +14,11 @@ public sealed class BeltReplaceTests
     private const string Basic = BuildSpec.DefaultConveyorId;
     private const string Fast = "conveyor-fast";
     private const string Express = "conveyor-express";
-    private const string Iron = "iron-plate";
-    private const string Wire = "copper-wire";
+    private const string Iron = "iron-ore";
+    private const string Lead = "lead-ore";
+
+    /// <summary>Everything the three belt tiers cost.</summary>
+    private static readonly string[] Items = ["iron-ore", "lead-ore", "titanium-ore", "graphite", "silicon"];
 
     private static readonly FactoryContent Content =
         FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
@@ -24,10 +27,9 @@ public sealed class BeltReplaceTests
     private static readonly GridPosition Cell = new(24, 21);
 
     private static (Factory Factory, SimHost Host, List<Refusal> Refusals) NewHost(
-        bool instantBuild, int iron = 1000, int wire = 100, int refundPercent = 100)
+        bool instantBuild, Dictionary<string, int>? stock = null, int refundPercent = 100)
     {
-        var wallet = new EconomyWallet(
-            0, new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = iron, [Wire] = wire });
+        var wallet = new EconomyWallet(0, stock ?? Items.ToDictionary(i => i, _ => 1000, StringComparer.Ordinal));
         var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(20, 20), 2), wallet);
         factory.State.Rules = new GameRules(RefundPercent: refundPercent, InstantBuild: instantBuild);
         foreach (var id in ResearchState.DemoStructureIds)
@@ -49,7 +51,7 @@ public sealed class BeltReplaceTests
         Assert.True(factory.PlaceInstant(new BuildSpec(id, null, Cell, Direction.East), charge: false));
         var items = new List<TransportedItem>
         {
-            new(101, Iron, 1f), new(102, Wire, 0.5f), new(103, Iron, 0.1f)
+            new(101, Iron, 1f), new(102, Lead, 0.5f), new(103, Iron, 0.1f)
         };
         factory.Belts.Cells[Cell].RestoreState(0, items);
         return items.Select(i => new TransportedItem(i.Id, i.ItemId, i.Progress)).ToList();
@@ -73,8 +75,25 @@ public sealed class BeltReplaceTests
 
     private static bool Idle(Factory factory) => factory.Sites.Count == 0 && factory.PlansOf(Player).Count == 0;
 
-    private static (int Money, int Iron, int Wire) Stock(Factory factory) =>
-        (factory.Wallet.Money, factory.Wallet.MaterialCount(Iron), factory.Wallet.MaterialCount(Wire));
+    /// <summary>Money (under "$") and every belt item in the wallet.</summary>
+    private static Dictionary<string, int> Stock(Factory factory)
+    {
+        var stock = Items.ToDictionary(i => i, factory.Wallet.MaterialCount, StringComparer.Ordinal);
+        stock["$"] = factory.Wallet.Money;
+        return stock;
+    }
+
+    /// <summary>The stock after paying <paramref name="newId"/> over <paramref name="oldId"/>, the excess back at <paramref name="refundPercent"/>.</summary>
+    private static Dictionary<string, int> AfterReplace(
+        Factory factory, Dictionary<string, int> before, string oldId, string newId, int refundPercent = 100) =>
+        before.ToDictionary(
+            kv => kv.Key,
+            kv =>
+            {
+                var (due, excess) = Split(factory, oldId, newId, kv.Key == "$" ? null : kv.Key);
+                return kv.Value - due + excess * refundPercent / 100;
+            },
+            StringComparer.Ordinal);
 
     private static int Line(IReadOnlyList<CostEntry> cost, string? itemId) =>
         cost.Where(e => e.ItemId == itemId).Sum(e => e.Amount);
@@ -113,10 +132,7 @@ public sealed class BeltReplaceTests
         Assert.Equal(Fast, cell.Definition.Id);
         Assert.Equal(Direction.East, cell.Direction);
         AssertKeeps(factory, old);
-        var after = Stock(factory);
-        Assert.Equal(before.Money - Split(factory, Basic, Fast, null).Due, after.Money);
-        Assert.Equal(before.Iron - Split(factory, Basic, Fast, Iron).Due, after.Iron);
-        Assert.Equal(before.Wire - Split(factory, Basic, Fast, Wire).Due, after.Wire);
+        Assert.Equal(AfterReplace(factory, before, Basic, Fast, refundPercent: 0), Stock(factory));
     }
 
     [Fact]
@@ -124,27 +140,26 @@ public sealed class BeltReplaceTests
     {
         var (probe, _, _) = NewHost(instantBuild: true);
         var (factory, host, refusals) = NewHost(
-            instantBuild: true,
-            iron: Split(probe, Basic, Fast, Iron).Due,
-            wire: Split(probe, Basic, Fast, Wire).Due);
+            instantBuild: true, Items.ToDictionary(i => i, i => Split(probe, Basic, Fast, i).Due, StringComparer.Ordinal));
         OldBelt(factory);
 
         Place(host, Fast);
 
         Assert.Empty(refusals);
         Assert.Equal(Fast, factory.Belts.Cells[Cell].Definition.Id);
-        Assert.Equal((0, 0, 0), Stock(factory));
+        Assert.All(Stock(factory).Values, amount => Assert.Equal(0, amount));
     }
 
     [Fact]
     public void UpgradeShortOfTheDifferenceChangesNothing()
     {
         var (probe, _, _) = NewHost(instantBuild: true);
-        var wireDue = Split(probe, Basic, Fast, Wire).Due;
-        Assert.True(wireDue > 0);
-        var ironDue = Split(probe, Basic, Fast, Iron).Due;
-        var (factory, host, refusals) = NewHost(instantBuild: true, iron: ironDue, wire: 0);
-        var (control, controlHost, _) = NewHost(instantBuild: true, iron: ironDue, wire: 0);
+        var leadDue = Split(probe, Basic, Fast, Lead).Due;
+        Assert.True(leadDue > 0);
+        Dictionary<string, int> ShortOfLead() =>
+            Items.ToDictionary(i => i, i => i == Lead ? 0 : Split(probe, Basic, Fast, i).Due, StringComparer.Ordinal);
+        var (factory, host, refusals) = NewHost(instantBuild: true, ShortOfLead());
+        var (control, controlHost, _) = NewHost(instantBuild: true, ShortOfLead());
         OldBelt(factory);
         OldBelt(control);
 
@@ -153,7 +168,7 @@ public sealed class BeltReplaceTests
 
         var refusal = Assert.Single(refusals);
         Assert.Equal(RefusalCode.InsufficientResources, refusal.Code);
-        Assert.Equal([new ResourceAmount(Wire, wireDue)], refusal.MissingItems);
+        Assert.Equal([new ResourceAmount(Lead, leadDue)], refusal.MissingItems);
         Assert.Equal(controlHost.Checksum(), host.Checksum());
     }
 
@@ -175,9 +190,7 @@ public sealed class BeltReplaceTests
         RunUntil(host, () => Idle(factory));
         Assert.Equal(Fast, factory.Belts.Cells[Cell].Definition.Id);
         AssertKeeps(factory, old);
-        var after = Stock(factory);
-        Assert.Equal(before.Iron - Split(factory, Basic, Fast, Iron).Due, after.Iron);
-        Assert.Equal(before.Wire - Split(factory, Basic, Fast, Wire).Due, after.Wire);
+        Assert.Equal(AfterReplace(factory, before, Basic, Fast, refundPercent: 0), Stock(factory));
     }
 
     [Theory]
@@ -198,13 +211,8 @@ public sealed class BeltReplaceTests
         Assert.Empty(refusals);
         Assert.Equal(newId, factory.Belts.Cells[Cell].Definition.Id);
         AssertKeeps(factory, old);
-        var after = Stock(factory);
-        var iron = Split(factory, oldId, newId, Iron);
-        var wire = Split(factory, oldId, newId, Wire);
-        Assert.Equal(0, iron.Due + wire.Due);
-        Assert.True(iron.Excess + wire.Excess > 0);
-        Assert.Equal(before.Iron + iron.Excess * 50 / 100, after.Iron);
-        Assert.Equal(before.Wire + wire.Excess * 50 / 100, after.Wire);
+        Assert.True(Items.Sum(i => Split(factory, oldId, newId, i).Excess) > 0);
+        Assert.Equal(AfterReplace(factory, before, oldId, newId, refundPercent: 50), Stock(factory));
     }
 
     [Theory]
@@ -220,7 +228,7 @@ public sealed class BeltReplaceTests
         Place(host, Fast);
         RunUntil(host, () => factory.Sites.Count == 1 && factory.Sites[0].Progress >= cancelAt);
         Assert.True(factory.Sites[0].Progress < 1f);
-        Assert.True(Stock(factory).Wire < before.Wire, "the site has paid part of the difference");
+        Assert.True(Stock(factory)[Lead] < before[Lead], "the site has paid part of the difference");
         host.Submit(new Remove(Player, Cell));
         RunUntil(host, () => Idle(factory));
 
@@ -269,8 +277,7 @@ public sealed class BeltReplaceTests
         var cost = factory.CostOf(new BuildSpec(Fast, null, Cell, Direction.East));
         Assert.Equal(Fast, factory.Belts.Cells[Cell].Definition.Id);
         Assert.Empty(factory.Belts.Cells[Cell].Items);
-        Assert.Equal(before.Iron - Line(cost, Iron), Stock(factory).Iron);
-        Assert.Equal(before.Wire - Line(cost, Wire), Stock(factory).Wire);
+        Assert.Equal(before.ToDictionary(kv => kv.Key, kv => kv.Value - Line(cost, kv.Key == "$" ? null : kv.Key)), Stock(factory));
     }
 
     [Theory]

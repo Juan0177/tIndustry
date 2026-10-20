@@ -12,7 +12,8 @@ namespace TIndustry.Shared.Tests;
 /// </summary>
 public sealed class BuilderTests
 {
-    private const string Iron = "iron-plate";
+    private const string Iron = "iron-ore";
+    private const string Plate = "iron-plate";
     private const int Player = 0;
 
     private static readonly FactoryContent Content =
@@ -28,7 +29,7 @@ public sealed class BuilderTests
     {
         var wallet = new EconomyWallet(
             0,
-            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = ironPlates });
+            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = ironPlates, [Plate] = ironPlates });
         var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(CoreOrigin, 2), wallet);
         factory.State.Rules = new GameRules(refundPercent, instantBuild);
         if (unlockAll)
@@ -550,8 +551,10 @@ public sealed class BuilderTests
         Assert.Empty(factory.Smelters);
         Assert.Empty(factory.Sites);
         Assert.Empty(factory.PlansOf(Player));
-        Assert.Equal(3, factory.Wallet.MaterialCount(Iron)); // floor(6 × 50%)
-        Assert.Equal(0, factory.Wallet.MaterialCount("iron-ore")); // items inside are lost
+        // Half the smelter's raw iron back; the two ore inside are lost.
+        var cost = Assert.Single(Content.FindBuilding(Crafter.SmelterBuildingId)!.BuildCost);
+        Assert.Equal(Iron, cost.ItemId);
+        Assert.Equal(cost.Amount * 50 / 100, factory.Wallet.MaterialCount(Iron));
     }
 
     [Fact]
@@ -678,7 +681,7 @@ public sealed class BuilderTests
     {
         var wallet = new EconomyWallet(
             1_000,
-            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 200, ["copper-wire"] = 200 });
+            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 200, [Plate] = 200, ["copper-wire"] = 200, ["lead-ore"] = 200 });
         var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(60, 49), 2), wallet);
         factory.State.Rules = new GameRules(InstantBuild: false);
         foreach (var id in ResearchState.DemoStructureIds)
