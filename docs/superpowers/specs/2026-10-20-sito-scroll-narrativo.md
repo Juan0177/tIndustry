@@ -25,7 +25,7 @@ Una **sola fabbrica a tutto schermo**, fissa dietro alla pagina, disegnata con g
 | 2. I nastri | Il drone posa i nastri cella per cella, curva compresa; gli oggetti partono quando il tratto è chiuso. | Come funziona la logistica. |
 | 3. Il forno | La camera scivola al forno: carbone da un lato, ferro dall'altro, lastre in uscita. | Ricette, forno multi-ricetta. |
 | 4. La corrente | Generatore, nodi e lampade: le linee si disegnano una dopo l'altra (tratteggio che si riempie) e gli edifici si illuminano. | Energia. |
-| 5. Sotto attacco | La camera si allarga di colpo, bordo rosso, sagome nemiche ai margini (il teaser di oggi, integrato). | Unità in arrivo. |
+| 5. Sotto attacco | La camera si allarga di colpo, bordo rosso, sagome nemiche ai margini (il teaser di oggi, integrato); al drone cade in testa un elmetto. | Unità in arrivo. |
 | 6. Il mondo | Zoom fuori su tutta la mappa: si vedono i biomi, i fiumi, le altre catene. | Mappe generate dal seme, campagna. |
 | 7. Il CORE | La camera torna sul CORE, le due catene convergono nell'unione a T, il grafico del Mercato sale. | Scarica, requisiti. |
 
@@ -99,8 +99,15 @@ Prese con l'utente il 20 ottobre (il lavoro non è ancora partito):
 - **Mappa dedicata al racconto**, scritta a mano per le inquadrature, non una mappa della campagna. Va comunque controllata dai test di connettività, ricette e durezze come le scene di oggi.
 - **Scroll morbido**: si usa Lenis (licenza MIT) su desktop. Su touch resta lo scroll del telefono, che è già morbido di suo. La tastiera (frecce, Pagina giù, Spazio) e le ancore della barra devono continuare a funzionare; con «Animazioni» in pausa lo scroll morbido si spegne.
 
-Ancora aperta:
+- **Strada A, sostituire**: hero, Come funziona, Sotto attacco e Scarica diventano capitoli del racconto; sotto restano come pagina normale Catture, Blocchi, Ambienti e Interfaccia.
+- **Il drone è il filo del racconto, in 2.5D, con l'elmetto nell'attacco.** Il drone segue il visitatore e costruisce la fabbrica capitolo dopo capitolo; nel capitolo «Sotto attacco» gli compare sopra un elmetto, e se ne va quando l'attacco finisce. Per portare l'elmetto in modo credibile il drone del racconto diventa 2.5D.
 
-- **Cosa succede alla pagina di oggi.** Oggi la vetrina ha otto sezioni: hero, Come funziona, Catture, Blocchi, Sotto attacco, Ambienti, Interfaccia, Scarica. Due strade:
-  - *A, sostituire (consigliata)*: hero, Come funziona, Sotto attacco e Scarica diventano capitoli del racconto; sotto restano come pagina normale Catture, Blocchi, Ambienti e Interfaccia. La pagina non ripete le stesse cose due volte.
-  - *B, aggiungere*: il racconto va in cima e tutte le otto sezioni di oggi restano sotto, invariate. Più lavoro conservato, ma pagina più lunga e alcuni contenuti doppi (il CORE e il download, per esempio).
+### Il drone 2.5D (proposta tecnica)
+
+- **Sprite impilati** (*sprite stacking*, la tecnica classica del pixel-art in 2.5D): il drone è una pila di 8-12 fette orizzontali di pixel-art disegnate una sopra l'altra, ciascuna spostata di un pixel verso l'alto. Ruotando le fette insieme il drone gira su se stesso con volume vero, inclinandosi in volo e nelle curve, senza modelli 3D e restando pixel-art.
+- **Ombra a terra** separata, che si allontana quando il drone sale e si stringe quando scende: dà la quota.
+- **Elmetto** come altre 3-4 fette in cima alla pila: quando compare cade dall'alto e si posa con un piccolo rimbalzo; finito l'attacco si solleva e sparisce.
+- Fette, ombra ed elmetto si generano con `tools/art/genera.py` come ogni altro sprite (regola dell'arte generata da script), a partire dal `drone-1` del gioco, così il drone del sito resta riconoscibile.
+- Con «Animazioni» in pausa il drone è un'immagine ferma (una vista di tre quarti, con l'elmetto nel capitolo dell'attacco).
+- Il drone del gioco resta com'è: il 2.5D riguarda solo il sito, salvo decisione diversa.
+Nessuna domanda aperta: si parte quando l'utente lo dice, dal prototipo di un capitolo (giacimento, minatore, primo nastro, con il drone 2.5D).
