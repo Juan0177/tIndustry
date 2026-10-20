@@ -381,7 +381,17 @@ footer button:hover{border-color:var(--ambra)}
  .pannello{max-width:none;width:100%}
  .pannello h2{font-size:22px}
 }
-html.statico .pannello{--p:1!important;--e:1!important}
+/* a reassuring line that comes in after the rest of its panel (its own --p, from data-rivela) */
+.pannello .sollievo{--e:max(0,min(1,calc((var(--p) - .7) * 3.4)));opacity:var(--e);transform:translateY(calc((1 - var(--e)) * 12px));
+ border-left:3px solid var(--verde);padding-left:10px;color:var(--testo)}
+/* the download links on the market screen's new channel, placed by racconto.js; without it they stay in the panel */
+.racconto-tv{display:none}
+.racconto.pronto .racconto-tv{position:absolute;margin:0;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;
+ visibility:hidden;opacity:0;transition:opacity .3s,visibility 0s .3s;z-index:3}
+.racconto.pronto .racconto-tv.acceso{visibility:visible;opacity:1;transition:opacity .3s}
+.racconto-tv .btn{font-size:var(--tv,14px);padding:.65em 1.2em}
+.racconto.pronto .senza-tv{display:none}
+html.statico .pannello,html.statico .pannello .sollievo{--p:1!important;--e:1!important}
 
 /* ---- motion. Everything runs by default: the moving factory is the content. The Animazioni button
    in the bar (sito.js, remembered in localStorage) stops it all with html.statico; the system request

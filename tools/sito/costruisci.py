@@ -631,8 +631,9 @@ def stile():
 
 
 def pagina_racconto(archivio, versione, dati):
-    """The scroll-driven story, all its chapters: a sticky canvas (racconto.js) behind thirteen panels, one
-    screen each. Without the script the still poster stands behind the same panels."""
+    """The scroll-driven story, all its chapters: a sticky canvas (racconto.js) behind fourteen panels, one
+    screen each. Without the script the still poster stands behind the same panels, and the download links of the
+    last one, which racconto.js shows inside the market screen instead, stay in the panel."""
     import racconto
     logo = archivio.immagini("ui/ui-logo")
     url_logo = archivio.png("logo-x8", logo.resize((logo.width * 8, logo.height * 8), Image.NEAREST))
@@ -664,13 +665,15 @@ def pagina_racconto(archivio, versione, dati):
         ("sinistra", '<span class="etichetta">// 06 · la sera</span><h2>Si fa buio</h2>'
                      "<p>Il giorno finisce e la fabbrica resta accesa: le lampade e la bocca del forno illuminano i "
                      "nastri che continuano a girare.</p>"),
-        ("destra", '<span class="etichetta">// 07 · sotto attacco</span><h2>Di notte arrivano</h2>'
-                   "<p>Nel buio le unità nemiche attraversano il fiume e si fermano appena fuori dalla luce delle "
-                   "lampade. Il drone si mette l'elmetto e resta di guardia.</p>"
-                   '<p class="nota">Unità e difese sono in arrivo: sono nella roadmap.</p>'),
+        ("sinistra", '<span class="etichetta">// 07 · sotto attacco</span><h2>Di notte arrivano</h2>'
+                     "<p>Sagome nere attraversano il fiume, dritte verso la fabbrica, e si fermano appena fuori dalla "
+                     "luce delle lampade. Il drone le vede, trema e si mette l'elmetto.</p>"
+                     '<p class="sollievo" data-rivela>Respira: se non riesci ad abbatterli e il CORE sopravvive, al '
+                     "mattino se ne vanno da soli. Se invece distruggono il CORE è Game Over.</p>"
+                     '<p class="nota">Unità e difese sono in arrivo: sono nella roadmap.</p>'),
         ("sinistra", '<span class="etichetta">// 08 · l\'alba</span><h2>Il giorno le scaccia</h2>'
-                     "<p>I nemici ci sono solo di notte: quando torna il giorno i superstiti scappano oltre il fiume. "
-                     "Il drone si toglie l'elmetto e torna al lavoro.</p>"),
+                     "<p>Torna il giorno e i superstiti scappano oltre il fiume, fino a sparire. Il drone si toglie "
+                     "l'elmetto e torna al lavoro.</p>"),
         ("destra", '<span class="etichetta">// 09 · il mondo</span><h2>Il mondo intorno</h2>'
                    "<p>Ogni partita ha la sua mappa, generata dal seme: rocce, prati, neve e sabbia, fiumi da "
                    "scavalcare col ponte, giacimenti sparsi. Dieci livelli di campagna, da 200×200 a 1000×1000 celle.</p>"),
@@ -682,16 +685,25 @@ def pagina_racconto(archivio, versione, dati):
                    "vendere tutte insieme, subito.</p>"),
         ("sinistra", '<span class="etichetta">// 12 · vendi tutto</span><h2>Stonks</h2>'
                      "<p>Al Mercato il prezzo scende mentre vendi e risale piano. Vendere tutto in un colpo lo fa "
-                     "crollare. Meglio poco alla volta.</p>"
-                     f'<p class="nota">Per consolarti, stavolta: bonus dei soldi +{racconto.BONUS}%.</p>'
-                     f'<p class="bottoni"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
-                     '<a class="btn" href="../">Torna alla vetrina</a></p>'),
+                     "crollare fino al prezzo normale. Meglio poco alla volta.</p>"),
+        ("sinistra", '<span class="etichetta">// 13 · il jackpot</span><h2>Il jackpot</h2>'
+                     "<p>Un rialzo improvviso del Mercato è raro. Vendere oltre una soglia aumenta la probabilità del "
+                     f"jackpot, come il bonus dei soldi +{racconto.BONUS}% di stavolta: dopo un crollo, infatti, il "
+                     "mercato resta fermo per un po' e ogni tanto scende sotto il prezzo normale.</p>"
+                     '<p class="sollievo">Tranquillo: succede a ogni oggetto per conto suo. Se crolla il '
+                     "ferro, il rame resta com'era.</p>"
+                     '<p class="nota">Il jackpot è ancora un\'idea: la trovi nel file delle idee. Il drone intanto ha '
+                     "cambiato canale.</p>"
+                     f'<p class="bottoni senza-tv"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
+                     f'<a class="btn" href="{REPO_URL}">GitHub</a></p>'),
     )
     capitoli = "".join(f'<section class="capitolo" data-lato="{lato}"><div class="pannello" data-rivela>{testo}</div></section>'
                        for lato, testo in pannelli)
     corpo = (f'<div class="racconto" data-cartella="../racconto/" style="--capitoli:{len(pannelli)}">'
              f'<div class="racconto-scena"><img class="racconto-poster px" src="../racconto/{dati["poster"]}" alt="" '
-             'width="1600" height="768"><canvas id="racconto-tela" aria-hidden="true"></canvas></div>'
+             'width="1600" height="768"><canvas id="racconto-tela" aria-hidden="true"></canvas>'
+             f'<p class="racconto-tv"><a class="btn primario" href="{RELEASE_URL}">Scarica</a>'
+             f'<a class="btn" href="{REPO_URL}">GitHub</a></p></div>'
              f'<div class="racconto-capitoli">{capitoli}</div></div>'
              f'<script type="application/json" id="racconto-dati">{racconto.json_della_pagina(dati)}</script>')
     nav = _nav((("../", "Vetrina"), ("../sviluppo/", "Sviluppo"), ("../asset/", "Asset")))

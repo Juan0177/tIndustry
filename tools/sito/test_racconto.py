@@ -75,11 +75,48 @@ class TestRacconto(unittest.TestCase):
         self.assertTrue(M["meme"][0] < M["meme"][1] <= M["bonus"][0] < M["bonus"][1] <= 1)   # the bonus after stonks
         self.assertIn("bonus", self.nomi)
         self.assertGreater(M["prezzo"]["alto"], 50 * M["prezzo"]["base"])
+        # Then the drone changes channel: the bonus first, the click, the switch, the game's channel before the end
+        # of the scroll (its buttons are HTML over the screen, racconto.js places them on BOTTONI_TV).
+        C = M["canale"]
+        self.assertTrue(M["bonus"][1] <= C["tasto"] < C["cambio"][0] < C["cambio"][1] < 1)
+        self.assertIn("canale", self.nomi)
+        self.assertIn("canale-osd", self.nomi)
+        x0, y0, x1, y1 = racconto.BOTTONI_TV
+        self.assertTrue(0 <= x0 < x1 <= M["interno"][2] and 0 <= y0 < y1 <= M["interno"][3])
+        sx, sy = C["sensore"]   # the remote's sensor sits on the frame, outside the screen
+        self.assertFalse(M["interno"][0] <= sx < M["interno"][0] + M["interno"][2] and M["interno"][1] <= sy < M["interno"][1] + M["interno"][3])
         tappe = self.dati["drone"]["tappe"]
         self.assertEqual(sorted(t["t"] for t in tappe), [t["t"] for t in tappe])
-        self.assertGreater(tappe[0]["t"], ultimo)
+        mercato = [p for p in tappe if p["t"] > ultimo]
+        self.assertEqual(racconto.TAPPE_MERCATO, mercato)
+        canale = mercato[-1]   # with the remote, over the top left corner of the frame (8 art px below the cell)
+        self.assertLessEqual(canale["y"], M["y"] + 8 / racconto.CELLA)
+        self.assertTrue(M["x"] - 1 <= canale["x"] <= M["x"] + 1)
         for nome in ("schermo", "valigetta", "stonks", "mercato-titolo"):
             self.assertIn(nome, self.nomi)
+
+    def test_primo_piano_dell_attacco(self):
+        # The close-up: cinema bars, the drone at its guard post on the river bank facing east, it sees the
+        # silhouettes, trembles, the helmet drops; the ice breaks (it calms down, the bars go) before dawn.
+        A, E, N = self.dati["attacco"], self.dati["elmetto"], self.dati["notte"]
+        b = A["barre"]
+        self.assertTrue(N["t1"] <= b[0] < b[1] < A["vede"] <= A["trema"][0] < E["cade"] < E["posato"] < A["trema"][1])
+        self.assertTrue(A["trema"][1] <= b[2] < b[3] < N["alba0"])
+        ultimo = max(c["t1"] for c in self.dati["costruzioni"])
+        guardia = [p for p in self.dati["drone"]["tappe"] if p["t"] < ultimo]
+        self.assertEqual(3, len(guardia))
+        posto = guardia[-1]
+        self.assertTrue(guardia[1]["t"] <= A["vede"] and posto["t"] >= N["alba0"] - 0.05)   # there all along
+        self.assertGreater(posto["guarda"][0], posto["x"])   # facing east, where they come from
+        vicini = [n for n in self.dati["nemici"]
+                  if abs(n["y"] - posto["y"]) < 5 and min(k[1] for k in n["chiavi"]) - posto["x"] < 7]
+        self.assertGreaterEqual(len(vicini), 3)   # in the same shot as the drone
+        primo_piano = [k for k in self.dati["camera"] if b[1] <= k["t"] <= b[2]]
+        self.assertTrue(primo_piano and all(k["vista"] <= 14 for k in primo_piano))
+        for k in primo_piano:   # the drone left of the middle, the enemies' stops right of it, inside the frame
+            self.assertLess(posto["x"], k["x"])
+            for n in vicini:
+                self.assertTrue(k["x"] < n["chiavi"][1][1] < k["x"] + k["vista"] / 2)
 
     def test_linea_del_tempo(self):
         costruzioni = [c for c in self.dati["costruzioni"] if not c.get("fisso")]
