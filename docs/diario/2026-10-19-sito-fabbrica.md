@@ -40,7 +40,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 11 | Prototipo del racconto guidato dallo scroll, capitolo 1, con il drone 2.5D (PR #249) | `c347488` |
 | 12 | Drone 2.5D a volumi veri; prezzo del Mercato su rulli; test dei nastri con la velocità nuova (PR #250, PR #251) | `0acf756`, `c36a2c3` |
 | 13 | Racconto: capitoli 2-4 (forno, lastre, corrente, sera) e anticipo dell'attacco (PR #261) | `77dc59e` |
-| 14 | Racconto completo: attacco notturno con l'elmetto, alba, mondo, CORE; regola dei nemici notturni nella roadmap (PR PR_14) | HASH_14 |
+| 14 | Racconto completo: attacco notturno con l'elmetto, alba, mondo, CORE; regola dei nemici notturni nella roadmap (PR #262) | `646f5ca` |
 
 ## Giri di revisione
 
