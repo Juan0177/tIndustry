@@ -117,6 +117,17 @@ class TestFabbrica(unittest.TestCase):
         nel_core = [c for c in fabbrica.catene(scarica) if c["fine"] == ("blocco", "core-3")]
         self.assertEqual(2, len(nel_core))
         self.assertTrue(all((8, 1) in c["celle"] for c in nel_core))
+        # ...and shows what both belts carry: items in from the west and from the east, taking turns.
+        t = next(e for e in scarica.elementi if isinstance(e, fabbrica.Pezzo) and e.tipo == "t")
+        da_ovest = next(e for e in scarica.elementi if isinstance(e, fabbrica.Tratto) and e.verso == "E" and e.y == 1)
+        da_est = next(e for e in scarica.elementi if isinstance(e, fabbrica.Tratto) and e.verso == "W" and e.y == 1)
+        for verso, nastro in (("WS", da_ovest), ("ES", da_est)):
+            portati = {o for v, o, _ in t.flussi if v == verso}
+            self.assertTrue(portati)
+            self.assertLessEqual(portati, set(nastro.oggetti))
+        html = fabbrica.html_scena(scarica, self.archivio)
+        self.assertIn("animation-name:va-ws", html)
+        self.assertIn("animation-name:va-es", html)
         tier = {e.tier for s in fabbrica.VETRINA for e in s.elementi if isinstance(e, fabbrica.Tratto)}
         self.assertEqual({"conveyor-basic", "conveyor-fast"}, tier)
 

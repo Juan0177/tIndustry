@@ -6,10 +6,13 @@
  *   1. adatta()  - scales every .scena (a 1152 px factory floor) with CSS zoom to fit its .sez and
  *                  writes the factor into --zoom on the .sez;
  *   2. scorri()  - writes the scroll progress 0..1 into the CSS variable --p of the pinned wrappers,
- *                  the sections, the revealed elements and the block strip, and fills #avanza;
+ *                  the sections and the revealed elements, and fills #avanza;
  *   3. drone     - the construction drone: it wanders over the factory and, on a plain click on a
  *                  link with data-costruisci, flies to the button, builds it with its beam for half
- *                  a second and then opens it.
+ *                  a second and then opens it;
+ *   4. visore    - a click on a capture opens it in the #visore dialog over the page (close button,
+ *                  Esc, click outside; arrows and buttons go through the captures); without the
+ *                  script the link opens the PNG.
  * Motion policy (politica): everything runs by default, because the moving factory is the content;
  * the #animazioni button of the bar pauses it all (html.statico, remembered in localStorage) and
  * starts it again (html.animato); prefers-reduced-motion alone keeps the belts running but keeps
@@ -70,6 +73,12 @@
     return riduceSistema ? "ridotto" : "pieno";
   }
 
+  /* Index of the capture `passo` places away from `i` among `n`, wrapping around at both ends. */
+  function vicino(i, passo, n) {
+    if (!(n > 0)) return 0;
+    return ((i + passo) % n + n) % n;
+  }
+
   /* Scroll progress of the page in percent: 0 at the top, 100 when the bottom of the document is
      reached, 0 when the page does not scroll at all. */
   function avanzamento(scrollY, altezzaDocumento, vh) {
@@ -108,7 +117,7 @@
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { intercetta: intercetta, avanzamento: avanzamento, bersaglio: bersaglio, limita: limita, politica: politica };
+    module.exports = { intercetta: intercetta, avanzamento: avanzamento, bersaglio: bersaglio, limita: limita, politica: politica, vicino: vicino };
   }
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
@@ -164,13 +173,12 @@
   // ------------------------------------------------------------------ 2. scorri: --p and the progress bar
 
   var avanza = doc.getElementById("avanza");
-  var pins = [], rivela = [], strisce = [];
+  var pins = [], rivela = [];
 
   function raccogli() {
     pins = tutti(".pin");
     rivela = tutti(".sez").filter(function (el) { return !(el.closest && el.closest(".pin")); })
       .concat(tutti("[data-rivela]"));
-    strisce = tutti(".finestra-striscia");
   }
 
   function altezzaBarra() {
@@ -200,14 +208,6 @@
     });
     rivela.forEach(function (el) {
       letture.push([el, limita((vh - el.getBoundingClientRect().top) / (vh * 0.55))]);
-    });
-    strisce.forEach(function (el) {
-      var cornice = el.parentElement || el;
-      var inizio = parseFloat(el.getAttribute("data-inizio"));
-      var corsa = parseFloat(el.getAttribute("data-corsa"));
-      if (isNaN(inizio)) inizio = hb;
-      if (!(corsa > 0)) corsa = 1;
-      letture.push([el, limita((inizio - cornice.getBoundingClientRect().top) / corsa)]);
     });
     letture.forEach(function (l) { scriviP(l[0], l[1]); });
     if (avanza) {
@@ -414,6 +414,47 @@
     });
   }
 
+  // ------------------------------------------------------------------ 4. visore: the captures over the page
+
+  function avviaVisore() {
+    var visore = doc.getElementById("visore");
+    if (!visore || typeof visore.showModal !== "function") return;   // no <dialog>: the links open the PNGs
+    var img = visore.querySelector("img"), didascalia = visore.querySelector(".visore-didascalia");
+    var conta = visore.querySelector(".visore-conta"), attuale = 0;
+    function catture() { return tutti(".crt > a"); }
+    function mostra(i) {
+      var elenco = catture();
+      if (!elenco.length) return;
+      attuale = vicino(i, 0, elenco.length);
+      var link = elenco[attuale], cap = link.parentElement.querySelector("figcaption");
+      var testo = cap ? cap.textContent.trim() : "";
+      img.src = link.getAttribute("href");
+      img.alt = testo;
+      didascalia.textContent = testo;
+      conta.textContent = (attuale + 1) + " / " + elenco.length;
+    }
+    doc.addEventListener("click", function (ev) {
+      var t = ev.target;
+      var link = t && typeof t.closest === "function" ? t.closest(".crt > a") : null;
+      if (!link || ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      mostra(catture().indexOf(link));
+      visore.showModal();
+    });
+    visore.addEventListener("click", function (ev) {
+      var t = ev.target;
+      if (t === visore) { visore.close(); return; }   // the backdrop: a click outside the picture
+      if (t.closest(".visore-chiudi")) visore.close();
+      else if (t.closest(".visore-prec")) mostra(attuale - 1);
+      else if (t.closest(".visore-succ")) mostra(attuale + 1);
+    });
+    visore.addEventListener("keydown", function (ev) {
+      if (ev.key === "ArrowLeft") { ev.preventDefault(); mostra(attuale - 1); }
+      else if (ev.key === "ArrowRight") { ev.preventDefault(); mostra(attuale + 1); }
+    });
+    visore.addEventListener("close", function () { img.removeAttribute("src"); });
+  }
+
   // ------------------------------------------------------------------ start
 
   // The Animazioni button of the bar: pause everything, or start everything (even when the system
@@ -442,6 +483,7 @@
     window.addEventListener("load", function () { raccogli(); pianifica(true); });
     avviaDrone();
     avviaBottoni();
+    avviaVisore();
   }
 
   window.tIndustrySito = { intercetta: intercetta, adatta: adatta, scorri: scorri, avanzamento: avanzamento, politica: politica };

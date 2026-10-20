@@ -59,6 +59,15 @@ html.statico .barra .animazioni .icona{width:0;height:0;margin-right:0;backgroun
  transform:translateY(calc(var(--p) * -48px));
  mask-image:linear-gradient(to bottom,transparent,#000 18%,#000 86%,transparent);
  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 18%,#000 86%,transparent)}
+/* On wide screens the terrain covers the whole width of the section, not only the 1152 px floor: the same
+   window repeated sideways, scaled with the floor (--zoom) and centred on it so the cells line up. */
+.sez>.terra-larga{position:absolute;top:0;left:0;right:0;bottom:-48px;z-index:0;pointer-events:none;
+ background-size:calc(1152px * var(--zoom,1)) auto;background-position:center top;background-repeat:repeat;image-rendering:pixelated;opacity:.38;
+ transform:translateY(calc(var(--p) * -48px));
+ mask-image:linear-gradient(to bottom,transparent,#000 18%,#000 86%,transparent);
+ -webkit-mask-image:linear-gradient(to bottom,transparent,#000 18%,#000 86%,transparent)}
+@media (min-width:864px){.scena .terra{display:none}}
+@media (max-width:863px){.sez>.terra-larga{display:none}}
 .contenuto{position:absolute;inset:0;pointer-events:none}
 .contenuto>*{position:absolute;left:var(--x,0);top:var(--y,0);width:var(--w,auto);pointer-events:auto;margin:0}
 .nastro{background-size:64px 64px;background-repeat:repeat;overflow:hidden;z-index:2;image-rendering:pixelated}
@@ -70,6 +79,9 @@ html.statico .barra .animazioni .icona{width:0;height:0;margin-right:0;backgroun
 @keyframes va-w{from{transform:translateX(calc(var(--L) - 22px))}to{transform:translateX(-42px)}}
 @keyframes va-s{from{transform:translateY(-42px)}to{transform:translateY(calc(var(--L) - 22px))}}
 @keyframes va-n{from{transform:translateY(calc(var(--L) - 22px))}to{transform:translateY(-42px)}}
+/* turns through a merge: in from the west or the east, to the centre, then out to the south */
+@keyframes va-ws{0%{transform:translate(-42px,0)}50%{transform:translate(0,0)}100%{transform:translate(0,calc(var(--L) - 22px))}}
+@keyframes va-es{0%{transform:translate(calc(var(--L) - 22px),0)}50%{transform:translate(0,0)}100%{transform:translate(0,calc(var(--L) - 22px))}}
 .impalcato{background-repeat:repeat-y;background-size:44px 32px;z-index:5;image-rendering:pixelated}
 .corrente{left:0;top:0;z-index:5;pointer-events:none}
 .corrente line{stroke:var(--corrente);stroke-width:3;stroke-linecap:round;opacity:.85}
@@ -85,7 +97,19 @@ html.statico .barra .animazioni .icona{width:0;height:0;margin-right:0;backgroun
 .crt{background:#07080a;border:3px solid #1f242c;box-shadow:0 0 0 1px #000,inset 0 0 40px #000;display:flex;
  flex-direction:column;overflow:hidden;z-index:2;--p:1;--e:min(1,calc(var(--p) * 2.5));
  transform:scaleY(calc(.04 + .96 * var(--e)));filter:brightness(calc(.4 + 2.2 * var(--e) - 1.6 * var(--e) * var(--e)))}
-.crt>a{flex:1;min-height:0;display:block}
+.crt>a{flex:1;min-height:0;display:block;cursor:zoom-in}
+/* ---- visore: a capture opened over the page */
+.visore{padding:0;border:3px solid #1f242c;background:#07080a;color:var(--testo);box-shadow:0 0 0 1px #000,0 18px 60px #000;
+ width:min(1280px,calc(100vw - 32px));max-width:none;max-height:calc(100vh - 32px);overflow:hidden}
+.visore::backdrop{background:#000000d9}
+.visore img{display:block;width:100%;height:auto;max-height:calc(100vh - 32px - 48px);object-fit:contain;background:#000}
+.visore-barra{display:flex;align-items:center;gap:10px;padding:8px 10px;font:12px var(--mono);letter-spacing:.06em;
+ border-top:1px solid var(--linea);background:#0b0d10}
+.visore-didascalia{flex:1;min-width:0;color:var(--tenue)}
+.visore-conta{color:var(--tenue);font-variant-numeric:tabular-nums}
+.visore button{font:inherit;color:var(--ambra);background:none;border:1px solid var(--linea);padding:4px 10px;cursor:pointer;letter-spacing:inherit}
+.visore button:hover{border-color:var(--ambra)}
+html:has(.visore[open]){overflow:hidden}
 /* height:100% beats the height="720" attribute, which would otherwise show the capture at full size, cropped */
 .crt>img,.crt>a>img{flex:1;min-height:0;width:100%;height:100%;object-fit:cover;object-position:top;display:block}
 .crt::after{content:"";position:absolute;inset:0;pointer-events:none;
@@ -100,22 +124,22 @@ html.statico .barra .animazioni .icona{width:0;height:0;margin-right:0;backgroun
 .scheda span{font-size:12.5px;color:var(--testo)}
 .scheda code{font:12px var(--mono);color:var(--ambra)}
 .finestre{display:flex;flex-wrap:wrap;gap:14px;z-index:6}
-.finestre figure,.striscia-blocchi figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
-.finestre figcaption,.striscia-blocchi figcaption{font:11px var(--mono);letter-spacing:.08em;color:var(--tenue)}
+.finestre figure,.vetrina-blocchi figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.finestre figcaption,.vetrina-blocchi figcaption{font:11px var(--mono);letter-spacing:.08em;color:var(--tenue)}
 .finestre img{width:192px;height:192px;border:2px solid #1f242c}
 .bioma{--p:1;--e:min(1,calc(var(--p) * 2.5));transform:translateY(calc((1 - var(--e)) * 30px)) scale(calc(.9 + .1 * var(--e)));
  opacity:calc(.1 + .9 * var(--e))}
-.finestra-striscia{position:sticky;top:300px;margin:320px 0 0 192px;width:600px;height:260px;overflow:hidden;z-index:6;--p:0}
-.striscia-blocchi{position:absolute;left:0;top:0;width:max-content;white-space:nowrap;transform:translateX(calc(var(--p) * (600px - 100%)))}
-.striscia-blocchi figure{display:inline-flex;vertical-align:bottom;margin-right:28px}
-.striscia-blocchi img{display:block}
+.vetrina-blocchi{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 28px;z-index:6}
+.vetrina-blocchi figure{--p:1;--e:clamp(0,calc(var(--p) * 2.5 - var(--i,0) * .18),1);
+ transform:translateY(calc((1 - var(--e)) * 28px));opacity:calc(.1 + .9 * var(--e))}
+.vetrina-blocchi img{display:block}
+.vetrina-blocchi .rimando{flex-basis:100%}
 .rimando{font:13px var(--mono);color:var(--ambra);z-index:6}
 .numeri{list-style:none;padding:0;display:grid;grid-template-columns:repeat(6,1fr);gap:10px;z-index:6}
 .numeri li{background:#14171ce6;border:1px solid var(--linea);padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:2px;
  --p:1;--e:min(1,calc(var(--p) * 2.5));transform:translateY(calc((1 - var(--e)) * 24px));opacity:calc(.1 + .9 * var(--e))}
 .numeri b{font:700 26px var(--mono);color:var(--ambra);font-variant-numeric:tabular-nums}
 .numeri span{font:11px var(--mono);letter-spacing:.08em;color:var(--tenue);text-transform:uppercase}
-.finestra-striscia .rimando{position:absolute;left:0;bottom:4px}
 .scarica-box{display:flex;flex-direction:column;align-items:center;gap:12px;z-index:6}
 .requisiti{font:12px var(--mono);color:var(--tenue);margin:0;letter-spacing:.04em;text-align:center}
 .schermo{z-index:6;background:#05070a}
@@ -302,9 +326,8 @@ footer button:hover{border-color:var(--ambra)}
  .pin{height:auto!important}
  .schede{grid-template-columns:1fr 1fr}
  .finestre{flex-wrap:wrap;justify-content:center}
- .finestra-striscia{position:static;margin:0;width:auto;height:auto;overflow-x:auto;padding-bottom:24px}
- .striscia-blocchi{position:static;transform:none;display:flex;gap:16px}
- .finestra-striscia .rimando{position:static;display:block;margin-top:10px}
+ .vetrina-blocchi{justify-content:center;gap:18px 22px}
+ .vetrina-blocchi figure{transform:none;opacity:1}
  .crt{transform:none;filter:none;height:auto!important}
  .crt>img,.crt>a>img{flex:none;height:auto;aspect-ratio:16/9;object-fit:contain;background:#000}
  .crt>a{flex:none}
@@ -336,13 +359,11 @@ footer button:hover{border-color:var(--ambra)}
 html.statico{scroll-behavior:auto}
 html.statico *,html.statico *::before,html.statico *::after{animation-play-state:paused!important;transition:none!important}
 html.statico .nastro .fermo{display:block}
-html.statico .finestra-striscia{position:relative;top:auto;margin-left:192px;overflow-x:auto}
-html.statico .sez,html.statico .crt,html.statico .scheda,html.statico .bioma,html.statico .titolo,html.statico .finestra-striscia,
+html.statico .sez,html.statico .crt,html.statico .scheda,html.statico .bioma,html.statico .titolo,html.statico .vetrina-blocchi figure,
 html.statico .numeri li{--p:1!important;--e:1!important}
 html.statico .pin,html.statico .pin>.sez,html.statico .hero{--p:0!important}
 html.statico .pin{height:auto!important}
 html.statico .pin>.sez{position:relative;top:auto}
-html.statico .striscia-blocchi{position:static;transform:none;display:flex}
 html.statico .sez-attacco .pavimento{animation:none}
 html.statico .avviso{opacity:1;animation:none}
 html.statico .avviso-2,html.statico .avviso-3,html.statico .avviso-4,html.statico .avviso-5{display:none}
