@@ -45,6 +45,7 @@ Un solo ramo (`claude/exciting-ride-dmceyv`) e una sola PR con un commit per pez
 | 16 | Racconto: primo piano dell'attacco (paura, elmetto, Game Over del CORE), Mercato su tre pannelli, cambio di canale coi pulsanti nello schermo, il jackpot (PR #264) | `6cb0e2a` |
 | 17 | Racconto più lento: capitoli da 160vh col pannello che resta fermo (PR #265) | `c4c2bdd` |
 | 18 | Racconto ancora più lento (240vh per capitolo), frase di conforto leggibile, tempi del Mercato sulle soste dei pannelli (PR #266) | `03b755d` |
+| 19 | Racconto: unione a T su nastro veloce T2, lastre e rame alternati dopo la T (PR PR_19) | HASH_19 |
 
 ## Giri di revisione
 
@@ -84,6 +85,8 @@ Scartate o rinviate (motivate nella specifica, sezione «Scostamenti»): rete el
 **Scroll più lento** (20 ottobre, ultima correzione del giorno). L'utente trovava il racconto troppo veloce. Rallentare solo la rotellina non bastava: tastiera e dita sul telefono sarebbero rimaste veloci. Ogni capitolo occupa quindi 160vh e il pannello resta fermo per i primi 60vh (vista sticky). I tempi della storia restano gli stessi; sul telefono è stata spostata a metà schermo l'inquadratura di stonks e bonus, che l'ultimo pannello ora copriva salendo prima.
 
 Subito dopo l'utente ha segnalato con una cattura che la frase «Respira…» del pannello dell'attacco non si leggeva: col pannello fermo la sua comparsa, legata alla posizione sullo schermo, si fermava a metà. Ha anche detto che lo scroll era ancora troppo veloce. Ora la frase compare per intero nel momento della storia in cui il drone si calma, e ogni capitolo occupa 240vh col pannello fermo per 140vh. Crollo e scoppio sono stati anticipati perché cadano mentre il pannello «Stonks» è fermo; sul telefono il finale è un po' più vicino perché i pulsanti dello schermo restino sopra l'ultimo pannello.
+
+Ultimo bug della giornata, segnalato dall'utente con una cattura: dopo l'unione a T si vedeva un solo materiale. Le due catene disegnavano gli oggetti negli stessi punti del nastro unito, quindi uno copriva l'altro. Come ha chiesto l'utente, il tratto unito ora è un nastro più veloce (T2) che regge i due T1. Dal centro della T gli oggetti accelerano e il rame viaggia sfasato di mezzo passo, così i due materiali si alternano.
 
 ## Decisioni prese in autonomia
 

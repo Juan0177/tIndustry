@@ -638,6 +638,8 @@ def pagina_racconto(archivio, versione, dati):
     logo = archivio.immagini("ui/ui-logo")
     url_logo = archivio.png("logo-x8", logo.resize((logo.width * 8, logo.height * 8), Image.NEAREST))
     scarica = f"Scarica {versione}" if versione else "Scarica l'ultima release"
+    def portata(tier):   # items per second on a full belt of that tier: speed / spacing, as in the game
+        return round(composti.VELOCITA_NASTRO[tier] / composti.SPAZIATURA_NASTRO[tier], 2)
     pannelli = (
         ("sinistra", f'<h1><img class="px logo" src="{url_logo}" alt="tIndustry" width="{logo.width * 8}" '
                      f'height="{logo.height * 8}"></h1>'
@@ -679,8 +681,11 @@ def pagina_racconto(archivio, versione, dati):
                    "<p>Ogni partita ha la sua mappa, generata dal seme: rocce, prati, neve e sabbia, fiumi da "
                    "scavalcare col ponte, giacimenti sparsi. Dieci livelli di campagna, da 200×200 a 1000×1000 celle.</p>"),
         ("sinistra", '<span class="etichetta">// 10 · il CORE</span><h2>Tutto finisce nel CORE</h2>'
-                     "<p>Lastre e rame si uniscono nell'unione a T e scendono nel CORE; da ovest arriva anche il "
-                     "piombo, da linee che erano lì da prima. Il CORE tiene tutto per la Ricerca e per il Mercato.</p>"),
+                     "<p>Lastre e rame si uniscono nell'unione a T e scendono nel CORE su un nastro veloce: due "
+                     f"nastri T1 pieni portano {composti._num(2 * portata(fabbrica.T1))} oggetti al secondo, uno solo "
+                     f"ne regge {composti._num(portata(fabbrica.T1))}, il T2 {composti._num(portata(fabbrica.T2))}. "
+                     "Da ovest arriva anche il piombo, da linee che erano lì da prima. Il CORE tiene tutto per la "
+                     "Ricerca e per il Mercato.</p>"),
         ("sinistra", '<span class="etichetta">// 11 · il mercato</span><h2>Il prezzo vola</h2>'
                    "<p>Le lastre di ferro non sono mai valse tanto. Il drone riempie una valigetta: 9.999 lastre da "
                    "vendere tutte insieme, subito.</p>"),
