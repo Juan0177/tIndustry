@@ -631,7 +631,7 @@ def stile():
 
 
 def pagina_racconto(archivio, versione, dati):
-    """The scroll-driven story, prototype of chapters 1-4: a sticky canvas (racconto.js) behind eight panels, one
+    """The scroll-driven story, all seven chapters: a sticky canvas (racconto.js) behind eleven panels, one
     screen each. Without the script the still poster stands behind the same panels."""
     import racconto
     logo = archivio.immagini("ui/ui-logo")
@@ -664,11 +664,21 @@ def pagina_racconto(archivio, versione, dati):
         ("sinistra", '<span class="etichetta">// 06 · la sera</span><h2>Si fa buio</h2>'
                      "<p>Il giorno finisce e la fabbrica resta accesa: le lampade e la bocca del forno illuminano i "
                      "nastri che continuano a girare.</p>"),
-        ("destra", '<span class="etichetta">// capitolo 5 · prossimamente</span><h2>Sotto attacco</h2>'
-                   "<p>Nel buio qualcosa si muove ai margini della mappa. Nel racconto completo arrivano le unità "
-                   "nemiche e il drone si mette l'elmetto.</p>"
-                   '<p class="nota">Questo è un prototipo: quattro dei sette capitoli.</p>'
-                   '<p class="bottoni"><a class="btn" href="../">Torna alla vetrina</a></p>'),
+        ("destra", '<span class="etichetta">// 07 · sotto attacco</span><h2>Di notte arrivano</h2>'
+                   "<p>Nel buio le unità nemiche attraversano il fiume e si fermano appena fuori dalla luce delle "
+                   "lampade. Il drone si mette l'elmetto e resta di guardia.</p>"
+                   '<p class="nota">Unità e difese sono in arrivo: sono nella roadmap.</p>'),
+        ("sinistra", '<span class="etichetta">// 08 · l\'alba</span><h2>Il giorno le scaccia</h2>'
+                     "<p>I nemici ci sono solo di notte: quando torna il giorno i superstiti scappano oltre il fiume. "
+                     "Il drone si toglie l'elmetto e torna al lavoro.</p>"),
+        ("destra", '<span class="etichetta">// 09 · il mondo</span><h2>Il mondo intorno</h2>'
+                   "<p>Ogni partita ha la sua mappa, generata dal seme: rocce, prati, neve e sabbia, fiumi da "
+                   "scavalcare col ponte, giacimenti sparsi. Dieci livelli di campagna, da 200×200 a 1000×1000 celle.</p>"),
+        ("sinistra", '<span class="etichetta">// 10 · il CORE</span><h2>Tutto finisce nel CORE</h2>'
+                     "<p>Le lastre e il rame entrano nel CORE dall'unione a T. Vendi al Mercato, reinvesti in Ricerca "
+                     "e la fabbrica cresce.</p>"
+                     f'<p class="bottoni"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
+                     '<a class="btn" href="../">Torna alla vetrina</a></p>'),
     )
     capitoli = "".join(f'<section class="capitolo" data-lato="{lato}"><div class="pannello" data-rivela>{testo}</div></section>'
                        for lato, testo in pannelli)
@@ -679,8 +689,8 @@ def pagina_racconto(archivio, versione, dati):
              f'<script type="application/json" id="racconto-dati">{racconto.json_della_pagina(dati)}</script>')
     nav = _nav((("../", "Vetrina"), ("../sviluppo/", "Sviluppo"), ("../asset/", "Asset")))
     pagina = _pagina("tIndustry · racconto (prototipo)", corpo, nav, radice="../", classe="racconto-pagina",
-                     descrizione="Prototipo del racconto di tIndustry: scorrendo, il drone costruisce la fabbrica, dal "
-                                 "giacimento di ferro al forno, alle lastre e alla corrente, fino a sera.",
+                     descrizione="Il racconto di tIndustry: scorrendo, il drone costruisce la fabbrica dal giacimento di ferro "
+                                 "al CORE, tra forno, corrente, la notte e l'attacco.",
                      avanza=True, percorso="racconto/")
     pagina = pagina.replace('<meta charset="utf-8">', '<meta charset="utf-8"><meta name="robots" content="noindex">', 1)
     return pagina.replace('<script src="../sito.js" defer></script>',

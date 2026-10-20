@@ -147,6 +147,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **Sito web su GitHub Pages** | [Vetrina «fabbrica»](https://juan0177.github.io/tIndustry/) con le catene di produzione vere sui nastri del gioco, download, [sviluppo](https://juan0177.github.io/tIndustry/sviluppo/) (ADR, roadmap, diario) e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py` ([spec](docs/superpowers/specs/2026-10-19-sito-fabbrica-design.md)) |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
+| Previsto | **Attacco e difesa** | Unità nemiche e difese. I nemici arrivano **solo di notte**: quando torna il giorno i superstiti scappano. Il drone si mette l'elmetto durante l'attacco |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
 ---

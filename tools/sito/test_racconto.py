@@ -26,7 +26,10 @@ class TestRacconto(unittest.TestCase):
         self.assertEqual([], fabbrica.controlla(racconto.SCENA))
         fini = sorted(str(c["fine"]) for c in fabbrica.catene(racconto.SCENA))
         self.assertEqual(sorted(["('blocco', 'smelter')", "('blocco', 'smelter')", "('blocco', 'generator')",
-                                 "('sotto', 30)"]), fini)
+                                 "('blocco', 'core-2')", "('blocco', 'core-2')"]), fini)
+        # Plates and copper meet in the T merge right above the Core.
+        nel_core = [c for c in fabbrica.catene(racconto.SCENA) if c["fine"] == ("blocco", "core-2")]
+        self.assertTrue(all(c["celle"][-1] == (30, 29) for c in nel_core))
         # Ore leaves a miner through a corner, never straight out of it.
         occupato = fabbrica._occupazione(racconto.SCENA)
         for c in fabbrica.catene(racconto.SCENA):
@@ -60,8 +63,22 @@ class TestRacconto(unittest.TestCase):
         tempi = [k["t"] for k in self.dati["camera"]]
         self.assertEqual(sorted(tempi), tempi)
         self.assertEqual((0, 1), (tempi[0], tempi[-1]))
-        self.assertLess(self.dati["notte"]["t0"], self.dati["notte"]["t1"])
-        self.assertLess(max(c["t1"] for c in costruzioni), self.dati["allarme"])
+        # Night, attack and dawn (roadmap «Attacco e difesa»: enemies only at night, the survivors flee at dawn).
+        N, A, E = self.dati["notte"], self.dati["allarme"], self.dati["elmetto"]
+        self.assertTrue(N["t0"] < N["t1"] <= A["t0"] < N["alba0"] < N["alba1"])
+        self.assertTrue(A["t0"] <= E["cade"] < E["posato"] < E["toglie"] < E["via"])
+        self.assertGreaterEqual(E["toglie"], N["alba0"])   # the helmet stays on until the day comes back
+        lampade_accese = max(c["attivo"] for c in costruzioni if c["lavoro"] == "lampada")
+        self.assertLess(lampade_accese, N["t1"])
+        for n in self.dati["nemici"]:
+            tempi_n = [k[0] for k in n["chiavi"]]
+            self.assertEqual(sorted(tempi_n), tempi_n)
+            self.assertGreaterEqual(tempi_n[0], N["t1"])            # they come only once it is dark
+            self.assertGreater(tempi_n[-2], N["alba0"] - 0.05)       # still there until dawn...
+            self.assertGreaterEqual(n["chiavi"][-1][1], racconto.LARGHEZZA)   # ...then they leave the map
+            x_vicino = min(k[1] for k in n["chiavi"])
+            self.assertGreater(x_vicino, max(c["x"] for c in costruzioni))   # never inside the factory
+        self.assertEqual("nucleo", self.dati["fissi"][0]["sprite"])   # the Core is there from the start
         # Item paths: axis-aligned steps of half a cell, one cell or (past the border) a cell and a half.
         for f in self.dati["flussi"]:
             self.assertEqual(len(f["celle"]), len(f["percorso"]) - 2)
@@ -97,6 +114,7 @@ class TestRacconto(unittest.TestCase):
                 letti.append({n: pathlib.Path(cartella, n).read_bytes() for n in sorted(os.listdir(cartella))})
         self.assertEqual(letti[0], letti[1])
         self.assertEqual(racconto.FETTE, dati["sprite"]["drone"]["fotogrammi"])
+        self.assertEqual(racconto.FETTE_ELMETTO, dati["sprite"]["elmetto"]["fotogrammi"])
         self.assertEqual(24 * racconto.INGRANDIMENTO, dati["sprite"]["drone"]["w"])
 
 

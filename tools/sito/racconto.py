@@ -1,4 +1,4 @@
-"""The scroll-driven story of the site (prototype: chapters 1-4 of «dal giacimento al CORE», up to the attack).
+"""The scroll-driven story of the site: «dal giacimento al CORE», seven chapters on eleven panels.
 
 One factory on a map of its own, drawn on a fixed full-screen canvas by racconto.js: scrolling moves the camera
 and plays the construction forwards and backwards (scrub). This module holds the data and writes the assets:
@@ -15,6 +15,7 @@ the same bytes.
 """
 import io
 import json
+import math
 import os
 import random
 
@@ -25,15 +26,16 @@ import fabbrica
 from fabbrica import T1, Blocco, Giacimento, Nodo, Pezzo, Scena, Tratto
 
 CELLA = composti.T  # art px per cell (32); the canvas scales the art, like the game draws it x2
-LARGHEZZA, RIGHE = 40, 24
+LARGHEZZA, RIGHE = 64, 40  # the whole world of the story: the factory in the middle, biomes around
 AMBRA = (0xFF, 0xD3, 0x7F)  # UiColors.Costruzione = Accento (Mindustry Pal.accent)
 FETTE = 6  # slices of the drone stack, one art px apart (modello_drone gives each part its own heights)
 INGRANDIMENTO = 4  # DroneVisual.SharpFactor: enlarged without filtering, drawn smaller with filtering
 
 # The story map, built chapter by chapter. Iron: a miner on its deposit, the ore leaving through a corner (never
 # straight out of a miner), down and east into the smelter. Coal: a second miner on the deposit next to it feeds
-# the smelter from the east and, from its top side, the generator. The plates leave the smelter eastwards and run
-# down out of the map, towards the chapters to come. Power: generator, three nodes, four lamps.
+# the smelter from the east and, from its top side, the generator. The plates leave the smelter eastwards, run
+# down to the Core (there from the start, as in every game) and enter it through the T merge above it; in the last
+# chapter a copper line joins the same T from the west. Power: generator, three nodes, four lamps.
 SCENA = Scena("racconto", RIGHE, "prati", [
     Giacimento(9, 9, 3, 4, "iron-ore", 11),
     Blocco(10, 10, "miner", "Al lavoro"),
@@ -47,16 +49,44 @@ SCENA = Scena("racconto", RIGHE, "prati", [
     Pezzo(27, 10, "curva", T1, da="E", a="S"),
     Tratto(27, 11, 3, "S", T1, ("coal",)),
     Pezzo(27, 14, "curva", T1, da="S", a="W"),
-    Tratto(27, 15, 3, "E", T1, ("iron-plate",)),
-    Pezzo(30, 15, "curva", T1, da="E", a="S"),
-    Tratto(30, 16, 8, "S", T1, ("iron-plate",)),
+    Tratto(27, 15, 6, "E", T1, ("iron-plate",)),
+    Pezzo(33, 15, "curva", T1, da="E", a="S"),
+    Tratto(33, 16, 13, "S", T1, ("iron-plate",)),
+    Pezzo(33, 29, "curva", T1, da="S", a="W"),
+    Tratto(32, 29, 2, "W", T1, ("iron-plate",)),
+    Pezzo(30, 29, "t", T1, verso="S"),
+    Blocco(29, 30, "core-2", "Luce del nucleo"),
     Pezzo(26, 8, "curva", T1, da="N", a="E"),
     Tratto(27, 8, 4, "E", T1, ("coal",)),
     Blocco(31, 7, "generator", "In funzione"),
-    Nodo(28, 11), Nodo(19, 12), Nodo(33, 15),
+    Nodo(28, 11), Nodo(19, 12), Nodo(36, 17),
     Blocco(23, 12, "lamp", "Accesa"), Blocco(14, 12, "lamp", "Accesa"),
-    Blocco(35, 12, "lamp", "Accesa"), Blocco(33, 19, "lamp", "Accesa"),
+    Blocco(38, 13, "lamp", "Accesa"), Blocco(38, 22, "lamp", "Accesa"),
+    Giacimento(17, 26, 4, 4, "copper-ore", 9),
+    Blocco(18, 27, "miner", "Al lavoro"),
+    Pezzo(20, 28, "curva", T1, da="E", a="S"),
+    Pezzo(20, 29, "curva", T1, da="S", a="E"),
+    Tratto(21, 29, 9, "E", T1, ("copper-ore",)),
 ], seme=7, larghezza=LARGHEZZA)
+
+# Biomes of the world around the factory (chapter «il mondo»): rocks to the north-west, snow to the north-east, sand
+# to the south-east, a river between the factory and the east, where the enemies come from.
+def _scarto(x, y, sale):
+    """A fixed pseudo-random offset in -1..1 per cell, so biome borders are ragged instead of stair-stepped."""
+    h = (x * 73856093) ^ (y * 19349663) ^ (sale * 83492791)
+    return ((h & 0xFFFF) / 0xFFFF) * 2 - 1
+
+
+def bioma_della_cella(x, y):
+    fiume = 46 + 3.2 * math.sin(y / 5.0) + (y - 20) * 0.12 + 0.35 * _scarto(x, y, 1)
+    if fiume - 1.4 <= x <= fiume + 1.4:
+        return "acqua-profonda" if abs(x - fiume) < 0.6 else "acqua"
+    if x > fiume:
+        return "neve" if y < 18 + 2 * math.sin(x / 3.0) + 1.3 * _scarto(x, y, 2) else "sabbia"
+    if x < 7 + 2 * math.sin(y / 4.0) + 1.2 * _scarto(x, y, 3) or y < 4 + 1.5 * math.sin(x / 3.5) + 1.2 * _scarto(x, y, 4):
+        return "rocce"
+    return "prati"
+
 
 # Pictures of each block: (working, stopped, plan) sprite names of sprite_del_racconto().
 STATI = {"miner": ("minatore", "minatore-fermo", "minatore-piano"),
@@ -65,40 +95,53 @@ STATI = {"miner": ("minatore", "minatore-fermo", "minatore-piano"),
          "lamp": ("lampada", "lampada-fermo", "lampada-piano"),
          "power-node": ("nodo", "nodo", "nodo-piano")}
 
-# Scroll progress (0..1) of the story: eight panels, one screen each, at 0, 1/7, ... 1. The drone builds in this
+# Scroll progress (0..1) of the story: eleven panels, one screen each, at 0, 0.1, ... 1. The drone builds in this
 # order; each phase spreads its pieces evenly over its window.
-INGRESSO_DRONE = 0.04
+INGRESSO_DRONE = 0.025
 FASI = [  # (what, from, to)
-    ("minatore-ferro", 0.06, 0.13),
-    ("nastri-ferro", 0.16, 0.33),
-    ("forno", 0.36, 0.41),
-    ("minatore-carbone", 0.43, 0.47),
-    ("nastri-carbone", 0.48, 0.53),
-    ("nastri-lastre", 0.55, 0.65),
-    ("generatore", 0.67, 0.71),
-    ("nastri-generatore", 0.72, 0.76),
-    ("nodi", 0.77, 0.81),
-    ("lampade", 0.81, 0.86),
+    ("minatore-ferro", 0.04, 0.09),
+    ("nastri-ferro", 0.11, 0.23),
+    ("forno", 0.25, 0.29),
+    ("minatore-carbone", 0.30, 0.33),
+    ("nastri-carbone", 0.335, 0.37),
+    ("nastri-lastre", 0.385, 0.47),
+    ("generatore", 0.475, 0.50),
+    ("nastri-generatore", 0.50, 0.53),
+    ("nodi", 0.54, 0.57),
+    ("lampade", 0.57, 0.60),
+    ("minatore-rame", 0.905, 0.925),
+    ("nastri-rame", 0.928, 0.975),
 ]
-NOTTE = {"t0": 0.74, "t1": 0.88, "colore": [0.34, 0.38, 0.54]}  # NightLayer.Darkness, the world multiplied by it
+# Night as NightLayer.Darkness, the world multiplied by it: it falls in chapter 6 and lifts at dawn (chapter 8).
+NOTTE = {"t0": 0.52, "t1": 0.62, "alba0": 0.76, "alba1": 0.84, "colore": [0.34, 0.38, 0.54]}
 LUCE_LAMPADA = {"raggio": 6.5, "colore": [1.0, 0.9, 0.68], "energia": 1.4}  # NightLayer.LampLight
 LUCE_FORNO = {"raggio": 3.0, "colore": [1.0, 0.55, 0.25], "energia": 1.2}   # NightLayer.SmelterLight
-ALLARME = 0.9  # chapter 5 teaser: enemy silhouettes at the edge of the map, a red glow at the screen's edges
-NEMICI = [{"sprite": "nemico-2", "x": 39.0, "y": 7.0}, {"sprite": "nemico-3", "x": 39.6, "y": 13.0},
-          {"sprite": "nemico-2", "x": 38.6, "y": 19.0}]
-CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen
+LUCE_CORE = {"raggio": 5.0, "colore": [0.55, 0.88, 1.0], "energia": 1.3}    # NightLayer.CoreLight
+# The attack (roadmap «Attacco e difesa»: enemies come only at night, at daybreak the survivors flee). They come over
+# the river from the east, stop outside the light of the lamps, and run back east when the day returns.
+ALLARME = {"t0": 0.63, "t1": 0.80}   # red glow at the screen's edges while they are there
+ELMETTO = {"cade": 0.64, "posato": 0.665, "toglie": 0.84, "via": 0.86}
+NEMICI = [{"sprite": "nemico-2", "y": 9.0, "chiavi": [[0.63, 63.0], [0.75, 44.0], [0.80, 45.5], [0.87, 70.0]]},
+          {"sprite": "nemico-3", "y": 15.0, "chiavi": [[0.645, 64.0], [0.76, 42.5], [0.80, 43.5], [0.86, 71.0]]},
+          {"sprite": "nemico-2", "y": 21.5, "chiavi": [[0.655, 63.0], [0.77, 43.0], [0.80, 44.0], [0.87, 70.0]]},
+          {"sprite": "nemico-3", "y": 27.0, "chiavi": [[0.665, 64.0], [0.775, 45.0], [0.80, 46.0], [0.88, 71.0]]}]
+CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: centre and vista on portrait screens
     {"t": 0.00, "x": 10.6, "y": 10.6, "vista": 9},
-    {"t": 0.10, "x": 11.0, "y": 10.8, "vista": 10},
-    {"t": 0.18, "x": 11.8, "y": 11.8, "vista": 12},
-    {"t": 0.30, "x": 17.0, "y": 13.6, "vista": 15},
-    {"t": 0.38, "x": 23.0, "y": 13.6, "vista": 13},
-    {"t": 0.47, "x": 25.6, "y": 11.4, "vista": 13},
-    {"t": 0.55, "x": 26.8, "y": 14.2, "vista": 14},
-    {"t": 0.64, "x": 28.6, "y": 17.4, "vista": 16},
-    {"t": 0.71, "x": 30.0, "y": 10.0, "vista": 15},
-    {"t": 0.82, "x": 25.0, "y": 12.6, "vista": 24},
-    {"t": 0.92, "x": 25.0, "y": 13.0, "vista": 29},
-    {"t": 1.00, "x": 26.0, "y": 13.0, "vista": 30},
+    {"t": 0.07, "x": 11.0, "y": 10.8, "vista": 10},
+    {"t": 0.13, "x": 11.8, "y": 11.8, "vista": 12},
+    {"t": 0.21, "x": 17.0, "y": 13.6, "vista": 15},
+    {"t": 0.27, "x": 23.0, "y": 13.6, "vista": 13},
+    {"t": 0.33, "x": 25.6, "y": 11.4, "vista": 13},
+    {"t": 0.39, "x": 28.0, "y": 14.6, "vista": 15},
+    {"t": 0.46, "x": 31.0, "y": 22.0, "vista": 18},
+    {"t": 0.50, "x": 30.0, "y": 10.0, "vista": 15},
+    {"t": 0.58, "x": 27.0, "y": 15.0, "vista": 26},
+    {"t": 0.64, "x": 32.0, "y": 17.0, "vista": 30},
+    {"t": 0.72, "x": 38.0, "y": 18.0, "vista": 34},
+    {"t": 0.82, "x": 40.0, "y": 18.0, "vista": 36},
+    {"t": 0.88, "x": 32.0, "y": 20.0, "vista": 64},
+    {"t": 0.93, "x": 32.0, "y": 20.0, "vista": 64},
+    {"t": 1.00, "x": 27.0, "y": 28.6, "vista": 20, "xv": 30.5, "yv": 31.0, "vv": 12},  # xv, yv, vv: portrait screens
 ]
 
 
@@ -111,8 +154,8 @@ def _catena(sorgente_xy, fine):
     occupato = fabbrica._occupazione(SCENA)
     for c in fabbrica.catene(SCENA):
         primo = c["celle"][0]
-        dietro = occupato.get((primo[0] - fabbrica.VERSI[fabbrica._ingresso(occupato[primo][0], primo)][0],
-                               primo[1] - fabbrica.VERSI[fabbrica._ingresso(occupato[primo][0], primo)][1]))
+        v = fabbrica._ingresso(occupato[primo][0], primo)
+        dietro = occupato.get((primo[0] - fabbrica.VERSI[v][0], primo[1] - fabbrica.VERSI[v][1]))
         if dietro and isinstance(dietro[0], Blocco) and (dietro[0].x, dietro[0].y) == sorgente_xy \
                 and c["fine"][0] == fine[0] and (fine[0] == "sotto" or c["fine"][1] == fine[1]):
             return [(cella, occupato[cella][0]) for cella in c["celle"]], c["fine"]
@@ -120,7 +163,7 @@ def _catena(sorgente_xy, fine):
 
 
 def _verso_della_cella(e):
-    return e.verso if isinstance(e, Tratto) else e.a
+    return e.verso if isinstance(e, Tratto) or e.tipo == "t" else e.a
 
 
 def _percorso(celle, fine):
@@ -138,24 +181,27 @@ def _percorso(celle, fine):
 
 def linea_del_tempo():
     """The data racconto.js plays: map size, camera key frames, constructions in building order (each with its plan,
-    site and working times), item chains, power lines, lights, night and the chapter 5 teaser."""
-    ferro, carbone = (next(b for b in _blocchi("miner") if b.y == y) for y in (10, 9))
-    forno, generatore = _blocchi("smelter")[0], _blocchi("generator")[0]
-    nodi = [e for e in SCENA.elementi if isinstance(e, fabbrica.Nodo)]
+    site and working times), the Core, item chains, power lines, lights, night and dawn, the attack."""
+    ferro, carbone, rame = (next(b for b in _blocchi("miner") if b.y == y) for y in (10, 9, 27))
+    forno, generatore, core = _blocchi("smelter")[0], _blocchi("generator")[0], _blocchi("core-2")[0]
+    nodi = [e for e in SCENA.elementi if isinstance(e, Nodo)]
     nodo = {(n.x, n.y): n for n in nodi}
     lampade = {(b.x, b.y): b for b in _blocchi("lamp")}
     catene = {
         "ferro": _catena((ferro.x, ferro.y), ("blocco", "smelter")),
         "carbone": _catena((carbone.x, carbone.y), ("blocco", "smelter")),
-        "lastre": _catena((forno.x, forno.y), ("sotto", None)),
+        "lastre": _catena((forno.x, forno.y), ("blocco", "core-2")),
         "generatore": _catena((carbone.x, carbone.y), ("blocco", "generator")),
+        "rame": _catena((rame.x, rame.y), ("blocco", "core-2")),
     }
     ordine = {
         "minatore-ferro": [ferro], "nastri-ferro": catene["ferro"][0], "forno": [forno],
         "minatore-carbone": [carbone], "nastri-carbone": catene["carbone"][0], "nastri-lastre": catene["lastre"][0],
         "generatore": [generatore], "nastri-generatore": catene["generatore"][0],
-        "nodi": [nodo[(28, 11)], nodo[(19, 12)], nodo[(33, 15)]],
-        "lampade": [lampade[(23, 12)], lampade[(14, 12)], lampade[(35, 12)], lampade[(33, 19)]],
+        "nodi": [nodo[(28, 11)], nodo[(19, 12)], nodo[(36, 17)]],
+        "lampade": [lampade[(23, 12)], lampade[(14, 12)], lampade[(38, 13)], lampade[(38, 22)]],
+        "minatore-rame": [rame],
+        "nastri-rame": [cella for cella in catene["rame"][0] if cella[0] not in {c for c, _ in catene["lastre"][0]}],
     }
     costruzioni, indice, precedente = [], {}, INGRESSO_DRONE
     for fase, t0, t1 in FASI:
@@ -167,16 +213,19 @@ def linea_del_tempo():
                  "piano": round(precedente, 4), "rot": 0, "specchio": False}
             if isinstance(pezzo, tuple):   # a belt cell: (cell, element)
                 (x, y), e = pezzo
-                if isinstance(e, Pezzo):
+                if isinstance(e, Pezzo) and e.tipo == "curva":
                     c["specchio"], c["rot"] = fabbrica.trasformazione_curva(e.da, e.a)
                     nome = "curva"
+                elif isinstance(e, Pezzo):   # the T merge: both side inputs, out ahead
+                    c["rot"] = fabbrica.ROT[e.verso]
+                    nome = "t"
                 else:
                     c["rot"] = fabbrica.ROT[e.verso]
                     nome = "nastro"
                 c.update(x=x, y=y, w=1, h=1, nastro=True, lavoro=nome, fermo=nome, piano_sprite=nome + "-piano")
                 indice[(x, y)] = len(costruzioni)
             else:
-                bid = "power-node" if isinstance(pezzo, fabbrica.Nodo) else pezzo.id
+                bid = "power-node" if isinstance(pezzo, Nodo) else pezzo.id
                 w, h = (1, 1) if bid == "power-node" else fabbrica._blocco(bid).celle
                 lavoro, fermo, piano = STATI[bid]
                 c.update(x=pezzo.x, y=pezzo.y, w=w, h=h, nastro=False, lavoro=lavoro, fermo=fermo, piano_sprite=piano)
@@ -192,48 +241,52 @@ def linea_del_tempo():
 
     # When each block starts working: miners once built; the smelter once both its inputs arrive; the generator
     # once its coal arrives; lamps once their line is drawn (below).
-    blocco(ferro)["attivo"] = blocco(ferro)["t1"]
-    blocco(carbone)["attivo"] = blocco(carbone)["t1"]
+    for m in (ferro, carbone, rame):
+        blocco(m)["attivo"] = blocco(m)["t1"]
     blocco(forno)["attivo"] = round(max(blocco(forno)["t1"], fatto(catene["ferro"][0]), fatto(catene["carbone"][0])), 4)
     blocco(generatore)["attivo"] = round(max(blocco(generatore)["t1"], fatto(catene["generatore"][0])), 4)
     for n in nodi:
         blocco(n, "power-node")["attivo"] = blocco(n, "power-node")["t1"]
-    # Power lines: from the generator out, each drawn once both its ends stand, at 25 cells per unit of progress.
+    # Power lines: from the generator out, each drawn once both its ends stand.
     centro = lambda b, w=1, h=1: [b.x + w / 2, b.y + h / 2]
     reti = [(centro(generatore, 2, 2), generatore, "generator", nodo[(28, 11)], "power-node"),
             (centro(nodo[(28, 11)]), nodo[(28, 11)], "power-node", nodo[(19, 12)], "power-node"),
-            (centro(nodo[(28, 11)]), nodo[(28, 11)], "power-node", nodo[(33, 15)], "power-node"),
+            (centro(nodo[(28, 11)]), nodo[(28, 11)], "power-node", nodo[(36, 17)], "power-node"),
             (centro(nodo[(19, 12)]), nodo[(19, 12)], "power-node", lampade[(23, 12)], "lamp"),
             (centro(nodo[(19, 12)]), nodo[(19, 12)], "power-node", lampade[(14, 12)], "lamp"),
-            (centro(nodo[(33, 15)]), nodo[(33, 15)], "power-node", lampade[(35, 12)], "lamp"),
-            (centro(nodo[(33, 15)]), nodo[(33, 15)], "power-node", lampade[(33, 19)], "lamp")]
+            (centro(nodo[(36, 17)]), nodo[(36, 17)], "power-node", lampade[(38, 13)], "lamp"),
+            (centro(nodo[(36, 17)]), nodo[(36, 17)], "power-node", lampade[(38, 22)], "lamp")]
     linee = []
     for da, b1, id1, b2, id2 in reti:
         a = centro(b2)
         t0 = max(blocco(b1, id1)["t1"], blocco(b2, id2)["t1"], blocco(generatore)["attivo"])
         lungo = ((a[0] - da[0]) ** 2 + (a[1] - da[1]) ** 2) ** 0.5
-        linee.append({"da": da, "a": a, "t0": round(t0, 4), "t1": round(t0 + lungo / 400, 4)})
+        linee.append({"da": da, "a": a, "t0": round(t0, 4), "t1": round(t0 + lungo / 600, 4)})
         if id2 == "lamp":
             blocco(b2)["attivo"] = linee[-1]["t1"]
-    oggetti = {"ferro": "iron-ore", "carbone": "coal", "lastre": "iron-plate", "generatore": "coal"}
-    sorgenti = {"ferro": blocco(ferro), "carbone": blocco(carbone), "lastre": blocco(forno), "generatore": blocco(carbone)}
+    oggetti = {"ferro": "iron-ore", "carbone": "coal", "lastre": "iron-plate", "generatore": "coal", "rame": "copper-ore"}
+    sorgenti = {"ferro": blocco(ferro), "carbone": blocco(carbone), "lastre": blocco(forno),
+                "generatore": blocco(carbone), "rame": blocco(rame)}
     flussi = [{"oggetto": "oggetto-" + oggetti[n], "percorso": _percorso(*catene[n]),
                "celle": [indice[cella] for cella, _ in catene[n][0]], "avvio": sorgenti[n]["attivo"]}
-              for n in ("ferro", "carbone", "lastre", "generatore")]
+              for n in ("ferro", "carbone", "lastre", "generatore", "rame")]
     luci = [dict(LUCE_LAMPADA, x=b.x + 0.5, y=b.y + 0.5, da=blocco(b)["attivo"]) for b in lampade.values()]
     luci.append(dict(LUCE_FORNO, x=forno.x + 1, y=forno.y + 1, da=blocco(forno)["attivo"]))
+    luci.append(dict(LUCE_CORE, x=core.x + 1.5, y=core.y + 1.5, da=0))
     return {
         "cella": CELLA, "larghezza": LARGHEZZA, "righe": RIGHE,
         "camera": CAMERA,
         "costruzioni": costruzioni,
+        "fissi": [{"sprite": "nucleo", "x": core.x, "y": core.y, "w": 3, "h": 3}],
         "flussi": flussi,
         "linee": linee,
         "luci": luci,
         "notte": NOTTE,
         "allarme": ALLARME,
+        "elmetto": ELMETTO,
         "nemici": NEMICI,
         "velocita": fabbrica.RATE[T1],  # cells per second on a T1 belt
-        "drone": {"ingresso": INGRESSO_DRONE, "partenza": [LARGHEZZA * 0.62, 2.0], "fette": FETTE,
+        "drone": {"ingresso": INGRESSO_DRONE, "partenza": [26.0, 2.0], "fette": FETTE,
                   "ingrandimento": INGRANDIMENTO},
     }
 
@@ -376,6 +429,47 @@ def fette_drone(drone):
     return striscia(livelli)
 
 
+FETTE_ELMETTO = 4  # brim, then the dome narrowing towards the top
+
+
+def fette_elmetto(elmetto):
+    """The helmet of tools/art (drone-1-elmetto) in 2.5D like the drone: the brim on the bottom layer, the dome on
+    the layers above, each one the part of the shell at least that high (the shades of the sprite say how high:
+    brim, edge, middle, top); lower layers darker, enlarged x INGRANDIMENTO."""
+    from palette import MUSCHIO
+    elmetto = elmetto.convert("RGBA")
+    px = elmetto.load()
+    w, h = elmetto.size
+    quota = {}
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            c = (r, g, b)
+            if c in MUSCHIO:
+                quota[(x, y)] = {0: 0, 1: 1, 2: 2}.get(MUSCHIO.index(c), 3)
+            else:   # outline: the brim's outer edge, or the step from brim to dome
+                vicini = [quota.get(n) for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))]
+                fuori = any(not (0 <= n[0] < w and 0 <= n[1] < h) or not px[n][3]
+                            for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+                quota[(x, y)] = 0 if fuori else 1
+    livelli = []
+    for k in range(FETTE_ELMETTO):
+        livello = Image.new("RGBA", elmetto.size)
+        dst = livello.load()
+        for (x, y), q in quota.items():
+            if q < k:
+                continue
+            r, g, b, a = px[x, y]
+            if q > k:
+                f = 0.55 + 0.15 * k
+                r, g, b = int(r * f), int(g * f), int(b * f)
+            dst[x, y] = (r, g, b, a)
+        livelli.append(livello.resize((w * INGRANDIMENTO, h * INGRANDIMENTO), Image.NEAREST))
+    return striscia(livelli)
+
+
 def ombra_drone(drone):
     """DroneVisual's shadow: the same sprite in black at 35 %."""
     drone = drone.convert("RGBA")
@@ -386,14 +480,24 @@ def ombra_drone(drone):
 
 
 def terreno(immagini):
-    """The ground of the whole map at art size: the biome's floors (as fabbrica's terrain windows) and the deposits."""
+    """The ground of the whole map at art size: each cell's biome (bioma_della_cella) drawn with its floors as
+    fabbrica's terrain windows (mostly the first floor, a few others), the river in shallow and deep water, and the
+    deposits on top."""
     from blocchi import terreno as tr
-    suoli = [f["id"] for f in tr.TERRENO["floors"] if f["biome"] == SCENA.bioma]
+    suoli = {}
+    for f in tr.TERRENO["floors"]:
+        suoli.setdefault(f["biome"], []).append(f["id"])
     rnd = random.Random(SCENA.seme)
     im = Image.new("RGBA", (LARGHEZZA * CELLA, RIGHE * CELLA))
     for j in range(RIGHE):
         for i in range(LARGHEZZA):
-            s = suoli[0] if rnd.random() < 0.88 else rnd.choice(suoli)  # calmer than the landing windows
+            bioma = bioma_della_cella(i, j)
+            if bioma.startswith("acqua"):
+                s = "deep-water" if bioma == "acqua-profonda" else "shallow-water"
+                rnd.random()
+            else:
+                elenco = suoli[bioma]
+                s = elenco[0] if rnd.random() < 0.88 else rnd.choice(elenco)  # calmer than the landing windows
             im.paste(immagini(f"terreno-{s}-{rnd.randrange(4)}"), (i * CELLA, j * CELLA))
     for e in SCENA.elementi:
         if isinstance(e, Giacimento):
@@ -423,21 +527,27 @@ def sprite_del_racconto(immagini):
     """{name: (image, meta)}: every picture racconto.js draws, at art size (the drone x INGRANDIMENTO)."""
     nastro = immagini.fotogrammi(T1 + "-anim")
     curva = immagini.fotogrammi(T1 + "-corner-anim")
+    t = immagini.fotogrammi(T1 + "-t-anim")
     drone = immagini("drone-1")
     fps = fabbrica.RATE[T1] * len(nastro)  # one cell of tread per 1 / rate seconds, as in the game
     out = {
         "nastro": (striscia(nastro), {"fotogrammi": len(nastro), "fps": fps}),
         "curva": (striscia(curva), {"fotogrammi": len(curva), "fps": fps}),
         "nastro-piano": (fantasma(nastro[0]), {"fotogrammi": 1}),
+        "t": (striscia(t), {"fotogrammi": len(t), "fps": fps}),
+        "t-piano": (fantasma(t[0]), {"fotogrammi": 1}),
         "curva-piano": (fantasma(curva[0]), {"fotogrammi": 1}),
         "nodo": (immagini("power-node"), {"fotogrammi": 1}),
         "nodo-piano": (fantasma(immagini("power-node")), {"fotogrammi": 1}),
         "drone": (fette_drone(drone), {"fotogrammi": FETTE, "lato": drone.width}),
         "drone-ombra": (ombra_drone(drone), {"fotogrammi": 1, "lato": drone.width}),
+        "elmetto": (fette_elmetto(immagini("drone-1-elmetto")), {"fotogrammi": FETTE_ELMETTO, "lato": drone.width}),
         "nemico-2": (_nero(immagini("drone-2")), {"fotogrammi": 1}),
         "nemico-3": (_nero(immagini("drone-3")), {"fotogrammi": 1}),
     }
-    for oggetto in ("iron-ore", "coal", "iron-plate"):
+    nucleo = _stato("core-2", "Luce del nucleo", immagini)
+    out["nucleo"] = (striscia([f for f, _ in nucleo]), {"fotogrammi": len(nucleo), "durate": [d for _, d in nucleo]})
+    for oggetto in ("iron-ore", "coal", "iron-plate", "copper-ore"):
         out["oggetto-" + oggetto] = (immagini(oggetto + "-belt"), {"fotogrammi": 1})
     for bid, (nome, lavoro, fermo) in (("miner", ("minatore", "Al lavoro", "Fermo")),
                                        ("smelter", ("forno", "Al lavoro", "Fermo")),
@@ -470,6 +580,8 @@ def poster(immagini, sprite, dati):
             f = f.rotate(-rot, expand=True)
         im.alpha_composite(f, (int(x * CELLA), int(y * CELLA)))
 
+    for f in dati["fissi"]:
+        metti(f["sprite"], f["x"], f["y"])
     for c in dati["costruzioni"]:
         metti(c["lavoro"], c["x"], c["y"], c["rot"], c["specchio"])
     disegno = ImageDraw.Draw(im)
@@ -485,7 +597,7 @@ def poster(immagini, sprite, dati):
     for k in range(FETTE):
         f = fette.crop((k * passo, 0, (k + 1) * passo, fette.height)).resize((lato, lato), Image.LANCZOS)
         im.alpha_composite(f, (int(dx - lato / 2), int(dy - lato / 2 - k - 4)))
-    ritaglio = im.crop((7 * CELLA, 5 * CELLA, 38 * CELLA, 22 * CELLA))
+    ritaglio = im.crop((6 * CELLA, 5 * CELLA, 42 * CELLA, 34 * CELLA))
     return ritaglio.resize((ritaglio.width * 2, ritaglio.height * 2), Image.NEAREST)
 
 

@@ -1,7 +1,7 @@
 {
 	"nodes":[
 		{"id":"g-aperti","type":"group","label":"Aperti","x":1620,"y":0,"width":480,"height":864,"color":"1"},
-		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":656,"color":"5"},
+		{"id":"g-next","type":"group","label":"Prossimi (in ordine)","x":1080,"y":0,"width":480,"height":828,"color":"5"},
 		{"id":"g-corso","type":"group","label":"In corso","x":540,"y":0,"width":480,"height":46,"color":"3"},
 		{"id":"g-fatto","type":"group","label":"Fatto","x":0,"y":0,"width":480,"height":3660,"color":"4"},
 		{"id":"titolo","type":"text","text":"# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-20, dopo i nastri come Mindustry.","x":0,"y":-170,"width":2100,"height":130,"color":"6"},
@@ -21,7 +21,8 @@
 		{"id":"giacimenti","type":"text","text":"**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2.","x":1100,"y":50,"width":440,"height":174,"color":"5"},
 		{"id":"tier","type":"text","text":"**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu.","x":1100,"y":248,"width":440,"height":122,"color":"5"},
 		{"id":"liquidi","type":"text","text":"**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua.","x":1100,"y":394,"width":440,"height":96,"color":"5"},
-		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":514,"width":440,"height":122,"color":"5"},
+		{"id":"attacco","type":"text","text":"**Attacco e difesa**\nUnità nemiche e difese. I nemici arrivano solo di notte: quando torna il giorno i superstiti scappano. Il drone si mette l'elmetto.","x":1100,"y":514,"width":440,"height":148,"color":"5"},
+		{"id":"sp5","type":"text","text":"**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]]).","x":1100,"y":686,"width":440,"height":122,"color":"5"},
 		{"id":"a1","type":"text","text":"**Salvataggio reale sovrascritto**\nChiuso: le partite erano avviate a mano. Protezione e backup in #162.","x":1640,"y":50,"width":440,"height":122,"color":"4"},
 		{"id":"a2","type":"text","text":"**Progetti di Claude Code**\nIndagati: restiamo con le sessioni locali.","x":1640,"y":196,"width":440,"height":96,"color":"4"},
 		{"id":"a3","type":"text","text":"**Grafica G1–G4**\nSpec approvate il 2026-10-18 (#167). G1, G2a, G2b, G3 e G4 finite; basi degli screenshot candidate in .dev/baseline-g1-candidata, .dev/baseline-g2a-candidata, .dev/baseline-g2b-candidata, .dev/baseline-g3-candidata e .dev/baseline-g4-candidata (it e en), da approvare.","x":1640,"y":316,"width":440,"height":252,"color":"1"},
@@ -30,7 +31,8 @@
 	"edges":[
 		{"id":"e-giacimenti-tier","fromNode":"giacimenti","fromSide":"bottom","toNode":"tier","toSide":"top"},
 		{"id":"e-tier-liquidi","fromNode":"tier","fromSide":"bottom","toNode":"liquidi","toSide":"top"},
-		{"id":"e-liquidi-sp5","fromNode":"liquidi","fromSide":"bottom","toNode":"sp5","toSide":"top"},
+		{"id":"e-liquidi-attacco","fromNode":"liquidi","fromSide":"bottom","toNode":"attacco","toSide":"top"},
+		{"id":"e-attacco-sp5","fromNode":"attacco","fromSide":"bottom","toNode":"sp5","toSide":"top"},
 		{"id":"e-g2a-g2b","fromNode":"g2a","fromSide":"bottom","toNode":"g2b","toSide":"top"},
 		{"id":"e-g2b-g3","fromNode":"g2b","fromSide":"bottom","toNode":"g3","toSide":"top"},
 		{"id":"e-g3-g4","fromNode":"g3","fromSide":"bottom","toNode":"g4","toSide":"top"},

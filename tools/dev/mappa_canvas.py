@@ -94,6 +94,7 @@ roadmap = [
     nxt.card("giacimenti", "**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2."),
     nxt.card("tier", "**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu."),
     nxt.card("liquidi", "**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua."),
+    nxt.card("attacco", "**Attacco e difesa**\nUnità nemiche e difese. I nemici arrivano solo di notte: quando torna il giorno i superstiti scappano. Il drone si mette l'elmetto."),
     nxt.card("sp5", "**SP5 · Server C# e co-op**\nSincronizzazione ibrida ([[0002-sincronizzazione-ibrida|ADR 0002]])."),
 ]
 nxt.close()

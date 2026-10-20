@@ -38,7 +38,8 @@ test("smorza: si avvicina senza superare", () => {
 test("posizioneDrone: attesa, volo, lavoro", () => {
   const c = [{ x: 10, y: 10, w: 2, h: 2, t0: 0.4, t1: 0.6 }];
   assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 0.1), { x: 0, y: 0, lavora: -1 });
-  const volo = posizioneDrone(c, [0, 0], 0.2, 0.3);
+  assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 0.3), { x: 0, y: 0, lavora: -1 });   // waiting: the site is far off
+  const volo = posizioneDrone(c, [0, 0], 0.2, 0.38);   // flying in the last 0.04 before t0
   assert.equal(volo.lavora, -1);
   assert.ok(volo.x > 0 && volo.x < 10.65);
   assert.deepEqual(posizioneDrone(c, [0, 0], 0.2, 0.5), { x: 10.65, y: 10.1, lavora: 0 });
