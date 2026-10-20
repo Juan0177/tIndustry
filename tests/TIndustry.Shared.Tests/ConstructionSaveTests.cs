@@ -269,6 +269,26 @@ public sealed class ConstructionSaveTests
     }
 
     [Fact]
+    public void PlatesSpentBeforeRawOreCostsGoBackToTheCore()
+    {
+        // A v12 miner site from before the raw-ore costs: 3 plates spent, 1 already refunded.
+        var (factory, _) = WithSite(BuildingKind.Miner, 5);
+        var data = factory.Capture();
+        data.Version = 12;
+        var dto = data.Sites[0];
+        dto.SpentByItem = [new CostLineSaveDto { ItemId = Plate, Amount = 3 }];
+        dto.RefundedByItem = [new CostLineSaveDto { ItemId = Plate, Amount = 1 }];
+        var platesBefore = data.Materials[Plate];
+
+        var restored = Factory.Restore(Content, data);
+
+        var site = Assert.Single(restored.Sites);
+        Assert.Equal(Iron, Assert.Single(site.Cost).ItemId);
+        Assert.Equal([0], site.Spent);
+        Assert.Equal(platesBefore + 2, restored.Wallet.MaterialCount(Plate));
+    }
+
+    [Fact]
     public void SpentFromAnOlderV11SaveIsMappedByIndex()
     {
         var (factory, _) = WithSite(BuildingKind.MinerAdvanced, 30);

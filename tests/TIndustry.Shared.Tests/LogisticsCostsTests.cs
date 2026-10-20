@@ -71,9 +71,41 @@ public sealed class LogisticsCostsTests
     public void BuildWeightsMatchMindustry(string itemId, float weight) =>
         Assert.Equal(weight, Content.BuildWeight(itemId));
 
+    [Fact]
+    public void SandboxStartsWithRawIronForTheFirstMinerAndBelts()
+    {
+        var wallet = NewGame.Sandbox(Content, new GridPosition(30, 30), mapWidth: 60, mapHeight: 60).Wallet;
+
+        Assert.Equal(48, wallet.MaterialCount("iron-ore"));
+        Assert.Equal(48, wallet.MaterialCount("iron-plate"));
+        Assert.Equal(10, wallet.MaterialCount("copper-wire"));
+    }
+
+    [Fact]
+    public void DemoStockCoversEveryLogisticsMaterial()
+    {
+        var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), 2));
+        factory.EnsureDemoBuildStock();
+        Assert.All(
+            new[] { "iron-ore", "lead-ore", "titanium-ore", "graphite", "silicon" },
+            item => Assert.Equal(200, factory.Wallet.MaterialCount(item)));
+
+        // A top-up, not an add: a second call and a smaller target change nothing.
+        factory.EnsureDemoBuildStock(logistics: 50);
+        Assert.Equal(200, factory.Wallet.MaterialCount("silicon"));
+    }
+
     /// <summary>Basic belts the starting stock must pay for besides the first miner.</summary>
     private const int BootstrapBelts = 4;
 
+    /// <summary>
+    /// Every level pays its first miner and <see cref="BootstrapBelts"/> belts from the starting stock, has the money
+    /// for all its research objectives at once, and has (or can mine and craft on its map) the materials of the
+    /// smelter, the basic belt and every research objective. An ore counts as mined only if a miner the level has
+    /// (unlocked at start, or one of its research objectives) can dig it (titanium needs the Miner T2).
+    /// Limits: amounts beyond the starting stock are not checked once an item is producible, sale income is
+    /// ignored (the money must be there at start), and stock/sell objectives are not checked.
+    /// </summary>
     [Fact]
     public void CampaignUnlockObjectivesAreReachable()
     {
@@ -83,7 +115,20 @@ public sealed class LogisticsCostsTests
         {
             var factory = NewGame.Campaign(Content, catalog, level, mapsDirectory: MapsDir);
             var wallet = factory.Wallet;
-            var deposits = DepositsOn(factory.Terrain!);
+            var research = (level.Objectives ?? [])
+                .Where(o => o.Type == CampaignObjectiveType.UnlockResearch)
+                .Select(o => Content.RequireStructure(o.StructureId!))
+                .ToList();
+            var miners = new[] { Miner.BasicId, Miner.AdvancedId }
+                .Where(id => factory.Research.IsUnlocked(id) || research.Any(r => r.Id == id))
+                .ToList();
+            var deposits = DepositsOn(factory.Terrain!, miners);
+
+            var money = research.Sum(r => r.Unlock?.Money ?? 0);
+            if (level.StartingMoney < money)
+            {
+                problems.Add($"{level.Id}: parte con ${level.StartingMoney}, gli sblocchi chiesti costano ${money}");
+            }
 
             // Nothing is mined before the first miner: it and a few belts come from the starting stock.
             var bootstrap = ToMap(Content.FindBuilding("miner")!.BuildCost);
@@ -102,15 +147,13 @@ public sealed class LogisticsCostsTests
 
             var needed = Content.FindBuilding("smelter")!.BuildCost
                 .Concat(Content.RequireConveyor().EffectiveBuildCost)
-                .Concat((level.Objectives ?? [])
-                    .Where(o => o.Type == CampaignObjectiveType.UnlockResearch)
-                    .SelectMany(o => Content.RequireStructure(o.StructureId!).Unlock?.Materials ?? []));
+                .Concat(research.SelectMany(r => r.Unlock?.Materials ?? []));
             foreach (var cost in needed)
             {
                 if (wallet.MaterialCount(cost.ItemId) < cost.Amount
                     && !Producible(cost.ItemId, deposits, wallet, []))
                 {
-                    problems.Add($"{level.Id}: {cost.Amount} {cost.ItemId} né in partenza né producibile sulla mappa");
+                    problems.Add($"{level.Id}: {cost.Amount} {cost.ItemId} né in partenza né producibile sulla mappa coi minatori {string.Join("/", miners)}");
                 }
             }
         }
@@ -118,14 +161,15 @@ public sealed class LogisticsCostsTests
         Assert.True(problems.Count == 0, string.Join("\n", problems));
     }
 
-    private static HashSet<string> DepositsOn(TerrainMap terrain)
+    /// <summary>Items of the deposits on the map that one of <paramref name="miners"/> can dig.</summary>
+    private static HashSet<string> DepositsOn(TerrainMap terrain, IReadOnlyList<string> miners)
     {
         var items = new HashSet<string>(StringComparer.Ordinal);
         for (var y = 0; y < terrain.Height; y++)
         {
             for (var x = 0; x < terrain.Width; x++)
             {
-                if (terrain[x, y].Deposit is var d and not DepositKind.None)
+                if (terrain[x, y].Deposit is var d and not DepositKind.None && miners.Any(m => Content.MinerCanDig(m, d)))
                 {
                     items.Add(TerrainMap.ItemIdForDeposit(d));
                 }
