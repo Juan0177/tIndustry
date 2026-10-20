@@ -403,6 +403,11 @@ public partial class World
             await PlaytestBlocksShotAsync(dir);
         }
 
+        if (OS.GetEnvironment(PlaytestBasesEnv) == "1")
+        {
+            await PlaytestBasesShotAsync(dir);
+        }
+
         // Effects probe (G3): only with effects forced on, so the usual captures never see a particle.
         if (OS.GetEnvironment(ClientSettings.PlaytestEffectsEnv) == "1" && !await PlaytestEffectsAsync(dir))
         {
@@ -1091,6 +1096,631 @@ public partial class World
 
         GD.Print($"PLAYTEST blocchi: spenti da {off}, accesi da {on}, {on2} e {crafters}; "
                  + $"minatori al lavoro {factory.Miners.Count(m => m.Efficiency > 0f)}, alimentati {factory.Miners.Count(m => m.IsPowered)}, "
+                 + $"forni/assemblatori attivi {factory.Smelters.Concat(factory.Assemblers).Count(c => c.IsCrafting)}, "
+                 + $"generatori accesi {factory.Generators.Count(g => g.IsGenerating)}");
+    }
+
+    /// <summary>Set to 1 to run <see cref="PlaytestBasesShotAsync"/> in the <c>ui</c> playtest.</summary>
+    private const string PlaytestBasesEnv = "TINDUSTRY_PLAYTEST_BASI";
+
+    /// <summary>
+    /// Showcase captures (only with <c>TINDUSTRY_PLAYTEST_BASI=1</c>), no pass/fail: builds two real bases around the
+    /// Core with belts routed over free cells (a small one: two miners, a smelter, a powered generator and node; a
+    /// large one: four miners on different ores, three belt tiers with turns, a bridge over a belt, a sorter that
+    /// splits a mixed trunk, two smelters, an assembler, two generators, both node tiers and two lamps), lets the
+    /// simulation run so the belts carry items, and saves <c>ui-basi-piccola.png</c>, <c>ui-basi-grande.png</c> and
+    /// <c>ui-basi-grande-vicino.png</c> with the HUD hidden (and, with the effects forced on, the same three at night as
+    /// <c>ui-basi-*-notte.png</c>).
+    /// </summary>
+    private async Task PlaytestBasesShotAsync(string dir)
+    {
+        if (_view is not Factory factory || _view.Terrain is not { } terrain || GetNodeOrNull<Camera2D>("Camera") is not { } cam)
+        {
+            return;
+        }
+
+        var coreTiles = _view.CoreTiles;
+        var core = new GridPosition(coreTiles.Min(t => t.X), coreTiles.Min(t => t.Y));
+        var coreSet = new HashSet<GridPosition>(coreTiles);
+        var reserved = new HashSet<GridPosition>(); // rings of placed machines: belts only end or start there
+
+        bool InBox(GridPosition c) => Math.Abs(c.X - core.X) <= 35 && Math.Abs(c.Y - core.Y) <= 18;
+
+        bool Open(GridPosition c) =>
+            terrain.InBounds(c) && factory.CanPlace(new BuildSpec(BuildSpec.DefaultConveyorId, null, c, Direction.East), out _);
+
+        static IEnumerable<GridPosition> Cells(GridPosition at, int size)
+        {
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    yield return new GridPosition(at.X + x, at.Y + y);
+                }
+            }
+        }
+
+        static IEnumerable<GridPosition> Ring(GridPosition at)
+        {
+            for (var i = 0; i < 2; i++)
+            {
+                yield return new GridPosition(at.X + i, at.Y - 1);
+                yield return new GridPosition(at.X + i, at.Y + 2);
+                yield return new GridPosition(at.X - 1, at.Y + i);
+                yield return new GridPosition(at.X + 2, at.Y + i);
+            }
+        }
+
+        bool AreaOpen(GridPosition at, int size, bool? deposit) =>
+            Cells(at, size).All(c => Open(c) && !reserved.Contains(c)
+                && (deposit is null || (terrain[c].Deposit != DepositKind.None) == deposit));
+
+        // Nearest spot to target (square rings) where a size×size block fits off the deposits.
+        GridPosition? FindNear(GridPosition target, int size, bool needRing)
+        {
+            for (var r = 0; r < 30; r++)
+            {
+                for (var dy = -r; dy <= r; dy++)
+                {
+                    for (var dx = -r; dx <= r; dx++)
+                    {
+                        var at = new GridPosition(target.X + dx, target.Y + dy);
+                        if (Math.Max(Math.Abs(dx), Math.Abs(dy)) == r && AreaOpen(at, size, deposit: false)
+                            && (!needRing || Ring(at).Count(c => Open(c) && !reserved.Contains(c)) >= 7))
+                        {
+                            return at;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        bool Put(string id, BuildingKind kind, GridPosition at, int size, bool ring, HashSet<GridPosition> built, string? recipe = null)
+        {
+            if (!factory.PlaceInstant(new BuildSpec(id, kind, at, Direction.East, recipe), charge: false))
+            {
+                GD.Print($"PLAYTEST basi: {id} su {at} rifiutato");
+                return false;
+            }
+
+            built.UnionWith(Cells(at, size));
+            if (ring)
+            {
+                reserved.UnionWith(Ring(at));
+            }
+
+            return true;
+        }
+
+        // Free 2×2 spots on the scattered deposits (at least two cells of one ore), nearest first and richer first; the
+        // window and the routes keep each base within about 70×36 cells so the whole base fits the screen above zoom 0.26
+        // (a cell under 16 px, zoom 0.25, is drawn as the flat overview).
+        var spots = new List<(GridPosition At, DepositKind Kind, int Cells)>();
+        for (var dy = -17; dy <= 17; dy++)
+        {
+            for (var dx = -34; dx <= 34; dx++)
+            {
+                var at = new GridPosition(core.X + dx, core.Y + dy);
+                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) < 6 || !AreaOpen(at, 2, deposit: null))
+                {
+                    continue;
+                }
+
+                var ores = Cells(at, 2).Select(c => terrain[c].Deposit).Where(d => d != DepositKind.None).GroupBy(d => d)
+                    .OrderByDescending(g => g.Count()).ToList();
+                if (ores.Count > 0 && ores[0].Count() >= 2 && (ores.Count == 1 || ores[1].Count() < ores[0].Count()))
+                {
+                    spots.Add((at, ores[0].Key, ores[0].Count()));
+                }
+            }
+        }
+
+        spots = [.. spots.OrderBy(s => Math.Max(Math.Abs(s.At.X - core.X), Math.Abs(s.At.Y - core.Y)) - s.Cells * 2
+            + Math.Min(Math.Abs(s.At.X - core.X), Math.Abs(s.At.Y - core.Y)) * 0.01)];
+        GD.Print($"PLAYTEST basi: giacimenti liberi nella finestra {string.Join(", ", spots.GroupBy(s => s.Kind).Select(g => $"{g.Key} {g.Count()}"))}");
+
+        GridPosition? Pick(Func<DepositKind, bool> want)
+        {
+            foreach (var (at, kind, _) in spots)
+            {
+                if (want(kind) && AreaOpen(at, 2, deposit: null) && Route(Ring(at), coreSet, hop: false) is { Count: <= 60 })
+                {
+                    return at;
+                }
+            }
+
+            return null;
+        }
+
+        string? SmeltRecipe(DepositKind kind) => kind switch
+        {
+            DepositKind.Iron => "smelt-iron",
+            DepositKind.Lead => "smelt-lead",
+            DepositKind.Titanium => "smelt-titanium",
+            _ => null
+        };
+
+        // Shortest belt path (breadth first, over free cells) from a start cell to a cell beside one of the target
+        // tiles. With hop it must cross one blocked cell (a belt, a wall, water) through a bridge (entry, exit, then a belt).
+        List<(GridPosition Cell, Direction Dir, bool Bridge)>? Route(IEnumerable<GridPosition> starts, IReadOnlySet<GridPosition> targets, bool hop)
+        {
+            bool IsGoal(GridPosition c, out Direction into)
+            {
+                foreach (var d in DirectionMath.All)
+                {
+                    var t = c.Step(d);
+                    if (targets.Contains(t) && !(factory.Belts.TryGet(t, out var tc) && tc.Direction == DirectionMath.Opposite(d)))
+                    {
+                        into = d;
+                        return true;
+                    }
+                }
+
+                into = default;
+                return false;
+            }
+
+            var parent = new Dictionary<(GridPosition, bool), ((GridPosition, bool)? Prev, Direction? HopDir)>();
+            var queue = new Queue<(GridPosition Cell, bool Hop)>();
+            var startSet = new HashSet<GridPosition>(starts);
+            foreach (var s in startSet)
+            {
+                if (Open(s) && parent.TryAdd((s, false), (null, null)))
+                {
+                    queue.Enqueue((s, false));
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                var cur = queue.Dequeue();
+                if (IsGoal(cur.Cell, out var last) && cur.Hop == hop)
+                {
+                    var nodes = new List<(GridPosition Cell, Direction? HopDir)>();
+                    (GridPosition, bool)? at = (cur.Cell, cur.Hop);
+                    while (at is { } key)
+                    {
+                        var (prev, hopDir) = parent[key];
+                        nodes.Add((key.Item1, hopDir));
+                        at = prev;
+                    }
+
+                    nodes.Reverse();
+                    var path = new List<(GridPosition, Direction, bool)>();
+                    for (var i = 0; i < nodes.Count; i++)
+                    {
+                        if (i == nodes.Count - 1)
+                        {
+                            path.Add((nodes[i].Cell, last, false));
+                        }
+                        else if (nodes[i + 1].HopDir is { } bridgeDir)
+                        {
+                            path.Add((nodes[i].Cell, bridgeDir, true));
+                        }
+                        else
+                        {
+                            var a = nodes[i].Cell;
+                            var b = nodes[i + 1].Cell;
+                            path.Add((a, DirectionMath.All.First(d => a.Step(d).Equals(b)), false));
+                        }
+                    }
+
+                    return path;
+                }
+
+                if (reserved.Contains(cur.Cell) && !startSet.Contains(cur.Cell))
+                {
+                    continue; // a ring cell is only ever the last cell of a belt
+                }
+
+                foreach (var d in DirectionMath.All)
+                {
+                    var n = cur.Cell.Step(d);
+                    if (InBox(n) && Open(n) && (!reserved.Contains(n) || IsGoal(n, out _)) && parent.TryAdd((n, cur.Hop), ((cur.Cell, cur.Hop), null)))
+                    {
+                        queue.Enqueue((n, cur.Hop));
+                    }
+
+                    if (hop && !cur.Hop && parent[(cur.Cell, cur.Hop)].Prev is not null && !reserved.Contains(cur.Cell)
+                        && terrain.InBounds(n) && !Open(n) && !coreTiles.Contains(n))
+                    {
+                        var exit = cur.Cell.Step(d, 2);
+                        var after = cur.Cell.Step(d, 3);
+                        if (InBox(after) && Open(exit) && !reserved.Contains(exit) && Open(after) && (!reserved.Contains(after) || IsGoal(after, out _))
+                            && parent.TryAdd((after, true), ((cur.Cell, cur.Hop), d)))
+                        {
+                            queue.Enqueue((after, true));
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        void Lay(List<(GridPosition Cell, Direction Dir, bool Bridge)> path, string tier, HashSet<GridPosition> built,
+            int sorterAt = -1, string? sorterFilter = null)
+        {
+            for (var i = 0; i < path.Count; i++)
+            {
+                var (cell, dir, bridge) = path[i];
+                var spec = bridge ? new BuildSpec("conveyor-bridge", BuildingKind.Bridge, cell, dir)
+                    : i == sorterAt ? new BuildSpec("sorter", BuildingKind.Sorter, cell, dir, FilterItemId: sorterFilter)
+                    : new BuildSpec(tier, null, cell, dir);
+                if (!factory.PlaceInstant(spec, charge: false))
+                {
+                    GD.Print($"PLAYTEST basi: {spec.StructureId} su {cell} rifiutato");
+                }
+
+                built.Add(cell);
+                if (bridge)
+                {
+                    built.Add(cell.Step(dir, 2));
+                }
+            }
+        }
+
+        // From a machine (or a spot) to some tiles: route, lay and report.
+        void Link(string label, IEnumerable<GridPosition> from, IReadOnlySet<GridPosition> to, string tier, HashSet<GridPosition> built, bool hop = false,
+            ISet<GridPosition>? grow = null)
+        {
+            var path = Route(from, to, hop) ?? (hop ? Route(from, to, hop: false) : null);
+            if (path is null)
+            {
+                GD.Print($"PLAYTEST basi: nessun percorso per {label}");
+                return;
+            }
+
+            if (hop && !path.Any(p => p.Bridge))
+            {
+                GD.Print($"PLAYTEST basi: {label} senza ponte");
+            }
+
+            Lay(path, tier, built);
+            grow?.UnionWith(path.Where(p => !p.Bridge).Select(p => p.Cell)); // later lines may join this one on the way to the Core
+        }
+
+        void Fuel(GridPosition at, bool seedInputs)
+        {
+            foreach (var gen in factory.Generators.Where(g => g.Position.Equals(at)))
+            {
+                gen.RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+            }
+
+            foreach (var crafter in factory.Smelters.Concat(factory.Assemblers).Where(c => c.Position.Equals(at)))
+            {
+                crafter.SeedFuel();
+                if (seedInputs)
+                {
+                    foreach (var input in crafter.Recipe.Inputs)
+                    {
+                        for (var i = 0; i < 8; i++)
+                        {
+                            crafter.TryAccept(input.ItemId);
+                        }
+                    }
+                }
+            }
+        }
+
+        GridPosition Mid(GridPosition a, GridPosition b) => new((a.X + b.X) / 2, (a.Y + b.Y) / 2);
+        var coreMid = new GridPosition(core.X + 1, core.Y + 1);
+
+        // The night layer only draws with the effects forced on (TINDUSTRY_PLAYTEST_EFFETTI=1): then each view is also
+        // shot at night, lit by the lamps and the burning blocks.
+        var nightShots = _night is not null && OS.GetEnvironment(ClientSettings.PlaytestEffectsEnv) == "1";
+
+        async Task Shoot(Vector2 center, float zoom, string label)
+        {
+            cam.Position = center;
+            cam.Zoom = new Vector2(zoom, zoom);
+            _hud?.ClearToast();
+            await PlaytestWait(0.6);
+            SaveViewportPng(Path.Combine(dir, $"ui-basi-{label}.png"));
+            if (nightShots)
+            {
+                factory.State.Rules = factory.State.Rules with { Night = true };
+                await PlaytestWait(1.2);
+                SaveViewportPng(Path.Combine(dir, $"ui-basi-{label}-notte.png"));
+                factory.State.Rules = factory.State.Rules with { Night = false };
+                await PlaytestWait(0.3);
+            }
+        }
+
+        (Vector2 Center, float Zoom) Fit(IEnumerable<GridPosition> cells)
+        {
+            var list = cells.ToList();
+            var (x0, x1, y0, y1) = (list.Min(c => c.X), list.Max(c => c.X) + 1, list.Min(c => c.Y), list.Max(c => c.Y) + 1);
+            // 1280×720 at zoom z shows 20/z × 11.25/z cells; keep a margin all round.
+            var zoom = Math.Min(1.2f, Math.Min(18f / (x1 - x0), 9.8f / (y1 - y0)));
+            return (new Vector2((x0 + x1) * 0.5f * TileSize, (y0 + y1) * 0.5f * TileSize), zoom);
+        }
+
+        if (_hud is not null)
+        {
+            _hud.Visible = false;
+        }
+
+        // ---- Large base: a blueprint laid out from one face of the Core --------------------------------------
+        // Frame: u runs out from the Core, v across it (the Core is u -2..-1, v 0..1; 'W' = towards the Core, 'E' = away,
+        // 'N' = v-1, 'S' = v+1). Four lines converge on the Core: iron ore and coal share a belt, a sorter sends the
+        // coal to a generator and the ore to a smelter whose plates cross a coal line on a junction and then split
+        // (splitter) over two faces of the Core; a lead line (fast belt) merges with half of them; a coal line crosses
+        // the first on a junction into the assembler; a copper line (express belt) hops over the lead line on a bridge
+        // and picks up the graphite the assembler lets out. The playtest map has no ore under it, so the miners are idle
+        // and the ore is put on the belts beside them (see Feed).
+        var big = new HashSet<GridPosition>(coreSet);
+        var plan = new List<(string Id, BuildingKind? Kind, int U, int V, int Size, char Dir, string? Extra)>();
+        var feeds = new List<(int U, int V, string ItemId, double Every)>();
+
+        void Belts(string tier, char dir, int u0, int v0, int u1, int v1)
+        {
+            var (du, dv) = (Math.Sign(u1 - u0), Math.Sign(v1 - v0));
+            for (int u = u0, v = v0; ; u += du, v += dv)
+            {
+                plan.Add((tier, null, u, v, 1, dir, null));
+                if (u == u1 && v == v1)
+                {
+                    break;
+                }
+            }
+        }
+
+        void Piece(string id, BuildingKind kind, int u, int v, int size, char dir = 'W', string? extra = null) =>
+            plan.Add((id, kind, u, v, size, dir, extra));
+
+        const string Basic = "conveyor-basic";
+        const string Fast = "conveyor-fast";
+        const string Express = "conveyor-express";
+
+        // Miners and machines.
+        Piece(Miner.BasicId, BuildingKind.Miner, 24, -1, 2);
+        Piece(Miner.BasicId, BuildingKind.Miner, 20, -3, 2);
+        Piece(Miner.BasicId, BuildingKind.Miner, 20, -7, 2);
+        Piece(Miner.AdvancedId, BuildingKind.MinerAdvanced, 24, 4, 2);
+        Piece(Miner.BasicId, BuildingKind.Miner, 20, 10, 2);
+        Piece(Crafter.SmelterBuildingId, BuildingKind.Smelter, 12, 0, 2, extra: "smelt-iron");
+        Piece(Crafter.SmelterBuildingId, BuildingKind.Smelter, 12, 3, 2, extra: "smelt-lead");
+        Piece(Crafter.AssemblerBuildingId, BuildingKind.Assembler, 8, 2, 2, extra: "craft-graphite");
+        Piece(Generator.BuildingId, BuildingKind.Generator, 16, 2, 2);
+        Piece(Generator.BuildingId, BuildingKind.Generator, 26, 4, 2);
+        Piece("power-node", BuildingKind.PowerNode, 14, 2, 1);
+        Piece("power-node-t2", BuildingKind.PowerNodeT2, 22, 2, 2);
+        Piece("lamp", BuildingKind.Lamp, 10, -2, 1);
+        Piece("lamp", BuildingKind.Lamp, 10, 5, 1);
+
+        // Line 1 (basic): iron ore + coal -> sorter (iron on to the smelter, coal down to the generator).
+        Belts(Basic, 'W', 23, 0, 17, 0);
+        Piece("sorter", BuildingKind.Sorter, 16, 0, 1, extra: "iron-ore");
+        Belts(Basic, 'W', 15, 0, 14, 0);
+        Belts(Basic, 'S', 20, -1, 20, -1); // the coal miner joins the trunk from the side
+        Belts(Basic, 'S', 16, 1, 16, 1); // the sorter's side output feeds the generator
+        feeds.Add((23, 0, "iron-ore", 0.7));
+        feeds.Add((20, -1, "coal", 1.1));
+
+        // Plates out of the smelter: over the junction (coal line crosses), then the splitter sends them to two faces.
+        Belts(Basic, 'W', 11, 0, 9, 0);
+        Piece("junction", BuildingKind.Junction, 8, 0, 1);
+        Belts(Basic, 'W', 7, 0, 7, 0);
+        Piece("splitter", BuildingKind.Splitter, 6, 0, 1);
+        Belts(Basic, 'W', 6, -1, 0, -1);
+        Belts(Basic, 'S', -1, -1, -1, -1);
+        Belts(Basic, 'W', 6, 1, 6, 1);
+
+        // Line 2 (fast): lead -> smelter -> west along the assembler -> up, merging with the splitter's belt -> Core.
+        Belts(Fast, 'W', 23, 4, 14, 4);
+        Belts(Fast, 'W', 11, 4, 6, 4);
+        Belts(Fast, 'N', 5, 4, 5, 3);
+        Piece("junction", BuildingKind.Junction, 5, 2, 1);
+        Belts(Fast, 'W', 5, 1, 0, 1);
+        feeds.Add((23, 4, "lead-ore", 0.6));
+
+        // Line 3 (basic): coal from the north across the plate line (junction) into the assembler.
+        Belts(Basic, 'W', 19, -6, 9, -6);
+        Belts(Basic, 'S', 8, -6, 8, -1);
+        Belts(Basic, 'S', 8, 1, 8, 1);
+        feeds.Add((19, -6, "coal", 0.9));
+
+        // Line 4 (express): copper from the south, bridge over line 2, then west under the assembler into the Core.
+        Belts(Express, 'W', 19, 10, 8, 10);
+        Belts(Express, 'N', 7, 10, 7, 6);
+        Piece("conveyor-bridge", BuildingKind.Bridge, 7, 5, 1, 'N');
+        Belts(Express, 'W', 7, 2, 6, 2);
+        Belts(Express, 'W', 4, 2, 0, 2);
+        Belts(Express, 'N', -1, 2, -1, 2);
+        feeds.Add((19, 10, "copper-ore", 0.5));
+
+        // Orientation: the face of the Core where the whole blueprint fits (Core on the u<0 side of it).
+        GridPosition At(GridPosition o, Direction outDir, int u, int v)
+        {
+            var p = u >= 0 ? o.Step(outDir, u) : o.Step(DirectionMath.Opposite(outDir), -u);
+            var lat = DirectionMath.Right(outDir);
+            return v >= 0 ? p.Step(lat, v) : p.Step(DirectionMath.Opposite(lat), -v);
+        }
+
+        IEnumerable<GridPosition> PlanCells(GridPosition o, Direction outDir) =>
+            plan.SelectMany(p => Cells(new GridPosition(0, 0), p.Size).Select(c => At(o, outDir, p.U + c.X, p.V + c.Y)));
+
+        (GridPosition Origin, Direction Out, int Blocked)? layout = null;
+        foreach (var outDir in DirectionMath.All)
+        {
+            var lat = DirectionMath.Right(outDir);
+            foreach (var o in coreTiles.Select(t => t.Step(outDir)))
+            {
+                var mapped = new[] { -1, -2 }.SelectMany(a => new[] { 0, 1 }.Select(b => At(o, outDir, a, b))).ToHashSet();
+                if (!mapped.SetEquals(coreSet))
+                {
+                    continue;
+                }
+
+                var blocked = PlanCells(o, outDir).Count(c => !Open(c) || reserved.Contains(c));
+                if (layout is null || blocked < layout.Value.Blocked)
+                {
+                    layout = (o, outDir, blocked);
+                }
+            }
+        }
+
+        // The small base is routed around the blueprint's cells.
+        if (layout is { } early)
+        {
+            reserved.UnionWith(PlanCells(early.Origin, early.Out));
+        }
+
+        // ---- Small base ------------------------------------------------------------------------------------
+        var small = new HashSet<GridPosition>(coreSet);
+        var smallKind = spots.FirstOrDefault(x => x.Kind is DepositKind.Iron or DepositKind.Lead).Kind;
+        if (Pick(k => k == smallKind) is { } sa)
+        {
+            Put(Miner.BasicId, BuildingKind.Miner, sa, 2, ring: true, small);
+            var sb = Pick(k => k == smallKind);
+            if (sb is { } sbAt)
+            {
+                Put(Miner.BasicId, BuildingKind.Miner, sbAt, 2, ring: true, small);
+            }
+
+            var centre = sb is { } b2 ? new GridPosition((sa.X + b2.X + 2 * coreMid.X) / 4, (sa.Y + b2.Y + 2 * coreMid.Y) / 4) : Mid(sa, coreMid);
+            if (FindNear(centre, 2, needRing: true) is { } smelterAt
+                && Put(Crafter.SmelterBuildingId, BuildingKind.Smelter, smelterAt, 2, ring: true, small, SmeltRecipe(smallKind)))
+            {
+                Fuel(smelterAt, seedInputs: false);
+                var smelterTiles = new HashSet<GridPosition>(Cells(smelterAt, 2));
+                Link("piccola: minatore A", Ring(sa), smelterTiles, "conveyor-basic", small);
+                if (sb is { } sbPos)
+                {
+                    Link("piccola: minatore B", Ring(sbPos), smelterTiles, "conveyor-basic", small);
+                }
+
+                Link("piccola: forno", Ring(smelterAt), coreSet, "conveyor-basic", small);
+                if (FindNear(smelterAt, 2, needRing: false) is { } genAt && Put(Generator.BuildingId, BuildingKind.Generator, genAt, 2, ring: false, small))
+                {
+                    Fuel(genAt, seedInputs: false);
+                    if (FindNear(Mid(genAt, smelterAt), 1, needRing: false) is { } nodeAt)
+                    {
+                        Put("power-node", BuildingKind.PowerNode, nodeAt, 1, ring: false, small);
+                    }
+                }
+            }
+        }
+        else
+        {
+            GD.Print("PLAYTEST basi: nessun giacimento libero per la base piccola");
+        }
+
+        _buildingsDirty = true;
+        _visualDirty = true;
+        await PlaytestWait(10);
+        var (smallCenter, smallZoom) = Fit(small);
+        await Shoot(smallCenter, smallZoom, "piccola");
+
+        var worldBig = new List<GridPosition>();
+        if (layout is { } place)
+        {
+            GD.Print($"PLAYTEST basi: base grande verso {place.Out}, celle bloccate {place.Blocked}");
+            Direction Face(char c) => c switch
+            {
+                'W' => DirectionMath.Opposite(place.Out),
+                'E' => place.Out,
+                'S' => DirectionMath.Right(place.Out),
+                _ => DirectionMath.Left(place.Out)
+            };
+
+            foreach (var (id, kind, u, v, size, side, extra) in plan)
+            {
+                var cells = Cells(new GridPosition(0, 0), size).Select(c => At(place.Origin, place.Out, u + c.X, v + c.Y)).ToList();
+                var origin = new GridPosition(cells.Min(c => c.X), cells.Min(c => c.Y));
+                var spec = new BuildSpec(id, kind, origin, Face(side), kind is BuildingKind.Smelter or BuildingKind.Assembler ? extra : null,
+                    kind == BuildingKind.Sorter ? extra : null);
+                if (!factory.PlaceInstant(spec, charge: false))
+                {
+                    GD.Print($"PLAYTEST basi: {id} su {origin} rifiutato");
+                    continue;
+                }
+
+                worldBig.AddRange(cells);
+                if (size == 2)
+                {
+                    reserved.UnionWith(Ring(origin));
+                }
+            }
+
+            big.UnionWith(worldBig);
+        }
+        else
+        {
+            GD.Print("PLAYTEST basi: il Core non e' un quadrato 2x2, base grande saltata");
+        }
+
+        var feedCells = layout is { } fl
+            ? feeds.Select(f => (Cell: At(fl.Origin, fl.Out, f.U, f.V), f.ItemId, f.Every)).ToList()
+            : [];
+        var feedClock = feedCells.ToDictionary(f => f.Cell, _ => 0.0);
+        var nextItemId = 900_000L;
+
+        // Lets the simulation run for the given seconds, putting ore on the belts beside the idle miners now and then.
+        async Task Run(double seconds)
+        {
+            for (var t = 0.0; t < seconds; t += 0.1)
+            {
+                foreach (var (cell, itemId, every) in feedCells)
+                {
+                    feedClock[cell] += 0.1;
+                    if (feedClock[cell] >= every && factory.Belts.TryInsert(cell, new TransportedItem(nextItemId, itemId, 0.5f)))
+                    {
+                        nextItemId++;
+                        feedClock[cell] = 0;
+                    }
+                }
+
+                await PlaytestWait(0.1);
+            }
+        }
+
+        void Refuel()
+        {
+            foreach (var gen in factory.Generators)
+            {
+                gen.RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+            }
+
+            foreach (var crafter in factory.Smelters.Concat(factory.Assemblers))
+            {
+                crafter.SeedFuel();
+            }
+        }
+
+        _buildingsDirty = true;
+        _visualDirty = true;
+        Refuel();
+        await Run(12);
+        var (bigCenter, bigZoom) = Fit(big);
+        await Shoot(bigCenter, bigZoom, "grande");
+
+        // Close-up at zoom 1: the 20×11 window over the base with the most machines and belts (a machine counts four), the Core inside if possible.
+        var (bx0, bx1, by0, by1) = (big.Min(c => c.X), big.Max(c => c.X), big.Min(c => c.Y), big.Max(c => c.Y));
+        var (bestX, bestY, bestScore) = (bx0, by0, -1);
+        for (var wy = by0 - 3; wy <= by1 - 8; wy++)
+        {
+            for (var wx = bx0 - 3; wx <= bx1 - 16; wx++)
+            {
+                var score = big.Where(c => c.X >= wx && c.X < wx + 20 && c.Y >= wy && c.Y < wy + 11).Sum(c => factory.Belts.Contains(c) ? 1 : 4)
+                    + (coreSet.All(c => c.X >= wx + 1 && c.X < wx + 19 && c.Y >= wy + 1 && c.Y < wy + 10) ? 1000 : 0);
+                if (score > bestScore)
+                {
+                    (bestX, bestY, bestScore) = (wx, wy, score);
+                }
+            }
+        }
+
+        await Shoot(new Vector2((bestX + 10) * (float)TileSize, (bestY + 5.5f) * TileSize), 1f, "grande-vicino");
+        if (_hud is not null)
+        {
+            _hud.Visible = true;
+        }
+
+        GD.Print($"PLAYTEST basi: piccola {small.Count} celle, grande {big.Count} celle; minatori al lavoro {factory.Miners.Count(m => m.Efficiency > 0f)}, "
                  + $"forni/assemblatori attivi {factory.Smelters.Concat(factory.Assemblers).Count(c => c.IsCrafting)}, "
                  + $"generatori accesi {factory.Generators.Count(g => g.IsGenerating)}");
     }
