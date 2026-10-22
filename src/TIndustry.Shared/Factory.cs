@@ -260,7 +260,7 @@ public sealed class Factory : IGameView
     /// <summary>
     /// Ends a replacement on the new belt of <paramref name="spec"/>: it takes the first <c>Capacity</c> items of
     /// <paramref name="old"/> with their positions, and the old cost beyond the credit comes back at the old belt's
-    /// refund share (<see cref="RefundBasisPointsFor"/>, one floor per line).
+    /// refund share (<see cref="RefundBasisPointsFor"/>, rounded up once per line).
     /// </summary>
     internal void SettleReplacement(BuildSpec spec, ReplacedBelt old)
     {
@@ -271,7 +271,7 @@ public sealed class Factory : IGameView
         var basisPoints = RefundBasisPointsFor(old.Spec);
         for (var i = 0; i < oldCost.Count; i++)
         {
-            var back = (int)((long)(oldCost[i].Amount - credit[i]) * basisPoints / Construction.FullRefundBasisPoints);
+            var back = Construction.RefundShare(oldCost[i].Amount - credit[i], basisPoints);
             if (back <= 0)
             {
                 continue;
@@ -1302,7 +1302,7 @@ public sealed class Factory : IGameView
 
             foreach (var (itemId, amount) in spent)
             {
-                var back = (int)((long)Math.Max(0, amount) * refundBasisPoints / Construction.FullRefundBasisPoints)
+                var back = Construction.RefundShare(amount, refundBasisPoints)
                     - Math.Max(0, SavedAmount(refunded, itemId));
                 Credit(itemId, back);
             }
@@ -2043,10 +2043,10 @@ public sealed class Factory : IGameView
             return;
         }
 
-        Wallet.AddMoney(money * pct / 100);
+        Wallet.AddMoney(Construction.RefundShare(money, pct * 100));
         foreach (var entry in materials)
         {
-            var amount = entry.Amount * pct / 100;
+            var amount = Construction.RefundShare(entry.Amount, pct * 100);
             if (amount > 0)
             {
                 Wallet.AddMaterial(entry.ItemId, amount);
@@ -2275,7 +2275,7 @@ public sealed class Factory : IGameView
     /// <summary>
     /// Share of the cost given back when the finished <paramref name="spec"/> is taken apart, in basis
     /// points (0–10000): the game's <see cref="GameRules.RefundPercent"/> × the building's own refund
-    /// percent. Each cost line then gives back <c>floor(amount × basisPoints / 10000)</c> (one floor).
+    /// percent. Each cost line then gives back <c>ceil(amount × basisPoints / 10000)</c> (rounded up once, <see cref="Construction.RefundShare"/>).
     /// </summary>
     public int RefundBasisPointsFor(BuildSpec spec)
     {
@@ -2555,7 +2555,7 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// Removes the building or belt piece on <paramref name="tile"/> now. With <paramref name="refund"/>
-    /// it gives back <c>floor(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line.
+    /// it gives back <c>ceil(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line.
     /// </summary>
     public bool RemoveInstant(GridPosition tile, bool refund)
     {
@@ -2581,13 +2581,13 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    /// <summary>Gives back <c>floor(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line of <paramref name="spec"/>.</summary>
+    /// <summary>Gives back <c>ceil(amount × </c><see cref="RefundBasisPointsFor"/><c> / 10000)</c> per cost line of <paramref name="spec"/>.</summary>
     private void Refund(BuildSpec spec)
     {
         var basisPoints = RefundBasisPointsFor(spec);
         foreach (var entry in CostOf(spec))
         {
-            var amount = (int)((long)entry.Amount * basisPoints / Construction.FullRefundBasisPoints);
+            var amount = Construction.RefundShare(entry.Amount, basisPoints);
             if (entry.ItemId is { } itemId)
             {
                 Wallet.AddMaterial(itemId, amount);

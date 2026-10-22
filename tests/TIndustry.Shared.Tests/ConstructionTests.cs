@@ -457,12 +457,12 @@ public sealed class ConstructionTests
     }
 
     [Fact]
-    public void RefundFloorsOnceOverRuleAndBuildingShare()
+    public void RefundRoundsUpOnceOverRuleAndBuildingShare()
     {
-        // Cost 8, rule 50%, building 75%: floor(8 × 0.5 × 0.75) = 3 (a double floor would give 2).
+        // Cost 5, rule 50%, building 75%: ceil(5 × 0.5 × 0.75) = 2 (rounding up twice would give 3).
         var content = WithBuilding(Crafter.SmelterBuildingId, b => b with
         {
-            BuildCost = [new ResourceAmount(Iron, 8)],
+            BuildCost = [new ResourceAmount(Iron, 5)],
             RefundPercent = 75
         });
         var spec = new BuildSpec(Crafter.SmelterBuildingId, BuildingKind.Smelter, MinerOrigin, Direction.East);
@@ -472,14 +472,24 @@ public sealed class ConstructionTests
         Assert.Equal(3750, instant.RefundBasisPointsFor(spec));
         Assert.True(instant.PlaceInstant(spec, charge: false));
         Assert.True(instant.RemoveInstant(MinerOrigin, refund: true));
-        Assert.Equal(3, instant.Wallet.MaterialCount(Iron));
+        Assert.Equal(2, instant.Wallet.MaterialCount(Iron));
 
         var gradual = NewFactory(ironPlates: 0, content);
         gradual.State.Rules = new GameRules(RefundPercent: 50);
         Assert.True(gradual.PlaceInstant(spec, charge: false));
         var site = Construction.BeginDeconstruct(gradual.State, MinerOrigin, ownerPlayerId: 0);
         RunUntilFinished(gradual, site);
-        Assert.Equal(3, gradual.Wallet.MaterialCount(Iron));
+        Assert.Equal(2, gradual.Wallet.MaterialCount(Iron));
+    }
+
+    [Fact]
+    public void HalfRefundStillGivesBackACheapBelt()
+    {
+        // A Nastro T1 costs 1 Ferro grezzo: at 50% it gives 1 back, not 0.
+        Assert.Equal(1, Construction.RefundShare(1, 5_000));
+        Assert.Equal(2, Construction.RefundShare(3, 5_000));
+        Assert.Equal(0, Construction.RefundShare(1, 0));
+        Assert.Equal(7, Construction.RefundShare(7, Construction.FullRefundBasisPoints));
     }
 
     [Fact]

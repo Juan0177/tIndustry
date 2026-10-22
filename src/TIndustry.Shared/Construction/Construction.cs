@@ -23,6 +23,21 @@ public static class Construction
     public const int FullRefundBasisPoints = 10_000;
 
     /// <summary>
+    /// What comes back of <paramref name="amount"/> at <paramref name="basisPoints"/>, rounded up once: at 50% a
+    /// cost of 1 gives 1 back. Never more than <paramref name="amount"/> (the share is at most 100%).
+    /// </summary>
+    public static int RefundShare(long amount, int basisPoints)
+    {
+        if (amount <= 0 || basisPoints <= 0)
+        {
+            return 0;
+        }
+
+        var share = Math.Min(basisPoints, FullRefundBasisPoints);
+        return (int)((amount * share + FullRefundBasisPoints - 1) / FullRefundBasisPoints);
+    }
+
+    /// <summary>
     /// Ticks in a row (one second) a worked site may stay stalled for materials before its plan goes to the
     /// back of the drone's queue, when other plans wait (Mindustry's <c>plan.stuck</c>).
     /// </summary>
@@ -319,10 +334,10 @@ public static class Construction
         site.Missing = null;
         for (var i = 0; i < site.Cost.Count; i++)
         {
-            // Total back: one floor of spent × share. What is still "standing" is the share of the
+            // Total back: spent × share, rounded up once. What is still "standing" is the share of the
             // remaining progress, rounded up, so refunds flow gradually from wherever the site starts
             // (1 for a finished building, its current progress for a cancelled site).
-            var total = (int)((long)site.Spent[i] * site.RefundBasisPoints / FullRefundBasisPoints);
+            var total = RefundShare(site.Spent[i], site.RefundBasisPoints);
             var standing = site.Progress <= 0f
                 ? 0
                 : (int)Math.Ceiling(
