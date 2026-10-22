@@ -1,6 +1,6 @@
 # tIndustry — istruzioni per gli agenti
 
-Gioco di logistica industriale (Mindustry × Tiny Industry) in Godot 4.4 .NET. Simulazione in C# (`src/TIndustry.Shared`), client in `godot/`.
+Gioco di logistica industriale come Mindustry, con un mercato che si muove come una borsa («Dal giacimento al mercato»), in Godot 4.4 .NET. Simulazione in C# (`src/TIndustry.Shared`), client in `godot/`.
 
 ## Regole fisse
 
@@ -54,7 +54,7 @@ Il server MCP `tindustry` (`.mcp.json`, codice in `tools/AgentPlay`) fa giocare 
 - Namespace: `TIndustry.Shared`, `TIndustry.Godot`, `TIndustry.Shared.Tests` (nessun sotto-namespace per cartella).
 - `src/TIndustry.Shared` non dipende da Godot né dal sistema operativo (vedi `docs/decisioni/0001-server-csharp.md`).
 - Dati di gioco solo in `data/` (`content.json`, `campaign.json`, `maps/`); `godot/data/` è generata dall'export ed è ignorata da git. Le mappe della campagna (`data/maps/<id>.png`, `<id>.giacimenti.png`, `<id>.json`) si creano e si controllano con `tools/MapTool` (`genera`, `valida`, `anteprima`), mai a occhio: dopo ogni ritocco `valida` deve dire OK. Terreno, generatori e regole: `docs/decisioni/0005-mappe-seme-e-file.md`.
-- Nei documenti, quando «tIndustry» è il titolo principale, al posto della parola si mette il logo: `docs/img/logo.png`. È il logo generato ingrandito ×8, rigenerato con `python tools/art/logo_documenti.py` e controllato in CI. Nel titolo si scrive `<img src="…/docs/img/logo.png" alt="tIndustry" height="48">`; nella Wiki si usa l'URL `raw.githubusercontent.com/…/main/docs/img/logo.png`.
+- Il logo (`docs/img/logo.png`, il logo generato ×8) si usa solo dove il titolo è soltanto «tIndustry»: il banner del README, la barra in alto e la vetrina del sito. Mai dentro una frase: in «Wiki di tIndustry» o «Architettura di tIndustry» resta la parola. Il logo e il banner (`docs/img/readme/banner.png`) si rigenerano con `python tools/art/immagini_documenti.py` e la CI li controlla.
 - Sprite di edifici, nastri, Core, drone e oggetti solo da `python tools/art/genera.py`; non modificare i PNG a mano (si cambia lo script e si rigenera; `--controlla` verifica, vedi `tools/art/README.md` e `docs/decisioni/0004-arte-generata-da-script.md`). Tutto in `godot/assets/` (piatto); icone e carattere dell'interfaccia, generati anch'essi, in `godot/assets/ui/`. Un asset libero di terzi va citato in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
 - **Testi visibili solo tramite chiavi di `godot/lingue/testi.csv`** (colonne `keys,it,en`, italiano e inglese sempre entrambi): nel client nessuna frase scritta nel codice; la simulazione dà codici (`RefusalCode`, `SaveLoadError`) che il client traduce. `TestiTests` lo controlla; come aggiungere un testo o una lingua in `docs/ARCHITETTURA.md`, decisione in `docs/decisioni/0006-interfaccia-lingue-carattere.md`.

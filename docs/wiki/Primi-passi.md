@@ -6,7 +6,7 @@ Che gioco è tIndustry, come scaricarlo e avviarlo, e come si gioca la prima par
 
 ## Che gioco è
 
-tIndustry è un gioco di logistica industriale ispirato a **Mindustry** e **Tiny Industry**. Estrai minerali, li porti al **CORE** sui nastri, li fondi in lastre e li trasformi in fili, grafite e silicio, vendi al **Mercato** e con i soldi sblocchi nuovi blocchi nella **Ricerca**. Non costruisci a mano: piazzi dei piani e il tuo **drone** li costruisce, come in Mindustry. Il combattimento per ora non c'è.
+tIndustry è un gioco di logistica industriale come **Mindustry**, con un **Mercato** che si muove come una borsa. Estrai minerali, li porti al **CORE** sui nastri, li fondi in lastre e li trasformi in fili, grafite e silicio, vendi al **Mercato** e con i soldi sblocchi nuovi blocchi nella **Ricerca**. Non costruisci a mano: piazzi dei piani e il tuo **drone** li costruisce, come in Mindustry. Il combattimento per ora non c'è.
 
 ## Scaricare e avviare
 

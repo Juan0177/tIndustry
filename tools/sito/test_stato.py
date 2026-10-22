@@ -34,12 +34,20 @@ class TestStato(unittest.TestCase):
         self.assertEqual(stato.BLOB + "docs/ARCHITETTURA.md", stato.link_per("ARCHITETTURA.md", "wiki"))
         self.assertEqual("https://x.y/z", stato.link_per("https://x.y/z", "sito"))
 
-    def test_barra_di_testo(self):
+    def test_barra_in_markdown(self):
         testo = stato.markdown_barra(stato.blocchi(ESEMPIO), "readme")
-        self.assertIn("**Avanzamento del gioco: 50%** (2 passi fatti su 4, [dettaglio](docs/STATO.md))", testo)
-        self.assertIn("███░│░░░░", testo)
-        self.assertIn(f"| 1 | [Primo]({stato.WIKI}Logistica) | `███████░░░` | 67% (2/3) |", testo)
-        self.assertIn("| 2 | Secondo | `░░░░░░░░░░` | 0% (0/1) |", testo)
+        self.assertIn('<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 50%, 2 passi fatti su 4"', testo)
+        self.assertIn(f'| 1 | [Primo]({stato.WIKI}Logistica) | <img src="docs/img/stato/1.svg" alt="67%" width="160"> '
+                      "| 67% (2/3) |", testo)
+        self.assertIn("| 2 | Secondo |", testo)
+        self.assertIn(f'src="{stato.RAW}docs/img/stato/2.svg"', stato.markdown_barra(stato.blocchi(ESEMPIO), "wiki"))
+
+    def test_immagini(self):
+        svg = stato.immagini(stato.blocchi(ESEMPIO))
+        self.assertEqual({"docs/img/stato/totale.svg", "docs/img/stato/1.svg", "docs/img/stato/2.svg"}, set(svg))
+        self.assertIn('width="132"', svg["docs/img/stato/1.svg"])  # 2/3 of the 198 px inside the track
+        self.assertNotIn("url(#strisce)\"/></svg>", svg["docs/img/stato/2.svg"])  # 0%: no fill
+        self.assertIn(">50%</text>", svg["docs/img/stato/totale.svg"])
 
     def test_barra_html(self):
         pagina = stato.html_barra(stato.blocchi(ESEMPIO))

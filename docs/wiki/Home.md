@@ -1,38 +1,36 @@
 ![tIndustry](https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/readme/banner.png)
 
-# Wiki di <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/logo.png" alt="tIndustry" height="48">
+# Wiki di tIndustry
 
-**tIndustry** è un gioco di logistica industriale ispirato a **Mindustry** e **Tiny Industry**: estrai minerali, portali al CORE sui nastri, fondili in lastre e fili, vendili al Mercato e reinvesti in Ricerca per sbloccare nuovi blocchi.
+**Dal giacimento al mercato.** **tIndustry** è un gioco di logistica industriale come **Mindustry**, con un mercato che si muove come una borsa: estrai minerali, portali al CORE sui nastri, fondili in lastre e fili e vendili al momento giusto, quando il prezzo sale; con i guadagni sblocchi nuovi blocchi nella Ricerca.
 
 [Scarica l'ultima versione](https://github.com/Juan0177/tIndustry/releases/latest) · [Sito](https://juan0177.github.io/tIndustry/) · [Codice](https://github.com/Juan0177/tIndustry) · [Novità](https://github.com/Juan0177/tIndustry/blob/main/CHANGELOG.md)
 
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-**Avanzamento del gioco: 39%** (26 passi fatti su 66, [dettaglio](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md))
-
-```text
-███░│████│█░░░│████│█░░░│█░░░│█░░░│██░░│███░│███░│░░░░│░░░░│░░░░│░░░░│███░│███░
-```
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 40%, 28 passi fatti su 70" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
-| 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | `███████░░░` | 67% (4/6) |
-| 2 | [Costruzione](Costruzione) | `██████████` | 100% (2/2) |
-| 3 | [Logistica](Logistica) | `███░░░░░░░` | 29% (2/7) |
-| 4 | [Produzione](Produzione) | `██████████` | 100% (2/2) |
-| 5 | [Energia](Energia) | `██░░░░░░░░` | 20% (1/5) |
-| 6 | [Mercato ed economia](Mercato-come-una-borsa) | `██░░░░░░░░` | 20% (1/5) |
-| 7 | [Mappe e terreno](Mappe-e-terreno) | `███░░░░░░░` | 33% (2/6) |
-| 8 | [Campagna](Campagna-e-mappe) | `█████░░░░░` | 50% (1/2) |
-| 9 | [Grafica ed effetti](Arte-generata) | `███████░░░` | 67% (2/3) |
-| 10 | [Interfaccia](Interfaccia-e-lingue) | `███████░░░` | 67% (2/3) |
-| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
-| 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
-| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
-| 14 | [Co-op](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md) | `░░░░░░░░░░` | 0% (0/4) |
-| 15 | [Sito web](Sito-web) | `████████░░` | 80% (4/5) |
-| 16 | [Wiki]() | `████████░░` | 75% (3/4) |
+| 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/1.svg" alt="67%" width="160"> | 67% (4/6) |
+| 2 | [Costruzione](Costruzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
+| 3 | [Logistica](Logistica) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/3.svg" alt="29%" width="160"> | 29% (2/7) |
+| 4 | [Produzione](Produzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
+| 5 | [Energia](Energia) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/5.svg" alt="20%" width="160"> | 20% (1/5) |
+| 6 | [Mercato ed economia](Mercato-come-una-borsa) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/6.svg" alt="20%" width="160"> | 20% (1/5) |
+| 7 | [Mappe e terreno](Mappe-e-terreno) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
+| 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
+| 9 | [Grafica ed effetti](Arte-generata) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
+| 10 | [Interfaccia](Interfaccia-e-lingue) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/10.svg" alt="67%" width="160"> | 67% (2/3) |
+| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/11.svg" alt="0%" width="160"> | 0% (0/4) |
+| 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
+| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/13.svg" alt="0%" width="160"> | 0% (0/4) |
+| 14 | [Co-op](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |
+| 15 | [Sito web](Sito-web) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/15.svg" alt="71%" width="160"> | 71% (5/7) |
+| 16 | [Wiki e README]() | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/16.svg" alt="67%" width="160"> | 67% (4/6) |
+
+Passi di ogni aspetto in [docs/STATO.md](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md).
 <!-- barra-stato:fine -->
 
 Il Wiki ha tre parti: una per chi gioca, una per chi lavora sul codice e una con le idee in discussione.
