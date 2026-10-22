@@ -1,10 +1,23 @@
 ![tIndustry](https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/readme/banner.png)
 
-# Wiki di tIndustry
+# Wiki di <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/logo.png" alt="tIndustry" height="48">
 
 **tIndustry** è un gioco di logistica industriale ispirato a **Mindustry** e **Tiny Industry**: estrai minerali, portali al CORE sui nastri, fondili in lastre e fili, vendili al Mercato e reinvesti in Ricerca per sbloccare nuovi blocchi.
 
 [Scarica l'ultima versione](https://github.com/Juan0177/tIndustry/releases/latest) · [Sito](https://juan0177.github.io/tIndustry/) · [Codice](https://github.com/Juan0177/tIndustry) · [Novità](https://github.com/Juan0177/tIndustry/blob/main/CHANGELOG.md)
+
+## A che punto siamo
+
+<!-- barra-stato:inizio -->
+**Avanzamento: 52%** (12 passi fatti su 23, [dettaglio](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md))
+
+```text
+A 67%       B 100%      C 0%        D 0%        E 0%
+███████░░░  ██████████  ░░░░░░░░░░  ░░░░░░░░░░  ░░░░░░░░░░
+```
+
+A Controlli veloci (2/3) · B Mercato come una borsa (10/10) · C Nuove specifiche del Mercato (0/3) · D Logistica come Mindustry (0/5) · E Più avanti (0/2)
+<!-- barra-stato:fine -->
 
 Il Wiki ha tre parti: una per chi gioca, una per chi lavora sul codice e una con le idee in discussione.
 

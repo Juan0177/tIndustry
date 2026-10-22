@@ -14,6 +14,8 @@ import posixpath
 import re
 import subprocess
 
+import stato
+
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 REPO_URL = "https://github.com/Juan0177/tIndustry"
 BLOB = REPO_URL + "/blob/main/"
@@ -262,24 +264,28 @@ def sezioni_sviluppo(radice="../"):
     elenco = "".join(
         f'<li><a href="{a["url"]}">{a["numero"]:04d} — {html.escape(a["titolo"])}</a></li>' for a in decisioni())
     return (
-        _sezione("come-e-fatto", 1, "Com'è fatto",
+        _sezione("avanzamento", 1, "Avanzamento",
+                 "A che punto siamo con l'ordine di lavoro in corso: la barra è divisa in blocchi, ognuno con la "
+                 f'sua percentuale; il dettaglio è in <a href="{stato.STATO_URL}">docs/STATO.md</a>.',
+                 stato.html_barra(stato.blocchi())) +
+        _sezione("come-e-fatto", 2, "Com'è fatto",
                  "Le scelte di fondo dietro al gioco, in breve: simulazione, costruzione, grafica, mappe, "
                  "interfaccia. Ogni scheda porta al documento completo su GitHub; gli sprite e i blocchi "
                  f'si vedono nella pagina degli <a href="{radice}asset/">asset</a>.',
                  f'<div class="pannelli">{pannelli}</div>') +
-        _sezione("roadmap", 2, "Roadmap",
+        _sezione("roadmap", 3, "Roadmap",
                  "Cosa c'è già e cosa arriva. Il gioco è gratuito e open source: ogni tappa finita entra nella "
                  f'release che <a href="{radice}#scarica">scarichi dalla vetrina</a>.',
                  '<table class="tabella"><thead><tr><th>Stato</th><th>Sotto-progetto</th><th>Cosa porta</th>'
                  f'</tr></thead><tbody>{righe}</tbody></table>') +
-        _sezione("diario", 3, "Diario",
+        _sezione("diario", 4, "Diario",
                  "Come è stato costruito ogni pezzo, tappa per tappa: l'obiettivo di ogni lavoro e il link al "
                  "resoconto completo, con revisioni, scelte e rinvii.",
                  f'<ol class="linea-tempo">{voci}</ol>') +
-        _sezione("decisioni", 4, "Decisioni",
+        _sezione("decisioni", 5, "Decisioni",
                  "L'elenco completo delle decisioni architetturali, numerate nell'ordine in cui sono state prese.",
                  f'<ul class="elenco-adr">{elenco}</ul>') +
-        _sezione("changelog", 5, "Changelog",
+        _sezione("changelog", 6, "Changelog",
                  "Le novità versione per versione e gli zip da scaricare.",
                  f'<p>Tutte le modifiche sono nel <a href="{BLOB}CHANGELOG.md">CHANGELOG</a>; ogni versione '
                  f'pubblicata, con gli zip per Windows e Linux, sta nelle <a href="{REPO_URL}/releases">release su '

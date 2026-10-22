@@ -263,6 +263,14 @@ footer button:hover{border-color:var(--ambra)}
 .stato-in-corso{color:var(--giallo);border-color:var(--giallo)}
 .stato-previsto{color:var(--tenue);border-color:var(--tenue)}
 .stato-altro{color:var(--ambra);border-color:var(--ambra)}
+.totale-avanzamento{font:14px var(--mono);margin:0 0 10px}
+.totale-avanzamento b{font-size:22px;color:var(--ambra)}
+.barra-avanzamento{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+.blocco-avanzamento{display:flex;flex-direction:column;gap:4px;min-width:0}
+.etichetta-avanzamento{font:12px var(--mono);letter-spacing:.08em;color:var(--tenue)}
+.traccia-avanzamento{display:block;height:14px;background:var(--pan);border:1px solid var(--linea)}
+.pieno-avanzamento{display:block;height:100%;background:repeating-linear-gradient(135deg,var(--giallo) 0 8px,var(--ambra) 8px 16px)}
+.nome-avanzamento{font-size:12.5px;color:var(--tenue)}
 .linea-tempo{list-style:none;margin:0;padding:0 0 0 22px;border-left:2px solid var(--linea)}
 .linea-tempo li{position:relative;padding:0 0 22px 18px}
 .linea-tempo li::before{content:"";position:absolute;left:-29px;top:4px;width:12px;height:12px;background:var(--giallo);box-shadow:0 0 0 3px var(--bg)}

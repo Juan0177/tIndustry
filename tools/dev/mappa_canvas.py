@@ -3,7 +3,12 @@
 # Cards are stacked per column and sized to their text, so nothing needs scrolling.
 import json
 import math
+import os
+import sys
 import textwrap
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sito"))
+import stato  # noqa: E402  (progress of docs/STATO.md, shown on the "In corso" card)
 
 COL_W = 440      # card width
 GAP = 24         # vertical gap between cards
@@ -87,7 +92,11 @@ fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-corso", "In corso", X[1], "3")
-corso.card("stato", "**Stato di oggi → [[STATO]]**\nOrdine di lavoro del 22/10 in blocchi A–E: A e B fatti (Mercato come una borsa, PR #274–#282); prossimo il blocco C (specifiche 2 e 3 del Mercato), poi la logistica come Mindustry (D). Le cose piccole che mancano e cosa serve dall'utente sono in docs/STATO.md.")
+_blocchi = stato.blocchi()
+_fatti, _tutti = stato.totale(_blocchi)
+corso.card("stato", f"**Stato di oggi → [[STATO]] · {stato.percento(_fatti, _tutti)}%**\n"
+           + "\n".join(f"- {l} · {t}: {stato.percento(f, n)}% ({f}/{n})" for l, t, f, n in _blocchi)
+           + "\nLe cose piccole che mancano e cosa serve dall'utente sono in docs/STATO.md.")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
