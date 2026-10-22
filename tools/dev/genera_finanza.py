@@ -135,7 +135,8 @@ params = [
     ("spike_every_max", "Picco: intervallo massimo", 20, "min", "utente", "", "0"),
     ("impact", "Vendita: calo per pezzo venduto", 0.0004, "× B", "utente", "0,04% di B per pezzo: 5.000 pezzi = −2×B, così dal picco si arriva vicino a B proprio verso la soglia del crollo.", "0.00%"),
     ("recover", "Vendita: tempo per tornare all'andamento", 120, "s", "proposta", "", "0"),
-    ("crash_qty", "Crollo: pezzi in una vendita", 5000, "pezzi", "utente", "Una vendita da questa quantità in su fa crollare; crolla anche se le vendite portano il prezzo a B.", "#,##0"),
+    ("crash_qty", "Crollo: pezzi venduti nella finestra", 5000, "pezzi", "utente", "Crolla solo se in 2 minuti vendi almeno questa quantità di quell'oggetto (una o più vendite). Le vendite piccole abbassano il prezzo ma non sotto B.", "#,##0"),
+    ("crash_window", "Crollo: finestra per contare i pezzi", 2, "min", "utente", "", "0"),
     ("crash_len", "Crollo: durata", 20, "min", "utente", "Niente picchi e conto alla rovescia del picco fermo.", "0"),
     ("crash_low_len", "Crollo: minuti in cui può andare sotto B", 5, "min", "utente", "I primi minuti del crollo.", "0"),
     ("crash_low_min", "Crollo: minimo sotto B", 0.6, "× B", "utente", "30–40% sotto la soglia minima.", "0.00"),
@@ -149,10 +150,10 @@ params = [
     ("pity_add", "Pity: aumento per tentativo a vuoto", 0.25, "", "utente", "Si somma alla probabilità del tentativo successivo, anche oltre il tetto.", "0%"),
     ("pity_qty", "Pity: pezzi minimi perché il tentativo conti", 3000, "pezzi", "utente", "", "#,##0"),
     ("pity_guarantee", "Pity: tentativi a vuoto di fila per la garanzia", 3, "tentativi", "utente", "Il tentativo dopo è un jackpot sicuro.", "0"),
-    ("auto_price", "Vendita automatica: prezzo", 1.0, "× B", "utente", "Paga B e non tocca il mercato.", "0.00"),
+    ("auto_price", "Vendita automatica: prezzo", 1.0, "× B", "utente", "Paga il prezzo minimo: B, o il prezzo del momento se è sotto B (crollo). Non tocca il mercato. Interruttore per ogni oggetto.", "0.00"),
     ("led_mild", "LED blu: calo fino a", 0.10, "di B", "proposta", "Sotto i 10.000 pezzi: calo fino a questa soglia = blu, oltre (crolli compresi) = viola.", "0%"),
     ("led_yellow_qty", "LED giallo: pezzi (il 50/50)", 10000, "pezzi", "utente", "Giallo solo col 50/50, da 10.000 pezzi in su.", "#,##0"),
-    ("lost_boost", "50/50 perso: recupero accelerato", 0.20, "", "utente", "Interpretazione: per i primi minuti del crollo il prezzo torna verso B il 20% più in fretta. Da confermare nella specifica.", "0%"),
+    ("lost_boost", "50/50 perso: recupero accelerato", 0.20, "", "utente", "Nei primi minuti del crollo il prezzo torna verso B il 20% più in fretta; il crollo dura sempre 20 minuti.", "0%"),
     ("lost_boost_len", "50/50 perso: durata del recupero accelerato", 5, "min", "utente", "", "0"),
     ("late_mult", "Oggetti di fine partita: moltiplicatore di B", 1.5, "×", "proposta", "L'utente vuole oggetti avanzati più cari; il numero è da decidere.", "0.00"),
 ]
@@ -348,13 +349,14 @@ header(E, 4, ["Caso", "B ($)", "Prezzo al clic (× B)", "Pezzi", "Schermo?", "«
 b_plate = "'Valori B'!$F$6"  # iron-plate row (market order: iron-ore, iron-plate, ...)
 cases = [
     ("1. Vendita piccola nella fascia normale", 1.3, 50, "no", "no"),
-    ("2. 750 pezzi a prezzo normale: arriva a B e crolla", 1.3, 750, "no", "sì"),
+    ("2. 750 pezzi a prezzo normale: scende fino a B, niente crollo", 1.3, 750, "no", "sì"),
     ("3. 200 pezzi nel picco con lo schermo: calo lieve", 2.9, 200, "sì", "sì"),
     ("4. 2.000 pezzi nel picco con lo schermo, jackpot mancato", 2.9, 2000, "sì", "sì"),
-    ("5. 2.000 pezzi fuori dal picco: arriva a B e crolla", 1.4, 2000, "sì", "sì"),
+    ("5. 2.000 pezzi fuori dal picco: scende a B, niente crollo", 1.4, 2000, "sì", "sì"),
     ("6. 5.000 pezzi nel picco senza schermo: crollo, niente jackpot", 2.9, 5000, "no", "sì"),
     ("7. Vendita automatica di 100 pezzi", None, 100, "no", "no"),
-    ("8. 10.000 pezzi nel picco con lo schermo: il 50/50", 2.9, 10000, "sì", "sì"),
+    ("8. Vendita automatica di 100 pezzi durante un crollo a 0,65×B", 0.65, 100, "auto", "no"),
+    ("9. 10.000 pezzi nel picco con lo schermo: il 50/50", 2.9, 10000, "sì", "sì"),
 ]
 for i, (name, price, q, screen, all_) in enumerate(cases):
     r = 5 + i
@@ -375,8 +377,18 @@ for i, (name, price, q, screen, all_) in enumerate(cases):
         cell(E, f"K{r}", "no")
         cell(E, f"L{r}", f"=D{r}*ROUND(B{r}*C{r},0)", fmt="$#,##0")
         continue
-    cell(E, f"I{r}", f'=IF(OR(D{r}>={p("crash_qty")},C{r}-D{r}*{p("impact")}<={p("norm_min")}),"sì","no")')
-    cell(E, f"H{r}", f'=IF(I{r}="sì",{p("norm_min")},C{r}-D{r}*{p("impact")})', fmt="0.00",
+    if screen == "auto":
+        cell(E, f"E{r}", "no", BLUE)
+        cell(E, f"C{r}", price, BLUE, "0.00")
+        cell(E, f"H{r}", f"=C{r}", fmt="0.00")
+        cell(E, f"I{r}", "già in crollo")
+        cell(E, f"J{r}", "—")
+        cell(E, f"K{r}", "no")
+        cell(E, f"L{r}", f"=D{r}*ROUND(B{r}*MIN(C{r},{p('auto_price')}),0)", fmt="$#,##0",
+             comment="La vendita automatica paga il minimo fra B e il prezzo del momento.")
+        continue
+    cell(E, f"I{r}", f'=IF(D{r}>={p("crash_qty")},"sì","no")')
+    cell(E, f"H{r}", f'=IF(I{r}="sì",{p("norm_min")},MAX({p("norm_min")},C{r}-D{r}*{p("impact")}))', fmt="0.00",
          comment="Con il crollo il prezzo va vicino a B (e nei primi 5 minuti a volte sotto)." if i == 1 else None)
     cell(E, f"J{r}",
          f'=IF(AND(E{r}="sì",F{r}="sì"),IF(D{r}>={p("led_yellow_qty")},"giallo",IF(C{r}-H{r}<={p("led_mild")},"blu","viola")),"—")')
@@ -418,7 +430,7 @@ for k, line in enumerate([
 # ---------------------------------------------------------------- Simulazione 1 ora
 S = sheet("Simulazione 1 ora", (12, 14, 14, 30))
 title(S, "Un'ora di Lastra di ferro (simulazione illustrativa)",
-      "Punti ogni 10 s generati da uno script con seme fisso: andamento normale, un picco al minuto 14, un «Vendi tutto» di 2.000 pezzi fuori dal picco al minuto 33 → crollo di 20 minuti.")
+      "Punti ogni 10 s generati da uno script con seme fisso: andamento normale, un picco al minuto 14, un «Vendi tutto» di 6.000 pezzi fuori dal picco al minuto 33 → crollo di 20 minuti.")
 header(S, 4, ["Minuto", "Prezzo (× B)", "Prezzo ($)", "Fase"])
 rng = random.Random(268)
 norm_lo, norm_hi, avg = 1.0, 1.6, 1.3
@@ -444,8 +456,8 @@ for step in range(0, 3601, 10):
             price = top - (top - level) * (s - 20) / 30
         phase = "picco"
     if t == crash_start:
-        price = level - 2000 * 0.001
-        phase = "vendita 2.000 pezzi"
+        price = 1.0
+        phase = "vendita 6.000 pezzi"
     if crash_start < t <= crash_start + 20 * 60:
         phase = "crollo"
         price = 1.0 + rng.uniform(0, 0.04)
@@ -672,9 +684,9 @@ L.add_chart(lc, "P4")
 O = sheet("Punti aperti", (6, 100))
 title(O, "Punti aperti", "Da decidere prima della specifica (o nelle micro correzioni dopo).")
 openq = [
+    "Deciso il 22/10 (2): il crollo scatta solo con 5.000 pezzi venduti in 2 minuti, le vendite piccole non scendono sotto B; vendita automatica per oggetto, al prezzo minimo (B, o meno durante un crollo); jackpot su qualsiasi oggetto, il drone sintonizza lo schermo sul grafico giusto.",
     "Deciso il 22/10: crollo da 5.000 pezzi; sequenza a ogni «Vendi tutto» con lo schermo; LED giallo solo col 50/50 (10.000 pezzi); calo 0,04% di B per pezzo; pity per oggetto, bonus solo da 3.000 pezzi; valori B ×1,5 a fine partita; magazzino 1.000 / 4.000 / 12.000.",
-    "Da confermare: un tentativo sotto i 3.000 pezzi non tocca la serie «di fila» del pity (assunto nel foglio).",
-    "Da confermare: «recupero accelerato del 20% per 5 minuti» dopo un 50/50 perso = il prezzo torna verso B il 20% più in fretta nei primi 5 minuti del crollo.",
+    "Confermato: un tentativo sotto i 3.000 pezzi non tocca la serie «di fila» del pity; dopo un 50/50 perso il prezzo torna verso B il 20% più in fretta nei primi 5 minuti del crollo (che dura sempre 20 minuti).",
     "Soglia del LED blu (calo fino al 10% di B): proposta.",
     "Recupero dopo una vendita piccola in 2 minuti: valore di partenza da provare in partita.",
     "Ramo Finanza: costi e prerequisiti dei moduli; eventuali potenziamenti dello schermo oltre i tre moduli.",
