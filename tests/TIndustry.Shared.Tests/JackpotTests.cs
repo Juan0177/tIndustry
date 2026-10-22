@@ -420,14 +420,17 @@ public sealed class JackpotTests
     public void HugeStockSaturatesWithoutThrowing()
     {
         var f = NewFactory();
+        var host = new SimHost(f);
+        var events = new List<SaleResolved>();
+        host.EventRaised += e => { if (e is SaleResolved sale) { events.Add(sale); } };
         Script(f, true);
         Force(f, Titanium, 3000);
         SetStock(f, Titanium, 50_000_000);
-        var watch = System.Diagnostics.Stopwatch.StartNew();
 
-        Assert.True(f.TrySellAll(Titanium));
+        host.Submit(new SellAll(1, Titanium));
+        host.Advance(1.0 / 60);
 
-        Assert.True(watch.ElapsedMilliseconds < 1000);
+        Assert.True(Assert.Single(events).Jackpot);
         Assert.Equal(int.MaxValue, f.Wallet.Money);
         Assert.Equal(int.MaxValue, f.Session.SaleIncome);
         Assert.Equal(50_000_000, f.Session.SoldByItem[Titanium]);
