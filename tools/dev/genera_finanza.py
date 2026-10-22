@@ -1,6 +1,6 @@
 """Builds docs/finanza/mercato-e-finanza.xlsx: rules, examples, pity and charts of the stock-market design (#268).
 
-    python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx   # then recalc the formulas in Excel/LibreOffice
+    python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx   # *.xlsx is git-ignored: regenerate it, then recalc the formulas
 """
 
 import json
@@ -99,6 +99,7 @@ rows = [
     ("Simulazione 1 ora", "Un'ora di prezzo di un oggetto: andamento normale, un picco, un errore e il crollo (grafico)."),
     ("Ramo Finanza", "Schermo di borsa, bot della finanza e moduli nella Ricerca."),
     ("Magazzino CORE", "Anteprima della specifica 3: magazzino per oggetto e drone per livello del CORE."),
+    ("Analisi lungo periodo", "Quattro ore con 25 pezzi al secondo: jackpot subito, dopo 1 o 2 perdite, dopo 3 perdite col pity, contro la sola vendita automatica (grafico)."),
     ("Punti aperti", "Cose da decidere, compresa un'incoerenza trovata facendo i conti."),
     ("", ""),
     ("Le tre specifiche", ""),
@@ -529,6 +530,139 @@ for i, (lvl, cap, drone) in enumerate(levels):
          f'="Vendi tutto fino a "&TEXT(B{r},"#,##0")&" pezzi: jackpot fino al "&TEXT(IF(B{r}<{p("jp_min_qty")},0,MIN({p("jp_cap")},{p("jp_base")}+INT((B{r}-{p("jp_min_qty")})/{p("jp_step_qty")})*{p("jp_step")})),"0%")&IF(B{r}>={p("pity_qty")},", pity attivo",", pity non raggiungibile")').alignment = WRAP
 M["A9"] = "Il magazzino fa da freno naturale: per il pity servono 3.000 pezzi e per il 50% ne servono 10.000, quindi i jackpot grossi arrivano solo con un CORE potenziato."
 M["A9"].font = NOTE
+
+# ---------------------------------------------------------------- Analisi lungo periodo
+L = sheet("Analisi lungo periodo", (34, 14, 12, 12, 12, 12, 12, 14, 16, 16, 16))
+title(L, "Analisi a medio-lungo termine: 4 ore con 25 pezzi al secondo",
+      "Ogni scenario è un ciclo di fortuna che si ripete per tutte le 4 ore («se ti andasse sempre così»), confrontato con la sola vendita automatica a B.")
+inputs = [
+    ("Oggetto (nome come in «Valori B»)", "Ferro grezzo", None, "Scrivi «Lastra di ferro» per vedere le lastre."),
+    ("Produzione (pezzi al secondo)", 25, "0", "Indicata dall'utente."),
+    ("Orizzonte (minuti)", 240, "0", ""),
+    ("Primo picco (minuto)", 15, "0", "Media dell'intervallo 10–20 minuti."),
+    ("Intervallo fra picchi (minuti)", 15, "0", "Media di 10–20; il conto alla rovescia riparte solo a crollo finito."),
+    ("Prezzo al momento del «Vendi tutto» (× B)", 2.9, "0.00", "Nel picco (da 2,8 a 3 × B)."),
+    ("Pezzi per tentativo (scenari 1–3)", 10000, "#,##0", "10.000 pezzi = 50%: il «50/50»."),
+    ("Pezzi per tentativo (scenario 4)", 5000, "#,##0", "Con 10.000 pezzi 3 perdite di fila sono impossibili: dopo 2 perdite si è già al 100%."),
+]
+for i, (label, value, fmt, note) in enumerate(inputs):
+    r = 4 + i
+    cell(L, f"A{r}", label)
+    cell(L, f"B{r}", value, BLUE, fmt)
+    L[f"C{r}"] = note
+    L[f"C{r}"].font = NOTE
+cell(L, "A12", "Valore base B dell'oggetto ($)", BOLD)
+cell(L, "B12", "=INDEX('Valori B'!$F$5:$F$15,MATCH(B4,'Valori B'!$A$5:$A$15,0))", GREEN, "$#,##0")
+cell(L, "A13", "Pezzi prodotti in 4 ore")
+cell(L, "B13", "=B5*B6*60", fmt="#,##0")
+cell(L, "A14", "Minuti fra un tentativo e il successivo")
+cell(L, "B14", f"={p('crash_len')}+B8", fmt="0")
+cell(L, "A15", "Prezzo pagato al picco ($/pezzo)")
+cell(L, "B15", "=ROUND(B12*B9,0)", fmt="$#,##0")
+cell(L, "A16", "Jackpot ($/pezzo)")
+cell(L, "B16", f"=B12+ROUNDDOWN(B12*{p('jp_bonus')},0)+(B15-B12)", fmt="$#,##0")
+cell(L, "A17", "Solo vendita automatica a B in 4 ore ($)", BOLD)
+cell(L, "B17", "=B13*B12", BOLD, "$#,##0")
+L["A18"] = "Serve un CORE che tenga 10.000 pezzi di quell'oggetto (livello 3 nel foglio «Magazzino CORE»): si accumulano in 400 secondi."
+L["A18"].font = NOTE
+
+scen = [
+    ("Scenario 1 — vinci subito il 50/50 (ogni volta)", "B10", ["sì"]),
+    ("Scenario 2 — perdi 1, poi vinci (75%)", "B10", ["no", "sì"]),
+    ("Scenario 3 — perdi 2, poi vinci (100%: garantito)", "B10", ["no", "no", "sì"]),
+    ("Scenario 4 — perdi 3, poi vittoria garantita dal pity (5.000 pezzi)", "B11", ["no", "no", "no", "sì"]),
+]
+ATTEMPTS = 7
+summary = []
+r = 21
+extra_cols = []
+for si, (name, qty_ref, pattern) in enumerate(scen):
+    L[f"A{r}"] = name
+    L[f"A{r}"].font = BOLD
+    r += 1
+    header(L, r, ["Tentativo", "Minuto", "Pezzi", "Prob. base", "Bonus pity", "Prob. totale", "Esito", "Jackpot?",
+                  "Incasso tentativo ($)", "Stessi pezzi a B ($)", "Guadagno extra ($)"])
+    first = r + 1
+    for k in range(ATTEMPTS):
+        rr = first + k
+        cell(L, f"A{rr}", k + 1)
+        cell(L, f"B{rr}", f"=$B$7+(A{rr}-1)*$B$14", fmt="0")
+        cell(L, f"C{rr}", f"=IF(B{rr}<=$B$6,{qty_ref.replace('B', '$B$')},0)", fmt="#,##0")
+        cell(L, f"D{rr}",
+             f"=IF(C{rr}<{p('jp_min_qty')},0,MIN({p('jp_cap')},{p('jp_base')}+INT((C{rr}-{p('jp_min_qty')})/{p('jp_step_qty')})*{p('jp_step')}))",
+             fmt="0%")
+        prev = f"N{rr - 1}" if k > 0 else "0"
+        cell(L, f"E{rr}", f"={prev}*{p('pity_add')}", fmt="0%")
+        cell(L, f"F{rr}", f"=IF({prev}>={p('pity_guarantee')},1,MIN(1,D{rr}+E{rr}))", fmt="0%")
+        cell(L, f"G{rr}", pattern[k % len(pattern)], BLUE)
+        cell(L, f"H{rr}", f'=IF(C{rr}=0,"—",IF(OR(G{rr}="sì",F{rr}>=1),"sì","no"))')
+        cell(L, f"I{rr}", f'=IF(H{rr}="sì",C{rr}*$B$16,C{rr}*$B$15)', fmt="$#,##0")
+        cell(L, f"J{rr}", f"=C{rr}*$B$12", fmt="$#,##0")
+        cell(L, f"K{rr}", f"=I{rr}-J{rr}", fmt="$#,##0")
+        # Hidden helper: misses in a row after this attempt (pity counter).
+        cell(L, f"N{rr}", f'=IF(OR(C{rr}=0,H{rr}="sì"),IF(C{rr}=0,{prev},0),IF(C{rr}>={p("pity_qty")},{prev}+1,{prev}))')
+        L[f"N{rr}"].font = Font(name=FONT, color="BFBFBF")
+    last = first + ATTEMPTS - 1
+    tot = last + 1
+    cell(L, f"A{tot}", "Totale in 4 ore (tentativi + resto venduto a B)", BOLD)
+    cell(L, f"H{tot}", f'=COUNTIF(H{first}:H{last},"sì")&" jackpot"', BOLD)
+    cell(L, f"K{tot}", f"=SUM(K{first}:K{last})", BOLD, "$#,##0")
+    cell(L, f"E{tot}", "× automatica", BOLD)
+    cell(L, f"F{tot}", f"=I{tot}/$B$17", BOLD, "0.0x")
+    cell(L, f"I{tot}", f"=$B$17+K{tot}", BOLD, "$#,##0")
+    cell(L, f"J{tot}", f"=SUM(J{first}:J{last})", BOLD, "$#,##0")
+    summary.append((name.split(" — ")[0], f"I{tot}", f"F{tot}", f"H{tot}", first, last))
+    extra_cols.append((first, last))
+    r = tot + 3
+L["N20"] = "contatore pity"
+L["N20"].font = Font(name=FONT, color="BFBFBF")
+
+sr = r
+L[f"A{sr}"] = "Riepilogo dopo 4 ore"
+L[f"A{sr}"].font = BOLD
+header(L, sr + 1, ["Strategia", "Totale ($)", "× vendita automatica", "Jackpot"])
+cell(L, f"A{sr + 2}", "Solo vendita automatica a B")
+cell(L, f"B{sr + 2}", "=$B$17", fmt="$#,##0")
+cell(L, f"C{sr + 2}", "=1", fmt="0.0x")
+cell(L, f"D{sr + 2}", "0 jackpot")
+for i, (nm, tref, xref, jref, _, _) in enumerate(summary):
+    rr = sr + 3 + i
+    cell(L, f"A{rr}", nm)
+    cell(L, f"B{rr}", f"={tref}", fmt="$#,##0")
+    cell(L, f"C{rr}", f"={xref}", fmt="0.0x")
+    cell(L, f"D{rr}", f"={jref}")
+nr = sr + 3 + len(summary) + 1
+L[f"A{nr}"] = ("Lettura: anche sfruttando ogni picco senza mai beccare un jackpot, la vendita al picco rende circa 2,9 volte B sui pezzi venduti; "
+               "il jackpot moltiplica quei pezzi per circa 10. Ogni tentativo però blocca l'oggetto per 20 minuti di crollo più l'attesa del picco.")
+L[f"A{nr}"].font = NOTE
+
+# Cumulative money every 10 minutes, for the chart.
+cr = nr + 3
+L[f"A{cr - 1}"] = "Soldi accumulati nel tempo (per il grafico)"
+L[f"A{cr - 1}"].font = BOLD
+header(L, cr, ["Minuto", "Solo automatica", "Scenario 1", "Scenario 2", "Scenario 3", "Scenario 4"])
+for i, t in enumerate(range(0, 241, 10)):
+    rr = cr + 1 + i
+    cell(L, f"A{rr}", t, fmt="0")
+    base = f"$B$5*60*A{rr}*$B$12"
+    cell(L, f"B{rr}", f"={base}", fmt="$#,##0")
+    for j, (first, last) in enumerate(extra_cols):
+        col = get_column_letter(3 + j)
+        cell(L, f"{col}{rr}", f'={base}+SUMIFS($K${first}:$K${last},$B${first}:$B${last},"<="&A{rr})', fmt="$#,##0")
+last_cr = cr + 1 + len(range(0, 241, 10)) - 1
+lc = LineChart()
+lc.title = "Soldi accumulati in 4 ore (25 pezzi al secondo)"
+lc.y_axis.title = "$"
+lc.x_axis.title = "Minuto"
+lc.y_axis.number_format = "#,##0"
+lc.add_data(Reference(L, min_col=2, max_col=6, min_row=cr, max_row=last_cr), titles_from_data=True)
+lc.set_categories(Reference(L, min_col=1, min_row=cr + 1, max_row=last_cr))
+for s_, color in zip(lc.series, ["8C8C8C", "2A78D6", "EB6834", "1BAF7A", "6250D6"]):
+    s_.graphicalProperties.line.solidFill = color
+    s_.graphicalProperties.line.width = 22000
+    s_.smooth = False
+lc.height, lc.width = 11, 22
+L.add_chart(lc, "P4")
 
 # ---------------------------------------------------------------- Punti aperti
 O = sheet("Punti aperti", (6, 100))
