@@ -73,7 +73,14 @@ Quello che il codice fa, dove si discosta da quanto scritto:
 
 ### Revisione finale
 
-_Da compilare dal controllore: esito della revisione finale dell'intero piano, correzioni e rilettura._
+Revisione dell'intero piano (opus, `939e2c1..f7f425b`): **pronta con correzioni**. Nessun difetto di determinismo, di salvataggi o di overflow. Tre Important e sette minori, tutti corretti in un'unica ondata (`35c4016`, decisione R10):
+
+- Important 1: `MarketCatalog` era codice morto con i B scritti nel codice; tolto del tutto (file, `GameState.Market`, `Factory`, `IGameView`), i test leggono `Content.Market`.
+- Important 2: `stato.mercato` degli agenti nascondeva gli oggetti in vendita automatica senza scorte; ora elenca anche quelli (`AutoSell` oppure scorte).
+- Important 3: `lastSale` degli agenti non era filtrato per giocatore e i flag di `vendi` non avevano test; ora si imposta solo se la vendita è del giocatore, con test del crollo, del rifiuto `SellAllCooldown` e del non trapelare del crollo altrui.
+- Minori: commenti sbagliati (`MarketState`, `SimEvents`, `MarketSystem`) corretti; `normalAverage` e `normalMin` validati; la riga di stato del pannello cita il crollo (`mercato.venduti.crollo`, italiano e inglese); tolto il `playerId` predefinito di `TrySellFromWallet`, `TrySellAll` e `MarketSales.Sell`; i campi vecchi (`AutoSellAtCore`, `CoreSaleBonusPercent`) non si scrivono più; `MarketState.Restore` ripara liste nulle in un file modificato a mano; avviso sul setter di `Terrain`.
+
+Minori tenuti rinviati dopo il vaglio finale: messaggio «marketRules.1 (100%)», campi interi con frazioni, `MarketRules` nullo senza `Load` (task 1); test deboli e interpolazione (task 2); mancano i test di crollo durante un picco e di vendita durante il crollo, e quello di `crashJitter` (task 3); test del 50/50 su `MarketMath` (task 4); tick assoluti e riparazione silenziosa (task 6); `ForPlaytestSetHistory` pubblico e il toast del jackpot contro «Venduto» (task 8). Scelte di prodotto non giudicate e lasciate così: «Vendi 100» disabilitato sotto i 100 pezzi, valore base nel suggerimento e linea tratteggiata di B.
 
 ## Decisioni prese in autonomia
 
@@ -87,15 +94,16 @@ _Da compilare dal controllore: esito della revisione finale dell'intero piano, c
 - **Decisione: nel crollo il calo da vendite è 0, quindi del «50/50 perso» resta solo l'effetto reale (cali sotto B il 20% meno probabili); si toglie il ramo morto del recupero accelerato e si prova l'effetto sui cali — la specifica dice «in pratica» entrambi, ma uno non può agire — costo se sbagliata: va riaggiunto un ramo di 3 righe e deciso cosa vuol dire «torna verso B più in fretta» nel crollo.** (R8)
 - **Decisione: le somme di `Money` e `SaleIncome` si saturano a `int.MaxValue` invece di avvolgersi (niente tetto per vendita) — dopo circa 320 jackpot grossi un `int` traboccherebbe in negativo — costo se sbagliata: il tetto andrebbe sostituito da `long` in un task apposito.** (R9)
 - **Decisione: salvataggi corrotti riparati al caricamento, mai rifiutati, e senza avviso — un oggetto del mercato fuori misura non deve far perdere una partita — costo se sbagliata: un errore del file passerebbe inosservato.** (task 6)
+- **Decisione: un'unica ondata di correzioni della revisione finale sul ramo della chiusura (PR del task 9), tutte le voci tranne «Vendi 100» e il valore base nel suggerimento, che sono scelte di prodotto e restano come sono — costo se sbagliata: la PR di chiusura contiene anche codice.** (R10)
 - **Decisione: il task 9 tiene i valori del piano invariati dopo la prova B4 — l'utente (23/10): «procedi col Task 9 con le proposte del piano invariate» — costo se sbagliata: ritocco di `marketRules`, nessun codice.**
 
 ## Problemi rinviati
 
 Minori dei task, non portanti, parcheggiati:
 
-- **Task 1**: messaggio «marketRules.1 (100%)» poco leggibile per `jackpotCap` e `crashDipChance`; i campi interi (secondi, pezzi) accettano frazioni arrotondate e non controllano l'overflow nel cast; `FactoryContent.MarketRules` è `null!` senza `Load` (attenzione ai test che costruiscono i contenuti a mano); `normalAverage` non è controllata dentro `[normalMin, normalMax]`.
+- **Task 1**: messaggio «marketRules.1 (100%)» poco leggibile per `jackpotCap` e `crashDipChance`; i campi interi (secondi, pezzi) accettano frazioni arrotondate e non controllano l'overflow nel cast; `FactoryContent.MarketRules` è `null!` senza `Load` (attenzione ai test che costruiscono i contenuti a mano); `normalAverage` non è controllata dentro `[normalMin, normalMax]` (ripresa nella revisione finale); il default `BaseValue = 1` di `MarketItemDefinition` e i valori duplicati in `MarketCatalog.CreateDefault` (ripreso nella revisione finale: `MarketCatalog` tolto).
 - **Task 2**: `Reseed` non azzera `CrashEndTick`, `BoostEndTick`, `PityMisses` e `WindowPieces`; `Random = new MarketRandom(0)` ridondante; alcuni test deboli (`DifferentGameSeeds`, `ItemsMoveIndependently`, `EverySpikeHasASellingWindow`), interpolazione troncata (±1 millesimo), `NormalPriceStaysInBand` lento. (Il rinvio sul primo picco assoluto caricando oltre il minuto 20 è stato ripreso nel task 6.)
-- **Task 3**: manca un test di crollo durante un picco e di vendita durante il crollo; nessun test per l'errore di validazione di `crashJitter`; «solo il minimo» nel crollo semplifica i cali 0,6-0,7 nel racconto del sito; `test_racconto.py` fissa la terna (23, 30, 69).
+- **Task 3**: manca un test di crollo durante un picco e di vendita durante il crollo; nessun test per l'errore di validazione di `crashJitter`; overflow di `int` di `pieces * unit` oltre circa 13,7 milioni di pezzi e `RecordSale` O(pezzi) (ripreso nel task 4); «solo il minimo» nel crollo semplifica i cali 0,6-0,7 nel racconto del sito; `test_racconto.py` fissa la terna (23, 30, 69).
 - **Task 4**: il test del 50/50 prova `MarketMath.CrashDipChance`, non che `CrashPrice` lo chiami con `tick < BoostEndTick`.
 - **Task 5**: il ponte `Factory.AutoSellAtCore` è tutto-o-niente (impostazioni parziali per oggetto perse al salvataggio fino alla v14, ripreso dal task 6).
 - **Task 6**: i tick assoluti (`NextSpikeTick`, `CrashEndTick`…) si caricano così come sono; il salvataggio corrotto è riparato senza avviso.
@@ -107,7 +115,17 @@ Minori dei task, non portanti, parcheggiati:
 
 ## Verifiche finali
 
-_I risultati delle verifiche del task 9 sono nel rapporto del task; la revisione finale dell'intero piano è nella sezione «Revisione finale» sopra._
+Dopo le correzioni finali (`35c4016`):
+
+- `dotnet build tIndustry.sln -c Release`: 0 errori, 0 avvisi.
+- `Shared.Tests`: 782 superati, 2 ignorati (`MeasureLargeMap`, `WritePreviews`), 0 falliti.
+- `AgentPlay.Tests`: 38 superati.
+- `MapTool valida`: tutte OK. `godot4 --build-solutions`: OK.
+- Playtest `ui` OK (italiano e inglese nel task 8; di nuovo `ui` dopo le correzioni finali); `tutorial` OK (task 8).
+- `controlla_wiki.py`: `wiki: OK`. Test del sito: 63 (e 25 dello script) nel task 3.
+- `build-publish.yml` lanciata a mano e verde su ogni PR #274-#281 (la #282 è in attesa).
+
+Da seguire: la sonda `oggetti-fluidi` dei playtest è intermittente (rilanciarla prima di indagare); `genera.py --controlla` segnala `drone-1-elmetto.png`, già diverso su `main`, e manca il suo `.import` (`godot/assets/drone-1-elmetto.png.import` non versionato).
 
 ## Da fare
 

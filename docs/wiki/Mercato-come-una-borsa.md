@@ -2,7 +2,7 @@
 
 > **Nel gioco da ottobre 2026** (specifica 1 di 3, [specifica completa](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), lavoro seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268)). Prezzi che si muovono, picchi, crolli e vendita automatica per oggetto ci sono già. **Il jackpot è nella simulazione ma non scatta ancora in partita**: serve lo schermo di borsa della specifica 2. Il magazzino del CORE e i livelli sono la specifica 3. I numeri esatti sono in [Economia e Ricerca](Economia-e-Ricerca#il-mercato).
 
-tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Stiamo cambiando il modo in cui si vende, e vorremmo sapere cosa ne pensi.
+tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Il Mercato funziona come una borsa, e vorremmo sapere cosa ne pensi.
 
 ## Come funziona
 

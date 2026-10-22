@@ -13,9 +13,9 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Sito**: grafico del prezzo, didascalia e capitolo Mercato del racconto allineati al nuovo Mercato (#273)
 
 ### Cambiato
+
 - **Salvataggi alla versione 14**: portano lo stato del mercato; i v11, v12 e v13 si leggono ancora e ripartono con un mercato nuovo. Un salvataggio con dati del mercato fuori misura si ripara al caricamento invece di essere rifiutato
 - **Valori dei prezzi**: i vecchi prezzi dinamici (listino, minimo e soglia in funzione delle scorte) sono tolti; il bonus del 25% di «Potenzia CORE» sulle vendite è tolto (servirà al magazzino e al drone). Gli obiettivi di guadagno della campagna si ritoccano solo dove i test lo chiedevano
-
 - **Ponte a distanza 2–4 come Mindustry** (#256): gli estremi stanno a 2–4 celle e scavalcano da 1 a 3 celle, anche il ponte automatico; un salvataggio con un ponte più lungo si carica senza quel ponte
 - **Il Minatore T2 paga il suo +20% in corrente** (#256): 0,5 unità al secondo dalla riserva mentre scava; senza riserva va alla velocità normale
 - **Rimborso arrotondato per eccesso** (#256): al 50% della campagna un Nastro T1 da 1 ferro rende 1, non 0; una sola volta per voce, mai più dello speso
