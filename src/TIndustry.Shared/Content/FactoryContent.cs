@@ -432,7 +432,7 @@ public sealed class FactoryContent
             F(r.CrashMinutes, "crashMinutes"), F(r.CrashDipMinutes, "crashDipMinutes"),
             F(r.CrashDipMin, "crashDipMin", 1000), F(r.CrashDipMax, "crashDipMax", 1000),
             Positive(F(r.CrashDipEverySeconds, "crashDipEverySeconds"), "crashDipEverySeconds"),
-            F(r.CrashDipChance, "crashDipChance", 10_000),
+            F(r.CrashDipChance, "crashDipChance", 10_000), F(r.CrashJitter, "crashJitter", 1000),
             F(r.JackpotMinPieces, "jackpotMinPieces"), F(r.JackpotBase, "jackpotBase", 10_000),
             Positive(F(r.JackpotStepPieces, "jackpotStepPieces"), "jackpotStepPieces"),
             F(r.JackpotStep, "jackpotStep", 10_000), F(r.JackpotCap, "jackpotCap", 10_000),
@@ -450,6 +450,11 @@ public sealed class FactoryContent
         Order(rules.CrashDipMinMilli, rules.CrashDipMaxMilli, "crashDipMin", "crashDipMax");
         Order(rules.JackpotCapBp, 10_000, "jackpotCap", "1 (100%)");
         Order(rules.CrashDipChanceBp, 10_000, "crashDipChance", "1 (100%)");
+        if (rules.CrashJitterMilli < 0 || rules.NormalMinMilli + rules.CrashJitterMilli > rules.NormalMaxMilli)
+        {
+            throw new InvalidDataException(
+                "content.json: marketRules.crashJitter deve essere almeno zero e normalMin + crashJitter non può superare normalMax.");
+        }
         return rules;
     }
 
@@ -626,6 +631,7 @@ public sealed class FactoryContent
         public double? CrashDipMax { get; set; }
         public double? CrashDipEverySeconds { get; set; }
         public double? CrashDipChance { get; set; }
+        public double? CrashJitter { get; set; }
         public double? JackpotMinPieces { get; set; }
         public double? JackpotBase { get; set; }
         public double? JackpotStepPieces { get; set; }

@@ -5,9 +5,6 @@ internal static class MarketMath
     /// <summary>Price of B itself, in thousandths of B.</summary>
     public const int OneB = 1000;
 
-    /// <summary>The crash price sits between B and B plus this many thousandths.</summary>
-    public const int CrashJitterMaxMilli = 40;
-
     /// <summary>Money for one piece: <c>round(B × price)</c>, price in thousandths of B.</summary>
     public static int UnitIncome(int baseValue, int priceMilli) => (int)(((long)baseValue * priceMilli + 500) / 1000);
 }
@@ -44,10 +41,10 @@ internal static class MarketSales
         if (item.Phase != MarketPhase.Crash)
         {
             var rate = SimulationClock.TickRate;
-            var room = Math.Max(0, price - rules.NormalMinMilli) * 1000L;
+            var room = Math.Max(0, price - MarketMath.OneB) * 1000L;
             var added = (int)Math.Min((long)pieces * rules.SaleImpactMicro, room);
             item.SaleDropMicro += added;
-            item.PriceMilli = Math.Max(rules.NormalMinMilli, price - ((item.SaleDropMicro / 1000) - ((item.SaleDropMicro - added) / 1000)));
+            item.PriceMilli = Math.Max(MarketMath.OneB, price - ((item.SaleDropMicro / 1000) - ((item.SaleDropMicro - added) / 1000)));
             item.SaleRecoveryEndTick = s.CurrentTick + (long)rules.SaleRecoverySeconds * rate;
 
             crash = AddToWindow(s.CurrentTick, item, pieces, rules, rate) >= rules.CrashPieces;
@@ -85,7 +82,7 @@ internal static class MarketSales
         item.CrashDipEndTick = 0;
         item.SaleDropMicro = 0;
         Array.Clear(item.WindowPieces);
-        item.CrashJitterMilli = s.Exchange.Random.NextRange(0, MarketMath.CrashJitterMaxMilli);
+        item.CrashJitterMilli = s.Exchange.Random.NextRange(0, rules.CrashJitterMilli);
         item.PriceMilli = MarketMath.OneB + item.CrashJitterMilli;
     }
 }

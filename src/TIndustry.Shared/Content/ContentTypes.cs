@@ -75,6 +75,7 @@ public sealed record MarketRules(
     int SaleImpactMicro, int SaleRecoverySeconds,
     int CrashPieces, int CrashWindowSeconds, int CrashMinutes, int CrashDipMinutes,
     int CrashDipMinMilli, int CrashDipMaxMilli, int CrashDipEverySeconds, int CrashDipChanceBp,
+    int CrashJitterMilli,
     int JackpotMinPieces, int JackpotBaseBp, int JackpotStepPieces, int JackpotStepBp, int JackpotCapBp,
     int JackpotBonusPermille,
     int PityPieces, int PityStepBp, int PityGuaranteeMisses, int MissCooldownSeconds, int MissSpikeDelaySeconds,

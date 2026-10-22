@@ -804,6 +804,7 @@
     "crashDipMax": 0.7,
     "crashDipEverySeconds": 10,
     "crashDipChance": 0.25,
+    "crashJitter": 0.04,
     "jackpotMinPieces": 400,
     "jackpotBase": 0.02,
     "jackpotStepPieces": 200,

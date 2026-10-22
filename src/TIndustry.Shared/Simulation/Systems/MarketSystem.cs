@@ -90,7 +90,7 @@ public sealed class MarketSystem : ISimulationSystem
     {
         if (tick % rate == 0)
         {
-            item.CrashJitterMilli = market.Random.NextRange(0, MarketMath.CrashJitterMaxMilli);
+            item.CrashJitterMilli = market.Random.NextRange(0, rules.CrashJitterMilli);
         }
 
         var since = tick - (item.CrashEndTick - (long)rules.CrashMinutes * 60 * rate);

@@ -1156,8 +1156,8 @@ internal static class FactoryScenarios
         var boosted = factory.PreviewSellPrice("iron-ore");
         Assert(boosted == basePrice, "no sale bonus");
         var moneyBefore = factory.Wallet.Money;
-        Assert(factory.TrySellFromWallet("iron-ore", 1), "sell boosted");
-        Assert(factory.Wallet.Money == moneyBefore + boosted, "money includes bonus");
+        Assert(factory.TrySellFromWallet("iron-ore", 1), "sell after upgrade");
+        Assert(factory.Wallet.Money == moneyBefore + boosted, "money has no bonus");
 
         var snap = factory.Capture();
         Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySaveData.CurrentVersion, "capture");
