@@ -702,8 +702,8 @@ def pagina_racconto(archivio, versione, dati):
                      "Da ovest arriva anche il piombo, da linee che erano lì da prima. Il CORE tiene tutto per la "
                      "Ricerca e per il Mercato.</p>"),
         ("sinistra", '<span class="etichetta">// 11 · il mercato</span><h2>Il prezzo vola</h2>'
-                   f"<p>Al Mercato il prezzo va come in borsa: di solito poco sopra il minimo, {P['basso']} $ la "
-                   f"lastra di ferro. Ogni tanto un rialzo lo porta al triplo, {P['alto']} $, per pochi secondi. Il "
+                   f"<p>Al Mercato il prezzo va come in borsa: di solito fra {P['basso']} $ (il minimo) e circa "
+                   f"{round(P['basso'] * R['normalMax'])} $ la lastra di ferro. Ogni tanto un rialzo lo porta al triplo, {P['alto']} $, per pochi secondi. Il "
                    "drone riempie una valigetta: 9.999 lastre da vendere tutte insieme, subito.</p>"),
         ("sinistra", '<span class="etichetta">// 12 · vendi tutto</span><h2>Stonks</h2>'
                      "<p>«Vendi tutto» durante un rialzo, davanti allo schermo di borsa: è il tentativo del jackpot. "

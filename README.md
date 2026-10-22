@@ -34,7 +34,7 @@
     <td width="50%"><img src="docs/img/readme/ricerca.png" alt="Albero della Ricerca"><br><sub><b>Ricerca</b> · albero a rami come in Mindustry</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/img/readme/mercato.png" alt="Mercato"><br><sub><b>Mercato</b> · prezzi dinamici e vendita automatica</sub></td>
+    <td width="50%"><img src="docs/img/readme/mercato.png" alt="Mercato"><br><sub><b>Mercato</b> · rialzi, crolli e vendita automatica per oggetto</sub></td>
     <td width="50%"><img src="docs/img/readme/tutorial.png" alt="Tutorial della campagna"><br><sub><b>Campagna</b> · 10 livelli con tutorial non bloccante</sub></td>
   </tr>
 </table>
