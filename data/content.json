@@ -727,6 +727,7 @@
     {
       "itemId": "iron-ore",
       "displayName": "Ferro grezzo",
+      "baseValue": 6,
       "sellPrice": 8,
       "minSellPrice": 3,
       "maxSellPrice": 14,
@@ -735,6 +736,7 @@
     {
       "itemId": "iron-plate",
       "displayName": "Lastra di ferro",
+      "baseValue": 23,
       "sellPrice": 30,
       "minSellPrice": 12,
       "maxSellPrice": 48,
@@ -743,6 +745,7 @@
     {
       "itemId": "copper-ore",
       "displayName": "Rame grezzo",
+      "baseValue": 5,
       "sellPrice": 6,
       "minSellPrice": 2,
       "maxSellPrice": 11,
@@ -751,6 +754,7 @@
     {
       "itemId": "copper-wire",
       "displayName": "Filo di rame",
+      "baseValue": 12,
       "sellPrice": 16,
       "minSellPrice": 6,
       "maxSellPrice": 28,
@@ -759,6 +763,7 @@
     {
       "itemId": "coal",
       "displayName": "Carbone",
+      "baseValue": 3,
       "sellPrice": 4,
       "minSellPrice": 1,
       "maxSellPrice": 8,
@@ -767,6 +772,7 @@
     {
       "itemId": "lead-ore",
       "displayName": "Piombo grezzo",
+      "baseValue": 4,
       "sellPrice": 5,
       "minSellPrice": 2,
       "maxSellPrice": 10,
@@ -775,6 +781,7 @@
     {
       "itemId": "lead-plate",
       "displayName": "Lastra di piombo",
+      "baseValue": 14,
       "sellPrice": 18,
       "minSellPrice": 7,
       "maxSellPrice": 32,
@@ -783,6 +790,7 @@
     {
       "itemId": "titanium-ore",
       "displayName": "Titanio grezzo",
+      "baseValue": 14,
       "sellPrice": 12,
       "minSellPrice": 5,
       "maxSellPrice": 22,
@@ -791,6 +799,7 @@
     {
       "itemId": "titanium-plate",
       "displayName": "Lastra di titanio",
+      "baseValue": 52,
       "sellPrice": 45,
       "minSellPrice": 18,
       "maxSellPrice": 72,
@@ -799,6 +808,7 @@
     {
       "itemId": "graphite",
       "displayName": "Grafite",
+      "baseValue": 12,
       "sellPrice": 10,
       "minSellPrice": 4,
       "maxSellPrice": 18,
@@ -807,12 +817,53 @@
     {
       "itemId": "silicon",
       "displayName": "Silicio",
+      "baseValue": 32,
       "sellPrice": 28,
       "minSellPrice": 11,
       "maxSellPrice": 48,
       "softStock": 16
     }
   ],
+  "marketRules": {
+    "normalMin": 1.0,
+    "normalMax": 1.6,
+    "normalAverage": 1.3,
+    "normalStepSeconds": 4,
+    "normalPull": 0.08,
+    "normalNoise": 0.06,
+    "spikeThreshold": 2.8,
+    "spikeMax": 3.0,
+    "spikeRiseSeconds": 10,
+    "spikeHoldSeconds": 10,
+    "spikeFallSeconds": 30,
+    "spikeIntervalMinMinutes": 10,
+    "spikeIntervalMaxMinutes": 20,
+    "saleImpact": 0.0004,
+    "saleRecoverySeconds": 120,
+    "crashPieces": 5000,
+    "crashWindowSeconds": 120,
+    "crashMinutes": 20,
+    "crashDipMinutes": 5,
+    "crashDipMin": 0.6,
+    "crashDipMax": 0.7,
+    "crashDipEverySeconds": 10,
+    "crashDipChance": 0.25,
+    "jackpotMinPieces": 400,
+    "jackpotBase": 0.02,
+    "jackpotStepPieces": 200,
+    "jackpotStep": 0.01,
+    "jackpotCap": 0.5,
+    "jackpotBonus": 7.77,
+    "pityPieces": 3000,
+    "pityStep": 0.25,
+    "pityGuaranteeMisses": 3,
+    "missCooldownSeconds": 300,
+    "missSpikeDelaySeconds": 300,
+    "lostBoost": 0.2,
+    "lostBoostMinutes": 5,
+    "lostPieces": 10000,
+    "historySeconds": 120
+  },
   "buildings": [
     {
       "id": "miner",

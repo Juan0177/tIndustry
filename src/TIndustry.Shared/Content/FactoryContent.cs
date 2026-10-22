@@ -13,6 +13,7 @@ public sealed class FactoryContent
     public required IReadOnlyList<RecipeDefinition> Recipes { get; init; }
     public IReadOnlyList<BuildingDefinition> Buildings { get; init; } = [];
     public IReadOnlyList<MarketItemDefinition> Market { get; init; } = [];
+    public MarketRules MarketRules { get; init; } = null!;
     public IReadOnlyList<StructureDefinition> Structures { get; init; } = [];
     public CoreUpgradeDefinition CoreUpgrade { get; init; } =
         new(150, [new ResourceAmount("iron-plate", 20)], 25);
@@ -104,6 +105,7 @@ public sealed class FactoryContent
         var buildings = root.Buildings.Select(MapBuilding).ToList();
         CheckMinerTiers(root.Buildings);
         var market = root.Market.Select(MapMarket).ToList();
+        var marketRules = MapMarketRules(root.MarketRules);
         var structures = root.Structures.Select(MapStructure).ToList();
         var coreUpgrade = MapCoreUpgrade(root.Economy?.CoreUpgrade);
         var buildWeights = MapBuildWeights(root.BuildWeights);
@@ -117,6 +119,7 @@ public sealed class FactoryContent
             Recipes = recipes,
             Buildings = buildings,
             Market = market,
+            MarketRules = marketRules,
             Structures = structures,
             CoreUpgrade = coreUpgrade,
             BuildWeights = buildWeights,
@@ -384,7 +387,78 @@ public sealed class FactoryContent
             m.SellPrice,
             m.MinSellPrice,
             m.MaxSellPrice,
-            m.SoftStock);
+            m.SoftStock,
+            m.BaseValue is > 0
+                ? m.BaseValue.Value
+                : throw new InvalidDataException(
+                    $"content.json: il mercato di '{m.ItemId}' deve avere un valore base (baseValue) maggiore di zero."));
+
+    private static MarketRules MapMarketRules(MarketRulesDto? r)
+    {
+        if (r is null)
+        {
+            throw new InvalidDataException("content.json: manca il blocco delle regole del mercato (marketRules).");
+        }
+
+        // Every field is required; scale converts the JSON unit (fraction, multiplier) to the integer unit.
+        static int F(double? value, string name, int scale = 1)
+        {
+            if (value is not { } v || v < 0)
+            {
+                throw new InvalidDataException(
+                    $"content.json: marketRules.{name} manca o è negativo (deve essere un numero maggiore o uguale a zero).");
+            }
+
+            return (int)Math.Round(v * scale, MidpointRounding.AwayFromZero);
+        }
+
+        static int Positive(int value, string name) =>
+            value > 0
+                ? value
+                : throw new InvalidDataException($"content.json: marketRules.{name} deve essere maggiore di zero.");
+
+        static void Order(int low, int high, string lowName, string highName)
+        {
+            if (low > high)
+            {
+                throw new InvalidDataException(
+                    $"content.json: marketRules.{lowName} non può superare marketRules.{highName}.");
+            }
+        }
+
+        var rules = new MarketRules(
+            F(r.NormalMin, "normalMin", 1000), F(r.NormalMax, "normalMax", 1000),
+            F(r.NormalAverage, "normalAverage", 1000), Positive(F(r.NormalStepSeconds, "normalStepSeconds"), "normalStepSeconds"),
+            F(r.NormalPull, "normalPull", 1000), F(r.NormalNoise, "normalNoise", 1000),
+            F(r.SpikeThreshold, "spikeThreshold", 1000), F(r.SpikeMax, "spikeMax", 1000),
+            F(r.SpikeRiseSeconds, "spikeRiseSeconds"), F(r.SpikeHoldSeconds, "spikeHoldSeconds"),
+            F(r.SpikeFallSeconds, "spikeFallSeconds"),
+            F(r.SpikeIntervalMinMinutes, "spikeIntervalMinMinutes"), F(r.SpikeIntervalMaxMinutes, "spikeIntervalMaxMinutes"),
+            F(r.SaleImpact, "saleImpact", 1_000_000), Positive(F(r.SaleRecoverySeconds, "saleRecoverySeconds"), "saleRecoverySeconds"),
+            F(r.CrashPieces, "crashPieces"), F(r.CrashWindowSeconds, "crashWindowSeconds"),
+            F(r.CrashMinutes, "crashMinutes"), F(r.CrashDipMinutes, "crashDipMinutes"),
+            F(r.CrashDipMin, "crashDipMin", 1000), F(r.CrashDipMax, "crashDipMax", 1000),
+            Positive(F(r.CrashDipEverySeconds, "crashDipEverySeconds"), "crashDipEverySeconds"),
+            F(r.CrashDipChance, "crashDipChance", 10_000),
+            F(r.JackpotMinPieces, "jackpotMinPieces"), F(r.JackpotBase, "jackpotBase", 10_000),
+            Positive(F(r.JackpotStepPieces, "jackpotStepPieces"), "jackpotStepPieces"),
+            F(r.JackpotStep, "jackpotStep", 10_000), F(r.JackpotCap, "jackpotCap", 10_000),
+            F(r.JackpotBonus, "jackpotBonus", 1000),
+            F(r.PityPieces, "pityPieces"), F(r.PityStep, "pityStep", 10_000),
+            F(r.PityGuaranteeMisses, "pityGuaranteeMisses"),
+            F(r.MissCooldownSeconds, "missCooldownSeconds"), F(r.MissSpikeDelaySeconds, "missSpikeDelaySeconds"),
+            F(r.LostBoost, "lostBoost", 10_000), F(r.LostBoostMinutes, "lostBoostMinutes"),
+            F(r.LostPieces, "lostPieces"), Positive(F(r.HistorySeconds, "historySeconds"), "historySeconds"));
+
+        Order(rules.NormalMinMilli, rules.NormalMaxMilli, "normalMin", "normalMax");
+        Order(rules.NormalMaxMilli, rules.SpikeThresholdMilli, "normalMax", "spikeThreshold");
+        Order(rules.SpikeThresholdMilli, rules.SpikeMaxMilli, "spikeThreshold", "spikeMax");
+        Order(rules.SpikeIntervalMinMinutes, rules.SpikeIntervalMaxMinutes, "spikeIntervalMinMinutes", "spikeIntervalMaxMinutes");
+        Order(rules.CrashDipMinMilli, rules.CrashDipMaxMilli, "crashDipMin", "crashDipMax");
+        Order(rules.JackpotCapBp, 10_000, "jackpotCap", "1 (100%)");
+        Order(rules.CrashDipChanceBp, 10_000, "crashDipChance", "1 (100%)");
+        return rules;
+    }
 
     private static StructureDefinition MapStructure(StructureDto s) =>
         new(
@@ -430,6 +504,7 @@ public sealed class FactoryContent
         public List<RecipeDto> Recipes { get; set; } = [];
         public List<BuildingDto> Buildings { get; set; } = [];
         public List<MarketDto> Market { get; set; } = [];
+        public MarketRulesDto? MarketRules { get; set; }
         public List<StructureDto> Structures { get; set; } = [];
         public EconomyDto? Economy { get; set; }
         public Dictionary<string, float>? BuildWeights { get; set; }
@@ -535,6 +610,49 @@ public sealed class FactoryContent
         public int? MinSellPrice { get; set; }
         public int? MaxSellPrice { get; set; }
         public int? SoftStock { get; set; }
+        public int? BaseValue { get; set; }
+    }
+
+    private sealed class MarketRulesDto
+    {
+        public double? NormalMin { get; set; }
+        public double? NormalMax { get; set; }
+        public double? NormalAverage { get; set; }
+        public double? NormalStepSeconds { get; set; }
+        public double? NormalPull { get; set; }
+        public double? NormalNoise { get; set; }
+        public double? SpikeThreshold { get; set; }
+        public double? SpikeMax { get; set; }
+        public double? SpikeRiseSeconds { get; set; }
+        public double? SpikeHoldSeconds { get; set; }
+        public double? SpikeFallSeconds { get; set; }
+        public double? SpikeIntervalMinMinutes { get; set; }
+        public double? SpikeIntervalMaxMinutes { get; set; }
+        public double? SaleImpact { get; set; }
+        public double? SaleRecoverySeconds { get; set; }
+        public double? CrashPieces { get; set; }
+        public double? CrashWindowSeconds { get; set; }
+        public double? CrashMinutes { get; set; }
+        public double? CrashDipMinutes { get; set; }
+        public double? CrashDipMin { get; set; }
+        public double? CrashDipMax { get; set; }
+        public double? CrashDipEverySeconds { get; set; }
+        public double? CrashDipChance { get; set; }
+        public double? JackpotMinPieces { get; set; }
+        public double? JackpotBase { get; set; }
+        public double? JackpotStepPieces { get; set; }
+        public double? JackpotStep { get; set; }
+        public double? JackpotCap { get; set; }
+        public double? JackpotBonus { get; set; }
+        public double? PityPieces { get; set; }
+        public double? PityStep { get; set; }
+        public double? PityGuaranteeMisses { get; set; }
+        public double? MissCooldownSeconds { get; set; }
+        public double? MissSpikeDelaySeconds { get; set; }
+        public double? LostBoost { get; set; }
+        public double? LostBoostMinutes { get; set; }
+        public double? LostPieces { get; set; }
+        public double? HistorySeconds { get; set; }
     }
 
     private sealed class StructureDto

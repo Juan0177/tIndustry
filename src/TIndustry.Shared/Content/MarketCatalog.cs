@@ -20,21 +20,24 @@ public sealed class MarketCatalog
 
     public static MarketCatalog CreateDefault() => new(
     [
-        new MarketItemDefinition("iron-ore", "Ferro grezzo", 8, 3, 14, 24),
-        new MarketItemDefinition("iron-plate", "Lastra di ferro", 30, 12, 48, 20),
-        new MarketItemDefinition("copper-ore", "Rame grezzo", 6, 2, 11, 24),
-        new MarketItemDefinition("copper-wire", "Filo di rame", 16, 6, 28, 20),
-        new MarketItemDefinition("coal", "Carbone", 4, 1, 8, 30),
-        new MarketItemDefinition("lead-ore", "Piombo grezzo", 5, 2, 10, 24),
-        new MarketItemDefinition("lead-plate", "Lastra di piombo", 18, 7, 32, 18),
-        new MarketItemDefinition("titanium-ore", "Titanio grezzo", 12, 5, 22, 16),
-        new MarketItemDefinition("titanium-plate", "Lastra di titanio", 45, 18, 72, 12),
-        new MarketItemDefinition("graphite", "Grafite", 10, 4, 18, 20),
-        new MarketItemDefinition("silicon", "Silicio", 28, 11, 48, 16)
+        new MarketItemDefinition("iron-ore", "Ferro grezzo", 8, 3, 14, 24, 6),
+        new MarketItemDefinition("iron-plate", "Lastra di ferro", 30, 12, 48, 20, 23),
+        new MarketItemDefinition("copper-ore", "Rame grezzo", 6, 2, 11, 24, 5),
+        new MarketItemDefinition("copper-wire", "Filo di rame", 16, 6, 28, 20, 12),
+        new MarketItemDefinition("coal", "Carbone", 4, 1, 8, 30, 3),
+        new MarketItemDefinition("lead-ore", "Piombo grezzo", 5, 2, 10, 24, 4),
+        new MarketItemDefinition("lead-plate", "Lastra di piombo", 18, 7, 32, 18, 14),
+        new MarketItemDefinition("titanium-ore", "Titanio grezzo", 12, 5, 22, 16, 14),
+        new MarketItemDefinition("titanium-plate", "Lastra di titanio", 45, 18, 72, 12, 52),
+        new MarketItemDefinition("graphite", "Grafite", 10, 4, 18, 20, 12),
+        new MarketItemDefinition("silicon", "Silicio", 28, 11, 48, 16, 32)
     ]);
 
     public int GetSellPrice(string itemId) =>
         items.TryGetValue(itemId, out var item) ? item.SellPrice : 1;
+
+    public int BaseValueOf(string itemId) =>
+        items.TryGetValue(itemId, out var item) ? item.BaseValue : 1;
 
     public string GetDisplayName(string itemId) =>
         items.TryGetValue(itemId, out var item) ? item.DisplayName : itemId;
