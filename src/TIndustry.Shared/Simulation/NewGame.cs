@@ -117,12 +117,6 @@ public static class NewGame
         var wallet = catalog.CreateWallet(level);
         var session = new EconomySession(level.StartingMoney);
         var research = ResearchState.CreateNew(content);
-        // L01 teach: seed a bit of ore so Mercato sell objectives are reachable quickly.
-        if (level.Id.Contains("primi-passi", StringComparison.Ordinal))
-        {
-            wallet.AddMaterial("iron-ore", 8);
-        }
-
         var factory = new Factory(content, new BeltGrid(), core, wallet, research, session)
         {
             ActiveCampaignLevelId = level.Id,

@@ -18,6 +18,10 @@
         {
           "itemId": "copper-wire",
           "amount": 8
+        },
+        {
+          "itemId": "iron-ore",
+          "amount": 8
         }
       ],
       "objectives": [
