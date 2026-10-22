@@ -12,9 +12,10 @@ public sealed class AgentGameTests
 
     private static readonly GridPosition CoreOrigin = new(60, 60);
 
-    private static SimHost NewHost() =>
-        new(NewGame.Sandbox(
-            Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true)));
+    private static Factory NewFactory() =>
+        NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
+
+    private static SimHost NewHost() => new(NewFactory());
 
     /// <summary>
     /// A journal's sandbox (and the agents' real game, made the same way) is the client's Nuova partita: the
@@ -88,6 +89,87 @@ public sealed class AgentGameTests
         Assert.Equal(1, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
         Assert.Equal(0, stato.GetProperty("edifici").GetProperty("minatori").GetInt32());
         Assert.Contains("miner", stato.GetProperty("ricerca").EnumerateArray().Select(e => e.GetString()));
+    }
+
+    [Fact]
+    public void StatoReportsTheMarket()
+    {
+        var factory = NewFactory();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+        factory.State.Exchange.Find("iron-plate")!.AutoSell = true;
+
+        var market = Call(game, "stato").GetProperty("mercato").EnumerateArray().ToArray();
+
+        // Only items the player owns.
+        Assert.Equal(
+            host.State.Wallet.MaterialsSnapshot().Where(kv => kv.Value > 0 && factory.State.Exchange.Find(kv.Key) is not null)
+                .Select(kv => kv.Key).Order(StringComparer.Ordinal),
+            market.Select(m => m.GetProperty("oggetto").GetString()!).Order(StringComparer.Ordinal));
+        var plate = market.Single(m => m.GetProperty("oggetto").GetString() == "iron-plate");
+        var item = factory.State.Exchange.Find("iron-plate")!;
+        Assert.Equal(MarketMath.UnitIncome(item.BaseValue, item.PriceMilli), plate.GetProperty("prezzo").GetInt32());
+        Assert.Equal(item.PriceMilli / 1000.0, plate.GetProperty("prezzoB").GetDouble(), 2);
+        Assert.Equal("normale", plate.GetProperty("fase").GetString());
+        Assert.True(plate.GetProperty("automatica").GetBoolean());
+        Assert.False(plate.TryGetProperty("crolloSecondi", out _));
+        Assert.False(Call(game, "stato").TryGetProperty("attesaVendiTutto", out _));
+
+        item.Phase = MarketPhase.Crash;
+        item.CrashEndTick = host.State.CurrentTick + 90;
+        factory.State.Exchange.SellAllBlockedUntilTick = host.State.CurrentTick + 61;
+        var crashed = Call(game, "stato");
+        var entry = crashed.GetProperty("mercato").EnumerateArray().Single(m => m.GetProperty("oggetto").GetString() == "iron-plate");
+        Assert.Equal("crollo", entry.GetProperty("fase").GetString());
+        Assert.Equal(2, entry.GetProperty("crolloSecondi").GetInt32());
+        Assert.Equal(2, crashed.GetProperty("attesaVendiTutto").GetInt32());
+    }
+
+    [Fact]
+    public void VendiTuttoUsesSellAll()
+    {
+        var factory = NewFactory();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+        var applied = new List<SimCommand>();
+        host.CommandApplied += applied.Add;
+        var stock = host.State.Wallet.MaterialCount("iron-plate");
+        var money = host.State.Wallet.Money;
+
+        var result = Call(game, "vendi", """{"oggetto":"iron-plate","tutto":true}""");
+
+        Assert.Contains(applied, c => c is SellAll { ItemId: "iron-plate" });
+        Assert.Equal(0, host.State.Wallet.MaterialCount("iron-plate"));
+        Assert.True(stock > 0);
+        Assert.Equal(host.State.Wallet.Money - money, result.GetProperty("incasso").GetInt32());
+        Assert.Equal(host.State.Wallet.Money, result.GetProperty("soldi").GetInt32());
+
+        // Nothing left to sell: refused with the usual code.
+        Assert.Equal(nameof(RefusalCode.SellFailed), Refused(game, "vendi", """{"oggetto":"iron-plate","tutto":true}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "vendi", """{"oggetto":"iron-ore"}""").Code);
+
+        var events = Call(game, "eventi").GetProperty("eventi").EnumerateArray().ToArray();
+        var sale = events.Single(e => e.GetProperty("tipo").GetString() == "vendita");
+        Assert.Equal("iron-plate", sale.GetProperty("oggetto").GetString());
+        Assert.Equal(stock, sale.GetProperty("pezzi").GetInt32());
+        Assert.Equal(result.GetProperty("incasso").GetInt32(), sale.GetProperty("incasso").GetInt32());
+    }
+
+    [Fact]
+    public void VenditaAutomaticaIsPerItem()
+    {
+        var factory = NewFactory();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true}""");
+
+        Assert.True(factory.State.Exchange.Find("iron-plate")!.AutoSell);
+        Assert.False(factory.State.Exchange.Find("iron-ore")!.AutoSell);
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":false}""");
+        Assert.False(factory.State.Exchange.Find("iron-plate")!.AutoSell);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "vendita_automatica", """{"oggetto":"iron-plate"}""").Code);
+        Refused(game, "vendita_automatica", """{"oggetto":"nonesiste","accesa":true}""");
     }
 
     [Fact]
@@ -468,6 +550,8 @@ public sealed class AgentGameTests
             ("piazza", """{"tipo":"conveyor-basic","cella":{"x":59,"y":59}}"""),
             ("piazza", """{"tier":3,"da":{"x":30,"y":50},"a":{"x":33,"y":53}}"""),
             ("vendi", """{"oggetto":"copper-wire","quantita":1}"""),
+            ("vendita_automatica", """{"oggetto":"iron-ore","accesa":true}"""),
+            ("vendi", """{"oggetto":"iron-plate","tutto":true}"""),
             ("avanza", """{"tick":240}""")
         };
         foreach (var (method, json) in actions)
@@ -484,7 +568,7 @@ public sealed class AgentGameTests
 
         // Bad parameters change nothing and stay out of the journal.
         Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":-5,"y":3}}""");
-        Assert.Equal(20, game.Journal.Entries.Count);
+        Assert.Equal(22, game.Journal.Entries.Count);
         Assert.NotEqual(setup.CreateHost(Content).Checksum(), host.Checksum());
         Assert.Contains(Call(game, "diario").GetProperty("voci").EnumerateArray(), v => v.GetProperty("metodo").GetString() == "smonta");
         try

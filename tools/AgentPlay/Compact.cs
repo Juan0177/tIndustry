@@ -9,7 +9,7 @@ namespace TIndustry.AgentPlay;
 /// <list type="bullet">
 /// <item>everywhere: no <c>null</c>, no empty list or object (a missing list is an empty one);</item>
 /// <item><c>stato</c>: only the building counts above 0, no <c>false</c> flags (<c>rimozione</c>, <c>smontaggio</c>,
-/// <c>venditaAutomatica</c>), <c>progresso</c> to two decimals, refusals without their <c>tipo</c>;</item>
+/// <c>automatica</c>), <c>progresso</c> to two decimals, refusals without their <c>tipo</c>;</item>
 /// <item><c>eventi</c>: no <c>giocatore</c> 0 and no site id (<c>cantiere</c>); a run of <c>costruito</c> or
 /// <c>smontato</c> equal but for tick and cell (a line built cell by cell) is one entry with <c>celle</c> and the last
 /// tick in <c>fino</c> (refusals stay one by one, with their own tick);</item>
@@ -109,10 +109,7 @@ public static class Compact
             }
         }
 
-        if (answer["core"] is JsonObject core && IsFalse(core["venditaAutomatica"]))
-        {
-            core.Remove("venditaAutomatica");
-        }
+        DropFalse(answer["mercato"], "automatica");
 
         foreach (var refusal in answer["rifiuti"] as JsonArray ?? [])
         {

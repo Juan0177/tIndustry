@@ -132,8 +132,6 @@ public interface IGameView
 
     float PowerGenerationPerSecond { get; }
 
-    bool AutoSellAtCore { get; }
-
     int CoreUpgradeLevel { get; }
 
     string? ActiveCampaignLevelId { get; }
@@ -144,7 +142,13 @@ public interface IGameView
 
     Refusal? Shortfall(string structureId, int multiplicity = 1);
 
-    int PreviewSellPrice(string itemId);
+    /// <summary>Every market item in content order.</summary>
+    IReadOnlyList<MarketItemView> MarketItems { get; }
+
+    MarketItemView? MarketItem(string itemId);
+
+    /// <summary>Seconds (rounded up) before "sell all" works again; 0 when it is free.</summary>
+    int SellAllCooldownSeconds { get; }
 
     Refusal? CoreUpgradeRefusal();
 

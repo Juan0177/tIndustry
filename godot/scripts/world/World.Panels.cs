@@ -94,7 +94,7 @@ public partial class World
             UpdateHud();
             if (_view is not null)
             {
-                _hud?.ShowToast(Testi.T(_view.AutoSellAtCore ? "mercato.auto.on" : "mercato.auto.off"));
+                _hud?.ShowToast(Testi.T(MercatoPanel.AllAutoSell(_view) ? "mercato.auto.on" : "mercato.auto.off"));
             }
         };
     }

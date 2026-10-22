@@ -59,6 +59,9 @@ public partial class MercatoPanel : Control
 
     public bool IsOpen => Visible;
 
+    /// <summary>The single toggle reads "on" when every item sells automatically (replaced by per-item switches later).</summary>
+    public static bool AllAutoSell(IGameView view) => view.MarketItems.Count > 0 && view.MarketItems.All(i => i.AutoSell);
+
     private void SyncAutoSellToggle()
     {
         if (_autoSellToggle is null || _view is null)
@@ -66,7 +69,7 @@ public partial class MercatoPanel : Control
             return;
         }
 
-        var on = _view.AutoSellAtCore;
+        var on = AllAutoSell(_view);
         _autoSellToggle.Text = on ? "comune.on" : "comune.off";
         _autoSellToggle.ThemeTypeVariation = on ? UiTheme.PulsanteScelto : "";
     }
@@ -80,7 +83,7 @@ public partial class MercatoPanel : Control
 
         // Toggle from the value the host will have once earlier same-tick toggles are applied.
         var effective = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault()?.Enabled
-            ?? _view.AutoSellAtCore;
+            ?? AllAutoSell(_view);
         // Single toggle until the per-item panel (later task): switches every item.
         foreach (var listed in _view.Content.Market)
         {
@@ -101,7 +104,7 @@ public partial class MercatoPanel : Control
         {
             // The toggle sends one command per item: react once, after the last of the batch (all are applied by then).
             case SetAutoSell autoSell when autoSell.ItemId == _view.Content.Market[^1].ItemId:
-                var on = _view.AutoSellAtCore;
+                var on = AllAutoSell(_view);
                 SetStatus(() => Testi.T(on ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
 
                 SyncAutoSellToggle();
@@ -155,7 +158,7 @@ public partial class MercatoPanel : Control
             return;
         }
 
-        _autoSellHint.Text = _view.AutoSellAtCore
+        _autoSellHint.Text = AllAutoSell(_view)
             ? "mercato.auto.on.suggerimento"
             : "mercato.auto.off.suggerimento";
     }
@@ -407,7 +410,7 @@ public partial class MercatoPanel : Control
             return;
         }
 
-        var price = _view.PreviewSellPrice(item.ItemId);
+        var price = _view.MarketItem(item.ItemId)?.UnitIncome ?? 0;
         var row = new PanelContainer
         {
             CustomMinimumSize = new Vector2(0, RowHeight),

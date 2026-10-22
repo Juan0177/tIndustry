@@ -7,7 +7,7 @@ namespace TIndustry.Shared;
 /// <summary>
 /// The game methods agents call on a <see cref="SimHost"/> (simulation engine, and the client's channel): look
 /// (<c>stato</c>, <c>area</c>, <c>trova</c>, <c>eventi</c>), act with the player's commands (<c>piazza</c>,
-/// <c>smonta</c>, <c>ruota</c>, <c>sblocca</c>, <c>vendi</c>, <c>potenzia_core</c>), move time (<c>avanza</c>)
+/// <c>smonta</c>, <c>ruota</c>, <c>sblocca</c>, <c>vendi</c>, <c>vendita_automatica</c>, <c>potenzia_core</c>), move time (<c>avanza</c>)
 /// and save the journal (<c>diario</c>). Commands go through <see cref="SimHost.Submit"/>. With
 /// <c>tickPerComando</c> (simulation engine) a command call also runs the tick that applies it, so its answer
 /// carries the outcome; without it (game engine, where the frames run the ticks) the call answers
@@ -28,7 +28,7 @@ public sealed class AgentGame : IDisposable
     /// <summary>Methods that change the game, its time or the brush: the journal keeps only these.</summary>
     public static readonly IReadOnlySet<string> JournaledMethods = new HashSet<string>(StringComparer.Ordinal)
     {
-        "piazza", "smonta", "ruota", "sblocca", "vendi", "potenzia_core", "avanza"
+        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "avanza"
     };
 
     private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?\\z", RegexOptions.CultureInvariant);
@@ -61,6 +61,7 @@ public sealed class AgentGame : IDisposable
     private readonly Queue<JsonObject> refusals = new();
     private readonly Action<SimCommand> onApplied;
     private int droppedEvents;
+    private SaleResolved? lastSale;
     private Direction brush = Direction.East;
     private (List<SimCommand> Commands, Func<List<Outcome>, JsonObject> Build)? pending;
     private bool disposed;
@@ -328,17 +329,55 @@ public sealed class AgentGame : IDisposable
         "smonta" => Has(p, "cella") ? Single(new Remove(PlayerId, MapCell(p, "cella"))) : SmontaArea(p),
         "ruota" => Ruota(),
         "sblocca" => Single(new UnlockStructure(PlayerId, Str(p, "struttura"))),
-        "vendi" => Command(
-            [new Sell(PlayerId, Str(p, "oggetto"), Int(p, "quantita"))],
-            o => Accepted(o[0], r =>
-            {
-                r["incasso"] = o[0].MoneyDelta;
-                r["soldi"] = View.Wallet.Money;
-            })),
+        "vendi" => Vendi(p),
+        "vendita_automatica" => Single(new SetAutoSell(PlayerId, Str(p, "oggetto"), RequiredBool(p, "accesa"))),
         "potenzia_core" => Single(new UpgradeCore(PlayerId), r => r["livello"] = View.CoreUpgradeLevel),
         "avanza" => Avanza(p),
         "diario" => Diario(p),
         _ => throw Bad($"Metodo sconosciuto: {method}.")
+    };
+
+    private JsonObject Vendi(JsonElement p)
+    {
+        var item = Str(p, "oggetto");
+        SimCommand command = OptBool(p, "tutto") == true ? new SellAll(PlayerId, item) : new Sell(PlayerId, item, Int(p, "quantita"));
+        lastSale = null;
+        return Command([command], o => Accepted(o[0], r =>
+        {
+            r["incasso"] = o[0].MoneyDelta;
+            r["soldi"] = View.Wallet.Money;
+            if (lastSale is { } sale)
+            {
+                PutSaleFlags(r, sale);
+            }
+        }));
+    }
+
+    private static void PutSaleFlags(JsonObject e, SaleResolved sale)
+    {
+        if (sale.Crash)
+        {
+            e["crollo"] = true;
+        }
+
+        if (sale.Attempt)
+        {
+            e["tentativo"] = true;
+        }
+
+        if (sale.Jackpot)
+        {
+            e["jackpot"] = true;
+        }
+    }
+
+    private static string PhaseName(MarketPhase phase) => phase switch
+    {
+        MarketPhase.Normal => "normale",
+        MarketPhase.SpikeRise => "salita",
+        MarketPhase.SpikeHold => "picco",
+        MarketPhase.SpikeFall => "discesa",
+        _ => "crollo"
     };
 
     private JsonObject Stato()
@@ -408,9 +447,25 @@ public sealed class AgentGame : IDisposable
             ["core"] = new JsonObject
             {
                 ["livello"] = View.CoreUpgradeLevel,
-                ["consegnati"] = View.CoreDeliveredItems,
-                ["venditaAutomatica"] = View.AutoSellAtCore
+                ["consegnati"] = View.CoreDeliveredItems
             },
+            ["mercato"] = Array(View.MarketItems.Where(m => View.Wallet.MaterialCount(m.ItemId) > 0).Select(m =>
+            {
+                var entry = new JsonObject
+                {
+                    ["oggetto"] = m.ItemId,
+                    ["prezzo"] = m.UnitIncome,
+                    ["prezzoB"] = Math.Round(m.PriceMilli / 1000.0, 2),
+                    ["fase"] = PhaseName(m.Phase),
+                    ["automatica"] = m.AutoSell
+                };
+                if (m.CrashSecondsLeft > 0)
+                {
+                    entry["crolloSecondi"] = m.CrashSecondsLeft;
+                }
+
+                return entry;
+            })),
             ["livelloCampagna"] = View.ActiveCampaignLevelId,
             ["direzione"] = DirectionName(Brush),
             ["rifiuti"] = Array(refusals),
@@ -422,6 +477,11 @@ public sealed class AgentGame : IDisposable
         {
             var corner = View.CoreTiles.OrderBy(t => t.Y).ThenBy(t => t.X).First();
             result["core"]!["cella"] = CellJson(corner);
+        }
+
+        if (View.SellAllCooldownSeconds is > 0 and var wait)
+        {
+            result["attesaVendiTutto"] = wait;
         }
 
         if (View.Terrain is { } terrain)
@@ -1238,6 +1298,14 @@ public sealed class AgentGame : IDisposable
                 e["cantiere"] = taken.SiteId;
                 PutSpec(e, taken.Spec);
                 break;
+            case SaleResolved sale:
+                e["tipo"] = "vendita";
+                e["oggetto"] = sale.ItemId;
+                e["pezzi"] = sale.Pieces;
+                e["incasso"] = sale.Income;
+                PutSaleFlags(e, sale);
+                lastSale = sale;
+                break;
             default:
                 e["tipo"] = "altro";
                 e["nome"] = simEvent.GetType().Name;
@@ -1274,7 +1342,7 @@ public sealed class AgentGame : IDisposable
         UnlockStructure => "sblocca",
         Sell or SellAll => "vendi",
         UpgradeCore => "potenzia_core",
-        SetAutoSell => "venditaAutomatica",
+        SetAutoSell => "vendita_automatica",
         SetSorterFilter => "filtroSelezionatore",
         _ => "altro"
     };
@@ -1378,6 +1446,9 @@ public sealed class AgentGame : IDisposable
         Required(p, name) is { ValueKind: JsonValueKind.String } value && value.GetString() is { Length: > 0 } text
             ? text
             : throw Bad($"'{name}' deve essere un testo.");
+
+    private static bool RequiredBool(JsonElement p, string name) =>
+        OptBool(p, name) ?? throw Bad($"Manca il parametro '{name}'.");
 
     private static string? OptStr(JsonElement p, string name) => Has(p, name) ? Str(p, name) : null;
 
