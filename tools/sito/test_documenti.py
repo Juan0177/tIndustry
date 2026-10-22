@@ -155,12 +155,12 @@ class TestSezioniSviluppo(unittest.TestCase):
 
     def test_ordine_e_classi(self):
         posizioni = [self.pagina.index(f'<section id="{i}" class="sez-doc">')
-                     for i in ("come-e-fatto", "roadmap", "diario", "decisioni", "changelog")]
+                     for i in ("avanzamento", "come-e-fatto", "roadmap", "diario", "decisioni", "changelog")]
         self.assertEqual(sorted(posizioni), posizioni)
         for classe in ("contenuto-doc", "etichetta", "nota", "pannelli", "pannello-doc", "tabella",
-                       "linea-tempo", "elenco-adr"):
+                       "linea-tempo", "elenco-adr", "barra-avanzamento", "pieno-avanzamento"):
             self.assertIn(f'class="{classe}"', self.pagina)
-        self.assertEqual(5, self.pagina.count("<h2>"))
+        self.assertEqual(6, self.pagina.count("<h2>"))
         self.assertIn("<thead><tr><th>Stato</th><th>Sotto-progetto</th><th>Cosa porta</th></tr></thead>", self.pagina)
 
     def test_decisioni(self):

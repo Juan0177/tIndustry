@@ -134,6 +134,17 @@ Il combattimento è fuori dal progetto per ora.
 
 Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [diario](docs/diario/README.md). Le scelte di fondo sono raccolte in [`docs/decisioni.md`](docs/decisioni.md); le idee non ancora pianificate in [`docs/idee.md`](docs/idee.md). Chi usa Obsidian trova la mappa completa in [`docs/mappa-progetto.canvas`](docs/mappa-progetto.canvas); a che punto siamo e cosa manca oggi è in [`docs/STATO.md`](docs/STATO.md).
 
+<!-- barra-stato:inizio -->
+**Avanzamento: 52%** (12 passi fatti su 23, [dettaglio](docs/STATO.md))
+
+```text
+A 67%       B 100%      C 0%        D 0%        E 0%
+███████░░░  ██████████  ░░░░░░░░░░  ░░░░░░░░░░  ░░░░░░░░░░
+```
+
+A Controlli veloci (2/3) · B Mercato come una borsa (10/10) · C Nuove specifiche del Mercato (0/3) · D Logistica come Mindustry (0/5) · E Più avanti (0/2)
+<!-- barra-stato:fine -->
+
 | Stato | Sotto-progetto | Cosa porta |
 | --- | --- | --- |
 | Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |

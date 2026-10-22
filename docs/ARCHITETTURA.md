@@ -1,4 +1,4 @@
-# Architettura di tIndustry
+# Architettura di <img src="img/logo.png" alt="tIndustry" height="48">
 
 Gioco in Godot 4.4 .NET. La simulazione è C# puro in `src/TIndustry.Shared/` (nessuna dipendenza da Godot); il client in `godot/` la disegna e raccoglie l'input.
 

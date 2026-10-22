@@ -5,6 +5,7 @@ Gioco di logistica industriale (Mindustry × Tiny Industry) in Godot 4.4 .NET. S
 ## Regole fisse
 
 - **Con l'utente si parla in italiano.** Testi di gioco, documenti e messaggi di commit/PR in italiano; commenti nel codice in inglese.
+- **Ogni lavoro sul progetto aggiorna in main `docs/STATO.md` e la mappa del progetto** (`python tools/dev/mappa_canvas.py` rigenera `docs/mappa-progetto.canvas`). Vale per ogni PR, issue o cambio della lista delle cose da fare, nella stessa PR. Poi `python tools/sito/stato.py` riscrive la barra di avanzamento nel README e nella Home della Wiki; il sito la ridisegna nella pagina Sviluppo. La CI controlla che le barre corrispondano a STATO.md.
 - **GitHub Actions solo manuali o su tag di release.** Mai aggiungere trigger `push`/`pull_request`. Dopo un push: `gh workflow run build-publish.yml --ref <branch>` poi `gh run watch <id> --exit-status`.
 - **Mai toccare i dati reali del giocatore**: `%LOCALAPPDATA%\tIndustry` e `%APPDATA%\Godot\app_userdata\tIndustry`. Prove, playtest e catture sempre con `TINDUSTRY_DATA_DIR` su una cartella temporanea.
 - `gh` locale: `"/c/Program Files/GitHub CLI/gh.exe"`. Godot: 4.4.1 mono, comando `godot4`.
@@ -53,6 +54,7 @@ Il server MCP `tindustry` (`.mcp.json`, codice in `tools/AgentPlay`) fa giocare 
 - Namespace: `TIndustry.Shared`, `TIndustry.Godot`, `TIndustry.Shared.Tests` (nessun sotto-namespace per cartella).
 - `src/TIndustry.Shared` non dipende da Godot né dal sistema operativo (vedi `docs/decisioni/0001-server-csharp.md`).
 - Dati di gioco solo in `data/` (`content.json`, `campaign.json`, `maps/`); `godot/data/` è generata dall'export ed è ignorata da git. Le mappe della campagna (`data/maps/<id>.png`, `<id>.giacimenti.png`, `<id>.json`) si creano e si controllano con `tools/MapTool` (`genera`, `valida`, `anteprima`), mai a occhio: dopo ogni ritocco `valida` deve dire OK. Terreno, generatori e regole: `docs/decisioni/0005-mappe-seme-e-file.md`.
+- Nei documenti, quando «tIndustry» è il titolo principale, al posto della parola si mette il logo: `docs/img/logo.png`. È il logo generato ingrandito ×8, rigenerato con `python tools/art/logo_documenti.py` e controllato in CI. Nel titolo si scrive `<img src="…/docs/img/logo.png" alt="tIndustry" height="48">`; nella Wiki si usa l'URL `raw.githubusercontent.com/…/main/docs/img/logo.png`.
 - Sprite di edifici, nastri, Core, drone e oggetti solo da `python tools/art/genera.py`; non modificare i PNG a mano (si cambia lo script e si rigenera; `--controlla` verifica, vedi `tools/art/README.md` e `docs/decisioni/0004-arte-generata-da-script.md`). Tutto in `godot/assets/` (piatto); icone e carattere dell'interfaccia, generati anch'essi, in `godot/assets/ui/`. Un asset libero di terzi va citato in `godot/assets/ATTRIBUTION.md`.
 - Spostare uno script Godot = `git mv` insieme al suo `.uid`.
 - **Testi visibili solo tramite chiavi di `godot/lingue/testi.csv`** (colonne `keys,it,en`, italiano e inglese sempre entrambi): nel client nessuna frase scritta nel codice; la simulazione dà codici (`RefusalCode`, `SaveLoadError`) che il client traduce. `TestiTests` lo controlla; come aggiungere un testo o una lingua in `docs/ARCHITETTURA.md`, decisione in `docs/decisioni/0006-interfaccia-lingue-carattere.md`.
@@ -65,7 +67,7 @@ Il server MCP `tindustry` (`.mcp.json`, codice in `tools/AgentPlay`) fa giocare 
 
 ## Dove guardare
 
-- `docs/STATO.md` — a che punto siamo e cosa manca. **Si aggiorna a ogni PR unita e a fine blocco**, insieme alla mappa (`python tools/dev/mappa_canvas.py` rigenera `docs/mappa-progetto.canvas`).
+- `docs/STATO.md` — a che punto siamo e cosa manca: i blocchi di lavoro con le loro caselle, fonte della barra di avanzamento (regola in «Regole fisse»).
 - `docs/ARCHITETTURA.md` — mappa delle cartelle, ciclo di frame, dati, salvataggi, interfaccia, come aggiungere un blocco, un testo o una lingua.
 - `docs/decisioni/` — decisioni architetturali (ADR).
 - `docs/superpowers/` — specifiche e piani di lavoro.

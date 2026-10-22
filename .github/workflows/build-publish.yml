@@ -40,6 +40,8 @@ jobs:
           python -m unittest tools/art/test_genera.py
           python tools/art/genera.py --controlla --pixel
           python -m unittest tools/sito/test_costruisci.py
+          python -m unittest tools/sito/test_stato.py
+          python tools/art/logo_documenti.py --controlla
 
       - name: Ensure Godot solution
         run: |
