@@ -8,6 +8,10 @@ internal static class MarketMath
     /// <summary>Money for one piece: <c>round(B × price)</c>, price in thousandths of B.</summary>
     public static int UnitIncome(int baseValue, int priceMilli) => (int)(((long)baseValue * priceMilli + 500) / 1000);
 
+    /// <summary>Chance (basis points) of a crash dip below B; lower by <c>lostBoost</c> after a lost 50/50.</summary>
+    internal static int CrashDipChance(MarketRules r, bool boosted) =>
+        boosted ? r.CrashDipChanceBp * (10_000 - r.LostBoostBp) / 10_000 : r.CrashDipChanceBp;
+
     /// <summary>
     /// Jackpot chance in basis points for a "sell all" of <paramref name="pieces"/>: 0 under the minimum, base plus a
     /// step per block of pieces up to the cap; from the pity size on each missed attempt adds a step, and the
@@ -64,7 +68,7 @@ internal static class MarketSales
             }
         }
 
-        var income = (int)Math.Min((long)pieces * unit, int.MaxValue);
+        var income = checked(pieces * unit);
         s.Wallet.AddMoney(income);
         for (var i = 0; i < pieces; i++)
         {

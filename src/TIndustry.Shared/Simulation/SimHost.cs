@@ -532,6 +532,12 @@ public sealed class SimHost
 
     private Refusal? ApplySellAll(SellAll command)
     {
+        // Stock and item come first: a second "sell all" of the same item finds nothing and fails plainly.
+        if (factory.State.Exchange.Find(command.ItemId) is null || factory.Wallet.MaterialCount(command.ItemId) <= 0)
+        {
+            return RefusalCode.SellFailed;
+        }
+
         if (factory.SellAllWaitTicks() is var wait and > 0)
         {
             return new Refusal(RefusalCode.SellAllCooldown, WaitSeconds: (int)((wait + SimulationClock.TickRate - 1) / SimulationClock.TickRate));

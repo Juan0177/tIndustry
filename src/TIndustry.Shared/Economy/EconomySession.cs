@@ -16,7 +16,7 @@ public sealed class EconomySession : ISessionView
 
     public void RecordSale(string itemId, int price)
     {
-        SaleIncome += price;
+        SaleIncome = (int)Math.Min((long)SaleIncome + price, int.MaxValue);
         soldByItem[itemId] = soldByItem.GetValueOrDefault(itemId) + 1;
     }
 

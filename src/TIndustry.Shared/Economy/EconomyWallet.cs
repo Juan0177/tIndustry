@@ -39,7 +39,7 @@ public sealed class EconomyWallet : IWalletView
         return true;
     }
 
-    public void AddMoney(int amount) => Money += amount;
+    public void AddMoney(int amount) => Money = (int)Math.Min((long)Money + amount, int.MaxValue);
 
     public void AddMaterial(string itemId, int amount)
     {

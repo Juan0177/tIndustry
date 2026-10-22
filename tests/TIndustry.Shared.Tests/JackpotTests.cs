@@ -128,7 +128,7 @@ public sealed class JackpotTests
     public void PityScenarioB()
     {
         var f = NewFactory();
-        var asked = Script(f, false, true, false, true);
+        var asked = Script(f, false, true, false, false);
         for (var i = 0; i < 4; i++)
         {
             Attempt(f, Plate, 3000);
@@ -142,7 +142,7 @@ public sealed class JackpotTests
     {
         var f = NewFactory();
         var asked = Script(f, false, false, false, false, false, true);
-        foreach (var pieces in new[] { 1000, 3400, 800, 3400, 3400, 3400 })
+        foreach (var pieces in new[] { 1000, 3500, 800, 3500, 3500, 3500 })
         {
             Attempt(f, Plate, pieces);
         }
@@ -167,8 +167,9 @@ public sealed class JackpotTests
     public void PityScenarioE()
     {
         var f = NewFactory();
-        var asked = Script(f, false, false);
+        var asked = Script(f, true, false);
         Attempt(f, Plate, 400);
+        Assert.Equal(0, f.State.Exchange.Find(Plate)!.PityMisses);
         Attempt(f, Plate, 400);
 
         Assert.Equal([200, 200], asked);
@@ -278,6 +279,7 @@ public sealed class JackpotTests
     public void LostFiftyFiftyGetsTheRecoveryBoost()
     {
         var f = NewFactory();
+        var rules = Rules(f);
         Script(f, false, false);
         var lost = f.State.Exchange.Find(Plate)!;
         var small = f.State.Exchange.Find(Ore)!;
@@ -287,27 +289,51 @@ public sealed class JackpotTests
         Attempt(f, Ore, 5000);
 
         Assert.Equal(MarketPhase.Crash, lost.Phase);
-        Assert.Equal(now + Rules(f).LostBoostMinutes * 60L * Second, lost.BoostEndTick);
+        Assert.Equal(now + rules.LostBoostMinutes * 60L * Second, lost.BoostEndTick);
+        Assert.Equal(MarketPhase.Crash, small.Phase);
         Assert.Equal(0, small.BoostEndTick);
 
-        // The sale drop of a boosted item shrinks faster than the same drop of an unboosted one.
-        var other = f.State.Exchange.Find("copper-ore")!;
-        var end = f.State.CurrentTick + 120 * Second;
-        foreach (var i in new[] { small, other })
-        {
-            i.Phase = MarketPhase.Normal;
-            i.SaleDropMicro = 40_000_000;
-            i.SaleRecoveryEndTick = end;
-        }
+        // Dips below B are 20% less likely while the boost lasts.
+        Assert.Equal(rules.CrashDipChanceBp * (10_000 - rules.LostBoostBp) / 10_000, MarketMath.CrashDipChance(rules, true));
+        Assert.Equal(rules.CrashDipChanceBp, MarketMath.CrashDipChance(rules, false));
+        Assert.True(MarketMath.CrashDipChance(rules, true) < MarketMath.CrashDipChance(rules, false));
+    }
 
-        small.BoostEndTick = f.State.CurrentTick + 10 * 60 * Second;
-        Run(f, 30 * Second);
+    [Fact]
+    public void MissUnderLostPiecesDoesNotSetTheBoost()
+    {
+        var f = NewFactory();
+        Script(f, false);
+        Attempt(f, Plate, Rules(f).LostPieces - 1);
 
-        Assert.True(small.SaleDropMicro < other.SaleDropMicro);
+        Assert.Equal(0, f.State.Exchange.Find(Plate)!.BoostEndTick);
     }
 
     [Fact]
     public void SecondSellAllInSameTickIsRefused()
+    {
+        var f = NewFactory();
+        var host = new SimHost(f);
+        var rejected = new List<Refusal>();
+        host.CommandRejected += (_, r) => rejected.Add(r);
+        Force(f, Plate);
+        var rolls = Script(f, false, false);
+        SetStock(f, Plate, 500);
+
+        host.Submit(new SellAll(1, Plate));
+        host.Advance(1.0 / 60);
+        var blocked = f.State.Exchange.SellAllBlockedUntilTick;
+        host.Submit(new SellAll(1, Plate));
+        host.Submit(new SellAll(1, Plate));
+        host.Advance(1.0 / 60);
+
+        Assert.Equal([RefusalCode.SellFailed, RefusalCode.SellFailed], rejected.Select(r => r.Code));
+        Assert.Single(rolls);
+        Assert.Equal(blocked, f.State.Exchange.SellAllBlockedUntilTick);
+    }
+
+    [Fact]
+    public void SellAllOfAnotherItemWaitsForTheCooldown()
     {
         var f = NewFactory();
         var host = new SimHost(f);
@@ -332,20 +358,34 @@ public sealed class JackpotTests
     {
         var f = NewFactory();
         var item = Force(f, Plate);
+        Force(f, Ore);
         var asked = Script(f, true);
-        f.State.Exchange.SellAllBlockedUntilTick = f.State.CurrentTick + 600;
         SetStock(f, Plate, 1000);
+        SetStock(f, Ore, 0);
+        f.Wallet.AddMaterial("not-in-market", 5);
+        var market = f.State.Exchange;
         var money = f.Wallet.Money;
+        var generator = market.Random.State;
         var price = item.PriceMilli;
 
+        // No stock.
+        Assert.False(f.TrySellAll(Ore));
+        // Not in the market.
+        Assert.False(f.TrySellAll("not-in-market"));
+        // Waiting.
+        market.SellAllBlockedUntilTick = f.State.CurrentTick + 600;
         Assert.False(f.TrySellAll(Plate));
 
         Assert.Empty(asked);
+        Assert.Equal(generator, market.Random.State);
         Assert.Equal(1000, f.Wallet.MaterialCount(Plate));
+        Assert.Equal(5, f.Wallet.MaterialCount("not-in-market"));
         Assert.Equal(money, f.Wallet.Money);
         Assert.Equal(price, item.PriceMilli);
         Assert.Equal(0, item.PityMisses);
+        Assert.Equal(0, item.SaleDropMicro);
         Assert.Equal(MarketPhase.SpikeHold, item.Phase);
+        Assert.Equal(f.State.CurrentTick + 600, market.SellAllBlockedUntilTick);
     }
 
     [Fact]
@@ -361,5 +401,18 @@ public sealed class JackpotTests
 
         Assert.True(f.Wallet.Money - before > 6_000_000);
         Assert.Equal(f.Wallet.Money - before, f.Session.SaleIncome);
+    }
+
+    [Fact]
+    public void MoneyAndSaleIncomeSaturateInsteadOfWrapping()
+    {
+        var f = NewFactory();
+        f.Wallet.AddMoney(int.MaxValue);
+        f.Wallet.AddMoney(1000);
+        f.Session.RecordSale(Plate, int.MaxValue);
+        f.Session.RecordSale(Plate, 1000);
+
+        Assert.Equal(int.MaxValue, f.Wallet.Money);
+        Assert.Equal(int.MaxValue, f.Session.SaleIncome);
     }
 }
