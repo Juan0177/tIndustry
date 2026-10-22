@@ -89,14 +89,7 @@ public partial class World
                 _hud?.ShowToast(Testi.F("mercato.venduto.fondi", _view.Wallet.Money));
             }
         };
-        _mercato.AutoSellChanged += () =>
-        {
-            UpdateHud();
-            if (_view is not null)
-            {
-                _hud?.ShowToast(Testi.T(MercatoPanel.AllAutoSell(_view) ? "mercato.auto.on" : "mercato.auto.off"));
-            }
-        };
+        _mercato.AutoSellChanged += UpdateHud;
     }
 
     private void EnsureCampaignSelectPanel()

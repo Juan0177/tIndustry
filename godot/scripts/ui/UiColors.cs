@@ -122,6 +122,23 @@ public static class UiColors
     /// <summary>The CORE (research tree root).</summary>
     public static Color Core { get; private set; }
 
+    // Mercato: a price going up or down and a crash, always with an arrow or a text beside the colour.
+
+    /// <summary>Price up (▲ and the chart line).</summary>
+    public static Color MercatoSu { get; private set; }
+
+    /// <summary>Price down (▼ and the chart line).</summary>
+    public static Color MercatoGiu { get; private set; }
+
+    /// <summary>Crashed item ("Crollo · mm:ss" and the chart line).</summary>
+    public static Color MercatoCrollo { get; private set; }
+
+    /// <summary>Chart line of a flat price.</summary>
+    public static Color MercatoGrafico { get; private set; }
+
+    /// <summary>Dashed line of the base value B under the chart.</summary>
+    public static Color MercatoBase { get; private set; }
+
     // Research tree (Mindustry: neutral greys for what you have, the accent for what you can research next).
 
     /// <summary>Path from the selected node to the CORE.</summary>
@@ -200,6 +217,12 @@ public static class UiColors
         Fermo = new("F5A623");
         Core = new("59C7E6");
 
+        MercatoSu = Fatto;
+        MercatoGiu = Insufficiente;
+        MercatoCrollo = Fermo;
+        MercatoGrafico = TestoTenue;
+        MercatoBase = Bordo;
+
         RicercaPercorso = new("EBC86E");
         RicercaNodo = new("212426");
         RicercaNodoBloccato = new("141617");
@@ -235,6 +258,11 @@ public static class UiColors
         // The CORE outline neutral: sky blue is the valid ghost here.
         Core = new("E0E0E0");
 
+        // Up sky blue against down vermillion, the crash reddish purple: never red against green.
+        MercatoSu = Energia;
+        MercatoGiu = Insufficiente;
+        MercatoCrollo = new("CC79A7");
+
         Smontaggio = new("CC79A7");
         SmontaggioArea = Smontaggio with { A = 0.16f };
         FantasmaValido = new("56B4E9");
@@ -266,6 +294,12 @@ public static class UiColors
         Energia = new("FFFF80");
         Fermo = new("FFA733");
         Core = new("66E0FF");
+
+        MercatoSu = Fatto;
+        MercatoGiu = Insufficiente;
+        MercatoCrollo = new("FF66FF");
+        MercatoGrafico = TestoTenue;
+        MercatoBase = Bordo;
 
         RicercaPercorso = new("FFFFFF");
         RicercaNodo = new("1A1A1A");

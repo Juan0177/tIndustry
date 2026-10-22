@@ -38,6 +38,11 @@ public static class UiTheme
     public const string Avviso = "Avviso";
     public const string AvvisoRosso = "AvvisoRosso";
 
+    // Mercato: price up / down and a crash (the text always carries ▲, ▼ or "Crollo" too).
+    public const string TestoSu = "TestoSu";
+    public const string TestoGiu = "TestoGiu";
+    public const string TestoCrollo = "TestoCrollo";
+
     // PanelContainer variations (the plain PanelContainer is the HUD "Pannello").
     public const string Scheda = "Scheda";
     public const string Slot = "Slot";
@@ -197,6 +202,9 @@ public static class UiTheme
         LabelLook(t, TestoVerde, UiColors.Fatto);
         LabelLook(t, TestoDenaro, UiColors.Denaro);
         LabelLook(t, TestoEnergia, UiColors.Energia);
+        LabelLook(t, TestoSu, UiColors.MercatoSu);
+        LabelLook(t, TestoGiu, UiColors.MercatoGiu);
+        LabelLook(t, TestoCrollo, UiColors.MercatoCrollo);
         LabelLook(t, Titolo, UiColors.Accento, TitleFont, TitleSize);
         LabelLook(t, TitoloChiaro, UiColors.Testo, TitleFont, TitleSize);
         foreach (var (type, color) in new[] { (Avviso, UiColors.Testo), (AvvisoRosso, UiColors.Insufficiente) })

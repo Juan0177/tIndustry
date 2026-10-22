@@ -80,6 +80,12 @@ public sealed class MarketItemState
 
     internal void ClearHistory() => history.Clear();
 
+    /// <summary>
+    /// Dev only: the client playtest draws a known chart with it. No command, save or system calls it; outside a
+    /// playtest it would only change what the chart shows (prices and sales never read the history).
+    /// </summary>
+    public void ForPlaytestSetHistory(IEnumerable<int> values) => RestoreHistory(values);
+
     internal void RestoreHistory(IEnumerable<int> values)
     {
         history.Clear();
