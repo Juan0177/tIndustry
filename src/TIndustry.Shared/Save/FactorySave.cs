@@ -8,7 +8,7 @@ namespace TIndustry.Shared;
 /// first format where a save file is metadata plus this snapshot; version 11 adds the rules, drones,
 /// plan queues and construction sites; version 12 names the terrain generator (<see cref="Generator"/>,
 /// <see cref="MapSize"/>, <see cref="MapId"/>); version 13 lets a site remember the belt it replaces
-/// (<see cref="SiteSaveDto.Replaced"/>). version 14 saves the whole market (<see cref="Market"/>). Versions 11 (classic terrain), 12 and 13 are still read, with a fresh market; older files are not.
+/// (<see cref="SiteSaveDto.Replaced"/>). Version 14 saves the whole market (<see cref="Market"/>). Versions 11 (classic terrain), 12 and 13 are still read, with a fresh market; older files are not.
 /// </summary>
 public sealed class FactorySaveData
 {
@@ -133,10 +133,7 @@ public sealed class BuilderSaveDto
     public List<BuildPlanSaveDto> Plans { get; set; } = [];
 }
 
-/// <summary>
-/// A construction site. The cost is not saved (recomputed from the spec); the cells are, because a
-/// bridge keeps the exit chosen when the site started. <c>Missing</c> is transient and not saved.
-/// </summary>
+/// <summary>The market of a v14 save: random stream, sell-all cooldown and one entry per item.</summary>
 public sealed class MarketSaveDto
 {
     public ulong RandomState { get; set; }
@@ -145,6 +142,7 @@ public sealed class MarketSaveDto
     public List<MarketItemSaveDto> Items { get; set; } = [];
 }
 
+/// <summary>Price state of one market item (see <see cref="MarketItemState"/>), history included.</summary>
 public sealed class MarketItemSaveDto
 {
     public string ItemId { get; set; } = "";
@@ -171,6 +169,10 @@ public sealed class MarketItemSaveDto
     public List<int> History { get; set; } = [];
 }
 
+/// <summary>
+/// A construction site. The cost is not saved (recomputed from the spec); the cells are, because a
+/// bridge keeps the exit chosen when the site started. <c>Missing</c> is transient and not saved.
+/// </summary>
 public sealed class SiteSaveDto
 {
     public long Id { get; set; }

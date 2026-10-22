@@ -1046,7 +1046,7 @@ public sealed class Factory : IGameView
         // 10-20 minutes from now (the old single auto-sell switch was applied to every item above).
         if (data.Market is { } market)
         {
-            factory.State.Exchange.Restore(market, content.MarketRules);
+            factory.State.Exchange.Restore(market, content.MarketRules, factory.CurrentTick);
         }
         else
         {

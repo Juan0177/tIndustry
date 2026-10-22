@@ -45,7 +45,7 @@ public sealed class MarketSaveTests
         items[0].Phase = MarketPhase.SpikeHold;
         items[0].PhaseStartTick = tick;
         items[0].SpikeFromMilli = 1200;
-        items[0].SpikeTopMilli = 4000;
+        items[0].SpikeTopMilli = 2800;
 
         items[1].Phase = MarketPhase.Crash;
         items[1].PhaseStartTick = tick;
@@ -181,5 +181,65 @@ public sealed class MarketSaveTests
         Assert.Equal(0, data.CoreSaleBonusPercent);
         Assert.NotNull(data.Market);
         Assert.All(data.Market!.Items, i => Assert.True(i.AutoSell));
+    }
+
+    [Fact]
+    public void HostileWindowSecondDoesNotCrashTheStep()
+    {
+        var g = RoundTrip(NewFactory(), d =>
+        {
+            foreach (var i in d.Market!.Items)
+            {
+                i.WindowSecond = -5;
+            }
+        });
+        foreach (var i in g.State.Exchange.Items)
+        {
+            i.AutoSell = false;
+        }
+
+        Assert.All(g.State.Exchange.Items, i => Assert.InRange(i.WindowSecond, 0, 1));
+        Run(g, 2 * Minute);
+    }
+
+    [Fact]
+    public void UndefinedPhaseBecomesNormal()
+    {
+        var g = RoundTrip(NewFactory(), d => d.Market!.Items[0].Phase = (MarketPhase)99);
+        Assert.Equal(MarketPhase.Normal, g.State.Exchange.Items[0].Phase);
+        Run(g, 60);
+    }
+
+    [Fact]
+    public void ItemMissingFromTheSaveStartsFreshFromNow()
+    {
+        var f = NewFactory();
+        Run(f, 3 * 60 * Minute);
+        var tick = f.State.CurrentTick;
+        var g = RoundTrip(f, d => d.Market!.Items.RemoveAt(0));
+        var rules = Content.MarketRules;
+        var fresh = g.State.Exchange.Items[0];
+        Assert.InRange(fresh.NextSpikeTick - tick,
+            (long)rules.SpikeIntervalMinMinutes * Minute, (long)rules.SpikeIntervalMaxMinutes * Minute);
+        Assert.Equal(rules.NormalAverageMilli, fresh.PriceMilli);
+    }
+
+    [Fact]
+    public void NegativeAndHugePricesAreClamped()
+    {
+        var g = RoundTrip(NewFactory(), d =>
+        {
+            var i = d.Market!.Items[0];
+            i.PriceMilli = i.TrendMilli = -9000;
+            i.SpikeTopMilli = int.MaxValue;
+            i.StepTargetMilli = i.CrashDipMilli = int.MinValue;
+            i.History = [-1, int.MaxValue];
+        });
+        var x = g.State.Exchange.Items[0];
+        var max = Content.MarketRules.SpikeMaxMilli;
+        Assert.All(new[] { x.PriceMilli, x.TrendMilli, x.SpikeTopMilli, x.StepTargetMilli, x.CrashDipMilli },
+            v => Assert.InRange(v, 0, max));
+        Assert.All(x.HistoryMilli, v => Assert.InRange(v, 0, max));
+        Run(g, 60);
     }
 }

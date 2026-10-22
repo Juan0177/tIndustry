@@ -133,19 +133,24 @@ public sealed class MarketState
 
         foreach (var item in items)
         {
-            item.Phase = MarketPhase.Normal;
-            item.PhaseStartTick = 0;
-            item.TrendMilli = item.StepFromMilli = item.StepTargetMilli = item.PriceMilli = rules.NormalAverageMilli;
-            item.SaleDropMicro = 0;
-            item.SaleRecoveryEndTick = 0;
-            item.CrashEndTick = item.CrashDipEndTick = item.BoostEndTick = 0;
-            item.CrashJitterMilli = item.CrashDipMilli = 0;
-            item.PityMisses = 0;
-            item.WindowPieces = new int[Math.Max(1, rules.CrashWindowSeconds)];
-            item.WindowSecond = 0;
-            item.NextSpikeTick = fromTick + SpikeInterval(rules, Random);
-            item.ClearHistory();
+            ResetItem(item, rules, fromTick);
         }
+    }
+
+    private void ResetItem(MarketItemState item, MarketRules rules, long fromTick)
+    {
+        item.Phase = MarketPhase.Normal;
+        item.PhaseStartTick = 0;
+        item.TrendMilli = item.StepFromMilli = item.StepTargetMilli = item.PriceMilli = rules.NormalAverageMilli;
+        item.SaleDropMicro = 0;
+        item.SaleRecoveryEndTick = 0;
+        item.CrashEndTick = item.CrashDipEndTick = item.BoostEndTick = 0;
+        item.CrashJitterMilli = item.CrashDipMilli = 0;
+        item.PityMisses = 0;
+        item.WindowPieces = new int[Math.Max(1, rules.CrashWindowSeconds)];
+        item.WindowSecond = 0;
+        item.NextSpikeTick = fromTick + SpikeInterval(rules, Random);
+        item.ClearHistory();
     }
 
     internal static long SpikeInterval(MarketRules rules, MarketRandom random) =>
@@ -184,11 +189,14 @@ public sealed class MarketState
     };
 
     /// <summary>Loads a saved market; items the save does not know keep their fresh state, unknown saved items are dropped.</summary>
-    internal void Restore(MarketSaveDto dto, MarketRules? rules)
+    internal void Restore(MarketSaveDto dto, MarketRules? rules, long currentTick)
     {
         Random = MarketRandom.FromState(dto.RandomState, dto.RandomInc);
         SellAllBlockedUntilTick = Math.Max(0, dto.SellAllBlockedUntilTick);
         var window = Math.Max(1, rules?.CrashWindowSeconds ?? 1);
+        var maxPrice = rules?.SpikeMaxMilli ?? int.MaxValue;
+        int Price(int v) => Math.Clamp(v, 0, maxPrice);
+        var seen = new HashSet<MarketItemState>();
         foreach (var d in dto.Items)
         {
             if (Find(d.ItemId) is not { } i)
@@ -196,29 +204,57 @@ public sealed class MarketState
                 continue;
             }
 
-            i.TrendMilli = d.TrendMilli;
-            i.PriceMilli = d.PriceMilli;
-            i.Phase = d.Phase;
+            seen.Add(i);
+            i.TrendMilli = Price(d.TrendMilli);
+            i.PriceMilli = Price(d.PriceMilli);
+            i.Phase = Enum.IsDefined(d.Phase) ? d.Phase : MarketPhase.Normal;
             i.PhaseStartTick = d.PhaseStartTick;
-            i.SpikeTopMilli = d.SpikeTopMilli;
-            i.SpikeFromMilli = d.SpikeFromMilli;
+            i.SpikeTopMilli = Price(d.SpikeTopMilli);
+            i.SpikeFromMilli = Price(d.SpikeFromMilli);
             i.NextSpikeTick = d.NextSpikeTick;
-            i.StepFromMilli = d.StepFromMilli;
-            i.StepTargetMilli = d.StepTargetMilli;
+            i.StepFromMilli = Price(d.StepFromMilli);
+            i.StepTargetMilli = Price(d.StepTargetMilli);
             i.CrashEndTick = d.CrashEndTick;
-            i.CrashJitterMilli = d.CrashJitterMilli;
+            i.CrashJitterMilli = Math.Max(0, d.CrashJitterMilli);
             i.CrashDipEndTick = d.CrashDipEndTick;
-            i.CrashDipMilli = d.CrashDipMilli;
+            i.CrashDipMilli = Price(d.CrashDipMilli);
             i.BoostEndTick = d.BoostEndTick;
             i.SaleDropMicro = Math.Max(0, d.SaleDropMicro);
             i.SaleRecoveryEndTick = d.SaleRecoveryEndTick;
             // The ring buffer keeps the length the rules ask for, whatever the file holds.
             i.WindowPieces = new int[window];
             Array.Copy(d.WindowPieces, i.WindowPieces, Math.Min(window, d.WindowPieces.Length));
-            i.WindowSecond = d.WindowSecond;
+            // A second outside [0, now] would index the ring buffer out of range: restart the window.
+            var nowSecond = currentTick / SimulationClock.TickRate;
+            if (d.WindowSecond < 0 || d.WindowSecond > nowSecond)
+            {
+                Array.Clear(i.WindowPieces);
+                i.WindowSecond = nowSecond;
+            }
+            else
+            {
+                i.WindowSecond = d.WindowSecond;
+                for (var k = 0; k < i.WindowPieces.Length; k++)
+                {
+                    i.WindowPieces[k] = Math.Max(0, i.WindowPieces[k]);
+                }
+            }
+
             i.PityMisses = Math.Max(0, d.PityMisses);
             i.AutoSell = d.AutoSell;
-            i.RestoreHistory(d.History.TakeLast(Math.Max(0, rules?.HistorySeconds ?? 0)));
+            i.RestoreHistory(d.History.Select(Price).TakeLast(Math.Max(0, rules?.HistorySeconds ?? 0)));
+        }
+
+        // Items the save does not list start fresh from now (after the stream is restored, in content order).
+        if (rules is not null)
+        {
+            foreach (var item in items)
+            {
+                if (!seen.Contains(item))
+                {
+                    ResetItem(item, rules, currentTick);
+                }
+            }
         }
     }
 }
