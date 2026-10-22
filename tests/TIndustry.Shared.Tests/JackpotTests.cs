@@ -415,4 +415,21 @@ public sealed class JackpotTests
         Assert.Equal(int.MaxValue, f.Wallet.Money);
         Assert.Equal(int.MaxValue, f.Session.SaleIncome);
     }
+
+    [Fact]
+    public void HugeStockSaturatesWithoutThrowing()
+    {
+        var f = NewFactory();
+        Script(f, true);
+        Force(f, Titanium, 3000);
+        SetStock(f, Titanium, 50_000_000);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        Assert.True(f.TrySellAll(Titanium));
+
+        Assert.True(watch.ElapsedMilliseconds < 1000);
+        Assert.Equal(int.MaxValue, f.Wallet.Money);
+        Assert.Equal(int.MaxValue, f.Session.SaleIncome);
+        Assert.Equal(50_000_000, f.Session.SoldByItem[Titanium]);
+    }
 }

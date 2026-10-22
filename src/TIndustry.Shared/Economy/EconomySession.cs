@@ -14,6 +14,13 @@ public sealed class EconomySession : ISessionView
     public int SaleIncome { get; private set; }
     public IReadOnlyDictionary<string, int> SoldByItem => soldByItem;
 
+    /// <summary>Records <paramref name="count"/> pieces sold together for <paramref name="income"/> in total (saturating).</summary>
+    public void RecordSales(string itemId, int income, int count)
+    {
+        SaleIncome = (int)Math.Min((long)SaleIncome + income, int.MaxValue);
+        soldByItem[itemId] = (int)Math.Min((long)soldByItem.GetValueOrDefault(itemId) + count, int.MaxValue);
+    }
+
     public void RecordSale(string itemId, int price)
     {
         SaleIncome = (int)Math.Min((long)SaleIncome + price, int.MaxValue);

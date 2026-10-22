@@ -68,12 +68,10 @@ internal static class MarketSales
             }
         }
 
-        var income = checked(pieces * unit);
+        // Saturates instead of throwing: the stock of an item is uncapped.
+        var income = (int)Math.Min((long)pieces * unit, int.MaxValue);
         s.Wallet.AddMoney(income);
-        for (var i = 0; i < pieces; i++)
-        {
-            s.Session.RecordSale(item.ItemId, unit);
-        }
+        s.Session.RecordSales(item.ItemId, income, pieces);
 
         var crash = won;
         if (won)
