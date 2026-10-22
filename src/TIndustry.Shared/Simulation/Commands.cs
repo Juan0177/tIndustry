@@ -136,7 +136,10 @@ public enum RefusalCode
     NothingToRemove,
 
     /// <summary>The Core is already upgraded (<see cref="IGameView.CoreUpgradeLevel"/>).</summary>
-    CoreAlreadyUpgraded
+    CoreAlreadyUpgraded,
+
+    /// <summary>Market: "sell all" is locked after a missed jackpot attempt; <see cref="Refusal.WaitSeconds"/> is the wait left.</summary>
+    SellAllCooldown
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>
@@ -198,7 +201,8 @@ public sealed record Refusal(
     RefusalCode Code,
     string? StructureId = null,
     int MissingMoney = 0,
-    IReadOnlyList<ResourceAmount>? MissingItems = null)
+    IReadOnlyList<ResourceAmount>? MissingItems = null,
+    int WaitSeconds = 0)
 {
     public static implicit operator Refusal(RefusalCode code) => new(code);
 
@@ -208,6 +212,7 @@ public sealed record Refusal(
         && Code == other.Code
         && StructureId == other.StructureId
         && MissingMoney == other.MissingMoney
+        && WaitSeconds == other.WaitSeconds
         && (MissingItems ?? []).SequenceEqual(other.MissingItems ?? []);
 
     public override int GetHashCode() => HashCode.Combine(Code, StructureId, MissingMoney);

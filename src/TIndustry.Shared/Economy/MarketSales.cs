@@ -7,6 +7,31 @@ internal static class MarketMath
 
     /// <summary>Money for one piece: <c>round(B × price)</c>, price in thousandths of B.</summary>
     public static int UnitIncome(int baseValue, int priceMilli) => (int)(((long)baseValue * priceMilli + 500) / 1000);
+
+    /// <summary>Chance (basis points) of a crash dip below B; lower by <c>lostBoost</c> after a lost 50/50.</summary>
+    internal static int CrashDipChance(MarketRules r, bool boosted) =>
+        boosted ? r.CrashDipChanceBp * (10_000 - r.LostBoostBp) / 10_000 : r.CrashDipChanceBp;
+
+    /// <summary>
+    /// Jackpot chance in basis points for a "sell all" of <paramref name="pieces"/>: 0 under the minimum, base plus a
+    /// step per block of pieces up to the cap; from the pity size on each missed attempt adds a step, and the
+    /// guaranteed streak makes it certain.
+    /// </summary>
+    internal static int JackpotChance(MarketRules r, int pieces, int pityMisses)
+    {
+        if (pieces < r.JackpotMinPieces)
+        {
+            return 0;
+        }
+
+        var chance = Math.Min(r.JackpotCapBp, r.JackpotBaseBp + (pieces - r.JackpotMinPieces) / r.JackpotStepPieces * r.JackpotStepBp);
+        if (pieces >= r.PityPieces)
+        {
+            chance = pityMisses >= r.PityGuaranteeMisses ? 10_000 : chance + pityMisses * r.PityStepBp;
+        }
+
+        return Math.Min(10_000, chance);
+    }
 }
 
 internal readonly record struct SaleOutcome(int Pieces, int PriceMilli, int Income, bool Crash);
@@ -17,7 +42,7 @@ internal static class MarketSales
     /// <summary>
     /// Sells <paramref name="pieces"/> of <paramref name="item"/> from the wallet at the price of the moment, then applies
     /// the per-piece price drop and the crash window. Null when the stock is short. <paramref name="sellAll"/> is
-    /// for the jackpot attempt (later task).
+    /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>).
     /// </summary>
     public static SaleOutcome? Sell(GameState s, MarketItemState item, int pieces, bool sellAll, int playerId = 1)
     {
@@ -27,18 +52,34 @@ internal static class MarketSales
             return null;
         }
 
-        _ = sellAll;
         var price = item.PriceMilli;
         var unit = MarketMath.UnitIncome(item.BaseValue, price);
-        var income = pieces * unit;
-        s.Wallet.AddMoney(income);
-        for (var i = 0; i < pieces; i++)
+        var attempt = sellAll && s.HasMarketScreen && pieces >= rules.JackpotMinPieces && price >= rules.SpikeThresholdMilli;
+        var probability = 0;
+        var won = false;
+        if (attempt)
         {
-            s.Session.RecordSale(item.ItemId, unit);
+            probability = MarketMath.JackpotChance(rules, pieces, item.PityMisses);
+            won = s.JackpotRollForTests?.Invoke(probability) ?? s.Exchange.Random.NextInt(10_000) < probability;
+            if (won)
+            {
+                // B + bonus (floored) + the rise over B.
+                unit = item.BaseValue + (int)((long)item.BaseValue * rules.JackpotBonusPermille / 1000) + (unit - item.BaseValue);
+            }
         }
 
-        var crash = false;
-        if (item.Phase != MarketPhase.Crash)
+        // Saturates instead of throwing: the stock of an item is uncapped.
+        var income = (int)Math.Min((long)pieces * unit, int.MaxValue);
+        s.Wallet.AddMoney(income);
+        s.Session.RecordSales(item.ItemId, income, pieces);
+
+        var crash = won;
+        if (won)
+        {
+            StartCrash(s, item, rules, SimulationClock.TickRate);
+            item.PityMisses = 0;
+        }
+        else if (item.Phase != MarketPhase.Crash)
         {
             var rate = SimulationClock.TickRate;
             var room = Math.Max(0, price - MarketMath.OneB) * 1000L;
@@ -54,8 +95,35 @@ internal static class MarketSales
             }
         }
 
-        s.Events.Add(new SaleResolved(playerId, item.ItemId, pieces, price, income, crash, false, false, 0));
+        if (attempt && !won)
+        {
+            AfterMiss(s, item, pieces, crash, rules);
+        }
+
+        s.Events.Add(new SaleResolved(playerId, item.ItemId, pieces, price, income, crash, attempt, won, probability));
         return new SaleOutcome(pieces, price, income, crash);
+    }
+
+    private static void AfterMiss(GameState s, MarketItemState item, int pieces, bool crash, MarketRules rules)
+    {
+        var rate = SimulationClock.TickRate;
+        if (pieces >= rules.PityPieces)
+        {
+            item.PityMisses++;
+        }
+
+        if (crash)
+        {
+            if (pieces >= rules.LostPieces)
+            {
+                item.BoostEndTick = s.CurrentTick + (long)rules.LostBoostMinutes * 60 * rate;
+            }
+
+            return;
+        }
+
+        s.Exchange.SellAllBlockedUntilTick = s.CurrentTick + (long)rules.MissCooldownSeconds * rate;
+        item.NextSpikeTick = s.CurrentTick + MarketState.SpikeInterval(rules, s.Exchange.Random) + (long)rules.MissSpikeDelaySeconds * rate;
     }
 
     /// <summary>Adds to the current second of the ring buffer (clearing the seconds skipped) and returns the window total.</summary>

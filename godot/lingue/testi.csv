@@ -197,6 +197,7 @@ rifiuto.AlreadyUnlocked,Già sbloccato.,Already unlocked.
 rifiuto.MissingPrerequisites,Prerequisiti mancanti.,Missing prerequisites.
 rifiuto.UnlockUnaffordable,Risorse insufficienti per sbloccare.,Not enough resources to unlock.
 rifiuto.SellFailed,Vendita fallita (stock insufficiente).,Sale failed (not enough stock).
+rifiuto.SellAllCooldown,Vendi tutto è bloccato: aspetta {0} s,Sell all is locked: wait {0} s
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.

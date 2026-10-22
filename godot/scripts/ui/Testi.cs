@@ -158,6 +158,8 @@ public static class Testi
                 return missing.Length == 0 ? T("rifiuto.InsufficientResources") : F("rifiuto.servono", missing);
             case RefusalCode.CoreAlreadyUpgraded:
                 return F("rifiuto.CoreAlreadyUpgraded", view?.CoreUpgradeLevel ?? 1);
+            case RefusalCode.SellAllCooldown:
+                return F("rifiuto.SellAllCooldown", refusal.WaitSeconds);
             default:
                 return T($"rifiuto.{refusal.Code}");
         }

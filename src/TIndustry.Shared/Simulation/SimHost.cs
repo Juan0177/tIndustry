@@ -208,7 +208,7 @@ public sealed class SimHost
         Remove remove => ApplyRemove(remove),
         UnlockStructure unlock => ApplyUnlock(unlock),
         Sell sell => ApplySell(sell),
-        SellAll sellAll => factory.TrySellAll(sellAll.ItemId, sellAll.PlayerId) ? null : RefusalCode.SellFailed,
+        SellAll sellAll => ApplySellAll(sellAll),
         SetAutoSell autoSell => SetAutoSellAndAccept(autoSell.Enabled),
         UpgradeCore => ApplyUpgradeCore(),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
@@ -528,6 +528,22 @@ public sealed class SimHost
         }
 
         return factory.TrySellFromWallet(command.ItemId, command.Amount, command.PlayerId) ? null : RefusalCode.SellFailed;
+    }
+
+    private Refusal? ApplySellAll(SellAll command)
+    {
+        // Stock and item come first: a second "sell all" of the same item finds nothing and fails plainly.
+        if (factory.State.Exchange.Find(command.ItemId) is null || factory.Wallet.MaterialCount(command.ItemId) <= 0)
+        {
+            return RefusalCode.SellFailed;
+        }
+
+        if (factory.SellAllWaitTicks() is var wait and > 0)
+        {
+            return new Refusal(RefusalCode.SellAllCooldown, WaitSeconds: (int)((wait + SimulationClock.TickRate - 1) / SimulationClock.TickRate));
+        }
+
+        return factory.TrySellAll(command.ItemId, command.PlayerId) ? null : RefusalCode.SellFailed;
     }
 
     private Refusal? SetAutoSellAndAccept(bool enabled)
