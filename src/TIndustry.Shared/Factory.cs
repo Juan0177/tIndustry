@@ -94,22 +94,6 @@ public sealed class Factory : IGameView
         set => State.ActiveCampaignLevelId = value;
     }
 
-    /// <summary>
-    /// True when auto-sell is on for every market item; setting it switches them all. Bridge for the v13 save
-    /// (one switch) and the single-toggle clients until the per-item save and panel arrive.
-    /// </summary>
-    public bool AutoSellAtCore
-    {
-        get => State.Exchange.Items.Count > 0 && State.Exchange.Items.All(i => i.AutoSell);
-        set
-        {
-            foreach (var item in State.Exchange.Items)
-            {
-                item.AutoSell = value;
-            }
-        }
-    }
-
     public int CoreUpgradeLevel
     {
         get => State.CoreUpgradeLevel;
@@ -1025,7 +1009,6 @@ public sealed class Factory : IGameView
             CurrentTick = Math.Max(0, data.CurrentTick),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
             ActiveCampaignLevelId = data.ActiveCampaignLevelId,
-            AutoSellAtCore = data.AutoSellAtCore,
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel)
         };
         factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
@@ -1043,7 +1026,7 @@ public sealed class Factory : IGameView
         CheckRegeneratedTerrain(data, factory.Terrain);
 
         // After the terrain: its setter reseeds the market. Saves up to v13 have none: a fresh one, first spike
-        // 10-20 minutes from now (the old single auto-sell switch was applied to every item above).
+        // 10-20 minutes from now (the old single auto-sell switch is applied to every item).
         if (data.Market is { } market)
         {
             factory.State.Exchange.Restore(market, content.MarketRules, factory.CurrentTick);
@@ -1051,6 +1034,10 @@ public sealed class Factory : IGameView
         else
         {
             factory.State.Exchange.Reseed(content.MarketRules, factory.Terrain?.Seed ?? 0, factory.CurrentTick);
+            foreach (var item in factory.State.Exchange.Items)
+            {
+                item.AutoSell = data.AutoSellAtCore;
+            }
         }
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
@@ -1872,9 +1859,18 @@ public sealed class Factory : IGameView
     /// <summary>Ticks left before "sell all" works again after a missed jackpot attempt (0 when it is free).</summary>
     public long SellAllWaitTicks() => Math.Max(0, State.Exchange.SellAllBlockedUntilTick - State.CurrentTick);
 
-    /// <summary>Money one piece pays right now (0 when the item is not on the market).</summary>
-    public int PreviewSellPrice(string itemId) =>
-        State.Exchange.Find(itemId) is { } item ? MarketMath.UnitIncome(item.BaseValue, item.PriceMilli) : 0;
+    public IReadOnlyList<MarketItemView> MarketItems => State.Exchange.Items.Select(ViewOf).ToArray();
+
+    public MarketItemView? MarketItem(string itemId) => State.Exchange.Find(itemId) is { } item ? ViewOf(item) : null;
+
+    public int SellAllCooldownSeconds => (int)((SellAllWaitTicks() + SimulationClock.TickRate - 1) / SimulationClock.TickRate);
+
+    private MarketItemView ViewOf(MarketItemState item) => new(
+        item.ItemId, item.BaseValue, item.PriceMilli, MarketMath.UnitIncome(item.BaseValue, item.PriceMilli), item.Phase,
+        item.Phase == MarketPhase.Crash
+            ? (int)Math.Max(0, (item.CrashEndTick - CurrentTick + SimulationClock.TickRate - 1) / SimulationClock.TickRate)
+            : 0,
+        item.AutoSell, item.HistoryMilli.ToArray());
 
     public bool TryUpgradeCore()
     {

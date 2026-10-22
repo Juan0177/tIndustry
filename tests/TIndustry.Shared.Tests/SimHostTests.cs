@@ -157,7 +157,7 @@ public sealed class SimHostTests
 
         // Today's direct calls (applied before the tick), then one tick.
         Assert.True(direct.TrySellFromWallet("iron-plate", 7));
-        direct.AutoSellAtCore = true;
+        foreach (var item in direct.State.Exchange.Items) { item.AutoSell = true; }
         Assert.True(direct.TryUpgradeCore());
         direct.Step();
 
@@ -172,7 +172,7 @@ public sealed class SimHostTests
 
         Assert.Empty(rejected);
         Assert.Equal(Serialize(direct), Serialize(commanded));
-        Assert.True(host.State.AutoSellAtCore);
+        Assert.All(content.Market, listed => Assert.True(host.State.MarketItem(listed.ItemId)!.AutoSell));
         Assert.Equal(1, host.State.CoreUpgradeLevel);
 
         // Selling beyond the stock is rejected with today's Mercato text; state unchanged.

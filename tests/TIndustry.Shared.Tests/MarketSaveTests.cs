@@ -175,7 +175,7 @@ public sealed class MarketSaveTests
     public void CurrentSaveNoLongerWritesTheOldSwitchOrBonus()
     {
         var f = NewFactory();
-        f.AutoSellAtCore = true;
+        foreach (var item in f.State.Exchange.Items) { item.AutoSell = true; }
         var data = f.Capture();
         Assert.False(data.AutoSellAtCore);
         Assert.Equal(0, data.CoreSaleBonusPercent);

@@ -1102,7 +1102,7 @@ internal static class FactoryScenarios
         Assert(factory.Wallet.Money == 0, "money unchanged");
 
         factory.Wallet.AddMaterial("iron-ore", 5);
-        var price1 = factory.PreviewSellPrice("iron-ore");
+        var price1 = factory.MarketItem("iron-ore")!.UnitIncome;
         Assert(factory.TrySellFromWallet("iron-ore", 1), "sell 1");
         Assert(factory.Wallet.MaterialCount("iron-ore") == 4, "stock -1");
         Assert(factory.Wallet.Money == price1, "money +price");
@@ -1111,7 +1111,7 @@ internal static class FactoryScenarios
 
         var moneyBefore = factory.Wallet.Money;
         var remaining = factory.Wallet.MaterialCount("iron-ore");
-        var bulkPrice = factory.PreviewSellPrice("iron-ore");
+        var bulkPrice = factory.MarketItem("iron-ore")!.UnitIncome;
         Assert(factory.TrySellFromWallet("iron-ore", remaining), "sell tutti");
         Assert(factory.Wallet.MaterialCount("iron-ore") == 0, "ore empty");
         Assert(factory.Wallet.Money == moneyBefore + bulkPrice * remaining, "tutti money");
@@ -1148,12 +1148,12 @@ internal static class FactoryScenarios
         var factory = new Factory(content, new BeltGrid(), core, wallet);
         Assert(factory.CoreUpgradeLevel == 0, "start LV0");
         factory.Wallet.AddMaterial("iron-ore", 5);
-        var basePrice = factory.PreviewSellPrice("iron-ore");
+        var basePrice = factory.MarketItem("iron-ore")!.UnitIncome;
         factory.Wallet.AddMoney(Math.Max(0, content.CoreUpgrade.MoneyCost - factory.Wallet.Money));
         Assert(factory.TryUpgradeCore(), "upgrade");
         Assert(factory.CoreUpgradeLevel == 1, "LV1");
         Assert(!factory.TryUpgradeCore(), "one-shot");
-        var boosted = factory.PreviewSellPrice("iron-ore");
+        var boosted = factory.MarketItem("iron-ore")!.UnitIncome;
         Assert(boosted == basePrice, "no sale bonus");
         var moneyBefore = factory.Wallet.Money;
         Assert(factory.TrySellFromWallet("iron-ore", 1), "sell after upgrade");
@@ -1170,7 +1170,7 @@ internal static class FactoryScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var factory = NewGame.Demo(content);
-        factory.AutoSellAtCore = true;
+        foreach (var item in factory.State.Exchange.Items) { item.AutoSell = true; }
 
         var moneyBefore = factory.Wallet.Money;
         var stockBefore = factory.Wallet.MaterialCount("iron-ore");
@@ -1195,12 +1195,12 @@ internal static class FactoryScenarios
         Assert(snap.Market!.Items.All(i => i.AutoSell), "capture auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
         var restored = SaveAndReload(content, "selftest-autosell", factory);
-        Assert(restored.AutoSellAtCore, "restore auto-sell");
+        Assert(restored.State.Exchange.Items.All(i => i.AutoSell), "restore auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
 
         // OFF path still stocks (stock-first default).
         var stockGame = NewGame.Demo(content);
-        Assert(!stockGame.AutoSellAtCore, "default OFF");
+        Assert(!stockGame.State.Exchange.Items.Any(i => i.AutoSell), "default OFF");
         moneyBefore = stockGame.Wallet.Money;
         for (var i = 0; i < SimulationClock.TickRate * 45; i++)
         {

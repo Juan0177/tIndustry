@@ -55,7 +55,7 @@ public sealed class CompactTests
     public void StatoKeepsOnlyWhatIsThere()
     {
         var stato = JsonNode.Parse("""
-            {"edifici":{"minatori":1,"forni":0},"core":{"livello":0,"venditaAutomatica":false},
+            {"edifici":{"minatori":1,"forni":0},"core":{"livello":0},
              "costruzione":{"piani":1,"cantieri":0,"primiPiani":[{"x":1,"y":1,"rimozione":false}],
                             "primiCantieri":[{"x":2,"y":2,"progresso":0.6038649,"smontaggio":true}]},
              "rifiuti":[{"tick":1,"tipo":"rifiuto","codice":"Wall"}],"livelloCampagna":null}

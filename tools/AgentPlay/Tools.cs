@@ -187,12 +187,21 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "sblocca", new { struttura });
 
     [McpServerTool(Name = "vendi")]
-    [Description("Vende oggetti del Core al mercato.")]
+    [Description("Vende oggetti del Core al mercato al prezzo del momento. Con 'quantita' vende quei pezzi; con 'tutto: true' vende tutta la scorta (il pulsante Vendi tutto: può tentare il jackpot e, se fallisce, resta in attesa, vedi 'attesaVendiTutto' in stato). Risponde {incasso, soldi, crollo?, tentativo?, jackpot?}.")]
     public string Vendi(
         [Description(Sessione)] string sessione,
         [Description("Id dell'oggetto.")] string oggetto,
-        [Description("Quante unità.")] int quantita) =>
-        Game(sessione, "vendi", new { oggetto, quantita });
+        [Description("Quante unità (serve se 'tutto' manca).")] int? quantita = null,
+        [Description("true: vende tutta la scorta dell'oggetto.")] bool? tutto = null) =>
+        Game(sessione, "vendi", new { oggetto, quantita, tutto });
+
+    [McpServerTool(Name = "vendita_automatica")]
+    [Description("Accende o spegne la vendita automatica di un oggetto: i pezzi che arrivano al Core si vendono subito, al prezzo del momento (al massimo B).")]
+    public string VenditaAutomatica(
+        [Description(Sessione)] string sessione,
+        [Description("Id dell'oggetto.")] string oggetto,
+        [Description("true per accenderla, false per spegnerla.")] bool accesa) =>
+        Game(sessione, "vendita_automatica", new { oggetto, accesa });
 
     [McpServerTool(Name = "potenzia_core")]
     [Description("Potenzia il Core al livello successivo, se si può pagare.")]
