@@ -27,3 +27,6 @@
 - [Agenti che giocano](Agenti-che-giocano)
 - [Sito web](Sito-web)
 - [Come contribuire](Come-contribuire)
+
+**In discussione**
+- [Mercato come una borsa](Mercato-come-una-borsa)

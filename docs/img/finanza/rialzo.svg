@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 230" width="640" height="230" role="img" aria-label="Prezzo di un prodotto in tre minuti: oscilla poco sopra il minimo, poi sale fino al triplo, resta in cima qualche secondo e riscende.">
+  <rect width="640" height="230" rx="10" fill="#ffffff"/>
+  <g font-family="DejaVu Sans Mono, Consolas, monospace" font-size="12" fill="#586174">
+    <line x1="70" y1="190" x2="620" y2="190" stroke="#d9dde5" stroke-width="1"/>
+    <line x1="70" y1="150" x2="620" y2="150" stroke="#d9dde5" stroke-width="1" stroke-dasharray="4 4"/>
+    <line x1="70" y1="30" x2="620" y2="30" stroke="#d9dde5" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="62" y="154" text-anchor="end">minimo</text>
+    <text x="62" y="34" text-anchor="end">triplo</text>
+    <text x="70" y="212">0:00</text>
+    <text x="620" y="212" text-anchor="end">3:00</text>
+  </g>
+  <polyline fill="none" stroke="#1b2130" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"
+    points="70,138 100,132 130,140 160,135 190,129 220,137 250,133 280,131 310,70 340,30 370,30 400,30 430,52 460,74 490,96 520,118 550,134 580,130 620,136"/>
+  <rect x="325" y="22" width="80" height="16" rx="3" fill="#a86f00" opacity="0.18"/>
+  <text x="365" y="18" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="13" font-weight="700" fill="#a86f00">momento buono</text>
+</svg>
