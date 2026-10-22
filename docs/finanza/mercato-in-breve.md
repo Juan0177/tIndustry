@@ -12,6 +12,8 @@ tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti i
 
 **Puoi anche non pensarci.** C'è una vendita automatica che vende da sola man mano che produci. È comoda, ma vende sempre al prezzo minimo.
 
+![Prezzo di un prodotto in tre minuti: un po' sopra il minimo, poi il rialzo fino al triplo, pochi secondi in cima e la discesa](../img/finanza/rialzo.svg)
+
 ## Il colpo di fortuna
 
 Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto, puoi vincere un **jackpot**: quella vendita vale circa **dieci volte** il normale.

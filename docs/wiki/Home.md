@@ -6,7 +6,7 @@
 
 [Scarica l'ultima versione](https://github.com/Juan0177/tIndustry/releases/latest) · [Sito](https://juan0177.github.io/tIndustry/) · [Codice](https://github.com/Juan0177/tIndustry) · [Novità](https://github.com/Juan0177/tIndustry/blob/main/CHANGELOG.md)
 
-Il Wiki ha due parti: una per chi gioca e una per chi lavora sul codice.
+Il Wiki ha tre parti: una per chi gioca, una per chi lavora sul codice e una con le idee in discussione.
 
 ## Giocare
 
@@ -45,3 +45,11 @@ Per chi vuole compilare il gioco, capirne la struttura o contribuire. Queste pag
 | [Agenti che giocano](Agenti-che-giocano) | Il server MCP per far giocare gli agenti |
 | [Sito web](Sito-web) | Come si genera e si pubblica il sito |
 | [Come contribuire](Come-contribuire) | Flusso di lavoro e convenzioni |
+
+## In discussione
+
+Idee non ancora nel gioco, spiegate per tutti: si cercano pareri.
+
+| Pagina | Cosa trovi |
+|---|---|
+| [Mercato come una borsa](Mercato-come-una-borsa) | Prezzi che si muovono, rialzi, crolli, jackpot e rete di sicurezza, con due esempi e cinque domande |
