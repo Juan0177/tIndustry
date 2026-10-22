@@ -65,6 +65,7 @@ Il server MCP `tindustry` (`.mcp.json`, codice in `tools/AgentPlay`) fa giocare 
 
 ## Dove guardare
 
+- `docs/STATO.md` — a che punto siamo e cosa manca. **Si aggiorna a ogni PR unita e a fine blocco**, insieme alla mappa (`python tools/dev/mappa_canvas.py` rigenera `docs/mappa-progetto.canvas`).
 - `docs/ARCHITETTURA.md` — mappa delle cartelle, ciclo di frame, dati, salvataggi, interfaccia, come aggiungere un blocco, un testo o una lingua.
 - `docs/decisioni/` — decisioni architetturali (ADR).
 - `docs/superpowers/` — specifiche e piani di lavoro.

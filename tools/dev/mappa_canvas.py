@@ -87,6 +87,7 @@ fatto.close()
 
 # --- In corso --------------------------------------------------------------
 corso = Column("g-corso", "In corso", X[1], "3")
+corso.card("stato", "**Stato di oggi → [[STATO]]**\nOrdine di lavoro del 22/10 in blocchi A–E: A e B fatti (Mercato come una borsa, PR #274–#282); prossimo il blocco C (specifiche 2 e 3 del Mercato), poi la logistica come Mindustry (D). Le cose piccole che mancano e cosa serve dall'utente sono in docs/STATO.md.")
 corso.close()
 
 # --- Prossimi --------------------------------------------------------------
