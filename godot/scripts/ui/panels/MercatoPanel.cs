@@ -99,13 +99,16 @@ public partial class MercatoPanel : Control
 
         switch (command)
         {
-            case SetAutoSell:
+            // The toggle sends one command per item: react once, after the last of the batch (all are applied by then).
+            case SetAutoSell autoSell when autoSell.ItemId == _view.Content.Market[^1].ItemId:
                 var on = _view.AutoSellAtCore;
                 SetStatus(() => Testi.T(on ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
 
                 SyncAutoSellToggle();
                 RefreshAutoSellHint();
                 AutoSellChanged?.Invoke();
+                break;
+            case SetAutoSell:
                 break;
             case Sell when _pendingSales.Count > 0:
                 var (amount, itemId) = _pendingSales.Dequeue();
