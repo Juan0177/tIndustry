@@ -81,7 +81,7 @@ for col, w in zip("ABC", (28, 70, 22)):
     ws.column_dimensions[col].width = w
 ws.sheet_view.showGridLines = False
 title(ws, "Mercato come una borsa e ramo Finanza — meccaniche, pity, esempi",
-      "Documento di design per l'issue #268 di tIndustry (22 ottobre 2026). Non è ancora la specifica: serve a vedere i numeri insieme.")
+      "Documento di design per l'issue #268 di tIndustry (22 ottobre 2026), allineato alla specifica 1 e al piano: regole finali, esempi, pity, analisi a lungo termine.")
 rows = [
     ("Come si legge", ""),
     ("Testo blu", "Parametro modificabile: cambialo e tutti i fogli si ricalcolano."),
@@ -118,14 +118,17 @@ ws["A6"].fill = YELLOW
 ws["A7"].font = Font(name=FONT, bold=True, color="008000")
 
 # ---------------------------------------------------------------- Parametri
-P = sheet("Parametri", (46, 14, 12, 22, 60))
+P = sheet("Parametri", (46, 14, 12, 22, 30, 60))
 title(P, "Parametri", "Ogni regola in una cella: gli altri fogli li leggono da qui.")
-header(P, 4, ["Regola", "Valore", "Unità", "Decisa da", "Note"])
+header(P, 4, ["Regola", "Valore", "Unità", "Decisa da", "Chiave in content.json (marketRules)", "Note"])
 params = [
     # key, label, value, unit, who, note, fmt
     ("norm_min", "Prezzo normale: minimo", 1.0, "× B", "utente", "Il valore base B è anche la soglia minima: fuori da un crollo il prezzo non va sotto.", "0.00"),
     ("norm_max", "Prezzo normale: massimo", 1.6, "× B", "proposta", "Fascia approvata dall'utente.", "0.00"),
     ("norm_avg", "Prezzo normale: media", 1.3, "× B", "proposta", "Usata per stimare i valori B dal listino di oggi.", "0.00"),
+    ("norm_step", "Prezzo normale: un passo nuovo ogni", 4, "s", "proposta", "«Cambi visibili ogni pochi secondi»: fra un passo e l'altro il prezzo scorre in linea retta.", "0"),
+    ("norm_pull", "Prezzo normale: richiamo verso la media per passo", 0.08, "", "proposta", "Quanto ogni passo riporta il prezzo verso la media.", "0%"),
+    ("norm_noise", "Prezzo normale: scarto casuale massimo per passo", 0.06, "× B", "proposta", "", "0.00"),
     ("spike_max", "Picco: massimo", 3.0, "× B", "utente", "+200%: ogni picco ha un massimo casuale fra la soglia del picco e questo.", "0.00"),
     ("spike_in", "Picco: soglia «nel picco»", 2.8, "× B", "utente", "+180%: da qui una vendita conta come fatta nel picco.", "0.00"),
     ("spike_up", "Picco: salita", 10, "s", "utente", "", "0"),
@@ -138,11 +141,14 @@ params = [
     ("crash_qty", "Crollo: pezzi venduti nella finestra", 5000, "pezzi", "utente", "Crolla solo se in 2 minuti vendi almeno questa quantità di quell'oggetto (una o più vendite). Le vendite piccole abbassano il prezzo ma non sotto B.", "#,##0"),
     ("crash_window", "Crollo: finestra per contare i pezzi", 2, "min", "utente", "Il jackpot vinto fa sempre crollare.", "0"),
     ("miss_cooldown", "Tentativo a vuoto senza crollo: attesa", 5, "min", "utente", "Nessun tentativo di jackpot su nessun oggetto per questi minuti.", "0"),
+    ("sellall_block", "Durante l'attesa «Vendi tutto» è bloccato", "sì", "", "utente", "Su tutti gli oggetti; restano «Vendi 1», «Vendi 100» e la vendita automatica.", "@"),
     ("miss_spike_delay", "Tentativo a vuoto senza crollo: picco rimandato", 5, "min", "utente", "Il conto alla rovescia del picco di quell'oggetto riparte da capo più questi minuti (15–25 invece di 10–20).", "0"),
     ("crash_len", "Crollo: durata", 20, "min", "utente", "Niente picchi e conto alla rovescia del picco fermo.", "0"),
     ("crash_low_len", "Crollo: minuti in cui può andare sotto B", 5, "min", "utente", "I primi minuti del crollo.", "0"),
     ("crash_low_min", "Crollo: minimo sotto B", 0.6, "× B", "utente", "30–40% sotto la soglia minima.", "0.00"),
     ("crash_low_max", "Crollo: massimo sotto B", 0.7, "× B", "utente", "", "0.00"),
+    ("dip_every", "Crollo: ogni quanti secondi può scendere sotto B", 10, "s", "proposta", "Solo nei primi 5 minuti del crollo.", "0"),
+    ("dip_chance", "Crollo: probabilità di scendere sotto B a ogni controllo", 0.25, "", "proposta", "", "0%"),
     ("jp_min_qty", "Jackpot: pezzi minimi", 400, "pezzi", "utente", "Solo con «Vendi tutto», solo nel picco, solo con uno schermo di borsa.", "#,##0"),
     ("jp_base", "Jackpot: probabilità base", 0.02, "", "utente", "Alla quantità minima.", "0%"),
     ("jp_step_qty", "Jackpot: pezzi per ogni aumento", 200, "pezzi", "utente", "", "#,##0"),
@@ -159,14 +165,30 @@ params = [
     ("lost_boost_len", "50/50 perso: durata del recupero accelerato", 5, "min", "utente", "", "0"),
     ("late_mult", "Oggetti di fine partita: moltiplicatore di B", 1.5, "×", "proposta", "L'utente vuole oggetti avanzati più cari; il numero è da decidere.", "0.00"),
 ]
+JSON = {
+    "norm_min": "normalMin", "norm_max": "normalMax", "norm_avg": "normalAverage", "norm_step": "normalStepSeconds",
+    "norm_pull": "normalPull", "norm_noise": "normalNoise", "spike_max": "spikeMax", "spike_in": "spikeThreshold",
+    "spike_up": "spikeRiseSeconds", "spike_hold": "spikeHoldSeconds", "spike_down": "spikeFallSeconds",
+    "spike_every_min": "spikeIntervalMinMinutes", "spike_every_max": "spikeIntervalMaxMinutes", "impact": "saleImpact",
+    "recover": "saleRecoverySeconds", "crash_qty": "crashPieces", "crash_window": "crashWindowSeconds (in s)",
+    "miss_cooldown": "missCooldownSeconds (in s)", "miss_spike_delay": "missSpikeDelaySeconds (in s)",
+    "crash_len": "crashMinutes", "crash_low_len": "crashDipMinutes", "crash_low_min": "crashDipMin",
+    "crash_low_max": "crashDipMax", "dip_every": "crashDipEverySeconds", "dip_chance": "crashDipChance",
+    "jp_min_qty": "jackpotMinPieces", "jp_base": "jackpotBase", "jp_step_qty": "jackpotStepPieces", "jp_step": "jackpotStep",
+    "jp_cap": "jackpotCap", "jp_bonus": "jackpotBonus", "pity_add": "pityStep", "pity_qty": "pityPieces",
+    "pity_guarantee": "pityGuaranteeMisses", "lost_boost": "lostBoost", "lost_boost_len": "lostBoostMinutes",
+    "led_yellow_qty": "lostPieces / LED (spec. 2)", "late_mult": "— (già nei valori B)", "auto_price": "— (regola)",
+    "sellall_block": "— (regola)", "led_mild": "— (spec. 2)",
+}
 NAMES = {}
 for i, (key, label, value, unit, who, note, fmt) in enumerate(params):
     row = 5 + i
     cell(P, f"A{row}", label)
     cell(P, f"B{row}", value, BLUE, fmt, YELLOW if who == "proposta" else None)
     cell(P, f"C{row}", unit)
-    cell(P, f"D{row}", "utente (22/10)" if who == "utente" else "proposta da approvare", fill=YELLOW if who == "proposta" else None)
-    cell(P, f"E{row}", note).alignment = WRAP
+    cell(P, f"D{row}", "utente (22/10)" if who == "utente" else "proposta (nel piano)", fill=YELLOW if who == "proposta" else None)
+    cell(P, f"E{row}", JSON.get(key, "—"))
+    cell(P, f"F{row}", note).alignment = WRAP
     NAMES[key] = f"Parametri!$B${row}"
 
 
@@ -359,6 +381,7 @@ cases = [
     ("7. Vendita automatica di 100 pezzi", None, 100, "no", "no"),
     ("8. Vendita automatica di 100 pezzi durante un crollo a 0,65×B", 0.65, 100, "auto", "no"),
     ("9. 10.000 pezzi nel picco con lo schermo: il 50/50", 2.9, 10000, "sì", "sì"),
+    ("10. «Vendi tutto» durante l'attesa di 5 minuti: bloccato", 2.9, 3000, "attesa", "sì"),
 ]
 for i, (name, price, q, screen, all_) in enumerate(cases):
     r = 5 + i
@@ -378,6 +401,16 @@ for i, (name, price, q, screen, all_) in enumerate(cases):
         cell(E, f"J{r}", "—")
         cell(E, f"K{r}", "no")
         cell(E, f"L{r}", f"=D{r}*ROUND(B{r}*C{r},0)", fmt="$#,##0")
+        continue
+    if screen == "attesa":
+        cell(E, f"C{r}", price, BLUE, "0.00")
+        cell(E, f"D{r}", q, BLUE, "#,##0")
+        cell(E, f"E{r}", "sì", BLUE)
+        cell(E, f"H{r}", f"=C{r}", fmt="0.00")
+        cell(E, f"I{r}", "no")
+        cell(E, f"J{r}", "—")
+        cell(E, f"K{r}", "no")
+        cell(E, f"L{r}", 0, fmt="$#,##0", comment="Rifiutato (SellAllCooldown): nessuna vendita.")
         continue
     if screen == "auto":
         cell(E, f"E{r}", "no", BLUE)
@@ -550,7 +583,7 @@ M["A9"] = "Il magazzino fa da freno naturale: per il pity servono 3.000 pezzi e 
 M["A9"].font = NOTE
 
 # ---------------------------------------------------------------- Analisi lungo periodo
-L = sheet("Analisi lungo periodo", (34, 14, 12, 12, 12, 12, 12, 14, 16, 16, 16))
+L = sheet("Analisi lungo periodo", (34, 14, 12, 12, 12, 12, 12, 14, 16, 16, 16, 10))
 title(L, "Analisi a medio-lungo termine: 4 ore con 25 pezzi al secondo",
       "Ogni scenario è un ciclo di fortuna che si ripete per tutte le 4 ore («se ti andasse sempre così»), confrontato con la sola vendita automatica a B.")
 inputs = [
@@ -573,7 +606,7 @@ cell(L, "A12", "Valore base B dell'oggetto ($)", BOLD)
 cell(L, "B12", "=INDEX('Valori B'!$F$5:$F$15,MATCH(B4,'Valori B'!$A$5:$A$15,0))", GREEN, "$#,##0")
 cell(L, "A13", "Pezzi prodotti in 4 ore")
 cell(L, "B13", "=B5*B6*60", fmt="#,##0")
-cell(L, "A14", "Minuti fra un tentativo e il successivo")
+cell(L, "A14", "Minuti fino al tentativo dopo, se crolla")
 cell(L, "B14", f"={p('crash_len')}+B8", fmt="0")
 cell(L, "A15", "Prezzo pagato al picco ($/pezzo)")
 cell(L, "B15", "=ROUND(B12*B9,0)", fmt="$#,##0")
@@ -581,7 +614,8 @@ cell(L, "A16", "Jackpot ($/pezzo)")
 cell(L, "B16", f"=B12+ROUNDDOWN(B12*{p('jp_bonus')},0)+(B15-B12)", fmt="$#,##0")
 cell(L, "A17", "Solo vendita automatica a B in 4 ore ($)", BOLD)
 cell(L, "B17", "=B13*B12", BOLD, "$#,##0")
-L["A18"] = "Serve un CORE che tenga 10.000 pezzi di quell'oggetto (livello 3 nel foglio «Magazzino CORE»): si accumulano in 400 secondi."
+L["A18"] = ("Serve un CORE che tenga 10.000 pezzi di quell'oggetto (livello 3 nel foglio «Magazzino CORE»): si accumulano in 400 secondi. "
+            "Dopo un crollo il tentativo successivo arriva 35 minuti dopo; dopo un tentativo a vuoto senza crollo 20 (15 + 5 di picco rimandato).")
 L["A18"].font = NOTE
 
 scen = [
@@ -589,8 +623,9 @@ scen = [
     ("Scenario 2 — perdi 1, poi vinci (75%)", "B10", ["no", "sì"]),
     ("Scenario 3 — perdi 2, poi vinci (100%: garantito)", "B10", ["no", "no", "sì"]),
     ("Scenario 4 — perdi 3, poi vittoria garantita dal pity (5.000 pezzi)", "B11", ["no", "no", "no", "sì"]),
+    ("Scenario 5 — 3.000 pezzi: 3 a vuoto senza crollo, poi garantito", "PITY", ["no", "no", "no", "sì"]),
 ]
-ATTEMPTS = 7
+ATTEMPTS = 11
 summary = []
 r = 21
 extra_cols = []
@@ -599,13 +634,17 @@ for si, (name, qty_ref, pattern) in enumerate(scen):
     L[f"A{r}"].font = BOLD
     r += 1
     header(L, r, ["Tentativo", "Minuto", "Pezzi", "Prob. base", "Bonus pity", "Prob. totale", "Esito", "Jackpot?",
-                  "Incasso tentativo ($)", "Stessi pezzi a B ($)", "Guadagno extra ($)"])
+                  "Incasso tentativo ($)", "Stessi pezzi a B ($)", "Guadagno extra ($)", "Crollo?"])
     first = r + 1
     for k in range(ATTEMPTS):
         rr = first + k
         cell(L, f"A{rr}", k + 1)
-        cell(L, f"B{rr}", f"=$B$7+(A{rr}-1)*$B$14", fmt="0")
-        cell(L, f"C{rr}", f"=IF(B{rr}<=$B$6,{qty_ref.replace('B', '$B$')},0)", fmt="#,##0")
+        if k == 0:
+            cell(L, f"B{rr}", "=$B$7", fmt="0")
+        else:
+            cell(L, f"B{rr}", f'=B{rr - 1}+IF(L{rr - 1}="sì",$B$14,$B$8+{p("miss_spike_delay")})', fmt="0")
+        qty = p("pity_qty") if qty_ref == "PITY" else qty_ref.replace("B", "$B$")
+        cell(L, f"C{rr}", f"=IF(B{rr}<=$B$6,{qty},0)", fmt="#,##0")
         cell(L, f"D{rr}",
              f"=IF(C{rr}<{p('jp_min_qty')},0,MIN({p('jp_cap')},{p('jp_base')}+INT((C{rr}-{p('jp_min_qty')})/{p('jp_step_qty')})*{p('jp_step')}))",
              fmt="0%")
@@ -617,6 +656,7 @@ for si, (name, qty_ref, pattern) in enumerate(scen):
         cell(L, f"I{rr}", f'=IF(H{rr}="sì",C{rr}*$B$16,C{rr}*$B$15)', fmt="$#,##0")
         cell(L, f"J{rr}", f"=C{rr}*$B$12", fmt="$#,##0")
         cell(L, f"K{rr}", f"=I{rr}-J{rr}", fmt="$#,##0")
+        cell(L, f"L{rr}", f'=IF(C{rr}=0,"—",IF(OR(C{rr}>={p("crash_qty")},H{rr}="sì"),"sì","no"))')
         # Hidden helper: misses in a row after this attempt (pity counter).
         cell(L, f"N{rr}", f'=IF(OR(C{rr}=0,H{rr}="sì"),IF(C{rr}=0,{prev},0),IF(C{rr}>={p("pity_qty")},{prev}+1,{prev}))')
         L[f"N{rr}"].font = Font(name=FONT, color="BFBFBF")
@@ -658,7 +698,7 @@ L[f"A{nr}"].font = NOTE
 cr = nr + 3
 L[f"A{cr - 1}"] = "Soldi accumulati nel tempo (per il grafico)"
 L[f"A{cr - 1}"].font = BOLD
-header(L, cr, ["Minuto", "Solo automatica", "Scenario 1", "Scenario 2", "Scenario 3", "Scenario 4"])
+header(L, cr, ["Minuto", "Solo automatica", "Scenario 1", "Scenario 2", "Scenario 3", "Scenario 4", "Scenario 5"])
 for i, t in enumerate(range(0, 241, 10)):
     rr = cr + 1 + i
     cell(L, f"A{rr}", t, fmt="0")
@@ -673,9 +713,9 @@ lc.title = "Soldi accumulati in 4 ore (25 pezzi al secondo)"
 lc.y_axis.title = "$"
 lc.x_axis.title = "Minuto"
 lc.y_axis.number_format = "#,##0"
-lc.add_data(Reference(L, min_col=2, max_col=6, min_row=cr, max_row=last_cr), titles_from_data=True)
+lc.add_data(Reference(L, min_col=2, max_col=7, min_row=cr, max_row=last_cr), titles_from_data=True)
 lc.set_categories(Reference(L, min_col=1, min_row=cr + 1, max_row=last_cr))
-for s_, color in zip(lc.series, ["8C8C8C", "2A78D6", "EB6834", "1BAF7A", "6250D6"]):
+for s_, color in zip(lc.series, ["8C8C8C", "2A78D6", "EB6834", "1BAF7A", "6250D6", "E87BA4"]):
     s_.graphicalProperties.line.solidFill = color
     s_.graphicalProperties.line.width = 22000
     s_.smooth = False
@@ -684,21 +724,18 @@ L.add_chart(lc, "P4")
 
 # ---------------------------------------------------------------- Punti aperti
 O = sheet("Punti aperti", (6, 100))
-title(O, "Punti aperti", "Da decidere prima della specifica (o nelle micro correzioni dopo).")
+title(O, "Punti aperti", "Quello che resta da decidere dopo la specifica 1.")
 openq = [
-    "Deciso il 22/10 (3): un tentativo di jackpot a vuoto sotto i 5.000 pezzi non fa crollare, ma blocca i tentativi su tutti gli oggetti per 5 minuti e rimanda di 5 minuti il picco di quell'oggetto (il conto riparte da capo). Il jackpot vinto fa sempre crollare.",
-    "Deciso il 22/10 (2): il crollo scatta solo con 5.000 pezzi venduti in 2 minuti, le vendite piccole non scendono sotto B; vendita automatica per oggetto, al prezzo minimo (B, o meno durante un crollo); jackpot su qualsiasi oggetto, il drone sintonizza lo schermo sul grafico giusto.",
-    "Deciso il 22/10: crollo da 5.000 pezzi; sequenza a ogni «Vendi tutto» con lo schermo; LED giallo solo col 50/50 (10.000 pezzi); calo 0,04% di B per pezzo; pity per oggetto, bonus solo da 3.000 pezzi; valori B ×1,5 a fine partita; magazzino 1.000 / 4.000 / 12.000.",
-    "Confermato: un tentativo sotto i 3.000 pezzi non tocca la serie «di fila» del pity; dopo un 50/50 perso il prezzo torna verso B il 20% più in fretta nei primi 5 minuti del crollo (che dura sempre 20 minuti).",
-    "Soglia del LED blu (calo fino al 10% di B): proposta.",
-    "Recupero dopo una vendita piccola in 2 minuti: valore di partenza da provare in partita.",
-    "Ramo Finanza: costi e prerequisiti dei moduli; eventuali potenziamenti dello schermo oltre i tre moduli.",
-    "Agenti (server MCP): devono vedere prezzi, fasi e picchi come la panoramica, e non i moduli che il giocatore non ha sbloccato?",
+    "Stato: regole decise il 22/10 e approvate nella specifica 1 (docs/superpowers/specs/2026-10-22-mercato-borsa-design.md); piano in docs/superpowers/plans/2026-10-22-mercato-borsa.md.",
+    "Proposte del piano da confermare provando in partita: passo dell'andamento ogni 4 s (richiamo 8%, scarto 0,06×B), cali sotto B nel crollo ogni 10 s col 25%, recupero da vendite in 2 minuti.",
+    "Specifica 2 (schermo di borsa): soglia del LED blu (calo fino al 10% di B), costi e prerequisiti del ramo Finanza, cosa vedono gli agenti dei moduli, tensione e dettagli dell'animazione.",
+    "Specifica 3 (magazzino del CORE): massimi 1.000 / 4.000 / 12.000 e drone per livello già scelti; quanti livelli e costi dei potenziamenti.",
+    "Campagna: da rifare con i valori B nuovi (gli obiettivi di guadagno si ritoccano solo quanto basta per i test).",
 ]
 for i, q in enumerate(openq):
     r = 4 + i
     cell(O, f"A{r}", i + 1)
-    c = cell(O, f"B{r}", q, fill=YELLOW if i == 0 else None)
+    c = cell(O, f"B{r}", q, fill=YELLOW if i == 1 else None)
     c.alignment = WRAP
     O.row_dimensions[r].height = 46 if len(q) > 110 else 20
 

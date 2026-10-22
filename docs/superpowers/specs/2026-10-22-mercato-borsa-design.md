@@ -1,7 +1,7 @@
 # Mercato come una borsa — specifica 1 di 3
 
 - **Stato**: in revisione (brainstorming con l'utente del 22 ottobre 2026, issue [#268](https://github.com/Juan0177/tIndustry/issues/268)).
-- **Numeri ed esempi**: cartella di lavoro `docs/finanza/mercato-e-finanza.xlsx`, generata da `python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx` (il `.xlsx` non si versiona). Ogni numero di questa specifica è anche nel foglio «Parametri».
+- **Numeri ed esempi**: cartella di lavoro `docs/finanza/mercato-e-finanza.xlsx`, generata da `python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx` (il `.xlsx` non si versiona). Il foglio «Parametri» ha ogni numero di questa specifica con la sua chiave di `marketRules`; gli altri fogli mostrano valori B, curva del picco, probabilità del jackpot, scenari del pity, esempi di vendita, un'ora simulata e l'analisi su 4 ore.
 - **Le tre specifiche**:
   1. **Mercato** (questa): prezzi, picchi, crolli, vendite, jackpot e pity nella simulazione, vendita automatica, valori base, salvataggi, schermata panoramica.
   2. **Schermo di borsa e bot della finanza**: blocco accanto al CORE, sequenza del «Vendi tutto» col drone 2.5D, LED, moduli e ramo Finanza della Ricerca.
@@ -12,22 +12,22 @@
 
 Ogni oggetto ha un mercato suo, come un titolo in borsa: il prezzo si muove sempre, ogni tanto sale in un picco e, se si vende troppo, crolla. Vendere e basta rende poco; chi aspetta i rialzi guadagna fino al triplo, e chi tenta il «Vendi tutto» nel picco può vincere un jackpot raro e spettacolare. Fare l'errore costa: un crollo blocca l'oggetto per 20 minuti.
 
-Successo: a parità di produzione, nella cartella di lavoro (foglio «Analisi lungo periodo», 25 pezzi al secondo per 4 ore) chi sfrutta i picchi guadagna fra 1,3 e 2,8 volte la sola vendita automatica, a seconda della fortuna; senza mai un jackpot vendere al picco rende comunque circa 2,9 volte B sui pezzi venduti.
+Successo: a parità di produzione, nella cartella di lavoro (foglio «Analisi lungo periodo», 25 pezzi al secondo per 4 ore) chi sfrutta i picchi guadagna fra 1,3 e 2,8 volte la sola vendita automatica a seconda della fortuna (cinque scenari, dal jackpot sempre al primo tentativo ai tentativi da 3.000 pezzi caricati col pity); senza mai un jackpot vendere al picco rende comunque circa 2,9 volte B sui pezzi venduti.
 
 ## Decisioni prese con l'utente
 
 | Tema | Decisione |
 |---|---|
 | Valore base B | Uno per oggetto, è anche la **soglia minima**. Tutte le percentuali si misurano da B. |
-| Prezzo normale | Oscilla dolcemente fra **B e 1,6×B** (media 1,3×B), cambi visibili ogni pochi secondi. |
+| Prezzo normale | Oscilla dolcemente fra **B e 1,6×B** (media 1,3×B), cambi visibili ogni pochi secondi. *Proposta del piano, da provare in partita*: un passo nuovo ogni 4 s, richiamo verso la media dell'8% e scarto casuale fino a 0,06×B per passo. |
 | Picco | Ogni **10–20 minuti** per oggetto. Sale in **10 s** fino a un massimo casuale fra 2,8×B e **3×B** (+200%), resta in cima **10 s**, scende in **30 s**. Da **2,8×B** (+180%) la vendita è «nel picco». |
 | Vendite piccole | Ogni pezzo abbassa il prezzo dello **0,04% di B**, mai sotto B; in **2 minuti** il prezzo torna al suo andamento. |
-| Crollo | Solo se in **2 minuti** si vendono **5.000 pezzi o più** di quell'oggetto, o col jackpot vinto. Dura **20 minuti**: prezzo vicino a B, nei primi **5 minuti** a volte **0,6–0,7×B**. Niente picchi e conto alla rovescia del picco fermo. |
+| Crollo | Solo se in **2 minuti** si vendono **5.000 pezzi o più** di quell'oggetto, o col jackpot vinto. Dura **20 minuti**: prezzo vicino a B, nei primi **5 minuti** a volte **0,6–0,7×B**. Niente picchi e conto alla rovescia del picco fermo. *Proposta del piano*: nei primi 5 minuti, ogni 10 s, il 25% di probabilità di scendere sotto B per quei 10 s. |
 | Prezzo pagato | **Tutti i pezzi al prezzo del momento del clic**; il prezzo scende dopo. |
 | Jackpot | Solo con **«Vendi tutto»**, solo **nel picco**, solo con **almeno 400 pezzi** e solo se in partita c'è uno **schermo di borsa** (specifica 2). Probabilità **2%** a 400 pezzi, **+1% ogni 200** pezzi, tetto **50%** a 10.000. Paga per pezzo **B + 777% di B (per difetto) + (prezzo del momento − B)**: con B 10 e prezzo 30, 10 + 77 + 20 = 107. Vale per qualsiasi oggetto. |
 | Pity | **Per oggetto**. Conta solo i tentativi da **3.000 pezzi** in su: ognuno a vuoto aggiunge **+25%** al tentativo successivo (anche oltre il 50%); dopo **3 a vuoto di fila** il successivo è **garantito**. Un tentativo sotto i 3.000 pezzi si può fare (probabilità base), non riceve il bonus e non tocca la serie. Si azzera al jackpot. |
 | Tentativo a vuoto senza crollo | (sotto i 5.000 pezzi) Per **5 minuti** nessun tentativo di jackpot e **«Vendi tutto» bloccato su tutti gli oggetti**; il conto alla rovescia del picco di quell'oggetto **riparte da capo più 5 minuti** (15–25). |
-| 50/50 perso | (10.000 pezzi o più, crollo) Nei primi **5 minuti** del crollo il prezzo torna verso B il **20% più in fretta**; il crollo dura sempre 20 minuti. |
+| 50/50 perso | (10.000 pezzi o più, crollo) Nei primi **5 minuti** del crollo il prezzo torna verso B il **20% più in fretta**; il crollo dura sempre 20 minuti. In pratica: in quei 5 minuti il calo da vendite rientra il 20% più in fretta e i cali sotto B sono il 20% meno probabili. |
 | Vendita automatica | **Un interruttore per oggetto.** Paga il **prezzo minimo**: B, o il prezzo del momento se è sotto B (crollo). Non tocca il mercato: niente calo, niente crollo, niente jackpot. Stessa regola dai nastri e dagli edifici attaccati al CORE. |
 | Bonus del CORE | **Tolto**: «Potenzia CORE» servirà al magazzino e al drone (specifica 3). |
 | Valori B | B ≈ listino di oggi ÷ 1,3; **×1,5** per gli oggetti di fine partita (grafite, silicio, titanio grezzo, lastra di titanio). La campagna verrà rifatta, quindi gli obiettivi di guadagno si ritoccano solo quanto basta perché i test passino. |
