@@ -145,7 +145,7 @@ public partial class World
                 _mercato?.OnCommandApplied(command, _host?.LastCommandMoneyDelta ?? 0);
                 break;
             case UpgradeCore when _view is not null:
-                _hud?.ShowToast(Testi.F("core.potenziato.toast", _view.CoreSaleBonusPercent));
+                _hud?.ShowToast(Testi.T("core.potenziato.toast"));
                 _hud?.SyncCoreUpgrade(_view);
                 UpdateHud();
                 break;

@@ -106,11 +106,6 @@ public sealed class Factory : IGameView
         private set => State.CoreUpgradeLevel = value;
     }
 
-    public int CoreSaleBonusPercent
-    {
-        get => State.CoreSaleBonusPercent;
-        private set => State.CoreSaleBonusPercent = value;
-    }
 
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer
@@ -765,7 +760,6 @@ public sealed class Factory : IGameView
             ActiveCampaignLevelId = ActiveCampaignLevelId,
             AutoSellAtCore = AutoSellAtCore,
             CoreUpgradeLevel = CoreUpgradeLevel,
-            CoreSaleBonusPercent = CoreSaleBonusPercent,
             PowerBuffer = PowerBuffer,
             PowerCapacity = PowerCapacity,
             Seed = Terrain?.Seed ?? 0,
@@ -1022,8 +1016,7 @@ public sealed class Factory : IGameView
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
             ActiveCampaignLevelId = data.ActiveCampaignLevelId,
             AutoSellAtCore = data.AutoSellAtCore,
-            CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel),
-            CoreSaleBonusPercent = Math.Max(0, data.CoreSaleBonusPercent)
+            CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel)
         };
         factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
@@ -1845,36 +1838,19 @@ public sealed class Factory : IGameView
         return structure is not null && Research.TryUnlock(structure, Wallet);
     }
 
-    /// <summary>Sell stocked materials at dynamic market price (stock before removal) + CORE bonus.</summary>
-    public bool TrySellFromWallet(string itemId, int amount)
-    {
-        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
-        {
-            return false;
-        }
+    /// <summary>Sells stocked materials at the price of the moment (see <see cref="MarketSales.Sell"/>).</summary>
+    public bool TrySellFromWallet(string itemId, int amount, int playerId = 1) =>
+        amount > 0 && State.Exchange.Find(itemId) is { } item
+        && MarketSales.Sell(State, item, amount, sellAll: false, playerId) is not null;
 
-        var stockBefore = Wallet.MaterialCount(itemId);
-        if (stockBefore < amount || !Wallet.TryRemoveMaterial(itemId, amount))
-        {
-            return false;
-        }
+    /// <summary>Sells the whole stock of one item (the "Vendi tutto" button).</summary>
+    public bool TrySellAll(string itemId, int playerId = 1) =>
+        State.Exchange.Find(itemId) is { } item && Wallet.MaterialCount(itemId) is var stock and > 0
+        && MarketSales.Sell(State, item, stock, sellAll: true, playerId) is not null;
 
-        var unitPrice = EffectiveSalePrice(itemId, stockBefore);
-        var total = unitPrice * amount;
-        Wallet.AddMoney(total);
-        for (var i = 0; i < amount; i++)
-        {
-            Session.RecordSale(itemId, unitPrice);
-        }
-
-        return true;
-    }
-
+    /// <summary>Money one piece pays right now (0 when the item is not on the market).</summary>
     public int PreviewSellPrice(string itemId) =>
-        EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
-
-    public int EffectiveSalePrice(string itemId, int stockBeforeSell) =>
-        State.EffectiveSalePrice(itemId, stockBeforeSell);
+        State.Exchange.Find(itemId) is { } item ? MarketMath.UnitIncome(item.BaseValue, item.PriceMilli) : 0;
 
     public bool TryUpgradeCore()
     {
@@ -1886,7 +1862,6 @@ public sealed class Factory : IGameView
         }
 
         CoreUpgradeLevel = 1;
-        CoreSaleBonusPercent = upgrade.SaleBonusPercent;
         return true;
     }
 

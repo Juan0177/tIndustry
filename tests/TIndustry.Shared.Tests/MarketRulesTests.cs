@@ -19,7 +19,7 @@ public sealed class MarketRulesTests
             SpikeFallSeconds: 30, SpikeIntervalMinMinutes: 10, SpikeIntervalMaxMinutes: 20,
             SaleImpactMicro: 400, SaleRecoverySeconds: 120,
             CrashPieces: 5000, CrashWindowSeconds: 120, CrashMinutes: 20, CrashDipMinutes: 5,
-            CrashDipMinMilli: 600, CrashDipMaxMilli: 700, CrashDipEverySeconds: 10, CrashDipChanceBp: 2500,
+            CrashDipMinMilli: 600, CrashDipMaxMilli: 700, CrashDipEverySeconds: 10, CrashDipChanceBp: 2500, CrashJitterMilli: 40,
             JackpotMinPieces: 400, JackpotBaseBp: 200, JackpotStepPieces: 200, JackpotStepBp: 100,
             JackpotCapBp: 5000, JackpotBonusPermille: 7770,
             PityPieces: 3000, PityStepBp: 2500, PityGuaranteeMisses: 3,

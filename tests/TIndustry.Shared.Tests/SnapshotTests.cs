@@ -25,8 +25,8 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         }
     }
 
-    /// <summary>Commands submitted at fixed ticks: belts, a sell, auto-sell, a removal.</summary>
-    private static void SubmitScript(SimHost host)
+    /// <summary>Commands submitted at fixed ticks: belts, a sell, auto-sell (optional), a removal.</summary>
+    private static void SubmitScript(SimHost host, bool autoSell = true)
     {
         long tick = 5;
         for (var x = 11; x <= 20; x++)
@@ -35,7 +35,11 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         }
 
         host.Submit(new Sell(1, "iron-plate", 3) { Tick = 100 });
-        host.Submit(new SetAutoSell(1, true) { Tick = 200 });
+        if (autoSell)
+        {
+            host.Submit(new SetAutoSell(1, true) { Tick = 200 });
+        }
+
         host.Submit(new Remove(1, new GridPosition(15, 8)) { Tick = 400 });
         host.Submit(new PlaceBelt(1, new GridPosition(15, 8), Direction.East, "conveyor-basic") { Tick = 450 });
     }
@@ -60,7 +64,8 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     {
         var content = LoadContent();
         var host1 = new SimHost(NewGame.Demo(content));
-        SubmitScript(host1);
+        // Task 6 puts the market in the snapshot: SetAutoSell goes back in the round-trip script then
+        SubmitScript(host1, autoSell: false);
         RunTicks(host1, 3000);
 
         // Guard against a vacuous pass: the snapshot must be taken with real activity in it.

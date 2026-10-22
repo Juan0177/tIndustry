@@ -136,8 +136,6 @@ public interface IGameView
 
     int CoreUpgradeLevel { get; }
 
-    int CoreSaleBonusPercent { get; }
-
     string? ActiveCampaignLevelId { get; }
 
     long CoreDeliveredItems { get; }

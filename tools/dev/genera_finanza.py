@@ -125,7 +125,7 @@ params = [
     # key, label, value, unit, who, note, fmt
     ("norm_min", "Prezzo normale: minimo", 1.0, "× B", "utente", "Il valore base B è anche la soglia minima: fuori da un crollo il prezzo non va sotto.", "0.00"),
     ("norm_max", "Prezzo normale: massimo", 1.6, "× B", "proposta", "Fascia approvata dall'utente.", "0.00"),
-    ("norm_avg", "Prezzo normale: media", 1.3, "× B", "proposta", "Usata per stimare i valori B dal listino di oggi.", "0.00"),
+    ("norm_avg", "Prezzo normale: media", 1.3, "× B", "proposta", "Il prezzo medio fuori da picchi e crolli.", "0.00"),
     ("norm_step", "Prezzo normale: un passo nuovo ogni", 4, "s", "proposta", "«Cambi visibili ogni pochi secondi»: fra un passo e l'altro il prezzo scorre in linea retta.", "0"),
     ("norm_pull", "Prezzo normale: richiamo verso la media per passo", 0.08, "", "proposta", "Quanto ogni passo riporta il prezzo verso la media.", "0%"),
     ("norm_noise", "Prezzo normale: scarto casuale massimo per passo", 0.06, "× B", "proposta", "", "0.00"),
@@ -203,17 +203,17 @@ market = content["market"]
 LATE = {"graphite", "silicon", "titanium-ore", "titanium-plate"}
 V = sheet("Valori B", (20, 16, 12, 12, 12, 12, 12, 12, 12, 16))
 title(V, "Valori base B per oggetto",
-      "Proposta: B = listino di oggi ÷ media normale (1,3), × moltiplicatore per gli oggetti di fine partita. Listino e minimo di oggi da data/content.json.")
-header(V, 4, ["Oggetto", "id", "Listino oggi ($)", "Minimo oggi ($)", "Fine partita", "B proposto ($)",
+      "B da data/content.json (market[].baseValue; per gli oggetti di fine partita già più alto). Il minimo è B × prezzo normale minimo.")
+header(V, 4, ["Oggetto", "id", "B in content.json ($)", "Minimo ($)", "Fine partita", "B ($)",
               "Prezzo medio ($)", "Picco max ($)", "Soglia picco ($)", "Jackpot al picco max ($/pezzo)"])
 for i, m in enumerate(market):
     r = 5 + i
     cell(V, f"A{r}", m["displayName"])
     cell(V, f"B{r}", m["itemId"])
-    cell(V, f"C{r}", m["sellPrice"], fmt="$#,##0", comment="Fonte: data/content.json, market." if i == 0 else None)
-    cell(V, f"D{r}", m.get("minSellPrice"), fmt="$#,##0")
-    cell(V, f"E{r}", "sì" if m["itemId"] in LATE else "no", BLUE, fill=YELLOW)
-    cell(V, f"F{r}", f'=MAX(1,ROUND(C{r}/{p("norm_avg")}*IF(E{r}="sì",{p("late_mult")},1),0))', fmt="$#,##0", fill=YELLOW)
+    cell(V, f"C{r}", m["baseValue"], fmt="$#,##0", comment="Fonte: data/content.json, market[].baseValue." if i == 0 else None)
+    cell(V, f"D{r}", f"=ROUND(C{r}*{p('norm_min')},0)", fmt="$#,##0")
+    cell(V, f"E{r}", "sì" if m["itemId"] in LATE else "no")
+    cell(V, f"F{r}", f"=C{r}", fmt="$#,##0")
     cell(V, f"G{r}", f"=ROUND(F{r}*{p('norm_avg')},0)", fmt="$#,##0")
     cell(V, f"H{r}", f"=ROUND(F{r}*{p('spike_max')},0)", fmt="$#,##0")
     cell(V, f"I{r}", f"=ROUND(F{r}*{p('spike_in')},0)", fmt="$#,##0")

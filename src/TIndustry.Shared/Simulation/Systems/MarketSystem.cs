@@ -34,6 +34,28 @@ public sealed class MarketSystem : ISimulationSystem
 
             item.TrendMilli = item.StepFromMilli + (item.StepTargetMilli - item.StepFromMilli) * inStep / stepTicks;
 
+            if (item.SaleDropMicro > 0)
+            {
+                // Linear recovery: the remaining drop shrinks by 1/left each tick and is gone at the end tick.
+                var left = item.SaleRecoveryEndTick - tick;
+                item.SaleDropMicro = left <= 1 ? 0 : item.SaleDropMicro - item.SaleDropMicro / (int)left;
+            }
+
+            if (item.Phase == MarketPhase.Crash)
+            {
+                if (tick >= item.CrashEndTick)
+                {
+                    item.Phase = MarketPhase.Normal;
+                    item.PhaseStartTick = tick;
+                    item.SaleDropMicro = 0;
+                }
+                else
+                {
+                    // The spike countdown stands still during the crash: it resumes with the same time left.
+                    item.NextSpikeTick++;
+                }
+            }
+
             if (item.Phase == MarketPhase.Normal && tick >= item.NextSpikeTick)
             {
                 item.Phase = MarketPhase.SpikeRise;
@@ -49,16 +71,38 @@ public sealed class MarketSystem : ISimulationSystem
                 phasePrice = SpikePrice(item, rules, tick, rate);
             }
 
-            if (item.Phase != MarketPhase.Crash)
-            {
-                item.PriceMilli = Math.Max(rules.NormalMinMilli, phasePrice - item.SaleDropMilli);
-            }
+            item.PriceMilli = item.Phase == MarketPhase.Crash
+                ? CrashPrice(item, market, rules, tick, rate)
+                : Math.Max(rules.NormalMinMilli, phasePrice - item.SaleDropMilli);
 
             if (tick % rate == 0)
             {
                 item.PushHistory(item.PriceMilli, rules.HistorySeconds);
             }
         }
+    }
+
+    /// <summary>
+    /// Crash level: about B with a small jitter redrawn every second; in the first <c>crashDipMinutes</c> every
+    /// <c>crashDipEverySeconds</c> there is a chance to drop to the dip range for that long.
+    /// </summary>
+    private static int CrashPrice(MarketItemState item, MarketState market, MarketRules rules, long tick, int rate)
+    {
+        if (tick % rate == 0)
+        {
+            item.CrashJitterMilli = market.Random.NextRange(0, rules.CrashJitterMilli);
+        }
+
+        var since = tick - (item.CrashEndTick - (long)rules.CrashMinutes * 60 * rate);
+        var dipEvery = (long)rules.CrashDipEverySeconds * rate;
+        if (since < (long)rules.CrashDipMinutes * 60 * rate && since % dipEvery == 0
+            && market.Random.NextInt(10_000) < rules.CrashDipChanceBp)
+        {
+            item.CrashDipMilli = market.Random.NextRange(rules.CrashDipMinMilli, rules.CrashDipMaxMilli);
+            item.CrashDipEndTick = tick + dipEvery;
+        }
+
+        return tick < item.CrashDipEndTick ? item.CrashDipMilli : MarketMath.OneB + item.CrashJitterMilli;
     }
 
     /// <summary>Advances the spike phase and returns its curve value (milli B).</summary>

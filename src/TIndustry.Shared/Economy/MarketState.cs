@@ -37,11 +37,26 @@ public sealed class MarketItemState
     public int StepFromMilli { get; set; }
     public int StepTargetMilli { get; set; }
 
-    // Driven by later tasks (sales, crash, jackpot, auto-sell); inert for now.
+    /// <summary>Tick the crash ends (valid while <see cref="Phase"/> is <see cref="MarketPhase.Crash"/>).</summary>
     public long CrashEndTick { get; set; }
+    /// <summary>Small random offset above B shown during a crash, redrawn every second (milli B).</summary>
+    public int CrashJitterMilli { get; set; }
+    /// <summary>A crash dip below B lasts until this tick and sits at <see cref="CrashDipMilli"/>.</summary>
+    public long CrashDipEndTick { get; set; }
+    public int CrashDipMilli { get; set; }
+
+    // Driven by later tasks (jackpot, auto-sell); inert for now.
     public long BoostEndTick { get; set; }
-    public int SaleDropMilli { get; set; }
+
+    /// <summary>Price drop from sales, in millionths of B (a piece drops less than one milli).</summary>
+    public int SaleDropMicro { get; set; }
+    /// <summary>Tick at which the sale drop has fully recovered (it shrinks linearly to zero).</summary>
+    public long SaleRecoveryEndTick { get; set; }
+    public int SaleDropMilli => SaleDropMicro / 1000;
+
+    /// <summary>Pieces sold per second of the crash window (ring buffer indexed by second); <see cref="WindowSecond"/> is the last second written.</summary>
     public int[] WindowPieces { get; set; } = [];
+    public long WindowSecond { get; set; }
     public int PityMisses { get; set; }
     public bool AutoSell { get; set; }
 
@@ -115,7 +130,13 @@ public sealed class MarketState
             item.Phase = MarketPhase.Normal;
             item.PhaseStartTick = 0;
             item.TrendMilli = item.StepFromMilli = item.StepTargetMilli = item.PriceMilli = rules.NormalAverageMilli;
-            item.SaleDropMilli = 0;
+            item.SaleDropMicro = 0;
+            item.SaleRecoveryEndTick = 0;
+            item.CrashEndTick = item.CrashDipEndTick = item.BoostEndTick = 0;
+            item.CrashJitterMilli = item.CrashDipMilli = 0;
+            item.PityMisses = 0;
+            item.WindowPieces = new int[Math.Max(1, rules.CrashWindowSeconds)];
+            item.WindowSecond = 0;
             item.NextSpikeTick = SpikeInterval(rules, Random);
             item.ClearHistory();
         }

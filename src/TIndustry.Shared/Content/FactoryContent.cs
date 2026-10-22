@@ -16,7 +16,7 @@ public sealed class FactoryContent
     public MarketRules MarketRules { get; init; } = null!;
     public IReadOnlyList<StructureDefinition> Structures { get; init; } = [];
     public CoreUpgradeDefinition CoreUpgrade { get; init; } =
-        new(150, [new ResourceAmount("iron-plate", 20)], 25);
+        new(150, [new ResourceAmount("iron-plate", 20)]);
 
     /// <summary>Mindustry's <c>item.cost</c> per item id (build-time weight); missing items weigh 1.</summary>
     public IReadOnlyDictionary<string, float> BuildWeights { get; init; } =
@@ -338,7 +338,7 @@ public sealed class FactoryContent
     {
         if (dto is null)
         {
-            return new(150, [new ResourceAmount("iron-plate", 20)], 25);
+            return new(150, [new ResourceAmount("iron-plate", 20)]);
         }
 
         var mats = MapAmounts(dto.BuildCost);
@@ -347,10 +347,7 @@ public sealed class FactoryContent
             mats = [new ResourceAmount("iron-plate", 20)];
         }
 
-        return new(
-            Math.Max(0, dto.MoneyCost),
-            mats,
-            Math.Max(0, dto.SaleBonusPercent <= 0 ? 25 : dto.SaleBonusPercent));
+        return new(Math.Max(0, dto.MoneyCost), mats);
     }
 
     private static ConveyorDefinition MapConveyor(ConveyorDto c) =>
@@ -384,10 +381,6 @@ public sealed class FactoryContent
         new(
             m.ItemId,
             string.IsNullOrWhiteSpace(m.DisplayName) ? m.ItemId : m.DisplayName,
-            m.SellPrice,
-            m.MinSellPrice,
-            m.MaxSellPrice,
-            m.SoftStock,
             m.BaseValue is > 0
                 ? m.BaseValue.Value
                 : throw new InvalidDataException(
@@ -439,7 +432,7 @@ public sealed class FactoryContent
             F(r.CrashMinutes, "crashMinutes"), F(r.CrashDipMinutes, "crashDipMinutes"),
             F(r.CrashDipMin, "crashDipMin", 1000), F(r.CrashDipMax, "crashDipMax", 1000),
             Positive(F(r.CrashDipEverySeconds, "crashDipEverySeconds"), "crashDipEverySeconds"),
-            F(r.CrashDipChance, "crashDipChance", 10_000),
+            F(r.CrashDipChance, "crashDipChance", 10_000), F(r.CrashJitter, "crashJitter", 1000),
             F(r.JackpotMinPieces, "jackpotMinPieces"), F(r.JackpotBase, "jackpotBase", 10_000),
             Positive(F(r.JackpotStepPieces, "jackpotStepPieces"), "jackpotStepPieces"),
             F(r.JackpotStep, "jackpotStep", 10_000), F(r.JackpotCap, "jackpotCap", 10_000),
@@ -457,6 +450,11 @@ public sealed class FactoryContent
         Order(rules.CrashDipMinMilli, rules.CrashDipMaxMilli, "crashDipMin", "crashDipMax");
         Order(rules.JackpotCapBp, 10_000, "jackpotCap", "1 (100%)");
         Order(rules.CrashDipChanceBp, 10_000, "crashDipChance", "1 (100%)");
+        if (rules.CrashJitterMilli < 0 || rules.NormalMinMilli + rules.CrashJitterMilli > rules.NormalMaxMilli)
+        {
+            throw new InvalidDataException(
+                "content.json: marketRules.crashJitter deve essere almeno zero e normalMin + crashJitter non può superare normalMax.");
+        }
         return rules;
     }
 
@@ -563,7 +561,6 @@ public sealed class FactoryContent
     {
         public int MoneyCost { get; set; }
         public List<AmountDto>? BuildCost { get; set; }
-        public int SaleBonusPercent { get; set; }
     }
 
     private sealed class ConveyorDto
@@ -606,10 +603,6 @@ public sealed class FactoryContent
     {
         public string ItemId { get; set; } = "";
         public string DisplayName { get; set; } = "";
-        public int SellPrice { get; set; }
-        public int? MinSellPrice { get; set; }
-        public int? MaxSellPrice { get; set; }
-        public int? SoftStock { get; set; }
         public int? BaseValue { get; set; }
     }
 
@@ -638,6 +631,7 @@ public sealed class FactoryContent
         public double? CrashDipMax { get; set; }
         public double? CrashDipEverySeconds { get; set; }
         public double? CrashDipChance { get; set; }
+        public double? CrashJitter { get; set; }
         public double? JackpotMinPieces { get; set; }
         public double? JackpotBase { get; set; }
         public double? JackpotStepPieces { get; set; }

@@ -727,101 +727,57 @@
     {
       "itemId": "iron-ore",
       "displayName": "Ferro grezzo",
-      "baseValue": 6,
-      "sellPrice": 8,
-      "minSellPrice": 3,
-      "maxSellPrice": 14,
-      "softStock": 24
+      "baseValue": 6
     },
     {
       "itemId": "iron-plate",
       "displayName": "Lastra di ferro",
-      "baseValue": 23,
-      "sellPrice": 30,
-      "minSellPrice": 12,
-      "maxSellPrice": 48,
-      "softStock": 20
+      "baseValue": 23
     },
     {
       "itemId": "copper-ore",
       "displayName": "Rame grezzo",
-      "baseValue": 5,
-      "sellPrice": 6,
-      "minSellPrice": 2,
-      "maxSellPrice": 11,
-      "softStock": 24
+      "baseValue": 5
     },
     {
       "itemId": "copper-wire",
       "displayName": "Filo di rame",
-      "baseValue": 12,
-      "sellPrice": 16,
-      "minSellPrice": 6,
-      "maxSellPrice": 28,
-      "softStock": 20
+      "baseValue": 12
     },
     {
       "itemId": "coal",
       "displayName": "Carbone",
-      "baseValue": 3,
-      "sellPrice": 4,
-      "minSellPrice": 1,
-      "maxSellPrice": 8,
-      "softStock": 30
+      "baseValue": 3
     },
     {
       "itemId": "lead-ore",
       "displayName": "Piombo grezzo",
-      "baseValue": 4,
-      "sellPrice": 5,
-      "minSellPrice": 2,
-      "maxSellPrice": 10,
-      "softStock": 24
+      "baseValue": 4
     },
     {
       "itemId": "lead-plate",
       "displayName": "Lastra di piombo",
-      "baseValue": 14,
-      "sellPrice": 18,
-      "minSellPrice": 7,
-      "maxSellPrice": 32,
-      "softStock": 18
+      "baseValue": 14
     },
     {
       "itemId": "titanium-ore",
       "displayName": "Titanio grezzo",
-      "baseValue": 14,
-      "sellPrice": 12,
-      "minSellPrice": 5,
-      "maxSellPrice": 22,
-      "softStock": 16
+      "baseValue": 14
     },
     {
       "itemId": "titanium-plate",
       "displayName": "Lastra di titanio",
-      "baseValue": 52,
-      "sellPrice": 45,
-      "minSellPrice": 18,
-      "maxSellPrice": 72,
-      "softStock": 12
+      "baseValue": 52
     },
     {
       "itemId": "graphite",
       "displayName": "Grafite",
-      "baseValue": 12,
-      "sellPrice": 10,
-      "minSellPrice": 4,
-      "maxSellPrice": 18,
-      "softStock": 20
+      "baseValue": 12
     },
     {
       "itemId": "silicon",
       "displayName": "Silicio",
-      "baseValue": 32,
-      "sellPrice": 28,
-      "minSellPrice": 11,
-      "maxSellPrice": 48,
-      "softStock": 16
+      "baseValue": 32
     }
   ],
   "marketRules": {
@@ -848,6 +804,7 @@
     "crashDipMax": 0.7,
     "crashDipEverySeconds": 10,
     "crashDipChance": 0.25,
+    "crashJitter": 0.04,
     "jackpotMinPieces": 400,
     "jackpotBase": 0.02,
     "jackpotStepPieces": 200,
@@ -1000,8 +957,7 @@
           "itemId": "iron-plate",
           "amount": 20
         }
-      ],
-      "saleBonusPercent": 25
+      ]
     },
     "refundPolicyNote": "Piazzamento: solo materiali (niente $). Sblocco in Ricerca: soldi + materiali. Smontaggio: rimborso dei materiali alla quota della partita (100% in partita libera e nei livelli 1–3, 50% dal livello 4) per il refundPercent del blocco, arrotondato per eccesso; un cantiere annullato rende tutto lo speso. Corrente: un blocco è alimentato se tocca un generatore acceso o un nodo che ha un generatore acceso entro powerLinkRange (Nodo T1 1×1 raggio 6, Nodo T2 2×2 raggio 10); i nodi non si passano la corrente fra loro e maxPowerLinks non è ancora usato (rete come Mindustry: issue #269). CORE fuori dalla rete."
   },

@@ -59,17 +59,9 @@ public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Sp
 
 public sealed record CoreUpgradeDefinition(
     int MoneyCost,
-    IReadOnlyList<ResourceAmount> BuildCost,
-    int SaleBonusPercent);
+    IReadOnlyList<ResourceAmount> BuildCost);
 
-public sealed record MarketItemDefinition(
-    string ItemId,
-    string DisplayName,
-    int SellPrice,
-    int? MinSellPrice = null,
-    int? MaxSellPrice = null,
-    int? SoftStock = null,
-    int BaseValue = 1);
+public sealed record MarketItemDefinition(string ItemId, string DisplayName, int BaseValue);
 
 /// <summary>
 /// The <c>marketRules</c> block of content.json, all integers: prices and multipliers in thousandths of B
@@ -83,6 +75,7 @@ public sealed record MarketRules(
     int SaleImpactMicro, int SaleRecoverySeconds,
     int CrashPieces, int CrashWindowSeconds, int CrashMinutes, int CrashDipMinutes,
     int CrashDipMinMilli, int CrashDipMaxMilli, int CrashDipEverySeconds, int CrashDipChanceBp,
+    int CrashJitterMilli,
     int JackpotMinPieces, int JackpotBaseBp, int JackpotStepPieces, int JackpotStepBp, int JackpotCapBp,
     int JackpotBonusPermille,
     int PityPieces, int PityStepBp, int PityGuaranteeMisses, int MissCooldownSeconds, int MissSpikeDelaySeconds,

@@ -127,12 +127,12 @@ core.energia,Energia accumulata / capacità,Stored power / capacity
 core.energia.generatori, · generatori attivi {0}/{1}, · active generators {0}/{1}
 core.energia.nessuna,Nessuna rete elettrica,No power grid
 core.potenzia,Potenzia CORE,Upgrade CORE
-core.potenziato,CORE LV{0} · +{1}% vendite,CORE LV{0} · +{1}% sales
+core.potenziato,CORE LV{0},CORE LV{0}
 core.obiettivo,OBIETTIVO · {0},OBJECTIVE · {0}
 core.obiettivo.titolo,OBIETTIVO,OBJECTIVE
 core.fondi,Fondi,Funds
 core.vuoto,CORE vuoto: porta minerali con i nastri,CORE empty: bring ore with belts
-rifiuto.CoreAlreadyUpgraded,CORE già a LV{0} (+{1}%).,CORE already at LV{0} (+{1}%).
+rifiuto.CoreAlreadyUpgraded,CORE già a LV{0}.,CORE already at LV{0}.
 rifiuto.InsufficientResources,Risorse insufficienti,Not enough resources
 rifiuto.servono,Servono {0},Need {0}
 obiettivo.guadagna,Guadagna ${0},Earn ${0}
@@ -160,7 +160,7 @@ salvataggi.rapido.caricato,Slot-1 caricato,Slot-1 loaded
 coda.suggerimento,Coda di costruzione · clic = mostra il cantiere,Build queue · click = show the site
 coda.manca,Manca: {0},Missing: {0}
 coda.denaro,denaro,money
-core.potenziato.toast,CORE potenziato: +{0}% vendite!,CORE upgraded: +{0}% sales!
+core.potenziato.toast,CORE potenziato!,CORE upgraded!
 selezionatore.filtro,Filtro: {0},Filter: {0}
 dev.linea.core,Seed linea CORE · nastro {0},CORE line seed · belts {0}
 salvataggi.continua.nessuno,Nessun salvataggio continua,No continue save
@@ -282,7 +282,7 @@ mercato.auto.on.suggerimento,Tutto ciò che arriva al CORE viene venduto subito.
 mercato.auto.off.suggerimento,Gli oggetti restano nel CORE: vendili da qui.,Items stay in the CORE: sell them from here.
 mercato.consiglio.nessuno,Nessun prezzo mercato.,No market prices.
 mercato.consiglio.vendi,Conviene vendere: {0} (${1}).,Worth selling: {0} (${1}).
-mercato.consiglio.lastre,"Stock → costruisci, oppure vendi lastre (+${0} vs 2 ore). Prezzi reagiscono allo stock.","Stock → build, or sell plates (+${0} vs 2 ores). Prices react to stock."
+mercato.consiglio.lastre,"Stock → costruisci, oppure vendi lastre (+${0} vs 2 ore).","Stock → build, or sell plates (+${0} vs 2 ores)."
 mercato.consiglio.accumula,Accumula in magazzino; vendi dal Mercato quando ti servono $.,Pile up in storage; sell from the Market when you need $.
 mercato.auto,Vendita automatica al CORE,Auto-sell at the CORE
 mercato.colonna.oggetto,Oggetto,Item
@@ -291,8 +291,8 @@ mercato.colonna.prezzo,Prezzo,Price
 mercato.colonna.valore,Valore,Value
 mercato.fondi,Fondi · venduto finora ${0},Funds · sold so far ${0}
 mercato.vuoto,Niente da vendere: porta minerali o lastre al CORE con i nastri.,Nothing to sell: bring ore or plates to the CORE with belts.
-mercato.listino.calo,Listino ${0}: il prezzo scende se vendi molto dello stesso oggetto,List price ${0}: the price drops if you sell a lot of the same item
-mercato.listino,Listino ${0},List price ${0}
+mercato.listino.calo,Valore base ${0}: ora il prezzo è sotto il valore base,Base value ${0}: the price is now below the base value
+mercato.listino,Valore base ${0},Base value ${0}
 mercato.vendi.uno,Vendi 1,Sell 1
 mercato.vendi.tutto,Vendi tutto,Sell all
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.

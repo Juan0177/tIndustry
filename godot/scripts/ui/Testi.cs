@@ -157,7 +157,7 @@ public static class Testi
                 var missing = Mancanze(refusal.MissingMoney, refusal.MissingItems, content);
                 return missing.Length == 0 ? T("rifiuto.InsufficientResources") : F("rifiuto.servono", missing);
             case RefusalCode.CoreAlreadyUpgraded:
-                return F("rifiuto.CoreAlreadyUpgraded", view?.CoreUpgradeLevel ?? 1, view?.CoreSaleBonusPercent ?? 0);
+                return F("rifiuto.CoreAlreadyUpgraded", view?.CoreUpgradeLevel ?? 1);
             default:
                 return T($"rifiuto.{refusal.Code}");
         }

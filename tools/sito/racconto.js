@@ -7,9 +7,9 @@
  * what moves by itself: belt treads, items, working blocks, the drone's hover and its beam. The story runs
  * through the eight chapters: deposit and belts, smelter and plates, power, night and the attack (a close-up between
  * cinema bars: the silhouettes come over the river, the drone sees them, trembles and puts its helmet on; enemies
- * come only at night and the survivors flee at dawn), the world, the Core and the market (price soaring, a
- * briefcase of 9999 plates thrown into the screen, the crash as a falling rocket-bomb that goes off as a mushroom
- * cloud at the usual price, «stonks», a money bonus to make up for it, and the drone changing channel with a remote:
+ * come only at night and the survivors flee at dawn), the world, the Core and the market (a spike to the triple of
+ * the base value, a briefcase of 9999 plates thrown into the screen, the crash as a falling rocket-bomb that goes
+ * off as a mushroom cloud at the floor, «stonks» and the jackpot bonus, and the drone changing channel with a remote:
  * the game's channel, where the real download and GitHub links stand over the screen).
  *
  * The data (map, camera, constructions in chain order, item path, sprite list) comes from racconto.py as JSON in
@@ -628,7 +628,7 @@
     var tit = dati.sprite["mercato-titolo"];
     g.drawImage(img["mercato-titolo"], 0, 0, tit.w, tit.h, 4, 4, tit.w, tit.h);
     // the price line: the recent history of the price on a log scale. From the crash on, its head is a
-    // rocket-bomb falling faster and faster, the line its trail, down to the bottom (the usual selling price).
+    // rocket-bomb falling faster and faster, the line its trail, down to the bottom (the floor B).
     var crollato = t >= M.crollo[0];
     var tStoria = Math.min(t, M.crollo[0]);
     var x0 = M.caduta[0], x1 = M.caduta[1];

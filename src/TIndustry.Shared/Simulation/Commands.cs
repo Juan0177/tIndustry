@@ -66,6 +66,9 @@ public sealed record UnlockStructure(int PlayerId, string StructureId) : SimComm
 /// <summary>Replaces <see cref="Factory.TrySellFromWallet"/>.</summary>
 public sealed record Sell(int PlayerId, string ItemId, int Amount) : SimCommand(PlayerId);
 
+/// <summary>Sells the whole stock of one item at the price of the moment ("Vendi tutto").</summary>
+public sealed record SellAll(int PlayerId, string ItemId) : SimCommand(PlayerId);
+
 /// <summary>Replaces assigning <see cref="Factory.AutoSellAtCore"/>.</summary>
 public sealed record SetAutoSell(int PlayerId, bool Enabled) : SimCommand(PlayerId);
 

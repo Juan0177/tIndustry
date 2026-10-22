@@ -1088,7 +1088,7 @@ internal static class FactoryScenarios
         Assert(demo.Research.IsUnlocked("generator"), "demo generator");
     }
 
-    /// <summary>Mercato sell: dynamic price, session ledger, save v3 round-trip.</summary>
+    /// <summary>Mercato sell: price of the moment, session ledger, save v3 round-trip.</summary>
     public static void SelfTestMercato(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
@@ -1096,13 +1096,7 @@ internal static class FactoryScenarios
         var factory = new Factory(content, new BeltGrid(), core);
 
         Assert(factory.Market.Items.Count >= 4, "market items");
-        var listino = factory.Market.GetSellPrice("iron-ore");
-        Assert(listino >= 1, "listino ore");
-        Assert(factory.Market.GetDynamicSellPrice("iron-ore", 1) == listino
-            || factory.Market.GetDynamicSellPrice("iron-ore", 1) >= 1, "low stock ≈ listino");
-
-        var high = factory.Market.GetDynamicSellPrice("iron-ore", 80);
-        Assert(high <= listino, "high stock softens");
+        Assert(factory.Market.BaseValueOf("iron-ore") >= 1, "base value ore");
 
         Assert(!factory.TrySellFromWallet("iron-ore", 1), "empty stock fail");
         Assert(factory.Wallet.Money == 0, "money unchanged");
@@ -1117,7 +1111,7 @@ internal static class FactoryScenarios
 
         var moneyBefore = factory.Wallet.Money;
         var remaining = factory.Wallet.MaterialCount("iron-ore");
-        var bulkPrice = factory.Market.GetDynamicSellPrice("iron-ore", remaining);
+        var bulkPrice = factory.PreviewSellPrice("iron-ore");
         Assert(factory.TrySellFromWallet("iron-ore", remaining), "sell tutti");
         Assert(factory.Wallet.MaterialCount("iron-ore") == 0, "ore empty");
         Assert(factory.Wallet.Money == moneyBefore + bulkPrice * remaining, "tutti money");
@@ -1142,11 +1136,10 @@ internal static class FactoryScenarios
         FactorySaveStore.Delete("selftest-mercato");
     }
 
-    /// <summary>CORE upgrade: one-shot spend, +sale bonus, save v5 round-trip.</summary>
+    /// <summary>CORE upgrade: one-shot spend, no sale bonus, save v5 round-trip.</summary>
     public static void SelfTestCoreUpgrade(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        Assert(content.CoreUpgrade.SaleBonusPercent == 25, "core bonus 25");
         Assert(content.CoreUpgrade.MoneyCost == 150, "core money");
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var wallet = new EconomyWallet(
@@ -1155,21 +1148,21 @@ internal static class FactoryScenarios
         var factory = new Factory(content, new BeltGrid(), core, wallet);
         Assert(factory.CoreUpgradeLevel == 0, "start LV0");
         factory.Wallet.AddMaterial("iron-ore", 5);
-        var basePrice = factory.Market.GetDynamicSellPrice("iron-ore", 5);
+        var basePrice = factory.PreviewSellPrice("iron-ore");
         factory.Wallet.AddMoney(Math.Max(0, content.CoreUpgrade.MoneyCost - factory.Wallet.Money));
         Assert(factory.TryUpgradeCore(), "upgrade");
-        Assert(factory.CoreUpgradeLevel == 1 && factory.CoreSaleBonusPercent == 25, "LV1");
+        Assert(factory.CoreUpgradeLevel == 1, "LV1");
         Assert(!factory.TryUpgradeCore(), "one-shot");
         var boosted = factory.PreviewSellPrice("iron-ore");
-        Assert(boosted == basePrice + basePrice * 25 / 100, "preview boost");
+        Assert(boosted == basePrice, "no sale bonus");
         var moneyBefore = factory.Wallet.Money;
-        Assert(factory.TrySellFromWallet("iron-ore", 1), "sell boosted");
-        Assert(factory.Wallet.Money == moneyBefore + boosted, "money includes bonus");
+        Assert(factory.TrySellFromWallet("iron-ore", 1), "sell after upgrade");
+        Assert(factory.Wallet.Money == moneyBefore + boosted, "money has no bonus");
 
         var snap = factory.Capture();
         Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySaveData.CurrentVersion, "capture");
         var restored = Restore(content, snap);
-        Assert(restored.CoreUpgradeLevel == 1 && restored.CoreSaleBonusPercent == 25, "restore");
+        Assert(restored.CoreUpgradeLevel == 1, "restore");
     }
 
     /// <summary>Auto-sell at core: liquidate on drain; toggle persists in save.</summary>

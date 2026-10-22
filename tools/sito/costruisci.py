@@ -108,7 +108,7 @@ CATTURE = [
     ("interfaccia-daltonici.png", "Colori per daltonici: la X sull'anteprima rifiutata"),
     ("interfaccia-palette.png", "Palette come in Mindustry"),
     ("interfaccia-altocontrasto.png", "Alto contrasto: pannelli neri, testo bianco"),
-    ("mercato.png", "Mercato: prezzi dinamici, vendita automatica"),
+    ("mercato.png", "Mercato: rialzi, crolli e vendita automatica per oggetto"),
 ]
 DIDASCALIE = dict(CATTURE)
 
@@ -403,15 +403,26 @@ def _crt(radice, nome, x, y, w, h, extra="", classe=""):
 
 
 def _grafico_mercato(a, prezzo, nome_oggetto):
-    """The market screen: a price line that rises and falls forever (seeded walk, duplicated for a seamless loop)."""
+    """The market screen: a price line that loops forever (seeded, duplicated for a seamless loop). The price
+    wanders a little above the floor B, then a spike rises to the triple, holds and falls back (marketRules)."""
+    R = composti._CONTENT["marketRules"]
     rnd = random.Random(42)
-    v, punti = 60.0, []
-    for _ in range(48):
-        v = min(105, max(15, v + rnd.uniform(-9, 9)))
-        punti.append(v)
-    # The price follows the line: point i of the walk is worth prezzo * value / 60 (two digits). sito.js reads where
-    # the scrolling line has got to and turns the digit wheels to the point at its right edge.
-    prezzi = [max(1, min(99, round(prezzo * p / 60))) for p in punti]
+    # 48 points of 2.5 s each: rise 10 s, top 10 s, fall 30 s are 4, 4 and 12 points
+    passo = 2.5
+    su, cima, giu = (round(R[k] / passo) for k in ("spikeRiseSeconds", "spikeHoldSeconds", "spikeFallSeconds"))
+    v, rapporti = R["normalAverage"], []
+    for _ in range(48 - su - cima - giu):
+        v += R["normalPull"] * (R["normalAverage"] - v) + rnd.uniform(-1, 1) * R["normalNoise"]
+        rapporti.append(min(R["normalMax"], max(R["normalMin"], v)))
+    # the spike between walk points 7 and 8, early, so the loop shows the calm after it too
+    a0, a1, top = rapporti[7], rapporti[8], R["spikeMax"]
+    picco = ([a0 + (top - a0) * (i + 1) / su for i in range(su)] + [top - 0.04 * (i % 2) for i in range(cima)]
+             + [top + (a1 - top) * (i + 1) / (giu + 1) for i in range(giu)])
+    rapporti = rapporti[:8] + picco + rapporti[8:]
+    # The price follows the line: point i is worth B x ratio (two digits). sito.js reads where the scrolling line
+    # has got to and turns the digit wheels to the point at its right edge.
+    prezzi = [max(1, min(99, round(prezzo * r))) for r in rapporti]
+    punti = [12 + (r - 0.8) / (top - 0.8) * 96 for r in rapporti]   # ratio 0.8..3 -> 12..108 of the 120 px screen
     rulli = "".join(f'<span class="rullo"><span class="cifre" style="--c:{c}">'
                     + "".join(f"<span>{k}</span>" for k in range(10)) + "</span></span>"
                     for c in f"{prezzi[-1]:02d}")
@@ -422,10 +433,10 @@ def _grafico_mercato(a, prezzo, nome_oggetto):
     return (f'<figure class="crt schermo" data-rivela style="{_at(806, 384, 314, 230)}"><div class="schermo-testa">'
             f'<img class="px" src="{a.sprite("ui/ui-mercato")}" alt="" width="32" height="32"><b>Mercato</b>'
             f'<span>{html.escape(nome_oggetto)} <span class="prezzo" data-prezzi="{",".join(map(str, prezzi))}" '
-            f'aria-hidden="true">${rulli}</span><span class="sr">${prezzo}</span></span><i class="live"></i></div>'
+            f'aria-hidden="true">${rulli}</span><span class="sr">${prezzi[-1]}</span></span><i class="live"></i></div>'
             f'<svg viewBox="0 0 470 120" preserveAspectRatio="none" aria-hidden="true"><g class="griglia">{griglia}</g>'
             f'<g class="scorre"><path class="area" d="{area}"/><polyline points="{linea}"/></g></svg>'
-            '<figcaption>Il prezzo cala mentre vendi e risale piano</figcaption></figure>')
+            '<figcaption>Di solito poco sopra il minimo, poi un rialzo fino al triplo e la discesa</figcaption></figure>')
 
 
 def _crepa(seme, lato=220):
@@ -559,7 +570,7 @@ def _contenuto(a, sid, radice, versione):
                 + _crt(radice, "interfaccia-palette.png", 800, 130, 281, 186, ";z-index:2;--rientro:84px", classe="sotto-ponte"))
     if sid == "scarica":
         mercato = {m["itemId"]: m for m in composti._CONTENT["market"]}
-        prezzo = mercato["iron-plate"]["sellPrice"]
+        prezzo = mercato["iron-plate"]["baseValue"]
         nome = mercato["iron-plate"]["displayName"]
         bottone = f"Scarica {html.escape(versione)}" if versione else "Scarica l'ultima release"
         sistemi = " e ".join(html.escape(s) for s, _, _ in documenti.requisiti())
@@ -641,6 +652,7 @@ def pagina_racconto(archivio, versione, dati):
     logo = archivio.immagini("ui/ui-logo")
     url_logo = archivio.png("logo-x8", logo.resize((logo.width * 8, logo.height * 8), Image.NEAREST))
     scarica = f"Scarica {versione}" if versione else "Scarica l'ultima release"
+    P, R = racconto.MERCATO["prezzo"], composti._CONTENT["marketRules"]
     def portata(tier):   # items per second on a full belt of that tier: speed / spacing, as in the game
         return round(composti.VELOCITA_NASTRO[tier] / composti.SPAZIATURA_NASTRO[tier], 2)
     pannelli = (
@@ -690,19 +702,21 @@ def pagina_racconto(archivio, versione, dati):
                      "Da ovest arriva anche il piombo, da linee che erano lì da prima. Il CORE tiene tutto per la "
                      "Ricerca e per il Mercato.</p>"),
         ("sinistra", '<span class="etichetta">// 11 · il mercato</span><h2>Il prezzo vola</h2>'
-                   "<p>Le lastre di ferro non sono mai valse tanto. Il drone riempie una valigetta: 9.999 lastre da "
-                   "vendere tutte insieme, subito.</p>"),
+                   f"<p>Al Mercato il prezzo va come in borsa: di solito fra {P['basso']} $ (il minimo) e circa "
+                   f"{round(P['basso'] * R['normalMax'])} $ la lastra di ferro. Ogni tanto un rialzo lo porta al triplo, {P['alto']} $, per pochi secondi. Il "
+                   "drone riempie una valigetta: 9.999 lastre da vendere tutte insieme, subito.</p>"),
         ("sinistra", '<span class="etichetta">// 12 · vendi tutto</span><h2>Stonks</h2>'
-                     "<p>Al Mercato il prezzo scende mentre vendi e risale piano. Vendere tutto in un colpo lo fa "
-                     "crollare fino al prezzo normale. Meglio poco alla volta.</p>"),
+                     "<p>«Vendi tutto» durante un rialzo, davanti allo schermo di borsa: è il tentativo del jackpot. "
+                     f"Ma tante lastre in un colpo fanno crollare il prezzo: per {R['crashMinutes']} minuti il ferro "
+                     "vale solo il minimo, niente più rialzi.</p>"),
         ("sinistra", '<span class="etichetta">// 13 · il jackpot</span><h2>Il jackpot</h2>'
-                     "<p>Un rialzo improvviso del Mercato è raro. Vendere oltre una soglia aumenta la probabilità del "
-                     f"jackpot, come il bonus dei soldi +{racconto.BONUS}% di stavolta: dopo un crollo, infatti, il "
-                     "mercato resta fermo per un po' e ogni tanto scende sotto il prezzo normale.</p>"
+                     f"<p>Stavolta è andata bene: bonus dei soldi +{racconto.BONUS}%, la vendita vale circa dieci "
+                     "volte il normale. Più vendi, più è probabile, al massimo testa o croce; e dopo "
+                     f"{R['pityGuaranteeMisses']} tentativi andati male di fila il successivo vince di sicuro.</p>"
                      '<p class="sollievo">Tranquillo: succede a ogni oggetto per conto suo. Se crolla il '
                      "ferro, il rame resta com'era.</p>"
-                     '<p class="nota">Il jackpot è ancora un\'idea: la trovi nel file delle idee. Il drone intanto ha '
-                     "cambiato canale.</p>"
+                     '<p class="nota">Lo schermo di borsa, e con lui il jackpot, arriva in una prossima versione. Il '
+                     "drone intanto ha cambiato canale.</p>"
                      f'<p class="bottoni senza-tv"><a class="btn primario" href="{RELEASE_URL}">{html.escape(scarica)}</a>'
                      f'<a class="btn" href="{REPO_URL}">GitHub</a></p>'),
     )
