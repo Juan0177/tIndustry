@@ -1,10 +1,10 @@
 # Mercato come una borsa
 
-> **Proposta in discussione, non ancora nel gioco.** Le regole complete sono nella [specifica](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md) e il lavoro è seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Se vuoi dire la tua, rispondi alle domande in fondo nell'issue.
+> **Nel gioco da ottobre 2026** (specifica 1 di 3, [specifica completa](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), lavoro seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268)). Prezzi che si muovono, picchi, crolli e vendita automatica per oggetto ci sono già. **Il jackpot è nella simulazione ma non scatta ancora in partita**: serve lo schermo di borsa della specifica 2. Il magazzino del CORE e i livelli sono la specifica 3. I numeri esatti sono in [Economia e Ricerca](Economia-e-Ricerca#il-mercato).
 
 tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Stiamo cambiando il modo in cui si vende, e vorremmo sapere cosa ne pensi.
 
-## Come funzionerà
+## Come funziona
 
 **I prezzi si muovono, come in borsa.** Ogni prodotto ha un prezzo minimo sotto il quale non scende mai. Di solito il prezzo sta un po' sopra il minimo e cambia di continuo, piano piano.
 
@@ -12,13 +12,15 @@ tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti i
 
 **Se vendi troppo tutto insieme, il prezzo crolla.** Come quando tutti vendono la stessa cosa nello stesso momento: per una ventina di minuti quel prodotto vale solo il minimo, e niente più rialzi. Gli altri prodotti non se ne accorgono: il crollo riguarda solo quello che hai svenduto.
 
-**Puoi anche non pensarci.** C'è una vendita automatica che vende da sola man mano che produci. È comoda, ma vende sempre al prezzo minimo.
+**Puoi anche non pensarci.** C'è una vendita automatica, un interruttore per ogni prodotto, che vende da sola man mano che produci. È comoda, ma vende sempre al prezzo minimo.
 
 ![Prezzo di un prodotto in tre minuti: un po' sopra il minimo, poi il rialzo fino al triplo, pochi secondi in cima e la discesa](https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/finanza/rialzo.svg)
 
 *Un prodotto in tre minuti: un po' sopra il minimo, poi il rialzo fino al triplo, pochi secondi in cima e la discesa.*
 
-## Il colpo di fortuna
+## Il colpo di fortuna (in arrivo con lo schermo di borsa)
+
+Questa parte è nella simulazione ma non ancora in partita.
 
 Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto, puoi vincere un **jackpot**: quella vendita vale circa **dieci volte** il normale.
 
@@ -39,6 +41,8 @@ Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto,
 - In tutti e due i casi il ferro poi resta fermo al minimo per un po', e intanto conviene vendere altro.
 
 ## Cosa ne pensi?
+
+Le regole sono già nel gioco (il jackpot a parte); le domande restano aperte nell'issue per ritoccare i numeri.
 
 1. Ti piace l'idea che i prezzi si muovano e che convenga aspettare il momento giusto, o preferiresti vendere senza pensarci?
 2. Il jackpot ti sembra divertente o troppo legato alla fortuna?

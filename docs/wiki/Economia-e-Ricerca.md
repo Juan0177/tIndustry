@@ -11,40 +11,43 @@ Il pannello in alto a sinistra mostra i **Fondi** (`$`), l'energia, gli oggetti 
 | Potenzia CORE | |
 |---|---|
 | Costo | $150 e 20 Lastre di ferro |
-| Effetto | +25% su ogni vendita (CORE LV1) |
+| Effetto | Livello 1 del CORE. Non cambia più i prezzi: il +25% sulle vendite è stato tolto con il nuovo Mercato; servirà al magazzino e al drone |
 | Quante volte | Una |
 
 ## Il Mercato
 
 ![Mercato](https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/readme/mercato.png)
 
-`M` apre il Mercato: per ogni oggetto nel CORE vedi quantità, prezzo e valore, con i pulsanti **Vendi 1** e **Vendi tutto**. **Vendi tutto** vende ogni pezzo al prezzo del momento. In alto il totale venduto finora.
+`M` apre il Mercato, una panoramica: una riga per ogni oggetto che hai nel CORE, con quantità, prezzo del momento con la freccia (su o giù), un mini grafico degli ultimi 2 minuti, i pulsanti **Vendi 1**, **Vendi 100** e **Vendi tutto** e l'interruttore della vendita automatica di quell'oggetto. Non c'è un pulsante che vende tutto di tutti. Se un oggetto è in crollo la riga lo dice. Una spiegazione senza numeri è in [Mercato come una borsa](Mercato-come-una-borsa).
 
-**Vendita automatica al CORE**: se è accesa, tutto quello che arriva al CORE si vende subito invece di entrare in magazzino. Comoda per fare soldi, ma così il magazzino non cresce e non hai materiali per costruire.
+Ogni oggetto ha un mercato suo, come un titolo in borsa, con un **valore base** B che è anche il prezzo minimo: sotto B il prezzo non scende (salvo il crollo, sotto). Tutti i pezzi di una vendita valgono il prezzo del momento del clic.
 
-### Prezzi
+### Come si muove il prezzo
 
-Il prezzo scende quando nel CORE hai molti pezzi dello stesso oggetto. Con 0 o 1 pezzo vale il **listino**; con di più scende verso il **minimo**, tanto più in fretta quanto più bassa è la **soglia**:
+- **Normale.** Fra B e 1,6×B, con una media di 1,3×B: un passo nuovo ogni 4 secondi, un richiamo verso la media e un piccolo scarto casuale.
+- **Picco.** Per ogni oggetto, ogni 10-20 minuti: sale in 10 secondi fino a un massimo fra 2,8×B e 3×B, resta in cima 10 secondi e scende in 30. Da 2,8×B si dice che la vendita è «nel picco».
+- **Vendite.** Ogni pezzo venduto abbassa il prezzo dello 0,04% di B, mai sotto B. In 2 minuti il prezzo torna al suo andamento.
+- **Crollo.** Se in 2 minuti vendi 5.000 pezzi o più di un oggetto, quell'oggetto crolla per 20 minuti: prezzo vicino a B, nei primi 5 minuti a volte 0,6-0,7×B per 10 secondi, e niente picchi. Gli altri oggetti non cambiano.
+- **Vendita automatica.** Un interruttore per oggetto. Vende al **prezzo minimo** (B, o il prezzo del momento se è sotto B in un crollo) tutto ciò che arriva al CORE, anche da nastri ed edifici attaccati. Non tocca il mercato: niente calo, niente crollo. Così il magazzino non cresce.
+- **Jackpot.** Con **Vendi tutto**, nel picco, con almeno 400 pezzi e con uno schermo di borsa, una vendita può valere circa dieci volte (probabilità dal 2% al 50% secondo i pezzi, con una «rete di sicurezza» che garantisce la vittoria dopo tre tentativi grossi a vuoto). Lo schermo di borsa arriva con la specifica 2: oggi nel gioco il jackpot non scatta; vedi [Mercato come una borsa](Mercato-come-una-borsa).
 
-*prezzo = listino − (listino − minimo) × s ÷ (soglia + s)*, con *s* = pezzi nel CORE meno 1, arrotondato.
+### Valori base
 
-Per esempio, con 21 Lastre di ferro nel CORE una lastra vale $21 invece di $30. Con il CORE potenziato si aggiunge il 25%.
-
-| Oggetto | Listino | Minimo | Soglia |
+| Oggetto | B | Normale (B - 1,6×B) | Picco massimo (3×B) |
 |---|---|---|---|
-| Lastra di titanio (`titanium-plate`) | $45 | $18 | 12 |
-| Lastra di ferro (`iron-plate`) | $30 | $12 | 20 |
-| Silicio (`silicon`) | $28 | $11 | 16 |
-| Lastra di piombo (`lead-plate`) | $18 | $7 | 18 |
-| Filo di rame (`copper-wire`) | $16 | $6 | 20 |
-| Titanio grezzo (`titanium-ore`) | $12 | $5 | 16 |
-| Grafite (`graphite`) | $10 | $4 | 20 |
-| Ferro grezzo (`iron-ore`) | $8 | $3 | 24 |
-| Rame grezzo (`copper-ore`) | $6 | $2 | 24 |
-| Piombo grezzo (`lead-ore`) | $5 | $2 | 24 |
-| Carbone (`coal`) | $4 | $1 | 30 |
+| Ferro grezzo (`iron-ore`) | $6 | $6 - $9,6 | $18 |
+| Lastra di ferro (`iron-plate`) | $23 | $23 - $36,8 | $69 |
+| Rame grezzo (`copper-ore`) | $5 | $5 - $8 | $15 |
+| Filo di rame (`copper-wire`) | $12 | $12 - $19,2 | $36 |
+| Carbone (`coal`) | $3 | $3 - $4,8 | $9 |
+| Piombo grezzo (`lead-ore`) | $4 | $4 - $6,4 | $12 |
+| Lastra di piombo (`lead-plate`) | $14 | $14 - $22,4 | $42 |
+| Titanio grezzo (`titanium-ore`) | $14 | $14 - $22,4 | $42 |
+| Lastra di titanio (`titanium-plate`) | $52 | $52 - $83,2 | $156 |
+| Grafite (`graphite`) | $12 | $12 - $19,2 | $36 |
+| Silicio (`silicon`) | $32 | $32 - $51,2 | $96 |
 
-Una lastra di ferro vale $30, i due Ferro grezzo che servono per farla $16: trasformare conviene.
+Il prezzo è sempre un numero intero di dollari quando paga: gli oggetti da pochi dollari cambiano prezzo in dollari di rado (il carbone solo una decina di volte in un quarto d'ora), quelli cari di continuo. Trasformare conviene: una Lastra di ferro vale $23, i due Ferro grezzo che servono per farla $12.
 
 ## La Ricerca
 

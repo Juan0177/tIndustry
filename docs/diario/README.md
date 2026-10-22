@@ -26,3 +26,4 @@ I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in O
 - [2026-10-19 — Agenti che giocano (MCP e canale di controllo)](2026-10-19-agenti-giocano.md)
 - [2026-10-19 — Sito «fabbrica» su GitHub Pages](2026-10-19-sito-fabbrica.md)
 - [2026-10-19 — Nastri come Mindustry](2026-10-19-nastri-mindustry.md)
+- [2026-10-22 — Mercato come una borsa (specifica 1 di 3)](2026-10-22-mercato-borsa.md)

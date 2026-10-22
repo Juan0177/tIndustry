@@ -170,12 +170,23 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 13) include `unlockedStructures` e le vendite del Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 14) include `unlockedStructures` e lo stato del Mercato.
 
 ## Mercato
 
-**M** apre il Mercato: vendi stock del Core (1 / tutti) a prezzo dinamico (scende con stock alto). Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
+**M** apre il Mercato, una panoramica con una riga per ogni oggetto che hai nel CORE: icona, nome, quantità, prezzo del momento con la freccia (su o giù), mini grafico degli ultimi 2 minuti, **Vendi 1**, **Vendi 100**, **Vendi tutto** e l'interruttore della **vendita automatica** di quell'oggetto. Non c'è un pulsante che vende tutto di tutti. Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
+
+Ogni oggetto ha un prezzo suo, come un titolo in borsa:
+
+- il prezzo sta fra il **valore base** B (il minimo) e 1,6×B e cambia di continuo, piano;
+- ogni 10-20 minuti, per oggetto, c'è un **picco**: sale in 10 secondi fino a circa 3×B, resta in cima 10 secondi e scende in 30. Vendere lì rende fino al triplo;
+- tutti i pezzi di una vendita valgono il prezzo del momento del clic; dopo, il prezzo scende un po' per ogni pezzo venduto e in 2 minuti torna al suo andamento;
+- vendere **5.000 pezzi o più** in 2 minuti dello stesso oggetto lo fa **crollare** per 20 minuti: prezzo vicino a B, qualche volta sotto, e niente picchi. Gli altri oggetti non se ne accorgono (la riga mostra «Crollo»);
+- un **tentativo di jackpot** (Vendi tutto nel picco con almeno 400 pezzi) richiede uno schermo di borsa, che arriva con la specifica 2: oggi il jackpot è nella simulazione ma in partita non scatta; un tentativo a vuoto bloccherebbe per 5 minuti ogni «Vendi tutto» (la riga mostra l'attesa);
+- la **vendita automatica** (un interruttore per oggetto) vende al prezzo minimo ciò che arriva al CORE: non muove il mercato, ma neppure coglie i picchi.
+
+Il salvataggio (versione 14) include lo stato di tutti i mercati.
 
 ## Campagna
 
-**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 13).
+**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 14).
