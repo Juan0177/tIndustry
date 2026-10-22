@@ -935,14 +935,13 @@ internal static class FactoryScenarios
 
         Assert(teleported, "bridge teleports item to exit");
 
-        // Span 5 placement (block shorter exits so max span is chosen).
-        var span5 = new BeltGrid();
-        span5.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
-        span5.TryPlaceFree(new GridPosition(3, 2), Direction.South, belt);
-        span5.TryPlaceFree(new GridPosition(4, 2), Direction.South, belt);
-        Assert(span5.TryPlaceBridge(new GridPosition(0, 2), Direction.East, bridge), "span5 place");
-        Assert(span5.Contains(new GridPosition(0, 2)) && span5.Contains(new GridPosition(5, 2)), "span5 ends");
-        Assert(BeltGridCell.MaxBridgeSpan == 5, "max span 5");
+        // Span 4 placement (block shorter exits so max span is chosen).
+        var span4 = new BeltGrid();
+        span4.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
+        span4.TryPlaceFree(new GridPosition(3, 2), Direction.South, belt);
+        Assert(span4.TryPlaceBridge(new GridPosition(0, 2), Direction.East, bridge), "span4 place");
+        Assert(span4.Contains(new GridPosition(0, 2)) && span4.Contains(new GridPosition(4, 2)), "span4 ends");
+        Assert(BeltGridCell.MaxBridgeSpan == 4, "max span 4");
         // End outputs to side (North) when facing East — 3-side I/O.
         var ioGrid = new BeltGrid();
         ioGrid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);
@@ -1257,7 +1256,7 @@ internal static class FactoryScenarios
             Assert(factory.Terrain is not null, "terrain generated");
             Assert(factory.Terrain!.Seed == l01.Seed, "terrain seed");
             var (expectW, expectH) = ResolveCampaignMapSize(l01);
-            Assert(expectW == 1000 && expectH == 1000, "campaign L01 is 1000×1000");
+            Assert(expectW == 200 && expectH == 200, "campaign L01 is 200×200, like its map file");
             Assert(factory.Terrain.Width == expectW && factory.Terrain.Height == expectH,
                 $"campaign map size {expectW}×{expectH}");
             var sandboxBig = NewGame.Sandbox(content, CenteredCoreOrigin(1000, 1000));

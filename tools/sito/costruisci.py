@@ -14,15 +14,18 @@ Pages:
                        docs/diario/ and docs/decisioni/ (documenti.py);
 - asset/index.html     every sprite registered in tools/art: blocks composed as the game draws them (states
                        as switches, their pieces in a pop-up), the other sprites enlarged (strips as
-                       animated GIFs), one composed window of terrain per biome and the interface font.
+                       animated GIFs), one composed window of terrain per biome and the interface font;
+- racconto/index.html  the scroll-driven story «dal giacimento al CORE» (racconto.py, racconto.js): eight chapters
+                       on fourteen panels over a sticky canvas, with a still poster without the script; not in the
+                       bar of the other pages and marked noindex until it is approved.
 
 Everything comes from the repository (sprites in godot/assets/, the registry and the font in tools/art/,
 the block compositions in composti.py, data/content.json, the captures of docs/img/readme/, the documents),
 so the site never needs editing by hand: change the art or the documents, rebuild. The images of the floors
-are files of the site (fabbrica/), the captures too (catture/); the asset page keeps its data: URIs. One
-stylesheet (stile.css, the sum of stile.css and drone.css of this folder) and one script (sito.js) are files
-of the site; nothing is loaded from outside it. Published by .github/workflows/pages.yml (manual or
-release tags only).
+are files of the site (fabbrica/), the captures too (catture/), the story's assets too (racconto/); the asset page
+keeps its data: URIs. One stylesheet (stile.css, the sum of stile.css and drone.css of this folder) and two
+scripts (sito.js, and racconto.js for the story) are files of the site; nothing is loaded from outside it.
+Published by .github/workflows/pages.yml (manual or release tags only).
 """
 import argparse
 import base64

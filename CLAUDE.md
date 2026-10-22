@@ -12,7 +12,7 @@ Gioco di logistica industriale (Mindustry × Tiny Industry) in Godot 4.4 .NET. S
 
 ## Comandi
 
-Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp] [--nuova] [--editor] [--test] [--playtest ui|tutorial] [--solo-build]` (Windows: `dev.cmd`, stesse opzioni). Per prove usa sempre `--profilo-temp`.
+Avvio all-in-one: `tools/dev/dev.sh [--profilo-temp | --profilo DIR] [--nuova] [--editor] [--test] [--playtest ui|tutorial|agenti] [--solo-build] [--import]` (Windows: `dev.cmd`, stesse opzioni). `--profilo DIR` usa un profilo dati persistente in `DIR`, `--import` forza la reimportazione degli asset. Per prove usa sempre `--profilo-temp`.
 
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q       # atteso: 0 errori, 0 avvisi

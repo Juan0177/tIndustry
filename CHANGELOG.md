@@ -5,6 +5,14 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Cambiato
+
+- **Ponte a distanza 2–4 come Mindustry** (#256): gli estremi stanno a 2–4 celle e scavalcano da 1 a 3 celle, anche il ponte automatico; un salvataggio con un ponte più lungo si carica senza quel ponte
+- **Il Minatore T2 paga il suo +20% in corrente** (#256): 0,5 unità al secondo dalla riserva mentre scava; senza riserva va alla velocità normale
+- **Rimborso arrotondato per eccesso** (#256): al 50% della campagna un Nastro T1 da 1 ferro rende 1, non 0; una sola volta per voce, mai più dello speso
+- **Dati della campagna**: misure delle mappe in `campaign.json` uguali ai file (da 200 a 1000, con un test che le confronta), ferro iniziale del livello 1 nella dotazione del livello invece che nel codice (#256)
+- **Testi**: minatore e assemblatore escono su ogni nastro accanto (tolto «R ruota l'uscita»), selezionatore ed estrattore descritti come funzionano oggi (#256); documenti allineati al codice (#257)
+
 ## [0.4.0-anteprima] — 2026-10-20
 
 Versione di anteprima, temporanea: raccoglie tutto il lavoro dalla 0.3.4 (Godot come client unico, simulazione a comandi deterministica, costruzione come Mindustry con drone e cantieri, terreno a biomi e campagna, grafica generata da script, interfaccia nuova in italiano e inglese, agenti che giocano, nastri come Mindustry, sito e Wiki). Zip per Windows e Linux nella [release](https://github.com/Juan0177/tIndustry/releases/tag/v0.4.0-anteprima).

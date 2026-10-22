@@ -6,8 +6,8 @@
       "name": "Primi passi",
       "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
       "seed": 7429,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 200,
+      "mapHeight": 200,
       "startingMoney": 220,
       "refundPercent": 100,
       "startingMaterials": [
@@ -17,6 +17,10 @@
         },
         {
           "itemId": "copper-wire",
+          "amount": 8
+        },
+        {
+          "itemId": "iron-ore",
           "amount": 8
         }
       ],
@@ -41,8 +45,8 @@
       "name": "Prima fabbrica",
       "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
       "seed": 1337,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 250,
+      "mapHeight": 250,
       "startingMoney": 180,
       "refundPercent": 100,
       "startingMaterials": [
@@ -75,8 +79,8 @@
       "name": "Lastre di ferro",
       "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
       "seed": 7429,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 300,
+      "mapHeight": 300,
       "startingMoney": 280,
       "refundPercent": 100,
       "startingMaterials": [
@@ -115,8 +119,8 @@
       "name": "Fili di rame",
       "description": "Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.",
       "seed": 9001,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 350,
+      "mapHeight": 350,
       "startingMoney": 520,
       "refundPercent": 50,
       "startingMaterials": [
@@ -161,8 +165,8 @@
       "name": "Economia Foundry",
       "description": "Reinvestimento: vendi lastre e costruisci un piccolo surplus.",
       "seed": 7429,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 400,
+      "mapHeight": 400,
       "startingMoney": 160,
       "refundPercent": 50,
       "startingMaterials": [
@@ -201,8 +205,8 @@
       "name": "Corrente",
       "description": "Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).",
       "seed": 5501,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 500,
+      "mapHeight": 500,
       "startingMoney": 450,
       "refundPercent": 50,
       "startingMaterials": [
@@ -251,8 +255,8 @@
       "name": "Venatura di piombo",
       "description": "Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.",
       "seed": 6103,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 600,
+      "mapHeight": 600,
       "startingMoney": 320,
       "refundPercent": 50,
       "startingMaterials": [
@@ -295,8 +299,8 @@
       "name": "Logistica selettiva",
       "description": "Sblocca il selezionatore e spezza i flussi: ore e lastre su corsie separate.",
       "seed": 8802,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 700,
+      "mapHeight": 700,
       "startingMoney": 560,
       "refundPercent": 50,
       "startingMaterials": [
@@ -341,8 +345,8 @@
       "name": "Titanio raro",
       "description": "Deposito scarso, forno lento: il titanio si scava solo col Minatore T2. Sbloccalo, accumula lastre di titanio e prepara la chimica.",
       "seed": 4242,
-      "mapWidth": 1000,
-      "mapHeight": 1000,
+      "mapWidth": 850,
+      "mapHeight": 850,
       "startingMoney": 950,
       "refundPercent": 50,
       "startingMaterials": [

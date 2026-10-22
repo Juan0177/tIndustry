@@ -10,7 +10,7 @@ La corrente non è obbligatoria: il Forno può andare a carbone e l'Assemblatore
 |---|---|---|
 | Forno | Non brucia carbone e lavora il **20% più veloce** | 8 unità al secondo mentre lavora |
 | Assemblatore | Lavora il **20% più veloce** | 10 unità al secondo mentre lavora |
-| Minatore T2 | Estrae il **20% più veloce** | nessuno |
+| Minatore T2 | Estrae il **20% più veloce** | 0,5 unità al secondo mentre scava |
 | Lampada | Si accende e illumina la notte | 1 unità al secondo |
 
 Il Minatore T1 e l'Estrattore non usano corrente.

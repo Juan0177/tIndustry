@@ -144,7 +144,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
 | Fatto, in attesa dell'ok | **G3 · Effetti e luci** | Particelle di lavoro, costruzione e ambiente, ombre, bagliore, notte opzionale con la Lampada, impostazioni grafiche per PC deboli ([spec](docs/superpowers/specs/2026-10-18-g3-effetti-luci-design.md)) |
 | Fatto | **G4 · Interfaccia** | Tema unico in stile Mindustry, carattere pixel e icone generati, italiano e inglese, Scala UI solo dell'interfaccia, schermo intero, colori per daltonici e alto contrasto ([ADR 0006](docs/decisioni/0006-interfaccia-lingue-carattere.md)) |
-| Fatto | **Sito web su GitHub Pages** | [Vetrina «fabbrica»](https://juan0177.github.io/tIndustry/) con le catene di produzione vere sui nastri del gioco, download, [sviluppo](https://juan0177.github.io/tIndustry/sviluppo/) (ADR, roadmap, diario) e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py` ([spec](docs/superpowers/specs/2026-10-19-sito-fabbrica-design.md)) |
+| Fatto | **Sito web su GitHub Pages** | [Vetrina «fabbrica»](https://juan0177.github.io/tIndustry/) con le catene di produzione vere sui nastri del gioco, download, [sviluppo](https://juan0177.github.io/tIndustry/sviluppo/) (ADR, roadmap, diario) e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py`; il [racconto](https://juan0177.github.io/tIndustry/racconto/) guidato dallo scroll, «dal giacimento al CORE», è pubblicato in `racconto/` ma resta fuori dalla barra finché non è approvato ([spec](docs/superpowers/specs/2026-10-20-sito-scroll-narrativo.md)) |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **Attacco e difesa** | Unità nemiche e difese. I nemici arrivano **solo di notte**: quando torna il giorno i superstiti scappano, se il CORE ha resistito; se lo distruggono è **Game Over**. Il drone si mette l'elmetto durante l'attacco |
@@ -170,11 +170,13 @@ Il comando controlla gli strumenti, compila, importa gli asset se serve e avvia 
 | Opzione | Effetto |
 | --- | --- |
 | `--profilo-temp` | profilo dati temporaneo: non tocca impostazioni e salvataggi reali (**consigliato per le prove**) |
+| `--profilo DIR` | usa `DIR` come profilo dati, che resta tra un avvio e l'altro |
 | `--nuova` | salta la Home e apre una nuova partita |
 | `--editor` | apre l'editor Godot |
 | `--test` | esegue i test prima di avviare |
-| `--playtest ui\|tutorial` | playtest automatico con screenshot in `.dev/` |
+| `--playtest ui\|tutorial\|agenti` | playtest automatico con screenshot in `.dev/` |
 | `--solo-build` | compila e basta |
+| `--import` | forza la reimportazione degli asset Godot |
 | `--help` | tutte le opzioni |
 
 <details>
@@ -188,7 +190,7 @@ TINDUSTRY_FRESH=1 godot4 --path godot                           # ignora il salv
 ```
 
 - **Test** (`tests/TIndustry.Shared.Tests`, xUnit): nastri, craft, energia, costruzione, salvataggi, Ricerca, Mercato, Campagna, determinismo della simulazione e validazione di `data/`. Usano sempre una cartella temporanea.
-- **Playtest** (`tools/dev/playtest.sh ui|tutorial <cartella>`): giocano UI e tutorial con input simulati in un profilo dati isolato, cartella utente di Godot compresa, sempre in una finestra 1280×720 al 100%; `TINDUSTRY_PLAYTEST_LINGUA=en` li gioca in inglese. Producono un PNG per passo e l'esito `PLAYTEST OK`.
+- **Playtest** (`tools/dev/playtest.sh ui|tutorial|agenti <cartella>`): giocano UI e tutorial con input simulati, `agenti` prova il canale di controllo usato dagli agenti, in un profilo dati isolato, cartella utente di Godot compresa, sempre in una finestra 1280×720 al 100%; `TINDUSTRY_PLAYTEST_LINGUA=en` li gioca in inglese. Producono un PNG per passo e l'esito `PLAYTEST OK`.
 - **Confronto screenshot**: `python tools/dev/compare_shots.py <baseline> <nuovi>`.
 
 Per provare senza toccare i tuoi dati, imposta `TINDUSTRY_DATA_DIR` su una cartella temporanea; gli script lo fanno da soli.
@@ -203,7 +205,7 @@ Per provare senza toccare i tuoi dati, imposta `TINDUSTRY_DATA_DIR` su una carte
 | `godot/` | Client di gioco: mondo, HUD, pannelli, grafica, testi in `lingue/testi.csv` |
 | `src/TIndustry.Shared/` | Simulazione indipendente da Godot: griglia, nastri, edifici, costruzione, energia, economia, ricerca, campagna, salvataggi |
 | `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json`, `maps/` (mappe della campagna) |
-| `tests/` | Test xUnit della simulazione |
+| `tests/` | Test xUnit: `TIndustry.Shared.Tests` (simulazione) e `TIndustry.AgentPlay.Tests` (server MCP degli agenti) |
 | `tools/` | `dev/`: avvio, playtest, screenshot e mappa Obsidian · `MapTool/`: mappe della campagna · `art/`: sprite, icone e carattere · `sito/`: sito su GitHub Pages · `ci/`: export |
 | `docs/` | [Architettura](docs/ARCHITETTURA.md), [decisioni](docs/decisioni.md), specifiche e piani, [diario di lavoro](docs/diario/README.md) |
 
@@ -218,6 +220,8 @@ I workflow GitHub Actions non partono su push o PR:
 
 - [`release.yml`](.github/workflows/release.yml): su tag `v*` o avvio manuale. Esegue i test e l'export Godot e mette gli zip nella Release.
 - [`build-publish.yml`](.github/workflows/build-publish.yml): solo manuale. Build e test.
+- [`pages.yml`](.github/workflows/pages.yml): su tag `v*` o avvio manuale da `main`. Costruisce il sito con `tools/sito/costruisci.py` e lo pubblica su GitHub Pages.
+- [`wiki.yml`](.github/workflows/wiki.yml): solo manuale. Controlla `docs/wiki/` e la copia nella Wiki del repository.
 
 Export in locale: `tools/ci/setup-godot.sh` (una tantum), poi `tools/ci/export-godot.sh` → `dist/tIndustry-*-x64.zip`.
 

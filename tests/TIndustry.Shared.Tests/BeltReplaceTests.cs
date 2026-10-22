@@ -91,7 +91,7 @@ public sealed class BeltReplaceTests
             kv =>
             {
                 var (due, excess) = Split(factory, oldId, newId, kv.Key == "$" ? null : kv.Key);
-                return kv.Value - due + excess * refundPercent / 100;
+                return kv.Value - due + Construction.RefundShare(excess, refundPercent * 100);
             },
             StringComparer.Ordinal);
 
@@ -236,7 +236,7 @@ public sealed class BeltReplaceTests
     [Theory]
     [InlineData(true, Express, Basic)]
     [InlineData(false, Express, Basic)]
-    // Excess of 1 per item at 50%: the floor gives nothing back.
+    // Excess of 1 per item at 50%: rounded up, 1 comes back.
     [InlineData(true, Express, Fast)]
     [InlineData(false, Express, Fast)]
     public void DowngradeRefundsTheExcessAtTheRuleShare(bool instantBuild, string oldId, string newId)

@@ -81,7 +81,7 @@ Il rettangolo del destro segna tutti i blocchi che tocca, cancella i piani e ann
 | Campagna, livelli 4–10 | 50% |
 | Cantiere annullato (sempre) | 100% di quanto speso |
 
-Il rimborso si calcola per ogni materiale e si arrotonda per difetto: al 50% un Nastro T1, che costa 1 Ferro grezzo, non restituisce nulla.
+Il rimborso si calcola per ogni materiale e si arrotonda per eccesso: al 50% un Nastro T1, che costa 1 Ferro grezzo, restituisce 1 Ferro grezzo.
 
 ## Casi particolari
 

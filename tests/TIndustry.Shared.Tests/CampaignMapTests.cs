@@ -165,6 +165,7 @@ public sealed class CampaignMapTests : IDisposable
             var factory = NewGame.Campaign(Content, catalog, level, mapsDirectory: MapsDir);
             var map = CampaignMapFile.Load(MapsDir, level.Map!, Content, out var core);
             Assert.Equal((sizes[i], sizes[i]), (factory.Terrain!.Width, factory.Terrain.Height));
+            Assert.Equal((map.Width, map.Height), (level.MapWidth, level.MapHeight)); // campaign.json says the file's size
             Assert.Equal("campagna:" + level.Map, factory.Terrain.Generator);
             Assert.Contains(core, factory.CoreTiles);
             Assert.Equal(TerrainMap.TerrainHash(map), TerrainMap.TerrainHash(factory.Terrain));

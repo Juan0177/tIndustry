@@ -43,7 +43,7 @@ L'anteprima rossa con la X ha il motivo scritto in basso:
 
 ## Perché smontando non mi torna niente?
 
-Dal livello 4 della campagna lo smontaggio rimborsa il **50%**, arrotondato per difetto materiale per materiale: un Nastro T1 costa 1 Ferro grezzo e al 50% non rende nulla. Nella partita libera e nei livelli 1–3 il rimborso è del 100%. Annullare un cantiere non finito rende sempre tutto quello speso.
+Dal livello 4 della campagna lo smontaggio rimborsa il **50%**, arrotondato per eccesso materiale per materiale: un Nastro T1 costa 1 Ferro grezzo e al 50% rende comunque 1. Nella partita libera e nei livelli 1–3 il rimborso è del 100%. Annullare un cantiere non finito rende sempre tutto quello speso.
 
 ## Perché il selezionatore manda tutto di lato?
 
