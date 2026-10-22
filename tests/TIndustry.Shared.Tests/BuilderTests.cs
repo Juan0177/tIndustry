@@ -299,8 +299,8 @@ public sealed class BuilderTests
     public void BridgeBreakingPlanIsCancelledFromItsOtherEnd()
     {
         var factory = NewBridgeFactory();
-        FillSpan(factory, 101, 102, 103, 104);
-        var entry = new GridPosition(105, 50);
+        FillSpan(factory, 101, 102, 103);
+        var entry = new GridPosition(104, 50);
         var exit = new GridPosition(100, 50);
         Assert.True(factory.PlaceInstant(
             new BuildSpec("conveyor-bridge", BuildingKind.Bridge, entry, Direction.West), charge: false));
@@ -707,8 +707,8 @@ public sealed class BuilderTests
     public void BridgeBrokenFromItsExitEndFinishes()
     {
         var factory = NewBridgeFactory();
-        FillSpan(factory, 101, 102, 103, 104);
-        var entry = new GridPosition(105, 50);
+        FillSpan(factory, 101, 102, 103);
+        var entry = new GridPosition(104, 50);
         var exit = new GridPosition(100, 50);
         Assert.True(factory.PlaceInstant(
             new BuildSpec("conveyor-bridge", BuildingKind.Bridge, entry, Direction.West), charge: false));
@@ -732,7 +732,7 @@ public sealed class BuilderTests
     public void BridgeBuiltFarFromTheDroneFinishes()
     {
         var factory = NewBridgeFactory();
-        FillSpan(factory, 102, 103, 104);
+        FillSpan(factory, 102, 103);
         var entry = new GridPosition(100, 50);
         var host = new SimHost(factory);
         var events = new List<SimEvent>();
@@ -742,7 +742,7 @@ public sealed class BuilderTests
         RunUntil(host, () => events.Count > 0, maxTicks: 2_000);
 
         Assert.IsType<ConstructFinished>(Assert.Single(events));
-        Assert.True(factory.Belts.TryGet(entry, out var cell) && cell.BridgePartner == new GridPosition(105, 50));
+        Assert.True(factory.Belts.TryGet(entry, out var cell) && cell.BridgePartner == new GridPosition(104, 50));
         Assert.Empty(factory.Sites);
     }
 

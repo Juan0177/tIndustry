@@ -123,17 +123,17 @@ public sealed class TerrainRulesTests
     [Fact]
     public void DeepWaterBlocksBeltsButNotBridgeSpan()
     {
-        // A river three cells wide (x = 10..12) and a wall at (13, 6).
+        // A river two cells wide (x = 10..11) and a wall at (12, 6).
         var cells = new List<(int, int, TerrainTile)>();
         for (var y = 0; y < Size; y++)
         {
-            for (var x = 10; x <= 12; x++)
+            for (var x = 10; x <= 11; x++)
             {
                 cells.Add((x, y, Deep));
             }
         }
 
-        cells.Add((13, 6, Wall()));
+        cells.Add((12, 6, Wall()));
         var factory = Sandbox([.. cells]);
 
         Assert.False(factory.CanPlace(
@@ -145,23 +145,23 @@ public sealed class TerrainRulesTests
         // The bridge jumps the river: the exit is the first buildable cell past it.
         Assert.Null(Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, 5), Direction.East)));
         Assert.True(factory.Belts.TryGet(new GridPosition(9, 5), out var entry));
-        Assert.Equal(new GridPosition(13, 5), entry.BridgePartner);
+        Assert.Equal(new GridPosition(12, 5), entry.BridgePartner);
 
         // An exit on a wall is skipped too.
         Assert.Null(Submit(factory, new PlaceBuilding(0, BuildingKind.Bridge, new GridPosition(9, 6), Direction.East)));
         Assert.True(factory.Belts.TryGet(new GridPosition(9, 6), out var walled));
-        Assert.Equal(new GridPosition(14, 6), walled.BridgePartner);
+        Assert.Equal(new GridPosition(13, 6), walled.BridgePartner);
 
         // A bridge cannot start in the river.
         Assert.False(factory.CanPlace(
-            new BuildSpec(BuildSpec.StructureIdFor(BuildingKind.Bridge)!, BuildingKind.Bridge, new GridPosition(12, 7), Direction.East), out reason));
+            new BuildSpec(BuildSpec.StructureIdFor(BuildingKind.Bridge)!, BuildingKind.Bridge, new GridPosition(11, 7), Direction.East), out reason));
         Assert.Equal(RefusalCode.DeepWater, reason);
     }
 
     [Fact]
     public void BridgeWithoutExitSaysWhy()
     {
-        // From (9, y) going East the exit candidates are x = 11..14 (spans 2..5).
+        // From (9, y) going East the exit candidates are x = 11..13 (spans 2..4).
         var cells = new List<(int, int, TerrainTile)>();
         for (var x = 10; x <= 15; x++)
         {

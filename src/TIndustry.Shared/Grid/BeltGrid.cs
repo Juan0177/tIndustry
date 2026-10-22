@@ -75,7 +75,7 @@ public sealed class BeltGrid
     }
 
     /// <summary>
-    /// Place paired bridge ends (span 2–5). Mid tiles stay empty so belts can cross.
+    /// Place paired bridge ends (span 2–4). Mid tiles stay empty so belts can cross.
     /// </summary>
     public bool TryPlaceBridge(
         GridPosition entry,
@@ -371,6 +371,14 @@ public sealed class BeltGrid
         cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
         && cells.TryGetValue(cell.OutputPosition, out var feeder) && feeder.Kind == LogisticsKind.Belt;
 
+    /// <summary>Whether two bridge ends can be partners: same row or column, 2–4 cells apart.</summary>
+    public static bool IsBridgeSpan(GridPosition a, GridPosition b)
+    {
+        var dx = Math.Abs(b.X - a.X);
+        var dy = Math.Abs(b.Y - a.Y);
+        return (dx == 0 || dy == 0) && dx + dy >= BeltGridCell.MinBridgeSpan && dx + dy <= BeltGridCell.MaxBridgeSpan;
+    }
+
     private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
     {
         var dx = partner.X - cell.Position.X;
@@ -630,7 +638,7 @@ public sealed class BeltGrid
 public sealed class BeltGridCell
 {
     public const int MinBridgeSpan = 2;
-    public const int MaxBridgeSpan = 5;
+    public const int MaxBridgeSpan = 4; // Mindustry's bridge conveyor: ends at most 4 cells apart
     public const string DefaultSorterFilter = "iron-ore";
 
     private readonly BeltCell inner;

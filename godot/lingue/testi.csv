@@ -92,7 +92,7 @@ struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edific
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.splitter.suggerimento,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
 struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
-struttura.conveyor-bridge.suggerimento,Ponte span 2–5 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–5 · I/O on 3 sides · instant teleport
+struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% se alimentato · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% when powered · unlock in Research
 struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
@@ -333,7 +333,7 @@ struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non rac
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.splitter.descrizione,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
 struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
-struttura.conveyor-bridge.descrizione,Ponte span 2–5 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–5 · I/O on 3 sides · instant teleport
+struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Power node T1 · 1×1 · range 6 · links to generators by itself
 struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Power node T2 · 2×2 · range 10 · links to generators by itself

@@ -991,6 +991,13 @@ public sealed class Factory : IGameView
                 partner = new GridPosition(bx, by);
             }
 
+            // A bridge the current rules would not allow (older saves reached 5 cells) is not placed, both ends.
+            if (def.Kind == LogisticsKind.Bridge
+                && (partner is not { } end || !BeltGrid.IsBridgeSpan(new GridPosition(cell.X, cell.Y), end)))
+            {
+                continue;
+            }
+
             belts.TryRestore(
                 new GridPosition(cell.X, cell.Y),
                 dir,
@@ -2602,7 +2609,7 @@ public sealed class Factory : IGameView
         _ => 1
     };
 
-    /// <summary>First free bridge end 2–5 cells ahead of <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).</summary>
+    /// <summary>First free bridge end 2–4 cells ahead of <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).</summary>
     private GridPosition? FindBridgeExit(GridPosition entry, Direction direction)
     {
         for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
