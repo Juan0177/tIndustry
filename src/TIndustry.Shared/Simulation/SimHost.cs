@@ -209,7 +209,7 @@ public sealed class SimHost
         UnlockStructure unlock => ApplyUnlock(unlock),
         Sell sell => ApplySell(sell),
         SellAll sellAll => ApplySellAll(sellAll),
-        SetAutoSell autoSell => SetAutoSellAndAccept(autoSell.Enabled),
+        SetAutoSell autoSell => ApplySetAutoSell(autoSell),
         UpgradeCore => ApplyUpgradeCore(),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
         _ => RefusalCode.InvalidCommand
@@ -546,9 +546,14 @@ public sealed class SimHost
         return factory.TrySellAll(command.ItemId, command.PlayerId) ? null : RefusalCode.SellFailed;
     }
 
-    private Refusal? SetAutoSellAndAccept(bool enabled)
+    private Refusal? ApplySetAutoSell(SetAutoSell command)
     {
-        factory.AutoSellAtCore = enabled;
+        if (factory.State.Exchange.Find(command.ItemId) is not { } item)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        item.AutoSell = command.Enabled;
         return null;
     }
 

@@ -94,10 +94,20 @@ public sealed class Factory : IGameView
         set => State.ActiveCampaignLevelId = value;
     }
 
+    /// <summary>
+    /// True when auto-sell is on for every market item; setting it switches them all. Bridge for the v13 save
+    /// (one switch) and the single-toggle clients until the per-item save and panel arrive.
+    /// </summary>
     public bool AutoSellAtCore
     {
-        get => State.AutoSellAtCore;
-        set => State.AutoSellAtCore = value;
+        get => State.Exchange.Items.Count > 0 && State.Exchange.Items.All(i => i.AutoSell);
+        set
+        {
+            foreach (var item in State.Exchange.Items)
+            {
+                item.AutoSell = value;
+            }
+        }
     }
 
     public int CoreUpgradeLevel

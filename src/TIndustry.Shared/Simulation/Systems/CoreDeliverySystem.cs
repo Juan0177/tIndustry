@@ -7,5 +7,5 @@ public sealed class CoreDeliverySystem : ISimulationSystem
 
     public void Run(GameState state, SystemContext ctx) =>
         state.CoreDeliveredItems += CoreStockSink.Drain(
-            state.Belts, state.CoreTiles, state.Wallet, state.Exchange, state.Session, state.AutoSellAtCore);
+            state.Belts, state.CoreTiles, state.Wallet, state.Exchange, state.Session);
 }

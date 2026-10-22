@@ -25,13 +25,13 @@ public static class CoreStockSink
     /// Returns how many items were stocked (stock-first; no auto-sell).
     /// </summary>
     public static int Drain(BeltLane belt, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet) =>
-        Drain(belt, coreTiles, wallet, market: null, session: null, autoSellAtCore: false);
+        Drain(belt, coreTiles, wallet, market: null, session: null);
 
     public static int Drain(BeltGrid grid, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet) =>
-        Drain(grid, coreTiles, wallet, market: null, session: null, autoSellAtCore: false);
+        Drain(grid, coreTiles, wallet, market: null, session: null);
 
     /// <summary>
-    /// Drain into stock, or liquidate immediately when <paramref name="autoSellAtCore"/> is on
+    /// Drain into stock, or liquidate immediately the items whose auto-sell switch is on in <paramref name="market"/>
     /// (Raylib Mercato “Vendita automatica” parity).
     /// </summary>
     public static int Drain(
@@ -39,8 +39,7 @@ public static class CoreStockSink
         IReadOnlySet<GridPosition> coreTiles,
         EconomyWallet wallet,
         MarketState? market,
-        EconomySession? session,
-        bool autoSellAtCore)
+        EconomySession? session)
     {
         var delivered = 0;
         for (var i = 0; i < belt.Cells.Count; i++)
@@ -55,7 +54,7 @@ public static class CoreStockSink
             while (cell.PeekOutput() is { } item)
             {
                 cell.RemoveOutput();
-                AcceptAtCore(wallet, item.ItemId, market, session, autoSellAtCore);
+                AcceptAtCore(wallet, item.ItemId, market, session);
                 delivered++;
             }
         }
@@ -68,8 +67,7 @@ public static class CoreStockSink
         IReadOnlySet<GridPosition> coreTiles,
         EconomyWallet wallet,
         MarketState? market,
-        EconomySession? session,
-        bool autoSellAtCore)
+        EconomySession? session)
     {
         var delivered = 0;
         foreach (var cell in grid.Cells.Values)
@@ -87,7 +85,7 @@ public static class CoreStockSink
             while (cell.PeekOutput() is { } item)
             {
                 cell.RemoveOutput();
-                AcceptAtCore(wallet, item.ItemId, market, session, autoSellAtCore);
+                AcceptAtCore(wallet, item.ItemId, market, session);
                 delivered++;
             }
         }
@@ -125,29 +123,11 @@ public static class CoreStockSink
         return null;
     }
 
-    private static void AcceptAtCore(
-        EconomyWallet wallet,
-        string itemId,
-        MarketState? market,
-        EconomySession? session,
-        bool autoSellAtCore)
+    private static void AcceptAtCore(EconomyWallet wallet, string itemId, MarketState? market, EconomySession? session)
     {
-        if (!autoSellAtCore || market is null)
+        if (market is null || !MarketSales.TryAutoSell(market, wallet, session, itemId))
         {
             wallet.AddMaterial(itemId, 1);
-            return;
         }
-
-        // Auto-sell pays the price of the moment and leaves the market alone (no drop, no crash).
-        var listed = market.Find(itemId);
-        if (listed is null)
-        {
-            wallet.AddMaterial(itemId, 1);
-            return;
-        }
-
-        var unitPrice = MarketMath.UnitIncome(listed.BaseValue, listed.PriceMilli);
-        wallet.AddMoney(unitPrice);
-        session?.RecordSale(itemId, unitPrice);
     }
 }

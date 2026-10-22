@@ -162,7 +162,11 @@ public sealed class SimHostTests
         direct.Step();
 
         host.Submit(new Sell(1, "iron-plate", 7));
-        host.Submit(new SetAutoSell(1, true));
+        foreach (var listed in content.Market)
+        {
+            host.Submit(new SetAutoSell(1, listed.ItemId, true));
+        }
+
         host.Submit(new UpgradeCore(1));
         host.Advance(SimulationClock.TickSeconds);
 
@@ -404,8 +408,8 @@ public sealed class SimHostTests
         var host = new SimHost(NewSandbox(LoadContent()));
         Assert.Empty(host.Pending);
 
-        var first = new SetAutoSell(1, true);
-        var second = new SetAutoSell(1, false);
+        var first = new SetAutoSell(1, "coal", true);
+        var second = new SetAutoSell(1, "coal", false);
         var third = new PlaceBelt(1, new GridPosition(10, 10), Direction.East, "conveyor-basic");
         host.Submit(first);
         host.Submit(second);
@@ -423,7 +427,7 @@ public sealed class SimHostTests
     public void PendingKeepsCommandsScheduledForLaterTicks()
     {
         var host = new SimHost(NewSandbox(LoadContent()));
-        var later = new SetAutoSell(1, true) with { Tick = 5 };
+        var later = new SetAutoSell(1, "coal", true) with { Tick = 5 };
         host.Submit(later);
 
         host.Advance(SimulationClock.TickSeconds);

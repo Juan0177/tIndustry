@@ -81,7 +81,11 @@ public partial class MercatoPanel : Control
         // Toggle from the value the host will have once earlier same-tick toggles are applied.
         var effective = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault()?.Enabled
             ?? _view.AutoSellAtCore;
-        _submit(new SetAutoSell(0, !effective));
+        // Single toggle until the per-item panel (later task): switches every item.
+        foreach (var listed in _view.Content.Market)
+        {
+            _submit(new SetAutoSell(0, listed.ItemId, !effective));
+        }
     }
 
     /// <summary>Host applied a Mercato command: update status, toggle and notify the world.</summary>
@@ -95,13 +99,16 @@ public partial class MercatoPanel : Control
 
         switch (command)
         {
-            case SetAutoSell:
+            // The toggle sends one command per item: react once, after the last of the batch (all are applied by then).
+            case SetAutoSell autoSell when autoSell.ItemId == _view.Content.Market[^1].ItemId:
                 var on = _view.AutoSellAtCore;
                 SetStatus(() => Testi.T(on ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
 
                 SyncAutoSellToggle();
                 RefreshAutoSellHint();
                 AutoSellChanged?.Invoke();
+                break;
+            case SetAutoSell:
                 break;
             case Sell when _pendingSales.Count > 0:
                 var (amount, itemId) = _pendingSales.Dequeue();
