@@ -43,14 +43,8 @@ public sealed class MarketRulesTests
     [InlineData("silicon", 32)]
     public void BaseValuesMatchTheSpec(string itemId, int expected)
     {
-        var catalog = MarketCatalog.FromContent(FactoryContent.Load(ContentPath));
-        Assert.Equal(expected, catalog.BaseValueOf(itemId));
-        Assert.Equal(expected, MarketCatalog.CreateDefault().BaseValueOf(itemId));
+        Assert.Equal(expected, FactoryContent.Load(ContentPath).Market.Single(m => m.ItemId == itemId).BaseValue);
     }
-
-    [Fact]
-    public void UnknownItemHasBaseValueOne() =>
-        Assert.Equal(1, MarketCatalog.CreateDefault().BaseValueOf("nope"));
 
     [Fact]
     public void MissingBaseValueIsAnItalianError()
@@ -70,6 +64,8 @@ public sealed class MarketRulesTests
     [Theory]
     [InlineData("spikeThreshold", 3.5)]
     [InlineData("normalMin", 2.0)]
+    [InlineData("normalAverage", 5.0)]
+    [InlineData("normalMin", 0.5)]
     [InlineData("jackpotCap", 1.5)]
     [InlineData("crashDipMin", 0.9)]
     [InlineData("normalStepSeconds", 0)]

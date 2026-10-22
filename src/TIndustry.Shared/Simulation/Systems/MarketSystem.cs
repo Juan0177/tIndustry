@@ -1,6 +1,6 @@
 namespace TIndustry.Shared;
 
-/// <summary>Moves every item's price: normal trend (a walk pulled to the average) plus periodic spikes.</summary>
+/// <summary>Moves every item's price: normal trend (a walk pulled to the average) plus periodic spikes, the crash that follows a mass sale and the recovery of the price drop left by sales.</summary>
 public sealed class MarketSystem : ISimulationSystem
 {
     public string Name => "Market";

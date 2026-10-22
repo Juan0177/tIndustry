@@ -159,7 +159,7 @@ public sealed class ConstructionTests
 
         var left = factory.Wallet.MaterialCount(Iron);
         Assert.True(left > 0);
-        Assert.True(factory.TrySellFromWallet(Iron, left));
+        Assert.True(factory.TrySellFromWallet(Iron, left, 1));
         Assert.Equal(0, factory.Wallet.MaterialCount(Iron));
 
         var stalled = false;

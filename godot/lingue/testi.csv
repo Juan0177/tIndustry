@@ -277,6 +277,7 @@ salvataggi.creato,Creato {0},Created {0}
 mercato.auto.attivata,Vendita automatica attivata.,Auto-sell on.
 mercato.auto.disattivata,Vendita automatica disattivata.,Auto-sell off.
 mercato.venduti,Venduti {0}× {1} → +${2},Sold {0}× {1} → +${2}
+mercato.venduti.crollo,Venduti {0}× {1} → +${2} · crollo per {3} min,Sold {0}× {1} → +${2} · crash for {3} min
 mercato.fondi,Fondi · venduto finora ${0},Funds · sold so far ${0}
 mercato.vuoto,Niente da vendere: porta minerali o lastre al CORE con i nastri.,Nothing to sell: bring ore or plates to the CORE with belts.
 mercato.listino,Valore base ${0},Base value ${0}

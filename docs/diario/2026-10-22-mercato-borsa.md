@@ -51,7 +51,7 @@ L'utente (23/10) ha approvato di tenere invariati i valori del piano: «procedi 
 
 Quello che il codice fa, dove si discosta da quanto scritto:
 
-- lo stato dei prezzi è `GameState.Exchange` (`GameState.Market` era già il catalogo dei valori);
+- lo stato dei prezzi è `GameState.Exchange` (`GameState.Market`, il vecchio catalogo dei valori, è stato tolto nella revisione finale: i valori B si leggono da `Content.Market`);
 - l'oscillazione del crollo è nei dati (`crashJitter`), non nel codice;
 - del «50/50 perso» è attuato solo l'effetto reale: i cali sotto B sono il 20% meno probabili per 5 minuti; il calo da vendite nel crollo è 0, quindi un «recupero accelerato» non poteva agire;
 - soldi e incassi delle vendite si fermano a `int.MaxValue` invece di avvolgersi;

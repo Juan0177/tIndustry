@@ -38,11 +38,13 @@ public sealed class FactorySaveData
     public Dictionary<string, int> SoldByItem { get; set; } = new(StringComparer.Ordinal);
     public string? ActiveCampaignLevelId { get; set; }
     /// <summary>Old saves (up to v13) only: one switch for every item; v14 saves auto-sell per item in <see cref="Market"/>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool AutoSellAtCore { get; set; }
     public int CoreUpgradeLevel { get; set; }
     /// <summary>The market (prices, phases, random stream, history); null in saves up to v13, which start a fresh one.</summary>
     public MarketSaveDto? Market { get; set; }
     /// <summary>Old saves only: the CORE no longer gives a sale bonus, the value is read and ignored.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int CoreSaleBonusPercent { get; set; }
     public float PowerBuffer { get; set; }
     public float PowerCapacity { get; set; }

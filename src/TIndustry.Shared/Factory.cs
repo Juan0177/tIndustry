@@ -54,8 +54,7 @@ public sealed class Factory : IGameView
             coreTiles,
             resolvedWallet,
             research ?? ResearchState.CreateNew(content),
-            session ?? new EconomySession(resolvedWallet.Money),
-            MarketCatalog.FromContent(content));
+            session ?? new EconomySession(resolvedWallet.Money));
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
@@ -86,7 +85,6 @@ public sealed class Factory : IGameView
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public EconomyWallet Wallet => State.Wallet;
     public ResearchState Research => State.Research;
-    public MarketCatalog Market => State.Market;
     public EconomySession Session => State.Session;
     public string? ActiveCampaignLevelId
     {
@@ -1847,12 +1845,12 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>Sells stocked materials at the price of the moment (see <see cref="MarketSales.Sell"/>).</summary>
-    public bool TrySellFromWallet(string itemId, int amount, int playerId = 1) =>
+    public bool TrySellFromWallet(string itemId, int amount, int playerId) =>
         amount > 0 && State.Exchange.Find(itemId) is { } item
         && MarketSales.Sell(State, item, amount, sellAll: false, playerId) is not null;
 
     /// <summary>Sells the whole stock of one item (the "Vendi tutto" button).</summary>
-    public bool TrySellAll(string itemId, int playerId = 1) =>
+    public bool TrySellAll(string itemId, int playerId) =>
         SellAllWaitTicks() == 0 && State.Exchange.Find(itemId) is { } item && Wallet.MaterialCount(itemId) is var stock and > 0
         && MarketSales.Sell(State, item, stock, sellAll: true, playerId) is not null;
 

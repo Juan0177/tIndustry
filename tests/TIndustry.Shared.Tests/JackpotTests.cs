@@ -54,7 +54,7 @@ public sealed class JackpotTests
         Force(f, itemId);
         f.Wallet.TryRemoveMaterial(itemId, f.Wallet.MaterialCount(itemId));
         f.Wallet.AddMaterial(itemId, pieces);
-        Assert.True(f.TrySellAll(itemId));
+        Assert.True(f.TrySellAll(itemId, 1));
     }
 
     private static void SetStock(Factory f, string itemId, int pieces)
@@ -94,16 +94,16 @@ public sealed class JackpotTests
         // Outside the spike (price under the threshold).
         Force(f, Plate, 2000);
         SetStock(f, Plate, 1000);
-        Assert.True(f.TrySellAll(Plate));
+        Assert.True(f.TrySellAll(Plate, 1));
         // Under four hundred pieces.
         Force(f, Plate);
         f.Wallet.AddMaterial(Plate, 399);
-        Assert.True(f.TrySellAll(Plate));
+        Assert.True(f.TrySellAll(Plate, 1));
         // No exchange screen.
         f.State.HasMarketScreen = false;
         Force(f, Plate);
         SetStock(f, Plate, 1000);
-        Assert.True(f.TrySellAll(Plate));
+        Assert.True(f.TrySellAll(Plate, 1));
 
         Assert.Empty(asked);
         Assert.Equal(0, f.State.Exchange.SellAllBlockedUntilTick);
@@ -211,7 +211,7 @@ public sealed class JackpotTests
         f.Wallet.AddMaterial("test-item", 400);
         var before = f.Wallet.Money;
 
-        Assert.NotNull(MarketSales.Sell(f.State, item, 400, sellAll: true));
+        Assert.NotNull(MarketSales.Sell(f.State, item, 400, sellAll: true, 1));
 
         Assert.Equal(400 * 107, f.Wallet.Money - before);
         Assert.Equal(400 * 107, f.Session.SaleIncome);
@@ -369,12 +369,12 @@ public sealed class JackpotTests
         var price = item.PriceMilli;
 
         // No stock.
-        Assert.False(f.TrySellAll(Ore));
+        Assert.False(f.TrySellAll(Ore, 1));
         // Not in the market.
-        Assert.False(f.TrySellAll("not-in-market"));
+        Assert.False(f.TrySellAll("not-in-market", 1));
         // Waiting.
         market.SellAllBlockedUntilTick = f.State.CurrentTick + 600;
-        Assert.False(f.TrySellAll(Plate));
+        Assert.False(f.TrySellAll(Plate, 1));
 
         Assert.Empty(asked);
         Assert.Equal(generator, market.Random.State);
@@ -397,7 +397,7 @@ public sealed class JackpotTests
         f.Wallet.AddMaterial(Titanium, 12_000);
         var before = f.Wallet.Money;
 
-        Assert.True(f.TrySellAll(Titanium));
+        Assert.True(f.TrySellAll(Titanium, 1));
 
         Assert.True(f.Wallet.Money - before > 6_000_000);
         Assert.Equal(f.Wallet.Money - before, f.Session.SaleIncome);

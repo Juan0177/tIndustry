@@ -107,9 +107,12 @@ public partial class MercatoPanel : Control
     public void OnSaleResolved(SaleResolved sale)
     {
         var content = _view?.Content;
+        var crashMinutes = content?.MarketRules?.CrashMinutes ?? 0;
         SetStatus(sale.Jackpot
             ? () => Testi.F("mercato.jackpot", sale.Income)
-            : () => Testi.F("mercato.venduti", sale.Pieces, Testi.Oggetto(sale.ItemId, content), sale.Income));
+            : sale.Crash
+                ? () => Testi.F("mercato.venduti.crollo", sale.Pieces, Testi.Oggetto(sale.ItemId, content), sale.Income, crashMinutes)
+                : () => Testi.F("mercato.venduti", sale.Pieces, Testi.Oggetto(sale.ItemId, content), sale.Income));
     }
 
     /// <summary>Host refused a Mercato command: show its reason.</summary>

@@ -63,7 +63,7 @@ internal static class MarketSales
     /// the per-piece price drop and the crash window. Null when the stock is short. <paramref name="sellAll"/> is
     /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>).
     /// </summary>
-    public static SaleOutcome? Sell(GameState s, MarketItemState item, int pieces, bool sellAll, int playerId = 1)
+    public static SaleOutcome? Sell(GameState s, MarketItemState item, int pieces, bool sellAll, int playerId)
     {
         var rules = s.Content.MarketRules;
         if (rules is null || pieces <= 0 || !s.Wallet.TryRemoveMaterial(item.ItemId, pieces))
