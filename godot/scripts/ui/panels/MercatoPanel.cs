@@ -1,30 +1,44 @@
+using System.Globalization;
 using Godot;
 using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
-/// <summary>Mercato overlay: stocked rows, dynamic price, vendi 1 / tutti.</summary>
+/// <summary>
+/// Mercato overview: one row per item the CORE holds (or sells automatically) with icon, name, quantity, price with
+/// ▲/▼, a chart of the last 2 minutes, "Crollo · mm:ss" during a crash, Vendi 1 / Vendi 100 / Vendi tutto and the
+/// item's auto-sell switch. No button sells every item at once. The rows follow the market a few times a second.
+/// </summary>
 public partial class MercatoPanel : Control
 {
+    /// <summary>Seconds between two reads of the market (the view copies every item's history on each read).</summary>
+    private const double RefreshSeconds = 0.25;
+
+    private const float RowHeight = 76f;
+    private const int MaxVisibleRows = 4;
+
     private IGameView? _view;
     private Action<SimCommand>? _submit;
     private Func<IReadOnlyList<SimCommand>>? _pendingCommands;
-    // Sales submitted and not yet answered, in order: (amount, item id) at click time.
-    private readonly Queue<(int Amount, string ItemId)> _pendingSales = new();
+    private readonly List<Row> _rows = [];
+    private double _sinceRefresh;
 
     // The status line is kept as a function so a new language writes it again.
     private Func<string>? _status;
     private VBoxContainer? _list;
     private Label? _walletLabel;
-    private Label? _hintLabel;
+    private Label? _waitLabel;
     private Label? _statusLabel;
-    private Label? _autoSellHint;
-    private Button? _autoSellToggle;
     private ScrollContainer? _scroll;
 
     public event Action? Closed;
     public event Action? SoldChanged;
     public event Action? AutoSellChanged;
+
+    /// <summary>The controls of one item row that change while the panel is open.</summary>
+    private sealed record Row(
+        string ItemId, Label Quantity, Label Price, MarketSparkline Chart, Label Crash, Button SellOne, Button SellHundred,
+        Button SellAll, CheckBox Auto);
 
     public override void _Ready()
     {
@@ -41,13 +55,7 @@ public partial class MercatoPanel : Control
         _view = factory;
         _submit = submit;
         _pendingCommands = pendingCommands;
-        _pendingSales.Clear();
         Visible = true;
-        if (_autoSellToggle is not null)
-        {
-            SyncAutoSellToggle();
-        }
-
         Refresh();
     }
 
@@ -59,41 +67,22 @@ public partial class MercatoPanel : Control
 
     public bool IsOpen => Visible;
 
-    /// <summary>The single toggle reads "on" when every item sells automatically (replaced by per-item switches later).</summary>
-    public static bool AllAutoSell(IGameView view) => view.MarketItems.Count > 0 && view.MarketItems.All(i => i.AutoSell);
-
-    private void SyncAutoSellToggle()
+    public override void _Process(double delta)
     {
-        if (_autoSellToggle is null || _view is null)
+        if (!Visible)
         {
             return;
         }
 
-        var on = AllAutoSell(_view);
-        _autoSellToggle.Text = on ? "comune.on" : "comune.off";
-        _autoSellToggle.ThemeTypeVariation = on ? UiTheme.PulsanteScelto : "";
-    }
-
-    private void OnAutoSellTogglePressed()
-    {
-        if (_view is null || _submit is null)
+        _sinceRefresh += delta;
+        if (_sinceRefresh >= RefreshSeconds)
         {
-            return;
-        }
-
-        // Toggle from the value the host will have once earlier same-tick toggles are applied.
-        var effective = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault()?.Enabled
-            ?? AllAutoSell(_view);
-        // Single toggle until the per-item panel (later task): switches every item.
-        foreach (var listed in _view.Content.Market)
-        {
-            _submit(new SetAutoSell(0, listed.ItemId, !effective));
+            Refresh();
         }
     }
 
-    /// <summary>Host applied a Mercato command: update status, toggle and notify the world.</summary>
-    /// <param name="moneyDelta">Money change caused by this command alone (<see cref="SimHost.LastCommandMoneyDelta"/>).</param>
-    public void OnCommandApplied(SimCommand command, int moneyDelta)
+    /// <summary>Host applied a Mercato command: update the rows and notify the world.</summary>
+    public void OnCommandApplied(SimCommand command)
     {
         if (_view is null)
         {
@@ -102,41 +91,39 @@ public partial class MercatoPanel : Control
 
         switch (command)
         {
-            // The toggle sends one command per item: react once, after the last of the batch (all are applied by then).
-            case SetAutoSell autoSell when autoSell.ItemId == _view.Content.Market[^1].ItemId:
-                var on = AllAutoSell(_view);
-                SetStatus(() => Testi.T(on ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
-
-                SyncAutoSellToggle();
-                RefreshAutoSellHint();
+            case Sell or SellAll:
+                SoldChanged?.Invoke();
+                break;
+            case SetAutoSell autoSell:
+                SetStatus(() => Testi.T(autoSell.Enabled ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
                 AutoSellChanged?.Invoke();
                 break;
-            case SetAutoSell:
-                break;
-            case Sell when _pendingSales.Count > 0:
-                var (amount, itemId) = _pendingSales.Dequeue();
-                var content = _view.Content;
-                SetStatus(() => Testi.F("mercato.venduti", amount, Testi.Oggetto(itemId, content), moneyDelta));
-
-                SoldChanged?.Invoke();
-                Refresh();
-                break;
         }
+
+        Refresh();
+    }
+
+    /// <summary>A sale was resolved at the click: what it sold and paid, or the jackpot with its income.</summary>
+    public void OnSaleResolved(SaleResolved sale)
+    {
+        var content = _view?.Content;
+        SetStatus(sale.Jackpot
+            ? () => Testi.F("mercato.jackpot", sale.Income)
+            : () => Testi.F("mercato.venduti", sale.Pieces, Testi.Oggetto(sale.ItemId, content), sale.Income));
     }
 
     /// <summary>Host refused a Mercato command: show its reason.</summary>
     public void OnCommandRejected(SimCommand command, Refusal reason)
     {
-        if (command is Sell && _pendingSales.Count > 0)
+        if (command is not (Sell or SellAll or SetAutoSell))
         {
-            _pendingSales.Dequeue();
+            return;
         }
 
-        if (command is Sell or SetAutoSell)
-        {
-            var view = _view;
-            SetStatus(() => Testi.Rifiuto(reason, view));
-        }
+        var view = _view;
+        SetStatus(() => Testi.Rifiuto(reason, view));
+        // A refused switch goes back to what the market says.
+        Refresh();
     }
 
     private void SetStatus(Func<string>? status)
@@ -151,48 +138,21 @@ public partial class MercatoPanel : Control
     /// <summary>The status line as shown (playtests).</summary>
     internal string StatusText => _statusLabel?.Text ?? "";
 
-    private void RefreshAutoSellHint()
-    {
-        if (_autoSellHint is null || _view is null)
-        {
-            return;
-        }
-
-        _autoSellHint.Text = AllAutoSell(_view)
-            ? "mercato.auto.on.suggerimento"
-            : "mercato.auto.off.suggerimento";
-    }
-
     public override void _Notification(int what)
     {
-        // New language: the status line (also while closed), rows, hints and tooltips are written again.
+        // New language: the status line (also while closed) and the formatted texts of the rows are written again.
         if (what != NotificationTranslationChanged)
         {
             return;
         }
 
         SetStatus(_status);
+        // Item names are written into the rows: build them again.
+        _rows.Clear();
         if (Visible)
         {
             Refresh();
         }
-    }
-
-    /// <summary>Selling tip from the list prices: plates against two ores, or the first item when those are missing.</summary>
-    private static string BestValueHint(MarketCatalog market)
-    {
-        var ore = market.Items.FirstOrDefault(i => i.ItemId == "iron-ore");
-        var plate = market.Items.FirstOrDefault(i => i.ItemId == "iron-plate");
-        if (ore is null || plate is null)
-        {
-            var best = market.Items.FirstOrDefault();
-            return best is null
-                ? Testi.T("mercato.consiglio.nessuno")
-                : Testi.F("mercato.consiglio.vendi", Testi.Oggetto(best.ItemId), best.BaseValue);
-        }
-
-        var margin = plate.BaseValue - ore.BaseValue * 2;
-        return margin > 0 ? Testi.F("mercato.consiglio.lastre", margin) : Testi.T("mercato.consiglio.accumula");
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -245,52 +205,28 @@ public partial class MercatoPanel : Control
         };
         header.AddChild(_walletLabel);
 
-        // Vendita automatica (toggle + one-line explanation)
-        var autoRow = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
-        root.AddChild(autoRow);
-        autoRow.AddChild(new Label { Text = "mercato.auto", VerticalAlignment = VerticalAlignment.Center });
-        _autoSellToggle = new Button
-        {
-            Text = "comune.off",
-            CustomMinimumSize = new Vector2(64, 30),
-            FocusMode = FocusModeEnum.None,
-            MouseDefaultCursorShape = CursorShape.PointingHand
-        };
-        _autoSellToggle.Pressed += OnAutoSellTogglePressed;
-        autoRow.AddChild(_autoSellToggle);
-        _autoSellHint = new Label
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            VerticalAlignment = VerticalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            ThemeTypeVariation = UiTheme.TestoTenue
-        };
-        autoRow.AddChild(_autoSellHint);
-
         root.AddChild(new HSeparator());
 
-        // Table header
-        var columns = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
-        root.AddChild(columns);
-        AddColumnHeader(columns, "mercato.colonna.oggetto", 0, expand: true);
-        AddColumnHeader(columns, "mercato.colonna.quantita", ColStock);
-        AddColumnHeader(columns, "mercato.colonna.prezzo", ColPrice);
-        AddColumnHeader(columns, "mercato.colonna.valore", ColValue);
-        AddColumnHeader(columns, "", ColActions);
-
-        var scroll = new ScrollContainer
+        _scroll = new ScrollContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
-        root.AddChild(scroll);
-        _scroll = scroll;
-
+        root.AddChild(_scroll);
+        var clear = new MarginContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.MargineBarra };
+        _scroll.AddChild(clear);
         _list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        scroll.AddChild(_list);
+        clear.AddChild(_list);
 
-        _hintLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, ThemeTypeVariation = UiTheme.TestoTenue };
-        root.AddChild(_hintLabel);
+        // "Vendi tutto" locked for every item after a missed jackpot attempt: how long, under the rows.
+        _waitLabel = new Label
+        {
+            Name = "Attesa",
+            Visible = false,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ThemeTypeVariation = UiTheme.TestoRosso
+        };
+        root.AddChild(_waitLabel);
 
         // Footer: status · Indietro (Mindustry puts "back" at the bottom)
         var footer = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
@@ -308,13 +244,6 @@ public partial class MercatoPanel : Control
         footer.AddChild(closeBtn);
     }
 
-    private const float ColStock = 90f;
-    private const float ColPrice = 90f;
-    private const float ColValue = 90f;
-    private const float ColActions = 268f;
-    private const float RowHeight = 40f;
-    private const int MaxVisibleRows = 6;
-
     private static TextureRect Icon(Texture2D? tex, float size, bool pixel = false)
     {
         var icon = HudStyle.MakeIcon(tex, size, pixel: pixel);
@@ -322,38 +251,13 @@ public partial class MercatoPanel : Control
         return icon;
     }
 
-    private static void AddColumnHeader(HBoxContainer row, string text, float width, bool expand = false)
-    {
-        row.AddChild(new Label
-        {
-            Text = text,
-            CustomMinimumSize = new Vector2(width, 0),
-            SizeFlagsHorizontal = expand ? SizeFlags.ExpandFill : SizeFlags.ShrinkBegin,
-            HorizontalAlignment = expand ? HorizontalAlignment.Left : HorizontalAlignment.Right,
-            ThemeTypeVariation = UiTheme.TestoTenue
-        });
-    }
-
-    /// <summary>A right-aligned table cell with the theme look <paramref name="look"/> (empty = plain text).</summary>
-    private static Label Cell(string text, float width, string look = "") => new()
-    {
-        Text = text,
-        CustomMinimumSize = new Vector2(width, 0),
-        HorizontalAlignment = HorizontalAlignment.Right,
-        VerticalAlignment = VerticalAlignment.Center,
-        ThemeTypeVariation = look
-    };
-
+    /// <summary>Reads the market once: rebuilds the rows when the listed items change, else updates them in place.</summary>
     public void Refresh()
     {
+        _sinceRefresh = 0;
         if (_view is null || _list is null)
         {
             return;
-        }
-
-        foreach (var child in _list.GetChildren())
-        {
-            child.QueueFree();
         }
 
         if (_walletLabel is not null)
@@ -362,107 +266,180 @@ public partial class MercatoPanel : Control
             _walletLabel.TooltipText = Testi.F("mercato.fondi", _view.Session.SaleIncome);
         }
 
-        SyncAutoSellToggle();
-        RefreshAutoSellHint();
-
-        if (_hintLabel is not null)
+        var wait = _view.SellAllCooldownSeconds;
+        if (_waitLabel is not null)
         {
-            _hintLabel.Text = BestValueHint(_view.Market);
+            _waitLabel.Visible = wait > 0;
+            _waitLabel.Text = wait > 0 ? Testi.F("mercato.attesa", wait) : "";
         }
 
-        var rows = 0;
-        foreach (var item in _view.Market.Items)
+        // An item selling automatically never reaches the CORE: it stays listed so its switch can be turned off.
+        var listed = _view.MarketItems.Where(i => i.AutoSell || _view.Wallet.MaterialCount(i.ItemId) > 0).ToList();
+        if (!listed.Select(i => i.ItemId).SequenceEqual(_rows.Select(r => r.ItemId)))
         {
-            var stock = _view.Wallet.MaterialCount(item.ItemId);
-            if (stock <= 0)
-            {
-                continue;
-            }
-
-            AddRow(item, stock);
-            rows++;
+            Rebuild(listed);
         }
 
-        if (rows == 0)
+        foreach (var (row, item) in _rows.Zip(listed))
         {
-            var empty = new Label
+            UpdateRow(row, item, _view.Wallet.MaterialCount(item.ItemId), wait);
+        }
+    }
+
+    private void Rebuild(IReadOnlyList<MarketItemView> listed)
+    {
+        // Out of the tree now: a row still queued for deletion would make the new one of the same item get a
+        // different name (Riga_x renamed by Godot).
+        foreach (var child in _list!.GetChildren())
+        {
+            _list.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        _rows.Clear();
+        foreach (var item in listed)
+        {
+            _rows.Add(AddRow(item.ItemId));
+        }
+
+        if (listed.Count == 0)
+        {
+            _list.AddChild(new Label
             {
                 Text = "mercato.vuoto",
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 CustomMinimumSize = new Vector2(0, RowHeight),
                 ThemeTypeVariation = UiTheme.TestoTenue
-            };
-            _list.AddChild(empty);
-            rows = 1;
+            });
         }
 
         if (_scroll is not null)
         {
-            _scroll.CustomMinimumSize = new Vector2(0, Math.Min(rows, MaxVisibleRows) * (RowHeight + 4));
+            _scroll.CustomMinimumSize = new Vector2(0, Math.Clamp(listed.Count, 1, MaxVisibleRows) * (RowHeight + 4));
         }
     }
 
-    private void AddRow(MarketItemDefinition item, int stock)
+    private Row AddRow(string itemId)
     {
-        if (_view is null || _list is null)
+        var panel = new PanelContainer
         {
-            return;
-        }
-
-        var price = _view.MarketItem(item.ItemId)?.UnitIncome ?? 0;
-        var row = new PanelContainer
-        {
+            Name = $"Riga_{itemId}",
             CustomMinimumSize = new Vector2(0, RowHeight),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ThemeTypeVariation = UiTheme.Riga
         };
-        _list.AddChild(row);
+        _list!.AddChild(panel);
+        var lines = new VBoxContainer { ThemeTypeVariation = UiTheme.ColonnaStretta, SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        panel.AddChild(lines);
 
-        var h = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
-        row.AddChild(h);
-
-        var nameBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = UiTheme.RigaLarga };
-        h.AddChild(nameBox);
-        nameBox.AddChild(Icon(HudStyle.ItemTexture(item.ItemId), 32));
-        nameBox.AddChild(new Label { Text = Testi.Oggetto(item.ItemId, _view.Content), VerticalAlignment = VerticalAlignment.Center });
-
-        h.AddChild(Cell($"{stock}", ColStock));
-        // A price below list is red and has a down arrow (meaning not by colour alone).
-        var priceCell = Cell(price < item.BaseValue ? $"${price} ↓" : $"${price}", ColPrice,
-            price < item.BaseValue ? UiTheme.TestoRosso : "");
-        priceCell.TooltipText = price < item.BaseValue
-            ? Testi.F("mercato.listino.calo", item.BaseValue)
-            : Testi.F("mercato.listino", item.BaseValue);
-        priceCell.MouseFilter = MouseFilterEnum.Pass;
-        h.AddChild(priceCell);
-        h.AddChild(Cell($"${price * stock}", ColValue, UiTheme.TestoDenaro));
-
-        var actions = new HBoxContainer { CustomMinimumSize = new Vector2(ColActions, 0), Alignment = BoxContainer.AlignmentMode.End };
-        h.AddChild(actions);
-        var id = item.ItemId;
-        var btn1 = new Button { Text = "mercato.vendi.uno", CustomMinimumSize = new Vector2(0, 32), FocusMode = FocusModeEnum.None };
-        btn1.Pressed += () => RequestSale(id, 1);
-        actions.AddChild(btn1);
-        var btnAll = new Button { Text = "mercato.vendi.tutto", CustomMinimumSize = new Vector2(0, 32), FocusMode = FocusModeEnum.None };
-        btnAll.Pressed += () =>
+        // Icon · name · quantity · chart · price
+        var top = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaAmpia };
+        lines.AddChild(top);
+        top.AddChild(Icon(HudStyle.ItemTexture(itemId), 32));
+        top.AddChild(new Label
         {
-            if (_view is not null)
-            {
-                RequestSale(id, _view.Wallet.MaterialCount(id));
-            }
+            Text = Testi.Oggetto(itemId, _view?.Content),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        var quantity = new Label
+        {
+            Name = "Quantita",
+            CustomMinimumSize = new Vector2(72, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center
         };
-        actions.AddChild(btnAll);
-    }
-
-    private void RequestSale(string itemId, int amount)
-    {
-        if (_view is null || _submit is null || amount <= 0)
+        top.AddChild(quantity);
+        var chart = new MarketSparkline { Name = "Grafico", CustomMinimumSize = new Vector2(MarketSparkline.Span + 40, 30) };
+        top.AddChild(chart);
+        var price = new Label
         {
-            return;
+            Name = "Prezzo",
+            CustomMinimumSize = new Vector2(96, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Pass
+        };
+        top.AddChild(price);
+
+        // Crollo · Vendi 1 · Vendi 100 · Vendi tutto · Automatica
+        var bottom = new HBoxContainer { ThemeTypeVariation = UiTheme.RigaLarga };
+        lines.AddChild(bottom);
+        var crash = new Label
+        {
+            Name = "Crollo",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+            ThemeTypeVariation = UiTheme.TestoCrollo
+        };
+        bottom.AddChild(crash);
+        Button SellButton(string name, string text, Func<SimCommand> command)
+        {
+            var button = new Button
+            {
+                Name = name,
+                Text = text,
+                CustomMinimumSize = new Vector2(0, 30),
+                FocusMode = FocusModeEnum.None,
+                MouseDefaultCursorShape = CursorShape.PointingHand
+            };
+            button.Pressed += () => _submit?.Invoke(command());
+            bottom.AddChild(button);
+            return button;
         }
 
-        _pendingSales.Enqueue((amount, itemId));
-        _submit(new Sell(0, itemId, amount));
+        var one = SellButton("Vendi1", "mercato.vendi.uno", () => new Sell(0, itemId, 1));
+        var hundred = SellButton("Vendi100", "mercato.vendi.cento", () => new Sell(0, itemId, 100));
+        var all = SellButton("VendiTutto", "mercato.vendi.tutto", () => new SellAll(0, itemId));
+        var auto = new CheckBox
+        {
+            Name = "Automatica",
+            Text = "mercato.auto.oggetto",
+            FocusMode = FocusModeEnum.None,
+            MouseDefaultCursorShape = CursorShape.PointingHand
+        };
+        auto.Toggled += on => _submit?.Invoke(new SetAutoSell(0, itemId, on));
+        bottom.AddChild(auto);
+        return new Row(itemId, quantity, price, chart, crash, one, hundred, all, auto);
+    }
+
+    private void UpdateRow(Row row, MarketItemView item, int stock, int wait)
+    {
+        row.Quantity.Text = $"{stock}";
+
+        // ▲/▼ against the start of the chart (2 minutes ago), so arrow and chart tell the same story.
+        var start = item.HistoryMilli.Count > 0 ? item.HistoryMilli[0] : item.PriceMilli;
+        var trend = item.PriceMilli > start ? MarketTrend.Su : item.PriceMilli < start ? MarketTrend.Giu : MarketTrend.Piatto;
+        row.Price.Text = trend switch
+        {
+            MarketTrend.Su => $"${item.UnitIncome} ▲",
+            MarketTrend.Giu => $"${item.UnitIncome} ▼",
+            _ => $"${item.UnitIncome}"
+        };
+        row.Price.ThemeTypeVariation = trend switch
+        {
+            MarketTrend.Su => UiTheme.TestoSu,
+            MarketTrend.Giu => UiTheme.TestoGiu,
+            _ => ""
+        };
+        row.Price.TooltipText = Testi.F("mercato.listino", item.BaseValue);
+
+        var crashed = item.Phase == MarketPhase.Crash;
+        row.Chart.SetData(item.HistoryMilli, crashed ? MarketTrend.Crollo : trend);
+        var left = item.CrashSecondsLeft;
+        row.Crash.Text = crashed
+            ? Testi.F("mercato.crollo", string.Create(CultureInfo.InvariantCulture, $"{left / 60:00}:{left % 60:00}"))
+            : "";
+
+        row.SellOne.Disabled = stock < 1;
+        row.SellHundred.Disabled = stock < 100;
+        row.SellAll.Disabled = wait > 0 || stock < 1;
+        row.SellAll.TooltipText = wait > 0 ? Testi.F("mercato.attesa", wait) : "";
+
+        // The switch shows what the host will have once switches clicked this tick are applied.
+        var pending = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault(c => c.ItemId == item.ItemId);
+        row.Auto.SetPressedNoSignal(pending?.Enabled ?? item.AutoSell);
     }
 }

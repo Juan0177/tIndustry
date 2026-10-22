@@ -141,8 +141,8 @@ public partial class World
             case UnlockStructure:
                 _research?.OnCommandApplied(command);
                 break;
-            case Sell or SetAutoSell:
-                _mercato?.OnCommandApplied(command, _host?.LastCommandMoneyDelta ?? 0);
+            case Sell or SellAll or SetAutoSell:
+                _mercato?.OnCommandApplied(command);
                 break;
             case UpgradeCore when _view is not null:
                 _hud?.ShowToast(Testi.T("core.potenziato.toast"));
@@ -170,6 +170,14 @@ public partial class World
             case DeconstructFinished done when _constructionLayer?.HasSeenSite(done.SiteId) != true:
                 // Started and finished between two frames: its block's removal was never drawn.
                 MarkStructuresDirty(ConstructionLayer.StructureLayers.Both);
+                break;
+            case SaleResolved sale when sale.PlayerId == LocalPlayer:
+                _mercato?.OnSaleResolved(sale);
+                if (sale.Jackpot)
+                {
+                    _hud?.ShowToast(Testi.F("mercato.jackpot", sale.Income));
+                }
+
                 break;
             case PlanDropped dropped when dropped.PlayerId == LocalPlayer:
                 _hud?.ShowToast(Testi.Rifiuto(dropped.Reason, _view));
@@ -231,7 +239,7 @@ public partial class World
             case UnlockStructure:
                 _research?.OnCommandRejected(command, reason);
                 break;
-            case Sell or SetAutoSell:
+            case Sell or SellAll or SetAutoSell:
                 _mercato?.OnCommandRejected(command, reason);
                 break;
             case Remove:

@@ -420,9 +420,10 @@ public partial class World
             return false;
         }
 
-        await PlaytestKey(Key.M);
-        await Shot("mercato");
-        await PlaytestKey(Key.M);
+        if (!await PlaytestMarketOverviewAsync(Shot))
+        {
+            return false;
+        }
 
         await PlaytestKey(Key.T);
         await Shot("ricerca");
@@ -1721,6 +1722,255 @@ public partial class World
     {
         GD.PushError($"PLAYTEST: {message}");
         return false;
+    }
+
+    /// <summary>
+    /// Mercato overview (mercato-panoramica): three owned items forced as in the simulation tests (one normal, one in
+    /// a spike, one crashed by a real "Vendi tutto" of 6,000 pieces), then the "sell all" wait; rows, buttons and the
+    /// wait checked and captured in the three colour variants; the wait refusal, a jackpot notice and the per-item
+    /// auto-sell switch once; the rows again at 150% UI scale. Wallet and market are put back after.
+    /// </summary>
+    private async Task<bool> PlaytestMarketOverviewAsync(Func<string, Task> shot)
+    {
+        if (_view is not Factory factory || factory.Content.MarketRules is not { } rules || _mercato is null)
+        {
+            return Fail("mercato-panoramica: nessuna partita o nessun mercato");
+        }
+
+        const string normal = "iron-ore", spike = "iron-plate", crash = "copper-ore";
+        var exchange = factory.State.Exchange;
+        var content = factory.Content;
+        var (money, materials) = (factory.Wallet.Money, factory.Wallet.MaterialsSnapshot());
+        var startPercent = _settings.UiScalePercent;
+
+        // A market item held at a known price and chart (the simulation is held, so nothing moves meanwhile).
+        void Force(string id, MarketPhase phase, Func<int, int> curve)
+        {
+            var item = exchange.Find(id)!;
+            var points = Enumerable.Range(0, rules.HistorySeconds).Select(curve).ToArray();
+            item.ForPlaytestSetHistory(points);
+            item.Phase = phase;
+            item.PriceMilli = item.TrendMilli = item.StepFromMilli = item.StepTargetMilli = points[^1];
+            item.PhaseStartTick = factory.CurrentTick - SimulationClock.TickRate;
+            item.SpikeFromMilli = 1250;
+            item.SpikeTopMilli = 2950;
+            item.SaleDropMicro = 0;
+            Array.Clear(item.WindowPieces);
+        }
+
+        static int Wave(int i, int mid, int amp, double period) => mid + (int)Math.Round(amp * Math.Sin(i / period));
+        void ForceCalm()
+        {
+            Force(normal, MarketPhase.Normal, i => Wave(i, 1300, -120, 9.0));
+            Force(spike, MarketPhase.SpikeHold, i => i < 100 ? Wave(i, 1250, 30, 7.0) : i < 110 ? 1250 + 170 * (i - 100) : 2950);
+        }
+
+        Node? Part(string id, string part) => _mercato.FindChild($"Riga_{id}", recursive: true, owned: false)
+            ?.FindChild(part, recursive: true, owned: false);
+        int Rows() => _mercato.FindChildren("Riga_*", "", recursive: true, owned: false).Count(n => !n.IsQueuedForDeletion());
+
+        // The panel reads the market a few times a second: wait for two of its updates.
+        Task Settle() => PlaytestWait(0.6);
+
+        string? RowProblem(string id, string arrow, bool crashed)
+        {
+            if (Part(id, "Prezzo") is not Label price || Part(id, "Crollo") is not Label crashLabel
+                || Part(id, "Grafico") is not MarketSparkline { Points: > 0 }
+                || Part(id, "Vendi1") is not Button { Text: "mercato.vendi.uno" }
+                || Part(id, "Vendi100") is not Button { Text: "mercato.vendi.cento" }
+                || Part(id, "VendiTutto") is not Button { Text: "mercato.vendi.tutto" }
+                || Part(id, "Automatica") is not CheckBox { Text: "mercato.auto.oggetto" })
+            {
+                return $"{id}: riga incompleta (prezzo, crollo, grafico, Vendi 1/100/tutto, automatica)";
+            }
+
+            var crashText = Testi.F("mercato.crollo", "20:00");
+            var shown = crashLabel.Visible ? crashLabel.Text : "";
+            return !price.Text.Contains(arrow, StringComparison.Ordinal) ? $"{id}: prezzo «{price.Text}» senza {arrow}"
+                : crashed != (shown == crashText) || (!crashed && shown.Length > 0)
+                    ? $"{id}: crollo «{shown}» invece di «{(crashed ? crashText : "")}»"
+                    : null;
+        }
+
+        string? Problem(params (string Id, string Arrow, bool Crashed)[] rows)
+        {
+            if (Rows() != rows.Length)
+            {
+                return $"{Rows()} righe invece di {rows.Length}";
+            }
+
+            // One "sell all" per row and no button selling everything of everything.
+            if (_mercato.FindChildren("*", "Button", recursive: true, owned: false).OfType<Button>()
+                    .Count(b => !b.IsQueuedForDeletion() && b.Text == "mercato.vendi.tutto") != rows.Length)
+            {
+                return "pulsanti Vendi tutto diversi dalle righe";
+            }
+
+            return rows.Select(r => RowProblem(r.Id, r.Arrow, r.Crashed)).FirstOrDefault(p => p is not null)
+                ?? (PlaytestLayoutProblems(hudOnly: false) is { Count: > 0 } layout
+                    ? $"{layout.Count} controlli fuori posto (il primo: {layout[0]})"
+                    : null);
+        }
+
+        PlaytestHeld = true;
+        try
+        {
+            foreach (var variante in new[] { VarianteColori.Normale, VarianteColori.Daltonici, VarianteColori.AltoContrasto })
+            {
+                var suffix = variante == VarianteColori.Normale ? "" : "-" + variante.ToString().ToLowerInvariant();
+                if (variante != VarianteColori.Normale && !await PlaytestApplyColoursAsync(variante))
+                {
+                    return false;
+                }
+
+                PlaytestRestoreWallet(factory, money, new Dictionary<string, int> { [normal] = 240, [spike] = 1500, [crash] = 6000 });
+                exchange.SellAllBlockedUntilTick = 0;
+                ForceCalm();
+                Force(crash, MarketPhase.Normal, i => Wave(i, 1350, -100, 11.0));
+                _hud?.ClearToast();
+                await PlaytestKey(Key.M);
+                await Settle();
+                var calm = _mercato.IsOpen ? Problem((normal, "▼", false), (spike, "▲", false), (crash, "▲", false)) : "pannello chiuso";
+                if (calm is not null)
+                {
+                    return Fail($"mercato-panoramica{suffix}: {calm}");
+                }
+
+                await shot("mercato" + suffix);
+
+                // "Vendi tutto" of 6,000 pieces, clicked: the simulation sells them at once and the item crashes.
+                if (Part(crash, "VendiTutto") is not Button sellAll)
+                {
+                    return Fail("mercato-panoramica: nessun Vendi tutto");
+                }
+
+                await PlaytestClick(ViewportToWindow(UiToViewport(sellAll.GetGlobalRect().GetCenter())));
+                PlaytestHeld = false;
+                var sold = await PlaytestWaitUntil(() => exchange.Find(crash)!.Phase == MarketPhase.Crash
+                    && factory.Wallet.MaterialCount(crash) == 0 && _mercato.StatusText.Length > 0, StepTimeout);
+                PlaytestHeld = true;
+                var expectedStatus = Testi.F("mercato.venduti", 6000, Testi.Oggetto(crash, content), "");
+                if (!sold || !_mercato.StatusText.StartsWith(expectedStatus, StringComparison.Ordinal))
+                {
+                    return Fail($"mercato-panoramica: Vendi tutto di 6000 senza crollo o con stato «{_mercato.StatusText}»");
+                }
+
+                // New pieces reach the CORE during the crash; prices and chart back to known values for the capture.
+                factory.Wallet.AddMaterial(crash, 800);
+                ForceCalm();
+                Force(crash, MarketPhase.Crash, i => i < 112 ? Wave(i, 1350, -100, 11.0) : 1010);
+                exchange.Find(crash)!.CrashEndTick = factory.CurrentTick + 20 * 60 * SimulationClock.TickRate;
+                _hud?.ClearToast();
+                await Settle();
+                if (Problem((normal, "▼", false), (spike, "▲", false), (crash, "▼", true)) is { } crashed)
+                {
+                    return Fail($"mercato-panoramica{suffix} crollo: {crashed}");
+                }
+
+                await shot("mercato-crollo" + suffix);
+
+                // The wait after a missed jackpot attempt: every "Vendi tutto" off, with the seconds left.
+                exchange.SellAllBlockedUntilTick = factory.CurrentTick + 300 * SimulationClock.TickRate;
+                await Settle();
+                var waitText = Testi.F("mercato.attesa", 300);
+                var locked = new[] { normal, spike, crash }
+                    .All(id => Part(id, "VendiTutto") is Button { Disabled: true } b && b.TooltipText == waitText);
+                var waitShown = _mercato.FindChild("Attesa", recursive: true, owned: false) is Label { Visible: true } waitLabel
+                    && waitLabel.Text == waitText;
+                var waiting = Problem((normal, "▼", false), (spike, "▲", false), (crash, "▼", true));
+                if (!locked || !waitShown || waiting is not null)
+                {
+                    return Fail($"mercato-panoramica{suffix}: attesa «{waitText}» non mostrata (pulsanti spenti {locked}, "
+                        + $"riga {waitShown}, {waiting ?? "righe ok"})");
+                }
+
+                await shot("mercato-attesa" + suffix);
+                if (variante == VarianteColori.Normale && !await PlaytestMarketCommandsAsync(factory, normal, spike))
+                {
+                    return false;
+                }
+
+                await PlaytestKey(Key.M);
+            }
+
+            if (!await PlaytestApplyColoursAsync(VarianteColori.Normale))
+            {
+                return false;
+            }
+
+            // The rows fit at 150% too (the scale probe later sees a campaign level with an empty market).
+            if (!await PlaytestSetUiScaleAsync(150))
+            {
+                return Fail("mercato-panoramica: scala UI 150% non applicata");
+            }
+
+            _hud?.ClearToast();
+            await PlaytestKey(Key.M);
+            await Settle();
+            var at150 = Problem((normal, "▼", false), (spike, "▲", false), (crash, "▼", true));
+            await shot("mercato-150");
+            await PlaytestKey(Key.M);
+            if (!await PlaytestSetUiScaleAsync(startPercent) || at150 is not null)
+            {
+                return Fail($"mercato-panoramica a 150%: {at150 ?? "scala non ripristinata"}");
+            }
+
+            GD.Print("PLAYTEST step ok: mercato-panoramica (normale, picco, crollo, attesa, tre varianti, 150%)");
+            return true;
+        }
+        finally
+        {
+            PlaytestRestoreWallet(factory, money, materials);
+            exchange.Reseed(rules, factory.Terrain?.Seed ?? 0, factory.CurrentTick);
+            PlaytestHeld = false;
+        }
+    }
+
+    /// <summary>
+    /// With the Mercato open and "sell all" locked: a "sell all" command is refused with the seconds left, a jackpot
+    /// shows its notice with the income, and the per-item switch turns auto-sell on and off for that item alone.
+    /// </summary>
+    private async Task<bool> PlaytestMarketCommandsAsync(Factory factory, string itemId, string other)
+    {
+        var refusal = Testi.Rifiuto(new Refusal(RefusalCode.SellAllCooldown, WaitSeconds: 300));
+        SubmitCommand(new SellAll(LocalPlayer, other));
+        PlaytestHeld = false;
+        var refused = await PlaytestWaitUntil(() => _mercato!.StatusText == refusal, StepTimeout);
+        PlaytestHeld = true;
+        if (!refused)
+        {
+            return Fail($"mercato-panoramica: Vendi tutto durante l'attesa, stato «{_mercato!.StatusText}» invece di «{refusal}»");
+        }
+
+        // A jackpot cannot happen in a game yet (no market screen): its event, as the simulation raises it.
+        OnSimEvent(new SaleResolved(LocalPlayer, other, 400, 2950, 98765, Crash: true, Attempt: true, Jackpot: true, 200));
+        var jackpot = Testi.F("mercato.jackpot", 98765);
+        if (_mercato!.StatusText != jackpot)
+        {
+            return Fail($"mercato-panoramica: jackpot con stato «{_mercato.StatusText}» invece di «{jackpot}»");
+        }
+
+        var exchange = factory.State.Exchange;
+        foreach (var on in new[] { true, false })
+        {
+            if (_mercato.FindChild($"Riga_{itemId}", recursive: true, owned: false)?.FindChild("Automatica", recursive: true, owned: false)
+                is not CheckBox toggle)
+            {
+                return Fail("mercato-panoramica: interruttore della vendita automatica mancante");
+            }
+
+            toggle.ButtonPressed = on;
+            PlaytestHeld = false;
+            var applied = await PlaytestWaitUntil(() => exchange.Find(itemId)!.AutoSell == on, StepTimeout);
+            PlaytestHeld = true;
+            if (!applied || exchange.Items.Any(i => i.ItemId != itemId && i.AutoSell))
+            {
+                return Fail($"mercato-panoramica: vendita automatica {(on ? "accesa" : "spenta")} non solo per {itemId}");
+            }
+        }
+
+        GD.Print("PLAYTEST step ok: mercato-panoramica (rifiuto in attesa, jackpot, vendita automatica per oggetto)");
+        return true;
     }
 
     private static string? CaptureDirectory()

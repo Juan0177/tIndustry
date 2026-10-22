@@ -29,8 +29,8 @@ ATLANTE_LARGHEZZA = 256  # atlas page width in px at every scale
 MARGINE_ATLANTE = 2  # px between glyphs in the atlas
 
 # Required set (G4 global constraints): printable ASCII plus the Italian accents and the signs the game
-# texts use (arrows, dashes, check mark, degree, at-least); test_genera checks every text is covered.
-EXTRA = "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥"
+# texts use (arrows, dashes, check mark, degree, at-least, market up/down); test_genera checks every text is covered.
+EXTRA = "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥▲▼"
 INSIEME = "".join(chr(c) for c in range(32, 127)) + EXTRA
 
 # Base glyphs; rows beyond the given ones are empty (a 7-row glyph has no descender).
@@ -151,6 +151,9 @@ GLIFI["–"] = ["...", "...", "...", "###"]
 GLIFI["✓"] = [".....", ".....", "....#", "...#.", "#.#..", ".#..."]
 GLIFI["°"] = [".#.", "#.#", ".#."]
 GLIFI["≥"] = ["#...", ".##.", "...#", ".##.", "#...", "....", "####"]
+# Market price up / down (Mercato overview), centred on row 3 like the arrows.
+GLIFI["▲"] = [".....", ".....", "..#..", ".###.", "#####"]
+GLIFI["▼"] = [".....", ".....", "#####", ".###.", "..#.."]
 
 GRAVE = ["#.", ".#"]
 ACUTO = [".#", "#."]

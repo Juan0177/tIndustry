@@ -151,8 +151,6 @@ hud.camera.core,Camera sul CORE (H),Camera on the CORE (H)
 cantiere.mancano,Mancano: {0},Missing: {0}
 ricerca.sbloccato,Sblocco applicato,Unlocked
 mercato.venduto.fondi,Venduto · Fondi ${0},Sold · Funds ${0}
-mercato.auto.on,Vendita automatica ON,Auto-sell ON
-mercato.auto.off,Vendita automatica OFF,Auto-sell OFF
 salvataggi.salvata.continua,Partita salvata (continua),Game saved (continue)
 salvataggi.caricata.continua,Partita caricata (continua),Game loaded (continue)
 salvataggi.rapido.salvato,Slot-1 salvato,Slot-1 saved
@@ -279,23 +277,16 @@ salvataggi.creato,Creato {0},Created {0}
 mercato.auto.attivata,Vendita automatica attivata.,Auto-sell on.
 mercato.auto.disattivata,Vendita automatica disattivata.,Auto-sell off.
 mercato.venduti,Venduti {0}× {1} → +${2},Sold {0}× {1} → +${2}
-mercato.auto.on.suggerimento,Tutto ciò che arriva al CORE viene venduto subito.,Everything that reaches the CORE is sold at once.
-mercato.auto.off.suggerimento,Gli oggetti restano nel CORE: vendili da qui.,Items stay in the CORE: sell them from here.
-mercato.consiglio.nessuno,Nessun prezzo mercato.,No market prices.
-mercato.consiglio.vendi,Conviene vendere: {0} (${1}).,Worth selling: {0} (${1}).
-mercato.consiglio.lastre,"Stock → costruisci, oppure vendi lastre (+${0} vs 2 ore).","Stock → build, or sell plates (+${0} vs 2 ores)."
-mercato.consiglio.accumula,Accumula in magazzino; vendi dal Mercato quando ti servono $.,Pile up in storage; sell from the Market when you need $.
-mercato.auto,Vendita automatica al CORE,Auto-sell at the CORE
-mercato.colonna.oggetto,Oggetto,Item
-mercato.colonna.quantita,Quantità,Amount
-mercato.colonna.prezzo,Prezzo,Price
-mercato.colonna.valore,Valore,Value
 mercato.fondi,Fondi · venduto finora ${0},Funds · sold so far ${0}
 mercato.vuoto,Niente da vendere: porta minerali o lastre al CORE con i nastri.,Nothing to sell: bring ore or plates to the CORE with belts.
-mercato.listino.calo,Valore base ${0}: ora il prezzo è sotto il valore base,Base value ${0}: the price is now below the base value
 mercato.listino,Valore base ${0},Base value ${0}
 mercato.vendi.uno,Vendi 1,Sell 1
 mercato.vendi.tutto,Vendi tutto,Sell all
+mercato.vendi.cento,Vendi 100,Sell 100
+mercato.crollo,Crollo · {0},Crash · {0}
+mercato.attesa,Vendi tutto bloccato ancora {0} s,Sell all locked for {0} s
+mercato.auto.oggetto,Automatica,Auto
+mercato.jackpot,JACKPOT! +${0},JACKPOT! +${0}
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
 ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
 ricerca.legenda,Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente,Gold border = you can unlock it · lock = unlock the one before first

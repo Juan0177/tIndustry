@@ -63,7 +63,7 @@ ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "
 ALTRI_UI = {"ui/ui-spunta-si": (20, 20), "ui/ui-spunta-no": (20, 20), "ui/ui-spunta-si-spenta": (20, 20),
             "ui/ui-spunta-no-spenta": (20, 20), "ui/ui-logo": (54, 16)}
 # Interface font (G4): required glyphs and the exported files in godot/assets/ui/.
-INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥"
+INSIEME_CARATTERE = "".join(chr(c) for c in range(32, 127)) + "àèéìíòóùúÀÈÉÌÒÙ«»…·€×→←↑↓↔↖—–✓°≥▲▼"
 FONT_UI = ("carattere-testo", "carattere-titoli")
 BS = chr(92)  # backslash, for the C# sources built in the tests
 CONTROLLO = (chr(9), chr(10), chr(13))  # tab and line breaks: layout, not glyphs
