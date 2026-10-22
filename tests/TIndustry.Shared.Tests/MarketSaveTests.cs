@@ -177,8 +177,9 @@ public sealed class MarketSaveTests
         var f = NewFactory();
         foreach (var item in f.State.Exchange.Items) { item.AutoSell = true; }
         var data = f.Capture();
-        Assert.False(data.AutoSellAtCore);
-        Assert.Equal(0, data.CoreSaleBonusPercent);
+        var json = JsonSerializer.Serialize(data, FactorySaveStore.JsonOptions);
+        Assert.DoesNotContain("autoSellAtCore", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("coreSaleBonusPercent", json, StringComparison.OrdinalIgnoreCase);
         Assert.NotNull(data.Market);
         Assert.All(data.Market!.Items, i => Assert.True(i.AutoSell));
     }
@@ -200,6 +201,20 @@ public sealed class MarketSaveTests
 
         Assert.All(g.State.Exchange.Items, i => Assert.InRange(i.WindowSecond, 0, 1));
         Run(g, 2 * Minute);
+    }
+
+    [Fact]
+    public void NullListsInAHandEditedSaveAreRepaired()
+    {
+        var g = RoundTrip(NewFactory(), d =>
+        {
+            d.Market!.Items[0].WindowPieces = null!;
+            d.Market.Items[0].History = null!;
+            d.Market.Items[1].History = null!;
+        });
+        Run(g, 60);
+        var g2 = RoundTrip(NewFactory(), d => d.Market!.Items = null!);
+        Run(g2, 60);
     }
 
     [Fact]

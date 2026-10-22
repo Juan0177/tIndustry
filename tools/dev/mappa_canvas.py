@@ -63,7 +63,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-20, dopo i nastri come Mindustry."
+title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-23, dopo il Mercato come una borsa."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 
@@ -80,6 +80,7 @@ fatto.card("g4", "**G4 · Interfaccia**\nTema unico in stile Mindustry, caratter
 fatto.card("agenti", "**Agenti che giocano**\nServer MCP tindustry (tools/AgentPlay): simulazione, gioco vero comandato da AgentBridge (solo sviluppo, profilo temporaneo, segreto), co-op segnaposto; catture, input, diario e rigioca; skill gioca-e-testa.\nPR #210–#214, #217 · [[2026-10-19-agenti-giocano|diario]] · [[0008-agenti-che-giocano|ADR 0008]] · [[2026-10-18-agenti-giocano-design|spec]]")
 fatto.card("web", "**Sito «fabbrica» su GitHub Pages**\nVetrina che è una fabbrica del gioco (catene vere sui nastri, due lunghe nel Core col download, teaser delle unità, drone che costruisce i bottoni), pagina sviluppo (ADR, roadmap, diario) e asset, tutto da tools/sito/costruisci.py; workflow Pages a mano.\nPR #233, #235 · [[2026-10-19-sito-fabbrica|diario]] · [[2026-10-19-sito-fabbrica-design|spec]]")
 fatto.card("nastri-mindustry", "**Nastri come Mindustry**\nGiro sul posto e cambio di tier, costi in minerale grezzo, portata e spaziatura di Mindustry (3 oggetti per cella), oggetti fluidi, linea di piazzamento in Shared con ponte automatico e Ctrl, trascinamento con anteprima, rettangolo di smontaggio, tasto centrale e rotellina, nastro rinforzato; salvataggi v13.\nPR #224, #227–#232, #240, #242, #245, #246 · [[docs/diario/2026-10-19-nastri-mindustry|diario]] · [[docs/superpowers/plans/2026-10-19-nastri-mindustry|piano]] · [[2026-10-18-nastri-mindustry-design|spec]]")
+fatto.card("mercato-borsa", "**Mercato come una borsa (spec 1 di 3)**\nPrezzi per oggetto con picchi e crolli, vendite al prezzo del clic, vendita automatica per oggetto, jackpot e rete di sicurezza nella simulazione, salvataggi v14, panoramica del Mercato. Il jackpot in partita aspetta lo schermo di borsa.\nPR #274–#282 · [[2026-10-22-mercato-borsa|diario]] · [[2026-10-22-mercato-borsa-design|spec]]")
 fatto.card("extra", "**Rifiniture**\n- salvataggio atomico, doppio input, MajorityDeposit (#155)\n- log dei playtest fuori dal profilo (#156)\n- diario e .md in LF (#157)\n- playtest isolati e backup di Continua (#162)")
 fatto.card("docs", "**Documenti**\n- [[ARCHITETTURA]]\n- [[decisioni]] (indice degli ADR, fino a [[0008-agenti-che-giocano|0008]])\n- [[docs/diario/README|diario dei lavori]]")
 fatto.close()
@@ -91,6 +92,8 @@ corso.close()
 # --- Prossimi --------------------------------------------------------------
 nxt = Column("g-next", "Prossimi (in ordine)", X[2], "5")
 roadmap = [
+    nxt.card("borsa2", "**Mercato 2 · Schermo di borsa**\nBlocco accanto al CORE, sequenza del Vendi tutto col drone, LED, moduli e ramo Finanza della Ricerca; il jackpot scatta in partita."),
+    nxt.card("borsa3", "**Mercato 3 · Magazzino del CORE e livelli**\nMassimo per oggetto, linee che si fermano a CORE pieno, drone più veloce per livello."),
     nxt.card("giacimenti", "**Bilanciamento dei giacimenti (generatore biomi-2)**\nRarità per minerale, titanio più lontano dal Core, partenza più ricca; il titanio si scava già solo col Minatore T2."),
     nxt.card("tier", "**SP4 · Tier e drone comandato**\nGameplay dei 4 Core e dei droni alpha / beta / gamma; il drone lo muovi tu."),
     nxt.card("liquidi", "**Liquidi**\nPompe, tubi, serbatoi e ricette con l'acqua."),

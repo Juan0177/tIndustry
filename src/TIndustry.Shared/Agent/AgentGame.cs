@@ -449,7 +449,7 @@ public sealed class AgentGame : IDisposable
                 ["livello"] = View.CoreUpgradeLevel,
                 ["consegnati"] = View.CoreDeliveredItems
             },
-            ["mercato"] = Array(View.MarketItems.Where(m => View.Wallet.MaterialCount(m.ItemId) > 0).Select(m =>
+            ["mercato"] = Array(View.MarketItems.Where(m => m.AutoSell || View.Wallet.MaterialCount(m.ItemId) > 0).Select(m =>
             {
                 var entry = new JsonObject
                 {
@@ -1304,7 +1304,10 @@ public sealed class AgentGame : IDisposable
                 e["pezzi"] = sale.Pieces;
                 e["incasso"] = sale.Income;
                 PutSaleFlags(e, sale);
-                lastSale = sale;
+                if (sale.PlayerId == PlayerId)
+                {
+                    lastSale = sale;
+                }
                 break;
             default:
                 e["tipo"] = "altro";

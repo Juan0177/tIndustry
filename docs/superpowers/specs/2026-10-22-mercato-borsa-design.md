@@ -1,6 +1,6 @@
 # Mercato come una borsa — specifica 1 di 3
 
-- **Stato**: in revisione (brainstorming con l'utente del 22 ottobre 2026, issue [#268](https://github.com/Juan0177/tIndustry/issues/268)).
+- **Stato**: attuata (PR #274–#282, 22–23 ottobre 2026; [diario](../../diario/2026-10-22-mercato-borsa.md)). Brainstorming con l'utente del 22 ottobre 2026, issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Restano alle specifiche 2 e 3 lo schermo di borsa (senza il quale il jackpot non scatta in partita) e il magazzino del CORE.
 - **Numeri ed esempi**: cartella di lavoro `docs/finanza/mercato-e-finanza.xlsx`, generata da `python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx` (il `.xlsx` non si versiona). Il foglio «Parametri» ha ogni numero di questa specifica con la sua chiave di `marketRules`; gli altri fogli mostrano valori B, curva del picco, probabilità del jackpot, scenari del pity, esempi di vendita, un'ora simulata e l'analisi su 4 ore.
 - **Le tre specifiche**:
   1. **Mercato** (questa): prezzi, picchi, crolli, vendite, jackpot e pity nella simulazione, vendita automatica, valori base, salvataggi, schermata panoramica.

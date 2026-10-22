@@ -46,7 +46,7 @@ public sealed class MarketSaleTests
         f.Wallet.AddMaterial(Plate, 10);
         var before = f.Wallet.Money;
 
-        Assert.True(f.TrySellFromWallet(Plate, 10));
+        Assert.True(f.TrySellFromWallet(Plate, 10, 1));
 
         Assert.Equal(10 * 67, f.Wallet.Money - before);
         Assert.Equal(670, f.Session.SaleIncome);
@@ -60,7 +60,7 @@ public sealed class MarketSaleTests
         var item = Force(f, Plate, 2900);
         f.Wallet.AddMaterial(Plate, 200);
 
-        Assert.True(f.TrySellFromWallet(Plate, 200));
+        Assert.True(f.TrySellFromWallet(Plate, 200, 1));
 
         Assert.Equal(2820, item.PriceMilli);
     }
@@ -73,7 +73,7 @@ public sealed class MarketSaleTests
         f.Wallet.AddMaterial(Plate, 200);
         for (var i = 0; i < 200; i++)
         {
-            Assert.True(f.TrySellFromWallet(Plate, 1));
+            Assert.True(f.TrySellFromWallet(Plate, 1, 1));
         }
 
         Assert.Equal(2820, item.PriceMilli);
@@ -86,7 +86,7 @@ public sealed class MarketSaleTests
         var item = Force(f, Ore, 1400);
         f.Wallet.AddMaterial(Ore, 2000);
 
-        Assert.True(f.TrySellFromWallet(Ore, 2000));
+        Assert.True(f.TrySellFromWallet(Ore, 2000, 1));
         Assert.Equal(1000, item.PriceMilli);
         Assert.NotEqual(MarketPhase.Crash, item.Phase);
         Run(f, 5);
@@ -99,7 +99,7 @@ public sealed class MarketSaleTests
         var f = NewFactory();
         var item = Force(f, Plate, 2900);
         f.Wallet.AddMaterial(Plate, 1000);
-        Assert.True(f.TrySellFromWallet(Plate, 1000));
+        Assert.True(f.TrySellFromWallet(Plate, 1000, 1));
         Assert.Equal(400, item.SaleDropMilli);
 
         Run(f, 60 * Second);
@@ -114,12 +114,12 @@ public sealed class MarketSaleTests
         var f = NewFactory();
         var item = f.State.Exchange.Find(Ore)!;
         f.Wallet.AddMaterial(Ore, 6000);
-        Assert.True(f.TrySellFromWallet(Ore, 2000));
+        Assert.True(f.TrySellFromWallet(Ore, 2000, 1));
         Run(f, 45 * Second);
-        Assert.True(f.TrySellFromWallet(Ore, 2000));
+        Assert.True(f.TrySellFromWallet(Ore, 2000, 1));
         Assert.NotEqual(MarketPhase.Crash, item.Phase);
         Run(f, 45 * Second);
-        Assert.True(f.TrySellFromWallet(Ore, 2000));
+        Assert.True(f.TrySellFromWallet(Ore, 2000, 1));
         Assert.Equal(MarketPhase.Crash, item.Phase);
     }
 
@@ -131,7 +131,7 @@ public sealed class MarketSaleTests
         f.Wallet.AddMaterial(Ore, 6000);
         for (var i = 0; i < 3; i++)
         {
-            Assert.True(f.TrySellFromWallet(Ore, 2000));
+            Assert.True(f.TrySellFromWallet(Ore, 2000, 1));
             Run(f, 180 * Second);
         }
 
@@ -147,7 +147,7 @@ public sealed class MarketSaleTests
         var remaining = item.NextSpikeTick - f.State.CurrentTick;
         var start = f.State.CurrentTick;
         f.Wallet.AddMaterial(Ore, 5000);
-        Assert.True(f.TrySellFromWallet(Ore, 5000));
+        Assert.True(f.TrySellFromWallet(Ore, 5000, 1));
         Assert.Equal(start + 20 * Minute, item.CrashEndTick);
 
         for (var i = 0; i < 20 * Minute; i++)
@@ -174,7 +174,7 @@ public sealed class MarketSaleTests
         var f = NewFactory();
         var item = f.State.Exchange.Find(Ore)!;
         f.Wallet.AddMaterial(Ore, 5000);
-        Assert.True(f.TrySellFromWallet(Ore, 5000));
+        Assert.True(f.TrySellFromWallet(Ore, 5000, 1));
         var dips = 0;
         for (var i = 0; i < 20 * Minute; i++)
         {
@@ -274,7 +274,7 @@ public sealed class MarketSaleTests
         f.Wallet.AddMaterial(Plate, 10);
         var before = f.Wallet.Money;
 
-        Assert.True(f.TrySellFromWallet(Plate, 10));
+        Assert.True(f.TrySellFromWallet(Plate, 10, 1));
 
         Assert.Equal(670, f.Wallet.Money - before);
     }

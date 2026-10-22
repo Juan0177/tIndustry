@@ -156,7 +156,7 @@ public sealed class SimHostTests
         host.CommandRejected += (_, r) => rejected.Add(r.Code);
 
         // Today's direct calls (applied before the tick), then one tick.
-        Assert.True(direct.TrySellFromWallet("iron-plate", 7));
+        Assert.True(direct.TrySellFromWallet("iron-plate", 7, 1));
         foreach (var item in direct.State.Exchange.Items) { item.AutoSell = true; }
         Assert.True(direct.TryUpgradeCore());
         direct.Step();
@@ -451,7 +451,7 @@ public sealed class SimHostTests
         foreach (var amount in new[] { 7, 11 })
         {
             var before = direct.Wallet.Money;
-            Assert.True(direct.TrySellFromWallet("iron-plate", amount));
+            Assert.True(direct.TrySellFromWallet("iron-plate", amount, 1));
             expected.Add(direct.Wallet.Money - before);
         }
 

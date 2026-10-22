@@ -41,7 +41,7 @@ Dalla Home, **Gestione salvataggi** elenca gli slot. Per ognuno mostra il tipo d
 
 ## Cosa contiene un salvataggio
 
-Nastri con i loro oggetti, edifici, fondi e magazzino, sblocchi della Ricerca e vendite, CORE, regole della partita, il drone con la coda dei piani e i cantieri a metà, il livello della campagna in corso. Il terreno non si salva: si rifà dal seme o dal file della mappa del livello.
+Nastri con i loro oggetti, edifici, fondi e magazzino, sblocchi della Ricerca, vendite e stato del Mercato (prezzi, picchi e crolli di ogni oggetto), CORE, regole della partita, il drone con la coda dei piani e i cantieri a metà, il livello della campagna in corso. Il terreno non si salva: si rifà dal seme o dal file della mappa del livello.
 
 ## Dove stanno i file
 
@@ -55,13 +55,14 @@ Ogni salvataggio è un file `.json`. Per fare una copia di sicurezza basta copia
 
 ## Compatibilità fra versioni
 
-I salvataggi sono alla **versione 13**.
+I salvataggi sono alla **versione 14**.
 
 | Versione del salvataggio | Si carica? |
 |---|---|
-| 13 | Sì |
-| 12 | Sì |
-| 11 | Sì, col terreno classico di allora |
+| 14 | Sì |
+| 13 | Sì, con il Mercato rifatto da zero |
+| 12 | Sì, con il Mercato rifatto da zero |
+| 11 | Sì, col terreno classico di allora e il Mercato rifatto da zero |
 | 10 e precedenti | No: "Salvataggio di una versione precedente: non compatibile." |
 
 Se il terreno rigenerato non corrisponde a quello del salvataggio, o la mappa di un livello manca o ha cambiato misura, il caricamento si ferma con un messaggio chiaro invece di mettere la fabbrica su un altro terreno.

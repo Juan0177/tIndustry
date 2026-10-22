@@ -118,8 +118,6 @@ public interface IGameView
 
     IResearchView Research { get; }
 
-    MarketCatalog Market { get; }
-
     ISessionView Session { get; }
 
     IReadOnlySet<GridPosition> CoreTiles { get; }

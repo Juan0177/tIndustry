@@ -5,8 +5,17 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ## [Unreleased]
 
+### Aggiunto
+
+- **Mercato come una borsa** (specifica 1 di 3, piano in 9 task, PR #274–#282, issue #268): ogni oggetto ha un mercato suo con un valore base B (anche prezzo minimo; tabella in `content.json`) e le regole in `marketRules`, senza numeri nel codice. Il prezzo oscilla fra B e 1,6×B, ogni 10-20 minuti sale in un picco fino a 3×B, e tutti i pezzi di una vendita valgono il prezzo del clic. Ogni pezzo venduto abbassa il prezzo dello 0,04% di B; 5.000 pezzi in 2 minuti, o un jackpot, fanno crollare quell'oggetto per 20 minuti. Il jackpot (solo «Vendi tutto» nel picco, almeno 400 pezzi, con la rete di sicurezza dopo tre tentativi grossi a vuoto) e l'attesa dopo un tentativo a vuoto sono nella simulazione, ma in partita non scattano finché non c'è lo schermo di borsa (specifica 2). Stato dei prezzi in `GameState.Exchange` con un generatore seminato (`MarketRandom`, PCG32) e sistema `MarketSystem`; evento `SaleResolved`; soldi e incassi si fermano a `int.MaxValue`
+- **Vendita automatica per oggetto**: un interruttore per oggetto (`SetAutoSell`), al prezzo minimo, senza toccare il mercato; vale anche per i nastri e gli edifici attaccati al CORE
+- **Panoramica del Mercato** (`M`): una riga per oggetto con prezzo e freccia, mini grafico dei 2 minuti, «Crollo», Vendi 1, Vendi 100, Vendi tutto e l'interruttore; nessun pulsante vende tutto di tutti. Gli agenti hanno `vendi {tutto}` e `vendita_automatica` per oggetto
+- **Sito**: grafico del prezzo, didascalia e capitolo Mercato del racconto allineati al nuovo Mercato (#273)
+
 ### Cambiato
 
+- **Salvataggi alla versione 14**: portano lo stato del mercato; i v11, v12 e v13 si leggono ancora e ripartono con un mercato nuovo. Un salvataggio con dati del mercato fuori misura si ripara al caricamento invece di essere rifiutato
+- **Valori dei prezzi**: i vecchi prezzi dinamici (listino, minimo e soglia in funzione delle scorte) sono tolti; il bonus del 25% di «Potenzia CORE» sulle vendite è tolto (servirà al magazzino e al drone). Gli obiettivi di guadagno della campagna si ritoccano solo dove i test lo chiedevano
 - **Ponte a distanza 2–4 come Mindustry** (#256): gli estremi stanno a 2–4 celle e scavalcano da 1 a 3 celle, anche il ponte automatico; un salvataggio con un ponte più lungo si carica senza quel ponte
 - **Il Minatore T2 paga il suo +20% in corrente** (#256): 0,5 unità al secondo dalla riserva mentre scava; senza riserva va alla velocità normale
 - **Rimborso arrotondato per eccesso** (#256): al 50% della campagna un Nastro T1 da 1 ferro rende 1, non 0; una sola volta per voce, mai più dello speso

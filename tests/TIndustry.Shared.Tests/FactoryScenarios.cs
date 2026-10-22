@@ -1095,15 +1095,15 @@ internal static class FactoryScenarios
         var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
         var factory = new Factory(content, new BeltGrid(), core);
 
-        Assert(factory.Market.Items.Count >= 4, "market items");
-        Assert(factory.Market.BaseValueOf("iron-ore") >= 1, "base value ore");
+        Assert(content.Market.Count >= 4, "market items");
+        Assert(content.Market.First(m => m.ItemId == "iron-ore").BaseValue >= 1, "base value ore");
 
-        Assert(!factory.TrySellFromWallet("iron-ore", 1), "empty stock fail");
+        Assert(!factory.TrySellFromWallet("iron-ore", 1, 1), "empty stock fail");
         Assert(factory.Wallet.Money == 0, "money unchanged");
 
         factory.Wallet.AddMaterial("iron-ore", 5);
         var price1 = factory.MarketItem("iron-ore")!.UnitIncome;
-        Assert(factory.TrySellFromWallet("iron-ore", 1), "sell 1");
+        Assert(factory.TrySellFromWallet("iron-ore", 1, 1), "sell 1");
         Assert(factory.Wallet.MaterialCount("iron-ore") == 4, "stock -1");
         Assert(factory.Wallet.Money == price1, "money +price");
         Assert(factory.Session.SaleIncome == price1, "sale income");
@@ -1112,7 +1112,7 @@ internal static class FactoryScenarios
         var moneyBefore = factory.Wallet.Money;
         var remaining = factory.Wallet.MaterialCount("iron-ore");
         var bulkPrice = factory.MarketItem("iron-ore")!.UnitIncome;
-        Assert(factory.TrySellFromWallet("iron-ore", remaining), "sell tutti");
+        Assert(factory.TrySellFromWallet("iron-ore", remaining, 1), "sell tutti");
         Assert(factory.Wallet.MaterialCount("iron-ore") == 0, "ore empty");
         Assert(factory.Wallet.Money == moneyBefore + bulkPrice * remaining, "tutti money");
         Assert(factory.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "sold 5");
@@ -1156,7 +1156,7 @@ internal static class FactoryScenarios
         var boosted = factory.MarketItem("iron-ore")!.UnitIncome;
         Assert(boosted == basePrice, "no sale bonus");
         var moneyBefore = factory.Wallet.Money;
-        Assert(factory.TrySellFromWallet("iron-ore", 1), "sell after upgrade");
+        Assert(factory.TrySellFromWallet("iron-ore", 1, 1), "sell after upgrade");
         Assert(factory.Wallet.Money == moneyBefore + boosted, "money has no bonus");
 
         var snap = factory.Capture();
@@ -1280,7 +1280,7 @@ internal static class FactoryScenarios
 
             // sellItem + earnMoney via Mercato path
             factory.Wallet.AddMaterial("iron-ore", 10);
-            Assert(factory.TrySellFromWallet("iron-ore", 3), "sell 3 ore");
+            Assert(factory.TrySellFromWallet("iron-ore", 3, 1), "sell 3 ore");
             Assert(CampaignProgress.IsObjectiveComplete(
                 l01.Objectives!.First(o => o.Type == CampaignObjectiveType.SellItem),
                 factory.Wallet, factory.Session, factory.Research), "sellItem done");
@@ -1289,7 +1289,7 @@ internal static class FactoryScenarios
                        l01, factory.Wallet, factory.Session, factory.Research)
                    && factory.Wallet.MaterialCount("iron-ore") > 0)
             {
-                Assert(factory.TrySellFromWallet("iron-ore", 1), "sell more");
+                Assert(factory.TrySellFromWallet("iron-ore", 1, 1), "sell more");
             }
 
             if (!CampaignProgress.AreAllObjectivesComplete(
@@ -1300,7 +1300,7 @@ internal static class FactoryScenarios
                 while (factory.Session.SaleIncome < earn.Amount)
                 {
                     factory.Wallet.AddMaterial("iron-ore", 1);
-                    Assert(factory.TrySellFromWallet("iron-ore", 1), "force sell");
+                    Assert(factory.TrySellFromWallet("iron-ore", 1, 1), "force sell");
                 }
             }
 

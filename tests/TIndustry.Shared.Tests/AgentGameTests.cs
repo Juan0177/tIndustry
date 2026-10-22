@@ -101,7 +101,7 @@ public sealed class AgentGameTests
 
         var market = Call(game, "stato").GetProperty("mercato").EnumerateArray().ToArray();
 
-        // Only items the player owns.
+        // Only items the player owns or sells automatically.
         Assert.Equal(
             host.State.Wallet.MaterialsSnapshot().Where(kv => kv.Value > 0 && factory.State.Exchange.Find(kv.Key) is not null)
                 .Select(kv => kv.Key).Order(StringComparer.Ordinal),
@@ -123,6 +123,71 @@ public sealed class AgentGameTests
         Assert.Equal("crollo", entry.GetProperty("fase").GetString());
         Assert.Equal(2, entry.GetProperty("crolloSecondi").GetInt32());
         Assert.Equal(2, crashed.GetProperty("attesaVendiTutto").GetInt32());
+    }
+
+    [Fact]
+    public void StatoListsAnAutoSellingItemWithNoStock()
+    {
+        var factory = NewFactory();
+        var game = new AgentGame(new SimHost(factory), Content);
+        var empty = Content.Market.First(m => factory.Wallet.MaterialCount(m.ItemId) == 0).ItemId;
+        factory.State.Exchange.Find(empty)!.AutoSell = true;
+
+        var market = Call(game, "stato").GetProperty("mercato").EnumerateArray();
+
+        Assert.Contains(market, m => m.GetProperty("oggetto").GetString() == empty);
+    }
+
+    [Fact]
+    public void VendiTuttoOfManyPiecesReportsTheCrash() =>
+        Assert.True(SellAllInASpike(Content.MarketRules!.CrashPieces).GetProperty("crollo").GetBoolean());
+
+    [Fact]
+    public void VendiTuttoDuringTheWaitIsRefusedWithTheCooldownCode()
+    {
+        var game = SellAllInASpike(Content.MarketRules!.JackpotMinPieces, out var factory, out var result);
+        Assert.True(result.GetProperty("tentativo").GetBoolean());
+        Assert.False(result.TryGetProperty("crollo", out _));
+        factory.Wallet.AddMaterial("iron-ore", 10);
+        Assert.Equal(nameof(RefusalCode.SellAllCooldown), Refused(game, "vendi", """{"oggetto":"iron-ore","tutto":true}""").Code);
+    }
+
+    private static JsonElement SellAllInASpike(int pieces) => SellAllInASpike(pieces, out _, out var result) is not null ? result : default;
+
+    /// <summary>A lost jackpot attempt: "sell all" of <paramref name="pieces"/> ore while the price is in a spike.</summary>
+    private static AgentGame SellAllInASpike(int pieces, out Factory factory, out JsonElement result)
+    {
+        factory = NewFactory();
+        var game = new AgentGame(new SimHost(factory), Content);
+        factory.State.HasMarketScreen = true;
+        factory.State.JackpotRollForTests = _ => false;
+        var ore = factory.State.Exchange.Find("iron-ore")!;
+        ore.Phase = MarketPhase.SpikeHold;
+        ore.SpikeFromMilli = ore.SpikeTopMilli = ore.PriceMilli = Content.MarketRules!.SpikeThresholdMilli;
+        factory.Wallet.AddMaterial("iron-ore", pieces);
+        result = Call(game, "vendi", """{"oggetto":"iron-ore","tutto":true}""");
+        return game;
+    }
+
+    [Fact]
+    public void AnotherPlayersSaleDoesNotLeakItsFlagsIntoVendi()
+    {
+        var factory = NewFactory();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+        var onEvent = typeof(AgentGame).GetMethod("OnEvent", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        // Runs after the agent's own handler, as if player 1's crashing sale came later in the same tick.
+        host.EventRaised += e =>
+        {
+            if (e is SaleResolved { PlayerId: 0 })
+            {
+                onEvent.Invoke(game, [new SaleResolved(1, "iron-ore", 5000, 1000, 1000, true, false, false, 0)]);
+            }
+        };
+
+        var result = Call(game, "vendi", """{"oggetto":"iron-plate","quantita":1}""");
+
+        Assert.False(result.TryGetProperty("crollo", out _));
     }
 
     [Fact]

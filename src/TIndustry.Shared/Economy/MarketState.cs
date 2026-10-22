@@ -45,7 +45,7 @@ public sealed class MarketItemState
     public long CrashDipEndTick { get; set; }
     public int CrashDipMilli { get; set; }
 
-    // Driven by later tasks (jackpot, auto-sell); inert for now.
+    // End of the lost-50/50 price boost: set when a jackpot attempt is lost, read by the crash price.
     public long BoostEndTick { get; set; }
 
     /// <summary>Price drop from sales, in millionths of B (a piece drops less than one milli).</summary>
@@ -203,7 +203,7 @@ public sealed class MarketState
         var maxPrice = rules?.SpikeMaxMilli ?? int.MaxValue;
         int Price(int v) => Math.Clamp(v, 0, maxPrice);
         var seen = new HashSet<MarketItemState>();
-        foreach (var d in dto.Items)
+        foreach (var d in dto.Items ?? [])
         {
             if (Find(d.ItemId) is not { } i)
             {
@@ -229,7 +229,8 @@ public sealed class MarketState
             i.SaleRecoveryEndTick = d.SaleRecoveryEndTick;
             // The ring buffer keeps the length the rules ask for, whatever the file holds.
             i.WindowPieces = new int[window];
-            Array.Copy(d.WindowPieces, i.WindowPieces, Math.Min(window, d.WindowPieces.Length));
+            var windowPieces = d.WindowPieces ?? [];
+            Array.Copy(windowPieces, i.WindowPieces, Math.Min(window, windowPieces.Length));
             // A second outside [0, now] would index the ring buffer out of range: restart the window.
             var nowSecond = currentTick / SimulationClock.TickRate;
             if (d.WindowSecond < 0 || d.WindowSecond > nowSecond)
@@ -248,7 +249,7 @@ public sealed class MarketState
 
             i.PityMisses = Math.Max(0, d.PityMisses);
             i.AutoSell = d.AutoSell;
-            i.RestoreHistory(d.History.Select(Price).TakeLast(Math.Max(0, rules?.HistorySeconds ?? 0)));
+            i.RestoreHistory((d.History ?? []).Select(Price).TakeLast(Math.Max(0, rules?.HistorySeconds ?? 0)));
         }
 
         // Items the save does not list start fresh from now (after the stream is restored, in content order).

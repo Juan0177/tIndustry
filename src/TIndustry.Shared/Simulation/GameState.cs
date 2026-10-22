@@ -23,8 +23,7 @@ public sealed class GameState
         IReadOnlySet<GridPosition> coreTiles,
         EconomyWallet wallet,
         ResearchState research,
-        EconomySession session,
-        MarketCatalog market)
+        EconomySession session)
     {
         Content = content;
         Belts = belts;
@@ -32,7 +31,6 @@ public sealed class GameState
         Wallet = wallet;
         Research = research;
         Session = session;
-        Market = market;
         Exchange = new MarketState(content, 0);
     }
 
@@ -41,9 +39,8 @@ public sealed class GameState
     public IReadOnlySet<GridPosition> CoreTiles { get; }
     public EconomyWallet Wallet { get; }
     public ResearchState Research { get; }
-    public MarketCatalog Market { get; }
     public EconomySession Session { get; }
-    /// <summary>Price state of the exchange (spikes, crashes); <see cref="Market"/> is the catalog of base prices.</summary>
+    /// <summary>Price state of the exchange (spikes, crashes); base values B come from <c>Content.Market</c>.</summary>
     public MarketState Exchange { get; }
 
     /// <summary>True when the game has a stock-exchange screen: only then "sell all" can be a jackpot attempt (set by tests until specification 2).</summary>
@@ -54,6 +51,7 @@ public sealed class GameState
 
     private TerrainMap? terrain;
 
+    // Warning: assigning Terrain reseeds the market; only construction and restore may set it.
     public TerrainMap? Terrain
     {
         get => terrain;

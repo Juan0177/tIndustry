@@ -26,7 +26,7 @@ public sealed record DeconstructFinished(int PlayerId, long SiteId, BuildSpec? S
 /// A sale was resolved at the click: <paramref name="Pieces"/> of <paramref name="ItemId"/> at
 /// <paramref name="PriceMilli"/> (thousandths of B) paid <paramref name="Income"/>. <paramref name="Crash"/> is true when
 /// this sale started a crash; <paramref name="Attempt"/>, <paramref name="Jackpot"/> and
-/// <paramref name="ProbabilityBasisPoints"/> describe a jackpot attempt (none yet).
+/// <paramref name="ProbabilityBasisPoints"/> describe a jackpot attempt (only possible while the game has a market screen).
 /// </summary>
 public sealed record SaleResolved(
     int PlayerId, string ItemId, int Pieces, int PriceMilli, int Income,

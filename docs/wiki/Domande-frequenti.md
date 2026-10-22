@@ -49,9 +49,9 @@ Dal livello 4 della campagna lo smontaggio rimborsa il **50%**, arrotondato per 
 
 Va dritto solo l'oggetto uguale al **filtro** (l'icona al centro); tutti gli altri escono a sinistra o, se la sinistra è piena, a destra. Il filtro si cambia con `C` tenendo il mouse sopra il selezionatore. Si può filtrare Ferro grezzo, Rame grezzo, Lastra di ferro, Filo di rame o Carbone.
 
-## Perché il prezzo di vendita è sceso?
+## Perché il prezzo di vendita è cambiato?
 
-Il prezzo scende quando nel CORE hai molti pezzi dello stesso oggetto: con 21 Lastre di ferro una lastra vale $21 invece di $30. Vendi a poco a poco, oppure accendi la vendita automatica: ogni pezzo si vende appena arriva, al prezzo di quel momento. Vedi [Economia e Ricerca](Economia-e-Ricerca).
+Ogni oggetto ha un prezzo suo che si muove sempre fra il valore base B e 1,6×B, e ogni 10-20 minuti ha un picco fino a 3×B. In più ogni pezzo che vendi abbassa un po' il prezzo (lo 0,04% di B, mai sotto B), che in 2 minuti torna al suo andamento. Se in 2 minuti vendi 5.000 pezzi o più dello stesso oggetto, quell'oggetto crolla: per 20 minuti vale circa B e non ha picchi. Per guadagnare di più aspetta un picco, oppure vendi a poco a poco. La vendita automatica vende sempre al prezzo minimo, senza muovere il mercato. Vedi [Economia e Ricerca](Economia-e-Ricerca) e [Mercato come una borsa](Mercato-come-una-borsa).
 
 ## Come metto in pausa?
 

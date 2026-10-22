@@ -31,7 +31,7 @@ Nelle partite libere il CORE parte con ferro e rame vicini e una strada a terra 
 | Titanio grezzo | `titanium-ore` | Minatore T2 su titanio | Lastre di titanio; costo dei nastri T2, T3 e rinforzato |
 | Lastra di ferro | `iron-plate` | Forno | Filo di rame; costo di edifici, sblocchi e potenziamento del CORE |
 | Lastra di piombo | `lead-plate` | Forno | Silicio |
-| Lastra di titanio | `titanium-plate` | Forno | Si vende (prezzo di listino più alto del gioco) |
+| Lastra di titanio | `titanium-plate` | Forno | Si vende (valore base più alto del gioco) |
 | Filo di rame | `copper-wire` | Assemblatore | Costo di nodi, Lampada, Minatore T2 e sblocchi di energia |
 | Grafite | `graphite` | Assemblatore | Costo di Nastro T3 e Nastro rinforzato |
 | Silicio | `silicon` | Assemblatore | Costo del Nastro T3 |

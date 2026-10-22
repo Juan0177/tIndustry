@@ -444,6 +444,9 @@ public sealed class FactoryContent
             F(r.LostPieces, "lostPieces"), Positive(F(r.HistorySeconds, "historySeconds"), "historySeconds"));
 
         Order(rules.NormalMinMilli, rules.NormalMaxMilli, "normalMin", "normalMax");
+        Order(1000, rules.NormalMinMilli, "1 (B)", "normalMin");
+        Order(rules.NormalMinMilli, rules.NormalAverageMilli, "normalMin", "normalAverage");
+        Order(rules.NormalAverageMilli, rules.NormalMaxMilli, "normalAverage", "normalMax");
         Order(rules.NormalMaxMilli, rules.SpikeThresholdMilli, "normalMax", "spikeThreshold");
         Order(rules.SpikeThresholdMilli, rules.SpikeMaxMilli, "spikeThreshold", "spikeMax");
         Order(rules.SpikeIntervalMinMinutes, rules.SpikeIntervalMaxMinutes, "spikeIntervalMinMinutes", "spikeIntervalMaxMinutes");
