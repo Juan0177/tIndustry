@@ -1,26 +1,32 @@
-"""Progress bar of the work order, read from the check boxes of docs/STATO.md.
+"""Progress bar of every aspect of the game, read from the check boxes of docs/STATO.md.
 
-The total is done steps over all steps; the bar is split in one segment per block (A, B, ...), each filled
-with that block's own percentage. The README and the Wiki home carry a text copy between markers, written
-by this script; the "sviluppo" page of the site draws it as HTML (`html_barra`).
+The total is done steps over all steps; the bar is split in one segment per aspect (`### N · [Title](doc)`),
+each filled with that aspect's own percentage and linked to its documentation. The README and the Wiki home
+carry a text copy between markers, written by this script; the "sviluppo" page of the site draws it as HTML.
 
     python tools/sito/stato.py              # rewrite the bars in README.md and docs/wiki/Home.md
     python tools/sito/stato.py --controlla  # exit 1 if a bar is out of date (CI)
 """
 import html
 import os
+import posixpath
 import re
 import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+REPO_URL = "https://github.com/Juan0177/tIndustry"
+BLOB = REPO_URL + "/blob/main/"
+WIKI = REPO_URL + "/wiki/"
 STATO = "docs/STATO.md"
-STATO_URL = "https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md"
+STATO_URL = BLOB + STATO
 INIZIO, FINE = "<!-- barra-stato:inizio -->", "<!-- barra-stato:fine -->"
-# Files with a text copy of the bar, and the link to docs/STATO.md as seen from each of them.
-COPIE = (("README.md", "docs/STATO.md"), ("docs/wiki/Home.md", STATO_URL))
-LARGHEZZA = 10  # characters per block in the text bar
+# Files with a text copy of the bar and where they live (links are written for that place).
+COPIE = (("README.md", "readme"), ("docs/wiki/Home.md", "wiki"))
+LARGHEZZA = 10  # characters of an aspect's own bar
+SEGMENTO = 4    # characters of an aspect in the total bar
 
-_RE_BLOCCO = re.compile(r"^###\s+([A-Z])\s+·\s+(.+?)\s*$")
+_RE_BLOCCO = re.compile(r"^###\s+([A-Z0-9]+)\s+·\s+(.+?)\s*$")
+_RE_TITOLO_LINK = re.compile(r"^\[(.+?)\]\(([^)\s]+)\)$")
 _RE_CASELLA = re.compile(r"^-\s+\[([ xX])\]\s")
 
 
@@ -29,50 +35,78 @@ def percento(fatti, totale):
 
 
 def blocchi(testo=None):
-    """[(letter, title, done, total)] in file order, from the `### X · Title` headings and their check boxes."""
+    """[(key, title, doc link or None, done, total)] in file order: the `### N · Title` headings of the first
+    section that has them, with their check boxes."""
     if testo is None:
         with open(os.path.join(REPO, STATO), encoding="utf-8") as fh:
             testo = fh.read()
     risultato = []
     for riga in testo.splitlines():
         if m := _RE_BLOCCO.match(riga):
-            risultato.append([m.group(1), m.group(2), 0, 0])
+            titolo, link = m.group(2), None
+            if l := _RE_TITOLO_LINK.match(titolo):
+                titolo, link = l.group(1), l.group(2)
+            risultato.append([m.group(1), titolo, link, 0, 0])
         elif risultato and riga.startswith("## "):
-            break  # past the work order
+            break  # past the aspects
         elif risultato and (m := _RE_CASELLA.match(riga)):
-            risultato[-1][3] += 1
-            risultato[-1][2] += m.group(1) != " "
+            risultato[-1][4] += 1
+            risultato[-1][3] += m.group(1) != " "
     return [tuple(b) for b in risultato]
 
 
 def totale(bs):
-    return sum(b[2] for b in bs), sum(b[3] for b in bs)
+    return sum(b[3] for b in bs), sum(b[4] for b in bs)
 
 
-def markdown_barra(bs, link):
-    """The text bar (a code block, so it lines up on GitHub and in the Wiki) with its legend."""
+def link_per(link, dove):
+    """The doc link of docs/STATO.md (relative to docs/) as written in the README, the Wiki or the site."""
+    if link is None or link.startswith("http"):
+        return link
+    percorso, _, ancora = link.partition("#")
+    percorso = posixpath.normpath(posixpath.join("docs", percorso))
+    if percorso.startswith("docs/wiki/") and percorso.endswith(".md"):
+        pagina = posixpath.basename(percorso)[:-3]
+        pagina = "" if pagina == "Home" else pagina
+        return pagina if dove == "wiki" else WIKI + pagina
+    if dove == "readme":
+        return percorso + ("#" + ancora if ancora else "")
+    return BLOB + percorso + ("#" + ancora if ancora else "")
+
+
+def _barra(fatti, tutti, larghezza):
+    pieno = round(larghezza * fatti / tutti) if tutti else 0
+    return "█" * pieno + "░" * (larghezza - pieno)
+
+
+def markdown_barra(bs, dove):
+    """The total bar split by aspect (a code block, so it lines up) and a table with each aspect's own bar."""
     fatti, tutti = totale(bs)
-    cella = LARGHEZZA + 2
-    etichette = "".join(f"{f'{l} {percento(f, t)}%':<{cella}}" for l, _, f, t in bs).rstrip()
-    barre = "".join(
-        f"{'█' * round(LARGHEZZA * f / t if t else 0) + '░' * (LARGHEZZA - round(LARGHEZZA * f / t if t else 0)):<{cella}}"
-        for _, _, f, t in bs).rstrip()
-    legenda = " · ".join(f"{l} {t_} ({f}/{t})" for l, t_, f, t in bs)
-    return (f"**Avanzamento: {percento(fatti, tutti)}%** ({fatti} passi fatti su {tutti}, [dettaglio]({link}))\n\n"
-            f"```text\n{etichette}\n{barre}\n```\n\n{legenda}\n")
+    dettaglio = "docs/STATO.md" if dove == "readme" else STATO_URL
+    righe = "\n".join(
+        f"| {k} | {f'[{t}]({link_per(l, dove)})' if l else t} | `{_barra(f, n, LARGHEZZA)}` | {percento(f, n)}% ({f}/{n}) |"
+        for k, t, l, f, n in bs)
+    return (f"**Avanzamento del gioco: {percento(fatti, tutti)}%** ({fatti} passi fatti su {tutti}, "
+            f"[dettaglio]({dettaglio}))\n\n"
+            f"```text\n{'│'.join(_barra(f, n, SEGMENTO) for *_, f, n in bs)}\n```\n\n"
+            f"| # | Aspetto | Avanzamento | % |\n| --- | --- | --- | --- |\n{righe}\n")
 
 
 def html_barra(bs):
-    """The bar for the site: one segment per block, each filled with its own percentage."""
+    """The bar for the site: one segment per aspect, each filled with its own percentage and linked to its doc."""
     fatti, tutti = totale(bs)
-    segmenti = "".join(
-        f'<div class="blocco-avanzamento" title="{html.escape(t_)}: {f} su {t}">'
-        f'<span class="etichetta-avanzamento">{l} · {percento(f, t)}%</span>'
-        f'<span class="traccia-avanzamento"><span class="pieno-avanzamento" style="width:{percento(f, t)}%"></span></span>'
-        f'<span class="nome-avanzamento">{html.escape(t_)}</span></div>'
-        for l, t_, f, t in bs)
+    segmenti = []
+    for k, t, l, f, n in bs:
+        nome = html.escape(t)
+        if l:
+            nome = f'<a href="{html.escape(link_per(l, "sito"))}">{nome}</a>'
+        segmenti.append(
+            f'<div class="blocco-avanzamento" title="{html.escape(t)}: {f} su {n}">'
+            f'<span class="etichetta-avanzamento">{k} · {percento(f, n)}%</span>'
+            f'<span class="traccia-avanzamento"><span class="pieno-avanzamento" style="width:{percento(f, n)}%"></span></span>'
+            f'<span class="nome-avanzamento">{nome}</span></div>')
     return (f'<p class="totale-avanzamento"><b>{percento(fatti, tutti)}%</b> · {fatti} passi fatti su {tutti}</p>'
-            f'<div class="barra-avanzamento">{segmenti}</div>')
+            f'<div class="barra-avanzamento">{"".join(segmenti)}</div>')
 
 
 def _con_barra(testo, barra):
@@ -86,11 +120,11 @@ def _con_barra(testo, barra):
 def main(argv):
     bs = blocchi()
     fuori = []
-    for percorso, link in COPIE:
+    for percorso, dove in COPIE:
         pieno = os.path.join(REPO, percorso)
         with open(pieno, encoding="utf-8", newline="") as fh:
             vecchio = fh.read()
-        nuovo = _con_barra(vecchio, markdown_barra(bs, link))
+        nuovo = _con_barra(vecchio, markdown_barra(bs, dove))
         if nuovo != vecchio:
             fuori.append(percorso)
             if "--controlla" not in argv:

@@ -265,8 +265,8 @@ def sezioni_sviluppo(radice="../"):
         f'<li><a href="{a["url"]}">{a["numero"]:04d} — {html.escape(a["titolo"])}</a></li>' for a in decisioni())
     return (
         _sezione("avanzamento", 1, "Avanzamento",
-                 "A che punto siamo con l'ordine di lavoro in corso: la barra è divisa in blocchi, ognuno con la "
-                 f'sua percentuale; il dettaglio è in <a href="{stato.STATO_URL}">docs/STATO.md</a>.',
+                 "A che punto siamo con tutti gli aspetti del gioco: la barra è divisa per aspetto, ognuno con la "
+                 f'sua percentuale e il link alla sua documentazione; il dettaglio è in <a href="{stato.STATO_URL}">docs/STATO.md</a>.',
                  stato.html_barra(stato.blocchi())) +
         _sezione("come-e-fatto", 2, "Com'è fatto",
                  "Le scelte di fondo dietro al gioco, in breve: simulazione, costruzione, grafica, mappe, "

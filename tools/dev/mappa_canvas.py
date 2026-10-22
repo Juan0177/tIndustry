@@ -95,7 +95,7 @@ corso = Column("g-corso", "In corso", X[1], "3")
 _blocchi = stato.blocchi()
 _fatti, _tutti = stato.totale(_blocchi)
 corso.card("stato", f"**Stato di oggi → [[STATO]] · {stato.percento(_fatti, _tutti)}%**\n"
-           + "\n".join(f"- {l} · {t}: {stato.percento(f, n)}% ({f}/{n})" for l, t, f, n in _blocchi)
+           + "\n".join(f"- {k} · {t}: {stato.percento(f, n)}% ({f}/{n})" for k, t, _, f, n in _blocchi)
            + "\nLe cose piccole che mancano e cosa serve dall'utente sono in docs/STATO.md.")
 corso.close()
 

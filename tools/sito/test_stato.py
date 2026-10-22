@@ -7,11 +7,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stato  # noqa: E402
 
 ESEMPIO = """# Stato
-### A · Primo
+## Aspetti
+### 1 · [Primo](wiki/Logistica.md)
 - [x] uno
 - [ ] due
 - [X] tre
-### B · Secondo
+### 2 · Secondo
 - [ ] quattro
 ## Altro
 - [x] fuori dalla barra
@@ -21,26 +22,39 @@ ESEMPIO = """# Stato
 class TestStato(unittest.TestCase):
     def test_blocchi_e_totale(self):
         bs = stato.blocchi(ESEMPIO)
-        self.assertEqual([("A", "Primo", 2, 3), ("B", "Secondo", 0, 1)], bs)
+        self.assertEqual([("1", "Primo", "wiki/Logistica.md", 2, 3), ("2", "Secondo", None, 0, 1)], bs)
         self.assertEqual((2, 4), stato.totale(bs))
         self.assertEqual(67, stato.percento(2, 3))
         self.assertEqual(0, stato.percento(0, 0))
 
+    def test_link_per_ogni_posto(self):
+        self.assertEqual("Logistica", stato.link_per("wiki/Logistica.md", "wiki"))
+        self.assertEqual(stato.WIKI + "Logistica", stato.link_per("wiki/Logistica.md", "readme"))
+        self.assertEqual("docs/ARCHITETTURA.md", stato.link_per("ARCHITETTURA.md", "readme"))
+        self.assertEqual(stato.BLOB + "docs/ARCHITETTURA.md", stato.link_per("ARCHITETTURA.md", "wiki"))
+        self.assertEqual("https://x.y/z", stato.link_per("https://x.y/z", "sito"))
+
     def test_barra_di_testo(self):
-        testo = stato.markdown_barra(stato.blocchi(ESEMPIO), "x.md")
-        self.assertIn("**Avanzamento: 50%** (2 passi fatti su 4, [dettaglio](x.md))", testo)
-        self.assertIn("A 67%       B 0%", testo)
-        self.assertIn("███████░░░  ░░░░░░░░░░", testo)
+        testo = stato.markdown_barra(stato.blocchi(ESEMPIO), "readme")
+        self.assertIn("**Avanzamento del gioco: 50%** (2 passi fatti su 4, [dettaglio](docs/STATO.md))", testo)
+        self.assertIn("███░│░░░░", testo)
+        self.assertIn(f"| 1 | [Primo]({stato.WIKI}Logistica) | `███████░░░` | 67% (2/3) |", testo)
+        self.assertIn("| 2 | Secondo | `░░░░░░░░░░` | 0% (0/1) |", testo)
 
     def test_barra_html(self):
         pagina = stato.html_barra(stato.blocchi(ESEMPIO))
         self.assertIn('style="width:67%"', pagina)
         self.assertIn("<b>50%</b>", pagina)
+        self.assertIn(f'<a href="{stato.WIKI}Logistica">Primo</a>', pagina)
 
-    def test_stato_vero_ha_blocchi(self):
+    def test_stato_vero(self):
         bs = stato.blocchi()
-        self.assertEqual("ABCDE", "".join(b[0] for b in bs))
-        self.assertTrue(all(t > 0 for *_, t in bs))
+        self.assertGreaterEqual(len(bs), 10)
+        self.assertTrue(all(n > 0 for *_, n in bs), "ogni aspetto ha almeno una casella")
+        self.assertTrue(all(l for _, _, l, _, _ in bs), "ogni aspetto porta alla sua documentazione")
+        for _, _, l, _, _ in bs:
+            if not l.startswith("http"):
+                self.assertTrue(os.path.exists(os.path.join(stato.REPO, "docs", l.partition("#")[0])), l)
 
     def test_copie_allineate(self):
         # The README and the Wiki home must carry the bar of the current docs/STATO.md.

@@ -9,14 +9,30 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-**Avanzamento: 52%** (12 passi fatti su 23, [dettaglio](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md))
+**Avanzamento del gioco: 39%** (26 passi fatti su 66, [dettaglio](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md))
 
 ```text
-A 67%       B 100%      C 0%        D 0%        E 0%
-███████░░░  ██████████  ░░░░░░░░░░  ░░░░░░░░░░  ░░░░░░░░░░
+███░│████│█░░░│████│█░░░│█░░░│█░░░│██░░│███░│███░│░░░░│░░░░│░░░░│░░░░│███░│███░
 ```
 
-A Controlli veloci (2/3) · B Mercato come una borsa (10/10) · C Nuove specifiche del Mercato (0/3) · D Logistica come Mindustry (0/5) · E Più avanti (0/2)
+| # | Aspetto | Avanzamento | % |
+| --- | --- | --- | --- |
+| 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | `███████░░░` | 67% (4/6) |
+| 2 | [Costruzione](Costruzione) | `██████████` | 100% (2/2) |
+| 3 | [Logistica](Logistica) | `███░░░░░░░` | 29% (2/7) |
+| 4 | [Produzione](Produzione) | `██████████` | 100% (2/2) |
+| 5 | [Energia](Energia) | `██░░░░░░░░` | 20% (1/5) |
+| 6 | [Mercato ed economia](Mercato-come-una-borsa) | `██░░░░░░░░` | 20% (1/5) |
+| 7 | [Mappe e terreno](Mappe-e-terreno) | `███░░░░░░░` | 33% (2/6) |
+| 8 | [Campagna](Campagna-e-mappe) | `█████░░░░░` | 50% (1/2) |
+| 9 | [Grafica ed effetti](Arte-generata) | `███████░░░` | 67% (2/3) |
+| 10 | [Interfaccia](Interfaccia-e-lingue) | `███████░░░` | 67% (2/3) |
+| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
+| 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
+| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
+| 14 | [Co-op](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md) | `░░░░░░░░░░` | 0% (0/4) |
+| 15 | [Sito web](Sito-web) | `████████░░` | 80% (4/5) |
+| 16 | [Wiki]() | `████████░░` | 75% (3/4) |
 <!-- barra-stato:fine -->
 
 Il Wiki ha tre parti: una per chi gioca, una per chi lavora sul codice e una con le idee in discussione.

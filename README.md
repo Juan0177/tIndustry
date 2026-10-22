@@ -133,18 +133,6 @@ Il combattimento è fuori dal progetto per ora.
 ## Stato e roadmap
 
 Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [diario](docs/diario/README.md). Le scelte di fondo sono raccolte in [`docs/decisioni.md`](docs/decisioni.md); le idee non ancora pianificate in [`docs/idee.md`](docs/idee.md). Chi usa Obsidian trova la mappa completa in [`docs/mappa-progetto.canvas`](docs/mappa-progetto.canvas); a che punto siamo e cosa manca oggi è in [`docs/STATO.md`](docs/STATO.md).
-
-<!-- barra-stato:inizio -->
-**Avanzamento: 52%** (12 passi fatti su 23, [dettaglio](docs/STATO.md))
-
-```text
-A 67%       B 100%      C 0%        D 0%        E 0%
-███████░░░  ██████████  ░░░░░░░░░░  ░░░░░░░░░░  ░░░░░░░░░░
-```
-
-A Controlli veloci (2/3) · B Mercato come una borsa (10/10) · C Nuove specifiche del Mercato (0/3) · D Logistica come Mindustry (0/5) · E Più avanti (0/2)
-<!-- barra-stato:fine -->
-
 | Stato | Sotto-progetto | Cosa porta |
 | --- | --- | --- |
 | Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
@@ -164,6 +152,35 @@ A Controlli veloci (2/3) · B Mercato come una borsa (10/10) · C Nuove specific
 | Previsto | **Attacco e difesa** | Unità nemiche e difese. I nemici arrivano **solo di notte**: quando torna il giorno i superstiti scappano, se il CORE ha resistito; se lo distruggono è **Game Over**. Il drone si mette l'elmetto durante l'attacco |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
+
+A che punto siamo, aspetto per aspetto:
+
+<!-- barra-stato:inizio -->
+**Avanzamento del gioco: 39%** (26 passi fatti su 66, [dettaglio](docs/STATO.md))
+
+```text
+███░│████│█░░░│████│█░░░│█░░░│█░░░│██░░│███░│███░│░░░░│░░░░│░░░░│░░░░│███░│███░
+```
+
+| # | Aspetto | Avanzamento | % |
+| --- | --- | --- | --- |
+| 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | `███████░░░` | 67% (4/6) |
+| 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | `██████████` | 100% (2/2) |
+| 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | `███░░░░░░░` | 29% (2/7) |
+| 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | `██████████` | 100% (2/2) |
+| 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | `██░░░░░░░░` | 20% (1/5) |
+| 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | `██░░░░░░░░` | 20% (1/5) |
+| 7 | [Mappe e terreno](https://github.com/Juan0177/tIndustry/wiki/Mappe-e-terreno) | `███░░░░░░░` | 33% (2/6) |
+| 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | `█████░░░░░` | 50% (1/2) |
+| 9 | [Grafica ed effetti](https://github.com/Juan0177/tIndustry/wiki/Arte-generata) | `███████░░░` | 67% (2/3) |
+| 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | `███████░░░` | 67% (2/3) |
+| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
+| 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
+| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | `░░░░░░░░░░` | 0% (0/4) |
+| 14 | [Co-op](docs/decisioni/0002-sincronizzazione-ibrida.md) | `░░░░░░░░░░` | 0% (0/4) |
+| 15 | [Sito web](https://github.com/Juan0177/tIndustry/wiki/Sito-web) | `████████░░` | 80% (4/5) |
+| 16 | [Wiki](https://github.com/Juan0177/tIndustry/wiki/) | `████████░░` | 75% (3/4) |
+<!-- barra-stato:fine -->
 ---
 
 ## Sviluppo
