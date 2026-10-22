@@ -1,6 +1,7 @@
 """Builds docs/finanza/mercato-e-finanza.xlsx: rules, examples, pity and charts of the stock-market design (#268).
 
     python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx   # then recalc the formulas in Excel/LibreOffice
+"""
 
 import json
 import os
