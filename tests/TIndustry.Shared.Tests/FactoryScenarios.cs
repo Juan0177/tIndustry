@@ -1192,7 +1192,7 @@ internal static class FactoryScenarios
         Assert(factory.Session.SoldByItem.GetValueOrDefault("iron-ore") >= 1, "session recorded");
 
         var snap = factory.Capture();
-        Assert(snap.AutoSellAtCore, "capture auto-sell");
+        Assert(snap.Market!.Items.All(i => i.AutoSell), "capture auto-sell");
         FactorySaveStore.Delete("selftest-autosell");
         var restored = SaveAndReload(content, "selftest-autosell", factory);
         Assert(restored.AutoSellAtCore, "restore auto-sell");

@@ -8,11 +8,11 @@ namespace TIndustry.Shared;
 /// first format where a save file is metadata plus this snapshot; version 11 adds the rules, drones,
 /// plan queues and construction sites; version 12 names the terrain generator (<see cref="Generator"/>,
 /// <see cref="MapSize"/>, <see cref="MapId"/>); version 13 lets a site remember the belt it replaces
-/// (<see cref="SiteSaveDto.Replaced"/>). Versions 11 (classic terrain) and 12 are still read; older files are not.
+/// (<see cref="SiteSaveDto.Replaced"/>). version 14 saves the whole market (<see cref="Market"/>). Versions 11 (classic terrain), 12 and 13 are still read, with a fresh market; older files are not.
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 13;
+    public const int CurrentVersion = 14;
 
     /// <summary>Oldest version still read: v11 saves load on the classic generator, v11 and v12 have no replacement sites.</summary>
     public const int MinReadableVersion = 11;
@@ -37,8 +37,11 @@ public sealed class FactorySaveData
     public int SaleIncome { get; set; }
     public Dictionary<string, int> SoldByItem { get; set; } = new(StringComparer.Ordinal);
     public string? ActiveCampaignLevelId { get; set; }
+    /// <summary>Old saves (up to v13) only: one switch for every item; v14 saves auto-sell per item in <see cref="Market"/>.</summary>
     public bool AutoSellAtCore { get; set; }
     public int CoreUpgradeLevel { get; set; }
+    /// <summary>The market (prices, phases, random stream, history); null in saves up to v13, which start a fresh one.</summary>
+    public MarketSaveDto? Market { get; set; }
     /// <summary>Old saves only: the CORE no longer gives a sale bonus, the value is read and ignored.</summary>
     public int CoreSaleBonusPercent { get; set; }
     public float PowerBuffer { get; set; }
@@ -134,6 +137,40 @@ public sealed class BuilderSaveDto
 /// A construction site. The cost is not saved (recomputed from the spec); the cells are, because a
 /// bridge keeps the exit chosen when the site started. <c>Missing</c> is transient and not saved.
 /// </summary>
+public sealed class MarketSaveDto
+{
+    public ulong RandomState { get; set; }
+    public ulong RandomInc { get; set; }
+    public long SellAllBlockedUntilTick { get; set; }
+    public List<MarketItemSaveDto> Items { get; set; } = [];
+}
+
+public sealed class MarketItemSaveDto
+{
+    public string ItemId { get; set; } = "";
+    public int TrendMilli { get; set; }
+    public int PriceMilli { get; set; }
+    public MarketPhase Phase { get; set; }
+    public long PhaseStartTick { get; set; }
+    public int SpikeTopMilli { get; set; }
+    public int SpikeFromMilli { get; set; }
+    public long NextSpikeTick { get; set; }
+    public int StepFromMilli { get; set; }
+    public int StepTargetMilli { get; set; }
+    public long CrashEndTick { get; set; }
+    public int CrashJitterMilli { get; set; }
+    public long CrashDipEndTick { get; set; }
+    public int CrashDipMilli { get; set; }
+    public long BoostEndTick { get; set; }
+    public int SaleDropMicro { get; set; }
+    public long SaleRecoveryEndTick { get; set; }
+    public int[] WindowPieces { get; set; } = [];
+    public long WindowSecond { get; set; }
+    public int PityMisses { get; set; }
+    public bool AutoSell { get; set; }
+    public List<int> History { get; set; } = [];
+}
+
 public sealed class SiteSaveDto
 {
     public long Id { get; set; }

@@ -79,6 +79,12 @@ public sealed class MarketItemState
     }
 
     internal void ClearHistory() => history.Clear();
+
+    internal void RestoreHistory(IEnumerable<int> values)
+    {
+        history.Clear();
+        history.AddRange(values);
+    }
 }
 
 /// <summary>Market of a game: one <see cref="MarketItemState"/> per <c>content.market</c> item, in content order.</summary>
@@ -115,8 +121,8 @@ public sealed class MarketState
         return null;
     }
 
-    /// <summary>Restarts the market from the game seed: prices at the average, first spikes scheduled.</summary>
-    public void Reseed(MarketRules? rules, int gameSeed)
+    /// <summary>Restarts the market from the game seed: prices at the average, first spikes 10-20 minutes after <paramref name="fromTick"/>.</summary>
+    public void Reseed(MarketRules? rules, int gameSeed, long fromTick = 0)
     {
         Random = new MarketRandom(unchecked((ulong)(uint)gameSeed ^ SeedMix));
         SellAllBlockedUntilTick = 0;
@@ -137,11 +143,82 @@ public sealed class MarketState
             item.PityMisses = 0;
             item.WindowPieces = new int[Math.Max(1, rules.CrashWindowSeconds)];
             item.WindowSecond = 0;
-            item.NextSpikeTick = SpikeInterval(rules, Random);
+            item.NextSpikeTick = fromTick + SpikeInterval(rules, Random);
             item.ClearHistory();
         }
     }
 
     internal static long SpikeInterval(MarketRules rules, MarketRandom random) =>
         (long)random.NextRange(rules.SpikeIntervalMinMinutes, rules.SpikeIntervalMaxMinutes) * 60 * SimulationClock.TickRate;
+
+    internal MarketSaveDto Capture() => new()
+    {
+        RandomState = Random.State,
+        RandomInc = Random.Increment,
+        SellAllBlockedUntilTick = SellAllBlockedUntilTick,
+        Items = items.Select(i => new MarketItemSaveDto
+        {
+            ItemId = i.ItemId,
+            TrendMilli = i.TrendMilli,
+            PriceMilli = i.PriceMilli,
+            Phase = i.Phase,
+            PhaseStartTick = i.PhaseStartTick,
+            SpikeTopMilli = i.SpikeTopMilli,
+            SpikeFromMilli = i.SpikeFromMilli,
+            NextSpikeTick = i.NextSpikeTick,
+            StepFromMilli = i.StepFromMilli,
+            StepTargetMilli = i.StepTargetMilli,
+            CrashEndTick = i.CrashEndTick,
+            CrashJitterMilli = i.CrashJitterMilli,
+            CrashDipEndTick = i.CrashDipEndTick,
+            CrashDipMilli = i.CrashDipMilli,
+            BoostEndTick = i.BoostEndTick,
+            SaleDropMicro = i.SaleDropMicro,
+            SaleRecoveryEndTick = i.SaleRecoveryEndTick,
+            WindowPieces = [.. i.WindowPieces],
+            WindowSecond = i.WindowSecond,
+            PityMisses = i.PityMisses,
+            AutoSell = i.AutoSell,
+            History = [.. i.HistoryMilli]
+        }).ToList()
+    };
+
+    /// <summary>Loads a saved market; items the save does not know keep their fresh state, unknown saved items are dropped.</summary>
+    internal void Restore(MarketSaveDto dto, MarketRules? rules)
+    {
+        Random = MarketRandom.FromState(dto.RandomState, dto.RandomInc);
+        SellAllBlockedUntilTick = Math.Max(0, dto.SellAllBlockedUntilTick);
+        var window = Math.Max(1, rules?.CrashWindowSeconds ?? 1);
+        foreach (var d in dto.Items)
+        {
+            if (Find(d.ItemId) is not { } i)
+            {
+                continue;
+            }
+
+            i.TrendMilli = d.TrendMilli;
+            i.PriceMilli = d.PriceMilli;
+            i.Phase = d.Phase;
+            i.PhaseStartTick = d.PhaseStartTick;
+            i.SpikeTopMilli = d.SpikeTopMilli;
+            i.SpikeFromMilli = d.SpikeFromMilli;
+            i.NextSpikeTick = d.NextSpikeTick;
+            i.StepFromMilli = d.StepFromMilli;
+            i.StepTargetMilli = d.StepTargetMilli;
+            i.CrashEndTick = d.CrashEndTick;
+            i.CrashJitterMilli = d.CrashJitterMilli;
+            i.CrashDipEndTick = d.CrashDipEndTick;
+            i.CrashDipMilli = d.CrashDipMilli;
+            i.BoostEndTick = d.BoostEndTick;
+            i.SaleDropMicro = Math.Max(0, d.SaleDropMicro);
+            i.SaleRecoveryEndTick = d.SaleRecoveryEndTick;
+            // The ring buffer keeps the length the rules ask for, whatever the file holds.
+            i.WindowPieces = new int[window];
+            Array.Copy(d.WindowPieces, i.WindowPieces, Math.Min(window, d.WindowPieces.Length));
+            i.WindowSecond = d.WindowSecond;
+            i.PityMisses = Math.Max(0, d.PityMisses);
+            i.AutoSell = d.AutoSell;
+            i.RestoreHistory(d.History.TakeLast(Math.Max(0, rules?.HistorySeconds ?? 0)));
+        }
+    }
 }

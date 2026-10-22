@@ -54,8 +54,8 @@ public sealed class SaveVersionTests
         FactorySaveStore.Save("v9-rifiutato", host);
         var path = FactorySaveStore.SlotPath("v9-rifiutato");
         var json = File.ReadAllText(path);
-        Assert.Contains("\"version\": 13", json);
-        File.WriteAllText(path, json.Replace("\"version\": 13", "\"version\": 9"));
+        Assert.Contains("\"version\": 14", json);
+        File.WriteAllText(path, json.Replace("\"version\": 14", "\"version\": 9"));
 
         Assert.False(FactorySaveStore.TryLoad(content, "v9-rifiutato", out var loaded, out var error));
         Assert.Null(loaded);
@@ -70,7 +70,7 @@ public sealed class SaveVersionTests
         FactorySaveStore.Save("v10-rifiutato", host);
         var path = FactorySaveStore.SlotPath("v10-rifiutato");
         var json = File.ReadAllText(path);
-        File.WriteAllText(path, json.Replace("\"version\": 13", "\"version\": 10"));
+        File.WriteAllText(path, json.Replace("\"version\": 14", "\"version\": 10"));
 
         Assert.False(FactorySaveStore.TryLoad(content, "v10-rifiutato", out var loaded, out var error));
         Assert.Null(loaded);
@@ -123,7 +123,7 @@ public sealed class SaveVersionTests
         FactorySaveStore.Save("v11-futuro", host);
         var path = FactorySaveStore.SlotPath("v11-futuro");
         var json = File.ReadAllText(path);
-        File.WriteAllText(path, json.Replace("\"version\": 13", "\"version\": 14"));
+        File.WriteAllText(path, json.Replace("\"version\": 14", "\"version\": 15"));
 
         Assert.False(FactorySaveStore.TryLoad(content, "v11-futuro", out var loaded, out var error));
         Assert.Null(loaded);

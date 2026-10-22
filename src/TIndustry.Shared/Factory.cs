@@ -768,7 +768,7 @@ public sealed class Factory : IGameView
             SoldByItem = SortedByKey(Session.SoldByItem),
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
-            AutoSellAtCore = AutoSellAtCore,
+            Market = State.Exchange.Capture(),
             CoreUpgradeLevel = CoreUpgradeLevel,
             PowerBuffer = PowerBuffer,
             PowerCapacity = PowerCapacity,
@@ -1041,6 +1041,17 @@ public sealed class Factory : IGameView
         // Before the sites: restoring a site checks the terrain under it.
         factory.Terrain = RestoreTerrain(content, data, factory.CoreTiles, mapsDirectory);
         CheckRegeneratedTerrain(data, factory.Terrain);
+
+        // After the terrain: its setter reseeds the market. Saves up to v13 have none: a fresh one, first spike
+        // 10-20 minutes from now (the old single auto-sell switch was applied to every item above).
+        if (data.Market is { } market)
+        {
+            factory.State.Exchange.Restore(market, content.MarketRules);
+        }
+        else
+        {
+            factory.State.Exchange.Reseed(content.MarketRules, factory.Terrain?.Seed ?? 0, factory.CurrentTick);
+        }
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)

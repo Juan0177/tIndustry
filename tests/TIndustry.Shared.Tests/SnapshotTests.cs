@@ -64,8 +64,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     {
         var content = LoadContent();
         var host1 = new SimHost(NewGame.Demo(content));
-        // Task 6 puts the market in the snapshot: SetAutoSell goes back in the round-trip script then
-        SubmitScript(host1, autoSell: false);
+        SubmitScript(host1);
         RunTicks(host1, 3000);
 
         // Guard against a vacuous pass: the snapshot must be taken with real activity in it.
