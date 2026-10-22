@@ -1,62 +1,146 @@
 # Stato del progetto
 
-A che punto siamo e cosa manca. **Ogni modifica al progetto aggiorna, in main, questo file e la [mappa del progetto](mappa-progetto.canvas)**; la storia sta nel [diario](diario/README.md) e nel [CHANGELOG](../CHANGELOG.md).
+A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modifica al progetto aggiorna, in main, questo file e la [mappa del progetto](mappa-progetto.canvas)**; la storia sta nel [diario](diario/README.md) e nel [CHANGELOG](../CHANGELOG.md).
 
-Le caselle qui sotto sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre (la CI controlla che siano allineate).
+Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, barra di avanzamento e logo nei titoli dei documenti.
+**Aggiornato:** 2026-10-23, tutti gli aspetti del gioco nella barra.
+
+## Aspetti del gioco
+
+### 1 · [Fondamenta tecniche](ARCHITETTURA.md)
+
+- [x] Riordino del progetto (sotto-progetto 1, PR #139–#146)
+- [x] Simulazione a comandi, tick fisso e checksum (sotto-progetto 2, PR #147–#154)
+- [x] Salvataggi con versione, fino alla v14 (PR #279)
+- [x] Agenti che giocano col server MCP (PR #210–#217)
+- [ ] Pulizia di rami, worktree e cartelle vecchie (approvata, da lanciare a mano)
+- [ ] Sonda `oggetti-fluidi` del playtest `ui` stabile
+
+### 2 · [Costruzione](wiki/Costruzione.md)
+
+- [x] Costruzione come Mindustry: piani, drone e cantieri (sotto-progetto 3, PR #159–#166)
+- [x] Trascinamento, linea con ponte automatico, rettangolo di smontaggio (PR #229–#232)
+
+### 3 · [Logistica](wiki/Logistica.md)
+
+- [x] Nastri come Mindustry: portata, oggetti fluidi, giro sul posto, tier (PR #224–#246)
+- [x] Nastro rinforzato (PR #240)
+- [ ] Nastri stretti, variante C ([#252](https://github.com/Juan0177/tIndustry/issues/252))
+- [ ] Junction ([#253](https://github.com/Juan0177/tIndustry/issues/253))
+- [ ] Sorter con l'alternanza sinistra/destra ([#254](https://github.com/Juan0177/tIndustry/issues/254))
+- [ ] Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
+- [ ] Estrattore come l'Unloader, configurato col clic ([#270](https://github.com/Juan0177/tIndustry/issues/270))
+
+### 4 · [Produzione](wiki/Produzione.md)
+
+- [x] Minatori, forni, assemblatori ed estrattori
+- [x] Titanio e Minatore T2
+
+### 5 · [Energia](wiki/Energia.md)
+
+- [x] Generatori, nodi di potenza e Lampada
+- [ ] Rete di nodi come Mindustry: specifica approvata ([#269](https://github.com/Juan0177/tIndustry/issues/269))
+- [ ] Rete di nodi come Mindustry: piano
+- [ ] Rete di nodi come Mindustry: implementazione
+- [ ] Rete di nodi come Mindustry: documenti e diario
+
+### 6 · [Mercato ed economia](wiki/Mercato-come-una-borsa.md)
+
+- [x] Mercato come una borsa, specifica 1 (PR #274–#282, [diario](diario/2026-10-22-mercato-borsa.md))
+- [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata
+- [ ] Schermo di borsa e bot della finanza: implementazione
+- [ ] Magazzino del CORE e livelli, specifica 3: specifica approvata
+- [ ] Magazzino del CORE e livelli: implementazione
+
+### 7 · [Mappe e terreno](wiki/Mappe-e-terreno.md)
+
+- [x] Mappe a seme, biomi, pareti e acqua (G2a, PR #175–#180)
+- [x] Arte del terreno (G2b, PR #182–#184)
+- [ ] Giacimenti per bioma, generatore biomi-2: specifica approvata ([spec](superpowers/specs/2026-10-18-biomi-2-giacimenti-design.md), [#204](https://github.com/Juan0177/tIndustry/pull/204))
+- [ ] Giacimenti per bioma: piano
+- [ ] Giacimenti per bioma: implementazione
+- [ ] Giacimenti per bioma: documenti e diario
+
+### 8 · [Campagna](wiki/Campagna-e-mappe.md)
+
+- [x] Livelli della campagna con le loro mappe
+- [ ] Campagna rifatta coi valori del Mercato nuovo
+
+### 9 · [Grafica ed effetti](wiki/Arte-generata.md)
+
+- [x] Arte dei blocchi generata da script (G1, PR #168–#173)
+- [x] Effetti, ombre e luci (G3, PR #186–#189)
+- [ ] Effetti e luci approvati dall'utente
+
+### 10 · [Interfaccia](wiki/Interfaccia-e-lingue.md)
+
+- [x] Tema, carattere, lingue, Scala UI e colori accessibili (G4, PR #194–#201)
+- [x] Panoramica del Mercato (PR #281)
+- [ ] Telemetria, overlay delle risorse ([#234](https://github.com/Juan0177/tIndustry/issues/234))
+
+### 11 · [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
+
+Sotto-progetto 4: il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma.
+
+- [ ] Specifica approvata
+- [ ] Piano
+- [ ] Implementazione
+- [ ] Documenti e diario
+
+### 12 · [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
+
+- [ ] Specifica approvata
+- [ ] Piano
+- [ ] Implementazione
+- [ ] Documenti e diario
+
+### 13 · [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
+
+Nemici solo di notte, Game Over se cade il CORE.
+
+- [ ] Specifica approvata
+- [ ] Piano
+- [ ] Implementazione
+- [ ] Documenti e diario
+
+### 14 · [Co-op](decisioni/0002-sincronizzazione-ibrida.md)
+
+Sotto-progetto 5: server C# e sincronizzazione ibrida.
+
+- [ ] Specifica approvata
+- [ ] Piano
+- [ ] Implementazione
+- [ ] Documenti e diario
+
+### 15 · [Sito web](wiki/Sito-web.md)
+
+- [x] Vetrina «fabbrica», pagine Sviluppo e Asset (PR #233, #235)
+- [x] Racconto guidato dallo scroll pubblicato in `racconto/`
+- [x] Mercato del sito allineato alla borsa (PR #276)
+- [x] Barra di avanzamento nella pagina Sviluppo (PR #284)
+- [ ] Racconto approvato dall'utente e messo nella barra del sito ([spec](superpowers/specs/2026-10-20-sito-scroll-narrativo.md))
+
+### 16 · [Wiki](wiki/Home.md)
+
+- [x] Pagine per chi gioca
+- [x] Pagine per chi sviluppa
+- [x] Mercato come una borsa e barra di avanzamento
+- [ ] Pagine dello schermo di borsa e del magazzino del CORE, quando arrivano
 
 ## Ordine di lavoro in corso
 
-Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede conferma.
+Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede conferma. Fra parentesi l'aspetto della barra a cui appartiene.
 
-### A · Controlli veloci
-
-- [x] A1 · Playtest `ui` e `tutorial` dopo la #271, testi nei riquadri anche in inglese
-- [ ] A2 · Pulizia di rami, worktree e cartelle vecchie (approvata, da lanciare a mano)
-- [x] A3 · Test di Shared intermittenti (nessuno trovato in tre giri)
-
-### B · Mercato come una borsa
-
-Specifica 1 ([#268](https://github.com/Juan0177/tIndustry/issues/268)), [diario](diario/2026-10-22-mercato-borsa.md).
-
-- [x] Task 1 · Valori base e regole nei dati (#274)
-- [x] Task 2 · Andamento dei prezzi e picchi (#275)
-- [x] Task 3 · Vendite, calo e crollo; sito allineato (#276, #273)
-- [x] Task 4 · Jackpot, pity e attesa (#277)
-- [x] Task 5 · Vendita automatica per oggetto (#278)
-- [x] Task 6 · Salvataggi v14 (#279)
-- [x] Task 7 · Vista per il client e per gli agenti (#280)
-- [x] Task 8 · Schermata panoramica (#281)
-- [x] Prova di 15 minuti e parere dell'utente
-- [x] Task 9 · Documenti, diario e revisione finale (#282)
-
-### C · Nuove specifiche del Mercato
-
-Prima il brainstorming e la specifica approvata, poi il codice. In attesa del via dell'utente.
-
-- [ ] C1 · Specifica 2: schermo di borsa e bot della finanza
-- [ ] C2 · Specifica 3: magazzino del CORE e livelli
-- [ ] C3 · Campagna rifatta coi valori del Mercato nuovo
-
-### D · Logistica come Mindustry
-
-Un piano unico, dopo il blocco B.
-
-- [ ] D1 · Nastri stretti, variante C ([#252](https://github.com/Juan0177/tIndustry/issues/252))
-- [ ] D2 · Junction ([#253](https://github.com/Juan0177/tIndustry/issues/253))
-- [ ] D3 · Sorter con l'alternanza sinistra/destra ([#254](https://github.com/Juan0177/tIndustry/issues/254))
-- [ ] D4 · Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
-- [ ] D5 · Estrattore come l'Unloader ([#270](https://github.com/Juan0177/tIndustry/issues/270))
-
-### E · Più avanti
-
-- [ ] E1 · Rete di energia come Mindustry, con la sua specifica ([#269](https://github.com/Juan0177/tIndustry/issues/269))
-- [ ] E2 · Telemetria, overlay delle risorse ([#234](https://github.com/Juan0177/tIndustry/issues/234))
+| Blocco | Cosa | Stato |
+| --- | --- | --- |
+| A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
+| B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **Prossimo**, in attesa del via |
+| D | Logistica come Mindustry: #252–#255, #270 (3) | Da fare, dopo B |
+| E | Rete di energia #269 (5), telemetria #234 (10) | Più avanti |
 
 ## Cosa manca, in piccolo
-
-Fuori dalla barra: cose piccole da non perdere.
 
 - **Pulizia del blocco A**, approvata dall'utente ma da lanciare a mano, perché la modalità automatica blocca le cancellazioni:
   - i worktree vecchi in `.claude/worktrees/`;
@@ -70,3 +154,4 @@ Fuori dalla barra: cose piccole da non perdere.
 
 - Il via per il blocco C.
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
+- L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.
