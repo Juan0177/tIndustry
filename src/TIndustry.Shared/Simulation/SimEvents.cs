@@ -21,3 +21,13 @@ public sealed record ConstructFinished(int PlayerId, long SiteId, long EntityId,
 
 /// <summary>Site <paramref name="SiteId"/> was fully taken apart (deconstruction or cancelled build); <paramref name="Spec"/> is its block.</summary>
 public sealed record DeconstructFinished(int PlayerId, long SiteId, BuildSpec? Spec = null) : SimEvent(PlayerId);
+
+/// <summary>
+/// A sale was resolved at the click: <paramref name="Pieces"/> of <paramref name="ItemId"/> at
+/// <paramref name="PriceMilli"/> (thousandths of B) paid <paramref name="Income"/>. <paramref name="Crash"/> is true when
+/// this sale started a crash; <paramref name="Attempt"/>, <paramref name="Jackpot"/> and
+/// <paramref name="ProbabilityBasisPoints"/> describe a jackpot attempt (none yet).
+/// </summary>
+public sealed record SaleResolved(
+    int PlayerId, string ItemId, int Pieces, int PriceMilli, int Income,
+    bool Crash, bool Attempt, bool Jackpot, int ProbabilityBasisPoints) : SimEvent(PlayerId);

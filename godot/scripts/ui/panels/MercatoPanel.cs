@@ -178,10 +178,10 @@ public partial class MercatoPanel : Control
             var best = market.Items.FirstOrDefault();
             return best is null
                 ? Testi.T("mercato.consiglio.nessuno")
-                : Testi.F("mercato.consiglio.vendi", Testi.Oggetto(best.ItemId), best.SellPrice);
+                : Testi.F("mercato.consiglio.vendi", Testi.Oggetto(best.ItemId), best.BaseValue);
         }
 
-        var margin = plate.SellPrice - ore.SellPrice * 2;
+        var margin = plate.BaseValue - ore.BaseValue * 2;
         return margin > 0 ? Testi.F("mercato.consiglio.lastre", margin) : Testi.T("mercato.consiglio.accumula");
     }
 
@@ -419,11 +419,11 @@ public partial class MercatoPanel : Control
 
         h.AddChild(Cell($"{stock}", ColStock));
         // A price below list is red and has a down arrow (meaning not by colour alone).
-        var priceCell = Cell(price < item.SellPrice ? $"${price} ↓" : $"${price}", ColPrice,
-            price < item.SellPrice ? UiTheme.TestoRosso : "");
-        priceCell.TooltipText = price < item.SellPrice
-            ? Testi.F("mercato.listino.calo", item.SellPrice)
-            : Testi.F("mercato.listino", item.SellPrice);
+        var priceCell = Cell(price < item.BaseValue ? $"${price} ↓" : $"${price}", ColPrice,
+            price < item.BaseValue ? UiTheme.TestoRosso : "");
+        priceCell.TooltipText = price < item.BaseValue
+            ? Testi.F("mercato.listino.calo", item.BaseValue)
+            : Testi.F("mercato.listino", item.BaseValue);
         priceCell.MouseFilter = MouseFilterEnum.Pass;
         h.AddChild(priceCell);
         h.AddChild(Cell($"${price * stock}", ColValue, UiTheme.TestoDenaro));

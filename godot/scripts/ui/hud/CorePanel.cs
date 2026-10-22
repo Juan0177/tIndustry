@@ -230,7 +230,7 @@ public partial class CorePanel : VBoxContainer
         var upgrade = factory.Content.CoreUpgrade;
         if (factory.CoreUpgradeLevel > 0)
         {
-            _coreUpgradeButton.Text = Testi.F("core.potenziato", factory.CoreUpgradeLevel, factory.CoreSaleBonusPercent);
+            _coreUpgradeButton.Text = Testi.F("core.potenziato", factory.CoreUpgradeLevel);
             _coreUpgradeButton.Disabled = true;
             _coreUpgradeButton.TooltipText = "";
             return;

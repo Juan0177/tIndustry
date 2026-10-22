@@ -25,7 +25,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         }
     }
 
-    /// <summary>Commands submitted at fixed ticks: belts, a sell, auto-sell, a removal.</summary>
+    /// <summary>Commands submitted at fixed ticks: belts, a sell, a removal.</summary>
     private static void SubmitScript(SimHost host)
     {
         long tick = 5;
@@ -35,7 +35,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         }
 
         host.Submit(new Sell(1, "iron-plate", 3) { Tick = 100 });
-        host.Submit(new SetAutoSell(1, true) { Tick = 200 });
+        // No auto-sell here: it pays the price of the moment, and the market joins the snapshot only with the save change.
         host.Submit(new Remove(1, new GridPosition(15, 8)) { Tick = 400 });
         host.Submit(new PlaceBelt(1, new GridPosition(15, 8), Direction.East, "conveyor-basic") { Tick = 450 });
     }

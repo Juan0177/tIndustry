@@ -59,17 +59,9 @@ public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Sp
 
 public sealed record CoreUpgradeDefinition(
     int MoneyCost,
-    IReadOnlyList<ResourceAmount> BuildCost,
-    int SaleBonusPercent);
+    IReadOnlyList<ResourceAmount> BuildCost);
 
-public sealed record MarketItemDefinition(
-    string ItemId,
-    string DisplayName,
-    int SellPrice,
-    int? MinSellPrice = null,
-    int? MaxSellPrice = null,
-    int? SoftStock = null,
-    int BaseValue = 1);
+public sealed record MarketItemDefinition(string ItemId, string DisplayName, int BaseValue);
 
 /// <summary>
 /// The <c>marketRules</c> block of content.json, all integers: prices and multipliers in thousandths of B

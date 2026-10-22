@@ -140,6 +140,8 @@ public sealed class SimHost
             return true;
         });
 
+        // Events raised by commands (a sale) would be cleared by the tick: keep them for the drain below.
+        var commandEvents = new List<SimEvent>();
         foreach (var command in due)
         {
             var moneyBefore = factory.Wallet.Money;
@@ -153,18 +155,21 @@ public sealed class SimHost
             {
                 Raise(CommandRejected, h => h(command, reason), ref handlerErrors);
             }
+
+            commandEvents.AddRange(factory.State.Events);
+            factory.State.Events.Clear();
         }
 
         factory.Step();
 
         var events = factory.State.Events;
-        if (events.Count == 0)
+        if (events.Count == 0 && commandEvents.Count == 0)
         {
             return;
         }
 
         // Drain first: handlers see a stable list and the next tick starts clean.
-        var raised = events.ToArray();
+        var raised = commandEvents.Concat(events).ToArray();
         events.Clear();
         foreach (var simEvent in raised)
         {
@@ -203,6 +208,7 @@ public sealed class SimHost
         Remove remove => ApplyRemove(remove),
         UnlockStructure unlock => ApplyUnlock(unlock),
         Sell sell => ApplySell(sell),
+        SellAll sellAll => factory.TrySellAll(sellAll.ItemId, sellAll.PlayerId) ? null : RefusalCode.SellFailed,
         SetAutoSell autoSell => SetAutoSellAndAccept(autoSell.Enabled),
         UpgradeCore => ApplyUpgradeCore(),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
@@ -521,7 +527,7 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
-        return factory.TrySellFromWallet(command.ItemId, command.Amount) ? null : RefusalCode.SellFailed;
+        return factory.TrySellFromWallet(command.ItemId, command.Amount, command.PlayerId) ? null : RefusalCode.SellFailed;
     }
 
     private Refusal? SetAutoSellAndAccept(bool enabled)

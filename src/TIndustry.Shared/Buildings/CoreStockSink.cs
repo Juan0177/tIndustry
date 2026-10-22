@@ -38,7 +38,7 @@ public static class CoreStockSink
         BeltLane belt,
         IReadOnlySet<GridPosition> coreTiles,
         EconomyWallet wallet,
-        MarketCatalog? market,
+        MarketState? market,
         EconomySession? session,
         bool autoSellAtCore)
     {
@@ -67,7 +67,7 @@ public static class CoreStockSink
         BeltGrid grid,
         IReadOnlySet<GridPosition> coreTiles,
         EconomyWallet wallet,
-        MarketCatalog? market,
+        MarketState? market,
         EconomySession? session,
         bool autoSellAtCore)
     {
@@ -128,7 +128,7 @@ public static class CoreStockSink
     private static void AcceptAtCore(
         EconomyWallet wallet,
         string itemId,
-        MarketCatalog? market,
+        MarketState? market,
         EconomySession? session,
         bool autoSellAtCore)
     {
@@ -138,9 +138,15 @@ public static class CoreStockSink
             return;
         }
 
-        // Price from stock *before* this unit lands (same curve as manual Mercato sell).
-        var stockBefore = wallet.MaterialCount(itemId);
-        var unitPrice = market.GetDynamicSellPrice(itemId, stockBefore);
+        // Auto-sell pays the price of the moment and leaves the market alone (no drop, no crash).
+        var listed = market.Find(itemId);
+        if (listed is null)
+        {
+            wallet.AddMaterial(itemId, 1);
+            return;
+        }
+
+        var unitPrice = MarketMath.UnitIncome(listed.BaseValue, listed.PriceMilli);
         wallet.AddMoney(unitPrice);
         session?.RecordSale(itemId, unitPrice);
     }

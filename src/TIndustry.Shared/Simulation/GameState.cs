@@ -85,7 +85,6 @@ public sealed class GameState
     public string? ActiveCampaignLevelId { get; set; }
     public bool AutoSellAtCore { get; set; }
     public int CoreUpgradeLevel { get; set; }
-    public int CoreSaleBonusPercent { get; set; }
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer { get; set; }
     /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
@@ -107,17 +106,6 @@ public sealed class GameState
         {
             yield return a;
         }
-    }
-
-    public int EffectiveSalePrice(string itemId, int stockBeforeSell)
-    {
-        var price = Market.GetDynamicSellPrice(itemId, stockBeforeSell);
-        if (CoreUpgradeLevel <= 0 || CoreSaleBonusPercent <= 0)
-        {
-            return price;
-        }
-
-        return price + price * CoreSaleBonusPercent / 100;
     }
 
     public void SetPowerBuffer(float buffer) =>
@@ -213,9 +201,10 @@ public sealed class GameState
             if (CoreTiles.Contains(neighbor))
             {
                 CoreDeliveredItems++;
-                if (AutoSellAtCore)
+                if (AutoSellAtCore && Exchange.Find(itemId) is { } listed)
                 {
-                    var price = EffectiveSalePrice(itemId, Wallet.MaterialCount(itemId));
+                    // Auto-sell pays the price of the moment without touching the market (per-item minimum price: later task).
+                    var price = MarketMath.UnitIncome(listed.BaseValue, listed.PriceMilli);
                     Wallet.AddMoney(price);
                     Session.RecordSale(itemId, price);
                 }

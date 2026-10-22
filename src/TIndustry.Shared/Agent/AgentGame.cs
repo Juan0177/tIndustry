@@ -1272,7 +1272,7 @@ public sealed class AgentGame : IDisposable
         PlaceBelt or PlaceBuilding => "piazza",
         Remove => "smonta",
         UnlockStructure => "sblocca",
-        Sell => "vendi",
+        Sell or SellAll => "vendi",
         UpgradeCore => "potenzia_core",
         SetAutoSell => "venditaAutomatica",
         SetSorterFilter => "filtroSelezionatore",
