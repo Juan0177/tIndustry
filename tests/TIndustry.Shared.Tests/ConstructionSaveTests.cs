@@ -341,7 +341,7 @@ public sealed class ConstructionSaveTests
         Assert.NotNull(site.Replaced);
 
         var loaded = RoundTrip(host, "v13-sostituzione");
-        Assert.Contains("\"version\": 13", File.ReadAllText(FactorySaveStore.SlotPath("v13-sostituzione")));
+        Assert.Contains("\"version\": 14", File.ReadAllText(FactorySaveStore.SlotPath("v13-sostituzione")));
         Assert.Equal(host.Checksum(), loaded.Checksum());
         var restored = Assert.Single(loaded.State.Sites);
         Assert.Equal("conveyor-basic", restored.Replaced!.Spec.StructureId);

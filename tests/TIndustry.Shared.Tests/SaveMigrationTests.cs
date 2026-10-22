@@ -286,14 +286,14 @@ public sealed class SaveMigrationTests
     }
 
     [Fact]
-    public void SaveWritesVersion13()
+    public void SaveWritesVersion14()
     {
         var host = new SimHost(NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v13-versione", host);
+        FactorySaveStore.Save("v14-versione", host);
 
-        Assert.Contains("\"version\": 13", File.ReadAllText(FactorySaveStore.SlotPath("v13-versione")));
-        var snapshot = SnapshotJson("v13-versione");
-        Assert.Contains("\"version\":13", snapshot);
+        Assert.Contains("\"version\": 14", File.ReadAllText(FactorySaveStore.SlotPath("v14-versione")));
+        var snapshot = SnapshotJson("v14-versione");
+        Assert.Contains("\"version\":14", snapshot);
         Assert.Contains("\"generator\":\"classico\",\"mapSize\":0", snapshot);
         Assert.DoesNotContain("mapId", snapshot);
     }
