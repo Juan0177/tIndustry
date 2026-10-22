@@ -952,7 +952,7 @@
       ],
       "saleBonusPercent": 25
     },
-    "refundPolicyNote": "Piazzamento: solo materiali (niente $). Blueprint in Ricerca: soldi + materiali. Rimozione: rimborso 100% materiali. Nodi: collegamento automatico entro raggio (priorità generatore → nodi → forni/assemblatori; mai CORE). Nodo T1: 1×1 / 4 collegamenti / raggio 6. Nodo T2: 2×2 / 8 / raggio 10. Rete attiva solo con percorso fino a un generatore con carbone. Adiacenza 4-dir: edifici a contatto di un gen (o in cluster) senza nodi. CORE fuori dalla rete potenza."
+    "refundPolicyNote": "Piazzamento: solo materiali (niente $). Sblocco in Ricerca: soldi + materiali. Smontaggio: rimborso dei materiali alla quota della partita (100% in partita libera e nei livelli 1–3, 50% dal livello 4) per il refundPercent del blocco, arrotondato per eccesso; un cantiere annullato rende tutto lo speso. Corrente: un blocco è alimentato se tocca un generatore acceso o un nodo che ha un generatore acceso entro powerLinkRange (Nodo T1 1×1 raggio 6, Nodo T2 2×2 raggio 10); i nodi non si passano la corrente fra loro e maxPowerLinks non è ancora usato (rete come Mindustry: issue #269). CORE fuori dalla rete."
   },
   "buildWeights": {
     "iron-plate": 0.7,
