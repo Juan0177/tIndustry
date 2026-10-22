@@ -91,13 +91,13 @@ struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in
 struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.splitter.suggerimento,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
-struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
+struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti · gli altri a sinistra (a destra se piena),Item filter · icon in the middle · C cycles · matches go straight · others go left (right if full)
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% with power (uses it) · unlock in Research
 struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
-struttura.assembler.suggerimento,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
-struttura.extractor.suggerimento,Estrae dal CORE → nastro · F filtro · R uscita · 1×1,Takes from the CORE → belt · F filter · R output · 1×1
+struttura.assembler.suggerimento,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
+struttura.extractor.suggerimento,Estrae lastre di ferro dal CORE → nastro · R uscita · 1×1,Takes iron plates from the CORE → belt · R output · 1×1
 struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Power node T1 · range 6 · links generator ↔ smelter
 struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · unlock in Research
@@ -324,15 +324,15 @@ ricerca.prerequisito.manca,{0} (manca),{0} (missing)
 struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · output on every side · 2×2
 struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
 struttura.smelter.descrizione,Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2,Smelts ore into plates (coal or power) · +20% when powered · 2×2
-struttura.assembler.descrizione,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
-struttura.extractor.descrizione,Tira 1 oggetto da CORE/edificio · F filtro · R uscita,Pulls 1 item from the CORE/a building · F filter · R output
+struttura.assembler.descrizione,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
+struttura.extractor.descrizione,Tira lastre di ferro dal CORE · R uscita,Pulls iron plates from the CORE · R output
 struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
 struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,Belt T3 · top speed · R/wheel
 struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non raccoglie di lato · R/rotella","Armored belt · like T2, never picks up from the side · R/wheel"
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.splitter.descrizione,Nastro a T · alterna sinistra/destra,T belt · alternates left/right
-struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
+struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti · gli altri a sinistra (a destra se piena),Item filter · icon in the middle · C cycles · matches go straight · others go left (right if full)
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Power node T1 · 1×1 · range 6 · links to generators by itself
@@ -340,7 +340,7 @@ struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega d
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
 tutorial.passo.1,"Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.","Move the view: WASD, hold the wheel, or drag with the left button (in cursor mode). Wheel = zoom · H goes back to the CORE."
 tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categorie (Logistica, Produzione, Potenza); una categoria compare quando ne sblocchi un blocco. Scegli uno strumento (o premi 1–9). Esc torna al cursore.","The palette is bottom right: the category icons on its right (Logistics, Production, Power); a category shows up once you unlock one of its blocks. Pick a tool (or press 1–9). Esc goes back to the cursor."
-tutorial.passo.3,Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. R ruota l'uscita. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.,Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. R rotates the output. Your drone builds what you plan: watch it fly and draw the block.
+tutorial.passo.3,Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. Il minerale esce su ogni nastro accanto. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.,Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. Ore comes out on any belt beside it. Your drone builds what you plan: watch it fly and draw the block.
 tutorial.passo.4,Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.,Press 1 (Belt) and drag a line from the miner's output to the CORE: the ore goes into storage.
 tutorial.passo.5,"Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.","Press M to open the MARKET: sell ore and plates, or turn on Auto-sell."
 tutorial.passo.6,Premi T per aprire la RICERCA: con soldi e materiali sblocchi il FORNO e gli altri edifici.,Press T to open RESEARCH: with money and materials you unlock the SMELTER and the other buildings.
