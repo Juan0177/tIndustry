@@ -25,7 +25,7 @@ public partial class MarketSparkline : Control
     }
 
     /// <summary>Shows the last <see cref="Span"/> points of <paramref name="historyMilli"/>.</summary>
-    public void Show(IReadOnlyList<int> historyMilli, MarketTrend trend)
+    public void SetData(IReadOnlyList<int> historyMilli, MarketTrend trend)
     {
         var from = Math.Max(0, historyMilli.Count - Span);
         _points = historyMilli.Skip(from).ToArray();

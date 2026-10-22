@@ -224,7 +224,7 @@ public partial class MercatoPanel : Control
             Name = "Attesa",
             Visible = false,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            ThemeTypeVariation = UiTheme.TestoGiu
+            ThemeTypeVariation = UiTheme.TestoRosso
         };
         root.AddChild(_waitLabel);
 
@@ -288,8 +288,11 @@ public partial class MercatoPanel : Control
 
     private void Rebuild(IReadOnlyList<MarketItemView> listed)
     {
+        // Out of the tree now: a row still queued for deletion would make the new one of the same item get a
+        // different name (Riga_x renamed by Godot).
         foreach (var child in _list!.GetChildren())
         {
+            _list.RemoveChild(child);
             child.QueueFree();
         }
 
@@ -424,7 +427,7 @@ public partial class MercatoPanel : Control
         row.Price.TooltipText = Testi.F("mercato.listino", item.BaseValue);
 
         var crashed = item.Phase == MarketPhase.Crash;
-        row.Chart.Show(item.HistoryMilli, crashed ? MarketTrend.Crollo : trend);
+        row.Chart.SetData(item.HistoryMilli, crashed ? MarketTrend.Crollo : trend);
         var left = item.CrashSecondsLeft;
         row.Crash.Text = crashed
             ? Testi.F("mercato.crollo", string.Create(CultureInfo.InvariantCulture, $"{left / 60:00}:{left % 60:00}"))
