@@ -9,7 +9,7 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 41%, 28 passi fatti su 69" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 40%, 28 passi fatti su 70" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@
 | 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
 | 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/13.svg" alt="0%" width="160"> | 0% (0/4) |
 | 14 | [Co-op](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |
-| 15 | [Sito web](Sito-web) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/15.svg" alt="83%" width="160"> | 83% (5/6) |
+| 15 | [Sito web](Sito-web) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/15.svg" alt="71%" width="160"> | 71% (5/7) |
 | 16 | [Wiki e README]() | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/16.svg" alt="67%" width="160"> | 67% (4/6) |
 
 Passi di ogni aspetto in [docs/STATO.md](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md).
