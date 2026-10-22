@@ -91,11 +91,12 @@ test("posizioneDrone: una sosta di guardia fra due lavori, poi riparte dalla sos
 });
 
 test("prezzoMercato e testoPrezzo: vola, crolla, scritto all'italiana", () => {
-  const M = { prezzo: { base: 30, alto: 2500, basso: 0.01 }, sale: [0.1, 0.2], crollo: [0.6, 0.7] };
+  const M = { prezzo: { base: 30, alto: 69, basso: 23 }, sale: [0.1, 0.2], crollo: [0.6, 0.7] };
   assert.equal(testoPrezzo(prezzoMercato(M, 0)), "30");
-  assert.equal(testoPrezzo(prezzoMercato(M, 0.4)), "2.500");
-  assert.equal(testoPrezzo(prezzoMercato(M, 0.9)), "0,01");
-  assert.ok(prezzoMercato(M, 0.15) > 30 && prezzoMercato(M, 0.15) < 2500);
+  assert.equal(testoPrezzo(prezzoMercato(M, 0.4)), "69");
+  assert.equal(testoPrezzo(prezzoMercato(M, 0.9)), "23");
+  assert.ok(prezzoMercato(M, 0.15) > 30 && prezzoMercato(M, 0.15) < 69);
+  assert.equal(testoPrezzo(2500), "2.500");
   assert.equal(testoPrezzo(4.2), "4,20");
   assert.equal(testoPrezzo(12345), "12.345");
 });
@@ -106,7 +107,7 @@ test("percorsoCaduta e yPrezzo: il razzo-bomba cade sempre piu' veloce fino al m
   assert.deepEqual([z.x, z.y], [70, 120]);
   assert.equal(m.y, 45);   // a quarter of the drop at half the time: it accelerates
   assert.ok(z.ang > m.ang && m.ang > 0);   // steeper and steeper, nose down
-  const M = { prezzo: { alto: 2500, basso: 30 }, interno: [0, 0, 228, 132] };
-  assert.ok(yPrezzo(M, 2500) < yPrezzo(M, 300) && yPrezzo(M, 300) < yPrezzo(M, 30));
-  assert.ok(yPrezzo(M, 30) < 132 && yPrezzo(M, 2500) > 0);
+  const M = { prezzo: { alto: 69, basso: 23 }, interno: [0, 0, 228, 132] };
+  assert.ok(yPrezzo(M, 69) < yPrezzo(M, 30) && yPrezzo(M, 30) < yPrezzo(M, 23));
+  assert.ok(yPrezzo(M, 23) < 132 && yPrezzo(M, 69) > 0);
 });

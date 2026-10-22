@@ -174,25 +174,30 @@ CAMERA = [  # centre in cells, `vista`: cells across a 16:9 screen; xv, yv, vv: 
 # The chapters above run on their own scale (0..1); the market chapter takes the last three of fourteen panels, so
 # they are squeezed into 0..10/13 and the market fills 10/13..1 (times below already on the final scale).
 SCALA_STORIA = 10 / 13
-# The market: a big screen next to the Core. The price of iron plates soars, the drone fills a briefcase (its
-# counter climbs to 9999), throws it in an arc into the screen through two hatches on top, the price crashes and
-# its falling line becomes a rocket-bomb that goes off as a mushroom cloud when it hits the bottom (the usual
-# selling price), the screen shows a parody of the «stonks» meme with the drone in a suit, then a money bonus;
+# The market: a big screen next to the Core. A spike lifts the price of iron plates from the usual one (about
+# 1.3 x the base value B) to the triple of B; the drone fills a briefcase (its counter climbs to 9999) and throws it
+# in an arc into the screen through two hatches on top («Vendi tutto» during a spike, with the market screen: a
+# jackpot attempt). The sale crashes the price and its falling line becomes a rocket-bomb that goes off as a
+# mushroom cloud when it hits the floor B; the screen shows a parody of the «stonks» meme with the drone in a suit
+# and the jackpot, the money bonus (+777% of B, about ten times);
 # last, the drone changes channel with a remote and the screen shows the game's channel, with the real download and
 # GitHub buttons (HTML laid over the canvas by racconto.js).
+_REGOLE = composti._CONTENT["marketRules"]
+_B = next(m["baseValue"] for m in composti._CONTENT["market"] if m["itemId"] == "iron-plate")
 MERCATO = {"x": 34, "y": 26, "w": 8, "h": 6,
            "interno": [14, 22, 228, 132],     # the screen inside the frame, art px
            "bocca": [108, 8, 40],             # slot on top of the frame (x, y, width): the hatches hinge on its sides
-           "prezzo": {"base": 30, "alto": 2500, "basso": 30},   # the bottom of the crash: the usual selling price
+           # iron plate from content.json: the usual price, the top of a spike, the floor B where a crash stays
+           "prezzo": {"base": round(_B * _REGOLE["normalAverage"]), "alto": round(_B * _REGOLE["spikeMax"]), "basso": _B},
            "sale": [0.785, 0.835], "porte": [0.866, 0.9],
            # the crash: the head of the falling price line is a rocket-bomb, the line its trail; the camera follows it
-           # down and, when it hits the bottom (the usual selling price), it goes off as the mushroom cloud
+           # down and, when it hits the bottom (the floor B), it goes off as the mushroom cloud
            "crollo": [0.898, 0.914], "boom": [0.914, 0.932],
            "caduta": [96, 156],                  # x where the fall starts and where it hits, screen art px
            "meme": [0.932, 0.944], "bonus": [0.946, 0.956],
            # the remote: a click (tasto), then the old channel folds into a line, static, the new one rolls in
            "canale": {"tasto": 0.96, "cambio": [0.962, 0.974], "sensore": [6, 149]}}
-BONUS = 777   # after stonks: «bonus dei soldi», a made-up percentage (the user's joke)
+BONUS = round(_REGOLE["jackpotBonus"] * 100)   # the jackpot, after stonks: «bonus dei soldi», +777% of B
 VALIGETTA = {"appare": 0.80, "conta": [0.806, 0.858], "quanti": 9999, "lancio": [0.872, 0.89], "dentro": 0.896}
 TAPPE_MERCATO = [  # the drone after the last build: above the Core, then where it throws from, facing the screen;
     # last, above the screen's top left corner with the remote

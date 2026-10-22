@@ -62,9 +62,9 @@ class TestRacconto(unittest.TestCase):
         self.assertLess(M["sale"][1], V["lancio"][0])
         self.assertTrue(M["porte"][0] <= V["lancio"][0] < V["lancio"][1] < V["dentro"] <= M["porte"][1])
         # The blast comes from the crash: the price falls as a rocket-bomb and goes off when it hits the bottom,
-        # which is the usual selling price; the camera follows it down.
+        # which is the floor B; the camera follows it down.
         self.assertTrue(V["dentro"] <= M["crollo"][0] < M["crollo"][1] <= M["boom"][0] < M["boom"][1] <= M["meme"][0])
-        self.assertEqual(M["prezzo"]["base"], M["prezzo"]["basso"])
+        self.assertTrue(M["prezzo"]["basso"] < M["prezzo"]["base"] < M["prezzo"]["alto"])   # floor B, usual, spike
         x0, x1 = M["caduta"]
         self.assertTrue(0 < x0 < x1 < M["interno"][2])
         self.assertTrue(0 < racconto.y_prezzo(M["prezzo"]["alto"]) < racconto.y_prezzo(M["prezzo"]["basso"]) < M["interno"][3])
@@ -74,7 +74,8 @@ class TestRacconto(unittest.TestCase):
         self.assertEqual(sorted(c["y"] for c in seguito), [c["y"] for c in seguito])   # going down with it
         self.assertTrue(M["meme"][0] < M["meme"][1] <= M["bonus"][0] < M["bonus"][1] <= 1)   # the bonus after stonks
         self.assertIn("bonus", self.nomi)
-        self.assertGreater(M["prezzo"]["alto"], 50 * M["prezzo"]["base"])
+        self.assertEqual((23, 30, 69), (M["prezzo"]["basso"], M["prezzo"]["base"], M["prezzo"]["alto"]))   # B, 1.3 B, 3 B
+        self.assertEqual(777, racconto.BONUS)
         # Then the drone changes channel: the bonus first, the click, the switch, the game's channel before the end
         # of the scroll (its buttons are HTML over the screen, racconto.js places them on BOTTONI_TV).
         C = M["canale"]
