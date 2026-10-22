@@ -136,7 +136,7 @@ params = [
     ("impact", "Vendita: calo per pezzo venduto", 0.0004, "× B", "utente", "0,04% di B per pezzo: 5.000 pezzi = −2×B, così dal picco si arriva vicino a B proprio verso la soglia del crollo.", "0.00%"),
     ("recover", "Vendita: tempo per tornare all'andamento", 120, "s", "proposta", "", "0"),
     ("crash_qty", "Crollo: pezzi venduti nella finestra", 5000, "pezzi", "utente", "Crolla solo se in 2 minuti vendi almeno questa quantità di quell'oggetto (una o più vendite). Le vendite piccole abbassano il prezzo ma non sotto B.", "#,##0"),
-    ("crash_window", "Crollo: finestra per contare i pezzi", 2, "min", "utente", "", "0"),
+    ("crash_window", "Crollo: finestra per contare i pezzi", 2, "min", "utente", "Fa crollare anche ogni tentativo di jackpot (con o senza jackpot), qualunque sia la quantità.", "0"),
     ("crash_len", "Crollo: durata", 20, "min", "utente", "Niente picchi e conto alla rovescia del picco fermo.", "0"),
     ("crash_low_len", "Crollo: minuti in cui può andare sotto B", 5, "min", "utente", "I primi minuti del crollo.", "0"),
     ("crash_low_min", "Crollo: minimo sotto B", 0.6, "× B", "utente", "30–40% sotto la soglia minima.", "0.00"),
@@ -351,7 +351,7 @@ cases = [
     ("1. Vendita piccola nella fascia normale", 1.3, 50, "no", "no"),
     ("2. 750 pezzi a prezzo normale: scende fino a B, niente crollo", 1.3, 750, "no", "sì"),
     ("3. 200 pezzi nel picco con lo schermo: calo lieve", 2.9, 200, "sì", "sì"),
-    ("4. 2.000 pezzi nel picco con lo schermo, jackpot mancato", 2.9, 2000, "sì", "sì"),
+    ("4. 2.000 pezzi nel picco con lo schermo, jackpot mancato: crollo", 2.9, 2000, "sì", "sì"),
     ("5. 2.000 pezzi fuori dal picco: scende a B, niente crollo", 1.4, 2000, "sì", "sì"),
     ("6. 5.000 pezzi nel picco senza schermo: crollo, niente jackpot", 2.9, 5000, "no", "sì"),
     ("7. Vendita automatica di 100 pezzi", None, 100, "no", "no"),
@@ -387,7 +387,7 @@ for i, (name, price, q, screen, all_) in enumerate(cases):
         cell(E, f"L{r}", f"=D{r}*ROUND(B{r}*MIN(C{r},{p('auto_price')}),0)", fmt="$#,##0",
              comment="La vendita automatica paga il minimo fra B e il prezzo del momento.")
         continue
-    cell(E, f"I{r}", f'=IF(D{r}>={p("crash_qty")},"sì","no")')
+    cell(E, f"I{r}", f'=IF(OR(D{r}>={p("crash_qty")},K{r}="sì"),"sì","no")')
     cell(E, f"H{r}", f'=IF(I{r}="sì",{p("norm_min")},MAX({p("norm_min")},C{r}-D{r}*{p("impact")}))', fmt="0.00",
          comment="Con il crollo il prezzo va vicino a B (e nei primi 5 minuti a volte sotto)." if i == 1 else None)
     cell(E, f"J{r}",
@@ -684,6 +684,7 @@ L.add_chart(lc, "P4")
 O = sheet("Punti aperti", (6, 100))
 title(O, "Punti aperti", "Da decidere prima della specifica (o nelle micro correzioni dopo).")
 openq = [
+    "Deciso il 22/10 (3): ogni tentativo di jackpot (almeno 400 pezzi, nel picco, con lo schermo) fa crollare, anche se va a vuoto: il pity non si carica gratis.",
     "Deciso il 22/10 (2): il crollo scatta solo con 5.000 pezzi venduti in 2 minuti, le vendite piccole non scendono sotto B; vendita automatica per oggetto, al prezzo minimo (B, o meno durante un crollo); jackpot su qualsiasi oggetto, il drone sintonizza lo schermo sul grafico giusto.",
     "Deciso il 22/10: crollo da 5.000 pezzi; sequenza a ogni «Vendi tutto» con lo schermo; LED giallo solo col 50/50 (10.000 pezzi); calo 0,04% di B per pezzo; pity per oggetto, bonus solo da 3.000 pezzi; valori B ×1,5 a fine partita; magazzino 1.000 / 4.000 / 12.000.",
     "Confermato: un tentativo sotto i 3.000 pezzi non tocca la serie «di fila» del pity; dopo un 50/50 perso il prezzo torna verso B il 20% più in fretta nei primi 5 minuti del crollo (che dura sempre 20 minuti).",
