@@ -11,7 +11,7 @@ Il sito ([juan0177.github.io/tIndustry](https://juan0177.github.io/tIndustry/)) 
 | `index.html` | La vetrina: una fabbrica di tIndustry disegnata con gli sprite veri alla scala del gioco |
 | `sviluppo/index.html` | Come è fatto il gioco: ADR, roadmap, diario e decisioni, letti da `README.md`, `docs/diario/` e `docs/decisioni/` |
 | `asset/index.html` | Ogni sprite registrato in `tools/art`, i blocchi composti come li disegna il gioco, il terreno e il carattere |
-| `racconto/index.html` | Prototipo del racconto guidato dallo scroll (capitolo 1, «dal giacimento al CORE») |
+| `racconto/index.html` | Il racconto guidato dallo scroll, «dal giacimento al CORE»: otto capitoli su quattordici pannelli, fuori dalla barra e con `noindex` finché non è approvato |
 
 ## Il riferimento attuale
 

@@ -10,7 +10,7 @@ Un file per piano completato, chiamato `AAAA-MM-GG-<nome>.md` (la data è quella
 - i **problemi rinviati**, con il sotto-progetto o la PR dove sono stati ripresi;
 - le **verifiche finali**.
 
-Il diario nasce dal registro che l'agente tiene durante il piano in `.superpowers/sdd/<piano>/progress.md`. Quella cartella è ignorata da git e viene cancellata a fine piano: per questo, **prima** di cancellarla, il registro si riscrive qui (regola in `CLAUDE.md`).
+Il diario nasce dal registro che l'agente tiene durante il piano in `.superpowers/sdd/<piano>/progress.md`. Quella cartella è di lavoro, non va committata (non è in `.gitignore`: attenzione a `git add`) e viene cancellata a fine piano: per questo, **prima** di cancellarla, il registro si riscrive qui (regola in `CLAUDE.md`).
 
 I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in Obsidian sia su GitHub.
 

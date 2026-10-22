@@ -142,7 +142,7 @@ python tools/dev/compare_shots.py <baseline> <nuovi>
 
 Il playtest `agenti` prova il canale degli agenti (`AgentBridge`, `godot/scripts/dev/`): `playtest.sh` sceglie una porta libera e un segreto, e un client dentro il playtest gioca come un agente (stato, piazza, avanza, `ui` e clic, tasti, rotella, telecamera, cattura su file, nella risposta e a 1920×1080, log, richieste in raffica durante `esegui`), controllando che senza segreto o con una richiesta da browser il canale chiuda la connessione. Il canale esiste solo nelle build di sviluppo, con `TINDUSTRY_AGENT_PORT`, `TINDUSTRY_AGENT_TOKEN` e un profilo temporaneo (`TINDUSTRY_DATA_DIR` fuori dai dati veri), e ascolta solo su `127.0.0.1`: nel gioco esportato non si apre mai. Gli agenti lo usano attraverso il server MCP di `tools/AgentPlay` (vedi il suo README).
 
-`tools/dev/playtest.sh` lancia il gioco con `TINDUSTRY_PLAYTEST=ui|tutorial`, input simulati e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`): non tocca impostazioni e salvataggi reali. Salva un PNG per passo e `log.txt` nella cartella indicata; esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. Con `TINDUSTRY_PLAYTEST_PERF=1` il playtest `ui` posa anche 200 nastri e 100 edifici a strati al lavoro (forni, assemblatori, generatori, minatori) e stampa FPS medio e minimo e numero di nodi (`PLAYTEST perf: …`), senza esito. Con `TINDUSTRY_PLAYTEST_BLOCCHI=1` costruisce ogni blocco di produzione e potenza spento e acceso e salva `ui-blocchi-spenti.png`, `ui-blocchi-accesi.png`, `ui-blocchi-zoom04.png`, `ui-blocchi-core.png` (Core e drone da vicino) e `ui-blocchi-oggetti.png` (ogni oggetto su ogni nastro), senza esito. Nei playtest gli effetti, le ombre, il bagliore e la notte sono spenti e gli orologi fermi, così le catture sono stabili; con `TINDUSTRY_PLAYTEST_EFFETTI=1` il playtest `ui` li accende e aggiunge il probe di G3 (60 secondi con effetti Alti, FPS, nodi e particelle, ombre, bagliore, notte con Lampade, scala di rendering) con le sue catture `fx-*` e `luci-*`, senza esito sulle immagini. Il playtest `ui` prova anche la Scala UI (catture `ui-scala-<percento>-*`): a 100, 125, 150 e 200% apre ogni pannello e controlla che nessun testo esca dal suo rettangolo e che i pannelli stiano nella finestra (obbligatorio fino al 150%), che il mondo non cambi e che a 200% un clic col mouse pianifichi il nastro proprio sulla cella sotto il cursore; con `TINDUSTRY_PLAYTEST_SCALA=<percento>` un playtest intero gira a quella scala. Con `TINDUSTRY_PLAYTEST_LINGUA=en` un playtest intero gira in inglese (il controllo dei rettangoli misura i testi tradotti); il playtest `ui` prova anche il cambio di lingua, le tre varianti di colore e la Home. I playtest sono sempre in una finestra 1280×720 al 100%. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona FPS.
+`tools/dev/playtest.sh` lancia il gioco con `TINDUSTRY_PLAYTEST=ui|tutorial|agenti`, input simulati e un profilo dati temporaneo (`TINDUSTRY_DATA_DIR`): non tocca impostazioni e salvataggi reali. Salva un PNG per passo e `log.txt` nella cartella indicata; esce con 0 solo se il log contiene `PLAYTEST OK` e nessun `ERROR`. Con `TINDUSTRY_PLAYTEST_PERF=1` il playtest `ui` posa anche 200 nastri e 100 edifici a strati al lavoro (forni, assemblatori, generatori, minatori) e stampa FPS medio e minimo e numero di nodi (`PLAYTEST perf: …`), senza esito. Con `TINDUSTRY_PLAYTEST_BLOCCHI=1` costruisce ogni blocco di produzione e potenza spento e acceso e salva `ui-blocchi-spenti.png`, `ui-blocchi-accesi.png`, `ui-blocchi-zoom04.png`, `ui-blocchi-core.png` (Core e drone da vicino) e `ui-blocchi-oggetti.png` (ogni oggetto su ogni nastro), senza esito. Nei playtest gli effetti, le ombre, il bagliore e la notte sono spenti e gli orologi fermi, così le catture sono stabili; con `TINDUSTRY_PLAYTEST_EFFETTI=1` il playtest `ui` li accende e aggiunge il probe di G3 (60 secondi con effetti Alti, FPS, nodi e particelle, ombre, bagliore, notte con Lampade, scala di rendering) con le sue catture `fx-*` e `luci-*`, senza esito sulle immagini. Il playtest `ui` prova anche la Scala UI (catture `ui-scala-<percento>-*`): a 100, 125, 150 e 200% apre ogni pannello e controlla che nessun testo esca dal suo rettangolo e che i pannelli stiano nella finestra (obbligatorio fino al 150%), che il mondo non cambi e che a 200% un clic col mouse pianifichi il nastro proprio sulla cella sotto il cursore; con `TINDUSTRY_PLAYTEST_SCALA=<percento>` un playtest intero gira a quella scala. Con `TINDUSTRY_PLAYTEST_LINGUA=en` un playtest intero gira in inglese (il controllo dei rettangoli misura i testi tradotti); il playtest `ui` prova anche il cambio di lingua, le tre varianti di colore e la Home. I playtest sono sempre in una finestra 1280×720 al 100%. `compare_shots.py` confronta due cartelle di screenshot ignorando la zona FPS.
 
 Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TINDUSTRY_CAPTURE_DIR` cambia dove vanno gli screenshot (default `godot/artifacts/`).
 
@@ -156,21 +156,21 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
 Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 13 (metadati + istantanea, con il generatore della mappa e i cantieri di sostituzione dei nastri): i salvataggi v12 e v11 si caricano ancora, i v11 sul terreno di prima; i più vecchi non sono compatibili. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
-Persists belts (+items, bridge partner, sorter filter), buildings, wallet, nextItemId, core, regole di partita, drone con la coda dei piani e cantieri a metà.
+Salva nastri (con oggetti, partner del ponte, filtro del selezionatore), edifici, denaro, `nextItemId`, Core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
-## Projects
+## Progetti
 
-| Path | Role |
+| Percorso | Ruolo |
 | --- | --- |
-| `godot/` | **Official** playable client |
-| `src/TIndustry.Shared/` | Factory sim + content + save (shared) |
+| `godot/` | Client di gioco **ufficiale** |
+| `src/TIndustry.Shared/` | Simulazione della fabbrica, contenuti e salvataggi (condivisa) |
 | `data/` | Contenuti (`content.json`, `campaign.json`), unica fonte |
 
 Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; place tools 3–9 restano gated. Salvataggio v3 include `unlockedStructures` + vendite Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 13) include `unlockedStructures` e le vendite del Mercato.
 
 ## Mercato
 
@@ -178,4 +178,4 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Campagna
 
-**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` (save v4).
+**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 13).
