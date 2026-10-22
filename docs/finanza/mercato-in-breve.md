@@ -1,54 +1,41 @@
-# Il Mercato in breve
+# Vendere in tIndustry: ci serve il tuo parere
 
-Come funziona il nuovo Mercato di tIndustry, senza i numeri di dettaglio. Le regole complete stanno nella [specifica](../superpowers/specs/2026-10-22-mercato-borsa-design.md) e nella cartella di lavoro `docs/finanza/mercato-e-finanza.xlsx` (si genera con `python tools/dev/genera_finanza.py . docs/finanza/mercato-e-finanza.xlsx`).
+tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Stiamo cambiando il modo in cui si vende, e vorremmo sapere cosa ne pensi.
 
-## L'idea
+## Come funzionerà
 
-Ogni oggetto si vende come un titolo in borsa: ha un **suo prezzo**, che si muove per conto suo. Vendere e basta rende poco; chi aspetta il momento giusto guadagna molto di più. Chi esagera fa crollare il prezzo.
+**I prezzi si muovono, come in borsa.** Ogni prodotto ha un prezzo minimo sotto il quale non scende mai. Di solito il prezzo sta un po' sopra il minimo e cambia di continuo, piano piano.
 
-## Il prezzo
+**Ogni tanto il prezzo schizza in alto.** Più o meno ogni quarto d'ora, per ogni prodotto, il prezzo sale in un attimo fino al triplo, resta lì qualche secondo e poi riscende. Chi vende in quel momento guadagna molto di più.
 
-- Ogni oggetto ha un **valore base**: è il suo prezzo minimo. Una lastra di ferro, per esempio, vale 23 $.
-- Di solito il prezzo **oscilla poco sopra il valore base**, fino a una volta e mezza circa.
-- Ogni tanto, più o meno ogni quarto d'ora, arriva un **picco**: in pochi secondi il prezzo sale fino al **triplo** del valore base, resta lì una decina di secondi e poi riscende. È il momento buono per vendere.
-- Ogni oggetto ha i suoi picchi: se sale il ferro, il rame resta com'è.
+**Se vendi troppo tutto insieme, il prezzo crolla.** Come quando tutti vendono la stessa cosa nello stesso momento: per una ventina di minuti quel prodotto vale solo il minimo, e niente più rialzi. Gli altri prodotti non se ne accorgono: il crollo riguarda solo quello che hai svenduto.
 
-## Vendere
+**Puoi anche non pensarci.** C'è una vendita automatica che vende da sola man mano che produci. È comoda, ma vende sempre al prezzo minimo.
 
-- Nella schermata del Mercato ogni oggetto ha **«Vendi 1»**, **«Vendi 100»** e **«Vendi tutto»**. Tutti i pezzi di una vendita si pagano al prezzo del momento del clic.
-- Ogni vendita **abbassa un po' il prezzo**, che poi torna su da solo in un paio di minuti. Le vendite piccole non lo portano mai sotto il valore base.
-- Se però in poco tempo vendi **tantissimi pezzi** dello stesso oggetto, provochi un **crollo**: per 20 minuti il prezzo resta al valore base (all'inizio anche sotto) e non arrivano picchi.
-- La **vendita automatica** si accende oggetto per oggetto. È comoda per liberarsi di quello che non usi, ma paga sempre il prezzo minimo.
+## Il colpo di fortuna
 
-## Il jackpot
+Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto, puoi vincere un **jackpot**: quella vendita vale circa **dieci volte** il normale.
 
-- Con uno **schermo di borsa** accanto al CORE (arriverà con un aggiornamento successivo), un **«Vendi tutto» fatto durante un picco** con tanti pezzi può dare il **jackpot**: ogni pezzo vale molto di più, circa dieci volte il valore base.
-- Più pezzi vendi, più è probabile: si parte da poche possibilità e si arriva al massimo a una su due (il «50/50»).
-- Il jackpot fa comunque crollare il prezzo, e un tentativo grande andato male anche.
-- **Pity**: se i tentativi grossi vanno a vuoto, il successivo è sempre più probabile, e dopo tre tentativi a vuoto di fila il jackpot è garantito.
-- Un tentativo andato male che non fa crollare blocca «Vendi tutto» per qualche minuto e rimanda il prossimo picco di quell'oggetto.
+- Più vendi, più è probabile. Con quantità piccole è raro; al massimo è **testa o croce** (una possibilità su due).
+- Che vinca o no, una vendita così grande fa comunque crollare il prezzo di quel prodotto per un po'.
+
+**La «rete di sicurezza».** Per non far arrabbiare chi è sfortunato, ogni volta che tenti il colpo grosso e non va, la volta dopo è più facile. Dopo **tre tentativi andati male di fila, il quarto vince di sicuro**. Funziona come in tanti giochi per telefono, dove dopo un certo numero di tentativi il premio raro è garantito.
 
 ## Due esempi
 
-### 1. Vendere al momento giusto
+**1. Aspettare conviene.** Hai 1.000 lastre di ferro da vendere.
+- Le vendi subito con la vendita automatica: **23.000 $**.
+- Aspetti un rialzo e le vendi lì: **67.000 $**, quasi il triplo.
 
-Hai 1.000 lastre di ferro nel CORE.
+**2. Il testa o croce.** Hai messo da parte una montagna di ferro e arriva un rialzo. Decidi di venderlo tutto in un colpo.
+- Se va bene, jackpot: **630.000 $**.
+- Se va male: **170.000 $**, che è comunque molto più dei 60.000 $ che avresti preso vendendo con calma al minimo.
+- In tutti e due i casi il ferro poi resta fermo al minimo per un po', e intanto conviene vendere altro.
 
-| Quando vendi | Prezzo di una lastra | Incasso |
-|---|---|---|
-| Subito, con la vendita automatica | 23 $ (il minimo) | 23.000 $ |
-| In un momento normale | circa 30 $ | circa 30.000 $ |
-| Durante un picco | circa 67 $ | circa 67.000 $ |
+## Cosa ne pensi?
 
-Aspettare il picco vale quasi il triplo della vendita automatica. Mille lastre non bastano a far crollare il prezzo, quindi non si rischia niente.
-
-### 2. Il 50/50
-
-Hai accumulato 10.000 pezzi di ferro grezzo (valore base 6 $) e arriva un picco. Hai lo schermo di borsa e premi «Vendi tutto»: è un 50/50.
-
-| Esito | Incasso | Dopo |
-|---|---|---|
-| Jackpot | circa 630.000 $ | crollo del ferro per 20 minuti |
-| Niente jackpot | circa 170.000 $ (comunque il prezzo del picco) | crollo del ferro per 20 minuti, e la prossima volta la probabilità è più alta |
-
-Con la vendita automatica gli stessi 10.000 pezzi avrebbero reso 60.000 $. Anche quando il jackpot non esce, vendere al picco conviene; quando esce, rende dieci volte tanto. Il prezzo da pagare è il crollo: per un po' il ferro si vende solo al minimo, e conviene puntare su un altro oggetto.
+1. Ti piace l'idea che i prezzi si muovano e che convenga aspettare il momento giusto, o preferiresti vendere senza pensarci?
+2. Il jackpot ti sembra divertente o troppo legato alla fortuna?
+3. La «rete di sicurezza» (vittoria garantita dopo tre tentativi andati male) è giusta, troppo generosa o troppo avara?
+4. Ti sembra giusto che un tentativo andato male faccia comunque crollare il prezzo, o è una punizione troppo dura?
+5. Secondo te il gioco rischia di diventare più un gioco di borsa che di fabbriche?
