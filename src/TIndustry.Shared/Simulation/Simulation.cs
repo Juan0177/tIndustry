@@ -27,7 +27,7 @@ public static class Simulation
     public const float TickSeconds = SimulationClock.TickSeconds;
 
     /// <summary>
-    /// Builder, Construct, Belt, Power, Mining, Crafting, Lighting, Extraction, Belt (settle, Dt 0), CoreDelivery.
+    /// Builder, Construct, Belt, Power, Mining, Crafting, Lighting, Extraction, Belt (settle, Dt 0), CoreDelivery, Market.
     /// </summary>
     public static IReadOnlyList<ISimulationSystem> Systems { get; } =
     [
@@ -40,7 +40,8 @@ public static class Simulation
         new LightingSystem(),
         new ExtractionSystem(),
         new BeltSystem(advance: false),
-        new CoreDeliverySystem()
+        new CoreDeliverySystem(),
+        new MarketSystem()
     ];
 
     /// <summary>Advances the state by exactly one fixed tick.</summary>

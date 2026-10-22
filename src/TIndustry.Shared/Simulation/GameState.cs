@@ -33,6 +33,7 @@ public sealed class GameState
         Research = research;
         Session = session;
         Market = market;
+        Exchange = new MarketState(content, 0);
     }
 
     public FactoryContent Content { get; }
@@ -42,7 +43,21 @@ public sealed class GameState
     public ResearchState Research { get; }
     public MarketCatalog Market { get; }
     public EconomySession Session { get; }
-    public TerrainMap? Terrain { get; set; }
+    /// <summary>Price state of the exchange (spikes, crashes); <see cref="Market"/> is the catalog of base prices.</summary>
+    public MarketState Exchange { get; }
+
+    private TerrainMap? terrain;
+
+    public TerrainMap? Terrain
+    {
+        get => terrain;
+        set
+        {
+            terrain = value;
+            // The market is seeded from the game seed, known only once the terrain is set.
+            Exchange.Reseed(Content.MarketRules, value?.Seed ?? 0);
+        }
+    }
 
     public List<Miner> Miners { get; } = [];
     public List<Crafter> Smelters { get; } = [];
