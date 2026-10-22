@@ -68,7 +68,25 @@ public sealed record MarketItemDefinition(
     int SellPrice,
     int? MinSellPrice = null,
     int? MaxSellPrice = null,
-    int? SoftStock = null);
+    int? SoftStock = null,
+    int BaseValue = 1);
+
+/// <summary>
+/// The <c>marketRules</c> block of content.json, all integers: prices and multipliers in thousandths of B
+/// (milli), probabilities in basis points (10,000 = 100%), sale impact in millionths of B per piece.
+/// </summary>
+public sealed record MarketRules(
+    int NormalMinMilli, int NormalMaxMilli, int NormalAverageMilli, int NormalStepSeconds,
+    int NormalPullPermille, int NormalNoiseMilli,
+    int SpikeThresholdMilli, int SpikeMaxMilli, int SpikeRiseSeconds, int SpikeHoldSeconds, int SpikeFallSeconds,
+    int SpikeIntervalMinMinutes, int SpikeIntervalMaxMinutes,
+    int SaleImpactMicro, int SaleRecoverySeconds,
+    int CrashPieces, int CrashWindowSeconds, int CrashMinutes, int CrashDipMinutes,
+    int CrashDipMinMilli, int CrashDipMaxMilli, int CrashDipEverySeconds, int CrashDipChanceBp,
+    int JackpotMinPieces, int JackpotBaseBp, int JackpotStepPieces, int JackpotStepBp, int JackpotCapBp,
+    int JackpotBonusPermille,
+    int PityPieces, int PityStepBp, int PityGuaranteeMisses, int MissCooldownSeconds, int MissSpikeDelaySeconds,
+    int LostBoostBp, int LostBoostMinutes, int LostPieces, int HistorySeconds);
 
 public sealed record StructureDefinition(
     string Id,
