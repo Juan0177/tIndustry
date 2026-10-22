@@ -46,6 +46,12 @@ public sealed class GameState
     /// <summary>Price state of the exchange (spikes, crashes); <see cref="Market"/> is the catalog of base prices.</summary>
     public MarketState Exchange { get; }
 
+    /// <summary>True when the game has a stock-exchange screen: only then "sell all" can be a jackpot attempt (set by tests until specification 2).</summary>
+    public bool HasMarketScreen { get; internal set; }
+
+    /// <summary>Test hook: receives the jackpot probability (basis points) and decides the outcome; null draws from the market generator.</summary>
+    internal Func<int, bool>? JackpotRollForTests { get; set; }
+
     private TerrainMap? terrain;
 
     public TerrainMap? Terrain

@@ -1845,8 +1845,11 @@ public sealed class Factory : IGameView
 
     /// <summary>Sells the whole stock of one item (the "Vendi tutto" button).</summary>
     public bool TrySellAll(string itemId, int playerId = 1) =>
-        State.Exchange.Find(itemId) is { } item && Wallet.MaterialCount(itemId) is var stock and > 0
+        SellAllWaitTicks() == 0 && State.Exchange.Find(itemId) is { } item && Wallet.MaterialCount(itemId) is var stock and > 0
         && MarketSales.Sell(State, item, stock, sellAll: true, playerId) is not null;
+
+    /// <summary>Ticks left before "sell all" works again after a missed jackpot attempt (0 when it is free).</summary>
+    public long SellAllWaitTicks() => Math.Max(0, State.Exchange.SellAllBlockedUntilTick - State.CurrentTick);
 
     /// <summary>Money one piece pays right now (0 when the item is not on the market).</summary>
     public int PreviewSellPrice(string itemId) =>

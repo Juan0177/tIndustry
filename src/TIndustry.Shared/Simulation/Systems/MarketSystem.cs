@@ -38,7 +38,10 @@ public sealed class MarketSystem : ISimulationSystem
             {
                 // Linear recovery: the remaining drop shrinks by 1/left each tick and is gone at the end tick.
                 var left = item.SaleRecoveryEndTick - tick;
-                item.SaleDropMicro = left <= 1 ? 0 : item.SaleDropMicro - item.SaleDropMicro / (int)left;
+                // A lost 50/50 (boost window) recovers faster by lostBoost.
+                var boost = tick < item.BoostEndTick ? 10_000 + rules.LostBoostBp : 10_000;
+                var step = (int)Math.Min(item.SaleDropMicro, (long)item.SaleDropMicro * boost / (10_000L * Math.Max(1, left)));
+                item.SaleDropMicro = left <= 1 ? 0 : item.SaleDropMicro - step;
             }
 
             if (item.Phase == MarketPhase.Crash)
@@ -96,7 +99,7 @@ public sealed class MarketSystem : ISimulationSystem
         var since = tick - (item.CrashEndTick - (long)rules.CrashMinutes * 60 * rate);
         var dipEvery = (long)rules.CrashDipEverySeconds * rate;
         if (since < (long)rules.CrashDipMinutes * 60 * rate && since % dipEvery == 0
-            && market.Random.NextInt(10_000) < rules.CrashDipChanceBp)
+            && market.Random.NextInt(10_000) < (tick < item.BoostEndTick ? rules.CrashDipChanceBp * (10_000 - rules.LostBoostBp) / 10_000 : rules.CrashDipChanceBp))
         {
             item.CrashDipMilli = market.Random.NextRange(rules.CrashDipMinMilli, rules.CrashDipMaxMilli);
             item.CrashDipEndTick = tick + dipEvery;
