@@ -133,9 +133,9 @@ params = [
     ("spike_down", "Picco: discesa", 30, "s", "utente", "", "0"),
     ("spike_every_min", "Picco: intervallo minimo", 10, "min", "utente", "Per oggetto; il conto alla rovescia resta fermo durante un crollo.", "0"),
     ("spike_every_max", "Picco: intervallo massimo", 20, "min", "utente", "", "0"),
-    ("impact", "Vendita: calo per pezzo venduto", 0.001, "× B", "proposta", "0,1% di B per pezzo: 100 pezzi = −10% di B.", "0.0%"),
+    ("impact", "Vendita: calo per pezzo venduto", 0.0004, "× B", "utente", "0,04% di B per pezzo: 5.000 pezzi = −2×B, così dal picco si arriva vicino a B proprio verso la soglia del crollo.", "0.00%"),
     ("recover", "Vendita: tempo per tornare all'andamento", 120, "s", "proposta", "", "0"),
-    ("crash_qty", "Crollo: pezzi in una vendita", 400, "pezzi", "utente", "Una vendita oltre questa quantità fa crollare; crolla anche se le vendite piccole portano il prezzo a B.", "#,##0"),
+    ("crash_qty", "Crollo: pezzi in una vendita", 5000, "pezzi", "utente", "Una vendita da questa quantità in su fa crollare; crolla anche se le vendite portano il prezzo a B.", "#,##0"),
     ("crash_len", "Crollo: durata", 20, "min", "utente", "Niente picchi e conto alla rovescia del picco fermo.", "0"),
     ("crash_low_len", "Crollo: minuti in cui può andare sotto B", 5, "min", "utente", "I primi minuti del crollo.", "0"),
     ("crash_low_min", "Crollo: minimo sotto B", 0.6, "× B", "utente", "30–40% sotto la soglia minima.", "0.00"),
@@ -150,7 +150,10 @@ params = [
     ("pity_qty", "Pity: pezzi minimi perché il tentativo conti", 3000, "pezzi", "utente", "", "#,##0"),
     ("pity_guarantee", "Pity: tentativi a vuoto di fila per la garanzia", 3, "tentativi", "utente", "Il tentativo dopo è un jackpot sicuro.", "0"),
     ("auto_price", "Vendita automatica: prezzo", 1.0, "× B", "utente", "Paga B e non tocca il mercato.", "0.00"),
-    ("led_mild", "LED blu: calo fino a", 0.10, "di B", "proposta", "Sotto questa soglia il calo è lieve (blu); oltre, grave (viola); crollo = giallo.", "0%"),
+    ("led_mild", "LED blu: calo fino a", 0.10, "di B", "proposta", "Sotto i 10.000 pezzi: calo fino a questa soglia = blu, oltre (crolli compresi) = viola.", "0%"),
+    ("led_yellow_qty", "LED giallo: pezzi (il 50/50)", 10000, "pezzi", "utente", "Giallo solo col 50/50, da 10.000 pezzi in su.", "#,##0"),
+    ("lost_boost", "50/50 perso: recupero accelerato", 0.20, "", "utente", "Interpretazione: per i primi minuti del crollo il prezzo torna verso B il 20% più in fretta. Da confermare nella specifica.", "0%"),
+    ("lost_boost_len", "50/50 perso: durata del recupero accelerato", 5, "min", "utente", "", "0"),
     ("late_mult", "Oggetti di fine partita: moltiplicatore di B", 1.5, "×", "proposta", "L'utente vuole oggetti avanzati più cari; il numero è da decidere.", "0.00"),
 ]
 NAMES = {}
@@ -304,7 +307,7 @@ J.add_chart(lc, "E4")
 T = sheet("Pity", (12, 14, 14, 16, 14, 16, 14, 50))
 title(T, "Pity", "Ogni tentativo a vuoto con almeno 3.000 pezzi aggiunge +25% al tentativo successivo; dopo 3 a vuoto di fila il 4° è garantito. Si azzera al jackpot.")
 T["A3"] = ("Nelle colonne blu scegli i pezzi e l'esito ipotetico di ogni tentativo (sì = jackpot): le probabilità e il contatore si ricalcolano. "
-           "Un tentativo sotto i 3.000 pezzi non tocca il contatore (vedi Punti aperti).")
+           "Un tentativo sotto i 3.000 pezzi si può fare (con la sola probabilità base), non riceve il bonus e non tocca il contatore.")
 T["A3"].font = NOTE
 scenarios = [
     ("A — sfortuna piena: 3 tentativi grossi a vuoto, il 4° garantito", [(5000, "no"), (5000, "no"), (5000, "no"), (5000, "sì")]),
@@ -329,8 +332,8 @@ for name, steps in scenarios:
              fmt="0%")
         cell(T, f"D{rr}", f'=IF(B{rr}>={p("pity_qty")},"sì","no")')
         prev = f"H{rr - 1}" if k > 0 else "0"
-        cell(T, f"E{rr}", f"={prev}*{p('pity_add')}", fmt="0%")
-        cell(T, f"F{rr}", f"=IF({prev}>={p('pity_guarantee')},1,MIN(1,C{rr}+E{rr}))", fmt="0%")
+        cell(T, f"E{rr}", f'=IF(D{rr}="sì",{prev}*{p("pity_add")},0)', fmt="0%")
+        cell(T, f"F{rr}", f'=IF(AND(D{rr}="sì",{prev}>={p("pity_guarantee")}),1,MIN(1,C{rr}+E{rr}))', fmt="0%")
         cell(T, f"G{rr}", hit, BLUE)
         cell(T, f"H{rr}", f'=IF(OR(G{rr}="sì",F{rr}>=1),0,IF(D{rr}="sì",{prev}+1,{prev}))')
     r = first + len(steps) + 2
@@ -345,12 +348,13 @@ header(E, 4, ["Caso", "B ($)", "Prezzo al clic (× B)", "Pezzi", "Schermo?", "«
 b_plate = "'Valori B'!$F$6"  # iron-plate row (market order: iron-ore, iron-plate, ...)
 cases = [
     ("1. Vendita piccola nella fascia normale", 1.3, 50, "no", "no"),
-    ("2. 300 pezzi a prezzo normale: arriva a B e crolla", 1.3, 300, "no", "sì"),
-    ("3. 300 pezzi nel picco: niente crollo", 2.9, 300, "sì", "sì"),
+    ("2. 750 pezzi a prezzo normale: arriva a B e crolla", 1.3, 750, "no", "sì"),
+    ("3. 200 pezzi nel picco con lo schermo: calo lieve", 2.9, 200, "sì", "sì"),
     ("4. 2.000 pezzi nel picco con lo schermo, jackpot mancato", 2.9, 2000, "sì", "sì"),
-    ("5. 2.000 pezzi fuori dal picco: crollo, jackpot impossibile", 1.4, 2000, "sì", "sì"),
-    ("6. 5.000 pezzi nel picco senza schermo: niente jackpot", 2.9, 5000, "no", "sì"),
+    ("5. 2.000 pezzi fuori dal picco: arriva a B e crolla", 1.4, 2000, "sì", "sì"),
+    ("6. 5.000 pezzi nel picco senza schermo: crollo, niente jackpot", 2.9, 5000, "no", "sì"),
     ("7. Vendita automatica di 100 pezzi", None, 100, "no", "no"),
+    ("8. 10.000 pezzi nel picco con lo schermo: il 50/50", 2.9, 10000, "sì", "sì"),
 ]
 for i, (name, price, q, screen, all_) in enumerate(cases):
     r = 5 + i
@@ -371,11 +375,11 @@ for i, (name, price, q, screen, all_) in enumerate(cases):
         cell(E, f"K{r}", "no")
         cell(E, f"L{r}", f"=D{r}*ROUND(B{r}*C{r},0)", fmt="$#,##0")
         continue
-    cell(E, f"I{r}", f'=IF(OR(D{r}>{p("crash_qty")},C{r}-D{r}*{p("impact")}<={p("norm_min")}),"sì","no")')
+    cell(E, f"I{r}", f'=IF(OR(D{r}>={p("crash_qty")},C{r}-D{r}*{p("impact")}<={p("norm_min")}),"sì","no")')
     cell(E, f"H{r}", f'=IF(I{r}="sì",{p("norm_min")},C{r}-D{r}*{p("impact")})', fmt="0.00",
          comment="Con il crollo il prezzo va vicino a B (e nei primi 5 minuti a volte sotto)." if i == 1 else None)
     cell(E, f"J{r}",
-         f'=IF(AND(E{r}="sì",F{r}="sì",D{r}>={p("jp_min_qty")}),IF(I{r}="sì","giallo",IF(C{r}-H{r}<={p("led_mild")},"blu","viola")),"—")')
+         f'=IF(AND(E{r}="sì",F{r}="sì"),IF(D{r}>={p("led_yellow_qty")},"giallo",IF(C{r}-H{r}<={p("led_mild")},"blu","viola")),"—")')
     cell(E, f"K{r}", f'=IF(AND(E{r}="sì",F{r}="sì",G{r}="sì",D{r}>={p("jp_min_qty")}),"sì","no")')
     cell(E, f"L{r}", f"=D{r}*ROUND(B{r}*C{r},0)", fmt="$#,##0")
 last_e = 4 + len(cases)
@@ -404,9 +408,9 @@ E[f"A{ex}"].font = NOTE
 cell(E, f"B{ex}", f"=10+ROUNDDOWN(10*{p('jp_bonus')},0)+(30-10)", BOLD, "$#,##0")
 leg = ex + 2
 for k, line in enumerate([
-    "LED dello schermo (sequenza solo per «Vendi tutto» da 400 pezzi in su, con lo schermo):",
-    "blu = calo lieve (fino al 10% di B) · viola = calo grave senza crollo · giallo = crollo (jackpot possibile se nel picco).",
-    "Attenzione: con la soglia del crollo a 400 pezzi, ogni vendita che avvia la sequenza fa crollare → il LED è sempre giallo. Vedi Punti aperti.",
+    "LED dello schermo (la sequenza parte a ogni «Vendi tutto» quando c'è lo schermo):",
+    "blu = calo fino al 10% di B · viola = calo più forte, crolli compresi · giallo = il 50/50 (da 10.000 pezzi).",
+    "Se il 50/50 va perso: per 5 minuti il recupero del prezzo è accelerato del 20%.",
 ]):
     E[f"A{leg + k}"] = line
     E[f"A{leg + k}"].font = NOTE if k else BOLD
@@ -592,8 +596,8 @@ for si, (name, qty_ref, pattern) in enumerate(scen):
              f"=IF(C{rr}<{p('jp_min_qty')},0,MIN({p('jp_cap')},{p('jp_base')}+INT((C{rr}-{p('jp_min_qty')})/{p('jp_step_qty')})*{p('jp_step')}))",
              fmt="0%")
         prev = f"N{rr - 1}" if k > 0 else "0"
-        cell(L, f"E{rr}", f"={prev}*{p('pity_add')}", fmt="0%")
-        cell(L, f"F{rr}", f"=IF({prev}>={p('pity_guarantee')},1,MIN(1,D{rr}+E{rr}))", fmt="0%")
+        cell(L, f"E{rr}", f'=IF(C{rr}>={p("pity_qty")},{prev}*{p("pity_add")},0)', fmt="0%")
+        cell(L, f"F{rr}", f'=IF(AND(C{rr}>={p("pity_qty")},{prev}>={p("pity_guarantee")}),1,MIN(1,D{rr}+E{rr}))', fmt="0%")
         cell(L, f"G{rr}", pattern[k % len(pattern)], BLUE)
         cell(L, f"H{rr}", f'=IF(C{rr}=0,"—",IF(OR(G{rr}="sì",F{rr}>=1),"sì","no"))')
         cell(L, f"I{rr}", f'=IF(H{rr}="sì",C{rr}*$B$16,C{rr}*$B$15)', fmt="$#,##0")
@@ -668,15 +672,11 @@ L.add_chart(lc, "P4")
 O = sheet("Punti aperti", (6, 100))
 title(O, "Punti aperti", "Da decidere prima della specifica (o nelle micro correzioni dopo).")
 openq = [
-    "Incoerenza: la sequenza parte solo con «Vendi tutto» da 400 pezzi, ma oltre 400 pezzi c'è sempre il crollo: i LED sarebbero sempre gialli e blu/viola non comparirebbero mai. Proposte: (a) la sequenza parte con ogni «Vendi tutto» quando c'è lo schermo; (b) la soglia del crollo sale (es. 1.000 pezzi) e resta 400 quella del jackpot.",
-    "Pity: un tentativo sotto i 3.000 pezzi azzera la serie «di fila» o la lascia com'è? Nel foglio Pity la lascia com'è.",
-    "Pity: conta per oggetto (come il resto del mercato) o per partita? Nel foglio è per oggetto.",
-    "Pity: il bonus accumulato vale anche per un tentativo sotto i 3.000 pezzi (nel foglio sì, scenario C tentativo 3) o solo per quelli da 3.000 in su?",
-    "Il jackpot provoca il crollo di 20 minuti come una vendita normale? (Detto di sì: «il solito crollo».)",
-    "Valori B: moltiplicatore e lista degli oggetti di fine partita (foglio Valori B), da rifare insieme alla campagna.",
-    "Soglie dei LED: blu fino al 10% di calo di B, oltre viola.",
-    "Impatto delle vendite piccole (0,1% di B per pezzo) e recupero in 2 minuti: valori di partenza da provare in partita.",
-    "Magazzino del CORE: massimi per livello (1.000 / 4.000 / 12.000) e quanti livelli.",
+    "Deciso il 22/10: crollo da 5.000 pezzi; sequenza a ogni «Vendi tutto» con lo schermo; LED giallo solo col 50/50 (10.000 pezzi); calo 0,04% di B per pezzo; pity per oggetto, bonus solo da 3.000 pezzi; valori B ×1,5 a fine partita; magazzino 1.000 / 4.000 / 12.000.",
+    "Da confermare: un tentativo sotto i 3.000 pezzi non tocca la serie «di fila» del pity (assunto nel foglio).",
+    "Da confermare: «recupero accelerato del 20% per 5 minuti» dopo un 50/50 perso = il prezzo torna verso B il 20% più in fretta nei primi 5 minuti del crollo.",
+    "Soglia del LED blu (calo fino al 10% di B): proposta.",
+    "Recupero dopo una vendita piccola in 2 minuti: valore di partenza da provare in partita.",
     "Ramo Finanza: costi e prerequisiti dei moduli; eventuali potenziamenti dello schermo oltre i tre moduli.",
     "Agenti (server MCP): devono vedere prezzi, fasi e picchi come la panoramica, e non i moduli che il giocatore non ha sbloccato?",
 ]
