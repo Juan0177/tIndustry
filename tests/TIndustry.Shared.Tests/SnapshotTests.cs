@@ -37,7 +37,7 @@ public sealed class SnapshotTests(ITestOutputHelper output)
         host.Submit(new Sell(1, "iron-plate", 3) { Tick = 100 });
         if (autoSell)
         {
-            host.Submit(new SetAutoSell(1, true) { Tick = 200 });
+            host.Submit(new SetAutoSell(1, "iron-ore", true) { Tick = 200 });
         }
 
         host.Submit(new Remove(1, new GridPosition(15, 8)) { Tick = 400 });

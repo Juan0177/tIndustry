@@ -81,7 +81,11 @@ public partial class MercatoPanel : Control
         // Toggle from the value the host will have once earlier same-tick toggles are applied.
         var effective = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault()?.Enabled
             ?? _view.AutoSellAtCore;
-        _submit(new SetAutoSell(0, !effective));
+        // Single toggle until the per-item panel (later task): switches every item.
+        foreach (var listed in _view.Content.Market)
+        {
+            _submit(new SetAutoSell(0, listed.ItemId, !effective));
+        }
     }
 
     /// <summary>Host applied a Mercato command: update status, toggle and notify the world.</summary>

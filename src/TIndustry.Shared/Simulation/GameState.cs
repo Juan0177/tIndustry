@@ -89,7 +89,6 @@ public sealed class GameState
     public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }
-    public bool AutoSellAtCore { get; set; }
     public int CoreUpgradeLevel { get; set; }
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer { get; set; }
@@ -207,14 +206,7 @@ public sealed class GameState
             if (CoreTiles.Contains(neighbor))
             {
                 CoreDeliveredItems++;
-                if (AutoSellAtCore && Exchange.Find(itemId) is { } listed)
-                {
-                    // Auto-sell pays the price of the moment without touching the market (per-item minimum price: later task).
-                    var price = MarketMath.UnitIncome(listed.BaseValue, listed.PriceMilli);
-                    Wallet.AddMoney(price);
-                    Session.RecordSale(itemId, price);
-                }
-                else
+                if (!MarketSales.TryAutoSell(Exchange, Wallet, Session, itemId))
                 {
                     Wallet.AddMaterial(itemId, 1);
                 }

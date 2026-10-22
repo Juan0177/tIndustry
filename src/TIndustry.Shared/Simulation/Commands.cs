@@ -69,8 +69,8 @@ public sealed record Sell(int PlayerId, string ItemId, int Amount) : SimCommand(
 /// <summary>Sells the whole stock of one item at the price of the moment ("Vendi tutto").</summary>
 public sealed record SellAll(int PlayerId, string ItemId) : SimCommand(PlayerId);
 
-/// <summary>Replaces assigning <see cref="Factory.AutoSellAtCore"/>.</summary>
-public sealed record SetAutoSell(int PlayerId, bool Enabled) : SimCommand(PlayerId);
+/// <summary>Turns auto-sell on or off for one market item (refused for an item outside the market).</summary>
+public sealed record SetAutoSell(int PlayerId, string ItemId, bool Enabled) : SimCommand(PlayerId);
 
 /// <summary>Replaces <see cref="Factory.TryUpgradeCore"/>.</summary>
 public sealed record UpgradeCore(int PlayerId) : SimCommand(PlayerId);

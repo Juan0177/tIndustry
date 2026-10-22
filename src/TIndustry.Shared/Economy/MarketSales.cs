@@ -40,6 +40,25 @@ internal readonly record struct SaleOutcome(int Pieces, int PriceMilli, int Inco
 internal static class MarketSales
 {
     /// <summary>
+    /// Auto-sell of one piece arriving at the core: when the item's switch is on, pays <c>min(B, price)</c>, records the
+    /// sale and returns true. Leaves the price drop, the crash window and the generator alone.
+    /// </summary>
+    public static bool TryAutoSell(MarketState market, EconomyWallet wallet, EconomySession? session, string itemId)
+    {
+        if (market.Find(itemId) is not { AutoSell: true } item)
+        {
+            return false;
+        }
+
+        var income = Math.Min(item.BaseValue, MarketMath.UnitIncome(item.BaseValue, item.PriceMilli));
+        wallet.AddMoney(income);
+        session?.RecordSale(itemId, income);
+        return true;
+    }
+
+    public static bool TryAutoSell(GameState s, string itemId) => TryAutoSell(s.Exchange, s.Wallet, s.Session, itemId);
+
+    /// <summary>
     /// Sells <paramref name="pieces"/> of <paramref name="item"/> from the wallet at the price of the moment, then applies
     /// the per-piece price drop and the crash window. Null when the stock is short. <paramref name="sellAll"/> is
     /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>).
