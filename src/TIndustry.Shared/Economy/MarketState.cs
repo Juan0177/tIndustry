@@ -215,7 +215,7 @@ public sealed class MarketState
             i.StepFromMilli = Price(d.StepFromMilli);
             i.StepTargetMilli = Price(d.StepTargetMilli);
             i.CrashEndTick = d.CrashEndTick;
-            i.CrashJitterMilli = Math.Max(0, d.CrashJitterMilli);
+            i.CrashJitterMilli = Math.Clamp(d.CrashJitterMilli, 0, rules?.CrashJitterMilli ?? 0);
             i.CrashDipEndTick = d.CrashDipEndTick;
             i.CrashDipMilli = Price(d.CrashDipMilli);
             i.BoostEndTick = d.BoostEndTick;
@@ -236,7 +236,7 @@ public sealed class MarketState
                 i.WindowSecond = d.WindowSecond;
                 for (var k = 0; k < i.WindowPieces.Length; k++)
                 {
-                    i.WindowPieces[k] = Math.Max(0, i.WindowPieces[k]);
+                    i.WindowPieces[k] = Math.Clamp(i.WindowPieces[k], 0, rules?.CrashPieces ?? 0);
                 }
             }
 

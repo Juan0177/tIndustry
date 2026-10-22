@@ -234,12 +234,20 @@ public sealed class MarketSaveTests
             i.SpikeTopMilli = int.MaxValue;
             i.StepTargetMilli = i.CrashDipMilli = int.MinValue;
             i.History = [-1, int.MaxValue];
+            i.CrashJitterMilli = int.MaxValue;
+            i.WindowPieces = [int.MaxValue, int.MaxValue, int.MaxValue];
+            i.WindowSecond = 0;
         });
         var x = g.State.Exchange.Items[0];
         var max = Content.MarketRules.SpikeMaxMilli;
         Assert.All(new[] { x.PriceMilli, x.TrendMilli, x.SpikeTopMilli, x.StepTargetMilli, x.CrashDipMilli },
             v => Assert.InRange(v, 0, max));
         Assert.All(x.HistoryMilli, v => Assert.InRange(v, 0, max));
-        Run(g, 60);
+        Assert.InRange(x.CrashJitterMilli, 0, Content.MarketRules.CrashJitterMilli);
+        Assert.All(x.WindowPieces, v => Assert.InRange(v, 0, Content.MarketRules.CrashPieces));
+        x.Phase = MarketPhase.Crash;
+        x.CrashEndTick = g.State.CurrentTick + 10 * 60;
+        Run(g, 5 * 60);
+        Assert.All(g.State.Exchange.Items, it => Assert.True(it.PriceMilli >= 0));
     }
 }
