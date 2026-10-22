@@ -94,7 +94,7 @@ struttura.splitter.suggerimento,Nastro a T · alterna sinistra/destra,T belt · 
 struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti,Item filter · icon in the middle · C cycles · matches go straight
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
-struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% se alimentato · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% when powered · unlock in Research
+struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% with power (uses it) · unlock in Research
 struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
 struttura.assembler.suggerimento,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
 struttura.extractor.suggerimento,Estrae dal CORE → nastro · F filtro · R uscita · 1×1,Takes from the CORE → belt · F filter · R output · 1×1
@@ -322,7 +322,7 @@ ricerca.prerequisiti,Prerequisiti: {0},Prerequisites: {0}
 ricerca.prerequisiti.nessuno,nessuno,none
 ricerca.prerequisito.manca,{0} (manca),{0} (missing)
 struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · output on every side · 2×2
-struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% se alimentato · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% when powered · multi-side output
+struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
 struttura.smelter.descrizione,Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2,Smelts ore into plates (coal or power) · +20% when powered · 2×2
 struttura.assembler.descrizione,Assembla prodotti · R ruota uscita · 2×2,Assembles products · R rotates the output · 2×2
 struttura.extractor.descrizione,Tira 1 oggetto da CORE/edificio · F filtro · R uscita,Pulls 1 item from the CORE/a building · F filter · R output

@@ -829,6 +829,7 @@
     {
       "id": "miner-advanced",
       "tier": 2,
+      "powerUse": 0.5,
       "moneyCost": 0,
       "buildCost": [
         {

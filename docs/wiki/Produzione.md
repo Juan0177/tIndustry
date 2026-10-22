@@ -28,7 +28,7 @@ Si piazza su un giacimento. Con tutte e 4 le celle sul minerale produce **1 ogge
 
 ## Minatore T2
 
-Come il T1 ma **velocità doppia** e ogni cella sul minerale conta il 25% in più, fino al massimo: con tutte e 4 le celle fa 1 oggetto al secondo. Scava anche il **titanio**. Se è alimentato (un generatore acceso che lo tocca, o un nodo accanto a lui nel raggio di un generatore acceso, vedi [Energia](Energia)) lavora il **20% più veloce**, senza consumare energia.
+Come il T1 ma **velocità doppia** e ogni cella sul minerale conta il 25% in più, fino al massimo: con tutte e 4 le celle fa 1 oggetto al secondo. Scava anche il **titanio**. Se è alimentato (un generatore acceso che lo tocca, o un nodo accanto a lui nel raggio di un generatore acceso, vedi [Energia](Energia)) lavora il **20% più veloce** e consuma 0,5 unità di energia al secondo; se nella riserva non ce n'è abbastanza, va alla velocità normale.
 
 | Minatore | 4 celle su 4 | Con corrente |
 |---|---|---|
