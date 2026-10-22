@@ -60,13 +60,14 @@ class TestSito(unittest.TestCase):
 
     def test_pagine(self):
         self.assertEqual(["asset/index.html", "index.html", "racconto/index.html", "sviluppo/index.html"], self.scritti)
-        for nome in (".nojekyll", "stile.css", "sito.js", "favicon.png", "fabbrica", "catture"):
+        for nome in (".nojekyll", "stile.css", "sito.js", "favicon.png", "fabbrica/logo-barra.png", "fabbrica", "catture"):
             self.assertTrue(os.path.exists(os.path.join(self.out, nome)), nome)
         for rel, radice in (("index.html", ""), ("sviluppo/index.html", "../"), ("asset/index.html", "../")):
             pagina = self.pagine[rel]
             self.assertIn(f'<link rel="stylesheet" href="{radice}stile.css">', pagina)
             self.assertIn(f'<script src="{radice}sito.js" defer></script>', pagina)
             self.assertIn(f'<link rel="icon" href="{radice}favicon.png"', pagina)
+            self.assertIn(f'<a class="marca" href="{radice}"><img class="px" src="{radice}fabbrica/logo-barra.png" alt="tIndustry"', pagina)
             self.assertIn('<html lang="it">', pagina)
             self.assertIn(f'href="{radice}sviluppo/"', pagina)
             self.assertIn(f'href="{radice}asset/"', pagina)

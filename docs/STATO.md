@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, tutti gli aspetti del gioco nella barra.
+**Aggiornato:** 2026-10-23, barre in immagine, logo solo dove il titolo è tIndustry, banner del README generato.
 
 ## Aspetti del gioco
 
@@ -119,14 +119,17 @@ Sotto-progetto 5: server C# e sincronizzazione ibrida.
 - [x] Racconto guidato dallo scroll pubblicato in `racconto/`
 - [x] Mercato del sito allineato alla borsa (PR #276)
 - [x] Barra di avanzamento nella pagina Sviluppo (PR #284)
+- [x] Logo nella barra in alto
 - [ ] Racconto approvato dall'utente e messo nella barra del sito ([spec](superpowers/specs/2026-10-20-sito-scroll-narrativo.md))
 
-### 16 · [Wiki](wiki/Home.md)
+### 16 · [Wiki e README](wiki/Home.md)
 
 - [x] Pagine per chi gioca
 - [x] Pagine per chi sviluppa
 - [x] Mercato come una borsa e barra di avanzamento
 - [ ] Pagine dello schermo di borsa e del magazzino del CORE, quando arrivano
+- [x] Banner del README col logo pixel, generato da `tools/art/immagini_documenti.py`
+- [ ] README rifatto da capo
 
 ## Ordine di lavoro in corso
 

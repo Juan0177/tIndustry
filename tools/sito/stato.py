@@ -22,8 +22,10 @@ STATO_URL = BLOB + STATO
 INIZIO, FINE = "<!-- barra-stato:inizio -->", "<!-- barra-stato:fine -->"
 # Files with a text copy of the bar and where they live (links are written for that place).
 COPIE = (("README.md", "readme"), ("docs/wiki/Home.md", "wiki"))
-LARGHEZZA = 10  # characters of an aspect's own bar
-SEGMENTO = 4    # characters of an aspect in the total bar
+IMMAGINI = "docs/img/stato"  # generated SVG bars: totale.svg and one <key>.svg per aspect
+RAW = "https://raw.githubusercontent.com/Juan0177/tIndustry/main/"
+# Colours of the site (tools/sito/stile.css), so the bars look the same everywhere.
+FONDO, TRACCIA, LINEA, GIALLO, AMBRA, TENUE = "#0b0d10", "#14171c", "#262b33", "#f2c230", "#ffd37f", "#9aa3b2"
 
 _RE_BLOCCO = re.compile(r"^###\s+([A-Z0-9]+)\s+·\s+(.+?)\s*$")
 _RE_TITOLO_LINK = re.compile(r"^\[(.+?)\]\(([^)\s]+)\)$")
@@ -74,22 +76,62 @@ def link_per(link, dove):
     return BLOB + percorso + ("#" + ancora if ancora else "")
 
 
-def _barra(fatti, tutti, larghezza):
-    pieno = round(larghezza * fatti / tutti) if tutti else 0
-    return "█" * pieno + "░" * (larghezza - pieno)
+_STRISCE = (f'<defs><pattern id="strisce" width="16" height="16" patternUnits="userSpaceOnUse" '
+            f'patternTransform="rotate(45)"><rect width="8" height="16" fill="{GIALLO}"/>'
+            f'<rect x="8" width="8" height="16" fill="{AMBRA}"/></pattern></defs>')
+
+
+def _traccia(x, y, w, h, fatti, tutti):
+    """A track with its striped fill, as on the site's "sviluppo" page."""
+    pieno = round((w - 2) * fatti / tutti) if tutti else 0
+    return (f'<rect x="{x + .5}" y="{y + .5}" width="{w - 1}" height="{h - 1}" fill="{TRACCIA}" stroke="{LINEA}"/>'
+            + (f'<rect x="{x + 1}" y="{y + 1}" width="{pieno}" height="{h - 2}" fill="url(#strisce)"/>' if pieno else ""))
+
+
+def svg_aspetto(fatti, tutti):
+    """The bar of one aspect, for its row of the table."""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="200" height="16" viewBox="0 0 200 16">'
+            f'{_STRISCE}{_traccia(0, 0, 200, 16, fatti, tutti)}</svg>\n')
+
+
+def svg_totale(bs):
+    """The total: the percentage and one segment per aspect, each filled with its own percentage."""
+    fatti, tutti = totale(bs)
+    w, margine, spazio, y = 960, 16, 6, 72
+    largo = (w - 2 * margine - spazio * (len(bs) - 1)) / len(bs)
+    pezzi = []
+    for i, (k, _, _, f, n) in enumerate(bs):
+        x = round(margine + i * (largo + spazio), 1)
+        pezzi.append(f'<text x="{x + largo / 2:.1f}" y="{y - 6}" text-anchor="middle" fill="{TENUE}" '
+                     f'font-size="14">{html.escape(k)}</text>{_traccia(x, y, round(largo, 1), 26, f, n)}')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="114" viewBox="0 0 {w} 114" '
+            f'font-family="ui-monospace,Cascadia Mono,Consolas,DejaVu Sans Mono,monospace">{_STRISCE}'
+            f'<rect width="{w}" height="114" fill="{FONDO}"/>'
+            f'<rect width="{w}" height="4" fill="url(#strisce)"/>'
+            f'<text x="{margine}" y="44" fill="{AMBRA}" font-size="34" font-weight="700">{percento(fatti, tutti)}%</text>'
+            f'<text x="{margine + 100}" y="42" fill="{TENUE}" font-size="18">avanzamento del gioco · '
+            f'{fatti} passi fatti su {tutti}</text>{"".join(pezzi)}</svg>\n')
+
+
+def immagini(bs):
+    """{repo path: SVG text} of every bar image."""
+    return {f"{IMMAGINI}/totale.svg": svg_totale(bs),
+            **{f"{IMMAGINI}/{k}.svg": svg_aspetto(f, n) for k, _, _, f, n in bs}}
 
 
 def markdown_barra(bs, dove):
-    """The total bar split by aspect (a code block, so it lines up) and a table with each aspect's own bar."""
+    """The total bar (an image split by aspect) and a table with each aspect's link and own bar."""
     fatti, tutti = totale(bs)
+    base = IMMAGINI if dove == "readme" else RAW + IMMAGINI
     dettaglio = "docs/STATO.md" if dove == "readme" else STATO_URL
     righe = "\n".join(
-        f"| {k} | {f'[{t}]({link_per(l, dove)})' if l else t} | `{_barra(f, n, LARGHEZZA)}` | {percento(f, n)}% ({f}/{n}) |"
+        f"| {k} | {f'[{t}]({link_per(l, dove)})' if l else t} | "
+        f'<img src="{base}/{k}.svg" alt="{percento(f, n)}%" width="160"> | {percento(f, n)}% ({f}/{n}) |'
         for k, t, l, f, n in bs)
-    return (f"**Avanzamento del gioco: {percento(fatti, tutti)}%** ({fatti} passi fatti su {tutti}, "
-            f"[dettaglio]({dettaglio}))\n\n"
-            f"```text\n{'│'.join(_barra(f, n, SEGMENTO) for *_, f, n in bs)}\n```\n\n"
-            f"| # | Aspetto | Avanzamento | % |\n| --- | --- | --- | --- |\n{righe}\n")
+    return (f'<img src="{base}/totale.svg" alt="Avanzamento del gioco: {percento(fatti, tutti)}%, '
+            f'{fatti} passi fatti su {tutti}" width="100%">\n\n'
+            f"| # | Aspetto | Avanzamento | % |\n| --- | --- | --- | --- |\n{righe}\n\n"
+            f"Passi di ogni aspetto in [docs/STATO.md]({dettaglio}).\n")
 
 
 def html_barra(bs):
@@ -120,6 +162,22 @@ def _con_barra(testo, barra):
 def main(argv):
     bs = blocchi()
     fuori = []
+    attesi = immagini(bs)
+    cartella = os.path.join(REPO, IMMAGINI)
+    vecchie = {f"{IMMAGINI}/{n}" for n in os.listdir(cartella)} if os.path.isdir(cartella) else set()
+    for percorso in sorted(vecchie - set(attesi)):  # an aspect that was removed
+        fuori.append(percorso)
+        if "--controlla" not in argv:
+            os.remove(os.path.join(REPO, percorso))
+    for percorso, svg in attesi.items():
+        pieno = os.path.join(REPO, percorso)
+        vecchio = open(pieno, encoding="utf-8", newline="").read() if os.path.exists(pieno) else None
+        if vecchio != svg:
+            fuori.append(percorso)
+            if "--controlla" not in argv:
+                os.makedirs(cartella, exist_ok=True)
+                with open(pieno, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(svg)
     for percorso, dove in COPIE:
         pieno = os.path.join(REPO, percorso)
         with open(pieno, encoding="utf-8", newline="") as fh:

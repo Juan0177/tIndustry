@@ -68,7 +68,7 @@ def link(a, b):
 X = [0, COL_W + 2 * PAD + COL_GAP]
 X += [X[1] * 2, X[1] * 3]
 
-title = "# tIndustry — mappa del progetto\nMindustry × Tiny Industry, Godot 4.4 .NET. Aggiornata il 2026-10-23, dopo il Mercato come una borsa."
+title = "# tIndustry — mappa del progetto\nDal giacimento al mercato: logistica come Mindustry e mercato come una borsa, Godot 4.4 .NET. Aggiornata il 2026-10-23, dopo il Mercato come una borsa."
 nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
               "width": X[3] + COL_W + 2 * PAD, "height": 130, "color": "6"})
 

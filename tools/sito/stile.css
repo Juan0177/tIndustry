@@ -24,7 +24,8 @@ img{max-width:100%}
  background:repeating-linear-gradient(135deg,var(--giallo) 0 12px,#111 12px 24px)}
 .barra a{color:var(--testo);text-decoration:none;white-space:nowrap}
 .barra a:hover{color:var(--ambra)}
-.barra .marca{color:var(--ambra);font-weight:700;margin-right:auto}
+.barra .marca{color:var(--ambra);font-weight:700;margin-right:auto;display:flex;align-items:center;flex:none}
+.barra .marca img{display:block;width:108px;height:32px;max-width:none}
 .barra nav{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none;min-width:0;padding-right:24px;
  mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
 .barra nav::-webkit-scrollbar{display:none}

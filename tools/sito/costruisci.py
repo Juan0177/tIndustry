@@ -181,7 +181,7 @@ def _pagina(titolo, corpo, nav, radice="", classe="", descrizione="", stile_extr
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f"<title>{html.escape(titolo)}</title>{meta}"
             f'<link rel="stylesheet" href="{radice}stile.css">{extra}</head>'
-            f'<body class="{classe}">{testa}<header class="barra"><a class="marca" href="{radice}">tINDUSTRY</a>'
+            f'<body class="{classe}">{testa}<header class="barra"><a class="marca" href="{radice}"><img class="px" src="{radice}fabbrica/logo-barra.png" alt="tIndustry" width="108" height="32"></a>'
             f"<nav>{nav}</nav>{BOTTONE_ANIMAZIONI if animazioni else ''}</header><main>{corpo}</main>{pie}{coda}"
             f'<script src="{radice}sito.js" defer></script></body></html>')
 
@@ -494,7 +494,7 @@ def _contenuto(a, sid, radice, versione):
                 f'height="{logo.height * 8}"></h1>'
                 "<p>Estrai i minerali, portali al CORE sui nastri, fondili in lastre e fili, vendi al Mercato "
                 "e reinvesti in Ricerca per sbloccare nuovi blocchi.</p>"
-                '<p class="nota">Logistica industriale ispirata a Mindustry e Tiny Industry. Gioco gratuito e open source '
+                '<p class="nota">Dal giacimento al mercato: logistica industriale come Mindustry, con un mercato che si muove come una borsa. Gioco gratuito e open source '
                 "per Windows e Linux, in italiano e in inglese.</p>"
                 f'<p class="bottoni"><a class="btn primario" href="{RELEASE_URL}" data-costruisci>Scarica</a>'
                 f'<a class="btn" href="{REPO_URL}" data-costruisci>Codice su GitHub</a></p></div>'
@@ -612,8 +612,8 @@ def pagina_vetrina(archivio, versione):
              '<button type="button" class="visore-chiudi" autofocus>Chiudi</button></div></dialog>')
     return _pagina("tIndustry · logistica industriale, gratuito e open source", noscript + "".join(sezioni) + visore, nav,
                    radice="", classe="vetrina",
-                   descrizione="tIndustry è un gioco gratuito e open source di logistica industriale ispirato a Mindustry "
-                               "e Tiny Industry: minatori, nastri, forni, Mercato e Ricerca. Per Windows e Linux, in italiano e in inglese.",
+                   descrizione="tIndustry è un gioco gratuito e open source di logistica industriale come Mindustry, "
+                               "con un mercato che si muove come una borsa: minatori, nastri, forni, Mercato e Ricerca. Per Windows e Linux, in italiano e in inglese.",
                    drone=True, avanza=True)
 
 
@@ -748,6 +748,9 @@ def costruisci(out_dir, assets_dir=os.path.join(REPO, "godot", "assets")):
     archivio.sprite("drone-1")
     with open(os.path.join(out_dir, "favicon.png"), "wb") as fh:
         fh.write(_png(immagini("core-1").resize((32, 32), Image.NEAREST)))
+    logo = immagini("ui/ui-logo")  # the bar shows the generated logo x2
+    with open(os.path.join(out_dir, "fabbrica", "logo-barra.png"), "wb") as fh:
+        fh.write(_png(logo.resize((logo.width * 2, logo.height * 2), Image.NEAREST)))
     pagine = {"index.html": pagina_vetrina(archivio, versione)}
     sotto = fabbrica.Archivio(immagini, out_dir, radice="../")  # same files, URLs from a sub-folder
     pagine["sviluppo/index.html"] = pagina_sviluppo(sotto)

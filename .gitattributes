@@ -2,3 +2,4 @@
 *.cmd text eol=crlf
 *.md text eol=lf
 *.fnt text eol=lf
+*.svg text eol=lf

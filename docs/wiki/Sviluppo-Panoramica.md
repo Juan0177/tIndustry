@@ -4,7 +4,7 @@ Cos'è tIndustry dal punto di vista del codice, com'è organizzato il repository
 
 ## Il progetto in breve
 
-tIndustry è un gioco di logistica industriale ispirato a Mindustry e Tiny Industry, scritto in **Godot 4.4 .NET** (C#, .NET 8). Il codice è diviso in due metà:
+tIndustry è un gioco di logistica industriale come Mindustry, con un mercato che si muove come una borsa, scritto in **Godot 4.4 .NET** (C#, .NET 8). Il codice è diviso in due metà:
 
 - **la simulazione** (`src/TIndustry.Shared/`): C# puro, senza dipendenze da Godot né dal sistema operativo. Gira a tick fissi di 1/60 s, è guidata da comandi ed è deterministica, così un giorno potrà girare identica su un server e su più client (co-op);
 - **il client** (`godot/`): disegna la partita, raccoglie l'input e lo trasforma in comandi per la simulazione.

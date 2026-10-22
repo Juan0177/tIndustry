@@ -1,4 +1,4 @@
-# <img src="../docs/img/logo.png" alt="tIndustry" height="48"> Godot 4 .NET (**path ufficiale**)
+# tIndustry — Godot 4 .NET (**path ufficiale**)
 
 Client di gioco primario. Sim in `src/TIndustry.Shared/`.
 
