@@ -8,7 +8,7 @@ public sealed class ExtractionSystem : ISimulationSystem
     {
         foreach (var ex in state.Extractors)
         {
-            ex.Tick(ctx.Dt, state.Belts, state.Wallet, state.CoreTiles, ref state.NextItemId);
+            ex.Tick(ctx.Dt, state.Belts, state.Storage, state.CoreTiles, ref state.NextItemId);
         }
     }
 }

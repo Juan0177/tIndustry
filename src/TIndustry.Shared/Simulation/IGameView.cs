@@ -122,6 +122,12 @@ public interface IGameView
 
     IReadOnlySet<GridPosition> CoreTiles { get; }
 
+    /// <summary>Core tier (0 shard, 1 foundation, 2 nucleus), index in <see cref="FactoryContent.CoreTiers"/>.</summary>
+    int CoreTier { get; }
+
+    /// <summary>Maximum Core stock of <paramref name="itemId"/> (<see cref="CoreStorage.Capacity"/>).</summary>
+    int CoreCapacity(string itemId);
+
     TerrainMap? Terrain { get; }
 
     float PowerBuffer { get; }

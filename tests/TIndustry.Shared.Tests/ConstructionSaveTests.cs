@@ -19,7 +19,8 @@ public sealed class ConstructionSaveTests
     {
         var wallet = new EconomyWallet(
             0,
-            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 1000, [Plate] = 1000, ["lead-ore"] = 1000 });
+            // Below the Core's maximum (1000), so refunds are never clamped here.
+            new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 500, [Plate] = 500, ["lead-ore"] = 500 });
         var factory = new Factory(
             Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(20, 20), 2), wallet);
         factory.State.Rules = rules;

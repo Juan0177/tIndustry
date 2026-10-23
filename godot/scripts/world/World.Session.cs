@@ -112,7 +112,6 @@ public partial class World
         return NewGame.Sandbox(
             content,
             Factory.CenteredCoreOrigin(edge, edge),
-            coreSize: 2,
             startingMoney: 180,
             rules: ClientRules(night),
             map: MapGenSettings.Normal(size, seed));

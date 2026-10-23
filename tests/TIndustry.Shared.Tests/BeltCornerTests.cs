@@ -222,16 +222,16 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     [Fact]
     public void CoreOnTheSideBlendsLikeAnyItemBuilding()
     {
-        // Core covers (60..61, 60..61): a belt along its east edge heading North. Placing turns belts that touch
+        // Core covers (60..62, 60..62): a belt along its east edge heading North. Placing turns belts that touch
         // the Core into it, so the test turns them back on the grid.
         var factory = Sandbox();
-        var beside = new GridPosition(62, 61);
+        var beside = new GridPosition(63, 62);
         Assert.True(factory.TryPlaceBelt(beside, Direction.North));
-        Assert.True(factory.TryPlaceBelt(new GridPosition(62, 60), Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(63, 61), Direction.North));
         Assert.True(factory.Belts.TryOrient(beside, Direction.North));
-        Assert.True(factory.Belts.TryOrient(new GridPosition(62, 60), Direction.North));
+        Assert.True(factory.Belts.TryOrient(new GridPosition(63, 61), Direction.North));
         Assert.True(factory.IsBeltCorner(beside)); // nothing behind: a curve from the Core
-        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(new GridPosition(62, 60))); // behind + the Core
+        Assert.Equal(BeltShape.JoinLeft, factory.GetBeltShape(new GridPosition(63, 61))); // behind + the Core
     }
 
     [Fact]

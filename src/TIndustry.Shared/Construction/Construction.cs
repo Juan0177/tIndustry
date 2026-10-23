@@ -351,7 +351,8 @@ public static class Construction
 
             if (site.Cost[i].ItemId is { } itemId)
             {
-                s.Wallet.AddMaterial(itemId, give);
+                // Over the maximum the rest is lost, as in Mindustry; the line still counts as refunded.
+                s.Storage.AddClamped(itemId, give);
             }
             else
             {

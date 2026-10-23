@@ -19,7 +19,7 @@ public sealed class BuilderSystem : ISimulationSystem
         }
 
         var factory = new Factory(state);
-        var unit = state.Content.UnitForTier(0);
+        var unit = state.Content.UnitForTier(state.CoreTier);
         var workRange = unit.BuildRange - 1f;
         foreach (var builder in state.Builders)
         {

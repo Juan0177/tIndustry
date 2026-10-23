@@ -12,7 +12,7 @@ public sealed class PoweredMinerTests
     /// <summary>A Miner T2 at (4,4) and a burning generator at <paramref name="generator"/>.</summary>
     private static Factory WithGenerator(GridPosition generator)
     {
-        var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(18, 18), size: 2));
+        var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(18, 18)));
         factory.UnlockAllForDemo();
         factory.Research.ForceUnlock(Miner.AdvancedId);
         Assert.True(factory.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId));

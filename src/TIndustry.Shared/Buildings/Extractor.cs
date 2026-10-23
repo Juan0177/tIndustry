@@ -79,7 +79,7 @@ public sealed class Extractor
     public bool Tick(
         float deltaSeconds,
         BeltGrid belts,
-        EconomyWallet wallet,
+        CoreStorage core,
         IReadOnlySet<GridPosition> coreTiles,
         ref long nextItemId)
     {
@@ -96,7 +96,7 @@ public sealed class Extractor
             return false;
         }
 
-        if (!TryPullFromCore(wallet, coreTiles))
+        if (!TryPullFromCore(core, coreTiles))
         {
             Progress = 0f;
             return false;
@@ -104,7 +104,8 @@ public sealed class Extractor
 
         if (!belts.TryInsert(outPos, new TransportedItem(nextItemId, FilterItemId), source: Position))
         {
-            wallet.AddMaterial(FilterItemId, 1);
+            // Taken and not delivered: back to the Core even at its maximum (nothing lost).
+            core.Return(FilterItemId, 1);
             return false;
         }
 
@@ -120,11 +121,11 @@ public sealed class Extractor
         return !next.Equals(Position);
     }
 
-    private bool TryPullFromCore(EconomyWallet wallet, IReadOnlySet<GridPosition> coreTiles)
+    private bool TryPullFromCore(CoreStorage core, IReadOnlySet<GridPosition> coreTiles)
     {
         foreach (var (neighbor, _) in PerimeterSlots(Position, Size))
         {
-            if (coreTiles.Contains(neighbor) && wallet.TryRemoveMaterial(FilterItemId, 1))
+            if (coreTiles.Contains(neighbor) && core.TryTake(FilterItemId))
             {
                 return true;
             }

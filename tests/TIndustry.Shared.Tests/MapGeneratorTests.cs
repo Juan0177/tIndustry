@@ -40,10 +40,12 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
         FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
 
     /// <summary>Generates through <see cref="NewGame.Sandbox"/> with the Core centred, as the client will.</summary>
-    private static (TerrainMap Map, GridPosition Core) Generate(MapGenSettings settings)
+    private static (TerrainMap Map, GridPosition Core) Generate(MapGenSettings settings, int? coreSize = null)
     {
-        var core = Factory.CenteredCoreOrigin(settings.Width, settings.Height);
-        var factory = NewGame.Sandbox(Content, core, map: settings);
+        var core = coreSize is int size
+            ? Factory.CenteredCoreOrigin(settings.Width, settings.Height, size)
+            : Factory.CenteredCoreOrigin(settings.Width, settings.Height);
+        var factory = NewGame.Sandbox(Content, core, coreSize, map: settings);
         return (factory.Terrain!, core);
     }
 
@@ -74,7 +76,8 @@ public sealed class MapGeneratorTests(ITestOutputHelper output)
     public void HashIsStableAcrossRuns() =>
         // "biomi-1" is published and frozen: saves regenerate their terrain with it. Never change it to fit a
         // new generator; add a new generator name ("biomi-2") and keep this one (ADR 0005).
-        Assert.Equal(10891508615017362469UL, TerrainMap.TerrainHash(Generate(Small(42)).Map));
+        // The Core cells are an input of the generator: the hash was taken with the old 2×2 Core, kept here.
+        Assert.Equal(10891508615017362469UL, TerrainMap.TerrainHash(Generate(Small(42), coreSize: 2).Map));
 
     [Fact]
     public void ClassicStaysTheDefault()

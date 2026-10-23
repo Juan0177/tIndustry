@@ -19,7 +19,7 @@ public static class CampaignMapFile
 {
     public const string GeneratorPrefix = "campagna:";
 
-    public const int CoreSize = 2;
+    public const int CoreSize = 3;
 
     /// <summary>Required ores must lie within this many cells of the Core centre…</summary>
     public const int OreRadius = 60;

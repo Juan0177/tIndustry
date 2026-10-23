@@ -19,14 +19,14 @@ public sealed class AgentGameTests
 
     /// <summary>
     /// A journal's sandbox (and the agents' real game, made the same way) is the client's Nuova partita: the
-    /// arguments below are World.NewSandboxFactory's (Core 2x2 at the centre, 180 money, biome map, day).
+    /// arguments below are World.NewSandboxFactory's (Core 3x3 at the centre, 180 money, biome map, day).
     /// </summary>
     [Fact]
     public void SandboxSetupIsTheClientsNewGame()
     {
         var setup = AgentGameSetup.Sandbox(64, 7, MapGenerator.Name, new GameRules()).CreateHost(Content);
         var client = new SimHost(NewGame.Sandbox(
-            Content, Factory.CenteredCoreOrigin(64, 64), coreSize: 2, startingMoney: 180,
+            Content, Factory.CenteredCoreOrigin(64, 64), startingMoney: 180,
             rules: new GameRules(Night: false), map: MapGenSettings.Normal((MapSize)64, 7)));
 
         Assert.Equal(180, setup.State.Wallet.Money);
@@ -430,12 +430,12 @@ public sealed class AgentGameTests
     [Fact]
     public void LoneBeltWithDirectionBesideTheCoreIsThePlayersClick()
     {
-        var beside = new GridPosition(62, 60); // East of the Core on x 60..61
+        var beside = new GridPosition(63, 60); // East of the Core on x 60..62
         var agent = NewHost();
         var client = NewHost();
 
         using var game = new AgentGame(agent, Content);
-        Call(game, "piazza", """{"tier":1,"cella":{"x":62,"y":60},"direzione":"nord"}""");
+        Call(game, "piazza", """{"tier":1,"cella":{"x":63,"y":60},"direzione":"nord"}""");
 
         foreach (var command in PlacementLine.Commands(PlacementLine.Plan(client.State, new LineRequest(
             0, BuildSpec.DefaultConveyorId, beside, beside, Direction.North))))
@@ -684,12 +684,12 @@ public sealed class AgentGameTests
     {
         using var game = new AgentGame(NewHost(), Content);
 
-        // The Core stands on x 60..61: those two cells are refused, the rest is built.
-        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":56,"y":60},"a":{"x":63,"y":60}}""");
+        // The Core stands on x 60..62: those three cells are refused, the rest is built.
+        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":56,"y":60},"a":{"x":64,"y":60}}""");
 
         Assert.Equal(6, result.GetProperty("celle").GetArrayLength());
         var refused = result.GetProperty("rifiuti").EnumerateArray().ToArray();
-        Assert.Equal([60, 61], refused.Select(r => r.GetProperty("x").GetInt32()));
+        Assert.Equal([60, 61, 62], refused.Select(r => r.GetProperty("x").GetInt32()));
         Assert.All(refused, r => Assert.Equal("OnCore", r.GetProperty("codice").GetString()));
         Assert.Equal("est", result.GetProperty("celle")[0].GetProperty("direzione").GetString());
     }

@@ -121,7 +121,7 @@ public sealed class DeterminismTests
         }
     }
 
-    /// <summary>Main line East on y 30 into the Core (30..31), every belt cell full (3 items) at the start.</summary>
+    /// <summary>Main line East on y 30 into the Core (30..32), every belt cell full (3 items) at the start.</summary>
     private static Factory BusyBelts(FactoryContent content)
     {
         var factory = NewGame.Sandbox(content, new GridPosition(30, 30), mapWidth: 60, mapHeight: 60,
@@ -168,6 +168,12 @@ public sealed class DeterminismTests
             Belt(20, y, Direction.South, "conveyor-basic");
         }
 
+        // Built: no iron or lead left in the Core, so its maximum never stops the lines here.
+        foreach (var material in new[] { "iron-ore", "lead-ore" })
+        {
+            Assert.True(factory.Wallet.TryRemoveMaterial(material, factory.Wallet.MaterialCount(material)));
+        }
+
         long id = 100_000;
         foreach (var cell in factory.Belts.Cells.Values.Where(c => c.Kind == LogisticsKind.Belt))
         {
@@ -202,7 +208,7 @@ public sealed class DeterminismTests
     [Fact]
     public void GameplayRatesMatchWallClock()
     {
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(LoadContent(), new BeltGrid(), core);
         factory.UnlockAllForDemo();
         // T1 miner on iron (no terrain = full deposit) touching the CORE west edge.
@@ -219,7 +225,7 @@ public sealed class DeterminismTests
     /// <summary>Miner (2,13) → belts (4..8, 14) east → CORE (9,14), placed in either order.</summary>
     private static Factory BuildMinerLine(FactoryContent content, bool reverse)
     {
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
 

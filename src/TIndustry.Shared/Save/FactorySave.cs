@@ -30,6 +30,9 @@ public sealed class FactorySaveData
     public int CoreX { get; set; } = 9;
     public int CoreY { get; set; } = 14;
     public int CoreSize { get; set; } = 2;
+    /// <summary>Core tier (index in <see cref="FactoryContent.CoreTiers"/>); written only above 0, so older files read as the shard.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CoreTier { get; set; }
     public int Money { get; set; }
     public Dictionary<string, int> Materials { get; set; } = new(StringComparer.Ordinal);
     public List<string> UnlockedStructures { get; set; } = [];

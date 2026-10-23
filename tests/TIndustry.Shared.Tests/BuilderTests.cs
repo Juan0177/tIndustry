@@ -78,8 +78,9 @@ public sealed class BuilderTests
 
         var drone = Assert.Single(factory.Builders);
         Assert.Equal(Player, drone.OwnerPlayerId);
-        Assert.Equal(61f, drone.X);
-        Assert.Equal(61f, drone.Y);
+        // Shard 3×3 on (60..62, 60..62): its centre.
+        Assert.Equal(61.5f, drone.X);
+        Assert.Equal(61.5f, drone.Y);
         Assert.Empty(drone.Plans);
         Assert.Null(drone.CurrentSiteId);
     }

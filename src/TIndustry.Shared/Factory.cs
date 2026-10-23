@@ -83,6 +83,8 @@ public sealed class Factory : IGameView
     public ConveyorDefinition SorterDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
+    public int CoreTier => State.CoreTier;
+    public int CoreCapacity(string itemId) => State.Storage.Capacity(itemId);
     public EconomyWallet Wallet => State.Wallet;
     public ResearchState Research => State.Research;
     public EconomySession Session => State.Session;
@@ -266,7 +268,7 @@ public sealed class Factory : IGameView
 
             if (oldCost[i].ItemId is { } itemId)
             {
-                Wallet.AddMaterial(itemId, back);
+                State.Storage.AddClamped(itemId, back);
             }
             else
             {
@@ -296,12 +298,12 @@ public sealed class Factory : IGameView
     private bool IsReplaceableBelt(BuildSpec old, GridPosition origin) =>
         old.Kind is null && old.Origin == origin && Content.FindConveyor(old.StructureId)?.Kind == LogisticsKind.Belt;
 
-    /// <summary>Adds each item to the Core's stock (no sale, not counted as delivered).</summary>
+    /// <summary>Puts each item back in the Core's stock, even over its maximum (no sale, not counted as delivered).</summary>
     private void ItemsToCore(IEnumerable<TransportedItem> items)
     {
         foreach (var item in items)
         {
-            Wallet.AddMaterial(item.ItemId, 1);
+            State.Storage.Return(item.ItemId, 1);
         }
     }
 
@@ -350,7 +352,7 @@ public sealed class Factory : IGameView
 
         if (!TryTakeBeltForReplacement(spec.Origin, out var old))
         {
-            Refund(money, materials);
+            Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
         }
 
@@ -358,7 +360,7 @@ public sealed class Factory : IGameView
         {
             // Cannot happen: the cell was just freed. Put the old belt back and the payment too.
             RestoreReplacedBelt(old);
-            Refund(money, materials);
+            Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
         }
 
@@ -728,7 +730,7 @@ public sealed class Factory : IGameView
     {
         var coreOrigin = CoreTiles.Count == 0
             ? new GridPosition(9, 14)
-            : new GridPosition(CoreTiles.Min(t => t.X), CoreTiles.Min(t => t.Y));
+            : State.CoreOrigin;
         var coreSize = CoreTiles.Count == 0
             ? 2
             : Math.Max(1, (int)Math.Round(Math.Sqrt(CoreTiles.Count)));
@@ -743,6 +745,7 @@ public sealed class Factory : IGameView
             CoreX = coreOrigin.X,
             CoreY = coreOrigin.Y,
             CoreSize = coreSize,
+            CoreTier = CoreTier,
             Money = Wallet.Money,
             Materials = SortedByKey(Wallet.MaterialsSnapshot()),
             UnlockedStructures = Research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
@@ -1009,6 +1012,13 @@ public sealed class Factory : IGameView
             ActiveCampaignLevelId = data.ActiveCampaignLevelId,
             CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel)
         };
+        if (data.CoreTier < 0 || data.CoreTier >= content.CoreTiers.Count)
+        {
+            throw new InvalidDataException($"Livello del CORE {data.CoreTier} inesistente.");
+        }
+
+        // The cells stay as saved (CoreSize); only the tier is restored here.
+        factory.State.CoreTier = data.CoreTier;
         factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
@@ -1350,7 +1360,7 @@ public sealed class Factory : IGameView
             }
             else
             {
-                Wallet.AddMaterial(itemId, amount);
+                State.Storage.AddClamped(itemId, amount);
             }
         }
     }
@@ -1431,7 +1441,7 @@ public sealed class Factory : IGameView
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -1477,7 +1487,7 @@ public sealed class Factory : IGameView
         var wire = content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -1556,7 +1566,7 @@ public sealed class Factory : IGameView
         var wire = content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -1901,7 +1911,7 @@ public sealed class Factory : IGameView
     /// <summary>Longest map edge (the "enorme" normal map); campaign and restored maps are clamped to it.</summary>
     public const int MaxMapEdge = 2000;
 
-    public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 2) =>
+    public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 3) =>
         new(
             Math.Max(0, (Math.Max(coreSize, mapWidth) - coreSize) / 2),
             Math.Max(0, (Math.Max(coreSize, mapHeight) - coreSize) / 2));
@@ -2028,7 +2038,12 @@ public sealed class Factory : IGameView
     private bool TryCharge(int money, IReadOnlyList<ResourceAmount> materials) =>
         Wallet.TrySpend(money, materials);
 
-    private void Refund(int money, IReadOnlyList<ResourceAmount> materials, int refundPercent = 100)
+    /// <summary>
+    /// Gives back the <paramref name="refundPercent"/> share of a cost. A refund (removal) enters the Core up to the
+    /// maximum (<see cref="CoreStorage.AddClamped"/>); with <paramref name="putBack"/> it is a payment taken back by a
+    /// failed operation and enters whole (<see cref="CoreStorage.Return"/>).
+    /// </summary>
+    private void Refund(int money, IReadOnlyList<ResourceAmount> materials, int refundPercent = 100, bool putBack = false)
     {
         var pct = Math.Clamp(refundPercent, 0, 100);
         if (pct <= 0)
@@ -2040,9 +2055,18 @@ public sealed class Factory : IGameView
         foreach (var entry in materials)
         {
             var amount = Construction.RefundShare(entry.Amount, pct * 100);
-            if (amount > 0)
+            if (amount <= 0)
             {
-                Wallet.AddMaterial(entry.ItemId, amount);
+                continue;
+            }
+
+            if (putBack)
+            {
+                State.Storage.Return(entry.ItemId, amount);
+            }
+            else
+            {
+                State.Storage.AddClamped(entry.ItemId, amount);
             }
         }
     }
@@ -2055,11 +2079,12 @@ public sealed class Factory : IGameView
             ScaleAmounts(def.EffectiveBuildCost, multiplicity));
     }
 
-    private void RefundConveyor(ConveyorDefinition def, int multiplicity = 1) =>
+    private void RefundConveyor(ConveyorDefinition def, int multiplicity = 1, bool putBack = false) =>
         Refund(
             def.MoneyCost * Math.Max(1, multiplicity),
             ScaleAmounts(def.EffectiveBuildCost, Math.Max(1, multiplicity)),
-            refundPercent: 100);
+            refundPercent: 100,
+            putBack);
 
     private bool TryChargeBuilding(string buildingId)
     {
@@ -2583,7 +2608,7 @@ public sealed class Factory : IGameView
             var amount = Construction.RefundShare(entry.Amount, basisPoints);
             if (entry.ItemId is { } itemId)
             {
-                Wallet.AddMaterial(itemId, amount);
+                State.Storage.AddClamped(itemId, amount);
             }
             else if (amount > 0)
             {
@@ -2646,7 +2671,7 @@ public sealed class Factory : IGameView
         {
             if (charge)
             {
-                RefundConveyor(def);
+                RefundConveyor(def, putBack: true);
             }
 
             return false;
@@ -2673,7 +2698,7 @@ public sealed class Factory : IGameView
         {
             if (charge)
             {
-                RefundConveyor(def);
+                RefundConveyor(def, putBack: true);
             }
 
             return false;
@@ -2704,7 +2729,7 @@ public sealed class Factory : IGameView
         {
             if (charge)
             {
-                RefundConveyor(BridgeDefinition, multiplicity: 2);
+                RefundConveyor(BridgeDefinition, multiplicity: 2, putBack: true);
             }
 
             return false;

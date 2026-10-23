@@ -18,7 +18,7 @@ public sealed class ConstructSystem : ISimulationSystem
             return;
         }
 
-        var unit = state.Content.UnitForTier(0);
+        var unit = state.Content.UnitForTier(state.CoreTier);
         Factory? factory = null;
         // Advance removes finished sites: iterate a copy, still in id order.
         foreach (var site in state.Sites.ToArray())
