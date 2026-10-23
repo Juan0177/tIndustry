@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, barre in immagine, logo solo dove il titolo è tIndustry, banner del README generato.
+**Aggiornato:** 2026-10-23, specifica 3 del Mercato (magazzino del CORE e livelli) approvata.
 
 ## Aspetti del gioco
 
@@ -50,7 +50,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [x] Mercato come una borsa, specifica 1 (PR #274–#282, [diario](diario/2026-10-22-mercato-borsa.md))
 - [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata
 - [ ] Schermo di borsa e bot della finanza: implementazione
-- [ ] Magazzino del CORE e livelli, specifica 3: specifica approvata
+- [x] Magazzino del CORE e livelli, specifica 3: specifica approvata ([spec](superpowers/specs/2026-10-23-magazzino-core-design.md))
 - [ ] Magazzino del CORE e livelli: implementazione
 
 ### 7 · [Mappe e terreno](wiki/Mappe-e-terreno.md)
@@ -81,7 +81,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 
 ### 11 · [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
 
-Sotto-progetto 4: il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma.
+Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleus e i droni alpha → beta → gamma sono passati alla [specifica 3 del Mercato](superpowers/specs/2026-10-23-magazzino-core-design.md) (aspetto 6).
 
 - [ ] Specifica approvata
 - [ ] Piano
@@ -140,7 +140,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | --- | --- | --- |
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
-| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **Prossimo**, in attesa del via |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 approvata, piano da scrivere |
 | D | Logistica come Mindustry: #252–#255, #270 (3) | Da fare, dopo B |
 | E | Rete di energia #269 (5), telemetria #234 (10) | Più avanti |
 
@@ -156,6 +156,5 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 ## Cosa serve dall'utente
 
-- Il via per il blocco C.
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
 - L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.
