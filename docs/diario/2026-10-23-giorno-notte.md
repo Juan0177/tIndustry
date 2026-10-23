@@ -58,3 +58,17 @@ Da fare dove c'è Godot (anche in [STATO](../STATO.md)):
 ## Verifiche finali
 
 Build della soluzione a 0 errori e 0 avvisi, test della simulazione verdi, test del sito e controllo della Wiki (risultati nel report del Task 4). Il client non è stato lanciato.
+
+## Revisione finale
+
+Revisione di tutto il ramo (b0d3780..809db15): pronto al merge dopo correzioni, simulazione e salvataggi v16 corretti. Correzioni nel commit `90d09fa`, riviste:
+
+- ordine dei sistemi in `docs/ARCHITETTURA.md` (ora con `AutoSellSystem` e `DayNightSystem` in coda);
+- README, ARCHITETTURA e `godot/README.md` allineati al ciclo e alle lampade;
+- commenti del salvataggio sul nome del tempo (chiave assente = ciclo);
+- «Attacco!» calcolato dai tick nel client: niente più un fotogramma di «Notte» prima;
+- il diario degli agenti registra il tempo del livello della campagna.
+
+Decisione presa in autonomia: la revisione del Task 4 (solo documenti) è stata fusa nella revisione finale. Costo se sbagliato: un controllo in meno sui documenti.
+
+Rimandati: `RestoreDayNight` da semplificare, nomi italiani del tempo definiti due volte (`AgentRulesSetup`, `CampaignCatalog.DayNightNames`), un `Assert.Contains` con elemento nullabile, un commento sui playtest della campagna forzati in solo giorno.
