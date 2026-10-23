@@ -16,7 +16,7 @@ public sealed class CoreStorage
         this.state = state ?? throw new ArgumentNullException(nameof(state));
     }
 
-    /// <summary>Space added to every item's maximum by storage blocks touching the Core (0 until they exist).</summary>
+    /// <summary>Space added to every item's maximum by the storage blocks touching the Core.</summary>
     public int LinkedCapacity { get; private set; }
 
     /// <summary>Maximum stock of <paramref name="itemId"/>: the Core tier's capacity plus <see cref="LinkedCapacity"/>.</summary>
@@ -63,6 +63,59 @@ public sealed class CoreStorage
     /// <summary>Takes one <paramref name="itemId"/> out of the Core stock; false when there is none.</summary>
     internal bool TryTake(string itemId) => state.Wallet.TryRemoveMaterial(itemId, 1);
 
-    /// <summary>Recomputes the storage blocks linked to the Core (none until storage blocks exist).</summary>
-    public void RecomputeLinks() => LinkedCapacity = 0;
+    /// <summary>
+    /// Recomputes which storage blocks are linked (at least one cell of their perimeter is Core) and
+    /// <see cref="LinkedCapacity"/> (sum of the linked blocks' capacity). A block that has just become linked pours
+    /// its contents into the Core with <see cref="AddClamped"/> (the rest is lost) and is emptied; pouring happens
+    /// after the new maximum is known. Blocks in ascending id order, contents in ordinal item order. Called after
+    /// every finished placement or removal of a storage block, after <see cref="GameState.SetCore"/> and on restore.
+    /// </summary>
+    public void RecomputeLinks()
+    {
+        var linkedCapacity = 0;
+        List<StorageBlock>? newlyLinked = null;
+        foreach (var storage in state.Storages)
+        {
+            var linked = TouchesCore(storage);
+            if (linked && !storage.IsLinked)
+            {
+                (newlyLinked ??= []).Add(storage);
+            }
+
+            storage.IsLinked = linked;
+            if (linked)
+            {
+                linkedCapacity += storage.Capacity;
+            }
+        }
+
+        LinkedCapacity = linkedCapacity;
+        if (newlyLinked is null)
+        {
+            return;
+        }
+
+        foreach (var storage in newlyLinked)
+        {
+            foreach (var (itemId, count) in storage.ContentsInOrder())
+            {
+                AddClamped(itemId, count);
+            }
+
+            storage.Clear();
+        }
+    }
+
+    private bool TouchesCore(StorageBlock storage)
+    {
+        foreach (var (neighbor, _) in BuildingIo.PerimeterSlots(storage.Origin, storage.Size))
+        {
+            if (state.CoreTiles.Contains(neighbor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

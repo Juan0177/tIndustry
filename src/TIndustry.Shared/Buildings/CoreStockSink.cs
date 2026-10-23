@@ -24,7 +24,9 @@ public static class CoreStockSink
     /// Delivers the ready outputs of every belt cell that points into the Core (or dead-ends against it) through
     /// <see cref="GameState.TryAcceptAtCore"/>, in ascending cell order. A piece the Core does not take (its item
     /// is at the maximum) stays on the cell, blocking the pieces behind it; the next cell is tried.
-    /// Returns how many pieces were delivered.
+    /// A cell pointing into a storage block delivers through <see cref="GameState.TryAcceptAtStorage"/>: a linked
+    /// block to the Core, a standalone one into itself up to its space (a refused piece waits the same way).
+    /// Returns how many pieces reached the Core.
     /// </summary>
     public static int Drain(GameState state)
     {
@@ -40,6 +42,15 @@ public static class CoreStockSink
                     && !grid.Contains(cell.OutputPosition));
             if (!sinksHere)
             {
+                if (state.Storages.Count > 0 && state.StorageAt(cell.OutputPosition) is { } storage)
+                {
+                    while (cell.PeekOutput() is { } piece && state.TryAcceptAtStorage(storage, piece.ItemId))
+                    {
+                        cell.RemoveOutput();
+                        delivered += storage.IsLinked ? 1 : 0;
+                    }
+                }
+
                 continue;
             }
 

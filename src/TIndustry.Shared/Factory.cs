@@ -38,6 +38,7 @@ public sealed class Factory : IGameView
     private List<Extractor> extractors => State.Extractors;
     private List<PowerNode> powerNodes => State.PowerNodes;
     private List<Lamp> lamps => State.Lamps;
+    private List<StorageBlock> storages => State.Storages;
 
     public Factory(
         FactoryContent content,
@@ -130,6 +131,8 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public IReadOnlyList<Lamp> Lamps => lamps;
+    public IReadOnlyList<StorageBlock> Storages => storagesView ??= storages.AsReadOnly();
+    private IReadOnlyList<StorageBlock>? storagesView;
     public GameRules Rules => State.Rules;
     public long NextItemId => nextItemId;
     public long NextEntityId => nextEntityId;
@@ -398,7 +401,7 @@ public sealed class Factory : IGameView
     private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> beltIncoming = new();
     private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
-    // Tiles of buildings that exchange items with belts (miners, crafters, extractors, generators, the Core): belts
+    // Tiles of buildings that exchange items with belts (miners, crafters, extractors, generators, storage, the Core): belts
     // blend with them (visual only). Lamps and power nodes have no item I/O.
     private readonly HashSet<GridPosition> blendTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingBlends;
@@ -438,6 +441,11 @@ public sealed class Factory : IGameView
         blendTiles.Clear();
         blendTiles.UnionWith(ejectorTiles.Keys);
         blendTiles.UnionWith(CoreTiles);
+        foreach (var storage in storages)
+        {
+            blendTiles.UnionWith(storage.OccupiedTiles());
+        }
+
         foreach (var generator in generators)
         {
             for (var y = 0; y < Generator.Size; y++)
@@ -800,6 +808,18 @@ public sealed class Factory : IGameView
             Lamps = lamps.Count == 0
                 ? null
                 : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
+            Storages = storages.Count == 0
+                ? null
+                : storages.OrderBy(s => s.Id).Select(s => new StorageSaveDto
+                {
+                    Id = s.Id,
+                    Kind = s.Kind.ToString(),
+                    X = s.Origin.X,
+                    Y = s.Origin.Y,
+                    Items = s.ContentsInOrder() is { Count: > 0 } contents
+                        ? SortedByKey(contents.Select(c => new KeyValuePair<string, int>(c.ItemId, c.Count)))
+                        : null
+                }).ToList(),
             Rules = new GameRulesSaveDto
             {
                 RefundPercent = State.Rules.RefundPercent,
@@ -1049,6 +1069,7 @@ public sealed class Factory : IGameView
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
             .Concat((data.Lamps ?? []).Select(d => d.Id))
+            .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
             .DefaultIfEmpty(0)
@@ -1106,6 +1127,22 @@ public sealed class Factory : IGameView
             factory.lamps.Add(new Lamp(new GridPosition(l.X, l.Y), RestoredId(l.Id)));
         }
 
+        foreach (var s in data.Storages ?? [])
+        {
+            if (!Enum.TryParse<BuildingKind>(s.Kind, out var kind) || !BuildSpec.IsStorage(kind))
+            {
+                throw new InvalidDataException($"Magazzino di tipo sconosciuto: '{s.Kind}'.");
+            }
+
+            var storage = factory.NewStorage(kind, new GridPosition(s.X, s.Y), RestoredId(s.Id));
+            foreach (var (itemId, count) in (s.Items ?? []).OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            {
+                storage.Return(itemId, count);
+            }
+
+            factory.storages.Add(storage);
+        }
+
         foreach (var b in data.Builders.OrderBy(b => b.Id))
         {
             var builder = new BuilderUnit(b.Id, b.Owner, b.X, b.Y)
@@ -1138,6 +1175,9 @@ public sealed class Factory : IGameView
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
+        SortById(factory.storages, s => s.Id);
+        // Which storage blocks touch the Core (the saved Core cells and tier are set above).
+        factory.State.Storage.RecomputeLinks();
         factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
     }
@@ -1835,6 +1875,14 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var storage in storages)
+        {
+            if (storage.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -2097,6 +2145,8 @@ public sealed class Factory : IGameView
         "power-node" => "power-node",
         "power-node-t2" => "power-node-t2",
         "lamp" => Lamp.BuildingId,
+        "container" => "container",
+        "vault" => "vault",
         _ => null
     };
 
@@ -2645,6 +2695,9 @@ public sealed class Factory : IGameView
             case BuildingKind.CoreFoundation:
             case BuildingKind.CoreNucleus:
                 return PlaceCoreUpgrade(spec, charge);
+            case BuildingKind.Container:
+            case BuildingKind.Vault:
+                return PlaceStorage(spec, charge);
             default:
                 return false;
         }
@@ -2716,6 +2769,16 @@ public sealed class Factory : IGameView
             {
                 spec = new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, l.Position, Direction.East);
                 entityId = l.Id;
+                return true;
+            }
+        }
+
+        foreach (var s in storages)
+        {
+            if (s.Occupies(tile))
+            {
+                spec = new BuildSpec(s.StructureId, s.Kind, s.Origin, Direction.East);
+                entityId = s.Id;
                 return true;
             }
         }
@@ -2804,6 +2867,7 @@ public sealed class Factory : IGameView
         BuildingKind.Extractor => Extractor.Size,
         BuildingKind.PowerNodeT2 => 2,
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => Content.CoreTiers[BuildSpec.CoreTierOf(spec.Kind)].Size,
+        BuildingKind.Container or BuildingKind.Vault => StorageBlock.SizeOf(spec.Kind),
         _ => 1
     };
 
@@ -3061,6 +3125,33 @@ public sealed class Factory : IGameView
         return true;
     }
 
+    /// <summary>
+    /// Places a container or vault and recomputes the links: touching the Core it adds its space to every item's
+    /// maximum, elsewhere it keeps its own contents.
+    /// </summary>
+    private bool PlaceStorage(BuildSpec spec, bool charge)
+    {
+        var size = StorageBlock.SizeOf(spec.Kind);
+        if (!CanOccupyFootprint(spec.Origin, size) || (charge && !TryChargeBuilding(spec.StructureId)))
+        {
+            return false;
+        }
+
+        buildingsVersion++; // belts blend with storage blocks
+        storages.Add(NewStorage(spec.Kind!.Value, spec.Origin, nextEntityId++));
+        State.Storage.RecomputeLinks();
+        return true;
+    }
+
+    /// <summary>A storage block of <paramref name="kind"/> with the capacity of its structure in the content.</summary>
+    private StorageBlock NewStorage(BuildingKind kind, GridPosition origin, long id)
+    {
+        var structureId = BuildSpec.StructureIdFor(kind)!;
+        var capacity = Content.FindStructure(structureId)?.ItemCapacity
+            ?? throw new InvalidDataException($"content.json: struttura {structureId} mancante.");
+        return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity);
+    }
+
     /// <summary>Removes the building on <paramref name="tile"/> without refund; returns its definition id.</summary>
     private bool TryRemoveBuildingEntity(GridPosition tile, out string buildingId)
     {
@@ -3131,6 +3222,18 @@ public sealed class Factory : IGameView
             {
                 buildingId = Lamp.BuildingId;
                 lamps.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = storages.Count - 1; i >= 0; i--)
+        {
+            if (storages[i].Occupies(tile))
+            {
+                // Its contents are lost; a linked block takes its space away from the Core (the stock stays).
+                buildingId = storages[i].StructureId;
+                storages.RemoveAt(i);
+                State.Storage.RecomputeLinks();
                 return true;
             }
         }

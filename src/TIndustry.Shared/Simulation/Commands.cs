@@ -31,7 +31,9 @@ public enum BuildingKind
     PowerNodeT2,
     Lamp,
     CoreFoundation,
-    CoreNucleus
+    CoreNucleus,
+    Container,
+    Vault
 }
 
 /// <summary>

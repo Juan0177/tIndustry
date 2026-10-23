@@ -84,6 +84,9 @@ public interface IGameView
     /// <summary>Lamps, in id order (lit = powered in the last tick).</summary>
     IReadOnlyList<Lamp> Lamps { get; }
 
+    /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
+    IReadOnlyList<StorageBlock> Storages { get; }
+
     /// <summary>Rules of this game (the client reads <see cref="GameRules.Night"/>).</summary>
     GameRules Rules { get; }
 

@@ -88,6 +88,9 @@ public sealed class GameState
     public List<PowerNode> PowerNodes { get; } = [];
     public List<Lamp> Lamps { get; } = [];
 
+    /// <summary>Containers and vaults, in ascending id order.</summary>
+    public List<StorageBlock> Storages { get; } = [];
+
     /// <summary>Construction and deconstruction sites, in ascending id order.</summary>
     public List<ConstructSite> Sites { get; } = [];
 
@@ -240,10 +243,43 @@ public sealed class GameState
                 CoreDeliveredItems++;
                 return true;
             }
+
+            // A storage block: linked ones are part of the Core, standalone ones keep the piece up to their space.
+            if (StorageAt(neighbor) is { } storage && TryAcceptAtStorage(storage, itemId))
+            {
+                if (storage.IsLinked)
+                {
+                    CoreDeliveredItems++;
+                }
+
+                return true;
+            }
         }
 
         return false;
     }
+
+    /// <summary>The storage block covering <paramref name="tile"/> (lowest id first), or null.</summary>
+    public StorageBlock? StorageAt(GridPosition tile)
+    {
+        foreach (var storage in Storages)
+        {
+            if (storage.Occupies(tile))
+            {
+                return storage;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// One piece of <paramref name="itemId"/> arrives at <paramref name="storage"/> (belt or adjacent building): a
+    /// linked block hands it to the Core (<see cref="TryAcceptAtCore"/>), a standalone one keeps it up to its space.
+    /// False when it does not fit: the caller keeps the piece.
+    /// </summary>
+    internal bool TryAcceptAtStorage(StorageBlock storage, string itemId) =>
+        storage.IsLinked ? TryAcceptAtCore(itemId) : storage.TryAccept(itemId);
 
     /// <summary>
     /// One piece of <paramref name="itemId"/> arrives at the Core (belt or adjacent building): stocked through

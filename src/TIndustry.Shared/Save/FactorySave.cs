@@ -85,6 +85,8 @@ public sealed class FactorySaveData
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
     /// <summary>Lamps (G3, additive in v12): null when there are none, so saves without lamps keep their bytes.</summary>
     public List<LampSaveDto>? Lamps { get; set; }
+    /// <summary>Containers and vaults, in id order (additive, version unchanged until v15): null when there are none.</summary>
+    public List<StorageSaveDto>? Storages { get; set; }
     public List<BeltSaveDto> Belts { get; set; } = [];
     public GameRulesSaveDto Rules { get; set; } = new();
     /// <summary>Construction drones, in id order.</summary>
@@ -107,6 +109,18 @@ public sealed class LampSaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
+}
+
+/// <summary>A container or vault: kind name, origin and, when standalone, its contents in ordinal item order.</summary>
+public sealed class StorageSaveDto
+{
+    public long Id { get; set; }
+    /// <summary><see cref="BuildingKind"/> name (<c>Container</c> or <c>Vault</c>).</summary>
+    public string Kind { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    /// <summary>Pieces per item of a standalone block, written in ordinal key order; null when empty (linked blocks are).</summary>
+    public Dictionary<string, int>? Items { get; set; }
 }
 
 public sealed class BuildSpecSaveDto
