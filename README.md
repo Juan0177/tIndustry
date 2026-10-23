@@ -60,7 +60,7 @@ Un solo tema in stile Mindustry per HUD, pannelli e menu: pannelli quasi neri co
 
 ### Grafica
 
-Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta e il terreno dei quattro biomi con bordi, pareti in rilievo, acqua e giacimenti a puntini. Sopra c'è uno strato di effetti: fumo, scintille e vapore dei blocchi al lavoro, neve, sabbia e foglie d'ambiente, ombre sotto gli edifici, bagliore e, a scelta, la notte con la Lampada. Effetti, ombre, limite di FPS e scala di rendering si regolano dalle Impostazioni, per i PC meno potenti. Catture dal gioco.
+Pixel-art originale in stile Mindustry, generata da script (`tools/art/genera.py`): edifici a strati con parti animate, nastri a tre tier, Core e drone, oggetti senza tinta e il terreno dei quattro biomi con bordi, pareti in rilievo, acqua e giacimenti a puntini. Sopra c'è uno strato di effetti: fumo, scintille e vapore dei blocchi al lavoro, neve, sabbia e foglie d'ambiente, ombre sotto gli edifici, bagliore e, a scelta, il ciclo di giorno e notte (o solo giorno, o solo notte) con la Lampada. Effetti, ombre, limite di FPS e scala di rendering si regolano dalle Impostazioni, per i PC meno potenti. Catture dal gioco.
 
 <p align="center">
   <img src="docs/img/readme/blocchi.png" alt="Blocchi di produzione e potenza accesi: minatori, forno, assemblatore, generatore, nodi e Core" width="100%">

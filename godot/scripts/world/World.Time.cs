@@ -26,11 +26,8 @@ public partial class World
     /// <summary>Dev speed kept across games of the session (always 1 without dev mode).</summary>
     private int _devSpeed = 1;
 
-    /// <summary>Ticks "Attacco!" stays on the world's time line after <see cref="FirstAttackDue"/> (5 seconds).</summary>
+    /// <summary>Ticks "Attacco!" stays on the world's time line after the first attack (5 seconds).</summary>
     private const long AttackAlertTicks = 5 * SimulationClock.TickRate;
-
-    /// <summary>Tick until which the HUD says "Attacco!" (set by <see cref="FirstAttackDue"/>, cleared by a new game).</summary>
-    private long _attackAlertUntilTick = -1;
 
     private Label? _pauseLabel;
     private Label? _devSpeedLabel;
@@ -98,7 +95,6 @@ public partial class World
     private void ResetTimeControls(SimHost host)
     {
         _playerPaused = false;
-        _attackAlertUntilTick = -1;
         host.Speed = DevSpeeds ? _devSpeed : 1;
     }
 
@@ -160,16 +156,15 @@ public partial class World
         GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit or SpinBox or BaseButton;
 
     /// <summary>
-    /// The first attack of always night is due: "Attacco!" on the HUD for <see cref="AttackAlertTicks"/> from the
-    /// attack's own tick (first block + <see cref="DayNightClock.FirstAttackTicks"/>), not from when the event is read.
+    /// "Attacco!" window of always night, derived from ticks (not from the <see cref="FirstAttackDue"/> event, which
+    /// would leave one frame of "Notte" before it): from the attack's own tick (first block +
+    /// <see cref="DayNightClock.FirstAttackTicks"/>) for <see cref="AttackAlertTicks"/>.
     /// </summary>
-    private void OnFirstAttackDue()
-    {
-        if (_view?.FirstBuildTick is { } first)
-        {
-            _attackAlertUntilTick = first + DayNightClock.FirstAttackTicks + AttackAlertTicks;
-        }
-    }
+    private static bool AttackAlertShown(IGameView view) =>
+        view.DayNight == DayNightMode.AlwaysNight
+        && view.FirstBuildTick is { } first
+        && view.CurrentTick >= first + DayNightClock.FirstAttackTicks
+        && view.CurrentTick < first + DayNightClock.FirstAttackTicks + AttackAlertTicks;
 
     /// <summary>Per frame from <see cref="UpdateHud"/>: the world's time line, counted in ticks (it stops with the pause).</summary>
     private void SyncWorldTime()
@@ -184,7 +179,7 @@ public partial class World
             _view.DayNightPhase,
             _view.FirstBuildTick,
             _view.TicksToNextChange,
-            _view.CurrentTick < _attackAlertUntilTick);
+            AttackAlertShown(_view));
     }
 
     /// <summary>Per frame: the dev bar's text follows the game (whether it shows: <see cref="SyncHudVisibility"/>).</summary>

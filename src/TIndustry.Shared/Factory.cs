@@ -1485,7 +1485,7 @@ public sealed class Factory : IGameView
         return craft;
     }
 
-    /// <summary>The saved world's time (<see cref="GameRulesSaveDto.DayNight"/>): a missing or unknown name is unreadable.</summary>
+    /// <summary>The saved world's time (<see cref="GameRulesSaveDto.DayNight"/>): an explicit null or unknown name is unreadable (an absent key never gets here: the property defaults to <c>Cycle</c>).</summary>
     private static DayNightMode RestoreDayNight(string? name) =>
         Enum.TryParse<DayNightMode>(name, ignoreCase: false, out var mode) && Enum.IsDefined(mode) && !int.TryParse(name, out _)
             ? mode

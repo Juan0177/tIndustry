@@ -104,7 +104,7 @@ public sealed class GameRulesSaveDto
 {
     public int RefundPercent { get; set; } = 100;
     public bool InstantBuild { get; set; }
-    /// <summary>World's time: the <see cref="DayNightMode"/> name; a missing or unknown one makes the save unreadable.</summary>
+    /// <summary>World's time: the <see cref="DayNightMode"/> name; an absent key reads as <c>Cycle</c>; an explicit null or an unknown name makes the save unreadable.</summary>
     public string? DayNight { get; set; } = nameof(DayNightMode.Cycle);
 }
 
