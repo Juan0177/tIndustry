@@ -55,7 +55,11 @@ public partial class World : Node2D
         Extractor,
         PowerNode,
         PowerNodeT2,
-        Lamp
+        Lamp,
+        Container,
+        Vault,
+        CoreFoundation,
+        CoreNucleus
     }
 
     // The simulation lives behind the host: the client reads IGameView and submits commands.

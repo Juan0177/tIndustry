@@ -36,8 +36,13 @@ CELLE = {
     "extractor": 1, "power-node": 1, "lamp": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
-    "container": 2, "vault": 3, "core-foundation": 4, "core-nucleus": 5,
+    "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5,
 }
+# Core tiers of the game (FactoryContent.CoreTiers): sprite name -> side in cells. Each has its body
+# and its nucleus light strip; the client draws the Core from the tier.
+CORE_LIVELLI = {"core-shard": 3, "core-foundation": 4, "core-nucleus": 5}
+# Storage blocks with a "-linked" variant (drawn when they touch the Core).
+MAGAZZINI = ("container", "vault")
 CORE_TIER = 4
 CORE_LUCE_FOTOGRAMMI = 4
 # Drone tiers seen from above, nose to the East: square sprites of this side (alpha, beta, gamma).
@@ -58,7 +63,7 @@ FX = ("fx-fumo", "fx-scintilla", "fx-polvere", "fx-vapore", "fx-fiocco", "fx-gra
 # Light texture of the night (G3 3/4): one square, PointLight2D scales it.
 LUCE = ("luce", 128)
 # Interface icons (G4): "ui/ui-<nome>" 32x32 and "ui/ui-<nome>-16" 16x16, for these names.
-ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "menu", "ricerca", "mercato",
+ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "cat-magazzino", "menu", "ricerca", "mercato",
             "campagna", "lucchetto", "energia", "impostazioni", "salvataggi", "lingua")
 # Other interface sprites (G4 5/6): the theme's check boxes and the Home logo, name -> size.
 ALTRI_UI = {"ui/ui-spunta-si": (20, 20), "ui/ui-spunta-no": (20, 20), "ui/ui-spunta-si-spenta": (20, 20),
@@ -401,6 +406,32 @@ class TestGenera(unittest.TestCase):
         # Each tier is grander: more lit cyan highlights than the one below.
         self.assertEqual(sorted(lampade), lampade)
         self.assertEqual(len(set(lampade)), len(lampade))
+
+    def test_livelli_del_core(self):
+        # The game tiers shard / foundation / nucleus: body of the tier's footprint and a 4-frame light strip
+        # that replaces the nucleus, like the core-<n> family.
+        for nome, celle in CORE_LIVELLI.items():
+            with self.subTest(livello=nome):
+                core = SPRITE[nome]()
+                self.assertEqual((celle * T, celle * T), core.size)
+                fotogrammi = fotogrammi_di(SPRITE[nome + "-light-anim"]())
+                self.assertEqual(CORE_LUCE_FOTOGRAMMI, len(fotogrammi))
+                self.assertEqual((celle * T, celle * T), fotogrammi[0].size)
+                self.assertEqual(core.tobytes(), forme.componi(core, fotogrammi[0]).tobytes())
+        corpi = [SPRITE[n]().tobytes() for n in CORE_LIVELLI]
+        self.assertEqual(len(corpi), len(set(corpi)))
+
+    def test_magazzini_collegati(self):
+        # Container and vault have a linked variant: same size, the accent turns Core cyan.
+        for nome in MAGAZZINI:
+            with self.subTest(magazzino=nome):
+                normale, collegato = SPRITE[nome](), SPRITE[nome + "-linked"]()
+                self.assertEqual(normale.size, collegato.size)
+                self.assertNotEqual(normale.tobytes(), collegato.tobytes())
+                colori = {px[:3] for px in collegato.getdata() if px[3]}
+                self.assertIn(NUCLEO[2], colori)
+                self.assertNotIn(NUCLEO[2], {px[:3] for px in normale.getdata() if px[3]})
+                self.assertIsNone(errore_misura(nome + "-linked", collegato))
 
     def test_droni_muso_a_est(self):
         # The half is drawn nose-up: its first row must end on the East edge, not the West one.

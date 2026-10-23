@@ -460,6 +460,9 @@ public partial class World
         _levelCompleteToastShown = false;
     }
 
+    /// <summary>Core tier the palette's Core blocks were last shown for (a finished upgrade shows the next one).</summary>
+    private int _locksCoreTier = -1;
+
     private void SyncResearchLocks()
     {
         if (_hud is null || _view is null)
@@ -485,10 +488,22 @@ public partial class World
             Hud.ToolKind.Extractor,
             Hud.ToolKind.PowerNode,
             Hud.ToolKind.PowerNodeT2,
-            Hud.ToolKind.Lamp
+            Hud.ToolKind.Lamp,
+            Hud.ToolKind.Container,
+            Hud.ToolKind.Vault,
+            Hud.ToolKind.CoreFoundation,
+            Hud.ToolKind.CoreNucleus
         };
-        _hud.SetToolsLocked(tools.Select(t =>
-            (t, !_view.IsStructureUnlocked(Hud.StructureIdFor(t)))));
+        // A Core block shows only while it is the next tier: the one built and the one after next stay out.
+        _locksCoreTier = _view.CoreTier;
+        bool Locked(Hud.ToolKind tool)
+        {
+            var id = Hud.StructureIdFor(tool);
+            var tier = BuildSpec.CoreTierOf(BuildSpec.KindFor(id));
+            return !_view.IsStructureUnlocked(id) || (tier > 0 && tier != _view.CoreTier + 1);
+        }
+
+        _hud.SetToolsLocked(tools.Select(t => (t, Locked(t))));
 
         if (_tool != BuildTool.Cursor && _hud.IsToolLocked(ToHudTool(_tool)))
         {

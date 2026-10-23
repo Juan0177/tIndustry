@@ -17,14 +17,28 @@ public partial class World
     private static bool IsOrientable(BuildTool tool) =>
         IsBelt(tool) || KindOf(tool) is { } kind && PlacementPreview.HasDirection(kind);
 
+    /// <summary>The tools that place the next Core tier over the Core.</summary>
+    private static bool IsCoreTool(BuildTool tool) => tool is BuildTool.CoreFoundation or BuildTool.CoreNucleus;
+
     /// <summary>
     /// The current tool's line from the drag's anchor (<paramref name="cursor"/> itself without a drag) to
     /// <paramref name="cursor"/>, as <see cref="PlacementLine"/> takes it: the same function as the agents' <c>piazza</c>.
+    /// A Core block snaps to where the growth rule puts it (<see cref="IGameView.CoreUpgradeSpec"/>), wherever the mouse
+    /// is: the same cell the agents' <c>potenzia_core</c> uses.
     /// </summary>
-    private LineRequest LineTo(GridPosition cursor) => new(
-        LocalPlayer, Hud.StructureIdFor(ToHudTool(_tool)), _lineAnchor ?? cursor, cursor, _placeDir, _lineFixed,
-        _lineCtrl ? LineShape.Diagonal : LineShape.Straight,
-        FilterItemId: _tool == BuildTool.Sorter ? _sorterFilterId : null);
+    private LineRequest LineTo(GridPosition cursor)
+    {
+        if (IsCoreTool(_tool) && _view?.CoreUpgradeSpec() is { } upgrade)
+        {
+            cursor = upgrade.Origin;
+            return new LineRequest(LocalPlayer, Hud.StructureIdFor(ToHudTool(_tool)), cursor, cursor, upgrade.Direction);
+        }
+
+        return new LineRequest(
+            LocalPlayer, Hud.StructureIdFor(ToHudTool(_tool)), _lineAnchor ?? cursor, cursor, _placeDir, _lineFixed,
+            _lineCtrl ? LineShape.Diagonal : LineShape.Straight,
+            FilterItemId: _tool == BuildTool.Sorter ? _sorterFilterId : null);
+    }
 
     // Bumped by whatever can change a line's preview: an applied command, a construction event, a redrawn layout.
     private ulong _lineInputsVersion;

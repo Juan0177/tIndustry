@@ -55,6 +55,8 @@ public partial class ConstructionLayer : Node2D
     public static StructureLayers LayerOf(BuildSpec spec) =>
         spec.Kind is null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter or BuildingKind.Bridge
             ? StructureLayers.Belts
+            // A bigger Core changes the belts that now touch it (their joins) as well as the Core itself.
+            : BuildSpec.IsCoreUpgrade(spec.Kind) ? StructureLayers.Both
             : StructureLayers.Buildings;
 
     /// <summary>
@@ -356,6 +358,7 @@ public partial class ConstructionLayer : Node2D
                 beamColor = ColorOf(site);
             }
 
+            drone.SetTier(view.CoreTier);
             drone.Sync(builder, view.CurrentTick, delta, beam, beamColor, Effects);
         }
 

@@ -5,8 +5,8 @@ using static TIndustry.Godot.HudStyle;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Top-left HUD column (Mindustry layout): menu buttons → core resources (funds, power, stock,
-/// CORE upgrade) → build queue → campaign objectives. Owns the last stock counts and funds shown.
+/// Top-left HUD column (Mindustry layout): menu buttons → core resources (funds, power, stock with the Core's
+/// maximum, the Core's tier) → build queue → campaign objectives. Owns the last stock counts and funds shown.
 /// </summary>
 public partial class CorePanel : VBoxContainer
 {
@@ -26,6 +26,11 @@ public partial class CorePanel : VBoxContainer
     private Label? _moneyLabel;
     private GridContainer? _stockGrid;
     private Label? _stockEmpty;
+    private Label? _tierLabel;
+    private CoreTierDefinition? _tier;
+    private Func<string, int>? _capacityOf;
+    // What the tier line shows now (it is written again only when one of them changes, or the language does).
+    private (string? TierId, int Max) _tierShown;
     private PanelContainer? _objectivesPanel;
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
@@ -86,12 +91,13 @@ public partial class CorePanel : VBoxContainer
             button.TooltipText = $"{Testi.T(key)} ({hotkey})";
         }
 
-        foreach (var (id, cell) in _stockCells)
-        {
-            cell.Cell.TooltipText = Testi.Oggetto(id, _content);
-        }
-
         SyncPowerTooltip();
+        _tierShown = default;
+        SyncTier();
+        foreach (var id in _stockCells.Keys)
+        {
+            SyncStockTooltip(id);
+        }
     }
 
     /// <summary>
@@ -108,16 +114,16 @@ public partial class CorePanel : VBoxContainer
     /// <summary>Bind content (stock tooltips, cost chip names) and wallet (stock counts).</summary>
     public void Bind(FactoryContent? content, IWalletView? wallet)
     {
-        if (!ReferenceEquals(content, _content) && content is not null)
-        {
-            foreach (var (id, cell) in _stockCells)
-            {
-                cell.Cell.TooltipText = Testi.Oggetto(id, content);
-            }
-        }
-
+        var newContent = !ReferenceEquals(content, _content) && content is not null;
         _content = content;
         _wallet = wallet;
+        if (newContent)
+        {
+            foreach (var id in _stockCells.Keys)
+            {
+                SyncStockTooltip(id);
+            }
+        }
     }
 
     /// <summary>The funds tooltip as shown (playtests).</summary>
@@ -192,6 +198,55 @@ public partial class CorePanel : VBoxContainer
         _powerLabel.TooltipText = _hasGrid ? Testi.T("core.energia") + gens : Testi.T("core.energia.nessuna");
     }
 
+    /// <summary>
+    /// The Core's tier (name, maximum per item, auto-sell rate and drone on hover) and each item's maximum: a stock at the
+    /// maximum shows in the "pieno" colour, its tooltip says so (the belts carrying it stop).
+    /// </summary>
+    public void UpdateCore(CoreTierDefinition tier, Func<string, int> capacityOf)
+    {
+        _tier = tier;
+        _capacityOf = capacityOf;
+        SyncTier();
+    }
+
+    private void SyncTier()
+    {
+        if (_tierLabel is null || _tier is null || _capacityOf is null)
+        {
+            return;
+        }
+
+        var max = _capacityOf(StockOrder[0]);
+        if (_tierShown == (_tier.Id, max))
+        {
+            return;
+        }
+
+        _tierShown = (_tier.Id, max);
+        _tierLabel.Text = Testi.F("core.livello", Testi.Struttura(_tier.Id, _content), max);
+        _tierLabel.TooltipText = Testi.F("core.livello.suggerimento", _tier.AutoSellPerSecond, Testi.T($"unita.{_tier.UnitId}.nome"));
+        foreach (var id in _stockCells.Keys)
+        {
+            SyncStockTooltip(id);
+        }
+    }
+
+    /// <summary>The stock cell's colour and tooltip from its count and the Core maximum.</summary>
+    private void SyncStockTooltip(string id)
+    {
+        if (!_stockCells.TryGetValue(id, out var cell))
+        {
+            return;
+        }
+
+        var count = StockCount(id);
+        var max = _capacityOf?.Invoke(id) ?? 0;
+        var full = max > 0 && count >= max;
+        cell.Count.ThemeTypeVariation = full ? UiTheme.TestoPieno : "";
+        var name = Testi.Oggetto(id, _content);
+        cell.Cell.TooltipText = max <= 0 ? name : Testi.F(full ? "core.scorta.pieno" : "core.scorta", name, count, max);
+    }
+
     public void ClearObjectives()
     {
         if (_objectivesPanel is not null)
@@ -246,6 +301,7 @@ public partial class CorePanel : VBoxContainer
 
     private void SetStock(string id, int count)
     {
+        var old = _stockCounts.TryGetValue(id, out var before) ? before : -1;
         _stockCounts[id] = count;
         if (!_stockCells.TryGetValue(id, out var cell))
         {
@@ -257,6 +313,11 @@ public partial class CorePanel : VBoxContainer
         if (cell.Count.Text != text)
         {
             cell.Count.Text = text;
+        }
+
+        if (old != count)
+        {
+            SyncStockTooltip(id);
         }
     }
 
@@ -314,6 +375,12 @@ public partial class CorePanel : VBoxContainer
 
         _stockEmpty = MakeLabel("core.vuoto", UiTheme.TestoTenue);
         vbox.AddChild(_stockEmpty);
+
+        // CORE tier · maximum per item (rate and drone on hover).
+        _tierLabel = MakeLabel("", UiTheme.TestoTenue);
+        _tierLabel.Name = "LivelloCore";
+        _tierLabel.MouseFilter = MouseFilterEnum.Pass;
+        vbox.AddChild(_tierLabel);
     }
 
     private void AddStockCell(Control parent, string id)

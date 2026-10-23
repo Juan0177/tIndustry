@@ -141,7 +141,7 @@ public partial class World
             case UnlockStructure:
                 _research?.OnCommandApplied(command);
                 break;
-            case Sell or SellAll or SetAutoSell:
+            case Sell or SellAll or SetAutoSell or SetAutoSellWhenFull:
                 _mercato?.OnCommandApplied(command);
                 break;
         }
@@ -220,7 +220,8 @@ public partial class World
     private int StructureCount() => _view is null
         ? 0
         : _view.Belts.Count + _view.Miners.Count + _view.Smelters.Count + _view.Assemblers.Count
-            + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count + _view.Lamps.Count;
+            + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count + _view.Lamps.Count
+            + _view.Storages.Count + _view.CoreTiles.Count;
 
     private void OnCommandRejected(SimCommand command, Refusal reason)
     {
@@ -234,7 +235,7 @@ public partial class World
             case UnlockStructure:
                 _research?.OnCommandRejected(command, reason);
                 break;
-            case Sell or SellAll or SetAutoSell:
+            case Sell or SellAll or SetAutoSell or SetAutoSellWhenFull:
                 _mercato?.OnCommandRejected(command, reason);
                 break;
             case Remove:

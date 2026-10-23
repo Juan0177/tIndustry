@@ -238,6 +238,41 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void VenditaAutomaticaSoloAPienoSetsBothSwitches()
+    {
+        var factory = NewFactory();
+        var game = new AgentGame(new SimHost(factory), Content);
+
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true,"solo_a_pieno":true}""");
+
+        var plate = factory.State.Exchange.Find("iron-plate")!;
+        Assert.True(plate.AutoSell);
+        Assert.True(plate.AutoSellWhenFull);
+        var mercato = Call(game, "stato").GetProperty("mercato").EnumerateArray()
+            .Single(m => m.GetProperty("oggetto").GetString() == "iron-plate");
+        Assert.True(mercato.GetProperty("soloAPieno").GetBoolean());
+
+        // Without solo_a_pieno the "only when full" switch stays as it is.
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true}""");
+        Assert.True(plate.AutoSellWhenFull);
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true,"solo_a_pieno":false}""");
+        Assert.False(plate.AutoSellWhenFull);
+        Assert.True(plate.AutoSell);
+        Refused(game, "vendita_automatica", """{"oggetto":"nonesiste","accesa":true,"solo_a_pieno":true}""");
+    }
+
+    [Fact]
+    public void StatoReportsCoreMaximum()
+    {
+        var factory = NewFactory();
+        var game = new AgentGame(new SimHost(factory), Content);
+
+        var core = Call(game, "stato").GetProperty("core");
+
+        Assert.Equal(factory.CoreCapacity("iron-ore"), core.GetProperty("massimo").GetInt32());
+    }
+
+    [Fact]
     public void PiazzaUsesSimHostAndReportsRefusalCode()
     {
         // The classic generator has no walls: the biome one does.

@@ -19,6 +19,10 @@ struttura.container.nome,Contenitore,Container
 struttura.vault.nome,Deposito,Vault
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
+struttura.core-shard.nome,CORE Frammento,CORE Shard
+unita.alpha.nome,Alpha,Alpha
+unita.beta.nome,Beta,Beta
+unita.gamma.nome,Gamma,Gamma
 struttura.miner-advanced.nome,Minatore T2,Miner T2
 oggetto.iron-ore.nome,Ferro grezzo,Iron ore
 oggetto.iron-plate.nome,Lastra di ferro,Iron plate
@@ -115,6 +119,7 @@ categoria.strumenti,Strumenti,Tools
 categoria.logistica,Logistica,Logistics
 categoria.produzione,Produzione,Production
 categoria.potenza,Potenza,Power
+categoria.magazzino,Magazzino,Storage
 palette.selezionato,{0} selezionato,{0} selected
 rifiuto.Locked,{0} bloccato: sbloccalo in Ricerca (T).,{0} locked: unlock it in Research (T).
 blocco.dettaglio,Dettaglio blocco,Block details
@@ -138,6 +143,10 @@ core.obiettivo,OBIETTIVO · {0},OBJECTIVE · {0}
 core.obiettivo.titolo,OBIETTIVO,OBJECTIVE
 core.fondi,Fondi,Funds
 core.vuoto,CORE vuoto: porta minerali con i nastri,CORE empty: bring ore with belts
+core.livello,{0} · massimo {1} per oggetto,{0} · max {1} per item
+core.livello.suggerimento,Vende {0} pezzi al secondo · drone {1},Sells {0} pieces per second · {1} drone
+core.scorta.pieno,{0} · {1}/{2} · pieno: i nastri si fermano,{0} · {1}/{2} · full: belts stop
+core.scorta,{0} · {1}/{2},{0} · {1}/{2}
 rifiuto.InsufficientResources,Risorse insufficienti,Not enough resources
 rifiuto.servono,Servono {0},Need {0}
 obiettivo.guadagna,Guadagna ${0},Earn ${0}
@@ -296,6 +305,12 @@ mercato.vendi.cento,Vendi 100,Sell 100
 mercato.crollo,Crollo · {0},Crash · {0}
 mercato.attesa,Vendi tutto bloccato ancora {0} s,Sell all locked for {0} s
 mercato.auto.oggetto,Automatica,Auto
+mercato.auto.pieno,Solo a CORE pieno,Only when CORE full
+mercato.auto.pieno.suggerimento,Vende solo quanto serve a tenere l'oggetto al massimo del CORE,Sells only what keeps the item at the CORE maximum
+mercato.auto.pieno.attivata,Vendita automatica solo a CORE pieno.,Auto-sell only when the CORE is full.
+mercato.auto.pieno.disattivata,Vendita automatica anche sotto il massimo.,Auto-sell also below the maximum.
+mercato.quantita.pieno,{0}/{1} pieno,{0}/{1} full
+mercato.quantita.suggerimento,In scorta / massimo del CORE,In stock / CORE maximum
 mercato.jackpot,JACKPOT! +${0},JACKPOT! +${0}
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
 ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
@@ -359,7 +374,7 @@ tutorial.avanti.suggerimento,Il passo avanza da solo quando lo completi · Invio
 tutorial.passo,Tutorial {0}/{1},Tutorial {0}/{1}
 tutorial.fine,Fine,Done
 salvataggi.errore.Unreadable,Salvataggio non leggibile.,Save file not readable.
-salvataggi.errore.OlderVersion,Salvataggio di una versione precedente: non compatibile.,Save from an older version: not compatible.
+salvataggi.errore.OlderVersion,"Salvataggio di una versione precedente, non più supportata.","Save from an older version, no longer supported."
 salvataggi.errore.MapInvalidSize,Mappa del salvataggio non valida (misura {0}).,Invalid save map (size {0}).
 salvataggi.errore.UnknownGenerator,"Generatore di mappa sconosciuto nel salvataggio: ""{0}"". Il salvataggio è di un'altra versione.","Unknown map generator in the save: ""{0}"". The save is from another version."
 salvataggi.errore.TerrainChanged,"Il terreno rigenerato con ""{0}"" non corrisponde al salvataggio: la partita è di una versione con un generatore di mappe diverso.","The terrain made by ""{0}"" does not match the save: the game is from a version with a different map generator."

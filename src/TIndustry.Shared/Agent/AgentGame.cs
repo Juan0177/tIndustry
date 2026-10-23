@@ -331,7 +331,7 @@ public sealed class AgentGame : IDisposable
         "ruota" => Ruota(),
         "sblocca" => Single(new UnlockStructure(PlayerId, Str(p, "struttura"))),
         "vendi" => Vendi(p),
-        "vendita_automatica" => Single(new SetAutoSell(PlayerId, Str(p, "oggetto"), RequiredBool(p, "accesa"))),
+        "vendita_automatica" => VenditaAutomatica(p),
         "potenzia_core" => Single(CoreUpgradeCommand(), r => r["livello"] = View.CoreTier),
         "avanza" => Avanza(p),
         "diario" => Diario(p),
@@ -349,6 +349,33 @@ public sealed class AgentGame : IDisposable
         return spec is null
             ? new PlaceBuilding(PlayerId, BuildingKind.CoreNucleus, default, Direction.East)
             : new PlaceBuilding(PlayerId, spec.Kind!.Value, spec.Origin, spec.Direction);
+    }
+
+    /// <summary>
+    /// <c>vendita_automatica {oggetto, accesa, solo_a_pieno?}</c>: the item's auto-sell switch and, when
+    /// <c>solo_a_pieno</c> is given, its "only when the Core is full" box too (two commands in the same tick, like two
+    /// clicks of the player in the Mercato row). The first refusal is the answer.
+    /// </summary>
+    private JsonObject VenditaAutomatica(JsonElement p)
+    {
+        var item = Str(p, "oggetto");
+        var on = RequiredBool(p, "accesa");
+        List<SimCommand> commands = [new SetAutoSell(PlayerId, item, on)];
+        if (OptBool(p, "solo_a_pieno") is { } whenFull)
+        {
+            commands.Add(new SetAutoSellWhenFull(PlayerId, item, whenFull));
+        }
+
+        return Command(commands, o =>
+        {
+            var result = Accepted(o[0], null);
+            foreach (var outcome in o.Skip(1))
+            {
+                Accepted(outcome, null);
+            }
+
+            return result;
+        });
     }
 
     private JsonObject Vendi(JsonElement p)
@@ -461,6 +488,8 @@ public sealed class AgentGame : IDisposable
             ["core"] = new JsonObject
             {
                 ["livello"] = View.CoreTier,
+                // The same maximum for every item: the tier's plus the linked containers and vaults.
+                ["massimo"] = View.CoreCapacity(View.MarketItems.Count > 0 ? View.MarketItems[0].ItemId : ""),
                 ["consegnati"] = View.CoreDeliveredItems
             },
             ["mercato"] = Array(View.MarketItems.Where(m => m.AutoSell || View.Wallet.MaterialCount(m.ItemId) > 0).Select(m =>
@@ -473,6 +502,11 @@ public sealed class AgentGame : IDisposable
                     ["fase"] = PhaseName(m.Phase),
                     ["automatica"] = m.AutoSell
                 };
+                if (m.AutoSellWhenFull)
+                {
+                    entry["soloAPieno"] = true;
+                }
+
                 if (m.CrashSecondsLeft > 0)
                 {
                     entry["crolloSecondi"] = m.CrashSecondsLeft;
@@ -1367,7 +1401,7 @@ public sealed class AgentGame : IDisposable
         Remove => "smonta",
         UnlockStructure => "sblocca",
         Sell or SellAll => "vendi",
-        SetAutoSell => "vendita_automatica",
+        SetAutoSell or SetAutoSellWhenFull => "vendita_automatica",
         SetSorterFilter => "filtroSelezionatore",
         _ => "altro"
     };

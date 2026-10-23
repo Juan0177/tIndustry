@@ -363,6 +363,30 @@ public partial class World
                 DrawBridgeGhost(canvas, spec, refused: !valid);
             }
         }
+
+        if (IsCoreTool(_tool))
+        {
+            DrawCoreUpgradeTaken(canvas);
+        }
+    }
+
+    /// <summary>
+    /// The Core block's ghost stands where the growth rule puts it (<see cref="LineTo"/>); each of the new cells that is
+    /// taken (a block, a belt, a site, a plan) or not buildable is marked on its own as a refused cell, so the player sees
+    /// what to clear.
+    /// </summary>
+    private void DrawCoreUpgradeTaken(CanvasItem canvas)
+    {
+        foreach (var tile in _view!.CoreUpgradeNewTiles())
+        {
+            if (_view.CanOccupy(tile) && !_view.IsPlannedTile(tile))
+            {
+                continue;
+            }
+
+            var rect = new Rect2(tile.X * TileSize, tile.Y * TileSize, TileSize, TileSize);
+            PlacementPreview.Draw(canvas, null, rect, Direction.East, turnSprite: false, arrow: false, valid: false);
+        }
     }
 
     /// <summary>What a line command builds: a crossing shows the junction when the simulation would make one.</summary>
@@ -390,6 +414,10 @@ public partial class World
         BuildTool.PowerNode => BuildingKind.PowerNode,
         BuildTool.PowerNodeT2 => BuildingKind.PowerNodeT2,
         BuildTool.Lamp => BuildingKind.Lamp,
+        BuildTool.Container => BuildingKind.Container,
+        BuildTool.Vault => BuildingKind.Vault,
+        BuildTool.CoreFoundation => BuildingKind.CoreFoundation,
+        BuildTool.CoreNucleus => BuildingKind.CoreNucleus,
         _ => null
     };
 
@@ -403,6 +431,9 @@ public partial class World
         BuildTool.PowerNode => 1,
         BuildTool.PowerNodeT2 => 2,
         BuildTool.Extractor => Extractor.Size,
+        BuildTool.Container or BuildTool.Vault => StorageBlock.SizeOf(KindOf(_tool)),
+        BuildTool.CoreFoundation or BuildTool.CoreNucleus when _view is not null
+            => _view.Content.CoreTiers[BuildSpec.CoreTierOf(KindOf(_tool))].Size,
         _ => 1
     };
 

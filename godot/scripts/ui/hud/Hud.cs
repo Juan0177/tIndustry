@@ -31,7 +31,11 @@ public partial class Hud : Control
         Extractor,
         PowerNode,
         PowerNodeT2,
-        Lamp
+        Lamp,
+        Container,
+        Vault,
+        CoreFoundation,
+        CoreNucleus
     }
 
     internal enum BuildCategory
@@ -39,7 +43,8 @@ public partial class Hud : Control
         Tools,
         Logistics,
         Production,
-        Power
+        Power,
+        Storage
     }
 
     /// <summary>Width of the bottom-right stack (info slot + palette).</summary>
@@ -198,6 +203,9 @@ public partial class Hud : Control
         RefreshBlockInfo();
     }
 
+    /// <summary>The Core's tier and each item's maximum (<see cref="IGameView.CoreCapacity"/>) for the stock column.</summary>
+    public void UpdateCore(CoreTierDefinition tier, Func<string, int> capacityOf) => _core.UpdateCore(tier, capacityOf);
+
     public void ClearObjectives() => _core.ClearObjectives();
 
     public void UpdateObjectives(
@@ -337,6 +345,10 @@ public partial class Hud : Control
         ToolKind.PowerNode => "power-node",
         ToolKind.PowerNodeT2 => "power-node-t2",
         ToolKind.Lamp => "lamp",
+        ToolKind.Container => "container",
+        ToolKind.Vault => "vault",
+        ToolKind.CoreFoundation => "core-foundation",
+        ToolKind.CoreNucleus => "core-nucleus",
         _ => "conveyor-basic"
     };
 
