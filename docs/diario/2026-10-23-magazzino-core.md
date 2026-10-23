@@ -73,3 +73,17 @@ Il lavoro è stato fatto in cloud, senza Godot. Da fare con il gioco vero (anche
 - Test di `TIndustry.Shared.Tests` e `TIndustry.AgentPlay.Tests` verdi (numeri nel rapporto del task 8).
 - `python tools/dev/controlla_wiki.py` e i test del sito verdi.
 - Non provati: import, playtest e catture con Godot.
+
+## Revisione finale
+
+Revisione di tutto il ramo (20fe572..32fc9ca): si può unire dopo le correzioni, nessun problema fra un task e l'altro (ingresso unico nel CORE, livello letto ovunque allo stesso modo, salvataggio v15 completo, determinismo). Correzioni nel commit `c642225`, riviste:
+
+- il test `AutoSellPaysTheMinimumPrice` non vendeva niente (0 = 0): ora vende per un secondo e controlla il prezzo minimo;
+- tolto il costo di Ricerca doppio in `cores[].unlock`: la Ricerca legge solo `structures[core-*].unlock`;
+- documenti e Wiki senza più `units.drone`/`FactoryContent.Drone`; specifica allineata (resto in sessantesimi, HUD);
+- inquadratura della cattura del CORE nel playtest allargata per lo shard 3×3.
+
+Altre due decisioni prese in autonomia:
+
+- **HUD**: un oggetto pieno ha il numero nel colore di avviso e `x/massimo` nel suggerimento; il Mercato mostra sempre `x/massimo`. Costo se sbagliato: nell'HUD il massimo si vede solo col mouse.
+- **Una sola fonte per i costi di Ricerca del CORE**: le strutture `core-foundation` e `core-nucleus`.
