@@ -11,7 +11,7 @@ Release zip ufficiali = questo client:
 
 ## Run (da sorgente)
 
-Tutto in un comando (controlla le dipendenze, compila, importa e avvia): `.\play.ps1 -Utente` o `.\play.ps1 -Dev` su Windows, `tools/dev/dev.sh` su Linux. Con `-Dev` (`TINDUSTRY_DEV=1`) si abilitano F1–F4 per la velocità. A mano:
+Tutto in un comando (controlla le dipendenze, compila, importa e avvia): `.\play.ps1 -Utente` o `.\play.ps1 -Dev` su Windows, `tools/dev/dev.sh` su Linux. Con `-Dev` (`TINDUSTRY_DEV=1`) si abilitano F1–F4 per la velocità. Se compilazione o importazione restano vecchie, `.\clean.ps1` (`-Prova` elenca soltanto) cancella i file generati e il prossimo avvio ricostruisce tutto. A mano:
 
 ```bash
 godot4 --path godot

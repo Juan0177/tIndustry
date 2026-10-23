@@ -196,7 +196,7 @@ tools/dev/dev.sh                 # Linux/macOS (bash)
 .\play.ps1 -Dev -ProfiloTemp     # Windows, con i comandi di sviluppo (F1-F4: velocità)
 ```
 
-Il comando controlla gli strumenti (su Windows `play.ps1` installa con winget quelli che mancano, dopo aver chiesto), compila, importa gli asset se serve e avvia il gioco. Le opzioni sono le stesse (`--profilo-temp` in bash, `-ProfiloTemp` in PowerShell); in modalità utente `play.ps1` accetta solo `-ProfiloTemp` e `-Nuova`, le altre servono con `-Dev`:
+Il comando controlla gli strumenti (su Windows `play.ps1` installa con winget quelli che mancano, dopo aver chiesto), compila, importa gli asset se serve e avvia il gioco. Se la compilazione o l'importazione restano vecchie, `.\clean.ps1` (`-Prova` per vedere cosa toglie) cancella i file generati. Le opzioni sono le stesse (`--profilo-temp` in bash, `-ProfiloTemp` in PowerShell); in modalità utente `play.ps1` accetta solo `-ProfiloTemp` e `-Nuova`, le altre servono con `-Dev`:
 
 | Opzione | Effetto |
 | --- | --- |
