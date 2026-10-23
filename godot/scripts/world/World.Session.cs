@@ -101,7 +101,8 @@ public partial class World
     /// Rules of the games the client starts: real construction, as in Mindustry (plans, drone, sites).
     /// The refund share is the mode's own (sandbox 100, campaign = the level's), set by <see cref="NewGame"/>.
     /// </summary>
-    private static GameRules ClientRules(bool night = false) => new(Night: night);
+    private static GameRules ClientRules(bool night = false) =>
+        new(DayNight: night ? DayNightMode.AlwaysNight : DayNightMode.Cycle);
 
     /// <summary>
     /// A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre, at night with

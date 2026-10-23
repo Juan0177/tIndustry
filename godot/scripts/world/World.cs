@@ -480,7 +480,7 @@ public partial class World : Node2D
             return;
         }
 
-        var night = _view?.Rules.Night == true && _home?.IsOpen != true && !ClientSettings.PlaytestForcesEffectsOff;
+        var night = _view?.Rules.DayNight == DayNightMode.AlwaysNight && _home?.IsOpen != true && !ClientSettings.PlaytestForcesEffectsOff;
         if (night != _night.Night)
         {
             _night.SetNight(night);

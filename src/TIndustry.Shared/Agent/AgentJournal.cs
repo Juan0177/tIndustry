@@ -14,15 +14,41 @@ public sealed record AgentJournalEntry(
     [property: JsonPropertyName("parametri")] JsonElement Params,
     [property: JsonPropertyName("rigiocabile")] bool? Replayable = null);
 
-/// <summary>Rules of the journaled game (<see cref="GameRules"/> with the journal's Italian keys).</summary>
+/// <summary>
+/// Rules of the journaled game (<see cref="GameRules"/> with the journal's Italian keys). <paramref name="DayNight"/> is
+/// the world's time by its campaign name (<see cref="DayNightName"/>): <c>ciclo</c>, <c>giorno</c> or <c>notte</c>.
+/// </summary>
 public sealed record AgentRulesSetup(
     [property: JsonPropertyName("rimborso")] int RefundPercent = 100,
     [property: JsonPropertyName("costruzioneIstantanea")] bool InstantBuild = false,
-    [property: JsonPropertyName("notte")] bool Night = false)
+    [property: JsonPropertyName("giornoNotte")] string DayNight = AgentRulesSetup.Cycle)
 {
-    public static AgentRulesSetup From(GameRules rules) => new(rules.RefundPercent, rules.InstantBuild, rules.Night);
+    public const string Cycle = "ciclo";
+    public const string AlwaysDay = "giorno";
+    public const string AlwaysNight = "notte";
 
-    public GameRules ToGameRules() => new(RefundPercent, InstantBuild, Night);
+    public static AgentRulesSetup From(GameRules rules) =>
+        new(rules.RefundPercent, rules.InstantBuild, DayNightName(rules.DayNight));
+
+    /// <summary>The game's rules; an unknown <see cref="DayNight"/> name (a journal written by hand) is <c>ParametriNonValidi</c>.</summary>
+    public GameRules ToGameRules() => new(RefundPercent, InstantBuild, ParseDayNight(DayNight));
+
+    /// <summary>The journal's (and the campaign's) name of <paramref name="mode"/>.</summary>
+    public static string DayNightName(DayNightMode mode) => mode switch
+    {
+        DayNightMode.AlwaysDay => AlwaysDay,
+        DayNightMode.AlwaysNight => AlwaysNight,
+        _ => Cycle
+    };
+
+    private static DayNightMode ParseDayNight(string? name) => name switch
+    {
+        null or Cycle => DayNightMode.Cycle,
+        AlwaysDay => DayNightMode.AlwaysDay,
+        AlwaysNight => DayNightMode.AlwaysNight,
+        _ => throw new AgentException(
+            AgentCodes.ParametriNonValidi, $"Tempo del mondo sconosciuto nel diario: \"{name}\" (ciclo, giorno o notte).")
+    };
 }
 
 /// <summary>

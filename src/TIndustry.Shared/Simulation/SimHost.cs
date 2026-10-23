@@ -248,7 +248,7 @@ public sealed class SimHost
                 return factory.TryRotateBelt(spec.Origin, spec.Direction) ? null : RefusalCode.Occupied;
             case BeltOverBelt.Replace when factory.State.Rules.InstantBuild:
                 return factory.IsStructureUnlocked(spec.StructureId)
-                    ? factory.TryReplaceBeltInstant(spec)
+                    ? Built(factory.TryReplaceBeltInstant(spec))
                     : new Refusal(RefusalCode.Locked, spec.StructureId);
         }
 
@@ -278,7 +278,7 @@ public sealed class SimHost
 
         if (factory.State.Rules.InstantBuild)
         {
-            return factory.TryReplaceBeltWithJunction(tile, junction) ? null : RefusalCode.Occupied;
+            return factory.TryReplaceBeltWithJunction(tile, junction) ? Built(null) : RefusalCode.Occupied;
         }
 
         // BeltCrossingAt already refused a planned (or marked) tile; the belt must still be there.
@@ -513,7 +513,21 @@ public sealed class SimHost
     }
 
     private Refusal? PlacedOrRefused(bool placed, BuildSpec spec) =>
-        placed ? null : new Refusal(factory.RefusalReason(spec));
+        placed ? Built(null) : new Refusal(factory.RefusalReason(spec));
+
+    /// <summary>
+    /// Outcome of an instant placement: when accepted (null) a block was placed, which starts the world's time
+    /// (<see cref="Factory.NoteFirstBuild"/>; with real construction the drone's site does it).
+    /// </summary>
+    private Refusal? Built(Refusal? outcome)
+    {
+        if (outcome is null)
+        {
+            factory.NoteFirstBuild();
+        }
+
+        return outcome;
+    }
 
     private Refusal? ApplyUnlock(UnlockStructure command)
     {
@@ -625,7 +639,7 @@ public sealed class SimHost
         if (factory.State.Rules.InstantBuild)
         {
             return factory.Shortfall(spec.StructureId)
-                ?? (factory.PlaceInstant(spec, charge: true) ? null : RefusalCode.CoreUpgradeBlocked);
+                ?? (factory.PlaceInstant(spec, charge: true) ? Built(null) : RefusalCode.CoreUpgradeBlocked);
         }
 
         var builder = factory.BuilderOf(command.PlayerId);

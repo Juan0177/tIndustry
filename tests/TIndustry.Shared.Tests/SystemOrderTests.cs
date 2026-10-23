@@ -17,7 +17,7 @@ public sealed class SystemOrderTests
     public void SystemsRunInSpecOrder()
     {
         Assert.Equal(
-            ["Builder", "Construct", "Belt", "Power", "Mining", "Crafting", "Lighting", "Extraction", "Belt", "CoreDelivery", "AutoSell", "Market"],
+            ["Builder", "Construct", "Belt", "Power", "Mining", "Crafting", "Lighting", "Extraction", "Belt", "CoreDelivery", "AutoSell", "Market", "DayNight"],
             Simulation.Systems.Select(s => s.Name).ToArray());
         Assert.Equal(SimulationClock.TickRate, Simulation.TickRate);
         Assert.Equal(SimulationClock.TickSeconds, Simulation.TickSeconds);
@@ -35,7 +35,8 @@ public sealed class SystemOrderTests
         var tick = SimulationClock.TickSeconds;
         Assert.Equal(
             [("Builder", tick), ("Construct", tick), ("Belt", tick), ("Power", tick), ("Mining", tick), ("Crafting", tick),
-             ("Lighting", tick), ("Extraction", tick), ("Belt", 0f), ("CoreDelivery", tick), ("AutoSell", tick), ("Market", tick)],
+             ("Lighting", tick), ("Extraction", tick), ("Belt", 0f), ("CoreDelivery", tick), ("AutoSell", tick), ("Market", tick),
+             ("DayNight", tick)],
             trace);
     }
 

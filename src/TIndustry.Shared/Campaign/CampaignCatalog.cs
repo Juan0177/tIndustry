@@ -23,7 +23,7 @@ public sealed record CampaignObjectiveDefinition(
 /// A campaign level. With <paramref name="Map"/> (id of a map in <c>data/maps/</c>, see <see cref="CampaignMapFile"/>)
 /// the size, terrain and Core come from that file and <paramref name="MapWidth"/>, <paramref name="MapHeight"/> and
 /// <paramref name="Seed"/> only serve the classic generator (tests with explicit sizes, older clients).
-/// <paramref name="Night"/> plays the level at night (client looks only, see <see cref="GameRules.Night"/>).
+/// <paramref name="Night"/> plays the level at night (<see cref="DayNightMode.AlwaysNight"/>).
 /// </summary>
 public sealed record CampaignLevelDefinition(
     string Id,

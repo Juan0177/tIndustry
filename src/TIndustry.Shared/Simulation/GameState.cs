@@ -110,7 +110,7 @@ public sealed class GameState
     /// </summary>
     public List<SimEvent> Events { get; } = [];
 
-    /// <summary>Rules of this game (refund share, instant build, night).</summary>
+    /// <summary>Rules of this game (refund share, instant build, world time).</summary>
     public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }
@@ -123,6 +123,15 @@ public sealed class GameState
     public long CoreDeliveredItems { get; set; }
     /// <summary>Fixed ticks simulated so far (<see cref="SimulationClock.TickSeconds"/> each).</summary>
     public long CurrentTick { get; set; }
+
+    /// <summary>
+    /// Tick of the first block placed (a site opened or an instant placement, belts included): the world's time starts
+    /// here (<see cref="DayNightClock"/>). Null until then; set once (<see cref="Factory.NoteFirstBuild"/>).
+    /// </summary>
+    public long? FirstBuildTick { get; set; }
+
+    /// <summary>True once <see cref="FirstAttackDue"/> was raised (always night): it is raised once per game.</summary>
+    public bool FirstAttackRaised { get; set; }
 
     public IEnumerable<Crafter> CraftMachines()
     {

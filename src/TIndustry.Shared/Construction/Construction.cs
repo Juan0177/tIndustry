@@ -115,7 +115,8 @@ public static class Construction
 
     /// <summary>
     /// Starts building <paramref name="spec"/>: reserves its cells with a site at progress 0 that has
-    /// taken nothing yet. Throws when the cells are not free (callers check <see cref="Factory.CanPlace"/>).
+    /// taken nothing yet; the first site starts the world's time (<see cref="GameState.FirstBuildTick"/>). Throws when the
+    /// cells are not free (callers check <see cref="Factory.CanPlace"/>).
     /// </summary>
     public static ConstructSite BeginBuild(GameState s, BuildSpec spec, int ownerPlayerId)
     {
@@ -134,6 +135,7 @@ public static class Construction
             factory.CostOf(spec),
             ownerPlayerId);
         s.Sites.Add(site);
+        factory.NoteFirstBuild();
         return site;
     }
 

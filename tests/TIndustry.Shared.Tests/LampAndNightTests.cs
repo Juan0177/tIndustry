@@ -181,10 +181,10 @@ public sealed class LampAndNightTests
     [Fact]
     public void NightFlagRoundTripsInSave()
     {
-        var night = Sandbox(new GameRules(InstantBuild: true, Night: true));
-        Assert.True(night.State.Rules.Night);
+        var night = Sandbox(new GameRules(InstantBuild: true, DayNight: DayNightMode.AlwaysNight));
+        Assert.Equal(DayNightMode.AlwaysNight, night.State.Rules.DayNight);
         var restored = Factory.Restore(Content, night.Capture());
-        Assert.True(restored.State.Rules.Night);
+        Assert.Equal(DayNightMode.AlwaysNight, restored.State.Rules.DayNight);
         Assert.Equal(FactorySaveData.CurrentVersion, night.Capture().Version);
 
         // Additive field: a save written before it has no "night" and loads as day.
@@ -193,7 +193,7 @@ public sealed class LampAndNightTests
         // No lamps: no "lamps" key either, so day saves without lamps keep their v12 bytes.
         Assert.DoesNotContain("\"lamps\"", json, StringComparison.OrdinalIgnoreCase);
         var old = JsonSerializer.Deserialize<FactorySaveData>(json, FactorySaveStore.JsonOptions)!;
-        Assert.False(Factory.Restore(Content, old).State.Rules.Night);
+        Assert.Equal(DayNightMode.Cycle, Factory.Restore(Content, old).State.Rules.DayNight);
     }
 
     [Fact]
@@ -206,8 +206,8 @@ public sealed class LampAndNightTests
 
         var level = catalog.Find("level-06-corrente")!;
         var factory = NewGame.Campaign(Content, catalog, level, mapWidth: 80, mapHeight: 80);
-        Assert.True(factory.State.Rules.Night);
+        Assert.Equal(DayNightMode.AlwaysNight, factory.State.Rules.DayNight);
         var day = NewGame.Campaign(Content, catalog, catalog.FirstLevel!, mapWidth: 80, mapHeight: 80);
-        Assert.False(day.State.Rules.Night);
+        Assert.Equal(DayNightMode.Cycle, day.State.Rules.DayNight);
     }
 }

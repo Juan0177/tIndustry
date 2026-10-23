@@ -134,6 +134,24 @@ public sealed class Factory : IGameView
     public IReadOnlyList<StorageBlock> Storages => storagesView ??= storages.AsReadOnly();
     private IReadOnlyList<StorageBlock>? storagesView;
     public GameRules Rules => State.Rules;
+
+    /// <inheritdoc cref="GameRules.DayNight"/>
+    public DayNightMode DayNight => State.Rules.DayNight;
+
+    public DayNightPhase DayNightPhase => DayNightClock.PhaseAt(State.Rules.DayNight, State.FirstBuildTick, State.CurrentTick);
+
+    public int Light => DayNightClock.LightAt(State.Rules.DayNight, State.FirstBuildTick, State.CurrentTick);
+
+    public long? TicksToNextChange =>
+        DayNightClock.TicksToNextChange(State.Rules.DayNight, State.FirstBuildTick, State.CurrentTick);
+
+    public long? FirstBuildTick => State.FirstBuildTick;
+
+    /// <summary>
+    /// A block was placed (a site opened or an instant placement accepted from a player's command): the world's time
+    /// starts now, the first time only (<see cref="GameState.FirstBuildTick"/>).
+    /// </summary>
+    internal void NoteFirstBuild() => State.FirstBuildTick ??= State.CurrentTick;
     public long NextItemId => nextItemId;
     public long NextEntityId => nextEntityId;
 
@@ -822,7 +840,8 @@ public sealed class Factory : IGameView
             {
                 RefundPercent = State.Rules.RefundPercent,
                 InstantBuild = State.Rules.InstantBuild,
-                Night = State.Rules.Night
+                // Until the v16 save (DayNight and FirstBuildTick), only always-night is kept, as the old night flag.
+                Night = State.Rules.DayNight == DayNightMode.AlwaysNight
             },
             Builders = State.Builders.OrderBy(b => b.Id).Select(b => new BuilderSaveDto
             {
@@ -1022,7 +1041,10 @@ public sealed class Factory : IGameView
         // The cells are the saved ones (CoreSize, checked against the tier above); the tier and start are restored here.
         factory.State.CoreTier = data.CoreTier;
         factory.State.CoreStart = new GridPosition(data.CoreStartX, data.CoreStartY);
-        factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
+        factory.State.Rules = new GameRules(
+            Math.Clamp(data.Rules.RefundPercent, 0, 100),
+            data.Rules.InstantBuild,
+            data.Rules.Night ? DayNightMode.AlwaysNight : DayNightMode.Cycle);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)

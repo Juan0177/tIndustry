@@ -4,7 +4,7 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// The night (G3, <see cref="GameRules.Night"/>): a <see cref="CanvasModulate"/> darkens the world's canvas and
+/// The night (G3, <see cref="GameRules.DayNight"/>): a <see cref="CanvasModulate"/> darkens the world's canvas and
 /// <see cref="PointLight2D"/>s on the Core, the working furnaces, the burning generators, the lit lamps and the drones
 /// cut through it. The HUD is on its own CanvasLayer, which a CanvasModulate never reaches. Lights only for sources
 /// in view (plus their radius), at most <see cref="MaxLights"/>, taken from a list that never shrinks. Looks only.

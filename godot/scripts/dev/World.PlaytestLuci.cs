@@ -109,7 +109,7 @@ public partial class World
             var hudDay = await HudSampleAsync();
 
             // Night without lamps: the darkness is on the world canvas only, the HUD is untouched.
-            factory.State.Rules = factory.State.Rules with { Night = true };
+            factory.State.Rules = factory.State.Rules with { DayNight = DayNightMode.AlwaysNight };
             KeepPerfLayoutWorking(factory);
             await Frames(3);
             if (_night.DarknessNode is not { Visible: true } darkness || !_night.Night)
@@ -211,7 +211,7 @@ public partial class World
             ApplyGraphicsSettings();
 
             // Day again: snow with and without the glow, the mean brightness must barely move.
-            factory.State.Rules = factory.State.Rules with { Night = false };
+            factory.State.Rules = factory.State.Rules with { DayNight = DayNightMode.AlwaysDay };
             await Frames(2);
             if (_night.DarknessNode is { Visible: true } || _night.ActiveLights != 0)
             {
@@ -242,7 +242,7 @@ public partial class World
         }
         finally
         {
-            factory.State.Rules = factory.State.Rules with { Night = false };
+            factory.State.Rules = factory.State.Rules with { DayNight = DayNightMode.AlwaysDay };
             _settings.CopyFrom(saved);
             ApplyGraphicsSettings();
             (cam.Position, cam.Zoom) = framing;
@@ -307,7 +307,7 @@ public partial class World
             }
         });
         var rules = factory.State.Rules;
-        factory.State.Rules = rules with { Night = true };
+        factory.State.Rules = rules with { DayNight = DayNightMode.AlwaysNight };
         await PlaytestWait(0.5);
         var lightSum = 0L;
         var frames = 0;

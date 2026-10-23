@@ -421,6 +421,32 @@ public sealed class AgentGame : IDisposable
         _ => "crollo"
     };
 
+    /// <summary>
+    /// The world's time for <c>stato</c>: mode, phase, light (0–1000) and whole seconds to the next change (rounded up,
+    /// as the HUD counts; absent when nothing is counted).
+    /// </summary>
+    private JsonObject TimeJson()
+    {
+        var time = new JsonObject
+        {
+            ["modo"] = AgentRulesSetup.DayNightName(View.DayNight),
+            ["fase"] = View.DayNightPhase switch
+            {
+                DayNightPhase.Dusk => "tramonto",
+                DayNightPhase.Night => "notte",
+                DayNightPhase.Dawn => "alba",
+                _ => "giorno"
+            },
+            ["luce"] = View.Light
+        };
+        if (View.TicksToNextChange is { } ticks)
+        {
+            time["secondiAlCambio"] = (ticks + SimulationClock.TickRate - 1) / SimulationClock.TickRate;
+        }
+
+        return time;
+    }
+
     private JsonObject Stato()
     {
         var resources = new JsonObject();
@@ -514,6 +540,7 @@ public sealed class AgentGame : IDisposable
 
                 return entry;
             })),
+            ["tempo"] = TimeJson(),
             ["livelloCampagna"] = View.ActiveCampaignLevelId,
             ["direzione"] = DirectionName(Brush),
             ["rifiuti"] = Array(refusals),
@@ -1353,6 +1380,9 @@ public sealed class AgentGame : IDisposable
                 e["tipo"] = "smontato";
                 e["cantiere"] = taken.SiteId;
                 PutSpec(e, taken.Spec);
+                break;
+            case FirstAttackDue:
+                e["tipo"] = "primoAttacco";
                 break;
             case SaleResolved sale:
                 e["tipo"] = "vendita";
