@@ -76,6 +76,13 @@ Veloce come il Nastro T2, ma come l'*Armored Conveyor* di Mindustry prende ogget
 
 *Sopra una linea T2 che raccoglie da tre minatori; sotto una linea rinforzata accanto agli stessi blocchi, che resta vuota.*
 
+## Container e vault
+
+Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore** (`container`, 2×2) tiene 300 per oggetto, il **Deposito** (`vault`, 3×3) 1.000; costano 40 Lastre di ferro e 20 Lastre di piombo il primo, 60 Lastre di titanio e 40 Lastre di ferro il secondo (sblocchi in [Economia e Ricerca](Economia-e-Ricerca#container-e-vault)).
+
+- **A contatto con il CORE** (lato contro lato) allargano il suo magazzino: il loro spazio si somma al massimo di ogni oggetto e i nastri che vi consegnano consegnano al CORE.
+- **Lontani dal CORE** sono depositi a sé: accettano qualsiasi oggetto da nastri ed edifici finché c'è posto, e un Estrattore attaccato li svuota (prima dal CORE, se anche lui è a contatto e ha l'oggetto, poi dal deposito con l'id più basso).
+
 ## In arrivo
 
 Sono pianificati nastri stretti come in Mindustry, incrocio e selezionatore che si comportano come in Mindustry e uno sdoppiatore che diventa un distributore (router); fino ad allora vale quanto scritto qui.

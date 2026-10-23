@@ -1,6 +1,6 @@
 # Mercato come una borsa
 
-> **Nel gioco da ottobre 2026** (specifica 1 di 3, [specifica completa](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), lavoro seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268)). Prezzi che si muovono, picchi, crolli e vendita automatica per oggetto ci sono già. **Il jackpot è nella simulazione ma non scatta ancora in partita**: serve lo schermo di borsa della specifica 2. Il magazzino del CORE e i livelli sono la specifica 3. I numeri esatti sono in [Economia e Ricerca](Economia-e-Ricerca#il-mercato).
+> **Nel gioco da ottobre 2026** (specifica 1 di 3, [specifica completa](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), lavoro seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268)). Prezzi che si muovono, picchi, crolli e vendita automatica per oggetto ci sono già. **Il jackpot è nella simulazione ma non scatta ancora in partita**: serve lo schermo di borsa della specifica 2. Il magazzino del CORE e i livelli (specifica 3) ci sono già: ogni oggetto ha un massimo, la vendita automatica ha un ritmo che cresce col CORE. I numeri esatti sono in [Economia e Ricerca](Economia-e-Ricerca#il-mercato).
 
 tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Il Mercato funziona come una borsa, e vorremmo sapere cosa ne pensi.
 
@@ -12,7 +12,7 @@ tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti i
 
 **Se vendi troppo tutto insieme, il prezzo crolla.** Come quando tutti vendono la stessa cosa nello stesso momento: per una ventina di minuti quel prodotto vale solo il minimo, e niente più rialzi. Gli altri prodotti non se ne accorgono: il crollo riguarda solo quello che hai svenduto.
 
-**Puoi anche non pensarci.** C'è una vendita automatica, un interruttore per ogni prodotto, che vende da sola man mano che produci. È comoda, ma vende sempre al prezzo minimo.
+**Puoi anche non pensarci.** C'è una vendita automatica, un interruttore per ogni prodotto, che vende da sola dal magazzino, a un ritmo che cresce con il CORE. È comoda, ma vende sempre al prezzo minimo. Con la spunta «solo a CORE pieno» vende soltanto quando il prodotto è al massimo del magazzino. E il magazzino ha un massimo: quando è pieno, la linea di quel prodotto si ferma.
 
 ![Prezzo di un prodotto in tre minuti: un po' sopra il minimo, poi il rialzo fino al triplo, pochi secondi in cima e la discesa](https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/finanza/rialzo.svg)
 

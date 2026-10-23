@@ -81,7 +81,7 @@ Tasto **centrale**: un clic senza muovere il mouse **prende in mano** il blocco 
 
 Palette Mindustry (angolo basso-destra): griglia fissa di 4 colonne con icone da 32 px, senza testo né numeri, della stessa misura in ogni categoria (le caselle libere restano vuote); mostra solo i blocchi già sbloccati in Ricerca; rail categorie a icone (Strumenti / Logistica / Produzione / Potenza); hover/selezione apre il pannello info (nome, tasto rapido `[2]`, costi con icona barrata se mancano); `?` apre dettaglio.
 
-HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato · Campagna**, poi pannello CORE con **Fondi**, energia e solo le risorse che hai (icona + numero, nome al passaggio del mouse), **Potenzia CORE** con i costi, e gli obiettivi di campagna.
+HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato · Campagna**, poi pannello CORE con **Fondi**, energia e solo le risorse che hai (icona + numero, nome al passaggio del mouse), e gli obiettivi di campagna. Ogni risorsa si legge `quantità/massimo` (col colore di avviso quando è piena). Non c'è più il pulsante «Potenzia CORE»: i livelli del CORE (shard 3×3, foundation 4×4, nucleus 5×5) si sbloccano in Ricerca e si piazzano dalla categoria **Magazzino** della palette, sopra il CORE (il fantasma si aggancia lì e mostra in rosso le celle occupate); lì ci sono anche **Contenitore** e **Deposito**.
 
 | Hotkey | Azione |
 | --- | --- |
@@ -174,7 +174,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Mercato
 
-**M** apre il Mercato, una panoramica con una riga per ogni oggetto che hai nel CORE: icona, nome, quantità, prezzo del momento con la freccia (su o giù), mini grafico degli ultimi 2 minuti, **Vendi 1**, **Vendi 100**, **Vendi tutto** e l'interruttore della **vendita automatica** di quell'oggetto. Non c'è un pulsante che vende tutto di tutti. Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
+**M** apre il Mercato, una panoramica con una riga per ogni oggetto che hai nel CORE: icona, nome, quantità, prezzo del momento con la freccia (su o giù), mini grafico degli ultimi 2 minuti, **Vendi 1**, **Vendi 100**, **Vendi tutto** l'interruttore della **vendita automatica** di quell'oggetto e la spunta **«solo a CORE pieno»**; la quantità è `x/massimo`. Non c'è un pulsante che vende tutto di tutti. Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
 
 Ogni oggetto ha un prezzo suo, come un titolo in borsa:
 
@@ -183,7 +183,8 @@ Ogni oggetto ha un prezzo suo, come un titolo in borsa:
 - tutti i pezzi di una vendita valgono il prezzo del momento del clic; dopo, il prezzo scende un po' per ogni pezzo venduto e in 2 minuti torna al suo andamento;
 - vendere **5.000 pezzi o più** in 2 minuti dello stesso oggetto lo fa **crollare** per 20 minuti: prezzo vicino a B, qualche volta sotto, e niente picchi. Gli altri oggetti non se ne accorgono (la riga mostra «Crollo»);
 - un **tentativo di jackpot** (Vendi tutto nel picco con almeno 400 pezzi) richiede uno schermo di borsa, che arriva con la specifica 2: oggi il jackpot è nella simulazione ma in partita non scatta; un tentativo a vuoto bloccherebbe per 5 minuti ogni «Vendi tutto» (la riga mostra l'attesa);
-- la **vendita automatica** (un interruttore per oggetto) vende al prezzo minimo ciò che arriva al CORE: non muove il mercato, ma neppure coglie i picchi.
+- la **vendita automatica** (un interruttore per oggetto) vende dal magazzino al prezzo minimo, 10, 25 o 60 pezzi al secondo secondo il CORE: non muove il mercato, ma neppure coglie i picchi; con la spunta «solo a CORE pieno» vende solo quando l'oggetto è al massimo;
+- il **magazzino ha un massimo** per oggetto (1.000 / 4.000 / 12.000 secondo il CORE, più container e vault collegati): a oggetto pieno la linea si ferma.
 
 Il salvataggio (versione 15) include lo stato di tutti i mercati.
 

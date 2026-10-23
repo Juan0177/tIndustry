@@ -7,6 +7,9 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto
 
+- **Magazzino del CORE e livelli** (specifica 3 di 3, [diario](docs/diario/2026-10-23-magazzino-core.md)): ogni oggetto ha un massimo nel CORE e a CORE pieno la linea si ferma (ingresso unico `CoreStorage`). Tre livelli: shard 3×3 (1.000 per oggetto, 10 pezzi/s, drone alpha), foundation 4×4 (4.000, 25/s, beta), nucleus 5×5 (12.000, 60/s, gamma), sbloccati nel ramo CORE della Ricerca e piazzati sopra il CORE come cantiere del drone
+- **Container e vault**: magazzini 2×2 (300 per oggetto) e 3×3 (1.000); a contatto col CORE ne allargano il magazzino, lontani sono depositi a sé svuotati dall'estrattore
+- **Vendita automatica a ritmo**: vende dal magazzino 10 / 25 / 60 pezzi al secondo per oggetto secondo il CORE, con la spunta «solo a CORE pieno» (`SetAutoSellWhenFull`, agenti: `vendita_automatica {solo_a_pieno}`); categoria «Magazzino» nella palette e quantità `x/massimo` nell'HUD e nel Mercato
 - **Mercato come una borsa** (specifica 1 di 3, piano in 9 task, PR #274–#282, issue #268): ogni oggetto ha un mercato suo con un valore base B (anche prezzo minimo; tabella in `content.json`) e le regole in `marketRules`, senza numeri nel codice. Il prezzo oscilla fra B e 1,6×B, ogni 10-20 minuti sale in un picco fino a 3×B, e tutti i pezzi di una vendita valgono il prezzo del clic. Ogni pezzo venduto abbassa il prezzo dello 0,04% di B; 5.000 pezzi in 2 minuti, o un jackpot, fanno crollare quell'oggetto per 20 minuti. Il jackpot (solo «Vendi tutto» nel picco, almeno 400 pezzi, con la rete di sicurezza dopo tre tentativi grossi a vuoto) e l'attesa dopo un tentativo a vuoto sono nella simulazione, ma in partita non scattano finché non c'è lo schermo di borsa (specifica 2). Stato dei prezzi in `GameState.Exchange` con un generatore seminato (`MarketRandom`, PCG32) e sistema `MarketSystem`; evento `SaleResolved`; soldi e incassi si fermano a `int.MaxValue`
 - **Vendita automatica per oggetto**: un interruttore per oggetto (`SetAutoSell`), al prezzo minimo, senza toccare il mercato; vale anche per i nastri e gli edifici attaccati al CORE
 - **Panoramica del Mercato** (`M`): una riga per oggetto con prezzo e freccia, mini grafico dei 2 minuti, «Crollo», Vendi 1, Vendi 100, Vendi tutto e l'interruttore; nessun pulsante vende tutto di tutti. Gli agenti hanno `vendi {tutto}` e `vendita_automatica` per oggetto
@@ -14,6 +17,9 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Cambiato
 
+- **Salvataggi alla v15**: i file fino alla v14 non si aprono più («versione non più supportata»); il codice di conversione v11–v14 è tolto
+- Il CORE parte 3×3 (non più 2×2 senza limiti); i droni sono tre (alpha, beta, gamma) invece di uno
+- Tolti il pulsante «Potenzia CORE», il comando `UpgradeCore` e `economy.coreUpgrade`: il potenziamento è il blocco `core-foundation` / `core-nucleus` piazzato sopra il CORE
 - **Salvataggi alla versione 14**: portano lo stato del mercato; i v11, v12 e v13 si leggono ancora e ripartono con un mercato nuovo. Un salvataggio con dati del mercato fuori misura si ripara al caricamento invece di essere rifiutato
 - **Valori dei prezzi**: i vecchi prezzi dinamici (listino, minimo e soglia in funzione delle scorte) sono tolti; il bonus del 25% di «Potenzia CORE» sulle vendite è tolto (servirà al magazzino e al drone). Gli obiettivi di guadagno della campagna si ritoccano solo dove i test lo chiedevano
 - **Ponte a distanza 2–4 come Mindustry** (#256): gli estremi stanno a 2–4 celle e scavalcano da 1 a 3 celle, anche il ponte automatico; un salvataggio con un ponte più lungo si carica senza quel ponte

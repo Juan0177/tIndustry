@@ -32,7 +32,7 @@ Strumenti principali (nomi in italiano):
 |---|---|
 | Sessioni | `apri_simulazione`, `apri_gioco`, `sessioni`, `chiudi` |
 | Guardare | `stato`, `area`, `trova`, `catalogo`, `eventi` |
-| Agire | `piazza`, `smonta`, `ruota`, `sblocca`, `vendi`, `potenzia_core` |
+| Agire | `piazza`, `smonta`, `ruota`, `sblocca`, `vendi`, `vendita_automatica` (anche `solo_a_pieno`), `potenzia_core` (piazza il blocco del livello dopo sopra il CORE) |
 | Tempo | `avanza` (tick esatti), e nel gioco vero `esegui`, `pausa`, `riprendi` |
 | Solo gioco vero | `cattura`, `telecamera`, `input`, `ui`, `log` |
 | Riprodurre | `diario`, `rigioca` |

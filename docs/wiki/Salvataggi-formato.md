@@ -15,7 +15,7 @@ Un salvataggio è un file JSON (`SaveFileData` / `FactorySaveStore`, in `src/TIn
 - i metadati mostrati nell'elenco (fondi, seme, mappa, livello);
 - l'**istantanea canonica** della simulazione, in base64 (la stessa usata per il checksum, vedi [Architettura](Architettura)).
 
-Contiene solo lo stato applicato: comandi in coda e orologio non sono salvati. Dalla v11 porta anche le regole della partita, i droni con la loro coda di piani e i cantieri a metà.
+Contiene solo lo stato applicato: comandi in coda e orologio non sono salvati. Porta anche le regole della partita, i droni con la loro coda di piani, i cantieri a metà, il livello del CORE e i magazzini.
 
 La scrittura è atomica: prima `<slot>.json.tmp`, poi la rinomina sullo slot.
 
@@ -23,10 +23,8 @@ La scrittura è atomica: prima `<slot>.json.tmp`, poi la rinomina sullo slot.
 
 | Versione | Stato |
 |---|---|
-| **13** | Corrente (`FactorySaveData.CurrentVersion`): aggiunge il nastro tolto da un cantiere di sostituzione (`Replaced`) |
-| 12 | Si legge ancora: il terreno è descritto dal generatore (`Generator`, `MapSize`, `MapId`) con la sua impronta (`TerrainHash`) |
-| 11 | Si legge ancora (`MinReadableVersion`), sul generatore di terreno classico |
-| 10 e precedenti | Rifiutate con il codice `OlderVersion` |
+| **15** | Corrente e unica che si legge (`FactorySaveData.CurrentVersion` e `MinReadableVersion`): aggiunge il livello del CORE (`CoreTier`), i container e i vault (`Storages`, col contenuto dei depositi a sé), la spunta «solo a CORE pieno» e l'accumulatore della vendita automatica per oggetto |
+| 14 e precedenti | Rifiutate con il codice `OlderVersion` («versione non più supportata»): il codice di conversione è stato tolto |
 
 **Regola: cambiare il formato vuol dire alzare `CurrentVersion`.** Un campo nuovo, un campo tolto o un significato diverso richiedono una versione nuova e, se possibile, la lettura di quelle precedenti.
 

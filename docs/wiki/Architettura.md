@@ -11,7 +11,8 @@ Come sono fatti simulazione e client, come passa un frame e perché la simulazio
 
 - **`GameState`** contiene tutto lo stato mutabile (griglia e nastri, edifici, portafoglio, ricerca, mercato, energia, droni e cantieri, contatori di id, tick corrente). `Factory` ne è la facciata.
 - **Sistemi.** `Simulation.Step` avanza esattamente un tick eseguendo i sistemi di `Simulation/Systems/` in un ordine fisso (costruzione, nastri, energia, estrazione, produzione, luci, consegna al Core…). L'ordine è bloccato dal test `SystemOrderTests`.
-- **Comandi.** Ogni modifica al gioco è un record `SimCommand` (`PlaceBelt`, `PlaceBuilding`, `Remove`, `UnlockStructure`, `Sell`, `SetAutoSell`, `UpgradeCore`, `SetSorterFilter`) con giocatore e tick. I comandi sono **validati quando si applicano**, non quando si inviano.
+- **Magazzino del CORE.** Un solo ingresso, `CoreStorage.TryAccept`, usato da nastri ed edifici attaccati: dà falso quando l'oggetto è al massimo (livello del CORE più i container e vault collegati) e chi consegna tiene il pezzo. Il potenziamento del CORE è un cantiere (`PlaceBuilding` col blocco `core-foundation` o `core-nucleus`), non più un comando a parte.
+- **Comandi.** Ogni modifica al gioco è un record `SimCommand` (`PlaceBelt`, `PlaceBuilding`, `Remove`, `UnlockStructure`, `Sell`, `SetAutoSell`, `SetAutoSellWhenFull`, `SetSorterFilter`) con giocatore e tick. I comandi sono **validati quando si applicano**, non quando si inviano.
 - **`SimHost`** è il «server locale»: `Submit` mette in coda un comando, `Advance` esegue i tick dovuti applicando i comandi all'inizio di ciascuno. L'esito arriva come evento: `CommandApplied` oppure `CommandRejected` con un codice (`RefusalCode`) che il client traduce; gli eventi nati durante il tick (piano scartato, costruzione finita…) arrivano con `EventRaised`.
 - **`IGameView`** è la vista in sola lettura che il client usa per disegnare e per l'HUD.
 

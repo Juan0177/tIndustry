@@ -1,6 +1,6 @@
 # Magazzino del CORE e livelli — specifica 3 di 3
 
-- **Stato**: approvata dall'utente il 23 ottobre 2026. Brainstorming con l'utente del 23 ottobre 2026; segue la [specifica 1 del Mercato](2026-10-22-mercato-borsa-design.md), che ha tolto il bonus di «Potenzia CORE» e rimandato qui il magazzino.
+- **Stato**: attuata (2026-10-23, ramo claude/ripresa-task-notturni-5ht4tf; [diario](../../diario/2026-10-23-magazzino-core.md)). Approvata dall'utente il 23 ottobre 2026. Brainstorming con l'utente del 23 ottobre 2026; segue la [specifica 1 del Mercato](2026-10-22-mercato-borsa-design.md), che ha tolto il bonus di «Potenzia CORE» e rimandato qui il magazzino.
 - **Assorbe** una parte dell'aspetto 11 di `docs/STATO.md` («Drone e tier»): i tre CORE shard → foundation → nucleus e i droni alpha → beta → gamma. All'aspetto 11 restano il drone comandato a mano e quello che non è in questa specifica.
 - **Sostituisce**: il CORE 2×2 senza limiti, «Potenzia CORE» (`economy.coreUpgrade`, `CoreUpgradeLevel`, comando `UpgradeCore`), la vendita automatica che vende ogni pezzo all'arrivo, i salvataggi fino alla v14.
 

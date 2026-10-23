@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, specifica 3 del Mercato (magazzino del CORE e livelli) approvata.
+**Aggiornato:** 2026-10-23, specifica 3 del Mercato (magazzino del CORE e livelli) attuata; resta da provare il client sul PC di casa.
 
 ## Aspetti del gioco
 
@@ -30,6 +30,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [ ] Junction ([#253](https://github.com/Juan0177/tIndustry/issues/253))
 - [ ] Sorter con l'alternanza sinistra/destra ([#254](https://github.com/Juan0177/tIndustry/issues/254))
 - [ ] Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
+- [x] Container e vault (magazzini collegati al CORE o depositi a sé)
 - [ ] Estrattore come l'Unloader, configurato col clic ([#270](https://github.com/Juan0177/tIndustry/issues/270))
 
 ### 4 · [Produzione](wiki/Produzione.md)
@@ -51,7 +52,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata
 - [ ] Schermo di borsa e bot della finanza: implementazione
 - [x] Magazzino del CORE e livelli, specifica 3: specifica approvata ([spec](superpowers/specs/2026-10-23-magazzino-core-design.md))
-- [ ] Magazzino del CORE e livelli: implementazione ([piano](superpowers/plans/2026-10-23-magazzino-core.md))
+- [x] Magazzino del CORE e livelli: implementazione ([piano](superpowers/plans/2026-10-23-magazzino-core.md), [diario](diario/2026-10-23-magazzino-core.md))
 
 ### 7 · [Mappe e terreno](wiki/Mappe-e-terreno.md)
 
@@ -140,7 +141,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | --- | --- | --- |
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
-| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 approvata, piano scritto, in attesa del via |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); prossime la specifica 2 (schermo di borsa) e la campagna rifatta |
 | D | Logistica come Mindustry: #252–#255, #270 (3) | Da fare, dopo B |
 | E | Rete di energia #269 (5), telemetria #234 (10) | Più avanti |
 
@@ -151,10 +152,13 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
   - i rami locali già uniti;
   - il ramo `sito/fabbrica`, in locale e su GitHub;
   - le cartelle vecchie di `.superpowers/` (`sdd/2026-10-18-sito-fabbrica`, `sdd-backup`, `brainstorm`).
+- **Controllo del client sul PC di casa** (il lavoro del magazzino del CORE è stato fatto in cloud, senza Godot): importare il progetto (`--import`) e generare i `.import` degli 8 PNG nuovi, lanciare i playtest `ui` e `agenti`, il `PlaytestScala` (una categoria «Magazzino» nuova nella palette), rifare le catture (la riga `core.livello` dell'HUD non va a capo e cambia le immagini) e controllare le celle di prova del playtest grafico (`World.PlaytestGrafica.cs`), che ora toccano il CORE 3×3.
 - **Sonda `oggetti-fluidi`** del playtest `ui`: fallisce ogni tanto per un frame lento (1 volta su 4 il 22/10). Rilanciando passa.
 - **Server MCP `tindustry` nel gioco vero**: non trova `godot4`. Serve la variabile d'ambiente `TINDUSTRY_GODOT` sull'eseguibile di Godot e un riavvio di Claude Code.
 
 ## Cosa serve dall'utente
 
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
+- Il tuo parere su un aspetto distinto per gli sprite di foundation e nucleus: oggi hanno gli stessi pixel dei vecchi CORE a 2 livelli, quindi i tre CORE si distinguono solo per misura.
+- Provare il client del magazzino del CORE sul PC di casa (vedi «Cosa manca, in piccolo»).
 - L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.

@@ -14,19 +14,19 @@ Piazzare un blocco non lo crea subito: diventa un **piano**, una sagoma semitras
 | Acqua bassa (vicino alle rive) | Sì |
 | Acqua profonda (blu scuro) | No ("Acqua profonda"); il ponte la scavalca |
 | Parete | No ("C'è una parete") |
-| CORE | No ("Non puoi costruire sul CORE") |
+| CORE | No ("Non puoi costruire sul CORE"); solo i blocchi di potenziamento si piazzano sopra il CORE |
 
 L'anteprima rifiutata è rossa con una X e in basso compare il motivo.
 
 ## Il drone
 
-Il drone parte dal CORE e vola verso il primo piano della coda, sopra pareti e acqua. Vola a 22,5 celle al secondo e ha un raggio di costruzione di 27,5 celle: non deve stare sopra il piano, gli basta arrivare abbastanza vicino. Quando arriva apre un **cantiere**: lo sprite si disegna dal basso mentre il raggio parte dal drone. Con la coda vuota torna accanto al CORE.
+Il drone parte dal CORE e vola verso il primo piano della coda, sopra pareti e acqua. Il drone dipende dal livello del CORE (vedi [Economia e Ricerca](Economia-e-Ricerca)): l'**alpha** dello shard vola a 22,5 celle al secondo e costruisce a velocità 0,5, il **beta** del foundation a 24,75 e 0,75, il **gamma** del nucleus a 26,6 e 1,0. Il raggio di costruzione è 27,5 celle per tutti: non deve stare sopra il piano, gli basta arrivare abbastanza vicino. Quando arriva apre un **cantiere**: lo sprite si disegna dal basso mentre il raggio parte dal drone. Con la coda vuota torna accanto al CORE.
 
 Se quando arriva il piano non si può più costruire (cella occupata, blocco non più sbloccato) lo scarta e un avviso dice il motivo.
 
 ## Costi presi man mano
 
-Il costo esce dal magazzino del CORE un pezzo alla volta, mentre il cantiere avanza. Se manca un materiale il cantiere si **ferma** esattamente lì e, passando col mouse, dice cosa manca ("Mancano: 3 Ferro grezzo"). Riparte da solo quando il materiale arriva.
+Il costo esce dal magazzino del CORE un pezzo alla volta, mentre il cantiere avanza. Anche il **potenziamento del CORE** è un cantiere: si piazza solo sopra il CORE, con le celle nuove libere (vedi [Economia e Ricerca](Economia-e-Ricerca#i-tre-livelli)), e il vecchio CORE lavora finché non finisce. Se manca un materiale il cantiere si **ferma** esattamente lì e, passando col mouse, dice cosa manca ("Mancano: 3 Ferro grezzo"). Riparte da solo quando il materiale arriva.
 
 Se un cantiere resta fermo per un secondo e in coda ci sono altri piani, il drone lo lascia com'è (con quanto ha già speso) e passa avanti: il piano va in fondo alla coda e il cantiere riprende quando ritocca a lui.
 
