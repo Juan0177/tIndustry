@@ -51,7 +51,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata
 - [ ] Schermo di borsa e bot della finanza: implementazione
 - [x] Magazzino del CORE e livelli, specifica 3: specifica approvata ([spec](superpowers/specs/2026-10-23-magazzino-core-design.md))
-- [ ] Magazzino del CORE e livelli: implementazione
+- [ ] Magazzino del CORE e livelli: implementazione ([piano](superpowers/plans/2026-10-23-magazzino-core.md))
 
 ### 7 · [Mappe e terreno](wiki/Mappe-e-terreno.md)
 
@@ -140,7 +140,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | --- | --- | --- |
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
-| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 approvata, piano da scrivere |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 approvata, piano scritto, in attesa del via |
 | D | Logistica come Mindustry: #252–#255, #270 (3) | Da fare, dopo B |
 | E | Rete di energia #269 (5), telemetria #234 (10) | Più avanti |
 
