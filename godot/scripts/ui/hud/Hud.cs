@@ -214,6 +214,13 @@ public partial class Hud : Control
     /// <summary>The Core's tier and each item's maximum (<see cref="IGameView.CoreCapacity"/>) for the stock column.</summary>
     public void UpdateCore(CoreTierDefinition tier, Func<string, int> capacityOf) => _core.UpdateCore(tier, capacityOf);
 
+    /// <summary>The world's time line of the Core column (<see cref="CorePanel.UpdateWorldTime"/>).</summary>
+    public void UpdateWorldTime(DayNightMode mode, DayNightPhase phase, long? firstBuildTick, long? ticksToNext, bool attackAlert) =>
+        _core.UpdateWorldTime(mode, phase, firstBuildTick, ticksToNext, attackAlert);
+
+    /// <summary>The world's time line as shown, or null while hidden (playtests).</summary>
+    internal string? WorldTimeShown => _core.WorldTimeShown;
+
     public void ClearObjectives() => _core.ClearObjectives();
 
     public void UpdateObjectives(

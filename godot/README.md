@@ -52,9 +52,9 @@ Giacimenti: ferro, rame, carbone, piombo e titanio. Il **titanio** si scava solo
 
 I livelli della **Campagna** hanno mappe prestabilite, più piccole all'inizio (200×200 nel primo livello) e più grandi verso la fine (1000×1000 nel decimo).
 
-### Notte e Lampada
+### Giorno, notte e Lampada
 
-Nella schermata Nuova partita la casella **Notte** fa una mappa al buio: contano le luci dei blocchi (Core, forni al lavoro, generatori accesi, droni) e le **Lampade**. Anche i livelli 6 (*Corrente*) e 10 (*Espansione T2*) della Campagna sono di notte. La **Lampada** (1×1, categoria Potenza, si sblocca nella Ricerca dopo il Nodo T1; costa 2 lastre di ferro e 1 filo di rame) si accende solo se è collegata come forni e assemblatori (generatore vivo adiacente o nodo in raggio) e consuma 1 unità di corrente al secondo; spenta non fa luce. Di notte sui prati compaiono anche le lucciole (solo con Effetti Alti).
+Il mondo ha un ciclo di **giorno (10 minuti) e notte (4 minuti)**, con alba e tramonto sfumati di 20 secondi; il tempo parte dal primo blocco piazzato. Una riga sotto le risorse del CORE dice quanto manca alla notte o al giorno (si ferma con la pausa). Nella schermata Nuova partita due caselle che si escludono cambiano il tempo: **Solo giorno (Pacifica)** (sempre giorno, nessun contatore) e **Solo notte** (sempre buio; la riga conta 10 minuti fino al primo attacco, poi «Attacco!» per 5 secondi; gli attacchi veri arriveranno con l'aspetto 13). Al buio contano le luci dei blocchi (Core, forni al lavoro, generatori accesi, droni) e le **Lampade**, che si accendono quando la luce scende sotto la metà. I livelli 1–3 della Campagna sono solo giorno, il 6 (*Corrente*) e il 10 (*Espansione T2*) solo notte, gli altri hanno il ciclo. La **Lampada** (1×1, categoria Potenza, si sblocca nella Ricerca dopo il Nodo T1; costa 2 lastre di ferro e 1 filo di rame) si accende solo se è collegata come forni e assemblatori (generatore vivo adiacente o nodo in raggio) e consuma 1 unità di corrente al secondo; spenta non fa luce. Di notte sui prati compaiono anche le lucciole (solo con Effetti Alti).
 
 ## Controlli build
 

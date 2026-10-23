@@ -36,19 +36,19 @@ public partial class World
     /// Nuova partita without the panel (scripted playtests): Media map, seed 42, biome generator. The generator's
     /// start guarantee keeps the tutorial's iron patch and belt corridor west of the Core.
     /// </summary>
-    private void OnHomeNewGame() => StartNewGameFromHome(MapSize.Media, PlaytestSeed, night: false);
+    private void OnHomeNewGame() => StartNewGameFromHome(MapSize.Media, PlaytestSeed, DayNightMode.Cycle);
 
     /// <summary>Seed of the scripted playtests' sandbox.</summary>
     private const int PlaytestSeed = 42;
 
     /// <summary>Inizia on the Nuova partita panel: the map is generated, then the game opens, behind the loading screen.</summary>
-    private Task StartNewGameFromPanelAsync(MapSize size, int seed, bool night) =>
+    private Task StartNewGameFromPanelAsync(MapSize size, int seed, DayNightMode dayNight) =>
         WithLoadingAsync(2, async phase =>
         {
             await phase("mappa.generazione");
-            var host = new SimHost(NewSandboxFactory(FactoryContent.Load(_contentPath), size, seed, night));
+            var host = new SimHost(NewSandboxFactory(FactoryContent.Load(_contentPath), size, seed, dayNight));
             await phase("caricamento.fase.mondo");
-            StartNewGameFromHome(size, seed, night, host);
+            StartNewGameFromHome(size, seed, dayNight, host);
             return true;
         });
 
@@ -89,9 +89,9 @@ public partial class World
         return null;
     }
 
-    private void StartNewGameFromHome(MapSize size, int seed, bool night, SimHost? host = null)
+    private void StartNewGameFromHome(MapSize size, int seed, DayNightMode dayNight, SimHost? host = null)
     {
-        StartNewSandbox(size, seed, toast: true, night, host);
+        StartNewSandbox(size, seed, toast: true, dayNight, host);
         _newGame?.Close();
         _home?.Close();
         BeginTutorialIfNeeded();
@@ -101,27 +101,26 @@ public partial class World
     /// Rules of the games the client starts: real construction, as in Mindustry (plans, drone, sites).
     /// The refund share is the mode's own (sandbox 100, campaign = the level's), set by <see cref="NewGame"/>.
     /// </summary>
-    private static GameRules ClientRules(bool night = false) =>
-        new(DayNight: night ? DayNightMode.AlwaysNight : DayNightMode.Cycle);
+    private static GameRules ClientRules(DayNightMode dayNight = DayNightMode.Cycle) => new(DayNight: dayNight);
 
     /// <summary>
-    /// A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre, at night with
-    /// <paramref name="night"/>.
+    /// A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre, with the
+    /// world's time <paramref name="dayNight"/>.
     /// </summary>
-    private static Factory NewSandboxFactory(FactoryContent content, MapSize size, int seed, bool night = false)
+    private static Factory NewSandboxFactory(FactoryContent content, MapSize size, int seed, DayNightMode dayNight = DayNightMode.Cycle)
     {
         var edge = (int)size;
         return NewGame.Sandbox(
             content,
             Factory.CenteredCoreOrigin(edge, edge),
             startingMoney: 180,
-            rules: ClientRules(night),
+            rules: ClientRules(dayNight),
             map: MapGenSettings.Normal(size, seed));
     }
 
-    private void StartNewSandbox(MapSize size, int seed, bool toast, bool night = false, SimHost? host = null)
+    private void StartNewSandbox(MapSize size, int seed, bool toast, DayNightMode dayNight = DayNightMode.Cycle, SimHost? host = null)
     {
-        AttachGame(host ?? new SimHost(NewSandboxFactory(FactoryContent.Load(_contentPath), size, seed, night)));
+        AttachGame(host ?? new SimHost(NewSandboxFactory(FactoryContent.Load(_contentPath), size, seed, dayNight)));
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;

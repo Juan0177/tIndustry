@@ -60,6 +60,8 @@ public partial class World
 
         var framing = (cam.Position, cam.Zoom);
         var saved = _settings.Clone();
+        // The game's own rules (its world's time) come back at the end, whatever the probe set meanwhile.
+        var savedRules = factory.State.Rules;
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         try
         {
@@ -242,7 +244,7 @@ public partial class World
         }
         finally
         {
-            factory.State.Rules = factory.State.Rules with { DayNight = DayNightMode.AlwaysDay };
+            factory.State.Rules = savedRules;
             _settings.CopyFrom(saved);
             ApplyGraphicsSettings();
             (cam.Position, cam.Zoom) = framing;

@@ -147,6 +147,12 @@ core.livello,{0} · massimo {1} per oggetto,{0} · max {1} per item
 core.livello.suggerimento,Vende {0} pezzi al secondo · drone {1},Sells {0} pieces per second · {1} drone
 core.scorta.pieno,{0} · {1}/{2} · pieno: i nastri si fermano,{0} · {1}/{2} · full: belts stop
 core.scorta,{0} · {1}/{2},{0} · {1}/{2}
+tempo.attesa,Il tempo parte dal primo blocco,Time starts with the first block
+tempo.notte.fra,Notte fra {0},Night in {0}
+tempo.giorno.fra,Giorno fra {0},Day in {0}
+tempo.attacco.fra,Primo attacco fra {0},First attack in {0}
+tempo.attacco,Attacco!,Attack!
+tempo.notte,Notte,Night
 rifiuto.InsufficientResources,Risorse insufficienti,Not enough resources
 rifiuto.servono,Servono {0},Need {0}
 obiettivo.guadagna,Guadagna ${0},Earn ${0}
@@ -242,7 +248,9 @@ partita.misura,Misura della mappa,Map size
 partita.seme,Seme (la stessa misura e lo stesso seme danno la stessa mappa),Seed (the same size and seed give the same map)
 partita.seme.nuovo,Nuovo seme,New seed
 partita.seme.copia,Copia,Copy
-partita.notte,Notte (mappa al buio: contano le luci dei blocchi e le Lampade),Night (dark map: block lights and Lamps matter)
+partita.solo.giorno,Solo giorno (Pacifica),Day only (Peaceful)
+partita.solo.notte,Solo notte,Night only
+partita.tempo,"Ciclo: giorno 10 min, notte 4 min · Solo notte: primo attacco dopo 10 min","Cycle: 10 min day, 4 min night · Night only: first attack after 10 min"
 comune.indietro,Indietro,Back
 partita.inizia,Inizia,Start
 campagna.suggerimento,Scegli un livello sbloccato · G apre / Esc chiude,Choose an unlocked level · G opens / Esc closes

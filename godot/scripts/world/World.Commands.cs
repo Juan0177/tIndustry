@@ -175,6 +175,9 @@ public partial class World
                 }
 
                 break;
+            case FirstAttackDue:
+                OnFirstAttackDue();
+                break;
             case PlanDropped dropped when dropped.PlayerId == LocalPlayer:
                 _hud?.ShowToast(Testi.Rifiuto(dropped.Reason, _view));
                 break;

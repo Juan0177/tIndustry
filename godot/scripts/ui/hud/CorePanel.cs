@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Top-left HUD column (Mindustry layout): menu buttons → core resources (funds, power, stock with the Core's
-/// maximum, the Core's tier) → build queue → campaign objectives. Owns the last stock counts and funds shown.
+/// maximum, the Core's tier, the world's time) → build queue → campaign objectives. Owns the last stock counts and funds shown.
 /// </summary>
 public partial class CorePanel : VBoxContainer
 {
@@ -27,6 +27,7 @@ public partial class CorePanel : VBoxContainer
     private GridContainer? _stockGrid;
     private Label? _stockEmpty;
     private Label? _tierLabel;
+    private Label? _timeLabel;
     private CoreTierDefinition? _tier;
     private Func<string, int>? _capacityOf;
     // What the tier line shows now (it is written again only when one of them changes, or the language does).
@@ -231,6 +232,72 @@ public partial class CorePanel : VBoxContainer
         }
     }
 
+    /// <summary>
+    /// The world's time line under the Core resources, every frame from the simulation's clock (ticks, so it stops
+    /// with the pause): hidden in always day; <paramref name="attackAlert"/> shows "Attacco!".
+    /// </summary>
+    public void UpdateWorldTime(DayNightMode mode, DayNightPhase phase, long? firstBuildTick, long? ticksToNext, bool attackAlert)
+    {
+        if (_timeLabel is null)
+        {
+            return;
+        }
+
+        var text = WorldTimeText(mode, phase, firstBuildTick, ticksToNext, attackAlert);
+        _timeLabel.Visible = text is not null;
+        if (text is not null && _timeLabel.Text != text)
+        {
+            _timeLabel.Text = text;
+        }
+    }
+
+    /// <summary>The world's time line as shown (playtests), or null while hidden.</summary>
+    internal string? WorldTimeShown => _timeLabel is { Visible: true } label ? label.Text : null;
+
+    /// <summary>
+    /// Text of the world's time line, null when there is none (always day): before the first block the time waits;
+    /// in the cycle "Notte fra m:ss" by day and dusk, "Giorno fra m:ss" by night and dawn; in always night the first
+    /// attack's countdown, then "Attacco!" while <paramref name="attackAlert"/>, then "Notte".
+    /// </summary>
+    internal static string? WorldTimeText(
+        DayNightMode mode, DayNightPhase phase, long? firstBuildTick, long? ticksToNext, bool attackAlert)
+    {
+        if (mode == DayNightMode.AlwaysDay)
+        {
+            return null;
+        }
+
+        if (firstBuildTick is null)
+        {
+            return Testi.T("tempo.attesa");
+        }
+
+        if (attackAlert)
+        {
+            return Testi.T("tempo.attacco");
+        }
+
+        if (ticksToNext is not { } ticks)
+        {
+            return Testi.T("tempo.notte");
+        }
+
+        var clock = Clock(ticks);
+        if (mode == DayNightMode.AlwaysNight)
+        {
+            return Testi.F("tempo.attacco.fra", clock);
+        }
+
+        return Testi.F(phase is DayNightPhase.Day or DayNightPhase.Dusk ? "tempo.notte.fra" : "tempo.giorno.fra", clock);
+    }
+
+    /// <summary>Ticks as m:ss, whole seconds rounded up (a full 10 minutes reads 10:00, the last second 0:01).</summary>
+    internal static string Clock(long ticks)
+    {
+        var seconds = (Math.Max(0, ticks) + SimulationClock.TickRate - 1) / SimulationClock.TickRate;
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{seconds / 60}:{seconds % 60:00}");
+    }
+
     /// <summary>The stock cell's colour and tooltip from its count and the Core maximum.</summary>
     private void SyncStockTooltip(string id)
     {
@@ -381,6 +448,12 @@ public partial class CorePanel : VBoxContainer
         _tierLabel.Name = "LivelloCore";
         _tierLabel.MouseFilter = MouseFilterEnum.Pass;
         vbox.AddChild(_tierLabel);
+
+        // World's time: countdown to the night, the day or the first attack (hidden in always day).
+        _timeLabel = MakeLabel("", UiTheme.TestoTenue);
+        _timeLabel.Name = "TempoMondo";
+        _timeLabel.Visible = false;
+        vbox.AddChild(_timeLabel);
     }
 
     private void AddStockCell(Control parent, string id)

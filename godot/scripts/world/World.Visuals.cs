@@ -491,6 +491,7 @@ public partial class World
             _view.Generators.Count,
             _view.PowerBuffer,
             _view.PowerCapacity);
+        SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);
         if (_activeLevel is not null)
