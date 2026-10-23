@@ -94,7 +94,7 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | T | Ricerca (grafo icon-node) |
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
-| Spazio | Pausa / riprende la partita (scritta «In pausa» al centro); i comandi dati in pausa partono alla ripresa. Non nei menu né mentre si scrive in un campo di testo |
+| Spazio | Pausa / riprende la partita (scritta «In pausa» al centro); i comandi dati in pausa partono alla ripresa. Non nei menu, non con un campo di testo o un pulsante col fuoco, non nei playtest né nelle partite degli agenti (lì il tempo lo comandano `pausa`, `riprendi`, `esegui`, `avanza`) |
 | F1–F4 | Solo con `TINDUSTRY_DEV=1` (mai nei playtest): velocità ×1 / ×5 / ×10 / ×20; in alto a destra una barra con velocità, tick e tempo di gioco (mm:ss) |
 | RMB | Cancella un piano, annulla un cantiere o segna un blocco da smontare; clic singolo toglie il segno, trascinare segna soltanto (non è uno slot palette) |
 

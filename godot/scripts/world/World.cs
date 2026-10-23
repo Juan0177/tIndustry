@@ -286,7 +286,7 @@ public partial class World : Node2D
 
         SyncTerrainChunks();
         SyncNight();
-        SyncAmbientEffects(delta);
+        SyncAmbientEffects(PlayerPaused ? 0.0 : delta); // ambient particles stop with the player's pause too
         SyncTutorial();
         SyncTimeOverlays();
         if ((LineDragActive || _draggingRemove) && PanelOpen)

@@ -72,6 +72,7 @@ public partial class AgentBridge : Node
     public override void _Ready()
     {
         _world = GetParent<World>();
+        _world.AgentBridgeActive = true; // Space never pauses an agent game: time is the agents'
         _token = OS.GetEnvironment(TokenEnv);
         _quitWithoutClient = OS.GetEnvironment(QuitWithoutClientEnv) == "1";
         TryParsePort(OS.GetEnvironment(PortEnv), out var port);
@@ -280,7 +281,7 @@ public partial class AgentBridge : Node
             Reply(run.Connection, run.Id, new JsonObject
             {
                 ["eseguito"] = true, ["tickPrima"] = run.TickBefore, ["tick"] = CurrentTick(), ["secondi"] = run.Seconds,
-                ["inPausa"] = run.HeldAfter
+                ["inPausa"] = Held
             });
         }
 
@@ -322,7 +323,7 @@ public partial class AgentBridge : Node
                 case "pausa":
                 case "riprendi":
                     SetHeld(request.Method == "pausa");
-                    Reply(connection, request.Id, new JsonObject { ["tick"] = CurrentTick(), ["inPausa"] = World.PlaytestHeld });
+                    Reply(connection, request.Id, new JsonObject { ["tick"] = CurrentTick(), ["inPausa"] = Held });
                     break;
                 case "esegui":
                     StartRun(connection, request.Id, p);
@@ -555,6 +556,7 @@ public partial class AgentBridge : Node
         {
             // Exact ticks freeze real time, like pausa: the state stays put for the captures.
             SetHeld(true);
+            _world.ClearPlayerPause(); // the agents' hold replaces a player pause
             var node = JsonNode.Parse(response.Result!.Value.GetRawText())!.AsObject();
             node["inPausa"] = true;
             response = response with { Result = JsonSerializer.SerializeToElement(node) };
@@ -640,10 +642,18 @@ public partial class AgentBridge : Node
 
     // --- Time ----------------------------------------------------------------------------------------------------
 
+    /// <summary>The game is held: by the agents (<see cref="World.PlaytestHeld"/>) or by a player pause (Space).</summary>
+    private bool Held => World.PlaytestHeld || _world.PlayerPaused;
+
     /// <summary>pausa, riprendi and avanza: at once, and the last explicit choice also holds after a running esegui.</summary>
     private void SetHeld(bool held)
     {
         World.PlaytestHeld = held;
+        if (!held)
+        {
+            _world.ClearPlayerPause();
+        }
+
         if (_run is { } run)
         {
             _run = run with { HeldAfter = held };
@@ -679,6 +689,7 @@ public partial class AgentBridge : Node
 
         _run = (connection, id, Time.GetTicksMsec() + (ulong)(seconds * 1000), CurrentTick(), World.PlaytestHeld, seconds);
         World.PlaytestHeld = false;
+        _world.ClearPlayerPause();
     }
 
     // --- Capture, camera, log ------------------------------------------------------------------------------------

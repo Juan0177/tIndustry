@@ -71,6 +71,7 @@ public sealed class SimulationClockTests
         Assert.True(Math.Abs(fast.TickAlpha - slow.TickAlpha) > 0.1, $"{fast.TickAlpha} vs {slow.TickAlpha}");
         Assert.Equal(fast.Checksum(), slow.Checksum());
     }
+
     [Theory]
     [InlineData(1, 60)]
     [InlineData(5, 300)]
@@ -167,13 +168,28 @@ public sealed class SimulationClockTests
 
         var normal = NewHost(1);
         var fast = NewHost(20);
+        var changing = NewHost(5);
         normal.AdvanceTicks(600);
         while (fast.State.CurrentTick < 600)
         {
             fast.Advance(1.0 / 60);
         }
 
+        // Speed changed mid-run (×5 → ×20 → ×1 → ×10): only the ticks per frame change.
+        var speeds = new[] { (Until: 100L, Speed: 20), (Until: 300L, Speed: 1), (Until: 330L, Speed: 10), (Until: 600L, Speed: 10) };
+        foreach (var (until, speed) in speeds)
+        {
+            while (changing.State.CurrentTick < until)
+            {
+                changing.Advance(1.0 / 60);
+            }
+
+            changing.Speed = speed;
+        }
+
         Assert.Equal(600, fast.State.CurrentTick);
+        Assert.Equal(600, changing.State.CurrentTick);
         Assert.Equal(normal.Checksum(), fast.Checksum());
+        Assert.Equal(normal.Checksum(), changing.Checksum());
     }
 }

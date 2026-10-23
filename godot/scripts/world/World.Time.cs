@@ -29,8 +29,17 @@ public partial class World
     private Label? _pauseLabel;
     private Label? _devSpeedLabel;
 
-    /// <summary>The player's pause holds the simulation (never in playtests).</summary>
-    private bool PlayerPaused => _playerPaused && !PlaytestRequested;
+    /// <summary>The player's pause holds the simulation (never in playtests nor in agent games).</summary>
+    internal bool PlayerPaused => _playerPaused && !PlaytestRequested && !AgentBridgeActive;
+
+    /// <summary>
+    /// Set by <see cref="AgentBridge"/> when it starts: the agents own time (pausa, riprendi, esegui, avanza), so
+    /// Space is inert, whether a human or a synthetic key presses it.
+    /// </summary>
+    internal bool AgentBridgeActive { get; set; }
+
+    /// <summary>The agents' riprendi, esegui and avanza lift a player pause as well.</summary>
+    internal void ClearPlayerPause() => _playerPaused = false;
 
     private void EnsureTimeOverlays()
     {
@@ -88,14 +97,14 @@ public partial class World
 
     /// <summary>
     /// Space in <see cref="_Input"/> (before the GUI, so a focused button never takes it as a press): pause or resume
-    /// during a game, not in the menus (Home, Nuova partita, saves, settings, campaign) and not while typing in a text
-    /// field. True when the event was used.
+    /// during a game, not in the menus (Home, Nuova partita, saves, settings, campaign), not while a text field or a
+    /// button has the focus, not in playtests and not in agent games. True when the event was used.
     /// </summary>
     private bool HandlePauseKey(InputEvent @event)
     {
         if (@event is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.Space } key
             || key.CtrlPressed || key.AltPressed || key.MetaPressed || key.ShiftPressed
-            || PlaytestRequested || !GameInPlay || TimeMenuOpen || TypingInTextField())
+            || PlaytestRequested || AgentBridgeActive || !GameInPlay || TimeMenuOpen || FocusTakesSpace())
         {
             return false;
         }
@@ -136,8 +145,12 @@ public partial class World
     private bool TimeMenuOpen => _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
         || _campaignSelect?.IsOpen == true || _mapWorkBusy;
 
-    private bool TypingInTextField() =>
-        GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit or SpinBox;
+    /// <summary>
+    /// The focused control uses Space itself: a text field (typing) or a button of an in-game panel (Space presses
+    /// it, as everywhere in Godot), so the pause leaves the key to it.
+    /// </summary>
+    private bool FocusTakesSpace() =>
+        GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit or SpinBox or BaseButton;
 
     /// <summary>Per frame: the pause label and the dev bar follow the game.</summary>
     private void SyncTimeOverlays()
