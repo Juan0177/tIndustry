@@ -2,6 +2,7 @@
   "levels": [
     {
       "id": "level-01-primi-passi",
+      "dayNight": "giorno",
       "map": "level-01-primi-passi",
       "name": "Primi passi",
       "description": "Collega un minatore al core e vendi ore dal Mercato. Impara stock e vendita.",
@@ -41,6 +42,7 @@
     },
     {
       "id": "level-02-prima-fabbrica",
+      "dayNight": "giorno",
       "map": "level-02-prima-fabbrica",
       "name": "Prima fabbrica",
       "description": "Accumula minerale in magazzino: il core è stock-first, non liquida da solo.",
@@ -75,6 +77,7 @@
     },
     {
       "id": "level-03-lastre",
+      "dayNight": "giorno",
       "map": "level-03-lastre",
       "name": "Lastre di ferro",
       "description": "Sblocca il forno in Ricerca e produci lastre per lo stock.",
@@ -115,6 +118,7 @@
     },
     {
       "id": "level-04-fili",
+      "dayNight": "ciclo",
       "map": "level-04-fili",
       "name": "Fili di rame",
       "description": "Catena completa: rame + lastre → assemblatore → fili. Vendi o accumula.",
@@ -161,6 +165,7 @@
     },
     {
       "id": "level-05-mercato",
+      "dayNight": "ciclo",
       "map": "level-05-mercato",
       "name": "Economia Foundry",
       "description": "Reinvestimento: vendi lastre e costruisci un piccolo surplus.",
@@ -200,7 +205,7 @@
     },
     {
       "id": "level-06-corrente",
-      "night": true,
+      "dayNight": "notte",
       "map": "level-06-corrente",
       "name": "Corrente",
       "description": "Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).",
@@ -251,6 +256,7 @@
     },
     {
       "id": "level-07-piombo",
+      "dayNight": "ciclo",
       "map": "level-07-piombo",
       "name": "Venatura di piombo",
       "description": "Scout a ovest: estrai piombo e fondilo in lastre. Nuova catena mid-game.",
@@ -295,6 +301,7 @@
     },
     {
       "id": "level-08-logistica",
+      "dayNight": "ciclo",
       "map": "level-08-logistica",
       "name": "Logistica selettiva",
       "description": "Sblocca il selezionatore e spezza i flussi: ore e lastre su corsie separate.",
@@ -341,6 +348,7 @@
     },
     {
       "id": "level-09-titanio",
+      "dayNight": "ciclo",
       "map": "level-09-titanio",
       "name": "Titanio raro",
       "description": "Deposito scarso, forno lento: il titanio si scava solo col Minatore T2. Sbloccalo, accumula lastre di titanio e prepara la chimica.",
@@ -395,7 +403,7 @@
     },
     {
       "id": "level-10-espansione",
-      "night": true,
+      "dayNight": "notte",
       "map": "level-10-espansione",
       "name": "Espansione T2",
       "description": "Minatore T2 e Nastro T2: scala la foundry e chiudi con un surplus di mercato.",

@@ -4,8 +4,9 @@ namespace TIndustry.Shared;
 /// Builders for the starting <see cref="Factory"/> of a new game (sandbox, campaign level, demo).
 /// Each takes optional <see cref="GameRules"/>: the refund share comes from the mode (sandbox 100,
 /// campaign = the level's), while the caller's <see cref="GameRules.InstantBuild"/> wins over the
-/// mode's default (false, demo true), and the world's time (<see cref="GameRules.DayNight"/>) is the caller's (a campaign
-/// level with <c>night</c> is always night). Every new game has player 0's drone at the centre of the Core.
+/// mode's default (false, demo true), and the world's time (<see cref="GameRules.DayNight"/>) is the caller's in a sandbox
+/// and the level's in the campaign (<see cref="CampaignLevelDefinition.DayNight"/>). Every new game has player 0's
+/// drone at the centre of the Core.
 /// </summary>
 public static class NewGame
 {
@@ -127,8 +128,8 @@ public static class NewGame
         factory.State.Rules = new GameRules(
             RefundPercent: Math.Clamp(level.RefundPercent, 0, 100),
             InstantBuild: rules?.InstantBuild ?? false,
-            // Until the levels choose their time (campaign.json dayNight), a night level is always night.
-            DayNight: level.Night ? DayNightMode.AlwaysNight : rules?.DayNight ?? DayNightMode.Cycle);
+            // A level chooses its time (campaign.json dayNight), whatever the caller's rules say.
+            DayNight: level.DayNight);
         factory.AddBuilder(0);
         return factory;
     }

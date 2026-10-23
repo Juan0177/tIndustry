@@ -136,10 +136,10 @@ public sealed record AgentGameSetup(
 public sealed class AgentJournal
 {
     /// <summary>
-    /// Version of the journal file: 2 since the game starts with the 3×3 shard (a version 1 journal was recorded with
-    /// the 2×2 Core, on another map, and is refused rather than replayed).
+    /// Version of the journal file: 3 since the rules say the world's time (<c>giornoNotte</c>, before a <c>notte</c>
+    /// flag); 2 was the 3×3 shard, 1 the 2×2 Core on another map. Older journals are refused rather than replayed.
     /// </summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     private readonly List<AgentJournalEntry> entries = [];
 

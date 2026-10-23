@@ -152,6 +152,7 @@ public sealed class Factory : IGameView
     /// starts now, the first time only (<see cref="GameState.FirstBuildTick"/>).
     /// </summary>
     internal void NoteFirstBuild() => State.FirstBuildTick ??= State.CurrentTick;
+
     public long NextItemId => nextItemId;
     public long NextEntityId => nextEntityId;
 
@@ -757,6 +758,8 @@ public sealed class Factory : IGameView
             NextItemId = nextItemId,
             NextEntityId = nextEntityId,
             CurrentTick = CurrentTick,
+            FirstBuildTick = State.FirstBuildTick,
+            FirstAttackRaised = State.FirstAttackRaised,
             CoreDeliveredItems = CoreDeliveredItems,
             CoreX = State.CoreOrigin.X,
             CoreY = State.CoreOrigin.Y,
@@ -840,8 +843,7 @@ public sealed class Factory : IGameView
             {
                 RefundPercent = State.Rules.RefundPercent,
                 InstantBuild = State.Rules.InstantBuild,
-                // Until the v16 save (DayNight and FirstBuildTick), only always-night is kept, as the old night flag.
-                Night = State.Rules.DayNight == DayNightMode.AlwaysNight
+                DayNight = State.Rules.DayNight.ToString()
             },
             Builders = State.Builders.OrderBy(b => b.Id).Select(b => new BuilderSaveDto
             {
@@ -1044,7 +1046,14 @@ public sealed class Factory : IGameView
         factory.State.Rules = new GameRules(
             Math.Clamp(data.Rules.RefundPercent, 0, 100),
             data.Rules.InstantBuild,
-            data.Rules.Night ? DayNightMode.AlwaysNight : DayNightMode.Cycle);
+            RestoreDayNight(data.Rules.DayNight));
+        if (data.FirstBuildTick is < 0 || data.FirstBuildTick > factory.CurrentTick)
+        {
+            throw new InvalidDataException($"Primo blocco al tick {data.FirstBuildTick}, dopo il tick {factory.CurrentTick}.");
+        }
+
+        factory.State.FirstBuildTick = data.FirstBuildTick;
+        factory.State.FirstAttackRaised = data.FirstAttackRaised;
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
@@ -1475,6 +1484,12 @@ public sealed class Factory : IGameView
             dto.BurnRemaining);
         return craft;
     }
+
+    /// <summary>The saved world's time (<see cref="GameRulesSaveDto.DayNight"/>): a missing or unknown name is unreadable.</summary>
+    private static DayNightMode RestoreDayNight(string? name) =>
+        Enum.TryParse<DayNightMode>(name, ignoreCase: false, out var mode) && Enum.IsDefined(mode) && !int.TryParse(name, out _)
+            ? mode
+            : throw new InvalidDataException($"Tempo del mondo sconosciuto nel salvataggio: \"{name}\".");
 
     private static Direction ParseDirection(string? value) =>
         Enum.TryParse<Direction>(value, ignoreCase: true, out var dir) ? dir : Direction.East;

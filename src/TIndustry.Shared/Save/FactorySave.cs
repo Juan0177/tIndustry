@@ -4,17 +4,18 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 15: the Core grows by
-/// tiers (<see cref="CoreTier"/>, <see cref="CoreStartX"/>/<see cref="CoreStartY"/>), containers and vaults
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 16: the world's time
+/// (<see cref="GameRulesSaveDto.DayNight"/>, <see cref="FirstBuildTick"/>, <see cref="FirstAttackRaised"/>); since 15 the
+/// Core grows by tiers (<see cref="CoreTier"/>, <see cref="CoreStartX"/>/<see cref="CoreStartY"/>), containers and vaults
 /// (<see cref="Storages"/>) and the market with the auto-sell rate (<see cref="Market"/>). Older versions are not read
 /// (the game is not out yet): they get <see cref="SaveLoadError.OlderVersion"/>.
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 15;
+    public const int CurrentVersion = 16;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 15;
+    public const int MinReadableVersion = 16;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -25,6 +26,13 @@ public sealed class FactorySaveData
     public long NextEntityId { get; set; }
     /// <summary>Fixed simulation ticks elapsed.</summary>
     public long CurrentTick { get; set; }
+
+    /// <summary>Tick of the first block placed, when the world's time starts (<see cref="GameState.FirstBuildTick"/>); null before.</summary>
+    public long? FirstBuildTick { get; set; }
+
+    /// <summary>The first attack was raised (<see cref="GameState.FirstAttackRaised"/>): written only when true.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool FirstAttackRaised { get; set; }
     public long CoreDeliveredItems { get; set; }
     /// <summary>Top-left cell of the Core.</summary>
     public int CoreX { get; set; }
@@ -96,9 +104,8 @@ public sealed class GameRulesSaveDto
 {
     public int RefundPercent { get; set; } = 100;
     public bool InstantBuild { get; set; }
-    /// <summary>Night: written only when true.</summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool Night { get; set; }
+    /// <summary>World's time: the <see cref="DayNightMode"/> name; a missing or unknown one makes the save unreadable.</summary>
+    public string? DayNight { get; set; } = nameof(DayNightMode.Cycle);
 }
 
 public sealed class LampSaveDto

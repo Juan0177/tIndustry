@@ -23,7 +23,8 @@ public sealed record CampaignObjectiveDefinition(
 /// A campaign level. With <paramref name="Map"/> (id of a map in <c>data/maps/</c>, see <see cref="CampaignMapFile"/>)
 /// the size, terrain and Core come from that file and <paramref name="MapWidth"/>, <paramref name="MapHeight"/> and
 /// <paramref name="Seed"/> only serve the classic generator (tests with explicit sizes, older clients).
-/// <paramref name="Night"/> plays the level at night (<see cref="DayNightMode.AlwaysNight"/>).
+/// <paramref name="DayNight"/> is the level's time (campaign.json <c>dayNight</c>: <c>ciclo</c>, <c>giorno</c> or
+/// <c>notte</c>, see <see cref="CampaignCatalog.DayNightNames"/>); every level in the file must say it.
 /// </summary>
 public sealed record CampaignLevelDefinition(
     string Id,
@@ -38,7 +39,20 @@ public sealed record CampaignLevelDefinition(
     string? UnlocksNext = null,
     int RefundPercent = 100,
     string? Map = null,
-    bool Night = false);
+    [property: JsonConverter(typeof(CampaignDayNightConverter))] DayNightMode DayNight = DayNightMode.Cycle);
+
+/// <summary>A level's <c>dayNight</c> by its campaign name (<see cref="CampaignCatalog.DayNightNames"/>).</summary>
+public sealed class CampaignDayNightConverter : JsonConverter<DayNightMode>
+{
+    public override DayNightMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.TokenType == JsonTokenType.String
+        && CampaignCatalog.DayNightNames.TryGetValue(reader.GetString()!, out var mode)
+            ? mode
+            : throw new JsonException("dayNight: ciclo, giorno o notte.");
+
+    public override void Write(Utf8JsonWriter writer, DayNightMode value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(CampaignCatalog.DayNightNames.First(pair => pair.Value == value).Key);
+}
 
 /// <summary>Thin campaign catalog loaded from campaign.json (Godot / Shared).</summary>
 public sealed class CampaignCatalog
@@ -48,6 +62,15 @@ public sealed class CampaignCatalog
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
+
+    /// <summary>Names of the world's time in campaign.json (and in the agents' journals): one per <see cref="DayNightMode"/>.</summary>
+    public static readonly IReadOnlyDictionary<string, DayNightMode> DayNightNames =
+        new Dictionary<string, DayNightMode>(StringComparer.Ordinal)
+        {
+            ["ciclo"] = DayNightMode.Cycle,
+            ["giorno"] = DayNightMode.AlwaysDay,
+            ["notte"] = DayNightMode.AlwaysNight
+        };
 
     public required IReadOnlyList<CampaignLevelDefinition> Levels { get; init; }
 
@@ -68,7 +91,9 @@ public sealed class CampaignCatalog
 
     public static CampaignCatalog Load(string path)
     {
-        var catalog = JsonSerializer.Deserialize<CampaignCatalog>(File.ReadAllText(path), JsonOptions)
+        var json = File.ReadAllText(path);
+        CheckDayNight(json);
+        var catalog = JsonSerializer.Deserialize<CampaignCatalog>(json, JsonOptions)
             ?? throw new InvalidDataException($"Campagna non valida: {path}");
         if (catalog.Levels.Count == 0)
         {
@@ -84,6 +109,47 @@ public sealed class CampaignCatalog
         }
 
         return catalog;
+    }
+
+    /// <summary>
+    /// Every level says its time (<c>dayNight</c>, one of <see cref="DayNightNames"/>): a missing or unknown one is a
+    /// load error naming the level, never a silent default.
+    /// </summary>
+    private static void CheckDayNight(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var levels = document.RootElement.EnumerateObject()
+            .FirstOrDefault(p => string.Equals(p.Name, "levels", StringComparison.OrdinalIgnoreCase)).Value;
+        if (levels.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var index = 0;
+        foreach (var level in levels.EnumerateArray())
+        {
+            index++;
+            if (level.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var properties = level.EnumerateObject().ToList();
+            var id = properties.FirstOrDefault(p => string.Equals(p.Name, "id", StringComparison.OrdinalIgnoreCase)).Value;
+            var name = id.ValueKind == JsonValueKind.String ? id.GetString() : $"#{index}";
+            var dayNight = properties
+                .FirstOrDefault(p => string.Equals(p.Name, "dayNight", StringComparison.OrdinalIgnoreCase)).Value;
+            if (dayNight.ValueKind != JsonValueKind.String || !DayNightNames.ContainsKey(dayNight.GetString()!))
+            {
+                throw new InvalidDataException(
+                    $"Campagna: il livello '{name}' deve dire il suo tempo con dayNight (ciclo, giorno o notte).");
+            }
+        }
     }
 
     public EconomyWallet CreateWallet(CampaignLevelDefinition level)
