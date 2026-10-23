@@ -104,7 +104,7 @@ Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleu
 Nemici solo di notte, Game Over se cade il CORE.
 
 - [x] Giorno e notte: specifica approvata ([spec](superpowers/specs/2026-10-23-giorno-notte-design.md))
-- [ ] Giorno e notte: ciclo, solo giorno, solo notte col contatore del primo attacco
+- [ ] Giorno e notte: ciclo, solo giorno, solo notte col contatore del primo attacco ([piano](superpowers/plans/2026-10-23-giorno-notte.md))
 - [ ] Specifica approvata
 - [ ] Piano
 - [ ] Implementazione
