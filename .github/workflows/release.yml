@@ -67,6 +67,9 @@ jobs:
             dist/tIndustry-win-x64.zip
             dist/tIndustry-linux-x64.zip
           if-no-files-found: error
+          # Only a hand-off to the github-release job: the zips live on in the release, so keep the artifact one day
+          # (the default 90 days of two ~65 MB zips fills the account's Actions storage).
+          retention-days: 1
 
   github-release:
     name: Create GitHub Release
