@@ -21,6 +21,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Panoramica del Mercato** (`M`): una riga per oggetto con prezzo e freccia, mini grafico dei 2 minuti, «Crollo», Vendi 1, Vendi 100, Vendi tutto e l'interruttore; nessun pulsante vende tutto di tutti. Gli agenti hanno `vendi {tutto}` e `vendita_automatica` per oggetto
 - **Sito**: grafico del prezzo, didascalia e capitolo Mercato del racconto allineati al nuovo Mercato (#273)
 
+### Corretto
+
+- **`play.ps1` e `dev.sh` reimportano gli asset quando cambiano**: prima importavano solo se mancava `godot/.godot/imported`, quindi dopo un aggiornamento con sprite, font o testi nuovi il gioco partiva senza i file importati (schermo grigio, «Cannot open file res://lingue/testi.it.translation»). Ora l'importazione scatta da sola, anche in modalità utente, se un `.import` elenca file che non ci sono, se un asset è nuovo o più recente dell'ultima importazione (`godot/.godot/tindustry-import.stamp`); se dopo l'importazione mancano ancora file, lo script si ferma con un errore invece di avviare il gioco
+
 ### Cambiato
 
 - **Salvataggi alla v16**: portano il tempo del mondo (`DayNight`), il tick del primo blocco e il primo attacco già scattato al posto della notte fissa; i v15 non si aprono più. Tolti `GameRules.Night` e `night` dei livelli in `data/campaign.json` (ora `dayNight`)

@@ -197,6 +197,55 @@ function Restore-ImportFiles {
   }
 }
 
+# Scans godot/ (outside .godot/) for what the importer must (re)do. Reads each .import sidecar once, no
+# process per file. Returns Missing (dest_files absent on disk), NoSidecar (source never imported) and
+# Newer (source changed after the last successful import stamp).
+function Get-ImportScan {
+  $godotDir = Join-Path $script:Root "godot"
+  $stampPath = Join-Path $godotDir ".godot/tindustry-import.stamp"
+  $stampTime = $null
+  if ([IO.File]::Exists($stampPath)) { $stampTime = [IO.File]::GetLastWriteTimeUtc($stampPath) }
+  $sourceExt = @(".png", ".fnt", ".csv", ".wav", ".ogg", ".svg")
+  $missing = New-Object System.Collections.Generic.List[string]
+  $noSidecar = New-Object System.Collections.Generic.List[string]
+  $newer = New-Object System.Collections.Generic.List[string]
+  $dirs = @($godotDir)
+  foreach ($d in [IO.Directory]::GetDirectories($godotDir)) {
+    $n = [IO.Path]::GetFileName($d)
+    if ($n -ne ".godot" -and $n -ne ".mono" -and $n -ne "bin" -and $n -ne "obj") { $dirs += $d }
+  }
+  foreach ($d in $dirs) {
+    $opt = if ($d -eq $godotDir) { [IO.SearchOption]::TopDirectoryOnly } else { [IO.SearchOption]::AllDirectories }
+    foreach ($f in [IO.Directory]::EnumerateFiles($d, "*", $opt)) {
+      $ext = [IO.Path]::GetExtension($f).ToLowerInvariant()
+      if ($ext -eq ".import") {
+        $src = $f.Substring(0, $f.Length - 7)
+        foreach ($line in [IO.File]::ReadAllLines($f)) {
+          if ($line.StartsWith("dest_files=")) {
+            foreach ($m in [regex]::Matches($line, 'res://([^"]+)')) {
+              $dest = Join-Path $godotDir $m.Groups[1].Value
+              if (-not [IO.File]::Exists($dest)) { $missing.Add($m.Groups[1].Value) }
+            }
+            break
+          }
+        }
+        if ($stampTime -and [IO.File]::Exists($src) -and [IO.File]::GetLastWriteTimeUtc($src) -gt $stampTime) { $newer.Add($src) }
+      } elseif ($sourceExt -contains $ext) {
+        if (-not [IO.File]::Exists($f + ".import")) { $noSidecar.Add($f) }
+      }
+    }
+  }
+  return [pscustomobject]@{ Missing = $missing; NoSidecar = $noSidecar; Newer = $newer; StampMissing = ($null -eq $stampTime) }
+}
+
+# True when the Godot import must run: forced, or the cache is absent/stale/incomplete.
+function Test-ImportNeeded {
+  if ($Import) { return $true }
+  if (-not (Test-Path (Join-Path $script:Root "godot/.godot/imported"))) { return $true }
+  $scan = Get-ImportScan
+  return ($scan.Missing.Count -gt 0 -or $scan.NoSidecar.Count -gt 0 -or $scan.Newer.Count -gt 0 -or $scan.StampMissing)
+}
+
 function Invoke-Import($godot) {
   Write-Step "Importazione asset Godot"
   # The importer runs the editor, which builds user:// from %APPDATA%: give it a throwaway one so the
@@ -212,11 +261,16 @@ function Invoke-Import($godot) {
     $env:APPDATA = $oldAppData
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   }
-  # The headless import sometimes crashes at exit (139) after finishing: the cache is what counts.
-  if ($code -ne 0 -and -not (Test-Path (Join-Path $script:Root "godot/.godot/imported"))) {
-    Fail "Importazione fallita (riprova con: $godot --headless --path godot --import)."
+  # The headless import sometimes crashes at exit (139) after finishing: what counts is that every
+  # output listed by the .import files exists.
+  $scan = Get-ImportScan
+  if ($scan.Missing.Count -gt 0) {
+    $esempi = ($scan.Missing | Select-Object -First 3) -join ", "
+    Fail "Importazione incompleta (codice $code): mancano $($scan.Missing.Count) file importati, per esempio $esempi. Riprova con: $godot --headless --path godot --import"
   }
   Restore-ImportFiles
+  # Stamp last: the restore above touches .import files and must not look like a change.
+  [IO.File]::WriteAllText((Join-Path $script:Root "godot/.godot/tindustry-import.stamp"), [DateTime]::UtcNow.ToString("o"))
 }
 
 function Invoke-Playtest($godot, $nome) {
@@ -309,7 +363,7 @@ function Main {
   if ($ProfiloTemp -and $Profilo) { Fail "Usa -ProfiloTemp oppure -Profilo DIR, non entrambi." }
 
   Set-Location $script:Root
-  $needImport = $Import -or -not (Test-Path (Join-Path $script:Root "godot/.godot/imported"))
+  $needImport = Test-ImportNeeded
   $godot = Ensure-Tools $modoDev $needImport
 
   Write-Step "Compilazione (Shared, test, client Godot)"

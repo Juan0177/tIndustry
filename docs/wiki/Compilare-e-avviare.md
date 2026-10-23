@@ -70,7 +70,7 @@ L'importazione riscrive le fine riga di alcuni file `.import` già nel repositor
 for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet -- "$f" && git checkout -q -- "$f"; done
 ```
 
-`dev.sh` e `play.ps1` fanno entrambe le cose da soli quando importano. Gli script `*.sh` restano con fine riga LF (`.gitattributes`): non convertirli.
+L'importazione parte da sola, anche in modalità utente, quando cambiano gli asset (sprite, font, `testi.csv` nuovi o modificati) o mancano file importati; `-Import` / `--import` la forza. `dev.sh` e `play.ps1` fanno entrambe le cose da soli quando importano. Gli script `*.sh` restano con fine riga LF (`.gitattributes`): non convertirli.
 
 L'importazione headless a volte esce con il codice 139 (crash alla chiusura) **dopo** aver finito: l'importazione è comunque valida, lo conferma la presenza di `godot/.godot/imported/`.
 
