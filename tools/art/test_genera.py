@@ -36,6 +36,7 @@ CELLE = {
     "extractor": 1, "power-node": 1, "lamp": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
+    "container": 2, "vault": 3, "core-foundation": 4, "core-nucleus": 5,
 }
 CORE_TIER = 4
 CORE_LUCE_FOTOGRAMMI = 4

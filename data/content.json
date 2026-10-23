@@ -721,6 +721,44 @@
       "prerequisites": [
         "miner"
       ]
+    },
+    {
+      "id": "container",
+      "displayName": "Contenitore",
+      "kind": "storage",
+      "unlockedByDefault": false,
+      "unlock": { "money": 400, "materials": [ { "itemId": "iron-plate", "amount": 20 }, { "itemId": "lead-plate", "amount": 10 } ] },
+      "isStub": false,
+      "prerequisites": [ "junction" ],
+      "itemCapacity": 300
+    },
+    {
+      "id": "vault",
+      "displayName": "Deposito",
+      "kind": "storage",
+      "unlockedByDefault": false,
+      "unlock": { "money": 900, "materials": [ { "itemId": "titanium-plate", "amount": 20 } ] },
+      "isStub": false,
+      "prerequisites": [ "container" ],
+      "itemCapacity": 1000
+    },
+    {
+      "id": "core-foundation",
+      "displayName": "CORE Fondazione",
+      "kind": "core-upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 5000, "materials": [ { "itemId": "iron-plate", "amount": 200 }, { "itemId": "copper-wire", "amount": 100 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "core-nucleus",
+      "displayName": "CORE Nucleo",
+      "kind": "core-upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 25000, "materials": [ { "itemId": "titanium-plate", "amount": 400 }, { "itemId": "silicon", "amount": 300 } ] },
+      "isStub": false,
+      "prerequisites": [ "core-foundation" ]
     }
   ],
   "market": [
@@ -947,18 +985,21 @@
         }
       ],
       "refundPercent": 100
+    },
+    {
+      "id": "container",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 40 }, { "itemId": "lead-plate", "amount": 20 } ],
+      "refundPercent": 100
+    },
+    {
+      "id": "vault",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "titanium-plate", "amount": 60 }, { "itemId": "iron-plate", "amount": 40 } ],
+      "refundPercent": 100
     }
   ],
   "economy": {
-    "coreUpgrade": {
-      "moneyCost": 150,
-      "buildCost": [
-        {
-          "itemId": "iron-plate",
-          "amount": 20
-        }
-      ]
-    },
     "refundPolicyNote": "Piazzamento: solo materiali (niente $). Sblocco in Ricerca: soldi + materiali. Smontaggio: rimborso dei materiali alla quota della partita (100% in partita libera e nei livelli 1–3, 50% dal livello 4) per il refundPercent del blocco, arrotondato per eccesso; un cantiere annullato rende tutto lo speso. Corrente: un blocco è alimentato se tocca un generatore acceso o un nodo che ha un generatore acceso entro powerLinkRange (Nodo T1 1×1 raggio 6, Nodo T2 2×2 raggio 10); i nodi non si passano la corrente fra loro e maxPowerLinks non è ancora usato (rete come Mindustry: issue #269). CORE fuori dalla rete."
   },
   "buildWeights": {
@@ -972,12 +1013,38 @@
     "silicon": 0.8
   },
   "units": {
-    "drone": {
-      "buildSpeed": 0.5,
-      "buildRange": 27.5,
-      "speed": 22.5
-    }
+    "alpha": { "buildSpeed": 0.5, "buildRange": 27.5, "speed": 22.5 },
+    "beta": { "buildSpeed": 0.75, "buildRange": 27.5, "speed": 24.75 },
+    "gamma": { "buildSpeed": 1.0, "buildRange": 27.5, "speed": 26.6 }
   },
+  "cores": [
+    {
+      "id": "core-shard",
+      "size": 3,
+      "itemCapacity": 1000,
+      "autoSellPerSecond": 10,
+      "unitId": "alpha",
+      "buildCost": []
+    },
+    {
+      "id": "core-foundation",
+      "size": 4,
+      "itemCapacity": 4000,
+      "autoSellPerSecond": 25,
+      "unitId": "beta",
+      "unlock": { "money": 5000, "materials": [ { "itemId": "iron-plate", "amount": 200 }, { "itemId": "copper-wire", "amount": 100 } ] },
+      "buildCost": [ { "itemId": "iron-plate", "amount": 800 }, { "itemId": "copper-wire", "amount": 500 }, { "itemId": "lead-plate", "amount": 400 } ]
+    },
+    {
+      "id": "core-nucleus",
+      "size": 5,
+      "itemCapacity": 12000,
+      "autoSellPerSecond": 60,
+      "unitId": "gamma",
+      "unlock": { "money": 25000, "materials": [ { "itemId": "titanium-plate", "amount": 400 }, { "itemId": "silicon", "amount": 300 } ] },
+      "buildCost": [ { "itemId": "iron-plate", "amount": 3000 }, { "itemId": "lead-plate", "amount": 2000 }, { "itemId": "silicon", "amount": 1500 }, { "itemId": "titanium-plate", "amount": 1000 } ]
+    }
+  ],
   "terrain": {
     "floors": [
       { "id": "stone", "biome": "rocce", "color": "#5C6260", "buildable": true, "edgePriority": 6 },

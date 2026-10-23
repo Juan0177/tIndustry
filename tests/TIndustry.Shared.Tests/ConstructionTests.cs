@@ -394,7 +394,8 @@ public sealed class ConstructionTests
         Structures = Content.Structures,
         CoreUpgrade = Content.CoreUpgrade,
         BuildWeights = Content.BuildWeights,
-        Drone = Content.Drone
+        CoreTiers = Content.CoreTiers,
+        Units = Content.Units
     };
 
     [Theory]

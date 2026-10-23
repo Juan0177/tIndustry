@@ -88,7 +88,22 @@ public sealed record StructureDefinition(
     bool UnlockedByDefault,
     UnlockRequirement? Unlock,
     bool IsStub,
-    IReadOnlyList<string> Prerequisites);
+    IReadOnlyList<string> Prerequisites,
+    int ItemCapacity = 0);
+
+/// <summary>
+/// One Core tier of <c>cores</c> (index = tier): footprint <paramref name="Size"/>, pieces per item, pieces/s sold
+/// automatically, the drone it spawns, the Research cost of its structure and the build cost of the site.
+/// </summary>
+public sealed record CoreTierDefinition(
+    string Id,
+    int Size,
+    int ItemCapacity,
+    int AutoSellPerSecond,
+    string UnitId,
+    int UnlockMoney,
+    IReadOnlyList<ResourceAmount> UnlockCost,
+    IReadOnlyList<ResourceAmount> BuildCost);
 
 /// <summary>
 /// A floor of <c>terrain.floors</c>: <paramref name="Biome"/> is one of <see cref="TerrainTable.Biomes"/>,
