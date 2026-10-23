@@ -41,6 +41,9 @@ public static class UiTheme
     public const string Avviso = "Avviso";
     public const string AvvisoRosso = "AvvisoRosso";
 
+    /// <summary>The centred «In pausa» over the world (title font, accent, shadow).</summary>
+    public const string AvvisoPausa = "AvvisoPausa";
+
     // Mercato: price up / down and a crash (the text always carries ▲, ▼ or "Crollo" too).
     public const string TestoSu = "TestoSu";
     public const string TestoGiu = "TestoGiu";
@@ -211,9 +214,11 @@ public static class UiTheme
         LabelLook(t, TestoCrollo, UiColors.MercatoCrollo);
         LabelLook(t, Titolo, UiColors.Accento, TitleFont, TitleSize);
         LabelLook(t, TitoloChiaro, UiColors.Testo, TitleFont, TitleSize);
-        foreach (var (type, color) in new[] { (Avviso, UiColors.Testo), (AvvisoRosso, UiColors.Insufficiente) })
+        LabelLook(t, Avviso, UiColors.Testo);
+        LabelLook(t, AvvisoRosso, UiColors.Insufficiente);
+        LabelLook(t, AvvisoPausa, UiColors.Accento, TitleFont, TitleSize);
+        foreach (var type in new[] { Avviso, AvvisoRosso, AvvisoPausa })
         {
-            LabelLook(t, type, color);
             t.SetColor("font_shadow_color", type, UiColors.Ombra);
             t.SetConstant("shadow_offset_x", type, 2);
             t.SetConstant("shadow_offset_y", type, 2);
@@ -364,6 +369,11 @@ public static class UiTheme
         t.SetIcon("grabber_disabled", "HSlider", GrabberIcon(UiColors.TestoDisattivo));
         t.SetIcon("tick", "HSlider", GrabberTick());
         t.SetStylebox("focus", "HSlider", Own(new StyleBoxEmpty()));
+
+        // Progress bar (loading screen): the slider's track, filled with the accent.
+        t.SetStylebox("background", "ProgressBar", Box(UiColors.FondoBloccato, UiColors.Bordo, 2, 0, 0));
+        t.SetStylebox("fill", "ProgressBar", Box(UiColors.Accento, UiColors.Accento, 0, 0, 0));
+        t.SetColor("font_color", "ProgressBar", UiColors.Testo);
     }
 
     private static ImageTexture GrabberTick()

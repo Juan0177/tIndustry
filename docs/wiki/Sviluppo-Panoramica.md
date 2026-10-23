@@ -20,7 +20,7 @@ Contenuti di gioco, sprite e mappe non si scrivono a mano nel client: i contenut
 | `data/` | Unica fonte dei contenuti: `content.json`, `campaign.json`, `maps/` (mappe della campagna) |
 | `tests/TIndustry.Shared.Tests/` | Test xUnit della simulazione (scenari, validazione dei contenuti, salvataggi, determinismo) |
 | `tests/TIndustry.AgentPlay.Tests/` | Test del server MCP degli agenti |
-| `tools/dev/` | Avvio all-in-one (`dev.sh`), playtest, confronto degli screenshot, mappa Obsidian del progetto |
+| `tools/dev/` | Avvio all-in-one (`dev.sh`; su Windows `play.ps1` alla radice), playtest, confronto degli screenshot, mappa Obsidian del progetto |
 | `tools/art/` | Generatore degli sprite, delle icone e del carattere |
 | `tools/MapTool/` | Mappe della campagna: genera, valida, anteprima |
 | `tools/AgentPlay/` | Server MCP che fa giocare gli agenti AI |

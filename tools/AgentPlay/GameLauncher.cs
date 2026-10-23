@@ -172,7 +172,7 @@ public static class GameLauncher
             info.Environment[GameDataPaths.DataDirEnv] = profile;
             // Godot builds user:// (shader cache, vulkan, recovery lock) from %APPDATA% on Windows.
             info.Environment["APPDATA"] = profile;
-            foreach (var name in new[] { GameDataPaths.PlaytestEnv, "TINDUSTRY_FRESH", "TINDUSTRY_SEED_CORE_LINE" })
+            foreach (var name in new[] { GameDataPaths.PlaytestEnv, "TINDUSTRY_FRESH", "TINDUSTRY_SEED_CORE_LINE", "TINDUSTRY_DEV" })
             {
                 info.Environment.Remove(name);
             }

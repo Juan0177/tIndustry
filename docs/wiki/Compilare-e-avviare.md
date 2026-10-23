@@ -10,18 +10,24 @@ Cosa installare, come compilare, provare e avviare tIndustry dai sorgenti senza 
 | [Godot 4.4.1 .NET (mono)](https://godotengine.org/download), raggiungibile come comando `godot4` | Client di gioco, importazione degli asset, playtest |
 | Python 3 con [Pillow](https://pypi.org/project/pillow/) | Generatore degli sprite (`tools/art`), confronto screenshot, sito, lanciatore del server degli agenti |
 | Node.js | Solo per i test degli script del sito (`node --test`) |
-| Git for Windows (Git Bash) | Solo su Windows, per `dev.cmd` |
+| Git | Solo per ripristinare i file `.import` dopo l'importazione (se manca si salta con un avviso) |
 
 Gli sprite del repository sono scritti con **Pillow 12.3** (la versione installata dalla CI): con un'altra versione il controllo byte per byte degli sprite può segnalare differenze a pixel uguali (vedi [Arte generata](Arte-generata)).
 
-## Il modo più semplice: dev.sh
+## Il modo più semplice: play.ps1 e dev.sh
 
 Un solo comando controlla gli strumenti, compila, importa gli asset se serve e avvia il gioco:
 
 ```bash
 tools/dev/dev.sh --profilo-temp      # Linux/macOS
-dev.cmd --profilo-temp               # Windows, dalla radice del repository (usa Git Bash)
 ```
+
+```powershell
+.\play.ps1 -Dev -ProfiloTemp         # Windows, dalla radice del repository
+.\play.ps1 -Utente                   # Windows, per giocare e basta (profilo reale)
+```
+
+`play.ps1` (PowerShell 5.1 o 7) chiede «Entrare come utente o come dev? [u/d]» se non passi `-Utente` o `-Dev`. Se manca .NET 8 SDK, Git, Python 3 (solo in dev) o Godot 4.4.1 .NET, chiede «Installare X? (y/n)» e li installa con winget (Godot si scarica in `.dev/godot/`); se rifiuti, si ferma con un messaggio. `-Si` accetta tutte le installazioni; senza terminale interattivo le risposte sono «no». Godot si cerca in `GODOT`, `TINDUSTRY_GODOT`, `godot4` nel PATH e `.dev/godot/`. In modalità utente valgono solo `-ProfiloTemp` e `-Nuova`; con `-Dev` si imposta anche `TINDUSTRY_DEV=1` (F1–F4: velocità ×1/×5/×10/×20) e valgono tutte le opzioni qui sotto, scritte `-ProfiloTemp`, `-Profilo DIR`, `-Nuova`, `-Editor`, `-Test`, `-Playtest NOME`, `-SoloBuild`, `-Import`, `-Help`. Quelle di `dev.sh` hanno lo stesso significato:
 
 | Opzione | Effetto |
 |---|---|
@@ -64,7 +70,7 @@ L'importazione riscrive le fine riga di alcuni file `.import` già nel repositor
 for f in $(git ls-files -m godot/assets); do git diff --ignore-cr-at-eol --quiet -- "$f" && git checkout -q -- "$f"; done
 ```
 
-`dev.sh` fa entrambe le cose da solo quando importa. Gli script `*.sh` restano con fine riga LF (`.gitattributes`): non convertirli.
+`dev.sh` e `play.ps1` fanno entrambe le cose da soli quando importano. Gli script `*.sh` restano con fine riga LF (`.gitattributes`): non convertirli.
 
 L'importazione headless a volte esce con il codice 139 (crash alla chiusura) **dopo** aver finito: l'importazione è comunque valida, lo conferma la presenza di `godot/.godot/imported/`.
 
@@ -89,7 +95,7 @@ In locale: `tools/ci/setup-godot.sh` una volta, poi `tools/ci/export-godot.sh`, 
 
 ## Per approfondire
 
-- [tools/dev/dev.sh](https://github.com/Juan0177/tIndustry/blob/main/tools/dev/dev.sh) (`--help` per tutte le opzioni)
+- [tools/dev/dev.sh](https://github.com/Juan0177/tIndustry/blob/main/tools/dev/dev.sh) (`--help` per tutte le opzioni) e [play.ps1](https://github.com/Juan0177/tIndustry/blob/main/play.ps1) (`-Help`)
 - [README.md, sezione Sviluppo](https://github.com/Juan0177/tIndustry/blob/main/README.md#sviluppo)
 - [CLAUDE.md](https://github.com/Juan0177/tIndustry/blob/main/CLAUDE.md), sezione Comandi
 - [Test e playtest](Test-e-playtest) · [Panoramica](Sviluppo-Panoramica) · [Come contribuire](Come-contribuire)

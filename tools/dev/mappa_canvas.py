@@ -74,7 +74,7 @@ nodes.append({"id": "titolo", "type": "text", "text": title, "x": 0, "y": -170,
 
 # --- Fatto -----------------------------------------------------------------
 fatto = Column("g-fatto", "Fatto", X[0], "4")
-fatto.card("sp1", "**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, dev.cmd, ADR 0001.\nPR #139–#146")
+fatto.card("sp1", "**SP1 · Riordino**\nCartelle, CLAUDE.md, ARCHITETTURA, avvio dev, ADR 0001.\nPR #139–#146")
 fatto.card("sp2", "**SP2 · Simulazione a comandi**\nTick 60/s, GameState e sistemi, SimHost, IGameView, istantanea e checksum, salvataggi v10.\nPR #147–#151 (+#154) · [[2026-10-16-simulazione-comandi-sistemi|diario]]")
 fatto.card("sp3", "**SP3 · Costruzione come Mindustry**\nPiani, drone e cantieri con consegna dal Core, smontaggio con rimborso graduale, coda nell'HUD, salvataggi v11.\nPR #159–#166 · [[2026-10-17-costruzione-in-corso|diario]] · [[0003-costruzione-come-mindustry|ADR 0003]]")
 fatto.card("g1", "**G1 · Arte dei blocchi**\nPixel-art nostra generata da tools/art/ (32 px per cella): edifici a strati, nastri a 3 tier, oggetti, Core in 4 tier, drone alpha / beta / gamma, animazioni di base.\nPR #168–#173 · [[0004-arte-generata-da-script|ADR 0004]] · [[2026-10-18-g1-arte-blocchi|piano]]")

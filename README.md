@@ -156,11 +156,11 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 45%, 32 passi fatti su 71" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 47%, 36 passi fatti su 76" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
-| 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="67%" width="160"> | 67% (4/6) |
+| 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="71%" width="160"> | 71% (5/7) |
 | 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
 | 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="38%" width="160"> | 38% (3/8) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
@@ -169,10 +169,10 @@ A che punto siamo, aspetto per aspetto:
 | 7 | [Mappe e terreno](https://github.com/Juan0177/tIndustry/wiki/Mappe-e-terreno) | <img src="docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
 | 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
 | 9 | [Grafica ed effetti](https://github.com/Juan0177/tIndustry/wiki/Arte-generata) | <img src="docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
-| 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | <img src="docs/img/stato/10.svg" alt="67%" width="160"> | 67% (2/3) |
+| 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | <img src="docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
 | 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="0%" width="160"> | 0% (0/4) |
 | 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
-| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="0%" width="160"> | 0% (0/4) |
+| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="17%" width="160"> | 17% (1/6) |
 | 14 | [Co-op](docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |
 | 15 | [Sito web](https://github.com/Juan0177/tIndustry/wiki/Sito-web) | <img src="docs/img/stato/15.svg" alt="86%" width="160"> | 86% (6/7) |
 | 16 | [Wiki e README](https://github.com/Juan0177/tIndustry/wiki/) | <img src="docs/img/stato/16.svg" alt="67%" width="160"> | 67% (4/6) |
@@ -183,7 +183,7 @@ Passi di ogni aspetto in [docs/STATO.md](docs/STATO.md).
 
 ## Sviluppo
 
-Requisiti: [.NET 8 SDK](https://dotnet.microsoft.com/download) e [Godot 4.4 .NET (mono)](https://godotengine.org/download) come comando `godot4`.
+Requisiti (su Windows `play.ps1` li controlla e li installa): [.NET 8 SDK](https://dotnet.microsoft.com/download) e [Godot 4.4 .NET (mono)](https://godotengine.org/download) come comando `godot4`.
 
 Gli agenti AI giocano e cercano bug con il server MCP `tindustry` (`.mcp.json`, Claude Code lo avvia da solo): vedi [`tools/AgentPlay/README.md`](tools/AgentPlay/README.md).
 
@@ -191,10 +191,12 @@ Gli agenti AI giocano e cercano bug con il server MCP `tindustry` (`.mcp.json`, 
 
 ```bash
 tools/dev/dev.sh                 # Linux/macOS (bash)
-dev.cmd                          # Windows, dalla radice del repo (usa Git Bash)
+.\play.ps1                       # Windows (PowerShell), dalla radice del repo: chiede «utente o dev?»
+.\play.ps1 -Utente               # Windows, gioca con il profilo reale
+.\play.ps1 -Dev -ProfiloTemp     # Windows, con i comandi di sviluppo (F1-F4: velocità)
 ```
 
-Il comando controlla gli strumenti, compila, importa gli asset se serve e avvia il gioco. Le opzioni sono le stesse per entrambi:
+Il comando controlla gli strumenti (su Windows `play.ps1` installa con winget quelli che mancano, dopo aver chiesto), compila, importa gli asset se serve e avvia il gioco. Le opzioni sono le stesse (`--profilo-temp` in bash, `-ProfiloTemp` in PowerShell); in modalità utente `play.ps1` accetta solo `-ProfiloTemp` e `-Nuova`, le altre servono con `-Dev`:
 
 | Opzione | Effetto |
 | --- | --- |

@@ -11,6 +11,8 @@ Release zip ufficiali = questo client:
 
 ## Run (da sorgente)
 
+Tutto in un comando (controlla le dipendenze, compila, importa e avvia): `.\play.ps1 -Utente` o `.\play.ps1 -Dev` su Windows, `tools/dev/dev.sh` su Linux. Con `-Dev` (`TINDUSTRY_DEV=1`) si abilitano F1–F4 per la velocità. A mano:
+
 ```bash
 godot4 --path godot
 TINDUSTRY_FRESH=1 godot4 --path godot          # ignore continua
@@ -35,7 +37,7 @@ Dalla Home, **Nuova partita** apre una schermata con la **misura** della mappa e
 | Grande | 1500×1500 |
 | Enorme | 2000×2000 |
 
-Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Per Grande ed Enorme compare "Generazione della mappa…" mentre la mappa si prepara (qualche secondo); in quel momento tasti e clic sono ignorati.
+Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Mentre una partita si apre (nuova, livello della campagna, salvataggio, Continua) compare la schermata di caricamento, con la fase in corso; in quel momento tasti e clic sono ignorati.
 
 La mappa ha quattro biomi (rocce e basalto, sabbia e deserto, neve e ghiaccio, prati e paludi), laghi e fiumi. Il CORE parte al centro, in un'area libera con ferro e rame vicini e una strada a terra verso ferro, rame e carbone.
 
@@ -92,6 +94,8 @@ HUD in alto a sinistra (stile Mindustry): pulsanti **Menu · Ricerca · Mercato 
 | T | Ricerca (grafo icon-node) |
 | R | Ruota direzione piazzamento |
 | C | Cicla filtro selezionatore |
+| Spazio | Pausa / riprende la partita (scritta «In pausa» al centro); i comandi dati in pausa partono alla ripresa. Non nei menu, non con un campo di testo o un pulsante col fuoco, non nei playtest né nelle partite degli agenti (lì il tempo lo comandano `pausa`, `riprendi`, `esegui`, `avanza`) |
+| F1–F4 | Solo con `TINDUSTRY_DEV=1` (mai nei playtest): velocità ×1 / ×5 / ×10 / ×20; in alto a destra una barra con velocità, tick e tempo di gioco (mm:ss) |
 | RMB | Cancella un piano, annulla un cantiere o segna un blocco da smontare; clic singolo toglie il segno, trascinare segna soltanto (non è uno slot palette) |
 
 **Home durante una partita** (Esc col cursore, o **Menu**): il primo pulsante è **Riprendi**, che torna alla partita così com'è (Continua, che ricaricherebbe l'ultimo salvataggio automatico, non c'è); anche **Esc** riprende. Gli altri pulsanti sono quelli di sempre. Nella Home iniziale, all'avvio, Esc (come **Esci**) chiede conferma con «Uscire dal gioco?»: **Invio** o **Esci** esce, **Esc** o **Annulla** torna alla Home.
@@ -123,7 +127,7 @@ Il pannello **Impostazioni** ha una sezione **Grafica**; **Applica** salva su di
 
 Un file di impostazioni di una versione precedente resta valido: le voci mancanti valgono il predefinito (Effetti Alti, Ombre e Bagliore accesi, nessun limite, scala 100%).
 
-**Avvio.** Il gioco esportato parte a schermo intero alla risoluzione dello schermo; il mondo resta in scala 1:1, quindi uno schermo più grande mostra più mappa. Al primo avvio (nessun file di impostazioni) la Scala UI segue l'altezza dello schermo: 100% sotto i 1400 pixel, 150% sotto i 2000, 200% oltre. In sviluppo e nei test (editor, `dev.sh`, build di debug) parte in una finestra 1280×720 con l'interfaccia al 100%; una scelta salvata vale comunque. I playtest sono sempre in finestra 1280×720 al 100%, qualunque cosa dicano le impostazioni, così le catture restano confrontabili.
+**Avvio.** Il gioco esportato parte a schermo intero alla risoluzione dello schermo; il mondo resta in scala 1:1, quindi uno schermo più grande mostra più mappa. Al primo avvio (nessun file di impostazioni) la Scala UI segue l'altezza dello schermo: 100% sotto i 1400 pixel, 150% sotto i 2000, 200% oltre. In sviluppo e nei test (editor, `dev.sh`, `play.ps1`, build di debug) parte in una finestra 1280×720 con l'interfaccia al 100%; una scelta salvata vale comunque. I playtest sono sempre in finestra 1280×720 al 100%, qualunque cosa dicano le impostazioni, così le catture restano confrontabili.
 
 Nella sezione **Interfaccia** la **Scala UI** (cursore da 75% a 200%, a passi di 5; predefinita 100%) ingrandisce solo HUD, pannelli e suggerimenti: il mondo e la visuale restano come sono, e il clic cade sempre sulla cella sotto il mouse. Il testo pixel è più nitido a 100%, 150% e 200% (ogni pixel del carattere è un numero intero di pixel dello schermo); alle altre scale qualche riga di pixel è un po' più larga. Su una finestra 1280×720 tutto sta nella finestra fino al 150%; sopra, alcuni pannelli scorrono o escono un poco dai bordi. I vecchi valori (100, 125, 150, 200) restano validi.
 
@@ -131,7 +135,7 @@ Nella sezione **Interfaccia** la **Scala UI** (cursore da 75% a 200%, a passi di
 
 **Lingua** (Italiano / English) cambia subito tutti i testi, anche nei pannelli aperti: nomi dei blocchi e degli oggetti, livelli e obiettivi della campagna, rifiuti ed errori dei salvataggi. Predefinito italiano.
 
-**Home.** Il logo pixel è generato da `tools/art` (`ui/ui-logo`); dietro la Home la mappa scorre piano da sola e non risponde a mouse e tastiera (nei playtest resta ferma).
+**Home.** Il logo pixel è generato da `tools/art` (`ui/ui-logo`); dietro la Home la mappa scorre piano da sola e non risponde a mouse e tastiera (nei playtest resta ferma). Nella Home e nelle schermate aperte da lì l'HUD della partita è nascosto.
 
 ## Prove automatiche
 

@@ -104,7 +104,8 @@ public partial class World
             hudRoot.AddChild(_campaignSelect);
         }
 
-        _campaignSelect.LevelChosen += OnCampaignLevelChosen;
+        _campaignSelect.LevelChosen += level =>
+            RunMapTask(() => OnCampaignLevelChosenAsync(level), m => _campaignSelect?.ShowError(m));
         _campaignSelect.Closed += () =>
         {
             if (_returnHomeAfterCampaign)
@@ -115,44 +116,50 @@ public partial class World
         };
     }
 
-    private Control? _mapOverlay;
+    private LoadingScreen? _loading;
 
-    /// <summary>Full-screen "Generazione della mappa…" card above every panel (see <see cref="WithMapOverlayAsync{T}"/>).</summary>
-    private void EnsureMapOverlay()
+    /// <summary>
+    /// The loading screen (<see cref="LoadingScreen"/>, see <see cref="WithLoadingAsync"/>): made last, so it covers
+    /// every panel and overlay of the HUD.
+    /// </summary>
+    private void EnsureLoadingScreen()
     {
         var hudRoot = UiRoot;
-        var overlay = new Control { Name = "MapOverlay", MouseFilter = Control.MouseFilterEnum.Stop, Visible = false };
-        overlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var dim = new ColorRect { Color = UiColors.Oscuramento, MouseFilter = Control.MouseFilterEnum.Ignore };
-        dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        overlay.AddChild(dim);
-        var label = new Label
+        _loading = hudRoot.GetNodeOrNull<LoadingScreen>("LoadingScreen");
+        if (_loading is null)
         {
-            Text = "mappa.generazione",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            ThemeTypeVariation = UiTheme.Titolo
-        };
-        label.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        overlay.AddChild(label);
-        hudRoot.AddChild(overlay);
-        _mapOverlay = overlay;
+            _loading = new LoadingScreen { Name = "LoadingScreen" };
+            hudRoot.AddChild(_loading);
+        }
+
+        hudRoot.MoveChild(_loading, hudRoot.GetChildCount() - 1);
     }
 
-    /// <summary>A level picked on the campaign list; one whose map cannot load keeps the list open with the reason.</summary>
-    private void OnCampaignLevelChosen(CampaignLevelDefinition level)
+    /// <summary>
+    /// A level picked on the campaign list (also the scripted playtests, which call it directly): one whose map cannot
+    /// load keeps the list open with the reason.
+    /// </summary>
+    private bool OnCampaignLevelChosen(CampaignLevelDefinition level)
     {
         if (StartCampaignLevel(level, toast: true) is { } error)
         {
             _campaignSelect?.ShowError(error);
-            return;
+            return false;
         }
 
         _returnHomeAfterCampaign = false;
         _campaignSelect?.Close();
         _home?.Close();
+        return true;
     }
+
+    /// <summary>The player's pick on the campaign list: the level opens behind the loading screen.</summary>
+    private Task OnCampaignLevelChosenAsync(CampaignLevelDefinition level) =>
+        WithLoadingAsync(1, async phase =>
+        {
+            await phase("mappa.generazione");
+            return OnCampaignLevelChosen(level);
+        });
 
     private void EnsureHomePanel()
     {
@@ -225,7 +232,12 @@ public partial class World
     /// </summary>
     private void QuitGame()
     {
-        AutoSaveContinue(quiet: true);
+        // Mid-load the game behind is about to be replaced (or half attached): Continua keeps the last save.
+        if (!_loadingBusy)
+        {
+            AutoSaveContinue(quiet: true);
+        }
+
         GetTree().Quit();
     }
 
@@ -275,16 +287,16 @@ public partial class World
 
     private async Task OnSavesSlotLoadAsync(string slotId)
     {
-        var loaded = await WithMapOverlayAsync(
-            SlotMapEdge(slotId), () => LoadGame(slotId, Testi.F("salvataggi.caricato", slotId), showOnPanel: m => _saves?.ShowStatus(m)));
-        if (!loaded)
+        var loaded = await LoadGameWithScreenAsync(
+            slotId, Testi.F("salvataggi.caricato", slotId), m => _saves?.ShowStatus(m), () =>
+            {
+                _saves?.Close();
+                _home?.Close();
+            });
+        if (loaded)
         {
-            return; // stay on the saves panel with the error visible
+            BeginTutorialIfNeeded();
         }
-
-        _saves?.Close();
-        _home?.Close();
-        BeginTutorialIfNeeded();
     }
 
     private void OnSavesSaveAs()
@@ -436,8 +448,8 @@ public partial class World
             return;
         }
 
-        // Raylib: corner FPS only when resource overlay is off.
-        _fpsLabel.Visible = _settings.ShowFps && !_settings.ShowResourceOverlay;
+        // Raylib: corner FPS only when resource overlay is off; never over the Home (HudVisible).
+        _fpsLabel.Visible = HudVisible && _settings.ShowFps && !_settings.ShowResourceOverlay;
     }
 
     private void SyncResourceOverlay()
@@ -447,7 +459,7 @@ public partial class World
             return;
         }
 
-        _resourceLabel.Visible = _settings.ShowResourceOverlay;
+        _resourceLabel.Visible = HudVisible && _settings.ShowResourceOverlay;
     }
 
     private void OpenSettings()

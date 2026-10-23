@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Playable world (factory view) + Hud + Ricerca. Default = cursore.
-/// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
+/// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina ·
+/// Spazio pausa (F1–F4 velocità with TINDUSTRY_DEV=1, see World.Time.cs).
 /// </summary>
 public partial class World : Node2D
 {
@@ -178,10 +179,11 @@ public partial class World : Node2D
         EnsureSavesPanel();
         EnsureHomePanel();
         EnsureNewGamePanel();
-        EnsureMapOverlay();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
+        EnsureTimeOverlays();
         EnsurePlacementOverlay();
+        EnsureLoadingScreen();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } camera)
         {
             // The wheel turns an orientable block in hand (in play, no panel over the world); otherwise it zooms.
@@ -251,8 +253,36 @@ public partial class World : Node2D
     /// <summary>A game is being played: not behind Home or Nuova partita. <see cref="_Process"/> runs the world only then.</summary>
     internal bool GameInPlay => _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;
 
-    /// <summary>The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge).</summary>
-    internal bool SimAdvances => GameInPlay && !PlaytestHeld;
+    /// <summary>
+    /// The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge): no
+    /// ticks behind Home, while a playtest or an agent holds the game, or while the player paused it (Space).
+    /// </summary>
+    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused && !_loadingBusy;
+
+    /// <summary>
+    /// The in-game HUD (top bar, Core panel, palette, FPS and resource overlays, dev speed bar, "In pausa") shows:
+    /// a game is in play and no screen before it is open (the Home and the panels opened from it, the campaign list
+    /// opened from the Home). <see cref="SyncHudVisibility"/> applies it every frame.
+    /// </summary>
+    private bool HudVisible => GameInPlay && !HomeBackdrop && !(_returnHomeAfterCampaign && _campaignSelect?.IsOpen == true);
+
+    /// <summary>The one place that shows or hides the HUD (see <see cref="HudVisible"/>).</summary>
+    private void SyncHudVisibility()
+    {
+        var shown = HudVisible;
+        _hud?.SetChromeVisible(shown);
+        SyncFpsOverlay();
+        SyncResourceOverlay();
+        if (_pauseLabel is not null)
+        {
+            _pauseLabel.Visible = shown && PlayerPaused;
+        }
+
+        if (_devSpeedLabel is not null)
+        {
+            _devSpeedLabel.Visible = shown;
+        }
+    }
 
     public override void _Process(double delta)
     {
@@ -281,8 +311,10 @@ public partial class World : Node2D
 
         SyncTerrainChunks();
         SyncNight();
-        SyncAmbientEffects(delta);
+        SyncAmbientEffects(PlayerPaused ? 0.0 : delta); // ambient particles stop with the player's pause too
         SyncTutorial();
+        SyncTimeOverlays();
+        SyncHudVisibility();
         if ((LineDragActive || _draggingRemove) && PanelOpen)
         {
             CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent
@@ -309,7 +341,7 @@ public partial class World : Node2D
             AdvanceHost(delta);
         }
 
-        var visualDelta = PlaytestHeld ? 0f : (float)delta;
+        var visualDelta = PlaytestHeld || PlayerPaused ? 0f : (float)delta;
         SyncConstructionVisuals(visualDelta);
 
         // Buildings next to a belt decide its corners (Mindustry blending), so they redraw the belts too.

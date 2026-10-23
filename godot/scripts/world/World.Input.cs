@@ -112,13 +112,18 @@ public partial class World
         ? Testi.T("strumento.cursore")
         : Testi.Struttura(Hud.StructureIdFor(ToHudTool(tool)), _view?.Content);
 
+    /// <summary>F9 / F7 during a game: the slot loads behind the loading screen; a failure is the toast.</summary>
+    private void QuickLoad(string slotId, string toast) =>
+        RunMapTask(() => LoadGameWithScreenAsync(slotId, toast, showOnPanel: null), m => _hud?.ShowToast(m));
+
     /// <summary>
-    /// Runs before every panel and the world: drops all input while the map overlay is up (Esc or a click
-    /// must not close a panel or start another game mid-load) and real input during a playtest.
+    /// Runs before every panel and the world: drops all input while the loading screen is shown, fade included (Esc
+    /// or a click must not close a panel or start another game mid-load), and real input during a playtest, and takes
+    /// Space (pause) before a focused button could take it as a press.
     /// </summary>
     public override void _Input(InputEvent @event)
     {
-        if (_mapWorkBusy || IsRealInputDuringPlaytest(@event))
+        if (LoadingShown || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
         {
             GetViewport().SetInputAsHandled();
         }
@@ -155,6 +160,12 @@ public partial class World
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (HandleDevSpeedKey(key))
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode is Key.I or Key.T or Key.M or Key.G)
             {
                 CancelDrags(); // a panel opens: the drag is dropped
@@ -308,7 +319,7 @@ public partial class World
 
             if (key.Keycode == Key.F9)
             {
-                LoadGame(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.caricata.continua"));
+                QuickLoad(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.caricata.continua"));
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -322,7 +333,7 @@ public partial class World
 
             if (key.Keycode == Key.F7)
             {
-                LoadGame(FactorySaveStore.QuickSlotId, Testi.T("salvataggi.rapido.caricato"));
+                QuickLoad(FactorySaveStore.QuickSlotId, Testi.T("salvataggi.rapido.caricato"));
                 GetViewport().SetInputAsHandled();
                 return;
             }

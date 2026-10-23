@@ -162,6 +162,9 @@ direzione.ovest,Ovest,West
 hud.direzione,R · {0} · destro = elimina,R · {0} · right click = remove
 hud.direzione.toast,Direzione: {0},Direction: {0}
 hud.camera.core,Camera sul CORE (H),Camera on the CORE (H)
+pausa.etichetta,In pausa,Paused
+dev.velocita.toast,Velocità ×{0},Speed ×{0}
+dev.velocita.barra,×{0} · tick {1} · {2},×{0} · tick {1} · {2}
 cantiere.mancano,Mancano: {0},Missing: {0}
 ricerca.sbloccato,Sblocco applicato,Unlocked
 mercato.venduto.fondi,Venduto · Fondi ${0},Sold · Funds ${0}
@@ -188,6 +191,10 @@ salvataggi.errore.salvataggio,Salvataggio fallito,Save failed
 salvataggi.errore.nessuno,Nessun salvataggio ({0}),No save ({0})
 salvataggi.errore.caricamento,Caricamento fallito,Loading failed
 mappa.generazione,Generazione della mappa…,Generating the map…
+caricamento.titolo,Caricamento…,Loading…
+caricamento.fase.salvataggio,Lettura del salvataggio…,Reading the save…
+caricamento.fase.mondo,Preparazione del mondo…,Preparing the world…
+caricamento.fase.terreno,Disegno del terreno…,Drawing the terrain…
 salvataggi.caricato,Caricato · {0},Loaded · {0}
 salvataggi.nessuna.partita,Nessuna partita attiva da salvare,No game in progress to save
 salvataggi.salvato.come,Salvato come {0},Saved as {0}

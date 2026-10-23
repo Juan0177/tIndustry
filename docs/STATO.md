@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, specifica 3 del Mercato (magazzino del CORE e livelli) attuata; resta da provare il client sul PC di casa.
+**Aggiornato:** 2026-10-23, giorno e notte approvato; pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
 
 ## Aspetti del gioco
 
@@ -14,6 +14,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [x] Simulazione a comandi, tick fisso e checksum (sotto-progetto 2, PR #147–#154)
 - [x] Salvataggi con versione, fino alla v14 (PR #279)
 - [x] Agenti che giocano col server MCP (PR #210–#217)
+- [x] Avvio unico play.ps1 (utente o dev) con installazione delle dipendenze
 - [ ] Pulizia di rami, worktree e cartelle vecchie (approvata, da lanciare a mano)
 - [ ] Sonda `oggetti-fluidi` del playtest `ui` stabile
 
@@ -78,6 +79,8 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 
 - [x] Tema, carattere, lingue, Scala UI e colori accessibili (G4, PR #194–#201)
 - [x] Panoramica del Mercato (PR #281)
+- [x] Pausa con Spazio e velocità ×1/×5/×10/×20 in modalità dev
+- [x] HUD nascosto nella Home e schermata di caricamento all'apertura di una partita
 - [ ] Telemetria, overlay delle risorse ([#234](https://github.com/Juan0177/tIndustry/issues/234))
 
 ### 11 · [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
@@ -100,6 +103,8 @@ Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleu
 
 Nemici solo di notte, Game Over se cade il CORE.
 
+- [x] Giorno e notte: specifica approvata ([spec](superpowers/specs/2026-10-23-giorno-notte-design.md))
+- [ ] Giorno e notte: ciclo, solo giorno, solo notte col contatore del primo attacco ([piano](superpowers/plans/2026-10-23-giorno-notte.md))
 - [ ] Specifica approvata
 - [ ] Piano
 - [ ] Implementazione

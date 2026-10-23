@@ -76,8 +76,19 @@ public sealed class SimHost
     public bool TicksDropped => clock.DroppedTicks;
 
     /// <summary>
-    /// Accumulates frame time and runs the ticks due (at most <see cref="SimulationClock.MaxTicksPerFrame"/>).
-    /// Returns the number of ticks run.
+    /// Clock speed (<see cref="SimulationClock.Speed"/>: 1, 5, 10 or 20; others throw). Frame time counts this many
+    /// times and the per-frame tick cap scales with it; the ticks themselves are unchanged, so the result is too.
+    /// </summary>
+    public int Speed
+    {
+        get => clock.Speed;
+        set => clock.Speed = value;
+    }
+
+    /// <summary>
+    /// Accumulates frame time (× <see cref="Speed"/>) and runs the ticks due (at most
+    /// <see cref="SimulationClock.MaxTicksThisFrame"/>). Returns the number of ticks run; a paused game passes 0 (or
+    /// does not call it) and its submitted commands stay queued until ticks run again.
     /// </summary>
     /// <remarks>
     /// Handler-exception policy: an exception thrown by a <see cref="CommandApplied"/> /

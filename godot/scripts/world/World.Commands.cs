@@ -36,6 +36,7 @@ public partial class World
         _host.CommandApplied += OnCommandApplied;
         _host.CommandRejected += OnCommandRejected;
         _host.EventRaised += OnSimEvent;
+        ResetTimeControls(host);
         _quietRefusals.Clear();
         _linePlan = null;
         CancelLine();
