@@ -75,8 +75,9 @@ Un clic col **tasto centrale** senza muovere il mouse prende in mano il blocco s
 | `Esc` con il cursore | Salva la Continua e apre la Home; la partita si ferma finché non premi **Riprendi** (o di nuovo `Esc`) |
 | `F5` / `F9` | Salva / carica la Continua |
 | `F6` / `F7` | Salva / carica lo slot rapido `slot-1` |
+| `Spazio` | Mette in pausa la partita o la riprende; al centro compare «In pausa». I comandi dati in pausa (piazzare, smontare, vendere…) partono alla ripresa |
 
-Non c'è un tasto di pausa: la partita si ferma solo mentre la Home è aperta. Ricerca, Mercato e Campagna si aprono anche dai pulsanti in alto a sinistra (**Menu · Ricerca · Mercato · Campagna**).
+`Spazio` non funziona nei menu (Home, Nuova partita, salvataggi, Impostazioni, Campagna) né mentre scrivi in un campo di testo; la partita si ferma anche mentre la Home è aperta. Ricerca, Mercato e Campagna si aprono anche dai pulsanti in alto a sinistra (**Menu · Ricerca · Mercato · Campagna**).
 
 **Tutorial**: `Invio` passa al passo successivo, `Backspace` lo salta.
 **Gestione salvataggi**: frecce su e giù per scegliere, `Invio` per caricare.

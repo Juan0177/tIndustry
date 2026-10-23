@@ -9,7 +9,7 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 45%, 32 passi fatti su 71" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 46%, 33 passi fatti su 72" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -22,7 +22,7 @@
 | 7 | [Mappe e terreno](Mappe-e-terreno) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
 | 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
 | 9 | [Grafica ed effetti](Arte-generata) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
-| 10 | [Interfaccia](Interfaccia-e-lingue) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/10.svg" alt="67%" width="160"> | 67% (2/3) |
+| 10 | [Interfaccia](Interfaccia-e-lingue) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/10.svg" alt="75%" width="160"> | 75% (3/4) |
 | 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/11.svg" alt="0%" width="160"> | 0% (0/4) |
 | 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
 | 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/13.svg" alt="0%" width="160"> | 0% (0/4) |

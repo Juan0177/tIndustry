@@ -55,7 +55,7 @@ Ogni oggetto ha un prezzo suo che si muove sempre fra il valore base B e 1,6×B,
 
 ## Come metto in pausa?
 
-Non c'è un tasto di pausa. Con il cursore premi `Esc`: si apre la Home, la partita si ferma (e la Continua si salva) finché non premi **Riprendi** o di nuovo `Esc`. Ricerca, Mercato e Campagna invece lasciano scorrere il tempo.
+Premi `Spazio`: la partita si ferma e al centro compare «In pausa»; premilo di nuovo per riprendere. Quello che ordini in pausa (piazzare, smontare, vendere) parte alla ripresa. Anche `Esc` col cursore ferma la partita: si apre la Home (e la Continua si salva) finché non premi **Riprendi** o di nuovo `Esc`. Ricerca, Mercato e Campagna da soli lasciano scorrere il tempo.
 
 ## Vedi anche
 

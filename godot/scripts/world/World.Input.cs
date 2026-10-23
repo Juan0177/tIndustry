@@ -114,11 +114,12 @@ public partial class World
 
     /// <summary>
     /// Runs before every panel and the world: drops all input while the map overlay is up (Esc or a click
-    /// must not close a panel or start another game mid-load) and real input during a playtest.
+    /// must not close a panel or start another game mid-load) and real input during a playtest, and takes Space
+    /// (pause) before a focused button could take it as a press.
     /// </summary>
     public override void _Input(InputEvent @event)
     {
-        if (_mapWorkBusy || IsRealInputDuringPlaytest(@event))
+        if (_mapWorkBusy || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
         {
             GetViewport().SetInputAsHandled();
         }
@@ -155,6 +156,12 @@ public partial class World
 
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if (HandleDevSpeedKey(key))
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode is Key.I or Key.T or Key.M or Key.G)
             {
                 CancelDrags(); // a panel opens: the drag is dropped

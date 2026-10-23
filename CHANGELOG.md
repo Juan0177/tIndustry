@@ -7,6 +7,8 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto
 
+- **Pausa con Spazio** per ogni giocatore: la simulazione si ferma, al centro compare «In pausa» e i comandi dati in pausa partono alla ripresa (non nei menu né mentre si scrive)
+- **Velocità dev** con `TINDUSTRY_DEV=1` (mai nei playtest): F1–F4 per ×1 / ×5 / ×10 / ×20 e una barra in alto a destra con velocità, tick e tempo di gioco; `SimulationClock.Speed` / `SimHost.Speed` alzano anche il tetto di tick per frame, lo stato dopo N tick non cambia
 - **Magazzino del CORE e livelli** (specifica 3 di 3, [diario](docs/diario/2026-10-23-magazzino-core.md)): ogni oggetto ha un massimo nel CORE e a CORE pieno la linea si ferma (ingresso unico `CoreStorage`). Tre livelli: shard 3×3 (1.000 per oggetto, 10 pezzi/s, drone alpha), foundation 4×4 (4.000, 25/s, beta), nucleus 5×5 (12.000, 60/s, gamma), sbloccati nel ramo CORE della Ricerca e piazzati sopra il CORE come cantiere del drone
 - **Container e vault**: magazzini 2×2 (300 per oggetto) e 3×3 (1.000); a contatto col CORE ne allargano il magazzino, lontani sono depositi a sé svuotati dall'estrattore
 - **Vendita automatica a ritmo**: vende dal magazzino 10 / 25 / 60 pezzi al secondo per oggetto secondo il CORE, con la spunta «solo a CORE pieno» (`SetAutoSellWhenFull`, agenti: `vendita_automatica {solo_a_pieno}`); categoria «Magazzino» nella palette e quantità `x/massimo` nell'HUD e nel Mercato

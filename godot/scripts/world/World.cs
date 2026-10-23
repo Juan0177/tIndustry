@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Playable world (factory view) + Hud + Ricerca. Default = cursore.
-/// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina.
+/// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina ·
+/// Spazio pausa (F1–F4 velocità with TINDUSTRY_DEV=1, see World.Time.cs).
 /// </summary>
 public partial class World : Node2D
 {
@@ -181,6 +182,7 @@ public partial class World : Node2D
         EnsureMapOverlay();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
+        EnsureTimeOverlays();
         EnsurePlacementOverlay();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } camera)
         {
@@ -251,8 +253,11 @@ public partial class World : Node2D
     /// <summary>A game is being played: not behind Home or Nuova partita. <see cref="_Process"/> runs the world only then.</summary>
     internal bool GameInPlay => _home?.IsOpen != true && _newGame?.IsOpen != true && _view is not null;
 
-    /// <summary>The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge).</summary>
-    internal bool SimAdvances => GameInPlay && !PlaytestHeld;
+    /// <summary>
+    /// The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge): no
+    /// ticks behind Home, while a playtest or an agent holds the game, or while the player paused it (Space).
+    /// </summary>
+    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused;
 
     public override void _Process(double delta)
     {
@@ -283,6 +288,7 @@ public partial class World : Node2D
         SyncNight();
         SyncAmbientEffects(delta);
         SyncTutorial();
+        SyncTimeOverlays();
         if ((LineDragActive || _draggingRemove) && PanelOpen)
         {
             CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent
@@ -309,7 +315,7 @@ public partial class World : Node2D
             AdvanceHost(delta);
         }
 
-        var visualDelta = PlaytestHeld ? 0f : (float)delta;
+        var visualDelta = PlaytestHeld || PlayerPaused ? 0f : (float)delta;
         SyncConstructionVisuals(visualDelta);
 
         // Buildings next to a belt decide its corners (Mindustry blending), so they redraw the belts too.
