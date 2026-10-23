@@ -112,18 +112,18 @@ public partial class World
         ? Testi.T("strumento.cursore")
         : Testi.Struttura(Hud.StructureIdFor(ToHudTool(tool)), _view?.Content);
 
-    /// <summary>
-    /// Runs before every panel and the world: drops all input while the map overlay is up (Esc or a click
-    /// must not close a panel or start another game mid-load) and real input during a playtest, and takes Space
-    /// (pause) before a focused button could take it as a press.
-    /// </summary>
     /// <summary>F9 / F7 during a game: the slot loads behind the loading screen; a failure is the toast.</summary>
     private void QuickLoad(string slotId, string toast) =>
         RunMapTask(() => LoadGameWithScreenAsync(slotId, toast, showOnPanel: null), m => _hud?.ShowToast(m));
 
+    /// <summary>
+    /// Runs before every panel and the world: drops all input while the loading screen is shown, fade included (Esc
+    /// or a click must not close a panel or start another game mid-load), and real input during a playtest, and takes
+    /// Space (pause) before a focused button could take it as a press.
+    /// </summary>
     public override void _Input(InputEvent @event)
     {
-        if (_loadingBusy || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
+        if (LoadingShown || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
         {
             GetViewport().SetInputAsHandled();
         }

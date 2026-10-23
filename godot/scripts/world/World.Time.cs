@@ -143,7 +143,7 @@ public partial class World
 
     /// <summary>Menus where Space does not pause: the ones that leave the game (or pick another one).</summary>
     private bool TimeMenuOpen => _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
-        || _campaignSelect?.IsOpen == true || _loadingBusy;
+        || _campaignSelect?.IsOpen == true || LoadingShown;
 
     /// <summary>
     /// The focused control uses Space itself: a text field (typing) or a button of an in-game panel (Space presses

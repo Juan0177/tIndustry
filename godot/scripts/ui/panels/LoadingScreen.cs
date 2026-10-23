@@ -14,6 +14,12 @@ public partial class LoadingScreen : Control
     /// <summary>Logo pixels per sprite pixel (at 100% UI scale), as on the Home.</summary>
     private const int LogoScale = 5;
 
+    /// <summary>
+    /// Size of the bar in UI units: the screen is a child of the HUD root, so the HUD layer's scale (<see cref="UiScale"/>)
+    /// magnifies it with the rest of the interface, like every panel's sizes.
+    /// </summary>
+    private static readonly Vector2 BarSize = new(360, 16);
+
     /// <summary>Seconds of the fade out.</summary>
     private const double FadeSeconds = 0.3;
 
@@ -74,7 +80,7 @@ public partial class LoadingScreen : Control
             MaxValue = 1,
             Step = 0,
             ShowPercentage = false,
-            CustomMinimumSize = new Vector2(360, 16),
+            CustomMinimumSize = BarSize,
             SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
             MouseFilter = MouseFilterEnum.Ignore
         };

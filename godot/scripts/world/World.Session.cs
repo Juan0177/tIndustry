@@ -158,6 +158,9 @@ public partial class World
     /// </summary>
     private bool _loadingBusy;
 
+    /// <summary>The loading screen is working or still fading out: input is dropped and no other load starts.</summary>
+    private bool LoadingShown => _loadingBusy || _loading?.IsShown == true;
+
     /// <summary>Frames the loading screen waits at most for the terrain art around the camera (about 3 s).</summary>
     private const int LoadingTerrainFrames = 180;
 
@@ -189,7 +192,7 @@ public partial class World
     /// </summary>
     private async Task<bool> WithLoadingAsync(int phases, Func<Func<string, Task>, Task<bool>> work)
     {
-        if (_loadingBusy)
+        if (LoadingShown)
         {
             return false;
         }

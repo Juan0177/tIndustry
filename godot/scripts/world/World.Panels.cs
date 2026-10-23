@@ -232,7 +232,12 @@ public partial class World
     /// </summary>
     private void QuitGame()
     {
-        AutoSaveContinue(quiet: true);
+        // Mid-load the game behind is about to be replaced (or half attached): Continua keeps the last save.
+        if (!_loadingBusy)
+        {
+            AutoSaveContinue(quiet: true);
+        }
+
         GetTree().Quit();
     }
 
