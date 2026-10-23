@@ -37,7 +37,7 @@ Dalla Home, **Nuova partita** apre una schermata con la **misura** della mappa e
 | Grande | 1500×1500 |
 | Enorme | 2000×2000 |
 
-Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Mentre una partita si apre (nuova, livello della campagna, salvataggio, Continua) compare la schermata di caricamento, con la fase in corso; in quel momento tasti e clic sono ignorati.
+Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. Due caselle che si escludono, **Solo giorno (Pacifica)** e **Solo notte**, cambiano il tempo del mondo (nessuna casella = ciclo di giorno e notte; vedi «Giorno, notte e Lampada»). **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Mentre una partita si apre (nuova, livello della campagna, salvataggio, Continua) compare la schermata di caricamento, con la fase in corso; in quel momento tasti e clic sono ignorati.
 
 La mappa ha quattro biomi (rocce e basalto, sabbia e deserto, neve e ghiaccio, prati e paludi), laghi e fiumi. Il CORE parte al centro, in un'area libera con ferro e rame vicini e una strada a terra verso ferro, rame e carbone.
 
@@ -159,7 +159,7 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 15 (metadati + istantanea, con il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 16 (metadati + istantanea, con il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
 Salva nastri (con oggetti, partner del ponte, filtro del selezionatore), edifici, denaro, `nextItemId`, Core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
 ## Progetti
@@ -174,7 +174,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 15) include `unlockedStructures` e lo stato del Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 16) include `unlockedStructures` e lo stato del Mercato.
 
 ## Mercato
 
@@ -190,8 +190,8 @@ Ogni oggetto ha un prezzo suo, come un titolo in borsa:
 - la **vendita automatica** (un interruttore per oggetto) vende dal magazzino al prezzo minimo, 10, 25 o 60 pezzi al secondo secondo il CORE: non muove il mercato, ma neppure coglie i picchi; con la spunta «solo a CORE pieno» vende solo quando l'oggetto è al massimo;
 - il **magazzino ha un massimo** per oggetto (1.000 / 4.000 / 12.000 secondo il CORE, più container e vault collegati): a oggetto pieno la linea si ferma.
 
-Il salvataggio (versione 15) include lo stato di tutti i mercati.
+Il salvataggio (versione 16) include lo stato di tutti i mercati.
 
 ## Campagna
 
-**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 15).
+**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 16).

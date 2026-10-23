@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, giorno e notte approvato; pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
+**Aggiornato:** 2026-10-23, giorno e notte fatto (ciclo, solo giorno, solo notte); pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
 
 ## Aspetti del gioco
 
@@ -104,7 +104,7 @@ Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleu
 Nemici solo di notte, Game Over se cade il CORE.
 
 - [x] Giorno e notte: specifica approvata ([spec](superpowers/specs/2026-10-23-giorno-notte-design.md))
-- [ ] Giorno e notte: ciclo, solo giorno, solo notte col contatore del primo attacco ([piano](superpowers/plans/2026-10-23-giorno-notte.md))
+- [x] Giorno e notte: ciclo, solo giorno, solo notte col contatore del primo attacco ([piano](superpowers/plans/2026-10-23-giorno-notte.md), [diario](diario/2026-10-23-giorno-notte.md))
 - [ ] Specifica approvata
 - [ ] Piano
 - [ ] Implementazione
@@ -158,6 +158,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
   - il ramo `sito/fabbrica`, in locale e su GitHub;
   - le cartelle vecchie di `.superpowers/` (`sdd/2026-10-18-sito-fabbrica`, `sdd-backup`, `brainstorm`).
 - **Controllo del client sul PC di casa** (il lavoro del magazzino del CORE è stato fatto in cloud, senza Godot): importare il progetto (`--import`) e generare i `.import` degli 8 PNG nuovi, lanciare i playtest `ui` e `agenti`, il `PlaytestScala` (una categoria «Magazzino» nuova nella palette), rifare le catture (la riga `core.livello` dell'HUD non va a capo e cambia le immagini) e controllare le celle di prova del playtest grafico (`World.PlaytestGrafica.cs`), che ora toccano il CORE 3×3.
+- **Controllo del client del giorno e notte sul PC di casa** (fatto in cloud, senza Godot): lanciare i playtest `ui`, `tutorial` e `agenti` (anche con `TINDUSTRY_PLAYTEST_LINGUA=en` e con la Scala UI diversa dal 100%) e la sonda delle luci con `TINDUSTRY_PLAYTEST_EFFETTI=1`. A mano, due controlli: la riga del tempo si ferma con la pausa; a velocità dev ×20 si vede il tramonto. Poi: le Lampade si accendono sotto metà luce; in solo notte la riga passa da «Primo attacco fra» a «Attacco!» e a «Notte». Misurare la larghezza di «Il tempo parte dal primo blocco» con la Scala UI al 100% e al 200%.
 - **Sonda `oggetti-fluidi`** del playtest `ui`: fallisce ogni tanto per un frame lento (1 volta su 4 il 22/10). Rilanciando passa.
 - **Server MCP `tindustry` nel gioco vero**: non trova `godot4`. Serve la variabile d'ambiente `TINDUSTRY_GODOT` sull'eseguibile di Godot e un riavvio di Claude Code.
 
@@ -165,5 +166,5 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
 - Il tuo parere su un aspetto distinto per gli sprite di foundation e nucleus: oggi hanno gli stessi pixel dei vecchi CORE a 2 livelli, quindi i tre CORE si distinguono solo per misura.
-- Provare il client del magazzino del CORE sul PC di casa (vedi «Cosa manca, in piccolo»).
+- Provare il client del magazzino del CORE e quello del giorno e notte sul PC di casa (vedi «Cosa manca, in piccolo»).
 - L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.

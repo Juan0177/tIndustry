@@ -156,7 +156,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 47%, 36 passi fatti su 76" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 49%, 37 passi fatti su 76" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -172,7 +172,7 @@ A che punto siamo, aspetto per aspetto:
 | 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | <img src="docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
 | 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="0%" width="160"> | 0% (0/4) |
 | 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
-| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="17%" width="160"> | 17% (1/6) |
+| 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="33%" width="160"> | 33% (2/6) |
 | 14 | [Co-op](docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |
 | 15 | [Sito web](https://github.com/Juan0177/tIndustry/wiki/Sito-web) | <img src="docs/img/stato/15.svg" alt="86%" width="160"> | 86% (6/7) |
 | 16 | [Wiki e README](https://github.com/Juan0177/tIndustry/wiki/) | <img src="docs/img/stato/16.svg" alt="67%" width="160"> | 67% (4/6) |

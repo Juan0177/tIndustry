@@ -8,7 +8,7 @@ I dieci livelli della campagna con i loro obiettivi, le mappe, i biomi e la part
 
 `G` (o **Campagna** dalla Home o dall'HUD) apre l'elenco dei livelli: ogni livello è **BLOCCATO**, **GIOCA** o **COMPLETATO**. Completare un livello sblocca il successivo. Gli obiettivi del livello in corso compaiono in alto a sinistra (`OBIETTIVO`); quando li completi tutti un avviso dice "Livello completato".
 
-Ogni livello parte con soldi e materiali propri e con la Ricerca da capo (solo Nastro T1 e Minatore T1 sbloccati). Le mappe sono prestabilite e crescono con la campagna. Dal livello 4 lo smontaggio rimborsa solo il 50% (vedi [Costruzione](Costruzione)). I livelli 6 e 10 sono di notte.
+Ogni livello parte con soldi e materiali propri e con la Ricerca da capo (solo Nastro T1 e Minatore T1 sbloccati). Le mappe sono prestabilite e crescono con la campagna. Dal livello 4 lo smontaggio rimborsa solo il 50% (vedi [Costruzione](Costruzione)). Ogni livello sceglie il suo tempo (`dayNight` in `data/campaign.json`: `ciclo`, `giorno` o `notte`): i livelli 1–3 sono sempre di giorno, così si impara in pace; i livelli 6 e 10 sono sempre di notte; gli altri seguono il ciclo di giorno e notte.
 
 | # | Livello | Mappa | Biomi | Partenza | Rimborso | Obiettivi |
 |---|---|---|---|---|---|---|
@@ -44,7 +44,7 @@ Il titanio compare sulle mappe solo dal livello 9, dove serve il Minatore T2.
 | Grande | 1500×1500 |
 | Enorme | 2000×2000 |
 
-Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. La casella **Notte** fa una mappa al buio. **Inizia** (o Invio) avvia, **Indietro** (o Esc) torna alla Home. Per Grande ed Enorme compare "Generazione della mappa…" per qualche secondo.
+Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. Il tempo si sceglie con due caselle che si escludono: **Solo giorno (Pacifica)** (sempre giorno, nessun attacco mai) e **Solo notte** (sempre buio, con 10 minuti dal primo blocco al primo attacco); senza spunte il mondo segue il ciclo, con il giorno di 10 minuti e la notte di 4, alba e tramonto di 20 secondi compresi. Il tempo parte dal primo blocco piazzato. **Inizia** (o Invio) avvia, **Indietro** (o Esc) torna alla Home. Per Grande ed Enorme compare "Generazione della mappa…" per qualche secondo.
 
 Si parte con $180, 48 Ferro grezzo, 48 Lastre di ferro e 10 Fili di rame, e lo smontaggio rimborsa il 100%.
 

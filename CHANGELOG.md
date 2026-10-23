@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto
 
+- **Giorno e notte** ([specifica](docs/superpowers/specs/2026-10-23-giorno-notte-design.md), [diario](docs/diario/2026-10-23-giorno-notte.md)): il mondo ha un ciclo di 14 minuti (giorno 10, notte 4, alba e tramonto sfumati di 20 secondi dentro quei tempi) che parte dal primo blocco piazzato; prima è giorno. Alla creazione del mondo due caselle che si escludono, **Solo giorno (Pacifica)** e **Solo notte**; in solo notte una riga conta i 10 minuti fino al primo attacco («Primo attacco fra», «Attacco!», «Notte») e la simulazione emette `FirstAttackDue` una volta. `DayNightClock` calcola fase, luce (0–1000) e tick al prossimo cambio; lo scuro, le luci e le lucciole seguono la luce, le Lampade si accendono sotto metà luce. Nella campagna ogni livello sceglie `dayNight` (`ciclo`, `giorno`, `notte`): 1–3 giorno, 6 e 10 notte, gli altri ciclo. Lo stato degli agenti riporta il tempo
 - **Schermata di caricamento** all'apertura di una partita (Nuova partita, livello della campagna, salvataggio, Continua, F7/F9): logo, «Caricamento…», una barra che avanza per fasi (generazione della mappa, lettura del salvataggio, preparazione del mondo, disegno del terreno) e una breve dissolvenza quando il primo fotogramma è pronto; mentre è su, tasti e clic sono ignorati e la simulazione è ferma. Sostituisce l'avviso «Generazione della mappa…» che compariva solo per Grande ed Enorme
 - **HUD nascosto nella Home**: barra in alto, pannello del CORE, palette, FPS, barra dev e «In pausa» non si vedono dietro la Home e le schermate aperte da lì (Nuova partita, Campagna, Salvataggi, Impostazioni); i messaggi a comparsa restano
 - **Avvio unico `play.ps1`** (Windows, PowerShell 5.1 o 7): chiede «Entrare come utente o come dev?» (o `-Utente` / `-Dev`), controlla e, dopo aver chiesto, installa .NET 8 SDK, Git, Python 3 (solo dev) e Godot 4.4.1 .NET (in `.dev/godot/`), compila, importa gli asset e avvia il gioco; con `-Dev` imposta `TINDUSTRY_DEV=1` e accetta tutte le opzioni di `dev.sh` (`-ProfiloTemp`, `-Profilo`, `-Nuova`, `-Editor`, `-Test`, `-Playtest`, `-SoloBuild`, `-Import`). Sostituisce `dev.cmd`, tolto; `tools/dev/dev.sh` resta per Linux e gli agenti cloud
@@ -22,6 +23,8 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Cambiato
 
+- **Salvataggi alla v16**: portano il tempo del mondo (`DayNight`), il tick del primo blocco e il primo attacco già scattato al posto della notte fissa; i v15 non si aprono più. Tolti `GameRules.Night` e `night` dei livelli in `data/campaign.json` (ora `dayNight`)
+- I playtest `ui`, `tutorial` e `agenti` giocano sempre in solo giorno, così le catture non cambiano con l'ora
 - **Salvataggi alla v15**: i file fino alla v14 non si aprono più («versione non più supportata»); il codice di conversione v11–v14 è tolto
 - Il CORE parte 3×3 (non più 2×2 senza limiti); i droni sono tre (alpha, beta, gamma) invece di uno
 - Tolti il pulsante «Potenzia CORE», il comando `UpgradeCore` e `economy.coreUpgrade`: il potenziamento è il blocco `core-foundation` / `core-nucleus` piazzato sopra il CORE

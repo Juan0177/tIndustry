@@ -64,7 +64,7 @@ Il raggio si misura dal centro del nodo al centro del generatore. I nodi si coll
 | Sblocco | $90, 4 Lastre di ferro, 2 Fili di rame (dopo il Nodo T1) |
 | Consumo | 1 unità di energia al secondo |
 
-Si accende solo se è collegata come gli altri blocchi (generatore acceso accanto o nodo nel raggio) e l'energia basta; spenta non fa luce. Serve nelle partite di **notte** (casella *Notte* in Nuova partita, livelli 6 e 10 della campagna), dove contano le luci del CORE, dei forni al lavoro, dei generatori accesi, dei droni e delle Lampade.
+Si accende solo se è collegata come gli altri blocchi (generatore acceso accanto o nodo nel raggio) e l'energia basta; spenta non fa luce. Serve nelle partite di **notte** (la notte del ciclo, la casella *Solo notte* in Nuova partita, i livelli 6 e 10 della campagna), dove contano le luci del CORE, dei forni al lavoro, dei generatori accesi, dei droni e delle Lampade.
 
 ## Uno schema semplice
 
