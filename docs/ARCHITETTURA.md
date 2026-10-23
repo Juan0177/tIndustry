@@ -309,7 +309,7 @@ Gli agenti AI (Claude Code e i suoi sotto-agenti) giocano con gli strumenti MCP 
 
 ## Test e playtest
 
-`tools/dev/dev.sh` (Windows: `dev.cmd`) fa tutto in un comando: controllo strumenti, build, test (`--test`), import asset se manca la cache, avvio del gioco o del playtest (`--playtest ui|tutorial|agenti`). Opzioni in `--help`.
+`tools/dev/dev.sh` (Linux e agenti cloud) e `play.ps1` (Windows: `-Utente` o `-Dev`, che aggiunge `TINDUSTRY_DEV=1`, installa le dipendenze che mancano e fa i playtest senza bash) fanno tutto in un comando: controllo strumenti, build, test (`--test` / `-Test`), import asset se manca la cache, avvio del gioco o del playtest (`--playtest ui|tutorial|agenti` / `-Playtest`). Opzioni in `--help` / `-Help`.
 
 ```bash
 dotnet build tIndustry.sln -c Release -nologo -v q

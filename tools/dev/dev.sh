@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # All-in-one dev launcher: checks tools, builds, imports assets when needed, then starts the game.
-# Run from anywhere: tools/dev/dev.sh [options]   (Windows: dev.cmd [options] from the repo root)
+# Run from anywhere: tools/dev/dev.sh [options]   (Windows: play.ps1 from the repo root)
 set -u
 
 usage() {
   cat <<'EOF'
-Uso: tools/dev/dev.sh [opzioni]        (Windows: dev.cmd [opzioni])
+Uso: tools/dev/dev.sh [opzioni]        (Windows: .\play.ps1 [opzioni])
 
 Senza opzioni: controlla gli strumenti, compila, importa gli asset se serve e avvia il gioco.
 

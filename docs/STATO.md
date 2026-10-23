@@ -14,6 +14,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [x] Simulazione a comandi, tick fisso e checksum (sotto-progetto 2, PR #147–#154)
 - [x] Salvataggi con versione, fino alla v14 (PR #279)
 - [x] Agenti che giocano col server MCP (PR #210–#217)
+- [x] Avvio unico play.ps1 (utente o dev) con installazione delle dipendenze
 - [ ] Pulizia di rami, worktree e cartelle vecchie (approvata, da lanciare a mano)
 - [ ] Sonda `oggetti-fluidi` del playtest `ui` stabile
 

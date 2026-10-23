@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto
 
+- **Avvio unico `play.ps1`** (Windows, PowerShell 5.1 o 7): chiede «Entrare come utente o come dev?» (o `-Utente` / `-Dev`), controlla e, dopo aver chiesto, installa .NET 8 SDK, Git, Python 3 (solo dev) e Godot 4.4.1 .NET (in `.dev/godot/`), compila, importa gli asset e avvia il gioco; con `-Dev` imposta `TINDUSTRY_DEV=1` e accetta tutte le opzioni di `dev.sh` (`-ProfiloTemp`, `-Profilo`, `-Nuova`, `-Editor`, `-Test`, `-Playtest`, `-SoloBuild`, `-Import`). Sostituisce `dev.cmd`, tolto; `tools/dev/dev.sh` resta per Linux e gli agenti cloud
 - **Pausa con Spazio** per ogni giocatore: la simulazione si ferma, al centro compare «In pausa» e i comandi dati in pausa partono alla ripresa (non nei menu né mentre si scrive)
 - **Velocità dev** con `TINDUSTRY_DEV=1` (mai nei playtest): F1–F4 per ×1 / ×5 / ×10 / ×20 e una barra in alto a destra con velocità, tick e tempo di gioco; `SimulationClock.Speed` / `SimHost.Speed` alzano anche il tetto di tick per frame, lo stato dopo N tick non cambia
 - **Magazzino del CORE e livelli** (specifica 3 di 3, [diario](docs/diario/2026-10-23-magazzino-core.md)): ogni oggetto ha un massimo nel CORE e a CORE pieno la linea si ferma (ingresso unico `CoreStorage`). Tre livelli: shard 3×3 (1.000 per oggetto, 10 pezzi/s, drone alpha), foundation 4×4 (4.000, 25/s, beta), nucleus 5×5 (12.000, 60/s, gamma), sbloccati nel ramo CORE della Ricerca e piazzati sopra il CORE come cantiere del drone

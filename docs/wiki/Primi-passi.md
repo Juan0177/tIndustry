@@ -19,6 +19,8 @@ Scarica l'ultima [Release](https://github.com/Juan0177/tIndustry/releases/latest
 
 Il gioco parte a schermo intero alla risoluzione dello schermo. Al primo avvio la Scala UI si sceglie dall'altezza dello schermo (100% sotto i 1400 pixel, 150% sotto i 2000, 200% oltre); la cambi quando vuoi in [Impostazioni](Impostazioni-e-accessibilita).
 
+Dai sorgenti, su Windows, basta `.\play.ps1 -Utente` dalla radice del repository: installa quello che manca, compila e avvia il gioco (vedi [Compilare e avviare](Compilare-e-avviare)).
+
 ## La Home
 
 | Pulsante | Cosa fa |
