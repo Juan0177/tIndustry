@@ -33,6 +33,9 @@ public static class UiTheme
     public const string TestoVerde = "TestoVerde";
     public const string TestoDenaro = "TestoDenaro";
     public const string TestoEnergia = "TestoEnergia";
+
+    /// <summary>An item at the CORE's maximum (<see cref="UiColors.Pieno"/>).</summary>
+    public const string TestoPieno = "TestoPieno";
     public const string Titolo = "Titolo";
     public const string TitoloChiaro = "TitoloChiaro";
     public const string Avviso = "Avviso";
@@ -202,6 +205,7 @@ public static class UiTheme
         LabelLook(t, TestoVerde, UiColors.Fatto);
         LabelLook(t, TestoDenaro, UiColors.Denaro);
         LabelLook(t, TestoEnergia, UiColors.Energia);
+        LabelLook(t, TestoPieno, UiColors.Pieno);
         LabelLook(t, TestoSu, UiColors.MercatoSu);
         LabelLook(t, TestoGiu, UiColors.MercatoGiu);
         LabelLook(t, TestoCrollo, UiColors.MercatoCrollo);

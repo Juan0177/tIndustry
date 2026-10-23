@@ -314,7 +314,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
         Assert.Equal(AgentCodes.ParametriNonValidi, await server.Refused("apri_simulazione", new { salvataggio = real }));
 
         var broken = Path.Combine(server.TempDirectory, "rotto.json");
-        File.WriteAllText(broken, "{\"version\": 12, \"snapshot\": \"non base64!\"}");
+        File.WriteAllText(broken, $"{{\"version\": {FactorySaveData.CurrentVersion}, \"snapshot\": \"non base64!\"}}");
         Assert.Equal(nameof(SaveLoadError.Unreadable), await server.Refused("apri_simulazione", new { salvataggio = broken }));
         File.WriteAllText(broken, "{\"version\": 1, \"snapshot\": \"AAAA\"}");
         Assert.Equal(nameof(SaveLoadError.OlderVersion), await server.Refused("apri_simulazione", new { salvataggio = broken }));

@@ -5,7 +5,7 @@ namespace TIndustry.Shared.Tests;
 
 /// <summary>
 /// The shipped research tree is Mindustry-style: one branch per category under CORE
-/// (Logistica · Produzione · Energia), one parent per block, parent from the same branch.
+/// (Logistica · Produzione · Energia, plus the CORE upgrades), one parent per block, parent from the same branch.
 /// </summary>
 public sealed class ResearchTreeContentTests
 {
@@ -34,6 +34,11 @@ public sealed class ResearchTreeContentTests
         { "power-node", "generator" },
         { "power-node-t2", "power-node" },
         { "lamp", "power-node" },
+        // CORE e magazzini
+        { "container", "junction" },
+        { "vault", "container" },
+        { "core-foundation", null },
+        { "core-nucleus", "core-foundation" },
     };
 
     [Theory]
@@ -59,7 +64,7 @@ public sealed class ResearchTreeContentTests
             .Where(e => e.FromId == TechTreeLayout.RootId)
             .Select(e => e.ToId)
             .Order();
-        Assert.Equal(new[] { "conveyor-basic", "generator", "miner" }, branches);
+        Assert.Equal(new[] { "conveyor-basic", "core-foundation", "generator", "miner" }, branches);
         Assert.All(graph.Edges, e => Assert.True(e.Primary)); // no cross-branch (dashed) links
     }
 }

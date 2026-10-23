@@ -95,10 +95,95 @@ public sealed class ContentValidationTests
     }
 
     [Fact]
-    public void DroneIsDefined()
+    public void CoreTiers_HaveSpecValues()
     {
-        // FactoryContent.Load throws when units.drone is missing: loading it proves it is there.
-        Assert.Equal(new UnitDefinition(BuildSpeed: 0.5f, BuildRange: 27.5f, Speed: 22.5f), Content.Drone);
+        Assert.Equal(3, Content.CoreTiers.Count);
+        Assert.Equal(
+            [(3, 1000, 10, "alpha"), (4, 4000, 25, "beta"), (5, 12000, 60, "gamma")],
+            Content.CoreTiers.Select(t => (t.Size, t.ItemCapacity, t.AutoSellPerSecond, t.UnitId)).ToArray());
+        Assert.Equal(["core-shard", "core-foundation", "core-nucleus"], Content.CoreTiers.Select(t => t.Id).ToArray());
+
+        Assert.Empty(Content.CoreTiers[0].BuildCost);
+        Assert.Equal(
+            [new ResourceAmount("iron-plate", 800), new ResourceAmount("copper-wire", 500), new ResourceAmount("lead-plate", 400)],
+            Content.CoreTiers[1].BuildCost);
+        Assert.Equal(
+            [new ResourceAmount("iron-plate", 3000), new ResourceAmount("lead-plate", 2000),
+                new ResourceAmount("silicon", 1500), new ResourceAmount("titanium-plate", 1000)],
+            Content.CoreTiers[2].BuildCost);
+
+        // Research reads the structures, not the cores block.
+        var foundation = Content.RequireStructure("core-foundation").Unlock!;
+        Assert.Equal(5000, foundation.Money);
+        Assert.Equal(
+            [new ResourceAmount("iron-plate", 200), new ResourceAmount("copper-wire", 100)],
+            foundation.Materials);
+        var nucleus = Content.RequireStructure("core-nucleus").Unlock!;
+        Assert.Equal(25000, nucleus.Money);
+        Assert.Equal(
+            [new ResourceAmount("titanium-plate", 400), new ResourceAmount("silicon", 300)],
+            nucleus.Materials);
+    }
+
+    [Fact]
+    public void CoreBuildCost_FitsPreviousTier()
+    {
+        for (var i = 1; i < Content.CoreTiers.Count; i++)
+        {
+            foreach (var row in Content.CoreTiers[i].BuildCost)
+            {
+                Assert.True(row.Amount < Content.CoreTiers[i - 1].ItemCapacity,
+                    $"{Content.CoreTiers[i].Id}: {row.ItemId} {row.Amount} non entra nel livello prima");
+            }
+        }
+    }
+
+    [Fact]
+    public void Units_MatchMindustry()
+    {
+        Assert.Equal(new UnitDefinition(0.5f, 27.5f, 22.5f), Content.Units["alpha"]);
+        Assert.Equal(new UnitDefinition(0.75f, 27.5f, 24.75f), Content.Units["beta"]);
+        Assert.Equal(new UnitDefinition(1.0f, 27.5f, 26.6f), Content.Units["gamma"]);
+        Assert.Equal(Content.Units["alpha"], Content.UnitForTier(0));
+        Assert.Equal(Content.Units["beta"], Content.UnitForTier(1));
+        Assert.Equal(Content.Units["gamma"], Content.UnitForTier(2));
+    }
+
+    [Fact]
+    public void StorageStructures()
+    {
+        var container = Content.RequireStructure("container");
+        Assert.Equal("storage", container.Kind);
+        Assert.Equal(300, container.ItemCapacity);
+        Assert.Equal(["junction"], container.Prerequisites);
+        Assert.Equal(400, container.Unlock!.Money);
+        Assert.Equal(
+            [new ResourceAmount("iron-plate", 20), new ResourceAmount("lead-plate", 10)],
+            container.Unlock.Materials);
+
+        var vault = Content.RequireStructure("vault");
+        Assert.Equal("storage", vault.Kind);
+        Assert.Equal(1000, vault.ItemCapacity);
+        Assert.Equal(["container"], vault.Prerequisites);
+        Assert.Equal(900, vault.Unlock!.Money);
+        Assert.Equal([new ResourceAmount("titanium-plate", 20)], vault.Unlock.Materials);
+
+        var foundation = Content.RequireStructure("core-foundation");
+        Assert.Equal("core-upgrade", foundation.Kind);
+        Assert.Equal(0, foundation.ItemCapacity);
+        Assert.Equal(5000, foundation.Unlock!.Money);
+        var nucleus = Content.RequireStructure("core-nucleus");
+        Assert.Equal("core-upgrade", nucleus.Kind);
+        Assert.Equal(["core-foundation"], nucleus.Prerequisites);
+        Assert.Equal(25000, nucleus.Unlock!.Money);
+
+        Assert.Equal(
+            [new ResourceAmount("iron-plate", 40), new ResourceAmount("lead-plate", 20)],
+            Content.FindBuilding("container")!.BuildCost);
+        Assert.Equal(
+            [new ResourceAmount("titanium-plate", 60), new ResourceAmount("iron-plate", 40)],
+            Content.FindBuilding("vault")!.BuildCost);
+        Assert.Equal(0, Content.RequireStructure("miner").ItemCapacity);
     }
 
     [Fact]

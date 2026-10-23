@@ -29,7 +29,8 @@ public sealed class BeltReplaceTests
     private static (Factory Factory, SimHost Host, List<Refusal> Refusals) NewHost(
         bool instantBuild, Dictionary<string, int>? stock = null, int refundPercent = 100)
     {
-        var wallet = new EconomyWallet(0, stock ?? Items.ToDictionary(i => i, _ => 1000, StringComparer.Ordinal));
+        // Below the Core's maximum (1000), so refunds are never clamped here.
+        var wallet = new EconomyWallet(0, stock ?? Items.ToDictionary(i => i, _ => 500, StringComparer.Ordinal));
         var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(20, 20), 2), wallet);
         factory.State.Rules = new GameRules(RefundPercent: refundPercent, InstantBuild: instantBuild);
         foreach (var id in ResearchState.DemoStructureIds)

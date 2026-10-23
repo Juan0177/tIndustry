@@ -176,11 +176,11 @@ public sealed class ArmoredBeltTests
     [Fact]
     public void ShapeStaysStraightBesideTheCore()
     {
-        // Core covers (30..31, 30..31): an armored line along its east edge heading North. Placing turns belts that
+        // Core covers (30..32, 30..32): an armored line along its east edge heading North. Placing turns belts that
         // touch the Core into it, so the test turns them back on the grid.
         var factory = Sandbox();
-        var beside = new GridPosition(32, 31);
-        var ahead = new GridPosition(32, 30);
+        var beside = new GridPosition(33, 32);
+        var ahead = new GridPosition(33, 31);
         Assert.True(factory.TryPlaceBelt(beside, Direction.North, Armored));
         Assert.True(factory.TryPlaceBelt(ahead, Direction.North, Armored));
         Assert.True(factory.Belts.TryOrient(beside, Direction.North));

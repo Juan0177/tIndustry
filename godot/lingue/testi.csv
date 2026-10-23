@@ -15,6 +15,14 @@ struttura.generator.nome,Generatore,Generator
 struttura.power-node.nome,Nodo T1,Power node T1
 struttura.power-node-t2.nome,Nodo T2,Power node T2
 struttura.lamp.nome,Lampada,Lamp
+struttura.container.nome,Contenitore,Container
+struttura.vault.nome,Deposito,Vault
+struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
+struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
+struttura.core-shard.nome,CORE Frammento,CORE Shard
+unita.alpha.nome,Alpha,Alpha
+unita.beta.nome,Beta,Beta
+unita.gamma.nome,Gamma,Gamma
 struttura.miner-advanced.nome,Minatore T2,Miner T2
 oggetto.iron-ore.nome,Ferro grezzo,Iron ore
 oggetto.iron-plate.nome,Lastra di ferro,Iron plate
@@ -102,11 +110,16 @@ struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal f
 struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Power node T1 · range 6 · links generator ↔ smelter
 struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · unlock in Research
 struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
+struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
+struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
+struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
+struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
 categoria.strumenti,Strumenti,Tools
 categoria.logistica,Logistica,Logistics
 categoria.produzione,Produzione,Production
 categoria.potenza,Potenza,Power
+categoria.magazzino,Magazzino,Storage
 palette.selezionato,{0} selezionato,{0} selected
 rifiuto.Locked,{0} bloccato: sbloccalo in Ricerca (T).,{0} locked: unlock it in Research (T).
 blocco.dettaglio,Dettaglio blocco,Block details
@@ -126,13 +139,14 @@ menu.campagna,Campagna,Campaign
 core.energia,Energia accumulata / capacità,Stored power / capacity
 core.energia.generatori, · generatori attivi {0}/{1}, · active generators {0}/{1}
 core.energia.nessuna,Nessuna rete elettrica,No power grid
-core.potenzia,Potenzia CORE,Upgrade CORE
-core.potenziato,CORE LV{0},CORE LV{0}
 core.obiettivo,OBIETTIVO · {0},OBJECTIVE · {0}
 core.obiettivo.titolo,OBIETTIVO,OBJECTIVE
 core.fondi,Fondi,Funds
 core.vuoto,CORE vuoto: porta minerali con i nastri,CORE empty: bring ore with belts
-rifiuto.CoreAlreadyUpgraded,CORE già a LV{0}.,CORE already at LV{0}.
+core.livello,{0} · massimo {1} per oggetto,{0} · max {1} per item
+core.livello.suggerimento,Vende {0} pezzi al secondo · drone {1},Sells {0} pieces per second · {1} drone
+core.scorta.pieno,{0} · {1}/{2} · pieno: i nastri si fermano,{0} · {1}/{2} · full: belts stop
+core.scorta,{0} · {1}/{2},{0} · {1}/{2}
 rifiuto.InsufficientResources,Risorse insufficienti,Not enough resources
 rifiuto.servono,Servono {0},Need {0}
 obiettivo.guadagna,Guadagna ${0},Earn ${0}
@@ -158,7 +172,6 @@ salvataggi.rapido.caricato,Slot-1 caricato,Slot-1 loaded
 coda.suggerimento,Coda di costruzione · clic = mostra il cantiere,Build queue · click = show the site
 coda.manca,Manca: {0},Missing: {0}
 coda.denaro,denaro,money
-core.potenziato.toast,CORE potenziato!,CORE upgraded!
 selezionatore.filtro,Filtro: {0},Filter: {0}
 dev.linea.core,Seed linea CORE · nastro {0},CORE line seed · belts {0}
 salvataggi.continua.nessuno,Nessun salvataggio continua,No continue save
@@ -196,6 +209,11 @@ rifiuto.MissingPrerequisites,Prerequisiti mancanti.,Missing prerequisites.
 rifiuto.UnlockUnaffordable,Risorse insufficienti per sbloccare.,Not enough resources to unlock.
 rifiuto.SellFailed,Vendita fallita (stock insufficiente).,Sale failed (not enough stock).
 rifiuto.SellAllCooldown,Vendi tutto è bloccato: aspetta {0} s,Sell all is locked: wait {0} s
+rifiuto.CoreUpgradeLocked,{0} bloccato: sbloccalo in Ricerca (T).,{0} locked: unlock it in Research (T).
+rifiuto.CoreUpgradeInProgress,Il CORE è già in potenziamento,The CORE is already being upgraded
+rifiuto.CoreUpgradeBlocked,Le celle nuove del CORE devono essere libere e costruibili,The CORE's new cells must be free and buildable
+rifiuto.CoreUpgradeOutOfMap,Il CORE uscirebbe dalla mappa,The CORE would go off the map
+rifiuto.CoreMaxTier,Il CORE è già al livello massimo,The CORE is already at the top tier
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.
@@ -287,6 +305,12 @@ mercato.vendi.cento,Vendi 100,Sell 100
 mercato.crollo,Crollo · {0},Crash · {0}
 mercato.attesa,Vendi tutto bloccato ancora {0} s,Sell all locked for {0} s
 mercato.auto.oggetto,Automatica,Auto
+mercato.auto.pieno,Solo a CORE pieno,Only when CORE full
+mercato.auto.pieno.suggerimento,Vende solo quanto serve a tenere l'oggetto al massimo del CORE,Sells only what keeps the item at the CORE maximum
+mercato.auto.pieno.attivata,Vendita automatica solo a CORE pieno.,Auto-sell only when the CORE is full.
+mercato.auto.pieno.disattivata,Vendita automatica anche sotto il massimo.,Auto-sell also below the maximum.
+mercato.quantita.pieno,{0}/{1} pieno,{0}/{1} full
+mercato.quantita.suggerimento,In scorta / massimo del CORE,In stock / CORE maximum
 mercato.jackpot,JACKPOT! +${0},JACKPOT! +${0}
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
 ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
@@ -331,6 +355,10 @@ struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal fo
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Power node T1 · 1×1 · range 6 · links to generators by itself
 struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Power node T2 · 2×2 · range 10 · links to generators by itself
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
+struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
+struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
+struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
+struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
 tutorial.passo.1,"Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.","Move the view: WASD, hold the wheel, or drag with the left button (in cursor mode). Wheel = zoom · H goes back to the CORE."
 tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categorie (Logistica, Produzione, Potenza); una categoria compare quando ne sblocchi un blocco. Scegli uno strumento (o premi 1–9). Esc torna al cursore.","The palette is bottom right: the category icons on its right (Logistics, Production, Power); a category shows up once you unlock one of its blocks. Pick a tool (or press 1–9). Esc goes back to the cursor."
 tutorial.passo.3,Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. Il minerale esce su ogni nastro accanto. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.,Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. Ore comes out on any belt beside it. Your drone builds what you plan: watch it fly and draw the block.
@@ -346,7 +374,7 @@ tutorial.avanti.suggerimento,Il passo avanza da solo quando lo completi · Invio
 tutorial.passo,Tutorial {0}/{1},Tutorial {0}/{1}
 tutorial.fine,Fine,Done
 salvataggi.errore.Unreadable,Salvataggio non leggibile.,Save file not readable.
-salvataggi.errore.OlderVersion,Salvataggio di una versione precedente: non compatibile.,Save from an older version: not compatible.
+salvataggi.errore.OlderVersion,"Salvataggio di una versione precedente, non più supportata.","Save from an older version, no longer supported."
 salvataggi.errore.MapInvalidSize,Mappa del salvataggio non valida (misura {0}).,Invalid save map (size {0}).
 salvataggi.errore.UnknownGenerator,"Generatore di mappa sconosciuto nel salvataggio: ""{0}"". Il salvataggio è di un'altra versione.","Unknown map generator in the save: ""{0}"". The save is from another version."
 salvataggi.errore.TerrainChanged,"Il terreno rigenerato con ""{0}"" non corrisponde al salvataggio: la partita è di una versione con un generatore di mappe diverso.","The terrain made by ""{0}"" does not match the save: the game is from a version with a different map generator."

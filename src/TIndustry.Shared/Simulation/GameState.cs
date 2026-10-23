@@ -27,16 +27,40 @@ public sealed class GameState
     {
         Content = content;
         Belts = belts;
-        CoreTiles = coreTiles;
         Wallet = wallet;
         Research = research;
         Session = session;
         Exchange = new MarketState(content, 0);
+        Storage = new CoreStorage(this);
+        // Given cells (new games, restored saves, tests): kept as they are, origin = their top-left corner.
+        this.coreTiles = [.. coreTiles];
+        CoreOrigin = coreTiles.Count == 0
+            ? default
+            : new GridPosition(coreTiles.Min(t => t.X), coreTiles.Min(t => t.Y));
+        CoreStart = CoreOrigin;
     }
 
     public FactoryContent Content { get; }
     public BeltGrid Belts { get; }
-    public IReadOnlySet<GridPosition> CoreTiles { get; }
+    private HashSet<GridPosition> coreTiles;
+
+    /// <summary>Cells of the Core: <see cref="CoreOrigin"/> plus the size of <see cref="CoreTier"/> (<see cref="SetCore"/>).</summary>
+    public IReadOnlySet<GridPosition> CoreTiles => coreTiles;
+
+    /// <summary>Top-left cell of the Core.</summary>
+    public GridPosition CoreOrigin { get; private set; }
+
+    /// <summary>Core tier: index in <see cref="FactoryContent.CoreTiers"/> (0 shard, 1 foundation, 2 nucleus).</summary>
+    public int CoreTier { get; internal set; }
+
+    /// <summary>
+    /// Top-left cell of the Core the game started with: the terrain generators made the map around it, so a save
+    /// regenerates its terrain from it. <see cref="SetCore"/> does not move it.
+    /// </summary>
+    public GridPosition CoreStart { get; internal set; }
+
+    /// <summary>The Core's storage: the single entry point of items into the Core stock.</summary>
+    public CoreStorage Storage { get; }
     public EconomyWallet Wallet { get; }
     public ResearchState Research { get; }
     public EconomySession Session { get; }
@@ -71,6 +95,9 @@ public sealed class GameState
     public List<PowerNode> PowerNodes { get; } = [];
     public List<Lamp> Lamps { get; } = [];
 
+    /// <summary>Containers and vaults, in ascending id order.</summary>
+    public List<StorageBlock> Storages { get; } = [];
+
     /// <summary>Construction and deconstruction sites, in ascending id order.</summary>
     public List<ConstructSite> Sites { get; } = [];
 
@@ -87,7 +114,6 @@ public sealed class GameState
     public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }
-    public int CoreUpgradeLevel { get; set; }
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer { get; set; }
     /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
@@ -109,6 +135,23 @@ public sealed class GameState
         {
             yield return a;
         }
+    }
+
+    /// <summary>
+    /// Puts the Core at <paramref name="origin"/> with tier <paramref name="tier"/>: its cells are recomputed from the
+    /// tier's size and the linked storage blocks are recomputed.
+    /// </summary>
+    public void SetCore(GridPosition origin, int tier)
+    {
+        if (tier < 0 || tier >= Content.CoreTiers.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(tier), tier, "Livello del CORE inesistente.");
+        }
+
+        CoreTier = tier;
+        CoreOrigin = origin;
+        coreTiles = CoreStockSink.MakeCoreTiles(origin, Content.CoreTiers[tier].Size);
+        Storage.RecomputeLinks();
     }
 
     public void SetPowerBuffer(float buffer) =>
@@ -201,12 +244,19 @@ public sealed class GameState
                 }
             }
 
-            if (CoreTiles.Contains(neighbor))
+            // A full Core does not take it: the building keeps the piece in its output buffer.
+            if (CoreTiles.Contains(neighbor) && TryAcceptAtCore(itemId))
             {
                 CoreDeliveredItems++;
-                if (!MarketSales.TryAutoSell(Exchange, Wallet, Session, itemId))
+                return true;
+            }
+
+            // A storage block: linked ones are part of the Core, standalone ones keep the piece up to their space.
+            if (StorageAt(neighbor) is { } storage && TryAcceptAtStorage(storage, itemId))
+            {
+                if (storage.IsLinked)
                 {
-                    Wallet.AddMaterial(itemId, 1);
+                    CoreDeliveredItems++;
                 }
 
                 return true;
@@ -215,6 +265,35 @@ public sealed class GameState
 
         return false;
     }
+
+    /// <summary>The storage block covering <paramref name="tile"/> (lowest id first), or null.</summary>
+    public StorageBlock? StorageAt(GridPosition tile)
+    {
+        foreach (var storage in Storages)
+        {
+            if (storage.Occupies(tile))
+            {
+                return storage;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// One piece of <paramref name="itemId"/> arrives at <paramref name="storage"/> (belt or adjacent building): a
+    /// linked block hands it to the Core (<see cref="TryAcceptAtCore"/>), a standalone one keeps it up to its space.
+    /// False when it does not fit: the caller keeps the piece.
+    /// </summary>
+    internal bool TryAcceptAtStorage(StorageBlock storage, string itemId) =>
+        storage.IsLinked ? TryAcceptAtCore(itemId) : storage.TryAccept(itemId);
+
+    /// <summary>
+    /// One piece of <paramref name="itemId"/> arrives at the Core (belt or adjacent building): stocked through
+    /// <see cref="CoreStorage.TryAccept"/>; auto-sell sells from the stock at its own rate (<see cref="MarketSales.AutoSellTick"/>).
+    /// False when the item is at its maximum: the caller keeps the piece.
+    /// </summary>
+    internal bool TryAcceptAtCore(string itemId) => Storage.TryAccept(itemId);
 
     public bool IsPoweredViaNode(
         GridPosition craftOrigin,

@@ -57,10 +57,6 @@ public sealed record BuildingDefinition(
 /// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
 public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);
 
-public sealed record CoreUpgradeDefinition(
-    int MoneyCost,
-    IReadOnlyList<ResourceAmount> BuildCost);
-
 public sealed record MarketItemDefinition(string ItemId, string DisplayName, int BaseValue);
 
 /// <summary>
@@ -88,7 +84,20 @@ public sealed record StructureDefinition(
     bool UnlockedByDefault,
     UnlockRequirement? Unlock,
     bool IsStub,
-    IReadOnlyList<string> Prerequisites);
+    IReadOnlyList<string> Prerequisites,
+    int ItemCapacity = 0);
+
+/// <summary>
+/// One Core tier of <c>cores</c> (index = tier): footprint <paramref name="Size"/>, pieces per item, pieces/s sold
+/// automatically, the drone it spawns and the build cost of the site (the Research cost lives on the structure).
+/// </summary>
+public sealed record CoreTierDefinition(
+    string Id,
+    int Size,
+    int ItemCapacity,
+    int AutoSellPerSecond,
+    string UnitId,
+    IReadOnlyList<ResourceAmount> BuildCost);
 
 /// <summary>
 /// A floor of <c>terrain.floors</c>: <paramref name="Biome"/> is one of <see cref="TerrainTable.Biomes"/>,

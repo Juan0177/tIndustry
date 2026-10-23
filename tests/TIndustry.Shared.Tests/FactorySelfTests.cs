@@ -33,7 +33,6 @@ public sealed class FactorySelfTests
         nameof(FactoryScenarios.SelfTestSorterBridge),
         nameof(FactoryScenarios.SelfTestResearch),
         nameof(FactoryScenarios.SelfTestMercato),
-        nameof(FactoryScenarios.SelfTestCoreUpgrade),
         nameof(FactoryScenarios.SelfTestAutoSell),
     };
 

@@ -15,20 +15,41 @@ public sealed class FactoryContent
     public IReadOnlyList<MarketItemDefinition> Market { get; init; } = [];
     public MarketRules MarketRules { get; init; } = null!;
     public IReadOnlyList<StructureDefinition> Structures { get; init; } = [];
-    public CoreUpgradeDefinition CoreUpgrade { get; init; } =
-        new(150, [new ResourceAmount("iron-plate", 20)]);
 
     /// <summary>Mindustry's <c>item.cost</c> per item id (build-time weight); missing items weigh 1.</summary>
     public IReadOnlyDictionary<string, float> BuildWeights { get; init; } =
         new Dictionary<string, float>(StringComparer.Ordinal);
 
-    /// <summary>The player's builder drone (Mindustry's alpha).</summary>
-    public UnitDefinition Drone { get; init; } = DefaultDrone;
+    /// <summary>The Core tiers (index = tier 0..2): shard, foundation, nucleus.</summary>
+    public IReadOnlyList<CoreTierDefinition> CoreTiers { get; init; } = DefaultCoreTiers;
+
+    /// <summary>Builder drones by id (<c>alpha</c>, <c>beta</c>, <c>gamma</c>), Mindustry's unit types.</summary>
+    public IReadOnlyDictionary<string, UnitDefinition> Units { get; init; } = DefaultUnits;
+
+    /// <summary>The builder drone of Core tier <paramref name="tier"/> (clamped to the tiers that exist).</summary>
+    public UnitDefinition UnitForTier(int tier) =>
+        Units[CoreTiers[Math.Clamp(tier, 0, CoreTiers.Count - 1)].UnitId];
 
     /// <summary>Floors and walls of the map (<c>terrain</c> section): biome, colour, buildable.</summary>
     public TerrainTable Terrain { get; init; } = TerrainTable.Empty;
 
-    internal static readonly UnitDefinition DefaultDrone = new(0.5f, 27.5f, 22.5f);
+    // Code defaults for content built by hand (tests); the shipped values live in content.json.
+    internal static readonly IReadOnlyDictionary<string, UnitDefinition> DefaultUnits =
+        new Dictionary<string, UnitDefinition>(StringComparer.Ordinal)
+        {
+            ["alpha"] = new(0.5f, 27.5f, 22.5f),
+            ["beta"] = new(0.75f, 27.5f, 24.75f),
+            ["gamma"] = new(1.0f, 27.5f, 26.6f)
+        };
+
+    internal static readonly IReadOnlyList<CoreTierDefinition> DefaultCoreTiers =
+    [
+        new("core-shard", 3, 1000, 10, "alpha", []),
+        new("core-foundation", 4, 4000, 25, "beta",
+            [new("iron-plate", 800), new("copper-wire", 500), new("lead-plate", 400)]),
+        new("core-nucleus", 5, 12000, 60, "gamma",
+            [new("iron-plate", 3000), new("lead-plate", 2000), new("silicon", 1500), new("titanium-plate", 1000)])
+    ];
 
     /// <summary>Build-time weight of one unit of <paramref name="itemId"/> (default 1).</summary>
     public float BuildWeight(string itemId) =>
@@ -107,9 +128,9 @@ public sealed class FactoryContent
         var market = root.Market.Select(MapMarket).ToList();
         var marketRules = MapMarketRules(root.MarketRules);
         var structures = root.Structures.Select(MapStructure).ToList();
-        var coreUpgrade = MapCoreUpgrade(root.Economy?.CoreUpgrade);
         var buildWeights = MapBuildWeights(root.BuildWeights);
-        var drone = MapUnit("drone", root.Units?.Drone);
+        var units = MapUnits(root.Units);
+        var coreTiers = MapCoreTiers(root.Cores, units);
         var terrain = MapTerrain(root.Terrain);
         ValidateLamp(buildings, structures);
 
@@ -121,9 +142,9 @@ public sealed class FactoryContent
             Market = market,
             MarketRules = marketRules,
             Structures = structures,
-            CoreUpgrade = coreUpgrade,
             BuildWeights = buildWeights,
-            Drone = drone,
+            CoreTiers = coreTiers,
+            Units = units,
             Terrain = terrain
         };
     }
@@ -315,6 +336,58 @@ public sealed class FactoryContent
         }
     }
 
+    private static IReadOnlyDictionary<string, UnitDefinition> MapUnits(Dictionary<string, UnitDto>? dtos)
+    {
+        if (dtos is null || dtos.Count == 0)
+        {
+            throw new InvalidDataException("content.json: manca la sezione units.");
+        }
+
+        // Sorted by id so the map never depends on JSON order.
+        var units = new SortedDictionary<string, UnitDefinition>(StringComparer.Ordinal);
+        foreach (var (id, dto) in dtos)
+        {
+            units[id] = MapUnit(id, dto);
+        }
+
+        return new Dictionary<string, UnitDefinition>(units, StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyList<CoreTierDefinition> MapCoreTiers(
+        List<CoreTierDto>? dtos, IReadOnlyDictionary<string, UnitDefinition> units)
+    {
+        if (dtos is null || dtos.Count == 0)
+        {
+            throw new InvalidDataException("content.json: manca la sezione cores.");
+        }
+
+        var tiers = new List<CoreTierDefinition>();
+        foreach (var dto in dtos)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Id) || dto.Size < 1 || dto.ItemCapacity < 1 || dto.AutoSellPerSecond < 1)
+            {
+                throw new InvalidDataException(
+                    $"content.json: cores '{dto.Id}' richiede id, size, itemCapacity e autoSellPerSecond maggiori di zero.");
+            }
+
+            if (!units.ContainsKey(dto.UnitId))
+            {
+                throw new InvalidDataException($"content.json: cores '{dto.Id}': unità '{dto.UnitId}' sconosciuta.");
+            }
+
+            if (tiers.Count > 0 && dto.Size <= tiers[^1].Size)
+            {
+                throw new InvalidDataException($"content.json: cores '{dto.Id}': size deve crescere a ogni livello.");
+            }
+
+            tiers.Add(new CoreTierDefinition(
+                dto.Id, dto.Size, dto.ItemCapacity, dto.AutoSellPerSecond, dto.UnitId,
+                MapAmounts(dto.BuildCost)));
+        }
+
+        return tiers;
+    }
+
     private static UnitDefinition MapUnit(string unitId, UnitDto? dto)
     {
         if (dto is null)
@@ -333,22 +406,6 @@ public sealed class FactoryContent
 
     private static float MapMultiplier(float? multiplier) =>
         multiplier is { } m && m > 0f && float.IsFinite(m) ? m : 1f;
-
-    private static CoreUpgradeDefinition MapCoreUpgrade(CoreUpgradeDto? dto)
-    {
-        if (dto is null)
-        {
-            return new(150, [new ResourceAmount("iron-plate", 20)]);
-        }
-
-        var mats = MapAmounts(dto.BuildCost);
-        if (mats.Count == 0)
-        {
-            mats = [new ResourceAmount("iron-plate", 20)];
-        }
-
-        return new(Math.Max(0, dto.MoneyCost), mats);
-    }
 
     private static ConveyorDefinition MapConveyor(ConveyorDto c) =>
         new(
@@ -471,7 +528,8 @@ public sealed class FactoryContent
             s.IsStub,
             (s.Prerequisites ?? [])
                 .Where(id => !string.IsNullOrWhiteSpace(id))
-                .ToList());
+                .ToList(),
+            Math.Max(0, s.ItemCapacity));
 
     private static IReadOnlyList<ResourceAmount> MapAmounts(List<AmountDto>? list) =>
         (list ?? [])
@@ -507,9 +565,9 @@ public sealed class FactoryContent
         public List<MarketDto> Market { get; set; } = [];
         public MarketRulesDto? MarketRules { get; set; }
         public List<StructureDto> Structures { get; set; } = [];
-        public EconomyDto? Economy { get; set; }
         public Dictionary<string, float>? BuildWeights { get; set; }
-        public UnitsDto? Units { get; set; }
+        public Dictionary<string, UnitDto>? Units { get; set; }
+        public List<CoreTierDto>? Cores { get; set; }
         public TerrainDto? Terrain { get; set; }
     }
 
@@ -543,9 +601,14 @@ public sealed class FactoryContent
         public string? Color { get; set; }
     }
 
-    private sealed class UnitsDto
+    private sealed class CoreTierDto
     {
-        public UnitDto? Drone { get; set; }
+        public string Id { get; set; } = "";
+        public int Size { get; set; }
+        public int ItemCapacity { get; set; }
+        public int AutoSellPerSecond { get; set; }
+        public string UnitId { get; set; } = "";
+        public List<AmountDto>? BuildCost { get; set; }
     }
 
     private sealed class UnitDto
@@ -553,17 +616,6 @@ public sealed class FactoryContent
         public float BuildSpeed { get; set; }
         public float BuildRange { get; set; }
         public float Speed { get; set; }
-    }
-
-    private sealed class EconomyDto
-    {
-        public CoreUpgradeDto? CoreUpgrade { get; set; }
-    }
-
-    private sealed class CoreUpgradeDto
-    {
-        public int MoneyCost { get; set; }
-        public List<AmountDto>? BuildCost { get; set; }
     }
 
     private sealed class ConveyorDto
@@ -661,6 +713,8 @@ public sealed class FactoryContent
         public UnlockDto? Unlock { get; set; }
         public bool IsStub { get; set; }
         public List<string>? Prerequisites { get; set; }
+        /// <summary>Storage blocks only: pieces per item.</summary>
+        public int ItemCapacity { get; set; }
     }
 
     private sealed class AmountDto

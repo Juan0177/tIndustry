@@ -13,15 +13,21 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class DroneVisual : Node2D
 {
-    /// <summary>Alpha, the tier of the starting Core (beta and gamma: <c>drone-2</c>, <c>drone-3</c>).</summary>
-    private const string SpriteId = "drone-1";
+    /// <summary>
+    /// Core tier whose drone this is: 0 alpha (<c>drone-1</c>), 1 beta (<c>drone-2</c>), 2 gamma (<c>drone-3</c>). An
+    /// upgraded Core turns its drone into the next one (<see cref="SetTier"/>).
+    /// </summary>
+    private int _tier;
+
+    private string SpriteId => $"drone-{_tier + 1}";
 
     /// <summary>
-    /// Nose of <c>drone-1</c> and its engine glow from its centre: 10 and 12 art px, drawn ×2 (64 px per tile).
-    /// The tail stub ends at 11 px; the glow sits 1 px past it so half the disc shows behind the hull.
+    /// Nose and engine glow from the drone's centre, from the sprite's half side (24 px alpha: 10 and 12 art px, drawn
+    /// ×2 at 64 px per tile). The tail ends 1 px inside the half side; the glow sits 1 px past it so half the disc shows
+    /// behind the hull.
     /// </summary>
-    private const float NoseTiles = 10f / Sprites.PixelsPerCell;
-    private const float TailTiles = 12f / Sprites.PixelsPerCell;
+    private float _noseTiles = 10f / Sprites.PixelsPerCell;
+    private float _tailTiles = 12f / Sprites.PixelsPerCell;
 
     /// <summary>Engine glow radius (tiles) and its pulse: ±<see cref="EnginePulseTiles"/> at <see cref="EnginePulseRadPerSec"/>.</summary>
     private const float EngineTiles = 0.08f;
@@ -49,7 +55,37 @@ public partial class DroneVisual : Node2D
     // Per node, freed in _ExitTree: no C#-held texture outlives the scene (clean exit without forced GC).
     private ImageTexture? _texture;
 
-    private Texture2D Texture => _texture ??= Enlarged(Sprites.For(SpriteId));
+    private Texture2D Texture
+    {
+        get
+        {
+            if (_texture is null)
+            {
+                var art = Sprites.For(SpriteId);
+                var half = art.GetWidth() / 2f;
+                _noseTiles = (half - 2f) / Sprites.PixelsPerCell;
+                _tailTiles = half / Sprites.PixelsPerCell;
+                _texture = Enlarged(art);
+            }
+
+            return _texture;
+        }
+    }
+
+    /// <summary>The drone of Core tier <paramref name="tier"/> (0 alpha, 1 beta, 2 gamma): a new tier changes its sprite.</summary>
+    public void SetTier(int tier)
+    {
+        tier = Math.Clamp(tier, 0, 2);
+        if (tier == _tier)
+        {
+            return;
+        }
+
+        _tier = tier;
+        _texture?.Dispose();
+        _texture = null;
+        QueueRedraw();
+    }
 
     private static ImageTexture Enlarged(Texture2D art)
     {
@@ -155,7 +191,7 @@ public partial class DroneVisual : Node2D
         if (_trailTimer >= TrailSampleSeconds)
         {
             _trailTimer = 0f;
-            _trail.Enqueue(pos + Heading() * (-TailTiles * World.TileSize));
+            _trail.Enqueue(pos + Heading() * (-_tailTiles * World.TileSize));
             while (_trail.Count > TrailDots)
             {
                 _trail.Dequeue();
@@ -199,11 +235,11 @@ public partial class DroneVisual : Node2D
         DrawTexture(tex, corner, ShadowColor);
         DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
 
-        DrawBeam(heading * (NoseTiles * t));
+        DrawBeam(heading * (_noseTiles * t));
 
         // Engine glow under the tail: accent disc with a hot centre, pulsing (still in playtests).
         var pulse = GameDataPaths.IsPlaytest ? 0f : Mathf.Abs(Mathf.Sin(_clock * EnginePulseRadPerSec));
-        var engine = heading * (-TailTiles * t);
+        var engine = heading * (-_tailTiles * t);
         var radius = (EngineTiles + EnginePulseTiles * pulse) * t;
         DrawCircle(engine, radius, UiColors.Costruzione);
         DrawCircle(engine, radius * 0.5f, Colors.White);

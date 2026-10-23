@@ -73,6 +73,13 @@ public class TestiTests
             Need($"ricetta.{recipe.Id}.nome");
         }
 
+        // The HUD names the Core tier and its drone.
+        foreach (var tier in content.CoreTiers)
+        {
+            Need($"struttura.{tier.Id}.nome");
+            Need($"unita.{tier.UnitId}.nome");
+        }
+
         foreach (var deposit in content.Terrain.Deposits)
         {
             Need($"giacimento.{deposit.Kind.ToString().ToLowerInvariant()}.nome");

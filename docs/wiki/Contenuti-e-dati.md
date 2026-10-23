@@ -8,7 +8,7 @@ Tutti i contenuti di gioco stanno in `data/` e solo lì. Il codice li legge, non
 
 | File | Cosa contiene |
 |---|---|
-| `data/content.json` | Strutture (`structures` con sblocco e prerequisiti, `buildings` e `conveyors` con i parametri), ricette (`recipes`), mercato (`market`), economia (`economy`), pesi di costruzione (`buildWeights`), drone (`units.drone`), tabella del terreno (`terrain`: suoli, pareti, giacimenti con la loro durezza) |
+| `data/content.json` | Strutture (`structures` con sblocco e prerequisiti, `buildings` e `conveyors` con i parametri), ricette (`recipes`), mercato (`market`), economia (`economy`), pesi di costruzione (`buildWeights`), unità (`units`: `alpha`, `beta`, `gamma`), livelli del CORE (`cores`: `size`, `itemCapacity`, `autoSellPerSecond`, `unit`, `buildCost`), tabella del terreno (`terrain`: suoli, pareti, giacimenti con la loro durezza) |
 | `data/campaign.json` | I livelli della campagna (`levels`): mappa, soldi e materiali di partenza, quota di rimborso (`refundPercent`), obiettivi, livello successivo |
 | `data/maps/` | Le mappe della campagna: per ogni livello `<id>.png` (terreno), `<id>.giacimenti.png` (giacimenti) e `<id>.json` (Core, biomi, nota con i parametri) |
 

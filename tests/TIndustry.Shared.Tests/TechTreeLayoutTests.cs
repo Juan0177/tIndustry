@@ -47,6 +47,22 @@ public sealed class TechTreeLayoutTests
     }
 
     [Fact]
+    public void TechTree_CoreBranch()
+    {
+        // The Core tiers hang in their own branch under the root, the first one on the left.
+        Assert.Contains(Graph.Edges, e => e is { FromId: TechTreeLayout.RootId, ToId: "core-foundation", Primary: true });
+        Assert.Contains(Graph.Edges, e => e is { FromId: "core-foundation", ToId: "core-nucleus", Primary: true });
+        var rootChildren = Graph.Edges
+            .Where(e => e.Primary && e.FromId == TechTreeLayout.RootId)
+            .Select(e => Graph.Nodes.Single(n => n.Structure.Id == e.ToId))
+            .OrderBy(n => n.X)
+            .ToList();
+        Assert.Equal("core-foundation", rootChildren[0].Structure.Id);
+        var nucleus = Graph.Nodes.Single(n => n.Structure.Id == "core-nucleus");
+        Assert.True(Graph.Nodes.Where(n => n.Row == nucleus.Row).All(n => n.X >= nucleus.X), "nucleus is the leftmost of its row");
+    }
+
+    [Fact]
     public void NodesNeverOverlap()
     {
         foreach (var row in Graph.Nodes.GroupBy(n => n.Row))

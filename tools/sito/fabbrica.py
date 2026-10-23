@@ -321,6 +321,18 @@ def uscite_dal_basso(scena):
     return {c["fine"][1] for c in catene(scena) if c["fine"][0] == "sotto"}
 
 
+def prosecuzioni(scena):
+    """(column, tier) of every belt leaving the scene from the bottom edge, by column: on phones the section's text
+    stacks under the scene and these belts go on behind it down to the next scene."""
+    tier = {}
+    for e in scena.elementi:
+        if isinstance(e, Tratto) and e.verso == "S":
+            for x, y in e.celle:
+                if y == scena.righe - 1:
+                    tier[x] = e.tier
+    return [(x, tier.get(x, T1)) for x in sorted(uscite_dal_basso(scena))]
+
+
 # ---------------------------------------------------------------- images
 
 class Archivio:

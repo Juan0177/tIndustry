@@ -38,6 +38,7 @@ public sealed class Factory : IGameView
     private List<Extractor> extractors => State.Extractors;
     private List<PowerNode> powerNodes => State.PowerNodes;
     private List<Lamp> lamps => State.Lamps;
+    private List<StorageBlock> storages => State.Storages;
 
     public Factory(
         FactoryContent content,
@@ -83,6 +84,8 @@ public sealed class Factory : IGameView
     public ConveyorDefinition SorterDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
+    public int CoreTier => State.CoreTier;
+    public int CoreCapacity(string itemId) => State.Storage.Capacity(itemId);
     public EconomyWallet Wallet => State.Wallet;
     public ResearchState Research => State.Research;
     public EconomySession Session => State.Session;
@@ -91,13 +94,6 @@ public sealed class Factory : IGameView
         get => State.ActiveCampaignLevelId;
         set => State.ActiveCampaignLevelId = value;
     }
-
-    public int CoreUpgradeLevel
-    {
-        get => State.CoreUpgradeLevel;
-        private set => State.CoreUpgradeLevel = value;
-    }
-
 
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer
@@ -135,6 +131,8 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public IReadOnlyList<Lamp> Lamps => lamps;
+    public IReadOnlyList<StorageBlock> Storages => storagesView ??= storages.AsReadOnly();
+    private IReadOnlyList<StorageBlock>? storagesView;
     public GameRules Rules => State.Rules;
     public long NextItemId => nextItemId;
     public long NextEntityId => nextEntityId;
@@ -266,7 +264,7 @@ public sealed class Factory : IGameView
 
             if (oldCost[i].ItemId is { } itemId)
             {
-                Wallet.AddMaterial(itemId, back);
+                State.Storage.AddClamped(itemId, back);
             }
             else
             {
@@ -296,12 +294,12 @@ public sealed class Factory : IGameView
     private bool IsReplaceableBelt(BuildSpec old, GridPosition origin) =>
         old.Kind is null && old.Origin == origin && Content.FindConveyor(old.StructureId)?.Kind == LogisticsKind.Belt;
 
-    /// <summary>Adds each item to the Core's stock (no sale, not counted as delivered).</summary>
+    /// <summary>Puts each item back in the Core's stock, even over its maximum (no sale, not counted as delivered).</summary>
     private void ItemsToCore(IEnumerable<TransportedItem> items)
     {
         foreach (var item in items)
         {
-            Wallet.AddMaterial(item.ItemId, 1);
+            State.Storage.Return(item.ItemId, 1);
         }
     }
 
@@ -350,7 +348,7 @@ public sealed class Factory : IGameView
 
         if (!TryTakeBeltForReplacement(spec.Origin, out var old))
         {
-            Refund(money, materials);
+            Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
         }
 
@@ -358,7 +356,7 @@ public sealed class Factory : IGameView
         {
             // Cannot happen: the cell was just freed. Put the old belt back and the payment too.
             RestoreReplacedBelt(old);
-            Refund(money, materials);
+            Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
         }
 
@@ -403,16 +401,17 @@ public sealed class Factory : IGameView
     private readonly Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> beltIncoming = new();
     private readonly Dictionary<GridPosition, (GridPosition Origin, int Size, Direction? Out)> ejectorTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingFeeds;
-    // Tiles of buildings that exchange items with belts (miners, crafters, extractors, generators, the Core): belts
+    // Tiles of buildings that exchange items with belts (miners, crafters, extractors, generators, storage, the Core): belts
     // blend with them (visual only). Lamps and power nodes have no item I/O.
     private readonly HashSet<GridPosition> blendTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingBlends;
     private int buildingsVersion;
-    private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
+    private (int Belts, int Buildings, int CoreTier) beltIncomingVersion = (-1, -1, -1);
 
     private Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> BeltIncoming()
     {
-        var version = (Belts.Version, buildingsVersion);
+        // The Core tier too: a finished upgrade (placed through another Factory over the same state) grows the Core.
+        var version = (Belts.Version, buildingsVersion, State.CoreTier);
         if (version == beltIncomingVersion)
         {
             return beltIncoming;
@@ -442,6 +441,11 @@ public sealed class Factory : IGameView
         blendTiles.Clear();
         blendTiles.UnionWith(ejectorTiles.Keys);
         blendTiles.UnionWith(CoreTiles);
+        foreach (var storage in storages)
+        {
+            blendTiles.UnionWith(storage.OccupiedTiles());
+        }
+
         foreach (var generator in generators)
         {
             for (var y = 0; y < Generator.Size; y++)
@@ -726,12 +730,8 @@ public sealed class Factory : IGameView
 
     public FactorySaveData Capture()
     {
-        var coreOrigin = CoreTiles.Count == 0
-            ? new GridPosition(9, 14)
-            : new GridPosition(CoreTiles.Min(t => t.X), CoreTiles.Min(t => t.Y));
-        var coreSize = CoreTiles.Count == 0
-            ? 2
-            : Math.Max(1, (int)Math.Round(Math.Sqrt(CoreTiles.Count)));
+        // The Core's real edge (a hand-made Core of another size is saved as it is and refused on load).
+        var coreSize = (int)Math.Round(Math.Sqrt(CoreTiles.Count));
 
         return new FactorySaveData
         {
@@ -740,9 +740,12 @@ public sealed class Factory : IGameView
             NextEntityId = nextEntityId,
             CurrentTick = CurrentTick,
             CoreDeliveredItems = CoreDeliveredItems,
-            CoreX = coreOrigin.X,
-            CoreY = coreOrigin.Y,
+            CoreX = State.CoreOrigin.X,
+            CoreY = State.CoreOrigin.Y,
             CoreSize = coreSize,
+            CoreTier = CoreTier,
+            CoreStartX = State.CoreStart.X,
+            CoreStartY = State.CoreStart.Y,
             Money = Wallet.Money,
             Materials = SortedByKey(Wallet.MaterialsSnapshot()),
             UnlockedStructures = Research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
@@ -751,7 +754,6 @@ public sealed class Factory : IGameView
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
             Market = State.Exchange.Capture(),
-            CoreUpgradeLevel = CoreUpgradeLevel,
             PowerBuffer = PowerBuffer,
             PowerCapacity = PowerCapacity,
             Seed = Terrain?.Seed ?? 0,
@@ -804,6 +806,18 @@ public sealed class Factory : IGameView
             Lamps = lamps.Count == 0
                 ? null
                 : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
+            Storages = storages.Count == 0
+                ? null
+                : storages.OrderBy(s => s.Id).Select(s => new StorageSaveDto
+                {
+                    Id = s.Id,
+                    Kind = s.Kind.ToString(),
+                    X = s.Origin.X,
+                    Y = s.Origin.Y,
+                    Items = s.ContentsInOrder() is { Count: > 0 } contents
+                        ? SortedByKey(contents.Select(c => new KeyValuePair<string, int>(c.ItemId, c.Count)))
+                        : null
+                }).ToList(),
             Rules = new GameRulesSaveDto
             {
                 RefundPercent = State.Rules.RefundPercent,
@@ -884,26 +898,9 @@ public sealed class Factory : IGameView
             .ThenBy(line => line.ItemId, StringComparer.Ordinal)
             .ToList();
 
-    /// <summary>
-    /// Saved per-item lines of a site (<paramref name="byItem"/>), or, for older v11 saves without them, the
-    /// index lists (<paramref name="byIndex"/>) paired with <paramref name="cost"/>.
-    /// </summary>
-    private static List<(string? ItemId, int Amount)> SavedCostLines(
-        List<CostLineSaveDto>? byItem, List<int>? byIndex, IReadOnlyList<CostEntry> cost)
-    {
-        if (byItem is not null)
-        {
-            return byItem.Select(line => (line.ItemId, line.Amount)).ToList();
-        }
-
-        var lines = new List<(string? ItemId, int Amount)>();
-        for (var i = 0; i < cost.Count && byIndex is not null && i < byIndex.Count; i++)
-        {
-            lines.Add((cost[i].ItemId, byIndex[i]));
-        }
-
-        return lines;
-    }
+    /// <summary>Saved per-item lines of a site (none when absent).</summary>
+    private static List<(string? ItemId, int Amount)> SavedCostLines(List<CostLineSaveDto>? byItem) =>
+        (byItem ?? []).Select(line => (line.ItemId, line.Amount)).ToList();
 
     /// <summary>Amount of the saved line for <paramref name="itemId"/> (0 when the save has none).</summary>
     private static int SavedAmount(List<(string? ItemId, int Amount)> lines, string? itemId)
@@ -994,9 +991,23 @@ public sealed class Factory : IGameView
                 cell.FilterItemId);
         }
 
-        var core = CoreStockSink.MakeCoreTiles(
-            new GridPosition(data.CoreX, data.CoreY),
-            Math.Max(1, data.CoreSize));
+        if (data.CoreTier < 0 || data.CoreTier >= content.CoreTiers.Count)
+        {
+            throw new InvalidDataException($"Livello del CORE {data.CoreTier} inesistente.");
+        }
+
+        if (data.CoreSize != content.CoreTiers[data.CoreTier].Size)
+        {
+            throw new InvalidDataException(
+                $"CORE di lato {data.CoreSize} al livello {data.CoreTier} (lato {content.CoreTiers[data.CoreTier].Size}).");
+        }
+
+        if (data.Market is null)
+        {
+            throw new InvalidDataException("Salvataggio senza mercato.");
+        }
+
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(data.CoreX, data.CoreY), data.CoreSize);
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var research = ResearchState.FromSaved(data.UnlockedStructures, content);
         var session = new EconomySession(data.StartingMoney);
@@ -1006,9 +1017,11 @@ public sealed class Factory : IGameView
             nextItemId = Math.Max(1, data.NextItemId),
             CurrentTick = Math.Max(0, data.CurrentTick),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
-            ActiveCampaignLevelId = data.ActiveCampaignLevelId,
-            CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel)
+            ActiveCampaignLevelId = data.ActiveCampaignLevelId
         };
+        // The cells are the saved ones (CoreSize, checked against the tier above); the tier and start are restored here.
+        factory.State.CoreTier = data.CoreTier;
+        factory.State.CoreStart = new GridPosition(data.CoreStartX, data.CoreStartY);
         factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
@@ -1019,24 +1032,13 @@ public sealed class Factory : IGameView
 
         factory.PowerBuffer = Math.Clamp(data.PowerBuffer, 0f, factory.PowerCapacity);
 
-        // Before the sites: restoring a site checks the terrain under it.
-        factory.Terrain = RestoreTerrain(content, data, factory.CoreTiles, mapsDirectory);
+        // Before the sites: restoring a site checks the terrain under it. The terrain was generated around the
+        // starting shard, whatever the Core has grown into since.
+        factory.Terrain = RestoreTerrain(content, data, StartingShard(content, data), mapsDirectory);
         CheckRegeneratedTerrain(data, factory.Terrain);
 
-        // After the terrain: its setter reseeds the market. Saves up to v13 have none: a fresh one, first spike
-        // 10-20 minutes from now (the old single auto-sell switch is applied to every item).
-        if (data.Market is { } market)
-        {
-            factory.State.Exchange.Restore(market, content.MarketRules, factory.CurrentTick);
-        }
-        else
-        {
-            factory.State.Exchange.Reseed(content.MarketRules, factory.Terrain?.Seed ?? 0, factory.CurrentTick);
-            foreach (var item in factory.State.Exchange.Items)
-            {
-                item.AutoSell = data.AutoSellAtCore;
-            }
-        }
+        // After the terrain: its setter reseeds the market.
+        factory.State.Exchange.Restore(data.Market, content.MarketRules, factory.CurrentTick);
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
@@ -1046,6 +1048,7 @@ public sealed class Factory : IGameView
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
             .Concat((data.Lamps ?? []).Select(d => d.Id))
+            .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
             .DefaultIfEmpty(0)
@@ -1103,6 +1106,22 @@ public sealed class Factory : IGameView
             factory.lamps.Add(new Lamp(new GridPosition(l.X, l.Y), RestoredId(l.Id)));
         }
 
+        foreach (var s in data.Storages ?? [])
+        {
+            if (!Enum.TryParse<BuildingKind>(s.Kind, out var kind) || !BuildSpec.IsStorage(kind))
+            {
+                throw new InvalidDataException($"Magazzino di tipo sconosciuto: '{s.Kind}'.");
+            }
+
+            var storage = factory.NewStorage(kind, new GridPosition(s.X, s.Y), RestoredId(s.Id));
+            foreach (var (itemId, count) in (s.Items ?? []).OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            {
+                storage.Return(itemId, count);
+            }
+
+            factory.storages.Add(storage);
+        }
+
         foreach (var b in data.Builders.OrderBy(b => b.Id))
         {
             var builder = new BuilderUnit(b.Id, b.Owner, b.X, b.Y)
@@ -1135,6 +1154,9 @@ public sealed class Factory : IGameView
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
+        SortById(factory.storages, s => s.Id);
+        // Which storage blocks touch the Core (the saved Core cells and tier are set above).
+        factory.State.Storage.RecomputeLinks();
         factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
     }
@@ -1155,10 +1177,13 @@ public sealed class Factory : IGameView
     /// campaign map file, which must still have the saved size.
     /// </summary>
     private static TerrainMap? RestoreTerrain(
-        FactoryContent content, FactorySaveData data, IReadOnlySet<GridPosition> coreTiles, string? mapsDirectory)
+        FactoryContent content,
+        FactorySaveData data,
+        (GridPosition Origin, int Size) shard,
+        string? mapsDirectory)
     {
-        var core = new GridPosition(data.CoreX, data.CoreY);
-        var coreSize = Math.Max(1, data.CoreSize);
+        var (core, coreSize) = shard;
+        var coreTiles = CoreStockSink.MakeCoreTiles(core, coreSize);
         switch (data.Generator)
         {
             case ClassicTerrainGenerator.Name:
@@ -1197,6 +1222,13 @@ public sealed class Factory : IGameView
                     $"Generatore di mappa sconosciuto nel salvataggio: '{data.Generator}'.");
         }
     }
+
+    /// <summary>
+    /// The Core the game started with (origin and edge), from which the terrain generators made the map: the saved
+    /// start (<see cref="FactorySaveData.CoreStartX"/>, <see cref="FactorySaveData.CoreStartY"/>) with the shard's edge.
+    /// </summary>
+    internal static (GridPosition Origin, int Size) StartingShard(FactoryContent content, FactorySaveData data) =>
+        (new GridPosition(data.CoreStartX, data.CoreStartY), content.CoreTiers[0].Size);
 
     /// <summary>
     /// A terrain regenerated from a generator (classic or biomes) must be the saved one: a generator changed
@@ -1275,8 +1307,8 @@ public sealed class Factory : IGameView
         var spec = RestoreSpec(d.Spec);
         var refundBasisPoints = Math.Clamp(d.RefundBasisPoints, 0, Construction.FullRefundBasisPoints);
         var savedCost = CostOf(spec);
-        var spent = SavedCostLines(d.SpentByItem, d.Spent, savedCost);
-        var refunded = SavedCostLines(d.RefundedByItem, d.Refunded, savedCost);
+        var spent = SavedCostLines(d.SpentByItem);
+        var refunded = SavedCostLines(d.RefundedByItem);
         // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
         var tiles = !IsValidSpec(spec) ? null
             : d.Tiles.Count > 0 ? d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList()
@@ -1344,13 +1376,14 @@ public sealed class Factory : IGameView
                 return;
             }
 
+            // Pieces taken from the Core and never delivered: they come back whole, even above the maximum.
             if (itemId is null)
             {
                 Wallet.AddMoney(amount);
             }
             else
             {
-                Wallet.AddMaterial(itemId, amount);
+                State.Storage.Return(itemId, amount);
             }
         }
     }
@@ -1431,7 +1464,7 @@ public sealed class Factory : IGameView
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -1477,7 +1510,7 @@ public sealed class Factory : IGameView
         var wire = content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -1556,7 +1589,7 @@ public sealed class Factory : IGameView
         var wire = content.FindRecipe("craft-copper-wire")
             ?? throw new InvalidDataException("Ricetta craft-copper-wire mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -1812,6 +1845,14 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var storage in storages)
+        {
+            if (storage.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -1868,40 +1909,164 @@ public sealed class Factory : IGameView
         item.Phase == MarketPhase.Crash
             ? (int)Math.Max(0, (item.CrashEndTick - CurrentTick + SimulationClock.TickRate - 1) / SimulationClock.TickRate)
             : 0,
-        item.AutoSell, item.HistoryMilli.ToArray());
+        item.AutoSell, item.AutoSellWhenFull, item.HistoryMilli.ToArray());
 
-    public bool TryUpgradeCore()
+    // ---- Core upgrade (the next tier's block, placed over the Core) ----
+
+    /// <summary>
+    /// The block that upgrades the Core to the next tier, where the growth rule puts it: the foundation at the shard's
+    /// origin (one more column right, one more row down), the nucleus one cell up and left of the foundation's
+    /// origin (one more row up, one more column left: centred on the starting shard). Null at the last tier.
+    /// </summary>
+    public BuildSpec? CoreUpgradeSpec()
     {
-        var upgrade = Content.CoreUpgrade;
-        if (CoreUpgradeLevel > 0
-            || !Wallet.TrySpend(upgrade.MoneyCost, upgrade.BuildCost))
+        var next = CoreTier + 1;
+        if (next >= Content.CoreTiers.Count || next > 2)
+        {
+            return null;
+        }
+
+        var kind = next == 1 ? BuildingKind.CoreFoundation : BuildingKind.CoreNucleus;
+        var origin = State.CoreOrigin;
+        if (next == 2)
+        {
+            origin = new GridPosition(origin.X - 1, origin.Y - 1);
+        }
+
+        return new BuildSpec(BuildSpec.StructureIdFor(kind)!, kind, origin, Direction.East);
+    }
+
+    /// <summary>The cells the next upgrade adds to the Core, row by row (empty at the last tier).</summary>
+    public IReadOnlyList<GridPosition> CoreUpgradeNewTiles() =>
+        CoreUpgradeSpec() is { } spec ? Footprint(spec) : [];
+
+    /// <summary>
+    /// Why the Core cannot be upgraded now, in this order: <see cref="RefusalCode.CoreMaxTier"/>,
+    /// <see cref="RefusalCode.CoreUpgradeInProgress"/> (a plan or a site under construction),
+    /// <see cref="RefusalCode.CoreUpgradeLocked"/> (with the structure id), <see cref="RefusalCode.CoreUpgradeOutOfMap"/>,
+    /// <see cref="RefusalCode.CoreUpgradeBlocked"/> (a new cell taken, planned or not buildable); null when it can be
+    /// placed. Resources are not checked: the site waits for them (instant build checks them on placing).
+    /// </summary>
+    public Refusal? CoreUpgradeRefusal()
+    {
+        if (CoreUpgradeSpec() is not { } spec)
+        {
+            return RefusalCode.CoreMaxTier;
+        }
+
+        if (IsCoreUpgradeUnderWay())
+        {
+            return RefusalCode.CoreUpgradeInProgress;
+        }
+
+        if (!IsStructureUnlocked(spec.StructureId))
+        {
+            return new Refusal(RefusalCode.CoreUpgradeLocked, spec.StructureId);
+        }
+
+        if (CorePlacementRefusal(spec) is { } placement)
+        {
+            return placement;
+        }
+
+        return Footprint(spec).Any(IsPlannedTile) ? RefusalCode.CoreUpgradeBlocked : null;
+    }
+
+    /// <summary>True when a Core upgrade is planned (not breaking) or its site is being built.</summary>
+    private bool IsCoreUpgradeUnderWay()
+    {
+        foreach (var site in State.Sites)
+        {
+            if (!site.Deconstructing && BuildSpec.IsCoreUpgrade(site.Spec.Kind))
+            {
+                return true;
+            }
+        }
+
+        foreach (var builder in State.Builders)
+        {
+            foreach (var plan in builder.Plans)
+            {
+                if (!plan.Breaking && BuildSpec.IsCoreUpgrade(plan.Spec.Kind))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Where a Core block may stand: null when <paramref name="spec"/> is the next upgrade (<see cref="CoreUpgradeSpec"/>)
+    /// and its new cells are inside the map and free (no Core, building, belt, site, wall or deep water); otherwise
+    /// <see cref="RefusalCode.CoreMaxTier"/>, <see cref="RefusalCode.CoreUpgradeBlocked"/> (wrong block or origin, a
+    /// cell taken) or <see cref="RefusalCode.CoreUpgradeOutOfMap"/>. Plans are not looked at (the drone's own plan
+    /// covers the cells when it starts the site).
+    /// </summary>
+    private RefusalCode? CorePlacementRefusal(BuildSpec spec)
+    {
+        if (CoreUpgradeSpec() is not { } next)
+        {
+            return RefusalCode.CoreMaxTier;
+        }
+
+        if (spec.Kind != next.Kind || spec.Origin != next.Origin)
+        {
+            return RefusalCode.CoreUpgradeBlocked;
+        }
+
+        var tiles = Footprint(next);
+        if (tiles.Any(t => t.X < 0 || t.Y < 0 || (Terrain is { } terrain && !terrain.InBounds(t))))
+        {
+            return RefusalCode.CoreUpgradeOutOfMap;
+        }
+
+        return tiles.All(CanOccupy) ? null : RefusalCode.CoreUpgradeBlocked;
+    }
+
+    /// <summary>The Core tier whose block or structure id is <paramref name="structureId"/> (1 or 2), or -1.</summary>
+    private int CoreTierFor(string structureId)
+    {
+        for (var tier = 1; tier < Content.CoreTiers.Count; tier++)
+        {
+            if (string.Equals(Content.CoreTiers[tier].Id, structureId, StringComparison.Ordinal))
+            {
+                return tier;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Finishes a Core upgrade: the Core takes the new tier's size at <paramref name="spec"/>'s origin (its stock stays,
+    /// maximum, auto-sell rate and drone follow the tier) and linked storage is recomputed. With
+    /// <paramref name="charge"/> the tier's build cost is paid first (fails, unchanged, when the Core is short).
+    /// </summary>
+    private bool PlaceCoreUpgrade(BuildSpec spec, bool charge)
+    {
+        if (CorePlacementRefusal(spec) is not null)
         {
             return false;
         }
 
-        CoreUpgradeLevel = 1;
-        return true;
-    }
-
-    /// <summary>
-    /// Why the Core cannot be upgraded now: <see cref="RefusalCode.CoreAlreadyUpgraded"/>, the shortfall
-    /// (<see cref="RefusalCode.InsufficientResources"/>), or null when the upgrade is affordable.
-    /// </summary>
-    public Refusal? CoreUpgradeRefusal()
-    {
-        if (CoreUpgradeLevel > 0)
+        var tier = BuildSpec.CoreTierOf(spec.Kind);
+        if (charge && !TryCharge(0, Content.CoreTiers[tier].BuildCost))
         {
-            return RefusalCode.CoreAlreadyUpgraded;
+            return false;
         }
 
-        var upgrade = Content.CoreUpgrade;
-        return ShortfallOf(upgrade.MoneyCost, upgrade.BuildCost, structureId: null);
+        // SetCore recomputes the Core's cells and the linked storage blocks.
+        State.SetCore(spec.Origin, tier);
+        buildingsVersion++;
+        return true;
     }
 
     /// <summary>Longest map edge (the "enorme" normal map); campaign and restored maps are clamped to it.</summary>
     public const int MaxMapEdge = 2000;
 
-    public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 2) =>
+    public static GridPosition CenteredCoreOrigin(int mapWidth, int mapHeight, int coreSize = 3) =>
         new(
             Math.Max(0, (Math.Max(coreSize, mapWidth) - coreSize) / 2),
             Math.Max(0, (Math.Max(coreSize, mapHeight) - coreSize) / 2));
@@ -1950,6 +2115,8 @@ public sealed class Factory : IGameView
         "power-node" => "power-node",
         "power-node-t2" => "power-node-t2",
         "lamp" => Lamp.BuildingId,
+        "container" => "container",
+        "vault" => "vault",
         _ => null
     };
 
@@ -1971,6 +2138,11 @@ public sealed class Factory : IGameView
             return Wallet.CanAfford(
                 conveyor.MoneyCost * multiplicity,
                 ScaleAmounts(conveyor.EffectiveBuildCost, multiplicity));
+        }
+
+        if (CoreTierFor(structureId) is var tier and > 0)
+        {
+            return Wallet.CanAfford(0, Content.CoreTiers[tier].BuildCost);
         }
 
         return true;
@@ -1995,6 +2167,11 @@ public sealed class Factory : IGameView
         {
             money = conveyor.MoneyCost * multiplicity;
             mats = ScaleAmounts(conveyor.EffectiveBuildCost, multiplicity);
+        }
+        else if (CoreTierFor(structureId) is var tier and > 0)
+        {
+            money = 0;
+            mats = Content.CoreTiers[tier].BuildCost;
         }
         else
         {
@@ -2028,7 +2205,12 @@ public sealed class Factory : IGameView
     private bool TryCharge(int money, IReadOnlyList<ResourceAmount> materials) =>
         Wallet.TrySpend(money, materials);
 
-    private void Refund(int money, IReadOnlyList<ResourceAmount> materials, int refundPercent = 100)
+    /// <summary>
+    /// Gives back the <paramref name="refundPercent"/> share of a cost. A refund (removal) enters the Core up to the
+    /// maximum (<see cref="CoreStorage.AddClamped"/>); with <paramref name="putBack"/> it is a payment taken back by a
+    /// failed operation and enters whole (<see cref="CoreStorage.Return"/>).
+    /// </summary>
+    private void Refund(int money, IReadOnlyList<ResourceAmount> materials, int refundPercent = 100, bool putBack = false)
     {
         var pct = Math.Clamp(refundPercent, 0, 100);
         if (pct <= 0)
@@ -2040,9 +2222,18 @@ public sealed class Factory : IGameView
         foreach (var entry in materials)
         {
             var amount = Construction.RefundShare(entry.Amount, pct * 100);
-            if (amount > 0)
+            if (amount <= 0)
             {
-                Wallet.AddMaterial(entry.ItemId, amount);
+                continue;
+            }
+
+            if (putBack)
+            {
+                State.Storage.Return(entry.ItemId, amount);
+            }
+            else
+            {
+                State.Storage.AddClamped(entry.ItemId, amount);
             }
         }
     }
@@ -2055,11 +2246,12 @@ public sealed class Factory : IGameView
             ScaleAmounts(def.EffectiveBuildCost, multiplicity));
     }
 
-    private void RefundConveyor(ConveyorDefinition def, int multiplicity = 1) =>
+    private void RefundConveyor(ConveyorDefinition def, int multiplicity = 1, bool putBack = false) =>
         Refund(
             def.MoneyCost * Math.Max(1, multiplicity),
             ScaleAmounts(def.EffectiveBuildCost, Math.Max(1, multiplicity)),
-            refundPercent: 100);
+            refundPercent: 100,
+            putBack);
 
     private bool TryChargeBuilding(string buildingId)
     {
@@ -2244,11 +2436,29 @@ public sealed class Factory : IGameView
 
         var size = FootprintSize(spec);
         var tiles = new List<GridPosition>(size * size);
+        // A Core block covers only the cells it adds: its square less the previous tier's Core, which the growth
+        // rule puts at the same origin (foundation over the shard) or one cell down and right (nucleus over the
+        // foundation). Fixed by the spec alone, so a plan, its site and a saved site agree.
+        var previous = (Origin: default(GridPosition), Size: 0);
+        if (BuildSpec.CoreTierOf(spec.Kind) is var tier and > 0)
+        {
+            var shift = tier >= 2 ? 1 : 0;
+            previous = (new GridPosition(spec.Origin.X + shift, spec.Origin.Y + shift), Content.CoreTiers[tier - 1].Size);
+        }
+
         for (var y = 0; y < size; y++)
         {
             for (var x = 0; x < size; x++)
             {
-                tiles.Add(new GridPosition(spec.Origin.X + x, spec.Origin.Y + y));
+                var tile = new GridPosition(spec.Origin.X + x, spec.Origin.Y + y);
+                if (previous.Size > 0
+                    && tile.X >= previous.Origin.X && tile.X < previous.Origin.X + previous.Size
+                    && tile.Y >= previous.Origin.Y && tile.Y < previous.Origin.Y + previous.Size)
+                {
+                    continue;
+                }
+
+                tiles.Add(tile);
             }
         }
 
@@ -2325,6 +2535,12 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        if (BuildSpec.IsCoreUpgrade(spec.Kind))
+        {
+            reason = CorePlacementRefusal(spec);
+            return reason is null;
+        }
+
         var ok = spec.Kind switch
         {
             null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter =>
@@ -2354,6 +2570,11 @@ public sealed class Factory : IGameView
     public RefusalCode RefusalReason(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (BuildSpec.IsCoreUpgrade(spec.Kind))
+        {
+            return CorePlacementRefusal(spec) ?? RefusalCode.CoreUpgradeBlocked;
+        }
+
         var reason = RefusalReason(Footprint(spec));
         if (reason == RefusalCode.Occupied
             && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
@@ -2441,6 +2662,12 @@ public sealed class Factory : IGameView
                 return PlacePowerNode(origin, PowerNode.Tier2Id, charge);
             case BuildingKind.Lamp:
                 return PlaceLamp(origin, charge);
+            case BuildingKind.CoreFoundation:
+            case BuildingKind.CoreNucleus:
+                return PlaceCoreUpgrade(spec, charge);
+            case BuildingKind.Container:
+            case BuildingKind.Vault:
+                return PlaceStorage(spec, charge);
             default:
                 return false;
         }
@@ -2516,6 +2743,16 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var s in storages)
+        {
+            if (s.Occupies(tile))
+            {
+                spec = new BuildSpec(s.StructureId, s.Kind, s.Origin, Direction.East);
+                entityId = s.Id;
+                return true;
+            }
+        }
+
         if (Belts.TryGet(tile, out var cell))
         {
             entityId = 0;
@@ -2583,7 +2820,7 @@ public sealed class Factory : IGameView
             var amount = Construction.RefundShare(entry.Amount, basisPoints);
             if (entry.ItemId is { } itemId)
             {
-                Wallet.AddMaterial(itemId, amount);
+                State.Storage.AddClamped(itemId, amount);
             }
             else if (amount > 0)
             {
@@ -2599,6 +2836,8 @@ public sealed class Factory : IGameView
         BuildingKind.Generator => Generator.Size,
         BuildingKind.Extractor => Extractor.Size,
         BuildingKind.PowerNodeT2 => 2,
+        BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => Content.CoreTiers[BuildSpec.CoreTierOf(spec.Kind)].Size,
+        BuildingKind.Container or BuildingKind.Vault => StorageBlock.SizeOf(spec.Kind),
         _ => 1
     };
 
@@ -2646,7 +2885,7 @@ public sealed class Factory : IGameView
         {
             if (charge)
             {
-                RefundConveyor(def);
+                RefundConveyor(def, putBack: true);
             }
 
             return false;
@@ -2673,7 +2912,7 @@ public sealed class Factory : IGameView
         {
             if (charge)
             {
-                RefundConveyor(def);
+                RefundConveyor(def, putBack: true);
             }
 
             return false;
@@ -2704,7 +2943,7 @@ public sealed class Factory : IGameView
         {
             if (charge)
             {
-                RefundConveyor(BridgeDefinition, multiplicity: 2);
+                RefundConveyor(BridgeDefinition, multiplicity: 2, putBack: true);
             }
 
             return false;
@@ -2856,6 +3095,33 @@ public sealed class Factory : IGameView
         return true;
     }
 
+    /// <summary>
+    /// Places a container or vault and recomputes the links: touching the Core it adds its space to every item's
+    /// maximum, elsewhere it keeps its own contents.
+    /// </summary>
+    private bool PlaceStorage(BuildSpec spec, bool charge)
+    {
+        var size = StorageBlock.SizeOf(spec.Kind);
+        if (!CanOccupyFootprint(spec.Origin, size) || (charge && !TryChargeBuilding(spec.StructureId)))
+        {
+            return false;
+        }
+
+        buildingsVersion++; // belts blend with storage blocks
+        storages.Add(NewStorage(spec.Kind!.Value, spec.Origin, nextEntityId++));
+        State.Storage.RecomputeLinks();
+        return true;
+    }
+
+    /// <summary>A storage block of <paramref name="kind"/> with the capacity of its structure in the content.</summary>
+    private StorageBlock NewStorage(BuildingKind kind, GridPosition origin, long id)
+    {
+        var structureId = BuildSpec.StructureIdFor(kind)!;
+        var capacity = Content.FindStructure(structureId)?.ItemCapacity
+            ?? throw new InvalidDataException($"content.json: struttura {structureId} mancante.");
+        return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity);
+    }
+
     /// <summary>Removes the building on <paramref name="tile"/> without refund; returns its definition id.</summary>
     private bool TryRemoveBuildingEntity(GridPosition tile, out string buildingId)
     {
@@ -2926,6 +3192,18 @@ public sealed class Factory : IGameView
             {
                 buildingId = Lamp.BuildingId;
                 lamps.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = storages.Count - 1; i >= 0; i--)
+        {
+            if (storages[i].Occupies(tile))
+            {
+                // Its contents are lost; a linked block takes its space away from the Core (the stock stays).
+                buildingId = storages[i].StructureId;
+                storages.RemoveAt(i);
+                State.Storage.RecomputeLinks();
                 return true;
             }
         }

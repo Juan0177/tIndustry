@@ -4,18 +4,17 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 10 was the
-/// first format where a save file is metadata plus this snapshot; version 11 adds the rules, drones,
-/// plan queues and construction sites; version 12 names the terrain generator (<see cref="Generator"/>,
-/// <see cref="MapSize"/>, <see cref="MapId"/>); version 13 lets a site remember the belt it replaces
-/// (<see cref="SiteSaveDto.Replaced"/>). Version 14 saves the whole market (<see cref="Market"/>). Versions 11 (classic terrain), 12 and 13 are still read, with a fresh market; older files are not.
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 15: the Core grows by
+/// tiers (<see cref="CoreTier"/>, <see cref="CoreStartX"/>/<see cref="CoreStartY"/>), containers and vaults
+/// (<see cref="Storages"/>) and the market with the auto-sell rate (<see cref="Market"/>). Older versions are not read
+/// (the game is not out yet): they get <see cref="SaveLoadError.OlderVersion"/>.
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 14;
+    public const int CurrentVersion = 15;
 
-    /// <summary>Oldest version still read: v11 saves load on the classic generator, v11 and v12 have no replacement sites.</summary>
-    public const int MinReadableVersion = 11;
+    /// <summary>Oldest version still read: only the current one.</summary>
+    public const int MinReadableVersion = 15;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -27,9 +26,19 @@ public sealed class FactorySaveData
     /// <summary>Fixed simulation ticks elapsed.</summary>
     public long CurrentTick { get; set; }
     public long CoreDeliveredItems { get; set; }
-    public int CoreX { get; set; } = 9;
-    public int CoreY { get; set; } = 14;
-    public int CoreSize { get; set; } = 2;
+    /// <summary>Top-left cell of the Core.</summary>
+    public int CoreX { get; set; }
+    public int CoreY { get; set; }
+    /// <summary>Edge of the Core: must be the size of <see cref="CoreTier"/>, or the save is unreadable.</summary>
+    public int CoreSize { get; set; }
+    /// <summary>Core tier (index in <see cref="FactoryContent.CoreTiers"/>: 0 shard, 1 foundation, 2 nucleus).</summary>
+    public int CoreTier { get; set; }
+    /// <summary>
+    /// Top-left cell of the Core the game started with (<see cref="GameState.CoreStart"/>): the terrain generators made
+    /// the map around it, so the terrain is regenerated from it whatever the Core has grown into.
+    /// </summary>
+    public int CoreStartX { get; set; }
+    public int CoreStartY { get; set; }
     public int Money { get; set; }
     public Dictionary<string, int> Materials { get; set; } = new(StringComparer.Ordinal);
     public List<string> UnlockedStructures { get; set; } = [];
@@ -37,15 +46,8 @@ public sealed class FactorySaveData
     public int SaleIncome { get; set; }
     public Dictionary<string, int> SoldByItem { get; set; } = new(StringComparer.Ordinal);
     public string? ActiveCampaignLevelId { get; set; }
-    /// <summary>Old saves (up to v13) only: one switch for every item; v14 saves auto-sell per item in <see cref="Market"/>.</summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool AutoSellAtCore { get; set; }
-    public int CoreUpgradeLevel { get; set; }
-    /// <summary>The market (prices, phases, random stream, history); null in saves up to v13, which start a fresh one.</summary>
+    /// <summary>The market (prices, phases, random stream, history, auto-sell); a save without it is unreadable.</summary>
     public MarketSaveDto? Market { get; set; }
-    /// <summary>Old saves only: the CORE no longer gives a sale bonus, the value is read and ignored.</summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public int CoreSaleBonusPercent { get; set; }
     public float PowerBuffer { get; set; }
     public float PowerCapacity { get; set; }
     /// <summary>Terrain seed (0 = no terrain).</summary>
@@ -54,8 +56,7 @@ public sealed class FactorySaveData
     public int MapHeight { get; set; }
 
     /// <summary>
-    /// Terrain generator: <c>"classico"</c> (default, also for v11 saves that lack it), <c>"biomi-1"</c>
-    /// (<c>"biomi"</c> in older v12 files)
+    /// Terrain generator: <c>"classico"</c>, <c>"biomi-1"</c> (also called <c>"biomi"</c>)
     /// (regenerated with <see cref="MapGenSettings.Normal"/> of <see cref="MapSize"/> and <see cref="Seed"/>) or
     /// <c>"campagna"</c> (the map file <see cref="MapId"/>).
     /// </summary>
@@ -66,7 +67,7 @@ public sealed class FactorySaveData
 
     /// <summary>
     /// <see cref="TerrainMap.TerrainHash"/> of the terrain when saved. A terrain regenerated from a generator
-    /// must match it, or the load fails; null in v12 files written before it (no check).
+    /// must match it, or the load fails; null when there is no terrain.
     /// </summary>
     public ulong? TerrainHash { get; set; }
 
@@ -79,8 +80,10 @@ public sealed class FactorySaveData
     public List<GeneratorSaveDto> Generators { get; set; } = [];
     public List<ExtractorSaveDto> Extractors { get; set; } = [];
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
-    /// <summary>Lamps (G3, additive in v12): null when there are none, so saves without lamps keep their bytes.</summary>
+    /// <summary>Lamps: null when there are none.</summary>
     public List<LampSaveDto>? Lamps { get; set; }
+    /// <summary>Containers and vaults, in id order: null when there are none.</summary>
+    public List<StorageSaveDto>? Storages { get; set; }
     public List<BeltSaveDto> Belts { get; set; } = [];
     public GameRulesSaveDto Rules { get; set; } = new();
     /// <summary>Construction drones, in id order.</summary>
@@ -93,7 +96,7 @@ public sealed class GameRulesSaveDto
 {
     public int RefundPercent { get; set; } = 100;
     public bool InstantBuild { get; set; }
-    /// <summary>Night (G3, additive in v12): written only when true, so day games keep their bytes and checksum.</summary>
+    /// <summary>Night: written only when true.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Night { get; set; }
 }
@@ -103,6 +106,18 @@ public sealed class LampSaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
+}
+
+/// <summary>A container or vault: kind name, origin and, when standalone, its contents in ordinal item order.</summary>
+public sealed class StorageSaveDto
+{
+    public long Id { get; set; }
+    /// <summary><see cref="BuildingKind"/> name (<c>Container</c> or <c>Vault</c>).</summary>
+    public string Kind { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    /// <summary>Pieces per item of a standalone block, written in ordinal key order; null when empty (linked blocks are).</summary>
+    public Dictionary<string, int>? Items { get; set; }
 }
 
 public sealed class BuildSpecSaveDto
@@ -135,7 +150,7 @@ public sealed class BuilderSaveDto
     public List<BuildPlanSaveDto> Plans { get; set; } = [];
 }
 
-/// <summary>The market of a v14 save: random stream, sell-all cooldown and one entry per item.</summary>
+/// <summary>The market of a save: random stream, sell-all cooldown and one entry per item.</summary>
 public sealed class MarketSaveDto
 {
     public ulong RandomState { get; set; }
@@ -168,6 +183,9 @@ public sealed class MarketItemSaveDto
     public long WindowSecond { get; set; }
     public int PityMisses { get; set; }
     public bool AutoSell { get; set; }
+    public bool AutoSellWhenFull { get; set; }
+    /// <summary>Fraction of a piece owed by the auto-sell rate, in sixtieths of a piece (0..59).</summary>
+    public int AutoSellCarry { get; set; }
     public List<int> History { get; set; } = [];
 }
 
@@ -191,13 +209,7 @@ public sealed class SiteSaveDto
     /// <summary>Given back so far, same lines as <see cref="SpentByItem"/>.</summary>
     public List<CostLineSaveDto>? RefundedByItem { get; set; }
 
-    /// <summary>Older v11 saves: spent per cost line by index (read only when <see cref="SpentByItem"/> is absent).</summary>
-    public List<int>? Spent { get; set; }
-
-    /// <summary>Older v11 saves: refunded per cost line by index.</summary>
-    public List<int>? Refunded { get; set; }
-
-    /// <summary>Ticks in a row the site has been stalled while worked on (absent in older v11 saves: 0).</summary>
+    /// <summary>Ticks in a row the site has been stalled while worked on.</summary>
     public int StalledTicks { get; set; }
 
     public bool Deconstructing { get; set; }
@@ -205,7 +217,7 @@ public sealed class SiteSaveDto
     public int RefundBasisPoints { get; set; }
     public int Owner { get; set; }
 
-    /// <summary>The belt a replacement site took away (v13; written only for replacement sites).</summary>
+    /// <summary>The belt a replacement site took away (written only for replacement sites).</summary>
     public ReplacedSaveDto? Replaced { get; set; }
 }
 
@@ -315,7 +327,7 @@ public sealed class ItemSaveDto
 }
 
 /// <summary>
-/// Save file (v10 onwards, one JSON file per slot): the fields the slot list needs, plus the canonical snapshot
+/// Save file (one JSON file per slot): the fields the slot list needs, plus the canonical snapshot
 /// (<see cref="Snapshot"/>, base64) holding the whole game state. The pending command queue and the
 /// simulation clock are not saved: a save is the applied state at a tick boundary.
 /// </summary>
@@ -328,10 +340,7 @@ public sealed class SaveFileData
     public int MapWidth { get; set; }
     public int MapHeight { get; set; }
     public string? ActiveCampaignLevelId { get; set; }
-    /// <summary>
-    /// Terrain generator for the slot list (<see cref="FactorySaveData.Generator"/>); absent in files written before
-    /// it was listed (v11 and early v12), which the list shows as classic or by size only.
-    /// </summary>
+    /// <summary>Terrain generator for the slot list (<see cref="FactorySaveData.Generator"/>).</summary>
     public string? Generator { get; set; }
     /// <summary>Campaign map file of a <c>"campagna"</c> save (<see cref="FactorySaveData.MapId"/>).</summary>
     public string? MapId { get; set; }

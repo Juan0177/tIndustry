@@ -363,6 +363,8 @@ public sealed class AutoJunctionTests
                     delivered = factory.CoreDeliveredItems;
                 }
 
+                // Sold as it arrives: the Core's maximum must not stop the line being measured.
+                factory.Wallet.TryRemoveMaterial("iron-ore", factory.Wallet.MaterialCount("iron-ore"));
                 host.AdvanceTicks(1);
             }
 

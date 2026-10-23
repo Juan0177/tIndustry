@@ -41,7 +41,7 @@ internal static class FactoryScenarios
     public static void SelfTestPlaceCosts(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var wallet = new EconomyWallet(
             0,
             new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-ore"] = 10 });
@@ -77,7 +77,7 @@ internal static class FactoryScenarios
     {
         var content = FactoryContent.Load(contentJsonPath);
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, grid, core);
         factory.EnsureDemoBuildStock();
         Assert(factory.TryPlaceMiner(new GridPosition(2, 7), Direction.East), "miner");
@@ -112,7 +112,7 @@ internal static class FactoryScenarios
     public static void SelfTestT2Tools(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.EnsureDemoBuildStock();
         factory.Research.ForceUnlock("conveyor-fast");
@@ -213,7 +213,7 @@ internal static class FactoryScenarios
         Assert(assy.IsCrafting && assy.Recipe.Id == "craft-graphite", "auto craft-graphite");
 
         // Place API wires recipe lists.
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
         Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place multi forno");
@@ -368,7 +368,7 @@ internal static class FactoryScenarios
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var grid = new BeltGrid();
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, grid, core);
         factory.UnlockAllForDemo();
 
@@ -494,7 +494,7 @@ internal static class FactoryScenarios
         Assert(fed.AcceptFromBelts(grid) == 1 && fed.FuelBuffer == 1, "belt → fuel");
 
         // Save/restore fuel state.
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
         Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "place forno");
@@ -532,7 +532,7 @@ internal static class FactoryScenarios
         var content = FactoryContent.Load(contentJsonPath);
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
 
@@ -615,7 +615,7 @@ internal static class FactoryScenarios
         var content = FactoryContent.Load(contentJsonPath);
         var recipe = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
 
@@ -643,7 +643,7 @@ internal static class FactoryScenarios
 
         // Craft output → core when forno east edge touches core west (core at 8,4; forno 4,4 size2 ends at 5 → not adjacent).
         // Place forno at (6,4) touching core (8,4).
-        var core2 = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4), size: 2);
+        var core2 = CoreStockSink.MakeCoreTiles(new GridPosition(8, 4));
         var direct = new Factory(content, new BeltGrid(), core2);
         direct.UnlockAllForDemo();
         Assert(direct.TryPlaceSmelter(new GridPosition(6, 4), Direction.East, recipe), "forno@core");
@@ -679,7 +679,7 @@ internal static class FactoryScenarios
     public static void SelfTestMinerPower(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(18, 18), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(18, 18));
 
         var hot = new Factory(content, new BeltGrid(), core);
         hot.UnlockAllForDemo();
@@ -966,7 +966,7 @@ internal static class FactoryScenarios
             "both bridge ends removed");
 
         // Place API + save/load partner/filter.
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
         Assert(factory.TryPlaceSorter(new GridPosition(4, 4), Direction.East, "iron-plate"), "TryPlaceSorter");
@@ -1018,7 +1018,7 @@ internal static class FactoryScenarios
     public static void SelfTestResearch(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
 
         var graph = TechTreeLayout.Build(content);
@@ -1092,7 +1092,7 @@ internal static class FactoryScenarios
     public static void SelfTestMercato(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
 
         Assert(content.Market.Count >= 4, "market items");
@@ -1134,35 +1134,6 @@ internal static class FactoryScenarios
         Assert(restored.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "restore sold");
         Assert(restored.Research.IsUnlocked("smelter"), "restore research");
         FactorySaveStore.Delete("selftest-mercato");
-    }
-
-    /// <summary>CORE upgrade: one-shot spend, no sale bonus, save v5 round-trip.</summary>
-    public static void SelfTestCoreUpgrade(string contentJsonPath)
-    {
-        var content = FactoryContent.Load(contentJsonPath);
-        Assert(content.CoreUpgrade.MoneyCost == 150, "core money");
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
-        var wallet = new EconomyWallet(
-            200,
-            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 25 });
-        var factory = new Factory(content, new BeltGrid(), core, wallet);
-        Assert(factory.CoreUpgradeLevel == 0, "start LV0");
-        factory.Wallet.AddMaterial("iron-ore", 5);
-        var basePrice = factory.MarketItem("iron-ore")!.UnitIncome;
-        factory.Wallet.AddMoney(Math.Max(0, content.CoreUpgrade.MoneyCost - factory.Wallet.Money));
-        Assert(factory.TryUpgradeCore(), "upgrade");
-        Assert(factory.CoreUpgradeLevel == 1, "LV1");
-        Assert(!factory.TryUpgradeCore(), "one-shot");
-        var boosted = factory.MarketItem("iron-ore")!.UnitIncome;
-        Assert(boosted == basePrice, "no sale bonus");
-        var moneyBefore = factory.Wallet.Money;
-        Assert(factory.TrySellFromWallet("iron-ore", 1, 1), "sell after upgrade");
-        Assert(factory.Wallet.Money == moneyBefore + boosted, "money has no bonus");
-
-        var snap = factory.Capture();
-        Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySaveData.CurrentVersion, "capture");
-        var restored = Restore(content, snap);
-        Assert(restored.CoreUpgradeLevel == 1, "restore");
     }
 
     /// <summary>Auto-sell at core: liquidate on drain; toggle persists in save.</summary>

@@ -2,11 +2,11 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Core stock sink: items ready to leave a belt cell whose output tile is in the core
-/// set are removed. Default path stocks the wallet; optional auto-sell liquidates to $.
+/// set enter the Core's storage unless their item is at the maximum.
 /// </summary>
 public static class CoreStockSink
 {
-    public static HashSet<GridPosition> MakeCoreTiles(GridPosition origin, int size = 2)
+    public static HashSet<GridPosition> MakeCoreTiles(GridPosition origin, int size = 3)
     {
         var tiles = new HashSet<GridPosition>();
         for (var y = 0; y < size; y++)
@@ -21,54 +21,17 @@ public static class CoreStockSink
     }
 
     /// <summary>
-    /// Drain ready outputs from any belt cell that points into <paramref name="coreTiles"/>.
-    /// Returns how many items were stocked (stock-first; no auto-sell).
+    /// Delivers the ready outputs of every belt cell that points into the Core (or dead-ends against it) through
+    /// <see cref="GameState.TryAcceptAtCore"/>, in ascending cell order. A piece the Core does not take (its item
+    /// is at the maximum) stays on the cell, blocking the pieces behind it; the next cell is tried.
+    /// A cell pointing into a storage block delivers through <see cref="GameState.TryAcceptAtStorage"/>: a linked
+    /// block to the Core, a standalone one into itself up to its space (a refused piece waits the same way).
+    /// Returns how many pieces reached the Core.
     /// </summary>
-    public static int Drain(BeltLane belt, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet) =>
-        Drain(belt, coreTiles, wallet, market: null, session: null);
-
-    public static int Drain(BeltGrid grid, IReadOnlySet<GridPosition> coreTiles, EconomyWallet wallet) =>
-        Drain(grid, coreTiles, wallet, market: null, session: null);
-
-    /// <summary>
-    /// Drain into stock, or liquidate immediately the items whose auto-sell switch is on in <paramref name="market"/>
-    /// (Raylib Mercato “Vendita automatica” parity).
-    /// </summary>
-    public static int Drain(
-        BeltLane belt,
-        IReadOnlySet<GridPosition> coreTiles,
-        EconomyWallet wallet,
-        MarketState? market,
-        EconomySession? session)
+    public static int Drain(GameState state)
     {
-        var delivered = 0;
-        for (var i = 0; i < belt.Cells.Count; i++)
-        {
-            var cell = belt.Cells[i];
-            var output = cell.Position.Step(belt.DirectionAt(i));
-            if (!coreTiles.Contains(output))
-            {
-                continue;
-            }
-
-            while (cell.PeekOutput() is { } item)
-            {
-                cell.RemoveOutput();
-                AcceptAtCore(wallet, item.ItemId, market, session);
-                delivered++;
-            }
-        }
-
-        return delivered;
-    }
-
-    public static int Drain(
-        BeltGrid grid,
-        IReadOnlySet<GridPosition> coreTiles,
-        EconomyWallet wallet,
-        MarketState? market,
-        EconomySession? session)
-    {
+        var grid = state.Belts;
+        var coreTiles = state.CoreTiles;
         var delivered = 0;
         foreach (var cell in grid.Cells.Values)
         {
@@ -79,13 +42,21 @@ public static class CoreStockSink
                     && !grid.Contains(cell.OutputPosition));
             if (!sinksHere)
             {
+                if (state.Storages.Count > 0 && state.StorageAt(cell.OutputPosition) is { } storage)
+                {
+                    while (cell.PeekOutput() is { } piece && state.TryAcceptAtStorage(storage, piece.ItemId))
+                    {
+                        cell.RemoveOutput();
+                        delivered += storage.IsLinked ? 1 : 0;
+                    }
+                }
+
                 continue;
             }
 
-            while (cell.PeekOutput() is { } item)
+            while (cell.PeekOutput() is { } item && state.TryAcceptAtCore(item.ItemId))
             {
                 cell.RemoveOutput();
-                AcceptAtCore(wallet, item.ItemId, market, session);
                 delivered++;
             }
         }
@@ -121,13 +92,5 @@ public static class CoreStockSink
         }
 
         return null;
-    }
-
-    private static void AcceptAtCore(EconomyWallet wallet, string itemId, MarketState? market, EconomySession? session)
-    {
-        if (market is null || !MarketSales.TryAutoSell(market, wallet, session, itemId))
-        {
-            wallet.AddMaterial(itemId, 1);
-        }
     }
 }

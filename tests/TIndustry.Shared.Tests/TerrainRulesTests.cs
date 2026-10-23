@@ -54,7 +54,8 @@ public sealed class TerrainRulesTests
     private static IEnumerable<BuildSpec> EverySpec(GridPosition origin)
     {
         yield return new BuildSpec(BuildSpec.DefaultConveyorId, null, origin, Direction.East);
-        foreach (var kind in Enum.GetValues<BuildingKind>())
+        // The Core blocks stand only over the Core (CoreUpgradeTests).
+        foreach (var kind in Enum.GetValues<BuildingKind>().Where(k => !BuildSpec.IsCoreUpgrade(k)))
         {
             var recipe = kind switch
             {

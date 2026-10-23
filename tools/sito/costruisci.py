@@ -583,6 +583,16 @@ def _contenuto(a, sid, radice, versione):
     raise KeyError(sid)
 
 
+def _prosegue(archivio, scena):
+    """Belts that go on behind the stacked text on phones, from the bottom of the scene to the next one (#287)."""
+    nastri = ""
+    for x, tier in fabbrica.prosecuzioni(scena):
+        striscia, fermo = archivio.nastro(tier, "S")
+        nastri += (f'<div class="nastro v-s" style="--colonna:{x};background-image:url({striscia})">'
+                   f'<div class="fermo" style="background-image:url({fermo})"></div></div>')
+    return f'<div class="prosegue" aria-hidden="true" style="--righe:{scena.righe}">{nastri}</div>' if nastri else ""
+
+
 def pagina_vetrina(archivio, versione):
     sezioni = []
     for scena in fabbrica.VETRINA:
@@ -598,7 +608,8 @@ def pagina_vetrina(archivio, versione):
             sfondo += (f'<div class="terra-larga" aria-hidden="true" style="background-image:'
                        f'url({archivio.terreno(scena.bioma, scena.righe, scena.seme)})"></div>')
         sezione = (f'<section id="{scena.id}" class="{classe}" data-bioma="{scena.bioma or ""}">{sfondo}'
-                   f'<div class="pavimento">{scena_html}<div class="contenuto">{contenuto}</div></div></section>')
+                   f'<div class="pavimento">{scena_html}{_prosegue(archivio, scena)}'
+                   f'<div class="contenuto">{contenuto}</div></div></section>')
         if scena.id == "hero":
             sezione = f'<div class="pin">{sezione}</div>'
         sezioni.append(sezione)

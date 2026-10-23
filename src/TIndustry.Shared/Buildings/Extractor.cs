@@ -1,8 +1,9 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// 1×1 extractor: pulls a filtered item from Core wallet or adjacent craft output
-/// onto an outward belt (Raylib ExtractorBuilding parity).
+/// 1×1 extractor: pulls a filtered item from the Core stock (touching the Core or a storage block linked to it) or,
+/// failing that, from a touching standalone storage block (lowest id first) onto an outward belt (Raylib
+/// ExtractorBuilding parity). A piece the belt does not take goes back where it came from.
 /// </summary>
 public sealed class Extractor
 {
@@ -75,13 +76,14 @@ public sealed class Extractor
 
     public bool Occupies(GridPosition tile) => tile.Equals(Position);
 
-    /// <summary>Advance and try to eject one filtered item from Core stock onto an outward belt.</summary>
+    /// <summary>Advance and try to eject one filtered item from Core stock or a standalone storage block onto an outward belt.</summary>
     public bool Tick(
         float deltaSeconds,
         BeltGrid belts,
-        EconomyWallet wallet,
+        CoreStorage core,
         IReadOnlySet<GridPosition> coreTiles,
-        ref long nextItemId)
+        ref long nextItemId,
+        IReadOnlyList<StorageBlock>? storages = null)
     {
         Progress += deltaSeconds;
         if (Progress < IntervalSeconds)
@@ -96,7 +98,8 @@ public sealed class Extractor
             return false;
         }
 
-        if (!TryPullFromCore(wallet, coreTiles))
+        StorageBlock? source = null;
+        if (!TryPullFromCore(core, coreTiles, storages) && (source = TryPullFromStorage(storages)) is null)
         {
             Progress = 0f;
             return false;
@@ -104,7 +107,16 @@ public sealed class Extractor
 
         if (!belts.TryInsert(outPos, new TransportedItem(nextItemId, FilterItemId), source: Position))
         {
-            wallet.AddMaterial(FilterItemId, 1);
+            // Taken and not delivered: back where it came from, even at the maximum (nothing lost).
+            if (source is not null)
+            {
+                source.Return(FilterItemId, 1);
+            }
+            else
+            {
+                core.Return(FilterItemId, 1);
+            }
+
             return false;
         }
 
@@ -120,17 +132,61 @@ public sealed class Extractor
         return !next.Equals(Position);
     }
 
-    private bool TryPullFromCore(EconomyWallet wallet, IReadOnlySet<GridPosition> coreTiles)
+    /// <summary>Takes one piece from the Core stock when the extractor touches the Core or a linked storage block.</summary>
+    private bool TryPullFromCore(
+        CoreStorage core, IReadOnlySet<GridPosition> coreTiles, IReadOnlyList<StorageBlock>? storages)
     {
         foreach (var (neighbor, _) in PerimeterSlots(Position, Size))
         {
-            if (coreTiles.Contains(neighbor) && wallet.TryRemoveMaterial(FilterItemId, 1))
+            if (coreTiles.Contains(neighbor) || TouchedStorage(storages, neighbor) is { IsLinked: true })
             {
-                return true;
+                return core.TryTake(FilterItemId);
             }
         }
 
         return false;
+    }
+
+    /// <summary>Takes one piece from the touching standalone storage block with the lowest id that has one.</summary>
+    private StorageBlock? TryPullFromStorage(IReadOnlyList<StorageBlock>? storages)
+    {
+        if (storages is null || storages.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var storage in storages)
+        {
+            if (storage.IsLinked || !BuildingIo.FootprintsAdjacent(Position, Size, storage.Origin, storage.Size))
+            {
+                continue;
+            }
+
+            if (storage.TryTake(FilterItemId))
+            {
+                return storage;
+            }
+        }
+
+        return null;
+    }
+
+    private static StorageBlock? TouchedStorage(IReadOnlyList<StorageBlock>? storages, GridPosition tile)
+    {
+        if (storages is null)
+        {
+            return null;
+        }
+
+        foreach (var storage in storages)
+        {
+            if (storage.Occupies(tile))
+            {
+                return storage;
+            }
+        }
+
+        return null;
     }
 
     private static IEnumerable<(GridPosition Tile, Direction Edge)> PerimeterSlots(

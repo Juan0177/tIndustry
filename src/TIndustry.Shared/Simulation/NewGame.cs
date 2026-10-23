@@ -16,7 +16,7 @@ public static class NewGame
     public static Factory Sandbox(
         FactoryContent content,
         GridPosition coreOrigin,
-        int coreSize = 2,
+        int? coreSize = null,
         int mapWidth = 1000,
         int mapHeight = 1000,
         int seed = 42,
@@ -30,7 +30,8 @@ public static class NewGame
             mapHeight = map.Height;
         }
 
-        var core = CoreStockSink.MakeCoreTiles(coreOrigin, Math.Max(1, coreSize));
+        var size = CoreSizeOf(content, coreSize);
+        var core = CoreStockSink.MakeCoreTiles(coreOrigin, size);
         // Raw iron pays for the first miner and belts (nothing is mined before them); plates/wire for the rest.
         var wallet = new EconomyWallet(
             startingMoney,
@@ -42,7 +43,7 @@ public static class NewGame
             });
         var session = new EconomySession(startingMoney);
         var research = ResearchState.CreateNew(content);
-        var starter = Factory.ResolveStarterDeposit(coreOrigin, coreSize, mapWidth, mapHeight);
+        var starter = Factory.ResolveStarterDeposit(coreOrigin, size, mapWidth, mapHeight);
         var terrain = map is null
             ? TerrainMap.Generate(mapWidth, mapHeight, seed, core, starter)
             : MapGenerator.Generate(map, core, starter);
@@ -68,22 +69,23 @@ public static class NewGame
         CampaignCatalog catalog,
         CampaignLevelDefinition level,
         GridPosition? coreOrigin = null,
-        int coreSize = 2,
+        int? coreSize = null,
         int? mapWidth = null,
         int? mapHeight = null,
         GameRules? rules = null,
         string? mapsDirectory = null)
     {
+        var size = CoreSizeOf(content, coreSize);
         if (level.Map is { } mapId && mapsDirectory is not null && mapWidth is null && mapHeight is null)
         {
             var map = CampaignMapFile.Load(mapsDirectory, mapId, content, out var fileCore);
             var fileOrigin = coreOrigin ?? fileCore;
-            if (CampaignMapFile.CoreProblem(map, fileOrigin, Math.Max(1, coreSize)) is { } problem)
+            if (CampaignMapFile.CoreProblem(map, fileOrigin, size) is { } problem)
             {
                 throw new InvalidDataException($"Mappa '{mapId}': {problem}");
             }
 
-            return CampaignFactory(content, catalog, level, fileOrigin, coreSize, map, rules);
+            return CampaignFactory(content, catalog, level, fileOrigin, size, map, rules);
         }
 
         var (w, h) = Factory.ResolveCampaignMapSize(level);
@@ -97,11 +99,11 @@ public static class NewGame
             h = Math.Clamp(Math.Max(8, mh), 8, Factory.MaxMapEdge);
         }
 
-        var origin = coreOrigin ?? Factory.CenteredCoreOrigin(w, h, coreSize);
-        var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
-        var starter = Factory.ResolveStarterDeposit(origin, coreSize, w, h);
+        var origin = coreOrigin ?? Factory.CenteredCoreOrigin(w, h, size);
+        var core = CoreStockSink.MakeCoreTiles(origin, size);
+        var starter = Factory.ResolveStarterDeposit(origin, size, w, h);
         var terrain = TerrainMap.Generate(w, h, level.Seed, core, starter);
-        return CampaignFactory(content, catalog, level, origin, coreSize, terrain, rules);
+        return CampaignFactory(content, catalog, level, origin, size, terrain, rules);
     }
 
     private static Factory CampaignFactory(
@@ -113,7 +115,7 @@ public static class NewGame
         TerrainMap terrain,
         GameRules? rules)
     {
-        var core = CoreStockSink.MakeCoreTiles(origin, Math.Max(1, coreSize));
+        var core = CoreStockSink.MakeCoreTiles(origin, coreSize);
         var wallet = catalog.CreateWallet(level);
         var session = new EconomySession(level.StartingMoney);
         var research = ResearchState.CreateNew(content);
@@ -130,13 +132,17 @@ public static class NewGame
         return factory;
     }
 
+    /// <summary>Core edge of a new game: <paramref name="coreSize"/> when forced (tests), else the shard's (tier 0).</summary>
+    private static int CoreSizeOf(FactoryContent content, int? coreSize) =>
+        Math.Max(1, coreSize ?? content.CoreTiers[0].Size);
+
     /// <summary>L-belt demo without forno (ore → core), everything unlocked.</summary>
     public static Factory Demo(FactoryContent content, string beltId = "conveyor-basic", GameRules? rules = null)
     {
         var beltDef = content.RequireConveyor(beltId);
         var grid = new BeltGrid();
         grid.PlacePath(DemoLayouts.LPath(), beltDef);
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), content.CoreTiers[0].Size);
         var factory = new Factory(content, grid, core);
         factory.State.Rules = new GameRules(RefundPercent: 100, InstantBuild: rules?.InstantBuild ?? true);
         factory.UnlockAllForDemo();

@@ -177,6 +177,40 @@ public partial class World
             node.Position = FootprintCenter(lamp.Position, Lamp.Size);
             _buildingsLayer.AddChild(node);
         }
+
+        _storageLinks.Clear();
+        foreach (var storage in _view.Storages)
+        {
+            // Linked to the Core (it adds to the Core's maximum) or standalone (its own contents): two sprites.
+            var node = BuildingPad.Create(storage.StructureId + (storage.IsLinked ? "-linked" : ""), storage.Size, TileSize);
+            node.Name = $"Storage_{storage.Id}";
+            node.Position = FootprintCenter(storage.Origin, storage.Size);
+            _buildingsLayer.AddChild(node);
+            _storageLinks.Add(storage.IsLinked);
+        }
+    }
+
+    /// <summary>Linked state of each storage block as last drawn, in <see cref="IGameView.Storages"/> order.</summary>
+    private readonly List<bool> _storageLinks = [];
+
+    /// <summary>True when a storage block became linked or standalone since it was drawn (the Core grew, a block went).</summary>
+    private bool StorageLinksChanged()
+    {
+        var storages = _view!.Storages;
+        if (storages.Count != _storageLinks.Count)
+        {
+            return true;
+        }
+
+        for (var i = 0; i < storages.Count; i++)
+        {
+            if (storages[i].IsLinked != _storageLinks[i])
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void SyncBuildingVisuals(float delta)
@@ -210,6 +244,10 @@ public partial class World
         }
 
         SyncCoreDust();
+        if (StorageLinksChanged())
+        {
+            _buildingsDirty = true;
+        }
 
         foreach (var child in _buildingsLayer.GetChildren())
         {
@@ -422,6 +460,9 @@ public partial class World
         }
     }
 
+    /// <summary>The Core maximum of an item, for the HUD (one delegate for the whole game).</summary>
+    private Func<string, int>? _coreCapacityOf;
+
     private void UpdateHud()
     {
         if (_hud is null || _view is null)
@@ -432,7 +473,12 @@ public partial class World
         var onBelt = _view.Belts.Values.Sum(c => c.Items.Count);
         var gensLive = _view.Generators.Count(g => g.IsGenerating);
         _hud.BindEconomy(_view.Content, _view.Wallet);
-        _hud.SyncCoreUpgrade(_view);
+        _hud.UpdateCore(_view.Content.CoreTiers[_view.CoreTier], _coreCapacityOf ??= id => _view?.CoreCapacity(id) ?? 0);
+        if (_view.CoreTier != _locksCoreTier)
+        {
+            SyncResearchLocks();
+        }
+
         _hud.UpdateStock(
             _view.Wallet.MaterialCount("iron-ore"),
             _view.Wallet.MaterialCount("iron-plate"),
@@ -475,8 +521,11 @@ public partial class World
     /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
     private const int ConstructionZ = 20;
 
-    /// <summary>The Core in game is tier 1 (2×2); tiers 2–4 exist only as sprites until the tier sub-project.</summary>
-    private const string CoreSpriteId = "core-1";
+    /// <summary>
+    /// Sprite of the Core: the tier's own (<c>core-shard</c> 3×3, <c>core-foundation</c> 4×4, <c>core-nucleus</c> 5×5),
+    /// read when the building visuals are rebuilt (a finished upgrade rebuilds them).
+    /// </summary>
+    private string CoreSpriteId => _view is null ? "core-shard" : _view.Content.CoreTiers[_view.CoreTier].Id;
 
     /// <summary>Slow pulse of the nucleus light: 4 frames, looped.</summary>
     private const float CoreLightFramesPerSecond = 2.5f;
@@ -488,6 +537,8 @@ public partial class World
     private float _coreLightClock;
 
     private Sprite2D? _coreLight;
+    // Light strip of the Core drawn now (set with the Core's node, so the frame loop builds no string).
+    private string _coreLightId = "core-shard-light";
     // The Core's outline, in UiColors.Core (set every frame: a new colour variant shows at once).
     private Line2D? _coreEdge;
 
@@ -495,7 +546,7 @@ public partial class World
     private float _coreLightPhase;
 
     /// <summary>
-    /// CORE as a building node (z above belt items): the <c>core-1</c> body, its nucleus light looping slowly on top
+    /// CORE as a building node (z above belt items): the tier's body, its nucleus light looping slowly on top
     /// (each frame is an opaque disc that replaces the nucleus) and the cyan outline.
     /// </summary>
     private void AddCoreVisual()
@@ -517,6 +568,7 @@ public partial class World
             ZIndex = 3,
             Position = new Vector2(minX * TileSize, minY * TileSize)
         };
+        _coreLightId = CoreSpriteId + "-light";
         var body = Sprites.For(CoreSpriteId);
         BuildingPad.AddShadow(root, body, size / body.GetSize());
         root.AddChild(new Sprite2D
@@ -555,7 +607,7 @@ public partial class World
     /// </summary>
     private Texture2D CoreLightFrame()
     {
-        var frames = Sprites.Frames(CoreSpriteId + "-light");
+        var frames = Sprites.Frames(_coreLightId);
         return frames[(int)((_coreLightClock + _coreLightPhase) * CoreLightFramesPerSecond) % frames.Length];
     }
 }

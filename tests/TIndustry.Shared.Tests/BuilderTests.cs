@@ -78,8 +78,9 @@ public sealed class BuilderTests
 
         var drone = Assert.Single(factory.Builders);
         Assert.Equal(Player, drone.OwnerPlayerId);
-        Assert.Equal(61f, drone.X);
-        Assert.Equal(61f, drone.Y);
+        // Shard 3×3 on (60..62, 60..62): its centre.
+        Assert.Equal(61.5f, drone.X);
+        Assert.Equal(61.5f, drone.Y);
         Assert.Empty(drone.Plans);
         Assert.Null(drone.CurrentSiteId);
     }
@@ -135,7 +136,7 @@ public sealed class BuilderTests
         var origin = new GridPosition(60, 20);
         host.Submit(PlaceMiner(origin));
         var drone = Drone(factory);
-        var workRange = Content.Drone.BuildRange - 1f; // 26.5
+        var workRange = Content.UnitForTier(0).BuildRange - 1f; // 26.5
 
         var started = 0;
         for (var tick = 1; tick <= 200 && started == 0; tick++)

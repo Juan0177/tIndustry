@@ -21,14 +21,15 @@ public static class PlacementPreview
     /// <summary>
     /// Draws the preview of <paramref name="structureId"/> over <paramref name="rect"/> (world px) on
     /// <paramref name="canvas"/>. <paramref name="turnSprite"/>: the sprite is turned to <paramref name="direction"/>
-    /// (belts); <paramref name="arrow"/>: a direction arrow is drawn (every block placed with a direction).
+    /// (belts); <paramref name="arrow"/>: a direction arrow is drawn (every block placed with a direction). A null
+    /// <paramref name="structureId"/> draws only the outline (and the X when refused): one cell of a bigger block.
     /// </summary>
-    public static void Draw(CanvasItem canvas, string structureId, Rect2 rect, Direction direction, bool turnSprite,
+    public static void Draw(CanvasItem canvas, string? structureId, Rect2 rect, Direction direction, bool turnSprite,
         bool arrow, bool valid)
     {
         var outline = valid ? UiColors.FantasmaValido : UiColors.FantasmaNonValido;
         var tint = valid ? new Color(1f, 1f, 1f, SpriteAlpha) : UiColors.FantasmaNonValido with { A = SpriteAlpha };
-        if (Sprites.TryFor(structureId) is { } tex)
+        if (structureId is not null && Sprites.TryFor(structureId) is { } tex)
         {
             if (turnSprite)
             {

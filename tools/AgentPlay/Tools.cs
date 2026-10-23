@@ -196,15 +196,16 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "vendi", new { oggetto, quantita, tutto });
 
     [McpServerTool(Name = "vendita_automatica")]
-    [Description("Accende o spegne la vendita automatica di un oggetto: i pezzi che arrivano al Core si vendono subito, al prezzo del momento (al massimo B).")]
+    [Description("Accende o spegne la vendita automatica di un oggetto: il Core lo vende dalla scorta al ritmo del suo livello (10, 25 o 60 pezzi al secondo), al prezzo del momento (al massimo B). Con 'solo_a_pieno: true' vende solo quanto serve a tenere l'oggetto al massimo del Core.")]
     public string VenditaAutomatica(
         [Description(Sessione)] string sessione,
         [Description("Id dell'oggetto.")] string oggetto,
-        [Description("true per accenderla, false per spegnerla.")] bool accesa) =>
-        Game(sessione, "vendita_automatica", new { oggetto, accesa });
+        [Description("true per accenderla, false per spegnerla.")] bool accesa,
+        [Description("true: vende solo a Core pieno; false: vende sempre; assente: resta com'è.")] bool? solo_a_pieno = null) =>
+        Game(sessione, "vendita_automatica", new { oggetto, accesa, solo_a_pieno });
 
     [McpServerTool(Name = "potenzia_core")]
-    [Description("Potenzia il Core al livello successivo, se si può pagare.")]
+    [Description("Piazza sopra il Core il blocco del livello successivo (fondazione, poi nucleo) dove lo mette la regola di crescita: serve la Ricerca e le celle nuove libere; con la costruzione vera è un cantiere del drone. Risponde {livello}.")]
     public string PotenziaCore([Description(Sessione)] string sessione) => Game(sessione, "potenzia_core");
 
     // ---- Time

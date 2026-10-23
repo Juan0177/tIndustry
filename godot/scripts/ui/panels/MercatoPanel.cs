@@ -5,9 +5,10 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Mercato overview: one row per item the CORE holds (or sells automatically) with icon, name, quantity, price with
-/// ▲/▼, a chart of the last 2 minutes, "Crollo · mm:ss" during a crash, Vendi 1 / Vendi 100 / Vendi tutto and the
-/// item's auto-sell switch. No button sells every item at once. The rows follow the market a few times a second.
+/// Mercato overview: one row per item the CORE holds (or sells automatically) with icon, name, quantity against the
+/// CORE's maximum ("pieno" at the maximum), price with ▲/▼, a chart of the last 2 minutes, "Crollo · mm:ss" during a
+/// crash, Vendi 1 / Vendi 100 / Vendi tutto, the item's auto-sell switch and its "only when the CORE is full" box. No
+/// button sells every item at once. The rows follow the market a few times a second.
 /// </summary>
 public partial class MercatoPanel : Control
 {
@@ -38,7 +39,7 @@ public partial class MercatoPanel : Control
     /// <summary>The controls of one item row that change while the panel is open.</summary>
     private sealed record Row(
         string ItemId, Label Quantity, Label Price, MarketSparkline Chart, Label Crash, Button SellOne, Button SellHundred,
-        Button SellAll, CheckBox Auto);
+        Button SellAll, CheckBox Auto, CheckBox WhenFull);
 
     public override void _Ready()
     {
@@ -98,6 +99,10 @@ public partial class MercatoPanel : Control
                 SetStatus(() => Testi.T(autoSell.Enabled ? "mercato.auto.attivata" : "mercato.auto.disattivata"));
                 AutoSellChanged?.Invoke();
                 break;
+            case SetAutoSellWhenFull whenFull:
+                SetStatus(() => Testi.T(whenFull.Enabled ? "mercato.auto.pieno.attivata" : "mercato.auto.pieno.disattivata"));
+                AutoSellChanged?.Invoke();
+                break;
         }
 
         Refresh();
@@ -118,7 +123,7 @@ public partial class MercatoPanel : Control
     /// <summary>Host refused a Mercato command: show its reason.</summary>
     public void OnCommandRejected(SimCommand command, Refusal reason)
     {
-        if (command is not (Sell or SellAll or SetAutoSell))
+        if (command is not (Sell or SellAll or SetAutoSell or SetAutoSellWhenFull))
         {
             return;
         }
@@ -276,7 +281,7 @@ public partial class MercatoPanel : Control
             _waitLabel.Text = wait > 0 ? Testi.F("mercato.attesa", wait) : "";
         }
 
-        // An item selling automatically never reaches the CORE: it stays listed so its switch can be turned off.
+        // An item selling automatically can sit at zero: it stays listed so its switch can be turned off.
         var listed = _view.MarketItems.Where(i => i.AutoSell || _view.Wallet.MaterialCount(i.ItemId) > 0).ToList();
         if (!listed.Select(i => i.ItemId).SequenceEqual(_rows.Select(r => r.ItemId)))
         {
@@ -350,9 +355,11 @@ public partial class MercatoPanel : Control
         var quantity = new Label
         {
             Name = "Quantita",
-            CustomMinimumSize = new Vector2(72, 0),
+            CustomMinimumSize = new Vector2(150, 0),
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Pass,
+            TooltipText = "mercato.quantita.suggerimento"
         };
         top.AddChild(quantity);
         var chart = new MarketSparkline { Name = "Grafico", CustomMinimumSize = new Vector2(MarketSparkline.Span + 40, 30) };
@@ -405,12 +412,26 @@ public partial class MercatoPanel : Control
         };
         auto.Toggled += on => _submit?.Invoke(new SetAutoSell(0, itemId, on));
         bottom.AddChild(auto);
-        return new Row(itemId, quantity, price, chart, crash, one, hundred, all, auto);
+        var whenFull = new CheckBox
+        {
+            Name = "SoloAPieno",
+            Text = "mercato.auto.pieno",
+            TooltipText = "mercato.auto.pieno.suggerimento",
+            FocusMode = FocusModeEnum.None,
+            MouseDefaultCursorShape = CursorShape.PointingHand
+        };
+        whenFull.Toggled += on => _submit?.Invoke(new SetAutoSellWhenFull(0, itemId, on));
+        bottom.AddChild(whenFull);
+        return new Row(itemId, quantity, price, chart, crash, one, hundred, all, auto, whenFull);
     }
 
     private void UpdateRow(Row row, MarketItemView item, int stock, int wait)
     {
-        row.Quantity.Text = $"{stock}";
+        // x/max, and "pieno" in its own colour at the maximum (the lines carrying the item stop).
+        var max = _view!.CoreCapacity(item.ItemId);
+        var full = stock >= max;
+        row.Quantity.Text = full ? Testi.F("mercato.quantita.pieno", stock, max) : $"{stock}/{max}";
+        row.Quantity.ThemeTypeVariation = full ? UiTheme.TestoPieno : "";
 
         // ▲/▼ against the start of the chart (2 minutes ago), so arrow and chart tell the same story.
         var start = item.HistoryMilli.Count > 0 ? item.HistoryMilli[0] : item.PriceMilli;
@@ -442,7 +463,13 @@ public partial class MercatoPanel : Control
         row.SellAll.TooltipText = wait > 0 ? Testi.F("mercato.attesa", wait) : "";
 
         // The switch shows what the host will have once switches clicked this tick are applied.
-        var pending = _pendingCommands?.Invoke().OfType<SetAutoSell>().LastOrDefault(c => c.ItemId == item.ItemId);
-        row.Auto.SetPressedNoSignal(pending?.Enabled ?? item.AutoSell);
+        var commands = _pendingCommands?.Invoke();
+        var pending = commands?.OfType<SetAutoSell>().LastOrDefault(c => c.ItemId == item.ItemId);
+        var autoOn = pending?.Enabled ?? item.AutoSell;
+        row.Auto.SetPressedNoSignal(autoOn);
+        var pendingFull = commands?.OfType<SetAutoSellWhenFull>().LastOrDefault(c => c.ItemId == item.ItemId);
+        row.WhenFull.SetPressedNoSignal(pendingFull?.Enabled ?? item.AutoSellWhenFull);
+        // The box only matters while the item sells automatically: dimmed otherwise, its tick kept.
+        row.WhenFull.Disabled = !autoOn;
     }
 }

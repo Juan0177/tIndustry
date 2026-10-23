@@ -52,7 +52,7 @@ Fa Filo di rame, Grafite e Silicio. **Lavora anche senza corrente**; se è alime
 
 ## Estrattore
 
-Un blocco 1×1 da mettere **a contatto con il CORE** con un nastro davanti (la direzione si sceglie con `R`) che si allontana. Ogni 0,4 secondi prende 1 oggetto dal magazzino del CORE e lo mette sul nastro: così il magazzino rifornisce le macchine. Oggi preleva Lastre di ferro (il suo filtro predefinito): nel gioco non c'è ancora un comando per cambiarlo.
+Un blocco 1×1 da mettere **a contatto con il CORE** con un nastro davanti (la direzione si sceglie con `R`) che si allontana. Ogni 0,4 secondi prende 1 oggetto dal magazzino del CORE (o, se tocca un container o un vault che non è collegato al CORE, dal suo contenuto) e lo mette sul nastro: così il magazzino rifornisce le macchine. Oggi preleva Lastre di ferro (il suo filtro predefinito): nel gioco non c'è ancora un comando per cambiarlo.
 
 ## Vedi anche
 

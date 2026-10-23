@@ -122,6 +122,12 @@ public static class UiColors
     /// <summary>The CORE (research tree root).</summary>
     public static Color Core { get; private set; }
 
+    /// <summary>
+    /// An item at the CORE's maximum (HUD stock, Mercato quantity): the lines carrying it stop. Always with "pieno" or
+    /// "x/max" beside it.
+    /// </summary>
+    public static Color Pieno { get; private set; }
+
     // Mercato: a price going up or down and a crash, always with an arrow or a text beside the colour.
 
     /// <summary>Price up (▲ and the chart line).</summary>
@@ -216,6 +222,7 @@ public static class UiColors
         Energia = new("FBE36B");
         Fermo = new("F5A623");
         Core = new("59C7E6");
+        Pieno = new("F28C38");
 
         MercatoSu = Fatto;
         MercatoGiu = Insufficiente;
@@ -257,6 +264,8 @@ public static class UiColors
         Fermo = new("E69F00");
         // The CORE outline neutral: sky blue is the valid ghost here.
         Core = new("E0E0E0");
+        // Full is orange, apart from the yellow money and the vermillion refusals.
+        Pieno = new("E69F00");
 
         // Up sky blue against down vermillion, the crash reddish purple: never red against green.
         MercatoSu = Energia;
@@ -294,6 +303,7 @@ public static class UiColors
         Energia = new("FFFF80");
         Fermo = new("FFA733");
         Core = new("66E0FF");
+        Pieno = new("FFB347");
 
         MercatoSu = Fatto;
         MercatoGiu = Insufficiente;

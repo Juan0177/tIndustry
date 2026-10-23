@@ -206,12 +206,11 @@ public sealed class MinerTierTests
     [Fact]
     public void SavedBasicMinerOnTitaniumKeepsDiggingTitanium()
     {
-        // A v12 game saved before the rule: a T1 standing on titanium. The classic 1000×1000 map has titanium.
+        // A game saved by hand (or by older content): a T1 standing on titanium. The classic 1000×1000 map has titanium.
         var (factory, origin) = ClassicWithTitaniumSpot();
         Assert.False(factory.CanPlace(MinerSpec(Miner.BasicId, origin.X, origin.Y), out _));
 
         var data = factory.Capture();
-        data.Version = 12;
         data.Miners.Add(new MinerSaveDto
         {
             Id = data.NextEntityId + 100,

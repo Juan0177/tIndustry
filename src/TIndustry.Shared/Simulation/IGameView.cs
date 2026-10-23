@@ -84,6 +84,9 @@ public interface IGameView
     /// <summary>Lamps, in id order (lit = powered in the last tick).</summary>
     IReadOnlyList<Lamp> Lamps { get; }
 
+    /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
+    IReadOnlyList<StorageBlock> Storages { get; }
+
     /// <summary>Rules of this game (the client reads <see cref="GameRules.Night"/>).</summary>
     GameRules Rules { get; }
 
@@ -122,6 +125,12 @@ public interface IGameView
 
     IReadOnlySet<GridPosition> CoreTiles { get; }
 
+    /// <summary>Core tier (0 shard, 1 foundation, 2 nucleus), index in <see cref="FactoryContent.CoreTiers"/>.</summary>
+    int CoreTier { get; }
+
+    /// <summary>Maximum Core stock of <paramref name="itemId"/> (<see cref="CoreStorage.Capacity"/>).</summary>
+    int CoreCapacity(string itemId);
+
     TerrainMap? Terrain { get; }
 
     float PowerBuffer { get; }
@@ -129,8 +138,6 @@ public interface IGameView
     float PowerCapacity { get; }
 
     float PowerGenerationPerSecond { get; }
-
-    int CoreUpgradeLevel { get; }
 
     string? ActiveCampaignLevelId { get; }
 
@@ -148,7 +155,14 @@ public interface IGameView
     /// <summary>Seconds (rounded up) before "sell all" works again; 0 when it is free.</summary>
     int SellAllCooldownSeconds { get; }
 
+    /// <summary>Why the Core cannot be upgraded now (see <see cref="Factory.CoreUpgradeRefusal"/>); null when it can.</summary>
     Refusal? CoreUpgradeRefusal();
+
+    /// <summary>The block of the next Core tier where the growth rule puts it (<see cref="Factory.CoreUpgradeSpec"/>); null at the last tier.</summary>
+    BuildSpec? CoreUpgradeSpec();
+
+    /// <summary>The cells the next Core upgrade adds, row by row (empty at the last tier).</summary>
+    IReadOnlyList<GridPosition> CoreUpgradeNewTiles();
 
     bool IsStructureUnlocked(string structureId);
 

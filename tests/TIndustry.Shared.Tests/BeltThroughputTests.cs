@@ -17,7 +17,7 @@ public sealed class BeltThroughputTests
     private static readonly FactoryContent Content =
         FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
 
-    // Core covers (30..31, 30..31).
+    // Core covers (30..32, 30..32).
     private static Factory Sandbox() =>
         NewGame.Sandbox(Content, new GridPosition(30, 30), mapWidth: 60, mapHeight: 60,
             rules: new GameRules(InstantBuild: true));
@@ -26,9 +26,9 @@ public sealed class BeltThroughputTests
     private static GridPosition[] LineIntoCore(Direction dir) => dir switch
     {
         Direction.East => Cells(i => new GridPosition(30 - Length + i, 30)),
-        Direction.West => Cells(i => new GridPosition(32 + Length - 1 - i, 30)),
+        Direction.West => Cells(i => new GridPosition(33 + Length - 1 - i, 30)),
         Direction.South => Cells(i => new GridPosition(30, 30 - Length + i)),
-        _ => Cells(i => new GridPosition(30, 32 + Length - 1 - i))
+        _ => Cells(i => new GridPosition(30, 33 + Length - 1 - i))
     };
 
     private static GridPosition[] Cells(Func<int, GridPosition> at) => Enumerable.Range(0, Length).Select(at).ToArray();
@@ -135,6 +135,11 @@ public sealed class BeltThroughputTests
         Place(factory, [new GridPosition(27, 29), new GridPosition(27, 28)], Direction.North);
         Place(factory, [new GridPosition(27, 31), new GridPosition(27, 32)], Direction.South);
         Assert.All(main.Concat(side), cell => Assert.Equal(3, factory.Belts.Cells[cell].Definition.Capacity));
+        // Built: no iron or lead left in the Core, so its maximum never stops the line here.
+        foreach (var material in new[] { "iron-ore", "lead-ore" })
+        {
+            Assert.True(factory.Wallet.TryRemoveMaterial(material, factory.Wallet.MaterialCount(material)));
+        }
 
         long fed = 0;
         for (var i = 0; i < 1800; i++)
@@ -224,7 +229,7 @@ public sealed class BeltThroughputTests
     }
 
     [Fact]
-    public void Version12BeltItemsKeepFlowing()
+    public void SavedBeltItemsKeepFlowing()
     {
         var factory = Sandbox();
         var line = LineIntoCore(Direction.East);
@@ -236,10 +241,7 @@ public sealed class BeltThroughputTests
             item.Progress = i * 0.37f % 1f; // one item per cell (the old capacity), anywhere on it
         }
 
-        var json = Encoding.UTF8.GetString(new SimHost(factory).CreateSnapshot());
-        var v12 = json.Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":12");
-        Assert.Contains("\"version\":12", v12);
-        var host = SimHost.FromSnapshot(Content, Encoding.UTF8.GetBytes(v12));
+        var host = SimHost.FromSnapshot(Content, new SimHost(factory).CreateSnapshot());
         var before = host.State.CoreDeliveredItems;
 
         host.AdvanceTicks((int)(Length / Content.RequireConveyor(Basic).RateItemsPerSecond * SimulationClock.TickRate) + 60);

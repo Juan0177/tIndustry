@@ -51,6 +51,15 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.Lamp, "lamp", "")
     ];
 
+    // Mindustry's cores, containers and vaults: a Core block shows only while it is the next tier (see World.SyncResearchLocks).
+    private static readonly PaletteEntry[] StorageEntries =
+    [
+        new(ToolKind.Container, "container", ""),
+        new(ToolKind.Vault, "vault", ""),
+        new(ToolKind.CoreFoundation, "core-foundation", ""),
+        new(ToolKind.CoreNucleus, "core-nucleus", "")
+    ];
+
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
     private readonly Dictionary<BuildCategory, PanelContainer> _categorySlots = [];
     private readonly HashSet<ToolKind> _lockedTools = [];
@@ -62,7 +71,7 @@ public partial class BuildPalette : PanelContainer
     private const int GridColumnCount = 4;
 
     private static readonly int GridRowCount =
-        new[] { ToolsEntries, LogisticsEntries, ProductionEntries, PowerEntries }
+        new[] { ToolsEntries, LogisticsEntries, ProductionEntries, PowerEntries, StorageEntries }
             .Max(e => (e.Length + GridColumnCount - 1) / GridColumnCount);
 
     /// <summary>Side of a palette cell and of a category button, in UI units at 100%: the 32 px icon plus border.</summary>
@@ -122,6 +131,7 @@ public partial class BuildPalette : PanelContainer
         AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica");
         AddCategoryButton(catRail, BuildCategory.Production, "cat-produzione");
         AddCategoryButton(catRail, BuildCategory.Power, "cat-potenza");
+        AddCategoryButton(catRail, BuildCategory.Storage, "cat-magazzino");
         SyncCategoryButtons();
     }
 
@@ -178,7 +188,7 @@ public partial class BuildPalette : PanelContainer
 
         if (!HasUnlocked(_category))
         {
-            _category = new[] { BuildCategory.Logistics, BuildCategory.Production, BuildCategory.Power }
+            _category = new[] { BuildCategory.Logistics, BuildCategory.Production, BuildCategory.Power, BuildCategory.Storage }
                 .FirstOrDefault(HasUnlocked, BuildCategory.Tools);
             if (_categoryTitle is not null)
             {
@@ -237,7 +247,7 @@ public partial class BuildPalette : PanelContainer
         foreach (var cat in new[]
                  {
                      BuildCategory.Tools, BuildCategory.Logistics,
-                     BuildCategory.Production, BuildCategory.Power
+                     BuildCategory.Production, BuildCategory.Power, BuildCategory.Storage
                  })
         {
             foreach (var e in EntriesFor(cat))
@@ -416,15 +426,22 @@ public partial class BuildPalette : PanelContainer
     /// <summary>The UI scale changed: block icons are rebuilt at their new size in UI units.</summary>
     public void OnUiScaleChanged() => RebuildGrid();
 
-    private TextureRect BlockIcon(string structureId, float side) => new()
+    private TextureRect BlockIcon(string structureId, float side)
     {
-        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-        CustomMinimumSize = new Vector2(side, side),
-        TextureFilter = TextureFilterEnum.Nearest,
-        MouseFilter = MouseFilterEnum.Ignore,
-        Texture = Sprites.TryFor(structureId)
-    };
+        var texture = Sprites.TryFor(structureId);
+        return new TextureRect
+        {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(side, side),
+            // 3×3 and bigger blocks (vault, Core tiers) do not shrink by a whole factor: filtered smoothly instead.
+            TextureFilter = texture is null || texture.GetWidth() <= 2 * BlockIconScreenPx
+                ? TextureFilterEnum.Nearest
+                : TextureFilterEnum.Linear,
+            MouseFilter = MouseFilterEnum.Ignore,
+            Texture = texture
+        };
+    }
 
     private void AddPaletteCell(Control parent, PaletteEntry entry)
     {
@@ -552,6 +569,7 @@ public partial class BuildPalette : PanelContainer
         BuildCategory.Logistics => LogisticsEntries,
         BuildCategory.Production => ProductionEntries,
         BuildCategory.Power => PowerEntries,
+        BuildCategory.Storage => StorageEntries,
         _ => LogisticsEntries
     };
 
@@ -561,6 +579,7 @@ public partial class BuildPalette : PanelContainer
         BuildCategory.Logistics => Testi.T("categoria.logistica"),
         BuildCategory.Production => Testi.T("categoria.produzione"),
         BuildCategory.Power => Testi.T("categoria.potenza"),
+        BuildCategory.Storage => Testi.T("categoria.magazzino"),
         _ => ""
     };
 
@@ -573,6 +592,7 @@ public partial class BuildPalette : PanelContainer
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp => BuildCategory.Power,
+        ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus => BuildCategory.Storage,
         _ => BuildCategory.Logistics
     };
 }

@@ -210,7 +210,7 @@ public sealed class SimHost
         Sell sell => ApplySell(sell),
         SellAll sellAll => ApplySellAll(sellAll),
         SetAutoSell autoSell => ApplySetAutoSell(autoSell),
-        UpgradeCore => ApplyUpgradeCore(),
+        SetAutoSellWhenFull whenFull => ApplySetAutoSellWhenFull(whenFull),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
         _ => RefusalCode.InvalidCommand
     };
@@ -292,6 +292,11 @@ public sealed class SimHost
         if (BuildSpec.StructureIdFor(command.Kind) is null)
         {
             return RefusalCode.InvalidCommand;
+        }
+
+        if (BuildSpec.IsCoreUpgrade(command.Kind))
+        {
+            return ApplyCoreUpgrade(command);
         }
 
         // Unknown recipe for forno / assembler: invalid before the research and resource checks.
@@ -557,6 +562,17 @@ public sealed class SimHost
         return null;
     }
 
+    private Refusal? ApplySetAutoSellWhenFull(SetAutoSellWhenFull command)
+    {
+        if (factory.State.Exchange.Find(command.ItemId) is not { } item)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        item.AutoSellWhenFull = command.Enabled;
+        return null;
+    }
+
     private Refusal? ApplySetSorterFilter(SetSorterFilter command)
     {
         if (!SorterFilters.IsValid(command.ItemId)
@@ -570,10 +586,44 @@ public sealed class SimHost
         return null;
     }
 
-    private Refusal? ApplyUpgradeCore()
+    /// <summary>
+    /// Places the next Core tier's block over the Core: refused as <see cref="Factory.CoreUpgradeRefusal"/> says (last
+    /// tier, one already under way, not researched, outside the map, a new cell taken), then when it is not the next
+    /// tier's block (<see cref="RefusalCode.InvalidCommand"/>) or not at <see cref="Factory.CoreUpgradeSpec"/>'s origin
+    /// (<see cref="RefusalCode.CoreUpgradeBlocked"/>). Instant build pays and grows the Core now (or names the
+    /// shortfall); otherwise the drone gets a plan and the site takes the materials little by little.
+    /// </summary>
+    private Refusal? ApplyCoreUpgrade(PlaceBuilding command)
     {
-        // Already upgraded or short of resources.
-        return factory.CoreUpgradeRefusal()
-            ?? (factory.TryUpgradeCore() ? null : RefusalCode.InsufficientResources);
+        if (factory.CoreUpgradeRefusal() is { } refusal)
+        {
+            return refusal;
+        }
+
+        var spec = factory.CoreUpgradeSpec()!;
+        if (command.Kind != spec.Kind)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        if (command.Origin != spec.Origin)
+        {
+            return RefusalCode.CoreUpgradeBlocked;
+        }
+
+        if (factory.State.Rules.InstantBuild)
+        {
+            return factory.Shortfall(spec.StructureId)
+                ?? (factory.PlaceInstant(spec, charge: true) ? null : RefusalCode.CoreUpgradeBlocked);
+        }
+
+        var builder = factory.BuilderOf(command.PlayerId);
+        if (builder is null)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        builder.PlanQueue.Add(new BuildPlan(spec, Breaking: false));
+        return null;
     }
 }

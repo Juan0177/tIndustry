@@ -9,6 +9,10 @@ conduits and a ring of lights round the nucleus.
 disc over the pit, so the client stacks it on `core-<n>.png` and it replaces the nucleus
 (never adds a second glow). `core-<n>.png` is the body with frame 1; `core-1` is also the HUD
 and research icon.
+
+The game's Core tiers (FactoryContent.CoreTiers) have their own names, the ones the client draws:
+`core-shard` (3x3), `core-foundation` (4x4) and `core-nucleus` (5x5), each with `<name>-light-anim`.
+They are drawn as the 3x3-5x5 members of the family (`core-2`..`core-4`, which the site keeps using).
 """
 import math
 
@@ -208,3 +212,15 @@ def _registra(n):
 
 for _n in range(1, TIER + 1):
     _registra(_n)
+
+# Game tiers: name -> family member n (side n + 1 cells).
+LIVELLI_GIOCO = {"core-shard": 2, "core-foundation": 3, "core-nucleus": 4}
+
+
+def _registra_livello(nome, n):
+    sprite(f"{nome}-light-anim")(lambda: forme.striscia([luce(n, k) for k in LIVELLI]))
+    sprite(nome)(lambda: forme.componi(_corpo(n), luce(n, LIVELLI[0])))
+
+
+for _nome, _n in LIVELLI_GIOCO.items():
+    _registra_livello(_nome, _n)

@@ -121,7 +121,7 @@ public sealed class DeterminismTests
         }
     }
 
-    /// <summary>Main line East on y 30 into the Core (30..31), every belt cell full (3 items) at the start.</summary>
+    /// <summary>Main line East on y 30 into the Core (30..32), every belt cell full (3 items) at the start.</summary>
     private static Factory BusyBelts(FactoryContent content)
     {
         var factory = NewGame.Sandbox(content, new GridPosition(30, 30), mapWidth: 60, mapHeight: 60,
@@ -168,6 +168,12 @@ public sealed class DeterminismTests
             Belt(20, y, Direction.South, "conveyor-basic");
         }
 
+        // Built: no iron or lead left in the Core, so its maximum never stops the lines here.
+        foreach (var material in new[] { "iron-ore", "lead-ore" })
+        {
+            Assert.True(factory.Wallet.TryRemoveMaterial(material, factory.Wallet.MaterialCount(material)));
+        }
+
         long id = 100_000;
         foreach (var cell in factory.Belts.Cells.Values.Where(c => c.Kind == LogisticsKind.Belt))
         {
@@ -199,10 +205,99 @@ public sealed class DeterminismTests
         Assert.Equal(Serialize(original), Serialize(copy));
     }
 
+    /// <summary>
+    /// A game with a shard on the classic map, a linked vault, a standalone container with copper, auto-sell (one item
+    /// only when full) and a foundation built by the drone, driven by the same commands at the same ticks.
+    /// </summary>
+    private static (SimHost Host, List<(long Tick, SimCommand Command)> Script) UpgradeStoragesAutoSellGame(FactoryContent content)
+    {
+        var origin = new GridPosition(60, 60);
+        var factory = NewGame.Sandbox(content, origin, mapWidth: 120, mapHeight: 120, seed: 42, rules: new GameRules());
+        factory.UnlockAllForDemo();
+        factory.Research.ForceUnlock("container");
+        factory.Research.ForceUnlock("vault");
+        factory.Research.ForceUnlock(content.CoreTiers[1].Id);
+        foreach (var entry in content.CoreTiers[1].BuildCost)
+        {
+            factory.Wallet.AddMaterial(entry.ItemId, entry.Amount);
+        }
+
+        factory.Wallet.AddMaterial("iron-ore", 1000);
+        factory.Wallet.AddMaterial("titanium-plate", 200);
+        factory.Wallet.AddMaterial("lead-plate", 200);
+        factory.Wallet.AddMaterial("iron-plate", 200);
+        factory.Wallet.AddMaterial("coal", 300);
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec("container", BuildingKind.Container, new GridPosition(80, 60), Direction.East), charge: false));
+        var container = factory.Storages.Single();
+        for (var i = 0; i < 120; i++)
+        {
+            Assert.True(container.TryAccept("copper-ore"));
+        }
+
+        var script = new List<(long Tick, SimCommand Command)>
+        {
+            (5, new PlaceBuilding(0, BuildingKind.CoreFoundation, origin, Direction.East)),
+            (10, new SetAutoSell(0, "iron-ore", true)),
+            (10, new SetAutoSellWhenFull(0, "iron-ore", true)),
+            (20, new SetAutoSell(0, "coal", true)),
+            (30, new PlaceBuilding(0, BuildingKind.Vault, new GridPosition(57, 60), Direction.East)),
+            (50, new PlaceBuilding(0, BuildingKind.Extractor, new GridPosition(82, 60), Direction.East)),
+            (60, new PlaceBelt(0, new GridPosition(83, 60), Direction.East, "conveyor-basic")),
+            (4000, new SetAutoSellWhenFull(0, "iron-ore", false)),
+            (9000, new Sell(0, "titanium-plate", 5))
+        };
+        return (new SimHost(factory), script);
+    }
+
+    [Fact]
+    public void Determinism_UpgradeStoragesAutoSell()
+    {
+        const int minute = 60 * SimulationClock.TickRate;
+        var content = LoadContent();
+        var (a, script) = UpgradeStoragesAutoSellGame(content);
+        var (b, _) = UpgradeStoragesAutoSellGame(content);
+        var refusedA = new List<string>();
+        var refusedB = new List<string>();
+        a.CommandRejected += (c, r) => refusedA.Add($"{c}:{r.Code}");
+        b.CommandRejected += (c, r) => refusedB.Add($"{c}:{r.Code}");
+        var checksums = new List<(ulong A, ulong B)>();
+        // Five minutes (the drone finishes the foundation within them), checksums every minute.
+        for (var tick = 0L; tick < 5 * minute; tick++)
+        {
+            foreach (var (when, command) in script)
+            {
+                if (when == tick)
+                {
+                    a.Submit(command);
+                    b.Submit(command);
+                }
+            }
+
+            a.AdvanceTicks(1);
+            b.AdvanceTicks(1);
+            if ((tick + 1) % minute == 0)
+            {
+                checksums.Add((a.Checksum(), b.Checksum()));
+            }
+        }
+
+        Assert.Equal(5, checksums.Count);
+        Assert.All(checksums, c => Assert.Equal(c.A, c.B));
+        Assert.Equal(5, checksums.Select(c => c.A).Distinct().Count());
+        Assert.Empty(refusedA);
+        Assert.Equal(refusedA, refusedB);
+        // Everything the script asks for happened: the foundation is built, the vault linked, auto-sell sold.
+        Assert.True(a.State.CoreTier == 1, $"foundation built (sites: {string.Join(", ", a.State.Sites.Select(x => $"{x.Spec.StructureId} {x.Progress:0.00}"))})");
+        Assert.Contains(a.State.Storages, s => s.Kind == BuildingKind.Vault && s.IsLinked);
+        Assert.Contains(a.State.Storages, s => s.Kind == BuildingKind.Container && !s.IsLinked);
+        Assert.True(a.State.Session.SoldByItem.GetValueOrDefault("iron-ore") > 0, "auto-sell sold iron ore");
+    }
+
     [Fact]
     public void GameplayRatesMatchWallClock()
     {
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(LoadContent(), new BeltGrid(), core);
         factory.UnlockAllForDemo();
         // T1 miner on iron (no terrain = full deposit) touching the CORE west edge.
@@ -219,7 +314,7 @@ public sealed class DeterminismTests
     /// <summary>Miner (2,13) → belts (4..8, 14) east → CORE (9,14), placed in either order.</summary>
     private static Factory BuildMinerLine(FactoryContent content, bool reverse)
     {
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14), size: 2);
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
         var factory = new Factory(content, new BeltGrid(), core);
         factory.UnlockAllForDemo();
 

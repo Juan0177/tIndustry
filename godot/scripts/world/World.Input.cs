@@ -73,6 +73,10 @@ public partial class World
         BuildTool.PowerNode => Hud.ToolKind.PowerNode,
         BuildTool.PowerNodeT2 => Hud.ToolKind.PowerNodeT2,
         BuildTool.Lamp => Hud.ToolKind.Lamp,
+        BuildTool.Container => Hud.ToolKind.Container,
+        BuildTool.Vault => Hud.ToolKind.Vault,
+        BuildTool.CoreFoundation => Hud.ToolKind.CoreFoundation,
+        BuildTool.CoreNucleus => Hud.ToolKind.CoreNucleus,
         _ => Hud.ToolKind.Cursor
     };
 
@@ -96,6 +100,10 @@ public partial class World
         Hud.ToolKind.PowerNode => BuildTool.PowerNode,
         Hud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
         Hud.ToolKind.Lamp => BuildTool.Lamp,
+        Hud.ToolKind.Container => BuildTool.Container,
+        Hud.ToolKind.Vault => BuildTool.Vault,
+        Hud.ToolKind.CoreFoundation => BuildTool.CoreFoundation,
+        Hud.ToolKind.CoreNucleus => BuildTool.CoreNucleus,
         _ => BuildTool.Cursor
     };
 

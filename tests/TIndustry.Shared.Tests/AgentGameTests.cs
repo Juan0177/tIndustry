@@ -19,14 +19,14 @@ public sealed class AgentGameTests
 
     /// <summary>
     /// A journal's sandbox (and the agents' real game, made the same way) is the client's Nuova partita: the
-    /// arguments below are World.NewSandboxFactory's (Core 2x2 at the centre, 180 money, biome map, day).
+    /// arguments below are World.NewSandboxFactory's (Core 3x3 at the centre, 180 money, biome map, day).
     /// </summary>
     [Fact]
     public void SandboxSetupIsTheClientsNewGame()
     {
         var setup = AgentGameSetup.Sandbox(64, 7, MapGenerator.Name, new GameRules()).CreateHost(Content);
         var client = new SimHost(NewGame.Sandbox(
-            Content, Factory.CenteredCoreOrigin(64, 64), coreSize: 2, startingMoney: 180,
+            Content, Factory.CenteredCoreOrigin(64, 64), startingMoney: 180,
             rules: new GameRules(Night: false), map: MapGenSettings.Normal((MapSize)64, 7)));
 
         Assert.Equal(180, setup.State.Wallet.Money);
@@ -238,6 +238,41 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void VenditaAutomaticaSoloAPienoSetsBothSwitches()
+    {
+        var factory = NewFactory();
+        var game = new AgentGame(new SimHost(factory), Content);
+
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true,"solo_a_pieno":true}""");
+
+        var plate = factory.State.Exchange.Find("iron-plate")!;
+        Assert.True(plate.AutoSell);
+        Assert.True(plate.AutoSellWhenFull);
+        var mercato = Call(game, "stato").GetProperty("mercato").EnumerateArray()
+            .Single(m => m.GetProperty("oggetto").GetString() == "iron-plate");
+        Assert.True(mercato.GetProperty("soloAPieno").GetBoolean());
+
+        // Without solo_a_pieno the "only when full" switch stays as it is.
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true}""");
+        Assert.True(plate.AutoSellWhenFull);
+        Call(game, "vendita_automatica", """{"oggetto":"iron-plate","accesa":true,"solo_a_pieno":false}""");
+        Assert.False(plate.AutoSellWhenFull);
+        Assert.True(plate.AutoSell);
+        Refused(game, "vendita_automatica", """{"oggetto":"nonesiste","accesa":true,"solo_a_pieno":true}""");
+    }
+
+    [Fact]
+    public void StatoReportsCoreMaximum()
+    {
+        var factory = NewFactory();
+        var game = new AgentGame(new SimHost(factory), Content);
+
+        var core = Call(game, "stato").GetProperty("core");
+
+        Assert.Equal(factory.CoreCapacity("iron-ore"), core.GetProperty("massimo").GetInt32());
+    }
+
+    [Fact]
     public void PiazzaUsesSimHostAndReportsRefusalCode()
     {
         // The classic generator has no walls: the biome one does.
@@ -430,12 +465,12 @@ public sealed class AgentGameTests
     [Fact]
     public void LoneBeltWithDirectionBesideTheCoreIsThePlayersClick()
     {
-        var beside = new GridPosition(62, 60); // East of the Core on x 60..61
+        var beside = new GridPosition(63, 60); // East of the Core on x 60..62
         var agent = NewHost();
         var client = NewHost();
 
         using var game = new AgentGame(agent, Content);
-        Call(game, "piazza", """{"tier":1,"cella":{"x":62,"y":60},"direzione":"nord"}""");
+        Call(game, "piazza", """{"tier":1,"cella":{"x":63,"y":60},"direzione":"nord"}""");
 
         foreach (var command in PlacementLine.Commands(PlacementLine.Plan(client.State, new LineRequest(
             0, BuildSpec.DefaultConveyorId, beside, beside, Direction.North))))
@@ -684,12 +719,12 @@ public sealed class AgentGameTests
     {
         using var game = new AgentGame(NewHost(), Content);
 
-        // The Core stands on x 60..61: those two cells are refused, the rest is built.
-        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":56,"y":60},"a":{"x":63,"y":60}}""");
+        // The Core stands on x 60..62: those three cells are refused, the rest is built.
+        var result = Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":56,"y":60},"a":{"x":64,"y":60}}""");
 
         Assert.Equal(6, result.GetProperty("celle").GetArrayLength());
         var refused = result.GetProperty("rifiuti").EnumerateArray().ToArray();
-        Assert.Equal([60, 61], refused.Select(r => r.GetProperty("x").GetInt32()));
+        Assert.Equal([60, 61, 62], refused.Select(r => r.GetProperty("x").GetInt32()));
         Assert.All(refused, r => Assert.Equal("OnCore", r.GetProperty("codice").GetString()));
         Assert.Equal("est", result.GetProperty("celle")[0].GetProperty("direzione").GetString());
     }
@@ -756,6 +791,10 @@ public sealed class AgentGameTests
             File.WriteAllText(broken, "{non json");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
+            Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
+            // Journals recorded before the 3×3 shard played on another map: refused, never replayed.
+            Assert.Equal(2, AgentJournal.CurrentVersion);
+            File.WriteAllText(broken, """{"versione":1,"voci":[]}""");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             Assert.Equal(AgentCodes.ParametriNonValidi,
                 Assert.Throws<AgentException>(() => AgentJournal.Load(Path.Combine(dir, "manca.json"))).Code);
@@ -858,6 +897,32 @@ public sealed class AgentGameTests
 
         var item = Assert.Single(area.GetProperty("oggetti").EnumerateArray());
         Assert.Equal((41, 1, "iron-ore"), (item.GetProperty("x").GetInt32(), item.GetProperty("n").GetInt32(), item.GetProperty("tipi")[0].GetString()));
+    }
+
+    [Fact]
+    public void PotenziaCorePlacesTheNextTierOverTheCore()
+    {
+        var factory = NewGame.Sandbox(
+            Content, Factory.CenteredCoreOrigin(64, 64), rules: new GameRules(InstantBuild: true),
+            map: MapGenSettings.Normal((MapSize)64, 7));
+        using var game = new AgentGame(new SimHost(factory), Content);
+
+        Assert.Equal("CoreUpgradeLocked", Refused(game, "potenzia_core", "{}").Code);
+
+        foreach (var tier in new[] { 1, 2 })
+        {
+            factory.Research.ForceUnlock(Content.CoreTiers[tier].Id);
+            foreach (var entry in Content.CoreTiers[tier].BuildCost)
+            {
+                factory.Wallet.AddMaterial(entry.ItemId, entry.Amount);
+            }
+
+            Assert.Equal(tier, Call(game, "potenzia_core").GetProperty("livello").GetInt32());
+            Assert.Equal(tier, factory.CoreTier);
+            Assert.Equal(tier, Call(game, "stato").GetProperty("core").GetProperty("livello").GetInt32());
+        }
+
+        Assert.Equal("CoreMaxTier", Refused(game, "potenzia_core", "{}").Code);
     }
 
     [Fact]

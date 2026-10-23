@@ -164,6 +164,16 @@ class TestSito(unittest.TestCase):
             self.assertNotIn('<div id="drone-cantiere"', self.pagine[rel])
             self.assertNotIn("data-costruisci", self.pagine[rel])
 
+    def test_nastri_proseguono_sotto_il_testo(self):
+        # On phones the text of a section stacks under its scene: the belts that leave the scene from the bottom
+        # go on behind that text, in the same columns, down to the next scene (issue #287).
+        for scena in fabbrica.VETRINA:
+            sezione = re.search(rf'<section id="{scena.id}".*?</section>', self.ingresso, re.S).group(0)
+            colonne = sorted(int(x) for x in re.findall(r'class="nastro v-s" style="--colonna:(\d+);', sezione))
+            self.assertEqual(sorted(fabbrica.uscite_dal_basso(scena)), colonne, scena.id)
+            if colonne:
+                self.assertIn('<div class="prosegue" aria-hidden="true" style="--righe:', sezione)
+
     def test_racconto(self):
         # The story prototype: canvas, data, the poster for pages without the script, both scripts, noindex.
         with open(os.path.join(self.out, "racconto", "index.html"), encoding="utf-8") as fh:

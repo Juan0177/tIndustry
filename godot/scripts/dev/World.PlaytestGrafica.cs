@@ -153,10 +153,11 @@ public partial class World
             return "nessun Core per la prova del cursore";
         }
 
-        // Two cells right of the Core (clear of the HUD column on the left): the hovered cell follows the mouse exactly.
-        var coreX = _view.CoreTiles.Min(t => t.X);
+        // Right of the Core with a free cell between (clear of the HUD column on the left, and of the Core whatever its
+        // size): the hovered cell follows the mouse exactly.
+        var coreRight = _view.CoreTiles.Max(t => t.X);
         var coreY = _view.CoreTiles.Min(t => t.Y);
-        foreach (var cell in new[] { new GridPosition(coreX + 4, coreY - 1), new GridPosition(coreX + 3, coreY + 1) })
+        foreach (var cell in new[] { new GridPosition(coreRight + 3, coreY - 1), new GridPosition(coreRight + 2, coreY + 1) })
         {
             PlaytestMove(CellToScreen(cell), 0);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -166,7 +167,7 @@ public partial class World
             }
         }
 
-        var probeCell = new GridPosition(coreX + 3, coreY + 1);
+        var probeCell = new GridPosition(coreRight + 2, coreY + 1);
         return await PlaytestReducedWorldUnderCursorProblem(target, probeCell, window)
             ?? await PlaytestGhostUnderCursorProblem(probeCell);
     }
