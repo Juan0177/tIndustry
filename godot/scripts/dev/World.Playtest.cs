@@ -1260,8 +1260,8 @@ public partial class World
         await Frame(onMin, onMax, Fit(onMin, onMax), "accesi");
         var all = onCells.Append(off).Append(offMax).ToArray();
         await Frame(new GridPosition(all.Min(c => c.X), all.Min(c => c.Y)), new GridPosition(all.Max(c => c.X), all.Max(c => c.Y)), 0.4f, "zoom04");
-        // Close-up of the Core (core-1 with its nucleus light) and the drone resting beside it.
-        await Frame(new GridPosition(core.X - 2, core.Y - 1), new GridPosition(core.X + 3, core.Y + 2), 2f, "core");
+        // Close-up of the 3x3 shard Core (core-1 with its nucleus light) and the drone resting beside it.
+        await Frame(new GridPosition(core.X - 2, core.Y - 1), new GridPosition(core.X + 4, core.Y + 3), 2f, "core");
 
         // Every item on each belt tier: one row of belts heading East per tier, one item per cell.
         string[] itemIds = [.. _view.Content.Market.Select(m => m.ItemId), "money"];

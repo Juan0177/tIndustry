@@ -229,7 +229,7 @@ public sealed class AutoSellTests
     [Fact]
     public void AutoSellPaysTheMinimumPrice()
     {
-        foreach (var (price, expectedUnit) in new[] { (1300, -1), (650, MarketMath.UnitIncome(10, 650)) })
+        foreach (var price in new[] { 1300, 650 })
         {
             var f = NewFactory();
             SetStock(f, Coal, 100);
@@ -237,16 +237,18 @@ public sealed class AutoSellTests
             item.AutoSell = true;
             Force(f, Coal, price);
             var unit = MinPrice(item);
-            if (expectedUnit < 0)
+            var expectedUnit = Math.Min(item.BaseValue, MarketMath.UnitIncome(item.BaseValue, price));
+            Assert.Equal(expectedUnit, unit);
+            if (price > 1000)
             {
                 Assert.Equal(item.BaseValue, unit);
             }
 
+            // 1 s at 10 pieces/s; the price may drift, so Run tallies the minimum price of each tick.
             var money = f.Wallet.Money;
-            var stock = f.Wallet.MaterialCount(Coal);
-            f.Step();
-            var sold = stock - f.Wallet.MaterialCount(Coal);
-            Assert.Equal(unit * sold, f.Wallet.Money - money);
+            var (sold, expected) = Run(f, Coal, 1f);
+            Assert.True(sold > 0);
+            Assert.Equal(expected, f.Wallet.Money - money);
         }
     }
 

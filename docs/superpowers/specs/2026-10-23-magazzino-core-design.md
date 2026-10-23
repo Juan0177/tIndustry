@@ -51,7 +51,7 @@ Ogni oggetto della costruzione costa meno del massimo del CORE che la costruisce
 - Un oggetto **al massimo** non entra: un nastro che punta al CORE tiene il pezzo in uscita (e si riempie dietro), un edificio attaccato al CORE lo tiene nel suo buffer d'uscita e si ferma quando è pieno. Appena il magazzino scende sotto il massimo, il primo pezzo in attesa entra.
 - Il drone che costruisce o smonta prende e rende i materiali dal magazzino. I **rimborsi** (smontaggio, cantiere annullato) entrano fino al massimo; il resto va perso, come in Mindustry.
 - Se il massimo scende sotto quanto c'è (un magazzino collegato smontato), niente sparisce: l'oggetto resta «pieno» finché non scende sotto il nuovo massimo.
-- Nell'HUD e nella panoramica del Mercato un oggetto al massimo si vede pieno (`1.000/1.000` col colore di avviso del tema).
+- Nell'HUD un oggetto al massimo ha il numero nel colore di avviso del tema, con `x/massimo` nel suggerimento; la panoramica del Mercato mostra sempre `x/massimo` (`1.000/1.000` quando è pieno).
 
 ### Vendita automatica
 
@@ -89,7 +89,7 @@ Drone comandato a mano, più droni, unità di difesa (aspetti 11 e 13); lo scher
 
 ### Dati (`data/content.json`)
 
-- Nuovo blocco `cores`: per ogni livello `id` (`core-shard`, `core-foundation`, `core-nucleus`), `size`, `itemCapacity`, `autoSellPerSecond`, `unit` (id in `units`), `unlock` (soldi e materiali della Ricerca, assente per lo shard), `buildCost` (materiali del cantiere).
+- Nuovo blocco `cores`: per ogni livello `id` (`core-shard`, `core-foundation`, `core-nucleus`), `size`, `itemCapacity`, `autoSellPerSecond`, `unit` (id in `units`), `buildCost` (materiali del cantiere). I costi di Ricerca restano sulle `structures` (`core-foundation`, `core-nucleus`).
 - `units`: `alpha`, `beta`, `gamma` coi numeri della tabella (oggi un solo `drone`).
 - `structures`: `container` e `vault` di tipo nuovo `storage` con `itemCapacity`; `core-foundation` e `core-nucleus` di tipo nuovo `core-upgrade`, col prerequisito della radice CORE e del livello prima.
 - Via `economy.coreUpgrade` e la nota relativa in `refundPolicyNote`.
@@ -99,7 +99,7 @@ Drone comandato a mano, più droni, unità di difesa (aspetti 11 e 13); lo scher
 - `CoreUpgradeLevel` diventa `CoreTier` (0 shard, 1 foundation, 2 nucleus). Celle del CORE = origine + misura del livello (`CoreStockSink.MakeCoreTiles`); il drone legge le statistiche dal livello.
 - **Un solo ingresso**: `CoreStorage.TryAccept(itemId)` (in `Economy/`), usato dai nastri (`CoreStockSink.Drain`) e dagli edifici attaccati (`GameState`, oggi `Wallet.AddMaterial` diretto). Ritorna falso al massimo; chi chiama tiene il pezzo. I rimborsi passano da `CoreStorage.AddClamped`.
 - `CoreStorage.Capacity(itemId)` = massimo del livello + spazio dei magazzini collegati; i magazzini collegati si ricalcolano in un punto solo (dopo piazzamenti, smontaggi e potenziamenti), in ordine di id.
-- **Vendita automatica**: `MarketItemState` aggiunge `AutoSellWhenFull` e un accumulatore intero in millesimi di pezzo. A ogni tick `+= ritmo × 1000 / 60`; i pezzi interi si vendono dal magazzino (con la spunta, solo finché la quantità è almeno `massimo − ritmo`). Via `MarketSales.TryAutoSell` all'arrivo. Tutto intero e deterministico.
+- **Vendita automatica**: `MarketItemState` aggiunge `AutoSellWhenFull` e un accumulatore intero in sessantesimi di pezzo (`AutoSellCarry`). A ogni tick `carry += ritmo` e i pezzi da vendere sono `carry / 60` (il resto resta nell'accumulatore); si vendono dal magazzino (con la spunta, solo finché la quantità è almeno `massimo − ritmo`). Via `MarketSales.TryAutoSell` all'arrivo. Tutto intero e deterministico.
 - **Comandi**: `PlaceCoreUpgrade(PlayerId)` (al posto di `UpgradeCore`; la posizione la decide la regola di crescita), `SetAutoSellWhenFull(PlayerId, ItemId, bool)`. I magazzini si piazzano col comando normale.
 - **Cantiere del CORE**: `ConstructSite` col blocco `core-upgrade`; a fine lavori `CoreTier++`, origine aggiornata, celle ricalcolate, magazzini ricollegati.
 - **Magazzini**: `StorageBlock` (in `Buildings/`) con `Contents` per oggetto (vuoto quando collegato). Accetta dai nastri e dagli edifici come un edificio qualsiasi; l'estrattore lo svuota.

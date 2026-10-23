@@ -44,12 +44,10 @@ public sealed class FactoryContent
 
     internal static readonly IReadOnlyList<CoreTierDefinition> DefaultCoreTiers =
     [
-        new("core-shard", 3, 1000, 10, "alpha", 0, [], []),
-        new("core-foundation", 4, 4000, 25, "beta", 5000,
-            [new("iron-plate", 200), new("copper-wire", 100)],
+        new("core-shard", 3, 1000, 10, "alpha", []),
+        new("core-foundation", 4, 4000, 25, "beta",
             [new("iron-plate", 800), new("copper-wire", 500), new("lead-plate", 400)]),
-        new("core-nucleus", 5, 12000, 60, "gamma", 25000,
-            [new("titanium-plate", 400), new("silicon", 300)],
+        new("core-nucleus", 5, 12000, 60, "gamma",
             [new("iron-plate", 3000), new("lead-plate", 2000), new("silicon", 1500), new("titanium-plate", 1000)])
     ];
 
@@ -384,7 +382,7 @@ public sealed class FactoryContent
 
             tiers.Add(new CoreTierDefinition(
                 dto.Id, dto.Size, dto.ItemCapacity, dto.AutoSellPerSecond, dto.UnitId,
-                Math.Max(0, dto.Unlock?.Money ?? 0), MapAmounts(dto.Unlock?.Materials), MapAmounts(dto.BuildCost)));
+                MapAmounts(dto.BuildCost)));
         }
 
         return tiers;
@@ -610,7 +608,6 @@ public sealed class FactoryContent
         public int ItemCapacity { get; set; }
         public int AutoSellPerSecond { get; set; }
         public string UnitId { get; set; } = "";
-        public UnlockDto? Unlock { get; set; }
         public List<AmountDto>? BuildCost { get; set; }
     }
 

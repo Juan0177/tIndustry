@@ -174,7 +174,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Mercato
 
-**M** apre il Mercato, una panoramica con una riga per ogni oggetto che hai nel CORE: icona, nome, quantità, prezzo del momento con la freccia (su o giù), mini grafico degli ultimi 2 minuti, **Vendi 1**, **Vendi 100**, **Vendi tutto** l'interruttore della **vendita automatica** di quell'oggetto e la spunta **«solo a CORE pieno»**; la quantità è `x/massimo`. Non c'è un pulsante che vende tutto di tutti. Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
+**M** apre il Mercato, una panoramica con una riga per ogni oggetto che hai nel CORE: icona, nome, quantità, prezzo del momento con la freccia (su o giù), mini grafico degli ultimi 2 minuti, **Vendi 1**, **Vendi 100**, **Vendi tutto**, l'interruttore della **vendita automatica** di quell'oggetto e la spunta **«solo a CORE pieno»**; la quantità è `x/massimo`. Non c'è un pulsante che vende tutto di tutti. Il pannello Core mostra `$`. Necessario per guadagnare denaro e sbloccare in Ricerca.
 
 Ogni oggetto ha un prezzo suo, come un titolo in borsa:
 

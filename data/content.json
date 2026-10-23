@@ -1032,7 +1032,6 @@
       "itemCapacity": 4000,
       "autoSellPerSecond": 25,
       "unitId": "beta",
-      "unlock": { "money": 5000, "materials": [ { "itemId": "iron-plate", "amount": 200 }, { "itemId": "copper-wire", "amount": 100 } ] },
       "buildCost": [ { "itemId": "iron-plate", "amount": 800 }, { "itemId": "copper-wire", "amount": 500 }, { "itemId": "lead-plate", "amount": 400 } ]
     },
     {
@@ -1041,7 +1040,6 @@
       "itemCapacity": 12000,
       "autoSellPerSecond": 60,
       "unitId": "gamma",
-      "unlock": { "money": 25000, "materials": [ { "itemId": "titanium-plate", "amount": 400 }, { "itemId": "silicon", "amount": 300 } ] },
       "buildCost": [ { "itemId": "iron-plate", "amount": 3000 }, { "itemId": "lead-plate", "amount": 2000 }, { "itemId": "silicon", "amount": 1500 }, { "itemId": "titanium-plate", "amount": 1000 } ]
     }
   ],

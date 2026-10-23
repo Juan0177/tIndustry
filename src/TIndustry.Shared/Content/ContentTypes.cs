@@ -89,7 +89,7 @@ public sealed record StructureDefinition(
 
 /// <summary>
 /// One Core tier of <c>cores</c> (index = tier): footprint <paramref name="Size"/>, pieces per item, pieces/s sold
-/// automatically, the drone it spawns, the Research cost of its structure and the build cost of the site.
+/// automatically, the drone it spawns and the build cost of the site (the Research cost lives on the structure).
 /// </summary>
 public sealed record CoreTierDefinition(
     string Id,
@@ -97,8 +97,6 @@ public sealed record CoreTierDefinition(
     int ItemCapacity,
     int AutoSellPerSecond,
     string UnitId,
-    int UnlockMoney,
-    IReadOnlyList<ResourceAmount> UnlockCost,
     IReadOnlyList<ResourceAmount> BuildCost);
 
 /// <summary>

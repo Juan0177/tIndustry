@@ -112,14 +112,17 @@ public sealed class ContentValidationTests
                 new ResourceAmount("silicon", 1500), new ResourceAmount("titanium-plate", 1000)],
             Content.CoreTiers[2].BuildCost);
 
-        Assert.Equal(5000, Content.CoreTiers[1].UnlockMoney);
+        // Research reads the structures, not the cores block.
+        var foundation = Content.RequireStructure("core-foundation").Unlock!;
+        Assert.Equal(5000, foundation.Money);
         Assert.Equal(
             [new ResourceAmount("iron-plate", 200), new ResourceAmount("copper-wire", 100)],
-            Content.CoreTiers[1].UnlockCost);
-        Assert.Equal(25000, Content.CoreTiers[2].UnlockMoney);
+            foundation.Materials);
+        var nucleus = Content.RequireStructure("core-nucleus").Unlock!;
+        Assert.Equal(25000, nucleus.Money);
         Assert.Equal(
             [new ResourceAmount("titanium-plate", 400), new ResourceAmount("silicon", 300)],
-            Content.CoreTiers[2].UnlockCost);
+            nucleus.Materials);
     }
 
     [Fact]
