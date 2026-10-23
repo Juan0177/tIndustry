@@ -15,6 +15,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [x] Salvataggi con versione, fino alla v14 (PR #279)
 - [x] Agenti che giocano col server MCP (PR #210–#217)
 - [x] Avvio unico play.ps1 (utente o dev) con installazione delle dipendenze
+- [x] Importazione automatica degli asset quando cambiano e clean.ps1 per i file generati
 - [ ] Pulizia di rami, worktree e cartelle vecchie (approvata, da lanciare a mano)
 - [ ] Sonda `oggetti-fluidi` del playtest `ui` stabile
 
