@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using TIndustry.Shared;
 using Xunit;
@@ -6,8 +5,8 @@ using Xunit;
 namespace TIndustry.Shared.Tests;
 
 /// <summary>
-/// G3 3/4: the Lamp (1×1 power consumer, lit only while it gets power) and the night flag of the game rules
-/// (looks only: it is saved with the game and read from campaign.json, the simulation never reads it).
+/// G3 3/4: the Lamp (1×1 power consumer, lit only while it gets power). The world's time it lights up is in
+/// <see cref="DayNightTests"/> and, saved and in the campaign, in <see cref="DayNightSaveTests"/>.
 /// </summary>
 public sealed class LampAndNightTests
 {
@@ -176,38 +175,5 @@ public sealed class LampAndNightTests
         Assert.Equal(factory.Lamps[0].Position, lamp.Position);
         Simulation.Step(restored);
         Assert.True(lamp.IsLit);
-    }
-
-    [Fact]
-    public void NightFlagRoundTripsInSave()
-    {
-        var night = Sandbox(new GameRules(InstantBuild: true, Night: true));
-        Assert.True(night.State.Rules.Night);
-        var restored = Factory.Restore(Content, night.Capture());
-        Assert.True(restored.State.Rules.Night);
-        Assert.Equal(FactorySaveData.CurrentVersion, night.Capture().Version);
-
-        // Additive field: a save written before it has no "night" and loads as day.
-        var json = JsonSerializer.Serialize(Sandbox().Capture(), FactorySaveStore.JsonOptions);
-        Assert.DoesNotContain("\"night\"", json, StringComparison.OrdinalIgnoreCase);
-        // No lamps: no "lamps" key either, so day saves without lamps keep their v12 bytes.
-        Assert.DoesNotContain("\"lamps\"", json, StringComparison.OrdinalIgnoreCase);
-        var old = JsonSerializer.Deserialize<FactorySaveData>(json, FactorySaveStore.JsonOptions)!;
-        Assert.False(Factory.Restore(Content, old).State.Rules.Night);
-    }
-
-    [Fact]
-    public void CampaignNightFlagLoads()
-    {
-        var catalog = CampaignCatalog.Load(Path.Combine(DataDir, "campaign.json"));
-        Assert.Equal(
-            ["level-06-corrente", "level-10-espansione"],
-            catalog.Levels.Where(l => l.Night).Select(l => l.Id).ToArray());
-
-        var level = catalog.Find("level-06-corrente")!;
-        var factory = NewGame.Campaign(Content, catalog, level, mapWidth: 80, mapHeight: 80);
-        Assert.True(factory.State.Rules.Night);
-        var day = NewGame.Campaign(Content, catalog, catalog.FirstLevel!, mapWidth: 80, mapHeight: 80);
-        Assert.False(day.State.Rules.Night);
     }
 }

@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v15: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
+/// <summary>Save format v16: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class SaveVersionTests
 {
@@ -133,16 +133,17 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion15()
+    public void SaveWritesVersion16()
     {
-        Assert.Equal(15, FactorySaveData.CurrentVersion);
-        Assert.Equal(15, FactorySaveData.MinReadableVersion);
+        Assert.Equal(16, FactorySaveData.CurrentVersion);
+        Assert.Equal(16, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v15-versione", host);
+        FactorySaveStore.Save("v16-versione", host);
 
-        Assert.Contains("\"version\": 15", File.ReadAllText(FactorySaveStore.SlotPath("v15-versione")));
+        Assert.Contains("\"version\": 16", File.ReadAllText(FactorySaveStore.SlotPath("v16-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":15", snapshot);
+        Assert.Contains("\"version\":16", snapshot);
+        Assert.Contains("\"rules\":{\"refundPercent\":100,\"instantBuild\":false,\"dayNight\":\"Cycle\"}", snapshot);
         Assert.Contains("\"coreStartX\":60,\"coreStartY\":60", snapshot);
         Assert.DoesNotContain("coreUpgradeLevel", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("autoSellAtCore", snapshot, StringComparison.OrdinalIgnoreCase);
@@ -151,23 +152,23 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void Version14_Refused_OlderVersion()
+    public void Version15_Refused_OlderVersion()
     {
         var content = LoadContent();
         var host = new SimHost(NewGame.Demo(content));
-        FactorySaveStore.Save("v14-rifiutato", host);
-        var path = FactorySaveStore.SlotPath("v14-rifiutato");
+        FactorySaveStore.Save("v15-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v15-rifiutato");
         var json = File.ReadAllText(path);
         Assert.Contains(Current, json);
-        File.WriteAllText(path, json.Replace(Current, "\"version\": 14"));
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 15"));
 
-        Assert.False(FactorySaveStore.TryLoadSlot(content, "v14-rifiutato", out var loaded, out var failure));
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v15-rifiutato", out var loaded, out var failure));
         Assert.Null(loaded);
         Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
 
-        // A v14 snapshot inside a v15 envelope is not read either.
+        // A v15 snapshot inside a v16 envelope is not read either.
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
-            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":14");
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":15");
         Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
     }
 
@@ -190,9 +191,9 @@ public sealed class SaveVersionTests
         data.CoreSize = 4;
         var snapshot = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(data, FactorySaveStore.JsonOptions);
         Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
-        File.WriteAllText(FactorySaveStore.SlotPath("v15-nucleo-storto"), System.Text.Json.JsonSerializer.Serialize(
+        File.WriteAllText(FactorySaveStore.SlotPath("v16-nucleo-storto"), System.Text.Json.JsonSerializer.Serialize(
             new SaveFileData { Snapshot = Convert.ToBase64String(snapshot) }, FactorySaveStore.JsonOptions));
-        Assert.False(FactorySaveStore.TryLoadSlot(content, "v15-nucleo-storto", out _, out var failure));
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v16-nucleo-storto", out _, out var failure));
         Assert.Equal(SaveLoadError.Unreadable, failure!.Code);
     }
 }

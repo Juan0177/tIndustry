@@ -4,9 +4,10 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// The night (G3, <see cref="GameRules.Night"/>): a <see cref="CanvasModulate"/> darkens the world's canvas and
-/// <see cref="PointLight2D"/>s on the Core, the working furnaces, the burning generators, the lit lamps and the drones
-/// cut through it. The HUD is on its own CanvasLayer, which a CanvasModulate never reaches. Lights only for sources
+/// The night (G3, <see cref="GameRules.DayNight"/>), from the simulation's light (<see cref="IGameView.Light"/>,
+/// 0–1000): a <see cref="CanvasModulate"/> darkens the world's canvas in proportion to <c>1000 − light</c>, so dusk and
+/// dawn fade, and below half light <see cref="PointLight2D"/>s on the Core, the working furnaces, the burning
+/// generators, the lit lamps and the drones cut through it (fading in as the light goes). The HUD is on its own CanvasLayer, which a CanvasModulate never reaches. Lights only for sources
 /// in view (plus their radius), at most <see cref="MaxLights"/>, taken from a list that never shrinks. Looks only.
 /// </summary>
 public partial class NightLayer : Node2D
@@ -25,6 +26,11 @@ public partial class NightLayer : Node2D
     private static readonly LightKind GeneratorLight = new(3f, new Color(1f, 0.84f, 0.5f), 1f);
     private static readonly LightKind DroneLight = new(2f, new Color(1f, 0.95f, 0.82f), 0.9f);
 
+    /// <summary>
+    /// Light below which the lamps and the night effects are on (half of <see cref="DayNightClock.FullLight"/>).
+    /// </summary>
+    public const int LightsOnBelow = DayNightClock.FullLight / 2;
+
     private readonly List<PointLight2D> _lights = [];
     private CanvasModulate? _darkness;
     private Texture2D? _texture;
@@ -33,9 +39,15 @@ public partial class NightLayer : Node2D
     private int _tileSize;
     private IReadOnlySet<GridPosition>? _coreTiles;
     private Vector2 _coreCenterCells;
+    private float _lightEnergy = 1f;
 
-    /// <summary>True while the night is drawn.</summary>
-    public bool Night { get; private set; }
+    /// <summary>Light drawn now (0 night … <see cref="DayNightClock.FullLight"/> day).</summary>
+    public int Light { get; private set; } = DayNightClock.FullLight;
+
+    /// <summary>
+    /// True while the lights and the night effects are on (<see cref="Light"/> below <see cref="LightsOnBelow"/>).
+    /// </summary>
+    public bool Night => Light < LightsOnBelow;
 
     /// <summary>Lights drawn this frame (≤ <see cref="MaxLights"/>).</summary>
     public int ActiveLights => _used;
@@ -43,17 +55,21 @@ public partial class NightLayer : Node2D
     /// <summary>Light nodes created so far (drawn or idle): flat once the busiest view has been seen.</summary>
     public int LightNodes => _lights.Count;
 
-    /// <summary>The darkness node, or null before the first night.</summary>
+    /// <summary>The darkness node, or null before the first dusk.</summary>
     public CanvasModulate? DarknessNode => _darkness;
 
     /// <summary>Lights drawn this frame (playtest checks).</summary>
     public IEnumerable<PointLight2D> VisibleLights => _lights.Take(_used);
 
-    /// <summary>Night on or off: the darkness shows or hides at once, the lights follow at the next <see cref="Sync"/>.</summary>
-    public void SetNight(bool on)
+    /// <summary>
+    /// The light to draw (0–1000): the darkness follows it at once, the lights at the next <see cref="Sync"/>.
+    /// Full light hides the darkness node.
+    /// </summary>
+    public void SetLight(int light)
     {
-        Night = on;
-        if (on && _darkness is null)
+        Light = Math.Clamp(light, 0, DayNightClock.FullLight);
+        var dark = 1f - (float)Light / DayNightClock.FullLight;
+        if (dark > 0f && _darkness is null)
         {
             _darkness = new CanvasModulate { Name = "Buio", Color = Darkness };
             AddChild(_darkness);
@@ -61,10 +77,13 @@ public partial class NightLayer : Node2D
 
         if (_darkness is not null)
         {
-            _darkness.Visible = on;
+            _darkness.Visible = dark > 0f;
+            _darkness.Color = Colors.White.Lerp(Darkness, dark);
         }
 
-        if (!on)
+        // The lights grow from nothing at LightsOnBelow to full strength at night.
+        _lightEnergy = Math.Clamp((float)(LightsOnBelow - Light) / LightsOnBelow, 0f, 1f);
+        if (!Night)
         {
             HideFrom(0);
         }
@@ -172,7 +191,7 @@ public partial class NightLayer : Node2D
         light.Position = at;
         light.TextureScale = radius * 2f / _texture!.GetWidth();
         light.Color = kind.Color;
-        light.Energy = kind.Energy;
+        light.Energy = kind.Energy * _lightEnergy;
         light.Visible = true;
     }
 

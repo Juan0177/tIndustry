@@ -200,7 +200,7 @@ public partial class World
         }
 
         hudRoot.MoveChild(_newGame, hudRoot.GetChildCount() - 1);
-        _newGame.StartRequested += (size, seed, night) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed, night), ShowNewGameError);
+        _newGame.StartRequested += (size, seed, dayNight) => RunMapTask(() => StartNewGameFromPanelAsync(size, seed, dayNight), ShowNewGameError);
         _newGame.Cancelled += () => _home?.Open();
     }
 

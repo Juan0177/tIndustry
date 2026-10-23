@@ -27,7 +27,7 @@ Dai sorgenti, su Windows, basta `.\play.ps1 -Utente` dalla radice del repository
 |---|---|
 | **Continua** | Riprende l'ultima partita salvata (compare solo se ce n'è una) |
 | **Campagna** | Sceglie un livello della campagna, con obiettivi da raggiungere |
-| **Nuova partita** | Partita libera su una mappa generata: scegli misura, seme e, se vuoi, la notte |
+| **Nuova partita** | Partita libera su una mappa generata: scegli misura, seme e, se vuoi, solo giorno o solo notte |
 | **Gestione salvataggi** | Carica, elimina, duplica e salva con nome |
 | **Impostazioni** | Grafica, lingua, scala, colori |
 | **Esci** | Chiede conferma e salva la Continua |

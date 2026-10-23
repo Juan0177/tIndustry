@@ -57,7 +57,7 @@ La variante cambia l'anteprima di piazzamento valida o rifiutata, costruzione e 
 
 Valori predefiniti: Effetti Alti, Ombre e Bagliore accesi, nessun limite di FPS, scala di rendering 100%. Un file di impostazioni di una versione precedente resta valido: le voci mancanti prendono il valore predefinito.
 
-Le lucciole sui prati di notte compaiono solo con Effetti Alti.
+Le lucciole sui prati di notte compaiono solo con Effetti Alti. Lo scuro, le luci e le lucciole seguono la luce del mondo: crescono piano nel tramonto e calano nell'alba.
 
 ## Vedi anche
 

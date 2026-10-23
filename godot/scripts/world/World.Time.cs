@@ -26,6 +26,9 @@ public partial class World
     /// <summary>Dev speed kept across games of the session (always 1 without dev mode).</summary>
     private int _devSpeed = 1;
 
+    /// <summary>Ticks "Attacco!" stays on the world's time line after the first attack (5 seconds).</summary>
+    private const long AttackAlertTicks = 5 * SimulationClock.TickRate;
+
     private Label? _pauseLabel;
     private Label? _devSpeedLabel;
 
@@ -151,6 +154,33 @@ public partial class World
     /// </summary>
     private bool FocusTakesSpace() =>
         GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit or SpinBox or BaseButton;
+
+    /// <summary>
+    /// "Attacco!" window of always night, derived from ticks (not from the <see cref="FirstAttackDue"/> event, which
+    /// would leave one frame of "Notte" before it): from the attack's own tick (first block +
+    /// <see cref="DayNightClock.FirstAttackTicks"/>) for <see cref="AttackAlertTicks"/>.
+    /// </summary>
+    private static bool AttackAlertShown(IGameView view) =>
+        view.DayNight == DayNightMode.AlwaysNight
+        && view.FirstBuildTick is { } first
+        && view.CurrentTick >= first + DayNightClock.FirstAttackTicks
+        && view.CurrentTick < first + DayNightClock.FirstAttackTicks + AttackAlertTicks;
+
+    /// <summary>Per frame from <see cref="UpdateHud"/>: the world's time line, counted in ticks (it stops with the pause).</summary>
+    private void SyncWorldTime()
+    {
+        if (_hud is null || _view is null)
+        {
+            return;
+        }
+
+        _hud.UpdateWorldTime(
+            _view.DayNight,
+            _view.DayNightPhase,
+            _view.FirstBuildTick,
+            _view.TicksToNextChange,
+            AttackAlertShown(_view));
+    }
 
     /// <summary>Per frame: the dev bar's text follows the game (whether it shows: <see cref="SyncHudVisibility"/>).</summary>
     private void SyncTimeOverlays()

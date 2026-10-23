@@ -1,6 +1,6 @@
 # Giorno e notte
 
-- **Stato**: approvata dall'utente il 23 ottobre 2026.
+- **Stato**: attuata (2026-10-23; [diario](../../diario/2026-10-23-giorno-notte.md)). Approvata dall'utente il 23 ottobre 2026.
 - **Sostituisce**: `GameRules.Night` (notte fissa, solo aspetto) e `night` dei livelli in `data/campaign.json`.
 - **Prepara**: l'aspetto 13 «Attacco e difesa» (nemici solo di notte): qui c'è il tempo, non i nemici.
 

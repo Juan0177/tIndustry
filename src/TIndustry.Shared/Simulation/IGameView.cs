@@ -87,8 +87,23 @@ public interface IGameView
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
 
-    /// <summary>Rules of this game (the client reads <see cref="GameRules.Night"/>).</summary>
+    /// <summary>Rules of this game.</summary>
     GameRules Rules { get; }
+
+    /// <summary>The world's time chosen for this game (<see cref="GameRules.DayNight"/>).</summary>
+    DayNightMode DayNight { get; }
+
+    /// <summary>Phase of the world's time now (<see cref="DayNightClock.PhaseAt"/>).</summary>
+    DayNightPhase DayNightPhase { get; }
+
+    /// <summary>Light now, 0 (night) to <see cref="DayNightClock.FullLight"/> (day) (<see cref="DayNightClock.LightAt"/>).</summary>
+    int Light { get; }
+
+    /// <summary>Ticks to the next night, day or first attack; null when nothing is counted (<see cref="DayNightClock.TicksToNextChange"/>).</summary>
+    long? TicksToNextChange { get; }
+
+    /// <summary>Tick of the first block placed, when the world's time started; null before it.</summary>
+    long? FirstBuildTick { get; }
 
     /// <summary>Construction drones, in id order (position, rotation, queue, current site).</summary>
     IReadOnlyList<BuilderUnit> Builders { get; }

@@ -427,7 +427,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         return new GameOptions(lingua, percent, colori, livello, seme, size, generatore, salvataggio, conserva);
     }
 
-    private static AgentGameSetup Setup(
+    private AgentGameSetup Setup(
         JsonElement? misura, int seme, string generatore, string? livello, string? salvataggio, bool instant)
     {
         if (livello is not null && salvataggio is not null)
@@ -441,7 +441,11 @@ public sealed class Tools(Sessions sessions, GameData data)
                 AgentCodes.ParametriNonValidi, "costruzioneIstantanea non vale con salvataggio: la partita tiene le regole salvate.");
         }
 
-        var rules = new AgentRulesSetup(InstantBuild: instant);
+        // A campaign level brings its own world's time: the journal says it, not the default cycle.
+        var levelTime = livello is not null && data.Campaign.Find(livello) is { } level
+            ? AgentRulesSetup.DayNightName(level.DayNight)
+            : AgentRulesSetup.Cycle;
+        var rules = new AgentRulesSetup(InstantBuild: instant, DayNight: levelTime);
         var sandbox = new AgentGameSetup(AgentGameSetup.SimulationEngine, Size(misura), seme, generatore, rules);
         return salvataggio is not null ? sandbox with { StartSnapshot = SaveSnapshot(salvataggio) }
             : livello is not null ? sandbox with { Level = livello }

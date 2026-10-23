@@ -31,3 +31,9 @@ public sealed record DeconstructFinished(int PlayerId, long SiteId, BuildSpec? S
 public sealed record SaleResolved(
     int PlayerId, string ItemId, int Pieces, int PriceMilli, int Income,
     bool Crash, bool Attempt, bool Jackpot, int ProbabilityBasisPoints) : SimEvent(PlayerId);
+
+/// <summary>
+/// Always night: the first attack is due (<see cref="DayNightClock.FirstAttackTicks"/> after the first block). Raised once
+/// per game (<see cref="GameState.FirstAttackRaised"/>); until the enemies exist only the HUD shows it. Player 0: it is the world's.
+/// </summary>
+public sealed record FirstAttackDue(int PlayerId) : SimEvent(PlayerId);

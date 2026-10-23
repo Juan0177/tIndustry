@@ -134,6 +134,25 @@ public sealed class Factory : IGameView
     public IReadOnlyList<StorageBlock> Storages => storagesView ??= storages.AsReadOnly();
     private IReadOnlyList<StorageBlock>? storagesView;
     public GameRules Rules => State.Rules;
+
+    /// <inheritdoc cref="GameRules.DayNight"/>
+    public DayNightMode DayNight => State.Rules.DayNight;
+
+    public DayNightPhase DayNightPhase => DayNightClock.PhaseAt(State.Rules.DayNight, State.FirstBuildTick, State.CurrentTick);
+
+    public int Light => DayNightClock.LightAt(State.Rules.DayNight, State.FirstBuildTick, State.CurrentTick);
+
+    public long? TicksToNextChange =>
+        DayNightClock.TicksToNextChange(State.Rules.DayNight, State.FirstBuildTick, State.CurrentTick);
+
+    public long? FirstBuildTick => State.FirstBuildTick;
+
+    /// <summary>
+    /// A block was placed (a site opened or an instant placement accepted from a player's command): the world's time
+    /// starts now, the first time only (<see cref="GameState.FirstBuildTick"/>).
+    /// </summary>
+    internal void NoteFirstBuild() => State.FirstBuildTick ??= State.CurrentTick;
+
     public long NextItemId => nextItemId;
     public long NextEntityId => nextEntityId;
 
@@ -739,6 +758,8 @@ public sealed class Factory : IGameView
             NextItemId = nextItemId,
             NextEntityId = nextEntityId,
             CurrentTick = CurrentTick,
+            FirstBuildTick = State.FirstBuildTick,
+            FirstAttackRaised = State.FirstAttackRaised,
             CoreDeliveredItems = CoreDeliveredItems,
             CoreX = State.CoreOrigin.X,
             CoreY = State.CoreOrigin.Y,
@@ -822,7 +843,7 @@ public sealed class Factory : IGameView
             {
                 RefundPercent = State.Rules.RefundPercent,
                 InstantBuild = State.Rules.InstantBuild,
-                Night = State.Rules.Night
+                DayNight = State.Rules.DayNight.ToString()
             },
             Builders = State.Builders.OrderBy(b => b.Id).Select(b => new BuilderSaveDto
             {
@@ -1022,7 +1043,17 @@ public sealed class Factory : IGameView
         // The cells are the saved ones (CoreSize, checked against the tier above); the tier and start are restored here.
         factory.State.CoreTier = data.CoreTier;
         factory.State.CoreStart = new GridPosition(data.CoreStartX, data.CoreStartY);
-        factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
+        factory.State.Rules = new GameRules(
+            Math.Clamp(data.Rules.RefundPercent, 0, 100),
+            data.Rules.InstantBuild,
+            RestoreDayNight(data.Rules.DayNight));
+        if (data.FirstBuildTick is < 0 || data.FirstBuildTick > factory.CurrentTick)
+        {
+            throw new InvalidDataException($"Primo blocco al tick {data.FirstBuildTick}, dopo il tick {factory.CurrentTick}.");
+        }
+
+        factory.State.FirstBuildTick = data.FirstBuildTick;
+        factory.State.FirstAttackRaised = data.FirstAttackRaised;
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
         if (data.PowerCapacity > 0f)
@@ -1453,6 +1484,12 @@ public sealed class Factory : IGameView
             dto.BurnRemaining);
         return craft;
     }
+
+    /// <summary>The saved world's time (<see cref="GameRulesSaveDto.DayNight"/>): an explicit null or unknown name is unreadable (an absent key never gets here: the property defaults to <c>Cycle</c>).</summary>
+    private static DayNightMode RestoreDayNight(string? name) =>
+        Enum.TryParse<DayNightMode>(name, ignoreCase: false, out var mode) && Enum.IsDefined(mode) && !int.TryParse(name, out _)
+            ? mode
+            : throw new InvalidDataException($"Tempo del mondo sconosciuto nel salvataggio: \"{name}\".");
 
     private static Direction ParseDirection(string? value) =>
         Enum.TryParse<Direction>(value, ignoreCase: true, out var dir) ? dir : Direction.East;

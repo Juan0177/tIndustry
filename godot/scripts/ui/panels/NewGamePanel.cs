@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Nuova partita: map size (Media, Grande, Enorme), seed (a random one already filled in, editable, with
-/// "Nuovo seme" and "Copia") and "Notte" (the game is played at night, G3), then "Inizia".
+/// "Nuovo seme" and "Copia") and the world's time: two checks that exclude each other, "Solo giorno (Pacifica)" and
+/// "Solo notte", none for the normal day and night cycle (<see cref="DayNightMode"/>), then "Inizia".
 /// </summary>
 public partial class NewGamePanel : Control
 {
@@ -15,11 +16,12 @@ public partial class NewGamePanel : Control
     private readonly List<Button> _sizeButtons = [];
     private MapSize _size = MapSize.Media;
     private LineEdit? _seedEdit;
-    private CheckButton? _night;
+    private CheckButton? _dayOnly;
+    private CheckButton? _nightOnly;
     private Label? _status;
 
-    /// <summary>The player pressed Inizia with a valid seed: size, seed and night.</summary>
-    public event Action<MapSize, int, bool>? StartRequested;
+    /// <summary>The player pressed Inizia with a valid seed: size, seed and world's time.</summary>
+    public event Action<MapSize, int, DayNightMode>? StartRequested;
 
     /// <summary>Indietro or Esc: back to Home.</summary>
     public event Action? Cancelled;
@@ -49,7 +51,8 @@ public partial class NewGamePanel : Control
     {
         SelectSize(MapSize.Media);
         SetSeed(seed ?? NewSeed());
-        _night?.SetPressedNoSignal(false);
+        _dayOnly?.SetPressedNoSignal(false);
+        _nightOnly?.SetPressedNoSignal(false);
         ShowStatus("");
         Visible = true;
     }
@@ -127,9 +130,15 @@ public partial class NewGamePanel : Control
     {
         if (ReadSeed() is { } seed)
         {
-            StartRequested?.Invoke(_size, seed, _night?.ButtonPressed == true);
+            StartRequested?.Invoke(_size, seed, SelectedDayNight);
         }
     }
+
+    /// <summary>The world's time of the checks: none pressed is the cycle.</summary>
+    private DayNightMode SelectedDayNight =>
+        _dayOnly?.ButtonPressed == true ? DayNightMode.AlwaysDay
+        : _nightOnly?.ButtonPressed == true ? DayNightMode.AlwaysNight
+        : DayNightMode.Cycle;
 
     private void OnCopyPressed()
     {
@@ -199,14 +208,14 @@ public partial class NewGamePanel : Control
         }));
         seedRow.AddChild(MakeButton("partita.seme.copia", OnCopyPressed));
 
-        _night = new CheckButton
-        {
-            Name = "NightCheck",
-            Text = "partita.notte",
-            ButtonPressed = false,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
-        };
-        root.AddChild(_night);
+        // World's time: two checks that exclude each other (none pressed = the cycle), with the explanation.
+        _dayOnly = MakeCheck("DayOnlyCheck", "partita.solo.giorno");
+        _nightOnly = MakeCheck("NightOnlyCheck", "partita.solo.notte");
+        _dayOnly.Toggled += on => Exclude(on, _nightOnly);
+        _nightOnly.Toggled += on => Exclude(on, _dayOnly);
+        root.AddChild(_dayOnly);
+        root.AddChild(_nightOnly);
+        root.AddChild(MutedLabel("partita.tempo"));
 
         _status = MutedLabel("");
         _status.HorizontalAlignment = HorizontalAlignment.Center;
@@ -238,6 +247,23 @@ public partial class NewGamePanel : Control
             {
                 _sizeButtons[i].Text = SizeButtonText(Sizes[i]);
             }
+        }
+    }
+
+    private static CheckButton MakeCheck(string name, string text) => new()
+    {
+        Name = name,
+        Text = text,
+        ButtonPressed = false,
+        AutowrapMode = TextServer.AutowrapMode.WordSmart
+    };
+
+    /// <summary>A check pressed releases the other one.</summary>
+    private static void Exclude(bool pressed, CheckButton other)
+    {
+        if (pressed)
+        {
+            other.SetPressedNoSignal(false);
         }
     }
 

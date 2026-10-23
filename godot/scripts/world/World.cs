@@ -470,8 +470,9 @@ public partial class World : Node2D
         && (_renderScale?.Target is { } target ? target.World3D?.Environment == _glowEnv : _glowNode?.Environment == _glowEnv);
 
     /// <summary>
-    /// Every frame: the night of the running game (not behind Home, never in a playtest without effects) with the lights
-    /// of the sources in view; the ambient effects follow it (fireflies at night).
+    /// Every frame: the night of the running game from its light (<see cref="IGameView.Light"/>; full day behind the
+    /// Home and always in a playtest without effects) with the lights of the sources in view; the ambient effects
+    /// follow it (fireflies while the lights are on).
     /// </summary>
     private void SyncNight()
     {
@@ -480,12 +481,15 @@ public partial class World : Node2D
             return;
         }
 
-        var night = _view?.Rules.Night == true && _home?.IsOpen != true && !ClientSettings.PlaytestForcesEffectsOff;
-        if (night != _night.Night)
+        var light = _view is not null && _home?.IsOpen != true && !ClientSettings.PlaytestForcesEffectsOff
+            ? _view.Light
+            : DayNightClock.FullLight;
+        if (light != _night.Light)
         {
-            _night.SetNight(night);
+            _night.SetLight(light);
         }
 
+        var night = _night.Night;
         if (_ambient is not null)
         {
             _ambient.Night = night;

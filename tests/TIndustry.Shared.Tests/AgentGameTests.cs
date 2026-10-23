@@ -27,7 +27,7 @@ public sealed class AgentGameTests
         var setup = AgentGameSetup.Sandbox(64, 7, MapGenerator.Name, new GameRules()).CreateHost(Content);
         var client = new SimHost(NewGame.Sandbox(
             Content, Factory.CenteredCoreOrigin(64, 64), startingMoney: 180,
-            rules: new GameRules(Night: false), map: MapGenSettings.Normal((MapSize)64, 7)));
+            rules: new GameRules(DayNight: DayNightMode.Cycle), map: MapGenSettings.Normal((MapSize)64, 7)));
 
         Assert.Equal(180, setup.State.Wallet.Money);
         Assert.Equal(client.Checksum(), setup.Checksum());
@@ -79,16 +79,41 @@ public sealed class AgentGameTests
         Assert.Equal(corner.Y, stato.GetProperty("core").GetProperty("cella").GetProperty("y").GetInt32());
         Assert.Equal(host.State.Terrain!.Width, stato.GetProperty("mappa").GetProperty("larghezza").GetInt32());
         Assert.Equal(host.State.Terrain.Height, stato.GetProperty("mappa").GetProperty("altezza").GetInt32());
+        // The world's time does not run before the first block.
+        var tempo = stato.GetProperty("tempo");
+        Assert.Equal("ciclo", tempo.GetProperty("modo").GetString());
+        Assert.Equal("giorno", tempo.GetProperty("fase").GetString());
+        Assert.Equal(1000, tempo.GetProperty("luce").GetInt32());
+        Assert.False(tempo.TryGetProperty("secondiAlCambio", out _));
 
         Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":50,"y":62}}""");
         stato = Call(game, "stato");
         Assert.Equal(1, stato.GetProperty("tick").GetInt64());
+        // The belt started it: 36 000 − 1 ticks to the night, 600 seconds rounded up.
+        Assert.Equal(600, stato.GetProperty("tempo").GetProperty("secondiAlCambio").GetInt64());
         Assert.Equal(host.State.Wallet.Money, stato.GetProperty("soldi").GetInt32());
         var belt = Assert.Single(Content.RequireConveyor().EffectiveBuildCost);
         Assert.Equal(48 - belt.Amount, stato.GetProperty("risorse").GetProperty(belt.ItemId).GetInt32());
         Assert.Equal(1, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
         Assert.Equal(0, stato.GetProperty("edifici").GetProperty("minatori").GetInt32());
         Assert.Contains("miner", stato.GetProperty("ricerca").EnumerateArray().Select(e => e.GetString()));
+    }
+
+    [Theory]
+    [InlineData(DayNightMode.Cycle, "ciclo")]
+    [InlineData(DayNightMode.AlwaysDay, "giorno")]
+    [InlineData(DayNightMode.AlwaysNight, "notte")]
+    public void JournalRulesKeepTheWorldsTime(DayNightMode mode, string name)
+    {
+        var setup = AgentRulesSetup.From(new GameRules(RefundPercent: 50, DayNight: mode));
+        Assert.Equal(name, setup.DayNight);
+        var json = JsonSerializer.Serialize(setup);
+        Assert.Contains($"\"giornoNotte\":\"{name}\"", json, StringComparison.Ordinal);
+        var back = JsonSerializer.Deserialize<AgentRulesSetup>(json)!.ToGameRules();
+        Assert.Equal(new GameRules(RefundPercent: 50, DayNight: mode), back);
+
+        var unknown = Assert.Throws<AgentException>(() => (setup with { DayNight = "tramonto" }).ToGameRules());
+        Assert.Equal(AgentCodes.ParametriNonValidi, unknown.Code);
     }
 
     [Fact]
@@ -792,10 +817,14 @@ public sealed class AgentGameTests
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
-            // Journals recorded before the 3×3 shard played on another map: refused, never replayed.
-            Assert.Equal(2, AgentJournal.CurrentVersion);
-            File.WriteAllText(broken, """{"versione":1,"voci":[]}""");
-            Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
+            // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
+            // flag: refused, never replayed.
+            Assert.Equal(3, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2 })
+            {
+                File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
+                Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
+            }
             Assert.Equal(AgentCodes.ParametriNonValidi,
                 Assert.Throws<AgentException>(() => AgentJournal.Load(Path.Combine(dir, "manca.json"))).Code);
             // A journal without its game cannot be replayed from the header.
