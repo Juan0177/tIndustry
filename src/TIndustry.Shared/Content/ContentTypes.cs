@@ -57,10 +57,6 @@ public sealed record BuildingDefinition(
 /// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
 public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);
 
-public sealed record CoreUpgradeDefinition(
-    int MoneyCost,
-    IReadOnlyList<ResourceAmount> BuildCost);
-
 public sealed record MarketItemDefinition(string ItemId, string DisplayName, int BaseValue);
 
 /// <summary>

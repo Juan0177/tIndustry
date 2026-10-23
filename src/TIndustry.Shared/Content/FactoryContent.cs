@@ -15,8 +15,6 @@ public sealed class FactoryContent
     public IReadOnlyList<MarketItemDefinition> Market { get; init; } = [];
     public MarketRules MarketRules { get; init; } = null!;
     public IReadOnlyList<StructureDefinition> Structures { get; init; } = [];
-    public CoreUpgradeDefinition CoreUpgrade { get; init; } =
-        new(150, [new ResourceAmount("iron-plate", 20)]);
 
     /// <summary>Mindustry's <c>item.cost</c> per item id (build-time weight); missing items weigh 1.</summary>
     public IReadOnlyDictionary<string, float> BuildWeights { get; init; } =

@@ -10,7 +10,11 @@ public abstract record SimCommand(int PlayerId)
     public long Tick { get; init; }
 }
 
-/// <summary>Buildings and logistics pieces placed by <see cref="PlaceBuilding"/> (belts use <see cref="PlaceBelt"/>).</summary>
+/// <summary>
+/// Buildings and logistics pieces placed by <see cref="PlaceBuilding"/> (belts use <see cref="PlaceBelt"/>).
+/// <see cref="CoreFoundation"/> and <see cref="CoreNucleus"/> upgrade the Core: they are placed only over it, at
+/// <see cref="Factory.CoreUpgradeSpec"/>.
+/// </summary>
 public enum BuildingKind
 {
     Junction,
@@ -25,7 +29,9 @@ public enum BuildingKind
     Extractor,
     PowerNode,
     PowerNodeT2,
-    Lamp
+    Lamp,
+    CoreFoundation,
+    CoreNucleus
 }
 
 /// <summary>
@@ -74,9 +80,6 @@ public sealed record SetAutoSell(int PlayerId, string ItemId, bool Enabled) : Si
 
 /// <summary>Turns "only when the Core is full" on or off for the auto-sell of one market item (refused for an item outside the market).</summary>
 public sealed record SetAutoSellWhenFull(int PlayerId, string ItemId, bool Enabled) : SimCommand(PlayerId);
-
-/// <summary>Replaces <see cref="Factory.TryUpgradeCore"/>.</summary>
-public sealed record UpgradeCore(int PlayerId) : SimCommand(PlayerId);
 
 /// <summary>
 /// Sets the filter of the sorter on <paramref name="Tile"/> (replaces the client's direct
@@ -138,11 +141,26 @@ public enum RefusalCode
     /// <summary>Remove on an empty tile (the client shows nothing).</summary>
     NothingToRemove,
 
-    /// <summary>The Core is already upgraded (<see cref="IGameView.CoreUpgradeLevel"/>).</summary>
-    CoreAlreadyUpgraded,
-
     /// <summary>Market: "sell all" is locked after a missed jackpot attempt; <see cref="Refusal.WaitSeconds"/> is the wait left.</summary>
-    SellAllCooldown
+    SellAllCooldown,
+
+    /// <summary>Core upgrade: the next tier (<see cref="Refusal.StructureId"/>) is not researched yet.</summary>
+    CoreUpgradeLocked,
+
+    /// <summary>Core upgrade: one is already planned or being built (one at a time).</summary>
+    CoreUpgradeInProgress,
+
+    /// <summary>
+    /// Core upgrade: a new cell is taken (building, belt, site, plan) or not buildable (wall, deep water), or the
+    /// block is not where the growth rule puts it (<see cref="Factory.CoreUpgradeSpec"/>).
+    /// </summary>
+    CoreUpgradeBlocked,
+
+    /// <summary>Core upgrade: a new cell is outside the map.</summary>
+    CoreUpgradeOutOfMap,
+
+    /// <summary>Core upgrade: the Core is already at the last tier (nucleus).</summary>
+    CoreMaxTier
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

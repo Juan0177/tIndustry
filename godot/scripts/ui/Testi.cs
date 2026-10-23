@@ -156,8 +156,8 @@ public static class Testi
             case RefusalCode.InsufficientResources:
                 var missing = Mancanze(refusal.MissingMoney, refusal.MissingItems, content);
                 return missing.Length == 0 ? T("rifiuto.InsufficientResources") : F("rifiuto.servono", missing);
-            case RefusalCode.CoreAlreadyUpgraded:
-                return F("rifiuto.CoreAlreadyUpgraded", view?.CoreUpgradeLevel ?? 1);
+            case RefusalCode.CoreUpgradeLocked:
+                return F("rifiuto.CoreUpgradeLocked", Struttura(refusal.StructureId ?? "?", content));
             case RefusalCode.SellAllCooldown:
                 return F("rifiuto.SellAllCooldown", refusal.WaitSeconds);
             default:

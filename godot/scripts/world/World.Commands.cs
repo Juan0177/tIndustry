@@ -144,11 +144,6 @@ public partial class World
             case Sell or SellAll or SetAutoSell:
                 _mercato?.OnCommandApplied(command);
                 break;
-            case UpgradeCore when _view is not null:
-                _hud?.ShowToast(Testi.T("core.potenziato.toast"));
-                _hud?.SyncCoreUpgrade(_view);
-                UpdateHud();
-                break;
         }
     }
 

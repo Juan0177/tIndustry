@@ -4,7 +4,7 @@ namespace TIndustry.Shared;
 /// Mindustry-style research tree: a CORE root on top, each structure under its prerequisite,
 /// laid out as a tidy top-down tree (leaves get their own column, parents sit centred over their
 /// children). Structures with several prerequisites hang under the deepest one; the others are
-/// kept as secondary edges.
+/// kept as secondary edges. The Core tiers (<see cref="CoreUpgradeKind"/>) form the first branch under the root.
 /// </summary>
 public static class TechTreeLayout
 {
@@ -106,8 +106,12 @@ public static class TechTreeLayout
 
         foreach (var kids in children.Values)
         {
-            // Content order keeps the author's intent (e.g. T1 before T2).
-            kids.Sort((a, b) => order[a].CompareTo(order[b]));
+            // Content order keeps the author's intent (e.g. T1 before T2); the Core tiers' branch comes first, on the left.
+            kids.Sort((a, b) =>
+            {
+                var core = IsCoreUpgrade(byId[b]).CompareTo(IsCoreUpgrade(byId[a]));
+                return core != 0 ? core : order[a].CompareTo(order[b]);
+            });
         }
 
         // Tidy tree: leaves take consecutive slots, parents centre over their children.
@@ -184,6 +188,12 @@ public static class TechTreeLayout
     }
 
     public static Graph Build(FactoryContent content) => Build(content.Structures);
+
+    /// <summary>Kind of the structures that upgrade the Core (<c>core-foundation</c>, <c>core-nucleus</c>).</summary>
+    public const string CoreUpgradeKind = "core-upgrade";
+
+    private static bool IsCoreUpgrade(StructureDefinition structure) =>
+        string.Equals(structure.Kind, CoreUpgradeKind, StringComparison.Ordinal);
 
     /// <summary>
     /// Selected node + recursive prerequisites + downstream unlock dependents.

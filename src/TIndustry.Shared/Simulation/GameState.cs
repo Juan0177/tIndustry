@@ -104,7 +104,6 @@ public sealed class GameState
     public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }
-    public int CoreUpgradeLevel { get; set; }
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer { get; set; }
     /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>

@@ -69,8 +69,21 @@ public sealed record BuildSpec(
         BuildingKind.PowerNode => PowerNode.Tier1Id,
         BuildingKind.PowerNodeT2 => PowerNode.Tier2Id,
         BuildingKind.Lamp => Lamp.BuildingId,
+        BuildingKind.CoreFoundation => "core-foundation",
+        BuildingKind.CoreNucleus => "core-nucleus",
         _ => null
     };
+
+    /// <summary>Core tier a Core block builds (1 foundation, 2 nucleus); -1 for every other kind.</summary>
+    public static int CoreTierOf(BuildingKind? kind) => kind switch
+    {
+        BuildingKind.CoreFoundation => 1,
+        BuildingKind.CoreNucleus => 2,
+        _ => -1
+    };
+
+    /// <summary>True for the blocks that upgrade the Core (<see cref="BuildingKind.CoreFoundation"/>, <see cref="BuildingKind.CoreNucleus"/>).</summary>
+    public static bool IsCoreUpgrade(BuildingKind? kind) => CoreTierOf(kind) > 0;
 }
 
 /// <summary>One line of a build cost: <paramref name="ItemId"/> null means money.</summary>

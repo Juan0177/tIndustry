@@ -134,18 +134,13 @@ public sealed class SimHostTests
     }
 
     [Fact]
-    public void SellAndAutoSellAndUpgradeGoThroughCommands()
+    public void SellAndAutoSellGoThroughCommands()
     {
         var content = LoadContent();
         Factory Make()
         {
             var f = NewSandbox(content);
             f.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 100_000);
-            foreach (var entry in content.CoreUpgrade.BuildCost)
-            {
-                f.Wallet.AddMaterial(entry.ItemId, entry.Amount);
-            }
-
             return f;
         }
 
@@ -158,7 +153,6 @@ public sealed class SimHostTests
         // Today's direct calls (applied before the tick), then one tick.
         Assert.True(direct.TrySellFromWallet("iron-plate", 7, 1));
         foreach (var item in direct.State.Exchange.Items) { item.AutoSell = true; }
-        Assert.True(direct.TryUpgradeCore());
         direct.Step();
 
         host.Submit(new Sell(1, "iron-plate", 7));
@@ -167,13 +161,11 @@ public sealed class SimHostTests
             host.Submit(new SetAutoSell(1, listed.ItemId, true));
         }
 
-        host.Submit(new UpgradeCore(1));
         host.Advance(SimulationClock.TickSeconds);
 
         Assert.Empty(rejected);
         Assert.Equal(Serialize(direct), Serialize(commanded));
         Assert.All(content.Market, listed => Assert.True(host.State.MarketItem(listed.ItemId)!.AutoSell));
-        Assert.Equal(1, host.State.CoreUpgradeLevel);
 
         // Selling beyond the stock is rejected with today's Mercato text; state unchanged.
         host.Submit(new Sell(1, "iron-plate", 1_000_000));
@@ -467,66 +459,54 @@ public sealed class SimHostTests
     }
 
     [Fact]
-    public void UpgradeCoreAlreadyAtMaxLevelSaysSo()
+    public void CoreUpgradeIsAPlaceBuildingOverTheCore()
     {
         var content = LoadContent();
         var factory = NewSandbox(content);
-        factory.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 100_000);
-        Assert.True(factory.TryUpgradeCore());
+        factory.Research.ForceUnlock("core-foundation");
+        foreach (var entry in content.CoreTiers[1].BuildCost)
+        {
+            factory.Wallet.AddMaterial(entry.ItemId, entry.Amount);
+        }
 
-        var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
+        var spec = factory.CoreUpgradeSpec()!;
+        var (reason, _, _, applied) = RunOne(factory, new PlaceBuilding(1, spec.Kind!.Value, spec.Origin, Direction.East));
 
-        Assert.Equal(0, applied);
-        Assert.Equal(new Refusal(RefusalCode.CoreAlreadyUpgraded), reason);
-        Assert.Equal(before, atRejection);
+        Assert.Null(reason);
+        Assert.Equal(1, applied);
+        Assert.Equal(1, factory.CoreTier);
     }
 
     [Fact]
-    public void UpgradeCoreMissingMoneyNamesTheMoney()
+    public void CoreUpgradeRefusedLeavesTheStateUnchanged()
     {
         var content = LoadContent();
         var factory = NewSandbox(content);
-        factory.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 0);
-        factory.Wallet.TrySpend(factory.Wallet.Money - 10, []);
+        factory.Research.ForceUnlock("core-foundation");
+        var have = factory.Wallet.MaterialCount("lead-plate");
 
-        var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
+        var (reason, before, atRejection, applied) = RunOne(
+            factory, new PlaceBuilding(1, BuildingKind.CoreFoundation, factory.State.CoreOrigin, Direction.East));
 
         Assert.Equal(0, applied);
-        Assert.Equal(new Refusal(RefusalCode.InsufficientResources, MissingMoney: content.CoreUpgrade.MoneyCost - 10, MissingItems: []), reason);
+        Assert.Equal(RefusalCode.InsufficientResources, reason?.Code);
+        Assert.Contains(new ResourceAmount("lead-plate", 400 - have), reason!.MissingItems!);
         Assert.Equal(before, atRejection);
+        Assert.Equal(0, factory.CoreTier);
     }
 
     [Fact]
-    public void UpgradeCoreMissingMaterialsNamesTheMaterials()
+    public void CoreUpgradeOfTheWrongTierIsInvalid()
     {
         var content = LoadContent();
         var factory = NewSandbox(content);
-        factory.EnsureDemoBuildStock(ironPlates: 500, copperWire: 200, copperOre: 100, money: 100_000);
-        var entry = content.CoreUpgrade.BuildCost[0];
-        Assert.True(factory.Wallet.TryRemoveMaterial(entry.ItemId, factory.Wallet.MaterialCount(entry.ItemId)));
+        factory.Research.ForceUnlock("core-foundation");
 
-        var (reason, before, atRejection, applied) = RunOne(factory, new UpgradeCore(1));
+        var (reason, before, atRejection, _) = RunOne(
+            factory, new PlaceBuilding(1, BuildingKind.CoreNucleus, factory.State.CoreOrigin, Direction.East));
 
-        Assert.Equal(0, applied);
-        Assert.Equal(new Refusal(RefusalCode.InsufficientResources, MissingItems: [entry]), reason);
+        Assert.Equal(new Refusal(RefusalCode.InvalidCommand), reason);
         Assert.Equal(before, atRejection);
-    }
-
-    [Fact]
-    public void UpgradeCoreMissingMoneyAndMaterialsNamesBoth()
-    {
-        var content = LoadContent();
-        var factory = NewSandbox(content);
-        factory.EnsureDemoBuildStock(ironPlates: 0, copperWire: 0, copperOre: 0, money: 0);
-        var entry = content.CoreUpgrade.BuildCost[0];
-        factory.Wallet.TrySpend(factory.Wallet.Money, []);
-        factory.Wallet.TryRemoveMaterial(entry.ItemId, factory.Wallet.MaterialCount(entry.ItemId));
-
-        var (reason, _, _, _) = RunOne(factory, new UpgradeCore(1));
-
-        Assert.Equal(
-            new Refusal(RefusalCode.InsufficientResources, MissingMoney: content.CoreUpgrade.MoneyCost, MissingItems: [entry]),
-            reason);
     }
 
     [Fact]

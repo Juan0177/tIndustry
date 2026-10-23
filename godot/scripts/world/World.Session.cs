@@ -247,24 +247,6 @@ public partial class World
         _mercato.Open(_view, c => SubmitCommand(c), () => PendingCommands);
     }
 
-    private void OnCoreUpgradeRequested()
-    {
-        if (_view is null)
-        {
-            return;
-        }
-
-        // Already upgraded or short of resources: say why without sending the command.
-        if (_view.CoreUpgradeRefusal() is { } refusal)
-        {
-            _hud?.ShowToast(Testi.Rifiuto(refusal, _view));
-            return;
-        }
-
-        // Toast and HUD refresh follow the host's CommandApplied (see OnCommandApplied).
-        SubmitCommand(new UpgradeCore(LocalPlayer));
-    }
-
     private void ToggleCampaign()
     {
         if (_campaign is null || _progress is null || _campaignSelect is null)

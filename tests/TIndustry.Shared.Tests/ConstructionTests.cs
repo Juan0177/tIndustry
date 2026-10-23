@@ -392,7 +392,6 @@ public sealed class ConstructionTests
         Buildings = Content.Buildings.Select(b => b.Id == id ? change(b) : b).ToList(),
         Market = Content.Market,
         Structures = Content.Structures,
-        CoreUpgrade = Content.CoreUpgrade,
         BuildWeights = Content.BuildWeights,
         CoreTiers = Content.CoreTiers,
         Units = Content.Units

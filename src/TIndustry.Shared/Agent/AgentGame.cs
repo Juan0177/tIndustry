@@ -331,11 +331,24 @@ public sealed class AgentGame : IDisposable
         "sblocca" => Single(new UnlockStructure(PlayerId, Str(p, "struttura"))),
         "vendi" => Vendi(p),
         "vendita_automatica" => Single(new SetAutoSell(PlayerId, Str(p, "oggetto"), RequiredBool(p, "accesa"))),
-        "potenzia_core" => Single(new UpgradeCore(PlayerId), r => r["livello"] = View.CoreUpgradeLevel),
+        "potenzia_core" => Single(CoreUpgradeCommand(), r => r["livello"] = View.CoreTier),
         "avanza" => Avanza(p),
         "diario" => Diario(p),
         _ => throw Bad($"Metodo sconosciuto: {method}.")
     };
+
+    /// <summary>
+    /// <c>potenzia_core</c>: the next tier's block over the Core, where the growth rule puts it (the player's own
+    /// <see cref="PlaceBuilding"/>). At the last tier the nucleus again, which the simulation refuses as
+    /// <see cref="RefusalCode.CoreMaxTier"/>.
+    /// </summary>
+    private PlaceBuilding CoreUpgradeCommand()
+    {
+        var spec = View.CoreUpgradeSpec();
+        return spec is null
+            ? new PlaceBuilding(PlayerId, BuildingKind.CoreNucleus, default, Direction.East)
+            : new PlaceBuilding(PlayerId, spec.Kind!.Value, spec.Origin, spec.Direction);
+    }
 
     private JsonObject Vendi(JsonElement p)
     {
@@ -446,7 +459,7 @@ public sealed class AgentGame : IDisposable
             },
             ["core"] = new JsonObject
             {
-                ["livello"] = View.CoreUpgradeLevel,
+                ["livello"] = View.CoreTier,
                 ["consegnati"] = View.CoreDeliveredItems
             },
             ["mercato"] = Array(View.MarketItems.Where(m => m.AutoSell || View.Wallet.MaterialCount(m.ItemId) > 0).Select(m =>
@@ -725,6 +738,7 @@ public sealed class AgentGame : IDisposable
         BuildingKind.PowerNode => 'P',
         BuildingKind.PowerNodeT2 => 'Q',
         BuildingKind.Lamp => 'L',
+        BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => 'C',
         _ => '!'
     };
 
@@ -1340,11 +1354,11 @@ public sealed class AgentGame : IDisposable
     /// <summary>The agents' tool that sends <paramref name="command"/> (the client sends the others).</summary>
     private static string ToolName(SimCommand command) => command switch
     {
+        PlaceBuilding building when BuildSpec.IsCoreUpgrade(building.Kind) => "potenzia_core",
         PlaceBelt or PlaceBuilding => "piazza",
         Remove => "smonta",
         UnlockStructure => "sblocca",
         Sell or SellAll => "vendi",
-        UpgradeCore => "potenzia_core",
         SetAutoSell => "vendita_automatica",
         SetSorterFilter => "filtroSelezionatore",
         _ => "altro"

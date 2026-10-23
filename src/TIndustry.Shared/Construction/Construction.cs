@@ -74,7 +74,13 @@ public static class Construction
     {
         int money;
         IReadOnlyList<ResourceAmount> materials;
-        if (spec.Kind is not null && c.FindBuilding(spec.StructureId) is { } building)
+        if (BuildSpec.CoreTierOf(spec.Kind) is var tier and > 0)
+        {
+            // A Core block: no money, the tier's build cost.
+            money = 0;
+            materials = tier < c.CoreTiers.Count ? c.CoreTiers[tier].BuildCost : [];
+        }
+        else if (spec.Kind is not null && c.FindBuilding(spec.StructureId) is { } building)
         {
             money = building.MoneyCost;
             materials = building.BuildCost;

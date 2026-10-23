@@ -257,25 +257,4 @@ public sealed class MarketSaleTests
         Assert.True(events[1].Crash);
         Assert.False(events[1].Attempt || events[1].Jackpot);
     }
-
-    [Fact]
-    public void UpgradeCoreGivesNoSaleBonus()
-    {
-        var f = NewFactory();
-        var upgrade = f.Content.CoreUpgrade;
-        foreach (var entry in upgrade.BuildCost)
-        {
-            f.Wallet.AddMaterial(entry.ItemId, entry.Amount);
-        }
-
-        f.Wallet.AddMoney(upgrade.MoneyCost);
-        Assert.True(f.TryUpgradeCore());
-        Force(f, Plate, 2900);
-        f.Wallet.AddMaterial(Plate, 10);
-        var before = f.Wallet.Money;
-
-        Assert.True(f.TrySellFromWallet(Plate, 10, 1));
-
-        Assert.Equal(670, f.Wallet.Money - before);
-    }
 }

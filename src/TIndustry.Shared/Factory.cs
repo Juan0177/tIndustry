@@ -94,13 +94,6 @@ public sealed class Factory : IGameView
         set => State.ActiveCampaignLevelId = value;
     }
 
-    public int CoreUpgradeLevel
-    {
-        get => State.CoreUpgradeLevel;
-        private set => State.CoreUpgradeLevel = value;
-    }
-
-
     /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
     public float PowerBuffer
     {
@@ -410,11 +403,12 @@ public sealed class Factory : IGameView
     private readonly HashSet<GridPosition> blendTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingBlends;
     private int buildingsVersion;
-    private (int Belts, int Buildings) beltIncomingVersion = (-1, -1);
+    private (int Belts, int Buildings, int CoreTier) beltIncomingVersion = (-1, -1, -1);
 
     private Dictionary<GridPosition, (Direction? Incoming, BeltShape Shape, int JunctionSides)> BeltIncoming()
     {
-        var version = (Belts.Version, buildingsVersion);
+        // The Core tier too: a finished upgrade (placed through another Factory over the same state) grows the Core.
+        var version = (Belts.Version, buildingsVersion, State.CoreTier);
         if (version == beltIncomingVersion)
         {
             return beltIncoming;
@@ -754,7 +748,6 @@ public sealed class Factory : IGameView
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
             Market = State.Exchange.Capture(),
-            CoreUpgradeLevel = CoreUpgradeLevel,
             PowerBuffer = PowerBuffer,
             PowerCapacity = PowerCapacity,
             Seed = Terrain?.Seed ?? 0,
@@ -1009,8 +1002,7 @@ public sealed class Factory : IGameView
             nextItemId = Math.Max(1, data.NextItemId),
             CurrentTick = Math.Max(0, data.CurrentTick),
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
-            ActiveCampaignLevelId = data.ActiveCampaignLevelId,
-            CoreUpgradeLevel = Math.Max(0, data.CoreUpgradeLevel)
+            ActiveCampaignLevelId = data.ActiveCampaignLevelId
         };
         if (data.CoreTier < 0 || data.CoreTier >= content.CoreTiers.Count)
         {
@@ -1029,8 +1021,9 @@ public sealed class Factory : IGameView
 
         factory.PowerBuffer = Math.Clamp(data.PowerBuffer, 0f, factory.PowerCapacity);
 
-        // Before the sites: restoring a site checks the terrain under it.
-        factory.Terrain = RestoreTerrain(content, data, factory.CoreTiles, mapsDirectory);
+        // Before the sites: restoring a site checks the terrain under it. The terrain was generated around the
+        // starting shard, whatever the Core has grown into since.
+        factory.Terrain = RestoreTerrain(content, data, StartingShard(content, data), mapsDirectory);
         CheckRegeneratedTerrain(data, factory.Terrain);
 
         // After the terrain: its setter reseeds the market. Saves up to v13 have none: a fresh one, first spike
@@ -1165,10 +1158,13 @@ public sealed class Factory : IGameView
     /// campaign map file, which must still have the saved size.
     /// </summary>
     private static TerrainMap? RestoreTerrain(
-        FactoryContent content, FactorySaveData data, IReadOnlySet<GridPosition> coreTiles, string? mapsDirectory)
+        FactoryContent content,
+        FactorySaveData data,
+        (GridPosition Origin, int Size) shard,
+        string? mapsDirectory)
     {
-        var core = new GridPosition(data.CoreX, data.CoreY);
-        var coreSize = Math.Max(1, data.CoreSize);
+        var (core, coreSize) = shard;
+        var coreTiles = CoreStockSink.MakeCoreTiles(core, coreSize);
         switch (data.Generator)
         {
             case ClassicTerrainGenerator.Name:
@@ -1206,6 +1202,23 @@ public sealed class Factory : IGameView
                 throw new SaveMapException(SaveLoadError.UnknownGenerator, data.Generator,
                     $"Generatore di mappa sconosciuto nel salvataggio: '{data.Generator}'.");
         }
+    }
+
+    /// <summary>
+    /// The Core the game started with (origin and edge), from which the terrain generators made the map: the saved
+    /// Core itself at tier 0; for a grown Core, the shard the growth rule started from (<see cref="CoreUpgradeSpec"/>:
+    /// the foundation keeps the shard's origin, the nucleus is one cell up and left of it).
+    /// </summary>
+    internal static (GridPosition Origin, int Size) StartingShard(FactoryContent content, FactorySaveData data)
+    {
+        var origin = new GridPosition(data.CoreX, data.CoreY);
+        if (data.CoreTier <= 0)
+        {
+            return (origin, Math.Max(1, data.CoreSize));
+        }
+
+        var shard = data.CoreTier >= 2 ? new GridPosition(origin.X + 1, origin.Y + 1) : origin;
+        return (shard, content.CoreTiers[0].Size);
     }
 
     /// <summary>
@@ -1880,32 +1893,156 @@ public sealed class Factory : IGameView
             : 0,
         item.AutoSell, item.AutoSellWhenFull, item.HistoryMilli.ToArray());
 
-    public bool TryUpgradeCore()
+    // ---- Core upgrade (the next tier's block, placed over the Core) ----
+
+    /// <summary>
+    /// The block that upgrades the Core to the next tier, where the growth rule puts it: the foundation at the shard's
+    /// origin (one more column right, one more row down), the nucleus one cell up and left of the foundation's
+    /// origin (one more row up, one more column left: centred on the starting shard). Null at the last tier.
+    /// </summary>
+    public BuildSpec? CoreUpgradeSpec()
     {
-        var upgrade = Content.CoreUpgrade;
-        if (CoreUpgradeLevel > 0
-            || !Wallet.TrySpend(upgrade.MoneyCost, upgrade.BuildCost))
+        var next = CoreTier + 1;
+        if (next >= Content.CoreTiers.Count || next > 2)
+        {
+            return null;
+        }
+
+        var kind = next == 1 ? BuildingKind.CoreFoundation : BuildingKind.CoreNucleus;
+        var origin = State.CoreOrigin;
+        if (next == 2)
+        {
+            origin = new GridPosition(origin.X - 1, origin.Y - 1);
+        }
+
+        return new BuildSpec(BuildSpec.StructureIdFor(kind)!, kind, origin, Direction.East);
+    }
+
+    /// <summary>The cells the next upgrade adds to the Core, row by row (empty at the last tier).</summary>
+    public IReadOnlyList<GridPosition> CoreUpgradeNewTiles() =>
+        CoreUpgradeSpec() is { } spec ? Footprint(spec) : [];
+
+    /// <summary>
+    /// Why the Core cannot be upgraded now, in this order: <see cref="RefusalCode.CoreMaxTier"/>,
+    /// <see cref="RefusalCode.CoreUpgradeInProgress"/> (a plan or a site under construction),
+    /// <see cref="RefusalCode.CoreUpgradeLocked"/> (with the structure id), <see cref="RefusalCode.CoreUpgradeOutOfMap"/>,
+    /// <see cref="RefusalCode.CoreUpgradeBlocked"/> (a new cell taken, planned or not buildable); null when it can be
+    /// placed. Resources are not checked: the site waits for them (instant build checks them on placing).
+    /// </summary>
+    public Refusal? CoreUpgradeRefusal()
+    {
+        if (CoreUpgradeSpec() is not { } spec)
+        {
+            return RefusalCode.CoreMaxTier;
+        }
+
+        if (IsCoreUpgradeUnderWay())
+        {
+            return RefusalCode.CoreUpgradeInProgress;
+        }
+
+        if (!IsStructureUnlocked(spec.StructureId))
+        {
+            return new Refusal(RefusalCode.CoreUpgradeLocked, spec.StructureId);
+        }
+
+        if (CorePlacementRefusal(spec) is { } placement)
+        {
+            return placement;
+        }
+
+        return Footprint(spec).Any(IsPlannedTile) ? RefusalCode.CoreUpgradeBlocked : null;
+    }
+
+    /// <summary>True when a Core upgrade is planned (not breaking) or its site is being built.</summary>
+    private bool IsCoreUpgradeUnderWay()
+    {
+        foreach (var site in State.Sites)
+        {
+            if (!site.Deconstructing && BuildSpec.IsCoreUpgrade(site.Spec.Kind))
+            {
+                return true;
+            }
+        }
+
+        foreach (var builder in State.Builders)
+        {
+            foreach (var plan in builder.Plans)
+            {
+                if (!plan.Breaking && BuildSpec.IsCoreUpgrade(plan.Spec.Kind))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Where a Core block may stand: null when <paramref name="spec"/> is the next upgrade (<see cref="CoreUpgradeSpec"/>)
+    /// and its new cells are inside the map and free (no Core, building, belt, site, wall or deep water); otherwise
+    /// <see cref="RefusalCode.CoreMaxTier"/>, <see cref="RefusalCode.CoreUpgradeBlocked"/> (wrong block or origin, a
+    /// cell taken) or <see cref="RefusalCode.CoreUpgradeOutOfMap"/>. Plans are not looked at (the drone's own plan
+    /// covers the cells when it starts the site).
+    /// </summary>
+    private RefusalCode? CorePlacementRefusal(BuildSpec spec)
+    {
+        if (CoreUpgradeSpec() is not { } next)
+        {
+            return RefusalCode.CoreMaxTier;
+        }
+
+        if (spec.Kind != next.Kind || spec.Origin != next.Origin)
+        {
+            return RefusalCode.CoreUpgradeBlocked;
+        }
+
+        var tiles = Footprint(next);
+        if (tiles.Any(t => t.X < 0 || t.Y < 0 || (Terrain is { } terrain && !terrain.InBounds(t))))
+        {
+            return RefusalCode.CoreUpgradeOutOfMap;
+        }
+
+        return tiles.All(CanOccupy) ? null : RefusalCode.CoreUpgradeBlocked;
+    }
+
+    /// <summary>The Core tier whose block or structure id is <paramref name="structureId"/> (1 or 2), or -1.</summary>
+    private int CoreTierFor(string structureId)
+    {
+        for (var tier = 1; tier < Content.CoreTiers.Count; tier++)
+        {
+            if (string.Equals(Content.CoreTiers[tier].Id, structureId, StringComparison.Ordinal))
+            {
+                return tier;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Finishes a Core upgrade: the Core takes the new tier's size at <paramref name="spec"/>'s origin (its stock stays,
+    /// maximum, auto-sell rate and drone follow the tier) and linked storage is recomputed. With
+    /// <paramref name="charge"/> the tier's build cost is paid first (fails, unchanged, when the Core is short).
+    /// </summary>
+    private bool PlaceCoreUpgrade(BuildSpec spec, bool charge)
+    {
+        if (CorePlacementRefusal(spec) is not null)
         {
             return false;
         }
 
-        CoreUpgradeLevel = 1;
-        return true;
-    }
-
-    /// <summary>
-    /// Why the Core cannot be upgraded now: <see cref="RefusalCode.CoreAlreadyUpgraded"/>, the shortfall
-    /// (<see cref="RefusalCode.InsufficientResources"/>), or null when the upgrade is affordable.
-    /// </summary>
-    public Refusal? CoreUpgradeRefusal()
-    {
-        if (CoreUpgradeLevel > 0)
+        var tier = BuildSpec.CoreTierOf(spec.Kind);
+        if (charge && !TryCharge(0, Content.CoreTiers[tier].BuildCost))
         {
-            return RefusalCode.CoreAlreadyUpgraded;
+            return false;
         }
 
-        var upgrade = Content.CoreUpgrade;
-        return ShortfallOf(upgrade.MoneyCost, upgrade.BuildCost, structureId: null);
+        // SetCore recomputes the Core's cells and the linked storage blocks.
+        State.SetCore(spec.Origin, tier);
+        buildingsVersion++;
+        return true;
     }
 
     /// <summary>Longest map edge (the "enorme" normal map); campaign and restored maps are clamped to it.</summary>
@@ -1983,6 +2120,11 @@ public sealed class Factory : IGameView
                 ScaleAmounts(conveyor.EffectiveBuildCost, multiplicity));
         }
 
+        if (CoreTierFor(structureId) is var tier and > 0)
+        {
+            return Wallet.CanAfford(0, Content.CoreTiers[tier].BuildCost);
+        }
+
         return true;
     }
 
@@ -2005,6 +2147,11 @@ public sealed class Factory : IGameView
         {
             money = conveyor.MoneyCost * multiplicity;
             mats = ScaleAmounts(conveyor.EffectiveBuildCost, multiplicity);
+        }
+        else if (CoreTierFor(structureId) is var tier and > 0)
+        {
+            money = 0;
+            mats = Content.CoreTiers[tier].BuildCost;
         }
         else
         {
@@ -2269,11 +2416,29 @@ public sealed class Factory : IGameView
 
         var size = FootprintSize(spec);
         var tiles = new List<GridPosition>(size * size);
+        // A Core block covers only the cells it adds: its square less the previous tier's Core, which the growth
+        // rule puts at the same origin (foundation over the shard) or one cell down and right (nucleus over the
+        // foundation). Fixed by the spec alone, so a plan, its site and a saved site agree.
+        var previous = (Origin: default(GridPosition), Size: 0);
+        if (BuildSpec.CoreTierOf(spec.Kind) is var tier and > 0)
+        {
+            var shift = tier >= 2 ? 1 : 0;
+            previous = (new GridPosition(spec.Origin.X + shift, spec.Origin.Y + shift), Content.CoreTiers[tier - 1].Size);
+        }
+
         for (var y = 0; y < size; y++)
         {
             for (var x = 0; x < size; x++)
             {
-                tiles.Add(new GridPosition(spec.Origin.X + x, spec.Origin.Y + y));
+                var tile = new GridPosition(spec.Origin.X + x, spec.Origin.Y + y);
+                if (previous.Size > 0
+                    && tile.X >= previous.Origin.X && tile.X < previous.Origin.X + previous.Size
+                    && tile.Y >= previous.Origin.Y && tile.Y < previous.Origin.Y + previous.Size)
+                {
+                    continue;
+                }
+
+                tiles.Add(tile);
             }
         }
 
@@ -2350,6 +2515,12 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        if (BuildSpec.IsCoreUpgrade(spec.Kind))
+        {
+            reason = CorePlacementRefusal(spec);
+            return reason is null;
+        }
+
         var ok = spec.Kind switch
         {
             null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter =>
@@ -2379,6 +2550,11 @@ public sealed class Factory : IGameView
     public RefusalCode RefusalReason(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (BuildSpec.IsCoreUpgrade(spec.Kind))
+        {
+            return CorePlacementRefusal(spec) ?? RefusalCode.CoreUpgradeBlocked;
+        }
+
         var reason = RefusalReason(Footprint(spec));
         if (reason == RefusalCode.Occupied
             && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
@@ -2466,6 +2642,9 @@ public sealed class Factory : IGameView
                 return PlacePowerNode(origin, PowerNode.Tier2Id, charge);
             case BuildingKind.Lamp:
                 return PlaceLamp(origin, charge);
+            case BuildingKind.CoreFoundation:
+            case BuildingKind.CoreNucleus:
+                return PlaceCoreUpgrade(spec, charge);
             default:
                 return false;
         }
@@ -2624,6 +2803,7 @@ public sealed class Factory : IGameView
         BuildingKind.Generator => Generator.Size,
         BuildingKind.Extractor => Extractor.Size,
         BuildingKind.PowerNodeT2 => 2,
+        BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => Content.CoreTiers[BuildSpec.CoreTierOf(spec.Kind)].Size,
         _ => 1
     };
 

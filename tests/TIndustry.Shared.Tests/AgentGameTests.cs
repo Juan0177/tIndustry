@@ -861,6 +861,32 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void PotenziaCorePlacesTheNextTierOverTheCore()
+    {
+        var factory = NewGame.Sandbox(
+            Content, Factory.CenteredCoreOrigin(64, 64), rules: new GameRules(InstantBuild: true),
+            map: MapGenSettings.Normal((MapSize)64, 7));
+        using var game = new AgentGame(new SimHost(factory), Content);
+
+        Assert.Equal("CoreUpgradeLocked", Refused(game, "potenzia_core", "{}").Code);
+
+        foreach (var tier in new[] { 1, 2 })
+        {
+            factory.Research.ForceUnlock(Content.CoreTiers[tier].Id);
+            foreach (var entry in Content.CoreTiers[tier].BuildCost)
+            {
+                factory.Wallet.AddMaterial(entry.ItemId, entry.Amount);
+            }
+
+            Assert.Equal(tier, Call(game, "potenzia_core").GetProperty("livello").GetInt32());
+            Assert.Equal(tier, factory.CoreTier);
+            Assert.Equal(tier, Call(game, "stato").GetProperty("core").GetProperty("livello").GetInt32());
+        }
+
+        Assert.Equal("CoreMaxTier", Refused(game, "potenzia_core", "{}").Code);
+    }
+
+    [Fact]
     public void EveryBuildingKindHasALegendSymbol()
     {
         var symbols = AgentGame.Legend.Select(l => l.Symbol).ToHashSet();

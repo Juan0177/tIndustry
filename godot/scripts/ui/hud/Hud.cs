@@ -66,7 +66,6 @@ public partial class Hud : Control
     public event Action? ResearchRequested;
     public event Action? MercatoRequested;
     public event Action? CampaignRequested;
-    public event Action? CoreUpgradeRequested;
     public event Action? MenuRequested;
 
     /// <summary>Click on the build queue: world rect of the block the drone works on.</summary>
@@ -81,7 +80,6 @@ public partial class Hud : Control
         _core.ResearchRequested += () => ResearchRequested?.Invoke();
         _core.MercatoRequested += () => MercatoRequested?.Invoke();
         _core.CampaignRequested += () => CampaignRequested?.Invoke();
-        _core.CoreUpgradeRequested += () => CoreUpgradeRequested?.Invoke();
 
         _palette.Hovered += _ => RefreshBlockInfo();
         _palette.ToolChosen += tool =>
@@ -199,9 +197,6 @@ public partial class Hud : Control
             delivered, onBelt, money, generatorsLive, generatorsTotal, powerBuffer, powerCapacity);
         RefreshBlockInfo();
     }
-
-    /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(IGameView? factory) => _core.SyncCoreUpgrade(factory);
 
     public void ClearObjectives() => _core.ClearObjectives();
 

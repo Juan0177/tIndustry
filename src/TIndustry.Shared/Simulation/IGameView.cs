@@ -136,8 +136,6 @@ public interface IGameView
 
     float PowerGenerationPerSecond { get; }
 
-    int CoreUpgradeLevel { get; }
-
     string? ActiveCampaignLevelId { get; }
 
     long CoreDeliveredItems { get; }
@@ -154,7 +152,14 @@ public interface IGameView
     /// <summary>Seconds (rounded up) before "sell all" works again; 0 when it is free.</summary>
     int SellAllCooldownSeconds { get; }
 
+    /// <summary>Why the Core cannot be upgraded now (see <see cref="Factory.CoreUpgradeRefusal"/>); null when it can.</summary>
     Refusal? CoreUpgradeRefusal();
+
+    /// <summary>The block of the next Core tier where the growth rule puts it (<see cref="Factory.CoreUpgradeSpec"/>); null at the last tier.</summary>
+    BuildSpec? CoreUpgradeSpec();
+
+    /// <summary>The cells the next Core upgrade adds, row by row (empty at the last tier).</summary>
+    IReadOnlyList<GridPosition> CoreUpgradeNewTiles();
 
     bool IsStructureUnlocked(string structureId);
 

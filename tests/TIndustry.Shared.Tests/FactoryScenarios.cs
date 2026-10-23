@@ -1136,35 +1136,6 @@ internal static class FactoryScenarios
         FactorySaveStore.Delete("selftest-mercato");
     }
 
-    /// <summary>CORE upgrade: one-shot spend, no sale bonus, save v5 round-trip.</summary>
-    public static void SelfTestCoreUpgrade(string contentJsonPath)
-    {
-        var content = FactoryContent.Load(contentJsonPath);
-        Assert(content.CoreUpgrade.MoneyCost == 150, "core money");
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
-        var wallet = new EconomyWallet(
-            200,
-            new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-plate"] = 25 });
-        var factory = new Factory(content, new BeltGrid(), core, wallet);
-        Assert(factory.CoreUpgradeLevel == 0, "start LV0");
-        factory.Wallet.AddMaterial("iron-ore", 5);
-        var basePrice = factory.MarketItem("iron-ore")!.UnitIncome;
-        factory.Wallet.AddMoney(Math.Max(0, content.CoreUpgrade.MoneyCost - factory.Wallet.Money));
-        Assert(factory.TryUpgradeCore(), "upgrade");
-        Assert(factory.CoreUpgradeLevel == 1, "LV1");
-        Assert(!factory.TryUpgradeCore(), "one-shot");
-        var boosted = factory.MarketItem("iron-ore")!.UnitIncome;
-        Assert(boosted == basePrice, "no sale bonus");
-        var moneyBefore = factory.Wallet.Money;
-        Assert(factory.TrySellFromWallet("iron-ore", 1, 1), "sell after upgrade");
-        Assert(factory.Wallet.Money == moneyBefore + boosted, "money has no bonus");
-
-        var snap = factory.Capture();
-        Assert(snap.CoreUpgradeLevel == 1 && snap.Version == FactorySaveData.CurrentVersion, "capture");
-        var restored = Restore(content, snap);
-        Assert(restored.CoreUpgradeLevel == 1, "restore");
-    }
-
     /// <summary>Auto-sell at core: liquidate on drain; toggle persists in save.</summary>
     public static void SelfTestAutoSell(string contentJsonPath)
     {

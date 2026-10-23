@@ -432,7 +432,6 @@ public partial class World
         var onBelt = _view.Belts.Values.Sum(c => c.Items.Count);
         var gensLive = _view.Generators.Count(g => g.IsGenerating);
         _hud.BindEconomy(_view.Content, _view.Wallet);
-        _hud.SyncCoreUpgrade(_view);
         _hud.UpdateStock(
             _view.Wallet.MaterialCount("iron-ore"),
             _view.Wallet.MaterialCount("iron-plate"),

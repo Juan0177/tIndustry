@@ -43,6 +43,7 @@ public sealed class FactorySaveData
     /// <summary>Old saves (up to v13) only: one switch for every item; v14 saves auto-sell per item in <see cref="Market"/>.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool AutoSellAtCore { get; set; }
+    /// <summary>Old one-shot CORE upgrade: read and ignored (the Core grows by tiers, <see cref="CoreTier"/>); goes in v15.</summary>
     public int CoreUpgradeLevel { get; set; }
     /// <summary>The market (prices, phases, random stream, history); null in saves up to v13, which start a fresh one.</summary>
     public MarketSaveDto? Market { get; set; }

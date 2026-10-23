@@ -26,9 +26,6 @@ public partial class CorePanel : VBoxContainer
     private Label? _moneyLabel;
     private GridContainer? _stockGrid;
     private Label? _stockEmpty;
-    private Button? _coreUpgradeButton;
-    private HBoxContainer? _coreUpgradeCost;
-    private (int Level, bool Affordable, int Money)? _coreUpgradeKey;
     private PanelContainer? _objectivesPanel;
     private Label? _objectivesTitle;
     private VBoxContainer? _objectivesList;
@@ -44,7 +41,6 @@ public partial class CorePanel : VBoxContainer
     public event Action? ResearchRequested;
     public event Action? MercatoRequested;
     public event Action? CampaignRequested;
-    public event Action? CoreUpgradeRequested;
 
     /// <summary>Funds from the last <see cref="UpdateStock"/> (fallback when no wallet is bound).</summary>
     public int Money => _money;
@@ -95,7 +91,6 @@ public partial class CorePanel : VBoxContainer
             cell.Cell.TooltipText = Testi.Oggetto(id, _content);
         }
 
-        _coreUpgradeKey = null;
         SyncPowerTooltip();
     }
 
@@ -195,60 +190,6 @@ public partial class CorePanel : VBoxContainer
 
         var gens = _generatorsTotal > 0 ? Testi.F("core.energia.generatori", _generatorsLive, _generatorsTotal) : "";
         _powerLabel.TooltipText = _hasGrid ? Testi.T("core.energia") + gens : Testi.T("core.energia.nessuna");
-    }
-
-    /// <summary>CORE upgrade chip: cost while available, LV+bonus when done.</summary>
-    public void SyncCoreUpgrade(IGameView? factory)
-    {
-        if (_coreUpgradeButton is null || _coreUpgradeCost is null)
-        {
-            return;
-        }
-
-        var level = factory?.CoreUpgradeLevel ?? -1;
-        var affordable = factory is not null
-            && factory.Wallet.CanAfford(factory.Content.CoreUpgrade.MoneyCost, factory.Content.CoreUpgrade.BuildCost);
-        var key = (level, affordable, factory?.Wallet.Money ?? 0);
-        if (_coreUpgradeKey == key)
-        {
-            return;
-        }
-
-        _coreUpgradeKey = key;
-        foreach (var child in _coreUpgradeCost.GetChildren())
-        {
-            child.QueueFree();
-        }
-
-        if (factory is null)
-        {
-            _coreUpgradeButton.Text = Testi.T("core.potenzia");
-            _coreUpgradeButton.Disabled = true;
-            return;
-        }
-
-        var upgrade = factory.Content.CoreUpgrade;
-        if (factory.CoreUpgradeLevel > 0)
-        {
-            _coreUpgradeButton.Text = Testi.F("core.potenziato", factory.CoreUpgradeLevel);
-            _coreUpgradeButton.Disabled = true;
-            _coreUpgradeButton.TooltipText = "";
-            return;
-        }
-
-        _coreUpgradeButton.Text = Testi.T("core.potenzia");
-        _coreUpgradeButton.Disabled = !affordable;
-        _coreUpgradeButton.TooltipText = factory.CoreUpgradeRefusal() is { } refusal ? Testi.Rifiuto(refusal, factory) : "";
-        if (upgrade.MoneyCost > 0)
-        {
-            _coreUpgradeCost.AddChild(MakeMoneyChip(upgrade.MoneyCost, factory.Wallet.Money >= upgrade.MoneyCost));
-        }
-
-        foreach (var cost in upgrade.BuildCost.Where(c => c.Amount > 0))
-        {
-            _coreUpgradeCost.AddChild(MakeCostChip(
-                cost.ItemId, cost.Amount, factory.Wallet.MaterialCount(cost.ItemId) >= cost.Amount, _content));
-        }
     }
 
     public void ClearObjectives()
@@ -373,21 +314,6 @@ public partial class CorePanel : VBoxContainer
 
         _stockEmpty = MakeLabel("core.vuoto", UiTheme.TestoTenue);
         vbox.AddChild(_stockEmpty);
-
-        var upgradeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore, ThemeTypeVariation = UiTheme.RigaLarga };
-        vbox.AddChild(upgradeRow);
-        _coreUpgradeButton = new Button
-        {
-            Name = "PotenziaCore",
-            Text = "core.potenzia",
-            ThemeTypeVariation = UiTheme.PulsantePiatto,
-            FocusMode = FocusModeEnum.None,
-            MouseDefaultCursorShape = CursorShape.PointingHand
-        };
-        _coreUpgradeButton.Pressed += () => CoreUpgradeRequested?.Invoke();
-        upgradeRow.AddChild(_coreUpgradeButton);
-        _coreUpgradeCost = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        upgradeRow.AddChild(_coreUpgradeCost);
     }
 
     private void AddStockCell(Control parent, string id)
