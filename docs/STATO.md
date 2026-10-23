@@ -120,7 +120,7 @@ Sotto-progetto 5: server C# e sincronizzazione ibrida.
 - [x] Mercato del sito allineato alla borsa (PR #276)
 - [x] Barra di avanzamento nella pagina Sviluppo (PR #284)
 - [x] Logo nella barra in alto
-- [ ] Catena della vetrina intera su schermo stretto, senza pezzi dietro il titolo ([#287](https://github.com/Juan0177/tIndustry/issues/287))
+- [x] Catena della vetrina intera su schermo stretto: i nastri proseguono dietro il testo fino alla sezione dopo ([#287](https://github.com/Juan0177/tIndustry/issues/287))
 - [ ] Racconto approvato dall'utente e messo nella barra del sito ([spec](superpowers/specs/2026-10-20-sito-scroll-narrativo.md))
 
 ### 16 · [Wiki e README](wiki/Home.md)
