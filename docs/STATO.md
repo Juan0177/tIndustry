@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, HUD nascosto nella Home e schermata di caricamento all'apertura di una partita; pausa con Spazio e velocità dev (`TINDUSTRY_DEV=1`, F1–F4) aggiunte; specifica 3 del Mercato (magazzino del CORE e livelli) attuata; resta da provare il client sul PC di casa.
+**Aggiornato:** 2026-10-23, giorno e notte approvato; pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
 
 ## Aspetti del gioco
 
@@ -103,6 +103,8 @@ Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleu
 
 Nemici solo di notte, Game Over se cade il CORE.
 
+- [x] Giorno e notte: specifica approvata ([spec](superpowers/specs/2026-10-23-giorno-notte-design.md))
+- [ ] Giorno e notte: ciclo, solo giorno, solo notte col contatore del primo attacco
 - [ ] Specifica approvata
 - [ ] Piano
 - [ ] Implementazione
