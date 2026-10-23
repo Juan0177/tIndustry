@@ -251,9 +251,6 @@ public partial class CorePanel : VBoxContainer
         }
     }
 
-    /// <summary>The world's time line as shown (playtests), or null while hidden.</summary>
-    internal string? WorldTimeShown => _timeLabel is { Visible: true } label ? label.Text : null;
-
     /// <summary>
     /// Text of the world's time line, null when there is none (always day): before the first block the time waits;
     /// in the cycle "Notte fra m:ss" by day and dusk, "Giorno fra m:ss" by night and dawn; in always night the first

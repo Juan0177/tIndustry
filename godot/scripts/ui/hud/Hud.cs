@@ -218,9 +218,6 @@ public partial class Hud : Control
     public void UpdateWorldTime(DayNightMode mode, DayNightPhase phase, long? firstBuildTick, long? ticksToNext, bool attackAlert) =>
         _core.UpdateWorldTime(mode, phase, firstBuildTick, ticksToNext, attackAlert);
 
-    /// <summary>The world's time line as shown, or null while hidden (playtests).</summary>
-    internal string? WorldTimeShown => _core.WorldTimeShown;
-
     public void ClearObjectives() => _core.ClearObjectives();
 
     public void UpdateObjectives(

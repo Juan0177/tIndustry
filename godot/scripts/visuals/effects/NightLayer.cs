@@ -26,7 +26,9 @@ public partial class NightLayer : Node2D
     private static readonly LightKind GeneratorLight = new(3f, new Color(1f, 0.84f, 0.5f), 1f);
     private static readonly LightKind DroneLight = new(2f, new Color(1f, 0.95f, 0.82f), 0.9f);
 
-    /// <summary>Light below which the lamps and the night effects are on (half of <see cref="DayNightClock.FullLight"/>).</summary>
+    /// <summary>
+    /// Light below which the lamps and the night effects are on (half of <see cref="DayNightClock.FullLight"/>).
+    /// </summary>
     public const int LightsOnBelow = DayNightClock.FullLight / 2;
 
     private readonly List<PointLight2D> _lights = [];
@@ -42,7 +44,9 @@ public partial class NightLayer : Node2D
     /// <summary>Light drawn now (0 night … <see cref="DayNightClock.FullLight"/> day).</summary>
     public int Light { get; private set; } = DayNightClock.FullLight;
 
-    /// <summary>True while the lights and the night effects are on (<see cref="Light"/> below <see cref="LightsOnBelow"/>).</summary>
+    /// <summary>
+    /// True while the lights and the night effects are on (<see cref="Light"/> below <see cref="LightsOnBelow"/>).
+    /// </summary>
     public bool Night => Light < LightsOnBelow;
 
     /// <summary>Lights drawn this frame (≤ <see cref="MaxLights"/>).</summary>

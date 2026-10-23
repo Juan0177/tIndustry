@@ -101,7 +101,15 @@ public partial class World
     /// Rules of the games the client starts: real construction, as in Mindustry (plans, drone, sites).
     /// The refund share is the mode's own (sandbox 100, campaign = the level's), set by <see cref="NewGame"/>.
     /// </summary>
-    private static GameRules ClientRules(DayNightMode dayNight = DayNightMode.Cycle) => new(DayNight: dayNight);
+    private static GameRules ClientRules(DayNightMode dayNight = DayNightMode.Cycle) =>
+        new(DayNight: PlaytestDayNight(dayNight));
+
+    /// <summary>
+    /// Scripted playtests (ui, tutorial, agenti) always play by day: the world's time line would count down with the
+    /// real frame time and change the captures from run to run. The probes that test the time set the rules themselves.
+    /// </summary>
+    private static DayNightMode PlaytestDayNight(DayNightMode dayNight) =>
+        PlaytestRequested ? DayNightMode.AlwaysDay : dayNight;
 
     /// <summary>
     /// A normal game: square map of <paramref name="size"/> from the biome generator, Core at the centre, with the
@@ -342,6 +350,8 @@ public partial class World
         {
             var content = FactoryContent.Load(_contentPath);
             factory = NewGame.Campaign(content, _campaign, level, rules: ClientRules(), mapsDirectory: mapsDirectory);
+            // The level's world's time, except in scripted playtests (see PlaytestDayNight).
+            factory.State.Rules = factory.State.Rules with { DayNight = PlaytestDayNight(factory.State.Rules.DayNight) };
         }
         catch (Exception ex)
         {

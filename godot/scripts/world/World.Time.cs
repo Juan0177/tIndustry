@@ -159,12 +159,15 @@ public partial class World
     private bool FocusTakesSpace() =>
         GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit or SpinBox or BaseButton;
 
-    /// <summary>The first attack of always night is due: "Attacco!" on the HUD for <see cref="AttackAlertTicks"/>.</summary>
+    /// <summary>
+    /// The first attack of always night is due: "Attacco!" on the HUD for <see cref="AttackAlertTicks"/> from the
+    /// attack's own tick (first block + <see cref="DayNightClock.FirstAttackTicks"/>), not from when the event is read.
+    /// </summary>
     private void OnFirstAttackDue()
     {
-        if (_view is not null)
+        if (_view?.FirstBuildTick is { } first)
         {
-            _attackAlertUntilTick = _view.CurrentTick + AttackAlertTicks;
+            _attackAlertUntilTick = first + DayNightClock.FirstAttackTicks + AttackAlertTicks;
         }
     }
 
