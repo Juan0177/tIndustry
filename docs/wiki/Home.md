@@ -9,11 +9,11 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 49%, 37 passi fatti su 76" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 49%, 38 passi fatti su 77" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
-| 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/1.svg" alt="71%" width="160"> | 71% (5/7) |
+| 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
 | 2 | [Costruzione](Costruzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
 | 3 | [Logistica](Logistica) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/3.svg" alt="38%" width="160"> | 38% (3/8) |
 | 4 | [Produzione](Produzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |

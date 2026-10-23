@@ -7,6 +7,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Aggiunto
 
+- **`clean.ps1`** (Windows): cancella i file generati che possono lasciare compilazioni o importazioni vecchie (`godot/.godot/`, `bin/` e `obj/`, `godot/lingue/*.translation`, `_site/`, `TestResults/`, `__pycache__/`, `.dev/playtest-*`); elenca con le dimensioni e chiede «Cancellare? (y/n)». `-Prova` elenca soltanto, `-Si` non chiede, `-Tutto` toglie anche il Godot scaricato. Non tocca file del repository né dati del giocatore
 - **Giorno e notte** ([specifica](docs/superpowers/specs/2026-10-23-giorno-notte-design.md), [diario](docs/diario/2026-10-23-giorno-notte.md)): il mondo ha un ciclo di 14 minuti (giorno 10, notte 4, alba e tramonto sfumati di 20 secondi dentro quei tempi) che parte dal primo blocco piazzato; prima è giorno. Alla creazione del mondo due caselle che si escludono, **Solo giorno (Pacifica)** e **Solo notte**; in solo notte una riga conta i 10 minuti fino al primo attacco («Primo attacco fra», «Attacco!», «Notte») e la simulazione emette `FirstAttackDue` una volta. `DayNightClock` calcola fase, luce (0–1000) e tick al prossimo cambio; lo scuro, le luci e le lucciole seguono la luce, le Lampade si accendono sotto metà luce. Nella campagna ogni livello sceglie `dayNight` (`ciclo`, `giorno`, `notte`): 1–3 giorno, 6 e 10 notte, gli altri ciclo. Lo stato degli agenti riporta il tempo
 - **Schermata di caricamento** all'apertura di una partita (Nuova partita, livello della campagna, salvataggio, Continua, F7/F9): logo, «Caricamento…», una barra che avanza per fasi (generazione della mappa, lettura del salvataggio, preparazione del mondo, disegno del terreno) e una breve dissolvenza quando il primo fotogramma è pronto; mentre è su, tasti e clic sono ignorati e la simulazione è ferma. Sostituisce l'avviso «Generazione della mappa…» che compariva solo per Grande ed Enorme
 - **HUD nascosto nella Home**: barra in alto, pannello del CORE, palette, FPS, barra dev e «In pausa» non si vedono dietro la Home e le schermate aperte da lì (Nuova partita, Campagna, Salvataggi, Impostazioni); i messaggi a comparsa restano
@@ -20,6 +21,10 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 - **Vendita automatica per oggetto**: un interruttore per oggetto (`SetAutoSell`), al prezzo minimo, senza toccare il mercato; vale anche per i nastri e gli edifici attaccati al CORE
 - **Panoramica del Mercato** (`M`): una riga per oggetto con prezzo e freccia, mini grafico dei 2 minuti, «Crollo», Vendi 1, Vendi 100, Vendi tutto e l'interruttore; nessun pulsante vende tutto di tutti. Gli agenti hanno `vendi {tutto}` e `vendita_automatica` per oggetto
 - **Sito**: grafico del prezzo, didascalia e capitolo Mercato del racconto allineati al nuovo Mercato (#273)
+
+### Corretto
+
+- **`play.ps1` e `dev.sh` reimportano gli asset quando cambiano**: prima importavano solo se mancava `godot/.godot/imported`, quindi dopo un aggiornamento con sprite, font o testi nuovi il gioco partiva senza i file importati (schermo grigio, «Cannot open file res://lingue/testi.it.translation»). Ora l'importazione scatta da sola, anche in modalità utente, se un `.import` elenca file che non ci sono, se un asset è nuovo o più recente dell'ultima importazione (`godot/.godot/tindustry-import.stamp`); se dopo l'importazione mancano ancora file, lo script si ferma con un errore invece di avviare il gioco
 
 ### Cambiato
 

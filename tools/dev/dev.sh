@@ -72,19 +72,51 @@ if [ "$RUN_TESTS" = 1 ]; then
   dotnet test tests/TIndustry.Shared.Tests --no-build -nologo -v q || fail "Test falliti."
 fi
 
-if [ "$FORCE_IMPORT" = 1 ] || [ ! -d godot/.godot/imported ]; then
+STAMP=godot/.godot/tindustry-import.stamp
+# Prints the res:// paths listed in dest_files of every .import sidecar (outside .godot/) that are missing on disk.
+import_missing() {
+  find godot -path godot/.godot -prune -o -path godot/.mono -prune -o -name '*.import' -type f -print0 |
+    xargs -0 -r sed -n 's/^dest_files=\[\(.*\)\]$/\1/p' | grep -o 'res://[^"]*' | sed 's|^res://||' |
+    while IFS= read -r d; do [ -e "godot/$d" ] || echo "$d"; done
+}
+# True when the Godot import must run: forced, or the cache is absent, stale or incomplete.
+import_needed() {
+  [ "$FORCE_IMPORT" = 1 ] && return 0
+  [ -d godot/.godot/imported ] || return 0
+  [ -f "$STAMP" ] || return 0
+  [ -n "$(import_missing | head -1)" ] && return 0
+  # A source changed after the last import, or a source was never imported (no .import sidecar).
+  [ -n "$(find godot -path godot/.godot -prune -o -path godot/.mono -prune -o -type f \( -name '*.import' -o -name '*.csv' \) -newer "$STAMP" -print -quit)" ] && return 0
+  local f
+  while IFS= read -r f; do
+    [ -e "$f.import" ] || return 0
+    [ "$f" -nt "$STAMP" ] && return 0
+  done < <(find godot \( -path godot/.godot -o -path godot/.mono -o -path 'godot/*/bin' -o -path 'godot/*/obj' \) -prune -o -type f \( -name '*.png' -o -name '*.fnt' -o -name '*.csv' -o -name '*.wav' -o -name '*.ogg' -o -name '*.svg' \) -print)
+  return 1
+}
+
+if import_needed; then
   step "Importazione asset Godot"
   # The importer runs the editor, which builds user:// from %APPDATA%: give it a throwaway one so the
   # player's real app_userdata (.recovery_mode_lock, caches) is never touched.
   IMPORT_APPDATA="$(mktemp -d)"
-  APPDATA="$(win "$IMPORT_APPDATA")" "$GODOT" --headless --path godot --import >/dev/null 2>&1 || { rm -rf "$IMPORT_APPDATA"; fail "Importazione fallita (riprova con: $GODOT --headless --path godot --import)."; }
+  APPDATA="$(win "$IMPORT_APPDATA")" "$GODOT" --headless --path godot --import >/dev/null 2>&1
+  IMPORT_CODE=$?
   rm -rf "$IMPORT_APPDATA"
+  # The headless import sometimes crashes at exit (139) after finishing: what counts is that every
+  # output listed by the .import files exists.
+  MISSING="$(import_missing)"
+  if [ -n "$MISSING" ]; then
+    fail "Importazione incompleta (codice $IMPORT_CODE): mancano $(echo "$MISSING" | wc -l | tr -d ' ') file importati, per esempio $(echo "$MISSING" | head -3 | tr '\n' ' '). Riprova con: $GODOT --headless --path godot --import"
+  fi
   # Godot rewrites line endings of tracked .import files: drop changes that are only that.
   if command -v git >/dev/null 2>&1; then
     for f in $(git ls-files -m godot/assets 2>/dev/null); do
       git diff --ignore-cr-at-eol --quiet -- "$f" 2>/dev/null && git checkout -q -- "$f"
     done
   fi
+  # Stamp last: the restore above touches .import files and must not look like a change.
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$STAMP"
 fi
 
 if [ "$BUILD_ONLY" = 1 ]; then

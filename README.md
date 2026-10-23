@@ -156,11 +156,11 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 49%, 37 passi fatti su 76" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 49%, 38 passi fatti su 77" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
-| 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="71%" width="160"> | 71% (5/7) |
+| 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
 | 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
 | 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="38%" width="160"> | 38% (3/8) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
@@ -196,7 +196,7 @@ tools/dev/dev.sh                 # Linux/macOS (bash)
 .\play.ps1 -Dev -ProfiloTemp     # Windows, con i comandi di sviluppo (F1-F4: velocità)
 ```
 
-Il comando controlla gli strumenti (su Windows `play.ps1` installa con winget quelli che mancano, dopo aver chiesto), compila, importa gli asset se serve e avvia il gioco. Le opzioni sono le stesse (`--profilo-temp` in bash, `-ProfiloTemp` in PowerShell); in modalità utente `play.ps1` accetta solo `-ProfiloTemp` e `-Nuova`, le altre servono con `-Dev`:
+Il comando controlla gli strumenti (su Windows `play.ps1` installa con winget quelli che mancano, dopo aver chiesto), compila, importa gli asset se serve e avvia il gioco. Se la compilazione o l'importazione restano vecchie, `.\clean.ps1` (`-Prova` per vedere cosa toglie) cancella i file generati. Le opzioni sono le stesse (`--profilo-temp` in bash, `-ProfiloTemp` in PowerShell); in modalità utente `play.ps1` accetta solo `-ProfiloTemp` e `-Nuova`, le altre servono con `-Dev`:
 
 | Opzione | Effetto |
 | --- | --- |
