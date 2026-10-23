@@ -204,10 +204,10 @@ public sealed class AutoSellTests
         var item = f.State.Exchange.Find(Plate)!;
         item.AutoSell = true;
         f.RunTicks(5);
-        Assert.NotEqual(0, item.AutoSellCarryMilli);
+        Assert.NotEqual(0, item.AutoSellCarry);
         item.AutoSell = false;
         f.RunTicks(1);
-        Assert.Equal(0, item.AutoSellCarryMilli);
+        Assert.Equal(0, item.AutoSellCarry);
     }
 
     [Fact]
@@ -308,10 +308,10 @@ public sealed class AutoSellTests
         Assert.True(host.State.MarketItem(Coal)!.AutoSellWhenFull);
         Assert.Equal([RefusalCode.InvalidCommand], rejected);
 
-        item.AutoSellCarryMilli = 45;
+        item.AutoSellCarry = 45;
         var restored = Factory.Restore(FactoryContent.Load(ContentPath), f.Capture());
         var back = restored.State.Exchange.Find(Coal)!;
         Assert.True(back.AutoSellWhenFull);
-        Assert.Equal(45, back.AutoSellCarryMilli);
+        Assert.Equal(45, back.AutoSellCarry);
     }
 }

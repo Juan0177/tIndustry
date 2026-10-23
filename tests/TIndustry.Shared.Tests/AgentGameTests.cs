@@ -757,6 +757,10 @@ public sealed class AgentGameTests
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
+            // Journals recorded before the 3×3 shard played on another map: refused, never replayed.
+            Assert.Equal(2, AgentJournal.CurrentVersion);
+            File.WriteAllText(broken, """{"versione":1,"voci":[]}""");
+            Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             Assert.Equal(AgentCodes.ParametriNonValidi,
                 Assert.Throws<AgentException>(() => AgentJournal.Load(Path.Combine(dir, "manca.json"))).Code);
             // A journal without its game cannot be replayed from the header.

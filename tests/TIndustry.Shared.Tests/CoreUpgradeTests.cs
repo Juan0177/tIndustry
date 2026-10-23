@@ -429,11 +429,13 @@ public sealed class CoreUpgradeTests
     }
 
     [Theory]
-    [InlineData(MapGenerator.Name)]
-    [InlineData(ClassicTerrainGenerator.Name)]
-    public void UpgradedCore_SaveLoad_RegeneratesTheSameTerrain(string generator)
+    [InlineData(MapGenerator.Name, 1)]
+    [InlineData(MapGenerator.Name, 2)]
+    [InlineData(ClassicTerrainGenerator.Name, 1)]
+    [InlineData(ClassicTerrainGenerator.Name, 2)]
+    public void UpgradedCore_SaveLoad_RegeneratesTheSameTerrain(string generator, int tier)
     {
-        // The terrain is regenerated from the starting shard's cells, not from the grown Core's.
+        // The terrain is regenerated from the starting shard's cells (saved as CoreStartX/Y), not from the grown Core's.
         var origin = Factory.CenteredCoreOrigin(64, 64);
         var f = generator == MapGenerator.Name
             ? NewGame.Sandbox(Content, origin, rules: new GameRules(InstantBuild: true), map: MapGenSettings.Normal((MapSize)64, 7))
@@ -441,16 +443,39 @@ public sealed class CoreUpgradeTests
         var host = new SimHost(f);
         Prepare(f, 1);
         Assert.Null(Submit(host, Upgrade(BuildingKind.CoreFoundation, origin)));
-        Prepare(f, 2);
-        var nucleus = f.CoreUpgradeSpec()!;
-        Assert.Null(Submit(host, Upgrade(BuildingKind.CoreNucleus, nucleus.Origin)));
-        Assert.Equal(2, f.CoreTier);
+        if (tier == 2)
+        {
+            Prepare(f, 2);
+            var nucleus = f.CoreUpgradeSpec()!;
+            Assert.Null(Submit(host, Upgrade(BuildingKind.CoreNucleus, nucleus.Origin)));
+        }
+
+        Assert.Equal(tier, f.CoreTier);
+        var data = f.Capture();
+        Assert.Equal((origin.X, origin.Y), (data.CoreStartX, data.CoreStartY));
+        Assert.Equal(Content.CoreTiers[tier].Size, data.CoreSize);
 
         var restored = SimHost.FromSnapshot(Content, host.CreateSnapshot());
 
         Assert.Equal(host.Checksum(), restored.Checksum());
         Assert.Equal(f.Terrain!.Hash, restored.State.Terrain!.Hash);
-        Assert.Equal(2, restored.State.CoreTier);
+        Assert.Equal(tier, restored.State.CoreTier);
         Assert.True(f.CoreTiles.SetEquals(restored.State.CoreTiles));
+        Assert.Equal(origin, ((Factory)restored.State).State.CoreStart);
+    }
+
+    [Fact]
+    public void SavedCoreStart_IsWhatTheTerrainIsRegeneratedFrom()
+    {
+        // The start is read from the save, never derived from the Core: another start makes another terrain.
+        var origin = Factory.CenteredCoreOrigin(64, 64);
+        var f = NewGame.Sandbox(Content, origin, mapWidth: 64, mapHeight: 64, seed: 7, rules: new GameRules(InstantBuild: true));
+        Prepare(f, 1);
+        Assert.Null(Submit(f, Upgrade(BuildingKind.CoreFoundation, origin)));
+        var data = f.Capture();
+        data.CoreStartX += 5;
+
+        var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data));
+        Assert.Equal(SaveLoadError.TerrainChanged, ex.Code);
     }
 }

@@ -37,6 +37,7 @@ public sealed class GameState
         CoreOrigin = coreTiles.Count == 0
             ? default
             : new GridPosition(coreTiles.Min(t => t.X), coreTiles.Min(t => t.Y));
+        CoreStart = CoreOrigin;
     }
 
     public FactoryContent Content { get; }
@@ -51,6 +52,12 @@ public sealed class GameState
 
     /// <summary>Core tier: index in <see cref="FactoryContent.CoreTiers"/> (0 shard, 1 foundation, 2 nucleus).</summary>
     public int CoreTier { get; internal set; }
+
+    /// <summary>
+    /// Top-left cell of the Core the game started with: the terrain generators made the map around it, so a save
+    /// regenerates its terrain from it. <see cref="SetCore"/> does not move it.
+    /// </summary>
+    public GridPosition CoreStart { get; internal set; }
 
     /// <summary>The Core's storage: the single entry point of items into the Core stock.</summary>
     public CoreStorage Storage { get; }

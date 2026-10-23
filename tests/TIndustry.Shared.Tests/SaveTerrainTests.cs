@@ -6,25 +6,16 @@ using Xunit;
 namespace TIndustry.Shared.Tests;
 
 /// <summary>
-/// Save v12: the terrain generator is saved (classic, biomes, campaign map file); v11 saves load on the
-/// classic generator; sites and drone plans on terrain that blocks building are dropped on load.
+/// The terrain generator is saved (classic, biomes, campaign map file) and the terrain regenerated on load must be
+/// the saved one; sites and drone plans on terrain that blocks building are dropped on load.
 /// </summary>
 [Collection(SaveStoreCollection.Name)]
-public sealed class SaveMigrationTests
+public sealed class SaveTerrainTests
 {
     private static readonly string DataDir = Path.Combine(AppContext.BaseDirectory, "data");
     private static readonly string MapsDir = Path.Combine(DataDir, "maps");
     private static readonly FactoryContent Content = FactoryContent.Load(Path.Combine(DataDir, "content.json"));
     private static readonly CampaignCatalog Catalog = CampaignCatalog.Load(Path.Combine(DataDir, "campaign.json"));
-
-    /// <summary>
-    /// Written by the v11 code of main (243a870): sandbox 120×120, seed 6, Core (60, 60), a miner, a smelter,
-    /// four belts (two of them on classic water at (11, 18)) and a miner site at (66, 56) at about 55%.
-    /// </summary>
-    private static readonly string V11Fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "save-v11.json");
-
-    /// <summary>Terrain fingerprint of the fixture's map, measured with the v11 code.</summary>
-    private const ulong V11TerrainHash = 2630313119214773145UL;
 
     private static string SnapshotJson(string slotId)
     {
@@ -37,72 +28,7 @@ public sealed class SaveMigrationTests
         JsonSerializer.Deserialize<FactorySaveData>(snapshot, FactorySaveStore.JsonOptions)!;
 
     [Fact]
-    public void V11FixtureLoadsWithClassicTerrain()
-    {
-        Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
-        File.Copy(V11Fixture, FactorySaveStore.SlotPath("fixture-v11"), overwrite: true);
-        Assert.Contains("\"version\":11", SnapshotJson("fixture-v11"));
-
-        Assert.True(FactorySaveStore.TryLoad(Content, "fixture-v11", out var host, out var error), error);
-        var state = host!.State;
-
-        var terrain = state.Terrain!;
-        Assert.Equal(ClassicTerrainGenerator.Name, terrain.Generator);
-        Assert.Equal((120, 120, 6), (terrain.Width, terrain.Height, terrain.Seed));
-        Assert.Equal(V11TerrainHash, TerrainMap.TerrainHash(terrain));
-
-        Assert.Equal(25, state.CurrentTick);
-        Assert.Single(state.Miners);
-        Assert.Single(state.Smelters);
-        Assert.Equal(4, state.Belts.Count);
-        var onWater = new GridPosition(11, 18);
-        Assert.True(state.Belts.ContainsKey(onWater));
-        Assert.Equal(FloorKind.ShallowWater, terrain[onWater].Floor);
-
-        // Classic water stays buildable after the migration: the first free water cell of the lake under the belts.
-        var freeWater = Enumerable.Range(0, terrain.Height)
-            .SelectMany(y => Enumerable.Range(0, terrain.Width).Select(x => new GridPosition(x, y)))
-            .First(c => terrain[c].Floor == FloorKind.ShallowWater && !state.Belts.ContainsKey(c));
-        Assert.True(((Factory)state).CanPlace(
-            new BuildSpec("conveyor-basic", null, freeWater, Direction.East), out var waterReason), waterReason?.ToString());
-        var site = Assert.Single(state.Sites);
-        Assert.Equal(new GridPosition(66, 56), site.Spec.Origin);
-        Assert.InRange(site.Progress, 0.5f, 0.6f);
-        Assert.Equal(new GridPosition(66, 56), Assert.Single(state.PlansOf(0)).Spec.Origin);
-
-        // Saved again it is a current-version save on the classic generator, and the site still gets built.
-        FactorySaveStore.Save("fixture-v12", host);
-        var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("fixture-v12")));
-        Assert.Equal((FactorySaveData.CurrentVersion, "classico", 0, (string?)null), (data.Version, data.Generator, data.MapSize, data.MapId));
-        Assert.True(FactorySaveStore.TryLoad(Content, "fixture-v12", out var resaved, out error), error);
-        Assert.Equal(host.Checksum(), resaved!.Checksum());
-        // The fixture's wallet predates raw-iron costs: hand the site what it now asks for.
-        foreach (var line in site.Cost)
-        {
-            ((Factory)host.State).Wallet.AddMaterial(line.ItemId!, line.Amount);
-        }
-
-        host.AdvanceTicks(120);
-        Assert.Empty(host.State.Sites);
-        Assert.Equal(2, host.State.Miners.Count);
-    }
-
-    [Fact]
-    public void V11SnapshotWithoutGeneratorReadsAsClassic()
-    {
-        var host = new SimHost(NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 6));
-        var json = Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"generator\":\"classico\"", json);
-        var v11 = json.Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":11").Replace("\"generator\":\"classico\",", "");
-
-        var state = Snapshot.Read(Content, Encoding.UTF8.GetBytes(v11));
-
-        Assert.Equal(ClassicTerrainGenerator.Name, state.Terrain!.Generator);
-        Assert.Equal(TerrainMap.TerrainHash(host.State.Terrain!), TerrainMap.TerrainHash(state.Terrain));
-    }
-
-    [Fact]
-    public void V12RoundTripBiomes()
+    public void RoundTripBiomes()
     {
         var factory = NewGame.Sandbox(
             Content, new GridPosition(100, 100), map: MapGenSettings.Normal((MapSize)200, 31),
@@ -111,12 +37,12 @@ public sealed class SaveMigrationTests
         host.Submit(new PlaceBelt(0, new GridPosition(98, 100), Direction.East, "conveyor-basic"));
         host.AdvanceTicks(30);
 
-        FactorySaveStore.Save("v12-biomi", host);
-        var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("v12-biomi")));
+        FactorySaveStore.Save("terreno-biomi", host);
+        var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("terreno-biomi")));
         Assert.Equal(("biomi-1", 200, (string?)null), (data.Generator, data.MapSize, data.MapId));
         Assert.Equal(TerrainMap.TerrainHash(factory.Terrain!), data.TerrainHash);
 
-        Assert.True(FactorySaveStore.TryLoad(Content, "v12-biomi", out var loaded, out var error), error);
+        Assert.True(FactorySaveStore.TryLoad(Content, "terreno-biomi", out var loaded, out var error), error);
         Assert.Equal(MapGenerator.Name, loaded!.State.Terrain!.Generator);
         Assert.Equal(TerrainMap.TerrainHash(factory.Terrain!), TerrainMap.TerrainHash(loaded.State.Terrain));
         Assert.Equal(host.Checksum(), loaded.Checksum());
@@ -129,7 +55,7 @@ public sealed class SaveMigrationTests
     [Fact]
     public void OldBiomeNameLoadsAsTheFirstBiomeGenerator()
     {
-        // v12 saves written before the generator was versioned say "biomi": the same frozen generator.
+        // "biomi" (the name before the generator had a version) still means the same frozen generator.
         var data = BiomeSave();
         var hash = data.TerrainHash;
         data.Generator = "biomi";
@@ -157,24 +83,20 @@ public sealed class SaveMigrationTests
         var classic = NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 6).Capture();
         classic.TerrainHash ^= 0xFF;
         Assert.Throws<SaveMapException>(() => Factory.Restore(Content, classic));
-
-        // Without a hash (v12 saves written before it) the terrain loads as before.
-        data.TerrainHash = null;
-        Assert.NotNull(Factory.Restore(Content, data).Terrain);
     }
 
     [Fact]
-    public void V12RoundTripCampaignMap()
+    public void RoundTripCampaignMap()
     {
         var level = Catalog.Levels[0];
         var host = new SimHost(NewGame.Campaign(Content, Catalog, level, mapsDirectory: MapsDir));
         host.AdvanceTicks(10);
 
-        FactorySaveStore.Save("v12-campagna", host);
-        var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("v12-campagna")));
+        FactorySaveStore.Save("terreno-campagna", host);
+        var data = ReadData(Encoding.UTF8.GetBytes(SnapshotJson("terreno-campagna")));
         Assert.Equal(("campagna", 0, level.Map), (data.Generator, data.MapSize, data.MapId));
 
-        Assert.True(FactorySaveStore.TryLoad(Content, "v12-campagna", out var loaded, out var error, MapsDir), error);
+        Assert.True(FactorySaveStore.TryLoad(Content, "terreno-campagna", out var loaded, out var error, MapsDir), error);
         Assert.Equal("campagna:" + level.Map, loaded!.State.Terrain!.Generator);
         Assert.Equal(TerrainMap.TerrainHash(host.State.Terrain!), TerrainMap.TerrainHash(loaded.State.Terrain));
         Assert.Equal(host.Checksum(), loaded.Checksum());
@@ -204,12 +126,6 @@ public sealed class SaveMigrationTests
         var one = FactorySaveStore.ReadSlotInfo("elenco-biomi");
         Assert.Equal((b.Generator, b.Seed, b.MapWidth, b.MapHeight), (one!.Generator, one.Seed, one.MapWidth, one.MapHeight));
         Assert.Null(FactorySaveStore.ReadSlotInfo("elenco-inesistente"));
-
-        // A v11 file has neither field: the list leaves them empty (the game loads it on the classic generator).
-        Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
-        File.Copy(V11Fixture, FactorySaveStore.SlotPath("elenco-v11"), overwrite: true);
-        var old = Assert.Single(FactorySaveStore.ListSlots(), s => s.Id == "elenco-v11");
-        Assert.Equal(((string?)null, (string?)null), (old.Generator, old.MapId));
     }
 
     [Fact]
@@ -217,23 +133,23 @@ public sealed class SaveMigrationTests
     {
         var level = Catalog.Levels[0];
         var host = new SimHost(NewGame.Campaign(Content, Catalog, level, mapsDirectory: MapsDir));
-        FactorySaveStore.Save("v12-senza-mappa", host);
+        FactorySaveStore.Save("terreno-senza-mappa", host);
 
-        Assert.False(FactorySaveStore.TryLoad(Content, "v12-senza-mappa", out var noDir, out var error));
+        Assert.False(FactorySaveStore.TryLoad(Content, "terreno-senza-mappa", out var noDir, out var error));
         Assert.Null(noDir);
         Assert.Equal($"Mappa della campagna '{level.Map}' non disponibile: cartella delle mappe non trovata.", error);
         // The client gets the reason as a code with the map id (it shows its own text).
-        Assert.False(FactorySaveStore.TryLoadSlot(Content, "v12-senza-mappa", out _, out var failure));
+        Assert.False(FactorySaveStore.TryLoadSlot(Content, "terreno-senza-mappa", out _, out var failure));
         Assert.Equal((SaveLoadError.MapsFolderMissing, level.Map), (failure!.Code, failure.Argument));
 
         var empty = Path.Combine(Path.GetTempPath(), $"tindustry-mappe-vuote-{Guid.NewGuid():N}");
         Directory.CreateDirectory(empty);
         try
         {
-            Assert.False(FactorySaveStore.TryLoad(Content, "v12-senza-mappa", out var missing, out error, empty));
+            Assert.False(FactorySaveStore.TryLoad(Content, "terreno-senza-mappa", out var missing, out error, empty));
             Assert.Null(missing);
             Assert.StartsWith($"Mappa della campagna '{level.Map}' mancante o non valida.", error);
-            Assert.False(FactorySaveStore.TryLoadSlot(Content, "v12-senza-mappa", out _, out var missingFailure, empty));
+            Assert.False(FactorySaveStore.TryLoadSlot(Content, "terreno-senza-mappa", out _, out var missingFailure, empty));
             Assert.Equal((SaveLoadError.CampaignMapMissing, level.Map), (missingFailure!.Code, missingFailure.Argument));
         }
         finally
@@ -266,36 +182,6 @@ public sealed class SaveMigrationTests
         var ex = Assert.Throws<SaveMapException>(() => Factory.Restore(Content, data));
         Assert.Equal("Generatore di mappa sconosciuto nel salvataggio: 'vulcani'.", ex.Message);
         Assert.Equal((SaveLoadError.UnknownGenerator, "vulcani"), (ex.Code, ex.Argument));
-    }
-
-    [Fact]
-    public void V10StillRejected()
-    {
-        Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
-        var path = FactorySaveStore.SlotPath("fixture-v10");
-        File.WriteAllText(path, File.ReadAllText(V11Fixture).Replace("\"version\": 11", "\"version\": 10"));
-
-        Assert.False(FactorySaveStore.TryLoad(Content, "fixture-v10", out var loaded, out var error));
-        Assert.Null(loaded);
-        Assert.Equal("Salvataggio di una versione precedente: non compatibile.", error);
-
-        var snapshot = Encoding.UTF8.GetString(host().CreateSnapshot()).Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":10");
-        Assert.Throws<InvalidDataException>(() => Snapshot.Read(Content, Encoding.UTF8.GetBytes(snapshot)));
-
-        static SimHost host() => new(NewGame.Demo(Content));
-    }
-
-    [Fact]
-    public void SaveWritesVersion14()
-    {
-        var host = new SimHost(NewGame.Sandbox(Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v14-versione", host);
-
-        Assert.Contains("\"version\": 14", File.ReadAllText(FactorySaveStore.SlotPath("v14-versione")));
-        var snapshot = SnapshotJson("v14-versione");
-        Assert.Contains("\"version\":14", snapshot);
-        Assert.Contains("\"generator\":\"classico\",\"mapSize\":0", snapshot);
-        Assert.DoesNotContain("mapId", snapshot);
     }
 
     /// <summary>Level 1's map with its wall cell nearest to the Core.</summary>

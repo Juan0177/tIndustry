@@ -4,7 +4,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save v11 and the canonical snapshot carry the rules, drones, plan queues and construction sites.</summary>
+/// <summary>The save and the canonical snapshot carry the rules, drones, plan queues and construction sites.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class ConstructionSaveTests
 {
@@ -22,7 +22,7 @@ public sealed class ConstructionSaveTests
             // Below the Core's maximum (1000), so refunds are never clamped here.
             new Dictionary<string, int>(StringComparer.Ordinal) { [Iron] = 500, [Plate] = 500, ["lead-ore"] = 500 });
         var factory = new Factory(
-            Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(20, 20), 2), wallet);
+            Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(20, 20)), wallet);
         factory.State.Rules = rules;
         foreach (var id in ResearchState.DemoStructureIds)
         {
@@ -228,6 +228,25 @@ public sealed class ConstructionSaveTests
     }
 
     [Fact]
+    public void DroppedSite_GivesBackWhatItTook_EvenAboveTheCoreMaximum()
+    {
+        var (factory, _) = WithSite(BuildingKind.Smelter, 20);
+        var spent = factory.Sites[0].Spent[0];
+        Assert.True(spent > 0);
+        var data = factory.Capture();
+        var capacity = factory.CoreCapacity(Iron);
+        // The Core is full of the item the site took: those pieces were never delivered, so none is lost.
+        data.Materials[Iron] = capacity;
+        data.Sites[0].Spec.RecipeId = "ricetta-sparita";
+        data.Builders[0].Plans[0].Spec.RecipeId = "ricetta-sparita";
+
+        var restored = Factory.Restore(Content, data);
+
+        Assert.Empty(restored.Sites);
+        Assert.Equal(capacity + spent, restored.Wallet.MaterialCount(Iron));
+    }
+
+    [Fact]
     public void RestoreClearsACurrentSiteThatDoesNotExist()
     {
         var factory = NewFactory(new GameRules());
@@ -252,12 +271,10 @@ public sealed class ConstructionSaveTests
         var data = factory.Capture();
         var dto = data.Sites[0];
 
-        // Written per item, in ordinal order; the old index lists are no longer written.
+        // Written per item, in ordinal order.
         Assert.Equal(
             [("copper-wire", site.Spent[0]), (Plate, site.Spent[1])],
             dto.SpentByItem!.Select(l => (l.ItemId, l.Amount)).ToList());
-        Assert.Null(dto.Spent);
-        Assert.Null(dto.Refunded);
 
         // Lines in another order, plus one the block no longer costs: mapped by item id, the extra dropped.
         dto.SpentByItem =
@@ -272,10 +289,9 @@ public sealed class ConstructionSaveTests
     [Fact]
     public void PlatesSpentBeforeRawOreCostsGoBackToTheCore()
     {
-        // A v12 miner site from before the raw-ore costs: 3 plates spent, 1 already refunded.
+        // A miner site saved with an older cost (plates, no raw ore): 3 plates spent, 1 already refunded.
         var (factory, _) = WithSite(BuildingKind.Miner, 5);
         var data = factory.Capture();
-        data.Version = 12;
         var dto = data.Sites[0];
         dto.SpentByItem = [new CostLineSaveDto { ItemId = Plate, Amount = 3 }];
         dto.RefundedByItem = [new CostLineSaveDto { ItemId = Plate, Amount = 1 }];
@@ -287,27 +303,6 @@ public sealed class ConstructionSaveTests
         Assert.Equal(Iron, Assert.Single(site.Cost).ItemId);
         Assert.Equal([0], site.Spent);
         Assert.Equal(platesBefore + 2, restored.Wallet.MaterialCount(Plate));
-    }
-
-    [Fact]
-    public void SpentFromAnOlderV11SaveIsMappedByIndex()
-    {
-        var (factory, _) = WithSite(BuildingKind.MinerAdvanced, 30);
-        var data = factory.Capture();
-        var dto = data.Sites[0];
-        // As written before the per-item lines existed.
-        var legacy = JsonSerializer.Deserialize<SiteSaveDto>(
-            """{ "spent": [1, 3], "refunded": [0, 1] }""", FactorySaveStore.JsonOptions)!;
-        Assert.Null(legacy.SpentByItem);
-        dto.SpentByItem = null;
-        dto.RefundedByItem = null;
-        dto.Spent = legacy.Spent;
-        dto.Refunded = legacy.Refunded;
-
-        var site = Assert.Single(Factory.Restore(Content, data).Sites);
-
-        Assert.Equal([1, 3], site.Spent);
-        Assert.Equal([0, 1], site.Refunded);
     }
 
     [Fact]
@@ -342,7 +337,7 @@ public sealed class ConstructionSaveTests
         Assert.NotNull(site.Replaced);
 
         var loaded = RoundTrip(host, "v13-sostituzione");
-        Assert.Contains("\"version\": 14", File.ReadAllText(FactorySaveStore.SlotPath("v13-sostituzione")));
+        Assert.Contains($"\"version\": {FactorySaveData.CurrentVersion}", File.ReadAllText(FactorySaveStore.SlotPath("v13-sostituzione")));
         Assert.Equal(host.Checksum(), loaded.Checksum());
         var restored = Assert.Single(loaded.State.Sites);
         Assert.Equal("conveyor-basic", restored.Replaced!.Spec.StructureId);
@@ -416,7 +411,7 @@ public sealed class ConstructionSaveTests
     }
 
     [Fact]
-    public void Version12SaveStillLoads()
+    public void PlainSiteSavesWithoutReplacedBelt()
     {
         var host = new SimHost(NewFactory(new GameRules()));
         host.Submit(new PlaceBuilding(Player, BuildingKind.Miner, new GridPosition(24, 20), Direction.East));
@@ -424,10 +419,8 @@ public sealed class ConstructionSaveTests
         Assert.Single(host.State.Sites);
         var json = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
         Assert.DoesNotContain("replaced", json);
-        var v12 = json.Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":12");
-        Assert.Contains("\"version\":12", v12);
 
-        var state = Snapshot.Read(Content, System.Text.Encoding.UTF8.GetBytes(v12));
+        var state = Snapshot.Read(Content, System.Text.Encoding.UTF8.GetBytes(json));
 
         Assert.Equal(host.Checksum(), Snapshot.Checksum(Snapshot.Write(state)));
         Assert.Null(Assert.Single(state.Sites).Replaced);

@@ -730,12 +730,8 @@ public sealed class Factory : IGameView
 
     public FactorySaveData Capture()
     {
-        var coreOrigin = CoreTiles.Count == 0
-            ? new GridPosition(9, 14)
-            : State.CoreOrigin;
-        var coreSize = CoreTiles.Count == 0
-            ? 2
-            : Math.Max(1, (int)Math.Round(Math.Sqrt(CoreTiles.Count)));
+        // The Core's real edge (a hand-made Core of another size is saved as it is and refused on load).
+        var coreSize = (int)Math.Round(Math.Sqrt(CoreTiles.Count));
 
         return new FactorySaveData
         {
@@ -744,10 +740,12 @@ public sealed class Factory : IGameView
             NextEntityId = nextEntityId,
             CurrentTick = CurrentTick,
             CoreDeliveredItems = CoreDeliveredItems,
-            CoreX = coreOrigin.X,
-            CoreY = coreOrigin.Y,
+            CoreX = State.CoreOrigin.X,
+            CoreY = State.CoreOrigin.Y,
             CoreSize = coreSize,
             CoreTier = CoreTier,
+            CoreStartX = State.CoreStart.X,
+            CoreStartY = State.CoreStart.Y,
             Money = Wallet.Money,
             Materials = SortedByKey(Wallet.MaterialsSnapshot()),
             UnlockedStructures = Research.UnlockedIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
@@ -900,26 +898,9 @@ public sealed class Factory : IGameView
             .ThenBy(line => line.ItemId, StringComparer.Ordinal)
             .ToList();
 
-    /// <summary>
-    /// Saved per-item lines of a site (<paramref name="byItem"/>), or, for older v11 saves without them, the
-    /// index lists (<paramref name="byIndex"/>) paired with <paramref name="cost"/>.
-    /// </summary>
-    private static List<(string? ItemId, int Amount)> SavedCostLines(
-        List<CostLineSaveDto>? byItem, List<int>? byIndex, IReadOnlyList<CostEntry> cost)
-    {
-        if (byItem is not null)
-        {
-            return byItem.Select(line => (line.ItemId, line.Amount)).ToList();
-        }
-
-        var lines = new List<(string? ItemId, int Amount)>();
-        for (var i = 0; i < cost.Count && byIndex is not null && i < byIndex.Count; i++)
-        {
-            lines.Add((cost[i].ItemId, byIndex[i]));
-        }
-
-        return lines;
-    }
+    /// <summary>Saved per-item lines of a site (none when absent).</summary>
+    private static List<(string? ItemId, int Amount)> SavedCostLines(List<CostLineSaveDto>? byItem) =>
+        (byItem ?? []).Select(line => (line.ItemId, line.Amount)).ToList();
 
     /// <summary>Amount of the saved line for <paramref name="itemId"/> (0 when the save has none).</summary>
     private static int SavedAmount(List<(string? ItemId, int Amount)> lines, string? itemId)
@@ -1010,9 +991,23 @@ public sealed class Factory : IGameView
                 cell.FilterItemId);
         }
 
-        var core = CoreStockSink.MakeCoreTiles(
-            new GridPosition(data.CoreX, data.CoreY),
-            Math.Max(1, data.CoreSize));
+        if (data.CoreTier < 0 || data.CoreTier >= content.CoreTiers.Count)
+        {
+            throw new InvalidDataException($"Livello del CORE {data.CoreTier} inesistente.");
+        }
+
+        if (data.CoreSize != content.CoreTiers[data.CoreTier].Size)
+        {
+            throw new InvalidDataException(
+                $"CORE di lato {data.CoreSize} al livello {data.CoreTier} (lato {content.CoreTiers[data.CoreTier].Size}).");
+        }
+
+        if (data.Market is null)
+        {
+            throw new InvalidDataException("Salvataggio senza mercato.");
+        }
+
+        var core = CoreStockSink.MakeCoreTiles(new GridPosition(data.CoreX, data.CoreY), data.CoreSize);
         var wallet = new EconomyWallet(data.Money, data.Materials);
         var research = ResearchState.FromSaved(data.UnlockedStructures, content);
         var session = new EconomySession(data.StartingMoney);
@@ -1024,13 +1019,9 @@ public sealed class Factory : IGameView
             CoreDeliveredItems = Math.Max(0, data.CoreDeliveredItems),
             ActiveCampaignLevelId = data.ActiveCampaignLevelId
         };
-        if (data.CoreTier < 0 || data.CoreTier >= content.CoreTiers.Count)
-        {
-            throw new InvalidDataException($"Livello del CORE {data.CoreTier} inesistente.");
-        }
-
-        // The cells stay as saved (CoreSize); only the tier is restored here.
+        // The cells are the saved ones (CoreSize, checked against the tier above); the tier and start are restored here.
         factory.State.CoreTier = data.CoreTier;
+        factory.State.CoreStart = new GridPosition(data.CoreStartX, data.CoreStartY);
         factory.State.Rules = new GameRules(Math.Clamp(data.Rules.RefundPercent, 0, 100), data.Rules.InstantBuild, data.Rules.Night);
         // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
         // capacity and silently drop stored energy above it.
@@ -1046,20 +1037,8 @@ public sealed class Factory : IGameView
         factory.Terrain = RestoreTerrain(content, data, StartingShard(content, data), mapsDirectory);
         CheckRegeneratedTerrain(data, factory.Terrain);
 
-        // After the terrain: its setter reseeds the market. Saves up to v13 have none: a fresh one, first spike
-        // 10-20 minutes from now (the old single auto-sell switch is applied to every item).
-        if (data.Market is { } market)
-        {
-            factory.State.Exchange.Restore(market, content.MarketRules, factory.CurrentTick);
-        }
-        else
-        {
-            factory.State.Exchange.Reseed(content.MarketRules, factory.Terrain?.Seed ?? 0, factory.CurrentTick);
-            foreach (var item in factory.State.Exchange.Items)
-            {
-                item.AutoSell = data.AutoSellAtCore;
-            }
-        }
+        // After the terrain: its setter reseeds the market.
+        factory.State.Exchange.Restore(data.Market, content.MarketRules, factory.CurrentTick);
 
         // Defensive: a building without a stable id (0) gets a fresh one in list order.
         var maxSavedId = data.Miners.Select(d => d.Id)
@@ -1246,20 +1225,10 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// The Core the game started with (origin and edge), from which the terrain generators made the map: the saved
-    /// Core itself at tier 0; for a grown Core, the shard the growth rule started from (<see cref="CoreUpgradeSpec"/>:
-    /// the foundation keeps the shard's origin, the nucleus is one cell up and left of it).
+    /// start (<see cref="FactorySaveData.CoreStartX"/>, <see cref="FactorySaveData.CoreStartY"/>) with the shard's edge.
     /// </summary>
-    internal static (GridPosition Origin, int Size) StartingShard(FactoryContent content, FactorySaveData data)
-    {
-        var origin = new GridPosition(data.CoreX, data.CoreY);
-        if (data.CoreTier <= 0)
-        {
-            return (origin, Math.Max(1, data.CoreSize));
-        }
-
-        var shard = data.CoreTier >= 2 ? new GridPosition(origin.X + 1, origin.Y + 1) : origin;
-        return (shard, content.CoreTiers[0].Size);
-    }
+    internal static (GridPosition Origin, int Size) StartingShard(FactoryContent content, FactorySaveData data) =>
+        (new GridPosition(data.CoreStartX, data.CoreStartY), content.CoreTiers[0].Size);
 
     /// <summary>
     /// A terrain regenerated from a generator (classic or biomes) must be the saved one: a generator changed
@@ -1338,8 +1307,8 @@ public sealed class Factory : IGameView
         var spec = RestoreSpec(d.Spec);
         var refundBasisPoints = Math.Clamp(d.RefundBasisPoints, 0, Construction.FullRefundBasisPoints);
         var savedCost = CostOf(spec);
-        var spent = SavedCostLines(d.SpentByItem, d.Spent, savedCost);
-        var refunded = SavedCostLines(d.RefundedByItem, d.Refunded, savedCost);
+        var spent = SavedCostLines(d.SpentByItem);
+        var refunded = SavedCostLines(d.RefundedByItem);
         // Cost is recomputed; cells are restored as saved (a bridge keeps its chosen exit).
         var tiles = !IsValidSpec(spec) ? null
             : d.Tiles.Count > 0 ? d.Tiles.Select(t => new GridPosition(t.X, t.Y)).ToList()
@@ -1407,13 +1376,14 @@ public sealed class Factory : IGameView
                 return;
             }
 
+            // Pieces taken from the Core and never delivered: they come back whole, even above the maximum.
             if (itemId is null)
             {
                 Wallet.AddMoney(amount);
             }
             else
             {
-                State.Storage.AddClamped(itemId, amount);
+                State.Storage.Return(itemId, amount);
             }
         }
     }

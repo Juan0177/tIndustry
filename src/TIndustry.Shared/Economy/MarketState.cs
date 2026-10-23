@@ -61,8 +61,8 @@ public sealed class MarketItemState
     public bool AutoSell { get; set; }
     /// <summary>With <see cref="AutoSell"/>: sell only the part of the stock that would not fit under the maximum next second.</summary>
     public bool AutoSellWhenFull { get; set; }
-    /// <summary>Fraction of a piece owed by the auto-sell rate, in sixtieths of a piece (one per tick; the name is historical), 0..59; back to 0 while auto-sell is off.</summary>
-    public int AutoSellCarryMilli { get; set; }
+    /// <summary>Fraction of a piece owed by the auto-sell rate, in sixtieths of a piece (one per tick), 0..59; back to 0 while auto-sell is off.</summary>
+    public int AutoSellCarry { get; set; }
 
     /// <summary>One point per second, oldest first, at most <c>historySeconds</c> points.</summary>
     public IReadOnlyList<int> HistoryMilli => history;
@@ -195,7 +195,7 @@ public sealed class MarketState
             PityMisses = i.PityMisses,
             AutoSell = i.AutoSell,
             AutoSellWhenFull = i.AutoSellWhenFull,
-            AutoSellCarryMilli = i.AutoSellCarryMilli,
+            AutoSellCarry = i.AutoSellCarry,
             History = [.. i.HistoryMilli]
         }).ToList()
     };
@@ -256,7 +256,7 @@ public sealed class MarketState
             i.PityMisses = Math.Max(0, d.PityMisses);
             i.AutoSell = d.AutoSell;
             i.AutoSellWhenFull = d.AutoSellWhenFull;
-            i.AutoSellCarryMilli = Math.Clamp(d.AutoSellCarryMilli, 0, SimulationClock.TickRate - 1);
+            i.AutoSellCarry = Math.Clamp(d.AutoSellCarry, 0, SimulationClock.TickRate - 1);
             i.RestoreHistory((d.History ?? []).Select(Price).TakeLast(Math.Max(0, rules?.HistorySeconds ?? 0)));
         }
 

@@ -155,7 +155,7 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 14 (metadati + istantanea, con il generatore della mappa e i cantieri di sostituzione dei nastri): i salvataggi v12 e v11 si caricano ancora, i v11 sul terreno di prima; i più vecchi non sono compatibili. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 15 (metadati + istantanea, con il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
 Salva nastri (con oggetti, partner del ponte, filtro del selezionatore), edifici, denaro, `nextItemId`, Core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
 ## Progetti
@@ -170,7 +170,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 14) include `unlockedStructures` e lo stato del Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 15) include `unlockedStructures` e lo stato del Mercato.
 
 ## Mercato
 
@@ -185,8 +185,8 @@ Ogni oggetto ha un prezzo suo, come un titolo in borsa:
 - un **tentativo di jackpot** (Vendi tutto nel picco con almeno 400 pezzi) richiede uno schermo di borsa, che arriva con la specifica 2: oggi il jackpot è nella simulazione ma in partita non scatta; un tentativo a vuoto bloccherebbe per 5 minuti ogni «Vendi tutto» (la riga mostra l'attesa);
 - la **vendita automatica** (un interruttore per oggetto) vende al prezzo minimo ciò che arriva al CORE: non muove il mercato, ma neppure coglie i picchi.
 
-Il salvataggio (versione 14) include lo stato di tutti i mercati.
+Il salvataggio (versione 15) include lo stato di tutti i mercati.
 
 ## Campagna
 
-**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 14).
+**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 15).

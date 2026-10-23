@@ -229,7 +229,7 @@ public sealed class BeltThroughputTests
     }
 
     [Fact]
-    public void Version12BeltItemsKeepFlowing()
+    public void SavedBeltItemsKeepFlowing()
     {
         var factory = Sandbox();
         var line = LineIntoCore(Direction.East);
@@ -241,10 +241,7 @@ public sealed class BeltThroughputTests
             item.Progress = i * 0.37f % 1f; // one item per cell (the old capacity), anywhere on it
         }
 
-        var json = Encoding.UTF8.GetString(new SimHost(factory).CreateSnapshot());
-        var v12 = json.Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":12");
-        Assert.Contains("\"version\":12", v12);
-        var host = SimHost.FromSnapshot(Content, Encoding.UTF8.GetBytes(v12));
+        var host = SimHost.FromSnapshot(Content, new SimHost(factory).CreateSnapshot());
         var before = host.State.CoreDeliveredItems;
 
         host.AdvanceTicks((int)(Length / Content.RequireConveyor(Basic).RateItemsPerSecond * SimulationClock.TickRate) + 60);

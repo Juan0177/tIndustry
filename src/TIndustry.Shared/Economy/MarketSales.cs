@@ -54,13 +54,13 @@ internal static class MarketSales
         {
             if (!item.AutoSell)
             {
-                item.AutoSellCarryMilli = 0;
+                item.AutoSellCarry = 0;
                 continue;
             }
 
-            var carry = item.AutoSellCarryMilli + rate;
+            var carry = item.AutoSellCarry + rate;
             var due = carry / SimulationClock.TickRate;
-            item.AutoSellCarryMilli = carry % SimulationClock.TickRate;
+            item.AutoSellCarry = carry % SimulationClock.TickRate;
             var stock = s.Wallet.MaterialCount(item.ItemId);
             var n = item.AutoSellWhenFull
                 ? Math.Min(due, Math.Max(0, stock - (s.Storage.Capacity(item.ItemId) - rate)))

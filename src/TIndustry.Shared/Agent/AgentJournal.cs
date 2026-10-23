@@ -109,7 +109,11 @@ public sealed record AgentGameSetup(
 /// </summary>
 public sealed class AgentJournal
 {
-    public const int CurrentVersion = 1;
+    /// <summary>
+    /// Version of the journal file: 2 since the game starts with the 3×3 shard (a version 1 journal was recorded with
+    /// the 2×2 Core, on another map, and is refused rather than replayed).
+    /// </summary>
+    public const int CurrentVersion = 2;
 
     private readonly List<AgentJournalEntry> entries = [];
 

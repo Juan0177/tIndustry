@@ -4,7 +4,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save v14 carries the whole market; older saves start a fresh one.</summary>
+/// <summary>The save carries the whole market; a save without it is not read.</summary>
 public sealed class MarketSaveTests
 {
     private static readonly string DataDir = Path.Combine(AppContext.BaseDirectory, "data");
@@ -125,50 +125,9 @@ public sealed class MarketSaveTests
     }
 
     [Fact]
-    public void OldSaveStartsAFreshMarket()
+    public void SaveWithoutMarket_Unreadable()
     {
-        var f = MidEverything();
-        Run(f, 3 * 60 * Minute);
-        var tick = f.State.CurrentTick;
-
-        var g = RoundTrip(f, d =>
-        {
-            d.Version = 13;
-            d.Market = null;
-        });
-
-        Assert.Equal(tick, g.State.CurrentTick);
-        var rules = Content.MarketRules;
-        foreach (var item in g.State.Exchange.Items)
-        {
-            Assert.Equal(rules.NormalAverageMilli, item.PriceMilli);
-            Assert.Equal(MarketPhase.Normal, item.Phase);
-            Assert.Empty(item.HistoryMilli);
-            Assert.InRange(item.NextSpikeTick - tick,
-                (long)rules.SpikeIntervalMinMinutes * Minute, (long)rules.SpikeIntervalMaxMinutes * Minute);
-        }
-
-        Assert.Equal(0, g.State.Exchange.SellAllBlockedUntilTick);
-    }
-
-    [Fact]
-    public void OldSaveAutoSellTurnsOnEveryItem()
-    {
-        var g = RoundTrip(NewFactory(), d =>
-        {
-            d.Version = 13;
-            d.Market = null;
-            d.AutoSellAtCore = true;
-        });
-        Assert.All(g.State.Exchange.Items, i => Assert.True(i.AutoSell));
-
-        var h = RoundTrip(NewFactory(), d =>
-        {
-            d.Version = 13;
-            d.Market = null;
-            d.AutoSellAtCore = false;
-        });
-        Assert.All(h.State.Exchange.Items, i => Assert.False(i.AutoSell));
+        Assert.Throws<InvalidDataException>(() => RoundTrip(NewFactory(), d => d.Market = null));
     }
 
     [Fact]
