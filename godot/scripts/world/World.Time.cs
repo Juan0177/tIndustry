@@ -143,7 +143,7 @@ public partial class World
 
     /// <summary>Menus where Space does not pause: the ones that leave the game (or pick another one).</summary>
     private bool TimeMenuOpen => _saves?.IsOpen == true || _settingsPanel?.IsOpen == true
-        || _campaignSelect?.IsOpen == true || _mapWorkBusy;
+        || _campaignSelect?.IsOpen == true || _loadingBusy;
 
     /// <summary>
     /// The focused control uses Space itself: a text field (typing) or a button of an in-game panel (Space presses
@@ -152,21 +152,10 @@ public partial class World
     private bool FocusTakesSpace() =>
         GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit or SpinBox or BaseButton;
 
-    /// <summary>Per frame: the pause label and the dev bar follow the game.</summary>
+    /// <summary>Per frame: the dev bar's text follows the game (whether it shows: <see cref="SyncHudVisibility"/>).</summary>
     private void SyncTimeOverlays()
     {
-        if (_pauseLabel is not null)
-        {
-            _pauseLabel.Visible = GameInPlay && PlayerPaused;
-        }
-
-        if (_devSpeedLabel is null)
-        {
-            return;
-        }
-
-        _devSpeedLabel.Visible = GameInPlay;
-        if (!GameInPlay || _view is null)
+        if (_devSpeedLabel is null || !GameInPlay || _view is null)
         {
             return;
         }

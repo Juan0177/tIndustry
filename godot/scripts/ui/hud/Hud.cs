@@ -55,6 +55,9 @@ public partial class Hud : Control
     private readonly BlockInfoPanel _info = new();
     private readonly BuildQueuePanel _queue = new();
 
+    /// <summary>Parent of every HUD control except the toast (<see cref="SetChromeVisible"/>).</summary>
+    private readonly Control _chrome = new();
+
     private Label? _dirLabel;
     private Direction _direction = Direction.East;
     private PanelContainer? _siteTip;
@@ -112,9 +115,14 @@ public partial class Hud : Control
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
 
-        AddChild(_core);
+        // Everything but the toast sits in the chrome, which World hides over the Home (a toast still shows there).
+        _chrome.Name = "Chrome";
+        _chrome.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _chrome.MouseFilter = MouseFilterEnum.Ignore;
+        AddChild(_chrome);
+        _chrome.AddChild(_core);
         BuildCornerDock();
-        AddChild(_info.BuildDetailOverlay());
+        _chrome.AddChild(_info.BuildDetailOverlay());
         BuildToast();
         BuildPlacementHint();
         BuildSiteTooltip();
@@ -282,6 +290,21 @@ public partial class Hud : Control
         }
     }
 
+    /// <summary>
+    /// Shows or hides the whole HUD (Core panel and top bar, palette, info, build queue, hints) but the toast, so a
+    /// message given on the Home (Continua missing, a failed load) still reaches the player.
+    /// </summary>
+    public void SetChromeVisible(bool visible)
+    {
+        if (_chrome.Visible != visible)
+        {
+            _chrome.Visible = visible;
+        }
+    }
+
+    /// <summary>True while the HUD shows (<see cref="SetChromeVisible"/>).</summary>
+    internal bool ChromeVisible => _chrome.Visible;
+
     /// <summary>The last toast text (playtests).</summary>
     internal string? ToastText => _toastLabel?.Text;
 
@@ -389,7 +412,7 @@ public partial class Hud : Control
         cornerStack.OffsetBottom = -8;
         cornerStack.OffsetTop = -8; // grows upward via min sizes
         cornerStack.ThemeTypeVariation = UiTheme.ColonnaLarga;
-        AddChild(cornerStack);
+        _chrome.AddChild(cornerStack);
 
         cornerStack.AddChild(_info);
         // Build palette dock — always below the reserved slot.
@@ -403,7 +426,7 @@ public partial class Hud : Control
         _siteTip.Visible = false;
         _siteTipLabel = MakeLabel("", UiTheme.TestoRosso);
         _siteTip.AddChild(_siteTipLabel);
-        AddChild(_siteTip);
+        _chrome.AddChild(_siteTip);
     }
 
     private void BuildPlacementHint()
@@ -422,7 +445,7 @@ public partial class Hud : Control
         _placementHint.OffsetRight = 220;
         _placementHint.OffsetTop = -44;
         _placementHint.OffsetBottom = -16;
-        AddChild(_placementHint);
+        _chrome.AddChild(_placementHint);
     }
 
     private void BuildToast()

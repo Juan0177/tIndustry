@@ -369,6 +369,11 @@ public static class UiTheme
         t.SetIcon("grabber_disabled", "HSlider", GrabberIcon(UiColors.TestoDisattivo));
         t.SetIcon("tick", "HSlider", GrabberTick());
         t.SetStylebox("focus", "HSlider", Own(new StyleBoxEmpty()));
+
+        // Progress bar (loading screen): the slider's track, filled with the accent.
+        t.SetStylebox("background", "ProgressBar", Box(UiColors.FondoBloccato, UiColors.Bordo, 2, 0, 0));
+        t.SetStylebox("fill", "ProgressBar", Box(UiColors.Accento, UiColors.Accento, 0, 0, 0));
+        t.SetColor("font_color", "ProgressBar", UiColors.Testo);
     }
 
     private static ImageTexture GrabberTick()

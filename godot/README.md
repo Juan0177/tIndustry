@@ -37,7 +37,7 @@ Dalla Home, **Nuova partita** apre una schermata con la **misura** della mappa e
 | Grande | 1500×1500 |
 | Enorme | 2000×2000 |
 
-Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Per Grande ed Enorme compare "Generazione della mappa…" mentre la mappa si prepara (qualche secondo); in quel momento tasti e clic sono ignorati.
+Il seme è già compilato con un numero casuale: puoi cambiarlo (un intero tra -2147483648 e 2147483647), sceglierne un altro con **Nuovo seme** o copiarlo con **Copia**. Lo stesso seme con la stessa misura dà sempre la stessa mappa. **Inizia** (o Invio) avvia la partita, **Indietro** (o Esc) torna alla Home. Mentre una partita si apre (nuova, livello della campagna, salvataggio, Continua) compare la schermata di caricamento, con la fase in corso; in quel momento tasti e clic sono ignorati.
 
 La mappa ha quattro biomi (rocce e basalto, sabbia e deserto, neve e ghiaccio, prati e paludi), laghi e fiumi. Il CORE parte al centro, in un'area libera con ferro e rame vicini e una strada a terra verso ferro, rame e carbone.
 
@@ -135,7 +135,7 @@ Nella sezione **Interfaccia** la **Scala UI** (cursore da 75% a 200%, a passi di
 
 **Lingua** (Italiano / English) cambia subito tutti i testi, anche nei pannelli aperti: nomi dei blocchi e degli oggetti, livelli e obiettivi della campagna, rifiuti ed errori dei salvataggi. Predefinito italiano.
 
-**Home.** Il logo pixel è generato da `tools/art` (`ui/ui-logo`); dietro la Home la mappa scorre piano da sola e non risponde a mouse e tastiera (nei playtest resta ferma).
+**Home.** Il logo pixel è generato da `tools/art` (`ui/ui-logo`); dietro la Home la mappa scorre piano da sola e non risponde a mouse e tastiera (nei playtest resta ferma). Nella Home e nelle schermate aperte da lì l'HUD della partita è nascosto.
 
 ## Prove automatiche
 

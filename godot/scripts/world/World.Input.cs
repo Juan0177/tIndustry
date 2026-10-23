@@ -117,9 +117,13 @@ public partial class World
     /// must not close a panel or start another game mid-load) and real input during a playtest, and takes Space
     /// (pause) before a focused button could take it as a press.
     /// </summary>
+    /// <summary>F9 / F7 during a game: the slot loads behind the loading screen; a failure is the toast.</summary>
+    private void QuickLoad(string slotId, string toast) =>
+        RunMapTask(() => LoadGameWithScreenAsync(slotId, toast, showOnPanel: null), m => _hud?.ShowToast(m));
+
     public override void _Input(InputEvent @event)
     {
-        if (_mapWorkBusy || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
+        if (_loadingBusy || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
         {
             GetViewport().SetInputAsHandled();
         }
@@ -315,7 +319,7 @@ public partial class World
 
             if (key.Keycode == Key.F9)
             {
-                LoadGame(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.caricata.continua"));
+                QuickLoad(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.caricata.continua"));
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -329,7 +333,7 @@ public partial class World
 
             if (key.Keycode == Key.F7)
             {
-                LoadGame(FactorySaveStore.QuickSlotId, Testi.T("salvataggi.rapido.caricato"));
+                QuickLoad(FactorySaveStore.QuickSlotId, Testi.T("salvataggi.rapido.caricato"));
                 GetViewport().SetInputAsHandled();
                 return;
             }

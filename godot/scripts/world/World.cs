@@ -179,11 +179,11 @@ public partial class World : Node2D
         EnsureSavesPanel();
         EnsureHomePanel();
         EnsureNewGamePanel();
-        EnsureMapOverlay();
         EnsureFpsOverlay();
         EnsureResourceOverlay();
         EnsureTimeOverlays();
         EnsurePlacementOverlay();
+        EnsureLoadingScreen();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } camera)
         {
             // The wheel turns an orientable block in hand (in play, no panel over the world); otherwise it zooms.
@@ -257,7 +257,32 @@ public partial class World : Node2D
     /// The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge): no
     /// ticks behind Home, while a playtest or an agent holds the game, or while the player paused it (Space).
     /// </summary>
-    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused;
+    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused && !_loadingBusy;
+
+    /// <summary>
+    /// The in-game HUD (top bar, Core panel, palette, FPS and resource overlays, dev speed bar, "In pausa") shows:
+    /// a game is in play and no screen before it is open (the Home and the panels opened from it, the campaign list
+    /// opened from the Home). <see cref="SyncHudVisibility"/> applies it every frame.
+    /// </summary>
+    private bool HudVisible => GameInPlay && !HomeBackdrop && !(_returnHomeAfterCampaign && _campaignSelect?.IsOpen == true);
+
+    /// <summary>The one place that shows or hides the HUD (see <see cref="HudVisible"/>).</summary>
+    private void SyncHudVisibility()
+    {
+        var shown = HudVisible;
+        _hud?.SetChromeVisible(shown);
+        SyncFpsOverlay();
+        SyncResourceOverlay();
+        if (_pauseLabel is not null)
+        {
+            _pauseLabel.Visible = shown && PlayerPaused;
+        }
+
+        if (_devSpeedLabel is not null)
+        {
+            _devSpeedLabel.Visible = shown;
+        }
+    }
 
     public override void _Process(double delta)
     {
@@ -289,6 +314,7 @@ public partial class World : Node2D
         SyncAmbientEffects(PlayerPaused ? 0.0 : delta); // ambient particles stop with the player's pause too
         SyncTutorial();
         SyncTimeOverlays();
+        SyncHudVisibility();
         if ((LineDragActive || _draggingRemove) && PanelOpen)
         {
             CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent

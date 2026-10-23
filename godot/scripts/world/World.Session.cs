@@ -15,16 +15,14 @@ public partial class World
             return;
         }
 
-        var loaded = await WithMapOverlayAsync(
-            SlotMapEdge(FactorySaveStore.ContinueSlotId),
-            () => LoadGame(FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.continua.caricata"), showOnPanel: m => _home?.ShowError(m)));
-        if (!loaded)
+        var loaded = await LoadGameWithScreenAsync(
+            FactorySaveStore.ContinueSlotId, Testi.T("salvataggi.continua.caricata"), m => _home?.ShowError(m),
+            () => _home?.Close());
+        if (loaded)
         {
-            return; // stay on Home with the error visible
+            BeginTutorialIfNeeded();
         }
-
-        _home?.Close();
-        BeginTutorialIfNeeded();
+        // Otherwise stay on Home with the error visible.
     }
 
     private void OnHomeCampaign()
@@ -43,11 +41,14 @@ public partial class World
     /// <summary>Seed of the scripted playtests' sandbox.</summary>
     private const int PlaytestSeed = 42;
 
-    /// <summary>Inizia on the Nuova partita panel: Grande and Enorme show the generation overlay first.</summary>
-    private async Task StartNewGameFromPanelAsync(MapSize size, int seed, bool night) =>
-        await WithMapOverlayAsync((int)size, () =>
+    /// <summary>Inizia on the Nuova partita panel: the map is generated, then the game opens, behind the loading screen.</summary>
+    private Task StartNewGameFromPanelAsync(MapSize size, int seed, bool night) =>
+        WithLoadingAsync(2, async phase =>
         {
-            StartNewGameFromHome(size, seed, night);
+            await phase("mappa.generazione");
+            var host = new SimHost(NewSandboxFactory(FactoryContent.Load(_contentPath), size, seed, night));
+            await phase("caricamento.fase.mondo");
+            StartNewGameFromHome(size, seed, night, host);
             return true;
         });
 
@@ -88,9 +89,9 @@ public partial class World
         return null;
     }
 
-    private void StartNewGameFromHome(MapSize size, int seed, bool night)
+    private void StartNewGameFromHome(MapSize size, int seed, bool night, SimHost? host = null)
     {
-        StartNewSandbox(size, seed, toast: true, night);
+        StartNewSandbox(size, seed, toast: true, night, host);
         _newGame?.Close();
         _home?.Close();
         BeginTutorialIfNeeded();
@@ -151,13 +152,14 @@ public partial class World
     private string? CampaignLevelName(string levelId) =>
         _campaign?.Levels.FirstOrDefault(l => l.Id == levelId) is { } level ? Testi.LivelloNome(level) : null;
 
-    /// <summary>Map edge of a save slot, reading only that slot's file (0 when unknown).</summary>
-    private static int SlotMapEdge(string slotId) =>
-        FactorySaveStore.ReadSlotInfo(slotId) is { } slot
-            ? Math.Max(slot.MapWidth, slot.MapHeight)
-            : 0;
+    /// <summary>
+    /// True while <see cref="WithLoadingAsync"/> works: the loading screen is up, every input is dropped
+    /// (<see cref="_Input"/>), the simulation does not advance and a second request is refused.
+    /// </summary>
+    private bool _loadingBusy;
 
-    private bool _mapWorkBusy;
+    /// <summary>Frames the loading screen waits at most for the terrain art around the camera (about 3 s).</summary>
+    private const int LoadingTerrainFrames = 180;
 
     /// <summary>
     /// Starts a map load or new game from a UI signal without waiting for it. An exception it throws is never
@@ -178,36 +180,82 @@ public partial class World
     }
 
     /// <summary>
-    /// Runs <paramref name="work"/> (a map generated or loaded). Above the Media edge it first shows the
-    /// "Generazione della mappa…" overlay and lets two frames go by so the player sees it before the blocking work;
-    /// otherwise it runs at once. A second request while one waits is dropped (false/default).
+    /// Opens a game behind the loading screen (<see cref="LoadingScreen"/>): the screen shows first and two frames go
+    /// by so the player sees it before the blocking work; <paramref name="work"/> then runs its
+    /// <paramref name="phases"/> phases, each announced with the <c>phase</c> callback (its line on the screen, then
+    /// two frames drawn) and run on the main thread. When the work succeeds (true) the screen waits for the terrain
+    /// art around the camera (the first frame of the game) and fades out; on failure it goes at once, leaving the
+    /// error on the panel. Playtests skip the fade. A second request while one works is dropped (false).
     /// </summary>
-    private async Task<T?> WithMapOverlayAsync<T>(int edge, Func<T> work)
+    private async Task<bool> WithLoadingAsync(int phases, Func<Func<string, Task>, Task<bool>> work)
     {
-        if (edge <= (int)MapSize.Media || _mapOverlay is null)
+        if (_loadingBusy)
         {
-            return work();
+            return false;
         }
 
-        if (_mapWorkBusy)
+        if (_loading is null)
         {
-            return default;
+            return await work(_ => Task.CompletedTask);
         }
 
-        _mapWorkBusy = true;
-        _mapOverlay.Visible = true;
+        _loadingBusy = true;
+        CancelDrags();
+        var done = 0;
+        var ok = false;
+        _loading.Begin(phases + 1);
         try
         {
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            return work();
+            async Task Phase(string key)
+            {
+                _loading.SetPhase(key, done++);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+
+            ok = await work(Phase);
+            if (ok)
+            {
+                _loading.SetPhase("caricamento.fase.terreno", phases);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                for (var i = 0; i < LoadingTerrainFrames && _terrainChunks is { ArtShown: true, ArtPending: > 0 }; i++)
+                {
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                }
+            }
+
+            return ok;
         }
         finally
         {
-            _mapOverlay.Visible = false;
-            _mapWorkBusy = false;
+            _loadingBusy = false;
+            _loading.End(instant: !ok || PlaytestRequested);
         }
     }
+
+    /// <summary>
+    /// Loads save <paramref name="slotId"/> behind the loading screen: the save is read, then the world is attached;
+    /// <paramref name="onLoaded"/> (closing the panel the player was on) runs before the screen fades. A failure goes
+    /// to <paramref name="showOnPanel"/> (and the toast), and the current game is untouched.
+    /// </summary>
+    private Task<bool> LoadGameWithScreenAsync(string slotId, string toast, Action<string>? showOnPanel, Action? onLoaded = null) =>
+        WithLoadingAsync(2, async phase =>
+        {
+            await phase("caricamento.fase.salvataggio");
+            if (ReadSlot(slotId, quietFail: false, showOnPanel) is not { } loaded)
+            {
+                return false;
+            }
+
+            await phase("caricamento.fase.mondo");
+            if (!AttachLoadedGame(slotId, loaded, toast, showOnPanel))
+            {
+                return false;
+            }
+
+            onLoaded?.Invoke();
+            return true;
+        });
 
     private void ToggleResearch()
     {
@@ -532,7 +580,14 @@ public partial class World
     }
 
     /// <summary>Returns true when the slot was loaded; on failure the current game is untouched.</summary>
-    private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null)
+    private bool LoadGame(string slotId, string toast, bool quietFail = false, Action<string>? showOnPanel = null) =>
+        ReadSlot(slotId, quietFail, showOnPanel) is { } loaded && AttachLoadedGame(slotId, loaded, toast, showOnPanel);
+
+    /// <summary>
+    /// Reads save <paramref name="slotId"/> into a new host, or null; a failure (unless <paramref name="quietFail"/>)
+    /// says why on the toast and on <paramref name="showOnPanel"/>.
+    /// </summary>
+    private SimHost? ReadSlot(string slotId, bool quietFail, Action<string>? showOnPanel)
     {
         SimHost? loaded = null;
         SaveLoadFailure? failure = null;
@@ -551,26 +606,27 @@ public partial class World
             failure = new SaveLoadFailure(SaveLoadError.Unreadable, null, ex.Message);
         }
 
-        if (loaded is null)
+        if (loaded is null && !quietFail)
         {
-            if (!quietFail)
+            // Every failure says why (older version, campaign map missing or changed…); the detail goes to the log.
+            if (failure is not null)
             {
-                // Every failure says why (older version, campaign map missing or changed…); the detail goes to the log.
-                if (failure is not null)
-                {
-                    GD.Print($"Load of {slotId} refused: {failure.Code} · {failure.Detail}");
-                }
-
-                var message = failure is null
-                    ? Testi.F("salvataggi.errore.nessuno", slotId)
-                    : Testi.Salvataggio(failure, CampaignMapName);
-                _hud?.ShowToast(message);
-                showOnPanel?.Invoke(message);
+                GD.Print($"Load of {slotId} refused: {failure.Code} · {failure.Detail}");
             }
 
-            return false;
+            var message = failure is null
+                ? Testi.F("salvataggi.errore.nessuno", slotId)
+                : Testi.Salvataggio(failure, CampaignMapName);
+            _hud?.ShowToast(message);
+            showOnPanel?.Invoke(message);
         }
 
+        return loaded;
+    }
+
+    /// <summary>Attaches the host read from <paramref name="slotId"/>; on failure the previous game comes back.</summary>
+    private bool AttachLoadedGame(string slotId, SimHost loaded, string toast, Action<string>? showOnPanel)
+    {
         var previous = _host;
         try
         {

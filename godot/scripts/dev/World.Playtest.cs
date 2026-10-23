@@ -324,6 +324,12 @@ public partial class World
             return Fail("Home: logo mancante, o telecamera dietro la Home che accetta input o si muove nel playtest");
         }
 
+        // Over the Home no HUD: neither the bar, the Core panel and the palette nor the FPS and pause lines.
+        if (_hud?.ChromeVisible != false || _fpsLabel?.Visible == true || _pauseLabel?.Visible == true)
+        {
+            return Fail("Home: HUD della partita visibile dietro la Home");
+        }
+
         if (!await PlaytestHomeDriftAsync())
         {
             return false;
@@ -862,21 +868,25 @@ public partial class World
     /// </summary>
     private async Task PlaytestHugeMapPerfAsync(string dir)
     {
-        // The overlay's look (it is up for only one blocking frame below).
-        if (_mapOverlay is not null)
+        // The loading screen's look (it is up for only a few frames below).
+        if (_loading is not null)
         {
-            _mapOverlay.Visible = true;
+            _loading.Begin(3);
+            _loading.SetPhase("mappa.generazione", 0);
             await PlaytestWait(0.3);
-            SaveViewportPng(Path.Combine(dir, "ui-generazione-mappa.png"));
-            _mapOverlay.Visible = false;
+            SaveViewportPng(Path.Combine(dir, "ui-caricamento.png"));
+            _loading.End(instant: true);
         }
 
-        // Through the generation overlay, as the Nuova partita panel does; timed from the blocking work only.
-        var startMs = await WithMapOverlayAsync((int)MapSize.Enorme, () =>
+        // Through the loading screen, as the Nuova partita panel does; timed from the blocking work only.
+        var startMs = 0.0;
+        await WithLoadingAsync(1, async phase =>
         {
+            await phase("mappa.generazione");
             var started = Time.GetTicksUsec();
             StartNewSandbox(MapSize.Enorme, PlaytestSeed, toast: false);
-            return (Time.GetTicksUsec() - started) / 1000.0;
+            startMs = (Time.GetTicksUsec() - started) / 1000.0;
+            return true;
         });
         if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam || _terrainChunks is null)
         {

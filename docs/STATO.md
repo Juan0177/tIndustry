@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-23, pausa con Spazio e velocità dev (`TINDUSTRY_DEV=1`, F1–F4) aggiunte; specifica 3 del Mercato (magazzino del CORE e livelli) attuata; resta da provare il client sul PC di casa.
+**Aggiornato:** 2026-10-23, HUD nascosto nella Home e schermata di caricamento all'apertura di una partita; pausa con Spazio e velocità dev (`TINDUSTRY_DEV=1`, F1–F4) aggiunte; specifica 3 del Mercato (magazzino del CORE e livelli) attuata; resta da provare il client sul PC di casa.
 
 ## Aspetti del gioco
 
@@ -80,6 +80,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [x] Tema, carattere, lingue, Scala UI e colori accessibili (G4, PR #194–#201)
 - [x] Panoramica del Mercato (PR #281)
 - [x] Pausa con Spazio e velocità ×1/×5/×10/×20 in modalità dev
+- [x] HUD nascosto nella Home e schermata di caricamento all'apertura di una partita
 - [ ] Telemetria, overlay delle risorse ([#234](https://github.com/Juan0177/tIndustry/issues/234))
 
 ### 11 · [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
