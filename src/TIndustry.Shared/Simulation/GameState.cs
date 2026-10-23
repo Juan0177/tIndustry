@@ -247,12 +247,11 @@ public sealed class GameState
     }
 
     /// <summary>
-    /// One piece of <paramref name="itemId"/> arrives at the Core (belt or adjacent building): auto-sold when its
-    /// switch is on, else stocked through <see cref="CoreStorage.TryAccept"/>. False when the item is at its maximum:
-    /// the caller keeps the piece.
+    /// One piece of <paramref name="itemId"/> arrives at the Core (belt or adjacent building): stocked through
+    /// <see cref="CoreStorage.TryAccept"/>; auto-sell sells from the stock at its own rate (<see cref="MarketSales.AutoSellTick"/>).
+    /// False when the item is at its maximum: the caller keeps the piece.
     /// </summary>
-    internal bool TryAcceptAtCore(string itemId) =>
-        MarketSales.TryAutoSell(Exchange, Wallet, Session, itemId) || Storage.TryAccept(itemId);
+    internal bool TryAcceptAtCore(string itemId) => Storage.TryAccept(itemId);
 
     public bool IsPoweredViaNode(
         GridPosition craftOrigin,

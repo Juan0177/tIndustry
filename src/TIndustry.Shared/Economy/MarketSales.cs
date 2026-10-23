@@ -40,23 +40,41 @@ internal readonly record struct SaleOutcome(int Pieces, int PriceMilli, int Inco
 internal static class MarketSales
 {
     /// <summary>
-    /// Auto-sell of one piece arriving at the core: when the item's switch is on, pays <c>min(B, price)</c>, records the
-    /// sale and returns true. Leaves the price drop, the crash window and the generator alone.
+    /// One tick of auto-sell, items in market order: an item with the switch on owes <c>rate / 60</c> pieces per tick
+    /// (rate = the Core tier's pieces per second; the remainder is carried in sixtieths of a piece, so 10 per second is
+    /// exactly 100 pieces in 10 seconds, with no rounding loss). With
+    /// "only when full" it sells just what would not fit under the maximum next second. Each piece pays
+    /// <c>min(B, price)</c> and is recorded as a sale; the price drop, the crash window and the generator are left alone.
+    /// An item with the switch off drops its carry.
     /// </summary>
-    public static bool TryAutoSell(MarketState market, EconomyWallet wallet, EconomySession? session, string itemId)
+    public static void AutoSellTick(GameState s)
     {
-        if (market.Find(itemId) is not { AutoSell: true } item)
+        var rate = s.Content.CoreTiers[s.CoreTier].AutoSellPerSecond;
+        foreach (var item in s.Exchange.Items)
         {
-            return false;
+            if (!item.AutoSell)
+            {
+                item.AutoSellCarryMilli = 0;
+                continue;
+            }
+
+            var carry = item.AutoSellCarryMilli + rate;
+            var due = carry / SimulationClock.TickRate;
+            item.AutoSellCarryMilli = carry % SimulationClock.TickRate;
+            var stock = s.Wallet.MaterialCount(item.ItemId);
+            var n = item.AutoSellWhenFull
+                ? Math.Min(due, Math.Max(0, stock - (s.Storage.Capacity(item.ItemId) - rate)))
+                : Math.Min(due, stock);
+            if (n <= 0 || !s.Wallet.TryRemoveMaterial(item.ItemId, n))
+            {
+                continue;
+            }
+
+            var income = (long)n * Math.Min(item.BaseValue, MarketMath.UnitIncome(item.BaseValue, item.PriceMilli));
+            s.Wallet.AddMoney((int)Math.Min(income, int.MaxValue));
+            s.Session.RecordSales(item.ItemId, (int)Math.Min(income, int.MaxValue), n);
         }
-
-        var income = Math.Min(item.BaseValue, MarketMath.UnitIncome(item.BaseValue, item.PriceMilli));
-        wallet.AddMoney(income);
-        session?.RecordSale(itemId, income);
-        return true;
     }
-
-    public static bool TryAutoSell(GameState s, string itemId) => TryAutoSell(s.Exchange, s.Wallet, s.Session, itemId);
 
     /// <summary>
     /// Sells <paramref name="pieces"/> of <paramref name="item"/> from the wallet at the price of the moment, then applies

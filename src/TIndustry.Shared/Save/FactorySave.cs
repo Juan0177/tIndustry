@@ -171,6 +171,8 @@ public sealed class MarketItemSaveDto
     public long WindowSecond { get; set; }
     public int PityMisses { get; set; }
     public bool AutoSell { get; set; }
+    public bool AutoSellWhenFull { get; set; }
+    public int AutoSellCarryMilli { get; set; }
     public List<int> History { get; set; } = [];
 }
 

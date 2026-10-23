@@ -2,7 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Core stock sink: items ready to leave a belt cell whose output tile is in the core
-/// set enter the Core's storage (or are auto-sold) unless their item is at the maximum.
+/// set enter the Core's storage unless their item is at the maximum.
 /// </summary>
 public static class CoreStockSink
 {

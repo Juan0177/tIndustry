@@ -41,6 +41,7 @@ public static class Simulation
         new ExtractionSystem(),
         new BeltSystem(advance: false),
         new CoreDeliverySystem(),
+        new AutoSellSystem(),
         new MarketSystem()
     ];
 

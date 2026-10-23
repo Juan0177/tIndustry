@@ -210,6 +210,7 @@ public sealed class SimHost
         Sell sell => ApplySell(sell),
         SellAll sellAll => ApplySellAll(sellAll),
         SetAutoSell autoSell => ApplySetAutoSell(autoSell),
+        SetAutoSellWhenFull whenFull => ApplySetAutoSellWhenFull(whenFull),
         UpgradeCore => ApplyUpgradeCore(),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
         _ => RefusalCode.InvalidCommand
@@ -554,6 +555,17 @@ public sealed class SimHost
         }
 
         item.AutoSell = command.Enabled;
+        return null;
+    }
+
+    private Refusal? ApplySetAutoSellWhenFull(SetAutoSellWhenFull command)
+    {
+        if (factory.State.Exchange.Find(command.ItemId) is not { } item)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        item.AutoSellWhenFull = command.Enabled;
         return null;
     }
 

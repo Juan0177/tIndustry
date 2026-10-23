@@ -1878,7 +1878,7 @@ public sealed class Factory : IGameView
         item.Phase == MarketPhase.Crash
             ? (int)Math.Max(0, (item.CrashEndTick - CurrentTick + SimulationClock.TickRate - 1) / SimulationClock.TickRate)
             : 0,
-        item.AutoSell, item.HistoryMilli.ToArray());
+        item.AutoSell, item.AutoSellWhenFull, item.HistoryMilli.ToArray());
 
     public bool TryUpgradeCore()
     {

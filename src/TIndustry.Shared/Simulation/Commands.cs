@@ -72,6 +72,9 @@ public sealed record SellAll(int PlayerId, string ItemId) : SimCommand(PlayerId)
 /// <summary>Turns auto-sell on or off for one market item (refused for an item outside the market).</summary>
 public sealed record SetAutoSell(int PlayerId, string ItemId, bool Enabled) : SimCommand(PlayerId);
 
+/// <summary>Turns "only when the Core is full" on or off for the auto-sell of one market item (refused for an item outside the market).</summary>
+public sealed record SetAutoSellWhenFull(int PlayerId, string ItemId, bool Enabled) : SimCommand(PlayerId);
+
 /// <summary>Replaces <see cref="Factory.TryUpgradeCore"/>.</summary>
 public sealed record UpgradeCore(int PlayerId) : SimCommand(PlayerId);
 
