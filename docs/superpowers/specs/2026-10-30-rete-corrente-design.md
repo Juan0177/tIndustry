@@ -1,6 +1,6 @@
 # Rete di corrente come Mindustry
 
-- **Stato**: da approvare. Brainstorming con l'utente del 30 ottobre 2026, issue [#269](https://github.com/Juan0177/tIndustry/issues/269).
+- **Stato**: approvata dall'utente il 30 ottobre 2026. Brainstorming con l'utente del 30 ottobre 2026, issue [#269](https://github.com/Juan0177/tIndustry/issues/269).
 - **Sostituisce**: la regola di oggi (un blocco è alimentato se tocca un generatore acceso, o un nodo che ha un generatore acceso nel raggio; i nodi non si passano la corrente; `GameState.IsPoweredViaNode`), la riserva unica di corrente (`PowerBuffer`, `PowerCapacity`, `CorePowerCapacity`, `CorePowerGeneration`, `Generator.CapacityBonus`) e i consumi scritti nel codice (`CraftingSystem.SmelterPowerDraw`, `AssemblerPowerDraw`, `Generator.GenerationPerSecond`).
 
 ## Obiettivo
@@ -45,7 +45,7 @@ Sono blocchi di corrente: generatore, nodo T1, nodo T2, batteria e ogni blocco c
   - se non basta: le batterie danno quello che manca finché hanno carica;
   - se ancora non basta: **soddisfazione** = (produzione + batterie) ÷ richiesta, la stessa per tutte le macchine; le batterie restano vuote.
 - La carica di una rete si divide fra le sue batterie in proporzione alla capacità; spezzando o unendo reti, ogni batteria tiene la sua carica.
-- Conti interi: corrente in millesimi di unità per tick (30/s = 500 millesimi a tick), soddisfazione in decimillesimi; nessun float nei conti della rete.
+- Conti interi: i ritmi in millesimi di unità al secondo, la carica delle batterie in sessantamillesimi di unità (un tick sposta esattamente un sessantesimo del ritmo), la soddisfazione in decimillesimi; nessun float nei conti della rete.
 
 ### Effetto sulle macchine
 

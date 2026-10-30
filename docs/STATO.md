@@ -43,8 +43,8 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 ### 5 · [Energia](wiki/Energia.md)
 
 - [x] Generatori, nodi di potenza e Lampada
-- [ ] Rete di nodi come Mindustry: specifica approvata ([#269](https://github.com/Juan0177/tIndustry/issues/269))
-- [ ] Rete di nodi come Mindustry: piano
+- [x] Rete di nodi come Mindustry: specifica approvata ([#269](https://github.com/Juan0177/tIndustry/issues/269), [spec](superpowers/specs/2026-10-30-rete-corrente-design.md))
+- [x] Rete di nodi come Mindustry: piano ([piano](superpowers/plans/2026-10-30-rete-corrente.md))
 - [ ] Rete di nodi come Mindustry: implementazione
 - [ ] Rete di nodi come Mindustry: documenti e diario
 

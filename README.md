@@ -156,7 +156,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 49%, 38 passi fatti su 77" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 52%, 40 passi fatti su 77" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -164,7 +164,7 @@ A che punto siamo, aspetto per aspetto:
 | 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
 | 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="38%" width="160"> | 38% (3/8) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
-| 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="20%" width="160"> | 20% (1/5) |
+| 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="60%" width="160"> | 60% (3/5) |
 | 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="60%" width="160"> | 60% (3/5) |
 | 7 | [Mappe e terreno](https://github.com/Juan0177/tIndustry/wiki/Mappe-e-terreno) | <img src="docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
 | 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
