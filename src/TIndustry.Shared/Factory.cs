@@ -3061,7 +3061,10 @@ public sealed class Factory : IGameView
 
         buildingsVersion++;
         miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
-        PowerBlocksChanged();
+        if (definitionId == Miner.AdvancedId)
+        {
+            PowerBlocksChanged();
+        }
         return true;
     }
 
@@ -3216,7 +3219,7 @@ public sealed class Factory : IGameView
         {
             if (grid.LinksOf(node.Id) >= maxLinks)
             {
-                return;
+                break;
             }
 
             if (block.Kind != PowerBlockKind.Node || powerNodes.Find(n => n.Id == block.Id) is not { } other)

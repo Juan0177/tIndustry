@@ -22,7 +22,7 @@ public sealed class PowerNode
         Position = position;
         DefinitionId = definitionId == Tier2Id ? Tier2Id : Tier1Id;
         Size = DefinitionId == Tier2Id ? 2 : 1;
-        LinkRange = DefinitionId == Tier2Id ? 10f : 6f;
+        LinkRange = DefinitionId == Tier2Id ? Tier2LinkRange : Tier1LinkRange;
     }
 
     /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>

@@ -212,6 +212,30 @@ public sealed class PowerGridTests
     }
 
     [Fact]
+    public void NodeFilledByNodeLasersIsOnTheirNetwork()
+    {
+        var factory = Sandbox();
+        // Seven nodes in reach of the middle one: its six slots fill in step 1 with one candidate left over.
+        var ring = new[] { (-6, 0), (6, 0), (0, -6), (0, 6), (-5, -5), (5, 5), (5, -5) }
+            .Select(d => Place(factory, BuildingKind.PowerNode, CX + d.Item1, CY + d.Item2))
+            .ToArray();
+        var grid = factory.PowerGrid;
+        Assert.True(ring.Count(id => grid.LinksOf(id) < Content.FindBuilding(PowerNode.Tier1Id)!.MaxPowerLinks) > 6);
+
+        var hub = Place(factory, BuildingKind.PowerNode, CX, CY);
+        Assert.Equal(6, grid.LinksOf(hub));
+        var network = grid.NetworkOf(hub);
+        Assert.NotNull(network);
+        foreach (var id in ring.Where(id => grid.HasLink(hub, id)))
+        {
+            Assert.Same(network, grid.NetworkOf(id));
+        }
+
+        Assert.Contains(hub, network.Members);
+        Assert.Equal(network.Members.Count, grid.Networks.Sum(n => n.Members.Contains(hub) ? n.Members.Count : 0));
+    }
+
+    [Fact]
     public void NodeToNodeLaserNeedsOnlyOneOfTheTwoRanges()
     {
         var factory = Sandbox();
