@@ -817,6 +817,9 @@ public sealed class Factory : IGameView
             Batteries = batteries.Count == 0
                 ? null
                 : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y, Charge = b.Charge }).ToList(),
+            PowerLinks = State.PowerGrid.Links.Count == 0
+                ? null
+                : State.PowerGrid.Links.Select(l => new PowerLinkSaveDto { A = l.A, B = l.B }).ToList(),
             Storages = storages.Count == 0
                 ? null
                 : storages.OrderBy(s => s.Id).Select(s => new StorageSaveDto
@@ -1179,10 +1182,54 @@ public sealed class Factory : IGameView
         SortById(factory.storages, s => s.Id);
         // Which storage blocks touch the Core (the saved Core cells and tier are set above).
         factory.State.Storage.RecomputeLinks();
-        // Lasers are not saved yet (save v17): the networks come from contact alone.
+        // The saved lasers, then the networks from them and from contact.
+        factory.RestorePowerLinks(data.PowerLinks);
         factory.State.PowerGrid.Rebuild(factory.State);
         factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
+    }
+
+    /// <summary>
+    /// Puts back the saved lasers. Each must join two different power blocks of the save, at least one a node, and
+    /// appear once: otherwise the save is unreadable (no laser may point at an id that does not exist after a load).
+    /// </summary>
+    private void RestorePowerLinks(List<PowerLinkSaveDto>? saved)
+    {
+        var grid = State.PowerGrid;
+        grid.ClearLinks();
+        if (saved is null || saved.Count == 0)
+        {
+            return;
+        }
+
+        var kindOf = new Dictionary<long, PowerBlockKind>();
+        foreach (var block in PowerGrid.Blocks(State))
+        {
+            kindOf[block.Id] = block.Kind;
+        }
+
+        foreach (var link in saved)
+        {
+            if (link is null || !kindOf.TryGetValue(link.A, out var a) || !kindOf.TryGetValue(link.B, out var b))
+            {
+                throw new InvalidDataException($"Laser verso un blocco di corrente che non c'è: {link?.A}–{link?.B}.");
+            }
+
+            if (link.A == link.B)
+            {
+                throw new InvalidDataException($"Laser da un blocco a sé stesso: {link.A}.");
+            }
+
+            if (a != PowerBlockKind.Node && b != PowerBlockKind.Node)
+            {
+                throw new InvalidDataException($"Laser senza nodo: {link.A}–{link.B}.");
+            }
+
+            if (!grid.AddLink(link.A, link.B))
+            {
+                throw new InvalidDataException($"Laser ripetuto: {link.A}–{link.B}.");
+            }
+        }
     }
 
     /// <summary>Generator name stored in a save for <paramref name="terrain"/> (see <see cref="FactorySaveData.Generator"/>).</summary>

@@ -150,7 +150,7 @@ public sealed class FactoryContent
         };
     }
 
-    // A lamp without a positive power use would light for free (TrySpendPower(0) always succeeds).
+    // A lamp without a positive power use would never ask for power (a zero power use asks nothing), so it would stay dark.
     private static void ValidateLamp(List<BuildingDefinition> buildings, List<StructureDefinition> structures)
     {
         var lamp = buildings.FirstOrDefault(b => b.Id == Lamp.BuildingId);

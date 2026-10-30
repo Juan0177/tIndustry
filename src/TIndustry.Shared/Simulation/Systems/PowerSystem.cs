@@ -142,30 +142,37 @@ public sealed class PowerSystem : ISimulationSystem
     }
 
     /// <summary>
-    /// Puts <paramref name="stored"/> back in the batteries of <paramref name="network"/> in proportion to their
-    /// capacity; the remainder of the division goes one unit each to the batteries in id order.
+    /// Puts <paramref name="stored"/> back in the batteries of <paramref name="network"/> in proportion to each one's own
+    /// capacity (<see cref="PowerNetwork.BatteryCapacities"/>, never an average: a second battery type with another
+    /// capacity must not break the sharing); the remainder of the divisions goes one unit each to the batteries in id
+    /// order. No battery ends above its capacity: a floored share is below it whenever something is left over.
     /// </summary>
-    private static void ShareCharge(PowerNetwork network, long stored)
+    internal static void ShareCharge(PowerNetwork network, long stored)
     {
         var batteries = network.Batteries;
+        var capacities = network.BatteryCapacities;
         if (batteries.Count == 0 || network.Capacity <= 0)
         {
             return;
         }
 
-        var each = network.Capacity / batteries.Count;
+        stored = Math.Clamp(stored, 0, network.Capacity);
         var given = 0L;
-        foreach (var battery in batteries)
+        for (var i = 0; i < batteries.Count; i++)
         {
-            var share = (long)((Int128)stored * each / network.Capacity);
-            battery.Charge = share;
+            var share = (long)((Int128)stored * capacities[i] / network.Capacity);
+            batteries[i].Charge = share;
             given += share;
         }
 
         var left = stored - given;
-        for (var i = 0; left > 0 && i < batteries.Count; i++, left--)
+        for (var i = 0; left > 0 && i < batteries.Count; i++)
         {
-            batteries[i].Charge++;
+            if (batteries[i].Charge < capacities[i])
+            {
+                batteries[i].Charge++;
+                left--;
+            }
         }
     }
 }

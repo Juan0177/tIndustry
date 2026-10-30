@@ -223,6 +223,100 @@ public sealed class SaveRoundTripTests
             cost.Select(c => after.Wallet.MaterialCount(c.ItemId)));
     }
 
+    // ---- Power network (save v17): lasers and battery charge. ----
+
+    private static long PlacePower(Factory factory, BuildingKind kind, int x, int y)
+    {
+        var origin = new GridPosition(x, y);
+        var spec = new BuildSpec(BuildSpec.StructureIdFor(kind)!, kind, origin, Direction.East);
+        Assert.True(factory.PlaceInstant(spec, charge: false), $"{kind} su {origin}");
+        Assert.True(factory.TryGetSpecAt(origin, out _, out var id));
+        return id;
+    }
+
+    /// <summary>
+    /// A burning generator, two nodes, a busy forno and a battery joined by a laser set by hand (automatic links would
+    /// not reach it: a battery is a source). Returns the game and the ids.
+    /// </summary>
+    internal static (Factory Factory, long Gen, long Node1, long Node2, long Forno, long Battery) PowerLayout(FactoryContent content)
+    {
+        var factory = NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7,
+            rules: new GameRules(InstantBuild: true));
+        foreach (var id in new[] { Generator.BuildingId, PowerNode.Tier1Id, Battery.BuildingId, Crafter.SmelterBuildingId })
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        var gen = PlacePower(factory, BuildingKind.Generator, 10, 20);
+        factory.Generators.Single(g => g.Id == gen).RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        var battery = PlacePower(factory, BuildingKind.Battery, 21, 26);
+        var node1 = PlacePower(factory, BuildingKind.PowerNode, 16, 20);
+        var forno = PlacePower(factory, BuildingKind.Smelter, 24, 20);
+        var smelter = factory.Smelters.Single(s => s.Id == forno);
+        Assert.True(smelter.TryAccept("iron-ore") && smelter.TryAccept("iron-ore"));
+        var node2 = PlacePower(factory, BuildingKind.PowerNode, 21, 20);
+        if (!factory.PowerGrid.HasLink(node2, battery))
+        {
+            Assert.Null(factory.TogglePowerLink(node2, battery));
+        }
+
+        Assert.True(factory.PowerGrid.HasLink(node2, battery));
+        Assert.Single(factory.PowerGrid.Networks);
+        return (factory, gen, node1, node2, forno, battery);
+    }
+
+    [Fact]
+    public void V17_LasersAndBatteryChargeRoundTripWithTheSameChecksum()
+    {
+        var content = LoadContent();
+        var (factory, _, _, _, _, battery) = PowerLayout(content);
+        var host = new SimHost(factory);
+        host.AdvanceTicks(120);
+        var charge = factory.Batteries.Single(b => b.Id == battery).Charge;
+        Assert.True(charge > 0, "the surplus charged the battery");
+        Assert.True(charge < Battery.CapacityOf(content));
+        var before = host.Checksum();
+
+        FactorySaveStore.Save("v17-corrente", host);
+        Assert.True(FactorySaveStore.TryLoadSlot(content, "v17-corrente", out var loaded, out var failure), failure?.Detail);
+        var after = (Factory)loaded!.State;
+
+        Assert.Equal(before, loaded.Checksum());
+        Assert.Equal(factory.PowerGrid.Links, after.PowerGrid.Links);
+        Assert.Equal(charge, after.Batteries.Single(b => b.Id == battery).Charge);
+        Assert.Equal(
+            factory.PowerGrid.Networks.Select(n => n.Members.ToArray()),
+            after.PowerGrid.Networks.Select(n => n.Members.ToArray()));
+
+        // Both go on the same.
+        host.AdvanceTicks(600);
+        loaded.AdvanceTicks(600);
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+    }
+
+    [Fact]
+    public void LasersAreInTheSnapshotAndItsChecksum()
+    {
+        var content = LoadContent();
+        var (factory, _, _, node2, _, battery) = PowerLayout(content);
+        var with = Snapshot.Checksum(Snapshot.Write(factory.State));
+        var json = System.Text.Encoding.UTF8.GetString(Snapshot.Write(factory.State));
+        Assert.Contains($"{{\"a\":{Math.Min(node2, battery)},\"b\":{Math.Max(node2, battery)}}}", json);
+
+        Assert.Null(factory.TogglePowerLink(node2, battery));
+        Assert.NotEqual(with, Snapshot.Checksum(Snapshot.Write(factory.State)));
+
+        Assert.Null(factory.TogglePowerLink(node2, battery));
+        Assert.Equal(with, Snapshot.Checksum(Snapshot.Write(factory.State)));
+    }
+
+    [Fact]
+    public void GameWithoutLasersWritesNoLaserList()
+    {
+        var factory = NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7);
+        Assert.Null(factory.Capture().PowerLinks);
+    }
+
     private static FactoryContent LoadContent() => FactoryContent.Load(ContentPath);
 
     private static void RewriteVersion(string slotId, int version)

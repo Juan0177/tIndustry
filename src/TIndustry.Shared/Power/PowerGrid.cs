@@ -23,6 +23,7 @@ public readonly record struct PowerBlock(long Id, GridPosition Origin, int Size,
 public sealed class PowerNetwork
 {
     private readonly List<Battery> batteries = [];
+    private readonly List<long> batteryCapacities = [];
 
     public PowerNetwork(int index, IReadOnlyList<long> members)
     {
@@ -68,9 +69,17 @@ public sealed class PowerNetwork
     /// <summary>Total capacity of the batteries, sixty-thousandths of a unit.</summary>
     public long Capacity { get; private set; }
 
+    /// <summary>
+    /// Capacity of each battery of <see cref="Batteries"/> (same order), sixty-thousandths of a unit: kept per battery so
+    /// the charge is shared by each one's own capacity even if batteries of different sizes ever share a network.
+    /// </summary>
+    internal IReadOnlyList<long> BatteryCapacities => batteryCapacities;
+
     internal void AddBattery(Battery battery, long capacity)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
         batteries.Add(battery);
+        batteryCapacities.Add(capacity);
         Capacity += capacity;
     }
 }

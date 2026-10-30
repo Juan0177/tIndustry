@@ -22,9 +22,11 @@ public sealed class PowerDemandSystem : ISimulationSystem
             miner.PowerRequested = miner.WantsPower;
         }
 
+        // Lamps want to work only while the world's light of this tick is below half.
+        var dark = DayNightClock.LightAt(state.Rules.DayNight, state.FirstBuildTick, state.CurrentTick) < Lamp.DarkBelow;
         foreach (var lamp in state.Lamps)
         {
-            lamp.PowerRequested = true;
+            lamp.PowerRequested = dark;
         }
     }
 }

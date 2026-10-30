@@ -4,7 +4,9 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 16: the world's time
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 17: the power network's
+/// lasers (<see cref="PowerLinks"/>) and each battery's charge (<see cref="BatterySaveDto.Charge"/>), with no shared
+/// power buffer any more; since 16 the world's time
 /// (<see cref="GameRulesSaveDto.DayNight"/>, <see cref="FirstBuildTick"/>, <see cref="FirstAttackRaised"/>); since 15 the
 /// Core grows by tiers (<see cref="CoreTier"/>, <see cref="CoreStartX"/>/<see cref="CoreStartY"/>), containers and vaults
 /// (<see cref="Storages"/>) and the market with the auto-sell rate (<see cref="Market"/>). Older versions are not read
@@ -12,10 +14,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 16;
+    public const int CurrentVersion = 17;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 16;
+    public const int MinReadableVersion = 17;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -90,6 +92,12 @@ public sealed class FactorySaveData
     public List<LampSaveDto>? Lamps { get; set; }
     /// <summary>Batteries: null when there are none.</summary>
     public List<BatterySaveDto>? Batteries { get; set; }
+    /// <summary>
+    /// Lasers of the power network as entity id pairs (<c>A &lt; B</c>, ordered by A then B, like
+    /// <see cref="PowerGrid.Links"/>): null when there are none. Each must join two power blocks of this save, at least
+    /// one of them a node, once; otherwise the save is unreadable.
+    /// </summary>
+    public List<PowerLinkSaveDto>? PowerLinks { get; set; }
     /// <summary>Containers and vaults, in id order: null when there are none.</summary>
     public List<StorageSaveDto>? Storages { get; set; }
     public List<BeltSaveDto> Belts { get; set; } = [];
@@ -122,6 +130,13 @@ public sealed class BatterySaveDto
     public int Y { get; set; }
     /// <summary>Stored energy, sixty-thousandths of a unit (<see cref="Battery.Charge"/>).</summary>
     public long Charge { get; set; }
+}
+
+/// <summary>One laser of the power network: the entity ids of its two ends, <c>A &lt; B</c>.</summary>
+public sealed class PowerLinkSaveDto
+{
+    public long A { get; set; }
+    public long B { get; set; }
 }
 
 /// <summary>A container or vault: kind name, origin and, when standalone, its contents in ordinal item order.</summary>

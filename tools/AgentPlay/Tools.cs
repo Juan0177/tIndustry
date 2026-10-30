@@ -208,6 +208,14 @@ public sealed class Tools(Sessions sessions, GameData data)
     [Description("Piazza sopra il Core il blocco del livello successivo (fondazione, poi nucleo) dove lo mette la regola di crescita: serve la Ricerca e le celle nuove libere; con la costruzione vera è un cantiere del drone. Risponde {livello}.")]
     public string PotenziaCore([Description(Sessione)] string sessione) => Game(sessione, "potenzia_core");
 
+    [McpServerTool(Name = "collega")]
+    [Description("Collega o scollega col laser un nodo di energia e un blocco di corrente (generatore, nodo, batteria, forno, assemblatore, minatore avanzato, lampada), come il clic sul nodo e poi sul blocco: se il laser c'è lo toglie, altrimenti lo aggiunge (TogglePowerLink). Rifiuti: PowerLinkOutOfRange (fuori raggio), PowerLinkNoFreeSlots (collegamenti finiti), PowerLinkNotPowerBlock, PowerLinkSameBlock, InvalidCommand se 'nodo' non è un nodo. Risponde {collegato, collegamenti, massimo}.")]
+    public string Collega(
+        [Description(Sessione)] string sessione,
+        [Description("Una cella del nodo di energia (T1 o T2).")] Cella nodo,
+        [Description("Una cella del blocco da collegare o scollegare.")] Cella blocco) =>
+        Game(sessione, "collega", new { nodo, blocco });
+
     // ---- Time
 
     [McpServerTool(Name = "avanza")]

@@ -2,12 +2,17 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// 1×1 lamp: a plain power consumer that only lights the map at night (looks only). It is a block of its power
-/// network and asks for its <see cref="BuildingDefinition.PowerUse"/> every tick; its light is the share it gets.
+/// network and asks for its <see cref="BuildingDefinition.PowerUse"/> only in the ticks whose world light
+/// (<see cref="DayNightClock.LightAt"/>) is below <see cref="DarkBelow"/>; then its light is the share it gets. By day it
+/// asks for nothing and stays dark, so it never drains the batteries.
 /// </summary>
 public sealed class Lamp
 {
     public const int Size = 1;
     public const string BuildingId = "lamp";
+
+    /// <summary>World light (0–<see cref="DayNightClock.FullLight"/>) below which a lamp wants to work: half the day's light.</summary>
+    public const int DarkBelow = DayNightClock.FullLight / 2;
 
     public Lamp(GridPosition position, long id = 0)
     {

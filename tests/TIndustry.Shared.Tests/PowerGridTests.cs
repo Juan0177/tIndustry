@@ -607,6 +607,28 @@ public sealed class PowerGridTests
     }
 
     [Fact]
+    public void ChargeIsSharedByEachBatterysOwnCapacity()
+    {
+        // A future second battery type: the share follows each one's capacity, never the average.
+        var network = new PowerNetwork(0, [1, 2]);
+        var small = new Battery(new GridPosition(0, 0), 1);
+        var big = new Battery(new GridPosition(2, 0), 2);
+        network.AddBattery(small, 1_000);
+        network.AddBattery(big, 3_000);
+
+        PowerSystem.ShareCharge(network, 2_001);
+        Assert.Equal((501L, 1_500L), (small.Charge, big.Charge)); // remainder to the lowest id
+
+        PowerSystem.ShareCharge(network, 4_000);
+        Assert.Equal((1_000L, 3_000L), (small.Charge, big.Charge));
+
+        // A full small battery never takes the remainder past its capacity.
+        PowerSystem.ShareCharge(network, 3_999);
+        Assert.True(small.Charge <= 1_000 && big.Charge <= 3_000);
+        Assert.Equal(3_999, small.Charge + big.Charge);
+    }
+
+    [Fact]
     public void FornoWithCoalBurnsItBelowTheBreakEvenAndAsksForNothing()
     {
         var factory = Sandbox();
