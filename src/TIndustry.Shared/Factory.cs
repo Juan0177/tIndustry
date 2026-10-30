@@ -97,6 +97,25 @@ public sealed class Factory : IGameView
             ? PowerNetworkView.Of(network)
             : null;
 
+    public IReadOnlyList<PowerBlock> PowerBlocks => PowerGrid.Blocks(State);
+
+    public PowerBlock? PowerBlockAt(GridPosition tile) =>
+        TryGetSpecAt(tile, out _, out var id) ? PowerGrid.FindBlock(State, id) : null;
+
+    public PowerNodeLinks? PowerNodeLinksOf(long nodeId) =>
+        powerNodes.Find(n => n.Id == nodeId) is { } node
+            ? new PowerNodeLinks(
+                node.Id,
+                State.PowerGrid.LinksOf(node.Id),
+                PowerGrid.MaxLinksOf(Content, node),
+                PowerGrid.RangeOf(Content, node))
+            : null;
+
+    public bool PowerLinkInRange(long fromNodeId, long toEntityId) =>
+        powerNodes.Find(n => n.Id == fromNodeId) is { } from
+        && PowerGrid.FindBlock(State, toEntityId) is { } to
+        && LinkReaches(from, to);
+
     public TerrainMap? Terrain
     {
         get => State.Terrain;
@@ -3315,9 +3334,7 @@ public sealed class Factory : IGameView
         }
 
         var toNode = to.Kind == PowerBlockKind.Node ? powerNodes.Find(n => n.Id == toEntityId) : null;
-        var reaches = PowerGrid.Reaches(from, PowerGrid.RangeOf(Content, from), to)
-            || (toNode is not null && PowerGrid.Reaches(toNode, PowerGrid.RangeOf(Content, toNode), NodeBlock(from)));
-        if (!reaches)
+        if (!LinkReaches(from, to))
         {
             return RefusalCode.PowerLinkOutOfRange;
         }
@@ -3331,6 +3348,17 @@ public sealed class Factory : IGameView
         grid.AddLink(fromNodeId, toEntityId);
         grid.Rebuild(State);
         return null;
+    }
+
+    /// <summary>
+    /// True when a laser from <paramref name="from"/> reaches <paramref name="to"/>: within the node's range, or, for
+    /// another node, within that node's range.
+    /// </summary>
+    private bool LinkReaches(PowerNode from, PowerBlock to)
+    {
+        var toNode = to.Kind == PowerBlockKind.Node ? powerNodes.Find(n => n.Id == to.Id) : null;
+        return PowerGrid.Reaches(from, PowerGrid.RangeOf(Content, from), to)
+            || (toNode is not null && PowerGrid.Reaches(toNode, PowerGrid.RangeOf(Content, toNode), NodeBlock(from)));
     }
 
     private static PowerBlock NodeBlock(PowerNode node) => new(node.Id, node.Position, node.Size, PowerBlockKind.Node);

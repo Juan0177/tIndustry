@@ -57,6 +57,7 @@ public partial class World : Node2D
         PowerNode,
         PowerNodeT2,
         Lamp,
+        Battery,
         Container,
         Vault,
         CoreFoundation,
@@ -189,9 +190,11 @@ public partial class World : Node2D
             // The wheel turns an orientable block in hand (in play, no panel over the world); otherwise it zooms.
             camera.WheelZooms = () => _view is null || PanelOpen || !IsOrientable(_tool);
             camera.MiddleClicked += position => PickAt(ScreenToCell(position));
+            camera.LeftClicked += position => OnCursorClick(ScreenToCell(position));
         }
 
         EnsureBuildingsLayer();
+        EnsureLaserLayer();
         EnsureConstructionLayer();
         EnsureEffects();
         ApplyGraphicsSettings();
@@ -332,7 +335,10 @@ public partial class World : Node2D
         if (!GameInPlay)
         {
             _hud?.SetSiteTooltip(null, default);
+            _hud?.SetPowerTooltip(null, default);
+            _hud?.SetSelectionInfo(null);
             _hud?.SetPlacementHint(null);
+            _laserLayer?.QueueRedraw();
             return;
         }
 
@@ -362,11 +368,13 @@ public partial class World : Node2D
         SyncItemSprites();
         SyncHover();
         SyncSiteTooltip();
+        SyncPowerInfo();
         SyncBuildingVisuals(visualDelta);
         UpdateHud();
         CheckCampaignComplete();
         QueueRedraw();
         _placementOverlay?.QueueRedraw();
+        _laserLayer?.QueueRedraw();
     }
 
     /// <summary>

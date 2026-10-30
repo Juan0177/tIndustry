@@ -801,4 +801,29 @@ public sealed class PowerGridTests
 
         Assert.Equal(Run(), Run());
     }
+
+    [Fact]
+    public void TheViewGivesTheClientBlocksNodeLinksAndTheRangeRule()
+    {
+        var factory = Sandbox();
+        IGameView view = factory;
+        var lamp = Place(factory, BuildingKind.Lamp, CX + 3, CY);
+        var far = Place(factory, BuildingKind.Lamp, CX + 8, CY); // gap 7
+        var node = Place(factory, BuildingKind.PowerNode, CX, CY);
+        var miner = Place(factory, BuildingKind.Miner, CX + 5, CY - 6);
+
+        Assert.Equal(PowerGrid.Blocks(factory.State), view.PowerBlocks);
+        Assert.Equal(lamp, view.PowerBlockAt(new GridPosition(CX + 3, CY))?.Id);
+        Assert.Equal(PowerBlockKind.Node, view.PowerBlockAt(new GridPosition(CX, CY))?.Kind);
+        Assert.Null(view.PowerBlockAt(new GridPosition(CX + 5, CY - 6))); // Miner T1: not a power block
+        Assert.Null(view.PowerBlockAt(new GridPosition(CX + 1, CY + 1)));
+
+        Assert.Equal(new PowerNodeLinks(node, 1, 6, 6), view.PowerNodeLinksOf(node));
+        Assert.Null(view.PowerNodeLinksOf(lamp));
+
+        Assert.True(view.PowerLinkInRange(node, lamp));
+        Assert.False(view.PowerLinkInRange(node, far));
+        Assert.False(view.PowerLinkInRange(node, miner));
+        Assert.False(view.PowerLinkInRange(lamp, node));
+    }
 }

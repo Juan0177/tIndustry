@@ -5,7 +5,9 @@ The generator base has rounded corners, yellow-and-black hazard bands and coolin
 reads apart from the production blocks; the rotor strip (4 frames) turns in its round housing.
 `<id>.png` is the composed icon. Power nodes are seen from above: insulators on a plate,
 copper windings and a yellow cap. The lamp is a plate with a glass dome: `lamp-base` has it dark, `lamp-glow`
-is the lit dome the client shows over it while powered (`lamp` = both, the icon). `luce` is not a block: a soft
+is the lit dome the client shows over it while powered (`lamp` = both, the icon). The battery is a lead cell with
+a window: `battery-base` has it empty, `battery-charge-anim` holds 0 to 3 lit bars (the client shows its charge),
+`battery` = full, the icon. `luce` is not a block: a soft
 128x128 white disc fading to transparent, the texture of every PointLight2D at night (the client tints it).
 """
 import math
@@ -193,19 +195,37 @@ def lamp():
 
 # ---------------------------------------------------------------- battery
 
-@sprite("battery")
-def battery():
-    # Lead-cased cell from above: two copper terminals on top, a window with three yellow charge bars.
+BATTERIA_TACCHE = 3  # charge bars in the window: the client shows 0..3 of them lit (frames of battery-charge-anim)
+
+
+@sprite("battery-base")
+def battery_base():
+    # Lead-cased cell from above: two copper terminals on top and an empty dark window for the charge bars.
     im = forme.nuova(T, T)
     forme.sagoma(im, forme.arrotondato(2, 4, T - 3, T - 2, 4), PIOMBO)
     for tx in (8, T - 12):
         forme.pannello(im, tx, 1, tx + 3, 5, RAME)
     forme.rett(im, 9, 10, T - 10, T - 6, OUT)
     forme.rett(im, 10, 11, T - 11, T - 7, FULIGGINE[0])
-    for i in range(3):
+    return im
+
+
+def tacche(n):
+    """The n lowest yellow charge bars of the window, transparent elsewhere (drawn over the base)."""
+    im = forme.nuova(T, T)
+    for i in range(n):
         y0 = T - 8 - i * 4
         forme.rett(im, 11, y0 - 2, T - 12, y0, ENERGIA[2 + i])
     return im
+
+
+# Frame k = k bars lit (0 = empty, BATTERIA_TACCHE = full); the client picks the frame from the battery's charge.
+sprite("battery-charge-anim")(lambda: forme.striscia([tacche(k) for k in range(BATTERIA_TACCHE + 1)]))
+
+
+@sprite("battery")
+def battery():
+    return forme.componi(battery_base(), tacche(BATTERIA_TACCHE))
 
 
 LUCE = 128

@@ -652,6 +652,14 @@ class TestGenera(unittest.TestCase):
         lampada = forme.componi(SPRITE["lamp-base"](), SPRITE["lamp-glow"]())
         self.assertEqual(lampada.tobytes(), SPRITE["lamp"]().tobytes())
         self.assertEqual(0, SPRITE["lamp-glow"]().getpixel((0, 0))[3])
+        # Battery: 0..3 lit bars over the empty window; the icon is the full one, frame 0 shows nothing.
+        tacche = fotogrammi_di(SPRITE["battery-charge-anim"]())
+        self.assertEqual(4, len(tacche))
+        self.assertIsNone(tacche[0].getbbox())
+        accese = [sum(1 for p in f.getdata() if p[3]) for f in tacche]
+        self.assertEqual(sorted(set(accese)), accese)
+        batteria = forme.componi(SPRITE["battery-base"](), tacche[-1])
+        self.assertEqual(batteria.tobytes(), SPRITE["battery"]().tobytes())
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
         for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()

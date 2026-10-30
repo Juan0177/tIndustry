@@ -27,6 +27,9 @@ public readonly record struct PowerNetworkView(
     }
 }
 
+/// <summary>A power node's lasers as the client sees them: used, maximum, and range in cells.</summary>
+public readonly record struct PowerNodeLinks(long NodeId, int Used, int Max, int Range);
+
 /// <summary>Read-only wallet (implemented by <see cref="EconomyWallet"/>).</summary>
 public interface IWalletView
 {
@@ -186,6 +189,21 @@ public interface IGameView
 
     /// <summary>The network of the power block covering <paramref name="tile"/>; null when there is none.</summary>
     PowerNetworkView? PowerNetworkOf(GridPosition tile);
+
+    /// <summary>Every power block (generators, nodes, batteries, consumers), in id order (<see cref="PowerGrid.Blocks"/>).</summary>
+    IReadOnlyList<PowerBlock> PowerBlocks { get; }
+
+    /// <summary>The power block covering <paramref name="tile"/>; null when there is none (or a site stands there).</summary>
+    PowerBlock? PowerBlockAt(GridPosition tile);
+
+    /// <summary>Lasers used, lasers it can hold and range of the power node <paramref name="nodeId"/>; null for anything else.</summary>
+    PowerNodeLinks? PowerNodeLinksOf(long nodeId);
+
+    /// <summary>
+    /// True when a laser from the node <paramref name="fromNodeId"/> reaches the power block <paramref name="toEntityId"/>
+    /// (the range rule of <see cref="TogglePowerLink"/>, never a copy of it in the client).
+    /// </summary>
+    bool PowerLinkInRange(long fromNodeId, long toEntityId);
 
     string? ActiveCampaignLevelId { get; }
 

@@ -108,8 +108,8 @@ struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato ·
 struttura.assembler.suggerimento,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
 struttura.extractor.suggerimento,Estrae lastre di ferro dal CORE → nastro · R uscita · 1×1,Takes iron plates from the CORE → belt · R output · 1×1
 struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
-struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Power node T1 · range 6 · links generator ↔ smelter
-struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · unlock in Research
+struttura.power-node.suggerimento,Nodo T1 · raggio 6 · 6 collegamenti · selezionalo e clicca un blocco per collegarlo,Power node T1 · range 6 · 6 links · select it and click a block to link it
+struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · 10 links · unlock in Research
 struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
 struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete · capacità 1000 · 1×1,Battery · stores the power of its network · capacity 1000 · 1×1
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
@@ -141,6 +141,13 @@ menu.campagna,Campagna,Campaign
 core.energia,Energia accumulata / capacità,Stored power / capacity
 core.energia.generatori, · generatori attivi {0}/{1}, · active generators {0}/{1}
 core.energia.nessuna,Nessuna rete elettrica,No power grid
+corrente.rete.titolo,Rete di corrente · {0} blocchi,Power network · {0} blocks
+corrente.rete.produzione,Produzione {0}/s,Production {0}/s
+corrente.rete.consumo,Consumo {0}/s,Consumption {0}/s
+corrente.rete.soddisfazione,Soddisfazione {0}%,Satisfaction {0}%
+corrente.rete.batterie,Batterie {0}/{1},Batteries {0}/{1}
+corrente.rete.batterie.nessuna,Batterie: nessuna,Batteries: none
+corrente.nodo.collegamenti,{0} · collegamenti {1}/{2} · clic su un blocco nel raggio: collega o scollega,{0} · links {1}/{2} · click a block in range: link or unlink
 core.obiettivo,OBIETTIVO · {0},OBJECTIVE · {0}
 core.obiettivo.titolo,OBIETTIVO,OBJECTIVE
 core.fondi,Fondi,Funds
@@ -373,8 +380,8 @@ struttura.splitter.descrizione,Nastro a T · alterna sinistra/destra,T belt · a
 struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti · gli altri a sinistra (a destra se piena),Item filter · icon in the middle · C cycles · matches go straight · others go left (right if full)
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
-struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Power node T1 · 1×1 · range 6 · links to generators by itself
-struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Power node T2 · 2×2 · range 10 · links to generators by itself
+struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · 6 collegamenti · si collega da solo ai blocchi vicini,Power node T1 · 1×1 · range 6 · 6 links · links to the nearby blocks by itself
+struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · si collega da solo ai blocchi vicini,Power node T2 · 2×2 · range 10 · 10 links · links to the nearby blocks by itself
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
 struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 1000 · 1×1,Battery · keeps the spare power and gives it back when the generators fall short · capacity 1000 · 1×1
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
