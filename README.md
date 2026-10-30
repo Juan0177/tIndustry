@@ -119,12 +119,12 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Mondo** | Mappe generate dal seme in tre misure (Media 1000², Grande 1500², Enorme 2000²) con quattro biomi (rocce, sabbia, neve, prati), pareti, laghi e fiumi; acqua bassa costruibile, acqua profonda solo col ponte; CORE al centro con ferro, rame e carbone raggiungibili; minerali visibili (ferro, rame, piombo, carbone, titanio) |
 | **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
 | **Logistica** | Nastri T1/T2/T3, incrocio, sdoppiatore, selezionatore con filtro, ponte (2–4 caselle) |
-| **Energia** | Generatore, nodi T1/T2 con buffer di capacità, Lampada |
+| **Energia** | Generatore, nodi T1/T2 in rete con laser, Batteria, Lampada |
 | **Economia** | Fondi, costi e rimborsi, Mercato come una borsa (prezzi che si muovono, picchi fino al triplo, crolli se svendi, vendita automatica per oggetto al prezzo minimo, a ritmo), magazzino del CORE con un massimo per oggetto, tre livelli del CORE, container e vault |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
 | **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
-| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 14 (i v11, v12 e v13 si caricano ancora) |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 17 (le versioni precedenti non si aprono più) |
 
 Il combattimento è fuori dal progetto per ora.
 
@@ -156,7 +156,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 52%, 40 passi fatti su 77" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 55%, 42 passi fatti su 77" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -164,7 +164,7 @@ A che punto siamo, aspetto per aspetto:
 | 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
 | 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="38%" width="160"> | 38% (3/8) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
-| 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="60%" width="160"> | 60% (3/5) |
+| 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="60%" width="160"> | 60% (3/5) |
 | 7 | [Mappe e terreno](https://github.com/Juan0177/tIndustry/wiki/Mappe-e-terreno) | <img src="docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
 | 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |

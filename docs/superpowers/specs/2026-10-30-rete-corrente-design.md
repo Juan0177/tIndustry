@@ -1,6 +1,6 @@
 # Rete di corrente come Mindustry
 
-- **Stato**: approvata dall'utente il 30 ottobre 2026. Brainstorming con l'utente del 30 ottobre 2026, issue [#269](https://github.com/Juan0177/tIndustry/issues/269).
+- **Stato**: attuata (2026-10-30; [diario](../../diario/2026-10-30-rete-corrente.md)). Approvata dall'utente il 30 ottobre 2026. Brainstorming con l'utente del 30 ottobre 2026, issue [#269](https://github.com/Juan0177/tIndustry/issues/269).
 - **Sostituisce**: la regola di oggi (un blocco è alimentato se tocca un generatore acceso, o un nodo che ha un generatore acceso nel raggio; i nodi non si passano la corrente; `GameState.IsPoweredViaNode`), la riserva unica di corrente (`PowerBuffer`, `PowerCapacity`, `CorePowerCapacity`, `CorePowerGeneration`, `Generator.CapacityBonus`) e i consumi scritti nel codice (`CraftingSystem.SmelterPowerDraw`, `AssemblerPowerDraw`, `Generator.GenerationPerSecond`).
 
 ## Obiettivo

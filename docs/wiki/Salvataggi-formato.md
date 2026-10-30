@@ -23,7 +23,8 @@ La scrittura è atomica: prima `<slot>.json.tmp`, poi la rinomina sullo slot.
 
 | Versione | Stato |
 |---|---|
-| **16** | Corrente e unica che si legge (`FactorySaveData.CurrentVersion` e `MinReadableVersion`): sostituisce la notte fissa con il tempo del mondo (`Rules.DayNight`: `Cycle`, `AlwaysDay` o `AlwaysNight`) e aggiunge il tick del primo blocco (`FirstBuildTick`) e se il primo attacco è già scattato (`FirstAttackRaised`) |
+| **17** | Corrente e unica che si legge (`FactorySaveData.CurrentVersion` e `MinReadableVersion`): aggiunge i laser della rete di corrente (`PowerLinks`, coppie di id) e la carica di ogni batteria (`Batteries`); toglie la riserva unica di corrente (`PowerBuffer`, `PowerCapacity`) |
+| 16 | Rifiutata con il codice `OlderVersion` (sostituisce la notte fissa con il tempo del mondo (`Rules.DayNight`: `Cycle`, `AlwaysDay` o `AlwaysNight`) e aggiunge il tick del primo blocco (`FirstBuildTick`) e se il primo attacco è già scattato (`FirstAttackRaised`)) |
 | 15 | Rifiutata con il codice `OlderVersion` (aggiungeva il livello del CORE (`CoreTier`), i container e i vault (`Storages`, col contenuto dei depositi a sé), la spunta «solo a CORE pieno» e l'accumulatore della vendita automatica per oggetto) |
 | 14 e precedenti | Rifiutate con il codice `OlderVersion` («versione non più supportata»): il codice di conversione è stato tolto |
 
