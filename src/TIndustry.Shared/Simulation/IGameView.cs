@@ -84,6 +84,9 @@ public interface IGameView
     /// <summary>Lamps, in id order (lit = powered in the last tick).</summary>
     IReadOnlyList<Lamp> Lamps { get; }
 
+    /// <summary>Batteries, in id order.</summary>
+    IReadOnlyList<Battery> Batteries { get; }
+
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
 

@@ -1,5 +1,5 @@
-"""Power sprites: generator (base + turning rotor), power node (1x1), power node T2 (2x2), lamp (1x1) and
-the light texture of the night (`luce`).
+"""Power sprites: generator (base + turning rotor), power node (1x1), power node T2 (2x2), lamp (1x1), battery
+(1x1) and the light texture of the night (`luce`).
 
 The generator base has rounded corners, yellow-and-black hazard bands and cooling fins, so it
 reads apart from the production blocks; the rotor strip (4 frames) turns in its round housing.
@@ -12,7 +12,7 @@ import math
 
 import forme
 from blocchi import sprite
-from palette import ENERGIA, FERRO, FULIGGINE, METALLO, NASTRO, OUT, RAME
+from palette import ENERGIA, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME
 
 T = 32
 L = 2 * T
@@ -189,6 +189,23 @@ def lamp_glow():
 @sprite("lamp")
 def lamp():
     return forme.componi(lamp_base(), lamp_glow())
+
+
+# ---------------------------------------------------------------- battery
+
+@sprite("battery")
+def battery():
+    # Lead-cased cell from above: two copper terminals on top, a window with three yellow charge bars.
+    im = forme.nuova(T, T)
+    forme.sagoma(im, forme.arrotondato(2, 4, T - 3, T - 2, 4), PIOMBO)
+    for tx in (8, T - 12):
+        forme.pannello(im, tx, 1, tx + 3, 5, RAME)
+    forme.rett(im, 9, 10, T - 10, T - 6, OUT)
+    forme.rett(im, 10, 11, T - 11, T - 7, FULIGGINE[0])
+    for i in range(3):
+        y0 = T - 8 - i * 4
+        forme.rett(im, 11, y0 - 2, T - 12, y0, ENERGIA[2 + i])
+    return im
 
 
 LUCE = 128

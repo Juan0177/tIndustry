@@ -15,6 +15,7 @@ struttura.generator.nome,Generatore,Generator
 struttura.power-node.nome,Nodo T1,Power node T1
 struttura.power-node-t2.nome,Nodo T2,Power node T2
 struttura.lamp.nome,Lampada,Lamp
+struttura.battery.nome,Batteria,Battery
 struttura.container.nome,Contenitore,Container
 struttura.vault.nome,Deposito,Vault
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
@@ -110,6 +111,7 @@ struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal f
 struttura.power-node.suggerimento,Nodo T1 · raggio 6 · collega generatore ↔ forno,Power node T1 · range 6 · links generator ↔ smelter
 struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · unlock in Research
 struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
+struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete · capacità 1000 · 1×1,Battery · stores the power of its network · capacity 1000 · 1×1
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
@@ -227,6 +229,10 @@ rifiuto.CoreUpgradeInProgress,Il CORE è già in potenziamento,The CORE is alrea
 rifiuto.CoreUpgradeBlocked,Le celle nuove del CORE devono essere libere e costruibili,The CORE's new cells must be free and buildable
 rifiuto.CoreUpgradeOutOfMap,Il CORE uscirebbe dalla mappa,The CORE would go off the map
 rifiuto.CoreMaxTier,Il CORE è già al livello massimo,The CORE is already at the top tier
+rifiuto.PowerLinkOutOfRange,Il blocco è fuori dal raggio del nodo,The block is out of the node's range
+rifiuto.PowerLinkNoFreeSlots,Il nodo non ha più collegamenti liberi,The node has no free links left
+rifiuto.PowerLinkNotPowerBlock,Non è un blocco di corrente,That is not a power block
+rifiuto.PowerLinkSameBlock,Un nodo non si collega a se stesso,A node can't link to itself
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.
@@ -370,6 +376,7 @@ struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal fo
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · si collega da solo ai generatori,Power node T1 · 1×1 · range 6 · links to generators by itself
 struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · si collega da solo ai generatori,Power node T2 · 2×2 · range 10 · links to generators by itself
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
+struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 1000 · 1×1,Battery · keeps the spare power and gives it back when the generators fall short · capacity 1000 · 1×1
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone

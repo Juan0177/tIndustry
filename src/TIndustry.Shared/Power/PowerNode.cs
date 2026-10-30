@@ -1,13 +1,20 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Power node: relays live generator adjacency within LinkRange so craft
-/// machines near a node can receive the +20% powered bonus (no full PowerNetworks graph).
+/// Power node: holds lasers to other power blocks (<see cref="PowerGrid"/>, range and links from the content).
+/// The old rule (a node next to a machine relays a live generator within <see cref="LinkRange"/>) still feeds the
+/// shared buffer until the per-network balance replaces it.
 /// </summary>
 public sealed class PowerNode
 {
     public const string Tier1Id = "power-node";
     public const string Tier2Id = "power-node-t2";
+
+    // The spec's numbers, used when the content (built in code) does not give them; content.json does.
+    public const int Tier1LinkRange = 6;
+    public const int Tier1MaxLinks = 6;
+    public const int Tier2LinkRange = 10;
+    public const int Tier2MaxLinks = 10;
 
     public PowerNode(GridPosition position, string definitionId = Tier1Id, long id = 0)
     {

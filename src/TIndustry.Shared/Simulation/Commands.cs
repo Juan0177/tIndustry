@@ -33,7 +33,8 @@ public enum BuildingKind
     CoreFoundation,
     CoreNucleus,
     Container,
-    Vault
+    Vault,
+    Battery
 }
 
 /// <summary>
@@ -88,6 +89,14 @@ public sealed record SetAutoSellWhenFull(int PlayerId, string ItemId, bool Enabl
 /// <c>BeltGridCell.CycleFilterItem</c>). <paramref name="ItemId"/> must be one of <see cref="SorterFilters.Ids"/>.
 /// </summary>
 public sealed record SetSorterFilter(int PlayerId, GridPosition Tile, string ItemId) : SimCommand(PlayerId);
+
+/// <summary>
+/// Adds the laser from the power node <paramref name="FromNodeId"/> to the power block <paramref name="ToEntityId"/>,
+/// or takes it away when it is there (spec «Rete di corrente»). Refused with <see cref="RefusalCode.PowerLinkOutOfRange"/>,
+/// <see cref="RefusalCode.PowerLinkNoFreeSlots"/>, <see cref="RefusalCode.PowerLinkNotPowerBlock"/> or
+/// <see cref="RefusalCode.PowerLinkSameBlock"/>; <see cref="RefusalCode.InvalidCommand"/> when the first id is not a node.
+/// </summary>
+public sealed record TogglePowerLink(int PlayerId, long FromNodeId, long ToEntityId) : SimCommand(PlayerId);
 
 /// <summary>
 /// Why <see cref="SimHost"/> refused a command (<see cref="SimHost.CommandRejected"/>) or the drone dropped a plan
@@ -162,7 +171,19 @@ public enum RefusalCode
     CoreUpgradeOutOfMap,
 
     /// <summary>Core upgrade: the Core is already at the last tier (nucleus).</summary>
-    CoreMaxTier
+    CoreMaxTier,
+
+    /// <summary>Power laser: the block is farther than the node's range (between two nodes, than both ranges).</summary>
+    PowerLinkOutOfRange,
+
+    /// <summary>Power laser: the node (or the other node) has no free link left.</summary>
+    PowerLinkNoFreeSlots,
+
+    /// <summary>Power laser: the target is not a power block (or does not exist, or is still being built).</summary>
+    PowerLinkNotPowerBlock,
+
+    /// <summary>Power laser: from a node to itself.</summary>
+    PowerLinkSameBlock
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

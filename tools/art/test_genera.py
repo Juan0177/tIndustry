@@ -33,7 +33,7 @@ NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armor
 CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
-    "extractor": 1, "power-node": 1, "lamp": 1, "conveyor-basic": 1, "conveyor-fast": 1,
+    "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5,

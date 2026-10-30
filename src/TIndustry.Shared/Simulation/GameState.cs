@@ -94,6 +94,10 @@ public sealed class GameState
     public List<Extractor> Extractors { get; } = [];
     public List<PowerNode> PowerNodes { get; } = [];
     public List<Lamp> Lamps { get; } = [];
+    public List<Battery> Batteries { get; } = [];
+
+    /// <summary>Lasers and power networks (<see cref="PowerGrid.Rebuild"/> after every change of power blocks or lasers).</summary>
+    public PowerGrid PowerGrid { get; } = new();
 
     /// <summary>Containers and vaults, in ascending id order.</summary>
     public List<StorageBlock> Storages { get; } = [];

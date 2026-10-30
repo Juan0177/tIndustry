@@ -45,6 +45,12 @@ public sealed record RecipeDefinition(
     IReadOnlyList<ResourceAmount> Inputs,
     IReadOnlyList<ResourceAmount> Outputs);
 
+/// <summary>
+/// A building of content.json. Power (spec «Rete di corrente»): <paramref name="PowerUse"/> and
+/// <paramref name="PowerOutput"/> are units per second, <paramref name="PowerLinkRange"/> (cells between the edges of
+/// the two blocks) and <paramref name="MaxPowerLinks"/> belong to the power nodes, <paramref name="PowerCapacity"/>
+/// (units) to the battery; 0 = none.
+/// </summary>
 public sealed record BuildingDefinition(
     string Id,
     int MoneyCost,
@@ -52,7 +58,11 @@ public sealed record BuildingDefinition(
     int RefundPercent = 100,
     float BuildCostMultiplier = 1f,
     float PowerUse = 0f,
-    int Tier = 0);
+    int Tier = 0,
+    float PowerOutput = 0f,
+    int PowerLinkRange = 0,
+    int MaxPowerLinks = 0,
+    int PowerCapacity = 0);
 
 /// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
 public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);

@@ -44,7 +44,7 @@ public sealed class AgentGame : IDisposable
         ('+', "incrocio"), ('Y', "divisore"), ('F', "selezionatore"), ('=', "ponte"),
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
-        ('K', "contenitore"), ('V', "deposito"),
+        ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -800,6 +800,7 @@ public sealed class AgentGame : IDisposable
         BuildingKind.PowerNode => 'P',
         BuildingKind.PowerNodeT2 => 'Q',
         BuildingKind.Lamp => 'L',
+        BuildingKind.Battery => 'B',
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => 'C',
         BuildingKind.Container => 'K',
         BuildingKind.Vault => 'V',
@@ -903,6 +904,11 @@ public sealed class AgentGame : IDisposable
         foreach (var l in View.Lamps)
         {
             yield return (Lamp.BuildingId, BuildingKind.Lamp, l.Position, Direction.East);
+        }
+
+        foreach (var b in View.Batteries)
+        {
+            yield return (Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
         }
 
         foreach (var s in View.Storages)

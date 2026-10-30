@@ -38,6 +38,7 @@ public sealed class Factory : IGameView
     private List<Extractor> extractors => State.Extractors;
     private List<PowerNode> powerNodes => State.PowerNodes;
     private List<Lamp> lamps => State.Lamps;
+    private List<Battery> batteries => State.Batteries;
     private List<StorageBlock> storages => State.Storages;
 
     public Factory(
@@ -131,6 +132,10 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public IReadOnlyList<Lamp> Lamps => lamps;
+    public IReadOnlyList<Battery> Batteries => batteries;
+
+    /// <summary>Lasers and power networks.</summary>
+    public PowerGrid PowerGrid => State.PowerGrid;
     public IReadOnlyList<StorageBlock> Storages => storagesView ??= storages.AsReadOnly();
     private IReadOnlyList<StorageBlock>? storagesView;
     public GameRules Rules => State.Rules;
@@ -827,6 +832,9 @@ public sealed class Factory : IGameView
             Lamps = lamps.Count == 0
                 ? null
                 : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
+            Batteries = batteries.Count == 0
+                ? null
+                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y }).ToList(),
             Storages = storages.Count == 0
                 ? null
                 : storages.OrderBy(s => s.Id).Select(s => new StorageSaveDto
@@ -1079,6 +1087,7 @@ public sealed class Factory : IGameView
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
             .Concat((data.Lamps ?? []).Select(d => d.Id))
+            .Concat((data.Batteries ?? []).Select(d => d.Id))
             .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
@@ -1137,6 +1146,11 @@ public sealed class Factory : IGameView
             factory.lamps.Add(new Lamp(new GridPosition(l.X, l.Y), RestoredId(l.Id)));
         }
 
+        foreach (var b in data.Batteries ?? [])
+        {
+            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id)));
+        }
+
         foreach (var s in data.Storages ?? [])
         {
             if (!Enum.TryParse<BuildingKind>(s.Kind, out var kind) || !BuildSpec.IsStorage(kind))
@@ -1185,9 +1199,12 @@ public sealed class Factory : IGameView
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
+        SortById(factory.batteries, b => b.Id);
         SortById(factory.storages, s => s.Id);
         // Which storage blocks touch the Core (the saved Core cells and tier are set above).
         factory.State.Storage.RecomputeLinks();
+        // Lasers are not saved yet (save v17): the networks come from contact alone.
+        factory.State.PowerGrid.Rebuild(factory.State);
         factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
     }
@@ -1882,6 +1899,14 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var battery in batteries)
+        {
+            if (battery.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         foreach (var storage in storages)
         {
             if (storage.Occupies(tile))
@@ -2152,6 +2177,7 @@ public sealed class Factory : IGameView
         "power-node" => "power-node",
         "power-node-t2" => "power-node-t2",
         "lamp" => Lamp.BuildingId,
+        "battery" => Battery.BuildingId,
         "container" => "container",
         "vault" => "vault",
         _ => null
@@ -2699,6 +2725,8 @@ public sealed class Factory : IGameView
                 return PlacePowerNode(origin, PowerNode.Tier2Id, charge);
             case BuildingKind.Lamp:
                 return PlaceLamp(origin, charge);
+            case BuildingKind.Battery:
+                return PlaceBattery(origin, charge);
             case BuildingKind.CoreFoundation:
             case BuildingKind.CoreNucleus:
                 return PlaceCoreUpgrade(spec, charge);
@@ -2776,6 +2804,16 @@ public sealed class Factory : IGameView
             {
                 spec = new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, l.Position, Direction.East);
                 entityId = l.Id;
+                return true;
+            }
+        }
+
+        foreach (var b in batteries)
+        {
+            if (b.Occupies(tile))
+            {
+                spec = new BuildSpec(Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
+                entityId = b.Id;
                 return true;
             }
         }
@@ -3023,6 +3061,7 @@ public sealed class Factory : IGameView
 
         buildingsVersion++;
         miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
+        PowerBlocksChanged();
         return true;
     }
 
@@ -3082,6 +3121,7 @@ public sealed class Factory : IGameView
         buildingsVersion++;
         (isAssembler ? assemblers : smelters).Add(new Crafter(
             origin, direction, recipe, buildingId, recipes, nextEntityId++));
+        PowerBlocksChanged();
         return true;
     }
 
@@ -3094,6 +3134,7 @@ public sealed class Factory : IGameView
 
         buildingsVersion++; // belts blend with generators
         generators.Add(new Generator(origin, direction, nextEntityId++));
+        PowerBlocksChanged();
         return true;
     }
 
@@ -3117,7 +3158,9 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        powerNodes.Add(new PowerNode(origin, id, nextEntityId++));
+        var node = new PowerNode(origin, id, nextEntityId++);
+        powerNodes.Add(node);
+        AutoLinkNode(node);
         return true;
     }
 
@@ -3129,8 +3172,142 @@ public sealed class Factory : IGameView
         }
 
         lamps.Add(new Lamp(origin, nextEntityId++));
+        PowerBlocksChanged();
         return true;
     }
+
+    private bool PlaceBattery(GridPosition origin, bool charge)
+    {
+        if (!CanOccupyFootprint(origin, Battery.Size) || (charge && !TryChargeBuilding(Battery.BuildingId)))
+        {
+            return false;
+        }
+
+        batteries.Add(new Battery(origin, nextEntityId++));
+        PowerBlocksChanged();
+        return true;
+    }
+
+    /// <summary>Recomputes the power networks after a power block was placed or taken away.</summary>
+    private void PowerBlocksChanged() => State.PowerGrid.Rebuild(State);
+
+    /// <summary>
+    /// Automatic lasers of a node that has just been built (spec «Rete di corrente»): first to the nodes in reach (its
+    /// range or theirs), nearest first and the lower id on a tie, while both have free links; then to the power blocks
+    /// in its range that are not already on its network, nearest first, while it has free links. A consumer already on
+    /// a network with a generator or a battery gets no laser: it has power. A generator or a battery does (one per
+    /// network: once linked, the rest of that network is on the node's own).
+    /// </summary>
+    public void AutoLinkNode(PowerNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        var grid = State.PowerGrid;
+        grid.Rebuild(State);
+        var range = PowerGrid.RangeOf(Content, node);
+        var maxLinks = PowerGrid.MaxLinksOf(Content, node);
+        var others = PowerGrid.Blocks(State)
+            .Where(b => b.Id != node.Id)
+            .Select(b => (Block: b, Gap: PowerGrid.EdgeGapSquared(node.Position, node.Size, b.Origin, b.Size)))
+            .OrderBy(c => c.Gap)
+            .ThenBy(c => c.Block.Id)
+            .ToList();
+
+        foreach (var (block, _) in others)
+        {
+            if (grid.LinksOf(node.Id) >= maxLinks)
+            {
+                return;
+            }
+
+            if (block.Kind != PowerBlockKind.Node || powerNodes.Find(n => n.Id == block.Id) is not { } other)
+            {
+                continue;
+            }
+
+            var reaches = PowerGrid.Reaches(node, range, block)
+                || PowerGrid.Reaches(other, PowerGrid.RangeOf(Content, other), NodeBlock(node));
+            if (reaches && grid.LinksOf(other.Id) < PowerGrid.MaxLinksOf(Content, other))
+            {
+                grid.AddLink(node.Id, other.Id);
+            }
+        }
+
+        grid.Rebuild(State);
+        foreach (var (block, _) in others)
+        {
+            if (grid.LinksOf(node.Id) >= maxLinks)
+            {
+                return;
+            }
+
+            if (block.Kind == PowerBlockKind.Node || !PowerGrid.Reaches(node, range, block))
+            {
+                continue;
+            }
+
+            var target = grid.NetworkOf(block.Id);
+            if (target is null
+                || ReferenceEquals(target, grid.NetworkOf(node.Id))
+                || (block.Kind == PowerBlockKind.Consumer && grid.HasSource(target)))
+            {
+                continue;
+            }
+
+            grid.AddLink(node.Id, block.Id);
+            grid.Rebuild(State);
+        }
+    }
+
+    /// <summary>
+    /// The "link/unlink" command: takes away the laser from <paramref name="fromNodeId"/> to <paramref name="toEntityId"/>
+    /// when it is there, otherwise adds it. Null when done, else the refusal (nothing changes).
+    /// </summary>
+    public Refusal? TogglePowerLink(long fromNodeId, long toEntityId)
+    {
+        var from = powerNodes.Find(n => n.Id == fromNodeId);
+        if (from is null)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        if (toEntityId == fromNodeId)
+        {
+            return RefusalCode.PowerLinkSameBlock;
+        }
+
+        if (PowerGrid.FindBlock(State, toEntityId) is not { } to)
+        {
+            return RefusalCode.PowerLinkNotPowerBlock;
+        }
+
+        var grid = State.PowerGrid;
+        if (grid.HasLink(fromNodeId, toEntityId))
+        {
+            grid.RemoveLink(fromNodeId, toEntityId);
+            grid.Rebuild(State);
+            return null;
+        }
+
+        var toNode = to.Kind == PowerBlockKind.Node ? powerNodes.Find(n => n.Id == toEntityId) : null;
+        var reaches = PowerGrid.Reaches(from, PowerGrid.RangeOf(Content, from), to)
+            || (toNode is not null && PowerGrid.Reaches(toNode, PowerGrid.RangeOf(Content, toNode), NodeBlock(from)));
+        if (!reaches)
+        {
+            return RefusalCode.PowerLinkOutOfRange;
+        }
+
+        if (grid.LinksOf(fromNodeId) >= PowerGrid.MaxLinksOf(Content, from)
+            || (toNode is not null && grid.LinksOf(toNode.Id) >= PowerGrid.MaxLinksOf(Content, toNode)))
+        {
+            return RefusalCode.PowerLinkNoFreeSlots;
+        }
+
+        grid.AddLink(fromNodeId, toEntityId);
+        grid.Rebuild(State);
+        return null;
+    }
+
+    private static PowerBlock NodeBlock(PowerNode node) => new(node.Id, node.Position, node.Size, PowerBlockKind.Node);
 
     /// <summary>
     /// Places a container or vault and recomputes the links: touching the Core it adds its space to every item's
@@ -3159,14 +3336,31 @@ public sealed class Factory : IGameView
         return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity);
     }
 
-    /// <summary>Removes the building on <paramref name="tile"/> without refund; returns its definition id.</summary>
+    /// <summary>
+    /// Removes the building on <paramref name="tile"/> without refund; returns its definition id. Its lasers go with
+    /// it and the power networks are recomputed.
+    /// </summary>
     private bool TryRemoveBuildingEntity(GridPosition tile, out string buildingId)
     {
+        if (!TryRemoveBuildingEntityOnly(tile, out buildingId, out var entityId))
+        {
+            return false;
+        }
+
+        State.PowerGrid.RemoveLinksOf(entityId);
+        PowerBlocksChanged();
+        return true;
+    }
+
+    private bool TryRemoveBuildingEntityOnly(GridPosition tile, out string buildingId, out long entityId)
+    {
         buildingsVersion++; // over-invalidating on a miss is harmless
+        entityId = 0;
         for (var i = miners.Count - 1; i >= 0; i--)
         {
             if (miners[i].OccupiedTiles().Contains(tile))
             {
+                entityId = miners[i].Id;
                 buildingId = miners[i].DefinitionId;
                 miners.RemoveAt(i);
                 return true;
@@ -3177,6 +3371,7 @@ public sealed class Factory : IGameView
         {
             if (smelters[i].Occupies(tile))
             {
+                entityId = smelters[i].Id;
                 buildingId = Crafter.SmelterBuildingId;
                 smelters.RemoveAt(i);
                 return true;
@@ -3187,6 +3382,7 @@ public sealed class Factory : IGameView
         {
             if (assemblers[i].Occupies(tile))
             {
+                entityId = assemblers[i].Id;
                 buildingId = Crafter.AssemblerBuildingId;
                 assemblers.RemoveAt(i);
                 return true;
@@ -3197,6 +3393,7 @@ public sealed class Factory : IGameView
         {
             if (generators[i].Occupies(tile))
             {
+                entityId = generators[i].Id;
                 buildingId = Generator.BuildingId;
                 generators.RemoveAt(i);
                 return true;
@@ -3207,6 +3404,7 @@ public sealed class Factory : IGameView
         {
             if (extractors[i].Occupies(tile))
             {
+                entityId = extractors[i].Id;
                 buildingId = Extractor.BuildingId;
                 extractors.RemoveAt(i);
                 return true;
@@ -3217,6 +3415,7 @@ public sealed class Factory : IGameView
         {
             if (powerNodes[i].Occupies(tile))
             {
+                entityId = powerNodes[i].Id;
                 buildingId = powerNodes[i].DefinitionId;
                 powerNodes.RemoveAt(i);
                 return true;
@@ -3227,8 +3426,20 @@ public sealed class Factory : IGameView
         {
             if (lamps[i].Occupies(tile))
             {
+                entityId = lamps[i].Id;
                 buildingId = Lamp.BuildingId;
                 lamps.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = batteries.Count - 1; i >= 0; i--)
+        {
+            if (batteries[i].Occupies(tile))
+            {
+                entityId = batteries[i].Id;
+                buildingId = Battery.BuildingId;
+                batteries.RemoveAt(i);
                 return true;
             }
         }
@@ -3238,6 +3449,7 @@ public sealed class Factory : IGameView
             if (storages[i].Occupies(tile))
             {
                 // Its contents are lost; a linked block takes its space away from the Core (the stock stays).
+                entityId = storages[i].Id;
                 buildingId = storages[i].StructureId;
                 storages.RemoveAt(i);
                 State.Storage.RecomputeLinks();

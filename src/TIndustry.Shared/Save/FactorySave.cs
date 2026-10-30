@@ -90,6 +90,8 @@ public sealed class FactorySaveData
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
     /// <summary>Lamps: null when there are none.</summary>
     public List<LampSaveDto>? Lamps { get; set; }
+    /// <summary>Batteries: null when there are none.</summary>
+    public List<BatterySaveDto>? Batteries { get; set; }
     /// <summary>Containers and vaults, in id order: null when there are none.</summary>
     public List<StorageSaveDto>? Storages { get; set; }
     public List<BeltSaveDto> Belts { get; set; } = [];
@@ -109,6 +111,13 @@ public sealed class GameRulesSaveDto
 }
 
 public sealed class LampSaveDto
+{
+    public long Id { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+}
+
+public sealed class BatterySaveDto
 {
     public long Id { get; set; }
     public int X { get; set; }
