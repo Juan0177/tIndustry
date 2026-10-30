@@ -105,11 +105,11 @@ Chiede corrente **solo di notte** (luce del mondo sotto la metà); di giorno non
 ## Uno schema semplice
 
 ```text
-nastro di carbone ──▶ [Generatore] ··· [Nodo] ··· [Nodo] ··· [Nodo] ··· [Forno]
-                                     6 celle   6 celle   6 celle
+nastro di carbone ──▶ [Generatore] ··· [Nodo] ··· [Nodo] ··· [Nodo] ··· [Nodo] ··· [Nodo] ··· [Forno]
+                                     6 celle   6 celle   6 celle   6 celle   6 celle   6 celle
 ```
 
-Il generatore si collega al primo nodo, i nodi fra loro, l'ultimo al forno: il forno a 30 celle va a corrente. Un forno messo a contatto diretto con il generatore non ha bisogno di nodi.
+Il generatore si collega al primo nodo, i nodi fra loro, l'ultimo al forno: con cinque nodi da 6 celle il forno a 30 celle va a corrente. Un forno messo a contatto diretto con il generatore non ha bisogno di nodi.
 
 ## Vedi anche
 

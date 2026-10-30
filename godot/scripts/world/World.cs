@@ -338,7 +338,7 @@ public partial class World : Node2D
             _hud?.SetPowerTooltip(null, default);
             _hud?.SetSelectionInfo(null);
             _hud?.SetPlacementHint(null);
-            _laserLayer?.QueueRedraw();
+            QueueLaserRedraw();
             return;
         }
 
@@ -374,7 +374,7 @@ public partial class World : Node2D
         CheckCampaignComplete();
         QueueRedraw();
         _placementOverlay?.QueueRedraw();
-        _laserLayer?.QueueRedraw();
+        QueueLaserRedraw();
     }
 
     /// <summary>

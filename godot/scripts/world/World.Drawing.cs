@@ -502,6 +502,21 @@ public partial class World
 
     private Node2D? _laserLayer;
 
+    // What the laser layer last drew: it is redrawn only when one of these changes.
+    private (object? View, bool InPlay, long? Node, int Structures, int Links, Color Colour)? _laserKey;
+
+    /// <summary>Queues a redraw of the laser layer only when something it shows has changed.</summary>
+    private void QueueLaserRedraw()
+    {
+        var key = (_view as object, GameInPlay, GameInPlay ? _selectedNode : null, _structureCount,
+            _view?.PowerLinks.Count ?? 0, UiColors.Energia);
+        if (_laserKey != key)
+        {
+            _laserKey = key;
+            _laserLayer?.QueueRedraw();
+        }
+    }
+
     /// <summary>The power node selected with the cursor (its range and lasers are shown; a click links or unlinks); null for none.</summary>
     private long? _selectedNode;
 
@@ -569,12 +584,13 @@ public partial class World
 
         var rects = PowerRects();
         var selected = GameInPlay ? _selectedNode : null;
+        var linkSet = selected is null ? null : new HashSet<(long, long)>(_view.PowerLinks);
         if (selected is { } node && rects.TryGetValue(node, out var nodeRect) && _view.PowerNodeLinksOf(node) is { } links)
         {
             DrawNodeRange(canvas, nodeRect, links.Range);
             foreach (var block in BlocksInRange(node))
             {
-                var linked = _view.PowerLinks.Contains((Math.Min(node, block.Id), Math.Max(node, block.Id)));
+                var linked = linkSet!.Contains((Math.Min(node, block.Id), Math.Max(node, block.Id)));
                 canvas.DrawRect(BlockRect(block).Grow(-2f), UiColors.Energia with { A = linked ? 0.95f : 0.4f }, filled: false,
                     width: 3f);
             }

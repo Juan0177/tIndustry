@@ -152,6 +152,7 @@ public partial class World
             || _view.TryGetSiteAt(hover, out _)
             || _view.PowerNetworkOf(hover) is not { } network)
         {
+            _powerTipKey = null;
             _hud.SetPowerTooltip(null, default);
             return;
         }
