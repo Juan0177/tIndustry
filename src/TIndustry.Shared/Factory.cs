@@ -2,20 +2,11 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Playable factory simulation: miners → belts → forni/assemblatori → core stock.
-/// Phase F: generators feed a shared power buffer; connected craft spends for +20%.
-/// Soft brownout: empty buffer → forno falls back to coal; assembler loses bonus.
+/// Power: generators, nodes, batteries and consumers form networks (<see cref="PowerGrid"/>), each with its own
+/// balance (<see cref="PowerSystem"/>).
 /// </summary>
 public sealed class Factory : IGameView
 {
-    /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
-    public const float CorePowerCapacity = GameState.CorePowerCapacity;
-    /// <summary>Raylib <c>FactoryWorld.CorePowerGeneration</c> (always ticks into buffer).</summary>
-    public const float CorePowerGeneration = GameState.CorePowerGeneration;
-    /// <summary>Raylib <c>FactoryWorld.SmelterPowerDraw</c> (per second while powered craft).</summary>
-    public const float SmelterPowerDraw = CraftingSystem.SmelterPowerDraw;
-    /// <summary>Raylib <c>FactoryWorld.AssemblerPowerDraw</c>.</summary>
-    public const float AssemblerPowerDraw = CraftingSystem.AssemblerPowerDraw;
-
     /// <summary>The whole simulation state; <see cref="Simulation.Step"/> advances it.</summary>
     public GameState State { get; }
 
@@ -96,22 +87,15 @@ public sealed class Factory : IGameView
         set => State.ActiveCampaignLevelId = value;
     }
 
-    /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
-    public float PowerBuffer
-    {
-        get => State.PowerBuffer;
-        private set => State.PowerBuffer = value;
-    }
+    public IReadOnlyList<(long A, long B)> PowerLinks => State.PowerGrid.Links;
 
-    /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
-    public float PowerCapacity
-    {
-        get => State.PowerCapacity;
-        private set => State.PowerCapacity = value;
-    }
+    public IReadOnlyList<PowerNetworkView> PowerNetworks =>
+        State.PowerGrid.Networks.Select(PowerNetworkView.Of).ToList();
 
-    /// <summary>Last tick generation rate (core + live gens).</summary>
-    public float PowerGenerationPerSecond => State.PowerGenerationPerSecond;
+    public PowerNetworkView? PowerNetworkOf(GridPosition tile) =>
+        TryGetSpecAt(tile, out _, out var id) && State.PowerGrid.NetworkOf(id) is { } network
+            ? PowerNetworkView.Of(network)
+            : null;
 
     public TerrainMap? Terrain
     {
@@ -780,8 +764,6 @@ public sealed class Factory : IGameView
             StartingMoney = Session.StartingMoney,
             ActiveCampaignLevelId = ActiveCampaignLevelId,
             Market = State.Exchange.Capture(),
-            PowerBuffer = PowerBuffer,
-            PowerCapacity = PowerCapacity,
             Seed = Terrain?.Seed ?? 0,
             MapWidth = Terrain?.Width ?? 0,
             MapHeight = Terrain?.Height ?? 0,
@@ -834,7 +816,7 @@ public sealed class Factory : IGameView
                 : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
             Batteries = batteries.Count == 0
                 ? null
-                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y }).ToList(),
+                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y, Charge = b.Charge }).ToList(),
             Storages = storages.Count == 0
                 ? null
                 : storages.OrderBy(s => s.Id).Select(s => new StorageSaveDto
@@ -1062,15 +1044,6 @@ public sealed class Factory : IGameView
 
         factory.State.FirstBuildTick = data.FirstBuildTick;
         factory.State.FirstAttackRaised = data.FirstAttackRaised;
-        // Capacity first, then the buffer clamped to it: SetPowerBuffer would clamp to the core-only
-        // capacity and silently drop stored energy above it.
-        if (data.PowerCapacity > 0f)
-        {
-            factory.PowerCapacity = Math.Max(CorePowerCapacity, data.PowerCapacity);
-        }
-
-        factory.PowerBuffer = Math.Clamp(data.PowerBuffer, 0f, factory.PowerCapacity);
-
         // Before the sites: restoring a site checks the terrain under it. The terrain was generated around the
         // starting shard, whatever the Core has grown into since.
         factory.Terrain = RestoreTerrain(content, data, StartingShard(content, data), mapsDirectory);
@@ -1148,7 +1121,10 @@ public sealed class Factory : IGameView
 
         foreach (var b in data.Batteries ?? [])
         {
-            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id)));
+            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id))
+            {
+                Charge = Math.Clamp(b.Charge, 0, Battery.CapacityOf(content))
+            });
         }
 
         foreach (var s in data.Storages ?? [])
@@ -3468,24 +3444,6 @@ public sealed class Factory : IGameView
 
     /// <summary>Advances the simulation by exactly one fixed tick (<see cref="SimulationClock.TickSeconds"/>).</summary>
     public void Step() => Simulation.Step(State);
-
-    public void SetPowerBuffer(float buffer) => State.SetPowerBuffer(buffer);
-
-    public void RecalculatePowerCapacity(int liveGeneratorCount) =>
-        State.RecalculatePowerCapacity(liveGeneratorCount);
-
-    /// <summary>Drain shared buffer; false on brownout (Raylib parity).</summary>
-    public bool TrySpendPower(float amount) => State.TrySpendPower(amount);
-
-    /// <summary>
-    /// Spend only when the building is adjacency/node-connected to a live generator.
-    /// </summary>
-    public bool TrySpendPowerForBuilding(
-        GridPosition origin,
-        int size,
-        float amount,
-        IReadOnlyList<Generator>? liveGens = null) =>
-        State.TrySpendPowerForBuilding(origin, size, amount, liveGens);
 
     /// <summary>
     /// Direct building→building (or building→core) when footprints touch (Raylib parity).

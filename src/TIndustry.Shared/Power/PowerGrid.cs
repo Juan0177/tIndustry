@@ -17,8 +17,63 @@ public readonly record struct PowerBlock(long Id, GridPosition Origin, int Size,
 /// <summary>
 /// One power network: the power blocks joined by contact (side against side) or by a laser, in id order.
 /// <see cref="Index"/> is its place in <see cref="PowerGrid.Networks"/> (ordered by the lowest member id).
+/// The balance of the last tick (<see cref="PowerSystem"/>) is in integers: rates in thousandths of a unit per second,
+/// charge in sixty-thousandths of a unit (one tick moves exactly a rate's worth of them), satisfaction in basis points.
 /// </summary>
-public sealed record PowerNetwork(int Index, IReadOnlyList<long> Members);
+public sealed class PowerNetwork
+{
+    private readonly List<Battery> batteries = [];
+
+    public PowerNetwork(int index, IReadOnlyList<long> members)
+    {
+        Index = index;
+        Members = members;
+    }
+
+    public int Index { get; }
+
+    /// <summary>Ids of the power blocks of this network, ascending.</summary>
+    public IReadOnlyList<long> Members { get; }
+
+    /// <summary>The batteries of this network, in id order.</summary>
+    public IReadOnlyList<Battery> Batteries => batteries;
+
+    /// <summary>Burning generators' output in the last balance, thousandths of a unit per second.</summary>
+    public long ProducedRate { get; internal set; }
+
+    /// <summary>Demand of the machines that wanted to work in the last balance, thousandths of a unit per second.</summary>
+    public long RequestedRate { get; internal set; }
+
+    /// <summary>
+    /// Share of the demand served in the last balance, 0–10 000 basis points: 10 000 when production and batteries
+    /// cover it (or nothing asks), else floor((produced + taken from the batteries) × 10 000 / requested).
+    /// </summary>
+    public int SatisfactionBp { get; internal set; }
+
+    /// <summary>Total charge of the batteries, sixty-thousandths of a unit.</summary>
+    public long Stored
+    {
+        get
+        {
+            long sum = 0;
+            foreach (var b in batteries)
+            {
+                sum += b.Charge;
+            }
+
+            return sum;
+        }
+    }
+
+    /// <summary>Total capacity of the batteries, sixty-thousandths of a unit.</summary>
+    public long Capacity { get; private set; }
+
+    internal void AddBattery(Battery battery, long capacity)
+    {
+        batteries.Add(battery);
+        Capacity += capacity;
+    }
+}
 
 /// <summary>
 /// The lasers between power nodes and other power blocks, and the networks they form with contact. The lasers are
@@ -193,6 +248,13 @@ public sealed class PowerGrid
             members.Add(blocks[i].Id);
         }
 
+        var batteryById = new Dictionary<long, Battery>(s.Batteries.Count);
+        foreach (var battery in s.Batteries)
+        {
+            batteryById[battery.Id] = battery;
+        }
+
+        var batteryCapacity = Battery.CapacityOf(s.Content);
         foreach (var root in rootOrder)
         {
             var network = new PowerNetwork(networks.Count, membersOfRoot[root]);
@@ -200,9 +262,15 @@ public sealed class PowerGrid
             foreach (var id in network.Members)
             {
                 networkOf[id] = network;
-                if (blocks[indexOf[id]].Kind is PowerBlockKind.Generator or PowerBlockKind.Battery)
+                var kind = blocks[indexOf[id]].Kind;
+                if (kind is PowerBlockKind.Generator or PowerBlockKind.Battery)
                 {
                     networksWithSource.Add(network.Index);
+                }
+
+                if (kind == PowerBlockKind.Battery)
+                {
+                    network.AddBattery(batteryById[id], batteryCapacity);
                 }
             }
         }

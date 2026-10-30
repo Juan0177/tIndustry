@@ -460,6 +460,14 @@ public partial class World
         }
     }
 
+    /// <summary>Charge of every battery, in units (sum over the power networks).</summary>
+    private static float StoredPowerUnits(IGameView view) =>
+        view.PowerNetworks.Sum(n => n.Stored) / (float)BuildingDefinition.ChargePerUnit;
+
+    /// <summary>Capacity of every battery, in units (sum over the power networks).</summary>
+    private static float PowerCapacityUnits(IGameView view) =>
+        view.PowerNetworks.Sum(n => n.Capacity) / (float)BuildingDefinition.ChargePerUnit;
+
     /// <summary>The Core maximum of an item, for the HUD (one delegate for the whole game).</summary>
     private Func<string, int>? _coreCapacityOf;
 
@@ -489,8 +497,8 @@ public partial class World
             _view.Wallet.Money,
             gensLive,
             _view.Generators.Count,
-            _view.PowerBuffer,
-            _view.PowerCapacity);
+            StoredPowerUnits(_view),
+            PowerCapacityUnits(_view));
         SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);

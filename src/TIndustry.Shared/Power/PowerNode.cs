@@ -1,9 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Power node: holds lasers to other power blocks (<see cref="PowerGrid"/>, range and links from the content).
-/// The old rule (a node next to a machine relays a live generator within <see cref="LinkRange"/>) still feeds the
-/// shared buffer until the per-network balance replaces it.
+/// Power node: holds lasers to other power blocks (<see cref="PowerGrid"/>, range and links from the content) and
+/// joins them in one network.
 /// </summary>
 public sealed class PowerNode
 {
@@ -61,38 +60,4 @@ public sealed class PowerNode
 
     public GridPosition CenterTile =>
         new(Position.X + (Size - 1) / 2, Position.Y + (Size - 1) / 2);
-
-    public bool IsWithinRange(GridPosition otherOrigin, int otherSize)
-    {
-        var ax = Position.X + (Size - 1) * 0.5f;
-        var ay = Position.Y + (Size - 1) * 0.5f;
-        var bx = otherOrigin.X + (otherSize - 1) * 0.5f;
-        var by = otherOrigin.Y + (otherSize - 1) * 0.5f;
-        var dx = ax - bx;
-        var dy = ay - by;
-        return dx * dx + dy * dy <= LinkRange * LinkRange;
-    }
-
-    /// <summary>True when this node sits next to a craft footprint (edge-adjacent).</summary>
-    public bool IsAdjacentTo(GridPosition craftOrigin, int craftSize)
-    {
-        foreach (var nodeTile in OccupiedTiles())
-        {
-            for (var y = 0; y < craftSize; y++)
-            {
-                for (var x = 0; x < craftSize; x++)
-                {
-                    var craftTile = new GridPosition(craftOrigin.X + x, craftOrigin.Y + y);
-                    var dx = Math.Abs(nodeTile.X - craftTile.X);
-                    var dy = Math.Abs(nodeTile.Y - craftTile.Y);
-                    if (dx + dy == 1)
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
 }

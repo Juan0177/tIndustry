@@ -101,24 +101,21 @@ public sealed class LampAndNightTests
         factory.RunSeconds(1f);
         Assert.False(lamp.IsLit);
 
-        // A burning generator next to it: lit, and it drains the shared buffer by its power use.
+        // A burning generator next to it: lit, and its power use is in the demand of its network.
+        var gen = factory.Generators.Count;
         Assert.True(factory.TryPlaceGenerator(new GridPosition(21, 20)));
-        factory.Generators[0].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
-        factory.SetPowerBuffer(10f);
-        var withLamp = Factory.Restore(Content, factory.Capture());
-        factory.RemoveInstant(lamp.Position, refund: false);
-        var withoutLamp = Factory.Restore(Content, factory.Capture());
-        withLamp.RunTicks(30);
-        withoutLamp.RunTicks(30);
-        Assert.True(withLamp.Lamps[0].IsLit);
-        var drawn = withoutLamp.PowerBuffer - withLamp.PowerBuffer;
-        Assert.InRange(drawn, 30 * SimulationClock.TickSeconds * 0.99f, 30 * SimulationClock.TickSeconds * 1.01f);
+        factory.Generators[gen].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        factory.RunTicks(30);
+        Assert.True(lamp.IsLit);
+        Assert.Equal(1f, lamp.Light);
+        var network = factory.PowerGrid.NetworkOf(lamp.Id)!;
+        Assert.Equal(1_000, network.RequestedRate);
+        Assert.Equal(10_000, network.SatisfactionBp);
 
-        // Brownout: an empty buffer and nothing burning leaves it dark again.
-        withLamp.Generators[0].RestoreFuel(0, 0f);
-        withLamp.SetPowerBuffer(0f);
-        withLamp.Step();
-        Assert.False(withLamp.Lamps[0].IsLit);
+        // Brownout: nothing burning and no battery leaves it dark again.
+        factory.Generators[gen].RestoreFuel(0, 0f);
+        factory.Step();
+        Assert.False(lamp.IsLit);
     }
 
     [Fact]
@@ -149,7 +146,6 @@ public sealed class LampAndNightTests
         Assert.True(factory.TryPlacePowerNode(new GridPosition(14, 10)));
         Assert.True(factory.PlaceInstant(new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, new GridPosition(15, 10), Direction.East), charge: false));
         factory.Generators[0].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
-        factory.SetPowerBuffer(10f);
         factory.RunTicks(2);
         Assert.True(factory.Lamps[0].IsLit);
     }

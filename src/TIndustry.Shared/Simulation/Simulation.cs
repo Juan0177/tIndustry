@@ -5,9 +5,6 @@ public sealed class SystemContext
 {
     /// <summary>Tick length in seconds (<see cref="Simulation.TickSeconds"/>).</summary>
     public float Dt { get; init; } = Simulation.TickSeconds;
-
-    /// <summary>Live generators, filled by the Power system for the systems after it.</summary>
-    public List<Generator> LiveGenerators { get; } = [];
 }
 
 public interface ISimulationSystem
@@ -27,13 +24,16 @@ public static class Simulation
     public const float TickSeconds = SimulationClock.TickSeconds;
 
     /// <summary>
-    /// Builder, Construct, Belt, Power, Mining, Crafting, Lighting, Extraction, Belt (settle, Dt 0), CoreDelivery, AutoSell, Market, DayNight (last).
+    /// Builder, Construct, Belt, PowerDemand, Power, Mining, Crafting, Lighting, Extraction, Belt (settle, Dt 0),
+    /// CoreDelivery, AutoSell, Market, DayNight (last). PowerDemand collects what the consumers ask, Power makes the
+    /// balance of each network, and Mining, Crafting and Lighting work with its satisfaction.
     /// </summary>
     public static IReadOnlyList<ISimulationSystem> Systems { get; } =
     [
         new BuilderSystem(),
         new ConstructSystem(),
         new BeltSystem(advance: true),
+        new PowerDemandSystem(),
         new PowerSystem(),
         new MiningSystem(),
         new CraftingSystem(),

@@ -71,7 +71,7 @@ public sealed class AgentGameTests
         Assert.Equal(48, stato.GetProperty("risorse").GetProperty("iron-ore").GetInt32());
         Assert.Equal(10, stato.GetProperty("risorse").GetProperty("copper-wire").GetInt32());
         var energia = stato.GetProperty("energia");
-        Assert.Equal(host.State.PowerCapacity, energia.GetProperty("capacita").GetSingle());
+        Assert.Equal(0d, energia.GetProperty("capacita").GetDouble()); // no battery yet
         Assert.True(energia.TryGetProperty("generazionePerSecondo", out _));
         Assert.Equal(0, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
         var corner = host.State.CoreTiles.OrderBy(t => t.Y).ThenBy(t => t.X).First();

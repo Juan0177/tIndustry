@@ -7,11 +7,6 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class GameState
 {
-    /// <summary>Raylib <c>FactoryWorld.CorePowerCapacity</c>.</summary>
-    public const float CorePowerCapacity = 24f;
-    /// <summary>Raylib <c>FactoryWorld.CorePowerGeneration</c> (always ticks into buffer).</summary>
-    public const float CorePowerGeneration = 12f;
-
     /// <summary>Next item id (field: passed by <c>ref</c> to buildings that emit items).</summary>
     public long NextItemId = 1;
     /// <summary>Next stable entity id (buildings and construction sites).</summary>
@@ -118,12 +113,6 @@ public sealed class GameState
     public GameRules Rules { get; set; } = new();
 
     public string? ActiveCampaignLevelId { get; set; }
-    /// <summary>Shared power buffer (Raylib parity). Recharges from core + live gens.</summary>
-    public float PowerBuffer { get; set; }
-    /// <summary>Max buffer: core capacity + live generators × CapacityBonus.</summary>
-    public float PowerCapacity { get; set; } = CorePowerCapacity;
-    /// <summary>Last tick generation rate (core + live gens).</summary>
-    public float PowerGenerationPerSecond { get; set; } = CorePowerGeneration;
     public long CoreDeliveredItems { get; set; }
     /// <summary>Fixed ticks simulated so far (<see cref="SimulationClock.TickSeconds"/> each).</summary>
     public long CurrentTick { get; set; }
@@ -167,57 +156,11 @@ public sealed class GameState
         Storage.RecomputeLinks();
     }
 
-    public void SetPowerBuffer(float buffer) =>
-        PowerBuffer = Math.Clamp(buffer, 0f, Math.Max(PowerCapacity, CorePowerCapacity));
-
-    public void RecalculatePowerCapacity(int liveGeneratorCount)
-    {
-        PowerCapacity = CorePowerCapacity
-            + Math.Max(0, liveGeneratorCount) * Generator.CapacityBonus;
-        PowerBuffer = Math.Min(PowerBuffer, PowerCapacity);
-    }
-
-    /// <summary>Drain shared buffer; false on brownout (Raylib parity).</summary>
-    public bool TrySpendPower(float amount)
-    {
-        if (amount <= 0f)
-        {
-            return true;
-        }
-
-        if (PowerBuffer < amount)
-        {
-            return false;
-        }
-
-        PowerBuffer -= amount;
-        return true;
-    }
-
     /// <summary>
-    /// Spend only when the building is adjacency/node-connected to a live generator.
+    /// Satisfaction of the network of power block <paramref name="entityId"/> in the last balance, 0–10 000 basis
+    /// points; 0 for anything that is on no network (not a power block).
     /// </summary>
-    public bool TrySpendPowerForBuilding(
-        GridPosition origin,
-        int size,
-        float amount,
-        IReadOnlyList<Generator>? liveGens = null)
-    {
-        if (amount <= 0f)
-        {
-            return true;
-        }
-
-        liveGens ??= Generators.Where(g => g.IsGenerating).ToList();
-        var connected = liveGens.Any(g => g.IsAdjacentTo(origin, size))
-            || IsPoweredViaNode(origin, size, liveGens);
-        if (!connected)
-        {
-            return false;
-        }
-
-        return TrySpendPower(amount);
-    }
+    public int SatisfactionOf(long entityId) => PowerGrid.NetworkOf(entityId)?.SatisfactionBp ?? 0;
 
     /// <summary>
     /// Direct building→building (or building→core) when footprints touch (Raylib parity).
@@ -307,33 +250,4 @@ public sealed class GameState
     /// False when the item is at its maximum: the caller keeps the piece.
     /// </summary>
     internal bool TryAcceptAtCore(string itemId) => Storage.TryAccept(itemId);
-
-    public bool IsPoweredViaNode(
-        GridPosition craftOrigin,
-        int craftSize,
-        IReadOnlyList<Generator> liveGens)
-    {
-        if (liveGens.Count == 0 || PowerNodes.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (var node in PowerNodes)
-        {
-            if (!node.IsAdjacentTo(craftOrigin, craftSize))
-            {
-                continue;
-            }
-
-            foreach (var gen in liveGens)
-            {
-                if (node.IsWithinRange(gen.Position, Generator.Size))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
 }

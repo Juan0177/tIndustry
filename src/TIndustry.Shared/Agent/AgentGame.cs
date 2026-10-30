@@ -468,11 +468,12 @@ public sealed class AgentGame : IDisposable
             ["tick"] = View.CurrentTick,
             ["soldi"] = View.Wallet.Money,
             ["risorse"] = resources,
+            // Totals over every power network, in units (the per-network view comes with the agents' commands).
             ["energia"] = new JsonObject
             {
-                ["accumulata"] = View.PowerBuffer,
-                ["capacita"] = View.PowerCapacity,
-                ["generazionePerSecondo"] = View.PowerGenerationPerSecond
+                ["accumulata"] = View.PowerNetworks.Sum(n => n.Stored) / (double)BuildingDefinition.ChargePerUnit,
+                ["capacita"] = View.PowerNetworks.Sum(n => n.Capacity) / (double)BuildingDefinition.ChargePerUnit,
+                ["generazionePerSecondo"] = View.PowerNetworks.Sum(n => n.ProducedRate) / 1000.0
             },
             ["ricerca"] = research,
             ["edifici"] = new JsonObject

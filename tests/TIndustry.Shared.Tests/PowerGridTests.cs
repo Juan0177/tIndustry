@@ -417,4 +417,366 @@ public sealed class PowerGridTests
 
         Assert.Equal(Run(), Run());
     }
+
+    // ---- Balance (Task 2): production, demand, satisfaction and batteries, per network. ----
+
+    private const long GeneratorRate = 30_000; // milli-units per second
+    private const long FornoRate = 8_000;
+    private const long FullBattery = 1000L * 60_000; // sixty-thousandths of a unit
+
+    private static Crafter Forno(Factory factory, long id) => factory.Smelters.Single(s => s.Id == id);
+
+    /// <summary>A forno at (x, y) with the ore of one smelt-iron and no coal: it wants power from the first tick.</summary>
+    private static long BusyForno(Factory factory, int x, int y)
+    {
+        var id = Place(factory, BuildingKind.Smelter, x, y);
+        var forno = Forno(factory, id);
+        Assert.True(forno.TryAccept("iron-ore") && forno.TryAccept("iron-ore"));
+        return id;
+    }
+
+    private static long BurningGenerator(Factory factory, int x, int y)
+    {
+        var id = Place(factory, BuildingKind.Generator, x, y);
+        factory.Generators.Single(g => g.Id == id).RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        return id;
+    }
+
+    private static Battery BatteryOf(Factory factory, long id) => factory.Batteries.Single(b => b.Id == id);
+
+    private static PowerNetwork Net(Factory factory, long id) =>
+        factory.PowerGrid.NetworkOf(id) ?? throw new InvalidOperationException($"{id} fuori rete");
+
+    [Fact]
+    public void OneGeneratorCoversThreeFornos()
+    {
+        var factory = Sandbox();
+        var gen = BurningGenerator(factory, X, Y);
+        var fornos = new[] { 2, 4, 6 }.Select(dx => BusyForno(factory, X + dx, Y)).ToArray();
+
+        factory.Step();
+
+        var net = Net(factory, gen);
+        Assert.Equal(GeneratorRate, net.ProducedRate);
+        Assert.Equal(3 * FornoRate, net.RequestedRate);
+        Assert.Equal(10_000, net.SatisfactionBp);
+        foreach (var id in fornos)
+        {
+            Assert.Same(net, Net(factory, id));
+            Assert.Equal(10_000, factory.State.SatisfactionOf(id));
+            Assert.True(Forno(factory, id).IsPowered);
+        }
+    }
+
+    [Fact]
+    public void OneGeneratorAndFiveFornosGiveThreeQuarters()
+    {
+        var factory = Sandbox();
+        var gen = BurningGenerator(factory, X, Y);
+        var fornos = new[] { 2, 4, 6, 8, 10 }.Select(dx => BusyForno(factory, X + dx, Y)).ToArray();
+
+        factory.Step();
+
+        var net = Net(factory, gen);
+        Assert.Equal(5 * FornoRate, net.RequestedRate);
+        Assert.Equal(7_500, net.SatisfactionBp);
+        // Every machine of the network gets the same share: 1.2 × 0.75 = 0.9 of the recipe speed.
+        var duration = Forno(factory, fornos[0]).Recipe.DurationSeconds;
+        foreach (var id in fornos)
+        {
+            Assert.Equal(7_500, factory.State.SatisfactionOf(id));
+            Assert.Equal(0.9f * SimulationClock.TickSeconds / duration, Forno(factory, id).Progress, 5);
+        }
+    }
+
+    [Fact]
+    public void NoDemandIsFullSatisfactionAndTheSurplusFillsTheBatteries()
+    {
+        var factory = Sandbox();
+        var gen = BurningGenerator(factory, X, Y);
+        var battery = Place(factory, BuildingKind.Battery, X + 2, Y);
+
+        factory.RunTicks(SimulationClock.TickRate);
+
+        var net = Net(factory, gen);
+        Assert.Same(net, Net(factory, battery));
+        Assert.Equal(0, net.RequestedRate);
+        Assert.Equal(10_000, net.SatisfactionBp);
+        Assert.Equal(GeneratorRate * SimulationClock.TickRate, BatteryOf(factory, battery).Charge);
+        Assert.Equal(BatteryOf(factory, battery).Charge, net.Stored);
+        Assert.Equal(FullBattery, net.Capacity);
+
+        // A network with nothing at all (one lone node) has nothing to divide by either.
+        var node = Place(factory, BuildingKind.PowerNode, X + 40, Y + 40);
+        factory.Step();
+        Assert.Equal(10_000, Net(factory, node).SatisfactionBp);
+    }
+
+    [Fact]
+    public void BatteriesStopAtTheirCapacity()
+    {
+        var factory = Sandbox();
+        BurningGenerator(factory, X, Y);
+        var battery = Place(factory, BuildingKind.Battery, X + 2, Y);
+        BatteryOf(factory, battery).Charge = FullBattery - 10_000;
+
+        factory.Step();
+
+        Assert.Equal(FullBattery, BatteryOf(factory, battery).Charge);
+    }
+
+    [Fact]
+    public void ABatteryCoversTheGapWhenTheCoalRunsOutThenEmpties()
+    {
+        var factory = Sandbox();
+        var gen = Place(factory, BuildingKind.Generator, X, Y); // no coal
+        var battery = Place(factory, BuildingKind.Battery, X, Y + 2);
+        var forno = BusyForno(factory, X + 2, Y);
+        BatteryOf(factory, battery).Charge = 2 * FornoRate + FornoRate / 2; // two ticks and a half
+
+        factory.Step();
+        Assert.Equal(10_000, Net(factory, gen).SatisfactionBp);
+        Assert.Equal(0, Net(factory, gen).ProducedRate);
+        Assert.Equal(FornoRate + FornoRate / 2, BatteryOf(factory, battery).Charge);
+
+        factory.Step();
+        Assert.Equal(10_000, Net(factory, gen).SatisfactionBp);
+        Assert.Equal(FornoRate / 2, BatteryOf(factory, battery).Charge);
+
+        // Half a tick left: half the demand, rounded down, and the battery stays empty.
+        factory.Step();
+        Assert.Equal(5_000, factory.State.SatisfactionOf(forno));
+        Assert.Equal(0, BatteryOf(factory, battery).Charge);
+
+        factory.Step();
+        Assert.Equal(0, factory.State.SatisfactionOf(forno));
+        Assert.False(Forno(factory, forno).IsPowered);
+        Assert.False(Forno(factory, forno).IsWorking);
+    }
+
+    [Fact]
+    public void SeparateNetworksDoNotHelpEachOther()
+    {
+        var factory = Sandbox();
+        // Network 1: a burning generator with a battery and nothing to feed.
+        var gen = BurningGenerator(factory, X, Y);
+        var fullOne = Place(factory, BuildingKind.Battery, X + 2, Y);
+        // Network 2, far away: an empty battery and a busy forno.
+        var emptyOne = Place(factory, BuildingKind.Battery, X + 40, Y);
+        var forno = BusyForno(factory, X + 41, Y);
+
+        factory.RunTicks(10);
+
+        Assert.NotSame(Net(factory, gen), Net(factory, forno));
+        Assert.Equal(10 * GeneratorRate, BatteryOf(factory, fullOne).Charge);
+        Assert.Equal(0, BatteryOf(factory, emptyOne).Charge);
+        Assert.Equal(0, factory.State.SatisfactionOf(forno));
+        Assert.Equal(FornoRate, Net(factory, forno).RequestedRate);
+    }
+
+    [Fact]
+    public void ChargeIsSplitByCapacityAndKeptWhenNetworksSplitOrJoin()
+    {
+        var factory = Sandbox();
+        var a = Place(factory, BuildingKind.Battery, X, Y);
+        var b = Place(factory, BuildingKind.Battery, X + 8, Y);
+        Place(factory, BuildingKind.PowerNode, X + 4, Y);
+        Assert.Same(Net(factory, a), Net(factory, b));
+        BatteryOf(factory, a).Charge = 1001;
+
+        factory.Step();
+        Assert.Equal(501, BatteryOf(factory, a).Charge); // the remainder goes to the lowest id
+        Assert.Equal(500, BatteryOf(factory, b).Charge);
+        Assert.Equal(1001, Net(factory, a).Stored);
+        Assert.Equal(2 * FullBattery, Net(factory, a).Capacity);
+
+        // Split: each battery keeps its own charge.
+        BatteryOf(factory, a).Charge = 700;
+        BatteryOf(factory, b).Charge = 300;
+        Assert.True(factory.TryRemoveBuildingAt(new GridPosition(X + 4, Y)));
+        factory.Step();
+        Assert.NotSame(Net(factory, a), Net(factory, b));
+        Assert.Equal(700, BatteryOf(factory, a).Charge);
+        Assert.Equal(300, BatteryOf(factory, b).Charge);
+
+        // Join again: the charge of the joined network is split by capacity.
+        Place(factory, BuildingKind.PowerNode, X + 4, Y);
+        factory.Step();
+        Assert.Equal(500, BatteryOf(factory, a).Charge);
+        Assert.Equal(500, BatteryOf(factory, b).Charge);
+    }
+
+    [Fact]
+    public void FornoWithCoalBurnsItBelowTheBreakEvenAndAsksForNothing()
+    {
+        var factory = Sandbox();
+        var gen = BurningGenerator(factory, X, Y);
+        var fornos = new[] { 2, 4, 6, 8, 10 }.Select(dx => BusyForno(factory, X + dx, Y)).ToArray();
+        var coal = Forno(factory, fornos[4]);
+        coal.SeedFuel(2);
+
+        factory.Step();
+
+        // With all five the share would be 75% (1.2 × 0.75 < 1): the forno with coal burns it and leaves the power.
+        var net = Net(factory, gen);
+        Assert.Equal(4 * FornoRate, net.RequestedRate);
+        Assert.Equal(9_375, net.SatisfactionBp);
+        Assert.False(coal.IsPowered);
+        Assert.True(coal.IsWorking);
+        Assert.True(coal.IsBurningFuel);
+        Assert.Equal(1, coal.FuelBuffer);
+        Assert.Equal(SimulationClock.TickSeconds / coal.Recipe.DurationSeconds, coal.Progress, 5);
+    }
+
+    [Fact]
+    public void FornoNextToTheCoreGetsNoPower()
+    {
+        var factory = Sandbox();
+        var core = factory.CoreTiles.Min(t => (t.X, t.Y));
+        var forno = BusyForno(factory, core.X - 2, core.Y);
+
+        factory.RunTicks(10);
+
+        Assert.Equal(0, factory.State.SatisfactionOf(forno));
+        Assert.Single(Net(factory, forno).Members);
+        Assert.Equal(0f, Forno(factory, forno).Progress);
+    }
+
+    [Fact]
+    public void MachinesOffTheGridHaveNoSatisfaction()
+    {
+        var factory = Sandbox();
+        Assert.Equal(0, factory.State.SatisfactionOf(987654));
+    }
+
+    [Fact]
+    public void AssemblerAtHalfPowerRunsAtOnePointOne()
+    {
+        var recipe = Content.FindRecipe("craft-copper-wire")!;
+        var assembler = new Crafter(new GridPosition(0, 0), Direction.East, recipe, Crafter.AssemblerBuildingId);
+        foreach (var input in recipe.Inputs)
+        {
+            for (var n = 0; n < input.Amount; n++)
+            {
+                Assert.True(assembler.TryAccept(input.ItemId));
+            }
+        }
+
+        long next = 1;
+        assembler.Tick(0.1f, new BeltGrid(), ref next, powerBp: 5_000);
+        Assert.Equal(0.1f * 1.1f / recipe.DurationSeconds, assembler.Progress, 5);
+        Assert.True(assembler.IsPowered);
+    }
+
+    [Fact]
+    public void FornoAtHalfPowerWithoutCoalRunsAtPointSix()
+    {
+        var recipe = Content.FindRecipe("smelt-iron")!;
+        var forno = new Crafter(new GridPosition(0, 0), Direction.East, recipe);
+        Assert.True(forno.TryAccept("iron-ore") && forno.TryAccept("iron-ore"));
+
+        long next = 1;
+        forno.Tick(0.1f, new BeltGrid(), ref next, powerBp: 5_000);
+        Assert.Equal(0.1f * 0.6f / recipe.DurationSeconds, forno.Progress, 5);
+        Assert.True(forno.IsPowered);
+    }
+
+    [Fact]
+    public void FornoAtHalfPowerWithCoalBurnsItAtOne()
+    {
+        var recipe = Content.FindRecipe("smelt-iron")!;
+        var forno = new Crafter(new GridPosition(0, 0), Direction.East, recipe);
+        Assert.True(forno.TryAccept("iron-ore") && forno.TryAccept("iron-ore"));
+        forno.SeedFuel(1);
+
+        long next = 1;
+        forno.Tick(0.1f, new BeltGrid(), ref next, powerBp: 5_000);
+        Assert.Equal(0.1f / recipe.DurationSeconds, forno.Progress, 5);
+        Assert.False(forno.IsPowered);
+        Assert.True(forno.IsBurningFuel);
+
+        // Above the break-even (1.2 × s ≥ 1) power wins over coal.
+        var fast = new Crafter(new GridPosition(0, 0), Direction.East, recipe);
+        Assert.True(fast.TryAccept("iron-ore") && fast.TryAccept("iron-ore"));
+        fast.SeedFuel(1);
+        fast.Tick(0.1f, new BeltGrid(), ref next, powerBp: 10_000);
+        Assert.Equal(0.1f * 1.2f / recipe.DurationSeconds, fast.Progress, 5);
+        Assert.True(fast.IsPowered);
+        Assert.Equal(1, fast.FuelBuffer);
+    }
+
+    [Fact]
+    public void AdvancedMinerAtHalfPowerIsTenPercentFaster()
+    {
+        Miner Make() => new(new GridPosition(0, 0), Direction.East, Miner.FootprintArea, "iron-ore", Miner.AdvancedId);
+        var half = Make();
+        var none = Make();
+        long next = 1;
+        half.Tick(0.1f, new BeltGrid(), ref next, powerBp: 5_000);
+        none.Tick(0.1f, new BeltGrid(), ref next, powerBp: 0);
+        Assert.Equal(none.Progress * 1.1f, half.Progress, 5);
+        Assert.True(half.IsPowered);
+        Assert.False(none.IsPowered);
+    }
+
+    [Fact]
+    public void LampAtHalfPowerGivesHalfTheLight()
+    {
+        var lamp = new Lamp(new GridPosition(0, 0));
+        lamp.Tick(5_000);
+        Assert.Equal(0.5f, lamp.Light);
+        Assert.True(lamp.IsLit);
+        lamp.Tick(0);
+        Assert.Equal(0f, lamp.Light);
+        Assert.False(lamp.IsLit);
+    }
+
+    [Fact]
+    public void RemovingAMiddleNodeSplitsTheBalanceInTheSameTick()
+    {
+        var factory = Sandbox();
+        var (gen, nodes, smelter) = Chain(factory);
+        factory.Generators.Single(g => g.Id == gen).RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        var forno = Forno(factory, smelter);
+        Assert.True(forno.TryAccept("iron-ore") && forno.TryAccept("iron-ore"));
+
+        factory.Step();
+        Assert.Equal(10_000, factory.State.SatisfactionOf(smelter));
+        Assert.Equal(FornoRate, Net(factory, gen).RequestedRate);
+
+        Assert.True(factory.TryRemoveBuildingAt(new GridPosition(X + 18, Y)));
+        factory.Step();
+        Assert.Equal(0, Net(factory, gen).RequestedRate);
+        Assert.Equal(10_000, Net(factory, gen).SatisfactionBp);
+        Assert.Equal(0, factory.State.SatisfactionOf(smelter));
+        Assert.False(forno.IsPowered);
+    }
+
+    [Fact]
+    public void BalanceIsTheSameEveryRunWhileNetworksSplitAndJoin()
+    {
+        byte[] Run()
+        {
+            var factory = Sandbox();
+            var (gen, _, smelter) = Chain(factory);
+            factory.Generators.Single(g => g.Id == gen).RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+            Place(factory, BuildingKind.Battery, X, Y + 2);
+            Place(factory, BuildingKind.Battery, X + 34, Y);
+            var forno = Forno(factory, smelter);
+            for (var round = 0; round < 3; round++)
+            {
+                forno.TryAccept("iron-ore");
+                forno.TryAccept("iron-ore");
+                factory.RunTicks(40);
+                Assert.True(factory.TryRemoveBuildingAt(new GridPosition(X + 18, Y)));
+                factory.RunTicks(40);
+                Place(factory, BuildingKind.PowerNode, X + 18, Y);
+                factory.RunTicks(40);
+            }
+
+            return Snapshot.Write(factory.State);
+        }
+
+        Assert.Equal(Run(), Run());
+    }
 }

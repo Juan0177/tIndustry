@@ -25,7 +25,6 @@ public sealed class FactorySelfTests
         nameof(FactoryScenarios.SelfTestJunctionSplitter),
         nameof(FactoryScenarios.SelfTestPowerStub),
         nameof(FactoryScenarios.SelfTestFuelOrPower),
-        nameof(FactoryScenarios.SelfTestPowerBuffer),
         nameof(FactoryScenarios.SelfTestAdjacentIo),
         nameof(FactoryScenarios.SelfTestMinerPower),
         nameof(FactoryScenarios.SelfTestSaveLoad),

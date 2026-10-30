@@ -1,5 +1,32 @@
 namespace TIndustry.Shared;
 
+/// <summary>
+/// A power network as the client sees it (last balance): rates in thousandths of a unit per second, charge and
+/// capacity in sixty-thousandths of a unit, satisfaction in basis points (0–10 000).
+/// </summary>
+public readonly record struct PowerNetworkView(
+    int Index,
+    int MemberCount,
+    long ProducedRate,
+    long RequestedRate,
+    int SatisfactionBp,
+    long Stored,
+    long Capacity)
+{
+    public static PowerNetworkView Of(PowerNetwork network)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return new PowerNetworkView(
+            network.Index,
+            network.Members.Count,
+            network.ProducedRate,
+            network.RequestedRate,
+            network.SatisfactionBp,
+            network.Stored,
+            network.Capacity);
+    }
+}
+
 /// <summary>Read-only wallet (implemented by <see cref="EconomyWallet"/>).</summary>
 public interface IWalletView
 {
@@ -81,7 +108,7 @@ public interface IGameView
 
     IReadOnlyList<PowerNode> PowerNodes { get; }
 
-    /// <summary>Lamps, in id order (lit = powered in the last tick).</summary>
+    /// <summary>Lamps, in id order (light = satisfaction of their network in the last tick).</summary>
     IReadOnlyList<Lamp> Lamps { get; }
 
     /// <summary>Batteries, in id order.</summary>
@@ -151,11 +178,14 @@ public interface IGameView
 
     TerrainMap? Terrain { get; }
 
-    float PowerBuffer { get; }
+    /// <summary>Lasers between power blocks as entity id pairs (<c>A &lt; B</c>), ordered.</summary>
+    IReadOnlyList<(long A, long B)> PowerLinks { get; }
 
-    float PowerCapacity { get; }
+    /// <summary>Every power network with its last balance, ordered by lowest member id.</summary>
+    IReadOnlyList<PowerNetworkView> PowerNetworks { get; }
 
-    float PowerGenerationPerSecond { get; }
+    /// <summary>The network of the power block covering <paramref name="tile"/>; null when there is none.</summary>
+    PowerNetworkView? PowerNetworkOf(GridPosition tile);
 
     string? ActiveCampaignLevelId { get; }
 

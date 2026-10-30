@@ -1,8 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Miners after gens so T2 can apply adjacency/node power the same tick. A connected, working T2 draws its power use
-/// from the shared buffer; without enough in it the +20% does not apply that tick.
+/// Miners after the power balance: a working T2 that asked for power gets the satisfaction of its network
+/// (speed 1 + 0.2 × s on top of its own); T1 is not a power block.
 /// </summary>
 public sealed class MiningSystem : ISimulationSystem
 {
@@ -10,19 +10,13 @@ public sealed class MiningSystem : ISimulationSystem
 
     public void Run(GameState state, SystemContext ctx)
     {
-        var liveGens = ctx.LiveGenerators;
         foreach (var miner in state.Miners)
         {
-            var connected = miner.CanReceivePower
-                && miner.IsWorking
-                && (liveGens.Any(g => g.IsAdjacentTo(miner.Position, Miner.Size))
-                    || state.IsPoweredViaNode(miner.Position, Miner.Size, liveGens))
-                && state.TrySpendPower((state.Content.FindBuilding(miner.DefinitionId)?.PowerUse ?? 0f) * ctx.Dt);
             miner.Tick(
                 ctx.Dt,
                 state.Belts,
                 ref state.NextItemId,
-                connected,
+                miner.PowerRequested ? state.SatisfactionOf(miner.Id) : 0,
                 itemId => state.TryDeliverAdjacent(miner.Position, Miner.Size, itemId));
         }
     }

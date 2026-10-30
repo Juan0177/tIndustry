@@ -56,8 +56,6 @@ public sealed class FactorySaveData
     public string? ActiveCampaignLevelId { get; set; }
     /// <summary>The market (prices, phases, random stream, history, auto-sell); a save without it is unreadable.</summary>
     public MarketSaveDto? Market { get; set; }
-    public float PowerBuffer { get; set; }
-    public float PowerCapacity { get; set; }
     /// <summary>Terrain seed (0 = no terrain).</summary>
     public int Seed { get; set; }
     public int MapWidth { get; set; }
@@ -122,6 +120,8 @@ public sealed class BatterySaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
+    /// <summary>Stored energy, sixty-thousandths of a unit (<see cref="Battery.Charge"/>).</summary>
+    public long Charge { get; set; }
 }
 
 /// <summary>A container or vault: kind name, origin and, when standalone, its contents in ordinal item order.</summary>

@@ -20,6 +20,20 @@ public sealed class Battery
 
     public GridPosition Position { get; }
 
+    /// <summary>
+    /// Stored energy in sixty-thousandths of a unit (<see cref="BuildingDefinition.ChargePerUnit"/>), 0 to
+    /// <see cref="CapacityOf"/>. Set by the balance of its network (<see cref="PowerSystem"/>) and by a restore.
+    /// </summary>
+    public long Charge { get; internal set; }
+
+    /// <summary>Charge of a full battery, from the content (the spec's 1 000 units for code-built content without one).</summary>
+    public static long CapacityOf(FactoryContent content) =>
+        (content.FindBuilding(BuildingId)?.PowerCapacity is > 0 and var units ? units : DefaultCapacity)
+        * BuildingDefinition.ChargePerUnit;
+
+    /// <summary>The spec's capacity in units, used when the content (built in code) does not give one.</summary>
+    public const int DefaultCapacity = 1000;
+
     public bool Occupies(GridPosition tile) => tile.Equals(Position);
 
     public IEnumerable<GridPosition> OccupiedTiles()

@@ -190,10 +190,29 @@ public sealed class DeterminismTests
     {
         var content = LoadContent();
         var original = Factory.CreateSorterBridgeDemo(content);
-        // Restore after tick 600: the generator has filled the power buffer beyond the core's own
-        // capacity by then, so the round trip also has to keep the stored energy.
+        // A battery against the generator: by tick 700 it holds charge, so the round trip also has to keep it.
+        original.Research.ForceUnlock(Battery.BuildingId);
+        var gen = original.Generators[0].Position;
+        var placed = false;
+        for (var k = 0; k < Generator.Size && !placed; k++)
+        {
+            foreach (var tile in new[]
+                     {
+                         new GridPosition(gen.X + k, gen.Y - 1), new GridPosition(gen.X + k, gen.Y + Generator.Size),
+                         new GridPosition(gen.X - 1, gen.Y + k), new GridPosition(gen.X + Generator.Size, gen.Y + k)
+                     })
+            {
+                if (original.PlaceInstant(new BuildSpec(Battery.BuildingId, BuildingKind.Battery, tile, Direction.East), charge: false))
+                {
+                    placed = true;
+                    break;
+                }
+            }
+        }
+
+        Assert.True(placed, "battery against the generator");
         original.RunTicks(700);
-        Assert.True(original.PowerBuffer > Factory.CorePowerCapacity, "power in play at restore");
+        Assert.True(original.Batteries[0].Charge > 0, "power in play at restore");
 
         var copy = Factory.Restore(content, original.Capture());
         Assert.Equal(Serialize(original), Serialize(copy));
