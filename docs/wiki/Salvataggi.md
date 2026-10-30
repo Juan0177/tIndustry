@@ -55,7 +55,7 @@ Ogni salvataggio è un file `.json`. Per fare una copia di sicurezza basta copia
 
 ## Compatibilità fra versioni
 
-I salvataggi sono alla **versione 16**.
+I salvataggi sono alla **versione 17**.
 
 | Versione del salvataggio | Si carica? |
 |---|---|

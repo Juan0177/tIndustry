@@ -48,7 +48,8 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.Generator, "generator", "7"),
         new(ToolKind.PowerNode, "power-node", ""),
         new(ToolKind.PowerNodeT2, "power-node-t2", ""),
-        new(ToolKind.Lamp, "lamp", "")
+        new(ToolKind.Lamp, "lamp", ""),
+        new(ToolKind.Battery, "battery", "")
     ];
 
     // Mindustry's cores, containers and vaults: a Core block shows only while it is the next tier (see World.SyncResearchLocks).
@@ -591,7 +592,8 @@ public partial class BuildPalette : PanelContainer
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             => BuildCategory.Production,
-        ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp => BuildCategory.Power,
+        ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp or ToolKind.Battery
+            => BuildCategory.Power,
         ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus => BuildCategory.Storage,
         _ => BuildCategory.Logistics
     };

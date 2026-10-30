@@ -20,7 +20,6 @@ internal static class FactoryScenarios
         var content = FactoryContent.Load(contentJsonPath);
         SelfTestPlaceCosts(contentJsonPath);
         SelfTestFuelOrPower(contentJsonPath);
-        SelfTestPowerBuffer(contentJsonPath);
         SelfTestAdjacentIo(contentJsonPath);
         SelfTestSaveManager(contentJsonPath);
         var factory = NewGame.Demo(content);
@@ -190,7 +189,7 @@ internal static class FactoryScenarios
         Assert(smelter.TryAccept("lead-ore"), "accept lead 2");
         Assert(!smelter.TryAccept("copper-ore"), "reject copper on forno");
         long next = 1;
-        smelter.Tick(0.05f, new BeltGrid(), ref next, networkConnected: true);
+        smelter.Tick(0.05f, new BeltGrid(), ref next, powerBp: 10_000);
         Assert(smelter.IsCrafting && smelter.Recipe.Id == "smelt-lead", "auto smelt-lead");
 
         var graphite = content.FindRecipe("craft-graphite");
@@ -209,7 +208,7 @@ internal static class FactoryScenarios
             }
         }
 
-        assy.Tick(0.05f, new BeltGrid(), ref next, networkConnected: true);
+        assy.Tick(0.05f, new BeltGrid(), ref next, powerBp: 10_000);
         Assert(assy.IsCrafting && assy.Recipe.Id == "craft-graphite", "auto craft-graphite");
 
         // Place API wires recipe lists.
@@ -463,7 +462,7 @@ internal static class FactoryScenarios
         // Stall: no coal, no power — craft starts but progress frozen.
         var stalled = new Crafter(new GridPosition(0, 0), Direction.East, recipe);
         Assert(stalled.TryAccept("iron-ore") && stalled.TryAccept("iron-ore"), "stall ore");
-        stalled.Tick(0.5f, belts, ref next, networkConnected: false);
+        stalled.Tick(0.5f, belts, ref next, powerBp: 0);
         Assert(stalled.IsCrafting, "stall crafting");
         Assert(stalled.Progress < 0.001f, "stall no progress");
 
@@ -471,14 +470,14 @@ internal static class FactoryScenarios
         var coalOnly = new Crafter(new GridPosition(2, 0), Direction.East, recipe);
         coalOnly.SeedFuel(2);
         Assert(coalOnly.TryAccept("iron-ore") && coalOnly.TryAccept("iron-ore"), "coal ore");
-        coalOnly.Tick(0.5f, belts, ref next, networkConnected: false);
+        coalOnly.Tick(0.5f, belts, ref next, powerBp: 0);
         Assert(coalOnly.IsCrafting && coalOnly.Progress > 0.1f, "coal advances");
         Assert(coalOnly.FuelBuffer < 2 || coalOnly.IsBurningFuel, "fuel consumed");
 
         // Powered (+20%) faster than coal-only.
         var powered = new Crafter(new GridPosition(4, 0), Direction.East, recipe);
         Assert(powered.TryAccept("iron-ore") && powered.TryAccept("iron-ore"), "power ore");
-        powered.Tick(0.5f, belts, ref next, networkConnected: true);
+        powered.Tick(0.5f, belts, ref next, powerBp: 10_000);
         Assert(powered.IsCrafting && powered.IsPowered, "powered craft");
         Assert(powered.Progress > coalOnly.Progress * 1.05f,
             $"power faster ({powered.Progress:F3} > coal {coalOnly.Progress:F3})");
@@ -522,91 +521,8 @@ internal static class FactoryScenarios
             Crafter.AssemblerBuildingId);
         Assert(!assy.UsesCoalOrPower, "assy no coal gate");
         Assert(assy.TryAccept("iron-plate") && assy.TryAccept("copper-ore"), "assy inputs");
-        assy.Tick(0.5f, belts, ref next, networkConnected: false);
+        assy.Tick(0.5f, belts, ref next, powerBp: 0);
         Assert(assy.IsCrafting && assy.Progress > 0.05f, "assy crafts without fuel");
-    }
-
-    /// <summary>P1.4: capacity/buffer recharge + soft brownout spend gate (Raylib parity thin).</summary>
-    public static void SelfTestPowerBuffer(string contentJsonPath)
-    {
-        var content = FactoryContent.Load(contentJsonPath);
-        var recipe = content.FindRecipe("smelt-iron")
-            ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
-        var core = CoreStockSink.MakeCoreTiles(new GridPosition(9, 14));
-        var factory = new Factory(content, new BeltGrid(), core);
-        factory.UnlockAllForDemo();
-
-        Assert(Math.Abs(factory.PowerCapacity - CorePowerCapacity) < 0.01f, "core capacity");
-        Assert(factory.PowerBuffer < 0.01f, "buffer starts empty");
-
-        // Core generation alone recharges toward CorePowerCapacity.
-        for (var i = 0; i < SimulationClock.TickRate * 3; i++)
-        {
-            factory.Step();
-        }
-
-        Assert(factory.PowerBuffer > 5f, "core gen fills buffer");
-        Assert(factory.PowerCapacity <= CorePowerCapacity + 0.01f, "no gen → core cap");
-
-        Assert(factory.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen");
-        Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
-        Assert(factory.Generators[0].TryAcceptFuel("coal"), "fuel");
-        Assert(factory.Generators[0].TryAcceptFuel("coal"), "fuel2");
-
-        // Live gen expands capacity.
-        // Was 5 × Tick(1/30 s): same 5/30 s as 10 fixed 1/60 s ticks.
-        for (var i = 0; i < 10; i++)
-        {
-            factory.Step();
-        }
-
-        Assert(factory.Generators[0].IsGenerating, "gen burning");
-        Assert(factory.PowerCapacity >= CorePowerCapacity + Generator.CapacityBonus - 0.01f,
-            "capacity + gen bonus");
-        Assert(factory.PowerGenerationPerSecond
-            >= CorePowerGeneration + Generator.GenerationPerSecond - 0.01f,
-            "gen rate");
-
-        // Connected craft spends buffer.
-        var sm = factory.Smelters[0];
-        Assert(sm.TryAccept("iron-ore") && sm.TryAccept("iron-ore"), "ore");
-        var before = factory.PowerBuffer;
-        // Was 10 × Tick(1/30 s): same 10/30 s as 20 fixed 1/60 s ticks.
-        for (var i = 0; i < 20; i++)
-        {
-            factory.Step();
-        }
-
-        Assert(sm.IsCrafting && sm.IsPowered, "powered while buffer ok");
-        Assert(factory.PowerBuffer < before + Generator.GenerationPerSecond,
-            "spend drains vs unbounded fill");
-
-        // Soft brownout: empty buffer + no coal → craft stalls.
-        var brown = new Factory(content, new BeltGrid(), core);
-        brown.UnlockAllForDemo();
-        Assert(brown.TryPlaceSmelter(new GridPosition(1, 1), Direction.East, recipe), "brown forno");
-        brown.SetPowerBuffer(0f);
-        var bSm = brown.Smelters[0];
-        Assert(bSm.TryAccept("iron-ore") && bSm.TryAccept("iron-ore"), "brown ore");
-        long next = brown.NextItemId;
-        bSm.Tick(0.5f, brown.Belts, ref next, networkConnected: true,
-            trySpendPower: brown.TrySpendPower, powerDrawPerSecond: SmelterPowerDraw);
-        Assert(bSm.IsCrafting && !bSm.IsPowered && bSm.Progress < 0.001f, "brownout stall");
-
-        // Same forno with coal advances under brownout.
-        bSm.SeedFuel(2);
-        var prog0 = bSm.Progress;
-        bSm.Tick(0.5f, brown.Belts, ref next, networkConnected: true,
-            trySpendPower: brown.TrySpendPower, powerDrawPerSecond: SmelterPowerDraw);
-        Assert(bSm.Progress > prog0 + 0.1f, "coal under brownout");
-
-        // Save/restore buffer.
-        factory.SetPowerBuffer(18.5f);
-        var snap = factory.Capture();
-        Assert(Math.Abs(snap.PowerBuffer - 18.5f) < 0.01f, "capture buffer");
-        Assert(snap.Version == FactorySaveData.CurrentVersion, "save v7");
-        var restored = Restore(content, snap);
-        Assert(Math.Abs(restored.PowerBuffer - 18.5f) < 0.01f, "restore buffer");
     }
 
     /// <summary>Building→building / building→core transfer when footprints touch (no belts).</summary>

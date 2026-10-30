@@ -56,6 +56,10 @@ I livelli della **Campagna** hanno mappe prestabilite, più piccole all'inizio (
 
 Il mondo ha un ciclo di **giorno (10 minuti) e notte (4 minuti)**, con alba e tramonto sfumati di 20 secondi; il tempo parte dal primo blocco piazzato. Una riga sotto le risorse del CORE dice quanto manca alla notte o al giorno (si ferma con la pausa). Nella schermata Nuova partita due caselle che si escludono cambiano il tempo: **Solo giorno (Pacifica)** (sempre giorno, nessun contatore) e **Solo notte** (sempre buio; la riga conta 10 minuti fino al primo attacco, poi «Attacco!» per 5 secondi; gli attacchi veri arriveranno con l'aspetto 13). Al buio contano le luci dei blocchi (Core, forni al lavoro, generatori accesi, droni) e le **Lampade**, che consumano corrente anche di giorno ma la loro luce si vede quando la luce del mondo scende sotto la metà. I livelli 1–3 della Campagna sono solo giorno, il 6 (*Corrente*) e il 10 (*Espansione T2*) solo notte, gli altri hanno il ciclo. La **Lampada** (1×1, categoria Potenza, si sblocca nella Ricerca dopo il Nodo T1; costa 2 lastre di ferro e 1 filo di rame) si accende solo se è collegata come forni e assemblatori (generatore vivo adiacente o nodo in raggio) e consuma 1 unità di corrente al secondo; spenta non fa luce. Di notte sui prati compaiono anche le lucciole (solo con Effetti Alti).
 
+### Rete di corrente
+
+Generatori, nodi, Batterie e le macchine che consumano corrente formano una **rete**: i blocchi che si toccano lato contro lato sono collegati, gli altri si collegano con i **laser dei nodi** (Nodo T1: raggio 6, 6 collegamenti; Nodo T2: raggio 10, 10 collegamenti; il raggio si misura fra i bordi dei blocchi). Un nodo nuovo si collega da solo ai nodi e ai blocchi vicini. Per cambiare: **clic sul nodo** (si vedono il raggio e i collegamenti usati, per esempio 3/6), poi **clic su un blocco di corrente** nel raggio per collegarlo o scollegarlo; **Esc** deseleziona. Un collegamento rifiutato dice il motivo (fuori raggio, nodo senza collegamenti liberi, stesso blocco). Il suggerimento su un blocco di corrente riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie. La **Batteria** (1×1, capacità 1.000, in Ricerca) mostra la carica con una barra. Se la corrente non basta, tutte le macchine della rete rallentano della stessa percentuale. Regole e numeri: Wiki, pagina Energia.
+
 ## Controlli build
 
 **Cursore** (default, categoria Strumenti) · 1–9 tools · **Esc** / riesci tool → cursore · **R** ruota · **C** cicla filtro · click pianifica · trascina col sinistro una linea (anteprima, piani al rilascio; **Ctrl** percorso, **R** a metà fissa la direzione, **Esc** o destro annullano) · **destro** cancella o smonta, trascinato un rettangolo · **centrale** prende il blocco sotto il cursore · pan: **WASD**, rotella premuta, o trascina col sinistro in modalità cursore · rotella ruota il blocco orientabile in mano, altrimenti (o con **Ctrl**) zoom · **H** torna al CORE
@@ -159,7 +163,7 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 16 (metadati + istantanea, con il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 17 (metadati + istantanea, con il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
 Salva nastri (con oggetti, partner del ponte, filtro del selezionatore), edifici, denaro, `nextItemId`, Core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
 ## Progetti
@@ -174,7 +178,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 16) include `unlockedStructures` e lo stato del Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 17) include `unlockedStructures` e lo stato del Mercato.
 
 ## Mercato
 
@@ -190,8 +194,8 @@ Ogni oggetto ha un prezzo suo, come un titolo in borsa:
 - la **vendita automatica** (un interruttore per oggetto) vende dal magazzino al prezzo minimo, 10, 25 o 60 pezzi al secondo secondo il CORE: non muove il mercato, ma neppure coglie i picchi; con la spunta «solo a CORE pieno» vende solo quando l'oggetto è al massimo;
 - il **magazzino ha un massimo** per oggetto (1.000 / 4.000 / 12.000 secondo il CORE, più container e vault collegati): a oggetto pieno la linea si ferma.
 
-Il salvataggio (versione 16) include lo stato di tutti i mercati.
+Il salvataggio (versione 17) include lo stato di tutti i mercati.
 
 ## Campagna
 
-**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 16).
+**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 17).

@@ -22,7 +22,7 @@ Quasi sempre è un **Nastro rinforzato**: prende dagli altri nastri da ogni lato
 
 ## Perché il forno non va più veloce con la corrente?
 
-Il blocco deve **toccare** un generatore acceso, oppure toccare un **nodo** che abbia un generatore acceso nel suo raggio (6 celle il Nodo T1, 10 il Nodo T2). I nodi non si passano la corrente fra loro: ogni nodo deve vedere un generatore. Il generatore deve avere carbone, altrimenti è spento. Se la riserva di energia non basta, il forno torna a bruciare carbone.
+Il blocco deve stare nella **stessa rete** di un generatore acceso: o lo **tocca**, o è collegato con un laser a un nodo (raggio 6 celle il Nodo T1, 10 il Nodo T2, misurato fra i bordi) e i nodi si passano la corrente in catena. Un nodo ha un numero massimo di collegamenti (6 il T1, 10 il T2): clicca il nodo e poi il blocco per collegarlo a mano. Il generatore deve avere carbone, altrimenti è spento. Se la corrente della rete non basta, tutte le sue macchine rallentano insieme; il forno con carbone torna a bruciarlo. Una Batteria aiuta a coprire i buchi (vedi [Energia](Energia)).
 
 ## Perché il drone non finisce il blocco?
 

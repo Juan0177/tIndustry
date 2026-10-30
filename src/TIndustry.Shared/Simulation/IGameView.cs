@@ -1,5 +1,35 @@
 namespace TIndustry.Shared;
 
+/// <summary>
+/// A power network as the client sees it (last balance): rates in thousandths of a unit per second, charge and
+/// capacity in sixty-thousandths of a unit, satisfaction in basis points (0–10 000).
+/// </summary>
+public readonly record struct PowerNetworkView(
+    int Index,
+    int MemberCount,
+    long ProducedRate,
+    long RequestedRate,
+    int SatisfactionBp,
+    long Stored,
+    long Capacity)
+{
+    public static PowerNetworkView Of(PowerNetwork network)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return new PowerNetworkView(
+            network.Index,
+            network.Members.Count,
+            network.ProducedRate,
+            network.RequestedRate,
+            network.SatisfactionBp,
+            network.Stored,
+            network.Capacity);
+    }
+}
+
+/// <summary>A power node's lasers as the client sees them: used, maximum, and range in cells.</summary>
+public readonly record struct PowerNodeLinks(long NodeId, int Used, int Max, int Range);
+
 /// <summary>Read-only wallet (implemented by <see cref="EconomyWallet"/>).</summary>
 public interface IWalletView
 {
@@ -81,8 +111,11 @@ public interface IGameView
 
     IReadOnlyList<PowerNode> PowerNodes { get; }
 
-    /// <summary>Lamps, in id order (lit = powered in the last tick).</summary>
+    /// <summary>Lamps, in id order (light = satisfaction of their network in the last tick).</summary>
     IReadOnlyList<Lamp> Lamps { get; }
+
+    /// <summary>Batteries, in id order.</summary>
+    IReadOnlyList<Battery> Batteries { get; }
 
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
@@ -148,11 +181,29 @@ public interface IGameView
 
     TerrainMap? Terrain { get; }
 
-    float PowerBuffer { get; }
+    /// <summary>Lasers between power blocks as entity id pairs (<c>A &lt; B</c>), ordered.</summary>
+    IReadOnlyList<(long A, long B)> PowerLinks { get; }
 
-    float PowerCapacity { get; }
+    /// <summary>Every power network with its last balance, ordered by lowest member id.</summary>
+    IReadOnlyList<PowerNetworkView> PowerNetworks { get; }
 
-    float PowerGenerationPerSecond { get; }
+    /// <summary>The network of the power block covering <paramref name="tile"/>; null when there is none.</summary>
+    PowerNetworkView? PowerNetworkOf(GridPosition tile);
+
+    /// <summary>Every power block (generators, nodes, batteries, consumers), in id order (<see cref="PowerGrid.Blocks"/>).</summary>
+    IReadOnlyList<PowerBlock> PowerBlocks { get; }
+
+    /// <summary>The power block covering <paramref name="tile"/>; null when there is none (or a site stands there).</summary>
+    PowerBlock? PowerBlockAt(GridPosition tile);
+
+    /// <summary>Lasers used, lasers it can hold and range of the power node <paramref name="nodeId"/>; null for anything else.</summary>
+    PowerNodeLinks? PowerNodeLinksOf(long nodeId);
+
+    /// <summary>
+    /// True when a laser from the node <paramref name="fromNodeId"/> reaches the power block <paramref name="toEntityId"/>
+    /// (the range rule of <see cref="TogglePowerLink"/>, never a copy of it in the client).
+    /// </summary>
+    bool PowerLinkInRange(long fromNodeId, long toEntityId);
 
     string? ActiveCampaignLevelId { get; }
 

@@ -550,6 +550,7 @@ public partial class World
             Hud.ToolKind.PowerNode,
             Hud.ToolKind.PowerNodeT2,
             Hud.ToolKind.Lamp,
+            Hud.ToolKind.Battery,
             Hud.ToolKind.Container,
             Hud.ToolKind.Vault,
             Hud.ToolKind.CoreFoundation,

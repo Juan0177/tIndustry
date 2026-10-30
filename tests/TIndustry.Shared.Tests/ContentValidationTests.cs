@@ -187,6 +187,34 @@ public sealed class ContentValidationTests
     }
 
     [Fact]
+    public void PowerBlocksHaveTheNumbersOfThePowerNetwork()
+    {
+        // Spec 2026-10-30 «Rete di corrente»: output and uses per second, node range and links, battery.
+        Assert.Equal(30f, Content.FindBuilding(Generator.BuildingId)!.PowerOutput);
+        Assert.Equal(8f, Content.FindBuilding(Crafter.SmelterBuildingId)!.PowerUse);
+        Assert.Equal(10f, Content.FindBuilding(Crafter.AssemblerBuildingId)!.PowerUse);
+        Assert.Equal(0.5f, Content.FindBuilding(Miner.AdvancedId)!.PowerUse);
+        Assert.Equal(1f, Content.FindBuilding(Lamp.BuildingId)!.PowerUse);
+
+        var node = Content.FindBuilding(PowerNode.Tier1Id)!;
+        Assert.Equal((6, 6), (node.PowerLinkRange, node.MaxPowerLinks));
+        var nodeT2 = Content.FindBuilding(PowerNode.Tier2Id)!;
+        Assert.Equal((10, 10), (nodeT2.PowerLinkRange, nodeT2.MaxPowerLinks));
+
+        var battery = Content.FindBuilding(Battery.BuildingId)!;
+        Assert.Equal(1000, battery.PowerCapacity);
+        Assert.Equal([new ResourceAmount("lead-plate", 10), new ResourceAmount("copper-wire", 4)], battery.BuildCost);
+        var structure = Content.RequireStructure(Battery.BuildingId);
+        Assert.Equal("Batteria", structure.DisplayName);
+        Assert.False(structure.UnlockedByDefault);
+        Assert.Equal([PowerNode.Tier1Id], structure.Prerequisites);
+        Assert.Equal(300, structure.Unlock!.Money);
+        Assert.Equal(
+            [new ResourceAmount("lead-plate", 10), new ResourceAmount("copper-wire", 5)],
+            structure.Unlock.Materials);
+    }
+
+    [Fact]
     public void CampaignRefundPercentsAreInRange()
     {
         var catalog = CampaignCatalog.Load(Path.Combine(DataDir, "campaign.json"));

@@ -181,22 +181,27 @@ public sealed class SnapshotTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void SnapshotKeepsStoredPowerAboveCoreCapacity()
+    public void SnapshotKeepsTheBatteriesCharge()
     {
         var content = FactoryContent.Load(Path.Combine(AppContext.BaseDirectory, "data", "content.json"));
-        var host = new SimHost(Factory.CreatePhaseFDemo(content));
-        for (var i = 0; i < 900 && host.State.PowerBuffer <= Factory.CorePowerCapacity; i++)
+        var factory = Factory.CreatePhaseFDemo(content);
+        factory.Research.ForceUnlock(Battery.BuildingId);
+        var gen = factory.Generators[0].Position;
+        Assert.True(
+            factory.PlaceInstant(new BuildSpec(Battery.BuildingId, BuildingKind.Battery, new GridPosition(gen.X - 1, gen.Y), Direction.East), charge: false)
+            || factory.PlaceInstant(new BuildSpec(Battery.BuildingId, BuildingKind.Battery, new GridPosition(gen.X + Generator.Size, gen.Y), Direction.East), charge: false),
+            "battery against the generator");
+        var host = new SimHost(factory);
+        for (var i = 0; i < 900 && factory.Batteries[0].Charge == 0; i++)
         {
             host.Advance(SimulationClock.TickSeconds);
         }
 
-        // A running generator raises the capacity and lets the buffer grow past the core's own 24.
-        Assert.True(host.State.PowerBuffer > Factory.CorePowerCapacity, "buffer above core capacity");
+        Assert.True(factory.Batteries[0].Charge > 0, "charge in the battery");
 
         var copy = SimHost.FromSnapshot(content, host.CreateSnapshot());
 
-        Assert.Equal(host.State.PowerBuffer, copy.State.PowerBuffer);
-        Assert.Equal(host.State.PowerCapacity, copy.State.PowerCapacity);
+        Assert.Equal(factory.Batteries[0].Charge, copy.State.Batteries[0].Charge);
         Assert.Equal(host.Checksum(), copy.Checksum());
     }
 }

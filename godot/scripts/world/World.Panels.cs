@@ -247,6 +247,13 @@ public partial class World
         {
             QuitGame();
         }
+        else if (what == NotificationTranslationChanged)
+        {
+            // The cached power texts are in the old language.
+            _selectionText = null;
+            _powerTipText = null;
+            _powerTipKey = null;
+        }
         else if (what == NotificationApplicationFocusOut)
         {
             CancelDrags(); // the release would never arrive: the drags send nothing

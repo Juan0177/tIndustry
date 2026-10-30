@@ -1,9 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// 2×2 generator that burns coal from belts and
-/// feeds the factory power buffer (capacity/generation) while marking
-/// adjacent craft as network-connected for TrySpendPower.
+/// 2×2 generator that burns coal from belts; while burning it gives its network
+/// <see cref="BuildingDefinition.PowerOutput"/> (spec «Rete di corrente», balance in <see cref="PowerSystem"/>).
 /// </summary>
 public sealed class Generator
 {
@@ -12,12 +11,13 @@ public sealed class Generator
     public const string FuelItemId = "coal";
     public const int FuelBufferCapacity = 8;
     public const float SecondsPerFuel = 8f;
-    public const float PoweredCraftSpeedMultiplier = 1.20f;
 
-    /// <summary>Raylib parity: capacity added per live (burning) generator.</summary>
-    public const float CapacityBonus = 40f;
-    /// <summary>Raylib parity: watts added to the shared buffer while burning.</summary>
-    public const float GenerationPerSecond = 28f;
+    /// <summary>The spec's output in units per second, used when the content (built in code) does not give one.</summary>
+    public const int DefaultPowerOutput = 30;
+
+    /// <summary>Output of a burning generator in thousandths of a unit per second (content, or <see cref="DefaultPowerOutput"/>).</summary>
+    public static long OutputRateOf(FactoryContent content) =>
+        content.FindBuilding(BuildingId)?.PowerOutputRate is > 0 and var rate ? rate : DefaultPowerOutput * 1000L;
 
     public Generator(GridPosition position, Direction direction = Direction.East, long id = 0)
     {

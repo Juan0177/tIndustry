@@ -32,6 +32,7 @@ public partial class Hud : Control
         PowerNode,
         PowerNodeT2,
         Lamp,
+        Battery,
         Container,
         Vault,
         CoreFoundation,
@@ -69,6 +70,10 @@ public partial class Hud : Control
     private const double ToastHold = 1.6;
     private const double ToastFade = 0.45;
     private Label? _placementHint;
+    private PanelContainer? _powerTip;
+    private Label? _powerTipLabel;
+    private string? _powerTipText;
+    private Label? _selectionInfo;
 
     public event Action<ToolKind>? ToolChosen;
     public event Action? ResearchRequested;
@@ -126,6 +131,8 @@ public partial class Hud : Control
         BuildToast();
         BuildPlacementHint();
         BuildSiteTooltip();
+        BuildPowerTooltip();
+        BuildSelectionInfo();
         SetSelectedTool(ToolKind.Cursor);
         SetDirectionLabel(Direction.East);
         ClearObjectives();
@@ -277,6 +284,51 @@ public partial class Hud : Control
     }
 
     /// <summary>
+    /// Tooltip beside the mouse at <paramref name="mouse"/> (viewport coordinates) over a power block: production,
+    /// consumption, satisfaction and batteries of its network; null hides it. The text is set only when it changes.
+    /// </summary>
+    public void SetPowerTooltip(string? text, Vector2 mouse)
+    {
+        if (_powerTip is null || _powerTipLabel is null)
+        {
+            return;
+        }
+
+        if (text is null)
+        {
+            _powerTip.Visible = false;
+            return;
+        }
+
+        if (!string.Equals(_powerTipText, text, StringComparison.Ordinal))
+        {
+            _powerTipText = text;
+            _powerTipLabel.Text = text;
+            _powerTip.ResetSize();
+        }
+
+        _powerTip.Position = UiScale.ToUi(mouse) + new Vector2(16, 18);
+        _powerTip.Visible = true;
+    }
+
+    /// <summary>
+    /// Line above the bottom hint about the selected power node ("Nodo T1 · collegamenti 3/6 · …"); null hides it.
+    /// </summary>
+    public void SetSelectionInfo(string? text)
+    {
+        if (_selectionInfo is null)
+        {
+            return;
+        }
+
+        _selectionInfo.Visible = text is not null;
+        if (text is not null && !string.Equals(_selectionInfo.Text, text, StringComparison.Ordinal))
+        {
+            _selectionInfo.Text = text;
+        }
+    }
+
+    /// <summary>
     /// Bottom hint under the toast line: why the ghost under the mouse is refused by the terrain ("C'è una parete",
     /// "Acqua profonda"); null hides it. The text is set only when it changes.
     /// </summary>
@@ -372,6 +424,7 @@ public partial class Hud : Control
         ToolKind.PowerNode => "power-node",
         ToolKind.PowerNodeT2 => "power-node-t2",
         ToolKind.Lamp => "lamp",
+        ToolKind.Battery => "battery",
         ToolKind.Container => "container",
         ToolKind.Vault => "vault",
         ToolKind.CoreFoundation => "core-foundation",
@@ -431,6 +484,35 @@ public partial class Hud : Control
         _siteTipLabel = MakeLabel("", UiTheme.TestoRosso);
         _siteTip.AddChild(_siteTipLabel);
         _chrome.AddChild(_siteTip);
+    }
+
+    private void BuildPowerTooltip()
+    {
+        _powerTip = MakePanel("PowerTooltip");
+        _powerTip.MouseFilter = MouseFilterEnum.Ignore;
+        _powerTip.Visible = false;
+        _powerTipLabel = MakeLabel("", UiTheme.TestoEnergia);
+        _powerTip.AddChild(_powerTipLabel);
+        _chrome.AddChild(_powerTip);
+    }
+
+    private void BuildSelectionInfo()
+    {
+        _selectionInfo = new Label
+        {
+            Name = "SelectionInfo",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore,
+            ThemeTypeVariation = UiTheme.Avviso,
+            Visible = false
+        };
+        _selectionInfo.SetAnchorsPreset(LayoutPreset.CenterBottom);
+        _selectionInfo.GrowHorizontal = GrowDirection.Both;
+        _selectionInfo.OffsetLeft = -320;
+        _selectionInfo.OffsetRight = 320;
+        _selectionInfo.OffsetTop = -76;
+        _selectionInfo.OffsetBottom = -48;
+        _chrome.AddChild(_selectionInfo);
     }
 
     private void BuildPlacementHint()
