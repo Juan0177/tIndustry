@@ -62,3 +62,15 @@ Da fare dove c'è Godot (anche in [STATO](../STATO.md)):
 ## Verifiche finali
 
 Build della soluzione a 0 errori e 0 avvisi, test della simulazione verdi, test del sito e controllo della Wiki (risultati nel report del Task 5). Il client non è stato lanciato.
+
+## Revisione finale
+
+Revisione di tutto il ramo (156d70c..8829b59): pronto al merge, nessun problema grave. Correzioni nel commit `94f0905`, riviste:
+
+- schema della Wiki Energia coerente coi 5 nodi T1 per un forno a 30 celle;
+- testi del nodo selezionato e del suggerimento della rete aggiornati al cambio di lingua;
+- strato dei laser ridisegnato solo quando cambia qualcosa di visibile (prima a ogni frame).
+
+Decisione presa in autonomia: la revisione del Task 5 (documenti) è stata fusa nella revisione finale. Costo se sbagliato: un controllo in meno sui documenti.
+
+Rimandati: ricerca dei blocchi di corrente per id (oggi costo quadratico quando si seleziona un nodo in una fabbrica grande), `TryPlaceBattery`, sincronizzazione delle batterie O(n²), laser caricati senza controllo di raggio e collegamenti massimi, diario degli agenti ancora alla versione 3, il ridisegno dei laser che può saltare un blocco sostituito sul posto con lo stesso numero di collegamenti, il test a tempo `GenerationTimeBudget` instabile sotto carico.
