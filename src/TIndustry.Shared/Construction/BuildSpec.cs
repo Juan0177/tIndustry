@@ -69,6 +69,7 @@ public sealed record BuildSpec(
         BuildingKind.PowerNode => PowerNode.Tier1Id,
         BuildingKind.PowerNodeT2 => PowerNode.Tier2Id,
         BuildingKind.Lamp => Lamp.BuildingId,
+        BuildingKind.Battery => Battery.BuildingId,
         BuildingKind.CoreFoundation => "core-foundation",
         BuildingKind.CoreNucleus => "core-nucleus",
         BuildingKind.Container => "container",

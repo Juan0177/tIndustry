@@ -71,7 +71,7 @@ public sealed class AgentGameTests
         Assert.Equal(48, stato.GetProperty("risorse").GetProperty("iron-ore").GetInt32());
         Assert.Equal(10, stato.GetProperty("risorse").GetProperty("copper-wire").GetInt32());
         var energia = stato.GetProperty("energia");
-        Assert.Equal(host.State.PowerCapacity, energia.GetProperty("capacita").GetSingle());
+        Assert.Equal(0d, energia.GetProperty("capacita").GetDouble()); // no battery yet
         Assert.True(energia.TryGetProperty("generazionePerSecondo", out _));
         Assert.Equal(0, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
         var corner = host.State.CoreTiles.OrderBy(t => t.Y).ThenBy(t => t.X).First();
@@ -677,6 +677,7 @@ public sealed class AgentGameTests
             ("vendi", """{"oggetto":"copper-wire","quantita":1}"""),
             ("vendita_automatica", """{"oggetto":"iron-ore","accesa":true}"""),
             ("vendi", """{"oggetto":"iron-plate","tutto":true}"""),
+            ("collega", """{"nodo":{"x":40,"y":40},"blocco":{"x":41,"y":40}}"""),
             ("avanza", """{"tick":240}""")
         };
         foreach (var (method, json) in actions)
@@ -693,7 +694,7 @@ public sealed class AgentGameTests
 
         // Bad parameters change nothing and stay out of the journal.
         Refused(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":-5,"y":3}}""");
-        Assert.Equal(22, game.Journal.Entries.Count);
+        Assert.Equal(23, game.Journal.Entries.Count);
         Assert.NotEqual(setup.CreateHost(Content).Checksum(), host.Checksum());
         Assert.Contains(Call(game, "diario").GetProperty("voci").EnumerateArray(), v => v.GetProperty("metodo").GetString() == "smonta");
         try
@@ -1143,5 +1144,93 @@ public sealed class AgentGameTests
             AgentResponse.Failure(8, new AgentException(AgentCodes.ParametriNonValidi, "x")));
         Assert.Equal("""{"id":8,"ok":false,"codice":"ParametriNonValidi","messaggio":"x"}""", error);
         Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentProtocol.ReadLine("{non json")).Code);
+    }
+    /// <summary>A sandbox with the power blocks unlocked, a T1 node at (20, 20) and lamps placed after it (no lasers yet).</summary>
+    private static (SimHost Host, Factory Factory) PowerHost()
+    {
+        var factory = NewFactory();
+        foreach (var id in new[] { Generator.BuildingId, PowerNode.Tier1Id, Lamp.BuildingId, Battery.BuildingId })
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        void Put(BuildingKind kind, int x, int y) => Assert.True(factory.PlaceInstant(
+            new BuildSpec(BuildSpec.StructureIdFor(kind)!, kind, new GridPosition(x, y), Direction.East), charge: false));
+        Put(BuildingKind.PowerNode, 20, 20);
+        foreach (var (x, y) in new[] { (23, 20), (20, 23), (17, 20), (20, 17), (23, 23), (17, 17), (17, 23), (30, 20) })
+        {
+            Put(BuildingKind.Lamp, x, y);
+        }
+
+        Assert.Empty(factory.PowerGrid.Links);
+        return (new SimHost(factory), factory);
+    }
+
+    [Fact]
+    public void CollegaTogglesALaserAndSaysTheNodesLinks()
+    {
+        var (host, factory) = PowerHost();
+        var game = new AgentGame(host, Content);
+
+        var on = Call(game, "collega", """{"nodo":{"x":20,"y":20},"blocco":{"x":23,"y":20}}""");
+        Assert.True(on.GetProperty("collegato").GetBoolean());
+        Assert.Equal(1, on.GetProperty("collegamenti").GetInt32());
+        Assert.Equal(6, on.GetProperty("massimo").GetInt32());
+        Assert.Single(factory.PowerGrid.Links);
+        Assert.Contains(AgentGame.JournaledMethods, m => m == "collega");
+
+        var off = Call(game, "collega", """{"nodo":{"x":20,"y":20},"blocco":{"x":23,"y":20}}""");
+        Assert.False(off.GetProperty("collegato").GetBoolean());
+        Assert.Equal(0, off.GetProperty("collegamenti").GetInt32());
+        Assert.Empty(factory.PowerGrid.Links);
+    }
+
+    [Fact]
+    public void CollegaRefusesWithTheSimulationsReasons()
+    {
+        var (host, _) = PowerHost();
+        var game = new AgentGame(host, Content);
+        string Code(string json) => Refused(game, "collega", json).Code;
+
+        Assert.Equal(nameof(RefusalCode.PowerLinkOutOfRange), Code("""{"nodo":{"x":20,"y":20},"blocco":{"x":30,"y":20}}"""));
+        Assert.Equal(nameof(RefusalCode.PowerLinkSameBlock), Code("""{"nodo":{"x":20,"y":20},"blocco":{"x":20,"y":20}}"""));
+        Assert.Equal(nameof(RefusalCode.PowerLinkNotPowerBlock), Code("""{"nodo":{"x":20,"y":20},"blocco":{"x":21,"y":21}}"""));
+        // The first cell must be a node.
+        Assert.Equal(nameof(RefusalCode.InvalidCommand), Code("""{"nodo":{"x":23,"y":20},"blocco":{"x":20,"y":23}}"""));
+
+        // Six lasers fill a T1 node: the seventh is refused.
+        foreach (var (x, y) in new[] { (23, 20), (20, 23), (17, 20), (20, 17), (23, 23), (17, 17) })
+        {
+            Call(game, "collega", $$$"""{"nodo":{"x":20,"y":20},"blocco":{"x":{{{x}}},"y":{{{y}}}}}""");
+        }
+
+        Assert.Equal(nameof(RefusalCode.PowerLinkNoFreeSlots), Code("""{"nodo":{"x":20,"y":20},"blocco":{"x":17,"y":23}}"""));
+
+        // Bad parameters never reach the simulation.
+        Assert.Equal(AgentCodes.ParametriNonValidi, Code("""{"nodo":{"x":20,"y":20}}"""));
+        Assert.Equal(AgentCodes.ParametriNonValidi, Code("""{"nodo":{"x":-1,"y":20},"blocco":{"x":20,"y":23}}"""));
+    }
+
+    [Fact]
+    public void StatoListsThePowerNetworks()
+    {
+        var (host, factory) = PowerHost();
+        Assert.True(factory.TryPlaceGenerator(new GridPosition(21, 20)));
+        factory.Generators.Single().RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        var game = new AgentGame(host, Content);
+        Call(game, "collega", """{"nodo":{"x":20,"y":20},"blocco":{"x":23,"y":20}}""");
+        Call(game, "avanza", """{"tick":2}""");
+
+        var energia = Call(game, "stato").GetProperty("energia");
+        Assert.Equal(1, energia.GetProperty("laser").GetInt32());
+        var reti = energia.GetProperty("reti").EnumerateArray().ToList();
+        Assert.Equal(factory.PowerGrid.Networks.Count, reti.Count);
+        var powered = reti.Single(r => r.GetProperty("generazionePerSecondo").GetDouble() > 0);
+        Assert.Equal(30d, powered.GetProperty("generazionePerSecondo").GetDouble());
+        Assert.Equal(3, powered.GetProperty("blocchi").GetInt32()); // generator, node and the linked lamp
+        Assert.True(powered.TryGetProperty("richiestaPerSecondo", out _));
+        Assert.Equal(100d, powered.GetProperty("soddisfazione").GetDouble());
+        Assert.True(powered.TryGetProperty("cella", out _));
+        Assert.Equal(0d, powered.GetProperty("capacita").GetDouble());
     }
 }

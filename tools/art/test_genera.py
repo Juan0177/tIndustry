@@ -33,7 +33,7 @@ NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armor
 CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
-    "extractor": 1, "power-node": 1, "lamp": 1, "conveyor-basic": 1, "conveyor-fast": 1,
+    "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5,
@@ -652,6 +652,14 @@ class TestGenera(unittest.TestCase):
         lampada = forme.componi(SPRITE["lamp-base"](), SPRITE["lamp-glow"]())
         self.assertEqual(lampada.tobytes(), SPRITE["lamp"]().tobytes())
         self.assertEqual(0, SPRITE["lamp-glow"]().getpixel((0, 0))[3])
+        # Battery: 0..3 lit bars over the empty window; the icon is the full one, frame 0 shows nothing.
+        tacche = fotogrammi_di(SPRITE["battery-charge-anim"]())
+        self.assertEqual(4, len(tacche))
+        self.assertIsNone(tacche[0].getbbox())
+        accese = [sum(1 for p in f.getdata() if p[3]) for f in tacche]
+        self.assertEqual(sorted(set(accese)), accese)
+        batteria = forme.componi(SPRITE["battery-base"](), tacche[-1])
+        self.assertEqual(batteria.tobytes(), SPRITE["battery"]().tobytes())
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
         for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()

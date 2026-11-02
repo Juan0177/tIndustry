@@ -700,6 +700,29 @@
       ]
     },
     {
+      "id": "battery",
+      "displayName": "Batteria",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 300,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 10
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 5
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "power-node"
+      ]
+    },
+    {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
       "kind": "building",
@@ -898,7 +921,8 @@
           "amount": 6
         }
       ],
-      "refundPercent": 100
+      "refundPercent": 100,
+      "powerUse": 8
     },
     {
       "id": "assembler",
@@ -913,7 +937,8 @@
           "amount": 2
         }
       ],
-      "refundPercent": 100
+      "refundPercent": 100,
+      "powerUse": 10
     },
     {
       "id": "generator",
@@ -924,7 +949,8 @@
           "amount": 8
         }
       ],
-      "refundPercent": 100
+      "refundPercent": 100,
+      "powerOutput": 30
     },
     {
       "id": "power-node",
@@ -937,7 +963,7 @@
       ],
       "refundPercent": 100,
       "footprint": 1,
-      "maxPowerLinks": 4,
+      "maxPowerLinks": 6,
       "powerLinkRange": 6
     },
     {
@@ -955,7 +981,7 @@
       ],
       "refundPercent": 100,
       "footprint": 2,
-      "maxPowerLinks": 8,
+      "maxPowerLinks": 10,
       "powerLinkRange": 10
     },
     {
@@ -974,6 +1000,23 @@
       "refundPercent": 100,
       "footprint": 1,
       "powerUse": 1
+    },
+    {
+      "id": "battery",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 10
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 4
+        }
+      ],
+      "refundPercent": 100,
+      "footprint": 1,
+      "powerCapacity": 1000
     },
     {
       "id": "extractor",
@@ -1000,7 +1043,7 @@
     }
   ],
   "economy": {
-    "refundPolicyNote": "Piazzamento: solo materiali (niente $). Sblocco in Ricerca: soldi + materiali. Smontaggio: rimborso dei materiali alla quota della partita (100% in partita libera e nei livelli 1–3, 50% dal livello 4) per il refundPercent del blocco, arrotondato per eccesso; un cantiere annullato rende tutto lo speso. Corrente: un blocco è alimentato se tocca un generatore acceso o un nodo che ha un generatore acceso entro powerLinkRange (Nodo T1 1×1 raggio 6, Nodo T2 2×2 raggio 10); i nodi non si passano la corrente fra loro e maxPowerLinks non è ancora usato (rete come Mindustry: issue #269). CORE fuori dalla rete."
+    "refundPolicyNote": "Piazzamento: solo materiali (niente $). Sblocco in Ricerca: soldi + materiali. Smontaggio: rimborso dei materiali alla quota della partita (100% in partita libera e nei livelli 1–3, 50% dal livello 4) per il refundPercent del blocco, arrotondato per eccesso; un cantiere annullato rende tutto lo speso."
   },
   "buildWeights": {
     "iron-plate": 0.7,

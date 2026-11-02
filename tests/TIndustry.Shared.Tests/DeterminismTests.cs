@@ -190,10 +190,29 @@ public sealed class DeterminismTests
     {
         var content = LoadContent();
         var original = Factory.CreateSorterBridgeDemo(content);
-        // Restore after tick 600: the generator has filled the power buffer beyond the core's own
-        // capacity by then, so the round trip also has to keep the stored energy.
+        // A battery against the generator: by tick 700 it holds charge, so the round trip also has to keep it.
+        original.Research.ForceUnlock(Battery.BuildingId);
+        var gen = original.Generators[0].Position;
+        var placed = false;
+        for (var k = 0; k < Generator.Size && !placed; k++)
+        {
+            foreach (var tile in new[]
+                     {
+                         new GridPosition(gen.X + k, gen.Y - 1), new GridPosition(gen.X + k, gen.Y + Generator.Size),
+                         new GridPosition(gen.X - 1, gen.Y + k), new GridPosition(gen.X + Generator.Size, gen.Y + k)
+                     })
+            {
+                if (original.PlaceInstant(new BuildSpec(Battery.BuildingId, BuildingKind.Battery, tile, Direction.East), charge: false))
+                {
+                    placed = true;
+                    break;
+                }
+            }
+        }
+
+        Assert.True(placed, "battery against the generator");
         original.RunTicks(700);
-        Assert.True(original.PowerBuffer > Factory.CorePowerCapacity, "power in play at restore");
+        Assert.True(original.Batteries[0].Charge > 0, "power in play at restore");
 
         var copy = Factory.Restore(content, original.Capture());
         Assert.Equal(Serialize(original), Serialize(copy));
@@ -292,6 +311,108 @@ public sealed class DeterminismTests
         Assert.Contains(a.State.Storages, s => s.Kind == BuildingKind.Vault && s.IsLinked);
         Assert.Contains(a.State.Storages, s => s.Kind == BuildingKind.Container && !s.IsLinked);
         Assert.True(a.State.Session.SoldByItem.GetValueOrDefault("iron-ore") > 0, "auto-sell sold iron ore");
+    }
+
+    /// <summary>
+    /// A power game driven by the player's commands: a generator, a chain of nodes, a forno, a battery and lamps at
+    /// night; the middle node is taken away (the network splits) and built again (it joins), a laser is toggled off and
+    /// on by hand. Ids are found on each game's own state, the same way on both.
+    /// </summary>
+    private static (SimHost Host, List<(long Tick, Func<IGameView, SimCommand?> Command)> Script) PowerSplitJoinGame(FactoryContent content)
+    {
+        var factory = NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 42,
+            rules: new GameRules(InstantBuild: true, DayNight: DayNightMode.AlwaysNight));
+        foreach (var id in new[] { Generator.BuildingId, PowerNode.Tier1Id, Battery.BuildingId, Crafter.SmelterBuildingId, Lamp.BuildingId })
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        foreach (var item in new[] { "iron-plate", "copper-wire", "lead-plate", "titanium-plate", "copper-plate", "stone" })
+        {
+            factory.Wallet.AddMaterial(item, 500);
+        }
+
+        factory.Wallet.AddMoney(100_000);
+        long IdAt(IGameView view, int x, int y) =>
+            view.TryGetSpecAt(new GridPosition(x, y), out _, out var id) ? id : 0;
+        SimCommand Place(BuildingKind kind, int x, int y) => new PlaceBuilding(0, kind, new GridPosition(x, y), Direction.East);
+        var script = new List<(long Tick, Func<IGameView, SimCommand?> Command)>
+        {
+            (1, _ => Place(BuildingKind.Generator, 10, 20)),
+            (1, _ => Place(BuildingKind.Battery, 12, 22)),
+            (2, _ => Place(BuildingKind.PowerNode, 16, 20)),
+            (2, _ => Place(BuildingKind.PowerNode, 22, 20)),
+            (3, _ => Place(BuildingKind.PowerNode, 28, 20)),
+            (3, _ => Place(BuildingKind.Smelter, 31, 20)),
+            (4, _ => Place(BuildingKind.Lamp, 29, 23)),
+            (4, _ => Place(BuildingKind.Lamp, 18, 23)),
+            (5, _ => Place(BuildingKind.Battery, 33, 20)),
+            (20 * 60, _ => new Remove(0, new GridPosition(22, 20))),
+            (50 * 60, _ => Place(BuildingKind.PowerNode, 22, 20)),
+            (80 * 60, v => new TogglePowerLink(0, IdAt(v, 28, 20), IdAt(v, 22, 20))),
+            (110 * 60, v => new TogglePowerLink(0, IdAt(v, 28, 20), IdAt(v, 22, 20))),
+            (140 * 60, _ => new Remove(0, new GridPosition(16, 20))),
+            (200 * 60, _ => Place(BuildingKind.PowerNode, 16, 20))
+        };
+        return (new SimHost(factory), script);
+    }
+
+    [Fact]
+    public void Determinism_PowerNetworksSplitAndJoin()
+    {
+        const int minute = 60 * SimulationClock.TickRate;
+        var content = LoadContent();
+        var (a, script) = PowerSplitJoinGame(content);
+        var (b, _) = PowerSplitJoinGame(content);
+        var refusedA = new List<string>();
+        var refusedB = new List<string>();
+        a.CommandRejected += (c, r) => refusedA.Add($"{c}:{r.Code}");
+        b.CommandRejected += (c, r) => refusedB.Add($"{c}:{r.Code}");
+        var checksums = new List<(ulong A, ulong B)>();
+        var networkCounts = new HashSet<int>();
+        for (var tick = 0L; tick < 5 * minute; tick++)
+        {
+            foreach (var (when, command) in script)
+            {
+                if (when == tick)
+                {
+                    a.Submit(command(a.State)!);
+                    b.Submit(command(b.State)!);
+                }
+            }
+
+            if (tick == 3)
+            {
+                // The generator gets its coal by hand (no belt in this game), the same on both.
+                foreach (var host in new[] { a, b })
+                {
+                    ((Factory)host.State).Generators.Single().RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+                }
+            }
+
+            a.AdvanceTicks(1);
+            b.AdvanceTicks(1);
+            networkCounts.Add(a.State.PowerNetworks.Count);
+            if (tick == 150 * 60)
+            {
+                // A save half-way goes on exactly like the game that never saved.
+                b = SimHost.FromSnapshot(content, b.CreateSnapshot());
+                b.CommandRejected += (c, r) => refusedB.Add($"{c}:{r.Code}");
+            }
+
+            if ((tick + 1) % minute == 0)
+            {
+                checksums.Add((a.Checksum(), b.Checksum()));
+            }
+        }
+
+        Assert.Equal(5, checksums.Count);
+        Assert.All(checksums, c => Assert.Equal(c.A, c.B));
+        Assert.Equal(5, checksums.Select(c => c.A).Distinct().Count());
+        Assert.Empty(refusedA);
+        Assert.Equal(refusedA, refusedB);
+        Assert.True(networkCounts.Count > 1, "the networks split and joined");
+        Assert.Equal(a.State.PowerLinks, b.State.PowerLinks);
     }
 
     [Fact]

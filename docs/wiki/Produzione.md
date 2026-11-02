@@ -28,7 +28,7 @@ Si piazza su un giacimento. Con tutte e 4 le celle sul minerale produce **1 ogge
 
 ## Minatore T2
 
-Come il T1 ma **velocità doppia** e ogni cella sul minerale conta il 25% in più, fino al massimo: con tutte e 4 le celle fa 1 oggetto al secondo. Scava anche il **titanio**. Se è alimentato (un generatore acceso che lo tocca, o un nodo accanto a lui nel raggio di un generatore acceso, vedi [Energia](Energia)) lavora il **20% più veloce** e consuma 0,5 unità di energia al secondo; se nella riserva non ce n'è abbastanza, va alla velocità normale.
+Come il T1 ma **velocità doppia** e ogni cella sul minerale conta il 25% in più, fino al massimo: con tutte e 4 le celle fa 1 oggetto al secondo. Scava anche il **titanio**. Se è nella rete di un generatore acceso (a contatto o con un laser di un nodo, vedi [Energia](Energia)) lavora fino al **20% più veloce** e consuma 0,5 unità di energia al secondo; con poca corrente il vantaggio cala in proporzione.
 
 | Minatore | 4 celle su 4 | Con corrente |
 |---|---|---|
@@ -42,13 +42,13 @@ Fonde i minerali in lastre (ricette in [Risorse e oggetti](Risorse-e-oggetti)): 
 | Modo | Come funziona |
 |---|---|
 | A carbone | Il carbone che arriva va in una scorta di 8; ogni Carbone dà 6 secondi di lavoro |
-| A corrente | Se è alimentato consuma 8 unità di energia al secondo mentre lavora e va il **20% più veloce**; se l'energia non basta torna a bruciare carbone |
+| A corrente | Se è nella rete di un generatore consuma 8 unità di energia al secondo quando ha qualcosa da fondere e va fino al **20% più veloce**; se la corrente non basta e ha carbone, lo brucia e va a velocità normale |
 
 Di ogni ingrediente tiene da parte al massimo 4 volte quanto ne chiede una ricetta (8 Ferro grezzo, 8 Piombo grezzo, 12 Titanio grezzo); oltre, il nastro aspetta. Vale anche per l'Assemblatore. Si accende (fuoco, fumo, luce di notte) solo quando lavora davvero.
 
 ## Assemblatore
 
-Fa Filo di rame, Grafite e Silicio. **Lavora anche senza corrente**; se è alimentato consuma 10 unità di energia al secondo e va il 20% più veloce. Avvia la prima ricetta per cui ha tutti gli ingredienti, nell'ordine Filo di rame, Grafite, Silicio.
+Fa Filo di rame, Grafite e Silicio. **Lavora anche senza corrente**; se è nella rete di un generatore consuma 10 unità di energia al secondo e va fino al 20% più veloce (meno, se la corrente non basta per tutta la rete). Avvia la prima ricetta per cui ha tutti gli ingredienti, nell'ordine Filo di rame, Grafite, Silicio.
 
 ## Estrattore
 

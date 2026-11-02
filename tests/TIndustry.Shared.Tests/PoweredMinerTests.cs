@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>The Miner T2's +20% when powered is paid for: it draws its power use from the shared buffer.</summary>
+/// <summary>The Miner T2's bonus when powered is paid for: its power use is in the demand of its network.</summary>
 public sealed class PoweredMinerTests
 {
     private static readonly FactoryContent Content =
@@ -41,14 +41,12 @@ public sealed class PoweredMinerTests
         Assert.True(powered.Miners[0].IsPowered);
         Assert.False(unpowered.Miners[0].IsPowered);
 
-        // From an empty buffer, one tick: the generator refills both the same, the powered miner takes its share.
-        powered.State.PowerBuffer = 0f;
-        unpowered.State.PowerBuffer = 0f;
-        powered.Step();
-        unpowered.Step();
-
-        var draw = Content.FindBuilding(Miner.AdvancedId)!.PowerUse / SimulationClock.TickRate;
-        Assert.Equal(unpowered.PowerBuffer - draw, powered.PowerBuffer, 4);
-        Assert.True(powered.Miners[0].IsPowered);
+        // The powered miner is in the demand of the generator's network with its power use; the far one is not.
+        var network = powered.PowerGrid.NetworkOf(powered.Miners[0].Id)!;
+        Assert.Same(network, powered.PowerGrid.NetworkOf(powered.Generators[0].Id));
+        Assert.Equal(Content.FindBuilding(Miner.AdvancedId)!.PowerUseRate, network.RequestedRate);
+        Assert.Equal(10_000, network.SatisfactionBp);
+        Assert.Equal(0, unpowered.PowerGrid.NetworkOf(unpowered.Generators[0].Id)!.RequestedRate);
+        Assert.Equal(0, unpowered.State.SatisfactionOf(unpowered.Miners[0].Id));
     }
 }

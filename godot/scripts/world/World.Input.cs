@@ -9,6 +9,11 @@ public partial class World
     private void OnHudToolChosen(Hud.ToolKind kind)
     {
         _tool = FromHudTool(kind);
+        if (_tool != BuildTool.Cursor)
+        {
+            _selectedNode = null;
+        }
+
         QueueRedraw();
     }
 
@@ -44,6 +49,11 @@ public partial class World
         }
 
         _tool = tool;
+        if (tool != BuildTool.Cursor)
+        {
+            _selectedNode = null;
+        }
+
         _hud?.SetSelectedTool(ToHudTool(tool));
         if (toast)
         {
@@ -73,6 +83,7 @@ public partial class World
         BuildTool.PowerNode => Hud.ToolKind.PowerNode,
         BuildTool.PowerNodeT2 => Hud.ToolKind.PowerNodeT2,
         BuildTool.Lamp => Hud.ToolKind.Lamp,
+        BuildTool.Battery => Hud.ToolKind.Battery,
         BuildTool.Container => Hud.ToolKind.Container,
         BuildTool.Vault => Hud.ToolKind.Vault,
         BuildTool.CoreFoundation => Hud.ToolKind.CoreFoundation,
@@ -100,6 +111,7 @@ public partial class World
         Hud.ToolKind.PowerNode => BuildTool.PowerNode,
         Hud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
         Hud.ToolKind.Lamp => BuildTool.Lamp,
+        Hud.ToolKind.Battery => BuildTool.Battery,
         Hud.ToolKind.Container => BuildTool.Container,
         Hud.ToolKind.Vault => BuildTool.Vault,
         Hud.ToolKind.CoreFoundation => BuildTool.CoreFoundation,
@@ -224,6 +236,10 @@ public partial class World
                 if (_tool != BuildTool.Cursor)
                 {
                     ClearToCursor();
+                }
+                else if (_selectedNode is not null)
+                {
+                    _selectedNode = null; // Esc first drops the selected node, then goes Home
                 }
                 else if (key.Keycode == Key.Escape)
                 {
@@ -448,5 +464,29 @@ public partial class World
                 QueueRedraw();
             }
         }
+    }
+
+    /// <summary>
+    /// A left click of the cursor tool (not a pan) on <paramref name="cell"/>: power nodes are selected and linked like
+    /// in Mindustry. With a node selected, a power block it reaches (or any power block that is not a node) gets its
+    /// laser toggled (<see cref="TogglePowerLink"/>; a refusal is the usual toast), another node out of reach is selected
+    /// instead, the node itself or anything else drops the selection. Without one, a click on a node selects it.
+    /// </summary>
+    private void OnCursorClick(GridPosition cell)
+    {
+        if (_view is null || PanelOpen || !GameInPlay || _tool != BuildTool.Cursor)
+        {
+            return;
+        }
+
+        var block = _view.PowerBlockAt(cell);
+        if (_selectedNode is { } node && _view.PowerNodeLinksOf(node) is not null && block is { } target && target.Id != node
+            && (target.Kind != PowerBlockKind.Node || _view.PowerLinkInRange(node, target.Id)))
+        {
+            SubmitCommand(new TogglePowerLink(LocalPlayer, node, target.Id));
+            return;
+        }
+
+        _selectedNode = block is { Kind: PowerBlockKind.Node } picked && picked.Id != _selectedNode ? picked.Id : null;
     }
 }

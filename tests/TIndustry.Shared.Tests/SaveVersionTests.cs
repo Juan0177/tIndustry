@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v16: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
+/// <summary>Save format v17: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class SaveVersionTests
 {
@@ -133,16 +133,16 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion16()
+    public void SaveWritesVersion17()
     {
-        Assert.Equal(16, FactorySaveData.CurrentVersion);
-        Assert.Equal(16, FactorySaveData.MinReadableVersion);
+        Assert.Equal(17, FactorySaveData.CurrentVersion);
+        Assert.Equal(17, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v16-versione", host);
+        FactorySaveStore.Save("v17-versione", host);
 
-        Assert.Contains("\"version\": 16", File.ReadAllText(FactorySaveStore.SlotPath("v16-versione")));
+        Assert.Contains("\"version\": 17", File.ReadAllText(FactorySaveStore.SlotPath("v17-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":16", snapshot);
+        Assert.Contains("\"version\":17", snapshot);
         Assert.Contains("\"rules\":{\"refundPercent\":100,\"instantBuild\":false,\"dayNight\":\"Cycle\"}", snapshot);
         Assert.Contains("\"coreStartX\":60,\"coreStartY\":60", snapshot);
         Assert.DoesNotContain("coreUpgradeLevel", snapshot, StringComparison.OrdinalIgnoreCase);
@@ -152,23 +152,23 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void Version15_Refused_OlderVersion()
+    public void Version16_Refused_OlderVersion()
     {
         var content = LoadContent();
         var host = new SimHost(NewGame.Demo(content));
-        FactorySaveStore.Save("v15-rifiutato", host);
-        var path = FactorySaveStore.SlotPath("v15-rifiutato");
+        FactorySaveStore.Save("v16-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v16-rifiutato");
         var json = File.ReadAllText(path);
         Assert.Contains(Current, json);
-        File.WriteAllText(path, json.Replace(Current, "\"version\": 15"));
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 16"));
 
-        Assert.False(FactorySaveStore.TryLoadSlot(content, "v15-rifiutato", out var loaded, out var failure));
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v16-rifiutato", out var loaded, out var failure));
         Assert.Null(loaded);
         Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
 
-        // A v15 snapshot inside a v16 envelope is not read either.
+        // A v16 snapshot inside a v17 envelope is not read either.
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
-            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":15");
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":16");
         Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
     }
 
@@ -191,9 +191,56 @@ public sealed class SaveVersionTests
         data.CoreSize = 4;
         var snapshot = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(data, FactorySaveStore.JsonOptions);
         Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
-        File.WriteAllText(FactorySaveStore.SlotPath("v16-nucleo-storto"), System.Text.Json.JsonSerializer.Serialize(
+        File.WriteAllText(FactorySaveStore.SlotPath("v17-nucleo-storto"), System.Text.Json.JsonSerializer.Serialize(
             new SaveFileData { Snapshot = Convert.ToBase64String(snapshot) }, FactorySaveStore.JsonOptions));
-        Assert.False(FactorySaveStore.TryLoadSlot(content, "v16-nucleo-storto", out _, out var failure));
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v17-nucleo-storto", out _, out var failure));
+        Assert.Equal(SaveLoadError.Unreadable, failure!.Code);
+    }
+    /// <summary>A laser in a save must join two power blocks of that save, one of them a node, once each.</summary>
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("self")]
+    [InlineData("no-node")]
+    [InlineData("duplicate")]
+    [InlineData("not-power")]
+    public void BadLaser_Unreadable(string bad)
+    {
+        var content = LoadContent();
+        var (factory, gen, node1, _, _, battery) = SaveRoundTripTests.PowerLayout(content);
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec("container", BuildingKind.Container, new GridPosition(40, 40), Direction.East), charge: false));
+        var container = factory.Storages.Single().Id;
+        var data = factory.Capture();
+        Assert.NotNull(data.PowerLinks);
+        var links = data.PowerLinks!;
+        var first = links[0];
+        switch (bad)
+        {
+            case "missing":
+                links.Add(new PowerLinkSaveDto { A = node1, B = 999_999 });
+                break;
+            case "self":
+                links.Add(new PowerLinkSaveDto { A = node1, B = node1 });
+                break;
+            case "no-node":
+                links.Add(new PowerLinkSaveDto { A = Math.Min(gen, battery), B = Math.Max(gen, battery) });
+                break;
+            case "duplicate":
+                links.Add(new PowerLinkSaveDto { A = first.A, B = first.B });
+                break;
+            case "not-power":
+                links.Add(new PowerLinkSaveDto { A = Math.Min(node1, container), B = Math.Max(node1, container) });
+                break;
+        }
+
+        Assert.Throws<InvalidDataException>(() => Factory.Restore(content, data));
+
+        // Through the save store: the player sees "unreadable".
+        var snapshot = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(data, FactorySaveStore.JsonOptions);
+        Directory.CreateDirectory(FactorySaveStore.SavesDirectory);
+        File.WriteAllText(FactorySaveStore.SlotPath("v17-laser-" + bad), System.Text.Json.JsonSerializer.Serialize(
+            new SaveFileData { Snapshot = Convert.ToBase64String(snapshot) }, FactorySaveStore.JsonOptions));
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v17-laser-" + bad, out _, out var failure));
         Assert.Equal(SaveLoadError.Unreadable, failure!.Code);
     }
 }

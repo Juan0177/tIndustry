@@ -322,6 +322,15 @@ BLOCCHI = [
            [_stato("Accesa", "accesa"), _stato("Spenta")],
            [("lamp", "icona"), ("lamp-base", "base, cupola spenta"), ("lamp-glow", "cupola accesa")],
            icona="lamp", stato_icona="Accesa", nota="Di notte fa anche luce attorno."),
+    # godot/scripts/visuals/buildings/BatteryVisual.cs: base and the frame of the charge strip for the battery's own
+    # charge (0 to 3 bars); here the bars climb as it charges.
+    Blocco("battery", "godot/scripts/visuals/buildings/BatteryVisual.cs", (1, 1),
+           [Strato("battery-base"), Strato("battery-charge-anim", fps=2)],
+           [_stato("Si carica", durata=4 / 2, passo=1 / 2)],
+           [("battery", "icona: carica piena"), ("battery-base", "base, finestra vuota"),
+            ("battery-charge-anim", "tacche della carica, da 0 a 3: il gioco mostra quella della batteria")],
+           icona="battery", nota="Le tacche seguono la carica della batteria.",
+           fps_parti={"battery-charge-anim": 2}),
     *[_nastro(t) for t in ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armored")],
     # godot/scripts/visuals/belts/MindustryBeltVisual.cs (AddSpecial): the open crossing and, on every side
     # without an input or output (IGameView.IsJunctionSideConnected), the North rail piece turned to that side.

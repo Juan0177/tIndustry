@@ -6,7 +6,7 @@ using Xunit;
 namespace TIndustry.Shared.Tests;
 
 /// <summary>
-/// Day and night in the campaign (every level's <c>dayNight</c> in campaign.json) and in the v16 save: the rule, the
+/// Day and night in the campaign (every level's <c>dayNight</c> in campaign.json) and in the save: the rule, the
 /// first block's tick and the first attack already raised survive a save, a snapshot and the checksum.
 /// </summary>
 [Collection(SaveStoreCollection.Name)]

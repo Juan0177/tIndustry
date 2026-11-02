@@ -13,11 +13,14 @@ public sealed class LampAndNightTests
     private static readonly string DataDir = Path.Combine(AppContext.BaseDirectory, "data");
     private static readonly FactoryContent Content = FactoryContent.Load(Path.Combine(DataDir, "content.json"));
 
+    /// <summary>Lamps want to work only while the world's light is below half: these tests play at night.</summary>
+    private static readonly GameRules Night = new(InstantBuild: true, DayNight: DayNightMode.AlwaysNight);
+
     private static Factory Sandbox(GameRules? rules = null)
     {
         var factory = NewGame.Sandbox(
             Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7,
-            rules: rules ?? new GameRules(InstantBuild: true));
+            rules: rules ?? Night);
         factory.Research.ForceUnlock(Lamp.BuildingId);
         factory.Research.ForceUnlock(Generator.BuildingId);
         factory.Research.ForceUnlock(PowerNode.Tier1Id);
@@ -101,24 +104,21 @@ public sealed class LampAndNightTests
         factory.RunSeconds(1f);
         Assert.False(lamp.IsLit);
 
-        // A burning generator next to it: lit, and it drains the shared buffer by its power use.
+        // A burning generator next to it: lit, and its power use is in the demand of its network.
+        var gen = factory.Generators.Count;
         Assert.True(factory.TryPlaceGenerator(new GridPosition(21, 20)));
-        factory.Generators[0].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
-        factory.SetPowerBuffer(10f);
-        var withLamp = Factory.Restore(Content, factory.Capture());
-        factory.RemoveInstant(lamp.Position, refund: false);
-        var withoutLamp = Factory.Restore(Content, factory.Capture());
-        withLamp.RunTicks(30);
-        withoutLamp.RunTicks(30);
-        Assert.True(withLamp.Lamps[0].IsLit);
-        var drawn = withoutLamp.PowerBuffer - withLamp.PowerBuffer;
-        Assert.InRange(drawn, 30 * SimulationClock.TickSeconds * 0.99f, 30 * SimulationClock.TickSeconds * 1.01f);
+        factory.Generators[gen].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+        factory.RunTicks(30);
+        Assert.True(lamp.IsLit);
+        Assert.Equal(1f, lamp.Light);
+        var network = factory.PowerGrid.NetworkOf(lamp.Id)!;
+        Assert.Equal(1_000, network.RequestedRate);
+        Assert.Equal(10_000, network.SatisfactionBp);
 
-        // Brownout: an empty buffer and nothing burning leaves it dark again.
-        withLamp.Generators[0].RestoreFuel(0, 0f);
-        withLamp.SetPowerBuffer(0f);
-        withLamp.Step();
-        Assert.False(withLamp.Lamps[0].IsLit);
+        // Brownout: nothing burning and no battery leaves it dark again.
+        factory.Generators[gen].RestoreFuel(0, 0f);
+        factory.Step();
+        Assert.False(lamp.IsLit);
     }
 
     [Fact]
@@ -149,7 +149,6 @@ public sealed class LampAndNightTests
         Assert.True(factory.TryPlacePowerNode(new GridPosition(14, 10)));
         Assert.True(factory.PlaceInstant(new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, new GridPosition(15, 10), Direction.East), charge: false));
         factory.Generators[0].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
-        factory.SetPowerBuffer(10f);
         factory.RunTicks(2);
         Assert.True(factory.Lamps[0].IsLit);
     }
@@ -175,5 +174,76 @@ public sealed class LampAndNightTests
         Assert.Equal(factory.Lamps[0].Position, lamp.Position);
         Simulation.Step(restored);
         Assert.True(lamp.IsLit);
+    }
+    /// <summary>A lamp with a charged battery and no generator: what it asks and what the battery loses.</summary>
+    private static (Factory Factory, Lamp Lamp, Battery Battery) LampOnABattery(DayNightMode mode)
+    {
+        var factory = Sandbox(new GameRules(InstantBuild: true, DayNight: mode));
+        factory.Research.ForceUnlock(Battery.BuildingId);
+        Assert.True(factory.PlaceInstant(new BuildSpec(Battery.BuildingId, BuildingKind.Battery, new GridPosition(10, 10), Direction.East), charge: false));
+        Assert.True(factory.PlaceInstant(new BuildSpec(Lamp.BuildingId, BuildingKind.Lamp, new GridPosition(11, 10), Direction.East), charge: false));
+        var battery = factory.Batteries.Single();
+        battery.Charge = 100_000;
+        return (factory, factory.Lamps.Single(), battery);
+    }
+
+    [Fact]
+    public void LampByDayAsksForNothingAndLeavesTheBatteryAlone()
+    {
+        var (factory, lamp, battery) = LampOnABattery(DayNightMode.AlwaysDay);
+        factory.RunTicks(10);
+
+        var network = factory.PowerGrid.NetworkOf(lamp.Id)!;
+        Assert.Equal(0, network.RequestedRate);
+        Assert.False(lamp.PowerRequested);
+        Assert.False(lamp.IsLit);
+        Assert.Equal(100_000, battery.Charge);
+    }
+
+    [Fact]
+    public void LampAtNightAsksForItsPowerAndDrainsTheBattery()
+    {
+        var (factory, lamp, battery) = LampOnABattery(DayNightMode.AlwaysNight);
+        factory.RunTicks(10);
+
+        var network = factory.PowerGrid.NetworkOf(lamp.Id)!;
+        Assert.Equal(1_000, network.RequestedRate);
+        Assert.True(lamp.PowerRequested);
+        Assert.True(lamp.IsLit);
+        Assert.Equal(100_000 - 10 * 1_000, battery.Charge);
+    }
+
+    [Fact]
+    public void LampFollowsTheLightOfTheCycle()
+    {
+        // The cycle starts by day: nothing asked.
+        var (factory, lamp, battery) = LampOnABattery(DayNightMode.Cycle);
+        factory.Step();
+        Assert.False(lamp.PowerRequested);
+
+        // Dusk: the lamp asks once the light of the tick is below half (500 of 1000).
+        var dusk = DayNightClock.DuskStart;
+        long TickWithLight(Func<int, bool> want)
+        {
+            for (var t = dusk; t < DayNightClock.NightStart; t++)
+            {
+                if (want(DayNightClock.LightAt(DayNightMode.Cycle, 0, t)))
+                {
+                    return t;
+                }
+            }
+
+            throw new InvalidOperationException("no such tick");
+        }
+
+        var lastHalf = TickWithLight(l => l < 500) - 1;
+        Assert.Equal(500, DayNightClock.LightAt(DayNightMode.Cycle, 0, lastHalf));
+        factory.State.FirstBuildTick = 0;
+        factory.State.CurrentTick = lastHalf;
+        factory.Step();
+        Assert.False(lamp.PowerRequested);
+        factory.Step();
+        Assert.True(lamp.PowerRequested);
+        Assert.True(battery.Charge < 100_000);
     }
 }

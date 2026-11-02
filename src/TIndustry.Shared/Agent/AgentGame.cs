@@ -7,7 +7,8 @@ namespace TIndustry.Shared;
 /// <summary>
 /// The game methods agents call on a <see cref="SimHost"/> (simulation engine, and the client's channel): look
 /// (<c>stato</c>, <c>area</c>, <c>trova</c>, <c>eventi</c>), act with the player's commands (<c>piazza</c>,
-/// <c>smonta</c>, <c>ruota</c>, <c>sblocca</c>, <c>vendi</c>, <c>vendita_automatica</c>, <c>potenzia_core</c>), move time (<c>avanza</c>)
+/// <c>smonta</c>, <c>ruota</c>, <c>sblocca</c>, <c>vendi</c>, <c>vendita_automatica</c>, <c>potenzia_core</c>, <c>collega</c>),
+/// move time (<c>avanza</c>)
 /// and save the journal (<c>diario</c>). Commands go through <see cref="SimHost.Submit"/>. With
 /// <c>tickPerComando</c> (simulation engine) a command call also runs the tick that applies it, so its answer
 /// carries the outcome; without it (game engine, where the frames run the ticks) the call answers
@@ -28,7 +29,7 @@ public sealed class AgentGame : IDisposable
     /// <summary>Methods that change the game, its time or the brush: the journal keeps only these.</summary>
     public static readonly IReadOnlySet<string> JournaledMethods = new HashSet<string>(StringComparer.Ordinal)
     {
-        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "avanza"
+        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "avanza"
     };
 
     private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?\\z", RegexOptions.CultureInvariant);
@@ -44,7 +45,7 @@ public sealed class AgentGame : IDisposable
         ('+', "incrocio"), ('Y', "divisore"), ('F', "selezionatore"), ('=', "ponte"),
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
-        ('K', "contenitore"), ('V', "deposito"),
+        ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -333,6 +334,7 @@ public sealed class AgentGame : IDisposable
         "vendi" => Vendi(p),
         "vendita_automatica" => VenditaAutomatica(p),
         "potenzia_core" => Single(CoreUpgradeCommand(), r => r["livello"] = View.CoreTier),
+        "collega" => Collega(p),
         "avanza" => Avanza(p),
         "diario" => Diario(p),
         _ => throw Bad($"Metodo sconosciuto: {method}.")
@@ -349,6 +351,82 @@ public sealed class AgentGame : IDisposable
         return spec is null
             ? new PlaceBuilding(PlayerId, BuildingKind.CoreNucleus, default, Direction.East)
             : new PlaceBuilding(PlayerId, spec.Kind!.Value, spec.Origin, spec.Direction);
+    }
+
+    /// <summary>
+    /// <c>collega {nodo, blocco}</c>: the player's click on a selected node and then a block (<see cref="TogglePowerLink"/>):
+    /// takes the laser away when it is there, else adds it. Both are cells; an empty cell sends id 0, so the simulation
+    /// gives the reason (<c>InvalidCommand</c> when <c>nodo</c> is not a node, <c>PowerLinkNotPowerBlock</c>,
+    /// <c>PowerLinkSameBlock</c>, <c>PowerLinkOutOfRange</c>, <c>PowerLinkNoFreeSlots</c>). Answers
+    /// <c>{tick, collegato, collegamenti, massimo}</c>: whether the laser is there now and the node's lasers used and allowed.
+    /// </summary>
+    private JsonObject Collega(JsonElement p)
+    {
+        var nodeCell = MapCell(p, "nodo");
+        var blockCell = MapCell(p, "blocco");
+        var nodeId = EntityAt(nodeCell);
+        var blockId = EntityAt(blockCell);
+        return Single(new TogglePowerLink(PlayerId, nodeId, blockId), r =>
+        {
+            var (a, b) = nodeId < blockId ? (nodeId, blockId) : (blockId, nodeId);
+            r["collegato"] = View.PowerLinks.Contains((a, b));
+            r["collegamenti"] = View.PowerLinks.Count(l => l.A == nodeId || l.B == nodeId);
+            if (View.PowerNodes.FirstOrDefault(n => n.Id == nodeId) is { } node)
+            {
+                r["massimo"] = PowerGrid.MaxLinksOf(content, node);
+            }
+        });
+    }
+
+    /// <summary>Entity id of the block on <paramref name="cell"/>; 0 when there is none.</summary>
+    private long EntityAt(GridPosition cell) => View.TryGetSpecAt(cell, out _, out var id) ? id : 0;
+
+    /// <summary>
+    /// The power for <c>stato</c>, in units: totals over every network, the lasers, and each network (<c>reti</c>, by
+    /// lowest member id) with its blocks, the cell of its top-left block, generation and demand per second, satisfaction
+    /// in percent and its batteries' charge and capacity.
+    /// </summary>
+    private JsonObject EnergyJson()
+    {
+        static double Units(long charge) => charge / (double)BuildingDefinition.ChargePerUnit;
+        static double PerSecond(long rate) => rate / 1000.0;
+
+        // The top-left block of each network, so an agent can find it on the map.
+        var cellOf = new Dictionary<int, GridPosition>();
+        foreach (var (_, _, origin, _) in Buildings())
+        {
+            if (View.PowerNetworkOf(origin) is { } net
+                && (!cellOf.TryGetValue(net.Index, out var best) || (origin.Y, origin.X).CompareTo((best.Y, best.X)) < 0))
+            {
+                cellOf[net.Index] = origin;
+            }
+        }
+
+        var networks = View.PowerNetworks.Select(n =>
+        {
+            var item = new JsonObject { ["blocchi"] = n.MemberCount };
+            if (cellOf.TryGetValue(n.Index, out var cell))
+            {
+                item["cella"] = CellJson(cell);
+            }
+
+            item["generazionePerSecondo"] = PerSecond(n.ProducedRate);
+            item["richiestaPerSecondo"] = PerSecond(n.RequestedRate);
+            item["soddisfazione"] = n.SatisfactionBp / 100.0;
+            item["accumulata"] = Units(n.Stored);
+            item["capacita"] = Units(n.Capacity);
+            return item;
+        }).ToList();
+
+        var energy = new JsonObject
+        {
+            ["accumulata"] = Units(View.PowerNetworks.Sum(n => n.Stored)),
+            ["capacita"] = Units(View.PowerNetworks.Sum(n => n.Capacity)),
+            ["generazionePerSecondo"] = PerSecond(View.PowerNetworks.Sum(n => n.ProducedRate)),
+            ["laser"] = View.PowerLinks.Count
+        };
+        PutNewest(energy, "reti", networks, newest: false, truncatedKey: "retiTroncate");
+        return energy;
     }
 
     /// <summary>
@@ -468,12 +546,7 @@ public sealed class AgentGame : IDisposable
             ["tick"] = View.CurrentTick,
             ["soldi"] = View.Wallet.Money,
             ["risorse"] = resources,
-            ["energia"] = new JsonObject
-            {
-                ["accumulata"] = View.PowerBuffer,
-                ["capacita"] = View.PowerCapacity,
-                ["generazionePerSecondo"] = View.PowerGenerationPerSecond
-            },
+            ["energia"] = EnergyJson(),
             ["ricerca"] = research,
             ["edifici"] = new JsonObject
             {
@@ -800,6 +873,7 @@ public sealed class AgentGame : IDisposable
         BuildingKind.PowerNode => 'P',
         BuildingKind.PowerNodeT2 => 'Q',
         BuildingKind.Lamp => 'L',
+        BuildingKind.Battery => 'B',
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => 'C',
         BuildingKind.Container => 'K',
         BuildingKind.Vault => 'V',
@@ -903,6 +977,11 @@ public sealed class AgentGame : IDisposable
         foreach (var l in View.Lamps)
         {
             yield return (Lamp.BuildingId, BuildingKind.Lamp, l.Position, Direction.East);
+        }
+
+        foreach (var b in View.Batteries)
+        {
+            yield return (Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
         }
 
         foreach (var s in View.Storages)
@@ -1433,6 +1512,7 @@ public sealed class AgentGame : IDisposable
         Sell or SellAll => "vendi",
         SetAutoSell or SetAutoSellWhenFull => "vendita_automatica",
         SetSorterFilter => "filtroSelezionatore",
+        TogglePowerLink => "collega",
         _ => "altro"
     };
 

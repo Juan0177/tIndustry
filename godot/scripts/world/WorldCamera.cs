@@ -2,7 +2,7 @@ using Godot;
 
 namespace TIndustry.Godot;
 
-/// <summary>WASD / middle-drag (or left-drag in cursor mode) pan + wheel zoom (with Ctrl, or no block in hand to turn); middle click picks a block; clamps to map AABB (Raylib ClampToMap).</summary>
+/// <summary>WASD / middle-drag (or left-drag in cursor mode, whose click selects) pan + wheel zoom (with Ctrl, or no block in hand to turn); middle click picks a block; clamps to map AABB (Raylib ClampToMap).</summary>
 public partial class WorldCamera : Camera2D
 {
     [Export] public float PanSpeed { get; set; } = 420f;
@@ -36,11 +36,18 @@ public partial class WorldCamera : Camera2D
     /// <summary>The middle button went up less than <see cref="ClickSlop"/> px from where it went down (screen position).</summary>
     public event Action<Vector2>? MiddleClicked;
 
+    /// <summary>
+    /// The left button, pressed while it pans (<see cref="LeftDragPans"/>), went up less than <see cref="ClickSlop"/> px
+    /// from where it went down (screen position): a click of the cursor tool, not a pan.
+    /// </summary>
+    public event Action<Vector2>? LeftClicked;
+
     private const float ClickSlop = 4f;
 
     private bool _dragging;
     private Vector2 _dragLast;
     private Vector2? _middleDown;
+    private Vector2? _leftDown;
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -67,6 +74,15 @@ public partial class WorldCamera : Camera2D
                     }
 
                     _middleDown = mouseButton.Pressed ? mouseButton.Position : null;
+                }
+                else
+                {
+                    if (!mouseButton.Pressed && _leftDown is { } down && down.DistanceTo(mouseButton.Position) < ClickSlop)
+                    {
+                        LeftClicked?.Invoke(mouseButton.Position);
+                    }
+
+                    _leftDown = mouseButton.Pressed ? mouseButton.Position : null;
                 }
 
                 GetViewport().SetInputAsHandled();

@@ -133,6 +133,7 @@ public sealed class FactoryContent
         var coreTiers = MapCoreTiers(root.Cores, units);
         var terrain = MapTerrain(root.Terrain);
         ValidateLamp(buildings, structures);
+        ValidatePowerBlocks(buildings);
 
         return new FactoryContent
         {
@@ -149,7 +150,7 @@ public sealed class FactoryContent
         };
     }
 
-    // A lamp without a positive power use would light for free (TrySpendPower(0) always succeeds).
+    // A lamp without a positive power use would never ask for power (a zero power use asks nothing), so it would stay dark.
     private static void ValidateLamp(List<BuildingDefinition> buildings, List<StructureDefinition> structures)
     {
         var lamp = buildings.FirstOrDefault(b => b.Id == Lamp.BuildingId);
@@ -158,6 +159,30 @@ public sealed class FactoryContent
         {
             throw new InvalidDataException(
                 "content.json: la Lampada deve avere un consumo di corrente (powerUse) maggiore di zero.");
+        }
+    }
+
+    // Power network blocks that are declared need their numbers: a node without range or links, a battery without
+    // capacity or a generator without output would sit in a network doing nothing.
+    private static void ValidatePowerBlocks(List<BuildingDefinition> buildings)
+    {
+        foreach (var node in buildings.Where(b => b.Id is PowerNode.Tier1Id or PowerNode.Tier2Id))
+        {
+            if (node.PowerLinkRange <= 0 || node.MaxPowerLinks <= 0)
+            {
+                throw new InvalidDataException(
+                    $"content.json: il nodo '{node.Id}' deve avere powerLinkRange e maxPowerLinks maggiori di zero.");
+            }
+        }
+
+        if (buildings.FirstOrDefault(b => b.Id == Battery.BuildingId) is { PowerCapacity: <= 0 })
+        {
+            throw new InvalidDataException("content.json: la Batteria deve avere una capacità (powerCapacity) maggiore di zero.");
+        }
+
+        if (buildings.FirstOrDefault(b => b.Id == Generator.BuildingId) is { PowerOutput: <= 0f })
+        {
+            throw new InvalidDataException("content.json: il Generatore deve avere una produzione (powerOutput) maggiore di zero.");
         }
     }
 
@@ -432,7 +457,11 @@ public sealed class FactoryContent
             b.RefundPercent <= 0 ? 100 : b.RefundPercent,
             MapMultiplier(b.BuildCostMultiplier),
             Math.Max(0f, b.PowerUse),
-            b.Tier ?? 0);
+            b.Tier ?? 0,
+            Math.Max(0f, b.PowerOutput),
+            Math.Max(0, b.PowerLinkRange),
+            Math.Max(0, b.MaxPowerLinks),
+            Math.Max(0, b.PowerCapacity));
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
         new(
@@ -648,10 +677,18 @@ public sealed class FactoryContent
         public List<AmountDto>? BuildCost { get; set; }
         public int RefundPercent { get; set; } = 100;
         public float? BuildCostMultiplier { get; set; }
-        /// <summary>Power drawn per second while working (lamp); 0 = none or set in code (craft machines).</summary>
+        /// <summary>Power drawn per second while working (forno, assembler, Miner T2, lamp); 0 = none.</summary>
         public float PowerUse { get; set; }
         /// <summary>Miners only: digs the ores whose hardness is at most this (terrain.deposits).</summary>
         public int? Tier { get; set; }
+        /// <summary>Generators: power produced per second while burning.</summary>
+        public float PowerOutput { get; set; }
+        /// <summary>Power nodes: laser range, in cells between the edges of the two blocks.</summary>
+        public int PowerLinkRange { get; set; }
+        /// <summary>Power nodes: lasers a node can hold.</summary>
+        public int MaxPowerLinks { get; set; }
+        /// <summary>Battery: units of power it stores.</summary>
+        public int PowerCapacity { get; set; }
     }
 
     private sealed class MarketDto

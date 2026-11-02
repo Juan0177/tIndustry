@@ -2,7 +2,7 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Craft machine: belt intake → timed recipe → emit onto outward belts.
-/// Used for forno (Phase C) and assembler (Phase D). Phase F: optional powered speed.
+/// Used for forno (Phase C) and assembler (Phase D); the power share of its network sets the speed.
 /// Multi-recipe: auto-picks the first available recipe whose inputs are buffered (Raylib parity).
 /// </summary>
 public sealed class Crafter
@@ -238,63 +238,75 @@ public sealed class Crafter
         return accepted;
     }
 
-    public void Tick(
-        float deltaSeconds,
-        BeltGrid belts,
-        ref long nextItemId,
-        bool networkConnected = false,
-        Func<float, bool>? trySpendPower = null,
-        float powerDrawPerSecond = 0f,
-        Func<string, bool>? tryDeliverAdjacent = null)
+    /// <summary>
+    /// First half of a tick (<see cref="PowerDemandSystem"/>, before the power balance): takes what the belts bring and
+    /// starts a recipe when it can, so <see cref="WantsPower"/> says whether it works this tick.
+    /// </summary>
+    public void TakeInputs(BeltGrid belts)
     {
         AcceptFromBelts(belts);
-
         if (!IsCrafting)
         {
             TryStartCraft();
         }
+    }
 
+    /// <summary>True while a recipe is under way: the machine asks its network for its power use this tick.</summary>
+    public bool WantsPower => IsCrafting;
+
+    /// <summary>Forno only: coal in the buffer or burning, so it can work without power.</summary>
+    public bool HasCoal => UsesCoalOrPower && (FuelBuffer > 0 || BurnRemaining > 0f);
+
+    /// <summary>
+    /// True when this machine's power use is in its network's demand this tick (set by the power systems, never
+    /// saved): a machine that did not ask gets no power.
+    /// </summary>
+    public bool PowerRequested { get; internal set; }
+
+    /// <summary>
+    /// True when the forno, given <paramref name="powerBp"/>, burns coal instead (1.2 × s &lt; 1 and coal at hand).
+    /// </summary>
+    public bool PrefersCoal(int powerBp) => HasCoal && 12L * powerBp < 100_000;
+
+    /// <summary>
+    /// One tick with <paramref name="powerBp"/> (0–10 000) of its power use. Assembler: always works, speed
+    /// 1 + 0.2 × s. Forno: speed 1.2 × s with power; with coal and 1.2 × s &lt; 1 it burns coal at speed 1;
+    /// without either it stalls.
+    /// </summary>
+    public void Tick(
+        float deltaSeconds,
+        BeltGrid belts,
+        ref long nextItemId,
+        int powerBp = 0,
+        Func<string, bool>? tryDeliverAdjacent = null)
+    {
+        TakeInputs(belts);
+
+        var bp = Math.Clamp(powerBp, 0, 10_000);
         IsPowered = false;
         IsWorking = false;
         if (IsCrafting)
         {
             var canAdvance = false;
             var speed = 1f;
-            // Spend only while crafting (Raylib). Null callback = free power for unit tests.
-            var gotPower = false;
-            if (networkConnected)
-            {
-                if (trySpendPower is not null && powerDrawPerSecond > 0f)
-                {
-                    gotPower = trySpendPower(powerDrawPerSecond * deltaSeconds);
-                }
-                else
-                {
-                    gotPower = true;
-                }
-            }
-
-            IsPowered = gotPower;
-
             if (UsesCoalOrPower)
             {
-                // Forno: corrente (+20%) OR carbone (baseline). Soft brownout → coal.
-                if (gotPower)
+                if (PrefersCoal(bp) && TickFuel(deltaSeconds))
                 {
                     canAdvance = true;
-                    speed = Generator.PoweredCraftSpeedMultiplier;
                 }
-                else if (TickFuel(deltaSeconds))
+                else if (bp > 0)
                 {
                     canAdvance = true;
-                    speed = 1f;
+                    IsPowered = true;
+                    speed = 12f * bp / 100_000f;
                 }
             }
             else
             {
-                // Assembler: soft — crafts without power; +20% when spend succeeds.
                 canAdvance = true;
-                speed = gotPower ? Generator.PoweredCraftSpeedMultiplier : 1f;
+                IsPowered = bp > 0;
+                speed = 1f + bp / 50_000f;
             }
 
             if (canAdvance)

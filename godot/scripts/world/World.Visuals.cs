@@ -1,3 +1,4 @@
+using System.Globalization;
 using Godot;
 using TIndustry.Shared;
 
@@ -107,6 +108,80 @@ public partial class World
         _hud.SetSiteTooltip(_siteTipText, _hoverScreen);
     }
 
+    // Last network shown by the power tooltip: the text is rebuilt only when its balance changes.
+    private PowerNetworkView? _powerTipKey;
+    private string? _powerTipText;
+
+    // Last selected node line: rebuilt only when the node or its lasers change.
+    private PowerNodeLinks? _selectionKey;
+    private string? _selectionText;
+
+    /// <summary>
+    /// Every frame in play: the selected node's line ("Nodo T1 · collegamenti 3/6 · …"), dropped when the node is gone;
+    /// with the cursor tool, hovering a power block (not over the HUD, not on a stalled site) shows its network's balance.
+    /// </summary>
+    private void SyncPowerInfo()
+    {
+        if (_hud is null)
+        {
+            return;
+        }
+
+        if (_view is null || _selectedNode is not { } node || _view.PowerNodeLinksOf(node) is not { } links)
+        {
+            _selectedNode = null;
+            _hud.SetSelectionInfo(null);
+        }
+        else
+        {
+            if (_selectionKey != links || _selectionText is null)
+            {
+                _selectionKey = links;
+                var definition = _view.PowerNodes.FirstOrDefault(n => n.Id == node)?.DefinitionId ?? PowerNode.Tier1Id;
+                _selectionText = Testi.F("corrente.nodo.collegamenti", Testi.Struttura(definition, _view.Content),
+                    links.Used, links.Max);
+            }
+
+            _hud.SetSelectionInfo(_selectionText);
+        }
+
+        if (_view is null
+            || _tool != BuildTool.Cursor
+            || GetViewport().GuiGetHoveredControl() is not null
+            || _hover is not { } hover
+            || _view.TryGetSiteAt(hover, out _)
+            || _view.PowerNetworkOf(hover) is not { } network)
+        {
+            _powerTipKey = null;
+            _hud.SetPowerTooltip(null, default);
+            return;
+        }
+
+        if (_powerTipKey != network || _powerTipText is null)
+        {
+            _powerTipKey = network;
+            _powerTipText = PowerNetworkText(network);
+        }
+
+        _hud.SetPowerTooltip(_powerTipText, _hoverScreen);
+    }
+
+    /// <summary>The balance of <paramref name="network"/>: blocks, production, consumption, satisfaction and batteries.</summary>
+    private static string PowerNetworkText(PowerNetworkView network)
+    {
+        static string Rate(long milli) => Testi.Decimale((milli / 1000.0).ToString("0.#", CultureInfo.InvariantCulture));
+        static string Units(long charge) => (charge / BuildingDefinition.ChargePerUnit).ToString(CultureInfo.InvariantCulture);
+        var batteries = network.Capacity > 0
+            ? Testi.F("corrente.rete.batterie", Units(network.Stored), Units(network.Capacity))
+            : Testi.T("corrente.rete.batterie.nessuna");
+        return string.Join('\n',
+            Testi.F("corrente.rete.titolo", network.MemberCount),
+            Testi.F("corrente.rete.produzione", Rate(network.ProducedRate)),
+            Testi.F("corrente.rete.consumo", Rate(network.RequestedRate)),
+            Testi.F("corrente.rete.soddisfazione", network.SatisfactionBp / 100),
+            batteries);
+    }
+
     /// <summary>Asks for a rebuild of just the belt and/or building visuals named by <paramref name="layers"/>.</summary>
     private void MarkStructuresDirty(ConstructionLayer.StructureLayers layers)
     {
@@ -175,6 +250,14 @@ public partial class World
         {
             var node = LampVisual.Create(lamp, TileSize);
             node.Position = FootprintCenter(lamp.Position, Lamp.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        var batteryCapacity = Battery.CapacityOf(_view.Content);
+        foreach (var battery in _view.Batteries)
+        {
+            var node = BatteryVisual.Create(battery, batteryCapacity, TileSize);
+            node.Position = FootprintCenter(battery.Position, Battery.Size);
             _buildingsLayer.AddChild(node);
         }
 
@@ -249,6 +332,7 @@ public partial class World
             _buildingsDirty = true;
         }
 
+        var batteryCapacity = Battery.CapacityOf(_view.Content);
         foreach (var child in _buildingsLayer.GetChildren())
         {
             // A rebuild frees the old visuals at the end of the frame: they must not keep their emitters alive.
@@ -309,6 +393,17 @@ public partial class World
                         if (lamp.Position.Equals(lampVis.Origin))
                         {
                             lampVis.Sync(lamp);
+                            break;
+                        }
+                    }
+
+                    break;
+                case BatteryVisual batteryVis:
+                    foreach (var battery in _view.Batteries)
+                    {
+                        if (battery.Position.Equals(batteryVis.Origin))
+                        {
+                            batteryVis.Sync(battery, batteryCapacity);
                             break;
                         }
                     }
@@ -460,6 +555,20 @@ public partial class World
         }
     }
 
+    /// <summary>Charge and capacity of every battery, in units (sums over one snapshot of the power networks).</summary>
+    private static (float Stored, float Capacity) BatteryUnits(IGameView view)
+    {
+        long stored = 0;
+        long capacity = 0;
+        foreach (var network in view.PowerNetworks)
+        {
+            stored += network.Stored;
+            capacity += network.Capacity;
+        }
+
+        return (stored / (float)BuildingDefinition.ChargePerUnit, capacity / (float)BuildingDefinition.ChargePerUnit);
+    }
+
     /// <summary>The Core maximum of an item, for the HUD (one delegate for the whole game).</summary>
     private Func<string, int>? _coreCapacityOf;
 
@@ -472,6 +581,7 @@ public partial class World
 
         var onBelt = _view.Belts.Values.Sum(c => c.Items.Count);
         var gensLive = _view.Generators.Count(g => g.IsGenerating);
+        var (stored, capacity) = BatteryUnits(_view);
         _hud.BindEconomy(_view.Content, _view.Wallet);
         _hud.UpdateCore(_view.Content.CoreTiers[_view.CoreTier], _coreCapacityOf ??= id => _view?.CoreCapacity(id) ?? 0);
         if (_view.CoreTier != _locksCoreTier)
@@ -489,8 +599,8 @@ public partial class World
             _view.Wallet.Money,
             gensLive,
             _view.Generators.Count,
-            _view.PowerBuffer,
-            _view.PowerCapacity);
+            stored,
+            capacity);
         SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);

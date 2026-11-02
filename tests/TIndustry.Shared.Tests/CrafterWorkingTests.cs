@@ -20,7 +20,7 @@ public sealed class CrafterWorkingTests
     {
         var f = Furnace();
         long next = 1;
-        f.Tick(0.5f, new BeltGrid(), ref next, networkConnected: false);
+        f.Tick(0.5f, new BeltGrid(), ref next, powerBp: 0);
         Assert.True(f.IsCrafting);
         Assert.False(f.IsWorking);
         Assert.Equal(0f, f.Progress);
@@ -32,7 +32,7 @@ public sealed class CrafterWorkingTests
         var f = Furnace();
         long next = 1;
         f.SeedFuel(2);
-        f.Tick(0.5f, new BeltGrid(), ref next, networkConnected: false);
+        f.Tick(0.5f, new BeltGrid(), ref next, powerBp: 0);
         Assert.True(f.IsWorking);
         Assert.True(f.Progress > 0f);
     }
@@ -42,7 +42,7 @@ public sealed class CrafterWorkingTests
     {
         var f = Furnace();
         long next = 1;
-        f.Tick(0.5f, new BeltGrid(), ref next, networkConnected: true);
+        f.Tick(0.5f, new BeltGrid(), ref next, powerBp: 10_000);
         Assert.True(f.IsWorking);
         Assert.True(f.Progress > 0f);
     }

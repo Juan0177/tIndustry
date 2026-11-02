@@ -223,6 +223,7 @@ public sealed class SimHost
         SetAutoSell autoSell => ApplySetAutoSell(autoSell),
         SetAutoSellWhenFull whenFull => ApplySetAutoSellWhenFull(whenFull),
         SetSorterFilter filter => ApplySetSorterFilter(filter),
+        TogglePowerLink link => factory.TogglePowerLink(link.FromNodeId, link.ToEntityId),
         _ => RefusalCode.InvalidCommand
     };
 

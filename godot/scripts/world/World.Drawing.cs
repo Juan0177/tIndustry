@@ -178,8 +178,8 @@ public partial class World
     }
 
     private readonly HashSet<GridPosition> _buildingTiles = [];
-    private readonly long[] _buildingTilesKey = new long[16];
-    private readonly long[] _structureKey = new long[16];
+    private readonly long[] _buildingTilesKey = new long[18];
+    private readonly long[] _structureKey = new long[18];
     private IGameView? _buildingTilesView;
 
     /// <summary>
@@ -232,6 +232,11 @@ public partial class World
         foreach (var lamp in view.Lamps)
         {
             _buildingTiles.Add(lamp.Position);
+        }
+
+        foreach (var battery in view.Batteries)
+        {
+            _buildingTiles.Add(battery.Position);
         }
 
         return _buildingTiles;
@@ -302,6 +307,13 @@ public partial class World
         }
 
         Add(view.Lamps.Count, max);
+        max = 0;
+        foreach (var b in view.Batteries)
+        {
+            max = Math.Max(max, b.Id);
+        }
+
+        Add(view.Batteries.Count, max);
     }
 
     /// <summary>Cell size on screen from which deposits show their ore icon instead of plain colour.</summary>
@@ -414,6 +426,7 @@ public partial class World
         BuildTool.PowerNode => BuildingKind.PowerNode,
         BuildTool.PowerNodeT2 => BuildingKind.PowerNodeT2,
         BuildTool.Lamp => BuildingKind.Lamp,
+        BuildTool.Battery => BuildingKind.Battery,
         BuildTool.Container => BuildingKind.Container,
         BuildTool.Vault => BuildingKind.Vault,
         BuildTool.CoreFoundation => BuildingKind.CoreFoundation,
@@ -477,5 +490,208 @@ public partial class World
         canvas.DrawRect(new Rect2(entry.X * TileSize, entry.Y * TileSize, TileSize, TileSize), tip);
         canvas.DrawRect(new Rect2(exit.X * TileSize, exit.Y * TileSize, TileSize, TileSize), tip);
         canvas.DrawLine(CellCenter(entry), CellCenter(exit), mid, TileSize * MindustryBeltVisual.BridgeThicknessScale);
+    }
+
+    // ---------------------------------------------------------------- power: lasers, selected node
+
+    /// <summary>Above the buildings and their own child layers (≤ BuildingsZ + 6), under the construction layer.</summary>
+    private const int LaserZ = BuildingsZ + 7;
+
+    /// <summary>Laser width, in world pixels (a tenth of a cell).</summary>
+    private const float LaserWidth = TileSize * 0.1f;
+
+    private Node2D? _laserLayer;
+
+    // What the laser layer last drew: it is redrawn only when one of these changes.
+    private (object? View, bool InPlay, long? Node, int Structures, int Links, Color Colour)? _laserKey;
+
+    /// <summary>Queues a redraw of the laser layer only when something it shows has changed.</summary>
+    private void QueueLaserRedraw()
+    {
+        var key = (_view as object, GameInPlay, GameInPlay ? _selectedNode : null, _structureCount,
+            _view?.PowerLinks.Count ?? 0, UiColors.Energia);
+        if (_laserKey != key)
+        {
+            _laserKey = key;
+            _laserLayer?.QueueRedraw();
+        }
+    }
+
+    /// <summary>The power node selected with the cursor (its range and lasers are shown; a click links or unlinks); null for none.</summary>
+    private long? _selectedNode;
+
+    // Square of every power block by id, for the lasers' ends: rebuilt when the structures change (ids are never reused).
+    private readonly Dictionary<long, Rect2> _powerRects = [];
+    private IGameView? _powerRectsView;
+    private int _powerRectsStructures = -1;
+
+    // Power blocks the selected node reaches, from the simulation's own range rule: rebuilt when the selection, the
+    // structures or the lasers change.
+    private readonly List<PowerBlock> _inRange = [];
+    private (long Node, int Structures, int Links)? _inRangeKey;
+
+    /// <summary>Lasers and the selected node, drawn on their own world layer above the blocks.</summary>
+    private void EnsureLaserLayer()
+    {
+        _laserLayer = new Node2D { Name = "Laser", ZIndex = LaserZ };
+        _laserLayer.Draw += () => DrawPower(_laserLayer);
+        AddChild(_laserLayer);
+    }
+
+    private Dictionary<long, Rect2> PowerRects()
+    {
+        var view = _view!;
+        var stale = !ReferenceEquals(view, _powerRectsView) || _structureCount != _powerRectsStructures;
+        if (!stale)
+        {
+            foreach (var (a, b) in view.PowerLinks)
+            {
+                if (!_powerRects.ContainsKey(a) || !_powerRects.ContainsKey(b))
+                {
+                    stale = true; // a block replaced another between two frames
+                    break;
+                }
+            }
+        }
+
+        if (stale)
+        {
+            _powerRectsView = view;
+            _powerRectsStructures = _structureCount;
+            _powerRects.Clear();
+            foreach (var block in view.PowerBlocks)
+            {
+                _powerRects[block.Id] = BlockRect(block);
+            }
+        }
+
+        return _powerRects;
+    }
+
+    private static Rect2 BlockRect(PowerBlock block) =>
+        new(block.Origin.X * TileSize, block.Origin.Y * TileSize, block.Size * TileSize, block.Size * TileSize);
+
+    /// <summary>
+    /// Every laser (<see cref="IGameView.PowerLinks"/>) from block to block, the selected node's ones wider; with a node
+    /// selected, its range and the blocks it reaches (linked ones bright, the others faint).
+    /// </summary>
+    private void DrawPower(CanvasItem canvas)
+    {
+        if (_view is null)
+        {
+            return;
+        }
+
+        var rects = PowerRects();
+        var selected = GameInPlay ? _selectedNode : null;
+        var linkSet = selected is null ? null : new HashSet<(long, long)>(_view.PowerLinks);
+        if (selected is { } node && rects.TryGetValue(node, out var nodeRect) && _view.PowerNodeLinksOf(node) is { } links)
+        {
+            DrawNodeRange(canvas, nodeRect, links.Range);
+            foreach (var block in BlocksInRange(node))
+            {
+                var linked = linkSet!.Contains((Math.Min(node, block.Id), Math.Max(node, block.Id)));
+                canvas.DrawRect(BlockRect(block).Grow(-2f), UiColors.Energia with { A = linked ? 0.95f : 0.4f }, filled: false,
+                    width: 3f);
+            }
+
+            canvas.DrawRect(nodeRect, UiColors.Energia with { A = 0.25f });
+            canvas.DrawRect(nodeRect.Grow(-2f), UiColors.Energia, filled: false, width: 3f);
+        }
+
+        foreach (var (a, b) in _view.PowerLinks)
+        {
+            if (rects.TryGetValue(a, out var ra) && rects.TryGetValue(b, out var rb))
+            {
+                DrawLaser(canvas, ra, rb, wide: selected == a || selected == b);
+            }
+        }
+    }
+
+    /// <summary>Blocks in reach of the selected node, asked to the simulation once per change.</summary>
+    private List<PowerBlock> BlocksInRange(long node)
+    {
+        var key = (node, _structureCount, _view!.PowerLinks.Count);
+        if (_inRangeKey != key)
+        {
+            _inRangeKey = key;
+            _inRange.Clear();
+            foreach (var block in _view.PowerBlocks)
+            {
+                if (block.Id != node && _view.PowerLinkInRange(node, block.Id))
+                {
+                    _inRange.Add(block);
+                }
+            }
+        }
+
+        return _inRange;
+    }
+
+    /// <summary>
+    /// A laser between two blocks: from inside each square's edge, a dark under-stroke where the colours ask for one
+    /// (high contrast), the energy line and a dot at each end.
+    /// </summary>
+    private static void DrawLaser(CanvasItem canvas, Rect2 from, Rect2 to, bool wide)
+    {
+        var start = LaserEnd(from, to.GetCenter());
+        var end = LaserEnd(to, from.GetCenter());
+        var width = wide ? LaserWidth * 1.6f : LaserWidth;
+        if (UiColors.SottoSegno.A > 0f)
+        {
+            canvas.DrawLine(start, end, UiColors.SottoSegno, width + 4f);
+        }
+
+        canvas.DrawLine(start, end, UiColors.Energia with { A = 0.9f }, width);
+        canvas.DrawCircle(start, width * 0.9f, UiColors.Energia);
+        canvas.DrawCircle(end, width * 0.9f, UiColors.Energia);
+    }
+
+    /// <summary>Where a laser leaves <paramref name="block"/> towards <paramref name="toward"/>: well inside its edge.</summary>
+    private static Vector2 LaserEnd(Rect2 block, Vector2 toward)
+    {
+        var center = block.GetCenter();
+        var d = toward - center;
+        var half = block.Size * 0.5f * 0.6f;
+        if (Math.Abs(d.X) < 0.001f && Math.Abs(d.Y) < 0.001f)
+        {
+            return center;
+        }
+
+        var t = Math.Min(
+            Math.Abs(d.X) < 0.001f ? float.MaxValue : half.X / Math.Abs(d.X),
+            Math.Abs(d.Y) < 0.001f ? float.MaxValue : half.Y / Math.Abs(d.Y));
+        return center + d * Math.Min(1f, t);
+    }
+
+    /// <summary>
+    /// The selected node's range: its square grown by the range plus the cell at the end, corners rounded by the same
+    /// radius (the reach is measured between the squares' edges). The blocks it reaches are outlined exactly.
+    /// </summary>
+    private static void DrawNodeRange(CanvasItem canvas, Rect2 node, int range)
+    {
+        var r = (range + 1) * TileSize;
+        var p = node.Position;
+        var q = node.End;
+        const int arcPoints = 12;
+        var corners = new (Vector2 Center, float From)[]
+        {
+            (new Vector2(q.X, p.Y), -Mathf.Pi / 2), (new Vector2(q.X, q.Y), 0f),
+            (new Vector2(p.X, q.Y), Mathf.Pi / 2), (new Vector2(p.X, p.Y), Mathf.Pi)
+        };
+        var outline = new Vector2[corners.Length * (arcPoints + 1) + 1];
+        var i = 0;
+        foreach (var (center, from) in corners)
+        {
+            for (var k = 0; k <= arcPoints; k++)
+            {
+                var angle = from + Mathf.Pi / 2 * k / arcPoints;
+                outline[i++] = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r;
+            }
+        }
+
+        outline[i] = outline[0];
+        canvas.DrawColoredPolygon(outline[..^1], UiColors.Energia with { A = 0.06f });
+        canvas.DrawPolyline(outline, UiColors.Energia with { A = 0.7f }, 3f);
     }
 }

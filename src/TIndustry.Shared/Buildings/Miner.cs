@@ -55,8 +55,19 @@ public sealed class Miner
     public int EjectIndex { get; private set; }
     public long ItemsProduced { get; private set; }
 
-    /// <summary>True while T2 miner is receiving adjacency/node power this tick.</summary>
-    public bool IsPowered { get; private set; }
+    /// <summary>True while the T2 miner gets some power from its network this tick.</summary>
+    public bool IsPowered => PowerBp > 0;
+
+    /// <summary>Share of its power use the T2 got this tick, 0–10 000 basis points (always 0 for T1; never saved).</summary>
+    public int PowerBp { get; private set; }
+
+    /// <summary>True when the T2 works this tick and so asks its network for its power use.</summary>
+    public bool WantsPower => CanReceivePower && IsWorking;
+
+    /// <summary>True when this miner's power use is in its network's demand this tick (set by the power systems).</summary>
+    public bool PowerRequested { get; internal set; }
+
+    private void SetPower(int powerBp) => PowerBp = CanReceivePower ? Math.Clamp(powerBp, 0, 10_000) : 0;
 
     /// <summary>On a deposit (gears should spin).</summary>
     public bool IsWorking => Efficiency > 0f;
@@ -108,9 +119,9 @@ public sealed class Miner
     /// <summary>
     /// Advances mining progress and tries to insert one ore onto an outward belt cell.
     /// </summary>
-    public bool Tick(float deltaSeconds, BeltLane belt, ref long nextItemId, bool powered = false)
+    public bool Tick(float deltaSeconds, BeltLane belt, ref long nextItemId, int powerBp = 0)
     {
-        IsPowered = powered && CanReceivePower;
+        SetPower(powerBp);
         if (!AdvanceToReady(deltaSeconds))
         {
             return false;
@@ -141,10 +152,10 @@ public sealed class Miner
         return false;
     }
 
-    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId, bool powered = false,
+    public bool Tick(float deltaSeconds, BeltGrid grid, ref long nextItemId, int powerBp = 0,
         Func<string, bool>? tryDeliverAdjacent = null)
     {
-        IsPowered = powered && CanReceivePower;
+        SetPower(powerBp);
         if (!AdvanceToReady(deltaSeconds))
         {
             return false;
@@ -192,7 +203,8 @@ public sealed class Miner
             return false;
         }
 
-        var powerMul = IsPowered ? Generator.PoweredCraftSpeedMultiplier : 1f;
+        // 1 + 0.2 × s on top of the T2's own speed.
+        var powerMul = 1f + PowerBp / 50_000f;
         Progress = Math.Min(
             1f,
             Progress + deltaSeconds * Efficiency * MiningSpeed * powerMul / MiningDurationSeconds);
