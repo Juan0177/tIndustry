@@ -340,7 +340,7 @@ public sealed class ConstructionTests
             new(PowerNode.Tier2Id, BuildingKind.PowerNodeT2, new GridPosition(32, 10), Direction.East),
             new(Lamp.BuildingId, BuildingKind.Lamp, new GridPosition(35, 10), Direction.East),
             new("conveyor-basic", null, new GridPosition(10, 20), Direction.East),
-            new("junction", BuildingKind.Junction, new GridPosition(11, 20), Direction.East),
+            new("junction", BuildingKind.Junction, new GridPosition(11, 20), Direction.North), // a junction has no direction
             new("router", BuildingKind.Router, new GridPosition(12, 20), Direction.North), // a router has no direction
             new("sorter", BuildingKind.Sorter, new GridPosition(13, 20), Direction.North, FilterItemId: "copper-ore"),
             new("sorter-inverted", BuildingKind.SorterInverted, new GridPosition(18, 20), Direction.North),

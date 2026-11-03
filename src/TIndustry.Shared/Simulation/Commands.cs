@@ -87,7 +87,7 @@ public sealed record SetAutoSell(int PlayerId, string ItemId, bool Enabled) : Si
 public sealed record SetAutoSellWhenFull(int PlayerId, string ItemId, bool Enabled) : SimCommand(PlayerId);
 
 /// <summary>
-/// Sets the filter of the block on <paramref name="Tile"/> (a sorter or an inverted sorter), the player's choice in
+/// Sets the filter of the block on <paramref name="Tile"/> (a sorter, an inverted sorter or an extractor), the player's choice in
 /// the filter panel; <paramref name="ItemId"/> null = no filter. Refused (<see cref="RefusalCode.InvalidCommand"/>) on
 /// a block without a filter, an empty tile or an item the game does not know (<see cref="FactoryContent.IsKnownItem"/>).
 /// </summary>

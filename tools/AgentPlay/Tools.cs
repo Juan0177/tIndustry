@@ -220,7 +220,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     [Description("Sceglie il filtro di un selezionatore (sorter), di un selezionatore invertito (sorter-inverted) o di un estrattore (extractor), come la scelta nel pannello del filtro (SetBlockFilter). Senza 'oggetto' toglie il filtro: il selezionatore manda tutto ai lati, l'invertito tutto dritto, l'estrattore sposta qualsiasi oggetto a turno per id. Rifiuto InvalidCommand su un blocco senza filtro, una cella vuota o un oggetto sconosciuto. Risponde {filtro} (null = nessuno).")]
     public string Filtro(
         [Description(Sessione)] string sessione,
-        [Description("La cella del selezionatore.")] Cella cella,
+        [Description("La cella del selezionatore o dell'estrattore.")] Cella cella,
         [Description("Id dell'oggetto del filtro; assente = nessun filtro.")] string? oggetto = null) =>
         Game(sessione, "filtro", new { cella, oggetto });
 

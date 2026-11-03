@@ -46,6 +46,7 @@ Come in Mindustry il tempo dipende dal costo: *(20 + somma di quantità × peso 
 | Nastro rinforzato | 0,81 s |
 | Incrocio, Router | 0,72 s |
 | Selezionatore | 0,75 s |
+| Selezionatore invertito | 0,75 s |
 | Nastro ponte (due estremi) | 1,15 s |
 | Minatore T1 | 0,73 s |
 | Minatore T2 | 0,97 s |

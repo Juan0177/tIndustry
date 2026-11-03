@@ -551,12 +551,12 @@ public sealed class BeltGrid
     /// <summary>
     /// Mindustry's conveyor: a belt never takes from the belt, the junction, the router or the sorter it faces (two belts
     /// head-on, a junction between two belts facing into it, or a router or a sorter handing back to its feeder would
-    /// bounce items).
+    /// bounce items); nor from any building (miner, extractor, crafter) in front of it.
     /// </summary>
     private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
         cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
-        && cells.TryGetValue(cell.OutputPosition, out var feeder)
-        && feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter;
+        && (!cells.TryGetValue(cell.OutputPosition, out var feeder)
+            || feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter);
 
     private static bool IsAdjacent(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1;
 
@@ -874,8 +874,8 @@ public sealed class BeltGridCell
     public GridPosition? BridgePartner { get; private set; }
     public string? FilterItemId => filterItemId;
 
-    /// <summary>False for a router and a sorter: they have no direction (kept North, rotating them does nothing).</summary>
-    public bool HasDirection => Kind is not (LogisticsKind.Router or LogisticsKind.Sorter);
+    /// <summary>False for a router, a sorter and a junction: they have no direction (kept North, rotating them does nothing).</summary>
+    public bool HasDirection => Kind is not (LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Junction);
 
     /// <summary>
     /// Sorter: one turn bit per direction of travel (bit <c>(int)direction</c>, as Mindustry's <c>rotation</c> bits): set

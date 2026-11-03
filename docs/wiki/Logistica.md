@@ -19,8 +19,8 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 |---|---|---|---|---|
 | Incrocio (`junction`) | Coda di 6 oggetti per direzione, 26 tick per attraversarlo: circa 13,8 oggetti/s per direzione | 3 Ferro grezzo | dopo il Nastro T1 | Due linee si attraversano senza mescolarsi; prende anche dagli edifici accanto e accetta un oggetto solo se dall'altra parte c'è un blocco che può riceverlo |
 | Router (`router`) | 1 oggetto alla volta, 8 tick ciascuno: 7,5 oggetti/s | 3 Ferro grezzo | dopo l'Incrocio | Distribuisce gli oggetti a turno su tutti i lati, mai verso il lato da cui arrivano |
-| Selezionatore (`sorter`) | 8 oggetti/s | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | L'oggetto del filtro va dritto, gli altri di lato, alternando |
-| Selezionatore invertito (`sorter-inverted`) | 8 oggetti/s | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | Il contrario: l'oggetto del filtro di lato, gli altri dritti |
+| Selezionatore (`sorter`) | istantaneo, passa al ritmo del nastro | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | L'oggetto del filtro va dritto, gli altri di lato, alternando |
+| Selezionatore invertito (`sorter-inverted`) | istantaneo, passa al ritmo del nastro | 2 Ferro grezzo, 2 Piombo grezzo | dopo il Selezionatore | Il contrario: l'oggetto del filtro di lato, gli altri dritti |
 | Estrattore (`extractor`) | 11 oggetti/s | 2 Lastre di ferro | Ricerca | Tira un oggetto fuori da un magazzino o da una macchina e lo dà al blocco accanto |
 | Nastro ponte (`conveyor-bridge`) | 5,25 oggetti/s | 6 Ferro grezzo, 6 Piombo grezzo **per estremo** (12 e 12 in tutto) | dopo l'Incrocio | Scavalca da 1 a 3 celle |
 

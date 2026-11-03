@@ -510,8 +510,8 @@ def _html_pezzo(p, a, scena):
         # MindustryBeltVisual.AddSpecial: the router has no direction (the sorter turns with its facing).
         return _img(a.sprite("router"), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "selezionatore":
-        # The sorter turned to its facing and, upright on top, the belt sprite of its filter item.
-        return (_img(a.sprite("sorter"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso)
+        # The sorter (no direction, never rotated) and, upright on top, the belt sprite of its filter item.
+        return (_img(a.sprite("sorter"), p.x, p.y, righe=r, basso=p.basso)
                 + _img(a.sprite(p.oggetto + "-belt"), p.x + 11 / 32, p.y + 11 / 32, 20 / 64, 20 / 64, z=4, righe=r, basso=p.basso)
                 + flussi)
     if p.tipo == "ponte" and p.n == composti.PONTE_CELLE:

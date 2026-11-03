@@ -321,7 +321,9 @@ public sealed class BeltCell
         var movement = Definition.RateItemsPerSecond * deltaSeconds;
         if (movement <= 0f)
         {
-            return; // the settle pass (Dt 0) keeps this tick's carries
+            // The settle pass (Dt 0) keeps this tick's carries. The junction ignores the rate for its speed (it ages by
+            // ticks) but still needs a positive rate in its definition to tell a real tick from the settle pass.
+            return;
         }
 
         tickMovement = movement;

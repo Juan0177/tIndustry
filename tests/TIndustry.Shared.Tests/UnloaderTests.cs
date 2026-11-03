@@ -130,6 +130,20 @@ public sealed class UnloaderTests
             Line(f, BesideCore.Step(Direction.South), Direction.South, length));
 
     [Fact]
+    public void ABeltFacingTheExtractor_NeverTakesFromIt()
+    {
+        var f = NewFactory();
+        var extractor = PlaceExtractor(f, BesideCore);
+        var east = BesideCore.Step(Direction.East);
+        Assert.True(f.TryPlaceBelt(east, Direction.West)); // faces the extractor: a belt never takes from its front
+
+        Run(f, 300);
+
+        Assert.Equal(0, ItemsOn(f, new[] { east }));
+        Assert.Equal(0, extractor.ItemsExtracted);
+    }
+
+    [Fact]
     public void NumbersAreMindustrys()
     {
         Assert.Equal(11, Extractor.ItemsPerSecond);
