@@ -354,11 +354,13 @@ public partial class World : Node2D
 
         // The keys held become the drone's input before the frame's ticks run.
         SyncDroneInput();
+        SyncHeldMiningClick();
         if (SimAdvances)
         {
             AdvanceHost(delta);
         }
 
+        SyncMiningStallHint();
         var visualDelta = PlaytestHeld || PlayerPaused ? 0f : (float)delta;
         SyncConstructionVisuals(visualDelta);
 

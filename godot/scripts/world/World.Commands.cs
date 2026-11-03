@@ -45,6 +45,8 @@ public partial class World
         // The held left button belonged to the old game: its mining and click end with it, nothing sent.
         _handMining = false;
         _clickDown = null;
+        _miningHeldOutOfRange = null;
+        _miningStallHinted = false;
         _effects?.Clear();
         // Site ids start over in the new game: a site-done event must not find an old game's rect.
         _constructionLayer?.Clear();

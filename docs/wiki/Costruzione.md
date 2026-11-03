@@ -32,7 +32,7 @@ Se quando il piano entra nel raggio non si può più costruire (cella occupata, 
 
 Il costo esce dal magazzino del CORE un pezzo alla volta, mentre il cantiere avanza. Anche il **potenziamento del CORE** è un cantiere: si piazza solo sopra il CORE, con le celle nuove libere (vedi [Economia e Ricerca](Economia-e-Ricerca#i-tre-livelli)), e il vecchio CORE lavora finché non finisce. Se manca un materiale il cantiere si **ferma** esattamente lì e, passando col mouse, dice cosa manca ("Mancano: 3 Ferro grezzo"). Riparte da solo quando il materiale arriva.
 
-Se un cantiere resta fermo per un secondo e in coda ci sono altri piani, il drone lo lascia com'è (con quanto ha già speso) e passa avanti: il piano va in fondo alla coda e il cantiere riprende quando ritocca a lui.
+Se un cantiere resta fermo per un secondo e c'è un altro piano nel raggio, il drone lo lascia com'è (con quanto ha già speso) e passa avanti: il piano va in fondo alla coda e il cantiere riprende quando ritocca a lui.
 
 ## Coda nell'HUD
 

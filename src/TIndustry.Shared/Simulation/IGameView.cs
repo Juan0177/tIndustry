@@ -183,6 +183,12 @@ public interface IGameView
     /// </summary>
     bool IsMiningNow(BuilderUnit builder);
 
+    /// <summary>
+    /// True when <paramref name="builder"/>'s hand mining waits for its current site, stuck for materials for a
+    /// second (<see cref="Factory.IsMiningHeldByStalledSite"/>; the client's hint to cancel the plan or fly away).
+    /// </summary>
+    bool IsMiningHeldByStalledSite(BuilderUnit builder);
+
     IWalletView Wallet { get; }
 
     IResearchView Research { get; }

@@ -47,7 +47,7 @@ Anche il drone può scavare: **tieni premuto il clic sinistro su un giacimento**
 
 - La stiva tiene **un solo tipo** di minerale alla volta; con la stiva piena di un minerale non si scava un altro.
 - Quando il drone è entro **6 celle dal bordo del CORE** (0 sopra il CORE) la stiva passa da sola nel magazzino, fino al massimo del CORE per quell'oggetto; quello che non entra resta nella stiva. Con la stiva piena lontano dal CORE lo scavo aspetta, e il comando è rifiutato.
-- Lo scavo si **annulla** se la cella esce dal raggio di 27,5 celle, o se sul giacimento ora c'è il CORE, un edificio, un nastro o un cantiere. Si **ferma** (e poi riprende) mentre il drone sta costruendo.
+- Lo scavo si **annulla** se la cella esce dal raggio di 27,5 celle, o se sul giacimento ora c'è il CORE, un edificio, un nastro o un cantiere. Si **ferma** (e poi riprende) mentre il drone sta costruendo: se il cantiere è fermo perché mancano i materiali, un avviso lo dice; annulla il piano o allontanati per scavare.
 
 ## Forno
 

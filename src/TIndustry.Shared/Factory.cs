@@ -783,6 +783,32 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
+    /// True when <paramref name="builder"/> has a <see cref="BuilderUnit.MiningTile"/> but mining waits because the
+    /// drone's current site is stuck for materials (<see cref="ConstructSite.Missing"/>, stalled for
+    /// <see cref="Construction.StuckTicks"/> in a row, so a site short for a tick between deliveries does not count):
+    /// Mindustry's rule keeps mining paused while the drone holds a site, so the client tells the player to cancel the
+    /// plan or fly away.
+    /// </summary>
+    public bool IsMiningHeldByStalledSite(BuilderUnit builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        if (builder.MiningTile is null || builder.CurrentSiteId is not { } siteId)
+        {
+            return false;
+        }
+
+        foreach (var site in State.Sites)
+        {
+            if (site.Id == siteId)
+            {
+                return site is { Deconstructing: false, Missing: not null } && site.StalledTicks >= Construction.StuckTicks;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>. Breaking
     /// plans stand on something that exists, so they never reserve cells.
     /// </summary>

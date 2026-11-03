@@ -507,13 +507,24 @@ public partial class World
     /// <summary>Screen pixels the mouse may move between press and release for a click to still count as one.</summary>
     private const float ClickSlop = 4f;
 
+    /// <summary>Milliseconds a press on a deposit out of range must be held before it counts as mining (and toasts).</summary>
+    private const ulong MiningHoldMs = 250;
+
     // Left press with no block selected: where it went down (a click on release), or true while it mines by hand.
     private (GridPosition Cell, Vector2 Screen)? _clickDown;
     private bool _handMining;
 
+    // A press on a deposit out of the drone's range: the cell and when it went down. Held long enough it becomes
+    // mining (SetMining, whose refusal toasts); a short click stays a click, without the "out of range" toast.
+    private (GridPosition Cell, ulong SinceMs)? _miningHeldOutOfRange;
+
+    // The "mining waits for a stalled site" hint was shown for the current wait (once, when the wait begins).
+    private bool _miningStallHinted;
+
     /// <summary>
     /// Left press with no block selected: on a free deposit the drone mines it while the button is held
-    /// (<see cref="SetMining"/>; a refusal toasts, as any command); anywhere else the click selects on release.
+    /// (<see cref="SetMining"/>; a refusal toasts, as any command); anywhere else the click selects on release. A deposit
+    /// out of range waits for the press to be held (<see cref="SyncHeldMiningClick"/>), so a short click does not toast.
     /// </summary>
     private void BeginWorldClick(GridPosition cell, Vector2 screen)
     {
@@ -525,7 +536,15 @@ public partial class World
         // Something standing on the cell (a block, a belt, a site, a plan, the Core) is selected, deposit or not.
         var occupied = _view.CoreTiles.Contains(cell) || _view.TryGetSpecAt(cell, out _, out _) || _view.TryGetSiteAt(cell, out _)
             || _view.IsPlannedTile(cell) || _view.PowerBlockAt(cell) is not null;
-        if (!occupied && _view.MiningRefusal(LocalPlayer, cell) is not (RefusalCode.MiningNoDeposit or RefusalCode.MiningCovered))
+        var refusal = occupied ? null : _view.MiningRefusal(LocalPlayer, cell);
+        if (refusal == RefusalCode.MiningOutOfRange)
+        {
+            _miningHeldOutOfRange = (cell, Time.GetTicksMsec());
+            _clickDown = (cell, screen);
+            return;
+        }
+
+        if (!occupied && refusal is not (RefusalCode.MiningNoDeposit or RefusalCode.MiningCovered))
         {
             _filterPanel?.Close();
             _selectedNode = null;
@@ -555,6 +574,7 @@ public partial class World
     private void StopHandMining()
     {
         _clickDown = null;
+        _miningHeldOutOfRange = null;
         if (!_handMining)
         {
             return;
@@ -562,6 +582,50 @@ public partial class World
 
         _handMining = false;
         SubmitCommand(new SetMining(LocalPlayer, null));
+    }
+
+    /// <summary>
+    /// Every frame: a press on a deposit out of range held for <see cref="MiningHoldMs"/> becomes mining
+    /// (<see cref="SetMining"/>: still out of range, the refusal toasts; flown into range meanwhile, the drone mines).
+    /// </summary>
+    private void SyncHeldMiningClick()
+    {
+        if (_miningHeldOutOfRange is not { } held)
+        {
+            return;
+        }
+
+        if (_clickDown is null || _view is null || PanelOpen || !GameInPlay)
+        {
+            _miningHeldOutOfRange = null;
+            return;
+        }
+
+        if (Time.GetTicksMsec() - held.SinceMs < MiningHoldMs)
+        {
+            return;
+        }
+
+        _miningHeldOutOfRange = null;
+        _clickDown = null; // held: mining, not a click
+        _handMining = true;
+        SubmitCommand(new SetMining(LocalPlayer, held.Cell));
+    }
+
+    /// <summary>
+    /// Every frame: when the drone's hand mining starts waiting for its current site, stuck for materials
+    /// (<see cref="IGameView.IsMiningHeldByStalledSite"/>: Mindustry's rule, no mining while it holds a site), a toast
+    /// says why, once per wait.
+    /// </summary>
+    private void SyncMiningStallHint()
+    {
+        var waiting = GameInPlay && LocalDrone is { } drone && _view!.IsMiningHeldByStalledSite(drone);
+        if (waiting && !_miningStallHinted)
+        {
+            _hud?.ShowToast(Testi.T("scavo.attesa.cantiere"));
+        }
+
+        _miningStallHinted = waiting;
     }
 
     /// <summary>
@@ -652,7 +716,8 @@ public partial class World
     /// <see cref="SetDroneInput"/> only when it changes, so an input held by someone else (the agents' <c>muovi</c>) is
     /// not overwritten every frame. A game attached here (new, or loaded: Continua or any save, however it was saved: Esc,
     /// Menu, quitting) starts from the input its drone holds, so a saved held input is let go at once with
-    /// <see cref="SetDroneInput"/>(0, 0) when no key is down: nothing is released (or ticked) at save time.
+    /// <see cref="SetDroneInput"/>(0, 0) when no key is down, and a saved mining cell with <see cref="SetMining"/>(null)
+    /// when the button is not held: nothing is released (or ticked) at save time.
     /// </summary>
     private void SyncDroneInput()
     {
@@ -665,6 +730,11 @@ public partial class World
 
             _droneInputHost = _host;
             _droneInputSent = (loaded.InputX, loaded.InputY);
+            if (!_handMining && loaded.MiningTile is not null)
+            {
+                // A saved mining cell is let go too: the left button is not held in the game just attached.
+                SubmitCommand(new SetMining(LocalPlayer, null));
+            }
         }
 
         if (LocalDrone is null)

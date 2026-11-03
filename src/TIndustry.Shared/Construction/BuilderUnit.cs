@@ -53,7 +53,8 @@ public sealed class BuilderUnit
 
     /// <summary>
     /// Deposit cell the drone mines by hand (<see cref="SetMining"/>), null when it does not mine. It stays set while
-    /// mining waits (cell out of range, hold full, Core full): <see cref="HandMiningSystem"/> resumes on its own.
+    /// mining waits (hold full, Core full, the drone building): <see cref="HandMiningSystem"/> resumes on its own. A cell
+    /// out of range, covered or without a deposit the tier digs cancels it (back to null).
     /// </summary>
     public GridPosition? MiningTile { get; internal set; }
 

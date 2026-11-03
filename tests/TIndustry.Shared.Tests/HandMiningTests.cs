@@ -451,6 +451,42 @@ public sealed class HandMiningTests
     }
 
     [Fact]
+    public void SiteStalledForMaterialsHoldsMiningAndSaysSo()
+    {
+        var factory = NewFactory(instantBuild: false);
+        foreach (var (itemId, count) in factory.Wallet.MaterialsSnapshot())
+        {
+            factory.Wallet.TryRemoveMaterial(itemId, count); // nothing to build with
+        }
+
+        var drone = Drone(factory);
+        AwayFromCore(drone);
+        var (host, _) = Host(factory);
+        host.Submit(new SetMining(Player, IronFar));
+        host.AdvanceTicks(1);
+        Assert.False(factory.IsMiningHeldByStalledSite(drone)); // mining, no site
+
+        host.Submit(new PlaceBelt(Player, new GridPosition(120, 105), Direction.East, "conveyor-basic"));
+        host.AdvanceTicks(3);
+        Assert.NotNull(drone.CurrentSiteId);
+        Assert.False(factory.IsMiningHeldByStalledSite(drone)); // short for a moment: not stuck yet
+        host.AdvanceTicks(Construction.StuckTicks);
+        Assert.True(factory.IsMiningHeldByStalledSite(drone));
+        var hold = drone.HoldCount;
+        host.AdvanceTicks(5 * Simulation.TickRate);
+        Assert.Equal(hold, drone.HoldCount); // still held: the site keeps the drone
+        Assert.True(factory.IsMiningHeldByStalledSite(drone));
+
+        factory.Wallet.AddMaterial(IronOre, 100); // the materials arrive: the site goes on, no longer stalled
+        host.AdvanceTicks(1);
+        Assert.False(factory.IsMiningHeldByStalledSite(drone));
+
+        host.Submit(new SetMining(Player, null));
+        host.AdvanceTicks(1);
+        Assert.False(factory.IsMiningHeldByStalledSite(drone)); // no mining target
+    }
+
+    [Fact]
     public void PausedGameDoesNotMine()
     {
         var factory = NewFactory();

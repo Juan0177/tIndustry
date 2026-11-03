@@ -237,7 +237,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "muovi", new { dx, dy, cella, maxTick });
 
     [McpServerTool(Name = "scava")]
-    [Description("Scava a mano col drone il giacimento di una cella nel suo raggio (SetMining): un oggetto alla volta nella stiva, al ritmo del livello (alpha 0,7 pezzi/s, stiva 30; beta 0,9 e 50; gamma 1,1 e 70, l'unico che scava il titanio); entro 6 celle dal Core la stiva si scarica da sola. Lo scavo aspetta (fuori raggio, stiva piena, Core pieno) e riprende da solo. Senza 'cella' smette. Rifiuti: MiningNoDeposit, MiningNotMineable, MiningOutOfRange, MiningCovered, MiningHoldOtherItem, MiningHoldFull. Risponde {tick, drone}.")]
+    [Description("Scava a mano col drone il giacimento di una cella nel suo raggio (SetMining): un oggetto alla volta nella stiva, al ritmo del livello (alpha 0,7 pezzi/s, stiva 30; beta 0,9 e 50; gamma 1,1 e 70, l'unico che scava il titanio); entro 6 celle dal Core la stiva si scarica da sola. Lo scavo si annulla se la cella esce dal raggio, finisce sotto un edificio o perde il giacimento; aspetta, e riprende da solo, a stiva piena, a Core pieno o mentre il drone costruisce. Senza 'cella' smette. Rifiuti: MiningNoDeposit, MiningNotMineable, MiningOutOfRange, MiningCovered, MiningHoldOtherItem, MiningHoldFull. Risponde {tick, drone}.")]
     public string Scava(
         [Description(Sessione)] string sessione,
         [Description("Cella del giacimento; assente = smette di scavare.")] Cella? cella = null) =>
