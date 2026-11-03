@@ -218,6 +218,12 @@ public partial class Hud : Control
     /// <summary>The Core's tier and each item's maximum (<see cref="IGameView.CoreCapacity"/>) for the stock column.</summary>
     public void UpdateCore(CoreTierDefinition tier, Func<string, int> capacityOf) => _core.UpdateCore(tier, capacityOf);
 
+    /// <summary>The drone's hold in the Core column (<see cref="CorePanel.UpdateHold"/>; hidden while empty).</summary>
+    public void UpdateHold(string? itemId, int count, int capacity) => _core.UpdateHold(itemId, count, capacity);
+
+    /// <summary>The hold row as shown (playtests).</summary>
+    internal (string? ItemId, int Count, int Capacity) HoldShown => _core.HoldShown;
+
     /// <summary>The world's time line of the Core column (<see cref="CorePanel.UpdateWorldTime"/>).</summary>
     public void UpdateWorldTime(DayNightMode mode, DayNightPhase phase, long? firstBuildTick, long? ticksToNext, bool attackAlert) =>
         _core.UpdateWorldTime(mode, phase, firstBuildTick, ticksToNext, attackAlert);

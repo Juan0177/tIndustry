@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Top-left HUD column (Mindustry layout): menu buttons → core resources (funds, power, stock with the Core's
-/// maximum, the Core's tier, the world's time) → build queue → campaign objectives. Owns the last stock counts and funds shown.
+/// maximum, the drone's hold, the Core's tier, the world's time) → build queue → campaign objectives. Owns the last stock counts and funds shown.
 /// </summary>
 public partial class CorePanel : VBoxContainer
 {
@@ -27,6 +27,11 @@ public partial class CorePanel : VBoxContainer
     private GridContainer? _stockGrid;
     private Label? _stockEmpty;
     private Label? _tierLabel;
+    private HBoxContainer? _holdRow;
+    private TextureRect? _holdIcon;
+    private Label? _holdLabel;
+    // What the hold row shows now (written again only when it changes, or the language does).
+    private (string? ItemId, int Count, int Capacity) _holdShown = (null, -1, -1);
     private Label? _timeLabel;
     private CoreTierDefinition? _tier;
     private Func<string, int>? _capacityOf;
@@ -93,6 +98,7 @@ public partial class CorePanel : VBoxContainer
         }
 
         SyncPowerTooltip();
+        SyncHoldTooltip();
         _tierShown = default;
         SyncTier();
         foreach (var id in _stockCells.Keys)
@@ -197,6 +203,56 @@ public partial class CorePanel : VBoxContainer
 
         var gens = _generatorsTotal > 0 ? Testi.F("core.energia.generatori", _generatorsLive, _generatorsTotal) : "";
         _powerLabel.TooltipText = _hasGrid ? Testi.T("core.energia") + gens : Testi.T("core.energia.nessuna");
+    }
+
+    /// <summary>
+    /// The drone's hold (spec «Scavo a mano»): the item's icon and count/capacity, in the "pieno" colour when full; hidden
+    /// while empty. It empties into the Core by itself within 6 cells of it (the tooltip says so).
+    /// </summary>
+    public void UpdateHold(string? itemId, int count, int capacity)
+    {
+        if (_holdRow is null || _holdIcon is null || _holdLabel is null)
+        {
+            return;
+        }
+
+        (string? ItemId, int Count, int Capacity) shown = count > 0 && itemId is not null ? (itemId, count, capacity) : (null, 0, capacity);
+        if (shown == _holdShown)
+        {
+            return;
+        }
+
+        var newItem = shown.ItemId != _holdShown.ItemId;
+        _holdShown = shown;
+        _holdRow.Visible = shown.ItemId is not null;
+        if (shown.ItemId is not { } id)
+        {
+            return;
+        }
+
+        if (newItem)
+        {
+            _holdIcon.Texture = ItemTexture(id);
+        }
+
+        _holdLabel.Text = $"{count}/{capacity}";
+        _holdLabel.ThemeTypeVariation = count >= capacity ? UiTheme.TestoPieno : "";
+        SyncHoldTooltip();
+    }
+
+    /// <summary>Hold row shown in the HUD now: item, count and capacity (null item while hidden; playtests).</summary>
+    internal (string? ItemId, int Count, int Capacity) HoldShown => _holdShown;
+
+    private void SyncHoldTooltip()
+    {
+        if (_holdRow is null || _holdShown.ItemId is not { } id)
+        {
+            return;
+        }
+
+        var (_, count, capacity) = _holdShown;
+        _holdRow.TooltipText = Testi.F(count >= capacity ? "core.stiva.piena" : "core.stiva.suggerimento",
+            Testi.Oggetto(id, _content), count, capacity);
     }
 
     /// <summary>
@@ -439,6 +495,21 @@ public partial class CorePanel : VBoxContainer
 
         _stockEmpty = MakeLabel("core.vuoto", UiTheme.TestoTenue);
         vbox.AddChild(_stockEmpty);
+
+        // The drone's hold: "Stiva" · item icon · count/capacity (hidden while empty).
+        _holdRow = new HBoxContainer
+        {
+            Name = "StivaDrone",
+            Visible = false,
+            MouseFilter = MouseFilterEnum.Pass,
+            ThemeTypeVariation = UiTheme.RigaStretta
+        };
+        vbox.AddChild(_holdRow);
+        _holdRow.AddChild(MakeLabel("core.stiva", UiTheme.TestoTenue));
+        _holdIcon = MakeIcon(null, 20);
+        _holdRow.AddChild(_holdIcon);
+        _holdLabel = MakeLabel("0/0");
+        _holdRow.AddChild(_holdLabel);
 
         // CORE tier · maximum per item (rate and drone on hover).
         _tierLabel = MakeLabel("", UiTheme.TestoTenue);

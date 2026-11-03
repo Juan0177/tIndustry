@@ -245,9 +245,10 @@ public partial class World
                 return;
             }
 
-            if (key.Keycode == Key.Q)
+            if (key.PhysicalKeycode == Key.Q)
             {
-                // Q (Mindustry): the block under the cursor becomes the selected block.
+                // Q (Mindustry): the block under the cursor becomes the selected block. Physical key, like WASD: on AZERTY
+                // the key labelled Q is the physical A (left), so the label would clash with the drone's movement.
                 if (_hover is { } under)
                 {
                     PickAt(under);
@@ -273,7 +274,8 @@ public partial class World
                 }
                 else if (key.Keycode == Key.Escape)
                 {
-                    // Raylib parity: autosave Continua then Esc → Home.
+                    // Raylib parity: autosave Continua then Esc → Home (the drone let go first).
+                    ReleaseDroneInputBeforeSave();
                     AutoSaveContinue(quiet: true);
                     _home?.Open(inGame: true);
                 }
@@ -607,8 +609,10 @@ public partial class World
     private (int Dx, int Dy) _droneInputSent;
     private SimHost? _droneInputHost;
 
-    // The drone's held input seen last frame: a change to a moving input ends the camera's free look.
-    private (int Dx, int Dy) _droneInputSeen;
+    // Where the drone was (simulated centre, tiles) last frame, and in which game: any movement ends the camera's free
+    // look, whoever flies it (WASD, or the agents' muovi {cella}, which holds no input between two frames).
+    private (float X, float Y)? _dronePositionSeen;
+    private SimHost? _dronePositionHost;
 
     /// <summary>Set by a playtest step that checks the follow; otherwise playtests frame their own captures.</summary>
     private bool _playtestCameraFollows;
@@ -691,13 +695,41 @@ public partial class World
     {
         var follow = GameInPlay && !HomeBackdrop && (!PlaytestRequested || _playtestCameraFollows);
         cam.FollowTarget = follow ? DroneWorldPosition() : null;
-        var seen = LocalDrone is { } drone ? (drone.InputX, drone.InputY) : (0, 0);
-        if (seen != _droneInputSeen && seen != (0, 0))
+        (float X, float Y)? seen = LocalDrone is { } drone ? (drone.X, drone.Y) : null;
+        if (_host != _dronePositionHost)
+        {
+            _dronePositionHost = _host; // another game: its drone did not move, it is somewhere else
+        }
+        else if (seen is not null && _dronePositionSeen is not null && seen != _dronePositionSeen)
         {
             cam.FreeLook = false;
         }
 
-        _droneInputSeen = seen;
+        _dronePositionSeen = seen;
+    }
+
+    /// <summary>
+    /// Esc → Home: a drone input still held (a key, an agent's <c>muovi {dx, dy}</c>) is let go before the Continua
+    /// autosave, with the one tick that applies it, so the saved game never resumes with the drone flying.
+    /// </summary>
+    private void ReleaseDroneInputBeforeSave()
+    {
+        if (_host is not { } host || LocalDrone is not { } drone || (drone.InputX, drone.InputY) == (0, 0))
+        {
+            return;
+        }
+
+        ReleaseDroneKeys();
+        _droneInputSent = (0, 0);
+        SubmitCommand(new SetDroneInput(LocalPlayer, 0, 0));
+        try
+        {
+            host.AdvanceTicks(1);
+        }
+        catch (AggregateException ex)
+        {
+            GD.PushError($"Rilascio del drone prima del salvataggio: {ex.InnerExceptions[0]}");
+        }
     }
 
     /// <summary>H: the view jumps onto the drone (and follows it again).</summary>

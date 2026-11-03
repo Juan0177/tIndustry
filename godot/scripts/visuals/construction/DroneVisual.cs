@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 /// <summary>
 /// One construction drone (Mindustry's alpha): the <c>drone-1</c> sprite turned to its heading over its own
 /// dark shadow, a pulsing engine glow at its tail with a 3-dot trail (as Mindustry's units) and, while it
-/// works, the build beam to its site. Position and heading are interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
+/// works, the build beam to its site; while it mines by hand, the mining laser to its deposit. Position and heading are interpolated between simulation ticks so flight stays smooth above 60 fps; an idle drone hovers
 /// ±0.05 tile (graphics only). With effects on (G3) the beam is richer, as in Mindustry: a bright ray to a point
 /// that wanders over the site, throwing sparks (<c>scintille-cantiere</c>). The node itself is never rotated: it draws in world-aligned local space and turns
 /// only the sprite.
@@ -135,6 +135,8 @@ public partial class DroneVisual : Node2D
     private readonly Queue<Vector2> _trail = new();
     private Rect2? _beamTarget;
     private Color _beamColor;
+    // Hand mining: centre of the deposit cell being mined (world px), null when the drone does not dig now.
+    private Vector2? _mineTarget;
     // Rich beam (effects on): where the ray hits the site now (world), and the time to the next sparks.
     private Vector2? _beamPoint;
     private float _sparkTimer;
@@ -151,9 +153,11 @@ public partial class DroneVisual : Node2D
     /// <summary>
     /// Takes the drone's state for this frame. <paramref name="beamTarget"/> is the site it works on
     /// (world rect), drawn with <paramref name="beamColor"/>; null when flying or idle. With <paramref name="fx"/>
-    /// at a quality that draws particles, the beam is the rich one.
+    /// at a quality that draws particles, the beam is the rich one. <paramref name="mineTarget"/> is the centre of the
+    /// deposit cell the drone digs by hand (world px), drawn as Mindustry's mining laser; null when it does not dig.
     /// </summary>
-    public void Sync(BuilderUnit builder, long tick, float delta, Rect2? beamTarget, Color beamColor, EffectManager? fx)
+    public void Sync(BuilderUnit builder, long tick, float delta, Rect2? beamTarget, Color beamColor, EffectManager? fx,
+        Vector2? mineTarget = null)
     {
         var target = new Vector2(builder.X, builder.Y) * World.TileSize;
         var rot = Mathf.DegToRad(builder.Rotation);
@@ -200,6 +204,7 @@ public partial class DroneVisual : Node2D
 
         _beamTarget = beamTarget;
         _beamColor = beamColor;
+        _mineTarget = mineTarget;
         SyncRichBeam(beamTarget, fx, delta, pos);
         QueueRedraw();
     }
@@ -236,6 +241,7 @@ public partial class DroneVisual : Node2D
         DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
 
         DrawBeam(heading * (_noseTiles * t));
+        DrawMiningLaser(heading * (_noseTiles * t));
 
         // Engine glow under the tail: accent disc with a hot centre, pulsing (still in playtests).
         var pulse = GameDataPaths.IsPlaytest ? 0f : Mathf.Abs(Mathf.Sin(_clock * EnginePulseRadPerSec));
@@ -291,6 +297,41 @@ public partial class DroneVisual : Node2D
             DrawRect(new Rect2(at - new Vector2(3f, 3f), new Vector2(6f, 6f)), new Color(_beamColor, flicker));
             DrawRect(new Rect2(at - new Vector2(1.5f, 1.5f), new Vector2(3f, 3f)), new Color(1f, 1f, 1f, flicker));
         }
+    }
+
+    /// <summary>
+    /// Mindustry's mining laser: a soft wide line and a bright core from the nose to a point that wobbles over the deposit
+    /// cell (a quarter of a cell), with a flickering square on the cell. Still in playtests (repeatable captures).
+    /// </summary>
+    private void DrawMiningLaser(Vector2 nose)
+    {
+        if (_mineTarget is not { } target)
+        {
+            return;
+        }
+
+        var t = World.TileSize;
+        var still = GameDataPaths.IsPlaytest;
+        var wobble = still ? Vector2.Zero : new Vector2(Mathf.Sin(_clock * 4.1f), Mathf.Sin(_clock * 3.3f + 0.7f)) * (t * 0.25f);
+        var flicker = still ? 1f : 0.8f + 0.2f * Mathf.Sin(_clock * 17f);
+        var end = target - Position + wobble;
+        var under = UiColors.SottoSegno;
+        if (under.A > 0f)
+        {
+            DrawLine(nose, end, under, 5f);
+        }
+
+        DrawLine(nose, end, new Color(UiColors.Scavo, 0.3f * flicker), 6f);
+        DrawLine(nose, end, new Color(UiColors.Scavo, 0.95f * flicker), 2f);
+        DrawCircle(end, 3f, new Color(1f, 1f, 1f, flicker));
+
+        // The mined cell: a square outline a little inside it, turning slowly (Mindustry's mining marker).
+        var centre = target - Position;
+        var angle = still ? 0f : _clock * 1.5f;
+        var half = t * 0.42f;
+        DrawSetTransform(centre, angle, Vector2.One);
+        DrawRect(new Rect2(-half, -half, half * 2f, half * 2f), new Color(UiColors.Scavo, 0.7f * flicker), filled: false, width: 2f);
+        DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
     }
 
     /// <summary>

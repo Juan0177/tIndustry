@@ -133,7 +133,7 @@ comune.chiudi,Chiudi,Close
 comune.annulla,Annulla,Cancel
 blocco.costo.ok,ok,ok
 blocco.costo.manca,manca,missing
-blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro = elimina · Esc = deseleziona,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click = remove · Esc = deselect
+blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro o Esc = deseleziona,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click or Esc = deselect
 blocco.io.minatore,I/O · estrae dal deposito sotto,I/O · mines the deposit below
 blocco.io.generatore,I/O · carbone → potenza,I/O · coal → power
 blocco.io.trasporto,I/O · trasporto oggetti,I/O · moves items
@@ -159,6 +159,10 @@ core.livello,{0} · massimo {1} per oggetto,{0} · max {1} per item
 core.livello.suggerimento,Vende {0} pezzi al secondo · drone {1},Sells {0} pieces per second · {1} drone
 core.scorta.pieno,{0} · {1}/{2} · pieno: i nastri si fermano,{0} · {1}/{2} · full: belts stop
 core.scorta,{0} · {1}/{2},{0} · {1}/{2}
+core.stiva,Stiva,Hold
+core.stiva.suggerimento,Stiva del drone: {0} · {1}/{2} · si svuota da sola entro 6 celle dal CORE,Drone hold: {0} · {1}/{2} · empties by itself within 6 cells of the Core
+core.stiva.piena,Stiva del drone piena: {0} · {1}/{2} · avvicinati al CORE per svuotarla,Drone hold full: {0} · {1}/{2} · fly near the Core to empty it
+coda.fuori.raggio,Fuori raggio: avvicina il drone,Out of range: fly the drone closer
 tempo.attesa,Il tempo parte dal primo blocco,Time starts with the first block
 tempo.notte.fra,Notte fra {0},Night in {0}
 tempo.giorno.fra,Giorno fra {0},Day in {0}
@@ -177,7 +181,7 @@ direzione.nord,Nord,North
 direzione.est,Est,East
 direzione.sud,Sud,South
 direzione.ovest,Ovest,West
-hud.direzione,R · {0} · destro = elimina,R · {0} · right click = remove
+hud.direzione,R · {0} · destro o Esc = deseleziona,R · {0} · right click or Esc = deselect
 hud.direzione.toast,Direzione: {0},Direction: {0}
 hud.camera.drone,Visuale sul drone (H),View on the drone (H)
 pausa.etichetta,In pausa,Paused

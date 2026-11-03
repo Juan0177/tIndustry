@@ -1374,6 +1374,27 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void MuoviInSlicesWithoutReleaseFliesLikeOneMuovi()
+    {
+        // The real game's bridge: slices of 20 ticks that keep the input held (rilascia: false), the last one releases.
+        var whole = NewHost();
+        using var wholeGame = new AgentGame(whole, Content);
+        Call(wholeGame, "muovi", """{"cella":{"x":110,"y":110},"maxTick":60}""");
+
+        var sliced = NewHost();
+        using var slicedGame = new AgentGame(sliced, Content);
+        var first = Call(slicedGame, "muovi", """{"cella":{"x":110,"y":110},"maxTick":20,"rilascia":false}""");
+        Assert.Equal(20, first.GetProperty("tick").GetInt64() - first.GetProperty("tickPrima").GetInt64());
+        Assert.NotEqual((0, 0), (Drone(sliced).InputX, Drone(sliced).InputY)); // still held between the slices
+        Call(slicedGame, "muovi", """{"cella":{"x":110,"y":110},"maxTick":20,"rilascia":false}""");
+        Call(slicedGame, "muovi", """{"cella":{"x":110,"y":110},"maxTick":20}""");
+
+        Assert.Equal(whole.State.CurrentTick, sliced.State.CurrentTick);
+        Assert.Equal((Drone(whole).X, Drone(whole).Y), (Drone(sliced).X, Drone(sliced).Y));
+        Assert.Equal((0, 0), (Drone(sliced).InputX, Drone(sliced).InputY));
+    }
+
+    [Fact]
     public void StatoReportsTheDrone()
     {
         var host = NewHost();

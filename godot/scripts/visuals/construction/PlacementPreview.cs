@@ -15,20 +15,30 @@ public static class PlacementPreview
     /// <summary>Alpha of the block sprite.</summary>
     public const float SpriteAlpha = 0.5f;
 
+    /// <summary>Alpha of the block sprite of a plan out of the drone's build range (fainter than a plan in range).</summary>
+    public const float OutOfRangeSpriteAlpha = 0.22f;
+
     /// <summary>Outline width in world px (a cell is 64).</summary>
     public const float OutlineWidth = 3f;
+
+    /// <summary>Dash length of the out of range outline, world px (a cell is 64: three dashes a side).</summary>
+    public const float DashLength = 10f;
 
     /// <summary>
     /// Draws the preview of <paramref name="structureId"/> over <paramref name="rect"/> (world px) on
     /// <paramref name="canvas"/>. <paramref name="turnSprite"/>: the sprite is turned to <paramref name="direction"/>
     /// (belts); <paramref name="arrow"/>: a direction arrow is drawn (every block placed with a direction). A null
     /// <paramref name="structureId"/> draws only the outline (and the X when refused): one cell of a bigger block.
+    /// <paramref name="outOfRange"/>: a plan the drone cannot reach from where it is, drawn fainter with a dashed
+    /// <see cref="UiColors.FuoriRaggio"/> outline (<see cref="DrawOutOfRange"/>) instead of the solid one.
     /// </summary>
     public static void Draw(CanvasItem canvas, string? structureId, Rect2 rect, Direction direction, bool turnSprite,
-        bool arrow, bool valid)
+        bool arrow, bool valid, bool outOfRange = false)
     {
         var outline = valid ? UiColors.FantasmaValido : UiColors.FantasmaNonValido;
-        var tint = valid ? new Color(1f, 1f, 1f, SpriteAlpha) : UiColors.FantasmaNonValido with { A = SpriteAlpha };
+        var tint = outOfRange ? new Color(1f, 1f, 1f, OutOfRangeSpriteAlpha)
+            : valid ? new Color(1f, 1f, 1f, SpriteAlpha)
+            : UiColors.FantasmaNonValido with { A = SpriteAlpha };
         if (structureId is not null && Sprites.TryFor(structureId) is { } tex)
         {
             if (turnSprite)
@@ -41,6 +51,17 @@ public static class PlacementPreview
             {
                 canvas.DrawTextureRect(tex, rect, false, tint);
             }
+        }
+
+        if (outOfRange)
+        {
+            DrawOutOfRange(canvas, rect);
+            if (arrow)
+            {
+                DrawArrow(canvas, rect, direction, UiColors.FuoriRaggio with { A = 0.6f });
+            }
+
+            return;
         }
 
         // The high-contrast variant draws every sign twice: a wider dark stroke first, then the colour.
@@ -62,6 +83,34 @@ public static class PlacementPreview
                 DrawArrow(canvas, rect, direction, color, extra);
             }
         }
+    }
+
+    /// <summary>
+    /// The "fuori raggio" outline: dashes of <see cref="UiColors.FuoriRaggio"/> round <paramref name="rect"/> (over the
+    /// dark under-stroke in the high-contrast variant), so a waiting plan reads apart from one in range without colour.
+    /// </summary>
+    public static void DrawOutOfRange(CanvasItem canvas, Rect2 rect)
+    {
+        var box = rect.Grow(-OutlineWidth / 2f);
+        var under = UiColors.SottoSegno;
+        if (under.A > 0f)
+        {
+            DrawDashedRect(canvas, box, under, OutlineWidth + 4f);
+        }
+
+        DrawDashedRect(canvas, box, UiColors.FuoriRaggio, OutlineWidth);
+    }
+
+    private static void DrawDashedRect(CanvasItem canvas, Rect2 box, Color color, float width)
+    {
+        var a = box.Position;
+        var b = new Vector2(box.End.X, box.Position.Y);
+        var c = box.End;
+        var d = new Vector2(box.Position.X, box.End.Y);
+        canvas.DrawDashedLine(a, b, color, width, DashLength);
+        canvas.DrawDashedLine(b, c, color, width, DashLength);
+        canvas.DrawDashedLine(c, d, color, width, DashLength);
+        canvas.DrawDashedLine(d, a, color, width, DashLength);
     }
 
     /// <summary>

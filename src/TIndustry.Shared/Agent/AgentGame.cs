@@ -1356,7 +1356,10 @@ public sealed class AgentGame : IDisposable
     /// drone keeps flying until another <c>muovi</c>. <c>muovi {cella, maxTick?}</c>: flies to the cell's centre,
     /// steering with <see cref="SetDroneInput"/> one tick at a time (like <c>avanza</c>, it runs those ticks itself),
     /// until the drone is within <see cref="ArrivalDistance"/> or <c>maxTick</c> ticks have passed, then releases the
-    /// input (one more tick). Deterministic, so <c>rigioca</c> flies the same.
+    /// input (one more tick). Deterministic, so <c>rigioca</c> flies the same. <c>rilascia: false</c> (the real game's
+    /// bridge, on every slice of a long flight but the last) keeps the input held after <c>maxTick</c> ticks instead of
+    /// releasing it, so the drone flies on into the next slice without stopping and without the extra tick; on arrival
+    /// the input is released all the same.
     /// </summary>
     private JsonObject Muovi(JsonElement p)
     {
@@ -1385,6 +1388,7 @@ public sealed class AgentGame : IDisposable
             throw Bad($"'maxTick' tra 1 e {MaxAdvanceTicks}.");
         }
 
+        var release = OptBool(p, "rilascia") ?? true;
         if (pending is not null)
         {
             throw Bad("Comando in corso: aspetta il suo esito prima di mandarne un altro.");
@@ -1403,6 +1407,11 @@ public sealed class AgentGame : IDisposable
         {
             var drone = Drone()!;
             arrived = BuilderSystem.Distance(drone, x, y) <= ArrivalDistance;
+            if (!arrived && !release && flown >= limit)
+            {
+                break; // out of ticks, the input stays held for the next slice
+            }
+
             var input = arrived || flown >= limit ? (0, 0) : (Steer(x - drone.X), Steer(y - drone.Y));
             if (input != (drone.InputX, drone.InputY))
             {

@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Immediate-mode drawing over the terrain chunks (<see cref="TerrainChunks"/>): grid, map border, deposits; and on
-/// the placement overlay above the world: the placement ghost (<see cref="PlacementPreview"/>) and the bridge span.
+/// the placement overlay above the world: the placement ghost (<see cref="PlacementPreview"/>), the bridge span and,
+/// while a block is selected, the drone's build range.
 /// </summary>
 public partial class World
 {
@@ -33,6 +34,11 @@ public partial class World
 
     private void DrawPlacementOverlay(CanvasItem canvas)
     {
+        if (_view is not null && _tool != BuildTool.None && GameInPlay)
+        {
+            DrawDroneRange(canvas);
+        }
+
         if (_view is not null
             && _hover is { } hover
             && hover.X >= 0 && hover.Y >= 0
@@ -45,6 +51,33 @@ public partial class World
         if (_view is not null && _draggingRemove && _removeMoved && _hover is { } cursor)
         {
             DrawRemovalRectangle(canvas, cursor);
+        }
+    }
+
+    /// <summary>Segments of the drone's range circle; every other one is drawn (a dashed circle, as Mindustry's).</summary>
+    private const int DroneRangeSegments = 120;
+
+    /// <summary>Plans out of the circle wait (<see cref="IGameView.IsPlanInRange"/>, the same distance from the drone's centre).</summary>
+    private void DrawDroneRange(CanvasItem canvas)
+    {
+        if (DroneWorldPosition() is not { } centre)
+        {
+            return;
+        }
+
+        var radius = _view!.Content.UnitForTier(_view.CoreTier).BuildRange * TileSize;
+        canvas.DrawCircle(centre, radius, UiColors.RaggioDrone with { A = 0.04f });
+        var under = UiColors.SottoSegno;
+        for (var i = 0; i < DroneRangeSegments; i += 2)
+        {
+            var from = centre + Vector2.FromAngle(Mathf.Tau * i / DroneRangeSegments) * radius;
+            var to = centre + Vector2.FromAngle(Mathf.Tau * (i + 1) / DroneRangeSegments) * radius;
+            if (under.A > 0f)
+            {
+                canvas.DrawLine(from, to, under, 6f);
+            }
+
+            canvas.DrawLine(from, to, UiColors.RaggioDrone with { A = 0.75f }, 3f);
         }
     }
 

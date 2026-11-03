@@ -642,10 +642,13 @@ public partial class AgentBridge : Node
             return true;
         }
 
+        // Every slice but the last keeps the input held (rilascia: false): the drone flies on into the next frame's slice
+        // without stopping, and the flight takes the ticks of an unsliced muovi (maxTick, then the release tick).
         var slice = Math.Min(move.Remaining, MoveTicksPerFrame);
+        var last = move.Remaining <= MoveTicksPerFrame;
         var parameters = JsonSerializer.SerializeToElement(new JsonObject
         {
-            ["cella"] = JsonNode.Parse(move.Cell.GetRawText()), ["maxTick"] = slice
+            ["cella"] = JsonNode.Parse(move.Cell.GetRawText()), ["maxTick"] = slice, ["rilascia"] = last
         });
         var response = _game.Handle(new AgentRequest(move.Id, "muovi", parameters));
         if (!response.Ok || response.Result is not { } result)
@@ -657,9 +660,11 @@ public partial class AgentBridge : Node
 
         var node = JsonNode.Parse(result.GetRawText())!.AsObject();
         var tickBefore = move.TickBefore ?? node["tickPrima"]?.DeepClone();
-        var remaining = move.Remaining - slice;
+        // The ticks this slice really ran, from its answer (not the slice asked for).
+        var elapsed = (node["tick"]?.GetValue<long>() ?? 0) - (node["tickPrima"]?.GetValue<long>() ?? 0);
+        var remaining = move.Remaining - (int)Math.Clamp(elapsed, slice, int.MaxValue);
         var arrived = node["arrivato"]?.GetValue<bool>() == true;
-        if (arrived || remaining <= 0)
+        if (arrived || last || remaining <= 0)
         {
             _move = null;
             node["tickPrima"] = tickBefore;

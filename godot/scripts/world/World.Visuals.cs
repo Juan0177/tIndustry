@@ -604,6 +604,8 @@ public partial class World
             _view.Generators.Count,
             stored,
             capacity);
+        var drone = LocalDrone;
+        _hud.UpdateHold(drone?.HoldItemId, drone?.HoldCount ?? 0, _view.Content.UnitForTier(_view.CoreTier).HoldCapacity);
         SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);

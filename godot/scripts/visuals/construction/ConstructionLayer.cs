@@ -6,7 +6,8 @@ namespace TIndustry.Godot;
 /// <summary>
 /// Everything about construction, in one node above buildings and items (the HUD is a CanvasLayer, so
 /// it stays on top): the local player's plans (drawn on their own layer, see <see cref="_Ready"/>), the sites (a sprite each with the
-/// <c>construct</c> shader) and the drones with their build beam (<see cref="DroneVisual"/>).
+/// <c>construct</c> shader) and the drones with their build beam and mining laser (<see cref="DroneVisual"/>). Plans out of
+/// the drone's build range are drawn fainter with a dashed outline: they wait until the drone comes close.
 /// Reads <see cref="IGameView"/> only; plans are redrawn only when the simulation ticked. The per-frame
 /// sync walks the view's lists by index (no boxed enumerators) and reuses its buffers: nothing is allocated
 /// while the sets of sites and drones stay the same.
@@ -137,6 +138,9 @@ public partial class ConstructionLayer : Node2D
     /// <summary>Sites being taken apart that the last plans redraw hatched (checked by the playtest).</summary>
     public int HatchedSites { get; private set; }
 
+    /// <summary>Plans the last plans redraw showed out of the drone's build range (faint, dashed outline; playtests).</summary>
+    public int OutOfRangePlans { get; private set; }
+
     private void DrawPlans(CanvasItem canvas)
     {
         if (_view is null)
@@ -157,6 +161,7 @@ public partial class ConstructionLayer : Node2D
         }
 
         var builders = _view.Builders;
+        OutOfRangePlans = 0;
         for (var b = 0; b < builders.Count; b++)
         {
             var builder = builders[b];
@@ -175,12 +180,21 @@ public partial class ConstructionLayer : Node2D
                     continue;
                 }
 
-                DrawPlan(canvas, plan);
+                // Out of the drone's range the plan waits (spec): fainter, with the dashed "fuori raggio" outline.
+                var outOfRange = !_view.IsPlanInRange(builder, plan);
+                DrawPlan(canvas, plan, outOfRange);
+                if (outOfRange)
+                {
+                    OutOfRangePlans++;
+                }
             }
         }
     }
 
-    /// <summary>What the plans layer draws, as a hash: the local player's plans in order and every site with its kind.</summary>
+    /// <summary>
+    /// What the plans layer draws, as a hash: the local player's plans in order with whether each is in the drone's range
+    /// (it changes while the drone flies), and every site with its kind.
+    /// </summary>
     private static int PlansSignature(IGameView view)
     {
         var hash = new HashCode();
@@ -197,6 +211,7 @@ public partial class ConstructionLayer : Node2D
             for (var i = 0; i < plans.Count; i++)
             {
                 hash.Add(plans[i]);
+                hash.Add(view.IsPlanInRange(builders[b], plans[i]));
             }
         }
 
@@ -211,14 +226,22 @@ public partial class ConstructionLayer : Node2D
         return hash.ToHashCode();
     }
 
-    private void DrawPlan(CanvasItem canvas, BuildPlan plan)
+    private void DrawPlan(CanvasItem canvas, BuildPlan plan, bool outOfRange)
     {
         var tiles = _view!.PlanTiles(plan);
         if (plan.Breaking)
         {
             // Mindustry style: a translucent fill over the whole block and its outline, plus a hatching (the X is the
-            // refused ghost's sign): the mark reads without its colour.
+            // refused ghost's sign): the mark reads without its colour. Out of range: fainter, with the dashed outline.
             var box = Bounds(tiles);
+            if (outOfRange)
+            {
+                canvas.DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha * 0.4f));
+                PlacementPreview.DrawHatch(canvas, box, UiColors.Smontaggio with { A = 0.45f }, World.TileSize / 4f, 2f);
+                PlacementPreview.DrawOutOfRange(canvas, box);
+                return;
+            }
+
             canvas.DrawRect(box, new Color(UiColors.Smontaggio, BreakFillAlpha));
             DrawRemovalHatch(canvas, box);
             return;
@@ -233,13 +256,14 @@ public partial class ConstructionLayer : Node2D
             for (var i = 0; i < tiles.Count; i++)
             {
                 PlacementPreview.Draw(canvas, spec.StructureId, CellRect(tiles[i]), spec.Direction,
-                    turnSprite: spec.Kind is null, arrow, valid: true);
+                    turnSprite: spec.Kind is null, arrow, valid: true, outOfRange);
             }
 
             return;
         }
 
-        PlacementPreview.Draw(canvas, spec.StructureId, Bounds(tiles), spec.Direction, turnSprite: false, arrow, valid: true);
+        PlacementPreview.Draw(canvas, spec.StructureId, Bounds(tiles), spec.Direction, turnSprite: false, arrow, valid: true,
+            outOfRange);
     }
 
     /// <summary>
@@ -360,7 +384,7 @@ public partial class ConstructionLayer : Node2D
             }
 
             drone.SetTier(view.CoreTier);
-            drone.Sync(builder, view.CurrentTick, delta, beam, beamColor, Effects);
+            drone.Sync(builder, view.CurrentTick, delta, beam, beamColor, Effects, MiningTarget(view, builder));
         }
 
         if (_drones.Count != _live.Count)
@@ -372,6 +396,21 @@ public partial class ConstructionLayer : Node2D
                 _drones.Remove(id);
             }
         }
+    }
+
+    /// <summary>
+    /// World centre of the deposit cell <paramref name="builder"/> is mining now, for its mining laser; null when it does
+    /// not mine or mining waits (Mindustry draws the laser only while it digs): while it builds, or with a full hold.
+    /// </summary>
+    private static Vector2? MiningTarget(IGameView view, BuilderUnit builder)
+    {
+        if (builder.MiningTile is not { } tile || builder.CurrentSiteId is not null
+            || builder.HoldCount >= view.Content.UnitForTier(view.CoreTier).HoldCapacity)
+        {
+            return null;
+        }
+
+        return CellRect(tile).GetCenter();
     }
 
     private static ConstructSite? FindSite(IGameView view, long id)

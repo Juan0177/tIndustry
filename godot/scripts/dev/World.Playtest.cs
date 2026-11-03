@@ -1493,12 +1493,14 @@ public partial class World
     /// <summary>
     /// Flies the local drone to the centre of <paramref name="cell"/> as the player would, with <see cref="SetDroneInput"/>,
     /// running the ticks here (like the agents' <c>muovi {cella}</c>): the drone builds only within its range, so a probe
-    /// that builds away from where it is brings it there first. The input is let go on arrival.
+    /// that builds away from where it is brings it there first. The input is let go on arrival. Any failure (no game, no
+    /// drone, a tick that throws, the cell not reached) is a <see cref="GD.PushError"/>: it fails the playtest run.
     /// </summary>
     private void PlaytestFlyDrone(GridPosition cell)
     {
         if (_host is not { } host || LocalDrone is null)
         {
+            GD.PushError($"PLAYTEST volo del drone verso {cell}: nessuna partita o nessun drone");
             return;
         }
 
@@ -1528,7 +1530,7 @@ public partial class World
             }
         }
 
-        GD.PrintErr($"PLAYTEST volo del drone: {cell} non raggiunta");
+        GD.PushError($"PLAYTEST volo del drone: {cell} non raggiunta");
     }
 
     /// <summary>Press and release <paramref name="key"/> with <paramref name="modifiers"/> held; <paramref name="unicode"/> types a character.</summary>

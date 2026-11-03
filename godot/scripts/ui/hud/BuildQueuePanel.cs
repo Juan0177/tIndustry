@@ -6,7 +6,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// The local drone's build queue (Mindustry's build plan box): the block being worked on with its
-/// progress bar (red while taking apart, amber with "Manca: ..." while stalled for materials) and "+N"
+/// progress bar (red while taking apart, amber with "Manca: ..." while stalled for materials, "fuori raggio" while the
+/// drone is too far from it) and "+N"
 /// plans still waiting. A click asks the world to centre the camera on that block. Hidden while the queue
 /// is empty. Widgets change only when what they show does.
 /// </summary>
@@ -23,6 +24,7 @@ public partial class BuildQueuePanel : PanelContainer
     private ColorRect? _barFill;
     private Label? _more;
     private Label? _missing;
+    private Label? _outOfRange;
     private string? _structureId;
     private ColorRect? _barBack;
     private CostEntry? _missingShown;
@@ -90,6 +92,12 @@ public partial class BuildQueuePanel : PanelContainer
         _missing.Visible = false;
         column.AddChild(_missing);
 
+        // The head plan is out of the drone's range: it waits until the drone comes close (like its dashed outline).
+        _outOfRange = MakeLabel("coda.fuori.raggio", UiTheme.TestoTenue);
+        _outOfRange.Name = "FuoriRaggio";
+        _outOfRange.Visible = false;
+        column.AddChild(_outOfRange);
+
         _more = MakeLabel("", UiTheme.TestoTenue);
         _more.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         _more.CustomMinimumSize = new Vector2(28, 0);
@@ -155,6 +163,11 @@ public partial class BuildQueuePanel : PanelContainer
             // Before the drone reaches the plan there is no site: a build starts empty, a breaking plan full.
             var progress = site?.Progress ?? (plan.Breaking ? 1f : 0f);
             _barFill.Size = new Vector2(BarWidth * Mathf.Clamp(progress, 0f, 1f), BarHeight);
+        }
+
+        if (_outOfRange is not null)
+        {
+            _outOfRange.Visible = builder.CurrentSiteId is null && !view.IsPlanInRange(builder, plan);
         }
 
         var waiting = builder.Plans.Count - 1;

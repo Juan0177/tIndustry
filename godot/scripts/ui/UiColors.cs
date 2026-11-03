@@ -189,6 +189,18 @@ public static class UiColors
     public static Color PonteRifiutatoCampata { get; private set; }
 
     /// <summary>
+    /// Dashed outline of a plan out of the drone's build range (the plan itself is drawn fainter): it waits until the
+    /// drone comes close. The dashes carry the meaning, not the colour.
+    /// </summary>
+    public static Color FuoriRaggio { get; private set; }
+
+    /// <summary>Dashed circle of the drone's build range, shown while a block is selected for placement.</summary>
+    public static Color RaggioDrone { get; private set; }
+
+    /// <summary>The drone's mining laser to the deposit it mines by hand (Mindustry's light grey mine laser).</summary>
+    public static Color Scavo { get; private set; }
+
+    /// <summary>
     /// Dark stroke drawn under the ghost's outline, X and arrow and under removal outlines, so they read on any
     /// ground (transparent = none; only the high-contrast variant has one).
     /// </summary>
@@ -248,6 +260,9 @@ public static class UiColors
         PonteCampata = new(0.55f, 0.7f, 0.95f, 0.28f);
         PonteRifiutatoEstremi = new(0.9f, 0.25f, 0.2f, 0.55f);
         PonteRifiutatoCampata = new(0.9f, 0.25f, 0.2f, 0.28f);
+        FuoriRaggio = new("C8CCD2");
+        RaggioDrone = Accento;
+        Scavo = new("D9DCE0");
         SottoSegno = Colors.Transparent;
     }
 
@@ -280,6 +295,10 @@ public static class UiColors
         PonteCampata = FantasmaValido with { A = 0.28f };
         PonteRifiutatoEstremi = Insufficiente with { A = 0.55f };
         PonteRifiutatoCampata = Insufficiente with { A = 0.28f };
+        // Neutral greys and the yellow accent: apart from the sky blue ghost and the vermillion refusals.
+        FuoriRaggio = new("D0D0D0");
+        RaggioDrone = Accento;
+        Scavo = new("E0E0E0");
     }
 
     private static void SetAltoContrasto()
@@ -332,5 +351,9 @@ public static class UiColors
         PonteCampata = new(0.6f, 0.78f, 1f, 0.45f);
         PonteRifiutatoEstremi = FantasmaNonValido with { A = 0.75f };
         PonteRifiutatoCampata = FantasmaNonValido with { A = 0.45f };
+        // White dashes and laser over the black under-stroke; the range in the pure yellow of the valid ghost.
+        FuoriRaggio = new("FFFFFF");
+        RaggioDrone = FantasmaValido;
+        Scavo = new("FFFFFF");
     }
 }
