@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace TIndustry.Shared;
 
 /// <summary>
@@ -8,7 +6,8 @@ namespace TIndustry.Shared;
 /// item (without a filter, the next item by ordinal id among those available, after <see cref="LastItemId"/>) from a
 /// touching block that has it — the Core (also through a linked storage block), a standalone storage block, a forno's
 /// or an assembler's output — and puts it into the next touching block that takes it (a logistics cell or a building
-/// that receives from logistics), never the block it took it from. Sources and destinations go in turn by side (North,
+/// that receives from logistics), never the block it took it from, and never from one store (the Core stock or a
+/// storage block) into another (no bouncing between stores). Sources and destinations go in turn by side (North,
 /// East, South, West). With no taker it takes nothing; it never takes from belts or from other extractors.
 /// </summary>
 public sealed class Extractor
@@ -163,14 +162,18 @@ public sealed class Extractor
                 var di = (DestinationTurn + d) % sides.Length;
                 var target = Position.Step(sides[di]);
                 if (state.LogisticsBlockAt(target) is not { } block || ReferenceEquals(block, source.Block)
+                    || (source.IsStore && block is CoreStorage or StorageBlock)
                     || !Deliver(state, target, sides[di], itemId))
                 {
                     continue;
                 }
 
                 // The destination only ever adds items, so the source still has the one it was asked for.
-                var taken = source.Take(state, itemId);
-                Debug.Assert(taken, "extractor source lost its item while delivering");
+                if (!source.Take(state, itemId))
+                {
+                    throw new InvalidOperationException($"Extractor {Id}: the source lost {itemId} while delivering it.");
+                }
+
                 SourceTurn = (si + 1) % sides.Length;
                 DestinationTurn = (di + 1) % sides.Length;
                 LastItemId = itemId;
@@ -220,6 +223,9 @@ public readonly struct ExtractorSource
     public object? Block { get; }
 
     public bool IsSome => Block is not null;
+
+    /// <summary>The Core stock or a standalone storage block: it never hands items to another store.</summary>
+    public bool IsStore => core || storage is not null;
 
     public static ExtractorSource Core(CoreStorage stock) => new(stock, null, null, true);
 

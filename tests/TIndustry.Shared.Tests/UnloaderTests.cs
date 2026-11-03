@@ -240,6 +240,64 @@ public sealed class UnloaderTests
     }
 
     [Fact]
+    public void CoreAndContainerOnly_NothingMoves()
+    {
+        var f = NewFactory();
+        SetStock(f, Plate, 50);
+        var container = PlaceContainer(f, 64, 61); // standalone, east of BesideCore
+        Assert.False(container.IsLinked);
+        Fill(container, Plate, 20);
+        var delivered = f.State.CoreDeliveredItems;
+        var ex = PlaceExtractor(f, BesideCore);
+
+        Run(f, 5 * SimulationClock.TickRate);
+
+        Assert.Equal(0, ex.ItemsExtracted);
+        Assert.Equal(50, f.Wallet.MaterialCount(Plate));
+        Assert.Equal(20, container.Count(Plate));
+        Assert.Equal(delivered, f.State.CoreDeliveredItems);
+    }
+
+    [Fact]
+    public void ContainerAndContainerOnly_NothingMoves()
+    {
+        var f = NewFactory();
+        var west = PlaceContainer(f, 80, 60); // 80..81
+        var east = PlaceContainer(f, 83, 60); // 83..84
+        Fill(west, Plate, 10);
+        Fill(east, Lead, 10);
+        var ex = PlaceExtractor(f, new GridPosition(82, 60));
+
+        Run(f, 5 * SimulationClock.TickRate);
+
+        Assert.Equal(0, ex.ItemsExtracted);
+        Assert.Equal(10, west.Count(Plate));
+        Assert.Equal(10, east.Count(Lead));
+        Assert.Equal(0, west.Count(Lead) + east.Count(Plate));
+    }
+
+    [Fact]
+    public void FromAFornoOutputIntoTheCore()
+    {
+        var f = NewFactory();
+        SetStock(f, Plate, 0);
+        // Forno 64..65 × 61..62 east of BesideCore: its output goes to the Core (west).
+        Assert.True(f.TryPlaceSmelter(new GridPosition(64, 61), Direction.East));
+        var forno = f.Smelters.Single();
+        forno.RestoreCraftState(0f, false, null, [Plate, Plate], 0);
+        var delivered = f.State.CoreDeliveredItems;
+        // Filtered: without a filter it would also feed the Core's coal and ore to the forno.
+        var ex = PlaceExtractor(f, BesideCore, Plate);
+
+        Run(f, SimulationClock.TickRate);
+
+        Assert.Equal(2, ex.ItemsExtracted);
+        Assert.Equal(2, f.Wallet.MaterialCount(Plate));
+        Assert.Empty(forno.OutputQueue);
+        Assert.Equal(delivered + 2, f.State.CoreDeliveredItems);
+    }
+
+    [Fact]
     public void WithoutAFilter_ItemsInTurnById()
     {
         var f = NewFactory();

@@ -49,6 +49,7 @@ Nessuno di questi blocchi ha una direzione: si piazzano senza ruotarli (`R` non 
 - **11 oggetti al secondo** (un oggetto ogni 60/11 tick, con resto intero portato avanti).
 - Prende l'oggetto del filtro (o, senza filtro, il prossimo oggetto a turno fra quelli disponibili, in ordine di id oggetto) da un blocco attaccato che ne ha: CORE (anche tramite magazzini collegati), magazzini a sé, uscite di forni e assemblatori. A parità, i blocchi sorgente a turno.
 - Lo mette nel prossimo blocco attaccato che lo accetta, a turno, **mai nello stesso blocco da cui l'ha preso**. Se nessuno accetta, non preleva.
+- Non sposta mai da un magazzino (CORE o deposito) a un altro magazzino: niente andata e ritorno fra magazzini; dalle uscite delle macchine al CORE o a un deposito sì.
 - Non preleva dai nastri né da altri estrattori.
 
 ### Configurazione col clic

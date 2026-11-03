@@ -322,18 +322,30 @@ public sealed class StorageBlockTests
             charge: false));
         var line = Line(f, new GridPosition(63, 60), Direction.North, 10);
 
-        // First move: the container (east, the first source side with plates) onto the belt (north, the first taker);
-        // second: the Core (west) into the container (east), never back into the Core.
+        // First move: the container (east, the first source side with plates) onto the belt (north); then the Core
+        // (west) onto the belt too, in turn, never into the container (no store-to-store moves).
         Run(f, 6f / SimulationClock.TickRate);
         Assert.Equal(1, ItemsOn(f, line));
         Assert.Equal(4, container.Count(Plate));
-        Run(f, 6f / SimulationClock.TickRate);
-        Assert.Equal(5, container.Count(Plate));
+        Assert.Equal(5, f.Wallet.MaterialCount(Plate));
+        while (ItemsOn(f, line) < 2)
+        {
+            f.Step();
+        }
+
+        Assert.Equal(4, container.Count(Plate));
         Assert.Equal(4, f.Wallet.MaterialCount(Plate));
 
-        Run(f, 2f);
-        Assert.True(ItemsOn(f, line) > 1);
-        Assert.Equal(10, ItemsOn(f, line) + container.Count(Plate) + f.Wallet.MaterialCount(Plate));
+        for (var i = 0; i < 2 * SimulationClock.TickRate; i++)
+        {
+            var before = container.Count(Plate);
+            f.Step();
+            Assert.True(container.Count(Plate) <= before);
+            Assert.Equal(10, ItemsOn(f, line) + container.Count(Plate) + f.Wallet.MaterialCount(Plate));
+        }
+
+        Assert.Equal(0, container.Count(Plate));
+        Assert.Equal(0, f.Wallet.MaterialCount(Plate));
     }
 
     [Fact]
