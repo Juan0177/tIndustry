@@ -90,7 +90,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleus e i droni alpha → beta → gamma sono passati alla [specifica 3 del Mercato](superpowers/specs/2026-10-23-magazzino-core-design.md) (aspetto 6).
 
 - [x] Specifica approvata ([spec](superpowers/specs/2026-11-03-drone-giocatore-design.md))
-- [ ] Piano
+- [x] Piano ([piano](superpowers/plans/2026-11-03-drone-giocatore.md))
 - [ ] Implementazione
 - [ ] Documenti e diario
 
