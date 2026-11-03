@@ -215,23 +215,28 @@ public sealed class Crafter
         var accepted = 0;
         foreach (var cell in belts.Cells.Values)
         {
-            if (!Occupies(cell.OutputPosition))
+            // A belt hands over at its output tile, a junction at the far side of each queue.
+            for (var index = 0; index < cell.OutputTargetCount; index++)
             {
-                continue;
-            }
-
-            while (cell.PeekOutput() is { } item)
-            {
-                var took = UsesCoalOrPower && item.ItemId == FuelItemId
-                    ? TryAcceptFuel(item.ItemId)
-                    : TryAccept(item.ItemId);
-                if (!took)
+                var target = cell.OutputTarget(index);
+                if (!Occupies(target))
                 {
-                    break;
+                    continue;
                 }
 
-                cell.RemoveOutput();
-                accepted++;
+                while (cell.PeekOutputToward(target) is { } item)
+                {
+                    var took = UsesCoalOrPower && item.ItemId == FuelItemId
+                        ? TryAcceptFuel(item.ItemId)
+                        : TryAccept(item.ItemId);
+                    if (!took)
+                    {
+                        break;
+                    }
+
+                    cell.RemoveOutputToward(target);
+                    accepted++;
+                }
             }
         }
 
@@ -445,9 +450,9 @@ public sealed class Crafter
                 continue;
             }
 
-            // Outward: next cell after belt must not re-enter footprint.
+            // Outward: next cell after belt must not re-enter footprint (a junction sends it on away from the building).
             var next = outputPosition.Step(cell.Direction);
-            if (Occupies(next))
+            if (cell.Kind != LogisticsKind.Junction && Occupies(next))
             {
                 continue;
             }

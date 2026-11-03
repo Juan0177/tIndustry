@@ -10,6 +10,18 @@ public static class BuildingIo
         tile.X >= origin.X && tile.X < origin.X + size
         && tile.Y >= origin.Y && tile.Y < origin.Y + size;
 
+    /// <summary>The tiles of a <paramref name="size"/>×<paramref name="size"/> footprint at <paramref name="origin"/>, row by row.</summary>
+    public static IEnumerable<GridPosition> Tiles(GridPosition origin, int size)
+    {
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                yield return new GridPosition(origin.X + x, origin.Y + y);
+            }
+        }
+    }
+
     /// <summary>
     /// Perimeter neighbor tiles (N/E/S/W × size) with the outward travel direction.
     /// </summary>

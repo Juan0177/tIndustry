@@ -89,20 +89,25 @@ public sealed class Generator
         var accepted = 0;
         foreach (var cell in belts.Cells.Values)
         {
-            if (!Occupies(cell.OutputPosition))
+            // A belt hands over at its output tile, a junction at the far side of each queue.
+            for (var index = 0; index < cell.OutputTargetCount; index++)
             {
-                continue;
-            }
-
-            while (cell.PeekOutput() is { } item)
-            {
-                if (!TryAcceptFuel(item.ItemId))
+                var target = cell.OutputTarget(index);
+                if (!Occupies(target))
                 {
-                    break;
+                    continue;
                 }
 
-                cell.RemoveOutput();
-                accepted++;
+                while (cell.PeekOutputToward(target) is { } item)
+                {
+                    if (!TryAcceptFuel(item.ItemId))
+                    {
+                        break;
+                    }
+
+                    cell.RemoveOutputToward(target);
+                    accepted++;
+                }
             }
         }
 

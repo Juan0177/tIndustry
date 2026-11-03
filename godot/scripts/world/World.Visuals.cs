@@ -532,8 +532,11 @@ public partial class World
                     _itemSprites[item.Id] = sprite;
                 }
 
+                // A junction item crosses toward the side of its queue, whatever the junction's direction.
                 var from = CellCenter(cell.Position);
-                var to = CellCenter(next);
+                var to = CellCenter(cell.Kind == LogisticsKind.Junction && item.Travel is { } way
+                    ? cell.Position.Step(way)
+                    : next);
                 var now = from.Lerp(to, Mathf.Clamp(item.Progress, 0f, 1f) * reach);
                 var motion = ItemMotion.Next(
                     _itemMotion.TryGetValue(item.Id, out var old) ? old : null,

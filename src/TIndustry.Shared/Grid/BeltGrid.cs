@@ -1,7 +1,7 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Placeable logistics grid: belts, junctions, splitters, sorters, bridges.
+/// Placeable logistics grid: belts, junctions (four queues, as Mindustry's Junction), splitters, sorters, bridges.
 /// Bridge mid-span is empty (ends only); sorter filters Mindustry-style.
 /// Cells are kept in canonical (Y, X) order: every pass over the grid (advance, handoff,
 /// core drain, save) visits them the same way regardless of placement history.
@@ -195,6 +195,12 @@ public sealed class BeltGrid
             return false;
         }
 
+        // Junction: the item travels away from where it comes from (a cell or a building's tile beside it).
+        if (cell.Kind == LogisticsKind.Junction)
+        {
+            return origin is { } o && IsAdjacent(o, position) && cell.TryInsert(item, BeltLane.DirectionBetween(o, position));
+        }
+
         // Bridge start: accept 3 sides (not span); teleport instantly to end when free.
         if (cell.Kind == LogisticsKind.Bridge
             && cell.BridgePartner is { } partner
@@ -269,27 +275,13 @@ public sealed class BeltGrid
     {
         if (cell.Kind == LogisticsKind.Junction)
         {
-            // Both axes leave independently — a blocked exit must not stall the other stream.
-            for (var i = 0; i < cell.Items.Count;)
+            // Each queue hands its crossed head to the cell past the junction: a blocked exit stalls only its own queue.
+            foreach (var way in DirectionMath.All)
             {
-                var ready = cell.Items[i];
-                if (ready.Progress < 1f)
+                if (cell.PeekQueueHead(way) is { } ready && TryInsert(cell.Position.Step(way), ready, way))
                 {
-                    i++;
-                    continue;
+                    cell.RemoveQueueHead(way, ready);
                 }
-
-                var exit = ready.Travel ?? cell.Direction;
-                var target = cell.Position.Step(exit);
-                if (!cells.TryGetValue(target, out var next)
-                    || !ArmoredAccepts(next, cell.Position)
-                    || !next.TryInsert(ready, exit))
-                {
-                    i++;
-                    continue;
-                }
-
-                cell.TryRemoveItem(ready);
             }
 
             return;
@@ -370,6 +362,8 @@ public sealed class BeltGrid
     private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
         cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
         && cells.TryGetValue(cell.OutputPosition, out var feeder) && feeder.Kind == LogisticsKind.Belt;
+
+    private static bool IsAdjacent(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1;
 
     /// <summary>Whether two bridge ends can be partners: same row or column, 2–4 cells apart.</summary>
     public static bool IsBridgeSpan(GridPosition a, GridPosition b)
@@ -546,11 +540,16 @@ public sealed class BeltGrid
 
     /// <summary>
     /// Whether the junction at <paramref name="position"/> has an input or an output on <paramref name="side"/>
-    /// (visual: a side without either keeps its rail). Input: the neighbour there feeds into the junction. Output: items
-    /// cross toward that side (something feeds the opposite side) and a logistics cell there takes them. Buildings
-    /// never connect: a junction refuses their directionless inserts and only hands items to logistics cells.
+    /// (visual: a side without either keeps its rail). Input: the neighbour there feeds into the junction (a logistics
+    /// cell, or a building when <paramref name="buildingFeeds"/> says it ejects into it). Output: items cross toward
+    /// that side (something feeds the opposite side) and a logistics cell there, or a building that
+    /// <paramref name="buildingTakes"/> items, receives them.
     /// </summary>
-    public bool IsJunctionSideConnected(GridPosition position, Direction side)
+    public bool IsJunctionSideConnected(
+        GridPosition position,
+        Direction side,
+        Func<GridPosition, GridPosition, bool>? buildingFeeds = null,
+        Func<GridPosition, bool>? buildingTakes = null)
     {
         if (!cells.TryGetValue(position, out var cell) || cell.Kind != LogisticsKind.Junction)
         {
@@ -558,9 +557,12 @@ public sealed class BeltGrid
         }
 
         bool FeedsFrom(Direction from) =>
-            FeedsToward(position.Step(from), DirectionMath.Opposite(from), null, JunctionChainLimit);
+            FeedsToward(position.Step(from), DirectionMath.Opposite(from), buildingFeeds, JunctionChainLimit);
 
-        return FeedsFrom(side) || (cells.ContainsKey(position.Step(side)) && FeedsFrom(DirectionMath.Opposite(side)));
+        var beyond = position.Step(side);
+        return FeedsFrom(side)
+            || ((cells.ContainsKey(beyond) || buildingTakes?.Invoke(beyond) == true)
+                && FeedsFrom(DirectionMath.Opposite(side)));
     }
 
     /// <summary>Whether something feeds the cell (facing <paramref name="dir"/>) from behind, from its left and from its right.</summary>
@@ -608,9 +610,9 @@ public sealed class BeltGrid
             LogisticsKind.Bridge when cell.BridgePartner is { } partner =>
                 !IsBridgeEntry(cell, partner) && flow != back,
             LogisticsKind.Bridge => cell.Direction == flow,
-            // Buildings insert without a direction, which a junction refuses: only logistics feed through it.
+            // A junction passes on what enters its opposite side, from a cell or a building.
             LogisticsKind.Junction => junctionsLeft > 0
-                && FeedsToward(source.Step(DirectionMath.Opposite(flow)), flow, null, junctionsLeft - 1),
+                && FeedsToward(source.Step(DirectionMath.Opposite(flow)), flow, buildingFeeds, junctionsLeft - 1),
             _ => false
         };
     }
@@ -640,6 +642,12 @@ public sealed class BeltGridCell
     public const int MinBridgeSpan = 2;
     public const int MaxBridgeSpan = 4; // Mindustry's bridge conveyor: ends at most 4 cells apart
     public const string DefaultSorterFilter = "iron-ore";
+
+    /// <summary>Items a junction holds per direction of travel (Mindustry's Junction capacity).</summary>
+    public const int JunctionQueueLength = 6;
+
+    /// <summary>Ticks an item takes to cross a junction (Mindustry's Junction speed).</summary>
+    public const int JunctionCrossTicks = 26;
 
     private readonly BeltCell inner;
     private int splitterToggle;
@@ -732,6 +740,50 @@ public sealed class BeltGridCell
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null) =>
         inner.TryInsert(item, fromDirection);
+
+    /// <summary>
+    /// How many tiles this cell hands its ready items to (buildings pull them with <see cref="PeekOutputToward"/>):
+    /// one for a belt or a special (<see cref="OutputPosition"/>), four for a junction (one per queue).
+    /// </summary>
+    public int OutputTargetCount => Kind == LogisticsKind.Junction ? DirectionMath.All.Length : 1;
+
+    /// <summary>The <paramref name="index"/>-th tile of <see cref="OutputTargetCount"/> (junction: North, East, South, West).</summary>
+    public GridPosition OutputTarget(int index) =>
+        Kind == LogisticsKind.Junction ? Position.Step(DirectionMath.All[index]) : OutputPosition;
+
+    /// <summary>The item ready to leave toward <paramref name="target"/> (one of the output targets), or null.</summary>
+    public TransportedItem? PeekOutputToward(GridPosition target)
+    {
+        if (Kind != LogisticsKind.Junction)
+        {
+            return target == OutputPosition ? inner.PeekOutput() : null;
+        }
+
+        return IsBeside(target) ? inner.PeekQueueHead(BeltLane.DirectionBetween(Position, target)) : null;
+    }
+
+    /// <summary>Takes away the item <see cref="PeekOutputToward"/> returned for <paramref name="target"/>.</summary>
+    public void RemoveOutputToward(GridPosition target)
+    {
+        if (Kind != LogisticsKind.Junction)
+        {
+            inner.RemoveOutput();
+            return;
+        }
+
+        var way = BeltLane.DirectionBetween(Position, target);
+        if (inner.PeekQueueHead(way) is { } head)
+        {
+            inner.RemoveQueueHead(way, head);
+        }
+    }
+
+    /// <summary>Junction: the crossed head of the queue travelling <paramref name="way"/> (see <see cref="BeltCell.PeekQueueHead"/>).</summary>
+    public TransportedItem? PeekQueueHead(Direction way) => inner.PeekQueueHead(way);
+
+    public void RemoveQueueHead(Direction way, TransportedItem head) => inner.RemoveQueueHead(way, head);
+
+    private bool IsBeside(GridPosition tile) => Math.Abs(tile.X - Position.X) + Math.Abs(tile.Y - Position.Y) == 1;
 
     public void Advance(float deltaSeconds) => inner.Advance(deltaSeconds);
     public TransportedItem? PeekOutput() => inner.PeekOutput();

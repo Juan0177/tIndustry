@@ -180,6 +180,7 @@ public sealed class BeltCell
 {
     private readonly List<TransportedItem> items;
     private float tickMovement; // how far an item moves in one tick here (last Advance)
+    private int sentThisTick; // junction: bit (int)Direction set for each queue that handed an item on this tick
 
     public BeltCell(GridPosition position, ConveyorDefinition definition)
     {
@@ -195,28 +196,14 @@ public sealed class BeltCell
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null)
     {
-        if (items.Count >= Definition.Capacity)
+        if (Kind != LogisticsKind.Junction && items.Count >= Definition.Capacity)
         {
             return false;
         }
 
         if (Kind == LogisticsKind.Junction)
         {
-            if (fromDirection is not { } incoming)
-            {
-                return false;
-            }
-
-            if (items.Any(existing => SameAxis(existing.Travel ?? incoming, incoming)))
-            {
-                return false;
-            }
-
-            item.Progress = Math.Min((item.Carry ?? 0f) * tickMovement, 1f);
-            item.Carry = null;
-            item.Travel = incoming;
-            items.Add(item);
-            return true;
+            return TryEnqueue(item, fromDirection);
         }
 
         var rear = items.Count == 0 ? null : items[^1];
@@ -231,8 +218,76 @@ public sealed class BeltCell
         item.Progress = rear is null ? Math.Min(start, 1f) : Math.Min(start, rear.Progress - Definition.ItemSpacing);
         item.Carry = null;
         item.Travel = null;
+        item.JunctionTicks = null;
         items.Add(item);
         return true;
+    }
+
+    /// <summary>
+    /// Junction (Mindustry's Junction): the item joins the queue of its direction of travel
+    /// (<paramref name="travel"/>) if that queue holds fewer than <see cref="BeltGridCell.JunctionQueueLength"/> items.
+    /// The queues share <see cref="items"/> (in order of entry); an item's <see cref="TransportedItem.Travel"/> says
+    /// which queue it is in.
+    /// </summary>
+    private bool TryEnqueue(TransportedItem item, Direction? travel)
+    {
+        if (travel is not { } way || QueueCount(way) >= BeltGridCell.JunctionQueueLength)
+        {
+            return false;
+        }
+
+        item.Progress = 0f;
+        item.Carry = null;
+        item.Travel = way;
+        item.JunctionTicks = 0;
+        items.Add(item);
+        return true;
+    }
+
+    private int QueueCount(Direction way)
+    {
+        var count = 0;
+        foreach (var item in items)
+        {
+            count += item.Travel == way ? 1 : 0;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Junction: the head of the queue travelling <paramref name="way"/> once it has crossed
+    /// (<see cref="BeltGridCell.JunctionCrossTicks"/> ticks inside) and if that queue has not handed an item on this
+    /// tick yet; null otherwise. Only the head can leave: a blocked exit holds its own queue back, never the others.
+    /// </summary>
+    public TransportedItem? PeekQueueHead(Direction way)
+    {
+        if ((sentThisTick & (1 << (int)way)) != 0)
+        {
+            return null;
+        }
+
+        foreach (var item in items)
+        {
+            if (item.Travel == way)
+            {
+                return item.JunctionTicks >= BeltGridCell.JunctionCrossTicks ? item : null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Junction: takes away <paramref name="head"/>, the head <see cref="PeekQueueHead"/> returned for
+    /// <paramref name="way"/> (by reference: the cell that took it may already have changed its fields).
+    /// </summary>
+    public void RemoveQueueHead(Direction way, TransportedItem head)
+    {
+        if (items.Remove(head))
+        {
+            sentThisTick |= 1 << (int)way;
+        }
     }
 
     /// <summary>Overwrite items for save/load (bypasses spacing / capacity checks).</summary>
@@ -241,6 +296,16 @@ public sealed class BeltCell
         items.Clear();
         foreach (var item in restored)
         {
+            if (Kind == LogisticsKind.Junction)
+            {
+                // A save without the tick count: what its progress across the junction says.
+                item.JunctionTicks = Math.Clamp(
+                    item.JunctionTicks ?? (int)Math.Round(item.Progress * BeltGridCell.JunctionCrossTicks),
+                    0,
+                    BeltGridCell.JunctionCrossTicks);
+                item.Travel ??= Direction.East;
+            }
+
             items.Add(item);
         }
     }
@@ -257,31 +322,13 @@ public sealed class BeltCell
 
         if (Kind == LogisticsKind.Junction)
         {
-            for (var index = 0; index < items.Count; index++)
+            // Every queued item ages, blocked heads included: an item behind a blocked head is ready as soon as it leaves.
+            sentThisTick = 0;
+            foreach (var item in items)
             {
-                var item = items[index];
-                var travel = item.Travel ?? Direction.East;
-                var limit = 1f;
-                for (var other = 0; other < items.Count; other++)
-                {
-                    if (other == index)
-                    {
-                        continue;
-                    }
-
-                    var ahead = items[other];
-                    if (!SameAxis(ahead.Travel ?? travel, travel)
-                        || ahead.Progress <= item.Progress)
-                    {
-                        continue;
-                    }
-
-                    limit = Math.Min(limit, ahead.Progress - Definition.ItemSpacing);
-                }
-
-                var moved = Math.Min(item.Progress + movement, Math.Max(item.Progress, limit));
-                item.Carry = (item.Progress + movement - moved) / movement;
-                item.Progress = moved;
+                var ticks = Math.Min((item.JunctionTicks ?? 0) + 1, BeltGridCell.JunctionCrossTicks);
+                item.JunctionTicks = ticks;
+                item.Progress = (float)ticks / BeltGridCell.JunctionCrossTicks;
             }
 
             return;
@@ -309,8 +356,9 @@ public sealed class BeltCell
         }
     }
 
+    /// <summary>The head of a belt once at the end of the cell; always null on a junction (<see cref="PeekQueueHead"/>).</summary>
     public TransportedItem? PeekOutput() =>
-        items.Count > 0 && items[0].Progress >= 1f ? items[0] : null;
+        Kind != LogisticsKind.Junction && items.Count > 0 && items[0].Progress >= 1f ? items[0] : null;
 
     /// <summary>
     /// Takes the head away. The items behind it then spend the movement it held back this tick, as if it had left as
@@ -319,10 +367,7 @@ public sealed class BeltCell
     public void RemoveOutput()
     {
         items.RemoveAt(0);
-        if (Kind != LogisticsKind.Junction)
-        {
-            Move(null);
-        }
+        Move(null);
     }
 
     public bool TryRemoveItem(TransportedItem item)
@@ -337,6 +382,4 @@ public sealed class BeltCell
         return true;
     }
 
-    private static bool SameAxis(Direction a, Direction b) =>
-        (a is Direction.North or Direction.South) == (b is Direction.North or Direction.South);
 }

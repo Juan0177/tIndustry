@@ -64,7 +64,7 @@ public sealed class LogisticsCostsTests
     [InlineData("conveyor-fast", 4.8f, 3, 0.4f, 12f)]
     [InlineData("conveyor-armored", 4.8f, 3, 0.4f, 12f)]
     [InlineData("conveyor-express", 7.2f, 3, 0.4f, 18f)]
-    [InlineData("junction", 18f, 2, 1f, 18f)]
+    [InlineData("junction", 18f, 6, 1f, 18f)]
     [InlineData("splitter", 8f, 1, 1f, 8f)]
     [InlineData("sorter", 8f, 1, 1f, 8f)]
     [InlineData("conveyor-bridge", 5.25f, 1, 1f, 5.25f)]

@@ -355,6 +355,9 @@ public sealed class ItemSaveDto
     public string ItemId { get; set; } = "";
     public float Progress { get; set; }
     public string? Travel { get; set; }
+
+    /// <summary>Ticks spent inside a junction queue (<see cref="TransportedItem.JunctionTicks"/>); null elsewhere.</summary>
+    public int? JunctionTicks { get; set; }
 }
 
 /// <summary>

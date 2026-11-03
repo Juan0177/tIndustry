@@ -4,8 +4,8 @@ using Xunit;
 namespace TIndustry.Shared.Tests;
 
 /// <summary>
-/// Junction sides as the client draws them: a side keeps its rail unless something feeds the junction from there
-/// or items cross toward it and a logistics cell there takes them.
+/// Junction sides as the client draws them: a side keeps its rail unless something (a cell or a building) feeds the
+/// junction from there, or items cross toward it and a logistics cell or a building that takes items is there.
 /// </summary>
 public sealed class JunctionSideTests
 {
@@ -64,13 +64,25 @@ public sealed class JunctionSideTests
     }
 
     [Fact]
-    public void ABuildingFeedingASideDoesNotOpenIt()
+    public void ABuildingFeedingASideOpensIt()
     {
-        // The junction refuses a building's directionless insert, so a miner beside it is no input.
+        // A miner beside the junction inserts into it like a belt: an input, and the belt across takes its items.
         var factory = WithJunction();
         Assert.True(factory.TryPlaceMiner(new GridPosition(18, 20), Direction.East)); // x 18-19, west of J
+        Assert.Equal([Direction.West], Connected(factory));
         Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.East));
-        Assert.Empty(Connected(factory));
+        Assert.Equal([Direction.East, Direction.West], Connected(factory));
+    }
+
+    [Fact]
+    public void ABuildingThatTakesItemsOpensTheOutputSide()
+    {
+        // A belt feeds the junction from the West; the forno east of it takes what crosses.
+        var factory = WithJunction();
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        Assert.Equal([Direction.West], Connected(factory));
+        Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 20), Direction.East)); // x 21-22, east of J
+        Assert.Equal([Direction.East, Direction.West], Connected(factory));
     }
 
     [Fact]

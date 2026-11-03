@@ -271,13 +271,13 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BuildingBehindAJunctionDoesNotFeedThroughIt()
+    public void BuildingBehindAJunctionFeedsThroughIt()
     {
-        // A miner cannot insert into a junction (no direction), so nothing reaches P through it.
+        // A miner inserts into the junction beside it like a belt (Mindustry's Junction), so its items reach P.
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceJunction(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceJunction(new GridPosition(19, 21), Direction.North));
         Assert.True(factory.TryPlaceMiner(new GridPosition(17, 20), Direction.East));
-        Assert.False(factory.IsBeltCorner(P));
+        AssertCorner(factory, Direction.East);
     }
 
     [Fact]
