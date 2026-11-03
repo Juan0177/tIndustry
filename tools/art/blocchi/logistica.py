@@ -1,11 +1,15 @@
-"""Logistics sprites: belts in four tiers (basic, fast, express, armored; icon, straight strip, corner
-strip, T merge strip, side join strips),
-junction, splitter, sorter, bridge end and bridge span.
+"""Logistics sprites: narrow belts in four tiers (basic, fast, express, armored; icon, straight strip,
+corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), junction,
+router, sorter, inverted sorter, bridge end and bridge span.
 
-Every directional sprite faces East (flow towards +x); the client rotates it. Belt strips
-have 8 frames that move the tread 4 px along the flow each, so 8 frames cover one cell and
-the loop has no seam. The rails stay still; on the tread the chevron repeats every 32 px and
-the ribs every 16 px, so each step shows a different phase and the direction reads.
+Every directional sprite faces East (flow towards +x); the client rotates it. The belt is as wide as
+Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 4 px (outline, three rail tones
+and an inner edge: rows 5-9 above, 22-25 below); the rest of the cell is transparent. Belt strips have
+32 frames that move the tread 1 px along the flow each, so the loop has no seam and the tread scrolls
+smoothly next to items moving every tick. The plates stay still; on the tread a small chevron repeats
+every 16 px and a rib every 8 px, so each step shows a different phase and the direction reads.
+Junction, router, sorter and extractor carry no arrows (they are not directional on screen); the
+sorters and the extractor keep a 14x14 slot in the centre for the filter icon the client draws.
 """
 import math
 
@@ -17,15 +21,19 @@ T = 32
 PASSO = 1  # px the tread moves per frame: 32 frames per cell, smooth next to items moving every tick
 FOTOGRAMMI = T // PASSO
 
-# Rows across a straight belt (0 = left of the flow, North for an East belt).
-BINARIO_SU = range(0, 5)  # top rail, outline on rows 0 and 4
-BINARIO_GIU = range(27, 32)  # bottom rail, outline on rows 27 and 31
-NASTRO_RIGHE = range(5, 27)  # the moving tread between the rails
-ASSE = 16  # belt axis, between rows 15 and 16
-FRECCIA = 18  # chevron back column on the axis in frame 0 (18..20 colour, 21 outline)
+# Rows across a straight belt (0 = left of the flow, North for an East belt): "o" outline, "r<k>" plate
+# tone k of the tier's rail ramp, "e" inner edge (the tier's accent, else rail tone 1), "t" tread.
+RIGHE = {5: "o", 6: "r4", 7: "r3", 8: "r2", 9: "e", **{v: "t" for v in range(10, 22)},
+         22: "e", 23: "r2", 24: "r1", 25: "o"}
+TREAD_RIGHE = range(10, 22)  # the 12 px tread
+PIASTRE_SU = range(5, 10)  # top side plate
+PIASTRE_GIU = range(22, 26)  # bottom side plate
+CHEVRON = 18  # chevron column on the axis in frame 0 (2 px colour then outline in front)
+PERIODO_FRECCIA = 16
+PERIODO_COSTA = 8
 ARCO = (T - 1) / (math.pi / 2)  # corner: flow position per radian (0..31 over the quarter turn)
 
-# Tier look: rail ramp, chevron ramp, inner rail edge (None = plain rail).
+# Tier look: rail ramp, chevron ramp, inner plate edge (None = the plain rail tone 1).
 TIER = {
     "conveyor-basic": (METALLO, METALLO, None),
     "conveyor-fast": (RAME, RAME, None),
@@ -33,79 +41,43 @@ TIER = {
     # Armored (Mindustry's armored conveyor): riveted steel plates, red armour edge and chevrons.
     "conveyor-armored": (FERRO, ROSSO, ROSSO[2]),
 }
-RINFORZATI = {"conveyor-armored"}  # tiers whose rails carry riveted armour plates
+RINFORZATI = {"conveyor-armored"}  # tiers whose plates carry rivets
 
 
-def _binario(u, v, tier):
-    """Rail colour at column u (still: roller joints every 8 px) and rail row v."""
-    binario, _, bordo = TIER[tier]
-    if v in (0, 4, 27, 31):
-        return OUT
-    su = v in BINARIO_SU
-    riga = v - 1 if su else v - 28  # 0..2 inside the rail
-    if bordo is not None and riga == (2 if su else 0):
-        return bordo  # accent edge on the belt side of each rail
-    if tier in RINFORZATI and riga == 1 and u % 8 in (3, 4):
-        return FERRO[4] if u % 8 == 3 else FERRO[0]  # rivet on the armour plate, lit from the left
-    k = (3, 2, 1)[riga] - (0 if su else 1)  # top rail catches the light
-    if u % 8 == 7:
-        k = max(0, k - 2)  # roller joint
-    elif u % 8 == 0 and riga == 1:
-        k = min(len(binario) - 1, k + 2)  # roller highlight
-    return binario[k]
+def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
+    """(layer, colour) at flow position u (float) and row v across the belt of an East belt whose tread is
+    moved `spostamento` px; None outside the belt. Layer 0 = outline and plates (still), layer 1 = tread: a
+    shape draws every layer 0 before any layer 1, so a tread crossing another piece's plate opens it.
 
-
-def _colore_nastro(u, v, tier, spostamento, passo_u=1.0):
-    """Colour at flow position u (float) and row v; the tread is moved `spostamento` px.
-
-    A pixel covers [u, u + passo_u) along the flow: 1 on a straight belt, more on the inner
-    radii of a corner, where the chevron still gets every pixel it touches (never thinner
-    than its 4 px on the straight).
+    A pixel covers [u, u + passo_u) along the flow: 1 on a straight belt, more on the inner radii of a
+    corner, where the chevron still gets every pixel it touches.
     """
-    if v in BINARIO_SU or v in BINARIO_GIU:
-        return _binario(math.floor(u), v, tier)
-    if v in (5, 26):
-        return NASTRO[0]  # groove along the rails
-    freccia = TIER[tier][1]
+    tipo = RIGHE.get(v)
+    if tipo is None:
+        return None
+    binario, freccia, bordo = TIER[tier]
+    if tipo == "o":
+        return 0, OUT
+    if tipo == "e":
+        return 0, bordo if bordo is not None else binario[1]
+    if tipo[0] == "r":
+        k = min(int(tipo[1:]), len(binario) - 1)
+        i = math.floor(u)
+        if tier in RINFORZATI and v in (7, 24) and i % 8 in (3, 4):
+            return 0, FERRO[4] if i % 8 == 3 else FERRO[0]  # rivet on the armour plate, lit from the left
+        return 0, binario[max(0, k - 2) if i % 8 == 7 else k]  # roller joint every 8 px
     m = u - spostamento
-    # Chevron pointing +u: the arms trail back one px per row away from the axis.
-    dv = int(abs(v + 0.5 - ASSE))
-    if dv <= 7:
-        d = (m + dv - FRECCIA) % T  # 0..3 inside the chevron, 3 = its outlined front
-        if d < 4 or d > T - passo_u:  # the pixel's span reaches the chevron
-            return (freccia[2], freccia[3], freccia[4], OUT)[0 if d >= 4 else int(d)]
-    nervatura = math.floor(m) % 16
-    if nervatura == 7:
-        return NASTRO[0]
-    if nervatura == 8:
-        return NASTRO[2]
-    return NASTRO[1]
-
-
-def nastro(tier, fotogramma):
-    """Straight East belt; frame k has the tread of frame 0 moved k * 4 px East."""
-    im = forme.nuova(T, T)
-    for y in range(T):
-        for x in range(T):
-            forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO))
-    return im
-
-
-def curva(tier, fotogramma):
-    """Corner entering from the West edge and leaving from the South edge (clockwise turn).
-
-    The straight belt is bent around the bottom-left pixel: the distance from it (rounded)
-    gives the row across the belt and the angle the flow position 0..31. The West column is
-    then exactly column 0 of the straight frame and the South row is its column 31, so the
-    corner joins the straight cells of the same frame; only the chevron is widened on the
-    inner radii.
-    """
-    im = forme.nuova(T, T)
-    for y in range(T):
-        for x in range(T):
-            forme.pixel(im, x, y, _colore_curva(tier, fotogramma, x, T - 1 - y))
-    forme.bullone(im, 27, 2, METALLO)
-    return im
+    dv = int(abs(v + 0.5 - T / 2))
+    if frecce and dv <= 2:
+        d = (m + dv - CHEVRON) % PERIODO_FRECCIA  # 0..1 inside the chevron, 1 = its outlined front
+        if d < 2 or d > PERIODO_FRECCIA - passo_u:
+            return 1, (freccia[3], OUT)[int(d) if d < 2 else 0]
+    nervatura = math.floor(m) % PERIODO_COSTA
+    if nervatura == PERIODO_COSTA - 1:
+        return 1, NASTRO[0]
+    if nervatura == 0:
+        return 1, NASTRO[2]
+    return 1, NASTRO[1]
 
 
 def _riga_curva(a, b):
@@ -114,46 +86,86 @@ def _riga_curva(a, b):
     return -1 if r > T - 0.5 else T - 1 - int(round(r))
 
 
-def _colore_curva(tier, fotogramma, a, b, v=None):
-    """Corner colour at (a, b) from the pivot (a along the input edge, b along the output edge);
-    `v` forces the row across the belt (the T uses it to extend the tread)."""
+# Geometries: (x, y) -> (flow position, row across, span of a pixel along the flow) or None. A piece is a
+# list of (geometry, chevrons[, clip]) drawn layer by layer in that order; `clip(x, y, layer)` says where the
+# geometry may draw (default: everywhere).
+
+def _dritto(x, y):
+    return x, y, 1.0
+
+
+def _curva_g(x, y):
+    """Corner in from the West edge, out from the South edge (clockwise turn), pivot on the bottom-left
+    pixel: the distance from it (rounded) gives the row across the belt and the angle the flow position
+    0..31, so the West column is exactly column 0 of the straight frame and the South row its column 31."""
+    return _polare(x, T - 1 - y)
+
+
+def _polare(a, b):
+    v = _riga_curva(a, b)
+    if v < 0:
+        return None
     r = math.hypot(a, b)
-    if v is None:
-        if r > T - 0.5:
-            return METALLO[1]  # outer corner plate beyond the bend
-        v = _riga_curva(a, b)
     u = round(math.atan2(a, b) * ARCO, 6)  # exact 0 and 31 on the edges
     # Edge pixels sit next to a straight cell: same 1 px span as there.
-    passo_u = 1.0 if a == 0 or b == 0 else max(1.0, ARCO / r)
-    return _colore_nastro(u, v, tier, fotogramma * PASSO, passo_u)
+    return u, v, 1.0 if a == 0 or b == 0 else max(1.0, ARCO / r)
 
 
-def unione_t(tier, fotogramma, dietro=False):
-    """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and
-    South edges, out from the East edge.
+def _da_sud_g(x, y):
+    """Corner in from the South edge, out from the East edge (pivot on the South-East corner)."""
+    return _polare(T - 1 - y, T - 1 - x)
 
-    The bottom half is the corner turned to come in from the South (pivot on the South-East
-    corner), the top half its mirror coming in from the North (pivot on the North-East corner),
-    same frame: each pixel takes the corner whose pivot is nearer, so the two inner curved rails
-    meet the output belt's rails and both treads bend into the output like a corner. Where both
-    corners would draw their outer groove and rail (they would cross the other input) the tread goes on; the
-    West side, with no input, is closed by a straight rail that continues the side belts' outer
-    rails. With `dietro` (fed from behind too: BeltShape.JoinBoth) the West side is open instead: the
-    straight frame's columns 0-4, so the belt behind runs in.
-    """
+
+def _da_nord_g(x, y):
+    """Mirror of `_da_sud_g`: in from the North edge, out from the East edge."""
+    return _da_sud_g(x, T - 1 - y)
+
+
+def _lato_nord_g(x, y):
+    """Side belt coming in from the North edge, down to the straight belt's last tread row."""
+    return (y, T - 1 - x, 1.0) if y <= TREAD_RIGHE[-1] else None
+
+
+def _lato_sud_g(x, y):
+    return _lato_nord_g(x, T - 1 - y)
+
+
+def _componi(tier, fotogramma, pezzi):
     im = forme.nuova(T, T)
-    for y in range(T):
-        for x in range(T):
-            if x < 5:
-                # Back rail, mirrored on the axis so both input edges see the corner's joint.
-                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO) if dietro
-                            else _binario(min(y, T - 1 - y), x, tier))
-                continue
-            a, b = (T - 1 - y, T - 1 - x) if y >= T // 2 else (y, T - 1 - x)
-            v = _riga_curva(a, b)
-            forme.pixel(im, x, y, _colore_curva(tier, fotogramma, a, b) if v >= 6
-                        else _colore_curva(tier, fotogramma, a, b, v=6))
+    for strato in (0, 1):
+        for geometria, frecce, *taglio in pezzi:
+            for y in range(T):
+                for x in range(T):
+                    g = geometria(x, y) if not taglio or taglio[0](x, y, strato) else None
+                    c = g and _colore(tier, g[0], g[1], fotogramma * PASSO, g[2], frecce)
+                    if c and c[0] == strato:
+                        forme.pixel(im, x, y, c[1])
     return im
+
+
+def nastro(tier, fotogramma):
+    """Straight East belt; frame k has the tread of frame 0 moved k px East."""
+    return _componi(tier, fotogramma, [(_dritto, True)])
+
+
+def curva(tier, fotogramma):
+    """Corner entering from the West edge and leaving from the South edge (clockwise turn)."""
+    return _componi(tier, fotogramma, [(_curva_g, True)])
+
+
+def unione_t(tier, fotogramma):
+    """T merge (Mindustry's merging conveyor), composed from two corners: in from the North and South
+    edges, out from the East edge. Nothing behind: the West side is open ground. The treads of the two
+    corners overlap and merge; their plates stay each in its own half, so the East edge is the straight belt's."""
+    return _componi(tier, fotogramma, [(_da_sud_g, True, lambda x, y, strato: strato == 1 or y >= T // 2),
+                                       (_da_nord_g, True, lambda x, y, strato: strato == 1 or y < T // 2)])
+
+
+def unione_lati(tier, fotogramma, nord, sud, frecce=True):
+    """Straight East belt fed from behind and from the North (`nord`, left of the flow) and / or South
+    (`sud`) edge by a side belt (`frecce`) or, without chevrons, by a building that pushes items onto it."""
+    lati = ([(_lato_nord_g, frecce)] if nord else []) + ([(_lato_sud_g, frecce)] if sud else [])
+    return _componi(tier, fotogramma, [*lati, (_dritto, True)])
 
 
 def _registra_nastro(tier):
@@ -161,15 +173,14 @@ def _registra_nastro(tier):
     sprite(tier + "-anim")(lambda: forme.striscia([nastro(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-corner-anim")(lambda: forme.striscia([curva(tier, k) for k in range(FOTOGRAMMI)]))
     sprite(tier + "-t-anim")(lambda: forme.striscia([unione_t(tier, k) for k in range(FOTOGRAMMI)]))
-    # Side joins (BeltShape.JoinLeft / JoinRight / JoinBuildingBoth: the dot block; JoinBoth: the T open behind),
-    # East-facing art: left of the flow is North.
-    sprite(tier + "-join-both-anim")(lambda: forme.striscia([unione_t(tier, k, dietro=True) for k in range(FOTOGRAMMI)]))
-    unioni = [("join-left", (True, False)), ("join-right", (False, True))]
+    # Side joins (BeltShape.JoinLeft / JoinRight / JoinBoth / JoinBuildingBoth), East-facing art: left of the
+    # flow is North. The building join has plain-tread stubs: a building, not a belt, feeds it.
+    unioni = [("join-left", True, False, True), ("join-right", False, True, True), ("join-both", True, True, True)]
     if tier not in RINFORZATI:  # an armored belt never blends with a building (BeltGrid.BuildingFeeders)
-        unioni.append(("join-building-both", (True, True)))
-    for nome, (nord, sud) in unioni:
-        sprite(f"{tier}-{nome}-anim")(lambda nord=nord, sud=sud: forme.striscia(
-            [unione_edificio(tier, k, nord, sud) for k in range(FOTOGRAMMI)]))
+        unioni.append(("join-building-both", True, True, False))
+    for nome, nord, sud, frecce in unioni:
+        sprite(f"{tier}-{nome}-anim")(lambda nord=nord, sud=sud, frecce=frecce: forme.striscia(
+            [unione_lati(tier, k, nord, sud, frecce) for k in range(FOTOGRAMMI)]))
 
 
 for _tier in TIER:
@@ -204,34 +215,32 @@ def _freccia(im, cx, cy, verso, rampa, lato=3):
             forme.pixel(im, cx + bx, cy + by, rampa[2] if t == lato else rampa[3])
 
 
-def _battistrada(u, v):
-    """Still tread without chevrons at flow position u and row v across the belt: a rib every 8 px."""
+def _battistrada(u):
+    """Still tread without chevrons at flow position u: a rib every 8 px, as on the belts."""
     return {7: NASTRO[0], 0: NASTRO[2]}.get(u % 8, NASTRO[1])
 
 
-def _incrocio(tier="conveyor-basic"):
-    """Two belts crossing, as in Mindustry: the vertical piece lies over the horizontal one. Each
-    keeps the straight belt's rails (rows / columns 0-4 and 27-31; in a corner the two rails meet
-    on a dark mitre) and its ribbed tread, without chevrons: a junction has no direction. The
-    vertical tread runs through the middle, the horizontal one shows where it comes in at the West
-    and East edges; a small lighter diamond hub (8 px with its outline) marks the centre. All four
-    sides are open: the client closes each side without an input or output with `junction-bordo`."""
-    im = forme.nuova(T, T)
-    c = (T - 1) / 2
-    for y in range(T):
+def _croce(im):
+    """The 12 px treads (rows / columns 10-21) of both belts reaching every edge, each between two outline
+    rows, with the ribbed tread of the belts and no arrows; the vertical one lies over the horizontal one."""
+    forme.rett(im, 0, 9, T - 1, 22, OUT)
+    forme.rett(im, 9, 0, 22, T - 1, OUT)
+    for y in range(10, 22):
         for x in range(T):
-            treno_x, treno_y = 5 <= y <= 26, 5 <= x <= 26  # inside the E-W tread rows / N-S tread columns
-            if not treno_x and not treno_y:
-                # Corner: the E-W rail nearer the North / South edge, the N-S rail nearer the West /
-                # East edge, a dark mitre on the diagonal.
-                dx, dy = abs(x - c), abs(y - c)
-                colore = _binario(x, y, tier) if dy > dx else _binario(y, x, tier) if dx > dy else OUT
-            elif treno_y:
-                # The N-S piece lies over the E-W one: its tread runs through the middle.
-                colore = NASTRO[0] if x in (5, 26) else _battistrada(y, x)
-            else:
-                colore = NASTRO[0] if y in (5, 26) else _battistrada(x, y)
-            forme.pixel(im, x, y, colore)
+            forme.pixel(im, x, y, _battistrada(x))
+    for x in range(10, 22):
+        for y in range(T):
+            forme.pixel(im, x, y, _battistrada(y))
+
+
+def _incrocio():
+    """Two belts crossing, as in Mindustry: a plate with the 12 px treads of both belts through the middle
+    and a small lighter diamond hub (8 px with its outline) where they cross; no arrows (a junction has no
+    direction). All four sides are open: the client closes each side without an input or output with
+    `junction-bordo`."""
+    im = _piastra()
+    _croce(im)
+    c = (T - 1) / 2
     for y in range(T):
         for x in range(T):
             d = abs(x - c) + abs(y - c)
@@ -247,73 +256,62 @@ sprite("junction-base")(_incrocio)
 sprite("junction")(_incrocio)
 
 
-def unione_edificio(tier, fotogramma, nord, sud):
-    """Side join with the junction's "dot block" (the user's pick): a straight East belt fed from behind and
-    from the North (`nord`, left of the flow) and/or South (`sud`) edge, by a belt (a secondary line joining
-    the main one) or by a building that exchanges items with belts.
-
-    It is the junction composition in the tier's colours (the belt from the building side runs through
-    the middle, the hub marks where the items merge), but a belt: the East-West tread at the West and
-    East edges is the straight frame's ribbed tread (no chevron), so it scrolls with the straight belt
-    frame by frame; a side without a building is closed by the straight frame's rail and groove (rows 0-5 or
-    26-31, corners included), pixel for pixel.
-    """
-    assert nord or sud, "a side join has at least one open side (no side = straight)"
-    base = _incrocio(tier)
-    im = forme.nuova(T, T)
-    for y in range(T):
-        for x in range(T):
-            chiuso = (y <= 5 and not nord) or (y >= T - 6 and not sud)
-            bordo = (x < 5 or x > T - 6) and 5 <= y <= T - 6
-            if chiuso:
-                forme.pixel(im, x, y, _colore_nastro(x, y, tier, fotogramma * PASSO))
-            elif bordo:
-                # Ribs only (rows 6 / 25 are outside the chevron): chevrons end at the edge, as at a junction.
-                riga = y if y in (5, T - 6) else 6 if y < T // 2 else T - 7
-                forme.pixel(im, x, y, _colore_nastro(x, riga, tier, fotogramma * PASSO))
-            else:
-                forme.pixel(im, x, y, base.getpixel((x, y)))
-    return im
-
-
 @sprite("junction-bordo")
 def junction_bordo():
-    """Rail closing the North side of a junction (no input or output there): the straight belt's
-    rail along the edge with the groove under it, transparent below. The client rotates it."""
+    """Cap closing the North side of a junction (no input or output there): a plate over the mouth of the
+    channel, transparent elsewhere. The client rotates it."""
     im = forme.nuova(T, T)
-    for x in range(T):
-        for y in range(5):
-            forme.pixel(im, x, y, _binario(x, y, "conveyor-basic"))
-        forme.pixel(im, x, 5, NASTRO[0])
+    forme.rett(im, 9, 0, 22, 3, OUT)
+    forme.rett(im, 10, 0, 21, 2, METALLO[2])
+    forme.rett(im, 10, 0, 21, 0, METALLO[3])
+    forme.rett(im, 10, 1, 21, 1, METALLO[3])
+    forme.pixel(im, 12, 1, METALLO[5])
+    forme.pixel(im, 19, 1, METALLO[5])
     return im
 
 
-@sprite("splitter")
-def splitter():
-    """Input from the West, items alternate between the North and South exits."""
+@sprite("router")
+def router():
+    """Accepts from any side and hands items to the others: the four treads meet in a round chamber under a
+    raised cap; no arrows."""
     im = _piastra()
-    _canale(im, -1, 10, 21, 21)
-    _canale(im, 10, -1, 21, T)
-    forme.rett(im, 11, 11, 20, 20, NASTRO[1])
-    forme.cerchio(im, 16, 16, 4.5, METALLO)
+    _croce(im)
+    forme.cerchio(im, 16, 16, 9, METALLO)
+    forme.cerchio(im, 16, 16, 5, NASTRO)
     forme.pixel(im, 14, 14, METALLO[5])
-    _freccia(im, 16, 3, "N", ACCENTO)
-    _freccia(im, 16, 28, "S", ACCENTO)
+    return im
+
+
+def _selettore(cornice):
+    """Plate with the straight tread through and the side treads, and a square frame in the centre around
+    an empty 14x14 slot (rows / columns 9-22) holding the filter icon the client draws."""
+    im = _piastra()
+    _croce(im)
+    forme.rett(im, 7, 7, 24, 24, OUT)
+    forme.rett(im, 8, 8, 23, 23, cornice[1])
+    forme.rett(im, 8, 8, 23, 8, cornice[3])
+    forme.rett(im, 8, 8, 8, 23, cornice[3])
+    forme.rett(im, 23, 8, 23, 23, cornice[0])
+    forme.rett(im, 8, 23, 23, 23, cornice[0])
+    forme.rett(im, 9, 9, 22, 22, OUT)
+    forme.rett(im, 10, 10, 21, 21, NASTRO[0])
     return im
 
 
 @sprite("sorter")
 def sorter():
-    """Filtered items go East, the others to North or South; the empty 14x14 centre holds
-    the filter glyph drawn by the client."""
-    im = _piastra()
-    _canale(im, -1, 10, T, 21)
-    _canale(im, 10, -1, 21, T)
-    forme.rett(im, 8, 8, 23, 23, ACCENTO[1])
-    forme.rett(im, 8, 8, 23, 8, ACCENTO[3])
-    forme.rett(im, 8, 8, 8, 23, ACCENTO[3])
-    forme.rett(im, 9, 9, 22, 22, NASTRO[0])  # glyph slot
-    _freccia(im, 28, 16, "E", ACCENTO)
+    """Filtered items go on straight, the others to the sides; the amber frame's empty centre holds the
+    filter icon."""
+    return _selettore(ACCENTO)
+
+
+@sprite("sorter-inverted")
+def sorter_inverted():
+    """The opposite: filtered items go to the sides, the others straight on. A red frame, broken at the
+    middle of each side, tells it from the sorter at a glance."""
+    im = _selettore(ROSSO)
+    for x, y in ((15, 8), (16, 8), (15, 23), (16, 23), (8, 15), (8, 16), (23, 15), (23, 16)):
+        forme.pixel(im, x, y, OUT)
     return im
 
 
@@ -321,7 +319,7 @@ def sorter():
 def conveyor_bridge():
     """Bridge end: a raised housing over the belt with the span leaving East."""
     im = _piastra()
-    _canale(im, -1, 10, T, 21)
+    _canale(im, -1, 9, T, 22)
     forme.pannello(im, 6, 6, 25, 25, FERRO)
     forme.rett(im, 10, 10, 21, 21, OUT)
     forme.rett(im, 11, 11, 20, 20, NASTRO[0])

@@ -505,7 +505,7 @@ def _html_pezzo(p, a, scena):
         return _img(a.sprite("junction"), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "sdoppiatore":
         # MindustryBeltVisual.AddSpecial: splitter and sorter turn with their facing (ScrollingBeltStrip.RotationFor).
-        return _img(a.sprite("splitter"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso) + flussi
+        return _img(a.sprite("router"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso) + flussi
     if p.tipo == "selezionatore":
         # The sorter turned to its facing and, upright on top, the belt sprite of its filter item.
         return (_img(a.sprite("sorter"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso)

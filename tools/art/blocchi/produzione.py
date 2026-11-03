@@ -324,24 +324,19 @@ sprite("assembler")(_assemblatore)
 
 @sprite("extractor")
 def extractor():
-    """1x1 extractor: lead-coloured octagon with an intake on every edge; the empty dark
-    well in the centre (8 px across) holds the filter dot drawn by the client."""
+    """1x1 extractor: lead-coloured octagon with a dark intake slot on every edge (no arrows) and a square
+    frame in the centre around an empty 14x14 slot (rows / columns 9-22) for the filter icon the client draws."""
     im = forme.nuova(T, T)
     forme.sagoma(im, forme.smussato(0, 0, T - 1, T - 1, 7), PIOMBO)
-    # Intakes: a dark slot with an inward chevron on each edge.
     for (x0, y0, x1, y1) in ((12, 1, 19, 4), (12, T - 5, 19, T - 2), (1, 12, 4, 19), (T - 5, 12, T - 2, 19)):
         forme.rett(im, x0, y0, x1, y1, OUT)
         forme.rett(im, x0 + 1, y0 + 1, x1 - 1, y1 - 1, NASTRO[1])
-    for t in range(3):
-        for c in (ACCENTO[3],):
-            forme.pixel(im, 15 - t, 2 + t, c); forme.pixel(im, 16 + t, 2 + t, c)
-            forme.pixel(im, 15 - t, T - 3 - t, c); forme.pixel(im, 16 + t, T - 3 - t, c)
-            forme.pixel(im, 2 + t, 15 - t, c); forme.pixel(im, 2 + t, 16 + t, c)
-            forme.pixel(im, T - 3 - t, 15 - t, c); forme.pixel(im, T - 3 - t, 16 + t, c)
-    # Ring around the well, then the well itself (radius 4).
-    _anello(im, T / 2, T / 2, 4, 8, METALLO)
-    for y in range(T):
-        for x in range(T):
-            if math.hypot(x + 0.5 - T / 2, y + 0.5 - T / 2) <= 4:
-                forme.pixel(im, x, y, NASTRO[0])
+    forme.rett(im, 7, 7, 24, 24, OUT)
+    forme.rett(im, 8, 8, 23, 23, METALLO[3])
+    forme.rett(im, 8, 8, 23, 8, METALLO[5])
+    forme.rett(im, 8, 8, 8, 23, METALLO[5])
+    forme.rett(im, 23, 8, 23, 23, METALLO[1])
+    forme.rett(im, 8, 23, 23, 23, METALLO[1])
+    forme.rett(im, 9, 9, 22, 22, OUT)
+    forme.rett(im, 10, 10, 21, 21, NASTRO[0])
     return forme.basamento(im, PIOMBO)

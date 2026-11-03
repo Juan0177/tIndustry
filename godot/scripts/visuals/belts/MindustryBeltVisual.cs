@@ -5,7 +5,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Builds the belt visuals of a placeable <see cref="BeltGrid"/>: one sprite per straight cell, one per
-/// corner, T merge or side join, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
+/// corner, T merge or side join, junction / router / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
 /// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step:
 /// every cell of a tier draws the same <see cref="AtlasTexture"/> (one per shape: straight, corner, T, side joins), and a
 /// frame change moves only that texture's region, once per tier, whatever the number of cells.
@@ -212,7 +212,7 @@ public partial class MindustryBeltVisual : Node2D
         var texture = Sprites.For(kind switch
         {
             LogisticsKind.Junction => "junction-base",
-            LogisticsKind.Splitter => "splitter",
+            LogisticsKind.Splitter => "router",
             LogisticsKind.Sorter => "sorter",
             LogisticsKind.Bridge => "conveyor-bridge",
             _ => BuildSpec.DefaultConveyorId
