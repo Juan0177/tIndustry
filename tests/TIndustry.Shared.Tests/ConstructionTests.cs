@@ -317,7 +317,7 @@ public sealed class ConstructionTests
         Assert.True(viaTryPlace.TryPlaceSmelter(new GridPosition(14, 10), Direction.East, smelt));
         Assert.True(viaTryPlace.TryPlaceAssembler(new GridPosition(18, 10), Direction.North, wire));
         Assert.True(viaTryPlace.TryPlaceGenerator(new GridPosition(22, 10), Direction.South));
-        Assert.True(viaTryPlace.TryPlaceExtractor(new GridPosition(26, 10), Direction.West, "copper-wire"));
+        Assert.True(viaTryPlace.TryPlaceExtractor(new GridPosition(26, 10), "copper-wire"));
         Assert.True(viaTryPlace.TryPlacePowerNode(new GridPosition(30, 10)));
         Assert.True(viaTryPlace.TryPlacePowerNode(new GridPosition(32, 10), PowerNode.Tier2Id));
         Assert.True(viaTryPlace.TryPlaceLamp(new GridPosition(35, 10)));
@@ -335,7 +335,7 @@ public sealed class ConstructionTests
             new(Crafter.SmelterBuildingId, BuildingKind.Smelter, new GridPosition(14, 10), Direction.East, smelt.Id),
             new(Crafter.AssemblerBuildingId, BuildingKind.Assembler, new GridPosition(18, 10), Direction.North, wire.Id),
             new(Generator.BuildingId, BuildingKind.Generator, new GridPosition(22, 10), Direction.South),
-            new(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(26, 10), Direction.West, FilterItemId: "copper-wire"),
+            new(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(26, 10), Direction.North, FilterItemId: "copper-wire"), // no direction
             new(PowerNode.Tier1Id, BuildingKind.PowerNode, new GridPosition(30, 10), Direction.East),
             new(PowerNode.Tier2Id, BuildingKind.PowerNodeT2, new GridPosition(32, 10), Direction.East),
             new(Lamp.BuildingId, BuildingKind.Lamp, new GridPosition(35, 10), Direction.East),

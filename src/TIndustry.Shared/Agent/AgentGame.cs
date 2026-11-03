@@ -380,8 +380,8 @@ public sealed class AgentGame : IDisposable
     }
 
     /// <summary>
-    /// <c>filtro {cella, oggetto?}</c>: the player's choice in the filter panel of a sorter or an inverted sorter
-    /// (<see cref="SetBlockFilter"/>); without <c>oggetto</c> (or null) the block has no filter. Answers the filter now
+    /// <c>filtro {cella, oggetto?}</c>: the player's choice in the filter panel of a sorter, an inverted sorter or an
+    /// extractor (<see cref="SetBlockFilter"/>); without <c>oggetto</c> (or null) the block has no filter. Answers the filter now
     /// (<c>filtro</c>, null = none) or the refusal (<c>InvalidCommand</c>: a block without a filter, an empty cell or an
     /// unknown item).
     /// </summary>
@@ -390,7 +390,9 @@ public sealed class AgentGame : IDisposable
         var cell = MapCell(p, "cella");
         return Single(
             new SetBlockFilter(PlayerId, cell, OptStr(p, "oggetto")),
-            r => r["filtro"] = View.Belts.TryGetValue(cell, out var block) ? block.FilterItemId : null);
+            r => r["filtro"] = View.Belts.TryGetValue(cell, out var block)
+                ? block.FilterItemId
+                : View.Extractors.FirstOrDefault(e => e.Occupies(cell))?.FilterItemId);
     }
 
     /// <summary>Entity id of the block on <paramref name="cell"/>; 0 when there is none.</summary>
@@ -733,6 +735,13 @@ public sealed class AgentGame : IDisposable
                 var symbol = Symbol(terrain, cell, buildings, sites);
                 row[x - x0] = symbol;
                 used.Add(symbol);
+                if (symbol == 'E' && View.Extractors.FirstOrDefault(e => e.Occupies(cell)) is { } extractor)
+                {
+                    var filter = CellJson(cell);
+                    filter["filtro"] = extractor.FilterItemId;
+                    filters.Add(filter);
+                }
+
                 if (!View.Belts.TryGetValue(cell, out var belt) || symbol == 'C')
                 {
                     continue;

@@ -164,7 +164,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("nord, est, sud, ovest: fissa la direzione di ogni cella, come R durante il trascinamento (senza: con 'cella' quella di ruota, con 'da'/'a' quella del trascinamento).")] string? direzione = null,
         [Description("true = Ctrl, solo nastri: segue la catena di nastri fra 'da' e 'a' (cambio di tier) o un percorso A* sui quattro lati che gira attorno agli ostacoli (mai ponti), con le sue direzioni anche con 'direzione'; senza percorso, la retta (lì 'direzione' vale).")] bool? diagonale = null,
         [Description("Ricetta di forno o assemblatore.")] string? ricetta = null,
-        [Description("Oggetto del filtro del selezionatore o dell'invertito (senza: nessun filtro).")] string? filtro = null,
+        [Description("Oggetto del filtro del selezionatore, dell'invertito o dell'estrattore (senza: nessun filtro).")] string? filtro = null,
         [Description(Dettaglio)] bool dettaglio = false) =>
         Game(sessione, "piazza", new { tipo, tier, cella, da, a, direzione, diagonale, ricetta, filtro }, dettaglio);
 
@@ -217,7 +217,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         Game(sessione, "collega", new { nodo, blocco });
 
     [McpServerTool(Name = "filtro")]
-    [Description("Sceglie il filtro di un selezionatore (sorter) o di un selezionatore invertito (sorter-inverted), come la scelta nel pannello del filtro (SetBlockFilter). Senza 'oggetto' toglie il filtro: il selezionatore manda tutto ai lati, l'invertito tutto dritto. Rifiuto InvalidCommand su un blocco senza filtro, una cella vuota o un oggetto sconosciuto. Risponde {filtro} (null = nessuno).")]
+    [Description("Sceglie il filtro di un selezionatore (sorter), di un selezionatore invertito (sorter-inverted) o di un estrattore (extractor), come la scelta nel pannello del filtro (SetBlockFilter). Senza 'oggetto' toglie il filtro: il selezionatore manda tutto ai lati, l'invertito tutto dritto, l'estrattore sposta qualsiasi oggetto a turno per id. Rifiuto InvalidCommand su un blocco senza filtro, una cella vuota o un oggetto sconosciuto. Risponde {filtro} (null = nessuno).")]
     public string Filtro(
         [Description(Sessione)] string sessione,
         [Description("La cella del selezionatore.")] Cella cella,

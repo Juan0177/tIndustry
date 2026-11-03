@@ -278,9 +278,20 @@ public sealed class ExtractorSaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
-    public string Direction { get; set; } = "East";
-    public string FilterItemId { get; set; } = Extractor.DefaultFilterItemId;
-    public float Progress { get; set; }
+    /// <summary>Ignored on load: the extractor has no direction (written as North).</summary>
+    public string Direction { get; set; } = "North";
+    /// <summary>The filter; null = none (any item in turn).</summary>
+    public string? FilterItemId { get; set; }
+    /// <summary><see cref="Extractor.Accumulator"/>.</summary>
+    public int Accumulator { get; set; }
+    /// <summary><see cref="Extractor.SourceTurn"/>.</summary>
+    public int SourceTurn { get; set; }
+    /// <summary><see cref="Extractor.DestinationTurn"/>.</summary>
+    public int DestinationTurn { get; set; }
+    /// <summary><see cref="Extractor.LastItemId"/>; null = none yet.</summary>
+    public string? LastItemId { get; set; }
+    /// <summary><see cref="Extractor.ItemsExtracted"/>.</summary>
+    public long ItemsExtracted { get; set; }
 }
 
 public sealed class PowerNodeSaveDto

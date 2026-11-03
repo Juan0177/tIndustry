@@ -91,14 +91,15 @@ public sealed class GameState
     /// <summary>Whether <see cref="ReceiveFromLogistics"/> would take <paramref name="itemId"/> (changes nothing).</summary>
     public bool CanReceiveFromLogistics(GridPosition tile, string itemId)
     {
-        if (coreTiles.Contains(tile))
+        var storage = StorageAt(tile);
+        if (coreTiles.Contains(tile) || storage is { IsLinked: true })
         {
             return Storage.CanAccept(itemId);
         }
 
-        if (StorageAt(tile) is { } storage)
+        if (storage is not null)
         {
-            return storage.IsLinked ? Storage.CanAccept(itemId) : storage.CanAccept(itemId);
+            return storage.CanAccept(itemId);
         }
 
         foreach (var craft in CraftMachines())
@@ -120,6 +121,76 @@ public sealed class GameState
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// What an extractor can take from on <paramref name="tile"/>: the Core stock (a Core cell or a linked storage
+    /// block), a standalone storage block, or a forno's or an assembler's output; nothing elsewhere (belts, other
+    /// extractors, miners, generators).
+    /// </summary>
+    public ExtractorSource ExtractorSourceAt(GridPosition tile)
+    {
+        if (coreTiles.Contains(tile))
+        {
+            return ExtractorSource.Core(Storage);
+        }
+
+        if (StorageAt(tile) is { } storage)
+        {
+            return storage.IsLinked ? ExtractorSource.Core(Storage) : ExtractorSource.Of(storage);
+        }
+
+        foreach (var craft in CraftMachines())
+        {
+            if (craft.Occupies(tile))
+            {
+                return ExtractorSource.Of(craft);
+            }
+        }
+
+        return default;
+    }
+
+    /// <summary>
+    /// The block on <paramref name="tile"/> that takes items from logistics, as an identity: the logistics cell, the
+    /// Core stock (<see cref="Storage"/>, for a Core cell and a linked storage block alike), the standalone storage
+    /// block, the crafter or the generator; null when nothing there takes items. An extractor never hands an item back
+    /// to the block it took it from (<see cref="ExtractorSource.Block"/>).
+    /// </summary>
+    public object? LogisticsBlockAt(GridPosition tile)
+    {
+        if (Belts.TryGet(tile, out var cell))
+        {
+            return cell;
+        }
+
+        if (coreTiles.Contains(tile))
+        {
+            return Storage;
+        }
+
+        if (StorageAt(tile) is { } storage)
+        {
+            return storage.IsLinked ? Storage : storage;
+        }
+
+        foreach (var craft in CraftMachines())
+        {
+            if (craft.Occupies(tile))
+            {
+                return craft;
+            }
+        }
+
+        foreach (var generator in Generators)
+        {
+            if (generator.Occupies(tile))
+            {
+                return generator;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

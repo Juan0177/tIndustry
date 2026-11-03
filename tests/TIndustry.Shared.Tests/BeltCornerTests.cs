@@ -68,16 +68,12 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void ExtractorFacingTheBeltMakesACorner()
+    public void ExtractorBesideTheBeltMakesACorner()
     {
+        // The extractor has no direction: it puts items on every side, so a belt beside it blends with it.
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceExtractor(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceExtractor(new GridPosition(19, 21)));
         AssertCorner(factory, Direction.East);
-
-        // Blend by capability: an extractor beside the belt counts even when it ejects away from it.
-        var other = WithNorthLine();
-        Assert.True(other.TryPlaceExtractor(new GridPosition(19, 21), Direction.West));
-        Assert.True(other.IsBeltCorner(P));
     }
 
     [Fact]

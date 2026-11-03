@@ -600,8 +600,8 @@ public sealed class SimHost
     }
 
     /// <summary>
-    /// The filter of a sorter or an inverted sorter (null = none). Every block with a filter is a branch here; anything
-    /// else, or an item the game does not know, is refused.
+    /// The filter of a sorter, an inverted sorter or an extractor (null = none). Every block with a filter is a branch
+    /// here; anything else, or an item the game does not know, is refused.
     /// </summary>
     private Refusal? ApplySetBlockFilter(SetBlockFilter command)
     {
@@ -614,6 +614,15 @@ public sealed class SimHost
         {
             cell.SetFilterItem(command.ItemId);
             return null;
+        }
+
+        foreach (var extractor in factory.Extractors)
+        {
+            if (extractor.Occupies(command.Tile))
+            {
+                extractor.SetFilterItem(command.ItemId);
+                return null;
+            }
         }
 
         return RefusalCode.InvalidCommand;

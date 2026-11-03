@@ -107,6 +107,19 @@ public sealed class FactoryContent
         && (FindMarketItem(itemId) is not null
             || Recipes.Any(r => r.Inputs.Any(a => a.ItemId == itemId) || r.Outputs.Any(a => a.ItemId == itemId)));
 
+    private IReadOnlyList<string>? itemIds;
+
+    /// <summary>
+    /// Every item of the game (<see cref="IsKnownItem"/>: on the market or made or used by a recipe), by ordinal id: an
+    /// extractor without a filter takes items in this order.
+    /// </summary>
+    public IReadOnlyList<string> ItemIds => itemIds ??= Market.Select(m => m.ItemId)
+        .Concat(Recipes.SelectMany(r => r.Inputs.Concat(r.Outputs)).Select(a => a.ItemId))
+        .Where(id => !string.IsNullOrWhiteSpace(id))
+        .Distinct(StringComparer.Ordinal)
+        .Order(StringComparer.Ordinal)
+        .ToArray();
+
     public string DisplayName(string itemId) =>
         FindMarketItem(itemId)?.DisplayName ?? itemId;
 

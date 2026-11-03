@@ -130,7 +130,7 @@ internal static class FactoryScenarios
         Assert(factory.TryPlaceMiner(new GridPosition(2, 4), Direction.East, definitionId: Miner.AdvancedId),
             "miner T2");
         Assert(factory.Miners.Any(m => m.DefinitionId == Miner.AdvancedId), "miner T2 list");
-        Assert(factory.TryPlaceExtractor(new GridPosition(8, 14), Direction.North), "extractor");
+        Assert(factory.TryPlaceExtractor(new GridPosition(8, 14)), "extractor");
         Assert(factory.TryPlacePowerNode(new GridPosition(11, 12)), "power-node");
         Assert(factory.TryPlacePowerNode(new GridPosition(14, 12), PowerNode.Tier2Id), "power-node-t2");
         Assert(factory.PowerNodes.Any(n => n.DefinitionId == PowerNode.Tier2Id && n.Size == 2), "T2 size");

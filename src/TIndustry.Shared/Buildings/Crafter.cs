@@ -67,6 +67,34 @@ public sealed class Crafter
     public IReadOnlyCollection<string> OutputQueue => outputQueue;
     public int EjectIndex { get; private set; }
 
+    /// <summary>Whether the output buffer holds a finished <paramref name="itemId"/> (an extractor can take it).</summary>
+    public bool HasOutput(string itemId) => outputQueue.Contains(itemId);
+
+    /// <summary>Takes the first finished <paramref name="itemId"/> out of the output buffer (order of the rest kept); false when there is none.</summary>
+    internal bool TryTakeOutput(string itemId)
+    {
+        if (!outputQueue.Contains(itemId))
+        {
+            return false;
+        }
+
+        var count = outputQueue.Count;
+        var removed = false;
+        for (var i = 0; i < count; i++)
+        {
+            var id = outputQueue.Dequeue();
+            if (!removed && id == itemId)
+            {
+                removed = true;
+                continue;
+            }
+
+            outputQueue.Enqueue(id);
+        }
+
+        return true;
+    }
+
     public void Relocate(GridPosition position, Direction direction)
     {
         Position = position;

@@ -246,6 +246,29 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void FiltroSetsAndClearsTheFilterOfAnExtractor()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+
+        Call(game, "piazza", """{"tipo":"extractor","cella":{"x":40,"y":40},"direzione":"est","filtro":"coal"}""");
+        var extractor = Assert.Single(factory.Extractors);
+        Assert.Equal(Direction.North, extractor.Direction);
+        Assert.Equal("coal", extractor.FilterItemId);
+        var area = Call(game, "area", """{"da":{"x":40,"y":40},"a":{"x":40,"y":40}}""");
+        Assert.Equal('E', area.GetProperty("righe")[0].GetString()![0]);
+        Assert.Equal("coal", Assert.Single(area.GetProperty("filtri").EnumerateArray()).GetProperty("filtro").GetString());
+
+        var set = Call(game, "filtro", """{"cella":{"x":40,"y":40},"oggetto":"iron-plate"}""");
+        Assert.Equal("iron-plate", set.GetProperty("filtro").GetString());
+        var none = Call(game, "filtro", """{"cella":{"x":40,"y":40}}""");
+        Assert.Equal(JsonValueKind.Null, none.GetProperty("filtro").ValueKind);
+        Assert.Null(extractor.FilterItemId);
+    }
+
+    [Fact]
     public void FiltroSetsAndClearsTheFilterOfASorter()
     {
         var factory = NewFactory();

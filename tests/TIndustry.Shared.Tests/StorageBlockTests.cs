@@ -275,7 +275,7 @@ public sealed class StorageBlockTests
         Fill(container, Plate, 10);
         var plates = f.Wallet.MaterialCount(Plate);
         Assert.True(f.PlaceInstant(
-            new BuildSpec(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(82, 60), Direction.East, FilterItemId: Plate),
+            new BuildSpec(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(82, 60), Direction.North, FilterItemId: Plate),
             charge: false));
         var line = Line(f, new GridPosition(83, 60), Direction.East, 12);
 
@@ -287,14 +287,14 @@ public sealed class StorageBlockTests
     }
 
     [Fact]
-    public void StandaloneContainer_ExtractorBlocked_PutsBack()
+    public void StandaloneContainer_ExtractorBlocked_TakesNoMore()
     {
         var f = NewFactory();
         var container = Place(f, ContainerAt(80, 60));
         Fill(container, Plate, 20);
         var plates = f.Wallet.MaterialCount(Plate);
         Assert.True(f.PlaceInstant(
-            new BuildSpec(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(82, 60), Direction.East, FilterItemId: Plate),
+            new BuildSpec(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(82, 60), Direction.North, FilterItemId: Plate),
             charge: false));
         // One belt, then a wall of nothing: it fills and blocks.
         var line = Line(f, new GridPosition(83, 60), Direction.East, 1);
@@ -309,24 +309,31 @@ public sealed class StorageBlockTests
     }
 
     [Fact]
-    public void Extractor_TouchingCoreAndStandalone_PrefersCore()
+    public void Extractor_TouchingCoreAndStandalone_TakesFromBothInTurn()
     {
         var f = NewFactory();
         var container = Place(f, ContainerAt(64, 61)); // 64..65 × 61..62: not touching the shard (60..62)
         Assert.False(container.IsLinked);
         Fill(container, Plate, 5);
         SetStock(f, Plate, 5);
-        // (63, 61) touches the Core (62, 61) and the container (64, 61); it ejects north.
+        // (63, 61) touches the Core (62, 61) and the container (64, 61); a belt leaves north.
         Assert.True(f.PlaceInstant(
             new BuildSpec(Extractor.BuildingId, BuildingKind.Extractor, new GridPosition(63, 61), Direction.North, FilterItemId: Plate),
             charge: false));
         var line = Line(f, new GridPosition(63, 60), Direction.North, 10);
 
-        Run(f, 1f);
-
-        Assert.True(ItemsOn(f, line) > 0);
+        // First move: the container (east, the first source side with plates) onto the belt (north, the first taker);
+        // second: the Core (west) into the container (east), never back into the Core.
+        Run(f, 6f / SimulationClock.TickRate);
+        Assert.Equal(1, ItemsOn(f, line));
+        Assert.Equal(4, container.Count(Plate));
+        Run(f, 6f / SimulationClock.TickRate);
         Assert.Equal(5, container.Count(Plate));
-        Assert.True(f.Wallet.MaterialCount(Plate) < 5);
+        Assert.Equal(4, f.Wallet.MaterialCount(Plate));
+
+        Run(f, 2f);
+        Assert.True(ItemsOn(f, line) > 1);
+        Assert.Equal(10, ItemsOn(f, line) + container.Count(Plate) + f.Wallet.MaterialCount(Plate));
     }
 
     [Fact]

@@ -466,7 +466,7 @@ public sealed class Factory : IGameView
 
         foreach (var extractor in extractors)
         {
-            AddEjector(extractor.Position, Extractor.Size, extractor.Direction);
+            AddEjector(extractor.Position, Extractor.Size, null); // it puts items on every side
         }
 
         blendTiles.Clear();
@@ -830,7 +830,11 @@ public sealed class Factory : IGameView
                 Y = e.Position.Y,
                 Direction = e.Direction.ToString(),
                 FilterItemId = e.FilterItemId,
-                Progress = e.Progress
+                Accumulator = e.Accumulator,
+                SourceTurn = e.SourceTurn,
+                DestinationTurn = e.DestinationTurn,
+                LastItemId = e.LastItemId,
+                ItemsExtracted = e.ItemsExtracted
             }).ToList(),
             PowerNodes = powerNodes.OrderBy(n => n.Id).Select(n => new PowerNodeSaveDto
             {
@@ -1154,12 +1158,9 @@ public sealed class Factory : IGameView
 
         foreach (var e in data.Extractors)
         {
-            var ex = new Extractor(
-                new GridPosition(e.X, e.Y),
-                ParseDirection(e.Direction),
-                e.FilterItemId,
-                RestoredId(e.Id));
-            ex.RestoreProgress(e.Progress);
+            // The saved direction is ignored: the extractor has none.
+            var ex = new Extractor(new GridPosition(e.X, e.Y), e.FilterItemId, RestoredId(e.Id));
+            ex.RestoreState(e.Accumulator, e.SourceTurn, e.DestinationTurn, e.LastItemId, e.ItemsExtracted);
             factory.extractors.Add(ex);
         }
 
@@ -2551,11 +2552,9 @@ public sealed class Factory : IGameView
     public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East) =>
         RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, charge: true);
 
-    public bool TryPlaceExtractor(
-        GridPosition origin,
-        Direction direction,
-        string filterItemId = Extractor.DefaultFilterItemId) =>
-        RequireUnlocked(Extractor.BuildingId) && PlaceExtractor(origin, direction, filterItemId, charge: true);
+    /// <summary>Places an extractor (no direction) with <paramref name="filterItemId"/> (null = none, any item in turn).</summary>
+    public bool TryPlaceExtractor(GridPosition origin, string? filterItemId = null) =>
+        RequireUnlocked(Extractor.BuildingId) && PlaceExtractor(origin, filterItemId, charge: true);
 
     public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNode.Tier1Id)
     {
@@ -2827,7 +2826,7 @@ public sealed class Factory : IGameView
             case BuildingKind.Generator:
                 return PlaceGenerator(origin, dir, charge);
             case BuildingKind.Extractor:
-                return PlaceExtractor(origin, dir, spec.FilterItemId ?? Extractor.DefaultFilterItemId, charge);
+                return PlaceExtractor(origin, spec.FilterItemId, charge);
             case BuildingKind.PowerNode:
                 return PlacePowerNode(origin, PowerNode.Tier1Id, charge);
             case BuildingKind.PowerNodeT2:
@@ -3255,7 +3254,7 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    private bool PlaceExtractor(GridPosition origin, Direction direction, string filterItemId, bool charge)
+    private bool PlaceExtractor(GridPosition origin, string? filterItemId, bool charge)
     {
         if (!CanOccupyFootprint(origin, Extractor.Size) || (charge && !TryChargeBuilding(Extractor.BuildingId)))
         {
@@ -3263,7 +3262,7 @@ public sealed class Factory : IGameView
         }
 
         buildingsVersion++;
-        extractors.Add(new Extractor(origin, direction, filterItemId, nextEntityId++));
+        extractors.Add(new Extractor(origin, filterItemId, nextEntityId++));
         return true;
     }
 

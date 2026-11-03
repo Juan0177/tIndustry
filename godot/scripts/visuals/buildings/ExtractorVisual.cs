@@ -9,7 +9,7 @@ namespace TIndustry.Godot;
 /// </summary>
 public partial class ExtractorVisual : Node2D
 {
-    /// <summary>Shortest time between two puffs of one extractor (it pulls an item every 0.4 s).</summary>
+    /// <summary>Shortest time between two puffs of one extractor (it moves up to 11 items a second).</summary>
     private const double PuffSeconds = 0.8;
 
     private Polygon2D? _dot;
