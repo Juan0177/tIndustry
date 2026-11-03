@@ -51,8 +51,9 @@ public sealed class Factory : IGameView
         BeltDefinition = belts.DefaultDefinition
             ?? content.RequireConveyor("conveyor-basic");
         JunctionDefinition = content.RequireConveyor("junction");
-        SplitterDefinition = content.RequireConveyor("splitter");
+        RouterDefinition = content.RequireConveyor("router");
         SorterDefinition = content.RequireConveyor("sorter");
+        SorterInvertedDefinition = content.RequireConveyor("sorter-inverted");
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
@@ -63,8 +64,9 @@ public sealed class Factory : IGameView
         BeltDefinition = state.Belts.DefaultDefinition
             ?? state.Content.RequireConveyor("conveyor-basic");
         JunctionDefinition = state.Content.RequireConveyor("junction");
-        SplitterDefinition = state.Content.RequireConveyor("splitter");
+        RouterDefinition = state.Content.RequireConveyor("router");
         SorterDefinition = state.Content.RequireConveyor("sorter");
+        SorterInvertedDefinition = state.Content.RequireConveyor("sorter-inverted");
         BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
     }
 
@@ -72,8 +74,10 @@ public sealed class Factory : IGameView
     public BeltGrid Belts => State.Belts;
     public ConveyorDefinition BeltDefinition { get; }
     public ConveyorDefinition JunctionDefinition { get; }
-    public ConveyorDefinition SplitterDefinition { get; }
+    public ConveyorDefinition RouterDefinition { get; }
     public ConveyorDefinition SorterDefinition { get; }
+
+    public ConveyorDefinition SorterInvertedDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
@@ -191,7 +195,7 @@ public sealed class Factory : IGameView
     /// fine), fed from behind by logistics only (no building feeds it) and hands over to a logistics cell ahead (not the Core or a building);
     /// the cell has no plan (not marked for removal). Whether the cell lies inside the dragged line is the line's call
     /// (<see cref="PlacementLine"/>, <see cref="BeltLine.IsInterior"/>): two crossings in a row both become junctions.
-    /// Splitters, sorters, bridges, junctions and parallel belts are never crossings.
+    /// Routers, sorters, bridges, junctions and parallel belts are never crossings.
     /// </summary>
     public BeltCrossing BeltCrossingAt(GridPosition position, Direction direction)
     {
@@ -277,7 +281,7 @@ public sealed class Factory : IGameView
     internal void SettleReplacement(BuildSpec spec, ReplacedBelt old)
     {
         var cell = Belts.Cells[spec.Origin];
-        cell.RestoreState(cell.SplitterToggle, old.Items.Take(cell.Definition.Capacity));
+        cell.RestoreState(old.Items.Take(cell.Definition.Capacity));
         var oldCost = CostOf(old.Spec);
         var credit = Construction.Credit(oldCost, CostOf(spec));
         var basisPoints = RefundBasisPointsFor(old.Spec);
@@ -309,7 +313,7 @@ public sealed class Factory : IGameView
     {
         if (PlaceInstant(old.Spec, charge: false))
         {
-            Belts.Cells[old.Spec.Origin].RestoreState(0, old.Items);
+            Belts.Cells[old.Spec.Origin].RestoreState(old.Items);
         }
         else
         {
@@ -462,7 +466,7 @@ public sealed class Factory : IGameView
 
         foreach (var extractor in extractors)
         {
-            AddEjector(extractor.Position, Extractor.Size, extractor.Direction);
+            AddEjector(extractor.Position, Extractor.Size, null); // it puts items on every side
         }
 
         blendTiles.Clear();
@@ -501,7 +505,9 @@ public sealed class Factory : IGameView
             {
                 foreach (var side in JunctionSideOrder)
                 {
-                    sides |= Belts.IsJunctionSideConnected(position, side) ? 1 << (int)side : 0;
+                    sides |= Belts.IsJunctionSideConnected(position, side, buildingFeeds, State.TakesItemsAt)
+                        ? 1 << (int)side
+                        : 0;
                 }
             }
 
@@ -547,7 +553,10 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        return !BuildingIo.Occupies(building.Origin, building.Size, next);
+        // A junction sends the item on away from the building, a router and a sorter never back to it: their direction is
+        // unused.
+        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
+            || !BuildingIo.Occupies(building.Origin, building.Size, next);
     }
 
     // Read-only wrappers: the view must not be cast back to the live lists.
@@ -821,7 +830,11 @@ public sealed class Factory : IGameView
                 Y = e.Position.Y,
                 Direction = e.Direction.ToString(),
                 FilterItemId = e.FilterItemId,
-                Progress = e.Progress
+                Accumulator = e.Accumulator,
+                SourceTurn = e.SourceTurn,
+                DestinationTurn = e.DestinationTurn,
+                LastItemId = e.LastItemId,
+                ItemsExtracted = e.ItemsExtracted
             }).ToList(),
             PowerNodes = powerNodes.OrderBy(n => n.Id).Select(n => new PowerNodeSaveDto
             {
@@ -890,10 +903,13 @@ public sealed class Factory : IGameView
                 Y = c.Position.Y,
                 Direction = c.Direction.ToString(),
                 DefinitionId = c.Definition.Id,
-                SplitterToggle = c.SplitterToggle,
+                RouterTurn = c.Kind == LogisticsKind.Router ? c.RouterTurn : null,
+                RouterWaitTicks = c.Kind == LogisticsKind.Router && c.Items.Count > 0 ? c.RouterWaitTicks : null,
+                RouterFrom = c.Kind == LogisticsKind.Router ? c.RouterFrom?.ToString() : null,
                 BridgePartnerX = c.BridgePartner?.X,
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
+                SorterTurns = c.Kind == LogisticsKind.Sorter && c.SorterTurns != 0 ? c.SorterTurns : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
@@ -904,14 +920,18 @@ public sealed class Factory : IGameView
         Id = it.Id,
         ItemId = it.ItemId,
         Progress = it.Progress,
-        Travel = it.Travel?.ToString()
+        Travel = it.Travel?.ToString(),
+        JunctionTicks = it.JunctionTicks
     };
 
     private static TransportedItem RestoreItem(ItemSaveDto it) => new(
         it.Id,
         it.ItemId,
         it.Progress,
-        string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel));
+        string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel))
+    {
+        JunctionTicks = it.JunctionTicks
+    };
 
     private static BuildSpecSaveDto CaptureSpec(BuildSpec spec) => new()
     {
@@ -1018,10 +1038,26 @@ public sealed class Factory : IGameView
                 new GridPosition(cell.X, cell.Y),
                 dir,
                 def,
-                cell.SplitterToggle,
                 items,
                 partner,
                 cell.FilterItemId);
+            if (def.Kind == LogisticsKind.Router)
+            {
+                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreRouter(
+                    cell.RouterTurn ?? 0,
+                    cell.RouterWaitTicks ?? 0,
+                    ParseRouterFrom(cell.RouterFrom));
+            }
+
+            if (def.Kind == LogisticsKind.Sorter)
+            {
+                if (cell.SorterTurns is < 0 or > 0b1111)
+                {
+                    throw new InvalidDataException($"Turni del selezionatore non validi: {cell.SorterTurns}.");
+                }
+
+                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreSorter(cell.SorterTurns ?? 0);
+            }
         }
 
         if (data.CoreTier < 0 || data.CoreTier >= content.CoreTiers.Count)
@@ -1122,12 +1158,9 @@ public sealed class Factory : IGameView
 
         foreach (var e in data.Extractors)
         {
-            var ex = new Extractor(
-                new GridPosition(e.X, e.Y),
-                ParseDirection(e.Direction),
-                e.FilterItemId,
-                RestoredId(e.Id));
-            ex.RestoreProgress(e.Progress);
+            // The saved direction is ignored: the extractor has none.
+            var ex = new Extractor(new GridPosition(e.X, e.Y), e.FilterItemId, RestoredId(e.Id));
+            ex.RestoreState(e.Accumulator, e.SourceTurn, e.DestinationTurn, e.LastItemId, e.ItemsExtracted);
             factory.extractors.Add(ex);
         }
 
@@ -1550,6 +1583,26 @@ public sealed class Factory : IGameView
             ? mode
             : throw new InvalidDataException($"Tempo del mondo sconosciuto nel salvataggio: \"{name}\".");
 
+    /// <summary>A router's saved side of arrival: null, or exactly a <see cref="Direction"/> name.</summary>
+    /// <exception cref="InvalidDataException">Any other text (a damaged save).</exception>
+    private static Direction? ParseRouterFrom(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        foreach (var dir in DirectionMath.All)
+        {
+            if (string.Equals(dir.ToString(), value, StringComparison.Ordinal))
+            {
+                return dir;
+            }
+        }
+
+        throw new InvalidDataException($"Lato d'arrivo del router non valido: «{value}».");
+    }
+
     private static Direction ParseDirection(string? value) =>
         Enum.TryParse<Direction>(value, ignoreCase: true, out var dir) ? dir : Direction.East;
 
@@ -1673,13 +1726,13 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Phase E seed: Phase D craft loop + junction pass-through on plates + splitter fork on wire.
+    /// Phase E seed: Phase D craft loop + junction pass-through on plates + router fork on wire.
     /// </summary>
     public static Factory CreatePhaseEDemo(FactoryContent content, string beltId = "conveyor-basic")
     {
         var beltDef = content.RequireConveyor(beltId);
         var junctionDef = content.RequireConveyor("junction");
-        var splitterDef = content.RequireConveyor("splitter");
+        var routerDef = content.RequireConveyor("router");
         var smelt = content.FindRecipe("smelt-iron")
             ?? throw new InvalidDataException("Ricetta smelt-iron mancante.");
         var wire = content.FindRecipe("craft-copper-wire")
@@ -1723,10 +1776,10 @@ public sealed class Factory : IGameView
         ], beltDef);
         grid.TryOrient(new GridPosition(12, 9), Direction.North);
 
-        // Wire → splitter T-fork facing South.
+        // Wire → router fork (West and East arms; the feeding belt is never handed anything back).
         grid.PlacePath([new GridPosition(14, 8), new GridPosition(14, 9)], beltDef);
         grid.TryOrient(new GridPosition(14, 9), Direction.South);
-        Require(grid.TryPlaceFree(new GridPosition(14, 10), Direction.South, splitterDef), "splitter seed");
+        Require(grid.TryPlaceFree(new GridPosition(14, 10), Direction.North, routerDef), "router seed");
 
         // West arm → core (route east of copper column).
         grid.PlacePath(
@@ -2211,9 +2264,10 @@ public sealed class Factory : IGameView
         "smelter" => "smelter",
         "assembler" => "assembler",
         "junction" => "junction",
-        "splitter" => "splitter",
+        "router" => "router",
         "generator" => "generator",
         "sorter" => "sorter",
+        "sorter-inverted" => "sorter-inverted",
         "bridge" => "conveyor-bridge",
         "extractor" => "extractor",
         "power-node" => "power-node",
@@ -2441,13 +2495,19 @@ public sealed class Factory : IGameView
         RequireUnlocked("junction")
         && PlaceLogistics(position, direction, JunctionDefinition, charge: true);
 
-    public bool TryPlaceSplitter(GridPosition position, Direction direction) =>
-        RequireUnlocked("splitter")
-        && PlaceLogistics(position, direction, SplitterDefinition, charge: true);
+    public bool TryPlaceRouter(GridPosition position, Direction direction) =>
+        RequireUnlocked("router")
+        && PlaceLogistics(position, direction, RouterDefinition, charge: true);
 
+    /// <summary>A sorter (no direction: <paramref name="direction"/> is ignored); null filter = none.</summary>
     public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null) =>
         RequireUnlocked("sorter")
         && PlaceLogistics(position, direction, SorterDefinition, charge: true, filterItemId);
+
+    /// <summary>An inverted sorter (no direction: <paramref name="direction"/> is ignored); null filter = none.</summary>
+    public bool TryPlaceSorterInverted(GridPosition position, Direction direction, string? filterItemId = null) =>
+        RequireUnlocked("sorter-inverted")
+        && PlaceLogistics(position, direction, SorterInvertedDefinition, charge: true, filterItemId);
 
     public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
         RequireUnlocked("conveyor-bridge")
@@ -2492,11 +2552,9 @@ public sealed class Factory : IGameView
     public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East) =>
         RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, charge: true);
 
-    public bool TryPlaceExtractor(
-        GridPosition origin,
-        Direction direction,
-        string filterItemId = Extractor.DefaultFilterItemId) =>
-        RequireUnlocked(Extractor.BuildingId) && PlaceExtractor(origin, direction, filterItemId, charge: true);
+    /// <summary>Places an extractor (no direction) with <paramref name="filterItemId"/> (null = none, any item in turn).</summary>
+    public bool TryPlaceExtractor(GridPosition origin, string? filterItemId = null) =>
+        RequireUnlocked(Extractor.BuildingId) && PlaceExtractor(origin, filterItemId, charge: true);
 
     public bool TryPlacePowerNode(GridPosition origin, string definitionId = PowerNode.Tier1Id)
     {
@@ -2596,7 +2654,8 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when <paramref name="spec"/> names something buildable: a known conveyor (belt specs), the
-    /// structure id of its kind, and for forno / assembler a recipe of that machine (or none).
+    /// structure id of its kind, for forno / assembler a recipe of that machine (or none), and a filter (if any) that is
+    /// an item of the game (<see cref="FactoryContent.IsKnownItem"/>).
     /// </summary>
     public bool IsValidSpec(BuildSpec spec)
     {
@@ -2607,6 +2666,11 @@ public sealed class Factory : IGameView
         }
 
         if (!string.Equals(BuildSpec.StructureIdFor(kind), spec.StructureId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (spec.FilterItemId is { } filter && !Content.IsKnownItem(filter))
         {
             return false;
         }
@@ -2648,7 +2712,7 @@ public sealed class Factory : IGameView
 
         var ok = spec.Kind switch
         {
-            null or BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter =>
+            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted =>
                 !Belts.Contains(spec.Origin) && CanOccupy(spec.Origin),
             BuildingKind.Bridge =>
                 !Belts.Contains(spec.Origin)
@@ -2736,10 +2800,12 @@ public sealed class Factory : IGameView
                     && PlaceBelt(origin, dir, conveyor, charge);
             case BuildingKind.Junction:
                 return PlaceLogistics(origin, dir, JunctionDefinition, charge);
-            case BuildingKind.Splitter:
-                return PlaceLogistics(origin, dir, SplitterDefinition, charge);
+            case BuildingKind.Router:
+                return PlaceLogistics(origin, dir, RouterDefinition, charge);
             case BuildingKind.Sorter:
                 return PlaceLogistics(origin, dir, SorterDefinition, charge, spec.FilterItemId);
+            case BuildingKind.SorterInverted:
+                return PlaceLogistics(origin, dir, SorterInvertedDefinition, charge, spec.FilterItemId);
             case BuildingKind.Bridge:
                 return PlaceBridge(origin, dir, charge, bridgeExit);
             case BuildingKind.Miner:
@@ -2760,7 +2826,7 @@ public sealed class Factory : IGameView
             case BuildingKind.Generator:
                 return PlaceGenerator(origin, dir, charge);
             case BuildingKind.Extractor:
-                return PlaceExtractor(origin, dir, spec.FilterItemId ?? Extractor.DefaultFilterItemId, charge);
+                return PlaceExtractor(origin, spec.FilterItemId, charge);
             case BuildingKind.PowerNode:
                 return PlacePowerNode(origin, PowerNode.Tier1Id, charge);
             case BuildingKind.PowerNodeT2:
@@ -2879,11 +2945,16 @@ public sealed class Factory : IGameView
                 case LogisticsKind.Junction:
                     spec = new BuildSpec(id, BuildingKind.Junction, tile, cell.Direction);
                     return true;
-                case LogisticsKind.Splitter:
-                    spec = new BuildSpec(id, BuildingKind.Splitter, tile, cell.Direction);
+                case LogisticsKind.Router:
+                    spec = new BuildSpec(id, BuildingKind.Router, tile, cell.Direction);
                     return true;
                 case LogisticsKind.Sorter:
-                    spec = new BuildSpec(id, BuildingKind.Sorter, tile, cell.Direction, FilterItemId: cell.FilterItemId);
+                    spec = new BuildSpec(
+                        id,
+                        cell.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter,
+                        tile,
+                        cell.Direction,
+                        FilterItemId: cell.FilterItemId);
                     return true;
                 case LogisticsKind.Bridge when cell.BridgePartner is { } partner:
                     var entry = IsAhead(tile, cell.Direction, partner) ? tile : partner;
@@ -2911,8 +2982,8 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Splitter
-            or BuildingKind.Sorter or BuildingKind.Bridge
+        var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Router
+            or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge
             ? Belts.TryRemove(tile)
             : TryRemoveBuildingEntity(tile, out _);
         if (!removed)
@@ -3039,7 +3110,7 @@ public sealed class Factory : IGameView
             && Belts.TryGet(position, out var cell)
             && cell.Kind == LogisticsKind.Sorter)
         {
-            cell.SetFilterItem(sorterFilter ?? BeltGridCell.DefaultSorterFilter);
+            cell.SetFilterItem(sorterFilter);
         }
 
         return true;
@@ -3183,7 +3254,7 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    private bool PlaceExtractor(GridPosition origin, Direction direction, string filterItemId, bool charge)
+    private bool PlaceExtractor(GridPosition origin, string? filterItemId, bool charge)
     {
         if (!CanOccupyFootprint(origin, Extractor.Size) || (charge && !TryChargeBuilding(Extractor.BuildingId)))
         {
@@ -3191,7 +3262,7 @@ public sealed class Factory : IGameView
         }
 
         buildingsVersion++;
-        extractors.Add(new Extractor(origin, direction, filterItemId, nextEntityId++));
+        extractors.Add(new Extractor(origin, filterItemId, nextEntityId++));
         return true;
     }
 

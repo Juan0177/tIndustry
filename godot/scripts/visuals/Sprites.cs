@@ -66,6 +66,23 @@ public static class Sprites
         return Item(itemId);
     }
 
+    /// <summary>
+    /// The filter of a sorter, an inverted sorter or an extractor, drawn upright in the 14 px centre slot of the block's
+    /// sprite as Mindustry does: the item's 10 px belt sprite at the world art scale. Null without a filter.
+    /// </summary>
+    public static Sprite2D? FilterIcon(string? itemId, int tileSize) =>
+        string.IsNullOrWhiteSpace(itemId)
+            ? null
+            : new Sprite2D
+            {
+                Name = "FilterIcon",
+                Texture = BeltItem(itemId),
+                Centered = true,
+                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                Scale = Vector2.One * ((float)tileSize / PixelsPerCell),
+                ZIndex = 1
+            };
+
     /// <summary>Frames of the <c>{id}-anim.png</c> strip: square frames, side = strip height.</summary>
     public static Texture2D[] Frames(string id)
     {

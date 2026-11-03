@@ -11,6 +11,7 @@ param(
   [switch]$Prova,
   [switch]$Si,
   [switch]$Tutto,
+  [switch]$Nuget,
   [switch]$Help
 )
 
@@ -18,7 +19,7 @@ $script:Root = $PSScriptRoot
 
 function Show-Help {
   @"
-Uso: .\clean.ps1 [-Prova] [-Si] [-Tutto]
+Uso: .\clean.ps1 [-Prova] [-Si] [-Tutto] [-Nuget]
 
 Cancella i file generati che possono lasciare compilazioni o importazioni vecchie:
   godot\.godot\ (cache di importazione, mono, editor), bin\ e obj\ di ogni progetto,
@@ -27,6 +28,9 @@ Cancella i file generati che possono lasciare compilazioni o importazioni vecchi
   -Prova   elenca soltanto, non cancella
   -Si      cancella senza chiedere «Cancellare? (y/n)» (senza terminale interattivo la risposta e' «no»)
   -Tutto   cancella anche .dev\godot\ (il Godot scaricato da play.ps1)
+  -Nuget   cancella anche i pacchetti Godot nella cache NuGet dell'utente (%USERPROFILE%\.nuget\packages:
+           godotsharp, godotsharpeditor, godot.net.sdk, godot.sourcegenerators), se il client risulta
+           compilato contro un GodotSharp diverso da Godot (#292); il prossimo avvio li riscarica
 
 Non tocca i file del repository ne' i dati del giocatore.
 "@ | Write-Host
@@ -75,6 +79,15 @@ function Main {
     foreach ($d in [IO.Directory]::GetDirectories($dev, "playtest-*")) { $cand.Add($d) }
     if ($Tutto) { Add-IfExists (Join-Path $dev "godot") }
   }
+  # User-level NuGet cache: only the Godot packages, outside the repository (see the filter below).
+  $extra = New-Object System.Collections.Generic.List[string]
+  if ($Nuget) {
+    $pk = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path ([Environment]::GetFolderPath("UserProfile")) ".nuget/packages" }
+    foreach ($n in "godotsharp", "godotsharpeditor", "godot.net.sdk", "godot.sourcegenerators") {
+      $d = Join-Path $pk $n
+      if (Test-Path -LiteralPath $d) { $extra.Add([IO.Path]::GetFullPath($d)) }
+    }
+  }
   # bin/obj only next to a project file; __pycache__ anywhere; never inside .git, .dev, .godot or node_modules.
   $skip = @(".git", ".dev", ".godot", "node_modules")
   $stack = New-Object System.Collections.Generic.Stack[string]
@@ -101,6 +114,7 @@ function Main {
     if ($isTracked) { continue }
     $list += [pscustomobject]@{ Path = $p; Rel = $rel; Size = (Get-Size $p) }
   }
+  foreach ($d in $extra) { $list += [pscustomobject]@{ Path = $d; Rel = $d; Size = (Get-Size $d) } }
   if ($list.Count -eq 0) { Write-Host "Niente da pulire."; return }
 
   Write-Host "Da cancellare:" -ForegroundColor Yellow

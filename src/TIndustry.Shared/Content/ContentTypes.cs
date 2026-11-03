@@ -10,7 +10,7 @@ public enum LogisticsKind
 {
     Belt,
     Junction,
-    Splitter,
+    Router,
     Bridge,
     Sorter
 }
@@ -18,7 +18,7 @@ public enum LogisticsKind
 /// <summary>
 /// A belt or a logistics block. <see cref="RateItemsPerSecond"/> is the speed in cells per second (the name is older
 /// than the spacing); a full line carries speed / <see cref="ItemSpacing"/> items per second, at most
-/// <see cref="Capacity"/> items per cell.
+/// <see cref="Capacity"/> items per cell. <paramref name="Inverted"/> marks the inverted sorter (<c>sorter-inverted</c>).
 /// </summary>
 public sealed record ConveyorDefinition(
     string Id,
@@ -31,7 +31,8 @@ public sealed record ConveyorDefinition(
     UnlockRequirement? Unlock = null,
     LogisticsKind Kind = LogisticsKind.Belt,
     float BuildCostMultiplier = 1f,
-    bool Armored = false)
+    bool Armored = false,
+    bool Inverted = false)
 {
     /// <summary>Armored belt (Mindustry's): takes items from non-belts only from behind, never blends with buildings.</summary>
     public bool IsArmoredBelt => Armored && Kind == LogisticsKind.Belt;

@@ -25,10 +25,13 @@ public sealed class CoreStorage
     /// <summary>True when the stock of <paramref name="itemId"/> is at (or above) its maximum.</summary>
     public bool IsFull(string itemId) => state.Wallet.MaterialCount(itemId) >= Capacity(itemId);
 
+    /// <summary>Whether <see cref="TryAccept"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAccept(string itemId) => !string.IsNullOrWhiteSpace(itemId) && !IsFull(itemId);
+
     /// <summary>Adds one <paramref name="itemId"/> when it is below its maximum; false (nothing changes) when full.</summary>
     public bool TryAccept(string itemId)
     {
-        if (string.IsNullOrWhiteSpace(itemId) || IsFull(itemId))
+        if (!CanAccept(itemId))
         {
             return false;
         }

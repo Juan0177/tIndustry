@@ -222,12 +222,12 @@ public sealed class CoreStorageTests
     }
 
     [Fact]
-    public void Extractor_ReturnsWhenBeltBlocked_EvenIfFull()
+    public void Extractor_BeltBlocked_TakesNothing_EvenIfFull()
     {
         var f = NewFactory();
         // Extractor west of the Core, belt west of it ending against nothing (blocked once full).
         var belt = new GridPosition(58, 61);
-        Assert.True(f.TryPlaceExtractor(new GridPosition(59, 61), Direction.West, Plate));
+        Assert.True(f.TryPlaceExtractor(new GridPosition(59, 61), Plate));
         Assert.True(f.TryPlaceBelt(belt, Direction.West));
         SetStock(f, Plate, 1000);
 
@@ -236,7 +236,7 @@ public sealed class CoreStorageTests
         Assert.True(onBelt > 0);
         Assert.Equal(1000, f.Wallet.MaterialCount(Plate) + onBelt);
 
-        // Full again with the belt blocked: every pull is put back, even at the maximum.
+        // Full again with the belt blocked: with no taker it takes nothing, even at the maximum.
         SetStock(f, Plate, 1000);
         for (var i = 0; i < 10 * SimulationClock.TickRate; i++)
         {

@@ -5,7 +5,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Builds the belt visuals of a placeable <see cref="BeltGrid"/>: one sprite per straight cell, one per
-/// corner, T merge or side join, junction / splitter / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
+/// corner, T merge or side join, junction / router / sorter / bridge sprites and the bridge spans. Every belt tier scrolls on
 /// its own clock (cells per second = the tier's item rate), shared by all its cells so runs move in step:
 /// every cell of a tier draws the same <see cref="AtlasTexture"/> (one per shape: straight, corner, T, side joins), and a
 /// frame change moves only that texture's region, once per tier, whatever the number of cells.
@@ -80,8 +80,8 @@ public partial class MindustryBeltVisual : Node2D
         {
             switch (cell.Kind)
             {
-                case LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter:
-                    AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
+                case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter:
+                    AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId, cell.Definition.Inverted);
                     break;
                 case LogisticsKind.Bridge:
                     // Both ends get their pad; the span is drawn once, from the entry.
@@ -207,13 +207,14 @@ public partial class MindustryBeltVisual : Node2D
         LogisticsKind kind,
         Direction direction,
         int tileSize,
-        string? sorterFilterId = null)
+        string? filterItemId = null,
+        bool inverted = false)
     {
         var texture = Sprites.For(kind switch
         {
             LogisticsKind.Junction => "junction-base",
-            LogisticsKind.Splitter => "splitter",
-            LogisticsKind.Sorter => "sorter",
+            LogisticsKind.Router => "router",
+            LogisticsKind.Sorter => inverted ? "sorter-inverted" : "sorter",
             LogisticsKind.Bridge => "conveyor-bridge",
             _ => BuildSpec.DefaultConveyorId
         });
@@ -230,8 +231,8 @@ public partial class MindustryBeltVisual : Node2D
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = Vector2.One * Sprites.ScaleToCells(texture, 1, tileSize)
         };
-        // Splitter / sorter / bridge rotate with facing; junction is axis-symmetric.
-        if (kind is LogisticsKind.Splitter or LogisticsKind.Sorter or LogisticsKind.Bridge)
+        // A bridge turns with its facing; junctions, routers and sorters have no direction (Mindustry).
+        if (kind == LogisticsKind.Bridge)
         {
             sprite.RotationDegrees = ScrollingBeltStrip.RotationFor(direction);
         }
@@ -259,22 +260,10 @@ public partial class MindustryBeltVisual : Node2D
             }
         }
 
-        // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame).
-        if (kind == LogisticsKind.Sorter)
+        // Sorter (either kind): filtered item icon in the sprite's centre slot; none without a filter.
+        if (kind == LogisticsKind.Sorter && Sprites.FilterIcon(filterItemId, tileSize) is { } icon)
         {
-            var filterId = string.IsNullOrWhiteSpace(sorterFilterId)
-                ? BeltGridCell.DefaultSorterFilter
-                : sorterFilterId;
-            // The 10 px belt sprite of the item at the world art scale, inside the 14 px slot.
-            node.AddChild(new Sprite2D
-            {
-                Name = "FilterIcon",
-                Texture = Sprites.BeltItem(filterId),
-                Centered = true,
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                Scale = Vector2.One * ((float)tileSize / Sprites.PixelsPerCell),
-                ZIndex = 1
-            });
+            node.AddChild(icon);
         }
 
         AddChild(node);

@@ -246,6 +246,66 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void FiltroSetsAndClearsTheFilterOfAnExtractor()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+
+        Call(game, "piazza", """{"tipo":"extractor","cella":{"x":40,"y":40},"direzione":"est","filtro":"coal"}""");
+        var extractor = Assert.Single(factory.Extractors);
+        Assert.Equal(Direction.North, extractor.Direction);
+        Assert.Equal("coal", extractor.FilterItemId);
+        var area = Call(game, "area", """{"da":{"x":40,"y":40},"a":{"x":40,"y":40}}""");
+        Assert.Equal('E', area.GetProperty("righe")[0].GetString()![0]);
+        Assert.Equal("coal", Assert.Single(area.GetProperty("filtri").EnumerateArray()).GetProperty("filtro").GetString());
+
+        var set = Call(game, "filtro", """{"cella":{"x":40,"y":40},"oggetto":"iron-plate"}""");
+        Assert.Equal("iron-plate", set.GetProperty("filtro").GetString());
+        var none = Call(game, "filtro", """{"cella":{"x":40,"y":40}}""");
+        Assert.Equal(JsonValueKind.Null, none.GetProperty("filtro").ValueKind);
+        Assert.Null(extractor.FilterItemId);
+    }
+
+    [Fact]
+    public void FiltroSetsAndClearsTheFilterOfASorter()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        var host = new SimHost(factory);
+        var game = new AgentGame(host, Content);
+        var sorter = new GridPosition(40, 40);
+        var inverted = new GridPosition(42, 40);
+
+        // piazza takes the filter optionally: without it the sorter has none.
+        Call(game, "piazza", """{"tipo":"sorter","cella":{"x":40,"y":40}}""");
+        Call(game, "piazza", """{"tipo":"sorter-inverted","cella":{"x":42,"y":40},"filtro":"coal"}""");
+        Assert.Null(factory.Belts.Cells[sorter].FilterItemId);
+        Assert.Equal("coal", factory.Belts.Cells[inverted].FilterItemId);
+        var area = Call(game, "area", """{"da":{"x":40,"y":40},"a":{"x":42,"y":40}}""");
+        Assert.Equal('F', area.GetProperty("righe")[0].GetString()![0]);
+        Assert.Equal('I', area.GetProperty("righe")[0].GetString()![2]);
+        var filters = area.GetProperty("filtri").EnumerateArray().ToArray();
+        Assert.Equal(2, filters.Length);
+        Assert.Equal(JsonValueKind.Null, filters[0].GetProperty("filtro").ValueKind);
+        Assert.Equal("coal", filters[1].GetProperty("filtro").GetString());
+
+        var set = Call(game, "filtro", """{"cella":{"x":40,"y":40},"oggetto":"iron-ore"}""");
+        Assert.Equal("iron-ore", set.GetProperty("filtro").GetString());
+        Assert.Equal("iron-ore", factory.Belts.Cells[sorter].FilterItemId);
+        var none = Call(game, "filtro", """{"cella":{"x":42,"y":40}}""");
+        Assert.Equal(JsonValueKind.Null, none.GetProperty("filtro").ValueKind);
+        Assert.Null(factory.Belts.Cells[inverted].FilterItemId);
+        Assert.Contains(AgentGame.JournaledMethods, m => m == "filtro");
+
+        Assert.Equal("InvalidCommand", Refused(game, "filtro", """{"cella":{"x":40,"y":40},"oggetto":"non-esiste"}""").Code);
+        Assert.Equal("InvalidCommand", Refused(game, "filtro", """{"cella":{"x":45,"y":45},"oggetto":"coal"}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "filtro", """{"oggetto":"coal"}""").Code);
+        Assert.Equal("iron-ore", factory.Belts.Cells[sorter].FilterItemId);
+    }
+
+    [Fact]
     public void VenditaAutomaticaIsPerItem()
     {
         var factory = NewFactory();
@@ -819,9 +879,9 @@ public sealed class AgentGameTests
             File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
-            // flag: refused, never replayed.
-            Assert.Equal(3, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2 })
+            // flag, those before the Mindustry logistics (save v18) ran other blocks: refused, never replayed.
+            Assert.Equal(4, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);

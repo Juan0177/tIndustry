@@ -22,7 +22,8 @@ import carattere  # noqa: E402
 import forme  # noqa: E402
 import genera  # noqa: E402
 from blocchi import SPRITE, sprite  # noqa: E402
-from palette import ACCENTO, BAGLIORE, CELLA, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
+from blocchi.logistica import TIER  # noqa: E402
+from palette import ACCENTO, BAGLIORE, CELLA, FERRO, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
@@ -34,7 +35,7 @@ CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
-    "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "splitter": 1, "sorter": 1, "conveyor-bridge": 1,
+    "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5,
 }
@@ -481,10 +482,43 @@ class TestGenera(unittest.TestCase):
             luma = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in rampa]
             self.assertEqual(sorted(luma), luma, f"{nome}: non va da scuro a chiaro")
 
+    def test_nastri_stretti(self):
+        # Variant C "Mindustry": a 12 px tread (rows 10-21) between two side plates of 4-5 px (rows 5-9 and
+        # 22-25: outline, three plate tones, inner edge); everything else in the cell is transparent. Every
+        # piece of every tier keeps to those rows (the T and the side joins add the side belts' columns).
+        tread = {c[:3] for c in NASTRO}
+        for nastro in NASTRI:
+            with self.subTest(nastro=nastro):
+                dritto = fotogrammi_di(SPRITE[nastro + "-anim"]())[0]
+                self.assertEqual((0, 5, T, 26), dritto.getchannel("A").getbbox())
+                for y in range(T):
+                    for x in range(T):
+                        px = dritto.getpixel((x, y))
+                        if 10 <= y <= 21:
+                            self.assertIn(px[:3], tread | {OUT, TIER[nastro][1][3]}, f"{x},{y}")  # tread, chevron and its outline front
+                            self.assertEqual(255, px[3])
+                        elif 5 <= y <= 25:
+                            self.assertEqual(255, px[3], f"{x},{y}")
+                            self.assertNotIn(px[:3], tread, f"{x},{y}")
+                        else:
+                            self.assertEqual(0, px[3], f"{x},{y}")
+                self.assertEqual(OUT, dritto.getpixel((3, 5))[:3])
+                self.assertEqual(OUT, dritto.getpixel((3, 25))[:3])
+                self.assertEqual(SPRITE[nastro]().tobytes(), dritto.tobytes())
+                for pezzo in ("corner", "t", "join-left", "join-right", "join-both"):
+                    for f in fotogrammi_di(SPRITE[f"{nastro}-{pezzo}-anim"]())[:2]:
+                        self.assertEqual((T, T), f.size)
+                        self.assertIsNotNone(f.getchannel("A").getbbox(), f"{nastro} {pezzo}")
+                if nastro != "conveyor-armored":
+                    self.assertIsNotNone(fotogrammi_di(SPRITE[f"{nastro}-join-building-both-anim"]())[0].getbbox())
+        # A tread of 12 px holds the 10 px item sprites of the belts with a pixel to spare on each side.
+        self.assertEqual(12, len(range(10, 22)))
+        self.assertLess(BELT_ITEM, 12)
+
     def test_strisce_cicliche(self):
-        # Straight belt strips: 32 frames, the tread (rows 5-26) of each one is the previous one
-        # moved 1 px along the flow (East), so frame 32 moved by 1 px is frame 1 again and the
-        # loop has no seam; the rails (rows 0-4 and 27-31) stay still.
+        # Straight belt strips: 32 frames, the tread (rows 10-21) of each one is the previous one moved
+        # 1 px along the flow (East), so frame 32 moved by 1 px is frame 1 again and the loop has no seam;
+        # the side plates (rows 5-9 and 22-25) stay still.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 self.assertIn(nastro + "-anim", SPRITE)
@@ -492,19 +526,20 @@ class TestGenera(unittest.TestCase):
                 self.assertEqual(32, len(fotogrammi))
                 for i, f in enumerate(fotogrammi):
                     dopo = fotogrammi[(i + 1) % len(fotogrammi)]
-                    self.assertEqual(_righe(ImageChops.offset(f, 1, 0), 5, 26), _righe(dopo, 5, 26),
+                    self.assertEqual(_righe(ImageChops.offset(f, 1, 0), 10, 21), _righe(dopo, 10, 21),
                                      f"{nastro}: fotogramma {i + 1} scorso di 1 px != fotogramma {(i + 1) % 32 + 1}")
-                    for y0, y1 in ((0, 4), (27, 31)):
-                        self.assertEqual(_righe(f, y0, y1), _righe(fotogrammi[0], y0, y1), f"{nastro}: binari mossi")
+                    for y0, y1 in ((5, 9), (22, 25)):
+                        self.assertEqual(_righe(f, y0, y1), _righe(fotogrammi[0], y0, y1), f"{nastro}: piastre mosse")
 
     def test_rinforzato_diverso_dal_veloce(self):
-        # The armored belt reads apart from the fast one at a glance: inside the outline its rails (rows 1-3,
-        # 28-30) share no pixel with the fast belt's, and they carry rivets (more tones).
+        # The armored belt reads apart from the fast one at a glance: inside the outline its plates (rows
+        # 6-8, 23-24) share no pixel with the fast belt's, and they carry rivets (more tones).
         rinforzato, veloce = SPRITE["conveyor-armored"](), SPRITE["conveyor-fast"]()
-        binari = [(x, y) for x in range(T) for y in (1, 2, 3, 28, 29, 30)]
-        self.assertEqual(0, sum(rinforzato.getpixel(p) == veloce.getpixel(p) for p in binari))
-        colori = {rinforzato.getpixel(p) for p in binari}
-        self.assertGreater(len(colori), len({veloce.getpixel(p) for p in binari}))
+        piastre = [(x, y) for x in range(T) for y in (6, 7, 8, 23, 24)]
+        self.assertEqual(0, sum(rinforzato.getpixel(p) == veloce.getpixel(p) for p in piastre))
+        colori = {rinforzato.getpixel(p)[:3] for p in piastre}
+        self.assertIn(FERRO[4], colori)  # rivet highlight
+        self.assertIn(FERRO[0], colori)  # rivet shadow
 
     def test_curve_raccordate(self):
         # Corner (in from the West edge, out from the South edge): its West column is column 0
@@ -523,58 +558,29 @@ class TestGenera(unittest.TestCase):
                     self.assertEqual([d.getpixel((T - 1, T - 1 - x)) for x in range(T)], sud, f"{nastro} {k + 1}: lato Sud")
 
     def test_unioni_a_t_raccordate(self):
-        # T merge (in from the North and South edges, out from the East edge) composed from two
-        # corners, frame by frame: east of the back rail every pixel inside a corner's bend (row
-        # across the belt >= 6 from its pivot, i.e. its tread inside the groove) is that corner's pixel: the bottom half the corner
-        # turned to come in from the South, the top half its mirror. So the East edge joins the
-        # straight belt (bottom half: column 31 of the straight frame), the input edges join the
-        # side belts like a corner, and the West edge is a rail (no input behind).
-        tread = {c[:3] for c in NASTRO}
+        # T merge (in from the North and South edges, out from the East edge): its East edge is the straight
+        # belt's (column 31), each input edge is a side belt's tread row by row (the South one is the corner
+        # entering from the South, the North one its mirror), and the West edge is open ground (no input behind).
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
-                curve = fotogrammi_di(SPRITE[nastro + "-corner-anim"]())
                 unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
-                self.assertEqual(len(curve), len(unioni))
-                for k, (d, c, u) in enumerate(zip(dritti, curve, unioni)):
+                self.assertEqual(len(dritti), len(unioni))
+                for k, (d, u) in enumerate(zip(dritti, unioni)):
                     self.assertEqual((T, T), u.size)
-                    da_sud = c.transpose(Image.Transpose.ROTATE_90)
-                    da_nord = da_sud.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-                    for y in range(T):
-                        for x in range(5, T):
-                            a = T - 1 - y if y >= T // 2 else y
-                            if math.hypot(a, T - 1 - x) <= T - 6.5:
-                                atteso = (da_sud if y >= T // 2 else da_nord).getpixel((x, y))
-                                self.assertEqual(atteso, u.getpixel((x, y)), f"{nastro} {k + 1}: {x},{y}")
-                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, T)],
-                                     [u.getpixel((T - 1, y)) for y in range(T // 2, T)], f"{nastro} {k + 1}: Est")
-                    ovest = {u.getpixel((x, y))[:3] for x in range(5) for y in range(T)}
-                    self.assertFalse(ovest & tread, f"{nastro}: Ovest aperto")
+                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(10, 22)],
+                                     [u.getpixel((T - 1, y)) for y in range(10, 22)], f"{nastro} {k + 1}: Est")
+                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, 26)],
+                                     [u.getpixel((T - 1, y)) for y in range(T // 2, 26)], f"{nastro} {k + 1}: Est giu")
+                    self.assertIsNone(u.crop((0, 0, 3, T)).getbbox(), f"{nastro}: Ovest aperto")
 
     def test_unioni_laterali(self):
-        # Fed from behind and by belts on both sides (BeltShape.JoinBoth): the T opened behind. Its West
-        # columns 0-4 are the straight frame's (the belt behind runs in), the rest is the T's.
+        # Side joins: the straight belt of the same frame with side belts on top, so their East and West ends
+        # (columns outside the side belt, rows of the straight belt's tread) are the straight frame's.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
-                unioni = fotogrammi_di(SPRITE[nastro + "-t-anim"]())
-                lati = fotogrammi_di(SPRITE[f"{nastro}-join-both-anim"]())
-                self.assertEqual(len(dritti), len(lati))
-                for k, (d, u, j) in enumerate(zip(dritti, unioni, lati)):
-                    for y in range(T):
-                        for x in range(T):
-                            atteso = (u if x >= 5 else d).getpixel((x, y))
-                            self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} both {k + 1}: {x},{y}")
-
-    def test_unioni_da_edificio(self):
-        # Side joins with one fed side (belt or building) or with a building on either side are the junction
-        # composition ("dot block") in the tier's colours, but a belt: the West and East edge columns (0-4, 27-31) of the East-West tread are the straight frame's
-        # (ribs, no chevron: rows 6 / 25), so they scroll with it; a side without a building is the straight
-        # frame's rail and groove, corners included.
-        for nastro in NASTRI:
-            with self.subTest(nastro=nastro):
-                dritti = fotogrammi_di(SPRITE[nastro + "-anim"]())
-                unioni = [("left", True, False), ("right", False, True)]
+                unioni = [("left", True, False), ("right", False, True), ("both", True, True)]
                 if nastro != "conveyor-armored":  # never blends with a building: no building-both strip
                     unioni.append(("building-both", True, True))
                 else:
@@ -583,18 +589,21 @@ class TestGenera(unittest.TestCase):
                     lati = fotogrammi_di(SPRITE[f"{nastro}-join-{nome}-anim"]())
                     self.assertEqual(len(dritti), len(lati))
                     for k, (d, j) in enumerate(zip(dritti, lati)):
-                        for y in range(T):
-                            chiuso = (y <= 5 and not nord) or (y >= T - 6 and not sud)
-                            for x in range(T):
-                                if chiuso:
-                                    atteso = d.getpixel((x, y))
-                                elif (x < 5 or x > T - 6) and 5 <= y <= T - 6:
-                                    atteso = d.getpixel((x, y if y in (5, T - 6) else 6 if y < T // 2 else T - 7))
-                                else:
-                                    continue
-                                self.assertEqual(atteso, j.getpixel((x, y)), f"{nastro} edificio {nome} {k + 1}: {x},{y}")
-                        # The hub of the junction marks the merge.
-                        self.assertEqual(SPRITE["junction-base"]().getpixel((15, 15)), j.getpixel((15, 15)))
+                        for y in range(10, 22):
+                            for x in list(range(0, 6)) + list(range(T - 6, T)):
+                                self.assertEqual(d.getpixel((x, y)), j.getpixel((x, y)), f"{nastro} {nome} {k + 1}: {x},{y}")
+                        # A side without a feeder is the straight belt's plate, pixel for pixel.
+                        if not nord:
+                            self.assertEqual(_righe(d, 0, 9), _righe(j, 0, 9), f"{nastro} {nome}: lato Nord chiuso")
+                        if not sud:
+                            self.assertEqual(_righe(d, 22, 31), _righe(j, 22, 31), f"{nastro} {nome}: lato Sud chiuso")
+                        if nord:
+                            self.assertEqual(255, j.getpixel((15, 0))[3], f"{nastro} {nome}: lato Nord aperto")
+                        if sud:
+                            self.assertEqual(255, j.getpixel((15, T - 1))[3], f"{nastro} {nome}: lato Sud aperto")
+        # A building has no chevrons on its stubs: the stub tread of the building join is ribs only.
+        usato = {tuple(p[:3]) for p in SPRITE["conveyor-basic-join-building-both-anim"]().crop((10, 0, 22, 5)).getdata()}
+        self.assertTrue(usato <= {c[:3] for c in NASTRO})
 
     def test_basamento_sotto_i_blocchi(self):
         # Blocks that feed or take from belts stand on a rectangular plate: their footprint is opaque
@@ -608,18 +617,16 @@ class TestGenera(unittest.TestCase):
                 self.assertEqual(OUT, im.getpixel((0, 0))[:3])
 
     def test_incrocio_a_pezzi(self):
-        # The icon is the open base; the North rail piece is the straight belt's top rail (rows 0-4)
-        # over the groove, transparent below, so on a side without connection the rail stays.
+        # The icon is the open base; the North cap is a plate over the channel's mouth (columns 9-22, rows
+        # 0-3), transparent elsewhere, so on a side without connection the channel is closed.
         self.assertEqual(SPRITE["junction-base"]().tobytes(), SPRITE["junction"]().tobytes())
         bordo = SPRITE["junction-bordo"]()
-        dritto = fotogrammi_di(SPRITE["conveyor-basic-anim"]())[0]
         self.assertEqual((T, T), bordo.size)
-        self.assertEqual(_righe(dritto, 0, 5), _righe(bordo, 0, 5))
-        self.assertIsNone(bordo.crop((0, 6, T, T)).getbbox())
+        self.assertEqual((9, 0, 23, 4), bordo.getchannel("A").getbbox())
 
     def test_incrocio_senza_frecce(self):
-        # Junction: two belts crossing. The treads (rows and columns 5-26) reach every edge and hold
-        # only tread colours outside the small centre hub (no arrow glyphs); the corners are rails.
+        # Junction: two belts crossing on a plate. The 12 px treads (rows and columns 10-21) reach every edge
+        # and hold only tread colours (ribs, no arrow glyphs) outside the small centre hub.
         im = SPRITE["junction"]()
         self.assertEqual((T, T), im.size)
         tread = {c[:3] for c in NASTRO}
@@ -630,8 +637,30 @@ class TestGenera(unittest.TestCase):
                 self.assertEqual(255, colore[3], f"buco su {x},{y}")
                 if abs(x - c) + abs(y - c) <= 4:
                     continue  # hub
-                in_tread = 5 <= x <= 26 or 5 <= y <= 26
+                in_tread = 10 <= x <= 21 or 10 <= y <= 21
                 self.assertEqual(in_tread, colore[:3] in tread, f"{x},{y}")
+
+    def test_blocchi_logistici_senza_frecce(self):
+        # Router, sorters and extractor have no arrows. The sorters and the extractor keep an empty 14x14 slot
+        # (rows / columns 9-22, dark inside a 1 px outline) for the filter icon; the router is round in the
+        # middle with the four treads reaching the edges.
+        scuro = NASTRO[0] + (255,)
+        for nome in ("sorter", "sorter-inverted", "extractor"):
+            with self.subTest(blocco=nome):
+                im = SPRITE[nome]()
+                self.assertEqual((T, T), im.size)
+                self.assertEqual({scuro}, {im.getpixel((x, y)) for y in range(10, 22) for x in range(10, 22)})
+                for i in range(9, 23):
+                    for p in ((i, 9), (i, 22), (9, i), (22, i)):
+                        self.assertEqual(OUT, im.getpixel(p)[:3], f"{nome}: {p}")
+        self.assertNotEqual(SPRITE["sorter"]().tobytes(), SPRITE["sorter-inverted"]().tobytes())
+        self.assertIn("router", SPRITE)
+        self.assertNotIn("splitter", SPRITE)
+        tread = {c[:3] for c in NASTRO}
+        router = SPRITE["router"]()
+        for p in ((0, 15), (0, 16), (31, 15), (31, 16), (15, 0), (16, 0), (15, 31), (16, 31)):
+            self.assertIn(router.getpixel(p)[:3], tread, p)
+        self.assertIn(router.getpixel((16, 8))[:3], {c[:3] for c in METALLO})  # the raised cap, not a tread
 
     def test_parti_produzione_e_potenza(self):
         # Layered blocks: base, animated part (frame count), composed icon = base + frame 1.
@@ -664,15 +693,6 @@ class TestGenera(unittest.TestCase):
         for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
             self.assertLessEqual(max(x1 - x0, y1 - y0), T, anim)
-        # Extractor: empty dark well, 8 px across, in the centre for the filter dot: one colour
-        # over the whole disc and exactly 8 px of it across the middle row and column.
-        ex = SPRITE["extractor"]()
-        pozzo = NASTRO[0] + (255,)
-        disco = {ex.getpixel((x, y)) for y in range(T) for x in range(T)
-                 if (x + 0.5 - T / 2) ** 2 + (y + 0.5 - T / 2) ** 2 <= 16}
-        self.assertEqual({pozzo}, disco)
-        self.assertEqual(8, sum(1 for x in range(T) if ex.getpixel((x, T // 2)) == pozzo))
-        self.assertEqual(8, sum(1 for y in range(T) if ex.getpixel((T // 2, y)) == pozzo))
 
     def test_oggetti(self):
         # Every market item and money: HUD icon and belt sprite, opaque pixels only (no tint at

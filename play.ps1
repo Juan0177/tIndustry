@@ -187,6 +187,50 @@ function Ensure-Tools($modoDev, $serveGit) {
   return $g.Exe
 }
 
+# Version of GodotSharp that the Godot client project was restored against (null if not restored yet).
+function Get-ResolvedGodotSharp {
+  $assets = Join-Path $script:Root "godot/.godot/mono/temp/obj/project.assets.json"
+  if (-not (Test-Path $assets)) { return $null }
+  try {
+    $j = Get-Content -Raw -LiteralPath $assets | ConvertFrom-Json
+    foreach ($n in $j.libraries.PSObject.Properties.Name) {
+      if ($n -match '^GodotSharp/(.+)$') { return $Matches[1] }
+    }
+  } catch { }
+  return $null
+}
+
+# "4.4.1.stable.mono.official.xxx" -> "4.4.1"; "4.4.stable.mono..." -> "4.4.0".
+function Get-GodotNuGetVersion($v) {
+  if ($v -match '^(\d+)\.(\d+)(?:\.(\d+))?\.(?:stable|rc|beta|dev)') {
+    $patch = if ($Matches[3]) { $Matches[3] } else { "0" }
+    return "$($Matches[1]).$($Matches[2]).$patch"
+  }
+  return $null
+}
+
+# The client must be compiled against the GodotSharp that matches the Godot runtime (#292): a mismatch
+# gives MissingMethodException at runtime. On mismatch, restore from scratch once; if still wrong, stop.
+function Test-GodotSharpVersion($godot) {
+  $atteso = Get-GodotNuGetVersion (Get-GodotVersion $godot)
+  if (-not $atteso) { return }
+  $trovato = Get-ResolvedGodotSharp
+  if (-not $trovato -or $trovato -eq $atteso) { return }
+  Write-Host "Attenzione: il client e' compilato contro GodotSharp $trovato, ma Godot e' $atteso." -ForegroundColor DarkYellow
+  Write-Host "Rifaccio il restore da zero (cancello godot/.godot/mono/temp/obj) e ricompilo." -ForegroundColor DarkYellow
+  Remove-Item -LiteralPath (Join-Path $script:Root "godot/.godot/mono/temp/obj") -Recurse -Force -ErrorAction SilentlyContinue
+  & dotnet restore tIndustry.sln --force -nologo -v q
+  & dotnet build tIndustry.sln -nologo -v q "-clp:ErrorsOnly;NoSummary"
+  if ($LASTEXITCODE -ne 0) { Fail "Compilazione fallita." }
+  $trovato = Get-ResolvedGodotSharp
+  if ($trovato -and $trovato -ne $atteso) {
+    $src = (& dotnet nuget list source 2>&1) -join "`n"
+    Fail ("GodotSharp $trovato non corrisponde a Godot $atteso nemmeno dopo un nuovo restore.`n" +
+      "Svuota la cache dei pacchetti con '.\clean.ps1 -Nuget' (o 'dotnet nuget locals all --clear') e rilancia.`n" +
+      "Fonti NuGet attive (dotnet nuget list source):`n$src")
+  }
+}
+
 function Restore-ImportFiles {
   if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return }
   # Godot rewrites line endings of tracked .import files: drop changes that are only that.
@@ -369,6 +413,7 @@ function Main {
   Write-Step "Compilazione (Shared, test, client Godot)"
   & dotnet build tIndustry.sln -nologo -v q "-clp:ErrorsOnly;NoSummary"
   if ($LASTEXITCODE -ne 0) { Fail "Compilazione fallita." }
+  Test-GodotSharpVersion $godot
 
   if ($Test) {
     Write-Step "Test"

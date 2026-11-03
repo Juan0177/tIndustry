@@ -221,8 +221,9 @@ public sealed class AutoJunctionTests
     }
 
     [Theory]
-    [InlineData(BuildingKind.Splitter)]
+    [InlineData(BuildingKind.Router)]
     [InlineData(BuildingKind.Sorter)]
+    [InlineData(BuildingKind.SorterInverted)]
     [InlineData(BuildingKind.Junction)]
     [InlineData(BuildingKind.Bridge)]
     public void DragOverASpecialKeepsTodaysBehaviour(BuildingKind kind)
@@ -328,10 +329,15 @@ public sealed class AutoJunctionTests
         Assert.Equal(BeltCrossing.None, factory.BeltCrossingAt(fed, Direction.North));
     }
 
+    /// <summary>
+    /// A junction passes at most <see cref="BeltGridCell.JunctionQueueLength"/> items every
+    /// <see cref="BeltGridCell.JunctionCrossTicks"/> ticks per direction (Mindustry: 6 / 26 ticks ≈ 13.8 items/s): a fast
+    /// line (12/s) keeps its rate, an express line (18/s) is capped there, as in Mindustry.
+    /// </summary>
     [Theory]
     [InlineData("conveyor-fast")]
     [InlineData("conveyor-express")]
-    public void AJunctionNeverCapsTheLineItCrosses(string conveyorId)
+    public void AJunctionCapsALineOnlyAboveItsOwnRate(string conveyorId)
     {
         double Rate(bool withJunction)
         {
@@ -373,7 +379,9 @@ public sealed class AutoJunctionTests
 
         var plain = Rate(withJunction: false);
         var crossed = Rate(withJunction: true);
+        var junctionRate = BeltGridCell.JunctionQueueLength * (double)SimulationClock.TickRate / BeltGridCell.JunctionCrossTicks;
+        var expected = Math.Min(plain, junctionRate);
         Assert.True(plain > 0.5, $"{conveyorId}: {plain} oggetti/s");
-        Assert.InRange(crossed, plain * 0.95, plain * 1.05);
+        Assert.InRange(crossed, expected * 0.95, expected * 1.05);
     }
 }

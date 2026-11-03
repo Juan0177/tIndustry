@@ -117,7 +117,7 @@ public sealed class PlacementLineTests
     [Fact]
     public void SpecialsFaceTheNextCellToo()
     {
-        var line = Plan(NewFactory(), (10, 10), (10, 14), Direction.East, BuildSpec.StructureIdFor(BuildingKind.Sorter)!);
+        var line = Plan(NewFactory(), (10, 10), (10, 14), Direction.East, BuildSpec.StructureIdFor(BuildingKind.Junction)!);
 
         Assert.Equal(5, line.Count);
         Assert.All(line, c => Assert.Equal(Direction.South, c.Direction));
@@ -205,7 +205,7 @@ public sealed class PlacementLineTests
     [Fact]
     public void NoCrossingBesideARefusedCell()
     {
-        // A splitter on (41,33) right after the column: that cell is refused, so (40,33) would leave a junction in a
+        // A router on (41,33) right after the column: that cell is refused, so (40,33) would leave a junction in a
         // broken line. It is a plain belt over the column instead (it turns it, a merge).
         var factory = NewFactory();
         factory.Research.ForceUnlock("junction");
@@ -214,7 +214,7 @@ public sealed class PlacementLineTests
             PlaceBelt(factory, 40, y, Direction.South);
         }
 
-        Assert.True(factory.PlaceInstant(new BuildSpec("splitter", BuildingKind.Splitter, new GridPosition(41, 33), Direction.East), charge: false));
+        Assert.True(factory.PlaceInstant(new BuildSpec("router", BuildingKind.Router, new GridPosition(41, 33), Direction.East), charge: false));
 
         var line = Plan(factory, (37, 33), (44, 33), Direction.East);
 

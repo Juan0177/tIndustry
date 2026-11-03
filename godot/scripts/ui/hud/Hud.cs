@@ -24,9 +24,10 @@ public partial class Hud : Control
         Smelter,
         Assembler,
         Junction,
-        Splitter,
+        Router,
         Generator,
         Sorter,
+        SorterInverted,
         Bridge,
         Extractor,
         PowerNode,
@@ -153,9 +154,6 @@ public partial class Hud : Control
         _palette.Select(tool);
         RefreshBlockInfo();
     }
-
-    /// <summary>Brush filter shown on the sorter palette glyph (and used when placing).</summary>
-    public void SetSorterFilterBrush(string itemId) => _palette.SetSorterFilterBrush(itemId);
 
     public void SetToolLocked(ToolKind tool, bool locked)
     {
@@ -416,9 +414,10 @@ public partial class Hud : Control
         ToolKind.Smelter => "smelter",
         ToolKind.Assembler => "assembler",
         ToolKind.Junction => "junction",
-        ToolKind.Splitter => "splitter",
+        ToolKind.Router => "router",
         ToolKind.Generator => "generator",
         ToolKind.Sorter => "sorter",
+        ToolKind.SorterInverted => "sorter-inverted",
         ToolKind.Bridge => "conveyor-bridge",
         ToolKind.Extractor => "extractor",
         ToolKind.PowerNode => "power-node",

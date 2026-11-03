@@ -67,6 +67,34 @@ public sealed class Crafter
     public IReadOnlyCollection<string> OutputQueue => outputQueue;
     public int EjectIndex { get; private set; }
 
+    /// <summary>Whether the output buffer holds a finished <paramref name="itemId"/> (an extractor can take it).</summary>
+    public bool HasOutput(string itemId) => outputQueue.Contains(itemId);
+
+    /// <summary>Takes the first finished <paramref name="itemId"/> out of the output buffer (order of the rest kept); false when there is none.</summary>
+    internal bool TryTakeOutput(string itemId)
+    {
+        if (!outputQueue.Contains(itemId))
+        {
+            return false;
+        }
+
+        var count = outputQueue.Count;
+        var removed = false;
+        for (var i = 0; i < count; i++)
+        {
+            var id = outputQueue.Dequeue();
+            if (!removed && id == itemId)
+            {
+                removed = true;
+                continue;
+            }
+
+            outputQueue.Enqueue(id);
+        }
+
+        return true;
+    }
+
     public void Relocate(GridPosition position, Direction direction)
     {
         Position = position;
@@ -120,9 +148,13 @@ public sealed class Crafter
         }
     }
 
+    /// <summary>Whether <see cref="TryAcceptFuel"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAcceptFuel(string itemId) =>
+        UsesCoalOrPower && itemId == FuelItemId && FuelBuffer < FuelBufferCapacity;
+
     public bool TryAcceptFuel(string itemId)
     {
-        if (!UsesCoalOrPower || itemId != FuelItemId || FuelBuffer >= FuelBufferCapacity)
+        if (!CanAcceptFuel(itemId))
         {
             return false;
         }
@@ -183,6 +215,18 @@ public sealed class Crafter
 
     public bool TryAccept(string itemId)
     {
+        if (!CanAccept(itemId))
+        {
+            return false;
+        }
+
+        inputBuffer[itemId] = inputBuffer.GetValueOrDefault(itemId) + 1;
+        return true;
+    }
+
+    /// <summary>Whether <see cref="TryAccept"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAccept(string itemId)
+    {
         var maxNeeded = 0;
         foreach (var recipe in AvailableRecipes)
         {
@@ -200,13 +244,7 @@ public sealed class Crafter
 
         var have = inputBuffer.GetValueOrDefault(itemId);
         // Cap buffer at 4× the largest single-recipe need (matches prior single-recipe headroom).
-        if (have >= maxNeeded * 4)
-        {
-            return false;
-        }
-
-        inputBuffer[itemId] = have + 1;
-        return true;
+        return have < maxNeeded * 4;
     }
 
     /// <summary>Pull ready items from belts that point into the footprint.</summary>
@@ -215,23 +253,28 @@ public sealed class Crafter
         var accepted = 0;
         foreach (var cell in belts.Cells.Values)
         {
-            if (!Occupies(cell.OutputPosition))
+            // A belt hands over at its output tile, a junction at the far side of each queue.
+            for (var index = 0; index < cell.OutputTargetCount; index++)
             {
-                continue;
-            }
-
-            while (cell.PeekOutput() is { } item)
-            {
-                var took = UsesCoalOrPower && item.ItemId == FuelItemId
-                    ? TryAcceptFuel(item.ItemId)
-                    : TryAccept(item.ItemId);
-                if (!took)
+                var target = cell.OutputTarget(index);
+                if (!Occupies(target))
                 {
-                    break;
+                    continue;
                 }
 
-                cell.RemoveOutput();
-                accepted++;
+                while (cell.PeekOutputToward(target) is { } item)
+                {
+                    var took = UsesCoalOrPower && item.ItemId == FuelItemId
+                        ? TryAcceptFuel(item.ItemId)
+                        : TryAccept(item.ItemId);
+                    if (!took)
+                    {
+                        break;
+                    }
+
+                    cell.RemoveOutputToward(target);
+                    accepted++;
+                }
             }
         }
 
@@ -445,9 +488,10 @@ public sealed class Crafter
                 continue;
             }
 
-            // Outward: next cell after belt must not re-enter footprint.
+            // Outward: next cell after belt must not re-enter footprint (a junction sends it on away from the building, a
+            // router or a sorter never hands it back where it came from).
             var next = outputPosition.Step(cell.Direction);
-            if (Occupies(next))
+            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter) && Occupies(next))
             {
                 continue;
             }

@@ -4,15 +4,18 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// 1×1 extractor: the <c>extractor</c> sprite + a filter dot in its empty centre well (grey → item color), and a small
-/// puff when it pulls an item (G3 effect <c>sbuffo-estrattore</c>, at most one every <see cref="PuffSeconds"/>).
+/// 1×1 extractor: the <c>extractor</c> sprite with its filter's item icon in the empty centre slot (none without a
+/// filter, as Mindustry's Unloader), and a small puff when it pulls an item (G3 effect <c>sbuffo-estrattore</c>, at most
+/// one every <see cref="PuffSeconds"/>).
 /// </summary>
 public partial class ExtractorVisual : Node2D
 {
-    /// <summary>Shortest time between two puffs of one extractor (it pulls an item every 0.4 s).</summary>
+    /// <summary>Shortest time between two puffs of one extractor (it moves up to 11 items a second).</summary>
     private const double PuffSeconds = 0.8;
 
-    private Polygon2D? _dot;
+    private int _tileSize;
+    private Sprite2D? _filterIcon;
+    private string? _filterItemId;
     private long _extracted;
     private double _nextPuff;
     public GridPosition Origin { get; private set; }
@@ -24,22 +27,12 @@ public partial class ExtractorVisual : Node2D
             Name = $"Extractor_{ex.Position.X}_{ex.Position.Y}",
             ZIndex = 3,
             Origin = ex.Position,
+            _tileSize = tileSize,
             _extracted = ex.ItemsExtracted
         };
         BuildingPad.AddShadow(root, Sprites.For("extractor"), Extractor.Size, tileSize);
         root.AddChild(BuildingPad.Layer("Block", Sprites.For("extractor"), Extractor.Size, tileSize, 0));
-
-        // The sprite's dark well is 8 px across (radius 0.125 cell); the dot sits inside it.
-        var r = tileSize * 0.11f;
-        root._dot = new Polygon2D
-        {
-            Name = "FilterDot",
-            Color = ItemPalette.IdleGrey,
-            Polygon = Circle(r, 12),
-            ZIndex = 1
-        };
-        root.AddChild(root._dot);
-        root.Sync(ex, null);
+        root.SyncFilter(ex.FilterItemId);
         return root;
     }
 
@@ -55,25 +48,29 @@ public partial class ExtractorVisual : Node2D
             }
         }
 
-        if (_dot is null)
+        SyncFilter(ex.FilterItemId);
+    }
+
+    /// <summary>The icon follows the filter (the panel of the filter changes it while the block stands).</summary>
+    private void SyncFilter(string? itemId)
+    {
+        if (_filterIcon is not null && itemId == _filterItemId)
         {
             return;
         }
 
-        _dot.Color = string.IsNullOrWhiteSpace(ex.FilterItemId)
-            ? ItemPalette.IdleGrey
-            : ItemPalette.ColorFor(ex.FilterItemId);
-    }
-
-    private static Vector2[] Circle(float radius, int segments)
-    {
-        var pts = new Vector2[segments];
-        for (var i = 0; i < segments; i++)
+        if (_filterIcon is null && string.IsNullOrWhiteSpace(itemId))
         {
-            var a = i * Mathf.Tau / segments;
-            pts[i] = new Vector2(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius);
+            _filterItemId = null;
+            return;
         }
 
-        return pts;
+        _filterIcon?.QueueFree();
+        _filterItemId = itemId;
+        _filterIcon = Sprites.FilterIcon(itemId, _tileSize);
+        if (_filterIcon is not null)
+        {
+            AddChild(_filterIcon);
+        }
     }
 }

@@ -18,7 +18,7 @@ public abstract record SimCommand(int PlayerId)
 public enum BuildingKind
 {
     Junction,
-    Splitter,
+    Router,
     Sorter,
     Bridge,
     Miner,
@@ -34,7 +34,8 @@ public enum BuildingKind
     CoreNucleus,
     Container,
     Vault,
-    Battery
+    Battery,
+    SorterInverted
 }
 
 /// <summary>
@@ -49,9 +50,10 @@ public sealed record PlaceBelt(
     bool Crossing = false) : SimCommand(PlayerId);
 
 /// <summary>
-/// Replaces the <c>TryPlace…</c> methods for junction, splitter, sorter, bridge, miners, forno,
+/// Replaces the <c>TryPlace…</c> methods for junction, router, sorters, bridge, miners, forno,
 /// assembler, generator, extractor and power nodes. <paramref name="RecipeId"/> applies to forno /
-/// assembler (null = today's default recipe); <paramref name="FilterItemId"/> to sorter / extractor.
+/// assembler (null = today's default recipe); <paramref name="FilterItemId"/> to the sorters / extractor (null = no
+/// filter on a sorter; an unknown item is refused).
 /// </summary>
 public sealed record PlaceBuilding(
     int PlayerId,
@@ -85,10 +87,11 @@ public sealed record SetAutoSell(int PlayerId, string ItemId, bool Enabled) : Si
 public sealed record SetAutoSellWhenFull(int PlayerId, string ItemId, bool Enabled) : SimCommand(PlayerId);
 
 /// <summary>
-/// Sets the filter of the sorter on <paramref name="Tile"/> (replaces the client's direct
-/// <c>BeltGridCell.CycleFilterItem</c>). <paramref name="ItemId"/> must be one of <see cref="SorterFilters.Ids"/>.
+/// Sets the filter of the block on <paramref name="Tile"/> (a sorter, an inverted sorter or an extractor), the player's choice in
+/// the filter panel; <paramref name="ItemId"/> null = no filter. Refused (<see cref="RefusalCode.InvalidCommand"/>) on
+/// a block without a filter, an empty tile or an item the game does not know (<see cref="FactoryContent.IsKnownItem"/>).
 /// </summary>
-public sealed record SetSorterFilter(int PlayerId, GridPosition Tile, string ItemId) : SimCommand(PlayerId);
+public sealed record SetBlockFilter(int PlayerId, GridPosition Tile, string? ItemId) : SimCommand(PlayerId);
 
 /// <summary>
 /// Adds the laser from the power node <paramref name="FromNodeId"/> to the power block <paramref name="ToEntityId"/>,
@@ -105,8 +108,8 @@ public sealed record TogglePowerLink(int PlayerId, long FromNodeId, long ToEntit
 public enum RefusalCode
 {
     /// <summary>
-    /// Malformed command (unknown id, non-positive amount, sorter filter on a non-sorter tile or with an item outside
-    /// <see cref="SorterFilters.Ids"/>): the client never sends one.
+    /// Malformed command (unknown id, non-positive amount, a filter on a block without one or with an unknown item):
+    /// the client never sends one.
     /// </summary>
     InvalidCommand,
 

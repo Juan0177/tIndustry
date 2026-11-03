@@ -227,7 +227,9 @@ public sealed class Miner
     }
 
     private bool IsOutwardBeltCell(BeltGrid grid, GridPosition outputPosition) =>
-        grid.TryGet(outputPosition, out var cell) && IsOutwardDirection(cell.Direction, outputPosition);
+        grid.TryGet(outputPosition, out var cell)
+        && (cell.Kind is LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
+            || IsOutwardDirection(cell.Direction, outputPosition));
 
     private bool IsOutwardDirection(Direction dir, GridPosition outputPosition)
     {

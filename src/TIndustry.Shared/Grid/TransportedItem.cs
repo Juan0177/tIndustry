@@ -14,8 +14,14 @@ public sealed class TransportedItem
     public long Id { get; }
     public string ItemId { get; }
     public float Progress { get; set; }
-    /// <summary>Exit direction through a junction (incoming axis). Null on normal belts.</summary>
+    /// <summary>Direction of travel through a junction: the queue the item is in, and the side it leaves by. Null on belts.</summary>
     public Direction? Travel { get; set; }
+
+    /// <summary>
+    /// Ticks spent inside a junction queue (0 on entry, up to <see cref="BeltGridCell.JunctionCrossTicks"/>); null
+    /// outside a junction. Saved: an item leaves a restored junction on the same tick it would have.
+    /// </summary>
+    public int? JunctionTicks { get; set; }
 
     /// <summary>
     /// The part of the current tick (0–1) the item could not move for, for example past the end of its cell (set by

@@ -22,7 +22,7 @@ public sealed class FactorySelfTests
         nameof(FactoryScenarios.SelfTestSmelterLoop),
         nameof(FactoryScenarios.SelfTestMultiRecipe),
         nameof(FactoryScenarios.SelfTestAssemblerLoop),
-        nameof(FactoryScenarios.SelfTestJunctionSplitter),
+        nameof(FactoryScenarios.SelfTestJunctionRouter),
         nameof(FactoryScenarios.SelfTestPowerStub),
         nameof(FactoryScenarios.SelfTestFuelOrPower),
         nameof(FactoryScenarios.SelfTestAdjacentIo),

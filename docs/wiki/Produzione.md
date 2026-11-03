@@ -12,7 +12,7 @@ I blocchi che producono: minatori, forno, assemblatore ed estrattore, con misure
 | Minatore T2 (`miner-advanced`) | 2×2 | 10 Lastre di ferro, 4 Fili di rame | Ricerca | Estrae tutto, titanio compreso, a velocità doppia |
 | Forno (`smelter`) | 2×2 | 6 Ferro grezzo | Ricerca | Fonde i minerali in lastre, a carbone o a corrente |
 | Assemblatore (`assembler`) | 2×2 | 8 Lastre di ferro, 2 Rame grezzo | Ricerca | Filo di rame, grafite, silicio |
-| Estrattore (`extractor`) | 1×1 | 2 Lastre di ferro | Ricerca | Tira oggetti fuori dal CORE su un nastro |
+| Estrattore (`extractor`) | 1×1 | 2 Lastre di ferro | Ricerca | Tira oggetti fuori da un magazzino o da una macchina |
 
 I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca). Le costruzioni non costano soldi, solo materiali presi dal CORE.
 
@@ -52,7 +52,7 @@ Fa Filo di rame, Grafite e Silicio. **Lavora anche senza corrente**; se è nella
 
 ## Estrattore
 
-Un blocco 1×1 da mettere **a contatto con il CORE** con un nastro davanti (la direzione si sceglie con `R`) che si allontana. Ogni 0,4 secondi prende 1 oggetto dal magazzino del CORE (o, se tocca un container o un vault che non è collegato al CORE, dal suo contenuto) e lo mette sul nastro: così il magazzino rifornisce le macchine. Oggi preleva Lastre di ferro (il suo filtro predefinito): nel gioco non c'è ancora un comando per cambiarlo.
+Un blocco 1×1 senza direzione, come l'*Unloader* di Mindustry. Messo a contatto con il CORE (o con un container o un vault, un forno, un assemblatore) sposta 11 oggetti al secondo dal blocco che li ha al prossimo blocco vicino che li accetta, per esempio un nastro. Il filtro si sceglie con un clic sul blocco; senza filtro prende a turno tutti gli oggetti. Non sposta mai da un magazzino a un altro. Regole complete in [Logistica](Logistica#estrattore).
 
 ## Vedi anche
 

@@ -153,7 +153,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     // ---- Act (the player's commands through SimHost)
 
     [McpServerTool(Name = "piazza")]
-    [Description("Piazza un blocco in una cella, o trascina da 'da' ad 'a' come il giocatore (la stessa linea, PlacementLine): nastri, incroci, sdoppiatori e selezionatori in retta sull'asse più lungo (al massimo 200 celle), ogni altro blocco uno solo in 'da'. Senza 'direzione' segue il trascinamento (ogni cella guarda la seguente, un blocco solo guarda verso 'a'); incrocio automatico compreso (incrocio: true sulla cella diventata un incrocio) e ponte automatico su pareti, acqua profonda o edifici in una retta di nastri, col ponte sbloccato (ponte: true sulla cella del ponte; le celle scavalcate non sono elencate). 'diagonale' è Ctrl. Risponde le celle piazzate e i rifiuti (codice, mancano), anche quelli che la linea prevede e non manda.")]
+    [Description("Piazza un blocco in una cella, o trascina da 'da' ad 'a' come il giocatore (la stessa linea, PlacementLine): nastri, incroci, router e selezionatori (anche invertiti) in retta sull'asse più lungo (al massimo 200 celle), ogni altro blocco uno solo in 'da'. Senza 'direzione' segue il trascinamento (ogni cella guarda la seguente, un blocco solo guarda verso 'a'); incrocio automatico compreso (incrocio: true sulla cella diventata un incrocio) e ponte automatico su pareti, acqua profonda o edifici in una retta di nastri, col ponte sbloccato (ponte: true sulla cella del ponte; le celle scavalcate non sono elencate). 'diagonale' è Ctrl. Risponde le celle piazzate e i rifiuti (codice, mancano), anche quelli che la linea prevede e non manda.")]
     public string Piazza(
         [Description(Sessione)] string sessione,
         [Description("Id della struttura (per esempio miner, conveyor-basic).")] string? tipo = null,
@@ -164,7 +164,7 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("nord, est, sud, ovest: fissa la direzione di ogni cella, come R durante il trascinamento (senza: con 'cella' quella di ruota, con 'da'/'a' quella del trascinamento).")] string? direzione = null,
         [Description("true = Ctrl, solo nastri: segue la catena di nastri fra 'da' e 'a' (cambio di tier) o un percorso A* sui quattro lati che gira attorno agli ostacoli (mai ponti), con le sue direzioni anche con 'direzione'; senza percorso, la retta (lì 'direzione' vale).")] bool? diagonale = null,
         [Description("Ricetta di forno o assemblatore.")] string? ricetta = null,
-        [Description("Oggetto del filtro del selezionatore.")] string? filtro = null,
+        [Description("Oggetto del filtro del selezionatore, dell'invertito o dell'estrattore (senza: nessun filtro).")] string? filtro = null,
         [Description(Dettaglio)] bool dettaglio = false) =>
         Game(sessione, "piazza", new { tipo, tier, cella, da, a, direzione, diagonale, ricetta, filtro }, dettaglio);
 
@@ -215,6 +215,14 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("Una cella del nodo di energia (T1 o T2).")] Cella nodo,
         [Description("Una cella del blocco da collegare o scollegare.")] Cella blocco) =>
         Game(sessione, "collega", new { nodo, blocco });
+
+    [McpServerTool(Name = "filtro")]
+    [Description("Sceglie il filtro di un selezionatore (sorter), di un selezionatore invertito (sorter-inverted) o di un estrattore (extractor), come la scelta nel pannello del filtro (SetBlockFilter). Senza 'oggetto' toglie il filtro: il selezionatore manda tutto ai lati, l'invertito tutto dritto, l'estrattore sposta qualsiasi oggetto a turno per id. Rifiuto InvalidCommand su un blocco senza filtro, una cella vuota o un oggetto sconosciuto. Risponde {filtro} (null = nessuno).")]
+    public string Filtro(
+        [Description(Sessione)] string sessione,
+        [Description("La cella del selezionatore o dell'estrattore.")] Cella cella,
+        [Description("Id dell'oggetto del filtro; assente = nessun filtro.")] string? oggetto = null) =>
+        Game(sessione, "filtro", new { cella, oggetto });
 
     // ---- Time
 

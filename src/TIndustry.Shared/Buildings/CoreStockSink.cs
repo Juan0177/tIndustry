@@ -35,6 +35,17 @@ public static class CoreStockSink
         var delivered = 0;
         foreach (var cell in grid.Cells.Values)
         {
+            if (cell.Kind == LogisticsKind.Junction)
+            {
+                delivered += DrainJunction(state, cell);
+                continue;
+            }
+
+            if (cell.Kind is LogisticsKind.Router or LogisticsKind.Sorter)
+            {
+                continue; // a router and a sorter hand items to the Core themselves (GameState.ReceiveFromLogistics)
+            }
+
             // Face into core, or dead-end against core (wrong facing / no next belt).
             var outInCore = coreTiles.Contains(cell.OutputPosition);
             var sinksHere = outInCore
@@ -58,6 +69,41 @@ public static class CoreStockSink
             {
                 cell.RemoveOutput();
                 delivered++;
+            }
+        }
+
+        return delivered;
+    }
+
+    /// <summary>
+    /// A junction hands each queue's crossed head to the Core or a storage block on the far side of that queue (one
+    /// item per queue per tick, as to a belt).
+    /// </summary>
+    private static int DrainJunction(GameState state, BeltGridCell cell)
+    {
+        var delivered = 0;
+        for (var index = 0; index < cell.OutputTargetCount; index++)
+        {
+            var target = cell.OutputTarget(index);
+            if (cell.PeekOutputToward(target) is not { } item)
+            {
+                continue;
+            }
+
+            if (state.CoreTiles.Contains(target))
+            {
+                if (state.TryAcceptAtCore(item.ItemId))
+                {
+                    cell.RemoveOutputToward(target);
+                    delivered++;
+                }
+            }
+            else if (state.Storages.Count > 0
+                && state.StorageAt(target) is { } storage
+                && state.TryAcceptAtStorage(storage, item.ItemId))
+            {
+                cell.RemoveOutputToward(target);
+                delivered += storage.IsLinked ? 1 : 0;
             }
         }
 

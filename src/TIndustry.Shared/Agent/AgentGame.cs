@@ -29,7 +29,7 @@ public sealed class AgentGame : IDisposable
     /// <summary>Methods that change the game, its time or the brush: the journal keeps only these.</summary>
     public static readonly IReadOnlySet<string> JournaledMethods = new HashSet<string>(StringComparer.Ordinal)
     {
-        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "avanza"
+        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "filtro", "avanza"
     };
 
     private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?\\z", RegexOptions.CultureInvariant);
@@ -42,7 +42,7 @@ public sealed class AgentGame : IDisposable
     [
         ('C', "Core"), ('?', "cantiere"), ('*', "piano di costruzione"),
         ('^', "nastro verso nord"), ('>', "nastro verso est"), ('v', "nastro verso sud"), ('<', "nastro verso ovest"),
-        ('+', "incrocio"), ('Y', "divisore"), ('F', "selezionatore"), ('=', "ponte"),
+        ('+', "incrocio"), ('R', "router"), ('F', "selezionatore"), ('I', "selezionatore invertito"), ('=', "ponte"),
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"),
@@ -335,6 +335,7 @@ public sealed class AgentGame : IDisposable
         "vendita_automatica" => VenditaAutomatica(p),
         "potenzia_core" => Single(CoreUpgradeCommand(), r => r["livello"] = View.CoreTier),
         "collega" => Collega(p),
+        "filtro" => Filtro(p),
         "avanza" => Avanza(p),
         "diario" => Diario(p),
         _ => throw Bad($"Metodo sconosciuto: {method}.")
@@ -376,6 +377,22 @@ public sealed class AgentGame : IDisposable
                 r["massimo"] = PowerGrid.MaxLinksOf(content, node);
             }
         });
+    }
+
+    /// <summary>
+    /// <c>filtro {cella, oggetto?}</c>: the player's choice in the filter panel of a sorter, an inverted sorter or an
+    /// extractor (<see cref="SetBlockFilter"/>); without <c>oggetto</c> (or null) the block has no filter. Answers the filter now
+    /// (<c>filtro</c>, null = none) or the refusal (<c>InvalidCommand</c>: a block without a filter, an empty cell or an
+    /// unknown item).
+    /// </summary>
+    private JsonObject Filtro(JsonElement p)
+    {
+        var cell = MapCell(p, "cella");
+        return Single(
+            new SetBlockFilter(PlayerId, cell, OptStr(p, "oggetto")),
+            r => r["filtro"] = View.Belts.TryGetValue(cell, out var block)
+                ? block.FilterItemId
+                : View.Extractors.FirstOrDefault(e => e.Occupies(cell))?.FilterItemId);
     }
 
     /// <summary>Entity id of the block on <paramref name="cell"/>; 0 when there is none.</summary>
@@ -559,7 +576,7 @@ public sealed class AgentGame : IDisposable
                 ["lampade"] = View.Lamps.Count,
                 ["nastri"] = logistics.GetValueOrDefault(LogisticsKind.Belt),
                 ["incroci"] = logistics.GetValueOrDefault(LogisticsKind.Junction),
-                ["divisori"] = logistics.GetValueOrDefault(LogisticsKind.Splitter),
+                ["router"] = logistics.GetValueOrDefault(LogisticsKind.Router),
                 ["selezionatori"] = logistics.GetValueOrDefault(LogisticsKind.Sorter),
                 // Each bridge has two end cells.
                 ["ponti"] = logistics.GetValueOrDefault(LogisticsKind.Bridge) / 2
@@ -708,6 +725,7 @@ public sealed class AgentGame : IDisposable
         var rows = new JsonArray();
         var shapes = new List<JsonObject>();
         var items = new List<JsonObject>();
+        var filters = new List<JsonObject>();
         var row = new char[x1 - x0 + 1];
         for (var y = y0; y <= y1; y++)
         {
@@ -717,6 +735,13 @@ public sealed class AgentGame : IDisposable
                 var symbol = Symbol(terrain, cell, buildings, sites);
                 row[x - x0] = symbol;
                 used.Add(symbol);
+                if (symbol == 'E' && View.Extractors.FirstOrDefault(e => e.Occupies(cell)) is { } extractor)
+                {
+                    var filter = CellJson(cell);
+                    filter["filtro"] = extractor.FilterItemId;
+                    filters.Add(filter);
+                }
+
                 if (!View.Belts.TryGetValue(cell, out var belt) || symbol == 'C')
                 {
                     continue;
@@ -725,6 +750,13 @@ public sealed class AgentGame : IDisposable
                 if (belt.Kind == LogisticsKind.Belt && BeltShape(cell) is { } shape)
                 {
                     shapes.Add(shape);
+                }
+
+                if (belt.Kind == LogisticsKind.Sorter)
+                {
+                    var filter = CellJson(cell);
+                    filter["filtro"] = belt.FilterItemId;
+                    filters.Add(filter);
                 }
 
                 if (withItems && belt.Items.Count > 0)
@@ -754,6 +786,10 @@ public sealed class AgentGame : IDisposable
             ["legenda"] = legend
         };
         PutNewest(result, "forme", shapes, newest: false, truncatedKey: "formeTroncate");
+        if (filters.Count > 0)
+        {
+            PutNewest(result, "filtri", filters, newest: false, truncatedKey: "filtriTroncati");
+        }
         if (withItems)
         {
             PutNewest(result, "oggetti", items, newest: false, truncatedKey: "oggettiTroncati");
@@ -819,8 +855,8 @@ public sealed class AgentGame : IDisposable
                     _ => '!'
                 },
                 LogisticsKind.Junction => KindSymbol(BuildingKind.Junction),
-                LogisticsKind.Splitter => KindSymbol(BuildingKind.Splitter),
-                LogisticsKind.Sorter => KindSymbol(BuildingKind.Sorter),
+                LogisticsKind.Router => KindSymbol(BuildingKind.Router),
+                LogisticsKind.Sorter => KindSymbol(belt.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter),
                 LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
                 _ => '!'
             };
@@ -861,8 +897,9 @@ public sealed class AgentGame : IDisposable
     internal static char KindSymbol(BuildingKind kind) => kind switch
     {
         BuildingKind.Junction => '+',
-        BuildingKind.Splitter => 'Y',
+        BuildingKind.Router => 'R',
         BuildingKind.Sorter => 'F',
+        BuildingKind.SorterInverted => 'I',
         BuildingKind.Bridge => '=',
         BuildingKind.Miner => 'M',
         BuildingKind.MinerAdvanced => 'N',
@@ -1511,7 +1548,7 @@ public sealed class AgentGame : IDisposable
         UnlockStructure => "sblocca",
         Sell or SellAll => "vendi",
         SetAutoSell or SetAutoSellWhenFull => "vendita_automatica",
-        SetSorterFilter => "filtroSelezionatore",
+        SetBlockFilter => "filtro",
         TogglePowerLink => "collega",
         _ => "altro"
     };
@@ -1521,6 +1558,7 @@ public sealed class AgentGame : IDisposable
         PlaceBelt belt => belt.Position,
         PlaceBuilding building => building.Origin,
         Remove remove => remove.Tile,
+        SetBlockFilter filter => filter.Tile,
         _ => null
     };
 

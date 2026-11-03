@@ -60,7 +60,7 @@
       "id": "junction",
       "tier": 1,
       "rateItemsPerSecond": 18.0,
-      "capacity": 2,
+      "capacity": 6,
       "itemSpacing": 1.0,
       "moneyCost": 0,
       "buildCost": [
@@ -81,7 +81,7 @@
       "kind": "junction"
     },
     {
-      "id": "splitter",
+      "id": "router",
       "tier": 1,
       "rateItemsPerSecond": 8.0,
       "capacity": 1,
@@ -102,7 +102,7 @@
           }
         ]
       },
-      "kind": "splitter"
+      "kind": "router"
     },
     {
       "id": "sorter",
@@ -135,6 +135,39 @@
         ]
       },
       "kind": "sorter"
+    },
+    {
+      "id": "sorter-inverted",
+      "tier": 1,
+      "rateItemsPerSecond": 8.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-ore",
+          "amount": 2
+        },
+        {
+          "itemId": "lead-ore",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-ore",
+            "amount": 10
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 10
+          }
+        ]
+      },
+      "kind": "sorter",
+      "inverted": true
     },
     {
       "id": "conveyor-bridge",
@@ -468,8 +501,8 @@
       ]
     },
     {
-      "id": "splitter",
-      "displayName": "Sdoppiatore",
+      "id": "router",
+      "displayName": "Router",
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
@@ -507,6 +540,29 @@
       "isStub": false,
       "prerequisites": [
         "junction"
+      ]
+    },
+    {
+      "id": "sorter-inverted",
+      "displayName": "Selezionatore invertito",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-ore",
+            "amount": 10
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 10
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "sorter"
       ]
     },
     {

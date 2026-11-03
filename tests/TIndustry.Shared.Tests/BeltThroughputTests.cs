@@ -159,7 +159,6 @@ public sealed class BeltThroughputTests
 
     [Theory]
     [InlineData("conveyor-express")]
-    [InlineData("junction")]
     public void AHandoffKeepsMovingAtTheReceivingSpeed(string fromId)
     {
         // An item 0.95 along a fast cell crosses into a basic belt within the tick: it goes on for the rest of the tick

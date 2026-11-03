@@ -68,16 +68,12 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void ExtractorFacingTheBeltMakesACorner()
+    public void ExtractorBesideTheBeltMakesACorner()
     {
+        // The extractor has no direction: it puts items on every side, so a belt beside it blends with it.
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceExtractor(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceExtractor(new GridPosition(19, 21)));
         AssertCorner(factory, Direction.East);
-
-        // Blend by capability: an extractor beside the belt counts even when it ejects away from it.
-        var other = WithNorthLine();
-        Assert.True(other.TryPlaceExtractor(new GridPosition(19, 21), Direction.West));
-        Assert.True(other.IsBeltCorner(P));
     }
 
     [Fact]
@@ -125,9 +121,9 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     [Fact]
     public void LogisticsAndABuildingOnTheSidesMakeAT()
     {
-        // A splitter on the west (its East exit feeds P) and a miner on the east.
+        // A router on the west (it hands items to every side, P too) and a forno on the east.
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceSplitter(new GridPosition(19, 21), Direction.North));
+        Assert.True(factory.TryPlaceRouter(new GridPosition(19, 21), Direction.North));
         Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 21), Direction.East));
         Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
     }
@@ -253,10 +249,10 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void SplitterSideExitMakesACorner()
+    public void ARouterBesideMakesACorner()
     {
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceSplitter(new GridPosition(19, 21), Direction.North)); // exits West and East
+        Assert.True(factory.TryPlaceRouter(new GridPosition(19, 21), Direction.North)); // hands items to every side
         AssertCorner(factory, Direction.East);
     }
 
@@ -271,13 +267,13 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BuildingBehindAJunctionDoesNotFeedThroughIt()
+    public void BuildingBehindAJunctionFeedsThroughIt()
     {
-        // A miner cannot insert into a junction (no direction), so nothing reaches P through it.
+        // A miner inserts into the junction beside it like a belt (Mindustry's Junction), so its items reach P.
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceJunction(new GridPosition(19, 21), Direction.East));
+        Assert.True(factory.TryPlaceJunction(new GridPosition(19, 21), Direction.North));
         Assert.True(factory.TryPlaceMiner(new GridPosition(17, 20), Direction.East));
-        Assert.False(factory.IsBeltCorner(P));
+        AssertCorner(factory, Direction.East);
     }
 
     [Fact]

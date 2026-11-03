@@ -307,7 +307,7 @@ public partial class BlockInfoPanel : Control
             {
                 "miner" => Testi.T("blocco.io.minatore"),
                 "generator" => Testi.T("blocco.io.generatore"),
-                "conveyor-basic" or "junction" or "splitter" or "sorter" or "conveyor-bridge"
+                "conveyor-basic" or "junction" or "router" or "sorter" or "conveyor-bridge"
                     => Testi.T("blocco.io.trasporto"),
                 _ => ""
             };

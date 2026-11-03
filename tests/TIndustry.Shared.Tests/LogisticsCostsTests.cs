@@ -28,7 +28,7 @@ public sealed class LogisticsCostsTests
     [InlineData("conveyor-express", "titanium-ore:1,silicon:1,graphite:1")]
     [InlineData("conveyor-armored", "iron-ore:1,lead-ore:1,titanium-ore:2,graphite:1")]
     [InlineData("junction", "iron-ore:3")]
-    [InlineData("splitter", "iron-ore:3")]
+    [InlineData("router", "iron-ore:3")]
     [InlineData("sorter", "iron-ore:2,lead-ore:2")]
     [InlineData("conveyor-bridge", "iron-ore:6,lead-ore:6")]
     [InlineData("miner", "iron-ore:4")]
@@ -44,7 +44,7 @@ public sealed class LogisticsCostsTests
     [InlineData("conveyor-express", 850, "titanium-ore:8,silicon:8,graphite:8")]
     [InlineData("conveyor-armored", 600, "iron-ore:8,lead-ore:8,titanium-ore:10,graphite:8")]
     [InlineData("junction", 200, "iron-ore:13")]
-    [InlineData("splitter", 280, "iron-ore:13")]
+    [InlineData("router", 280, "iron-ore:13")]
     [InlineData("sorter", 320, "iron-ore:10,lead-ore:10")]
     [InlineData("conveyor-bridge", 340, "iron-ore:21,lead-ore:21")]
     public void UnlockCostsMatchTheTable(string id, int money, string materials)
@@ -64,8 +64,8 @@ public sealed class LogisticsCostsTests
     [InlineData("conveyor-fast", 4.8f, 3, 0.4f, 12f)]
     [InlineData("conveyor-armored", 4.8f, 3, 0.4f, 12f)]
     [InlineData("conveyor-express", 7.2f, 3, 0.4f, 18f)]
-    [InlineData("junction", 18f, 2, 1f, 18f)]
-    [InlineData("splitter", 8f, 1, 1f, 8f)]
+    [InlineData("junction", 18f, 6, 1f, 18f)]
+    [InlineData("router", 8f, 1, 1f, 8f)]
     [InlineData("sorter", 8f, 1, 1f, 8f)]
     [InlineData("conveyor-bridge", 5.25f, 1, 1f, 5.25f)]
     public void RatesMatchTheTable(string id, float speed, int capacity, float spacing, float itemsPerSecond)

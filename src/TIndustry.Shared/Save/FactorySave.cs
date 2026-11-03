@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 17: the power network's
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 18: the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
+/// extractor accumulator and turns); since 17 the power network's
 /// lasers (<see cref="PowerLinks"/>) and each battery's charge (<see cref="BatterySaveDto.Charge"/>), with no shared
 /// power buffer any more; since 16 the world's time
 /// (<see cref="GameRulesSaveDto.DayNight"/>, <see cref="FirstBuildTick"/>, <see cref="FirstAttackRaised"/>); since 15 the
@@ -14,10 +15,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 17;
+    public const int CurrentVersion = 18;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 17;
+    public const int MinReadableVersion = 18;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -278,9 +279,20 @@ public sealed class ExtractorSaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
-    public string Direction { get; set; } = "East";
-    public string FilterItemId { get; set; } = Extractor.DefaultFilterItemId;
-    public float Progress { get; set; }
+    /// <summary>Ignored on load: the extractor has no direction (written as North).</summary>
+    public string Direction { get; set; } = "North";
+    /// <summary>The filter; null = none (any item in turn).</summary>
+    public string? FilterItemId { get; set; }
+    /// <summary><see cref="Extractor.Accumulator"/>.</summary>
+    public int Accumulator { get; set; }
+    /// <summary><see cref="Extractor.SourceTurn"/>.</summary>
+    public int SourceTurn { get; set; }
+    /// <summary><see cref="Extractor.DestinationTurn"/>.</summary>
+    public int DestinationTurn { get; set; }
+    /// <summary><see cref="Extractor.LastItemId"/>; null = none yet.</summary>
+    public string? LastItemId { get; set; }
+    /// <summary><see cref="Extractor.ItemsExtracted"/>.</summary>
+    public long ItemsExtracted { get; set; }
 }
 
 public sealed class PowerNodeSaveDto
@@ -342,10 +354,25 @@ public sealed class BeltSaveDto
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
     public string DefinitionId { get; set; } = "conveyor-basic";
-    public int SplitterToggle { get; set; }
+
+    /// <summary>Router: first side to try (<see cref="BeltGridCell.RouterTurn"/>); null on other cells.</summary>
+    public int? RouterTurn { get; set; }
+
+    /// <summary>Router holding an item: ticks it has waited (<see cref="BeltGridCell.RouterWaitTicks"/>); null otherwise.</summary>
+    public int? RouterWaitTicks { get; set; }
+
+    /// <summary>Router holding an item: the side it came from (<see cref="BeltGridCell.RouterFrom"/>); null otherwise.</summary>
+    public string? RouterFrom { get; set; }
+
     public int? BridgePartnerX { get; set; }
     public int? BridgePartnerY { get; set; }
+
+    /// <summary>Sorter filter (<see cref="BeltGridCell.FilterItemId"/>); null = none, and on other cells.</summary>
     public string? FilterItemId { get; set; }
+
+    /// <summary>Sorter: the four turn bits, one per direction of travel (<see cref="BeltGridCell.SorterTurns"/>); null = 0.</summary>
+    public int? SorterTurns { get; set; }
+
     public List<ItemSaveDto> Items { get; set; } = [];
 }
 
@@ -355,6 +382,9 @@ public sealed class ItemSaveDto
     public string ItemId { get; set; } = "";
     public float Progress { get; set; }
     public string? Travel { get; set; }
+
+    /// <summary>Ticks spent inside a junction queue (<see cref="TransportedItem.JunctionTicks"/>); null elsewhere.</summary>
+    public int? JunctionTicks { get; set; }
 }
 
 /// <summary>

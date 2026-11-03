@@ -9,7 +9,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
     private static readonly string[] ToolNames =
     [
         "apri_simulazione", "apri_gioco", "collega_coop", "sessioni", "chiudi", "stato", "area", "trova", "eventi", "catalogo",
-        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "avanza", "esegui", "pausa", "riprendi",
+        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "filtro", "avanza", "esegui", "pausa", "riprendi",
         "cattura", "telecamera", "input", "ui", "log", "diario", "rigioca"
     ];
 
@@ -180,6 +180,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
             ("vendita_automatica", new { sessione = id, oggetto = "iron-ore", accesa = "si" }),
             ("potenzia_core", new { }),
             ("collega", new { sessione = id, nodo = new { x = 1, y = 1 } }),
+            ("filtro", new { sessione = id, oggetto = "coal" }),
             ("avanza", new { sessione = id, tick = -1 }),
             ("avanza", new { sessione = id, tick = "molti" }),
             ("esegui", new { sessione = id, secondi = "due" }),

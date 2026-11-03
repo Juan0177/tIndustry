@@ -54,7 +54,7 @@ public sealed class BeltReplaceTests
         {
             new(101, Iron, 1f), new(102, Lead, 0.6f), new(103, Iron, 0.2f) // a full cell, held by its head at the dead end
         };
-        factory.Belts.Cells[Cell].RestoreState(0, items);
+        factory.Belts.Cells[Cell].RestoreState(items);
         return items.Select(i => new TransportedItem(i.Id, i.ItemId, i.Progress)).ToList();
     }
 

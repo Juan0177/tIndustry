@@ -98,6 +98,28 @@ public sealed class FactoryContent
     public MarketItemDefinition? FindMarketItem(string itemId) =>
         Market.FirstOrDefault(m => m.ItemId == itemId);
 
+    /// <summary>
+    /// Whether <paramref name="itemId"/> is an item of the game: on the market or made or used by a recipe (the filter
+    /// of a sorter or an extractor must be one).
+    /// </summary>
+    public bool IsKnownItem(string? itemId) =>
+        !string.IsNullOrWhiteSpace(itemId)
+        && (FindMarketItem(itemId) is not null
+            || Recipes.Any(r => r.Inputs.Any(a => a.ItemId == itemId) || r.Outputs.Any(a => a.ItemId == itemId)));
+
+    private IReadOnlyList<string>? itemIds;
+
+    /// <summary>
+    /// Every item of the game (<see cref="IsKnownItem"/>: on the market or made or used by a recipe), by ordinal id: an
+    /// extractor without a filter takes items in this order.
+    /// </summary>
+    public IReadOnlyList<string> ItemIds => itemIds ??= Market.Select(m => m.ItemId)
+        .Concat(Recipes.SelectMany(r => r.Inputs.Concat(r.Outputs)).Select(a => a.ItemId))
+        .Where(id => !string.IsNullOrWhiteSpace(id))
+        .Distinct(StringComparer.Ordinal)
+        .Order(StringComparer.Ordinal)
+        .ToArray();
+
     public string DisplayName(string itemId) =>
         FindMarketItem(itemId)?.DisplayName ?? itemId;
 
@@ -444,7 +466,8 @@ public sealed class FactoryContent
             MapUnlock(c.Unlock),
             ParseKind(c.Kind),
             MapMultiplier(c.BuildCostMultiplier),
-            c.Armored);
+            c.Armored,
+            c.Inverted);
 
     private static RecipeDefinition MapRecipe(RecipeDto r) =>
         new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs));
@@ -580,7 +603,7 @@ public sealed class FactoryContent
         kind?.Trim().ToLowerInvariant() switch
         {
             "junction" => LogisticsKind.Junction,
-            "splitter" => LogisticsKind.Splitter,
+            "router" => LogisticsKind.Router,
             "bridge" => LogisticsKind.Bridge,
             "sorter" => LogisticsKind.Sorter,
             _ => LogisticsKind.Belt
@@ -660,6 +683,7 @@ public sealed class FactoryContent
         public string? Kind { get; set; }
         public float? BuildCostMultiplier { get; set; }
         public bool Armored { get; set; }
+        public bool Inverted { get; set; }
     }
 
     private sealed class RecipeDto
