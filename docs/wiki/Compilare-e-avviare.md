@@ -91,6 +91,10 @@ Per questo:
 
 Dove finiscono salvataggi e impostazioni con e senza `TINDUSTRY_DATA_DIR` è spiegato in [ARCHITETTURA.md, Salvataggi e impostazioni](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md#salvataggi-e-impostazioni).
 
+## Se qualcosa non va
+
+- `MissingMethodException` su metodi di Godot (per esempio `DrawString`): il client è stato compilato contro un GodotSharp diverso dal Godot che lo avvia. `play.ps1` e `dev.sh` lo controllano e rifanno il restore; se non basta, lancia `.\clean.ps1 -Nuget` (cancella i pacchetti Godot dalla cache NuGet dell'utente) e poi `.\play.ps1`, e guarda le fonti con `dotnet nuget list source`.
+
 ## Export
 
 In locale: `tools/ci/setup-godot.sh` una volta, poi `tools/ci/export-godot.sh`, che produce `dist/tIndustry-win-x64.zip` e `dist/tIndustry-linux-x64.zip`. Le release ufficiali le costruisce il workflow `release.yml` su un tag `v*`.

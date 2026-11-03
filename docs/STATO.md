@@ -153,7 +153,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 ## Cosa manca, in piccolo
 
-- **Ricerca rotta sul PC di casa** ([#292](https://github.com/Juan0177/tIndustry/issues/292)): `MissingMethodException` su `DrawString` in `TechTreeCanvas`, il client è compilato contro un GodotSharp più nuovo del 4.4.1.
+- **Ricerca rotta sul PC di casa** ([#292](https://github.com/Juan0177/tIndustry/issues/292)): `MissingMethodException` su `DrawString` in `TechTreeCanvas`, il client è compilato contro un GodotSharp più nuovo del 4.4.1. Correzione difensiva fatta (`NuGet.config` con la sola fonte nuget.org, controllo della versione di GodotSharp in `play.ps1` e `dev.sh`, `clean.ps1 -Nuget`); da verificare sul PC di casa con `.\clean.ps1 -Nuget` poi `.\play.ps1`.
 - **Pulizia del blocco A**, approvata dall'utente ma da lanciare a mano, perché la modalità automatica blocca le cancellazioni:
   - i worktree vecchi in `.claude/worktrees/`;
   - i rami locali già uniti;

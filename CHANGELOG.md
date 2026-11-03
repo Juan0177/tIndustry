@@ -25,6 +25,7 @@ Il formato è ispirato a [Keep a Changelog](https://keepachangelog.com/); il ver
 
 ### Corretto
 
+- **GodotSharp fissato alla versione di Godot** (#292): `NuGet.config` alla radice usa solo nuget.org, così una fonte locale della macchina non fa compilare il client contro un GodotSharp più nuovo del runtime (`MissingMethodException` su `DrawString`); dopo la compilazione `play.ps1` e `dev.sh` confrontano il GodotSharp risolto con la versione di Godot, rifanno il restore se differiscono e, se non basta, si fermano spiegando come svuotare la cache; `clean.ps1 -Nuget` cancella i pacchetti Godot dalla cache NuGet dell'utente
 - **`play.ps1` e `dev.sh` reimportano gli asset quando cambiano**: prima importavano solo se mancava `godot/.godot/imported`, quindi dopo un aggiornamento con sprite, font o testi nuovi il gioco partiva senza i file importati (schermo grigio, «Cannot open file res://lingue/testi.it.translation»). Ora l'importazione scatta da sola, anche in modalità utente, se un `.import` elenca file che non ci sono, se un asset è nuovo o più recente dell'ultima importazione (`godot/.godot/tindustry-import.stamp`); se dopo l'importazione mancano ancora file, lo script si ferma con un errore invece di avviare il gioco
 
 ### Cambiato

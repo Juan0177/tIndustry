@@ -67,6 +67,32 @@ echo "dotnet $(dotnet --version) · Godot $GODOT_VERSION"
 step "Compilazione (Shared, test, client Godot)"
 dotnet build tIndustry.sln -nologo -v q "-clp:ErrorsOnly;NoSummary" || fail "Compilazione fallita."
 
+# The client must be compiled against the GodotSharp that matches the Godot runtime (#292): a mismatch
+# gives MissingMethodException at runtime. On mismatch, restore from scratch once; if still wrong, stop.
+resolved_godotsharp() {
+  sed -n 's|^ *"GodotSharp/\([^"]*\)": {.*|\1|p' godot/.godot/mono/temp/obj/project.assets.json 2>/dev/null | head -1
+}
+check_godotsharp() {
+  local atteso trovato
+  atteso="$(printf '%s' "$GODOT_VERSION" | sed -n 's/^\([0-9]*\.[0-9]*\)\(\.[0-9]*\)\{0,1\}\.\(stable\|rc\|beta\|dev\).*/\1\2/p')"
+  [ -n "$atteso" ] || return 0
+  case "$atteso" in *.*.*) ;; *) atteso="$atteso.0" ;; esac
+  trovato="$(resolved_godotsharp)"
+  [ -z "$trovato" ] || [ "$trovato" = "$atteso" ] && return 0
+  printf '\033[1;33mAttenzione: il client è compilato contro GodotSharp %s, ma Godot è %s.\033[0m\n' "$trovato" "$atteso"
+  echo "Rifaccio il restore da zero (cancello godot/.godot/mono/temp/obj) e ricompilo."
+  rm -rf godot/.godot/mono/temp/obj
+  dotnet restore tIndustry.sln --force -nologo -v q
+  dotnet build tIndustry.sln -nologo -v q "-clp:ErrorsOnly;NoSummary" || fail "Compilazione fallita."
+  trovato="$(resolved_godotsharp)"
+  if [ -n "$trovato" ] && [ "$trovato" != "$atteso" ]; then
+    echo "Fonti NuGet attive (dotnet nuget list source):" >&2
+    dotnet nuget list source >&2
+    fail "GodotSharp $trovato non corrisponde a Godot $atteso nemmeno dopo un nuovo restore. Svuota la cache dei pacchetti con 'dotnet nuget locals all --clear' (su Windows: .\\clean.ps1 -Nuget) e rilancia."
+  fi
+}
+check_godotsharp
+
 if [ "$RUN_TESTS" = 1 ]; then
   step "Test"
   dotnet test tests/TIndustry.Shared.Tests --no-build -nologo -v q || fail "Test falliti."
