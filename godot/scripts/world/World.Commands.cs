@@ -32,6 +32,7 @@ public partial class World
             _host.EventRaised -= OnSimEvent;
         }
 
+        _filterPanel?.Close(); // its block belonged to the old game
         _host = host;
         _host.CommandApplied += OnCommandApplied;
         _host.CommandRejected += OnCommandRejected;

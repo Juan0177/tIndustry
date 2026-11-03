@@ -132,6 +132,13 @@ public partial class World
         var scale = UiScale.Factor;
         var top = canvas * new Vector2((tile.X + 0.5f) * TileSize, tile.Y * TileSize) / scale;
         var bottom = canvas * new Vector2((tile.X + 0.5f) * TileSize, (tile.Y + 1) * TileSize) / scale;
+        var area = UiRoot.Size;
+        if (bottom.Y < 0f || top.Y > area.Y || top.X < 0f || top.X > area.X)
+        {
+            _filterPanel.Close(); // the block left the screen: the card is not pinned to an edge
+            return;
+        }
+
         _filterPanel.PlaceNear(top, bottom);
     }
 

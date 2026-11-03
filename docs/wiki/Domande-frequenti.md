@@ -47,7 +47,7 @@ Dal livello 4 della campagna lo smontaggio rimborsa il **50%**, arrotondato per 
 
 ## Perché il selezionatore manda tutto di lato?
 
-Va dritto solo l'oggetto uguale al **filtro** (l'icona al centro); tutti gli altri escono a sinistra o, se la sinistra è piena, a destra. Il filtro si cambia con `C` tenendo il mouse sopra il selezionatore. Si può filtrare Ferro grezzo, Rame grezzo, Lastra di ferro, Filo di rame o Carbone.
+Va dritto solo l'oggetto uguale al **filtro** (l'icona al centro); tutti gli altri escono **a sinistra e a destra alternando** (se un lato non accetta, l'altro). Senza filtro manda proprio tutto ai lati. Il filtro si sceglie col cursore: un **clic** sul selezionatore apre la griglia delle icone, dove si può scegliere qualsiasi oggetto, oppure **Nessuno**. Il selezionatore invertito fa il contrario. Vedi [Logistica](Logistica).
 
 ## Perché il prezzo di vendita è cambiato?
 
