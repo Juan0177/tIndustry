@@ -37,7 +37,7 @@ public partial class World
             && _hover is { } hover
             && hover.X >= 0 && hover.Y >= 0
             && hover.X < ActiveMapWidth && hover.Y < ActiveMapHeight
-            && _tool != BuildTool.Cursor)
+            && _tool != BuildTool.None)
         {
             DrawGhost(canvas, hover);
         }
@@ -74,7 +74,7 @@ public partial class World
         // and drawn very faint only while a build tool is selected (placing by cells).
         var artLod = screenTilePx >= TerrainChunks.ArtMinCellPx;
         Color? gridColor = artLod
-            ? (_tool != BuildTool.Cursor ? new Color(0f, 0f, 0f, 0.14f) : null)
+            ? (_tool != BuildTool.None ? new Color(0f, 0f, 0f, 0.14f) : null)
             : (screenTilePx >= 10f ? new Color(0.22f, 0.28f, 0.24f, 0.55f) : null);
         if (gridColor is { } grid)
         {
@@ -457,7 +457,7 @@ public partial class World
     /// a line), from the simulation's own <see cref="Factory.CanPlace"/> and the pending plans.
     /// </summary>
     private RefusalCode? GhostRefusal(GridPosition hover) =>
-        _view is null || _tool == BuildTool.Cursor ? null : PlanLine(hover)[^1].Refusal;
+        _view is null || _tool == BuildTool.None ? null : PlanLine(hover)[^1].Refusal;
 
     private bool FootprintPlanned(GridPosition origin, int size)
     {
@@ -518,7 +518,7 @@ public partial class World
         }
     }
 
-    /// <summary>The power node selected with the cursor (its range and lasers are shown; a click links or unlinks); null for none.</summary>
+    /// <summary>The power node selected with a click (no block selected) (its range and lasers are shown; a click links or unlinks); null for none.</summary>
     private long? _selectedNode;
 
     // Square of every power block by id, for the lasers' ends: rebuilt when the structures change (ids are never reused).

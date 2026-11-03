@@ -5,7 +5,7 @@ using static TIndustry.Godot.HudStyle;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// The filter of a sorter, an inverted sorter or an extractor, as Mindustry's configuration: a click of the cursor tool
+/// The filter of a sorter, an inverted sorter or an extractor, as Mindustry's configuration: a click with no block selected
 /// on the block opens a small card over it with the block's name, a grid of item icons (the chosen one marked) and a
 /// «nessuno» button. A choice raises <see cref="FilterChosen"/> (the world sends <see cref="SetBlockFilter"/>) and
 /// closes the card; the chosen item clicked again also clears the filter, as in Mindustry. Esc, a click elsewhere on

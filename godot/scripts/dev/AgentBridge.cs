@@ -63,6 +63,17 @@ public partial class AgentBridge : Node
     private (int Connection, long Id, ulong Deadline, long TickBefore, bool HeldAfter, double Seconds)? _run;
     // A multi-frame input (click, drag, key, wheel) is being played.
     private bool _busy;
+    // A `muovi {cella}` flown a few ticks per frame (MoveTicksPerFrame): no other request runs meanwhile.
+    private MoveRun? _move;
+
+    /// <summary>
+    /// Ticks a <c>muovi {cella}</c> may fly in one frame of the real game: the drone steers there over several frames
+    /// (each slice is a <c>muovi</c> of its own, journaled and replayed as such) instead of running thousands of ticks in
+    /// one frame.
+    /// </summary>
+    internal const int MoveTicksPerFrame = AgentProtocol.GameMoveTicksPerFrame;
+
+    private sealed record MoveRun(int Connection, long Id, JsonElement Cell, int Remaining, JsonNode? TickBefore, SimHost Host);
     private int _shots;
     // This run's log, read incrementally: only the bytes written since the last `log`.
     private StreamReader? _logReader;
@@ -291,7 +302,12 @@ public partial class AgentBridge : Node
             return;
         }
 
-        for (var i = 0; i < MaxRequestsPerFrame && !_busy && _pending is null && _inbox.TryDequeue(out var item); i++)
+        if (_move is not null && !StepMove())
+        {
+            return;
+        }
+
+        for (var i = 0; i < MaxRequestsPerFrame && !_busy && _pending is null && _move is null && _inbox.TryDequeue(out var item); i++)
         {
             if (item.Connection != _connection)
             {
@@ -534,6 +550,13 @@ public partial class AgentBridge : Node
     private void CallGame(int connection, AgentRequest request)
     {
         var game = Game();
+        if (request.Method == "muovi" && request.Params.ValueKind == JsonValueKind.Object
+            && request.Params.TryGetProperty("cella", out var cell) && cell.ValueKind != JsonValueKind.Null
+            && StartMove(connection, request, game, cell))
+        {
+            return;
+        }
+
         if (request.Method == "eventi")
         {
             _realInputNoted = false;
@@ -563,6 +586,89 @@ public partial class AgentBridge : Node
         }
 
         Send(connection, response);
+    }
+
+    /// <summary>
+    /// <c>muovi {cella, maxTick?}</c> on the real game: flown in slices of at most <see cref="MoveTicksPerFrame"/> ticks,
+    /// one per frame (<see cref="StepMove"/>), answered with the first slice's <c>tickPrima</c> and the last one's result.
+    /// False (the request goes to <see cref="AgentGame"/> whole) when it is short enough for one frame or its parameters
+    /// are not a plain <c>cella</c> move, which <see cref="AgentGame"/> answers itself.
+    /// </summary>
+    private bool StartMove(int connection, AgentRequest request, AgentGame game, JsonElement cell)
+    {
+        var p = request.Params;
+        bool Has(string name) => p.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null;
+        var limit = AgentGame.DefaultMoveTicks;
+        if (p.TryGetProperty("maxTick", out var max) && max.ValueKind != JsonValueKind.Null)
+        {
+            if (max.ValueKind != JsonValueKind.Number || !max.TryGetInt32(out limit) || limit < 1 || limit > AgentGame.MaxAdvanceTicks)
+            {
+                return false;
+            }
+        }
+
+        if (limit <= MoveTicksPerFrame || Has("dx") || Has("dy"))
+        {
+            return false;
+        }
+
+        _move = new MoveRun(connection, request.Id, cell.Clone(), limit, null, game.Host);
+        StepMove();
+        return true;
+    }
+
+    /// <summary>
+    /// One slice of the running <c>muovi {cella}</c>; true once it has been answered (arrived, out of ticks, refused or
+    /// the game changed), false while it goes on next frame.
+    /// </summary>
+    private bool StepMove()
+    {
+        if (_move is not { } move)
+        {
+            return true;
+        }
+
+        if (move.Connection != _connection)
+        {
+            _move = null; // that client has gone: the drone stops where the last slice left it
+            return true;
+        }
+
+        if (_world.AgentHost != move.Host || _game is null)
+        {
+            _move = null;
+            Send(move.Connection, AgentResponse.Failure(move.Id, new AgentException(
+                AgentCodes.PartitaCambiata, "La partita è cambiata durante 'muovi': il drone si è fermato dov'era.")));
+            return true;
+        }
+
+        var slice = Math.Min(move.Remaining, MoveTicksPerFrame);
+        var parameters = JsonSerializer.SerializeToElement(new JsonObject
+        {
+            ["cella"] = JsonNode.Parse(move.Cell.GetRawText()), ["maxTick"] = slice
+        });
+        var response = _game.Handle(new AgentRequest(move.Id, "muovi", parameters));
+        if (!response.Ok || response.Result is not { } result)
+        {
+            _move = null;
+            Send(move.Connection, response);
+            return true;
+        }
+
+        var node = JsonNode.Parse(result.GetRawText())!.AsObject();
+        var tickBefore = move.TickBefore ?? node["tickPrima"]?.DeepClone();
+        var remaining = move.Remaining - slice;
+        var arrived = node["arrivato"]?.GetValue<bool>() == true;
+        if (arrived || remaining <= 0)
+        {
+            _move = null;
+            node["tickPrima"] = tickBefore;
+            Send(move.Connection, AgentResponse.Success(move.Id, JsonSerializer.SerializeToElement(node)));
+            return true;
+        }
+
+        _move = move with { Remaining = remaining, TickBefore = tickBefore };
+        return false;
     }
 
     /// <summary>
@@ -871,13 +977,17 @@ public partial class AgentBridge : Node
         return result;
     }
 
-    /// <summary><c>telecamera {cella?, zoom?}</c>: moves the camera there, answers where it is.</summary>
+    /// <summary>
+    /// <c>telecamera {cella?, zoom?}</c>: moves the camera there (a free look: it stops following the drone until the drone
+    /// moves again), answers where it is.
+    /// </summary>
     private JsonObject Camera(JsonElement p)
     {
         var cam = _world.GetNodeOrNull<WorldCamera>("Camera")
             ?? throw new AgentException(AgentCodes.MotoreNonDisponibile, "Nessuna telecamera.");
         if (p.TryGetProperty("cella", out _))
         {
+            cam.FreeLook = true;
             cam.Position = World.CellCenter(Cell(p, "cella"));
         }
 

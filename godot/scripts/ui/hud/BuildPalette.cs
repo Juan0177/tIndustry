@@ -7,8 +7,8 @@ using ToolKind = TIndustry.Godot.Hud.ToolKind;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Bottom-right build palette: category rail + sprite grid. Owns the tool selection,
-/// the locked tools, the shown category and the hovered cell.
+/// Bottom-right build palette: category rail + sprite grid (blocks only, no tools: with no block selected the click
+/// selects in the world). Owns the block selection, the locked blocks, the shown category and the hovered cell.
 /// </summary>
 public partial class BuildPalette : PanelContainer
 {
@@ -16,11 +16,6 @@ public partial class BuildPalette : PanelContainer
         ToolKind Tool,
         string StructureId,
         string Hotkey);
-
-    private static readonly PaletteEntry[] ToolsEntries =
-    [
-        new(ToolKind.Cursor, "", "Esc")
-    ];
 
     private static readonly PaletteEntry[] LogisticsEntries =
     [
@@ -73,17 +68,17 @@ public partial class BuildPalette : PanelContainer
     private const int GridColumnCount = 4;
 
     private static readonly int GridRowCount =
-        new[] { ToolsEntries, LogisticsEntries, ProductionEntries, PowerEntries, StorageEntries }
+        new[] { LogisticsEntries, ProductionEntries, PowerEntries, StorageEntries }
             .Max(e => (e.Length + GridColumnCount - 1) / GridColumnCount);
 
     /// <summary>Side of a palette cell and of a category button, in UI units at 100%: the 32 px icon plus border.</summary>
     private const float CellSide = 40f;
     private Label? _categoryTitle;
-    private ToolKind _selected = ToolKind.Cursor;
+    private ToolKind _selected = ToolKind.None;
     private BuildCategory _category = BuildCategory.Logistics;
     private ToolKind? _hovered;
 
-    /// <summary>Selection changed from a palette click (cursor when deselecting).</summary>
+    /// <summary>Selection changed from a palette click (<see cref="ToolKind.None"/> when deselecting).</summary>
     public event Action<ToolKind>? ToolChosen;
 
     /// <summary>Pointer entered a cell (tool) or left the hovered cell (null).</summary>
@@ -127,7 +122,6 @@ public partial class BuildPalette : PanelContainer
         var catRail = new VBoxContainer();
         _categoryRail = catRail;
         top.AddChild(catRail);
-        AddCategoryButton(catRail, BuildCategory.Tools, "cat-strumenti");
         AddCategoryButton(catRail, BuildCategory.Logistics, "cat-logistica");
         AddCategoryButton(catRail, BuildCategory.Production, "cat-produzione");
         AddCategoryButton(catRail, BuildCategory.Power, "cat-potenza");
@@ -135,12 +129,12 @@ public partial class BuildPalette : PanelContainer
         SyncCategoryButtons();
     }
 
-    /// <summary>Select a tool (no event); switches to its category unless it is the cursor.</summary>
+    /// <summary>Select a block (no event); switches to its category (none for <see cref="ToolKind.None"/>).</summary>
     public void Select(ToolKind tool)
     {
         _selected = tool;
         var cat = CategoryFor(tool);
-        if (cat != _category && tool != ToolKind.Cursor)
+        if (cat != _category && tool != ToolKind.None)
         {
             ShowCategory(cat);
         }
@@ -157,7 +151,7 @@ public partial class BuildPalette : PanelContainer
         var changed = false;
         foreach (var (tool, locked) in states)
         {
-            if (tool == ToolKind.Cursor)
+            if (tool == ToolKind.None)
             {
                 continue;
             }
@@ -175,7 +169,7 @@ public partial class BuildPalette : PanelContainer
     }
 
     /// <summary>
-    /// A category button shows only while one of its blocks is unlocked (Strumenti always: the cursor). When the shown
+    /// A category button shows only while one of its blocks is unlocked (Logistica always: the belt). When the shown
     /// category loses its button (a new or loaded game with fewer unlocks), the palette switches to the first category
     /// still shown, so the grid never stays on a category that cannot be reached.
     /// </summary>
@@ -189,7 +183,7 @@ public partial class BuildPalette : PanelContainer
         if (!HasUnlocked(_category))
         {
             _category = new[] { BuildCategory.Logistics, BuildCategory.Production, BuildCategory.Power, BuildCategory.Storage }
-                .FirstOrDefault(HasUnlocked, BuildCategory.Tools);
+                .FirstOrDefault(HasUnlocked, BuildCategory.Logistics);
             if (_categoryTitle is not null)
             {
                 _categoryTitle.Text = CategoryLabel(_category);
@@ -216,9 +210,9 @@ public partial class BuildPalette : PanelContainer
         RefreshToolChrome();
     }
 
-    /// <summary>Block name by structure id (the cursor has its own).</summary>
+    /// <summary>Block name by structure id.</summary>
     internal static string DisplayName(PaletteEntry entry, FactoryContent? content) =>
-        entry.Tool == ToolKind.Cursor ? Testi.T("strumento.cursore") : Testi.Struttura(entry.StructureId, content);
+        Testi.Struttura(entry.StructureId, content);
 
     /// <summary>
     /// One-line description of the block (key <c>struttura.&lt;id&gt;.suggerimento</c>); a miner's has the ores it digs,
@@ -226,7 +220,6 @@ public partial class BuildPalette : PanelContainer
     /// </summary>
     internal static string Hint(PaletteEntry entry, FactoryContent? content) => entry.Tool switch
     {
-        ToolKind.Cursor => Testi.T("strumento.cursore.suggerimento"),
         ToolKind.Miner or ToolKind.MinerAdvanced =>
             Testi.F($"struttura.{entry.StructureId}.suggerimento", Testi.Scava(content, entry.StructureId)),
         _ => Testi.T($"struttura.{entry.StructureId}.suggerimento")
@@ -236,7 +229,7 @@ public partial class BuildPalette : PanelContainer
     {
         foreach (var cat in new[]
                  {
-                     BuildCategory.Tools, BuildCategory.Logistics,
+                     BuildCategory.Logistics,
                      BuildCategory.Production, BuildCategory.Power, BuildCategory.Storage
                  })
         {
@@ -313,7 +306,7 @@ public partial class BuildPalette : PanelContainer
             child.QueueFree();
         }
 
-        // Every old cell is freed, the cursor one too (Strumenti): a kept ref would be a disposed object.
+        // Every old cell is freed: a kept ref would be a disposed object.
         _toolSlots.Clear();
 
         var shown = 0;
@@ -435,7 +428,7 @@ public partial class BuildPalette : PanelContainer
             Name = $"Blocco{entry.Tool}",
             CustomMinimumSize = new Vector2(side + 8, side + 8),
             MouseFilter = MouseFilterEnum.Stop,
-            TooltipText = string.IsNullOrEmpty(entry.Hotkey) || entry.Tool == ToolKind.Cursor
+            TooltipText = string.IsNullOrEmpty(entry.Hotkey)
                 ? DisplayName(entry)
                 : $"{DisplayName(entry)} [{entry.Hotkey}]",
             ThemeTypeVariation = UiTheme.Slot
@@ -446,16 +439,7 @@ public partial class BuildPalette : PanelContainer
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         slot.AddChild(center);
 
-        if (entry.Tool == ToolKind.Cursor)
-        {
-            var glyph = MakeLabel("↖", UiTheme.TitoloChiaro);
-            glyph.HorizontalAlignment = HorizontalAlignment.Center;
-            center.AddChild(glyph);
-        }
-        else
-        {
-            center.AddChild(BlockIcon(entry.StructureId, side));
-        }
+        center.AddChild(BlockIcon(entry.StructureId, side));
 
         slot.MouseEntered += () =>
         {
@@ -485,12 +469,6 @@ public partial class BuildPalette : PanelContainer
 
     private void OnPaletteClicked(PaletteEntry entry)
     {
-        if (entry.Tool == ToolKind.Cursor)
-        {
-            Choose(ToolKind.Cursor, Testi.T("strumento.cursore"));
-            return;
-        }
-
         if (_lockedTools.Contains(entry.Tool))
         {
             ToastRequested?.Invoke(Testi.F("rifiuto.Locked", DisplayName(entry)));
@@ -499,7 +477,8 @@ public partial class BuildPalette : PanelContainer
 
         if (_selected == entry.Tool)
         {
-            Choose(ToolKind.Cursor, Testi.T("strumento.cursore"));
+            // The selected block clicked again: no block selected.
+            Choose(ToolKind.None, Testi.T("palette.deselezionato"));
             return;
         }
 
@@ -515,7 +494,6 @@ public partial class BuildPalette : PanelContainer
 
     private static PaletteEntry[] EntriesFor(BuildCategory category) => category switch
     {
-        BuildCategory.Tools => ToolsEntries,
         BuildCategory.Logistics => LogisticsEntries,
         BuildCategory.Production => ProductionEntries,
         BuildCategory.Power => PowerEntries,
@@ -525,7 +503,6 @@ public partial class BuildPalette : PanelContainer
 
     private static string CategoryLabel(BuildCategory category) => category switch
     {
-        BuildCategory.Tools => Testi.T("categoria.strumenti"),
         BuildCategory.Logistics => Testi.T("categoria.logistica"),
         BuildCategory.Production => Testi.T("categoria.produzione"),
         BuildCategory.Power => Testi.T("categoria.potenza"),
@@ -535,7 +512,6 @@ public partial class BuildPalette : PanelContainer
 
     private static BuildCategory CategoryFor(ToolKind tool) => tool switch
     {
-        ToolKind.Cursor => BuildCategory.Tools,
         ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.Junction or ToolKind.Router
             or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.Bridge
             => BuildCategory.Logistics,

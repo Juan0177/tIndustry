@@ -6,7 +6,7 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Mindustry-style factory HUD: corner sprite palette + block info + Core stock.
-/// Italian strings; cursor-default; R rotate / RMB remove stay off the palette.
+/// Texts from testi.csv; no block selected by default (no tools); R rotate / RMB remove stay off the palette.
 /// Composes <see cref="CorePanel"/> (top-left), <see cref="BlockInfoPanel"/> and
 /// <see cref="BuildPalette"/> (bottom-right stack) and the toast; World talks only to this class.
 /// </summary>
@@ -14,7 +14,7 @@ public partial class Hud : Control
 {
     public enum ToolKind
     {
-        Cursor,
+        None,
         Belt,
         BeltFast,
         BeltExpress,
@@ -42,7 +42,6 @@ public partial class Hud : Control
 
     internal enum BuildCategory
     {
-        Tools,
         Logistics,
         Production,
         Power,
@@ -86,7 +85,7 @@ public partial class Hud : Control
     public event Action<Rect2>? BuildQueueFocusRequested;
 
     public ToolKind SelectedTool => _palette.Selected;
-    public bool IsCursorMode => _palette.Selected == ToolKind.Cursor;
+    public bool NoBlockSelected => _palette.Selected == ToolKind.None;
 
     public Hud()
     {
@@ -134,7 +133,7 @@ public partial class Hud : Control
         BuildSiteTooltip();
         BuildPowerTooltip();
         BuildSelectionInfo();
-        SetSelectedTool(ToolKind.Cursor);
+        SetSelectedTool(ToolKind.None);
         SetDirectionLabel(Direction.East);
         ClearObjectives();
         _palette.ShowCategory(BuildCategory.Logistics);
@@ -157,7 +156,7 @@ public partial class Hud : Control
 
     public void SetToolLocked(ToolKind tool, bool locked)
     {
-        if (tool != ToolKind.Cursor)
+        if (tool != ToolKind.None)
         {
             SetToolsLocked([(tool, locked)]);
         }
@@ -173,11 +172,11 @@ public partial class Hud : Control
 
     public void ClearToolSelection(bool toast = false)
     {
-        SetSelectedTool(ToolKind.Cursor);
-        ToolChosen?.Invoke(ToolKind.Cursor);
+        SetSelectedTool(ToolKind.None);
+        ToolChosen?.Invoke(ToolKind.None);
         if (toast)
         {
-            ShowToast(Testi.T("strumento.cursore"));
+            ShowToast(Testi.T("palette.deselezionato"));
         }
     }
 
@@ -431,15 +430,11 @@ public partial class Hud : Control
         _ => "conveyor-basic"
     };
 
-    /// <summary>Info strip shows the hovered cell, else the selected tool; empty in cursor mode.</summary>
+    /// <summary>Info strip shows the hovered cell, else the selected block; empty with no block selected.</summary>
     private void RefreshBlockInfo()
     {
         var selected = _palette.Selected;
-        var focus = _palette.HoveredTool ?? (selected == ToolKind.Cursor ? null : selected);
-        if (focus is null || focus == ToolKind.Cursor)
-        {
-            focus = selected != ToolKind.Cursor ? selected : null;
-        }
+        var focus = _palette.HoveredTool ?? (selected == ToolKind.None ? null : selected);
 
         _info.Show(focus, focus is { } f && _palette.IsLocked(f));
     }
@@ -448,7 +443,7 @@ public partial class Hud : Control
     private ToolKind? DetailFocus()
     {
         var selected = _palette.Selected;
-        return _palette.HoveredTool ?? (selected == ToolKind.Cursor ? null : selected);
+        return _palette.HoveredTool ?? (selected == ToolKind.None ? null : selected);
     }
 
     private void BuildCornerDock()

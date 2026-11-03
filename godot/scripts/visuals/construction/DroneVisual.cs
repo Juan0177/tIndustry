@@ -352,6 +352,9 @@ public partial class DroneVisual : Node2D
 
     private Vector2 InterpolatedPosition() => _from.Lerp(_to, Alpha());
 
+    /// <summary>Where the drone flies now (between ticks), without the idle hover: what the camera follows.</summary>
+    public Vector2 FlightPosition => InterpolatedPosition();
+
     private float InterpolatedRotation() => Mathf.LerpAngle(_fromRot, _toRot, Alpha());
 
     private Vector2 Heading() => Vector2.FromAngle(InterpolatedRotation());

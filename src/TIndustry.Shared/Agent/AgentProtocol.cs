@@ -66,6 +66,15 @@ public static class AgentProtocol
     /// <summary>Longest <c>esegui</c> of the real game, in real seconds.</summary>
     public const double MaxRunSeconds = 120;
 
+    /// <summary>
+    /// Ticks the real game flies of a <c>muovi {cella}</c> per frame: the bridge spreads a longer move over several frames
+    /// (one journaled <c>muovi</c> per slice), so no frame runs thousands of ticks.
+    /// </summary>
+    public const int GameMoveTicksPerFrame = 60;
+
+    /// <summary>Slowest frame rate the launcher allows for a spread <c>muovi {cella}</c> when it sets its wait.</summary>
+    public const int GameMoveMinFramesPerSecond = 20;
+
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

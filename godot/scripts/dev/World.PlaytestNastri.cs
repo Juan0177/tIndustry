@@ -350,7 +350,7 @@ public partial class World
             SyncResearchLocks();
             (_tool, _placeDir) = (tool, dir);
             _hud?.SetDirectionLabel(_placeDir);
-            ClearToCursor(toast: false);
+            DeselectBlock(toast: false);
             FocusCameraOnCore();
             await PlaytestWait(0.1);
         }
@@ -362,7 +362,7 @@ public partial class World
 
         // nastri-verso-nord: brush East, a drag North lays belts facing North.
         (_tool, _placeDir) = (BuildTool.Belt, Direction.East);
-        // A frame for _Process to see the tool: until then the camera pans on a left press (WorldCamera.LeftDragPans).
+        // A frame for _Process to see the block selected before the first press.
         await PlaytestWait(0.1);
         await LineDrag((1, 6), (1, 2));
         if (Enumerable.Range(2, 5).Where(y => !LineBeltAt(1, y, Direction.North)).ToList() is [var wrongNorth, ..])
@@ -455,7 +455,7 @@ public partial class World
         ];
         foreach (var (name, during, release, after) in interruptions)
         {
-            _tool = BuildTool.Belt; // a panel puts the cursor back in hand
+            _tool = BuildTool.Belt; // a panel deselects the block
             await PlaytestWait(0.1);
             _lineSent.Clear();
             await PlaytestPress(LineScreen(1, 4));
@@ -600,9 +600,9 @@ public partial class World
     }
 
     /// <summary>
-    /// <c>nastri-prendi</c>: a middle click on a fast belt facing North takes it in hand (tool, brush), a locked one only
-    /// toasts, a middle drag pans and keeps the tool. <c>rotellina-ruota</c>: the wheel turns every orientable tool like R
-    /// (up clockwise, down back) without zooming, also during a drag; with Ctrl, the cursor or a block without a way it zooms.
+    /// <c>nastri-prendi</c>: Q over a fast belt facing North selects it (block, brush), a locked one only toasts, a middle
+    /// drag pans and keeps the block. <c>rotellina-ruota</c>: the wheel turns every orientable block like R (up clockwise,
+    /// down back) without zooming, also during a drag; with Ctrl, no block selected or a block without a way it zooms.
     /// </summary>
     private async Task<bool> PlaytestPickAndWheelAsync(Func<string, Task> shot, Factory factory)
     {
@@ -639,7 +639,7 @@ public partial class World
             }
 
             _visualDirty = true;
-            _tool = BuildTool.Belt; // a panel puts the cursor back in hand
+            _tool = BuildTool.Belt; // a panel deselects the block
             await PlaytestWait(0.1);
             await PlaytestPress(LineScreen(1, 4), MouseButton.Right);
             await PlaytestMoveHeld(LineScreen(1, 4), LineScreen(6, 4), mask: MouseButtonMask.Right);
@@ -674,8 +674,8 @@ public partial class World
         SyncResearchLocks(); // the palette learns the probe's unlocks (ForceUnlock tells no one)
         (_tool, _placeDir) = (BuildTool.Belt, Direction.East);
         await PlaytestWait(0.1);
-        await PlaytestPress(LineScreen(2, 2), MouseButton.Middle);
-        await PlaytestRelease(LineScreen(2, 2), MouseButton.Middle);
+        PlaytestMove(LineScreen(2, 2), 0);
+        await PlaytestKey(Key.Q);
         if (_tool != BuildTool.BeltFast || _placeDir != Direction.North)
         {
             return Fail($"nastri-prendi: strumento {_tool}, pennello {_placeDir} invece di Nastro T2 verso Nord");
@@ -688,8 +688,8 @@ public partial class World
         SyncResearchLocks();
         _tool = BuildTool.Belt;
         var toasts = _hud?.ToastsShown ?? 0;
-        await PlaytestPress(LineScreen(2, 2), MouseButton.Middle);
-        await PlaytestRelease(LineScreen(2, 2), MouseButton.Middle);
+        PlaytestMove(LineScreen(2, 2), 0);
+        await PlaytestKey(Key.Q);
         factory.Research.ForceUnlock("conveyor-fast");
         SyncResearchLocks();
         if (_tool != BuildTool.Belt || _hud?.ToastsShown != toasts + 1)
@@ -697,7 +697,7 @@ public partial class World
             return Fail($"nastri-prendi bloccato: strumento {_tool}, {(_hud?.ToastsShown ?? 0) - toasts} toast");
         }
 
-        // A middle drag pans the view and picks nothing.
+        // A middle drag pans the view and picks nothing (the camera follows no drone in playtests: it stays there).
         var position = cam.Position;
         await PlaytestDrag(MouseButton.Middle, LineScreen(2, 2), LineScreen(7, 6));
         if (_tool != BuildTool.Belt || cam.Position.IsEqualApprox(position))
@@ -707,7 +707,7 @@ public partial class World
 
         cam.Position = position;
         await PlaytestWait(0.1);
-        GD.Print("PLAYTEST step ok: nastri-prendi, il centrale prende il nastro (tipo e direzione), trascinato sposta la vista");
+        GD.Print("PLAYTEST step ok: nastri-prendi, Q prende il nastro (tipo e direzione), il centrale trascinato sposta la vista");
 
         var at = LineScreen(4, 4);
         var zoom = cam.Zoom;
@@ -741,7 +741,7 @@ public partial class World
             [
                 ("Minatore", BuildTool.Miner, false), ("Lampada", BuildTool.Lamp, false), ("Router", BuildTool.Router, false),
                 ("Selezionatore", BuildTool.Sorter, false), ("Invertito", BuildTool.SorterInverted, false),
-                ("Estrattore", BuildTool.Extractor, false), ("Ctrl", BuildTool.Belt, true), ("cursore", BuildTool.Cursor, false)
+                ("Estrattore", BuildTool.Extractor, false), ("Ctrl", BuildTool.Belt, true), ("nessun blocco", BuildTool.None, false)
             ];
         foreach (var (name, tool, ctrl) in zooms)
         {
@@ -771,7 +771,7 @@ public partial class World
             return Fail($"rotellina-ruota nel trascinamento: nastri non tutti verso Sud ({_lineSent.Count} comandi), zoom {cam.Zoom.X}");
         }
 
-        GD.Print("PLAYTEST step ok: rotellina-ruota, gira ogni blocco orientabile; Ctrl, cursore, minatore, lampada, router, selezionatori ed estrattore zoomano");
+        GD.Print("PLAYTEST step ok: rotellina-ruota, gira ogni blocco orientabile; Ctrl, nessun blocco, minatore, lampada, router, selezionatori ed estrattore zoomano");
         return true;
     }
 

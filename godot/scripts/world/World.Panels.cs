@@ -38,7 +38,7 @@ public partial class World
             AutoSaveContinue(quiet: true);
             _home?.Open(inGame: true);
         };
-        _hud.SetSelectedTool(Hud.ToolKind.Cursor);
+        _hud.SetSelectedTool(Hud.ToolKind.None);
         _hud.SetDirectionLabel(_placeDir);
     }
 
@@ -92,7 +92,7 @@ public partial class World
         return true;
     }
 
-    /// <summary>A click of the cursor on a block with a filter: its card opens (the same block again closes it).</summary>
+    /// <summary>A click with no block selected on a block with a filter: its card opens (the same block again closes it).</summary>
     private void ToggleFilterPanel(GridPosition cell, string structureId, string? filter)
     {
         if (_filterPanel is null || _view is null)
@@ -121,7 +121,7 @@ public partial class World
             return;
         }
 
-        if (!HudVisible || PanelOpen || _tool != BuildTool.Cursor || !TryGetFilterBlock(tile, out _, out _))
+        if (!HudVisible || PanelOpen || _tool != BuildTool.None || !TryGetFilterBlock(tile, out _, out _))
         {
             _filterPanel.Close();
             return;
@@ -356,7 +356,8 @@ public partial class World
         }
         else if (what == NotificationApplicationFocusOut)
         {
-            CancelDrags(); // the release would never arrive: the drags send nothing
+            CancelDrags(); // the release would never arrive: the drags send nothing, hand mining stops
+            ReleaseDroneKeys(); // and the drone stops: no key stays held
         }
     }
 
@@ -612,6 +613,7 @@ public partial class World
         _home?.Close();
         _settingsPanel?.Close();
         _tutorialCamAnchor = null;
+        _tutorialDroneAnchor = null;
         _tutorial?.Open(_settings);
     }
 
@@ -635,8 +637,8 @@ public partial class World
 
         var done = _tutorial.CurrentStep switch
         {
-            TutorialPanel.Step.Camera => CameraMovedSinceTutorialStart(),
-            TutorialPanel.Step.Palette => _tool != BuildTool.Cursor,
+            TutorialPanel.Step.Camera => CameraMovedSinceTutorialStart() || DroneMovedSinceTutorialStart(),
+            TutorialPanel.Step.Palette => _tool != BuildTool.None,
             TutorialPanel.Step.Miner => _view.Miners.Count > 0,
             TutorialPanel.Step.BeltToCore => _view.CoreDeliveredItems > 0,
             TutorialPanel.Step.Mercato => _mercato?.IsOpen == true,
@@ -648,6 +650,21 @@ public partial class World
         {
             _tutorial.CompleteStep(_tutorial.CurrentStep);
         }
+    }
+
+    private Vector2? _tutorialDroneAnchor;
+
+    /// <summary>The first step is done once the drone has flown more than two cells (WASD).</summary>
+    private bool DroneMovedSinceTutorialStart()
+    {
+        if (LocalDrone is not { } drone)
+        {
+            return false;
+        }
+
+        var now = new Vector2(drone.X, drone.Y);
+        _tutorialDroneAnchor ??= now;
+        return _tutorialDroneAnchor.Value.DistanceTo(now) > 2f;
     }
 
     private bool CameraMovedSinceTutorialStart()

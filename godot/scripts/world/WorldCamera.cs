@@ -2,23 +2,45 @@ using Godot;
 
 namespace TIndustry.Godot;
 
-/// <summary>WASD / middle-drag (or left-drag in cursor mode, whose click selects) pan + wheel zoom (with Ctrl, or no block in hand to turn); middle click picks a block; clamps to map AABB (Raylib ClampToMap).</summary>
+/// <summary>
+/// The world camera (Mindustry): it follows the player's drone softly (<see cref="FollowTarget"/>); the middle button held
+/// drags the view away and on release it goes back to the drone; the wheel zooms (without Ctrl it may turn the block in
+/// hand instead, <see cref="WheelZooms"/>); clamps to the map AABB (Raylib ClampToMap). WASD moves the drone, not the
+/// camera (World).
+/// </summary>
 public partial class WorldCamera : Camera2D
 {
-    [Export] public float PanSpeed { get; set; } = 420f;
     [Export] public float MinZoom { get; set; } = 0.08f;
     [Export] public float MaxZoom { get; set; } = 2.5f;
     [Export] public float ZoomStep { get; set; } = 0.1f;
+
+    /// <summary>
+    /// How fast the view catches up with the drone: the gap shrinks by <c>1 − e^(−rate·dt)</c> each frame (about 95% in
+    /// a third of a second), so the follow is soft at any frame rate.
+    /// </summary>
+    [Export] public float FollowRate { get; set; } = 9f;
 
     /// <summary>World size in pixels (map tiles × tile size). Zero = no clamp.</summary>
     public float MapPixelWidth { get; set; }
     public float MapPixelHeight { get; set; }
 
-    /// <summary>Set by the world while the cursor tool is active: left-drag pans like middle-drag.</summary>
-    public bool LeftDragPans { get; set; }
-
     /// <summary>False while the Home is open: no pan, no zoom from the player.</summary>
     public bool InputEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Where the view follows (the drone's centre, world pixels), set by the world every frame; null = the camera stays
+    /// where it is (Home, playtests that frame their own captures).
+    /// </summary>
+    public Vector2? FollowTarget { get; set; }
+
+    /// <summary>
+    /// The view was sent somewhere on purpose (the build queue's focus, the agents' <c>telecamera</c>): it stays there
+    /// instead of following, until the drone moves or the middle button drags the view again.
+    /// </summary>
+    public bool FreeLook { get; set; }
+
+    /// <summary>True while the middle button drags the view (no follow until it goes up).</summary>
+    public bool Dragging => _dragging;
 
     /// <summary>
     /// Home background: screen px per second the camera drifts on its own, bouncing off the map edges (0 = still).
@@ -33,21 +55,8 @@ public partial class WorldCamera : Camera2D
     /// </summary>
     public Func<bool> WheelZooms { get; set; } = () => true;
 
-    /// <summary>The middle button went up less than <see cref="ClickSlop"/> px from where it went down (screen position).</summary>
-    public event Action<Vector2>? MiddleClicked;
-
-    /// <summary>
-    /// The left button, pressed while it pans (<see cref="LeftDragPans"/>), went up less than <see cref="ClickSlop"/> px
-    /// from where it went down (screen position): a click of the cursor tool, not a pan.
-    /// </summary>
-    public event Action<Vector2>? LeftClicked;
-
-    private const float ClickSlop = 4f;
-
     private bool _dragging;
     private Vector2 _dragLast;
-    private Vector2? _middleDown;
-    private Vector2? _leftDown;
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -59,32 +68,12 @@ public partial class WorldCamera : Camera2D
 
         if (@event is InputEventMouseButton mouseButton)
         {
-            var leftPan = mouseButton.ButtonIndex == MouseButton.Left
-                && (mouseButton.Pressed ? LeftDragPans : _dragging);
-            if (mouseButton.ButtonIndex == MouseButton.Middle || leftPan)
+            if (mouseButton.ButtonIndex == MouseButton.Middle)
             {
+                // Held: the view leaves the drone; released: it goes back (soft follow), whatever sent it away before.
                 _dragging = mouseButton.Pressed;
                 _dragLast = mouseButton.Position;
-                if (mouseButton.ButtonIndex == MouseButton.Middle)
-                {
-                    // A middle click picks the block under the cursor; a middle drag only pans.
-                    if (!mouseButton.Pressed && _middleDown is { } down && down.DistanceTo(mouseButton.Position) < ClickSlop)
-                    {
-                        MiddleClicked?.Invoke(mouseButton.Position);
-                    }
-
-                    _middleDown = mouseButton.Pressed ? mouseButton.Position : null;
-                }
-                else
-                {
-                    if (!mouseButton.Pressed && _leftDown is { } down && down.DistanceTo(mouseButton.Position) < ClickSlop)
-                    {
-                        LeftClicked?.Invoke(mouseButton.Position);
-                    }
-
-                    _leftDown = mouseButton.Pressed ? mouseButton.Position : null;
-                }
-
+                FreeLook = false;
                 GetViewport().SetInputAsHandled();
             }
             else if (mouseButton.ButtonIndex is (MouseButton.WheelUp or MouseButton.WheelDown)
@@ -114,6 +103,15 @@ public partial class WorldCamera : Camera2D
         }
     }
 
+    /// <summary>The window lost the focus: the middle button's release will not arrive, the view goes back to the drone.</summary>
+    public override void _Notification(int what)
+    {
+        if (what == NotificationApplicationFocusOut)
+        {
+            _dragging = false;
+        }
+    }
+
     public override void _Process(double delta)
     {
         if (DriftSpeed > 0f)
@@ -121,21 +119,30 @@ public partial class WorldCamera : Camera2D
             Drift((float)delta);
         }
 
-        if (!InputEnabled)
+        if (FollowTarget is { } target && !_dragging && !FreeLook && DriftSpeed <= 0f)
         {
-            return;
+            Follow(target, (float)delta);
+        }
+    }
+
+    /// <summary>Snaps the view onto the drone at once (H, a new game), dropping a free look.</summary>
+    public void CentreOn(Vector2 target)
+    {
+        FreeLook = false;
+        Position = target;
+        ClampToMap();
+    }
+
+    private void Follow(Vector2 target, float delta)
+    {
+        var t = 1f - MathF.Exp(-FollowRate * delta);
+        Position = Position.Lerp(target, t);
+        if (Position.DistanceSquaredTo(target) < 0.01f)
+        {
+            Position = target;
         }
 
-        var dir = Vector2.Zero;
-        if (Input.IsActionPressed("pan_up")) dir.Y -= 1;
-        if (Input.IsActionPressed("pan_down")) dir.Y += 1;
-        if (Input.IsActionPressed("pan_left")) dir.X -= 1;
-        if (Input.IsActionPressed("pan_right")) dir.X += 1;
-        if (dir != Vector2.Zero)
-        {
-            Position += dir.Normalized() * PanSpeed * (float)delta / Zoom.X;
-            ClampToMap();
-        }
+        ClampToMap();
     }
 
     /// <summary>Moves along the drift direction; an axis stopped by the map edge turns back.</summary>

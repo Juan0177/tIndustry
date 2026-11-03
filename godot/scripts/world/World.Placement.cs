@@ -80,7 +80,7 @@ public partial class World
     /// </summary>
     private void SendLine(GridPosition cursor)
     {
-        if (_view is null || _lineAnchor is null || _tool == BuildTool.Cursor)
+        if (_view is null || _lineAnchor is null || _tool == BuildTool.None)
         {
             CancelLine();
             return;
@@ -147,16 +147,18 @@ public partial class World
         QueueRedraw();
     }
 
-    /// <summary>Drops both drags, left line and removal rectangle: nothing is sent.</summary>
+    /// <summary>Drops both drags, left line and removal rectangle (nothing is sent), and stops hand mining.</summary>
     private void CancelDrags()
     {
         CancelLine();
         CancelRemoveDrag();
+        StopHandMining();
     }
 
     /// <summary>
-    /// Middle click: the block standing (or the site) on <paramref name="cell"/> becomes the tool in hand, with its
-    /// direction (a filter is chosen on the block afterwards, with a click of the cursor). A locked block toasts and keeps the tool; an empty cell does nothing.
+    /// Q: the block standing (or the site) on <paramref name="cell"/> becomes the selected block, with its direction (a
+    /// filter is chosen on the block afterwards, with a click and no block selected). A locked block toasts and keeps the
+    /// selection; an empty cell does nothing.
     /// </summary>
     private void PickAt(GridPosition cell)
     {
@@ -176,8 +178,8 @@ public partial class World
         }
 
         var tool = Enum.GetValues<BuildTool>()
-            .FirstOrDefault(t => t != BuildTool.Cursor && Hud.StructureIdFor(ToHudTool(t)) == spec.StructureId);
-        if (tool == BuildTool.Cursor)
+            .FirstOrDefault(t => t != BuildTool.None && Hud.StructureIdFor(ToHudTool(t)) == spec.StructureId);
+        if (tool == BuildTool.None)
         {
             return;
         }

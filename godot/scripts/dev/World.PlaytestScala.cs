@@ -248,8 +248,8 @@ public partial class World
             return Fail($"scala UI {percent}%: cursore su {cell} ({at}), cella sotto il mouse {_hover?.ToString() ?? "nessuna"}, controllo {GetViewport().GuiGetHoveredControl()?.GetPath().ToString() ?? "nessuno"}");
         }
 
-        // The simulation is held and stepped one tick per frame from the click on: the drone has flown the same
-        // number of ticks in every run, so the capture repeats (the drone and its beam are in it).
+        // The simulation is held and stepped one tick per frame from the click on: the drone (within range, it does not
+        // fly) has worked the same number of ticks in every run, so the capture repeats (the drone and its beam are in it).
         var view = _view!;
         bool PlacedThere() => view.IsPlannedTile(cell) || view.Sites.Any(site => site.Tiles.Contains(cell));
         PlaytestHeld = true;

@@ -132,7 +132,7 @@ public partial class World
         _continueAutoSave.MarkPlayed();
         _activeLevel = null;
         _levelCompleteToastShown = false;
-        _tool = BuildTool.Cursor;
+        _tool = BuildTool.None;
         _visualDirty = true;
         _buildingsDirty = true;
         RebuildBeltVisual();
@@ -283,7 +283,7 @@ public partial class World
 
         _mercato?.Close();
         _campaignSelect?.Close();
-        ClearToCursor(toast: false);
+        DeselectBlock(toast: false);
         _research.Open(_view, c => SubmitCommand(c));
     }
 
@@ -302,7 +302,7 @@ public partial class World
 
         _research?.Close();
         _campaignSelect?.Close();
-        ClearToCursor(toast: false);
+        DeselectBlock(toast: false);
         _mercato.Open(_view, c => SubmitCommand(c), () => PendingCommands);
     }
 
@@ -322,7 +322,7 @@ public partial class World
         _research?.Close();
         _mercato?.Close();
         _home?.Close();
-        ClearToCursor(toast: false);
+        DeselectBlock(toast: false);
         _campaignSelect.Open(_campaign, _progress);
     }
 
@@ -364,7 +364,7 @@ public partial class World
         _continueAutoSave.MarkPlayed();
         _activeLevel = level;
         _levelCompleteToastShown = false;
-        _tool = BuildTool.Cursor;
+        _tool = BuildTool.None;
         _visualDirty = true;
         _buildingsDirty = true;
         RebuildBeltVisual();
@@ -383,7 +383,10 @@ public partial class World
         return null;
     }
 
-    /// <summary>Centres the camera on <paramref name="worldRect"/> (build queue click), keeping the zoom.</summary>
+    /// <summary>
+    /// Centres the camera on <paramref name="worldRect"/> (build queue click), keeping the zoom: a free look that lasts
+    /// until the drone moves or the middle button drags the view.
+    /// </summary>
     private void FocusCameraOn(Rect2 worldRect)
     {
         if (GetNodeOrNull<WorldCamera>("Camera") is not { } cam)
@@ -391,6 +394,7 @@ public partial class World
             return;
         }
 
+        cam.FreeLook = true;
         cam.Position = worldRect.GetCenter();
         cam.ClampToMap();
     }
@@ -416,6 +420,7 @@ public partial class World
         cam.Zoom = new Vector2(z, z);
         if (cam is WorldCamera worldCam)
         {
+            worldCam.FreeLook = false; // a new game: the view follows its drone (it starts on the Core)
             // Allow deep zoom-out on 1000² without fighting Clamp.
             worldCam.MinZoom = edge >= 256 ? 0.08f : 0.12f;
             // Playable zoom near core so deposits/icons are readable (Raylib icons need ~16px).
@@ -568,9 +573,9 @@ public partial class World
 
         _hud.SetToolsLocked(tools.Select(t => (t, Locked(t))));
 
-        if (_tool != BuildTool.Cursor && _hud.IsToolLocked(ToHudTool(_tool)))
+        if (_tool != BuildTool.None && _hud.IsToolLocked(ToHudTool(_tool)))
         {
-            ClearToCursor(toast: false);
+            DeselectBlock(toast: false);
         }
     }
 
@@ -678,6 +683,11 @@ public partial class World
         UpdateHud();
         SyncCameraMapBounds();
         FocusCameraOnCore();
+        if (!PlaytestRequested)
+        {
+            CentreCameraOnDrone(); // a loaded drone may be far from the Core: the view starts on it
+        }
+
         QueueRedraw();
     }
 

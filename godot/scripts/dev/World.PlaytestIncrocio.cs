@@ -216,6 +216,9 @@ public partial class World
         }
 
         _visualDirty = true;
+        // The patch may lie beyond the drone's range from the Core: the drone is flown there, as the player would.
+        var droneHome = LocalDrone is { } drone ? new GridPosition((int)MathF.Floor(drone.X), (int)MathF.Floor(drone.Y)) : at;
+        PlaytestFlyDrone(new GridPosition(column, at.Y));
         cam.Position = new Vector2((at.X + 3.5f) * TileSize, (at.Y + 0.5f) * TileSize);
         cam.Zoom = new Vector2(1.6f, 1.6f);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -264,7 +267,7 @@ public partial class World
         finally
         {
             (_tool, _placeDir) = (tool, dir);
-            ClearToCursor(toast: false);
+            DeselectBlock(toast: false);
         }
 
         await PlaytestWaitUntil(DroneSettled, DroneSettleTimeout);
@@ -280,6 +283,7 @@ public partial class World
         }
 
         PlaytestRestoreWallet(factory, money, materials);
+        PlaytestFlyDrone(droneHome);
 
         if (!wasUnlocked)
         {

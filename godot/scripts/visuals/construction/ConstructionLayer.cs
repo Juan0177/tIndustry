@@ -392,6 +392,10 @@ public partial class ConstructionLayer : Node2D
     /// <summary>World positions of the drones drawn (their lights at night).</summary>
     public IEnumerable<Vector2> DronePositions => _drones.Values.Select(d => d.Position);
 
+    /// <summary>Where drone <paramref name="builderId"/> is drawn flying (world pixels), null before its first sync.</summary>
+    public Vector2? DroneFlightPosition(long builderId) =>
+        _drones.TryGetValue(builderId, out var drone) ? drone.FlightPosition : null;
+
     public override void _ExitTree()
     {
         // Engine teardown frees the nodes; the C# material wrappers go now, not to the finalizer.
