@@ -113,6 +113,137 @@ public partial class World
         }
     }
 
+    /// <summary>
+    /// Task 5 probe: a plan placed beyond the drone's range is drawn out of range (<see cref="ConstructionLayer.OutOfRangePlans"/>),
+    /// and the hold in the HUD (<see cref="Hud.HoldShown"/>) follows the drone's hold: shown while it mines a deposit far
+    /// from the Core, hidden again once the drone is back and the hold has gone into the Core. Failures are PushErrors.
+    /// </summary>
+    private async Task<bool> PlaytestOutOfRangeAndHoldAsync(Func<string, Task> shot)
+    {
+        if (_view is null || _hud is null || _constructionLayer is null || LocalDrone is not { } start || _view.CoreTiles.Count == 0)
+        {
+            return Fail("fuori raggio/stiva: partita, HUD o drone assenti");
+        }
+
+        DeselectBlock(toast: false);
+        var home = new GridPosition((int)MathF.Floor(start.X), (int)MathF.Floor(start.Y));
+        var unit = _view.Content.UnitForTier(_view.CoreTier);
+
+        // A belt plan 35 cells from the drone (range 27.5): it waits, drawn out of range.
+        GridPosition? far = null;
+        foreach (var (dx, dy) in new[] { (35, 0), (-35, 0), (0, 35), (0, -35), (25, 25), (-25, -25), (25, -25), (-25, 25) })
+        {
+            var cell = new GridPosition(home.X + dx, home.Y + dy);
+            if (cell.X >= 0 && cell.Y >= 0 && cell.X < ActiveMapWidth && cell.Y < ActiveMapHeight
+                && _view.CanOccupy(cell) && !_view.IsPlannedTile(cell))
+            {
+                far = cell;
+                break;
+            }
+        }
+
+        if (far is not { } planned)
+        {
+            return Fail("fuori raggio: nessuna cella libera a 35 celle dal drone");
+        }
+
+        var outBefore = _constructionLayer.OutOfRangePlans;
+        SubmitCommand(new PlaceBelt(LocalPlayer, planned, Direction.East, BuildSpec.DefaultConveyorId));
+        if (!await PlaytestWaitUntil(() => _view!.IsPlannedTile(planned) && _constructionLayer.OutOfRangePlans > outBefore,
+                StepTimeout))
+        {
+            return Fail($"fuori raggio: piano in {planned} non disegnato fuori raggio ({_constructionLayer.OutOfRangePlans} fuori raggio)");
+        }
+
+        if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
+        {
+            cam.Position = (CellCenter(planned) + CellCenter(home)) / 2f;
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        await shot("piano-fuori-raggio");
+        TryRemoveAt(planned);
+        if (!await PlaytestWaitUntil(() => !_view!.IsPlannedTile(planned), StepTimeout))
+        {
+            return Fail($"fuori raggio: piano in {planned} non tolto");
+        }
+
+        // The hold: a free deposit the drone digs, more than 8 cells from the Core's edge (no unloading there).
+        if (PlaytestDepositAwayFromCore(unit) is not { } ore)
+        {
+            return Fail("stiva: nessun giacimento libero lontano dal CORE");
+        }
+
+        PlaytestFlyDrone(ore);
+        SubmitCommand(new SetMining(LocalPlayer, ore));
+        if (!await PlaytestWaitUntil(() => LocalDrone is { HoldCount: >= 1 }, StepTimeout))
+        {
+            return Fail($"stiva: lo scavo di {ore} non riempie la stiva ({LocalDrone?.HoldCount})");
+        }
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var drone = LocalDrone!;
+        var shown = _hud.HoldShown;
+        if (shown.ItemId != drone.HoldItemId || shown.Count != drone.HoldCount || shown.Capacity != unit.HoldCapacity)
+        {
+            return Fail($"stiva nell'HUD: {shown} invece di ({drone.HoldItemId}, {drone.HoldCount}, {unit.HoldCapacity})");
+        }
+
+        if (GetNodeOrNull<Camera2D>("Camera") is { } mineCam)
+        {
+            mineCam.Position = CellCenter(ore);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
+        await shot("drone-stiva-scavo");
+        SubmitCommand(new SetMining(LocalPlayer, null));
+        PlaytestFlyDrone(home);
+        if (!await PlaytestWaitUntil(() => LocalDrone is { HoldCount: 0 } && _hud.HoldShown.ItemId is null, StepTimeout))
+        {
+            return Fail($"stiva: non svuotata vicino al CORE (stiva {LocalDrone?.HoldCount}, HUD {_hud.HoldShown})");
+        }
+
+        FocusCameraOnCore();
+        GD.Print($"PLAYTEST step ok: piano fuori raggio disegnato come tale, stiva nell'HUD piena di {shown.Count} e vuota dopo lo scarico");
+        return true;
+    }
+
+    /// <summary>A free deposit the tier's drone mines, 9 to 20 cells from the Core's bounding box, nearest first; or null.</summary>
+    private GridPosition? PlaytestDepositAwayFromCore(UnitDefinition unit)
+    {
+        if (_view?.Terrain is not { } terrain)
+        {
+            return null;
+        }
+
+        var minX = _view.CoreTiles.Min(t => t.X);
+        var minY = _view.CoreTiles.Min(t => t.Y);
+        var maxX = _view.CoreTiles.Max(t => t.X);
+        var maxY = _view.CoreTiles.Max(t => t.Y);
+        for (var r = 9; r <= 20; r++)
+        {
+            for (var y = minY - r; y <= maxY + r; y++)
+            {
+                for (var x = minX - r; x <= maxX + r; x++)
+                {
+                    if (Math.Max(Math.Max(minX - x, x - maxX), Math.Max(minY - y, y - maxY)) != r)
+                    {
+                        continue;
+                    }
+
+                    var cell = new GridPosition(x, y);
+                    if (terrain.InBounds(cell) && terrain[cell].Deposit is var deposit and not DepositKind.None
+                        && unit.CanMine(TerrainMap.ItemIdForDeposit(deposit)) && _view.CanOccupy(cell) && !_view.IsPlannedTile(cell))
+                    {
+                        return cell;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>The free deposit cell the drone could start mining now nearest to it, or null.</summary>
     private GridPosition? PlaytestMinableCell()
     {

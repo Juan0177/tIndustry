@@ -274,8 +274,7 @@ public partial class World
                 }
                 else if (key.Keycode == Key.Escape)
                 {
-                    // Raylib parity: autosave Continua then Esc → Home (the drone let go first).
-                    ReleaseDroneInputBeforeSave();
+                    // Raylib parity: autosave Continua then Esc → Home (a held drone input is let go on load).
                     AutoSaveContinue(quiet: true);
                     _home?.Open(inGame: true);
                 }
@@ -651,15 +650,21 @@ public partial class World
     /// <summary>
     /// Every frame: the keys held (none while a panel covers the game) become the drone's input, sent with
     /// <see cref="SetDroneInput"/> only when it changes, so an input held by someone else (the agents' <c>muovi</c>) is
-    /// not overwritten every frame. A new game starts from the input its drone holds (a save's is let go at once when no
-    /// key is down).
+    /// not overwritten every frame. A game attached here (new, or loaded: Continua or any save, however it was saved: Esc,
+    /// Menu, quitting) starts from the input its drone holds, so a saved held input is let go at once with
+    /// <see cref="SetDroneInput"/>(0, 0) when no key is down: nothing is released (or ticked) at save time.
     /// </summary>
     private void SyncDroneInput()
     {
         if (_host != _droneInputHost)
         {
+            if (LocalDrone is not { } loaded)
+            {
+                return; // the new game's drone is not in view yet: seed from it once it is
+            }
+
             _droneInputHost = _host;
-            _droneInputSent = LocalDrone is { } loaded ? (loaded.InputX, loaded.InputY) : (0, 0);
+            _droneInputSent = (loaded.InputX, loaded.InputY);
         }
 
         if (LocalDrone is null)
@@ -706,30 +711,6 @@ public partial class World
         }
 
         _dronePositionSeen = seen;
-    }
-
-    /// <summary>
-    /// Esc → Home: a drone input still held (a key, an agent's <c>muovi {dx, dy}</c>) is let go before the Continua
-    /// autosave, with the one tick that applies it, so the saved game never resumes with the drone flying.
-    /// </summary>
-    private void ReleaseDroneInputBeforeSave()
-    {
-        if (_host is not { } host || LocalDrone is not { } drone || (drone.InputX, drone.InputY) == (0, 0))
-        {
-            return;
-        }
-
-        ReleaseDroneKeys();
-        _droneInputSent = (0, 0);
-        SubmitCommand(new SetDroneInput(LocalPlayer, 0, 0));
-        try
-        {
-            host.AdvanceTicks(1);
-        }
-        catch (AggregateException ex)
-        {
-            GD.PushError($"Rilascio del drone prima del salvataggio: {ex.InnerExceptions[0]}");
-        }
     }
 
     /// <summary>H: the view jumps onto the drone (and follows it again).</summary>

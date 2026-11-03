@@ -63,8 +63,22 @@ public partial class AgentBridge : Node
     private (int Connection, long Id, ulong Deadline, long TickBefore, bool HeldAfter, double Seconds)? _run;
     // A multi-frame input (click, drag, key, wheel) is being played.
     private bool _busy;
-    // A `muovi {cella}` flown a few ticks per frame (MoveTicksPerFrame): no other request runs meanwhile.
-    private MoveRun? _move;
+    // A `muovi {cella}` flown a few ticks per frame (MoveTicksPerFrame): no other request runs meanwhile, and the frame
+    // loop runs no real-time ticks between its slices (World.AgentMoveRunning), so only the slices fly the drone.
+    private MoveRun? _moveRun;
+
+    /// <summary>The player the agents play (AgentGame's, the local player).</summary>
+    private const int AgentPlayerId = 0;
+
+    private MoveRun? _move
+    {
+        get => _moveRun;
+        set
+        {
+            _moveRun = value;
+            _world.AgentMoveRunning = value is not null;
+        }
+    }
 
     /// <summary>
     /// Ticks a <c>muovi {cella}</c> may fly in one frame of the real game: the drone steers there over several frames
@@ -631,6 +645,7 @@ public partial class AgentBridge : Node
         if (move.Connection != _connection)
         {
             _move = null; // that client has gone: the drone stops where the last slice left it
+            ReleaseHeldInput(move);
             return true;
         }
 
@@ -654,15 +669,17 @@ public partial class AgentBridge : Node
         if (!response.Ok || response.Result is not { } result)
         {
             _move = null;
+            ReleaseHeldInput(move);
             Send(move.Connection, response);
             return true;
         }
 
         var node = JsonNode.Parse(result.GetRawText())!.AsObject();
         var tickBefore = move.TickBefore ?? node["tickPrima"]?.DeepClone();
-        // The ticks this slice really ran, from its answer (not the slice asked for).
-        var elapsed = (node["tick"]?.GetValue<long>() ?? 0) - (node["tickPrima"]?.GetValue<long>() ?? 0);
-        var remaining = move.Remaining - (int)Math.Clamp(elapsed, slice, int.MaxValue);
+        // The ticks this slice really ran, from its answer: exactly the slice while flying on (rilascia: false), fewer
+        // only on arrival, which ends the move anyway. No real-time tick runs between slices (AgentMoveRunning).
+        var elapsed = (int)((node["tick"]?.GetValue<long>() ?? 0) - (node["tickPrima"]?.GetValue<long>() ?? 0));
+        var remaining = move.Remaining - elapsed;
         var arrived = node["arrivato"]?.GetValue<bool>() == true;
         if (arrived || last || remaining <= 0)
         {
@@ -674,6 +691,18 @@ public partial class AgentBridge : Node
 
         _move = move with { Remaining = remaining, TickBefore = tickBefore };
         return false;
+    }
+
+    /// <summary>
+    /// A move that ends early (client gone, a slice refused) after an earlier slice left the input held: the drone is let
+    /// go, so it does not fly on by itself. Applied by the next tick, like a key release.
+    /// </summary>
+    private static void ReleaseHeldInput(MoveRun move)
+    {
+        if (move.TickBefore is not null)
+        {
+            move.Host.Submit(new SetDroneInput(AgentPlayerId, 0, 0));
+        }
     }
 
     /// <summary>

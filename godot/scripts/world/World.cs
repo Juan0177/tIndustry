@@ -263,7 +263,13 @@ public partial class World : Node2D
     /// The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge): no
     /// ticks behind Home, while a playtest or an agent holds the game, or while the player paused it (Space).
     /// </summary>
-    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused && !_loadingBusy;
+    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused && !_loadingBusy && !AgentMoveRunning;
+
+    /// <summary>
+    /// Set by <see cref="AgentBridge"/> while an agent's <c>muovi {cella}</c> flies in slices: the slices run their own
+    /// ticks, none run in real time between them (so <c>maxTick</c> holds).
+    /// </summary>
+    internal bool AgentMoveRunning { get; set; }
 
     /// <summary>
     /// The in-game HUD (top bar, Core panel, palette, FPS and resource overlays, dev speed bar, "In pausa") shows:

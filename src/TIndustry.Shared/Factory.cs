@@ -770,6 +770,19 @@ public sealed class Factory : IGameView
             : RefusalCode.InvalidCommand;
 
     /// <summary>
+    /// True when <paramref name="builder"/> digs its <see cref="BuilderUnit.MiningTile"/> now (graphics: the mining laser):
+    /// the cell is within build range (<see cref="HandMiningSystem"/>'s rule), the drone is not building and its hold has
+    /// room. False while mining waits or with no target.
+    /// </summary>
+    public bool IsMiningNow(BuilderUnit builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        var unit = Content.UnitForTier(State.CoreTier);
+        return builder.MiningTile is { } tile && builder.CurrentSiteId is null && builder.HoldCount < unit.HoldCapacity
+            && HandMiningSystem.InRange(builder, tile, unit.BuildRange);
+    }
+
+    /// <summary>
     /// True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>. Breaking
     /// plans stand on something that exists, so they never reserve cells.
     /// </summary>

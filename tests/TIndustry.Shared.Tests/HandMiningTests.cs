@@ -153,6 +153,29 @@ public sealed class HandMiningTests
     }
 
     [Fact]
+    public void IsMiningNowFollowsTheRulesOfTheMiningLaser()
+    {
+        var factory = NewFactory();
+        var drone = Drone(factory);
+        AwayFromCore(drone);
+        var (host, _) = Host(factory);
+        Assert.False(factory.IsMiningNow(drone)); // no target
+
+        host.Submit(new SetMining(Player, IronFar));
+        host.AdvanceTicks(1);
+        Assert.True(factory.IsMiningNow(drone));
+
+        drone.X = 160.5f; // flown out of range before the next tick cancels the target
+        Assert.Equal(IronFar, drone.MiningTile);
+        Assert.False(factory.IsMiningNow(drone));
+
+        AwayFromCore(drone);
+        host.AdvanceTicks(60 * Simulation.TickRate); // the hold fills (30) and mining waits
+        Assert.Equal(IronFar, drone.MiningTile);
+        Assert.False(factory.IsMiningNow(drone));
+    }
+
+    [Fact]
     public void OneItemAtATime()
     {
         var factory = NewFactory();

@@ -177,6 +177,12 @@ public interface IGameView
     /// </summary>
     RefusalCode? MiningRefusal(int playerId, GridPosition tile);
 
+    /// <summary>
+    /// True when <paramref name="builder"/> digs its mining cell now: in build range, not building, room in the hold
+    /// (<see cref="Factory.IsMiningNow"/>; the client's mining laser).
+    /// </summary>
+    bool IsMiningNow(BuilderUnit builder);
+
     IWalletView Wallet { get; }
 
     IResearchView Research { get; }

@@ -162,7 +162,7 @@ public sealed class HandMiningSystem : ISimulationSystem
     }
 
     /// <summary>Distance from the drone's centre to the centre of <paramref name="tile"/> within <paramref name="range"/>.</summary>
-    private static bool InRange(BuilderUnit builder, GridPosition tile, float range) =>
+    internal static bool InRange(BuilderUnit builder, GridPosition tile, float range) =>
         BuilderSystem.Distance(builder, tile.X + 0.5f, tile.Y + 0.5f) <= range;
 
     /// <summary>

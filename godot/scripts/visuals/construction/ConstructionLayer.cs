@@ -37,6 +37,9 @@ public partial class ConstructionLayer : Node2D
     private readonly Dictionary<long, DroneVisual> _drones = [];
     private readonly HashSet<long> _live = [];
     private readonly List<long> _gone = [];
+    // Whether each local plan (in queue order, local drones in id order) is in its drone's range, from the last
+    // PlansSignature: the redraw reads these instead of asking the view again.
+    private readonly List<bool> _planInRange = [];
     private IGameView? _view;
     private long _lastTick = -1;
     private int? _plansSignature;
@@ -162,6 +165,7 @@ public partial class ConstructionLayer : Node2D
 
         var builders = _view.Builders;
         OutOfRangePlans = 0;
+        var flag = 0;
         for (var b = 0; b < builders.Count; b++)
         {
             var builder = builders[b];
@@ -172,7 +176,7 @@ public partial class ConstructionLayer : Node2D
 
             // A plan whose site stands (the current one, or one sent to the back while stalled) is shown by
             // the site.
-            for (var i = 0; i < builder.Plans.Count; i++)
+            for (var i = 0; i < builder.Plans.Count; i++, flag++)
             {
                 var plan = builder.Plans[i];
                 if ((i == 0 && builder.CurrentSiteId is not null) || _view.SiteOfPlan(plan) is not null)
@@ -180,8 +184,9 @@ public partial class ConstructionLayer : Node2D
                     continue;
                 }
 
-                // Out of the drone's range the plan waits (spec): fainter, with the dashed "fuori raggio" outline.
-                var outOfRange = !_view.IsPlanInRange(builder, plan);
+                // Out of the drone's range the plan waits (spec): fainter, with the dashed "fuori raggio" outline. The
+                // flag comes from the last signature (asked again only if a redraw came before one, e.g. after Clear).
+                var outOfRange = flag < _planInRange.Count ? !_planInRange[flag] : !_view.IsPlanInRange(builder, plan);
                 DrawPlan(canvas, plan, outOfRange);
                 if (outOfRange)
                 {
@@ -195,9 +200,10 @@ public partial class ConstructionLayer : Node2D
     /// What the plans layer draws, as a hash: the local player's plans in order with whether each is in the drone's range
     /// (it changes while the drone flies), and every site with its kind.
     /// </summary>
-    private static int PlansSignature(IGameView view)
+    private int PlansSignature(IGameView view)
     {
         var hash = new HashCode();
+        _planInRange.Clear();
         var builders = view.Builders;
         for (var b = 0; b < builders.Count; b++)
         {
@@ -210,8 +216,10 @@ public partial class ConstructionLayer : Node2D
             hash.Add(plans.Count);
             for (var i = 0; i < plans.Count; i++)
             {
+                var inRange = view.IsPlanInRange(builders[b], plans[i]);
+                _planInRange.Add(inRange);
                 hash.Add(plans[i]);
-                hash.Add(view.IsPlanInRange(builders[b], plans[i]));
+                hash.Add(inRange);
             }
         }
 
@@ -400,18 +408,11 @@ public partial class ConstructionLayer : Node2D
 
     /// <summary>
     /// World centre of the deposit cell <paramref name="builder"/> is mining now, for its mining laser; null when it does
-    /// not mine or mining waits (Mindustry draws the laser only while it digs): while it builds, or with a full hold.
+    /// not mine or mining waits (Mindustry draws the laser only while it digs): out of range, while it builds, or with a
+    /// full hold (<see cref="IGameView.IsMiningNow"/>, the simulation's rule).
     /// </summary>
-    private static Vector2? MiningTarget(IGameView view, BuilderUnit builder)
-    {
-        if (builder.MiningTile is not { } tile || builder.CurrentSiteId is not null
-            || builder.HoldCount >= view.Content.UnitForTier(view.CoreTier).HoldCapacity)
-        {
-            return null;
-        }
-
-        return CellRect(tile).GetCenter();
-    }
+    private static Vector2? MiningTarget(IGameView view, BuilderUnit builder) =>
+        builder.MiningTile is { } tile && view.IsMiningNow(builder) ? CellRect(tile).GetCenter() : null;
 
     private static ConstructSite? FindSite(IGameView view, long id)
     {
@@ -470,6 +471,7 @@ public partial class ConstructionLayer : Node2D
         _drones.Clear();
         _lastTick = -1;
         _plansSignature = null;
+        _planInRange.Clear();
         _plans?.QueueRedraw();
     }
 

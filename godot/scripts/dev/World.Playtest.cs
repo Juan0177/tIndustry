@@ -445,6 +445,12 @@ public partial class World
             return false;
         }
 
+        // Plans out of the drone's range and the drone's hold in the HUD.
+        if (!await PlaytestOutOfRangeAndHoldAsync(Shot))
+        {
+            return false;
+        }
+
         if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
         {
             await PlaytestBeltPerfAsync();

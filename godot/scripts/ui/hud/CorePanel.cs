@@ -508,7 +508,7 @@ public partial class CorePanel : VBoxContainer
         _holdRow.AddChild(MakeLabel("core.stiva", UiTheme.TestoTenue));
         _holdIcon = MakeIcon(null, 20);
         _holdRow.AddChild(_holdIcon);
-        _holdLabel = MakeLabel("0/0");
+        _holdLabel = MakeLabel("");
         _holdRow.AddChild(_holdLabel);
 
         // CORE tier · maximum per item (rate and drone on hover).
