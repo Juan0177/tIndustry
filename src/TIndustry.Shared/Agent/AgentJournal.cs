@@ -136,10 +136,12 @@ public sealed record AgentGameSetup(
 public sealed class AgentJournal
 {
     /// <summary>
-    /// Version of the journal file: 3 since the rules say the world's time (<c>giornoNotte</c>, before a <c>notte</c>
-    /// flag); 2 was the 3×3 shard, 1 the 2×2 Core on another map. Older journals are refused rather than replayed.
+    /// Version of the journal file: 4 since the Mindustry-style logistics (save v18: junction, router, sorter and
+    /// extractor behave differently, and v17 snapshots are not readable); 3 had the rules say the world's time
+    /// (<c>giornoNotte</c>, before a <c>notte</c> flag); 2 was the 3×3 shard, 1 the 2×2 Core on another map. Older
+    /// journals are refused rather than replayed.
     /// </summary>
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     private readonly List<AgentJournalEntry> entries = [];
 

@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 17: the power network's
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 18: the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
+/// extractor accumulator and turns); since 17 the power network's
 /// lasers (<see cref="PowerLinks"/>) and each battery's charge (<see cref="BatterySaveDto.Charge"/>), with no shared
 /// power buffer any more; since 16 the world's time
 /// (<see cref="GameRulesSaveDto.DayNight"/>, <see cref="FirstBuildTick"/>, <see cref="FirstAttackRaised"/>); since 15 the
@@ -14,10 +15,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 17;
+    public const int CurrentVersion = 18;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 17;
+    public const int MinReadableVersion = 18;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";

@@ -879,9 +879,9 @@ public sealed class AgentGameTests
             File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
-            // flag: refused, never replayed.
-            Assert.Equal(3, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2 })
+            // flag, those before the Mindustry logistics (save v18) ran other blocks: refused, never replayed.
+            Assert.Equal(4, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
