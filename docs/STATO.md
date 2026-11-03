@@ -34,7 +34,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [ ] Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
 - [x] Container e vault (magazzini collegati al CORE o depositi a sé)
 - [ ] Estrattore come l'Unloader, configurato col clic ([#270](https://github.com/Juan0177/tIndustry/issues/270))
-- [x] Logistica come Mindustry: specifica approvata ([spec](superpowers/specs/2026-11-03-logistica-mindustry-design.md))
+- [x] Logistica come Mindustry: specifica approvata ([spec](superpowers/specs/2026-11-03-logistica-mindustry-design.md)) e piano ([piano](superpowers/plans/2026-11-03-logistica-mindustry.md))
 
 ### 4 · [Produzione](wiki/Produzione.md)
 
