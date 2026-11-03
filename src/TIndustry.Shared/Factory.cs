@@ -766,7 +766,7 @@ public sealed class Factory : IGameView
     /// </summary>
     public RefusalCode? MiningRefusal(int playerId, GridPosition tile) =>
         BuilderOf(playerId) is { } builder
-            ? HandMiningSystem.Refusal(State, builder, tile)
+            ? HandMiningSystem.Refusal(this, builder, tile)
             : RefusalCode.InvalidCommand;
 
     /// <summary>
@@ -1243,10 +1243,11 @@ public sealed class Factory : IGameView
                 MiningTile = b.MiningTile is { } mining ? new GridPosition(mining.X, mining.Y) : null,
                 MiningProgress = Math.Clamp(b.MiningProgress, 0, UnitDefinition.MineProgressPerPiece - 1)
             };
-            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId))
+            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId) && content.UnitForTier(data.CoreTier).HoldCapacity > 0)
             {
+                // Never more than the hold of the Core's tier: a hand-edited save cannot create items out of nothing.
                 builder.HoldItemId = b.HoldItemId;
-                builder.HoldCount = b.HoldCount;
+                builder.HoldCount = Math.Min(b.HoldCount, content.UnitForTier(data.CoreTier).HoldCapacity);
             }
 
             builder.PlanQueue.AddRange(b.Plans.Select(p => new BuildPlan(RestoreSpec(p.Spec), p.Breaking)));

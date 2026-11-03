@@ -248,6 +248,8 @@ rifiuto.MiningNoDeposit,Qui non c'è un giacimento da scavare,There's no ore dep
 rifiuto.MiningNotMineable,Il drone di questo CORE non scava questo minerale,This Core's drone can't mine this ore
 rifiuto.MiningOutOfRange,Il giacimento è fuori dal raggio del drone,The deposit is out of the drone's range
 rifiuto.MiningHoldOtherItem,La stiva porta un altro oggetto: svuotala vicino al CORE,The hold carries another item: empty it near the Core
+rifiuto.MiningCovered,Sul giacimento c'è già qualcosa,Something already stands on the deposit
+rifiuto.MiningHoldFull,La stiva è piena: svuotala vicino al CORE,The hold is full: empty it near the Core
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.

@@ -37,10 +37,10 @@ public sealed class HandMiningTests
     /// <summary>Iron 38.5 tiles from the drone's start: out of build range (27.5).</summary>
     private static readonly GridPosition IronOutOfRange = new(140, 101);
 
-    private static Factory NewFactory(int tier = 0)
+    private static Factory NewFactory(int tier = 0, bool instantBuild = true)
     {
         var factory = NewGame.Sandbox(
-            Content, CoreOrigin, mapWidth: Size, mapHeight: Size, rules: new GameRules(InstantBuild: true));
+            Content, CoreOrigin, mapWidth: Size, mapHeight: Size, rules: new GameRules(InstantBuild: instantBuild));
         var tiles = new TerrainTile[Size, Size];
         for (var x = 0; x < Size; x++)
         {
@@ -289,7 +289,7 @@ public sealed class HandMiningTests
     }
 
     [Fact]
-    public void LeavingRangeStopsAndStopCommandEnds()
+    public void LeavingRangeCancelsMiningAndStopCommandEnds()
     {
         var factory = NewFactory();
         var drone = Drone(factory);
@@ -299,18 +299,132 @@ public sealed class HandMiningTests
         host.AdvanceTicks(2 * Simulation.TickRate);
         Assert.Equal(1, drone.HoldCount);
 
-        // 30+ cells away: no progress while out of range (the target stays).
+        // 30+ cells away: mining is cancelled (Mindustry's validMine), the hold keeps what it has.
         drone.X = 160.5f;
+        host.AdvanceTicks(1);
+        Assert.Null(drone.MiningTile);
+        Assert.Equal(0, drone.MiningProgress);
+        drone.X = 125.5f;
         host.AdvanceTicks(10 * Simulation.TickRate);
         Assert.Equal(1, drone.HoldCount);
-        Assert.Equal(IronFar, drone.MiningTile);
 
-        drone.X = 125.5f;
+        host.Submit(new SetMining(Player, IronFar));
+        host.AdvanceTicks(Simulation.TickRate);
+        Assert.Equal(IronFar, drone.MiningTile);
         host.Submit(new SetMining(Player, null));
         host.AdvanceTicks(10 * Simulation.TickRate);
         Assert.Null(drone.MiningTile);
         Assert.Equal(0, drone.MiningProgress);
         Assert.Equal(1, drone.HoldCount);
+    }
+
+    [Fact]
+    public void FullHoldIsRefusedUnlessItCanUnload()
+    {
+        var factory = NewFactory();
+        var drone = Drone(factory);
+        AwayFromCore(drone);
+        drone.HoldItemId = IronOre;
+        drone.HoldCount = 30;
+        var (host, rejected) = Host(factory);
+
+        host.Submit(new SetMining(Player, IronFar));
+        host.AdvanceTicks(1);
+        Assert.Equal([RefusalCode.MiningHoldFull], rejected);
+        Assert.Null(drone.MiningTile);
+
+        // By the Core with the Core full of iron: still refused.
+        drone.X = 101.5f;
+        TopUp(factory, IronOre, factory.State.Storage.Capacity(IronOre));
+        host.Submit(new SetMining(Player, IronNear));
+        host.AdvanceTicks(1);
+        Assert.Equal([RefusalCode.MiningHoldFull, RefusalCode.MiningHoldFull], rejected);
+
+        // By the Core with room: the hold unloads and mining goes on.
+        Assert.True(factory.Wallet.TryRemoveMaterial(IronOre, 100));
+        host.Submit(new SetMining(Player, IronNear));
+        host.AdvanceTicks(1);
+        Assert.Equal(2, rejected.Count);
+        Assert.Equal(IronNear, drone.MiningTile);
+        Assert.Equal(0, drone.HoldCount);
+    }
+
+    [Fact]
+    public void CoveredDepositIsRefusedAndBuildingOverItCancelsMining()
+    {
+        var factory = NewFactory();
+        var drone = Drone(factory);
+        var (host, rejected) = Host(factory);
+        Assert.True(factory.TryPlaceBelt(CopperNear, Direction.East));
+
+        host.Submit(new SetMining(Player, CopperNear));
+        host.Submit(new SetMining(Player, new GridPosition(101, 101))); // no deposit under the Core here
+        host.AdvanceTicks(1);
+        Assert.Equal([RefusalCode.MiningCovered, RefusalCode.MiningNoDeposit], rejected);
+        Assert.Equal(RefusalCode.MiningCovered, factory.MiningRefusal(Player, CopperNear));
+
+        host.Submit(new SetMining(Player, IronNear));
+        host.AdvanceTicks(Simulation.TickRate);
+        Assert.Equal(IronNear, drone.MiningTile);
+        Assert.True(factory.TryPlaceBelt(IronNear, Direction.East));
+        host.AdvanceTicks(1);
+        Assert.Null(drone.MiningTile);
+        Assert.Equal(0, drone.MiningProgress);
+    }
+
+    [Fact]
+    public void PlanBuiltOverTheMinedCellCancelsMining()
+    {
+        var factory = NewFactory(instantBuild: false);
+        factory.Wallet.AddMaterial("iron-plate", 100);
+        var drone = Drone(factory);
+        AwayFromCore(drone);
+        var (host, rejected) = Host(factory);
+        host.Submit(new SetMining(Player, IronFar));
+        host.AdvanceTicks(Simulation.TickRate);
+        Assert.Equal(IronFar, drone.MiningTile);
+
+        host.Submit(new PlaceBelt(Player, IronFar, Direction.East, "conveyor-basic"));
+        host.AdvanceTicks(1);
+
+        Assert.Empty(rejected);
+        Assert.True(factory.TryGetSiteAt(IronFar, out _)); // the site stands on the deposit
+        Assert.Null(drone.MiningTile);
+    }
+
+    [Fact]
+    public void MiningPausesWhileTheDroneBuilds()
+    {
+        var factory = NewFactory(instantBuild: false);
+        factory.Wallet.AddMaterial("iron-plate", 100);
+        var drone = Drone(factory);
+        AwayFromCore(drone);
+        var (host, _) = Host(factory);
+        host.Submit(new SetMining(Player, IronFar));
+        host.AdvanceTicks(Simulation.TickRate);
+
+        host.Submit(new PlaceBelt(Player, new GridPosition(120, 105), Direction.East, "conveyor-basic"));
+        host.AdvanceTicks(1);
+        Assert.NotNull(drone.CurrentSiteId);
+        var (progress, hold) = (drone.MiningProgress, drone.HoldCount);
+        var building = 0;
+        while (true)
+        {
+            host.AdvanceTicks(1);
+            if (drone.CurrentSiteId is null)
+            {
+                break; // the site finished in Construct: mining already ran again this tick
+            }
+
+            building++;
+            Assert.Equal(progress, drone.MiningProgress);
+            Assert.Equal(hold, drone.HoldCount);
+        }
+
+        Assert.True(factory.Belts.Contains(new GridPosition(120, 105)));
+        Assert.True(building > 1);
+        Assert.Equal(IronFar, drone.MiningTile); // paused, not cancelled
+        Assert.Equal(progress + Content.Units["alpha"].MineRateMilli, drone.MiningProgress);
     }
 
     [Fact]
@@ -398,6 +512,9 @@ public sealed class HandMiningTests
         Assert.Equal(drone.HoldItemId, copy.HoldItemId);
         Assert.Equal(drone.HoldCount, copy.HoldCount);
         Assert.Equal(drone.MiningProgress, copy.MiningProgress);
+
+        data.Builders[0].HoldCount = 999; // hand-edited: never more than the shard's alpha holds
+        Assert.Equal(30, Drone(Factory.Restore(Content, data)).HoldCount);
     }
 
     private static void TopUp(Factory factory, string itemId, int target)

@@ -112,8 +112,10 @@ public sealed record SetDroneInput(int PlayerId, int Dx, int Dy) : SimCommand(Pl
 /// Points <paramref name="PlayerId"/>'s drone at the deposit on <paramref name="Tile"/> to mine it by hand (spec «Scavo a
 /// mano»), or stops mining when <paramref name="Tile"/> is null. Refused with <see cref="RefusalCode.MiningNoDeposit"/>
 /// (no deposit, or outside the map), <see cref="RefusalCode.MiningNotMineable"/> (an ore the drone's tier cannot dig),
-/// <see cref="RefusalCode.MiningOutOfRange"/> (farther than the build range) or <see cref="RefusalCode.MiningHoldOtherItem"/>
-/// (the hold carries another item); <see cref="RefusalCode.InvalidCommand"/> for a player without a drone.
+/// <see cref="RefusalCode.MiningOutOfRange"/> (farther than the build range), <see cref="RefusalCode.MiningCovered"/> (the
+/// Core, a building, a belt or a site stands on it), <see cref="RefusalCode.MiningHoldOtherItem"/> (the hold carries
+/// another item) or <see cref="RefusalCode.MiningHoldFull"/> (the hold is full and cannot unload now);
+/// <see cref="RefusalCode.InvalidCommand"/> for a player without a drone.
 /// </summary>
 public sealed record SetMining(int PlayerId, GridPosition? Tile) : SimCommand(PlayerId);
 
@@ -214,7 +216,13 @@ public enum RefusalCode
     MiningOutOfRange,
 
     /// <summary>Hand mining: the hold carries another item (one kind at a time); it empties within 6 cells of the Core.</summary>
-    MiningHoldOtherItem
+    MiningHoldOtherItem,
+
+    /// <summary>Hand mining: the Core, a building, a belt or a construction site stands on the deposit.</summary>
+    MiningCovered,
+
+    /// <summary>Hand mining: the hold is full and the drone cannot unload it now (too far from the Core, or the Core is full).</summary>
+    MiningHoldFull
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

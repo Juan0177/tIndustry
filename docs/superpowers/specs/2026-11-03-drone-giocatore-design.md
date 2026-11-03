@@ -36,6 +36,8 @@ Successo: una partita nuova si gioca dall'inizio alla fine senza strumenti; i pi
 - Ritmo per livello come in tabella, con accumulatore intero (nessun float nei conti della stiva).
 - A ogni tick, se il drone è entro 6 celle dal CORE, la stiva passa nel CORE fino al massimo per oggetto; quello che non entra resta nella stiva.
 - Il giacimento non si consuma (come i minatori).
+- Le 6 celle dello scarico si misurano dal centro del drone al bordo più vicino del CORE (0 sopra il CORE).
+- Come Mindustry: lo scavo si annulla se la cella esce dal raggio o se sul giacimento c'è il CORE, un edificio, un nastro o un cantiere; mentre il drone costruisce lo scavo si ferma e poi riprende; con la stiva piena il comando si rifiuta, salvo che il drone sia entro 6 celle da un CORE con posto per quell'oggetto.
 
 ### Mouse e tastiera
 

@@ -256,7 +256,7 @@ public sealed class SimHost
             return null;
         }
 
-        if (HandMiningSystem.Refusal(factory.State, builder, tile) is { } refusal)
+        if (HandMiningSystem.Refusal(factory, builder, tile) is { } refusal)
         {
             return refusal;
         }
