@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v18: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
+/// <summary>Save format v19: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class SaveVersionTests
 {
@@ -133,22 +133,47 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion18()
+    public void SaveWritesVersion19()
     {
-        Assert.Equal(18, FactorySaveData.CurrentVersion);
-        Assert.Equal(18, FactorySaveData.MinReadableVersion);
+        Assert.Equal(19, FactorySaveData.CurrentVersion);
+        Assert.Equal(19, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v18-versione", host);
+        FactorySaveStore.Save("v19-versione", host);
 
-        Assert.Contains("\"version\": 18", File.ReadAllText(FactorySaveStore.SlotPath("v18-versione")));
+        Assert.Contains("\"version\": 19", File.ReadAllText(FactorySaveStore.SlotPath("v19-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":18", snapshot);
+        Assert.Contains("\"version\":19", snapshot);
+        // The drone's v19 state: held input, hand mining and its hold.
+        Assert.Contains("\"inputX\":0,\"inputY\":0", snapshot);
+        Assert.Contains("\"miningProgress\":0", snapshot);
+        Assert.Contains("\"holdCount\":0", snapshot);
         Assert.Contains("\"rules\":{\"refundPercent\":100,\"instantBuild\":false,\"dayNight\":\"Cycle\"}", snapshot);
         Assert.Contains("\"coreStartX\":60,\"coreStartY\":60", snapshot);
         Assert.DoesNotContain("coreUpgradeLevel", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("autoSellAtCore", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("autoSellCarryMilli", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("\"autoSellCarry\":", snapshot);
+    }
+
+    [Fact]
+    public void Version18_Refused_OlderVersion()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v18-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v18-rifiutato");
+        var json = File.ReadAllText(path);
+        Assert.Contains(Current, json);
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 18"));
+
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v18-rifiutato", out var loaded, out var failure));
+        Assert.Null(loaded);
+        Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
+
+        // A v18 snapshot (the logistics, before the drone flown by the player) is not read either.
+        var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":18");
+        Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
     }
 
     [Fact]
@@ -187,7 +212,7 @@ public sealed class SaveVersionTests
         Assert.Null(loaded);
         Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
 
-        // A v16 snapshot inside a v18 envelope is not read either.
+        // A v16 snapshot inside a current envelope is not read either.
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
             .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":16");
         Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));

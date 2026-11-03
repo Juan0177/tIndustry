@@ -317,6 +317,70 @@ public sealed class SaveRoundTripTests
         Assert.Null(factory.Capture().PowerLinks);
     }
 
+    [Fact]
+    public void V19_DroneMiningAndMovingRoundTripsWithTheSameChecksum()
+    {
+        var content = LoadContent();
+        var factory = NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7);
+        var host = new SimHost(factory);
+        var rejected = new List<RefusalCode>();
+        host.CommandRejected += (_, r) => rejected.Add(r.Code);
+        var iron = DroneFlight.NearestDeposit(factory, DepositKind.Iron, minDistance: 12f);
+        DroneFlight.FlyTo(host, factory, iron.X + 0.5f, iron.Y + 0.5f);
+        host.Submit(new SetMining(0, iron));
+        host.AdvanceTicks(5 * Simulation.TickRate + 17);
+        // Half way through a piece, and flying away from the deposit (still within range).
+        host.Submit(new SetDroneInput(0, 1, -1));
+        host.AdvanceTicks(7);
+        Assert.Empty(rejected);
+        var drone = factory.BuilderOf(0)!;
+        Assert.True(drone.HoldCount > 0 && drone.MiningProgress > 0, $"{drone.HoldCount} {drone.MiningProgress}");
+        Assert.Equal((1, -1), (drone.InputX, drone.InputY));
+        var before = host.Checksum();
+
+        FactorySaveStore.Save("v19-drone", host);
+        Assert.True(FactorySaveStore.TryLoadSlot(content, "v19-drone", out var loaded, out var failure), failure?.Detail);
+        var copy = ((Factory)loaded!.State).BuilderOf(0)!;
+
+        Assert.Equal(before, loaded.Checksum());
+        Assert.Equal((drone.X, drone.Y, drone.InputX, drone.InputY), (copy.X, copy.Y, copy.InputX, copy.InputY));
+        Assert.Equal((drone.MiningTile, drone.MiningProgress), (copy.MiningTile, copy.MiningProgress));
+        Assert.Equal((drone.HoldItemId, drone.HoldCount), (copy.HoldItemId, copy.HoldCount));
+
+        // Both go on the same: still flying, still mining.
+        host.AdvanceTicks(20);
+        loaded.AdvanceTicks(20);
+        host.Submit(new SetDroneInput(0, 0, 0));
+        loaded.Submit(new SetDroneInput(0, 0, 0));
+        host.AdvanceTicks(600);
+        loaded.AdvanceTicks(600);
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+        Assert.NotEqual(before, host.Checksum());
+    }
+
+    [Fact]
+    public void DroneInputMiningAndHoldAreInTheChecksum()
+    {
+        var factory = NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7);
+        var drone = factory.BuilderOf(0)!;
+        ulong Sum() => Snapshot.Checksum(Snapshot.Write(factory.State));
+        var seen = new HashSet<ulong> { Sum() };
+
+        drone.InputX = 1;
+        Assert.True(seen.Add(Sum()));
+        drone.InputY = -1;
+        Assert.True(seen.Add(Sum()));
+        drone.MiningTile = new GridPosition(3, 4);
+        Assert.True(seen.Add(Sum()));
+        drone.MiningProgress = 123;
+        Assert.True(seen.Add(Sum()));
+        drone.HoldItemId = "iron-ore";
+        drone.HoldCount = 5;
+        Assert.True(seen.Add(Sum()));
+        drone.HoldItemId = "copper-ore";
+        Assert.True(seen.Add(Sum()));
+    }
+
     private static FactoryContent LoadContent() => FactoryContent.Load(ContentPath);
 
     private static void RewriteVersion(string slotId, int version)

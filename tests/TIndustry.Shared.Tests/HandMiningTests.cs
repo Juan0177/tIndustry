@@ -494,17 +494,21 @@ public sealed class HandMiningTests
     }
 
     [Fact]
-    public void HoldAndMiningSurviveASave()
+    public void HoldAndMiningSurviveASaveOnARealMap()
     {
-        var factory = NewFactory();
-        var drone = Drone(factory);
-        AwayFromCore(drone);
-        var (host, _) = Host(factory);
-        host.Submit(new SetMining(Player, IronFar));
+        // The classic map the save regenerates and checks (terrain hash), not a hand-made one.
+        var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: Size, mapHeight: Size, seed: 11);
+        var (host, rejected) = Host(factory);
+        var iron = DroneFlight.NearestDeposit(factory, DepositKind.Iron, minDistance: 12f);
+        DroneFlight.FlyTo(host, factory, iron.X + 0.5f, iron.Y + 0.5f);
+        host.Submit(new SetMining(Player, iron));
         host.AdvanceTicks(5 * Simulation.TickRate + 17);
+        Assert.Empty(rejected);
+        var drone = Drone(factory);
+        Assert.True(drone.HoldCount > 0 && drone.MiningProgress > 0, $"{drone.HoldCount} {drone.MiningProgress}");
 
         var data = factory.Capture();
-        data.TerrainHash = null; // the hand-made terrain is not the classic one the save regenerates
+        Assert.NotNull(data.TerrainHash);
         var restored = Factory.Restore(Content, data);
         var copy = Drone(restored);
 
@@ -512,6 +516,7 @@ public sealed class HandMiningTests
         Assert.Equal(drone.HoldItemId, copy.HoldItemId);
         Assert.Equal(drone.HoldCount, copy.HoldCount);
         Assert.Equal(drone.MiningProgress, copy.MiningProgress);
+        Assert.Equal(Snapshot.Checksum(Snapshot.Write(factory.State)), Snapshot.Checksum(Snapshot.Write(restored.State)));
 
         data.Builders[0].HoldCount = 999; // hand-edited: never more than the shard's alpha holds
         Assert.Equal(30, Drone(Factory.Restore(Content, data)).HoldCount);

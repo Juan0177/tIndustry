@@ -38,5 +38,35 @@ internal static class DroneFlight
         throw new InvalidOperationException("drone mai arrivato");
     }
 
+    /// <summary>
+    /// The <paramref name="kind"/> deposit cell nearest to the Core's centre that is at least <paramref name="minDistance"/>
+    /// tiles from it (a real map: no hand-made terrain), ties broken by (y, x).
+    /// </summary>
+    public static GridPosition NearestDeposit(Factory factory, DepositKind kind, float minDistance)
+    {
+        var terrain = factory.Terrain ?? throw new InvalidOperationException("nessuna mappa");
+        var (cx, cy) = factory.CoreCentre();
+        GridPosition? best = null;
+        var bestDistance = float.MaxValue;
+        for (var y = 0; y < terrain.Height; y++)
+        {
+            for (var x = 0; x < terrain.Width; x++)
+            {
+                if (terrain[x, y].Deposit != kind)
+                {
+                    continue;
+                }
+
+                var d = MathF.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy));
+                if (d >= minDistance && d < bestDistance)
+                {
+                    (best, bestDistance) = (new GridPosition(x, y), d);
+                }
+            }
+        }
+
+        return best ?? throw new InvalidOperationException($"nessun giacimento {kind}");
+    }
+
     private static int Axis(float delta) => delta > 0.5f ? 1 : delta < -0.5f ? -1 : 0;
 }

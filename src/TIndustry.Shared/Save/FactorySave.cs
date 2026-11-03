@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 18: the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 19: the drone flown by its
+/// player (<see cref="BuilderSaveDto"/>: held input, hand-mining cell and progress, hold); since 18 the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
 /// extractor accumulator and turns); since 17 the power network's
 /// lasers (<see cref="PowerLinks"/>) and each battery's charge (<see cref="BatterySaveDto.Charge"/>), with no shared
 /// power buffer any more; since 16 the world's time
@@ -15,10 +16,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 18;
+    public const int CurrentVersion = 19;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 18;
+    public const int MinReadableVersion = 19;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -177,11 +178,11 @@ public sealed class BuilderSaveDto
     public float X { get; set; }
     public float Y { get; set; }
     public float Rotation { get; set; }
-    /// <summary>Held input direction (−1, 0, 1 per axis); 0 in saves written before it existed.</summary>
+    /// <summary>Held input direction (−1, 0, 1 per axis), since v19.</summary>
     public int InputX { get; set; }
     public int InputY { get; set; }
     public long? CurrentSiteId { get; set; }
-    /// <summary>Deposit cell mined by hand; null when not mining (and in saves written before hand mining).</summary>
+    /// <summary>Deposit cell mined by hand (since v19); null when not mining.</summary>
     public GridCellSaveDto? MiningTile { get; set; }
     /// <summary>Hand-mining progress towards the next piece (<see cref="UnitDefinition.MineProgressPerPiece"/> = one).</summary>
     public long MiningProgress { get; set; }

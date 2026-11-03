@@ -136,12 +136,13 @@ public sealed record AgentGameSetup(
 public sealed class AgentJournal
 {
     /// <summary>
-    /// Version of the journal file: 4 since the Mindustry-style logistics (save v18: junction, router, sorter and
+    /// Version of the journal file: 5 since the drone flown by its player (save v19: plans out of range wait for the
+    /// drone, which only <c>muovi</c> moves, and <c>scava</c> mines by hand); 4 since the Mindustry-style logistics (save v18: junction, router, sorter and
     /// extractor behave differently, and v17 snapshots are not readable); 3 had the rules say the world's time
     /// (<c>giornoNotte</c>, before a <c>notte</c> flag); 2 was the 3×3 shard, 1 the 2×2 Core on another map. Older
     /// journals are refused rather than replayed.
     /// </summary>
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     private readonly List<AgentJournalEntry> entries = [];
 

@@ -879,9 +879,10 @@ public sealed class AgentGameTests
             File.WriteAllText(broken, """{"versione":99,"voci":[]}""");
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
-            // flag, those before the Mindustry logistics (save v18) ran other blocks: refused, never replayed.
-            Assert.Equal(4, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2, 3 })
+            // flag, those before the Mindustry logistics (save v18) ran other blocks, those before the drone flown by
+            // its player (save v19) had it fly to the plans on its own: refused, never replayed.
+            Assert.Equal(5, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3, 4 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
@@ -1292,5 +1293,228 @@ public sealed class AgentGameTests
         Assert.Equal(100d, powered.GetProperty("soddisfazione").GetDouble());
         Assert.True(powered.TryGetProperty("cella", out _));
         Assert.Equal(0d, powered.GetProperty("capacita").GetDouble());
+    }
+
+    // ---- The drone flown by the player (muovi, scava, stato.drone)
+
+    private static BuilderUnit Drone(SimHost host) => host.State.Builders.Single(b => b.OwnerPlayerId == 0);
+
+    private static string CellArg(GridPosition cell) => JsonSerializer.Serialize(new { cella = new { x = cell.X, y = cell.Y } });
+
+    private static float DistanceTo(BuilderUnit drone, GridPosition cell) =>
+        MathF.Sqrt((cell.X + 0.5f - drone.X) * (cell.X + 0.5f - drone.X) + (cell.Y + 0.5f - drone.Y) * (cell.Y + 0.5f - drone.Y));
+
+    [Fact]
+    public void MuoviDxDyHoldsTheInputUntilChanged()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content);
+        var drone = Drone(host);
+        var startX = drone.X;
+
+        var answer = Call(game, "muovi", """{"dx":1,"dy":0}""");
+        Assert.Equal(1, answer.GetProperty("tick").GetInt64());
+        Assert.Equal((1, 0), (drone.InputX, drone.InputY));
+        Call(game, "avanza", """{"tick":59}""");
+        Assert.Equal(startX + 22.5f, drone.X, 0.01f); // alpha: 22.5 cells/s, the input held for 60 ticks
+
+        Call(game, "muovi", """{"dx":0,"dy":0}""");
+        var stopped = drone.X;
+        Call(game, "avanza", """{"tick":60}""");
+        Assert.Equal(stopped, drone.X);
+
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "muovi", """{"dx":2,"dy":0}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "muovi", "{}").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "muovi", """{"dx":1,"cella":{"x":3,"y":3}}""").Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "muovi", """{"cella":{"x":500,"y":3}}""").Code);
+    }
+
+    [Fact]
+    public void MuoviToAFarCellArrivesAndStops()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content);
+        var target = new GridPosition(105, 15);
+
+        var answer = Call(game, "muovi", """{"cella":{"x":105,"y":15}}""");
+
+        var drone = Drone(host);
+        Assert.True(answer.GetProperty("arrivato").GetBoolean());
+        Assert.True(DistanceTo(drone, target) <= 0.5f, $"{drone.X} {drone.Y}");
+        Assert.Equal((0, 0), (drone.InputX, drone.InputY));
+        Assert.Equal(host.State.CurrentTick, answer.GetProperty("tick").GetInt64());
+        Assert.Equal(0, answer.GetProperty("tickPrima").GetInt64());
+        Assert.InRange(answer.GetProperty("tick").GetInt64(), 60, 200); // ~45 cells diagonal at 22.5 cells/s
+        Assert.Equal(Math.Round(drone.X, 2), answer.GetProperty("drone").GetProperty("x").GetDouble());
+
+        var (x, y) = (drone.X, drone.Y);
+        Call(game, "avanza", """{"tick":120}""");
+        Assert.Equal((x, y), (drone.X, drone.Y));
+
+        // Already there: nothing to run.
+        var again = Call(game, "muovi", """{"cella":{"x":105,"y":15}}""");
+        Assert.True(again.GetProperty("arrivato").GetBoolean());
+        Assert.Equal(again.GetProperty("tickPrima").GetInt64(), again.GetProperty("tick").GetInt64());
+    }
+
+    [Fact]
+    public void MuoviStopsAtItsTickLimit()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content);
+
+        var answer = Call(game, "muovi", """{"cella":{"x":110,"y":110},"maxTick":20}""");
+
+        var drone = Drone(host);
+        Assert.False(answer.GetProperty("arrivato").GetBoolean());
+        Assert.Equal((0, 0), (drone.InputX, drone.InputY)); // stopped where the time ran out
+        Assert.Equal(21, host.State.CurrentTick); // 20 ticks of flight, then the one that releases the input
+        Assert.True(answer.GetProperty("distanza").GetDouble() > 10);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "muovi", """{"cella":{"x":1,"y":1},"maxTick":0}""").Code);
+    }
+
+    [Fact]
+    public void StatoReportsTheDrone()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content);
+        Call(game, "muovi", """{"dx":-1,"dy":1}""");
+
+        var drone = Call(game, "stato").GetProperty("drone");
+
+        var unit = Drone(host);
+        Assert.Equal(Math.Round(unit.X, 2), drone.GetProperty("x").GetDouble());
+        Assert.Equal(Math.Round(unit.Y, 2), drone.GetProperty("y").GetDouble());
+        Assert.Equal(-1, drone.GetProperty("ingresso").GetProperty("dx").GetInt32());
+        Assert.Equal(1, drone.GetProperty("ingresso").GetProperty("dy").GetInt32());
+        Assert.Equal(0, drone.GetProperty("stiva").GetProperty("quantita").GetInt32());
+        Assert.Equal(30, drone.GetProperty("stiva").GetProperty("capienza").GetInt32());
+        Assert.Equal(JsonValueKind.Null, drone.GetProperty("stiva").GetProperty("oggetto").ValueKind);
+        Assert.Equal(JsonValueKind.Null, drone.GetProperty("scavo").ValueKind);
+        Assert.Equal(27.5, drone.GetProperty("raggio").GetDouble());
+    }
+
+    [Fact]
+    public void ScavaMinesIntoTheHoldAndStops()
+    {
+        var setup = AgentGameSetup.Sandbox(120, 7, ClassicTerrainGenerator.Name, new GameRules(InstantBuild: true));
+        var host = setup.CreateHost(Content);
+        using var game = new AgentGame(host, Content, setup);
+        var iron = DroneFlight.NearestDeposit((Factory)host.State, DepositKind.Iron, minDistance: 12f);
+        var cell = CellArg(iron);
+        Call(game, "muovi", cell);
+
+        var answer = Call(game, "scava", cell);
+        Assert.Equal(iron.X, answer.GetProperty("drone").GetProperty("scavo").GetProperty("x").GetInt32());
+        Call(game, "avanza", """{"tick":600}""");
+
+        var drone = Call(game, "stato").GetProperty("drone");
+        Assert.Equal("iron-ore", drone.GetProperty("stiva").GetProperty("oggetto").GetString());
+        Assert.Equal(7, drone.GetProperty("stiva").GetProperty("quantita").GetInt32()); // alpha: 0.7 pieces/s
+        Assert.Equal(iron.Y, drone.GetProperty("scavo").GetProperty("y").GetInt32());
+
+        var stopped = Call(game, "scava");
+        Assert.Equal(JsonValueKind.Null, stopped.GetProperty("drone").GetProperty("scavo").ValueKind);
+        Assert.Null(Drone(host).MiningTile);
+        Call(game, "avanza", """{"tick":600}""");
+        Assert.Equal(7, Drone(host).HoldCount);
+    }
+
+    [Fact]
+    public void ScavaRefusalsAreTheSimulationsCodes()
+    {
+        var setup = AgentGameSetup.Sandbox(120, 7, ClassicTerrainGenerator.Name, new GameRules(InstantBuild: true));
+        var host = setup.CreateHost(Content);
+        using var game = new AgentGame(host, Content, setup);
+        var factory = (Factory)host.State;
+        var terrain = factory.Terrain!;
+        var drone = Drone(host);
+        var empty = Enumerable.Range(0, 30).Select(d => new GridPosition((int)drone.X + d, (int)drone.Y + 6))
+            .First(c => terrain[c.X, c.Y].Deposit == DepositKind.None);
+        var far = DroneFlight.NearestDeposit(factory, DepositKind.Iron, minDistance: 40f);
+
+        var none = Refused(game, "scava", CellArg(empty));
+        Assert.Equal(nameof(RefusalCode.MiningNoDeposit), none.Code);
+        Assert.Equal(nameof(RefusalCode.MiningOutOfRange),
+            Refused(game, "scava", CellArg(far)).Code);
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "scava", """{"cella":{"x":-1,"y":0}}""").Code);
+        Assert.Contains(Call(game, "stato").GetProperty("rifiuti").EnumerateArray(),
+            r => r.GetProperty("comando").GetString() == "scava" && r.GetProperty("codice").GetString() == "MiningNoDeposit");
+        Assert.Null(drone.MiningTile);
+    }
+
+    [Fact]
+    public void PiazzaFarFromTheCoreIsBuiltOnceTheDroneFliesThere()
+    {
+        var host = new SimHost(NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: false)));
+        using var game = new AgentGame(host, Content);
+        var far = new GridPosition(100, 61); // 39 cells east of the Core: out of build range (27.5)
+
+        Call(game, "piazza", """{"tipo":"conveyor-basic","cella":{"x":100,"y":61},"direzione":"est"}""");
+        Call(game, "avanza", """{"tick":600}""");
+        Assert.False(host.State.Belts.ContainsKey(far)); // the plan waits for the drone
+        Assert.Equal(1, Call(game, "stato").GetProperty("costruzione").GetProperty("piani").GetInt32());
+
+        Assert.True(Call(game, "muovi", """{"cella":{"x":90,"y":61}}""").GetProperty("arrivato").GetBoolean());
+        Call(game, "avanza", """{"tick":300}""");
+
+        Assert.True(host.State.Belts.ContainsKey(far));
+        Assert.Equal(0, Call(game, "stato").GetProperty("costruzione").GetProperty("piani").GetInt32());
+    }
+
+    [Fact]
+    public void ReplayRepeatsMuoviAndScava()
+    {
+        var setup = AgentGameSetup.Sandbox(120, 7, ClassicTerrainGenerator.Name, new GameRules());
+        var host = setup.CreateHost(Content);
+        var dir = TempFolder();
+        using var game = new AgentGame(host, Content, setup, journalDirectory: dir);
+        var iron = DroneFlight.NearestDeposit((Factory)host.State, DepositKind.Iron, minDistance: 12f);
+        var cell = CellArg(iron);
+        Call(game, "piazza", """{"tipo":"conveyor-basic","da":{"x":95,"y":20},"a":{"x":95,"y":24}}""");
+        Call(game, "muovi", """{"cella":{"x":95,"y":22}}""");
+        Call(game, "avanza", """{"tick":300}""");
+        Call(game, "muovi", cell);
+        Call(game, "scava", cell);
+        Call(game, "avanza", """{"tick":400}""");
+        Call(game, "muovi", """{"dx":-1,"dy":0}""");
+        Call(game, "avanza", """{"tick":30}""");
+        Call(game, "muovi", """{"dx":0,"dy":0}""");
+        Refused(game, "scava", """{"cella":{"x":0,"y":0}}""");
+        Assert.True(Drone(host).HoldCount > 0);
+        Assert.Equal(5, host.State.Belts.Count);
+        Assert.Equal(10, game.Journal.Entries.Count);
+
+        var path = Call(game, "diario", """{"nome":"drone"}""").GetProperty("percorso").GetString()!;
+        using (var file = JsonDocument.Parse(File.ReadAllText(path)))
+        {
+            Assert.Equal(AgentJournal.CurrentVersion, file.RootElement.GetProperty("versione").GetInt32());
+            Assert.Contains(file.RootElement.GetProperty("voci").EnumerateArray(), v => v.GetProperty("metodo").GetString() == "muovi");
+            Assert.Contains(file.RootElement.GetProperty("voci").EnumerateArray(), v => v.GetProperty("metodo").GetString() == "scava");
+        }
+
+        using var replay = AgentGame.Replay(AgentJournal.Load(path), Content);
+
+        Assert.Equal(host.State.CurrentTick, replay.Host.State.CurrentTick);
+        Assert.Equal(host.Checksum(), replay.Host.Checksum());
+        Assert.Empty(replay.ReplayWarnings);
+    }
+
+    [Fact]
+    public void WithoutTickPerCommandMuoviToACellStillRunsItsTicks()
+    {
+        var host = NewHost();
+        using var game = new AgentGame(host, Content, tickPerComando: false);
+
+        var waiting = Call(game, "muovi", """{"dx":1,"dy":1}""");
+        Assert.True(waiting.GetProperty("inAttesa").GetBoolean());
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "muovi", """{"cella":{"x":90,"y":90}}""").Code);
+        host.AdvanceTicks(1);
+        Assert.True(game.TryFinishPending(out _));
+
+        var arrived = Call(game, "muovi", """{"cella":{"x":90,"y":90}}""");
+        Assert.True(arrived.GetProperty("arrivato").GetBoolean());
+        Assert.True(DistanceTo(Drone(host), new GridPosition(90, 90)) <= 0.5f);
+        Assert.Equal((0, 0), (Drone(host).InputX, Drone(host).InputY));
     }
 }
