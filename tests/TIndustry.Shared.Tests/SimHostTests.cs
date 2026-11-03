@@ -321,14 +321,14 @@ public sealed class SimHostTests
     }
 
     [Fact]
-    public void SetSorterFilterChangesTheSorterOnly()
+    public void SetBlockFilterChangesTheSorterOnly()
     {
         var factory = NewSandbox(LoadContent());
         factory.UnlockAllForDemo();
         var sorter = new GridPosition(20, 20);
         Assert.True(factory.TryPlaceSorter(sorter, Direction.East));
 
-        var (okReason, _, _, okApplied) = RunOne(factory, new SetSorterFilter(1, sorter, "coal"));
+        var (okReason, _, _, okApplied) = RunOne(factory, new SetBlockFilter(1, sorter, "coal"));
         Assert.Null(okReason);
         Assert.Equal(1, okApplied);
         Assert.True(factory.Belts.TryGet(sorter, out var cell));
@@ -337,9 +337,9 @@ public sealed class SimHostTests
         Assert.True(factory.TryPlaceBelt(new GridPosition(25, 25), Direction.East));
         foreach (var bad in new SimCommand[]
                  {
-                     new SetSorterFilter(1, new GridPosition(25, 25), "coal"), // plain belt
-                     new SetSorterFilter(1, new GridPosition(40, 40), "coal"), // empty tile
-                     new SetSorterFilter(1, sorter, "gold-ingot")              // not a filter id
+                     new SetBlockFilter(1, new GridPosition(25, 25), "coal"), // plain belt
+                     new SetBlockFilter(1, new GridPosition(40, 40), "coal"), // empty tile
+                     new SetBlockFilter(1, sorter, "gold-ingot")               // not an item
                  })
         {
             var (reason, before, atRejection, applied) = RunOne(factory, bad);

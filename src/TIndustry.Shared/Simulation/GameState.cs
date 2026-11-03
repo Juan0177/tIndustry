@@ -38,8 +38,8 @@ public sealed class GameState
     }
 
     /// <summary>
-    /// A logistics block hands one <paramref name="itemId"/> to the building on <paramref name="tile"/> (a router's
-    /// exit): the Core, a storage block, a forno or assembler, a generator, by the rules of a belt pointing into it.
+    /// A logistics block hands one <paramref name="itemId"/> to the building on <paramref name="tile"/> (a router's or a
+    /// sorter's exit): the Core, a storage block, a forno or assembler, a generator, by the rules of a belt pointing into it.
     /// False when nothing there takes it.
     /// </summary>
     public bool ReceiveFromLogistics(GridPosition tile, string itemId)

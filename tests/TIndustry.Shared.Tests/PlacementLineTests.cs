@@ -117,7 +117,7 @@ public sealed class PlacementLineTests
     [Fact]
     public void SpecialsFaceTheNextCellToo()
     {
-        var line = Plan(NewFactory(), (10, 10), (10, 14), Direction.East, BuildSpec.StructureIdFor(BuildingKind.Sorter)!);
+        var line = Plan(NewFactory(), (10, 10), (10, 14), Direction.East, BuildSpec.StructureIdFor(BuildingKind.Junction)!);
 
         Assert.Equal(5, line.Count);
         Assert.All(line, c => Assert.Equal(Direction.South, c.Direction));

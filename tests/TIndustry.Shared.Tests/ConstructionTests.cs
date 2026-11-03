@@ -324,7 +324,8 @@ public sealed class ConstructionTests
         Assert.True(viaTryPlace.TryPlaceBelt(new GridPosition(10, 20), Direction.East));
         Assert.True(viaTryPlace.TryPlaceJunction(new GridPosition(11, 20), Direction.East));
         Assert.True(viaTryPlace.TryPlaceRouter(new GridPosition(12, 20), Direction.North));
-        Assert.True(viaTryPlace.TryPlaceSorter(new GridPosition(13, 20), Direction.East, "copper-ore"));
+        Assert.True(viaTryPlace.TryPlaceSorter(new GridPosition(13, 20), Direction.North, "copper-ore"));
+        Assert.True(viaTryPlace.TryPlaceSorterInverted(new GridPosition(18, 20), Direction.North));
         Assert.True(viaTryPlace.TryPlaceBridge(new GridPosition(14, 20), Direction.East));
 
         BuildSpec[] specs =
@@ -341,7 +342,8 @@ public sealed class ConstructionTests
             new("conveyor-basic", null, new GridPosition(10, 20), Direction.East),
             new("junction", BuildingKind.Junction, new GridPosition(11, 20), Direction.East),
             new("router", BuildingKind.Router, new GridPosition(12, 20), Direction.North), // a router has no direction
-            new("sorter", BuildingKind.Sorter, new GridPosition(13, 20), Direction.East, FilterItemId: "copper-ore"),
+            new("sorter", BuildingKind.Sorter, new GridPosition(13, 20), Direction.North, FilterItemId: "copper-ore"),
+            new("sorter-inverted", BuildingKind.SorterInverted, new GridPosition(18, 20), Direction.North),
             new("conveyor-bridge", BuildingKind.Bridge, new GridPosition(14, 20), Direction.East)
         ];
         foreach (var spec in specs)

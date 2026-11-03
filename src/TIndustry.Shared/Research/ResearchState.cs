@@ -102,6 +102,7 @@ public sealed class ResearchState : IResearchView
         "router",
         "generator",
         "sorter",
+        "sorter-inverted",
         "conveyor-bridge",
         "extractor",
         "power-node"

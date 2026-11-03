@@ -4,7 +4,7 @@ namespace TIndustry.Shared;
 /// What to build and where: a building or logistics piece (<paramref name="Kind"/> set) or a plain
 /// belt (<paramref name="Kind"/> null, <paramref name="StructureId"/> is then the conveyor id).
 /// <paramref name="RecipeId"/> applies to forno / assembler (null = default recipe);
-/// <paramref name="FilterItemId"/> to sorter / extractor (null = default filter).
+/// <paramref name="FilterItemId"/> to the sorters / extractor (null = no filter on a sorter, the default on an extractor).
 /// </summary>
 public sealed record BuildSpec(
     string StructureId,
@@ -59,6 +59,7 @@ public sealed record BuildSpec(
         BuildingKind.Junction => "junction",
         BuildingKind.Router => "router",
         BuildingKind.Sorter => "sorter",
+        BuildingKind.SorterInverted => "sorter-inverted",
         BuildingKind.Bridge => "conveyor-bridge",
         BuildingKind.Miner => Miner.BasicId,
         BuildingKind.MinerAdvanced => Miner.AdvancedId,

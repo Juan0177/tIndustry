@@ -259,12 +259,11 @@ public partial class MindustryBeltVisual : Node2D
             }
         }
 
-        // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame).
-        if (kind == LogisticsKind.Sorter)
+        // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame); none without
+        // a filter.
+        if (kind == LogisticsKind.Sorter && !string.IsNullOrWhiteSpace(sorterFilterId))
         {
-            var filterId = string.IsNullOrWhiteSpace(sorterFilterId)
-                ? BeltGridCell.DefaultSorterFilter
-                : sorterFilterId;
+            var filterId = sorterFilterId;
             // The 10 px belt sprite of the item at the world art scale, inside the 14 px slot.
             node.AddChild(new Sprite2D
             {

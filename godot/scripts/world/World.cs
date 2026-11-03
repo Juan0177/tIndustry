@@ -116,7 +116,7 @@ public partial class World : Node2D
     private string _campaignPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Cursor;
-    private string _sorterFilterId = BeltGridCell.DefaultSorterFilter;
+    private string _sorterFilterId = SorterFilters.Ids[0];
     private GridPosition? _hover;
     private Vector2 _hoverScreen;
     // Left drag (Mindustry): the cell the button went down on, null with no drag; R pressed during it fixes the

@@ -203,8 +203,10 @@ public sealed class ArmoredBeltTests
                 Assert.True(factory.TryPlaceRouter(at, Direction.North)); // it hands items to every side, flow too
                 return at;
             case "sorter":
-                Assert.True(factory.TryPlaceSorter(at, flow, "iron-ore")); // the item matches: straight on
-                return at;
+                Assert.True(factory.TryPlaceSorter(at, Direction.North, "iron-ore")); // the item matches: straight on
+                var input = at.Step(DirectionMath.Opposite(flow));
+                Assert.True(factory.TryPlaceBelt(input, flow)); // a sorter passes on only what comes from a side
+                return input;
             case "bridge":
                 var entry = at.Step(DirectionMath.Opposite(flow), 2);
                 Assert.True(factory.TryPlaceBridge(entry, flow)); // its exit lands on at

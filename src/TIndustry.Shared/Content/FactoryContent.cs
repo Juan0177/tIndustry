@@ -98,6 +98,15 @@ public sealed class FactoryContent
     public MarketItemDefinition? FindMarketItem(string itemId) =>
         Market.FirstOrDefault(m => m.ItemId == itemId);
 
+    /// <summary>
+    /// Whether <paramref name="itemId"/> is an item of the game: on the market or made or used by a recipe (the filter
+    /// of a sorter or an extractor must be one).
+    /// </summary>
+    public bool IsKnownItem(string? itemId) =>
+        !string.IsNullOrWhiteSpace(itemId)
+        && (FindMarketItem(itemId) is not null
+            || Recipes.Any(r => r.Inputs.Any(a => a.ItemId == itemId) || r.Outputs.Any(a => a.ItemId == itemId)));
+
     public string DisplayName(string itemId) =>
         FindMarketItem(itemId)?.DisplayName ?? itemId;
 
@@ -444,7 +453,8 @@ public sealed class FactoryContent
             MapUnlock(c.Unlock),
             ParseKind(c.Kind),
             MapMultiplier(c.BuildCostMultiplier),
-            c.Armored);
+            c.Armored,
+            c.Inverted);
 
     private static RecipeDefinition MapRecipe(RecipeDto r) =>
         new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs));
@@ -660,6 +670,7 @@ public sealed class FactoryContent
         public string? Kind { get; set; }
         public float? BuildCostMultiplier { get; set; }
         public bool Armored { get; set; }
+        public bool Inverted { get; set; }
     }
 
     private sealed class RecipeDto

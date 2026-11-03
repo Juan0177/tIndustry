@@ -53,6 +53,7 @@ public sealed class Factory : IGameView
         JunctionDefinition = content.RequireConveyor("junction");
         RouterDefinition = content.RequireConveyor("router");
         SorterDefinition = content.RequireConveyor("sorter");
+        SorterInvertedDefinition = content.FindConveyor("sorter-inverted");
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
@@ -65,6 +66,7 @@ public sealed class Factory : IGameView
         JunctionDefinition = state.Content.RequireConveyor("junction");
         RouterDefinition = state.Content.RequireConveyor("router");
         SorterDefinition = state.Content.RequireConveyor("sorter");
+        SorterInvertedDefinition = state.Content.FindConveyor("sorter-inverted");
         BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
     }
 
@@ -74,6 +76,9 @@ public sealed class Factory : IGameView
     public ConveyorDefinition JunctionDefinition { get; }
     public ConveyorDefinition RouterDefinition { get; }
     public ConveyorDefinition SorterDefinition { get; }
+
+    /// <summary>The inverted sorter; null only in content built by hand without it.</summary>
+    public ConveyorDefinition? SorterInvertedDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
@@ -549,8 +554,9 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        // A junction sends the item on away from the building, a router never back to it: their direction is unused.
-        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router
+        // A junction sends the item on away from the building, a router and a sorter never back to it: their direction is
+        // unused.
+        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
             || !BuildingIo.Occupies(building.Origin, building.Size, next);
     }
 
@@ -900,6 +906,7 @@ public sealed class Factory : IGameView
                 BridgePartnerX = c.BridgePartner?.X,
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
+                SorterToggle = c.Kind == LogisticsKind.Sorter && c.SorterToggle ? true : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
@@ -1037,6 +1044,11 @@ public sealed class Factory : IGameView
                     cell.RouterTurn ?? 0,
                     cell.RouterWaitTicks ?? 0,
                     ParseRouterFrom(cell.RouterFrom));
+            }
+
+            if (def.Kind == LogisticsKind.Sorter)
+            {
+                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreSorter(cell.SorterToggle == true);
             }
         }
 
@@ -2250,6 +2262,7 @@ public sealed class Factory : IGameView
         "router" => "router",
         "generator" => "generator",
         "sorter" => "sorter",
+        "sorter-inverted" => "sorter-inverted",
         "bridge" => "conveyor-bridge",
         "extractor" => "extractor",
         "power-node" => "power-node",
@@ -2481,9 +2494,16 @@ public sealed class Factory : IGameView
         RequireUnlocked("router")
         && PlaceLogistics(position, direction, RouterDefinition, charge: true);
 
+    /// <summary>A sorter (no direction: <paramref name="direction"/> is ignored); null filter = none.</summary>
     public bool TryPlaceSorter(GridPosition position, Direction direction, string? filterItemId = null) =>
         RequireUnlocked("sorter")
         && PlaceLogistics(position, direction, SorterDefinition, charge: true, filterItemId);
+
+    /// <summary>An inverted sorter (no direction: <paramref name="direction"/> is ignored); null filter = none.</summary>
+    public bool TryPlaceSorterInverted(GridPosition position, Direction direction, string? filterItemId = null) =>
+        RequireUnlocked("sorter-inverted")
+        && SorterInvertedDefinition is { } inverted
+        && PlaceLogistics(position, direction, inverted, charge: true, filterItemId);
 
     public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
         RequireUnlocked("conveyor-bridge")
@@ -2632,7 +2652,8 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when <paramref name="spec"/> names something buildable: a known conveyor (belt specs), the
-    /// structure id of its kind, and for forno / assembler a recipe of that machine (or none).
+    /// structure id of its kind, for forno / assembler a recipe of that machine (or none), and a filter (if any) that is
+    /// an item of the game (<see cref="FactoryContent.IsKnownItem"/>).
     /// </summary>
     public bool IsValidSpec(BuildSpec spec)
     {
@@ -2643,6 +2664,11 @@ public sealed class Factory : IGameView
         }
 
         if (!string.Equals(BuildSpec.StructureIdFor(kind), spec.StructureId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (spec.FilterItemId is { } filter && !Content.IsKnownItem(filter))
         {
             return false;
         }
@@ -2684,7 +2710,7 @@ public sealed class Factory : IGameView
 
         var ok = spec.Kind switch
         {
-            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter =>
+            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted =>
                 !Belts.Contains(spec.Origin) && CanOccupy(spec.Origin),
             BuildingKind.Bridge =>
                 !Belts.Contains(spec.Origin)
@@ -2776,6 +2802,9 @@ public sealed class Factory : IGameView
                 return PlaceLogistics(origin, dir, RouterDefinition, charge);
             case BuildingKind.Sorter:
                 return PlaceLogistics(origin, dir, SorterDefinition, charge, spec.FilterItemId);
+            case BuildingKind.SorterInverted:
+                return SorterInvertedDefinition is { } inverted
+                    && PlaceLogistics(origin, dir, inverted, charge, spec.FilterItemId);
             case BuildingKind.Bridge:
                 return PlaceBridge(origin, dir, charge, bridgeExit);
             case BuildingKind.Miner:
@@ -2919,7 +2948,12 @@ public sealed class Factory : IGameView
                     spec = new BuildSpec(id, BuildingKind.Router, tile, cell.Direction);
                     return true;
                 case LogisticsKind.Sorter:
-                    spec = new BuildSpec(id, BuildingKind.Sorter, tile, cell.Direction, FilterItemId: cell.FilterItemId);
+                    spec = new BuildSpec(
+                        id,
+                        cell.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter,
+                        tile,
+                        cell.Direction,
+                        FilterItemId: cell.FilterItemId);
                     return true;
                 case LogisticsKind.Bridge when cell.BridgePartner is { } partner:
                     var entry = IsAhead(tile, cell.Direction, partner) ? tile : partner;
@@ -2948,7 +2982,7 @@ public sealed class Factory : IGameView
         }
 
         var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Router
-            or BuildingKind.Sorter or BuildingKind.Bridge
+            or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge
             ? Belts.TryRemove(tile)
             : TryRemoveBuildingEntity(tile, out _);
         if (!removed)
@@ -3075,7 +3109,7 @@ public sealed class Factory : IGameView
             && Belts.TryGet(position, out var cell)
             && cell.Kind == LogisticsKind.Sorter)
         {
-            cell.SetFilterItem(sorterFilter ?? BeltGridCell.DefaultSorterFilter);
+            cell.SetFilterItem(sorterFilter);
         }
 
         return true;

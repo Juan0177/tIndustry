@@ -7,6 +7,7 @@ struttura.conveyor-fast.nome,Nastro T2,Belt T2
 struttura.junction.nome,Incrocio,Junction
 struttura.router.nome,Router,Router
 struttura.sorter.nome,Selezionatore,Sorter
+struttura.sorter-inverted.nome,Selezionatore invertito,Inverted sorter
 struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
 struttura.conveyor-armored.nome,Nastro rinforzato,Armored belt
@@ -100,7 +101,8 @@ struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in
 struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.router.suggerimento,Un oggetto alla volta · a turno su ogni lato · mai indietro,One item at a time · takes turns on every side · never back
-struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va avanti · gli altri a sinistra (a destra se piena),Item filter · icon in the middle · C cycles · matches go straight · others go left (right if full)
+struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Item filter · icon in the middle · C cycles · matches go straight · others alternate left and right · with no filter all to the sides
+struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · chi passa il filtro va ai lati · gli altri dritti,The sorter the other way round · matches go to the sides · others go straight
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% with power (uses it) · unlock in Research
@@ -377,7 +379,8 @@ struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,B
 struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non raccoglie di lato · R/rotella","Armored belt · like T2, never picks up from the side · R/wheel"
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.router.descrizione,Distribuisce gli oggetti a turno su tutti i lati · mai verso il lato da cui arrivano,Hands items out in turn on every side · never back to the side they came from
-struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va avanti · gli altri a sinistra (a destra se piena),Item filter · icon in the middle · C cycles · matches go straight · others go left (right if full)
+struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Item filter · icon in the middle · C cycles · matches go straight · others alternate left and right · with no filter all to the sides
+struttura.sorter-inverted.descrizione,Chi passa il filtro esce a sinistra e a destra alternando · gli altri vanno dritti · senza filtro tutto dritto,Items matching the filter leave left and right alternating · the others go straight · with no filter everything goes straight
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · 6 collegamenti · si collega da solo ai blocchi vicini,Power node T1 · 1×1 · range 6 · 6 links · links to the nearby blocks by itself

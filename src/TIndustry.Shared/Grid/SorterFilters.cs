@@ -1,6 +1,9 @@
 namespace TIndustry.Shared;
 
-/// <summary>Items a sorter can filter on, in the order the client cycles them (shared by client and host).</summary>
+/// <summary>
+/// The items the client's C key cycles a sorter's filter through, in order. The simulation takes any item of the game
+/// as a filter (<see cref="FactoryContent.IsKnownItem"/>, <see cref="SetBlockFilter"/>).
+/// </summary>
 public static class SorterFilters
 {
     private static readonly string[] ids =

@@ -223,6 +223,7 @@ public sealed class AutoJunctionTests
     [Theory]
     [InlineData(BuildingKind.Router)]
     [InlineData(BuildingKind.Sorter)]
+    [InlineData(BuildingKind.SorterInverted)]
     [InlineData(BuildingKind.Junction)]
     [InlineData(BuildingKind.Bridge)]
     public void DragOverASpecialKeepsTodaysBehaviour(BuildingKind kind)

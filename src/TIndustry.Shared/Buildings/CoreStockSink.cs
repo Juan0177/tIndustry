@@ -41,9 +41,9 @@ public static class CoreStockSink
                 continue;
             }
 
-            if (cell.Kind == LogisticsKind.Router)
+            if (cell.Kind is LogisticsKind.Router or LogisticsKind.Sorter)
             {
-                continue; // a router hands items to the Core itself (GameState.ReceiveFromLogistics), in its turn
+                continue; // a router and a sorter hand items to the Core themselves (GameState.ReceiveFromLogistics)
             }
 
             // Face into core, or dead-end against core (wrong facing / no next belt).

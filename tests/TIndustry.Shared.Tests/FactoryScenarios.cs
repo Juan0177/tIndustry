@@ -763,7 +763,7 @@ internal static class FactoryScenarios
         Assert(sorter.Kind == LogisticsKind.Sorter, "sorter kind");
         Assert(bridge.Kind == LogisticsKind.Bridge, "bridge kind");
 
-        // Sorter: match → facing; overflow → left/right.
+        // Sorter: match → straight on (opposite its entry); overflow → left/right.
         var sortGrid = new BeltGrid();
         sortGrid.TryPlaceFree(new GridPosition(1, 1), Direction.East, belt);
         Assert(sortGrid.TryPlaceFree(new GridPosition(2, 1), Direction.East, sorter), "place sorter");
@@ -771,8 +771,8 @@ internal static class FactoryScenarios
         sortGrid.TryPlaceFree(new GridPosition(2, 0), Direction.North, belt);
         sortGrid.TryPlaceFree(new GridPosition(2, 2), Direction.South, belt);
         Assert(sortGrid.TryGet(new GridPosition(2, 1), out var sorterCell), "sorter cell");
-        Assert(sorterCell.Kind == LogisticsKind.Sorter && sorterCell.FilterItemId == "iron-ore",
-            "default filter iron-ore");
+        Assert(sorterCell.Kind == LogisticsKind.Sorter && sorterCell.FilterItemId is null,
+            "placed without a filter");
         sorterCell.SetFilterItem("iron-ore");
 
         Assert(sortGrid.TryInsert(new GridPosition(1, 1), new TransportedItem(1, "iron-ore")), "match in");

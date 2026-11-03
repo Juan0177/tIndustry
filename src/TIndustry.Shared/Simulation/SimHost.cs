@@ -222,7 +222,7 @@ public sealed class SimHost
         SellAll sellAll => ApplySellAll(sellAll),
         SetAutoSell autoSell => ApplySetAutoSell(autoSell),
         SetAutoSellWhenFull whenFull => ApplySetAutoSellWhenFull(whenFull),
-        SetSorterFilter filter => ApplySetSorterFilter(filter),
+        SetBlockFilter filter => ApplySetBlockFilter(filter),
         TogglePowerLink link => factory.TogglePowerLink(link.FromNodeId, link.ToEntityId),
         _ => RefusalCode.InvalidCommand
     };
@@ -599,17 +599,24 @@ public sealed class SimHost
         return null;
     }
 
-    private Refusal? ApplySetSorterFilter(SetSorterFilter command)
+    /// <summary>
+    /// The filter of a sorter or an inverted sorter (null = none). Every block with a filter is a branch here; anything
+    /// else, or an item the game does not know, is refused.
+    /// </summary>
+    private Refusal? ApplySetBlockFilter(SetBlockFilter command)
     {
-        if (!SorterFilters.IsValid(command.ItemId)
-            || !factory.Belts.TryGet(command.Tile, out var cell)
-            || cell.Kind != LogisticsKind.Sorter)
+        if (command.ItemId is { } itemId && !factory.Content.IsKnownItem(itemId))
         {
             return RefusalCode.InvalidCommand;
         }
 
-        cell.SetFilterItem(command.ItemId);
-        return null;
+        if (factory.Belts.TryGet(command.Tile, out var cell) && cell.Kind == LogisticsKind.Sorter)
+        {
+            cell.SetFilterItem(command.ItemId);
+            return null;
+        }
+
+        return RefusalCode.InvalidCommand;
     }
 
     /// <summary>

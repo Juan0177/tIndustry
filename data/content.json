@@ -137,6 +137,39 @@
       "kind": "sorter"
     },
     {
+      "id": "sorter-inverted",
+      "tier": 1,
+      "rateItemsPerSecond": 8.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-ore",
+          "amount": 2
+        },
+        {
+          "itemId": "lead-ore",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-ore",
+            "amount": 10
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 10
+          }
+        ]
+      },
+      "kind": "sorter",
+      "inverted": true
+    },
+    {
       "id": "conveyor-bridge",
       "tier": 1,
       "rateItemsPerSecond": 5.25,
@@ -507,6 +540,29 @@
       "isStub": false,
       "prerequisites": [
         "junction"
+      ]
+    },
+    {
+      "id": "sorter-inverted",
+      "displayName": "Selezionatore invertito",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 320,
+        "materials": [
+          {
+            "itemId": "iron-ore",
+            "amount": 10
+          },
+          {
+            "itemId": "lead-ore",
+            "amount": 10
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "sorter"
       ]
     },
     {

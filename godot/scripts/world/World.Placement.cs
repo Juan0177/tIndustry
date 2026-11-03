@@ -124,10 +124,10 @@ public partial class World
             && cell.Kind == LogisticsKind.Sorter)
         {
             // Cycle from the filter the sorter will have once earlier same-tick presses are applied.
-            var current = PendingCommands.OfType<SetSorterFilter>().LastOrDefault(c => c.Tile == hover)?.ItemId
+            var current = PendingCommands.OfType<SetBlockFilter>().LastOrDefault(c => c.Tile == hover)?.ItemId
                 ?? cell.FilterItemId;
             _sorterFilterId = SorterFilters.Cycle(current);
-            SubmitCommand(new SetSorterFilter(LocalPlayer, hover, _sorterFilterId));
+            SubmitCommand(new SetBlockFilter(LocalPlayer, hover, _sorterFilterId));
             _hud?.SetSorterFilterBrush(_sorterFilterId);
         }
 

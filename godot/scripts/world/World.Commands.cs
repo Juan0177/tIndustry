@@ -126,7 +126,7 @@ public partial class World
         TakeQuietRefusal(command);
         switch (command)
         {
-            case SetSorterFilter:
+            case SetBlockFilter:
                 _visualDirty = true;
                 break;
             case PlaceBelt or PlaceBuilding or Remove:

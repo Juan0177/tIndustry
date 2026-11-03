@@ -354,7 +354,13 @@ public sealed class BeltSaveDto
 
     public int? BridgePartnerX { get; set; }
     public int? BridgePartnerY { get; set; }
+
+    /// <summary>Sorter filter (<see cref="BeltGridCell.FilterItemId"/>); null = none, and on other cells.</summary>
     public string? FilterItemId { get; set; }
+
+    /// <summary>Sorter: true when the next item aside tries the right first (<see cref="BeltGridCell.SorterToggle"/>); null = false.</summary>
+    public bool? SorterToggle { get; set; }
+
     public List<ItemSaveDto> Items { get; set; } = [];
 }
 
