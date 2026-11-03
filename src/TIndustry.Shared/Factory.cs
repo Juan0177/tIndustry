@@ -431,8 +431,6 @@ public sealed class Factory : IGameView
     // Tiles of buildings that exchange items with belts (miners, crafters, extractors, generators, storage, the Core): belts
     // blend with them (visual only). Lamps and power nodes have no item I/O.
     private readonly HashSet<GridPosition> blendTiles = new();
-    // Tiles of buildings that take items from logistics (the Core, storage, crafters, generators): junction outputs.
-    private readonly HashSet<GridPosition> takerTiles = new();
     private Func<GridPosition, GridPosition, bool>? buildingBlends;
     private int buildingsVersion;
     private (int Belts, int Buildings, int CoreTier) beltIncomingVersion = (-1, -1, -1);
@@ -486,18 +484,6 @@ public sealed class Factory : IGameView
             }
         }
 
-        takerTiles.Clear();
-        takerTiles.UnionWith(blendTiles);
-        foreach (var miner in miners)
-        {
-            takerTiles.ExceptWith(BuildingIo.Tiles(miner.Position, Miner.Size));
-        }
-
-        foreach (var extractor in extractors)
-        {
-            takerTiles.ExceptWith(BuildingIo.Tiles(extractor.Position, Extractor.Size));
-        }
-
         beltIncoming.Clear();
         buildingFeeds ??= BuildingEjectsInto;
         buildingBlends ??= (source, _) => blendTiles.Contains(source);
@@ -515,7 +501,7 @@ public sealed class Factory : IGameView
             {
                 foreach (var side in JunctionSideOrder)
                 {
-                    sides |= Belts.IsJunctionSideConnected(position, side, buildingFeeds, TakesFromBelts)
+                    sides |= Belts.IsJunctionSideConnected(position, side, buildingFeeds, State.TakesItemsAt)
                         ? 1 << (int)side
                         : 0;
                 }
@@ -530,9 +516,6 @@ public sealed class Factory : IGameView
         beltIncomingVersion = version;
         return beltIncoming;
     }
-
-    /// <summary>Whether a building on <paramref name="tile"/> takes items from logistics (Core, storage, crafter, generator).</summary>
-    private bool TakesFromBelts(GridPosition tile) => takerTiles.Contains(tile);
 
     private static readonly Direction[] JunctionSideOrder =
         [Direction.North, Direction.East, Direction.South, Direction.West];

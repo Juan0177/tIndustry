@@ -95,9 +95,15 @@ public sealed class JunctionMindustryTests
     [Fact]
     public void EachDirectionQueuesSixItems()
     {
+        // A belt on every side leading away, so every direction has a block on its far side.
         var grid = new BeltGrid();
         var at = new GridPosition(5, 5);
         Assert.True(grid.TryPlaceFree(at, Direction.North, Junction));
+        foreach (var dir in DirectionMath.All)
+        {
+            Assert.True(grid.TryPlaceFree(at.Step(dir), dir, Belt));
+        }
+
         foreach (var dir in new[] { Direction.East, Direction.North, Direction.West, Direction.South })
         {
             for (var i = 0; i < 6; i++)
@@ -180,10 +186,11 @@ public sealed class JunctionMindustryTests
     [Fact]
     public void ABlockedExitFillsOnlyItsOwnQueue()
     {
-        // Eastward items find nothing past the junction; the North → South flow goes on at the rate of a plain line.
+        // Eastward items reach a dead-end belt past the junction; the North → South flow goes on at the rate of a plain line.
         var grid = new BeltGrid();
         var at = new GridPosition(5, 10);
         Line(grid, Row(10, 0, 4), Direction.East);
+        Line(grid, Row(10, 6, 6), Direction.East);
         Line(grid, Column(5, 5, 15).Where(p => p.Y != 10), Direction.South);
         Assert.True(grid.TryPlaceFree(at, Direction.East, Junction));
         var plain = new BeltGrid();
@@ -340,5 +347,164 @@ public sealed class JunctionMindustryTests
         restored.Step(); // the eastward item has been inside for 26 ticks
         Assert.Single(restored.Belts.Cells[new GridPosition(21, 21)].Items);
         Assert.Single(restored.Belts.Cells[at].Items);
+    }
+
+    private static Factory SandboxFactory() =>
+        NewGame.Sandbox(
+            Content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7,
+            startingMoney: 100_000, rules: new GameRules(InstantBuild: true));
+
+    [Fact]
+    public void TheFarSideMustTakeItems()
+    {
+        // Mindustry's Junction.acceptItem: only toward a block on the far side. An empty cell refuses, a belt takes.
+        var grid = new BeltGrid();
+        var at = new GridPosition(5, 5);
+        Assert.True(grid.TryPlaceFree(at, Direction.North, Junction));
+        Assert.False(grid.TryInsert(at, NewItem(), Direction.East));
+        Assert.True(grid.TryPlaceFree(new GridPosition(6, 5), Direction.East, Belt));
+        Assert.True(grid.TryInsert(at, NewItem(), Direction.East));
+        Assert.False(grid.TryInsert(at, NewItem(), Direction.North)); // (5, 4) is still empty
+
+        // In a game: a miner (it takes nothing) past the junction refuses, a forno takes.
+        var factory = SandboxFactory();
+        factory.UnlockAllForDemo();
+        Assert.True(factory.TryPlaceJunction(new GridPosition(20, 21), Direction.North));
+        Assert.True(factory.TryPlaceMiner(new GridPosition(21, 20), Direction.East)); // x 21-22
+        Assert.False(factory.Belts.TryInsert(new GridPosition(20, 21), NewItem(), Direction.East));
+        Assert.True(factory.TryPlaceJunction(new GridPosition(30, 21), Direction.North));
+        Assert.True(factory.TryPlaceSmelter(new GridPosition(31, 20), Direction.East)); // x 31-32
+        Assert.True(factory.Belts.TryInsert(new GridPosition(30, 21), NewItem(), Direction.East));
+    }
+
+    [Fact]
+    public void TwoBeltsFacingIntoAJunctionNeverBounceItems()
+    {
+        // (4, 5) East → junction (5, 5) ← (6, 5) West: each belt refuses what crosses toward it from its front.
+        var grid = new BeltGrid();
+        var at = new GridPosition(5, 5);
+        Assert.True(grid.TryPlaceFree(new GridPosition(4, 5), Direction.East, Belt));
+        Assert.True(grid.TryPlaceFree(at, Direction.North, Junction));
+        Assert.True(grid.TryPlaceFree(new GridPosition(6, 5), Direction.West, Belt));
+        var fromWest = new HashSet<long>();
+        var fromEast = new HashSet<long>();
+        for (var tick = 0; tick < 600; tick++)
+        {
+            var west = NewItem();
+            if (grid.TryInsert(new GridPosition(4, 5), west, Direction.East))
+            {
+                fromWest.Add(west.Id);
+            }
+
+            var east = NewItem();
+            if (grid.TryInsert(new GridPosition(6, 5), east, Direction.West))
+            {
+                fromEast.Add(east.Id);
+            }
+
+            Tick(grid);
+            Assert.DoesNotContain(grid.Cells[new GridPosition(6, 5)].Items, item => fromWest.Contains(item.Id));
+            Assert.DoesNotContain(grid.Cells[new GridPosition(4, 5)].Items, item => fromEast.Contains(item.Id));
+        }
+
+        var queued = grid.Cells[at].Items;
+        Assert.Equal(6, queued.Count(item => item.Travel == Direction.East));
+        Assert.Equal(6, queued.Count(item => item.Travel == Direction.West));
+        Assert.Equal(fromWest.Count + fromEast.Count, ItemsOnGrid(grid));
+    }
+
+    [Fact]
+    public void DeconstructingAFullJunctionLosesItsItemsButNeverDuplicates()
+    {
+        // A line East into a junction (20, 21) and a dead-end belt past it: the queue fills, then the junction goes.
+        var factory = SandboxFactory();
+        factory.UnlockAllForDemo();
+        var at = new GridPosition(20, 21);
+        foreach (var x in Enumerable.Range(15, 5))
+        {
+            Assert.True(factory.TryPlaceBelt(new GridPosition(x, 21), Direction.East));
+        }
+
+        Assert.True(factory.TryPlaceJunction(at, Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.East));
+        long fed = 0;
+        for (var tick = 0; tick < 1200; tick++)
+        {
+            fed += factory.Belts.TryInsert(new GridPosition(15, 21), NewItem(), Direction.East) ? 1 : 0;
+            factory.Step();
+        }
+
+        var inside = factory.Belts.Cells[at].Items.Select(item => item.Id).ToList();
+        Assert.Equal(6, inside.Count);
+        Assert.Equal(fed, ItemsOnGrid(factory.Belts));
+
+        Assert.True(factory.TryRemoveBelt(at));
+        long lost = inside.Count;
+        for (var tick = 0; tick < 600; tick++)
+        {
+            fed += factory.Belts.TryInsert(new GridPosition(15, 21), NewItem(), Direction.East) ? 1 : 0;
+            factory.Step();
+        }
+
+        var ids = factory.Belts.Cells.Values.SelectMany(c => c.Items).Select(item => item.Id).ToList();
+        Assert.Equal(ids.Count, ids.Distinct().Count());
+        Assert.DoesNotContain(ids, inside.Contains);
+        Assert.Equal(fed, ids.Count + lost);
+    }
+
+    [Fact]
+    public void AMinerDeliversThroughAJunction()
+    {
+        // No terrain: full iron everywhere. Miner (7..8, 14..15), junction (9, 14), belts (10..11, 14) into the Core
+        // (12..14, 13..15); the miner does not touch the Core.
+        var factory = new Factory(Content, new BeltGrid(), CoreStockSink.MakeCoreTiles(new GridPosition(12, 13)));
+        factory.UnlockAllForDemo();
+        Assert.True(factory.TryPlaceMiner(new GridPosition(7, 14), Direction.East));
+        Assert.True(factory.TryPlaceJunction(new GridPosition(9, 14), Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(10, 14), Direction.East));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(11, 14), Direction.East));
+        var miner = Assert.Single(factory.State.Miners);
+        var before = factory.CoreDeliveredItems;
+
+        for (var tick = 0; tick < 30 * SimulationClock.TickRate; tick++)
+        {
+            factory.Step();
+        }
+
+        Assert.True(miner.ItemsProduced > 0);
+        Assert.True(factory.CoreDeliveredItems - before > 0);
+        Assert.Equal(miner.ItemsProduced, factory.CoreDeliveredItems - before + ItemsOnGrid(factory.Belts));
+    }
+
+    [Fact]
+    public void AJunctionFeedsAGeneratorAndAStandaloneStorageBlock()
+    {
+        var factory = SandboxFactory();
+        factory.UnlockAllForDemo();
+        // Coal: belt (19, 21) East → junction (20, 21) → generator (21..22, 20..21).
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec(Generator.BuildingId, BuildingKind.Generator, new GridPosition(21, 20), Direction.East), charge: false));
+        Assert.True(factory.TryPlaceJunction(new GridPosition(20, 21), Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(19, 21), Direction.East));
+        // Iron: belt (38, 40) East → junction (39, 40) → container (40..41, 40..41), far from the Core.
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec("container", BuildingKind.Container, new GridPosition(40, 40), Direction.East), charge: false));
+        Assert.True(factory.TryPlaceJunction(new GridPosition(39, 40), Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(38, 40), Direction.East));
+        var generator = Assert.Single(factory.State.Generators);
+        var storage = Assert.Single(factory.State.Storages, s => s.Kind == BuildingKind.Container);
+        Assert.False(storage.IsLinked);
+
+        for (var tick = 0; tick < 300; tick++)
+        {
+            factory.Belts.TryInsert(new GridPosition(19, 21), new TransportedItem(nextId++, Generator.FuelItemId), Direction.East);
+            factory.Belts.TryInsert(new GridPosition(38, 40), NewItem(), Direction.East);
+            factory.Step();
+        }
+
+        Assert.True(generator.FuelBuffer > 0 || generator.FuelConsumed > 0);
+        Assert.True(storage.Count(Iron) > 0);
+        Assert.True(factory.IsJunctionSideConnected(new GridPosition(20, 21), Direction.East));
+        Assert.True(factory.IsJunctionSideConnected(new GridPosition(39, 40), Direction.East));
     }
 }

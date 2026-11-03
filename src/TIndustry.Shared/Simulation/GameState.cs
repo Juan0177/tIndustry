@@ -33,6 +33,37 @@ public sealed class GameState
             ? default
             : new GridPosition(coreTiles.Min(t => t.X), coreTiles.Min(t => t.Y));
         CoreStart = CoreOrigin;
+        belts.BuildingTakesAt = TakesItemsAt;
+    }
+
+    /// <summary>
+    /// Whether a building on <paramref name="tile"/> takes items from logistics: the Core, a storage block, a forno or
+    /// assembler, a generator (a junction hands items only toward one of these or a logistics cell).
+    /// </summary>
+    public bool TakesItemsAt(GridPosition tile)
+    {
+        if (coreTiles.Contains(tile) || StorageAt(tile) is not null)
+        {
+            return true;
+        }
+
+        foreach (var craft in CraftMachines())
+        {
+            if (craft.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
+        foreach (var generator in Generators)
+        {
+            if (generator.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public FactoryContent Content { get; }

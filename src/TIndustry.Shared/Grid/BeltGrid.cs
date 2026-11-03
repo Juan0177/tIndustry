@@ -166,6 +166,15 @@ public sealed class BeltGrid
         return true;
     }
 
+    /// <summary>
+    /// Whether a building on a tile takes items from logistics (the Core, storage, crafters, generators). The simulation
+    /// state sets it (<see cref="GameState"/>); a bare grid has none, so only its own cells count. Not saved.
+    /// </summary>
+    public Func<GridPosition, bool>? BuildingTakesAt { get; set; }
+
+    /// <summary>Whether a logistics cell or a building that takes items is on <paramref name="tile"/>.</summary>
+    public bool TakesItemsAt(GridPosition tile) => cells.ContainsKey(tile) || BuildingTakesAt?.Invoke(tile) == true;
+
     public bool TryOrient(GridPosition position, Direction direction)
     {
         if (!cells.TryGetValue(position, out var cell))
@@ -196,9 +205,16 @@ public sealed class BeltGrid
         }
 
         // Junction: the item travels away from where it comes from (a cell or a building's tile beside it).
+        // Like Mindustry's Junction.acceptItem, only toward a block on the far side that could take it.
         if (cell.Kind == LogisticsKind.Junction)
         {
-            return origin is { } o && IsAdjacent(o, position) && cell.TryInsert(item, BeltLane.DirectionBetween(o, position));
+            if (origin is not { } o || !IsAdjacent(o, position))
+            {
+                return false;
+            }
+
+            var travel = BeltLane.DirectionBetween(o, position);
+            return TakesItemsAt(position.Step(travel)) && cell.TryInsert(item, travel);
         }
 
         // Bridge start: accept 3 sides (not span); teleport instantly to end when free.
@@ -358,10 +374,14 @@ public sealed class BeltGrid
             && (from == cell.Position.Step(DirectionMath.Opposite(cell.Direction))
                 || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
 
-    /// <summary>Mindustry's conveyor: a belt never takes from the belt it faces (two belts head-on would bounce items).</summary>
+    /// <summary>
+    /// Mindustry's conveyor: a belt never takes from the belt or the junction it faces (two belts head-on, or facing into
+    /// a junction from opposite sides, would bounce items).
+    /// </summary>
     private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
         cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
-        && cells.TryGetValue(cell.OutputPosition, out var feeder) && feeder.Kind == LogisticsKind.Belt;
+        && cells.TryGetValue(cell.OutputPosition, out var feeder)
+        && feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction;
 
     private static bool IsAdjacent(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1;
 
