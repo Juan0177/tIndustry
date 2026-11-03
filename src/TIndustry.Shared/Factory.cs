@@ -1036,7 +1036,7 @@ public sealed class Factory : IGameView
                 belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreRouter(
                     cell.RouterTurn ?? 0,
                     cell.RouterWaitTicks ?? 0,
-                    string.IsNullOrWhiteSpace(cell.RouterFrom) ? null : ParseDirection(cell.RouterFrom));
+                    ParseRouterFrom(cell.RouterFrom));
             }
         }
 
@@ -1565,6 +1565,26 @@ public sealed class Factory : IGameView
         Enum.TryParse<DayNightMode>(name, ignoreCase: false, out var mode) && Enum.IsDefined(mode) && !int.TryParse(name, out _)
             ? mode
             : throw new InvalidDataException($"Tempo del mondo sconosciuto nel salvataggio: \"{name}\".");
+
+    /// <summary>A router's saved side of arrival: null, or exactly a <see cref="Direction"/> name.</summary>
+    /// <exception cref="InvalidDataException">Any other text (a damaged save).</exception>
+    private static Direction? ParseRouterFrom(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        foreach (var dir in DirectionMath.All)
+        {
+            if (string.Equals(dir.ToString(), value, StringComparison.Ordinal))
+            {
+                return dir;
+            }
+        }
+
+        throw new InvalidDataException($"Lato d'arrivo del router non valido: «{value}».");
+    }
 
     private static Direction ParseDirection(string? value) =>
         Enum.TryParse<Direction>(value, ignoreCase: true, out var dir) ? dir : Direction.East;

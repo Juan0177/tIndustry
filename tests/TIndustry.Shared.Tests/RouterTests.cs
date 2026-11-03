@@ -210,31 +210,35 @@ public sealed class RouterTests
         Assert.Contains(held, grid.Cells[exit].Items);
     }
 
-    [Fact]
-    public void AChainOfRoutersPassesItemsOn()
+    [Theory]
+    [InlineData(Direction.East)]
+    [InlineData(Direction.West)]
+    public void AChainOfRoutersPassesOneItemEveryEightTicks(Direction way)
     {
-        // Express belt (0..2, 5) East → routers (3..7, 5) → express belt (8..10, 5) East, drained at its end; the
-        // express belt (18 items a second) is faster than a router.
+        // Express belt (3 cells) → 5 routers → express belt (3 cells) along y 5, running East or West, drained at its
+        // end; the express belt (18 items a second) is faster than a router. Counted for a minute after a warm-up.
         var express = Content.RequireConveyor("conveyor-express");
         var grid = new BeltGrid();
-        Line(grid, Row(5, 0, 2), Direction.East, express);
-        foreach (var cell in Row(5, 3, 7))
+        GridPosition At(int k) => new(way == Direction.East ? k : 10 - k, 5);
+        Line(grid, Enumerable.Range(0, 3).Select(At), way, express);
+        foreach (var k in Enumerable.Range(3, 5))
         {
-            Assert.True(grid.TryPlaceFree(cell, Direction.North, Router));
+            Assert.True(grid.TryPlaceFree(At(k), Direction.North, Router));
         }
 
-        Line(grid, Row(5, 8, 10), Direction.East, express);
-        long fed = 0, drained = 0;
-        for (var tick = 0; tick < 60 * SimulationClock.TickRate; tick++)
+        Line(grid, Enumerable.Range(8, 3).Select(At), way, express);
+        long fed = 0, drained = 0, counted = 0;
+        const int minute = 60 * SimulationClock.TickRate;
+        for (var tick = 0; tick < 600 + minute; tick++)
         {
-            fed += grid.TryInsert(new GridPosition(0, 5), NewItem(), Direction.East) ? 1 : 0;
+            fed += grid.TryInsert(At(0), NewItem(), way) ? 1 : 0;
             Tick(grid);
-            drained += Drain(grid, new GridPosition(10, 5));
+            var out1 = Drain(grid, At(10));
+            drained += out1;
+            counted += tick >= 600 ? out1 : 0;
         }
 
-        // One item every 8 ticks per router (7.5 items a second); a chain running in the grid's canonical order (East)
-        // loses a tick per item where the two handoff passes cannot resolve every router in a row: 1 every 9 ticks.
-        Assert.InRange(drained, 60 * 60 / 9 - 10, 60 * 60 / 8);
+        Assert.InRange(counted, minute / BeltGridCell.RouterTicks - 1, minute / BeltGridCell.RouterTicks + 1);
         Assert.Equal(fed, drained + ItemsOnGrid(grid));
     }
 
@@ -269,7 +273,9 @@ public sealed class RouterTests
             }
         }
 
-        Assert.True(lastMinute > 60, $"last minute {lastMinute}");
+        // The exit router hands an item on every 8 ticks at best (450 a minute) and, by turns, sends at least half of
+        // them out (the rest go round the ring); the basic belt out takes at most 315 a minute.
+        Assert.InRange(lastMinute, 60 * SimulationClock.TickRate / BeltGridCell.RouterTicks / 2, 315);
         Assert.Equal(fed, drained + ItemsOnGrid(grid));
     }
 
@@ -308,6 +314,95 @@ public sealed class RouterTests
             Assert.Equal(LogisticsKind.Router, factory.Belts.Cells[cell].Kind);
             Assert.Equal(Direction.North, factory.Belts.Cells[cell].Direction);
         }
+    }
+
+    [Fact]
+    public void ADraggedLineOfRoutersOverAPerpendicularBeltMakesNoCrossing()
+    {
+        // A belt column x = 40, y 30..36 heading South; a router line dragged East along y 33 across it.
+        var factory = SandboxFactory();
+        factory.AddBuilder(Player);
+        var host = new SimHost(factory);
+        var refusals = new List<Refusal>();
+        host.CommandRejected += (_, refusal) => refusals.Add(refusal);
+        for (var y = 30; y <= 36; y++)
+        {
+            Assert.True(factory.TryPlaceBelt(new GridPosition(40, y), Direction.South));
+        }
+
+        var crossing = new GridPosition(40, 33);
+        var line = PlacementLine.Plan(
+            host.State, new LineRequest(Player, "router", new GridPosition(37, 33), new GridPosition(44, 33), Direction.East));
+        Assert.All(line, c => Assert.IsType<PlaceBuilding>(c.Command));
+        Assert.Contains(line, c => c.Cell == crossing && c.Refusal == RefusalCode.Occupied);
+        foreach (var command in PlacementLine.Commands(line))
+        {
+            host.Submit(command);
+        }
+
+        host.AdvanceTicks(1);
+
+        Assert.Empty(refusals);
+        Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[crossing].Kind);
+        Assert.Equal(Direction.South, factory.Belts.Cells[crossing].Direction);
+        Assert.DoesNotContain(factory.Belts.Cells.Values, c => c.Kind == LogisticsKind.Junction);
+        Assert.Equal(7, factory.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Router));
+    }
+
+    [Fact]
+    public void DeconstructingAFullRouterLosesItsItemButNeverDuplicates()
+    {
+        // Belts (15..19, 21) East into a router (20, 21) with a dead-end belt past it: everything fills, then it goes.
+        var factory = SandboxFactory();
+        var at = new GridPosition(20, 21);
+        foreach (var x in Enumerable.Range(15, 5))
+        {
+            Assert.True(factory.TryPlaceBelt(new GridPosition(x, 21), Direction.East));
+        }
+
+        Assert.True(factory.TryPlaceRouter(at, Direction.North));
+        Assert.True(factory.TryPlaceBelt(new GridPosition(21, 21), Direction.East));
+        long fed = 0;
+        for (var tick = 0; tick < 1200; tick++)
+        {
+            fed += factory.Belts.TryInsert(new GridPosition(15, 21), NewItem(), Direction.East) ? 1 : 0;
+            factory.Step();
+        }
+
+        var inside = Assert.Single(factory.Belts.Cells[at].Items).Id;
+        Assert.Equal(fed, ItemsOnGrid(factory.Belts));
+
+        Assert.True(factory.TryRemoveBelt(at));
+        for (var tick = 0; tick < 600; tick++)
+        {
+            fed += factory.Belts.TryInsert(new GridPosition(15, 21), NewItem(), Direction.East) ? 1 : 0;
+            factory.Step();
+        }
+
+        var ids = factory.Belts.Cells.Values.SelectMany(c => c.Items).Select(item => item.Id).ToList();
+        Assert.Equal(ids.Count, ids.Distinct().Count());
+        Assert.DoesNotContain(inside, ids);
+        Assert.Equal(fed, ids.Count + 1);
+    }
+
+    [Theory]
+    [InlineData("Up")]
+    [InlineData("north")]
+    [InlineData("2")]
+    [InlineData("")]
+    public void ABadSideOfArrivalMakesTheSaveUnreadable(string from)
+    {
+        var factory = SandboxFactory();
+        var at = new GridPosition(20, 21);
+        Assert.True(factory.TryPlaceRouter(at, Direction.North));
+        Assert.True(factory.Belts.TryInsert(at, NewItem(), Direction.East));
+        var data = factory.Capture();
+        var cell = Assert.Single(data.Belts, b => b.X == at.X && b.Y == at.Y);
+        Assert.Equal("West", cell.RouterFrom);
+
+        cell.RouterFrom = from;
+
+        Assert.Throws<InvalidDataException>(() => Factory.Restore(Content, data));
     }
 
     [Fact]

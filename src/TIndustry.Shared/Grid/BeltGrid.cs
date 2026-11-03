@@ -308,6 +308,54 @@ public sealed class BeltGrid
         {
             TryHandoff(cell);
         }
+
+        RetryRouters(refused);
+    }
+
+    /// <summary>
+    /// Two passes resolve only one router of a chain running in canonical order (East or South) per tick. The routers
+    /// still holding a ready item retry in reverse canonical order, sweep after sweep while one of them hands its item on
+    /// (each at most once: an item a router just received waits <see cref="BeltGridCell.RouterTicks"/> ticks); then the
+    /// still refused cells beside a router that emptied retry once, so the router is refilled in the same tick. Belts
+    /// away from routers are unchanged. Bounded and deterministic.
+    /// </summary>
+    private void RetryRouters(List<BeltGridCell> refused)
+    {
+        var waiting = refused.Where(c => c.Kind == LogisticsKind.Router && c.PeekRouterItem() is not null).ToList();
+        var progress = waiting.Count > 0;
+        while (progress)
+        {
+            progress = false;
+            for (var i = waiting.Count - 1; i >= 0; i--)
+            {
+                TryHandoff(waiting[i]);
+                if (waiting[i].PeekRouterItem() is null)
+                {
+                    waiting.RemoveAt(i);
+                    progress = true;
+                }
+            }
+        }
+
+        // Routers that handed their item on in the second pass or above, and are still empty.
+        var emptied = refused
+            .Where(c => c.Kind == LogisticsKind.Router && c.Items.Count == 0)
+            .Select(c => c.Position)
+            .ToList();
+        if (emptied.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var cell in refused)
+        {
+            if (cell.Kind != LogisticsKind.Router
+                && cell.Items.Any(item => item.Progress >= 1f)
+                && emptied.Any(router => IsAdjacent(router, cell.Position)))
+            {
+                TryHandoff(cell);
+            }
+        }
     }
 
     private void TryHandoff(BeltGridCell cell)
