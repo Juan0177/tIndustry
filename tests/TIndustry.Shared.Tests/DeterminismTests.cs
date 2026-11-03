@@ -179,7 +179,7 @@ public sealed class DeterminismTests
         {
             // Lead only at the start of the main line: the sorter puts it aside, its dead ends hold all of it.
             var item = cell.Position is { Y: 30, X: <= 5 } ? "lead-ore" : "iron-ore";
-            cell.RestoreState(0, new[] { 1f, 0.6f, 0.2f }.Select(p => new TransportedItem(id++, item, p)));
+            cell.RestoreState(new[] { 1f, 0.6f, 0.2f }.Select(p => new TransportedItem(id++, item, p)));
         }
 
         return factory;

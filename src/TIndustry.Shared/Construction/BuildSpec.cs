@@ -57,7 +57,7 @@ public sealed record BuildSpec(
     public static string? StructureIdFor(BuildingKind kind) => kind switch
     {
         BuildingKind.Junction => "junction",
-        BuildingKind.Splitter => "splitter",
+        BuildingKind.Router => "router",
         BuildingKind.Sorter => "sorter",
         BuildingKind.Bridge => "conveyor-bridge",
         BuildingKind.Miner => Miner.BasicId,

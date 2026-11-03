@@ -1,7 +1,8 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Placeable logistics grid: belts, junctions (four queues, as Mindustry's Junction), splitters, sorters, bridges.
+/// Placeable logistics grid: belts, junctions (four queues, as Mindustry's Junction), routers (as Mindustry's Router),
+/// sorters, bridges.
 /// Bridge mid-span is empty (ends only); sorter filters Mindustry-style.
 /// Cells are kept in canonical (Y, X) order: every pass over the grid (advance, handoff,
 /// core drain, save) visits them the same way regardless of placement history.
@@ -58,7 +59,11 @@ public sealed class BeltGrid
                 return true;
             }
 
-            existing.Direction = direction;
+            if (existing.HasDirection)
+            {
+                existing.Direction = direction;
+            }
+
             Version++;
             return true;
         }
@@ -144,12 +149,12 @@ public sealed class BeltGrid
         Version++;
     }
 
-    /// <summary>Place or replace a cell and restore items/toggle/partner/filter (save/load).</summary>
+    /// <summary>Place or replace a cell and restore items/partner/filter (save/load); a router's state is restored apart
+    /// (<see cref="BeltGridCell.RestoreRouter"/>).</summary>
     public bool TryRestore(
         GridPosition position,
         Direction direction,
         ConveyorDefinition definition,
-        int splitterToggle,
         IEnumerable<TransportedItem> items,
         GridPosition? bridgePartner = null,
         string? filterItemId = null)
@@ -159,8 +164,8 @@ public sealed class BeltGrid
             DefaultDefinition ??= definition;
         }
 
-        var cell = new BeltGridCell(position, direction, definition, bridgePartner, splitterToggle, filterItemId);
-        cell.RestoreState(splitterToggle, items, bridgePartner, filterItemId);
+        var cell = new BeltGridCell(position, direction, definition, bridgePartner, filterItemId);
+        cell.RestoreState(items, bridgePartner, filterItemId);
         cells[position] = cell;
         Version++;
         return true;
@@ -172,6 +177,12 @@ public sealed class BeltGrid
     /// </summary>
     public Func<GridPosition, bool>? BuildingTakesAt { get; set; }
 
+    /// <summary>
+    /// Hands one item to the building on a tile (a router's exit): true when the building took it. The simulation state
+    /// sets it (<see cref="GameState"/>); a bare grid has none, so a router hands items only to cells. Not saved.
+    /// </summary>
+    public Func<GridPosition, string, bool>? BuildingReceives { get; set; }
+
     /// <summary>Whether a logistics cell or a building that takes items is on <paramref name="tile"/>.</summary>
     public bool TakesItemsAt(GridPosition tile) => cells.ContainsKey(tile) || BuildingTakesAt?.Invoke(tile) == true;
 
@@ -180,6 +191,11 @@ public sealed class BeltGrid
         if (!cells.TryGetValue(position, out var cell))
         {
             return false;
+        }
+
+        if (!cell.HasDirection)
+        {
+            return true; // a router has no direction: it stays North
         }
 
         cell.Direction = direction;
@@ -215,6 +231,13 @@ public sealed class BeltGrid
 
             var travel = BeltLane.DirectionBetween(o, position);
             return TakesItemsAt(position.Step(travel)) && cell.TryInsert(item, travel);
+        }
+
+        // Router: one item at a time, from any side; it remembers the side the item came from (never handed back there).
+        if (cell.Kind == LogisticsKind.Router)
+        {
+            return cell.TryAcceptRouterItem(
+                item, origin is { } side && IsAdjacent(side, position) ? BeltLane.DirectionBetween(position, side) : null);
         }
 
         // Bridge start: accept 3 sides (not span); teleport instantly to end when free.
@@ -303,6 +326,12 @@ public sealed class BeltGrid
             return;
         }
 
+        if (cell.Kind == LogisticsKind.Router)
+        {
+            TryRouterHandoff(cell);
+            return;
+        }
+
         var item = cell.PeekOutput();
         if (item is null)
         {
@@ -334,17 +363,6 @@ public sealed class BeltGrid
             return;
         }
 
-        if (cell.Kind == LogisticsKind.Splitter)
-        {
-            if (TryHandoffTo(cell, cell.PreferredSplitterExit, item)
-                || TryHandoffTo(cell, cell.AlternateSplitterExit, item))
-            {
-                cell.AdvanceSplitterToggle();
-            }
-
-            return;
-        }
-
         if (cell.Kind == LogisticsKind.Sorter)
         {
             if (cell.MatchesFilter(item.ItemId))
@@ -365,6 +383,41 @@ public sealed class BeltGrid
     }
 
     /// <summary>
+    /// Mindustry's Router: once the held item has waited <see cref="BeltGridCell.RouterTicks"/> ticks, the sides are
+    /// tried in turn (North, East, South, West, from <see cref="BeltGridCell.RouterTurn"/>), never the side the item came
+    /// from; the first that takes it (a logistics cell, or a building through <see cref="BuildingReceives"/>) gets it and
+    /// the turn moves to the side after it. When none takes it the router keeps it and tries again the next tick.
+    /// </summary>
+    private void TryRouterHandoff(BeltGridCell cell)
+    {
+        if (cell.PeekRouterItem() is not { } item)
+        {
+            return;
+        }
+
+        var sides = DirectionMath.All;
+        for (var step = 0; step < sides.Length; step++)
+        {
+            var index = (cell.RouterTurn + step) % sides.Length;
+            var side = sides[index];
+            if (side == cell.RouterFrom)
+            {
+                continue;
+            }
+
+            var target = cell.Position.Step(side);
+            var taken = cells.ContainsKey(target)
+                ? TryInsert(target, item, side)
+                : BuildingReceives?.Invoke(target, item.ItemId) == true;
+            if (taken)
+            {
+                cell.RemoveRouterItem(item, nextTurn: (index + 1) % sides.Length);
+                return;
+            }
+        }
+    }
+
+    /// <summary>
     /// Mindustry's armored conveyor: an armored belt takes items from the cell behind it or from a plain belt on any
     /// side, never from a building or a special on its side; an item of unknown origin is refused. Other cells take all.
     /// </summary>
@@ -375,13 +428,13 @@ public sealed class BeltGrid
                 || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
 
     /// <summary>
-    /// Mindustry's conveyor: a belt never takes from the belt or the junction it faces (two belts head-on, or facing into
-    /// a junction from opposite sides, would bounce items).
+    /// Mindustry's conveyor: a belt never takes from the belt, the junction or the router it faces (two belts head-on, a
+    /// junction between two belts facing into it, or a router handing back to its feeder would bounce items).
     /// </summary>
     private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
         cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
         && cells.TryGetValue(cell.OutputPosition, out var feeder)
-        && feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction;
+        && feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction or LogisticsKind.Router;
 
     private static bool IsAdjacent(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1;
 
@@ -625,7 +678,8 @@ public sealed class BeltGrid
         return cell.Kind switch
         {
             LogisticsKind.Belt => cell.Direction == flow,
-            LogisticsKind.Splitter => flow != cell.Direction && flow != back,
+            // A router hands items to every side (the one an item came from aside, which a view cannot know).
+            LogisticsKind.Router => true,
             LogisticsKind.Sorter => flow != back,
             LogisticsKind.Bridge when cell.BridgePartner is { } partner =>
                 !IsBridgeEntry(cell, partner) && flow != back,
@@ -669,8 +723,10 @@ public sealed class BeltGridCell
     /// <summary>Ticks an item takes to cross a junction (Mindustry's Junction speed).</summary>
     public const int JunctionCrossTicks = 26;
 
+    /// <summary>Ticks a router holds an item before trying its sides (Mindustry's Router speed).</summary>
+    public const int RouterTicks = 8;
+
     private readonly BeltCell inner;
-    private int splitterToggle;
     private string? filterItemId;
 
     public BeltGridCell(
@@ -678,13 +734,11 @@ public sealed class BeltGridCell
         Direction direction,
         ConveyorDefinition definition,
         GridPosition? bridgePartner = null,
-        int splitterToggle = 0,
         string? filterItemId = null)
     {
-        Direction = direction;
-        BridgePartner = bridgePartner;
-        this.splitterToggle = Math.Max(0, splitterToggle);
         inner = new BeltCell(position, definition);
+        Direction = HasDirection ? direction : Direction.North;
+        BridgePartner = bridgePartner;
         if (definition.Kind == LogisticsKind.Sorter)
         {
             SetFilterItem(filterItemId);
@@ -697,21 +751,76 @@ public sealed class BeltGridCell
     public LogisticsKind Kind => inner.Kind;
     public IReadOnlyList<TransportedItem> Items => inner.Items;
     public GridPosition OutputPosition => Position.Step(Direction);
-    public int SplitterToggle => splitterToggle;
     public GridPosition? BridgePartner { get; private set; }
     public string? FilterItemId => filterItemId;
 
-    public Direction PreferredSplitterExit =>
-        splitterToggle % 2 == 0
-            ? DirectionMath.Left(Direction)
-            : DirectionMath.Right(Direction);
+    /// <summary>False for a router: it has no direction (kept North, rotating it does nothing).</summary>
+    public bool HasDirection => Kind != LogisticsKind.Router;
 
-    public Direction AlternateSplitterExit =>
-        PreferredSplitterExit == DirectionMath.Left(Direction)
-            ? DirectionMath.Right(Direction)
-            : DirectionMath.Left(Direction);
+    /// <summary>Router: index in <see cref="DirectionMath.All"/> of the first side to try (the one after the last used).</summary>
+    public int RouterTurn { get; private set; }
 
-    public void AdvanceSplitterToggle() => splitterToggle++;
+    /// <summary>Router: ticks the held item has waited, up to <see cref="RouterTicks"/>; 0 when empty.</summary>
+    public int RouterWaitTicks { get; private set; }
+
+    /// <summary>Router: the side the held item came from (never handed back there); null when empty or unknown.</summary>
+    public Direction? RouterFrom { get; private set; }
+
+    /// <summary>Router: takes <paramref name="item"/> when empty; <paramref name="from"/> is the side it comes from.</summary>
+    internal bool TryAcceptRouterItem(TransportedItem item, Direction? from)
+    {
+        if (Kind != LogisticsKind.Router || inner.Items.Count > 0)
+        {
+            return false;
+        }
+
+        item.Progress = 0f;
+        item.Carry = null;
+        item.Travel = null;
+        item.JunctionTicks = null;
+        inner.RestoreItems([.. inner.Items, item]);
+        RouterWaitTicks = 0;
+        RouterFrom = from;
+        return true;
+    }
+
+    /// <summary>Router: the held item once it has waited <see cref="RouterTicks"/> ticks, or null.</summary>
+    internal TransportedItem? PeekRouterItem() =>
+        Kind == LogisticsKind.Router && inner.Items.Count > 0 && RouterWaitTicks >= BeltGridCell.RouterTicks
+            ? inner.Items[0]
+            : null;
+
+    /// <summary>Router: the held item has been handed on; the next item starts from <paramref name="nextTurn"/>.</summary>
+    internal void RemoveRouterItem(TransportedItem item, int nextTurn)
+    {
+        inner.TryRemoveItem(item);
+        RouterWaitTicks = 0;
+        RouterFrom = null;
+        RouterTurn = nextTurn;
+    }
+
+    /// <summary>Router state for save/load: turn (0–3), ticks waited (0–<see cref="RouterTicks"/>), side of arrival.</summary>
+    public void RestoreRouter(int turn, int waitTicks, Direction? from)
+    {
+        if (Kind != LogisticsKind.Router)
+        {
+            return;
+        }
+
+        RouterTurn = Math.Clamp(turn, 0, DirectionMath.All.Length - 1);
+        RouterWaitTicks = inner.Items.Count > 0 ? Math.Clamp(waitTicks, 0, BeltGridCell.RouterTicks) : 0;
+        RouterFrom = inner.Items.Count > 0 ? from : null;
+        SyncRouterProgress();
+    }
+
+    // The held item's progress shows how long it has waited (drawing only).
+    private void SyncRouterProgress()
+    {
+        if (inner.Items.Count > 0)
+        {
+            inner.Items[0].Progress = (float)RouterWaitTicks / BeltGridCell.RouterTicks;
+        }
+    }
 
     public bool MatchesFilter(string itemId) =>
         Kind == LogisticsKind.Sorter
@@ -743,19 +852,21 @@ public sealed class BeltGridCell
     }
 
     public void RestoreState(
-        int toggle,
         IEnumerable<TransportedItem> restoredItems,
         GridPosition? bridgePartner = null,
         string? filter = null)
     {
-        splitterToggle = Math.Max(0, toggle);
         BridgePartner = bridgePartner;
         if (Kind == LogisticsKind.Sorter)
         {
             SetFilterItem(filter);
         }
 
-        inner.RestoreItems(restoredItems);
+        inner.RestoreItems(Kind == LogisticsKind.Router ? restoredItems.Take(1) : restoredItems);
+        if (Kind == LogisticsKind.Router)
+        {
+            RestoreRouter(RouterTurn, RouterWaitTicks, RouterFrom);
+        }
     }
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null) =>
@@ -763,9 +874,15 @@ public sealed class BeltGridCell
 
     /// <summary>
     /// How many tiles this cell hands its ready items to (buildings pull them with <see cref="PeekOutputToward"/>):
-    /// one for a belt or a special (<see cref="OutputPosition"/>), four for a junction (one per queue).
+    /// one for a belt or a special (<see cref="OutputPosition"/>), four for a junction (one per queue), none for a router
+    /// (it hands its item on itself, to cells and buildings in turn).
     /// </summary>
-    public int OutputTargetCount => Kind == LogisticsKind.Junction ? DirectionMath.All.Length : 1;
+    public int OutputTargetCount => Kind switch
+    {
+        LogisticsKind.Junction => DirectionMath.All.Length,
+        LogisticsKind.Router => 0,
+        _ => 1
+    };
 
     /// <summary>The <paramref name="index"/>-th tile of <see cref="OutputTargetCount"/> (junction: North, East, South, West).</summary>
     public GridPosition OutputTarget(int index) =>
@@ -774,6 +891,11 @@ public sealed class BeltGridCell
     /// <summary>The item ready to leave toward <paramref name="target"/> (one of the output targets), or null.</summary>
     public TransportedItem? PeekOutputToward(GridPosition target)
     {
+        if (Kind == LogisticsKind.Router)
+        {
+            return null;
+        }
+
         if (Kind != LogisticsKind.Junction)
         {
             return target == OutputPosition ? inner.PeekOutput() : null;
@@ -805,10 +927,40 @@ public sealed class BeltGridCell
 
     private bool IsBeside(GridPosition tile) => Math.Abs(tile.X - Position.X) + Math.Abs(tile.Y - Position.Y) == 1;
 
-    public void Advance(float deltaSeconds) => inner.Advance(deltaSeconds);
-    public TransportedItem? PeekOutput() => inner.PeekOutput();
+    public void Advance(float deltaSeconds)
+    {
+        if (Kind != LogisticsKind.Router)
+        {
+            inner.Advance(deltaSeconds);
+            return;
+        }
+
+        // The settle pass (Dt 0) does not count as a tick.
+        if (deltaSeconds > 0f && inner.Items.Count > 0 && RouterWaitTicks < BeltGridCell.RouterTicks)
+        {
+            RouterWaitTicks++;
+            SyncRouterProgress();
+        }
+    }
+
+    /// <summary>The head of a belt once at the end of the cell; null on a junction and a router (they hand items on themselves).</summary>
+    public TransportedItem? PeekOutput() => Kind == LogisticsKind.Router ? null : inner.PeekOutput();
     public void RemoveOutput() => inner.RemoveOutput();
-    public bool TryRemoveItem(TransportedItem item) => inner.TryRemoveItem(item);
+    public bool TryRemoveItem(TransportedItem item)
+    {
+        if (!inner.TryRemoveItem(item))
+        {
+            return false;
+        }
+
+        if (Kind == LogisticsKind.Router && inner.Items.Count == 0)
+        {
+            RouterWaitTicks = 0;
+            RouterFrom = null;
+        }
+
+        return true;
+    }
 }
 
 /// <summary>How a plain belt cell is drawn (<see cref="BeltGrid.GetShape"/>).</summary>

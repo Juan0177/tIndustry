@@ -71,7 +71,7 @@ public partial class World
         BuildTool.Smelter => Hud.ToolKind.Smelter,
         BuildTool.Assembler => Hud.ToolKind.Assembler,
         BuildTool.Junction => Hud.ToolKind.Junction,
-        BuildTool.Splitter => Hud.ToolKind.Splitter,
+        BuildTool.Router => Hud.ToolKind.Router,
         BuildTool.Generator => Hud.ToolKind.Generator,
         BuildTool.Sorter => Hud.ToolKind.Sorter,
         BuildTool.Bridge => Hud.ToolKind.Bridge,
@@ -99,7 +99,7 @@ public partial class World
         Hud.ToolKind.Smelter => BuildTool.Smelter,
         Hud.ToolKind.Assembler => BuildTool.Assembler,
         Hud.ToolKind.Junction => BuildTool.Junction,
-        Hud.ToolKind.Splitter => BuildTool.Splitter,
+        Hud.ToolKind.Router => BuildTool.Router,
         Hud.ToolKind.Generator => BuildTool.Generator,
         Hud.ToolKind.Sorter => BuildTool.Sorter,
         Hud.ToolKind.Bridge => BuildTool.Bridge,
@@ -293,7 +293,7 @@ public partial class World
 
             if (key.Keycode == Key.Key6)
             {
-                SelectTool(BuildTool.Splitter, toast: true);
+                SelectTool(BuildTool.Router, toast: true);
                 GetViewport().SetInputAsHandled();
                 return;
             }

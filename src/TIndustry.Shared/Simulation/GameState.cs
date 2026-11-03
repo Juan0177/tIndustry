@@ -34,6 +34,57 @@ public sealed class GameState
             : new GridPosition(coreTiles.Min(t => t.X), coreTiles.Min(t => t.Y));
         CoreStart = CoreOrigin;
         belts.BuildingTakesAt = TakesItemsAt;
+        belts.BuildingReceives = ReceiveFromLogistics;
+    }
+
+    /// <summary>
+    /// A logistics block hands one <paramref name="itemId"/> to the building on <paramref name="tile"/> (a router's
+    /// exit): the Core, a storage block, a forno or assembler, a generator, by the rules of a belt pointing into it.
+    /// False when nothing there takes it.
+    /// </summary>
+    public bool ReceiveFromLogistics(GridPosition tile, string itemId)
+    {
+        if (coreTiles.Contains(tile))
+        {
+            if (!TryAcceptAtCore(itemId))
+            {
+                return false;
+            }
+
+            CoreDeliveredItems++;
+            return true;
+        }
+
+        if (StorageAt(tile) is { } storage)
+        {
+            if (!TryAcceptAtStorage(storage, itemId))
+            {
+                return false;
+            }
+
+            CoreDeliveredItems += storage.IsLinked ? 1 : 0;
+            return true;
+        }
+
+        foreach (var craft in CraftMachines())
+        {
+            if (craft.Occupies(tile))
+            {
+                return craft.UsesCoalOrPower && itemId == Crafter.FuelItemId
+                    ? craft.TryAcceptFuel(itemId)
+                    : craft.TryAccept(itemId);
+            }
+        }
+
+        foreach (var generator in Generators)
+        {
+            if (generator.Occupies(tile))
+            {
+                return generator.TryAcceptFuel(itemId);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

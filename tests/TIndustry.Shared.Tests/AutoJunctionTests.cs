@@ -221,7 +221,7 @@ public sealed class AutoJunctionTests
     }
 
     [Theory]
-    [InlineData(BuildingKind.Splitter)]
+    [InlineData(BuildingKind.Router)]
     [InlineData(BuildingKind.Sorter)]
     [InlineData(BuildingKind.Junction)]
     [InlineData(BuildingKind.Bridge)]

@@ -125,9 +125,9 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     [Fact]
     public void LogisticsAndABuildingOnTheSidesMakeAT()
     {
-        // A splitter on the west (its East exit feeds P) and a miner on the east.
+        // A router on the west (it hands items to every side, P too) and a forno on the east.
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceSplitter(new GridPosition(19, 21), Direction.North));
+        Assert.True(factory.TryPlaceRouter(new GridPosition(19, 21), Direction.North));
         Assert.True(factory.TryPlaceSmelter(new GridPosition(21, 21), Direction.East));
         Assert.Equal(BeltShape.T, factory.GetBeltShape(P));
     }
@@ -253,10 +253,10 @@ public sealed class BeltCornerTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void SplitterSideExitMakesACorner()
+    public void ARouterBesideMakesACorner()
     {
         var factory = WithNorthLine();
-        Assert.True(factory.TryPlaceSplitter(new GridPosition(19, 21), Direction.North)); // exits West and East
+        Assert.True(factory.TryPlaceRouter(new GridPosition(19, 21), Direction.North)); // hands items to every side
         AssertCorner(factory, Direction.East);
     }
 

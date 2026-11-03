@@ -45,7 +45,7 @@ Per chi vuole imparare il gioco: comandi, blocchi, ricette, numeri.
 | [Comandi](Comandi) | Mouse e tastiera |
 | [Risorse e oggetti](Risorse-e-oggetti) | Minerali, oggetti e ricette |
 | [Produzione](Produzione) | Minatori, forni, assemblatori, estrattori |
-| [Logistica](Logistica) | Nastri, ponti, incroci, sdoppiatore, selezionatore |
+| [Logistica](Logistica) | Nastri, ponti, incroci, router, selezionatore |
 | [Energia](Energia) | Generatori, nodi, lampade |
 | [Costruzione](Costruzione) | Piani, drone e cantieri |
 | [Economia e Ricerca](Economia-e-Ricerca) | Core, Mercato, albero della Ricerca |

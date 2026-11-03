@@ -41,6 +41,11 @@ public static class CoreStockSink
                 continue;
             }
 
+            if (cell.Kind == LogisticsKind.Router)
+            {
+                continue; // a router hands items to the Core itself (GameState.ReceiveFromLogistics), in its turn
+            }
+
             // Face into core, or dead-end against core (wrong facing / no next belt).
             var outInCore = coreTiles.Contains(cell.OutputPosition);
             var sinksHere = outInCore

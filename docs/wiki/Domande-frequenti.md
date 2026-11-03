@@ -4,7 +4,7 @@ Risposte rapide ai problemi più comuni in partita, ricavate da come il gioco fu
 
 ## Perché il nastro non prende gli oggetti dal lato?
 
-Quasi sempre è un **Nastro rinforzato**: prende dagli altri nastri da ogni lato, ma da edifici, sdoppiatori, selezionatori, ponti e incroci **solo da dietro**. Usa un nastro normale (T1, T2, T3) dove vuoi raccogliere dai lati. Un'altra causa: un nastro non prende mai dal nastro che ha **di fronte** (due nastri testa a testa). Vedi [Logistica](Logistica).
+Quasi sempre è un **Nastro rinforzato**: prende dagli altri nastri da ogni lato, ma da edifici, router, selezionatori, ponti e incroci **solo da dietro**. Usa un nastro normale (T1, T2, T3) dove vuoi raccogliere dai lati. Un'altra causa: un nastro non prende mai dal nastro che ha **di fronte** (due nastri testa a testa). Vedi [Logistica](Logistica).
 
 ## Perché il minatore non produce?
 

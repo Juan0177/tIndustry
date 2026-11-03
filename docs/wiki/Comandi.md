@@ -15,7 +15,7 @@ La palette sta in basso a destra: a destra le categorie (Strumenti, Logistica, P
 | `3` (o `F`) | Forno |
 | `4` | Assemblatore |
 | `5` (o `J`) | Incrocio |
-| `6` | Sdoppiatore |
+| `6` | Router |
 | `7` | Generatore |
 | `8` | Selezionatore |
 | `9` | Nastro ponte |
@@ -36,9 +36,9 @@ Gli altri blocchi (Nastro T2, Nastro T3, Nastro rinforzato, Minatore T2, Estratt
 | `Esc` o destro durante il trascinamento | Annulla la linea (il blocco resta in mano) |
 | `C` | Cambia il filtro del Selezionatore; col mouse sopra un selezionatore cambia anche il suo |
 
-Sono orientabili: nastri, sdoppiatore, selezionatore, ponte, estrattore, assemblatore.
+Sono orientabili: nastri, selezionatore, ponte, estrattore, assemblatore.
 
-**Come si comporta il trascinamento.** Nastri, incroci, sdoppiatori e selezionatori fanno una retta lungo l'asse più lungo fra orizzontale e verticale; ogni altro blocco è uno solo, sull'ancora, girato verso il cursore. Ogni nastro guarda il successivo; l'ultimo prende la direzione del nastro su cui finisce e, accanto al CORE, guarda il CORE. Le sagome rosse sono celle rifiutate: non partono. Anche un pannello che si apre, la finestra che perde il fuoco o un rilascio fuori dalla finestra annullano la linea senza piazzare nulla.
+**Come si comporta il trascinamento.** Nastri, incroci, router e selezionatori fanno una retta lungo l'asse più lungo fra orizzontale e verticale; ogni altro blocco è uno solo, sull'ancora, girato verso il cursore. Ogni nastro guarda il successivo; l'ultimo prende la direzione del nastro su cui finisce e, accanto al CORE, guarda il CORE. Le sagome rosse sono celle rifiutate: non partono. Anche un pannello che si apre, la finestra che perde il fuoco o un rilascio fuori dalla finestra annullano la linea senza piazzare nulla.
 
 ## Smontare e annullare
 

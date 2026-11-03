@@ -248,14 +248,14 @@ internal static class FactoryScenarios
     }
 
     /// <summary>
-    /// Phase E: junction cross-axis + splitter T-fork, then full wire loop still delivers.
+    /// Phase E: junction cross-axis + router fork, then full wire loop still delivers.
     /// </summary>
-    public static void SelfTestJunctionSplitter(string contentJsonPath)
+    public static void SelfTestJunctionRouter(string contentJsonPath)
     {
         var content = FactoryContent.Load(contentJsonPath);
         var belt = content.RequireConveyor("conveyor-basic");
         var junction = content.RequireConveyor("junction");
-        var splitter = content.RequireConveyor("splitter");
+        var router = content.RequireConveyor("router");
         var grid = new BeltGrid();
 
         // Cross: west→east through junction, south→north through same cell.
@@ -293,12 +293,12 @@ internal static class FactoryScenarios
         Assert(ewArrived, "junction EW exit");
         Assert(nsArrived, "junction NS exit");
 
-        // Splitter fair fork: feed → splitter facing South → left/right arms.
+        // Router fork: feed from the North → router → West and East arms (never back to the feed).
         var splitGrid = new BeltGrid();
         splitGrid.TryPlaceFree(new GridPosition(5, 0), Direction.South, belt);
-        splitGrid.TryPlaceFree(new GridPosition(5, 1), Direction.South, splitter);
-        splitGrid.TryPlaceFree(new GridPosition(4, 1), Direction.West, belt); // right of South
-        splitGrid.TryPlaceFree(new GridPosition(6, 1), Direction.East, belt); // left of South
+        splitGrid.TryPlaceFree(new GridPosition(5, 1), Direction.North, router);
+        splitGrid.TryPlaceFree(new GridPosition(4, 1), Direction.West, belt);
+        splitGrid.TryPlaceFree(new GridPosition(6, 1), Direction.East, belt);
 
         Assert(splitGrid.TryInsert(new GridPosition(5, 0), new TransportedItem(10, "copper-wire")), "split in 1");
         var leftHits = 0;
@@ -333,17 +333,17 @@ internal static class FactoryScenarios
             }
         }
 
-        Assert(injectedSecond, "second splitter feed");
-        Assert(leftHits > 0 && rightHits > 0, "splitter forks both arms");
+        Assert(injectedSecond, "second router feed");
+        Assert(leftHits > 0 && rightHits > 0, "router forks both arms");
 
         // Full Phase E seed still delivers wire.
         var factory = CreatePhaseEDemo(content);
         Assert(factory.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Junction), "seed junction");
-        Assert(factory.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Splitter), "seed splitter");
+        Assert(factory.Belts.Cells.Values.Any(c => c.Kind == LogisticsKind.Router), "seed router");
         Assert(factory.TryPlaceJunction(new GridPosition(18, 4), Direction.East), "place junction");
-        Assert(factory.TryPlaceSplitter(new GridPosition(18, 5), Direction.South), "place splitter");
+        Assert(factory.TryPlaceRouter(new GridPosition(18, 5), Direction.South), "place router");
         Assert(factory.TryRemoveBelt(new GridPosition(18, 4)), "remove junction");
-        Assert(factory.TryRemoveBelt(new GridPosition(18, 5)), "remove splitter");
+        Assert(factory.TryRemoveBelt(new GridPosition(18, 5)), "remove router");
 
         for (var i = 0; i < SimulationClock.TickRate * 120; i++)
         {
@@ -355,7 +355,7 @@ internal static class FactoryScenarios
         }
 
         throw new InvalidOperationException(
-            "Phase E self-test: nessun filo al core entro 120s sim (junction/splitter seed).");
+            "Phase E self-test: nessun filo al core entro 120s sim (junction/router seed).");
     }
 
     /// <summary>
@@ -794,7 +794,7 @@ internal static class FactoryScenarios
         // Clear and inject overflow item.
         foreach (var cell in sortGrid.Cells.Values)
         {
-            cell.RestoreState(cell.SplitterToggle, [], cell.BridgePartner, cell.FilterItemId);
+            cell.RestoreState([], cell.BridgePartner, cell.FilterItemId);
         }
 
         Assert(sortGrid.TryInsert(new GridPosition(1, 1), new TransportedItem(2, "copper-ore")), "overflow in");
@@ -974,13 +974,13 @@ internal static class FactoryScenarios
         factory.Wallet.AddMaterial("copper-ore", 10);
         Assert(factory.TryUnlockStructure("assembler"), "unlock assembler");
 
-        Assert(!factory.Research.IsUnlocked("splitter"), "splitter still locked");
+        Assert(!factory.Research.IsUnlocked("router"), "router still locked");
         factory.Wallet.AddMoney(2000);
         factory.Wallet.AddMaterial("iron-plate", 100);
         factory.Wallet.AddMaterial("iron-ore", 100);
         factory.Wallet.AddMaterial("lead-ore", 100);
         Assert(factory.TryUnlockStructure("junction"), "unlock junction");
-        Assert(factory.TryUnlockStructure("splitter"), "unlock splitter after junction");
+        Assert(factory.TryUnlockStructure("router"), "unlock router after junction");
         Assert(factory.TryUnlockStructure("sorter"), "unlock sorter");
         Assert(factory.TryUnlockStructure("conveyor-bridge"), "unlock bridge");
         Assert(factory.TryUnlockStructure("generator"), "unlock generator");

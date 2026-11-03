@@ -18,7 +18,7 @@ public abstract record SimCommand(int PlayerId)
 public enum BuildingKind
 {
     Junction,
-    Splitter,
+    Router,
     Sorter,
     Bridge,
     Miner,
@@ -49,7 +49,7 @@ public sealed record PlaceBelt(
     bool Crossing = false) : SimCommand(PlayerId);
 
 /// <summary>
-/// Replaces the <c>TryPlace…</c> methods for junction, splitter, sorter, bridge, miners, forno,
+/// Replaces the <c>TryPlace…</c> methods for junction, router, sorter, bridge, miners, forno,
 /// assembler, generator, extractor and power nodes. <paramref name="RecipeId"/> applies to forno /
 /// assembler (null = today's default recipe); <paramref name="FilterItemId"/> to sorter / extractor.
 /// </summary>

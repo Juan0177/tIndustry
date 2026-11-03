@@ -99,7 +99,7 @@ public sealed class ResearchState : IResearchView
         "smelter",
         "assembler",
         "junction",
-        "splitter",
+        "router",
         "generator",
         "sorter",
         "conveyor-bridge",

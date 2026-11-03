@@ -38,9 +38,7 @@ public static class Sprites
     {
         if (!Cache.TryGetValue(id, out var tex))
         {
-            // The sprite of the splitter structure is the router's until the data are renamed (logistics plan, Task 3).
-            var file = id == "splitter" ? "router" : id;
-            var path = $"res://assets/{file}.png";
+            var path = $"res://assets/{id}.png";
             tex = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
             Cache[id] = tex;
         }

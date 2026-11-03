@@ -10,7 +10,7 @@ public enum LogisticsKind
 {
     Belt,
     Junction,
-    Splitter,
+    Router,
     Bridge,
     Sorter
 }

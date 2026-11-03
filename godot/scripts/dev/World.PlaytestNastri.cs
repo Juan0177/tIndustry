@@ -711,7 +711,7 @@ public partial class World
 
         var at = LineScreen(4, 4);
         var zoom = cam.Zoom;
-        foreach (var tool in new[] { BuildTool.Belt, BuildTool.Splitter, BuildTool.Sorter, BuildTool.Bridge, BuildTool.Extractor, BuildTool.Assembler })
+        foreach (var tool in new[] { BuildTool.Belt, BuildTool.Router, BuildTool.Sorter, BuildTool.Bridge, BuildTool.Extractor, BuildTool.Assembler })
         {
             (_tool, _placeDir) = (tool, Direction.East);
             await PlaytestWheel(at, MouseButton.WheelUp);

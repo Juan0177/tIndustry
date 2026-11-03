@@ -101,7 +101,7 @@ public sealed class BeltOverBeltTests
     public static TheoryData<bool, string, string> BusyCells()
     {
         var data = new TheoryData<bool, string, string>();
-        foreach (var busy in new[] { "marked", "site", "otherPlayersPlan", "junction", "splitter", "sorter", "bridge" })
+        foreach (var busy in new[] { "marked", "site", "otherPlayersPlan", "junction", "router", "sorter", "bridge" })
         {
             foreach (var conveyorId in new[] { Basic, "conveyor-fast" })
             {
@@ -138,8 +138,8 @@ public sealed class BeltOverBeltTests
             case "junction":
                 Assert.True(factory.PlaceInstant(new BuildSpec("junction", BuildingKind.Junction, Cell, Direction.East), charge: false));
                 break;
-            case "splitter":
-                Assert.True(factory.PlaceInstant(new BuildSpec("splitter", BuildingKind.Splitter, Cell, Direction.East), charge: false));
+            case "router":
+                Assert.True(factory.PlaceInstant(new BuildSpec("router", BuildingKind.Router, Cell, Direction.East), charge: false));
                 break;
             case "sorter":
                 Assert.True(factory.PlaceInstant(new BuildSpec("sorter", BuildingKind.Sorter, Cell, Direction.East), charge: false));

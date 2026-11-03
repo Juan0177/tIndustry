@@ -1,6 +1,6 @@
 # Logistica
 
-Come si spostano gli oggetti: nastri e loro tier, curve e unioni, incrocio, sdoppiatore, selezionatore, ponte e nastro rinforzato.
+Come si spostano gli oggetti: nastri e loro tier, curve e unioni, incrocio, router, selezionatore, ponte e nastro rinforzato.
 
 ## Nastri
 
@@ -18,7 +18,7 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 | Pezzo | Portata | Costo | Sblocco | Cosa fa |
 |---|---|---|---|---|
 | Incrocio (`junction`) | Coda di 6 oggetti per direzione, 26 tick per attraversarlo: circa 13,8 oggetti/s per direzione | 3 Ferro grezzo | dopo il Nastro T1 | Due linee si attraversano senza mescolarsi; prende anche dagli edifici accanto e accetta un oggetto solo se dall'altra parte c'è un blocco che può riceverlo |
-| Sdoppiatore (`splitter`) | 8 oggetti/s | 3 Ferro grezzo | dopo l'Incrocio | Manda gli oggetti a sinistra e a destra, alternando |
+| Router (`router`) | 1 oggetto alla volta, 8 tick ciascuno: 7,5 oggetti/s | 3 Ferro grezzo | dopo l'Incrocio | Distribuisce gli oggetti a turno su tutti i lati, mai verso il lato da cui arrivano |
 | Selezionatore (`sorter`) | 8 oggetti/s | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | L'oggetto del filtro va dritto, gli altri di lato |
 | Nastro ponte (`conveyor-bridge`) | 5,25 oggetti/s | 6 Ferro grezzo, 6 Piombo grezzo **per estremo** (12 e 12 in tutto) | dopo l'Incrocio | Scavalca da 1 a 3 celle |
 
@@ -48,9 +48,9 @@ Un oggetto che entra da un lato esce dal lato opposto: le due linee proseguono s
 
 **Incrocio automatico.** Trascinando una linea di nastri che attraversa un nastro perpendicolare e prosegue oltre, in quella cella va un incrocio al posto del nastro: paghi l'incrocio e il nastro viene rimborsato come uno smontaggio. Succede solo dove l'incrocio fa lo stesso lavoro del nastro (un nastro dritto fra due pezzi di logistica, non accanto al CORE o a un edificio che lo alimenta, non su curve o T, non sull'ultima cella della linea né con un clic singolo). Annullare uno dei due piani li annulla entrambi. Se l'incrocio non è ancora sbloccato, il nastro attraversato gira nella direzione della linea e la linea attraversata vi entra di lato: diventa un'unione.
 
-## Sdoppiatore
+## Router
 
-Ogni oggetto che riceve esce a sinistra o a destra rispetto alla sua direzione, alternando; se un lato è pieno usa l'altro. Non manda nulla dritto.
+Come il *Router* di Mindustry: non ha direzione (`R` non lo gira) e prende oggetti da ogni lato, da nastri ed edifici, uno alla volta. Dopo 8 tick prova i lati a turno (nord, est, sud, ovest, ripartendo dal lato dopo l'ultimo usato) e passa l'oggetto al primo che lo accetta: un nastro, un altro pezzo di logistica, il CORE, un magazzino, un forno, un assemblatore o un generatore. Non lo rimanda mai al lato da cui è arrivato e un nastro che entra nel router non riceve nulla indietro; se nessun lato accetta, lo tiene e riprova al tick dopo. Una catena di router passa gli oggetti avanti.
 
 ## Selezionatore e filtro
 
@@ -70,7 +70,7 @@ Il ponte passa sopra pareti e acqua profonda, purché i due estremi stiano su ce
 
 ## Nastro rinforzato
 
-Veloce come il Nastro T2, ma come l'*Armored Conveyor* di Mindustry prende oggetti **dagli altri nastri** da ogni lato e **da tutto il resto** (edifici, sdoppiatori, selezionatori, ponti, incroci) **solo da dietro**. Una linea rinforzata passa lungo una fila di minatori o macchine senza raccogliere niente e resta dritta; con gli altri nastri fa curve, T e unioni come al solito. Si riconosce dai binari d'acciaio con bordo e frecce rossi.
+Veloce come il Nastro T2, ma come l'*Armored Conveyor* di Mindustry prende oggetti **dagli altri nastri** da ogni lato e **da tutto il resto** (edifici, router, selezionatori, ponti, incroci) **solo da dietro**. Una linea rinforzata passa lungo una fila di minatori o macchine senza raccogliere niente e resta dritta; con gli altri nastri fa curve, T e unioni come al solito. Si riconosce dai binari d'acciaio con bordo e frecce rossi.
 
 ![Linea T2 che raccoglie dai minatori e linea rinforzata che resta vuota](https://raw.githubusercontent.com/Juan0177/tIndustry/pr-media/pr-nastri-10/ui-nastro-rinforzato.png)
 
@@ -85,7 +85,7 @@ Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore
 
 ## In arrivo
 
-Sono pianificati nastri stretti come in Mindustry, incrocio e selezionatore che si comportano come in Mindustry e uno sdoppiatore che diventa un distributore (router); fino ad allora vale quanto scritto qui.
+Sono pianificati nastri stretti come in Mindustry, selezionatore che si comporta come in Mindustry; fino ad allora vale quanto scritto qui.
 
 ## Vedi anche
 

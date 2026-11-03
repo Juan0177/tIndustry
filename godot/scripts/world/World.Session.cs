@@ -542,7 +542,7 @@ public partial class World
             Hud.ToolKind.Smelter,
             Hud.ToolKind.Assembler,
             Hud.ToolKind.Junction,
-            Hud.ToolKind.Splitter,
+            Hud.ToolKind.Router,
             Hud.ToolKind.Generator,
             Hud.ToolKind.Sorter,
             Hud.ToolKind.Bridge,

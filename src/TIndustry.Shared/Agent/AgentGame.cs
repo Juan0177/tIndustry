@@ -42,7 +42,7 @@ public sealed class AgentGame : IDisposable
     [
         ('C', "Core"), ('?', "cantiere"), ('*', "piano di costruzione"),
         ('^', "nastro verso nord"), ('>', "nastro verso est"), ('v', "nastro verso sud"), ('<', "nastro verso ovest"),
-        ('+', "incrocio"), ('Y', "divisore"), ('F', "selezionatore"), ('=', "ponte"),
+        ('+', "incrocio"), ('R', "router"), ('F', "selezionatore"), ('=', "ponte"),
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"),
@@ -559,7 +559,7 @@ public sealed class AgentGame : IDisposable
                 ["lampade"] = View.Lamps.Count,
                 ["nastri"] = logistics.GetValueOrDefault(LogisticsKind.Belt),
                 ["incroci"] = logistics.GetValueOrDefault(LogisticsKind.Junction),
-                ["divisori"] = logistics.GetValueOrDefault(LogisticsKind.Splitter),
+                ["router"] = logistics.GetValueOrDefault(LogisticsKind.Router),
                 ["selezionatori"] = logistics.GetValueOrDefault(LogisticsKind.Sorter),
                 // Each bridge has two end cells.
                 ["ponti"] = logistics.GetValueOrDefault(LogisticsKind.Bridge) / 2
@@ -819,7 +819,7 @@ public sealed class AgentGame : IDisposable
                     _ => '!'
                 },
                 LogisticsKind.Junction => KindSymbol(BuildingKind.Junction),
-                LogisticsKind.Splitter => KindSymbol(BuildingKind.Splitter),
+                LogisticsKind.Router => KindSymbol(BuildingKind.Router),
                 LogisticsKind.Sorter => KindSymbol(BuildingKind.Sorter),
                 LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
                 _ => '!'
@@ -861,7 +861,7 @@ public sealed class AgentGame : IDisposable
     internal static char KindSymbol(BuildingKind kind) => kind switch
     {
         BuildingKind.Junction => '+',
-        BuildingKind.Splitter => 'Y',
+        BuildingKind.Router => 'R',
         BuildingKind.Sorter => 'F',
         BuildingKind.Bridge => '=',
         BuildingKind.Miner => 'M',

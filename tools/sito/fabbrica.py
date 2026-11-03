@@ -50,12 +50,10 @@ def trasformazione_curva(da, a):
     raise ValueError(f"curva impossibile: {da} -> {a}")
 
 
-def _sinistra(v):
-    return {"E": "N", "N": "W", "W": "S", "S": "E"}[v]
-
-
-def _destra(v):
-    return {"E": "S", "S": "W", "W": "N", "N": "E"}[v]
+def _uscite_router(verso):
+    """BeltGrid: a router hands items to every side but the one they came from, in turn (N, E, S, W)."""
+    indietro = {"E": "W", "W": "E", "N": "S", "S": "N"}[verso]
+    return [h for h in "NESW" if h != indietro]
 
 
 # ---------------------------------------------------------------- the model
@@ -80,8 +78,8 @@ class Tratto:
 @dataclass
 class Pezzo:
     """One logistics piece: curva (tier, da, a), t / unione_edificio / unione (tier, verso, lato for unione),
-    incrocio, selezionatore (oggetto, verso), sdoppiatore (verso = the flow entering it: it splits left and
-    right, never straight), ponte (n, verso). `flussi` draws items crossing the piece: (verso, item, tier),
+    incrocio, selezionatore (oggetto, verso), router (verso = the flow entering it: it hands items to every
+    other side, never back), ponte (n, verso). `flussi` draws items crossing the piece: (verso, item, tier),
     where verso is a direction (straight across) or two letters for a turn ("WS": in from the west, out to the
     south, as through a T merge); several flows on one piece are spread evenly over a crossing."""
     x: int
@@ -186,8 +184,8 @@ def _ingresso(e, cella):
         return e.da
     if e.tipo in ("t", "unione_edificio", "unione", "ponte"):
         return e.verso
-    if e.tipo in ("sdoppiatore", "selezionatore"):
-        return e.verso  # they face the flow
+    if e.tipo in ("router", "selezionatore"):
+        return e.verso  # the flow entering them
     return None  # incrocio: straight through on both axes
 
 
@@ -205,9 +203,8 @@ def _uscite(e, cella, entrata):
         dx, dy = VERSI[e.verso]
         ex, ey = e.celle[-1]
         return [((ex + dx, ey + dy), e.verso)]
-    elif e.tipo == "sdoppiatore":
-        # BeltGrid: a splitter hands items to the left and right of its facing, alternately, never straight.
-        return [((cella[0] + VERSI[h][0], cella[1] + VERSI[h][1]), h) for h in (_sinistra(e.verso), _destra(e.verso))]
+    elif e.tipo == "router":
+        return [((cella[0] + VERSI[h][0], cella[1] + VERSI[h][1]), h) for h in _uscite_router(e.verso)]
     elif e.tipo == "selezionatore":
         v = e.verso
     else:
@@ -243,10 +240,9 @@ def _segui(scena, occupato, cella, entrata, visti):
             return percorso, ("ciclo", cella)
         visti.add((cella, entrata))
         percorso.append(cella)
-        uscite = [(c, h) for c, h in _uscite(e, cella, entrata)
-                  if _dentro(scena, c) and occupato.get(c) or not _dentro(scena, c)]
-        if isinstance(e, Pezzo) and e.tipo == "sdoppiatore":
-            # The first side output is this chain; the other side is a chain of its own (see catene()).
+        uscite = _uscite_occupate(scena, occupato, e, cella, entrata)
+        if isinstance(e, Pezzo) and e.tipo == "router":
+            # The first output is this chain; every other one is a chain of its own (see catene()).
             uscite = uscite[:1]
         if not uscite:
             c, h = _uscite(e, cella, entrata)[0]
@@ -254,9 +250,15 @@ def _segui(scena, occupato, cella, entrata, visti):
         cella, entrata = uscite[0]
 
 
+def _uscite_occupate(scena, occupato, e, cella, entrata):
+    """The outputs of `e` at `cella` that lead to something (or out of the scene)."""
+    return [(c, h) for c, h in _uscite(e, cella, entrata)
+            if _dentro(scena, c) and occupato.get(c) or not _dentro(scena, c)]
+
+
 def catene(scena):
     """Every chain of the scene: {"sorgente", "celle", "fine"}; sources are producing blocks, the top edge and
-    the side outputs of splitters."""
+    the outputs of routers after their first."""
     occupato = _occupazione(scena)
     partenze = []
     for cella, lista in sorted(occupato.items()):
@@ -276,8 +278,9 @@ def catene(scena):
                     and (occupato[dietro][0].id in PRODUTTORI):
                 partenze.append((cella, h, ("blocco", occupato[dietro][0].id)))
             elif dietro in occupato and isinstance(occupato[dietro][0], Pezzo) \
-                    and occupato[dietro][0].tipo == "sdoppiatore" and h == _destra(occupato[dietro][0].verso):
-                partenze.append((cella, h, ("sdoppiatore", dietro)))  # the second side output
+                    and occupato[dietro][0].tipo == "router" \
+                    and h in [v for _, v in _uscite_occupate(scena, occupato, occupato[dietro][0], dietro, None)[1:]]:
+                partenze.append((cella, h, ("router", dietro)))  # an output after the first
     out = []
     for cella, h, sorgente in partenze:
         celle, fine = _segui(scena, occupato, cella, h, set())
@@ -503,9 +506,9 @@ def _html_pezzo(p, a, scena):
         return _img(a.pezzo_girato(f"unione-{p.lato}", p.tier, f"join-{p.lato}", p.verso), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "incrocio":
         return _img(a.sprite("junction"), p.x, p.y, righe=r, basso=p.basso) + flussi
-    if p.tipo == "sdoppiatore":
-        # MindustryBeltVisual.AddSpecial: splitter and sorter turn with their facing (ScrollingBeltStrip.RotationFor).
-        return _img(a.sprite("router"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso) + flussi
+    if p.tipo == "router":
+        # MindustryBeltVisual.AddSpecial: the router has no direction (the sorter turns with its facing).
+        return _img(a.sprite("router"), p.x, p.y, righe=r, basso=p.basso) + flussi
     if p.tipo == "selezionatore":
         # The sorter turned to its facing and, upright on top, the belt sprite of its filter item.
         return (_img(a.sprite("sorter"), p.x, p.y, rot=ROT[p.verso], righe=r, basso=p.basso)
@@ -590,13 +593,13 @@ VETRINA = [
         Pezzo(0, 6, "curva", T1, da="W", a="S", basso=True),
         Tratto(0, 7, 1, "S", T1, ("iron-ore",), basso=True),
     ], sfondo=("gioco.png", (0, 170, 1030, 720))),
-    # 02 come funziona: the dorsale feeds the smelter; coal from a miner above goes through a splitter facing
-    # South, which hands it left (West, into the smelter after a corner) and right (East, then down to the generator).
+    # 02 come funziona: the dorsale feeds the smelter; coal from a miner above goes into a router, which hands it
+    # East (then down to the generator) and West (into the smelter after a corner); nothing is South of it.
     Scena("come-funziona", 9, "rocce", [
         Tratto(0, 0, 3, "S", T1, ("iron-ore",)), Blocco(0, 3, "smelter", "Al lavoro"),
         Tratto(0, 5, 4, "S", T1, ("iron-plate",)),
         Giacimento(2, 0, 3, 2, "coal", 5), Blocco(2, 0, "miner", "Al lavoro"),
-        Pezzo(2, 2, "sdoppiatore", verso="S"),
+        Pezzo(2, 2, "router", verso="S"),
         Pezzo(1, 2, "curva", T1, da="W", a="S"), Pezzo(3, 2, "curva", T1, da="E", a="S"),
         Tratto(3, 3, 3, "S", T1, ("coal",)), Blocco(3, 6, "generator", "In funzione"),
         Nodo(6, 7), Blocco(7, 7, "lamp", "Accesa"),

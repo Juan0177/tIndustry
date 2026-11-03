@@ -580,7 +580,7 @@ public sealed class FactoryContent
         kind?.Trim().ToLowerInvariant() switch
         {
             "junction" => LogisticsKind.Junction,
-            "splitter" => LogisticsKind.Splitter,
+            "router" => LogisticsKind.Router,
             "bridge" => LogisticsKind.Bridge,
             "sorter" => LogisticsKind.Sorter,
             _ => LogisticsKind.Belt

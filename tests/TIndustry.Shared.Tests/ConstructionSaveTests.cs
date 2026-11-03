@@ -324,7 +324,7 @@ public sealed class ConstructionSaveTests
         factory.Wallet.AddMaterial("titanium-ore", 100);
         var cell = new GridPosition(24, 21);
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
-        factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, Iron, 1f)]);
+        factory.Belts.Cells[cell].RestoreState([new TransportedItem(77, Iron, 1f)]);
         var host = new SimHost(factory);
         host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
         for (var t = 0; t < 600 && (factory.Sites.Count == 0 || factory.Sites[0].Progress < 0.3f); t++)
@@ -358,7 +358,7 @@ public sealed class ConstructionSaveTests
         factory.Wallet.AddMaterial("titanium-ore", 100);
         var cell = new GridPosition(24, 21);
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
-        factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, Iron, 1f)]);
+        factory.Belts.Cells[cell].RestoreState([new TransportedItem(77, Iron, 1f)]);
         var before = (factory.Wallet.MaterialCount(Iron), factory.Wallet.MaterialCount("titanium-ore"));
         var host = new SimHost(factory);
         host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
@@ -391,7 +391,7 @@ public sealed class ConstructionSaveTests
         factory.Wallet.AddMaterial("titanium-ore", 100);
         var cell = new GridPosition(24, 21);
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, cell, Direction.East), charge: false));
-        factory.Belts.Cells[cell].RestoreState(0, [new TransportedItem(77, "coal", 1f)]);
+        factory.Belts.Cells[cell].RestoreState([new TransportedItem(77, "coal", 1f)]);
         var host = new SimHost(factory);
         host.Submit(new PlaceBelt(Player, cell, Direction.East, "conveyor-fast"));
         for (var t = 0; t < 600 && factory.Sites.Count == 0; t++)

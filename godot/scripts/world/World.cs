@@ -49,7 +49,7 @@ public partial class World : Node2D
         Smelter,
         Assembler,
         Junction,
-        Splitter,
+        Router,
         Generator,
         Sorter,
         Bridge,

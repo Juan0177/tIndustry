@@ -418,7 +418,7 @@ public partial class World
         BuildTool.Smelter => BuildingKind.Smelter,
         BuildTool.Assembler => BuildingKind.Assembler,
         BuildTool.Junction => BuildingKind.Junction,
-        BuildTool.Splitter => BuildingKind.Splitter,
+        BuildTool.Router => BuildingKind.Router,
         BuildTool.Generator => BuildingKind.Generator,
         BuildTool.Sorter => BuildingKind.Sorter,
         BuildTool.Bridge => BuildingKind.Bridge,

@@ -450,9 +450,10 @@ public sealed class Crafter
                 continue;
             }
 
-            // Outward: next cell after belt must not re-enter footprint (a junction sends it on away from the building).
+            // Outward: next cell after belt must not re-enter footprint (a junction sends it on away from the building, a
+            // router never hands it back where it came from).
             var next = outputPosition.Step(cell.Direction);
-            if (cell.Kind != LogisticsKind.Junction && Occupies(next))
+            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Router) && Occupies(next))
             {
                 continue;
             }

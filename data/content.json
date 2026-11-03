@@ -81,7 +81,7 @@
       "kind": "junction"
     },
     {
-      "id": "splitter",
+      "id": "router",
       "tier": 1,
       "rateItemsPerSecond": 8.0,
       "capacity": 1,
@@ -102,7 +102,7 @@
           }
         ]
       },
-      "kind": "splitter"
+      "kind": "router"
     },
     {
       "id": "sorter",
@@ -468,8 +468,8 @@
       ]
     },
     {
-      "id": "splitter",
-      "displayName": "Sdoppiatore",
+      "id": "router",
+      "displayName": "Router",
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {

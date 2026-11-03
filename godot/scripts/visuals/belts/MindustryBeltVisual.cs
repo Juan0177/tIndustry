@@ -80,7 +80,7 @@ public partial class MindustryBeltVisual : Node2D
         {
             switch (cell.Kind)
             {
-                case LogisticsKind.Junction or LogisticsKind.Splitter or LogisticsKind.Sorter:
+                case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter:
                     AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
                     break;
                 case LogisticsKind.Bridge:
@@ -212,7 +212,7 @@ public partial class MindustryBeltVisual : Node2D
         var texture = Sprites.For(kind switch
         {
             LogisticsKind.Junction => "junction-base",
-            LogisticsKind.Splitter => "router",
+            LogisticsKind.Router => "router",
             LogisticsKind.Sorter => "sorter",
             LogisticsKind.Bridge => "conveyor-bridge",
             _ => BuildSpec.DefaultConveyorId
@@ -230,8 +230,8 @@ public partial class MindustryBeltVisual : Node2D
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = Vector2.One * Sprites.ScaleToCells(texture, 1, tileSize)
         };
-        // Splitter / sorter / bridge rotate with facing; junction is axis-symmetric.
-        if (kind is LogisticsKind.Splitter or LogisticsKind.Sorter or LogisticsKind.Bridge)
+        // Sorter / bridge rotate with facing; junction and router have no direction.
+        if (kind is LogisticsKind.Sorter or LogisticsKind.Bridge)
         {
             sprite.RotationDegrees = ScrollingBeltStrip.RotationFor(direction);
         }

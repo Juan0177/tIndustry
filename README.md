@@ -118,7 +118,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | --- | --- |
 | **Mondo** | Mappe generate dal seme in tre misure (Media 1000², Grande 1500², Enorme 2000²) con quattro biomi (rocce, sabbia, neve, prati), pareti, laghi e fiumi; acqua bassa costruibile, acqua profonda solo col ponte; CORE al centro con ferro, rame e carbone raggiungibili; minerali visibili (ferro, rame, piombo, carbone, titanio) |
 | **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
-| **Logistica** | Nastri T1/T2/T3, incrocio, sdoppiatore, selezionatore con filtro, ponte (2–4 caselle) |
+| **Logistica** | Nastri T1/T2/T3, incrocio, router, selezionatore con filtro, ponte (2–4 caselle) |
 | **Energia** | Generatore, nodi T1/T2 in rete con laser, Batteria, Lampada |
 | **Economia** | Fondi, costi e rimborsi, Mercato come una borsa (prezzi che si muovono, picchi fino al triplo, crolli se svendi, vendita automatica per oggetto al prezzo minimo, a ritmo), magazzino del CORE con un massimo per oggetto, tre livelli del CORE, container e vault |
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |

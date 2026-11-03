@@ -57,8 +57,8 @@ public static class PlacementLine
     private static readonly string BridgeId = BuildSpec.StructureIdFor(BuildingKind.Bridge)!;
 
     /// <summary>
-    /// The cells of <paramref name="request"/> in order from the anchor. Plain belts, junctions, splitters and sorters
-    /// make a line facing the next cell (the last one: the plain belt it ends on, else the line's way; a lone cell: the
+    /// The cells of <paramref name="request"/> in order from the anchor. Plain belts, junctions, routers and sorters
+    /// make a line facing the next cell (a router has no direction: it faces North) (the last one: the plain belt it ends on, else the line's way; a lone cell: the
     /// brush); every other block is one cell on the anchor facing the drag. A plain belt inside the line over a
     /// perpendicular belt is a crossing; a belt whose last cell touches the Core faces it. A straight belt line jumps a
     /// run of walls, deep water or buildings with a bridge when it can (<see cref="Bridge"/>). Ctrl
@@ -71,7 +71,7 @@ public static class PlacementLine
         ArgumentNullException.ThrowIfNull(request);
         var kind = BuildSpec.KindFor(request.StructureId);
         var belt = kind is null;
-        var inLine = belt || kind is BuildingKind.Junction or BuildingKind.Splitter or BuildingKind.Sorter;
+        var inLine = belt || kind is BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter;
         var dragged = request.Cursor != request.Anchor;
         var ctrl = belt && dragged && request.Shape == LineShape.Diagonal;
         var chain = ctrl ? Chain(view, request.Anchor, request.Cursor) : null;
@@ -98,6 +98,11 @@ public static class PlacementLine
                 : inLine && last && overBelt ? under!.Direction
                 : inLine ? next is { } ahead ? BeltLane.DirectionBetween(cell, ahead) : BeltLane.DirectionBetween(previous!.Value, cell)
                 : lineWay;
+            if (kind == BuildingKind.Router)
+            {
+                direction = Direction.North; // no direction: R and the drag do not turn it
+            }
+
             if (belt && last && !fixedWay && !overBelt
                 && CoreStockSink.PreferDirectionIntoCore(cell, view.CoreTiles) is { } intoCore)
             {

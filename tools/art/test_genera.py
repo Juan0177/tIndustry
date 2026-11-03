@@ -731,8 +731,7 @@ class TestGenera(unittest.TestCase):
     def test_copertura(self):
         # Every structure and item of content.json, every Core tier and every drone has a sprite.
         c = _content()
-        # The splitter structure of the data is drawn by the router sprite until the data are renamed (logistics plan, Task 3).
-        attesi = {"router" if s["id"] == "splitter" else s["id"] for s in c["structures"]} | _item_ids()
+        attesi = {s["id"] for s in c["structures"]} | _item_ids()
         attesi |= {f"core-{n}" for n in range(1, CORE_TIER + 1)} | set(DRONI)
         reali = set(SPRITE) - set(TEST_SPRITES)
         self.assertEqual([], sorted(attesi - reali))

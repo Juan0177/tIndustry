@@ -342,7 +342,16 @@ public sealed class BeltSaveDto
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
     public string DefinitionId { get; set; } = "conveyor-basic";
-    public int SplitterToggle { get; set; }
+
+    /// <summary>Router: first side to try (<see cref="BeltGridCell.RouterTurn"/>); null on other cells.</summary>
+    public int? RouterTurn { get; set; }
+
+    /// <summary>Router holding an item: ticks it has waited (<see cref="BeltGridCell.RouterWaitTicks"/>); null otherwise.</summary>
+    public int? RouterWaitTicks { get; set; }
+
+    /// <summary>Router holding an item: the side it came from (<see cref="BeltGridCell.RouterFrom"/>); null otherwise.</summary>
+    public string? RouterFrom { get; set; }
+
     public int? BridgePartnerX { get; set; }
     public int? BridgePartnerY { get; set; }
     public string? FilterItemId { get; set; }

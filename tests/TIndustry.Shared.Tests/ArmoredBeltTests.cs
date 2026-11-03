@@ -199,8 +199,8 @@ public sealed class ArmoredBeltTests
     {
         switch (kind)
         {
-            case "splitter":
-                Assert.True(factory.TryPlaceSplitter(at, DirectionMath.Right(flow))); // its left exit is flow
+            case "router":
+                Assert.True(factory.TryPlaceRouter(at, Direction.North)); // it hands items to every side, flow too
                 return at;
             case "sorter":
                 Assert.True(factory.TryPlaceSorter(at, flow, "iron-ore")); // the item matches: straight on
@@ -219,7 +219,7 @@ public sealed class ArmoredBeltTests
     }
 
     [Theory]
-    [InlineData("splitter")]
+    [InlineData("router")]
     [InlineData("sorter")]
     [InlineData("bridge")]
     [InlineData("junction")]
