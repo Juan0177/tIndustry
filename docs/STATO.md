@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-11-03, logistica come Mindustry fatta (nastri stretti, incrocio, router, selezionatori, estrattore; client da provare sul PC di casa); prima, 2026-10-30, rete di corrente fatta (laser fra i nodi, reti con bilancio, Batteria); prima, giorno e notte (ciclo, solo giorno, solo notte), pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
+**Aggiornato:** 2026-11-03, il drone sei tu fatto (WASD, costruzione nel raggio, scavo a mano con la stiva, niente strumenti, salvataggi v19; client da provare sul PC di casa); prima, 2026-11-03, logistica come Mindustry fatta (nastri stretti, incrocio, router, selezionatori, estrattore; client da provare sul PC di casa); prima, 2026-10-30, rete di corrente fatta (laser fra i nodi, reti con bilancio, Batteria); prima, giorno e notte (ciclo, solo giorno, solo notte), pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
 
 ## Aspetti del gioco
 
@@ -91,8 +91,8 @@ Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleu
 
 - [x] Specifica approvata ([spec](superpowers/specs/2026-11-03-drone-giocatore-design.md))
 - [x] Piano ([piano](superpowers/plans/2026-11-03-drone-giocatore.md))
-- [ ] Implementazione
-- [ ] Documenti e diario
+- [x] Implementazione
+- [x] Documenti e diario ([diario](diario/2026-11-03-drone-giocatore.md))
 
 ### 12 · [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap)
 
@@ -164,6 +164,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 - **Controllo del client del giorno e notte sul PC di casa** (fatto in cloud, senza Godot): lanciare i playtest `ui`, `tutorial` e `agenti` (anche con `TINDUSTRY_PLAYTEST_LINGUA=en` e con la Scala UI diversa dal 100%) e la sonda delle luci con `TINDUSTRY_PLAYTEST_EFFETTI=1`. A mano, due controlli: la riga del tempo si ferma con la pausa; a velocità dev ×20 si vede il tramonto. Poi: le Lampade si accendono sotto metà luce; in solo notte la riga passa da «Primo attacco fra» a «Attacco!» e a «Notte». Misurare la larghezza di «Il tempo parte dal primo blocco» con la Scala UI al 100% e al 200%.
 - **Controllo del client della rete di corrente sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`) per i `.import` dei PNG della batteria (`battery`, `battery-base`, `battery-charge-anim`) e il `BatteryVisual.cs.uid`; lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (palette e HUD cambiano); a mano, con una catena di nodi dell'utente: selezione del nodo, raggio, clic per collegare e scollegare, rifiuti, Esc, barre di carica delle batterie, suggerimento della rete, le tre varianti di colore (Normale, Daltonici, Alto contrasto) e la notte con le Lampade. Misurare la larghezza di `SelectionInfo` (640 px accanto alla palette a 1280×720).
 - **Controllo del client della logistica sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`) per i `.import` dei PNG `router` e `sorter-inverted` e il `FilterPanel.cs.uid`; lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (palette e nastri cambiano); il pannello del filtro con la Scala UI al 150% e al 200%; la palette a 3 righe a 1280×720; la sovrapposizione del pannello del filtro col pannello del tutorial. A mano: un incrocio fra due linee, una catena di router, un estrattore fra due forni.
+- **Controllo del client del drone sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`); lanciare i playtest `ui`, `tutorial` e `agenti` e `ui` con `TINDUSTRY_PLAYTEST_EFFETTI=1`, e rifare le catture di riferimento (palette senza la categoria Strumenti, HUD con la stiva); controllare i passi nuovi del playtest (drone, piano fuori raggio, clic tenuto su un giacimento); scrivere a mano `World.PlaytestDrone.cs.uid`; la scheda del tutorial alla Scala UI al 150%. A mano: una partita intera dall'inizio alla fine, `Q` su una tastiera AZERTY, `Esc` verso la Home tenendo premuto `W`.
 - **Sonda `oggetti-fluidi`** del playtest `ui`: fallisce ogni tanto per un frame lento (1 volta su 4 il 22/10). Rilanciando passa.
 - **Server MCP `tindustry` nel gioco vero**: non trova `godot4`. Serve la variabile d'ambiente `TINDUSTRY_GODOT` sull'eseguibile di Godot e un riavvio di Claude Code.
 
@@ -171,5 +172,5 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
 - Il tuo parere su un aspetto distinto per gli sprite di foundation e nucleus: oggi hanno gli stessi pixel dei vecchi CORE a 2 livelli, quindi i tre CORE si distinguono solo per misura.
-- Provare il client del magazzino del CORE, quello del giorno e notte, quello della rete di corrente e quello della logistica sul PC di casa (vedi «Cosa manca, in piccolo»).
+- Provare il client del magazzino del CORE, quello del giorno e notte, quello della rete di corrente e quello della logistica e quello del drone sul PC di casa (vedi «Cosa manca, in piccolo»).
 - L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.

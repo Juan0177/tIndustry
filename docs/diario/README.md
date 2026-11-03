@@ -31,3 +31,4 @@ I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in O
 - [2026-10-23 — Giorno e notte (aspetto 13, parte 1)](2026-10-23-giorno-notte.md)
 - [2026-10-30 — Rete di corrente come Mindustry (aspetto 5)](2026-10-30-rete-corrente.md)
 - [2026-11-03 — Logistica come Mindustry (aspetto 3)](2026-11-03-logistica-mindustry.md)
+- [2026-11-03 — Il drone sei tu (aspetto 11)](2026-11-03-drone-giocatore.md)

@@ -35,6 +35,20 @@ Come il T1 ma **velocità doppia** e ogni cella sul minerale conta il 25% in pi�
 | Minatore T1 | 1 ogni 2 s (0,5/s) | non la usa |
 | Minatore T2 | 1 ogni 1 s (1/s) | 1,2/s |
 
+## Scavo a mano
+
+Anche il drone può scavare: **tieni premuto il clic sinistro su un giacimento**, senza un blocco in mano, e finché il tasto è giù il drone estrae minerale e lo tiene nella **stiva**. Il giacimento non si consuma. Il livello del CORE decide cosa e quanto:
+
+| Drone | Minerali | Ritmo | Stiva |
+|---|---|---|---|
+| Alpha (shard) | ferro, rame, piombo, carbone | 0,7 al secondo | 30 |
+| Beta (foundation) | ferro, rame, piombo, carbone | 0,9 al secondo | 50 |
+| Gamma (nucleus) | anche titanio | 1,1 al secondo | 70 |
+
+- La stiva tiene **un solo tipo** di minerale alla volta; con la stiva piena di un minerale non si scava un altro.
+- Quando il drone è entro **6 celle dal bordo del CORE** (0 sopra il CORE) la stiva passa da sola nel magazzino, fino al massimo del CORE per quell'oggetto; quello che non entra resta nella stiva. Con la stiva piena lontano dal CORE lo scavo aspetta, e il comando è rifiutato.
+- Lo scavo si **annulla** se la cella esce dal raggio di 27,5 celle, o se sul giacimento ora c'è il CORE, un edificio, un nastro o un cantiere. Si **ferma** (e poi riprende) mentre il drone sta costruendo.
+
 ## Forno
 
 Fonde i minerali in lastre (ricette in [Risorse e oggetti](Risorse-e-oggetti)): Lastra di ferro, di piombo, di titanio. Per lavorare serve **carbone oppure corrente**:

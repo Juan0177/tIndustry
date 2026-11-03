@@ -20,9 +20,13 @@ L'anteprima rifiutata è rossa con una X e in basso compare il motivo.
 
 ## Il drone
 
-Il drone parte dal CORE e vola verso il primo piano della coda, sopra pareti e acqua. Il drone dipende dal livello del CORE (vedi [Economia e Ricerca](Economia-e-Ricerca)): l'**alpha** dello shard vola a 22,5 celle al secondo e costruisce a velocità 0,5, il **beta** del foundation a 24,75 e 0,75, il **gamma** del nucleus a 26,6 e 1,0. Il raggio di costruzione è 27,5 celle per tutti: non deve stare sopra il piano, gli basta arrivare abbastanza vicino. Quando arriva apre un **cantiere**: lo sprite si disegna dal basso mentre il raggio parte dal drone. Con la coda vuota torna accanto al CORE.
+Il drone lo guidi tu con `WASD` e non si muove mai da solo, nemmeno verso i cantieri. Dipende dal livello del CORE (vedi [Economia e Ricerca](Economia-e-Ricerca)): l'**alpha** dello shard vola a 22,5 celle al secondo e costruisce a velocità 0,5, il **beta** del foundation a 24,75 e 0,75, il **gamma** del nucleus a 26,6 e 1,0. Il raggio di costruzione è 27,5 celle per tutti, misurato dal centro del drone al cantiere: non deve stare sopra il piano, gli basta essere abbastanza vicino.
 
-Se quando arriva il piano non si può più costruire (cella occupata, blocco non più sbloccato) lo scarta e un avviso dice il motivo.
+**Si costruisce e si smonta solo nel raggio.** A ogni istante il drone lavora sul primo piano della coda *che è nel suo raggio*. I piani fuori raggio restano in coda, si vedono semitrasparenti con un contorno che dice «fuori raggio», e partono da soli appena ti avvicini. Si possono sempre cancellare con il clic destro. Se ti allontani da un cantiere già aperto, il cantiere resta com'è (con quanto ha già speso) e il suo piano resta in coda; riparte quando torni. Mentre il drone costruisce, il suo scavo a mano si ferma e poi riprende.
+
+Quando il drone apre un **cantiere**, lo sprite si disegna dal basso mentre il raggio parte dal drone.
+
+Se quando il piano entra nel raggio non si può più costruire (cella occupata, blocco non più sbloccato) lo scarta e un avviso dice il motivo.
 
 ## Costi presi man mano
 
@@ -58,7 +62,7 @@ Come in Mindustry il tempo dipende dal costo: *(20 + somma di quantità × peso 
 | Nodo T2 | 0,87 s |
 | Lampada | 0,73 s |
 
-A questo si aggiunge il volo del drone fino al piano. Lo smontaggio va alla stessa velocità.
+Il tempo non comprende il volo: lo fai tu portando il drone nel raggio. Lo smontaggio va alla stessa velocità.
 
 ## Smontare
 

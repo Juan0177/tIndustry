@@ -64,7 +64,7 @@ FX = ("fx-fumo", "fx-scintilla", "fx-polvere", "fx-vapore", "fx-fiocco", "fx-gra
 # Light texture of the night (G3 3/4): one square, PointLight2D scales it.
 LUCE = ("luce", 128)
 # Interface icons (G4): "ui/ui-<nome>" 32x32 and "ui/ui-<nome>-16" 16x16, for these names.
-ICONE_UI = ("cat-strumenti", "cat-logistica", "cat-produzione", "cat-potenza", "cat-magazzino", "menu", "ricerca", "mercato",
+ICONE_UI = ("cat-logistica", "cat-produzione", "cat-potenza", "cat-magazzino", "menu", "ricerca", "mercato",
             "campagna", "lucchetto", "energia", "impostazioni", "salvataggi", "lingua")
 # Other interface sprites (G4 5/6): the theme's check boxes and the Home logo, name -> size.
 ALTRI_UI = {"ui/ui-spunta-si": (20, 20), "ui/ui-spunta-no": (20, 20), "ui/ui-spunta-si-spenta": (20, 20),
