@@ -66,3 +66,15 @@ Decisione: il pannello del filtro non conta come pannello modale (`PanelOpen`), 
 ## Verifiche finali
 
 Build 0 errori e 0 avvisi, test della simulazione verdi (il test `GenerationTimeBudget` può fallire sotto carico e passa rilanciato da solo), test del sito e controllo della Wiki.
+
+## Revisione finale
+
+Revisione di tutto il ramo (9091090..413ed6b) con un fuzz di 3.300 disposizioni casuali (nastri, incroci, router, selezionatori, estrattori, CORE): nessun oggetto perso o duplicato, nessun blocco permanente. Correzioni nel commit `dc157f9`, riviste:
+
+- un nastro non accetta più oggetti da un edificio che ha davanti (l'estrattore lo riempiva e il nastro si bloccava), come in Mindustry;
+- documenti: selezionatori istantanei (non 8/s), invertito dopo il Selezionatore, righe dell'invertito in Ricerca e Costruzione, `SetBlockFilter` nella Wiki Architettura;
+- l'incrocio non ha più direzione nemmeno con R; il sito non ruota il selezionatore; nastri stretti fra le cose fatte nella mappa del progetto.
+
+Decisione presa in autonomia: la revisione del Task 8 (documenti) è stata fusa nella revisione finale. Costo se sbagliato: un controllo in meno sui documenti.
+
+Rimandati: costo di `TakesItemsAt`/`LogisticsBlockAt` (scorrono forni e generatori a ogni chiamata), ricerca dell'estrattore bloccato senza filtro, tasto centrale che non copia il filtro, `rateItemsPerSecond` dell'incrocio usato solo per distinguere il tick vero (documentato).
