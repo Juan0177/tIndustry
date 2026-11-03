@@ -82,8 +82,51 @@ public sealed record BuildingDefinition(
         unitsPerSecond <= 0f ? 0 : (long)Math.Round(unitsPerSecond * 1000.0, MidpointRounding.AwayFromZero);
 }
 
-/// <summary>Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s.</summary>
-public sealed record UnitDefinition(float BuildSpeed, float BuildRange, float Speed);
+/// <summary>
+/// Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s. Hand mining (spec
+/// «Scavo a mano»): <paramref name="MineRate"/> pieces/s of one of <see cref="MineItems"/> into a hold of
+/// <paramref name="HoldCapacity"/> pieces (0 = the unit does not mine).
+/// </summary>
+public sealed record UnitDefinition(
+    float BuildSpeed, float BuildRange, float Speed, float MineRate = 0f, int HoldCapacity = 0)
+{
+    /// <summary>Hand-mining progress of one piece: thousandths of a piece per second × ticks per second.</summary>
+    public const long MineProgressPerPiece = 1000L * SimulationClock.TickRate;
+
+    /// <summary>
+    /// Ore items the unit mines by hand (<see cref="TerrainMap.ItemIdForDeposit"/>), in content order; equality compares
+    /// it item by item.
+    /// </summary>
+    public IReadOnlyList<string> MineItems { get; init; } = [];
+
+    /// <summary>
+    /// <see cref="MineRate"/> in thousandths of a piece per second: what one tick adds to the hand-mining progress, which
+    /// makes a piece at <see cref="MineProgressPerPiece"/> (0.7/s = 700 per tick, 42 000 per second: exact).
+    /// </summary>
+    public long MineRateMilli => BuildingDefinition.MilliRate(MineRate);
+
+    /// <summary>True when the unit mines <paramref name="itemId"/> by hand.</summary>
+    public bool CanMine(string itemId)
+    {
+        foreach (var id in MineItems)
+        {
+            if (string.Equals(id, itemId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool Equals(UnitDefinition? other) =>
+        other is not null
+        && BuildSpeed.Equals(other.BuildSpeed) && BuildRange.Equals(other.BuildRange) && Speed.Equals(other.Speed)
+        && MineRate.Equals(other.MineRate) && HoldCapacity == other.HoldCapacity
+        && MineItems.SequenceEqual(other.MineItems, StringComparer.Ordinal);
+
+    public override int GetHashCode() => HashCode.Combine(BuildSpeed, BuildRange, Speed, MineRate, HoldCapacity, MineItems.Count);
+}
 
 public sealed record MarketItemDefinition(string ItemId, string DisplayName, int BaseValue);
 

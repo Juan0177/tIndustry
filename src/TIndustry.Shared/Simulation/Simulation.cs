@@ -24,7 +24,7 @@ public static class Simulation
     public const float TickSeconds = SimulationClock.TickSeconds;
 
     /// <summary>
-    /// Builder, Construct, Belt, PowerDemand, Power, Mining, Crafting, Lighting, Extraction, Belt (settle, Dt 0),
+    /// Builder, Construct, HandMining, Belt, PowerDemand, Power, Mining, Crafting, Lighting, Extraction, Belt (settle, Dt 0),
     /// CoreDelivery, AutoSell, Market, DayNight (last). PowerDemand collects what the consumers ask, Power makes the
     /// balance of each network, and Mining, Crafting and Lighting work with its satisfaction.
     /// </summary>
@@ -32,6 +32,7 @@ public static class Simulation
     [
         new BuilderSystem(),
         new ConstructSystem(),
+        new HandMiningSystem(),
         new BeltSystem(advance: true),
         new PowerDemandSystem(),
         new PowerSystem(),

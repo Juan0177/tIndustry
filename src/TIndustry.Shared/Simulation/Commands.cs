@@ -109,6 +109,15 @@ public sealed record TogglePowerLink(int PlayerId, long FromNodeId, long ToEntit
 public sealed record SetDroneInput(int PlayerId, int Dx, int Dy) : SimCommand(PlayerId);
 
 /// <summary>
+/// Points <paramref name="PlayerId"/>'s drone at the deposit on <paramref name="Tile"/> to mine it by hand (spec «Scavo a
+/// mano»), or stops mining when <paramref name="Tile"/> is null. Refused with <see cref="RefusalCode.MiningNoDeposit"/>
+/// (no deposit, or outside the map), <see cref="RefusalCode.MiningNotMineable"/> (an ore the drone's tier cannot dig),
+/// <see cref="RefusalCode.MiningOutOfRange"/> (farther than the build range) or <see cref="RefusalCode.MiningHoldOtherItem"/>
+/// (the hold carries another item); <see cref="RefusalCode.InvalidCommand"/> for a player without a drone.
+/// </summary>
+public sealed record SetMining(int PlayerId, GridPosition? Tile) : SimCommand(PlayerId);
+
+/// <summary>
 /// Why <see cref="SimHost"/> refused a command (<see cref="SimHost.CommandRejected"/>) or the drone dropped a plan
 /// (<see cref="PlanDropped"/>). The simulation has no language: the client turns each code into its own text.
 /// </summary>
@@ -193,7 +202,19 @@ public enum RefusalCode
     PowerLinkNotPowerBlock,
 
     /// <summary>Power laser: from a node to itself.</summary>
-    PowerLinkSameBlock
+    PowerLinkSameBlock,
+
+    /// <summary>Hand mining: the cell has no deposit (or is outside the map).</summary>
+    MiningNoDeposit,
+
+    /// <summary>Hand mining: the drone of this Core tier cannot dig this ore (titanium needs the gamma).</summary>
+    MiningNotMineable,
+
+    /// <summary>Hand mining: the cell is farther from the drone than its build range.</summary>
+    MiningOutOfRange,
+
+    /// <summary>Hand mining: the hold carries another item (one kind at a time); it empties within 6 cells of the Core.</summary>
+    MiningHoldOtherItem
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

@@ -1112,9 +1112,18 @@
     "silicon": 0.8
   },
   "units": {
-    "alpha": { "buildSpeed": 0.5, "buildRange": 27.5, "speed": 22.5 },
-    "beta": { "buildSpeed": 0.75, "buildRange": 27.5, "speed": 24.75 },
-    "gamma": { "buildSpeed": 1.0, "buildRange": 27.5, "speed": 26.6 }
+    "alpha": {
+      "buildSpeed": 0.5, "buildRange": 27.5, "speed": 22.5,
+      "mineItems": [ "iron-ore", "copper-ore", "lead-ore", "coal" ], "mineRate": 0.7, "holdCapacity": 30
+    },
+    "beta": {
+      "buildSpeed": 0.75, "buildRange": 27.5, "speed": 24.75,
+      "mineItems": [ "iron-ore", "copper-ore", "lead-ore", "coal" ], "mineRate": 0.9, "holdCapacity": 50
+    },
+    "gamma": {
+      "buildSpeed": 1.0, "buildRange": 27.5, "speed": 26.6,
+      "mineItems": [ "iron-ore", "copper-ore", "lead-ore", "coal", "titanium-ore" ], "mineRate": 1.1, "holdCapacity": 70
+    }
   },
   "cores": [
     {

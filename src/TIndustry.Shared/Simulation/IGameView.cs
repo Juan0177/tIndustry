@@ -171,6 +171,12 @@ public interface IGameView
     /// </summary>
     bool IsPlanInRange(BuilderUnit builder, BuildPlan plan);
 
+    /// <summary>
+    /// Why <paramref name="playerId"/>'s drone could not start mining <paramref name="tile"/> by hand now, or null when
+    /// it could (<see cref="SetMining"/>; <see cref="Factory.MiningRefusal"/>).
+    /// </summary>
+    RefusalCode? MiningRefusal(int playerId, GridPosition tile);
+
     IWalletView Wallet { get; }
 
     IResearchView Research { get; }

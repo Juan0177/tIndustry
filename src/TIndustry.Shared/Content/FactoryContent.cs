@@ -34,12 +34,15 @@ public sealed class FactoryContent
     public TerrainTable Terrain { get; init; } = TerrainTable.Empty;
 
     // Code defaults for content built by hand (tests); the shipped values live in content.json.
+    // Declared before DefaultUnits: static fields initialize in text order.
+    private static readonly string[] BasicMineItems = ["iron-ore", "copper-ore", "lead-ore", "coal"];
+
     internal static readonly IReadOnlyDictionary<string, UnitDefinition> DefaultUnits =
         new Dictionary<string, UnitDefinition>(StringComparer.Ordinal)
         {
-            ["alpha"] = new(0.5f, 27.5f, 22.5f),
-            ["beta"] = new(0.75f, 27.5f, 24.75f),
-            ["gamma"] = new(1.0f, 27.5f, 26.6f)
+            ["alpha"] = new(0.5f, 27.5f, 22.5f, 0.7f, 30) { MineItems = BasicMineItems },
+            ["beta"] = new(0.75f, 27.5f, 24.75f, 0.9f, 50) { MineItems = BasicMineItems },
+            ["gamma"] = new(1.0f, 27.5f, 26.6f, 1.1f, 70) { MineItems = [.. BasicMineItems, "titanium-ore"] }
         };
 
     internal static readonly IReadOnlyList<CoreTierDefinition> DefaultCoreTiers =
@@ -448,7 +451,29 @@ public sealed class FactoryContent
                 $"content.json: units.{unitId} richiede buildSpeed > 0, buildRange > 1 e speed > 0.");
         }
 
-        return new UnitDefinition(dto.BuildSpeed, dto.BuildRange, dto.Speed);
+        var mineItems = dto.MineItems ?? [];
+        var oreItems = Enum.GetValues<DepositKind>()
+            .Where(d => d != DepositKind.None)
+            .Select(TerrainMap.ItemIdForDeposit)
+            .ToHashSet(StringComparer.Ordinal);
+        if (mineItems.Any(id => !oreItems.Contains(id)) || mineItems.Distinct(StringComparer.Ordinal).Count() != mineItems.Count)
+        {
+            throw new InvalidDataException(
+                $"content.json: units.{unitId}.mineItems accetta solo minerali dei giacimenti, una volta ciascuno.");
+        }
+
+        if (mineItems.Count > 0 && (!(dto.MineRate > 0f) || !float.IsFinite(dto.MineRate) || dto.HoldCapacity < 1))
+        {
+            throw new InvalidDataException(
+                $"content.json: units.{unitId} con mineItems richiede mineRate > 0 e holdCapacity > 0.");
+        }
+
+        return mineItems.Count == 0
+            ? new UnitDefinition(dto.BuildSpeed, dto.BuildRange, dto.Speed)
+            : new UnitDefinition(dto.BuildSpeed, dto.BuildRange, dto.Speed, dto.MineRate, dto.HoldCapacity)
+            {
+                MineItems = mineItems.ToArray()
+            };
     }
 
     private static float MapMultiplier(float? multiplier) =>
@@ -668,6 +693,9 @@ public sealed class FactoryContent
         public float BuildSpeed { get; set; }
         public float BuildRange { get; set; }
         public float Speed { get; set; }
+        public List<string>? MineItems { get; set; }
+        public float MineRate { get; set; }
+        public int HoldCapacity { get; set; }
     }
 
     private sealed class ConveyorDto

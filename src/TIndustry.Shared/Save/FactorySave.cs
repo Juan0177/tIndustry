@@ -181,6 +181,13 @@ public sealed class BuilderSaveDto
     public int InputX { get; set; }
     public int InputY { get; set; }
     public long? CurrentSiteId { get; set; }
+    /// <summary>Deposit cell mined by hand; null when not mining (and in saves written before hand mining).</summary>
+    public GridCellSaveDto? MiningTile { get; set; }
+    /// <summary>Hand-mining progress towards the next piece (<see cref="UnitDefinition.MineProgressPerPiece"/> = one).</summary>
+    public long MiningProgress { get; set; }
+    /// <summary>Item in the hold; null when it is empty.</summary>
+    public string? HoldItemId { get; set; }
+    public int HoldCount { get; set; }
     /// <summary>Build queue in queue order (first = current).</summary>
     public List<BuildPlanSaveDto> Plans { get; set; } = [];
 }

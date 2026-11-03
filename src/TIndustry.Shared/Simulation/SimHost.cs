@@ -225,6 +225,7 @@ public sealed class SimHost
         SetBlockFilter filter => ApplySetBlockFilter(filter),
         TogglePowerLink link => factory.TogglePowerLink(link.FromNodeId, link.ToEntityId),
         SetDroneInput input => ApplySetDroneInput(input),
+        SetMining mining => ApplySetMining(mining),
         _ => RefusalCode.InvalidCommand
     };
 
@@ -238,6 +239,34 @@ public sealed class SimHost
 
         builder.InputX = command.Dx;
         builder.InputY = command.Dy;
+        return null;
+    }
+
+    private Refusal? ApplySetMining(SetMining command)
+    {
+        if (factory.BuilderOf(command.PlayerId) is not { } builder)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        if (command.Tile is not { } tile)
+        {
+            builder.MiningTile = null;
+            builder.MiningProgress = 0;
+            return null;
+        }
+
+        if (HandMiningSystem.Refusal(factory.State, builder, tile) is { } refusal)
+        {
+            return refusal;
+        }
+
+        if (builder.MiningTile != tile)
+        {
+            builder.MiningTile = tile;
+            builder.MiningProgress = 0;
+        }
+
         return null;
     }
 

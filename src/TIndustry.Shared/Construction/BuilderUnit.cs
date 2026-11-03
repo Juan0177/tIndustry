@@ -50,4 +50,19 @@ public sealed class BuilderUnit
 
     /// <summary>Site of the first plan once work has begun; null while no plan in range is being worked on.</summary>
     public long? CurrentSiteId { get; internal set; }
+
+    /// <summary>
+    /// Deposit cell the drone mines by hand (<see cref="SetMining"/>), null when it does not mine. It stays set while
+    /// mining waits (cell out of range, hold full, Core full): <see cref="HandMiningSystem"/> resumes on its own.
+    /// </summary>
+    public GridPosition? MiningTile { get; internal set; }
+
+    /// <summary>Hand-mining progress towards the next piece, in [0, <see cref="UnitDefinition.MineProgressPerPiece"/>).</summary>
+    public long MiningProgress { get; internal set; }
+
+    /// <summary>Item in the hold (one kind at a time); null when the hold is empty.</summary>
+    public string? HoldItemId { get; internal set; }
+
+    /// <summary>Pieces of <see cref="HoldItemId"/> in the hold, up to the tier's <see cref="UnitDefinition.HoldCapacity"/>.</summary>
+    public int HoldCount { get; internal set; }
 }

@@ -682,8 +682,7 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Centre of <paramref name="spec"/>'s block, in tiles (a bridge: its entry cell). For a breaking plan
-    /// use the clicked cell instead (<see cref="PlanCentre"/>).
+    /// Centre of <paramref name="spec"/>'s block, in tiles (a bridge: its entry cell).
     /// </summary>
     public (float X, float Y) SpecCentre(BuildSpec spec)
     {
@@ -714,15 +713,6 @@ public sealed class Factory : IGameView
         }
 
         return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
-    }
-
-    /// <summary>Where the drone heads for <paramref name="plan"/>: the block's centre, or the clicked cell's when breaking.</summary>
-    public (float X, float Y) PlanCentre(BuildPlan plan)
-    {
-        ArgumentNullException.ThrowIfNull(plan);
-        return plan.Breaking
-            ? (plan.Spec.Origin.X + 0.5f, plan.Spec.Origin.Y + 0.5f)
-            : SpecCentre(plan.Spec);
     }
 
     /// <summary>
@@ -769,6 +759,15 @@ public sealed class Factory : IGameView
         var (x, y) = PlanWorkCentre(plan);
         return BuilderSystem.Distance(builder, x, y) <= Content.UnitForTier(State.CoreTier).BuildRange;
     }
+
+    /// <summary>
+    /// Why <paramref name="playerId"/>'s drone could not start mining <paramref name="tile"/> by hand now
+    /// (<see cref="SetMining"/>), or null when it could; <see cref="RefusalCode.InvalidCommand"/> without a drone.
+    /// </summary>
+    public RefusalCode? MiningRefusal(int playerId, GridPosition tile) =>
+        BuilderOf(playerId) is { } builder
+            ? HandMiningSystem.Refusal(State, builder, tile)
+            : RefusalCode.InvalidCommand;
 
     /// <summary>
     /// True when a pending (non-breaking) plan of any player covers <paramref name="tile"/>. Breaking
@@ -909,6 +908,10 @@ public sealed class Factory : IGameView
                 InputX = b.InputX,
                 InputY = b.InputY,
                 CurrentSiteId = b.CurrentSiteId,
+                MiningTile = b.MiningTile is { } mining ? new GridCellSaveDto { X = mining.X, Y = mining.Y } : null,
+                MiningProgress = b.MiningProgress,
+                HoldItemId = b.HoldCount > 0 ? b.HoldItemId : null,
+                HoldCount = b.HoldCount,
                 Plans = b.Plans.Select(p => new BuildPlanSaveDto { Spec = CaptureSpec(p.Spec), Breaking = p.Breaking }).ToList()
             }).ToList(),
             Sites = State.Sites.OrderBy(site => site.Id).Select(site => new SiteSaveDto
@@ -1236,8 +1239,16 @@ public sealed class Factory : IGameView
                 Rotation = b.Rotation,
                 InputX = Math.Clamp(b.InputX, -1, 1),
                 InputY = Math.Clamp(b.InputY, -1, 1),
-                CurrentSiteId = b.CurrentSiteId
+                CurrentSiteId = b.CurrentSiteId,
+                MiningTile = b.MiningTile is { } mining ? new GridPosition(mining.X, mining.Y) : null,
+                MiningProgress = Math.Clamp(b.MiningProgress, 0, UnitDefinition.MineProgressPerPiece - 1)
             };
+            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId))
+            {
+                builder.HoldItemId = b.HoldItemId;
+                builder.HoldCount = b.HoldCount;
+            }
+
             builder.PlanQueue.AddRange(b.Plans.Select(p => new BuildPlan(RestoreSpec(p.Spec), p.Breaking)));
             factory.State.Builders.Add(builder);
         }

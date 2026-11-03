@@ -277,6 +277,28 @@ public sealed class BuilderTests
     }
 
     [Fact]
+    public void StuckSiteAloneInRangeKeepsItsPlaceWhileFarPlansWait()
+    {
+        var factory = NewFactory(ironPlates: 100);
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBuilding(Player, BuildingKind.MinerAdvanced, NearMiner, Direction.East));
+        host.Submit(Belt(new GridPosition(90, 21))); // 69 tiles away: out of range
+        host.AdvanceTicks(1);
+        var drone = Drone(factory);
+        var miner = Assert.Single(factory.Sites);
+
+        // No copper wire: the miner stalls, but no other plan is in range, so it never goes to the back.
+        for (var tick = 0; tick < 300; tick++)
+        {
+            host.AdvanceTicks(1);
+            Assert.Equal(NearMiner, drone.Plans[0].Spec.Origin);
+            Assert.Equal(miner.Id, drone.CurrentSiteId);
+        }
+
+        Assert.Equal(2, drone.Plans.Count);
+    }
+
+    [Fact]
     public void RemoveOnStuckSiteRefundsItWhenItsTurnComes()
     {
         var factory = NewFactory(ironPlates: 100);
@@ -727,7 +749,7 @@ public sealed class BuilderTests
         var events = new List<SimEvent>();
         host.EventRaised += events.Add;
 
-        // Clicked on the exit end, the one nearer to the drone coming from the west.
+        // Clicked on the exit end, the one nearer to the drone waiting west of the bridge.
         DroneFlight.FlyTo(host, factory, 90f, 50.5f);
         host.Submit(new Remove(Player, exit));
         RunUntil(host, () => events.Count > 0, maxTicks: 2_000);
