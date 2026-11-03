@@ -184,6 +184,7 @@ public sealed class BeltReplaceTests
     {
         var (factory, host, refusals) = NewHost(instantBuild: false);
         OldBelt(factory);
+        var home = (factory.State.Builders[0].X, factory.State.Builders[0].Y);
         if (!started)
         {
             // Far away, so the plan waits.
@@ -208,6 +209,7 @@ public sealed class BeltReplaceTests
         host.AdvanceTicks(1);
         Assert.Contains(factory.PlansOf(Player), p => p.Breaking && p.Spec.Origin == Cell && p.Spec.StructureId == Basic);
         Assert.DoesNotContain(factory.PlansOf(Player), p => !p.Breaking && factory.SiteOfPlan(p) is null);
+        DroneFlight.FlyTo(host, factory, home.X, home.Y); // back within range
         RunUntil(host, () => Idle(factory), maxTicks: 10_000);
         Assert.Empty(refusals);
         Assert.False(factory.Belts.Cells.ContainsKey(Cell));
@@ -310,8 +312,10 @@ public sealed class BeltReplaceTests
         Assert.Empty(factory.Sites);
         Assert.True(factory.RemoveInstant(Cell, refund: false));
         var before = Stock(factory);
+        host.Submit(new SetDroneInput(Player, -1, 0)); // back towards the plan
 
         RunUntil(host, () => factory.Sites.Count == 1);
+        host.Submit(new SetDroneInput(Player, 0, 0));
         Assert.Null(factory.Sites[0].Replaced);
         RunUntil(host, () => Idle(factory));
 

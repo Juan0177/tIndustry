@@ -177,6 +177,9 @@ public sealed class BuilderSaveDto
     public float X { get; set; }
     public float Y { get; set; }
     public float Rotation { get; set; }
+    /// <summary>Held input direction (−1, 0, 1 per axis); 0 in saves written before it existed.</summary>
+    public int InputX { get; set; }
+    public int InputY { get; set; }
     public long? CurrentSiteId { get; set; }
     /// <summary>Build queue in queue order (first = current).</summary>
     public List<BuildPlanSaveDto> Plans { get; set; } = [];

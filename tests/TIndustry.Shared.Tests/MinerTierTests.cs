@@ -102,6 +102,7 @@ public sealed class MinerTierTests
 
         // A plan queued before the rule (old save) is dropped with the reason when the drone gets to it.
         var host = new SimHost(planned);
+        DroneFlight.FlyTo(host, planned, 11f, 11f);
         var dropped = new List<RefusalCode>();
         host.EventRaised += e =>
         {

@@ -667,22 +667,6 @@ public sealed class Factory : IGameView
         return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
     }
 
-    /// <summary>
-    /// Where an idle drone waits: the centre of the cell one tile west of the Core, in the middle of its
-    /// west side (the upper middle cell for an even-sized Core).
-    /// </summary>
-    public (float X, float Y) BuilderRestPoint()
-    {
-        if (CoreTiles.Count == 0)
-        {
-            return (0f, 0f);
-        }
-
-        var (minX, minY, _, maxY) = CoreBounds();
-        var cellY = minY + (maxY - minY) / 2;
-        return (minX - 1 + 0.5f, cellY + 0.5f);
-    }
-
     private (int MinX, int MinY, int MaxX, int MaxY) CoreBounds()
     {
         int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
@@ -739,6 +723,51 @@ public sealed class Factory : IGameView
         return plan.Breaking
             ? (plan.Spec.Origin.X + 0.5f, plan.Spec.Origin.Y + 0.5f)
             : SpecCentre(plan.Spec);
+    }
+
+    /// <summary>
+    /// The point the build range is measured to for <paramref name="plan"/>: the centre of the site already
+    /// standing for it (a breaking plan: the site on its clicked cell), else the centre of the cells it covers
+    /// (<see cref="PlanTiles"/>), which is where its site will stand.
+    /// </summary>
+    public (float X, float Y) PlanWorkCentre(BuildPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        var site = plan.Breaking
+            ? (TryGetSiteAt(plan.Spec.Origin, out var standing) ? standing : null)
+            : SiteOfPlan(plan);
+        if (site is not null)
+        {
+            return SiteCentre(site);
+        }
+
+        if (!plan.Breaking && plan.Spec.Kind != BuildingKind.Bridge)
+        {
+            return SpecCentre(plan.Spec); // a square block: no need to list its cells
+        }
+
+        var tiles = PlanTiles(plan);
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var t in tiles)
+        {
+            minX = Math.Min(minX, t.X);
+            minY = Math.Min(minY, t.Y);
+            maxX = Math.Max(maxX, t.X);
+            maxY = Math.Max(maxY, t.Y);
+        }
+
+        return ((minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f);
+    }
+
+    /// <summary>
+    /// True when <paramref name="plan"/> is within <paramref name="builder"/>'s build range (the unit of the Core's
+    /// tier): the distance from the drone's centre to <see cref="PlanWorkCentre"/> is at most its <c>BuildRange</c>.
+    /// </summary>
+    public bool IsPlanInRange(BuilderUnit builder, BuildPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        var (x, y) = PlanWorkCentre(plan);
+        return BuilderSystem.Distance(builder, x, y) <= Content.UnitForTier(State.CoreTier).BuildRange;
     }
 
     /// <summary>
@@ -877,6 +906,8 @@ public sealed class Factory : IGameView
                 X = b.X,
                 Y = b.Y,
                 Rotation = b.Rotation,
+                InputX = b.InputX,
+                InputY = b.InputY,
                 CurrentSiteId = b.CurrentSiteId,
                 Plans = b.Plans.Select(p => new BuildPlanSaveDto { Spec = CaptureSpec(p.Spec), Breaking = p.Breaking }).ToList()
             }).ToList(),
@@ -1203,6 +1234,8 @@ public sealed class Factory : IGameView
             var builder = new BuilderUnit(b.Id, b.Owner, b.X, b.Y)
             {
                 Rotation = b.Rotation,
+                InputX = Math.Clamp(b.InputX, -1, 1),
+                InputY = Math.Clamp(b.InputY, -1, 1),
                 CurrentSiteId = b.CurrentSiteId
             };
             builder.PlanQueue.AddRange(b.Plans.Select(p => new BuildPlan(RestoreSpec(p.Spec), p.Breaking)));

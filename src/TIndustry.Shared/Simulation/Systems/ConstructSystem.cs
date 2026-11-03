@@ -3,7 +3,7 @@ namespace TIndustry.Shared;
 /// <summary>
 /// Advances the sites a drone is working on (Mindustry's <c>ConstructBuild.construct/deconstruct</c>).
 /// Per site, in id order: the drone whose current site it is, when within <c>buildRange</c>, adds its
-/// build speed. A site stalled for a second goes to the back of the queue when other plans wait. A
+/// build speed (<see cref="BuilderSystem"/> gives a drone only the first plan of its queue within range). A site stalled for a second goes to the back of the queue when other plans wait. A
 /// finished site pops the drone's first plan and raises
 /// <see cref="ConstructFinished"/> or <see cref="DeconstructFinished"/>.
 /// </summary>

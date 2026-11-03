@@ -102,6 +102,13 @@ public sealed record SetBlockFilter(int PlayerId, GridPosition Tile, string? Ite
 public sealed record TogglePowerLink(int PlayerId, long FromNodeId, long ToEntityId) : SimCommand(PlayerId);
 
 /// <summary>
+/// Sets the held input direction of <paramref name="PlayerId"/>'s drone (WASD): each of <paramref name="Dx"/> and
+/// <paramref name="Dy"/> is −1, 0 or 1, kept until the next command; the diagonal is normalized. Other values, or a
+/// player without a drone, are refused with <see cref="RefusalCode.InvalidCommand"/>.
+/// </summary>
+public sealed record SetDroneInput(int PlayerId, int Dx, int Dy) : SimCommand(PlayerId);
+
+/// <summary>
 /// Why <see cref="SimHost"/> refused a command (<see cref="SimHost.CommandRejected"/>) or the drone dropped a plan
 /// (<see cref="PlanDropped"/>). The simulation has no language: the client turns each code into its own text.
 /// </summary>

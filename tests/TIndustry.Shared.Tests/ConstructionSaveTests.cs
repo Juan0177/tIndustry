@@ -63,17 +63,30 @@ public sealed class ConstructionSaveTests
         Assert.Equal(new GameRules(RefundPercent: 50), reread.Rules);
         Assert.Equal(factory.State.NextEntityId, reread.NextEntityId);
 
-        // The miner is done after about 46 ticks; then the drone flies towards the first belt.
-        host.AdvanceTicks(35);
+        // The miner is done after about 46 ticks; the belts are out of range, so the drone waits for its player.
         var drone = factory.Builders[0];
+        var startX = drone.X;
+        host.AdvanceTicks(35);
         Assert.Empty(factory.Sites);
+        Assert.Equal(startX, drone.X);
+        // The player flies east for a second, then stops within range of the belts (x ≈ 43.5).
+        var fly = new SetDroneInput(Player, 1, 0) with { Tick = factory.CurrentTick + 1 };
+        var stop = new SetDroneInput(Player, 0, 0) with { Tick = factory.CurrentTick + 61 };
+        host.Submit(fly);
+        host.Submit(stop);
+        host.AdvanceTicks(20);
         Assert.True(drone.X > 22f && drone.X < 58f, $"drone x={drone.X}");
         var inFlight = RoundTrip(host, "v11-volo");
         Assert.Equal(host.Checksum(), inFlight.Checksum());
-        Assert.Equal(9, Snapshot.Read(Content, inFlight.CreateSnapshot()).Builders[0].Plans.Count);
+        var flying = Snapshot.Read(Content, inFlight.CreateSnapshot()).Builders[0];
+        Assert.Equal(9, flying.Plans.Count);
+        Assert.Equal((1, 0), (flying.InputX, flying.InputY)); // the held input is saved
+        inFlight.Submit(stop);
 
         // Missing is transient: after more ticks the restored hosts still match the original.
-        loaded.AdvanceTicks(35);
+        loaded.Submit(fly);
+        loaded.Submit(stop);
+        loaded.AdvanceTicks(55);
         Assert.Equal(host.Checksum(), loaded.Checksum());
         loaded.AdvanceTicks(600);
         inFlight.AdvanceTicks(600);
@@ -102,8 +115,12 @@ public sealed class ConstructionSaveTests
         Assert.InRange(apart.Progress, 0.05f, 0.95f);
         AssertRoundTrip(host, factory);
 
-        // Later the drone is on the bridge: a site whose cells are the two ends.
-        host.AdvanceTicks(150);
+        // Later the drone is on the bridge (the far belt waits out of range): a site whose cells are the two ends.
+        for (var tick = 0; tick < 600 && !factory.Sites.Any(s => s.Spec.Kind == BuildingKind.Bridge && s.Progress > 0f); tick++)
+        {
+            host.AdvanceTicks(1);
+        }
+
         var bridge = Assert.Single(factory.Sites, s => s.Spec.Kind == BuildingKind.Bridge);
         Assert.Equal(2, bridge.Tiles.Count);
         AssertRoundTrip(host, factory);

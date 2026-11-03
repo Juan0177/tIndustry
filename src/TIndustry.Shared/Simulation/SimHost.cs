@@ -224,8 +224,22 @@ public sealed class SimHost
         SetAutoSellWhenFull whenFull => ApplySetAutoSellWhenFull(whenFull),
         SetBlockFilter filter => ApplySetBlockFilter(filter),
         TogglePowerLink link => factory.TogglePowerLink(link.FromNodeId, link.ToEntityId),
+        SetDroneInput input => ApplySetDroneInput(input),
         _ => RefusalCode.InvalidCommand
     };
+
+    private Refusal? ApplySetDroneInput(SetDroneInput command)
+    {
+        if (command.Dx is < -1 or > 1 || command.Dy is < -1 or > 1
+            || factory.BuilderOf(command.PlayerId) is not { } builder)
+        {
+            return RefusalCode.InvalidCommand;
+        }
+
+        builder.InputX = command.Dx;
+        builder.InputY = command.Dy;
+        return null;
+    }
 
     private Refusal? ApplyPlaceBelt(PlaceBelt command)
     {

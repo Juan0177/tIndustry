@@ -147,7 +147,7 @@ public interface IGameView
     /// <summary>The site covering <paramref name="tile"/>, if any.</summary>
     bool TryGetSiteAt(GridPosition tile, out ConstructSite site);
 
-    /// <summary>Build queue of <paramref name="playerId"/> (first = being reached or worked on).</summary>
+    /// <summary>Build queue of <paramref name="playerId"/> (first = being worked on, or the next to start in range).</summary>
     IReadOnlyList<BuildPlan> PlansOf(int playerId);
 
     /// <summary>
@@ -164,6 +164,12 @@ public interface IGameView
     /// stopped when its stalled plan went to the back of the queue); null when the plan has none.
     /// </summary>
     ConstructSite? SiteOfPlan(BuildPlan plan);
+
+    /// <summary>
+    /// True when <paramref name="plan"/> is within <paramref name="builder"/>'s build range, so the drone can work on
+    /// it now; a plan out of range waits in the queue (<see cref="Factory.IsPlanInRange"/>).
+    /// </summary>
+    bool IsPlanInRange(BuilderUnit builder, BuildPlan plan);
 
     IWalletView Wallet { get; }
 

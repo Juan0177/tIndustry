@@ -112,6 +112,9 @@ public sealed class RemovalAreaTests
     public void ASiteIsCancelledOnceAndSkippedWhileTakenApart()
     {
         var (factory, host) = NewScene();
+        // The drone placed within range of the plan.
+        factory.State.Builders[0].X = 30f;
+        factory.State.Builders[0].Y = 31f;
         // Halfway built, so the cancelled site is still there being taken apart a tick later.
         for (var tick = 0; tick < 20_000 && !(factory.TryGetSiteAt(Planned, out var s) && s.Progress > 0.5f); tick++)
         {

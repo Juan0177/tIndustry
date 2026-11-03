@@ -8,8 +8,9 @@ namespace TIndustry.Shared;
 public sealed record BuildPlan(BuildSpec Spec, bool Breaking);
 
 /// <summary>
-/// A player's construction drone (Mindustry's alpha). It flies to the first plan of its queue and works
-/// on one site at a time. Position is the drone's centre in tiles: cell (x, y) spans [x, x+1) × [y, y+1).
+/// A player's construction drone (Mindustry's alpha), flown by its player: it moves along the held input
+/// direction (<see cref="InputX"/>, <see cref="InputY"/>) and works on one site at a time, the first plan of
+/// its queue within build range. Position is the drone's centre in tiles: cell (x, y) spans [x, x+1) × [y, y+1).
 /// </summary>
 public sealed class BuilderUnit
 {
@@ -35,12 +36,18 @@ public sealed class BuilderUnit
     /// <summary>Direction of the last movement, in degrees (atan2 of the step, 0 = +X).</summary>
     public float Rotation { get; internal set; }
 
-    /// <summary>Build queue (read-only): the first plan is the one being reached or worked on.</summary>
+    /// <summary>Held input along X (−1, 0, 1), set by <see cref="SetDroneInput"/> and kept until changed.</summary>
+    public int InputX { get; internal set; }
+
+    /// <summary>Held input along Y (−1, 0, 1), set by <see cref="SetDroneInput"/> and kept until changed.</summary>
+    public int InputY { get; internal set; }
+
+    /// <summary>Build queue (read-only): the first plan is the one worked on (or the next to start in range).</summary>
     public IReadOnlyList<BuildPlan> Plans { get; }
 
     /// <summary>The live queue behind <see cref="Plans"/>; only commands and systems change it.</summary>
     internal List<BuildPlan> PlanQueue { get; } = [];
 
-    /// <summary>Site of the first plan once work has begun; null while flying or idle.</summary>
+    /// <summary>Site of the first plan once work has begun; null while no plan in range is being worked on.</summary>
     public long? CurrentSiteId { get; internal set; }
 }
