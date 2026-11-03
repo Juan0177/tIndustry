@@ -52,6 +52,7 @@ public partial class World : Node2D
         Router,
         Generator,
         Sorter,
+        SorterInverted,
         Bridge,
         Extractor,
         PowerNode,
@@ -99,6 +100,7 @@ public partial class World : Node2D
     private NewGamePanel? _newGame;
     private ResearchPanel? _research;
     private MercatoPanel? _mercato;
+    private FilterPanel? _filterPanel;
     private CampaignSelectPanel? _campaignSelect;
     private SettingsPanel? _settingsPanel;
     private TutorialPanel? _tutorial;
@@ -116,7 +118,6 @@ public partial class World : Node2D
     private string _campaignPath = "";
     private Direction _placeDir = Direction.East;
     private BuildTool _tool = BuildTool.Cursor;
-    private string _sorterFilterId = SorterFilters.Ids[0];
     private GridPosition? _hover;
     private Vector2 _hoverScreen;
     // Left drag (Mindustry): the cell the button went down on, null with no drag; R pressed during it fixes the
@@ -172,6 +173,7 @@ public partial class World : Node2D
         _itemsLayer = GetNode<Node2D>("Items");
         EnsureTerrainChunks();
         EnsureHud();
+        EnsureFilterPanel();
         EnsureResearchPanel();
         EnsureMercatoPanel();
         EnsureCampaignSelectPanel();
@@ -318,6 +320,7 @@ public partial class World : Node2D
         SyncTutorial();
         SyncTimeOverlays();
         SyncHudVisibility();
+        SyncFilterPanel();
         if ((LineDragActive || _draggingRemove) && PanelOpen)
         {
             CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent

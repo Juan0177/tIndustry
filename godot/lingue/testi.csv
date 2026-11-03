@@ -94,21 +94,24 @@ obiettivo.level-10-espansione.2,Sblocca il Nastro T2,Unlock the Belt T2
 obiettivo.level-10-espansione.3,Guadagna $400 dalle vendite,Earn $400 from sales
 obiettivo.level-10-espansione.4,Magazzino 8 grafite,Store 8 graphite
 strumento.cursore,Cursore,Cursor
-strumento.cursore.suggerimento,Cursore: pan / guarda · Esc o riclicca sul tool,Cursor: pan / look · Esc or click the tool again
+strumento.cursore.suggerimento,Cursore: pan / guarda · clic su selezionatori ed estrattori per il filtro · Esc o riclicca sul tool,Cursor: pan / look · click sorters and extractors for their filter · Esc or click the tool again
+filtro.titolo,Filtro · {0},Filter · {0}
+filtro.nessuno,Nessuno,None
+filtro.nessuno.suggerimento,Toglie il filtro,Clears the filter
 struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
 struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.router.suggerimento,Un oggetto alla volta · a turno su ogni lato · mai indietro,One item at a time · takes turns on every side · never back
-struttura.sorter.suggerimento,Filtro oggetto · icona al centro · C cicla · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Item filter · icon in the middle · C cycles · matches go straight · others alternate left and right · with no filter all to the sides
-struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · chi passa il filtro va ai lati · gli altri dritti,The sorter the other way round · matches go to the sides · others go straight
+struttura.sorter.suggerimento,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
+struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · filtro col clic · chi passa il filtro va ai lati · gli altri dritti,The sorter the other way round · filter with a click · matches go to the sides · others go straight
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% with power (uses it) · unlock in Research
 struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
 struttura.assembler.suggerimento,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
-struttura.extractor.suggerimento,Estrae lastre di ferro dal CORE → nastro · R uscita · 1×1,Takes iron plates from the CORE → belt · R output · 1×1
+struttura.extractor.suggerimento,Prende dai blocchi accanto e passa agli altri · filtro col clic · 11 al secondo,Takes from the blocks beside it and hands to the others · filter with a click · 11 per second
 struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.suggerimento,Nodo T1 · raggio 6 · 6 collegamenti · selezionalo e clicca un blocco per collegarlo,Power node T1 · range 6 · 6 links · select it and click a block to link it
 struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · 10 links · unlock in Research
@@ -192,7 +195,6 @@ salvataggi.rapido.caricato,Slot-1 caricato,Slot-1 loaded
 coda.suggerimento,Coda di costruzione · clic = mostra il cantiere,Build queue · click = show the site
 coda.manca,Manca: {0},Missing: {0}
 coda.denaro,denaro,money
-selezionatore.filtro,Filtro: {0},Filter: {0}
 dev.linea.core,Seed linea CORE · nastro {0},CORE line seed · belts {0}
 salvataggi.continua.nessuno,Nessun salvataggio continua,No continue save
 salvataggi.continua.caricata,Continua caricata,Continue loaded
@@ -372,14 +374,14 @@ struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · uscita 
 struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
 struttura.smelter.descrizione,Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2,Smelts ore into plates (coal or power) · +20% when powered · 2×2
 struttura.assembler.descrizione,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
-struttura.extractor.descrizione,Tira lastre di ferro dal CORE · R uscita,Pulls iron plates from the CORE · R output
+struttura.extractor.descrizione,Prende 11 oggetti al secondo da CORE · magazzini o uscite delle macchine accanto e li passa a turno agli altri blocchi accanto · col filtro solo quell'oggetto · senza filtro tutti a turno,Takes 11 items a second from the CORE · storage or machine outputs beside it and hands them in turn to the other blocks beside it · with a filter only that item · with none every item in turn
 struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
 struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,Belt T3 · top speed · R/wheel
 struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non raccoglie di lato · R/rotella","Armored belt · like T2, never picks up from the side · R/wheel"
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.router.descrizione,Distribuisce gli oggetti a turno su tutti i lati · mai verso il lato da cui arrivano,Hands items out in turn on every side · never back to the side they came from
-struttura.sorter.descrizione,Filtro oggetto · icona al centro · C cicla · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Item filter · icon in the middle · C cycles · matches go straight · others alternate left and right · with no filter all to the sides
+struttura.sorter.descrizione,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
 struttura.sorter-inverted.descrizione,Chi passa il filtro esce a sinistra e a destra alternando · gli altri vanno dritti · senza filtro tutto dritto,Items matching the filter leave left and right alternating · the others go straight · with no filter everything goes straight
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2

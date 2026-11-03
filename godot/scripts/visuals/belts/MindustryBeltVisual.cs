@@ -81,7 +81,7 @@ public partial class MindustryBeltVisual : Node2D
             switch (cell.Kind)
             {
                 case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter:
-                    AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId);
+                    AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId, cell.Definition.Inverted);
                     break;
                 case LogisticsKind.Bridge:
                     // Both ends get their pad; the span is drawn once, from the entry.
@@ -207,13 +207,14 @@ public partial class MindustryBeltVisual : Node2D
         LogisticsKind kind,
         Direction direction,
         int tileSize,
-        string? sorterFilterId = null)
+        string? filterItemId = null,
+        bool inverted = false)
     {
         var texture = Sprites.For(kind switch
         {
             LogisticsKind.Junction => "junction-base",
             LogisticsKind.Router => "router",
-            LogisticsKind.Sorter => "sorter",
+            LogisticsKind.Sorter => inverted ? "sorter-inverted" : "sorter",
             LogisticsKind.Bridge => "conveyor-bridge",
             _ => BuildSpec.DefaultConveyorId
         });
@@ -230,8 +231,8 @@ public partial class MindustryBeltVisual : Node2D
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = Vector2.One * Sprites.ScaleToCells(texture, 1, tileSize)
         };
-        // Sorter / bridge rotate with facing; junction and router have no direction.
-        if (kind is LogisticsKind.Sorter or LogisticsKind.Bridge)
+        // A bridge turns with its facing; junctions, routers and sorters have no direction (Mindustry).
+        if (kind == LogisticsKind.Bridge)
         {
             sprite.RotationDegrees = ScrollingBeltStrip.RotationFor(direction);
         }
@@ -259,21 +260,10 @@ public partial class MindustryBeltVisual : Node2D
             }
         }
 
-        // Sorter: filtered item icon in the sprite's centre slot (upright: a sibling of the rotated frame); none without
-        // a filter.
-        if (kind == LogisticsKind.Sorter && !string.IsNullOrWhiteSpace(sorterFilterId))
+        // Sorter (either kind): filtered item icon in the sprite's centre slot; none without a filter.
+        if (kind == LogisticsKind.Sorter && Sprites.FilterIcon(filterItemId, tileSize) is { } icon)
         {
-            var filterId = sorterFilterId;
-            // The 10 px belt sprite of the item at the world art scale, inside the 14 px slot.
-            node.AddChild(new Sprite2D
-            {
-                Name = "FilterIcon",
-                Texture = Sprites.BeltItem(filterId),
-                Centered = true,
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                Scale = Vector2.One * ((float)tileSize / Sprites.PixelsPerCell),
-                ZIndex = 1
-            });
+            node.AddChild(icon);
         }
 
         AddChild(node);

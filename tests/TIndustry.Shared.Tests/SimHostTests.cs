@@ -347,9 +347,6 @@ public sealed class SimHostTests
             Assert.Equal(RefusalCode.InvalidCommand, reason?.Code);
             Assert.Equal(before, atRejection);
         }
-
-        Assert.Equal("iron-plate", SorterFilters.Cycle("copper-ore"));
-        Assert.Equal(SorterFilters.Ids[0], SorterFilters.Cycle("coal"));
     }
 
     [Fact]

@@ -711,7 +711,7 @@ public partial class World
 
         var at = LineScreen(4, 4);
         var zoom = cam.Zoom;
-        foreach (var tool in new[] { BuildTool.Belt, BuildTool.Router, BuildTool.Sorter, BuildTool.Bridge, BuildTool.Extractor, BuildTool.Assembler })
+        foreach (var tool in new[] { BuildTool.Belt, BuildTool.Bridge, BuildTool.Assembler })
         {
             (_tool, _placeDir) = (tool, Direction.East);
             await PlaytestWheel(at, MouseButton.WheelUp);
@@ -738,7 +738,11 @@ public partial class World
         }
 
         (string Name, BuildTool Tool, bool Ctrl)[] zooms =
-            [("Minatore", BuildTool.Miner, false), ("Lampada", BuildTool.Lamp, false), ("Ctrl", BuildTool.Belt, true), ("cursore", BuildTool.Cursor, false)];
+            [
+                ("Minatore", BuildTool.Miner, false), ("Lampada", BuildTool.Lamp, false), ("Router", BuildTool.Router, false),
+                ("Selezionatore", BuildTool.Sorter, false), ("Invertito", BuildTool.SorterInverted, false),
+                ("Estrattore", BuildTool.Extractor, false), ("Ctrl", BuildTool.Belt, true), ("cursore", BuildTool.Cursor, false)
+            ];
         foreach (var (name, tool, ctrl) in zooms)
         {
             (_tool, _placeDir) = (tool, Direction.East);
@@ -767,7 +771,7 @@ public partial class World
             return Fail($"rotellina-ruota nel trascinamento: nastri non tutti verso Sud ({_lineSent.Count} comandi), zoom {cam.Zoom.X}");
         }
 
-        GD.Print("PLAYTEST step ok: rotellina-ruota, gira ogni blocco orientabile; Ctrl, cursore, minatore e lampada zoomano");
+        GD.Print("PLAYTEST step ok: rotellina-ruota, gira ogni blocco orientabile; Ctrl, cursore, minatore, lampada, router, selezionatori ed estrattore zoomano");
         return true;
     }
 

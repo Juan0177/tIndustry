@@ -27,6 +27,7 @@ public partial class Hud : Control
         Router,
         Generator,
         Sorter,
+        SorterInverted,
         Bridge,
         Extractor,
         PowerNode,
@@ -153,9 +154,6 @@ public partial class Hud : Control
         _palette.Select(tool);
         RefreshBlockInfo();
     }
-
-    /// <summary>Brush filter shown on the sorter palette glyph (and used when placing).</summary>
-    public void SetSorterFilterBrush(string itemId) => _palette.SetSorterFilterBrush(itemId);
 
     public void SetToolLocked(ToolKind tool, bool locked)
     {
@@ -419,6 +417,7 @@ public partial class Hud : Control
         ToolKind.Router => "router",
         ToolKind.Generator => "generator",
         ToolKind.Sorter => "sorter",
+        ToolKind.SorterInverted => "sorter-inverted",
         ToolKind.Bridge => "conveyor-bridge",
         ToolKind.Extractor => "extractor",
         ToolKind.PowerNode => "power-node",

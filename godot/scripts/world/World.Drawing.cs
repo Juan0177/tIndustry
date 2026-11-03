@@ -421,6 +421,7 @@ public partial class World
         BuildTool.Router => BuildingKind.Router,
         BuildTool.Generator => BuildingKind.Generator,
         BuildTool.Sorter => BuildingKind.Sorter,
+        BuildTool.SorterInverted => BuildingKind.SorterInverted,
         BuildTool.Bridge => BuildingKind.Bridge,
         BuildTool.Extractor => BuildingKind.Extractor,
         BuildTool.PowerNode => BuildingKind.PowerNode,

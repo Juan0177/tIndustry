@@ -42,6 +42,99 @@ public partial class World
         _hud.SetDirectionLabel(_placeDir);
     }
 
+    /// <summary>The filter card of sorters and extractors (<see cref="FilterPanel"/>), over the HUD but under the panels.</summary>
+    private void EnsureFilterPanel()
+    {
+        var hudRoot = UiRoot;
+        _filterPanel = hudRoot.GetNodeOrNull<FilterPanel>("FilterPanel");
+        if (_filterPanel is null)
+        {
+            _filterPanel = new FilterPanel { Name = "FilterPanel" };
+            hudRoot.AddChild(_filterPanel);
+        }
+
+        _filterPanel.FilterChosen += (tile, itemId) => SubmitCommand(new SetBlockFilter(LocalPlayer, tile, itemId));
+    }
+
+    /// <summary>
+    /// The block on <paramref name="cell"/> takes a filter (sorter, inverted sorter, extractor): its structure id and its
+    /// filter as the player will see it, the last filter already sent this tick included.
+    /// </summary>
+    private bool TryGetFilterBlock(GridPosition cell, out string structureId, out string? filter)
+    {
+        structureId = "";
+        filter = null;
+        if (_view is null)
+        {
+            return false;
+        }
+
+        if (_view.Belts.TryGetValue(cell, out var belt) && belt.Kind == LogisticsKind.Sorter)
+        {
+            structureId = belt.Definition.Id;
+            filter = belt.FilterItemId;
+        }
+        else if (_view.Extractors.FirstOrDefault(e => e.Position == cell) is { } extractor)
+        {
+            structureId = Extractor.BuildingId;
+            filter = extractor.FilterItemId;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (PendingCommands.OfType<SetBlockFilter>().LastOrDefault(c => c.Tile == cell) is { } pending)
+        {
+            filter = pending.ItemId;
+        }
+
+        return true;
+    }
+
+    /// <summary>A click of the cursor on a block with a filter: its card opens (the same block again closes it).</summary>
+    private void ToggleFilterPanel(GridPosition cell, string structureId, string? filter)
+    {
+        if (_filterPanel is null || _view is null)
+        {
+            return;
+        }
+
+        if (_filterPanel.IsOpen && _filterPanel.Tile == cell)
+        {
+            _filterPanel.Close();
+            return;
+        }
+
+        _filterPanel.Open(cell, structureId, filter, _view.Content.ItemIds, _view.Content);
+        SyncFilterPanel();
+    }
+
+    /// <summary>
+    /// Per frame: the filter card follows its block on screen, and closes when the block is gone, another tool is in
+    /// hand, a panel covers the game or the HUD is hidden.
+    /// </summary>
+    private void SyncFilterPanel()
+    {
+        if (_filterPanel is not { IsOpen: true, Tile: { } tile })
+        {
+            return;
+        }
+
+        if (!HudVisible || PanelOpen || _tool != BuildTool.Cursor || !TryGetFilterBlock(tile, out _, out _))
+        {
+            _filterPanel.Close();
+            return;
+        }
+
+        // World → viewport (camera) → HUD root units (the HUD layer is scaled by the UI scale).
+        var canvas = GetViewport().GetCanvasTransform();
+        var scale = UiScale.Factor;
+        var top = canvas * new Vector2((tile.X + 0.5f) * TileSize, tile.Y * TileSize) / scale;
+        var bottom = canvas * new Vector2((tile.X + 0.5f) * TileSize, (tile.Y + 1) * TileSize) / scale;
+        _filterPanel.PlaceNear(top, bottom);
+    }
+
     private void EnsureResearchPanel()
     {
         var hudRoot = UiRoot;

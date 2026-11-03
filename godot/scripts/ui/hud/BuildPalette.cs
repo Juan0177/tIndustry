@@ -31,6 +31,7 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.Junction, "junction", "5"),
         new(ToolKind.Router, "router", "6"),
         new(ToolKind.Sorter, "sorter", "8"),
+        new(ToolKind.SorterInverted, "sorter-inverted", ""),
         new(ToolKind.Bridge, "conveyor-bridge", "9")
     ];
 
@@ -81,8 +82,6 @@ public partial class BuildPalette : PanelContainer
     private ToolKind _selected = ToolKind.Cursor;
     private BuildCategory _category = BuildCategory.Logistics;
     private ToolKind? _hovered;
-    private string _sorterFilterId = "iron-ore";
-    private TextureRect? _sorterFilterIcon;
 
     /// <summary>Selection changed from a palette click (cursor when deselecting).</summary>
     public event Action<ToolKind>? ToolChosen;
@@ -205,16 +204,6 @@ public partial class BuildPalette : PanelContainer
 
     public bool IsLocked(ToolKind tool) => _lockedTools.Contains(tool);
 
-    /// <summary>Brush filter shown on the sorter palette glyph (and used when placing).</summary>
-    public void SetSorterFilterBrush(string itemId)
-    {
-        _sorterFilterId = string.IsNullOrWhiteSpace(itemId) ? "iron-ore" : itemId;
-        if (_sorterFilterIcon is not null)
-        {
-            ApplySorterFilterTexture(_sorterFilterIcon);
-        }
-    }
-
     internal void ShowCategory(BuildCategory category)
     {
         _category = category;
@@ -264,11 +253,6 @@ public partial class BuildPalette : PanelContainer
     }
 
     private string DisplayName(PaletteEntry entry) => DisplayName(entry, Content);
-
-    private void ApplySorterFilterTexture(TextureRect target)
-    {
-        target.Texture = ItemTexture(_sorterFilterId);
-    }
 
     private void RefreshToolChrome()
     {
@@ -329,7 +313,6 @@ public partial class BuildPalette : PanelContainer
             child.QueueFree();
         }
 
-        _sorterFilterIcon = null;
         // Every old cell is freed, the cursor one too (Strumenti): a kept ref would be a disposed object.
         _toolSlots.Clear();
 
@@ -469,40 +452,6 @@ public partial class BuildPalette : PanelContainer
             glyph.HorizontalAlignment = HorizontalAlignment.Center;
             center.AddChild(glyph);
         }
-        else if (entry.Tool == ToolKind.Sorter)
-        {
-            // Frame + dynamic filter glyph (~70% of slot).
-            var stack = new Control
-            {
-                CustomMinimumSize = new Vector2(side, side),
-                MouseFilter = MouseFilterEnum.Ignore
-            };
-            var frame = BlockIcon(entry.StructureId, side);
-            frame.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            stack.AddChild(frame);
-
-            // Item filter in the empty middle of the sorter (14/32 of the sprite): the 32 px item art drawn smaller,
-            // smoothly.
-            var half = side * 7f / 32f;
-            var filter = new TextureRect
-            {
-                Name = "SorterFilter",
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                CustomMinimumSize = new Vector2(2 * half, 2 * half),
-                MouseFilter = MouseFilterEnum.Ignore,
-                TextureFilter = TextureFilterEnum.Linear
-            };
-            filter.SetAnchorsPreset(LayoutPreset.Center);
-            filter.OffsetLeft = -half;
-            filter.OffsetTop = -half;
-            filter.OffsetRight = half;
-            filter.OffsetBottom = half;
-            ApplySorterFilterTexture(filter);
-            stack.AddChild(filter);
-            _sorterFilterIcon = filter;
-            center.AddChild(stack);
-        }
         else
         {
             center.AddChild(BlockIcon(entry.StructureId, side));
@@ -588,7 +537,7 @@ public partial class BuildPalette : PanelContainer
     {
         ToolKind.Cursor => BuildCategory.Tools,
         ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.Junction or ToolKind.Router
-            or ToolKind.Sorter or ToolKind.Bridge
+            or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.Bridge
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             => BuildCategory.Production,

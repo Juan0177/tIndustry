@@ -36,8 +36,7 @@ public partial class World
 
         return new LineRequest(
             LocalPlayer, Hud.StructureIdFor(ToHudTool(_tool)), _lineAnchor ?? cursor, cursor, _placeDir, _lineFixed,
-            _lineCtrl ? LineShape.Diagonal : LineShape.Straight,
-            FilterItemId: _tool == BuildTool.Sorter ? _sorterFilterId : null);
+            _lineCtrl ? LineShape.Diagonal : LineShape.Straight);
     }
 
     // Bumped by whatever can change a line's preview: an applied command, a construction event, a redrawn layout.
@@ -112,28 +111,6 @@ public partial class World
         QueueRedraw();
     }
 
-    private void CycleSorterFilter()
-    {
-        _sorterFilterId = SorterFilters.Cycle(_sorterFilterId);
-        _hud?.SetSorterFilterBrush(_sorterFilterId);
-
-        // Also cycle hovered / selected sorter cell if present.
-        if (_view is not null
-            && _hover is { } hover
-            && _view.Belts.TryGetValue(hover, out var cell)
-            && cell.Kind == LogisticsKind.Sorter)
-        {
-            // Cycle from the filter the sorter will have once earlier same-tick presses are applied.
-            var current = PendingCommands.OfType<SetBlockFilter>().LastOrDefault(c => c.Tile == hover)?.ItemId
-                ?? cell.FilterItemId;
-            _sorterFilterId = SorterFilters.Cycle(current);
-            SubmitCommand(new SetBlockFilter(LocalPlayer, hover, _sorterFilterId));
-            _hud?.SetSorterFilterBrush(_sorterFilterId);
-        }
-
-        _hud?.ShowToast(Testi.F("selezionatore.filtro", Testi.Oggetto(_sorterFilterId, _view?.Content)));
-    }
-
     /// <summary>Remove on <paramref name="cell"/>: a single right-click toggles (it takes a dismantling mark off).</summary>
     private void TryRemoveAt(GridPosition cell)
     {
@@ -179,7 +156,7 @@ public partial class World
 
     /// <summary>
     /// Middle click: the block standing (or the site) on <paramref name="cell"/> becomes the tool in hand, with its
-    /// direction and the sorter's filter. A locked block toasts and keeps the tool; an empty cell does nothing.
+    /// direction (a filter is chosen on the block afterwards, with a click of the cursor). A locked block toasts and keeps the tool; an empty cell does nothing.
     /// </summary>
     private void PickAt(GridPosition cell)
     {
@@ -216,12 +193,6 @@ public partial class World
         {
             _placeDir = spec.Direction;
             _hud?.SetDirectionLabel(_placeDir);
-        }
-
-        if (tool == BuildTool.Sorter && spec.FilterItemId is { } filter)
-        {
-            _sorterFilterId = filter;
-            _hud?.SetSorterFilterBrush(filter);
         }
 
         QueueRedraw();

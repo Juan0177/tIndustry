@@ -54,11 +54,10 @@ Come il *Router* di Mindustry: non ha direzione (`R` non lo gira) e prende ogget
 
 ## Selezionatore e filtro
 
-L'oggetto uguale al filtro va **dritto**; gli altri escono **a sinistra** o, se la sinistra è piena, **a destra**. Se l'uscita giusta è piena l'oggetto aspetta. Il filtro è l'icona al centro del blocco.
+Come il *Sorter* di Mindustry: non ha direzione (`R` non lo gira) e passa l'oggetto subito. L'oggetto uguale al filtro va **dritto**, dal lato opposto a quello da cui entra; gli altri escono **a sinistra e a destra alternando** (se un lato non accetta, l'altro; se nessuno accetta, l'oggetto non entra). Senza filtro manda tutto ai lati. Il **selezionatore invertito** fa il contrario: l'oggetto del filtro ai lati, gli altri dritti (senza filtro tutto dritto).
 
-- `C` cambia il filtro del blocco in mano e, se il mouse è sopra un selezionatore, anche il suo.
-- I filtri disponibili, nell'ordine in cui `C` li scorre: Ferro grezzo, Rame grezzo, Lastra di ferro, Filo di rame, Carbone.
-- Il tasto centrale su un selezionatore lo prende in mano con il suo filtro.
+- Col cursore, un **clic** su un selezionatore, un invertito o un estrattore apre sopra il blocco la griglia delle icone degli oggetti e **Nessuno**: la scelta cambia il filtro e chiude il pannello; l'oggetto già scelto, cliccato di nuovo, toglie il filtro. `Esc`, un clic altrove o un altro strumento lo chiudono.
+- Il filtro è l'icona al centro del blocco; i blocchi si piazzano senza filtro.
 
 ## Ponte
 

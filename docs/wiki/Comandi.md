@@ -34,9 +34,9 @@ Gli altri blocchi (Nastro T2, Nastro T3, Nastro rinforzato, Minatore T2, Estratt
 | `R` o rotellina **durante** il trascinamento | Fissa quella direzione per tutta la linea (una fila "di lato") |
 | `Ctrl` durante il trascinamento (nastri) | Segue la catena di nastri esistente o fa un percorso a scalini attorno agli ostacoli |
 | `Esc` o destro durante il trascinamento | Annulla la linea (il blocco resta in mano) |
-| `C` | Cambia il filtro del Selezionatore; col mouse sopra un selezionatore cambia anche il suo |
+| Clic col cursore su un selezionatore (anche invertito) o un estrattore | Apre il pannello del filtro: icone degli oggetti e **Nessuno**; `Esc` lo chiude |
 
-Sono orientabili: nastri, selezionatore, ponte, estrattore, assemblatore.
+Sono orientabili: nastri, ponte, assemblatore. Router, selezionatori ed estrattore non hanno direzione.
 
 **Come si comporta il trascinamento.** Nastri, incroci, router e selezionatori fanno una retta lungo l'asse più lungo fra orizzontale e verticale; ogni altro blocco è uno solo, sull'ancora, girato verso il cursore. Ogni nastro guarda il successivo; l'ultimo prende la direzione del nastro su cui finisce e, accanto al CORE, guarda il CORE. Le sagome rosse sono celle rifiutate: non partono. Anche un pannello che si apre, la finestra che perde il fuoco o un rilascio fuori dalla finestra annullano la linea senza piazzare nulla.
 
@@ -51,7 +51,7 @@ Sono orientabili: nastri, selezionatore, ponte, estrattore, assemblatore.
 
 ## Prendere un blocco dalla mappa
 
-Un clic col **tasto centrale** senza muovere il mouse prende in mano il blocco sotto il cursore, con la sua direzione (e, per il selezionatore, il suo filtro). Un blocco non ancora sbloccato dà un avviso.
+Un clic col **tasto centrale** senza muovere il mouse prende in mano il blocco sotto il cursore, con la sua direzione (il filtro di selezionatori ed estrattori si sceglie col clic sul blocco). Un blocco non ancora sbloccato dà un avviso.
 
 ## Visuale
 

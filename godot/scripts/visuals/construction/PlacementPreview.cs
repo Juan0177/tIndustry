@@ -65,11 +65,11 @@ public static class PlacementPreview
     }
 
     /// <summary>
-    /// True for blocks placed with a direction that matters: belts (<paramref name="kind"/> null), sorters,
-    /// bridges and assemblers (their output side). Junctions, routers and extractors have none.
+    /// True for blocks placed with a direction that matters: belts (<paramref name="kind"/> null), bridges and
+    /// assemblers (their output side). Junctions, routers, sorters and extractors have none (Mindustry).
     /// </summary>
     public static bool HasDirection(BuildingKind? kind) =>
-        kind is null or BuildingKind.Sorter or BuildingKind.Bridge or BuildingKind.Assembler;
+        kind is null or BuildingKind.Bridge or BuildingKind.Assembler;
 
     /// <summary>Angle of <paramref name="direction"/> (East = 0, clockwise on screen).</summary>
     public static float Angle(Direction direction)

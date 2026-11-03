@@ -545,6 +545,7 @@ public partial class World
             Hud.ToolKind.Router,
             Hud.ToolKind.Generator,
             Hud.ToolKind.Sorter,
+            Hud.ToolKind.SorterInverted,
             Hud.ToolKind.Bridge,
             Hud.ToolKind.Extractor,
             Hud.ToolKind.PowerNode,

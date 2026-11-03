@@ -74,6 +74,7 @@ public partial class World
         BuildTool.Router => Hud.ToolKind.Router,
         BuildTool.Generator => Hud.ToolKind.Generator,
         BuildTool.Sorter => Hud.ToolKind.Sorter,
+        BuildTool.SorterInverted => Hud.ToolKind.SorterInverted,
         BuildTool.Bridge => Hud.ToolKind.Bridge,
         BuildTool.Belt => Hud.ToolKind.Belt,
         BuildTool.BeltFast => Hud.ToolKind.BeltFast,
@@ -102,6 +103,7 @@ public partial class World
         Hud.ToolKind.Router => BuildTool.Router,
         Hud.ToolKind.Generator => BuildTool.Generator,
         Hud.ToolKind.Sorter => BuildTool.Sorter,
+        Hud.ToolKind.SorterInverted => BuildTool.SorterInverted,
         Hud.ToolKind.Bridge => BuildTool.Bridge,
         Hud.ToolKind.Belt => BuildTool.Belt,
         Hud.ToolKind.BeltFast => BuildTool.BeltFast,
@@ -237,6 +239,10 @@ public partial class World
                 {
                     ClearToCursor();
                 }
+                else if (_filterPanel?.IsOpen == true)
+                {
+                    _filterPanel.Close(); // Esc first closes the filter card, then drops a node, then goes Home
+                }
                 else if (_selectedNode is not null)
                 {
                     _selectedNode = null; // Esc first drops the selected node, then goes Home
@@ -315,13 +321,6 @@ public partial class World
             if (key.Keycode == Key.Key9)
             {
                 SelectTool(BuildTool.Bridge, toast: true);
-                GetViewport().SetInputAsHandled();
-                return;
-            }
-
-            if (key.Keycode == Key.C)
-            {
-                CycleSorterFilter();
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -471,6 +470,8 @@ public partial class World
     /// in Mindustry. With a node selected, a power block it reaches (or any power block that is not a node) gets its
     /// laser toggled (<see cref="TogglePowerLink"/>; a refusal is the usual toast), another node out of reach is selected
     /// instead, the node itself or anything else drops the selection. Without one, a click on a node selects it.
+    /// A click on a sorter, an inverted sorter or an extractor opens its filter card instead (Mindustry's configuration;
+    /// the same block again closes it); a click anywhere else closes the card.
     /// </summary>
     private void OnCursorClick(GridPosition cell)
     {
@@ -478,6 +479,15 @@ public partial class World
         {
             return;
         }
+
+        if (TryGetFilterBlock(cell, out var structureId, out var filter))
+        {
+            _selectedNode = null;
+            ToggleFilterPanel(cell, structureId, filter);
+            return;
+        }
+
+        _filterPanel?.Close();
 
         var block = _view.PowerBlockAt(cell);
         if (_selectedNode is { } node && _view.PowerNodeLinksOf(node) is not null && block is { } target && target.Id != node
