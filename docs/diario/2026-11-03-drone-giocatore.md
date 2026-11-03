@@ -22,7 +22,8 @@ Base del piano: `bf35cca`.
 | 3 | Salvataggi v19 e comandi `muovi` e `scava` degli agenti | `cfd69f5` |
 | 4 | Client: WASD, comandi come Mindustry, niente strumenti | `2d74ba1` |
 | 5 | Client: piani fuori raggio, scavo a mano, stiva | `0732adf`, correzione `baec14e` |
-| 6 | Documenti, stato e diario | questo commit |
+| 6 | Documenti, stato e diario | `ab9293a` |
+| — | Correzioni della revisione finale | `d7df120`, ritocco dopo la ri-revisione |
 
 ## Giri di revisione
 
@@ -57,6 +58,8 @@ Segnalati dalle revisioni dei task e corretti nei task successivi:
 ## Revisione finale
 
 Pronta con correzioni (0 critici, 3 importanti, 7 minori), corrette in un commit: testi degli agenti e della documentazione sullo scavo fuori raggio (si annulla, non aspetta); avviso nel client quando lo scavo aspetta un cantiere fermo per materiali (`Factory.IsMiningHeldByStalledSite`, testo `scavo.attesa.cantiere`); una cella di scavo salvata si rilascia al caricamento come l'ingresso; il toast «fuori raggio» solo per un clic tenuto; nota nella decisione 0003 sul drone senza volo da solo e senza punto di riposo; ARCHITETTURA, skill, stato e changelog allineati.
+
+Ri-revisione delle correzioni: pronta da unire. Due minori sistemati subito: un pannello aperto (Home) durante l'attesa dei 250 ms del clic tenuto ora annulla anche quell'attesa; il clic tenuto che diventa scavo chiude il pannello del filtro e deseleziona il nodo come lo scavo nel raggio. Resta accettato: con materiali che arrivano a gocce l'avviso del cantiere fermo può ripetersi a ogni ciclo di attesa (circa 1 s o più).
 
 ## Problemi rinviati
 

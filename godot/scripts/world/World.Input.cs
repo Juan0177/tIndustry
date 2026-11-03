@@ -608,6 +608,8 @@ public partial class World
 
         _miningHeldOutOfRange = null;
         _clickDown = null; // held: mining, not a click
+        _filterPanel?.Close();
+        _selectedNode = null;
         _handMining = true;
         SubmitCommand(new SetMining(LocalPlayer, held.Cell));
     }

@@ -328,7 +328,7 @@ public partial class World : Node2D
         SyncTimeOverlays();
         SyncHudVisibility();
         SyncFilterPanel();
-        if ((LineDragActive || _draggingRemove || _handMining) && PanelOpen)
+        if ((LineDragActive || _draggingRemove || _handMining || _miningHeldOutOfRange is not null) && PanelOpen)
         {
             CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent
         }
