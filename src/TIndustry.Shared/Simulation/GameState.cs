@@ -35,6 +35,7 @@ public sealed class GameState
         CoreStart = CoreOrigin;
         belts.BuildingTakesAt = TakesItemsAt;
         belts.BuildingReceives = ReceiveFromLogistics;
+        belts.BuildingWouldReceive = CanReceiveFromLogistics;
     }
 
     /// <summary>
@@ -81,6 +82,40 @@ public sealed class GameState
             if (generator.Occupies(tile))
             {
                 return generator.TryAcceptFuel(itemId);
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether <see cref="ReceiveFromLogistics"/> would take <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanReceiveFromLogistics(GridPosition tile, string itemId)
+    {
+        if (coreTiles.Contains(tile))
+        {
+            return Storage.CanAccept(itemId);
+        }
+
+        if (StorageAt(tile) is { } storage)
+        {
+            return storage.IsLinked ? Storage.CanAccept(itemId) : storage.CanAccept(itemId);
+        }
+
+        foreach (var craft in CraftMachines())
+        {
+            if (craft.Occupies(tile))
+            {
+                return craft.UsesCoalOrPower && itemId == Crafter.FuelItemId
+                    ? craft.CanAcceptFuel(itemId)
+                    : craft.CanAccept(itemId);
+            }
+        }
+
+        foreach (var generator in Generators)
+        {
+            if (generator.Occupies(tile))
+            {
+                return generator.CanAcceptFuel(itemId);
             }
         }
 

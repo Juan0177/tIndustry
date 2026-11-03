@@ -73,9 +73,12 @@ public sealed class StorageBlock
     public int Count(string itemId) => contents.TryGetValue(itemId, out var count) ? count : 0;
 
     /// <summary>Stores one <paramref name="itemId"/> when standalone and below <see cref="Capacity"/>; false otherwise (the caller keeps it).</summary>
+    /// <summary>Whether <see cref="TryAccept"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAccept(string itemId) => !IsLinked && !string.IsNullOrWhiteSpace(itemId) && Count(itemId) < Capacity;
+
     public bool TryAccept(string itemId)
     {
-        if (IsLinked || string.IsNullOrWhiteSpace(itemId) || Count(itemId) >= Capacity)
+        if (!CanAccept(itemId))
         {
             return false;
         }

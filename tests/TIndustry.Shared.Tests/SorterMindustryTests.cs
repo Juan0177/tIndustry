@@ -115,6 +115,129 @@ public sealed class SorterMindustryTests
     }
 
     [Fact]
+    public void ABlockedSideKeepsTheTurnAsMindustry()
+    {
+        // No exit on the right: the items go left without flipping the turn; once the right opens, the turn still says
+        // left, then they alternate (Mindustry flips only when both sides take the item).
+        var left = DirectionMath.Left(Direction.East);
+        var right = DirectionMath.Right(Direction.East);
+        var grid = SorterWithExits(Sorter, Iron, Direction.East, left);
+        Assert.Equal(left, PassEast(grid, Copper));
+        Assert.Equal(left, PassEast(grid, Copper));
+        Assert.Equal(0, grid.Cells[At].SorterTurns);
+
+        Assert.True(grid.TryPlaceFree(At.Step(right), right, Belt));
+        Assert.Equal(
+            new Direction?[] { left, right, left, right },
+            Enumerable.Range(0, 4).Select(_ => PassEast(grid, Copper)).ToArray());
+    }
+
+    [Fact]
+    public void ABuildingThatWouldNotTakeTheItemDoesNotFlipTheTurn()
+    {
+        // Sorter (31, 29) above the Core (30..32, 30..32): travelling West its left is the Core (South), its right a
+        // belt (North). The Core is full of copper.
+        var factory = NewGame.Sandbox(
+            Content, new GridPosition(30, 30), mapWidth: 60, mapHeight: 60, rules: new GameRules(InstantBuild: true));
+        factory.UnlockAllForDemo();
+        var at = new GridPosition(31, 29);
+        var north = at.Step(Direction.North);
+        Assert.True(factory.TryPlaceSorter(at, Direction.North, Iron));
+        Assert.True(factory.TryPlaceBelt(north, Direction.North));
+        Assert.Equal(Direction.South, DirectionMath.Left(Direction.West));
+        var storage = factory.State.Storage;
+        factory.Wallet.AddMaterial(Copper, storage.Capacity(Copper) - factory.Wallet.MaterialCount(Copper));
+        Assert.False(storage.CanAccept(Copper));
+
+        void Clear()
+        {
+            foreach (var held in factory.Belts.Cells[north].Items.ToList())
+            {
+                factory.Belts.Cells[north].TryRemoveItem(held);
+            }
+        }
+
+        // Only the belt would take it: it goes there and the turn stays on the left (the Core).
+        Assert.True(factory.Belts.TryInsert(at, NewItem(Copper), Direction.West));
+        Assert.Single(factory.Belts.Cells[north].Items);
+        Assert.Equal(0, factory.Belts.Cells[at].SorterTurns);
+        Clear();
+
+        // Room in the Core: both would, so it goes left into the Core and the turn flips; the next goes to the belt.
+        Assert.True(factory.Wallet.TryRemoveMaterial(Copper, 1));
+        var stock = factory.Wallet.MaterialCount(Copper);
+        Assert.True(factory.Belts.TryInsert(at, NewItem(Copper), Direction.West));
+        Assert.Equal(stock + 1, factory.Wallet.MaterialCount(Copper));
+        Assert.Empty(factory.Belts.Cells[north].Items);
+        Assert.True(factory.Belts.Cells[at].SorterTurnsRight(Direction.West));
+        Assert.True(factory.Wallet.TryRemoveMaterial(Copper, 1));
+        Assert.True(factory.Belts.TryInsert(at, NewItem(Copper), Direction.West));
+        Assert.Single(factory.Belts.Cells[north].Items);
+        Assert.Equal(0, factory.Belts.Cells[at].SorterTurns);
+    }
+
+    [Fact]
+    public void TwoOppositeInputsEachAlternateTheirOwnItems()
+    {
+        // Inputs from the West and the East, one item each every 30 ticks (far below a belt's rate); no filter, so all
+        // aside to the belts North and South. Each input's items alternate between the two sides on their own turn bit.
+        var grid = new BeltGrid();
+        Assert.True(grid.TryPlaceFree(At, Direction.North, Sorter));
+        for (var i = 1; i <= 4; i++)
+        {
+            Assert.True(grid.TryPlaceFree(new GridPosition(i, 5), Direction.East, Belt));
+            Assert.True(grid.TryPlaceFree(new GridPosition(10 - i, 5), Direction.West, Belt));
+            Assert.True(grid.TryPlaceFree(new GridPosition(5, i), Direction.North, Belt));
+            Assert.True(grid.TryPlaceFree(new GridPosition(5, 10 - i), Direction.South, Belt));
+        }
+
+        var fromWest = new HashSet<long>();
+        var west = new List<Direction>();
+        var east = new List<Direction>();
+        for (var tick = 0; tick < 1200; tick++)
+        {
+            if (tick % 30 == 0)
+            {
+                var a = NewItem(Iron);
+                Assert.True(grid.TryInsert(new GridPosition(1, 5), a, Direction.East));
+                fromWest.Add(a.Id);
+                Assert.True(grid.TryInsert(new GridPosition(9, 5), NewItem(Copper), Direction.West));
+            }
+
+            Tick(grid);
+            foreach (var end in new[] { new GridPosition(5, 1), new GridPosition(5, 9) })
+            {
+                if (grid.Cells[end].PeekOutput() is not null)
+                {
+                    grid.Cells[end].RemoveOutput();
+                }
+            }
+
+            foreach (var (exit, side) in new[] { (new GridPosition(5, 4), Direction.North), (new GridPosition(5, 6), Direction.South) })
+            {
+                foreach (var item in grid.Cells[exit].Items.Where(i => !seen.Contains(i.Id)).ToList())
+                {
+                    seen.Add(item.Id);
+                    (fromWest.Contains(item.Id) ? west : east).Add(side);
+                }
+            }
+        }
+
+        Assert.True(west.Count > 30 && east.Count > 30, $"{west.Count} / {east.Count}");
+        for (var n = 1; n < west.Count; n++)
+        {
+            Assert.NotEqual(west[n - 1], west[n]);
+        }
+
+        for (var n = 1; n < east.Count; n++)
+        {
+            Assert.NotEqual(east[n - 1], east[n]);
+        }
+    }
+
+    private readonly HashSet<long> seen = [];
+
+    [Fact]
     public void ABlockedSideSendsToTheOther()
     {
         // No exit on the left: every other item goes right; with the right full too, nothing enters.
@@ -471,13 +594,14 @@ public sealed class SorterMindustryTests
             Assert.True(factory.TryPlaceBelt(at.Step(dir), dir));
         }
 
-        // One copper to the left: the next goes right.
+        // One copper to the left: the next travelling East goes right.
         Assert.True(factory.Belts.TryInsert(at, NewItem(Copper), Direction.East));
-        Assert.True(factory.Belts.Cells[at].SorterToggle);
+        Assert.True(factory.Belts.Cells[at].SorterTurnsRight(Direction.East));
+        Assert.Equal(1 << (int)Direction.East, factory.Belts.Cells[at].SorterTurns);
 
         var restored = Factory.Restore(Content, factory.Capture());
         Assert.Equal(Iron, restored.Belts.Cells[at].FilterItemId);
-        Assert.True(restored.Belts.Cells[at].SorterToggle);
+        Assert.Equal(1 << (int)Direction.East, restored.Belts.Cells[at].SorterTurns);
         Assert.Null(restored.Belts.Cells[bare].FilterItemId);
         Assert.True(restored.Belts.Cells[bare].Definition.Inverted);
         Assert.Equal(Snapshot.Write(factory.State), Snapshot.Write(restored.State));

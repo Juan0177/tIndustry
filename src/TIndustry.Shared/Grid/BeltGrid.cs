@@ -172,6 +172,13 @@ public sealed class BeltGrid
     /// </summary>
     public Func<GridPosition, string, bool>? BuildingReceives { get; set; }
 
+    /// <summary>
+    /// Whether the building on a tile would take one item now (<see cref="BuildingReceives"/> without handing it over): a
+    /// sorter asks it about the side it does not use. The simulation state sets it (<see cref="GameState"/>); a bare grid
+    /// has none. Not saved.
+    /// </summary>
+    public Func<GridPosition, string, bool>? BuildingWouldReceive { get; set; }
+
     /// <summary>Whether a logistics cell or a building that takes items is on <paramref name="tile"/>.</summary>
     public bool TakesItemsAt(GridPosition tile) => cells.ContainsKey(tile) || BuildingTakesAt?.Invoke(tile) == true;
 
@@ -454,11 +461,12 @@ public sealed class BeltGrid
     }
 
     /// <summary>
-    /// Mindustry's Sorter: an item travelling <paramref name="travel"/> goes straight on (the side opposite its entry)
-    /// when <see cref="BeltGridCell.SendsStraight"/>, else to the left or the right of its travel, alternating
-    /// (<see cref="BeltGridCell.SorterToggle"/> says which is tried first, and flips when that side takes it); when
-    /// that side refuses, the other. True when a logistics cell or a building took it in this same call; false leaves the
-    /// item where it was (it never waits on the sorter).
+    /// Mindustry's Sorter (<c>Sorter.getTileTarget</c>): an item travelling <paramref name="travel"/> goes straight on
+    /// (the side opposite its entry) when <see cref="BeltGridCell.SendsStraight"/>, else aside. Aside, each direction of
+    /// travel has its own turn bit (<see cref="BeltGridCell.SorterTurnsRight"/>): when both sides would take the item it
+    /// goes to the bit's side and the bit flips; when only one would, it goes there and the bit stays; when none, it is
+    /// refused. True when a logistics cell or a building took it in this same call; false leaves the item where it was
+    /// (it never waits on the sorter).
     /// </summary>
     private bool PassSorter(BeltGridCell cell, TransportedItem item, Direction travel)
     {
@@ -467,14 +475,58 @@ public sealed class BeltGrid
             return SorterHandsTo(cell, travel, item);
         }
 
-        var first = cell.SorterToggle ? DirectionMath.Right(travel) : DirectionMath.Left(travel);
+        var first = cell.SorterTurnsRight(travel) ? DirectionMath.Right(travel) : DirectionMath.Left(travel);
+        var second = DirectionMath.Opposite(first);
+        // Probed before the hand-over, as Mindustry checks both sides before choosing.
+        var secondWould = WouldAccept(cell.Position.Step(second), item, second);
         if (SorterHandsTo(cell, first, item))
         {
-            cell.FlipSorter();
+            if (secondWould)
+            {
+                cell.FlipSorter(travel);
+            }
+
             return true;
         }
 
-        return SorterHandsTo(cell, DirectionMath.Opposite(first), item);
+        return secondWould && SorterHandsTo(cell, second, item);
+    }
+
+    /// <summary>
+    /// Whether the cell or the building on <paramref name="position"/> would take <paramref name="item"/> coming from
+    /// the sorter beside it (moving <paramref name="fromDirection"/>), by the rules of <see cref="TryInsert"/>, without
+    /// changing anything. Only a sorter asks: a sorter beside it never takes from it.
+    /// </summary>
+    private bool WouldAccept(GridPosition position, TransportedItem item, Direction fromDirection)
+    {
+        if (!cells.TryGetValue(position, out var cell))
+        {
+            return BuildingWouldReceive?.Invoke(position, item.ItemId) == true;
+        }
+
+        var origin = position.Step(DirectionMath.Opposite(fromDirection));
+        if (!ArmoredAccepts(cell, origin) || HeadOn(cell, origin))
+        {
+            return false;
+        }
+
+        switch (cell.Kind)
+        {
+            case LogisticsKind.Junction:
+                return TakesItemsAt(position.Step(fromDirection)) && cell.CanInsert(fromDirection);
+            case LogisticsKind.Router:
+                return cell.Items.Count == 0;
+            case LogisticsKind.Sorter:
+                return false;
+            case LogisticsKind.Bridge when cell.BridgePartner is { } partner && IsBridgeEntry(cell, partner):
+                return fromDirection != DirectionMath.Opposite(cell.Direction)
+                    && ((cells.TryGetValue(partner, out var exitCell) && exitCell.CanInsert(cell.Direction))
+                        || cell.CanInsert(fromDirection));
+            case LogisticsKind.Bridge when cell.BridgePartner is not null && fromDirection == cell.Direction:
+                return false;
+            default:
+                return cell.CanInsert(fromDirection);
+        }
     }
 
     /// <summary>Hands <paramref name="item"/> to the logistics cell or the building on the sorter's <paramref name="exit"/> side.</summary>
@@ -825,18 +877,24 @@ public sealed class BeltGridCell
     /// <summary>False for a router and a sorter: they have no direction (kept North, rotating them does nothing).</summary>
     public bool HasDirection => Kind is not (LogisticsKind.Router or LogisticsKind.Sorter);
 
-    /// <summary>Sorter: the next item sent aside tries the right of its travel first (false: the left).</summary>
-    public bool SorterToggle { get; private set; }
+    /// <summary>
+    /// Sorter: one turn bit per direction of travel (bit <c>(int)direction</c>, as Mindustry's <c>rotation</c> bits): set
+    /// = an item travelling that way goes right when both sides take it, clear = left. 0–15.
+    /// </summary>
+    public int SorterTurns { get; private set; }
 
-    /// <summary>Sorter: an item sent aside went to the side tried first; the next one tries the other first.</summary>
-    internal void FlipSorter() => SorterToggle = !SorterToggle;
+    /// <summary>Sorter: whether the turn bit of <paramref name="travel"/> says right.</summary>
+    public bool SorterTurnsRight(Direction travel) => (SorterTurns & (1 << (int)travel)) != 0;
 
-    /// <summary>Sorter state for save/load.</summary>
-    public void RestoreSorter(bool toggle)
+    /// <summary>Sorter: both sides took an item travelling <paramref name="travel"/>; the next one goes to the other.</summary>
+    internal void FlipSorter(Direction travel) => SorterTurns ^= 1 << (int)travel;
+
+    /// <summary>Sorter state for save/load: the four turn bits.</summary>
+    public void RestoreSorter(int turns)
     {
         if (Kind == LogisticsKind.Sorter)
         {
-            SorterToggle = toggle;
+            SorterTurns = turns & 0b1111;
         }
     }
 
@@ -959,6 +1017,9 @@ public sealed class BeltGridCell
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null) =>
         inner.TryInsert(item, fromDirection);
+
+    /// <summary>Whether <see cref="TryInsert"/> would take an item now (changes nothing).</summary>
+    public bool CanInsert(Direction? fromDirection = null) => inner.CanInsert(fromDirection);
 
     /// <summary>
     /// How many tiles this cell hands its ready items to (buildings pull them with <see cref="PeekOutputToward"/>):

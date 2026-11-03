@@ -73,9 +73,12 @@ public sealed class Generator
         return false;
     }
 
+    /// <summary>Whether <see cref="TryAcceptFuel"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAcceptFuel(string itemId) => itemId == FuelItemId && FuelBuffer < FuelBufferCapacity;
+
     public bool TryAcceptFuel(string itemId)
     {
-        if (itemId != FuelItemId || FuelBuffer >= FuelBufferCapacity)
+        if (!CanAcceptFuel(itemId))
         {
             return false;
         }

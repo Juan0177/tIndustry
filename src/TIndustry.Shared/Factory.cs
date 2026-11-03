@@ -53,7 +53,7 @@ public sealed class Factory : IGameView
         JunctionDefinition = content.RequireConveyor("junction");
         RouterDefinition = content.RequireConveyor("router");
         SorterDefinition = content.RequireConveyor("sorter");
-        SorterInvertedDefinition = content.FindConveyor("sorter-inverted");
+        SorterInvertedDefinition = content.RequireConveyor("sorter-inverted");
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
@@ -66,7 +66,7 @@ public sealed class Factory : IGameView
         JunctionDefinition = state.Content.RequireConveyor("junction");
         RouterDefinition = state.Content.RequireConveyor("router");
         SorterDefinition = state.Content.RequireConveyor("sorter");
-        SorterInvertedDefinition = state.Content.FindConveyor("sorter-inverted");
+        SorterInvertedDefinition = state.Content.RequireConveyor("sorter-inverted");
         BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
     }
 
@@ -77,8 +77,7 @@ public sealed class Factory : IGameView
     public ConveyorDefinition RouterDefinition { get; }
     public ConveyorDefinition SorterDefinition { get; }
 
-    /// <summary>The inverted sorter; null only in content built by hand without it.</summary>
-    public ConveyorDefinition? SorterInvertedDefinition { get; }
+    public ConveyorDefinition SorterInvertedDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
@@ -906,7 +905,7 @@ public sealed class Factory : IGameView
                 BridgePartnerX = c.BridgePartner?.X,
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
-                SorterToggle = c.Kind == LogisticsKind.Sorter && c.SorterToggle ? true : null,
+                SorterTurns = c.Kind == LogisticsKind.Sorter && c.SorterTurns != 0 ? c.SorterTurns : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
@@ -1048,7 +1047,12 @@ public sealed class Factory : IGameView
 
             if (def.Kind == LogisticsKind.Sorter)
             {
-                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreSorter(cell.SorterToggle == true);
+                if (cell.SorterTurns is < 0 or > 0b1111)
+                {
+                    throw new InvalidDataException($"Turni del selezionatore non validi: {cell.SorterTurns}.");
+                }
+
+                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreSorter(cell.SorterTurns ?? 0);
             }
         }
 
@@ -2502,8 +2506,7 @@ public sealed class Factory : IGameView
     /// <summary>An inverted sorter (no direction: <paramref name="direction"/> is ignored); null filter = none.</summary>
     public bool TryPlaceSorterInverted(GridPosition position, Direction direction, string? filterItemId = null) =>
         RequireUnlocked("sorter-inverted")
-        && SorterInvertedDefinition is { } inverted
-        && PlaceLogistics(position, direction, inverted, charge: true, filterItemId);
+        && PlaceLogistics(position, direction, SorterInvertedDefinition, charge: true, filterItemId);
 
     public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
         RequireUnlocked("conveyor-bridge")
@@ -2803,8 +2806,7 @@ public sealed class Factory : IGameView
             case BuildingKind.Sorter:
                 return PlaceLogistics(origin, dir, SorterDefinition, charge, spec.FilterItemId);
             case BuildingKind.SorterInverted:
-                return SorterInvertedDefinition is { } inverted
-                    && PlaceLogistics(origin, dir, inverted, charge, spec.FilterItemId);
+                return PlaceLogistics(origin, dir, SorterInvertedDefinition, charge, spec.FilterItemId);
             case BuildingKind.Bridge:
                 return PlaceBridge(origin, dir, charge, bridgeExit);
             case BuildingKind.Miner:

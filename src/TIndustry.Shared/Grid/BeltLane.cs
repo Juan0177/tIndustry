@@ -194,6 +194,12 @@ public sealed class BeltCell
     public LogisticsKind Kind => Definition.Kind;
     public IReadOnlyList<TransportedItem> Items => items;
 
+    /// <summary>Whether <see cref="TryInsert"/> would take an item now (changes nothing).</summary>
+    public bool CanInsert(Direction? fromDirection = null) =>
+        Kind == LogisticsKind.Junction
+            ? fromDirection is { } way && QueueCount(way) < BeltGridCell.JunctionQueueLength
+            : items.Count < Definition.Capacity && (items.Count == 0 || items[^1].Progress >= Definition.ItemSpacing);
+
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null)
     {
         if (Kind != LogisticsKind.Junction && items.Count >= Definition.Capacity)

@@ -120,9 +120,13 @@ public sealed class Crafter
         }
     }
 
+    /// <summary>Whether <see cref="TryAcceptFuel"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAcceptFuel(string itemId) =>
+        UsesCoalOrPower && itemId == FuelItemId && FuelBuffer < FuelBufferCapacity;
+
     public bool TryAcceptFuel(string itemId)
     {
-        if (!UsesCoalOrPower || itemId != FuelItemId || FuelBuffer >= FuelBufferCapacity)
+        if (!CanAcceptFuel(itemId))
         {
             return false;
         }
@@ -183,6 +187,18 @@ public sealed class Crafter
 
     public bool TryAccept(string itemId)
     {
+        if (!CanAccept(itemId))
+        {
+            return false;
+        }
+
+        inputBuffer[itemId] = inputBuffer.GetValueOrDefault(itemId) + 1;
+        return true;
+    }
+
+    /// <summary>Whether <see cref="TryAccept"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
+    public bool CanAccept(string itemId)
+    {
         var maxNeeded = 0;
         foreach (var recipe in AvailableRecipes)
         {
@@ -200,13 +216,7 @@ public sealed class Crafter
 
         var have = inputBuffer.GetValueOrDefault(itemId);
         // Cap buffer at 4× the largest single-recipe need (matches prior single-recipe headroom).
-        if (have >= maxNeeded * 4)
-        {
-            return false;
-        }
-
-        inputBuffer[itemId] = have + 1;
-        return true;
+        return have < maxNeeded * 4;
     }
 
     /// <summary>Pull ready items from belts that point into the footprint.</summary>

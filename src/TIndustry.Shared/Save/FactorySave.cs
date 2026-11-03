@@ -358,8 +358,8 @@ public sealed class BeltSaveDto
     /// <summary>Sorter filter (<see cref="BeltGridCell.FilterItemId"/>); null = none, and on other cells.</summary>
     public string? FilterItemId { get; set; }
 
-    /// <summary>Sorter: true when the next item aside tries the right first (<see cref="BeltGridCell.SorterToggle"/>); null = false.</summary>
-    public bool? SorterToggle { get; set; }
+    /// <summary>Sorter: the four turn bits, one per direction of travel (<see cref="BeltGridCell.SorterTurns"/>); null = 0.</summary>
+    public int? SorterTurns { get; set; }
 
     public List<ItemSaveDto> Items { get; set; } = [];
 }
