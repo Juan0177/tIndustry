@@ -156,13 +156,13 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 55%, 42 passi fatti su 77" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 56%, 44 passi fatti su 78" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
 | 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
 | 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
-| 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="38%" width="160"> | 38% (3/8) |
+| 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="44%" width="160"> | 44% (4/9) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="60%" width="160"> | 60% (3/5) |
@@ -170,7 +170,7 @@ A che punto siamo, aspetto per aspetto:
 | 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
 | 9 | [Grafica ed effetti](https://github.com/Juan0177/tIndustry/wiki/Arte-generata) | <img src="docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
 | 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | <img src="docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
-| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="0%" width="160"> | 0% (0/4) |
+| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="25%" width="160"> | 25% (1/4) |
 | 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
 | 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="33%" width="160"> | 33% (2/6) |
 | 14 | [Co-op](docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |

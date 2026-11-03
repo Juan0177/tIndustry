@@ -34,6 +34,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [ ] Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
 - [x] Container e vault (magazzini collegati al CORE o depositi a sé)
 - [ ] Estrattore come l'Unloader, configurato col clic ([#270](https://github.com/Juan0177/tIndustry/issues/270))
+- [x] Logistica come Mindustry: specifica approvata ([spec](superpowers/specs/2026-11-03-logistica-mindustry-design.md))
 
 ### 4 · [Produzione](wiki/Produzione.md)
 
@@ -88,7 +89,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 
 Sotto-progetto 4: il drone lo comandi tu. I CORE shard → foundation → nucleus e i droni alpha → beta → gamma sono passati alla [specifica 3 del Mercato](superpowers/specs/2026-10-23-magazzino-core-design.md) (aspetto 6).
 
-- [ ] Specifica approvata
+- [x] Specifica approvata ([spec](superpowers/specs/2026-11-03-drone-giocatore-design.md))
 - [ ] Piano
 - [ ] Implementazione
 - [ ] Documenti e diario
