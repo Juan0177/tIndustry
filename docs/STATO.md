@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-10-30, rete di corrente fatta (laser fra i nodi, reti con bilancio, Batteria); prima, giorno e notte (ciclo, solo giorno, solo notte), pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
+**Aggiornato:** 2026-11-03, logistica come Mindustry fatta (nastri stretti, incrocio, router, selezionatori, estrattore; client da provare sul PC di casa); prima, 2026-10-30, rete di corrente fatta (laser fra i nodi, reti con bilancio, Batteria); prima, giorno e notte (ciclo, solo giorno, solo notte), pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
 
 ## Aspetti del gioco
 
@@ -28,12 +28,12 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 
 - [x] Nastri come Mindustry: portata, oggetti fluidi, giro sul posto, tier (PR #224–#246)
 - [x] Nastro rinforzato (PR #240)
-- [ ] Nastri stretti, variante C ([#252](https://github.com/Juan0177/tIndustry/issues/252))
-- [ ] Junction ([#253](https://github.com/Juan0177/tIndustry/issues/253))
-- [ ] Sorter con l'alternanza sinistra/destra ([#254](https://github.com/Juan0177/tIndustry/issues/254))
-- [ ] Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
+- [x] Nastri stretti, variante C ([#252](https://github.com/Juan0177/tIndustry/issues/252))
+- [x] Junction ([#253](https://github.com/Juan0177/tIndustry/issues/253))
+- [x] Sorter con l'alternanza sinistra/destra ([#254](https://github.com/Juan0177/tIndustry/issues/254))
+- [x] Router ([#255](https://github.com/Juan0177/tIndustry/issues/255))
 - [x] Container e vault (magazzini collegati al CORE o depositi a sé)
-- [ ] Estrattore come l'Unloader, configurato col clic ([#270](https://github.com/Juan0177/tIndustry/issues/270))
+- [x] Estrattore come l'Unloader, configurato col clic ([#270](https://github.com/Juan0177/tIndustry/issues/270))
 - [x] Logistica come Mindustry: specifica approvata ([spec](superpowers/specs/2026-11-03-logistica-mindustry-design.md)) e piano ([piano](superpowers/plans/2026-11-03-logistica-mindustry.md))
 
 ### 4 · [Produzione](wiki/Produzione.md)
@@ -149,7 +149,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
 | C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); prossime la specifica 2 (schermo di borsa) e la campagna rifatta |
-| D | Logistica come Mindustry: #252–#255, #270 (3) | Da fare, dopo B |
+| D | Logistica come Mindustry: #252–#255, #270 (3) | Fatto in cloud (2026-11-03, [diario](diario/2026-11-03-logistica-mindustry.md)); resta il controllo del client sul PC di casa |
 | E | Rete di energia #269 (5): fatta (2026-10-30, [diario](diario/2026-10-30-rete-corrente.md)); telemetria #234 (10) | Telemetria più avanti |
 
 ## Cosa manca, in piccolo
@@ -163,6 +163,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 - **Controllo del client sul PC di casa** (il lavoro del magazzino del CORE è stato fatto in cloud, senza Godot): importare il progetto (`--import`) e generare i `.import` degli 8 PNG nuovi, lanciare i playtest `ui` e `agenti`, il `PlaytestScala` (una categoria «Magazzino» nuova nella palette), rifare le catture (la riga `core.livello` dell'HUD non va a capo e cambia le immagini) e controllare le celle di prova del playtest grafico (`World.PlaytestGrafica.cs`), che ora toccano il CORE 3×3.
 - **Controllo del client del giorno e notte sul PC di casa** (fatto in cloud, senza Godot): lanciare i playtest `ui`, `tutorial` e `agenti` (anche con `TINDUSTRY_PLAYTEST_LINGUA=en` e con la Scala UI diversa dal 100%) e la sonda delle luci con `TINDUSTRY_PLAYTEST_EFFETTI=1`. A mano, due controlli: la riga del tempo si ferma con la pausa; a velocità dev ×20 si vede il tramonto. Poi: le Lampade si accendono sotto metà luce; in solo notte la riga passa da «Primo attacco fra» a «Attacco!» e a «Notte». Misurare la larghezza di «Il tempo parte dal primo blocco» con la Scala UI al 100% e al 200%.
 - **Controllo del client della rete di corrente sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`) per i `.import` dei PNG della batteria (`battery`, `battery-base`, `battery-charge-anim`) e il `BatteryVisual.cs.uid`; lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (palette e HUD cambiano); a mano, con una catena di nodi dell'utente: selezione del nodo, raggio, clic per collegare e scollegare, rifiuti, Esc, barre di carica delle batterie, suggerimento della rete, le tre varianti di colore (Normale, Daltonici, Alto contrasto) e la notte con le Lampade. Misurare la larghezza di `SelectionInfo` (640 px accanto alla palette a 1280×720).
+- **Controllo del client della logistica sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`) per i `.import` dei PNG `router` e `sorter-inverted` e il `FilterPanel.cs.uid`; lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (palette e nastri cambiano); il pannello del filtro con la Scala UI al 150% e al 200%; la palette a 3 righe a 1280×720; la sovrapposizione del pannello del filtro col pannello del tutorial. A mano: un incrocio fra due linee, una catena di router, un estrattore fra due forni.
 - **Sonda `oggetti-fluidi`** del playtest `ui`: fallisce ogni tanto per un frame lento (1 volta su 4 il 22/10). Rilanciando passa.
 - **Server MCP `tindustry` nel gioco vero**: non trova `godot4`. Serve la variabile d'ambiente `TINDUSTRY_GODOT` sull'eseguibile di Godot e un riavvio di Claude Code.
 
@@ -170,5 +171,5 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
 - Il tuo parere su un aspetto distinto per gli sprite di foundation e nucleus: oggi hanno gli stessi pixel dei vecchi CORE a 2 livelli, quindi i tre CORE si distinguono solo per misura.
-- Provare il client del magazzino del CORE, quello del giorno e notte e quello della rete di corrente sul PC di casa (vedi «Cosa manca, in piccolo»).
+- Provare il client del magazzino del CORE, quello del giorno e notte, quello della rete di corrente e quello della logistica sul PC di casa (vedi «Cosa manca, in piccolo»).
 - L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.

@@ -1,6 +1,6 @@
 # Logistica come Mindustry
 
-- **Stato**: approvata dall'utente il 3 novembre 2026. Issue [#252](https://github.com/Juan0177/tIndustry/issues/252), [#253](https://github.com/Juan0177/tIndustry/issues/253), [#254](https://github.com/Juan0177/tIndustry/issues/254), [#255](https://github.com/Juan0177/tIndustry/issues/255), [#270](https://github.com/Juan0177/tIndustry/issues/270).
+- **Stato**: attuata (2026-11-03; [diario](../../diario/2026-11-03-logistica-mindustry.md)). Approvata dall'utente il 3 novembre 2026. Issue [#252](https://github.com/Juan0177/tIndustry/issues/252), [#253](https://github.com/Juan0177/tIndustry/issues/253), [#254](https://github.com/Juan0177/tIndustry/issues/254), [#255](https://github.com/Juan0177/tIndustry/issues/255), [#270](https://github.com/Juan0177/tIndustry/issues/270).
 - **Sostituisce**: incrocio a capacità 2, sdoppiatore orientato (`splitter`), selezionatore orientato col filtro predefinito, estrattore orientato che preleva solo dal CORE con le lastre di ferro predefinite, sprite dei nastri larghi.
 
 ## Obiettivo

@@ -156,13 +156,13 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 56%, 44 passi fatti su 78" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 63%, 49 passi fatti su 78" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
 | 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
 | 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
-| 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="44%" width="160"> | 44% (4/9) |
+| 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="100%" width="160"> | 100% (9/9) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="60%" width="160"> | 60% (3/5) |

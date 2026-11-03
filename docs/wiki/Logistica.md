@@ -1,6 +1,6 @@
 # Logistica
 
-Come si spostano gli oggetti: nastri e loro tier, curve e unioni, incrocio, router, selezionatore, ponte e nastro rinforzato.
+Come si spostano gli oggetti: nastri e loro tier, curve e unioni, incrocio, router, selezionatore, estrattore, ponte e nastro rinforzato.
 
 ## Nastri
 
@@ -19,10 +19,14 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 |---|---|---|---|---|
 | Incrocio (`junction`) | Coda di 6 oggetti per direzione, 26 tick per attraversarlo: circa 13,8 oggetti/s per direzione | 3 Ferro grezzo | dopo il Nastro T1 | Due linee si attraversano senza mescolarsi; prende anche dagli edifici accanto e accetta un oggetto solo se dall'altra parte c'è un blocco che può riceverlo |
 | Router (`router`) | 1 oggetto alla volta, 8 tick ciascuno: 7,5 oggetti/s | 3 Ferro grezzo | dopo l'Incrocio | Distribuisce gli oggetti a turno su tutti i lati, mai verso il lato da cui arrivano |
-| Selezionatore (`sorter`) | 8 oggetti/s | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | L'oggetto del filtro va dritto, gli altri di lato |
+| Selezionatore (`sorter`) | 8 oggetti/s | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | L'oggetto del filtro va dritto, gli altri di lato, alternando |
+| Selezionatore invertito (`sorter-inverted`) | 8 oggetti/s | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | Il contrario: l'oggetto del filtro di lato, gli altri dritti |
+| Estrattore (`extractor`) | 11 oggetti/s | 2 Lastre di ferro | Ricerca | Tira un oggetto fuori da un magazzino o da una macchina e lo dà al blocco accanto |
 | Nastro ponte (`conveyor-bridge`) | 5,25 oggetti/s | 6 Ferro grezzo, 6 Piombo grezzo **per estremo** (12 e 12 in tutto) | dopo l'Incrocio | Scavalca da 1 a 3 celle |
 
 I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca).
+
+I nastri hanno la forma **stretta** di Mindustry (la variante C): il binario occupa solo il mezzo della cella e le curve, le unioni e le T si leggono a colpo d'occhio. Incrocio, router, selezionatori ed estrattore non hanno direzione e non si ruotano con `R`.
 
 ## Curve, unioni e T
 
@@ -44,17 +48,17 @@ Annullare un cambio di tier col destro rimette il nastro vecchio con i suoi ogge
 
 ## Incrocio
 
-Un oggetto che entra da un lato esce dal lato opposto: le due linee proseguono senza mescolarsi, ognuna fino a 18 oggetti al secondo, e se un'uscita è bloccata l'altra direzione continua. Gli edifici non ci scaricano dentro.
+Come la *Junction* di Mindustry: un oggetto che entra da un lato esce dal lato opposto. Ogni direzione ha una coda di 6 oggetti e ogni oggetto ci mette 26 tick ad attraversarlo, quindi passano circa **13,8 oggetti al secondo** per direzione (un nastro espresso pieno scende a questo ritmo; i nastri base, T2 e rinforzati non rallentano). Le due linee non si mescolano e se un'uscita è bloccata l'altra direzione continua. Prende oggetti anche dagli edifici accanto, e accetta un oggetto solo se **dall'altra parte c'è un blocco** che può riceverlo.
 
 **Incrocio automatico.** Trascinando una linea di nastri che attraversa un nastro perpendicolare e prosegue oltre, in quella cella va un incrocio al posto del nastro: paghi l'incrocio e il nastro viene rimborsato come uno smontaggio. Succede solo dove l'incrocio fa lo stesso lavoro del nastro (un nastro dritto fra due pezzi di logistica, non accanto al CORE o a un edificio che lo alimenta, non su curve o T, non sull'ultima cella della linea né con un clic singolo). Annullare uno dei due piani li annulla entrambi. Se l'incrocio non è ancora sbloccato, il nastro attraversato gira nella direzione della linea e la linea attraversata vi entra di lato: diventa un'unione.
 
 ## Router
 
-Come il *Router* di Mindustry: non ha direzione (`R` non lo gira) e prende oggetti da ogni lato, da nastri ed edifici, uno alla volta. Dopo 8 tick prova i lati a turno (nord, est, sud, ovest, ripartendo dal lato dopo l'ultimo usato) e passa l'oggetto al primo che lo accetta: un nastro, un altro pezzo di logistica, il CORE, un magazzino, un forno, un assemblatore o un generatore. Non lo rimanda mai al lato da cui è arrivato e un nastro che entra nel router non riceve nulla indietro; se nessun lato accetta, lo tiene e riprova al tick dopo. Una catena di router passa gli oggetti avanti.
+Come il *Router* di Mindustry: non ha direzione (`R` non lo gira) e prende oggetti da ogni lato, da nastri ed edifici, uno alla volta. Costa 3 Ferro grezzo e si sblocca dopo l'Incrocio. Dopo 8 tick prova i lati a turno (nord, est, sud, ovest, ripartendo dal lato dopo l'ultimo usato) e passa l'oggetto al primo che lo accetta: un nastro, un altro pezzo di logistica, il CORE, un magazzino, un forno, un assemblatore o un generatore. Non lo rimanda mai al lato da cui è arrivato e un nastro che entra nel router non riceve nulla indietro; se nessun lato accetta, lo tiene e riprova al tick dopo. Una catena di router passa gli oggetti avanti a pieno ritmo, un oggetto ogni 8 tick per router (7,5 oggetti/s).
 
 ## Selezionatore e filtro
 
-Come il *Sorter* di Mindustry: non ha direzione (`R` non lo gira) e passa l'oggetto subito. L'oggetto uguale al filtro va **dritto**, dal lato opposto a quello da cui entra; gli altri escono **a sinistra e a destra alternando** (se un lato non accetta, l'altro; se nessuno accetta, l'oggetto non entra). Senza filtro manda tutto ai lati. Il **selezionatore invertito** fa il contrario: l'oggetto del filtro ai lati, gli altri dritti (senza filtro tutto dritto).
+Come il *Sorter* di Mindustry: non ha direzione (`R` non lo gira) e passa l'oggetto subito. L'oggetto uguale al filtro va **dritto**, dal lato opposto a quello da cui entra; gli altri escono **a sinistra e a destra alternando** (se un lato non accetta, l'altro; se nessuno accetta, l'oggetto non entra). Il turno di sinistra e destra è tenuto **per ogni lato d'ingresso**, e cambia solo quando entrambi i lati accettano. Senza filtro manda tutto ai lati. Il **selezionatore invertito** fa il contrario: l'oggetto del filtro ai lati, gli altri dritti (senza filtro tutto dritto).
 
 - Col cursore, un **clic** su un selezionatore, un invertito o un estrattore apre sopra il blocco la griglia delle icone degli oggetti e **Nessuno**: la scelta cambia il filtro e chiude il pannello; l'oggetto già scelto, cliccato di nuovo, toglie il filtro. `Esc`, un clic altrove o un altro strumento lo chiudono.
 - Il filtro è l'icona al centro del blocco; i blocchi si piazzano senza filtro.
@@ -82,9 +86,9 @@ Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore
 - **A contatto con il CORE** (lato contro lato) allargano il suo magazzino: il loro spazio si somma al massimo di ogni oggetto e i nastri che vi consegnano consegnano al CORE.
 - **Lontani dal CORE** sono depositi a sé: accettano qualsiasi oggetto da nastri ed edifici finché c'è posto, e un Estrattore attaccato li svuota (prima dal CORE, se anche lui è a contatto e ha l'oggetto, poi dal deposito con l'id più basso).
 
-## In arrivo
+## Estrattore
 
-Sono pianificati nastri stretti come in Mindustry, selezionatore che si comporta come in Mindustry; fino ad allora vale quanto scritto qui.
+Come l'*Unloader* di Mindustry: 1×1, senza direzione, da mettere a contatto con un magazzino (il CORE, un container o un vault) o con un forno o un assemblatore. Sposta **11 oggetti al secondo**: prende l'oggetto del filtro (senza filtro, a turno tutti quelli disponibili) dal blocco che lo ha e lo dà al prossimo blocco vicino che lo accetta, un nastro o una macchina, a turno sui lati. Non rimette mai l'oggetto nel blocco da cui l'ha preso, non prende dai nastri né da altri estrattori e **non sposta mai da un magazzino a un altro** (CORE e depositi si travasano con un nastro). Il filtro si sceglie col clic sul blocco (vedi sopra); con un estrattore in mezzo, due forni si passano gli oggetti senza nastri.
 
 ## Vedi anche
 

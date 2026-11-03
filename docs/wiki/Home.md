@@ -9,13 +9,13 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 56%, 44 passi fatti su 78" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 63%, 49 passi fatti su 78" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
 | 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
 | 2 | [Costruzione](Costruzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
-| 3 | [Logistica](Logistica) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/3.svg" alt="44%" width="160"> | 44% (4/9) |
+| 3 | [Logistica](Logistica) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/3.svg" alt="100%" width="160"> | 100% (9/9) |
 | 4 | [Produzione](Produzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](Energia) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](Mercato-come-una-borsa) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/6.svg" alt="60%" width="160"> | 60% (3/5) |

@@ -36,7 +36,7 @@ Gli altri blocchi (Nastro T2, Nastro T3, Nastro rinforzato, Minatore T2, Estratt
 | `Esc` o destro durante il trascinamento | Annulla la linea (il blocco resta in mano) |
 | Clic col cursore su un selezionatore (anche invertito) o un estrattore | Apre il pannello del filtro: icone degli oggetti e **Nessuno**; `Esc` lo chiude |
 
-Sono orientabili: nastri, ponte, assemblatore. Router, selezionatori ed estrattore non hanno direzione.
+Sono orientabili: nastri, ponte, assemblatore. Incrocio, router, selezionatori ed estrattore non hanno direzione: `R` e la rotellina non li girano. Il filtro non si sceglie con un tasto (non c'è `C`) ma col clic del cursore sul blocco già piazzato.
 
 **Come si comporta il trascinamento.** Nastri, incroci, router e selezionatori fanno una retta lungo l'asse più lungo fra orizzontale e verticale; ogni altro blocco è uno solo, sull'ancora, girato verso il cursore. Ogni nastro guarda il successivo; l'ultimo prende la direzione del nastro su cui finisce e, accanto al CORE, guarda il CORE. Le sagome rosse sono celle rifiutate: non partono. Anche un pannello che si apre, la finestra che perde il fuoco o un rilascio fuori dalla finestra annullano la linea senza piazzare nulla.
 
