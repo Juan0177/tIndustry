@@ -941,7 +941,23 @@ public sealed class Factory : IGameView
                         : null
                 }).ToList(),
             MarketScreen = State.MarketScreen is { } screen
-                ? new MarketScreenSaveDto { Id = screen.Id, X = screen.Position.X, Y = screen.Position.Y }
+                ? new MarketScreenSaveDto
+                {
+                    Id = screen.Id,
+                    X = screen.Position.X,
+                    Y = screen.Position.Y,
+                    WatchedItemId = screen.WatchedItemId,
+                    LastResult = screen.LastResult is { } last
+                        ? new ScreenSaleResultSaveDto
+                        {
+                            ItemId = last.ItemId,
+                            Income = last.Income,
+                            Led = last.Led.ToString(),
+                            Jackpot = last.Jackpot,
+                            Tick = last.Tick
+                        }
+                        : null
+                }
                 : null,
             Rules = new GameRulesSaveDto
             {
@@ -1285,7 +1301,20 @@ public sealed class Factory : IGameView
 
         if (data.MarketScreen is { } savedScreen)
         {
-            factory.State.MarketScreen = new MarketScreen(new GridPosition(savedScreen.X, savedScreen.Y), RestoredId(savedScreen.Id));
+            factory.State.MarketScreen = new MarketScreen(new GridPosition(savedScreen.X, savedScreen.Y), RestoredId(savedScreen.Id))
+            {
+                WatchedItemId = savedScreen.WatchedItemId is { } watched
+                    ? KnownMarketItem(factory.State, watched, "Oggetto seguito dallo schermo")
+                    : null,
+                LastResult = savedScreen.LastResult is { } last
+                    ? new ScreenSaleResult(
+                        KnownMarketItem(factory.State, last.ItemId, "Esito dello schermo"),
+                        last.Income,
+                        ParseScreenLed(last.Led),
+                        last.Jackpot,
+                        last.Tick)
+                    : null
+            };
         }
 
         foreach (var b in data.Builders.OrderBy(b => b.Id))
@@ -1684,6 +1713,23 @@ public sealed class Factory : IGameView
         Enum.TryParse<DayNightMode>(name, ignoreCase: false, out var mode) && Enum.IsDefined(mode) && !int.TryParse(name, out _)
             ? mode
             : throw new InvalidDataException($"Tempo del mondo sconosciuto nel salvataggio: \"{name}\".");
+
+    /// <summary>A screen's saved LED colour: exactly a <see cref="ScreenLed"/> name.</summary>
+    /// <exception cref="InvalidDataException">Any other text (a damaged save).</exception>
+    private static ScreenLed ParseScreenLed(string? value) => value switch
+    {
+        nameof(ScreenLed.Blue) => ScreenLed.Blue,
+        nameof(ScreenLed.Purple) => ScreenLed.Purple,
+        nameof(ScreenLed.Yellow) => ScreenLed.Yellow,
+        _ => throw new InvalidDataException($"LED dello schermo sconosciuto: «{value}».")
+    };
+
+    /// <summary><paramref name="itemId"/> when the market knows it.</summary>
+    /// <exception cref="InvalidDataException">An item the market does not know (a damaged save).</exception>
+    private static string KnownMarketItem(GameState state, string? itemId, string what) =>
+        itemId is not null && state.Exchange.Find(itemId) is not null
+            ? itemId
+            : throw new InvalidDataException($"{what}: oggetto «{itemId}» sconosciuto al mercato.");
 
     /// <summary>A router's saved side of arrival: null, or exactly a <see cref="Direction"/> name.</summary>
     /// <exception cref="InvalidDataException">Any other text (a damaged save).</exception>

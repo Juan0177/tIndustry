@@ -175,6 +175,75 @@ public sealed class SaveRoundTripTests
     }
 
     [Fact]
+    public void RoundTrip_MarketScreenWithWatchedItemAndLastResult()
+    {
+        var content = LoadContent();
+        var origin = new GridPosition(60, 60);
+        var factory = NewGame.Sandbox(
+            content, origin, mapWidth: 120, mapHeight: 120, seed: 42, rules: new GameRules(InstantBuild: true));
+        NoAutoSell(factory);
+        factory.Research.ForceUnlock(MarketScreen.BuildingId);
+        // Right of the shard (cells 60..62): the screen touches the Core, so it is active.
+        var cell = new GridPosition(63, 60);
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec(MarketScreen.BuildingId, BuildingKind.MarketScreen, cell, Direction.East), charge: false));
+        var host = new SimHost(factory);
+        Apply(host, new SetBlockFilter(0, cell, "iron-plate"));
+        factory.Wallet.AddMaterial("iron-plate", 50);
+        Apply(host, new SellAll(0, "iron-plate"));
+        var screen = factory.MarketScreen!;
+        Assert.Equal("iron-plate", screen.WatchedItemId);
+        var result = screen.LastResult;
+        Assert.NotNull(result);
+
+        FactorySaveStore.Save("v20-schermo", host);
+        var json = File.ReadAllText(FactorySaveStore.SlotPath("v20-schermo"));
+        Assert.Contains("\"version\": 20", json);
+        Assert.True(FactorySaveStore.TryLoad(content, "v20-schermo", out var loaded, out var error), error);
+
+        Assert.Equal(host.Checksum(), loaded!.Checksum());
+        var back = ((Factory)loaded.State).MarketScreen!;
+        Assert.Equal(screen.Id, back.Id);
+        Assert.Equal(cell, back.Position);
+        Assert.True(back.Active);
+        Assert.Equal("iron-plate", back.WatchedItemId);
+        Assert.Equal(result, back.LastResult);
+
+        host.AdvanceTicks(600);
+        loaded.AdvanceTicks(600);
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+    }
+
+    [Fact]
+    public void Checksum_CoversTheScreensWatchedItemAndLastResult()
+    {
+        var content = LoadContent();
+        var factory = NewGame.Sandbox(
+            content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 42, rules: new GameRules(InstantBuild: true));
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec(MarketScreen.BuildingId, BuildingKind.MarketScreen, new GridPosition(63, 60), Direction.East), charge: false));
+        var screen = factory.MarketScreen!;
+        var plain = Snapshot.Checksum(Snapshot.Write(factory.State));
+
+        screen.WatchedItemId = "coal";
+        var watched = Snapshot.Checksum(Snapshot.Write(factory.State));
+        Assert.NotEqual(plain, watched);
+
+        screen.LastResult = new ScreenSaleResult("coal", 120, ScreenLed.Purple, Jackpot: false, Tick: 5);
+        var withResult = Snapshot.Checksum(Snapshot.Write(factory.State));
+        Assert.NotEqual(watched, withResult);
+
+        screen.LastResult = screen.LastResult with { Led = ScreenLed.Yellow, Jackpot = true };
+        var bytes = Snapshot.Write(factory.State);
+        Assert.NotEqual(withResult, Snapshot.Checksum(bytes));
+
+        var restored = new Factory(Snapshot.Read(content, bytes));
+        Assert.Equal("coal", restored.MarketScreen!.WatchedItemId);
+        Assert.Equal(screen.LastResult, restored.MarketScreen.LastResult);
+        Assert.Equal(Snapshot.Checksum(bytes), Snapshot.Checksum(Snapshot.Write(restored.State)));
+    }
+
+    [Fact]
     public void RoundTrip_DuringCoreUpgradeSite()
     {
         var content = LoadContent();

@@ -305,6 +305,135 @@ public sealed class AgentGameTests
         Assert.Equal("iron-ore", factory.Belts.Cells[sorter].FilterItemId);
     }
 
+    /// <summary>Right of the shard (cells 60..62): a screen there touches the Core.</summary>
+    private static readonly GridPosition ScreenCell = new(63, 60);
+
+    /// <summary>A sandbox with the screen researched and its build cost in the Core, and an agent on it.</summary>
+    private static AgentGame ScreenGame(out Factory factory)
+    {
+        factory = NewFactory();
+        factory.Research.ForceUnlock(MarketScreen.BuildingId);
+        foreach (var entry in factory.CostOf(new BuildSpec(MarketScreen.BuildingId, BuildingKind.MarketScreen, ScreenCell, Direction.East)))
+        {
+            if (entry.ItemId is { } itemId)
+            {
+                factory.Wallet.AddMaterial(itemId, entry.Amount);
+            }
+        }
+
+        return new AgentGame(new SimHost(factory), Content);
+    }
+
+    [Fact]
+    public void PiazzaFiltroAndStatoOfTheMarketScreen()
+    {
+        var game = ScreenGame(out var factory);
+        Assert.Equal(JsonValueKind.Null, Call(game, "stato").GetProperty("schermo").ValueKind);
+
+        Call(game, "piazza", """{"tipo":"market-screen","cella":{"x":63,"y":60}}""");
+        Assert.Equal(ScreenCell, factory.MarketScreen!.Position);
+        var schermo = Call(game, "stato").GetProperty("schermo");
+        Assert.Equal(63, schermo.GetProperty("cella").GetProperty("x").GetInt32());
+        Assert.Equal(60, schermo.GetProperty("cella").GetProperty("y").GetInt32());
+        Assert.True(schermo.GetProperty("attivo").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, schermo.GetProperty("oggetto").ValueKind);
+        Assert.Equal(JsonValueKind.Null, schermo.GetProperty("ultimo_esito").ValueKind);
+
+        // Any cell of the 2x2 screen chooses the item it follows.
+        Assert.Equal("iron-plate", Call(game, "filtro", """{"cella":{"x":64,"y":61},"oggetto":"iron-plate"}""").GetProperty("filtro").GetString());
+        Assert.Equal("iron-plate", factory.MarketScreen.WatchedItemId);
+        Assert.Equal("iron-plate", Call(game, "stato").GetProperty("schermo").GetProperty("oggetto").GetString());
+        Assert.Equal("InvalidCommand", Refused(game, "filtro", """{"cella":{"x":63,"y":60},"oggetto":"non-esiste"}""").Code);
+        Assert.Equal("iron-plate", factory.MarketScreen.WatchedItemId);
+
+        factory.Wallet.AddMaterial("iron-plate", 30);
+        var sale = Call(game, "vendi", """{"oggetto":"iron-plate","tutto":true}""");
+        var result = factory.MarketScreen.LastResult!;
+        var esito = Call(game, "stato").GetProperty("schermo").GetProperty("ultimo_esito");
+        Assert.Equal("iron-plate", esito.GetProperty("oggetto").GetString());
+        Assert.Equal(sale.GetProperty("incasso").GetInt64(), esito.GetProperty("incasso").GetInt64());
+        Assert.Equal(result.Income, esito.GetProperty("incasso").GetInt64());
+        Assert.Equal(result.Led switch { ScreenLed.Blue => "blu", ScreenLed.Purple => "viola", _ => "giallo" },
+            esito.GetProperty("led").GetString());
+        Assert.Equal(result.Jackpot, esito.GetProperty("jackpot").GetBoolean());
+        Assert.Equal(result.Tick, esito.GetProperty("tick").GetInt64());
+
+        Assert.Equal(JsonValueKind.Null, Call(game, "filtro", """{"cella":{"x":63,"y":60}}""").GetProperty("filtro").ValueKind);
+        Assert.Null(factory.MarketScreen.WatchedItemId);
+    }
+
+    [Fact]
+    public void StatoShowsTheFinanceModulesOnlyWhenResearchedWithAnActiveScreen()
+    {
+        var game = ScreenGame(out var factory);
+        factory.Wallet.AddMaterial("iron-plate", 400);
+        JsonElement Plate() => Call(game, "stato").GetProperty("mercato").EnumerateArray()
+            .Single(m => m.GetProperty("oggetto").GetString() == "iron-plate");
+        void NoModules()
+        {
+            var plate = Plate();
+            Assert.False(plate.TryGetProperty("previsione", out _));
+            Assert.False(plate.TryGetProperty("percentuale", out _));
+            Assert.False(plate.TryGetProperty("probabilita_jackpot", out _));
+        }
+
+        // Researched but no screen: nothing.
+        factory.Research.ForceUnlock(MarketInsight.ForecastNodeId);
+        factory.Research.ForceUnlock(MarketInsight.PercentNodeId);
+        factory.Research.ForceUnlock(MarketInsight.OddsNodeId);
+        NoModules();
+
+        // A screen, nothing researched: nothing.
+        var researchedGame = game;
+        game = ScreenGame(out factory);
+        factory.Wallet.AddMaterial("iron-plate", 400);
+        Call(game, "piazza", """{"tipo":"market-screen","cella":{"x":63,"y":60}}""");
+        Assert.True(factory.MarketScreen!.Active);
+        NoModules();
+
+        // The forecast: seconds to the spike in the normal phase, sell now false.
+        factory.Research.ForceUnlock(MarketInsight.ForecastNodeId);
+        var insight = factory.MarketInsight("iron-plate");
+        var forecast = Plate().GetProperty("previsione");
+        Assert.Equal(insight.SecondsToSpike, forecast.GetProperty("secondi_al_picco").GetInt32());
+        Assert.False(forecast.GetProperty("vendi_ora").GetBoolean());
+        Assert.False(forecast.TryGetProperty("fine_crollo_secondi", out _));
+        Assert.False(forecast.TryGetProperty("vendi_tutto_bloccato_secondi", out _));
+        Assert.False(Plate().TryGetProperty("percentuale", out _));
+        Assert.False(Plate().TryGetProperty("probabilita_jackpot", out _));
+
+        // In a crash: the seconds to its end only.
+        var item = factory.State.Exchange.Find("iron-plate")!;
+        var saved = (item.Phase, item.CrashEndTick);
+        item.Phase = MarketPhase.Crash;
+        item.CrashEndTick = factory.CurrentTick + 125;
+        forecast = Plate().GetProperty("previsione");
+        Assert.Equal(factory.MarketInsight("iron-plate").SecondsToCrashEnd, forecast.GetProperty("fine_crollo_secondi").GetInt32());
+        Assert.False(forecast.TryGetProperty("secondi_al_picco", out _));
+        (item.Phase, item.CrashEndTick) = saved;
+
+        // Percent and odds, the very numbers of the simulation.
+        factory.Research.ForceUnlock(MarketInsight.PercentNodeId);
+        factory.Research.ForceUnlock(MarketInsight.OddsNodeId);
+        insight = factory.MarketInsight("iron-plate");
+        var plateNow = Plate();
+        Assert.Equal(insight.PercentOverB, plateNow.GetProperty("percentuale").GetInt32());
+        Assert.Equal(insight.JackpotChancePercent, plateNow.GetProperty("probabilita_jackpot").GetInt32());
+
+        // In a spike the odds are those of a "sell all" of the 400 plates.
+        item.Phase = MarketPhase.SpikeHold;
+        item.SpikeFromMilli = item.SpikeTopMilli = item.PriceMilli = Content.MarketRules!.SpikeThresholdMilli;
+        insight = factory.MarketInsight("iron-plate");
+        Assert.True(insight.JackpotChancePercent > 0);
+        plateNow = Plate();
+        Assert.Equal(insight.JackpotChancePercent, plateNow.GetProperty("probabilita_jackpot").GetInt32());
+        Assert.True(plateNow.GetProperty("previsione").GetProperty("vendi_ora").GetBoolean());
+
+        // The first game, with every module but no screen, still shows none.
+        Assert.False(Call(researchedGame, "stato").GetProperty("mercato").EnumerateArray()
+            .Single(m => m.GetProperty("oggetto").GetString() == "iron-plate").TryGetProperty("previsione", out _));
+    }
+
     [Fact]
     public void VenditaAutomaticaIsPerItem()
     {
@@ -880,9 +1009,10 @@ public sealed class AgentGameTests
             Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
             // flag, those before the Mindustry logistics (save v18) ran other blocks, those before the drone flown by
-            // its player (save v19) had it fly to the plans on its own: refused, never replayed.
-            Assert.Equal(5, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2, 3, 4 })
+            // its player (save v19) had it fly to the plans on its own, those before the market screen (save v20) had
+            // no screen to place or filter: refused, never replayed.
+            Assert.Equal(6, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3, 4, 5 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);

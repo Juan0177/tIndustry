@@ -397,8 +397,9 @@ public sealed class AgentGame : IDisposable
     }
 
     /// <summary>
-    /// <c>filtro {cella, oggetto?}</c>: the player's choice in the filter panel of a sorter, an inverted sorter or an
-    /// extractor (<see cref="SetBlockFilter"/>); without <c>oggetto</c> (or null) the block has no filter. Answers the filter now
+    /// <c>filtro {cella, oggetto?}</c>: the player's choice in the filter panel of a sorter, an inverted sorter, an
+    /// extractor or the market screen (the item it follows) (<see cref="SetBlockFilter"/>); without <c>oggetto</c> (or
+    /// null) the block has no filter. Answers the filter now
     /// (<c>filtro</c>, null = none) or the refusal (<c>InvalidCommand</c>: a block without a filter, an empty cell or an
     /// unknown item).
     /// </summary>
@@ -409,7 +410,9 @@ public sealed class AgentGame : IDisposable
             new SetBlockFilter(PlayerId, cell, OptStr(p, "oggetto")),
             r => r["filtro"] = View.Belts.TryGetValue(cell, out var block)
                 ? block.FilterItemId
-                : View.Extractors.FirstOrDefault(e => e.Occupies(cell))?.FilterItemId);
+                : View.MarketScreen is { } screen && screen.Occupies(cell)
+                    ? screen.WatchedItemId
+                    : View.Extractors.FirstOrDefault(e => e.Occupies(cell))?.FilterItemId);
     }
 
     /// <summary>Entity id of the block on <paramref name="cell"/>; 0 when there is none.</summary>
@@ -521,6 +524,81 @@ public sealed class AgentGame : IDisposable
         if (sale.Jackpot)
         {
             e["jackpot"] = true;
+        }
+    }
+
+    /// <summary>
+    /// The stock-exchange screen for <c>stato</c>: null when there is none, otherwise its top-left cell, whether it is
+    /// active (touching the Core), the item it follows (null = none) and the last "sell all" it shows (null = none yet).
+    /// </summary>
+    private JsonObject? ScreenJson()
+    {
+        if (View.MarketScreen is not { } screen)
+        {
+            return null;
+        }
+
+        return new JsonObject
+        {
+            ["cella"] = CellJson(screen.Position),
+            ["attivo"] = screen.Active,
+            ["oggetto"] = screen.WatchedItemId,
+            ["ultimo_esito"] = screen.LastResult is { } last
+                ? new JsonObject
+                {
+                    ["oggetto"] = last.ItemId,
+                    ["incasso"] = last.Income,
+                    ["led"] = last.Led switch
+                    {
+                        ScreenLed.Blue => "blu",
+                        ScreenLed.Purple => "viola",
+                        _ => "giallo"
+                    },
+                    ["jackpot"] = last.Jackpot,
+                    ["tick"] = last.Tick
+                }
+                : null
+        };
+    }
+
+    /// <summary>
+    /// The Finance modules of <paramref name="itemId"/> on its <c>stato</c> entry, each only when researched and with the
+    /// screen active (<see cref="IGameView.MarketInsight"/>): <c>previsione</c> (its non-null keys and
+    /// <c>vendi_ora</c>), <c>percentuale</c> over B and <c>probabilita_jackpot</c> in whole percent.
+    /// </summary>
+    private void AddInsight(JsonObject entry, string itemId)
+    {
+        var insight = View.MarketInsight(itemId);
+        if (View.MarketScreen is { Active: true } && View.Research.IsUnlocked(MarketInsight.ForecastNodeId))
+        {
+            var forecast = new JsonObject();
+            if (insight.SecondsToSpike is { } toSpike)
+            {
+                forecast["secondi_al_picco"] = toSpike;
+            }
+
+            forecast["vendi_ora"] = insight.SellNow;
+            if (insight.SecondsToCrashEnd is { } toCrashEnd)
+            {
+                forecast["fine_crollo_secondi"] = toCrashEnd;
+            }
+
+            if (insight.SecondsSellAllBlocked is { } blocked)
+            {
+                forecast["vendi_tutto_bloccato_secondi"] = blocked;
+            }
+
+            entry["previsione"] = forecast;
+        }
+
+        if (insight.PercentOverB is { } percent)
+        {
+            entry["percentuale"] = percent;
+        }
+
+        if (insight.JackpotChancePercent is { } chance)
+        {
+            entry["probabilita_jackpot"] = chance;
         }
     }
 
@@ -645,8 +723,10 @@ public sealed class AgentGame : IDisposable
                     entry["crolloSecondi"] = m.CrashSecondsLeft;
                 }
 
+                AddInsight(entry, m.ItemId);
                 return entry;
             })),
+            ["schermo"] = ScreenJson(),
             ["tempo"] = TimeJson(),
             ["livelloCampagna"] = View.ActiveCampaignLevelId,
             ["direzione"] = DirectionName(Brush),

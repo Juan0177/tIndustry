@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 19: the drone flown by its
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 20: the stock-exchange
+/// screen (<see cref="MarketScreen"/>: cell, watched item and last "sell all" shown); since 19 the drone flown by its
 /// player (<see cref="BuilderSaveDto"/>: held input, hand-mining cell and progress, hold); since 18 the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
 /// extractor accumulator and turns); since 17 the power network's
 /// lasers (<see cref="PowerLinks"/>) and each battery's charge (<see cref="BatterySaveDto.Charge"/>), with no shared
@@ -16,10 +17,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 19;
+    public const int CurrentVersion = 20;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 19;
+    public const int MinReadableVersion = 20;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -127,12 +128,29 @@ public sealed class LampSaveDto
     public int Y { get; set; }
 }
 
-/// <summary>The market screen: id and top-left cell (whether it is active is recomputed from the Core).</summary>
+/// <summary>
+/// The market screen: id, top-left cell, watched item and last "sell all" shown (whether it is active is recomputed from
+/// the Core). An item the market does not know makes the save unreadable.
+/// </summary>
 public sealed class MarketScreenSaveDto
 {
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
+    /// <summary><see cref="Shared.MarketScreen.WatchedItemId"/>: null when none is chosen.</summary>
+    public string? WatchedItemId { get; set; }
+    /// <summary><see cref="Shared.MarketScreen.LastResult"/>: null before the first "sell all" with the screen active.</summary>
+    public ScreenSaleResultSaveDto? LastResult { get; set; }
+}
+
+/// <summary>A <see cref="ScreenSaleResult"/>: <see cref="Led"/> is the <see cref="ScreenLed"/> name; an unknown one makes the save unreadable.</summary>
+public sealed class ScreenSaleResultSaveDto
+{
+    public string ItemId { get; set; } = "";
+    public long Income { get; set; }
+    public string Led { get; set; } = nameof(ScreenLed.Blue);
+    public bool Jackpot { get; set; }
+    public long Tick { get; set; }
 }
 
 public sealed class BatterySaveDto
