@@ -1,6 +1,6 @@
 # Schermo di borsa, moduli della Finanza e bilanciamento — specifica 2a
 
-- **Stato**: approvata dall'utente il 4 novembre 2026 ([piano](../plans/2026-11-04-schermo-borsa.md)). Brainstorming con l'utente del 4 novembre 2026; issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Aspetto 6 «Mercato ed economia» di `docs/STATO.md`.
+- **Stato**: attuata (2026-11-04, ramo claude/ripresa-task-notturni-5ht4tf; [diario](../../diario/2026-11-04-schermo-borsa.md)). Approvata dall'utente il 4 novembre 2026 ([piano](../plans/2026-11-04-schermo-borsa.md)). Brainstorming con l'utente del 4 novembre 2026; issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Aspetto 6 «Mercato ed economia» di `docs/STATO.md`.
 - **Le specifiche del Mercato**: 1 [Mercato come una borsa](2026-10-22-mercato-borsa-design.md) (attuata), 3 [Magazzino del CORE](2026-10-23-magazzino-core-design.md) (attuata), **2a** questa, **2b** la sequenza animata del «Vendi tutto» (zoom senza HUD, bot della finanza in 2.5D, valigetta, «calcolo…», coriandoli), da specificare dopo.
 - **Sostituisce**: il jackpot che non scatta mai in partita (`GameState.HasMarketScreen` sempre falso) e i costi della Ricerca di oggi (circa 37.000 $ per tutto l'albero: un solo forno li incassa in meno di un'ora).
 

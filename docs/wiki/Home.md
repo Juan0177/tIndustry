@@ -9,7 +9,7 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 68%, 53 passi fatti su 78" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 70%, 55 passi fatti su 79" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -18,7 +18,7 @@
 | 3 | [Logistica](Logistica) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/3.svg" alt="100%" width="160"> | 100% (9/9) |
 | 4 | [Produzione](Produzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](Energia) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
-| 6 | [Mercato ed economia](Mercato-come-una-borsa) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/6.svg" alt="80%" width="160"> | 80% (4/5) |
+| 6 | [Mercato ed economia](Mercato-come-una-borsa) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/6.svg" alt="83%" width="160"> | 83% (5/6) |
 | 7 | [Mappe e terreno](Mappe-e-terreno) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
 | 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
 | 9 | [Grafica ed effetti](Arte-generata) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
@@ -28,7 +28,7 @@
 | 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/13.svg" alt="33%" width="160"> | 33% (2/6) |
 | 14 | [Co-op](https://github.com/Juan0177/tIndustry/blob/main/docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |
 | 15 | [Sito web](Sito-web) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/15.svg" alt="86%" width="160"> | 86% (6/7) |
-| 16 | [Wiki e README]() | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/16.svg" alt="67%" width="160"> | 67% (4/6) |
+| 16 | [Wiki e README]() | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/16.svg" alt="83%" width="160"> | 83% (5/6) |
 
 Passi di ogni aspetto in [docs/STATO.md](https://github.com/Juan0177/tIndustry/blob/main/docs/STATO.md).
 <!-- barra-stato:fine -->

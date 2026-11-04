@@ -1,8 +1,8 @@
 # Vendere in tIndustry: ci serve il tuo parere
 
-tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Stiamo cambiando il modo in cui si vende, e vorremmo sapere cosa ne pensi.
+tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Il modo di vendere che trovi qui è già nel gioco, e vorremmo sapere cosa ne pensi.
 
-## Come funzionerà
+## Come funziona
 
 **I prezzi si muovono, come in borsa.** Ogni prodotto ha un prezzo minimo sotto il quale non scende mai. Di solito il prezzo sta un po' sopra il minimo e cambia di continuo, piano piano.
 
@@ -16,12 +16,20 @@ tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti i
 
 ## Il colpo di fortuna
 
-Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto, puoi vincere un **jackpot**: quella vendita vale circa **dieci volte** il normale.
+Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto, puoi vincere un **jackpot**: quella vendita vale circa **dieci volte** il normale. Per tentarlo serve lo **schermo di borsa**, un piccolo tabellone da costruire attaccato al magazzino centrale (il CORE).
 
 - Più vendi, più è probabile. Con quantità piccole è raro; al massimo è **testa o croce** (una possibilità su due).
 - Che vinca o no, una vendita così grande fa comunque crollare il prezzo di quel prodotto per un po'.
 
 **La «rete di sicurezza».** Per non far arrabbiare chi è sfortunato, ogni volta che tenti il colpo grosso e non va, la volta dopo è più facile. Dopo **tre tentativi andati male di fila, il quarto vince di sicuro**. Funziona come in tanti giochi per telefono, dove dopo un certo numero di tentativi il premio raro è garantito.
+
+## Lo schermo di borsa
+
+Lo schermo segue un prodotto a tua scelta: mostra il prezzo, se sale o scende e com'è andato negli ultimi due minuti. Dopo una vendita grossa si illumina per qualche secondo: **blu** se il prezzo è sceso poco, **viola** se è sceso molto o è crollato, **giallo** se hai tentato il testa o croce, con la scritta «JACKPOT» e le luci negli angoli se hai vinto.
+
+Con la ricerca si sbloccano tre aiuti, uno dopo l'altro: una **previsione** (fra quanto arriva il prossimo rialzo, e se conviene aspettare o vendere ora), la **percentuale** (quanto il prezzo è sopra il minimo) e la **probabilità** di vincere il jackpot se vendessi tutto adesso.
+
+Sbloccare tutta la ricerca richiede circa **6 ore** di gioco vendendo bene; un jackpot accorcia la strada di quasi mezz'ora.
 
 ## Due esempi
 
@@ -41,3 +49,4 @@ Se durante un rialzo vendi in un colpo solo una quantità enorme di un prodotto,
 3. La «rete di sicurezza» (vittoria garantita dopo tre tentativi andati male) è giusta, troppo generosa o troppo avara?
 4. Ti sembra giusto che un tentativo andato male faccia comunque crollare il prezzo, o è una punizione troppo dura?
 5. Secondo te il gioco rischia di diventare più un gioco di borsa che di fabbriche?
+6. Gli aiuti dello schermo (previsione, percentuale, probabilità) rendono il gioco più chiaro o tolgono la sorpresa?

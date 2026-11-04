@@ -65,7 +65,7 @@ giacimento ──▶ Minatore ──▶ nastri ──▶ CORE ──▶ Mercato 
 4. **Vendi.** Nel Mercato vendi quello che è nel CORE, oppure accendi la vendita automatica. Vedi [Economia e Ricerca](Economia-e-Ricerca).
 5. **Ricerca.** Con soldi e materiali sblocchi forno, assemblatore, nastri più veloci, energia e il resto.
 
-All'inizio di una partita libera hai $180, 48 Ferro grezzo, 48 Lastre di ferro e 10 Fili di rame: abbastanza per i primi minatori e nastri.
+All'inizio di una partita libera hai $180, 48 Ferro grezzo, 48 Lastre di ferro e 10 Fili di rame: abbastanza per i primi minatori e nastri. Lo sblocco più economico, il Forno, costa $1.500 e 30 Lastre di ferro: prima si guadagna vendendo il minerale. Sbloccare tutta la Ricerca richiede circa 6 ore di partita (vedi [Economia e Ricerca](Economia-e-Ricerca#quanto-costa-tutto-circa-6-ore)).
 
 ## Vedi anche
 
