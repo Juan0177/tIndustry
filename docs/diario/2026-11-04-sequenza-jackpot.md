@@ -76,4 +76,6 @@ Ultimo stato riportato dai task: build Release 0 errori e 0 avvisi (progetto God
 
 ## Revisione finale
 
-Da fare.
+Pronta da unire (0 critici, 0 importanti, 5 minori). Verificati: partenza solo coi tentativi veri del giocatore locale con lo schermo, comandi bloccati in `World._Input` (Esc salta, non apre la Home), visuale e HUD rimessi a posto da ogni uscita, nessun nodo appeso, tempo reale, ponte degli agenti sempre con un limite di 20 s, aggancio del playtest che non tocca le partite normali, la modifica al test del sito legittima, documenti uguali a specifica e codice. Corretti in `80dadbb`: la frase su `sequenzaInCorso` nel README degli agenti, «se un pannello si apre» al posto di «se apri un pannello», `WorldCamera.ResetFocus()` chiamato da `FocusCameraOnCore` (caricamento subito dopo la sequenza), `Starts` calcolato da `Durations` e tre test in più (salto da Zoom dopo la guardia, jackpot vinto in Risultato, salto in pausa). Ri-revisione: tutto a posto.
+
+Resta (deciso, da guardare a casa): lo zoom della sequenza è fisso a 2, quindi chi era già più vicino vede la visuale allontanarsi un poco.
