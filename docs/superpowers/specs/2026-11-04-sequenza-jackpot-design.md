@@ -1,6 +1,6 @@
 # Sequenza del tentativo di jackpot — specifica 2b
 
-- **Stato**: approvata dall'utente il 4 novembre 2026 ([piano](../plans/2026-11-04-sequenza-jackpot.md)). Brainstorming con l'utente del 4 novembre 2026; issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Aspetto 6 «Mercato ed economia» di `docs/STATO.md`.
+- **Stato**: attuata (2026-11-04, ramo claude/ripresa-task-notturni-5ht4tf; [diario](../../diario/2026-11-04-sequenza-jackpot.md)). Approvata dall'utente il 4 novembre 2026 ([piano](../plans/2026-11-04-sequenza-jackpot.md)). Brainstorming con l'utente del 4 novembre 2026; issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Aspetto 6 «Mercato ed economia» di `docs/STATO.md`.
 - **Le specifiche del Mercato**: 1 [Mercato come una borsa](2026-10-22-mercato-borsa-design.md), 2a [Schermo di borsa](2026-11-04-schermo-borsa-design.md), 3 [Magazzino del CORE](2026-10-23-magazzino-core-design.md), tutte attuate; **2b** questa.
 - **Sostituisce**: l'avviso del jackpot di oggi (il toast con l'incasso) per i tentativi fatti con lo schermo; l'esito sullo schermo della 2a resta.
 

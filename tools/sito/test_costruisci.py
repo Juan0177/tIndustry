@@ -278,10 +278,15 @@ class TestSito(unittest.TestCase):
                           self.asset)
             self.assertIn(f'<h3 id="p-{b.id}-t">', self.asset)
 
+    @staticmethod
+    def _e_striscia(nome):
+        with Image.open(os.path.join(ASSETS, nome + ".png")) as im:
+            return im.width > im.height
+
     def test_animazioni_gif(self):
-        # Every strip plays as a GIF wherever it is shown.
+        # Every strip plays as a GIF wherever it is shown (a one-frame "-anim" sprite is square: a still PNG).
         for nome in costruisci.SPRITE:
-            if nome.endswith("-anim"):
+            if nome.endswith("-anim") and self._e_striscia(nome):
                 for fig in self._figure(nome):
                     self.assertIn("data:image/gif;base64,", fig, nome)
 
