@@ -62,12 +62,23 @@ class BalanceModelTests(unittest.TestCase):
         priced = {s["id"] for s in self.content["structures"] if s.get("unlock") is not None}
         self.assertEqual(priced, {node["id"] for node in self.model["nodes"]})
 
+    # The inverted sorter costs the same as the sorter (logistics spec, like Mindustry).
+    SAME_COST = {("sorter", "sorter-inverted")}
+
     def test_costs_increase_along_every_prerequisite_chain(self):
         money = {node["id"]: node["money"] for node in self.model["nodes"]}
         for s in self.content["structures"]:
             for pre in s.get("prerequisites", []):
                 if s["id"] in money and pre in money:
-                    self.assertGreater(money[s["id"]], money[pre], f"{pre} → {s['id']}")
+                    if (pre, s["id"]) in self.SAME_COST:
+                        self.assertEqual(money[s["id"]], money[pre], f"{pre} → {s['id']}")
+                    else:
+                        self.assertGreater(money[s["id"]], money[pre], f"{pre} → {s['id']}")
+
+    def test_the_inverted_sorter_costs_the_same_as_the_sorter(self):
+        nodes = {node["id"]: node for node in self.model["nodes"]}
+        self.assertEqual(nodes["sorter"]["money"], nodes["sorter-inverted"]["money"])
+        self.assertEqual(nodes["sorter"]["materials"], nodes["sorter-inverted"]["materials"])
 
     def test_examples_of_the_spec_are_roughly_respected(self):
         money = {node["id"]: node["money"] for node in self.model["nodes"]}
@@ -81,9 +92,10 @@ class BalanceModelTests(unittest.TestCase):
         for node in self.model["nodes"]:
             items = [m["itemId"] for m in node["materials"]]
             self.assertEqual(items, [m["itemId"] for m in current[node["id"]]["materials"]], node["id"])
-            for m in node["materials"]:
+            self.assertEqual(items, [m["itemId"] for m in node["materials_base"]], node["id"])
+            for m, base in zip(node["materials"], node["materials_base"]):
                 self.assertIsInstance(m["amount"], int)
-                self.assertGreater(m["amount"], 0)
+                self.assertGreater(m["amount"], base["amount"], f"{node['id']} {m['itemId']}")
 
     def test_purchase_order_respects_prerequisites(self):
         bought = set(s["id"] for s in self.content["structures"] if s.get("unlock") is None)

@@ -44,7 +44,7 @@ NODES = [
     ("assembler", 1, 3, [("iron-plate", 22), ("copper-ore", 4)]),
     ("conveyor-fast", 1, 4, [("iron-ore", 8), ("lead-ore", 8), ("titanium-ore", 8)]),
     ("sorter", 1, 4, [("iron-ore", 10), ("lead-ore", 10)]),
-    ("sorter-inverted", 1, 5, [("iron-ore", 10), ("lead-ore", 10)]),
+    ("sorter-inverted", 1, 4, [("iron-ore", 10), ("lead-ore", 10)]),
     ("conveyor-bridge", 1, 5, [("iron-ore", 21), ("lead-ore", 21)]),
     ("battery", 1, 5, [("lead-plate", 10), ("copper-wire", 5)]),
     ("container", 1, 6, [("iron-plate", 20), ("lead-plate", 10)]),
@@ -1001,6 +1001,9 @@ def build_workbook(REPO, OUT):
             cell(Z, f"F{r}", f"=D{r}*E{r}", fmt="$#,##0")
             r += 1
     last_prod = r - 1
+    Z[f"G{first_prod}"] = ("L'Inizio conta già le lastre di ferro: prima del forno si vende ferro grezzo (6 $ a pezzo), "
+                           "quindi il forno arriva un paio di minuti dopo; sulle 6 ore è trascurabile e il foglio non lo conta.")
+    Z[f"G{first_prod}"].font = NOTE
 
     r += 1
     Z[f"A{r}"] = "Fasi (minuti dall'inizio della partita)"
@@ -1097,7 +1100,8 @@ def build_workbook(REPO, OUT):
         ("Ore con 1 jackpot", round(model["hours"][1], 2), "0.00",
          "Il jackpot arriva all'inizio della fase Fine e vale il di più sulle stesse lastre vendute a B."),
         ("Ore con 2 jackpot", round(model["hours"][2], 2), "0.00",
-         f"Il secondo {JACKPOT_GAP_MINUTES} minuti dopo il primo (crollo di 20 minuti e attesa del picco)."),
+         f"Il secondo {JACKPOT_GAP_MINUTES} minuti dopo il primo (crollo di 20 minuti e attesa del picco): arriva tardi "
+         "nella fase Fine, quando manca poco, e fa risparmiare pochi minuti."),
     ]
     for label, value, fmt, note in results:
         cell(Z, f"A{r}", label)

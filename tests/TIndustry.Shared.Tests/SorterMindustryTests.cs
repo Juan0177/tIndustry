@@ -513,7 +513,7 @@ public sealed class SorterMindustryTests
     }
 
     [Fact]
-    public void TheInvertedSorterIsResearchedAfterTheSorterAndCostsMore()
+    public void TheInvertedSorterIsResearchedAfterTheSorterAndCostsTheSame()
     {
         Assert.Equal(LogisticsKind.Sorter, Inverted.Kind);
         Assert.True(Inverted.Inverted);
@@ -523,8 +523,7 @@ public sealed class SorterMindustryTests
         var structure = Content.RequireStructure("sorter-inverted");
         var sorter = Content.RequireStructure("sorter");
         Assert.Equal(["sorter"], structure.Prerequisites);
-        // Research costs grow along every prerequisite chain (sheet «Bilanciamento»); the build cost stays the same.
-        Assert.True(structure.Unlock!.Money > sorter.Unlock!.Money);
+        Assert.Equal(sorter.Unlock!.Money, structure.Unlock!.Money);
         Assert.Equal(sorter.Unlock.Materials, structure.Unlock.Materials);
         Assert.Equal(BuildingKind.SorterInverted, BuildSpec.KindFor("sorter-inverted"));
         Assert.Equal("sorter-inverted", Factory.StructureIdForTool("sorter-inverted"));

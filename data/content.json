@@ -154,7 +154,7 @@
         }
       ],
       "unlock": {
-        "money": 91000,
+        "money": 73000,
         "materials": [
           {
             "itemId": "iron-ore",
@@ -548,7 +548,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 91000,
+        "money": 73000,
         "materials": [
           {
             "itemId": "iron-ore",

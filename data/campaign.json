@@ -125,7 +125,7 @@
       "seed": 9001,
       "mapWidth": 350,
       "mapHeight": 350,
-      "startingMoney": 56290,
+      "startingMoney": 56500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -172,7 +172,7 @@
       "seed": 7429,
       "mapWidth": 400,
       "mapHeight": 400,
-      "startingMoney": 160,
+      "startingMoney": 1500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -181,7 +181,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 12
+          "amount": 42
         },
         {
           "itemId": "copper-wire",
@@ -263,7 +263,7 @@
       "seed": 6103,
       "mapWidth": 600,
       "mapHeight": 600,
-      "startingMoney": 320,
+      "startingMoney": 1570,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -272,7 +272,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 35
+          "amount": 50
         },
         {
           "itemId": "copper-wire",
@@ -355,7 +355,7 @@
       "seed": 4242,
       "mapWidth": 850,
       "mapHeight": 850,
-      "startingMoney": 150400,
+      "startingMoney": 206500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -364,7 +364,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 175
+          "amount": 234
         },
         {
           "itemId": "copper-wire",
@@ -410,7 +410,7 @@
       "seed": 10101,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 223100,
+      "startingMoney": 279500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -419,7 +419,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 150
+          "amount": 216
         },
         {
           "itemId": "copper-wire",
