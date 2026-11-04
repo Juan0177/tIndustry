@@ -49,12 +49,14 @@ public partial class BuildPalette : PanelContainer
     ];
 
     // Mindustry's cores, containers and vaults: a Core block shows only while it is the next tier (see World.SyncResearchLocks).
+    // The stock-exchange screen sits next to the Core blocks: it is placed touching the Core.
     private static readonly PaletteEntry[] StorageEntries =
     [
         new(ToolKind.Container, "container", ""),
         new(ToolKind.Vault, "vault", ""),
         new(ToolKind.CoreFoundation, "core-foundation", ""),
-        new(ToolKind.CoreNucleus, "core-nucleus", "")
+        new(ToolKind.CoreNucleus, "core-nucleus", ""),
+        new(ToolKind.MarketScreen, "market-screen", "")
     ];
 
     private readonly Dictionary<ToolKind, PanelContainer> _toolSlots = [];
@@ -519,7 +521,8 @@ public partial class BuildPalette : PanelContainer
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp or ToolKind.Battery
             => BuildCategory.Power,
-        ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus => BuildCategory.Storage,
+        ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus or ToolKind.MarketScreen
+            => BuildCategory.Storage,
         _ => BuildCategory.Logistics
     };
 }

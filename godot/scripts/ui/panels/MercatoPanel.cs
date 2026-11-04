@@ -8,7 +8,9 @@ namespace TIndustry.Godot;
 /// Mercato overview: one row per item the CORE holds (or sells automatically) with icon, name, quantity against the
 /// CORE's maximum ("pieno" at the maximum), price with ▲/▼, a chart of the last 2 minutes, "Crollo · mm:ss" during a
 /// crash, Vendi 1 / Vendi 100 / Vendi tutto, the item's auto-sell switch and its "only when the CORE is full" box. No
-/// button sells every item at once. The rows follow the market a few times a second.
+/// button sells every item at once. With an active market screen, the researched Finance modules add a line to every
+/// row: the forecast with its advice, the percent over B and the jackpot odds. The rows follow the market a few times
+/// a second.
 /// </summary>
 public partial class MercatoPanel : Control
 {
@@ -16,12 +18,16 @@ public partial class MercatoPanel : Control
     private const double RefreshSeconds = 0.25;
 
     private const float RowHeight = 76f;
+
+    /// <summary>Row height with the line of the Finance modules.</summary>
+    private const float RowHeightWithModules = 100f;
     private const int MaxVisibleRows = 4;
 
     private IGameView? _view;
     private Action<SimCommand>? _submit;
     private Func<IReadOnlyList<SimCommand>>? _pendingCommands;
     private readonly List<Row> _rows = [];
+    private bool _rowsWithModules;
     private double _sinceRefresh;
 
     // The status line is kept as a function so a new language writes it again.
@@ -39,7 +45,7 @@ public partial class MercatoPanel : Control
     /// <summary>The controls of one item row that change while the panel is open.</summary>
     private sealed record Row(
         string ItemId, Label Quantity, Label Price, MarketSparkline Chart, Label Crash, Button SellOne, Button SellHundred,
-        Button SellAll, CheckBox Auto, CheckBox WhenFull);
+        Button SellAll, CheckBox Auto, CheckBox WhenFull, Control Modules, Label Forecast, Label Percent, Label Odds);
 
     public override void _Ready()
     {
@@ -283,8 +289,10 @@ public partial class MercatoPanel : Control
 
         // An item selling automatically can sit at zero: it stays listed so its switch can be turned off.
         var listed = _view.MarketItems.Where(i => i.AutoSell || _view.Wallet.MaterialCount(i.ItemId) > 0).ToList();
-        if (!listed.Select(i => i.ItemId).SequenceEqual(_rows.Select(r => r.ItemId)))
+        var withModules = ModulesShown(_view);
+        if (withModules != _rowsWithModules || !listed.Select(i => i.ItemId).SequenceEqual(_rows.Select(r => r.ItemId)))
         {
+            _rowsWithModules = withModules;
             Rebuild(listed);
         }
 
@@ -325,7 +333,8 @@ public partial class MercatoPanel : Control
 
         if (_scroll is not null)
         {
-            _scroll.CustomMinimumSize = new Vector2(0, Math.Clamp(listed.Count, 1, MaxVisibleRows) * (RowHeight + 4));
+            var height = _rowsWithModules ? RowHeightWithModules : RowHeight;
+            _scroll.CustomMinimumSize = new Vector2(0, Math.Clamp(listed.Count, 1, MaxVisibleRows) * (height + 4));
         }
     }
 
@@ -334,7 +343,7 @@ public partial class MercatoPanel : Control
         var panel = new PanelContainer
         {
             Name = $"Riga_{itemId}",
-            CustomMinimumSize = new Vector2(0, RowHeight),
+            CustomMinimumSize = new Vector2(0, _rowsWithModules ? RowHeightWithModules : RowHeight),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ThemeTypeVariation = UiTheme.Riga
         };
@@ -422,7 +431,68 @@ public partial class MercatoPanel : Control
         };
         whenFull.Toggled += on => _submit?.Invoke(new SetAutoSellWhenFull(0, itemId, on));
         bottom.AddChild(whenFull);
-        return new Row(itemId, quantity, price, chart, crash, one, hundred, all, auto, whenFull);
+
+        // Previsione · percentuale · probabilità (the Finance modules, with an active market screen)
+        var modules = new HBoxContainer { Name = "Moduli", Visible = _rowsWithModules, ThemeTypeVariation = UiTheme.RigaAmpia };
+        lines.AddChild(modules);
+        Label ModuleLabel(string name, float width, HorizontalAlignment align)
+        {
+            var label = new Label
+            {
+                Name = name,
+                CustomMinimumSize = new Vector2(width, 0),
+                HorizontalAlignment = align,
+                VerticalAlignment = VerticalAlignment.Center,
+                SizeFlagsHorizontal = width == 0 ? SizeFlags.ExpandFill : SizeFlags.Fill
+            };
+            modules.AddChild(label);
+            return label;
+        }
+
+        var forecast = ModuleLabel("Previsione", 0, HorizontalAlignment.Left);
+        var percent = ModuleLabel("Percentuale", 130, HorizontalAlignment.Right);
+        var odds = ModuleLabel("Probabilita", 200, HorizontalAlignment.Right);
+        return new Row(itemId, quantity, price, chart, crash, one, hundred, all, auto, whenFull, modules, forecast, percent, odds);
+    }
+
+    /// <summary>True when the rows show the module line: an active market screen and a Finance module researched.</summary>
+    private static bool ModulesShown(IGameView view) =>
+        view.MarketScreen is { Active: true }
+        && new[] { MarketInsight.ForecastNodeId, MarketInsight.PercentNodeId, MarketInsight.OddsNodeId }.Any(view.IsStructureUnlocked);
+
+    /// <summary>The module line of a row: each researched module's words, empty for one not researched.</summary>
+    private void UpdateModules(Row row, string itemId)
+    {
+        row.Modules.Visible = _rowsWithModules;
+        if (!_rowsWithModules)
+        {
+            return;
+        }
+
+        var insight = _view!.MarketInsight(itemId);
+        if (_view.IsStructureUnlocked(MarketInsight.ForecastNodeId))
+        {
+            var forecast = MarketModuleTexts.Forecast(insight, screen: false);
+            var advice = MarketModuleTexts.Advice(insight);
+            row.Forecast.Text = forecast is null ? advice : $"{forecast} · {advice}";
+            row.Forecast.ThemeTypeVariation = insight.SellNow ? UiTheme.TestoSu
+                : insight.SecondsToCrashEnd is not null ? UiTheme.TestoCrollo
+                : UiTheme.TestoTenue;
+        }
+        else
+        {
+            row.Forecast.Text = "";
+        }
+
+        row.Percent.Text = MarketModuleTexts.Percent(insight) ?? "";
+        row.Percent.ThemeTypeVariation = insight.PercentOverB switch
+        {
+            > 0 => UiTheme.TestoSu,
+            < 0 => UiTheme.TestoGiu,
+            _ => ""
+        };
+        row.Odds.Text = MarketModuleTexts.Odds(insight) ?? "";
+        row.Odds.ThemeTypeVariation = insight.JackpotChancePercent > 0 ? UiTheme.TestoAccento : UiTheme.TestoTenue;
     }
 
     private void UpdateRow(Row row, MarketItemView item, int stock, int wait)
@@ -434,14 +504,8 @@ public partial class MercatoPanel : Control
         row.Quantity.ThemeTypeVariation = full ? UiTheme.TestoPieno : "";
 
         // ▲/▼ against the start of the chart (2 minutes ago), so arrow and chart tell the same story.
-        var start = item.HistoryMilli.Count > 0 ? item.HistoryMilli[0] : item.PriceMilli;
-        var trend = item.PriceMilli > start ? MarketTrend.Su : item.PriceMilli < start ? MarketTrend.Giu : MarketTrend.Piatto;
-        row.Price.Text = trend switch
-        {
-            MarketTrend.Su => $"${item.UnitIncome} ▲",
-            MarketTrend.Giu => $"${item.UnitIncome} ▼",
-            _ => $"${item.UnitIncome}"
-        };
+        var trend = MarketSparkline.TrendOf(item);
+        row.Price.Text = MarketSparkline.PriceText(item, trend);
         row.Price.ThemeTypeVariation = trend switch
         {
             MarketTrend.Su => UiTheme.TestoSu,
@@ -471,5 +535,6 @@ public partial class MercatoPanel : Control
         row.WhenFull.SetPressedNoSignal(pendingFull?.Enabled ?? item.AutoSellWhenFull);
         // The box only matters while the item sells automatically: dimmed otherwise, its tick kept.
         row.WhenFull.Disabled = !autoOn;
+        UpdateModules(row, item.ItemId);
     }
 }

@@ -1,4 +1,5 @@
 using Godot;
+using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
@@ -35,43 +36,69 @@ public partial class MarketSparkline : Control
 
     public override void _Draw()
     {
-        var size = Size;
+        DrawRect(new Rect2(Vector2.Zero, Size), UiColors.FondoBloccato);
+        DrawChart(this, new Rect2(Vector2.Zero, Size), _points, _trend, 2f, 3f);
+    }
+
+    /// <summary>
+    /// The chart of <paramref name="points"/> (thousandths of B, oldest first, at most <see cref="Span"/>) in
+    /// <paramref name="rect"/> of <paramref name="canvas"/>: the dashed line at B and the price line in the colour of
+    /// <paramref name="trend"/>, newest on the right edge. The Mercato rows and the market screen in the world draw it.
+    /// </summary>
+    public static void DrawChart(CanvasItem canvas, Rect2 rect, IReadOnlyList<int> points, MarketTrend trend, float width, float pad)
+    {
+        var size = rect.Size;
         if (size.X < 2 || size.Y < 2)
         {
             return;
         }
 
-        DrawRect(new Rect2(Vector2.Zero, size), UiColors.FondoBloccato);
         // Vertical range: the points and B, with a little room so a flat line is not glued to an edge.
-        var low = Math.Min(1000, _points.Length > 0 ? _points.Min() : 1000);
-        var high = Math.Max(low + 200, _points.Length > 0 ? _points.Max() : 1000);
-        const float pad = 3f;
-        float Y(int milli) => pad + (size.Y - 2 * pad) * (1f - (milli - low) / (float)(high - low));
+        var low = Math.Min(1000, points.Count > 0 ? points.Min() : 1000);
+        var high = Math.Max(low + 200, points.Count > 0 ? points.Max() : 1000);
+        float Y(int milli) => rect.Position.Y + pad + (size.Y - 2 * pad) * (1f - (milli - low) / (float)(high - low));
 
         var baseY = Mathf.Round(Y(1000)) + 0.5f;
-        DrawDashedLine(new Vector2(0, baseY), new Vector2(size.X, baseY), UiColors.MercatoBase, 1f, 4f);
-        if (_points.Length < 2)
+        canvas.DrawDashedLine(new Vector2(rect.Position.X, baseY), new Vector2(rect.End.X, baseY), UiColors.MercatoBase, 1f, 4f);
+        if (points.Count < 2)
         {
             return;
         }
 
-        var line = new Vector2[_points.Length];
+        var line = new Vector2[points.Count];
         var step = (size.X - 1) / (Span - 1);
-        var x0 = size.X - 1 - step * (_points.Length - 1);
-        for (var i = 0; i < _points.Length; i++)
+        var x0 = rect.Position.X + size.X - 1 - step * (points.Count - 1);
+        for (var i = 0; i < points.Count; i++)
         {
-            line[i] = new Vector2(x0 + step * i, Y(_points[i]));
+            line[i] = new Vector2(x0 + step * i, Y(points[i]));
         }
 
-        var color = _trend switch
-        {
-            MarketTrend.Su => UiColors.MercatoSu,
-            MarketTrend.Giu => UiColors.MercatoGiu,
-            MarketTrend.Crollo => UiColors.MercatoCrollo,
-            _ => UiColors.MercatoGrafico
-        };
-        DrawPolyline(line, color, 2f);
+        canvas.DrawPolyline(line, ColorOf(trend), width);
     }
+
+    /// <summary>Colour of the chart line, the price and its arrow for <paramref name="trend"/>.</summary>
+    public static Color ColorOf(MarketTrend trend) => trend switch
+    {
+        MarketTrend.Su => UiColors.MercatoSu,
+        MarketTrend.Giu => UiColors.MercatoGiu,
+        MarketTrend.Crollo => UiColors.MercatoCrollo,
+        _ => UiColors.MercatoGrafico
+    };
+
+    /// <summary>▲/▼ of <paramref name="item"/> against the start of its chart (2 minutes ago), as the Mercato rows show it.</summary>
+    public static MarketTrend TrendOf(MarketItemView item)
+    {
+        var start = item.HistoryMilli.Count > 0 ? item.HistoryMilli[0] : item.PriceMilli;
+        return item.PriceMilli > start ? MarketTrend.Su : item.PriceMilli < start ? MarketTrend.Giu : MarketTrend.Piatto;
+    }
+
+    /// <summary>The price of the moment with its arrow: "$12 ▲", "$12 ▼" or "$12".</summary>
+    public static string PriceText(MarketItemView item, MarketTrend trend) => trend switch
+    {
+        MarketTrend.Su => $"${item.UnitIncome} ▲",
+        MarketTrend.Giu => $"${item.UnitIncome} ▼",
+        _ => $"${item.UnitIncome}"
+    };
 }
 
 /// <summary>Direction a market row shows: arrow, chart colour and price colour.</summary>

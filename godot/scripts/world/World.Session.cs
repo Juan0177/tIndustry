@@ -560,7 +560,8 @@ public partial class World
             Hud.ToolKind.Container,
             Hud.ToolKind.Vault,
             Hud.ToolKind.CoreFoundation,
-            Hud.ToolKind.CoreNucleus
+            Hud.ToolKind.CoreNucleus,
+            Hud.ToolKind.MarketScreen
         };
         // A Core block shows only while it is the next tier: the one built and the one after next stay out.
         _locksCoreTier = _view.CoreTier;

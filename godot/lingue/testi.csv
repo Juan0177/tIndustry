@@ -100,6 +100,8 @@ obiettivo.level-10-espansione.4,Magazzino 8 grafite,Store 8 graphite
 filtro.titolo,Filtro · {0},Filter · {0}
 filtro.nessuno,Nessuno,None
 filtro.nessuno.suggerimento,Toglie il filtro,Clears the filter
+filtro.titolo.schermo,Oggetto seguito · {0},Followed item · {0}
+filtro.nessuno.suggerimento.schermo,Lo schermo non segue nessun oggetto,The screen follows no item
 struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
@@ -363,6 +365,38 @@ mercato.auto.pieno.disattivata,Vendita automatica anche sotto il massimo.,Auto-s
 mercato.quantita.pieno,{0}/{1} pieno,{0}/{1} full
 mercato.quantita.suggerimento,In scorta / massimo del CORE,In stock / CORE maximum
 mercato.jackpot,JACKPOT! +${0},JACKPOT! +${0}
+borsa.previsione.picco,picco fra circa {0} min,spike in about {0} min
+borsa.previsione.picco.presto,picco fra meno di 1 min,spike in less than 1 min
+borsa.previsione.arrivo,picco in arrivo,spike coming
+borsa.previsione.crollo,fine del crollo fra {0} min,crash ends in {0} min
+borsa.previsione.crollo.presto,fine del crollo fra meno di 1 min,crash ends in less than 1 min
+borsa.previsione.bloccato,Vendi tutto bloccato per {0} min,Sell all locked for {0} min
+borsa.previsione.bloccato.presto,Vendi tutto bloccato per meno di 1 min,Sell all locked for less than 1 min
+borsa.vendi.ora,vendi ora,sell now
+borsa.aspetta,aspetta,wait
+borsa.percentuale,{0}% su B,{0}% over B
+borsa.probabilita,probabilità jackpot {0}%,jackpot odds {0}%
+borsa.schermo.picco,picco fra {0} min,spike in {0} min
+borsa.schermo.picco.presto,picco fra <1 min,spike in <1 min
+borsa.schermo.arrivo,picco in arrivo,spike coming
+borsa.schermo.crollo,fine crollo: {0} min,crash ends: {0} min
+borsa.schermo.crollo.presto,fine crollo: <1 min,crash ends: <1 min
+borsa.schermo.bloccato,vendi tutto: {0} min,sell all in {0} min
+borsa.schermo.bloccato.presto,vendi tutto: <1 min,sell all in <1 min
+borsa.schermo.percentuale,{0}% B,{0}% B
+borsa.schermo.probabilita,jackpot {0}%,jackpot {0}%
+borsa.schermo.crollo.stato,Crollo,Crash
+borsa.schermo.staccato,Staccato dal CORE,Detached from CORE
+borsa.schermo.scegli,Scegli un oggetto,Choose an item
+borsa.jackpot,JACKPOT,JACKPOT
+borsa.incasso,+${0},+${0}
+borsa.suggerimento.oggetto,Segue: {0},Follows: {0}
+borsa.suggerimento.esito,Ultimo «Vendi tutto» · {0} · +${1},Last «Sell all» · {0} · +${1}
+borsa.led.Blue,LED blu: il prezzo è sceso poco,Blue LEDs: the price fell a little
+borsa.led.Purple,LED viola: il prezzo è sceso molto o è crollato,Purple LEDs: the price fell a lot or crashed
+borsa.led.Yellow,LED gialli: il 50/50 da 10.000 pezzi,"Yellow LEDs: the 50/50 from 10,000 pieces"
+borsa.led.Jackpot,LED gialli e luci negli angoli: jackpot,Yellow LEDs and corner lights: jackpot
+borsa.suggerimento.clic,Clic: scegli l'oggetto da seguire,Click: choose the item to follow
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
 ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
 ricerca.legenda,Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente,Gold border = you can unlock it · lock = unlock the one before first

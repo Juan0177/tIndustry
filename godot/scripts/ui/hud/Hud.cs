@@ -37,7 +37,8 @@ public partial class Hud : Control
         Container,
         Vault,
         CoreFoundation,
-        CoreNucleus
+        CoreNucleus,
+        MarketScreen
     }
 
     internal enum BuildCategory
@@ -433,6 +434,7 @@ public partial class Hud : Control
         ToolKind.Vault => "vault",
         ToolKind.CoreFoundation => "core-foundation",
         ToolKind.CoreNucleus => "core-nucleus",
+        ToolKind.MarketScreen => "market-screen",
         _ => "conveyor-basic"
     };
 

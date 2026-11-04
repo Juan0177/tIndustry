@@ -57,11 +57,13 @@ public partial class World
     }
 
     /// <summary>
-    /// The block on <paramref name="cell"/> takes a filter (sorter, inverted sorter, extractor): its structure id and its
-    /// filter as the player will see it, the last filter already sent this tick included.
+    /// The block covering <paramref name="cell"/> takes a filter (sorter, inverted sorter, extractor) or follows an item
+    /// (the market screen): its anchor cell (the screen's origin), its structure id and its filter as the player will
+    /// see it, the last filter already sent this tick included.
     /// </summary>
-    private bool TryGetFilterBlock(GridPosition cell, out string structureId, out string? filter)
+    private bool TryGetFilterBlock(GridPosition cell, out GridPosition anchor, out string structureId, out string? filter)
     {
+        anchor = cell;
         structureId = "";
         filter = null;
         if (_view is null)
@@ -79,12 +81,19 @@ public partial class World
             structureId = Extractor.BuildingId;
             filter = extractor.FilterItemId;
         }
+        else if (_view.MarketScreen is { } screen && screen.Occupies(cell))
+        {
+            anchor = screen.Position;
+            structureId = MarketScreen.BuildingId;
+            filter = screen.WatchedItemId;
+        }
         else
         {
             return false;
         }
 
-        if (PendingCommands.OfType<SetBlockFilter>().LastOrDefault(c => c.Tile == cell) is { } pending)
+        var at = anchor;
+        if (PendingCommands.OfType<SetBlockFilter>().LastOrDefault(c => c.Tile == at) is { } pending)
         {
             filter = pending.ItemId;
         }
@@ -92,21 +101,31 @@ public partial class World
         return true;
     }
 
-    /// <summary>A click with no block selected on a block with a filter: its card opens (the same block again closes it).</summary>
-    private void ToggleFilterPanel(GridPosition cell, string structureId, string? filter)
+    /// <summary>Side in cells of the block with a filter on <paramref name="anchor"/> (the market screen is 2×2).</summary>
+    private int FilterBlockSize(GridPosition anchor) =>
+        _view?.MarketScreen is { } screen && screen.Position == anchor ? MarketScreen.Size : 1;
+
+    /// <summary>
+    /// A click with no block selected on a block with a filter: its card opens (the same block again closes it). The
+    /// market screen offers only the items the Market trades.
+    /// </summary>
+    private void ToggleFilterPanel(GridPosition anchor, string structureId, string? filter)
     {
         if (_filterPanel is null || _view is null)
         {
             return;
         }
 
-        if (_filterPanel.IsOpen && _filterPanel.Tile == cell)
+        if (_filterPanel.IsOpen && _filterPanel.Tile == anchor)
         {
             _filterPanel.Close();
             return;
         }
 
-        _filterPanel.Open(cell, structureId, filter, _view.Content.ItemIds, _view.Content);
+        IReadOnlyList<string> items = structureId == MarketScreen.BuildingId
+            ? _view.MarketItems.Select(i => i.ItemId).ToList()
+            : _view.Content.ItemIds;
+        _filterPanel.Open(anchor, structureId, filter, items, _view.Content);
         SyncFilterPanel();
     }
 
@@ -121,7 +140,8 @@ public partial class World
             return;
         }
 
-        if (!HudVisible || PanelOpen || _tool != BuildTool.None || !TryGetFilterBlock(tile, out _, out _))
+        if (!HudVisible || PanelOpen || _tool != BuildTool.None || !TryGetFilterBlock(tile, out var anchor, out _, out _)
+            || anchor != tile)
         {
             _filterPanel.Close();
             return;
@@ -130,8 +150,9 @@ public partial class World
         // World → viewport (camera) → HUD root units (the HUD layer is scaled by the UI scale).
         var canvas = GetViewport().GetCanvasTransform();
         var scale = UiScale.Factor;
-        var top = canvas * new Vector2((tile.X + 0.5f) * TileSize, tile.Y * TileSize) / scale;
-        var bottom = canvas * new Vector2((tile.X + 0.5f) * TileSize, (tile.Y + 1) * TileSize) / scale;
+        var size = FilterBlockSize(tile);
+        var top = canvas * new Vector2((tile.X + size * 0.5f) * TileSize, tile.Y * TileSize) / scale;
+        var bottom = canvas * new Vector2((tile.X + size * 0.5f) * TileSize, (tile.Y + size) * TileSize) / scale;
         var area = UiRoot.Size;
         if (bottom.Y < 0f || top.Y > area.Y || top.X < 0f || top.X > area.X)
         {

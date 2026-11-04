@@ -63,7 +63,8 @@ public partial class World : Node2D
         Container,
         Vault,
         CoreFoundation,
-        CoreNucleus
+        CoreNucleus,
+        MarketScreen
     }
 
     // The simulation lives behind the host: the client reads IGameView and submits commands.
