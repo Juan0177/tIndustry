@@ -186,7 +186,7 @@ public partial class World
     private string MarketScreenTip(MarketScreen screen)
     {
         var view = _view!;
-        var result = MarketScreenVisual.ShownResult(screen, view.CurrentTick);
+        var result = JackpotSequenceRunning ? null : MarketScreenVisual.ShownResult(screen, view.CurrentTick, JackpotResultFrom(screen));
         var key = (view.CurrentTick / MarketScreenVisual.RefreshTicks, screen.Active, screen.WatchedItemId, result,
             MarketModuleTexts.ModulesResearched(view));
         if (_screenTipKey == key && _screenTipText is not null)
@@ -336,7 +336,7 @@ public partial class World
         {
             var node = MarketScreenVisual.Create(screen, TileSize);
             node.Position = FootprintCenter(screen.Position, MarketScreen.Size);
-            node.Sync(screen, _view);
+            node.Sync(screen, _view, _jackpotView, JackpotResultFrom(screen));
             _buildingsLayer.AddChild(node);
         }
 
@@ -491,7 +491,7 @@ public partial class World
                 case MarketScreenVisual screenVis:
                     if (_view.MarketScreen is { } screen && screen.Position.Equals(screenVis.Origin))
                     {
-                        screenVis.Sync(screen, _view);
+                        screenVis.Sync(screen, _view, _jackpotView, JackpotResultFrom(screen));
                     }
 
                     break;

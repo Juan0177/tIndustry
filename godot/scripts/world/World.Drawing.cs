@@ -34,6 +34,11 @@ public partial class World
 
     private void DrawPlacementOverlay(CanvasItem canvas)
     {
+        if (JackpotSequenceRunning)
+        {
+            return; // the jackpot sequence is only watched: no range, ghost or rectangle over it
+        }
+
         if (_view is not null && _tool != BuildTool.None && GameInPlay)
         {
             DrawDroneRange(canvas);

@@ -33,6 +33,9 @@ public partial class World
         }
 
         _filterPanel?.Close(); // its block belonged to the old game
+        EndJackpotSequence(aborted: true); // the sequence belonged to the old game too
+        _jackpotPending = null;
+        _jackpotResultFrom = null;
         _host = host;
         _host.CommandApplied += OnCommandApplied;
         _host.CommandRejected += OnCommandRejected;
@@ -68,6 +71,9 @@ public partial class World
             _host.EventRaised -= OnSimEvent;
         }
 
+        EndJackpotSequence(aborted: true);
+        _jackpotPending = null;
+        _jackpotResultFrom = null;
         _host = null;
         _quietRefusals.Clear();
         _effects?.Clear();
@@ -176,7 +182,12 @@ public partial class World
                 break;
             case SaleResolved sale when sale.PlayerId == LocalPlayer:
                 _mercato?.OnSaleResolved(sale);
-                if (sale.Jackpot)
+                if (JackpotSequenceWanted(sale))
+                {
+                    // An attempt with the screen: the sequence replaces the toast (started after the frame's ticks).
+                    _jackpotPending = sale;
+                }
+                else if (sale.Jackpot)
                 {
                     _hud?.ShowToast(Testi.F("mercato.jackpot", sale.Income));
                 }
@@ -258,4 +269,216 @@ public partial class World
                 break;
         }
     }
+
+    // --- The jackpot-attempt sequence (spec 2b) ----------------------------------------------------------------------
+
+    private JackpotSequenceView? _jackpotView;
+
+    /// <summary>An attempt resolved during the frame's ticks, started by <see cref="SyncJackpotSequence"/> after them.</summary>
+    private SaleResolved? _jackpotPending;
+
+    // The game and the screen the running sequence belongs to.
+    private SimHost? _jackpotHost;
+    private GridPosition _jackpotScreen;
+
+    /// <summary>
+    /// The sale tick of the screen's last result and the tick its 6 seconds on the glass start from: the end of its
+    /// sequence (client side), not the sale.
+    /// </summary>
+    private (long SaleTick, long From)? _jackpotResultFrom;
+
+    /// <summary>The window has the focus (lost: the sequence pauses, as with Space).</summary>
+    private bool _windowFocused = true;
+
+    /// <summary>
+    /// Set by a playtest step that plays the sequence; the other playtests keep today's toast (their captures and
+    /// checks do not expect the world to zoom).
+    /// </summary>
+    internal bool PlaytestJackpotSequence { get; set; }
+
+    /// <summary>A jackpot-attempt sequence is running (the agents' bridge waits for its end).</summary>
+    internal bool JackpotSequenceRunning => _jackpotView?.Running == true;
+
+    /// <summary>The sequence hides the HUD (<see cref="HudVisible"/>).</summary>
+    private bool JackpotHidesHud => _jackpotView?.Sequence is { HidesHud: true };
+
+    /// <summary>The sequence blocks the world's commands: only the skip (click, Esc) and the pause (Space) are left.</summary>
+    private bool JackpotBlocksInput => _jackpotView?.Sequence is { BlocksWorldInput: true };
+
+    private void EnsureJackpotSequenceView()
+    {
+        _jackpotView = JackpotSequenceView.Create(UiRoot, TileSize);
+        AddChild(_jackpotView);
+    }
+
+    /// <summary>The local player's attempt with a market screen in the game (and not a playtest that keeps the toast).</summary>
+    private bool JackpotSequenceWanted(SaleResolved sale) =>
+        sale.Attempt && _view?.MarketScreen is not null && _jackpotView is not null
+        && (!PlaytestRequested || PlaytestJackpotSequence);
+
+    /// <summary>
+    /// Every frame of a game, after the ticks: starts an attempt that just resolved, closes the sequence when it cannot
+    /// go on (Home, a panel, loading, another game, the screen gone), otherwise moves it on in real time (the frame's
+    /// time without the engine's time scale: the dev speeds do not shorten it), paused with the player's pause or
+    /// without the window's focus.
+    /// </summary>
+    private void SyncJackpotSequence(double delta)
+    {
+        if (_jackpotView is null)
+        {
+            return;
+        }
+
+        if (_jackpotPending is { } pending)
+        {
+            _jackpotPending = null;
+            StartJackpotSequence(pending);
+        }
+
+        if (_jackpotView.Sequence is not { } sequence)
+        {
+            return;
+        }
+
+        if (!GameInPlay || PanelOpen || LoadingShown || _host != _jackpotHost
+            || _view?.MarketScreen is not { } screen || !screen.Position.Equals(_jackpotScreen))
+        {
+            EndJackpotSequence(aborted: true);
+            return;
+        }
+
+        // Agent games and playtests run in windows without the focus: there only the pause holds it.
+        sequence.Paused = PlayerPaused || (!_windowFocused && !PlaytestRequested && !AgentBridgeActive);
+        var scale = Engine.TimeScale;
+        _jackpotView.Advance(scale > 0 ? delta / scale : delta);
+        if (sequence.Finished)
+        {
+            EndJackpotSequence(aborted: false);
+        }
+    }
+
+    /// <summary>
+    /// Starts the sequence of <paramref name="sale"/>: the Mercato and the filter card close, every held input and drag is
+    /// let go, the camera zooms on the screen. A running sequence gives way to the new one. Without a screen, or with
+    /// another panel over the game, the toast of today is shown instead.
+    /// </summary>
+    private void StartJackpotSequence(SaleResolved sale)
+    {
+        var cam = GetNodeOrNull<WorldCamera>("Camera");
+        if (_jackpotView is null || cam is null || _view?.MarketScreen is not { } screen || !GameInPlay || LoadingShown
+            || _research?.IsOpen == true || _campaignSelect?.IsOpen == true || _settingsPanel?.IsOpen == true
+            || _saves?.IsOpen == true)
+        {
+            if (sale.Jackpot)
+            {
+                _hud?.ShowToast(Testi.F("mercato.jackpot", sale.Income));
+            }
+
+            return;
+        }
+
+        if (_jackpotView.Sequence is not null)
+        {
+            // A second attempt (from an agent): the running one ends, the camera stays on the screen.
+            _jackpotView.Stop();
+        }
+
+        _mercato?.Close(); // the scene is in the world: the result stays in the Mercato's status line
+        _filterPanel?.Close();
+        CancelDrags();
+        _hover = null; // no ghost, tooltip or hover hint over the scene
+        GetViewport().GuiReleaseFocus(); // Space must reach the pause, not the «Vendi tutto» button
+        _hud?.SetSiteTooltip(null, default);
+        _hud?.SetPowerTooltip(null, default);
+        _hud?.SetPlacementHint(null);
+
+        var centre = FootprintCenter(screen.Position, MarketScreen.Size);
+        var (rest, coreStop) = JackpotBotPoints(centre);
+        var result = screen.LastResult is { } last && last.ItemId == sale.ItemId ? last : null;
+        _jackpotView.Start(sale, result, _view, centre, rest, coreStop);
+        _jackpotHost = _host;
+        _jackpotScreen = screen.Position;
+
+        // The view frames the screen and the bot's flight to the CORE, closer than the usual play zoom.
+        var half = MarketScreen.Size * TileSize / 2f;
+        var min = new Vector2(Math.Min(centre.X - half, Math.Min(rest.X, coreStop.X) - TileSize),
+            Math.Min(centre.Y - half, Math.Min(rest.Y, coreStop.Y) - TileSize));
+        var max = new Vector2(Math.Max(centre.X + half, Math.Max(rest.X, coreStop.X) + TileSize),
+            Math.Max(centre.Y + half, Math.Max(rest.Y, coreStop.Y) + TileSize));
+        var viewport = cam.GetViewportRect().Size;
+        var margin = TileSize * 1.5f;
+        var zoom = Math.Min(JackpotMaxZoom,
+            Math.Min(viewport.X / (max.X - min.X + 2 * margin), viewport.Y / (max.Y - min.Y + 2 * margin)));
+        cam.BeginFocus((min + max) / 2f, zoom);
+    }
+
+    /// <summary>Closest zoom the sequence frames the screen with.</summary>
+    private const float JackpotMaxZoom = 2f;
+
+    /// <summary>
+    /// The bot's two places: where it rests, just outside the screen on the side away from the CORE (so it never hides
+    /// the glass and its flight crosses the screen), and where it fills the briefcase, over the edge of the CORE cell
+    /// nearest to the screen, on the screen's side.
+    /// </summary>
+    private (Vector2 RestAt, Vector2 CoreStop) JackpotBotPoints(Vector2 screenCentre)
+    {
+        var outside = MarketScreen.Size * TileSize / 2f + TileSize / 2f;
+        if (_view is null || _view.CoreTiles.Count == 0)
+        {
+            return (screenCentre + new Vector2(0, -outside), screenCentre + new Vector2(0, outside + TileSize));
+        }
+
+        var best = Vector2.Zero;
+        var bestDistance = float.MaxValue;
+        foreach (var tile in _view.CoreTiles)
+        {
+            var at = new Vector2((tile.X + 0.5f) * TileSize, (tile.Y + 0.5f) * TileSize);
+            var distance = at.DistanceSquaredTo(screenCentre);
+            // Ties broken by position, so the same game always picks the same cell.
+            if (distance < bestDistance || (distance == bestDistance && (at.Y < best.Y || (at.Y == best.Y && at.X < best.X))))
+            {
+                best = at;
+                bestDistance = distance;
+            }
+        }
+
+        // Along the axis the screen lies on: half a cell from the CORE cell towards the screen, and just past the
+        // screen's far side for the rest.
+        var towards = screenCentre - best;
+        var step = Math.Abs(towards.X) >= Math.Abs(towards.Y)
+            ? new Vector2(Math.Sign(towards.X), 0)
+            : new Vector2(0, Math.Sign(towards.Y));
+        if (step == Vector2.Zero)
+        {
+            step = new Vector2(0, -1);
+        }
+
+        return (screenCentre + step * outside, best + step * (TileSize * 0.5f));
+    }
+
+    /// <summary>
+    /// Ends the sequence (finished, skipped, or <paramref name="aborted"/>: Home, load, new game, a panel, the screen
+    /// gone): HUD and commands come back, the camera goes back to the drone (at once when aborted), the result's 6 seconds
+    /// on the glass start now.
+    /// </summary>
+    private void EndJackpotSequence(bool aborted)
+    {
+        if (_jackpotView?.Sequence is null)
+        {
+            return;
+        }
+
+        _jackpotView.Stop();
+        GetNodeOrNull<WorldCamera>("Camera")?.EndFocus(instant: aborted);
+        if (_host is not null && _host == _jackpotHost && _view?.MarketScreen?.LastResult is { } result)
+        {
+            _jackpotResultFrom = (result.Tick, _view.CurrentTick);
+        }
+
+        _jackpotHost = null;
+    }
+
+    /// <summary>The tick the screen's current result is shown from: the end of its sequence, else null (its sale tick).</summary>
+    private long? JackpotResultFrom(MarketScreen screen) =>
+        screen.LastResult is { } result && _jackpotResultFrom is { } from && from.SaleTick == result.Tick ? from.From : null;
 }
