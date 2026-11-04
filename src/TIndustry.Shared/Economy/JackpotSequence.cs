@@ -19,7 +19,14 @@ public sealed class JackpotSequence
     public const double SkipGuardSeconds = 0.2;
 
     private static readonly double[] Durations = { 1, 1, 2, 2, 2, 2, 2 };
-    private static readonly double[] Starts = { 0, 1, 2, 4, 6, 8, 10 };
+    private static readonly double[] Starts = ComputeStarts();
+
+    private static double[] ComputeStarts()
+    {
+        var starts = new double[Durations.Length];
+        for (var i = 1; i < starts.Length; i++) starts[i] = starts[i - 1] + Durations[i - 1];
+        return starts;
+    }
 
     private bool _closed;
 

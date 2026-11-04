@@ -61,7 +61,7 @@ Poi la visuale torna sul drone, l'HUD riappare e l'esito resta sullo schermo per
 - **Saltare.** Un clic o Esc porta subito al risultato (che si vede per intero), un altro lo chiude. Non vale nei primi 0,2 secondi (così un doppio clic su «Vendi tutto» non salta nulla) e **non vale se hai vinto il jackpot**: in quel caso la sequenza si guarda fino in fondo.
 - **Pausa.** Spazio ferma la sequenza (bot, rulli e coriandoli) e la riprende da dove era; lo stesso succede se la finestra perde il fuoco. Le velocità di sviluppo non la accorciano: dura sempre 12 secondi veri.
 - **Solo guardare.** Durante la sequenza i comandi del mondo sono bloccati (WASD, clic, palette, tasti dei pannelli).
-- **Si chiude subito** se apri la Home, carichi una partita, ne inizi una nuova, apri un pannello o lo schermo viene smontato; l'esito resta comunque nella riga di stato del Mercato e, se lo schermo c'è, sul vetro.
+- **Si chiude subito** se apri la Home, carichi una partita, ne inizi una nuova, un pannello si apre o lo schermo viene smontato; l'esito resta comunque nella riga di stato del Mercato e, se lo schermo c'è, sul vetro.
 
 ### I moduli della Finanza
 

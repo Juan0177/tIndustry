@@ -104,6 +104,37 @@ public class JackpotSequenceTests
     }
 
     [Fact]
+    public void SkipFromZoomAfterGuardJumpsToResult()
+    {
+        var s = new JackpotSequence(Sale());
+        s.Advance(0.5);
+        Assert.Equal(JackpotStep.Zoom, s.Step);
+        Assert.True(s.TrySkip());
+        Assert.Equal(JackpotStep.Risultato, s.Step);
+        Assert.Equal(10, s.Elapsed);
+    }
+
+    [Fact]
+    public void WonJackpotIgnoresSkipDuringResult()
+    {
+        var s = new JackpotSequence(Sale(jackpot: true));
+        s.Advance(11);
+        Assert.Equal(JackpotStep.Risultato, s.Step);
+        Assert.False(s.TrySkip());
+        Assert.False(s.Finished);
+    }
+
+    [Fact]
+    public void SkipWorksWhilePaused()
+    {
+        var s = new JackpotSequence(Sale());
+        s.Advance(3);
+        s.Paused = true;
+        Assert.True(s.TrySkip());
+        Assert.Equal(JackpotStep.Risultato, s.Step);
+    }
+
+    [Fact]
     public void WonJackpotCannotBeSkipped()
     {
         var s = new JackpotSequence(Sale(jackpot: true));

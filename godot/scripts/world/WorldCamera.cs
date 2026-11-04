@@ -207,6 +207,13 @@ public partial class WorldCamera : Camera2D
         }
     }
 
+    /// <summary>Drops any focus and pending zoom return at once (a load or a new game sets its own zoom).</summary>
+    public void ResetFocus()
+    {
+        _focus = null;
+        _zoomBack = null;
+    }
+
     /// <summary>Snaps the view onto the drone at once (H, a new game), dropping a free look.</summary>
     public void CentreOn(Vector2 target)
     {
