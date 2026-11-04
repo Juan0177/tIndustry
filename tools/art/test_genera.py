@@ -38,6 +38,8 @@ CELLE = {
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5, "market-screen": 2,
+    # Finance modules: research nodes only, their sprite is the one-cell Research icon.
+    "finance-forecast": 1, "finance-percent": 1, "finance-odds": 1,
 }
 # Core tiers of the game (FactoryContent.CoreTiers): sprite name -> side in cells. Each has its body
 # and its nucleus light strip; the client draws the Core from the tier.

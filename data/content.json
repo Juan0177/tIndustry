@@ -831,6 +831,33 @@
       "prerequisites": [ "assembler" ]
     },
     {
+      "id": "finance-forecast",
+      "displayName": "Modulo previsione",
+      "kind": "module",
+      "unlockedByDefault": false,
+      "unlock": { "money": 6000, "materials": [ { "itemId": "lead-plate", "amount": 60 }, { "itemId": "copper-wire", "amount": 30 } ] },
+      "isStub": false,
+      "prerequisites": [ "market-screen" ]
+    },
+    {
+      "id": "finance-percent",
+      "displayName": "Modulo percentuale",
+      "kind": "module",
+      "unlockedByDefault": false,
+      "unlock": { "money": 12000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "finance-forecast" ]
+    },
+    {
+      "id": "finance-odds",
+      "displayName": "Modulo probabilità",
+      "kind": "module",
+      "unlockedByDefault": false,
+      "unlock": { "money": 25000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "finance-percent" ]
+    },
+    {
       "id": "core-foundation",
       "displayName": "CORE Fondazione",
       "kind": "core-upgrade",

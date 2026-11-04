@@ -248,6 +248,12 @@ public interface IGameView
     /// <summary>Seconds (rounded up) before "sell all" works again; 0 when it is free.</summary>
     int SellAllCooldownSeconds { get; }
 
+    /// <summary>
+    /// What the researched Finance modules show for <paramref name="itemId"/> now (forecast, percent over B, jackpot
+    /// odds); every field null without an active screen or for a module not researched (<see cref="Shared.MarketInsight"/>).
+    /// </summary>
+    MarketInsight MarketInsight(string itemId);
+
     /// <summary>Why the Core cannot be upgraded now (see <see cref="Factory.CoreUpgradeRefusal"/>); null when it can.</summary>
     Refusal? CoreUpgradeRefusal();
 

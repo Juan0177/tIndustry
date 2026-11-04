@@ -182,6 +182,22 @@ public sealed class MarketScreenLedTests
         Assert.Equal(ScreenLed.Purple, f.MarketScreen.LastResult!.Led);
     }
 
+    [Fact]
+    public void SellAllDuringACrash_IsPurple()
+    {
+        // The item is already crashed before the sale: no new crash, no price drop, still purple.
+        var (f, host) = Start();
+        var item = Prepare(f, Plate, 1000, 200);
+        item.Phase = MarketPhase.Crash;
+        item.PhaseStartTick = f.State.CurrentTick;
+        item.CrashEndTick = f.State.CurrentTick + 10_000;
+
+        Assert.Null(Submit(host, new SellAll(Player, Plate)));
+
+        Assert.Equal(MarketPhase.Crash, item.Phase);
+        Assert.Equal(ScreenLed.Purple, f.MarketScreen!.LastResult!.Led);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

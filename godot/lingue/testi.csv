@@ -20,6 +20,9 @@ struttura.battery.nome,Batteria,Battery
 struttura.container.nome,Contenitore,Container
 struttura.vault.nome,Deposito,Vault
 struttura.market-screen.nome,Schermo di borsa,Market screen
+struttura.finance-forecast.nome,Modulo previsione,Forecast module
+struttura.finance-percent.nome,Modulo percentuale,Percent module
+struttura.finance-odds.nome,Modulo probabilità,Odds module
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
 struttura.core-shard.nome,CORE Frammento,CORE Shard
@@ -119,6 +122,9 @@ struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete �
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
 struttura.market-screen.suggerimento,Schermo di borsa · 2×2 · attaccato al CORE accende il jackpot · sblocca in Ricerca,Market screen · 2×2 · next to the CORE it turns the jackpot on · unlock in Research
+struttura.finance-forecast.suggerimento,Modulo previsione · sullo schermo di borsa · quando arriva il picco e quando vendere · sblocca in Ricerca,Forecast module · on the market screen · when the spike comes and when to sell · unlock in Research
+struttura.finance-percent.suggerimento,Modulo percentuale · sullo schermo di borsa · il prezzo come percentuale su B · sblocca in Ricerca,Percent module · on the market screen · the price as a percentage over B · unlock in Research
+struttura.finance-odds.suggerimento,Modulo probabilità · sullo schermo di borsa · la probabilità del jackpot di un «Vendi tutto» ora · sblocca in Ricerca,Odds module · on the market screen · the jackpot odds of a «Sell all» now · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
@@ -405,6 +411,9 @@ struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende 
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
 struttura.market-screen.descrizione,Schermo di borsa · 2×2 · uno solo · a contatto col CORE · mostra il mercato di un oggetto e rende possibile il jackpot del «Vendi tutto»,Market screen · 2×2 · only one · touching the CORE · shows the market of one item and makes the «Sell all» jackpot possible
+struttura.finance-forecast.descrizione,Modulo previsione · niente da piazzare · con lo schermo di borsa attivo dice fra quanto arriva il picco o finisce il crollo e consiglia «aspetta» o «vendi ora»,Forecast module · nothing to place · with an active market screen it tells when the spike comes or the crash ends and advises «wait» or «sell now»
+struttura.finance-percent.descrizione,Modulo percentuale · niente da piazzare · con lo schermo di borsa attivo mostra il prezzo come «+N% su B»,Percent module · nothing to place · with an active market screen it shows the price as «+N% over B»
+struttura.finance-odds.descrizione,Modulo probabilità · niente da piazzare · con lo schermo di borsa attivo mostra la probabilità del jackpot se ora vendessi tutto quell'oggetto,Odds module · nothing to place · with an active market screen it shows the jackpot odds if you sold all of that item now
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
 tutorial.passo.1,"Il drone sei tu: muovilo con WASD, la visuale lo segue. Tieni premuto il tasto centrale e trascina per guardare lontano (al rilascio torna sul drone). Rotella = zoom · H torna sul drone.","You are the drone: move it with WASD, the view follows it. Hold the middle button and drag to look away (on release it goes back to the drone). Wheel = zoom · H goes back to the drone."

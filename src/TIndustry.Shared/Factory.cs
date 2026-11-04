@@ -2163,6 +2163,8 @@ public sealed class Factory : IGameView
 
     public int SellAllCooldownSeconds => (int)((SellAllWaitTicks() + SimulationClock.TickRate - 1) / SimulationClock.TickRate);
 
+    public MarketInsight MarketInsight(string itemId) => Shared.MarketInsight.Of(State, itemId);
+
     private MarketItemView ViewOf(MarketItemState item) => new(
         item.ItemId, item.BaseValue, item.PriceMilli, MarketMath.UnitIncome(item.BaseValue, item.PriceMilli), item.Phase,
         item.Phase == MarketPhase.Crash
