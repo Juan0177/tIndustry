@@ -472,9 +472,7 @@ public partial class MercatoPanel : Control
         var insight = _view!.MarketInsight(itemId);
         if (_view.IsStructureUnlocked(MarketInsight.ForecastNodeId))
         {
-            var forecast = MarketModuleTexts.Forecast(insight, screen: false);
-            var advice = MarketModuleTexts.Advice(insight);
-            row.Forecast.Text = forecast is null ? advice : $"{forecast} · {advice}";
+            row.Forecast.Text = MarketModuleTexts.ForecastWithAdvice(insight);
             row.Forecast.ThemeTypeVariation = insight.SellNow ? UiTheme.TestoSu
                 : insight.SecondsToCrashEnd is not null ? UiTheme.TestoCrollo
                 : UiTheme.TestoTenue;

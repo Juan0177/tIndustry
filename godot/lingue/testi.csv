@@ -373,6 +373,7 @@ borsa.previsione.crollo.presto,fine del crollo fra meno di 1 min,crash ends in l
 borsa.previsione.bloccato,Vendi tutto bloccato per {0} min,Sell all locked for {0} min
 borsa.previsione.bloccato.presto,Vendi tutto bloccato per meno di 1 min,Sell all locked for less than 1 min
 borsa.vendi.ora,vendi ora,sell now
+formato.separatore,{0} · {1},{0} · {1}
 borsa.aspetta,aspetta,wait
 borsa.percentuale,{0}% su B,{0}% over B
 borsa.probabilita,probabilità jackpot {0}%,jackpot odds {0}%

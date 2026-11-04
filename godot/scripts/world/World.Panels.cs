@@ -374,6 +374,8 @@ public partial class World
             _selectionText = null;
             _powerTipText = null;
             _powerTipKey = null;
+            _screenTipText = null;
+            _screenTipKey = null;
         }
         else if (what == NotificationApplicationFocusOut)
         {

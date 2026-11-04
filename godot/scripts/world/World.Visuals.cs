@@ -175,7 +175,7 @@ public partial class World
     }
 
     // Last market screen tip: rebuilt 4 times a second of game time, or when the screen changes.
-    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, string Locale)? _screenTipKey;
+    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, int Modules)? _screenTipKey;
     private string? _screenTipText;
 
     /// <summary>
@@ -187,7 +187,8 @@ public partial class World
     {
         var view = _view!;
         var result = MarketScreenVisual.ShownResult(screen, view.CurrentTick);
-        var key = (view.CurrentTick / 15, screen.Active, screen.WatchedItemId, result, TranslationServer.GetLocale());
+        var key = (view.CurrentTick / MarketScreenVisual.RefreshTicks, screen.Active, screen.WatchedItemId, result,
+            MarketModuleTexts.ModulesResearched(view));
         if (_screenTipKey == key && _screenTipText is not null)
         {
             return _screenTipText;
@@ -209,9 +210,7 @@ public partial class World
             var insight = view.MarketInsight(itemId);
             if (view.IsStructureUnlocked(MarketInsight.ForecastNodeId))
             {
-                var forecast = MarketModuleTexts.Forecast(insight, screen: false);
-                var advice = MarketModuleTexts.Advice(insight);
-                lines.Add(forecast is null ? advice : $"{forecast} · {advice}");
+                lines.Add(MarketModuleTexts.ForecastWithAdvice(insight));
                 if (MarketModuleTexts.Blocked(insight, screen: false) is { } blocked)
                 {
                     lines.Add(blocked);

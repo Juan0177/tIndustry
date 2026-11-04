@@ -5,8 +5,9 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// The 2×2 stock-exchange screen in the world (spec 2a «Schermo di borsa»): the frame with its glass and LED strip
-/// (<c>market-screen-base</c>) and, drawn on the glass, the followed item's icon, its price with ▲/▼, the percent over
-/// B (module) or «Crollo», the chart of the last 2 minutes (the Mercato overview's own) and the lines of the researched
+/// (<c>market-screen-base</c>) and, drawn on the glass, the followed item's icon, its price with ▲/▼, «Crollo» and the
+/// percent over B (module; on a module line when both do not fit), the chart of the last 2 minutes (the Mercato
+/// overview's own) and the lines of the researched
 /// Finance modules. For <see cref="MarketScreen.ResultTicks"/> after a «Vendi tutto» it shows the income and lights the
 /// strip (<c>market-screen-led</c>) in the LED colour; a jackpot writes «JACKPOT» and blinks the corner lamps
 /// (<c>market-screen-corners</c>) yellow. Detached from the Core it says «Staccato dal CORE», with no item «Scegli un
@@ -22,7 +23,7 @@ public partial class MarketScreenVisual : Node2D
     private const float SpritePixels = MarketScreen.Size * Sprites.PixelsPerCell;
 
     /// <summary>Ticks between two reads of the market (4 a second, as the Mercato panel).</summary>
-    private const int RefreshTicks = 15;
+    public const int RefreshTicks = 15;
 
     /// <summary>Ticks of one on or off phase of the jackpot's corner lamps.</summary>
     private const int BlinkTicks = 15;
@@ -48,7 +49,7 @@ public partial class MarketScreenVisual : Node2D
     private bool _forecast;
     private ScreenSaleResult? _result;
     private bool _blinkOn;
-    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, bool Blink, VarianteColori Colors, string Locale)? _key;
+    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, bool Blink, VarianteColori Colors, int Modules)? _key;
 
     public GridPosition Origin { get; private set; }
 
@@ -88,7 +89,7 @@ public partial class MarketScreenVisual : Node2D
         var result = ShownResult(screen, tick);
         var blink = result is { Jackpot: true } && (tick - result.Tick) / BlinkTicks % 2 == 0;
         var key = (tick / RefreshTicks, screen.Active, screen.WatchedItemId, result, blink, UiColors.Variante,
-            TranslationServer.GetLocale());
+            MarketModuleTexts.ModulesResearched(view));
         if (_key == key)
         {
             return;
@@ -128,8 +129,18 @@ public partial class MarketScreenVisual : Node2D
     {
         ScreenLed.Blue => UiColors.LedBlu,
         ScreenLed.Purple => UiColors.LedViola,
-        _ => UiColors.LedGiallo
+        ScreenLed.Yellow => UiColors.LedGiallo,
+        _ => UiColors.TestoTenue
     };
+
+    public override void _Notification(int what)
+    {
+        // New language: the glass is drawn again with the new words.
+        if (what == NotificationTranslationChanged)
+        {
+            _key = null;
+        }
+    }
 
     /// <summary>The glass in the node's space (centred on the block), in world pixels.</summary>
     private Rect2 Glass()
@@ -161,7 +172,7 @@ public partial class MarketScreenVisual : Node2D
             return;
         }
 
-        // Row 1: icon · price ▲▼ · percent over B (module) or «Crollo».
+        // Row 1: icon · price ▲▼ · «Crollo» · percent over B (module).
         var line = LineHeight(SmallText);
         var icon = Sprites.Item(item.ItemId);
         var iconSide = line;
@@ -172,46 +183,70 @@ public partial class MarketScreenVisual : Node2D
         var priceX = inner.Position.X + iconSide + 2;
         var priceText = MarketSparkline.PriceText(item, trend);
         Text(canvas, priceText, new Vector2(priceX, baseline), trend == MarketTrend.Piatto ? UiColors.Testo : MarketSparkline.ColorOf(trend));
-        string? rightText = null;
-        var rightColor = UiColors.Testo;
-        if (_insight.PercentOverB is { } percent)
+        // Right of the price: «Crollo» during a crash, then the percent over B (module) when it fits too; a percent
+        // that does not fit goes to the module lines.
+        var right = new List<(string Text, Color Color)>();
+        if (crashed)
         {
-            rightText = Testi.F("borsa.schermo.percentuale", MarketModuleTexts.Signed(percent));
-            rightColor = percent > 0 ? UiColors.MercatoSu : percent < 0 ? UiColors.MercatoGiu : UiColors.Testo;
-        }
-        else if (crashed)
-        {
-            rightText = Testi.T("borsa.schermo.crollo.stato");
-            rightColor = UiColors.MercatoCrollo;
+            right.Add((Testi.T("borsa.schermo.crollo.stato"), UiColors.MercatoCrollo));
         }
 
-        if (rightText is not null)
+        (string Text, Color Color)? percentSegment = null;
+        if (_insight.PercentOverB is { } percent)
         {
-            var room = inner.End.X - priceX - Width(priceText, SmallText) - 4;
-            rightText = Fit(rightText, room, SmallText);
-            Text(canvas, rightText, new Vector2(inner.End.X - Width(rightText, SmallText), baseline), rightColor);
+            percentSegment = (Testi.F("borsa.schermo.percentuale", MarketModuleTexts.Signed(percent)),
+                percent > 0 ? UiColors.MercatoSu : percent < 0 ? UiColors.MercatoGiu : UiColors.Testo);
+        }
+
+        var room = inner.End.X - priceX - Width(priceText, SmallText) - 4;
+        var percentOnTop = false;
+        if (percentSegment is { } ps && Width(Joined(right.Select(r => r.Text).Append(ps.Text)), SmallText) <= room)
+        {
+            right.Add(ps);
+            percentOnTop = true;
+        }
+
+        if (right.Count > 0)
+        {
+            var rx = inner.End.X - Width(Joined(right.Select(r => r.Text)), SmallText);
+            for (var i = 0; i < right.Count; i++)
+            {
+                if (i > 0)
+                {
+                    rx = DrawSeparator(canvas, rx, baseline);
+                }
+
+                var text = Fit(right[i].Text, inner.End.X - rx, SmallText);
+                Text(canvas, text, new Vector2(rx, baseline), right[i].Color);
+                rx += Width(text, SmallText);
+            }
         }
 
         var top = inner.Position.Y + line + 1;
         var below = new Rect2(inner.Position.X, top, inner.Size.X, inner.End.Y - top);
 
         // Module lines under the chart, packed two to a line when they fit; the chart takes what is left.
-        var lines = Pack(ModuleSegments(), below.Size.X, Math.Max(0, (int)((below.Size.Y - MinChart) / line)));
+        var segments = ModuleSegments();
+        if (!percentOnTop && percentSegment is { } moved)
+        {
+            segments.Insert(0, moved);
+        }
+
+        var lines = Pack(segments, below.Size.X, Math.Max(0, (int)((below.Size.Y - MinChart) / line)));
         var chart = new Rect2(below.Position, new Vector2(below.Size.X, below.Size.Y - lines.Count * line));
         MarketSparkline.DrawChart(canvas, chart, item.HistoryMilli, crashed ? MarketTrend.Crollo : trend, 1.5f, 2f);
         var y = chart.End.Y + Ascent(SmallText);
-        foreach (var segments in lines)
+        foreach (var packed in lines)
         {
             var x = below.Position.X;
-            for (var i = 0; i < segments.Count; i++)
+            for (var i = 0; i < packed.Count; i++)
             {
                 if (i > 0)
                 {
-                    Text(canvas, Separator, new Vector2(x, y), UiColors.TestoTenue);
-                    x += Width(Separator, SmallText);
+                    x = DrawSeparator(canvas, x, y);
                 }
 
-                var (text, color) = segments[i];
+                var (text, color) = packed[i];
                 text = Fit(text, below.End.X - x, SmallText);
                 Text(canvas, text, new Vector2(x, y), color);
                 x += Width(text, SmallText);
@@ -224,7 +259,18 @@ public partial class MarketScreenVisual : Node2D
     /// <summary>Smallest chart height kept when module lines take the bottom of the glass.</summary>
     private const float MinChart = 14f;
 
-    private const string Separator = " · ";
+    /// <summary>The separator of two texts on one line (<c>formato.separatore</c>: «a · b»), without the texts.</summary>
+    private static string Separator => Testi.F("formato.separatore", "", "");
+
+    /// <summary>Texts joined on one line with the separator.</summary>
+    private static string Joined(IEnumerable<string> texts) => string.Join(Separator, texts);
+
+    /// <summary>Draws the separator at <paramref name="x"/>; returns the x after it.</summary>
+    private static float DrawSeparator(CanvasItem canvas, float x, float baseline)
+    {
+        Text(canvas, Separator, new Vector2(x, baseline), UiColors.TestoTenue);
+        return x + Width(Separator, SmallText);
+    }
 
     /// <summary>The module lines of the followed item, in the screen's short words, each with its colour.</summary>
     private List<(string Text, Color Color)> ModuleSegments()
@@ -391,6 +437,21 @@ public static class MarketModuleTexts
 
         return null;
     }
+
+    /// <summary>
+    /// Which Finance modules are researched, as bits (forecast 1, percent 2, odds 4): part of the cache keys of the
+    /// screen and its tooltip, so research done while the game is paused shows at once.
+    /// </summary>
+    public static int ModulesResearched(IGameView view) =>
+        (view.IsStructureUnlocked(MarketInsight.ForecastNodeId) ? 1 : 0)
+        | (view.IsStructureUnlocked(MarketInsight.PercentNodeId) ? 2 : 0)
+        | (view.IsStructureUnlocked(MarketInsight.OddsNodeId) ? 4 : 0);
+
+    /// <summary>The forecast with its advice on one line («picco fra circa 3 min · aspetta»), or the advice alone.</summary>
+    public static string ForecastWithAdvice(MarketInsight insight) =>
+        Forecast(insight, screen: false) is { } forecast
+            ? Testi.F("formato.separatore", forecast, Advice(insight))
+            : Advice(insight);
 
     /// <summary>The forecast's advice: «vendi ora» in the spike, «aspetta» otherwise.</summary>
     public static string Advice(MarketInsight insight) => Testi.T(insight.SellNow ? "borsa.vendi.ora" : "borsa.aspetta");
