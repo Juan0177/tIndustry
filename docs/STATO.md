@@ -52,7 +52,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 ### 6 · [Mercato ed economia](wiki/Mercato-come-una-borsa.md)
 
 - [x] Mercato come una borsa, specifica 1 (PR #274–#282, [diario](diario/2026-10-22-mercato-borsa.md))
-- [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata
+- [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata (2a scritta, da approvare: [spec](superpowers/specs/2026-11-04-schermo-borsa-design.md))
 - [ ] Schermo di borsa e bot della finanza: implementazione
 - [x] Magazzino del CORE e livelli, specifica 3: specifica approvata ([spec](superpowers/specs/2026-10-23-magazzino-core-design.md))
 - [x] Magazzino del CORE e livelli: implementazione ([piano](superpowers/plans/2026-10-23-magazzino-core.md), [diario](diario/2026-10-23-magazzino-core.md))
