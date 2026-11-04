@@ -32,7 +32,7 @@ Se durante un rialzo vendi in un colpo solo (**Vendi tutto**) una quantità enor
 
 Lo **schermo di borsa** è un blocco 2×2 che si sblocca nella Ricerca dopo l'assemblatore e si piazza dalla categoria Magazzino della palette. Se ne può avere **uno solo**, e va messo **a contatto col CORE** (lato contro lato). Non ha direzione e non usa corrente.
 
-- **Accende il jackpot.** Finché lo schermo è finito e tocca il CORE, un «Vendi tutto» nel rialzo può vincere il colpo di fortuna. Se lo smonti, o resta staccato dal CORE, lo schermo lo dice («Staccato dal CORE») e il jackpot si spegne finché non lo riattacchi.
+- **Accende il jackpot.** Finché lo schermo è finito e tocca il CORE, un «Vendi tutto» nel rialzo può vincere il colpo di fortuna. Se lo smonti, il jackpot si spegne finché non lo ripiazzi a contatto col CORE. «Staccato dal CORE» è solo uno stato di sicurezza: il CORE non può allargarsi sullo schermo, perché lo schermo blocca il potenziamento.
 - **Segue un oggetto.** Fai clic sullo schermo (senza blocco scelto in palette) e scegli l'oggetto dalla griglia delle icone, come il filtro di un selezionatore. Lo schermo mostra l'icona, il prezzo del momento con la freccia, il grafico degli ultimi 2 minuti e la scritta «Crollo» se l'oggetto è crollato. Senza oggetto dice «Scegli un oggetto».
 - **Fa vedere com'è andata.** Dopo ogni «Vendi tutto», per 6 secondi lo schermo mostra l'oggetto venduto, l'incasso e accende i LED della cornice:
   - **blu**: il prezzo è sceso poco (al massimo un decimo del prezzo minimo);

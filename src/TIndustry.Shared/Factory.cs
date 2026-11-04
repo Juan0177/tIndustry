@@ -1223,6 +1223,7 @@ public sealed class Factory : IGameView
             .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
+            .Concat(data.MarketScreen is { } screen ? [screen.Id] : [])
             .DefaultIfEmpty(0)
             .Max();
         factory.nextEntityId = Math.Max(Math.Max(1, data.NextEntityId), maxSavedId + 1);

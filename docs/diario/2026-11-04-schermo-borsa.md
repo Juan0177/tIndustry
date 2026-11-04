@@ -103,9 +103,9 @@ Risolti nei task successivi:
   3. lo schermo si piazza solo a contatto col CORE (fantasma rosso e messaggio altrimenti), uno solo;
   4. clic sullo schermo senza blocco scelto: scheda «Oggetto seguito · Schermo di borsa» sopra il 2×2 con i soli oggetti del Mercato; la scelta mostra icona, prezzo e grafico sul vetro; «Nessuno» → «Scegli un oggetto»;
   5. testo del vetro leggibile a zoom 1 e 2 e dentro il vetro in italiano e in inglese, con 1, 2 e 3 moduli;
-  6. «Staccato dal CORE» in rosso dopo aver spostato lo schermo o smontato un pezzo;
+  6. «Staccato dal CORE» in rosso dopo aver spostato il CORE o smontato un pezzo (solo con un salvataggio preparato o un test (`SetCore`): è uno stato di sicurezza);
   7. «Vendi tutto» con i tre LED (blu, viola, gialli), «JACKPOT» e angoli lampeggianti, tutto per 6 s; col Bagliore i LED fioriscono;
-  8. riga «Moduli» nella panoramica del Mercato con lo schermo attivo, che sparisce staccandolo;
+  8. riga «Moduli» nella panoramica del Mercato con lo schermo attivo, che sparisce smontando lo schermo;
   9. varianti Daltonici e Alto contrasto: LED e testi del vetro cambiano subito;
   10. suggerimento col mouse sullo schermo (testi per esteso, significato dei LED durante l'esito).
 - In più: la riga in alto del vetro durante il crollo («Crollo» con la percentuale accanto) in italiano e in inglese, e le cifre grandi della Ricerca nell'HUD e nel pannello di sblocco.

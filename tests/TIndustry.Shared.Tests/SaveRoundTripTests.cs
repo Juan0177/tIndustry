@@ -215,6 +215,24 @@ public sealed class SaveRoundTripTests
     }
 
     [Fact]
+    public void Restore_WithTooLowNextEntityId_NewEntitiesGetIdsAboveTheScreens()
+    {
+        var content = LoadContent();
+        var factory = NewGame.Sandbox(
+            content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 42, rules: new GameRules(InstantBuild: true));
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec(MarketScreen.BuildingId, BuildingKind.MarketScreen, new GridPosition(63, 60), Direction.East), charge: false));
+        var screenId = factory.MarketScreen!.Id;
+        var data = factory.Capture();
+        data.NextEntityId = 1;
+
+        var restored = Factory.Restore(content, data);
+
+        Assert.Equal(screenId, restored.MarketScreen!.Id);
+        Assert.True(restored.NextEntityId > screenId);
+    }
+
+    [Fact]
     public void Checksum_CoversTheScreensWatchedItemAndLastResult()
     {
         var content = LoadContent();
