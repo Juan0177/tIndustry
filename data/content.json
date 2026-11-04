@@ -945,7 +945,9 @@
     "lostBoost": 0.2,
     "lostBoostMinutes": 5,
     "lostPieces": 10000,
-    "historySeconds": 120
+    "historySeconds": 120,
+    "ledMildDrop": 0.10,
+    "ledYellowPieces": 10000
   },
   "buildings": [
     {

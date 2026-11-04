@@ -137,8 +137,29 @@ internal static class MarketSales
             AfterMiss(s, item, pieces, crash, rules);
         }
 
+        if (sellAll && s.MarketScreen is { Active: true } screen)
+        {
+            var led = LedFor(rules, pieces, crash, won, price - item.PriceMilli);
+            screen.LastResult = new ScreenSaleResult(item.ItemId, income, led, won, s.CurrentTick);
+        }
+
         s.Events.Add(new SaleResolved(playerId, item.ItemId, pieces, price, income, crash, attempt, won, probability));
         return new SaleOutcome(pieces, price, income, crash);
+    }
+
+    /// <summary>
+    /// LED colour of a "sell all" on the screen (sheet «Esempi di vendita»): yellow with the jackpot or from
+    /// <see cref="MarketRules.LedYellowPieces"/> pieces; else purple with a crash; else blue when the price fell at most
+    /// <see cref="MarketRules.LedMildDropMilli"/> (thousandths of B, price before minus price after), purple otherwise.
+    /// </summary>
+    public static ScreenLed LedFor(MarketRules r, int pieces, bool crash, bool jackpot, int dropMilliOfB)
+    {
+        if (jackpot || pieces >= r.LedYellowPieces)
+        {
+            return ScreenLed.Yellow;
+        }
+
+        return !crash && dropMilliOfB <= r.LedMildDropMilli ? ScreenLed.Blue : ScreenLed.Purple;
     }
 
     private static void AfterMiss(GameState s, MarketItemState item, int pieces, bool crash, MarketRules rules)

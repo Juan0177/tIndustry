@@ -1,5 +1,23 @@
 namespace TIndustry.Shared;
 
+/// <summary>Colour of the screen's LEDs after a "sell all" (see <see cref="MarketSales.LedFor"/>).</summary>
+public enum ScreenLed
+{
+    /// <summary>Under the yellow size, no crash, the price fell at most <see cref="MarketRules.LedMildDropMilli"/>.</summary>
+    Blue,
+
+    /// <summary>Every other sale under the yellow size: a bigger fall or a crash.</summary>
+    Purple,
+
+    /// <summary>The 50/50 (from <see cref="MarketRules.LedYellowPieces"/> pieces, won or lost) or a jackpot.</summary>
+    Yellow,
+}
+
+/// <summary>
+/// Last "sell all" shown on the screen: item, money earned, LED colour, whether it was a jackpot and the tick of the sale.
+/// </summary>
+public sealed record ScreenSaleResult(string ItemId, long Income, ScreenLed Led, bool Jackpot, long Tick);
+
 /// <summary>
 /// 2×2 stock-exchange screen (spec 2a «Schermo di borsa»): no direction, no power, one per game, placed with a cell
 /// touching the Core edge to edge. <see cref="Active"/> (finished and touching the Core) turns the jackpot on
@@ -9,6 +27,9 @@ public sealed class MarketScreen
 {
     public const int Size = 2;
     public const string BuildingId = "market-screen";
+
+    /// <summary>How long the client shows <see cref="LastResult"/> after its tick: 6 seconds.</summary>
+    public const int ResultTicks = 6 * SimulationClock.TickRate;
 
     public MarketScreen(GridPosition position, long id = 0)
     {
@@ -22,8 +43,14 @@ public sealed class MarketScreen
     /// <summary>Top-left cell.</summary>
     public GridPosition Position { get; }
 
-    /// <summary>Market item the screen follows (null = none chosen yet).</summary>
-    public string? WatchedItemId { get; set; }
+    /// <summary>Market item the screen follows (null = none chosen yet); set with the <see cref="SetBlockFilter"/> command.</summary>
+    public string? WatchedItemId { get; internal set; }
+
+    /// <summary>
+    /// Outcome of the last "sell all" made while the screen was active (null = none yet), written by
+    /// <see cref="MarketSales.Sell"/>; the client shows it for <see cref="ResultTicks"/> from its tick.
+    /// </summary>
+    public ScreenSaleResult? LastResult { get; internal set; }
 
     /// <summary>True when the screen touches the Core edge to edge (set by <see cref="GameState.RefreshMarketScreen"/>).</summary>
     public bool Active { get; internal set; }

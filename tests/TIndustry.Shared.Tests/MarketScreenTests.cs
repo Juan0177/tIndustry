@@ -6,8 +6,8 @@ namespace TIndustry.Shared.Tests;
 /// <summary>
 /// The stock-exchange screen (spec 2a «Schermo di borsa»): a 2×2 block, one only (finished or being built), placed with a
 /// cell touching the Core edge to edge. It is active when finished and touching the Core; only then
-/// <see cref="GameState.HasMarketScreen"/> is true and a "sell all" in a spike can be a jackpot attempt. A Core that grows
-/// over it takes it apart with the normal refund.
+/// <see cref="GameState.HasMarketScreen"/> is true and a "sell all" in a spike can be a jackpot attempt. Like every other
+/// block (as in Mindustry), a screen on the new Core cells blocks the upgrade until it is removed.
 /// </summary>
 public sealed class MarketScreenTests
 {
@@ -221,57 +221,46 @@ public sealed class MarketScreenTests
         Assert.False(f.State.HasMarketScreen);
     }
 
-    [Fact]
-    public void CoreGrowingOverTheScreen_TakesItApartWithRefund()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ScreenOnTheNewCoreCells_BlocksTheUpgrade_UntilRemoved(bool instant)
     {
-        var f = NewFactory();
+        var f = NewFactory(instant);
         var host = new SimHost(f);
         Assert.Null(Submit(host, Place(Right)));
+        RunUntil(host, () => f.MarketScreen is not null);
         PrepareFoundation(f);
-        var before = f.CostOf(Spec(Right)).Where(e => e.ItemId is not null)
-            .ToDictionary(e => e.ItemId!, e => f.Wallet.MaterialCount(e.ItemId!));
+        var upgrade = new PlaceBuilding(Player, BuildingKind.CoreFoundation, Origin, Direction.East);
+
+        Assert.Equal(RefusalCode.CoreUpgradeBlocked, f.CoreUpgradeRefusal()?.Code);
+        Assert.Equal(RefusalCode.CoreUpgradeBlocked, Submit(host, upgrade)?.Code);
+        Assert.Equal(0, f.CoreTier);
+        Assert.True(f.State.HasMarketScreen);
+        Assert.DoesNotContain(f.Builders.SelectMany(b => b.Plans), p => BuildSpec.IsCoreUpgrade(p.Spec.Kind));
+
+        Assert.Null(Submit(host, new Remove(Player, Right)));
+        RunUntil(host, () => f.MarketScreen is null && !f.Sites.Any(s => s.Spec.Kind == BuildingKind.MarketScreen));
         Assert.Null(f.CoreUpgradeRefusal());
-
-        Assert.Null(Submit(host, new PlaceBuilding(Player, BuildingKind.CoreFoundation, Origin, Direction.East)));
-
-        Assert.Equal(1, f.CoreTier);
-        Assert.Null(f.MarketScreen);
+        Assert.Null(Submit(host, upgrade));
+        RunUntil(host, () => f.CoreTier == 1);
         Assert.False(f.State.HasMarketScreen);
-        foreach (var entry in f.CostOf(Spec(Right)).Where(e => e.ItemId is not null))
-        {
-            var paid = Content.CoreTiers[1].BuildCost.Where(c => c.ItemId == entry.ItemId).Sum(c => c.Amount);
-            Assert.Equal(before[entry.ItemId!] - paid + entry.Amount, f.Wallet.MaterialCount(entry.ItemId!));
-        }
     }
 
     [Fact]
-    public void CoreSiteGrowingOverTheScreen_TakesItApartWhenTheSiteStarts()
+    public void ScreenSiteOnTheNewCoreCells_BlocksTheUpgrade()
     {
         var f = NewFactory(instant: false);
         var host = new SimHost(f);
         Assert.Null(Submit(host, Place(Right)));
-        RunUntil(host, () => f.MarketScreen is not null);
-        // Researched but not paid yet: the site starts and waits, so the plates only move by the screen's refund.
-        f.Research.ForceUnlock(Content.CoreTiers[1].Id);
-        var plates = f.Wallet.MaterialCount(Plate);
+        RunUntil(host, () => HasScreenSite(f));
+        PrepareFoundation(f);
 
-        Assert.Null(Submit(host, new PlaceBuilding(Player, BuildingKind.CoreFoundation, Origin, Direction.East)));
-        RunUntil(host, () => f.Sites.Any(s => s.Spec.Kind == BuildingKind.CoreFoundation));
-
-        Assert.Null(f.MarketScreen);
-        Assert.False(f.State.HasMarketScreen);
-        Assert.False(f.TryGetSpecAt(Right, out _, out _));
-        var site = f.Sites.Single(s => s.Spec.Kind == BuildingKind.CoreFoundation);
-        var spentPlates = site.Cost.Select((c, i) => c.ItemId == Plate ? site.Spent[i] : 0).Sum();
-        Assert.Equal(plates + 60 - spentPlates, f.Wallet.MaterialCount(Plate));
-
-        foreach (var entry in Content.CoreTiers[1].BuildCost)
-        {
-            f.Wallet.AddMaterial(entry.ItemId, entry.Amount);
-        }
-
-        RunUntil(host, () => f.CoreTier == 1);
-        Assert.False(f.State.HasMarketScreen);
+        Assert.Equal(RefusalCode.CoreUpgradeBlocked, f.CoreUpgradeRefusal()?.Code);
+        Assert.Equal(
+            RefusalCode.CoreUpgradeBlocked,
+            Submit(host, new PlaceBuilding(Player, BuildingKind.CoreFoundation, Origin, Direction.East))?.Code);
+        Assert.Equal(0, f.CoreTier);
     }
 
     [Fact]

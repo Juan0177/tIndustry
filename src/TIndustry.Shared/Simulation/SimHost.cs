@@ -658,8 +658,9 @@ public sealed class SimHost
     }
 
     /// <summary>
-    /// The filter of a sorter, an inverted sorter or an extractor (null = none). Every block with a filter is a branch
-    /// here; anything else, or an item the game does not know, is refused.
+    /// The filter of a sorter, an inverted sorter or an extractor, or the item the market screen follows (null = none).
+    /// Every block with a filter is a branch here; anything else, or an item the game does not know (for the screen,
+    /// one the Market does not trade), is refused.
     /// </summary>
     private Refusal? ApplySetBlockFilter(SetBlockFilter command)
     {
@@ -681,6 +682,17 @@ public sealed class SimHost
                 extractor.SetFilterItem(command.ItemId);
                 return null;
             }
+        }
+
+        if (factory.MarketScreen is { } screen && screen.Occupies(command.Tile))
+        {
+            if (command.ItemId is { } watched && factory.State.Exchange.Find(watched) is null)
+            {
+                return RefusalCode.InvalidCommand;
+            }
+
+            screen.WatchedItemId = command.ItemId;
+            return null;
         }
 
         return RefusalCode.InvalidCommand;

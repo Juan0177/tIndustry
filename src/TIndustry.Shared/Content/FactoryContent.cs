@@ -575,7 +575,8 @@ public sealed class FactoryContent
             F(r.PityGuaranteeMisses, "pityGuaranteeMisses"),
             F(r.MissCooldownSeconds, "missCooldownSeconds"), F(r.MissSpikeDelaySeconds, "missSpikeDelaySeconds"),
             F(r.LostBoost, "lostBoost", 10_000), F(r.LostBoostMinutes, "lostBoostMinutes"),
-            F(r.LostPieces, "lostPieces"), Positive(F(r.HistorySeconds, "historySeconds"), "historySeconds"));
+            F(r.LostPieces, "lostPieces"), Positive(F(r.HistorySeconds, "historySeconds"), "historySeconds"),
+            F(r.LedMildDrop, "ledMildDrop", 1000), F(r.LedYellowPieces, "ledYellowPieces"));
 
         Order(rules.NormalMinMilli, rules.NormalMaxMilli, "normalMin", "normalMax");
         Order(1000, rules.NormalMinMilli, "1 (B)", "normalMin");
@@ -791,6 +792,10 @@ public sealed class FactoryContent
         public double? LostBoostMinutes { get; set; }
         public double? LostPieces { get; set; }
         public double? HistorySeconds { get; set; }
+
+        public double? LedMildDrop { get; set; }
+
+        public double? LedYellowPieces { get; set; }
     }
 
     private sealed class StructureDto

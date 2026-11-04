@@ -115,8 +115,7 @@ public static class Construction
 
     /// <summary>
     /// Starts building <paramref name="spec"/>: reserves its cells with a site at progress 0 that has
-    /// taken nothing yet; the first site starts the world's time (<see cref="GameState.FirstBuildTick"/>). A Core block
-    /// takes apart a market screen on its cells (<see cref="Factory.TakeApartScreenUnder"/>). Throws when the
+    /// taken nothing yet; the first site starts the world's time (<see cref="GameState.FirstBuildTick"/>). Throws when the
     /// cells are not free (callers check <see cref="Factory.CanPlace"/>).
     /// </summary>
     public static ConstructSite BeginBuild(GameState s, BuildSpec spec, int ownerPlayerId)
@@ -127,12 +126,6 @@ public static class Construction
         if (!factory.CanPlace(spec, out var reason))
         {
             throw new InvalidOperationException($"Cantiere non avviabile su {spec.Origin}: {reason}");
-        }
-
-        if (BuildSpec.IsCoreUpgrade(spec.Kind))
-        {
-            // The Core's site takes the cells now: a market screen on them is taken apart with its refund.
-            factory.TakeApartScreenUnder(spec);
         }
 
         var site = new ConstructSite(

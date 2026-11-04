@@ -2281,20 +2281,8 @@ public sealed class Factory : IGameView
             return RefusalCode.CoreUpgradeOutOfMap;
         }
 
-        // A finished market screen does not block the growth: the Core takes it apart (TakeApartScreenUnder).
-        return tiles.All(t => CanOccupy(t) || State.MarketScreen?.Occupies(t) == true) ? null : RefusalCode.CoreUpgradeBlocked;
-    }
-
-    /// <summary>
-    /// A Core block takes the cells of <paramref name="spec"/>: a market screen on one of them is taken apart with the
-    /// refund of a removal (<see cref="RefundBasisPointsFor"/>), so <see cref="GameState.HasMarketScreen"/> goes off.
-    /// </summary>
-    internal void TakeApartScreenUnder(BuildSpec spec)
-    {
-        if (State.MarketScreen is { } screen && Footprint(spec).Any(screen.Occupies))
-        {
-            RemoveInstant(screen.Position, refund: true);
-        }
+        // Like Mindustry, every block on the new cells (the market screen too) blocks the growth until it is cleared.
+        return tiles.All(CanOccupy) ? null : RefusalCode.CoreUpgradeBlocked;
     }
 
     /// <summary>The Core tier whose block or structure id is <paramref name="structureId"/> (1 or 2), or -1.</summary>
@@ -2329,7 +2317,6 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        TakeApartScreenUnder(spec);
         // SetCore recomputes the Core's cells, the linked storage blocks and the market screen.
         State.SetCore(spec.Origin, tier);
         buildingsVersion++;
