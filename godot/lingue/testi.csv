@@ -71,7 +71,7 @@ obiettivo.level-04-fili.3,Vendi 2 fili di rame,Sell 2 copper wire
 campagna.level-05-mercato.nome,Economia Foundry,Foundry economy
 campagna.level-05-mercato.descrizione,Reinvestimento: vendi lastre e costruisci un piccolo surplus.,Reinvest: sell plates and build up a small surplus.
 obiettivo.level-05-mercato.1,Guadagna $150 dalle vendite,Earn $150 from sales
-obiettivo.level-05-mercato.2,Magazzino 20 lastre,Store 20 plates
+obiettivo.level-05-mercato.2,Magazzino 40 lastre,Store 40 plates
 campagna.level-06-corrente.nome,Corrente,Power
 campagna.level-06-corrente.descrizione,Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).,Power up the factory: coal generator and Power node T1. The smelter runs on coal or power (+20%).
 obiettivo.level-06-corrente.1,Sblocca il generatore,Unlock the generator

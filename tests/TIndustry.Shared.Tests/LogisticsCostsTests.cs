@@ -119,7 +119,7 @@ public sealed class LogisticsCostsTests
 
     /// <summary>
     /// Levels whose stock objectives are already covered by the starting stock: a defect older than the research
-    /// balancing, left to the campaign rework (aspect 8). For them a covered objective drives no research.
+    /// balancing, left to the campaign rework (aspect 8, docs/STATO.md). For them a covered objective drives no research.
     /// </summary>
     private static readonly HashSet<string> CoveredAtStart = new(StringComparer.Ordinal)
     {
@@ -134,7 +134,7 @@ public sealed class LogisticsCostsTests
     /// the recipes behind its stock and sell objectives, and their locked prerequisites), and has (or can mine and
     /// craft on its map) the materials of the smelter, the basic belt and all that research. An ore counts as mined
     /// only if a miner the level has (unlocked at start, or one of the research it needs) can dig it (titanium needs
-    /// the Miner T2). A stock objective of a made item is not met yet once that research is paid from the start.
+    /// the Miner T2). A stock objective of a made item is unmet both at start and once that research is paid.
     /// Limits: amounts beyond the starting stock are not checked once an item is producible, sale income is
     /// ignored (the money must be there at start), stock and sell objectives only drive the research (their
     /// completion is not played), and in <see cref="CoveredAtStart"/> an objective the start covers is skipped.
@@ -188,12 +188,18 @@ public sealed class LogisticsCostsTests
                 }
             }
 
-            // A stock objective that asks for research must still be open once that research is paid.
+            // A stock objective that asks for research must be open at start and once that research is paid.
             if (!CoveredAtStart.Contains(level.Id))
             {
                 foreach (var o in (level.Objectives ?? []).Where(o => o.Type == CampaignObjectiveType.StockItem && IsMade(o.ItemId!)))
                 {
-                    var left = wallet.MaterialCount(o.ItemId!)
+                    var start = wallet.MaterialCount(o.ItemId!);
+                    if (start >= o.Amount)
+                    {
+                        problems.Add($"{level.Id}: «{o.Label}» è già fatto al primo tick ({start} {o.ItemId})");
+                    }
+
+                    var left = start
                         - research.SelectMany(r => r.Unlock?.Materials ?? []).Where(m => m.ItemId == o.ItemId).Sum(m => m.Amount);
                     if (left >= o.Amount)
                     {

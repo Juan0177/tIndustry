@@ -197,8 +197,8 @@
         {
           "type": "stockItem",
           "itemId": "iron-plate",
-          "amount": 20,
-          "label": "Magazzino 20 lastre"
+          "amount": 40,
+          "label": "Magazzino 40 lastre"
         }
       ],
       "unlocksNext": "level-06-corrente"
