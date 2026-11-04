@@ -5,12 +5,17 @@ namespace TIndustry.Shared;
 /// current tick without touching the game. A module's fields are null until its node is researched, and all of them
 /// are null without an active <see cref="MarketScreen"/>.
 /// <list type="bullet">
-/// <item>Forecast (<see cref="ForecastNodeId"/>): seconds (rounded up) to the next spike, or to the end of a crash
-/// (then no spike countdown), the global "sell all" wait after a missed attempt, and <see cref="SellNow"/> in the
-/// spike. The client turns the seconds into "about N min".</item>
-/// <item>Percent (<see cref="PercentNodeId"/>): the price of the moment as whole percent over B, floored.</item>
+/// <item>Forecast (<see cref="ForecastNodeId"/>), by phase: Normal gives <see cref="SecondsToSpike"/> to
+/// <c>NextSpikeTick</c> (rounded up); SpikeRise under the threshold gives 0 (the spike is arriving); SpikeHold, and
+/// SpikeRise or SpikeFall at or over the threshold, give <see cref="SellNow"/> true and no countdown; SpikeFall under
+/// the threshold gives neither (the spike has passed; <c>NextSpikeTick</c> already names the following one); Crash gives
+/// <see cref="SecondsToCrashEnd"/> only. <see cref="SecondsSellAllBlocked"/> is the global "sell all" wait after a
+/// missed attempt, in any phase. The client turns the seconds into "about N min".</item>
+/// <item>Percent (<see cref="PercentNodeId"/>): the price of the moment as whole percent over B, floored; negative
+/// under B (a crash dip), and the client formats the sign.</item>
 /// <item>Odds (<see cref="OddsNodeId"/>): the jackpot chance of a "sell all" of every piece of the item in the Core
-/// now, pity included, from <see cref="MarketSales.SellAllAttempt"/> (the very check the sale uses).</item>
+/// now, pity included, from <see cref="MarketSales.SellAllAttempt"/> (the very check the sale uses), floored from
+/// basis points to whole percent.</item>
 /// </list>
 /// </summary>
 public sealed record MarketInsight(
@@ -45,18 +50,26 @@ public sealed record MarketInsight(
         var sellNow = false;
         if (s.Research.IsUnlocked(ForecastNodeId))
         {
-            if (item.Phase == MarketPhase.Crash)
+            sellNow = item.Phase != MarketPhase.Crash && MarketSales.InSpike(rules, item.PriceMilli);
+            switch (item.Phase)
             {
-                toCrashEnd = SecondsUp(item.CrashEndTick - tick);
-            }
-            else
-            {
-                toSpike = SecondsUp(item.NextSpikeTick - tick);
+                case MarketPhase.Crash:
+                    toCrashEnd = SecondsUp(item.CrashEndTick - tick);
+                    break;
+                case MarketPhase.Normal:
+                    toSpike = SecondsUp(item.NextSpikeTick - tick);
+                    break;
+                case MarketPhase.SpikeRise when !sellNow:
+                    // Rising but not yet at the threshold: the spike is arriving.
+                    toSpike = 0;
+                    break;
+                default:
+                    // In a spike (NextSpikeTick already names the following one): sell now, or it has passed.
+                    break;
             }
 
             var wait = s.Exchange.SellAllBlockedUntilTick - tick;
             blocked = wait > 0 ? SecondsUp(wait) : null;
-            sellNow = MarketSales.InSpike(rules, item.PriceMilli);
         }
 
         int? percent = s.Research.IsUnlocked(PercentNodeId)

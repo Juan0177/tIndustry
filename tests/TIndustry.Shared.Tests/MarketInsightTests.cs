@@ -198,6 +198,29 @@ public sealed class MarketInsightTests
         Assert.Equal(sellNow, Read(f).SellNow);
     }
 
+    [Theory]
+    [InlineData(MarketPhase.SpikeRise, 2000, 0, false)]
+    [InlineData(MarketPhase.SpikeRise, 2799, 0, false)]
+    [InlineData(MarketPhase.SpikeRise, 2800, null, true)]
+    [InlineData(MarketPhase.SpikeHold, 2900, null, true)]
+    [InlineData(MarketPhase.SpikeFall, 2850, null, true)]
+    [InlineData(MarketPhase.SpikeFall, 2799, null, false)]
+    [InlineData(MarketPhase.SpikeFall, 1500, null, false)]
+    public void Forecast_DuringASpike_FollowsThePhase(MarketPhase phase, int priceMilli, int? toSpike, bool sellNow)
+    {
+        var (f, _) = Start(screen: true, MarketInsight.ForecastNodeId);
+        var item = Prepare(f, Plate, priceMilli, 100);
+        item.Phase = phase;
+        // Once a spike starts, NextSpikeTick names the following one: it must not show.
+        item.NextSpikeTick = f.CurrentTick + 15 * 60 * 60;
+
+        var insight = Read(f);
+
+        Assert.Equal(toSpike, insight.SecondsToSpike);
+        Assert.Equal(sellNow, insight.SellNow);
+        Assert.Null(insight.SecondsToCrashEnd);
+    }
+
     [Fact]
     public void Forecast_InACrash_GivesTheEndOfTheCrash()
     {

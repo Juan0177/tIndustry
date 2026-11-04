@@ -79,7 +79,8 @@ internal static class MarketSales
     /// <summary>
     /// Sells <paramref name="pieces"/> of <paramref name="item"/> from the wallet at the price of the moment, then applies
     /// the per-piece price drop and the crash window. Null when the stock is short. <paramref name="sellAll"/> is
-    /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>).
+    /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>, <see cref="SellAllAttempt"/>); a direct
+    /// "sell all" call during the global wait sells without attempting the jackpot.
     /// </summary>
     public static SaleOutcome? Sell(GameState s, MarketItemState item, int pieces, bool sellAll, int playerId)
     {
