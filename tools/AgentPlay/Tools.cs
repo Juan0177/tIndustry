@@ -121,7 +121,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     // ---- Look
 
     [McpServerTool(Name = "stato")]
-    [Description("Riassunto della partita: tick, soldi, risorse, energia, ricerca (le strutture già sbloccate), edifici, costruzione, Core, direzione dei piazzamenti (nel gioco vero quella del giocatore), ultimi rifiuti (tick = quello del diario: il tick in cui è arrivato il comando) e impronta (da confrontare con quella di rigioca). obiettivi e livelloCompletato ci sono solo nei livelli della campagna.")]
+    [Description("Riassunto della partita: tick, soldi, risorse, energia, ricerca (le strutture già sbloccate), edifici, costruzione, Core, direzione dei piazzamenti (nel gioco vero quella del giocatore), drone (centro, ingresso tenuto, stiva, cella scavata, raggio di costruzione), ultimi rifiuti (tick = quello del diario: il tick in cui è arrivato il comando) e impronta (da confrontare con quella di rigioca). obiettivi e livelloCompletato ci sono solo nei livelli della campagna.")]
     public string Stato([Description(Sessione)] string sessione, [Description(Dettaglio)] bool dettaglio = false) => Game(sessione, "stato", dettaglio: dettaglio);
 
     [McpServerTool(Name = "area")]
@@ -223,6 +223,25 @@ public sealed class Tools(Sessions sessions, GameData data)
         [Description("La cella del selezionatore o dell'estrattore.")] Cella cella,
         [Description("Id dell'oggetto del filtro; assente = nessun filtro.")] string? oggetto = null) =>
         Game(sessione, "filtro", new { cella, oggetto });
+
+    // ---- The drone (the player flies it: plans out of its build range wait)
+
+    [McpServerTool(Name = "muovi")]
+    [Description("Muove il drone, come i tasti WASD: il drone non vola più da solo verso i piani, costruisce e scava solo entro il suo raggio (27,5 celle; vedi drone.raggio in stato). Con 'dx' e 'dy' (-1, 0, 1) tiene premuta quella direzione finché un altro muovi non la cambia (0, 0 = fermo; risponde dopo il tick che la applica). Con 'cella' vola fino al centro della cella guidando tick per tick (come avanza, il tempo passa), si ferma entro mezza cella o dopo 'maxTick' tick e lascia l'ingresso a 0. Risponde {tickPrima, tick, arrivato, distanza, drone}.")]
+    public string Muovi(
+        [Description(Sessione)] string sessione,
+        [Description("Direzione tenuta lungo x: -1 ovest, 0, 1 est (con dy, senza cella).")] int? dx = null,
+        [Description("Direzione tenuta lungo y: -1 nord, 0, 1 sud (le righe delle celle crescono verso sud).")] int? dy = null,
+        [Description("Cella da raggiungere (al posto di dx/dy).")] Cella? cella = null,
+        [Description("Con cella: tick al massimo di volo (predefinito 3600 = 60 s, 1-36000).")] int? maxTick = null) =>
+        Game(sessione, "muovi", new { dx, dy, cella, maxTick });
+
+    [McpServerTool(Name = "scava")]
+    [Description("Scava a mano col drone il giacimento di una cella nel suo raggio (SetMining): un oggetto alla volta nella stiva, al ritmo del livello (alpha 0,7 pezzi/s, stiva 30; beta 0,9 e 50; gamma 1,1 e 70, l'unico che scava il titanio); entro 6 celle dal Core la stiva si scarica da sola. Lo scavo si annulla se la cella esce dal raggio, finisce sotto un edificio o perde il giacimento; aspetta, e riprende da solo, a stiva piena, a Core pieno o mentre il drone costruisce. Senza 'cella' smette. Rifiuti: MiningNoDeposit, MiningNotMineable, MiningOutOfRange, MiningCovered, MiningHoldOtherItem, MiningHoldFull. Risponde {tick, drone}.")]
+    public string Scava(
+        [Description(Sessione)] string sessione,
+        [Description("Cella del giacimento; assente = smette di scavare.")] Cella? cella = null) =>
+        Game(sessione, "scava", new { cella });
 
     // ---- Time
 

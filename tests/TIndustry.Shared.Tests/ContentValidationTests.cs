@@ -141,9 +141,11 @@ public sealed class ContentValidationTests
     [Fact]
     public void Units_MatchMindustry()
     {
-        Assert.Equal(new UnitDefinition(0.5f, 27.5f, 22.5f), Content.Units["alpha"]);
-        Assert.Equal(new UnitDefinition(0.75f, 27.5f, 24.75f), Content.Units["beta"]);
-        Assert.Equal(new UnitDefinition(1.0f, 27.5f, 26.6f), Content.Units["gamma"]);
+        string[] basic = ["iron-ore", "copper-ore", "lead-ore", "coal"];
+        Assert.Equal(new UnitDefinition(0.5f, 27.5f, 22.5f, 0.7f, 30) { MineItems = basic }, Content.Units["alpha"]);
+        Assert.Equal(new UnitDefinition(0.75f, 27.5f, 24.75f, 0.9f, 50) { MineItems = basic }, Content.Units["beta"]);
+        Assert.Equal(
+            new UnitDefinition(1.0f, 27.5f, 26.6f, 1.1f, 70) { MineItems = [.. basic, "titanium-ore"] }, Content.Units["gamma"]);
         Assert.Equal(Content.Units["alpha"], Content.UnitForTier(0));
         Assert.Equal(Content.Units["beta"], Content.UnitForTier(1));
         Assert.Equal(Content.Units["gamma"], Content.UnitForTier(2));

@@ -159,6 +159,7 @@ public partial class World
             return Fail("effetti: nessun posto libero per il minatore vicino al Core");
         }
 
+        PlaytestFlyDrone(origin); // within its range: the drone does not fly to its plans on its own
         cam.Position = FootprintCenter(origin, Miner.Size);
         cam.Zoom = new Vector2(1.6f, 1.6f);
         var finished = ConstructFinishedCount;

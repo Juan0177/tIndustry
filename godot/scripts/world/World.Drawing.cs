@@ -5,7 +5,8 @@ namespace TIndustry.Godot;
 
 /// <summary>
 /// Immediate-mode drawing over the terrain chunks (<see cref="TerrainChunks"/>): grid, map border, deposits; and on
-/// the placement overlay above the world: the placement ghost (<see cref="PlacementPreview"/>) and the bridge span.
+/// the placement overlay above the world: the placement ghost (<see cref="PlacementPreview"/>), the bridge span and,
+/// while a block is selected, the drone's build range.
 /// </summary>
 public partial class World
 {
@@ -33,11 +34,16 @@ public partial class World
 
     private void DrawPlacementOverlay(CanvasItem canvas)
     {
+        if (_view is not null && _tool != BuildTool.None && GameInPlay)
+        {
+            DrawDroneRange(canvas);
+        }
+
         if (_view is not null
             && _hover is { } hover
             && hover.X >= 0 && hover.Y >= 0
             && hover.X < ActiveMapWidth && hover.Y < ActiveMapHeight
-            && _tool != BuildTool.Cursor)
+            && _tool != BuildTool.None)
         {
             DrawGhost(canvas, hover);
         }
@@ -45,6 +51,33 @@ public partial class World
         if (_view is not null && _draggingRemove && _removeMoved && _hover is { } cursor)
         {
             DrawRemovalRectangle(canvas, cursor);
+        }
+    }
+
+    /// <summary>Segments of the drone's range circle; every other one is drawn (a dashed circle, as Mindustry's).</summary>
+    private const int DroneRangeSegments = 120;
+
+    /// <summary>Plans out of the circle wait (<see cref="IGameView.IsPlanInRange"/>, the same distance from the drone's centre).</summary>
+    private void DrawDroneRange(CanvasItem canvas)
+    {
+        if (DroneWorldPosition() is not { } centre)
+        {
+            return;
+        }
+
+        var radius = _view!.Content.UnitForTier(_view.CoreTier).BuildRange * TileSize;
+        canvas.DrawCircle(centre, radius, UiColors.RaggioDrone with { A = 0.04f });
+        var under = UiColors.SottoSegno;
+        for (var i = 0; i < DroneRangeSegments; i += 2)
+        {
+            var from = centre + Vector2.FromAngle(Mathf.Tau * i / DroneRangeSegments) * radius;
+            var to = centre + Vector2.FromAngle(Mathf.Tau * (i + 1) / DroneRangeSegments) * radius;
+            if (under.A > 0f)
+            {
+                canvas.DrawLine(from, to, under, 6f);
+            }
+
+            canvas.DrawLine(from, to, UiColors.RaggioDrone with { A = 0.75f }, 3f);
         }
     }
 
@@ -74,7 +107,7 @@ public partial class World
         // and drawn very faint only while a build tool is selected (placing by cells).
         var artLod = screenTilePx >= TerrainChunks.ArtMinCellPx;
         Color? gridColor = artLod
-            ? (_tool != BuildTool.Cursor ? new Color(0f, 0f, 0f, 0.14f) : null)
+            ? (_tool != BuildTool.None ? new Color(0f, 0f, 0f, 0.14f) : null)
             : (screenTilePx >= 10f ? new Color(0.22f, 0.28f, 0.24f, 0.55f) : null);
         if (gridColor is { } grid)
         {
@@ -457,7 +490,7 @@ public partial class World
     /// a line), from the simulation's own <see cref="Factory.CanPlace"/> and the pending plans.
     /// </summary>
     private RefusalCode? GhostRefusal(GridPosition hover) =>
-        _view is null || _tool == BuildTool.Cursor ? null : PlanLine(hover)[^1].Refusal;
+        _view is null || _tool == BuildTool.None ? null : PlanLine(hover)[^1].Refusal;
 
     private bool FootprintPlanned(GridPosition origin, int size)
     {
@@ -518,7 +551,7 @@ public partial class World
         }
     }
 
-    /// <summary>The power node selected with the cursor (its range and lasers are shown; a click links or unlinks); null for none.</summary>
+    /// <summary>The power node selected with a click (no block selected) (its range and lasers are shown; a click links or unlinks); null for none.</summary>
     private long? _selectedNode;
 
     // Square of every power block by id, for the lasers' ends: rebuilt when the structures change (ids are never reused).

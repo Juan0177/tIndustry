@@ -3,13 +3,18 @@ using TIndustry.Shared;
 
 namespace TIndustry.Godot;
 
-/// <summary>Build tool selection and mouse/keyboard input.</summary>
+/// <summary>
+/// Block selection and mouse/keyboard input, as in Mindustry (no tools): WASD flies the drone, the left click with no
+/// block selected selects or configures the block under it (held on a deposit it mines by hand), a block selected in the
+/// palette is placed by click or drag, the right click or Esc deselects it, the right drag dismantles, Q picks the block
+/// under the cursor; the camera (<see cref="WorldCamera"/>) follows the drone and the middle button drags the view.
+/// </summary>
 public partial class World
 {
     private void OnHudToolChosen(Hud.ToolKind kind)
     {
         _tool = FromHudTool(kind);
-        if (_tool != BuildTool.Cursor)
+        if (_tool != BuildTool.None)
         {
             _selectedNode = null;
         }
@@ -17,9 +22,10 @@ public partial class World
         QueueRedraw();
     }
 
-    private void ClearToCursor(bool toast = true)
+    /// <summary>No block selected any more (Esc, right click, a lock, a new game): the click selects in the world again.</summary>
+    private void DeselectBlock(bool toast = true)
     {
-        _tool = BuildTool.Cursor;
+        _tool = BuildTool.None;
         CancelLine();
         _hud?.ClearToolSelection(toast);
         QueueRedraw();
@@ -40,7 +46,7 @@ public partial class World
 
     private void SelectTool(BuildTool tool, bool toast = false)
     {
-        if (tool != BuildTool.Cursor
+        if (tool != BuildTool.None
             && _view is not null
             && !_view.IsStructureUnlocked(Hud.StructureIdFor(ToHudTool(tool))))
         {
@@ -49,7 +55,7 @@ public partial class World
         }
 
         _tool = tool;
-        if (tool != BuildTool.Cursor)
+        if (tool != BuildTool.None)
         {
             _selectedNode = null;
         }
@@ -57,7 +63,7 @@ public partial class World
         _hud?.SetSelectedTool(ToHudTool(tool));
         if (toast)
         {
-            _hud?.ShowToast(tool == BuildTool.Cursor ? ToolName(tool) : Testi.F("palette.selezionato", ToolName(tool)));
+            _hud?.ShowToast(tool == BuildTool.None ? ToolName(tool) : Testi.F("palette.selezionato", ToolName(tool)));
         }
 
         QueueRedraw();
@@ -65,7 +71,7 @@ public partial class World
 
     private static Hud.ToolKind ToHudTool(BuildTool tool) => tool switch
     {
-        BuildTool.Cursor => Hud.ToolKind.Cursor,
+        BuildTool.None => Hud.ToolKind.None,
         BuildTool.Miner => Hud.ToolKind.Miner,
         BuildTool.MinerAdvanced => Hud.ToolKind.MinerAdvanced,
         BuildTool.Smelter => Hud.ToolKind.Smelter,
@@ -89,12 +95,12 @@ public partial class World
         BuildTool.Vault => Hud.ToolKind.Vault,
         BuildTool.CoreFoundation => Hud.ToolKind.CoreFoundation,
         BuildTool.CoreNucleus => Hud.ToolKind.CoreNucleus,
-        _ => Hud.ToolKind.Cursor
+        _ => Hud.ToolKind.None
     };
 
     private static BuildTool FromHudTool(Hud.ToolKind tool) => tool switch
     {
-        Hud.ToolKind.Cursor => BuildTool.Cursor,
+        Hud.ToolKind.None => BuildTool.None,
         Hud.ToolKind.Miner => BuildTool.Miner,
         Hud.ToolKind.MinerAdvanced => BuildTool.MinerAdvanced,
         Hud.ToolKind.Smelter => BuildTool.Smelter,
@@ -118,12 +124,12 @@ public partial class World
         Hud.ToolKind.Vault => BuildTool.Vault,
         Hud.ToolKind.CoreFoundation => BuildTool.CoreFoundation,
         Hud.ToolKind.CoreNucleus => BuildTool.CoreNucleus,
-        _ => BuildTool.Cursor
+        _ => BuildTool.None
     };
 
-    /// <summary>Name of the tool: the cursor's own, else its structure's.</summary>
-    private string ToolName(BuildTool tool) => tool == BuildTool.Cursor
-        ? Testi.T("strumento.cursore")
+    /// <summary>Name of the selected block (its structure's); "no block selected" for <see cref="BuildTool.None"/>.</summary>
+    private string ToolName(BuildTool tool) => tool == BuildTool.None
+        ? Testi.T("palette.deselezionato")
         : Testi.Struttura(Hud.StructureIdFor(ToHudTool(tool)), _view?.Content);
 
     /// <summary>F9 / F7 during a game: the slot loads behind the loading screen; a failure is the toast.</summary>
@@ -137,6 +143,12 @@ public partial class World
     /// </summary>
     public override void _Input(InputEvent @event)
     {
+        // WASD is tracked here, before any panel or control could take the release (a key held while a panel opens).
+        if (!IsRealInputDuringPlaytest(@event))
+        {
+            TrackDroneKeys(@event);
+        }
+
         if (LoadingShown || IsRealInputDuringPlaytest(@event) || HandlePauseKey(@event))
         {
             GetViewport().SetInputAsHandled();
@@ -226,18 +238,31 @@ public partial class World
 
             if (key.Keycode is Key.H or Key.Home)
             {
-                // Raylib parity: H / Home → jump camera to CORE.
-                FocusCameraOnCore();
-                _hud?.ShowToast(Testi.T("hud.camera.core"));
+                // H / Home: the view back on the drone at once (it follows the drone anyway; this ends a free look).
+                CentreCameraOnDrone();
+                _hud?.ShowToast(Testi.T("hud.camera.drone"));
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.PhysicalKeycode == Key.Q)
+            {
+                // Q (Mindustry): the block under the cursor becomes the selected block. Physical key, like WASD: on AZERTY
+                // the key labelled Q is the physical A (left), so the label would clash with the drone's movement.
+                if (_hover is { } under)
+                {
+                    PickAt(under);
+                }
+
                 GetViewport().SetInputAsHandled();
                 return;
             }
 
             if (key.Keycode == Key.Escape || key.Keycode == Key.Quoteleft)
             {
-                if (_tool != BuildTool.Cursor)
+                if (_tool != BuildTool.None)
                 {
-                    ClearToCursor();
+                    DeselectBlock();
                 }
                 else if (_filterPanel?.IsOpen == true)
                 {
@@ -249,13 +274,13 @@ public partial class World
                 }
                 else if (key.Keycode == Key.Escape)
                 {
-                    // Raylib parity: autosave Continua then Esc → Home.
+                    // Raylib parity: autosave Continua then Esc → Home (a held drone input is let go on load).
                     AutoSaveContinue(quiet: true);
                     _home?.Open(inGame: true);
                 }
                 else
                 {
-                    ClearToCursor();
+                    DeselectBlock();
                 }
 
                 GetViewport().SetInputAsHandled();
@@ -373,13 +398,20 @@ public partial class World
             {
                 if (mouse.Pressed)
                 {
-                    if (_tool == BuildTool.Cursor)
+                    if (_tool == BuildTool.None)
                     {
-                        // Cursor mode: no place — WorldCamera.LeftDragPans pans the view.
+                        // No block selected: held on a free deposit the drone mines it, else a click selects on release.
+                        BeginWorldClick(cell, mouse.Position);
+                        GetViewport().SetInputAsHandled();
                         return;
                     }
 
                     BeginLine(cell, mouse.CtrlPressed);
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (_handMining || _clickDown is not null)
+                {
+                    EndWorldClick(mouse.Position);
                     GetViewport().SetInputAsHandled();
                 }
                 else if (LineDragActive)
@@ -407,6 +439,13 @@ public partial class World
                 }
                 else if (mouse.Pressed)
                 {
+                    // With a block selected the press deselects it (Mindustry); a drag from it still draws the rectangle.
+                    _removeDeselected = _tool != BuildTool.None;
+                    if (_removeDeselected)
+                    {
+                        DeselectBlock();
+                    }
+
                     // Nothing is sent yet: a click toggles on release, a drag draws the rectangle marked on release.
                     _draggingRemove = true;
                     _removeMoved = false;
@@ -423,9 +462,9 @@ public partial class World
                     {
                         RemoveRectangle(cell);
                     }
-                    else
+                    else if (!_removeDeselected)
                     {
-                        TryRemoveAt(_removeStart);
+                        TryRemoveAt(_removeStart); // the click that deselected a block removes nothing
                     }
 
                     CancelRemoveDrag();
@@ -465,21 +504,147 @@ public partial class World
         }
     }
 
+    /// <summary>Screen pixels the mouse may move between press and release for a click to still count as one.</summary>
+    private const float ClickSlop = 4f;
+
+    /// <summary>Milliseconds a press on a deposit out of range must be held before it counts as mining (and toasts).</summary>
+    private const ulong MiningHoldMs = 250;
+
+    // Left press with no block selected: where it went down (a click on release), or true while it mines by hand.
+    private (GridPosition Cell, Vector2 Screen)? _clickDown;
+    private bool _handMining;
+
+    // A press on a deposit out of the drone's range: the cell and when it went down. Held long enough it becomes
+    // mining (SetMining, whose refusal toasts); a short click stays a click, without the "out of range" toast.
+    private (GridPosition Cell, ulong SinceMs)? _miningHeldOutOfRange;
+
+    // The "mining waits for a stalled site" hint was shown for the current wait (once, when the wait begins).
+    private bool _miningStallHinted;
+
     /// <summary>
-    /// A left click of the cursor tool (not a pan) on <paramref name="cell"/>: power nodes are selected and linked like
-    /// in Mindustry. With a node selected, a power block it reaches (or any power block that is not a node) gets its
-    /// laser toggled (<see cref="TogglePowerLink"/>; a refusal is the usual toast), another node out of reach is selected
-    /// instead, the node itself or anything else drops the selection. Without one, a click on a node selects it.
-    /// A click on a sorter, an inverted sorter or an extractor opens its filter card instead (Mindustry's configuration;
-    /// the same block again closes it); a click anywhere else closes the card.
+    /// Left press with no block selected: on a free deposit the drone mines it while the button is held
+    /// (<see cref="SetMining"/>; a refusal toasts, as any command); anywhere else the click selects on release. A deposit
+    /// out of range waits for the press to be held (<see cref="SyncHeldMiningClick"/>), so a short click does not toast.
     /// </summary>
-    private void OnCursorClick(GridPosition cell)
+    private void BeginWorldClick(GridPosition cell, Vector2 screen)
     {
-        if (_view is null || PanelOpen || !GameInPlay || _tool != BuildTool.Cursor)
+        if (_view is null || PanelOpen || !GameInPlay)
         {
             return;
         }
 
+        // Something standing on the cell (a block, a belt, a site, a plan, the Core) is selected, deposit or not.
+        var occupied = _view.CoreTiles.Contains(cell) || _view.TryGetSpecAt(cell, out _, out _) || _view.TryGetSiteAt(cell, out _)
+            || _view.IsPlannedTile(cell) || _view.PowerBlockAt(cell) is not null;
+        var refusal = occupied ? null : _view.MiningRefusal(LocalPlayer, cell);
+        if (refusal == RefusalCode.MiningOutOfRange)
+        {
+            _miningHeldOutOfRange = (cell, Time.GetTicksMsec());
+            _clickDown = (cell, screen);
+            return;
+        }
+
+        if (!occupied && refusal is not (RefusalCode.MiningNoDeposit or RefusalCode.MiningCovered))
+        {
+            _filterPanel?.Close();
+            _selectedNode = null;
+            _handMining = true;
+            SubmitCommand(new SetMining(LocalPlayer, cell));
+            return;
+        }
+
+        _clickDown = (cell, screen);
+    }
+
+    /// <summary>Left release with no block selected: the mining stops, or a still click selects (<see cref="OnBlockClick"/>).</summary>
+    private void EndWorldClick(Vector2 screen)
+    {
+        StopHandMining();
+        if (_clickDown is { } down)
+        {
+            _clickDown = null;
+            if (down.Screen.DistanceTo(screen) < ClickSlop)
+            {
+                OnBlockClick(down.Cell);
+            }
+        }
+    }
+
+    /// <summary>The held left button let go (release, focus lost, a panel): the drone stops mining by hand.</summary>
+    private void StopHandMining()
+    {
+        _clickDown = null;
+        _miningHeldOutOfRange = null;
+        if (!_handMining)
+        {
+            return;
+        }
+
+        _handMining = false;
+        SubmitCommand(new SetMining(LocalPlayer, null));
+    }
+
+    /// <summary>
+    /// Every frame: a press on a deposit out of range held for <see cref="MiningHoldMs"/> becomes mining
+    /// (<see cref="SetMining"/>: still out of range, the refusal toasts; flown into range meanwhile, the drone mines).
+    /// </summary>
+    private void SyncHeldMiningClick()
+    {
+        if (_miningHeldOutOfRange is not { } held)
+        {
+            return;
+        }
+
+        if (_clickDown is null || _view is null || PanelOpen || !GameInPlay)
+        {
+            _miningHeldOutOfRange = null;
+            return;
+        }
+
+        if (Time.GetTicksMsec() - held.SinceMs < MiningHoldMs)
+        {
+            return;
+        }
+
+        _miningHeldOutOfRange = null;
+        _clickDown = null; // held: mining, not a click
+        _filterPanel?.Close();
+        _selectedNode = null;
+        _handMining = true;
+        SubmitCommand(new SetMining(LocalPlayer, held.Cell));
+    }
+
+    /// <summary>
+    /// Every frame: when the drone's hand mining starts waiting for its current site, stuck for materials
+    /// (<see cref="IGameView.IsMiningHeldByStalledSite"/>: Mindustry's rule, no mining while it holds a site), a toast
+    /// says why, once per wait.
+    /// </summary>
+    private void SyncMiningStallHint()
+    {
+        var waiting = GameInPlay && LocalDrone is { } drone && _view!.IsMiningHeldByStalledSite(drone);
+        if (waiting && !_miningStallHinted)
+        {
+            _hud?.ShowToast(Testi.T("scavo.attesa.cantiere"));
+        }
+
+        _miningStallHinted = waiting;
+    }
+
+    /// <summary>
+    /// A still left click with no block selected on <paramref name="cell"/>: power nodes are selected and linked like
+    /// in Mindustry. With a node selected, a power block it reaches (or any power block that is not a node) gets its
+    /// laser toggled (<see cref="TogglePowerLink"/>; a refusal is the usual toast), another node out of reach is selected
+    /// instead, the node itself or anything else drops the selection. Without one, a click on a node selects it.
+    /// A click on a sorter, an inverted sorter or an extractor opens its filter card instead (Mindustry's configuration;
+    /// the same block again closes it); a click anywhere else closes the card. The block's information is the hover
+    /// tooltip (sites, power networks).
+    /// </summary>
+    private void OnBlockClick(GridPosition cell)
+    {
+        if (_view is null || PanelOpen || !GameInPlay || _tool != BuildTool.None)
+        {
+            return;
+        }
         if (TryGetFilterBlock(cell, out var structureId, out var filter))
         {
             _selectedNode = null;
@@ -498,5 +663,134 @@ public partial class World
         }
 
         _selectedNode = block is { Kind: PowerBlockKind.Node } picked && picked.Id != _selectedNode ? picked.Id : null;
+    }
+
+    // --- The drone (WASD) and the camera that follows it -----------------------------------------------------------
+
+    // WASD (the pan_* actions) as the last key events said: tracked in _Input, so a release is never lost.
+    private bool _keyUp, _keyDown, _keyLeft, _keyRight;
+
+    // The input this client last sent its drone, and the game it was sent in (a new game starts from its drone's).
+    private (int Dx, int Dy) _droneInputSent;
+    private SimHost? _droneInputHost;
+
+    // Where the drone was (simulated centre, tiles) last frame, and in which game: any movement ends the camera's free
+    // look, whoever flies it (WASD, or the agents' muovi {cella}, which holds no input between two frames).
+    private (float X, float Y)? _dronePositionSeen;
+    private SimHost? _dronePositionHost;
+
+    /// <summary>Set by a playtest step that checks the follow; otherwise playtests frame their own captures.</summary>
+    private bool _playtestCameraFollows;
+
+    private void TrackDroneKeys(InputEvent @event)
+    {
+        if (@event is not InputEventKey key || key.Echo)
+        {
+            return;
+        }
+
+        if (key.IsAction("pan_up"))
+        {
+            _keyUp = key.Pressed;
+        }
+        else if (key.IsAction("pan_down"))
+        {
+            _keyDown = key.Pressed;
+        }
+        else if (key.IsAction("pan_left"))
+        {
+            _keyLeft = key.Pressed;
+        }
+        else if (key.IsAction("pan_right"))
+        {
+            _keyRight = key.Pressed;
+        }
+    }
+
+    /// <summary>The window lost the focus: the releases will not arrive, so no key is held any more.</summary>
+    private void ReleaseDroneKeys() => _keyUp = _keyDown = _keyLeft = _keyRight = false;
+
+    /// <summary>The local player's drone (null without a game or a drone).</summary>
+    private BuilderUnit? LocalDrone => _view?.Builders.FirstOrDefault(b => b.OwnerPlayerId == LocalPlayer);
+
+    /// <summary>
+    /// Every frame: the keys held (none while a panel covers the game) become the drone's input, sent with
+    /// <see cref="SetDroneInput"/> only when it changes, so an input held by someone else (the agents' <c>muovi</c>) is
+    /// not overwritten every frame. A game attached here (new, or loaded: Continua or any save, however it was saved: Esc,
+    /// Menu, quitting) starts from the input its drone holds, so a saved held input is let go at once with
+    /// <see cref="SetDroneInput"/>(0, 0) when no key is down, and a saved mining cell with <see cref="SetMining"/>(null)
+    /// when the button is not held: nothing is released (or ticked) at save time.
+    /// </summary>
+    private void SyncDroneInput()
+    {
+        if (_host != _droneInputHost)
+        {
+            if (LocalDrone is not { } loaded)
+            {
+                return; // the new game's drone is not in view yet: seed from it once it is
+            }
+
+            _droneInputHost = _host;
+            _droneInputSent = (loaded.InputX, loaded.InputY);
+            if (!_handMining && loaded.MiningTile is not null)
+            {
+                // A saved mining cell is let go too: the left button is not held in the game just attached.
+                SubmitCommand(new SetMining(LocalPlayer, null));
+            }
+        }
+
+        if (LocalDrone is null)
+        {
+            return;
+        }
+
+        var keys = GameInPlay && !PanelOpen && !HomeBackdrop && !LoadingShown;
+        var wanted = keys ? ((_keyRight ? 1 : 0) - (_keyLeft ? 1 : 0), (_keyDown ? 1 : 0) - (_keyUp ? 1 : 0)) : (0, 0);
+        if (wanted != _droneInputSent)
+        {
+            _droneInputSent = wanted;
+            SubmitCommand(new SetDroneInput(LocalPlayer, wanted.Item1, wanted.Item2));
+        }
+    }
+
+    /// <summary>Centre of the local drone in world pixels: where it is drawn (between ticks), else its simulated centre.</summary>
+    private Vector2? DroneWorldPosition()
+    {
+        if (LocalDrone is not { } drone)
+        {
+            return null;
+        }
+
+        return _constructionLayer?.DroneFlightPosition(drone.Id) ?? new Vector2(drone.X * TileSize, drone.Y * TileSize);
+    }
+
+    /// <summary>
+    /// Every frame: the camera follows the drone during a game (not behind the Home, not in playtests unless a step asks);
+    /// the drone starting to move (any source) ends a free look.
+    /// </summary>
+    private void SyncCameraFollow(WorldCamera cam)
+    {
+        var follow = GameInPlay && !HomeBackdrop && (!PlaytestRequested || _playtestCameraFollows);
+        cam.FollowTarget = follow ? DroneWorldPosition() : null;
+        (float X, float Y)? seen = LocalDrone is { } drone ? (drone.X, drone.Y) : null;
+        if (_host != _dronePositionHost)
+        {
+            _dronePositionHost = _host; // another game: its drone did not move, it is somewhere else
+        }
+        else if (seen is not null && _dronePositionSeen is not null && seen != _dronePositionSeen)
+        {
+            cam.FreeLook = false;
+        }
+
+        _dronePositionSeen = seen;
+    }
+
+    /// <summary>H: the view jumps onto the drone (and follows it again).</summary>
+    private void CentreCameraOnDrone()
+    {
+        if (GetNodeOrNull<WorldCamera>("Camera") is { } cam && DroneWorldPosition() is { } at)
+        {
+            cam.CentreOn(at);
+        }
     }
 }

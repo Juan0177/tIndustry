@@ -103,9 +103,10 @@ Scarica l'ultima [Release](https://github.com/Juan0177/tIndustry/releases/latest
 | Tasto | Azione | Tasto | Azione |
 | --- | --- | --- | --- |
 | `1`–`9` | scegli il blocco | `R` | ruota |
-| clic / trascina | pianifica (il drone costruisce) | tasto destro | cancella o smonta |
-| `WASD` / trascina | sposta la visuale | rotella | zoom |
-| `H` | torna al CORE | `Esc` | cursore (nessun blocco) |
+| clic / trascina | pianifica (il drone costruisce nel suo raggio) | tasto destro | cancella o smonta; deseleziona |
+| `WASD` | muove il drone (la visuale lo segue) | rotella | zoom (ruota un blocco orientabile) |
+| clic tenuto su un giacimento | scava a mano | `Q` | sceglie il blocco sotto il cursore |
+| `H` | visuale sul drone | `Esc` | deseleziona il blocco |
 | `M` · `T` · `G` | Mercato · Ricerca · Campagna | `C` | cambia il filtro del selezionatore |
 
 Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/README.md).
@@ -124,7 +125,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
 | **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
-| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 18 (le versioni precedenti non si aprono più) |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 19 (le versioni precedenti non si aprono più) |
 
 Il combattimento è fuori dal progetto per ora.
 
@@ -137,7 +138,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | --- | --- | --- |
 | Fatto | **1 · Riordino** | Struttura del repo, documentazione, avvio di sviluppo in un comando |
 | Fatto | **2 · Simulazione a comandi** | Tick fisso a 60/s, sistemi in ordine fisso, comandi validati, istantanea con checksum, base per il co-op |
-| Fatto | **3 · Costruzione come Mindustry** | Piani in coda, drone che vola e costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)) |
+| Fatto | **3 · Costruzione come Mindustry** | Piani in coda, drone che costruisce, cantieri con consumo e rimborso graduali ([ADR 0003](docs/decisioni/0003-costruzione-come-mindustry.md)) |
 | Fatto | **G1 · Arte dei blocchi** | Pixel-art nostra generata da script: edifici a strati con parti animate, nastri a tre tier, oggetti, Core in 4 tier, droni alpha / beta / gamma ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md)) |
 | Fatto | **G2a · Mappe e terreno** | Mappe a seme in 3 misure, 4 biomi, pareti, acqua bassa e profonda, mappe della campagna in file, schermata Nuova partita, salvataggi v12 ([ADR 0005](docs/decisioni/0005-mappe-seme-e-file.md)) |
 | Fatto | **G2b · Arte del terreno** | Suoli con varianti e bordi, pareti in rilievo raccordate, acqua con increspature, giacimenti a puntini, decorazioni per bioma, due livelli di dettaglio ([ADR 0004](docs/decisioni/0004-arte-generata-da-script.md#terreno-g2b)) |
@@ -148,7 +149,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Previsto | **Mercato 2 · Schermo di borsa** | Blocco accanto al CORE, sequenza del «Vendi tutto» col drone, LED, moduli e ramo Finanza della Ricerca; con lo schermo il jackpot scatta anche in partita |
 | Fatto | **Mercato 3 · Magazzino del CORE e livelli** | Massimo per oggetto, linee che si fermano a CORE pieno, CORE shard 3×3 → foundation 4×4 → nucleus 5×5 con droni alpha → beta → gamma, container e vault, vendita automatica a ritmo, salvataggi v15 ([specifica](docs/superpowers/specs/2026-10-23-magazzino-core-design.md)) |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
-| Previsto | **4 · Drone e tier** | Il drone lo comandi tu; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
+| Fatto, in attesa dell'ok | **4 · Drone e tier** | Il drone lo comandi tu: WASD, costruzione nel raggio, scavo a mano con la stiva; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **Attacco e difesa** | Unità nemiche e difese. I nemici arrivano **solo di notte**: quando torna il giorno i superstiti scappano, se il CORE ha resistito; se lo distruggono è **Game Over**. Il drone si mette l'elmetto durante l'attacco |
 | Previsto | **5 · Co-op** | Server C# e sincronizzazione ibrida ([ADR 0002](docs/decisioni/0002-sincronizzazione-ibrida.md)) |
 
@@ -156,7 +157,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 64%, 50 passi fatti su 78" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 67%, 52 passi fatti su 78" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -170,7 +171,7 @@ A che punto siamo, aspetto per aspetto:
 | 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
 | 9 | [Grafica ed effetti](https://github.com/Juan0177/tIndustry/wiki/Arte-generata) | <img src="docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
 | 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | <img src="docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
-| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="50%" width="160"> | 50% (2/4) |
+| 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="100%" width="160"> | 100% (4/4) |
 | 12 | [Liquidi](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/12.svg" alt="0%" width="160"> | 0% (0/4) |
 | 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="33%" width="160"> | 33% (2/6) |
 | 14 | [Co-op](docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |

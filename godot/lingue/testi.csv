@@ -93,8 +93,6 @@ obiettivo.level-10-espansione.1,Sblocca il Minatore T2,Unlock the Miner T2
 obiettivo.level-10-espansione.2,Sblocca il Nastro T2,Unlock the Belt T2
 obiettivo.level-10-espansione.3,Guadagna $400 dalle vendite,Earn $400 from sales
 obiettivo.level-10-espansione.4,Magazzino 8 grafite,Store 8 graphite
-strumento.cursore,Cursore,Cursor
-strumento.cursore.suggerimento,Cursore: pan / guarda · clic su selezionatori ed estrattori per il filtro · Esc o riclicca sul tool,Cursor: pan / look · click sorters and extractors for their filter · Esc or click the tool again
 filtro.titolo,Filtro · {0},Filter · {0}
 filtro.nessuno,Nessuno,None
 filtro.nessuno.suggerimento,Toglie il filtro,Clears the filter
@@ -122,12 +120,12 @@ struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in 
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
-categoria.strumenti,Strumenti,Tools
 categoria.logistica,Logistica,Logistics
 categoria.produzione,Produzione,Production
 categoria.potenza,Potenza,Power
 categoria.magazzino,Magazzino,Storage
 palette.selezionato,{0} selezionato,{0} selected
+palette.deselezionato,Nessun blocco scelto,No block selected
 rifiuto.Locked,{0} bloccato: sbloccalo in Ricerca (T).,{0} locked: unlock it in Research (T).
 blocco.dettaglio,Dettaglio blocco,Block details
 blocco.bloccato,{0} · bloccato,{0} · locked
@@ -135,7 +133,7 @@ comune.chiudi,Chiudi,Close
 comune.annulla,Annulla,Cancel
 blocco.costo.ok,ok,ok
 blocco.costo.manca,manca,missing
-blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro = elimina · Esc = cursore,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click = remove · Esc = cursor
+blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro o Esc = deseleziona,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click or Esc = deselect
 blocco.io.minatore,I/O · estrae dal deposito sotto,I/O · mines the deposit below
 blocco.io.generatore,I/O · carbone → potenza,I/O · coal → power
 blocco.io.trasporto,I/O · trasporto oggetti,I/O · moves items
@@ -161,6 +159,10 @@ core.livello,{0} · massimo {1} per oggetto,{0} · max {1} per item
 core.livello.suggerimento,Vende {0} pezzi al secondo · drone {1},Sells {0} pieces per second · {1} drone
 core.scorta.pieno,{0} · {1}/{2} · pieno: i nastri si fermano,{0} · {1}/{2} · full: belts stop
 core.scorta,{0} · {1}/{2},{0} · {1}/{2}
+core.stiva,Stiva,Hold
+core.stiva.suggerimento,Stiva del drone: {0} · {1}/{2} · si svuota da sola entro 6 celle dal CORE,Drone hold: {0} · {1}/{2} · empties by itself within 6 cells of the Core
+core.stiva.piena,Stiva del drone piena: {0} · {1}/{2} · avvicinati al CORE per svuotarla,Drone hold full: {0} · {1}/{2} · fly near the Core to empty it
+coda.fuori.raggio,Fuori raggio: avvicina il drone,Out of range: fly the drone closer
 tempo.attesa,Il tempo parte dal primo blocco,Time starts with the first block
 tempo.notte.fra,Notte fra {0},Night in {0}
 tempo.giorno.fra,Giorno fra {0},Day in {0}
@@ -179,9 +181,9 @@ direzione.nord,Nord,North
 direzione.est,Est,East
 direzione.sud,Sud,South
 direzione.ovest,Ovest,West
-hud.direzione,R · {0} · destro = elimina,R · {0} · right click = remove
+hud.direzione,R · {0} · destro o Esc = deseleziona,R · {0} · right click or Esc = deselect
 hud.direzione.toast,Direzione: {0},Direction: {0}
-hud.camera.core,Camera sul CORE (H),Camera on the CORE (H)
+hud.camera.drone,Visuale sul drone (H),View on the drone (H)
 pausa.etichetta,In pausa,Paused
 dev.velocita.toast,Velocità ×{0},Speed ×{0}
 dev.velocita.barra,×{0} · tick {1} · {2},×{0} · tick {1} · {2}
@@ -244,6 +246,13 @@ rifiuto.PowerLinkOutOfRange,Il blocco è fuori dal raggio del nodo,The block is 
 rifiuto.PowerLinkNoFreeSlots,Il nodo non ha più collegamenti liberi,The node has no free links left
 rifiuto.PowerLinkNotPowerBlock,Non è un blocco di corrente,That is not a power block
 rifiuto.PowerLinkSameBlock,Un nodo non si collega a se stesso,A node can't link to itself
+rifiuto.MiningNoDeposit,Qui non c'è un giacimento da scavare,There's no ore deposit to mine here
+rifiuto.MiningNotMineable,Il drone di questo CORE non scava questo minerale,This Core's drone can't mine this ore
+rifiuto.MiningOutOfRange,Il giacimento è fuori dal raggio del drone,The deposit is out of the drone's range
+rifiuto.MiningHoldOtherItem,La stiva porta un altro oggetto: svuotala vicino al CORE,The hold carries another item: empty it near the Core
+rifiuto.MiningCovered,Sul giacimento c'è già qualcosa,Something already stands on the deposit
+rifiuto.MiningHoldFull,La stiva è piena: svuotala vicino al CORE,The hold is full: empty it near the Core
+scavo.attesa.cantiere,"Lo scavo aspetta: il cantiere non ha materiali (annulla il piano o allontanati)","Mining waits: the site is short of materials (cancel the plan or fly away)"
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
 home.suggerimento.nuova,Nessuna continua — scegli Campagna o Nuova partita.,Nothing to continue — choose Campaign or New game.
@@ -393,9 +402,9 @@ struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per ogget
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
-tutorial.passo.1,"Muovi la visuale: WASD, rotella premuta, oppure trascina col tasto sinistro (in modalità cursore). Rotella = zoom · H torna al CORE.","Move the view: WASD, hold the wheel, or drag with the left button (in cursor mode). Wheel = zoom · H goes back to the CORE."
-tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categorie (Logistica, Produzione, Potenza); una categoria compare quando ne sblocchi un blocco. Scegli uno strumento (o premi 1–9). Esc torna al cursore.","The palette is bottom right: the category icons on its right (Logistics, Production, Power); a category shows up once you unlock one of its blocks. Pick a tool (or press 1–9). Esc goes back to the cursor."
-tutorial.passo.3,Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. Il minerale esce su ogni nastro accanto. Il tuo drone costruisce ciò che pianifichi: guardalo volare e disegnare il blocco.,Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. Ore comes out on any belt beside it. Your drone builds what you plan: watch it fly and draw the block.
+tutorial.passo.1,"Il drone sei tu: muovilo con WASD, la visuale lo segue. Tieni premuto il tasto centrale e trascina per guardare lontano (al rilascio torna sul drone). Rotella = zoom · H torna sul drone.","You are the drone: move it with WASD, the view follows it. Hold the middle button and drag to look away (on release it goes back to the drone). Wheel = zoom · H goes back to the drone."
+tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categorie (Logistica, Produzione, Potenza); una categoria compare quando ne sblocchi un blocco. Scegli un blocco (o premi 1–9); Q prende il blocco sotto il cursore. Clic destro o Esc lo deseleziona.","The palette is bottom right: the category icons on its right (Logistics, Production, Power); a category shows up once you unlock one of its blocks. Pick a block (or press 1–9); Q picks the block under the cursor. Right click or Esc deselects it."
+tutorial.passo.3,"Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. Il minerale esce su ogni nastro accanto. Il tuo drone costruisce ciò che pianifichi entro il suo raggio: avvicinati ai piani lontani. Senza blocchi scelti, tieni premuto il clic su un giacimento per scavarlo a mano.","Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. Ore comes out on any belt beside it. Your drone builds what you plan within its range: fly close to far plans. With no block selected, hold the click on a deposit to mine it by hand."
 tutorial.passo.4,Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.,Press 1 (Belt) and drag a line from the miner's output to the CORE: the ore goes into storage.
 tutorial.passo.5,"Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.","Press M to open the MARKET: sell ore and plates, or turn on Auto-sell."
 tutorial.passo.6,Premi T per aprire la RICERCA: con soldi e materiali sblocchi il FORNO e gli altri edifici.,Press T to open RESEARCH: with money and materials you unlock the SMELTER and the other buildings.

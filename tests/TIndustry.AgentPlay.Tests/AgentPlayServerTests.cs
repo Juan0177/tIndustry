@@ -9,7 +9,7 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
     private static readonly string[] ToolNames =
     [
         "apri_simulazione", "apri_gioco", "collega_coop", "sessioni", "chiudi", "stato", "area", "trova", "eventi", "catalogo",
-        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "filtro", "avanza", "esegui", "pausa", "riprendi",
+        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "filtro", "muovi", "scava", "avanza", "esegui", "pausa", "riprendi",
         "cattura", "telecamera", "input", "ui", "log", "diario", "rigioca"
     ];
 
@@ -109,6 +109,36 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
     }
 
     [Fact]
+    public async Task APlanOutOfRangeIsBuiltOnceMuoviBringsTheDrone()
+    {
+        // Real construction: the drone no longer flies to the plans, the agent flies it.
+        var id = await Open(new { misura = 120, generatore = "classico" });
+        var stato = await server.Ok("stato", new { sessione = id });
+        var core = stato.GetProperty("core").GetProperty("cella");
+        var drone = stato.GetProperty("drone");
+        Assert.Equal(27.5, drone.GetProperty("raggio").GetDouble());
+        Assert.Equal(30, drone.GetProperty("stiva").GetProperty("capienza").GetInt32());
+        var far = new { x = core.GetProperty("x").GetInt32() + 39, y = core.GetProperty("y").GetInt32() + 1 };
+
+        await server.Ok("piazza", new { sessione = id, tipo = "conveyor-basic", cella = far, direzione = "est" });
+        await server.Ok("avanza", new { sessione = id, tick = 600 });
+        var waiting = await server.Ok("stato", new { sessione = id });
+        Assert.Equal(1, ServerFixture.Count(waiting.GetProperty("costruzione"), "piani"));
+        Assert.False(waiting.TryGetProperty("edifici", out var none) && ServerFixture.Count(none, "nastri") > 0);
+
+        var moved = await server.Ok("muovi", new { sessione = id, cella = new { x = far.x - 10, far.y } });
+        Assert.True(moved.GetProperty("arrivato").GetBoolean(), moved.ToString());
+        await server.Ok("avanza", new { sessione = id, tick = 300 });
+
+        var built = await server.Ok("stato", new { sessione = id });
+        Assert.Equal(1, ServerFixture.Count(built.GetProperty("edifici"), "nastri"));
+        Assert.False(built.TryGetProperty("costruzione", out var left) && ServerFixture.Count(left, "piani") > 0);
+        var journal = await server.Ok("diario", new { sessione = id, dettaglio = true });
+        Assert.Contains(journal.GetProperty("voci").EnumerateArray(), v => v.GetProperty("metodo").GetString() == "muovi");
+        await server.Ok("chiudi", new { sessione = id });
+    }
+
+    [Fact]
     public async Task CoopIsAPlaceholder()
     {
         Assert.Equal(AgentCodes.MotoreNonDisponibile, await server.Refused("collega_coop"));
@@ -181,6 +211,10 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
             ("potenzia_core", new { }),
             ("collega", new { sessione = id, nodo = new { x = 1, y = 1 } }),
             ("filtro", new { sessione = id, oggetto = "coal" }),
+            ("muovi", new { sessione = id }),
+            ("muovi", new { sessione = id, dx = 2, dy = 0 }),
+            ("muovi", new { sessione = id, cella = new { x = 1, y = 1 }, maxTick = 0 }),
+            ("scava", new { sessione = id, cella = "qui" }),
             ("avanza", new { sessione = id, tick = -1 }),
             ("avanza", new { sessione = id, tick = "molti" }),
             ("esegui", new { sessione = id, secondi = "due" }),

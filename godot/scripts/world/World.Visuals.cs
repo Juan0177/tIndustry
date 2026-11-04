@@ -118,7 +118,7 @@ public partial class World
 
     /// <summary>
     /// Every frame in play: the selected node's line ("Nodo T1 · collegamenti 3/6 · …"), dropped when the node is gone;
-    /// with the cursor tool, hovering a power block (not over the HUD, not on a stalled site) shows its network's balance.
+    /// with no block selected, hovering a power block (not over the HUD, not on a stalled site) shows its network's balance.
     /// </summary>
     private void SyncPowerInfo()
     {
@@ -146,7 +146,7 @@ public partial class World
         }
 
         if (_view is null
-            || _tool != BuildTool.Cursor
+            || _tool != BuildTool.None
             || GetViewport().GuiGetHoveredControl() is not null
             || _hover is not { } hover
             || _view.TryGetSiteAt(hover, out _)
@@ -604,6 +604,8 @@ public partial class World
             _view.Generators.Count,
             stored,
             capacity);
+        var drone = LocalDrone;
+        _hud.UpdateHold(drone?.HoldItemId, drone?.HoldCount ?? 0, _view.Content.UnitForTier(_view.CoreTier).HoldCapacity);
         SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);

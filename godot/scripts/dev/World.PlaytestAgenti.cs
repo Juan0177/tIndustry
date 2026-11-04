@@ -219,6 +219,26 @@ public partial class World
             return Fail("agenti riprendi: il gioco resta fermo");
         }
 
+        // muovi {cella}: the bridge flies it a slice per frame (never thousands of ticks in one frame), one answer at the
+        // end; then back to the Core, where the miner waits for the drone.
+        foreach (var target in new[] { new { x = core.x + 40, y = core.y }, core })
+        {
+            var framesBefore = Engine.GetProcessFrames();
+            if (await Call("muovi", new { cella = target, maxTick = 1200 }) is not { } moved)
+            {
+                return false;
+            }
+
+            var flown = moved.GetProperty("tick").GetInt64() - moved.GetProperty("tickPrima").GetInt64();
+            var frames = Engine.GetProcessFrames() - framesBefore;
+            if (!moved.GetProperty("arrivato").GetBoolean() || flown <= AgentProtocol.GameMoveTicksPerFrame || frames < 2)
+            {
+                return Fail($"agenti muovi verso {target}: {moved} in {frames} frame");
+            }
+        }
+
+        GD.Print("PLAYTEST step ok: agenti muovi {cella} a tratti, un frame per tratto");
+
         // A HUD button found by its text with ui, clicked by input at its centre, then by name.
         if (await Call("ui") is not { } ui)
         {

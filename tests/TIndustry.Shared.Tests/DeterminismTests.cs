@@ -432,6 +432,147 @@ public sealed class DeterminismTests
             DeliveredInTenSecondsBeforeFixedTick + 1);
     }
 
+    /// <summary>
+    /// Five minutes of the drone flown by its player (spec «Il drone sei tu»): it flies to a miner planned out of
+    /// range and builds it, then mines iron by hand and flies back to unload it into the Core, again and again. Two runs
+    /// of the same script (the second saved and loaded half way) give the same checksum at every minute.
+    /// </summary>
+    [Fact]
+    public void FiveMinutesOfFlyingBuildingAndMiningAreDeterministic()
+    {
+        var content = LoadContent();
+        var plain = new DroneScript(content);
+        var reloaded = new DroneScript(content);
+        for (var minute = 1; minute <= 5; minute++)
+        {
+            for (var tick = 0; tick < 60 * Simulation.TickRate; tick++)
+            {
+                plain.Tick();
+                reloaded.Tick();
+                if (minute == 3 && tick == 30 * Simulation.TickRate)
+                {
+                    reloaded.SaveAndLoad();
+                }
+            }
+
+            Assert.Equal(plain.Host.Checksum(), reloaded.Host.Checksum());
+        }
+
+        foreach (var run in new[] { plain, reloaded })
+        {
+            Assert.Empty(run.Rejected);
+            Assert.Single(run.Factory.Miners); // planned out of range, built once the drone flew there
+            Assert.True(run.Unloads >= 3, $"scarichi {run.Unloads}");
+            Assert.True(run.Factory.Wallet.MaterialCount("iron-ore") >= run.StartIron + 3 * 20, "il ferro scavato è nel Core");
+            Assert.True(run.Travelled > 150f, $"percorso {run.Travelled}");
+        }
+    }
+
+    /// <summary>The player of <see cref="FiveMinutesOfFlyingBuildingAndMiningAreDeterministic"/>: a state machine run once per tick.</summary>
+    private sealed class DroneScript
+    {
+        private readonly FactoryContent content;
+        private readonly GridPosition minerCell;
+        private readonly GridPosition mineCell;
+        private int phase; // 0: fly to the miner plan; 1: fly to the deposit and mine; 2: fly to the Core and unload
+        private (int X, int Y) held;
+        private (float X, float Y) last;
+
+        public DroneScript(FactoryContent content)
+        {
+            this.content = content;
+            Factory = NewGame.Sandbox(content, new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 7);
+            Host = Attach(new SimHost(Factory));
+            minerCell = DroneFlight.NearestDeposit(Factory, DepositKind.Iron, minDistance: 32f);
+            mineCell = DroneFlight.NearestDeposit(Factory, DepositKind.Iron, minDistance: 12f);
+            Assert.True(Distance(Factory.CoreCentre(), mineCell) < 20f, $"giacimento lontano: {mineCell}");
+            StartIron = Factory.Wallet.MaterialCount("iron-ore");
+            var drone = Factory.BuilderOf(0)!;
+            last = (drone.X, drone.Y);
+            Host.Submit(new PlaceBuilding(0, BuildingKind.Miner, minerCell, Direction.East));
+        }
+
+        public Factory Factory { get; private set; }
+
+        public SimHost Host { get; private set; }
+
+        public List<RefusalCode> Rejected { get; } = [];
+
+        public int StartIron { get; }
+
+        public int Unloads { get; private set; }
+
+        public float Travelled { get; private set; }
+
+        public void Tick()
+        {
+            var drone = Factory.BuilderOf(0)!;
+            switch (phase)
+            {
+                case 0:
+                    Steer(drone, minerCell.X + 1f, minerCell.Y + 1f);
+                    if (Factory.Miners.Count > 0)
+                    {
+                        phase = 1;
+                        Host.Submit(new SetMining(0, mineCell)); // out of range for now: it starts once near
+                    }
+
+                    break;
+                case 1:
+                    Steer(drone, mineCell.X + 0.5f, mineCell.Y + 0.5f);
+                    if (drone.HoldCount >= 20)
+                    {
+                        phase = 2;
+                    }
+
+                    break;
+                default:
+                    var (cx, cy) = Factory.CoreCentre();
+                    Steer(drone, cx, cy);
+                    if (drone.HoldCount == 0)
+                    {
+                        Unloads++;
+                        phase = 1;
+                    }
+
+                    break;
+            }
+
+            Host.AdvanceTicks(1);
+            drone = Factory.BuilderOf(0)!;
+            Travelled += MathF.Abs(drone.X - last.X) + MathF.Abs(drone.Y - last.Y);
+            last = (drone.X, drone.Y);
+        }
+
+        /// <summary>The game saved and loaded: the run goes on from the snapshot, held input included.</summary>
+        public void SaveAndLoad()
+        {
+            Host = Attach(SimHost.FromSnapshot(content, Host.CreateSnapshot()));
+            Factory = (Factory)Host.State;
+        }
+
+        private SimHost Attach(SimHost host)
+        {
+            host.CommandRejected += (_, r) => Rejected.Add(r.Code);
+            return host;
+        }
+
+        private void Steer(BuilderUnit drone, float x, float y)
+        {
+            var input = (Axis(x - drone.X), Axis(y - drone.Y));
+            if (input != held)
+            {
+                Host.Submit(new SetDroneInput(0, input.Item1, input.Item2));
+                held = input;
+            }
+        }
+
+        private static int Axis(float delta) => delta > 0.25f ? 1 : delta < -0.25f ? -1 : 0;
+
+        private static float Distance((float X, float Y) a, GridPosition b) =>
+            MathF.Sqrt((b.X + 0.5f - a.X) * (b.X + 0.5f - a.X) + (b.Y + 0.5f - a.Y) * (b.Y + 0.5f - a.Y));
+    }
+
     /// <summary>Miner (2,13) → belts (4..8, 14) east → CORE (9,14), placed in either order.</summary>
     private static Factory BuildMinerLine(FactoryContent content, bool reverse)
     {

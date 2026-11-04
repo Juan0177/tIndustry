@@ -138,12 +138,11 @@ public partial class World
             return false;
         }
 
-        // 1) Left-drag pan in cursor mode (also proves the world is playable under the card).
-        var mid = ViewportToWindow(GetViewport().GetVisibleRect().Size / 2);
-        await PlaytestDrag(MouseButton.Left, mid, mid + new Vector2(-260, -140));
+        // 1) The drone flown with W held (also proves the world takes the keys under the card).
+        await PlaytestHoldKey(Key.W, 0.3);
         await PlaytestWait(1.3);
         await Shot("step2-palette");
-        if (!Expect(TutorialPanel.Step.Palette, "trascina visuale"))
+        if (!Expect(TutorialPanel.Step.Palette, "W muove il drone"))
         {
             return false;
         }
@@ -436,6 +435,18 @@ public partial class World
         await PlaytestKey(Key.T);
 
         if (!await PlaytestLanguageSwitchAsync(Shot))
+        {
+            return false;
+        }
+
+        // The player is the drone: WASD, the camera that follows it, the middle drag, mining held on a deposit.
+        if (!await PlaytestDroneAndCameraAsync(Shot))
+        {
+            return false;
+        }
+
+        // Plans out of the drone's range and the drone's hold in the HUD.
+        if (!await PlaytestOutOfRangeAndHoldAsync(Shot))
         {
             return false;
         }
@@ -1314,6 +1325,7 @@ public partial class World
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
         var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
         var lastBelt = new GridPosition(core.X - 1, core.Y);
+        PlaytestFlyDrone(new GridPosition(core.X - 2, core.Y)); // the drone takes the line apart only within its range
         if (GetNodeOrNull<Camera2D>("Camera") is { } cam)
         {
             cam.Position = CellCenter(new GridPosition(core.X - 2, core.Y));
@@ -1355,7 +1367,7 @@ public partial class World
             return Fail($"secondo rettangolo: smarcati {string.Join(" ", line.Where(c => !RemovedOrBeingRemoved(c)))}");
         }
 
-        // A single right click on the last mark in the queue (the drone is still far from it) takes it off, a second puts it back.
+        // A single right click on the last mark in the queue (the drone works on the first ones) takes it off, a second puts it back.
         if (_view.PlansOf(LocalPlayer).LastOrDefault(p => p.Breaking)?.Spec.Origin is not { } marked)
         {
             return Fail("clic destro: nessun segno di smontaggio in coda");
@@ -1464,6 +1476,68 @@ public partial class World
 
     private async Task PlaytestWait(double seconds) =>
         await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
+
+    /// <summary>Holds <paramref name="key"/> down for <paramref name="seconds"/> (real time), then lets it go.</summary>
+    private async Task PlaytestHoldKey(Key key, double seconds)
+    {
+        foreach (var pressed in new[] { true, false })
+        {
+            var @event = new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = pressed };
+            @event.SetMeta(SyntheticKeyMeta, true);
+            Input.ParseInputEvent(@event);
+            if (pressed)
+            {
+                await PlaytestWait(seconds);
+            }
+            else
+            {
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Flies the local drone to the centre of <paramref name="cell"/> as the player would, with <see cref="SetDroneInput"/>,
+    /// running the ticks here (like the agents' <c>muovi {cella}</c>): the drone builds only within its range, so a probe
+    /// that builds away from where it is brings it there first. The input is let go on arrival. Any failure (no game, no
+    /// drone, a tick that throws, the cell not reached) is a <see cref="GD.PushError"/>: it fails the playtest run.
+    /// </summary>
+    private void PlaytestFlyDrone(GridPosition cell)
+    {
+        if (_host is not { } host || LocalDrone is null)
+        {
+            GD.PushError($"PLAYTEST volo del drone verso {cell}: nessuna partita o nessun drone");
+            return;
+        }
+
+        static int Steer(float delta) => delta > 0.25f ? 1 : delta < -0.25f ? -1 : 0;
+        var (x, y) = (cell.X + 0.5f, cell.Y + 0.5f);
+        for (var tick = 0; tick < 20_000; tick++)
+        {
+            var drone = LocalDrone!;
+            var input = (Steer(x - drone.X), Steer(y - drone.Y));
+            if (input != (drone.InputX, drone.InputY))
+            {
+                host.Submit(new SetDroneInput(LocalPlayer, input.Item1, input.Item2));
+            }
+            else if (input == (0, 0))
+            {
+                return;
+            }
+
+            try
+            {
+                host.AdvanceTicks(1);
+            }
+            catch (AggregateException ex)
+            {
+                GD.PushError($"PLAYTEST volo del drone: {ex.InnerExceptions[0]}");
+                return;
+            }
+        }
+
+        GD.PushError($"PLAYTEST volo del drone: {cell} non raggiunta");
+    }
 
     /// <summary>Press and release <paramref name="key"/> with <paramref name="modifiers"/> held; <paramref name="unicode"/> types a character.</summary>
     internal async Task PlaytestKey(Key key, KeyModifierMask modifiers = 0, long unicode = 0)

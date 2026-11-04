@@ -4,9 +4,10 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// Playable world (factory view) + Hud + Ricerca. Default = cursore.
-/// Hotkeys 1–9 place · Esc cursore · T ricerca · M mercato · I impostazioni · R ruota · C filtro · RMB elimina ·
-/// Spazio pausa (F1–F4 velocità with TINDUSTRY_DEV=1, see World.Time.cs).
+/// Playable world (factory view) + Hud + Ricerca. The player is the drone (WASD), the camera follows it; no tools: with
+/// no block selected the click selects, configures or mines (World.Input.cs). Hotkeys 1–9 select a block · Q picks the
+/// block under the cursor · Esc or right click deselect · T ricerca · M mercato · I impostazioni · R ruota · RMB drag
+/// smonta · Spazio pausa (F1–F4 velocità with TINDUSTRY_DEV=1, see World.Time.cs).
 /// </summary>
 public partial class World : Node2D
 {
@@ -39,7 +40,7 @@ public partial class World : Node2D
 
     private enum BuildTool
     {
-        Cursor,
+        None,
         Belt,
         BeltFast,
         BeltExpress,
@@ -117,7 +118,7 @@ public partial class World : Node2D
     private string _contentPath = "";
     private string _campaignPath = "";
     private Direction _placeDir = Direction.East;
-    private BuildTool _tool = BuildTool.Cursor;
+    private BuildTool _tool = BuildTool.None;
     private GridPosition? _hover;
     private Vector2 _hoverScreen;
     // Left drag (Mindustry): the cell the button went down on, null with no drag; R pressed during it fixes the
@@ -130,6 +131,8 @@ public partial class World : Node2D
     // click without moving toggles the mark there on release, a rectangle only marks.
     private GridPosition _removeStart;
     private bool _removeMoved;
+    // The right press that started the drag deselected a block: its click removes nothing.
+    private bool _removeDeselected;
     // Wheel notches not yet turned into a rotation (a touchpad sends fractions).
     private float _wheelTurn;
     private bool _visualDirty = true;
@@ -191,8 +194,6 @@ public partial class World : Node2D
         {
             // The wheel turns an orientable block in hand (in play, no panel over the world); otherwise it zooms.
             camera.WheelZooms = () => _view is null || PanelOpen || !IsOrientable(_tool);
-            camera.MiddleClicked += position => PickAt(ScreenToCell(position));
-            camera.LeftClicked += position => OnCursorClick(ScreenToCell(position));
         }
 
         EnsureBuildingsLayer();
@@ -262,7 +263,13 @@ public partial class World : Node2D
     /// The single guard of <see cref="_Process"/> for advancing the simulation (also read by the agents' bridge): no
     /// ticks behind Home, while a playtest or an agent holds the game, or while the player paused it (Space).
     /// </summary>
-    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused && !_loadingBusy;
+    internal bool SimAdvances => GameInPlay && !PlaytestHeld && !PlayerPaused && !_loadingBusy && !AgentMoveRunning;
+
+    /// <summary>
+    /// Set by <see cref="AgentBridge"/> while an agent's <c>muovi {cella}</c> flies in slices: the slices run their own
+    /// ticks, none run in real time between them (so <c>maxTick</c> holds).
+    /// </summary>
+    internal bool AgentMoveRunning { get; set; }
 
     /// <summary>
     /// The in-game HUD (top bar, Core panel, palette, FPS and resource overlays, dev speed bar, "In pausa") shows:
@@ -321,7 +328,7 @@ public partial class World : Node2D
         SyncTimeOverlays();
         SyncHudVisibility();
         SyncFilterPanel();
-        if ((LineDragActive || _draggingRemove) && PanelOpen)
+        if ((LineDragActive || _draggingRemove || _handMining || _miningHeldOutOfRange is not null) && PanelOpen)
         {
             CancelDrags(); // a panel opened during a drag (from the HUD, a level's end…): nothing is sent
         }
@@ -329,8 +336,8 @@ public partial class World : Node2D
         if (GetNodeOrNull<WorldCamera>("Camera") is { } cam)
         {
             // Behind the Home and the panels opened from it the map scrolls slowly on its own and the player cannot
-            // move it; still in playtests (stable captures).
-            cam.LeftDragPans = _tool == BuildTool.Cursor && !HomeBackdrop && _newGame?.IsOpen != true;
+            // move it; still in playtests (stable captures). In a game it follows the drone.
+            SyncCameraFollow(cam);
             cam.InputEnabled = !HomeBackdrop;
             cam.DriftSpeed = !HomeBackdrop ? 0f : _playtestDriftSpeed ?? (PlaytestRequested ? 0f : HomeDriftSpeed);
         }
@@ -345,11 +352,15 @@ public partial class World : Node2D
             return;
         }
 
+        // The keys held become the drone's input before the frame's ticks run.
+        SyncDroneInput();
+        SyncHeldMiningClick();
         if (SimAdvances)
         {
             AdvanceHost(delta);
         }
 
+        SyncMiningStallHint();
         var visualDelta = PlaytestHeld || PlayerPaused ? 0f : (float)delta;
         SyncConstructionVisuals(visualDelta);
 

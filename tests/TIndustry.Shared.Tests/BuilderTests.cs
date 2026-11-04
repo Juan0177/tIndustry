@@ -7,7 +7,8 @@ namespace TIndustry.Shared.Tests;
 
 /// <summary>
 /// Real construction through <see cref="SimHost"/> (<c>InstantBuild = false</c>): placing queues a plan on
-/// the player's drone, the drone flies within range, the site takes the cost gradually and finishes;
+/// the player's drone, the drone (flown by its player) works on the first plan within range, the site takes the
+/// cost gradually and finishes;
 /// Remove cancels plans and sites or queues a breaking plan.
 /// </summary>
 public sealed class BuilderTests
@@ -86,20 +87,18 @@ public sealed class BuilderTests
     }
 
     [Fact]
-    public void IdleDroneFliesToRestPointAndStays()
+    public void IdleDroneStaysWhereItIs()
     {
         var factory = NewFactory(ironPlates: 0);
         var host = new SimHost(factory);
 
         host.AdvanceTicks(120);
 
+        // No rest point any more: without input the drone never moves.
         var drone = Drone(factory);
-        // One tile west of the Core, middle of its west side: cell (19, 20).
-        Assert.Equal(19.5f, drone.X);
-        Assert.Equal(20.5f, drone.Y);
-        var rotation = drone.Rotation;
-        host.AdvanceTicks(10);
-        Assert.Equal(rotation, drone.Rotation);
+        Assert.Equal(21f, drone.X);
+        Assert.Equal(21f, drone.Y);
+        Assert.Equal(0f, drone.Rotation);
     }
 
     [Fact]
@@ -128,7 +127,7 @@ public sealed class BuilderTests
     }
 
     [Fact]
-    public void DroneFliesToFarPlanBeforeBuilding()
+    public void FarPlanStartsOnceTheDroneIsFlownWithinRange()
     {
         var factory = NewFactory(ironPlates: 10);
         var host = new SimHost(factory);
@@ -136,15 +135,19 @@ public sealed class BuilderTests
         var origin = new GridPosition(60, 20);
         host.Submit(PlaceMiner(origin));
         var drone = Drone(factory);
-        var workRange = Content.UnitForTier(0).BuildRange - 1f; // 26.5
+        var buildRange = Content.UnitForTier(0).BuildRange; // 27.5
+        host.AdvanceTicks(60);
+        Assert.Empty(factory.Sites); // out of range: the plan waits, the drone does not fly on its own
+        Assert.Equal(21f, drone.X);
 
+        host.Submit(new SetDroneInput(Player, 1, 0));
         var started = 0;
         for (var tick = 1; tick <= 200 && started == 0; tick++)
         {
             host.AdvanceTicks(1);
             if (factory.Sites.Count == 0)
             {
-                Assert.True(DistanceTo(drone, 61f, 21f) > workRange);
+                Assert.True(DistanceTo(drone, 61f, 21f) > buildRange);
                 Assert.Null(drone.CurrentSiteId);
             }
             else
@@ -153,13 +156,15 @@ public sealed class BuilderTests
             }
         }
 
-        // (40 − 26.5) / 22.5 s = 0.6 s = 36 ticks of flight.
-        var expectedFlight = (int)Math.Round((40 - 26.5) / 22.5 * Simulation.TickRate);
+        // (40 − 27.5) / 22.5 s ≈ 0.56 s ≈ 33 ticks of flight.
+        var expectedFlight = (int)Math.Round((40 - 27.5) / 22.5 * Simulation.TickRate);
         Assert.InRange(started, expectedFlight - 1, expectedFlight + 1);
-        Assert.True(DistanceTo(drone, 61f, 21f) <= workRange);
+        Assert.True(DistanceTo(drone, 61f, 21f) <= buildRange);
         Assert.Equal(0f, drone.Rotation); // flew along +X
         Assert.Equal(21f, drone.Y);
 
+        host.Submit(new SetDroneInput(Player, 0, 0));
+        host.AdvanceTicks(1);
         var (x, y) = (drone.X, drone.Y);
         RunUntil(host, () => factory.Miners.Count == 1);
         Assert.Equal((x, y), (drone.X, drone.Y)); // stayed put while building
@@ -181,6 +186,8 @@ public sealed class BuilderTests
             }
         };
         var tiles = Enumerable.Range(0, 50).Select(i => new GridPosition(22 + i, 24)).ToList();
+        // From the middle of the row every belt is within range.
+        DroneFlight.FlyTo(host, factory, 46.5f, 24.5f);
         foreach (var tile in tiles)
         {
             host.Submit(Belt(tile));
@@ -267,6 +274,28 @@ public sealed class BuilderTests
         Assert.Equal(6, finished.Count);
         Assert.Empty(factory.Sites);
         Assert.Empty(drone.Plans);
+    }
+
+    [Fact]
+    public void StuckSiteAloneInRangeKeepsItsPlaceWhileFarPlansWait()
+    {
+        var factory = NewFactory(ironPlates: 100);
+        var host = new SimHost(factory);
+        host.Submit(new PlaceBuilding(Player, BuildingKind.MinerAdvanced, NearMiner, Direction.East));
+        host.Submit(Belt(new GridPosition(90, 21))); // 69 tiles away: out of range
+        host.AdvanceTicks(1);
+        var drone = Drone(factory);
+        var miner = Assert.Single(factory.Sites);
+
+        // No copper wire: the miner stalls, but no other plan is in range, so it never goes to the back.
+        for (var tick = 0; tick < 300; tick++)
+        {
+            host.AdvanceTicks(1);
+            Assert.Equal(NearMiner, drone.Plans[0].Spec.Origin);
+            Assert.Equal(miner.Id, drone.CurrentSiteId);
+        }
+
+        Assert.Equal(2, drone.Plans.Count);
     }
 
     [Fact]
@@ -407,9 +436,10 @@ public sealed class BuilderTests
         host.Submit(Belt(next));
         host.AdvanceTicks(1);
 
-        // Someone else builds on the planned cells while the drone is still flying.
+        // Someone else builds on the planned cells before the drone gets there.
         Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-basic", null, new GridPosition(81, 21), Direction.East), charge: false));
-
+        Assert.Empty(dropped);
+        host.Submit(new SetDroneInput(Player, 1, 0));
         RunUntil(host, () => dropped.Count > 0);
 
         var drop = Assert.Single(dropped);
@@ -419,6 +449,7 @@ public sealed class BuilderTests
         var remaining = Assert.Single(factory.PlansOf(Player));
         Assert.Equal(next, remaining.Spec.Origin);
 
+        DroneFlight.FlyTo(host, factory, 70f, 21f); // on to the belt
         RunUntil(host, () => factory.Belts.Contains(next));
         Assert.Empty(factory.Miners);
         Assert.Equal(9, factory.Wallet.MaterialCount(Iron));
@@ -718,7 +749,8 @@ public sealed class BuilderTests
         var events = new List<SimEvent>();
         host.EventRaised += events.Add;
 
-        // Clicked on the exit end, the one nearer to the drone coming from the west.
+        // Clicked on the exit end, the one nearer to the drone waiting west of the bridge.
+        DroneFlight.FlyTo(host, factory, 90f, 50.5f);
         host.Submit(new Remove(Player, exit));
         RunUntil(host, () => events.Count > 0, maxTicks: 2_000);
 
@@ -739,6 +771,7 @@ public sealed class BuilderTests
         var events = new List<SimEvent>();
         host.EventRaised += events.Add;
 
+        DroneFlight.FlyTo(host, factory, 90f, 50.5f);
         host.Submit(new PlaceBuilding(Player, BuildingKind.Bridge, entry, Direction.East));
         RunUntil(host, () => events.Count > 0, maxTicks: 2_000);
 
@@ -798,6 +831,9 @@ public sealed class BuilderTests
             host.Submit(PlaceMiner(NearMiner) with { Tick = 7 });
             host.Submit(new Remove(Player, new GridPosition(25, 26)) with { Tick = 400 });
             host.Submit(new Remove(Player, NearMiner) with { Tick = 2_000 });
+            // Then the player flies east until the far miner is within range (x ≈ 47).
+            host.Submit(new SetDroneInput(Player, 1, 0) with { Tick = 2_500 });
+            host.Submit(new SetDroneInput(Player, 0, 0) with { Tick = 2_570 });
             host.Submit(new Sell(Player, Iron, 3) with { Tick = 3_000 });
             host.AdvanceTicks(10_000);
 

@@ -42,9 +42,9 @@ Nella partita libera non c'è un traguardo: costruisci una fabbrica sempre più 
 
 Alla prima partita compare in basso a sinistra una scheda di tutorial in 8 passi. Non blocca il gioco: ogni passo avanza da solo quando fai quello che chiede, **Invio** passa al successivo, **Backspace** (o **Salta tutorial**) lo chiude. Si può rivedere da Impostazioni con **Rivedi tutorial**.
 
-1. Muovere la visuale (WASD, rotella premuta o trascinamento col sinistro con il cursore; rotella per lo zoom, **H** per tornare al CORE).
-2. La palette in basso a destra con le categorie; i tasti `1`–`9`; Esc per tornare al cursore.
-3. Piazzare un **Minatore T1** (`2`) su un giacimento di ferro vicino al CORE e guardare il drone che lo costruisce.
+1. Muovere il drone (**WASD**: la visuale lo segue; rotella per lo zoom, tasto centrale tenuto per guardare lontano, **H** per tornare sul drone).
+2. La palette in basso a destra con le categorie; i tasti `1`–`9`; Esc o clic destro per mettere giù il blocco.
+3. Piazzare un **Minatore T1** (`2`) su un giacimento di ferro vicino al CORE e restargli vicino (entro 27,5 celle) mentre il drone lo costruisce. Il drone non si muove da solo: se ti allontani, il piano aspetta.
 4. Tracciare con il **Nastro T1** (`1`) una linea dal minatore al CORE.
 5. Aprire il **Mercato** (`M`) e vendere.
 6. Aprire la **Ricerca** (`T`).

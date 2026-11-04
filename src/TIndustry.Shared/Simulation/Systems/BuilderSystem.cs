@@ -1,14 +1,18 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Moves the drones and starts their sites (Mindustry's builder AI and <c>beginPlace</c>). Per drone, in
-/// id order: with plans and no site it flies straight to the first plan's centre and, once within
-/// <c>buildRange − 1</c>, revalidates the plan and turns it into a site (or resumes the site the plan left
-/// standing when it was sent to the back of the queue); with no plans it flies back to
-/// the rest point beside the Core. A drone with a site keeps within range of the site's cells.
+/// Moves the drones and starts their sites (Mindustry's player-controlled builder and <c>beginPlace</c>). Per
+/// drone, in id order: it moves along its held input (<see cref="BuilderUnit.InputX"/>, <see cref="BuilderUnit.InputY"/>)
+/// at its tier's speed, the diagonal normalized, kept inside the map and flying over everything; nothing moves it
+/// on its own. A drone whose site falls out of build range lets it be (the site stays where it stopped, its plan stays
+/// queued). A drone without a site picks the first plan of its queue within build range, brings it to the front,
+/// revalidates it and turns it into a site (or resumes the site the plan left standing); plans out of range wait.
 /// </summary>
 public sealed class BuilderSystem : ISimulationSystem
 {
+    /// <summary>Closest the drone's centre gets to a map edge, in tiles (half a cell).</summary>
+    private const float EdgeMargin = 0.5f;
+
     public string Name => "Builder";
 
     public void Run(GameState state, SystemContext ctx)
@@ -18,43 +22,85 @@ public sealed class BuilderSystem : ISimulationSystem
             return;
         }
 
-        var factory = new Factory(state);
+        Factory? factory = null;
         var unit = state.Content.UnitForTier(state.CoreTier);
-        var workRange = unit.BuildRange - 1f;
         foreach (var builder in state.Builders)
         {
+            Move(state, builder, unit.Speed * ctx.Dt);
+
             if (builder.CurrentSiteId is { } siteId)
             {
-                StayInRange(state, builder, siteId, workRange, unit.Speed * ctx.Dt);
-                continue;
+                KeepOrRelease(state, builder, siteId, unit.BuildRange);
+                if (builder.CurrentSiteId is not null)
+                {
+                    continue;
+                }
             }
 
             if (builder.Plans.Count == 0)
             {
-                var (restX, restY) = factory.BuilderRestPoint();
-                MoveTowards(builder, restX, restY, unit.Speed * ctx.Dt);
                 continue;
             }
 
-            var (x, y) = factory.PlanCentre(builder.Plans[0]);
-            if (Distance(builder, x, y) > workRange)
+            factory ??= new Factory(state);
+            var first = FirstInRange(factory, builder);
+            if (first < 0)
             {
-                MoveTowards(builder, x, y, unit.Speed * ctx.Dt);
+                continue;
             }
 
-            if (Distance(builder, x, y) <= workRange)
+            if (first > 0)
             {
-                BeginWork(state, factory, builder);
+                var plan = builder.PlanQueue[first];
+                builder.PlanQueue.RemoveAt(first);
+                builder.PlanQueue.Insert(0, plan);
             }
+
+            BeginWork(state, factory, builder);
         }
     }
 
     /// <summary>
-    /// A drone with a site keeps within <paramref name="workRange"/> of the site's cells (the same point
-    /// <see cref="ConstructSystem"/> measures to), so a site never waits on a drone out of range. A site
-    /// that no longer exists releases the drone and its plan.
+    /// Moves <paramref name="builder"/> by <paramref name="step"/> tiles along its held input, the diagonal
+    /// normalized; the centre stays within [0.5, size − 0.5] on a map with terrain. The rotation follows the input
+    /// and stays as it was without one.
     /// </summary>
-    private static void StayInRange(GameState state, BuilderUnit builder, long siteId, float workRange, float step)
+    private static void Move(GameState state, BuilderUnit builder, float step)
+    {
+        if ((builder.InputX == 0 && builder.InputY == 0) || step <= 0f)
+        {
+            return;
+        }
+
+        float dx = builder.InputX;
+        float dy = builder.InputY;
+        if (dx != 0f && dy != 0f)
+        {
+            // 1/√2: the diagonal moves as fast as a straight line.
+            const float diagonal = 0.70710677f;
+            dx *= diagonal;
+            dy *= diagonal;
+        }
+
+        builder.Rotation = MathF.Atan2(builder.InputY, builder.InputX) * (180f / MathF.PI);
+        var x = builder.X + dx * step;
+        var y = builder.Y + dy * step;
+        if (state.Terrain is { } terrain)
+        {
+            x = Math.Clamp(x, EdgeMargin, terrain.Width - EdgeMargin);
+            y = Math.Clamp(y, EdgeMargin, terrain.Height - EdgeMargin);
+        }
+
+        builder.X = x;
+        builder.Y = y;
+    }
+
+    /// <summary>
+    /// Keeps the drone on its site while the site is within <paramref name="buildRange"/> (the same point
+    /// <see cref="ConstructSystem"/> measures to); out of range the drone lets the site be, leaving it standing and
+    /// its plan queued. A site that no longer exists releases the drone and its plan.
+    /// </summary>
+    private static void KeepOrRelease(GameState state, BuilderUnit builder, long siteId, float buildRange)
     {
         ConstructSite? site = null;
         foreach (var candidate in state.Sites)
@@ -78,10 +124,25 @@ public sealed class BuilderSystem : ISimulationSystem
         }
 
         var (x, y) = Factory.SiteCentre(site);
-        if (Distance(builder, x, y) > workRange)
+        if (Distance(builder, x, y) > buildRange)
         {
-            MoveTowards(builder, x, y, step);
+            builder.CurrentSiteId = null;
+            site.StalledTicks = 0;
         }
+    }
+
+    /// <summary>Index of the first plan of the queue within build range, or −1.</summary>
+    private static int FirstInRange(Factory factory, BuilderUnit builder)
+    {
+        for (var i = 0; i < builder.PlanQueue.Count; i++)
+        {
+            if (factory.IsPlanInRange(builder, builder.PlanQueue[i]))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>Distance from the drone to (<paramref name="x"/>, <paramref name="y"/>), in tiles.</summary>
@@ -90,33 +151,6 @@ public sealed class BuilderSystem : ISimulationSystem
         var dx = x - builder.X;
         var dy = y - builder.Y;
         return MathF.Sqrt(dx * dx + dy * dy);
-    }
-
-    /// <summary>
-    /// Moves by <c>min(<paramref name="step"/>, distance)</c> towards the target; the rotation follows the
-    /// motion and stays as it was when the drone does not move.
-    /// </summary>
-    private static void MoveTowards(BuilderUnit builder, float x, float y, float step)
-    {
-        var dx = x - builder.X;
-        var dy = y - builder.Y;
-        var distance = MathF.Sqrt(dx * dx + dy * dy);
-        if (distance <= 0f || step <= 0f)
-        {
-            return;
-        }
-
-        builder.Rotation = MathF.Atan2(dy, dx) * (180f / MathF.PI);
-        if (step >= distance)
-        {
-            builder.X = x;
-            builder.Y = y;
-            return;
-        }
-
-        var scale = step / distance;
-        builder.X += dx * scale;
-        builder.Y += dy * scale;
     }
 
     /// <summary>

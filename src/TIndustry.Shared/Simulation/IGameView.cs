@@ -147,7 +147,7 @@ public interface IGameView
     /// <summary>The site covering <paramref name="tile"/>, if any.</summary>
     bool TryGetSiteAt(GridPosition tile, out ConstructSite site);
 
-    /// <summary>Build queue of <paramref name="playerId"/> (first = being reached or worked on).</summary>
+    /// <summary>Build queue of <paramref name="playerId"/> (first = being worked on, or the next to start in range).</summary>
     IReadOnlyList<BuildPlan> PlansOf(int playerId);
 
     /// <summary>
@@ -164,6 +164,30 @@ public interface IGameView
     /// stopped when its stalled plan went to the back of the queue); null when the plan has none.
     /// </summary>
     ConstructSite? SiteOfPlan(BuildPlan plan);
+
+    /// <summary>
+    /// True when <paramref name="plan"/> is within <paramref name="builder"/>'s build range, so the drone can work on
+    /// it now; a plan out of range waits in the queue (<see cref="Factory.IsPlanInRange"/>).
+    /// </summary>
+    bool IsPlanInRange(BuilderUnit builder, BuildPlan plan);
+
+    /// <summary>
+    /// Why <paramref name="playerId"/>'s drone could not start mining <paramref name="tile"/> by hand now, or null when
+    /// it could (<see cref="SetMining"/>; <see cref="Factory.MiningRefusal"/>).
+    /// </summary>
+    RefusalCode? MiningRefusal(int playerId, GridPosition tile);
+
+    /// <summary>
+    /// True when <paramref name="builder"/> digs its mining cell now: in build range, not building, room in the hold
+    /// (<see cref="Factory.IsMiningNow"/>; the client's mining laser).
+    /// </summary>
+    bool IsMiningNow(BuilderUnit builder);
+
+    /// <summary>
+    /// True when <paramref name="builder"/>'s hand mining waits for its current site, stuck for materials for a
+    /// second (<see cref="Factory.IsMiningHeldByStalledSite"/>; the client's hint to cancel the plan or fly away).
+    /// </summary>
+    bool IsMiningHeldByStalledSite(BuilderUnit builder);
 
     IWalletView Wallet { get; }
 

@@ -8,6 +8,7 @@ namespace TIndustry.Shared;
 /// The game methods agents call on a <see cref="SimHost"/> (simulation engine, and the client's channel): look
 /// (<c>stato</c>, <c>area</c>, <c>trova</c>, <c>eventi</c>), act with the player's commands (<c>piazza</c>,
 /// <c>smonta</c>, <c>ruota</c>, <c>sblocca</c>, <c>vendi</c>, <c>vendita_automatica</c>, <c>potenzia_core</c>, <c>collega</c>),
+/// fly the drone (<c>muovi</c>: a held direction, or a cell it flies to tick by tick) and mine by hand (<c>scava</c>),
 /// move time (<c>avanza</c>)
 /// and save the journal (<c>diario</c>). Commands go through <see cref="SimHost.Submit"/>. With
 /// <c>tickPerComando</c> (simulation engine) a command call also runs the tick that applies it, so its answer
@@ -26,10 +27,24 @@ public sealed class AgentGame : IDisposable
     private const int ListedQueueItems = 20;
     private const int PlayerId = 0;
 
+    /// <summary><c>muovi {cella}</c> without <c>maxTick</c>: a minute of flight (1350 cells for the alpha); a longer trip asks for more.</summary>
+    public const int DefaultMoveTicks = 60 * SimulationClock.TickRate;
+
+    /// <summary><c>muovi {cella}</c> has arrived once the drone's centre is this close to the cell's centre.</summary>
+    public const float ArrivalDistance = 0.5f;
+
+    /// <summary>
+    /// Dead zone of each axis while flying to a cell: half of it is wider than one tick of the fastest drone
+    /// (gamma, 26.6 cells/s = 0.44 per tick), so the drone never overshoots back and forth, and inside it on both
+    /// axes it is within <see cref="ArrivalDistance"/>.
+    /// </summary>
+    private const float SteerDeadZone = 0.25f;
+
     /// <summary>Methods that change the game, its time or the brush: the journal keeps only these.</summary>
     public static readonly IReadOnlySet<string> JournaledMethods = new HashSet<string>(StringComparer.Ordinal)
     {
-        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "filtro", "avanza"
+        "piazza", "smonta", "ruota", "sblocca", "vendi", "vendita_automatica", "potenzia_core", "collega", "filtro", "avanza",
+        "muovi", "scava"
     };
 
     private static readonly Regex JournalName = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,59}(\\.json)?\\z", RegexOptions.CultureInvariant);
@@ -337,6 +352,8 @@ public sealed class AgentGame : IDisposable
         "collega" => Collega(p),
         "filtro" => Filtro(p),
         "avanza" => Avanza(p),
+        "muovi" => Muovi(p),
+        "scava" => Single(new SetMining(PlayerId, Has(p, "cella") ? MapCell(p, "cella") : null), r => r["drone"] = DroneJson()),
         "diario" => Diario(p),
         _ => throw Bad($"Metodo sconosciuto: {method}.")
     };
@@ -633,6 +650,7 @@ public sealed class AgentGame : IDisposable
             ["tempo"] = TimeJson(),
             ["livelloCampagna"] = View.ActiveCampaignLevelId,
             ["direzione"] = DirectionName(Brush),
+            ["drone"] = DroneJson(),
             ["rifiuti"] = Array(refusals),
             ["impronta"] = host.Checksum().ToString("x16", System.Globalization.CultureInfo.InvariantCulture)
         };
@@ -1333,6 +1351,121 @@ public sealed class AgentGame : IDisposable
         return new JsonObject { ["tickPrima"] = before, ["tick"] = View.CurrentTick };
     }
 
+    /// <summary>
+    /// <c>muovi {dx, dy}</c>: the held input (<see cref="SetDroneInput"/>, −1, 0 or 1 per axis), like a held key: the
+    /// drone keeps flying until another <c>muovi</c>. <c>muovi {cella, maxTick?}</c>: flies to the cell's centre,
+    /// steering with <see cref="SetDroneInput"/> one tick at a time (like <c>avanza</c>, it runs those ticks itself),
+    /// until the drone is within <see cref="ArrivalDistance"/> or <c>maxTick</c> ticks have passed, then releases the
+    /// input (one more tick). Deterministic, so <c>rigioca</c> flies the same. <c>rilascia: false</c> (the real game's
+    /// bridge, on every slice of a long flight but the last) keeps the input held after <c>maxTick</c> ticks instead of
+    /// releasing it, so the drone flies on into the next slice without stopping and without the extra tick; on arrival
+    /// the input is released all the same.
+    /// </summary>
+    private JsonObject Muovi(JsonElement p)
+    {
+        var toCell = Has(p, "cella");
+        if (toCell == (Has(p, "dx") || Has(p, "dy")))
+        {
+            throw Bad("Dai 'cella' (la cella da raggiungere) oppure 'dx' e 'dy' (-1, 0, 1: la direzione tenuta).");
+        }
+
+        if (!toCell)
+        {
+            var dx = OptInt(p, "dx") ?? 0;
+            var dy = OptInt(p, "dy") ?? 0;
+            if (dx is < -1 or > 1 || dy is < -1 or > 1)
+            {
+                throw Bad("'dx' e 'dy' valgono -1, 0 o 1.");
+            }
+
+            return Single(new SetDroneInput(PlayerId, dx, dy), r => r["drone"] = DroneJson());
+        }
+
+        var target = MapCell(p, "cella");
+        var limit = OptInt(p, "maxTick") ?? DefaultMoveTicks;
+        if (limit is < 1 or > MaxAdvanceTicks)
+        {
+            throw Bad($"'maxTick' tra 1 e {MaxAdvanceTicks}.");
+        }
+
+        var release = OptBool(p, "rilascia") ?? true;
+        if (pending is not null)
+        {
+            throw Bad("Comando in corso: aspetta il suo esito prima di mandarne un altro.");
+        }
+
+        if (Drone() is null)
+        {
+            throw Bad("La partita non ha un drone.");
+        }
+
+        var (x, y) = (target.X + 0.5f, target.Y + 0.5f);
+        var before = View.CurrentTick;
+        var flown = 0;
+        bool arrived;
+        while (true)
+        {
+            var drone = Drone()!;
+            arrived = BuilderSystem.Distance(drone, x, y) <= ArrivalDistance;
+            if (!arrived && !release && flown >= limit)
+            {
+                break; // out of ticks, the input stays held for the next slice
+            }
+
+            var input = arrived || flown >= limit ? (0, 0) : (Steer(x - drone.X), Steer(y - drone.Y));
+            if (input != (drone.InputX, drone.InputY))
+            {
+                host.Submit(new SetDroneInput(PlayerId, input.Item1, input.Item2));
+            }
+            else if (input == (0, 0) || flown > limit)
+            {
+                break; // released (the second check only guards against an input the simulation would not take)
+            }
+
+            host.AdvanceTicks(1);
+            flown++;
+        }
+
+        var stopped = Drone()!;
+        return new JsonObject
+        {
+            ["tickPrima"] = before,
+            ["tick"] = View.CurrentTick,
+            ["arrivato"] = arrived,
+            ["distanza"] = Math.Round(BuilderSystem.Distance(stopped, x, y), 2),
+            ["drone"] = DroneJson()
+        };
+    }
+
+    private static int Steer(float delta) => delta > SteerDeadZone ? 1 : delta < -SteerDeadZone ? -1 : 0;
+
+    private BuilderUnit? Drone() => View.Builders.FirstOrDefault(b => b.OwnerPlayerId == PlayerId);
+
+    /// <summary>The player's drone: centre (tiles), held input, hold, mined cell and build range.</summary>
+    private JsonObject? DroneJson()
+    {
+        if (Drone() is not { } drone)
+        {
+            return null;
+        }
+
+        var unit = content.UnitForTier(View.CoreTier);
+        return new JsonObject
+        {
+            ["x"] = Math.Round(drone.X, 2),
+            ["y"] = Math.Round(drone.Y, 2),
+            ["ingresso"] = new JsonObject { ["dx"] = drone.InputX, ["dy"] = drone.InputY },
+            ["stiva"] = new JsonObject
+            {
+                ["oggetto"] = drone.HoldCount > 0 ? drone.HoldItemId : null,
+                ["quantita"] = drone.HoldCount,
+                ["capienza"] = unit.HoldCapacity
+            },
+            ["scavo"] = drone.MiningTile is { } tile ? CellJson(tile) : null,
+            ["raggio"] = Math.Round(unit.BuildRange, 2)
+        };
+    }
+
     private JsonObject Diario(JsonElement p)
     {
         var result = new JsonObject();
@@ -1550,6 +1683,8 @@ public sealed class AgentGame : IDisposable
         SetAutoSell or SetAutoSellWhenFull => "vendita_automatica",
         SetBlockFilter => "filtro",
         TogglePowerLink => "collega",
+        SetDroneInput => "muovi",
+        SetMining => "scava",
         _ => "altro"
     };
 
@@ -1559,6 +1694,7 @@ public sealed class AgentGame : IDisposable
         PlaceBuilding building => building.Origin,
         Remove remove => remove.Tile,
         SetBlockFilter filter => filter.Tile,
+        SetMining mining => mining.Tile,
         _ => null
     };
 

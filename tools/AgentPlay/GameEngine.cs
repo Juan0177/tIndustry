@@ -115,6 +115,15 @@ public sealed class GameEngine : IAgentEngine
 
             timeout += TimeSpan.FromSeconds(seconds);
         }
+        else if (method == "muovi" && p.TryGetProperty("cella", out var cell) && cell.ValueKind != JsonValueKind.Null)
+        {
+            // The bridge flies a move to a cell a slice per frame: the wait grows with the ticks it may take.
+            var ticks = p.TryGetProperty("maxTick", out var m) && m.TryGetInt32(out var max) && max > 0
+                ? Math.Min(max, AgentGame.MaxAdvanceTicks)
+                : AgentGame.DefaultMoveTicks;
+            var frames = (ticks + AgentProtocol.GameMoveTicksPerFrame - 1) / AgentProtocol.GameMoveTicksPerFrame;
+            timeout += TimeSpan.FromSeconds((double)frames / AgentProtocol.GameMoveMinFramesPerSecond);
+        }
 
         var result = Request(method, p, timeout);
         return method == "diario" && result.TryGetProperty("percorso", out var path) ? MoveJournal(result, path.GetString()!) : result;

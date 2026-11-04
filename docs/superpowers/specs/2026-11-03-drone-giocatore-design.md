@@ -1,6 +1,6 @@
 # Il drone sei tu: comandi come Mindustry
 
-- **Stato**: approvata dall'utente il 3 novembre 2026. Aspetto 11 «Drone e tier» di `docs/STATO.md` (CORE e droni a livelli ci sono già: [magazzino del CORE](2026-10-23-magazzino-core-design.md)).
+- **Stato**: attuata (2026-11-03; [diario](../../diario/2026-11-03-drone-giocatore.md)); approvata dall'utente il 3 novembre 2026. Aspetto 11 «Drone e tier» di `docs/STATO.md` (CORE e droni a livelli ci sono già: [magazzino del CORE](2026-10-23-magazzino-core-design.md)).
 - **Sostituisce**: il drone che vola da solo verso i cantieri (`BuilderSystem`), la visuale mossa con WASD, gli strumenti della palette (`BuildTool`: cursore, martello, fabbrica) e il trascinamento col clic sinistro che sposta la visuale.
 
 ## Obiettivo
@@ -14,7 +14,7 @@ Successo: una partita nuova si gioca dall'inizio alla fine senza strumenti; i pi
 | Tema | Decisione |
 |---|---|
 | Portata | **Come Mindustry, senza combattimento**: movimento, costruzione nel raggio, selezione e configurazione col clic, scavo a mano. Il drone non può essere distrutto (arriverà con l'aspetto 13). |
-| Visuale | **Segue il drone**; tenendo premuto il tasto centrale si trascina lontano e al rilascio torna sul drone; rotella zoom, M mappa grande. |
+| Visuale | **Segue il drone**; tenendo premuto il tasto centrale si trascina lontano e al rilascio torna sul drone; rotella zoom. |
 | Scavo | alpha: ferro, rame, piombo, carbone, **0,7/s**, stiva **30**; beta: stessi, **0,9/s**, stiva **50**; gamma: anche titanio, **1,1/s**, stiva **70**. Scarico automatico entro **6 celle** dal CORE, rispettando il massimo per oggetto. |
 | Costruzione | **Come Mindustry**: il drone non si muove da solo; costruisce e smonta solo i piani entro il raggio (27,5 celle); gli altri aspettano. |
 
@@ -36,6 +36,8 @@ Successo: una partita nuova si gioca dall'inizio alla fine senza strumenti; i pi
 - Ritmo per livello come in tabella, con accumulatore intero (nessun float nei conti della stiva).
 - A ogni tick, se il drone è entro 6 celle dal CORE, la stiva passa nel CORE fino al massimo per oggetto; quello che non entra resta nella stiva.
 - Il giacimento non si consuma (come i minatori).
+- Le 6 celle dello scarico si misurano dal centro del drone al bordo più vicino del CORE (0 sopra il CORE).
+- Come Mindustry: lo scavo si annulla se la cella esce dal raggio o se sul giacimento c'è il CORE, un edificio, un nastro o un cantiere; mentre il drone costruisce lo scavo si ferma e poi riprende; con la stiva piena il comando si rifiuta, salvo che il drone sia entro 6 celle da un CORE con posto per quell'oggetto.
 
 ### Mouse e tastiera
 
@@ -43,16 +45,16 @@ Successo: una partita nuova si gioca dall'inizio alla fine senza strumenti; i pi
 |---|---|
 | WASD | muove il drone |
 | tasto centrale tenuto | trascina la visuale; al rilascio torna sul drone |
-| rotella | zoom |
-| clic sinistro, nessun blocco scelto | seleziona il blocco sotto il cursore: informazioni e, se ha configurazione, la apre (filtro di selezionatori ed estrattori, laser dei nodi) |
+| rotella | ruota il blocco scelto se è orientabile, altrimenti zoom (`Ctrl` zooma sempre) |
+| clic sinistro, nessun blocco scelto | seleziona il blocco sotto il cursore: mostra le informazioni già presenti al passaggio del mouse (suggerimenti) e, se ha configurazione, la apre (filtro di selezionatori ed estrattori, laser dei nodi) |
 | clic sinistro tenuto su un giacimento, nessun blocco scelto | scava |
 | blocco scelto in palette | clic o trascinamento piazza i piani; R ruota |
 | clic destro o Esc con un blocco scelto | deseleziona il blocco |
 | clic destro trascinato | rettangolo di smontaggio |
 | clic destro su un piano | lo annulla |
-| Q | sceglie in palette il blocco sotto il cursore |
+| Q | sceglie in palette il blocco sotto il cursore (tasto fisico: vale anche su AZERTY) |
 | Spazio | pausa |
-| M | mappa grande |
+| M | Mercato (la «mappa grande» non esiste) |
 
 La palette tiene categorie e blocchi; spariscono i pulsanti degli strumenti.
 
