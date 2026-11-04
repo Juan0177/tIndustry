@@ -24,7 +24,7 @@
 
 ## Punti da sorvegliare in revisione
 
-1. **Schermo e CORE che cresce**: un CORE che cresce sopra lo schermo lo smonta col rimborso; uno che lo lascia staccato lo spegne; riattaccarlo (smontare e ripiazzare) lo riaccende — test in Task 1.
+1. **Schermo e CORE che cresce**: lo schermo sulle celle nuove blocca il potenziamento come ogni edificio (decisione dell'utente del 4/11); uno schermo staccato si spegne; riattaccarlo (smontare e ripiazzare) lo riaccende — test in Task 1 e 2.
 2. **Due «Vendi tutto» nello stesso tick**: l'ultimo esito è quello del secondo, nessun esito per una vendita senza schermo attivo — test in Task 2.
 3. **Probabilità mostrata ≠ probabilità usata**: la previsione deve dare esattamente il numero che `Sell` userebbe in quel tick (pity, attesa, fuori picco, sotto 400 pezzi) — test in Task 3.
 4. **Costi enormi e somme**: costi in milioni e incassi con jackpot non devono traboccare (`long` o somme sature come in `MarketSales`) — test in Task 5.
@@ -37,7 +37,7 @@
 **File:** `data/content.json` (struttura `market-screen`, kind `building`, prerequisito `assembler`, costi di partenza; blocco 2×2 con `buildCost` della specifica), `Content/ContentTypes.cs`, `Content/FactoryContent.cs`, `Simulation/Commands.cs` (`BuildingKind.MarketScreen`, `RefusalCode.MarketScreenNotTouchingCore`, `RefusalCode.MarketScreenAlreadyPresent`), `Construction/BuildSpec.cs`, edificio nuovo `Buildings/MarketScreen.cs`, `Factory.cs` (piazzamento, ricalcolo), `Simulation/GameState.cs` (`HasMarketScreen` calcolato), `SimHost.cs`, `godot/lingue/testi.csv` (rifiuti, nome); test nuovi `MarketScreenTests.cs`
 
 **Interfacce prodotte:** `MarketScreen` (`Id`, `Position`, `string? WatchedItemId`, `bool Active`); `Factory.MarketScreen` (lo schermo o null); `Factory.RefreshMarketScreen()` chiamato dopo ogni cambio di edifici o CORE.
-- [ ] **Passo 1: test che falliscono**: piazzato a contatto col CORE → cantiere; staccato → `MarketScreenNotTouchingCore`; secondo schermo con il primo in cantiere o finito → `MarketScreenAlreadyPresent`; `HasMarketScreen` falso in cantiere e vero finito; smontato → falso; CORE che cresce sopra lo schermo → smontato con rimborso, falso; CORE che cresce e lo lascia staccato → `Active` falso; un «Vendi tutto» nel picco da 400 pezzi con lo schermo attivo è un tentativo di jackpot (`SaleResolved.Attempt`), senza no.
+- [ ] **Passo 1: test che falliscono**: piazzato a contatto col CORE → cantiere; staccato → `MarketScreenNotTouchingCore`; secondo schermo con il primo in cantiere o finito → `MarketScreenAlreadyPresent`; `HasMarketScreen` falso in cantiere e vero finito; smontato → falso; CORE che cresce sopra lo schermo → rifiutato (`CoreUpgradeBlocked`, dal Task 2); CORE che cresce e lo lascia staccato → `Active` falso; un «Vendi tutto» nel picco da 400 pezzi con lo schermo attivo è un tentativo di jackpot (`SaleResolved.Attempt`), senza no.
 - [ ] **Passo 2:** FAIL. **Passo 3:** implementazione. **Passo 4:** build 0/0, test verdi (Shared, AgentPlay, `TestiTests`).
 - [ ] **Passo 5: commit** `feat(mercato): schermo di borsa attaccato al CORE che accende il jackpot`.
 
