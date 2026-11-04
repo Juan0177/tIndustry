@@ -314,6 +314,119 @@ public sealed class DeterminismTests
     }
 
     /// <summary>
+    /// A game with the market screen built by the drone beside the shard, its item chosen, and "sell all" at fixed
+    /// ticks: two of them in a spike forced the same way on every copy (one big enough for a jackpot attempt, drawn
+    /// from the seeded market random), the others in whatever phase the market is.
+    /// </summary>
+    private static (SimHost Host, List<(long Tick, SimCommand Command)> Script) MarketScreenGame(FactoryContent content)
+    {
+        var origin = new GridPosition(60, 60);
+        var factory = NewGame.Sandbox(content, origin, mapWidth: 120, mapHeight: 120, seed: 42, rules: new GameRules());
+        factory.Research.ForceUnlock(MarketScreen.BuildingId);
+        factory.Research.ForceUnlock(MarketInsight.ForecastNodeId);
+        factory.Research.ForceUnlock(MarketInsight.PercentNodeId);
+        factory.Research.ForceUnlock(MarketInsight.OddsNodeId);
+        foreach (var entry in factory.CostOf(new BuildSpec(MarketScreen.BuildingId, BuildingKind.MarketScreen, new GridPosition(63, 60), Direction.East)))
+        {
+            if (entry.ItemId is { } itemId)
+            {
+                factory.Wallet.AddMaterial(itemId, entry.Amount);
+            }
+        }
+
+        factory.Wallet.AddMaterial("iron-ore", 2000);
+        factory.Wallet.AddMaterial("iron-plate", 600);
+        factory.Wallet.AddMaterial("coal", 600);
+        factory.Wallet.AddMaterial("lead-plate", 300);
+        var script = new List<(long Tick, SimCommand Command)>
+        {
+            (5, new PlaceBuilding(0, BuildingKind.MarketScreen, new GridPosition(63, 60), Direction.East)),
+            (3600, new SetBlockFilter(0, new GridPosition(64, 61), "iron-ore")),
+            (2 * 3600, new SellAll(0, "coal")),
+            (3 * 3600, new SetBlockFilter(0, new GridPosition(63, 60), "iron-plate")),
+            (3 * 3600, new SellAll(0, "iron-plate")),
+            // The ore in a forced spike: a jackpot attempt; a miss blocks "sell all" for five minutes.
+            (4 * 3600, new SellAll(0, "iron-ore")),
+            (9 * 3600 + 1800, new SellAll(0, "lead-plate"))
+        };
+        return (new SimHost(factory), script);
+    }
+
+    /// <summary>Puts <paramref name="itemId"/> in a spike at the threshold, the same way on every copy of the game.</summary>
+    private static void ForceSpike(SimHost host, string itemId)
+    {
+        var item = ((Factory)host.State).State.Exchange.Find(itemId)!;
+        item.Phase = MarketPhase.SpikeHold;
+        item.PhaseStartTick = host.State.CurrentTick;
+        item.SpikeFromMilli = item.SpikeTopMilli = item.PriceMilli = host.State.Content.MarketRules!.SpikeThresholdMilli;
+    }
+
+    [Fact]
+    public void Determinism_MarketScreenAndSellAll()
+    {
+        const int minute = 60 * SimulationClock.TickRate;
+        var content = LoadContent();
+        var (a, script) = MarketScreenGame(content);
+        var (b, _) = MarketScreenGame(content);
+        var refusedA = new List<string>();
+        a.CommandRejected += (c, r) => refusedA.Add($"{c}:{r.Code}");
+        var attempts = new List<SaleResolved>();
+        a.EventRaised += e =>
+        {
+            if (e is SaleResolved sale)
+            {
+                attempts.Add(sale);
+            }
+        };
+        var checksums = new List<(ulong A, ulong B)>();
+        // Ten minutes, checksums every minute; at five B is replaced by a copy read from its own snapshot.
+        for (var tick = 0L; tick < 10 * minute; tick++)
+        {
+            if (tick == 5 * minute)
+            {
+                b = new SimHost(new Factory(Snapshot.Read(content, b.CreateSnapshot())));
+                Assert.Equal(a.Checksum(), b.Checksum());
+            }
+
+            foreach (var (when, command) in script)
+            {
+                if (when == tick)
+                {
+                    if (command is SellAll { ItemId: "iron-ore" })
+                    {
+                        ForceSpike(a, "iron-ore");
+                        ForceSpike(b, "iron-ore");
+                    }
+
+                    a.Submit(command);
+                    b.Submit(command);
+                }
+            }
+
+            a.AdvanceTicks(1);
+            b.AdvanceTicks(1);
+            if ((tick + 1) % minute == 0)
+            {
+                checksums.Add((a.Checksum(), b.Checksum()));
+            }
+        }
+
+        Assert.Equal(10, checksums.Count);
+        Assert.All(checksums, c => Assert.Equal(c.A, c.B));
+        Assert.Empty(refusedA);
+        var screen = ((Factory)a.State).MarketScreen;
+        Assert.NotNull(screen);
+        Assert.True(screen.Active);
+        Assert.Equal("iron-plate", screen.WatchedItemId);
+        Assert.Equal(4, attempts.Count);
+        Assert.True(attempts[2].Attempt, "the sell all of the ore in a spike is a jackpot attempt");
+        Assert.Equal("lead-plate", screen.LastResult!.ItemId);
+        Assert.Equal(attempts[3].Income, screen.LastResult.Income);
+        Assert.Equal(attempts[3].Jackpot, screen.LastResult.Jackpot);
+        Assert.Equal(screen.LastResult, ((Factory)b.State).MarketScreen!.LastResult);
+    }
+
+    /// <summary>
     /// A power game driven by the player's commands: a generator, a chain of nodes, a forno, a battery and lamps at
     /// night; the middle node is taken away (the network splits) and built again (it joins), a laser is toggled off and
     /// on by hand. Ids are found on each game's own state, the same way on both.

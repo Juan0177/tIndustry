@@ -14,14 +14,16 @@ Ogni livello parte con soldi e materiali propri e con la Ricerca da capo (solo N
 |---|---|---|---|---|---|---|
 | 1 | Primi passi | 200×200 | rocce, prati | $220, 8 Ferro grezzo, 60 Lastre di ferro, 8 Fili di rame | 100% | Vendi 3 ferro grezzo; Guadagna $24 dalle vendite |
 | 2 | Prima fabbrica | 250×250 | rocce, prati | $180, 10 Ferro grezzo, 48 Lastre di ferro, 10 Fili di rame | 100% | Magazzino 12 ferro grezzo |
-| 3 | Lastre di ferro | 300×300 | rocce, prati | $280, 20 Ferro grezzo, 25 Lastre di ferro, 12 Fili di rame | 100% | Sblocca il forno; Magazzino 12 lastre di ferro |
-| 4 | Fili di rame | 350×350 | rocce, sabbia, prati | $520, 20 Ferro grezzo, 55 Lastre di ferro, 6 Fili di rame | 50% | Sblocca l'assemblatore; Magazzino 4 fili di rame; Vendi 2 fili di rame |
-| 5 | Economia Foundry | 400×400 | rocce, sabbia, prati | $160, 20 Ferro grezzo, 12 Lastre di ferro, 8 Fili di rame | 50% | Guadagna $150 dalle vendite; Magazzino 20 lastre |
-| 6 | Corrente (notte) | 500×500 | rocce, sabbia, prati | $450, 20 Ferro grezzo, 40 Lastre di ferro, 14 Fili di rame, 24 Carbone | 50% | Sblocca il generatore; Sblocca il Nodo T1; Magazzino 16 carbone |
-| 7 | Venatura di piombo | 600×600 | rocce, sabbia, prati | $320, 20 Ferro grezzo, 35 Lastre di ferro, 12 Fili di rame, 18 Carbone | 50% | Magazzino 10 piombo grezzo; Magazzino 6 lastre di piombo |
-| 8 | Logistica selettiva | 700×700 | rocce, sabbia, prati | $560, 20 Ferro grezzo, 50 Lastre di ferro, 16 Fili di rame | 50% | Sblocca l'incrocio; Sblocca il selezionatore; Magazzino 28 lastre di ferro |
-| 9 | Titanio raro | 850×850 | rocce, sabbia, neve, prati | $950, 20 Ferro grezzo, 95 Lastre di ferro, 30 Fili di rame, 30 Carbone, 8 Lastre di piombo | 50% | Magazzino 6 titanio grezzo; Magazzino 3 lastre di titanio; Magazzino 4 silicio |
-| 10 | Espansione T2 (notte) | 1000×1000 | rocce, sabbia, neve, prati | $1100, 20 Ferro grezzo, 70 Lastre di ferro, 24 Fili di rame, 20 Carbone, 6 Lastre di piombo | 50% | Sblocca il Minatore T2; Sblocca il Nastro T2; Guadagna $400 dalle vendite; Magazzino 8 grafite |
+| 3 | Lastre di ferro | 300×300 | rocce, prati | $1.530, 20 Ferro grezzo, 40 Lastre di ferro, 12 Fili di rame | 100% | Sblocca il forno; Magazzino 12 lastre di ferro |
+| 4 | Fili di rame | 350×350 | rocce, sabbia, prati | $56.500, 20 Ferro grezzo, 114 Lastre di ferro, 6 Fili di rame | 50% | Sblocca l'assemblatore; Magazzino 4 fili di rame; Vendi 2 fili di rame |
+| 5 | Economia Foundry | 400×400 | rocce, sabbia, prati | $1.500, 20 Ferro grezzo, 30 Lastre di ferro, 8 Fili di rame | 50% | Guadagna $150 dalle vendite; Magazzino 40 lastre |
+| 6 | Corrente (notte) | 500×500 | rocce, sabbia, prati | $13.830, 20 Ferro grezzo, 56 Lastre di ferro, 16 Fili di rame, 24 Carbone | 50% | Sblocca il generatore; Sblocca il Nodo T1; Magazzino 16 carbone |
+| 7 | Venatura di piombo | 600×600 | rocce, sabbia, prati | $1.570, 20 Ferro grezzo, 50 Lastre di ferro, 12 Fili di rame, 18 Carbone | 50% | Magazzino 10 piombo grezzo; Magazzino 6 lastre di piombo |
+| 8 | Logistica selettiva | 700×700 | rocce, sabbia, prati | $79.940, 20 Ferro grezzo, 50 Lastre di ferro, 16 Fili di rame | 50% | Sblocca l'incrocio; Sblocca il selezionatore; Magazzino 28 lastre di ferro |
+| 9 | Titanio raro | 850×850 | rocce, sabbia, neve, prati | $206.500, 20 Ferro grezzo, 234 Lastre di ferro, 46 Fili di rame, 30 Carbone, 8 Lastre di piombo | 50% | Magazzino 6 titanio grezzo; Magazzino 3 lastre di titanio; Magazzino 4 silicio |
+| 10 | Espansione T2 (notte) | 1000×1000 | rocce, sabbia, neve, prati | $279.500, 20 Ferro grezzo, 216 Lastre di ferro, 40 Fili di rame, 20 Carbone, 6 Lastre di piombo | 50% | Sblocca il Minatore T2; Sblocca il Nastro T2; Guadagna $400 dalle vendite; Magazzino 8 grafite |
+
+Soldi e materiali di partenza dei livelli 3–10 sono stati alzati a novembre 2026, quando la Ricerca è stata riscalata per circa 6 ore di partita (vedi [Economia e Ricerca](Economia-e-Ricerca#quanto-costa-tutto-circa-6-ore)): ogni livello parte con almeno quello che costano gli sblocchi che gli servono, compresi il forno e l'assemblatore delle ricette chieste dagli obiettivi, con lo stesso margine di prima. Nel livello 5 l'obiettivo di magazzino è salito a 40 lastre, perché le 30 di partenza servono a sbloccare il forno. Nei livelli 3, 4 e 8 un obiettivo di magazzino è già fatto alla partenza: resta così finché la campagna non si rifà con i numeri nuovi.
 
 Tipi di obiettivo:
 

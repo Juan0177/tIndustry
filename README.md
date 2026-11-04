@@ -121,11 +121,11 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Produzione** | Minatore T1/T2, estrattore, forno multi-ricetta (carbone o corrente), assemblatore |
 | **Logistica** | Nastri T1/T2/T3, incrocio, router, selezionatore con filtro, ponte (2–4 caselle) |
 | **Energia** | Generatore, nodi T1/T2 in rete con laser, Batteria, Lampada |
-| **Economia** | Fondi, costi e rimborsi, Mercato come una borsa (prezzi che si muovono, picchi fino al triplo, crolli se svendi, vendita automatica per oggetto al prezzo minimo, a ritmo), magazzino del CORE con un massimo per oggetto, tre livelli del CORE, container e vault |
-| **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia |
+| **Economia** | Fondi, costi e rimborsi, Mercato come una borsa (prezzi che si muovono, picchi fino al triplo, crolli se svendi, vendita automatica per oggetto al prezzo minimo, a ritmo), schermo di borsa attaccato al CORE col jackpot e i moduli della Finanza, magazzino del CORE con un massimo per oggetto, tre livelli del CORE, container e vault |
+| **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia, Finanza; costi pensati per circa 6 ore di partita |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
 | **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
-| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 19 (le versioni precedenti non si aprono più) |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 20 (le versioni precedenti non si aprono più) |
 
 Il combattimento è fuori dal progetto per ora.
 
@@ -146,7 +146,8 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **G4 · Interfaccia** | Tema unico in stile Mindustry, carattere pixel e icone generati, italiano e inglese, Scala UI solo dell'interfaccia, schermo intero, colori per daltonici e alto contrasto ([ADR 0006](docs/decisioni/0006-interfaccia-lingue-carattere.md)) |
 | Fatto | **Sito web su GitHub Pages** | [Vetrina «fabbrica»](https://juan0177.github.io/tIndustry/) con le catene di produzione vere sui nastri del gioco, download, [sviluppo](https://juan0177.github.io/tIndustry/sviluppo/) (ADR, roadmap, diario) e [tutti gli asset](https://juan0177.github.io/tIndustry/asset/), generati da `tools/sito/costruisci.py`; il [racconto](https://juan0177.github.io/tIndustry/racconto/) guidato dallo scroll, «dal giacimento al CORE», è pubblicato in `racconto/` ma resta fuori dalla barra finché non è approvato ([spec](docs/superpowers/specs/2026-10-20-sito-scroll-narrativo.md)) |
 | Fatto | **Mercato come una borsa (specifica 1 di 3)** | Prezzi per oggetto con picchi e crolli, vendite al prezzo del clic, vendita automatica per oggetto, jackpot e rete di sicurezza nella simulazione, salvataggi v14, panoramica del Mercato ([specifica](docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), [diario](docs/diario/2026-10-22-mercato-borsa.md), [spiegazione](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa)) |
-| Previsto | **Mercato 2 · Schermo di borsa** | Blocco accanto al CORE, sequenza del «Vendi tutto» col drone, LED, moduli e ramo Finanza della Ricerca; con lo schermo il jackpot scatta anche in partita |
+| Fatto, in attesa dell'ok | **Mercato 2a · Schermo di borsa e bilanciamento** | Schermo 2×2 attaccato al CORE che accende il jackpot in partita e mostra un oggetto, LED dell'esito del «Vendi tutto», ramo Finanza della Ricerca coi moduli previsione, percentuale e probabilità, costi della Ricerca riscalati per circa 6 ore di partita, salvataggi v20 ([specifica](docs/superpowers/specs/2026-11-04-schermo-borsa-design.md), [diario](docs/diario/2026-11-04-schermo-borsa.md)) |
+| Previsto | **Mercato 2b · Sequenza del «Vendi tutto»** | Zoom senza HUD, bot della finanza in 2.5D, valigetta, «calcolo…», coriandoli e schermata JACKPOT a tutto schermo |
 | Fatto | **Mercato 3 · Magazzino del CORE e livelli** | Massimo per oggetto, linee che si fermano a CORE pieno, CORE shard 3×3 → foundation 4×4 → nucleus 5×5 con droni alpha → beta → gamma, container e vault, vendita automatica a ritmo, salvataggi v15 ([specifica](docs/superpowers/specs/2026-10-23-magazzino-core-design.md)) |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Fatto, in attesa dell'ok | **4 · Drone e tier** | Il drone lo comandi tu: WASD, costruzione nel raggio, scavo a mano con la stiva; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
@@ -157,7 +158,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 67%, 52 passi fatti su 78" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 70%, 55 passi fatti su 79" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -166,7 +167,7 @@ A che punto siamo, aspetto per aspetto:
 | 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="100%" width="160"> | 100% (9/9) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
-| 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="60%" width="160"> | 60% (3/5) |
+| 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="83%" width="160"> | 83% (5/6) |
 | 7 | [Mappe e terreno](https://github.com/Juan0177/tIndustry/wiki/Mappe-e-terreno) | <img src="docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
 | 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="50%" width="160"> | 50% (1/2) |
 | 9 | [Grafica ed effetti](https://github.com/Juan0177/tIndustry/wiki/Arte-generata) | <img src="docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
@@ -176,7 +177,7 @@ A che punto siamo, aspetto per aspetto:
 | 13 | [Attacco e difesa](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/13.svg" alt="33%" width="160"> | 33% (2/6) |
 | 14 | [Co-op](docs/decisioni/0002-sincronizzazione-ibrida.md) | <img src="docs/img/stato/14.svg" alt="0%" width="160"> | 0% (0/4) |
 | 15 | [Sito web](https://github.com/Juan0177/tIndustry/wiki/Sito-web) | <img src="docs/img/stato/15.svg" alt="86%" width="160"> | 86% (6/7) |
-| 16 | [Wiki e README](https://github.com/Juan0177/tIndustry/wiki/) | <img src="docs/img/stato/16.svg" alt="67%" width="160"> | 67% (4/6) |
+| 16 | [Wiki e README](https://github.com/Juan0177/tIndustry/wiki/) | <img src="docs/img/stato/16.svg" alt="83%" width="160"> | 83% (5/6) |
 
 Passi di ogni aspetto in [docs/STATO.md](docs/STATO.md).
 <!-- barra-stato:fine -->

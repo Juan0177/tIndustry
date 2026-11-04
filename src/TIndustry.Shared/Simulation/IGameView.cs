@@ -120,6 +120,9 @@ public interface IGameView
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
 
+    /// <summary>The finished stock-exchange screen (one per game), or null; <see cref="MarketScreen.Active"/> when it touches the Core.</summary>
+    MarketScreen? MarketScreen { get; }
+
     /// <summary>Rules of this game.</summary>
     GameRules Rules { get; }
 
@@ -244,6 +247,12 @@ public interface IGameView
 
     /// <summary>Seconds (rounded up) before "sell all" works again; 0 when it is free.</summary>
     int SellAllCooldownSeconds { get; }
+
+    /// <summary>
+    /// What the researched Finance modules show for <paramref name="itemId"/> now (forecast, percent over B, jackpot
+    /// odds); every field null without an active screen or for a module not researched (<see cref="Shared.MarketInsight"/>).
+    /// </summary>
+    MarketInsight MarketInsight(string itemId);
 
     /// <summary>Why the Core cannot be upgraded now (see <see cref="Factory.CoreUpgradeRefusal"/>); null when it can.</summary>
     Refusal? CoreUpgradeRefusal();

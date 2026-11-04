@@ -29,6 +29,11 @@ public sealed class ResearchTreeContentTests
         { "miner-advanced", "miner" },
         { "smelter", "miner" },
         { "assembler", "smelter" },
+        { "market-screen", "assembler" },
+        // Finanza: modules researched in a row after the screen, nothing to place.
+        { "finance-forecast", "market-screen" },
+        { "finance-percent", "finance-forecast" },
+        { "finance-odds", "finance-percent" },
         { "extractor", "miner" },
         // Energia
         { "generator", null },

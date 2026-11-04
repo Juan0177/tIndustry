@@ -19,6 +19,10 @@ struttura.lamp.nome,Lampada,Lamp
 struttura.battery.nome,Batteria,Battery
 struttura.container.nome,Contenitore,Container
 struttura.vault.nome,Deposito,Vault
+struttura.market-screen.nome,Schermo di borsa,Market screen
+struttura.finance-forecast.nome,Modulo previsione,Forecast module
+struttura.finance-percent.nome,Modulo percentuale,Percent module
+struttura.finance-odds.nome,Modulo probabilità,Odds module
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
 struttura.core-shard.nome,CORE Frammento,CORE Shard
@@ -67,7 +71,7 @@ obiettivo.level-04-fili.3,Vendi 2 fili di rame,Sell 2 copper wire
 campagna.level-05-mercato.nome,Economia Foundry,Foundry economy
 campagna.level-05-mercato.descrizione,Reinvestimento: vendi lastre e costruisci un piccolo surplus.,Reinvest: sell plates and build up a small surplus.
 obiettivo.level-05-mercato.1,Guadagna $150 dalle vendite,Earn $150 from sales
-obiettivo.level-05-mercato.2,Magazzino 20 lastre,Store 20 plates
+obiettivo.level-05-mercato.2,Magazzino 40 lastre,Store 40 plates
 campagna.level-06-corrente.nome,Corrente,Power
 campagna.level-06-corrente.descrizione,Accendi la fabbrica: generatore a carbone e Nodo T1. Il forno gira a carbone o corrente (+20%).,Power up the factory: coal generator and Power node T1. The smelter runs on coal or power (+20%).
 obiettivo.level-06-corrente.1,Sblocca il generatore,Unlock the generator
@@ -96,6 +100,8 @@ obiettivo.level-10-espansione.4,Magazzino 8 grafite,Store 8 graphite
 filtro.titolo,Filtro · {0},Filter · {0}
 filtro.nessuno,Nessuno,None
 filtro.nessuno.suggerimento,Toglie il filtro,Clears the filter
+filtro.titolo.schermo,Oggetto seguito · {0},Followed item · {0}
+filtro.nessuno.suggerimento.schermo,Lo schermo non segue nessun oggetto,The screen follows no item
 struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
@@ -117,6 +123,10 @@ struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia
 struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete · capacità 1000 · 1×1,Battery · stores the power of its network · capacity 1000 · 1×1
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
+struttura.market-screen.suggerimento,Schermo di borsa · 2×2 · attaccato al CORE accende il jackpot · sblocca in Ricerca,Market screen · 2×2 · next to the CORE it turns the jackpot on · unlock in Research
+struttura.finance-forecast.suggerimento,Modulo previsione · sullo schermo di borsa · quando arriva il picco e quando vendere · sblocca in Ricerca,Forecast module · on the market screen · when the spike comes and when to sell · unlock in Research
+struttura.finance-percent.suggerimento,Modulo percentuale · sullo schermo di borsa · il prezzo come percentuale su B · sblocca in Ricerca,Percent module · on the market screen · the price as a percentage over B · unlock in Research
+struttura.finance-odds.suggerimento,Modulo probabilità · sullo schermo di borsa · la probabilità del jackpot di un «Vendi tutto» ora · sblocca in Ricerca,Odds module · on the market screen · the jackpot odds of a «Sell all» now · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
@@ -252,6 +262,8 @@ rifiuto.MiningOutOfRange,Il giacimento è fuori dal raggio del drone,The deposit
 rifiuto.MiningHoldOtherItem,La stiva porta un altro oggetto: svuotala vicino al CORE,The hold carries another item: empty it near the Core
 rifiuto.MiningCovered,Sul giacimento c'è già qualcosa,Something already stands on the deposit
 rifiuto.MiningHoldFull,La stiva è piena: svuotala vicino al CORE,The hold is full: empty it near the Core
+rifiuto.MarketScreenNotTouchingCore,Lo schermo di borsa va messo a contatto col CORE,The market screen must touch the CORE
+rifiuto.MarketScreenAlreadyPresent,C'è già uno schermo di borsa: se ne può avere uno solo,There is already a market screen: you can have only one
 scavo.attesa.cantiere,"Lo scavo aspetta: il cantiere non ha materiali (annulla il piano o allontanati)","Mining waits: the site is short of materials (cancel the plan or fly away)"
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
@@ -353,6 +365,39 @@ mercato.auto.pieno.disattivata,Vendita automatica anche sotto il massimo.,Auto-s
 mercato.quantita.pieno,{0}/{1} pieno,{0}/{1} full
 mercato.quantita.suggerimento,In scorta / massimo del CORE,In stock / CORE maximum
 mercato.jackpot,JACKPOT! +${0},JACKPOT! +${0}
+borsa.previsione.picco,picco fra circa {0} min,spike in about {0} min
+borsa.previsione.picco.presto,picco fra meno di 1 min,spike in less than 1 min
+borsa.previsione.arrivo,picco in arrivo,spike coming
+borsa.previsione.crollo,fine del crollo fra {0} min,crash ends in {0} min
+borsa.previsione.crollo.presto,fine del crollo fra meno di 1 min,crash ends in less than 1 min
+borsa.previsione.bloccato,Vendi tutto bloccato per {0} min,Sell all locked for {0} min
+borsa.previsione.bloccato.presto,Vendi tutto bloccato per meno di 1 min,Sell all locked for less than 1 min
+borsa.vendi.ora,vendi ora,sell now
+formato.separatore,{0} · {1},{0} · {1}
+borsa.aspetta,aspetta,wait
+borsa.percentuale,{0}% su B,{0}% over B
+borsa.probabilita,probabilità jackpot {0}%,jackpot odds {0}%
+borsa.schermo.picco,picco fra {0} min,spike in {0} min
+borsa.schermo.picco.presto,picco fra <1 min,spike in <1 min
+borsa.schermo.arrivo,picco in arrivo,spike coming
+borsa.schermo.crollo,fine crollo: {0} min,crash ends: {0} min
+borsa.schermo.crollo.presto,fine crollo: <1 min,crash ends: <1 min
+borsa.schermo.bloccato,vendi tutto: {0} min,sell all in {0} min
+borsa.schermo.bloccato.presto,vendi tutto: <1 min,sell all in <1 min
+borsa.schermo.percentuale,{0}% B,{0}% B
+borsa.schermo.probabilita,jackpot {0}%,jackpot {0}%
+borsa.schermo.crollo.stato,Crollo,Crash
+borsa.schermo.staccato,Staccato dal CORE,Detached from CORE
+borsa.schermo.scegli,Scegli un oggetto,Choose an item
+borsa.jackpot,JACKPOT,JACKPOT
+borsa.incasso,+${0},+${0}
+borsa.suggerimento.oggetto,Segue: {0},Follows: {0}
+borsa.suggerimento.esito,Ultimo «Vendi tutto» · {0} · +${1},Last «Sell all» · {0} · +${1}
+borsa.led.Blue,LED blu: il prezzo è sceso poco,Blue LEDs: the price fell a little
+borsa.led.Purple,LED viola: il prezzo è sceso molto o è crollato,Purple LEDs: the price fell a lot or crashed
+borsa.led.Yellow,LED gialli: il 50/50 da 10.000 pezzi,"Yellow LEDs: the 50/50 from 10,000 pieces"
+borsa.led.Jackpot,LED gialli e luci negli angoli: jackpot,Yellow LEDs and corner lights: jackpot
+borsa.suggerimento.clic,Clic: scegli l'oggetto da seguire,Click: choose the item to follow
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
 ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
 ricerca.legenda,Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente,Gold border = you can unlock it · lock = unlock the one before first
@@ -400,6 +445,10 @@ struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo
 struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 1000 · 1×1,Battery · keeps the spare power and gives it back when the generators fall short · capacity 1000 · 1×1
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
+struttura.market-screen.descrizione,Schermo di borsa · 2×2 · uno solo · a contatto col CORE · mostra il mercato di un oggetto e rende possibile il jackpot del «Vendi tutto»,Market screen · 2×2 · only one · touching the CORE · shows the market of one item and makes the «Sell all» jackpot possible
+struttura.finance-forecast.descrizione,Modulo previsione · niente da piazzare · con lo schermo di borsa attivo dice fra quanto arriva il picco o finisce il crollo e consiglia «aspetta» o «vendi ora»,Forecast module · nothing to place · with an active market screen it tells when the spike comes or the crash ends and advises «wait» or «sell now»
+struttura.finance-percent.descrizione,Modulo percentuale · niente da piazzare · con lo schermo di borsa attivo mostra il prezzo come «+N% su B»,Percent module · nothing to place · with an active market screen it shows the price as «+N% over B»
+struttura.finance-odds.descrizione,Modulo probabilità · niente da piazzare · con lo schermo di borsa attivo mostra la probabilità del jackpot se ora vendessi tutto quell'oggetto,Odds module · nothing to place · with an active market screen it shows the jackpot odds if you sold all of that item now
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
 tutorial.passo.1,"Il drone sei tu: muovilo con WASD, la visuale lo segue. Tieni premuto il tasto centrale e trascina per guardare lontano (al rilascio torna sul drone). Rotella = zoom · H torna sul drone.","You are the drone: move it with WASD, the view follows it. Hold the middle button and drag to look away (on release it goes back to the drone). Wheel = zoom · H goes back to the drone."
@@ -407,7 +456,7 @@ tutorial.passo.2,"La palette è in basso a destra: a destra le icone delle categ
 tutorial.passo.3,"Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sassolini grigio-azzurri) vicino al CORE. Il minerale esce su ogni nastro accanto. Il tuo drone costruisce ciò che pianifichi entro il suo raggio: avvicinati ai piani lontani. Senza blocchi scelti, tieni premuto il clic su un giacimento per scavarlo a mano.","Press 2 (Miner) and place it on an iron deposit (grey-blue pebbles) near the CORE. Ore comes out on any belt beside it. Your drone builds what you plan within its range: fly close to far plans. With no block selected, hold the click on a deposit to mine it by hand."
 tutorial.passo.4,Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.,Press 1 (Belt) and drag a line from the miner's output to the CORE: the ore goes into storage.
 tutorial.passo.5,"Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.","Press M to open the MARKET: sell ore and plates, or turn on Auto-sell."
-tutorial.passo.6,Premi T per aprire la RICERCA: con soldi e materiali sblocchi il FORNO e gli altri edifici.,Press T to open RESEARCH: with money and materials you unlock the SMELTER and the other buildings.
+tutorial.passo.6,"Premi T per aprire la RICERCA: con soldi e materiali sblocchi il FORNO (1.500 $ + 30 lastre). In partita libera parti con 180 $: prima vendi minerali e lastre.","Press T to open RESEARCH: with money and materials you unlock the SMELTER ($1,500 + 30 plates). In free play you start with $180: sell ore and plates first."
 tutorial.passo.7,"Piazza un FORNO (3): fonde i minerali in lastre. Serve carbone OPPURE corrente (generatore + nodi potenza, +20%).","Place a SMELTER (3): it smelts ore into plates. It needs coal OR power (generator + power nodes, +20%)."
 tutorial.passo.8,"IMPOSTAZIONI (I, o dalla Home): lingua, scala UI, VSync e Rivedi tutorial. Premi Fine per chiudere.","SETTINGS (I, or from Home): language, UI scale, VSync and Replay tutorial. Press Done to close."
 tutorial.fatto,✓ fatto,✓ done

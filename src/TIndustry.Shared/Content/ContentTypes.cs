@@ -146,7 +146,8 @@ public sealed record MarketRules(
     int JackpotMinPieces, int JackpotBaseBp, int JackpotStepPieces, int JackpotStepBp, int JackpotCapBp,
     int JackpotBonusPermille,
     int PityPieces, int PityStepBp, int PityGuaranteeMisses, int MissCooldownSeconds, int MissSpikeDelaySeconds,
-    int LostBoostBp, int LostBoostMinutes, int LostPieces, int HistorySeconds);
+    int LostBoostBp, int LostBoostMinutes, int LostPieces, int HistorySeconds,
+    int LedMildDropMilli, int LedYellowPieces);
 
 public sealed record StructureDefinition(
     string Id,

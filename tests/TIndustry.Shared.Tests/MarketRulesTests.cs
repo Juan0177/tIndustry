@@ -24,7 +24,8 @@ public sealed class MarketRulesTests
             JackpotCapBp: 5000, JackpotBonusPermille: 7770,
             PityPieces: 3000, PityStepBp: 2500, PityGuaranteeMisses: 3,
             MissCooldownSeconds: 300, MissSpikeDelaySeconds: 300,
-            LostBoostBp: 2000, LostBoostMinutes: 5, LostPieces: 10000, HistorySeconds: 120);
+            LostBoostBp: 2000, LostBoostMinutes: 5, LostPieces: 10000, HistorySeconds: 120,
+            LedMildDropMilli: 100, LedYellowPieces: 10_000);
 
         Assert.Equal(expected, FactoryContent.Load(ContentPath).MarketRules);
     }

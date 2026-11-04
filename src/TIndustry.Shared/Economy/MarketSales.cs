@@ -79,7 +79,8 @@ internal static class MarketSales
     /// <summary>
     /// Sells <paramref name="pieces"/> of <paramref name="item"/> from the wallet at the price of the moment, then applies
     /// the per-piece price drop and the crash window. Null when the stock is short. <paramref name="sellAll"/> is
-    /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>).
+    /// for the jackpot attempt (see <see cref="MarketMath.JackpotChance"/>, <see cref="SellAllAttempt"/>); a direct
+    /// "sell all" call during the global wait sells without attempting the jackpot.
     /// </summary>
     public static SaleOutcome? Sell(GameState s, MarketItemState item, int pieces, bool sellAll, int playerId)
     {
@@ -90,13 +91,12 @@ internal static class MarketSales
         }
 
         var price = item.PriceMilli;
+        var phaseBeforeSale = item.Phase;
         var unit = MarketMath.UnitIncome(item.BaseValue, price);
-        var attempt = sellAll && s.HasMarketScreen && pieces >= rules.JackpotMinPieces && price >= rules.SpikeThresholdMilli;
-        var probability = 0;
+        var (attempt, probability) = sellAll ? SellAllAttempt(s, item, pieces) : (false, 0);
         var won = false;
         if (attempt)
         {
-            probability = MarketMath.JackpotChance(rules, pieces, item.PityMisses);
             won = s.JackpotRollForTests?.Invoke(probability) ?? s.Exchange.Random.NextInt(10_000) < probability;
             if (won)
             {
@@ -137,8 +137,51 @@ internal static class MarketSales
             AfterMiss(s, item, pieces, crash, rules);
         }
 
+        if (sellAll && s.MarketScreen is { Active: true } screen)
+        {
+            // Selling into a crash that was already there is purple too, though it starts no new one.
+            var led = LedFor(rules, pieces, crash || phaseBeforeSale == MarketPhase.Crash, won, price - item.PriceMilli);
+            screen.LastResult = new ScreenSaleResult(item.ItemId, income, led, won, s.CurrentTick);
+        }
+
         s.Events.Add(new SaleResolved(playerId, item.ItemId, pieces, price, income, crash, attempt, won, probability));
         return new SaleOutcome(pieces, price, income, crash);
+    }
+
+    /// <summary>
+    /// Whether a "sell all" of <paramref name="pieces"/> of <paramref name="item"/> at this tick is a jackpot attempt, and
+    /// its chance in basis points (0 when it is not): it needs an active screen (<see cref="GameState.HasMarketScreen"/>),
+    /// no global wait after a miss, at least <see cref="MarketRules.JackpotMinPieces"/> pieces and the price in the spike
+    /// (<see cref="InSpike"/>). Pure: <see cref="Sell"/> and <see cref="MarketInsight"/> both ask it, so the odds shown
+    /// are the odds drawn.
+    /// </summary>
+    public static (bool Attempt, int ChanceBp) SellAllAttempt(GameState s, MarketItemState item, int pieces)
+    {
+        var rules = s.Content.MarketRules;
+        var attempt = rules is not null
+            && s.HasMarketScreen
+            && s.CurrentTick >= s.Exchange.SellAllBlockedUntilTick
+            && pieces >= rules.JackpotMinPieces
+            && InSpike(rules, item.PriceMilli);
+        return attempt ? (true, MarketMath.JackpotChance(rules!, pieces, item.PityMisses)) : (false, 0);
+    }
+
+    /// <summary>True when <paramref name="priceMilli"/> is at or over the spike threshold: the moment to sell.</summary>
+    public static bool InSpike(MarketRules r, int priceMilli) => priceMilli >= r.SpikeThresholdMilli;
+
+    /// <summary>
+    /// LED colour of a "sell all" on the screen (sheet «Esempi di vendita»): yellow with the jackpot or from
+    /// <see cref="MarketRules.LedYellowPieces"/> pieces; else purple with a crash; else blue when the price fell at most
+    /// <see cref="MarketRules.LedMildDropMilli"/> (thousandths of B, price before minus price after), purple otherwise.
+    /// </summary>
+    public static ScreenLed LedFor(MarketRules r, int pieces, bool crash, bool jackpot, int dropMilliOfB)
+    {
+        if (jackpot || pieces >= r.LedYellowPieces)
+        {
+            return ScreenLed.Yellow;
+        }
+
+        return !crash && dropMilliOfB <= r.LedMildDropMilli ? ScreenLed.Blue : ScreenLed.Purple;
     }
 
     private static void AfterMiss(GameState s, MarketItemState item, int pieces, bool crash, MarketRules rules)

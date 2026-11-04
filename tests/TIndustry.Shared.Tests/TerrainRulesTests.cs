@@ -208,7 +208,15 @@ public sealed class TerrainRulesTests
         var factory = Sandbox((10, 10, Shallow), (11, 10, Shallow), (10, 11, Shallow), (11, 11, Shallow));
         foreach (var spec in EverySpec(new GridPosition(10, 10)))
         {
-            Assert.True(factory.CanPlace(spec, out var reason), $"{spec.StructureId}: {reason}");
+            // The market screen also needs the Core next to it: here the water is not why it is refused.
+            var placeable = factory.CanPlace(spec, out var reason);
+            if (spec.Kind == BuildingKind.MarketScreen)
+            {
+                Assert.Equal(RefusalCode.MarketScreenNotTouchingCore, reason);
+                continue;
+            }
+
+            Assert.True(placeable, $"{spec.StructureId}: {reason}");
         }
 
         Assert.Null(Submit(factory, new PlaceBuilding(0, BuildingKind.Miner, new GridPosition(10, 10), Direction.East)));

@@ -5,8 +5,8 @@ using static TIndustry.Godot.HudStyle;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// The filter of a sorter, an inverted sorter or an extractor, as Mindustry's configuration: a click with no block selected
-/// on the block opens a small card over it with the block's name, a grid of item icons (the chosen one marked) and a
+/// The filter of a sorter, an inverted sorter or an extractor, and the item the market screen follows, as Mindustry's
+/// configuration: a click with no block selected on the block opens a small card over it with the block's name, a grid of item icons (the chosen one marked) and a
 /// «nessuno» button. A choice raises <see cref="FilterChosen"/> (the world sends <see cref="SetBlockFilter"/>) and
 /// closes the card; the chosen item clicked again also clears the filter, as in Mindustry. Esc, a click elsewhere on
 /// the map, another tool or the block going away close it (see the world).
@@ -107,7 +107,9 @@ public partial class FilterPanel : PanelContainer
             child.QueueFree();
         }
 
-        _body.AddChild(MakeLabel(Testi.F("filtro.titolo", Testi.Struttura(_structureId, _content)), UiTheme.TestoTenue));
+        var screen = _structureId == MarketScreen.BuildingId;
+        _body.AddChild(MakeLabel(Testi.F(screen ? "filtro.titolo.schermo" : "filtro.titolo", Testi.Struttura(_structureId, _content)),
+            UiTheme.TestoTenue));
 
         var grid = new GridContainer { Columns = Columns, MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(grid);
@@ -121,7 +123,7 @@ public partial class FilterPanel : PanelContainer
             // Stable name for the agents' ui tool.
             Name = "FiltroNessuno",
             Text = Testi.T("filtro.nessuno"),
-            TooltipText = Testi.T("filtro.nessuno.suggerimento"),
+            TooltipText = Testi.T(screen ? "filtro.nessuno.suggerimento.schermo" : "filtro.nessuno.suggerimento"),
             FocusMode = FocusModeEnum.None,
             ThemeTypeVariation = _current is null ? UiTheme.PulsanteScelto : ""
         };

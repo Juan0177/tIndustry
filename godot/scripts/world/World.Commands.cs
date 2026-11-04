@@ -229,7 +229,7 @@ public partial class World
         ? 0
         : _view.Belts.Count + _view.Miners.Count + _view.Smelters.Count + _view.Assemblers.Count
             + _view.Generators.Count + _view.Extractors.Count + _view.PowerNodes.Count + _view.Lamps.Count
-            + _view.Batteries.Count + _view.Storages.Count + _view.CoreTiles.Count;
+            + _view.Batteries.Count + _view.Storages.Count + _view.CoreTiles.Count + (_view.MarketScreen is null ? 0 : 1);
 
     private void OnCommandRejected(SimCommand command, Refusal reason)
     {

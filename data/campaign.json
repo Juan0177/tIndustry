@@ -84,7 +84,7 @@
       "seed": 7429,
       "mapWidth": 300,
       "mapHeight": 300,
-      "startingMoney": 280,
+      "startingMoney": 1530,
       "refundPercent": 100,
       "startingMaterials": [
         {
@@ -93,7 +93,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 25
+          "amount": 40
         },
         {
           "itemId": "copper-wire",
@@ -125,7 +125,7 @@
       "seed": 9001,
       "mapWidth": 350,
       "mapHeight": 350,
-      "startingMoney": 520,
+      "startingMoney": 56500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -134,7 +134,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 55
+          "amount": 114
         },
         {
           "itemId": "copper-wire",
@@ -172,7 +172,7 @@
       "seed": 7429,
       "mapWidth": 400,
       "mapHeight": 400,
-      "startingMoney": 160,
+      "startingMoney": 1500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -181,7 +181,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 12
+          "amount": 30
         },
         {
           "itemId": "copper-wire",
@@ -197,8 +197,8 @@
         {
           "type": "stockItem",
           "itemId": "iron-plate",
-          "amount": 20,
-          "label": "Magazzino 20 lastre"
+          "amount": 40,
+          "label": "Magazzino 40 lastre"
         }
       ],
       "unlocksNext": "level-06-corrente"
@@ -212,7 +212,7 @@
       "seed": 5501,
       "mapWidth": 500,
       "mapHeight": 500,
-      "startingMoney": 450,
+      "startingMoney": 13830,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -221,11 +221,11 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 40
+          "amount": 56
         },
         {
           "itemId": "copper-wire",
-          "amount": 14
+          "amount": 16
         },
         {
           "itemId": "coal",
@@ -263,7 +263,7 @@
       "seed": 6103,
       "mapWidth": 600,
       "mapHeight": 600,
-      "startingMoney": 320,
+      "startingMoney": 1570,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -272,7 +272,7 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 35
+          "amount": 50
         },
         {
           "itemId": "copper-wire",
@@ -308,7 +308,7 @@
       "seed": 8802,
       "mapWidth": 700,
       "mapHeight": 700,
-      "startingMoney": 560,
+      "startingMoney": 79940,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -355,7 +355,7 @@
       "seed": 4242,
       "mapWidth": 850,
       "mapHeight": 850,
-      "startingMoney": 950,
+      "startingMoney": 206500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -364,11 +364,11 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 95
+          "amount": 234
         },
         {
           "itemId": "copper-wire",
-          "amount": 30
+          "amount": 46
         },
         {
           "itemId": "coal",
@@ -410,7 +410,7 @@
       "seed": 10101,
       "mapWidth": 1000,
       "mapHeight": 1000,
-      "startingMoney": 1100,
+      "startingMoney": 279500,
       "refundPercent": 50,
       "startingMaterials": [
         {
@@ -419,11 +419,11 @@
         },
         {
           "itemId": "iron-plate",
-          "amount": 70
+          "amount": 216
         },
         {
           "itemId": "copper-wire",
-          "amount": 24
+          "amount": 40
         },
         {
           "itemId": "coal",

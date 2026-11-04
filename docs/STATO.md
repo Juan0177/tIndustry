@@ -4,7 +4,7 @@ A che punto siamo con **tutti gli aspetti del gioco** e cosa manca. **Ogni modif
 
 Le caselle della prossima sezione sono la fonte della barra di avanzamento che compare nel README, nella Wiki e nella pagina Sviluppo del sito: ogni aspetto è un pezzo della barra, con la sua percentuale, e il titolo porta alla sua documentazione. Dopo ogni modifica si lancia `python tools/sito/stato.py`, che riscrive le barre; la CI controlla che siano allineate. Un aspetto ancora da progettare ha quattro passi: specifica approvata, piano, implementazione, documenti e diario.
 
-**Aggiornato:** 2026-11-03, il drone sei tu fatto (WASD, costruzione nel raggio, scavo a mano con la stiva, niente strumenti, salvataggi v19; client da provare sul PC di casa); prima, 2026-11-03, logistica come Mindustry fatta (nastri stretti, incrocio, router, selezionatori, estrattore; client da provare sul PC di casa); prima, 2026-10-30, rete di corrente fatta (laser fra i nodi, reti con bilancio, Batteria); prima, giorno e notte (ciclo, solo giorno, solo notte), pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
+**Aggiornato:** 2026-11-04, schermo di borsa e bilanciamento fatti (specifica 2a: schermo attaccato al CORE col jackpot in partita, LED, ramo Finanza coi tre moduli, Ricerca per circa 6 ore, salvataggi v20; client da provare sul PC di casa); prima, 2026-11-03, il drone sei tu fatto (WASD, costruzione nel raggio, scavo a mano con la stiva, niente strumenti, salvataggi v19; client da provare sul PC di casa); prima, 2026-11-03, logistica come Mindustry fatta (nastri stretti, incrocio, router, selezionatori, estrattore; client da provare sul PC di casa); prima, 2026-10-30, rete di corrente fatta (laser fra i nodi, reti con bilancio, Batteria); prima, giorno e notte (ciclo, solo giorno, solo notte), pausa, play.ps1, HUD nascosto nella Home e schermata di caricamento.
 
 ## Aspetti del gioco
 
@@ -52,8 +52,9 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 ### 6 · [Mercato ed economia](wiki/Mercato-come-una-borsa.md)
 
 - [x] Mercato come una borsa, specifica 1 (PR #274–#282, [diario](diario/2026-10-22-mercato-borsa.md))
-- [ ] Schermo di borsa e bot della finanza, specifica 2: specifica approvata
-- [ ] Schermo di borsa e bot della finanza: implementazione
+- [x] Schermo di borsa, moduli della Finanza e bilanciamento, specifica 2a: specifica approvata ([spec](superpowers/specs/2026-11-04-schermo-borsa-design.md), [piano](superpowers/plans/2026-11-04-schermo-borsa.md))
+- [x] Schermo di borsa, moduli della Finanza e bilanciamento, specifica 2a: implementazione ([diario](diario/2026-11-04-schermo-borsa.md))
+- [ ] Sequenza animata del «Vendi tutto» e bot della finanza, specifica 2b (zoom senza HUD, bot in 2.5D, valigetta, «calcolo…», coriandoli, schermata JACKPOT): da specificare
 - [x] Magazzino del CORE e livelli, specifica 3: specifica approvata ([spec](superpowers/specs/2026-10-23-magazzino-core-design.md))
 - [x] Magazzino del CORE e livelli: implementazione ([piano](superpowers/plans/2026-10-23-magazzino-core.md), [diario](diario/2026-10-23-magazzino-core.md))
 
@@ -136,7 +137,7 @@ Sotto-progetto 5: server C# e sincronizzazione ibrida.
 - [x] Pagine per chi gioca
 - [x] Pagine per chi sviluppa
 - [x] Mercato come una borsa e barra di avanzamento
-- [ ] Pagine dello schermo di borsa e del magazzino del CORE, quando arrivano
+- [x] Pagine dello schermo di borsa e del magazzino del CORE (Mercato come una borsa, Economia e Ricerca)
 - [x] Banner del README col logo pixel, generato da `tools/art/immagini_documenti.py`
 - [ ] README rifatto da capo
 
@@ -148,7 +149,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | --- | --- | --- |
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
-| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); prossime la specifica 2 (schermo di borsa) e la campagna rifatta |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); specifica 2a attuata in cloud (2026-11-04, [diario](diario/2026-11-04-schermo-borsa.md)), resta il controllo del client sul PC di casa; prossime la specifica 2b (sequenza animata) e la campagna rifatta |
 | D | Logistica come Mindustry: #252–#255, #270 (3) | Fatto in cloud (2026-11-03, [diario](diario/2026-11-03-logistica-mindustry.md)); resta il controllo del client sul PC di casa |
 | E | Rete di energia #269 (5): fatta (2026-10-30, [diario](diario/2026-10-30-rete-corrente.md)); telemetria #234 (10) | Telemetria più avanti |
 
@@ -165,6 +166,12 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 - **Controllo del client della rete di corrente sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`) per i `.import` dei PNG della batteria (`battery`, `battery-base`, `battery-charge-anim`) e il `BatteryVisual.cs.uid`; lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (palette e HUD cambiano); a mano, con una catena di nodi dell'utente: selezione del nodo, raggio, clic per collegare e scollegare, rifiuti, Esc, barre di carica delle batterie, suggerimento della rete, le tre varianti di colore (Normale, Daltonici, Alto contrasto) e la notte con le Lampade. Misurare la larghezza di `SelectionInfo` (640 px accanto alla palette a 1280×720).
 - **Controllo del client della logistica sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`) per i `.import` dei PNG `router` e `sorter-inverted` e il `FilterPanel.cs.uid`; lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (palette e nastri cambiano); il pannello del filtro con la Scala UI al 150% e al 200%; la palette a 3 righe a 1280×720; la sovrapposizione del pannello del filtro col pannello del tutorial. A mano: un incrocio fra due linee, una catena di router, un estrattore fra due forni.
 - **Controllo del client del drone sul PC di casa** (fatto in cloud, senza Godot): importare il progetto (`--import`); lanciare i playtest `ui`, `tutorial` e `agenti` e `ui` con `TINDUSTRY_PLAYTEST_EFFETTI=1`, e rifare le catture di riferimento (palette senza la categoria Strumenti, HUD con la stiva); controllare i passi nuovi del playtest (drone, piano fuori raggio, clic tenuto su un giacimento); la scheda del tutorial alla Scala UI al 150%. A mano: una partita intera dall'inizio alla fine, `Q` su una tastiera AZERTY, `Esc` verso la Home tenendo premuto `W`, l'avviso dello scavo fermo per un cantiere senza materiali, il clic breve su un giacimento lontano (nessun toast).
+- **Controllo del client dello schermo di borsa sul PC di casa** (fatto in cloud, senza Godot; [diario](diario/2026-11-04-schermo-borsa.md#per-il-pc-di-casa)):
+  - importare il progetto (`--import`) per i `.import` dei PNG nuovi (`market-screen`, `market-screen-base`, `market-screen-led`, `market-screen-corners`, `finance-forecast`, `finance-percent`, `finance-odds`) e il `.uid` nuovo di `MarketScreenVisual.cs`; poi `--build-solutions` e il ripristino dei `.import` che cambiano solo per fine riga;
+  - `python tools/art/genera.py --controlla` (byte per byte): in cloud vale solo `--pixel` (Pillow diverso); se segnala i PNG di questo piano, rigenerarli con `python tools/art/genera.py --solo market-screen market-screen-base market-screen-led market-screen-corners finance-forecast finance-percent finance-odds`;
+  - lanciare i playtest `ui`, `tutorial` e `agenti` e rifare le catture di riferimento (la palette Magazzino ha 5 blocchi, la Ricerca ha il ramo Finanza, il Mercato ha righe più alte);
+  - a mano, le 10 prove del Task 6: schermo solo a contatto col CORE e uno solo; scheda «Oggetto seguito · Schermo di borsa» sopra il 2×2 con i soli oggetti del Mercato, «Nessuno» → «Scegli un oggetto»; testo del vetro leggibile a zoom 1 e 2, in italiano e in inglese, con 1, 2 e 3 moduli; «Staccato dal CORE» dopo aver spostato il CORE o smontato un pezzo (solo con un salvataggio preparato o un test (`SetCore`): è uno stato di sicurezza); «Vendi tutto» coi LED blu, viola e gialli, «JACKPOT» e angoli lampeggianti per 6 s, anche col Bagliore; riga «Moduli» nella panoramica del Mercato, che sparisce smontando lo schermo; varianti Daltonici e Alto contrasto; suggerimento col mouse (testi per esteso e significato dei LED); la riga in alto durante il crollo («Crollo» con la percentuale accanto) in italiano e in inglese; i numeri grandi della Ricerca (fino a 7.000.000 $) nell'HUD e nel pannello di sblocco.
+- **Livelli 03, 04 e 08 con un obiettivo di magazzino già fatto alla partenza** (difetto vecchio, visto dal test della campagna del bilanciamento): «Magazzino 12 lastre di ferro» parte con 40, «Magazzino 4 fili di rame» con 6, «Magazzino 28 lastre di ferro» con 50. Esclusi per id nel test (`CoveredAtStart`); si sistemano con la campagna rifatta (aspetto 8).
 - **Sonda `oggetti-fluidi`** del playtest `ui`: fallisce ogni tanto per un frame lento (1 volta su 4 il 22/10). Rilanciando passa.
 - **Server MCP `tindustry` nel gioco vero**: non trova `godot4`. Serve la variabile d'ambiente `TINDUSTRY_GODOT` sull'eseguibile di Godot e un riavvio di Claude Code.
 
@@ -172,5 +179,6 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 - Lanciare la pulizia del blocco A, oppure darle il permesso.
 - Il tuo parere su un aspetto distinto per gli sprite di foundation e nucleus: oggi hanno gli stessi pixel dei vecchi CORE a 2 livelli, quindi i tre CORE si distinguono solo per misura.
-- Provare il client del magazzino del CORE, quello del giorno e notte, quello della rete di corrente e quello della logistica e quello del drone sul PC di casa (vedi «Cosa manca, in piccolo»).
+- Provare il client del magazzino del CORE, quello del giorno e notte, quello della rete di corrente, quello della logistica, quello del drone e quello dello schermo di borsa sul PC di casa (vedi «Cosa manca, in piccolo»).
+- Il tuo parere sui numeri del bilanciamento a schermo: costi della Ricerca fino a 7.000.000 $ senza separatore delle migliaia nel gioco, campagna che parte con somme grandi (fino a 279.500 $ al livello 10) finché non si rifà.
 - L'ok su effetti e luci (G3) e, quando vuoi, sul racconto del sito.

@@ -25,7 +25,7 @@ Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco 
 |---|---|
 | Misura | 2×2 |
 | Costo | 8 Lastre di ferro |
-| Sblocco | $280, 12 Lastre di ferro (nessun prerequisito) |
+| Sblocco | $5.500, 24 Lastre di ferro (nessun prerequisito) |
 | Combustibile | Carbone portato da un nastro; scorta di 8 |
 | Consumo | 1 Carbone ogni 8 secondi |
 | Produzione | **30 unità al secondo** mentre brucia |
@@ -41,8 +41,8 @@ Una **rete** è l'insieme dei blocchi di corrente collegati fra loro. Ci sono du
 
 | Nodo | Misura | Raggio | Collegamenti massimi | Costo | Sblocco |
 |---|---|---|---|---|---|
-| Nodo T1 (`power-node`) | 1×1 | 6 celle | 6 | 2 Fili di rame | $140, 4 Lastre di ferro, 2 Fili di rame (dopo il Generatore) |
-| Nodo T2 (`power-node-t2`) | 2×2 | 10 celle | 10 | 6 Lastre di ferro, 4 Fili di rame | $320, 12 Lastre di ferro, 6 Fili di rame (dopo il Nodo T1) |
+| Nodo T1 (`power-node`) | 1×1 | 6 celle | 6 | 2 Fili di rame | $8.300, 8 Lastre di ferro, 4 Fili di rame (dopo il Generatore) |
+| Nodo T2 (`power-node-t2`) | 2×2 | 10 celle | 10 | 6 Lastre di ferro, 4 Fili di rame | $910.000, 48 Lastre di ferro, 24 Fili di rame (dopo il Nodo T1) |
 
 Il raggio si misura **fra i bordi** dei due blocchi (non dal centro): un blocco grande è raggiungibile prima di uno piccolo alla stessa distanza dal centro. Un laser fra due nodi conta un collegamento su entrambi e vale se basta il raggio di uno dei due. Il contatto non consuma collegamenti.
 
@@ -86,7 +86,7 @@ Con una soddisfazione `s` (da 0% a 100%):
 |---|---|
 | Misura | 1×1 |
 | Costo | 10 Lastre di piombo, 4 Fili di rame |
-| Sblocco | $300, 10 Lastre di piombo, 5 Fili di rame (dopo il Nodo T1), in Ricerca |
+| Sblocco | $91.000, 30 Lastre di piombo, 15 Fili di rame (dopo il Nodo T1), in Ricerca |
 | Capacità | 1.000 unità |
 
 Si carica con la corrente che avanza e la rende quando i generatori non bastano, così la rete resta accesa anche quando il carbone finisce. La carica di una rete si divide fra le sue batterie in proporzione alla capacità; se la rete si spezza o si unisce, ogni batteria tiene la sua carica. Lo sprite mostra la carica con una barra. Passando il mouse su un blocco di corrente il suggerimento riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie.
@@ -97,7 +97,7 @@ Si carica con la corrente che avanza e la rende quando i generatori non bastano,
 |---|---|
 | Misura | 1×1 |
 | Costo | 2 Lastre di ferro, 1 Filo di rame |
-| Sblocco | $90, 4 Lastre di ferro, 2 Fili di rame (dopo il Nodo T1) |
+| Sblocco | $11.000, 8 Lastre di ferro, 4 Fili di rame (dopo il Nodo T1) |
 | Consumo | 1 unità al secondo, solo quando serve luce |
 
 Chiede corrente **solo di notte** (luce del mondo sotto la metà); di giorno non consuma. Serve nelle partite di **notte** (la notte del ciclo, la casella *Solo notte* in Nuova partita, i livelli 6 e 10 della campagna), dove contano le luci del CORE, dei forni al lavoro, dei generatori accesi, dei droni e delle Lampade.

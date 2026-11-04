@@ -40,13 +40,13 @@ public sealed class LogisticsCostsTests
     }
 
     [Theory]
-    [InlineData("conveyor-fast", 450, "iron-ore:8,lead-ore:8,titanium-ore:8")]
-    [InlineData("conveyor-express", 850, "titanium-ore:8,silicon:8,graphite:8")]
-    [InlineData("conveyor-armored", 600, "iron-ore:8,lead-ore:8,titanium-ore:10,graphite:8")]
-    [InlineData("junction", 200, "iron-ore:13")]
-    [InlineData("router", 280, "iron-ore:13")]
-    [InlineData("sorter", 320, "iron-ore:10,lead-ore:10")]
-    [InlineData("conveyor-bridge", 340, "iron-ore:21,lead-ore:21")]
+    [InlineData("conveyor-fast", 73_000, "iron-ore:24,lead-ore:24,titanium-ore:24")]
+    [InlineData("conveyor-express", 1_500_000, "titanium-ore:32,silicon:32,graphite:32")]
+    [InlineData("conveyor-armored", 1_300_000, "iron-ore:32,lead-ore:32,titanium-ore:40,graphite:32")]
+    [InlineData("junction", 6_900, "iron-ore:26")]
+    [InlineData("router", 9_700, "iron-ore:26")]
+    [InlineData("sorter", 73_000, "iron-ore:30,lead-ore:30")]
+    [InlineData("conveyor-bridge", 91_000, "iron-ore:63,lead-ore:63")]
     public void UnlockCostsMatchTheTable(string id, int money, string materials)
     {
         // The research tree reads structures; the conveyor's own copy must say the same.
@@ -118,12 +118,26 @@ public sealed class LogisticsCostsTests
     private const int BootstrapBelts = 4;
 
     /// <summary>
+    /// Levels whose stock objectives are already covered by the starting stock: a defect older than the research
+    /// balancing, left to the campaign rework (aspect 8, docs/STATO.md). For them a covered objective drives no research.
+    /// </summary>
+    private static readonly HashSet<string> CoveredAtStart = new(StringComparer.Ordinal)
+    {
+        "level-03-lastre",
+        "level-04-fili", // starts with 6 copper wires for «Magazzino 4 fili di rame»
+        "level-08-logistica",
+    };
+
+    /// <summary>
     /// Every level pays its first miner and <see cref="BootstrapBelts"/> belts from the starting stock, has the money
-    /// for all its research objectives at once, and has (or can mine and craft on its map) the materials of the
-    /// smelter, the basic belt and every research objective. An ore counts as mined only if a miner the level has
-    /// (unlocked at start, or one of its research objectives) can dig it (titanium needs the Miner T2).
+    /// for all the research it needs at once (<see cref="ResearchNeeded"/>: its research objectives, the machines of
+    /// the recipes behind its stock and sell objectives, and their locked prerequisites), and has (or can mine and
+    /// craft on its map) the materials of the smelter, the basic belt and all that research. An ore counts as mined
+    /// only if a miner the level has (unlocked at start, or one of the research it needs) can dig it (titanium needs
+    /// the Miner T2). A stock objective of a made item is unmet both at start and once that research is paid.
     /// Limits: amounts beyond the starting stock are not checked once an item is producible, sale income is
-    /// ignored (the money must be there at start), and stock/sell objectives are not checked.
+    /// ignored (the money must be there at start), stock and sell objectives only drive the research (their
+    /// completion is not played), and in <see cref="CoveredAtStart"/> an objective the start covers is skipped.
     /// </summary>
     [Fact]
     public void CampaignUnlockObjectivesAreReachable()
@@ -134,10 +148,7 @@ public sealed class LogisticsCostsTests
         {
             var factory = NewGame.Campaign(Content, catalog, level, mapsDirectory: MapsDir);
             var wallet = factory.Wallet;
-            var research = (level.Objectives ?? [])
-                .Where(o => o.Type == CampaignObjectiveType.UnlockResearch)
-                .Select(o => Content.RequireStructure(o.StructureId!))
-                .ToList();
+            var research = ResearchNeeded(level, factory);
             var miners = new[] { Miner.BasicId, Miner.AdvancedId }
                 .Where(id => factory.Research.IsUnlocked(id) || research.Any(r => r.Id == id))
                 .ToList();
@@ -146,7 +157,8 @@ public sealed class LogisticsCostsTests
             var money = research.Sum(r => r.Unlock?.Money ?? 0);
             if (level.StartingMoney < money)
             {
-                problems.Add($"{level.Id}: parte con ${level.StartingMoney}, gli sblocchi chiesti costano ${money}");
+                var ids = string.Join(", ", research.Select(r => r.Id));
+                problems.Add($"{level.Id}: parte con ${level.StartingMoney}, gli sblocchi che servono ({ids}) costano ${money}");
             }
 
             // Nothing is mined before the first miner: it and a few belts come from the starting stock.
@@ -175,9 +187,105 @@ public sealed class LogisticsCostsTests
                     problems.Add($"{level.Id}: {cost.Amount} {cost.ItemId} né in partenza né producibile sulla mappa coi minatori {string.Join("/", miners)}");
                 }
             }
+
+            // A stock objective that asks for research must be open at start and once that research is paid.
+            if (!CoveredAtStart.Contains(level.Id))
+            {
+                foreach (var o in (level.Objectives ?? []).Where(o => o.Type == CampaignObjectiveType.StockItem && IsMade(o.ItemId!)))
+                {
+                    var start = wallet.MaterialCount(o.ItemId!);
+                    if (start >= o.Amount)
+                    {
+                        problems.Add($"{level.Id}: «{o.Label}» è già fatto al primo tick ({start} {o.ItemId})");
+                    }
+
+                    var left = start
+                        - research.SelectMany(r => r.Unlock?.Materials ?? []).Where(m => m.ItemId == o.ItemId).Sum(m => m.Amount);
+                    if (left >= o.Amount)
+                    {
+                        problems.Add($"{level.Id}: «{o.Label}» è già fatto in partenza ({left} {o.ItemId} dopo gli sblocchi)");
+                    }
+                }
+            }
         }
 
         Assert.True(problems.Count == 0, string.Join("\n", problems));
+    }
+
+    /// <summary>True when the item comes from a recipe or needs the Miner T2 (it drives research).</summary>
+    private static bool IsMade(string itemId) =>
+        itemId == "titanium-ore" || Content.Recipes.Any(r => r.Outputs.Any(o => o.ItemId == itemId));
+
+    /// <summary>
+    /// Locked research a level needs: its research objectives; for each stock or sell objective (in
+    /// <see cref="CoveredAtStart"/> only those the start does not already cover), the machine of the item's recipe (smelter for "smelt-*", else assembler; titanium ore needs the
+    /// Miner T2), following the inputs the start has none of; then every locked prerequisite, prerequisites first.
+    /// </summary>
+    private static List<StructureDefinition> ResearchNeeded(CampaignLevelDefinition level, Factory factory)
+    {
+        var wanted = new List<string>();
+        void NeedItem(string itemId, HashSet<string> seen)
+        {
+            if (!seen.Add(itemId))
+            {
+                return;
+            }
+
+            if (itemId == "titanium-ore")
+            {
+                wanted.Add(Miner.AdvancedId);
+                return;
+            }
+
+            var recipe = Content.Recipes.FirstOrDefault(r => r.Outputs.Any(o => o.ItemId == itemId));
+            if (recipe is null)
+            {
+                return;
+            }
+
+            wanted.Add(recipe.Id.StartsWith("smelt-", StringComparison.Ordinal) ? Crafter.SmelterBuildingId : Crafter.AssemblerBuildingId);
+            foreach (var input in recipe.Inputs.Where(i => factory.Wallet.MaterialCount(i.ItemId) == 0))
+            {
+                NeedItem(input.ItemId, seen);
+            }
+        }
+
+        foreach (var o in level.Objectives ?? [])
+        {
+            if (o.Type == CampaignObjectiveType.UnlockResearch)
+            {
+                wanted.Add(o.StructureId!);
+            }
+            else if (o.Type is CampaignObjectiveType.StockItem or CampaignObjectiveType.SellItem
+                && (!CoveredAtStart.Contains(level.Id) || factory.Wallet.MaterialCount(o.ItemId!) < o.Amount))
+            {
+                NeedItem(o.ItemId!, []);
+            }
+        }
+
+        var ordered = new List<StructureDefinition>();
+        void Add(string id)
+        {
+            if (factory.Research.IsUnlocked(id) || ordered.Any(s => s.Id == id))
+            {
+                return;
+            }
+
+            var structure = Content.RequireStructure(id);
+            foreach (var pre in structure.Prerequisites)
+            {
+                Add(pre);
+            }
+
+            ordered.Add(structure);
+        }
+
+        foreach (var id in wanted)
+        {
+            Add(id);
+        }
+
+        return ordered;
     }
 
     /// <summary>Items of the deposits on the map that one of <paramref name="miners"/> can dig.</summary>

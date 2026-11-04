@@ -37,7 +37,9 @@ CELLE = {
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
-    "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5,
+    "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5, "market-screen": 2,
+    # Finance modules: research nodes only, their sprite is the one-cell Research icon.
+    "finance-forecast": 1, "finance-percent": 1, "finance-odds": 1,
 }
 # Core tiers of the game (FactoryContent.CoreTiers): sprite name -> side in cells. Each has its body
 # and its nucleus light strip; the client draws the Core from the tier.
@@ -693,6 +695,31 @@ class TestGenera(unittest.TestCase):
         for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
             self.assertLessEqual(max(x1 - x0, y1 - y0), T, anim)
+
+    def test_schermo_di_borsa(self):
+        # Stock-exchange screen: an opaque 2x2 plate; the lit strip covers exactly the yellow bands of the base and
+        # the lit corners are four 3x3 lamps, both transparent elsewhere; the icon is the base with a line on the glass.
+        from blocchi import borsa
+        base = SPRITE["market-screen-base"]()
+        led = SPRITE["market-screen-led"]()
+        angoli = SPRITE["market-screen-corners"]()
+        icona = SPRITE["market-screen"]()
+        self.assertEqual({255}, set(base.getchannel("A").tobytes()))
+        self.assertEqual(OUT, base.getpixel((0, 0))[:3])
+        sx0, sy0, sx1, sy1 = borsa.STRISCIA
+        accesi = {(x, y) for y in range(2 * T) for x in range(2 * T) if led.getpixel((x, y))[3]}
+        gialli = {(x, y) for y in range(sy0, sy1 + 1) for x in range(sx0, sx1 + 1)
+                  if base.getpixel((x, y))[:3] in {c[:3] for c in borsa.ENERGIA}}
+        self.assertTrue(accesi)
+        self.assertEqual(gialli, accesi)
+        lampade = {(x, y) for y in range(2 * T) for x in range(2 * T) if angoli.getpixel((x, y))[3]}
+        attese = {(ax + i, ay + j) for ax, ay in borsa.ANGOLI for i in range(borsa.LAMPADA) for j in range(borsa.LAMPADA)}
+        self.assertEqual(attese, lampade)
+        vx0, vy0, vx1, vy1 = borsa.VETRO
+        diversi = ImageChops.difference(base.convert("RGB"), icona.convert("RGB")).getbbox()
+        self.assertIsNotNone(diversi)
+        x0, y0, x1, y1 = diversi
+        self.assertTrue(vx0 <= x0 and vy0 <= y0 and x1 <= vx1 + 1 and y1 <= vy1 + 1, diversi)
 
     def test_oggetti(self):
         # Every market item and money: HUD icon and belt sprite, opaque pixels only (no tint at

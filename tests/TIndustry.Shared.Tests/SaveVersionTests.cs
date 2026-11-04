@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v19: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
+/// <summary>Save format v20: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class SaveVersionTests
 {
@@ -133,16 +133,18 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion19()
+    public void SaveWritesVersion20()
     {
-        Assert.Equal(19, FactorySaveData.CurrentVersion);
-        Assert.Equal(19, FactorySaveData.MinReadableVersion);
+        Assert.Equal(20, FactorySaveData.CurrentVersion);
+        Assert.Equal(20, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v19-versione", host);
+        FactorySaveStore.Save("v20-versione", host);
 
-        Assert.Contains("\"version\": 19", File.ReadAllText(FactorySaveStore.SlotPath("v19-versione")));
+        Assert.Contains("\"version\": 20", File.ReadAllText(FactorySaveStore.SlotPath("v20-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":19", snapshot);
+        Assert.Contains("\"version\":20", snapshot);
+        // No screen, no screen key (v20 adds the watched item and the last result to it).
+        Assert.DoesNotContain("marketScreen", snapshot, StringComparison.Ordinal);
         // The drone's v19 state: held input, hand mining and its hold.
         Assert.Contains("\"inputX\":0,\"inputY\":0", snapshot);
         Assert.Contains("\"miningProgress\":0", snapshot);
@@ -153,6 +155,27 @@ public sealed class SaveVersionTests
         Assert.DoesNotContain("autoSellAtCore", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("autoSellCarryMilli", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("\"autoSellCarry\":", snapshot);
+    }
+
+    [Fact]
+    public void Version19_Refused_OlderVersion()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v19-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v19-rifiutato");
+        var json = File.ReadAllText(path);
+        Assert.Contains(Current, json);
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 19"));
+
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v19-rifiutato", out var loaded, out var failure));
+        Assert.Null(loaded);
+        Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
+
+        // A v19 snapshot (before the market screen's watched item and last result) is not read either.
+        var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":19");
+        Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
     }
 
     [Fact]

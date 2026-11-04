@@ -149,11 +149,19 @@ public partial class World
             || _tool != BuildTool.None
             || GetViewport().GuiGetHoveredControl() is not null
             || _hover is not { } hover
-            || _view.TryGetSiteAt(hover, out _)
-            || _view.PowerNetworkOf(hover) is not { } network)
+            || _view.TryGetSiteAt(hover, out _))
         {
             _powerTipKey = null;
             _hud.SetPowerTooltip(null, default);
+            return;
+        }
+
+        if (_view.PowerNetworkOf(hover) is not { } network)
+        {
+            _powerTipKey = null;
+            // The market screen has no power: its hover tip (same tooltip) says what it shows in full words.
+            _hud.SetPowerTooltip(_view.MarketScreen is { } screen && screen.Occupies(hover) ? MarketScreenTip(screen) : null,
+                _hoverScreen);
             return;
         }
 
@@ -164,6 +172,69 @@ public partial class World
         }
 
         _hud.SetPowerTooltip(_powerTipText, _hoverScreen);
+    }
+
+    // Last market screen tip: rebuilt 4 times a second of game time, or when the screen changes.
+    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, int Modules)? _screenTipKey;
+    private string? _screenTipText;
+
+    /// <summary>
+    /// Hover text of the market screen: its name, the item it follows (or «Scegli un oggetto», «Staccato dal CORE»), the
+    /// researched modules in full words, the last «Vendi tutto» with what its LEDs mean while it is shown, and the click
+    /// hint.
+    /// </summary>
+    private string MarketScreenTip(MarketScreen screen)
+    {
+        var view = _view!;
+        var result = MarketScreenVisual.ShownResult(screen, view.CurrentTick);
+        var key = (view.CurrentTick / MarketScreenVisual.RefreshTicks, screen.Active, screen.WatchedItemId, result,
+            MarketModuleTexts.ModulesResearched(view));
+        if (_screenTipKey == key && _screenTipText is not null)
+        {
+            return _screenTipText;
+        }
+
+        _screenTipKey = key;
+        var lines = new List<string> { Testi.Struttura(MarketScreen.BuildingId, view.Content) };
+        if (!screen.Active)
+        {
+            lines.Add(Testi.T("borsa.schermo.staccato"));
+        }
+        else if (screen.WatchedItemId is not { } itemId)
+        {
+            lines.Add(Testi.T("borsa.schermo.scegli"));
+        }
+        else
+        {
+            lines.Add(Testi.F("borsa.suggerimento.oggetto", Testi.Oggetto(itemId, view.Content)));
+            var insight = view.MarketInsight(itemId);
+            if (view.IsStructureUnlocked(MarketInsight.ForecastNodeId))
+            {
+                lines.Add(MarketModuleTexts.ForecastWithAdvice(insight));
+                if (MarketModuleTexts.Blocked(insight, screen: false) is { } blocked)
+                {
+                    lines.Add(blocked);
+                }
+            }
+
+            foreach (var module in new[] { MarketModuleTexts.Percent(insight), MarketModuleTexts.Odds(insight) })
+            {
+                if (module is not null)
+                {
+                    lines.Add(module);
+                }
+            }
+
+            if (result is not null)
+            {
+                lines.Add(Testi.F("borsa.suggerimento.esito", Testi.Oggetto(result.ItemId, view.Content), result.Income));
+                lines.Add(Testi.T(result.Jackpot ? "borsa.led.Jackpot" : $"borsa.led.{result.Led}"));
+            }
+        }
+
+        lines.Add(Testi.T("borsa.suggerimento.clic"));
+        _screenTipText = string.Join('\n', lines);
+        return _screenTipText;
     }
 
     /// <summary>The balance of <paramref name="network"/>: blocks, production, consumption, satisfaction and batteries.</summary>
@@ -258,6 +329,14 @@ public partial class World
         {
             var node = BatteryVisual.Create(battery, batteryCapacity, TileSize);
             node.Position = FootprintCenter(battery.Position, Battery.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        if (_view.MarketScreen is { } screen)
+        {
+            var node = MarketScreenVisual.Create(screen, TileSize);
+            node.Position = FootprintCenter(screen.Position, MarketScreen.Size);
+            node.Sync(screen, _view);
             _buildingsLayer.AddChild(node);
         }
 
@@ -406,6 +485,13 @@ public partial class World
                             batteryVis.Sync(battery, batteryCapacity);
                             break;
                         }
+                    }
+
+                    break;
+                case MarketScreenVisual screenVis:
+                    if (_view.MarketScreen is { } screen && screen.Position.Equals(screenVis.Origin))
+                    {
+                        screenVis.Sync(screen, _view);
                     }
 
                     break;

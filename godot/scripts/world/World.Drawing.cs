@@ -465,6 +465,7 @@ public partial class World
         BuildTool.Vault => BuildingKind.Vault,
         BuildTool.CoreFoundation => BuildingKind.CoreFoundation,
         BuildTool.CoreNucleus => BuildingKind.CoreNucleus,
+        BuildTool.MarketScreen => BuildingKind.MarketScreen,
         _ => null
     };
 
@@ -479,6 +480,7 @@ public partial class World
         BuildTool.PowerNodeT2 => 2,
         BuildTool.Extractor => Extractor.Size,
         BuildTool.Container or BuildTool.Vault => StorageBlock.SizeOf(KindOf(_tool)),
+        BuildTool.MarketScreen => MarketScreen.Size,
         BuildTool.CoreFoundation or BuildTool.CoreNucleus when _view is not null
             => _view.Content.CoreTiers[BuildSpec.CoreTierOf(KindOf(_tool))].Size,
         _ => 1

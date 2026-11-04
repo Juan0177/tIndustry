@@ -55,12 +55,12 @@ Ogni salvataggio è un file `.json`. Per fare una copia di sicurezza basta copia
 
 ## Compatibilità fra versioni
 
-I salvataggi sono alla **versione 19**.
+I salvataggi sono alla **versione 20**.
 
 | Versione del salvataggio | Si carica? |
 |---|---|
-| 16 | Sì |
-| 15 e precedenti | No: "Salvataggio di una versione precedente, non più supportata." (il gioco non è ancora uscito: i vecchi salvataggi non si convertono) |
+| 20 | Sì |
+| 19 e precedenti | No: "Salvataggio di una versione precedente, non più supportata." (il gioco non è ancora uscito: i vecchi salvataggi non si convertono) |
 
 Se il terreno rigenerato non corrisponde a quello del salvataggio, o la mappa di un livello manca o ha cambiato misura, il caricamento si ferma con un messaggio chiaro invece di mettere la fabbrica su un altro terreno.
 

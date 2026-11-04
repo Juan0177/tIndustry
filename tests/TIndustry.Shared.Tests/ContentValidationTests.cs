@@ -114,14 +114,14 @@ public sealed class ContentValidationTests
 
         // Research reads the structures, not the cores block.
         var foundation = Content.RequireStructure("core-foundation").Unlock!;
-        Assert.Equal(5000, foundation.Money);
+        Assert.Equal(1_500_000, foundation.Money);
         Assert.Equal(
-            [new ResourceAmount("iron-plate", 200), new ResourceAmount("copper-wire", 100)],
+            [new ResourceAmount("iron-plate", 800), new ResourceAmount("copper-wire", 400)],
             foundation.Materials);
         var nucleus = Content.RequireStructure("core-nucleus").Unlock!;
-        Assert.Equal(25000, nucleus.Money);
+        Assert.Equal(7_000_000, nucleus.Money);
         Assert.Equal(
-            [new ResourceAmount("titanium-plate", 400), new ResourceAmount("silicon", 300)],
+            [new ResourceAmount("titanium-plate", 2400), new ResourceAmount("silicon", 1800)],
             nucleus.Materials);
     }
 
@@ -158,26 +158,26 @@ public sealed class ContentValidationTests
         Assert.Equal("storage", container.Kind);
         Assert.Equal(300, container.ItemCapacity);
         Assert.Equal(["junction"], container.Prerequisites);
-        Assert.Equal(400, container.Unlock!.Money);
+        Assert.Equal(110_000, container.Unlock!.Money);
         Assert.Equal(
-            [new ResourceAmount("iron-plate", 20), new ResourceAmount("lead-plate", 10)],
+            [new ResourceAmount("iron-plate", 60), new ResourceAmount("lead-plate", 30)],
             container.Unlock.Materials);
 
         var vault = Content.RequireStructure("vault");
         Assert.Equal("storage", vault.Kind);
         Assert.Equal(1000, vault.ItemCapacity);
         Assert.Equal(["container"], vault.Prerequisites);
-        Assert.Equal(900, vault.Unlock!.Money);
-        Assert.Equal([new ResourceAmount("titanium-plate", 20)], vault.Unlock.Materials);
+        Assert.Equal(1_500_000, vault.Unlock!.Money);
+        Assert.Equal([new ResourceAmount("titanium-plate", 80)], vault.Unlock.Materials);
 
         var foundation = Content.RequireStructure("core-foundation");
         Assert.Equal("core-upgrade", foundation.Kind);
         Assert.Equal(0, foundation.ItemCapacity);
-        Assert.Equal(5000, foundation.Unlock!.Money);
+        Assert.Equal(1_500_000, foundation.Unlock!.Money);
         var nucleus = Content.RequireStructure("core-nucleus");
         Assert.Equal("core-upgrade", nucleus.Kind);
         Assert.Equal(["core-foundation"], nucleus.Prerequisites);
-        Assert.Equal(25000, nucleus.Unlock!.Money);
+        Assert.Equal(7_000_000, nucleus.Unlock!.Money);
 
         Assert.Equal(
             [new ResourceAmount("iron-plate", 40), new ResourceAmount("lead-plate", 20)],
@@ -210,9 +210,9 @@ public sealed class ContentValidationTests
         Assert.Equal("Batteria", structure.DisplayName);
         Assert.False(structure.UnlockedByDefault);
         Assert.Equal([PowerNode.Tier1Id], structure.Prerequisites);
-        Assert.Equal(300, structure.Unlock!.Money);
+        Assert.Equal(91_000, structure.Unlock!.Money);
         Assert.Equal(
-            [new ResourceAmount("lead-plate", 10), new ResourceAmount("copper-wire", 5)],
+            [new ResourceAmount("lead-plate", 30), new ResourceAmount("copper-wire", 15)],
             structure.Unlock.Materials);
     }
 

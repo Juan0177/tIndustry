@@ -95,6 +95,7 @@ public partial class World
         BuildTool.Vault => Hud.ToolKind.Vault,
         BuildTool.CoreFoundation => Hud.ToolKind.CoreFoundation,
         BuildTool.CoreNucleus => Hud.ToolKind.CoreNucleus,
+        BuildTool.MarketScreen => Hud.ToolKind.MarketScreen,
         _ => Hud.ToolKind.None
     };
 
@@ -124,6 +125,7 @@ public partial class World
         Hud.ToolKind.Vault => BuildTool.Vault,
         Hud.ToolKind.CoreFoundation => BuildTool.CoreFoundation,
         Hud.ToolKind.CoreNucleus => BuildTool.CoreNucleus,
+        Hud.ToolKind.MarketScreen => BuildTool.MarketScreen,
         _ => BuildTool.None
     };
 
@@ -635,8 +637,8 @@ public partial class World
     /// in Mindustry. With a node selected, a power block it reaches (or any power block that is not a node) gets its
     /// laser toggled (<see cref="TogglePowerLink"/>; a refusal is the usual toast), another node out of reach is selected
     /// instead, the node itself or anything else drops the selection. Without one, a click on a node selects it.
-    /// A click on a sorter, an inverted sorter or an extractor opens its filter card instead (Mindustry's configuration;
-    /// the same block again closes it); a click anywhere else closes the card. The block's information is the hover
+    /// A click on a sorter, an inverted sorter, an extractor or the market screen opens its filter card instead
+    /// (Mindustry's configuration; the same block again closes it); a click anywhere else closes the card. The block's information is the hover
     /// tooltip (sites, power networks).
     /// </summary>
     private void OnBlockClick(GridPosition cell)
@@ -645,10 +647,10 @@ public partial class World
         {
             return;
         }
-        if (TryGetFilterBlock(cell, out var structureId, out var filter))
+        if (TryGetFilterBlock(cell, out var anchor, out var structureId, out var filter))
         {
             _selectedNode = null;
-            ToggleFilterPanel(cell, structureId, filter);
+            ToggleFilterPanel(anchor, structureId, filter);
             return;
         }
 

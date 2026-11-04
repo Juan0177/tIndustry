@@ -145,6 +145,17 @@ public static class UiColors
     /// <summary>Dashed line of the base value B under the chart.</summary>
     public static Color MercatoBase { get; private set; }
 
+    // LEDs of the stock-exchange screen after a "sell all" (ScreenLed), always with the income written on the screen.
+
+    /// <summary>A small "sell all" that barely moved the price.</summary>
+    public static Color LedBlu { get; private set; }
+
+    /// <summary>A "sell all" that pushed the price down hard or into a crash.</summary>
+    public static Color LedViola { get; private set; }
+
+    /// <summary>The 50/50 (from 10,000 pieces) and the jackpot: the strip and, for the jackpot, the corner lamps.</summary>
+    public static Color LedGiallo { get; private set; }
+
     // Research tree (Mindustry: neutral greys for what you have, the accent for what you can research next).
 
     /// <summary>Path from the selected node to the CORE.</summary>
@@ -242,6 +253,10 @@ public static class UiColors
         MercatoGrafico = TestoTenue;
         MercatoBase = Bordo;
 
+        LedBlu = new("4FA8FF");
+        LedViola = new("B36BFF");
+        LedGiallo = new("FFD84A");
+
         RicercaPercorso = new("EBC86E");
         RicercaNodo = new("212426");
         RicercaNodoBloccato = new("141617");
@@ -287,6 +302,11 @@ public static class UiColors
         MercatoGiu = Insufficiente;
         MercatoCrollo = new("CC79A7");
 
+        // Okabe–Ito sky blue, reddish purple and yellow.
+        LedBlu = new("56B4E9");
+        LedViola = new("CC79A7");
+        LedGiallo = new("F0E442");
+
         Smontaggio = new("CC79A7");
         SmontaggioArea = Smontaggio with { A = 0.16f };
         FantasmaValido = new("56B4E9");
@@ -329,6 +349,10 @@ public static class UiColors
         MercatoCrollo = new("FF66FF");
         MercatoGrafico = TestoTenue;
         MercatoBase = Bordo;
+
+        LedBlu = new("66B8FF");
+        LedViola = new("FF66FF");
+        LedGiallo = new("FFFF00");
 
         RicercaPercorso = new("FFFFFF");
         RicercaNodo = new("1A1A1A");
