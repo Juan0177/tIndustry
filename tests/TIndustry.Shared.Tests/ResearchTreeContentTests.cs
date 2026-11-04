@@ -29,6 +29,7 @@ public sealed class ResearchTreeContentTests
         { "miner-advanced", "miner" },
         { "smelter", "miner" },
         { "assembler", "smelter" },
+        { "market-screen", "assembler" },
         { "extractor", "miner" },
         // Energia
         { "generator", null },

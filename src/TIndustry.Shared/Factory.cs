@@ -141,6 +141,15 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Lamp> Lamps => lamps;
     public IReadOnlyList<Battery> Batteries => batteries;
 
+    /// <summary>The finished stock-exchange screen (one per game), or null; active when it touches the Core.</summary>
+    public MarketScreen? MarketScreen => State.MarketScreen;
+
+    /// <summary>
+    /// Recomputes whether the market screen is active (finished and touching the Core) and
+    /// <see cref="GameState.HasMarketScreen"/>. Factory calls it after every change of the screen or of the Core.
+    /// </summary>
+    public void RefreshMarketScreen() => State.RefreshMarketScreen();
+
     /// <summary>Lasers and power networks.</summary>
     public PowerGrid PowerGrid => State.PowerGrid;
     public IReadOnlyList<StorageBlock> Storages => storagesView ??= storages.AsReadOnly();
@@ -931,6 +940,9 @@ public sealed class Factory : IGameView
                         ? SortedByKey(contents.Select(c => new KeyValuePair<string, int>(c.ItemId, c.Count)))
                         : null
                 }).ToList(),
+            MarketScreen = State.MarketScreen is { } screen
+                ? new MarketScreenSaveDto { Id = screen.Id, X = screen.Position.X, Y = screen.Position.Y }
+                : null,
             Rules = new GameRulesSaveDto
             {
                 RefundPercent = State.Rules.RefundPercent,
@@ -1271,6 +1283,11 @@ public sealed class Factory : IGameView
             factory.storages.Add(storage);
         }
 
+        if (data.MarketScreen is { } savedScreen)
+        {
+            factory.State.MarketScreen = new MarketScreen(new GridPosition(savedScreen.X, savedScreen.Y), RestoredId(savedScreen.Id));
+        }
+
         foreach (var b in data.Builders.OrderBy(b => b.Id))
         {
             var builder = new BuilderUnit(b.Id, b.Owner, b.X, b.Y)
@@ -1318,6 +1335,7 @@ public sealed class Factory : IGameView
         SortById(factory.storages, s => s.Id);
         // Which storage blocks touch the Core (the saved Core cells and tier are set above).
         factory.State.Storage.RecomputeLinks();
+        factory.RefreshMarketScreen();
         // The saved lasers, then the networks from them and from contact.
         factory.RestorePowerLinks(data.PowerLinks);
         factory.State.PowerGrid.Rebuild(factory.State);
@@ -2094,7 +2112,7 @@ public sealed class Factory : IGameView
             }
         }
 
-        return false;
+        return State.MarketScreen?.Occupies(tile) == true;
     }
 
     /// <summary>Unlock all placeables so seeded demos keep working under gates.</summary>
@@ -2263,7 +2281,20 @@ public sealed class Factory : IGameView
             return RefusalCode.CoreUpgradeOutOfMap;
         }
 
-        return tiles.All(CanOccupy) ? null : RefusalCode.CoreUpgradeBlocked;
+        // A finished market screen does not block the growth: the Core takes it apart (TakeApartScreenUnder).
+        return tiles.All(t => CanOccupy(t) || State.MarketScreen?.Occupies(t) == true) ? null : RefusalCode.CoreUpgradeBlocked;
+    }
+
+    /// <summary>
+    /// A Core block takes the cells of <paramref name="spec"/>: a market screen on one of them is taken apart with the
+    /// refund of a removal (<see cref="RefundBasisPointsFor"/>), so <see cref="GameState.HasMarketScreen"/> goes off.
+    /// </summary>
+    internal void TakeApartScreenUnder(BuildSpec spec)
+    {
+        if (State.MarketScreen is { } screen && Footprint(spec).Any(screen.Occupies))
+        {
+            RemoveInstant(screen.Position, refund: true);
+        }
     }
 
     /// <summary>The Core tier whose block or structure id is <paramref name="structureId"/> (1 or 2), or -1.</summary>
@@ -2298,7 +2329,8 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        // SetCore recomputes the Core's cells and the linked storage blocks.
+        TakeApartScreenUnder(spec);
+        // SetCore recomputes the Core's cells, the linked storage blocks and the market screen.
         State.SetCore(spec.Origin, tier);
         buildingsVersion++;
         return true;
@@ -2360,6 +2392,7 @@ public sealed class Factory : IGameView
         "battery" => Battery.BuildingId,
         "container" => "container",
         "vault" => "vault",
+        "market-screen" => MarketScreen.BuildingId,
         _ => null
     };
 
@@ -2811,8 +2844,34 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        if (ok && spec.Kind == BuildingKind.MarketScreen && MarketScreenRefusal(spec, countPlans: false) is { } screen)
+        {
+            reason = screen;
+            return false;
+        }
+
         reason = ok ? null : RefusalReason(spec);
         return ok;
+    }
+
+    /// <summary>
+    /// Why a market screen cannot stand at <paramref name="spec"/> beyond its cells being free, in this order:
+    /// <see cref="RefusalCode.MarketScreenAlreadyPresent"/> (a finished screen, a screen site being built and, with
+    /// <paramref name="countPlans"/>, a screen plan of any drone) and <see cref="RefusalCode.MarketScreenNotTouchingCore"/>
+    /// (no cell next to a Core cell edge to edge); null when it may stand there. A drone starting its own plan does not
+    /// count plans (its plan is the one).
+    /// </summary>
+    public RefusalCode? MarketScreenRefusal(BuildSpec spec, bool countPlans)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        if (State.MarketScreen is not null
+            || State.Sites.Any(site => site.Spec.Kind == BuildingKind.MarketScreen && !site.Deconstructing)
+            || (countPlans && State.Builders.Any(b => b.Plans.Any(p => !p.Breaking && p.Spec.Kind == BuildingKind.MarketScreen))))
+        {
+            return RefusalCode.MarketScreenAlreadyPresent;
+        }
+
+        return MarketScreen.TouchesCore(spec.Origin, CoreTiles) ? null : RefusalCode.MarketScreenNotTouchingCore;
     }
 
     /// <summary>
@@ -2826,6 +2885,13 @@ public sealed class Factory : IGameView
         if (BuildSpec.IsCoreUpgrade(spec.Kind))
         {
             return CorePlacementRefusal(spec) ?? RefusalCode.CoreUpgradeBlocked;
+        }
+
+        if (spec.Kind == BuildingKind.MarketScreen
+            && CanOccupyFootprint(spec.Origin, MarketScreen.Size)
+            && MarketScreenRefusal(spec, countPlans: false) is { } screen)
+        {
+            return screen;
         }
 
         var reason = RefusalReason(Footprint(spec));
@@ -2925,6 +2991,8 @@ public sealed class Factory : IGameView
             case BuildingKind.Container:
             case BuildingKind.Vault:
                 return PlaceStorage(spec, charge);
+            case BuildingKind.MarketScreen:
+                return PlaceMarketScreen(origin, charge);
             default:
                 return false;
         }
@@ -3020,6 +3088,13 @@ public sealed class Factory : IGameView
             }
         }
 
+        if (State.MarketScreen is { } screen && screen.Occupies(tile))
+        {
+            spec = new BuildSpec(MarketScreen.BuildingId, BuildingKind.MarketScreen, screen.Position, Direction.East);
+            entityId = screen.Id;
+            return true;
+        }
+
         if (Belts.TryGet(tile, out var cell))
         {
             entityId = 0;
@@ -3110,6 +3185,7 @@ public sealed class Factory : IGameView
         BuildingKind.PowerNodeT2 => 2,
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => Content.CoreTiers[BuildSpec.CoreTierOf(spec.Kind)].Size,
         BuildingKind.Container or BuildingKind.Vault => StorageBlock.SizeOf(spec.Kind),
+        BuildingKind.MarketScreen => MarketScreen.Size,
         _ => 1
     };
 
@@ -3385,6 +3461,25 @@ public sealed class Factory : IGameView
 
         batteries.Add(new Battery(origin, nextEntityId++));
         PowerBlocksChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Places the market screen (one per game) and recomputes whether it is active. Contact with the Core is checked
+    /// on placing (<see cref="MarketScreenRefusal"/>), not here: a site finished after the Core changed still stands.
+    /// </summary>
+    private bool PlaceMarketScreen(GridPosition origin, bool charge)
+    {
+        if (State.MarketScreen is not null
+            || !CanOccupyFootprint(origin, MarketScreen.Size)
+            || (charge && !TryChargeBuilding(MarketScreen.BuildingId)))
+        {
+            return false;
+        }
+
+        buildingsVersion++;
+        State.MarketScreen = new MarketScreen(origin, nextEntityId++);
+        RefreshMarketScreen();
         return true;
     }
 
@@ -3664,6 +3759,15 @@ public sealed class Factory : IGameView
                 State.Storage.RecomputeLinks();
                 return true;
             }
+        }
+
+        if (State.MarketScreen is { } screen && screen.Occupies(tile))
+        {
+            entityId = screen.Id;
+            buildingId = MarketScreen.BuildingId;
+            State.MarketScreen = null;
+            RefreshMarketScreen();
+            return true;
         }
 
         buildingId = "";

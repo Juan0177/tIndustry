@@ -120,6 +120,9 @@ public interface IGameView
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
 
+    /// <summary>The finished stock-exchange screen (one per game), or null; <see cref="MarketScreen.Active"/> when it touches the Core.</summary>
+    MarketScreen? MarketScreen { get; }
+
     /// <summary>Rules of this game.</summary>
     GameRules Rules { get; }
 

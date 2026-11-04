@@ -361,6 +361,21 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
+        // The market screen (one per game, touching the Core) is checked in both modes, planned screens included; a
+        // locked one is refused as usual below.
+        if (command.Kind == BuildingKind.MarketScreen && factory.IsStructureUnlocked(spec.StructureId))
+        {
+            if (!factory.CanPlace(spec, out var reason))
+            {
+                return reason ?? RefusalCode.Occupied;
+            }
+
+            if (factory.MarketScreenRefusal(spec, countPlans: true) is { } screen)
+            {
+                return screen;
+            }
+        }
+
         if (!factory.State.Rules.InstantBuild)
         {
             return QueuePlan(command.PlayerId, spec);

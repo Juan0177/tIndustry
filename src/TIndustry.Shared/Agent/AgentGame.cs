@@ -60,7 +60,7 @@ public sealed class AgentGame : IDisposable
         ('+', "incrocio"), ('R', "router"), ('F', "selezionatore"), ('I', "selezionatore invertito"), ('=', "ponte"),
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
-        ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"),
+        ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"), ('$', "schermo di borsa"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -932,6 +932,7 @@ public sealed class AgentGame : IDisposable
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => 'C',
         BuildingKind.Container => 'K',
         BuildingKind.Vault => 'V',
+        BuildingKind.MarketScreen => '$',
         _ => '!'
     };
 
@@ -1042,6 +1043,11 @@ public sealed class AgentGame : IDisposable
         foreach (var s in View.Storages)
         {
             yield return (s.StructureId, s.Kind, s.Origin, Direction.East);
+        }
+
+        if (View.MarketScreen is { } screen)
+        {
+            yield return (MarketScreen.BuildingId, BuildingKind.MarketScreen, screen.Position, Direction.East);
         }
     }
 

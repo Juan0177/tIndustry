@@ -250,8 +250,31 @@ public sealed class GameState
     /// <summary>Price state of the exchange (spikes, crashes); base values B come from <c>Content.Market</c>.</summary>
     public MarketState Exchange { get; }
 
-    /// <summary>True when the game has a stock-exchange screen: only then "sell all" can be a jackpot attempt (set by tests until specification 2).</summary>
+    /// <summary>
+    /// True when the game has an active stock-exchange screen (<see cref="MarketScreen"/> finished and touching the Core):
+    /// only then "sell all" can be a jackpot attempt. Recomputed by <see cref="RefreshMarketScreen"/>; tests may set it.
+    /// </summary>
     public bool HasMarketScreen { get; internal set; }
+
+    /// <summary>The finished stock-exchange screen (one per game), or null.</summary>
+    public MarketScreen? MarketScreen { get; internal set; }
+
+    /// <summary>
+    /// Recomputes <see cref="MarketScreen.Active"/> (the screen touches a Core cell edge to edge) and
+    /// <see cref="HasMarketScreen"/> from it. Called after the screen is placed or removed, by <see cref="SetCore"/> and on
+    /// restore: only the screen and the Core decide it.
+    /// </summary>
+    public void RefreshMarketScreen()
+    {
+        if (MarketScreen is not { } screen)
+        {
+            HasMarketScreen = false;
+            return;
+        }
+
+        screen.Active = MarketScreen.TouchesCore(screen.Position, coreTiles);
+        HasMarketScreen = screen.Active;
+    }
 
     /// <summary>Test hook: receives the jackpot probability (basis points) and decides the outcome; null draws from the market generator.</summary>
     internal Func<int, bool>? JackpotRollForTests { get; set; }
@@ -329,7 +352,7 @@ public sealed class GameState
 
     /// <summary>
     /// Puts the Core at <paramref name="origin"/> with tier <paramref name="tier"/>: its cells are recomputed from the
-    /// tier's size and the linked storage blocks are recomputed.
+    /// tier's size, then the linked storage blocks and the market screen.
     /// </summary>
     public void SetCore(GridPosition origin, int tier)
     {
@@ -342,6 +365,7 @@ public sealed class GameState
         CoreOrigin = origin;
         coreTiles = CoreStockSink.MakeCoreTiles(origin, Content.CoreTiers[tier].Size);
         Storage.RecomputeLinks();
+        RefreshMarketScreen();
     }
 
     /// <summary>

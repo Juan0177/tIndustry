@@ -822,6 +822,15 @@
       "itemCapacity": 1000
     },
     {
+      "id": "market-screen",
+      "displayName": "Schermo di borsa",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 3000, "materials": [ { "itemId": "iron-plate", "amount": 80 }, { "itemId": "copper-wire", "amount": 40 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
       "id": "core-foundation",
       "displayName": "CORE Fondazione",
       "kind": "core-upgrade",
@@ -1096,6 +1105,13 @@
       "moneyCost": 0,
       "buildCost": [ { "itemId": "titanium-plate", "amount": 60 }, { "itemId": "iron-plate", "amount": 40 } ],
       "refundPercent": 100
+    },
+    {
+      "id": "market-screen",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 60 }, { "itemId": "copper-wire", "amount": 25 }, { "itemId": "lead-plate", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2
     }
   ],
   "economy": {

@@ -75,6 +75,7 @@ public sealed record BuildSpec(
         BuildingKind.CoreNucleus => "core-nucleus",
         BuildingKind.Container => "container",
         BuildingKind.Vault => "vault",
+        BuildingKind.MarketScreen => MarketScreen.BuildingId,
         _ => null
     };
 

@@ -35,7 +35,8 @@ public enum BuildingKind
     Container,
     Vault,
     Battery,
-    SorterInverted
+    SorterInverted,
+    MarketScreen
 }
 
 /// <summary>
@@ -222,7 +223,13 @@ public enum RefusalCode
     MiningCovered,
 
     /// <summary>Hand mining: the hold is full and the drone cannot unload it now (too far from the Core, or the Core is full).</summary>
-    MiningHoldFull
+    MiningHoldFull,
+
+    /// <summary>Market screen: none of its cells touches a Core cell edge to edge.</summary>
+    MarketScreenNotTouchingCore,
+
+    /// <summary>Market screen: there is already one (finished, being built or planned): one per game.</summary>
+    MarketScreenAlreadyPresent
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

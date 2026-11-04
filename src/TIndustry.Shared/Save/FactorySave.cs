@@ -102,6 +102,8 @@ public sealed class FactorySaveData
     public List<PowerLinkSaveDto>? PowerLinks { get; set; }
     /// <summary>Containers and vaults, in id order: null when there are none.</summary>
     public List<StorageSaveDto>? Storages { get; set; }
+    /// <summary>The finished market screen: null when there is none.</summary>
+    public MarketScreenSaveDto? MarketScreen { get; set; }
     public List<BeltSaveDto> Belts { get; set; } = [];
     public GameRulesSaveDto Rules { get; set; } = new();
     /// <summary>Construction drones, in id order.</summary>
@@ -119,6 +121,14 @@ public sealed class GameRulesSaveDto
 }
 
 public sealed class LampSaveDto
+{
+    public long Id { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+}
+
+/// <summary>The market screen: id and top-left cell (whether it is active is recomputed from the Core).</summary>
+public sealed class MarketScreenSaveDto
 {
     public long Id { get; set; }
     public int X { get; set; }
