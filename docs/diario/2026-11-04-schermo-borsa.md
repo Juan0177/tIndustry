@@ -116,4 +116,6 @@ Ultimo stato riportato dai task: build Release 0 errori e 0 avvisi; `TIndustry.S
 
 ## Revisione finale
 
-Da fare.
+Pronta da unire (0 critici, 0 importanti, 5 minori). Verificati: `HasMarketScreen` ricalcolato su ogni strada (piazzamento, smontaggio, `SetCore`, caricamento), lo schermo che blocca il potenziamento del CORE, salvataggi v20 e impronta, probabilità mostrata uguale a quella estratta, soldi `int` lontani dal tetto, documenti uguali a `content.json` e `campaign.json`. Corretti in `0bcbff6`: l'id dello schermo nel `maxSavedId` del caricamento (con test), «Staccato dal CORE» descritto come stato di sicurezza in STATO, Wiki del Mercato e diario, il passo 6 del tutorial che dice di vendere prima di sbloccare il forno. Ri-revisione: tutto a posto.
+
+Restano: i costi in Ricerca senza separatore delle migliaia («$7000000», domanda per l'utente); tre frasi su «Staccato dal CORE» in Economia-e-Ricerca, `godot/README.md` e CHANGELOG da ammorbidire alla prossima modifica; i minori rinviati elencati sopra, tutti «possono aspettare».
