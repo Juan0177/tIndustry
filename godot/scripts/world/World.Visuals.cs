@@ -723,6 +723,9 @@ public partial class World
     /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
     private const int ConstructionZ = 20;
 
+    /// <summary>The jackpot sequence's bot and briefcase: over the buildings, the lasers and the construction layer.</summary>
+    private const int JackpotSequenceZ = ConstructionZ + 1;
+
     /// <summary>
     /// Sprite of the Core: the tier's own (<c>core-shard</c> 3×3, <c>core-foundation</c> 4×4, <c>core-nucleus</c> 5×5),
     /// read when the building visuals are rebuilt (a finished upgrade rebuilds them).

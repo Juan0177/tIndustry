@@ -54,6 +54,30 @@ public partial class MarketScreenVisual : Node2D
     /// <summary>The jackpot sequence running on this screen (set by every <see cref="Sync"/>), else null.</summary>
     private JackpotSequenceView? _sequence;
 
+    // Texts of the sequence fitted to the glass, kept while their source, width and scale stay the same (fitted once
+    // per run, not every frame).
+    private FitCache _nameFit;
+    private FitCache _jackpotFit;
+
+    private struct FitCache
+    {
+        public string? Source;
+        public float Width;
+        public float Scale;
+        public string Text;
+    }
+
+    /// <summary><see cref="Fit"/> through <paramref name="cache"/>: computed again only when its inputs change.</summary>
+    private static string CachedFit(ref FitCache cache, string text, float width, float scale)
+    {
+        if (!ReferenceEquals(cache.Source, text) || cache.Width != width || cache.Scale != scale)
+        {
+            cache = new FitCache { Source = text, Width = width, Scale = scale, Text = Fit(text, width, scale) };
+        }
+
+        return cache.Text;
+    }
+
     public GridPosition Origin { get; private set; }
 
     public static MarketScreenVisual Create(MarketScreen screen, int tileSize)
@@ -446,7 +470,7 @@ public partial class MarketScreenVisual : Node2D
     /// The glass during the sequence: the channel changing to the sold item, its chart (in slow motion on the way back,
     /// stopping on the sale price), «calcolo…» while it computes and the LEDs blink, then the income on rolling digits.
     /// </summary>
-    private static void DrawSequence(CanvasItem canvas, JackpotSequenceView view, JackpotSequence seq, Rect2 glass, Rect2 inner)
+    private void DrawSequence(CanvasItem canvas, JackpotSequenceView view, JackpotSequence seq, Rect2 glass, Rect2 inner)
     {
         var p = (float)seq.StepProgress;
         switch (seq.Step)
@@ -484,14 +508,14 @@ public partial class MarketScreenVisual : Node2D
     }
 
     /// <summary>The new channel: the sold item's icon over its name.</summary>
-    private static void DrawChannel(CanvasItem canvas, JackpotSequenceView view, Rect2 inner)
+    private void DrawChannel(CanvasItem canvas, JackpotSequenceView view, Rect2 inner)
     {
         var line = LineHeight(SmallText);
         var side = Math.Min(inner.Size.Y - line - 2, 32f);
         var top = inner.Position.Y + (inner.Size.Y - side - line - 2) / 2f;
         canvas.DrawTextureRect(Sprites.Item(view.ItemId),
             new Rect2(inner.Position.X + (inner.Size.X - side) / 2f, top, side, side), false);
-        var name = Fit(view.ItemName, inner.Size.X, SmallText);
+        var name = CachedFit(ref _nameFit, view.ItemName, inner.Size.X, SmallText);
         var x = inner.Position.X + (inner.Size.X - Width(name, SmallText)) / 2f;
         Text(canvas, name, new Vector2(x, top + side + 2 + Ascent(SmallText)), UiColors.Testo);
     }
@@ -554,7 +578,7 @@ public partial class MarketScreenVisual : Node2D
     /// The result of the sequence: «JACKPOT» (with a jackpot) over the item's icon and the income, whose digits roll and
     /// stop one by one from the left on the real value.
     /// </summary>
-    private static void DrawRollingResult(CanvasItem canvas, JackpotSequenceView view, JackpotSequence seq, Rect2 area)
+    private void DrawRollingResult(CanvasItem canvas, JackpotSequenceView view, JackpotSequence seq, Rect2 area)
     {
         var glyphs = view.IncomeGlyphs;
         var digitWidth = Width(JackpotSequenceView.Digit(0), 1f);
@@ -569,7 +593,7 @@ public partial class MarketScreenVisual : Node2D
         var y = area.Position.Y + Math.Max(0, (area.Size.Y - height) / 2f);
         if (view.Jackpot)
         {
-            var jackpot = Fit(view.JackpotText, area.Size.X, jackpotScale);
+            var jackpot = CachedFit(ref _jackpotFit, view.JackpotText, area.Size.X, jackpotScale);
             Text(canvas, jackpot, new Vector2(area.Position.X + (area.Size.X - Width(jackpot, jackpotScale)) / 2f,
                 y + Ascent(jackpotScale)), UiColors.LedGiallo, jackpotScale);
             y += LineHeight(jackpotScale);

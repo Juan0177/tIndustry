@@ -12,6 +12,12 @@ public sealed class JackpotSequence
 {
     public const double TotalSeconds = 12;
 
+    /// <summary>
+    /// Seconds at the start in which a skip is ignored: a double click on «Vendi tutto» must not skip the sequence it
+    /// just started.
+    /// </summary>
+    public const double SkipGuardSeconds = 0.2;
+
     private static readonly double[] Durations = { 1, 1, 2, 2, 2, 2, 2 };
     private static readonly double[] Starts = { 0, 1, 2, 4, 6, 8, 10 };
 
@@ -66,11 +72,11 @@ public sealed class JackpotSequence
 
     /// <summary>
     /// Skips: steps 1-6 jump to the start of the result; the result step ends the sequence. A won jackpot cannot be
-    /// skipped. Returns whether anything changed.
+    /// skipped, nor any sequence in its first <see cref="SkipGuardSeconds"/>. Returns whether anything changed.
     /// </summary>
     public bool TrySkip()
     {
-        if (Sale.Jackpot || Finished) return false;
+        if (Sale.Jackpot || Finished || Elapsed < SkipGuardSeconds) return false;
         if (Step == JackpotStep.Risultato) Close();
         else Elapsed = Starts[(int)JackpotStep.Risultato];
         return true;

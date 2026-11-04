@@ -81,6 +81,19 @@ public class JackpotSequenceTests
     }
 
     [Fact]
+    public void SkipIsIgnoredInTheFirstMoment()
+    {
+        var s = new JackpotSequence(Sale());
+        s.Advance(0.1);
+        Assert.False(s.TrySkip());
+        Assert.Equal(JackpotStep.Zoom, s.Step);
+        Assert.Equal(0.1, s.Elapsed, 6);
+        s.Advance(0.15);
+        Assert.True(s.TrySkip());
+        Assert.Equal(JackpotStep.Risultato, s.Step);
+    }
+
+    [Fact]
     public void SkipDuringResultFinishes()
     {
         var s = new JackpotSequence(Sale());

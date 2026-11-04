@@ -307,7 +307,7 @@ public partial class World
 
     private void EnsureJackpotSequenceView()
     {
-        _jackpotView = JackpotSequenceView.Create(UiRoot, TileSize);
+        _jackpotView = JackpotSequenceView.Create(UiRoot, TileSize, JackpotSequenceZ);
         AddChild(_jackpotView);
     }
 
@@ -319,7 +319,7 @@ public partial class World
     /// <summary>
     /// Every frame of a game, after the ticks: starts an attempt that just resolved, closes the sequence when it cannot
     /// go on (Home, a panel, loading, another game, the screen gone), otherwise moves it on in real time (the frame's
-    /// time without the engine's time scale: the dev speeds do not shorten it), paused with the player's pause or
+    /// time: the dev speeds change only the host's clock, so they do not shorten it), paused with the player's pause or
     /// without the window's focus.
     /// </summary>
     private void SyncJackpotSequence(double delta)
@@ -349,8 +349,7 @@ public partial class World
 
         // Agent games and playtests run in windows without the focus: there only the pause holds it.
         sequence.Paused = PlayerPaused || (!_windowFocused && !PlaytestRequested && !AgentBridgeActive);
-        var scale = Engine.TimeScale;
-        _jackpotView.Advance(scale > 0 ? delta / scale : delta);
+        _jackpotView.Advance(delta);
         if (sequence.Finished)
         {
             EndJackpotSequence(aborted: false);
@@ -396,6 +395,7 @@ public partial class World
         var (rest, coreStop) = JackpotBotPoints(centre);
         var result = screen.LastResult is { } last && last.ItemId == sale.ItemId ? last : null;
         _jackpotView.Start(sale, result, _view, centre, rest, coreStop);
+        _pauseLabel?.MoveToFront(); // «In pausa» stays over the sequence's overlay (the big «JACKPOT» included)
         _jackpotHost = _host;
         _jackpotScreen = screen.Position;
 

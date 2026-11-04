@@ -55,6 +55,8 @@ public partial class JackpotSequenceView : Node2D
     private bool _confettiFired;
     private readonly Random _random = new(2468);
 
+    private string _piecesText = "";
+
     // Last unit price formatted for the glass, kept until it changes (no string per frame).
     private int _priceShown = int.MinValue;
     private string _priceText = "";
@@ -93,11 +95,14 @@ public partial class JackpotSequenceView : Node2D
     /// <summary>The digit glyphs, shared («0»…«9»), for the rolling income.</summary>
     public static string Digit(int d) => Digits[d];
 
-    private string _piecesText = "";
-
-    public static JackpotSequenceView Create(Control uiRoot, int tileSize)
+    /// <summary>
+    /// The view, with its overlay on <paramref name="uiRoot"/>; drawn at <paramref name="zIndex"/> in the world, which the
+    /// world sets above the buildings, the lasers and the construction layer (the bot flies over the screen and the CORE).
+    /// </summary>
+    public static JackpotSequenceView Create(Control uiRoot, int tileSize, int zIndex)
     {
-        var view = new JackpotSequenceView { Name = "SequenzaJackpot", ZIndex = 10, Visible = false, _tileSize = tileSize };
+        var view = new JackpotSequenceView { Name = "SequenzaJackpot", Visible = false, _tileSize = tileSize };
+        view.ZIndex = zIndex;
         view.TextureFilter = TextureFilterEnum.Nearest;
         view._idle = Sprites.Frames("market-bot-idle");
         view._fly = Sprites.Frames("market-bot-fly");
@@ -263,7 +268,8 @@ public partial class JackpotSequenceView : Node2D
 
         if (_jackpotLabel is not null)
         {
-            _jackpotLabel.Visible = sequence.Sale.Jackpot && result;
+            // Hidden while paused: «In pausa» takes the middle of the view.
+            _jackpotLabel.Visible = sequence.Sale.Jackpot && result && !paused;
         }
 
         if (_confettiFired && !paused)
@@ -278,8 +284,7 @@ public partial class JackpotSequenceView : Node2D
     /// <summary>The unit price the glass shows for <paramref name="priceMilli"/> («$12»), formatted only when it changes.</summary>
     public string PriceText(int priceMilli)
     {
-        // MarketMath.UnitIncome (internal to the simulation): the base value times the price, rounded.
-        var unit = (int)(((long)BaseValue * priceMilli + 500) / 1000);
+        var unit = MarketPrices.UnitIncome(BaseValue, priceMilli);
         if (unit != _priceShown)
         {
             _priceShown = unit;
