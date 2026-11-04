@@ -75,6 +75,12 @@ public static class AgentProtocol
     /// <summary>Slowest frame rate the launcher allows for a spread <c>muovi {cella}</c> when it sets its wait.</summary>
     public const int GameMoveMinFramesPerSecond = 20;
 
+    /// <summary>
+    /// Longest real-time wait, in seconds, of the game's bridge for a jackpot-attempt sequence (12 s, longer when paused):
+    /// a command that ends with one running answers after its end, and a command that arrives during one runs after it.
+    /// </summary>
+    public const int GameJackpotSequenceWaitSeconds = 20;
+
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

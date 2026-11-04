@@ -299,6 +299,15 @@ public partial class World
     /// <summary>A jackpot-attempt sequence is running (the agents' bridge waits for its end).</summary>
     internal bool JackpotSequenceRunning => _jackpotView?.Running == true;
 
+    /// <summary>An attempt resolved and its sequence starts after this frame's ticks (the bridge waits for it too).</summary>
+    internal bool JackpotSequenceStarting => _jackpotPending is not null;
+
+    /// <summary>Sequences started so far (a second attempt restarts the running one: the bridge's wait starts again).</summary>
+    internal int JackpotSequenceStarts { get; private set; }
+
+    /// <summary>Set by the ui playtest to hold the running sequence still for a capture (like the player's pause).</summary>
+    internal bool PlaytestJackpotHold { get; set; }
+
     /// <summary>The sequence hides the HUD (<see cref="HudVisible"/>).</summary>
     private bool JackpotHidesHud => _jackpotView?.Sequence is { HidesHud: true };
 
@@ -348,7 +357,7 @@ public partial class World
         }
 
         // Agent games and playtests run in windows without the focus: there only the pause holds it.
-        sequence.Paused = PlayerPaused || (!_windowFocused && !PlaytestRequested && !AgentBridgeActive);
+        sequence.Paused = PlayerPaused || PlaytestJackpotHold || (!_windowFocused && !PlaytestRequested && !AgentBridgeActive);
         _jackpotView.Advance(delta);
         if (sequence.Finished)
         {
@@ -395,6 +404,7 @@ public partial class World
         var (rest, coreStop) = JackpotBotPoints(centre);
         var result = screen.LastResult is { } last && last.ItemId == sale.ItemId ? last : null;
         _jackpotView.Start(sale, result, _view, centre, rest, coreStop);
+        JackpotSequenceStarts++;
         _pauseLabel?.MoveToFront(); // «In pausa» stays over the sequence's overlay (the big «JACKPOT» included)
         _jackpotHost = _host;
         _jackpotScreen = screen.Position;
