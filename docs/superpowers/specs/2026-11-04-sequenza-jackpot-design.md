@@ -1,6 +1,6 @@
 # Sequenza del tentativo di jackpot — specifica 2b
 
-- **Stato**: da approvare. Brainstorming con l'utente del 4 novembre 2026; issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Aspetto 6 «Mercato ed economia» di `docs/STATO.md`.
+- **Stato**: approvata dall'utente il 4 novembre 2026 ([piano](../plans/2026-11-04-sequenza-jackpot.md)). Brainstorming con l'utente del 4 novembre 2026; issue [#268](https://github.com/Juan0177/tIndustry/issues/268). Aspetto 6 «Mercato ed economia» di `docs/STATO.md`.
 - **Le specifiche del Mercato**: 1 [Mercato come una borsa](2026-10-22-mercato-borsa-design.md), 2a [Schermo di borsa](2026-11-04-schermo-borsa-design.md), 3 [Magazzino del CORE](2026-10-23-magazzino-core-design.md), tutte attuate; **2b** questa.
 - **Sostituisce**: l'avviso del jackpot di oggi (il toast con l'incasso) per i tentativi fatti con lo schermo; l'esito sullo schermo della 2a resta.
 
@@ -45,7 +45,7 @@ Totale 12 s. Poi la visuale torna sul drone del giocatore (con l'inseguimento mo
 
 ## Architettura
 
-- **Logica senza Godot**: classe nuova `JackpotSequence` (nel client, file C# puro, testabile da `tests/TIndustry.Shared.Tests` come gli altri pezzi di client senza Godot, oppure in `src/TIndustry.Shared` se serve: decide il piano) con passi, durate, avanzamento col tempo reale, pausa, salto e regola del jackpot non saltabile. Riceve l'esito (`SaleResolved` + posizione dello schermo e del CORE) e dà a ogni istante: passo, avanzamento 0–1 del passo, se l'HUD è nascosto, se i comandi sono bloccati.
+- **Logica senza Godot**: classe nuova `JackpotSequence` in `src/TIndustry.Shared` (come `TechTreeLayout`: nessuna dipendenza da Godot, provata dai test xUnit) con passi, durate, avanzamento col tempo reale, pausa, salto e regola del jackpot non saltabile. Riceve l'esito (`SaleResolved` + posizione dello schermo e del CORE) e dà a ogni istante: passo, avanzamento 0–1 del passo, se l'HUD è nascosto, se i comandi sono bloccati.
 - **Client Godot**: un nodo `JackpotSequenceView` che legge `JackpotSequence` e muove camera (zoom e ritorno), bot, valigetta, numeri, LED, rulli, coriandoli e scritta; `World` blocca i comandi del mondo e nasconde l'HUD quando la sequenza lo chiede.
 - **Simulazione**: nessun cambiamento. Il risultato è già deciso al clic (`SaleResolved`).
 

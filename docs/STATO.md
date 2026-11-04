@@ -54,7 +54,7 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 - [x] Mercato come una borsa, specifica 1 (PR #274–#282, [diario](diario/2026-10-22-mercato-borsa.md))
 - [x] Schermo di borsa, moduli della Finanza e bilanciamento, specifica 2a: specifica approvata ([spec](superpowers/specs/2026-11-04-schermo-borsa-design.md), [piano](superpowers/plans/2026-11-04-schermo-borsa.md))
 - [x] Schermo di borsa, moduli della Finanza e bilanciamento, specifica 2a: implementazione ([diario](diario/2026-11-04-schermo-borsa.md))
-- [ ] Sequenza animata del «Vendi tutto» e bot della finanza, specifica 2b (zoom senza HUD, bot in 2.5D, valigetta, «calcolo…», coriandoli, schermata JACKPOT): specifica scritta, da approvare ([spec](superpowers/specs/2026-11-04-sequenza-jackpot-design.md))
+- [ ] Sequenza animata del «Vendi tutto» e bot della finanza, specifica 2b (zoom senza HUD, bot in 2.5D, valigetta, «calcolo…», coriandoli, schermata JACKPOT): specifica approvata ([spec](superpowers/specs/2026-11-04-sequenza-jackpot-design.md), [piano](superpowers/plans/2026-11-04-sequenza-jackpot.md)), implementazione da fare
 - [x] Magazzino del CORE e livelli, specifica 3: specifica approvata ([spec](superpowers/specs/2026-10-23-magazzino-core-design.md))
 - [x] Magazzino del CORE e livelli: implementazione ([piano](superpowers/plans/2026-10-23-magazzino-core.md), [diario](diario/2026-10-23-magazzino-core.md))
 
