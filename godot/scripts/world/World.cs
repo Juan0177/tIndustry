@@ -191,6 +191,7 @@ public partial class World : Node2D
         EnsureTimeOverlays();
         EnsurePlacementOverlay();
         EnsureLoadingScreen();
+        EnsureJackpotSequenceView();
         if (GetNodeOrNull<WorldCamera>("Camera") is { } camera)
         {
             // The wheel turns an orientable block in hand (in play, no panel over the world); otherwise it zooms.
@@ -275,9 +276,10 @@ public partial class World : Node2D
     /// <summary>
     /// The in-game HUD (top bar, Core panel, palette, FPS and resource overlays, dev speed bar, "In pausa") shows:
     /// a game is in play and no screen before it is open (the Home and the panels opened from it, the campaign list
-    /// opened from the Home). <see cref="SyncHudVisibility"/> applies it every frame.
+    /// opened from the Home) and no jackpot sequence hides it. <see cref="SyncHudVisibility"/> applies it every frame.
     /// </summary>
-    private bool HudVisible => GameInPlay && !HomeBackdrop && !(_returnHomeAfterCampaign && _campaignSelect?.IsOpen == true);
+    private bool HudVisible => GameInPlay && !HomeBackdrop && !(_returnHomeAfterCampaign && _campaignSelect?.IsOpen == true)
+        && !JackpotHidesHud;
 
     /// <summary>The one place that shows or hides the HUD (see <see cref="HudVisible"/>).</summary>
     private void SyncHudVisibility()
@@ -288,7 +290,8 @@ public partial class World : Node2D
         SyncResourceOverlay();
         if (_pauseLabel is not null)
         {
-            _pauseLabel.Visible = shown && PlayerPaused;
+            // «In pausa» also over a paused jackpot sequence, which hides the rest of the HUD.
+            _pauseLabel.Visible = (shown || JackpotSequenceRunning) && PlayerPaused;
         }
 
         if (_devSpeedLabel is not null)
@@ -339,12 +342,15 @@ public partial class World : Node2D
             // Behind the Home and the panels opened from it the map scrolls slowly on its own and the player cannot
             // move it; still in playtests (stable captures). In a game it follows the drone.
             SyncCameraFollow(cam);
-            cam.InputEnabled = !HomeBackdrop;
+            cam.InputEnabled = !HomeBackdrop && !JackpotBlocksInput;
             cam.DriftSpeed = !HomeBackdrop ? 0f : _playtestDriftSpeed ?? (PlaytestRequested ? 0f : HomeDriftSpeed);
         }
 
         if (!GameInPlay)
         {
+            // Behind the Home (or Nuova partita) no sequence goes on: it closes at once, nothing waits to start.
+            _jackpotPending = null;
+            EndJackpotSequence(aborted: true);
             _hud?.SetSiteTooltip(null, default);
             _hud?.SetPowerTooltip(null, default);
             _hud?.SetSelectionInfo(null);
@@ -360,6 +366,8 @@ public partial class World : Node2D
         {
             AdvanceHost(delta);
         }
+
+        SyncJackpotSequence(delta);
 
         SyncMiningStallHint();
         var visualDelta = PlaytestHeld || PlayerPaused ? 0f : (float)delta;

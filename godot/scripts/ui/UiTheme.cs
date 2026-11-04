@@ -44,6 +44,9 @@ public static class UiTheme
     /// <summary>The centred «In pausa» over the world (title font, accent, shadow).</summary>
     public const string AvvisoPausa = "AvvisoPausa";
 
+    /// <summary>The big «JACKPOT» in the middle of the game view (jackpot sequence): title font ×2, LED yellow, shadow.</summary>
+    public const string ScrittaJackpot = "ScrittaJackpot";
+
     // Mercato: price up / down and a crash (the text always carries ▲, ▼ or "Crollo" too).
     public const string TestoSu = "TestoSu";
     public const string TestoGiu = "TestoGiu";
@@ -217,12 +220,17 @@ public static class UiTheme
         LabelLook(t, Avviso, UiColors.Testo);
         LabelLook(t, AvvisoRosso, UiColors.Insufficiente);
         LabelLook(t, AvvisoPausa, UiColors.Accento, TitleFont, TitleSize);
+        LabelLook(t, ScrittaJackpot, UiColors.LedGiallo, TitleFont, TitleSize * 2);
         foreach (var type in new[] { Avviso, AvvisoRosso, AvvisoPausa })
         {
             t.SetColor("font_shadow_color", type, UiColors.Ombra);
             t.SetConstant("shadow_offset_x", type, 2);
             t.SetConstant("shadow_offset_y", type, 2);
         }
+
+        t.SetColor("font_shadow_color", ScrittaJackpot, UiColors.Ombra);
+        t.SetConstant("shadow_offset_x", ScrittaJackpot, 4);
+        t.SetConstant("shadow_offset_y", ScrittaJackpot, 4);
     }
 
     private static void BuildPanels(Theme t)

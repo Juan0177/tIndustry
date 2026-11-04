@@ -391,6 +391,10 @@ borsa.schermo.staccato,Staccato dal CORE,Detached from CORE
 borsa.schermo.scegli,Scegli un oggetto,Choose an item
 borsa.jackpot,JACKPOT,JACKPOT
 borsa.incasso,+${0},+${0}
+borsa.sequenza.calcolo,calcolo{0},calculating{0}
+borsa.sequenza.pezzi,{0} pezzi,{0} pieces
+borsa.sequenza.prezzo,${0},${0}
+borsa.sequenza.salta,clic o Esc per saltare,click or Esc to skip
 borsa.suggerimento.oggetto,Segue: {0},Follows: {0}
 borsa.suggerimento.esito,Ultimo «Vendi tutto» · {0} · +${1},Last «Sell all» · {0} · +${1}
 borsa.led.Blue,LED blu: il prezzo è sceso poco,Blue LEDs: the price fell a little

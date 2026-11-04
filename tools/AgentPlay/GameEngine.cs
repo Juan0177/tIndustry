@@ -125,6 +125,8 @@ public sealed class GameEngine : IAgentEngine
             timeout += TimeSpan.FromSeconds((double)frames / AgentProtocol.GameMoveMinFramesPerSecond);
         }
 
+        // Any command may first wait for a jackpot sequence running in the game; a "sell all" may then play its own.
+        timeout += TimeSpan.FromSeconds(AgentProtocol.GameJackpotSequenceWaitSeconds * (method == "vendi" ? 2 : 1));
         var result = Request(method, p, timeout);
         return method == "diario" && result.TryGetProperty("percorso", out var path) ? MoveJournal(result, path.GetString()!) : result;
     }

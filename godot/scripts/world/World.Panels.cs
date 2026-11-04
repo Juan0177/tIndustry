@@ -381,6 +381,11 @@ public partial class World
         {
             CancelDrags(); // the release would never arrive: the drags send nothing, hand mining stops
             ReleaseDroneKeys(); // and the drone stops: no key stays held
+            _windowFocused = false; // a jackpot sequence pauses until the focus comes back
+        }
+        else if (what == NotificationApplicationFocusIn)
+        {
+            _windowFocused = true;
         }
     }
 

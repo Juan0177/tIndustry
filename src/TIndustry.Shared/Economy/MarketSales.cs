@@ -1,5 +1,12 @@
 namespace TIndustry.Shared;
 
+/// <summary>Market price formulas the client needs too (the rest of <see cref="MarketMath"/> stays internal).</summary>
+public static class MarketPrices
+{
+    /// <summary>Money for one piece: <c>round(B × price)</c>, price in thousandths of B.</summary>
+    public static int UnitIncome(int baseValue, int priceMilli) => MarketMath.UnitIncome(baseValue, priceMilli);
+}
+
 internal static class MarketMath
 {
     /// <summary>Price of B itself, in thousandths of B.</summary>

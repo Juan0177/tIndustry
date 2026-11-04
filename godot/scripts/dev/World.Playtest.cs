@@ -596,6 +596,13 @@ public partial class World
             return false;
         }
 
+        // The jackpot-attempt sequence (spec 2b) last of all: it places a market screen and sells, so no earlier capture
+        // sees it. Its captures are new (ui-jackpot-*).
+        if (!await PlaytestJackpotSequenceAsync(Shot))
+        {
+            return false;
+        }
+
         if (OS.GetEnvironment(PlaytestPerfEnv) == "1")
         {
             await PlaytestHugeMapPerfAsync(dir);

@@ -186,7 +186,7 @@ public partial class World
     private string MarketScreenTip(MarketScreen screen)
     {
         var view = _view!;
-        var result = MarketScreenVisual.ShownResult(screen, view.CurrentTick);
+        var result = JackpotSequenceRunning ? null : MarketScreenVisual.ShownResult(screen, view.CurrentTick, JackpotResultFrom(screen));
         var key = (view.CurrentTick / MarketScreenVisual.RefreshTicks, screen.Active, screen.WatchedItemId, result,
             MarketModuleTexts.ModulesResearched(view));
         if (_screenTipKey == key && _screenTipText is not null)
@@ -336,7 +336,7 @@ public partial class World
         {
             var node = MarketScreenVisual.Create(screen, TileSize);
             node.Position = FootprintCenter(screen.Position, MarketScreen.Size);
-            node.Sync(screen, _view);
+            node.Sync(screen, _view, _jackpotView, JackpotResultFrom(screen));
             _buildingsLayer.AddChild(node);
         }
 
@@ -491,7 +491,7 @@ public partial class World
                 case MarketScreenVisual screenVis:
                     if (_view.MarketScreen is { } screen && screen.Position.Equals(screenVis.Origin))
                     {
-                        screenVis.Sync(screen, _view);
+                        screenVis.Sync(screen, _view, _jackpotView, JackpotResultFrom(screen));
                     }
 
                     break;
@@ -722,6 +722,9 @@ public partial class World
 
     /// <summary>Above buildings and their own child layers (≤ BuildingsZ + 6); the HUD is a CanvasLayer on top.</summary>
     private const int ConstructionZ = 20;
+
+    /// <summary>The jackpot sequence's bot and briefcase: over the buildings, the lasers and the construction layer.</summary>
+    private const int JackpotSequenceZ = ConstructionZ + 1;
 
     /// <summary>
     /// Sprite of the Core: the tier's own (<c>core-shard</c> 3×3, <c>core-foundation</c> 4×4, <c>core-nucleus</c> 5×5),

@@ -1,6 +1,6 @@
 # Mercato come una borsa
 
-> **Nel gioco da ottobre 2026** (specifica 1 di 3, [specifica completa](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), lavoro seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268)). Prezzi che si muovono, picchi, crolli e vendita automatica per oggetto ci sono già. Il magazzino del CORE e i livelli (specifica 3) ci sono già: ogni oggetto ha un massimo, la vendita automatica ha un ritmo che cresce col CORE. **Da novembre 2026 c'è lo schermo di borsa** ([specifica 2a](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-11-04-schermo-borsa-design.md)): attaccato al CORE accende il jackpot in partita, e tre moduli della Ricerca aiutano a vendere al momento giusto. La sequenza animata del «Vendi tutto» (specifica 2b) arriverà dopo. I numeri esatti sono in [Economia e Ricerca](Economia-e-Ricerca#il-mercato).
+> **Nel gioco da ottobre 2026** (specifica 1 di 3, [specifica completa](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-10-22-mercato-borsa-design.md), lavoro seguito nell'issue [#268](https://github.com/Juan0177/tIndustry/issues/268)). Prezzi che si muovono, picchi, crolli e vendita automatica per oggetto ci sono già. Il magazzino del CORE e i livelli (specifica 3) ci sono già: ogni oggetto ha un massimo, la vendita automatica ha un ritmo che cresce col CORE. **Da novembre 2026 c'è lo schermo di borsa** ([specifica 2a](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-11-04-schermo-borsa-design.md)): attaccato al CORE accende il jackpot in partita, e tre moduli della Ricerca aiutano a vendere al momento giusto. **Sempre da novembre 2026 c'è la sequenza del tentativo di jackpot** ([specifica 2b](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-11-04-sequenza-jackpot-design.md)): il «Vendi tutto» che può vincere diventa un momento da guardare. I numeri esatti sono in [Economia e Ricerca](Economia-e-Ricerca#il-mercato).
 
 tIndustry è un gioco in cui costruisci una fabbrica: scavi minerali, li porti in magazzino, li trasformi in prodotti e li vendi per guadagnare e costruire di più. Il Mercato funziona come una borsa, e vorremmo sapere cosa ne pensi.
 
@@ -41,7 +41,27 @@ Lo **schermo di borsa** è un blocco 2×2 che si sblocca nella Ricerca dopo l'as
   - col **jackpot** i LED sono gialli, compare «JACKPOT» e lampeggiano le luci negli angoli.
 
   Passando col mouse sullo schermo il suggerimento spiega anche il colore dei LED, così non conta solo il colore.
+- **La sequenza del tentativo.** Vedi la sezione qui sotto.
 - **Il CORE che cresce.** Lo schermo è un edificio come gli altri: se sta sulle celle dove il CORE deve allargarsi, il potenziamento è rifiutato finché non lo sposti. Conviene metterlo dove il CORE non cresce (vedi [Economia e Ricerca](Economia-e-Ricerca#i-tre-livelli)).
+
+### La sequenza del tentativo di jackpot
+
+Quando fai un «Vendi tutto» che può vincere il jackpot (lo schermo è attivo, il prezzo è nel rialzo e hai almeno 400 pezzi), non compare più solo un avviso: parte una **sequenza di 12 secondi** nel mondo, con l'HUD nascosto e la fabbrica intorno che continua a lavorare. Gli altri «Vendi tutto» mostrano soltanto l'esito sullo schermo, come prima.
+
+1. **Zoom** (1 s): la visuale si avvicina allo schermo.
+2. **Cambio canale** (1 s): il bot dello schermo, un robottino che vive nella cornice, esce e cambia canale sull'oggetto venduto; è sorpreso («!» sopra la testa).
+3. **Corsa al CORE** (2 s): vola al bordo del CORE e riempie la valigetta; sopra compare il numero dei pezzi.
+4. **Ritorno** (2 s): torna di fretta, mentre sullo schermo il grafico va avanti al rallentatore e si ferma sul prezzo del tuo clic.
+5. **Lancio e «calcolo…»** (2 s): lancia la valigetta nello schermo, che calcola con i puntini che crescono.
+6. **LED** (2 s): la striscia dei LED lampeggia a turno blu, viola e giallo, poi si ferma sul colore dell'esito.
+7. **Risultato** (2 s): l'incasso gira su rulli e si ferma sulla cifra vera. Con il jackpot: coriandoli, luci gialle negli angoli e la scritta «JACKPOT» grande al centro.
+
+Poi la visuale torna sul drone, l'HUD riappare e l'esito resta sullo schermo per **6 secondi**, contati dalla fine.
+
+- **Saltare.** Un clic o Esc porta subito al risultato (che si vede per intero), un altro lo chiude. Non vale nei primi 0,2 secondi (così un doppio clic su «Vendi tutto» non salta nulla) e **non vale se hai vinto il jackpot**: in quel caso la sequenza si guarda fino in fondo.
+- **Pausa.** Spazio ferma la sequenza (bot, rulli e coriandoli) e la riprende da dove era; lo stesso succede se la finestra perde il fuoco. Le velocità di sviluppo non la accorciano: dura sempre 12 secondi veri.
+- **Solo guardare.** Durante la sequenza i comandi del mondo sono bloccati (WASD, clic, palette, tasti dei pannelli).
+- **Si chiude subito** se apri la Home, carichi una partita, ne inizi una nuova, un pannello si apre o lo schermo viene smontato; l'esito resta comunque nella riga di stato del Mercato e, se lo schermo c'è, sul vetro.
 
 ### I moduli della Finanza
 

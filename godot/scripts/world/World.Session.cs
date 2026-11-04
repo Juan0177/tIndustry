@@ -407,6 +407,7 @@ public partial class World
         }
 
         var cam = GetNode<Camera2D>("Camera");
+        (cam as WorldCamera)?.ResetFocus();
         var cx = _view.CoreTiles.Average(t => t.X);
         var cy = _view.CoreTiles.Average(t => t.Y);
         cam.Position = new Vector2((float)(cx + 0.5) * TileSize, (float)(cy + 0.5) * TileSize);
