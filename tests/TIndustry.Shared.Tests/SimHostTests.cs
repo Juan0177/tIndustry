@@ -104,9 +104,11 @@ public sealed class SimHostTests
     public void SecondCommandRejectedWhenFirstSpentTheMoney()
     {
         var content = LoadContent();
-        // Junction ($200, raw iron) and generator ($280, plates): materials for both, money for one only.
+        // Junction (raw iron) and generator (plates): materials for both, money for one only.
+        var junctionCost = content.RequireStructure("junction").Unlock!;
+        var generatorCost = content.RequireStructure("generator").Unlock!;
         var wallet = new EconomyWallet(
-            300,
+            junctionCost.Money + generatorCost.Money - 1,
             new Dictionary<string, int>(StringComparer.Ordinal) { ["iron-ore"] = 30, ["iron-plate"] = 30 });
         var factory = new Factory(
             content,
@@ -130,7 +132,7 @@ public sealed class SimHostTests
         Assert.Equal(RefusalCode.UnlockUnaffordable, ko.Reason);
         Assert.True(host.State.Research.IsUnlocked("junction"));
         Assert.False(host.State.Research.IsUnlocked("generator"));
-        Assert.Equal(100, host.State.Wallet.Money);
+        Assert.Equal(generatorCost.Money - 1, host.State.Wallet.Money);
     }
 
     [Fact]

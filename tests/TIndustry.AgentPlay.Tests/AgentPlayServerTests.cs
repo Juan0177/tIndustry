@@ -279,7 +279,9 @@ public sealed class AgentPlayServerTests(ServerFixture server) : IClassFixture<S
 
         var refused = await server.Call("sblocca", new { sessione = id, struttura = "junction" });
         Assert.Equal(nameof(RefusalCode.UnlockUnaffordable), refused.GetProperty("codice").GetString());
-        Assert.Equal(20, refused.GetProperty("mancano").GetProperty("soldi").GetInt32());
+        // A new game starts with 180 money.
+        var cost = junction.GetProperty("sblocco").GetProperty("soldi").GetInt32();
+        Assert.Equal(cost - 180, refused.GetProperty("mancano").GetProperty("soldi").GetInt32());
         await server.Ok("chiudi", new { sessione = id });
     }
 

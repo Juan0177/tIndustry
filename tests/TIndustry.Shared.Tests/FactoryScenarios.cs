@@ -957,28 +957,39 @@ internal static class FactoryScenarios
         Assert(factory.Research.GetNodeState(smelter) == ResearchNodeState.Available, "smelter available");
         Assert(!factory.Research.TryUnlock(smelter, factory.Wallet), "cannot afford smelter");
 
-        factory.Wallet.AddMoney(500);
-        factory.Wallet.AddMaterial("iron-plate", 40);
+        var smelterCost = smelter.Unlock!;
+        var smelterPlates = smelterCost.Materials.Single(m => m.ItemId == "iron-plate").Amount;
+        factory.Wallet.AddMoney(smelterCost.Money + 250);
+        factory.Wallet.AddMaterial("iron-plate", smelterPlates + 25);
         Assert(factory.TryUnlockStructure("smelter"), "unlock smelter");
         Assert(factory.Research.IsUnlocked("smelter"), "smelter unlocked");
-        Assert(factory.Wallet.Money == 250, "spent 250");
-        Assert(factory.Wallet.MaterialCount("iron-plate") == 25, "spent 15 plates");
+        Assert(factory.Wallet.Money == 250, "spent the smelter's money");
+        Assert(factory.Wallet.MaterialCount("iron-plate") == 25, "spent the smelter's plates");
         factory.Wallet.AddMaterial("iron-ore", 10);
         Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East), "place forno after unlock");
 
         var assembler = content.RequireStructure("assembler");
         Assert(factory.Research.GetNodeState(assembler) == ResearchNodeState.Available, "assembler avail");
         // Need copper-ore for assembler unlock.
-        factory.Wallet.AddMoney(500);
-        factory.Wallet.AddMaterial("iron-plate", 30);
-        factory.Wallet.AddMaterial("copper-ore", 10);
+        factory.Wallet.AddMoney(assembler.Unlock!.Money);
+        foreach (var m in assembler.Unlock.Materials)
+        {
+            factory.Wallet.AddMaterial(m.ItemId, m.Amount);
+        }
+
         Assert(factory.TryUnlockStructure("assembler"), "unlock assembler");
 
         Assert(!factory.Research.IsUnlocked("router"), "router still locked");
-        factory.Wallet.AddMoney(2000);
-        factory.Wallet.AddMaterial("iron-plate", 100);
-        factory.Wallet.AddMaterial("iron-ore", 100);
-        factory.Wallet.AddMaterial("lead-ore", 100);
+        foreach (var id in new[] { "junction", "router", "sorter", "conveyor-bridge", "generator" })
+        {
+            var cost = content.RequireStructure(id).Unlock!;
+            factory.Wallet.AddMoney(cost.Money);
+            foreach (var m in cost.Materials)
+            {
+                factory.Wallet.AddMaterial(m.ItemId, m.Amount);
+            }
+        }
+
         Assert(factory.TryUnlockStructure("junction"), "unlock junction");
         Assert(factory.TryUnlockStructure("router"), "unlock router after junction");
         Assert(factory.TryUnlockStructure("sorter"), "unlock sorter");
@@ -1034,8 +1045,9 @@ internal static class FactoryScenarios
         Assert(factory.Session.SoldByItem.GetValueOrDefault("iron-ore") == 5, "sold 5");
 
         // Unlock still works after sell income.
-        factory.Wallet.AddMaterial("iron-plate", 40);
-        factory.Wallet.AddMoney(Math.Max(0, 250 - factory.Wallet.Money));
+        var smelterCost = content.RequireStructure("smelter").Unlock!;
+        factory.Wallet.AddMaterial("iron-plate", smelterCost.Materials.Sum(m => m.Amount));
+        factory.Wallet.AddMoney(Math.Max(0, smelterCost.Money - factory.Wallet.Money));
         Assert(factory.TryUnlockStructure("smelter"), "unlock after sell");
 
         var snap = factory.Capture();
@@ -1202,8 +1214,9 @@ internal static class FactoryScenarios
                 "stock complete");
 
             // unlockResearch
-            factory.Wallet.AddMoney(500);
-            factory.Wallet.AddMaterial("iron-plate", 40);
+            var smelterCost = content.RequireStructure("smelter").Unlock!;
+            factory.Wallet.AddMoney(smelterCost.Money);
+            factory.Wallet.AddMaterial("iron-plate", smelterCost.Materials.Sum(m => m.Amount));
             Assert(factory.TryUnlockStructure("smelter"), "unlock smelter");
             var unlockObj = new CampaignObjectiveDefinition(
                 CampaignObjectiveType.UnlockResearch, 1, StructureId: "smelter");

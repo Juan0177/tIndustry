@@ -102,13 +102,13 @@ public sealed class MarketInsightTests
             Assert.Null(Content.FindConveyor(id));
         }
 
-        Assert.Equal(6000, Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!.Money);
-        Assert.Equal([new ResourceAmount("lead-plate", 60), new ResourceAmount("copper-wire", 30)],
+        Assert.Equal(2_000_000, Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!.Money);
+        Assert.Equal([new ResourceAmount("lead-plate", 240), new ResourceAmount("copper-wire", 120)],
             Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!.Materials);
-        Assert.Equal(12_000, Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Money);
-        Assert.Equal([new ResourceAmount("titanium-plate", 80)], Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Materials);
-        Assert.Equal(25_000, Content.FindStructure(MarketInsight.OddsNodeId)!.Unlock!.Money);
-        Assert.Equal([new ResourceAmount("silicon", 120), new ResourceAmount("graphite", 80)],
+        Assert.Equal(2_400_000, Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Money);
+        Assert.Equal([new ResourceAmount("titanium-plate", 320)], Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Materials);
+        Assert.Equal(4_000_000, Content.FindStructure(MarketInsight.OddsNodeId)!.Unlock!.Money);
+        Assert.Equal([new ResourceAmount("silicon", 720), new ResourceAmount("graphite", 480)],
             Content.FindStructure(MarketInsight.OddsNodeId)!.Unlock!.Materials);
     }
 
@@ -117,9 +117,13 @@ public sealed class MarketInsightTests
     {
         var (f, host) = Start();
         f.Research.ForceUnlock(MarketScreen.BuildingId);
-        f.Wallet.AddMoney(100_000);
-        f.Wallet.AddMaterial("lead-plate", 60);
-        f.Wallet.AddMaterial("copper-wire", 30);
+        var cost = Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!;
+        f.Wallet.AddMoney(cost.Money);
+        foreach (var m in cost.Materials)
+        {
+            f.Wallet.AddMaterial(m.ItemId, m.Amount);
+        }
+
         var rejected = new List<Refusal>();
         host.CommandRejected += (_, r) => rejected.Add(r);
 

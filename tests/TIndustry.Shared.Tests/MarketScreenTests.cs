@@ -109,9 +109,9 @@ public sealed class MarketScreenTests
         Assert.NotNull(structure);
         Assert.Equal(["assembler"], structure.Prerequisites);
         Assert.NotNull(structure.Unlock);
-        Assert.Equal(3000, structure.Unlock.Money);
+        Assert.Equal(150_000, structure.Unlock.Money);
         Assert.Equal(
-            [new ResourceAmount("iron-plate", 80), new ResourceAmount("copper-wire", 40)],
+            [new ResourceAmount("iron-plate", 240), new ResourceAmount("copper-wire", 120)],
             structure.Unlock.Materials);
         var building = Content.FindBuilding(MarketScreen.BuildingId);
         Assert.NotNull(building);

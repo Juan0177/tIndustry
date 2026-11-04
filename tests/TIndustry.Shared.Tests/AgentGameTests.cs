@@ -1279,17 +1279,19 @@ public sealed class AgentGameTests
         var junction = Call(game, "catalogo").GetProperty("strutture").EnumerateArray()
             .Single(s => s.GetProperty("id").GetString() == "junction");
         Assert.False(junction.GetProperty("sbloccato").GetBoolean());
-        Assert.Equal(200, junction.GetProperty("sblocco").GetProperty("soldi").GetInt32());
+        var cost = Content.RequireStructure("junction").Unlock!.Money;
+        Assert.Equal(cost, junction.GetProperty("sblocco").GetProperty("soldi").GetInt32());
         Assert.Equal("conveyor-basic", junction.GetProperty("prerequisiti")[0].GetString());
 
-        // 180 money of the 200 the junction's unlock costs.
+        // 180 money of what the junction's unlock costs.
+        var missing = cost - 180;
         var unaffordable = Refused(game, "sblocca", """{"struttura":"junction"}""");
         Assert.Equal(nameof(RefusalCode.UnlockUnaffordable), unaffordable.Code);
-        Assert.Equal(20, (int)unaffordable.Missing!["soldi"]!);
+        Assert.Equal(missing, (int)unaffordable.Missing!["soldi"]!);
         var locked = Refused(game, "piazza", """{"tipo":"junction","cella":{"x":50,"y":50}}""");
         Assert.Equal(nameof(RefusalCode.Locked), locked.Code);
-        Assert.Equal(20, (int)locked.Missing!["soldi"]!);
-        Assert.Contains("\"mancano\":{\"soldi\":20", AgentProtocol.WriteLine(AgentResponse.Failure(1, locked)));
+        Assert.Equal(missing, (int)locked.Missing!["soldi"]!);
+        Assert.Contains($"\"mancano\":{{\"soldi\":{missing}", AgentProtocol.WriteLine(AgentResponse.Failure(1, locked)));
     }
 
     [Fact]

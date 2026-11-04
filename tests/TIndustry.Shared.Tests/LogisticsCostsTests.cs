@@ -40,13 +40,13 @@ public sealed class LogisticsCostsTests
     }
 
     [Theory]
-    [InlineData("conveyor-fast", 450, "iron-ore:8,lead-ore:8,titanium-ore:8")]
-    [InlineData("conveyor-express", 850, "titanium-ore:8,silicon:8,graphite:8")]
-    [InlineData("conveyor-armored", 600, "iron-ore:8,lead-ore:8,titanium-ore:10,graphite:8")]
-    [InlineData("junction", 200, "iron-ore:13")]
-    [InlineData("router", 280, "iron-ore:13")]
-    [InlineData("sorter", 320, "iron-ore:10,lead-ore:10")]
-    [InlineData("conveyor-bridge", 340, "iron-ore:21,lead-ore:21")]
+    [InlineData("conveyor-fast", 73_000, "iron-ore:24,lead-ore:24,titanium-ore:24")]
+    [InlineData("conveyor-express", 1_500_000, "titanium-ore:32,silicon:32,graphite:32")]
+    [InlineData("conveyor-armored", 1_300_000, "iron-ore:32,lead-ore:32,titanium-ore:40,graphite:32")]
+    [InlineData("junction", 6_900, "iron-ore:26")]
+    [InlineData("router", 9_700, "iron-ore:26")]
+    [InlineData("sorter", 73_000, "iron-ore:30,lead-ore:30")]
+    [InlineData("conveyor-bridge", 91_000, "iron-ore:63,lead-ore:63")]
     public void UnlockCostsMatchTheTable(string id, int money, string materials)
     {
         // The research tree reads structures; the conveyor's own copy must say the same.

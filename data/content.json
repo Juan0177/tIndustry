@@ -38,19 +38,19 @@
         }
       ],
       "unlock": {
-        "money": 450,
+        "money": 73000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 8
+            "amount": 24
           },
           {
             "itemId": "lead-ore",
-            "amount": 8
+            "amount": 24
           },
           {
             "itemId": "titanium-ore",
-            "amount": 8
+            "amount": 24
           }
         ]
       },
@@ -70,11 +70,11 @@
         }
       ],
       "unlock": {
-        "money": 200,
+        "money": 6900,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 13
+            "amount": 26
           }
         ]
       },
@@ -94,11 +94,11 @@
         }
       ],
       "unlock": {
-        "money": 280,
+        "money": 9700,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 13
+            "amount": 26
           }
         ]
       },
@@ -122,15 +122,15 @@
         }
       ],
       "unlock": {
-        "money": 320,
+        "money": 73000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 10
+            "amount": 30
           },
           {
             "itemId": "lead-ore",
-            "amount": 10
+            "amount": 30
           }
         ]
       },
@@ -154,15 +154,15 @@
         }
       ],
       "unlock": {
-        "money": 320,
+        "money": 91000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 10
+            "amount": 30
           },
           {
             "itemId": "lead-ore",
-            "amount": 10
+            "amount": 30
           }
         ]
       },
@@ -187,15 +187,15 @@
         }
       ],
       "unlock": {
-        "money": 340,
+        "money": 91000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 21
+            "amount": 63
           },
           {
             "itemId": "lead-ore",
-            "amount": 21
+            "amount": 63
           }
         ]
       },
@@ -223,19 +223,19 @@
         }
       ],
       "unlock": {
-        "money": 850,
+        "money": 1500000,
         "materials": [
           {
             "itemId": "titanium-ore",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "silicon",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "graphite",
-            "amount": 8
+            "amount": 32
           }
         ]
       },
@@ -267,23 +267,23 @@
         }
       ],
       "unlock": {
-        "money": 600,
+        "money": 1300000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "lead-ore",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "titanium-ore",
-            "amount": 10
+            "amount": 40
           },
           {
             "itemId": "graphite",
-            "amount": 8
+            "amount": 32
           }
         ]
       },
@@ -422,11 +422,11 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 80,
+        "money": 2800,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 6
+            "amount": 12
           }
         ]
       },
@@ -441,11 +441,11 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 250,
+        "money": 1500,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 15
+            "amount": 30
           }
         ]
       },
@@ -460,19 +460,19 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 450,
+        "money": 73000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 8
+            "amount": 24
           },
           {
             "itemId": "lead-ore",
-            "amount": 8
+            "amount": 24
           },
           {
             "itemId": "titanium-ore",
-            "amount": 8
+            "amount": 24
           }
         ]
       },
@@ -487,11 +487,11 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 200,
+        "money": 6900,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 13
+            "amount": 26
           }
         ]
       },
@@ -506,11 +506,11 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 280,
+        "money": 9700,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 13
+            "amount": 26
           }
         ]
       },
@@ -525,15 +525,15 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 320,
+        "money": 73000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 10
+            "amount": 30
           },
           {
             "itemId": "lead-ore",
-            "amount": 10
+            "amount": 30
           }
         ]
       },
@@ -548,15 +548,15 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 320,
+        "money": 91000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 10
+            "amount": 30
           },
           {
             "itemId": "lead-ore",
-            "amount": 10
+            "amount": 30
           }
         ]
       },
@@ -571,15 +571,15 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 340,
+        "money": 91000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 21
+            "amount": 63
           },
           {
             "itemId": "lead-ore",
-            "amount": 21
+            "amount": 63
           }
         ]
       },
@@ -594,19 +594,19 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 850,
+        "money": 1500000,
         "materials": [
           {
             "itemId": "titanium-ore",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "silicon",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "graphite",
-            "amount": 8
+            "amount": 32
           }
         ]
       },
@@ -621,23 +621,23 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 600,
+        "money": 1300000,
         "materials": [
           {
             "itemId": "iron-ore",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "lead-ore",
-            "amount": 8
+            "amount": 32
           },
           {
             "itemId": "titanium-ore",
-            "amount": 10
+            "amount": 40
           },
           {
             "itemId": "graphite",
-            "amount": 8
+            "amount": 32
           }
         ]
       },
@@ -652,15 +652,15 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 480,
+        "money": 55000,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 22
+            "amount": 66
           },
           {
             "itemId": "copper-ore",
-            "amount": 4
+            "amount": 12
           }
         ]
       },
@@ -675,11 +675,11 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 280,
+        "money": 5500,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 12
+            "amount": 24
           }
         ]
       },
@@ -692,15 +692,15 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 140,
+        "money": 8300,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 4
+            "amount": 8
           },
           {
             "itemId": "copper-wire",
-            "amount": 2
+            "amount": 4
           }
         ]
       },
@@ -715,15 +715,15 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 320,
+        "money": 910000,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 12
+            "amount": 48
           },
           {
             "itemId": "copper-wire",
-            "amount": 6
+            "amount": 24
           }
         ]
       },
@@ -738,15 +738,15 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 90,
+        "money": 11000,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 4
+            "amount": 8
           },
           {
             "itemId": "copper-wire",
-            "amount": 2
+            "amount": 4
           }
         ]
       },
@@ -761,15 +761,15 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 300,
+        "money": 91000,
         "materials": [
           {
             "itemId": "lead-plate",
-            "amount": 10
+            "amount": 30
           },
           {
             "itemId": "copper-wire",
-            "amount": 5
+            "amount": 15
           }
         ]
       },
@@ -784,15 +784,15 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 550,
+        "money": 150000,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 40
+            "amount": 120
           },
           {
             "itemId": "copper-wire",
-            "amount": 8
+            "amount": 24
           }
         ]
       },
@@ -806,7 +806,7 @@
       "displayName": "Contenitore",
       "kind": "storage",
       "unlockedByDefault": false,
-      "unlock": { "money": 400, "materials": [ { "itemId": "iron-plate", "amount": 20 }, { "itemId": "lead-plate", "amount": 10 } ] },
+      "unlock": { "money": 110000, "materials": [ { "itemId": "iron-plate", "amount": 60 }, { "itemId": "lead-plate", "amount": 30 } ] },
       "isStub": false,
       "prerequisites": [ "junction" ],
       "itemCapacity": 300
@@ -816,7 +816,7 @@
       "displayName": "Deposito",
       "kind": "storage",
       "unlockedByDefault": false,
-      "unlock": { "money": 900, "materials": [ { "itemId": "titanium-plate", "amount": 20 } ] },
+      "unlock": { "money": 1500000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "container" ],
       "itemCapacity": 1000
@@ -826,7 +826,7 @@
       "displayName": "Schermo di borsa",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 3000, "materials": [ { "itemId": "iron-plate", "amount": 80 }, { "itemId": "copper-wire", "amount": 40 } ] },
+      "unlock": { "money": 150000, "materials": [ { "itemId": "iron-plate", "amount": 240 }, { "itemId": "copper-wire", "amount": 120 } ] },
       "isStub": false,
       "prerequisites": [ "assembler" ]
     },
@@ -835,7 +835,7 @@
       "displayName": "Modulo previsione",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 6000, "materials": [ { "itemId": "lead-plate", "amount": 60 }, { "itemId": "copper-wire", "amount": 30 } ] },
+      "unlock": { "money": 2000000, "materials": [ { "itemId": "lead-plate", "amount": 240 }, { "itemId": "copper-wire", "amount": 120 } ] },
       "isStub": false,
       "prerequisites": [ "market-screen" ]
     },
@@ -844,7 +844,7 @@
       "displayName": "Modulo percentuale",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 12000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
+      "unlock": { "money": 2400000, "materials": [ { "itemId": "titanium-plate", "amount": 320 } ] },
       "isStub": false,
       "prerequisites": [ "finance-forecast" ]
     },
@@ -853,7 +853,7 @@
       "displayName": "Modulo probabilità",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 25000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 80 } ] },
+      "unlock": { "money": 4000000, "materials": [ { "itemId": "silicon", "amount": 720 }, { "itemId": "graphite", "amount": 480 } ] },
       "isStub": false,
       "prerequisites": [ "finance-percent" ]
     },
@@ -862,7 +862,7 @@
       "displayName": "CORE Fondazione",
       "kind": "core-upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 5000, "materials": [ { "itemId": "iron-plate", "amount": 200 }, { "itemId": "copper-wire", "amount": 100 } ] },
+      "unlock": { "money": 1500000, "materials": [ { "itemId": "iron-plate", "amount": 800 }, { "itemId": "copper-wire", "amount": 400 } ] },
       "isStub": false,
       "prerequisites": []
     },
@@ -871,7 +871,7 @@
       "displayName": "CORE Nucleo",
       "kind": "core-upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 25000, "materials": [ { "itemId": "titanium-plate", "amount": 400 }, { "itemId": "silicon", "amount": 300 } ] },
+      "unlock": { "money": 7000000, "materials": [ { "itemId": "titanium-plate", "amount": 2400 }, { "itemId": "silicon", "amount": 1800 } ] },
       "isStub": false,
       "prerequisites": [ "core-foundation" ]
     }
