@@ -27,6 +27,12 @@ UNITA_SOPRA = [(96, 98, 110), (132, 134, 146), (164, 166, 178), (190, 192, 202),
 CELLA = [(150, 84, 40), (214, 132, 60), (240, 166, 84), (255, 190, 100), (255, 240, 200)]  # team cell
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
 LUCCIOLA = [(70, 96, 20), (128, 170, 40), (188, 226, 70), (226, 250, 120), (250, 255, 200)]  # fireflies at night (G3)
+# LEDs of the stock-exchange screen (jackpot sequence: confetti): the middle tone of each ramp is the UiColors
+# value of the Normale variant (LedBlu, LedViola, LedGiallo; test_coriandoli_come_ui_colors), plus white paper.
+LED_BLU = [(20, 60, 120), (44, 110, 196), (79, 168, 255), (150, 206, 255), (214, 236, 255)]
+LED_VIOLA = [(70, 30, 120), (124, 64, 196), (179, 107, 255), (212, 164, 255), (238, 214, 255)]
+LED_GIALLO = [(120, 90, 20), (200, 160, 40), (255, 216, 74), (255, 234, 140), (255, 248, 206)]
+CARTA = [(150, 152, 160), (196, 198, 204), (230, 231, 234), (244, 245, 247), (255, 255, 255)]
 
 # Interface (G4), for the generated check boxes: the same values as UiColors (variant Normale) FondoScelto,
 # FondoBloccato, BordoBloccato and TestoDisattivo (test_spunte_come_ui_colors), plus the box edge.
@@ -81,5 +87,6 @@ RAMPE = {
     "NASTRO": NASTRO, "ENERGIA": ENERGIA, "LUCCIOLA": LUCCIOLA, "NUCLEO": NUCLEO, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
     "CARBONE": CARBONE, "GRAFITE": GRAFITE, "SILICIO": SILICIO,
     "UNITA_SOTTO": UNITA_SOTTO, "UNITA_SOPRA": UNITA_SOPRA, "CELLA": CELLA,
+    "LED_BLU": LED_BLU, "LED_VIOLA": LED_VIOLA, "LED_GIALLO": LED_GIALLO, "CARTA": CARTA,
     **{f"suolo {k}": v for k, v in SUOLI.items()}, **{f"parete {k}": v for k, v in PARETI.items()},
 }

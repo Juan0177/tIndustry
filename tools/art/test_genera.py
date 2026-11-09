@@ -23,7 +23,7 @@ import forme  # noqa: E402
 import genera  # noqa: E402
 from blocchi import SPRITE, sprite  # noqa: E402
 from blocchi.logistica import TIER  # noqa: E402
-from palette import ACCENTO, BAGLIORE, CELLA, FERRO, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
+from palette import ACCENTO, BAGLIORE, CELLA, ENERGIA, FERRO, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
 
 T = 32  # pixels per block cell
 BELT_ITEM = 10  # side of the small item sprite drawn on belts
@@ -51,6 +51,13 @@ CORE_LUCE_FOTOGRAMMI = 4
 # Drone tiers seen from above, nose to the East: square sprites of this side (alpha, beta, gamma).
 DRONI = {"drone-1": 24, "drone-2": 28, "drone-3": 32}
 PARTI_DRONE = ("elmetto",)  # drawn on top of a drone, same square: "<drone>-<part>"
+# Jackpot sequence (spec 2b, blocchi/borsa_bot.py): sprite name -> (square frame side, frames). The client reads the
+# "-anim" strips with Sprites.Frames("<name without -anim>").
+SEQUENZA_BORSA = {
+    "market-bot-idle-anim": (32, 2), "market-bot-fly-anim": (32, 2), "market-bot-surprised-anim": (32, 1),
+    "market-bot-carry-anim": (32, 2), "market-bot-throw-anim": (32, 2), "market-briefcase": (12, 1),
+    "market-confetti-anim": (8, 6),
+}
 # Terrain (G2b): floor variants, deposit variants, dual-grid wall pieces (corner bits NO=1, NE=2,
 # SE=4, SO=8), edge pieces in strip order, and the colour step allowed across a variant seam.
 VARIANTI = 4
@@ -253,6 +260,9 @@ def errore_misura(nome, im):
             return f"{nome}: icona dell'interfaccia sconosciuta"
         lato = 16 if piccola else 32
         return None if (w, h) == (lato, lato) else f"{nome}: {w}x{h}, atteso {lato}x{lato}"
+    if nome in SEQUENZA_BORSA:
+        lato, n = SEQUENZA_BORSA[nome]
+        return None if (w, h) == (lato * n, lato) else f"{nome}: {w}x{h}, atteso {lato * n}x{lato}"
     if nome == LUCE[0]:
         return None if (w, h) == (LUCE[1], LUCE[1]) else f"{nome}: {w}x{h}, atteso {LUCE[1]}x{LUCE[1]}"
     if nome.startswith("fx-"):
@@ -369,6 +379,10 @@ class TestGenera(unittest.TestCase):
         self.assertIsNotNone(errore_misura("terreno-sand-bordo", forme.nuova(4 * T, T)))
         self.assertIsNotNone(errore_misura("terreno-lava-0", forme.nuova(T, T)))
         self.assertIsNotNone(errore_misura("deco-vulcano-0", forme.nuova(T, T)))
+        self.assertIsNone(errore_misura("market-bot-idle-anim", forme.nuova(64, 32)))
+        self.assertIsNotNone(errore_misura("market-bot-idle-anim", forme.nuova(96, 32)))
+        self.assertIsNotNone(errore_misura("market-confetti-anim", forme.nuova(40, 8)))
+        self.assertIsNotNone(errore_misura("market-bot-sconosciuto-anim", forme.nuova(64, 32)))
         self.assertIsNone(errore_misura("fx-fumo", forme.nuova(36, 12)))
         self.assertIsNone(errore_misura("fx-lampo", forme.nuova(16, 16)))
         self.assertIsNotNone(errore_misura("fx-fumo", forme.nuova(30, 12)))
@@ -720,6 +734,66 @@ class TestGenera(unittest.TestCase):
         self.assertIsNotNone(diversi)
         x0, y0, x1, y1 = diversi
         self.assertTrue(vx0 <= x0 and vy0 <= y0 and x1 <= vx1 + 1 and y1 <= vy1 + 1, diversi)
+
+    def test_sequenza_jackpot(self):
+        # Bot, briefcase and confetti of the jackpot sequence: every sheet registered with its frame count, each frame
+        # with a transparent background (transparent corners, some ink), the 2-frame animations really move, the bot
+        # wears the screen's colours (frame steel, dark glass, yellow LED) and the surprised one has a «!» on top.
+        nomi = {n for n in SPRITE if n.startswith(("market-bot-", "market-briefcase", "market-confetti"))}
+        self.assertEqual(set(SEQUENZA_BORSA), nomi)
+        base = SPRITE["market-screen-base"]()
+        cornice = {base.getpixel((x, y))[:3] for y in range(2 * T) for x in range(2 * T)} & {c[:3] for c in FERRO}
+        for nome, (lato, n) in SEQUENZA_BORSA.items():
+            with self.subTest(sprite=nome):
+                im = SPRITE[nome]()
+                self.assertEqual((lato * n, lato), im.size)
+                fotogrammi = [im.crop((i * lato, 0, (i + 1) * lato, lato)) for i in range(n)]
+                for f in fotogrammi:
+                    angoli = [f.getpixel(p)[3] for p in ((0, 0), (lato - 1, 0), (0, lato - 1), (lato - 1, lato - 1))]
+                    self.assertEqual([0, 0, 0, 0], angoli)
+                    alfa = f.getchannel("A").tobytes()
+                    self.assertIn(0, alfa)
+                    self.assertTrue(any(alfa))
+                if n == 2:
+                    self.assertNotEqual(fotogrammi[0].tobytes(), fotogrammi[1].tobytes())
+                if nome.startswith("market-bot-"):
+                    for f in fotogrammi:
+                        colori = {p[:3] for p in f.getdata() if p[3] == 255}
+                        self.assertTrue({FERRO[2], FERRO[3]} <= colori & cornice, nome)
+                        self.assertIn(NASTRO[1], colori)
+                        self.assertTrue(colori & {c[:3] for c in ENERGIA}, nome)  # LED eyes and strip
+        # The «!» stands above the head: opaque white pixels in the rows above the top face.
+        sorpreso = SPRITE["market-bot-surprised-anim"]()
+        bianchi = [(x, y) for y in range(8) for x in range(T) if sorpreso.getpixel((x, y)) == (255, 255, 255, 255)]
+        self.assertTrue(bianchi)
+        # The bot holds the briefcase only while carrying it and before the throw.
+        pelle = {c[:3] for c in ACCENTO}
+        for nome, attese in (("market-bot-carry-anim", [True, True]), ("market-bot-throw-anim", [True, False]),
+                             ("market-bot-idle-anim", [False, False])):
+            fotogrammi = fotogrammi_di(SPRITE[nome]())
+            self.assertEqual(attese, [any(p[:3] in pelle for p in f.getdata() if p[3]) for f in fotogrammi], nome)
+        # Confetti: a few pixels each, only from the LED ramps and the white paper, covering all four colours.
+        from palette import CARTA, LED_BLU, LED_GIALLO, LED_VIOLA
+        rampe = {"blu": LED_BLU, "viola": LED_VIOLA, "giallo": LED_GIALLO, "bianco": CARTA}
+        visti = set()
+        for f in fotogrammi_di(SPRITE["market-confetti-anim"]()):
+            colori = [p[:3] for p in f.getdata() if p[3]]
+            self.assertTrue(2 <= len(colori) <= 8, len(colori))
+            tipo = {k for k, r in rampe.items() if set(colori) <= set(r)}
+            self.assertEqual(1, len(tipo), colori)
+            visti |= tipo
+        self.assertEqual(set(rampe), visti)
+
+    def test_coriandoli_come_ui_colors(self):
+        # The confetti use the LED colours of UiColors (Normale variant): the middle tone of each LED ramp.
+        import re
+        from palette import LED_BLU, LED_GIALLO, LED_VIOLA
+        with open(os.path.join(REPO, "godot", "scripts", "ui", "UiColors.cs"), encoding="utf-8") as fh:
+            sorgente = fh.read()
+        normale = sorgente[sorgente.index("void SetNormale()"):sorgente.index("void SetDaltonici()")]
+        valori = dict(re.findall(r'(\w+) = new\("([0-9A-Fa-f]{6})"\)', normale))
+        for nome, rampa in (("LedBlu", LED_BLU), ("LedViola", LED_VIOLA), ("LedGiallo", LED_GIALLO)):
+            self.assertEqual("%02X%02X%02X" % rampa[2], valori[nome].upper(), nome)
 
     def test_oggetti(self):
         # Every market item and money: HUD icon and belt sprite, opaque pixels only (no tint at

@@ -279,6 +279,13 @@ public sealed class GameState
     /// <summary>Test hook: receives the jackpot probability (basis points) and decides the outcome; null draws from the market generator.</summary>
     internal Func<int, bool>? JackpotRollForTests { get; set; }
 
+    /// <summary>
+    /// Client playtests only: forces the outcome of the next jackpot rolls (true won, false lost) until called again with
+    /// null (the market generator draws again). Never used by the game, the agents or the saves.
+    /// </summary>
+    public void ForPlaytestForceJackpotRoll(bool? won) =>
+        JackpotRollForTests = won is { } outcome ? _ => outcome : null;
+
     private TerrainMap? terrain;
 
     // Warning: assigning Terrain reseeds the market; only construction and restore may set it.

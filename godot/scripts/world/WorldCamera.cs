@@ -58,6 +58,22 @@ public partial class WorldCamera : Camera2D
     private bool _dragging;
     private Vector2 _dragLast;
 
+    /// <summary>
+    /// How fast a focus (<see cref="BeginFocus"/>) moves and zooms the view: the gap shrinks by <c>1 − e^(−rate·dt)</c>
+    /// each frame (about 95% in 0.75 s, settled within the jackpot sequence's one-second zoom).
+    /// </summary>
+    [Export] public float FocusRate { get; set; } = 4f;
+
+    // Where a focus holds the view and at which zoom (null: no focus), the zoom to go back to when it ends, and the zoom
+    // the view is easing back to after it (null: none).
+    private Vector2? _focus;
+    private float _focusZoom = 1f;
+    private float _zoomBeforeFocus = 1f;
+    private float? _zoomBack;
+
+    /// <summary>True while a focus holds the view (<see cref="BeginFocus"/> … <see cref="EndFocus"/>).</summary>
+    public bool Focusing => _focus is not null;
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (!InputEnabled)
@@ -119,10 +135,83 @@ public partial class WorldCamera : Camera2D
             Drift((float)delta);
         }
 
+        if (_focus is { } focus)
+        {
+            // A focus (the jackpot sequence) wins over the follow, the drag and the free look.
+            var t = 1f - MathF.Exp(-FocusRate * (float)delta);
+            Zoom = Vector2.One * Mathf.Lerp(Zoom.X, _focusZoom, t);
+            Position = Position.Lerp(focus, t);
+            ClampToMap();
+            return;
+        }
+
+        if (_zoomBack is { } back)
+        {
+            var t = 1f - MathF.Exp(-FocusRate * (float)delta);
+            var z = Mathf.Lerp(Zoom.X, back, t);
+            if (Mathf.Abs(z - back) < 0.001f)
+            {
+                z = back;
+                _zoomBack = null;
+            }
+
+            Zoom = new Vector2(z, z);
+            ClampToMap();
+        }
+
         if (FollowTarget is { } target && !_dragging && !FreeLook && DriftSpeed <= 0f)
         {
             Follow(target, (float)delta);
         }
+    }
+
+    /// <summary>
+    /// Holds the view on <paramref name="target"/> at <paramref name="zoom"/>, reached smoothly (<see cref="FocusRate"/>);
+    /// the zoom of the moment is kept for <see cref="EndFocus"/>. A drag in progress is dropped.
+    /// </summary>
+    public void BeginFocus(Vector2 target, float zoom)
+    {
+        if (_focus is null)
+        {
+            _zoomBeforeFocus = _zoomBack ?? Zoom.X;
+        }
+
+        _focus = target;
+        _focusZoom = Mathf.Clamp(zoom, MinZoom, MaxZoom);
+        _zoomBack = null;
+        _dragging = false;
+    }
+
+    /// <summary>
+    /// Ends a focus: the view goes back to following the drone (soft follow) and to the zoom it had before, smoothly or,
+    /// with <paramref name="instant"/>, at once. Nothing happens without a focus.
+    /// </summary>
+    public void EndFocus(bool instant)
+    {
+        if (_focus is null)
+        {
+            return;
+        }
+
+        _focus = null;
+        FreeLook = false;
+        if (instant)
+        {
+            _zoomBack = null;
+            Zoom = new Vector2(_zoomBeforeFocus, _zoomBeforeFocus);
+            ClampToMap();
+        }
+        else
+        {
+            _zoomBack = _zoomBeforeFocus;
+        }
+    }
+
+    /// <summary>Drops any focus and pending zoom return at once (a load or a new game sets its own zoom).</summary>
+    public void ResetFocus()
+    {
+        _focus = null;
+        _zoomBack = null;
     }
 
     /// <summary>Snaps the view onto the drone at once (H, a new game), dropping a free look.</summary>
@@ -164,6 +253,7 @@ public partial class WorldCamera : Camera2D
 
     private void ApplyZoom(float factor)
     {
+        _zoomBack = null; // the player's own zoom ends the way back after a focus
         var z = Mathf.Clamp(Zoom.X * factor, MinZoom, MaxZoom);
         Zoom = new Vector2(z, z);
         ClampToMap();

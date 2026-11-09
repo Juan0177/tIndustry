@@ -155,6 +155,18 @@ public partial class World
         {
             GetViewport().SetInputAsHandled();
         }
+        else if (JackpotBlocksInput)
+        {
+            // The jackpot sequence is only watched: every key, click, drag and wheel of the world and the panels stops
+            // here; a left click or Esc skips (ignored when the jackpot is won), Space (above) pauses.
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }
+                or InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+            {
+                _jackpotView?.Sequence?.TrySkip();
+            }
+
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -746,7 +758,7 @@ public partial class World
             return;
         }
 
-        var keys = GameInPlay && !PanelOpen && !HomeBackdrop && !LoadingShown;
+        var keys = GameInPlay && !PanelOpen && !HomeBackdrop && !LoadingShown && !JackpotBlocksInput;
         var wanted = keys ? ((_keyRight ? 1 : 0) - (_keyLeft ? 1 : 0), (_keyDown ? 1 : 0) - (_keyUp ? 1 : 0)) : (0, 0);
         if (wanted != _droneInputSent)
         {

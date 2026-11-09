@@ -66,6 +66,13 @@ public partial class AgentBridge : Node
     // A `muovi {cella}` flown a few ticks per frame (MoveTicksPerFrame): no other request runs meanwhile, and the frame
     // loop runs no real-time ticks between its slices (World.AgentMoveRunning), so only the slices fly the drone.
     private MoveRun? _moveRun;
+    // Answers held back while a jackpot-attempt sequence plays (World.JackpotSequenceRunning), sent once it ends: whether
+    // a sequence was running when the answer was held, and how many had started then (a later start means one played).
+    private readonly List<(int Connection, AgentResponse Response, bool Running, int Starts)> _afterSequence = [];
+    // When the wait for the sequence seen now gives up (real time), and the start count it belongs to.
+    private ulong? _sequenceDeadline;
+    private int _sequenceStarts;
+    private const ulong SequenceWaitMsec = AgentProtocol.GameJackpotSequenceWaitSeconds * 1000UL;
 
     /// <summary>The player the agents play (AgentGame's, the local player).</summary>
     private const int AgentPlayerId = 0;
@@ -303,14 +310,19 @@ public partial class AgentBridge : Node
         {
             _run = null;
             World.PlaytestHeld = run.HeldAfter;
-            Reply(run.Connection, run.Id, new JsonObject
+            Answer(run.Connection, AgentResponse.Success(run.Id, JsonSerializer.SerializeToElement(new JsonObject
             {
                 ["eseguito"] = true, ["tickPrima"] = run.TickBefore, ["tick"] = CurrentTick(), ["secondi"] = run.Seconds,
                 ["inPausa"] = Held
-            });
+            })));
         }
 
         SyncGame();
+        if (!SequenceWaiting())
+        {
+            FlushAfterSequence();
+        }
+
         if (_busy || (_pending is not null && !FinishPending()))
         {
             return;
@@ -321,7 +333,9 @@ public partial class AgentBridge : Node
             return;
         }
 
-        for (var i = 0; i < MaxRequestsPerFrame && !_busy && _pending is null && _move is null && _inbox.TryDequeue(out var item); i++)
+        // During a jackpot sequence only `input` goes on (it is how an agent skips it); everything else waits for its end.
+        for (var i = 0; i < MaxRequestsPerFrame && !_busy && _pending is null && _move is null
+            && (!SequenceWaiting() || NextIsInput()) && _inbox.TryDequeue(out var item); i++)
         {
             if (item.Connection != _connection)
             {
@@ -599,7 +613,7 @@ public partial class AgentBridge : Node
             response = response with { Result = JsonSerializer.SerializeToElement(node) };
         }
 
-        Send(connection, response);
+        Answer(connection, response);
     }
 
     /// <summary>
@@ -685,7 +699,7 @@ public partial class AgentBridge : Node
         {
             _move = null;
             node["tickPrima"] = tickBefore;
-            Send(move.Connection, AgentResponse.Success(move.Id, JsonSerializer.SerializeToElement(node)));
+            Answer(move.Connection, AgentResponse.Success(move.Id, JsonSerializer.SerializeToElement(node)));
             return true;
         }
 
@@ -748,15 +762,92 @@ public partial class AgentBridge : Node
             }
 
             _pending = null;
-            Send(connection, AgentResponse.Success(id, result));
+            Answer(connection, AgentResponse.Success(id, result));
         }
         catch (AgentException ex)
         {
             _pending = null;
-            Send(connection, AgentResponse.Failure(id, ex));
+            Answer(connection, AgentResponse.Failure(id, ex));
         }
 
         return true;
+    }
+
+    // --- The jackpot-attempt sequence ------------------------------------------------------------------------------
+
+    /// <summary>
+    /// True while a jackpot-attempt sequence plays in the window or is about to start (an attempt resolved this frame),
+    /// for at most <see cref="AgentProtocol.GameJackpotSequenceWaitSeconds"/> real seconds from its start: the captures
+    /// and the commands after a "sell all" see the game as it is once the scene is over. A new attempt restarts the wait.
+    /// </summary>
+    private bool SequenceWaiting()
+    {
+        if (!_world.JackpotSequenceRunning && !_world.JackpotSequenceStarting)
+        {
+            _sequenceDeadline = null;
+            return false;
+        }
+
+        var now = Time.GetTicksMsec();
+        if (_sequenceDeadline is null || _sequenceStarts != _world.JackpotSequenceStarts)
+        {
+            _sequenceStarts = _world.JackpotSequenceStarts;
+            _sequenceDeadline = now + SequenceWaitMsec;
+        }
+
+        return now < _sequenceDeadline;
+    }
+
+    /// <summary>The next request in the inbox is an <c>input</c> (real input reaches the sequence: a click skips it).</summary>
+    private bool NextIsInput() => _inbox.TryPeek(out var next) && next.Request?.Method == "input";
+
+    /// <summary>
+    /// Answers a command (main thread): at once, or once the jackpot sequence running now (or starting after this
+    /// frame's ticks) is over, so a "sell all" that was an attempt answers after its scene.
+    /// </summary>
+    private void Answer(int connection, AgentResponse response)
+    {
+        if (!SequenceWaiting())
+        {
+            Send(connection, response);
+            return;
+        }
+
+        _afterSequence.Add((connection, response, _world.JackpotSequenceRunning, _world.JackpotSequenceStarts));
+    }
+
+    /// <summary>
+    /// Sends the answers held for the sequence, in order: a successful one says <c>sequenza: true</c> when a sequence
+    /// played meanwhile, and <c>sequenzaInCorso: true</c> when the wait gave up with it still running.
+    /// </summary>
+    private void FlushAfterSequence()
+    {
+        if (_afterSequence.Count == 0)
+        {
+            return;
+        }
+
+        var stillRunning = _world.JackpotSequenceRunning;
+        foreach (var (connection, response, running, starts) in _afterSequence)
+        {
+            var played = running || starts != _world.JackpotSequenceStarts;
+            if (!played || !response.Ok || response.Result is not { ValueKind: JsonValueKind.Object } result)
+            {
+                Send(connection, response);
+                continue;
+            }
+
+            var node = JsonNode.Parse(result.GetRawText())!.AsObject();
+            node["sequenza"] = true;
+            if (stillRunning)
+            {
+                node["sequenzaInCorso"] = true;
+            }
+
+            Send(connection, response with { Result = JsonSerializer.SerializeToElement(node) });
+        }
+
+        _afterSequence.Clear();
     }
 
     private static void RunOneTick(SimHost host)

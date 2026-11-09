@@ -49,7 +49,34 @@ public partial class MarketScreenVisual : Node2D
     private bool _forecast;
     private ScreenSaleResult? _result;
     private bool _blinkOn;
-    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, bool Blink, VarianteColori Colors, int Modules)? _key;
+    private (long Bucket, bool Active, string? Item, ScreenSaleResult? Result, bool Blink, VarianteColori Colors, int Modules, bool Sequence)? _key;
+
+    /// <summary>The jackpot sequence running on this screen (set by every <see cref="Sync"/>), else null.</summary>
+    private JackpotSequenceView? _sequence;
+
+    // Texts of the sequence fitted to the glass, kept while their source, width and scale stay the same (fitted once
+    // per run, not every frame).
+    private FitCache _nameFit;
+    private FitCache _jackpotFit;
+
+    private struct FitCache
+    {
+        public string? Source;
+        public float Width;
+        public float Scale;
+        public string Text;
+    }
+
+    /// <summary><see cref="Fit"/> through <paramref name="cache"/>: computed again only when its inputs change.</summary>
+    private static string CachedFit(ref FitCache cache, string text, float width, float scale)
+    {
+        if (!ReferenceEquals(cache.Source, text) || cache.Width != width || cache.Scale != scale)
+        {
+            cache = new FitCache { Source = text, Width = width, Scale = scale, Text = Fit(text, width, scale) };
+        }
+
+        return cache.Text;
+    }
 
     public GridPosition Origin { get; private set; }
 
@@ -77,52 +104,70 @@ public partial class MarketScreenVisual : Node2D
         return root;
     }
 
-    /// <summary>The result of the last «Vendi tutto» while it is on the screen (<see cref="MarketScreen.ResultTicks"/>), else null.</summary>
-    public static ScreenSaleResult? ShownResult(MarketScreen screen, long tick) =>
-        screen is { Active: true, LastResult: { } result } && tick >= result.Tick && tick < result.Tick + MarketScreen.ResultTicks
+    /// <summary>
+    /// The result of the last «Vendi tutto» while it is on the screen (<see cref="MarketScreen.ResultTicks"/> from its tick,
+    /// or from <paramref name="shownFrom"/>: the end of its jackpot sequence), else null.
+    /// </summary>
+    public static ScreenSaleResult? ShownResult(MarketScreen screen, long tick, long? shownFrom = null) =>
+        screen is { Active: true, LastResult: { } result } && tick >= (shownFrom ?? result.Tick)
+            && tick < (shownFrom ?? result.Tick) + MarketScreen.ResultTicks
             ? result
             : null;
 
-    public void Sync(MarketScreen screen, IGameView view)
+    /// <summary>
+    /// Reads the screen. <paramref name="sequence"/> (running) takes the glass and the lights over for the jackpot
+    /// sequence, drawn every frame; <paramref name="shownFrom"/> is the tick its result is shown from once it ended.
+    /// </summary>
+    public void Sync(MarketScreen screen, IGameView view, JackpotSequenceView? sequence = null, long? shownFrom = null)
     {
+        var running = sequence is { Running: true } ? sequence : null;
         var tick = view.CurrentTick;
-        var result = ShownResult(screen, tick);
-        var blink = result is { Jackpot: true } && (tick - result.Tick) / BlinkTicks % 2 == 0;
+        var result = running is null ? ShownResult(screen, tick, shownFrom) : null;
+        var from = shownFrom ?? result?.Tick ?? 0;
+        var blink = result is { Jackpot: true } && (tick - from) / BlinkTicks % 2 == 0;
         var key = (tick / RefreshTicks, screen.Active, screen.WatchedItemId, result, blink, UiColors.Variante,
-            MarketModuleTexts.ModulesResearched(view));
-        if (_key == key)
+            MarketModuleTexts.ModulesResearched(view), running is not null);
+        _sequence = running;
+        if (_key != key)
         {
-            return;
+            _key = key;
+            _active = screen.Active;
+            _itemId = screen.WatchedItemId;
+            _item = _itemId is null ? null : view.MarketItem(_itemId);
+            _insight = _itemId is null ? MarketInsight.None : view.MarketInsight(_itemId);
+            _forecast = _active && view.IsStructureUnlocked(MarketInsight.ForecastNodeId);
+            _result = result;
+            _blinkOn = blink;
+
+            var glow = BuildingPad.GlowBoost;
+            if (_led is not null)
+            {
+                _led.Visible = result is not null;
+                if (result is not null)
+                {
+                    var c = LedColor(result.Jackpot ? ScreenLed.Yellow : result.Led);
+                    _led.SelfModulate = new Color(c.R * glow, c.G * glow, c.B * glow);
+                }
+            }
+
+            if (_corners is not null)
+            {
+                _corners.Visible = blink;
+                var y = UiColors.LedGiallo;
+                _corners.SelfModulate = new Color(y.R * glow, y.G * glow, y.B * glow);
+            }
+
+            _display?.QueueRedraw();
         }
 
-        _key = key;
-        _active = screen.Active;
-        _itemId = screen.WatchedItemId;
-        _item = _itemId is null ? null : view.MarketItem(_itemId);
-        _insight = _itemId is null ? MarketInsight.None : view.MarketInsight(_itemId);
-        _forecast = _active && view.IsStructureUnlocked(MarketInsight.ForecastNodeId);
-        _result = result;
-        _blinkOn = blink;
-
-        var glow = BuildingPad.GlowBoost;
-        if (_led is not null)
+        if (running?.Sequence is { } seq)
         {
-            _led.Visible = result is not null;
-            if (result is not null)
+            SyncSequenceLights(running, seq);
+            if (seq.Step != JackpotStep.Zoom)
             {
-                var c = LedColor(result.Jackpot ? ScreenLed.Yellow : result.Led);
-                _led.SelfModulate = new Color(c.R * glow, c.G * glow, c.B * glow);
+                _display?.QueueRedraw(); // the sequence animates the glass: every frame
             }
         }
-
-        if (_corners is not null)
-        {
-            _corners.Visible = blink;
-            var y = UiColors.LedGiallo;
-            _corners.SelfModulate = new Color(y.R * glow, y.G * glow, y.B * glow);
-        }
-
-        _display?.QueueRedraw();
     }
 
     public static Color LedColor(ScreenLed led) => led switch
@@ -154,6 +199,12 @@ public partial class MarketScreenVisual : Node2D
     {
         var glass = Glass();
         var inner = glass.Grow(-Pad);
+        if (_sequence?.Sequence is { Step: not JackpotStep.Zoom } seq)
+        {
+            DrawSequence(canvas, _sequence, seq, glass, inner);
+            return;
+        }
+
         if (!_active)
         {
             Centered(canvas, Testi.T("borsa.schermo.staccato"), glass, UiColors.Insufficiente);
@@ -370,6 +421,249 @@ public partial class MarketScreenVisual : Node2D
         var y = area.Position.Y + (area.Size.Y - LineHeight(SmallText)) / 2f + Ascent(SmallText);
         Text(canvas, text, new Vector2(x, y), color);
     }
+
+    // --- The jackpot sequence on the glass (spec 2b) ------------------------------------------------------------------
+
+    /// <summary>Colours the LED strip cycles through while the sequence's LEDs blink.</summary>
+    private static readonly ScreenLed[] LedCycle = [ScreenLed.Blue, ScreenLed.Purple, ScreenLed.Yellow];
+
+    /// <summary>Seconds of one colour of the blinking LEDs, of one phase of the corner lamps.</summary>
+    private const double LedCycleSeconds = 0.12;
+    private const double CornerBlinkSeconds = 0.25;
+
+    /// <summary>Rolling digits: steps a second, and the share of the result step after which the last digit stops.</summary>
+    private const double ReelSpeed = 15;
+    private const float ReelFirstStop = 0.15f;
+    private const float ReelLastStop = 0.7f;
+
+    /// <summary>
+    /// The strip and the corner lamps during the sequence: off until the LEDs' step, then blue, purple and yellow in turn
+    /// and the outcome's colour at the end; on a jackpot the corner lamps blink yellow over the result.
+    /// </summary>
+    private void SyncSequenceLights(JackpotSequenceView view, JackpotSequence seq)
+    {
+        var glow = BuildingPad.GlowBoost;
+        var step = seq.Step;
+        if (_led is not null)
+        {
+            _led.Visible = step is JackpotStep.Led or JackpotStep.Risultato;
+            if (_led.Visible)
+            {
+                var led = step == JackpotStep.Led && seq.StepProgress < 0.7
+                    ? LedCycle[(int)(seq.Elapsed / LedCycleSeconds) % LedCycle.Length]
+                    : view.OutcomeLed;
+                var c = LedColor(led);
+                _led.SelfModulate = new Color(c.R * glow, c.G * glow, c.B * glow);
+            }
+        }
+
+        if (_corners is not null)
+        {
+            _corners.Visible = view.Jackpot && step == JackpotStep.Risultato
+                && (int)(seq.Elapsed / CornerBlinkSeconds) % 2 == 0;
+            var y = UiColors.LedGiallo;
+            _corners.SelfModulate = new Color(y.R * glow, y.G * glow, y.B * glow);
+        }
+    }
+
+    /// <summary>
+    /// The glass during the sequence: the channel changing to the sold item, its chart (in slow motion on the way back,
+    /// stopping on the sale price), «calcolo…» while it computes and the LEDs blink, then the income on rolling digits.
+    /// </summary>
+    private void DrawSequence(CanvasItem canvas, JackpotSequenceView view, JackpotSequence seq, Rect2 glass, Rect2 inner)
+    {
+        var p = (float)seq.StepProgress;
+        switch (seq.Step)
+        {
+            case JackpotStep.CambioCanale when p < 0.25f:
+                DrawChannelNoise(canvas, glass, seq.Elapsed);
+                break;
+            case JackpotStep.CambioCanale:
+                DrawChannel(canvas, view, inner);
+                break;
+            case JackpotStep.CorsaAlCore or JackpotStep.Ritorno:
+                DrawSequenceChart(canvas, view, inner);
+                break;
+            case JackpotStep.Calcolo or JackpotStep.Led:
+                Centered(canvas, view.Computing[(int)(seq.Elapsed / 0.33) % view.Computing.Length], glass, UiColors.Testo);
+                break;
+            case JackpotStep.Risultato:
+                DrawRollingResult(canvas, view, seq, inner);
+                break;
+        }
+    }
+
+    /// <summary>The channel switching: a few bright lines that jump across the glass.</summary>
+    private static void DrawChannelNoise(CanvasItem canvas, Rect2 glass, double elapsed)
+    {
+        var frame = (int)(elapsed * 30);
+        var height = Math.Max(1, (int)glass.Size.Y - 3);
+        for (var i = 0; i < 7; i++)
+        {
+            var y = glass.Position.Y + (i * 37 + frame * 13 + i * frame * 7) % height;
+            var thick = 1 + (i + frame) % 3;
+            var colour = i % 2 == 0 ? UiColors.TestoTenue : UiColors.LedBlu;
+            canvas.DrawRect(new Rect2(glass.Position.X, y, glass.Size.X, thick), new Color(colour, 0.7f));
+        }
+    }
+
+    /// <summary>The new channel: the sold item's icon over its name.</summary>
+    private void DrawChannel(CanvasItem canvas, JackpotSequenceView view, Rect2 inner)
+    {
+        var line = LineHeight(SmallText);
+        var side = Math.Min(inner.Size.Y - line - 2, 32f);
+        var top = inner.Position.Y + (inner.Size.Y - side - line - 2) / 2f;
+        canvas.DrawTextureRect(Sprites.Item(view.ItemId),
+            new Rect2(inner.Position.X + (inner.Size.X - side) / 2f, top, side, side), false);
+        var name = CachedFit(ref _nameFit, view.ItemName, inner.Size.X, SmallText);
+        var x = inner.Position.X + (inner.Size.X - Width(name, SmallText)) / 2f;
+        Text(canvas, name, new Vector2(x, top + side + 2 + Ascent(SmallText)), UiColors.Testo);
+    }
+
+    /// <summary>
+    /// The sold item's chart up to the revealed point (<see cref="JackpotSequenceView.ChartReveal"/>) with its price over
+    /// it: drawn segment by segment, the head moving smoothly between two points, newest point on the right edge.
+    /// </summary>
+    private static void DrawSequenceChart(CanvasItem canvas, JackpotSequenceView view, Rect2 inner)
+    {
+        var count = view.HistoryCount;
+        var history = view.History;
+        var reveal = Math.Clamp(view.ChartReveal(), 0f, count - 1);
+        var whole = (int)reveal;
+        var frac = reveal - whole;
+        var head = whole + 1 < count
+            ? (int)Mathf.Lerp(history[whole], history[whole + 1], frac)
+            : history[whole];
+        var first = history[0];
+        var trend = head > first ? MarketTrend.Su : head < first ? MarketTrend.Giu : MarketTrend.Piatto;
+
+        // Row 1: icon and the price of the head.
+        var line = LineHeight(SmallText);
+        canvas.DrawTextureRect(Sprites.Item(view.ItemId), new Rect2(inner.Position, new Vector2(line, line)), false);
+        Text(canvas, view.PriceText(head), new Vector2(inner.Position.X + line + 2, inner.Position.Y + Ascent(SmallText) + 1),
+            trend == MarketTrend.Piatto ? UiColors.Testo : MarketSparkline.ColorOf(trend));
+
+        var chart = new Rect2(inner.Position.X, inner.Position.Y + line + 1, inner.Size.X, inner.Size.Y - line - 1);
+        const float pad = 2f;
+        var low = view.HistoryLow;
+        var high = view.HistoryHigh;
+        float Y(float milli) => chart.Position.Y + pad + (chart.Size.Y - 2 * pad) * (1f - (milli - low) / (high - low));
+
+        var baseY = Mathf.Round(Y(1000)) + 0.5f;
+        canvas.DrawDashedLine(new Vector2(chart.Position.X, baseY), new Vector2(chart.End.X, baseY), UiColors.MercatoBase, 1f, 4f);
+        if (count < 2)
+        {
+            return;
+        }
+
+        var step = (chart.Size.X - 1) / (MarketSparkline.Span - 1);
+        var x0 = chart.Position.X + chart.Size.X - 1 - step * (count - 1);
+        var colour = MarketSparkline.ColorOf(trend);
+        for (var i = 0; i < whole; i++)
+        {
+            canvas.DrawLine(new Vector2(x0 + step * i, Y(history[i])), new Vector2(x0 + step * (i + 1), Y(history[i + 1])),
+                colour, 1.5f);
+        }
+
+        var headAt = new Vector2(x0 + step * reveal, Y(head));
+        if (frac > 0f)
+        {
+            canvas.DrawLine(new Vector2(x0 + step * whole, Y(history[whole])), headAt, colour, 1.5f);
+        }
+
+        canvas.DrawRect(new Rect2(headAt - new Vector2(1.5f, 1.5f), 3f, 3f), UiColors.Testo);
+    }
+
+    /// <summary>
+    /// The result of the sequence: «JACKPOT» (with a jackpot) over the item's icon and the income, whose digits roll and
+    /// stop one by one from the left on the real value.
+    /// </summary>
+    private void DrawRollingResult(CanvasItem canvas, JackpotSequenceView view, JackpotSequence seq, Rect2 area)
+    {
+        var glyphs = view.IncomeGlyphs;
+        var digitWidth = Width(JackpotSequenceView.Digit(0), 1f);
+        var scale = GlyphsWidth(glyphs, digitWidth) + IconSide(1f) <= area.Size.X ? 1f : SmallText;
+        var jackpotScale = 0f;
+        if (view.Jackpot)
+        {
+            jackpotScale = Width(view.JackpotText, 1f) <= area.Size.X ? 1f : SmallText;
+        }
+
+        var height = LineHeight(scale) + (view.Jackpot ? LineHeight(jackpotScale) : 0f);
+        var y = area.Position.Y + Math.Max(0, (area.Size.Y - height) / 2f);
+        if (view.Jackpot)
+        {
+            var jackpot = CachedFit(ref _jackpotFit, view.JackpotText, area.Size.X, jackpotScale);
+            Text(canvas, jackpot, new Vector2(area.Position.X + (area.Size.X - Width(jackpot, jackpotScale)) / 2f,
+                y + Ascent(jackpotScale)), UiColors.LedGiallo, jackpotScale);
+            y += LineHeight(jackpotScale);
+        }
+
+        var icon = IconSide(scale);
+        var slot = digitWidth * scale;
+        var width = GlyphsWidth(glyphs, digitWidth) * scale;
+        var x = area.Position.X + Math.Max(0, (area.Size.X - icon - width) / 2f);
+        var baseline = y + Ascent(scale);
+        var side = Math.Min(icon - 2, Ascent(scale) + 1);
+        canvas.DrawTextureRect(Sprites.Item(view.ItemId), new Rect2(x, baseline - side, side, side), false);
+        x += icon;
+
+        var digits = 0;
+        foreach (var g in glyphs)
+        {
+            digits += IsDigit(g) ? 1 : 0;
+        }
+
+        var p = (float)seq.StepProgress;
+        var roll = LineHeight(scale) * 0.8f;
+        var colour = UiColors.Denaro;
+        var k = 0;
+        foreach (var g in glyphs)
+        {
+            if (!IsDigit(g))
+            {
+                Text(canvas, g, new Vector2(x, baseline), colour, scale);
+                x += Width(g, scale);
+                continue;
+            }
+
+            var stop = ReelFirstStop + (ReelLastStop - ReelFirstStop) * (digits > 1 ? k / (float)(digits - 1) : 0f);
+            if (p >= stop)
+            {
+                DrawDigit(canvas, g, x, slot, baseline, colour, scale);
+            }
+            else
+            {
+                // Spinning: the digit leaves upwards while the next comes in from below, fading as they move.
+                var v = seq.Elapsed * ReelSpeed + k * 3.3;
+                var d = (int)v % 10;
+                var f = (float)(v - Math.Floor(v));
+                DrawDigit(canvas, JackpotSequenceView.Digit(d), x, slot, baseline - f * roll, new Color(colour, 1f - f), scale);
+                DrawDigit(canvas, JackpotSequenceView.Digit((d + 1) % 10), x, slot, baseline + (1f - f) * roll,
+                    new Color(colour, f), scale);
+            }
+
+            x += slot;
+            k++;
+        }
+    }
+
+    private static bool IsDigit(string glyph) => glyph.Length == 1 && glyph[0] is >= '0' and <= '9';
+
+    /// <summary>Width of the income glyphs at scale 1, every digit in a slot of <paramref name="digitWidth"/>.</summary>
+    private static float GlyphsWidth(string[] glyphs, float digitWidth)
+    {
+        var width = 0f;
+        foreach (var g in glyphs)
+        {
+            width += IsDigit(g) ? digitWidth : Width(g, 1f);
+        }
+
+        return width;
+    }
+
+    private static void DrawDigit(CanvasItem canvas, string digit, float x, float slot, float baseline, Color colour, float scale) =>
+        Text(canvas, digit, new Vector2(x + (slot - Width(digit, scale)) / 2f, baseline), colour, scale);
 
     private static Font Font => UiTheme.TextFont;
 
