@@ -72,7 +72,10 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 
 - [x] Livelli della campagna con le loro mappe
 - [x] Campagna rifatta: specifica approvata ([spec](superpowers/specs/2026-11-09-campagna-rifatta-design.md)); prima va fatta la Ricerca allargata
-- [ ] Ricerca allargata (blocchi, potenziamenti, ricette e oggetti nuovi, nodi solo della campagna): specifica
+- [x] Ricerca allargata (blocchi, potenziamenti, ricette e oggetti nuovi, premi della campagna): specifica approvata ([spec](superpowers/specs/2026-11-09-ricerca-allargata-design.md))
+- [ ] Ricerca allargata, piano 1: oggetti, ricette e macchine
+- [ ] Ricerca allargata, piano 2: logistica ed energia
+- [ ] Ricerca allargata, piano 3: potenziamenti, premi e bilanciamento
 - [ ] Campagna rifatta: piano
 - [ ] Campagna rifatta: implementazione
 
@@ -153,7 +156,7 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | --- | --- | --- |
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
-| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); specifica 2a attuata in cloud (2026-11-04, [diario](diario/2026-11-04-schermo-borsa.md)), resta il controllo del client sul PC di casa; specifica 2b (sequenza del tentativo di jackpot) attuata in cloud (2026-11-04, [diario](diario/2026-11-04-sequenza-jackpot.md)), resta il controllo del client sul PC di casa; campagna rifatta: specifica approvata (2026-11-09); prima la Ricerca allargata (specifica da fare), poi il piano della campagna |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); specifica 2a attuata in cloud (2026-11-04, [diario](diario/2026-11-04-schermo-borsa.md)), resta il controllo del client sul PC di casa; specifica 2b (sequenza del tentativo di jackpot) attuata in cloud (2026-11-04, [diario](diario/2026-11-04-sequenza-jackpot.md)), resta il controllo del client sul PC di casa; campagna rifatta: specifica approvata (2026-11-09); prima la Ricerca allargata (specifica approvata, tre piani da fare), poi il piano della campagna |
 | D | Logistica come Mindustry: #252–#255, #270 (3) | Fatto in cloud (2026-11-03, [diario](diario/2026-11-03-logistica-mindustry.md)); resta il controllo del client sul PC di casa |
 | E | Rete di energia #269 (5): fatta (2026-10-30, [diario](diario/2026-10-30-rete-corrente.md)); telemetria #234 (10) | Telemetria più avanti |
 
