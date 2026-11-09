@@ -1,6 +1,6 @@
 # Campagna rifatta: tutorial, capitoli e lancio del CORE
 
-- **Stato**: approvata dall'utente il 9 novembre 2026; piano da scrivere (i lavori non sono ancora iniziati). Aspetto 8 «Campagna» di `docs/STATO.md`.
+- **Stato**: approvata dall'utente il 9 novembre 2026, aggiornata lo stesso giorno (lancio con requisiti nel CORE, nodi solo della campagna); piano da scrivere dopo la specifica «Ricerca allargata», che va implementata prima (i lavori non sono ancora iniziati). Aspetto 8 «Campagna» di `docs/STATO.md`.
 - **Sostituisce**: i 10 livelli di oggi (`data/campaign.json`) con obiettivi minuscoli e la Ricerca da capo a ogni livello; i soldi di partenza gonfiati a novembre per pagare i costi nuovi; i livelli 03, 04 e 08 con un obiettivo già fatto alla partenza (`CoveredAtStart` nei test).
 
 ## Obiettivo
@@ -18,6 +18,8 @@ Successo: la campagna intera si completa in circa 7 ore; ogni livello si chiude 
 | Capitoli | **4 capitoli da 60–90 minuti**, uno per fase del bilanciamento. |
 | Obiettivi dei capitoli | **Sblocchi chiave della fase + un incasso** che richiede una fabbrica vera; mai un obiettivo già fatto alla partenza; obiettivi facoltativi con una stella. |
 | Cosa passa al livello dopo | **Come il lancio di Mindustry**: le risorse dentro il CORE e i soldi, ciascuno fino al tetto del livello del CORE. |
+| Lancio | **Come Mindustry**: per passare al livello dopo servono certe **risorse e soldi nel CORE** (requisiti di lancio del livello); **restano e si portano** nel livello nuovo insieme al resto, fino ai tetti. Non c'è una dotazione minima: il livello dopo parte sempre con almeno i requisiti. |
+| Ricerca allargata | Blocchi, potenziamenti, ricette e oggetti nuovi, **alcuni sbloccabili solo nella campagna** (premi dei capitoli). Specifica a parte, implementata **prima** della campagna. |
 | CORE e tetti | Il livello nuovo parte **con lo stesso livello di CORE** con cui si è finito. Tetti dei soldi: **50.000 $** (CORE base), **1.000.000 $** (Fondazione), **10.000.000 $** (Nucleo); risorse fino al massimo per oggetto del CORE (1.000 / 4.000 / 12.000). |
 
 ## I livelli
@@ -48,11 +50,15 @@ Uno stato salvato a parte (estende `CampaignProgress`, file della campagna nel p
 - Risorse portate (per oggetto) e soldi portati.
 - Livelli completati e stelle.
 
-**Chiusura di un livello**: quando tutti gli obiettivi sono fatti, un pannello «Livello completato» mostra cosa si porta al livello dopo (soldi e risorse, con quello che si perde oltre i tetti) e chiede **«Parti ora»** o **«Resta ancora»**: restando si può spendere e riempire il CORE prima di partire (il pannello si riapre con un pulsante). Partendo, lo stato della campagna prende Ricerca, CORE, risorse e soldi del momento, fino ai tetti.
+**Chiusura di un livello**: quando tutti gli obiettivi sono fatti si apre il **lancio**: un pannello mostra i **requisiti di lancio** del livello (risorse e soldi che devono essere nel CORE, ciascuno con quanto ne hai) e cosa si porterà al livello dopo, con quello che si perde oltre i tetti. **«Lancia»** è attivo solo con tutti i requisiti nel CORE; **«Resta ancora»** chiude il pannello (si riapre con un pulsante) per produrre quello che manca o spendere prima di partire. Lanciando, lo stato della campagna prende Ricerca, CORE, risorse e soldi del momento, fino ai tetti; i requisiti fanno parte del carico.
 
-**Inizio di un livello**: la mappa del livello, il CORE al livello salvato, la Ricerca salvata, le risorse e i soldi portati; più una **dotazione minima** del livello (soldi e materiali scritti in `campaign.json`) che garantisce di poter partire anche dopo un livello chiuso male. Il primo livello parte con la Ricerca di base (Nastro T1 e Minatore T1).
+**Inizio di un livello**: la mappa del livello, il CORE al livello salvato, la Ricerca salvata, le risorse e i soldi portati (che comprendono sempre i requisiti di lancio del livello prima). Il primo livello parte con la Ricerca di base (Nastro T1 e Minatore T1) e una dotazione iniziale scritta in `campaign.json`.
 
-**Rigiocare un livello già finito**: parte con la Ricerca di adesso e la sola dotazione del livello; chiuderlo aggiorna le stelle ma **non** cambia lo stato che passa ai livelli dopo.
+**Requisiti di lancio**: per ogni livello in `campaign.json` (soldi + elenco di risorse), scelti perché il livello dopo possa partire (per esempio i materiali del primo forno o del primo generatore). Devono stare sotto i tetti del CORE che si ha in quel momento.
+
+**Nodi solo della campagna**: alcuni nodi della Ricerca allargata non si comprano in Ricerca ma si ottengono chiudendo un capitolo (premio mostrato nel pannello del lancio); nella partita libera restano bloccati o hanno un'altra strada, come dirà la specifica della Ricerca allargata.
+
+**Rigiocare un livello già finito**: parte con la Ricerca di adesso e, come carico, esattamente i requisiti di lancio del livello prima; chiuderlo aggiorna le stelle ma **non** cambia lo stato che passa ai livelli dopo.
 
 ## Mappe
 
@@ -60,7 +66,7 @@ Si riusano le mappe di oggi scelte per misura e biomi (dalla 200×200 per T1 all
 
 ## Simulazione e dati
 
-- `campaign.json` nuovo: 8 livelli con obiettivi, dotazione minima, stelle, mappa e `dayNight`; tipi di obiettivo nuovi o rinominati per «prodotti/consegnati in questo livello».
+- `campaign.json` nuovo: 8 livelli con obiettivi, requisiti di lancio, premi (nodi solo della campagna), stelle, mappa e `dayNight`; tipi di obiettivo nuovi o rinominati per «prodotti/consegnati in questo livello».
 - Avvio di un livello da stato della campagna (Ricerca, CORE, risorse, soldi) in `NewGame.Campaign`.
 - Tetti dei soldi per livello di CORE in `content.json` (`cores[].carryMoney`).
 - Salvataggi della partita: la versione sale se cambia il formato (stato iniziale del livello o contatori nuovi); salvataggio della campagna con versione propria.
@@ -69,14 +75,15 @@ Si riusano le mappe di oggi scelte per misura e biomi (dalla 200×200 per T1 all
 ## Client
 
 - Elenco dei livelli coi due gruppi (tutorial, capitoli), stelle e stato.
-- Pannello «Livello completato» con il riepilogo del trasporto e «Parti ora» / «Resta ancora».
+- Pannello del lancio con i requisiti (avuto/richiesto), il riepilogo del trasporto, il premio del capitolo, «Lancia» / «Resta ancora».
 - HUD degli obiettivi con i contatori «in questo livello».
 - Testi in `testi.csv` (it + en), stili dal tema.
 
 ## Test
 
 - Nessun obiettivo già fatto alla partenza di nessun livello (il test di oggi, senza eccezioni: via `CoveredAtStart`).
-- Trasporto: risorse fino al massimo per oggetto, soldi fino al tetto, CORE allo stesso livello, Ricerca intatta.
+- Lancio: rifiutato senza tutti i requisiti nel CORE; trasporto di risorse fino al massimo per oggetto e soldi fino al tetto, requisiti compresi; CORE allo stesso livello; Ricerca intatta; premio del capitolo sbloccato.
+- Requisiti di lancio di ogni livello sotto i tetti del CORE previsto in quel livello.
 - Rigioco di un livello finito che non cambia lo stato della campagna.
 - Tempi dei capitoli fra 60 e 90 minuti nel modello del bilanciamento.
 - Salvataggio della campagna avanti e indietro; versioni vecchie rifiutate.
