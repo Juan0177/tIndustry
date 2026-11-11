@@ -71,7 +71,13 @@ Le caselle della prossima sezione sono la fonte della barra di avanzamento che c
 ### 8 · [Campagna](wiki/Campagna-e-mappe.md)
 
 - [x] Livelli della campagna con le loro mappe
-- [ ] Campagna rifatta coi valori del Mercato nuovo
+- [x] Campagna rifatta: specifica approvata ([spec](superpowers/specs/2026-11-09-campagna-rifatta-design.md)); prima va fatta la Ricerca allargata
+- [x] Ricerca allargata (blocchi, potenziamenti, ricette e oggetti nuovi, premi della campagna): specifica approvata ([spec](superpowers/specs/2026-11-09-ricerca-allargata-design.md))
+- [ ] Ricerca allargata, piano 1: oggetti, ricette e macchine
+- [ ] Ricerca allargata, piano 2: logistica ed energia
+- [ ] Ricerca allargata, piano 3: potenziamenti, premi e bilanciamento
+- [ ] Campagna rifatta: piano
+- [ ] Campagna rifatta: implementazione
 
 ### 9 · [Grafica ed effetti](wiki/Arte-generata.md)
 
@@ -150,11 +156,15 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 | --- | --- | --- |
 | A | Controlli veloci, pulizia, test intermittenti (1) | Fatto, tranne la pulizia |
 | B | Mercato come una borsa, specifica 1 (6) | Fatto: PR #274–#282 |
-| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); specifica 2a attuata in cloud (2026-11-04, [diario](diario/2026-11-04-schermo-borsa.md)), resta il controllo del client sul PC di casa; specifica 2b (sequenza del tentativo di jackpot) attuata in cloud (2026-11-04, [diario](diario/2026-11-04-sequenza-jackpot.md)), resta il controllo del client sul PC di casa; prossima la campagna rifatta |
+| C | Specifiche 2 e 3 del Mercato (6), campagna rifatta (8): prima il brainstorming | **In corso**: specifica 3 attuata (2026-10-23, [diario](diario/2026-10-23-magazzino-core.md)); specifica 2a attuata in cloud (2026-11-04, [diario](diario/2026-11-04-schermo-borsa.md)), resta il controllo del client sul PC di casa; specifica 2b (sequenza del tentativo di jackpot) attuata in cloud (2026-11-04, [diario](diario/2026-11-04-sequenza-jackpot.md)), resta il controllo del client sul PC di casa; campagna rifatta: specifica approvata (2026-11-09); prima la Ricerca allargata (specifica approvata, tre piani da fare), poi il piano della campagna |
 | D | Logistica come Mindustry: #252–#255, #270 (3) | Fatto in cloud (2026-11-03, [diario](diario/2026-11-03-logistica-mindustry.md)); resta il controllo del client sul PC di casa |
 | E | Rete di energia #269 (5): fatta (2026-10-30, [diario](diario/2026-10-30-rete-corrente.md)); telemetria #234 (10) | Telemetria più avanti |
 
 ## Cosa manca, in piccolo
+
+- **Clic sui blocchi rotto dal piano del drone, corretto il 2026-11-11**: al rilascio del clic `StopHandMining` cancellava il clic prima che `EndWorldClick` lo leggesse, quindi nessun clic arrivava a `OnBlockClick` (schermo di borsa, filtro di selezionatori ed estrattori, laser dei nodi). Da riprovare sul PC di casa; i playtest non lo vedevano perché aprono i pannelli senza passare dal clic vero.
+
+- **Descrizioni di forno e assemblatore** (2026-11-11): ora dicono quali lastre e prodotti fanno e con che ingredienti (testi `struttura.smelter.*`, `struttura.assembler.*`, `tutorial.passo.7`); da guardare a schermo che i suggerimenti non vadano a capo male.
 
 - **Ricerca rotta sul PC di casa** ([#292](https://github.com/Juan0177/tIndustry/issues/292)): `MissingMethodException` su `DrawString` in `TechTreeCanvas`, il client è compilato contro un GodotSharp più nuovo del 4.4.1. Correzione difensiva fatta (`NuGet.config` con la sola fonte nuget.org, controllo della versione di GodotSharp in `play.ps1` e `dev.sh`, `clean.ps1 -Nuget`); da verificare sul PC di casa con `.\clean.ps1 -Nuget` poi `.\play.ps1`.
 - **Pulizia del blocco A**, approvata dall'utente ma da lanciare a mano, perché la modalità automatica blocca le cancellazioni:

@@ -113,8 +113,8 @@ struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · filtro c
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% with power (uses it) · unlock in Research
-struttura.smelter.suggerimento,Carbone o corrente · +20% craft se alimentato · 2×2,Coal or power · +20% crafting when powered · 2×2
-struttura.assembler.suggerimento,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
+struttura.smelter.suggerimento,"Lastre di ferro, piombo o titanio dal minerale che arriva · carbone o corrente (+20%) · 2×2","Iron, lead or titanium plates from the ore it gets · coal or power (+20%) · 2×2"
+struttura.assembler.suggerimento,"Filo di rame, grafite o silicio · esce su ogni nastro accanto · 2×2","Copper wire, graphite or silicon · outputs to any belt beside it · 2×2"
 struttura.extractor.suggerimento,Prende dai blocchi accanto e passa agli altri · filtro col clic · 11 al secondo,Takes from the blocks beside it and hands to the others · filter with a click · 11 per second
 struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.suggerimento,Nodo T1 · raggio 6 · 6 collegamenti · selezionalo e clicca un blocco per collegarlo,Power node T1 · range 6 · 6 links · select it and click a block to link it
@@ -430,8 +430,8 @@ ricerca.prerequisiti.nessuno,nessuno,none
 ricerca.prerequisito.manca,{0} (manca),{0} (missing)
 struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · output on every side · 2×2
 struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
-struttura.smelter.descrizione,Fonde i minerali in lastre (carbone o corrente) · +20% se alimentato · 2×2,Smelts ore into plates (coal or power) · +20% when powered · 2×2
-struttura.assembler.descrizione,Assembla prodotti · esce su ogni nastro accanto · 2×2,Assembles products · outputs to any belt beside it · 2×2
+struttura.smelter.descrizione,"Fonde 2 ferro grezzo, 2 piombo grezzo o 3 titanio grezzo in una lastra · carbone o corrente · +20% se alimentato · 2×2","Smelts 2 iron ore, 2 lead ore or 3 titanium ore into a plate · coal or power · +20% when powered · 2×2"
+struttura.assembler.descrizione,"Fa filo di rame (rame + lastra di ferro), grafite (carbone) o silicio (lastra di piombo + carbone) · esce su ogni nastro accanto · 2×2","Makes copper wire (copper + iron plate), graphite (coal) or silicon (lead plate + coal) · outputs to any belt beside it · 2×2"
 struttura.extractor.descrizione,Prende 11 oggetti al secondo da CORE · magazzini o uscite delle macchine accanto e li passa a turno agli altri blocchi accanto · col filtro solo quell'oggetto · senza filtro tutti a turno,Takes 11 items a second from the CORE · storage or machine outputs beside it and hands them in turn to the other blocks beside it · with a filter only that item · with none every item in turn
 struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
@@ -461,7 +461,7 @@ tutorial.passo.3,"Premi 2 (Minatore) e piazzalo su un giacimento di ferro (sasso
 tutorial.passo.4,Premi 1 (Nastro) e trascina una linea dall'uscita del minatore fino al CORE: i minerali entrano in magazzino.,Press 1 (Belt) and drag a line from the miner's output to the CORE: the ore goes into storage.
 tutorial.passo.5,"Premi M per aprire il MERCATO: vendi minerali e lastre, oppure attiva la Vendita automatica.","Press M to open the MARKET: sell ore and plates, or turn on Auto-sell."
 tutorial.passo.6,"Premi T per aprire la RICERCA: con soldi e materiali sblocchi il FORNO (1.500 $ + 30 lastre). In partita libera parti con 180 $: prima vendi minerali e lastre.","Press T to open RESEARCH: with money and materials you unlock the SMELTER ($1,500 + 30 plates). In free play you start with $180: sell ore and plates first."
-tutorial.passo.7,"Piazza un FORNO (3): fonde i minerali in lastre. Serve carbone OPPURE corrente (generatore + nodi potenza, +20%).","Place a SMELTER (3): it smelts ore into plates. It needs coal OR power (generator + power nodes, +20%)."
+tutorial.passo.7,"Piazza un FORNO (3): fonde il minerale che gli arriva in lastre (ferro, piombo o titanio). Serve carbone OPPURE corrente (generatore + nodi potenza, +20%).","Place a SMELTER (3): it smelts the ore it gets into plates (iron, lead or titanium). It needs coal OR power (generator + power nodes, +20%)."
 tutorial.passo.8,"IMPOSTAZIONI (I, o dalla Home): lingua, scala UI, VSync e Rivedi tutorial. Premi Fine per chiudere.","SETTINGS (I, or from Home): language, UI scale, VSync and Replay tutorial. Press Done to close."
 tutorial.fatto,✓ fatto,✓ done
 tutorial.salta,Salta tutorial,Skip tutorial

@@ -573,10 +573,11 @@ public partial class World
     /// <summary>Left release with no block selected: the mining stops, or a still click selects (<see cref="OnBlockClick"/>).</summary>
     private void EndWorldClick(Vector2 screen)
     {
+        // Read the press before StopHandMining: it clears _clickDown too.
+        var pressed = _clickDown;
         StopHandMining();
-        if (_clickDown is { } down)
+        if (pressed is { } down)
         {
-            _clickDown = null;
             if (down.Screen.DistanceTo(screen) < ClickSlop)
             {
                 OnBlockClick(down.Cell);
