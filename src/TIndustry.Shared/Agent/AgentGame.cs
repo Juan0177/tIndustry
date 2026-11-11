@@ -1202,7 +1202,10 @@ public sealed class AgentGame : IDisposable
         return result;
     }
 
-    /// <summary>Every structure of the content: id, name, kind, build cost, unlock cost, prerequisites, unlocked.</summary>
+    /// <summary>
+    /// Every structure of the content: id, name, kind, build cost, unlock cost, prerequisites, unlocked and, for a
+    /// campaign reward, its chapter (<c>premio</c>).
+    /// </summary>
     private JsonObject Catalogo()
     {
         var list = new JsonArray();
@@ -1221,6 +1224,12 @@ public sealed class AgentGame : IDisposable
                 ["prerequisiti"] = new JsonArray(s.Prerequisites.Select(id => (JsonNode)JsonValue.Create(id)!).ToArray()),
                 ["sbloccato"] = View.Research.IsUnlocked(s.Id)
             };
+            if (s.CampaignReward is { } chapter)
+            {
+                // The chapter of the campaign that gives it (in the campaign it is not for sale: CampaignRewardOnly).
+                item["premio"] = chapter;
+            }
+
             list.Add(item);
         }
 
@@ -1240,7 +1249,8 @@ public sealed class AgentGame : IDisposable
 
     /// <summary>
     /// What is missing for <paramref name="refusal"/>: the shortfall the game computed (InsufficientResources), or for
-    /// Locked and UnlockUnaffordable the part of the unlock cost and of the prerequisites the player does not have.
+    /// Locked and UnlockUnaffordable the part of the unlock cost and of the prerequisites the player does not have; for
+    /// CampaignRewardOnly the chapter that gives the node (<c>premio</c>).
     /// </summary>
     private JsonObject? Missing(Refusal refusal, SimCommand command)
     {
@@ -1281,6 +1291,13 @@ public sealed class AgentGame : IDisposable
             {
                 missing["prerequisiti"] = new JsonArray(prerequisites.Select(p => (JsonNode)JsonValue.Create(p)!).ToArray());
             }
+        }
+
+        if (refusal.Code is RefusalCode.CampaignRewardOnly
+            && refusal.StructureId is { } rewardId && content.FindStructure(rewardId)?.CampaignReward is { } chapter)
+        {
+            // Not money: the chapter of the campaign whose end gives the node.
+            missing["premio"] = chapter;
         }
 
         return missing.Count > 0 ? missing : null;

@@ -61,8 +61,17 @@ public sealed class ResearchState : IResearchView
             : ResearchNodeState.Locked;
     }
 
-    public bool CanUnlock(StructureDefinition structure, IWalletView wallet) =>
-        !IsUnlocked(structure.Id)
+    /// <summary>
+    /// True when the node is a campaign reward (<see cref="StructureDefinition.CampaignReward"/>) in a campaign game
+    /// (<paramref name="inCampaign"/>): there it is given by the chapter's end, never bought.
+    /// </summary>
+    public static bool IsCampaignRewardOnly(StructureDefinition structure, bool inCampaign) =>
+        inCampaign && structure.CampaignReward is not null;
+
+    /// <param name="inCampaign">True in a campaign game (<see cref="IGameView.ActiveCampaignLevelId"/> set): its rewards are not for sale.</param>
+    public bool CanUnlock(StructureDefinition structure, IWalletView wallet, bool inCampaign = false) =>
+        !IsCampaignRewardOnly(structure, inCampaign)
+        && !IsUnlocked(structure.Id)
         && MeetsPrerequisites(structure)
         && (structure.Unlock is null
             || wallet.CanAfford(structure.Unlock.Money, structure.Unlock.Materials));

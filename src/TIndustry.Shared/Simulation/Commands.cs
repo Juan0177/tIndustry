@@ -241,7 +241,13 @@ public enum RefusalCode
     MarketScreenNotTouchingCore,
 
     /// <summary>Market screen: there is already one (finished, being built or planned): one per game.</summary>
-    MarketScreenAlreadyPresent
+    MarketScreenAlreadyPresent,
+
+    /// <summary>
+    /// Research, in the campaign: the node (<see cref="Refusal.StructureId"/>) is the reward of a chapter
+    /// (<see cref="StructureDefinition.CampaignReward"/>), given when the chapter closes and never sold.
+    /// </summary>
+    CampaignRewardOnly
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

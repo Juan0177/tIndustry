@@ -43,7 +43,7 @@ public sealed class LogisticsCostsTests
     [Theory]
     [InlineData("conveyor-fast", 73_000, "iron-ore:24,lead-ore:24,titanium-ore:24")]
     [InlineData("conveyor-express", 1_300_000, "titanium-ore:32,silicon:32,graphite:32")]
-    [InlineData("conveyor-stack", 1_400_000, "plastic:48,silicon:48,graphite:48")]
+    [InlineData("conveyor-stack", 1_440_000, "plastic:144,silicon:144,graphite:144")] // campaign reward: ×3 of the sheet
     [InlineData("conveyor-armored", 1_300_000, "iron-ore:32,lead-ore:32,titanium-ore:40,graphite:32")]
     [InlineData("junction", 6_900, "iron-ore:26")]
     [InlineData("router", 9_700, "iron-ore:26")]

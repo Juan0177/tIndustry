@@ -411,7 +411,7 @@ public partial class ResearchPanel : Control
         };
 
         _detailCost.Text = Testi.F("ricerca.costi",
-            FormatUnlockRequirement(structure.Unlock, _view.Content), FormatBuildCost(structure.Id, _view.Content));
+            FormatUnlock(structure, _view), FormatBuildCost(structure.Id, _view.Content));
         _detailPrereq.Text = FormatPrereqs(structure, _view);
 
         var manca = FormatMissingUnlockResources(structure, _view);
@@ -428,13 +428,15 @@ public partial class ResearchPanel : Control
             _detailManca.Text = "";
         }
 
-        var canUnlock = _view.Research.CanUnlock(structure, _view.Wallet);
+        var canUnlock = _view.Research.CanUnlock(structure, _view.Wallet, InCampaign(_view));
         _unlockButton.Disabled = !canUnlock;
-        _unlockButton.Text = Testi.T(_view.Research.IsUnlocked(structure.Id)
-            ? "ricerca.gia.sbloccato"
-            : !_view.Research.MeetsPrerequisites(structure)
-                ? "ricerca.prerequisiti.mancanti"
-                : canUnlock ? "ricerca.sblocca" : "rifiuto.InsufficientResources");
+        _unlockButton.Text = !_view.Research.IsUnlocked(structure.Id) && RewardOnly(structure, _view)
+            ? Testi.F("ricerca.premio", Testi.Capitolo(structure.Id, _view.Content))
+            : Testi.T(_view.Research.IsUnlocked(structure.Id)
+                ? "ricerca.gia.sbloccato"
+                : !_view.Research.MeetsPrerequisites(structure)
+                    ? "ricerca.prerequisiti.mancanti"
+                    : canUnlock ? "ricerca.sblocca" : "rifiuto.InsufficientResources");
     }
 
     private void OnUnlockPressed()
@@ -510,7 +512,7 @@ public partial class ResearchPanel : Control
             ResearchNodeState.Unlocked => $"{Testi.Struttura(structure.Id, _view.Content)}\n{Testi.T("ricerca.nodo.sbloccato")}",
             ResearchNodeState.Available =>
                 $"{Testi.Struttura(structure.Id, _view.Content)}\n"
-                + Testi.F("ricerca.nodo.sblocco", FormatUnlockRequirement(structure.Unlock, _view.Content))
+                + Testi.F("ricerca.nodo.sblocco", FormatUnlock(structure, _view))
                 + (FormatMissingUnlockResources(structure, _view) is { Length: > 0 } manca ? $"\n{manca}" : ""),
             _ => $"{Testi.Struttura(structure.Id, _view.Content)}\n{FormatPrereqs(structure, _view)}"
         };
@@ -580,6 +582,18 @@ public partial class ResearchPanel : Control
         return string.IsNullOrEmpty(mats) ? $"${money}" : $"${money} + {mats}";
     }
 
+    private static bool InCampaign(IGameView view) => view.ActiveCampaignLevelId is not null;
+
+    /// <summary>A campaign reward in a campaign game: given by its chapter, never bought.</summary>
+    private static bool RewardOnly(StructureDefinition structure, IGameView view) =>
+        ResearchState.IsCampaignRewardOnly(structure, InCampaign(view));
+
+    /// <summary>The unlock price, or in the campaign the chapter that gives a reward node.</summary>
+    private static string FormatUnlock(StructureDefinition structure, IGameView view) =>
+        RewardOnly(structure, view)
+            ? Testi.F("ricerca.premio", Testi.Capitolo(structure.Id, view.Content))
+            : FormatUnlockRequirement(structure.Unlock, view.Content);
+
     private static string FormatUnlockRequirement(UnlockRequirement? unlock, FactoryContent content)
     {
         if (unlock is null)
@@ -601,7 +615,8 @@ public partial class ResearchPanel : Control
             return string.Empty;
         }
 
-        if (structure.Unlock is null || factory.Research.CanUnlock(structure, factory.Wallet))
+        if (structure.Unlock is null || RewardOnly(structure, factory)
+            || factory.Research.CanUnlock(structure, factory.Wallet, InCampaign(factory)))
         {
             return string.Empty;
         }

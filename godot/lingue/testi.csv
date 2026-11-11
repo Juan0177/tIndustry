@@ -331,6 +331,7 @@ rifiuto.MiningCovered,Sul giacimento c'è già qualcosa,Something already stands
 rifiuto.MiningHoldFull,La stiva è piena: svuotala vicino al CORE,The hold is full: empty it near the Core
 rifiuto.MarketScreenNotTouchingCore,Lo schermo di borsa va messo a contatto col CORE,The market screen must touch the CORE
 rifiuto.MarketScreenAlreadyPresent,C'è già uno schermo di borsa: se ne può avere uno solo,There is already a market screen: you can have only one
+rifiuto.CampaignRewardOnly,Si ottiene chiudendo il capitolo {0} della campagna,You get it by finishing chapter {0} of the campaign
 scavo.attesa.cantiere,"Lo scavo aspetta: il cantiere non ha materiali (annulla il piano o allontanati)","Mining waits: the site is short of materials (cancel the plan or fly away)"
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
@@ -495,6 +496,7 @@ ricerca.gratis,gratis,free
 ricerca.prerequisiti,Prerequisiti: {0},Prerequisites: {0}
 ricerca.prerequisiti.nessuno,nessuno,none
 ricerca.prerequisito.manca,{0} (manca),{0} (missing)
+ricerca.premio,Premio del capitolo {0},Chapter {0} reward
 struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · senza giacimento scava sabbia dal pavimento di sabbia · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · without a deposit digs sand from sand floor · output on every side · 2×2
 struttura.miner-advanced.descrizione,T2 · {0} · senza giacimento scava sabbia dal pavimento di sabbia · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · without a deposit digs sand from sand floor · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
 struttura.smelter.descrizione,"Fonde 2 ferro grezzo, 2 piombo grezzo o 3 titanio grezzo in una lastra · carbone o corrente · +20% se alimentato · 2×2","Smelts 2 iron ore, 2 lead ore or 3 titanium ore into a plate · coal or power · +20% when powered · 2×2"

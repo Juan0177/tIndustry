@@ -149,6 +149,10 @@ public static class Testi
         return F($"salvataggi.errore.{failure.Code}", argument);
     }
 
+    /// <summary>The campaign chapter whose end gives <paramref name="structureId"/> (<c>?</c> when it is not a reward).</summary>
+    public static object Capitolo(string? structureId, FactoryContent? content) =>
+        (object?)content?.FindStructure(structureId ?? "")?.CampaignReward ?? "?";
+
     /// <summary>Text of a refusal: key <c>rifiuto.&lt;Code&gt;</c>, filled with its arguments.</summary>
     public static string Rifiuto(Refusal refusal, IGameView? view = null)
     {
@@ -164,6 +168,8 @@ public static class Testi
                 return F("rifiuto.CoreUpgradeLocked", Struttura(refusal.StructureId ?? "?", content));
             case RefusalCode.SellAllCooldown:
                 return F("rifiuto.SellAllCooldown", refusal.WaitSeconds);
+            case RefusalCode.CampaignRewardOnly:
+                return F("rifiuto.CampaignRewardOnly", Capitolo(refusal.StructureId, content));
             default:
                 return T($"rifiuto.{refusal.Code}");
         }

@@ -420,19 +420,19 @@
         }
       ],
       "unlock": {
-        "money": 1400000,
+        "money": 1440000,
         "materials": [
           {
             "itemId": "plastic",
-            "amount": 48
+            "amount": 144
           },
           {
             "itemId": "silicon",
-            "amount": 48
+            "amount": 144
           },
           {
             "itemId": "graphite",
-            "amount": 48
+            "amount": 144
           }
         ]
       },
@@ -974,20 +974,21 @@
       "displayName": "Nastro a pacchi",
       "kind": "conveyor",
       "unlockedByDefault": false,
+      "campaignReward": 2,
       "unlock": {
-        "money": 1400000,
+        "money": 1440000,
         "materials": [
           {
             "itemId": "plastic",
-            "amount": 48
+            "amount": 144
           },
           {
             "itemId": "silicon",
-            "amount": 48
+            "amount": 144
           },
           {
             "itemId": "graphite",
-            "amount": 48
+            "amount": 144
           }
         ]
       },
@@ -1183,20 +1184,21 @@
       "displayName": "Generatore a combustione",
       "kind": "building",
       "unlockedByDefault": false,
+      "campaignReward": 1,
       "unlock": {
-        "money": 5700,
+        "money": 17100,
         "materials": [
           {
             "itemId": "iron-plate",
-            "amount": 60
+            "amount": 180
           },
           {
             "itemId": "lead-plate",
-            "amount": 30
+            "amount": 90
           },
           {
             "itemId": "copper-wire",
-            "amount": 18
+            "amount": 54
           }
         ]
       },
@@ -1352,7 +1354,8 @@
       "displayName": "Ricetta dei circuiti",
       "kind": "recipe",
       "unlockedByDefault": false,
-      "unlock": { "money": 300000, "materials": [ { "itemId": "silicon", "amount": 160 }, { "itemId": "lead-plate", "amount": 160 } ] },
+      "campaignReward": 3,
+      "unlock": { "money": 300000, "materials": [ { "itemId": "silicon", "amount": 480 }, { "itemId": "lead-plate", "amount": 480 } ] },
       "isStub": false,
       "prerequisites": [ "assembler" ]
     },
@@ -1406,7 +1409,8 @@
       "displayName": "Drone potenziato",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 3600, "materials": [ { "itemId": "titanium-plate", "amount": 240 }, { "itemId": "silicon", "amount": 240 } ] },
+      "campaignReward": 4,
+      "unlock": { "money": 10800, "materials": [ { "itemId": "titanium-plate", "amount": 720 }, { "itemId": "silicon", "amount": 720 } ] },
       "isStub": false,
       "prerequisites": [ "upgrade-drone-build", "upgrade-drone-hold", "upgrade-drone-range", "upgrade-drone-mine" ]
     },

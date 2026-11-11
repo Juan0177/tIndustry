@@ -224,6 +224,11 @@ public sealed record MarketRules(
     int LostBoostBp, int LostBoostMinutes, int LostPieces, int HistorySeconds,
     int LedMildDropMilli, int LedYellowPieces);
 
+/// <summary>
+/// A node of the research. <paramref name="CampaignReward"/> (JSON <c>campaignReward</c>) is the campaign chapter (1–4)
+/// whose end gives the node for free (<see cref="Factory.GrantCampaignReward"/>): in the campaign it is never sold
+/// (<see cref="RefusalCode.CampaignRewardOnly"/>), in free play it is bought like any node.
+/// </summary>
 public sealed record StructureDefinition(
     string Id,
     string DisplayName,
@@ -232,7 +237,8 @@ public sealed record StructureDefinition(
     UnlockRequirement? Unlock,
     bool IsStub,
     IReadOnlyList<string> Prerequisites,
-    int ItemCapacity = 0);
+    int ItemCapacity = 0,
+    int? CampaignReward = null);
 
 /// <summary>
 /// One Core tier of <c>cores</c> (index = tier): footprint <paramref name="Size"/>, pieces per item, pieces/s sold

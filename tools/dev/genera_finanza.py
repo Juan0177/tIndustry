@@ -70,11 +70,13 @@ NODES = [
     ("upgrade-miners-2", 2, 2.8, [("titanium-plate", 30), ("copper-wire", 20)]),
     # Until the upgrades (plan 3, task 1) the T2 power node, the plasticizer, the circuit and the impact drill had 15, 6,
     # 8 and 4 minutes: shortened so that the whole tree still unlocks within 6.5 hours (provisional, like the upgrades').
+    # The campaign rewards (REWARDS) cost REWARD_FACTOR times their minutes: the circuit (5 minutes after task 1) and the
+    # stack conveyor (8) went to about a third, so the written price stays close (provisional too, plan 3 task 3).
     ("power-node-t2", 2, 3, [("iron-plate", 12), ("copper-wire", 6)]),
     ("smelter-advanced", 2, 6, [("titanium-plate", 40), ("copper-wire", 20)]),
     ("separator", 2, 6.5, [("titanium-plate", 40), ("graphite", 20)]),
     ("plasticizer", 2, 4, [("silicon", 30), ("graphite", 30)]),
-    ("circuit", 2, 5, [("silicon", 40), ("lead-plate", 40)]),
+    ("circuit", 2, 1.7, [("silicon", 40), ("lead-plate", 40)]),
     ("conveyor-armored", 2, 22, [("iron-ore", 8), ("lead-ore", 8), ("titanium-ore", 10), ("graphite", 8)]),
     ("conveyor-express", 2, 22, [("titanium-ore", 8), ("silicon", 8), ("graphite", 8)]),
     ("vault", 2, 23, [("titanium-plate", 20)]),
@@ -82,13 +84,19 @@ NODES = [
     ("finance-forecast", 2, 33, [("lead-plate", 60), ("copper-wire", 30)]),
     ("finance-percent", 2, 40, [("titanium-plate", 80)]),
     ("impact-drill", 3, 1, [("titanium-plate", 60), ("silicon", 40)]),
-    ("conveyor-stack", 3, 8, [("plastic", 8), ("silicon", 8), ("graphite", 8)]),
+    ("conveyor-stack", 3, 2.7, [("plastic", 8), ("silicon", 8), ("graphite", 8)]),
     ("drone-boost", 3, 0.02, [("titanium-plate", 40), ("silicon", 40)]),
     ("upgrade-machines-2", 3, 2.1, [("titanium-plate", 60), ("silicon", 30)]),
     ("upgrade-storage-2", 3, 8.1, [("titanium-plate", 60), ("graphite", 30)]),
     ("finance-odds", 3, 22.5, [("silicon", 120), ("graphite", 80)]),
     ("core-nucleus", 3, 39, [("titanium-plate", 400), ("silicon", 300)]),
 ]
+
+# Campaign rewards (Ricerca allargata, plan 3): node id -> the chapter whose end gives it for free (content.json
+# «campaignReward», checked by the tests). In the campaign they are never sold; in free play they cost REWARD_FACTOR
+# times what the sheet gives for their minutes, money and materials alike, and the hours count that price.
+REWARDS = {"combustion-generator": 1, "conveyor-stack": 2, "circuit": 3, "drone-boost": 4}
+REWARD_FACTOR = 3
 
 # The 50/50 of the sheet: a "sell all" of 10,000 titanium plates at the spike threshold.
 JACKPOT_ITEM = "titanium-plate"
@@ -173,14 +181,19 @@ def balance(content):
     nodes = []
     for node_id, p, minutes, materials in NODES:
         factor = PHASES[p]["materials_factor"]
+        reward = REWARD_FACTOR if node_id in REWARDS else 1
+        sheet_money = nice(incomes[p] * minutes * 60)
         nodes.append({
             "id": node_id,
             "phase": p,
             "minutes": minutes,
             "exact": incomes[p] * minutes * 60,
-            "money": nice(incomes[p] * minutes * 60),
+            "sheet_money": sheet_money,
+            "reward_factor": reward,
+            # The price written in content.json (and paid by the model): ×REWARD_FACTOR for a campaign reward.
+            "money": sheet_money * reward,
             "materials_base": [{"itemId": item, "amount": amount} for item, amount in materials],
-            "materials": [{"itemId": item, "amount": amount * factor} for item, amount in materials],
+            "materials": [{"itemId": item, "amount": amount * factor * reward} for item, amount in materials],
         })
     jackpot = jackpot_value(content)
     extra = jackpot - JACKPOT_PIECES * b[JACKPOT_ITEM]
@@ -1009,7 +1022,7 @@ def build_workbook(REPO, OUT):
     # Same numbers as balance() (the source of --scrivi-costi): inputs in blue, the formulas mirror the Python.
     model = balance(content)
     names = {m["itemId"]: m["displayName"] for m in market}
-    Z = sheet("Bilanciamento", (30, 20, 16, 14, 16, 16, 16, 16, 12, 40, 44))
+    Z = sheet("Bilanciamento", (30, 20, 16, 14, 16, 16, 16, 16, 12, 40, 44, 14, 18))
     title(Z, "Bilanciamento della Ricerca: circa 6 ore vendendo il prodotto migliore di ogni fase",
           "Fonte unica dei costi: python tools/dev/genera_finanza.py --scrivi-costi data/content.json (--controlla li verifica). "
           "I numeri blu sono in PHASES e NODES nello script: si cambiano lì, non qui.")
@@ -1078,7 +1091,8 @@ def build_workbook(REPO, OUT):
     Z[f"A{r}"].font = BOLD
     r += 1
     header(Z, r, ["Nodo", "id", "Fase", "Minuti di lavoro", "Incasso della fase ($/s)", "Soldi esatti ($)",
-                  "Soldi (2 cifre) ($)", "In content.json ($)", "Controllo", "Materiali (prima)", "Materiali (dopo)"])
+                  "Soldi (2 cifre) ($)", "In content.json ($)", "Controllo", "Materiali (prima)", "Materiali (dopo)",
+                  "Fattore premio", "Premio del capitolo"])
     r += 1
     first_node = r
     structures = {s["id"]: s for s in content["structures"]}
@@ -1095,9 +1109,14 @@ def build_workbook(REPO, OUT):
         cell(Z, f"F{r}", f"=D{r}*60*E{r}", fmt="$#,##0")
         cell(Z, f"G{r}", f"=ROUND(F{r},1-INT(LOG10(F{r})))", fmt="$#,##0")
         cell(Z, f"H{r}", node["money"], fmt="$#,##0")
-        cell(Z, f"I{r}", f'=IF(G{r}=H{r},"ok","DIVERSO")')
+        cell(Z, f"I{r}", f'=IF(G{r}*L{r}=H{r},"ok","DIVERSO")')
         cell(Z, f"J{r}", materials_text(node["materials_base"])).alignment = WRAP
         cell(Z, f"K{r}", materials_text(node["materials"])).alignment = WRAP
+        cell(Z, f"L{r}", node["reward_factor"], BLUE, "0",
+             comment=f"Premio della campagna (REWARDS): in campagna non si compra, nella partita libera costa "
+                     f"{REWARD_FACTOR} volte il foglio, soldi e materiali." if node["id"] in REWARDS else None)
+        if node["id"] in REWARDS:
+            cell(Z, f"M{r}", REWARDS[node["id"]], fmt="0")
         r += 1
     last_node = r - 1
     cell(Z, f"A{r}", "Ricerca intera", BOLD)

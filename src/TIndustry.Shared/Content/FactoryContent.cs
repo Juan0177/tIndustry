@@ -172,6 +172,7 @@ public sealed class FactoryContent
         ValidateCrafters(buildings, recipes);
         ValidateRecipeResearch(recipes, structures);
         ValidateUpgrades(structures, buildings, conveyors);
+        ValidateCampaignRewards(structures);
 
         return new FactoryContent
         {
@@ -250,6 +251,38 @@ public sealed class FactoryContent
             {
                 throw new InvalidDataException(
                     $"content.json: structures '{structure.Id}': un potenziamento non ha un blocco da piazzare.");
+            }
+        }
+    }
+
+    /// <summary>Chapters of the campaign: each gives exactly one research node (<see cref="StructureDefinition.CampaignReward"/>).</summary>
+    public const int CampaignChapters = 4;
+
+    // One reward per chapter (1–4), each on a node that is sold in free play (it has an unlock).
+    private static void ValidateCampaignRewards(List<StructureDefinition> structures)
+    {
+        foreach (var structure in structures.Where(s => s.CampaignReward is not null))
+        {
+            if (structure.CampaignReward is < 1 or > CampaignChapters)
+            {
+                throw new InvalidDataException(
+                    $"content.json: structures '{structure.Id}': campaignReward deve essere un capitolo da 1 a {CampaignChapters}.");
+            }
+
+            if (structure.Unlock is null)
+            {
+                throw new InvalidDataException(
+                    $"content.json: structures '{structure.Id}': un premio della campagna deve avere un costo di sblocco (unlock).");
+            }
+        }
+
+        for (var chapter = 1; chapter <= CampaignChapters; chapter++)
+        {
+            var count = structures.Count(s => s.CampaignReward == chapter);
+            if (count != 1)
+            {
+                throw new InvalidDataException(
+                    $"content.json: il capitolo {chapter} della campagna deve avere un premio (campaignReward) e uno solo, non {count}.");
             }
         }
     }
@@ -797,7 +830,8 @@ public sealed class FactoryContent
             (s.Prerequisites ?? [])
                 .Where(id => !string.IsNullOrWhiteSpace(id))
                 .ToList(),
-            Math.Max(0, s.ItemCapacity));
+            Math.Max(0, s.ItemCapacity),
+            s.CampaignReward);
 
     private static IReadOnlyList<ResourceAmount> MapAmounts(List<AmountDto>? list) =>
         (list ?? [])
@@ -1026,6 +1060,8 @@ public sealed class FactoryContent
         public List<string>? Prerequisites { get; set; }
         /// <summary>Storage blocks only: pieces per item.</summary>
         public int ItemCapacity { get; set; }
+        /// <summary>Campaign rewards only: the chapter whose end gives the node.</summary>
+        public int? CampaignReward { get; set; }
     }
 
     private sealed class AmountDto

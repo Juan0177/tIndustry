@@ -2393,18 +2393,46 @@ public sealed class Factory : IGameView
 
     public bool IsStructureUnlocked(string structureId) => Research.IsUnlocked(structureId);
 
+    /// <summary>
+    /// True when <paramref name="structure"/> is a campaign reward (<see cref="StructureDefinition.CampaignReward"/>)
+    /// and this is a campaign game: then only <see cref="GrantCampaignReward"/> unlocks it.
+    /// </summary>
+    public bool IsCampaignRewardOnly(StructureDefinition structure) =>
+        ResearchState.IsCampaignRewardOnly(structure, inCampaign: ActiveCampaignLevelId is not null);
+
+    /// <summary>Buys a research node with the wallet; false (nothing spent) when it cannot, or is a campaign reward in the campaign.</summary>
     public bool TryUnlockStructure(string structureId)
     {
         var structure = Content.FindStructure(structureId);
-        if (structure is null || !Research.TryUnlock(structure, Wallet))
+        if (structure is null || IsCampaignRewardOnly(structure) || !Research.TryUnlock(structure, Wallet))
         {
             return false;
         }
 
-        // A recipe node (kind "recipe") opens its recipe on the machines already built.
-        RefreshAvailableRecipes();
+        AfterUnlock();
         return true;
     }
+
+    /// <summary>
+    /// Gives the campaign reward <paramref name="nodeId"/> (<see cref="StructureDefinition.CampaignReward"/>) for free,
+    /// without its prerequisites, in any game; saved with the other unlocks. False, changing nothing, for an unknown
+    /// id, a node that is not a reward or one already unlocked.
+    /// </summary>
+    public bool GrantCampaignReward(string nodeId)
+    {
+        var structure = Content.FindStructure(nodeId);
+        if (structure?.CampaignReward is null || Research.IsUnlocked(structure.Id))
+        {
+            return false;
+        }
+
+        Research.ForceUnlock(structure.Id);
+        AfterUnlock();
+        return true;
+    }
+
+    // What follows any unlock: a recipe node (kind "recipe") opens its recipe on the machines already built.
+    private void AfterUnlock() => RefreshAvailableRecipes();
 
     /// <summary>
     /// The recipes of <paramref name="buildingId"/> (<see cref="FactoryContent.RecipesFor"/>) without those whose

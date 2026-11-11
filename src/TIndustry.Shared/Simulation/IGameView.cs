@@ -61,7 +61,8 @@ public interface IResearchView
 
     ResearchNodeState GetNodeState(StructureDefinition structure);
 
-    bool CanUnlock(StructureDefinition structure, IWalletView wallet);
+    /// <param name="inCampaign">True in a campaign game: its rewards (<see cref="StructureDefinition.CampaignReward"/>) are not for sale.</param>
+    bool CanUnlock(StructureDefinition structure, IWalletView wallet, bool inCampaign = false);
 
     bool MeetsPrerequisites(StructureDefinition structure);
 }

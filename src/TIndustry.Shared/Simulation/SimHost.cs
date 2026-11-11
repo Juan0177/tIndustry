@@ -604,6 +604,11 @@ public sealed class SimHost
             return RefusalCode.AlreadyUnlocked;
         }
 
+        if (factory.IsCampaignRewardOnly(structure))
+        {
+            return new Refusal(RefusalCode.CampaignRewardOnly, StructureId: structure.Id);
+        }
+
         if (!factory.Research.MeetsPrerequisites(structure))
         {
             return RefusalCode.MissingPrerequisites;
