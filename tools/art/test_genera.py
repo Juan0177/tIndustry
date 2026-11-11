@@ -21,7 +21,7 @@ if ART_DIR not in sys.path:
 import carattere  # noqa: E402
 import forme  # noqa: E402
 import genera  # noqa: E402
-from blocchi import SPRITE, sprite  # noqa: E402
+from blocchi import SPRITE, potenza, sprite  # noqa: E402
 from blocchi.logistica import TIER  # noqa: E402
 from palette import ACCENTO, BAGLIORE, CELLA, ENERGIA, FERRO, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
 
@@ -691,7 +691,6 @@ class TestGenera(unittest.TestCase):
             "miner": ("miner-drill-anim", 8), "miner-advanced": ("miner-advanced-drill-anim", 8),
             "impact-drill": ("impact-drill-drill-anim", 8),
             "smelter": ("smelter-glow-anim", 4), "generator": ("generator-rotor-anim", 4),
-            "combustion-generator": ("combustion-generator-rotor-anim", 4),
         }
         for blocco, (anim, n) in strati.items():
             with self.subTest(blocco=blocco):
@@ -699,6 +698,18 @@ class TestGenera(unittest.TestCase):
                 self.assertEqual(n, len(fotogrammi))
                 icona = forme.componi(SPRITE[blocco + "-base"](), fotogrammi[0])
                 self.assertEqual(icona.tobytes(), SPRITE[blocco]().tobytes())
+        # Combustion generator: cold base, fire in the firebox (4 frames, transparent outside it, changing every
+        # frame) and the generator's rotor; the icon = base + fire frame 1 + rotor frame 1.
+        fuoco = fotogrammi_di(SPRITE["combustion-generator-fire-anim"]())
+        rotore = fotogrammi_di(SPRITE["combustion-generator-rotor-anim"]())
+        self.assertEqual((4, 4), (len(fuoco), len(rotore)))
+        x0, y0, x1, y1 = potenza.FOCOLARE
+        for f in fuoco:
+            self.assertEqual((x0, y0, x1 + 1, y1 + 1), f.getbbox())
+        for a, b in zip(fuoco, fuoco[1:] + fuoco[:1]):
+            self.assertNotEqual(a.tobytes(), b.tobytes())
+        icona = forme.componi(SPRITE["combustion-generator-base"](), fuoco[0], rotore[0])
+        self.assertEqual(icona.tobytes(), SPRITE["combustion-generator"]().tobytes())
         for nome in ("miner-advanced-lamp", "assembler-base", "assembler-arm", "assembler",
                      "extractor", "power-node", "power-node-t2", "lamp-base", "lamp-glow"):
             self.assertIn(nome, SPRITE)

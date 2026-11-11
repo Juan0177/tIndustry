@@ -90,6 +90,7 @@ public sealed class StackConveyorTests
         Assert.Equal(60, BeltGrid.StackWaitTicks);
         Assert.Equal("Nastro a pacchi", Content.RequireStructure(StackId).DisplayName);
         Assert.Equal(1, new TransportedItem(1, Iron).Count);
+        Assert.Equal(StackId, Factory.StructureIdForTool("belt-stack"));
     }
 
     [Fact]

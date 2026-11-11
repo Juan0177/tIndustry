@@ -182,8 +182,14 @@ blocco.costo.ok,ok,ok
 blocco.costo.manca,manca,missing
 blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro o Esc = deseleziona,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click or Esc = deselect
 blocco.io.minatore,I/O · estrae dal deposito sotto (o sabbia dal pavimento),I/O · mines the deposit below (or sand from the floor)
-blocco.io.generatore,I/O · carbone → potenza,I/O · coal → power
-blocco.io.combustione,I/O · carbone o grafite → potenza,I/O · coal or graphite → power
+blocco.io.generatore,I/O · {0} → {1} di energia/s,I/O · {0} → {1} power/s
+blocco.io.carburante,1 {0} ogni {1},1 {0} every {1}
+blocco.io.gate.overflow,I/O · dritto · se davanti è pieno a sinistra e a destra alternando,I/O · straight on · left and right alternating when the front is full
+blocco.io.gate.underflow,I/O · a sinistra e a destra alternando · dritto quando i lati sono pieni,I/O · left and right alternating · straight on when the sides are full
+blocco.io.pacchi,I/O · pacchi da {0} pezzi · {1} celle/s · carica solo la prima cella,I/O · packs of {0} pieces · {1} cells/s · only the first cell loads
+blocco.io.ponte,I/O · portata {0} celle · corrente {1}/s,I/O · reach {0} cells · power {1}/s
+blocco.io.solare,I/O · luce del giorno → {0} di energia/s · 0 di notte,I/O · daylight → {0} power/s · 0 at night
+blocco.io.batteria,I/O · accumula fino a {0},I/O · stores up to {0}
 blocco.io.trasporto,I/O · trasporto oggetti,I/O · moves items
 blocco.io.caso,{0} {1}%,{0} {1}%
 menu.menu,Menu,Menu

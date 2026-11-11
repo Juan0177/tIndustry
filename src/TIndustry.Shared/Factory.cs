@@ -2640,6 +2640,7 @@ public sealed class Factory : IGameView
         "belt-fast" => "conveyor-fast",
         "belt-express" => "conveyor-express",
         "belt-armored" => "conveyor-armored",
+        "belt-stack" => "conveyor-stack",
         "miner" => "miner",
         "miner-advanced" => "miner-advanced",
         "smelter" => "smelter",

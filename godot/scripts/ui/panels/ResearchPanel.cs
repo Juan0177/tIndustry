@@ -527,7 +527,10 @@ public partial class ResearchPanel : Control
         var recipe = BlockInfoPanel.DefaultRecipe(structureId, content);
         if (recipe is null)
         {
-            return Testi.F("ricerca.uso", hint);
+            // Gates, stack conveyor, long bridge, solar panels, generators and batteries: their numbers from the data.
+            return BlockInfoPanel.BlockIoLine(structureId, content) is { Length: > 0 } io
+                ? Testi.F("ricerca.uso", hint) + "\n" + io
+                : Testi.F("ricerca.uso", hint);
         }
 
         string Fmt(IReadOnlyList<ResourceAmount> list) =>

@@ -297,13 +297,15 @@ public partial class BlockInfoPanel : Control
         var recipe = DefaultRecipe(structureId, _content);
         if (recipe is null)
         {
+            if (BlockIoLine(structureId, _content) is { Length: > 0 } line)
+            {
+                return line;
+            }
+
             return structureId switch
             {
                 "miner" or Miner.ImpactDrillId => Testi.T("blocco.io.minatore"),
-                "generator" => Testi.T("blocco.io.generatore"),
-                Generator.CombustionId => Testi.T("blocco.io.combustione"),
                 "conveyor-basic" or "junction" or "router" or "sorter" or "conveyor-bridge"
-                    or Factory.OverflowGateId or Factory.UnderflowGateId or "conveyor-stack" or Factory.BridgeLongId
                     => Testi.T("blocco.io.trasporto"),
                 _ => ""
             };
@@ -315,6 +317,51 @@ public partial class BlockInfoPanel : Control
 
         var outputs = recipe.RandomOutput ? RandomOutputs(recipe, _content, "/") : Fmt(recipe.Outputs);
         return $"I/O · {Fmt(recipe.Inputs)} → {outputs} ({Testi.Secondi(RecipeSeconds(recipe, structureId, _content))})";
+    }
+
+    /// <summary>
+    /// The I/O line of a block that crafts nothing but has numbers of its own (the block info and the research tree
+    /// show it): what the gates do, the stack conveyor's pack and speed, the long bridge's reach and power, the solar
+    /// panels' output by day, what the generators burn and make, the batteries' capacity; all from the content.
+    /// Empty for any other block.
+    /// </summary>
+    internal static string BlockIoLine(string structureId, FactoryContent content)
+    {
+        static string Number(double value) =>
+            Testi.Decimale(value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+
+        if (content.FindConveyor(structureId) is { } conveyor)
+        {
+            return conveyor.Kind switch
+            {
+                LogisticsKind.Gate => Testi.T(conveyor.Inverted ? "blocco.io.gate.underflow" : "blocco.io.gate.overflow"),
+                LogisticsKind.Stack => Testi.F(
+                    "blocco.io.pacchi", BeltGrid.StackPackSize, Number(conveyor.RateItemsPerSecond)),
+                LogisticsKind.Bridge when conveyor.IsPoweredBridge => Testi.F(
+                    "blocco.io.ponte", conveyor.MaxSpan, Number(conveyor.PowerUse)),
+                _ => ""
+            };
+        }
+
+        if (Generator.IsGeneratorId(structureId))
+        {
+            var fuels = string.Join(" / ", Generator.FuelsOf(content, structureId).Select(f =>
+                Testi.F("blocco.io.carburante", Testi.Oggetto(f.ItemId, content), Testi.Secondi(f.Seconds))));
+            return Testi.F("blocco.io.generatore", fuels, Number(Generator.OutputRateOf(content, structureId) / 1000.0));
+        }
+
+        if (SolarPanel.IsSolarId(structureId) && content.FindBuilding(structureId) is { } panel)
+        {
+            return Testi.F("blocco.io.solare", Number(panel.PowerOutput));
+        }
+
+        if (Battery.IsBatteryId(structureId))
+        {
+            return Testi.F(
+                "blocco.io.batteria", Battery.CapacityOf(content, structureId) / BuildingDefinition.ChargePerUnit);
+        }
+
+        return "";
     }
 
     /// <summary>

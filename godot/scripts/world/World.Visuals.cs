@@ -338,11 +338,10 @@ public partial class World
             _buildingsLayer.AddChild(node);
         }
 
-        // Solar panels: static pads for now (their own visual comes with the power blocks' client work).
         foreach (var panel in _view.SolarPanels)
         {
-            var node = BuildingPad.Create(panel.DefinitionId, panel.Size, TileSize);
-            node.Name = $"SolarPanel_{panel.Position.X}_{panel.Position.Y}";
+            var node = SolarVisual.Create(
+                panel, _view.Content.FindBuilding(panel.DefinitionId)?.PowerOutputRate ?? 0, TileSize);
             node.Position = FootprintCenter(panel.Position, panel.Size);
             _buildingsLayer.AddChild(node);
         }
@@ -516,6 +515,17 @@ public partial class World
                     }
 
                     break;
+                case SolarVisual solarVis:
+                    foreach (var panel in _view.SolarPanels)
+                    {
+                        if (panel.Position.Equals(solarVis.Origin))
+                        {
+                            solarVis.Sync(panel);
+                            break;
+                        }
+                    }
+
+                    break;
                 case MarketScreenVisual screenVis:
                     if (_view.MarketScreen is { } screen && screen.Position.Equals(screenVis.Origin))
                     {
@@ -658,6 +668,7 @@ public partial class World
                 _itemMotion[item.Id] = motion;
                 var drawn = motion.At(alpha);
                 sprite.Position = new Vector2(drawn.X, drawn.Y);
+                SyncPackMark(sprite, item.Count);
                 // Corner and T = galleria: items disappear while inside the turn or the merge (side joins show them).
                 sprite.Visible = _view.GetBeltShape(cell.Position) is not (BeltShape.Corner or BeltShape.T);
             }
@@ -669,6 +680,63 @@ public partial class World
             _itemSprites[id].QueueFree();
             _itemSprites.Remove(id);
             _itemMotion.Remove(id);
+        }
+    }
+
+    /// <summary>Shift of each copy behind a pack's item sprite, in the sprite's own pixels: up and to the right.</summary>
+    private static readonly Vector2 PackStep = new(2f, -2f);
+
+    /// <summary>The copies behind a pack are a little darker than the item in front.</summary>
+    private static readonly Color PackShade = new(0.78f, 0.78f, 0.78f);
+
+    /// <summary>
+    /// Copies of the item drawn behind a stack conveyor's pack (<see cref="TransportedItem.Count"/>): none for one piece,
+    /// one up to 4, two up to 9, three for a full pack of <see cref="BeltGrid.StackPackSize"/>.
+    /// </summary>
+    private static int PackLayers(int count) => count switch
+    {
+        <= 1 => 0,
+        < 5 => 1,
+        < BeltGrid.StackPackSize => 2,
+        _ => 3
+    };
+
+    /// <summary>
+    /// The pack mark of an item sprite: <see cref="PackLayers"/> copies of its texture behind it, each one
+    /// <see cref="PackStep"/> further, a pile that grows while the first cell of a stack conveyor fills the pack.
+    /// </summary>
+    private static void SyncPackMark(Sprite2D sprite, int count)
+    {
+        var layers = PackLayers(count);
+        var have = sprite.GetChildCount();
+        if (have == layers)
+        {
+            return;
+        }
+
+        for (var i = have; i < layers; i++)
+        {
+            sprite.AddChild(new Sprite2D
+            {
+                Name = $"Pezzo{i + 1}",
+                Texture = sprite.Texture,
+                Centered = true,
+                ShowBehindParent = true,
+                SelfModulate = PackShade
+            });
+        }
+
+        for (var i = have - 1; i >= layers; i--)
+        {
+            var child = sprite.GetChild(i);
+            sprite.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        // Behind the parent the children draw in tree order: the farthest copy first, the nearest over it.
+        for (var i = 0; i < layers; i++)
+        {
+            sprite.GetChild<Sprite2D>(i).Position = PackStep * (layers - i);
         }
     }
 
@@ -696,7 +764,8 @@ public partial class World
             return;
         }
 
-        var onBelt = _view.Belts.Values.Sum(c => c.Items.Count);
+        // A stack conveyor's pack counts its pieces.
+        var onBelt = _view.Belts.Values.Sum(c => c.Items.Sum(i => i.Count));
         var gensLive = _view.Generators.Count(g => g.IsGenerating);
         var (stored, capacity) = BatteryUnits(_view);
         _hud.BindEconomy(_view.Content, _view.Wallet);
