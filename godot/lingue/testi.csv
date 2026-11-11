@@ -165,7 +165,7 @@ comune.annulla,Annulla,Cancel
 blocco.costo.ok,ok,ok
 blocco.costo.manca,manca,missing
 blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro o Esc = deseleziona,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click or Esc = deselect
-blocco.io.minatore,I/O · estrae dal deposito sotto,I/O · mines the deposit below
+blocco.io.minatore,I/O · estrae dal deposito sotto (o sabbia dal pavimento),I/O · mines the deposit below (or sand from the floor)
 blocco.io.generatore,I/O · carbone → potenza,I/O · coal → power
 blocco.io.trasporto,I/O · trasporto oggetti,I/O · moves items
 blocco.io.caso,{0} {1}%,{0} {1}%

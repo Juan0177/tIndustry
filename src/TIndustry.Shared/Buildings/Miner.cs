@@ -100,6 +100,9 @@ public sealed class Miner
     /// <summary>On a deposit (gears should spin).</summary>
     public bool IsWorking => Efficiency > 0f;
 
+    /// <summary>True while the miner actually digs this tick: on a deposit and, for the drill, with some power.</summary>
+    public bool IsMining => IsWorking && (!NeedsPower || IsPowered);
+
     public float MiningSpeed => SpeedOf(DefinitionId);
 
     /// <summary>The T2 and the drill are power blocks; the T1 is not.</summary>

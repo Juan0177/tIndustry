@@ -64,7 +64,7 @@ public sealed class AgentGame : IDisposable
         ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
         ('T', "trapano a impatto"),
         ('!', "struttura senza simbolo"),
-        ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
+        ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
         ('p', "giacimento di piombo"), ('t', "giacimento di titanio"), ('.', "suolo libero")
     ];
@@ -991,7 +991,12 @@ public sealed class AgentGame : IDisposable
             DepositKind.Coal => 'k',
             DepositKind.Lead => 'p',
             DepositKind.Titanium => 't',
-            _ => tile.Floor == FloorKind.ShallowWater ? ',' : '.'
+            _ => tile.Floor switch
+            {
+                FloorKind.ShallowWater => ',',
+                FloorKind.Sand or FloorKind.DarkSand => 's',
+                _ => '.'
+            }
         };
     }
 

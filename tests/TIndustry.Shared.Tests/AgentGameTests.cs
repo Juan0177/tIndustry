@@ -1104,6 +1104,30 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void AreaShowsSandFloorWithoutDeposit()
+    {
+        var factory = NewFactory();
+        var tiles = new TerrainTile[120, 120];
+        for (var x = 0; x < 120; x++)
+        {
+            for (var y = 0; y < 120; y++)
+            {
+                tiles[x, y] = new TerrainTile(FloorKind.Stone, WallKind.None, DepositKind.None);
+            }
+        }
+
+        tiles[10, 10] = new TerrainTile(FloorKind.Sand, WallKind.None, DepositKind.None);
+        tiles[11, 10] = new TerrainTile(FloorKind.DarkSand, WallKind.None, DepositKind.None);
+        tiles[12, 10] = new TerrainTile(FloorKind.Sand, WallKind.None, DepositKind.Iron);
+        factory.Terrain = TerrainMap.FromTiles(tiles);
+        using var game = new AgentGame(new SimHost(factory), Content);
+
+        var area = Call(game, "area", """{"da":{"x":9,"y":10},"a":{"x":12,"y":10}}""");
+        Assert.Equal(".ssi", area.GetProperty("righe")[0].GetString());
+        Assert.Equal("pavimento di sabbia", area.GetProperty("legenda").GetProperty("s").GetString());
+    }
+
+    [Fact]
     public void AreaCountsTheItemsOnBelts()
     {
         var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));

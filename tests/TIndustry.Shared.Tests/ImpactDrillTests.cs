@@ -196,6 +196,34 @@ public sealed class ImpactDrillTests
     }
 
     [Fact]
+    public void IsMiningNeedsPowerOnlyForTheDrill()
+    {
+        // Drill on iron: on a deposit (IsWorking) but stopped without power, mining with it.
+        var factory = Sandbox(Block(27, 30, 3, FloorKind.Stone, DepositKind.Iron));
+        var drill = PlaceDrill(factory, 27, 30);
+        Run(factory, 5);
+        Assert.True(drill.IsWorking);
+        Assert.False(drill.IsMining);
+        BurningGenerator(factory, 25, 30);
+        Run(factory, 5);
+        Assert.True(drill.IsPowered);
+        Assert.True(drill.IsMining);
+
+        // T1 and T2 mine without power.
+        var t12 = Sandbox([.. Block(10, 10, 2, FloorKind.Stone, DepositKind.Iron), .. Block(20, 20, 2, FloorKind.Stone, DepositKind.Iron)]);
+        Assert.True(t12.PlaceInstant(
+            new BuildSpec(Miner.AdvancedId, BuildingKind.MinerAdvanced, new GridPosition(10, 10), Direction.East), charge: false));
+        Assert.True(t12.PlaceInstant(
+            new BuildSpec(Miner.BasicId, BuildingKind.Miner, new GridPosition(20, 20), Direction.East), charge: false));
+        Run(t12, 1);
+        var t2 = t12.Miners.Single(m => m.DefinitionId == Miner.AdvancedId);
+        var t1 = t12.Miners.Single(m => m.DefinitionId == Miner.BasicId);
+        Assert.False(t2.IsPowered);
+        Assert.True(t2.IsMining);
+        Assert.True(t1.IsMining);
+    }
+
+    [Fact]
     public void DrillIsAPowerConsumer()
     {
         var factory = Sandbox(Block(27, 30, 3, FloorKind.Stone, DepositKind.Iron));

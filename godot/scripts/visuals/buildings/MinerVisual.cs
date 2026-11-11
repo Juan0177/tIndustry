@@ -56,10 +56,10 @@ public partial class MinerVisual : Node2D
         if (fx is not null)
         {
             _fx = fx;
-            _sparks = fx.Keep(_sparks, miner.Efficiency > 0f, "scintille-trivella", this, Vector2.Zero, MinerOrigin);
+            _sparks = fx.Keep(_sparks, miner.IsMining, "scintille-trivella", this, Vector2.Zero, MinerOrigin);
         }
 
-        if (miner.Efficiency > 0f && _drill is not null && _frames.Length > 0)
+        if (miner.IsMining && _drill is not null && _frames.Length > 0)
         {
             _clock += delta;
             _drill.Texture = Frame();

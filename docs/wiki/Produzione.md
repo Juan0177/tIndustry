@@ -31,7 +31,7 @@ I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca). Le costruzi
 
 Si piazza su un giacimento. Con tutte e 4 le celle sul minerale produce **1 oggetto ogni 2 secondi**; con meno celle va più piano in proporzione (2 celle su 4: 1 oggetto ogni 4 secondi). Se copre più minerali scava quello presente nel maggior numero di celle. Non scava il titanio. Non usa corrente.
 
-**Sabbia.** Un minatore (T1, T2 o trapano) che non ha sotto un giacimento che sa scavare, ma ha celle di pavimento di **sabbia** o **sabbia scura**, scava **Sabbia**, con l'efficienza delle celle di sabbia sull'impronta (3 celle su 4: tre quarti del ritmo). Un giacimento scavabile vince sempre sulla sabbia. Il drone non scava sabbia a mano.
+**Sabbia.** Un minatore (T1, T2 o trapano) che non ha sotto un giacimento che sa scavare, ma ha celle di pavimento di **sabbia** o **sabbia scura**, scava **Sabbia**, con l'efficienza delle celle di sabbia sull'impronta (sul T1 e sul trapano 3 celle su 4 danno tre quarti del ritmo; il T2 con il suo bonus del 25% arriva al massimo). Un giacimento scavabile vince sempre sulla sabbia. Il drone non scava sabbia a mano.
 
 ## Minatore T2
 
