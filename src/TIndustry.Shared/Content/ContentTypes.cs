@@ -40,17 +40,42 @@ public sealed record ConveyorDefinition(
     public IReadOnlyList<ResourceAmount> EffectiveBuildCost => BuildCost ?? [];
 }
 
+/// <summary>
+/// A recipe of content.json. With <paramref name="RandomOutput"/> (JSON <c>randomOutput</c>) the amounts of
+/// <paramref name="Outputs"/> are weights and one craft makes a single piece of one of them.
+/// </summary>
 public sealed record RecipeDefinition(
     string Id,
     float DurationSeconds,
     IReadOnlyList<ResourceAmount> Inputs,
-    IReadOnlyList<ResourceAmount> Outputs);
+    IReadOnlyList<ResourceAmount> Outputs,
+    bool RandomOutput = false);
+
+/// <summary>
+/// How a craft machine uses power (JSON <c>powerMode</c>), on top of its <see cref="BuildingDefinition.CraftSpeedPercent"/>:
+/// <list type="bullet">
+/// <item><see cref="CoalOrPower"/> (<c>coal-or-power</c>, the forno): 1.2 × s with power, 1× burning coal, else stalled;</item>
+/// <item><see cref="Boost"/> (<c>boost</c>, the assembler): always works, 1 + 0.2 × s;</item>
+/// <item><see cref="Required"/> (<c>required</c>): s, stalled without power, never burns coal;</item>
+/// <item><see cref="None"/> (<c>none</c>): always works at its speed and never asks for power.</item>
+/// </list>
+/// s is the satisfaction of its network (0–1).
+/// </summary>
+public enum CraftPowerMode
+{
+    CoalOrPower,
+    Boost,
+    Required,
+    None
+}
 
 /// <summary>
 /// A building of content.json. Power (spec «Rete di corrente»): <paramref name="PowerUse"/> and
 /// <paramref name="PowerOutput"/> are units per second, <paramref name="PowerLinkRange"/> (cells between the edges of
 /// the two blocks) and <paramref name="MaxPowerLinks"/> belong to the power nodes, <paramref name="PowerCapacity"/>
-/// (units) to the battery; 0 = none.
+/// (units) to the battery; 0 = none. A craft machine names its recipes by id prefix (<paramref name="RecipePrefix"/>,
+/// JSON <c>recipes</c>; null = not a craft machine), its <paramref name="PowerMode"/> and its speed
+/// (<paramref name="CraftSpeedPercent"/>, 100 = 1×; JSON <c>craftSpeed</c> as a multiplier).
 /// </summary>
 public sealed record BuildingDefinition(
     string Id,
@@ -63,8 +88,14 @@ public sealed record BuildingDefinition(
     float PowerOutput = 0f,
     int PowerLinkRange = 0,
     int MaxPowerLinks = 0,
-    int PowerCapacity = 0)
+    int PowerCapacity = 0,
+    string? RecipePrefix = null,
+    CraftPowerMode PowerMode = CraftPowerMode.CoalOrPower,
+    int CraftSpeedPercent = 100)
 {
+    /// <summary>True for a craft machine: it has recipes (<see cref="RecipePrefix"/>).</summary>
+    public bool IsCrafter => RecipePrefix is not null;
+
     /// <summary>Sixty-thousandths of a unit in one unit: a battery's charge unit (one tick moves a milli-rate of them).</summary>
     public const long ChargePerUnit = 60_000;
 

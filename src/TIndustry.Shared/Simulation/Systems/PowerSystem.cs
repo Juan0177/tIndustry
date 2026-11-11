@@ -39,11 +39,9 @@ public sealed class PowerSystem : ISimulationSystem
             }
         }
 
-        var smelterRate = RateOf(state.Content, Crafter.SmelterBuildingId);
-        var assemblerRate = RateOf(state.Content, Crafter.AssemblerBuildingId);
         foreach (var craft in state.CraftMachines())
         {
-            var rate = craft.IsAssembler ? assemblerRate : smelterRate;
+            var rate = RateOf(state.Content, craft.DefinitionId);
             if (!Ask(grid, craft.Id, craft.PowerRequested, rate, requested, out var index))
             {
                 craft.PowerRequested = false;

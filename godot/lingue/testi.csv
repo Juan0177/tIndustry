@@ -41,12 +41,20 @@ oggetto.titanium-ore.nome,Titanio grezzo,Titanium ore
 oggetto.titanium-plate.nome,Lastra di titanio,Titanium plate
 oggetto.graphite.nome,Grafite,Graphite
 oggetto.silicon.nome,Silicio,Silicon
+oggetto.sand.nome,Sabbia,Sand
+oggetto.glass.nome,Vetro,Glass
+oggetto.plastic.nome,Plastica,Plastic
+oggetto.circuit.nome,Circuito,Circuit
 ricetta.smelt-iron.nome,Lastra di ferro,Iron plate
 ricetta.smelt-lead.nome,Lastra di piombo,Lead plate
 ricetta.smelt-titanium.nome,Lastra di titanio,Titanium plate
 ricetta.craft-copper-wire.nome,Filo di rame,Copper wire
 ricetta.craft-graphite.nome,Grafite,Graphite
 ricetta.craft-silicon.nome,Silicio,Silicon
+ricetta.smelt-glass.nome,Vetro,Glass
+ricetta.press-graphite.nome,Grafite,Graphite
+ricetta.separate-sand.nome,Minerali dalla sabbia,Ores from sand
+ricetta.plasticize-plastic.nome,Plastica,Plastic
 giacimento.iron.nome,ferro,iron
 giacimento.copper.nome,rame,copper
 giacimento.coal.nome,carbone,coal

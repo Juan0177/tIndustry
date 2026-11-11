@@ -212,14 +212,22 @@ public sealed class LogisticsCostsTests
         Assert.True(problems.Count == 0, string.Join("\n", problems));
     }
 
-    /// <summary>True when the item comes from a recipe or needs the Miner T2 (it drives research).</summary>
+    /// <summary>True when the item comes from a recipe or needs the Miner T2 (it drives research); other ores are mined.</summary>
     private static bool IsMade(string itemId) =>
-        itemId == "titanium-ore" || Content.Recipes.Any(r => r.Outputs.Any(o => o.ItemId == itemId));
+        itemId == "titanium-ore" || (!IsOre(itemId) && Content.Recipes.Any(r => r.Outputs.Any(o => o.ItemId == itemId)));
+
+    /// <summary>True for the item of a deposit (mined on the map even when a recipe also makes it, like the separator's).</summary>
+    private static bool IsOre(string itemId) =>
+        Enum.GetValues<DepositKind>().Any(d => d != DepositKind.None && TerrainMap.ItemIdForDeposit(d) == itemId);
+
+    /// <summary>The craft machine that runs <paramref name="recipe"/> (its <c>recipes</c> prefix), null when none does yet.</summary>
+    private static string? MachineOf(RecipeDefinition recipe) =>
+        Content.Buildings.FirstOrDefault(b => b.IsCrafter && recipe.Id.StartsWith(b.RecipePrefix!, StringComparison.Ordinal))?.Id;
 
     /// <summary>
     /// Locked research a level needs: its research objectives; for each stock or sell objective (in
-    /// <see cref="CoveredAtStart"/> only those the start does not already cover), the machine of the item's recipe (smelter for "smelt-*", else assembler; titanium ore needs the
-    /// Miner T2), following the inputs the start has none of; then every locked prerequisite, prerequisites first.
+    /// <see cref="CoveredAtStart"/> only those the start does not already cover), the machine of the item's first recipe that a
+    /// machine runs (<see cref="MachineOf"/>; titanium ore needs the Miner T2, the other ores are mined), following the inputs the start has none of; then every locked prerequisite, prerequisites first.
     /// </summary>
     private static List<StructureDefinition> ResearchNeeded(CampaignLevelDefinition level, Factory factory)
     {
@@ -237,13 +245,15 @@ public sealed class LogisticsCostsTests
                 return;
             }
 
-            var recipe = Content.Recipes.FirstOrDefault(r => r.Outputs.Any(o => o.ItemId == itemId));
+            var recipe = IsOre(itemId)
+                ? null
+                : Content.Recipes.FirstOrDefault(r => r.Outputs.Any(o => o.ItemId == itemId) && MachineOf(r) is not null);
             if (recipe is null)
             {
                 return;
             }
 
-            wanted.Add(recipe.Id.StartsWith("smelt-", StringComparison.Ordinal) ? Crafter.SmelterBuildingId : Crafter.AssemblerBuildingId);
+            wanted.Add(MachineOf(recipe)!);
             foreach (var input in recipe.Inputs.Where(i => factory.Wallet.MaterialCount(i.ItemId) == 0))
             {
                 NeedItem(input.ItemId, seen);

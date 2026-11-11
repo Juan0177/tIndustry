@@ -8,6 +8,10 @@ One shape per kind, the same at both sizes:
 - copper wire: a wound coil with a loose end;
 - graphite: three stacked bars;
 - silicon: a cluster of pointed crystals;
+- sand: a heap of speckled grains;
+- glass: a tilted pane with diagonal glints;
+- plastic: a glossy slab with rounded corners;
+- circuit: a green board with a dark chip, gold pins and traces;
 - money: two stacks of coins.
 Outlines are dark (OUT); coal is near-black, so its HUD outline is a light rim. On belts
 (BORDO_CHIARO) coal and titanium get the dark outline plus a light rim just inside it, so they
@@ -18,8 +22,8 @@ import math
 
 import forme
 from blocchi import sprite
-from palette import (ACCENTO, CARBONE, FERRO, FULIGGINE, GRAFITE, OUT, PIOMBO, RAME,
-                     SILICIO, TITANIO)
+from palette import (ACCENTO, CARBONE, CIRCUITO, FERRO, FULIGGINE, GRAFITE, OUT, PIOMBO, PLASTICA,
+                     RAME, SABBIA_GRANI, SILICIO, TITANIO, VETRO)
 
 T = 32  # HUD icon side
 B = 10  # belt sprite side
@@ -46,6 +50,10 @@ OGGETTI = {
     "copper-wire": ("filo", FILO, OUT),
     "graphite": ("barre", GRAFITE, OUT),
     "silicon": ("cristalli", SILICIO, OUT),
+    "sand": ("granelli", SABBIA_GRANI, OUT),
+    "glass": ("vetro", VETRO, OUT),
+    "plastic": ("plastica", PLASTICA, OUT),
+    "circuit": ("circuito", CIRCUITO, OUT),
     "money": ("monete", ACCENTO, OUT),
 }
 
@@ -259,6 +267,105 @@ def cristalli(rampa, contorno):
     return im
 
 
+def granelli(rampa, contorno):
+    """Sand: a low dome of grains, lit on the left, with a fixed speckle of light and dark grains."""
+    toni = _toni(rampa)
+    im = forme.nuova(T, T)
+    cx, base, rx, ry = 16, 28, 14.5, 17.5
+    pieni = {(x, y) for y in range(T) for x in range(T)
+             if y < base and ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - base) / ry) ** 2 <= 1}
+
+    def tono(x, y):
+        k = (x * 7 + y * 13) % 11
+        if k == 0:
+            return toni["4"]
+        if k == 5:
+            return toni["0"] if y > base - 6 else toni["1"]
+        t = (x + 0.5 - cx) / rx - (base - y) / (2 * ry)
+        if y >= base - 2:
+            return toni["1"]
+        return toni["3"] if t < -0.45 else toni["2"] if t < 0.25 else toni["1"]
+
+    _riempi(im, pieni, tono, contorno)
+    return im
+
+
+def vetro(rampa, contorno):
+    """Glass: a tilted pane, lit upper-left edge, shaded lower-right edge and two diagonal glints."""
+    toni = _toni(rampa)
+    im = forme.nuova(T, T)
+    poli = [(3, 12), (19, 2), (29, 20), (13, 30)]
+    pieni = forme.poligono(poli)
+    bordo = _bordo(pieni)
+
+    def tono(x, y):
+        if (x - 1, y) in bordo or (x, y - 1) in bordo:
+            return toni["4"]
+        if (x + 1, y) in bordo or (x, y + 1) in bordo:
+            return toni["1"]
+        # Glints along the long diagonal (x - y constant), the lower half a little deeper.
+        d = x - y
+        if d in (-3, -2, 4):
+            return toni["4"]
+        return toni["3"] if x + y < 31 else toni["2"]
+
+    _riempi(im, pieni, tono, contorno)
+    return im
+
+
+def plastica(rampa, contorno):
+    """Plastic: a thick glossy slab with rounded corners, a highlight curve near the top-left."""
+    toni = _toni(rampa)
+    im = forme.nuova(T, T)
+    pieni = forme.arrotondato(3, 7, 28, 25, 6)
+    bordo = _bordo(pieni)
+
+    def tono(x, y):
+        if (x + 1, y) in bordo or (x, y + 1) in bordo:
+            return toni["0"] if y > 21 else toni["1"]
+        if (x - 1, y) in bordo or (x, y - 1) in bordo:
+            return toni["3"]
+        if y == 10 and 8 <= x <= 20 or x == 6 and 12 <= y <= 15:
+            return toni["4"]
+        return toni["3"] if y < 13 else toni["2"] if y < 20 else toni["1"]
+
+    _riempi(im, pieni, tono, contorno)
+    return im
+
+
+def circuito(rampa, contorno):
+    """Circuit: a green board with traces and pads, a dark chip in the middle with gold pins."""
+    toni = _toni(rampa)
+    im = forme.nuova(T, T)
+    pieni = forme.smussato(2, 3, 29, 28, 2)
+    tracce = set()
+    for y in (9, 15, 21):
+        tracce |= {(x, y) for x in range(5, 11)} | {(x, y) for x in range(21, 27)}
+    for x in (12, 18):
+        tracce |= {(x, y) for y in range(6, 10)} | {(x, y) for y in range(22, 26)}
+    piazzole = {(4, 9), (4, 15), (4, 21), (27, 9), (27, 15), (27, 21), (12, 5), (18, 5), (12, 26), (18, 26)}
+
+    def tono(x, y):
+        if (x, y) in piazzole:
+            return toni["4"]
+        if (x, y) in tracce:
+            return toni["3"]
+        return toni["2"]
+
+    _riempi(im, pieni, tono, contorno)
+    chip = _toni(GRAFITE)
+    oro = _toni(ACCENTO)
+    for y in range(10, 22):
+        for x in range(10, 22):
+            forme.pixel(im, x, y, chip["1"] if x < 21 and y < 21 else chip["0"])
+    for x in range(11, 21):
+        forme.pixel(im, x, 11, chip["3"])
+    for i in range(11, 21, 3):
+        for x, y in ((i, 9), (i + 1, 9), (i, 22), (i + 1, 22), (9, i), (9, i + 1), (22, i), (22, i + 1)):
+            forme.pixel(im, x, y, oro["3"])
+    return im
+
+
 def _moneta(im, cx, cy, rx, ry, s, rampa, contorno):
     """Coin seen from above at an angle: top ellipse at cy, rim s px thick below it."""
     toni = _toni(rampa)
@@ -353,6 +460,54 @@ GRIGLIE = {
         "o21o211o1o",
         "oooooooooo",
     ],
+    "granelli": [
+        "..........",
+        "..........",
+        "....oo....",
+        "...o43o...",
+        "..o4332o..",
+        ".o433221o.",
+        ".o342321o.",
+        "o43232211o",
+        "o32221110o",
+        "oooooooooo",
+    ],
+    "vetro": [
+        "..........",
+        "....oooo..",
+        "...o4443o.",
+        "..o43432o.",
+        ".o4343321o",
+        "o3434321o.",
+        "o343221o..",
+        "o32221o...",
+        "oooooo....",
+        "..........",
+    ],
+    "plastica": [
+        "..........",
+        "..oooooo..",
+        ".o444433o.",
+        "o44333332o",
+        "o43333221o",
+        "o33222211o",
+        "o22222111o",
+        ".o111110o.",
+        "..oooooo..",
+        "..........",
+    ],
+    "circuito": [
+        ".oooooooo.",
+        "o24222242o",
+        "o42000024o",
+        "o22000022o",
+        "o44000044o",
+        "o22000022o",
+        "o42000024o",
+        "o24222242o",
+        "o22422422o",
+        ".oooooooo.",
+    ],
     "monete": [
         "..........",
         "...ooooo..",
@@ -372,8 +527,9 @@ def _grande(item_id):
     tipo, rampa, contorno = OGGETTI[item_id]
     if tipo == "lastra":
         return lastra(rampa, contorno, DETTAGLI[item_id])
-    return {"minerale": minerale, "filo": filo, "barre": barre,
-            "cristalli": cristalli, "monete": monete}[tipo](rampa, contorno)
+    return {"minerale": minerale, "filo": filo, "barre": barre, "cristalli": cristalli,
+            "granelli": granelli, "vetro": vetro, "plastica": plastica, "circuito": circuito,
+            "monete": monete}[tipo](rampa, contorno)
 
 
 def _registra(item_id):

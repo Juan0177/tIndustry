@@ -395,6 +395,83 @@
           "amount": 1
         }
       ]
+    },
+    {
+      "id": "smelt-glass",
+      "durationSeconds": 2.0,
+      "inputs": [
+        {
+          "itemId": "sand",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "glass",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "press-graphite",
+      "durationSeconds": 1.5,
+      "inputs": [
+        {
+          "itemId": "coal",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "graphite",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "separate-sand",
+      "durationSeconds": 2.0,
+      "randomOutput": true,
+      "inputs": [
+        {
+          "itemId": "sand",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "iron-ore",
+          "amount": 30
+        },
+        {
+          "itemId": "copper-ore",
+          "amount": 30
+        },
+        {
+          "itemId": "lead-ore",
+          "amount": 30
+        },
+        {
+          "itemId": "titanium-ore",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "id": "plasticize-plastic",
+      "durationSeconds": 2.0,
+      "inputs": [
+        {
+          "itemId": "coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "plastic",
+          "amount": 1
+        }
+      ]
     }
   ],
   "structures": [
@@ -931,6 +1008,26 @@
       "itemId": "silicon",
       "displayName": "Silicio",
       "baseValue": 32
+    },
+    {
+      "itemId": "sand",
+      "displayName": "Sabbia",
+      "baseValue": 2
+    },
+    {
+      "itemId": "glass",
+      "displayName": "Vetro",
+      "baseValue": 9
+    },
+    {
+      "itemId": "plastic",
+      "displayName": "Plastica",
+      "baseValue": 20
+    },
+    {
+      "itemId": "circuit",
+      "displayName": "Circuito",
+      "baseValue": 90
     }
   ],
   "marketRules": {
@@ -1016,7 +1113,9 @@
         }
       ],
       "refundPercent": 100,
-      "powerUse": 8
+      "powerUse": 8,
+      "recipes": "smelt-",
+      "powerMode": "coal-or-power"
     },
     {
       "id": "assembler",
@@ -1032,7 +1131,9 @@
         }
       ],
       "refundPercent": 100,
-      "powerUse": 10
+      "powerUse": 10,
+      "recipes": "craft-",
+      "powerMode": "boost"
     },
     {
       "id": "generator",

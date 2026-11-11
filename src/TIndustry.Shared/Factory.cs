@@ -1687,15 +1687,12 @@ public sealed class Factory : IGameView
                 : "smelt-iron")
             ?? throw new InvalidDataException($"Ricetta '{dto.RecipeId}' mancante nel save.");
         var buildingId = string.IsNullOrWhiteSpace(dto.DefinitionId) ? fallbackId : dto.DefinitionId;
-        var available = buildingId == Crafter.AssemblerBuildingId
-            ? content.AssemblerRecipes()
-            : content.SmelterRecipes();
-        var craft = new Crafter(
+        var craft = Crafter.Create(
+            content,
             new GridPosition(dto.X, dto.Y),
             ParseDirection(dto.Direction),
             recipe,
             buildingId,
-            available,
             id);
         craft.RestoreCraftState(
             dto.Progress,
@@ -2838,7 +2835,7 @@ public sealed class Factory : IGameView
 
     private RecipeDefinition? FindRecipeFor(BuildingKind kind, string recipeId)
     {
-        var available = kind == BuildingKind.Smelter ? Content.SmelterRecipes() : Content.AssemblerRecipes();
+        var available = BuildSpec.StructureIdFor(kind) is { } buildingId ? Content.RecipesFor(buildingId) : [];
         return available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
     }
 
@@ -3419,7 +3416,7 @@ public sealed class Factory : IGameView
         bool charge)
     {
         var isAssembler = buildingId == Crafter.AssemblerBuildingId;
-        var recipes = isAssembler ? Content.AssemblerRecipes() : Content.SmelterRecipes();
+        var recipes = Content.RecipesFor(buildingId);
         var defaultRecipeId = isAssembler ? "craft-copper-wire" : "smelt-iron";
         recipe ??= recipes.FirstOrDefault(r => r.Id == defaultRecipeId)
             ?? Content.FindRecipe(defaultRecipeId)
@@ -3431,8 +3428,8 @@ public sealed class Factory : IGameView
         }
 
         buildingsVersion++;
-        (isAssembler ? assemblers : smelters).Add(new Crafter(
-            origin, direction, recipe, buildingId, recipes, nextEntityId++));
+        (isAssembler ? assemblers : smelters).Add(Crafter.Create(
+            Content, origin, direction, recipe, buildingId, nextEntityId++));
         PowerBlocksChanged();
         return true;
     }

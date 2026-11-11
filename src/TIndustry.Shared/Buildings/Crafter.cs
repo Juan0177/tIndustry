@@ -2,7 +2,8 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Craft machine: belt intake → timed recipe → emit onto outward belts.
-/// Used for forno (Phase C) and assembler (Phase D); the power share of its network sets the speed.
+/// Used for forno (Phase C) and assembler (Phase D); its profile (<see cref="PowerMode"/>, <see cref="CraftSpeedPercent"/>,
+/// from the building of content.json) and the power share of its network set the speed.
 /// Multi-recipe: auto-picks the first available recipe whose inputs are buffered (Raylib parity).
 /// </summary>
 public sealed class Crafter
@@ -31,7 +32,9 @@ public sealed class Crafter
         RecipeDefinition recipe,
         string buildingId = SmelterBuildingId,
         IReadOnlyList<RecipeDefinition>? availableRecipes = null,
-        long id = 0)
+        long id = 0,
+        CraftPowerMode? powerMode = null,
+        int craftSpeedPercent = 100)
     {
         Id = id;
         Position = position;
@@ -41,7 +44,34 @@ public sealed class Crafter
             : [recipe];
         activeRecipe = AvailableRecipes.FirstOrDefault(r => r.Id == recipe.Id) ?? AvailableRecipes[0];
         DefinitionId = string.IsNullOrWhiteSpace(buildingId) ? SmelterBuildingId : buildingId;
+        PowerMode = powerMode ?? DefaultPowerMode(DefinitionId);
+        CraftSpeedPercent = Math.Max(1, craftSpeedPercent);
     }
+
+    /// <summary>
+    /// A craft machine of <paramref name="buildingId"/> with the profile of its content definition
+    /// (<see cref="FactoryContent.RecipesFor"/>, <see cref="BuildingDefinition.PowerMode"/>,
+    /// <see cref="BuildingDefinition.CraftSpeedPercent"/>); a building without recipes in the content keeps the
+    /// <see cref="DefaultPowerMode"/> at 1×.
+    /// </summary>
+    public static Crafter Create(
+        FactoryContent content,
+        GridPosition position,
+        Direction direction,
+        RecipeDefinition recipe,
+        string buildingId,
+        long id = 0)
+    {
+        var definition = content.FindBuilding(buildingId);
+        return definition is { IsCrafter: true }
+            ? new Crafter(position, direction, recipe, buildingId, content.RecipesFor(buildingId), id,
+                definition.PowerMode, definition.CraftSpeedPercent)
+            : new Crafter(position, direction, recipe, buildingId, null, id);
+    }
+
+    /// <summary>The power mode of a crafter built without a profile: the assembler boosts, every other burns coal or uses power.</summary>
+    public static CraftPowerMode DefaultPowerMode(string buildingId) =>
+        buildingId == AssemblerBuildingId ? CraftPowerMode.Boost : CraftPowerMode.CoalOrPower;
 
     /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
     public long Id { get; }
@@ -51,9 +81,14 @@ public sealed class Crafter
     public IReadOnlyList<RecipeDefinition> AvailableRecipes { get; }
     public RecipeDefinition Recipe => activeRecipe;
     public string DefinitionId { get; }
+    /// <summary>Convenience: this is the assembler block (its speed and power come from <see cref="PowerMode"/>).</summary>
     public bool IsAssembler => DefinitionId == AssemblerBuildingId;
-    /// <summary>Forno only: coal-or-power gate. Assembler ignores fuel.</summary>
-    public bool UsesCoalOrPower => !IsAssembler;
+    /// <summary>How it uses power (from its building's profile).</summary>
+    public CraftPowerMode PowerMode { get; }
+    /// <summary>Its speed in percent of the recipes' durations (100 = 1×), on top of the power mode.</summary>
+    public int CraftSpeedPercent { get; }
+    /// <summary>Coal-or-power gate (the forno): only these take coal as fuel.</summary>
+    public bool UsesCoalOrPower => PowerMode == CraftPowerMode.CoalOrPower;
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
     /// <summary>True only on ticks where the craft actually progressed (derived, never saved). <see cref="IsCrafting"/> stays true while stalled.</summary>
@@ -294,8 +329,11 @@ public sealed class Crafter
         }
     }
 
-    /// <summary>True while a recipe is under way: the machine asks its network for its power use this tick.</summary>
-    public bool WantsPower => IsCrafting;
+    /// <summary>
+    /// True while a recipe is under way: the machine asks its network for its power use this tick (never with
+    /// <see cref="CraftPowerMode.None"/>).
+    /// </summary>
+    public bool WantsPower => IsCrafting && PowerMode != CraftPowerMode.None;
 
     /// <summary>Forno only: coal in the buffer or burning, so it can work without power.</summary>
     public bool HasCoal => UsesCoalOrPower && (FuelBuffer > 0 || BurnRemaining > 0f);
@@ -312,9 +350,10 @@ public sealed class Crafter
     public bool PrefersCoal(int powerBp) => HasCoal && 12L * powerBp < 100_000;
 
     /// <summary>
-    /// One tick with <paramref name="powerBp"/> (0–10 000) of its power use. Assembler: always works, speed
-    /// 1 + 0.2 × s. Forno: speed 1.2 × s with power; with coal and 1.2 × s &lt; 1 it burns coal at speed 1;
-    /// without either it stalls.
+    /// One tick with <paramref name="powerBp"/> (0–10 000) of its power use, by <see cref="PowerMode"/>. Boost
+    /// (assembler): always works, speed 1 + 0.2 × s. Coal or power (forno): speed 1.2 × s with power; with coal and
+    /// 1.2 × s &lt; 1 it burns coal at speed 1; without either it stalls. Required: speed s, stalled at 0. None: speed 1.
+    /// Every speed is then × <see cref="CraftSpeedPercent"/> / 100.
     /// </summary>
     public void Tick(
         float deltaSeconds,
@@ -332,30 +371,45 @@ public sealed class Crafter
         {
             var canAdvance = false;
             var speed = 1f;
-            if (UsesCoalOrPower)
+            switch (PowerMode)
             {
-                if (PrefersCoal(bp) && TickFuel(deltaSeconds))
-                {
+                case CraftPowerMode.CoalOrPower:
+                    if (PrefersCoal(bp) && TickFuel(deltaSeconds))
+                    {
+                        canAdvance = true;
+                    }
+                    else if (bp > 0)
+                    {
+                        canAdvance = true;
+                        IsPowered = true;
+                        speed = 12f * bp / 100_000f;
+                    }
+
+                    break;
+                case CraftPowerMode.Boost:
                     canAdvance = true;
-                }
-                else if (bp > 0)
-                {
+                    IsPowered = bp > 0;
+                    speed = 1f + bp / 50_000f;
+                    break;
+                case CraftPowerMode.Required:
+                    if (bp > 0)
+                    {
+                        canAdvance = true;
+                        IsPowered = true;
+                        speed = bp / 10_000f;
+                    }
+
+                    break;
+                default:
                     canAdvance = true;
-                    IsPowered = true;
-                    speed = 12f * bp / 100_000f;
-                }
-            }
-            else
-            {
-                canAdvance = true;
-                IsPowered = bp > 0;
-                speed = 1f + bp / 50_000f;
+                    break;
             }
 
             if (canAdvance)
             {
                 IsWorking = true;
-                AdvanceCraft(deltaSeconds * speed);
+                // × 1 exactly at 100%: the forno and the assembler keep their arithmetic.
+                AdvanceCraft(deltaSeconds * (speed * (CraftSpeedPercent / 100f)));
             }
         }
 

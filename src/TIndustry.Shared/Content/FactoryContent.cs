@@ -74,11 +74,20 @@ public sealed class FactoryContent
     public RecipeDefinition? FindRecipe(string id) =>
         Recipes.FirstOrDefault(r => r.Id == id);
 
-    public IReadOnlyList<RecipeDefinition> SmelterRecipes() =>
-        Recipes.Where(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal)).ToList();
+    /// <summary>
+    /// The recipes of the craft machine <paramref name="buildingId"/>, in content order: those whose id starts with its
+    /// <see cref="BuildingDefinition.RecipePrefix"/>. Empty for a building that is not a craft machine (or unknown).
+    /// </summary>
+    public IReadOnlyList<RecipeDefinition> RecipesFor(string buildingId) =>
+        FindBuilding(buildingId)?.RecipePrefix is { } prefix
+            ? Recipes.Where(r => r.Id.StartsWith(prefix, StringComparison.Ordinal)).ToList()
+            : [];
 
-    public IReadOnlyList<RecipeDefinition> AssemblerRecipes() =>
-        Recipes.Where(r => r.Id.StartsWith("craft-", StringComparison.Ordinal)).ToList();
+    /// <summary>Shortcut for <see cref="RecipesFor"/> of the forno.</summary>
+    public IReadOnlyList<RecipeDefinition> SmelterRecipes() => RecipesFor(Crafter.SmelterBuildingId);
+
+    /// <summary>Shortcut for <see cref="RecipesFor"/> of the assembler.</summary>
+    public IReadOnlyList<RecipeDefinition> AssemblerRecipes() => RecipesFor(Crafter.AssemblerBuildingId);
 
     public BuildingDefinition? FindBuilding(string id) =>
         Buildings.FirstOrDefault(b => b.Id == id);
@@ -159,6 +168,7 @@ public sealed class FactoryContent
         var terrain = MapTerrain(root.Terrain);
         ValidateLamp(buildings, structures);
         ValidatePowerBlocks(buildings);
+        ValidateCrafters(buildings, recipes);
 
         return new FactoryContent
         {
@@ -184,6 +194,19 @@ public sealed class FactoryContent
         {
             throw new InvalidDataException(
                 "content.json: la Lampada deve avere un consumo di corrente (powerUse) maggiore di zero.");
+        }
+    }
+
+    // A craft machine's recipe prefix must pick at least one recipe, or the machine could never work.
+    private static void ValidateCrafters(List<BuildingDefinition> buildings, List<RecipeDefinition> recipes)
+    {
+        foreach (var building in buildings.Where(b => b.IsCrafter))
+        {
+            if (!recipes.Any(r => r.Id.StartsWith(building.RecipePrefix!, StringComparison.Ordinal)))
+            {
+                throw new InvalidDataException(
+                    $"content.json: buildings '{building.Id}': nessuna ricetta inizia con recipes '{building.RecipePrefix}'.");
+            }
         }
     }
 
@@ -494,11 +517,52 @@ public sealed class FactoryContent
             c.Armored,
             c.Inverted);
 
-    private static RecipeDefinition MapRecipe(RecipeDto r) =>
-        new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs));
+    private static RecipeDefinition MapRecipe(RecipeDto r)
+    {
+        // A random recipe's amounts are the weights of its outputs: a missing or zero weight would be dropped silently.
+        if (r.RandomOutput && (r.Outputs is not { Count: > 0 } || r.Outputs.Any(o => string.IsNullOrWhiteSpace(o.ItemId) || o.Amount <= 0)))
+        {
+            throw new InvalidDataException(
+                $"content.json: recipes '{r.Id}' con randomOutput richiede almeno un'uscita e pesi (amount) maggiori di zero.");
+        }
 
-    private static BuildingDefinition MapBuilding(BuildingDto b) =>
-        new(
+        return new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs), r.RandomOutput);
+    }
+
+    private static BuildingDefinition MapBuilding(BuildingDto b)
+    {
+        var isCrafter = !string.IsNullOrWhiteSpace(b.Recipes);
+        if (!isCrafter && (b.Recipes is not null || b.PowerMode is not null || b.CraftSpeed is not null))
+        {
+            throw new InvalidDataException(
+                $"content.json: buildings '{b.Id}': powerMode e craftSpeed valgono solo per una macchina con recipes (non vuoto).");
+        }
+
+        var powerMode = CraftPowerMode.CoalOrPower;
+        if (isCrafter)
+        {
+            powerMode = b.PowerMode switch
+            {
+                "coal-or-power" => CraftPowerMode.CoalOrPower,
+                "boost" => CraftPowerMode.Boost,
+                "required" => CraftPowerMode.Required,
+                "none" => CraftPowerMode.None,
+                _ => throw new InvalidDataException(
+                    $"content.json: buildings '{b.Id}': powerMode '{b.PowerMode}' sconosciuto (coal-or-power, boost, required, none).")
+            };
+        }
+
+        var speedPercent = 100;
+        if (b.CraftSpeed is { } speed)
+        {
+            speedPercent = float.IsFinite(speed) ? (int)Math.Round(speed * 100.0, MidpointRounding.AwayFromZero) : 0;
+            if (speedPercent < 1)
+            {
+                throw new InvalidDataException($"content.json: buildings '{b.Id}': craftSpeed deve essere maggiore di zero.");
+            }
+        }
+
+        return new(
             b.Id,
             b.MoneyCost,
             MapAmounts(b.BuildCost),
@@ -509,7 +573,11 @@ public sealed class FactoryContent
             Math.Max(0f, b.PowerOutput),
             Math.Max(0, b.PowerLinkRange),
             Math.Max(0, b.MaxPowerLinks),
-            Math.Max(0, b.PowerCapacity));
+            Math.Max(0, b.PowerCapacity),
+            isCrafter ? b.Recipes : null,
+            powerMode,
+            speedPercent);
+    }
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
         new(
@@ -721,6 +789,8 @@ public sealed class FactoryContent
         public float DurationSeconds { get; set; }
         public List<AmountDto>? Inputs { get; set; }
         public List<AmountDto>? Outputs { get; set; }
+        /// <summary>The output amounts are weights: one craft makes one piece of one of them.</summary>
+        public bool RandomOutput { get; set; }
     }
 
     private sealed class BuildingDto
@@ -742,6 +812,12 @@ public sealed class FactoryContent
         public int MaxPowerLinks { get; set; }
         /// <summary>Battery: units of power it stores.</summary>
         public int PowerCapacity { get; set; }
+        /// <summary>Craft machines: the id prefix of their recipes (e.g. <c>smelt-</c>).</summary>
+        public string? Recipes { get; set; }
+        /// <summary>Craft machines: <c>coal-or-power</c>, <c>boost</c>, <c>required</c> or <c>none</c>.</summary>
+        public string? PowerMode { get; set; }
+        /// <summary>Craft machines: speed multiplier (1 = the recipe's duration).</summary>
+        public float? CraftSpeed { get; set; }
     }
 
     private sealed class MarketDto

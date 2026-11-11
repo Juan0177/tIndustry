@@ -22,6 +22,7 @@ Il test `ContentValidationTests` controlla i dati a ogni `dotnet test`: id unici
 - I colori della tabella `terrain` sono anche le chiavi dei PNG delle mappe: cambiare il colore di un suolo o di una parete esistente rompe le mappe in `data/maps/`.
 - I nomi visibili di strutture, oggetti e livelli vengono tradotti per id da `godot/lingue/testi.csv`; l'italiano di `data/` resta il valore di riserva (vedi [Interfaccia e lingue](Interfaccia-e-lingue)).
 - Il tempo di costruzione di un blocco viene dal suo costo: `(20 + Σ quantità × buildWeight) × buildCostMultiplier`.
+- Una macchina che produce ha in `buildings` il suo profilo: `recipes` (il prefisso dell'id delle sue ricette, per esempio `smelt-` per il forno), `powerMode` (`coal-or-power` come il forno, `boost` come l'assemblatore, `required` ferma senza corrente, `none` senza corrente) e `craftSpeed` (velocità, 1 se manca). Un blocco senza `recipes` non produce. Una ricetta con `randomOutput` dà un solo pezzo a caso fra le uscite, con le quantità come pesi.
 
 ## Come aggiungere un blocco (riassunto)
 

@@ -20,6 +20,10 @@ public static class ItemVisualColors
         "titanium-plate" => (170, 230, 236),
         "graphite" => (88, 92, 98),
         "silicon" => (210, 200, 120),
+        "sand" => (196, 166, 104),
+        "glass" => (140, 210, 180),
+        "plastic" => (214, 92, 136),
+        "circuit" => (56, 146, 78),
         _ => (210, 120, 210)
     };
 
@@ -36,6 +40,10 @@ public static class ItemVisualColors
         "titanium-plate" => (24, 56, 64),
         "graphite" => (20, 22, 26),
         "silicon" => (60, 56, 20),
+        "sand" => (96, 76, 40),
+        "glass" => (26, 72, 56),
+        "plastic" => (84, 26, 52),
+        "circuit" => (16, 52, 30),
         _ => (40, 20, 40)
     };
 
