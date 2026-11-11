@@ -220,7 +220,8 @@ public sealed class MinerTierTests
             Y = origin.Y,
             Direction = "East",
             OutputItemId = "titanium-ore",
-            DefinitionId = Miner.BasicId
+            DefinitionId = Miner.BasicId,
+            CoveredDepositTiles = Miner.T1Size * Miner.T1Size
         });
         var json = JsonSerializer.Serialize(data, FactorySaveStore.JsonOptions);
         var reloaded = Factory.Restore(Content, JsonSerializer.Deserialize<FactorySaveData>(json, FactorySaveStore.JsonOptions)!);

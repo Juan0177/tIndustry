@@ -198,7 +198,7 @@ public sealed class SaveRoundTripTests
 
         FactorySaveStore.Save("v20-schermo", host);
         var json = File.ReadAllText(FactorySaveStore.SlotPath("v20-schermo"));
-        Assert.Contains("\"version\": 20", json);
+        Assert.Contains($"\"version\": {FactorySaveData.CurrentVersion}", json);
         Assert.True(FactorySaveStore.TryLoad(content, "v20-schermo", out var loaded, out var error), error);
 
         Assert.Equal(host.Checksum(), loaded!.Checksum());
@@ -466,6 +466,231 @@ public sealed class SaveRoundTripTests
         Assert.True(seen.Add(Sum()));
         drone.HoldItemId = "copper-ore";
         Assert.True(seen.Add(Sum()));
+    }
+
+    // ---- The new machines (save v21): crafters of the research, the impact drill and the miners' covered cells. ----
+
+    /// <summary>True when every cell of the <paramref name="width"/>×<paramref name="height"/> rectangle is free to build on.</summary>
+    private static bool Free(Factory factory, int x, int y, int width, int height)
+    {
+        for (var dy = 0; dy < height; dy++)
+        {
+            for (var dx = 0; dx < width; dx++)
+            {
+                if (!factory.CanOccupyFootprint(new GridPosition(x + dx, y + dy), 1))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// First origin (row by row) where a <paramref name="size"/> block and, if <paramref name="withGenerator"/>, a 2×2
+    /// generator on its right fit with one free cell all around, and <paramref name="ok"/> holds.
+    /// </summary>
+    private static GridPosition Spot(Factory factory, int size, bool withGenerator, Func<GridPosition, bool> ok)
+    {
+        var terrain = factory.Terrain!;
+        var width = size + (withGenerator ? Generator.Size : 0);
+        for (var y = 1; y + size + 1 < terrain.Height; y++)
+        {
+            for (var x = 1; x + width + 1 < terrain.Width; x++)
+            {
+                var origin = new GridPosition(x, y);
+                if (Free(factory, x - 1, y - 1, width + 2, Math.Max(size, 2) + 2) && ok(origin))
+                {
+                    return origin;
+                }
+            }
+        }
+
+        throw new InvalidOperationException($"Nessun posto per un blocco {size}×{size}.");
+    }
+
+    /// <summary>Places <paramref name="id"/> at <paramref name="origin"/> and a burning generator touching its right side.</summary>
+    private static void PlacePowered(Factory factory, string id, GridPosition origin, int size, string? recipeId = null)
+    {
+        var spec = new BuildSpec(id, BuildSpec.KindFor(id), origin, Direction.East, recipeId);
+        Assert.True(factory.PlaceInstant(spec, charge: false), $"{id} su {origin}");
+        var genAt = new GridPosition(origin.X + size, origin.Y);
+        Assert.True(factory.PlaceInstant(new BuildSpec(Generator.BuildingId, BuildingKind.Generator, genAt, Direction.East), charge: false));
+        factory.Generators[^1].RestoreFuel(Generator.FuelBufferCapacity, Generator.SecondsPerFuel);
+    }
+
+    /// <summary>Gives <paramref name="craft"/> every input of its recipe it can take.</summary>
+    private static void Feed(Crafter craft)
+    {
+        foreach (var input in craft.Recipe.Inputs)
+        {
+            while (craft.TryAccept(input.ItemId))
+            {
+            }
+        }
+    }
+
+    /// <summary>
+    /// A biome map with each new machine (fed and powered), an impact drill partly on ore, a miner on sand, a miner
+    /// partly on ore and an assembler on the circuit recipe (researched).
+    /// </summary>
+    internal static Factory NewMachinesLayout(FactoryContent content)
+    {
+        var factory = NewGame.Sandbox(content, new GridPosition(64, 64), rules: new GameRules(InstantBuild: true),
+            map: MapGenSettings.Normal((MapSize)128, 5));
+        factory.UnlockAllForDemo();
+        foreach (var id in new[]
+                 {
+                     Generator.BuildingId, Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId,
+                     Crafter.PlasticizerId, Miner.ImpactDrillId, Miner.AdvancedId, Crafter.AssemblerBuildingId, "circuit"
+                 })
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        factory.RefreshAvailableRecipes();
+        var terrain = factory.Terrain!;
+        bool NoOre(GridPosition o, int size) => terrain.MajorityDeposit(o, size) == DepositKind.None && terrain.CountSandTiles(o, size) == 0;
+
+        foreach (var id in new[] { Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId, Crafter.PlasticizerId })
+        {
+            PlacePowered(factory, id, Spot(factory, Crafter.Size, withGenerator: true, o => NoOre(o, Crafter.Size)), Crafter.Size);
+        }
+
+        // The drill on part of a deposit (it digs every ore), the T1 on part of a diggable one, the T1 on sand only.
+        PlacePowered(factory, Miner.ImpactDrillId, Spot(factory, Miner.ImpactDrillSize, withGenerator: true, o =>
+            terrain.MajorityDeposit(o, Miner.ImpactDrillSize) is var d and not DepositKind.None
+            && terrain.CountDepositTiles(o, Miner.ImpactDrillSize, d) is > 0 and < 9), Miner.ImpactDrillSize);
+        bool T1Digs(DepositKind d) => content.MinerCanDig(Miner.BasicId, d);
+        var partial = Spot(factory, Miner.T1Size, withGenerator: false, o =>
+            terrain.MajorityDeposit(o, Miner.T1Size, T1Digs) is var d and not DepositKind.None
+            && terrain.CountDepositTiles(o, Miner.T1Size, d) is > 0 and < 4);
+        Assert.True(factory.PlaceInstant(new BuildSpec(Miner.BasicId, BuildingKind.Miner, partial, Direction.East), charge: false));
+        var sand = Spot(factory, Miner.T1Size, withGenerator: false, o =>
+            terrain.MajorityDeposit(o, Miner.T1Size) == DepositKind.None && terrain.CountSandTiles(o, Miner.T1Size) > 0);
+        Assert.True(factory.PlaceInstant(new BuildSpec(Miner.BasicId, BuildingKind.Miner, sand, Direction.East), charge: false));
+        var assemblerAt = Spot(factory, Crafter.Size, withGenerator: false, o => NoOre(o, Crafter.Size));
+        Assert.True(factory.PlaceInstant(
+            new BuildSpec(Crafter.AssemblerBuildingId, BuildingKind.Assembler, assemblerAt, Direction.East, "craft-circuit"), charge: false));
+
+        foreach (var craft in factory.Machines.Concat(factory.Assemblers))
+        {
+            Feed(craft);
+        }
+
+        return factory;
+    }
+
+    [Fact]
+    public void V21_NewMachinesDrillAndSandMinerRoundTripWithTheSameChecksum()
+    {
+        var content = LoadContent();
+        var factory = NewMachinesLayout(content);
+        Assert.Equal(
+            [Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId, Crafter.PlasticizerId],
+            factory.Machines.Select(m => m.DefinitionId));
+        var host = new SimHost(factory);
+        host.AdvanceTicks(SimulationClock.TickRate / 2);
+
+        var separator = factory.Machines.Single(m => m.DefinitionId == Crafter.SeparatorId);
+        Assert.True(separator.IsCrafting && separator.Progress is > 0f and < 1f, $"separatore a metà: {separator.Progress}");
+        var drill = factory.Miners.Single(m => m.DefinitionId == Miner.ImpactDrillId);
+        Assert.True(drill.CoveredDepositTiles is > 0 and < 9, $"trapano: {drill.CoveredDepositTiles}");
+        Assert.True(drill.IsPowered);
+        Assert.Contains(factory.Miners, m => m.OutputItemId == "sand");
+        Assert.Contains(factory.Miners, m => m.DefinitionId == Miner.BasicId && m.CoveredDepositTiles is > 0 and < 4 && m.OutputItemId != "sand");
+        Assert.Equal("craft-circuit", factory.Assemblers.Single().Recipe.Id);
+        var before = host.Checksum();
+
+        FactorySaveStore.Save("v21-macchine", host);
+        Assert.True(FactorySaveStore.TryLoadSlot(content, "v21-macchine", out var loaded, out var failure), failure?.Detail);
+        var after = (Factory)loaded!.State;
+
+        Assert.Equal(before, loaded.Checksum());
+        Assert.Equal(factory.Machines.Select(m => (m.Id, m.DefinitionId, m.Position, m.Recipe.Id, m.IsCrafting, m.Progress, m.ItemsCrafted)),
+            after.Machines.Select(m => (m.Id, m.DefinitionId, m.Position, m.Recipe.Id, m.IsCrafting, m.Progress, m.ItemsCrafted)));
+        Assert.Equal(factory.Machines.Select(m => m.AvailableRecipes.Select(r => r.Id).ToArray()),
+            after.Machines.Select(m => m.AvailableRecipes.Select(r => r.Id).ToArray()));
+        Assert.Equal(factory.Miners.Select(m => (m.Id, m.DefinitionId, m.Size, m.OutputItemId, m.CoveredDepositTiles, m.Efficiency)),
+            after.Miners.Select(m => (m.Id, m.DefinitionId, m.Size, m.OutputItemId, m.CoveredDepositTiles, m.Efficiency)));
+        Assert.Equal("craft-circuit", after.Assemblers.Single().Recipe.Id);
+        Assert.Contains("craft-circuit", after.Assemblers.Single().AvailableRecipes.Select(r => r.Id));
+        Assert.Equal(factory.PowerGrid.Networks.Select(n => n.Members.ToArray()), after.PowerGrid.Networks.Select(n => n.Members.ToArray()));
+
+        // Both go on the same: the separator draws the same 20 pieces, the assembler makes circuits.
+        List<string> RunSeparator(SimHost game, out int circuits)
+        {
+            var state = (Factory)game.State;
+            var sep = state.Machines.Single(m => m.DefinitionId == Crafter.SeparatorId);
+            var assembler = state.Assemblers.Single();
+            var pieces = new List<string>();
+            circuits = 0;
+            for (var tick = 0; pieces.Count < 20; tick++)
+            {
+                Assert.True(tick < 60 * SimulationClock.TickRate, "20 pezzi in un minuto");
+                Feed(sep);
+                Feed(assembler);
+                game.AdvanceTicks(1);
+                foreach (var piece in sep.OutputQueue.ToList())
+                {
+                    Assert.True(sep.TryTakeOutput(piece));
+                    pieces.Add(piece);
+                }
+
+                foreach (var piece in assembler.OutputQueue.ToList())
+                {
+                    Assert.True(assembler.TryTakeOutput(piece));
+                    Assert.Equal("circuit", piece);
+                    circuits++;
+                }
+            }
+
+            return pieces;
+        }
+
+        var crafted = separator.ItemsCrafted;
+        var never = RunSeparator(host, out var circuitsNever);
+        var reloaded = RunSeparator(loaded, out var circuitsLoaded);
+        Assert.Equal(never, reloaded);
+        Assert.Equal(
+            Enumerable.Range(0, 20).Select(n => Crafter.PickRandomOutput(content.FindRecipe("separate-sand")!, factory.Terrain!.Seed, separator.Id, crafted + n)),
+            reloaded);
+        Assert.True(circuitsLoaded > 0, "l'assemblatore fa circuiti dopo il caricamento");
+        Assert.Equal(circuitsNever, circuitsLoaded);
+        Assert.Equal(host.Checksum(), loaded.Checksum());
+        Assert.NotEqual(before, host.Checksum());
+    }
+
+    [Fact]
+    public void MachinesAndCoveredCellsAreInTheSnapshot()
+    {
+        var factory = NewMachinesLayout(LoadContent());
+        var json = System.Text.Encoding.UTF8.GetString(Snapshot.Write(factory.State));
+        Assert.Contains("\"machines\":[", json);
+        Assert.Contains("\"definitionId\":\"separator\"", json);
+        Assert.Contains("\"coveredDepositTiles\":", json);
+        Assert.Equal(4, factory.Capture().Machines!.Count);
+    }
+
+    [Fact]
+    public void MachineThatIsNotANewMachine_Unreadable()
+    {
+        var content = LoadContent();
+        var data = NewMachinesLayout(content).Capture();
+        foreach (var bad in new[] { Crafter.SmelterBuildingId, Crafter.AssemblerBuildingId, Generator.BuildingId, "non-esiste", "" })
+        {
+            data.Machines![0].DefinitionId = bad;
+            Assert.Throws<InvalidDataException>(() => Factory.Restore(content, data));
+        }
+
+        // Covered cells beyond the footprint are cut to it; an absent key is the whole footprint.
+        data = NewMachinesLayout(content).Capture();
+        data.Miners[0].CoveredDepositTiles = 99;
+        data.Miners[1].CoveredDepositTiles = null;
+        var restored = Factory.Restore(content, data);
+        Assert.Equal(restored.Miners[0].FootprintArea, restored.Miners[0].CoveredDepositTiles);
+        Assert.Equal(restored.Miners[1].FootprintArea, restored.Miners[1].CoveredDepositTiles);
     }
 
     private static FactoryContent LoadContent() => FactoryContent.Load(ContentPath);

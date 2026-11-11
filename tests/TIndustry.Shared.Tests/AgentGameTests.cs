@@ -1010,9 +1010,10 @@ public sealed class AgentGameTests
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
             // flag, those before the Mindustry logistics (save v18) ran other blocks, those before the drone flown by
             // its player (save v19) had it fly to the plans on its own, those before the market screen (save v20) had
-            // no screen to place or filter: refused, never replayed.
-            Assert.Equal(6, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2, 3, 4, 5 })
+            // no screen to place or filter, those before the wider research (save v21) had miners on sand dig nothing:
+            // refused, never replayed.
+            Assert.Equal(7, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3, 4, 5, 6 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
@@ -1144,6 +1145,58 @@ public sealed class AgentGameTests
         }
 
         Assert.Equal("CoreMaxTier", Refused(game, "potenzia_core", "{}").Code);
+    }
+
+    [Theory]
+    [InlineData("smelter-advanced", 2, 'W')]
+    [InlineData("graphite-press", 2, 'H')]
+    [InlineData("separator", 2, 'X')]
+    [InlineData("plasticizer", 2, 'Y')]
+    [InlineData("impact-drill", 3, 'T')]
+    public void PiazzaPlacesEachNewBlock(string id, int size, char symbol)
+    {
+        var factory = NewFactory();
+        factory.Research.ForceUnlock(id);
+        var kind = BuildSpec.KindFor(id)!.Value;
+        // First free spot (row by row) with a free ring around it, away from the Core.
+        var cell = Enumerable.Range(2, 40).SelectMany(y => Enumerable.Range(2, 40).Select(x => new GridPosition(x, y)))
+            .First(c => factory.CanOccupyFootprint(new GridPosition(c.X - 1, c.Y - 1), size + 2)
+                && factory.CanPlace(new BuildSpec(id, kind, c, Direction.East), out _));
+        foreach (var entry in factory.CostOf(new BuildSpec(id, kind, cell, Direction.East)))
+        {
+            if (entry.ItemId is { } itemId)
+            {
+                factory.Wallet.AddMaterial(itemId, entry.Amount);
+            }
+        }
+
+        var game = new AgentGame(new SimHost(factory), Content);
+        var placed = Call(game, "piazza", $$$"""{"tipo":"{{{id}}}","cella":{"x":{{{cell.X}}},"y":{{{cell.Y}}}}}""");
+
+        Assert.Equal(1, placed.GetProperty("celle").GetArrayLength());
+        Assert.Equal(0, placed.GetProperty("rifiuti").GetArrayLength());
+        Assert.True(factory.TryGetSpecAt(cell, out var spec, out _));
+        Assert.Equal((id, kind, cell), (spec.StructureId, spec.Kind!.Value, spec.Origin));
+        var stato = Call(game, "stato").GetProperty("edifici");
+        Assert.Equal(kind == BuildingKind.ImpactDrill ? 0 : 1, stato.GetProperty("macchine").GetInt32());
+        Assert.Equal(kind == BuildingKind.ImpactDrill ? 1 : 0, stato.GetProperty("minatori").GetInt32());
+
+        // The map shows its whole footprint with its symbol, and nothing past it.
+        var area = Call(game, "area",
+            $$$"""{"da":{"x":{{{cell.X - 1}}},"y":{{{cell.Y - 1}}}},"a":{"x":{{{cell.X + size}}},"y":{{{cell.Y + size}}}}}""");
+        var rows = area.GetProperty("righe").EnumerateArray().Select(r => r.GetString()!).ToArray();
+        for (var y = 0; y < size + 2; y++)
+        {
+            for (var x = 0; x < size + 2; x++)
+            {
+                var inside = x is > 0 && x <= size && y is > 0 && y <= size;
+                Assert.Equal(inside, rows[y][x] == symbol);
+            }
+        }
+
+        Assert.True(area.GetProperty("legenda").TryGetProperty(symbol.ToString(), out _));
+        var found = Call(game, "trova", $$$"""{"cosa":"{{{id}}}","cella":{"x":0,"y":0}}""");
+        Assert.Equal(1, found.GetProperty("trovati").GetInt32());
     }
 
     [Fact]

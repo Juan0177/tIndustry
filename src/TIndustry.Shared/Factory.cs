@@ -894,10 +894,13 @@ public sealed class Factory : IGameView
                 Progress = m.Progress,
                 EjectIndex = m.EjectIndex,
                 OutputItemId = m.OutputItemId,
-                DefinitionId = m.DefinitionId
+                DefinitionId = m.DefinitionId,
+                CoveredDepositTiles = m.CoveredDepositTiles
             }).ToList(),
             Smelters = smelters.OrderBy(s => s.Id).Select(CaptureCraft).ToList(),
             Assemblers = assemblers.OrderBy(a => a.Id).Select(CaptureCraft).ToList(),
+            // Null when empty: a game without the new machines keeps its snapshot.
+            Machines = machines.Count > 0 ? machines.OrderBy(m => m.Id).Select(CaptureCraft).ToList() : null,
             Generators = generators.OrderBy(g => g.Id).Select(g => new GeneratorSaveDto
             {
                 Id = g.Id,
@@ -1224,6 +1227,7 @@ public sealed class Factory : IGameView
         var maxSavedId = data.Miners.Select(d => d.Id)
             .Concat(data.Smelters.Select(d => d.Id))
             .Concat(data.Assemblers.Select(d => d.Id))
+            .Concat((data.Machines ?? []).Select(d => d.Id))
             .Concat(data.Generators.Select(d => d.Id))
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
@@ -1240,9 +1244,12 @@ public sealed class Factory : IGameView
 
         foreach (var m in data.Miners)
         {
+            // The cells it digs were fixed when placed: a partly covered miner keeps its efficiency.
+            var area = Miner.SizeFor(m.DefinitionId) * Miner.SizeFor(m.DefinitionId);
             var miner = new Miner(
                 new GridPosition(m.X, m.Y),
                 ParseDirection(m.Direction),
+                coveredDepositTiles: m.CoveredDepositTiles is { } covered ? Math.Clamp(covered, 0, area) : null,
                 outputItemId: m.OutputItemId,
                 definitionId: m.DefinitionId,
                 id: RestoredId(m.Id));
@@ -1258,6 +1265,16 @@ public sealed class Factory : IGameView
         foreach (var a in data.Assemblers)
         {
             factory.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
+        }
+
+        foreach (var m in data.Machines ?? [])
+        {
+            if (m is null || !IsMachineId(content, m.DefinitionId))
+            {
+                throw new InvalidDataException($"Macchina sconosciuta nel salvataggio: \"{m?.DefinitionId}\".");
+            }
+
+            factory.machines.Add(RestoreCraft(content, m, m.DefinitionId, RestoredId(m.Id)));
         }
 
         foreach (var g in data.Generators)
@@ -1691,12 +1708,24 @@ public sealed class Factory : IGameView
         list.AddRange(sorted);
     }
 
+    /// <summary>
+    /// True for a craft machine of <see cref="Machines"/>: a crafter of the content that is neither the forno nor the
+    /// assembler.
+    /// </summary>
+    private static bool IsMachineId(FactoryContent content, string? id) =>
+        id is not (null or Crafter.SmelterBuildingId or Crafter.AssemblerBuildingId)
+        && content.FindBuilding(id) is { IsCrafter: true };
+
     private static Crafter RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId, long id)
     {
         var recipe = content.FindRecipe(dto.RecipeId)
-            ?? content.FindRecipe(fallbackId == Crafter.AssemblerBuildingId
-                ? "craft-copper-wire"
-                : "smelt-iron")
+            ?? content.FindRecipe(fallbackId switch
+            {
+                Crafter.AssemblerBuildingId => "craft-copper-wire",
+                Crafter.SmelterBuildingId => "smelt-iron",
+                // A new machine falls back on its first recipe, like a fresh one.
+                _ => content.RecipesFor(fallbackId).FirstOrDefault()?.Id ?? "smelt-iron"
+            })
             ?? throw new InvalidDataException($"Ricetta '{dto.RecipeId}' mancante nel save.");
         var buildingId = string.IsNullOrWhiteSpace(dto.DefinitionId) ? fallbackId : dto.DefinitionId;
         var craft = Crafter.Create(

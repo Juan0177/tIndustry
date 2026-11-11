@@ -4,7 +4,11 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 20: the stock-exchange
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 21: the machines of the
+/// wider research (<see cref="Machines"/>: advanced smelter, graphite press, separator, plasticizer, each with its
+/// <see cref="CraftSaveDto.DefinitionId"/>), the impact drill among the <see cref="Miners"/> (by its
+/// <see cref="MinerSaveDto.DefinitionId"/>) and each miner's covered cells (<see cref="MinerSaveDto.CoveredDepositTiles"/>);
+/// since 20 the stock-exchange
 /// screen (<see cref="MarketScreen"/>: cell, watched item and last "sell all" shown); since 19 the drone flown by its
 /// player (<see cref="BuilderSaveDto"/>: held input, hand-mining cell and progress, hold); since 18 the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
 /// extractor accumulator and turns); since 17 the power network's
@@ -17,10 +21,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 20;
+    public const int CurrentVersion = 21;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 20;
+    public const int MinReadableVersion = 21;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -88,6 +92,12 @@ public sealed class FactorySaveData
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];
+    /// <summary>
+    /// Craft machines other than the forno and the assembler (<see cref="Factory.Machines"/>), in id order, each with
+    /// its <see cref="CraftSaveDto.DefinitionId"/>: null when there are none. A definition that is not such a machine
+    /// makes the save unreadable.
+    /// </summary>
+    public List<CraftSaveDto>? Machines { get; set; }
     public List<GeneratorSaveDto> Generators { get; set; } = [];
     public List<ExtractorSaveDto> Extractors { get; set; } = [];
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
@@ -354,6 +364,11 @@ public sealed class MinerSaveDto
     public int EjectIndex { get; set; }
     public string OutputItemId { get; set; } = Miner.DefaultOutputItemId;
     public string DefinitionId { get; set; } = Miner.BasicId;
+    /// <summary>
+    /// Cells of its footprint on what it digs (<see cref="Miner.CoveredDepositTiles"/>, fixed when placed), clamped to
+    /// the footprint on load; null (an absent key) is the whole footprint.
+    /// </summary>
+    public int? CoveredDepositTiles { get; set; }
 }
 
 public sealed class CraftSaveDto

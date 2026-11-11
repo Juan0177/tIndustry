@@ -528,6 +528,77 @@ public sealed class DeterminismTests
         Assert.Equal(a.State.PowerLinks, b.State.PowerLinks);
     }
 
+    /// <summary>
+    /// Keeps the new machines' layout busy the same way on every copy: coal in the generators, the inputs of each
+    /// machine's recipe, and its outputs taken away (counted per machine id).
+    /// </summary>
+    private static void KeepMachinesBusy(SimHost host, Dictionary<long, int> taken)
+    {
+        var factory = (Factory)host.State;
+        foreach (var generator in factory.Generators)
+        {
+            while (generator.TryAcceptFuel(Generator.FuelItemId))
+            {
+            }
+        }
+
+        foreach (var craft in factory.Machines.Concat(factory.Assemblers))
+        {
+            foreach (var input in craft.Recipe.Inputs)
+            {
+                while (craft.TryAccept(input.ItemId))
+                {
+                }
+            }
+
+            foreach (var piece in craft.OutputQueue.ToList())
+            {
+                Assert.True(craft.TryTakeOutput(piece));
+                taken[craft.Id] = taken.GetValueOrDefault(craft.Id) + 1;
+            }
+        }
+    }
+
+    [Fact]
+    public void Determinism_NewMachinesTenMinutes()
+    {
+        const int minute = 60 * SimulationClock.TickRate;
+        var content = LoadContent();
+        var a = new SimHost(SaveRoundTripTests.NewMachinesLayout(content));
+        var b = new SimHost(SaveRoundTripTests.NewMachinesLayout(content));
+        var takenA = new Dictionary<long, int>();
+        var takenB = new Dictionary<long, int>();
+        var checksums = new List<(ulong A, ulong B)>();
+        // Ten minutes, checksums every minute; at five B is replaced by a copy read from its own snapshot.
+        for (var tick = 0L; tick < 10 * minute; tick++)
+        {
+            if (tick == 5 * minute)
+            {
+                b = new SimHost(new Factory(Snapshot.Read(content, b.CreateSnapshot())));
+                Assert.Equal(a.Checksum(), b.Checksum());
+            }
+
+            KeepMachinesBusy(a, takenA);
+            KeepMachinesBusy(b, takenB);
+            a.AdvanceTicks(1);
+            b.AdvanceTicks(1);
+            if ((tick + 1) % minute == 0)
+            {
+                checksums.Add((a.Checksum(), b.Checksum()));
+            }
+        }
+
+        Assert.Equal(10, checksums.Count);
+        Assert.All(checksums, c => Assert.Equal(c.A, c.B));
+        Assert.Equal(10, checksums.Select(c => c.A).Distinct().Count());
+        Assert.Equal(takenA.OrderBy(kv => kv.Key), takenB.OrderBy(kv => kv.Key));
+        // Every new machine and the circuit assembler worked the whole time.
+        var factory = (Factory)a.State;
+        Assert.All(factory.Machines.Concat(factory.Assemblers), craft => Assert.True(takenA.GetValueOrDefault(craft.Id) > 50, $"{craft.DefinitionId}: {takenA.GetValueOrDefault(craft.Id)}"));
+        Assert.Equal(factory.Machines.Select(m => m.ItemsCrafted), ((Factory)b.State).Machines.Select(m => m.ItemsCrafted));
+        Assert.True(factory.Miners.Single(m => m.DefinitionId == Miner.ImpactDrillId).IsPowered);
+    }
+
     [Fact]
     public void GameplayRatesMatchWallClock()
     {
