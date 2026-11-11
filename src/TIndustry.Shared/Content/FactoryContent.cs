@@ -725,6 +725,7 @@ public sealed class FactoryContent
             "bridge" => LogisticsKind.Bridge,
             "sorter" => LogisticsKind.Sorter,
             "gate" => LogisticsKind.Gate,
+            "stack" => LogisticsKind.Stack,
             _ => LogisticsKind.Belt
         };
 

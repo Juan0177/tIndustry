@@ -15,16 +15,22 @@ public partial class MindustryBeltVisual : Node2D
     public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
     /// <summary>Animation state of one belt tier, kept across rebuilds so placing a belt does not reset the others.</summary>
-    private sealed class TierClock(string id, float rateCellsPerSecond, bool armored)
+    /// <remarks>
+    /// A stack conveyor (<paramref name="straightOnly"/>) is always drawn straight (<see cref="BeltGrid.GetShape"/>): it has
+    /// the straight strip alone, which stands in for the other shapes.
+    /// </remarks>
+    private sealed class TierClock(string id, float rateCellsPerSecond, bool armored, bool straightOnly)
     {
         public readonly SharedStrip Straight = new(id);
-        public readonly SharedStrip Corner = new(id + "-corner");
-        public readonly SharedStrip T = new(id + "-t");
-        public readonly SharedStrip JoinLeft = new(id + "-join-left");
-        public readonly SharedStrip JoinRight = new(id + "-join-right");
-        public readonly SharedStrip JoinBoth = new(id + "-join-both");
+        public SharedStrip Corner => straightOnly ? Straight : _corner ??= new(id + "-corner");
+        public SharedStrip T => straightOnly ? Straight : _t ??= new(id + "-t");
+        public SharedStrip JoinLeft => straightOnly ? Straight : _joinLeft ??= new(id + "-join-left");
+        public SharedStrip JoinRight => straightOnly ? Straight : _joinRight ??= new(id + "-join-right");
+        public SharedStrip JoinBoth => straightOnly ? Straight : _joinBoth ??= new(id + "-join-both");
         // An armored belt never blends with a building (BeltGrid.BuildingFeeders): it has no such strip.
-        public readonly SharedStrip? JoinBuildingBoth = armored ? null : new(id + "-join-building-both");
+        public SharedStrip? JoinBuildingBoth =>
+            armored ? null : straightOnly ? Straight : _joinBuildingBoth ??= new(id + "-join-building-both");
+        private SharedStrip? _corner, _t, _joinLeft, _joinRight, _joinBoth, _joinBuildingBoth;
         public readonly float Rate = rateCellsPerSecond;
         public float Scroll;
         public int Frame;
@@ -94,7 +100,7 @@ public partial class MindustryBeltVisual : Node2D
                     }
 
                     break;
-                case LogisticsKind.Belt:
+                case LogisticsKind.Belt or LogisticsKind.Stack:
                     AddBelt(view, pos, cell, tileSize);
                     break;
             }
@@ -166,7 +172,11 @@ public partial class MindustryBeltVisual : Node2D
     {
         if (!_tiers.TryGetValue(definition.Id, out var clock))
         {
-            clock = new TierClock(definition.Id, Math.Max(0.05f, definition.RateItemsPerSecond), definition.IsArmoredBelt);
+            clock = new TierClock(
+                definition.Id,
+                Math.Max(0.05f, definition.RateItemsPerSecond),
+                definition.IsArmoredBelt,
+                straightOnly: definition.Kind == LogisticsKind.Stack);
             _tiers[definition.Id] = clock;
         }
 

@@ -13,6 +13,7 @@ struttura.underflow-gate.nome,Underflow gate,Underflow gate
 struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
 struttura.conveyor-armored.nome,Nastro rinforzato,Armored belt
+struttura.conveyor-stack.nome,Nastro a pacchi,Stack conveyor
 struttura.assembler.nome,Assemblatore,Assembler
 struttura.generator.nome,Generatore,Generator
 struttura.power-node.nome,Nodo T1,Power node T1
@@ -123,6 +124,7 @@ struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/ro
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
 struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
+struttura.conveyor-stack.suggerimento,Nastro a pacchi · pacchi da 10 · sblocca in Ricerca,Stack conveyor · packs of 10 · unlock in Research
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.router.suggerimento,Un oggetto alla volta · a turno su ogni lato · mai indietro,One item at a time · takes turns on every side · never back
 struttura.sorter.suggerimento,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
@@ -463,6 +465,7 @@ struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rot
 struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
 struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,Belt T3 · top speed · R/wheel
 struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non raccoglie di lato · R/rotella","Armored belt · like T2, never picks up from the side · R/wheel"
+struttura.conveyor-stack.descrizione,"La prima cella fa pacchi fino a 10 pezzi dello stesso oggetto (parte pieno o dopo 1 s) · 21,6 celle/s · l'ultima scarica solo in un edificio o nel CORE · R/rotella",The first cell packs up to 10 pieces of one item (leaves full or after 1 s) · 21.6 cells/s · the last one unloads only into a building or the CORE · R/wheel
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.router.descrizione,Distribuisce gli oggetti a turno su tutti i lati · mai verso il lato da cui arrivano,Hands items out in turn on every side · never back to the side they came from
 struttura.sorter.descrizione,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides

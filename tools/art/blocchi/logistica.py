@@ -1,5 +1,6 @@
 """Logistics sprites: narrow belts in four tiers (basic, fast, express, armored; icon, straight strip,
-corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), junction,
+corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), the stack
+conveyor (icon and straight strip: its cells are always drawn straight), junction,
 router, sorter, inverted sorter, overflow and underflow gates, bridge end and bridge span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. The belt is as wide as
@@ -15,7 +16,7 @@ import math
 
 import forme
 from blocchi import sprite
-from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, ROSSO, TITANIO
+from palette import ACCENTO, CARTA, FERRO, METALLO, NASTRO, OUT, PLASTICA, RAME, ROSSO, TITANIO
 
 T = 32
 PASSO = 1  # px the tread moves per frame: 32 frames per cell, smooth next to items moving every tick
@@ -42,6 +43,10 @@ TIER = {
     "conveyor-armored": (FERRO, ROSSO, ROSSO[2]),
 }
 RINFORZATI = {"conveyor-armored"}  # tiers whose plates carry rivets
+# Stack conveyor (Mindustry's plastanium conveyor): plastic plates, white chevrons. Only straight: the grid never
+# draws it as a corner, T or join (BeltGrid.GetShape), so it has the icon and the straight strip alone.
+PACCHI = {"conveyor-stack": (PLASTICA, CARTA, PLASTICA[3])}
+ASPETTO = {**TIER, **PACCHI}
 
 
 def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
@@ -55,7 +60,7 @@ def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
     tipo = RIGHE.get(v)
     if tipo is None:
         return None
-    binario, freccia, bordo = TIER[tier]
+    binario, freccia, bordo = ASPETTO[tier]
     if tipo == "o":
         return 0, OUT
     if tipo == "e":
@@ -185,6 +190,10 @@ def _registra_nastro(tier):
 
 for _tier in TIER:
     _registra_nastro(_tier)
+
+for _tier in PACCHI:
+    sprite(_tier)(lambda tier=_tier: nastro(tier, 0))
+    sprite(_tier + "-anim")(lambda tier=_tier: forme.striscia([nastro(tier, k) for k in range(FOTOGRAMMI)]))
 
 
 # ---------------------------------------------------------------- belt furniture

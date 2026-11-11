@@ -278,7 +278,10 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
-        if (command.Crossing && factory.BeltCrossingAt(spec.Origin, spec.Direction) == BeltCrossing.Junction)
+        // Only a plain belt's line crosses: a junction would cut a stack conveyor's line.
+        if (command.Crossing
+            && factory.Content.FindConveyor(spec.StructureId)?.Kind == LogisticsKind.Belt
+            && factory.BeltCrossingAt(spec.Origin, spec.Direction) == BeltCrossing.Junction)
         {
             return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
         }

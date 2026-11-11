@@ -63,6 +63,8 @@ public sealed class AgentGame : IDisposable
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"), ('$', "schermo di borsa"),
         ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
         ('T', "trapano a impatto"), ('O', "overflow gate"), ('U', "underflow gate"),
+        ('8', "nastro a pacchi verso nord"), ('6', "nastro a pacchi verso est"), ('2', "nastro a pacchi verso sud"),
+        ('4', "nastro a pacchi verso ovest"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -677,6 +679,7 @@ public sealed class AgentGame : IDisposable
                 ["router"] = logistics.GetValueOrDefault(LogisticsKind.Router),
                 ["selezionatori"] = logistics.GetValueOrDefault(LogisticsKind.Sorter),
                 ["gate"] = logistics.GetValueOrDefault(LogisticsKind.Gate),
+                ["nastriAPacchi"] = logistics.GetValueOrDefault(LogisticsKind.Stack),
                 // Each bridge has two end cells.
                 ["ponti"] = logistics.GetValueOrDefault(LogisticsKind.Bridge) / 2
             },
@@ -864,7 +867,7 @@ public sealed class AgentGame : IDisposable
                 if (withItems && belt.Items.Count > 0)
                 {
                     var item = CellJson(cell);
-                    item["n"] = belt.Items.Count;
+                    item["n"] = belt.Items.Sum(i => i.Count); // pieces: a stack conveyor's pack counts all of its own
                     item["tipi"] = new JsonArray(belt.Items.Select(i => i.ItemId).Distinct().Order(StringComparer.Ordinal)
                         .Select(id => (JsonNode)JsonValue.Create(id)!).ToArray());
                     items.Add(item);
@@ -961,6 +964,15 @@ public sealed class AgentGame : IDisposable
                 LogisticsKind.Sorter => KindSymbol(belt.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter),
                 LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
                 LogisticsKind.Gate => KindSymbol(belt.Definition.Inverted ? BuildingKind.UnderflowGate : BuildingKind.OverflowGate),
+                // The stack conveyor: the arrows of a numeric keypad.
+                LogisticsKind.Stack => belt.Direction switch
+                {
+                    Direction.North => '8',
+                    Direction.East => '6',
+                    Direction.South => '2',
+                    Direction.West => '4',
+                    _ => '!'
+                },
                 _ => '!'
             };
         }
@@ -1419,9 +1431,10 @@ public sealed class AgentGame : IDisposable
             || View.PlansOf(PlayerId).Any(plan => plan.Spec.Origin == cell && plan.Spec.StructureId == junction);
     }
 
-    // The armored belt shares tier 2 with conveyor-fast: `tier` names the plain belt, the armored one is asked by `tipo`.
+    // The armored belt shares tier 2 with conveyor-fast: `tier` names the plain belt, the armored one is asked by `tipo`,
+    // as the stack conveyor (tier 4).
     private string ConveyorOfTier(int tier) =>
-        content.Conveyors.FirstOrDefault(c => c.Tier == tier && !c.IsArmoredBelt && BuildSpec.KindFor(c.Id) is null)?.Id
+        content.Conveyors.FirstOrDefault(c => c.Tier == tier && c.Kind == LogisticsKind.Belt && !c.IsArmoredBelt && BuildSpec.KindFor(c.Id) is null)?.Id
         ?? throw Bad($"Nessun nastro di livello {tier}.");
 
     private JsonObject Ruota()

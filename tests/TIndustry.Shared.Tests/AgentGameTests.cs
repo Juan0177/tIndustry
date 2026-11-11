@@ -305,6 +305,40 @@ public sealed class AgentGameTests
         Assert.Equal("iron-ore", factory.Belts.Cells[sorter].FilterItemId);
     }
 
+    [Fact]
+    public void PiazzaDragsAStackConveyorAndAreaCountsThePiecesOfAPack()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        factory.Research.ForceUnlock("conveyor-stack");
+        foreach (var id in new[] { "plastic", "silicon", "graphite" })
+        {
+            factory.Wallet.AddMaterial(id, 10);
+        }
+
+        var game = new AgentGame(new SimHost(factory), Content);
+        var line = Call(game, "piazza", """{"tipo":"conveyor-stack","da":{"x":40,"y":50},"a":{"x":43,"y":50}}""");
+        Assert.Equal(4, line.GetProperty("celle").GetArrayLength());
+        Assert.All(Enumerable.Range(40, 4), x =>
+            Assert.Equal("conveyor-stack", factory.Belts.Cells[new GridPosition(x, 50)].Definition.Id));
+        // tier names plain belts only: the stack conveyor (tier 4) is asked by tipo.
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza", """{"tier":4,"cella":{"x":40,"y":52}}""").Code);
+
+        for (var i = 0; i < 7; i++)
+        {
+            Assert.True(factory.Belts.TryInsert(new GridPosition(40, 50), new TransportedItem(9000 + i, "iron-ore"), Direction.East));
+        }
+
+        var area = Call(game, "area", """{"da":{"x":40,"y":50},"a":{"x":43,"y":50},"oggetti":true}""");
+        Assert.Equal("6666", area.GetProperty("righe")[0].GetString());
+        Assert.Equal("nastro a pacchi verso est", area.GetProperty("legenda").GetProperty("6").GetString());
+        var pack = Assert.Single(area.GetProperty("oggetti").EnumerateArray());
+        Assert.Equal(7, pack.GetProperty("n").GetInt32());
+        var stato = Call(game, "stato");
+        Assert.Equal(4, stato.GetProperty("edifici").GetProperty("nastriAPacchi").GetInt32());
+        Assert.Equal(0, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
+    }
+
     /// <summary>Right of the shard (cells 60..62): a screen there touches the Core.</summary>
     private static readonly GridPosition ScreenCell = new(63, 60);
 
@@ -1010,10 +1044,11 @@ public sealed class AgentGameTests
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
             // flag, those before the Mindustry logistics (save v18) ran other blocks, those before the drone flown by
             // its player (save v19) had it fly to the plans on its own, those before the market screen (save v20) had
-            // no screen to place or filter, those before the wider research (save v21) had miners on sand dig nothing:
-            // refused, never replayed.
-            Assert.Equal(7, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2, 3, 4, 5, 6 })
+            // no screen to place or filter, those before the wider research (save v21) had miners on sand dig nothing,
+            // those before the stack conveyor (save v22) may start from a snapshot no longer readable: refused, never
+            // replayed.
+            Assert.Equal(8, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3, 4, 5, 6, 7 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);

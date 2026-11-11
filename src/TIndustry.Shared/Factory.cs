@@ -251,7 +251,8 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// Mindustry's belt over belt: <see cref="BeltOverBelt.None"/> unless <paramref name="cell"/> holds a plain belt
-    /// that no plan, mark for removal or site touches and <paramref name="conveyorId"/> is a plain belt; then
+    /// that no plan, mark for removal or site touches and <paramref name="conveyorId"/> is a plain belt (or both are the
+    /// same stack conveyor, which only turns); then
     /// <see cref="BeltOverBelt.Same"/> (same id and direction) or <see cref="BeltOverBelt.Rotate"/> (same id).
     /// </summary>
     public BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId) =>
@@ -265,9 +266,11 @@ public sealed class Factory : IGameView
 
     private BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId, BuildPlan? ignoring)
     {
+        // A stack conveyor over a stack conveyor of its id turns like a belt (never a tier change, with a belt or another).
         if (!Belts.TryGet(cell, out var belt)
-            || belt.Kind != LogisticsKind.Belt
-            || Content.FindConveyor(conveyorId)?.Kind != LogisticsKind.Belt
+            || !(belt.Kind == LogisticsKind.Belt
+                || (belt.Kind == LogisticsKind.Stack && string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal)))
+            || Content.FindConveyor(conveyorId)?.Kind != belt.Kind
             || State.Builders.Any(b => b.Plans.Any(p =>
                 !ReferenceEquals(p, ignoring) && !p.Breaking && Footprint(p.Spec).Contains(cell)))
             || TryGetSiteAt(cell, out _)
@@ -356,7 +359,7 @@ public sealed class Factory : IGameView
     {
         foreach (var item in items)
         {
-            State.Storage.Return(item.ItemId, 1);
+            State.Storage.Return(item.ItemId, item.Count);
         }
     }
 
@@ -1036,6 +1039,7 @@ public sealed class Factory : IGameView
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
                 SorterTurns = c.PassesThrough && c.SorterTurns != 0 ? c.SorterTurns : null,
+                StackWaitTicks = c.Kind == LogisticsKind.Stack && c.StackWaitTicks != 0 ? c.StackWaitTicks : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
@@ -1045,6 +1049,7 @@ public sealed class Factory : IGameView
     {
         Id = it.Id,
         ItemId = it.ItemId,
+        Count = it.Count != 1 ? it.Count : null,
         Progress = it.Progress,
         Travel = it.Travel?.ToString(),
         JunctionTicks = it.JunctionTicks
@@ -1056,7 +1061,8 @@ public sealed class Factory : IGameView
         it.Progress,
         string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel))
     {
-        JunctionTicks = it.JunctionTicks
+        JunctionTicks = it.JunctionTicks,
+        Count = it.Count ?? 1
     };
 
     private static BuildSpecSaveDto CaptureSpec(BuildSpec spec) => new()
@@ -1147,6 +1153,19 @@ public sealed class Factory : IGameView
                 ?? content.RequireConveyor("conveyor-basic");
             var dir = ParseDirection(cell.Direction);
             var items = cell.Items.Select(RestoreItem).ToList();
+            // A pack (more than one piece) only on a stack conveyor, never over its size; the wait only below its end.
+            var packSize = def.Kind == LogisticsKind.Stack ? BeltGrid.StackPackSize : 1;
+            if (items.Any(i => i.Count < 1 || i.Count > packSize))
+            {
+                throw new InvalidDataException($"Pacco non valido sul nastro {cell.X},{cell.Y}.");
+            }
+
+            if (cell.StackWaitTicks is { } wait
+                && (def.Kind != LogisticsKind.Stack || wait < 0 || wait >= BeltGrid.StackWaitTicks))
+            {
+                throw new InvalidDataException($"Attesa del pacco non valida sul nastro {cell.X},{cell.Y}: {wait}.");
+            }
+
             GridPosition? partner = null;
             if (cell.BridgePartnerX is { } bx && cell.BridgePartnerY is { } by)
             {
@@ -1183,6 +1202,11 @@ public sealed class Factory : IGameView
                 }
 
                 belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreSorter(cell.SorterTurns ?? 0);
+            }
+
+            if (def.Kind == LogisticsKind.Stack)
+            {
+                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreStackWait(cell.StackWaitTicks ?? 0);
             }
         }
 
@@ -1619,6 +1643,11 @@ public sealed class Factory : IGameView
         var replaced = d.Replaced is { } r
             ? new ReplacedBelt(RestoreSpec(r.Spec), r.Items.Select(RestoreItem).ToList())
             : null;
+        if (replaced is not null && replaced.Items.Any(i => i.Count != 1))
+        {
+            throw new InvalidDataException("Pacco su un nastro sostituito."); // only plain belts are replaced
+        }
+
         var badReplaced = replaced is not null && !IsReplaceableBelt(replaced.Spec, spec.Origin);
         if (tiles is null || tiles.Any(TerrainBlocks) || tooWeak || badReplaced)
         {

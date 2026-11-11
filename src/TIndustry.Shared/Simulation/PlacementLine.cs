@@ -61,7 +61,8 @@ public static class PlacementLine
     /// gates make a line facing the next cell (routers, sorters and gates have no direction: they face North) (the last one: the plain belt it ends on, else the line's way; a lone cell: the
     /// brush); every other block is one cell on the anchor facing the drag. A plain belt inside the line over a
     /// perpendicular belt is a crossing; a belt whose last cell touches the Core faces it. A straight belt line jumps a
-    /// run of walls, deep water or buildings with a bridge when it can (<see cref="Bridge"/>). Ctrl
+    /// run of walls, deep water or buildings with a bridge when it can (<see cref="Bridge"/>). A stack conveyor's line
+    /// never crosses nor bridges (its packs pass only between stack cells). Ctrl
     /// (<see cref="LineShape.Diagonal"/>, belts) follows the chain between anchor and cursor (<see cref="Chain"/>), else
     /// the A* path (<see cref="Path"/>), else the straight line.
     /// </summary>
@@ -71,6 +72,8 @@ public static class PlacementLine
         ArgumentNullException.ThrowIfNull(request);
         var kind = BuildSpec.KindFor(request.StructureId);
         var belt = kind is null;
+        // A stack conveyor's line must stay whole (packs pass only between stack cells): no crossing, no bridge.
+        var stack = belt && view.Content.FindConveyor(request.StructureId)?.Kind == LogisticsKind.Stack;
         var inLine = belt
             || kind is BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted
                 or BuildingKind.OverflowGate or BuildingKind.UnderflowGate;
@@ -113,6 +116,7 @@ public static class PlacementLine
             }
 
             var crossing = belt
+                && !stack
                 && BeltLine.IsInterior(previous, cell, next, direction)
                 && BeltLine.MayCross(view, cell, direction);
             SimCommand command = belt
@@ -121,7 +125,7 @@ public static class PlacementLine
             placements.Add(new LinePlacement(cell, direction, command, Foreseen(view, command, crossing)));
         }
 
-        if (belt && dragged && chain is null && path is null
+        if (belt && !stack && dragged && chain is null && path is null
             && (!request.FixedDirection || request.Brush == lineWay)
             && view.IsStructureUnlocked(BridgeId))
         {

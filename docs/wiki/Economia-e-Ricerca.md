@@ -123,7 +123,8 @@ Sbloccare costa **soldi e materiali**, presi dal CORE; poi il blocco compare nel
 | Nastro ponte (`conveyor-bridge`) | Logistica | Incrocio | $91.000, 63 Ferro grezzo, 63 Piombo grezzo |
 | Nastro T2 (`conveyor-fast`) | Logistica | Nastro T1 | $73.000, 24 Ferro grezzo, 24 Piombo grezzo, 24 Titanio grezzo |
 | Nastro rinforzato (`conveyor-armored`) | Logistica | Nastro T2 | $1.300.000, 32 Ferro grezzo, 32 Piombo grezzo, 40 Titanio grezzo, 32 Grafite |
-| Nastro T3 (`conveyor-express`) | Logistica | Nastro T2 | $1.500.000, 32 Titanio grezzo, 32 Silicio, 32 Grafite |
+| Nastro T3 (`conveyor-express`) | Logistica | Nastro T2 | $1.300.000, 32 Titanio grezzo, 32 Silicio, 32 Grafite |
+| Nastro a pacchi (`conveyor-stack`) | Logistica | Nastro T3 | $1.400.000, 48 Plastica, 48 Silicio, 48 Grafite |
 | Contenitore (`container`) | Logistica | Incrocio | $110.000, 60 Lastre di ferro, 30 Lastre di piombo |
 | Deposito (`vault`) | Logistica | Contenitore | $1.500.000, 80 Lastre di titanio |
 | CORE foundation (`core-foundation`) | CORE | CORE | $1.500.000, 800 Lastre di ferro, 400 Fili di rame |

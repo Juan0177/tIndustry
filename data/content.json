@@ -288,7 +288,7 @@
         }
       ],
       "unlock": {
-        "money": 1500000,
+        "money": 1300000,
         "materials": [
           {
             "itemId": "titanium-ore",
@@ -354,6 +354,46 @@
       },
       "kind": "belt",
       "armored": true
+    },
+    {
+      "id": "conveyor-stack",
+      "tier": 4,
+      "rateItemsPerSecond": 21.6,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "plastic",
+          "amount": 1
+        },
+        {
+          "itemId": "silicon",
+          "amount": 1
+        },
+        {
+          "itemId": "graphite",
+          "amount": 1
+        }
+      ],
+      "unlock": {
+        "money": 1400000,
+        "materials": [
+          {
+            "itemId": "plastic",
+            "amount": 48
+          },
+          {
+            "itemId": "silicon",
+            "amount": 48
+          },
+          {
+            "itemId": "graphite",
+            "amount": 48
+          }
+        ]
+      },
+      "kind": "stack"
     }
   ],
   "recipes": [
@@ -807,7 +847,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 1500000,
+        "money": 1300000,
         "materials": [
           {
             "itemId": "titanium-ore",
@@ -857,6 +897,33 @@
       "isStub": false,
       "prerequisites": [
         "conveyor-fast"
+      ]
+    },
+    {
+      "id": "conveyor-stack",
+      "displayName": "Nastro a pacchi",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 1400000,
+        "materials": [
+          {
+            "itemId": "plastic",
+            "amount": 48
+          },
+          {
+            "itemId": "silicon",
+            "amount": 48
+          },
+          {
+            "itemId": "graphite",
+            "amount": 48
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-express"
       ]
     },
     {

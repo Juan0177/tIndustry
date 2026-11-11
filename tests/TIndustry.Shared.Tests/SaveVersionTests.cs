@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v21: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
+/// <summary>Save format v22: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class SaveVersionTests
 {
@@ -133,16 +133,19 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion21()
+    public void SaveWritesVersion22()
     {
-        Assert.Equal(21, FactorySaveData.CurrentVersion);
-        Assert.Equal(21, FactorySaveData.MinReadableVersion);
+        Assert.Equal(22, FactorySaveData.CurrentVersion);
+        Assert.Equal(22, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v21-versione", host);
+        FactorySaveStore.Save("v22-versione", host);
 
-        Assert.Contains("\"version\": 21", File.ReadAllText(FactorySaveStore.SlotPath("v21-versione")));
+        Assert.Contains("\"version\": 22", File.ReadAllText(FactorySaveStore.SlotPath("v22-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":21", snapshot);
+        Assert.Contains("\"version\":22", snapshot);
+        // No pack on a stack conveyor, no pack keys (v22 adds them): a game without them keeps its snapshot.
+        Assert.DoesNotContain("\"count\"", snapshot, StringComparison.Ordinal);
+        Assert.DoesNotContain("stackWaitTicks", snapshot, StringComparison.Ordinal);
         // No new machine, no machine key (v21 adds them): a game without them keeps its snapshot.
         Assert.DoesNotContain("\"machines\"", snapshot, StringComparison.Ordinal);
         // No screen, no screen key (v20 adds the watched item and the last result to it).

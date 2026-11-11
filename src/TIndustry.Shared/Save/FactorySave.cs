@@ -4,7 +4,9 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 21: the machines of the
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 22: the stack conveyor's
+/// packs (<see cref="ItemSaveDto.Count"/>) and the wait of the pack being formed (<see cref="BeltSaveDto.StackWaitTicks"/>);
+/// since 21 the machines of the
 /// wider research (<see cref="Machines"/>: advanced smelter, graphite press, separator, plasticizer, each with its
 /// <see cref="CraftSaveDto.DefinitionId"/>), the impact drill among the <see cref="Miners"/> (by its
 /// <see cref="MinerSaveDto.DefinitionId"/>) and each miner's covered cells (<see cref="MinerSaveDto.CoveredDepositTiles"/>);
@@ -21,10 +23,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 21;
+    public const int CurrentVersion = 22;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 21;
+    public const int MinReadableVersion = 22;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -427,6 +429,12 @@ public sealed class BeltSaveDto
     /// <summary>Sorter: the four turn bits, one per direction of travel (<see cref="BeltGridCell.SorterTurns"/>); null = 0.</summary>
     public int? SorterTurns { get; set; }
 
+    /// <summary>
+    /// Stack conveyor: ticks the pack being formed on the loading cell has waited (<see cref="BeltGridCell.StackWaitTicks"/>,
+    /// below <see cref="BeltGrid.StackWaitTicks"/>); null = 0, and on other cells.
+    /// </summary>
+    public int? StackWaitTicks { get; set; }
+
     public List<ItemSaveDto> Items { get; set; } = [];
 }
 
@@ -434,6 +442,10 @@ public sealed class ItemSaveDto
 {
     public long Id { get; set; }
     public string ItemId { get; set; } = "";
+
+    /// <summary>Pieces of a stack conveyor's pack (<see cref="TransportedItem.Count"/>, 2 to <see cref="BeltGrid.StackPackSize"/>); null = 1.</summary>
+    public int? Count { get; set; }
+
     public float Progress { get; set; }
     public string? Travel { get; set; }
 

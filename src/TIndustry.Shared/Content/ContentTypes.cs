@@ -15,7 +15,13 @@ public enum LogisticsKind
     Sorter,
 
     /// <summary>Overflow gate (Mindustry's), or the underflow gate when <see cref="ConveyorDefinition.Inverted"/>.</summary>
-    Gate
+    Gate,
+
+    /// <summary>
+    /// Stack conveyor (Mindustry's plastanium conveyor): the first cell of a line packs items, the others carry packs, the
+    /// last one unloads them into a building or the Core (<see cref="BeltGrid.StackPackSize"/>).
+    /// </summary>
+    Stack
 }
 
 /// <summary>

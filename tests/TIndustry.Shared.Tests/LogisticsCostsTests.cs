@@ -26,6 +26,7 @@ public sealed class LogisticsCostsTests
     [InlineData("conveyor-basic", "iron-ore:1")]
     [InlineData("conveyor-fast", "iron-ore:1,lead-ore:1,titanium-ore:1")]
     [InlineData("conveyor-express", "titanium-ore:1,silicon:1,graphite:1")]
+    [InlineData("conveyor-stack", "plastic:1,silicon:1,graphite:1")]
     [InlineData("conveyor-armored", "iron-ore:1,lead-ore:1,titanium-ore:2,graphite:1")]
     [InlineData("junction", "iron-ore:3")]
     [InlineData("router", "iron-ore:3")]
@@ -41,7 +42,8 @@ public sealed class LogisticsCostsTests
 
     [Theory]
     [InlineData("conveyor-fast", 73_000, "iron-ore:24,lead-ore:24,titanium-ore:24")]
-    [InlineData("conveyor-express", 1_500_000, "titanium-ore:32,silicon:32,graphite:32")]
+    [InlineData("conveyor-express", 1_300_000, "titanium-ore:32,silicon:32,graphite:32")]
+    [InlineData("conveyor-stack", 1_400_000, "plastic:48,silicon:48,graphite:48")]
     [InlineData("conveyor-armored", 1_300_000, "iron-ore:32,lead-ore:32,titanium-ore:40,graphite:32")]
     [InlineData("junction", 6_900, "iron-ore:26")]
     [InlineData("router", 9_700, "iron-ore:26")]
@@ -64,6 +66,7 @@ public sealed class LogisticsCostsTests
     [InlineData("conveyor-fast", 4.8f, 3, 0.4f, 12f)]
     [InlineData("conveyor-armored", 4.8f, 3, 0.4f, 12f)]
     [InlineData("conveyor-express", 7.2f, 3, 0.4f, 18f)]
+    [InlineData("conveyor-stack", 21.6f, 1, 1f, 21.6f)] // packs per second, up to 10 pieces each
     [InlineData("junction", 18f, 6, 1f, 18f)]
     [InlineData("router", 8f, 1, 1f, 8f)]
     [InlineData("sorter", 8f, 1, 1f, 8f)]

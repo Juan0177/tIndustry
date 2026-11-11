@@ -136,7 +136,8 @@ public sealed record AgentGameSetup(
 public sealed class AgentJournal
 {
     /// <summary>
-    /// Version of the journal file: 7 since the wider research (save v21: <c>piazza</c> of the advanced smelter, graphite
+    /// Version of the journal file: 8 since the stack conveyor (save v22: a journal may start from a snapshot, and v21
+    /// snapshots are not readable); 7 since the wider research (save v21: <c>piazza</c> of the advanced smelter, graphite
     /// press, separator, plasticizer and impact drill, miners digging sand from the floor, circuits behind research);
     /// 6 since the stock-exchange screen (save v20: <c>piazza market-screen</c>, <c>filtro</c>
     /// on the screen and "sell all" jackpot attempts only with it); 5 since the drone flown by its player (save v19: plans out of range wait for the
@@ -145,7 +146,7 @@ public sealed class AgentJournal
     /// (<c>giornoNotte</c>, before a <c>notte</c> flag); 2 was the 3×3 shard, 1 the 2×2 Core on another map. Older
     /// journals are refused rather than replayed.
     /// </summary>
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     private readonly List<AgentJournalEntry> entries = [];
 

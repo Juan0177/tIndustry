@@ -45,7 +45,8 @@ public partial class Hud : Control
         Plasticizer,
         ImpactDrill,
         OverflowGate,
-        UnderflowGate
+        UnderflowGate,
+        BeltStack
     }
 
     internal enum BuildCategory
@@ -422,6 +423,7 @@ public partial class Hud : Control
         ToolKind.BeltFast => "conveyor-fast",
         ToolKind.BeltExpress => "conveyor-express",
         ToolKind.BeltArmored => "conveyor-armored",
+        ToolKind.BeltStack => "conveyor-stack",
         ToolKind.Miner => "miner",
         ToolKind.MinerAdvanced => "miner-advanced",
         ToolKind.Smelter => "smelter",

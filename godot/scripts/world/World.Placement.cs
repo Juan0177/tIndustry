@@ -11,7 +11,7 @@ public partial class World
 
     /// <summary>The tools that lay belts: the client's one list of them.</summary>
     private static bool IsBelt(BuildTool tool) =>
-        tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress or BuildTool.BeltArmored;
+        tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress or BuildTool.BeltArmored or BuildTool.BeltStack;
 
     /// <summary>Tools whose block faces a way (R, the drag).</summary>
     private static bool IsOrientable(BuildTool tool) =>
