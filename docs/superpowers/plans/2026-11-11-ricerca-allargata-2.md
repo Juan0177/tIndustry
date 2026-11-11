@@ -10,7 +10,7 @@
 
 **Specifica:** [`docs/superpowers/specs/2026-11-09-ricerca-allargata-design.md`](../specs/2026-11-09-ricerca-allargata-design.md) (sezioni «Logistica» ed «Energia», e la parte di Ricerca, salvataggi, agenti e client).
 
-**Briefing tecnico:** `.superpowers/sdd/2026-11-11-ricerca-allargata-2/briefing.md` (griglia dei nastri, selezionatore, ponte, corrente, client) e i punti da toccare del piano 1 (`.superpowers/sdd/2026-11-11-ricerca-allargata-1/touchpoints.md`).
+**Briefing tecnico:** `.superpowers/sdd/2026-11-11-ricerca-allargata-2/briefing.md` (griglia dei nastri, selezionatore, ponte, corrente, client) e i punti da toccare del piano 1 (`.superpowers/sdd/2026-11-11-ricerca-allargata-2/touchpoints.md`).
 
 ## Vincoli globali
 
